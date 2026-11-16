@@ -17,7 +17,8 @@ defined( 'ABSPATH' ) || exit;
  * - POST /backups/<file>/send                «Enviar a un destino» un respaldo de la lista sin copia remota (`destination`,
  *                                           `network`): 200 con el resultado, 202 con el trabajo si sigue
  * - POST /backups/<file>/register            «Agregar al listado»: un archivo del almacén sin fila pasa a la lista
- *                                           («Subido») tras la validación de archivo no confiable (`secret` en el cuerpo)
+ *                                           («Agregado») tras la validación de archivo no confiable (`confirm`:
+ *                                           AGREGAR SIN FIRMA, `network`; `secret` en el cuerpo)
  * - GET  /destinations                       destinos remotos y su estado (sin secretos)
  * - POST /destinations/<id>/test             «Probar conexión» de una conexión guardada
  * - GET|POST /backups/<archivo>/verify      integridad sin tocar el sitio (`secret` sólo en el cuerpo de un POST)
@@ -134,7 +135,7 @@ final class Digitalisimo_Backups_Rest {
 			) + $parts ),
 		) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/fetch', array( $route( 'POST', 'fetch', array( 'network' => $network ) ) ) );
-		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/register', array( $route( 'POST', 'register_backup', array( 'secret' => $secret ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/register', array( $route( 'POST', 'register_backup', array( 'secret' => $secret, 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'AGREGAR SIN FIRMA: no se sabe quién puso el archivo en el almacén (AGREGAR basta si está firmado con una clave de este sitio).' ), 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/send', array( $route( 'POST', 'send', array( 'destination' => array( 'type' => 'string', 'required' => true, 'description' => 'Destino remoto conectado (ver GET /destinations).' ), 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/destinations', array( $route( 'GET', 'destinations' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/destinations/(?P<id>[a-z0-9]+(?:-[a-f0-9]{8})?)/test', array( $route( 'POST', 'test_destination' ) ) );
@@ -261,7 +262,7 @@ final class Digitalisimo_Backups_Rest {
 	public static function register_backup( $request ) {
 		$secret = self::secret( $request );
 		if ( is_wp_error( $secret ) ) return $secret;
-		return self::respond( Digitalisimo_Backups::service_register( (string) $request['file'], array( 'secret' => $secret, 'via' => 'rest' ) ), 201 );
+		return self::respond( Digitalisimo_Backups::service_register( (string) $request['file'], array( 'secret' => $secret, 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'via' => 'rest' ) ), 201 );
 	}
 	/** Destinos remotos y su estado (sin valores secretos). */
 	public static function destinations( $request ) { return self::respond( Digitalisimo_Backups::service_destinations() ); }

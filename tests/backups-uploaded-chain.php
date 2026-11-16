@@ -9,8 +9,8 @@
  *       el sitio exactamente como en ese punto; la verificación reconstruye la cadena y pide RESTAURAR;
  *   C3  borrar la base de la que dependen los puntos subidos se niega;
  *   C4  un eslabón que cambia en el almacén después de subirse rompe la cadena (su SHA-256 no es el de su fila);
- *   C5  si un eslabón no se subió (está suelto, sin su fila «Subido»), la cadena no hereda la confianza: pide RESTAURAR
- *       SIN FIRMA, como antes.
+ *   C5  un eslabón suelto (sin su fila «Subido» o «Agregado») no cuenta: la cadena queda incompleta hasta agregarlo a la
+ *       lista (M1 de la revisión); agregado, se restaura con RESTAURAR.
  *
  * Con el código anterior (1.0.77) el punto subido entraba «sin registro»: no estaba en la lista y pedía RESTAURAR SIN FIRMA.
  */
@@ -69,7 +69,7 @@ inc_case( 'C1 subido sin su cadena: en la lista como incremental, dice qué falt
 	inc_check( 'uploaded' === $row['origin'] && 'incremental' === $row['backup_type'] && 2 === (int) $row['chain']['sequence'] && array( $names['base'], $names['i1'] ) === array_column( $row['chain']['links'], 'file' ), 'La fila del punto subido no lleva su cadena: ' . json_encode( $row ) );
 	$summary = upc_summary( $names['i2'] );
 	inc_check( false === $summary['restorable'] && 2 === $summary['chain']['sequence'] && array( $names['base'], $names['i1'] ) === $summary['chain']['missing'], 'La lista no dice qué falta de la cadena del punto subido: ' . json_encode( $summary ) );
-	inc_check( false !== strpos( (string) bk_call( 'Digitalisimo_Backups', 'uploaded_blocked_text', $row ), 'súbelos con ese mismo nombre' ), 'La pantalla no dice qué hacer con la cadena que falta.' );
+	inc_check( false !== strpos( (string) bk_call( 'Digitalisimo_Backups', 'uploaded_blocked_text', $row ), 'Cadena incompleta' ), 'La pantalla no dice qué hacer con la cadena que falta.' );
 	$before = bk_tree();
 	foreach ( array( 'RESTAURAR', 'RESTAURAR SIN FIRMA' ) as $confirm ) {
 		$result = inc_restore( $names['i2'], $confirm );
@@ -107,14 +107,18 @@ inc_case( 'C4 un eslabón cambiado en el almacén después de subirse rompe la c
 	file_put_contents( $path, $bytes['i1'] );
 } );
 
-inc_case( 'C5 un eslabón suelto (no subido) no hereda la confianza: la cadena pide RESTAURAR SIN FIRMA', function() use ( $names, $B ) {
+inc_case( 'C5 un eslabón suelto (no subido ni agregado) no cuenta: la cadena queda incompleta hasta agregarlo a la lista', function() use ( $names, $B, $tree, $db ) {
 	$GLOBALS['bk_options'][ $B::HISTORY ] = array_values( array_filter( (array) $GLOBALS['bk_options'][ $B::HISTORY ], function( $row ) use ( $names ) { return $names['i1'] !== ( $row['file'] ?? '' ); } ) );
-	$result = inc_restore( $names['i2'], 'RESTAURAR' );
-	inc_check( is_wp_error( $result ) && 'digitalisimo_backups_confirm_unsigned' === $result->get_error_code(), 'Con un eslabón suelto, el punto subido no pidió RESTAURAR SIN FIRMA: ' . ( is_wp_error( $result ) ? $result->get_error_code() : 'aceptado' ) );
+	$summary = upc_summary( $names['i2'] );
+	inc_check( false === $summary['restorable'] && array( $names['i1'] ) === $summary['chain']['missing'], 'Con un eslabón suelto, el punto subido sigue restaurable: ' . json_encode( $summary['chain'] ) );
 	$result = inc_restore( $names['i2'], 'RESTAURAR SIN FIRMA' );
-	inc_check( ! is_wp_error( $result ) && inc_last_restore_ok(), 'Con RESTAURAR SIN FIRMA, el punto con un eslabón suelto no se restauró: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
+	inc_check( is_wp_error( $result ) && 'digitalisimo_backups_chain_incomplete' === $result->get_error_code(), 'Con un eslabón suelto, el punto subido empezó a restaurarse: ' . ( is_wp_error( $result ) ? $result->get_error_code() : 'aceptado' ) );
+	$added = Digitalisimo_Backups::service_register( $names['i1'], array( 'confirm' => 'AGREGAR SIN FIRMA' ) );
+	inc_check( ! is_wp_error( $added ) && true === upc_summary( $names['i2'] )['restorable'], 'Agregado a la lista, el eslabón no completó la cadena: ' . ( is_wp_error( $added ) ? $added->get_error_message() : '' ) );
+	$result = inc_restore( $names['i2'], 'RESTAURAR' );
+	inc_check( ! is_wp_error( $result ) && inc_last_restore_ok() && $tree === inc_files() && $db === inc_db(), 'Con la cadena agregada, el punto no se restauró con RESTAURAR: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
 } );
 
 bk_cleanup();
 if ( $failures ) { echo "FALLA: {$failures} caso(s) de la cadena subida.\n"; exit( 1 ); }
-echo "DIGITALÍSIMO Backups: un punto incremental subido queda en la lista con su cadena, dice qué le falta, se restaura con RESTAURAR cuando la cadena subida está completa y una cadena cambiada o con un eslabón suelto no hereda la confianza.\n";
+echo "DIGITALÍSIMO Backups: un punto incremental subido queda en la lista con su cadena, dice qué le falta, se restaura con RESTAURAR cuando la cadena subida está completa y una cadena cambiada o con un eslabón suelto no se restaura hasta completarla.\n";

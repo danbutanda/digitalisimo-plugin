@@ -136,7 +136,7 @@ final class Digitalisimo_Backups_Security {
 			if ( false === $checksum || ! hash_equals( (string) $item['sha256'], $checksum ) ) throw new Exception( 'El SHA-256 del respaldo ya no coincide con el archivo registrado.' );
 		}
 		$origin = (string) ( $item['origin'] ?? 'created' );
-		$provenance = ! empty( $item['sha256'] ) && ! in_array( $origin, array( 'imported', 'uploaded' ), true );
+		$provenance = ! empty( $item['sha256'] ) && ! in_array( $origin, array( 'imported', 'uploaded', 'added' ), true );
 		$report = array( 'source' => $path, 'path' => $path, 'container' => 'zip', 'trust' => 'untrusted', 'auth' => 'unsigned', 'key' => null, 'via' => '', 'staging' => '', 'zip' => null, 'root' => null, 'header' => null, 'vouched' => '' );
 		if ( Digitalisimo_Backups_Encrypted_File::is_encrypted( $path ) ) return self::open_encrypted( $path, (string) $secret, $report );
 		$zip = new ZipArchive();
@@ -153,7 +153,8 @@ final class Digitalisimo_Backups_Security {
 		elseif ( $provenance ) $report['trust'] = 'provenance';
 		// Subido y registrado con este mismo SHA-256 (comprobado arriba): sin firma sigue siendo no confiable para la
 		// validación, pero quien lo subió ya aceptó su origen.
-		if ( 'untrusted' === $report['trust'] && ! empty( $item['sha256'] ) && 'uploaded' === $origin ) $report['vouched'] = 'uploaded';
+		// «Agregar al listado» (`added`) pidió escribir AGREGAR SIN FIRMA: esa confirmación sustituye a la de restaurar.
+		if ( 'untrusted' === $report['trust'] && ! empty( $item['sha256'] ) && in_array( $origin, array( 'uploaded', 'added' ), true ) ) $report['vouched'] = 'uploaded';
 		return $report;
 	}
 	private static function open_encrypted( $path, $secret, $report ) {

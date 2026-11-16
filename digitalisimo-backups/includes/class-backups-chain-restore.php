@@ -344,7 +344,7 @@ final class Digitalisimo_Backups_Chain_Restore {
 
 	/** La fila «Subido» con ese nombre de archivo (y su SHA-256), o null. */
 	private static function uploaded_row( array $history, $file ) {
-		foreach ( $history as $row ) if ( is_array( $row ) && (string) ( $row['file'] ?? '' ) === (string) $file ) return 'uploaded' === (string) ( $row['origin'] ?? '' ) && ! empty( $row['sha256'] ) ? $row : null;
+		foreach ( $history as $row ) if ( is_array( $row ) && (string) ( $row['file'] ?? '' ) === (string) $file ) return in_array( (string) ( $row['origin'] ?? '' ), array( 'uploaded', 'added' ), true ) && ! empty( $row['sha256'] ) ? $row : null;
 		return null;
 	}
 	/** Un eslabón abierto como un respaldo: un ZIP con Security::open(), un DGBK descifrado en `$inner` (open_sealed()). */

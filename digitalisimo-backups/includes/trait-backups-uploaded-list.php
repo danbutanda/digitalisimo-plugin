@@ -6,10 +6,11 @@ defined( 'ABSPATH' ) || exit;
  *
  * Al cerrarse bien una subida (después de toda la validación de archivos no confiables de «Seguridad», que no cambia),
  * el archivo entra en el almacén **y** en el historial con una fila propia: fecha de creación (la del manifiesto), tamaño,
- * tipo (completo o punto incremental, con su cadena), su SHA-256 exacto y su origen (`origin` = `uploaded`, con el bloque
- * `upload`: cuándo se subió, por qué vía, de qué dirección viene y si se pudo comprobar que es de este mismo sitio).
- * Desde la lista se restaura (también por partes), se verifica, se descarga, se envía a un destino, se bloquea y se
- * borra como cualquier otro respaldo.
+ * tipo (completo o punto incremental, con su cadena), su SHA-256 exacto, la identidad de su manifiesto (`backup_id` y el
+ * SHA-256 de `manifest.json`) y su origen (`origin` = `uploaded`, con el bloque `upload`: cuándo se subió, por qué vía, de
+ * qué dirección viene, si está firmado con una clave de este sitio y si es de este mismo sitio). Desde la lista se
+ * restaura (también por partes), se verifica, se descarga, se envía a un destino, se bloquea y se borra como cualquier otro
+ * respaldo.
  *
  * Qué no cambia por estar en la lista (docs/BACKUPS.md, «Seguridad» → «Respaldos subidos»):
  * - Confianza: la fila no vuelve «de este sitio» al archivo. Sin una firma válida de una clave de este sitio sigue siendo
@@ -19,18 +20,34 @@ defined( 'ABSPATH' ) || exit;
  *   no coincide con el SHA-256 de su fila y se rechaza.
  * - Otro sitio: H23 (la configuración de Backups de aquí se conserva), «Conservar mi acceso» y la reubicación siguen
  *   tratándolo como de otra instalación (keep_config_same_installation()).
- * - Retención: ni la global ni la de una automatización lo cuentan ni lo borran; tampoco el tope del historial.
+ * - Retención: ni la global ni la de una automatización lo cuentan ni lo borran; el tope del historial no lo saca y
+ *   tampoco lo cuenta (nunca desplaza la fila de un respaldo hecho aquí).
+ * - Cadenas: un punto subido sin la firma de una clave de este sitio sólo depende de otras filas subidas o agregadas, y
+ *   sólo si son el eslabón que nombra (mismo `backup_id` y mismo SHA-256 de manifiesto): nunca fija ni bloquea un
+ *   respaldo hecho aquí (Digitalisimo_Backups_Chain::anchored_links()).
  * - «Respaldo reciente válido» (antes de actualizar): sólo si es de este mismo sitio con firma válida de su clave
  *   (`upload.same_site`).
+ * - Un `.dgbk` cifrado con una clave que este sitio no tiene no se registra sin su frase (su tipo y su cadena no se
+ *   saben): entra «sin registro» y se agrega a la lista al cerrar la subida o «Agregar al listado» con su frase.
  *
  * «Agregar al listado» (Herramientas → «Restaurar un archivo suelto», `POST /backups/<archivo>/register`,
  * `wp digitalisimo-backups register`) pasa a la lista, con la misma validación completa, un archivo «sin registro» que ya
- * estaba en el almacén (subido con 1.0.77 o antes, traído de un destino o copiado a mano).
+ * estaba en el almacén (subido con 1.0.77 o antes, traído de un destino o copiado a mano). Como no se sabe quién lo puso
+ * ahí, pide escribir AGREGAR SIN FIRMA si no lleva una firma válida de este sitio, y su fila dice «Agregado» (`origin` =
+ * `added`), no «Subido».
  */
 trait Digitalisimo_Backups_Uploaded_List {
-	/** Una fila del historial que entró por «Subir un respaldo» o «Agregar al listado». */
+	/** Una fila del historial que entró de fuera: «Subir un respaldo» (`uploaded`) o «Agregar al listado» (`added`). */
 	public static function is_uploaded_row( $row ) {
-		return is_array( $row ) && 'uploaded' === (string) ( $row['origin'] ?? '' );
+		return is_array( $row ) && in_array( (string) ( $row['origin'] ?? '' ), array( 'uploaded', 'added' ), true );
+	}
+	/** Una fila de «Agregar al listado»: un archivo del almacén de origen desconocido que alguien agregó a mano. */
+	public static function is_added_row( $row ) {
+		return is_array( $row ) && 'added' === (string) ( $row['origin'] ?? '' );
+	}
+	/** Un punto subido o agregado sin la firma de una clave de este sitio: su manifiesto (y su cadena) no son confiables. */
+	private static function uploaded_untrusted( $row ) {
+		return self::is_uploaded_row( $row ) && empty( $row['upload']['site_key'] );
 	}
 	/**
 	 * Fecha de la fila: la de creación que dice el respaldo (ISO 8601 del manifiesto o de la cabecera DGBK), en la hora
@@ -62,14 +79,16 @@ trait Digitalisimo_Backups_Uploaded_List {
 		return $scope === ( is_multisite() ? 'network' : 'installation' );
 	}
 	/**
-	 * Registra el respaldo subido `$path` (ya en el almacén, validado) con su SHA-256 `$checksum`. `$info` es el informe de
-	 * la validación (upload_inspect()) más `via`, `name` (el nombre con que se subió) y `user_id`. Arriba del historial,
-	 * como un respaldo recién hecho: es lo último que llegó al almacén. Devuelve la fila.
+	 * Registra el respaldo subido `$path` (ya en el almacén, validado y abierto entero: nunca un `.dgbk` sin su frase) con
+	 * su SHA-256 `$checksum`. `$info` es el informe de la validación (upload_inspect()) más `via`, `name` (el nombre con que
+	 * se subió), `user_id` y `origin` (`uploaded` o `added`). Arriba del historial, como un respaldo recién hecho: es lo
+	 * último que llegó al almacén. Devuelve la fila.
 	 */
 	private static function remember_uploaded( $path, $checksum, array $info ) {
 		$name = wp_basename( $path );
 		$row_info = is_array( $info['_row'] ?? null ) ? $info['_row'] : array();
 		$chain = is_array( $row_info['chain'] ?? null ) ? $row_info['chain'] : null;
+		$origin = 'added' === (string) ( $info['origin'] ?? '' ) ? 'added' : 'uploaded';
 		$row = array(
 			'date' => self::uploaded_date( (string) ( $info['created_at'] ?? '' ) ),
 			'file' => $name,
@@ -78,21 +97,25 @@ trait Digitalisimo_Backups_Uploaded_List {
 			'destination' => 'local',
 			'scope' => self::uploaded_scope( $info ),
 			'site_id' => (int) get_current_blog_id(),
-			'policy' => 'uploaded',
+			'policy' => $origin,
 			'backup_type' => $chain && (int) $chain['sequence'] > 0 ? 'incremental' : 'full',
 			'remote' => array(),
 			'locked' => false,
 		) + Digitalisimo_Backups_Security::describe( $path ) + array(
-			'origin' => 'uploaded',
+			'origin' => $origin,
 			'upload' => array(
 				'at' => current_time( 'mysql' ),
 				'via' => (string) ( $info['via'] ?? '' ),
 				'user_id' => (int) ( $info['user_id'] ?? 0 ),
 				'name' => (string) ( $info['name'] ?? '' ),
-				// De qué dirección viene (su manifiesto; un .dgbk sin su frase no lo dice hasta descifrarlo).
+				// De qué dirección viene (su manifiesto).
 				'home' => (string) ( $row_info['home'] ?? '' ),
 				'verified' => ! empty( $info['verified'] ),
 				'signature' => (string) ( $info['signature'] ?? '' ),
+				// La identidad de su manifiesto: con ella lo reconoce el punto incremental que lo nombra en su cadena.
+				'manifest_sha256' => (string) ( $row_info['manifest_sha256'] ?? '' ),
+				// Firmado con una clave del llavero de aquí: su manifiesto (y su cadena) son de este sitio.
+				'site_key' => ! empty( $row_info['site_key'] ),
 				// De este mismo sitio: firmado con una clave de su llavero y con su dirección, ruta y prefijo.
 				'same_site' => ! empty( $row_info['same_site'] ),
 				'problems' => array_values( array_map( 'strval', (array) ( $info['problems'] ?? array() ) ) ),
@@ -109,22 +132,45 @@ trait Digitalisimo_Backups_Uploaded_List {
 	}
 	/**
 	 * Lo que la fila necesita del paquete abierto en la validación (upload_inspect()): su cadena (si es un punto
-	 * incremental, como Digitalisimo_Backups_Chain_Restore::loose_item()), la dirección de origen, la etiqueta de un sitio
-	 * extraído y si es de este mismo sitio. Nunca lanza: lo que no se puede leer queda vacío.
+	 * incremental, como Digitalisimo_Backups_Chain_Restore::loose_item()), el SHA-256 de su manifiesto, la dirección de
+	 * origen, la etiqueta de un sitio extraído, si está firmado con una clave de aquí y si es de este mismo sitio. Nunca
+	 * lanza: lo que no se puede leer queda vacío.
 	 */
 	private static function uploaded_row_info( array $report, array $data, $relocation, array $problems ) {
-		$info = array( 'chain' => null, 'home' => '', 'extract' => '', 'same_site' => false );
+		$info = array( 'chain' => null, 'manifest_sha256' => '', 'home' => '', 'extract' => '', 'site_key' => false, 'same_site' => false );
 		try {
 			$loose = Digitalisimo_Backups_Chain_Restore::loose_item( $report['zip'], 'x' );
 			if ( is_array( $loose ) && is_array( $loose['chain'] ?? null ) ) $info['chain'] = $loose['chain'];
 		} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		try { $info['manifest_sha256'] = (string) Digitalisimo_Backups_Chain_Restore::manifest_sha( $report['zip'] ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		$info['home'] = is_array( $relocation ) && '' !== (string) ( $relocation['origin']['home'] ?? '' ) ? (string) $relocation['origin']['home'] : (string) ( $data['home_url'] ?? '' );
 		$info['extract'] = (string) ( $data['extract']['site']['label'] ?? '' );
-		// De este mismo sitio: firmado con una clave que este sitio tiene en su llavero (no basta una frase escrita: la
-		// clave tiene que ser de aquí) y sin nada que reubicar (misma dirección, ruta del servidor y prefijo de tablas).
+		// Firmado con una clave que este sitio tiene en su llavero (no basta una frase escrita: la clave tiene que ser de
+		// aquí). De este mismo sitio, además, sin nada que reubicar (misma dirección, ruta del servidor y prefijo).
 		$key_id = (string) ( $report['key']['id'] ?? '' );
-		$info['same_site'] = 'signed' === (string) $report['trust'] && '' !== $key_id && Digitalisimo_Backups_Keys::can_open( $key_id ) && ! $problems && is_array( $relocation ) && empty( $relocation['needed'] ) && empty( $relocation['problems'] );
+		$info['site_key'] = 'signed' === (string) $report['trust'] && '' !== $key_id && Digitalisimo_Backups_Keys::can_open( $key_id );
+		$info['same_site'] = $info['site_key'] && ! $problems && is_array( $relocation ) && empty( $relocation['needed'] ) && empty( $relocation['problems'] );
 		return $info;
+	}
+	/**
+	 * Si el eslabón `$link` de la cadena del punto subido `$item` está en la lista de verdad (M1 de la revisión): su fila
+	 * tiene su archivo en el almacén y es ese eslabón, comprobado por la identidad de su manifiesto (`backup_id` y SHA-256
+	 * de `manifest.json`, anotados al validarlo), no sólo por su nombre. Un punto sin la firma de una clave de este sitio
+	 * sólo se apoya en filas subidas o agregadas; uno firmado con ella (un incremental propio descargado y vuelto a subir),
+	 * también en la cadena registrada aquí.
+	 */
+	private static function uploaded_link_ok( array $item, array $link, array $history ) {
+		$trusted = ! self::uploaded_untrusted( $item );
+		$named = null;
+		foreach ( $history as $row ) if ( is_array( $row ) && (string) ( $row['file'] ?? '' ) === (string) $link['file'] ) { $named = $row; break; }
+		// Uno propio cuyo eslabón salió del historial: como sin historial, por su nombre (la restauración comprueba su manifiesto).
+		if ( ! $named ) return $trusted && '' !== self::local_copy( array( 'file' => (string) $link['file'] ) );
+		if ( '' === self::local_copy( $named ) ) return false;
+		$registered = Digitalisimo_Backups_Chain::link_row( $history, $link );
+		if ( $registered && ( $trusted || self::is_uploaded_row( $registered ) ) ) return true;
+		if ( ! self::is_uploaded_row( $named ) ) return false;
+		$sha = (string) ( $named['upload']['manifest_sha256'] ?? '' );
+		return '' !== $sha && hash_equals( (string) $link['manifest_sha256'], $sha ) && (string) ( $named['backup_id'] ?? '' ) === (string) $link['backup_id'];
 	}
 	/** Fila del historial con este contenido (SHA-256 y tamaño) cuyo archivo sigue en el almacén, o null. */
 	private static function history_same_content( $sha256, $size ) {
@@ -135,23 +181,26 @@ trait Digitalisimo_Backups_Uploaded_List {
 		}
 		return null;
 	}
-	/** Lo público de una fila subida (REST, WP-CLI y la pantalla): nunca la cuenta ni rutas. */
+	/** Lo público de una fila subida o agregada (REST, WP-CLI y la pantalla): nunca la cuenta ni rutas. */
 	private static function uploaded_summary( $row ) {
 		if ( ! self::is_uploaded_row( $row ) ) return null;
 		$upload = (array) ( $row['upload'] ?? array() );
 		return array(
+			'origin' => (string) $row['origin'],
+			'label' => self::is_added_row( $row ) ? 'Agregado' : 'Subido',
 			'at' => (string) ( $upload['at'] ?? '' ),
 			'via' => (string) ( $upload['via'] ?? '' ),
 			'name' => (string) ( $upload['name'] ?? '' ),
 			'home' => (string) ( $upload['home'] ?? '' ),
 			'verified' => ! empty( $upload['verified'] ),
+			'site_key' => ! empty( $upload['site_key'] ),
 			'same_site' => ! empty( $upload['same_site'] ),
 			'restorable_here' => self::uploaded_restorable_scope( (array) $row ),
 		);
 	}
 	/**
 	 * Por qué un respaldo subido (con su archivo en el almacén) no se restaura aquí: es de otro tipo de instalación (una
-	 * red en un sitio individual o al revés; un sitio extraído en una red) o le falta su cadena. '' si se restaura.
+	 * red en un sitio individual o al revés; un sitio extraído en una red) o su cadena está incompleta. '' si se restaura.
 	 */
 	private static function uploaded_blocked_text( array $row ) {
 		if ( ! self::uploaded_restorable_scope( $row ) ) {
@@ -161,16 +210,20 @@ trait Digitalisimo_Backups_Uploaded_List {
 		}
 		if ( Digitalisimo_Backups_Chain::is_incremental( $row ) ) {
 			$missing = array_keys( self::chain_missing( $row ) );
-			if ( $missing ) return 'Es un punto incremental y faltan en el almacén ' . count( $missing ) . ' archivos de su cadena (' . implode( ', ', array_slice( $missing, 0, 3 ) ) . ( count( $missing ) > 3 ? '…' : '' ) . '): súbelos con ese mismo nombre (o tráelos de su destino) y se podrá restaurar.';
+			if ( $missing ) return 'Cadena incompleta: es un punto incremental y faltan en la lista ' . count( $missing ) . ' archivos de su cadena (' . implode( ', ', array_slice( $missing, 0, 3 ) ) . ( count( $missing ) > 3 ? '…' : '' ) . '). ' . ( self::uploaded_untrusted( $row ) ? 'Súbelos o agrégalos a la lista con ese mismo nombre (un respaldo hecho aquí no cuenta: este punto no está firmado con una clave de este sitio)' : 'Súbelos con ese mismo nombre o tráelos de su destino' ) . ' y se podrá restaurar.';
 		}
 		return '';
 	}
-	/** Uno subido sin una firma válida de este sitio, con «Restaurar sólo respaldos firmados»: no se restaurará. */
+	/** Uno subido sin una firma válida de este sitio, con «Restaurar sólo respaldos firmados»: dice si se restaurará y cómo. */
 	private static function uploaded_signed_only_text( array $row ) {
 		if ( ! self::is_uploaded_row( $row ) || ! Digitalisimo_Backups_Security::settings()['require_signed'] ) return '';
 		if ( 'dgbk' === (string) ( $row['container'] ?? '' ) ) return '';
-		if ( 'signed' === (string) ( $row['upload']['signature'] ?? '' ) && Digitalisimo_Backups_Keys::can_open( (string) ( $row['key_id'] ?? '' ) ) ) return '';
-		return 'Este sitio sólo restaura respaldos firmados (Ajustes → Cifrado y firma) y este respaldo subido no tiene una firma válida de una clave de este sitio: no se restaurará.';
+		if ( 'signed' === (string) ( $row['upload']['signature'] ?? '' ) ) {
+			if ( Digitalisimo_Backups_Keys::can_open( (string) ( $row['key_id'] ?? '' ) ) ) return '';
+			// Firmado con una frase que se escribió al subirlo: con esa misma frase se comprueba su firma y se restaura.
+			return 'Este sitio sólo restaura respaldos firmados: este respaldo está firmado con la clave ' . Digitalisimo_Backups_Keys::short( (string) ( $row['key_id'] ?? '' ) ) . ', que este sitio no tiene; escribe su frase en «Opciones» al restaurarlo.';
+		}
+		return 'Este sitio sólo restaura respaldos firmados (Ajustes → Cifrado y firma) y este respaldo no tiene una firma válida de una clave de este sitio: no se restaurará.';
 	}
 	/* ------------------------------------------------------------------ «Agregar al listado» */
 
@@ -178,43 +231,56 @@ trait Digitalisimo_Backups_Uploaded_List {
 	public static function loose_name( $file ) {
 		return (bool) preg_match( '/^(?:digitalisimo-[A-Za-z0-9._-]+\.(?:zip|dgbk)|safety-before-restore-[A-Za-z0-9._-]+\.zip|' . preg_quote( Digitalisimo_Backups_Site_Extract::FILE_PREFIX, '/' ) . '[A-Za-z0-9._-]+\.(?:zip|dgbk))$/', (string) $file );
 	}
+	/** El aviso de «Agregar al listado»: el origen de un archivo suelto no se conoce. */
+	public static function register_warning() {
+		return 'No sabemos quién puso este archivo en el almacén: agrégalo sólo si sabes de dónde viene. Restaurarlo instala su código y sus datos.';
+	}
 	/**
 	 * «Agregar al listado»: un archivo «sin registro» que ya está en el almacén (subido con 1.0.77 o antes, traído de un
-	 * destino, importado de Backuply o copiado a mano) pasa a la lista con su fila «Subido», después de la misma validación
-	 * completa de archivos no confiables que la subida (upload_inspect()). Es el mismo acto de confianza que subirlo: una
-	 * cuenta con la capability (o WP-CLI) lo pide para ese archivo. Su SHA-256 se calcula antes de validarlo y el archivo
-	 * no puede cambiar mientras tanto (tamaño, fecha e inodo): la fila queda atada a los bytes validados. Si no pasa la
-	 * validación, el archivo sigue en el almacén como estaba (nunca se borra desde aquí). `secret`: la frase de un `.dgbk`
-	 * o de un ZIP firmado con una clave que este sitio no tiene, para comprobarlo entero ya.
+	 * destino, importado de Backuply o copiado a mano) pasa a la lista con su fila «Agregado» (`origin` = `added`), después
+	 * de la misma validación completa de archivos no confiables que la subida (upload_inspect()).
+	 * - Su origen no se conoce (M2 de la revisión): sin una firma válida de una clave de este sitio pide escribir
+	 *   AGREGAR SIN FIRMA (`confirm`), que sustituye a la frase de sin firma de la restauración; firmado con una clave de
+	 *   aquí basta AGREGAR.
+	 * - En una red escribe en el historial de la red: pide el alcance de red (`network`), como traer, enviar o restaurar.
+	 * - Atado a los bytes validados: el SHA-256 se calcula antes y después de la validación y tienen que coincidir.
+	 * - Un `.dgbk` con una clave que este sitio no tiene necesita su frase (`secret`): sin ella no se sabe su tipo ni su
+	 *   cadena y no se agrega.
+	 * Si no pasa la validación, el archivo sigue en el almacén como estaba (nunca se borra desde aquí).
 	 */
 	public static function service_register( $file, array $args = array() ) {
-		$allowed = self::service_scope( false, false );
+		$allowed = self::service_scope( ! empty( $args['network'] ), true );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		$confirm = strtoupper( trim( preg_replace( '/\s+/', ' ', (string) ( $args['confirm'] ?? '' ) ) ) );
+		if ( ! in_array( $confirm, array( 'AGREGAR', 'AGREGAR SIN FIRMA' ), true ) ) return self::service_error( 'register_confirm', self::register_warning() . ' Escribe AGREGAR SIN FIRMA para agregarlo a la lista.', 400 );
 		$name = sanitize_file_name( (string) $file );
 		if ( ! self::loose_name( $name ) ) return self::service_error( 'register_name', 'Ese archivo no es un respaldo del almacén.', 400 );
 		$path = self::service_local_file( $name );
 		if ( is_wp_error( $path ) ) return $path;
 		if ( self::history_item( $name ) ) return self::service_error( 'register_listed', 'Ese respaldo ya está en la lista de respaldos.', 409 );
 		if ( ! class_exists( 'ZipArchive' ) ) return self::service_error( 'zip', 'El servidor necesita la extensión PHP ZipArchive para comprobar el respaldo.', 500 );
+		$secret = is_string( $args['secret'] ?? null ) ? $args['secret'] : '';
 		// Descifrar un .dgbk usa la carpeta .staging/ del almacén, que una restauración también usa: con el bloqueo.
 		$lock = self::service_lock();
 		if ( is_wp_error( $lock ) ) return $lock;
 		if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
 		if ( function_exists( 'set_time_limit' ) ) @set_time_limit( 0 );
 		try {
-			$before = Digitalisimo_Backups_Backup_Job::fingerprint( $path );
 			$checksum = @hash_file( 'sha256', $path );
 			if ( false === $checksum ) return self::service_error( 'storage', 'No se pudo leer el respaldo en el almacén privado.', 500 );
-			$report = self::upload_inspect( $path, is_string( $args['secret'] ?? null ) ? $args['secret'] : '' );
+			$report = self::upload_inspect( $path, $secret );
 			if ( is_wp_error( $report ) ) {
 				$code = substr( $report->get_error_code(), strlen( 'digitalisimo_backups_' ) );
 				$code = 'upload_invalid' === $code ? 'register_invalid' : ( 'upload_checksum' === $code ? 'register_invalid' : $code );
 				return self::service_error( $code, self::register_text( $report->get_error_message() ), (int) ( $report->get_error_data()['status'] ?? 422 ) );
 			}
-			$after = Digitalisimo_Backups_Backup_Job::fingerprint( $path );
-			if ( $before !== $after ) return self::service_error( 'register_changed', 'El archivo cambió en el almacén mientras se comprobaba: no se agregó a la lista. Vuelve a intentarlo.', 409 );
+			if ( ! empty( $report['needs_secret'] ) ) return self::service_error( 'register_secret', 'Está cifrado con la clave ' . (string) $report['key'] . ', que este sitio no tiene: da su frase para agregarlo a la lista (sin ella no se sabe si es un respaldo completo o un punto incremental).', 400, array( 'key' => (string) $report['key'] ) );
+			$site_key = ! empty( $report['_row']['site_key'] );
+			if ( ! $site_key && 'AGREGAR SIN FIRMA' !== $confirm ) return self::service_error( 'register_confirm', 'Este archivo no tiene una firma válida de una clave de este sitio. ' . self::register_warning() . ' Escribe AGREGAR SIN FIRMA para agregarlo a la lista.', 400 );
+			// Los bytes validados son los que quedan atados a la fila: el SHA-256 de después tiene que ser el de antes.
+			if ( ! hash_equals( $checksum, (string) @hash_file( 'sha256', $path ) ) ) return self::service_error( 'register_changed', 'El archivo cambió en el almacén mientras se comprobaba: no se agregó a la lista. Vuelve a intentarlo.', 409 );
 			$via = (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) );
-			$info = $report + array( 'via' => $via, 'name' => $name, 'user_id' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 );
+			$info = $report + array( 'via' => $via, 'name' => $name, 'user_id' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0, 'origin' => 'added' );
 			$placed = Digitalisimo_Backups_Job_Store::with_lock( function() use ( $name, $path, $checksum, $info ) {
 				if ( self::history_item( $name ) ) return self::service_error( 'register_listed', 'Ese respaldo ya está en la lista de respaldos.', 409 );
 				$same = self::history_same_content( $checksum, (int) @filesize( $path ) );
@@ -227,7 +293,7 @@ trait Digitalisimo_Backups_Uploaded_List {
 			return array( 'file' => $name, 'size' => (int) $placed['size'], 'registered' => true, 'listed' => true, 'duplicate' => false, 'date' => (string) $placed['date'] ) + array_merge( $public, array(
 				'confirmation' => Digitalisimo_Backups_Security::confirmation_word( array( 'trust' => (string) ( $public['trust'] ?? 'untrusted' ), 'vouched' => $vouched ? 'uploaded' : '' ) ),
 				'vouched' => $vouched ? 'uploaded' : '',
-				'origin' => 'uploaded',
+				'origin' => 'added',
 				'restorable' => self::restorable_item( $placed ),
 				'uploaded' => self::uploaded_summary( $placed ),
 			) );
@@ -253,19 +319,20 @@ trait Digitalisimo_Backups_Uploaded_List {
 		check_admin_referer( self::ACTION_REGISTER_LOOSE );
 		if ( is_multisite() && ! is_main_site() ) self::redirect( false, 'Los archivos del almacén se gestionan desde el sitio principal o la administración de red.', null, 'tools' );
 		$secret = isset( $_POST['backup_secret'] ) && is_string( $_POST['backup_secret'] ) ? (string) wp_unslash( $_POST['backup_secret'] ) : '';
-		$result = self::service_register( wp_unslash( (string) ( $_POST['file'] ?? '' ) ), array( 'secret' => $secret, 'via' => 'admin-post' ) );
+		// En una red, esta pantalla es la de la red: el alcance de red va con el formulario, como «Restaurar».
+		$result = self::service_register( wp_unslash( (string) ( $_POST['file'] ?? '' ) ), array( 'secret' => $secret, 'confirm' => wp_unslash( (string) ( $_POST['confirmation'] ?? '' ) ), 'network' => is_multisite(), 'via' => 'admin-post' ) );
 		if ( is_wp_error( $result ) ) self::redirect( false, 'No se agregó a la lista: ' . $result->get_error_message() );
-		self::redirect( true, 'Agregado a la lista de respaldos («Subido»): ' . $result['file'] . '. Para restaurarlo escribe ' . $result['confirmation'] . ( ! empty( $result['needs_secret'] ) ? ' y su frase o su clave' : '' ) . '.' . ( $result['problems'] ? ' ' . implode( ' ', array_map( 'strval', (array) $result['problems'] ) ) : '' ), null, 'backups' );
+		self::redirect( true, 'Agregado a la lista de respaldos («Agregado»): ' . $result['file'] . '. Para restaurarlo escribe ' . $result['confirmation'] . '.' . ( $result['problems'] ? ' ' . implode( ' ', array_map( 'strval', (array) $result['problems'] ) ) : '' ), null, 'backups' );
 	}
-	/** «Subido el … desde …» para la lista y los detalles. */
+	/** «Subido el … desde …» (o «Agregado a mano el …») para la lista y los detalles. */
 	private static function uploaded_text( $row ) {
 		$upload = (array) ( ( (array) $row )['upload'] ?? array() );
 		$at = self::short_date( (string) ( $upload['at'] ?? '' ) );
 		$home = (string) ( $upload['home'] ?? '' );
-		$text = 'Subido' . ( '' !== $at ? ' el ' . $at : '' );
+		$text = ( self::is_added_row( $row ) ? 'Agregado a mano desde el almacén' : 'Subido' ) . ( '' !== $at ? ' el ' . $at : '' );
 		if ( ! empty( $upload['same_site'] ) ) $text .= ' · de este mismo sitio (firmado con su clave)';
 		elseif ( '' !== $home ) $text .= ' · de ' . $home;
-		elseif ( empty( $upload['verified'] ) ) $text .= ' · cifrado: su origen se sabe al restaurarlo con su frase';
+		if ( self::is_added_row( $row ) && empty( $upload['site_key'] ) ) $text .= ' · origen desconocido, sin firma de este sitio';
 		return $text;
 	}
 }

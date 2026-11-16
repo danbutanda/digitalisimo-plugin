@@ -163,7 +163,7 @@ final class Digitalisimo_Backups_Pre_Update {
 			$item = (array) $item;
 			if ( $scope !== (string) ( $item['scope'] ?? '' ) || 'full' !== (string) ( $item['backup_type'] ?? 'full' ) ) continue;
 			$origin = (string) ( $item['origin'] ?? 'created' );
-			$own_upload = 'uploaded' === $origin && ! empty( $item['upload']['same_site'] ) && ! empty( $item['signed'] );
+			$own_upload = in_array( $origin, array( 'uploaded', 'added' ), true ) && ! empty( $item['upload']['same_site'] ) && ! empty( $item['signed'] );
 			if ( ( 'created' !== $origin && ! $own_upload ) || 'pre-restore' === (string) ( $item['policy'] ?? '' ) ) continue;
 			// Los avisos `files_missing` y `files_changed` (una caché que desaparece o cambia durante el respaldo) no lo
 			// descalifican: es lo normal en un sitio con caché, y descartarlo repetiría respaldos completos sin fin (revisión N1).

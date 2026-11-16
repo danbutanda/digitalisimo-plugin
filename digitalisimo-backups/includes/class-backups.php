@@ -1729,15 +1729,18 @@ final class Digitalisimo_Backups {
 		$history = null === $history ? (array) get_option( self::HISTORY, array() ) : $history;
 		$missing = array();
 		$named = array();
-		$uploaded = self::is_uploaded_row( $item );
-		foreach ( $history as $other ) if ( is_array( $other ) ) $named[ (string) ( $other['file'] ?? '' ) ] = true;
+		foreach ( $history as $other ) if ( is_array( $other ) ) $named[ (string) ( $other['file'] ?? '' ) ] = $other;
 		foreach ( $chain['links'] as $link ) {
+			// Un punto subido o agregado: cada eslabón tiene que estar en la lista y ser ese eslabón (la identidad de su
+			// manifiesto), no sólo un archivo con su nombre; sin la firma de una clave de aquí, sólo filas subidas o
+			// agregadas (uploaded_link_ok(), M1 de la revisión).
+			if ( self::is_uploaded_row( $item ) ) {
+				if ( ! self::uploaded_link_ok( $item, $link, $history ) ) $missing[ (string) $link['file'] ] = $named[ (string) $link['file'] ] ?? null;
+				continue;
+			}
 			$row = Digitalisimo_Backups_Chain::link_row( $history, $link );
 			// Sin fila (salió del historial) pero con su archivo en el almacén: se comprueba por su manifiesto al restaurar.
 			if ( ! $row && ! isset( $named[ (string) $link['file'] ] ) && '' !== self::local_copy( array( 'file' => (string) $link['file'] ) ) ) continue;
-			// Un punto subido busca su cadena en el almacén por el nombre que le da su manifiesto (también los eslabones
-			// subidos, que llegan sin su bloque de cadena): la restauración los comprueba por sus manifiestos.
-			if ( ! $row && $uploaded && '' !== self::local_copy( array( 'file' => (string) $link['file'] ) ) ) continue;
 			if ( ! $row || '' === self::local_copy( $row ) ) $missing[ (string) $link['file'] ] = $row;
 		}
 		if ( '' === self::local_copy( $item ) ) $missing[ (string) $item['file'] ] = $item;
@@ -2303,25 +2306,32 @@ final class Digitalisimo_Backups {
 		} );
 	}
 	/**
-	 * Tope del historial: las 100 filas más recientes y, de las anteriores, las bloqueadas, las subidas (nadie las borra
-	 * salvo a mano: sin su fila volverían a ser «sin registro») y las de los eslabones de los que depende una fila que se
-	 * queda (Digitalisimo_Backups_Chain::pinned()): sin su fila, todos los puntos posteriores de esa cadena dejarían de
-	 * restaurarse. Una automatización incremental cabe entera (Conservar + un completo cada N ≤ 100).
+	 * Tope del historial: las 100 filas más recientes **de las de este sitio** y, de las anteriores, las bloqueadas y las de
+	 * los eslabones de los que depende una fila que se queda (Digitalisimo_Backups_Chain::pinned()): sin su fila, todos los
+	 * puntos posteriores de esa cadena dejarían de restaurarse. Una automatización incremental cabe entera (Conservar + un
+	 * completo cada N ≤ 100). Las filas subidas o agregadas van aparte (M3 de la revisión): no ocupan el tope, así que nunca
+	 * desplazan la fila de un respaldo hecho aquí (que, sin ella, quedaría «sin registro» y fuera de la retención), y no
+	 * salen nunca (nadie las borra salvo a mano: sin su fila volverían a ser «sin registro»). El orden no cambia.
 	 */
 	private static function history_cap( array $history ) {
-		$head = array_slice( $history, 0, 100 );
-		$tail = array_slice( $history, 100 );
+		$history = array_values( $history );
 		$keep = array();
-		foreach ( $tail as $index => $entry ) if ( ! empty( $entry['locked'] ) || self::is_uploaded_row( $entry ) ) $keep[ $index ] = true;
-		for ( $round = 0; $round < 100; $round++ ) {
+		$own = 0;
+		$tail = array();
+		foreach ( $history as $index => $entry ) {
+			if ( self::is_uploaded_row( $entry ) || $own++ < 100 ) $keep[ $index ] = true;
+			else $tail[ $index ] = $entry;
+		}
+		foreach ( $tail as $index => $entry ) if ( ! empty( $entry['locked'] ) ) $keep[ $index ] = true;
+		for ( $round = 0; $round < 100 && count( $keep ) < count( $history ); $round++ ) {
 			$remaining = array();
-			foreach ( array_merge( $head, array_intersect_key( $tail, $keep ) ) as $entry ) if ( is_array( $entry ) && '' !== (string) ( $entry['file'] ?? '' ) ) $remaining[ (string) $entry['file'] ] = true;
-			$pins = Digitalisimo_Backups_Chain::pinned( array_merge( $head, $tail ), $remaining );
+			foreach ( array_intersect_key( $history, $keep ) as $entry ) if ( is_array( $entry ) && '' !== (string) ( $entry['file'] ?? '' ) ) $remaining[ (string) $entry['file'] ] = true;
+			$pins = Digitalisimo_Backups_Chain::pinned( $history, $remaining );
 			$added = false;
 			foreach ( $tail as $index => $entry ) if ( ! isset( $keep[ $index ] ) && isset( $pins[ (string) ( $entry['file'] ?? '' ) ] ) ) { $keep[ $index ] = true; $added = true; }
 			if ( ! $added ) break;
 		}
-		return array_merge( $head, array_values( array_intersect_key( $tail, $keep ) ) );
+		return array_values( array_intersect_key( $history, $keep ) );
 	}
 	/**
 	 * Lee el historial de la base de datos, nunca de la caché de esta petición, lo cambia y lo guarda con el cerrojo corto
@@ -2579,13 +2589,21 @@ final class Digitalisimo_Backups {
 		echo self::restore_parts_field( '', false, '', true ) . '<p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form>';
 		echo '<script>document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("digitalisimo-backups-restore-file"),p=document.getElementById("digitalisimo-backups-relocation");if(!s||!p)return;var d=p.textContent;s.addEventListener("change",function(){var o=s.options[s.selectedIndex];p.textContent=o&&o.dataset.relocation?o.dataset.relocation:d})})</script>';
 		if ( $loose ) {
-			// Sin fila no cuentan para la retención (prune_locked()): se eliminan a mano, o se pasan a la lista.
-			echo '<h3>Archivos del almacén sin registro</h3><p class="description">Subidos con una versión anterior, traídos de un destino o copiados al almacén a mano. «Agregar al listado» los comprueba como archivo no confiable y los pasa a la lista de respaldos, marcados «Subido». La retención nunca los cuenta ni los borra: elimínalos aquí cuando ya no los necesites.</p><table class="widefat striped"><thead><tr><th>Archivo</th><th>Tamaño</th><th>Fecha</th><th></th></tr></thead><tbody>';
+			// Sin fila no cuentan para la retención (prune_locked()): se eliminan a mano, o se pasan a la lista escribiendo
+			// AGREGAR SIN FIRMA (no se sabe quién los puso en el almacén: M2 de la revisión).
+			echo '<h3>Archivos del almacén sin registro</h3><p class="description">Subidos con una versión anterior, traídos de un destino o copiados al almacén a mano. «Agregar al listado» los comprueba como archivo no confiable y los pasa a la lista de respaldos, marcados «Agregado». La retención nunca los cuenta ni los borra: elimínalos aquí cuando ya no los necesites.</p><p class="digitalisimo-backups-warning">' . esc_html( self::register_warning() ) . ' Para agregarlo escribe AGREGAR SIN FIRMA.</p><table class="widefat striped"><thead><tr><th>Archivo</th><th>Tamaño</th><th>Fecha</th><th></th></tr></thead><tbody>';
 			foreach ( array_slice( $loose, 0, 100 ) as $file ) {
 				$network_field = self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '';
-				echo '<tr><td>' . esc_html( $file ) . '</td><td>' . esc_html( size_format( (int) @filesize( $dir . $file ) ) ) . '</td><td>' . esc_html( gmdate( 'Y-m-d H:i', (int) @filemtime( $dir . $file ) ) ) . ' UTC</td><td><form class="digitalisimo-backups-inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+				$hint = self::relocation_hint( $dir . $file, $here );
+				// La frase sólo hace falta si su clave no está en el llavero de este sitio (o su cabecera no se lee).
+				$encrypted = false;
+				if ( Digitalisimo_Backups_Encrypted_File::is_encrypted( $dir . $file ) ) {
+					try { $encrypted = ! Digitalisimo_Backups_Keys::can_open( (string) Digitalisimo_Backups_Encrypted_File::read_header( $dir . $file )['header']['key']['id'] ); }
+					catch ( Exception $e ) { $encrypted = true; }
+				}
+				echo '<tr><td>' . esc_html( $file ) . ( '' !== $hint['label'] ? '<br><span class="description">' . esc_html( ltrim( $hint['label'], ' ·' ) ) . '</span>' : '' ) . esc_html( Digitalisimo_Backups_Security::restore_label( $dir . $file ) ) . '</td><td>' . esc_html( size_format( (int) @filesize( $dir . $file ) ) ) . '</td><td>' . esc_html( gmdate( 'Y-m-d H:i', (int) @filemtime( $dir . $file ) ) ) . ' UTC</td><td><form class="digitalisimo-backups-inline digitalisimo-backups-register" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 				wp_nonce_field( self::ACTION_REGISTER_LOOSE );
-				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_REGISTER_LOOSE ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '">' . self::return_field( 'tools', 'restore-file' ) . $network_field . '<button class="button button-small">Agregar al listado</button></form> <form class="digitalisimo-backups-inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Borrar este archivo del almacén?\')">';
+				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_REGISTER_LOOSE ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '">' . self::return_field( 'tools', 'restore-file' ) . $network_field . '<label><span class="screen-reader-text">Confirmación para agregar ' . esc_html( $file ) . '</span><input type="text" name="confirmation" placeholder="AGREGAR SIN FIRMA" autocomplete="off" required></label>' . ( $encrypted ? ' <label><span class="screen-reader-text">Frase o clave del respaldo</span><input type="password" name="backup_secret" value="" placeholder="Su frase" autocomplete="off" required></label>' : '' ) . ' <button class="button button-small">Agregar al listado</button></form> <form class="digitalisimo-backups-inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Borrar este archivo del almacén?\')">';
 				wp_nonce_field( self::ACTION_DELETE_LOOSE );
 				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE_LOOSE ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '">' . self::return_field( 'tools', 'restore-file' ) . $network_field . '<button class="button button-small">Borrar</button></form></td></tr>';
 			}

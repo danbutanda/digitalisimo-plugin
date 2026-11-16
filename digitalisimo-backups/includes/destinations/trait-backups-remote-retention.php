@@ -86,7 +86,7 @@ trait Digitalisimo_Backups_Remote_Retention {
 		$copy = self::remote_copy( $item );
 		if ( ! $copy || 'ok' !== $copy['state'] || empty( $copy['remote']['provider'] ) ) return false;
 		// Una fila importada o subida nunca cede su copia remota a la retención: no la registró el motor de esta instalación.
-		if ( in_array( (string) ( $item['origin'] ?? 'created' ), array( 'imported', 'uploaded' ), true ) || '' === (string) ( $item['job'] ?? '' ) ) return false;
+		if ( in_array( (string) ( $item['origin'] ?? 'created' ), array( 'imported', 'uploaded', 'added' ), true ) || '' === (string) ( $item['job'] ?? '' ) ) return false;
 		$row_sha = (string) ( $item['sha256'] ?? '' );
 		$remote_sha = (string) ( $copy['remote']['sha256'] ?? '' );
 		if ( ! preg_match( '/^[a-f0-9]{64}$/', $row_sha ) || ! hash_equals( $row_sha, $remote_sha ) ) return false;

@@ -301,12 +301,13 @@ trait Digitalisimo_Backups_Screen {
 		$uploaded = self::is_uploaded_row( $item );
 		// Por qué uno subido no se restaura aquí (otro tipo de instalación, o le falta su cadena en el almacén).
 		$blocked = $uploaded && $has_local && ! $restorable ? self::uploaded_blocked_text( $item ) : '';
+		$incomplete = '' !== $blocked && 0 === strpos( $blocked, 'Cadena incompleta' );
 		echo '<tr class="digitalisimo-backups-row" data-file="' . esc_attr( $file ) . '"><td data-label="Fecha"><strong>' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '</strong>';
 		$badges = array();
 		if ( ! empty( $item['locked'] ) ) $badges[] = '<span class="digitalisimo-backups-badge" title="La retención no lo borra">Bloqueado</span>';
-		// Subido: discreto, con de dónde viene en el título (y en «⋯»).
-		if ( $uploaded ) $badges[] = '<span class="digitalisimo-backups-badge is-uploaded" title="' . esc_attr( self::uploaded_text( $item ) ) . '">Subido</span>';
-		if ( '' !== $blocked ) $badges[] = '<span class="digitalisimo-backups-badge is-warning" title="' . esc_attr( $blocked ) . '">No se restaura aquí</span>';
+		// Subido o agregado a mano: discreto, con de dónde viene en el título (y en «⋯»).
+		if ( $uploaded ) $badges[] = '<span class="digitalisimo-backups-badge is-uploaded" title="' . esc_attr( self::uploaded_text( $item ) ) . '">' . ( self::is_added_row( $item ) ? 'Agregado' : 'Subido' ) . '</span>';
+		if ( '' !== $blocked ) $badges[] = '<span class="digitalisimo-backups-badge is-warning" title="' . esc_attr( $blocked ) . '">' . ( $incomplete ? 'Cadena incompleta' : 'No se restaura aquí' ) . '</span>';
 		// Incrementales: un punto de restauración completo que sólo guarda lo nuevo; su base, en «⋯».
 		if ( $chain && $chain['sequence'] > 0 ) $badges[] = '<span class="digitalisimo-backups-badge is-incremental" title="' . esc_attr( 'Punto de restauración completo: se reconstruye con su cadena (' . ( $chain['sequence'] + 1 ) . ' archivos)' ) . '">Incremental</span>';
 		if ( 'dgbk' === ( $item['container'] ?? '' ) ) $badges[] = Digitalisimo_Backups_Security::history_badge( $item );

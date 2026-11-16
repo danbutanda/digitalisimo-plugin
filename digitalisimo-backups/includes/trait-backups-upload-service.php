@@ -238,6 +238,10 @@ trait Digitalisimo_Backups_Upload_Service {
 	 * el cerrojo corto del almacén (nunca pisa un respaldo ni toma el nombre de una fila); antes de mover nada se anota en
 	 * la sesión lo que se va a hacer (`placing`), así que si el proceso muere a mitad, cerrarla otra vez lo termina sin
 	 * validar ni subir otra vez (upload_resume_placed()). Si ese contenido ya está en la lista, no se duplica.
+	 *
+	 * Un `.dgbk` con una clave que este sitio no tiene, cerrado sin su frase, entra en el almacén «sin registro» (M5 de la
+	 * revisión): sin descifrarlo no se sabe si es un respaldo completo o un punto incremental, ni su cadena. Se agrega a la
+	 * lista al cerrar la subida con su frase o con «Agregar al listado» y su frase.
 	 */
 	private static function upload_place( array $state, $path, array $report, array $args ) {
 		$checksum = @hash_file( 'sha256', $path );
@@ -248,15 +252,17 @@ trait Digitalisimo_Backups_Upload_Service {
 		$via = (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) );
 		$info = $report + array( 'via' => $via, 'name' => $name, 'user_id' => (int) ( $state['user_id'] ?? 0 ) );
 		$public = self::upload_public_result( $report );
-		$placed = Digitalisimo_Backups_Job_Store::with_lock( function() use ( &$state, $path, $storage, $name, $report, $checksum, $size, $info ) {
+		$loose = ! empty( $report['needs_secret'] );
+		$placed = Digitalisimo_Backups_Job_Store::with_lock( function() use ( &$state, $path, $storage, $name, $report, $checksum, $size, $info, $loose ) {
 			$same = self::history_same_content( $checksum, $size );
 			if ( $same ) return array( 'file' => (string) $same['file'], 'duplicate' => true, 'row' => $same );
 			$file = self::upload_final_name( $name, $report['container'] );
-			$state['placing'] = array( 'file' => $file, 'sha256' => $checksum, 'info' => self::upload_row_input( $info ) );
+			$state['placing'] = array( 'file' => $file, 'sha256' => $checksum, 'info' => self::upload_row_input( $info ), 'loose' => $loose );
 			$state['updated_at'] = time();
 			Digitalisimo_Backups_Uploads::write( $state );
 			if ( ! @rename( $path, $storage . $file ) ) throw new Exception( 'No se pudo mover el respaldo subido al almacén privado.' );
 			self::private_file( $storage . $file );
+			if ( $loose ) return array( 'file' => $file, 'duplicate' => false, 'row' => array(), 'loose' => true );
 			try {
 				$row = self::remember_uploaded( $storage . $file, $checksum, $info );
 			} catch ( Throwable $e ) {
@@ -271,23 +277,32 @@ trait Digitalisimo_Backups_Upload_Service {
 	}
 	/** Lo de la validación que la fila necesita, guardado en la sesión mientras se coloca (sin el ZIP abierto). */
 	private static function upload_row_input( array $info ) {
-		return array_intersect_key( $info, array_flip( array( 'container', 'verified', 'trust', 'signature', 'key', 'compatible', 'problems', 'scope', 'multisite', 'created_at', 'via', 'name', 'user_id', '_row' ) ) );
+		return array_intersect_key( $info, array_flip( array( 'container', 'verified', 'needs_secret', 'trust', 'signature', 'key', 'compatible', 'problems', 'scope', 'multisite', 'created_at', 'via', 'name', 'user_id', '_row' ) ) );
 	}
 	/** El informe de la validación sin lo interno de la fila. */
 	private static function upload_public_result( array $report ) {
 		unset( $report['_row'] );
 		return $report;
 	}
-	/** Cierra la sesión con su resultado: el archivo, que está en la lista y qué confirmación pide. */
+	/**
+	 * Cierra la sesión con su resultado: el archivo, si está en la lista y qué confirmación pide. Si ese contenido ya
+	 * estaba en la lista (`duplicate`), la confianza y la palabra son las de esa fila (B1 de la revisión): un respaldo
+	 * hecho aquí con su SHA-256 es «registrado en este sitio» y se restaura con RESTAURAR, no con la frase de sin firma.
+	 */
 	private static function upload_done( array $state, array $placed, array $public, $size ) {
 		$row = (array) $placed['row'];
-		$vouched = self::is_uploaded_row( $row ) && 'untrusted' === ( $public['trust'] ?? 'untrusted' );
-		$result = array( 'file' => (string) $placed['file'], 'size' => (int) $size, 'registered' => true, 'listed' => true, 'duplicate' => ! empty( $placed['duplicate'] ), 'date' => (string) ( $row['date'] ?? '' ) ) + $public;
-		$result['confirmation'] = Digitalisimo_Backups_Security::confirmation_word( array( 'trust' => (string) ( $public['trust'] ?? 'untrusted' ), 'vouched' => $vouched ? 'uploaded' : '' ) );
+		$loose = ! empty( $placed['loose'] );
+		$trust = (string) ( $public['trust'] ?? 'untrusted' );
+		if ( ! empty( $placed['duplicate'] ) && 'untrusted' === $trust && ! empty( $row['sha256'] ) && ! self::is_uploaded_row( $row ) && 'imported' !== (string) ( $row['origin'] ?? 'created' ) ) $trust = 'provenance';
+		$vouched = self::is_uploaded_row( $row ) && 'untrusted' === $trust;
+		$result = array( 'file' => (string) $placed['file'], 'size' => (int) $size, 'registered' => ! $loose, 'listed' => ! $loose, 'duplicate' => ! empty( $placed['duplicate'] ), 'date' => (string) ( $row['date'] ?? '' ) ) + $public;
+		$result['trust'] = $trust;
+		$result['confirmation'] = Digitalisimo_Backups_Security::confirmation_word( array( 'trust' => $trust, 'vouched' => $vouched ? 'uploaded' : '' ) );
 		$result['vouched'] = $vouched ? 'uploaded' : '';
-		$result['origin'] = (string) ( $row['origin'] ?? 'created' );
-		$result['restorable'] = self::restorable_item( $row );
-		$result['uploaded'] = self::uploaded_summary( $row );
+		$result['origin'] = $loose ? '' : (string) ( $row['origin'] ?? 'created' );
+		$result['restorable'] = $loose ? false : self::restorable_item( $row );
+		$result['uploaded'] = $loose ? null : self::uploaded_summary( $row );
+		if ( $loose ) $result['problems'] = array( 'Está cifrado con la clave ' . (string) ( $public['key'] ?? '' ) . ', que este sitio no tiene: quedó en el almacén «sin registro». Da su frase para agregarlo a la lista (vuelve a subirlo escribiéndola, o «Agregar al listado» con ella en Herramientas → «Restaurar un archivo suelto»); también se restaura desde ahí con su frase.' );
 		unset( $state['placing'] );
 		$state['phase'] = 'done';
 		$state['result'] = $result;
@@ -320,6 +335,7 @@ trait Digitalisimo_Backups_Upload_Service {
 			return self::service_error( 'upload_missing', $state['error']['message'], 404 );
 		}
 		$info = (array) ( $placing['info'] ?? array() );
+		if ( ! empty( $placing['loose'] ) ) return self::upload_done( $state, array( 'file' => $file, 'duplicate' => false, 'row' => array(), 'loose' => true ), self::upload_public_result( $info ), (int) $state['size'] );
 		$row = Digitalisimo_Backups_Job_Store::with_lock( function() use ( $file, $path, $placing, $info ) {
 			$row = self::history_item( $file );
 			return $row ? $row : self::remember_uploaded( $path, (string) $placing['sha256'], $info );

@@ -252,6 +252,45 @@ Digitalisimo_Backups::download();' );
 	// Uno hecho aquí también se envía (la misma acción en las dos superficies: REST y WP-CLI).
 	list( $code, $out ) = digi_wp( 'digitalisimo-backups destinations', 'send', array( $own['file'] ), array( 'to' => 'google' ) );
 	digi_assert( 0 === $code && 'ok' === $row_of( $own['file'] )['transfer'], 'wp … destinations send no envió un respaldo hecho aquí: ' . implode( "\n", $out ) );
+	// M4 de la revisión: cancelar «Enviar a un destino» en cualquier fase deja la fila como estaba y se puede volver a enviar.
+	list( , $send_bytes ) = $fresh();
+	list( , $to_send ) = $upload( 'digitalisimo-backup-para-enviar.zip', $send_bytes );
+	$to_send = $to_send['file'];
+	$plain = function( $file ) use ( $row_of ) { return array_intersect_key( (array) $row_of( $file ), array_flip( array( 'transfer', 'transfer_destination', 'transfer_error', 'transfer_job', 'remote' ) ) ); };
+	$before = $plain( $to_send );
+	foreach ( array( 'preflight', 'deliver' ) as $phase ) {
+		Digitalisimo_Backups_Jobs::$phase_runner = function( $now, $job ) use ( $phase ) {
+			if ( $phase === $now ) Digitalisimo_Backups_Jobs::cancel( $job['id'] );
+			return Digitalisimo_Backups_Backup_Job::run_phase( $now, $job );
+		};
+		$cancelled = $B::service_send( $to_send, array( 'destination' => 'google', 'drive_cli' => true ) );
+		Digitalisimo_Backups_Jobs::$phase_runner = null;
+		digi_assert( is_wp_error( $cancelled ) && 0 === count( Digitalisimo_Backups_Jobs::active() ) && $before == $plain( $to_send ) && '' === $call( 'send_problem', $row_of( $to_send ) ), 'Cancelar el envío en «' . $phase . '» no dejó la fila como estaba o no deja volver a enviarla: ' . json_encode( array( is_wp_error( $cancelled ) ? $cancelled->get_error_code() : $cancelled, $plain( $to_send ) ) ) );
+	}
+	$html = $screen();
+	digi_assert( preg_match( '#data-file="' . preg_quote( $to_send, '#' ) . '".*?</tr>#s', $html, $m ) && false !== strpos( $m[0], 'name="action" value="digitalisimo_backups_send"' ), 'Tras cancelar, la fila no ofrece «Enviar a» otra vez.' );
+	// Una marca «en camino» que quedó sin trabajo (el proceso murió) no bloquea otro envío.
+	$history = (array) get_option( $B::HISTORY );
+	foreach ( $history as &$item ) if ( $to_send === $item['file'] ) $item = array_merge( $item, array( 'transfer' => 'pending', 'transfer_destination' => 'google', 'transfer_job' => '0b6f6b8e-3c1d-4f7a-9a1e-2f4d5c6b7a8e' ) );
+	unset( $item );
+	update_option( $B::HISTORY, $history );
+	digi_assert( '' === $call( 'send_problem', $row_of( $to_send ) ), 'Una copia «en camino» sin trabajo bloquea volver a enviar.' );
+	// B3: el archivo cambia en el almacén entre la comprobación y la copia: no sale y la fila dice que falló.
+	Digitalisimo_Backups_Jobs::$phase_runner = function( $now, $job ) use ( $store, $to_send ) {
+		if ( 'deliver' === $now ) { $h = fopen( $store . '/' . $to_send, 'r+b' ); fseek( $h, 100 ); fwrite( $h, 'X' ); fclose( $h ); }
+		return Digitalisimo_Backups_Backup_Job::run_phase( $now, $job );
+	};
+	$uploads_before = count( $GLOBALS['drive'] );
+	$changed = $B::service_send( $to_send, array( 'destination' => 'google', 'drive_cli' => true ) );
+	Digitalisimo_Backups_Jobs::$phase_runner = null;
+	digi_assert( is_wp_error( $changed ) && false !== strpos( $changed->get_error_message(), 'cambió' ) && $uploads_before === count( $GLOBALS['drive'] ) && 'ok' !== ( $row_of( $to_send )['transfer'] ?? '' ), 'Un archivo cambiado en el almacén después de comprobarlo se envió: ' . json_encode( array( is_wp_error( $changed ) ? $changed->get_error_message() : $changed, $plain( $to_send ) ) ) );
+	$history = (array) get_option( $B::HISTORY );
+	update_option( $B::HISTORY, array_values( array_filter( $history, function( $r ) use ( $to_send ) { return $to_send !== $r['file']; } ) ) );
+	unlink( $store . '/' . $to_send );
+	// B4: una fila subida nunca cede su copia remota a la retención, aunque traiga un trabajo y la identidad de aquí.
+	$forged = array_merge( $row_of( $a ), array( 'file' => 'digitalisimo-backup-example-test-20261101-000000-0a0b0c0d.zip', 'job' => 'trabajo-de-otra-fila', 'installation' => $call( 'installation_stamp' ) ) );
+	$forged['remote']['sha256'] = $forged['sha256'];
+	digi_assert( false === $call( 'remote_owned', $forged ) && true === $call( 'remote_owned', array_merge( $forged, array( 'origin' => 'created' ) ) ), 'La retención podría borrar la copia remota de una fila subida con trabajo e identidad de aquí (o el control no es propio).' );
 	// «Borrar» de su fila: el ZIP, la copia remota y la fila.
 	$GLOBALS['http'] = array();
 	$query = digi_admin_post( 'delete_backup', $B::ACTION_DELETE, array( 'file' => $a ) );
@@ -272,7 +311,7 @@ Digitalisimo_Backups::download();' );
 	update_option( Digitalisimo_Backups_Security::OPTION, array( 'encrypt' => false, 'require_signed' => true ) );
 	list( $code, $error ) = $restore( $other['file'], 'RESTAURAR' );
 	digi_assert( 403 === $code && 'digitalisimo_backups_signed_only' === $error['code'], '«Sólo firmados» no bloqueó un subido sin firma: ' . json_encode( $error ) );
-	digi_assert( preg_match( '#id="digitalisimo-backups-restore-\d+"[^>]*>.*?</tr>#s', $screen(), $m ) !== false && false !== strpos( $screen(), 'este respaldo subido no tiene una firma válida' ), 'La pantalla no avisa que «sólo firmados» bloqueará el subido sin firma.' );
+	digi_assert( preg_match( '#id="digitalisimo-backups-restore-\d+"[^>]*>.*?</tr>#s', $screen(), $m ) !== false && false !== strpos( $screen(), 'este respaldo no tiene una firma válida de una clave de este sitio: no se restaurará' ), 'La pantalla no avisa que «sólo firmados» bloqueará el subido sin firma.' );
 	list( $code ) = $restore( $signed['file'], 'RESTAURAR' );
 	digi_assert( 200 === $code, 'Con «sólo firmados», el subido firmado con la clave de este sitio no se restauró.' );
 	update_option( Digitalisimo_Backups_Security::OPTION, array( 'encrypt' => false, 'require_signed' => false ) );
@@ -286,18 +325,32 @@ Digitalisimo_Backups::download();' );
 	ob_start();
 	$panel->invoke( null, (array) get_option( $B::HISTORY, array() ) );
 	$html = (string) ob_get_clean();
-	digi_assert( false !== strpos( $html, 'name="action" value="' . $B::ACTION_REGISTER_LOOSE . '"><input type="hidden" name="file" value="digitalisimo-backup-por-ftp.zip"' ) && false !== strpos( $html, 'Agregar al listado' ), '«Restaurar un archivo suelto» no ofrece «Agregar al listado».' );
+	digi_assert( false !== strpos( $html, 'name="action" value="' . $B::ACTION_REGISTER_LOOSE . '"><input type="hidden" name="file" value="digitalisimo-backup-por-ftp.zip"' ) && false !== strpos( $html, 'Agregar al listado' ) && false !== strpos( $html, 'name="confirmation" placeholder="AGREGAR SIN FIRMA"' ) && false !== strpos( $html, 'No sabemos quién puso este archivo en el almacén' ), '«Restaurar un archivo suelto» no ofrece «Agregar al listado» con su confirmación y su aviso.' );
 	list( $code, $error ) = $restore( 'digitalisimo-backup-por-ftp.zip', 'RESTAURAR' );
 	digi_assert( 400 === $code && false !== strpos( $error['message'], 'RESTAURAR SIN FIRMA' ), 'Un archivo suelto sin agregar se restauró sin la frase de sin firma.' );
-	list( $code, $registered ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-por-ftp.zip/register' );
-	digi_assert( 201 === $code && true === $registered['listed'] && 'RESTAURAR' === $registered['confirmation'] && 'uploaded' === $row_of( 'digitalisimo-backup-por-ftp.zip' )['origin'] && 'rest' === $row_of( 'digitalisimo-backup-por-ftp.zip' )['upload']['via'], 'POST …/register no agregó el archivo suelto a la lista: ' . json_encode( $registered ) );
+	// M2 de la revisión: su origen no se conoce. Sin confirmación, o con AGREGAR para uno sin firma, no entra.
+	foreach ( array( array(), array( 'confirm' => 'AGREGAR' ), array( 'confirm' => 'RESTAURAR' ) ) as $body ) {
+		list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-por-ftp.zip/register', $body );
+		digi_assert( in_array( $code, array( 400 ), true ) && null === $row_of( 'digitalisimo-backup-por-ftp.zip' ) && ( ! isset( $error['code'] ) || in_array( $error['code'], array( 'digitalisimo_backups_register_confirm', 'rest_missing_callback_param' ), true ) ), 'Un archivo suelto sin firma se agregó sin escribir AGREGAR SIN FIRMA: ' . json_encode( array( $body, $code, $error ) ) );
+	}
+	list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-por-ftp.zip/register', array( 'confirm' => 'AGREGAR' ) );
+	digi_assert( false !== strpos( (string) ( $error['message'] ?? '' ), 'No sabemos quién puso este archivo' ), 'El rechazo no avisa de que el origen es desconocido: ' . json_encode( $error ) );
+	list( $code, $registered ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-por-ftp.zip/register', array( 'confirm' => 'AGREGAR SIN FIRMA' ) );
+	digi_assert( 201 === $code && true === $registered['listed'] && 'RESTAURAR' === $registered['confirmation'] && 'added' === $registered['origin'] && 'added' === $row_of( 'digitalisimo-backup-por-ftp.zip' )['origin'] && 'rest' === $row_of( 'digitalisimo-backup-por-ftp.zip' )['upload']['via'], 'POST …/register no agregó el archivo suelto a la lista como «Agregado»: ' . json_encode( $registered ) );
+	$summary = $summary_of( 'digitalisimo-backup-por-ftp.zip' );
+	digi_assert( 'added' === $summary['origin'] && 'Agregado' === $summary['uploaded']['label'], 'GET /backups no dice «Agregado»: ' . json_encode( $summary ) );
+	list( , $out ) = digi_wp( 'digitalisimo-backups', 'list', array(), array( 'format' => 'table' ) );
+	digi_assert( false !== strpos( implode( "\n", $out ), 'agregado a mano' ), 'wp … list no dice «agregado a mano».' );
+	digi_assert( preg_match( '#data-file="digitalisimo-backup-por-ftp\.zip".*?</tr>#s', $screen(), $m ) && false !== strpos( $m[0], '>Agregado</span>' ) && false === strpos( $m[0], '>Subido</span>' ) && false !== strpos( $m[0], 'origen desconocido' ), 'La pantalla no etiqueta «Agregado» (origen desconocido) el archivo agregado a mano.' );
+	list( , $csv ) = digi_wp( 'digitalisimo-backups', 'list', array(), array( 'format' => 'csv' ) );
+	digi_assert( false === strpos( implode( "\n", $csv ), '"origin"' ), 'wp … list --format=csv añadió la columna origin a las de siempre.' );
 	list( $code ) = $restore( 'digitalisimo-backup-por-ftp.zip', 'RESTAURAR' );
-	digi_assert( 200 === $code, 'El archivo agregado al listado no se restauró con RESTAURAR.' );
-	list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-por-ftp.zip/register' );
+	digi_assert( 200 === $code, 'El archivo agregado al listado no se restauró con RESTAURAR (AGREGAR SIN FIRMA sustituye a la frase de sin firma).' );
+	list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-por-ftp.zip/register', array( 'confirm' => 'AGREGAR SIN FIRMA' ) );
 	digi_assert( 409 === $code && 'digitalisimo_backups_register_listed' === $error['code'], 'Se agregó dos veces el mismo archivo.' );
 	// Una copia del mismo contenido no entra (ya está en la lista) y sigue en el almacén.
 	file_put_contents( $store . '/digitalisimo-backup-copia-igual.zip', $loose_bytes );
-	list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-copia-igual.zip/register' );
+	list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-copia-igual.zip/register', array( 'confirm' => 'AGREGAR SIN FIRMA' ) );
 	digi_assert( 409 === $code && 'digitalisimo_backups_register_duplicate' === $error['code'] && is_file( $store . '/digitalisimo-backup-copia-igual.zip' ) && null === $row_of( 'digitalisimo-backup-copia-igual.zip' ), 'Una copia del mismo contenido entró en la lista: ' . json_encode( $error ) );
 	// Uno hostil no entra, no se borra y lo dice.
 	$hostile = $root . '/hostil.zip';
@@ -307,21 +360,25 @@ Digitalisimo_Backups::download();' );
 	$zip->addFromString( 'wordpress/wp-load.php', 'contenido cambiado' );
 	$zip->close();
 	copy( $hostile, $store . '/digitalisimo-backup-hostil.zip' );
-	list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-hostil.zip/register' );
+	list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-hostil.zip/register', array( 'confirm' => 'AGREGAR SIN FIRMA' ) );
 	digi_assert( 422 === $code && 'digitalisimo_backups_register_invalid' === $error['code'] && false !== strpos( $error['message'], 'no se agregó a la lista' ) && is_file( $store . '/digitalisimo-backup-hostil.zip' ) && null === $row_of( 'digitalisimo-backup-hostil.zip' ), 'Un archivo hostil entró en la lista o se borró: ' . json_encode( $error ) );
 	foreach ( array( '../public/wp-load.php', 'index.php', $a ) as $bad ) {
-		list( $code ) = digi_rest( 'POST', $ns . '/backups/' . rawurlencode( $bad ) . '/register' );
+		list( $code ) = digi_rest( 'POST', $ns . '/backups/' . rawurlencode( $bad ) . '/register', array( 'confirm' => 'AGREGAR SIN FIRMA' ) );
 		digi_assert( in_array( $code, array( 400, 404 ), true ), 'Se agregó al listado algo que no es un archivo suelto del almacén: ' . $bad );
 	}
 	// La pantalla (admin-post) y WP-CLI.
 	list( , $screen_bytes ) = $fresh();
 	file_put_contents( $store . '/digitalisimo-backup-pantalla.zip', $screen_bytes );
 	$query = digi_admin_post( 'register_loose_request', $B::ACTION_REGISTER_LOOSE, array( 'file' => 'digitalisimo-backup-pantalla.zip' ) );
-	digi_assert( 'ok' === ( $query['backup'] ?? '' ) && 'uploaded' === $row_of( 'digitalisimo-backup-pantalla.zip' )['origin'], '«Agregar al listado» de la pantalla no agregó el archivo: ' . json_encode( $query ) );
+	digi_assert( 'error' === ( $query['backup'] ?? '' ) && null === $row_of( 'digitalisimo-backup-pantalla.zip' ) && false !== strpos( rawurldecode( (string) $query['message'] ), 'AGREGAR SIN FIRMA' ), '«Agregar al listado» de la pantalla agregó sin la confirmación escrita: ' . json_encode( $query ) );
+	$query = digi_admin_post( 'register_loose_request', $B::ACTION_REGISTER_LOOSE, array( 'file' => 'digitalisimo-backup-pantalla.zip', 'confirmation' => 'agregar  sin firma' ) );
+	digi_assert( 'ok' === ( $query['backup'] ?? '' ) && 'added' === $row_of( 'digitalisimo-backup-pantalla.zip' )['origin'], '«Agregar al listado» de la pantalla no agregó el archivo: ' . json_encode( $query ) );
 	try { digi_admin_post( 'register_loose_request', 'otra-accion', array( 'file' => 'digitalisimo-backup-copia-igual.zip' ) ); throw new RuntimeException( 'FALLA: se agregó al listado con un nonce ajeno.' ); } catch ( Digi_Die $die ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 	list( , $cli_bytes ) = $fresh();
 	file_put_contents( $store . '/digitalisimo-backup-terminal.zip', $cli_bytes );
 	list( $code, $out ) = digi_wp( 'digitalisimo-backups', 'register_backup', array( 'digitalisimo-backup-terminal.zip' ) );
+	digi_assert( 1 === $code && null === $row_of( 'digitalisimo-backup-terminal.zip' ), 'wp … register agregó sin --confirm.' );
+	list( $code, $out ) = digi_wp( 'digitalisimo-backups', 'register_backup', array( 'digitalisimo-backup-terminal.zip' ), array( 'confirm' => 'AGREGAR SIN FIRMA' ) );
 	digi_assert( 0 === $code && false !== strpos( implode( "\n", $out ), '--confirm="RESTAURAR"' ) && 'cli' === $row_of( 'digitalisimo-backup-terminal.zip' )['upload']['via'], 'wp … register no agregó el archivo: ' . implode( "\n", $out ) );
 
 	// (h) El proceso muere después de mover el archivo al almacén (antes o después de su fila): cerrar otra vez lo termina.
@@ -364,6 +421,19 @@ Digitalisimo_Backups::download();' );
 	digi_assert( false !== strpos( $html, 'No se restaura aquí' ) && false !== strpos( $html, 'este WordPress es una red' ), 'La pantalla no dice por qué el subido de un sitio individual no se restaura en la red.' );
 	list( $code ) = $restore( $single_up['file'], 'RESTAURAR', array( 'network' => true ) );
 	digi_assert( 422 === $code, 'En una red se restauró el respaldo de un sitio individual.' );
+	// B2 de la revisión: en una red, «Agregar al listado» escribe en la lista de la red y pide su alcance, como «Traer» o
+	// «Enviar»; un administrador de un sitio (sin la capability de la red) no puede.
+	list( , $network_loose ) = $fresh( array( 'network' => true ) );
+	file_put_contents( $store . '/digitalisimo-backup-suelto-red.zip', $network_loose );
+	$GLOBALS['digi']['caps'] = array( 'manage_options' => true );
+	list( $code_site ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-suelto-red.zip/register', array( 'confirm' => 'AGREGAR SIN FIRMA', 'network' => true ) );
+	$GLOBALS['digi']['caps'] = array( 'manage_network_options' => true );
+	list( $code_scope, $error ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-suelto-red.zip/register', array( 'confirm' => 'AGREGAR SIN FIRMA' ) );
+	digi_assert( 403 === $code_site && 400 === $code_scope && 'digitalisimo_backups_scope' === $error['code'] && null === $row_of( 'digitalisimo-backup-suelto-red.zip' ), 'En una red se agregó al listado sin la capability o sin el alcance de red: ' . json_encode( array( $code_site, $code_scope, $error ) ) );
+	list( $code, $added ) = digi_rest( 'POST', $ns . '/backups/digitalisimo-backup-suelto-red.zip/register', array( 'confirm' => 'AGREGAR SIN FIRMA', 'network' => true ) );
+	digi_assert( 201 === $code && 'network' === $row_of( 'digitalisimo-backup-suelto-red.zip' )['scope'], 'En una red, con el alcance de red, no se agregó al listado: ' . json_encode( $added ) );
+	$query = digi_admin_post( 'register_loose_request', $B::ACTION_REGISTER_LOOSE, array( 'file' => 'digitalisimo-backup-no-existe.zip', 'confirmation' => 'AGREGAR SIN FIRMA' ) );
+	digi_assert( false === strpos( rawurldecode( (string) ( $query['message'] ?? '' ) ), 'alcance de red' ), 'La pantalla de la red no pasa el alcance de red a «Agregar al listado».' );
 
 	echo "DIGITALÍSIMO Backups: lo subido queda en la lista de respaldos con su fecha, tamaño, tipo y origen; se restaura (completo y por partes) con RESTAURAR atado a su SHA-256, se verifica, se descarga, se envía a un destino y se borra como uno hecho aquí, sin pasar por la retención ni por «reciente válido» salvo que sea de este mismo sitio firmado; «Agregar al listado» pasa los archivos sueltos validados; en una red, la lista es la de la red.\n";
 } finally {

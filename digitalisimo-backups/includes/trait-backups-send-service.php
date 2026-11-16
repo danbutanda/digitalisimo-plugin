@@ -4,9 +4,14 @@ defined( 'ABSPATH' ) || exit;
 /**
  * «Enviar a un destino»: copia a un destino remoto un respaldo de la lista que aún no tiene copia remota, hecho aquí o
  * subido (pedido del propietario del 2026-11-15: lo subido se usa «exactamente igual» que lo hecho aquí). Pantalla («⋯»
- * de la fila), `POST /backups/<archivo>/send` y `wp digitalisimo-backups send`, sobre el trabajo `send`
+ * de la fila), `POST /backups/<archivo>/send` y `wp digitalisimo-backups destinations send`, sobre el trabajo `send`
  * (Digitalisimo_Backups_Send_Job). Un respaldo tiene una sola copia remota (varios destinos por respaldo sigue pendiente,
- * como varios destinos por trabajo): si ya la tiene, o está en camino, no se envía otra.
+ * como varios destinos por trabajo): si ya la tiene, o está en camino (con un trabajo sin terminar), no se envía otra.
+ *
+ * La fila sólo se marca «en camino» cuando empieza la copia (`deliver`), con el trabajo que la hace (`transfer_job`). Si
+ * ese trabajo se cancela, en cualquier fase, la fila vuelve a como estaba antes de enviarla; si falla, dice que la copia
+ * falló; en los dos casos se puede volver a enviar (M4 de la revisión). Lo que se envía es lo registrado: el SHA-256 de la
+ * fila se compara antes de cada tramo de la subida, y el que dice el recibo del destino tiene que ser el mismo.
  */
 trait Digitalisimo_Backups_Send_Service {
 	/** Por qué la fila no se puede enviar ('' si se puede): sin su archivo en el almacén, o con una copia remota. */
@@ -14,8 +19,18 @@ trait Digitalisimo_Backups_Send_Service {
 		if ( '' === self::local_copy( $row ) ) return 'El respaldo no tiene su archivo en el almacén privado: tráelo antes con «Traer al almacén».';
 		$copy = self::remote_copy( $row );
 		if ( $copy && in_array( $copy['state'], array( 'ok', 'legacy' ), true ) ) return 'Este respaldo ya tiene su copia remota en ' . self::destination_label( $copy['destination'] ) . ' (un respaldo tiene una sola copia remota).';
-		if ( $copy && 'pending' === $copy['state'] ) return 'La copia de este respaldo a ' . self::destination_label( $copy['destination'] ) . ' está en camino.';
+		// «En camino» sólo con un trabajo sin terminar que la hace: un `pending` sin trabajo (uno que murió) no bloquea.
+		if ( $copy && 'pending' === $copy['state'] && self::send_copy_running( $row ) ) return 'La copia de este respaldo a ' . self::destination_label( $copy['destination'] ) . ' está en camino.';
 		return '';
+	}
+	/** Si un trabajo sin terminar (un envío o el respaldo que la copia) está copiando este archivo a su destino. */
+	private static function send_copy_running( array $row ) {
+		try {
+			foreach ( Digitalisimo_Backups_Jobs::active() as $job ) if ( basename( (string) ( $job['spec']['file'] ?? '' ) ) === (string) ( $row['file'] ?? '' ) && 'local' !== (string) ( $job['spec']['destination'] ?? 'local' ) ) return true;
+		} catch ( Throwable $e ) {
+			return true;
+		}
+		return false;
 	}
 	/** Destinos a los que se puede enviar: los remotos con una conexión completa. */
 	private static function send_destinations() {
@@ -76,6 +91,8 @@ trait Digitalisimo_Backups_Send_Service {
 		$destination = (string) $spec['destination'];
 		if ( 'preflight' === $phase ) {
 			if ( Digitalisimo_Backups_Job_Store::JOB_FORMAT !== (int) ( $spec['engine']['job_format'] ?? 0 ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El trabajo se creó con otra versión del motor de respaldos; vuelve a iniciarlo.' );
+			// Una cancelación pedida antes de empezar termina aquí, sin tocar la fila.
+			Digitalisimo_Backups_Jobs::progress( 1, 'Comprobando el respaldo…', true );
 			$row = self::history_item( $file );
 			if ( ! $row ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo ya no está en la lista de respaldos.' );
 			$path = self::local_copy( $row );
@@ -85,47 +102,74 @@ trait Digitalisimo_Backups_Send_Service {
 			// Lo que se envía es exactamente lo registrado: un archivo que cambió en el almacén no sale.
 			$sha = strtolower( (string) ( $spec['send']['sha256'] ?? '' ) );
 			if ( '' === $sha || ! hash_equals( $sha, strtolower( (string) ( $row['sha256'] ?? '' ) ) ) || ! hash_equals( $sha, (string) @hash_file( 'sha256', $path ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El SHA-256 del respaldo ya no coincide con el de su fila: no se envió.' );
-			$claimed = self::change_history( function( &$history ) use ( $file, $destination ) {
+			$copy = self::remote_copy( $row );
+			if ( $copy && in_array( $copy['state'], array( 'ok', 'legacy' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Este respaldo ya tiene una copia remota: no se envió otra.' );
+			// Cómo estaba la fila antes de enviarla: si el envío se cancela, vuelve a esto. La fila aún no se toca.
+			$before = array_intersect_key( $row, array_flip( array( 'transfer', 'transfer_destination', 'transfer_error', 'transfer_job' ) ) );
+			return array( 'next' => 'deliver', 'checkpoint' => array( 'at' => time(), 'before' => $before ), 'message' => 'Copiando a ' . self::destination_label( $destination ) . '…' );
+		}
+		if ( 'deliver' === $phase ) {
+			// Una cancelación pedida entre fases termina aquí, antes de marcar la fila.
+			Digitalisimo_Backups_Jobs::progress( 5, 'Copiando a ' . self::destination_label( $destination ) . '…', true );
+			$path = self::local_path( $file );
+			if ( '' === $path ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo del respaldo desapareció del almacén antes de copiarlo al destino.' );
+			$sha = strtolower( (string) ( $spec['send']['sha256'] ?? '' ) );
+			// Lo que sale es lo registrado: el SHA-256 se compara antes de cada tramo de la subida (B3 de la revisión).
+			if ( '' === $sha || ! hash_equals( $sha, (string) @hash_file( 'sha256', $path ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo del respaldo cambió en el almacén (otro SHA-256 que el de su fila): no se envió.' );
+			// «En camino» desde ahora, con este trabajo: una fila con otra copia en curso no se pisa.
+			$claimed = self::change_history( function( &$history ) use ( $file, $destination, $job ) {
 				foreach ( $history as &$item ) {
 					if ( ! is_array( $item ) || (string) ( $item['file'] ?? '' ) !== $file ) continue;
+					if ( (string) ( $item['transfer_job'] ?? '' ) === (string) $job['id'] ) return null;
 					$copy = self::remote_copy( $item );
 					if ( $copy && in_array( $copy['state'], array( 'ok', 'legacy' ), true ) ) return false;
-					if ( $copy && 'pending' === $copy['state'] && $copy['destination'] !== $destination ) return false;
 					$item['transfer_destination'] = $destination;
 					$item['transfer'] = 'pending';
 					$item['transfer_error'] = '';
+					$item['transfer_job'] = (string) $job['id'];
 					return true;
 				}
 				return false;
 			} );
-			if ( ! $claimed ) throw new Digitalisimo_Backups_Permanent_Error( 'Este respaldo ya tiene una copia remota (o una en camino): no se envió otra.' );
-			Digitalisimo_Backups_Jobs::progress( 5, 'Copiando a ' . self::destination_label( $destination ) . '…', true );
-			return array( 'next' => 'deliver', 'checkpoint' => array( 'at' => time() ), 'message' => 'Copiando a ' . self::destination_label( $destination ) . '…' );
-		}
-		if ( 'deliver' === $phase ) {
-			$path = self::local_path( $file );
-			if ( '' === $path ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo del respaldo desapareció del almacén antes de copiarlo al destino.' );
+			if ( false === $claimed ) throw new Digitalisimo_Backups_Permanent_Error( 'Este respaldo ya tiene una copia remota (o ya no está en la lista): no se envió.' );
+			// Una cancelación que llega ahora (la fila ya está marcada) la deshace send_failed().
+			Digitalisimo_Backups_Jobs::progress( 6, 'Copiando a ' . self::destination_label( $destination ) . '…', true );
 			try {
 				$remote = self::job_transfer( $path, $destination, (string) $job['id'], Digitalisimo_Backups_Step_Budget::deadline( 1.0 ) );
 			} catch ( Digitalisimo_Backups_Transfer_Pending $e ) {
-				return array( 'next' => 'deliver', 'checkpoint' => array( 'slice' => time() ), 'message' => $e->getMessage(), 'progress_made' => true );
+				return array( 'next' => 'deliver', 'checkpoint' => array( 'slice' => time() ) + (array) ( $job['checkpoint']['deliver'] ?? array() ), 'message' => $e->getMessage(), 'progress_made' => true );
 			}
-			self::history_update( $file, array( 'transfer_destination' => $destination, 'remote' => (array) $remote, 'transfer' => 'ok', 'transfer_error' => '' ) );
+			// El destino verificó lo que subió contra el SHA-256 que leyó al empezar: tiene que ser el de la fila.
+			if ( ! hash_equals( $sha, strtolower( (string) ( $remote['sha256'] ?? '' ) ) ) ) {
+				try { self::destination( $destination, Digitalisimo_Backups_Destinations::is_connection_id( $destination ) ? null : self::settings() )->delete( (array) $remote ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+				throw new Digitalisimo_Backups_Permanent_Error( 'El archivo del respaldo cambió durante el envío (el destino recibió otro SHA-256 que el de su fila): se retiró esa copia y no se registró.' );
+			}
+			self::history_update( $file, array( 'transfer_destination' => $destination, 'remote' => (array) $remote, 'transfer' => 'ok', 'transfer_error' => '', 'transfer_job' => '' ) );
 			return array( 'next' => null, 'checkpoint' => array( 'provider' => (string) ( $remote['provider'] ?? '' ), 'at' => time() ), 'message' => 'Copia en ' . self::destination_label( $destination ) . ' verificada: ' . $file . '.' );
 		}
 		throw new Digitalisimo_Backups_Permanent_Error( 'El envío está en una fase desconocida.' );
 	}
-	/** @internal El envío falló o se canceló en su copia: la fila lo dice (el ZIP local no se toca). Nunca lanza. */
+	/**
+	 * @internal El envío falló o se canceló, en cualquier fase. Sólo si la fila está marcada por este trabajo
+	 * (`transfer_job`): cancelado, vuelve a como estaba antes de enviarla; fallido, dice que la copia falló. En los dos
+	 * casos se puede volver a enviar. El ZIP local no se toca. Nunca lanza.
+	 */
 	public static function send_failed( array $job, $status, $message ) {
-		if ( 'deliver' !== ( $job['phase'] ?? '' ) ) return;
 		$spec = (array) ( $job['spec'] ?? array() );
+		$before = (array) ( $job['checkpoint']['preflight']['before'] ?? array() );
 		try {
-			self::change_history( function( &$history ) use ( $spec, $status, $message ) {
+			self::change_history( function( &$history ) use ( $spec, $job, $status, $message, $before ) {
 				foreach ( $history as &$item ) {
 					if ( ! is_array( $item ) || (string) ( $item['file'] ?? '' ) !== basename( (string) ( $spec['file'] ?? '' ) ) ) continue;
-					if ( (string) ( $item['transfer_destination'] ?? '' ) !== (string) ( $spec['destination'] ?? '' ) || 'pending' !== (string) ( $item['transfer'] ?? '' ) ) return false;
-					$item['transfer'] = 'cancelled' === $status ? 'cancelled' : 'failed';
-					$item['transfer_error'] = (string) $message;
+					if ( (string) ( $item['transfer_job'] ?? '' ) !== (string) ( $job['id'] ?? '' ) ) return false;
+					if ( 'cancelled' === $status ) {
+						foreach ( array( 'transfer', 'transfer_destination', 'transfer_error', 'transfer_job' ) as $key ) unset( $item[ $key ] );
+						$item = array_merge( $item, array_diff_key( $before, array( 'transfer_job' => true ) ) );
+					} else {
+						$item['transfer'] = 'failed';
+						$item['transfer_error'] = (string) $message;
+						$item['transfer_job'] = '';
+					}
 					return true;
 				}
 				return false;

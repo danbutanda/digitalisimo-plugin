@@ -401,7 +401,9 @@ try {
 	list( $code, $error, $upload_id ) = $upload( 'digitalisimo-firmado.zip', $signed_bytes, array( 'finish' => array( 'secret' => 'una frase que no es' ) ) );
 	digi_assert( 400 === $code && 'digitalisimo_backups_secret_wrong' === $error['code'] && is_file( $store . '/incoming/' . $upload_id . '/data.bin' ) && false === strpos( $error['message'], 'no supera la validación' ) && false === strpos( json_encode( $error ), 'una frase que no es' ), 'Una frase equivocada en un ZIP firmado descartó la subida: ' . json_encode( $error ) );
 	list( $code, $unsigned ) = digi_rest( 'POST', $ns . '/uploads/' . $upload_id . '/finish' );
-	digi_assert( 200 === $code && 'untrusted' === $unsigned['trust'] && 'needs_key' === $unsigned['signature'], 'Sin frase, el ZIP firmado conservado no se aceptó como no confiable: ' . json_encode( $unsigned ) );
+	// Es un respaldo hecho aquí (su fila tiene ese SHA-256): sin la clave, su firma no se comprueba, pero la confianza y la
+	// palabra son las de su fila, como al verificarlo (B1 de la revisión de backups/uploaded-in-list).
+	digi_assert( 200 === $code && true === $unsigned['duplicate'] && 'provenance' === $unsigned['trust'] && 'RESTAURAR' === $unsigned['confirmation'] && 'needs_key' === $unsigned['signature'], 'Sin frase, el ZIP firmado conservado no se aceptó con la confianza de su fila: ' . json_encode( $unsigned ) );
 	list( $code, $blind ) = $upload( 'copia-cifrada.zip', $dgbk );
 	digi_assert( 200 === $code && '.dgbk' === substr( $blind['file'], -5 ) && true === $blind['needs_secret'] && false === $blind['verified'] && Digitalisimo_Backups_Keys::short( $key ) === $blind['key'], 'Un .dgbk sin su frase no se aceptó con la cabecera comprobada: ' . json_encode( $blind ) );
 	list( $code, $error, $upload_id ) = $upload( 'copia-cifrada.dgbk', $dgbk, array( 'finish' => array( 'secret' => 'otra frase cualquiera' ) ) );
