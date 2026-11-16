@@ -8,10 +8,12 @@
 //                 tras el cambio de tablas y termina con «Restauración terminada»; sin sesión ofrece «Iniciar sesión» y, al
 //                 entrar otra vez, la pantalla enseña el resultado completo;
 //              3) restauración por partes (sólo plugins) a 390 px: sin desplazamiento horizontal, dice qué se restaura y
-//                 termina con el resultado y «Volver a la copia previa»;
+//                 termina con el resultado y «Volver a la copia previa»; después el sitio cambia (entradas, opciones,
+//                 un plugin) y «Volver a la copia previa» abre la copia previa con sólo «Plugins» marcado: restaurarla
+//                 devuelve los plugins a los de antes y la base de datos no cambia (huellas de cada tabla; revisión M1);
 //              4) restauración (plugins) con una falla inyectada al mover el código (1 280 px): el panel sigue la vuelta
 //                 a la copia previa y termina diciendo que el sitio volvió a como estaba y por qué falló.
-//   multisite  1) y 3) en la administración de la red.
+//   multisite  1) y 3) (con «Volver a la copia previa») en la administración de la red.
 // Capturas (página y panel) en <dir>/shots; las muestras del panel, en <dir>/shots/samples.json.
 // Uso: node drive.mjs <puerto> <host> <dir> <single|multisite>
 import http from 'node:http';
@@ -178,6 +180,10 @@ async function restoreFromRow(parts, { memory = RESTORE_MEMORY, label = parts ? 
     await page.$eval(`#${row} [data-restore-all]`, (box) => { if (box.checked) box.click(); });
     for (const part of parts) await page.$eval(`#${row} [data-restore-part][value="${part}"]`, (box) => { if (!box.checked) box.click(); });
   }
+  return confirmRow(row, { memory, label });
+}
+/** Escribe RESTAURAR en el panel abierto de la fila `row` y lo envía (ver restoreFromRow()). */
+async function confirmRow(row, { memory = RESTORE_MEMORY, label = 'restauración' } = {}) {
   await page.type(`#${row} input[name="confirmation"]`, 'RESTAURAR');
   // Lo que enseña el panel justo después de enviar, guardado antes de que la navegación cambie de documento.
   await page.evaluate(() => {
@@ -214,6 +220,59 @@ async function restoreFromRow(parts, { memory = RESTORE_MEMORY, label = parts ? 
   if (!check(!!landed, `${label}: tras enviar «Restaurar», la pantalla vuelve con el panel de avance`, `${page.url()} · ${(await page.evaluate(() => document.body.innerText).catch(() => '')).slice(0, 200)} · ${existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').slice(-800) : ''} · ${existsSync(`${dir}/ctl/debug.log`) ? readFileSync(`${dir}/ctl/debug.log`, 'utf8').split('\n').filter((l) => /Fatal|Allowed memory|Uncaught/.test(l)).slice(-3).join(' | ') : ''}`)) return false;
   return 'landed';
 }
+
+/** Los archivos de los plugins (sin este, que el ensayo instala) de un inventario del laboratorio. */
+const pluginFiles = (inv) => Object.fromEntries(Object.entries(inv?.files || {}).filter(([f]) => f.startsWith('wp-content/plugins/') && !f.startsWith('wp-content/plugins/digitalisimo-backups/')));
+const parts = async (what) => (await request('GET', `/?digi_parts=${what}&token=${token}`)).json;
+/**
+ * Revisión M1: tras restaurar sólo los plugins, el sitio sigue vivo (entradas, opciones y un plugin nuevo) y «Volver a la
+ * copia previa» del panel abre la copia previa con sólo «Plugins» marcado (no «Todo») y el aviso de qué no se toca;
+ * restaurarla devuelve los plugins a los de antes de la restauración y la base de datos queda como estaba (huellas de
+ * cada tabla del laboratorio; en wp_options, sólo lo que WordPress escribe solo).
+ */
+async function undoParts() {
+  const safetyHref = await page.$eval('#digitalisimo-backups-progress-safety', (a) => a.href).catch(() => '');
+  const safety = (() => { try { return new URL(safetyHref).searchParams.get('restore') || ''; } catch { return ''; } })();
+  if (!check(/^safety-before-restore-/.test(safety) && /undo_parts=plugins/.test(safetyHref), 'deshacer: «Volver a la copia previa» lleva la copia previa y sólo «Plugins»', safetyHref)) return;
+  // La vida del sitio después de restaurar: una entrada nueva, opciones y un plugin.
+  await lab('mutate', '&round=5');
+  const before = await lab('inventory');
+  const options = await parts('options');
+  await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 120_000 }).catch(() => null), page.click('#digitalisimo-backups-progress-safety')]);
+  await sleep(800);
+  const form = await page.evaluate((file) => {
+    const field = [...document.querySelectorAll('tr.digitalisimo-backups-restore-row input[name="backup_file"]')].find((f) => f.value === file);
+    const row = field ? field.closest('tr') : null;
+    if (!row) return null;
+    const on = (sel) => [...row.querySelectorAll(sel)].filter((b) => b.checked).map((b) => b.value || 'todo');
+    const undo = row.querySelector('[data-restore-undo]');
+    return { id: row.id, shown: !row.hidden, all: !!row.querySelector('[data-restore-all]')?.checked, parts: on('[data-restore-part]'), items: on('[data-restore-item]'), undo: undo && !undo.hidden ? undo.textContent : '', summary: row.querySelector('[data-restore-parts-summary]')?.textContent || '' };
+  }, safety);
+  if (!check(form && form.shown && !form.all && form.parts.join() === 'plugins' && !form.items.length, 'deshacer: la copia previa se abre con sólo «Plugins» marcado (no «Todo»)', JSON.stringify(form))) return;
+  check(/Deshaces sólo lo que se restauró/.test(form.undo) && /No se toca: base de datos/.test(form.undo) && /Se restaura sólo: plugins/.test(form.summary), 'deshacer: el aviso dice qué vuelve y que la base de datos no se toca', JSON.stringify(form));
+  await shot('deshacer-confirmacion', false);
+  if ('landed' !== await confirmRow(form.id, { label: 'deshacer' })) return;
+  const undo = await follow('deshacer', ended);
+  check(undo.last && undo.last.title === 'Restauración terminada' && /se restaura sólo: plugins/.test(undo.last.what), 'deshacer: la vuelta de sólo los plugins termina en el panel', JSON.stringify(undo.last));
+  await shot('deshacer-terminada');
+  const after = await lab('inventory');
+  const optionsAfter = await parts('options');
+  let changed = Object.keys({ ...before.tables, ...after.tables }).filter((t) => JSON.stringify(before.tables[t]) !== JSON.stringify(after.tables[t]));
+  if (changed.length === 1 && /options$/.test(changed[0])) {
+    const real = optionDiff(options, optionsAfter);
+    log(`· deshacer: ${changed[0]} distinta sólo en ${real.length ? real.join(', ') : 'opciones que WordPress escribe solo'}`);
+    if (!real.length) changed = [];
+  }
+  check(!changed.length, 'deshacer: la base de datos no cambió (la entrada y las opciones de después siguen; huellas de cada tabla)', changed.join(', '));
+  const want = pluginFiles(beforeParts);
+  const got = pluginFiles(after);
+  const bad = Object.keys({ ...want, ...got }).filter((f) => want[f] !== got[f]);
+  check(!bad.length, 'deshacer: los plugins volvieron a los de antes de restaurar (también se retiró el plugin que llegó después)', bad.slice(0, 8).join(', '));
+  check(after.files['wp-content/uploads/2026/11/inyectado-5.php'] === before.files['wp-content/uploads/2026/11/inyectado-5.php'], 'deshacer: lo que no son plugins no se tocó');
+}
+const VOLATILE = /^(_site_transient_|_transient_|cron$|digitalisimo_backups_|rewrite_rules$|recently_activated$|doing_cron$|session_tokens$|wp_[0-9]*_?user-settings|auto_core_update|_wp_suggested_policy|can_compress_scripts$|db_upgraded$|wp_user_roles_update$|finished_updating_comment_type$|user_count$|_wp_session_|admin_email_lifespan$|recovery_keys$|fresh_site$|wp_calendar_block_has_published_posts$)/;
+const optionDiff = (a, b) => Object.keys({ ...(a || {}), ...(b || {}) }).filter((k) => !VOLATILE.test(k) && (a || {})[k] !== (b || {})[k]);
+let beforeParts = null;
 
 const start = Date.now();
 let memoryMark = 0;
@@ -361,6 +420,8 @@ try {
   labMemory('64M');
   // 3) Por partes (sólo plugins) a 390 px.
   await lab('mutate', '&round=3');
+  // Lo que guarda la copia previa de esta restauración: los plugins de antes (revisión M1, «Volver a la copia previa»).
+  beforeParts = await lab('inventory');
   await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
   if ('landed' === await restoreFromRow(['plugins'], { label: 'partes' })) {
     let narrow = null;
@@ -368,7 +429,10 @@ try {
     const last = parts.last;
     check(narrow && narrow.overflow <= 0 && narrow.bar >= narrow.width - 40 && narrow.width >= narrow.inner - 2, 'a 390 px el panel ocupa todo el ancho de su tarjeta sin desplazamiento horizontal', JSON.stringify(narrow && { overflow: narrow.overflow, width: narrow.width, inner: narrow.inner, bar: narrow.bar }));
     check(last && /se restaura sólo: plugins/.test(last.what) && last.title === 'Restauración terminada' && /por partes: plugins/.test(last.result) && last.actions.includes('safety') && last.overflow <= 0, 'por partes: dice qué se restaura y termina con el resultado y «Volver a la copia previa»', JSON.stringify(last));
+    check(last && /sólo plugins marcado/.test(last.result) && /no se toca base de datos/.test(last.result) && !/se pierde lo que cambió después/.test(last.result), 'por partes: el resultado dice que «Volver a la copia previa» devuelve sólo los plugins y no toca la base de datos', JSON.stringify(last && last.result));
     await shot('partes-terminada');
+    await page.setViewport({ width: 1280, height: 900 });
+    await undoParts();
   }
   await page.setViewport({ width: 1280, height: 900 });
   labMemory('64M');
