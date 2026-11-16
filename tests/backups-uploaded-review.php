@@ -16,6 +16,17 @@
  *       partes de un respaldo v3 no lo trata como anterior a v3 ni avisa en PHP;
  *   B5  con «sólo firmados», un ZIP firmado con una frase que se escribió al subirlo dice «escribe su frase», no
  *       «no se restaurará».
+ *
+ * Y los de la verificación de esos arreglos (fallan con 9fc9c0d2):
+ *
+ *   N1  un incremental propio sin firma, descargado y vuelto a subir, se restaura otra vez sobre su base de aquí (su
+ *       eslabón es exactamente el que nombra: `backup_id`, SHA-256 del manifiesto y posición);
+ *   N2  un punto subido sin firma que nombra por su nombre otro subido (que no es su eslabón) no bloquea su «Borrar»;
+ *   N3  las filas subidas cuyo archivo se borró fuera de Backups (30, por FTP) salen en la retención (global y de una
+ *       automatización); lo subido tiene su propio tope de 100 filas (sale la más antigua, nunca una propia, una
+ *       bloqueada ni una de la que depende otra);
+ *   N4  un `.dgbk` subido sin su frase y vuelto a subir con ella no deja otra copia: se registra con su nombre y su cadena
+ *       queda completa; el aviso sólo propone «Agregar al listado» con su frase.
  */
 require __DIR__ . '/lib/backups-env.php';
 require __DIR__ . '/backups-incremental/helpers.php';
@@ -58,7 +69,7 @@ inc_put( 'wp-content/uploads/2026/11/a.txt', 'a 0' );
 $other_base = inc_path( inc_run( 'otro-sitio' ) );
 inc_put( 'wp-content/uploads/2026/11/a.txt', 'a 1' );
 $other_i1 = inc_path( inc_run( 'otro-sitio' ) );
-$other = array( 'base' => file_get_contents( $other_base ), 'i1' => file_get_contents( $other_i1 ) );
+$other = array( 'base' => file_get_contents( $other_base ), 'i1' => file_get_contents( $other_i1 ), 'base_name' => basename( $other_base ), 'i1_name' => basename( $other_i1 ) );
 rv_reset();
 
 inc_case( 'M1 un punto subido sin firma que nombra un respaldo hecho aquí no lo fija, no lo bloquea y queda «cadena incompleta»', function() use ( $other, $B ) {
@@ -216,6 +227,146 @@ inc_case( 'B5 con «sólo firmados», un ZIP firmado con una frase escrita al su
 	rv_reset();
 } );
 
+inc_case( 'N1 un incremental propio sin firma, descargado y vuelto a subir, se restaura otra vez sobre su base de aquí', function() use ( $B ) {
+	rv_reset(); // Cada caso empieza con el almacén y el historial vacíos, aunque el anterior fallara.
+	inc_put( 'wp-content/uploads/2026/11/d.txt', 'd 0' );
+	$base = inc_path( inc_run( 'propia-sin-firma' ) );
+	inc_put( 'wp-content/uploads/2026/11/d.txt', 'd 1' );
+	$GLOBALS['bk_options']['blogname'] = 'Punto sin firma 1';
+	$point = inc_path( inc_run( 'propia-sin-firma' ) );
+	$tree = inc_files();
+	$db = inc_db();
+	$bytes = file_get_contents( $point );
+	inc_check( empty( inc_row( $point )['signed'] ), 'La cadena propia de la prueba no debía ir firmada.' );
+	list( $ok ) = rv_delete( $point );
+	inc_check( $ok && ! is_file( $point ) && null === inc_row( $point ), '«Borrar» del punto propio no lo quitó.' );
+	inc_put( 'wp-content/uploads/2026/11/d.txt', 'd 2 después' );
+	$GLOBALS['bk_options']['blogname'] = 'Cambiado';
+	$up = rv_upload( basename( $point ), $bytes );
+	inc_check( ! is_wp_error( $up ) && true === $up['restorable'] && empty( inc_row( $up['file'] )['upload']['site_key'] ), 'El incremental propio sin firma vuelto a subir no quedó restaurable sobre su base de aquí: ' . json_encode( is_wp_error( $up ) ? $up->get_error_message() : array( $up['restorable'], rv_summary( $up['file'] )['chain'] ?? null ) ) );
+	inc_check( array( $up['file'] ) === Digitalisimo_Backups_Chain::dependents( (array) $GLOBALS['bk_options'][ $B::HISTORY ], basename( $base ) ), 'El punto vuelto a subir no protege su base, que es exactamente su eslabón.' );
+	$result = inc_restore( $up['file'], $up['confirmation'] );
+	inc_check( ! is_wp_error( $result ) && inc_last_restore_ok() && $tree === inc_files() && $db === inc_db(), 'El incremental propio sin firma vuelto a subir no se restauró sobre su base: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
+	rv_reset();
+} );
+
+inc_case( 'N2 un punto subido sin firma que nombra por su nombre otro subido (que no es su eslabón) no bloquea su «Borrar»', function() use ( $other ) {
+	rv_reset(); // Cada caso empieza con el almacén y el historial vacíos, aunque el anterior fallara.
+	inc_put( 'wp-content/uploads/2026/11/x.txt', 'otro respaldo cualquiera' );
+	$x_path = bk_backup();
+	$x_bytes = file_get_contents( $x_path );
+	unlink( $x_path );
+	$x = rv_upload( 'digitalisimo-backup-otro-subido-20261115-140000-0e0f0a0b.zip', $x_bytes );
+	inc_check( ! is_wp_error( $x ) && true === $x['listed'], 'No se subió el otro respaldo.' );
+	$tmp = sys_get_temp_dir() . '/rv-n2-' . bin2hex( random_bytes( 3 ) ) . '.zip';
+	file_put_contents( $tmp, $other['i1'] );
+	$zip = new ZipArchive();
+	$zip->open( $tmp );
+	$manifest = json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
+	$manifest['chain']['links'][0]['file'] = $x['file'];
+	$zip->addFromString( 'manifest.json', json_encode( $manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+	$zip->close();
+	$point = rv_upload( 'digitalisimo-backup-punto-manipulado-20261115-140100-0a0b0c0e.zip', file_get_contents( $tmp ) );
+	unlink( $tmp );
+	inc_check( ! is_wp_error( $point ) && false === $point['restorable'], 'El punto manipulado quedó restaurable.' );
+	list( $ok, $message ) = rv_delete( $x['file'] );
+	inc_check( $ok && null === inc_row( $x['file'] ), '«Borrar» de otro subido se negó por un punto que sólo lo nombra: ' . $message );
+	rv_reset();
+} );
+
+inc_case( 'N3 filas subidas sin archivo salen en la retención; lo subido tiene su propio tope de 100 filas', function() use ( $other, $B ) {
+	rv_reset(); // Cada caso empieza con el almacén y el historial vacíos, aunque el anterior fallara.
+	$own = bk_backup( true );
+	$kept = rv_upload( 'digitalisimo-backup-subido-con-archivo.zip', $other['base'] );
+	$ghost_files = array();
+	for ( $i = 0; $i < 30; $i++ ) {
+		$tmp = sys_get_temp_dir() . '/rv-n3-' . $i . '.zip';
+		file_put_contents( $tmp, $other['i1'] );
+		$zip = new ZipArchive();
+		$zip->open( $tmp );
+		$manifest = json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
+		$manifest['created_at'] = gmdate( 'Y-m-d\TH:i:s\Z', time() - 86400 - $i * 60 );
+		$zip->addFromString( 'manifest.json', json_encode( $manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+		$zip->close();
+		$g = rv_upload( sprintf( 'digitalisimo-backup-crece-%02d.zip', $i ), file_get_contents( $tmp ) );
+		unlink( $tmp );
+		inc_check( ! is_wp_error( $g ) && true === $g['listed'], 'La subida ' . $i . ' falló.' );
+		@unlink( rtrim( bk_storage(), '/' ) . '/' . $g['file'] ); // El archivo desaparece fuera de Backups (FTP).
+		$ghost_files[] = $g['file'];
+	}
+	// Una fila subida sin archivo pero bloqueada se queda (como las propias).
+	$history = (array) $GLOBALS['bk_options'][ $B::HISTORY ];
+	foreach ( $history as &$row ) if ( $ghost_files[0] === $row['file'] ) $row['locked'] = true;
+	unset( $row );
+	$GLOBALS['bk_options'][ $B::HISTORY ] = $history;
+	inc_check( 32 === count( $history ), 'El historial no tiene las filas esperadas antes de la retención: ' . count( $history ) );
+	$errors = array();
+	bk_call( $B, 'prune_locked', bk_storage(), 10 );
+	$files = array_column( (array) $GLOBALS['bk_options'][ $B::HISTORY ], 'file' );
+	if ( ! ( 3 === count( $files ) && in_array( basename( $own ), $files, true ) && in_array( $kept['file'], $files, true ) && in_array( $ghost_files[0], $files, true ) ) ) $errors[] = 'La retención global no retiró las filas subidas sin archivo (o retiró otras): quedan ' . count( $files ) . ' filas.';
+	// También la de una automatización.
+	$history = (array) $GLOBALS['bk_options'][ $B::HISTORY ];
+	$ghost = inc_row( $kept['file'] );
+	$ghost['file'] = 'digitalisimo-backup-fantasma-20261115-150000-0a0b0c0f.zip';
+	array_unshift( $history, $ghost );
+	$GLOBALS['bk_options'][ $B::HISTORY ] = $history;
+	bk_call( $B, 'prune_policy', array( 'id' => 'automation-diaria', 'retain' => 5 ) );
+	if ( ! ( null === inc_row( $ghost['file'] ) && null !== inc_row( $kept['file'] ) ) ) $errors[] = 'La retención de una automatización no retiró la fila subida sin archivo.';
+	rv_reset();
+	// Tope propio de 100: sale la subida más antigua, nunca una propia, una bloqueada ni una de la que depende otra.
+	$base = rv_upload( $other['base_name'], $other['base'] );
+	$point = rv_upload( $other['i1_name'], $other['i1'] );
+	inc_check( ! is_wp_error( $base ) && ! is_wp_error( $point ) && true === $point['restorable'], 'La cadena subida de la prueba no quedó completa: ' . json_encode( is_wp_error( $point ) ? $point->get_error_message() : $point['restorable'] ) );
+	$fake = function( $prefix, $count ) {
+		$rows = array();
+		for ( $i = 0; $i < $count; $i++ ) $rows[] = array( 'date' => '2026-11-15 10:00:00', 'file' => sprintf( 'digitalisimo-backup-%s-%03d.zip', $prefix, $i ), 'size' => 1, 'sha256' => str_repeat( 'b', 64 ), 'destination' => 'local', 'scope' => 'installation', 'policy' => 'uploaded', 'backup_type' => 'full', 'origin' => 'uploaded', 'upload' => array( 'site_key' => false ) );
+		return $rows;
+	};
+	$created = array();
+	for ( $i = 0; $i < 3; $i++ ) $created[] = array( 'date' => '2026-11-15 09:00:00', 'file' => sprintf( 'digitalisimo-backup-propio-%03d.zip', $i ), 'size' => 1, 'sha256' => str_repeat( 'c', 64 ), 'destination' => 'local', 'scope' => 'installation', 'policy' => 'manual', 'backup_type' => 'full', 'origin' => 'created' );
+	$old = $fake( 'viejo', 5 );
+	$old[2]['locked'] = true;
+	$history = array_merge( $fake( 'nuevo', 99 ), array( inc_row( $point['file'] ) ), $created, $old, array( inc_row( $base['file'] ) ), $fake( 'mas-viejo', 2 ) );
+	$capped = array_column( bk_call( $B, 'history_cap', $history ), 'file' );
+	$dropped = array_values( array_diff( array_column( $history, 'file' ), $capped ) );
+	$expected = array( $old[0]['file'], $old[1]['file'], $old[3]['file'], $old[4]['file'], 'digitalisimo-backup-mas-viejo-000.zip', 'digitalisimo-backup-mas-viejo-001.zip' );
+	if ( ! ( $expected === $dropped && 105 === count( $capped ) && in_array( $base['file'], $capped, true ) ) ) $errors[] = 'El tope de lo subido no sacó exactamente las subidas más antiguas (sin tocar propias, bloqueadas ni la base de un punto que se queda): sacó ' . json_encode( $dropped );
+	inc_check( ! $errors, implode( ' | ', $errors ) );
+	rv_reset();
+} );
+
+inc_case( 'N4 un .dgbk subido sin su frase y vuelto a subir con ella se registra con su nombre, sin otra copia', function() use ( $B, $K, $S ) {
+	rv_reset(); // Cada caso empieza con el almacén y el historial vacíos, aunque el anterior fallara.
+	$phrase = 'frase de la cadena cifrada para N4, bastante larga';
+	$K::set_passphrase( $phrase );
+	$GLOBALS['bk_options'][ $S::OPTION ] = array( 'encrypt' => true, 'require_signed' => false );
+	inc_put( 'wp-content/uploads/2026/11/e.txt', 'e 0' );
+	$base = inc_path( inc_run( 'cifrada-n4' ) );
+	inc_put( 'wp-content/uploads/2026/11/e.txt', 'e 1' );
+	$point = inc_path( inc_run( 'cifrada-n4' ) );
+	$bytes = array( 'base' => file_get_contents( $base ), 'point' => file_get_contents( $point ) );
+	$names = array( 'base' => basename( $base ), 'point' => basename( $point ) );
+	foreach ( array_keys( $GLOBALS['bk_options'] ) as $key ) if ( 0 === strpos( $key, $K::SECRET_PREFIX ) ) unset( $GLOBALS['bk_options'][ $key ] );
+	$GLOBALS['bk_options'][ $S::OPTION ] = array( 'encrypt' => false, 'require_signed' => false );
+	rv_reset();
+	$errors = array();
+	foreach ( array( 'base', 'point' ) as $which ) {
+		$blind = rv_upload( $names[ $which ], $bytes[ $which ] );
+		inc_check( ! is_wp_error( $blind ) && false === $blind['listed'] && $names[ $which ] === $blind['file'], 'El .dgbk sin frase no quedó suelto con su nombre.' );
+		$text = implode( ' ', (array) $blind['problems'] );
+		if ( 'base' === $which && ! ( false !== strpos( $text, '«Agregar al listado» con su frase' ) && false === strpos( $text, 'vuelve a subirlo' ) ) ) $errors[] = 'El aviso del .dgbk sin frase no propone sólo «Agregar al listado» con su frase: ' . $text;
+	}
+	foreach ( array( 'base', 'point' ) as $which ) {
+		$again = rv_upload( $names[ $which ], $bytes[ $which ], $phrase );
+		if ( ! ( ! is_wp_error( $again ) && true === $again['listed'] && $names[ $which ] === $again['file'] ) ) $errors[] = 'Vuelto a subir con su frase, el .dgbk ' . $which . ' no se registró con su nombre: ' . json_encode( is_wp_error( $again ) ? $again->get_error_message() : $again['file'] );
+	}
+	$summary = rv_summary( $names['point'] );
+	$stored = glob( rtrim( bk_storage(), '/' ) . '/digitalisimo-*.dgbk' ) ?: array();
+	if ( ! ( $summary && true === $summary['restorable'] && 2 === count( $stored ) ) ) $errors[] = 'La cadena vuelta a subir con su frase no quedó completa o el almacén guarda otra copia: ' . json_encode( array( $summary['restorable'] ?? null, $summary['chain']['missing'] ?? null, count( $stored ) ) );
+	inc_check( ! $errors, implode( ' | ', $errors ) );
+	rv_reset();
+} );
+
 bk_cleanup();
 if ( $failures ) { echo "FALLA: {$failures} caso(s) de la revisión de lo subido.\n"; exit( 1 ); }
-echo "DIGITALÍSIMO Backups: revisión de lo subido (M1, M3, M5, B1, B4, B5): un punto subido sin firma no ancla respaldos de aquí y queda «cadena incompleta»; el propio firmado se apoya en su base; el tope del historial cuenta aparte lo subido; un .dgbk sin su frase no se registra; el duplicado da la palabra de su fila; la retención y la vista previa v3 son las de siempre; «sólo firmados» no condena al firmado con frase.\n";
+echo "DIGITALÍSIMO Backups: revisión de lo subido (M1, M3, M5, B1, B4, B5, N1-N4): un punto subido sin firma no ancla respaldos de aquí y queda «cadena incompleta»; el propio firmado se apoya en su base; el tope del historial cuenta aparte lo subido; un .dgbk sin su frase no se registra; el duplicado da la palabra de su fila; la retención y la vista previa v3 son las de siempre; «sólo firmados» no condena al firmado con frase; el propio sin firma vuelto a subir se restaura sobre su eslabón exacto, nombrar no basta para bloquear, las subidas sin archivo salen y tienen su tope, y un .dgbk vuelto a subir con su frase no se duplica.\n";

@@ -20,11 +20,12 @@ defined( 'ABSPATH' ) || exit;
  *   no coincide con el SHA-256 de su fila y se rechaza.
  * - Otro sitio: H23 (la configuración de Backups de aquí se conserva), «Conservar mi acceso» y la reubicación siguen
  *   tratándolo como de otra instalación (keep_config_same_installation()).
- * - Retención: ni la global ni la de una automatización lo cuentan ni lo borran; el tope del historial no lo saca y
- *   tampoco lo cuenta (nunca desplaza la fila de un respaldo hecho aquí).
- * - Cadenas: un punto subido sin la firma de una clave de este sitio sólo depende de otras filas subidas o agregadas, y
- *   sólo si son el eslabón que nombra (mismo `backup_id` y mismo SHA-256 de manifiesto): nunca fija ni bloquea un
- *   respaldo hecho aquí (Digitalisimo_Backups_Chain::anchored_links()).
+ * - Retención: ni la global ni la de una automatización lo cuentan ni borran su archivo (sólo retiran su fila si se quedó
+ *   sin ninguna copia); el tope del historial lo cuenta aparte, con su propio tope de 100 filas subidas o agregadas
+ *   (nunca desplaza la fila de un respaldo hecho aquí).
+ * - Cadenas: un punto subido sin la firma de una clave de este sitio sólo depende de las filas que son exactamente el
+ *   eslabón que nombra (mismo `backup_id`, mismo SHA-256 de manifiesto y misma posición), hechas aquí o subidas: nombrar
+ *   un respaldo por su nombre no lo fija ni bloquea su «Borrar» (Digitalisimo_Backups_Chain::anchored_links()).
  * - «Respaldo reciente válido» (antes de actualizar): sólo si es de este mismo sitio con firma válida de su clave
  *   (`upload.same_site`).
  * - Un `.dgbk` cifrado con una clave que este sitio no tiene no se registra sin su frase (su tipo y su cadena no se
@@ -153,24 +154,18 @@ trait Digitalisimo_Backups_Uploaded_List {
 		return $info;
 	}
 	/**
-	 * Si el eslabón `$link` de la cadena del punto subido `$item` está en la lista de verdad (M1 de la revisión): su fila
-	 * tiene su archivo en el almacén y es ese eslabón, comprobado por la identidad de su manifiesto (`backup_id` y SHA-256
-	 * de `manifest.json`, anotados al validarlo), no sólo por su nombre. Un punto sin la firma de una clave de este sitio
-	 * sólo se apoya en filas subidas o agregadas; uno firmado con ella (un incremental propio descargado y vuelto a subir),
-	 * también en la cadena registrada aquí.
+	 * Si el eslabón `$link` de la cadena del punto subido `$item` está en la lista de verdad: su fila tiene su archivo en
+	 * el almacén y es exactamente ese eslabón (Digitalisimo_Backups_Chain::exact_link_row(): `backup_id`, SHA-256 de su
+	 * manifiesto y posición en la cadena), no sólo un archivo con su nombre (M1 de la revisión). Vale también una fila
+	 * hecha aquí: esa identidad no se adivina sin tener el respaldo, y así un incremental propio sin firma, descargado y
+	 * vuelto a subir, se restaura otra vez sobre su base de aquí (N1 de la verificación). Un eslabón sin fila sólo cuenta
+	 * para un punto firmado con una clave de este sitio (la restauración comprueba su manifiesto).
 	 */
 	private static function uploaded_link_ok( array $item, array $link, array $history ) {
-		$trusted = ! self::uploaded_untrusted( $item );
 		$named = null;
 		foreach ( $history as $row ) if ( is_array( $row ) && (string) ( $row['file'] ?? '' ) === (string) $link['file'] ) { $named = $row; break; }
-		// Uno propio cuyo eslabón salió del historial: como sin historial, por su nombre (la restauración comprueba su manifiesto).
-		if ( ! $named ) return $trusted && '' !== self::local_copy( array( 'file' => (string) $link['file'] ) );
-		if ( '' === self::local_copy( $named ) ) return false;
-		$registered = Digitalisimo_Backups_Chain::link_row( $history, $link );
-		if ( $registered && ( $trusted || self::is_uploaded_row( $registered ) ) ) return true;
-		if ( ! self::is_uploaded_row( $named ) ) return false;
-		$sha = (string) ( $named['upload']['manifest_sha256'] ?? '' );
-		return '' !== $sha && hash_equals( (string) $link['manifest_sha256'], $sha ) && (string) ( $named['backup_id'] ?? '' ) === (string) $link['backup_id'];
+		if ( ! $named ) return ! self::uploaded_untrusted( $item ) && '' !== self::local_copy( array( 'file' => (string) $link['file'] ) );
+		return '' !== self::local_copy( $named ) && null !== Digitalisimo_Backups_Chain::exact_link_row( $history, $link );
 	}
 	/** Fila del historial con este contenido (SHA-256 y tamaño) cuyo archivo sigue en el almacén, o null. */
 	private static function history_same_content( $sha256, $size ) {
@@ -210,7 +205,7 @@ trait Digitalisimo_Backups_Uploaded_List {
 		}
 		if ( Digitalisimo_Backups_Chain::is_incremental( $row ) ) {
 			$missing = array_keys( self::chain_missing( $row ) );
-			if ( $missing ) return 'Cadena incompleta: es un punto incremental y faltan en la lista ' . count( $missing ) . ' archivos de su cadena (' . implode( ', ', array_slice( $missing, 0, 3 ) ) . ( count( $missing ) > 3 ? '…' : '' ) . '). ' . ( self::uploaded_untrusted( $row ) ? 'Súbelos o agrégalos a la lista con ese mismo nombre (un respaldo hecho aquí no cuenta: este punto no está firmado con una clave de este sitio)' : 'Súbelos con ese mismo nombre o tráelos de su destino' ) . ' y se podrá restaurar.';
+			if ( $missing ) return 'Cadena incompleta: es un punto incremental y faltan en la lista ' . count( $missing ) . ' archivos de su cadena (' . implode( ', ', array_slice( $missing, 0, 3 ) ) . ( count( $missing ) > 3 ? '…' : '' ) . '). ' . ( self::uploaded_untrusted( $row ) ? 'Súbelos o agrégalos a la lista con ese mismo nombre (este punto no está firmado con una clave de este sitio: sólo cuenta el eslabón exacto que nombra su manifiesto, no otro archivo con su nombre)' : 'Súbelos con ese mismo nombre o tráelos de su destino' ) . ' y se podrá restaurar.';
 		}
 		return '';
 	}

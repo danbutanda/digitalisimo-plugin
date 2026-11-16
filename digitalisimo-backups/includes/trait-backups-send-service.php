@@ -10,8 +10,11 @@ defined( 'ABSPATH' ) || exit;
  *
  * La fila sólo se marca «en camino» cuando empieza la copia (`deliver`), con el trabajo que la hace (`transfer_job`). Si
  * ese trabajo se cancela, en cualquier fase, la fila vuelve a como estaba antes de enviarla; si falla, dice que la copia
- * falló; en los dos casos se puede volver a enviar (M4 de la revisión). Lo que se envía es lo registrado: el SHA-256 de la
- * fila se compara antes de cada tramo de la subida, y el que dice el recibo del destino tiene que ser el mismo.
+ * falló; en los dos casos se puede volver a enviar (M4 de la revisión). Lo que se envía es lo registrado (N5 de la
+ * verificación): el SHA-256 completo del archivo se calcula una sola vez, al empezar (`preflight`), y tiene que ser el
+ * de la fila; antes de cada tramo de la copia se compara sólo su identidad barata (inodo, tamaño y fecha de
+ * modificación) con la de ese momento; y al terminar, el SHA-256 del recibo del destino (el que el destino comprobó
+ * sobre la copia remota) tiene que ser el de la fila.
  */
 trait Digitalisimo_Backups_Send_Service {
 	/** Por qué la fila no se puede enviar ('' si se puede): sin su archivo en el almacén, o con una copia remota. */
@@ -22,6 +25,12 @@ trait Digitalisimo_Backups_Send_Service {
 		// «En camino» sólo con un trabajo sin terminar que la hace: un `pending` sin trabajo (uno que murió) no bloquea.
 		if ( $copy && 'pending' === $copy['state'] && self::send_copy_running( $row ) ) return 'La copia de este respaldo a ' . self::destination_label( $copy['destination'] ) . ' está en camino.';
 		return '';
+	}
+	/** Identidad barata de un archivo del almacén (inodo, tamaño y fecha de modificación), o array() si no se lee. */
+	private static function send_identity( $path ) {
+		clearstatcache( true, (string) $path );
+		$stat = @stat( (string) $path );
+		return is_array( $stat ) ? array( 'ino' => (int) $stat['ino'], 'size' => (int) $stat['size'], 'mtime' => (int) $stat['mtime'] ) : array();
 	}
 	/** Si un trabajo sin terminar (un envío o el respaldo que la copia) está copiando este archivo a su destino. */
 	private static function send_copy_running( array $row ) {
@@ -99,14 +108,17 @@ trait Digitalisimo_Backups_Send_Service {
 			if ( '' === $path ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo ya no tiene su archivo en el almacén privado.' );
 			$problem = self::credentials_problem( $destination );
 			if ( '' !== $problem ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
-			// Lo que se envía es exactamente lo registrado: un archivo que cambió en el almacén no sale.
+			// Lo que se envía es exactamente lo registrado: un archivo que cambió en el almacén no sale. El SHA-256 completo se
+			// calcula sólo aquí, entre dos lecturas de su identidad barata, que fija lo comprobado para los tramos (N5).
 			$sha = strtolower( (string) ( $spec['send']['sha256'] ?? '' ) );
+			$identity = self::send_identity( $path );
 			if ( '' === $sha || ! hash_equals( $sha, strtolower( (string) ( $row['sha256'] ?? '' ) ) ) || ! hash_equals( $sha, (string) @hash_file( 'sha256', $path ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El SHA-256 del respaldo ya no coincide con el de su fila: no se envió.' );
+			if ( ! $identity || $identity !== self::send_identity( $path ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo del respaldo cambió en el almacén mientras se comprobaba: no se envió.' );
 			$copy = self::remote_copy( $row );
 			if ( $copy && in_array( $copy['state'], array( 'ok', 'legacy' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Este respaldo ya tiene una copia remota: no se envió otra.' );
 			// Cómo estaba la fila antes de enviarla: si el envío se cancela, vuelve a esto. La fila aún no se toca.
 			$before = array_intersect_key( $row, array_flip( array( 'transfer', 'transfer_destination', 'transfer_error', 'transfer_job' ) ) );
-			return array( 'next' => 'deliver', 'checkpoint' => array( 'at' => time(), 'before' => $before ), 'message' => 'Copiando a ' . self::destination_label( $destination ) . '…' );
+			return array( 'next' => 'deliver', 'checkpoint' => array( 'at' => time(), 'before' => $before, 'identity' => $identity ), 'message' => 'Copiando a ' . self::destination_label( $destination ) . '…' );
 		}
 		if ( 'deliver' === $phase ) {
 			// Una cancelación pedida entre fases termina aquí, antes de marcar la fila.
@@ -114,8 +126,10 @@ trait Digitalisimo_Backups_Send_Service {
 			$path = self::local_path( $file );
 			if ( '' === $path ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo del respaldo desapareció del almacén antes de copiarlo al destino.' );
 			$sha = strtolower( (string) ( $spec['send']['sha256'] ?? '' ) );
-			// Lo que sale es lo registrado: el SHA-256 se compara antes de cada tramo de la subida (B3 de la revisión).
-			if ( '' === $sha || ! hash_equals( $sha, (string) @hash_file( 'sha256', $path ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo del respaldo cambió en el almacén (otro SHA-256 que el de su fila): no se envió.' );
+			// Antes de cada tramo, la identidad barata del archivo (inodo, tamaño y fecha) tiene que ser la que se comprobó con
+			// su SHA-256 en `preflight` (N5 de la verificación; el SHA-256 entero no se vuelve a leer en cada tramo).
+			$identity = (array) ( $job['checkpoint']['preflight']['identity'] ?? array() );
+			if ( '' === $sha || ! $identity || $identity !== self::send_identity( $path ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo del respaldo cambió en el almacén después de comprobarlo (otro inodo, tamaño o fecha): no se envió.' );
 			// «En camino» desde ahora, con este trabajo: una fila con otra copia en curso no se pisa.
 			$claimed = self::change_history( function( &$history ) use ( $file, $destination, $job ) {
 				foreach ( $history as &$item ) {

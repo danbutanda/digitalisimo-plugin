@@ -275,15 +275,31 @@ Digitalisimo_Backups::download();' );
 	unset( $item );
 	update_option( $B::HISTORY, $history );
 	digi_assert( '' === $call( 'send_problem', $row_of( $to_send ) ), 'Una copia «en camino» sin trabajo bloquea volver a enviar.' );
-	// B3: el archivo cambia en el almacén entre la comprobación y la copia: no sale y la fila dice que falló.
-	Digitalisimo_Backups_Jobs::$phase_runner = function( $now, $job ) use ( $store, $to_send ) {
-		if ( 'deliver' === $now ) { $h = fopen( $store . '/' . $to_send, 'r+b' ); fseek( $h, 100 ); fwrite( $h, 'X' ); fclose( $h ); }
-		return Digitalisimo_Backups_Backup_Job::run_phase( $now, $job );
-	};
-	$uploads_before = count( $GLOBALS['drive'] );
-	$changed = $B::service_send( $to_send, array( 'destination' => 'google', 'drive_cli' => true ) );
-	Digitalisimo_Backups_Jobs::$phase_runner = null;
-	digi_assert( is_wp_error( $changed ) && false !== strpos( $changed->get_error_message(), 'cambió' ) && $uploads_before === count( $GLOBALS['drive'] ) && 'ok' !== ( $row_of( $to_send )['transfer'] ?? '' ), 'Un archivo cambiado en el almacén después de comprobarlo se envió: ' . json_encode( array( is_wp_error( $changed ) ? $changed->get_error_message() : $changed, $plain( $to_send ) ) ) );
+	// B3 y N5: el SHA-256 entero se calcula una vez al empezar; antes de cada tramo se compara la identidad barata del
+	// archivo (inodo, tamaño y fecha) y, al final, el recibo del destino. (1) El archivo crece después de comprobarlo: no
+	// sale nada. (2) Cambia con el mismo tamaño y la misma fecha: el recibo lo delata, la copia remota se retira y no se
+	// registra. En los dos casos la fila no queda con copia remota y se puede volver a enviar.
+	$original = file_get_contents( $store . '/' . $to_send );
+	foreach ( array( 'crece' => 'otro inodo, tamaño o fecha', 'misma-huella' => 'durante el envío' ) as $how => $expected ) {
+		file_put_contents( $store . '/' . $to_send, $original );
+		Digitalisimo_Backups_Jobs::$phase_runner = function( $now, $job ) use ( $store, $to_send, $how ) {
+			if ( 'deliver' === $now && empty( $GLOBALS['digi_changed'] ) ) {
+				$GLOBALS['digi_changed'] = true;
+				$path = $store . '/' . $to_send;
+				clearstatcache( true, $path );
+				$mtime = filemtime( $path );
+				if ( 'crece' === $how ) file_put_contents( $path, 'X', FILE_APPEND );
+				else { $h = fopen( $path, 'r+b' ); fseek( $h, 100 ); fwrite( $h, 'X' ); fclose( $h ); touch( $path, $mtime ); }
+				clearstatcache( true, $path );
+			}
+			return Digitalisimo_Backups_Backup_Job::run_phase( $now, $job );
+		};
+		$GLOBALS['digi_changed'] = false;
+		$uploads_before = count( $GLOBALS['drive'] );
+		$changed = $B::service_send( $to_send, array( 'destination' => 'google', 'drive_cli' => true ) );
+		Digitalisimo_Backups_Jobs::$phase_runner = null;
+		digi_assert( is_wp_error( $changed ) && false !== strpos( $changed->get_error_message(), $expected ) && $uploads_before === count( $GLOBALS['drive'] ) && 'ok' !== ( $row_of( $to_send )['transfer'] ?? '' ) && '' === $call( 'send_problem', $row_of( $to_send ) ), 'Un archivo cambiado en el almacén después de comprobarlo (' . $how . ') se envió o no lo detectó lo que debía: ' . json_encode( array( is_wp_error( $changed ) ? $changed->get_error_message() : $changed, $plain( $to_send ), $uploads_before, count( $GLOBALS['drive'] ) ) ) );
+	}
 	$history = (array) get_option( $B::HISTORY );
 	update_option( $B::HISTORY, array_values( array_filter( $history, function( $r ) use ( $to_send ) { return $to_send !== $r['file']; } ) ) );
 	unlink( $store . '/' . $to_send );

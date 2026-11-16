@@ -75,6 +75,8 @@ final class Digitalisimo_Backups {
 	const STORAGE = 'digitalisimo_backups_private_storage';
 	const HISTORY = 'digitalisimo_backups_history';
 	const OPERATION_LOCK = '.operation.lock';
+	/** Filas subidas o agregadas que guarda el historial, aparte de las 100 de los respaldos hechos aquí (history_cap()). */
+	const HISTORY_UPLOADED_CAP = 100;
 	const POLICIES = 'digitalisimo_backups_policies';
 	const SERVERS = 'digitalisimo_backups_servers';
 	const ACTION_SAVE = 'digitalisimo_backups_save';
@@ -2309,17 +2311,19 @@ final class Digitalisimo_Backups {
 	 * Tope del historial: las 100 filas más recientes **de las de este sitio** y, de las anteriores, las bloqueadas y las de
 	 * los eslabones de los que depende una fila que se queda (Digitalisimo_Backups_Chain::pinned()): sin su fila, todos los
 	 * puntos posteriores de esa cadena dejarían de restaurarse. Una automatización incremental cabe entera (Conservar + un
-	 * completo cada N ≤ 100). Las filas subidas o agregadas van aparte (M3 de la revisión): no ocupan el tope, así que nunca
-	 * desplazan la fila de un respaldo hecho aquí (que, sin ella, quedaría «sin registro» y fuera de la retención), y no
-	 * salen nunca (nadie las borra salvo a mano: sin su fila volverían a ser «sin registro»). El orden no cambia.
+	 * completo cada N ≤ 100). Las filas subidas o agregadas van aparte (M3 de la revisión), con su propio tope de 100 (N3
+	 * de la verificación): nunca desplazan la fila de un respaldo hecho aquí (que, sin ella, quedaría «sin registro» y
+	 * fuera de la retención), y al pasar de 100 sale la más antigua de ellas, salvo que esté bloqueada o que dependa de
+	 * ella una fila que se queda; su archivo sigue en el almacén, «sin registro». El orden no cambia.
 	 */
 	private static function history_cap( array $history ) {
 		$history = array_values( $history );
 		$keep = array();
 		$own = 0;
+		$uploaded = 0;
 		$tail = array();
 		foreach ( $history as $index => $entry ) {
-			if ( self::is_uploaded_row( $entry ) || $own++ < 100 ) $keep[ $index ] = true;
+			if ( self::is_uploaded_row( $entry ) ? $uploaded++ < self::HISTORY_UPLOADED_CAP : $own++ < 100 ) $keep[ $index ] = true;
 			else $tail[ $index ] = $entry;
 		}
 		foreach ( $tail as $index => $entry ) if ( ! empty( $entry['locked'] ) ) $keep[ $index ] = true;
@@ -2435,6 +2439,24 @@ final class Digitalisimo_Backups {
 			return true;
 		} );
 	}
+	/**
+	 * En cada retención (la global y la de una automatización), con su cerrojo: las filas subidas o agregadas que se
+	 * quedaron sin ninguna copia (su archivo se borró fuera de Backups, por FTP o SSH, y no tienen copia remota) salen del
+	 * historial (N3 de la verificación). Ninguna retención las cuenta ni borra su archivo; esto sólo quita una fila que ya
+	 * no lleva a nada, con el mismo criterio que history_copyless(): nunca una bloqueada, una con copia remota (o
+	 * pendiente) ni la de un trabajo en curso.
+	 */
+	private static function retire_uploaded_copyless_locked( array $busy ) {
+		$root = realpath( self::local_directory() );
+		if ( false === $root || ! is_dir( $root ) || file_exists( $root . '/' . self::RESTORE_JOURNAL ) ) return;
+		self::change_history( function( &$history ) use ( $busy, $root ) {
+			$keep = array();
+			foreach ( $history as $row ) if ( ! self::is_uploaded_row( $row ) || ! self::history_copyless( $row, $root, $busy ) ) $keep[] = $row;
+			if ( count( $keep ) === count( $history ) ) return false;
+			$history = $keep;
+			return true;
+		} );
+	}
 	/** Una fila del historial sin ninguna copia, que history_drop_copyless() puede retirar. */
 	private static function history_copyless( $row, $root, array $busy ) {
 		if ( ! is_array( $row ) || ! empty( $row['locked'] ) || array_key_exists( 'migration', $row ) ) return false;
@@ -2482,6 +2504,7 @@ final class Digitalisimo_Backups {
 			$retired[ $name ] = true;
 		}
 		self::retire_copyless_locked( $retired, $busy );
+		self::retire_uploaded_copyless_locked( $busy );
 		self::chain_sweep();
 	}
 	/**
@@ -2532,6 +2555,7 @@ final class Digitalisimo_Backups {
 		}
 		self::retire_remote_locked( $retired );
 		self::retire_copyless_locked( $retired, $busy );
+		self::retire_uploaded_copyless_locked( $busy );
 		self::chain_sweep();
 	}
 	/**

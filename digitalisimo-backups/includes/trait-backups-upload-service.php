@@ -241,7 +241,11 @@ trait Digitalisimo_Backups_Upload_Service {
 	 *
 	 * Un `.dgbk` con una clave que este sitio no tiene, cerrado sin su frase, entra en el almacén «sin registro» (M5 de la
 	 * revisión): sin descifrarlo no se sabe si es un respaldo completo o un punto incremental, ni su cadena. Se agrega a la
-	 * lista al cerrar la subida con su frase o con «Agregar al listado» y su frase.
+	 * lista con «Agregar al listado» y su frase.
+	 *
+	 * Si ese mismo contenido (SHA-256 y tamaño) ya está en el almacén como archivo suelto (por ejemplo, ese `.dgbk` subido
+	 * antes sin su frase), no se guarda otra copia: se registra ese archivo, con su nombre, que es el que nombran los
+	 * puntos de su cadena (N4 de la verificación).
 	 */
 	private static function upload_place( array $state, $path, array $report, array $args ) {
 		$checksum = @hash_file( 'sha256', $path );
@@ -256,6 +260,14 @@ trait Digitalisimo_Backups_Upload_Service {
 		$placed = Digitalisimo_Backups_Job_Store::with_lock( function() use ( &$state, $path, $storage, $name, $report, $checksum, $size, $info, $loose ) {
 			$same = self::history_same_content( $checksum, $size );
 			if ( $same ) return array( 'file' => (string) $same['file'], 'duplicate' => true, 'row' => $same );
+			$copy = self::loose_same_content( $checksum, $size );
+			if ( '' !== $copy ) {
+				$state['placing'] = array( 'file' => $copy, 'sha256' => $checksum, 'info' => self::upload_row_input( $info ), 'loose' => $loose, 'reused' => true );
+				$state['updated_at'] = time();
+				Digitalisimo_Backups_Uploads::write( $state );
+				if ( $loose ) return array( 'file' => $copy, 'duplicate' => false, 'row' => array(), 'loose' => true, 'reused' => true );
+				return array( 'file' => $copy, 'duplicate' => false, 'row' => self::remember_uploaded( $storage . $copy, $checksum, $info ), 'reused' => true );
+			}
 			$file = self::upload_final_name( $name, $report['container'] );
 			$state['placing'] = array( 'file' => $file, 'sha256' => $checksum, 'info' => self::upload_row_input( $info ), 'loose' => $loose );
 			$state['updated_at'] = time();
@@ -272,8 +284,24 @@ trait Digitalisimo_Backups_Upload_Service {
 			}
 			return array( 'file' => $file, 'duplicate' => false, 'row' => $row );
 		} );
-		if ( $placed['duplicate'] ) @unlink( $path );
+		if ( $placed['duplicate'] || ! empty( $placed['reused'] ) ) @unlink( $path );
 		return self::upload_done( $state, $placed, $public, $size );
+	}
+	/**
+	 * Archivo suelto del almacén (un nombre de respaldo sin fila en el historial) con este contenido, o ''. Sólo se lee
+	 * entero el que tiene el mismo tamaño.
+	 */
+	private static function loose_same_content( $sha256, $size ) {
+		$storage = trailingslashit( self::local_directory() );
+		$known = array_flip( array_map( 'strval', array_column( (array) self::fresh_history(), 'file' ) ) );
+		foreach ( (array) @scandir( $storage ) as $file ) {
+			$file = (string) $file;
+			if ( isset( $known[ $file ] ) || ! self::loose_name( $file ) ) continue;
+			$path = $storage . $file;
+			if ( is_link( $path ) || ! is_file( $path ) || (int) @filesize( $path ) !== (int) $size ) continue;
+			if ( hash_equals( (string) $sha256, (string) @hash_file( 'sha256', $path ) ) ) return $file;
+		}
+		return '';
 	}
 	/** Lo de la validación que la fila necesita, guardado en la sesión mientras se coloca (sin el ZIP abierto). */
 	private static function upload_row_input( array $info ) {
@@ -302,7 +330,7 @@ trait Digitalisimo_Backups_Upload_Service {
 		$result['origin'] = $loose ? '' : (string) ( $row['origin'] ?? 'created' );
 		$result['restorable'] = $loose ? false : self::restorable_item( $row );
 		$result['uploaded'] = $loose ? null : self::uploaded_summary( $row );
-		if ( $loose ) $result['problems'] = array( 'Está cifrado con la clave ' . (string) ( $public['key'] ?? '' ) . ', que este sitio no tiene: quedó en el almacén «sin registro». Da su frase para agregarlo a la lista (vuelve a subirlo escribiéndola, o «Agregar al listado» con ella en Herramientas → «Restaurar un archivo suelto»); también se restaura desde ahí con su frase.' );
+		if ( $loose ) $result['problems'] = array( 'Está cifrado con la clave ' . (string) ( $public['key'] ?? '' ) . ', que este sitio no tiene: quedó en el almacén «sin registro», con el nombre ' . (string) $placed['file'] . '. Da su frase para agregarlo a la lista: «Agregar al listado» con su frase en Herramientas → «Restaurar un archivo suelto» (también se restaura desde ahí con su frase).' );
 		unset( $state['placing'] );
 		$state['phase'] = 'done';
 		$state['result'] = $result;

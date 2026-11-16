@@ -359,8 +359,9 @@ final class Digitalisimo_Backups_Chain {
 	/**
 	 * Archivos de su cadena que una fila fija (retención y tope del historial) y de los que depende para «Borrar». Los de
 	 * una fila hecha aquí, o subida con la firma de una clave de este sitio: todos. Los de un punto subido o agregado sin
-	 * esa firma (M1 de la revisión): su manifiesto no es confiable, así que nunca fija ni bloquea un respaldo de otra
-	 * procedencia; sólo los eslabones que también son filas subidas o agregadas (o que no tienen fila).
+	 * esa firma: su manifiesto no es confiable, así que sólo fija los eslabones que son exactamente el que nombra
+	 * (exact_link_row(): `backup_id`, SHA-256 de su manifiesto y posición en la cadena, N1 y N2 de la verificación) y los
+	 * que no tienen fila. Nombrar un respaldo por su nombre no basta para fijarlo ni bloquear su «Borrar» (M1).
 	 */
 	public static function anchored_links( array $row, array $history ) {
 		$chain = self::row_chain( $row );
@@ -368,9 +369,30 @@ final class Digitalisimo_Backups_Chain {
 		$files = array();
 		foreach ( $chain['links'] as $link ) $files[] = (string) $link['file'];
 		if ( ! self::untrusted_upload( $row ) ) return $files;
-		$origin = array();
-		foreach ( $history as $other ) if ( is_array( $other ) && ! isset( $origin[ (string) ( $other['file'] ?? '' ) ] ) ) $origin[ (string) ( $other['file'] ?? '' ) ] = (string) ( $other['origin'] ?? 'created' );
-		return array_values( array_filter( $files, function( $file ) use ( $origin ) { return ! isset( $origin[ $file ] ) || in_array( $origin[ $file ], array( 'uploaded', 'added' ), true ); } ) );
+		$named = array();
+		foreach ( $history as $other ) if ( is_array( $other ) ) $named[ (string) ( $other['file'] ?? '' ) ] = true;
+		$out = array();
+		foreach ( $chain['links'] as $link ) if ( ! isset( $named[ (string) $link['file'] ] ) || null !== self::exact_link_row( $history, $link ) ) $out[] = (string) $link['file'];
+		return $out;
+	}
+	/**
+	 * La fila del historial que es exactamente el eslabón `$link`, o null: la que link_row() reconoce por su propio bloque
+	 * `chain` (`backup_id`, SHA-256 de su manifiesto y posición: la escribió este motor o la validación de la subida) o,
+	 * para la base de una cadena subida o agregada (una fila sin bloque `chain`: un completo), la de su mismo `backup_id`
+	 * y el SHA-256 de su manifiesto anotado al validarla (`upload.manifest_sha256`), en la posición 0. Esa identidad no
+	 * se adivina sin tener ya el respaldo.
+	 */
+	public static function exact_link_row( array $history, array $link ) {
+		$row = self::link_row( $history, $link );
+		if ( $row ) return $row;
+		foreach ( $history as $named ) {
+			if ( ! is_array( $named ) || (string) ( $named['file'] ?? '' ) !== (string) $link['file'] ) continue;
+			if ( ! in_array( (string) ( $named['origin'] ?? '' ), array( 'uploaded', 'added' ), true ) || self::row_chain( $named ) ) return null;
+			$sha = (string) ( $named['upload']['manifest_sha256'] ?? '' );
+			$base = 0 === (int) $link['sequence'] && 'incremental' !== (string) ( $named['backup_type'] ?? 'full' );
+			return $base && '' !== $sha && hash_equals( $sha, (string) $link['manifest_sha256'] ) && (string) ( $named['backup_id'] ?? '' ) === (string) $link['backup_id'] ? $named : null;
+		}
+		return null;
 	}
 	/** Una fila subida o agregada sin la firma de una clave de este sitio (`upload.site_key`). */
 	public static function untrusted_upload( $row ) {
