@@ -14,7 +14,10 @@
  *       o el respaldo manual en curso; «Trabajos» no lo repite (sí los demás); sin rutas ni secretos;
  *   R5  restaurar desde la pantalla vuelve a «Respaldos», donde está el panel, con un aviso corto;
  *   R6  en la red, la pantalla de la red sigue la restauración en su panel (con «Volver a la copia previa» de la red) y un
- *       subsitio no pinta el panel.
+ *       subsitio no pinta el panel;
+ *   R7  la cookie con el testigo sale antes de que la petición que restaura empiece a trabajar: si muere en sus primeros
+ *       tramos (en php-wasm, con 64 MB, también con main), el navegador sigue la restauración durante el mantenimiento;
+ *       con otro trabajo en curso no se manda (no pisa la cookie de esa restauración).
  * Debe fallar con 1.0.77 (77678f25). Uso: php tests/backups-progress.php
  */
 require __DIR__ . '/lib/backups-env.php';
@@ -253,6 +256,42 @@ bp_case( 'R5 · restaurar desde la pantalla vuelve a «Respaldos» con un aviso 
 	bp_check( 0 === strpos( $message, 'Restauración en curso: su avance se ve abajo.' ) && '' !== $safety && false !== strpos( $message, $safety ) && mb_strlen( str_replace( $safety, '', $message ) ) <= 120 && false === strpos( $message, '«Trabajos»' ), 'El aviso al empezar no es corto, no nombra la copia previa o manda a «Trabajos»: ' . $message );
 	$active = Digitalisimo_Backups_Jobs::restore_active();
 	bp_check( $active && 'inspect' === $active['phase'], 'No quedó la restauración en curso.' );
+	Digitalisimo_Backups_Jobs::cancel( $active['id'] );
+	Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	@unlink( $path );
+	bp_clear_jobs();
+} );
+
+bp_case( 'R7 · la cookie del testigo sale antes de empezar: si la petición que restaura muere en sus primeros tramos, el navegador la sigue', function() use ( $B ) {
+	bp_clear_jobs();
+	$path = bk_backup( true );
+	$filters = $GLOBALS['bk_filters'];
+	// La petición muere justo cuando empieza a trabajar (memoria, un proxy que corta): ya está encolada.
+	$GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] = function() { throw new RuntimeException( 'la petición muere aquí' ); };
+	$died = false;
+	try {
+		bk_post( array( $B, 'restore_request' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_RESTORE, 'action' => $B::ACTION_RESTORE, 'backup_file' => basename( $path ), 'confirmation' => 'RESTAURAR' ) );
+	} catch ( RuntimeException $e ) {
+		$died = 'la petición muere aquí' === $e->getMessage();
+	} finally {
+		$GLOBALS['bk_filters'] = $filters;
+	}
+	$active = Digitalisimo_Backups_Jobs::restore_active();
+	$token = (string) ( $active['spec']['token'] ?? '' );
+	bp_check( $died && $active && preg_match( '/^[0-9a-f]{64}$/', $token ), 'No quedó la restauración encolada al morir la petición.' );
+	// PHP de consola no registra cabeceras: el orden se comprueba en el handler (la cookie con ese testigo sale antes de
+	// pedir la restauración, y el caso de uso encola con él); lo demuestra en un navegador backups-restore-progress.sh.
+	$source = file_get_contents( dirname( __DIR__ ) . '/digitalisimo-backups/includes/class-backups.php' );
+	$handler = substr( $source, strpos( $source, 'public static function restore_request()' ), 6000 );
+	$cookie = strpos( $handler, 'Digitalisimo_Backups_Restore_Maintenance::send_cookie( $token );' );
+	$service = strpos( $handler, '$result = self::service_restore(' );
+	bp_check( false !== $cookie && false !== $service && $cookie < $service && false !== strpos( substr( $handler, $service, 600 ), '\'token\' => $token' ) && false !== strpos( substr( $handler, 0, $cookie ), 'Digitalisimo_Backups_Jobs::has_active() ? null' ), 'La cookie del testigo no sale antes de pedir la restauración con ese mismo testigo (o se manda con otro trabajo en curso).' );
+	// Y el caso de uso encola con el testigo que le dan (el de la cookie), no con otro.
+	$given = str_repeat( 'cd', 32 );
+	bp_check( $given === bk_call( $B, 'service_token', array( 'token' => $given ) ) && null === bk_call( $B, 'service_token', array( 'token' => 'no-es-hex' ) ) && null === bk_call( $B, 'service_token', array() ), 'El caso de uso no toma el testigo de la pantalla (o acepta uno inválido).' );
+	// Con otro trabajo en curso, se rechaza como siempre.
+	list( $ok, $message ) = bk_post( array( $B, 'restore_request' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_RESTORE, 'action' => $B::ACTION_RESTORE, 'backup_file' => basename( $path ), 'confirmation' => 'RESTAURAR' ) );
+	bp_check( ! $ok && $active['spec']['token'] === Digitalisimo_Backups_Jobs::restore_active()['spec']['token'], 'Con otra restauración en curso no se rechazó o cambió su testigo: ' . $message );
 	Digitalisimo_Backups_Jobs::cancel( $active['id'] );
 	Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
 	@unlink( $path );

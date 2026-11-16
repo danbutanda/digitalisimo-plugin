@@ -2677,7 +2677,11 @@ final class Digitalisimo_Backups {
 			// «Conservar mi acceso»: encendido salvo que el formulario lo muestre desmarcado.
 			$keep = empty( $_POST['keep_access_shown'] ) || ! empty( $_POST['keep_access'] );
 			// «Qué restaurar»: con «Todo» marcado (o un formulario sin el campo), todo; si no, las partes marcadas.
-			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'keep_access' => $keep, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false ) + self::restore_request_parts() );
+			// El testigo va en la cookie antes de empezar: si esta petición muere en sus primeros tramos (memoria, un proxy), el
+			// navegador sigue la restauración durante el mantenimiento. Nunca con otro trabajo en curso (pisaría su cookie).
+			$token = Digitalisimo_Backups_Jobs::has_active() ? null : Digitalisimo_Backups_Restore_Maintenance::new_token();
+			if ( $token ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( $token );
+			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'keep_access' => $keep, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false, 'token' => $token ) + self::restore_request_parts() );
 			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );
 			if ( ! empty( $result['restoring'] ) ) {
 				Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
