@@ -141,6 +141,19 @@ up_case( 'S1 · cerrar una subida anota su paso de la comprobación, sin rutas, 
 	up_check( array() === $states && null === Digitalisimo_Backups_Jobs::$observer, '«Agregar al listado» anotó pasos de una subida o dejó el observador puesto.' );
 	up_check( is_wp_error( $added ) && 'digitalisimo_backups_register_duplicate' === $added->get_error_code(), 'El mismo contenido se agregó dos veces: ' . json_encode( is_wp_error( $added ) ? $added->get_error_code() : $added ) );
 	@unlink( $loose );
+	// El proceso murió después de mover el archivo al almacén, con el paso de la comprobación aún en la sesión: cerrarla
+	// otra vez la termina y no deja el paso.
+	$died = $B::service_upload_start( array( 'name' => 'digitalisimo-murio.zip', 'size' => 10 ) );
+	$placed = rtrim( bk_storage(), '/' ) . '/digitalisimo-murio-colocado.zip';
+	file_put_contents( $placed, 'diez bytes' );
+	$state = $U::read( $died['id'] );
+	@unlink( $U::data_path( $died['id'] ) );
+	$state = array_replace( $state, array( 'phase' => 'validating', 'attempts' => 1, 'check' => array( 'step' => 'register', 'text' => 'Registrándolo…', 'detail' => '', 'started' => time(), 'at' => time() ), 'placing' => array( 'file' => basename( $placed ), 'sha256' => hash_file( 'sha256', $placed ), 'info' => array( 'container' => 'zip' ), 'loose' => true ) ) );
+	$U::write( $state );
+	$again = $B::service_upload_finish( $died['id'], array( 'via' => 'admin-ajax' ) );
+	$after = $U::read( $died['id'] );
+	up_check( ! is_wp_error( $again ) && 'done' === $after['phase'] && ! isset( $after['check'] ) && ! isset( $after['placing'] ), 'Cerrar otra vez una subida que murió tras colocarse deja el paso de la comprobación: ' . json_encode( is_wp_error( $again ) ? $again->get_error_message() : $after ) );
+	@unlink( $placed );
 } );
 
 up_case( 'S2 · el estado por AJAX trae el paso de la comprobación y el registro; el de REST no cambia', function() use ( $B, $U, $view_keys ) {
