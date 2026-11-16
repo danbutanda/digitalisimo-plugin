@@ -10,6 +10,8 @@
 #   OUT, TMPDIR     resultados (por defecto /var/tmp/digi-bk/backups-restore-progress) y temporales de Playground
 #   MODES           modos (por defecto «single»; «multisite» repite el respaldo y la restauración por partes en la red)
 #   PORT            primer puerto (por defecto 9561)
+#   TICK_BUDGET     segundos de trabajo de cada tick (por defecto 5; en el hosting, 15): en un sitio pequeño, con 15 s un
+#                   respaldo entero cabe en un tick y el panel no tendría avance intermedio que enseñar
 #   BACKUP_MEMORY   límite de las peticiones de «Respaldar ahora» (por defecto 128M, como el respaldo de referencia de
 #                   backups-restore-parts.sh: en php-wasm el empaquetado va al límite de 64 MB también con main; las
 #                   restauraciones, su copia previa incluida, corren siempre con 64 MB)
@@ -65,11 +67,13 @@ for mode in ${MODES:-single}; do
   # El de «restaurar por partes»: sin los archivos de 1 MiB del laboratorio y con el límite de memoria del respaldo.
   cp "$Q/setup.php" "$dir/probe/parts-setup.php"
   echo a > "$dir/probe/site.txt"
+  echo "${TICK_BUDGET:-5}" > "$dir/ctl/tick-budget"
   head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$dir/probe/token.txt"
   cat > "$dir/blueprint.json" <<JSON
 {"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_MEMORY_LIMIT":"64M","WP_MAX_MEMORY_LIMIT":"64M","WP_ENVIRONMENT_TYPE":"local","DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS":true}},$multi
 {"step":"runPHP","code":"<?php putenv('DIGI_RESTORE_POSTS=$DIGI_RESTORE_POSTS'); putenv('DIGI_RESTORE_FILES=$DIGI_RESTORE_FILES'); require '/digi-probe/setup.php';"},
-{"step":"runPHP","code":"<?php require '/digi-probe/parts-setup.php';"}]}
+{"step":"runPHP","code":"<?php require '/digi-probe/parts-setup.php';"},
+{"step":"writeFile","path":"/wordpress/wp-content/mu-plugins/digi-progress-lab.php","data":"<?php // Ensayo del panel de avance: ticks de /digi-ctl/tick-budget segundos (después del laboratorio, que pone 15).\nadd_filter( 'digitalisimo_backups_job_budget', static function ( \$budget ) { \$s = (int) @file_get_contents( '/digi-ctl/tick-budget' ); return \$s > 0 ? \$s : \$budget; }, 20 );\n"}]}
 JSON
   if fuser -n tcp "$port" >/dev/null 2>&1; then echo "el puerto $port está ocupado; usa PORT=…"; exit 1; fi
   begun=$(date +%s)

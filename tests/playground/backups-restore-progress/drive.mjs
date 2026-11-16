@@ -166,13 +166,22 @@ async function restoreFromRow(parts) {
     for (const part of parts) await page.$eval(`#${row} [data-restore-part][value="${part}"]`, (box) => { if (!box.checked) box.click(); });
   }
   await page.type(`#${row} input[name="confirmation"]`, 'RESTAURAR');
+  // Lo que enseña el panel justo después de enviar, guardado antes de que la navegación cambie de documento.
+  await page.evaluate(() => {
+    sessionStorage.removeItem('digi-starting');
+    document.addEventListener('submit', () => setTimeout(() => {
+      const p = document.getElementById('digitalisimo-backups-manual-progress');
+      const bar = document.getElementById('digitalisimo-backups-manual-bar');
+      sessionStorage.setItem('digi-starting', JSON.stringify({ visible: !p.hidden && p.getBoundingClientRect().height > 0, state: p.getAttribute('data-state'), message: document.getElementById('digitalisimo-backups-manual-message').textContent, now: bar.getAttribute('aria-valuenow') }));
+    }, 0));
+  });
   const navigation = page.waitForNavigation({ waitUntil: 'load', timeout: 300_000 }).catch(() => null);
   await page.click(`#${row} .digitalisimo-backups-restore-confirm button`);
   await sleep(250);
-  const starting = await panel();
-  check(starting && starting.visible && starting.state === 'starting' && /Empezando la restauración/.test(starting.message) && starting.now === null, 'al confirmar «Restaurar», el panel dice al instante que empieza (barra indeterminada)', JSON.stringify(starting));
   await shot(`${parts ? 'partes' : 'completa'}-empieza`);
   await navigation;
+  const starting = await page.evaluate(() => JSON.parse(sessionStorage.getItem('digi-starting') || 'null')).catch(() => null);
+  check(starting && starting.visible && starting.state === 'starting' && /Empezando la restauración/.test(starting.message) && starting.now === null, 'al confirmar «Restaurar», el panel dice al instante que empieza (barra indeterminada)', JSON.stringify(starting));
   return true;
 }
 

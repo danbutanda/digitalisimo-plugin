@@ -12,7 +12,9 @@
  *   R4  la pantalla pinta el panel (barra con role=progressbar y sus valores, estado vivo, «Volver a la copia previa» con
  *       su nonce) con el trabajo que sigue al cargar en data-view: la restauración en curso, también en las demás pestañas,
  *       o el respaldo manual en curso; «Trabajos» no lo repite (sí los demás); sin rutas ni secretos;
- *   R5  restaurar desde la pantalla vuelve a «Respaldos», donde está el panel, con un aviso corto.
+ *   R5  restaurar desde la pantalla vuelve a «Respaldos», donde está el panel, con un aviso corto;
+ *   R6  en la red, la pantalla de la red sigue la restauración en su panel (con «Volver a la copia previa» de la red) y un
+ *       subsitio no pinta el panel.
  * Debe fallar con 1.0.77 (77678f25). Uso: php tests/backups-progress.php
  */
 require __DIR__ . '/lib/backups-env.php';
@@ -62,11 +64,12 @@ function bp_restore_spec( array $more = array() ) {
 	return array_replace( array( 'type' => 'restore', 'scope' => 'installation', 'destination' => 'local', 'policy' => 'restore', 'inline' => false, 'file' => 'digitalisimo-sitio-2026-11-15.zip', 'safety' => 'safety-before-restore-20261115.zip', 'token' => str_repeat( 'ab', 32 ), 'parts' => null, 'origin' => array( 'via' => 'admin-post' ) ), $more );
 }
 function bp_clear_jobs() { foreach ( Digitalisimo_Backups_Job_Store::ids() as $id ) bk_remove_tree( Digitalisimo_Backups_Job_Store::directory( $id ) ); }
-/** La pantalla real con $_GET. */
-function bp_render( $tab, array $get = array() ) {
-	$_GET = array( 'page' => 'digitalisimo-backups', 'tab' => $tab ) + $get;
+/** La pantalla real con $_GET; $network: la administración de red. */
+function bp_render( $tab, array $get = array(), $network = false ) {
+	$_GET = array( 'page' => $network ? 'digitalisimo-network-backups' : 'digitalisimo-backups', 'tab' => $tab ) + $get;
+	if ( $network ) $_REQUEST['digitalisimo_backups_network'] = '1';
 	ob_start();
-	try { bk_call( 'Digitalisimo_Backups', 'render', false ); } finally { $html = (string) ob_get_clean(); $_GET = array(); }
+	try { bk_call( 'Digitalisimo_Backups', 'render', $network ); } finally { $html = (string) ob_get_clean(); $_GET = array(); unset( $_REQUEST['digitalisimo_backups_network'] ); }
 	return $html;
 }
 /** El panel de avance de una página: sus atributos (data-view decodificado) y su HTML. */
@@ -91,6 +94,7 @@ function bp_panel( $html ) {
 		'title' => (bool) $doc->getElementById( (string) ( $bar ? $bar->getAttribute( 'aria-labelledby' ) : '' ) ),
 		'order' => strpos( $html, '<div id="digitalisimo-backups-manual-progress"' ),
 		'card' => $panel->getAttribute( 'class' ),
+		'login' => $panel->getAttribute( 'data-login' ),
 	);
 }
 
@@ -213,6 +217,23 @@ bp_case( 'R4 · la pantalla: el panel accesible con el trabajo que sigue, en cua
 	bp_job( 'restore', bp_restore_spec( array( 'aside' => array( 'kind' => 'migration', 'migration' => 'm1' ) ) ), array( 'phase' => 'files', 'status' => 'running' ) );
 	bp_check( null === bp_panel( bp_render( 'backups' ) )['view'], 'El panel sigue la restauración de una migración.' );
 	bp_clear_jobs();
+} );
+
+bp_case( 'R6 · la red: el panel de la administración de red sigue la restauración; un subsitio no lo pinta', function() {
+	bp_clear_jobs();
+	$GLOBALS['bk_multisite'] = true;
+	try {
+		$restore = bp_job( 'restore', bp_restore_spec( array( 'scope' => 'network' ) ), array( 'phase' => 'files', 'status' => 'running' ) );
+		$panel = bp_panel( bp_render( 'backups', array(), true ) );
+		bp_check( $panel && $restore['id'] === ( $panel['view']['id'] ?? '' ) && '1' === ( $panel['rollback']['digitalisimo_backups_network'] ?? '' ) && false !== strpos( (string) $panel['login'], rawurlencode( 'network/admin.php?page=digitalisimo-network-backups' ) ), 'La pantalla de la red no sigue la restauración en su panel o «Volver a la copia previa» e «Iniciar sesión» no son de la red: ' . json_encode( $panel ) );
+		$tools = bp_panel( bp_render( 'tools', array(), true ) );
+		bp_check( $tools && $restore['id'] === ( $tools['view']['id'] ?? '' ), '«Herramientas» de la red no enseña el panel de la restauración.' );
+		$GLOBALS['bk_main_site'] = false;
+		try { bp_check( null === bp_panel( bp_render( 'backups' ) ), 'Un subsitio pinta el panel de avance (sus respaldos son los de la red).' ); } finally { $GLOBALS['bk_main_site'] = true; }
+	} finally {
+		$GLOBALS['bk_multisite'] = false;
+		bp_clear_jobs();
+	}
 } );
 
 bp_case( 'R5 · restaurar desde la pantalla vuelve a «Respaldos» con un aviso corto', function() use ( $B ) {

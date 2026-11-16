@@ -127,7 +127,9 @@ function screen({ view = null, token = '', strip = false, card = true, active = 
     cardNode.appendChild(new El('div', { id: 'digitalisimo-backups-jobs-list' }));
   }
   const byId = (id) => { const found = document.querySelectorAll('#' + id); return found[0] || null; };
-  const own = { requests: [], replies: [], timers: new Map(), seq: 0, reloads: 0, replaced: [], confirms: [], alerts: [] };
+  const own = { requests: [], replies: [], timers: new Map(), seq: 0, reloads: 0, replaced: [], confirms: [], alerts: [], clock: { now: Date.now() }, intervals: [] };
+  const clock = own.clock;
+  class FakeDate extends Date { constructor(...args) { super(...(args.length ? args : [clock.now])); } static now() { return clock.now; } }
   const documentApi = {
     getElementById: byId,
     createElement: (tag) => new El(tag),
@@ -138,7 +140,8 @@ function screen({ view = null, token = '', strip = false, card = true, active = 
   const sandbox = {
     window: { digitalisimoBackupsManual: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce-manual', jobsNonce: 'nonce-jobs-vieja', context: 'site', login: '/wp-login.php?migrar' }, confirm: (text) => { own.confirms.push(text); return true; }, alert: (text) => own.alerts.push(text), location: { href: 'https://example.test/wp-admin/admin.php?page=digitalisimo-backups&tab=backups&backup=ok&message=Restauraci%C3%B3n%20en%20curso', reload: () => own.reloads++, replace: (url) => own.replaced.push(url) } },
     document: documentApi,
-    URL, URLSearchParams, Object, String, Number, Math, Error, JSON, Date, Array,
+    URL, URLSearchParams, Object, String, Number, Math, Error, JSON, Date: FakeDate, Array,
+    setInterval: (callback) => { own.intervals.push(callback); return own.intervals.length; },
     setTimeout: (callback, delay) => { const id = ++own.seq; own.timers.set(id, { callback, delay }); return id; },
     clearTimeout: (id) => { own.timers.delete(id); },
     fetch: (url, options) => {
@@ -147,6 +150,7 @@ function screen({ view = null, token = '', strip = false, card = true, active = 
       const reply = own.replies.shift();
       if (reply === undefined) throw new Error('Petición inesperada: ' + body.action);
       if (reply.reject) return Promise.reject(new TypeError('Failed to fetch'));
+      if (reply.pending) return new Promise(() => {});
       return Promise.resolve({ ok: (reply.status || 200) < 400, status: reply.status || 200, text: () => Promise.resolve(typeof reply.body === 'string' ? reply.body : JSON.stringify(reply.body)) });
     },
   };
@@ -288,6 +292,11 @@ await scenario('P6 · recargar la página a mitad de la restauración vuelve al 
   ok(page.pending().length === 1 && page.pending()[0].delay === 300, 'Al recargar no sigue consultando enseguida');
   await page.next(page.jobsReply([restoreView('switch', 88)]));
   ok(page.phases().includes('switch:current'), 'Tras recargar el panel no avanza');
+  // Un tramo que tarda (la respuesta del tick llega al terminarlo, hasta 20 s): el panel dice que el servidor trabaja.
+  await page.next({ pending: true });
+  page.clock.now += 5000;
+  for (const tick of page.intervals) tick();
+  ok(!page.ui.note.hidden && /trabajando en este paso/.test(page.text(page.ui.note)) && /lleva 1 min 10 s/.test(page.text(page.ui.time)), 'Mientras un tramo tarda, el panel no dice que el servidor trabaja o el reloj se para: ' + page.text(page.ui.note));
 });
 
 await scenario('P7 · falla a mitad del cambio: sigue la vuelta a la copia previa y dice que el sitio volvió y por qué', async () => {

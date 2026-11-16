@@ -29,6 +29,9 @@
   var watch = null;
   var timer = null;
   var busy = false;
+  /* Desde cuándo espera la respuesta de un tick: un tramo dura hasta 20 s y el avance llega al terminarlo. */
+  var busySince = 0;
+  var workingNote = false;
   var failures = 0;
   var sessionFailures = 0;
   var lastOk = Date.now();
@@ -429,9 +432,11 @@
   function step() {
     if (busy) return;
     busy = true;
+    busySince = Date.now();
     var tick = tickMode === 'restore' ? request(restore && restore.action || config.restoreTick || 'digitalisimo_backups_restore_tick', { digitalisimo_backups_restore: restore && restore.token || '' }, '') : request('digitalisimo_backups_job_tick', {}, config.jobsNonce);
     tick.then(function (data) {
       busy = false;
+      if (workingNote) { workingNote = false; note(''); }
       failures = 0;
       sessionFailures = 0;
       lastOk = Date.now();
@@ -452,6 +457,7 @@
       schedule(delay);
     }).catch(function (error) {
       busy = false;
+      if (workingNote) { workingNote = false; note(''); }
       failures++;
       sessionFailures = error && error.session ? sessionFailures + 1 : 0;
       var follow = following();
@@ -533,8 +539,15 @@
     starting(back ? 'Volviendo a la copia previa' : 'Restauración', back ? 'Empezando la vuelta a la copia previa…' : 'Empezando la restauración…', 'El servidor comprueba el respaldo y prepara la copia previa; en unos segundos se ve aquí su avance.');
     if (panel.scrollIntoView) panel.scrollIntoView({ block: 'nearest' });
   });
-  /* El reloj del tiempo transcurrido, entre un tick y otro. */
-  if (typeof setInterval === 'function') setInterval(function () { if (watch && !watch.end && watching) paintTime(); }, 1000);
+  /* El reloj del tiempo transcurrido, entre un tick y otro; y si un tramo tarda, que se diga que el servidor trabaja. */
+  if (typeof setInterval === 'function') setInterval(function () {
+    if (!watch || watch.end || !watching) return;
+    paintTime();
+    if (busy && !workingNote && Date.now() - busySince > 4000 && ui.note && ui.note.hidden) {
+      workingNote = true;
+      note('El servidor está trabajando en este paso (cada tramo dura hasta 20 s): el avance se actualiza al terminarlo.');
+    }
+  }, 1000);
 
   /* Al cargar: el trabajo que sigue el panel (una restauración en curso o recién terminada, o el respaldo del botón). */
   var initial = null;
