@@ -13,7 +13,7 @@
 //                 devuelve los plugins a los de antes y la base de datos no cambia (huellas de cada tabla; revisión M1);
 //              4) restauración (plugins) con una falla inyectada al mover el código (1 280 px): el panel sigue la vuelta
 //                 a la copia previa y termina diciendo que el sitio volvió a como estaba y por qué falló.
-//   los dos    0) la puerta del mantenimiento con un testigo conocido: un visitante recibe 503 con la cabecera de
+//   los dos    tras 1), la puerta del mantenimiento con un testigo conocido: un visitante recibe 503 con la cabecera de
 //                 Backups; con el testigo, sólo la pantalla de Backups pasa (el escritorio, las entradas y la portada no);
 //   multisite  1) y 3) (con «Volver a la copia previa») en la administración de la red.
 // Capturas (página y panel) en <dir>/shots; las muestras del panel, en <dir>/shots/samples.json.
@@ -350,10 +350,6 @@ if (mode === 'start') {
 try {
   check(await login(), 'inicio de sesión de admin');
   const original = await lab('inventory');
-  // 0) La puerta del mantenimiento con el testigo (verificación N1 y N2), antes de que haya ninguna restauración. Desde la
-  // portada (el escritorio pediría sus widgets, que en php-wasm con 64 MB agotan la memoria).
-  await page.goto(`${base}/`, { waitUntil: 'load' });
-  await gate();
 
   // 1) Respaldar ahora. Sus peticiones, con BACKUP_MEMORY (128M por defecto, como el respaldo de referencia de
   // backups-restore-parts.sh); las restauraciones, con los 64 MB del propietario.
@@ -380,6 +376,10 @@ try {
   await sleep(1500);
   const rows = await page.$$eval('.digitalisimo-backups-row', (list) => list.length);
   check(rows >= 1, `la lista tiene el respaldo (${rows} fila)`);
+  // La puerta del mantenimiento con el testigo (verificación N1 y N2), antes de que haya ninguna restauración. Desde la
+  // portada: el escritorio pediría sus widgets (en php-wasm con 64 MB agotan la memoria) y la pantalla consultaría.
+  await page.goto(`${base}/`, { waitUntil: 'load' });
+  await gate();
 
   if (!network) {
     // 2a) Restauración completa con 64 MB también en la petición que la empieza y con la sesión del respaldo (sigue valiendo).
