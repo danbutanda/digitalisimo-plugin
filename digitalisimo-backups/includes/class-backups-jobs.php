@@ -28,6 +28,12 @@ final class Digitalisimo_Backups_Jobs {
 	const MAIN_SITE_ONLY = 'Los respaldos completos de la red se gestionan desde el sitio principal o la administración de red.';
 	/** Sustituye la ejecución de una fase (sólo pruebas): callable( $phase, $job ) que devuelve el resultado de la fase. */
 	public static $phase_runner = null;
+	/**
+	 * Quien recibe el avance fuera de un trabajo: la comprobación de una subida, que no es un trabajo del motor, anota así
+	 * el paso en el que va («Verificando archivo 120 de 5 000») para el panel de avance. callable( $percent, $message );
+	 * sólo mientras dura esa comprobación, y nunca interrumpe a quien informa.
+	 */
+	public static $observer = null;
 	private static $current = null;
 	private static $shutdown_registered = false;
 	/**
@@ -568,7 +574,12 @@ final class Digitalisimo_Backups_Jobs {
 	 */
 	public static function progress( $percent, $message, $force = false ) {
 		$current = self::$current;
-		if ( ! $current ) return;
+		if ( ! $current ) {
+			if ( is_callable( self::$observer ) ) {
+				try { call_user_func( self::$observer, (int) $percent, (string) $message ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+			}
+			return;
+		}
 		if ( $current['lost'] ) throw new Digitalisimo_Backups_Job_Lease_Lost( 'Otro proceso tomó este trabajo; este paso se detiene sin modificarlo.' );
 		if ( self::cancellable_phase( $current['phase'], $current ) && Digitalisimo_Backups_Job_Store::cancel_requested( $current['id'] ) ) throw new Digitalisimo_Backups_Job_Cancelled( 'Cancelado por el administrador.' );
 		// La copia previa de una restauración usa las fases del respaldo: su avance ocupa su tramo de la barra.
@@ -1113,6 +1124,10 @@ final class Digitalisimo_Backups_Jobs {
 		$terminal = Digitalisimo_Backups_Job_Store::is_terminal( $job );
 		$track = array();
 		foreach ( self::phases( $job ) as $phase ) if ( 'transfer' !== $phase || 'local' !== ( $spec['destination'] ?? 'local' ) ) $track[] = array( $phase, self::phase_label( $phase, $job ), self::scale( self::phase_floor( $phase, $spec ), $spec, $phase ) );
+		// Un tipo registrado nombra a su manera la fase que comparte con el respaldo (`preflight` de traer o de enviar: «Conexión
+		// con el destino», «Comprobación del respaldo»), como ya la nombra su vista en curso: el paso hecho se llama igual.
+		$class = self::kind_handler( $spec );
+		if ( $class && method_exists( $class, 'track_label' ) ) foreach ( $track as $index => $item ) { $label = (string) $class::track_label( $item[0] ); if ( '' !== $label ) $track[ $index ][1] = $label; }
 		$end = $terminal && ! empty( $job['finished_at'] ) ? (int) $job['finished_at'] : time();
 		$view['track'] = $track;
 		$view['elapsed'] = max( 0, $end - (int) ( $job['created_at'] ?? $end ) );

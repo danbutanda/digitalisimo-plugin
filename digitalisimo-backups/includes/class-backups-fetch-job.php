@@ -37,6 +37,8 @@ final class Digitalisimo_Backups_Fetch_Job {
 		);
 		return $phases[ $phase ] ?? null;
 	}
+	/** Cómo se llama en el panel de avance la fase que comparte con el respaldo (la de su vista en curso, job_view()). */
+	public static function track_label( $phase ) { return 'preflight' === $phase ? 'Conexión con el destino' : ''; }
 	public static function run_phase( $phase, array $job ) { return Digitalisimo_Backups::fetch_phase( $phase, $job ); }
 	/** Para Digitalisimo_Backups_Jobs::interrupted(): una muerte en `receive` con más bytes en disco no gasta un intento. */
 	public static function advanced( array $job ) { return Digitalisimo_Backups::fetch_advanced( $job ); }

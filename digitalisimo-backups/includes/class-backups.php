@@ -2580,7 +2580,8 @@ final class Digitalisimo_Backups {
 		}
 		return $busy;
 	}
-		public static function redirect( $ok, $message, $network = null, $tab = '' ) { $network = null === $network ? self::network_context() : $network; $url = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-backups' ) : admin_url( 'admin.php?page=digitalisimo-backups' ); $args = array( 'backup' => $ok ? 'ok' : 'error', 'message' => rawurlencode( $message ) ); $open = ''; if ( '' === $tab && ( $target = self::return_target() ) ) list( $tab, $open ) = $target; if ( $tab ) $args['tab'] = $tab; if ( $open ) $args['open'] = $open; wp_safe_redirect( add_query_arg( $args, $url ) . ( $open ? '#digitalisimo-backups-section-' . $open : '' ) ); exit; }
+		/** Vuelve a la pantalla con el resultado; $job: el trabajo que la acción encoló, que el panel de avance sigue al cargar (`?job=`). */
+		public static function redirect( $ok, $message, $network = null, $tab = '', $job = '' ) { $network = null === $network ? self::network_context() : $network; $url = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-backups' ) : admin_url( 'admin.php?page=digitalisimo-backups' ); $args = array( 'backup' => $ok ? 'ok' : 'error', 'message' => rawurlencode( $message ) ); $open = ''; if ( '' === $tab && ( $target = self::return_target() ) ) list( $tab, $open ) = $target; if ( $tab ) $args['tab'] = $tab; if ( $open ) $args['open'] = $open; if ( Digitalisimo_Backups_Job_Store::valid_id( (string) $job ) ) $args['job'] = (string) $job; wp_safe_redirect( add_query_arg( $args, $url ) . ( $open ? '#digitalisimo-backups-section-' . $open : '' ) ); exit; }
 	/**
 	 * Retirado (docs/BACKUPS.md, «Incrementales»): el incremental anterior a 1.0.38 elegía los archivos por fecha de
 	 * modificación, no anotaba los borrados ni comprobaba su cadena, y su retención podía borrar la base. Nadie lo llama

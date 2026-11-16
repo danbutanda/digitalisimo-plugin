@@ -181,6 +181,61 @@ final class Digitalisimo_Backups_Uploads {
 		if ( 'done' === $phase && is_array( $state['result'] ?? null ) ) $view['result'] = $state['result'];
 		return $view;
 	}
+	/** Cada cuántos segundos, como mucho, la comprobación anota en la sesión su paso dentro de la fase. */
+	const CHECK_EVERY = 2;
+	/**
+	 * La vista de la pantalla (el estado que consulta el panel de avance por AJAX y lo que pinta al cargar): la de siempre
+	 * más el paso de la comprobación en curso (qué se comprueba, lo que va diciendo la validación y desde cuándo; en
+	 * `placing`, el registro en la lista), cuántos cortes admite antes de pedir WP-CLI y cuánto lleva la sesión. REST y
+	 * WP-CLI siguen con view(). Sin rutas ni secretos.
+	 */
+	public static function screen_view( array $state ) {
+		$view = self::view( $state );
+		$view['max_attempts'] = self::MAX_ATTEMPTS;
+		$view['age'] = max( 0, time() - (int) ( $state['created_at'] ?? ( $state['updated_at'] ?? time() ) ) );
+		if ( 'validating' === $view['phase'] ) {
+			$check = is_array( $state['check'] ?? null ) ? $state['check'] : array();
+			$placing = ! empty( $state['placing'] );
+			$view['check'] = array(
+				'step' => $placing ? 'register' : (string) ( $check['step'] ?? '' ),
+				'text' => $placing ? 'Registrándolo en la lista de respaldos…' : (string) ( $check['text'] ?? '' ),
+				'detail' => $placing ? '' : (string) ( $check['detail'] ?? '' ),
+				'for' => max( 0, time() - (int) ( $check['started'] ?? ( $state['updated_at'] ?? time() ) ) ),
+			);
+		}
+		return $view;
+	}
+	/**
+	 * Lo que anota en la sesión el paso de la comprobación de $id (la usa service_upload_finish() mientras la comprueba, con
+	 * su cerrojo): callable( $paso, $texto ). Con paso, el que empieza (se anota enseguida); sin paso, lo que la validación
+	 * informa dentro de él («Verificando archivo 120 de 5 000»), como mucho cada CHECK_EVERY segundos. Sólo mientras la
+	 * sesión sigue en `validating`; nunca cambia su fase ni su `updated_at`, y un fallo al anotarlo no detiene nada.
+	 */
+	public static function checker( $id ) {
+		$started = time();
+		$last = 0.0;
+		$step = array( 'step' => '', 'text' => '' );
+		$every = (float) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_upload_check_every', self::CHECK_EVERY ) : self::CHECK_EVERY );
+		return function( $key, $text ) use ( $id, $started, $every, &$last, &$step ) {
+			$now = microtime( true );
+			$detail = '';
+			if ( '' !== (string) $key ) $step = array( 'step' => (string) $key, 'text' => (string) $text );
+			else {
+				if ( $now - $last < $every ) return;
+				$detail = (string) $text;
+			}
+			$last = $now;
+			try {
+				$state = self::read( $id );
+				if ( ! $state || 'validating' !== self::phase( $state ) ) return;
+				$state['check'] = $step + array( 'detail' => $detail, 'started' => $started, 'at' => time() );
+				self::write( $state );
+				if ( is_callable( self::$on_check ) ) call_user_func( self::$on_check, $state );
+			} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		};
+	}
+	/** Recibe cada paso que la comprobación anota en la sesión (sólo pruebas). */
+	public static $on_check = null;
 
 	/* ------------------------------------------------------------------ Pantalla (AJAX) */
 
@@ -202,9 +257,17 @@ final class Digitalisimo_Backups_Uploads {
 		self::guard();
 		self::reply( Digitalisimo_Backups::service_upload_start( array( 'name' => wp_unslash( $_POST['name'] ?? '' ), 'size' => $_POST['size'] ?? 0 ) ) );
 	}
+	/** El estado para el panel de avance: la vista de la pantalla (screen_view()), con el paso de la comprobación. */
 	public static function ajax_status() {
 		self::guard();
-		self::reply( Digitalisimo_Backups::service_upload_status( sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) ) ) );
+		$result = Digitalisimo_Backups::service_upload_status( sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) ) );
+		if ( ! is_wp_error( $result ) ) {
+			try {
+				$state = self::read( (string) $result['id'] );
+				if ( $state ) $result = self::screen_view( $state );
+			} catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		}
+		self::reply( $result );
 	}
 	/** El fragmento llega como archivo de un formulario multipart: PHP lo deja en su temporal y aquí se anexa sin cargarlo en memoria. */
 	public static function ajax_chunk() {
@@ -227,18 +290,29 @@ final class Digitalisimo_Backups_Uploads {
 		self::guard();
 		self::reply( Digitalisimo_Backups::service_upload_cancel( sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) ) ) );
 	}
-	/** Tarjeta «Subir un respaldo» de la pestaña Backups (el script es assets/upload.js). */
+	/**
+	 * Tarjeta «Subir un respaldo» de la pestaña Backups (el script es assets/upload.js). Su avance no se pinta aquí: lo sigue
+	 * el panel de avance de la pantalla (Digitalisimo_Backups_Progress, el mismo del respaldo y de la restauración), que el
+	 * script pone en el hueco bajo el formulario (`data-progress-slot="upload"`). `data-sessions` lleva las subidas sin
+	 * terminar de la cuenta en curso (screen_view(), sin rutas): al recargar la página, el panel vuelve a la que se está
+	 * comprobando o enseña la que quedó a medias.
+	 */
 	public static function panel( $network ) {
 		$max = function_exists( 'wp_max_upload_size' ) ? (int) wp_max_upload_size() : 0;
-		echo '<section class="digitalisimo-backups-card digitalisimo-backups-upload" id="digitalisimo-backups-upload" data-chunk="' . esc_attr( (string) self::chunk_size() ) . '"><h2>Subir un respaldo</h2>';
-		echo '<p>Sube un respaldo de DIGITALÍSIMO (<code>.zip</code> o <code>.dgbk</code>) desde este equipo, por ejemplo uno de otro servidor, o el <code>.tar.gz</code> de un respaldo de Backuply para importarlo. Se envía por fragmentos de ' . esc_html( Digitalisimo_Backups_Archive_Inspector::megabytes( self::chunk_size() ) ) . ( $max ? ' (el hosting acepta ' . esc_html( Digitalisimo_Backups_Archive_Inspector::megabytes( $max ) ) . ' por petición)' : '' ) . ' directamente al almacén privado y, si la conexión se corta, vuelve a elegir el mismo archivo para continuar donde se quedó. Al terminar se comprueba como un archivo no confiable y queda en la lista de respaldos, marcado «Subido», listo para restaurarlo como uno hecho aquí.</p>';
-		echo '<noscript><p class="description">Subir un respaldo necesita JavaScript. Sin él, cópialo por SSH o SFTP a la carpeta privada de respaldos.</p></noscript>';
-		echo '<form class="digitalisimo-backups-upload-form" hidden><p><input type="file" name="digitalisimo_backups_upload_file" accept=".zip,.dgbk,.gz,application/zip,application/gzip,application/octet-stream"></p><p><label>Frase o clave (sólo si está cifrado con una clave que este sitio no tiene) <input type="password" name="digitalisimo_backups_upload_secret" value="" autocomplete="off"></label></p><p><button class="button button-primary" type="submit">Subir respaldo</button> <button class="button" type="button" data-upload-cancel hidden>Cancelar la subida</button></p>';
-		if ( $network ) echo '<input type="hidden" name="digitalisimo_backups_network" value="1">';
-		echo '<progress max="100" value="0" hidden></progress><p class="digitalisimo-backups-upload-status" role="status" aria-live="polite"></p><p data-upload-list hidden><a class="button" href="' . esc_url( $network ? network_admin_url( 'admin.php?page=digitalisimo-network-backups' ) : admin_url( 'admin.php?page=digitalisimo-backups' ) ) . '#digitalisimo-backups-history">Ver en la lista de respaldos</a></p></form>';
 		// Subidas sin cerrar de cualquier cuenta: se pueden descartar (no hace falta el navegador que la empezó).
 		$open = array();
 		try { $open = array_values( array_filter( self::sessions(), array( __CLASS__, 'open' ) ) ); } catch ( Exception $e ) { $open = array(); }
+		$mine = array();
+		foreach ( $open as $state ) if ( (int) ( $state['user_id'] ?? 0 ) === (int) get_current_user_id() ) $mine[] = self::screen_view( $state );
+		usort( $mine, function( $a, $b ) { return strcmp( (string) $b['updated_at'], (string) $a['updated_at'] ); } );
+		echo '<section class="digitalisimo-backups-card digitalisimo-backups-upload" id="digitalisimo-backups-upload" data-chunk="' . esc_attr( (string) self::chunk_size() ) . '"' . ( $mine ? ' data-sessions="' . esc_attr( (string) wp_json_encode( $mine ) ) . '"' : '' ) . '><h2>Subir un respaldo</h2>';
+		echo '<p>Sube un respaldo de DIGITALÍSIMO (<code>.zip</code> o <code>.dgbk</code>) desde este equipo, por ejemplo uno de otro servidor, o el <code>.tar.gz</code> de un respaldo de Backuply para importarlo. Se envía por fragmentos de ' . esc_html( Digitalisimo_Backups_Archive_Inspector::megabytes( self::chunk_size() ) ) . ( $max ? ' (el hosting acepta ' . esc_html( Digitalisimo_Backups_Archive_Inspector::megabytes( $max ) ) . ' por petición)' : '' ) . ' directamente al almacén privado y, si la conexión se corta, vuelve a elegir el mismo archivo para continuar donde se quedó. Al terminar se comprueba como un archivo no confiable y queda en la lista de respaldos, marcado «Subido», listo para restaurarlo como uno hecho aquí.</p>';
+		echo '<noscript><p class="description">Subir un respaldo necesita JavaScript. Sin él, cópialo por SSH o SFTP a la carpeta privada de respaldos.</p></noscript>';
+		echo '<form class="digitalisimo-backups-upload-form" hidden><p><input type="file" name="digitalisimo_backups_upload_file" accept=".zip,.dgbk,.gz,application/zip,application/gzip,application/octet-stream"></p><p><label>Frase o clave (sólo si está cifrado con una clave que este sitio no tiene) <input type="password" name="digitalisimo_backups_upload_secret" value="" autocomplete="off"></label></p><p><button class="button button-primary" type="submit">Subir respaldo</button></p>';
+		if ( $network ) echo '<input type="hidden" name="digitalisimo_backups_network" value="1">';
+		// Sólo lo que el formulario pide antes de empezar («Elige un archivo…»): el avance y el resultado, en el panel.
+		echo '<p class="digitalisimo-backups-upload-status" role="status" aria-live="polite"></p></form>';
+		echo '<div class="digitalisimo-backups-progress-slot" data-progress-slot="upload"></div>';
 		if ( $open ) {
 			echo '<h3>Subidas sin terminar</h3><p class="description">Cada una reserva espacio en el almacén hasta que termina, se descarta o pasan 24 h sin actividad. Para continuar la tuya, vuelve a elegir el mismo archivo.</p><table class="widefat striped"><thead><tr><th>Archivo</th><th>Recibido</th><th>Cuenta</th><th>Estado</th><th></th></tr></thead><tbody>';
 			foreach ( $open as $state ) {
@@ -251,6 +325,13 @@ final class Digitalisimo_Backups_Uploads {
 			echo '</tbody></table>';
 		}
 		echo '</section>';
+	}
+	/** Si la cuenta en curso tiene una subida comprobándose: la pantalla abre entonces «Subir un respaldo», donde la sigue el panel. */
+	public static function checking_mine() {
+		try {
+			foreach ( self::sessions() as $state ) if ( 'validating' === self::phase( $state ) && (int) ( $state['user_id'] ?? 0 ) === (int) get_current_user_id() ) return true;
+		} catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		return false;
 	}
 	/** «Descartar» de la tabla de subidas sin terminar (admin-post: capability y nonce propio). */
 	public static function discard() {

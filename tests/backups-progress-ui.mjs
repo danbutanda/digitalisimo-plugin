@@ -100,8 +100,9 @@ const OTHER503 = () => ({ status: 503, body: '<html>Briefly unavailable for sche
 const settle = async () => { for (let i = 0; i < 8; i++) await flush(); };
 
 /* ------------------------------------------------------------------ La pantalla */
-const IDS = ['title', 'percent', 'what', 'fill', 'ticks', 'phases', 'time', 'note', 'result', 'cancel', 'reload', 'safety', 'login', 'rollback', 'help'];
-function screen({ view = null, token = '', strip = false, card = true, active = false, visibility } = {}) {
+const IDS = ['title', 'percent', 'what', 'fill', 'ticks', 'phases', 'time', 'note', 'result', 'cancel', 'reload', 'safety', 'login', 'rollback', 'help', 'go', 'resume', 'import'];
+/* $sections: secciones plegadas de otra pestaña con su hueco para el panel ([id de la sección, nombre del hueco]). */
+function screen({ view = null, token = '', strip = false, card = true, active = false, visibility, sections = [], href = '' } = {}) {
   const document = new El('html');
   const body = document.appendChild(new El('body'));
   const wrap = body.appendChild(new El('div', { class: 'wrap digitalisimo-backups' }));
@@ -136,6 +137,10 @@ function screen({ view = null, token = '', strip = false, card = true, active = 
   actions.appendChild(new El('button', { id: P + 'reload', type: 'button', hidden: '' }));
   actions.appendChild(new El('a', { id: P + 'safety', href: 'https://example.test/wp-admin/admin.php?page=digitalisimo-backups', hidden: '' }));
   actions.appendChild(new El('a', { id: P + 'login', href: 'https://example.test/wp-login.php', hidden: '' }));
+  actions.appendChild(new El('a', { id: P + 'go', href: 'https://example.test/wp-admin/admin.php?page=digitalisimo-backups', hidden: '' }));
+  actions.appendChild(new El('button', { id: P + 'resume', type: 'button', hidden: '' }));
+  const importForm = actions.appendChild(new El('form', { id: P + 'import', hidden: '' }));
+  importForm.appendChild(new El('input', { type: 'hidden', name: 'backuply_file', value: '' }));
   const rollback = actions.appendChild(new El('form', { id: P + 'rollback', hidden: '' }));
   rollback.appendChild(new El('input', { type: 'hidden', name: '_wpnonce', value: 'nonce-restore-vieja' }));
   rollback.appendChild(new El('input', { type: 'hidden', name: 'action', value: 'digitalisimo_backups_restore' }));
@@ -147,6 +152,12 @@ function screen({ view = null, token = '', strip = false, card = true, active = 
     cardNode.hidden = !active;
     cardNode.appendChild(new El('div', { id: 'digitalisimo-backups-jobs-list' }));
   }
+  const slots = {};
+  for (const [section, slot] of sections) {
+    const details = wrap.appendChild(new El('details', { class: 'digitalisimo-backups-section', id: 'digitalisimo-backups-section-' + section }));
+    slots[slot] = details.appendChild(new El('div', { class: 'digitalisimo-backups-progress-slot', 'data-progress-slot': slot }));
+    slots[slot].section = details;
+  }
   const byId = (id) => { const found = document.querySelectorAll('#' + id); return found[0] || null; };
   const own = { requests: [], replies: [], timers: new Map(), seq: 0, reloads: 0, replaced: [], confirms: [], alerts: [], clock: { now: Date.now() }, intervals: [] };
   const clock = own.clock;
@@ -156,11 +167,12 @@ function screen({ view = null, token = '', strip = false, card = true, active = 
     createElement: (tag) => new El(tag),
     createTextNode: (text) => new Text(text),
     querySelector: (selector) => document.querySelector(selector),
+    querySelectorAll: (selector) => document.querySelectorAll(selector),
     addEventListener: (type, listener) => document.addEventListener(type, listener),
   };
   if (visibility) documentApi.visibilityState = visibility;
   const sandbox = {
-    window: { digitalisimoBackupsManual: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce-manual', jobsNonce: 'nonce-jobs-vieja', context: 'site', login: '/wp-login.php?migrar' }, confirm: (text) => { own.confirms.push(text); return true; }, alert: (text) => own.alerts.push(text), location: { href: 'https://example.test/wp-admin/admin.php?page=digitalisimo-backups&tab=backups&backup=ok&message=Restauraci%C3%B3n%20en%20curso', reload: () => own.reloads++, replace: (url) => own.replaced.push(url) } },
+    window: { digitalisimoBackupsManual: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce-manual', jobsNonce: 'nonce-jobs-vieja', context: 'site', login: '/wp-login.php?migrar' }, confirm: (text) => { own.confirms.push(text); return true; }, alert: (text) => own.alerts.push(text), location: { href: href || 'https://example.test/wp-admin/admin.php?page=digitalisimo-backups&tab=backups&backup=ok&message=Restauraci%C3%B3n%20en%20curso', reload: () => own.reloads++, replace: (url) => own.replaced.push(url) } },
     document: documentApi,
     URL, URLSearchParams, Object, String, Number, Math, Error, JSON, Date: FakeDate, Array,
     setInterval: (callback) => { own.intervals.push(callback); return own.intervals.length; },
@@ -182,7 +194,7 @@ function screen({ view = null, token = '', strip = false, card = true, active = 
   sandbox.window.document = documentApi;
   runInNewContext(script, sandbox);
   const P2 = (name) => byId(P + name);
-  Object.assign(own, { document, panel, bar, form, submit, card: cardNode, strip: stripNode, ui: Object.fromEntries(IDS.map((name) => [name, P2(name)])), message: byId('digitalisimo-backups-manual-message'), detail: byId('digitalisimo-backups-manual-detail'), config: sandbox.window.digitalisimoBackupsManual });
+  Object.assign(own, { document, panel, bar, form, submit, card: cardNode, strip: stripNode, slots, wrap, ui: Object.fromEntries(IDS.map((name) => [name, P2(name)])), message: byId('digitalisimo-backups-manual-message'), detail: byId('digitalisimo-backups-manual-detail'), config: sandbox.window.digitalisimoBackupsManual });
   /* El siguiente paso programado (sólo puede haber uno: cada uno cancela el anterior). */
   own.pending = () => [...own.timers.values()];
   own.next = async (reply) => {
@@ -619,6 +631,110 @@ await scenario('P28 · la nota se ve aunque el marcado la traiga oculta (una pá
   page.ui.note.hidden = true;
   await page.next(GATE());
   ok(!page.ui.note.hidden && /mantenimiento/.test(page.text(page.ui.note)), 'La nota se escribe en una región oculta');
+});
+
+/* ------------------------------------------------------------------ Lo que trae un respaldo externo o lo envía (2026-11-16) */
+
+const IMPORT_TRACK = [['unpack', 'Descompresión', 2], ['scan', 'Comprobación del archivo', 20], ['database', 'Base de datos', 25], ['files', 'ZIP convertido', 50], ['finish', 'Manifiesto y publicación', 94]];
+const FETCH_TRACK = [['preflight', 'Conexión con el destino', 0], ['receive', 'Descarga del destino', 5], ['examine', 'Comprobación del archivo', 85], ['place', 'Entrada en el almacén', 98]];
+const SEND_TRACK = [['preflight', 'Comprobación del respaldo', 0], ['deliver', 'Copia al destino', 5]];
+const IMP = '66666666-7777-4888-8999-aaaaaaaaaaaa';
+const FET = '77777777-8888-4999-8aaa-bbbbbbbbbbbb';
+const SND = '88888888-9999-4aaa-8bbb-cccccccccccc';
+const importView = (phase, percent, over = {}) => Object.assign({ id: IMP, kind: 'import', status: ['scan', 'finish'].includes(phase) ? 'verifying' : 'running', status_label: ['scan', 'finish'].includes(phase) ? 'Verificando' : 'En curso', phase, phase_label: Object.fromEntries(IMPORT_TRACK.map(([k, l]) => [k, l]))[phase], percent, detail: 'Escribiendo el ZIP convertido: 120 de 900 archivos <b>x</b>', message: '', terminal: false, running: true, retry_in: 0, can_cancel: phase !== 'finish', origin_label: 'Importación de Backuply', destination_label: 'backup_sitio_2026.tar.gz', created_label: '2026-11-16 10:00', track: IMPORT_TRACK, elapsed: 40, notices: [] }, over);
+const importDone = (over = {}) => importView('finish', 100, Object.assign({ status: 'success', status_label: 'Completo', phase_label: '', terminal: true, running: false, can_cancel: false, file: 'digitalisimo-backuply-backup_sitio_2026.zip', detail: 'Respaldo de Backuply importado como digitalisimo-backuply-backup_sitio_2026.zip: aparece en Herramientas → «Restaurar un archivo suelto» como archivo sin firma (escribe RESTAURAR SIN FIRMA para restaurarlo).', notices: ['No se importaron vistas ni disparadores.'] }, over));
+const fetchView = (phase, percent, over = {}) => Object.assign({ id: FET, kind: 'fetch', status: phase === 'receive' ? 'transferring' : 'verifying', status_label: phase === 'receive' ? 'Transfiriendo' : 'Verificando', phase, phase_label: Object.fromEntries(FETCH_TRACK.map(([k, l]) => [k, l]))[phase], percent, detail: 'Descargando: 40,0 MB de 120,0 MB…', message: '', terminal: false, running: true, retry_in: 0, can_cancel: phase !== 'place', origin_label: 'Traer de un destino remoto', destination_label: 'desde SFTP', created_label: '2026-11-16 10:00', track: FETCH_TRACK, elapsed: 30, fetch: { name: 'digitalisimo-sitio-2026-11-10.zip', connection: 'sftp', registered: true } }, over);
+const sendView = (phase, percent, over = {}) => Object.assign({ id: SND, kind: 'send', status: 'transferring', status_label: 'Transfiriendo', phase, phase_label: Object.fromEntries(SEND_TRACK.map(([k, l]) => [k, l]))[phase], percent, detail: 'Copiando a SFTP…', message: '', terminal: false, running: true, retry_in: 0, can_cancel: true, origin_label: 'Enviar a un destino: digitalisimo-sitio.zip', destination_label: 'SFTP', created_label: '2026-11-16 10:00', track: SEND_TRACK, elapsed: 12 }, over);
+const TOOLS = 'https://example.test/wp-admin/admin.php?page=digitalisimo-backups&tab=tools&open=import&backup=ok&message=x&job=' + IMP + '#digitalisimo-backups-section-import';
+
+await scenario('P29 · una importación de Backuply se sigue en el mismo panel, en su sección, con sus fases y su resultado', async () => {
+  const page = screen({ view: importView('files', 60), card: false, sections: [['import', 'import'], ['upload', 'upload']], href: TOOLS });
+  ok(page.panel.parentNode === page.slots.import && page.slots.import.section.open === true, 'La importación no se sigue en su sección (abierta)');
+  ok(!page.panel.hidden && page.text(page.ui.title) === 'Importación en curso' && page.text(page.ui.what) === 'Importación de Backuply · backup_sitio_2026.tar.gz' && page.text(page.ui.percent) === '60 %', 'La importación no se ve en el panel grande: ' + page.text(page.ui.title) + ' / ' + page.text(page.ui.what));
+  ok(JSON.stringify(page.phases()) === JSON.stringify(['unpack:done', 'scan:done', 'database:done', 'files:current', 'finish:pending']) && page.text(page.message) === 'En curso · ZIP convertido (fase 4 de 5)' && page.text(page.detail).includes('<b>x</b>') && page.ui.ticks.children.length === 5, 'Las fases de la importación no se ven: ' + page.phases());
+  ok(!page.ui.cancel.hidden && page.ui.help.hidden && page.bar.getAttribute('aria-valuenow') === '60', '«Cancelar» no se ofrece en una fase que se puede cancelar (o la barra no dice su valor)');
+  // Un reintento vuelve el % al comienzo de su fase: la barra no retrocede; un corte de red se dice.
+  await page.next(page.jobsReply([importView('files', 50, { running: false, retry_in: 10, detail: 'Reintento a las 10:20 (2 de 3)' })], { result: 'idle' }));
+  ok(page.text(page.ui.percent) === '60 %' && /Reintento a las 10:20/.test(page.text(page.detail)), 'Un reintento bajó la barra de la importación');
+  await page.next({ reject: true });
+  ok(/Sin conexión con el servidor/.test(page.text(page.ui.note)) && /El trabajo sigue en el servidor aunque esta pestaña no lo vea/.test(page.text(page.ui.note)) && page.ui.cancel.hidden && page.pending().length === 1, 'Un corte de red durante la importación no se dice o se deja de reintentar: ' + page.text(page.ui.note));
+  await page.next(page.jobsReply([importView('finish', 96)]));
+  ok(page.text(page.ui.note) === '' && page.ui.cancel.hidden && page.phases().includes('finish:current'), 'Tras volver la conexión la nota sigue o «Cancelar» se ofrece en la fase que no se cancela');
+  await page.next(page.jobsReply([importDone()]));
+  ok(page.text(page.ui.title) === 'Importación terminada' && page.text(page.ui.percent) === '100 %' && page.phases().every((p) => p.endsWith(':done')) && page.text(page.detail) === '', 'La importación terminada no se ve al 100 % con todas sus fases');
+  const result = page.text(page.ui.result);
+  ok(result.includes('importado como digitalisimo-backuply-backup_sitio_2026.zip') && result.includes('Avisos: No se importaron vistas'), 'El resultado no dice qué se importó, dónde quedó ni sus avisos: ' + result);
+  const go = new URL(page.ui.go.getAttribute('href'));
+  ok(!page.ui.go.hidden && page.text(page.ui.go) === 'Ver en «Restaurar un archivo suelto»' && go.searchParams.get('tab') === 'tools' && go.searchParams.get('open') === 'restore-file' && go.hash === '#digitalisimo-backups-section-restore-file' && !go.searchParams.has('job') && !go.searchParams.has('message'), 'El resultado no lleva a «Restaurar un archivo suelto»: ' + page.ui.go.getAttribute('href'));
+  ok(page.reloads + page.replaced.length === 0 && page.timers.size === 0, 'Al terminar la importación la página se recargó (y se perdió el resultado) o sigue consultando');
+});
+
+await scenario('P30 · «Traer al almacén»: bajo el botón, con su destino, sus cortes, su resultado y la fila para restaurarlo', async () => {
+  const page = screen({ view: fetchView('receive', 40) });
+  ok(page.panel.parentNode.getAttribute('class').includes('digitalisimo-backups-home') && page.text(page.ui.title) === 'Trayendo el respaldo del destino' && page.text(page.ui.what) === 'Traer de un destino remoto · digitalisimo-sitio-2026-11-10.zip desde SFTP', 'La descarga no se sigue bajo «Respaldar ahora»: ' + page.text(page.ui.what));
+  ok(JSON.stringify(page.phases()) === JSON.stringify(['preflight:done', 'receive:current', 'examine:pending', 'place:pending']) && page.text(page.message) === 'Transfiriendo · Descarga del destino (fase 2 de 4)', 'Las fases de «Traer al almacén» no se ven: ' + page.phases());
+  await page.next(page.jobsReply([fetchView('examine', 88, { detail: 'Comprobando el archivo como no confiable…' })]));
+  await page.next(page.jobsReply([fetchView('place', 100, { status: 'success', status_label: 'Completo', phase_label: '', terminal: true, running: false, can_cancel: false, file: 'digitalisimo-sitio-2026-11-10.zip', detail: 'Copia de SFTP descargada al almacén privado y verificada por el SHA-256 de su historial: digitalisimo-sitio-2026-11-10.zip. Ya se puede restaurar.' })]));
+  const go = new URL(page.ui.go.getAttribute('href'));
+  ok(page.text(page.ui.title) === 'Respaldo traído al almacén' && /Ya se puede restaurar/.test(page.text(page.ui.result)) && page.text(page.ui.go) === 'Restaurarlo' && go.searchParams.get('restore') === 'digitalisimo-sitio-2026-11-10.zip' && go.searchParams.get('tab') === 'backups' && !page.ui.reload.hidden && page.reloads + page.replaced.length === 0, 'Traído, el panel no lleva a su fila para restaurarlo: ' + page.ui.go.getAttribute('href'));
+  // Sin registro (de otro sitio): a «Restaurar un archivo suelto».
+  const other = screen({ view: fetchView('place', 99, { fetch: { name: 'digitalisimo-otro.zip', connection: 'sftp', registered: false } }) });
+  await other.next(other.jobsReply([fetchView('place', 100, { fetch: { name: 'digitalisimo-otro.zip', connection: 'sftp', registered: false }, status: 'success', status_label: 'Completo', phase_label: '', terminal: true, running: false, can_cancel: false, file: 'digitalisimo-otro.zip', detail: 'Respaldo de SFTP traído al almacén como «sin registro»…' })]));
+  ok(other.text(other.ui.go) === 'Ver en «Restaurar un archivo suelto»' && new URL(other.ui.go.getAttribute('href')).searchParams.get('open') === 'restore-file', 'Lo traído sin registro no lleva a «Restaurar un archivo suelto»');
+  // La sesión o el nonce dejan de valer: lo dice, ofrece entrar y deja de consultar (no hay testigo para esto).
+  const lostSession = screen({ view: fetchView('receive', 40) });
+  await lostSession.next({ status: 400, body: '-1' });
+  ok(/su sesión o su nonce ya no valen/.test(lostSession.text(lostSession.ui.note)) && !lostSession.ui.login.hidden && lostSession.timers.size === 0, 'Sin sesión, la descarga no lo dice o sigue consultando: ' + lostSession.text(lostSession.ui.note));
+});
+
+await scenario('P31 · «Enviar a un destino»: el mismo panel, su resultado y la lista a petición', async () => {
+  const page = screen({ view: sendView('deliver', 40) });
+  ok(page.text(page.ui.title) === 'Enviando el respaldo a un destino' && JSON.stringify(page.phases()) === JSON.stringify(['preflight:done', 'deliver:current']) && !page.ui.cancel.hidden, 'El envío no se ve en el panel con sus fases: ' + page.phases());
+  page.replies.push(page.jobsReply([sendView('deliver', 70, { cancel_requested: true, can_cancel: false })]));
+  page.ui.cancel.listeners.click[0]({ preventDefault() {} });
+  await settle();
+  const cancel = page.requests[page.requests.length - 1];
+  ok(/Cancelar el envío\? Lo copiado a medias en el destino se retira/.test(page.confirms[0] || '') && cancel.action === 'digitalisimo_backups_job_cancel' && cancel.id === SND && page.ui.cancel.hidden, 'Cancelar el envío no dice qué pasa o no lo pide a la cola: ' + page.confirms[0]);
+  const done = screen({ view: sendView('deliver', 90) });
+  await done.next(done.jobsReply([sendView('deliver', 100, { status: 'success', status_label: 'Completo', phase_label: '', terminal: true, running: false, can_cancel: false, file: 'digitalisimo-sitio.zip', detail: 'Copia en SFTP verificada: digitalisimo-sitio.zip.' })]));
+  ok(done.text(done.ui.title) === 'Copia enviada y verificada' && !done.ui.reload.hidden && done.ui.go.hidden && done.reloads + done.replaced.length === 0, 'El envío terminado no se dice o recarga la página');
+  const bad = screen({ view: sendView('deliver', 90) });
+  await bad.next(bad.jobsReply([sendView('deliver', 50, { status: 'failed', status_label: 'Fallido', phase_label: '', terminal: true, running: false, can_cancel: false, detail: 'La copia a SFTP falló: sin espacio.' })]));
+  ok(bad.text(bad.ui.title) === 'El envío no se completó' && /La copia a medias se retiró del destino/.test(bad.text(bad.ui.result)) && bad.text(bad.ui.percent) === '90 %', 'Un envío fallido no dice qué pasó o baja la barra');
+});
+
+await scenario('P32 · una importación o descarga empezada en otra pestaña: el panel la toma si no enseña nada', async () => {
+  const idle = screen({ card: true, active: false });
+  idle.replies.push(idle.jobsReply([fetchView('receive', 20)]));
+  await runIntervals(idle, 31000);
+  ok(!idle.panel.hidden && idle.text(idle.ui.title) === 'Trayendo el respaldo del destino' && idle.pending().length === 1, 'Una descarga en curso que empezó en otra pestaña no entra al panel');
+  // El panel enseña ya un resultado: no lo tapa.
+  const busy = screen({ view: importDone(), card: true, active: false });
+  busy.replies.push(busy.jobsReply([fetchView('receive', 20), importDone()]));
+  await runIntervals(busy, 31000);
+  ok(busy.text(busy.ui.title) === 'Importación terminada', 'Una descarga de otra pestaña tapó el resultado de la importación');
+});
+
+await scenario('P33 · importar, traer, enviar o agregar al listado: el panel dice ya que empieza, junto al formulario', async () => {
+  const page = screen({ card: false, sections: [['import', 'import'], ['restore-file', 'restore-file']] });
+  const importForm = page.slots.import.section.appendChild(new El('form'));
+  importForm.appendChild(new El('input', { type: 'hidden', name: 'action', value: 'digitalisimo_backups_backuply_import' }));
+  const send = (form) => { const event = { target: form, defaultPrevented: false, prevented: false, preventDefault() { this.prevented = true; } }; for (const listener of page.document.listeners.submit || []) listener(event); return event; };
+  send(importForm);
+  ok(page.panel.parentNode === page.slots.import && page.slots.import.section.open && page.panel.getAttribute('data-state') === 'starting' && page.text(page.message) === 'Encolando la importación de Backuply…' && !page.bar.hasAttribute('aria-valuenow'), 'Al pedir la importación el panel no dice que empieza junto a ella');
+  ok(send(importForm).prevented, 'Un doble clic manda dos importaciones');
+  const register = page.slots['restore-file'].section.appendChild(new El('form'));
+  register.appendChild(new El('input', { type: 'hidden', name: 'action', value: 'digitalisimo_backups_register_loose' }));
+  send(register);
+  ok(page.panel.parentNode === page.slots['restore-file'] && page.text(page.ui.title) === 'Agregando a la lista' && JSON.stringify(page.phases()) === JSON.stringify(['check:current', 'register:pending']) && /sin pasos que medir/.test(page.text(page.detail)), '«Agregar al listado» no dice que comprueba (y sus fases): ' + page.phases());
+  page.replies.push(page.jobsReply([]));
+  await runIntervals(page, 41000);
+  ok(/Lleva 41 s/.test(page.text(page.ui.time)) && /wp digitalisimo-backups register/.test(page.text(page.ui.note)), 'Pasados 40 s, «Agregar al listado» no dice qué hacer ni cuánto lleva: ' + page.text(page.ui.note) + ' / ' + page.text(page.ui.time));
+  const home = screen();
+  const fetchForm = home.document.children[0].appendChild(new El('form'));
+  fetchForm.appendChild(new El('input', { type: 'hidden', name: 'action', value: 'digitalisimo_backups_fetch' }));
+  for (const listener of home.document.listeners.submit || []) listener({ target: fetchForm, defaultPrevented: false, preventDefault() {} });
+  ok(home.text(home.message) === 'Empezando la descarga desde el destino…' && home.panel.parentNode.getAttribute('class').includes('digitalisimo-backups-home'), '«Traer al almacén» no dice que empieza bajo el botón');
 });
 
 if (failed.length) throw new Error('FALLA: ' + failed.length + ' caso(s) del panel de avance: ' + failed.join(' | '));

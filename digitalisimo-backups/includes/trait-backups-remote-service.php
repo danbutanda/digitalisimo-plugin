@@ -356,7 +356,8 @@ trait Digitalisimo_Backups_Remote_Service {
 		check_admin_referer( self::ACTION_REMOTE_FETCH );
 		$result = self::service_remote_fetch( sanitize_text_field( wp_unslash( $_POST['destination'] ?? '' ) ), sanitize_file_name( wp_unslash( $_POST['name'] ?? '' ) ), array( 'network' => self::network_context(), 'via' => 'admin-post' ) );
 		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
-		self::redirect( true, $result['message'] );
+		// El panel de avance, en esta sección, sigue la descarga (o enseña su resultado, si terminó en esta misma petición).
+		self::redirect( true, $result['message'], null, '', (string) ( $result['job']['id'] ?? '' ) );
 	}
 
 	/* ------------------------------------------------------------------ Fases del trabajo `fetch` */

@@ -138,7 +138,7 @@ trait Digitalisimo_Backups_Backuply_Service {
 		// El nombre no pasa por sanitize_file_name(): lo cambiaría (`.com.mx` → `.com_.mx`); lo valida la lista blanca del servicio.
 		$result = self::service_backuply_import( (string) wp_unslash( $_POST['backuply_file'] ?? '' ), array( 'source' => sanitize_key( wp_unslash( $_POST['backuply_source'] ?? '' ) ), 'via' => 'admin-post', 'network' => ! empty( $_POST['digitalisimo_backups_network'] ), 'spawn' => true ) );
 		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
-		self::redirect( true, 'Importación de Backuply en cola (trabajo ' . $result['id'] . '): su avance está en «Trabajos». Al terminar, el ZIP aparece en Herramientas → «Restaurar un archivo suelto».' );
+		self::redirect( true, 'Importación de Backuply en cola (trabajo ' . $result['id'] . '): su avance se ve en el panel de esta sección. Al terminar, el ZIP aparece en Herramientas → «Restaurar un archivo suelto».', null, '', (string) $result['id'] );
 	}
 	/** Tarjeta «Respaldos de Backuply»: sólo si Backuply está en el sitio o hay respaldos suyos que importar. $items: los de sources(), si ya se buscaron. */
 	private static function backuply_panel( $network, $items = null ) {
