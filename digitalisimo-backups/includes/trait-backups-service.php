@@ -961,7 +961,7 @@ trait Digitalisimo_Backups_Service {
 			// «Origen → este sitio»: qué cambiaría al restaurarlo aquí (o por qué no se puede).
 			$relocation = null;
 			$convert = null;
-			if ( ! $point && self::network_converts( $data ) ) {
+			if ( self::network_converts( $data ) ) {
 				// El respaldo de una red en un WordPress individual: qué sitio se restaura y su «origen → este sitio».
 				if ( ! $lock ) {
 					$lock = self::service_lock();
