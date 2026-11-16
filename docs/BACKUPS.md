@@ -95,7 +95,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | **Quien restaura en otro sitio sigue entrando (incidente de /wp del 2026-11-12).** Con el respaldo de otra instalación (sin la identidad de H23: otro sitio, un sitio extraído o una migración), «Conservar mi acceso» (pantalla, encendido), `keep_access` (REST, por defecto `true`) y `--[no-]keep-access` (WP-CLI, con el usuario de `--user`; sin usuario, nadie) conservan la cuenta de quien lanza la restauración (una cuenta del paquete con su usuario que no era administradora sólo cambia de usuario; la decisión va al diario antes de escribir): su fila (hash y correo), sus sesiones y sus contraseñas de aplicación se apuntan cifradas en el diario antes del cambio de tablas y vuelven tras el SQL, también si el proceso muere entre medias; queda como administrador (y superadministrador en una red) y la cookie de su navegador sigue valiendo (las claves y sales que WordPress guarda en la base, si `wp-config.php` no las define, también se conservan). Sólo esa cuenta. En el mismo sitio no aplica: vuelven las cuentas del respaldo (tras un hackeo no se reviven las credenciales de ahora). La ruta privada de acceso (Tools/SEO) es la de este sitio, nunca la del respaldo, y el informe (pantalla, respuesta REST, `jobs get`, aviso persistente y correo, que sale siempre tras restaurar en otro sitio) empieza por «Cómo entrar ahora: <URL efectiva>» con quién puede entrar y qué cambió. Causa del 401 de las contraseñas de aplicación del paquete: `using_application_passwords` es una opción de red (en una red vive en `sitemeta`) y la extracción no la lleva; sin ella WordPress no mira ninguna contraseña de aplicación (`rest_not_logged_in`). Ahora cualquier restauración la activa si algún usuario las tiene. Ficha de lectura del trabajo (completa H18, que era sólo la cookie): `restore` y `migration/pull` la entregan una vez (`follow`); `GET /jobs/<id>` con la cabecera `X-Digitalisimo-Backups-Job-Token` lee sólo ese trabajo, sin sesión, también durante el mantenimiento (la puerta deja pasar sólo ese GET, con WordPress mínimo) y con otros usuarios, hasta 24 h después de terminar (7 días como mucho); sólo su SHA-256 se guarda. La barra de «Subir un respaldo» consulta el estado mientras se comprueba el archivo y llega a 100 % con «verificado» en cuanto `GET /uploads` dice `phase=done`, aunque la respuesta del cierre no llegue nunca; cada petición tiene plazo. Ver «Quien restaura sigue entrando». | 1.0.76 | `backups-keep-access.php`, `backups-upload-ui.mjs`, `backups-site-extract.php` y, en Playground, `tests/playground/backups-keep-access.sh` |
 | **Incrementales confiables (cadena íntegra).** Una automatización (o un respaldo manual pedido así) puede ser incremental: un completo empieza la cadena y cada incremental guarda sólo los archivos nuevos o cambiados (por SHA-256), la lista de borrados, el inventario completo del punto y la base de datos entera; nombra a todos sus antecesores por el SHA-256 de su manifiesto firmado. Cada incremental es un punto de restauración completo: restaurarlo (o verificarlo) comprueba antes la cadena entera y reconstruye por tramos (trabajo `chain`) el respaldo completo de ese momento, que entra en la restauración de siempre; sin historial (recuperación ante desastre) el punto y su cadena se reconocen por sus manifiestos, y «Traer al almacén» de un punto trae su cadena. La retención cuenta puntos y nunca borra un eslabón del que dependa un punto conservado (local, remota y manual); un completo nuevo cada N incrementales o D días; «Traer al almacén» de un punto trae su cadena. Ver «Incrementales». | rama `backups/incremental` (sin publicar) | `backups-incremental.php`, `backups-incremental-remote.php`, `tests/playground/backups-incremental.sh` |
 | **Restaurar por partes (decisión del 2026-11-13).** De un respaldo completo (propio, subido, traído de un destino o importado de Backuply) se elige qué vuelve: base de datos, núcleo de WordPress (todo lo que está fuera de wp-content, nunca `wp-config.php`), plugins, temas, medios, mu-plugins y el resto de wp-content; dentro de plugins y temas, plugins o temas concretos (los que trae el respaldo), y en una red, los medios de un sitio. Es la misma restauración por pasos que la completa (la selección viaja en la especificación del trabajo, `parts`; sin ella, todo): la misma verificación del paquete entero (SHA-256, firma, SQL en seco), la copia previa **completa** bloqueada, el mantenimiento, la reanudación y la vuelta automática a la copia previa, que repone sólo las mismas partes; «Volver a la copia previa» igual. Lo que no se eligió no se recorre, ni se compara, ni se prepara, ni se cambia: sin la base de datos ninguna tabla se toca (ningún `RENAME`) y sin una parte de archivos ninguno de sus archivos. Con la base de datos rigen la reubicación de E1, la configuración de Backups de H23 y el acceso de quien restaura de 1.0.76, como en la completa. Los medios sin la base de datos conservan lo subido después (la biblioteca de ahora lo usa) salvo lo que PHP puede ejecutar. Avisos de coherencia (nunca bloquean) antes de confirmar; pantalla («Qué restaurar», plegado y con «Todo» marcado), REST (`parts`, `plugins`, `themes`, `sites` en `verify` y `restore`) y WP-CLI (`--parts`, `--plugins`, `--themes`, `--sites`) con el mismo caso de uso; el informe, el aviso y el correo dicen qué se restauró y qué no. Ver «Restaurar por partes». | sin publicar (rama `backups/selective-restore`) | `backups-restore-parts.php`, `backups-restore-parts-surfaces.php`, `backups-restore-parts-ui.mjs` y, en Playground, `tests/playground/backups-restore-parts.sh` |
-| **Un solo panel de avance para respaldo y restauración (pedido del 2026-11-15).** La restauración se sigue en el mismo panel a todo lo ancho que el respaldo de «Respaldar ahora», en el mismo lugar (bajo el botón; arriba en las demás pestañas): porcentaje, la barra con sus tramos, las fases como pasos (hecha, en curso, pendiente), el paso dentro de la fase, el tiempo y «Cancelar» sólo antes del cambio; al terminar, qué se restauró, avisos, lo retirado y «Volver a la copia previa», o el error y la vuelta a la copia previa que sigue sola. Sobrevive al cambio de tablas (sesión o nonces que dejan de valer: pasa al tick por testigo, que da nonces nuevos a quien conserva su sesión), al 503 del mantenimiento, a cortes de red, a recargar la página y a que muera la petición que la empieza si PHP alcanza a responder (la cookie del testigo sale antes; ver «Quién recibe el testigo y cuándo llega»); si no puede seguir, lo dice y qué hacer. Una restauración que empezó en otra pestaña, por REST o WP-CLI entra al panel. Con destino remoto, la barra de un respaldo ya no salta al 98 % al empezar la transferencia. Tras la revisión adversarial: «Volver a la copia previa» de una restauración por partes devuelve sólo esas partes; sin sesión de gestión, el tick por testigo sólo da esa restauración y sin rutas; la cookie dura 12 h y se borra cuando no sirve; la barra nunca retrocede. Ver «Pantalla» → «Avance». | sin publicar (rama `backups/restore-progress`) | `backups-progress.php`, `backups-progress-ui.mjs` (fallan con `77678f25`), `backups-restore-parts-ui.mjs` y, en Playground con Chrome, `tests/playground/backups-restore-progress.sh` |
+| **Un solo panel de avance para respaldo y restauración (pedido del 2026-11-15).** La restauración se sigue en el mismo panel a todo lo ancho que el respaldo de «Respaldar ahora», en el mismo lugar (bajo el botón; arriba en las demás pestañas): porcentaje, la barra con sus tramos, las fases como pasos (hecha, en curso, pendiente), el paso dentro de la fase, el tiempo y «Cancelar» sólo antes del cambio; al terminar, qué se restauró, avisos, lo retirado y «Volver a la copia previa», o el error y la vuelta a la copia previa que sigue sola. Sobrevive al cambio de tablas (sesión o nonces que dejan de valer: pasa al tick por testigo, que da nonces nuevos a quien conserva su sesión), al 503 del mantenimiento, a cortes de red, a recargar la página y a que muera la petición que la empieza si PHP alcanza a responder (la cookie del testigo sale antes; ver «Quién recibe el testigo y cuándo llega»); si no puede seguir, lo dice y qué hacer. Una restauración que empezó en otra pestaña, por REST o WP-CLI entra al panel (que la sigue con la sesión: el testigo sólo lo tiene quien la empezó, y sólo abre la pantalla de Backups durante el mantenimiento). Con destino remoto, la barra de un respaldo ya no salta al 98 % al empezar la transferencia. Tras la revisión adversarial: «Volver a la copia previa» de una restauración por partes devuelve sólo esas partes; sin sesión de gestión, el tick por testigo sólo da esa restauración y sin rutas; la cookie dura 48 h, la renueva cada tick y se borra al terminar; la barra nunca retrocede. Ver «Pantalla» → «Avance». | sin publicar (rama `backups/restore-progress`) | `backups-progress.php`, `backups-progress-ui.mjs` (fallan con `77678f25`), `backups-restore-parts-ui.mjs` y, en Playground con Chrome, `tests/playground/backups-restore-progress.sh` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -318,8 +318,11 @@ después, sitio y red).
   Al cargar la página retoma el trabajo en curso (o el resultado de la restauración que acaba de terminar); mientras sigue
   una restauración, la línea de la franja que repetía su estado se oculta y «Trabajos» sólo resume lo demás. Una
   restauración que empezó fuera de esta pestaña (otra pestaña, REST, WP-CLI u otro administrador) la toma el panel en
-  cuanto la ve: en el sondeo de la cola o, sin trabajos, en la consulta del estado (`digitalisimo_backups_job_status`) que
-  la pantalla hace cada 30 s. El panel es una región (`role="region"`) y la nota y el resultado son regiones vivas que
+  cuanto la ve: en el sondeo de la cola o, sin trabajos, en la consulta del estado (`digitalisimo_backups_job_status` con
+  `peek`: sólo lee, sin el cerrojo de los respaldos ni la limpieza del detector) que la pantalla hace cada 30 s sólo con
+  la pestaña a la vista. Esa pestaña la sigue con su sesión, no con el testigo: durante el mantenimiento no ve el avance
+  y lo dice, y tras el cambio de tablas, si su sesión o sus nonces ya no valen, dice que hay que recargar o iniciar
+  sesión. Al terminar el mantenimiento enseña cómo acabó sólo si terminó hace menos de 15 minutos. El panel es una región (`role="region"`) y la nota y el resultado son regiones vivas que
   están siempre en la página, vacías (el CSS las pliega), para que un lector de pantalla anuncie lo que se escribe.
 - **«Volver a la copia previa» tras una restauración que terminó bien.** Abre la fila de la copia previa
   (`?restore=<copia>&undo=<trabajo>`) con lo mismo que se restauró ya marcado: tras restaurar por partes, sólo esas partes,
@@ -333,41 +336,48 @@ después, sitio y red).
   valer («-1», «0», 401/403), pasa al tick por testigo (`admin-ajax.php?action=digitalisimo_backups_restore_tick`), que da
   a quien conserva su sesión de gestión («Conservar mi acceso») nonces nuevos (`nonces`: la cola, «Respaldar ahora» y
   «Volver a la copia previa») y dice si la conserva (`manager`); sin ella, al terminar pide iniciar sesión para ver el
-  resultado completo. Un 503 (una pestaña sin el testigo), un corte de red o un 5xx se dicen en el panel con la hora del
-  último contacto y siguen reintentando (cada 30 s con el 503, cuyas peticiones también despiertan la restauración); tras
-  5 fallos, qué hacer (con el 503, no recargar: se vería la página de mantenimiento de WordPress en lugar del panel). Si
+  resultado completo. El 503 de la puerta del mantenimiento de una restauración trae la cabecera
+  `X-Digitalisimo-Backups-Restore: maintenance`: sólo ése se dice como el mantenimiento de la restauración (una pestaña
+  sin el testigo; se consulta cada 30 s y esas peticiones también despiertan la restauración); otro 503 (el hosting, una
+  actualización de WordPress), un corte de red o un 5xx se dicen como «El servidor no responde» con la hora del último
+  contacto y siguen reintentando; tras 5 fallos, qué hacer (con el 503 de la restauración, no recargar: se vería la página
+  de mantenimiento de WordPress en lugar del panel). Si
   ni la sesión ni el testigo sirven, lo dice, ofrece «Iniciar sesión» y deja de consultar: nunca una barra quieta sin
   explicación. Lo que el panel recibe en cada tick es `Digitalisimo_Backups_Jobs::screen_view()` (tramos, tiempo, qué se
   restaura, copia previa, la restauración de la que es vuelta y por qué, la que la sigue, «a medio cambiar» y, sólo para
   quien gestiona Backups, el informe); REST y WP-CLI siguen con `view()`. Sin rutas del servidor ni el testigo.
-- **Quién recibe el testigo y cuándo llega.** Lo reciben, en la cookie, sólo el navegador que pide la restauración y quien
-  gestiona Backups: al abrir cualquier pestaña de la pantalla y en el sondeo de la cola o del estado, mientras haya una
-  restauración (o la reconstrucción de su punto) en curso, aunque la empezara otra pestaña, REST, WP-CLI u otro
-  administrador. Nunca va en el HTML de la página (el script no lo necesita: el tick por testigo es del mismo origen y lo
-  lleva la cookie). La pantalla lo manda **antes** de pedir la restauración (sólo sin otro trabajo en curso, para no pisar
-  la cookie de otra) y el caso de uso encola con ese mismo testigo (también la reconstrucción de un punto incremental y su
-  restauración). `setcookie()` sólo deja la cabecera en cola: **llega** si PHP alcanza a responder algo, la respuesta normal
-  (a los 25 s como mucho), una redirección o la página de un error de PHP (memoria agotada, error fatal: PHP responde 500
-  con sus cabeceras). **No llega** si el proceso muere sin responder (el hosting lo mata con SIGKILL: LVE de CloudLinux,
-  el límite de LiteSpeed/LSAPI, el OOM killer) o si un proxy o CDN corta antes (nginx o Cloudflare con 502/504): el
-  navegador recibe la página de error del proxy. La restauración sigue igual en el servidor. Qué hacer entonces: volver a
-  Backups; mientras no entra en mantenimiento (la verificación y la copia previa, que suelen durar minutos), la pantalla le
-  da el testigo y el panel la retoma; si el mantenimiento ya empezó, ese navegador ve la página de mantenimiento de
-  WordPress hasta que termine (la terminan WP-Cron, las visitas y el cron del sistema, o `wp digitalisimo-backups jobs
-  run`), y una pestaña de Backups que ya estaba abierta lo dice en su panel («esta pestaña no tiene su testigo… se vuelve
-  a consultar cada 30 s»). Mientras la petición que la empieza no responde, el panel dice que empieza y, pasados 40 s,
-  qué hacer si el navegador muestra un error.
+- **Quién recibe el testigo y cuándo llega.** Sólo el navegador que pide la restauración (la pantalla; o el cliente de
+  REST, con `maintenance_token`), en la cookie. Nadie más: ni otra pestaña u otro administrador al abrir la pantalla, ni
+  la consulta del estado, ni el tick de la cola. El testigo es un pase del mantenimiento, y aun así sólo para la pantalla
+  de Backups y sus llamadas (ver «Mantenimiento»). Nunca va en el HTML de la página (el script no lo necesita: el tick
+  por testigo es del mismo origen y lo lleva la cookie). La pantalla lo manda **antes** de pedir la restauración (sólo
+  sin otro trabajo en curso, para no pisar la cookie de otra) y el caso de uso encola con ese mismo testigo (también la
+  reconstrucción de un punto incremental y su restauración). `setcookie()` sólo deja la cabecera en cola: **llega** si
+  PHP alcanza a responder algo, la respuesta normal (a los 25 s como mucho), una redirección o la página de un error de
+  PHP (memoria agotada, error fatal: PHP responde 500 con sus cabeceras). **No llega** si el proceso muere sin responder
+  (el hosting lo mata con SIGKILL: LVE de CloudLinux, el límite de LiteSpeed/LSAPI, el OOM killer) o si un proxy o CDN
+  corta antes (nginx o Cloudflare con 502/504): el navegador recibe la página de error del proxy. La restauración sigue
+  igual en el servidor. Qué hacer entonces: volver a Backups; mientras no entra en mantenimiento (la verificación y la
+  copia previa, que suelen durar minutos), el panel la toma y la sigue con la sesión; ya en mantenimiento, ese navegador
+  ve la página de mantenimiento de WordPress hasta que termine (la terminan WP-Cron, las visitas y el cron del sistema, o
+  `wp digitalisimo-backups jobs run`), y una pestaña de Backups que ya estaba abierta lo dice en su panel («esta pestaña
+  no tiene su testigo… se vuelve a consultar cada 30 s») y, al terminar, dice cómo acabó o que hay que recargar o iniciar
+  sesión. Mientras la petición que la empieza no responde, el panel dice que empieza y, pasados 40 s, qué hacer si el
+  navegador muestra un error; a los 60 s, si la navegación se canceló, «Restaurar» vuelve a estar disponible.
 - **Lo que da el tick por testigo sin sesión de gestión** (alguien sin sesión, con la de otro usuario o con la cookie de
   otro navegador): sólo esa restauración y lo que la sigue con el mismo testigo (su vuelta a la copia previa; en una
   migración, la migración que la espera): estado, fase, porcentaje, tramos, tiempo, partes, el nombre del respaldo que se
   restaura y el paso dentro de la fase, sin rutas del servidor ni otros nombres de archivo (quedan en «…»); nunca otros
-  trabajos, errores, la copia previa, la causa de una vuelta ni nonces. Terminada, durante 15 minutos, el estado, la fase
+  trabajos, errores, la copia previa, la causa de una vuelta ni nonces. Un reintento, o un paso que trae el texto de un
+  error (de MySQL o del motor, con datos del sitio), dice sólo «Se reintentará (2 de 5) a las 10:20.» o «En curso: base
+  de datos.»; los nombres con guion bajo (tablas) también quedan en «…». Terminada, durante 15 minutos, el estado, la fase
   donde se detuvo y un texto general («Entra al escritorio para ver el detalle»). El testigo vale en la cookie o en el
   cuerpo `POST` de la pantalla, nunca en la URL: el de la URL del tick de WP-Cron queda en los registros de acceso.
-- **Cuánto dura la cookie.** 12 horas, y cada tick de la pantalla durante la restauración la renueva. Se borra si la
-  restauración no llega a empezar (un archivo que no está, un paquete que no sirve) o termina en la misma petición, al
-  cerrar sesión, y al abrir la pantalla si no hay una restauración en curso ni una que terminara hace menos de 15 minutos
-  con ese testigo.
+- **Cuánto dura la cookie.** 48 horas, y cada tick de esa restauración (o de la reconstrucción de su punto) que la trae la
+  renueva, con sesión (el tick de la cola, la consulta del estado, abrir la pantalla) o con el testigo: así quien vuelve a
+  una restauración que se quedó en mantenimiento sin visitas ni cron la sigue viendo. Se borra al terminar (el primer tick
+  que ya no la encuentra en curso), si la restauración no llega a empezar (un archivo que no está, un paquete que no
+  sirve) o termina en la misma petición, al abrir la pantalla si ya no sirve y al cerrar sesión.
 - **Qué restaurar** (restaurar por partes): entre la confirmación y «Opciones», plegado («Qué restaurar: todo»), así que
   el panel sigue enseñando sólo la frase, la confirmación y el botón. Dentro, «Todo» marcado y las siete partes con lo
   que reemplaza cada una; en el panel abierto de un ZIP que se puede leer (`?restore=<archivo>`, o «Elegir plugins, temas
@@ -911,7 +921,12 @@ programado a 60 s lo envía con WordPress entero.
 puerta: deja pasar `wp-cron.php` (sin testigo: el cron del sistema o el loopback), el tick por testigo de la pantalla
 (`admin-ajax.php?action=digitalisimo_backups_restore_tick`, sin sesión: tras el cambio, las sesiones son las del
 respaldo), a quien trae el testigo (la cookie `digitalisimo_backups_restore` del navegador que la empezó, o el parámetro
-del mismo nombre, como `maintenance_token` de REST; en el archivo sólo va su SHA-256) y WP-CLI. Esas peticiones cargan
+del mismo nombre, como `maintenance_token` de REST; en el archivo sólo va su SHA-256), y a ése sólo a la pantalla de
+Backups (`admin.php?page=digitalisimo-backups` o la de la red) y sus llamadas (`admin-ajax.php` y `admin-post.php` con
+una acción `digitalisimo_backups_…`, y su REST `/wp-json/digitalisimo-backups/v1/…`): el resto del escritorio y el sitio
+responden 503 también con el testigo, porque antes del cambio guardarían en la base de datos que el cambio de tablas va a
+reemplazar (y después se servirían a medio cambiar); y WP-CLI. El 503 de la puerta lleva la cabecera
+`X-Digitalisimo-Backups-Restore: maintenance`. Esas peticiones cargan
 WordPress **mínimo**: sólo este plugin, sin los demás, sin mu-plugins (salvo `DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS` en
 `wp-config.php`, para un hosting que los necesite) y sin el tema; así ningún código de un plugin corre contra la base de
 datos o el núcleo del otro lado. Mientras dura, WP-Cron sólo ejecuta el tick y el watchdog de Backups (nunca las

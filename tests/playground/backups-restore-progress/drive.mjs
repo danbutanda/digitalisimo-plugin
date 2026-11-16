@@ -40,7 +40,7 @@ function request(method, path) {
     const req = http.request({ host: '127.0.0.1', port: Number(port), method, path, headers: { Host: host }, timeout: 120_000 }, (res) => {
       const chunks = [];
       res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => { const text = Buffer.concat(chunks).toString('utf8'); let json = null; try { json = JSON.parse(text); } catch { /* página */ } resolve({ status: res.statusCode, text, json }); });
+      res.on('end', () => { const text = Buffer.concat(chunks).toString('utf8'); let json = null; try { json = JSON.parse(text); } catch { /* página */ } resolve({ status: res.statusCode, text, json, headers: res.headers }); });
     });
     req.on('error', (error) => resolve({ status: 0, text: String(error.message), json: null }));
     req.on('timeout', () => req.destroy(new Error('tiempo agotado')));
@@ -363,11 +363,20 @@ try {
       }
       let reload = false;
       let maintenance = null;
+      let gateMark = '';
+      let gateBrowser = null;
       const full = await follow('completa', ended, { onSample: async (s) => {
         if (['database', 'files'].includes(s.phase) && !reload) {
           reload = true;
           const reloadFrom = (await page.evaluate(() => { const p = document.getElementById('digitalisimo-backups-manual-progress'); try { return JSON.parse(p.getAttribute('data-view') || 'null'); } catch { return null; } }).catch(() => null))?.id || (await panel())?.view || '';
-          maintenance = (await request('GET', '/')).status;
+          const visitor = await request('GET', '/');
+          maintenance = visitor.status;
+          gateMark = String(visitor.headers?.['x-digitalisimo-backups-restore'] || '');
+          // Con el testigo (este navegador), la puerta sólo abre la pantalla de Backups y sus llamadas (verificación N1).
+          gateBrowser = await page.evaluate(async () => {
+            const probe = async (url) => { try { const r = await fetch(url, { credentials: 'same-origin' }); return [r.status, r.headers.get('X-Digitalisimo-Backups-Restore') || '']; } catch (e) { return [0, String(e)]; } };
+            return { dashboard: await probe('/wp-admin/index.php'), backups: await probe(location.pathname + '?page=' + new URLSearchParams(location.search).get('page') + '&tab=settings') };
+          }).catch((e) => ({ error: String(e) }));
           await shot('completa-base-de-datos');
           await page.reload({ waitUntil: 'load' });
           await sleep(500);
@@ -382,6 +391,8 @@ try {
       const phases = currentPhases(full.seen);
       check(inOrder(phases), `completa: el panel avanza por las fases en orden (${phases.join(' → ')})`, JSON.stringify(full.seen.slice(0, 20)));
       check(maintenance === 503, `completa: el sitio estaba en mantenimiento para los visitantes (${maintenance}) mientras el panel seguía`);
+      check(gateMark === 'maintenance', 'completa: el 503 de la puerta lleva su cabecera X-Digitalisimo-Backups-Restore (verificación N2)', gateMark);
+      check(gateBrowser && gateBrowser.dashboard?.[0] === 503 && gateBrowser.dashboard?.[1] === 'maintenance' && gateBrowser.backups?.[0] === 200, 'completa: con el testigo, la puerta abre la pantalla de Backups pero no el escritorio (verificación N1)', JSON.stringify(gateBrowser));
       check(stepper(full.seen) && shown(full.seen).every((s, i, all) => i === 0 || parseInt(s.percent, 10) >= parseInt(all[i - 1].percent, 10)), 'completa: el porcentaje nunca retrocede y cada fase marca hechas las anteriores');
       const last = full.last;
       check(last && last.title === 'Restauración terminada' && last.percent === '100 %' && last.now === '100' && last.phases.every((p) => p.endsWith(':done')), 'completa: termina al 100 % con todas sus fases hechas', JSON.stringify(last));
