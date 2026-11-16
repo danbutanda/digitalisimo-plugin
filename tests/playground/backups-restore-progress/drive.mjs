@@ -64,7 +64,8 @@ page.setDefaultTimeout(300_000);
 page.setDefaultNavigationTimeout(300_000);
 await page.setViewport({ width: 1280, height: 900 });
 const jsErrors = [];
-page.on('pageerror', (e) => jsErrors.push(String(e.message || e).slice(0, 300)));
+// Las transiciones de vista entre documentos del escritorio de WordPress (Chrome) no son de esta pantalla.
+page.on('pageerror', (e) => { const text = String(e.message || e); if (!/ViewTransition|Transition was aborted/.test(text)) jsErrors.push(text.slice(0, 300)); });
 page.on('dialog', async (d) => { log(`· diálogo: ${d.message().slice(0, 200)}`); await d.accept(); });
 const samples = {};
 
@@ -178,15 +179,21 @@ async function restoreFromRow(parts) {
       sessionStorage.setItem('digi-starting', JSON.stringify({ visible: !p.hidden && p.getBoundingClientRect().height > 0, state: p.getAttribute('data-state'), message: document.getElementById('digitalisimo-backups-manual-message').textContent, now: bar.getAttribute('aria-valuenow') }));
     }, 0));
   });
+  // El POST se retiene 2 s para capturar el panel «empieza» antes de que la página navegue.
+  await page.setRequestInterception(true);
+  const hold = (request) => { if (request.isInterceptResolutionHandled()) return; if (request.method() === 'POST' && /admin-post\.php/.test(request.url())) setTimeout(() => request.continue().catch(() => {}), 2000); else request.continue().catch(() => {}); };
+  page.on('request', hold);
   const navigation = page.waitForNavigation({ waitUntil: 'load', timeout: 300_000 }).catch(() => null);
   await page.click(`#${row} .digitalisimo-backups-restore-confirm button`);
-  await sleep(250);
+  await sleep(400);
   await shot(`${parts ? 'partes' : 'completa'}-empieza`);
   await navigation;
+  page.off('request', hold);
+  await page.setRequestInterception(false);
   const starting = await page.evaluate(() => JSON.parse(sessionStorage.getItem('digi-starting') || 'null')).catch(() => null);
   // Tras enviar, la pantalla vuelve con el panel (no la página de error crítico, ni otra).
   const landed = await page.$('#digitalisimo-backups-manual-progress');
-  if (!check(!!landed, 'tras enviar «Restaurar», la pantalla vuelve con el panel de avance', `${page.url()} · ${(await page.evaluate(() => document.body.innerText).catch(() => '')).slice(0, 200)} · ${existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').slice(-800) : ''}`)) return false;
+  if (!check(!!landed, 'tras enviar «Restaurar», la pantalla vuelve con el panel de avance', `${page.url()} · ${(await page.evaluate(() => document.body.innerText).catch(() => '')).slice(0, 200)} · ${existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').slice(-800) : ''} · ${existsSync(`${dir}/ctl/debug.log`) ? readFileSync(`${dir}/ctl/debug.log`, 'utf8').split('\n').filter((l) => /Fatal|Allowed memory|Uncaught/.test(l)).slice(-3).join(' | ') : ''}`)) return false;
   check(starting && starting.visible && starting.state === 'starting' && /Empezando la restauración/.test(starting.message) && starting.now === null, 'al confirmar «Restaurar», el panel dice al instante que empieza (barra indeterminada)', JSON.stringify(starting));
   return true;
 }
@@ -312,7 +319,7 @@ try {
   check(false, 'el ensayo terminó con una excepción', String(e.stack || e).slice(0, 1500));
 } finally {
   writeFileSync(`${shots}/samples.json`, JSON.stringify(samples, null, 1));
-  for (const name of ['requests.jsonl', 'memory.jsonl', 'fatal.jsonl']) if (existsSync(`${dir}/ctl/${name}`)) copyFileSync(`${dir}/ctl/${name}`, `${shots}/${name}`);
+  for (const name of ['requests.jsonl', 'memory.jsonl', 'fatal.jsonl', 'debug.log']) if (existsSync(`${dir}/ctl/${name}`)) copyFileSync(`${dir}/ctl/${name}`, `${shots}/${name}`);
   await browser.close();
   rmSync(profile, { recursive: true, force: true });
 }
