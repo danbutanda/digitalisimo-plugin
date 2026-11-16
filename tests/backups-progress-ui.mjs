@@ -256,6 +256,9 @@ await scenario('P2 · una restauración por fases, con su testigo, «Cancelar» 
 await scenario('P3 · por partes: dice qué se restaura', async () => {
   const page = screen({ view: restoreView('files', 70, { parts: 'el plugin demo' }), token: 't' });
   ok(page.text(page.ui.what).endsWith('se restaura sólo: el plugin demo'), 'Restaurar por partes no dice qué parte: ' + page.text(page.ui.what));
+  // Lo retirado lo dice el informe (con dónde queda): el panel no lo repite.
+  await page.next(page.jobsReply([restoreDone({ parts: 'el plugin demo', result: { notice: 'Restauración por partes: se restauró el plugin demo. Se retiraron 2 archivo(s) que el respaldo no tenía: están en la copia previa x.zip.', warnings: [], warnings_total: 0, removed: 2, kept: 0 } })]));
+  ok(page.text(page.ui.result).split('Se retiraron').length === 2, 'Lo retirado se dice dos veces: ' + page.text(page.ui.result));
 });
 
 await scenario('P4 · 503 del mantenimiento, corte de red y 502: lo dice, sigue consultando y la nota se va al volver', async () => {

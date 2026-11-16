@@ -276,7 +276,8 @@
         if (report.warnings_total > (report.warnings || []).length) items.appendChild(element('li', 'Y ' + (report.warnings_total - report.warnings.length) + ' más en el registro del trabajo.'));
         ui.result.appendChild(items);
       }
-      if (report.removed) paragraph('Se retiraron ' + report.removed + ' archivos que el respaldo no tenía' + (report.kept ? ' (' + report.kept + ' cambiados después se apartaron en el almacén)' : '') + '.');
+      /* El informe ya lo dice (con dónde quedan); sólo si no. */
+      if (report.removed && !/Se retiraron/.test(report.notice || '')) paragraph('Se retiraron ' + report.removed + ' archivos que el respaldo no tenía' + (report.kept ? ' (' + report.kept + ' cambiados después se apartaron en el almacén)' : '') + '.');
     } else if (job.notices && job.notices.length) paragraph('Avisos: ' + job.notices.join(' '), 'digitalisimo-backups-warning');
     if (kind === 'restore' && job.status === 'success' && job.safety) paragraph('La copia previa ' + job.safety + ' queda bloqueada en el historial: si algo no quedó bien, «Volver a la copia previa» la restaura.');
     if (sessionLost) paragraph('Esta pestaña perdió la sesión con el cambio de tablas (la restauración repuso los usuarios del respaldo): inicia sesión para ver el resultado completo.', 'digitalisimo-backups-warning');

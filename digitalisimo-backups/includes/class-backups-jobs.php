@@ -1056,6 +1056,12 @@ final class Digitalisimo_Backups_Jobs {
 		if ( '' !== $view['rollback_of'] ) {
 			$view['rollback_file'] = basename( (string) ( $spec['rollback']['file'] ?? '' ) );
 			$view['rollback_cause'] = (string) ( $read( $view['rollback_of'] )['cause'] ?? '' );
+			// El tiempo, desde que empezó la restauración que deshace (lo que pidió quien mira).
+			$of = self::get( $view['rollback_of'] );
+			if ( $of && ! empty( $of['created_at'] ) ) {
+				$view['elapsed'] = max( 0, $end - (int) $of['created_at'] );
+				$view['created_label'] = self::clock( (int) $of['created_at'], true );
+			}
 		}
 		$view['midway'] = false;
 		if ( 'failed' === $job['status'] && '' === $view['followed_by'] ) {

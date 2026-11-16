@@ -15,6 +15,8 @@
 #   RESTORE_MEMORY  límite de las peticiones mientras dura cada restauración (por defecto 128M): en php-wasm, con 64M,
 #                   la lectura de 1 MiB de la verificación y de la copia previa agota la memoria con 1.0.77 (también main;
 #                   MODES=start lo mide con 64M). La primera petición de la primera restauración va siempre con 64M
+#   RESPOND_AFTER   segundos que trabaja la petición que empieza una restauración antes de volver a la pantalla (por
+#                   defecto 3; en el hosting, 25): en un sitio pequeño, con 25 s la restauración entera cabe en ella
 #   BACKUP_MEMORY   límite de las peticiones de «Respaldar ahora» (por defecto 128M, como el respaldo de referencia de
 #                   backups-restore-parts.sh: en php-wasm el empaquetado va al límite de 64 MB también con main; las
 #                   restauraciones, su copia previa incluida, corren siempre con 64 MB)
@@ -72,6 +74,7 @@ for mode in ${MODES:-single}; do
   cp "$D/lab.php" "$dir/probe/progress-lab.php"
   echo a > "$dir/probe/site.txt"
   echo "${TICK_BUDGET:-5}" > "$dir/ctl/tick-budget"
+  echo "${RESPOND_AFTER:-3}" > "$dir/ctl/respond-after"
   head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$dir/probe/token.txt"
   cat > "$dir/blueprint.json" <<JSON
 {"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_MEMORY_LIMIT":"64M","WP_MAX_MEMORY_LIMIT":"64M","WP_ENVIRONMENT_TYPE":"local","DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS":true,"WP_DISABLE_FATAL_ERROR_HANDLER":true}},$multi

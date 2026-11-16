@@ -7,6 +7,12 @@ add_filter( 'digitalisimo_backups_job_budget', static function ( $budget ) {
 	$seconds = (int) @file_get_contents( '/digi-ctl/tick-budget' );
 	return $seconds > 0 ? $seconds : $budget;
 }, 20 );
+// La petición que empieza una restauración responde a los /digi-ctl/respond-after segundos (25 por defecto): en un sitio
+// pequeño, con 25 s la restauración entera cabe en ella y el panel no tendría nada que seguir.
+add_filter( 'digitalisimo_backups_restore_respond_after', static function ( $seconds ) {
+	$file = '/digi-ctl/respond-after';
+	return is_file( $file ) ? max( 0, (int) file_get_contents( $file ) ) : $seconds;
+}, 20 );
 // Un error fatal (la página «critical error» de WordPress): la petición, el error y la memoria, para el informe. Lo llama
 // el manejador de errores fatales de WordPress antes de pintar esa página.
 add_filter( 'wp_php_error_message', static function ( $message, $error ) {

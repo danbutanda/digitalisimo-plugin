@@ -132,6 +132,7 @@ bp_case( 'R2 · una restauración: siete fases, partes, copia previa, la vuelta 
 	$was = $J::screen_view( $failed );
 	$now = $J::screen_view( $back );
 	bp_check( $back['id'] === $was['followed_by'] && false === $was['midway'], 'La restauración que falló no dice qué vuelta a la copia previa la sigue: ' . json_encode( $was['followed_by'] ) );
+	bp_check( $now['elapsed'] >= 30, 'El tiempo de la vuelta a la copia previa no cuenta desde la restauración que deshace: ' . $now['elapsed'] );
 	bp_check( $failed['id'] === $now['rollback_of'] && 'digitalisimo-sitio-2026-11-15.zip' === $now['rollback_file'] && 'fallo inyectado al mover los archivos' === $now['rollback_cause'] && 'Vuelta a la copia previa' === $now['origin_label'], 'La vuelta a la copia previa no dice de cuál es ni por qué: ' . json_encode( array_intersect_key( $now, array_flip( array( 'rollback_of', 'rollback_file', 'rollback_cause' ) ) ), JSON_UNESCAPED_UNICODE ) );
 	$lost = Digitalisimo_Backups_Job_Store::write( array_replace( $back, array( 'status' => 'failed', 'phase' => 'switch', 'finished_at' => time() ) ) );
 	bp_check( true === $J::screen_view( $lost )['midway'], 'Una vuelta a la copia previa que falla no queda «a medio cambiar».' );
