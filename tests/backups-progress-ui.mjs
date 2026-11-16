@@ -20,6 +20,18 @@
 //   P10 un punto incremental: la reconstrucción y después la restauración, en el mismo panel;
 //   P11 al confirmar «Restaurar» el panel dice ya que empieza (barra indeterminada, sin aria-valuenow);
 //   P12 cada identificador que usa el script está en el marcado de PHP (class-backups-progress.php) y nada se pinta como HTML.
+// Y lo de la revisión adversarial (cada caso falla con 34c0fae9):
+//   P13 una restauración que empezó fuera de esta pestaña (otra pestaña, REST, WP-CLI) la toma el panel grande, en el
+//       sondeo de la cola o, sin trabajos, en la consulta del estado cada 30 s; tras el cambio sigue con el testigo y los
+//       nonces nuevos; ya en mantenimiento, lo dice (M3);
+//   P14 terminada por otro proceso, la cola vuelve al tick con nonce (B3, J10); sin sesión, para;
+//   P15 la barra nunca retrocede: el punto incremental ocupa el 0–20 % y su restauración el resto; una fase que vuelve
+//       atrás se dice (B4);
+//   P16 la vista mínima de una que falló marca su fase, la de una vuelta lo dice y un fallo no baja la barra (B5, J20);
+//   P17 «Cancelar» sólo con sesión de gestión y con el sondeo bien (B2);  P18 «Respaldar ahora» con el nonce nuevo (B1);
+//   P19 con 503 no aconseja recargar (B6);  P20 «Volver a la copia previa» con las partes restauradas y, entera, el aviso
+//       de lo que se pierde (M1);  P21 región y regiones vivas siempre presentes (B7);  P22 doble clic (B10);
+//   P23 «finished» con la restauración del punto reconstruido (J13).
 // Uso: node tests/backups-progress-ui.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -108,8 +120,8 @@ function screen({ view = null, token = '', strip = false, card = true, active = 
   panel.appendChild(new El('p', { id: 'digitalisimo-backups-manual-message', role: 'status', 'aria-live': 'polite' }));
   panel.appendChild(new El('p', { id: 'digitalisimo-backups-manual-detail' }));
   panel.appendChild(new El('p', { id: P + 'time' }));
-  panel.appendChild(new El('p', { id: P + 'note', hidden: '' }));
-  panel.appendChild(new El('div', { id: P + 'result', hidden: '' }));
+  panel.appendChild(new El('p', { id: P + 'note', role: 'status', 'aria-live': 'polite' }));
+  panel.appendChild(new El('div', { id: P + 'result', 'aria-live': 'polite' }));
   const actions = panel.appendChild(new El('div'));
   actions.appendChild(new El('button', { id: P + 'cancel', type: 'button', hidden: '' }));
   actions.appendChild(new El('button', { id: P + 'reload', type: 'button', hidden: '' }));
@@ -247,8 +259,11 @@ await scenario('P2 · una restauración por fases, con su testigo, «Cancelar» 
   ok(page.text(page.ui.title) === 'Restauración terminada' && page.text(page.ui.percent) === '100 %' && page.phases().every((p) => p.endsWith(':done')), 'La restauración terminada no se ve al 100 % con todas sus fases hechas');
   ok(result.includes('Restauración terminada desde') && result.includes('Cómo entrar ahora') && result.includes('Con 3 avisos') && result.includes('Limpieza: no se pudo apartar') && result.includes('Y 2 más') && result.includes('Se retiraron 4 archivos') && result.includes('safety-before-restore-x.zip'), 'El resultado no dice qué se restauró, sus avisos, lo retirado y la copia previa: ' + result);
   ok(!page.ui.safety.hidden && /tab=backups/.test(page.ui.safety.getAttribute('href')) && /restore=safety-before-restore-x\.zip/.test(page.ui.safety.getAttribute('href')) && !/message=/.test(page.ui.safety.getAttribute('href')), '«Volver a la copia previa» no abre la copia previa: ' + page.ui.safety.getAttribute('href'));
-  ok(!page.ui.reload.hidden && page.ui.cancel.hidden && page.ui.help.hidden && page.reloads + page.replaced.length === 0 && page.timers.size === 0, 'Al terminar la restauración la página se recargó (y se perdió el resultado) o sigue consultando');
+  ok(!page.ui.reload.hidden && page.ui.cancel.hidden && page.ui.help.hidden && page.reloads + page.replaced.length === 0 && page.pending().length === 1 && page.pending()[0].delay === 1000, 'Al terminar la restauración la página se recargó (y se perdió el resultado) o no vuelve a la cola');
   ok(page.submit.disabled === false && /duró 5 min 12 s/.test(page.text(page.ui.time)), '«Respaldar ahora» no vuelve o el tiempo no dice cuánto duró: ' + page.text(page.ui.time));
+  // Lo que siga (la cola de respaldos) vuelve al tick con nonce, una vez; sin trabajos, el sondeo para (revisión J10).
+  await page.next(page.jobsReply([restoreDone()]));
+  ok(page.requests[page.requests.length - 1].action === 'digitalisimo_backups_job_tick' && page.timers.size === 0 && page.text(page.ui.title) === 'Restauración terminada', 'Tras terminar, la cola no vuelve al tick con nonce o sigue consultando sin trabajos: ' + JSON.stringify(page.requests[page.requests.length - 1]));
   page.ui.reload.listeners.click[0]({});
   ok(page.replaced.length === 1 && !/backup=|message=/.test(page.replaced[0]), '«Ver la lista actualizada» no recarga sin el aviso viejo: ' + page.replaced);
 });
@@ -265,14 +280,14 @@ await scenario('P4 · 503 del mantenimiento, corte de red y 502: lo dice, sigue 
   const page = screen({ view: restoreView('database', 45) });
   ok(page.pending().length === 1, 'Al cargar con una restauración en curso no se programa el sondeo');
   let delay = await page.next({ status: 503, body: '<html>Mantenimiento</html>' });
-  ok(page.requests[0].action === 'digitalisimo_backups_job_tick' && !page.ui.note.hidden && /mantenimiento/.test(page.text(page.ui.note)) && page.pending()[0].delay === 30000, 'Un 503 no se explica o no se consulta cada 30 s: ' + page.text(page.ui.note));
+  ok(page.requests[0].action === 'digitalisimo_backups_job_tick' && !page.ui.note.hidden && /mantenimiento/.test(page.text(page.ui.note)) && page.pending()[0].delay === 30000 && !/recarga esta página/.test(page.text(page.ui.note)), 'Un 503 no se explica o no se consulta cada 30 s: ' + page.text(page.ui.note));
   ok(page.text(page.ui.percent) === '45 %', 'La barra cambió con el 503');
   for (let i = 0; i < 3; i++) delay = await page.next({ reject: true });
   ok(/Sin conexión con el servidor/.test(page.text(page.ui.note)) && page.pending().length === 1, 'Un corte de red no se explica o se deja de reintentar: ' + page.text(page.ui.note));
   delay = await page.next({ status: 502, body: '<html>Bad gateway</html>' });
   ok(/HTTP 502/.test(page.text(page.ui.note)) && /recarga esta página/.test(page.text(page.ui.note)) && page.ui.note.getAttribute('data-level') === 'error', 'Tras 5 fallos no dice qué hacer: ' + page.text(page.ui.note));
   await page.next(page.jobsReply([restoreView('database', 52)]));
-  ok(page.ui.note.hidden && page.text(page.ui.percent) === '52 %', 'Al volver la conexión la nota no se va o el avance no sigue');
+  ok(page.text(page.ui.note) === '' && !page.ui.note.hidden && page.text(page.ui.percent) === '52 %', 'Al volver la conexión la nota no se va (la región viva sigue en la página, vacía) o el avance no sigue');
   // Un reintento devuelve el % al comienzo de la fase (se retoma desde su punto de control): la barra no retrocede.
   await page.next(page.jobsReply([restoreView('database', 40, { running: false, retry_in: 8, detail: 'Reintento a las 10:20 (2 de 5)' })], { result: 'idle' }));
   ok(page.text(page.ui.percent) === '52 %' && /Reintento a las 10:20/.test(page.text(page.detail)) && page.pending()[0].delay === 8000, 'Un reintento hace retroceder la barra o no dice cuándo sigue: ' + page.text(page.ui.percent));
@@ -286,7 +301,7 @@ await scenario('P5 · un nonce que dejó de valer pasa al tick por testigo y tom
   const tick = page.requests[page.requests.length - 1];
   ok(tick.action === 'digitalisimo_backups_restore_tick' && tick.digitalisimo_backups_restore === '', 'Tras el «-1» no se pidió el tick por testigo (la cookie): ' + JSON.stringify(tick));
   ok(page.config.jobsNonce === 'nonce-jobs-nueva' && page.ui.rollback.querySelector('input[name="_wpnonce"]').value === 'nonce-restore-nueva', 'Los nonces nuevos no se usan: ' + page.config.jobsNonce);
-  ok(page.text(page.ui.percent) === '95 %' && page.ui.note.hidden, 'El avance no sigue con el testigo');
+  ok(page.text(page.ui.percent) === '95 %' && page.text(page.ui.note) === '', 'El avance no sigue con el testigo');
 });
 
 await scenario('P6 · recargar la página a mitad de la restauración vuelve al panel y sigue', async () => {
@@ -312,7 +327,9 @@ await scenario('P7 · falla a mitad del cambio: sigue la vuelta a la copia previ
   await page.next(page.jobsReply([back('cleanup', 100, { status: 'success', status_label: 'Completo', phase_label: '', terminal: true, running: false, detail: 'Se volvió a la copia previa safety-before-restore-x.zip: el sitio está como antes de la restauración que falló.' }), failedView]));
   const result = page.text(page.ui.result);
   ok(page.text(page.ui.title) === 'El sitio volvió a la copia previa' && result.includes('falló a mitad del cambio: fallo inyectado') && result.includes('el sitio está como antes') && page.ui.safety.hidden && page.ui.rollback.hidden, 'El resultado no dice que el sitio volvió y por qué: ' + page.text(page.ui.title) + ' / ' + result);
-  ok(page.timers.size === 0, 'Terminada la vuelta, el panel sigue consultando');
+  ok(page.pending().length === 1 && page.pending()[0].delay === 1000, 'Terminada la vuelta, la cola no vuelve al tick con nonce');
+  await page.next(page.jobsReply([]));
+  ok(page.timers.size === 0 && page.requests[page.requests.length - 1].action === 'digitalisimo_backups_job_tick', 'Terminada la vuelta, el panel sigue consultando');
 });
 
 await scenario('P8 · si la vuelta también falla, ofrece «Volver a la copia previa»', async () => {
@@ -348,6 +365,149 @@ await scenario('P11 · al confirmar «Restaurar» el panel dice ya que empieza',
   restoreForm.appendChild(new El('input', { type: 'hidden', name: 'action', value: 'digitalisimo_backups_restore' }));
   for (const listener of page.document.listeners.submit || []) listener({ target: restoreForm, defaultPrevented: false });
   ok(!page.panel.hidden && page.panel.getAttribute('data-state') === 'starting' && page.text(page.message) === 'Empezando la restauración…' && !page.bar.hasAttribute('aria-valuenow') && page.panel.scrolled, 'Al confirmar «Restaurar» el panel no dice que empieza (barra indeterminada)');
+});
+
+/* ------------------------------------------------------------------ Revisión adversarial (M1–M5, B1–B11) */
+
+await scenario('P13 · una restauración que empezó fuera de esta pestaña la toma el panel grande y sigue tras el cambio (M3)', async () => {
+  // La cola en curso (una automatización): en su sondeo aparece la restauración que pidió otra pestaña, REST o WP-CLI.
+  const page = screen({ active: true });
+  await page.next(page.jobsReply([restoreView('database', 45)]));
+  ok(!page.panel.hidden && page.text(page.ui.title) === 'Restauración en curso' && page.text(page.ui.percent) === '45 %' && page.card.hidden, 'Una restauración que no empezó esta pestaña no entra al panel grande (o la repite la tarjeta): ' + page.text(page.ui.title));
+  ok(page.submit.disabled === true, '«Respaldar ahora» sigue activo durante una restauración que empezó otra pestaña');
+  // Cambio de tablas: el nonce deja de valer; pasa al tick por testigo (la cookie que le dio el sondeo) con su nota.
+  await page.next({ status: 400, body: '-1' });
+  ok(/testigo de este navegador/.test(page.text(page.ui.note)), 'Tras «-1» el panel no explica que sigue con el testigo: ' + page.text(page.ui.note));
+  await page.next(page.jobsReply([restoreView('finish', 95)], { manager: true, nonces: { jobs: 'jobs-nueva', manual: 'manual-nueva', restore: 'restore-nueva' } }));
+  const tick = page.requests[page.requests.length - 1];
+  ok(tick.action === 'digitalisimo_backups_restore_tick' && page.config.jobsNonce === 'jobs-nueva' && page.text(page.ui.percent) === '95 %', 'Tras el cambio de tablas la pestaña no siguió con el testigo y los nonces nuevos: ' + JSON.stringify(tick));
+  // Sin trabajos al cargar: la consulta del estado cada 30 s la ve igual.
+  const idle = screen({ card: true, active: false });
+  ok(idle.timers.size === 0, 'Sin trabajos no debe programarse un tick');
+  idle.clock.now += 31000;
+  idle.replies.push(idle.jobsReply([restoreView('safety', 12)]));
+  for (const run of idle.intervals) run();
+  await settle();
+  ok(idle.requests.length === 1 && idle.requests[0].action === 'digitalisimo_backups_job_status' && idle.requests[0].nonce === 'nonce-jobs-vieja', 'Sin trabajos la pantalla no consulta el estado: ' + JSON.stringify(idle.requests));
+  ok(!idle.panel.hidden && idle.text(idle.ui.title) === 'Restauración en curso' && idle.pending().length === 1 && idle.pending()[0].delay === 300, 'La consulta del estado no deja la restauración en el panel ni empieza a seguirla');
+  // Si ya está en mantenimiento (503 sin testigo), el panel lo dice y qué hacer, sin barra quieta y sin pedir recargar.
+  const late = screen({ card: true, active: false });
+  late.clock.now += 31000;
+  late.replies.push({ status: 503, body: '<html>Mantenimiento</html>' });
+  for (const run of late.intervals) run();
+  await settle();
+  ok(!late.panel.hidden && late.panel.getAttribute('data-state') === 'maintenance' && /mantenimiento/.test(late.text(late.ui.note)) && /testigo/.test(late.text(late.ui.note)) && !late.bar.hasAttribute('aria-valuenow'), 'Un 503 en la consulta del estado no se explica en el panel: ' + late.text(late.ui.note));
+});
+
+await scenario('P14 · terminada por otro proceso con otra espera en la cola: vuelve al tick con nonce (B3, J10)', async () => {
+  const page = screen({ view: restoreView('cleanup', 98), token: 't', active: true });
+  const auto = backupView('preflight', 0, { id: '55555555-6666-4777-8888-999999999999', origin_label: 'Automatización', status: 'queued', status_label: 'Pendiente', running: false, retry_in: 0 });
+  await page.next(page.jobsReply([restoreView('cleanup', 99), auto]));
+  await page.next({ body: { success: true, data: { result: 'finished', manager: true, nonces: { jobs: 'jobs-nueva' }, message: '', jobs: [restoreDone()] } } });
+  ok(page.text(page.ui.title) === 'Restauración terminada' && page.pending().length === 1, 'Terminada por otro proceso, la pantalla deja de consultar aunque la cola espera: ' + page.timers.size);
+  await page.next(page.jobsReply([auto, restoreDone()]));
+  const tick = page.requests[page.requests.length - 1];
+  ok(tick.action === 'digitalisimo_backups_job_tick' && tick.nonce === 'jobs-nueva' && !page.card.hidden && page.text(page.card).includes('Automatización'), 'La cola no vuelve al tick con nonce (con el nuevo) o la tarjeta pierde la automatización: ' + JSON.stringify(tick));
+  // Sin sesión de gestión no hay cola que consultar: para.
+  const lostSession = screen({ view: restoreView('cleanup', 98), token: 't' });
+  await lostSession.next({ body: { success: true, data: { result: 'finished', manager: false, nonces: [], message: '', jobs: [restoreDone({ result: undefined })] } } });
+  ok(lostSession.timers.size === 0, 'Sin sesión, tras terminar sigue consultando');
+});
+
+await scenario('P15 · la barra nunca retrocede: del punto incremental a su restauración y una fase que vuelve atrás (B4)', async () => {
+  const chain = (over = {}) => Object.assign({ id: CHAIN, kind: 'chain', status: 'running', status_label: 'En curso', phase: 'seal', phase_label: 'Cierre', percent: 96, detail: '', terminal: false, running: true, retry_in: 0, can_cancel: true, origin_label: 'Restaurar un punto incremental', destination_label: 'x', created_label: '2026-11-15 10:00', track: [['preflight', 'Comprobaciones', 0], ['build', 'Reconstrucción', 5], ['seal', 'Cierre', 92], ['handoff', 'Entrega', 98]], elapsed: 30, restore_job: '' }, over);
+  const page = screen({ view: chain() });
+  const before = parseInt(page.text(page.ui.percent), 10);
+  ok(before === 19, 'La reconstrucción del punto no ocupa el primer 20 % de la barra: ' + before);
+  await page.next(page.jobsReply([restoreView('inspect', 1, { from_point: true }), chain({ status: 'success', status_label: 'Completo', phase: 'handoff', percent: 100, terminal: true, running: false, can_cancel: false, restore_job: RID })]));
+  const after = parseInt(page.text(page.ui.percent), 10);
+  ok(after >= before && after === 21 && page.ui.ticks.children.length === 7 && page.ui.ticks.children[0].style.left === '20%' && page.ui.ticks.children[1].style.left === '28%', 'Del punto a su restauración la barra retrocede o sus tramos no siguen la escala: ' + before + ' -> ' + after);
+  await page.next(page.jobsReply([restoreView('files', 70, { from_point: true })]));
+  ok(page.text(page.ui.percent) === '76 %', 'La restauración del punto no sigue la escala 20–100: ' + page.text(page.ui.percent));
+  // Un respaldo cuyo ZIP no pasó la verificación vuelve a «Archivos y ZIP»: la barra espera y el panel lo dice.
+  const backup = screen({ view: backupView('verify', 81) });
+  await backup.next(backup.jobsReply([backupView('pack', 45, { detail: 'Se reintentará: el ZIP no pasó la verificación' })]));
+  ok(backup.text(backup.ui.percent) === '81 %' && /vuelve a Archivos y ZIP/.test(backup.text(backup.message)) && /cuando pase de nuevo el 81 %/.test(backup.text(backup.message)) && backup.phases().includes('pack:current'), 'Una fase que vuelve atrás no se dice o la barra retrocede: ' + backup.text(backup.ui.percent) + ' / ' + backup.text(backup.message));
+});
+
+await scenario('P16 · sin sesión, la vista mínima de una que falló marca su fase y la vuelta dice que lo es; la barra no baja (B5, J20)', async () => {
+  const page = screen({ view: restoreView('switch', 88), token: 't' });
+  const minimal = { id: RID, kind: 'restore', status: 'failed', status_label: 'Fallido', phase: 'switch', phase_label: '', percent: 88, message: '', detail: 'La restauración no terminó bien. Entra al escritorio para ver el detalle y la copia previa.', terminal: true, running: false, retry_in: 0, can_cancel: false, origin_label: 'Restauración', destination_label: '', created_label: '2026-11-15 10:04', track: RESTORE_TRACK, elapsed: 300, parts: 'todo', rollback_of: '', followed_by: '', midway: true };
+  await page.next({ body: { success: true, data: { result: 'finished', manager: false, message: '', jobs: [Object.assign({}, minimal, { percent: 0, phase: '' })] } } });
+  ok(page.phases().includes('switch:failed') && page.phases().filter((p) => p.endsWith(':done')).length === 4, 'Sin la fase en la vista mínima, el panel no marca dónde se detuvo: ' + page.phases());
+  ok(page.text(page.ui.percent) === '88 %' && page.panel.getAttribute('data-state') === 'failed', 'Un fallo hace retroceder la barra: ' + page.text(page.ui.percent));
+  const back = screen({ view: restoreView('database', 30, { id: BACK, origin_label: 'Vuelta a la copia previa', rollback_of: RID }), token: 't' });
+  await back.next({ body: { success: true, data: { result: 'finished', manager: false, message: '', jobs: [Object.assign({}, minimal, { id: BACK, origin_label: 'Vuelta a la copia previa', rollback_of: RID, phase: 'files', percent: 66 })] } } });
+  ok(back.text(back.ui.title) === 'La vuelta a la copia previa no terminó' && back.phases().includes('files:failed') && back.text(back.ui.percent) === '66 %', 'La vista mínima de una vuelta a la copia previa no lo dice: ' + back.text(back.ui.title) + ' / ' + back.phases());
+});
+
+await scenario('P17 · «Cancelar» sólo cuando sirve: no sin sesión de gestión ni mientras el sondeo falla (B2)', async () => {
+  const page = screen({ view: restoreView('database', 45), token: 't' });
+  ok(!page.ui.cancel.hidden, '«Cancelar» no se ofrece en una fase que se puede cancelar');
+  await page.next(page.jobsReply([restoreView('database', 50)], { manager: false, nonces: [] }));
+  ok(page.ui.cancel.hidden, '«Cancelar» visible sin sesión de gestión');
+  await page.next(page.jobsReply([restoreView('database', 52)], { manager: true }));
+  ok(!page.ui.cancel.hidden, '«Cancelar» no vuelve con la sesión');
+  await page.next({ status: 503, body: '<html>Mantenimiento</html>' });
+  ok(page.ui.cancel.hidden, '«Cancelar» visible mientras el sitio responde 503');
+});
+
+await scenario('P18 · tras terminar con nonces nuevos, «Respaldar ahora» encola con el nuevo (B1)', async () => {
+  const page = screen({ view: restoreView('cleanup', 98), token: 't' });
+  await page.next(page.jobsReply([restoreDone()], { manager: true, nonces: { jobs: 'jobs-nueva', manual: 'manual-nueva', restore: 'restore-nueva' } }));
+  ok(page.submit.disabled === false, '«Respaldar ahora» no vuelve al terminar');
+  page.timers.clear();
+  page.replies.push({ body: { success: true, data: { id: MINE, view: backupView('preflight', 0, { status: 'queued', status_label: 'Pendiente', running: false }) } } });
+  page.form.listeners.submit[0]({ preventDefault() {} });
+  await settle();
+  const sent = page.requests[page.requests.length - 1];
+  ok(sent.action === 'digitalisimo_backups_manual_start' && sent.nonce === 'manual-nueva', '«Respaldar ahora» encola con el nonce viejo: ' + JSON.stringify(sent));
+});
+
+await scenario('P19 · cinco 503 seguidos: no aconseja recargar (B6)', async () => {
+  const page = screen({ view: restoreView('database', 45) });
+  for (let i = 0; i < 5; i++) await page.next({ status: 503, body: '<html>Mantenimiento</html>' });
+  ok(!/recarga esta página/.test(page.text(page.ui.note)) && /No recargues/.test(page.text(page.ui.note)) && page.ui.note.getAttribute('data-level') === 'error', 'Tras cinco 503 aconseja recargar (y perder el panel): ' + page.text(page.ui.note));
+});
+
+await scenario('P20 · «Volver a la copia previa» tras restaurar por partes lleva esas partes; entera, avisa de lo que se pierde (M1)', async () => {
+  const parts = screen({ view: restoreView('files', 70, { parts: 'el plugin demo', parts_spec: { parts: [], plugins: ['demo'], themes: [], sites: [] }, untouched: 'base de datos, núcleo de WordPress, los demás plugins, temas, medios, mu-plugins, resto de wp-content' }), token: 't' });
+  await parts.next(parts.jobsReply([restoreDone({ parts: 'el plugin demo', parts_spec: { parts: [], plugins: ['demo'], themes: [], sites: [] }, untouched: 'base de datos, núcleo de WordPress, los demás plugins, temas, medios, mu-plugins, resto de wp-content' })]));
+  const link = new URL(parts.ui.safety.getAttribute('href'));
+  ok(link.searchParams.get('restore') === 'safety-before-restore-x.zip' && link.searchParams.get('undo') === RID && link.searchParams.get('undo_plugins') === 'demo' && link.searchParams.get('parts') === '1' && !link.searchParams.has('undo_parts'), '«Volver a la copia previa» de una restauración por partes no lleva esas partes: ' + link);
+  ok(/sólo el plugin demo/.test(parts.text(parts.ui.safety)) && /no se toca base de datos/.test(parts.text(parts.ui.result)) && !/se pierde lo que cambió después/.test(parts.text(parts.ui.result)), 'El resultado no dice que sólo vuelve lo restaurado y qué no se toca: ' + parts.text(parts.ui.result));
+  const whole = screen({ view: restoreView('files', 70), token: 't' });
+  await whole.next(whole.jobsReply([restoreDone()]));
+  const full = new URL(whole.ui.safety.getAttribute('href'));
+  ok(full.searchParams.get('undo') === RID && !full.searchParams.has('parts') && !full.searchParams.has('undo_plugins') && /se pierde lo que cambió después/.test(whole.text(whole.ui.result)) && /entera/.test(whole.ui.safety.getAttribute('title')), 'Restaurada entera, «Volver a la copia previa» no avisa de lo que se pierde: ' + whole.text(whole.ui.result));
+});
+
+await scenario('P21 · accesibilidad: el panel es una región; la nota y el resultado, regiones vivas siempre en la página (B7)', async () => {
+  ok(/id="digitalisimo-backups-manual-progress"[^>]*role="region" aria-labelledby=/.test(markup.replace(/' \. \$id \. '/g, 'digitalisimo-backups-progress').replace(/' \. \( [^)]*\) \. '/g, '')) || /data-state="idle" role="region" aria-labelledby=/.test(markup), 'El panel no tiene role="region" con su nombre');
+  ok(/-note" class="[^"]*" role="status" aria-live="polite"><\/p>/.test(markup) && /-result" class="[^"]*" aria-live="polite"><\/div>/.test(markup), 'La nota o el resultado (regiones vivas) se pintan ocultos');
+  const page = screen({ view: restoreView('database', 45), token: 't' });
+  await page.next({ status: 503, body: '<html>Mantenimiento</html>' });
+  ok(!page.ui.note.hidden && page.text(page.ui.note) !== '', 'La nota se escribe en una región oculta');
+  await page.next(page.jobsReply([restoreDone()]));
+  ok(!page.ui.result.hidden && page.text(page.ui.result) !== '' && page.text(page.ui.note) === '' && !page.ui.note.hidden, 'El resultado se escribe oculto o la nota se oculta al vaciarse');
+});
+
+await scenario('P22 · un doble clic en «Restaurar» manda una sola restauración (B10)', async () => {
+  const page = screen();
+  const restoreForm = page.document.children[0].appendChild(new El('form'));
+  restoreForm.appendChild(new El('input', { type: 'hidden', name: 'action', value: 'digitalisimo_backups_restore' }));
+  const button = restoreForm.appendChild(new El('button', { class: 'button button-primary' }));
+  const send = () => { const event = { target: restoreForm, defaultPrevented: false, prevented: false, preventDefault() { this.prevented = true; } }; for (const listener of page.document.listeners.submit || []) listener(event); return event; };
+  const first = send();
+  const second = send();
+  ok(!first.prevented && second.prevented && button.getAttribute('aria-disabled') === 'true', 'El segundo envío de «Restaurar» no se detiene: ' + JSON.stringify([first.prevented, second.prevented]));
+});
+
+await scenario('P23 · «finished» con otra restauración del mismo testigo (la del punto reconstruido) la enseña (J13)', async () => {
+  const chainView = { id: CHAIN, kind: 'chain', status: 'running', status_label: 'En curso', phase: 'handoff', phase_label: 'Entrega', percent: 98, detail: '', terminal: false, running: true, retry_in: 0, can_cancel: false, origin_label: 'Restaurar un punto incremental', destination_label: 'x', created_label: '2026-11-15 10:00', track: [['preflight', 'Comprobaciones', 0], ['build', 'Reconstrucción', 5], ['seal', 'Cierre', 92], ['handoff', 'Entrega', 98]], elapsed: 30, restore_job: '' };
+  const page = screen({ view: chainView, token: 't' });
+  await page.next({ body: { success: true, data: { result: 'finished', manager: true, nonces: {}, message: '', jobs: [restoreDone({ from_point: true })] } } });
+  ok(page.text(page.ui.title) === 'Restauración terminada' && page.text(page.ui.percent) === '100 %', 'Terminada la restauración del punto por otro proceso, el panel sigue en la reconstrucción: ' + page.text(page.ui.title));
 });
 
 if (failed.length) throw new Error('FALLA: ' + failed.length + ' caso(s) del panel de avance: ' + failed.join(' | '));

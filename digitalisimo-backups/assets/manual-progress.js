@@ -4,7 +4,9 @@
    con sus tramos de la barra, el paso dentro de la fase, el tiempo y, al terminar, el resultado (o el error y la vuelta a
    la copia previa). Una restauración se sigue aunque el cambio de tablas deje sin valor la sesión o los nonces (con el
    testigo de este navegador), durante el mantenimiento (503) y tras un corte de red; al recargar la página, el panel vuelve
-   al trabajo en curso; si no puede seguir, lo dice y dice qué hacer. Todo texto del servidor se pinta como texto. */
+   al trabajo en curso; si no puede seguir, lo dice y dice qué hacer. Una restauración que empieza fuera de esta pestaña
+   (otra pestaña, REST, WP-CLI, otro administrador) la toma el panel en cuanto la ve: en el sondeo de la cola o, sin
+   trabajos, en la consulta del estado cada 30 s. La barra nunca retrocede. Todo texto del servidor se pinta como texto. */
 (function () {
   'use strict';
   var config = window.digitalisimoBackupsManual;
@@ -48,6 +50,13 @@
   var modeNote = '';
   /* El tick por testigo dice si esta pestaña conserva su sesión de gestión: sin ella, al terminar se pide entrar. */
   var sessionLost = false;
+  /* Hay un paso programado; o el sondeo se detuvo del todo (sin sesión ni testigo); cuándo se consultó por última vez y
+     desde cuándo dice el panel que empieza una restauración. */
+  var pendingStep = false;
+  var stopped = false;
+  var lastPoll = Date.now();
+  var startedAt = 0;
+  var IDLE_POLL = 30000;
 
   function request(action, fields, nonce) {
     var body = new URLSearchParams(Object.assign({ action: action, nonce: nonce, context: config.context }, fields || {}));
@@ -176,9 +185,10 @@
   /* Nota del sondeo (corte, mantenimiento, sesión): nunca una barra quieta sin explicación. */
   function note(text, level) {
     if (!ui.note) return;
-    setText(ui.note, text || '');
+    /* La región viva está siempre en la página (vacía, el CSS la pliega): así un lector de pantalla anuncia lo que se escribe. */
+    if (ui.note.hidden) ui.note.hidden = false;
     ui.note.setAttribute('data-level', level || 'info');
-    show(ui.note, !!text);
+    setText(ui.note, text || '');
   }
   function paintBar(percent, label, indeterminate) {
     if (ui.fill && ui.fill.style) ui.fill.style.width = (indeterminate ? 100 : percent) + '%';
@@ -227,8 +237,9 @@
     setText(detail, more || '');
     setText(ui.time, '');
     note('');
-    if (ui.result) { empty(ui.result); show(ui.result, false); }
+    empty(ui.result);
     ['cancel', 'reload', 'safety', 'login', 'rollback'].forEach(function (name) { show(ui[name], false); });
+    startedAt = 0;
   }
   /* La franja de avisos repite el estado de la restauración: mientras el panel la sigue, su línea se oculta. */
   function quietStrip() {
@@ -240,30 +251,44 @@
     if (strip && strip.querySelectorAll && !Array.prototype.some.call(strip.querySelectorAll('li'), function (li) { return !li.hidden; })) strip.hidden = true;
   }
   function paragraph(text, extra) { if (ui.result && text) ui.result.appendChild(element('p', text, extra ? { 'class': extra } : null)); }
-  function safetyLink(file) {
+  /* «Volver a la copia previa» tras una restauración que terminó bien: abre la copia previa con lo mismo que se restauró
+     ya marcado (por partes: sólo esas partes, plugins, temas o sitios; nunca «Todo») y la confirmación dice qué vuelve y
+     qué no se toca (assets/screen.js). Restaurada entera, vuelve todo y se pierde lo que cambió después. */
+  function partial(job) { return !!(job.parts_spec && job.parts && job.parts !== 'todo'); }
+  function safetyLink(job) {
+    var file = job.safety;
     if (!ui.safety || !file) return;
     var href = ui.safety.getAttribute('href') || '';
+    var spec = partial(job) ? job.parts_spec : null;
     try {
       var url = new URL(href || window.location.href, window.location.href);
-      ['backup', 'message', 'open', 'parts'].forEach(function (name) { url.searchParams.delete(name); });
+      ['backup', 'message', 'open', 'parts', 'undo', 'undo_parts', 'undo_plugins', 'undo_themes', 'undo_sites'].forEach(function (name) { url.searchParams.delete(name); });
       url.searchParams.set('tab', 'backups');
       url.searchParams.set('restore', file);
+      url.searchParams.set('undo', job.id);
+      if (spec) {
+        url.searchParams.set('parts', '1');
+        ['parts', 'plugins', 'themes', 'sites'].forEach(function (name) { if (spec[name] && spec[name].length) url.searchParams.set('undo_' + name, spec[name].join(',')); });
+      }
       url.hash = 'digitalisimo-backups-history';
       href = url.toString();
     } catch (error) { /* sin URL: el enlace del servidor */ }
     ui.safety.setAttribute('href', href);
-    ui.safety.setAttribute('title', 'Abre la copia previa ' + file + ' para restaurarla: el sitio vuelve a como estaba antes.');
+    setText(ui.safety, spec ? 'Volver a la copia previa (sólo ' + job.parts + ')' : 'Volver a la copia previa');
+    ui.safety.setAttribute('title', spec ? 'Abre la copia previa ' + file + ' con sólo ' + job.parts + ' marcado: eso vuelve a como estaba antes; lo demás no se toca.' : 'Abre la copia previa ' + file + ' para restaurarla entera: el sitio vuelve a como estaba antes de esta restauración y se pierde lo que cambió después.');
     show(ui.safety, true);
   }
   /* El resultado al terminar: qué se restauró, sus avisos y la copia previa; o el error y qué pasó con el sitio. */
   function paintResult(kind, job) {
     if (!ui.result) return;
+    if (ui.result.hidden) ui.result.hidden = false;
     empty(ui.result);
     var failed = watch && watch.failed;
-    if (kind === 'rollback') {
+    if (kind === 'rollback' && (job.rollback_file || job.rollback_cause || failed)) {
       var cause = job.rollback_cause || (failed && (failed.error || failed.detail)) || '';
       var of = job.rollback_file || (failed && failed.destination_label) || '';
       paragraph('La restauración' + (of ? ' de ' + of : '') + ' falló a mitad del cambio' + (cause ? ': ' + cause : '.'), 'digitalisimo-backups-warning');
+      if (job.rollback_manual) paragraph('Esta vuelta a la copia previa se pidió a mano (la automática no terminó).');
     }
     paragraph(job.detail);
     var report = job.result || null;
@@ -279,55 +304,68 @@
       /* El informe ya lo dice (con dónde quedan); sólo si no. */
       if (report.removed && !/Se retiraron/.test(report.notice || '')) paragraph('Se retiraron ' + report.removed + ' archivos que el respaldo no tenía' + (report.kept ? ' (' + report.kept + ' cambiados después se apartaron en el almacén)' : '') + '.');
     } else if (job.notices && job.notices.length) paragraph('Avisos: ' + job.notices.join(' '), 'digitalisimo-backups-warning');
-    if (kind === 'restore' && job.status === 'success' && job.safety) paragraph('La copia previa ' + job.safety + ' queda bloqueada en el historial: si algo no quedó bien, «Volver a la copia previa» la restaura.');
+    if (kind === 'restore' && job.status === 'success' && job.safety) {
+      if (partial(job)) paragraph('La copia previa ' + job.safety + ' queda bloqueada en el historial. Si algo no quedó bien, «Volver a la copia previa» la abre con sólo ' + job.parts + ' marcado: eso vuelve a como estaba antes' + (job.untouched ? ' y no se toca ' + job.untouched : ' y lo demás no se toca') + '.');
+      else paragraph('La copia previa ' + job.safety + ' queda bloqueada en el historial. Si algo no quedó bien, «Volver a la copia previa» la restaura entera: el sitio vuelve a como estaba antes de esta restauración y se pierde lo que cambió después (pedidos, comentarios, entradas o usuarios nuevos).');
+    }
     if (sessionLost) paragraph('Esta pestaña perdió la sesión con el cambio de tablas (la restauración repuso los usuarios del respaldo): inicia sesión para ver el resultado completo.', 'digitalisimo-backups-warning');
-    show(ui.result, ui.result.firstChild !== null);
   }
   /* Pinta un trabajo en el panel. */
+  /* La reconstrucción de un punto incremental ocupa el primer 20 % de la barra y su restauración, el resto: la barra sigue
+     de una a otra sin volver a empezar. */
+  function span(job) { return job.kind === 'chain' ? [0, 20] : (job.from_point ? [20, 100] : [0, 100]); }
+  function scaled(job, value) { var range = span(job); return Math.round(range[0] + (range[1] - range[0]) * Math.max(0, Math.min(100, Number(value) || 0)) / 100); }
   function paint(job) {
     if (!panel) return;
     var kind = kindOf(job);
-    if (!watch || watch.id !== job.id) watch = { id: job.id, kind: kind, origin: watch ? watch.base : 0, base: Date.now(), created: watch && watch.created || job.created_label || '', track: watch && watch.track, failed: watch && watch.failed, end: 0, ticks: watch && watch.ticks };
+    if (!watch || watch.id !== job.id) watch = { id: job.id, kind: kind, origin: watch ? watch.base : 0, base: Date.now(), created: watch && watch.created || job.created_label || '', track: watch && watch.track, failed: watch && watch.failed, end: 0, ticks: watch && watch.ticks, top: watch && watch.kind === 'chain' ? watch.top : 0, phase: '', at: -1 };
     /* El tiempo lo da el servidor (desde que se encoló); en una sucesión de trabajos, desde el primero. */
     if (job.elapsed !== undefined && !watch.end) watch.base = Date.now() - (Number(job.elapsed) || 0) * 1000;
     if (watch.origin) watch.base = Math.min(watch.origin, watch.base);
     watch.kind = kind;
-    if (job.track && job.track.length) watch.track = job.track;
+    if (job.track && job.track.length) watch.track = job.track.map(function (item) { return [item[0], item[1], scaled(job, item[2])]; });
     var track = watch.track || [];
     var state = job.terminal ? job.status : 'running';
     panel.hidden = false;
     panel.setAttribute('data-state', state);
     panel.setAttribute('data-kind', kind);
-    /* Un reintento devuelve el % al comienzo de su fase aunque se retome desde su punto de control: la barra no retrocede. */
-    var percent = Math.max(watch.top || 0, Math.min(100, Number(job.percent) || 0));
-    if (!job.terminal || job.status === 'success') watch.top = percent;
-    if (job.terminal && job.status !== 'success') percent = Math.max(0, Math.min(100, Number(job.percent) || percent));
+    /* La barra nunca retrocede: ni un reintento (que vuelve al comienzo de su fase aunque se retome desde su punto de
+       control), ni una fase que se repite, ni un fallo (se queda donde se detuvo, en rojo). */
+    var percent = Math.max(watch.top || 0, job.status === 'success' ? 100 : scaled(job, job.percent));
+    watch.top = percent;
+    /* La vista mínima (sin sesión) de una que terminó puede no traer la fase: la última que se vio. */
+    var phase = job.phase || watch.phase || '';
+    watch.phase = phase;
     var at = -1;
-    track.forEach(function (item, index) { if (item[0] === job.phase) at = index; });
+    track.forEach(function (item, index) { if (item[0] === phase) at = index; });
+    /* Una fase que vuelve atrás (un ZIP que no pasó la verificación y se rehace): se dice, la barra espera. */
+    var back = !job.terminal && at >= 0 && at < watch.at;
+    if (at > watch.at || job.terminal) watch.at = at;
     setText(ui.title, title(kind, job));
     var what = '';
     if (kind === 'restore') what = 'Respaldo ' + job.destination_label + ' · se restaura ' + (job.parts && job.parts !== 'todo' ? 'sólo: ' + job.parts : 'todo');
     else if (kind === 'rollback') what = 'Copia previa ' + job.destination_label + (job.rollback_file ? ' · deshace la restauración de ' + job.rollback_file : '');
     else if (job.destination_label) what = job.origin_label + ' · ' + job.destination_label;
     setText(ui.what, what);
-    paintBar(percent, job.terminal ? job.status_label : job.phase_label, false);
-    paintTrack(track, job.phase, state);
-    setText(message, job.status_label + (job.phase_label ? ' · ' + job.phase_label : '') + (job.phase_label && at >= 0 && track.length > 1 ? ' (fase ' + (at + 1) + ' de ' + track.length + ')' : ''));
+    paintBar(percent, job.terminal ? job.status_label : (back ? 'vuelve a ' : '') + job.phase_label, false);
+    paintTrack(track, phase, state);
+    setText(message, job.status_label + (job.phase_label ? ' · ' + (back ? 'vuelve a ' : '') + job.phase_label : '') + (job.phase_label && at >= 0 && track.length > 1 ? ' (fase ' + (at + 1) + ' de ' + track.length + ')' : '') + (back ? ': la barra sigue cuando pase de nuevo el ' + percent + ' %' : ''));
     setText(detail, job.terminal && restoring(kind) ? '' : job.detail);
     if (job.terminal && !watch.end) watch.end = Date.now();
     paintTime();
-    show(ui.cancel, !!job.can_cancel && !job.terminal);
+    /* «Cancelar» sólo si sirve: la fase lo permite, esta pestaña gestiona Backups y el último tick llegó bien. */
+    show(ui.cancel, !!job.can_cancel && !job.terminal && !sessionLost && !failures);
     if (ui.cancel) ui.cancel.setAttribute('data-cancel', job.id);
     show(ui.help, restoring(kind) && !job.terminal);
     if (restoring(kind)) {
       quietStrip();
       if (button) button.disabled = !job.terminal;
     }
-    if (!job.terminal) { if (ui.result) { empty(ui.result); show(ui.result, false); } ['reload', 'safety', 'login', 'rollback'].forEach(function (name) { show(ui[name], false); }); return; }
+    if (!job.terminal) { empty(ui.result); ['reload', 'safety', 'login', 'rollback'].forEach(function (name) { show(ui[name], false); }); return; }
     if (!restoring(kind)) return;
     paintResult(kind, job);
     show(ui.reload, true);
-    if (kind === 'restore' && job.status === 'success') safetyLink(job.safety);
+    if (kind === 'restore' && job.status === 'success') safetyLink(job);
     show(ui.rollback, job.status === 'failed' && !!job.midway);
     /* Sin sesión, el tick por testigo sólo da el estado y un texto general: el resultado se ve al entrar. */
     show(ui.login, sessionLost || (!job.track && !job.result && /Entra al escritorio/.test(job.detail || '')));
@@ -361,8 +399,10 @@
     watching = '';
     if (button) button.disabled = false;
     if (restoring(kind)) {
-      /* La restauración terminó: lo que siga (la cola de respaldos) vuelve al tick con nonce. */
+      /* La restauración terminó: lo que siga (la cola de respaldos, una automatización que esperaba) vuelve al tick con
+         nonce, enseguida; sin sesión de gestión no hay nada más que consultar. */
       tickMode = 'jobs';
+      if (!sessionLost) schedule(1000);
       return;
     }
     /* La lista de respaldos se pinta en PHP: al terminar bien, la página se vuelve a cargar con el respaldo nuevo. */
@@ -380,9 +420,20 @@
     noteNode.appendChild(link);
     card.insertBefore(noteNode, list);
   }
+  /* Una restauración en curso que esta pestaña no empezó (otra pestaña, REST, WP-CLI, otro administrador): la toma el panel
+     grande, como al cargar la página; las de una migración las sigue «Migrar». */
+  function adopt(jobs) {
+    if (watching || !panel) return;
+    var found = null;
+    jobs.forEach(function (job) { if (!found && !job.terminal && !job.aside && restoring(kindOf(job))) found = job; });
+    if (!found) return;
+    watch = null;
+    watching = found.id;
+  }
   function update(jobs, finished) {
     migrating = jobs.some(function (job) { return job.kind === 'migration' && !job.terminal && ['check', 'restore', 'close'].indexOf(job.phase) !== -1; });
     renderJobs(jobs);
+    adopt(jobs);
     showWatched(jobs, finished);
     var active = jobs.filter(function (job) { return !job.terminal; });
     if (card) card.setAttribute('data-active', active.length ? '1' : '0');
@@ -403,18 +454,24 @@
   }
   function schedule(delay) {
     clearTimeout(timer);
+    pendingStep = true;
     timer = setTimeout(step, delay);
   }
   function following() { return !!(watching && watch && restoring(watch.kind)); }
   function applyNonces(nonces) {
     if (!nonces) return;
     if (nonces.jobs) config.jobsNonce = nonces.jobs;
+    /* «Respaldar ahora» vuelve al terminar: con el nonce de la sesión de ahora, no con el de la página. */
+    if (nonces.manual) config.nonce = nonces.manual;
     var field = nonces.restore && ui.rollback && ui.rollback.querySelector ? ui.rollback.querySelector('input[name="_wpnonce"]') : null;
     if (field) field.value = nonces.restore;
   }
   /* Ni la sesión ni el testigo de este navegador sirven: no se puede seguir desde esta pestaña. Se dice y se para. */
   function lost(error) {
     clearTimeout(timer);
+    pendingStep = false;
+    stopped = true;
+    show(ui.cancel, false);
     note('No se puede seguir el avance desde esta pestaña: tu sesión ya no vale (la restauración repuso los usuarios del respaldo) y este navegador no tiene su testigo, o terminó hace rato. La restauración sigue en el servidor: inicia sesión para ver cómo terminó.', 'error');
     show(ui.login, true);
     show(ui.reload, true);
@@ -423,17 +480,21 @@
   function connectionNote(error) {
     var since = clock(lastOk);
     var text;
-    if (error && error.status === 503) text = 'El sitio está en mantenimiento por la restauración y esta pestaña no tiene su testigo (la empezó otro navegador o se borraron sus cookies): no ve el avance hasta que termine. La restauración sigue sola; se vuelve a consultar cada 30 s.';
+    var maintenance = error && error.status === 503;
+    if (maintenance) text = 'El sitio está en mantenimiento por la restauración y esta pestaña no tiene su testigo (la empezó otro navegador, la petición que la empezó no llegó a responder o se borraron sus cookies): no ve el avance hasta que termine. La restauración sigue sola; se vuelve a consultar cada 30 s.';
     else if (!error || !error.status) text = 'Sin conexión con el servidor desde las ' + since + ' (' + failures + (failures === 1 ? ' intento' : ' intentos') + '): se reintenta solo. La restauración sigue en el servidor aunque esta pestaña no la vea.';
     else text = 'El servidor no respondió bien (HTTP ' + error.status + '; ' + failures + (failures === 1 ? ' intento' : ' intentos') + ' desde las ' + since + '): se reintenta solo.';
-    if (failures >= 5) text += ' Si sigue así, recarga esta página; si no carga, la terminan WP-Cron, las visitas al sitio o «wp digitalisimo-backups jobs run».';
+    /* Recargar durante el mantenimiento da la página de mantenimiento de WordPress y se pierde este panel: no se aconseja. */
+    if (failures >= 5) text += maintenance ? ' No recargues esta página mientras dure: la terminan WP-Cron, las visitas al sitio o «wp digitalisimo-backups jobs run».' : ' Si sigue así, recarga esta página; si no carga, la terminan WP-Cron, las visitas al sitio o «wp digitalisimo-backups jobs run».';
     note(text, failures >= 5 ? 'error' : 'warning');
   }
   /* Un tick por petición: si otro proceso trabaja (busy) sólo se consulta; si se espera un reintento, se espera. */
   function step() {
+    pendingStep = false;
     if (busy) return;
     busy = true;
     busySince = Date.now();
+    lastPoll = busySince;
     var tick = tickMode === 'restore' ? request(restore && restore.action || config.restoreTick || 'digitalisimo_backups_restore_tick', { digitalisimo_backups_restore: restore && restore.token || '' }, '') : request('digitalisimo_backups_job_tick', {}, config.jobsNonce);
     tick.then(function (data) {
       busy = false;
@@ -479,7 +540,7 @@
         lost(error);
         return;
       }
-      if (follow) connectionNote(error);
+      if (follow) { show(ui.cancel, false); connectionNote(error); }
       else if (watching && detail) detail.textContent = 'No se pudo avanzar ahora: ' + error.message + '. Se reintentará; WP-Cron también lo continúa.';
       schedule(follow && error && error.status === 503 ? 30000 : Math.min(30000, 2000 * failures));
     });
@@ -535,20 +596,60 @@
     var target = event.target;
     var action = target && target.querySelector ? target.querySelector('input[name="action"]') : null;
     if (!action || action.value !== 'digitalisimo_backups_restore' || event.defaultPrevented) return;
+    /* Un doble clic manda una sola restauración: la segunda petición sólo diría «ya hay una en curso». */
+    if (target.getAttribute('data-sent')) { if (event.preventDefault) event.preventDefault(); return; }
+    target.setAttribute('data-sent', '1');
+    if (target.querySelectorAll) Array.prototype.forEach.call(target.querySelectorAll('button[type="submit"], button:not([type]), input[type="submit"]'), function (control) { control.setAttribute('aria-disabled', 'true'); });
     watch = null;
     var back = !!target.querySelector('input[name="rollback_retry"]');
     starting(back ? 'Volviendo a la copia previa' : 'Restauración', back ? 'Empezando la vuelta a la copia previa…' : 'Empezando la restauración…', 'El servidor comprueba el respaldo y prepara la copia previa; en unos segundos se ve aquí su avance.');
+    startedAt = Date.now();
     if (panel.scrollIntoView) panel.scrollIntoView({ block: 'nearest' });
+  });
+  /* Volver con «Atrás» a esta página (de la caché del navegador) deja enviar otra vez el formulario. */
+  if (typeof window.addEventListener === 'function') window.addEventListener('pageshow', function (event) {
+    if (!event || !event.persisted || !document.querySelectorAll) return;
+    Array.prototype.forEach.call(document.querySelectorAll('form[data-sent]'), function (sent) {
+      sent.removeAttribute('data-sent');
+      Array.prototype.forEach.call(sent.querySelectorAll('[aria-disabled="true"]'), function (control) { control.removeAttribute('aria-disabled'); });
+    });
   });
   /* El reloj del tiempo transcurrido, entre un tick y otro; y si un tramo tarda, que se diga que el servidor trabaja. */
   if (typeof setInterval === 'function') setInterval(function () {
+    /* La petición que empieza la restauración trabaja hasta 25 s antes de responder: si tarda más, se dice qué hacer. */
+    if (panel && startedAt && panel.getAttribute('data-state') === 'starting' && Date.now() - startedAt > 40000 && ui.note && !ui.note.textContent) note('La petición que empieza la restauración tarda más de lo normal. Si el navegador muestra un error (504, «se agotó el tiempo»), vuelve a Backups: la restauración sigue en el servidor y este panel la retoma. Si la pantalla muestra la página de mantenimiento, espera: la terminan WP-Cron y las visitas al sitio, o «wp digitalisimo-backups jobs run».', 'warning');
+    /* Sin trabajos que seguir, el estado de la cola cada 30 s: una restauración que empezó fuera de esta pestaña se ve. */
+    if (!busy && !pendingStep && !stopped && !sessionLost && !reloading && !watching && Date.now() - lastPoll >= IDLE_POLL) poll();
     if (!watch || watch.end || !watching) return;
     paintTime();
-    if (busy && !workingNote && Date.now() - busySince > 4000 && ui.note && ui.note.hidden) {
+    if (busy && !workingNote && Date.now() - busySince > 4000 && ui.note && !ui.note.textContent) {
       workingNote = true;
       note('El servidor está trabajando en este paso (cada tramo dura hasta 20 s): el avance se actualiza al terminarlo.');
     }
   }, 1000);
+  /* La consulta del estado sin trabajos: sólo lee (y deja el testigo de una restauración en curso a quien gestiona Backups). */
+  function poll() {
+    busy = true;
+    lastPoll = Date.now();
+    request('digitalisimo_backups_job_status', {}, config.jobsNonce).then(function (data) {
+      busy = false;
+      if (panel && panel.getAttribute('data-state') === 'maintenance') { note(''); panel.setAttribute('data-state', 'idle'); panel.hidden = true; }
+      if (update(data.jobs || []).length) schedule(300);
+    }).catch(function (error) {
+      busy = false;
+      /* El mantenimiento de una restauración que esta pestaña no ve: se dice en el panel y se sigue consultando. */
+      if (error && error.status === 503 && panel) {
+        if (panel.getAttribute('data-state') !== 'maintenance') {
+          starting('Sitio en mantenimiento', 'Sin avance a la vista', '');
+          panel.setAttribute('data-state', 'maintenance');
+          startedAt = 0;
+        }
+        failures = Math.max(failures, 1);
+        connectionNote(error);
+        failures = 0;
+      } else if (error && error.session) stopped = true;
+    });
+  }
 
   /* Al cargar: el trabajo que sigue el panel (una restauración en curso o recién terminada, o el respaldo del botón). */
   var initial = null;

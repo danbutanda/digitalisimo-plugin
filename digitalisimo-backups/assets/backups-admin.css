@@ -43,6 +43,10 @@
 .digitalisimo-backups-progress[data-state="success"] .digitalisimo-backups-progress-result { border-color: var(--digi-blue); }
 .digitalisimo-backups-progress[data-state="failed"] .digitalisimo-backups-progress-result { border-color: var(--digi-pink-dark); }
 .digitalisimo-backups .digitalisimo-backups-progress-result ul { margin: 4px 0 8px 20px; list-style: disc; }
+/* La nota y el resultado son regiones vivas: siempre en la página; vacías se pliegan sin display:none (un lector de pantalla no anunciaría lo que se escribe en una región oculta). */
+.wrap.digitalisimo-backups .digitalisimo-backups-progress-note:empty, .wrap.digitalisimo-backups .digitalisimo-backups-progress-result:empty { margin: 0; padding: 0; border: 0; min-height: 0; }
+.digitalisimo-backups-progress[data-state="maintenance"] .digitalisimo-backups-progress-fill { opacity: .2; }
+.digitalisimo-backups form[data-sent] [aria-disabled="true"] { opacity: .6; pointer-events: none; }
 .digitalisimo-backups-progress-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
 .digitalisimo-backups-progress-actions:not(:has(> :not([hidden]))) { display: none; }
 .digitalisimo-backups-progress-actions form { margin: 0; }
