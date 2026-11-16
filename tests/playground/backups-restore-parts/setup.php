@@ -45,10 +45,13 @@ add_action( 'muplugins_loaded', static function () {
 // Memoria exacta de cada petición de la cola (el laboratorio anota memory_get_peak_usage( true ), en bloques de 2 MB), también
 // justo después de cargar los plugins (lo que ocupa el código compilado antes de trabajar).
 add_action( 'plugins_loaded', static function () { $GLOBALS['digi_parts_loaded'] = array( memory_get_usage(), memory_get_usage( true ), memory_get_peak_usage(), memory_get_peak_usage( true ) ); }, PHP_INT_MAX );
+// Si la petición empezó con una restauración (o la reconstrucción de su punto) en curso: las que siguen a una que terminó
+// (la cola vuelve al tick con nonce) no cuentan como peticiones de la restauración.
+add_action( 'plugins_loaded', static function () { try { $GLOBALS['digi_parts_restoring'] = class_exists( 'Digitalisimo_Backups_Jobs' ) ? (bool) array_filter( Digitalisimo_Backups_Jobs::active(), array( 'Digitalisimo_Backups_Jobs', 'restore_like' ) ) : null; } catch ( Throwable $e ) { $GLOBALS['digi_parts_restoring'] = null; } }, PHP_INT_MAX );
 register_shutdown_function( static function () {
 	$action = (string) ( $_REQUEST['action'] ?? '' );
 	if ( ! in_array( $action, array( 'digitalisimo_backups_job_tick', 'digitalisimo_backups_manual_start', 'digitalisimo_backups_restore_tick' ), true ) && false === strpos( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'wp-cron.php' ) ) return;
-	file_put_contents( '/digi-ctl/memory.jsonl', json_encode( array( 'action' => '' !== $action ? $action : 'wp-cron', 'peak' => memory_get_peak_usage(), 'peak_real' => memory_get_peak_usage( true ), 'limit' => ini_get( 'memory_limit' ), 'loaded' => $GLOBALS['digi_parts_loaded'] ?? null, 'included' => count( get_included_files() ), 'error' => (string) ( error_get_last()['message'] ?? '' ) ) ) . "\n", FILE_APPEND );
+	file_put_contents( '/digi-ctl/memory.jsonl', json_encode( array( 'action' => '' !== $action ? $action : 'wp-cron', 'peak' => memory_get_peak_usage(), 'peak_real' => memory_get_peak_usage( true ), 'limit' => ini_get( 'memory_limit' ), 'loaded' => $GLOBALS['digi_parts_loaded'] ?? null, 'restoring' => $GLOBALS['digi_parts_restoring'] ?? null, 'included' => count( get_included_files() ), 'error' => (string) ( error_get_last()['message'] ?? '' ) ) ) . "\n", FILE_APPEND );
 } );
 add_action( 'init', static function () {
 	if ( empty( $_GET['digi_parts'] ) || ! hash_equals( trim( (string) @file_get_contents( '/digi-probe/token.txt' ) ), (string) ( $_GET['token'] ?? '' ) ) ) return;

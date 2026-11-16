@@ -462,7 +462,8 @@ try {
   }
   const memory = existsSync(`${dir}/ctl/memory.jsonl`) ? readFileSync(`${dir}/ctl/memory.jsonl`, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : [];
   // Los ticks de las restauraciones (con nonce o con el testigo): todos con los 64 MB del propietario.
-  const restoring = memory.slice(memoryMark);
+  // Sólo las que empezaron con una restauración en curso: terminada, la cola vuelve al tick con nonce (revisión B3).
+  const restoring = memory.slice(memoryMark).filter((r) => r.restoring !== false);
   const died = restoring.filter((r) => /Allowed memory|Maximum execution/.test(r.error || ''));
   log(`· ${restoring.length} peticiones hicieron avanzar las restauraciones (${restoring.filter((r) => r.action === 'digitalisimo_backups_restore_tick').length} con el testigo), con memory_limit ${[...new Set(restoring.map((r) => r.limit))].join('/')}; pico ${Math.max(0, ...restoring.map((r) => r.peak)) / 1048576} MB; ${died.length} murieron por memoria o tiempo`);
   check(restoring.length > 0 && restoring.every((r) => r.limit === RESTORE_MEMORY), `las peticiones de las restauraciones corrieron con memory_limit=${RESTORE_MEMORY}`, JSON.stringify(restoring.filter((r) => r.limit !== RESTORE_MEMORY).slice(0, 3)));
