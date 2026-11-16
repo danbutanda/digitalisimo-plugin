@@ -422,10 +422,10 @@
   }
   /* Una restauración en curso que esta pestaña no empezó (otra pestaña, REST, WP-CLI, otro administrador): la toma el panel
      grande, como al cargar la página; las de una migración las sigue «Migrar». */
-  function adopt(jobs) {
+  function adopt(jobs, ended) {
     if (watching || !panel) return;
     var found = null;
-    jobs.forEach(function (job) { if (!found && !job.terminal && !job.aside && restoring(kindOf(job))) found = job; });
+    jobs.forEach(function (job) { if (!found && (ended || !job.terminal) && !job.aside && restoring(kindOf(job))) found = job; });
     if (!found) return;
     watch = null;
     watching = found.id;
@@ -633,10 +633,18 @@
     lastPoll = Date.now();
     request('digitalisimo_backups_job_status', {}, config.jobsNonce).then(function (data) {
       busy = false;
-      if (panel && panel.getAttribute('data-state') === 'maintenance') { note(''); panel.setAttribute('data-state', 'idle'); panel.hidden = true; }
+      /* Terminó el mantenimiento que esta pestaña no veía: el panel enseña cómo acabó esa restauración (la más reciente). */
+      if (panel && panel.getAttribute('data-state') === 'maintenance') {
+        note('');
+        panel.setAttribute('data-state', 'idle');
+        panel.hidden = true;
+        adopt(data.jobs || [], true);
+      }
       if (update(data.jobs || []).length) schedule(300);
     }).catch(function (error) {
       busy = false;
+      /* Tras el mantenimiento, la sesión ya no vale (la restauración repuso otras cuentas): se dice y se para. */
+      if (error && error.session && panel && panel.getAttribute('data-state') === 'maintenance') { lost(error); return; }
       /* El mantenimiento de una restauración que esta pestaña no ve: se dice en el panel y se sigue consultando. */
       if (error && error.status === 503 && panel) {
         if (panel.getAttribute('data-state') !== 'maintenance') {

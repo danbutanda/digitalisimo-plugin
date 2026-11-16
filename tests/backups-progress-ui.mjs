@@ -397,6 +397,25 @@ await scenario('P13 · una restauración que empezó fuera de esta pestaña la t
   for (const run of late.intervals) run();
   await settle();
   ok(!late.panel.hidden && late.panel.getAttribute('data-state') === 'maintenance' && /mantenimiento/.test(late.text(late.ui.note)) && /testigo/.test(late.text(late.ui.note)) && !late.bar.hasAttribute('aria-valuenow'), 'Un 503 en la consulta del estado no se explica en el panel: ' + late.text(late.ui.note));
+  // Al terminar el mantenimiento, el panel enseña cómo acabó; si la sesión ya no vale, lo dice y para.
+  late.clock.now += 31000;
+  late.replies.push(late.jobsReply([restoreDone()]));
+  for (const run of late.intervals) run();
+  await settle();
+  ok(late.text(late.ui.title) === 'Restauración terminada' && late.text(late.ui.note) === '' && !late.ui.result.hidden && late.text(late.ui.result).includes('Restauración terminada desde'), 'Terminado el mantenimiento, el panel no enseña cómo acabó la restauración: ' + late.text(late.ui.title));
+  const gone = screen({ card: true, active: false });
+  gone.clock.now += 31000;
+  gone.replies.push({ status: 503, body: '<html>Mantenimiento</html>' });
+  for (const run of gone.intervals) run();
+  await settle();
+  gone.clock.now += 31000;
+  gone.replies.push({ status: 400, body: '0' });
+  for (const run of gone.intervals) run();
+  await settle();
+  ok(gone.panel.getAttribute('data-state') === 'lost' && /No se puede seguir el avance/.test(gone.text(gone.ui.note)) && !gone.ui.login.hidden, 'Tras el mantenimiento sin sesión, el panel no lo dice: ' + gone.text(gone.ui.note));
+  gone.clock.now += 31000;
+  for (const run of gone.intervals) run();
+  ok(gone.requests.length === 2, 'Sin sesión, la consulta del estado sigue');
 });
 
 await scenario('P14 · terminada por otro proceso con otra espera en la cola: vuelve al tick con nonce (B3, J10)', async () => {
