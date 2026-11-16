@@ -192,13 +192,32 @@ PHP;
 		}
 		return false;
 	}
+	// Sólo la cookie o el POST de la página (nunca la URL: el testigo del tick de WP-Cron queda en los registros de acceso).
+	public static function request_has_page( $token ) {
+		if ( '' === (string) $token ) return false;
+		foreach ( array( $_COOKIE[ self::COOKIE ] ?? null, $_POST[ self::PARAM ] ?? null ) as $value ) {
+			if ( is_string( $value ) && '' !== $value && hash_equals( hash( 'sha256', (string) $token ), hash( 'sha256', $value ) ) ) return true;
+		}
+		return false;
+	}
+	// Lo último que esta petición mandó en la cookie (el testigo, '' si la borró, null si nada): lo comprueban las pruebas.
+	public static $sent = null;
+	// Horas que dura la cookie: cada tick de la pantalla durante la restauración la renueva; al terminar se borra.
+	const COOKIE_TTL = 43200;
 	/** Cookie para el navegador que empezó la restauración: con ella ve la pantalla y la hace avanzar durante el mantenimiento. */
-	public static function send_cookie( $token ) {
+	public static function send_cookie( $token, $expires = null ) {
+		self::$sent = '' === (string) $token ? '' : (string) $token;
 		if ( headers_sent() || ! function_exists( 'setcookie' ) ) return false;
 		$secure = function_exists( 'is_ssl' ) && is_ssl();
 		$path = defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/';
-		if ( PHP_VERSION_ID >= 70300 ) return setcookie( self::COOKIE, (string) $token, array( 'expires' => time() + 2 * 86400, 'path' => $path, 'secure' => $secure, 'httponly' => true, 'samesite' => 'Lax' ) );
-		return setcookie( self::COOKIE, (string) $token, time() + 2 * 86400, $path . '; samesite=Lax', '', $secure, true );
+		$expires = null === $expires ? time() + self::COOKIE_TTL : (int) $expires;
+		if ( PHP_VERSION_ID >= 70300 ) return setcookie( self::COOKIE, (string) $token, array( 'expires' => $expires, 'path' => $path, 'secure' => $secure, 'httponly' => true, 'samesite' => 'Lax' ) );
+		return setcookie( self::COOKIE, (string) $token, $expires, $path . '; samesite=Lax', '', $secure, true );
+	}
+	// La borra (caducada): al cerrar sesión, si la restauración no llegó a empezar o terminó y ya no hace falta.
+	public static function clear_cookie() {
+		if ( null === self::$sent && ! isset( $_COOKIE[ self::COOKIE ] ) ) return false;
+		return self::send_cookie( '', time() - 3600 );
 	}
 	/** Línea para el cron del sistema de un hosting sin visitas: despierta la restauración cada minuto (sin testigo). */
 	public static function system_cron_line() {

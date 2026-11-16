@@ -17,7 +17,16 @@
  *       subsitio no pinta el panel;
  *   R7  la cookie con el testigo sale antes de que la petición que restaura empiece a trabajar: si muere en sus primeros
  *       tramos (en php-wasm, con 64 MB, también con main), el navegador sigue la restauración durante el mantenimiento;
- *       con otro trabajo en curso no se manda (no pisa la cookie de esa restauración).
+ *       es el testigo del trabajo encolado; con otro trabajo en curso no se manda (no pisa la cookie de esa
+ *       restauración) y si la restauración no empieza, se borra;
+ * Y lo de la revisión adversarial (fallan con 34c0fae9):
+ *   R8  sin sesión de gestión el tick por testigo sólo da esa restauración (estado, fase, %, paso sin rutas ni archivos,
+ *       partes y tramos), nunca otros trabajos, errores ni nonces; el testigo de la URL no basta; terminada, su fase
+ *       (M4, B5, PB); el tick con nonce da los tramos (PC); una vista con un id inválido no rompe (B11); un reintento no
+ *       baja el % (B4);
+ *   R9  quien gestiona Backups recibe el testigo de una restauración que empezó en otra pestaña, por REST o WP-CLI (en el
+ *       sondeo o al abrir la pantalla) y la cookie que ya no sirve se borra (M2, M3, B8); la vuelta a la copia previa
+ *       pedida a mano conserva la causa (B9).
  * Debe fallar con 1.0.77 (77678f25). Uso: php tests/backups-progress.php
  */
 require __DIR__ . '/lib/backups-env.php';
@@ -166,7 +175,7 @@ bp_case( 'R3 · tick por testigo: vistas de pantalla, nonces nuevos con sesión;
 	$answer = $tick( true );
 	$view = $answer && $answer->success ? ( $answer->payload['jobs'][0] ?? array() ) : array();
 	bp_check( $answer && $answer->success && $restore['id'] === ( $view['id'] ?? '' ) && 7 === count( (array) ( $view['track'] ?? array() ) ) && isset( $view['elapsed'] ), 'El tick por testigo no da la vista de pantalla: ' . json_encode( $answer ? $answer->payload : null ) );
-	bp_check( array( 'jobs' => 'nonce-digitalisimo_backups_jobs-b', 'restore' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE . '-b' ) === ( $answer->payload['nonces'] ?? null ), 'Con la sesión de gestión el tick no trae nonces nuevos: ' . json_encode( $answer->payload['nonces'] ?? null ) );
+	bp_check( array( 'jobs' => 'nonce-digitalisimo_backups_jobs-b', 'manual' => 'nonce-digitalisimo_backups_manual-b', 'restore' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE . '-b' ) === ( $answer->payload['nonces'] ?? null ), 'Con la sesión de gestión el tick no trae nonces nuevos (la cola, «Respaldar ahora» y «Volver a la copia previa»): ' . json_encode( $answer->payload['nonces'] ?? null ) );
 	bp_check( true === ( $answer->payload['manager'] ?? null ), 'El tick por testigo no dice que la pestaña conserva su sesión de gestión.' );
 	$answer = $tick( false );
 	bp_check( $answer && $answer->success && array() === ( $answer->payload['nonces'] ?? null ) && false === ( $answer->payload['manager'] ?? null ), 'Sin sesión el tick por testigo dio nonces o no dice que la sesión se perdió: ' . json_encode( $answer ? $answer->payload : null ) );
@@ -177,12 +186,21 @@ bp_case( 'R3 · tick por testigo: vistas de pantalla, nonces nuevos con sesión;
 	bp_check( 'finished' === ( $answer->payload['result'] ?? '' ) && isset( $view['track'], $view['result'] ) && 'Cómo entrar ahora: https://example.test/wp-login.php' === $view['result']['notice'], 'Terminada, con sesión, el tick no da su informe: ' . json_encode( $view, JSON_UNESCAPED_UNICODE ) );
 	$answer = $tick( false );
 	$view = $answer->payload['jobs'][0] ?? array();
-	bp_check( 'finished' === ( $answer->payload['result'] ?? '' ) && ! isset( $view['track'] ) && ! isset( $view['result'] ) && ! isset( $view['file'] ) && false !== strpos( (string) $view['detail'], 'Entra al escritorio' ) && array() === ( $answer->payload['nonces'] ?? null ), 'Terminada, sin sesión, el tick no da la vista mínima de siempre: ' . json_encode( $answer->payload, JSON_UNESCAPED_UNICODE ) );
+	bp_check( 'finished' === ( $answer->payload['result'] ?? '' ) && ! isset( $view['result'] ) && ! isset( $view['file'] ) && ! isset( $view['error'] ) && ! isset( $view['safety'] ) && false !== strpos( (string) $view['detail'], 'Entra al escritorio' ) && array() === ( $answer->payload['nonces'] ?? null ), 'Terminada, sin sesión, el tick no da la vista mínima de siempre: ' . json_encode( $answer->payload, JSON_UNESCAPED_UNICODE ) );
+	// Con la sesión de un usuario que no gestiona Backups (un suscriptor con la cookie), tampoco nonces (revisión PB).
+	$caps = $GLOBALS['bk_caps'];
+	$GLOBALS['bk_caps'] = array();
+	$_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] = $token;
+	try { $J::ajax_restore_tick(); $other = null; } catch ( Bp_Json $json ) { $other = $json; } finally { unset( $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] ); $GLOBALS['bk_caps'] = $caps; }
+	bp_check( $other && $other->success && array() === ( $other->payload['nonces'] ?? null ) && false === ( $other->payload['manager'] ?? null ) && ! isset( $other->payload['jobs'][0]['result'] ), 'Un usuario con sesión que no gestiona Backups recibe nonces o el informe: ' . json_encode( $other ? $other->payload : null ) );
 	$GLOBALS['bp_session'] = 'a';
 	// El tick con nonce y el estado también dan la vista de pantalla.
 	$_POST = array( 'nonce' => 'nonce-digitalisimo_backups_jobs-a', 'context' => 'site' );
 	try { $J::ajax_status(); $status = null; } catch ( Bp_Json $json ) { $status = $json; } finally { $_POST = array(); }
 	bp_check( $status && $status->success && isset( $status->payload['jobs'][0]['track'] ), 'El estado de la cola no da la vista de pantalla.' );
+	$_POST = array( 'nonce' => 'nonce-digitalisimo_backups_jobs-a', 'context' => 'site' );
+	try { $J::ajax_tick(); $queue = null; } catch ( Bp_Json $json ) { $queue = $json; } finally { $_POST = array(); }
+	bp_check( $queue && $queue->success && 7 === count( (array) ( $queue->payload['jobs'][0]['track'] ?? array() ) ) && isset( $queue->payload['jobs'][0]['elapsed'] ), 'El tick con nonce no da los tramos que pinta el panel (revisión PC).' );
 } );
 
 bp_case( 'R4 · la pantalla: el panel accesible con el trabajo que sigue, en cualquier pestaña; «Trabajos» no lo repite', function() use ( $J ) {
@@ -270,6 +288,8 @@ bp_case( 'R7 · la cookie del testigo sale antes de empezar: si la petición que
 	// La petición muere justo cuando empieza a trabajar (memoria, un proxy que corta): ya está encolada.
 	$GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] = function() { throw new RuntimeException( 'la petición muere aquí' ); };
 	$died = false;
+	$M = 'Digitalisimo_Backups_Restore_Maintenance';
+	$M::$sent = null;
 	try {
 		bk_post( array( $B, 'restore_request' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_RESTORE, 'action' => $B::ACTION_RESTORE, 'backup_file' => basename( $path ), 'confirmation' => 'RESTAURAR' ) );
 	} catch ( RuntimeException $e ) {
@@ -280,22 +300,140 @@ bp_case( 'R7 · la cookie del testigo sale antes de empezar: si la petición que
 	$active = Digitalisimo_Backups_Jobs::restore_active();
 	$token = (string) ( $active['spec']['token'] ?? '' );
 	bp_check( $died && $active && preg_match( '/^[0-9a-f]{64}$/', $token ), 'No quedó la restauración encolada al morir la petición.' );
-	// PHP de consola no registra cabeceras: el orden se comprueba en el handler (la cookie con ese testigo sale antes de
-	// pedir la restauración, y el caso de uso encola con él); lo demuestra en un navegador backups-restore-progress.sh.
-	$source = file_get_contents( dirname( __DIR__ ) . '/digitalisimo-backups/includes/class-backups.php' );
-	$handler = substr( $source, strpos( $source, 'public static function restore_request()' ), 6000 );
-	$cookie = strpos( $handler, 'Digitalisimo_Backups_Restore_Maintenance::send_cookie( $token );' );
-	$service = strpos( $handler, '$result = self::service_restore(' );
-	bp_check( false !== $cookie && false !== $service && $cookie < $service && false !== strpos( substr( $handler, $service, 600 ), '\'token\' => $token' ) && false !== strpos( substr( $handler, 0, $cookie ), 'Digitalisimo_Backups_Jobs::has_active() ? null' ), 'La cookie del testigo no sale antes de pedir la restauración con ese mismo testigo (o se manda con otro trabajo en curso).' );
+	// La cookie que salió antes de morir (Restore_Maintenance::$sent, lo último que la petición mandó) lleva el testigo del
+	// trabajo encolado: con ella el navegador sigue esta restauración (revisión PA). Que llegue al navegador depende de que
+	// PHP alcance a responder (docs/BACKUPS.md); lo demuestra en un navegador backups-restore-progress.sh.
+	bp_check( $token === $M::$sent, 'La cookie que sale antes de empezar no lleva el testigo de la restauración encolada: ' . json_encode( array( $M::$sent, $token ) ) );
 	// Y el caso de uso encola con el testigo que le dan (el de la cookie), no con otro.
 	$given = str_repeat( 'cd', 32 );
 	bp_check( $given === bk_call( $B, 'service_token', array( 'token' => $given ) ) && null === bk_call( $B, 'service_token', array( 'token' => 'no-es-hex' ) ) && null === bk_call( $B, 'service_token', array() ), 'El caso de uso no toma el testigo de la pantalla (o acepta uno inválido).' );
-	// Con otro trabajo en curso, se rechaza como siempre.
+	// Con otro trabajo en curso, se rechaza como siempre y no sale ninguna cookie (pisaría la de esa restauración; PF).
+	$M::$sent = null;
 	list( $ok, $message ) = bk_post( array( $B, 'restore_request' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_RESTORE, 'action' => $B::ACTION_RESTORE, 'backup_file' => basename( $path ), 'confirmation' => 'RESTAURAR' ) );
 	bp_check( ! $ok && $active['spec']['token'] === Digitalisimo_Backups_Jobs::restore_active()['spec']['token'], 'Con otra restauración en curso no se rechazó o cambió su testigo: ' . $message );
+	bp_check( null === $M::$sent, 'Con otro trabajo en curso salió una cookie que pisa la de esa restauración: ' . json_encode( $M::$sent ) );
 	Digitalisimo_Backups_Jobs::cancel( $active['id'] );
 	Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	// Si la restauración no llega a empezar (un archivo que no está), la cookie que salió antes se borra (revisión B8).
+	$M::$sent = null;
+	list( $ok, $message ) = bk_post( array( $B, 'restore_request' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_RESTORE, 'action' => $B::ACTION_RESTORE, 'backup_file' => 'digitalisimo-no-existe.zip', 'confirmation' => 'RESTAURAR' ) );
+	bp_check( ! $ok && '' === $M::$sent && ! Digitalisimo_Backups_Jobs::restore_active(), 'Una restauración que no empezó deja la cookie del testigo: ' . json_encode( array( $ok, $message, $M::$sent ) ) );
 	@unlink( $path );
+	bp_clear_jobs();
+} );
+
+/** El tick por testigo: $where (cookie, post, get) lleva el testigo; $logged, una sesión; $manager, si gestiona Backups. */
+function bp_restore_tick( $token, $where, $logged, $manager ) {
+	$caps = $GLOBALS['bk_caps'];
+	$was = $GLOBALS['bp_logged_in'];
+	$GLOBALS['bk_caps'] = $manager ? $caps : array();
+	$GLOBALS['bp_logged_in'] = $logged;
+	if ( 'cookie' === $where ) $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] = $token;
+	if ( 'post' === $where ) $_POST[ Digitalisimo_Backups_Restore_Maintenance::PARAM ] = $token;
+	if ( 'get' === $where ) $_GET[ Digitalisimo_Backups_Restore_Maintenance::PARAM ] = $token;
+	try { Digitalisimo_Backups_Jobs::ajax_restore_tick(); return null; } catch ( Bp_Json $json ) { return $json; } finally {
+		unset( $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ], $_POST[ Digitalisimo_Backups_Restore_Maintenance::PARAM ], $_GET[ Digitalisimo_Backups_Restore_Maintenance::PARAM ] );
+		$GLOBALS['bk_caps'] = $caps;
+		$GLOBALS['bp_logged_in'] = $was;
+	}
+}
+
+bp_case( 'R8 · sin sesión de gestión, el tick por testigo sólo da esa restauración, sin rutas, archivos ni otros trabajos (M4, B5, B11, B4)', function() use ( $J ) {
+	bp_clear_jobs();
+	$token = str_repeat( 'ef', 32 );
+	$storage = rtrim( bk_storage(), '/' );
+	// Otros trabajos: un respaldo terminado (con su ZIP) y una restauración anterior que falló con una ruta del servidor.
+	bp_job( 'backup', $J::spec( array( 'policy' => 'manual', 'destination' => 'local', 'file' => 'digitalisimo-secreto-2026.zip' ) ), array( 'status' => 'success', 'phase' => 'prune', 'finished_at' => time() - 50 ) );
+	bp_job( 'restore', bp_restore_spec( array( 'token' => str_repeat( '12', 32 ), 'file' => 'digitalisimo-viejo.zip' ) ), array( 'status' => 'failed', 'phase' => 'database', 'finished_at' => time() - 40, 'error' => array( 'message' => 'MySQL: no se pudo leer ' . ABSPATH . 'wp-content/x.sql' ) ) );
+	$restore = bp_job( 'restore', bp_restore_spec( array( 'token' => $token, 'parts' => array( 'parts' => array(), 'plugins' => array( 'demo' ), 'themes' => array(), 'sites' => array() ) ) ), array( 'phase' => 'files', 'status' => 'running', 'retry_at' => time() + 3600, 'created_at' => time() - 20, 'progress' => array( 'percent' => 70, 'message' => 'Copiando ' . $storage . '/jobs/x/staging/wp-content/plugins/demo/a.php y ' . ABSPATH . 'wp-config.php junto a safety-before-restore-20261115.zip (3 de 9)…' ) ) );
+	$allowed = array( 'id', 'kind', 'status', 'status_label', 'phase', 'phase_label', 'percent', 'terminal', 'running', 'retry_in', 'retry_label', 'origin_label', 'created_label', 'track', 'elapsed', 'parts', 'rollback_of', 'followed_by', 'midway', 'from_point', 'aside', 'can_cancel', 'destination_label', 'message', 'detail' );
+	foreach ( array( 'sin sesión con la cookie' => array( 'cookie', false ), 'un suscriptor con la cookie' => array( 'cookie', true ), 'sin sesión con el testigo en el POST' => array( 'post', false ) ) as $who => $how ) {
+		$answer = bp_restore_tick( $token, $how[0], $how[1], false );
+		bp_check( $answer && $answer->success, $who . ': el tick por testigo no respondió: ' . json_encode( $answer ? $answer->payload : null ) );
+		$jobs = (array) $answer->payload['jobs'];
+		$view = $jobs[0] ?? array();
+		$json = json_encode( $answer->payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+		bp_check( 1 === count( $jobs ) && $restore['id'] === $view['id'], $who . ': da otros trabajos además de esa restauración: ' . count( $jobs ) );
+		bp_check( ! array_diff( array_keys( $view ), $allowed ), $who . ': la vista lleva campos de más: ' . implode( ', ', array_diff( array_keys( $view ), $allowed ) ) );
+		foreach ( array( $storage, rtrim( ABSPATH, '/' ), 'wp-config.php', 'safety-before-restore', 'digitalisimo-secreto', 'digitalisimo-viejo', 'MySQL', $token ) as $secret ) bp_check( false === strpos( $json, $secret ), $who . ': la respuesta lleva «' . $secret . '»: ' . $json );
+		bp_check( 'files' === $view['phase'] && 70 === $view['percent'] && 7 === count( $view['track'] ) && 'el plugin demo' === $view['parts'] && 'digitalisimo-sitio-2026-11-15.zip' === $view['destination_label'] && false !== strpos( $view['detail'], '(3 de 9)' ) && false === $view['can_cancel'], $who . ': la vista mínima no trae fase, %, tramos, partes, el respaldo y el paso: ' . $json );
+		bp_check( array() === $answer->payload['nonces'] && false === $answer->payload['manager'], $who . ': recibe nonces o se da por gestor.' );
+	}
+	// El testigo sólo en la URL (el del tick de WP-Cron, que queda en los registros) no basta.
+	$answer = bp_restore_tick( $token, 'get', false, false );
+	bp_check( $answer && ! $answer->success && 403 === $answer->status, 'Con sólo el testigo de la URL, el tick por testigo responde: ' . json_encode( $answer ? $answer->payload : null ) );
+	// Con la sesión de gestión, todo lo de la pantalla (también los demás trabajos).
+	$answer = bp_restore_tick( $token, 'cookie', true, true );
+	bp_check( $answer && $answer->success && count( $answer->payload['jobs'] ) >= 3 && true === $answer->payload['manager'], 'Con la sesión de gestión el tick por testigo no da la cola entera.' );
+	// Terminada con un fallo, sin sesión: su fase y su %, no todas pendientes (B5); y la vuelta a la copia previa lo dice.
+	Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'status' => 'failed', 'phase' => 'switch', 'finished_at' => time(), 'retry_at' => 0, 'progress' => array( 'percent' => 88, 'message' => 'x' ), 'error' => array( 'message' => 'Falló en ' . ABSPATH . 'wp-content' ) ) ) );
+	$answer = bp_restore_tick( $token, 'cookie', false, false );
+	$view = $answer->payload['jobs'][0] ?? array();
+	bp_check( 'finished' === $answer->payload['result'] && 'switch' === $view['phase'] && 88 === $view['percent'] && 'Restauración' === $view['origin_label'] && false !== strpos( $view['detail'], 'Entra al escritorio' ) && false === strpos( json_encode( $answer->payload ), 'wp-content' ), 'Terminada sin sesión, la vista mínima no dice dónde se detuvo (o lleva el error): ' . json_encode( $view, JSON_UNESCAPED_UNICODE ) );
+	$back = bp_job( 'restore', bp_restore_spec( array( 'token' => $token, 'file' => 'safety-before-restore-20261115.zip', 'safety' => '', 'rollback' => array( 'of' => $restore['id'], 'file' => 'digitalisimo-sitio-2026-11-15.zip' ) ) ), array( 'phase' => 'database', 'status' => 'running', 'retry_at' => time() + 3600 ) );
+	file_put_contents( Digitalisimo_Backups_Job_Store::directory( $restore['id'] ) . '/rollback.json', json_encode( array( 'job' => $back['id'], 'cause' => 'Error en ' . ABSPATH . 'x' ) ) );
+	$answer = bp_restore_tick( $token, 'cookie', false, false );
+	$ids = array_column( (array) $answer->payload['jobs'], 'origin_label', 'id' );
+	bp_check( 'Vuelta a la copia previa' === ( $ids[ $back['id'] ] ?? '' ) && false === strpos( json_encode( $answer->payload ), 'Error en' ), 'Sin sesión, la vuelta a la copia previa no se ve como tal o lleva la causa: ' . json_encode( $answer->payload, JSON_UNESCAPED_UNICODE ) );
+	// Una vista con un id inválido no rompe la pantalla ni el tick (B11).
+	$broken = null;
+	try { $J::screen_view( array_replace( $back, array( 'id' => '../no-es-un-id', 'spec' => array_replace( $back['spec'], array( 'rollback' => array( 'of' => '../tampoco', 'file' => 'x.zip' ) ) ) ) ) ); } catch ( Throwable $e ) { $broken = $e->getMessage(); }
+	bp_check( null === $broken, 'Una vista con un id inválido lanza una excepción (un 500 en el tick): ' . $broken );
+	// Un reintento no baja el %: se retoma desde su punto de control (B4, E8).
+	$retry = bk_call( $J, 'queue_retry', array_replace( $back, array( 'progress' => array( 'percent' => 58, 'message' => '' ) ) ), 'database', 1, 'database', 8, 'x', 'fallo' );
+	bp_check( 58 === (int) $retry['progress']['percent'], 'Un reintento devuelve el % al piso de su fase: ' . $retry['progress']['percent'] );
+	bp_clear_jobs();
+} );
+
+bp_case( 'R9 · el testigo para quien gestiona Backups en una restauración que no empezó en esta pestaña; la cookie que no sirve se borra (M3, B8, B9)', function() use ( $J ) {
+	bp_clear_jobs();
+	$M = 'Digitalisimo_Backups_Restore_Maintenance';
+	$token = str_repeat( '9a', 32 );
+	// Empezada por REST o WP-CLI (o en otra pestaña): el sondeo de la pantalla (estado y tick con nonce) la ve y le da la cookie.
+	$restore = bp_job( 'restore', bp_restore_spec( array( 'token' => $token, 'origin' => array( 'via' => 'rest' ) ) ), array( 'phase' => 'safety', 'status' => 'running', 'retry_at' => time() + 3600 ) );
+	foreach ( array( 'ajax_status', 'ajax_tick' ) as $action ) {
+		$M::$sent = null;
+		$_POST = array( 'nonce' => 'nonce-digitalisimo_backups_jobs-a', 'context' => 'site' );
+		try { $J::$action(); } catch ( Bp_Json $json ) { unset( $json ); } finally { $_POST = array(); }
+		bp_check( $token === $M::$sent, $action . ' no da a quien gestiona Backups el testigo de la restauración en curso: ' . json_encode( $M::$sent ) );
+		// Con la cookie ya puesta, no se repite.
+		$M::$sent = null;
+		$_COOKIE[ $M::COOKIE ] = $token;
+		$_POST = array( 'nonce' => 'nonce-digitalisimo_backups_jobs-a', 'context' => 'site' );
+		try { $J::$action(); } catch ( Bp_Json $json ) { unset( $json ); } finally { $_POST = array(); unset( $_COOKIE[ $M::COOKIE ] ); }
+		bp_check( null === $M::$sent, $action . ' repite la cookie que el navegador ya tiene.' );
+	}
+	// Sin el nonce de quien gestiona Backups, nada.
+	$M::$sent = null;
+	$caps = $GLOBALS['bk_caps'];
+	$GLOBALS['bk_caps'] = array();
+	$_POST = array( 'nonce' => 'nonce-digitalisimo_backups_jobs-a', 'context' => 'site' );
+	try { $J::ajax_status(); } catch ( Throwable $e ) { unset( $e ); } finally { $_POST = array(); $GLOBALS['bk_caps'] = $caps; }
+	bp_check( null === $M::$sent, 'Quien no gestiona Backups recibe el testigo de la restauración.' );
+	// Al abrir la pantalla: la cookie de la restauración en curso; sin ninguna, se borra la que ya no sirve.
+	$_GET = array( 'page' => 'digitalisimo-backups' );
+	try {
+		$M::$sent = null;
+		$J::screen_cookie();
+		bp_check( $token === $M::$sent, 'Al abrir la pantalla, quien gestiona Backups no recibe el testigo de la restauración en curso.' );
+		Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'status' => 'success', 'phase' => 'cleanup', 'finished_at' => time() - 60, 'retry_at' => 0 ) ) );
+		$_COOKIE[ $M::COOKIE ] = $token;
+		$M::$sent = null;
+		$J::screen_cookie();
+		bp_check( null === $M::$sent, 'La cookie de una restauración que acaba de terminar se borra (la pestaña que la siguió aún pide su estado).' );
+		Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'finished_at' => time() - 2 * $J::FINISHED_ANSWER ) ) );
+		$J::screen_cookie();
+		bp_check( '' === $M::$sent, 'La cookie de una restauración que terminó hace rato no se borra.' );
+		// Al cerrar sesión, también (el siguiente usuario de un navegador compartido no la hereda).
+		$M::$sent = null;
+		$M::clear_cookie();
+		bp_check( '' === $M::$sent, 'clear_cookie() no borra la cookie del testigo.' );
+	} finally {
+		$_GET = array();
+		unset( $_COOKIE[ $M::COOKIE ] );
+	}
+	$M::$sent = null;
+	bp_check( false === $M::clear_cookie() && null === $M::$sent, 'Sin cookie ni testigo mandado, clear_cookie() manda una cookie.' );
 	bp_clear_jobs();
 } );
 

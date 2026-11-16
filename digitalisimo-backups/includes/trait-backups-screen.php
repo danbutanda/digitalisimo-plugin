@@ -167,8 +167,10 @@ trait Digitalisimo_Backups_Screen {
 			}
 			$items[] = array( 'class' => 'digitalisimo-backups-restore-state', 'state' => $restore['state'], 'level' => $level, 'text' => $titles[ $restore['state'] ] ?? '', 'detail' => (string) $restore['notice'], 'actions' => $actions );
 			$active = Digitalisimo_Backups_Jobs::restore_active();
-			// La pantalla sigue la restauración con su testigo (vale aunque la sesión cambie con la base de datos restaurada).
-			if ( $active && Digitalisimo_Backups_Restore_Maintenance::request_has( (string) $active['spec']['token'] ) ) echo '<script>window.digitalisimoBackupsRestore=' . wp_json_encode( array( 'token' => (string) $active['spec']['token'], 'action' => Digitalisimo_Backups_Jobs::AJAX_RESTORE_TICK ) ) . ';</script>';
+			// La pantalla sigue la restauración con su testigo (vale aunque la sesión cambie con la base de datos restaurada): lo
+			// lleva la cookie de este navegador (la de esta petición o la que acaba de recibir), nunca la página (revisión B8).
+			$token = $active ? (string) $active['spec']['token'] : '';
+			if ( '' !== $token && ( Digitalisimo_Backups_Restore_Maintenance::request_has( $token ) || Digitalisimo_Backups_Restore_Maintenance::$sent === $token ) ) echo '<script>window.digitalisimoBackupsRestore=' . wp_json_encode( array( 'action' => Digitalisimo_Backups_Jobs::AJAX_RESTORE_TICK ) ) . ';</script>';
 		}
 		// Tras restaurar (H23): la configuración del respaldo que no se aplicó, o un sitio sin automatizaciones activas.
 		try { $config = self::restore_config_strip_item(); if ( $config ) $items[] = $config; } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
@@ -380,6 +382,8 @@ trait Digitalisimo_Backups_Screen {
 		echo '<p><strong>Restaurar el respaldo del ' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '.</strong> Antes se guarda una copia del sitio actual; escribe RESTAURAR para confirmar.</p>';
 		// Restaurar por partes: lo que se reemplaza, a la vista sólo cuando no es todo (lo pone el script).
 		echo '<p class="digitalisimo-backups-warning" data-restore-parts-summary hidden></p>';
+		// «Volver a la copia previa» desde el panel de avance (?undo=…): qué vuelve y qué no se toca (lo pone el script).
+		echo '<p class="digitalisimo-backups-warning" data-restore-undo hidden></p>';
 		echo '<p class="digitalisimo-backups-restore-confirm"><label><span class="screen-reader-text">Confirmación</span><input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off" required></label> <button class="button button-primary">Restaurar</button> <a class="digitalisimo-backups-cancel" data-restore-cancel="' . esc_attr( $row_id ) . '" href="' . esc_url( self::tab_url( 'backups' ) ) . '">Cancelar</a></p>';
 		echo self::restore_parts_field( $path, $shown, self::tab_url( 'backups', '', array( 'restore' => rawurlencode( $file ), 'parts' => 1 ) ) . '#' . $row_id );
 		echo '<details class="digitalisimo-backups-restore-options"' . ( $needs_key || '' !== $hint['label'] ? ' open' : '' ) . '><summary>Opciones</summary>';

@@ -194,6 +194,12 @@ rr_case( 'C2 la vuelta a la copia previa que falla deja el sitio en mantenimient
 	$GLOBALS['wpdb']->fail_on = '';
 	$recovered = Digitalisimo_Backups::service_restore_rollback( array( 'drive_cli' => true ) );
 	rr_check( ! is_wp_error( $recovered ) && ! empty( $recovered['restored'] ), 'La recuperación no terminó: ' . ( is_wp_error( $recovered ) ? $recovered->get_error_message() : json_encode( $recovered ) ) );
+	// La causa sigue siendo la de la restauración que falló; que la vuelta se pidió a mano se anota aparte (revisión B9 de
+	// backups/restore-progress): el panel dice por qué falló, no «pedida a mano».
+	$note = json_decode( (string) @file_get_contents( Digitalisimo_Backups_Job_Store::directory( $r1['id'] ) . '/rollback.json' ), true );
+	rr_check( is_array( $note ) && false !== strpos( (string) ( $note['cause'] ?? '' ), 'disco lleno simulado al mover' ) && ! empty( $note['manual'] ), 'La vuelta pedida a mano borró la causa de la restauración que falló: ' . json_encode( $note, JSON_UNESCAPED_UNICODE ) );
+	$view = Digitalisimo_Backups_Jobs::screen_view( Digitalisimo_Backups_Jobs::get( (string) $note['job'] ) );
+	rr_check( false !== strpos( (string) $view['rollback_cause'], 'disco lleno simulado al mover' ) && true === $view['rollback_manual'], 'El panel de la vuelta pedida a mano no dice por qué falló la restauración: ' . json_encode( array( $view['rollback_cause'] ?? null, $view['rollback_manual'] ?? null ), JSON_UNESCAPED_UNICODE ) );
 	rr_check( 'Antes de restaurar' === ( $GLOBALS['bk_options']['blogname'] ?? '' ), 'La base de datos no volvió a la de antes de restaurar.' );
 	$after = bk_tree();
 	foreach ( $before as $path => $hash ) rr_check( ( $after[ $path ] ?? null ) === $hash, 'No volvió a como estaba antes de restaurar: ' . $path );

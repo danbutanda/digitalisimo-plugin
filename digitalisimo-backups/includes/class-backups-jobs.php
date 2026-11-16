@@ -74,6 +74,10 @@ final class Digitalisimo_Backups_Jobs {
 		add_filter( 'cron_request', array( __CLASS__, 'cron_request' ) );
 		add_filter( 'pre_get_ready_cron_jobs', array( __CLASS__, 'restore_cron_jobs' ) );
 		add_action( 'init', array( __CLASS__, 'ensure_watchdog' ) );
+		// El testigo de la restauración en la cookie: lo recibe quien gestiona Backups al abrir la pantalla o en sus ticks
+		// (otra pestaña, una restauración pedida por REST o WP-CLI) y se borra al cerrar sesión o cuando ya no sirve.
+		add_action( 'admin_init', array( __CLASS__, 'screen_cookie' ) );
+		add_action( 'wp_logout', array( 'Digitalisimo_Backups_Restore_Maintenance', 'clear_cookie' ) );
 	}
 	/**
 	 * Mientras una restauración tiene el sitio en mantenimiento, WP-Cron sólo ejecuta sus eventos (el tick y el
@@ -456,7 +460,8 @@ final class Digitalisimo_Backups_Jobs {
 			foreach ( array_slice( $phases, (int) array_search( $back_to, $phases, true ) ) as $later ) unset( $job['checkpoint'][ $later ] );
 		}
 		$job['status'] = 'queued';
-		$job['progress']['percent'] = self::scale( self::phase_floor( $job['phase'], $job['spec'] ), $job['spec'], $job['phase'] );
+		// La barra nunca retrocede: se retoma desde el punto de control (o la fase vuelve atrás y la pantalla lo dice).
+		$job['progress']['percent'] = max( (int) ( $job['progress']['percent'] ?? 0 ), self::scale( self::phase_floor( $job['phase'], $job['spec'] ), $job['spec'], $job['phase'] ) );
 		$job['retry_at'] = time() + $wait;
 		$job['error'] = array( 'code' => $code, 'message' => (string) $message, 'phase' => $phase, 'permanent' => false );
 		$job['progress']['message'] = 'Se reintentará (' . ( $count + 1 ) . ' de ' . self::max_attempts( $phase, $job ) . '): ' . $message;
@@ -844,6 +849,7 @@ final class Digitalisimo_Backups_Jobs {
 	public static function ajax_tick() {
 		self::ajax_guard();
 		$result = self::tick();
+		self::share_cookie();
 		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views( 8, true ) ) );
 	}
 	/**
@@ -854,38 +860,79 @@ final class Digitalisimo_Backups_Jobs {
 	public static function ajax_restore_tick() {
 		if ( self::off_main_site() ) wp_send_json_error( array( 'message' => self::MAIN_SITE_ONLY ), 400 );
 		$job = self::restore_active();
-		if ( ! $job || ! Digitalisimo_Backups_Restore_Maintenance::request_has( (string) ( $job['spec']['token'] ?? '' ) ) ) {
+		$token = (string) ( $job['spec']['token'] ?? '' );
+		$manager = (bool) Digitalisimo_Backups::can_manage_backups();
+		// El testigo de la cookie o del POST de la pantalla, nunca el de la URL (el del tick de WP-Cron queda en los registros).
+		if ( ! $job || ! Digitalisimo_Backups_Restore_Maintenance::request_has_page( $token ) ) {
 			// La terminó otro proceso (WP-Cron, otra pestaña, WP-CLI): quien la sigue recibe el estado final, no un error que la
 			// pantalla reintentaría sin fin (H18 del ensayo E2). Sólo esa restauración, nunca otros trabajos. Con la sesión de
 			// quien gestiona Backups, la vista completa; sin ella (la sesión puede no valer tras restaurar), sólo la pestaña
 			// que la siguió (el testigo en su cookie, nunca en la URL como el de WP-Cron) y sólo durante FINISHED_ANSWER
 			// segundos tras terminar, con el estado y un texto general, sin el error ni el archivo (revisión C4).
-			$manager = Digitalisimo_Backups::can_manage_backups();
 			$done = self::restore_finished_for_request( ! $manager );
 			if ( $done && ( $manager || time() - (int) ( $done['finished_at'] ?? 0 ) <= self::FINISHED_ANSWER ) ) {
-				$view = $manager ? self::screen_view( $done ) : self::finished_view( $done );
+				$view = $manager ? self::screen_view( $done ) : self::token_view( $done );
 				wp_send_json_success( array( 'result' => 'finished', 'message' => (string) $view['detail'], 'jobs' => array( $view ), 'nonces' => self::fresh_nonces(), 'manager' => $manager ) );
 			}
 			wp_send_json_error( array( 'message' => 'No hay una restauración en curso con este testigo.' ), 403 );
 		}
+		// La cookie dura lo que dura la restauración: cada tick la renueva.
+		if ( isset( $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] ) ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( $token );
 		$result = self::tick();
-		// `manager`: si quien sigue la restauración conserva su sesión de gestión (sin ella, al terminar se le pide entrar).
-		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views( 8, true ), 'nonces' => self::fresh_nonces(), 'manager' => (bool) Digitalisimo_Backups::can_manage_backups() ) );
+		// Sin sesión de gestión (revisión M4), sólo esa restauración y lo que la sigue con el mismo testigo (su vuelta a la
+		// copia previa), sin otros trabajos, rutas, errores ni archivos: fase, %, paso, partes y tiempo.
+		if ( ! $manager ) {
+			$views = array();
+			$now = self::get( (string) $job['id'] );
+			$next = self::restore_active();
+			if ( $next && hash_equals( $token, (string) ( $next['spec']['token'] ?? '' ) ) ) $views[] = self::token_view( $next );
+			if ( $now && ( ! $next || $next['id'] !== $now['id'] ) ) $views[] = self::token_view( $now );
+			// La restauración de una migración: también la migración que la espera (lo que sigue «Migrar»).
+			$owner = 'migration' === ( $job['spec']['aside']['kind'] ?? '' ) ? self::get( (string) ( $job['spec']['aside']['migration'] ?? '' ) ) : null;
+			if ( $owner ) $views[] = self::token_view( $owner );
+			wp_send_json_success( array( 'result' => $result['result'], 'message' => '', 'jobs' => $views, 'nonces' => array(), 'manager' => false ) );
+		}
+		// `manager`: quien sigue la restauración conserva su sesión de gestión (sin ella, al terminar se le pide entrar).
+		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views( 8, true ), 'nonces' => self::fresh_nonces(), 'manager' => true ) );
 	}
 	// Tras el cambio de tablas la sesión puede seguir valiendo («Conservar mi acceso») con otro ID o con otras sales: los
 	// nonces que la pantalla recibió al cargarse ya no valen. Quien sigue gestionando Backups recibe los nuevos con el tick
-	// por testigo (los de la cola y el de «Volver a la copia previa»); sin sesión, ninguno.
+	// por testigo (la cola, el respaldo manual y «Volver a la copia previa»); sin sesión, ninguno.
 	private static function fresh_nonces() {
 		if ( ! function_exists( 'wp_create_nonce' ) || ! function_exists( 'is_user_logged_in' ) || ! is_user_logged_in() || ! Digitalisimo_Backups::can_manage_backups() ) return array();
-		return array( 'jobs' => wp_create_nonce( self::NONCE ), 'restore' => wp_create_nonce( Digitalisimo_Backups::ACTION_RESTORE ) );
+		return array( 'jobs' => wp_create_nonce( self::NONCE ), 'manual' => wp_create_nonce( 'digitalisimo_backups_manual' ), 'restore' => wp_create_nonce( Digitalisimo_Backups::ACTION_RESTORE ) );
+	}
+	// La restauración en curso (o la reconstrucción de su punto) cuyo testigo debe tener quien gestiona Backups: así una
+	// pestaña abierta, o una restauración pedida desde otra pestaña, por REST o WP-CLI, se sigue también en mantenimiento.
+	private static function share_cookie() {
+		try {
+			foreach ( self::active() as $job ) {
+				$token = (string) ( $job['spec']['token'] ?? '' );
+				if ( ! self::restore_like( $job ) || '' === $token ) continue;
+				$have = $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] ?? '';
+				if ( ! is_string( $have ) || ! hash_equals( hash( 'sha256', $token ), hash( 'sha256', $have ) ) ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( $token );
+				return $token;
+			}
+		} catch ( Throwable $e ) {
+			return '';
+		}
+		return '';
+	}
+	// Al abrir la pantalla Backups (antes de pintar nada): el testigo de la restauración en curso; si no hay ninguna, se
+	// borra el que ya no sirve (ni en curso ni terminada hace menos de FINISHED_ANSWER segundos).
+	public static function screen_cookie() {
+		if ( ! Digitalisimo_Backups::is_backups_screen() || ! Digitalisimo_Backups::can_manage_backups() || self::off_main_site() ) return;
+		if ( '' !== self::share_cookie() || ! isset( $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] ) ) return;
+		$done = self::restore_finished_for_request( true );
+		if ( ! $done || time() - (int) ( $done['finished_at'] ?? 0 ) > self::FINISHED_ANSWER ) Digitalisimo_Backups_Restore_Maintenance::clear_cookie();
 	}
 	/** Segundos tras terminar en los que la pestaña que siguió una restauración, sin sesión, recibe su estado final (C4). */
 	const FINISHED_ANSWER = 900;
-	/** Vista mínima de una restauración terminada para quien no tiene sesión: estado y un texto general, sin detalle. */
-	private static function finished_view( array $job ) {
-		$status = (string) $job['status'];
-		$texts = array( 'success' => 'Restauración terminada. Entra al escritorio para ver el resultado.', 'failed' => 'La restauración no terminó bien. Entra al escritorio para ver el detalle y la copia previa.', 'cancelled' => 'La restauración se canceló. Entra al escritorio para ver el detalle.' );
-		return array( 'detail' => $texts[ $status ] ?? 'La restauración terminó. Entra al escritorio para ver el detalle.', 'id' => (string) $job['id'], 'status' => $status, 'status_label' => self::status_label( $status ), 'phase' => '', 'phase_label' => '', 'percent' => 'success' === $status ? 100 : 0, 'message' => '', 'terminal' => true, 'running' => false, 'retry_in' => 0, 'can_cancel' => false, 'kind' => 'restore', 'origin_label' => 'Restauración', 'destination_label' => '', 'created_label' => '' );
+	// La vista mínima del tick por testigo sin sesión de gestión: ver Digitalisimo_Backups_Progress::token_view() (sólo se
+	// carga entonces, como el panel sólo con la pantalla: no ocupa memoria en las demás peticiones).
+	private static function token_view( array $job ) {
+		require_once __DIR__ . '/class-backups-progress.php';
+		return Digitalisimo_Backups_Progress::token_view( $job );
 	}
 	/**
 	 * La restauración terminada más reciente cuyo testigo trae esta petición, o null. Con $cookie_only, sólo el de la
@@ -920,6 +967,7 @@ final class Digitalisimo_Backups_Jobs {
 	public static function ajax_status() {
 		self::ajax_guard();
 		self::recover_if_idle();
+		self::share_cookie();
 		wp_send_json_success( array( 'jobs' => self::views( 8, true ) ) );
 	}
 	public static function ajax_cancel() {
@@ -1045,17 +1093,30 @@ final class Digitalisimo_Backups_Jobs {
 		if ( ! self::is_restore( $job ) ) return $view;
 		$view['rollback_of'] = (string) ( $spec['rollback']['of'] ?? '' );
 		$view['safety'] = basename( Digitalisimo_Backups::restore_safety_file( $job ) );
+		// Lo restaurado (para «Volver a la copia previa» con sólo eso marcado) y lo que no se tocó; null: todo.
+		$view['parts_spec'] = null;
+		$view['untouched'] = '';
 		try {
-			$view['parts'] = Digitalisimo_Backups_Restore_Parts::label( Digitalisimo_Backups_Restore_Parts::from_spec( $spec ) );
+			$selection = Digitalisimo_Backups_Restore_Parts::from_spec( $spec );
+			$view['parts'] = Digitalisimo_Backups_Restore_Parts::label( $selection );
+			if ( null !== $selection ) {
+				$view['parts_spec'] = array_intersect_key( $selection, array_flip( array( 'parts', 'plugins', 'themes', 'sites' ) ) );
+				$view['untouched'] = implode( ', ', Digitalisimo_Backups_Restore_Parts::untouched( $selection ) );
+			}
 		} catch ( Throwable $e ) {
 			$view['parts'] = 'todo';
 		}
-		$read = function( $id ) { $path = Digitalisimo_Backups_Job_Store::directory( $id ) . '/rollback.json'; $data = Digitalisimo_Backups_Job_Store::valid_id( $id ) && is_file( $path ) && ! is_link( $path ) ? json_decode( (string) @file_get_contents( $path ), true ) : null; return is_array( $data ) ? $data : array(); };
+		// De una migración (la sigue «Migrar») y la del punto incremental reconstruido (su tramo de la barra va tras el de la reconstrucción).
+		$view['aside'] = ! empty( $spec['aside'] );
+		$view['from_point'] = ! empty( $spec['source']['staged'] ) && 'dgbk' !== ( $spec['source']['container'] ?? '' ) && empty( $spec['sync'] );
+		$read = function( $id ) { $path = Digitalisimo_Backups_Job_Store::valid_id( $id ) ? Digitalisimo_Backups_Job_Store::directory( $id ) . '/rollback.json' : ''; $data = '' !== $path && is_file( $path ) && ! is_link( $path ) ? json_decode( (string) @file_get_contents( $path ), true ) : null; return is_array( $data ) ? $data : array(); };
 		$next = (string) ( $read( (string) $job['id'] )['job'] ?? '' );
 		$view['followed_by'] = Digitalisimo_Backups_Job_Store::valid_id( $next ) ? $next : '';
 		if ( '' !== $view['rollback_of'] ) {
 			$view['rollback_file'] = basename( (string) ( $spec['rollback']['file'] ?? '' ) );
-			$view['rollback_cause'] = (string) ( $read( $view['rollback_of'] )['cause'] ?? '' );
+			$note = $read( $view['rollback_of'] );
+			$view['rollback_cause'] = (string) ( $note['cause'] ?? '' );
+			$view['rollback_manual'] = ! empty( $note['manual'] );
 			// El tiempo, desde que empezó la restauración que deshace (lo que pidió quien mira).
 			$of = self::get( $view['rollback_of'] );
 			if ( $of && ! empty( $of['created_at'] ) ) {
