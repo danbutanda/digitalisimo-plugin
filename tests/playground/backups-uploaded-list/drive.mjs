@@ -140,7 +140,10 @@ async function rowOf(file) {
     return { html: row.outerHTML, text: row.innerText, restore: restore ? restore.getAttribute('aria-controls') : '', download: download ? download.getAttribute('href') : '', uploaded: row.querySelector('.is-uploaded')?.getAttribute('title') || '' };
   }, file);
 }
-/** «Subir un respaldo» de Herramientas con el archivo; devuelve el texto del resultado. */
+/**
+ * «Subir un respaldo» de Herramientas con el archivo; devuelve el título y el resultado del panel de avance (desde
+ * 2026-11-16 la subida se sigue en el mismo panel que el respaldo y la restauración, no en la tarjeta).
+ */
 async function upload(path) {
   await go('/wp-admin/admin.php?page=digitalisimo-backups&tab=tools&open=upload');
   const input = await page.$('#digitalisimo-backups-upload input[type=file]');
@@ -150,9 +153,14 @@ async function upload(path) {
   let status = '';
   for (let i = 0; i < 400; i++) {
     await sleep(1500);
-    status = await page.$eval('#digitalisimo-backups-upload .digitalisimo-backups-upload-status', (p) => p.textContent).catch(() => '');
+    const panel = await page.evaluate(() => {
+      const p = document.getElementById('digitalisimo-backups-manual-progress');
+      const q = (id) => document.getElementById('digitalisimo-backups-progress-' + id);
+      return p ? { state: p.getAttribute('data-state'), text: q('title').textContent + '. ' + q('result').textContent } : null;
+    }).catch(() => null);
     const busy = await page.$eval('#digitalisimo-backups-upload button[type=submit]', (b) => b.disabled).catch(() => false);
-    if (!busy && status) break;
+    status = panel ? panel.text : '';
+    if (!busy && panel && ['success', 'failed', 'cancelled', 'paused'].includes(panel.state)) break;
   }
   return status;
 }
@@ -208,7 +216,7 @@ if (phase === 'a') {
   const status = await upload(zipA);
   await shot('subida-de-a');
   check(/Respaldo subido y verificado/.test(status) && /Ya está en la lista de respaldos/.test(status) && /RESTAURAR\./.test(status) && !/SIN FIRMA|sin registro/.test(status), '«Subir un respaldo» deja el de A en la lista y pide RESTAURAR', status);
-  check(await page.$eval('[data-upload-list]', (p) => !p.hidden).catch(() => false), 'la tarjeta ofrece «Ver en la lista de respaldos»');
+  check(await page.$eval('#digitalisimo-backups-progress-go', (a) => !a.hidden && /restore=/.test(a.getAttribute('href'))).catch(() => false), 'el panel ofrece ir a su fila de la lista para restaurarlo');
   let state = await probe();
   const a = (state.history || []).find((r) => r.origin === 'uploaded' && /sitio-a/.test(r.home)) || {};
   check(a.file && a.size === statSync(zipA).size && a.home === 'http://sitio-a.test', 'la fila del subido lleva su tamaño y su origen (sitio-a.test)', JSON.stringify(state.history));

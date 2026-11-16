@@ -1,9 +1,11 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-// El panel de avance de la pantalla Backups, el mismo para un respaldo y para una restauración (docs/BACKUPS.md,
-// «Pantalla»): a todo lo ancho, con el porcentaje, la fase en lenguaje claro y los tramos de la barra, el paso dentro de la
-// fase, el tiempo transcurrido y, al terminar, el resultado. Aquí sólo están su marcado y el trabajo que sigue al cargar la
+// El panel de avance de la pantalla Backups, el mismo para un respaldo, una restauración y lo que trae o envía un respaldo
+// (la subida, la importación de Backuply, «Traer al almacén», «Enviar a un destino»; docs/BACKUPS.md, «Pantalla»): a todo
+// lo ancho, con el porcentaje, la fase en lenguaje claro y los tramos de la barra, el paso dentro de la fase, el tiempo
+// transcurrido y, al terminar, el resultado con lo que sigue. Uno solo en la página: el script lo pone en el hueco de la
+// sección donde se hizo la acción (`data-progress-slot`). Aquí sólo están su marcado y el trabajo que sigue al cargar la
 // página; lo pinta y lo hace avanzar assets/manual-progress.js con Digitalisimo_Backups_Jobs::screen_view(). Sólo lo carga
 // la pantalla (render()) y, tras su paso, el tick por testigo de quien no gestiona Backups (su vista mínima): no ocupa
 // memoria en las peticiones que restauran.
