@@ -12,7 +12,7 @@
 // Capturas a 1280 px (y la lista también a 390 px) en <out>/shots; cada comprobación en <out>/result.txt.
 // Uso: node drive.mjs <puerto> <host> <dir> <out> <ZIP de la red> <inventario de la red>
 import http from 'node:http';
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
@@ -169,10 +169,15 @@ async function restoreSite(file, site, label) {
   await shot(`${label}-confirmacion`);
   await page.type(`${panel} input[name=confirmation]`, 'RESTAURAR');
   await Promise.all([page.waitForNavigation({ waitUntil: 'load' }).catch(() => null), page.click(`${panel} button.button-primary`)]);
-  // La petición responde enseguida (falla.php, con /digi-probe/lento): el panel de avance sigue la conversión.
-  await sleep(1500);
-  await shot(`${label}-avance`);
-  const during = await page.$eval('#digitalisimo-backups-manual-progress', (p) => p.innerText).catch(() => '');
+  // Con /digi-probe/lento (falla.php) la petición responde enseguida y la conversión va despacio: el panel de avance de
+  // la pantalla la sigue; se captura en cuanto la dice y se quita la marca para que lo demás vaya a su paso.
+  let during = '';
+  for (let i = 0; i < 90 && existsSync(`${dir}/probe/lento`); i++) {
+    during = await page.$eval('#digitalisimo-backups-manual-progress', (p) => p.innerText).catch(() => '');
+    if (/Convirtiendo el sitio de la red/.test(during)) { await shot(`${label}-avance-conversion`); break; }
+    await sleep(1000);
+  }
+  try { unlinkSync(`${dir}/probe/lento`); } catch { /* sin marca */ }
   const run = await drive(label);
   const created = jobs().filter((j) => !before.has(j.id));
   const convert = created.find((j) => j.spec?.kind === 'convert') || null;
@@ -223,10 +228,10 @@ await shot('lista-390', { width: 390 });
 const two = inventory['2'];
 writeFileSync(`${dir}/probe/lento`, '1');
 let run = await restoreSite(file, 2, 'sitio-2');
-try { (await import('node:fs')).unlinkSync(`${dir}/probe/lento`); } catch { /* ya no está */ }
+try { unlinkSync(`${dir}/probe/lento`); } catch { /* ya no está */ }
 st = await state();
 check(run?.convert?.status === 'success' && run?.restore?.status === 'success' && !run?.rollback, `la conversión del sitio 2 y su restauración terminan (${run?.run?.seconds} s)`, JSON.stringify({ convert: run?.convert?.status, error: run?.convert?.error || run?.restore?.error, restore: run?.restore?.status }));
-check(/Convirtiendo el sitio de la red|Lectura del sitio|Conversión de|Restauración en curso/.test(run?.during || ''), 'el panel de avance sigue la conversión del sitio de la red', run?.during);
+check(/Convirtiendo el sitio de la red/.test(run?.during || '') && /Lectura del sitio en el respaldo de la red|Conversión de/.test(run?.during || ''), 'el panel de avance sigue la conversión del sitio de la red, con sus fases', run?.during);
 check(/Se restauró el sitio red\.test\/dos \(ID 2\) del respaldo de la red/.test(run?.panelText || '') || /Se restauró el sitio red\.test\/dos/.test(JSON.stringify(run?.restore?.result || {})), 'el resultado dice qué sitio de la red se restauró', run?.panelText);
 check(same(Object.values(st.posts || {}).sort(), Object.values(two.posts).sort()), 'las entradas, páginas y medios son los del sitio 2', JSON.stringify({ aqui: st.posts, red: two.posts }));
 check(same(st.uploads?.files, two.files), 'los medios del sitio 2 están en uploads/ con sus mismos bytes (SHA-256)', JSON.stringify({ aqui: st.uploads?.files, red: two.files }));

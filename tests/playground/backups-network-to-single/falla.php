@@ -13,7 +13,13 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 }, 10, 3 );
 add_filter( 'pre_wp_mail', '__return_true' );
 // Con /digi-probe/lento la petición que restaura responde enseguida: el panel de avance sigue la conversión en la pantalla.
-if ( is_file( '/digi-probe/lento' ) ) add_filter( 'digitalisimo_backups_restore_respond_after', static function () { return 0; }, 99 );
+// Con /digi-probe/lento la petición que restaura responde enseguida y cada tick hace poco (un segundo, una unidad por
+// tramo): el panel de avance de la pantalla sigue la conversión el tiempo suficiente para verla y capturarla.
+if ( is_file( '/digi-probe/lento' ) ) {
+	add_filter( 'digitalisimo_backups_restore_respond_after', static function () { return 0; }, 99 );
+	add_filter( 'digitalisimo_backups_job_budget', static function () { return 1; }, 99 );
+	add_filter( 'digitalisimo_backups_step_units', static function () { return 1; }, 99 );
+}
 if ( is_file( '/digi-probe/falla' ) ) {
 	add_filter( 'digitalisimo_backups_job_max_attempts', static function () { return 1; }, 99 );
 	add_filter( 'digitalisimo_backups_job_backoff', static function () { return 0; }, 99 );
