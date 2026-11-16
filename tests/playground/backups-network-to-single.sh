@@ -111,6 +111,7 @@ if grep -qE 'Fatal error|Uncaught' "$OUT/destino/server.log"; then echo "== dest
 cp "$OUT/destino/server.log" "$OUT/server-destino.log"
 stop_server
 echo "$(sha256sum "$OUT/red.zip" | cut -d' ' -f1) $(stat -c %s "$OUT/red.zip") red.zip" > "$OUT/archivos.txt"
-rm -rf "$OUT/destino/backups" "$OUT/red.zip"
+# Los almacenes (respaldos de 40 MB, copias previas, trabajos) no hacen falta después: quedan su resultado y las capturas.
+rm -rf "$OUT/destino/backups" "$OUT/red.zip" "$OUT/destino/store" "$OUT/red/store"
 [ $fail -eq 0 ] || { echo 'Ensayo «el respaldo de una red en un WordPress individual» con fallos'; exit 1; }
 echo "El respaldo de una red en un WordPress individual: validado en Playground con Chrome en $(( $(date +%s) - start )) s ($OUT/shots)."
