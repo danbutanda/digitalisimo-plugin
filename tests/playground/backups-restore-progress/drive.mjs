@@ -364,7 +364,7 @@ try {
   await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
   if ('landed' === await restoreFromRow(['plugins'], { label: 'partes' })) {
     let narrow = null;
-    const parts = await follow('partes', ended, { onSample: async (s) => { if (!narrow && ['database', 'files'].includes(s.phase)) { narrow = s; await shot('partes-en-curso'); } } });
+    const parts = await follow('partes', ended, { onSample: async (s) => { if (!narrow && s.state === 'running' && s.phase) { narrow = s; await shot('partes-en-curso'); } } });
     const last = parts.last;
     check(narrow && narrow.overflow <= 0 && narrow.bar >= narrow.width - 40 && narrow.width >= narrow.inner - 2, 'a 390 px el panel ocupa todo el ancho de su tarjeta sin desplazamiento horizontal', JSON.stringify(narrow && { overflow: narrow.overflow, width: narrow.width, inner: narrow.inner, bar: narrow.bar }));
     check(last && /se restaura sólo: plugins/.test(last.what) && last.title === 'Restauración terminada' && /por partes: plugins/.test(last.result) && last.actions.includes('safety') && last.overflow <= 0, 'por partes: dice qué se restaura y termina con el resultado y «Volver a la copia previa»', JSON.stringify(last));
