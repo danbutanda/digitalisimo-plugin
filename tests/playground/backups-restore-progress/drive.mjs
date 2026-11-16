@@ -199,6 +199,34 @@ async function restoreFromRow(parts) {
 }
 
 const start = Date.now();
+// Modo «start» (para comparar con otra versión del plugin, sin el panel nuevo): un respaldo con el botón y «Restaurar»
+// desde su fila; anota a qué página llega el navegador y los errores fatales de PHP.
+if (mode === 'start') {
+  try {
+    check(await login(), 'inicio de sesión de admin');
+    if ((process.env.BACKUP_MEMORY || '128M') !== '64M') writeFileSync(`${dir}/ctl/backup-memory`, process.env.BACKUP_MEMORY || '128M');
+    await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
+    await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 1_200_000 }).catch(() => null), page.click('#digitalisimo-backups-manual-form button')]);
+    rmSync(`${dir}/ctl/backup-memory`, { force: true });
+    await lab('mutate', '&round=1');
+    await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
+    const toggle = await page.$('tr.digitalisimo-backups-row[data-file^="digitalisimo-"] [data-restore-toggle]');
+    if (check(!!toggle, 'la fila del respaldo tiene «Restaurar»')) {
+      const row = await toggle.evaluate((a) => a.getAttribute('data-restore-toggle'));
+      await toggle.click();
+      await page.type(`#${row} input[name="confirmation"]`, 'RESTAURAR');
+      await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 300_000 }).catch(() => null), page.click(`#${row} .digitalisimo-backups-restore-confirm button`)]);
+      const text = await page.evaluate(() => document.body.innerText).catch(() => '');
+      const fatal = existsSync(`${dir}/ctl/debug.log`) ? readFileSync(`${dir}/ctl/debug.log`, 'utf8').split('\n').filter((l) => /Fatal|Allowed memory|Uncaught/.test(l)).slice(-3).join(' | ') : '';
+      log(`· tras «Restaurar»: ${page.url()} · ${/critical error/i.test(text) ? 'ERROR CRÍTICO' : 'pantalla de Backups'} · ${fatal}`);
+      check(!/critical error/i.test(text), '«Restaurar» desde la fila vuelve a la pantalla (sin error crítico)', fatal);
+    }
+  } catch (e) { check(false, 'excepción', String(e.stack || e).slice(0, 800)); }
+  for (const name of ['requests.jsonl', 'memory.jsonl', 'debug.log']) if (existsSync(`${dir}/ctl/${name}`)) copyFileSync(`${dir}/ctl/${name}`, `${shots}/${name}`);
+  await browser.close();
+  rmSync(profile, { recursive: true, force: true });
+  process.exit(failures ? 1 : 0);
+}
 try {
   check(await login(), 'inicio de sesión de admin');
   const original = await lab('inventory');

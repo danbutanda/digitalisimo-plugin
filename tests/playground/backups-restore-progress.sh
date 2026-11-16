@@ -54,7 +54,7 @@ fail=0
 port=$PORT
 for mode in ${MODES:-single}; do
   case "$mode" in
-    single) multi='' ;;
+    single|start) multi='' ;;
     multisite) multi='{"step":"enableMultisite"},' ;;
     *) echo "Modo desconocido: $mode"; exit 2 ;;
   esac
