@@ -43,10 +43,31 @@ class N2s_DB extends Digi_Extract_DB {
 			$job = Digitalisimo_Backups_Jobs::get( Digitalisimo_Backups_Jobs::current_id() );
 			if ( $job && 'restore' === $job['kind'] && empty( $job['spec']['rollback'] ) && 'finish' === $job['phase'] ) { $this->last_error = 'disco lleno simulado'; return false; }
 		}
-		return parent::query( $sql );
+		$result = parent::query( $sql );
+		// Como AUTO_INCREMENT: un INSERT sin la clave primaria (el que conserva el acceso de quien restaura) recibe la siguiente.
+		if ( false !== $result && preg_match( '/^INSERT INTO `([^`]+)`/', trim( (string) $sql ), $m ) && isset( $this->tables[ $m[1] ] ) ) {
+			$pk = $this->tables[ $m[1] ]['columns'][0];
+			$last = count( $this->tables[ $m[1] ]['rows'] ) - 1;
+			if ( $last >= 0 && '' === (string) ( $this->tables[ $m[1] ]['rows'][ $last ][ $pk ] ?? '' ) ) {
+				$max = 0;
+				foreach ( $this->tables[ $m[1] ]['rows'] as $row ) $max = max( $max, (int) ( $row[ $pk ] ?? 0 ) );
+				$this->tables[ $m[1] ]['rows'][ $last ] = array( $pk => (string) ( $max + 1 ) ) + $this->tables[ $m[1] ]['rows'][ $last ];
+			}
+		}
+		return $result;
 	}
 }
 $GLOBALS['wpdb'] = new N2s_DB();
+if ( ! function_exists( 'wp_nonce_url' ) ) { function wp_nonce_url( $url, $action = -1 ) { return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . '_wpnonce=nonce-' . $action; } }
+/** WP-CLI mínimo (sin la constante WP_CLI), para leer las opciones de la orden. */
+class WP_CLI {
+	public static function line( $message = '' ) {}
+	public static function log( $message ) {}
+	public static function warning( $message ) {}
+	public static function success( $message ) {}
+	public static function error( $message ) { throw new RuntimeException( (string) $message ); }
+}
+require_once __DIR__ . '/../digitalisimo-backups/includes/class-backups-cli.php';
 $S = 'Digitalisimo_Backups';
 $db = $GLOBALS['wpdb'];
 $public = $root . '/public';
@@ -232,6 +253,10 @@ function n2s_add( $saved, $name ) {
 	n2s_check( ! is_wp_error( $added ), 'No se agregó a la lista: ' . ( is_wp_error( $added ) ? $added->get_error_message() : '' ) );
 	return $added;
 }
+function n2s_item( $file ) {
+	foreach ( (array) get_option( Digitalisimo_Backups::HISTORY, array() ) as $row ) if ( is_array( $row ) && $file === ( $row['file'] ?? '' ) ) return $row;
+	return null;
+}
 function n2s_row( $file ) {
 	foreach ( Digitalisimo_Backups::service_backups() as $row ) if ( $row['file'] === $file ) return $row;
 	return null;
@@ -255,7 +280,7 @@ try {
 		n2s_check( $row && true === $row['restorable'] && true === $row['uploaded']['restorable_here'] && 'network' === $row['scope'], 'La fila no es restaurable aquí: ' . json_encode( $row ) );
 		$sites = (array) $row['network_sites'];
 		n2s_check( array( 1 => 'red.test', 2 => 'red.test/dos', 3 => 'red.test/tres' ) === $sites, 'La fila no lista los sitios de la red: ' . json_encode( $sites ) );
-		$item = Digitalisimo_Backups::history_item( $file );
+		$item = n2s_item( $file );
 		$text = new ReflectionMethod( 'Digitalisimo_Backups', 'uploaded_blocked_text' );
 		if ( PHP_VERSION_ID < 80100 ) $text->setAccessible( true );
 		n2s_check( '' === $text->invoke( null, $item ), 'Sigue «No se restaura aquí»: ' . $text->invoke( null, $item ) );
@@ -311,7 +336,8 @@ try {
 			if ( '_wp_attachment_metadata' === $pm['meta_key'] ) n2s_check( WP_CONTENT_DIR . '/uploads/2026/11/foto.jpg' === maybe_unserialize( $pm['meta_value'] )['path'], 'La ruta de un medio no pasó a uploads/: ' . $pm['meta_value'] );
 		}
 		foreach ( $db->tables as $name => $table ) foreach ( $table['rows'] as $r ) foreach ( $r as $column => $value ) {
-			if ( 'guid' === $column || null === $value || Digitalisimo_Backups::LAST_RELOCATION === ( $r['option_name'] ?? '' ) ) continue;
+			// El informe de la reubicación y la lista de respaldos (con el subido de la red) nombran la red a propósito.
+			if ( 'guid' === $column || null === $value || 0 === strpos( (string) ( $r['option_name'] ?? '' ), 'digitalisimo_backups_' ) ) continue;
 			$value = str_replace( '@red.test', '', (string) $value );
 			n2s_check( false === strpos( $value, 'red.test/dos' ) && false === strpos( $value, 'uploads/sites/' ) && false === strpos( $value, 'secreto del sitio tres' ), 'Quedó algo de la red en ' . $name . '.' . $column . ': ' . substr( $value, 0, 160 ) );
 		}
@@ -325,11 +351,15 @@ try {
 		$safety = null;
 		foreach ( (array) get_option( Digitalisimo_Backups::HISTORY, array() ) as $row ) if ( 'pre-restore' === ( $row['policy'] ?? '' ) ) $safety = $row;
 		n2s_check( $safety && is_file( $store . '/' . $safety['file'] ) && ! empty( $safety['locked'] ), 'La copia previa no quedó bloqueada en el historial.' );
-		n2s_check( null !== Digitalisimo_Backups::history_item( $file ), 'El respaldo de la red salió de la lista.' );
+		n2s_check( null !== n2s_item( $file ), 'El respaldo de la red salió de la lista.' );
 		$GLOBALS['n2s_safety'] = $safety['file'];
 	} );
 
 	n2s_case( 'N4 restaurar después el sitio principal (sin site)', function() use ( $file, $db, $public ) {
+		// En esta prueba get_current_user_id() siempre es 1: quien restauró («destino», que N3 conservó con otro ID) vuelve a
+		// tener el 1, como su sesión en un WordPress real.
+		foreach ( $db->tables['dst_users']['rows'] as $i => $u ) if ( 'destino' === $u['user_login'] ) { $old = (int) $u['ID']; $db->tables['dst_users']['rows'][ $i ]['ID'] = '1'; }
+		foreach ( $db->tables['dst_usermeta']['rows'] as $i => $m ) if ( isset( $old ) && (int) $m['user_id'] === $old ) $db->tables['dst_usermeta']['rows'][ $i ]['user_id'] = '1';
 		$restored = Digitalisimo_Backups::service_restore( $file, array( 'confirm' => 'RESTAURAR' ) );
 		n2s_check( ! is_wp_error( $restored ) && true === $restored['restored'], 'La restauración del principal falló: ' . ( is_wp_error( $restored ) ? $restored->get_error_message() : json_encode( $restored ) ) );
 		$tables = array_keys( $db->tables );
@@ -339,7 +369,7 @@ try {
 		$logins = array();
 		foreach ( $db->rows( 'dst_users' ) as $u ) $logins[] = $u['user_login'];
 		sort( $logins );
-		n2s_check( array( 'destino', 'editora', 'jefa', 'red' ) === $logins, 'Los usuarios no son los del principal: ' . json_encode( $logins ) );
+		n2s_check( array( 'destino', 'editora', 'jefa', 'red' ) === $logins, 'Los usuarios no son los del principal: ' . json_encode( array( $logins, $restored['access'] ?? null ) ) );
 		n2s_check( is_file( $public . '/wp-content/uploads/2026/01/principal.jpg' ) && ! is_dir( $public . '/wp-content/uploads/sites' ) && ! is_file( $public . '/wp-content/uploads/2026/11/foto.jpg' ), 'Los medios del principal no quedaron sin sites/.' );
 		$page = $db->rows( 'dst_posts' )[0] ?? array();
 		n2s_check( false !== strpos( (string) ( $page['post_content'] ?? '' ), 'https://destino.test/wp-content/uploads/2026/01/principal.jpg' ), 'El contenido del principal no quedó con la URL de aquí.' );
@@ -360,7 +390,9 @@ try {
 		$restored = Digitalisimo_Backups::service_restore( $file, array( 'confirm' => 'RESTAURAR', 'site' => 2, 'parts' => array( 'database' ) ) );
 		n2s_check( ! is_wp_error( $restored ) && true === $restored['restored'], 'Sólo la base de datos del sitio 2 falló: ' . ( is_wp_error( $restored ) ? $restored->get_error_message() : json_encode( $restored ) ) );
 		n2s_check( n2s_tree( $public ) === $before_files, 'Restaurar sólo la base de datos cambió archivos.' );
-		n2s_check( 'tema-hijo' === get_option( 'stylesheet' ) && isset( $db->tables['dst_comments'] ) && ! isset( $db->tables['dst_global_plugin_log'] ), 'La base de datos no es la del sitio 2.' );
+		$titles = array_column( $db->rows( 'dst_posts' ), 'post_title' );
+		sort( $titles );
+		n2s_check( 'tema-hijo' === get_option( 'stylesheet' ) && array( 'Entrada de solo2', 'Inicio dos', 'foto' ) === $titles, 'La base de datos no es la del sitio 2: ' . json_encode( array( get_option( 'stylesheet' ), $titles ) ) );
 	} );
 
 	n2s_case( 'N6 rechazos sin tocar nada: sitio que no existe, site en otro respaldo, sites en vez de site', function() use ( $file, $db, $public, $store ) {

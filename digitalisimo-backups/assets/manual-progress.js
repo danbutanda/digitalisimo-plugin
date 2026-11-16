@@ -159,13 +159,15 @@
 
   function kindOf(job) {
     if (job.kind === 'restore') return job.rollback_of || job.origin_label === 'Vuelta a la copia previa' ? 'rollback' : 'restore';
-    if (job.kind === 'chain' || job.kind === 'import' || job.kind === 'migration') return job.kind;
+    if (job.kind === 'chain' || job.kind === 'convert' || job.kind === 'import' || job.kind === 'migration') return job.kind;
     return 'backup';
   }
-  function restoring(kind) { return kind === 'restore' || kind === 'rollback' || kind === 'chain'; }
+  function restoring(kind) { return kind === 'restore' || kind === 'rollback' || kind === 'chain' || kind === 'convert'; }
   var TITLES = {
     backup: ['Respaldo en curso', 'Respaldo terminado', 'El respaldo no se completó', 'Respaldo cancelado'],
     chain: ['Preparando la restauración del punto incremental', 'Punto incremental reconstruido', 'El punto incremental no se pudo reconstruir', 'Restauración cancelada'],
+    /* El respaldo de una red en un WordPress individual: la conversión del sitio elegido, antes de su restauración. */
+    convert: ['Convirtiendo el sitio de la red en este WordPress', 'Sitio de la red convertido', 'El sitio de la red no se pudo convertir', 'Restauración cancelada'],
     restore: ['Restauración en curso', 'Restauración terminada', 'La restauración no se completó', 'Restauración cancelada', 'La restauración falló a mitad del cambio'],
     rollback: ['Volviendo a la copia previa', 'El sitio volvió a la copia previa', 'La vuelta a la copia previa no terminó', 'Vuelta a la copia previa cancelada', 'La vuelta a la copia previa no terminó'],
     import: ['Importación en curso', 'Importación terminada', 'La importación no se completó', 'Importación cancelada'],
@@ -321,14 +323,14 @@
     if (sessionLost) paragraph('Esta pestaña perdió la sesión con el cambio de tablas (la restauración repuso los usuarios del respaldo): inicia sesión para ver el resultado completo.', 'digitalisimo-backups-warning');
   }
   /* Pinta un trabajo en el panel. */
-  /* La reconstrucción de un punto incremental ocupa el primer 20 % de la barra y su restauración, el resto: la barra sigue
-     de una a otra sin volver a empezar. */
-  function span(job) { return job.kind === 'chain' ? [0, 20] : (job.from_point ? [20, 100] : [0, 100]); }
+  /* La reconstrucción de un punto incremental (o la conversión del sitio de una red) ocupa el primer 20 % de la barra y su
+     restauración, el resto: la barra sigue de una a otra sin volver a empezar. */
+  function span(job) { return job.kind === 'chain' || job.kind === 'convert' ? [0, 20] : (job.from_point ? [20, 100] : [0, 100]); }
   function scaled(job, value) { var range = span(job); return Math.round(range[0] + (range[1] - range[0]) * Math.max(0, Math.min(100, Number(value) || 0)) / 100); }
   function paint(job) {
     if (!panel) return;
     var kind = kindOf(job);
-    if (!watch || watch.id !== job.id) watch = { id: job.id, kind: kind, origin: watch ? watch.base : 0, base: Date.now(), created: watch && watch.created || job.created_label || '', track: watch && watch.track, failed: watch && watch.failed, end: 0, ticks: watch && watch.ticks, top: watch && watch.kind === 'chain' ? watch.top : 0, phase: '', at: -1 };
+    if (!watch || watch.id !== job.id) watch = { id: job.id, kind: kind, origin: watch ? watch.base : 0, base: Date.now(), created: watch && watch.created || job.created_label || '', track: watch && watch.track, failed: watch && watch.failed, end: 0, ticks: watch && watch.ticks, top: watch && (watch.kind === 'chain' || watch.kind === 'convert') ? watch.top : 0, phase: '', at: -1 };
     /* El tiempo lo da el servidor (desde que se encoló); en una sucesión de trabajos, desde el primero. */
     if (job.elapsed !== undefined && !watch.end) watch.base = Date.now() - (Number(job.elapsed) || 0) * 1000;
     if (watch.origin) watch.base = Math.min(watch.origin, watch.base);
@@ -561,7 +563,7 @@
     });
   }
   function cancelJob(id, target, kind) {
-    var texts = { restore: '¿Cancelar la restauración? Lo preparado se retira y el sitio queda como estaba; la copia previa, si ya está, se conserva.', chain: '¿Cancelar la restauración del punto incremental? El sitio no se tocó.' };
+    var texts = { restore: '¿Cancelar la restauración? Lo preparado se retira y el sitio queda como estaba; la copia previa, si ya está, se conserva.', chain: '¿Cancelar la restauración del punto incremental? El sitio no se tocó.', convert: '¿Cancelar la restauración del sitio de la red? El sitio no se tocó.' };
     if (!window.confirm(texts[kind] || '¿Cancelar este respaldo? Lo que lleva hecho se descarta; un respaldo ya verificado se conserva en el historial.')) return;
     if (target) target.disabled = true;
     request('digitalisimo_backups_job_cancel', { id: id }, config.jobsNonce).then(function (data) {
