@@ -206,8 +206,10 @@ async function confirmRow(row, { memory = RESTORE_MEMORY, label = 'restauración
   await sleep(400);
   await shot(`${label}-empieza`);
   await navigation;
-  // Lo que sigue de la restauración (los ticks del panel), con RESTORE_MEMORY.
+  // Lo que sigue de la restauración (los ticks del panel), con RESTORE_MEMORY. Lo que corrió antes con 64 MB a propósito
+  // (la ventana de la petición que la empieza) no cuenta en el recuento de memoria del final.
   labMemory(RESTORE_MEMORY);
+  if (memory === '64M') memorySwitch = Date.now() / 1000;
   page.off('request', hold);
   await page.setRequestInterception(false);
   const starting = await page.evaluate(() => JSON.parse(sessionStorage.getItem('digi-starting') || 'null')).catch(() => null);
@@ -305,6 +307,7 @@ async function gate() {
 
 const start = Date.now();
 let memoryMark = 0;
+let memorySwitch = 0;
 let fatalMark = 0;
 // Modo «start» (para comparar con otra versión del plugin, sin el panel nuevo): un respaldo con el botón y «Restaurar»
 // desde su fila; anota a qué página llega el navegador y los errores fatales de PHP.
@@ -347,7 +350,9 @@ if (mode === 'start') {
 try {
   check(await login(), 'inicio de sesión de admin');
   const original = await lab('inventory');
-  // 0) La puerta del mantenimiento con el testigo (verificación N1 y N2), antes de que haya ninguna restauración.
+  // 0) La puerta del mantenimiento con el testigo (verificación N1 y N2), antes de que haya ninguna restauración. Desde la
+  // portada (el escritorio pediría sus widgets, que en php-wasm con 64 MB agotan la memoria).
+  await page.goto(`${base}/`, { waitUntil: 'load' });
   await gate();
 
   // 1) Respaldar ahora. Sus peticiones, con BACKUP_MEMORY (128M por defecto, como el respaldo de referencia de
@@ -504,7 +509,10 @@ try {
   const memory = existsSync(`${dir}/ctl/memory.jsonl`) ? readFileSync(`${dir}/ctl/memory.jsonl`, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : [];
   // Los ticks de las restauraciones (con nonce o con el testigo): todos con los 64 MB del propietario.
   // Sólo las que empezaron con una restauración en curso: terminada, la cola vuelve al tick con nonce (revisión B3).
-  const restoring = memory.slice(memoryMark).filter((r) => r.restoring !== false);
+  const before = (r) => memorySwitch && r.start && r.start < memorySwitch;
+  const early = memory.slice(memoryMark).filter((r) => r.restoring !== false && before(r));
+  if (early.length) log(`· ${early.length} petición(es) de la restauración empezaron antes de volver a ${RESTORE_MEMORY} (la ventana de la petición que la empieza con 64 MB a propósito): ${early.map((r) => `${r.action} ${r.limit}${r.error ? ' ' + r.error.slice(0, 60) : ''}`).join('; ')}`);
+  const restoring = memory.slice(memoryMark).filter((r) => r.restoring !== false && !before(r));
   const died = restoring.filter((r) => /Allowed memory|Maximum execution/.test(r.error || ''));
   log(`· ${restoring.length} peticiones hicieron avanzar las restauraciones (${restoring.filter((r) => r.action === 'digitalisimo_backups_restore_tick').length} con el testigo), con memory_limit ${[...new Set(restoring.map((r) => r.limit))].join('/')}; pico ${Math.max(0, ...restoring.map((r) => r.peak)) / 1048576} MB; ${died.length} murieron por memoria o tiempo`);
   check(restoring.length > 0 && restoring.every((r) => r.limit === RESTORE_MEMORY), `las peticiones de las restauraciones corrieron con memory_limit=${RESTORE_MEMORY}`, JSON.stringify(restoring.filter((r) => r.limit !== RESTORE_MEMORY).slice(0, 3)));

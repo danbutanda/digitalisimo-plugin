@@ -51,7 +51,7 @@ add_action( 'plugins_loaded', static function () { try { $GLOBALS['digi_parts_re
 register_shutdown_function( static function () {
 	$action = (string) ( $_REQUEST['action'] ?? '' );
 	if ( ! in_array( $action, array( 'digitalisimo_backups_job_tick', 'digitalisimo_backups_manual_start', 'digitalisimo_backups_restore_tick' ), true ) && false === strpos( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'wp-cron.php' ) ) return;
-	file_put_contents( '/digi-ctl/memory.jsonl', json_encode( array( 'action' => '' !== $action ? $action : 'wp-cron', 'peak' => memory_get_peak_usage(), 'peak_real' => memory_get_peak_usage( true ), 'limit' => ini_get( 'memory_limit' ), 'loaded' => $GLOBALS['digi_parts_loaded'] ?? null, 'restoring' => $GLOBALS['digi_parts_restoring'] ?? null, 'included' => count( get_included_files() ), 'error' => (string) ( error_get_last()['message'] ?? '' ) ) ) . "\n", FILE_APPEND );
+	file_put_contents( '/digi-ctl/memory.jsonl', json_encode( array( 'action' => '' !== $action ? $action : 'wp-cron', 'peak' => memory_get_peak_usage(), 'peak_real' => memory_get_peak_usage( true ), 'limit' => ini_get( 'memory_limit' ), 'loaded' => $GLOBALS['digi_parts_loaded'] ?? null, 'restoring' => $GLOBALS['digi_parts_restoring'] ?? null, 'start' => (float) ( $_SERVER['REQUEST_TIME_FLOAT'] ?? 0 ), 'included' => count( get_included_files() ), 'error' => (string) ( error_get_last()['message'] ?? '' ) ) ) . "\n", FILE_APPEND );
 } );
 add_action( 'init', static function () {
 	if ( empty( $_GET['digi_parts'] ) || ! hash_equals( trim( (string) @file_get_contents( '/digi-probe/token.txt' ) ), (string) ( $_GET['token'] ?? '' ) ) ) return;
