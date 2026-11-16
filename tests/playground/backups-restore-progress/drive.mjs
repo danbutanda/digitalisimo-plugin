@@ -346,9 +346,9 @@ async function halfChanged() {
   check(atLogin, 'medio: sin la sesión, Backups lleva a wp-login.php y, con el testigo, se puede entrar (verificación final N9)', `${page.url()} · ${(await page.evaluate(() => document.title).catch(() => ''))}`);
   if (!atLogin) return;
   await shot('medio-entrar', false);
-  await page.$eval('#user_login', (input) => { input.value = ''; });
-  await page.type('#user_login', 'admin');
-  await page.type('#user_pass', 'password');
+  // Los valores directamente: el foco que pone wp-login.php a los 200 ms (y su select()) puede comerse lo que se teclea.
+  await sleep(500);
+  await page.evaluate(() => { document.getElementById('user_login').value = 'admin'; document.getElementById('user_pass').value = 'password'; });
   await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 120_000 }).catch(() => null), page.click('#wp-submit')]);
   const back = await page.evaluate(() => {
     const panelForm = document.getElementById('digitalisimo-backups-progress-rollback');
