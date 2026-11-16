@@ -350,6 +350,8 @@ jobs:
           php tests/backups-cli-verify.php
           php tests/backups-upload-retention.php
           php tests/backups-upload-cli.php
+          php tests/backups-uploaded-list.php
+          php tests/backups-uploaded-chain.php
           php tests/backups-pre-update.php
           php tests/backups-pre-update-review.php
           node tests/backups-pre-update-ui.mjs

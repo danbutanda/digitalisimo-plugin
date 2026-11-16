@@ -31,7 +31,9 @@ function setup({ stored = {}, server, statusAfter }) {
   const submit = node('button'); const cancel = node('button'); const bar = node('progress'); const status = node('p');
   form.hidden = true;
   form.selectors = { 'input[type="file"]': input, 'input[name="digitalisimo_backups_upload_secret"]': secret, 'button[type="submit"]': submit, '[data-upload-cancel]': cancel, 'progress': bar, '.digitalisimo-backups-upload-status': status };
-  const card = node('section'); card.selectors = { '.digitalisimo-backups-upload-form': form };
+  // El enlace «Ver en la lista de respaldos», oculto hasta que el respaldo subido está en la lista.
+  const listed = node('p'); listed.hidden = true;
+  const card = node('section'); card.selectors = { '.digitalisimo-backups-upload-form': form, '[data-upload-list]': listed };
   const requests = [];
   const storage = { data: { ...stored }, getItem(k) { return k in this.data ? this.data[k] : null; }, setItem(k, v) { this.data[k] = String(v); }, removeItem(k) { delete this.data[k]; } };
   const waits = [];
@@ -49,7 +51,7 @@ function setup({ stored = {}, server, statusAfter }) {
     },
   };
   runInNewContext(script, context);
-  return { form, status, bar, submit, storage, requests, waits };
+  return { form, status, bar, submit, storage, requests, waits, listed };
 }
 async function run(ui) {
   ui.form.listeners.submit({ preventDefault() {} });
@@ -102,6 +104,7 @@ assert.ok(!('secret' in ui.requests[1]), 'La frase no viaja con los fragmentos')
 assert.match(ui.status.textContent, /^Respaldo subido y verificado: digitalisimo-backup-sitio\.zip\. Para restaurarlo escribe RESTAURAR SIN FIRMA\. <img src=x onerror=alert\(1\)> /, 'El resultado no se pintó como texto');
 assert.equal(ui.bar.value, 100);
 assert.deepEqual(Object.keys(ui.storage.data), [], 'Una subida terminada sigue recordada para reanudarse');
+assert.equal(ui.listed.hidden, true, 'Sin estar en la lista, se mostró el enlace a la lista');
 
 // 2. Una respuesta perdida (el servidor ya tiene el fragmento) y un corte de red: 409 corrige el desplazamiento y el
 // corte se reintenta con espera, sin duplicar ni saltarse bytes.
@@ -263,4 +266,16 @@ assert.deepEqual(Object.values(ui.storage.data), ['sesion-1'], 'Una subida conse
   assert.match(status.textContent, /^Respaldo subido y verificado: f\.zip/);
 }
 
-console.log('DIGITALÍSIMO Backups: la subida por fragmentos corrige el desplazamiento, reintenta con espera, se reanuda tras recargar, pinta texto y la barra llega a 100 % «verificado» aunque la respuesta del cierre no llegue.');
+// 9. Desde 2026-11-15 lo subido queda en la lista de respaldos: el resultado lo dice (sin «sin registro»), pide RESTAURAR
+// y deja a la vista el enlace a la lista; el mismo contenido otra vez dice que ya estaba.
+for (const duplicate of [false, true]) {
+  const sl = server({ failures: { 6: () => ({ status: 200, body: { success: true, data: { file: 'digitalisimo-backup-sitio.zip', listed: true, duplicate, vouched: 'uploaded', confirmation: 'RESTAURAR', needs_secret: false, problems: [] } } }) } });
+  ui = setup({ server: sl.handle });
+  await run(ui);
+  const head = duplicate ? 'Ese mismo respaldo ya estaba en la lista: no se guardó otra copia\\.' : 'Ya está en la lista de respaldos \\(pestaña «Respaldos»\\), marcado «Subido»\\.';
+  assert.match(ui.status.textContent, new RegExp('^Respaldo subido y verificado: digitalisimo-backup-sitio\\.zip\\. ' + head + ' Para restaurarlo escribe RESTAURAR\\.$'), 'El resultado no dice que está en la lista: ' + ui.status.textContent);
+  assert.ok(!/sin registro|SIN FIRMA/.test(ui.status.textContent), 'El resultado de lo subido aún habla de «sin registro»: ' + ui.status.textContent);
+  assert.equal(ui.listed.hidden, false, 'No se mostró el enlace a la lista de respaldos');
+}
+
+console.log('DIGITALÍSIMO Backups: la subida por fragmentos corrige el desplazamiento, reintenta con espera, se reanuda tras recargar, pinta texto, la barra llega a 100 % «verificado» aunque la respuesta del cierre no llegue y lo subido queda en la lista.');
