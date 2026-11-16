@@ -475,6 +475,20 @@ bp_case( 'R10 · sin sesión, un reintento no lleva el error (N4); la marca de l
 	$_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] = $token;
 	try { $html = bp_render( 'backups' ); } finally { unset( $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] ); }
 	bp_check( false !== strpos( $html, 'window.digitalisimoBackupsRestore' ) && false === strpos( $html, $token ), 'La pantalla copia el testigo al HTML (o no sigue con el tick por testigo).' );
+	// Cuánto hace que terminó (la pantalla sólo enseña como recién terminada la de hace minutos, N2).
+	$ago = $J::screen_view( Digitalisimo_Backups_Job_Store::write( array_replace( $failed, array( 'finished_at' => time() - 3 * 86400 ) ) ) )['finished_ago'];
+	bp_check( $ago >= 3 * 86400 && $ago < 3 * 86400 + 30 && null === $J::screen_view( Digitalisimo_Backups_Jobs::get( $back['id'] ) )['finished_ago'], 'La vista no dice cuánto hace que terminó: ' . json_encode( $ago ) );
+	bp_clear_jobs();
+	// La consulta ligera del estado (cada 30 s) sólo lee: no pasa por el detector, que sí corre en la consulta normal (N6).
+	$stuck = bp_job( 'backup', $J::spec( array( 'policy' => 'manual', 'destination' => 'local' ) ), array( 'phase' => 'pack', 'status' => 'running', 'lease' => array( 'owner' => 'otro-proceso', 'host' => bk_call( $J, 'host' ), 'heartbeat_at' => time() ) ) );
+	$status = function( array $post ) use ( $J ) {
+		$_POST = $post + array( 'nonce' => 'nonce-digitalisimo_backups_jobs-a', 'context' => 'site' );
+		try { $J::ajax_status(); } catch ( Bp_Json $json ) { unset( $json ); } finally { $_POST = array(); }
+	};
+	$status( array( 'peek' => '1' ) );
+	bp_check( ! empty( Digitalisimo_Backups_Jobs::get( $stuck['id'] )['lease'] ), 'La consulta ligera del estado pasa por el detector (toma el cerrojo y cambia trabajos).' );
+	$status( array() );
+	bp_check( empty( Digitalisimo_Backups_Jobs::get( $stuck['id'] )['lease'] ), 'La consulta normal del estado ya no pasa por el detector (el control de esta prueba).' );
 	bp_clear_jobs();
 } );
 
