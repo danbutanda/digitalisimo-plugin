@@ -280,10 +280,10 @@
   function paint(job) {
     if (!panel) return;
     var kind = kindOf(job);
-    if (!watch || watch.id !== job.id) {
-      var base = Date.now() - (Number(job.elapsed) || 0) * 1000;
-      watch = { id: job.id, kind: kind, base: watch ? Math.min(watch.base, base) : base, created: watch && watch.created || job.created_label || '', track: watch && watch.track, failed: watch && watch.failed, end: 0, ticks: watch && watch.ticks };
-    }
+    if (!watch || watch.id !== job.id) watch = { id: job.id, kind: kind, origin: watch ? watch.base : 0, base: Date.now(), created: watch && watch.created || job.created_label || '', track: watch && watch.track, failed: watch && watch.failed, end: 0, ticks: watch && watch.ticks };
+    /* El tiempo lo da el servidor (desde que se encoló); en una sucesión de trabajos, desde el primero. */
+    if (job.elapsed !== undefined && !watch.end) watch.base = Date.now() - (Number(job.elapsed) || 0) * 1000;
+    if (watch.origin) watch.base = Math.min(watch.origin, watch.base);
     watch.kind = kind;
     if (job.track && job.track.length) watch.track = job.track;
     var track = watch.track || [];
