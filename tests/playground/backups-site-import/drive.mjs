@@ -104,12 +104,15 @@ async function go(path) {
   return res ? res.status() : 0;
 }
 async function login() {
-  for (let attempt = 0; attempt < 2 && !/wp-admin/.test(page.url()); attempt++) {
-    await page.goto(`${base}/wp-login.php`, { waitUntil: 'load', timeout: 120_000 }).catch(() => {});
-    if (!(await page.$('#user_login'))) continue;
-    await page.type('#user_login', 'admin');
-    await page.type('#user_pass', 'password');
-    await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 120_000 }).catch(() => null), page.click('#wp-submit')]);
+  // Con la PC cargada, el primer intento puede escribir antes de que el formulario esté listo: hasta cuatro intentos.
+  for (let attempt = 0; attempt < 4 && !/wp-admin/.test(page.url()); attempt++) {
+    await page.goto(`${base}/wp-login.php?redirect_to=${encodeURIComponent(`${base}/wp-admin/network/`)}`, { waitUntil: 'load', timeout: 180_000 }).catch(() => {});
+    if (!(await page.waitForSelector('#user_login', { timeout: 60_000 }).catch(() => null))) continue;
+    await sleep(800);
+    await page.$eval('#user_login', (i) => { i.value = 'admin'; });
+    await page.$eval('#user_pass', (i) => { i.value = 'password'; });
+    await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 180_000 }).catch(() => null), page.click('#wp-submit')]);
+    await sleep(1000);
   }
   return check(/wp-admin/.test(page.url()), 'el superadministrador entra a la red', page.url());
 }
