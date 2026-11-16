@@ -23,6 +23,7 @@
 .digitalisimo-backups-badge.is-signed { border-color: var(--digi-blue); color: var(--digi-blue-dark); }
 .digitalisimo-backups-badge.is-encrypted { border-color: transparent; background: var(--digi-gradient-badge); color: #fff; }
 .digitalisimo-backups-badge.is-warning { border-color: var(--digi-pink-dark, #c72f91); color: var(--digi-pink-dark, #c72f91); }
+.digitalisimo-backups-badge.is-uploaded { background: transparent; font-weight: 500; }
 .digitalisimo-backups-badge.is-encrypted.is-locked { border-color: var(--digi-pink-dark); background: var(--digi-tint); color: var(--digi-pink-dark); }
 @media (max-width: 782px) { .digitalisimo-backups-grid { grid-template-columns: 1fr; } .digitalisimo-backups-jobs table { display: block; overflow-x: auto; } }
 /* Pantalla «Servidores»: conexiones, campos guiados, advertencias y resultado de «Probar conexión» (sólo tokens). */

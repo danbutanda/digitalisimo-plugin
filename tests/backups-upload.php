@@ -5,8 +5,8 @@
  * Con el motor real: la subida vive en el almacén privado (nunca en wp-content/uploads ni en una ruta servida), cada
  * fragmento se anexa sólo en el byte que la sesión espera (un fragmento repetido o fuera de orden responde 409 con lo
  * recibido y el cliente sigue desde ahí), nunca pasa del tamaño declarado ni del tamaño de fragmento, y al terminar el
- * archivo pasa la validación de archivos no confiables antes de entrar en el almacén como «sin registro»: un archivo
- * hostil, alterado o con otro SHA-256 se descarta sin llegar nunca al almacén. Pide capability y nonce (pantalla) o la
+ * archivo pasa la validación de archivos no confiables antes de entrar en el almacén y en la lista de respaldos
+ * («Subido», 2026-11-15): un archivo hostil, alterado o con otro SHA-256 se descarta sin llegar nunca al almacén. Pide capability y nonce (pantalla) o la
  * autenticación de REST, es de la cuenta que la empezó y, en una red, del sitio principal.
  */
 $root = sys_get_temp_dir() . '/digitalisimo-upload-' . bin2hex( random_bytes( 4 ) );
@@ -169,30 +169,43 @@ try {
 	digi_assert( 400 === $code && 'digitalisimo_backups_upload_overflow' === $error['code'], 'Se aceptó un byte más allá del tamaño declarado.' );
 	digi_assert( array() === $stored(), 'El respaldo entró en el almacén antes de terminar y validarse.' );
 
-	// 4. Terminar: validación de archivo no confiable y entrada en el almacén como «sin registro».
+	// 4. Terminar: validación de archivo no confiable y entrada en el almacén y en la lista («Subido», con su SHA-256).
 	list( $code, $result ) = digi_rest( 'POST', $ns . '/uploads/' . $id . '/finish' );
-	digi_assert( 200 === $code && $name === $result['file'] && true === $result['verified'] && false === $result['registered'] && 'untrusted' === $result['trust'] && 'RESTAURAR SIN FIRMA' === $result['confirmation'] && true === $result['compatible'], 'La subida terminada no es la esperada: ' . json_encode( $result ) );
-	digi_assert( hash( 'sha256', $bytes ) === hash_file( 'sha256', $store . '/' . $name ) && ! is_file( $dir . '/data.bin' ) && 'done' === $U::read( $id )['phase'] && array() === (array) get_option( $B::HISTORY, array() ), 'El archivo del almacén no es el subido, quedaron sus bytes en la sesión o se creó una fila.' );
+	digi_assert( 200 === $code && $name === $result['file'] && true === $result['verified'] && true === $result['registered'] && true === $result['listed'] && 'untrusted' === $result['trust'] && 'uploaded' === $result['vouched'] && 'RESTAURAR' === $result['confirmation'] && true === $result['compatible'] && ! isset( $result['_row'] ), 'La subida terminada no es la esperada: ' . json_encode( $result ) );
+	$history = (array) get_option( $B::HISTORY, array() );
+	digi_assert( hash( 'sha256', $bytes ) === hash_file( 'sha256', $store . '/' . $name ) && ! is_file( $dir . '/data.bin' ) && 'done' === $U::read( $id )['phase'] && 1 === count( $history ) && $name === $history[0]['file'] && 'uploaded' === $history[0]['origin'] && hash( 'sha256', $bytes ) === $history[0]['sha256'], 'El archivo del almacén no es el subido, quedaron sus bytes en la sesión o no quedó su fila «Subido»: ' . json_encode( $history ) );
 	// P1: repetir el cierre (la respuesta se perdió tras un corte del proxy) devuelve lo mismo y nunca duplica la subida.
 	list( $code, $again ) = digi_rest( 'POST', $ns . '/uploads/' . $id . '/finish' );
 	list( , $state_view ) = digi_rest( 'GET', $ns . '/uploads/' . $id );
 	digi_assert( 200 === $code && $result === $again && 'done' === $state_view['phase'] && $name === $state_view['result']['file'] && 1 === count( glob( $store . '/digitalisimo-*.zip' ) ), 'Repetir el cierre no devolvió el mismo resultado o duplicó la subida: ' . json_encode( array( $again, $state_view ) ) );
-	digi_assert( in_array( $name, $loose(), true ), 'El respaldo subido no aparece en «Restaurar» como «sin registro».' );
-	$error = $B::service_restore( $name, array( 'confirm' => 'RESTAURAR' ) );
-	digi_assert( is_wp_error( $error ) && false !== strpos( $error->get_error_message(), 'RESTAURAR SIN FIRMA' ), 'Un respaldo subido se restauró como si fuera de este sitio.' );
+	digi_assert( ! in_array( $name, $loose(), true ), 'El respaldo subido sigue en «Restaurar» como «sin registro».' );
 	$GLOBALS['wpdb']->set( 'blogname', 'Cambiado' );
+	$restored = $B::service_restore( $name, array( 'confirm' => 'RESTAURAR' ) );
+	digi_assert( ! is_wp_error( $restored ) && 'untrusted' === $restored['trust'] && 'uploaded' === $restored['vouched'] && 'Sitio de prueba' === $GLOBALS['wpdb']->value( 'blogname' ), 'El respaldo subido no se restauró con RESTAURAR: ' . json_encode( is_wp_error( $restored ) ? $restored->get_error_message() : $restored ) );
+	// Una frase de sin firma escrita de más también vale (no es más débil).
 	$restored = $B::service_restore( $name, array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
-	digi_assert( ! is_wp_error( $restored ) && 'untrusted' === $restored['trust'] && 'Sitio de prueba' === $GLOBALS['wpdb']->value( 'blogname' ), 'El respaldo subido no se restauró con RESTAURAR SIN FIRMA.' );
+	digi_assert( ! is_wp_error( $restored ), 'RESTAURAR SIN FIRMA no se aceptó para un respaldo subido.' );
 
-	// 5. Nombres: uno ocupado o de una fila del historial nunca se reutiliza (no hereda la confianza de la fila).
+	// 5. El mismo contenido otra vez no se duplica: ya está en la lista.
 	list( $code, $again ) = $upload( $name, $bytes );
-	digi_assert( 200 === $code && $name !== $again['file'] && preg_match( '/^digitalisimo-upload-\d{8}-\d{6}-[0-9a-f]{8}\.zip$/', $again['file'] ), 'Una subida con el nombre de otro archivo lo pisó: ' . json_encode( $again ) );
+	digi_assert( 200 === $code && $name === $again['file'] && true === $again['duplicate'] && 1 === count( glob( $store . '/digitalisimo-*.zip' ) ) && 1 === count( array_filter( (array) get_option( $B::HISTORY, array() ), function( $row ) { return 'uploaded' === ( $row['origin'] ?? '' ); } ) ), 'El mismo respaldo subido otra vez se duplicó: ' . json_encode( $again ) );
+	// Nombres: uno ocupado o de una fila del historial nunca se reutiliza (no toma la fila ni la confianza de otro).
+	$fresh = function() use ( $B, $store ) {
+		$made = digi_backup();
+		$content = file_get_contents( $store . '/' . $made['file'] );
+		unlink( $store . '/' . $made['file'] );
+		update_option( $B::HISTORY, array_values( array_filter( (array) get_option( $B::HISTORY, array() ), function( $row ) use ( $made ) { return $row['file'] !== $made['file']; } ) ) );
+		return $content;
+	};
+	list( $code, $again ) = $upload( $name, $fresh() );
+	digi_assert( 200 === $code && $name !== $again['file'] && preg_match( '/^digitalisimo-upload-\d{8}-\d{6}-[0-9a-f]{8}\.zip$/', $again['file'] ) && false === $again['duplicate'], 'Una subida con el nombre de otro archivo lo pisó: ' . json_encode( $again ) );
 	$registered = digi_backup();
 	unlink( $store . '/' . $registered['file'] );
-	list( $code, $other ) = $upload( $registered['file'], $bytes );
+	list( $code, $other ) = $upload( $registered['file'], $fresh() );
 	digi_assert( 200 === $code && $registered['file'] !== $other['file'] && 'untrusted' === $other['trust'], 'Una subida tomó el nombre de una fila del historial: ' . json_encode( $other ) );
-	list( $code, $renamed ) = $upload( 'mi copia (1).zip', $bytes );
-	digi_assert( 200 === $code && 0 === strpos( $renamed['file'], 'digitalisimo-upload-' ) && in_array( $renamed['file'], $loose(), true ), 'Un nombre libre no quedó visible en «Restaurar»: ' . json_encode( $renamed ) );
+	list( $code, $renamed ) = $upload( 'mi copia (1).zip', $fresh() );
+	$listed = array_column( (array) get_option( $B::HISTORY, array() ), 'origin', 'file' );
+	digi_assert( 200 === $code && 0 === strpos( $renamed['file'], 'digitalisimo-upload-' ) && 'uploaded' === ( $listed[ $renamed['file'] ] ?? '' ) && ! in_array( $renamed['file'], $loose(), true ), 'Un nombre libre no quedó en la lista: ' . json_encode( $renamed ) );
 
 	// 6. Archivos hostiles: se descartan y nunca llegan al almacén.
 	$before = $stored();
@@ -219,7 +232,8 @@ try {
 	}
 	list( $code, $error, $upload_id ) = $upload( 'digitalisimo-sha.zip', $bytes, array( 'sha256' => str_repeat( 'a', 64 ) ) );
 	digi_assert( 422 === $code && 'digitalisimo_backups_upload_checksum' === $error['code'] && $before === $stored() && ! is_file( $store . '/incoming/' . $upload_id . '/data.bin' ), 'Un archivo con otro SHA-256 no se descartó.' );
-	list( $code, $ok_sha ) = $upload( 'digitalisimo-sha.zip', $bytes, array( 'sha256' => hash( 'sha256', $bytes ) ) );
+	$sha_bytes = $fresh();
+	list( $code, $ok_sha ) = $upload( 'digitalisimo-sha.zip', $sha_bytes, array( 'sha256' => hash( 'sha256', $sha_bytes ) ) );
 	digi_assert( 200 === $code && 'digitalisimo-sha.zip' === $ok_sha['file'], 'Un archivo con su SHA-256 correcto no se aceptó.' );
 	foreach ( array( array( 'name' => 'respaldo.php', 'size' => 10 ), array( 'name' => 'respaldo.zip', 'size' => 0 ), array( 'name' => 'respaldo.zip', 'size' => 10, 'sha256' => 'xyz' ) ) as $bad ) {
 		list( $code ) = digi_rest( 'POST', $ns . '/uploads', $bad );
@@ -387,7 +401,9 @@ try {
 	list( $code, $error, $upload_id ) = $upload( 'digitalisimo-firmado.zip', $signed_bytes, array( 'finish' => array( 'secret' => 'una frase que no es' ) ) );
 	digi_assert( 400 === $code && 'digitalisimo_backups_secret_wrong' === $error['code'] && is_file( $store . '/incoming/' . $upload_id . '/data.bin' ) && false === strpos( $error['message'], 'no supera la validación' ) && false === strpos( json_encode( $error ), 'una frase que no es' ), 'Una frase equivocada en un ZIP firmado descartó la subida: ' . json_encode( $error ) );
 	list( $code, $unsigned ) = digi_rest( 'POST', $ns . '/uploads/' . $upload_id . '/finish' );
-	digi_assert( 200 === $code && 'untrusted' === $unsigned['trust'] && 'needs_key' === $unsigned['signature'], 'Sin frase, el ZIP firmado conservado no se aceptó como no confiable: ' . json_encode( $unsigned ) );
+	// Es un respaldo hecho aquí (su fila tiene ese SHA-256): sin la clave, su firma no se comprueba, pero la confianza y la
+	// palabra son las de su fila, como al verificarlo (B1 de la revisión de backups/uploaded-in-list).
+	digi_assert( 200 === $code && true === $unsigned['duplicate'] && 'provenance' === $unsigned['trust'] && 'RESTAURAR' === $unsigned['confirmation'] && 'needs_key' === $unsigned['signature'], 'Sin frase, el ZIP firmado conservado no se aceptó con la confianza de su fila: ' . json_encode( $unsigned ) );
 	list( $code, $blind ) = $upload( 'copia-cifrada.zip', $dgbk );
 	digi_assert( 200 === $code && '.dgbk' === substr( $blind['file'], -5 ) && true === $blind['needs_secret'] && false === $blind['verified'] && Digitalisimo_Backups_Keys::short( $key ) === $blind['key'], 'Un .dgbk sin su frase no se aceptó con la cabecera comprobada: ' . json_encode( $blind ) );
 	list( $code, $error, $upload_id ) = $upload( 'copia-cifrada.dgbk', $dgbk, array( 'finish' => array( 'secret' => 'otra frase cualquiera' ) ) );
@@ -408,7 +424,7 @@ try {
 	list( $code, $error ) = digi_rest( 'POST', $ns . '/uploads', array( 'name' => 'digitalisimo-red.zip', 'size' => 10 ) );
 	digi_assert( 400 === $code && 'digitalisimo_backups_main_site' === $error['code'], 'Un subsitio empezó una subida al almacén de la red.' );
 
-	echo "DIGITALÍSIMO Backups: subida por fragmentos (pantalla y REST) al almacén privado, con reanudación, límites y validación de archivo no confiable antes de entrar como «sin registro».\n";
+	echo "DIGITALÍSIMO Backups: subida por fragmentos (pantalla y REST) al almacén privado, con reanudación, límites y validación de archivo no confiable antes de entrar en la lista como «Subido».\n";
 } finally {
 	digi_rmtree( $root );
 }

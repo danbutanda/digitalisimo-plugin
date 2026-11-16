@@ -222,7 +222,15 @@ final class Digitalisimo_Backups_Cli {
 		// Incrementales: cada punto es completo; la columna dice su lugar en la cadena, su base y lo que ahorra.
 		if ( 'json' !== ( $assoc_args['format'] ?? 'table' ) ) foreach ( $rows as &$row ) $row['chain'] = self::chain_text( $row['chain'] ?? null );
 		unset( $row );
-		self::rows( $rows, $assoc_args, self::fields( $assoc_args, array( 'file', 'date', 'size', 'type', 'destination', 'copies', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret', 'chain', 'notices' ) ) );
+		// De dónde vino: «subido de …», «agregado a mano» o vacío para los hechos aquí.
+		$labels = array( 'uploaded' => 'subido', 'added' => 'agregado a mano', 'imported' => 'importado' );
+		if ( 'json' !== ( $assoc_args['format'] ?? 'table' ) ) foreach ( $rows as &$row ) $row['origin'] = isset( $labels[ $row['origin'] ?? '' ] ) ? $labels[ $row['origin'] ] . ( '' !== (string) ( $row['uploaded']['home'] ?? '' ) ? ' de ' . $row['uploaded']['home'] : '' ) : '';
+		unset( $row );
+		// La columna `origin` sale por defecto sólo en la tabla: en csv, json o yaml, las columnas de siempre (un guion que
+		// las lea no recibe una más); se pide con --fields.
+		$default = array( 'file', 'date', 'size', 'type', 'destination', 'copies', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret', 'chain', 'notices' );
+		if ( 'table' === ( $assoc_args['format'] ?? 'table' ) ) $default[] = 'origin';
+		self::rows( $rows, $assoc_args, self::fields( $assoc_args, $default ) );
 	}
 	/** La cadena de una fila, como texto: «completo de su cadena» o «incremental 3 · base <archivo> · ahorra 120 MB». */
 	private static function chain_text( $chain ) {
@@ -345,6 +353,41 @@ final class Digitalisimo_Backups_Cli {
 	}
 
 	/**
+	 * Agrega a la lista de respaldos un archivo del almacén sin fila («sin registro»: subido con una versión anterior,
+	 * traído de un destino, importado de Backuply o copiado a mano). Lo comprueba antes como archivo no confiable, como
+	 * una subida, y queda marcado «Agregado»: se restaura con RESTAURAR. No se sabe quién puso el archivo en el almacén:
+	 * sin una firma válida de una clave de este sitio pide --confirm="AGREGAR SIN FIRMA". Si no pasa la comprobación,
+	 * sigue en el almacén.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <file>
+	 * : Nombre del archivo en el almacén privado (ver «Restaurar un archivo suelto» en la pantalla).
+	 *
+	 * --confirm=<confirm>
+	 * : AGREGAR SIN FIRMA (o AGREGAR, si está firmado con una clave de este sitio).
+	 *
+	 * [--network]
+	 * : En Multisite, confirma el alcance de red: la lista es la de toda la red.
+	 *
+	 * [--secret-file=<path>]
+	 * : Archivo con la frase o la clave de un respaldo cifrado o firmado con una clave que este sitio no tiene.
+	 *
+	 * [--secret-stdin]
+	 * : Lee esa frase o clave de la entrada estándar (en una terminal, sin mostrarla).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups register digitalisimo-backup-otro-com-20261106-120000-1a2b3c4d.zip --confirm="AGREGAR SIN FIRMA"
+	 *
+	 * @subcommand register
+	 */
+	public function register_backup( $args, $assoc_args ) {
+		$result = self::result( Digitalisimo_Backups::service_register( (string) ( $args[0] ?? '' ), array( 'secret' => self::secret( $assoc_args ), 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli' ) ) );
+		WP_CLI::success( 'Agregado a la lista de respaldos («Agregado»): ' . $result['file'] . '. Para restaurarlo: --confirm="' . $result['confirmation'] . '".' );
+		foreach ( (array) ( $result['problems'] ?? array() ) as $problem ) WP_CLI::warning( (string) $problem );
+	}
+	/**
 	 * Verifica un respaldo local sin tocar el sitio: firma, descifrado de un `.dgbk`, estructura, CRC y SHA-256 de cada
 	 * archivo contra su manifiesto y el SQL en seco, con las mismas comprobaciones que la restauración. Si viene de otra
 	 * dirección, carpeta del servidor o prefijo, dice «Origen → este sitio» y qué se reescribiría al restaurarlo. Como la
@@ -406,7 +449,7 @@ final class Digitalisimo_Backups_Cli {
 			if ( is_multisite() ) WP_CLI::log( 'Sitios con medios: ' . implode( ', ', (array) $available['sites'] ) . '.' );
 		}
 		if ( null !== ( $parts['selection'] ?? null ) ) self::parts_preview( $parts );
-		$trust = array( 'signed' => 'firmado' . ( '' !== $report['key'] ? ' con la clave ' . $report['key'] : '' ), 'provenance' => 'registrado en este sitio', 'untrusted' => 'sin firma ni registro: restaurarlo pide RESTAURAR SIN FIRMA' );
+		$trust = array( 'signed' => 'firmado' . ( '' !== $report['key'] ? ' con la clave ' . $report['key'] : '' ), 'provenance' => 'registrado en este sitio', 'untrusted' => 'uploaded' === ( $report['vouched'] ?? '' ) ? 'subido y en la lista, sin firma: se restaura con RESTAURAR' : 'sin firma ni registro: restaurarlo pide RESTAURAR SIN FIRMA' );
 		WP_CLI::success( 'Respaldo íntegro: ' . $report['file'] . ' (' . ( 'dgbk' === $report['container'] ? 'cifrado, ' : '' ) . $report['entries'] . ' entradas, SHA-256 ' . $report['sha256'] . ', ' . ( $trust[ $report['trust'] ] ?? $report['trust'] ) . ').' );
 		if ( empty( $report['compatible'] ) ) WP_CLI::warning( 'No se puede restaurar en esta instalación: ' . implode( ' ', (array) $report['problems'] ) );
 		elseif ( ! empty( $report['relocation']['needed'] ) ) WP_CLI::log( $report['relocation']['text'] );
@@ -1021,6 +1064,30 @@ final class Digitalisimo_Backups_Cli_Destinations {
 		if ( empty( $result['fetched'] ) && ! empty( $result['running'] ) ) WP_CLI::error( $result['message'] );
 		WP_CLI::success( $result['message'] );
 	}
+	/**
+	 * Envía a un destino un respaldo de la lista que aún no tiene copia remota (hecho aquí o subido), por fragmentos y
+	 * con reanudación, y lo verifica en el destino; su fila queda con esa copia remota.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <file>
+	 * : Nombre del archivo, tal como aparece en `wp digitalisimo-backups list`.
+	 *
+	 * --to=<destination>
+	 * : El destino (ver `destinations list`).
+	 *
+	 * [--network]
+	 * : En Multisite, confirma el alcance de red: el almacén privado es de toda la instalación.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups destinations send digitalisimo-upload-20261115-101500-1a2b3c4d.zip --to=s3compat
+	 */
+	public function send( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_send( (string) ( $args[0] ?? '' ), array( 'destination' => (string) ( $assoc_args['to'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli' ) ) );
+		if ( empty( $result['sent'] ) && ! empty( $result['running'] ) ) WP_CLI::error( $result['message'] );
+		WP_CLI::success( $result['message'] );
+	}
 }
 
 /**
@@ -1049,7 +1116,8 @@ final class Digitalisimo_Backups_Cli_Upload {
 
 	/**
 	 * Termina una subida completa: la comprueba como archivo no confiable, sin el límite de tiempo de la web, y la deja
-	 * en el almacén como «sin registro». Para una subida cuya comprobación se cortó en el navegador o por REST.
+	 * en el almacén y en la lista de respaldos («Subido»). Para una subida cuya comprobación se cortó en el navegador o
+	 * por REST.
 	 *
 	 * ## OPTIONS
 	 *
@@ -1063,8 +1131,8 @@ final class Digitalisimo_Backups_Cli_Upload {
 	 * : Lee esa frase o clave de la entrada estándar (en una terminal, sin mostrarla).
 	 */
 	public function finish( $args, $assoc_args ) {
-		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_upload_finish( (string) ( $args[0] ?? '' ), array( 'secret' => Digitalisimo_Backups_Cli::secret( $assoc_args ) ) ) );
-		WP_CLI::success( 'Respaldo subido y comprobado: ' . $result['file'] . '. Para restaurarlo: --confirm="' . $result['confirmation'] . '"' . ( ! empty( $result['needs_secret'] ) ? ' y su frase o su clave' : '' ) . '.' );
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_upload_finish( (string) ( $args[0] ?? '' ), array( 'secret' => Digitalisimo_Backups_Cli::secret( $assoc_args ), 'via' => 'cli' ) ) );
+		WP_CLI::success( 'Respaldo subido y comprobado: ' . $result['file'] . ( ! empty( $result['duplicate'] ) ? ' (ese mismo respaldo ya estaba en la lista; no se guardó otra copia)' : ( ! empty( $result['listed'] ) ? ', ya en la lista de respaldos (wp digitalisimo-backups list)' : '' ) ) . '. Para restaurarlo: --confirm="' . $result['confirmation'] . '"' . ( ! empty( $result['needs_secret'] ) ? ' y su frase o su clave' : '' ) . '.' );
 		foreach ( (array) ( $result['problems'] ?? array() ) as $problem ) WP_CLI::warning( (string) $problem );
 	}
 

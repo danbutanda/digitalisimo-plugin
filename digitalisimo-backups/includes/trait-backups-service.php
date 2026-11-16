@@ -148,6 +148,9 @@ trait Digitalisimo_Backups_Service {
 			'remote_retention_error' => (string) ( ( is_array( $item['remote_prune'] ?? null ) ? $item['remote_prune'] : array() )['error'] ?? '' ),
 			// Incrementales (docs/BACKUPS.md, «Incrementales»): cada punto es completo; null si la fila no es de una cadena.
 			'chain' => self::service_chain_summary( $item ),
+			// De dónde vino: `created` (hecho aquí), `uploaded` («Subir un respaldo» o «Agregar al listado») o `imported`.
+			'origin' => (string) ( $item['origin'] ?? 'created' ),
+			'uploaded' => self::uploaded_summary( $item ),
 		);
 	}
 	/**
@@ -254,6 +257,8 @@ trait Digitalisimo_Backups_Service {
 		// Credenciales de los destinos: sólo el estado y qué hacer, nunca un valor.
 		$credentials = $main ? self::credentials_status() : array( 'state' => 'none', 'notice' => '' );
 		$history = $main ? array_values( (array) get_option( self::HISTORY, array() ) ) : array();
+		// «Último respaldo» es el último de este sitio: uno subido está en la lista, pero no dice cuándo se respaldó éste.
+		$own = array_values( array_filter( $history, function( $row ) { return ! self::is_uploaded_row( $row ); } ) );
 		$automations = $main ? array_filter( self::policies(), function( $policy ) { return ! empty( $policy['enabled'] ) && 'full' === ( $policy['type'] ?? '' ); } ) : array();
 		$jobs = 0;
 		$restore = array( 'state' => 'none', 'notice' => '' );
@@ -283,7 +288,7 @@ trait Digitalisimo_Backups_Service {
 			'credentials_notice' => (string) $credentials['notice'],
 			'notifications' => Digitalisimo_Backups_Notify::status(),
 			'backups' => count( $history ),
-			'last_backup' => $history ? self::service_summary( $history[0] ) : null,
+			'last_backup' => $own ? self::service_summary( $own[0] ) : null,
 			// Incrementales: cuántos puntos, cuánto ocupan y cuánto ahorran frente a respaldos completos.
 			'incremental' => self::chain_saving( $history ),
 			'automations' => count( $automations ),
@@ -729,6 +734,8 @@ trait Digitalisimo_Backups_Service {
 		foreach ( $item['chain']['links'] as $link ) if ( ! Digitalisimo_Backups_Chain::link_row( $history, $link ) ) $unrowed = true;
 		if ( ! $missing ) return $unrowed ? array( 'loose_links' => true ) + $item : $item;
 		$files = Digitalisimo_Backups_Chain::files( $item );
+		// Un punto subido: su cadena se busca en el almacén por nombre; lo que falta, se sube o se trae con ese nombre.
+		if ( self::is_uploaded_row( $item ) ) return self::service_error( 'chain_incomplete', 'Este punto incremental subido se restaura con su cadena y faltan en el almacén ' . count( $missing ) . ' de sus ' . count( $files ) . ' archivos (' . implode( ', ', array_slice( array_keys( $missing ), 0, 3 ) ) . ( count( $missing ) > 3 ? '…' : '' ) . '). Súbelos (con ese mismo nombre) o tráelos de su destino y vuelve a restaurar. No se cambió nada del sitio.', 422, array( 'missing' => array_keys( $missing ) ) );
 		foreach ( $missing as $name => $row ) if ( ! is_array( $row ) ) return self::service_error( 'chain_broken', Digitalisimo_Backups_Chain_Restore::broken( substr( (string) ( $item['date'] ?? '' ), 0, 16 ), (int) array_search( $name, $files, true ), count( $files ) - 1, 'no está en el historial (' . $name . ')', 'Ese punto no se puede restaurar; elige otro.' ), 422 );
 		$remote = count( array_filter( $missing, function( $row ) { return is_array( $row ) && self::remote_exists( $row ); } ) );
 		$text = 'Este punto incremental se restaura con su cadena y faltan en el almacén ' . count( $missing ) . ' de sus ' . count( Digitalisimo_Backups_Chain::files( $item ) ) . ' archivos (' . implode( ', ', array_slice( array_keys( $missing ), 0, 3 ) ) . ( count( $missing ) > 3 ? '…' : '' ) . ').';
@@ -762,6 +769,7 @@ trait Digitalisimo_Backups_Service {
 		$report['source'] = $path;
 		$report['staged'] = true;
 		$report['staging'] = $virtual['staging'];
+		if ( 'untrusted' === $report['trust'] ) $report['vouched'] = (string) ( $virtual['vouched'] ?? '' );
 		$report['chain'] = array( 'links' => $virtual['links'], 'files' => $virtual['files'], 'bytes' => $virtual['bytes'], 'trust' => $virtual['trust'], 'summary' => $virtual['summary'] );
 		return $report;
 	}
@@ -781,7 +789,7 @@ trait Digitalisimo_Backups_Service {
 			} catch ( Exception $e ) {
 				return self::service_error( false !== strpos( $e->getMessage(), 'le faltan en el almacén' ) ? 'chain_incomplete' : 'chain_broken', $e->getMessage(), 422 );
 			}
-			$trust = array( 'trust' => (string) $plan['trust'], 'auth' => 'signed' === $plan['trust'] ? 'signed' : 'unsigned', 'key' => $plan['key'] );
+			$trust = array( 'trust' => (string) $plan['trust'], 'auth' => 'signed' === $plan['trust'] ? 'signed' : 'unsigned', 'key' => $plan['key'], 'vouched' => (string) ( $plan['vouched'] ?? '' ) );
 			try {
 				Digitalisimo_Backups_Security::require_confirmation( $trust, $confirmation );
 			} catch ( Exception $e ) {
@@ -949,9 +957,11 @@ trait Digitalisimo_Backups_Service {
 				'entries' => (int) $zip->numFiles,
 				'container' => (string) $report['container'],
 				'trust' => (string) $report['trust'],
+				// Subido y registrado con este SHA-256: sin firma, pero quien lo subió ya aceptó su origen (basta RESTAURAR).
+				'vouched' => (string) ( $report['vouched'] ?? '' ),
 				'signature' => (string) $report['auth'],
 				'key' => isset( $report['key']['id'] ) ? Digitalisimo_Backups_Keys::short( $report['key']['id'] ) : '',
-				'confirmation' => 'untrusted' === $report['trust'] ? 'RESTAURAR SIN FIRMA' : 'RESTAURAR',
+				'confirmation' => Digitalisimo_Backups_Security::confirmation_word( $report ),
 				'compatible' => ! $problems,
 				'problems' => $problems,
 				'format' => (string) ( $data['format'] ?? '' ),

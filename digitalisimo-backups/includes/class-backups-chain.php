@@ -146,7 +146,7 @@ final class Digitalisimo_Backups_Chain {
 		$plan = array( 'v' => self::VERSION, 'mode' => 'base', 'sequence' => 0, 'id' => '', 'links' => array(), 'parent' => null, 'base_at' => (int) $now, 'full_every' => $settings['full_every'], 'full_days' => $settings['full_days'], 'reason' => '' );
 		$head = null;
 		foreach ( $history as $row ) {
-			if ( ! is_array( $row ) || (string) ( $row['policy'] ?? '' ) !== (string) ( $spec['policy'] ?? '' ) || 'imported' === (string) ( $row['origin'] ?? 'created' ) ) continue;
+			if ( ! is_array( $row ) || (string) ( $row['policy'] ?? '' ) !== (string) ( $spec['policy'] ?? '' ) || in_array( (string) ( $row['origin'] ?? 'created' ), array( 'imported', 'uploaded', 'added' ), true ) ) continue;
 			$head = $row;
 			break;
 		}
@@ -352,11 +352,51 @@ final class Digitalisimo_Backups_Chain {
 		$pins = array();
 		foreach ( $history as $row ) {
 			if ( ! is_array( $row ) || ! isset( $remaining[ (string) ( $row['file'] ?? '' ) ] ) ) continue;
-			$chain = self::row_chain( $row );
-			if ( ! $chain ) continue;
-			foreach ( $chain['links'] as $link ) $pins[ (string) $link['file'] ] = true;
+			foreach ( self::anchored_links( $row, $history ) as $file ) $pins[ $file ] = true;
 		}
 		return $pins;
+	}
+	/**
+	 * Archivos de su cadena que una fila fija (retención y tope del historial) y de los que depende para «Borrar». Los de
+	 * una fila hecha aquí, o subida con la firma de una clave de este sitio: todos. Los de un punto subido o agregado sin
+	 * esa firma: su manifiesto no es confiable, así que sólo fija los eslabones que son exactamente el que nombra
+	 * (exact_link_row(): `backup_id`, SHA-256 de su manifiesto y posición en la cadena, N1 y N2 de la verificación) y los
+	 * que no tienen fila. Nombrar un respaldo por su nombre no basta para fijarlo ni bloquear su «Borrar» (M1).
+	 */
+	public static function anchored_links( array $row, array $history ) {
+		$chain = self::row_chain( $row );
+		if ( ! $chain ) return array();
+		$files = array();
+		foreach ( $chain['links'] as $link ) $files[] = (string) $link['file'];
+		if ( ! self::untrusted_upload( $row ) ) return $files;
+		$named = array();
+		foreach ( $history as $other ) if ( is_array( $other ) ) $named[ (string) ( $other['file'] ?? '' ) ] = true;
+		$out = array();
+		foreach ( $chain['links'] as $link ) if ( ! isset( $named[ (string) $link['file'] ] ) || null !== self::exact_link_row( $history, $link ) ) $out[] = (string) $link['file'];
+		return $out;
+	}
+	/**
+	 * La fila del historial que es exactamente el eslabón `$link`, o null: la que link_row() reconoce por su propio bloque
+	 * `chain` (`backup_id`, SHA-256 de su manifiesto y posición: la escribió este motor o la validación de la subida) o,
+	 * para la base de una cadena subida o agregada (una fila sin bloque `chain`: un completo), la de su mismo `backup_id`
+	 * y el SHA-256 de su manifiesto anotado al validarla (`upload.manifest_sha256`), en la posición 0. Esa identidad no
+	 * se adivina sin tener ya el respaldo.
+	 */
+	public static function exact_link_row( array $history, array $link ) {
+		$row = self::link_row( $history, $link );
+		if ( $row ) return $row;
+		foreach ( $history as $named ) {
+			if ( ! is_array( $named ) || (string) ( $named['file'] ?? '' ) !== (string) $link['file'] ) continue;
+			if ( ! in_array( (string) ( $named['origin'] ?? '' ), array( 'uploaded', 'added' ), true ) || self::row_chain( $named ) ) return null;
+			$sha = (string) ( $named['upload']['manifest_sha256'] ?? '' );
+			$base = 0 === (int) $link['sequence'] && 'incremental' !== (string) ( $named['backup_type'] ?? 'full' );
+			return $base && '' !== $sha && hash_equals( $sha, (string) $link['manifest_sha256'] ) && (string) ( $named['backup_id'] ?? '' ) === (string) $link['backup_id'] ? $named : null;
+		}
+		return null;
+	}
+	/** Una fila subida o agregada sin la firma de una clave de este sitio (`upload.site_key`). */
+	public static function untrusted_upload( $row ) {
+		return is_array( $row ) && in_array( (string) ( $row['origin'] ?? '' ), array( 'uploaded', 'added' ), true ) && empty( $row['upload']['site_key'] );
 	}
 	/**
 	 * Quita de `$retire` (nombre => true) lo que una fila que se queda necesita. Repite hasta estabilizarse: lo que deja
@@ -376,11 +416,7 @@ final class Digitalisimo_Backups_Chain {
 	/** Filas del historial que dependen de `$file` (incrementales posteriores de su cadena). */
 	public static function dependents( array $history, $file ) {
 		$out = array();
-		foreach ( $history as $row ) {
-			$chain = self::row_chain( $row );
-			if ( ! $chain ) continue;
-			foreach ( $chain['links'] as $link ) if ( (string) $link['file'] === (string) $file ) { $out[] = (string) $row['file']; break; }
-		}
+		foreach ( $history as $row ) if ( is_array( $row ) && in_array( (string) $file, self::anchored_links( $row, $history ), true ) ) $out[] = (string) $row['file'];
 		return $out;
 	}
 

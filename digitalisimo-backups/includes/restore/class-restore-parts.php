@@ -330,7 +330,7 @@ final class Digitalisimo_Backups_Restore_Parts {
 	public static function preview( $zip, $parts, array $layout ) {
 		$inventory = $zip instanceof ZipArchive ? self::inventory( $zip, $layout ) : null;
 		$head = $zip instanceof ZipArchive ? (string) $zip->getFromName( 'manifest.json', 4096 ) : '';
-		$describe = self::describe( $parts, $inventory, $inventory ? self::live( $layout ) : null, ! $zip instanceof ZipArchive || (bool) preg_match( '/"format"\s*:\s*"digitalisimo-backup\\\/v3"|"format"\s*:\s*"digitalisimo-backup\/v3"/', $head ) );
+		$describe = self::describe( $parts, $inventory, $inventory ? self::live( $layout ) : null, ! $zip instanceof ZipArchive || (bool) preg_match( '#"format"\s*:\s*"digitalisimo-backup\\\\?/v3"#', $head ) );
 		return array(
 			'available' => $inventory,
 			'selection' => $parts,

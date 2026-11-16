@@ -8,8 +8,9 @@ defined( 'ABSPATH' ) || exit;
  * nunca pasa por `wp-content/uploads` ni por una ruta servida. Un fragmento sólo se anexa en el desplazamiento que la
  * sesión espera (el servidor dice cuánto recibió y el cliente sigue desde ahí), nunca pasa del tamaño declarado y, si
  * la escritura falla a medias, el archivo vuelve a su tamaño anterior. Al terminar, el archivo pasa toda la validación
- * de archivos no confiables de «Seguridad» dentro de la sesión y sólo entonces entra en el almacén con `rename()`, como
- * «sin registro»: restaurarlo pide RESTAURAR SIN FIRMA salvo que lleve una firma válida de una clave de este sitio.
+ * de archivos no confiables de «Seguridad» dentro de la sesión y sólo entonces entra en el almacén con `rename()` y en
+ * la lista de respaldos con su fila «Subido» (su SHA-256 exacto): se restaura escribiendo RESTAURAR, como uno hecho aquí
+ * (ver Digitalisimo_Backups_Uploaded_List).
  *
  * Los fragmentos tienen un tamaño seguro para el hosting: como mucho 8 MiB y por debajo de `upload_max_filesize` y
  * `post_max_size` (wp_max_upload_size()). Una sesión sin actividad durante 24 h se borra.
@@ -220,7 +221,7 @@ final class Digitalisimo_Backups_Uploads {
 		self::guard();
 		// La frase se usa tal cual (sanitize_text_field() la alteraría) y nunca se guarda.
 		$secret = isset( $_POST['secret'] ) && is_string( $_POST['secret'] ) ? (string) wp_unslash( $_POST['secret'] ) : '';
-		self::reply( Digitalisimo_Backups::service_upload_finish( sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) ), array( 'secret' => $secret ) ) );
+		self::reply( Digitalisimo_Backups::service_upload_finish( sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) ), array( 'secret' => $secret, 'via' => 'admin-ajax' ) ) );
 	}
 	public static function ajax_cancel() {
 		self::guard();
@@ -230,11 +231,11 @@ final class Digitalisimo_Backups_Uploads {
 	public static function panel( $network ) {
 		$max = function_exists( 'wp_max_upload_size' ) ? (int) wp_max_upload_size() : 0;
 		echo '<section class="digitalisimo-backups-card digitalisimo-backups-upload" id="digitalisimo-backups-upload" data-chunk="' . esc_attr( (string) self::chunk_size() ) . '"><h2>Subir un respaldo</h2>';
-		echo '<p>Sube un respaldo de DIGITALÍSIMO (<code>.zip</code> o <code>.dgbk</code>) desde este equipo, por ejemplo uno de otro servidor, o el <code>.tar.gz</code> de un respaldo de Backuply para importarlo. Se envía por fragmentos de ' . esc_html( Digitalisimo_Backups_Archive_Inspector::megabytes( self::chunk_size() ) ) . ( $max ? ' (el hosting acepta ' . esc_html( Digitalisimo_Backups_Archive_Inspector::megabytes( $max ) ) . ' por petición)' : '' ) . ' directamente al almacén privado y, si la conexión se corta, vuelve a elegir el mismo archivo para continuar donde se quedó. Al terminar se comprueba como un archivo no confiable y aparece en «Restaurar un archivo suelto» como «sin registro».</p>';
+		echo '<p>Sube un respaldo de DIGITALÍSIMO (<code>.zip</code> o <code>.dgbk</code>) desde este equipo, por ejemplo uno de otro servidor, o el <code>.tar.gz</code> de un respaldo de Backuply para importarlo. Se envía por fragmentos de ' . esc_html( Digitalisimo_Backups_Archive_Inspector::megabytes( self::chunk_size() ) ) . ( $max ? ' (el hosting acepta ' . esc_html( Digitalisimo_Backups_Archive_Inspector::megabytes( $max ) ) . ' por petición)' : '' ) . ' directamente al almacén privado y, si la conexión se corta, vuelve a elegir el mismo archivo para continuar donde se quedó. Al terminar se comprueba como un archivo no confiable y queda en la lista de respaldos, marcado «Subido», listo para restaurarlo como uno hecho aquí.</p>';
 		echo '<noscript><p class="description">Subir un respaldo necesita JavaScript. Sin él, cópialo por SSH o SFTP a la carpeta privada de respaldos.</p></noscript>';
 		echo '<form class="digitalisimo-backups-upload-form" hidden><p><input type="file" name="digitalisimo_backups_upload_file" accept=".zip,.dgbk,.gz,application/zip,application/gzip,application/octet-stream"></p><p><label>Frase o clave (sólo si está cifrado con una clave que este sitio no tiene) <input type="password" name="digitalisimo_backups_upload_secret" value="" autocomplete="off"></label></p><p><button class="button button-primary" type="submit">Subir respaldo</button> <button class="button" type="button" data-upload-cancel hidden>Cancelar la subida</button></p>';
 		if ( $network ) echo '<input type="hidden" name="digitalisimo_backups_network" value="1">';
-		echo '<progress max="100" value="0" hidden></progress><p class="digitalisimo-backups-upload-status" role="status" aria-live="polite"></p></form>';
+		echo '<progress max="100" value="0" hidden></progress><p class="digitalisimo-backups-upload-status" role="status" aria-live="polite"></p><p data-upload-list hidden><a class="button" href="' . esc_url( $network ? network_admin_url( 'admin.php?page=digitalisimo-network-backups' ) : admin_url( 'admin.php?page=digitalisimo-backups' ) ) . '#digitalisimo-backups-history">Ver en la lista de respaldos</a></p></form>';
 		// Subidas sin cerrar de cualquier cuenta: se pueden descartar (no hace falta el navegador que la empezó).
 		$open = array();
 		try { $open = array_values( array_filter( self::sessions(), array( __CLASS__, 'open' ) ) ); } catch ( Exception $e ) { $open = array(); }

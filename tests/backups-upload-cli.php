@@ -2,7 +2,7 @@
 /**
  * Revisión del lote corto · P1 y P3 en WP-CLI: `wp digitalisimo-backups upload list|finish|cancel`. Una subida cuya
  * comprobación se cortó tres veces en la web (el tiempo límite del servidor o del proxy) se termina con WP-CLI, que no
- * tiene ese límite ni el tope de intentos, y entra en el almacén como «sin registro»; las subidas de cualquier cuenta
+ * tiene ese límite ni el tope de intentos, y entra en el almacén y en la lista («Subido»); las subidas de cualquier cuenta
  * se listan y se descartan.
  */
 $root = sys_get_temp_dir() . '/digitalisimo-upload-cli-' . bin2hex( random_bytes( 4 ) );
@@ -38,7 +38,7 @@ try {
 	digi_assert( 0 === $code && is_array( $rows ) && $session['id'] === $rows[0]['id'] && 'validating' === $rows[0]['phase'] && $U::MAX_ATTEMPTS === $rows[0]['attempts'] && false === strpos( json_encode( $rows ), $root ), 'wp … upload list no lista la subida: ' . implode( "\n", $out ) );
 	list( $code, $out ) = digi_wp( $cmd . ' upload', 'finish', array( $session['id'] ) );
 	$out = implode( "\n", $out );
-	digi_assert( 0 === $code && false !== strpos( $out, 'Success: Respaldo subido y comprobado: digitalisimo-desde-la-web.zip' ) && false !== strpos( $out, '--confirm="RESTAURAR SIN FIRMA"' ) && is_file( $store . '/digitalisimo-desde-la-web.zip' ), 'wp … upload finish no terminó la subida cortada: ' . $out );
+	digi_assert( 0 === $code && false !== strpos( $out, 'Success: Respaldo subido y comprobado: digitalisimo-desde-la-web.zip' ) && false !== strpos( $out, 'ya en la lista de respaldos' ) && false !== strpos( $out, '--confirm="RESTAURAR"' ) && is_file( $store . '/digitalisimo-desde-la-web.zip' ) && 'cli' === ( get_option( $B::HISTORY )[0]['upload']['via'] ?? '' ), 'wp … upload finish no terminó la subida cortada: ' . $out );
 	// Descartar una subida de otra cuenta.
 	$other = $B::service_upload_start( array( 'name' => 'digitalisimo-abandonada.zip', 'size' => 100 ) );
 	$state = $U::read( $other['id'] );

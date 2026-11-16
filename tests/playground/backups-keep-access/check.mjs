@@ -107,11 +107,12 @@ const uploaded = res.json || {};
 check(res.status === 200 && uploaded.file, 'POST /uploads/<id>/finish comprueba el paquete', res.text.slice(0, 400));
 const list = await api('GET', '/uploads', { headers: admin });
 const mine = (list.json || []).find((item) => item.id === upload.id) || {};
-check(mine.phase === 'done' && mine.received === size && mine.result?.verified === true && mine.result?.compatible === true && mine.result?.confirmation === 'RESTAURAR SIN FIRMA', 'GET /uploads: phase=done, received=size, verified, compatible y «RESTAURAR SIN FIRMA» (lo que la barra debe reflejar)', JSON.stringify(mine).slice(0, 400));
+// Desde la rama backups/uploaded-in-list, lo subido queda en la lista y se restaura con RESTAURAR (sin firma, pero subido).
+check(mine.phase === 'done' && mine.received === size && mine.result?.verified === true && mine.result?.compatible === true && mine.result?.listed === true && mine.result?.confirmation === 'RESTAURAR', 'GET /uploads: phase=done, received=size, verified, compatible, en la lista y «RESTAURAR» (lo que la barra debe reflejar)', JSON.stringify(mine).slice(0, 400));
 
 // 2. Restaurar por REST con addresses=current, como en el incidente, y seguir el trabajo hasta el final.
 const restoreStarted = Date.now();
-res = await api('POST', `/backups/${uploaded.file}/restore`, { headers: admin, body: { confirm: 'RESTAURAR SIN FIRMA', addresses: 'current' } });
+res = await api('POST', `/backups/${uploaded.file}/restore`, { headers: admin, body: { confirm: 'RESTAURAR', addresses: 'current' } });
 check([200, 202].includes(res.status) && (res.json?.job?.id || res.json?.restored), `POST restore empieza la restauración (${res.status})`, res.text.slice(0, 400));
 const follow = res.json?.follow || null;
 const jobId = follow?.job || res.json?.job?.id || '';

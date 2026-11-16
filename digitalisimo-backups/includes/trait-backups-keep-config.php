@@ -42,11 +42,12 @@ trait Digitalisimo_Backups_Keep_Config {
 	/**
 	 * El respaldo $file es de esta misma instalación: tiene fila en el historial y su identidad (`installation`) es la de
 	 * aquí (una fila anterior a la identidad, sin ella, también: se registró aquí). Entonces su configuración es la de este
-	 * sitio en otro momento y viaja como siempre (S4). Un archivo sin fila (traído, subido) o de otra identidad, no.
+	 * sitio en otro momento y viaja como siempre (S4). Un archivo sin fila (traído, subido) o de otra identidad, no; uno
+	 * subido con su fila «Subido» tampoco: estar en la lista no lo hace de esta instalación.
 	 */
 	private static function keep_config_same_installation( $file ) {
 		$row = '' !== (string) $file ? self::history_item( wp_basename( (string) $file ) ) : array();
-		if ( ! $row ) return false;
+		if ( ! $row || self::is_uploaded_row( $row ) ) return false;
 		$stamp = (array) ( $row['installation'] ?? array() );
 		if ( empty( $stamp['id'] ) ) return true;
 		$here = self::installation_stamp();
