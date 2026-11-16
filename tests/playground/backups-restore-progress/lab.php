@@ -10,7 +10,7 @@ add_filter( 'digitalisimo_backups_job_budget', static function ( $budget ) {
 // Un error fatal (la página «critical error» de WordPress): la petición, el error y la memoria, para el informe. Lo llama
 // el manejador de errores fatales de WordPress antes de pintar esa página.
 add_filter( 'wp_php_error_message', static function ( $message, $error ) {
-	@file_put_contents( '/digi-ctl/fatal.jsonl', json_encode( array( 'uri' => (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'method' => (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ), 'action' => (string) ( $_REQUEST['action'] ?? '' ), 'error' => $error, 'peak' => memory_get_peak_usage( true ), 'limit' => ini_get( 'memory_limit' ) ) ) . "\n", FILE_APPEND );
+	@file_put_contents( '/digi-ctl/fatal.jsonl', json_encode( array( 'uri' => (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'method' => (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ), 'action' => (string) ( $_REQUEST['action'] ?? '' ), 'error' => $error, 'peak' => memory_get_peak_usage( true ), 'limit' => ini_get( 'memory_limit' ) ), JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR ) . "\n", FILE_APPEND );
 	return $message;
 }, 10, 2 );
 // Con WP_DISABLE_FATAL_ERROR_HANDLER (lo pone el ensayo), WordPress no corta con exit las funciones de cierre: un error
@@ -18,5 +18,5 @@ add_filter( 'wp_php_error_message', static function ( $message, $error ) {
 register_shutdown_function( static function () {
 	$error = error_get_last();
 	if ( ! $error || ! in_array( $error['type'], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR ), true ) ) return;
-	@file_put_contents( '/digi-ctl/fatal.jsonl', json_encode( array( 'uri' => (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'method' => (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ), 'action' => (string) ( $_REQUEST['action'] ?? '' ), 'error' => $error, 'peak' => memory_get_peak_usage( true ), 'limit' => ini_get( 'memory_limit' ) ) ) . "\n", FILE_APPEND );
+	@file_put_contents( '/digi-ctl/fatal.jsonl', json_encode( array( 'uri' => (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'method' => (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ), 'action' => (string) ( $_REQUEST['action'] ?? '' ), 'error' => $error, 'peak' => memory_get_peak_usage( true ), 'limit' => ini_get( 'memory_limit' ) ), JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR ) . "\n", FILE_APPEND );
 } );
