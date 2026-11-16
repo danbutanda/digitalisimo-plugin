@@ -932,6 +932,12 @@ final class Digitalisimo_Backups_Jobs {
 					return;
 				}
 			}
+			// Un sitio a medio cambiar sigue en el mantenimiento de ese testigo: lo necesita para llegar a Backups y volver a la
+			// copia previa (verificación final N9).
+			if ( Digitalisimo_Backups_Restore_Maintenance::held_for( $have ) ) {
+				Digitalisimo_Backups_Restore_Maintenance::send_cookie( $have );
+				return;
+			}
 			$done = $screen ? null : self::restore_finished_for_request( true );
 			if ( $done && time() - (int) ( $done['finished_at'] ?? 0 ) <= self::FINISHED_ANSWER ) return;
 		} catch ( Throwable $e ) {

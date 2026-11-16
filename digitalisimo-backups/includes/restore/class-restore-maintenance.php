@@ -227,6 +227,16 @@ PHP;
 		ksort( $out );
 		return array_keys( $out );
 	}
+	/**
+	 * El mantenimiento sigue puesto para el testigo $token aunque su restauración ya no esté en curso (un sitio a medio
+	 * cambiar, tras una vuelta a la copia previa que también falló): quien lo trae lo necesita para llegar a Backups y
+	 * volver a la copia previa.
+	 */
+	public static function held_for( $token ) {
+		$path = self::path();
+		if ( ! is_string( $token ) || '' === $token || ! self::ours( $path ) ) return false;
+		return false !== strpos( (string) @file_get_contents( $path, false, null, 0, 65536 ), "'hash' => '" . hash( 'sha256', $token ) . "'" );
+	}
 	/** Retira el mantenimiento si es de una restauración (nunca el de una actualización de WordPress). */
 	public static function release() {
 		$path = self::path();

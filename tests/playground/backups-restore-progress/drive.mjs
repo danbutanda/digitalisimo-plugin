@@ -73,6 +73,10 @@ await page.setViewport({ width: 1280, height: 900 });
 const jsErrors = [];
 // Las transiciones de vista entre documentos del escritorio de WordPress (Chrome) no son de esta pantalla.
 page.on('pageerror', (e) => { const text = String(e.message || e); if (!/ViewTransition|Transition was aborted/.test(text)) jsErrors.push(`${page.url()} · ${text.slice(0, 300)}${e && e.stack ? ' · ' + String(e.stack).replace(/\s+/g, ' ').slice(0, 400) : ''}`); });
+// Las llamadas de la página que la puerta del mantenimiento deja fuera con el testigo (503 con su cabecera): las de
+// WordPress (su REST) desde la pantalla de Backups, que la puerta no deja pasar a propósito (revisión N1).
+const blockedCalls = [];
+page.on('response', (r) => { try { if (r.status() === 503 && r.headers()['x-digitalisimo-backups-restore'] && r.request().resourceType() !== 'document') blockedCalls.push(r.url()); } catch { /* sin cabeceras */ } });
 page.on('dialog', async (d) => { log(`· diálogo: ${d.message().slice(0, 200)}`); await d.accept(); });
 const samples = {};
 
@@ -585,7 +589,13 @@ try {
   // Salvo la de la petición que empieza la primera restauración con 64 MB (php-wasm, también con main), ninguna.
   const fatals = existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').split('\n').filter(Boolean).slice(fatalMark).join('\n') : '';
   check(!fatals, `ninguna otra petición terminó en error fatal (la esperada: ${fatalMark})`, fatals.slice(0, 1500));
-  check(jsErrors.length === 0, 'sin errores de JavaScript en la página', jsErrors.join(' | '));
+  // Un «Object» (una promesa rechazada con la respuesta de apiFetch) de WordPress por una llamada a su REST que la puerta
+  // dejó fuera: se dice, no cuenta como error del panel. Cualquier otro error, sí.
+  const blockedRest = [...new Set(blockedCalls.filter((u) => /wp-json|rest_route/.test(u) && !/digitalisimo-backups/.test(u)).map((u) => u.replace(/[?#].*$/, '')))];
+  if (blockedCalls.length) log(`· la puerta dejó fuera ${blockedCalls.length} llamada(s) de la página durante el mantenimiento: ${[...new Set(blockedCalls.map((u) => u.replace(/[?#].*$/, '')))].join(', ')}`);
+  const panelErrors = blockedRest.length ? jsErrors.filter((e) => !/ · Object(?: · Object: Object)?$/.test(e)) : jsErrors;
+  if (panelErrors.length < jsErrors.length) log(`· ${jsErrors.length - panelErrors.length} error(es) «Object» de WordPress (apiFetch) por esas llamadas a su REST`);
+  check(panelErrors.length === 0, 'sin errores de JavaScript en la página', panelErrors.join(' | '));
 } catch (e) {
   check(false, 'el ensayo terminó con una excepción', String(e.stack || e).slice(0, 1500));
 } finally {

@@ -439,6 +439,15 @@ bp_case( 'R9 · el testigo sólo lo tiene el navegador que empezó la restauraci
 	}
 	bp_check( null === $call( 'ajax_tick', $nonce, $token ), 'Terminada hace un minuto, el tick con nonce borra la cookie de la que la siguió.' );
 	bp_check( '' === $call( 'screen_cookie', array(), $token, array( 'page' => 'digitalisimo-backups' ) ), 'Terminada, abrir la pantalla no borra la cookie.' );
+	// Pero si terminó mal y el sitio quedó a medio cambiar (el mantenimiento sigue con ese testigo), la cookie se queda: con
+	// ella el navegador llega a Backups y vuelve a la copia previa (verificación final N9).
+	$M::hold( $token, true, $restore['id'] );
+	try {
+		bp_check( $token === $call( 'screen_cookie', array(), $token, array( 'page' => 'digitalisimo-backups' ) ) && $token === $call( 'ajax_tick', $nonce, $token ), 'Con el sitio a medio cambiar, abrir la pantalla o el tick borran la cookie que lleva a «Volver a la copia previa».' );
+		bp_check( '' === $call( 'screen_cookie', array(), str_repeat( '3b', 32 ), array( 'page' => 'digitalisimo-backups' ) ), 'Con el sitio a medio cambiar, se renueva la cookie de otra restauración.' );
+	} finally {
+		$M::release();
+	}
 	Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'finished_at' => time() - 2 * $J::FINISHED_ANSWER ) ) );
 	bp_check( '' === $call( 'ajax_restore_tick', array(), $token ), 'Pasada la ventana del resultado, el tick por testigo no borra la cookie.' );
 	bp_check( '' === $call( 'ajax_tick', $nonce, $token ), 'Pasada la ventana del resultado, el tick con nonce no borra la cookie.' );
