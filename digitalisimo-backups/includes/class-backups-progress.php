@@ -56,7 +56,7 @@ final class Digitalisimo_Backups_Progress {
 		echo '<form id="' . $id . '-rollback" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" hidden>';
 		wp_nonce_field( Digitalisimo_Backups::ACTION_RESTORE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( Digitalisimo_Backups::ACTION_RESTORE ) . '"><input type="hidden" name="rollback_retry" value="1">' . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-primary">Volver a la copia previa</button></form></div>';
-		echo '<details class="digitalisimo-backups-help" id="' . $id . '-help" hidden><summary>Qué la hace avanzar</summary><p class="description" data-folded="1">' . esc_html( 'Con esta pantalla abierta avanza sin pausa. Si la cierras, la siguen WP-Cron (cada visita al sitio en mantenimiento lo despierta) o el cron del sistema: ' . Digitalisimo_Backups_Restore_Maintenance::system_cron_line() . '. En un sitio sin visitas ni cron, se detiene hasta que vuelvas aquí o ejecutes wp digitalisimo-backups jobs run.' ) . '</p></details>';
+		echo '<details class="digitalisimo-backups-help" id="' . $id . '-help" hidden><summary>Qué la hace avanzar</summary><p class="description" data-folded="1">' . esc_html( 'Con esta pantalla abierta avanza sin pausa. Si la cierras, la siguen WP-Cron (las visitas al sitio en mantenimiento lo despiertan) o el cron del sistema: ' . Digitalisimo_Backups_Restore_Maintenance::system_cron_line() . '. En un sitio sin visitas ni cron, se detiene hasta que vuelvas aquí o ejecutes wp digitalisimo-backups jobs run.' ) . '</p></details>';
 		echo '</div>';
 		return $job ? (string) $job['id'] : '';
 	}

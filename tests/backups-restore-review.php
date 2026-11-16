@@ -511,8 +511,8 @@ rr_case( 'A1 P1 el mantenimiento deja pasar WP-Cron y el tick, despierta la rest
 	$hooks = array();
 	foreach ( $ready as $events ) $hooks = array_merge( $hooks, array_keys( $events ) );
 	rr_check( array( 'digitalisimo_backups_job_tick' ) === $hooks, 'WP-Cron correría otros eventos durante la restauración: ' . json_encode( $hooks ) );
-	// La pantalla dice lo que de verdad pasa.
-	$source = file_get_contents( dirname( __DIR__ ) . '/digitalisimo-backups/includes/class-backups.php' );
+	// La pantalla dice lo que de verdad pasa (desde el panel de avance, en su «Qué la hace avanzar»).
+	$source = file_get_contents( dirname( __DIR__ ) . '/digitalisimo-backups/includes/class-backups.php' ) . file_get_contents( dirname( __DIR__ ) . '/digitalisimo-backups/includes/class-backups-progress.php' );
 	rr_check( false === strpos( $source, 'No hace falta dejarla abierta (WP-Cron la continúa)' ) && false !== strpos( $source, 'las visitas al sitio en mantenimiento lo despiertan' ), 'La pantalla promete que WP-Cron la continúa sin más.' );
 	Digitalisimo_Backups_Restore_Maintenance::release();
 } );
