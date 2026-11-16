@@ -239,7 +239,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 	 * sigue como estaba sólo si todas las tablas temporales siguen ahí y ninguna vieja; ante la duda, cambió. Una vuelta a
 	 * la copia previa trata el sitio como cambiado desde su primera fase: la restauración que deshace ya lo cambió (C2).
 	 */
-	private static function restore_changed( array $job ) {
+	public static function restore_changed( array $job ) {
 		if ( ! empty( $job['spec']['rollback'] ) ) return true;
 		if ( ! self::restore_switched( $job ) ) return false;
 		// Sin la base de datos (restaurar por partes) no hay tablas que miren: en el cambio, los archivos pueden haber

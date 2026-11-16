@@ -874,12 +874,14 @@ final class Digitalisimo_Backups {
 		 * $compact (pestaña «Respaldos»): la tarjeta sólo se ve mientras hay trabajos en curso y se oculta sola al
 		 * terminar (manual-progress.js); en «Herramientas» se ve siempre, con los últimos trabajos.
 		 */
-		private static function jobs_panel( $network, $compact = false ) {
+		private static function jobs_panel( $network, $compact = false, $except = '' ) {
 			$views = Digitalisimo_Backups_Jobs::views();
 			// En un subsitio la tarjeta sólo informa: los trabajos de la red avanzan y se cancelan desde el sitio principal.
 			$manage = ! Digitalisimo_Backups_Jobs::off_main_site();
 			$active = $manage && (bool) array_filter( $views, function( $view ) { return ! $view['terminal']; } );
-			echo '<section class="digitalisimo-backups-card digitalisimo-backups-jobs" id="digitalisimo-backups-jobs" data-active="' . ( $active ? '1' : '0' ) . '"' . ( $compact ? ' data-hide-idle="1"' . ( $active ? '' : ' hidden' ) : '' ) . '><h2>Trabajos</h2><p class="description">' . ( $manage ? 'Con esta página abierta avanzan solos; si la cierras, los sigue WP-Cron.' : 'Los trabajos de la red se gestionan desde el sitio principal o la administración de red.' ) . '</p>' . ( $compact ? '' : '<details class="digitalisimo-backups-help"><summary>Más</summary><p class="description" data-folded="1">Cada respaldo avanza por pasos: pendiente, en curso, verificando y, con destino remoto, transfiriendo. Con esta página abierta el navegador lo hace avanzar; si la cierras, lo continúa WP-Cron. Sólo un ZIP verificado llega al historial, y un paso interrumpido se repite desde su último punto de control.</p></details>' ) . '<div id="digitalisimo-backups-jobs-list">';
+			// En «Respaldos», el que sigue el panel de avance ($except) no la enseña.
+			$others = $active && array_filter( $views, function( $view ) use ( $except ) { return ! $view['terminal'] && $view['id'] !== $except; } );
+			echo '<section class="digitalisimo-backups-card digitalisimo-backups-jobs" id="digitalisimo-backups-jobs" data-active="' . ( $active ? '1' : '0' ) . '"' . ( $compact ? ' data-hide-idle="1"' . ( $others ? '' : ' hidden' ) : '' ) . '><h2>Trabajos</h2><p class="description">' . ( $manage ? 'Con esta página abierta avanzan solos; si la cierras, los sigue WP-Cron.' : 'Los trabajos de la red se gestionan desde el sitio principal o la administración de red.' ) . '</p>' . ( $compact ? '' : '<details class="digitalisimo-backups-help"><summary>Más</summary><p class="description" data-folded="1">Cada respaldo avanza por pasos: pendiente, en curso, verificando y, con destino remoto, transfiriendo. Con esta página abierta el navegador lo hace avanzar; si la cierras, lo continúa WP-Cron. Sólo un ZIP verificado llega al historial, y un paso interrumpido se repite desde su último punto de control.</p></details>' ) . '<div id="digitalisimo-backups-jobs-list">';
 			if ( ! $views ) echo '<p>Aún no hay trabajos.</p>';
 			else {
 				echo '<table class="widefat striped"><thead><tr><th>Estado</th><th>Trabajo</th><th>Fase</th><th>Avance</th><th>Detalle</th><th>Acciones</th></tr></thead><tbody>';
@@ -2679,7 +2681,8 @@ final class Digitalisimo_Backups {
 			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );
 			if ( ! empty( $result['restoring'] ) ) {
 				Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
-				self::redirect( true, 'Restauración en curso: sigue por pasos y esta pantalla muestra su avance en «Trabajos». Con la pantalla abierta avanza sin pausa; si la cierras, la siguen WP-Cron (las visitas al sitio en mantenimiento lo despiertan) o el cron del sistema; en un sitio sin visitas ni cron, se detiene hasta que vuelvas aquí o ejecutes wp digitalisimo-backups jobs run. Si se interrumpe, se reanuda o vuelve sola a la copia previa ' . (string) $result['safety_backup'] . '.' );
+				// Al panel de avance de «Respaldos», donde se sigue también un respaldo (lo que la hace avanzar, en su «Qué la hace avanzar»).
+				self::redirect( true, 'Restauración en curso: su avance se ve abajo. Si se interrumpe, se reanuda o vuelve sola a la copia previa ' . (string) $result['safety_backup'] . '.', null, 'backups' );
 			}
 			self::redirect( true, 'Restauración terminada. ' . ( ! empty( $result['access']['kept'] ) ? 'Revisa los enlaces permanentes.' : 'Entra de nuevo y revisa enlaces permanentes.' ) . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 		}

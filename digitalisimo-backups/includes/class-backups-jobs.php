@@ -844,7 +844,7 @@ final class Digitalisimo_Backups_Jobs {
 	public static function ajax_tick() {
 		self::ajax_guard();
 		$result = self::tick();
-		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views() ) );
+		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views( 8, true ) ) );
 	}
 	/**
 	 * Un paso de la cola mientras hay una restauración, autorizado por su testigo (la cookie del navegador que la empezó
@@ -863,13 +863,20 @@ final class Digitalisimo_Backups_Jobs {
 			$manager = Digitalisimo_Backups::can_manage_backups();
 			$done = self::restore_finished_for_request( ! $manager );
 			if ( $done && ( $manager || time() - (int) ( $done['finished_at'] ?? 0 ) <= self::FINISHED_ANSWER ) ) {
-				$view = $manager ? self::view( $done ) : self::finished_view( $done );
-				wp_send_json_success( array( 'result' => 'finished', 'message' => (string) $view['detail'], 'jobs' => array( $view ) ) );
+				$view = $manager ? self::screen_view( $done ) : self::finished_view( $done );
+				wp_send_json_success( array( 'result' => 'finished', 'message' => (string) $view['detail'], 'jobs' => array( $view ), 'nonces' => self::fresh_nonces() ) );
 			}
 			wp_send_json_error( array( 'message' => 'No hay una restauración en curso con este testigo.' ), 403 );
 		}
 		$result = self::tick();
-		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views() ) );
+		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views( 8, true ), 'nonces' => self::fresh_nonces() ) );
+	}
+	// Tras el cambio de tablas la sesión puede seguir valiendo («Conservar mi acceso») con otro ID o con otras sales: los
+	// nonces que la pantalla recibió al cargarse ya no valen. Quien sigue gestionando Backups recibe los nuevos con el tick
+	// por testigo (los de la cola y el de «Volver a la copia previa»); sin sesión, ninguno.
+	private static function fresh_nonces() {
+		if ( ! function_exists( 'wp_create_nonce' ) || ! function_exists( 'is_user_logged_in' ) || ! is_user_logged_in() || ! Digitalisimo_Backups::can_manage_backups() ) return array();
+		return array( 'jobs' => wp_create_nonce( self::NONCE ), 'restore' => wp_create_nonce( Digitalisimo_Backups::ACTION_RESTORE ) );
 	}
 	/** Segundos tras terminar en los que la pestaña que siguió una restauración, sin sesión, recibe su estado final (C4). */
 	const FINISHED_ANSWER = 900;
@@ -912,14 +919,14 @@ final class Digitalisimo_Backups_Jobs {
 	public static function ajax_status() {
 		self::ajax_guard();
 		self::recover_if_idle();
-		wp_send_json_success( array( 'jobs' => self::views() ) );
+		wp_send_json_success( array( 'jobs' => self::views( 8, true ) ) );
 	}
 	public static function ajax_cancel() {
 		self::ajax_guard();
 		$result = self::cancel( sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) ) );
 		self::recover_if_idle();
-		if ( empty( $result['ok'] ) ) wp_send_json_error( array( 'message' => $result['message'], 'jobs' => self::views() ), 409 );
-		wp_send_json_success( array( 'message' => $result['message'], 'jobs' => self::views() ) );
+		if ( empty( $result['ok'] ) ) wp_send_json_error( array( 'message' => $result['message'], 'jobs' => self::views( 8, true ) ), 409 );
+		wp_send_json_success( array( 'message' => $result['message'], 'jobs' => self::views( 8, true ) ) );
 	}
 	public static function admin_cancel() {
 		if ( ! Digitalisimo_Backups::can_manage_backups() ) wp_die( 'No autorizado.' );
@@ -1002,8 +1009,8 @@ final class Digitalisimo_Backups_Jobs {
 		foreach ( self::$kinds as $class ) $view = $class::job_view( $job, $view );
 		return $view;
 	}
-	/** Trabajos sin terminar (en orden de llegada) y los últimos terminados. */
-	public static function views( $limit = 8 ) {
+	/** Trabajos sin terminar (en orden de llegada) y los últimos terminados. $screen: con lo del panel de avance (screen_view()). */
+	public static function views( $limit = 8, $screen = false ) {
 		try {
 			$jobs = Digitalisimo_Backups_Job_Store::all();
 		} catch ( Throwable $e ) {
@@ -1017,8 +1024,53 @@ final class Digitalisimo_Backups_Jobs {
 		}
 		usort( $done, function( $a, $b ) { return (int) ( $b['finished_at'] ?? 0 ) <=> (int) ( $a['finished_at'] ?? 0 ); } );
 		$views = array();
-		foreach ( array_slice( array_merge( $active, $done ), 0, max( count( $active ), (int) $limit ) ) as $job ) $views[] = self::view( $job );
+		foreach ( array_slice( array_merge( $active, $done ), 0, max( count( $active ), (int) $limit ) ) as $job ) $views[] = $screen ? self::screen_view( $job ) : self::view( $job );
 		return $views;
+	}
+	// La vista de la pantalla (los ticks de AJAX y el panel al cargar): la de la tarjeta «Trabajos» más lo que pinta el panel
+	// de avance de assets/manual-progress.js, el mismo para un respaldo y una restauración (docs/BACKUPS.md, «Pantalla»): los
+	// tramos de la barra (fase, nombre y desde qué %), el tiempo transcurrido y, en una restauración, qué se restaura, su copia
+	// previa, de qué restauración es la vuelta a la copia previa (y por qué), cuál la sigue, si quedó a medio cambiar y, sólo
+	// para quien gestiona Backups, su informe. REST y WP-CLI siguen con view(). Sin rutas ni secretos.
+	public static function screen_view( array $job ) {
+		$view = self::view( $job );
+		$spec = (array) ( $job['spec'] ?? array() );
+		$terminal = Digitalisimo_Backups_Job_Store::is_terminal( $job );
+		$track = array();
+		foreach ( self::phases( $job ) as $phase ) if ( 'transfer' !== $phase || 'local' !== ( $spec['destination'] ?? 'local' ) ) $track[] = array( $phase, self::phase_label( $phase, $job ), self::scale( self::phase_floor( $phase, $spec ), $spec, $phase ) );
+		$end = $terminal && ! empty( $job['finished_at'] ) ? (int) $job['finished_at'] : time();
+		$view['track'] = $track;
+		$view['elapsed'] = max( 0, $end - (int) ( $job['created_at'] ?? $end ) );
+		if ( ! self::is_restore( $job ) ) return $view;
+		$view['rollback_of'] = (string) ( $spec['rollback']['of'] ?? '' );
+		$view['safety'] = basename( Digitalisimo_Backups::restore_safety_file( $job ) );
+		try {
+			$view['parts'] = Digitalisimo_Backups_Restore_Parts::label( Digitalisimo_Backups_Restore_Parts::from_spec( $spec ) );
+		} catch ( Throwable $e ) {
+			$view['parts'] = 'todo';
+		}
+		$read = function( $id ) { $path = Digitalisimo_Backups_Job_Store::directory( $id ) . '/rollback.json'; $data = Digitalisimo_Backups_Job_Store::valid_id( $id ) && is_file( $path ) && ! is_link( $path ) ? json_decode( (string) @file_get_contents( $path ), true ) : null; return is_array( $data ) ? $data : array(); };
+		$next = (string) ( $read( (string) $job['id'] )['job'] ?? '' );
+		$view['followed_by'] = Digitalisimo_Backups_Job_Store::valid_id( $next ) ? $next : '';
+		if ( '' !== $view['rollback_of'] ) {
+			$view['rollback_file'] = basename( (string) ( $spec['rollback']['file'] ?? '' ) );
+			$view['rollback_cause'] = (string) ( $read( $view['rollback_of'] )['cause'] ?? '' );
+		}
+		$view['midway'] = false;
+		if ( 'failed' === $job['status'] && '' === $view['followed_by'] ) {
+			try { $view['midway'] = Digitalisimo_Backups::restore_changed( $job ); } catch ( Throwable $e ) { $view['midway'] = true; }
+		}
+		if ( 'success' === $job['status'] && Digitalisimo_Backups::can_manage_backups() ) {
+			$result = (array) ( $job['result']['restore'] ?? array() );
+			$view['result'] = array(
+				'notice' => trim( (string) ( $result['notice'] ?? '' ) ),
+				'warnings' => array_slice( array_values( array_filter( array_map( 'strval', (array) ( $result['warnings'] ?? array() ) ), 'strlen' ) ), 0, 5 ),
+				'warnings_total' => count( (array) ( $result['warnings'] ?? array() ) ),
+				'removed' => (int) ( $result['removed']['count'] ?? 0 ),
+				'kept' => (int) ( $result['removed']['kept'] ?? 0 ),
+			);
+		}
+		return $view;
 	}
 
 	/* ------------------------------------------------------------------ Utilidades */

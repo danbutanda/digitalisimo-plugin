@@ -121,6 +121,8 @@ trait Digitalisimo_Backups_Screen {
 		$credentials = self::credentials_status();
 		self::notice_strip( $network, $credentials );
 		self::tabs_nav( $tab );
+		// Una restauración en curso (o recién terminada) se sigue en su panel también desde las demás pestañas.
+		if ( 'backups' !== $tab ) self::progress_panel( $network, false );
 		if ( 'settings' === $tab ) self::settings_tab( $network, $all, $open );
 		elseif ( 'servers' === $tab ) self::destinations_tab( $s, $credentials, $open );
 		elseif ( 'tools' === $tab ) self::tools_tab( $network, $s, $history, $open );
@@ -227,11 +229,18 @@ trait Digitalisimo_Backups_Screen {
 		$current = isset( $choices[ $s['destination'] ] ) ? $s['destination'] : 'local';
 		echo '<button class="button button-primary button-hero" title="' . esc_attr( is_multisite() ? 'Respaldo completo de la red: todos sus sitios, archivos y base de datos.' : 'Respaldo completo: archivos de WordPress, plugins, temas, medios y base de datos.' ) . '">Respaldar ahora</button>';
 		echo '<details class="digitalisimo-backups-destination-choice"><summary>Destino: <span data-destination-label>' . esc_html( $choices[ $current ] ) . '</span></summary><p>' . self::manual_destination_select( $s ) . '</p>' . self::remote_only_field( false, 'digitalisimo_backup_remote_only' ) . '</details>';
-		echo '</form><div id="digitalisimo-backups-manual-progress" class="digitalisimo-backups-manual-progress" hidden><p id="digitalisimo-backups-manual-message" role="status" aria-live="polite"></p><progress id="digitalisimo-backups-manual-bar" max="100" value="0"></progress><p id="digitalisimo-backups-manual-detail" aria-live="polite"></p></div>';
+		echo '</form>';
+		// El panel de avance, a todo lo ancho bajo el botón: el del respaldo y el de una restauración en curso.
+		$watched = self::progress_panel( $network, true );
 		echo '</section>';
-		// Trabajos en curso (automatizaciones, restauraciones, migraciones): sólo mientras haya alguno.
-		self::jobs_panel( $network, true );
+		// Trabajos en curso (automatizaciones, restauraciones, migraciones) que no sigue ya el panel: sólo mientras haya alguno.
+		self::jobs_panel( $network, true, $watched );
 		self::history_panel( $history, $network, count( $all ) );
+	}
+	// El panel de avance (Digitalisimo_Backups_Progress, que sólo carga la pantalla): el identificador del trabajo que sigue.
+	private static function progress_panel( $network, $home ) {
+		require_once __DIR__ . '/class-backups-progress.php';
+		return Digitalisimo_Backups_Progress::panel( $network, $home );
 	}
 	/** «Último respaldo» y «Próximo» (la automatización activa que antes toca). */
 	private static function status_block( array $history ) {

@@ -7,10 +7,45 @@
 .digitalisimo-backups-card { padding: 24px; border: 1px solid var(--digi-line); border-radius: 18px; background: #fff; box-shadow: var(--digi-shadow-card); }
 .digitalisimo-backups .button-hero { min-height: 46px; padding: 0 20px; }
 .digitalisimo-backups .form-table tr:has(#destination) { display: none; }
-.digitalisimo-backups-manual-progress { margin-top: 16px; padding: 16px; border: 1px solid var(--digi-line); border-radius: var(--digi-radius-card); background: #fff; }
+/* Panel de avance (assets/manual-progress.js): el mismo para un respaldo y una restauración, a todo lo ancho. */
+.digitalisimo-backups-manual-progress { margin-top: 16px; padding: 16px 18px; border: 1px solid var(--digi-line); border-radius: var(--digi-radius-card); background: #fff; }
 .digitalisimo-backups-manual-progress[hidden] { display: none; }
-.digitalisimo-backups-manual-progress progress { display: block; width: 100%; height: 20px; accent-color: var(--digi-blue); }
 .digitalisimo-backups-manual-progress p { margin: 8px 0; }
+.digitalisimo-backups-progress.digitalisimo-backups-card { margin: 0 0 20px; }
+.digitalisimo-backups-progress-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.wrap.digitalisimo-backups .digitalisimo-backups-progress-title { margin: 0; padding: 0; font-size: 17px; line-height: 1.3; color: var(--digi-ink); }
+.digitalisimo-backups-progress-percent { font-size: 24px; font-weight: 800; line-height: 1; color: var(--digi-blue); font-variant-numeric: tabular-nums; }
+.digitalisimo-backups .digitalisimo-backups-progress-what { margin: 4px 0 10px; color: var(--digi-text); overflow-wrap: anywhere; }
+.digitalisimo-backups-progress-what:empty { display: none; }
+.digitalisimo-backups-progress-bar { position: relative; height: 20px; overflow: hidden; border: 1px solid var(--digi-line); border-radius: var(--digi-radius-control); background: var(--digi-tint); }
+.digitalisimo-backups-progress-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: var(--digi-gradient); transition: width .5s ease; }
+.digitalisimo-backups-progress-ticks { position: absolute; inset: 0; pointer-events: none; }
+.digitalisimo-backups-progress-tick { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; opacity: .85; }
+.digitalisimo-backups-progress[data-state="failed"] .digitalisimo-backups-progress-fill, .digitalisimo-backups-progress[data-state="lost"] .digitalisimo-backups-progress-fill { background: var(--digi-pink-dark); }
+.digitalisimo-backups-progress[data-state="cancelled"] .digitalisimo-backups-progress-fill { background: var(--digi-text); }
+.digitalisimo-backups-progress[data-state="failed"] .digitalisimo-backups-progress-percent { color: var(--digi-pink-dark); }
+.digitalisimo-backups-progress[data-state="starting"] .digitalisimo-backups-progress-fill { opacity: .35; animation: digitalisimo-backups-progress-wait 1.4s ease-in-out infinite alternate; }
+@keyframes digitalisimo-backups-progress-wait { from { opacity: .2; } to { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .digitalisimo-backups-progress-fill { transition: none; } .digitalisimo-backups-progress[data-state="starting"] .digitalisimo-backups-progress-fill { animation: none; } }
+.digitalisimo-backups .digitalisimo-backups-progress-phases { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; padding: 0; list-style: none; }
+.digitalisimo-backups .digitalisimo-backups-progress-phases li { margin: 0; padding: 2px 10px; border: 1px solid var(--digi-line); border-radius: var(--digi-radius-control); color: var(--digi-text); font-size: 12px; line-height: 1.6; white-space: nowrap; }
+.digitalisimo-backups-progress-phases li[data-state="done"] { border-color: var(--digi-blue); color: var(--digi-blue-dark); }
+.digitalisimo-backups-progress-phases li[data-state="done"]::before { content: "✓ "; }
+.digitalisimo-backups-progress-phases li[data-state="current"] { border-color: transparent; background: var(--digi-gradient-tab); color: #fff; font-weight: 700; }
+.digitalisimo-backups-progress-phases li[data-state="failed"], .digitalisimo-backups-progress-phases li[data-state="stopped"] { border-color: var(--digi-pink-dark); color: var(--digi-pink-dark); font-weight: 700; }
+.digitalisimo-backups .digitalisimo-backups-progress-message { font-weight: 700; color: var(--digi-ink); }
+.digitalisimo-backups .digitalisimo-backups-progress-detail, .digitalisimo-backups .digitalisimo-backups-progress-time { color: var(--digi-text); overflow-wrap: anywhere; }
+.digitalisimo-backups-progress-detail:empty, .digitalisimo-backups-progress-time:empty { display: none; }
+.digitalisimo-backups .digitalisimo-backups-progress-note { padding: 8px 12px; border-left: 4px solid var(--digi-violet); background: var(--digi-surface); color: var(--digi-ink); }
+.digitalisimo-backups .digitalisimo-backups-progress-note[data-level="warning"], .digitalisimo-backups .digitalisimo-backups-progress-note[data-level="error"] { border-left-color: var(--digi-pink-dark); }
+.digitalisimo-backups .digitalisimo-backups-progress-note[data-level="error"] { font-weight: 600; }
+.digitalisimo-backups-progress-result { margin: 10px 0 0; padding: 10px 14px; border: 1px solid var(--digi-line); border-radius: var(--digi-radius-control); background: var(--digi-surface); overflow-wrap: anywhere; }
+.digitalisimo-backups-progress[data-state="success"] .digitalisimo-backups-progress-result { border-color: var(--digi-blue); }
+.digitalisimo-backups-progress[data-state="failed"] .digitalisimo-backups-progress-result { border-color: var(--digi-pink-dark); }
+.digitalisimo-backups .digitalisimo-backups-progress-result ul { margin: 4px 0 8px 20px; list-style: disc; }
+.digitalisimo-backups-progress-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.digitalisimo-backups-progress-actions:not(:has(> :not([hidden]))) { display: none; }
+.digitalisimo-backups-progress-actions form { margin: 0; }
 /* Tarjeta «Trabajos»: estado de cada trabajo de la cola con los tokens compartidos. */
 .digitalisimo-backups-jobs { margin: 24px 0; }
 .digitalisimo-backups-jobs progress { width: 120px; height: 12px; vertical-align: middle; accent-color: var(--digi-blue, #245eff); }
