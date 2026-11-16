@@ -422,7 +422,7 @@ final class Digitalisimo_Backups_Rest {
 	public static function upload_finish( $request ) {
 		$secret = self::secret( $request );
 		if ( is_wp_error( $secret ) ) return $secret;
-		return self::respond( Digitalisimo_Backups::service_upload_finish( (string) $request['id'], array( 'secret' => $secret ) ) );
+		return self::respond( Digitalisimo_Backups::service_upload_finish( (string) $request['id'], array( 'secret' => $secret, 'via' => 'rest' ) ) );
 	}
 	/** Si Backuply está en el sitio y los respaldos suyos que se pueden importar (sin rutas). */
 	public static function backuply( $request ) { return self::respond( Digitalisimo_Backups::service_backuply() ); }
