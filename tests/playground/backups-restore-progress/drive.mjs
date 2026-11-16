@@ -69,7 +69,7 @@ page.setDefaultNavigationTimeout(300_000);
 await page.setViewport({ width: 1280, height: 900 });
 const jsErrors = [];
 // Las transiciones de vista entre documentos del escritorio de WordPress (Chrome) no son de esta pantalla.
-page.on('pageerror', (e) => { const text = String(e.message || e); if (!/ViewTransition|Transition was aborted/.test(text)) jsErrors.push(text.slice(0, 300)); });
+page.on('pageerror', (e) => { const text = String(e.message || e); if (!/ViewTransition|Transition was aborted/.test(text)) jsErrors.push(`${page.url()} · ${text.slice(0, 300)}${e && e.stack ? ' · ' + String(e.stack).replace(/\s+/g, ' ').slice(0, 400) : ''}`); });
 page.on('dialog', async (d) => { log(`· diálogo: ${d.message().slice(0, 200)}`); await d.accept(); });
 const samples = {};
 
