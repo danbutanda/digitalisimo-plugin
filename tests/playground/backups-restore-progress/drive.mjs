@@ -218,11 +218,13 @@ if (mode === 'start') {
       await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 300_000 }).catch(() => null), page.click(`#${row} .digitalisimo-backups-restore-confirm button`)]);
       const text = await page.evaluate(() => document.body.innerText).catch(() => '');
       const fatal = existsSync(`${dir}/ctl/debug.log`) ? readFileSync(`${dir}/ctl/debug.log`, 'utf8').split('\n').filter((l) => /Fatal|Allowed memory|Uncaught/.test(l)).slice(-3).join(' | ') : '';
-      log(`· tras «Restaurar»: ${page.url()} · ${/critical error/i.test(text) ? 'ERROR CRÍTICO' : 'pantalla de Backups'} · ${fatal}`);
-      check(!/critical error/i.test(text), '«Restaurar» desde la fila vuelve a la pantalla (sin error crítico)', fatal);
+      const fatals = existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').trim() : '';
+      const landed = /digitalisimo-backups/.test(page.url()) && !!(await page.$('#digitalisimo-backups-manual-form'));
+      log(`· tras «Restaurar»: ${page.url()} · ${landed ? 'pantalla de Backups' : 'NO es la pantalla: ' + text.slice(0, 120)} · ${fatal} ${fatals.slice(0, 1200)}`);
+      check(landed && !fatals, '«Restaurar» desde la fila vuelve a la pantalla (sin error fatal)', fatals || fatal);
     }
   } catch (e) { check(false, 'excepción', String(e.stack || e).slice(0, 800)); }
-  for (const name of ['requests.jsonl', 'memory.jsonl', 'debug.log']) if (existsSync(`${dir}/ctl/${name}`)) copyFileSync(`${dir}/ctl/${name}`, `${shots}/${name}`);
+  for (const name of ['requests.jsonl', 'memory.jsonl', 'debug.log', 'fatal.jsonl']) if (existsSync(`${dir}/ctl/${name}`)) copyFileSync(`${dir}/ctl/${name}`, `${shots}/${name}`);
   await browser.close();
   rmSync(profile, { recursive: true, force: true });
   process.exit(failures ? 1 : 0);
