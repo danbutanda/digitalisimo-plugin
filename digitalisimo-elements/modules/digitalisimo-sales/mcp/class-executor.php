@@ -95,6 +95,7 @@ final class Executor {
 							'name'         => $block['name'],
 							'required'     => (bool) $block['required'],
 							'required_for' => array_values( (array) ( $block['required_for'] ?? array() ) ),
+							'price'        => ! empty( $block['price_values'] ),
 						);
 					},
 					(array) ( $meta['blocks'] ?? array() )
@@ -126,7 +127,7 @@ final class Executor {
 			'variant'   => Catalog::variant(),
 			'funnel'    => $manifest['funnel'] ?? '',
 			'templates' => $templates,
-			'rules'     => 'Las páginas se crean en borrador; nada se inventa (testimonios, cifras y fechas sólo reales); urgencia sólo con un cierre real; precios en MXN y sólo en la oferta; llamado a la acción por WhatsApp; enlaces del propio sitio; los bloques se pueden quitar, nunca reordenar, salvo los obligatorios (required: true): la promesa, la oferta, la garantía, las preguntas frecuentes, el bloque whatsapp y el pie no se quitan; las pruebas sociales sí. Detalle: digitalisimo-sales/guide.',
+			'rules'     => 'Las páginas se crean en borrador; nada se inventa (testimonios, cifras y fechas sólo reales); urgencia sólo con un cierre real; precios en MXN y sólo en los bloques con price: true (la oferta, el cierre que la repite, los caminos, «Cuánto vale para ti», el carrito y la oferta única): un valor con precio en otro bloque se rechaza; llamado a la acción por WhatsApp; enlaces del propio sitio; los bloques se pueden quitar, nunca reordenar, salvo los obligatorios (required: true): la promesa, la oferta, la garantía, las preguntas frecuentes, el bloque whatsapp, el pie y el formulario no se quitan; las pruebas sociales sí. Detalle: digitalisimo-sales/guide.',
 			'required'  => $manifest['required_kinds'] ?? array(),
 		);
 		if ( '' === $id ) {
@@ -206,8 +207,11 @@ final class Executor {
 		if ( $built['broken_anchors'] ) {
 			$review[] = 'Hay botones que llevan a un bloque que ya no está (#' . implode( ', #', $built['broken_anchors'] ) . '): cámbialos o bórralos en el editor.';
 		}
+		if ( $built['event_logo'] ) {
+			$review[] = 'La barra fija de cierre lleva la imagen de muestra del logo del evento: pon el logo del evento en el editor o borra esa imagen; si no, se ve en cada pantalla.';
+		}
 		if ( $built['social_pending'] ) {
-			$review[] = sprintf( 'Faltan los enlaces de las redes: %d iconos de redes llevan el enlace de muestra %s. Pon en el editor el de cada perfil del sitio (el icono → Enlace) o quita los que no uses; por aquí no entra ninguna URL de otro sitio.', $built['social_pending'], Builder::PROFILE_SAMPLE );
+			$review[] = sprintf( 'Faltan los enlaces de las redes: %d iconos de redes llevan el enlace de muestra %s, que abre la misma página. Pon en el editor el de cada perfil del sitio (el icono → Enlace, y «Abrir en una nueva ventana» si lo quieres) o quita los que no uses; por aquí no entra ninguna URL de otro sitio.', $built['social_pending'], Builder::PROFILE_SAMPLE );
 		}
 		return array(
 			'ok'               => true,
@@ -231,6 +235,7 @@ final class Executor {
 			'omitted_blocks'   => $built['omitted_blocks'],
 			'broken_anchors'   => $built['broken_anchors'],
 			'social_pending'   => $built['social_pending'],
+			'event_logo'       => $built['event_logo'],
 			'pages_to_create'  => $links,
 			'review'           => $review,
 			'llm_instructions' => 'La página quedó en BORRADOR. Muestra al usuario la vista previa (' . (string) $page['preview_url'] . ') y lo que falta revisar; publicarla le toca a una persona.',

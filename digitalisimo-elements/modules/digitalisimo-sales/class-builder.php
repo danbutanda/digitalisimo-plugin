@@ -20,8 +20,11 @@ defined( 'ABSPATH' ) || exit;
  * - todos los identificadores (elementos y elementos de listas) se regeneran: ninguno repite uno de la plantilla;
  * - `omit_blocks` quita bloques enteros del manifiesto y nunca reordena: lo que queda sigue en el orden de la
  *   plantilla, el de la guía. Nunca quita un bloque obligatorio (`required`, decisión 5 del operador): la promesa, la
- *   oferta, la garantía, las preguntas frecuentes, WhatsApp y el pie, en las plantillas que los tienen; las pruebas
- *   sociales sí se quitan;
+ *   oferta, la garantía, las preguntas frecuentes, WhatsApp (el último enlace `wa.me` de la página) y el pie, en las
+ *   plantillas que los tienen, y el formulario (la captación y el carrito); las pruebas sociales sí se quitan;
+ * - un valor con precio (`$`, `MXN`, pesos, una cifra con centavos) sólo cae en un bloque que lo admite
+ *   (`price_values`: la oferta, el cierre que la repite, los caminos, «Cuánto vale para ti», el carrito y la oferta
+ *   única): el precio se revela tarde;
  * - los iconos de redes (04 y 07) llevan su logo y un enlace de muestra del sitio (`#[enlace de tu perfil]`) que se pone
  *   en el editor: se informa cuántos quedan (`social_pending`);
  * - una lista de reemplazos va por aparición en la plantilla entera (el total y el orden de list-templates): se llena
@@ -50,7 +53,18 @@ final class Builder {
 		'preguntas-frecuentes' => 'las preguntas frecuentes',
 		'whatsapp'             => 'WhatsApp',
 		'pie'                  => 'el pie (avisos legales)',
+		'formulario'           => 'el formulario',
 	);
+
+	/**
+	 * Un valor con precio (revisión M2): `$`, `MXN`, «peso(s)», una cifra con centavos (`1997.50`, `1,997.00`, `49,90`) o
+	 * una cifra justo después de «precio» o «cuesta». Una cifra suelta con separador de miles («1,250 alumnos») no
+	 * cuenta: puede ser un dato real de otro tipo.
+	 */
+	const PRICE_TEXT = '/\$|\bMXN\b|\bpesos?\b|\b[0-9]+[.,][0-9]{2}\b(?![.,]?[0-9])|\b(?:precio|cuestan?)\s+(?:de\s+)?\$?[0-9]/iu';
+
+	/** El título en el Navegador del logo del evento de la barra de cierre (kit_paginas.py, `logo_barra()`). */
+	const EVENT_LOGO_TITLE = 'Logo del evento, si aplica';
 
 	/** El enlace de muestra de los iconos de redes de la 04 y la 07: se pone en el editor (kit_lib.py, PERFIL_URL). */
 	const PROFILE_SAMPLE = '#[enlace de tu perfil]';
@@ -217,6 +231,20 @@ final class Builder {
 		$urgency = null === $close && ! empty( $meta['urgency'] ) ? (array) $meta['urgency'] : array();
 		$gone    = self::subtree_ids( $content, array_merge( $omit_ids, $urgency ) );
 
+		// El precio se revela tarde (v4): un valor con precio sólo cae en los bloques que lo admiten (`price_values` del
+		// manifiesto: la oferta, el cierre que la repite, los caminos, «Cuánto vale para ti», el carrito y la oferta
+		// única). Bloque de cada elemento, por sus secciones de primer nivel.
+		$block_of = array();
+		$price_ok = array();
+		foreach ( $blocks as $key => $block ) {
+			$price_ok[ $key ] = ! array_key_exists( 'price_values', $block ) || ! empty( $block['price_values'] );
+			foreach ( self::subtree_ids( $content, (array) ( $block['sections'] ?? array() ) ) as $id => $unused ) {
+				$block_of[ $id ] = (string) $key;
+			}
+		}
+		$where       = ''; // El bloque del elemento que se está llenando.
+		$price_error = null;
+
 		// Reemplazos, WhatsApp y cierre, campo por campo.
 		$filled   = 0;
 		$here     = false; // ¿El elemento que se está llenando se quita después?
@@ -227,8 +255,8 @@ final class Builder {
 		) : array();
 		// La fecha de los contadores: la plantilla trae una ya pasada (el widget no admite un placeholder).
 		$due = $close ? $close->format( 'Y-m-d H:i' ) : null;
-		$resolver = static function ( string $field ) use ( &$plan, &$filled, &$here, $close_ph ) {
-			return static function ( $key ) use ( &$plan, &$filled, &$here, $close_ph, $field ) {
+		$resolver = static function ( string $field ) use ( &$plan, &$filled, &$here, &$where, &$price_error, $price_ok, $close_ph ) {
+			return static function ( $key ) use ( &$plan, &$filled, &$here, &$where, &$price_error, $price_ok, $close_ph, $field ) {
 				if ( isset( $close_ph[ $key ] ) ) {
 					return $close_ph[ $key ];
 				}
@@ -249,7 +277,10 @@ final class Builder {
 					$entry['gone'][ $index ] = true;
 					return null;
 				}
-				$raw   = $entry['values'][ $index ];
+				$raw = $entry['values'][ $index ];
+				if ( null === $price_error && '' !== $where && empty( $price_ok[ $where ] ) && self::looks_like_price( $raw ) ) {
+					$price_error = array( (string) $key, $raw, $where );
+				}
 				$clean = 'rich' === $field ? wp_kses_post( $raw ) : sanitize_text_field( $raw );
 				if ( '' === trim( (string) $clean ) ) {
 					return null;
@@ -261,8 +292,9 @@ final class Builder {
 		};
 		$content = Placeholders::map_strings(
 			$content,
-			static function ( $owner, $path, $value, $id = '' ) use ( $resolver, $whatsapp, $due, $gone, &$here ) {
+			static function ( $owner, $path, $value, $id = '' ) use ( $resolver, $whatsapp, $due, $gone, $block_of, &$here, &$where ) {
 				$here  = isset( $gone[ $id ] );
+				$where = $block_of[ $id ] ?? '';
 				$field = Placeholders::field( $owner, $path, $value );
 				if ( 'date' === $field ) {
 					return 'countdown' === $owner && null !== $due ? $due : $value;
@@ -276,6 +308,10 @@ final class Builder {
 				return false === strpos( $value, '[' ) ? $value : Placeholders::fill( $value, $resolver( $field ) );
 			}
 		);
+		if ( null !== $price_error ) {
+			list( $key, $raw, $block ) = $price_error;
+			return self::error( 'digitalisimo_sales_price_outside_offer', sprintf( '«%s» lleva un precio o una cifra en pesos («%s») y cae en el bloque «%s», que no lleva precio: el precio se revela tarde, sólo en la oferta (y en el cierre que la repite, los caminos, «Cuánto vale para ti», el carrito y la oferta única; price: true en list-templates). Pon el precio en los placeholders de precio de la oferta, sólo la cifra.', $key, function_exists( 'mb_substr' ) ? mb_substr( $raw, 0, 80 ) : substr( $raw, 0, 80 ), $block ) );
+		}
 		$removed = array();
 		if ( $omit_ids ) {
 			$dropped = array();
@@ -366,6 +402,7 @@ final class Builder {
 			'close_date'       => $close ? $close->format( 'Y-m-d H:i' ) : null,
 			'removed_urgency'  => $removed,
 			'social_pending'   => $social,
+			'event_logo'       => self::event_logo_sample( $content ),
 		);
 	}
 
@@ -402,7 +439,7 @@ final class Builder {
 			}
 		}
 		return sprintf(
-			'omit_blocks: no se puede quitar %s. En esta plantilla no se quitan: %s (required: true en list-templates): la promesa, la oferta, la garantía, las preguntas frecuentes, el bloque whatsapp y el pie no faltan nunca (decisión del operador). Los demás bloques sí se quitan, también las pruebas sociales; el orden no se cambia.',
+			'omit_blocks: no se puede quitar %s. En esta plantilla no se quitan: %s (required: true en list-templates): la promesa, la oferta, la garantía, las preguntas frecuentes, el bloque whatsapp, el pie y el formulario no faltan nunca (decisión del operador). Los demás bloques sí se quitan, también las pruebas sociales; el orden no se cambia.',
 			self::enumerate( $parts, ' ni ' ),
 			implode( ', ', $all )
 		);
@@ -412,6 +449,28 @@ final class Builder {
 	private static function enumerate( array $items, string $last ): string {
 		$tail = array_pop( $items );
 		return $items ? implode( ', ', $items ) . $last . $tail : (string) $tail;
+	}
+
+	/** ¿Un valor lleva un precio o una cifra en pesos? (`PRICE_TEXT`). */
+	public static function looks_like_price( string $value ): bool {
+		return 1 === preg_match( self::PRICE_TEXT, html_entity_decode( $value, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+	}
+
+	/** ¿Queda el logo del evento de la barra con la imagen de muestra (sin una imagen elegida)? */
+	private static function event_logo_sample( array $elements ): bool {
+		foreach ( $elements as $element ) {
+			if ( ! is_array( $element ) ) {
+				continue;
+			}
+			$settings = (array) ( $element['settings'] ?? array() );
+			if ( 'image' === ( $element['widgetType'] ?? '' ) && self::EVENT_LOGO_TITLE === ( $settings['_title'] ?? '' ) && empty( $settings['image']['url'] ) ) {
+				return true;
+			}
+			if ( self::event_logo_sample( (array) ( $element['elements'] ?? array() ) ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static function sample(): string {

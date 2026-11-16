@@ -87,14 +87,43 @@ roto('un bonus con su valor', 'sections', completa, (d) => { widgets(seccionDe(d
 roto('una barra de cierre que no es fija', 'containers', completa, (d) => { delete seccionDe(d, completa, 'barra-de-cierre')[0].settings.sticky; }, /la barra de cierre no es fija arriba/);
 roto('una barra de cierre fija sólo en escritorio', 'sections', completa, (d) => { seccionDe(d, completa, 'barra-de-cierre')[0].settings.sticky_on = ['desktop']; }, /la barra de cierre no es fija arriba/);
 roto('una barra de cierre sin el logo del evento', 'sections', completa, (d) => { seccionDe(d, completa, 'barra-de-cierre')[0].elements[0].elements = []; }, /la barra de cierre no empieza con el logo/);
+// Revisión B1, B2 y M2, en el manifiesto: el formulario y el último enlace a WhatsApp no se quitan, y un bloque con
+// precio en la plantilla deja llenarlo.
+const rotoManifest = (nombre, cambio, esperado) => {
+  const dir = mkdtempSync(join(tmpdir(), 'digi-sales-kit-'));
+  try {
+    cpSync(templates, join(dir, 'templates'), { recursive: true });
+    cpSync(join(templates, '..', 'guide.md'), join(dir, 'guide.md'));
+    const file = join(dir, 'templates', 'manifest.json');
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    cambio(data);
+    writeFileSync(file, JSON.stringify(data));
+    const out = py([join(kit, 'kit_validar.py'), join(dir, 'templates'), join(root, 'digitalisimo-elements')]);
+    ok(out.status === 1 && esperado.test(out.stdout), `el validador debía fallar con ${nombre} (${esperado}):\n${out.stdout.slice(-1500)}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+const bloqueM = (d, id, clave) => d.templates.find((x) => x.id === id).blocks.find((b) => b.key === clave);
+rotoManifest('el formulario de la captación que se puede quitar', (d) => { Object.assign(bloqueM(d, 'captacion', 'registro'), { required: false, required_for: [] }); }, /registro lleva \['formulario'\] y omit_blocks lo dejaría quitar/);
+rotoManifest('el formulario del carrito sin su motivo', (d) => { bloqueM(d, 'carrito', 'formulario').required_for = ['oferta', 'garantia']; }, /formulario lleva \['formulario'\]/);
+rotoManifest('la 04 sin ningún enlace a WhatsApp que no se quite', (d) => { Object.assign(bloqueM(d, 'gracias-registro', 'mientras-tanto'), { required: false, required_for: [] }); }, /sin ningún enlace a WhatsApp/);
+rotoManifest('un bloque de WhatsApp sin enlace a WhatsApp', (d) => { Object.assign(bloqueM(d, 'gracias-registro', 'tres-pasos'), { required: true, required_for: ['whatsapp'] }); }, /se declara de WhatsApp y no lleva ningún enlace/);
+rotoManifest('la oferta donde create-page no deja poner el precio', (d) => { bloqueM(d, 'venta-corta', 'oferta').price_values = false; }, /create-page no dejaría llenarlo/);
 // Los iconos de redes (decisión 2): con su logo, sólo en la 04 y la 07 y sin enlazar a las redes.
 const compra = '07-gracias-por-tu-compra.json';
 const iconos = (d) => widgets(d.content).find((w) => w.widgetType === 'social-icons');
 roto('iconos de redes en otra plantilla', 'sections', corta, (d) => { const fuente = JSON.parse(readFileSync(join(templates, 'sections', compra), 'utf8')); widgets(seccionDe(d, corta, 'beneficios'))[0].settings.title = 'Síguenos'; seccionDe(d, corta, 'beneficios')[0].elements[0].elements.push({ ...iconos(fuente), id: 'abc1234' }); }, /iconos de redes donde no van/);
 roto('un icono de red que enlaza a la red', 'containers', compra, (d) => { iconos(d).settings.social_icon_list[0].link.url = 'https://facebook.com/marca'; }, /el icono fab fa-facebook-f enlaza a/);
 roto('el icono de WhatsApp a otro número que el del sitio', 'sections', '04-gracias-por-registrarte.json', (d) => { iconos(d).settings.social_icon_list[4].link.url = '#[enlace de tu perfil]'; }, /el icono fab fa-whatsapp enlaza a/);
+roto('un icono de perfil de muestra que abre otra pestaña', 'containers', compra, (d) => { iconos(d).settings.social_icon_list[2].link.is_external = 'on'; }, /abre otra pestaña/);
 roto('el icono de otra red', 'sections', '04-gracias-por-registrarte.json', (d) => { iconos(d).settings.social_icon_list[1].social_icon.value = 'fab fa-linkedin'; }, /iconos de redes distintos de los del kit|«LinkedIn» sin excepción/);
 roto('el nombre de una red fuera de los iconos', 'containers', compra, (d) => { widgets(d.content).find((w) => w.widgetType === 'text-editor').settings.editor = '<p>Síguenos en Instagram</p>'; }, /«Instagram» sin excepción declarada/);
+// Revisión M1: la barra lleva el margen de las anclas y mide lo mismo en las dos variantes.
+roto('una barra de cierre sin el margen de las anclas', 'containers', completa, (d) => { delete seccionDe(d, completa, 'barra-de-cierre')[0].settings.sticky_anchor_link_offset; }, /sin el margen de las anclas/);
+roto('una barra de cierre con un margen de anclas menor que ella', 'sections', completa, (d) => { seccionDe(d, completa, 'barra-de-cierre')[0].settings.sticky_anchor_link_offset = 40; }, /sin el margen de las anclas/);
+roto('una barra de cierre con la separación de columnas', 'sections', completa, (d) => { seccionDe(d, completa, 'barra-de-cierre')[0].settings.gap = 'extended'; }, /no mide lo mismo con secciones que con contenedores/);
+roto('una barra de cierre con relleno arriba en un contenedor hijo', 'containers', completa, (d) => { seccionDe(d, completa, 'barra-de-cierre')[0].elements[1].settings.padding.top = '15'; }, /no mide lo mismo con secciones que con contenedores/);
 roto('una barra de cierre que no se acomoda en celular', 'containers', completa, (d) => { delete seccionDe(d, completa, 'barra-de-cierre')[0].settings.flex_wrap_mobile; }, /no se apila en celular/);
 
 // 3. Las marcas que quedan viven en las constantes del generador (una línea cada una).

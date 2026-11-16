@@ -287,6 +287,9 @@ def revisar_v4(t, d, variante):
             error(f"{rel}: iconos de redes distintos de los del kit: {[it.get('social_icon') for it in items]}")
         for it in items:
             v, u = it.get("social_icon", {}).get("value"), it.get("link", {}).get("url", "")
+            if v != "fab fa-whatsapp" and it.get("link", {}).get("is_external"):
+                error(f"{rel}: el icono {v} con el enlace de muestra abre otra pestaña (is_external): si se publica sin "
+                      "cambiarlo, abre la misma página")
             if (u != WHATSAPP) if v == "fab fa-whatsapp" else not (u.startswith("#[") and PLACEHOLDER_URL.match(u)):
                 error(f"{rel}: el icono {v} enlaza a {u!r}: las redes llevan un placeholder del sitio (se pone en el "
                       "editor) y WhatsApp el número del sitio, nunca la red")
@@ -295,6 +298,8 @@ def revisar_v4(t, d, variante):
     for b in t["blocks"]:
         secciones = [por_id[i] for i in b["sections"] if i in por_id]
         textos = [(c, v) for e in secciones for c, v in cadenas(e)]
+        if b.get("price") and not b.get("price_values"):
+            error(f"{rel}: el bloque {b['key']} lleva precio en la plantilla pero create-page no dejaría llenarlo")
         # El precio se revela tarde: sólo en la oferta (y en el cierre de la 01, que la repite).
         if not b.get("price"):
             for campo, valor in textos:
@@ -329,6 +334,18 @@ def revisar_v4(t, d, variante):
             if (s.get("sticky") != "top" or not {"desktop", "tablet", "mobile"} <= set(s.get("sticky_on") or [])
                     or not s.get("z_index")):
                 error(f"{rel}: la barra de cierre no es fija arriba (sticky top en escritorio, tableta y celular)")
+            # Las anclas a las que llevan sus botones (#oferta…) quedan debajo de la barra, no tapadas por ella: el
+            # núcleo sólo da `scroll-margin-top` a las de un elemento fijo con `sticky_anchor_link_offset`.
+            if not isinstance(s.get("sticky_anchor_link_offset"), int) or s["sticky_anchor_link_offset"] < 100:
+                error(f"{rel}: la barra de cierre fija sin el margen de las anclas (sticky_anchor_link_offset ≥ 100): "
+                      "tapa el título del bloque al que llevan los botones")
+            # Mide lo mismo en las dos variantes: sin relleno arriba ni abajo en sus columnas (la separación de una
+            # sección es relleno de la columna en los cuatro lados; la de un contenedor, no).
+            sep = s.get("gap") == "no" if variante == "sections" else (s.get("flex_gap") or {}).get("size") == 0
+            if not sep or any((c.get("settings", {}).get("padding") or {}).get("top") != "0"
+                               or (c.get("settings", {}).get("padding") or {}).get("bottom") != "0" for c in cols):
+                error(f"{rel}: la barra de cierre lleva separación o relleno arriba y abajo en sus columnas: no mide "
+                      "lo mismo con secciones que con contenedores")
             if (not cols or cols[0].get("settings", {}).get("hide_mobile") != "hidden-mobile" or not ws
                     or ws[0] != "image"):
                 error(f"{rel}: la barra de cierre no empieza con el logo del evento (oculto en celular)")
@@ -377,11 +394,12 @@ for t in manifest["templates"]:
     if len(set(claves)) != len(claves) or any(not re.fullmatch(r"[a-z0-9-]+", c) for c in claves):
         error(f"{t['file']}: claves de bloque repetidas o mal formadas")
     # Bloques que omit_blocks no quita (decisión 5 del operador): los que llevan la promesa, la oferta, la garantía, las
-    # preguntas frecuentes, WhatsApp o el pie. Las pruebas sociales nunca son obligatorias.
+    # preguntas frecuentes, WhatsApp o el pie; y, por la revisión (B1), el formulario. Las pruebas sociales nunca son
+    # obligatorias.
     tipos = manifest.get("required_kinds", {})
-    if set(tipos) != {"promesa", "oferta", "garantia", "preguntas-frecuentes", "whatsapp", "pie"}:
+    if set(tipos) != {"promesa", "oferta", "garantia", "preguntas-frecuentes", "whatsapp", "pie", "formulario"}:
         error(f"manifest.json: lo que no se quita es la promesa, la oferta, la garantía, las preguntas frecuentes, "
-              f"WhatsApp y el pie: {sorted(tipos)}")
+              f"WhatsApp, el pie y el formulario: {sorted(tipos)}")
     por_seccion = {e["id"]: e for e in ds["content"]}
     for b in t["blocks"]:
         lleva = b.get("required_for", [])
@@ -397,17 +415,32 @@ for t in manifest["templates"]:
         if '"widgetType":"accordion"' in cuerpo and t["id"] != "prueba-social":
             debe.add("preguntas-frecuentes")
         if b["key"] in ("promesa", "oferta", "whatsapp", "pie", "garantia"):
-            debe.add({"garantia": "garantia"}.get(b["key"], b["key"]))
+            debe.add(b["key"])
+        # Un formulario (la captación de la 03, los datos del carrito) no se quita: sin él la página no capta.
+        if '"widgetType":"form"' in cuerpo:
+            debe.add("formulario")
+        # WhatsApp se reconoce por sus enlaces (`wa.me`), no por la clave del bloque: un bloque marcado «whatsapp»
+        # debe llevar uno.
+        if "whatsapp" in lleva and "https://wa.me/" not in cuerpo:
+            error(f"{t['file']}: el bloque {b['key']} se declara de WhatsApp y no lleva ningún enlace a WhatsApp")
         if not debe <= set(lleva):
             error(f"{t['file']}: el bloque {b['key']} lleva {sorted(debe - set(lleva))} y omit_blocks lo dejaría quitar")
         social = ('"widgetType":"testimonial-carousel"' in cuerpo or '"widgetType":"blockquote"' in cuerpo
                   or "[Nombre real]" in cuerpo)
         if social and b["required"]:
             error(f"{t['file']}: el bloque {b['key']} lleva pruebas sociales, que siempre se pueden quitar")
+    # Si la plantilla lleva un enlace a WhatsApp, al menos uno queda siempre: lo lleva un bloque obligatorio por WhatsApp
+    # (revisión B2: la 04 se quedaba sin ninguno quitando «Mientras tanto»).
+    con_wa = [b for b in t["blocks"] if "https://wa.me/" in json.dumps([por_seccion[i] for i in b["sections"]
+                                                                          if i in por_seccion])]
+    if con_wa and not any(b["required"] and "whatsapp" in b.get("required_for", []) for b in con_wa):
+        error(f"{t['file']}: omit_blocks puede dejar la página sin ningún enlace a WhatsApp (los llevan "
+              f"{[b['key'] for b in con_wa]} y ninguno es obligatorio por WhatsApp)")
     if t["id"] in ("venta-completa", "venta-corta"):
         cubiertos = {k for b in t["blocks"] for k in b.get("required_for", [])}
-        if cubiertos != set(tipos):
-            error(f"{t['file']}: a la página de venta le falta un bloque obligatorio: {sorted(set(tipos) - cubiertos)}")
+        faltan = set(tipos) - cubiertos - {"formulario"}
+        if faltan:
+            error(f"{t['file']}: a la página de venta le falta un bloque obligatorio: {sorted(faltan)}")
     if t["has_countdown"] != ("countdown" in cuenta_s) or t["has_form"] != ("form" in cuenta_s):
         error(f"{t['file']}: has_countdown o has_form no coinciden con la plantilla")
     for u in t["urgency"]:

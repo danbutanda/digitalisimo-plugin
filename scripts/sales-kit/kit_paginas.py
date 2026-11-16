@@ -58,23 +58,36 @@ def logo_barra():
                             "object-fit": "contain", "_title": "Logo del evento, si aplica"})
 
 
-def barra_cierre():
+# Cuánto deja libre arriba el navegador al llegar a un ancla (#oferta, #historias…) desde la barra fija: el núcleo da
+# ese `scroll-margin-top` a las anclas que quedan debajo de un elemento fijo con `sticky_anchor_link_offset`; sin él,
+# la barra tapa el título del bloque. Más que la barra más alta (108 px en escritorio, 63 en celular; el núcleo usa
+# el valor de escritorio en todos los tamaños).
+BARRA_ANCLA = 130
+
+
+def barra_cierre(texto=f"La inscripción cierra el {DIA_CIERRE} de {MES_CIERRE} a las {HORA_CIERRE} (hora del centro de "
+                 "México)", boton_txt="Inscribirme", mensaje="Inscripción cerrada."):
     """Barra fija arriba: logo del evento, la fecha de cierre, el contador y un botón. Solo si el cierre es real
     (`urgente()`: sin `close_date`, `create-page` la quita). Fija al desplazar (`extra`: el efecto «fijo» del
-    constructor, que deja un `.elementor-sticky__spacer` del mismo alto en su lugar). En celular quedan el texto y el
-    botón, en una fila (`tam_movil`)."""
+    constructor, que deja un `.elementor-sticky__spacer` del mismo alto en su lugar), con el margen de las anclas
+    (`BARRA_ANCLA`). En celular quedan el texto y el botón, en una fila (`tam_movil`).
+
+    Sin separación entre columnas y con relleno sólo a los lados (`pad`): así mide lo mismo con secciones que con
+    contenedores (la separación de una sección es relleno de la columna también arriba y abajo; la de un contenedor,
+    no)."""
+    lado = caja(0, 15)
     return urgente(seccion(
-        columna(logo_barra(), tam=12, centro_v=True, ocultar_movil=True),
-        columna(titulo(f"La inscripción cierra el {DIA_CIERRE} de {MES_CIERRE} a las {HORA_CIERRE} (hora del centro de "
-                       "México)", "h5", color=TX_OSC, alinear="left", tam=15, tam_movil=13, peso=600), tam=40,
-                tam_movil=58, centro_v=True),
-        columna(contador(oscuro=True, ancho=100, mensaje="Inscripción cerrada."), tam=30, centro_v=True,
-                ocultar_movil=True),
-        columna(boton("Inscribirme", fondo=NEON, color=NOCHE, tam="sm", fuente=15, fuente_movil=13, alinear="right",
+        columna(logo_barra(), tam=12, centro_v=True, ocultar_movil=True, pad=lado),
+        columna(titulo(texto, "h5", color=TX_OSC, alinear="left", tam=15, tam_movil=13, peso=600), tam=40,
+                tam_movil=58, centro_v=True, pad=lado),
+        columna(contador(oscuro=True, ancho=100, mensaje=mensaje), tam=30, centro_v=True, ocultar_movil=True, pad=lado),
+        columna(boton(boton_txt, fondo=NEON, color=NOCHE, tam="sm", fuente=15, fuente_movil=13, alinear="right",
                       icono_der=False, relleno=(12, 22), relleno_movil=(10, 12)), tam=18, tam_movil=42,
-                centro_v=True),
-        fondo=NOCHE, pad=(10, 20), pad_movil=(8, 12), nota="Barra fija: logo del evento y cierre (solo si es real)",
-        extra={"sticky": "top", "sticky_on": ["desktop", "tablet", "mobile"], "sticky_offset": 0, "z_index": 99}))
+                centro_v=True, pad=lado),
+        fondo=NOCHE, pad=(10, 20), pad_movil=(8, 12), espacio="no",
+        nota="Barra fija: logo del evento y cierre (solo si es real)",
+        extra={"sticky": "top", "sticky_on": ["desktop", "tablet", "mobile"], "sticky_offset": 0,
+               "sticky_anchor_link_offset": BARRA_ANCLA, "z_index": 99}))
 
 
 def pie(oscuro=True):
@@ -477,6 +490,10 @@ def venta_completa():
 
 def venta_corta():
     S = []
+    # La barra fija de cierre, opcional (como la de la 01): para un evento de venta con una fecha de cierre real (el
+    # caso «Evento de venta de temporada»: 02 + barra de cierre). Sin `close_date`, `create-page` la quita.
+    S.append(barra_cierre(texto=f"Esta oferta termina el {DIA_CIERRE} de {MES_CIERRE} a las {HORA_CIERRE} (hora del "
+                                "centro de México)", boton_txt="¡Lo quiero!", mensaje="La oferta terminó."))
     # 1. La portada: cabe en la primera pantalla. Logo, promesa, antetítulo chico y botón; sin video.
     S.append(seccion(
         imagen(ancho=16, radio=0),
@@ -867,20 +884,27 @@ CATALOGO = [
      "mide": "Vista de página",
      "obligatorios": {"promesa": ["promesa"], "oferta": ["oferta"], "garantia": ["garantia"],
                      "preguntas-frecuentes": ["preguntas-frecuentes"], "whatsapp": ["whatsapp"], "pie": ["pie"]},
-     "precio": ["oferta", "cierre"]},
+     "precio": ["oferta", "cierre"],
+     # Bloques donde un valor de create-page puede llevar un precio o una cifra en pesos sin ser la oferta: los caminos
+     # (la opción premium) y «Cuánto vale para ti» (el ancla habla en pesos a propósito). Decisión del operador
+     # sobre la revisión M2 (2026-11-15).
+     "valores_precio": ["caminos", "cuanto-vale"]},
     {"id": "venta-corta", "numero": "02", "archivo": "02-pagina-de-venta-corta.json", "fn": venta_corta,
      "nombre": "Página de venta corta",
      "para": "La portada (cabe en la primera pantalla: logo, promesa, antetítulo chico y botón, sin video), tres "
              "beneficios, quién está detrás, para quién es, qué incluye, testimonios, la oferta (el único lugar con "
-             "precio), la garantía y pocas preguntas; el botón se repite.",
-     "bloques": {"1": ("promesa", "La portada: la promesa"), "2": ("beneficios", "Beneficios"),
+             "precio), la garantía y pocas preguntas; el botón se repite. Con una fecha de cierre real (close_date), "
+             "arriba la barra fija de cierre con el logo del evento, la fecha, la cuenta regresiva y el botón; sin "
+             "ella, la barra se quita.",
+     "bloques": {"Barra": ("barra-de-cierre", "Barra fija de cierre (sólo con un cierre real)"),
+                 "1": ("promesa", "La portada: la promesa"), "2": ("beneficios", "Beneficios"),
                  "2b": ("quien-esta-detras", "Quién está detrás"), "3": ("para-quien-es", "Para quién es e incluye"),
                  "4": ("testimonios", "Testimonios"), "5": ("oferta", "La oferta"),
                  "6": ("garantia-y-preguntas", "Garantía y preguntas frecuentes"), "Pie": ("pie", "Pie")},
      "cuando": "Producto barato (hasta unos 1 000 MXN) con anuncios, con el carrito (05) y la oferta después de pagar "
                "(06); quien ya conoce la marca; un curso de precio medio después de una clase (ampliada); un servicio "
                "(sin carrito, con «Agendar asesoría» o «Hablar por WhatsApp»); un evento de venta de temporada con su "
-               "fecha real; o un paquete de la tienda.",
+               "fecha real (con close_date: la barra fija de cierre con la cuenta regresiva); o un paquete de la tienda.",
      "mide": "Vista de página",
      "obligatorios": {"promesa": ["promesa"], "oferta": ["oferta"],
                      "garantia-y-preguntas": ["garantia", "preguntas-frecuentes", "whatsapp"], "pie": ["pie"]},
@@ -893,7 +917,9 @@ CATALOGO = [
      "cuando": "Para quien llega frío, de un anuncio: regalar un recurso, una clase en vivo o un reto de varios días. "
                "Siempre con la 04. Sin precio ni oferta: se venden en la clase.",
      "mide": "Vista de página",
-     "obligatorios": {"promesa": ["promesa"], "pie": ["pie"]},
+     # El formulario (bloque «registro») no se quita: una página de captación sin formulario no capta (decisión del
+     # operador sobre la revisión B1, 2026-11-15).
+     "obligatorios": {"promesa": ["promesa"], "registro": ["formulario"], "pie": ["pie"]},
      "bloques": {"1": ("promesa", "La portada: la promesa"),
                  "1b": ("registro", "El registro: fecha, quién la da y formulario"),
                  "2": ("que-aprenderan", "Qué aprenderán"),
@@ -902,11 +928,14 @@ CATALOGO = [
     {"id": "gracias-registro", "numero": "04", "archivo": "04-gracias-por-registrarte.json", "fn": gracias_registro,
      "nombre": "Gracias por registrarte",
      "para": "Confirmación y los tres pasos después de registrarse: confirmar el correo, agendar la fecha y unirse al "
-             "grupo.",
+             "grupo; mientras tanto, un contenido corto y los iconos de las redes del sitio (sus enlaces se ponen en el "
+             "editor).",
      "cuando": "Después de la 03, en /gracias-registro/. Sin doble confirmación, aquí va el enlace de descarga; con "
                "«regalo con oferta en la gracias», un bloque con una oferta barata y relacionada.",
      "mide": "Registro completado (Lead)",
-     "obligatorios": {"pie": ["pie"]},
+     # «Mientras tanto» lleva el único enlace a WhatsApp de la 04 (el icono, al número del sitio): no se quita
+     # (decisión del operador sobre la revisión B2, 2026-11-15).
+     "obligatorios": {"mientras-tanto": ["whatsapp"], "pie": ["pie"]},
      "bloques": {"1": ("confirmacion", "Confirmación"), "2": ("tres-pasos", "Tres pasos"),
                  "3": ("mientras-tanto", "Mientras tanto"), "Pie": ("pie", "Pie")}},
     {"id": "carrito", "numero": "05", "archivo": "05-carrito.json", "fn": carrito,
@@ -916,7 +945,7 @@ CATALOGO = [
              "y, sólo con un cierre real, el contador.",
      "cuando": "Después de la 01 o la 02 cuando se cobra en el sitio, en /carrito/; su formulario lleva a /pago/.",
      "mide": "Iniciar pago (InitiateCheckout)",
-     "obligatorios": {"encabezado": ["promesa"], "formulario": ["oferta", "garantia"],
+     "obligatorios": {"encabezado": ["promesa"], "formulario": ["oferta", "garantia", "formulario"],
                      "dudas-de-pago": ["preguntas-frecuentes", "whatsapp"], "pie": ["pie"]},
      "precio": "todo",
      "bloques": {"1": ("encabezado", "Encabezado con el precio"), "2": ("formulario", "Formulario junto a la oferta"),
@@ -935,7 +964,8 @@ CATALOGO = [
                  "Pie": ("pie", "Pie")}},
     {"id": "gracias-compra", "numero": "07", "archivo": "07-gracias-por-tu-compra.json", "fn": gracias_compra,
      "nombre": "Gracias por tu compra",
-     "para": "Bienvenida, revisar el correo de acceso, entrar a la plataforma, presentarse en la comunidad y soporte.",
+     "para": "Bienvenida, revisar el correo de acceso, entrar a la plataforma, presentarse en la comunidad, soporte y "
+             "los iconos de las redes del sitio (sus enlaces se ponen en el editor).",
      "cuando": "Al final de toda compra, en /gracias-compra/.",
      "mide": "Compra con el total final",
      "obligatorios": {"soporte": ["whatsapp"], "pie": ["pie"]},
@@ -992,7 +1022,8 @@ CASOS = [
                  "por WhatsApp».",
      "sobra": "Carrito, contador y oferta después de pagar."},
     {"caso": "Evento de venta de temporada", "plantillas": ["venta-corta"],
-     "no_falta": "La fecha real del evento, el descuento de temporada y, si hay cierre real, la cuenta regresiva.",
+     "no_falta": "La fecha real del evento, el descuento de temporada y, con el cierre real (close_date), la barra fija "
+                 "de cierre de la 02 con el logo del evento y la cuenta regresiva.",
      "sobra": "Escasez inventada."},
     {"caso": "Lanzamiento a la lista de correo", "plantillas": ["venta-completa", "venta-corta"],
      "no_falta": "Una copia de la página de venta con un mensaje personal y un descuento sólo para suscriptores.",
@@ -1053,7 +1084,7 @@ def enlaces_internos(data):
 # Lo que no se quita de una página (decisión 5 del operador, 2026-11-13), con el nombre que dan los errores.
 OBLIGATORIOS = {"promesa": "la promesa", "oferta": "la oferta", "garantia": "la garantía",
                 "preguntas-frecuentes": "las preguntas frecuentes", "whatsapp": "WhatsApp",
-                "pie": "el pie (avisos legales)"}
+                "pie": "el pie (avisos legales)", "formulario": "el formulario"}
 
 _PREFIJO = re.compile(r"^(Barra|Pie|Instrucciones|[0-9]+[a-z]?|[A-Z])(?:\.[0-9]+)?\b")
 
@@ -1066,6 +1097,9 @@ def bloques(meta, contenido):
     operador decidió que no falta nunca (2026-11-13, decisión 5): la promesa, la oferta, la garantía, las preguntas
     frecuentes, WhatsApp o el pie, en las plantillas que los tienen (`obligatorios` de CATALOGO). Las pruebas sociales
     siguen siendo opcionales.
+
+    `price_values`: si un valor de `create-page` puede llevar un precio o una cifra en pesos en ese bloque (los de
+    `price` y los de `valores_precio`); en los demás, `create-page` lo rechaza.
 
     `price`: si el bloque puede llevar un precio (una cifra con `$` o `MXN`, o un placeholder de precio). El precio se
     revela tarde (v4): sólo en la oferta, y en el cierre de la 01, que la repite; el carrito y la oferta única son la
@@ -1088,8 +1122,10 @@ def bloques(meta, contenido):
                 raise SystemExit(f"{meta['archivo']}: el bloque {clave} aparece en dos lugares")
             precio = meta.get("precio", [])
             lleva = meta["obligatorios"].get(clave, [])
+            con_precio = precio == "todo" or clave in precio
             out.append({"key": clave, "name": nombre, "required": bool(lleva), "required_for": lleva,
-                        "price": precio == "todo" or clave in precio, "sections": [e["id"]]})
+                        "price": con_precio, "price_values": con_precio or clave in meta.get("valores_precio", []),
+                        "sections": [e["id"]]})
     usados = {b["key"] for b in out}
     sobran = [c for c, _ in meta["bloques"].values() if c not in usados]
     if sobran:

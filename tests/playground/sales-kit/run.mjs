@@ -97,6 +97,8 @@ const pages = []; // { id, template, variant, preview, widgets, ids, spans }
 const RESALTES = { 'venta-completa': 3, 'venta-corta': 2, captacion: 1, 'gracias-registro': 0, carrito: 1, 'oferta-unica': 1, 'gracias-compra': 0, 'prueba-social': 0 };
 // Las plantillas con portada (v4: cabe en la primera pantalla, sin video) y con iconos de redes (decisión 2).
 const PORTADAS = ['venta-completa', 'venta-corta', 'captacion'];
+// Las plantillas con la barra fija de cierre (sólo con close_date): la 01 y, desde la revisión B3, la 02.
+const BARRAS = ['venta-completa', 'venta-corta'];
 const REDES = ['gracias-registro', 'gracias-compra'];
 // El color de cada resalte: el neón de la promesa y el jade del precio.
 const COLORES_RESALTE = ['rgb(0, 255, 153)', 'rgb(0, 168, 107)'];
@@ -178,7 +180,10 @@ async function main() {
       check(pg.spans === RESALTES[id] && pg.span_attrs === 0, `${id} (${quien}): sus ${RESALTES[id]} resaltes de título, sin atributos`, JSON.stringify({ spans: pg.spans, span_attrs: pg.span_attrs }));
       const redes = (d.review || []).filter((x) => /Faltan los enlaces de las redes/.test(x));
       check(REDES.includes(id) ? d.social_pending === 4 && redes.length === 1 : d.social_pending === 0 && !redes.length, `${id}: ${REDES.includes(id) ? 'la revisión dice que faltan los enlaces de las cuatro redes' : 'sin iconos de redes'}`, JSON.stringify({ social: d.social_pending, review: d.review }));
-      pages.push({ id: d.id, template: quien === 'admin' ? id : `${id}-editora`, base: id, variant, preview: d.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans, bar: !!m.has_countdown && id === 'venta-completa' });
+      const conBarra = BARRAS.includes(id) && !!args.close_date;
+      const logo = (d.review || []).filter((x) => /logo del evento/.test(x));
+      check(conBarra ? d.event_logo === true && logo.length === 1 : d.event_logo === false && !logo.length, `${id}: ${conBarra ? 'la revisión avisa que el logo del evento de la barra es el de muestra' : 'sin barra, nada del logo del evento'}`, JSON.stringify({ event_logo: d.event_logo, review: d.review }));
+      pages.push({ id: d.id, template: quien === 'admin' ? id : `${id}-editora`, base: id, quien, variant, preview: d.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans, bar: conBarra });
     }
   }
   await probe('container', 'active');
@@ -198,7 +203,7 @@ async function main() {
   if (r.data?.id) pages.push({ id: r.data.id, template: 'venta-completa-sin-bonus', base: 'venta-completa', variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans, bar: true });
   // Decisión 5 del operador: la promesa, la oferta, la garantía, las preguntas frecuentes, WhatsApp y el pie no se quitan.
   const n0 = (await probe('pages')).all;
-  for (const [id, bloques] of [['venta-completa', ['oferta']], ['venta-completa', ['promesa', 'garantia', 'preguntas-frecuentes', 'whatsapp']], ['venta-corta', ['garantia-y-preguntas']], ['carrito', ['formulario', 'dudas-de-pago']], ['gracias-compra', ['soporte']]]) {
+  for (const [id, bloques] of [['venta-completa', ['oferta']], ['venta-completa', ['promesa', 'garantia', 'preguntas-frecuentes', 'whatsapp']], ['venta-corta', ['garantia-y-preguntas']], ['carrito', ['formulario', 'dudas-de-pago']], ['gracias-compra', ['soporte']], ['captacion', ['registro']], ['gracias-registro', ['mientras-tanto']]]) {
     r = await admin.call('create-page', { template: id, title: 'X', omit_blocks: bloques, ...(meta.find((t) => t.id === id).close_date ? { close_date: CIERRE } : {}) });
     check(r.isError && bloques.every((b) => r.text.includes(`«${b}»`)) && /no se puede quitar/.test(r.text) && /En esta plantilla no se quitan/.test(r.text), `${id}: no deja quitar ${bloques.join(', ')}, y dice cuáles no se quitan`, r.text.slice(0, 400));
   }
@@ -206,10 +211,10 @@ async function main() {
   r = await admin.call('create-page', { template: 'venta-corta', title: 'Kit venta corta sin testimonios', omit_blocks: ['testimonios'] });
   check(!r.isError && JSON.stringify(r.data.omitted_blocks) === '["testimonios"]', 'las pruebas sociales sí se quitan', r.text.slice(0, 300));
   r = await admin.call('list-templates', { template: 'venta-completa' });
-  check(JSON.stringify(r.data?.templates?.[0]?.blocks?.filter((b) => b.required).map((b) => b.key)) === '["promesa","oferta","garantia","preguntas-frecuentes","whatsapp","pie"]' && Object.keys(r.data?.required || {}).length === 6, 'list-templates: los seis bloques obligatorios de la venta completa', JSON.stringify(r.data?.templates?.[0]?.blocks?.map((b) => [b.key, b.required])));
+  check(JSON.stringify(r.data?.templates?.[0]?.blocks?.filter((b) => b.required).map((b) => b.key)) === '["promesa","oferta","garantia","preguntas-frecuentes","whatsapp","pie"]' && Object.keys(r.data?.required || {}).length === 7 && r.data.templates[0].blocks.filter((b) => b.price).map((b) => b.key).join(',') === 'cuanto-vale,oferta,caminos,cierre', 'list-templates: los seis bloques obligatorios de la venta completa (de siete tipos) y dónde puede ir un precio', JSON.stringify(r.data?.templates?.[0]?.blocks?.map((b) => [b.key, b.required])));
   r = await admin.call('create-page', { template: 'venta-corta', title: 'Kit venta corta con cierre', close_date: CIERRE });
   pg = r.data?.id ? await probe('page', r.data.id) : {};
-  check(!r.isError && r.data.close_date === CIERRE && !r.data.pending.some((p) => /de cierre\]$/.test(p.placeholder)) && pg.status === 'draft' && !pg.widgets?.countdown, 'la venta corta (sin contador) llena sus textos de cierre con close_date', r.text.slice(0, 300));
+  check(!r.isError && r.data.close_date === CIERRE && !r.data.pending.some((p) => /de cierre\]$/.test(p.placeholder)) && pg.status === 'draft' && pg.widgets?.countdown === 1, 'la venta corta llena con close_date sus textos de cierre y su barra fija (un contador)', r.text.slice(0, 300));
   r = await admin.call('list-templates', {});
   check(JSON.stringify(r.data?.templates?.filter((t) => t.close_date).map((t) => t.id)) === '["venta-completa","venta-corta","carrito"]', 'list-templates: admiten close_date la venta completa, la corta y el carrito', JSON.stringify(r.data?.templates?.map((t) => [t.id, t.close_date])));
   r = await admin.call('create-page', { template: 'venta-completa', title: 'X', omit_blocks: ['pie'] });
@@ -229,6 +234,8 @@ async function main() {
     [{ template: 'venta-corta', title: 'X', whatsapp: '+52 871 123 4567' }, 'un WhatsApp que no son sólo dígitos', /whatsapp|pattern|dígitos/i],
     [{ template: 'venta-corta', title: 'X', status: 'publish' }, 'pedir otro estado (publish)', /status|additional|desconocid/i],
     [{ template: 'otra', title: 'X' }, 'una plantilla que no existe', /template|enum/i],
+    [{ template: 'venta-corta', title: 'X', replacements: { '[Resultado concreto]': 'Llévatelo hoy por $1,997 MXN' } }, 'un precio en la portada (revisión M2)', /sólo en la oferta/],
+    [{ template: 'captacion', title: 'X', replacements: { '[Cómo lograr el resultado]': 'Aprende por 497 pesos' } }, 'un precio en la captación (revisión M2)', /sólo en la oferta/],
   ]) {
     r = await admin.call('create-page', args);
     check(r.isError && re.test(r.text), `rechazado: ${what}`, r.text.slice(0, 300));
@@ -294,6 +301,7 @@ async function main() {
       { nombre: 'escritorio', width: 1280, height: 800, deviceScaleFactor: 0.5 },
       { nombre: 'celular', width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true },
     ];
+    const altos = [];
     for (const p of pages) {
       for (const v of VISTAS) {
         const page = await browser.newPage();
@@ -351,7 +359,7 @@ async function main() {
             const w = el.getAttribute('data-widget_type').split('.')[0];
             widgets[w] = (widgets[w] || 0) + 1;
           });
-          const redes = [...document.querySelectorAll(`.elementor-${pid} .elementor-social-icon`)].map((a) => ({ href: a.getAttribute('href') || '', icono: !!a.querySelector('svg, i'), visible: a.getBoundingClientRect().width > 0 }));
+          const redes = [...document.querySelectorAll(`.elementor-${pid} .elementor-social-icon`)].map((a) => ({ href: a.getAttribute('href') || '', icono: !!a.querySelector('svg, i'), visible: a.getBoundingClientRect().width > 0, nueva: a.getAttribute('target') === '_blank' }));
           let css = '';
           for (const sheet of document.styleSheets) {
             try { for (const rule of sheet.cssRules) css += rule.cssText + '\n'; } catch (e) { /* hoja de otro origen */ }
@@ -391,6 +399,7 @@ async function main() {
           check(!portada.error && portada.primera === (p.bar ? 1 : 0) && portada.videos === 0 && portada.imagenes === 1 && portada.h1 === 1 && /^#[a-z]/.test(portada.anclaBoton || ''), `${tag}: la portada va ${p.bar ? 'después de la barra' : 'primero'}, con el logo, la promesa y su botón a un bloque de la página, sin video`, JSON.stringify(portada));
           check(!portada.error && portada.boton !== null && portada.botonArriba >= 0 && portada.boton <= portada.alto && portada.fondo <= portada.alto + 1, `${tag}: la portada cabe en la primera pantalla (${v.width}×${v.height}): el botón termina en ${portada.boton} px y la portada en ${portada.fondo} px`, JSON.stringify(portada));
         }
+        if (fija && !fija.error) altos.push({ base: p.base, quien: p.quien || '', variant: p.variant, vista: v.nombre, alto: fija.alto, template: p.template });
         if (fija) {
           check(!fija.error && fija.activa && fija.scroll > 1000 && fija.arriba >= 0 && fija.arriba <= fija.admin + 2 && fija.alto > 20 && fija.boton && fija.espaciador === 1, `${tag}: la barra de cierre queda fija arriba al desplazar, con su botón (${fija.arriba} px tras ${fija.scroll} px)`, JSON.stringify(fija));
           check(fija.logo === (v.nombre === 'celular' ? 'oculto' : 'visible'), `${tag}: el logo del evento en la barra ${v.nombre === 'celular' ? 'se oculta en celular' : 'se ve en escritorio'}`, JSON.stringify(fija));
@@ -398,11 +407,74 @@ async function main() {
         if (REDES.includes(p.base)) {
           check(m.redes.length === 5 && m.redes.every((x) => x.icono && x.visible) && m.redes.filter((x) => /^#/.test(x.href)).length === 4 && m.redes.filter((x) => x.href === 'https://wa.me/5218711234567').length === 1, `${tag}: cinco iconos de redes con su logo; los perfiles, con el enlace de muestra del sitio, y WhatsApp al número del sitio`, JSON.stringify(m.redes));
           check(m.redes.every((x) => /^#/.test(x.href) || /^https:\/\/wa\.me\/[0-9]+$/.test(x.href)), `${tag}: ningún icono de red enlaza a la red`, JSON.stringify(m.redes));
+          check(m.redes.every((x) => x.nueva === !/^#/.test(x.href)), `${tag}: los perfiles con el enlace de muestra abren en la misma pestaña; WhatsApp, en otra`, JSON.stringify(m.redes));
         } else {
           check(!m.redes.length, `${tag}: sin iconos de redes`, JSON.stringify(m.redes));
         }
         await page.close();
       }
+    }
+
+    // Revisión M1: la barra mide lo mismo con contenedores que con secciones (antes, 30 px más con secciones).
+    for (const base of BARRAS) for (const vista of ['escritorio', 'celular']) {
+      const c = altos.find((x) => x.base === base && x.quien === 'admin' && x.variant === 'containers' && x.vista === vista);
+      const s = altos.find((x) => x.base === base && x.quien === 'admin' && x.variant === 'sections' && x.vista === vista);
+      check(c && s && Math.abs(c.alto - s.alto) <= 2 && c.alto < 130, `${base} · ${vista}: la barra de cierre mide lo mismo con contenedores (${c?.alto} px) que con secciones (${s?.alto} px), y menos que el margen de las anclas (130 px)`, JSON.stringify({ c, s }));
+    }
+
+    start('S7b Anclas como visitante: el título del bloque al que lleva un botón queda bajo la barra fija (revisión M1)');
+    // Sin la barra de administración (la vista previa pide sesión, pero un visitante no la tiene): WordPress ya no pone
+    // su `scroll-padding-top` ni desplaza la barra fija; lo único que separa el título de la barra es el margen de las
+    // anclas del kit (`sticky_anchor_link_offset`).
+    await probe('adminbar', '0');
+    try {
+      const destinos = pages.filter((p) => p.quien === 'admin' && PORTADAS.includes(p.base));
+      for (const p of destinos) {
+        for (const v of VISTAS) {
+          const page = await browser.newPage();
+          await page.setViewport(v);
+          const errores = [];
+          page.on('pageerror', (e) => errores.push(String(e.message || e)));
+          await page.goto(p.preview.replace(/^https?:\/\/[^/]+/, base), { waitUntil: 'networkidle0', timeout: 180000 });
+          await new Promise((res) => setTimeout(res, 600));
+          const tag = `${p.template} (${p.variant}) · ${v.nombre} ${v.width}×${v.height}`;
+          check(!(await page.evaluate(() => !!document.getElementById('wpadminbar'))), `${tag}: sin la barra de administración, como un visitante`);
+          const clics = [['portada', null]];
+          if (p.bar) clics.push(['barra', null]);
+          if (p.base === 'venta-completa') clics.push(['historias', '#historias']);
+          for (const [como] of clics) {
+            await page.evaluate(() => window.scrollTo(0, 0));
+            await new Promise((res) => setTimeout(res, 400));
+            if (como !== 'portada') { await page.evaluate(() => window.scrollTo(0, 1600)); await new Promise((res) => setTimeout(res, 700)); }
+            const href = await page.evaluate((pid, como) => {
+              const tops = [...document.querySelectorAll(`.elementor-${pid} > .elementor-element, .elementor-${pid} > .elementor-section-wrap > .elementor-element`)].filter((x) => !x.classList.contains('elementor-sticky__spacer'));
+              let a = null;
+              if (como === 'portada') a = tops.find((x) => x.querySelector('h1'))?.querySelector('a.elementor-button');
+              else if (como === 'barra') a = [...document.querySelectorAll(`.elementor-${pid} .elementor-sticky--active a.elementor-button`)].find((x) => (x.getAttribute('href') || '').startsWith('#'));
+              else a = [...document.querySelectorAll(`.elementor-${pid} a.elementor-button`)].find((x) => x.getAttribute('href') === '#historias');
+              if (!a) return null;
+              a.click();
+              return a.getAttribute('href');
+            }, p.id, como);
+            await new Promise((res) => setTimeout(res, 1800));
+            const m = await page.evaluate((pid, href) => {
+              const destino = href && document.getElementById(href.slice(1));
+              const titulo = destino && destino.querySelector('.elementor-heading-title');
+              const barra = [...document.querySelectorAll(`.elementor-${pid} .elementor-sticky--active`)].find((el) => !el.classList.contains('elementor-sticky__spacer'));
+              const rt = titulo && titulo.getBoundingClientRect();
+              const rb = barra && barra.getBoundingClientRect();
+              return { titulo: rt && { texto: titulo.textContent.trim().slice(0, 40), arriba: Math.round(rt.top), abajo: Math.round(rt.bottom) }, barra: rb && { arriba: Math.round(rb.top), abajo: Math.round(rb.bottom) }, alto: window.innerHeight, scroll: Math.round(window.scrollY) };
+            }, p.id, href);
+            await page.screenshot({ path: join(dir, 'capturas', `ancla-${p.template}-${p.variant}-${v.nombre}-${como}.png`) }).catch(() => {});
+            const debajo = m.barra ? m.barra.abajo : 0;
+            check(href && m.titulo && m.titulo.arriba >= debajo && m.titulo.abajo <= m.alto && m.scroll > 0, `${tag}: tras el clic en el botón de ${como} (${href}), el título «${m.titulo?.texto}» queda a la vista${m.barra ? ` bajo la barra (barra hasta ${m.barra.abajo} px, título desde ${m.titulo?.arriba} px)` : ` (desde ${m.titulo?.arriba} px)`}`, JSON.stringify(m));
+          }
+          check(!errores.length, `${tag}: sin errores de JavaScript al seguir las anclas`, errores.slice(0, 3).join(' | '));
+          await page.close();
+        }
+      }
+    } finally {
+      await probe('adminbar', '1');
     }
 
     start('S8 Aviso al importar un ZIP de plantillas sin la carga de archivos sin filtrar');

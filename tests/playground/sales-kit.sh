@@ -18,8 +18,10 @@
 #     pintados = guardados (sin contar la copia que deja la barra fija, `.elementor-sticky__spacer`), cada resalte de
 #     título con su color y su CSS cargado; la portada de 01, 02 y 03 cabe en la primera pantalla, sin video y con su
 #     botón visible sin desplazar (capturas portada-*.png); la barra de cierre de la 01 queda fija arriba al
-#     desplazar, con el logo del evento en escritorio y sin él en celular (barra-fija-*.png); los iconos de redes de la
-#     04 y la 07 con su logo, sin enlazar a las redes;
+#     desplazar, con el logo del evento en escritorio y sin él en celular (barra-fija-*.png), y mide lo mismo con
+#     contenedores que con secciones; los iconos de redes de la 04 y la 07 con su logo, sin enlazar a las redes;
+#   - como visitante (sin la barra de administración), un clic en el botón de la portada, en el de la barra de cierre y
+#     en «Ver más historias» deja el título del bloque al que llevan a la vista, bajo la barra fija (ancla-*.png);
 #   - el aviso al importar un ZIP de plantillas sin la carga de archivos sin filtrar (y que con ella importa las ocho).
 # Uso: bash tests/playground/sales-kit.sh   (en la PC: bash /var/tmp/digi-wt/pc-run.sh <worktree> -- bash tests/playground/sales-kit.sh)
 #   OUT, TMPDIR    resultados (por defecto /var/tmp/digi-sales-kit) y temporales de Playground

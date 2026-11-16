@@ -426,7 +426,9 @@ def redes(oscuro=False):
     número del sitio (la entrada `whatsapp` de create-page). Los logos son una excepción acotada en marcas.json: este
     widget, este campo, la 04 y la 07."""
     iconos = [(i, PERFIL_URL) for i in REDES] + [("fab fa-whatsapp", WHATSAPP)]
-    lista_r = [{"social_icon": icono(i, "fa-brands"), "link": {"url": u, "is_external": "on", "nofollow": ""},
+    # El enlace de muestra abre en la misma pestaña: si se publica sin cambiarlo, no abre otra con la misma página.
+    lista_r = [{"social_icon": icono(i, "fa-brands"),
+                "link": {"url": u, "is_external": "" if u == PERFIL_URL else "on", "nofollow": ""},
                 "_id": nid()} for i, u in iconos]
     return widget("social-icons", {"social_icon_list": lista_r, "align": "center", "icon_color": "custom",
                                    "icon_primary_color": AZUL if not oscuro else CARD_OSC,
@@ -482,7 +484,7 @@ _COLUMNA_ESTILO = ("background_background", "background_color", "padding", "padd
                    "margin", "margin_mobile", "border_border", "border_width", "border_color",
                    "box_shadow_box_shadow_type", "box_shadow_box_shadow", "hide_mobile")
 # Lo que hace fija una sección (la barra de cierre, `extra` de `seccion()`): pasa tal cual al contenedor.
-_FIJA = ("sticky", "sticky_on", "sticky_offset", "z_index")
+_FIJA = ("sticky", "sticky_on", "sticky_offset", "sticky_anchor_link_offset", "z_index")
 
 
 def _flex_gap(espacio):

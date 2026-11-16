@@ -124,9 +124,17 @@
       "nombres": ["WhatsApp"],
       "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/guide\\.md$",
       "campo": "^guide\\.",
-      "frases": "El llamado a la acción es por WhatsApp|«Hablar por WhatsApp»|WhatsApp para quien no se ve en la lista|WhatsApp con una|\\(`whatsapp`\\)|frecuentes, WhatsApp y el pie|ver más historias, WhatsApp|WhatsApp con el número real",
+      "frases": "El llamado a la acción es por WhatsApp|«Hablar por WhatsApp»|WhatsApp para quien no se ve en la lista|WhatsApp con una|\\(`whatsapp`\\)|frecuentes, WhatsApp y el pie|ver más historias, WhatsApp|WhatsApp con el número real|De WhatsApp queda siempre al menos un enlace|el de WhatsApp lleva al número del sitio",
       "motivo": "La guía de venta: la regla del llamado a la acción y el bloque «WhatsApp con una cara» en el orden de la página.",
       "decision": "Excepción explícita del operador, 2026-11-13 (decisión 1), la misma de arriba, acotada a este campo y estas frases."
+    },
+    {
+      "nombres": ["WhatsApp"],
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/(class-builder|mcp/class-executor)\\.php$",
+      "comprueba": "tests/elements-sales-mcp.php",
+      "frases": "llamado a la acción por WhatsApp|Los botones de WhatsApp conservan el número de muestra|el WhatsApp va en whatsapp|^WhatsApp$|\\bwhatsapp\\b",
+      "motivo": "Las cadenas del armado y del ejecutor que ve el cliente del MCP: la regla del llamado a la acción («rules» de list-templates), la revisión del número de muestra, el error de una URL de otro sitio, WhatsApp entre lo que omit_blocks no quita y la entrada whatsapp en los mensajes. Revisión B5: la prueba recorre todas las cadenas de texto del PHP del módulo.",
+      "decision": "Excepción explícita del operador, 2026-11-13 (decisión 1), la misma de arriba, acotada a estos dos archivos y estas frases."
     },
     {
       "nombres": ["WhatsApp"],

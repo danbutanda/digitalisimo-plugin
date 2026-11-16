@@ -526,6 +526,59 @@ namespace {
 	foreach ( $tools_ex as $k => $ex ) {
 		check( 'tests/elements-sales-mcp.php' === ( $ex['comprueba'] ?? '' ) && $tools_used[ $k ] > 0, 'marcas.json: la excepción de los textos de las herramientas se usa y la aplica esta prueba' );
 	}
+	// Revisión B5: todas las cadenas de texto del PHP del módulo (mensajes de error, «rules» de list-templates, la
+	// revisión de create-page, los textos de las herramientas…), no sólo las definiciones de class-tools.php: cada nombre
+	// de otra empresa debe caber en una excepción de marcas.json para ese archivo (sus `frases`). Fuera quedan sólo los
+	// nombres de clase (con «\\») y las claves en minúsculas.
+	$module_root = realpath( __DIR__ . '/..' );
+	$php_files   = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $base, FilesystemIterator::SKIP_DOTS ) );
+	$scanned     = 0;
+	$ex_used     = array();
+	foreach ( $php_files as $php_file ) {
+		if ( 'php' !== $php_file->getExtension() ) {
+			continue;
+		}
+		$rel     = ltrim( str_replace( '\\', '/', substr( realpath( $php_file->getPathname() ), strlen( $module_root ) ) ), '/' );
+		$file_ex = array();
+		foreach ( $marcas['excepciones'] as $k => $ex ) {
+			if ( preg_match( $rx( $ex['archivos'] ), $rel ) ) {
+				$file_ex[ $k ] = $ex;
+			}
+		}
+		foreach ( token_get_all( (string) file_get_contents( $php_file->getPathname() ) ) as $token ) {
+			if ( ! is_array( $token ) || ! in_array( $token[0], array( T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE ), true ) ) {
+				continue;
+			}
+			$text = T_CONSTANT_ENCAPSED_STRING === $token[0] ? substr( $token[1], 1, -1 ) : $token[1];
+			if ( false !== strpos( $text, '\\' ) || preg_match( '#^[a-z0-9_./-]*$#', $text ) ) {
+				continue;
+			}
+			++$scanned;
+			foreach ( $marcas['nombres'] as $n ) {
+				if ( ! preg_match( $rx( $n['patron'] ), $text ) ) {
+					continue;
+				}
+				$left = $text;
+				foreach ( $file_ex as $k => $ex ) {
+					if ( in_array( $n['nombre'], $ex['nombres'], true ) && ! empty( $ex['frases'] ) ) {
+						$before = $left;
+						$left   = (string) preg_replace( $rx( $ex['frases'] ), '', $left );
+						if ( $before !== $left ) {
+							$ex_used[ $k ] = true;
+						}
+					}
+				}
+				check( ! preg_match( $rx( $n['patron'] ), $left ), "$rel: «{$n['nombre']}» en una cadena fuera de una excepción declarada: " . substr( $text, 0, 160 ) );
+			}
+		}
+	}
+	check( $scanned > 150, "se recorren las cadenas de texto del PHP del módulo ($scanned)" );
+	foreach ( $marcas['excepciones'] as $k => $ex ) {
+		if ( preg_match( '#digitalisimo-sales/(?!templates/|guide)#', $ex['archivos'] ) ) {
+			check( isset( $ex_used[ $k ] ) && 'tests/elements-sales-mcp.php' === ( $ex['comprueba'] ?? '' ), 'marcas.json: la excepción de ' . $ex['archivos'] . ' se usa y la aplica esta prueba' );
+		}
+	}
+
 	// Decisión 1 del operador (2026-11-13): WhatsApp es excepción de marca declarada, acotada como OXXO, SPEI y Mercado
 	// Pago (cada una a sus archivos y a su campo o sus frases), ya no «pendiente de confirmar».
 	$wa = array_values(
@@ -614,7 +667,7 @@ namespace {
 			check( count( $new ) === count( array_unique( $new ) ) && ! array_intersect( $new, $old ), "$id/$variant: todos los IDs regenerados y sin repetirse" );
 			check( ! array_filter( $new, static function ( $x ) { return ! preg_match( '/^[0-9a-f]{7}$/', $x ); } ), "$id/$variant: IDs de siete hexadecimales" );
 			check( ( false !== strpos( json_encode( $tpl ), '52XXXXXXXXXX' ) ) === $r['whatsapp_pending'] && 0 === $r['filled'], "$id/$variant: sin datos, nada se llena y el número de muestra se informa" );
-			if ( 'venta-completa' !== $id && 'carrito' !== $id ) {
+			if ( ! in_array( $id, array( 'venta-completa', 'venta-corta', 'carrito' ), true ) ) {
 				check( sk_widgets( $r['elements'] ) === sk_widgets( $tpl['content'] ) && array() === $r['removed_urgency'], "$id/$variant: sin urgencia, los mismos widgets" );
 			}
 		}
@@ -731,7 +784,7 @@ namespace {
 	check( array() === $build( 'venta-completa', array( 'close_date' => '2026-12-15 23:59' ) )['broken_anchors'], 'la plantilla entera no tiene anclas rotas' );
 	check_error( $build( 'venta-completa', array( 'omit_blocks' => array( 'pie' ) ) ), 'digitalisimo_sales_omit_blocks', 'el pie (avisos legales) no se quita' );
 	check_error( $build( 'venta-completa', array( 'omit_blocks' => array( 'no-existe' ) ) ), 'digitalisimo_sales_omit_blocks', 'un bloque que no existe' );
-	check_error( $build( 'venta-corta', array( 'omit_blocks' => array( 'barra-de-cierre' ) ) ), 'digitalisimo_sales_omit_blocks', 'un bloque de otra plantilla' );
+	check_error( $build( 'venta-corta', array( 'omit_blocks' => array( 'autoridad' ) ) ), 'digitalisimo_sales_omit_blocks', 'un bloque de otra plantilla' );
 	check_error( $build( 'venta-corta', array( 'omit_blocks' => 'oferta' ) ), 'digitalisimo_sales_omit_blocks', 'omit_blocks que no es lista' );
 	foreach ( $ids8 as $id ) {
 		$m = Catalog::meta( $id );
@@ -740,12 +793,12 @@ namespace {
 
 	// Decisión 5 del operador (2026-11-13): create-page no deja quitar la promesa, la oferta, la garantía, las preguntas
 	// frecuentes, WhatsApp ni el pie (en las plantillas que los tienen); las pruebas sociales siguen siendo opcionales.
-	check( Builder::REQUIRED === Catalog::manifest()['required_kinds'] && array( 'promesa', 'oferta', 'garantia', 'preguntas-frecuentes', 'whatsapp', 'pie' ) === array_keys( Builder::REQUIRED ), 'lo que no se quita: la promesa, la oferta, la garantía, las preguntas frecuentes, WhatsApp y el pie (el armado y el manifiesto dicen lo mismo)' );
+	check( Builder::REQUIRED === Catalog::manifest()['required_kinds'] && array( 'promesa', 'oferta', 'garantia', 'preguntas-frecuentes', 'whatsapp', 'pie', 'formulario' ) === array_keys( Builder::REQUIRED ), 'lo que no se quita: la promesa, la oferta, la garantía, las preguntas frecuentes, WhatsApp, el pie y el formulario (el armado y el manifiesto dicen lo mismo)' );
 	$required = array(
 		'venta-completa'   => array( 'promesa', 'oferta', 'garantia', 'preguntas-frecuentes', 'whatsapp', 'pie' ),
 		'venta-corta'      => array( 'promesa', 'oferta', 'garantia-y-preguntas', 'pie' ),
-		'captacion'        => array( 'promesa', 'pie' ),
-		'gracias-registro' => array( 'pie' ),
+		'captacion'        => array( 'promesa', 'registro', 'pie' ),
+		'gracias-registro' => array( 'mientras-tanto', 'pie' ),
 		'carrito'          => array( 'encabezado', 'formulario', 'dudas-de-pago', 'pie' ),
 		'oferta-unica'     => array( 'aviso-y-video', 'complemento', 'pie' ),
 		'gracias-compra'   => array( 'soporte', 'pie' ),
@@ -807,7 +860,8 @@ namespace {
 	}
 	check_error( $build( 'gracias-compra', array( 'replacements' => array( '[enlace de tu perfil]' => '/redes/' ) ) ), 'digitalisimo_sales_link_placeholder', 'los enlaces de las redes no se llenan por create-page: se ponen en el editor' );
 	check_error( $build( 'gracias-compra', array( 'replacements' => array( '[enlace de tu perfil]' => 'https://redsocial.example/marca' ) ) ), 'digitalisimo_sales_link_placeholder', 'tampoco con una URL de otro sitio' );
-	check( 0 === $build( 'gracias-registro', array( 'omit_blocks' => array( 'mientras-tanto' ) ) )['social_pending'], 'sin el bloque de las redes, nada pendiente' );
+	$r = $build( 'gracias-registro', array( 'omit_blocks' => array( 'mientras-tanto', 'tres-pasos' ) ) );
+	check( $r instanceof WP_Error && false !== strpos( $r->get_error_message(), '«mientras-tanto» (lleva WhatsApp)' ) && false === strpos( $r->get_error_message(), '«tres-pasos»' ), 'revisión B2: la 04 no se queda sin su único enlace a WhatsApp (el icono de «Mientras tanto»)' );
 
 	// Decisión 3: el aviso de Meta y Google en el pie de toda plantilla con pie; el pie no se quita.
 	foreach ( array( 'sections', 'containers' ) as $variant ) {
@@ -855,6 +909,89 @@ namespace {
 	}
 	check( array( 'oferta', 'cierre' ) === array_column( array_filter( Catalog::meta( 'venta-completa' )['blocks'], static function ( $b ) { return $b['price']; } ), 'key' ), 'la 01 sólo lleva precio en la oferta y en el cierre, que la repite' );
 
+	// ================================================================ Arreglos de la revisión adversarial (2026-11-15)
+	// M2 · El precio se revela tarde también en lo que llena create-page: un valor con $, MXN, pesos o una cifra con
+	// centavos sólo cae en los bloques con price_values (la oferta, el cierre, los caminos, «Cuánto vale para ti», el
+	// carrito y la oferta única).
+	$close = '2026-12-15 23:59';
+	foreach ( array(
+		array( 'venta-corta', '[Resultado concreto]', 'Llévatelo hoy por $1,997 MXN', 'promesa' ),
+		array( 'venta-completa', '[Logra el resultado]', 'Ahorra 500 pesos', 'promesa' ),
+		array( 'captacion', '[Cómo lograr el resultado]', 'Aprende por 1997.50', 'promesa' ),
+		array( 'venta-completa', '[Un dato real que duele, con su fuente]', 'Una agencia cuesta 30000 al mes', 'problema' ),
+		array( 'venta-corta', '[Beneficio 1]', 'Ahorra 49.90 al mes', 'beneficios' ),
+		array( 'venta-completa', '[Nombre del bonus 1: «[cantidad] [recurso] para [tu X]»]', 'Plantillas (valor 997 MXN)', 'bonus' ),
+	) as $case ) {
+		list( $id, $key, $value, $block ) = $case;
+		$r = $build( $id, array( 'replacements' => array( $key => $value ), 'close_date' => 'captacion' === $id ? '' : $close ) );
+		check( $r instanceof WP_Error && 'digitalisimo_sales_price_outside_offer' === $r->get_error_code() && false !== strpos( $r->get_error_message(), '«' . $block . '»' ) && false !== strpos( $r->get_error_message(), 'sólo en la oferta' ), "revisión M2: $id rechaza un precio en «{$block}» ($value): " . ( $r instanceof WP_Error ? $r->get_error_message() : 'se aceptó' ) );
+	}
+	foreach ( array(
+		array( 'venta-completa', '[El valor de [el resultado], antes de hablar de precio]', '24,000 pesos al año' ),
+		array( 'venta-completa', '[Opción premium]', 'Mentoría uno a uno de $9,997 MXN' ),
+		array( 'venta-completa', '[Producto principal]', 'Curso completo' ),
+		array( 'carrito', '[resultado]', 'tu primera venta de $1,000' ),
+		array( 'oferta-unica', '[Nombre del complemento]', 'Plantillas por 497 pesos' ),
+		array( 'venta-completa', '[Credencial verificable 1: años, proyectos, clientes]', 'Consultor desde 2015, con 1,250 alumnos' ),
+		array( 'venta-corta', '[Beneficio 1]', 'Resultados en 90 días' ),
+	) as $case ) {
+		list( $id, $key, $value ) = $case;
+		$r = $build( $id, array( 'replacements' => array( $key => $value ), 'close_date' => in_array( $id, array( 'venta-completa', 'venta-corta', 'carrito' ), true ) ? $close : '' ) );
+		check( is_array( $r ) && in_array( $key, $r['filled_keys'], true ), "revisión M2: $id acepta «{$value}» en $key: " . ( $r instanceof WP_Error ? $r->get_error_message() : '' ) );
+	}
+	// Por posición: una lista con un precio sólo en la aparición que cae en un bloque quitado pasa; en otro, no.
+	$n13   = Placeholders::summary( Catalog::load( 'venta-completa', 'sections' )['content'] )['[Nombre real]']['count'];
+	$names = array_fill( 0, $n13, 'Ana' );
+	$names[ $n13 - 1 ] = 'Ana, que pagó $500';
+	$r = $build( 'venta-completa', array( 'replacements' => array( '[Nombre real]' => $names ), 'omit_blocks' => array( 'comunidad' ), 'close_date' => $close ) );
+	check( is_array( $r ), 'revisión M2: un precio en una aparición de un bloque quitado no cuenta' );
+	$r = $build( 'venta-completa', array( 'replacements' => array( '[Nombre real]' => $names ), 'close_date' => $close ) );
+	check( $r instanceof WP_Error && false !== strpos( $r->get_error_message(), '«comunidad»' ), 'revisión M2: en una lista, el precio se mira por posición (la última, en «comunidad»)' );
+	check( ! Builder::looks_like_price( 'Curso de JavaScript: de cero' ) && ! Builder::looks_like_price( '4.8 estrellas' ) && Builder::looks_like_price( 'MXN 1,997' ) && Builder::looks_like_price( 'Precio de 1997' ) && Builder::looks_like_price( '3 meses de 666.33' ) && Builder::looks_like_price( 'dos Pesos' ), 'revisión M2: qué cuenta como precio' );
+	foreach ( $ids8 as $id ) {
+		foreach ( Catalog::meta( $id )['blocks'] as $b ) {
+			check( ! $b['price'] || $b['price_values'], "$id: el bloque {$b['key']} con precio deja llenarlo" );
+		}
+	}
+	check( array( 'cuanto-vale', 'oferta', 'caminos', 'cierre' ) === array_column( array_filter( Catalog::meta( 'venta-completa' )['blocks'], static function ( $b ) { return $b['price_values']; } ), 'key' ), 'revisión M2: en la 01, los valores con precio caben en «Cuánto vale para ti», la oferta, los caminos y el cierre' );
+
+	// B1 · El formulario de la 03 no se quita.
+	$r = $build( 'captacion', array( 'omit_blocks' => array( 'registro' ) ) );
+	check( $r instanceof WP_Error && false !== strpos( $r->get_error_message(), '«registro» (lleva el formulario)' ), 'revisión B1: la captación no se queda sin formulario' );
+	// B2 · Toda plantilla con un enlace a WhatsApp conserva al menos uno aunque se quite todo lo opcional.
+	foreach ( array( 'sections', 'containers' ) as $variant ) {
+		foreach ( $ids8 as $id ) {
+			$m    = Catalog::meta( $id );
+			$opt  = array();
+			foreach ( $m['blocks'] as $b ) {
+				if ( ! $b['required'] ) {
+					$opt[] = $b['key'];
+				}
+			}
+			$tpl  = Catalog::load( $id, $variant );
+			$r    = $build( $id, array( 'omit_blocks' => $opt ), $variant );
+			$had  = substr_count( json_encode( $tpl['content'], JSON_UNESCAPED_SLASHES ), 'https://wa.me/' );
+			$left = is_array( $r ) ? substr_count( json_encode( $r['elements'], JSON_UNESCAPED_SLASHES ), 'https://wa.me/' ) : -1;
+			check( is_array( $r ) && ( 0 === $had || $left > 0 ), "revisión B2: $id/$variant sin nada opcional conserva un enlace a WhatsApp ($had → $left)" );
+		}
+	}
+	// B3 · La 02 lleva la barra fija de cierre, opcional: sólo con close_date.
+	$m2 = Catalog::meta( 'venta-corta' );
+	check( 'barra-de-cierre' === $m2['blocks'][0]['key'] && 1 === count( $m2['urgency'] ) && $m2['has_countdown'], 'revisión B3: la 02 empieza con la barra de cierre, marcada como urgencia' );
+	$r = $build( 'venta-corta', array( 'close_date' => $close ) );
+	check( 1 === count( sk_find( $r['elements'], static function ( $e ) { return 'countdown' === ( $e['widgetType'] ?? '' ); } ) ) && false !== strpos( sk_strings( $r['elements'] ), 'Esta oferta termina el 15 de diciembre a las 23:59' ) && array() === $r['removed_urgency'], 'revisión B3: con close_date, la barra de la 02 con su fecha y su contador' );
+	$r = $build( 'venta-corta', array() );
+	check( 1 === count( $r['removed_urgency'] ) && ! sk_find( $r['elements'], static function ( $e ) { return 'countdown' === ( $e['widgetType'] ?? '' ); } ), 'revisión B3: sin close_date, la 02 sin barra ni contador' );
+	$bar = sk_find( Catalog::load( 'venta-corta', 'containers' )['content'], static function ( $e ) { return ! empty( $e['settings']['sticky'] ); } );
+	check( 1 === count( $bar ) && 130 === $bar[0]['settings']['sticky_anchor_link_offset'], 'revisión M1/B3: la barra de la 02 es fija y deja el margen de las anclas' );
+	// B4 · La revisión avisa que el logo del evento sigue siendo el de muestra.
+	$r = $build( 'venta-completa', array( 'close_date' => $close ) );
+	$r2 = $build( 'venta-completa', array() );
+	check( true === $r['event_logo'] && false === $r2['event_logo'], 'revisión B4: el logo de muestra de la barra se informa sólo cuando queda la barra' );
+	// B6 · Los iconos de perfil de muestra no abren otra pestaña; el de WhatsApp, sí.
+	$items = sk_find( Catalog::load( 'gracias-compra', 'sections' )['content'], static function ( $e ) { return 'social-icons' === ( $e['widgetType'] ?? '' ); } )[0]['settings']['social_icon_list'];
+	check( array( '', '', '', '', 'on' ) === array_column( array_column( $items, 'link' ), 'is_external' ), 'revisión B6: el enlace de muestra de los perfiles abre en la misma pestaña' );
+
 	// ================================================================ 5. Ejecución y permisos
 	$created = array();
 	$fake    = static function ( $title, $elements ) use ( &$created ) {
@@ -880,9 +1017,9 @@ namespace {
 	$list = Executor::run( 'list-templates', array() );
 	check( true === $list['ok'] && 8 === count( $list['templates'] ) && count( $list['cases'] ) >= 10 && 'containers' === $list['variant'] && '' !== $list['funnel'], 'list-templates: catálogo, casos y embudo' );
 	check( ! isset( $list['templates'][0]['placeholders'] ) && $list['templates'][0]['placeholders_count'] > 100, 'list-templates sin template: sólo cuántos placeholders' );
-	check( 26 === count( $list['templates'][0]['blocks'] ) && array( 'key' => 'pie', 'name' => 'Pie', 'required' => true, 'required_for' => array( 'pie' ) ) === end( $list['templates'][0]['blocks'] ), 'list-templates: los bloques de cada plantilla, en orden, y cuál no se quita' );
-	check( array( 'key' => 'oferta', 'name' => 'La oferta', 'required' => true, 'required_for' => array( 'oferta' ) ) === $list['templates'][0]['blocks'][17] && false === $list['templates'][0]['blocks'][3]['required'] && Builder::REQUIRED === $list['required'], 'list-templates: los obligatorios con su motivo, y lo que no se quita' );
-	check( false !== strpos( Tools::input_schema( 'create-page' )['properties']['omit_blocks']['description'], 'No se quitan los obligatorios' ) && false !== strpos( Tools::DESCRIPTIONS['create-page'], 'la promesa, la oferta, la garantía, las preguntas frecuentes, el bloque whatsapp y el pie' ) && false !== strpos( Tools::DESCRIPTIONS['list-templates'], 'required: true' ) && false !== strpos( Catalog::guide( 'reglas' ), '**Lo que no se quita**' ), 'la definición de create-page, list-templates y la guía dicen qué bloques no se quitan' );
+	check( 26 === count( $list['templates'][0]['blocks'] ) && array( 'key' => 'pie', 'name' => 'Pie', 'required' => true, 'required_for' => array( 'pie' ), 'price' => false ) === end( $list['templates'][0]['blocks'] ), 'list-templates: los bloques de cada plantilla, en orden, y cuál no se quita' );
+	check( array( 'key' => 'oferta', 'name' => 'La oferta', 'required' => true, 'required_for' => array( 'oferta' ), 'price' => true ) === $list['templates'][0]['blocks'][17] && false === $list['templates'][0]['blocks'][3]['required'] && Builder::REQUIRED === $list['required'], 'list-templates: los obligatorios con su motivo, y lo que no se quita' );
+	check( false !== strpos( Tools::input_schema( 'create-page' )['properties']['omit_blocks']['description'], 'No se quitan los obligatorios' ) && false !== strpos( Tools::DESCRIPTIONS['create-page'], 'la promesa, la oferta, la garantía, las preguntas frecuentes, el bloque whatsapp, el pie y el formulario' ) && false !== strpos( Tools::DESCRIPTIONS['list-templates'], 'required: true' ) && false !== strpos( Catalog::guide( 'reglas' ), '**Lo que no se quita**' ), 'la definición de create-page, list-templates y la guía dicen qué bloques no se quitan' );
 	$one = Executor::run( 'list-templates', array( 'template' => 'carrito' ) );
 	check( 1 === count( $one['templates'] ) && count( $one['templates'][0]['placeholders'] ) > 10 && isset( $one['templates'][0]['urgency'] ), 'list-templates con template: sus placeholders y su urgencia' );
 	check( array( '/aviso-de-privacidad/', '/pago/', '/politica-de-reembolso/', '/terminos-y-condiciones/' ) === array_column( $one['templates'][0]['internal_links'], 'path' ), 'list-templates: los enlaces internos del carrito' );
@@ -1231,7 +1368,7 @@ namespace {
 				$all  = sk_strings( $r['elements'] );
 				$pend = array_column( $r['pending'], 'count', 'placeholder' );
 				review( 'R5', false !== strpos( $all, 'terminan el 15 a las 23:59' ) && ! isset( $pend['[día de cierre]'] ) && ! isset( $pend['[hora de cierre]'] ) && '2026-12-15 23:59' === $r['close_date'], 'venta-corta: close_date llena [día de cierre] y [hora de cierre]' );
-				review( 'R5', sk_widgets( $r['elements'] ) === Catalog::meta( 'venta-corta' )['widget_types'] && array() === $r['removed_urgency'], 'venta-corta con close_date: los mismos widgets, sin contador ni nada quitado' );
+				review( 'R5', sk_widgets( $r['elements'] ) === Catalog::meta( 'venta-corta' )['widget_types'] && array() === $r['removed_urgency'], 'venta-corta con close_date: todos los widgets, con su barra de cierre, y nada quitado' );
 			}
 			$r = $build( 'venta-corta', array() );
 			review( 'R5', is_array( $r ) && isset( array_column( $r['pending'], 'count', 'placeholder' )['[día de cierre]'] ), 'venta-corta sin close_date: los textos de cierre quedan pendientes' );

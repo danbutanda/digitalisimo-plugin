@@ -9,8 +9,8 @@
  *   `ping`, `container` (experimento de contenedores: active o inactive), `page` (estado, lienzo, marcas del
  *   constructor y widgets guardados de una página), `pages` (cuántas páginas hay por estado), `library` (plantillas de
  *   la biblioteca), `unfiltered` (la carga de archivos sin filtrar: 1 o 0), `login` (inicia sesión en el navegador con
- *   un usuario del ensayo), `notices` (los avisos de PHP registrados desde una línea) y `abilities` (abilities
- *   registradas).
+ *   un usuario del ensayo), `adminbar` (la barra de administración del frontal del administrador: 1 o 0), `notices`
+ *   (los avisos de PHP registrados desde una línea) y `abilities` (abilities registradas).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -205,6 +205,13 @@ add_action(
 				}
 				wp_set_current_user( $user->ID );
 				wp_set_auth_cookie( $user->ID, true );
+				digi_sk_out( array( 'ok' => true ) );
+				break;
+			case 'adminbar':
+				// La barra de administración en el frontal del administrador del ensayo (1 o 0): sin ella, la vista previa
+				// se ve como la ve un visitante (sin el `scroll-padding-top` ni el desplazamiento que pone WordPress).
+				$user = get_user_by( 'login', 'admin' );
+				update_user_meta( $user->ID, 'show_admin_bar_front', '1' === $value ? 'true' : 'false' );
 				digi_sk_out( array( 'ok' => true ) );
 				break;
 			case 'notices':

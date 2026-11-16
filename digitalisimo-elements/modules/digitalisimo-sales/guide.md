@@ -25,7 +25,9 @@ Lo que no se rompe nunca, ni al llenar una plantilla ni al pedírselo a un asist
   (`1,997` o `1997.50`), con su valor tachado real y los meses sin intereses sólo si la pasarela los da.
 - **El precio se revela tarde.** Sólo en la oferta (y en el cierre, que la repite); el carrito y la oferta única son
   la oferta. Ni la portada, ni el problema, la autoridad, para quién es, qué incluye o los bonus llevan precio: primero
-  el valor, luego el ancla (cuánto vale para ti) y el precio en la oferta.
+  el valor, luego el ancla (cuánto vale para ti) y el precio en la oferta. `create-page` rechaza un valor con `$`,
+  `MXN`, «pesos» o una cifra con centavos en un bloque sin `price: true` (la oferta, el cierre, los caminos, «Cuánto
+  vale para ti», el carrito y la oferta única lo admiten).
 - **La portada cabe en la primera pantalla**, en escritorio y en celular, y va sin video: el logo, la promesa grande, el
   antetítulo chico debajo y un botón. Lo demás va al scroll.
 - **En cada sección, el título corto va grande y la frase de venta chica, debajo.**
@@ -34,12 +36,15 @@ Lo que no se rompe nunca, ni al llenar una plantilla ni al pedírselo a un asist
 - **Los enlaces son del propio sitio.** Los botones llevan a rutas del sitio (`/carrito/`, `/pago/`,
   `/gracias-registro/`, `/gracias-compra/`, `/acceso/` y los avisos legales); la página con esa dirección se crea
   aparte. Videos, grupos y los perfiles de los iconos de redes (04 y 07) se pegan en el editor: ningún enlace a otro
-  sitio viaja en un texto, y los iconos de redes llevan el logo de cada red, pero no enlazan a ella.
+  sitio viaja en un texto. Los iconos de perfil llevan el logo de cada red y un enlace de muestra del sitio, que no
+  abre otra pestaña, hasta que se pone el del perfil; el de WhatsApp lleva al número del sitio, como los botones.
 - **El orden de los bloques no se cambia.** Se puede quitar un bloque que no aplique (`omit_blocks`), nunca
   reordenarlos ni mezclar los de dos plantillas en otro orden.
 - **Lo que no se quita** (decisión del operador, 2026-11-13): la promesa, la oferta, la garantía, las preguntas
-  frecuentes, WhatsApp y el pie, en las plantillas que los tienen (`required: true` en `list-templates`; `create-page`
-  da un error que dice cuáles). Las pruebas sociales (testimonios, historias, capturas) sí se quitan si no hay reales.
+  frecuentes, WhatsApp y el pie, en las plantillas que los tienen, y el formulario (una captación sin formulario no
+  capta). De WhatsApp queda siempre al menos un enlace: en la 04 es el icono de «Mientras tanto», así que ese bloque
+  tampoco se quita. Son los de `required: true` en `list-templates`; `create-page` da un error que dice cuáles. Las
+  pruebas sociales (testimonios, historias, capturas) sí se quitan si no hay reales.
 - **Quién está detrás es una persona real.** La de la marca del sitio, con sus datos reales y verificables: nombre,
   historia, credenciales y foto. Si no se tienen, sus placeholders se quedan.
 - **La página primero convence y después vende.** Botones de compra en la promesa, después del temario, en la oferta,
@@ -73,7 +78,7 @@ basta una página corta).
 | Curso de precio medio (unos 1 000 a 6 000 MXN), casi siempre después de una clase | 02 ampliada o 01 recortada + 05 | Video, temario, bonus, testimonios, garantía, preguntas frecuentes y meses sin intereses | La gran idea y las alternativas |
 | Programa caro o lanzamiento con cierre (más de unos 6 000 MXN) | 03 + 04, luego 01 + 05 | Todo: urgencia real con fecha, mensualidades, objeciones, «para quién no es» y muchas pruebas | Nada |
 | Servicio de DIGITALÍSIMO (asesoría, hosting, crecimiento digital) | 02 sin carrito | Beneficios, casos reales, precio o «desde» y los llamados del manual: «Agendar asesoría» o «Hablar por WhatsApp» | Carrito, contador, oferta después de pagar |
-| Evento de venta de temporada | 02 | La fecha real del evento, el descuento de temporada y, si hay cierre real, la cuenta regresiva | Escasez inventada |
+| Evento de venta de temporada | 02 con su barra fija de cierre | La fecha real del evento, el descuento de temporada y, con el cierre real (`close_date`), la barra fija con el logo del evento y la cuenta regresiva | Escasez inventada |
 | Lanzamiento a la lista de correo | Copia de la 01 o la 02 | Un mensaje personal y un descuento sólo para suscriptores | — |
 | Página sólo para anuncios | Copia de la 01 o la 02 | Su propio botón de pago, para saber qué ventas vinieron de los anuncios | — |
 | Después del cierre | La misma página, cambiada | El precio normal o una lista de espera para la próxima apertura | El contador y la oferta de lanzamiento |
@@ -174,7 +179,8 @@ Se escriben con la voz de DIGITALÍSIMO, sin promesas de ingresos y con cifras q
   oferta en el ancla `#oferta` y las pruebas de la comunidad en `#historias`.
 - **02 Venta corta.** El mismo orden, con los bloques que no faltan nunca: la portada sin video, beneficios, quién está
   detrás, para quién es, qué incluye, testimonios, la oferta, la garantía y pocas preguntas. Aquí sí se repite el
-  botón.
+  botón. Para un evento de venta con fecha de cierre real (`close_date`), lleva arriba la barra fija de cierre, como la
+  01: el logo del evento, la fecha, la cuenta regresiva y el botón a la oferta; sin fecha real, la barra se quita.
 - **05 Carrito.** El formulario va arriba y junto a la oferta; el pago único marcado de entrada y más barato que a
   plazos; el extra de un clic antes de pagar; la garantía y los medios de pago junto al botón grande; WhatsApp con una
   cara para la última duda; el contador, sólo si el cierre es real.
