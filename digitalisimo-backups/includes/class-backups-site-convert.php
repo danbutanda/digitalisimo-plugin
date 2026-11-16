@@ -96,6 +96,15 @@ final class Digitalisimo_Backups_Site_Convert {
 		return $plan;
 	}
 
+	/** El ZIP de la red pasó a $path (el área del trabajo): el plan lo lee de ahí, con su huella. */
+	public static function move_source( $dir, $path ) {
+		$plan = self::read_json( $dir . '/' . self::PLAN );
+		$plan['source']['path'] = (string) $path;
+		$plan['source']['fp'] = Digitalisimo_Backups_Backup_Job::fingerprint( (string) $path );
+		self::write_json( $dir . '/' . self::PLAN, $plan );
+		return $plan;
+	}
+
 	/* ------------------------------------------------------------------ 2. Lo que el exportador lee de la red */
 
 	/**

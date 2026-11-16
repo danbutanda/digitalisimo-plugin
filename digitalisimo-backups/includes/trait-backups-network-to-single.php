@@ -188,15 +188,17 @@ trait Digitalisimo_Backups_Network_To_Single {
 		$job = $queued['job'];
 		$staging = Digitalisimo_Backups_Job_Store::staging( $job['id'] );
 		try {
-			// Lo descifrado (un .dgbk) o reconstruido pasa al área del trabajo; un ZIP del almacén se lee donde está.
+			// El plan se prepara con el ZIP abierto donde está (libzip de PHP 7.4 vuelve a leerlo por su ruta); después, lo
+			// descifrado (un .dgbk) o reconstruido pasa al área del trabajo y el plan apunta allí. Un ZIP del almacén se lee
+			// donde está.
 			$source = (string) $report['path'];
+			Digitalisimo_Backups_Site_Convert::prepare( $report, $options, $staging, array( 'path' => $source, 'file' => wp_basename( (string) $path ) ) );
 			if ( 'dgbk' === $report['container'] || ! empty( $report['staged'] ) ) {
 				$target = $staging . '/source.zip';
 				if ( ! @rename( $source, $target ) && ! @copy( $source, $target ) ) throw new Exception( 'No se pudo preparar el respaldo descifrado en el área de trabajo.' );
 				if ( DIRECTORY_SEPARATOR === '/' ) @chmod( $target, 0600 );
-				$source = $target;
+				Digitalisimo_Backups_Site_Convert::move_source( $staging, $target );
 			}
-			Digitalisimo_Backups_Site_Convert::prepare( $report, $options, $staging, array( 'path' => $source, 'file' => wp_basename( (string) $path ) ) );
 		} catch ( Throwable $e ) {
 			Digitalisimo_Backups_Job_Store::remove_tree( Digitalisimo_Backups_Job_Store::directory( $job['id'] ) );
 			return self::service_error( 'restore_rejected', $e->getMessage(), 422 );
