@@ -233,10 +233,10 @@ trait Digitalisimo_Backups_Screen {
 		self::jobs_panel( $network, true );
 		self::history_panel( $history, $network, count( $all ) );
 	}
-	/** «Último respaldo» y «Próximo» (la automatización activa que antes toca). */
+	/** «Último respaldo» (el último de este sitio: no uno subido) y «Próximo» (la automatización activa que antes toca). */
 	private static function status_block( array $history ) {
 		$last = null;
-		foreach ( $history as $item ) if ( in_array( (string) ( $item['scope'] ?? '' ), array( 'installation', 'network', 'site' ), true ) ) { $last = $item; break; }
+		foreach ( $history as $item ) if ( in_array( (string) ( $item['scope'] ?? '' ), array( 'installation', 'network', 'site' ), true ) && ! self::is_uploaded_row( $item ) ) { $last = $item; break; }
 		$next = self::next_automation();
 		echo '<dl class="digitalisimo-backups-status"><div><dt>Último respaldo</dt><dd>';
 		echo $last ? esc_html( self::short_date( $last['date'] ?? '' ) . ' · ' . size_format( (int) ( $last['size'] ?? 0 ) ) . ' · ' . self::copies_label( $last ) ) : 'Aún no hay respaldos';
@@ -298,14 +298,20 @@ trait Digitalisimo_Backups_Screen {
 		$row_id = 'digitalisimo-backups-restore-' . (int) $index;
 		$scope = (string) ( $item['scope'] ?? 'site' );
 		$extract = Digitalisimo_Backups_Site_Extract::SCOPE === $scope;
+		$uploaded = self::is_uploaded_row( $item );
+		// Por qué uno subido no se restaura aquí (otro tipo de instalación, o le falta su cadena en el almacén).
+		$blocked = $uploaded && $has_local && ! $restorable ? self::uploaded_blocked_text( $item ) : '';
 		echo '<tr class="digitalisimo-backups-row" data-file="' . esc_attr( $file ) . '"><td data-label="Fecha"><strong>' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '</strong>';
 		$badges = array();
 		if ( ! empty( $item['locked'] ) ) $badges[] = '<span class="digitalisimo-backups-badge" title="La retención no lo borra">Bloqueado</span>';
+		// Subido: discreto, con de dónde viene en el título (y en «⋯»).
+		if ( $uploaded ) $badges[] = '<span class="digitalisimo-backups-badge is-uploaded" title="' . esc_attr( self::uploaded_text( $item ) ) . '">Subido</span>';
+		if ( '' !== $blocked ) $badges[] = '<span class="digitalisimo-backups-badge is-warning" title="' . esc_attr( $blocked ) . '">No se restaura aquí</span>';
 		// Incrementales: un punto de restauración completo que sólo guarda lo nuevo; su base, en «⋯».
 		if ( $chain && $chain['sequence'] > 0 ) $badges[] = '<span class="digitalisimo-backups-badge is-incremental" title="' . esc_attr( 'Punto de restauración completo: se reconstruye con su cadena (' . ( $chain['sequence'] + 1 ) . ' archivos)' ) . '">Incremental</span>';
 		if ( 'dgbk' === ( $item['container'] ?? '' ) ) $badges[] = Digitalisimo_Backups_Security::history_badge( $item );
 		if ( '' !== self::history_notices_text( $item ) ) $badges[] = '<span class="digitalisimo-backups-badge is-warning" title="' . esc_attr( self::history_notices_text( $item ) ) . '">Con avisos</span>';
-		if ( $extract ) $badges[] = '<span class="digitalisimo-backups-badge">Sitio extraído: ' . esc_html( (string) ( $item['extract']['label'] ?? '' ) ) . '</span>';
+		if ( $extract ) $badges[] = '<span class="digitalisimo-backups-badge">Sitio extraído' . ( '' !== (string) ( $item['extract']['label'] ?? '' ) ? ': ' . esc_html( (string) $item['extract']['label'] ) : '' ) . '</span>';
 		elseif ( ! in_array( $scope, array( 'installation', 'network' ), true ) ) $badges[] = '<span class="digitalisimo-backups-badge">Exportación anterior</span>';
 		if ( $badges ) echo ' ' . implode( ' ', $badges );
 		echo '</td><td data-label="Tamaño">' . esc_html( size_format( (int) ( $item['size'] ?? 0 ) ) ) . '</td><td data-label="Dónde">' . esc_html( self::copies_label( $item ) ) . '</td><td class="digitalisimo-backups-actions">';
@@ -321,8 +327,12 @@ trait Digitalisimo_Backups_Screen {
 		wp_nonce_field( self::ACTION_LOCK );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_LOCK ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><input type="hidden" name="locked" value="' . ( empty( $item['locked'] ) ? '1' : '0' ) . '"><button class="button button-small">' . ( empty( $item['locked'] ) ? 'Bloquear' : 'Desbloquear' ) . '</button></form>';
 		if ( $restorable || $extract ) self::fetch_button( $item );
+		// «Enviar a un destino»: sin copia remota todavía y con algún destino remoto conectado.
+		echo self::send_form( $item ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- formulario escapado en send_form().
 		$type = 'network' === $scope ? 'Red completa' : ( 'installation' === $scope ? 'Instalación completa' : ( $extract ? 'Sitio extraído: ' . (string) ( $item['extract']['label'] ?? '' ) : 'Exportación anterior de sitio' ) );
 		echo '<dl><dt>Archivo</dt><dd>' . esc_html( $file ) . '</dd><dt>Tipo</dt><dd>' . esc_html( $type . self::chain_type_text( $item ) ) . '</dd><dt>Copias</dt><dd>' . esc_html( self::history_destination( $item ) ) . '</dd><dt>Seguridad</dt><dd>' . Digitalisimo_Backups_Security::history_badge( $item ) . '</dd>';
+		if ( $uploaded ) echo '<dt>Origen</dt><dd>' . esc_html( self::uploaded_text( $item ) ) . '</dd>';
+		if ( '' !== $blocked ) echo '<dt>Restaurar</dt><dd>' . esc_html( $blocked ) . '</dd>';
 		if ( $chain && $chain['sequence'] > 0 ) echo '<dt>Cadena</dt><dd>' . esc_html( self::chain_detail_text( $item ) ) . '</dd>';
 		if ( '' !== self::history_notices_text( $item ) ) echo '<dt>Avisos</dt><dd>' . esc_html( self::history_notices_text( $item ) ) . '</dd>';
 		if ( ! $has_local && ! $fetchable && self::remote_exists( $item ) ) echo '<dt>Copia remota</dt><dd>Respaldo remoto anterior: sin identificador</dd>';
@@ -369,6 +379,9 @@ trait Digitalisimo_Backups_Screen {
 		wp_nonce_field( self::ACTION_RESTORE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><input type="hidden" name="backup_file" value="' . esc_attr( $file ) . '">';
 		echo '<p><strong>Restaurar el respaldo del ' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '.</strong> Antes se guarda una copia del sitio actual; escribe RESTAURAR para confirmar.</p>';
+		// Uno subido sin firma con «sólo firmados»: se dice antes de escribir nada (la restauración lo rechazaría).
+		$signed_only = self::uploaded_signed_only_text( $item );
+		if ( '' !== $signed_only ) echo '<p class="digitalisimo-backups-warning">' . esc_html( $signed_only ) . '</p>';
 		// Restaurar por partes: lo que se reemplaza, a la vista sólo cuando no es todo (lo pone el script).
 		echo '<p class="digitalisimo-backups-warning" data-restore-parts-summary hidden></p>';
 		echo '<p class="digitalisimo-backups-restore-confirm"><label><span class="screen-reader-text">Confirmación</span><input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off" required></label> <button class="button button-primary">Restaurar</button> <a class="digitalisimo-backups-cancel" data-restore-cancel="' . esc_attr( $row_id ) . '" href="' . esc_url( self::tab_url( 'backups' ) ) . '">Cancelar</a></p>';

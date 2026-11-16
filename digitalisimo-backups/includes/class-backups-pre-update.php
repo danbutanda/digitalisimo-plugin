@@ -144,9 +144,12 @@ final class Digitalisimo_Backups_Pre_Update {
 	}
 
 	/**
-	 * Respaldo reciente válido de esta instalación (o de la red): completo, creado aquí (no subido, importado ni una copia
-	 * previa a restaurar), dentro de la antigüedad máxima, con su ZIP en el almacén y el tamaño registrado (o una copia
-	 * remota verificada). El SHA-256 se comprobó al crearlo; aquí no se vuelve a leer el archivo entero.
+	 * Respaldo reciente válido de esta instalación (o de la red): completo, creado aquí (no importado ni una copia previa a
+	 * restaurar), dentro de la antigüedad máxima, con su ZIP en el almacén y el tamaño registrado (o una copia remota
+	 * verificada). El SHA-256 se comprobó al crearlo; aquí no se vuelve a leer el archivo entero. Uno subido sólo cuenta si
+	 * es de este mismo sitio (`upload.same_site`: firmado con una clave de su llavero, con su misma dirección, ruta y
+	 * prefijo; la fecha es la de su creación): es entonces un respaldo de este sitio de ese momento, sólo que pasó por el
+	 * equipo de alguien. Uno de otro sitio, o sin esa firma, no protege a este sitio de una actualización.
 	 */
 	public static function fresh( $max_age = null ) {
 		return self::on_main( function() use ( $max_age ) { return self::fresh_here( $max_age ); } );
@@ -159,7 +162,9 @@ final class Digitalisimo_Backups_Pre_Update {
 		foreach ( (array) get_option( Digitalisimo_Backups::HISTORY, array() ) as $item ) {
 			$item = (array) $item;
 			if ( $scope !== (string) ( $item['scope'] ?? '' ) || 'full' !== (string) ( $item['backup_type'] ?? 'full' ) ) continue;
-			if ( 'created' !== (string) ( $item['origin'] ?? 'created' ) || 'pre-restore' === (string) ( $item['policy'] ?? '' ) ) continue;
+			$origin = (string) ( $item['origin'] ?? 'created' );
+			$own_upload = 'uploaded' === $origin && ! empty( $item['upload']['same_site'] ) && ! empty( $item['signed'] );
+			if ( ( 'created' !== $origin && ! $own_upload ) || 'pre-restore' === (string) ( $item['policy'] ?? '' ) ) continue;
 			// Los avisos `files_missing` y `files_changed` (una caché que desaparece o cambia durante el respaldo) no lo
 			// descalifican: es lo normal en un sitio con caché, y descartarlo repetiría respaldos completos sin fin (revisión N1).
 			$time = strtotime( (string) ( $item['date'] ?? '' ) );

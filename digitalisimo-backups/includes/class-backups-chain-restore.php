@@ -40,6 +40,9 @@ final class Digitalisimo_Backups_Chain_Restore {
 		$rows = array();
 		foreach ( $chain['links'] as $link ) {
 			$row = Digitalisimo_Backups_Chain::link_row( $history, $link );
+			// Sin la fila de su cadena: por su nombre en el almacén. Si ese archivo se subió (fila «Subido», que llega sin su
+			// bloque de cadena), se abre con su fila: su SHA-256 lo ata y quien lo subió ya aceptó su origen.
+			if ( ! $row && $loose ) $row = self::uploaded_row( $history, (string) $link['file'] );
 			if ( ! $row && $loose ) $row = array( 'file' => (string) $link['file'], 'loose' => true );
 			if ( ! $row ) throw new Exception( self::broken( $point, (int) $link['sequence'], $chain['sequence'], 'no está en el historial (' . $link['file'] . ')', 'Ese punto no se puede restaurar; elige otro.' ) );
 			$rows[] = $row;
@@ -94,9 +97,12 @@ final class Digitalisimo_Backups_Chain_Restore {
 			}
 			$trust = 'signed';
 			$key = null;
+			// Sin firma, la cadena sólo pide RESTAURAR si cada eslabón sin firma se subió y se registró (`vouched`).
+			$vouched = true;
 			foreach ( $rows as $index => $row ) {
 				if ( (bool) ( $data[ $index ]['multisite'] ?? false ) !== (bool) ( $head['multisite'] ?? false ) || (string) ( $data[ $index ]['table_prefix'] ?? '' ) !== (string) ( $head['table_prefix'] ?? '' ) ) throw new Exception( self::broken( $point, $index, $chain['sequence'], 'es de otra instalación', 'Restaura otro punto o el completo de la cadena.' ) );
 				$level = (string) $reports[ $index ]['trust'];
+				if ( 'untrusted' === $level && empty( $reports[ $index ]['vouched'] ) ) $vouched = false;
 				if ( 'untrusted' === $level ) $trust = 'untrusted';
 				elseif ( 'provenance' === $level && 'signed' === $trust ) $trust = 'provenance';
 				if ( 'signed' === $level ) {
@@ -113,6 +119,7 @@ final class Digitalisimo_Backups_Chain_Restore {
 				'point' => array( 'file' => (string) $item['file'], 'label' => $point, 'sequence' => (int) $chain['sequence'], 'chain' => (string) $chain['id'], 'manifest_sha256' => $hashes[ $top ] ),
 				'links' => array(),
 				'trust' => $trust,
+				'vouched' => 'untrusted' === $trust && $vouched ? 'uploaded' : '',
 				'key' => 'signed' === $trust ? $key : null,
 				'via' => (string) ( $reports[ $top ]['via'] ?? '' ),
 				'loose' => (bool) $loose,
@@ -300,6 +307,7 @@ final class Digitalisimo_Backups_Chain_Restore {
 			'item' => 'untrusted' === $trust ? array() : array( 'sha256' => $sha, 'origin' => 'created' ),
 			'secret' => 'signed' === $trust && 'secret' === $plan['via'] ? (string) $secret : '',
 			'trust' => $trust,
+			'vouched' => (string) ( $plan['vouched'] ?? '' ),
 			'links' => count( $plan['links'] ),
 			'files' => (int) $cursor['files'],
 			'bytes' => (int) $cursor['bytes'],
@@ -334,6 +342,11 @@ final class Digitalisimo_Backups_Chain_Restore {
 
 	/* ------------------------------------------------------------------ utilidades */
 
+	/** La fila «Subido» con ese nombre de archivo (y su SHA-256), o null. */
+	private static function uploaded_row( array $history, $file ) {
+		foreach ( $history as $row ) if ( is_array( $row ) && (string) ( $row['file'] ?? '' ) === (string) $file ) return 'uploaded' === (string) ( $row['origin'] ?? '' ) && ! empty( $row['sha256'] ) ? $row : null;
+		return null;
+	}
 	/** Un eslabón abierto como un respaldo: un ZIP con Security::open(), un DGBK descifrado en `$inner` (open_sealed()). */
 	private static function open_link( $path, array $row, $secret, $inner, $point, $index, $sequence ) {
 		$row = ! empty( $row['loose'] ) ? array() : $row;

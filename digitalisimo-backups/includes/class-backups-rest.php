@@ -14,6 +14,10 @@ defined( 'ABSPATH' ) || exit;
  * - GET  /backups                           historial
  * - POST /backups                           encola un respaldo completo (`destination`, `network`): 202 con el trabajo
  * - POST /backups/<file>/fetch               trae al almacén la copia remota, verificada por su SHA-256
+ * - POST /backups/<file>/send                «Enviar a un destino» un respaldo de la lista sin copia remota (`destination`,
+ *                                           `network`): 200 con el resultado, 202 con el trabajo si sigue
+ * - POST /backups/<file>/register            «Agregar al listado»: un archivo del almacén sin fila pasa a la lista
+ *                                           («Subido») tras la validación de archivo no confiable (`secret` en el cuerpo)
  * - GET  /destinations                       destinos remotos y su estado (sin secretos)
  * - POST /destinations/<id>/test             «Probar conexión» de una conexión guardada
  * - GET|POST /backups/<archivo>/verify      integridad sin tocar el sitio (`secret` sólo en el cuerpo de un POST)
@@ -36,8 +40,9 @@ defined( 'ABSPATH' ) || exit;
  * - POST /uploads                           empieza a subir un respaldo (`name`, `size`, `sha256` opcional): 201
  * - GET  /uploads/<id>                      fase, lo recibido y, si terminó, su resultado (para continuar o consultar)
  * - POST|PUT /uploads/<id>/chunk            un fragmento en `offset`: el cuerpo en bruto o el archivo `chunk` (multipart)
- * - POST /uploads/<id>/finish               valida el archivo como no confiable y lo deja en el almacén (`secret`); 202
- *                                           mientras otro proceso lo comprueba; repetirlo tras un corte da el mismo resultado
+ * - POST /uploads/<id>/finish               valida el archivo como no confiable y lo deja en el almacén y en la lista de
+ *                                           respaldos, marcado «Subido» (`secret`); 202 mientras otro proceso lo comprueba;
+ *                                           repetirlo tras un corte da el mismo resultado
  * - DELETE /uploads/<id>                    cancela la subida y borra lo recibido
  * - GET  /restore-config · POST /restore-config/apply|discard  tras restaurar el respaldo de otra instalación: la
  *                                           configuración de Backups que traía y no se aplicó (aplicarla deja sus
@@ -129,6 +134,8 @@ final class Digitalisimo_Backups_Rest {
 			) + $parts ),
 		) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/fetch', array( $route( 'POST', 'fetch', array( 'network' => $network ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/register', array( $route( 'POST', 'register_backup', array( 'secret' => $secret ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/send', array( $route( 'POST', 'send', array( 'destination' => array( 'type' => 'string', 'required' => true, 'description' => 'Destino remoto conectado (ver GET /destinations).' ), 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/destinations', array( $route( 'GET', 'destinations' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/destinations/(?P<id>[a-z0-9]+(?:-[a-f0-9]{8})?)/test', array( $route( 'POST', 'test_destination' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/automations', array( $route( 'GET', 'automations' ) ) );
@@ -244,6 +251,17 @@ final class Digitalisimo_Backups_Rest {
 		// Un trabajo por fragmentos (B1b): 202 con el trabajo si no terminó en esta petición.
 		$result = Digitalisimo_Backups::service_fetch( (string) $request['file'], array( 'network' => (bool) $request['network'], 'via' => 'rest' ) );
 		return self::respond( $result, is_array( $result ) && ! empty( $result['running'] ) ? 202 : 200 );
+	}
+	/** «Enviar a un destino»: un trabajo por fragmentos; 202 con el trabajo si no terminó en esta petición. */
+	public static function send( $request ) {
+		$result = Digitalisimo_Backups::service_send( (string) $request['file'], array( 'destination' => (string) $request['destination'], 'network' => (bool) $request['network'], 'via' => 'rest' ) );
+		return self::respond( $result, is_array( $result ) && ! empty( $result['running'] ) ? 202 : 200 );
+	}
+	/** «Agregar al listado»: un archivo del almacén sin fila pasa a la lista tras validarlo (la frase, sólo del cuerpo). */
+	public static function register_backup( $request ) {
+		$secret = self::secret( $request );
+		if ( is_wp_error( $secret ) ) return $secret;
+		return self::respond( Digitalisimo_Backups::service_register( (string) $request['file'], array( 'secret' => $secret, 'via' => 'rest' ) ), 201 );
 	}
 	/** Destinos remotos y su estado (sin valores secretos). */
 	public static function destinations( $request ) { return self::respond( Digitalisimo_Backups::service_destinations() ); }

@@ -146,7 +146,7 @@ final class Digitalisimo_Backups_Chain {
 		$plan = array( 'v' => self::VERSION, 'mode' => 'base', 'sequence' => 0, 'id' => '', 'links' => array(), 'parent' => null, 'base_at' => (int) $now, 'full_every' => $settings['full_every'], 'full_days' => $settings['full_days'], 'reason' => '' );
 		$head = null;
 		foreach ( $history as $row ) {
-			if ( ! is_array( $row ) || (string) ( $row['policy'] ?? '' ) !== (string) ( $spec['policy'] ?? '' ) || 'imported' === (string) ( $row['origin'] ?? 'created' ) ) continue;
+			if ( ! is_array( $row ) || (string) ( $row['policy'] ?? '' ) !== (string) ( $spec['policy'] ?? '' ) || in_array( (string) ( $row['origin'] ?? 'created' ), array( 'imported', 'uploaded' ), true ) ) continue;
 			$head = $row;
 			break;
 		}

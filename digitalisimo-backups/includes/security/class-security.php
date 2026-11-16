@@ -5,6 +5,11 @@ defined( 'ABSPATH' ) || exit;
  * Costuras de seguridad del respaldo y pestaña «Seguridad». seal() cifra el ZIP ya verificado y open() prepara
  * cualquier archivo (ZIP o DGBK) para restaurarlo y decide su nivel de confianza: signed (firma válida con una clave
  * conocida o escrita), provenance (fila del historial creada aquí con el mismo SHA-256) o untrusted.
+ *
+ * Un respaldo subido y registrado (fila con `origin` = `uploaded` y el mismo SHA-256) sigue siendo `untrusted` si no
+ * lleva una firma válida de una clave de este sitio: la restauración lo valida con todas las reglas de un archivo no
+ * confiable, como al subirlo. Pero lleva `vouched` = `uploaded`: la cuenta con la capability que lo subió (pantalla o
+ * REST) ya aceptó su origen, así que basta RESTAURAR (ver confirmation_word() y require_confirmation()).
  */
 final class Digitalisimo_Backups_Security {
 	const OPTION = 'digitalisimo_backups_security';
@@ -130,8 +135,9 @@ final class Digitalisimo_Backups_Security {
 			$checksum = @hash_file( 'sha256', $path );
 			if ( false === $checksum || ! hash_equals( (string) $item['sha256'], $checksum ) ) throw new Exception( 'El SHA-256 del respaldo ya no coincide con el archivo registrado.' );
 		}
-		$provenance = ! empty( $item['sha256'] ) && 'imported' !== ( $item['origin'] ?? 'created' );
-		$report = array( 'source' => $path, 'path' => $path, 'container' => 'zip', 'trust' => 'untrusted', 'auth' => 'unsigned', 'key' => null, 'via' => '', 'staging' => '', 'zip' => null, 'root' => null, 'header' => null );
+		$origin = (string) ( $item['origin'] ?? 'created' );
+		$provenance = ! empty( $item['sha256'] ) && ! in_array( $origin, array( 'imported', 'uploaded' ), true );
+		$report = array( 'source' => $path, 'path' => $path, 'container' => 'zip', 'trust' => 'untrusted', 'auth' => 'unsigned', 'key' => null, 'via' => '', 'staging' => '', 'zip' => null, 'root' => null, 'header' => null, 'vouched' => '' );
 		if ( Digitalisimo_Backups_Encrypted_File::is_encrypted( $path ) ) return self::open_encrypted( $path, (string) $secret, $report );
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $path, ZipArchive::CHECKCONS ) ) throw new Exception( 'No se puede abrir el ZIP.' );
@@ -145,6 +151,9 @@ final class Digitalisimo_Backups_Security {
 		$report['key'] = $auth['key'] ?? null;
 		if ( 'signed' === $auth['state'] ) { $report['trust'] = 'signed'; $report['root'] = $auth['root']; $report['via'] = $auth['via']; }
 		elseif ( $provenance ) $report['trust'] = 'provenance';
+		// Subido y registrado con este mismo SHA-256 (comprobado arriba): sin firma sigue siendo no confiable para la
+		// validación, pero quien lo subió ya aceptó su origen.
+		if ( 'untrusted' === $report['trust'] && ! empty( $item['sha256'] ) && 'uploaded' === $origin ) $report['vouched'] = 'uploaded';
 		return $report;
 	}
 	private static function open_encrypted( $path, $secret, $report ) {
@@ -198,14 +207,29 @@ final class Digitalisimo_Backups_Security {
 		$report['staging'] = '';
 		if ( isset( $report['root'] ) ) Digitalisimo_Backups_Sodium::memzero( $report['root'] );
 	}
-	/** La palabra de confirmación depende de la confianza; un archivo sin firma pide aceptar expresamente su origen. */
+	/**
+	 * La palabra que pide la restauración: RESTAURAR para uno firmado, registrado aquí o subido y registrado por una cuenta
+	 * con la capability (`vouched`); RESTAURAR SIN FIRMA para un archivo sin firma ni registro.
+	 */
+	public static function confirmation_word( $report ) {
+		return 'untrusted' === ( $report['trust'] ?? 'untrusted' ) && empty( $report['vouched'] ) ? 'RESTAURAR SIN FIRMA' : 'RESTAURAR';
+	}
+	/**
+	 * La palabra de confirmación depende de la confianza; un archivo sin firma pide aceptar expresamente su origen. Uno
+	 * subido y registrado (`vouched`) ya lo aceptó quien lo subió: basta RESTAURAR. «Restaurar sólo respaldos firmados»
+	 * sigue bloqueando todo lo que no tiene una firma válida, también lo subido.
+	 */
 	public static function require_confirmation( $report, $confirmation ) {
 		$confirmation = strtoupper( trim( preg_replace( '/\s+/', ' ', (string) $confirmation ) ) );
 		if ( 'untrusted' !== $report['trust'] ) {
 			if ( ! in_array( $confirmation, array( 'RESTAURAR', 'RESTAURAR SIN FIRMA' ), true ) ) throw new Exception( 'Escribe RESTAURAR para confirmar una operación destructiva.' );
 			return;
 		}
-		if ( self::settings()['require_signed'] ) throw new Exception( 'Este respaldo no tiene una firma válida y Backups → Ajustes → Cifrado y firma sólo permite restaurar respaldos firmados. No se cambió nada del sitio.' );
+		if ( self::settings()['require_signed'] ) throw new Exception( 'Este respaldo no tiene una firma válida' . ( empty( $report['vouched'] ) ? '' : ' (se subió sin una firma de una clave de este sitio)' ) . ' y Backups → Ajustes → Cifrado y firma sólo permite restaurar respaldos firmados. No se cambió nada del sitio.' );
+		if ( ! empty( $report['vouched'] ) ) {
+			if ( ! in_array( $confirmation, array( 'RESTAURAR', 'RESTAURAR SIN FIRMA' ), true ) ) throw new Exception( 'Escribe RESTAURAR para confirmar una operación destructiva.' );
+			return;
+		}
 		if ( 'RESTAURAR SIN FIRMA' !== $confirmation ) {
 			$hint = 'needs_key' === $report['auth'] && ! empty( $report['key']['id'] ) ? ' Si conoces la frase o la clave ' . Digitalisimo_Backups_Keys::short( $report['key']['id'] ) . ' con la que se firmó, escríbela para comprobar su firma.' : '';
 			throw new Exception( 'Este archivo no tiene una firma válida de este sitio ni un registro con su SHA-256: restaurarlo instala su código y sus datos. Revisa su origen y escribe RESTAURAR SIN FIRMA para continuar.' . $hint . ' No se cambió nada del sitio.' );
@@ -284,7 +308,10 @@ final class Digitalisimo_Backups_Security {
 		}
 		return ' · cifrado, clave ' . Digitalisimo_Backups_Keys::short( $key_id ) . ( Digitalisimo_Backups_Keys::can_open( $key_id ) ? '' : ' · escribe su frase o su clave' );
 	}
-	public static function trust_label( $trust ) { return array( 'signed' => 'firmado', 'provenance' => 'registrado en este sitio', 'untrusted' => 'sin firma' )[ $trust ] ?? 'sin firma'; }
+	public static function trust_label( $trust, $vouched = '' ) {
+		if ( 'untrusted' === $trust && 'uploaded' === $vouched ) return 'subido, sin firma';
+		return array( 'signed' => 'firmado', 'provenance' => 'registrado en este sitio', 'untrusted' => 'sin firma' )[ $trust ] ?? 'sin firma';
+	}
 
 	/** Etiqueta de la columna «Seguridad» del historial. Las filas antiguas no tienen estos campos. */
 	public static function history_badge( $item ) {
@@ -348,7 +375,7 @@ final class Digitalisimo_Backups_Security {
 		}
 		$encrypt_locked = 'none' !== $constant;
 		echo '<tr><th>Cifrado</th><td><label><input type="checkbox" name="digitalisimo_backups_security[encrypt]" value="1"' . checked( $settings['encrypt'], true, false ) . disabled( $encrypt_locked || ( ! $has_key && ! $settings['encrypt'] ), true, false ) . '> Cifrar los respaldos nuevos</label><p class="description">Los respaldos nuevos se cifrarán. Guarda la frase fuera de este sitio. Los respaldos anteriores no cambian y siguen sin cifrar. La copia previa a una restauración se queda en este servidor sin cifrar, pero firmada.</p><p class="description digitalisimo-backups-warning">Sin la frase (o la clave de wp-config.php) no se pueden restaurar: nadie puede recuperarlos, tampoco DIGITALÍSIMO.</p></td></tr>';
-		echo '<tr><th>Restauración</th><td><label><input type="checkbox" name="digitalisimo_backups_security[require_signed]" value="1"' . checked( $settings['require_signed'], true, false ) . '> Restaurar sólo respaldos firmados</label><p class="description">Con esta opción no se restaura un archivo sin firma válida aunque se escriba RESTAURAR SIN FIRMA (también UpdraftPlus). Los respaldos registrados en este sitio con su SHA-256 siguen restaurándose.</p></td></tr>';
+		echo '<tr><th>Restauración</th><td><label><input type="checkbox" name="digitalisimo_backups_security[require_signed]" value="1"' . checked( $settings['require_signed'], true, false ) . '> Restaurar sólo respaldos firmados</label><p class="description">Con esta opción no se restaura un archivo sin firma válida aunque se escriba RESTAURAR SIN FIRMA (también UpdraftPlus). Los respaldos hechos en este sitio y registrados con su SHA-256 siguen restaurándose; uno subido sin firma válida, no.</p></td></tr>';
 		echo '</table>';
 		submit_button( 'Guardar seguridad' );
 		echo '</form></section>';

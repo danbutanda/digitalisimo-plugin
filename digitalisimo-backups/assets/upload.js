@@ -19,6 +19,8 @@
   var cancel = form.querySelector('[data-upload-cancel]');
   var bar = form.querySelector('progress');
   var status = form.querySelector('.digitalisimo-backups-upload-status');
+  /* Enlace a la lista de respaldos, a la vista cuando el respaldo subido ya está en ella. */
+  var listed = card.querySelector('[data-upload-list]');
   var storage = null;
   try { storage = window.localStorage; } catch (error) { storage = null; }
   var current = null;
@@ -197,11 +199,14 @@
   function summary(result) {
     if (result.container === 'backuply') return 'Respaldo de Backuply subido: ' + result.file + '. Impórtalo en Herramientas → «Importar de Backuply o UpdraftPlus» (recarga la página) para convertirlo en un ZIP de Backups y restaurarlo.';
     var text = 'Respaldo subido y verificado: ' + result.file + '. ';
+    if (result.duplicate) text += 'Ese mismo respaldo ya estaba en la lista: no se guardó otra copia. ';
+    else if (result.listed) text += 'Ya está en la lista de respaldos (pestaña «Respaldos»), marcado «Subido». ';
     if (result.needs_secret) text += 'Está cifrado con una clave que este sitio no tiene: al restaurarlo escribe su frase o su clave y ';
     else text += 'Para restaurarlo ';
     text += 'escribe ' + result.confirmation + '. ';
     if (result.problems && result.problems.length) text += result.problems.join(' ') + ' ';
     if (result.wp_config && result.wp_config.text) text += result.wp_config.text + ' ';
+    if (result.listed) return text.replace(/ $/, '');
     return text + 'Recarga la página para verlo en Herramientas → «Restaurar un archivo suelto» como «sin registro».';
   }
 
@@ -237,6 +242,7 @@
       if (secret) secret.value = '';
       full();
       say(summary(result));
+      if (listed && result.listed) listed.hidden = false;
     }).catch(function (error) {
       var code = error.data && error.data.code || '';
       // Descartada por el servidor (no válida, SHA-256 distinto o caducada): no hay nada que continuar.

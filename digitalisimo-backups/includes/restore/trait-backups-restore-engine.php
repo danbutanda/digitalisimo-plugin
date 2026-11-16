@@ -62,6 +62,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'source' => array(
 				'container' => (string) $report['container'],
 				'trust' => (string) $report['trust'],
+				// Subido y registrado (`uploaded`): sin firma sigue validándose como no confiable; sólo se informa.
+				'vouched' => (string) ( $report['vouched'] ?? '' ),
 				'auth' => (string) $report['auth'],
 				'key' => isset( $report['key']['id'] ) ? Digitalisimo_Backups_Keys::short( $report['key']['id'] ) : '',
 				// Un `.dgbk` descifrado o el respaldo completo reconstruido de un punto incremental (`staged`) viajan al área del trabajo.
@@ -2425,6 +2427,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'file' => basename( (string) $spec['file'] ),
 			'restored' => true,
 			'trust' => (string) ( $spec['source']['trust'] ?? '' ),
+			'vouched' => (string) ( $spec['source']['vouched'] ?? '' ),
 			'key' => (string) ( $spec['source']['key'] ?? '' ),
 			'adopted' => ! empty( $spec['adopted'] ),
 			'notice' => $public( ltrim( $notice ) ),
