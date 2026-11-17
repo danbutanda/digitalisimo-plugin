@@ -111,7 +111,7 @@ async function panel() {
       return {
         url: location.href, visible: shown(p), state: p.getAttribute('data-state'), kind: p.getAttribute('data-kind'),
         title: q('digitalisimo-backups-progress-title').textContent, percent: q('digitalisimo-backups-progress-percent').textContent,
-        now: bar.getAttribute('aria-valuenow'), role: bar.getAttribute('role'), live: q('digitalisimo-backups-manual-message').getAttribute('role'),
+        now: bar.getAttribute('aria-valuenow'), valuetext: bar.getAttribute('aria-valuetext') || '', waiting: bar.hasAttribute('data-waiting'), role: bar.getAttribute('role'), live: q('digitalisimo-backups-manual-message').getAttribute('role'),
         phase: current ? current.getAttribute('data-phase') : '',
         phases: [...p.querySelectorAll('#digitalisimo-backups-progress-phases li')].map((li) => `${li.getAttribute('data-phase')}:${li.getAttribute('data-state')}`),
         what: q('digitalisimo-backups-progress-what').textContent, message: q('digitalisimo-backups-manual-message').textContent, detail: q('digitalisimo-backups-manual-detail').textContent,
@@ -430,9 +430,10 @@ try {
   await page.click('#digitalisimo-backups-manual-form button');
   let midway = null;
   let running = false;
-  // Al terminar bien, la página se recarga enseguida: el panel vuelve vacío (oculto).
+  // Al terminar bien, la página se recarga enseguida: el panel vuelve vacío (oculto). Desde 1.0.79, una fase sin pasos
+  // medibles deja la barra «en espera» (data-waiting): sin aria-valuenow y con el porcentaje al principio de aria-valuetext.
   const backup = await follow('respaldo', (s) => s.title === 'Respaldo terminado' || s.state === 'failed' || (running && !s.visible), { onSample: async (s) => { if (s.title === 'Respaldo en curso') running = true; if (!midway && parseInt(s.percent, 10) >= 40) { midway = s; await shot('respaldo-en-curso'); } } });
-  check(midway && midway.overflow <= 0 && midway.width >= midway.inner - 2 && midway.bar >= midway.width - 40 && midway.role === 'progressbar' && midway.now === String(parseInt(midway.percent, 10)) && midway.live === 'status', 'respaldo: el panel va a todo lo ancho de su tarjeta, con la barra accesible y su valor', JSON.stringify(midway && { width: midway.width, inner: midway.inner, bar: midway.bar, now: midway.now, percent: midway.percent }));
+  check(midway && midway.overflow <= 0 && midway.width >= midway.inner - 2 && midway.bar >= midway.width - 40 && midway.role === 'progressbar' && (midway.now === String(parseInt(midway.percent, 10)) || (midway.waiting && midway.now === null && midway.valuetext.indexOf(String(parseInt(midway.percent, 10)) + ' %') === 0)) && midway.live === 'status', 'respaldo: el panel va a todo lo ancho de su tarjeta, con la barra accesible y su valor', JSON.stringify(midway && { width: midway.width, inner: midway.inner, bar: midway.bar, now: midway.now, percent: midway.percent }));
   const phasesBackup = currentPhases(backup.seen);
   // Un tick (hasta 20 s) puede pasar varias fases: se pide que cada muestra marque hechas las anteriores a la actual.
   const stepper = (list) => list.filter((s) => s.phase).every((s) => { const chips = s.phases.split(' '); const at = chips.findIndex((c) => c.endsWith(':current')); return at >= 0 && chips.slice(0, at).every((c) => c.endsWith(':done')) && chips.slice(at + 1).every((c) => c.endsWith(':pending')); });
