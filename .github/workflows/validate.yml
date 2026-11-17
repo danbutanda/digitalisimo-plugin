@@ -358,6 +358,7 @@ jobs:
           php tests/backups-uploaded-chain.php
           php tests/backups-uploaded-review.php
           php tests/backups-site-import.php
+          php tests/backups-site-import-review.php
           php tests/backups-pre-update.php
           php tests/backups-pre-update-review.php
           node tests/backups-pre-update-ui.mjs

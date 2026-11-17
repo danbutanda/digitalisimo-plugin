@@ -269,10 +269,13 @@ trait Digitalisimo_Backups_Site_Import_Engine {
 			$temp = array();
 			foreach ( $tables as $row ) $temp[ (string) $row['dest'] ] = (string) $row['temp'];
 			$map = array();
+			// La copia de un sitio de una red (`network-site`) restaurada desde la lista, no como vuelta: no recrea a quien ya
+			// no está en la red (revisión de 1.0.79, M3).
+			$copy = Digitalisimo_Backups_Site_Import::SCOPE === (string) ( self::restore_read_json( $job, 'metadata.json' )['scope'] ?? '' );
 			if ( isset( $merge['users'], $merge['usermeta'] ) ) {
 				$journal = (array) ( self::restore_read_json( $job, 'users.json', false ) ?? array() );
 				$save = function( array $journal ) use ( $job ) { self::restore_write_json( $job, 'users.json', $journal ); };
-				$journal = Digitalisimo_Backups_Site_Import::merge_users( array( 'users' => (string) $merge['users']['temp'], 'usermeta' => (string) $merge['usermeta']['temp'], 'site_id' => $id, 'domain' => (string) $target['domain'], 'mode' => (string) $into['mode'], 'rollback' => $rollback ), $journal, $save, $deadline );
+				$journal = Digitalisimo_Backups_Site_Import::merge_users( array( 'users' => (string) $merge['users']['temp'], 'usermeta' => (string) $merge['usermeta']['temp'], 'site_id' => $id, 'domain' => (string) $target['domain'], 'mode' => (string) $into['mode'], 'rollback' => $rollback, 'copy' => $copy ), $journal, $save, $deadline );
 				if ( 'done' !== $journal['step'] ) { $cursor['users'] = count( (array) $journal['map'] ); return $cursor; }
 				$map = (array) $journal['map'];
 				// Los usuarios ya están en la red y las tablas del sitio aún no pasaron: un fallo aquí (las pruebas lo provocan con
@@ -280,11 +283,13 @@ trait Digitalisimo_Backups_Site_Import_Engine {
 				if ( function_exists( 'do_action' ) ) do_action( 'digitalisimo_backups_site_import_merged', (string) $job['id'], $journal );
 			}
 			$remap = (array) ( self::restore_read_json( $job, 'remap.json', false ) ?? array() );
-			// La copia de un sitio de esta red (su copia previa) ya lleva los ID y las opciones de la red: vuelve tal cual.
-			if ( Digitalisimo_Backups_Site_Import::SCOPE === (string) ( self::restore_read_json( $job, 'metadata.json' )['scope'] ?? '' ) ) $remap['finished'] = $remap['finished'] ?? time();
+			// Sólo la vuelta a la copia previa vuelve tal cual (sus ID y sus opciones ya son los de la red). La copia de un sitio
+			// restaurada desde la lista, o subida desde otra red, reasigna la autoría con el mapa de la fusión como cualquier
+			// importación (revisión de 1.0.79, M4): sin eso, sus entradas y pedidos serían de otras personas de esta red.
+			if ( $rollback ) $remap['finished'] = $remap['finished'] ?? time();
 			if ( empty( $remap['finished'] ) ) {
 				$remap = Digitalisimo_Backups_Site_Import::remap( $map, $temp, $prefix, $remap, function( array $remap ) use ( $job ) { self::restore_write_json( $job, 'remap.json', $remap ); } );
-				if ( isset( $temp[ $prefix . 'options' ] ) ) $remap['options'] = Digitalisimo_Backups_Site_Import::prepare_options( $temp[ $prefix . 'options' ], self::restore_table_exists( $prefix . 'options' ) ? $prefix . 'options' : '', Digitalisimo_Backups_Site_Import::themes_of( $temp[ $prefix . 'options' ] ) );
+				if ( isset( $temp[ $prefix . 'options' ] ) ) $remap['options'] = Digitalisimo_Backups_Site_Import::prepare_options( $temp[ $prefix . 'options' ], self::restore_table_exists( $prefix . 'options' ) ? $prefix . 'options' : '', Digitalisimo_Backups_Site_Import::themes_of( $temp[ $prefix . 'options' ] ), $prefix );
 				$remap['finished'] = time();
 				self::restore_write_json( $job, 'remap.json', $remap );
 			}
@@ -354,12 +359,13 @@ trait Digitalisimo_Backups_Site_Import_Engine {
 	private static function import_undo_list( array $job ) {
 		$journal = (array) ( self::restore_read_json( $job, 'users.json', false ) ?? array() );
 		$created = array_merge( (array) ( $journal['created'] ?? array() ), array() );
-		// Uno a medio crear (la muerte entre el INSERT y su anotación): está en la red con el nombre que se le dio.
+		// Uno a medio crear (la muerte entre el INSERT y su anotación): está en la red con el nombre que se le dio y la marca
+		// de esta importación; sin la marca es otra persona con ese nombre y nunca se borra (revisión de 1.0.79, B1).
 		if ( ! empty( $journal['pending'] ) ) {
 			global $wpdb;
 			$users = (string) ( $wpdb->users ?? '' ) ? (string) $wpdb->users : (string) $wpdb->base_prefix . 'users';
-			foreach ( (array) $journal['pending'] as $login ) {
-				$id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT ID FROM ' . Digitalisimo_Backups_Relocate::quote_name( $users ) . ' WHERE user_login = %s', (string) $login ) );
+			foreach ( (array) $journal['pending'] as $old => $login ) {
+				$id = Digitalisimo_Backups_Site_Import::pending_user( $users, (string) $login, (string) ( $journal['tokens'][ $old ] ?? '' ) );
 				if ( $id > 0 ) $created[] = $id;
 			}
 		}
@@ -426,14 +432,25 @@ trait Digitalisimo_Backups_Site_Import_Engine {
 		}
 		$users = array( 'matched' => (int) ( $kinds['matched'] ?? 0 ), 'by_email' => (int) ( $kinds['email'] ?? 0 ), 'created' => (int) ( $kinds['created'] ?? 0 ), 'renamed' => (int) ( $kinds['renamed'] ?? 0 ), 'kept_admins' => count( (array) ( $journal['admins'] ?? array() ) ), 'missing' => (int) ( $kinds['missing'] ?? 0 ) );
 		$warnings = Digitalisimo_Backups_Site_Import::warnings( $rules );
-		$text = ( empty( $job['spec']['rollback'] ) ? ( 'new' === $into['mode'] ? 'Importado como sitio nuevo de la red: ' : 'Sitio de la red reemplazado: ' ) : 'Sitio de la red devuelto a su copia previa: ' ) . (string) $target['url'] . ' (sitio ' . (int) $target['site_id'] . ').';
-		if ( empty( $job['spec']['rollback'] ) ) {
+		$rollback = ! empty( $job['spec']['rollback'] );
+		$text = ( ! $rollback ? ( 'new' === $into['mode'] ? 'Importado como sitio nuevo de la red: ' : 'Sitio de la red reemplazado: ' ) : 'Sitio de la red devuelto a su copia previa: ' ) . (string) $target['url'] . ' (sitio ' . (int) $target['site_id'] . ').';
+		$skipped = array_values( array_map( 'strval', (array) ( $journal['skipped'] ?? array() ) ) );
+		// Las capacidades de red quitadas de los roles del sitio y de los usuarios (revisión de 1.0.79, A2).
+		$network_caps = array( 'roles' => (array) ( $remap['options']['network_caps'] ?? array() ), 'users' => (array) ( $journal['network_caps'] ?? array() ) );
+		// Qué pasa con el acceso: siempre lo mismo, y lo que se pidió (revisión de 1.0.79, B3).
+		$access = $rollback ? null : Digitalisimo_Backups_Site_Import::access( (string) $into['mode'], array_key_exists( 'keep_access', (array) $job['spec'] ) ? ! empty( $job['spec']['keep_access'] ) : null, array_key_exists( 'keep_admins', (array) $job['spec'] ) ? ! empty( $job['spec']['keep_admins'] ) : null );
+		if ( ! $rollback ) {
 			$text .= ' Usuarios: ' . $users['matched'] . ' ya eran de la red (entran con su contraseña de la red), ' . $users['by_email'] . ' coincidieron por correo con una cuenta de la red, ' . ( $users['created'] + $users['renamed'] ) . ' se crearon con su contraseña del respaldo' . ( $renamed ? ' (con otro nombre porque el suyo ya era de otra persona en la red: ' . implode( ', ', $renamed ) . '; también entran con su correo)' : '' ) . '.';
 			if ( $users['kept_admins'] ) $text .= ' ' . $users['kept_admins'] . ' administradores del sitio siguen siéndolo.';
 			$installed = array_merge( (array) ( $rules['installed']['plugins'] ?? array() ), (array) ( $rules['installed']['themes'] ?? array() ) );
 			if ( $installed ) $text .= ' Instalados en la red: ' . implode( ', ', array_slice( $installed, 0, 10 ) ) . ' (activos sólo en este sitio).';
 			if ( ! empty( $remap['options']['themes'] ) ) $text .= ' Tema habilitado sólo para este sitio: ' . implode( ', ', (array) $remap['options']['themes'] ) . '.';
 		}
+		// La copia de un sitio (desde la lista o en su vuelta) no recrea a quien ya no está en la red (revisión de 1.0.79, M3).
+		if ( $skipped ) $text .= ' ' . count( $skipped ) . ' usuarios de la copia ya no están en la red y no se recrearon: ' . implode( ', ', array_slice( $skipped, 0, 20 ) ) . ( count( $skipped ) > 20 ? '…' : '' ) . ( $rollback ? '' : ' (su contenido en este sitio queda sin autor)' ) . '.';
+		$caps_text = Digitalisimo_Backups_Site_Import::network_caps_text( $network_caps['roles'], $network_caps['users'] );
+		if ( '' !== $caps_text ) $text .= ' ' . $caps_text;
+		if ( $access ) $text .= ' ' . $access['text'];
 		$orphans = 0;
 		foreach ( (array) ( $remap['report'] ?? array() ) as $column ) $orphans += (int) ( $column['orphans'] ?? 0 );
 		if ( $orphans ) $text .= ' ' . $orphans . ' contenidos eran de un usuario que el respaldo ya no tenía: quedan sin autor.';
@@ -444,7 +461,9 @@ trait Digitalisimo_Backups_Site_Import_Engine {
 			'url' => (string) $target['url'],
 			'users' => $users,
 			'renamed' => $renamed,
-			'skipped' => array_values( array_map( 'strval', (array) ( $journal['skipped'] ?? array() ) ) ),
+			'skipped' => $skipped,
+			'network_caps' => $network_caps,
+			'access' => $access,
 			'plugins' => array_values( (array) ( $rules['installed']['plugins'] ?? array() ) ),
 			'themes' => array_values( (array) ( $rules['installed']['themes'] ?? array() ) ),
 			'kept' => (array) ( $rules['kept'] ?? array() ),

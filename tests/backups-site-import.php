@@ -311,10 +311,12 @@ si_case( 'e · usuarios (reemplazo): misma cuenta, por correo, otra persona con 
 si_case( 'e · usuarios: una muerte entre el INSERT y su anotación no crea dos veces; sitio nuevo; vuelta exacta a la copia', function() use ( $I ) {
 	$db = si_network();
 	si_backup_users( $db );
-	// La pasada anterior anotó «nuevo» como pendiente, lo insertó y murió.
-	$db->seed( 'wp_users', array( array( 'ID' => 50, 'user_login' => 'nuevo', 'user_pass' => SI_HASH_BK, 'user_email' => 'nuevo@ejemplo.test' ) ) );
-	list( $journal ) = si_merge( $db, 'new', array( 'step' => 'users', 'cursor' => 3, 'pending' => array( 4 => 'nuevo' ), 'map' => array( 1 => 2, 2 => 3, 3 => 7 ), 'kind' => array( 1 => 'matched', 2 => 'email', 3 => 'renamed' ), 'created' => array( 7 ) ) );
+	// La pasada anterior anotó «nuevo» como pendiente (con la marca de esta importación), lo insertó y murió.
+	$mark = 'dgbk-' . str_repeat( '0f', 16 );
+	$db->seed( 'wp_users', array( array( 'ID' => 50, 'user_login' => 'nuevo', 'user_pass' => SI_HASH_BK, 'user_email' => 'nuevo@ejemplo.test', 'user_activation_key' => $mark ) ) );
+	list( $journal ) = si_merge( $db, 'new', array( 'step' => 'users', 'cursor' => 3, 'pending' => array( 4 => 'nuevo' ), 'tokens' => array( 4 => $mark ), 'map' => array( 1 => 2, 2 => 3, 3 => 7 ), 'kind' => array( 1 => 'matched', 2 => 'email', 3 => 'renamed' ), 'created' => array( 7 ) ) );
 	si_check( 50 === (int) $journal['map'][4] && in_array( 50, $journal['created'], true ) && 1 === count( $db->rows( 'wp_users', "user_login LIKE 'nuevo%'" ) ), 'Tras la muerte se creó otra vez a «nuevo»: ' . json_encode( $journal['map'] ) );
+	si_check( '' === $db->value( 'wp_users', 'user_activation_key', 'ID = 50' ) && array() === $journal['tokens'], 'La marca del pendiente sigue en la fila o en el diario.' );
 	// Sitio nuevo: los miembros de la red que no vienen en el respaldo no cambian (no eran del sitio).
 	si_check( null !== si_meta( $db, 6, 'wp_2_capabilities' ), 'En un sitio nuevo se quitó a quien no viene en el respaldo.' );
 	// La vuelta a la copia de un sitio: exacta (sólo quienes existen, sin crear a nadie ni conservar administradores).
@@ -510,7 +512,7 @@ si_case( 'k · por partes (sólo base, medios, plugins y temas), la migración c
 	try { Digitalisimo_Backups_Migrate::compatible( $hello, false ); } catch ( Exception $e ) { $refused = $e->getMessage(); }
 	si_check( false !== strpos( $refused, 'sitio nuevo' ), 'Sin importar, la migración no dice qué elegir: ' . $refused );
 	$migrate = (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/includes/class-backups-migrate.php' );
-	si_check( false !== strpos( $migrate, "\$spec['into'] = \$into;" ) && false !== strpos( (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/includes/class-backups.php' ), "'into' => \$into, 'safety_extra'" ), 'La migración no lleva el destino a su restauración.' );
+	si_check( false !== strpos( $migrate, "\$spec['into'] = \$into;" ) && false !== strpos( (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/includes/class-backups.php' ), "'into' => \$into," ), 'La migración no lleva el destino a su restauración.' );
 	// El punto incremental de un individual: su destino viaja a la restauración que encola la reconstrucción.
 	$service = (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/includes/trait-backups-service.php' );
 	$core = (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/includes/class-backups.php' );

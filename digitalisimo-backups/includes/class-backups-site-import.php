@@ -54,6 +54,14 @@ final class Digitalisimo_Backups_Site_Import {
 	// Opciones del sitio que nunca vienen del respaldo: la carpeta de medios es la del sitio de la red.
 	const KEEP_OPTIONS = array( 'upload_path', 'upload_url_path', 'fileupload_url' );
 	const MARK = 'dgbk-u:';
+	// Capacidades de nivel red de WordPress (las que map_meta_cap() deja pasar tal cual o lleva a otra de red). En un sitio
+	// de una red sólo las tiene, por serlo, un superadministrador; en su rol o en las capacidades de un usuario del sitio
+	// darían poder sobre la red: con `manage_network_users`, editar (contraseña, correo) a cualquier usuario de la red que
+	// no sea superadministrador. Un respaldo nunca las trae a la red (revisión de 1.0.79, A2); también cualquier otra
+	// `manage_network…`.
+	const NETWORK_CAPS = array( 'manage_network', 'manage_sites', 'manage_network_users', 'manage_network_plugins', 'manage_network_themes', 'manage_network_options', 'upgrade_network', 'setup_network', 'create_sites', 'delete_sites' );
+	// Marca de un usuario que la fusión está creando (en `user_activation_key` hasta anotarlo): sólo esa fila es «la nuestra».
+	const PENDING_MARK = 'dgbk-';
 
 	// ------------------------------------------------------------------ Paquetes
 
@@ -251,10 +259,13 @@ final class Digitalisimo_Backups_Site_Import {
 	// El plan de E1 del paquete hacia el sitio de la red, con los pares de los medios (que van antes que `home`: la ruta más
 	// larga del mismo host manda) y sin vaciar las cachés de página de toda la red.
 	public static function plan( array $source, array $destination, array $args, array $pairs ) {
+		global $wpdb;
 		$args['addresses'] = 'current';
 		$plan = Digitalisimo_Backups_Relocate::plan( $source, $destination, $args );
 		foreach ( $pairs as $pair ) $plan->add_url( (string) $pair[0], (string) $pair[1] );
-		if ( method_exists( $plan, 'site_scope' ) ) $plan->site_scope();
+		// Con el prefijo base de la red: las claves de permisos del respaldo con ese prefijo que no son del sitio (las del
+		// principal, de otro sitio) se descartan al importar (revisión de 1.0.79, A1; la fusión las descarta también).
+		if ( method_exists( $plan, 'site_scope' ) ) $plan->site_scope( (string) $wpdb->base_prefix );
 		return $plan;
 	}
 
@@ -360,9 +371,12 @@ final class Digitalisimo_Backups_Site_Import {
 
 	// Funde los usuarios del respaldo en los de la red. $a: `users`, `usermeta` (tablas temporales del respaldo, ya con las
 	// claves del sitio en el prefijo `<base>N_`), `site_id`, `domain`, `mode` (new|replace), `rollback` (la copia de un sitio
-	// vuelve exacta: sólo usuarios que existen, sin crear ninguno ni conservar administradores) y `journal` (lo hecho, que
-	// $save guarda: una muerte a mitad sigue donde quedó sin crear dos veces a nadie). Por tramos: devuelve el diario; su
-	// `step` es `done` al terminar. $deadline: microtime en que debe soltar el tramo.
+	// vuelve exacta: sólo usuarios que existen, sin crear ninguno ni conservar administradores), `copy` (la copia de un
+	// sitio de una red, `network-site`, restaurada desde la lista: como la vuelta, nunca recrea a quien ya no está en la
+	// red, que queda en `skipped`) y `journal` (lo hecho, que $save guarda: una muerte a mitad sigue donde quedó sin crear
+	// dos veces a nadie). Por tramos: devuelve el diario; su `step` es `done` al terminar. $deadline: microtime en que debe
+	// soltar el tramo. Ningún usuario recibe una meta con el prefijo de la red que no sea de este sitio ni capacidades de
+	// red (salvo en la vuelta, exacta): lo quitado, en `network_caps`.
 	public static function merge_users( array $a, array $journal, callable $save, $deadline = INF ) {
 		global $wpdb;
 		$q = array( 'Digitalisimo_Backups_Relocate', 'quote_name' );
@@ -370,7 +384,7 @@ final class Digitalisimo_Backups_Site_Import {
 		$usermeta = (string) ( $wpdb->usermeta ?? '' ) ? (string) $wpdb->usermeta : (string) $wpdb->base_prefix . 'usermeta';
 		$prefix = (string) $wpdb->base_prefix . (int) $a['site_id'] . '_';
 		$like = $wpdb->esc_like( $prefix ) . '%';
-		$journal += array( 'v' => 1, 'step' => 'start', 'cursor' => 0, 'map' => array(), 'kind' => array(), 'created' => array(), 'pending' => array(), 'renamed' => array(), 'admins' => array(), 'meta_cursor' => 0, 'skipped' => array() );
+		$journal += array( 'v' => 1, 'step' => 'start', 'cursor' => 0, 'map' => array(), 'kind' => array(), 'created' => array(), 'pending' => array(), 'tokens' => array(), 'renamed' => array(), 'admins' => array(), 'meta_cursor' => 0, 'skipped' => array(), 'network_caps' => array() );
 		$run = function( $sql ) use ( $wpdb ) { if ( false === $wpdb->query( $sql ) ) throw new Exception( 'No se pudieron fundir los usuarios en la red: ' . $wpdb->last_error ); };
 		// 1. Antes de cambiar nada: quién administra el sitio que se reemplaza (sigue siéndolo).
 		if ( 'start' === $journal['step'] ) {
@@ -391,16 +405,19 @@ final class Digitalisimo_Backups_Site_Import {
 			$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . call_user_func( $q, $a['users'] ) . ' WHERE ID > %d ORDER BY ID LIMIT 100', (int) $journal['cursor'] ), ARRAY_A );
 			if ( ! $rows ) { $journal['step'] = 'metas'; $save( $journal ); break; }
 			$create = array();
+			$adopted = array();
 			foreach ( $rows as $row ) {
 				$old = (int) $row['ID'];
 				if ( isset( $journal['map'][ $old ] ) ) continue;
 				$login = (string) ( $row['user_login'] ?? '' );
 				$email = strtolower( trim( (string) ( $row['user_email'] ?? '' ) ) );
-				// Lo que una pasada anterior creó y no llegó a anotar: está en la red con el nombre que se le dio.
+				// Lo que una pasada anterior creó y no llegó a anotar: está en la red con el nombre que se le dio y la marca de
+				// esta importación (revisión de 1.0.79, B1: otra persona que se registre con ese nombre mientras tanto no la
+				// lleva y nunca se adopta; la del respaldo entra entonces con otro nombre libre).
 				if ( isset( $journal['pending'][ $old ] ) ) {
-					$id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT ID FROM ' . call_user_func( $q, $users ) . ' WHERE user_login = %s', (string) $journal['pending'][ $old ] ) );
-					if ( $id > 0 ) { self::note_user( $journal, $old, $id, (string) $journal['pending'][ $old ] !== $login ? 'renamed' : 'created', true ); unset( $journal['pending'][ $old ] ); continue; }
-					unset( $journal['pending'][ $old ] );
+					$id = self::pending_user( $users, (string) $journal['pending'][ $old ], (string) ( $journal['tokens'][ $old ] ?? '' ) );
+					if ( $id > 0 ) { self::note_user( $journal, $old, $id, (string) $journal['pending'][ $old ] !== $login ? 'renamed' : 'created', true ); unset( $journal['pending'][ $old ] ); $adopted[ $id ] = (string) ( $journal['tokens'][ $old ] ?? '' ); continue; }
+					unset( $journal['pending'][ $old ], $journal['tokens'][ $old ] );
 				}
 				$by_email = '' !== $email ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ID, user_login FROM ' . call_user_func( $q, $users ) . ' WHERE LOWER(user_email) = %s ORDER BY ID LIMIT 5', $email ), ARRAY_A ) : array();
 				$same = null;
@@ -408,15 +425,21 @@ final class Digitalisimo_Backups_Site_Import {
 				if ( $same ) { self::note_user( $journal, $old, (int) $same['ID'], 'matched' ); continue; }
 				if ( ! empty( $a['rollback'] ) ) { $journal['map'][ $old ] = 0; $journal['kind'][ $old ] = 'missing'; $journal['skipped'][] = $login; continue; }
 				if ( $by_email ) { self::note_user( $journal, $old, (int) $by_email[0]['ID'], 'email' ); continue; }
+				// La copia de un sitio restaurada desde la lista (revisión de 1.0.79, M3): quien ya no está en la red (borrado,
+				// o con otro correo y otro nombre) no vuelve con su contraseña de entonces; su contenido queda sin autor.
+				if ( ! empty( $a['copy'] ) ) { $journal['map'][ $old ] = 0; $journal['kind'][ $old ] = 'missing'; $journal['skipped'][] = $login; continue; }
 				$name = self::free_login( $login, $users, array_values( $journal['pending'] ) );
 				$journal['pending'][ $old ] = $name;
+				$journal['tokens'][ $old ] = self::PENDING_MARK . bin2hex( random_bytes( 16 ) );
 				$create[ $old ] = array( $row, $name );
 			}
 			if ( $create ) {
-				// Primero lo que se va a crear (una muerte entre el INSERT y su anotación lo encuentra por su nombre).
+				// Primero lo que se va a crear, con su marca (una muerte entre el INSERT y su anotación lo encuentra por su
+				// nombre y su marca).
 				$save( $journal );
 				foreach ( $create as $old => $pair ) {
 					list( $row, $name ) = $pair;
+					$token = (string) $journal['tokens'][ $old ];
 					$values = array(
 						'user_login' => $name,
 						'user_pass' => (string) ( $row['user_pass'] ?? '' ),
@@ -424,7 +447,8 @@ final class Digitalisimo_Backups_Site_Import {
 						'user_email' => (string) ( $row['user_email'] ?? '' ),
 						'user_url' => (string) ( $row['user_url'] ?? '' ),
 						'user_registered' => (string) ( $row['user_registered'] ?? '' ) ?: gmdate( 'Y-m-d H:i:s' ),
-						'user_activation_key' => '',
+						// La marca, hasta que el diario anote al usuario (después se vacía, como la de un usuario nuevo).
+						'user_activation_key' => $token,
 						'user_status' => (int) ( $row['user_status'] ?? 0 ),
 						'display_name' => (string) ( $row['display_name'] ?? $name ),
 					);
@@ -432,16 +456,23 @@ final class Digitalisimo_Backups_Site_Import {
 					if ( isset( $columns['deleted'] ) ) $values['deleted'] = 0;
 					$values = array_intersect_key( $values, $columns ? $columns : $values );
 					$run( 'INSERT INTO ' . call_user_func( $q, $users ) . ' (' . implode( ', ', array_map( $q, array_keys( $values ) ) ) . ') VALUES (' . implode( ', ', array_map( function( $value ) use ( $wpdb ) { return $wpdb->prepare( '%s', (string) $value ); }, $values ) ) . ')' );
-					$id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT ID FROM ' . call_user_func( $q, $users ) . ' WHERE user_login = %s', $name ) );
+					$id = self::pending_user( $users, $name, $token );
 					if ( $id <= 0 ) throw new Exception( 'No se pudo crear en la red el usuario ' . $name . '.' );
 					self::note_user( $journal, (int) $old, $id, $name !== (string) ( $row['user_login'] ?? '' ) ? 'renamed' : 'created', true );
 					unset( $journal['pending'][ $old ] );
+					$adopted[ $id ] = $token;
 				}
 			}
 			$journal['cursor'] = (int) end( $rows )['ID'];
 			$save( $journal );
+			// Ya anotados: la marca sale de sus filas y del diario (si se muere antes, sólo queda una clave que no sirve).
+			foreach ( $adopted as $id => $token ) if ( '' !== $token ) $run( $wpdb->prepare( 'UPDATE ' . call_user_func( $q, $users ) . " SET `user_activation_key` = '' WHERE ID = %d AND `user_activation_key` = %s", (int) $id, $token ) );
+			$journal['tokens'] = array_intersect_key( (array) $journal['tokens'], (array) $journal['pending'] );
 		}
-		// 3. Las metas: las del sitio (con su prefijo) de cada usuario del respaldo; las globales, sólo de los creados.
+		// 3. Las metas: las del sitio (con su prefijo) de cada usuario del respaldo; las globales, sólo de los creados. Nunca
+		// una con el prefijo de la red que no sea de este sitio (revisión de 1.0.79, A1: las del principal o de otro sitio
+		// darían permisos fuera de él) ni capacidades de red en las del sitio (A2), salvo en la vuelta, que es exacta.
+		$base = (string) $wpdb->base_prefix;
 		while ( 'metas' === $journal['step'] ) {
 			if ( microtime( true ) > $deadline ) return $journal;
 			$olds = array_values( array_filter( array_map( 'intval', array_keys( $journal['map'] ) ), function( $old ) use ( $journal ) { return $old > (int) $journal['meta_cursor']; } ) );
@@ -461,7 +492,21 @@ final class Digitalisimo_Backups_Site_Import {
 				foreach ( $rows as $row ) {
 					$key = (string) $row['meta_key'];
 					if ( in_array( $key, self::DROP_USER_META, true ) || in_array( $key, Digitalisimo_Backups_Site_Extract::NETWORK_USER_META, true ) ) continue;
-					if ( 0 === strpos( $key, $prefix ) || $created ) $write[] = array( $key, (string) $row['meta_value'] );
+					if ( self::other_site_key( $key, $prefix, $base ) ) continue;
+					if ( 0 !== strpos( $key, $prefix ) && ! $created ) continue;
+					$value = (string) $row['meta_value'];
+					if ( $prefix . 'capabilities' === $key && empty( $a['rollback'] ) ) {
+						$caps = self::unserialize( $value );
+						if ( is_array( $caps ) ) {
+							list( $caps, $removed ) = self::without_network_caps( $caps );
+							if ( $removed ) {
+								$value = serialize( $caps );
+								$login = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT user_login FROM ' . call_user_func( $q, $users ) . ' WHERE ID = %d', $new ) );
+								$journal['network_caps'][ '' !== $login ? $login : '#' . $new ] = $removed;
+							}
+						}
+					}
+					$write[] = array( $key, $value );
 				}
 				if ( $created ) {
 					$write[] = array( 'primary_blog', (string) (int) $a['site_id'] );
@@ -492,6 +537,43 @@ final class Digitalisimo_Backups_Site_Import {
 		$journal['map'][ (int) $old ] = (int) $new;
 		$journal['kind'][ (int) $old ] = $kind;
 		if ( $created && ! in_array( (int) $new, $journal['created'], true ) ) $journal['created'][] = (int) $new;
+	}
+	/**
+	 * El usuario que la fusión creó con el nombre $login y la marca $token (en `user_activation_key`), o 0. Sin marca no se
+	 * adopta nada: un nombre solo puede ser el de otra persona que se registró mientras tanto (revisión de 1.0.79, B1). La
+	 * vuelta (import_undo_list()) lo usa igual para no borrar una cuenta ajena.
+	 */
+	public static function pending_user( $users, $login, $token ) {
+		global $wpdb;
+		$token = (string) $token;
+		if ( '' === (string) $login || 0 !== strpos( $token, self::PENDING_MARK ) || strlen( $token ) < strlen( self::PENDING_MARK ) + 32 ) return 0;
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT ID FROM ' . Digitalisimo_Backups_Relocate::quote_name( (string) $users ) . ' WHERE user_login = %s AND user_activation_key = %s', (string) $login, $token ) );
+	}
+	/**
+	 * Una meta con el prefijo base de la red que no es de este sitio: la del principal (`wp_capabilities`, `wp_user_level`,
+	 * `wp_user-settings`…), la de otro sitio (`wp_2_capabilities`) o, con el prefijo del sitio, los permisos de otro sitio
+	 * del origen (`wp_7_2_capabilities`, que no son de nadie aquí). No viaja a la red (revisión de 1.0.79, A1).
+	 */
+	private static function other_site_key( $key, $prefix, $base ) {
+		$key = (string) $key;
+		if ( '' === (string) $base || 0 !== strpos( $key, (string) $base ) ) return false;
+		if ( 0 !== strpos( $key, (string) $prefix ) ) return true;
+		return (bool) preg_match( '/^[0-9]+_(?:capabilities|user_level)$/D', (string) substr( $key, strlen( (string) $prefix ) ) );
+	}
+	/** Si $cap es una capacidad de nivel red (NETWORK_CAPS o cualquier `manage_network…`). */
+	public static function network_cap( $cap ) {
+		$cap = strtolower( (string) $cap );
+		return in_array( $cap, self::NETWORK_CAPS, true ) || 0 === strpos( $cap, 'manage_network' );
+	}
+	/** Unas capacidades (las de un rol o las de un usuario en el sitio) sin las de red: array( las que quedan, las quitadas ). */
+	public static function without_network_caps( array $caps ) {
+		$removed = array();
+		foreach ( array_keys( $caps ) as $cap ) {
+			if ( ! self::network_cap( $cap ) ) continue;
+			$removed[] = (string) $cap;
+			unset( $caps[ $cap ] );
+		}
+		return array( $caps, $removed );
 	}
 	private static function keep_admin( array $write, $prefix ) {
 		$found = false;
@@ -605,13 +687,16 @@ final class Digitalisimo_Backups_Site_Import {
 	// La tabla temporal de opciones del sitio antes del cambio: la carpeta de medios y la configuración de Backups son las de
 	// la red (las del respaldo no se aplican, como H23: el historial, las automatizaciones y los destinos son de la red), sus
 	// eventos de WP-Cron de Backups se retiran, y el tema del respaldo queda habilitado para ese sitio si la red no lo
-	// habilita (se instaló con él). $live: la tabla de opciones del sitio de ahora (o la del sitio recién creado).
-	public static function prepare_options( $temp, $live, array $themes ) {
+	// habilita (se instaló con él). $live: la tabla de opciones del sitio de ahora (o la del sitio recién creado). $prefix: el
+	// del sitio (`<base>N_`): sus roles (`<base>N_user_roles`) pierden las capacidades de red (revisión de 1.0.79, A2), que
+	// el informe nombra (`network_caps`: rol => capacidades quitadas).
+	public static function prepare_options( $temp, $live, array $themes, $prefix = '' ) {
 		global $wpdb;
 		$q = array( 'Digitalisimo_Backups_Relocate', 'quote_name' );
 		$t = call_user_func( $q, $temp );
 		$run = function( $sql ) use ( $wpdb ) { if ( false === $wpdb->query( $sql ) ) throw new Exception( 'No se pudieron preparar las opciones del sitio: ' . $wpdb->last_error ); };
-		$report = array( 'backups_options' => 0, 'cron' => 0, 'themes' => array() );
+		$report = array( 'backups_options' => 0, 'cron' => 0, 'themes' => array(), 'network_caps' => array() );
+		if ( '' !== (string) $prefix ) $report['network_caps'] = self::strip_network_roles( $t, (string) $prefix . 'user_roles', $run );
 		$keep = array();
 		if ( '' !== (string) $live ) foreach ( self::KEEP_OPTIONS as $name ) $keep[ $name ] = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . call_user_func( $q, $live ) . ' WHERE option_name = %s', $name ) );
 		foreach ( self::KEEP_OPTIONS as $name ) {
@@ -646,6 +731,22 @@ final class Digitalisimo_Backups_Site_Import {
 			$run( $wpdb->prepare( 'INSERT INTO ' . $t . " (`option_name`, `option_value`, `autoload`) VALUES ('allowedthemes', %s, 'yes')", serialize( $allowed ) ) );
 		}
 		return $report;
+	}
+	// Los roles de la opción $name de la tabla (ya citada) $t sin capacidades de red; devuelve rol => las quitadas.
+	private static function strip_network_roles( $t, $name, callable $run ) {
+		global $wpdb;
+		$roles = self::unserialize( (string) $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $t . ' WHERE option_name = %s', $name ) ) );
+		if ( ! is_array( $roles ) ) return array();
+		$removed = array();
+		foreach ( $roles as $role => $info ) {
+			if ( ! is_array( $info ) || ! is_array( $info['capabilities'] ?? null ) ) continue;
+			list( $caps, $gone ) = self::without_network_caps( $info['capabilities'] );
+			if ( ! $gone ) continue;
+			$roles[ $role ]['capabilities'] = $caps;
+			$removed[ (string) $role ] = $gone;
+		}
+		if ( $removed ) $run( $wpdb->prepare( 'UPDATE ' . $t . ' SET option_value = %s WHERE option_name = %s', serialize( $roles ), $name ) );
+		return $removed;
 	}
 	// Tema activo y su padre según la tabla de opciones (`stylesheet` y `template`).
 	public static function themes_of( $table ) {
@@ -715,7 +816,39 @@ final class Digitalisimo_Backups_Site_Import {
 		$text = 'Se importa ' . $where . ': sus tablas pasan al prefijo de ese sitio, sus usuarios se funden con los de la red (nadie de la red pierde su contraseña ni su rol; quien coincide en usuario y correo es la misma cuenta), sus medios van a su carpeta del sitio y sus direcciones a las de ese sitio. El núcleo de WordPress y el resto de la red no se tocan.';
 		if ( 'replace' === $target['mode'] ) $text .= ' Antes se guarda una copia sólo de ese sitio (sus tablas y sus medios); sus administradores siguen siéndolo.';
 		if ( ! empty( $rules['installed']['plugins'] ) || ! empty( $rules['installed']['themes'] ) ) $text .= ' Se instalan en la red ' . self::list_text( array_merge( (array) ( $rules['installed']['plugins'] ?? array() ), (array) ( $rules['installed']['themes'] ?? array() ) ) ) . ' (activos sólo en ese sitio).';
-		return $text;
+		return $text . ' ' . self::access( (string) $target['mode'] )['text'];
+	}
+	/**
+	 * Qué pasa con el acceso en una importación en la red (revisión de 1.0.79, B3), para la confirmación, verify y el
+	 * informe final: los superadministradores no cambian y, al reemplazar, los administradores de ese sitio siguen siéndolo,
+	 * siempre; «Conservar mi acceso» y «Conservar los administradores» no se aplican (la tabla de usuarios de la red nunca se
+	 * reemplaza). $keep_access y $keep_admins: lo que se pidió (null si aún no se pidió nada).
+	 */
+	public static function access( $mode, $keep_access = null, $keep_admins = null ) {
+		$replace = 'replace' === $mode;
+		$text = 'En una importación en la red los superadministradores no cambian' . ( $replace ? ' y los administradores del sitio que se reemplaza siguen siéndolo, siempre' : '' ) . '. «Conservar mi acceso» y «Conservar los administradores» no se aplican: la tabla de usuarios de la red no se reemplaza, así que quien importa sigue entrando con su cuenta y nadie de la red pierde su contraseña.';
+		$refused = array();
+		if ( false === $keep_access ) $refused[] = 'tu acceso (keep_access)';
+		if ( false === $keep_admins ) $refused[] = 'a los administradores (keep_admins)';
+		if ( $refused ) $text .= ' Se pidió no conservar ' . implode( ' ni ', $refused ) . ': no cambia nada de eso; si alguien no debe seguir entrando, quítalo en Usuarios del sitio o de la red.';
+		return array(
+			'super_admins_kept' => true,
+			'site_admins_kept' => $replace,
+			'keep_access' => 'not_applied',
+			'keep_admins' => 'not_applied',
+			'requested' => array( 'keep_access' => null === $keep_access ? null : (bool) $keep_access, 'keep_admins' => null === $keep_admins ? null : (bool) $keep_admins ),
+			'text' => $text,
+		);
+	}
+	/** Lo que se quitó de capacidades de red ($roles: rol => capacidades; $users: usuario => capacidades), en una frase. */
+	public static function network_caps_text( array $roles, array $users ) {
+		if ( ! $roles && ! $users ) return '';
+		$list = function( array $items ) {
+			$out = array();
+			foreach ( array_slice( $items, 0, 8, true ) as $name => $caps ) $out[] = $name . ' (' . implode( ', ', array_slice( array_map( 'strval', (array) $caps ), 0, 6 ) ) . ')';
+			return implode( ', ', $out ) . ( count( $items ) > 8 ? ' y ' . ( count( $items ) - 8 ) . ' más' : '' );
+		};
+		return 'Se quitaron capacidades de red, que en una red sólo tiene un superadministrador por serlo: ' . ( $roles ? 'de los roles del sitio ' . $list( $roles ) : '' ) . ( $roles && $users ? '; ' : '' ) . ( $users ? 'de los usuarios ' . $list( $users ) : '' ) . '.';
 	}
 	// Avisos de lo que no se mezcla en la red o no se reemplaza (la respuesta final y el registro).
 	public static function warnings( array $rules ) {
@@ -745,7 +878,7 @@ final class Digitalisimo_Backups_Site_Import {
 			foreach ( $sites as $site_id => $label ) $html .= '<option value="' . (int) $site_id . '">' . esc_html( $label . ' (sitio ' . (int) $site_id . ')' ) . '</option>';
 			$html .= '</select></label></p>';
 		}
-		$html .= '<p class="description" id="' . esc_attr( $id ) . '-help">Es el respaldo de un WordPress individual: se importa como un sitio de esta red. Sus usuarios se funden con los de la red (nadie de la red pierde su contraseña ni su rol), sus medios van a la carpeta del sitio, los plugins y temas que falten se instalan activos sólo en ese sitio y el núcleo y el resto de la red no se tocan. Al reemplazar un sitio, antes se guarda una copia sólo de ese sitio.</p></fieldset>';
+		$html .= '<p class="description" id="' . esc_attr( $id ) . '-help">Es el respaldo de un WordPress individual: se importa como un sitio de esta red. Sus usuarios se funden con los de la red (nadie de la red pierde su contraseña ni su rol), sus medios van a la carpeta del sitio, los plugins y temas que falten se instalan activos sólo en ese sitio y el núcleo y el resto de la red no se tocan. Al reemplazar un sitio, antes se guarda una copia sólo de ese sitio. Los superadministradores y los administradores del sitio que se reemplaza se conservan siempre: «Conservar mi acceso» y «Conservar los administradores» no cambian nada en una importación.</p></fieldset>';
 		return $html;
 	}
 	// Lo que envió la confirmación: `into` (new o el ID del sitio) y `address`.

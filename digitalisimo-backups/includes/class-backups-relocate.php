@@ -111,6 +111,8 @@ final class Digitalisimo_Backups_Relocate {
 	private $report = array();
 	/** Un sitio que se importa en una red (Digitalisimo_Backups_Site_Import): las cachés y reglas compartidas de la red no se tocan. */
 	private $site_scope = false;
+	/** Prefijo base de la red que recibe ese sitio (site_scope()): sus claves de permisos que no son del sitio se descartan. */
+	private $network_base = '';
 
 	/**
 	 * Reescritor vacío. `$args`: `max_value` (bytes; por defecto MAX_VALUE). Se configura con add_url(), add_path() y
@@ -423,6 +425,12 @@ final class Digitalisimo_Backups_Relocate {
 			$rest = (string) substr( $key, strlen( $to ) );
 			if ( 'options' === $base ) return preg_match( '/^(?:[0-9]+_)?user_roles$/D', $rest ) ? 'drop' : '';
 			return preg_match( '/^(?:[0-9]+_)?(?:capabilities|user_level)$/D', $rest ) ? 'drop' : 'dedupe';
+		}
+		// Un sitio que se importa en una red: los permisos con el prefijo de la red que no son del sitio de destino (los del
+		// principal o de otro sitio, sembrados en el origen o de un cambio de prefijo anterior) darían roles en otro sitio.
+		if ( 'usermeta' === $base && '' !== $this->network_base && 0 === strpos( $key, $this->network_base ) ) {
+			foreach ( $this->prefixes as $from => $to ) if ( 0 === strpos( $key, $from ) ) return '';
+			if ( preg_match( '/^(?:[0-9]+_)?(?:capabilities|user_level)$/D', (string) substr( $key, strlen( $this->network_base ) ) ) ) return 'drop';
 		}
 		return '';
 	}
@@ -737,8 +745,14 @@ final class Digitalisimo_Backups_Relocate {
 	/**
 	 * El destino es un sitio de una red que recibe el paquete de un sitio (Digitalisimo_Backups_Site_Import): la caché de
 	 * página de wp-content y las reglas del servidor son de toda la red, así que finish() no las vacía ni las regenera.
+	 * `$network_base`: el prefijo base de esa red (`$wpdb->base_prefix`): una clave de permisos del respaldo con ese prefijo
+	 * que no es del sitio de destino (`wp_capabilities`, `wp_2_user_level`…) no se aplica (revisión de 1.0.79, A1).
 	 */
-	public function site_scope() { $this->site_scope = true; return $this; }
+	public function site_scope( $network_base = '' ) {
+		$this->site_scope = true;
+		$this->network_base = self::valid_prefix( (string) $network_base ) ? (string) $network_base : '';
+		return $this;
+	}
 	/** Lo que impide aplicar el plan, con qué cambiar (vacío si se puede). */
 	public function problems() { return $this->problems; }
 	/** true si la base de datos importada necesita algún cambio. */

@@ -389,7 +389,7 @@ final class Digitalisimo_Backups {
 		// reemplaza) y sin apartar tablas de la red.
 		$migration = Digitalisimo_Backups_Jobs::get( (string) $except );
 		$into = is_array( $migration['spec']['into'] ?? null ) ? $migration['spec']['into'] : null;
-		if ( $into ) return self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => 'migration', 'into' => $into, 'safety_extra' => array( 'migration' => $tag ), 'except' => (string) $except, 'user_id' => (int) ( $migration['spec']['origin']['user_id'] ?? 0 ), 'readers' => isset( $migration['spec']['reader']['hash'] ) ? array( (string) $migration['spec']['reader']['hash'] ) : array() ) );
+		if ( $into ) return self::restore_enqueue( $report, self::migration_import_args( (array) $migration['spec'], $into, $tag, (string) $except ) );
 		$safety_file = self::backup_file_name( 'safety-before-restore-' );
 		$safety_spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $safety_file, 'inline' => true ) );
 		// Quien empezó la migración (no quien da el tick, que puede ser WP-Cron) conserva su acceso, y la ficha de lectura de la
@@ -398,6 +398,26 @@ final class Digitalisimo_Backups {
 		$spec = is_array( $migration ) ? (array) $migration['spec'] : array();
 		$readers = isset( $spec['reader']['hash'] ) ? array( (string) $spec['reader']['hash'] ) : array();
 		return self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => 'migration', 'safety_spec' => $safety_spec, 'safety_extra' => array( 'migration' => $tag ), 'exact_tables' => true, 'aside' => array( 'kind' => 'migration', 'migration' => (string) $except, 'from' => (string) ( $tag['from'] ?? '' ) ), 'except' => (string) $except, 'user_id' => (int) ( $spec['origin']['user_id'] ?? 0 ), 'keep_access' => ! array_key_exists( 'keep_access', $spec ) || ! empty( $spec['keep_access'] ), 'keep_admins' => ! array_key_exists( 'keep_admins', $spec ) || ! empty( $spec['keep_admins'] ), 'readers' => $readers ) );
+	}
+	/**
+	 * Los argumentos de restore_enqueue() de una migración que importa un individual en esta red: como la migración normal,
+	 * su restauración va aparte (`aside`: el panel de avance sigue la migración, no una restauración suelta) y lleva lo que
+	 * la migración pidió de keep_access / keep_admins, que la importación no aplica pero su informe dice (revisión de
+	 * 1.0.79, B5 y B3). Con `into` y sin `exact_tables`: la importación no aparta tablas de la red.
+	 */
+	private static function migration_import_args( array $spec, array $into, array $tag, $except ) {
+		return array(
+			'addresses' => 'current',
+			'via' => 'migration',
+			'into' => $into,
+			'safety_extra' => array( 'migration' => $tag ),
+			'aside' => array( 'kind' => 'migration', 'migration' => (string) $except, 'from' => (string) ( $tag['from'] ?? '' ) ),
+			'except' => (string) $except,
+			'user_id' => (int) ( $spec['origin']['user_id'] ?? 0 ),
+			'keep_access' => ! array_key_exists( 'keep_access', $spec ) || ! empty( $spec['keep_access'] ),
+			'keep_admins' => ! array_key_exists( 'keep_admins', $spec ) || ! empty( $spec['keep_admins'] ),
+			'readers' => isset( $spec['reader']['hash'] ) ? array( (string) $spec['reader']['hash'] ) : array(),
+		);
 	}
 	/** @internal Si el respaldo $file (una copia previa) sigue en el almacén privado de este servidor. */
 	public static function migration_safety_present( $file ) {

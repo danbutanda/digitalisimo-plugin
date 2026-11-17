@@ -1922,6 +1922,15 @@ final class Digitalisimo_Backups_Migrate {
 		return $out;
 	}
 	private static function context_fields( $network ) { return ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ); }
+	/**
+	 * En una red ($show): si el origen es un WordPress individual, se importa como un sitio de la red (nuevo o reemplazando
+	 * uno). Va dentro del formulario de «Migrar a este sitio», antes del botón: pull_request() lo lee con from_request()
+	 * (revisión de 1.0.79, M6: fuera del formulario no llegaba y siempre se creaba un sitio nuevo en la dirección sugerida).
+	 */
+	private static function pull_into_field( $show ) {
+		if ( ! $show ) return '';
+		return Digitalisimo_Backups_Site_Import::field( 'migrado', 'digitalisimo-backups-migrate-into' ) . '<p class="description">Sólo cuenta si el origen es un WordPress individual; el de una red reemplaza la red entera.</p>';
+	}
 	/** Pestaña «Migrar»: recibir una migración (destino), su vuelta atrás, generar claves (origen), registro y laboratorio. */
 	public static function panel( $network, array $status ) {
 		$post = esc_url( admin_url( 'admin-post.php' ) );
@@ -1933,9 +1942,7 @@ final class Digitalisimo_Backups_Migrate {
 		elseif ( '' !== $status['pull_problem'] ) echo '<p class="notice notice-warning inline">' . esc_html( $status['pull_problem'] ) . '</p>';
 		echo '<form method="post" action="' . $post . '" onsubmit="return confirm(\'¿Reemplazar este sitio por el del origen? Se crea antes una copia previa para deshacerlo.\')">';
 		wp_nonce_field( self::ACTION_PULL );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_PULL ) . '">' . self::context_fields( $network ) . '<p><label for="digitalisimo-backups-migration-key">Clave de migración</label><br><textarea id="digitalisimo-backups-migration-key" name="migration_key" rows="3" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="large-text code"></textarea></p>' . Digitalisimo_Backups::keep_access_fields( 'Después de migrar, tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo.' ) . ( is_multisite() ? '' : '<p><label>Si el origen es una red: el sitio que se migra (su número; vacío para el principal) <input type="number" name="migration_site" min="1" step="1" value=""></label></p>' ) . '<p><button class="button button-primary button-hero"' . disabled( ! $main || '' !== $status['pull_problem'], true, false ) . '>Migrar a este sitio</button></p></form>';
-		// En una red: si el origen es un WordPress individual, se importa como un sitio de la red (nuevo o reemplazando uno).
-		if ( $network && $main ) echo Digitalisimo_Backups_Site_Import::field( 'migrado', 'digitalisimo-backups-migrate-into' ) . '<p class="description">Sólo cuenta si el origen es un WordPress individual; el de una red reemplaza la red entera.</p>';
+		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_PULL ) . '">' . self::context_fields( $network ) . '<p><label for="digitalisimo-backups-migration-key">Clave de migración</label><br><textarea id="digitalisimo-backups-migration-key" name="migration_key" rows="3" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="large-text code"></textarea></p>' . Digitalisimo_Backups::keep_access_fields( 'Después de migrar, tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo.' ) . ( is_multisite() ? '' : '<p><label>Si el origen es una red: el sitio que se migra (su número; vacío para el principal) <input type="number" name="migration_site" min="1" step="1" value=""></label></p>' ) . self::pull_into_field( $network && $main ) . '<p><button class="button button-primary button-hero"' . disabled( ! $main || '' !== $status['pull_problem'], true, false ) . '>Migrar a este sitio</button></p></form>';
 		if ( $status['active'] ) echo '<p class="description">Migración en curso: ' . esc_html( $status['active']['status_label'] . ' · ' . $status['active']['phase_label'] . ' (' . (int) $status['active']['percent'] . ' %)' ) . '. Su avance está en «Trabajos»; cuando termine, el aviso de Backups dice cómo entrar (con «Conservar mi acceso», tu cuenta sigue sirviendo).</p>';
 		if ( $status['undo'] ) {
 			echo '<div class="digitalisimo-backups-migrate-undo"><h3>Deshacer la migración</h3><p>Última migración recibida de <strong>' . esc_html( $status['undo']['from'] ) . '</strong> el ' . esc_html( $status['undo']['date'] ) . '.</p><p>Deshacerla restaura la copia previa <code>' . esc_html( $status['undo']['file'] ) . '</code> (y antes guarda el estado actual en otra copia previa).</p><form method="post" action="' . $post . '" onsubmit="return confirm(\'¿Deshacer la migración y volver al estado anterior de este sitio?\')">';
