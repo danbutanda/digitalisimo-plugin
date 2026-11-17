@@ -152,14 +152,15 @@ try {
 	$report = $S::service_verify( $created['file'] );
 	digi_assert( ! is_wp_error( $report ) && true === $report['compatible'] && ! empty( $report['relocation']['needed'] ) && false !== strpos( $report['relocation']['text'], 'prefijo de tablas wp_ → otro_' ), 'La verificación no anunció el cambio de prefijo: ' . json_encode( is_wp_error( $report ) ? $report->get_error_message() : $report ) );
 	$db->base_prefix = 'wp_';
-	// Un respaldo individual en una red se detiene antes de la copia previa: 422 (el sitio no cambió), no 500, con qué cambiar.
+	// Un respaldo individual en una red se importa como un sitio de la red (backups-site-import.php); un destino que no vale
+	// (el sitio principal) se detiene antes de la copia previa y de encolar nada: 400 (el sitio no cambió), con qué cambiar.
 	$GLOBALS['digi']['multisite'] = true;
 	$GLOBALS['digi']['caps']['manage_network_options'] = true;
 	$stored = digi_stored( $store );
-	$error = $S::service_restore( $created['file'], array( 'confirm' => 'RESTAURAR', 'network' => true ) );
+	$error = $S::service_restore( $created['file'], array( 'confirm' => 'RESTAURAR', 'network' => true, 'into' => '1' ) );
 	$GLOBALS['digi']['multisite'] = false;
 	unset( $GLOBALS['digi']['caps']['manage_network_options'] );
-	digi_assert( is_wp_error( $error ) && 'digitalisimo_backups_restore_rejected' === $error->get_error_code() && 422 === $error->get_error_data()['status'] && false !== strpos( $error->get_error_message(), 'Restáuralo en una instalación individual' ), 'Una restauración rechazada antes de la copia previa no respondió 422: ' . ( is_wp_error( $error ) ? $error->get_error_code() . ' ' . $error->get_error_message() : 'terminó' ) );
+	digi_assert( is_wp_error( $error ) && 'digitalisimo_backups_into_main' === $error->get_error_code() && 400 === $error->get_error_data()['status'] && false !== strpos( $error->get_error_message(), 'Impórtalo como sitio nuevo' ), 'Una importación rechazada antes de la copia previa no respondió 400: ' . ( is_wp_error( $error ) ? $error->get_error_code() . ' ' . $error->get_error_message() : 'terminó' ) );
 	digi_assert( $stored === digi_stored( $store ) && array() === array_filter( get_option( $S::HISTORY ), function( $row ) { return 'pre-restore' === $row['policy']; } ), 'La restauración rechazada creó una copia previa.' );
 	$tampered = 'digitalisimo-backup-alterado.zip';
 	copy( $store . '/' . $created['file'], $store . '/' . $tampered );

@@ -845,19 +845,26 @@ final class Digitalisimo_Backups_Migrate {
 			$migration = array( 'role' => 'destination', 'url' => $parsed['url'], 'id' => $parsed['id'], 'key_id' => Digitalisimo_Backups_Keys::key_id( $root ), 'source_host' => self::host_label( $parsed['url'] ), 'secret' => $token );
 			self::seal_file( $file, $auth . $root );
 			$hello = self::call( $migration, $auth, '', 'hello', 'POST', array( 'site' => home_url() ), 30 );
-			self::compatible( $hello );
+			self::compatible( $hello, true );
 			// De una red a un WordPress individual se migra un sitio de la red (`site`; por defecto el principal), convertido
 			// como al restaurar su respaldo aquí (Digitalisimo_Backups::migration_convert()).
 			$site = (int) ( $options['site'] ?? 0 );
 			if ( $site > 0 && ( empty( $hello['multisite'] ) || is_multisite() ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio de la red (`site`) sólo se elige al migrar una red a un WordPress individual.' );
 			$migration['site'] = $site;
 			$migration['source'] = self::source_summary( $hello );
+			// De un WordPress individual a una red: se importa como un sitio de la red (nuevo o reemplazando uno).
+			$into = null;
+			if ( empty( $hello['multisite'] ) && is_multisite() ) {
+				$into = Digitalisimo_Backups_Site_Import::request( (array) ( $options['import'] ?? array() ), (string) ( $hello['home'] ?? '' ) );
+				if ( is_wp_error( $into ) ) throw new Digitalisimo_Backups_Permanent_Error( $into->get_error_message() );
+			}
 			$migration['source_host'] = self::host_label( (string) $hello['home'] ) ?: $migration['source_host'];
 			$spec = self::pull_spec( $migration, $via );
 			// Quien migra y los administradores de este sitio siguen entrando (encendidos por defecto); quien migra puede seguir
 			// el trabajo con su ficha de lectura.
 			$spec['keep_access'] = ! array_key_exists( 'keep_access', $options ) || ! empty( $options['keep_access'] );
 			$spec['keep_admins'] = ! array_key_exists( 'keep_admins', $options ) || ! empty( $options['keep_admins'] );
+			if ( $into ) $spec['into'] = $into;
 			$reader = Digitalisimo_Backups_Restore_Access::new_reader();
 			$spec['reader'] = array( 'hash' => $reader['hash'], 'issued' => $reader['issued'] );
 			$queued = Digitalisimo_Backups_Jobs::enqueue( $spec );
@@ -1016,16 +1023,19 @@ final class Digitalisimo_Backups_Migrate {
 		return array( 'home' => (string) ( $hello['home'] ?? '' ), 'siteurl' => (string) ( $hello['siteurl'] ?? '' ), 'multisite' => ! empty( $hello['multisite'] ), 'subdomain_install' => ! empty( $hello['subdomain_install'] ), 'table_prefix' => (string) ( $hello['table_prefix'] ?? '' ), 'wordpress_version' => (string) ( $hello['wordpress_version'] ?? '' ), 'plugin_version' => (string) ( $hello['plugin_version'] ?? '' ) );
 	}
 	/**
-	 * Individual → individual, red → red del mismo tipo y red → individual (un sitio de la red, convertido: el destino lo
-	 * elige con `site`). Nada se descarga ni se toca antes.
+	 * Individual → individual, red → red del mismo tipo, red → individual (un sitio de la red, convertido: el destino lo
+	 * elige con `site`) e individual → red (como un sitio de la red, nuevo o reemplazando uno). Nada se descarga ni se
+	 * toca antes.
 	 */
-	public static function compatible( array $hello ) {
+	public static function compatible( array $hello, $import = true ) {
 		if ( 1 !== ( $hello['version'] ?? null ) || ! is_string( $hello['instance'] ?? null ) || ! preg_match( '/^[0-9a-f]{16}$/D', $hello['instance'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La dirección de la clave no responde como la API de migración de DIGITALÍSIMO Backups.' );
 		if ( empty( $hello['ready'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio de origen no puede preparar el paquete: ' . implode( ' ', array_map( 'strval', (array) ( $hello['problems'] ?? array() ) ) ) );
 		if ( (string) ( $hello['instance'] ?? '' ) === self::instance() ) throw new Digitalisimo_Backups_Permanent_Error( 'Esta clave es de este mismo sitio: pégala en el sitio de destino.' );
 		$source_network = ! empty( $hello['multisite'] );
 		$source_type = ! empty( $hello['subdomain_install'] ) ? 'subdominios' : 'subdirectorios';
-		if ( ! $source_network && is_multisite() ) throw new Digitalisimo_Backups_Permanent_Error( 'El origen es un WordPress individual y este sitio es una red: una migración sólo va de sitio individual a sitio individual o de red a red.' );
+		// Una red en un WordPress individual: se convierte un sitio de la red (el destino lo elige con `site`).
+		// Un WordPress individual en una red se importa como un sitio de la red (Digitalisimo_Backups_Site_Import).
+		if ( ! $source_network && is_multisite() && ! $import ) throw new Digitalisimo_Backups_Permanent_Error( 'El origen es un WordPress individual y este sitio es una red: elige si se importa como sitio nuevo o reemplazando uno.' );
 		if ( $source_network && is_multisite() ) {
 			$here = function_exists( 'is_subdomain_install' ) && is_subdomain_install();
 			if ( $here !== ! empty( $hello['subdomain_install'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El origen es una red por ' . $source_type . ' y esta red es por ' . ( $here ? 'subdominios' : 'subdirectorios' ) . ': las dos deben ser del mismo tipo (SUBDOMAIN_INSTALL en wp-config.php).' );
@@ -1924,6 +1934,8 @@ final class Digitalisimo_Backups_Migrate {
 		echo '<form method="post" action="' . $post . '" onsubmit="return confirm(\'¿Reemplazar este sitio por el del origen? Se crea antes una copia previa para deshacerlo.\')">';
 		wp_nonce_field( self::ACTION_PULL );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_PULL ) . '">' . self::context_fields( $network ) . '<p><label for="digitalisimo-backups-migration-key">Clave de migración</label><br><textarea id="digitalisimo-backups-migration-key" name="migration_key" rows="3" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="large-text code"></textarea></p>' . Digitalisimo_Backups::keep_access_fields( 'Después de migrar, tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo.' ) . ( is_multisite() ? '' : '<p><label>Si el origen es una red: el sitio que se migra (su número; vacío para el principal) <input type="number" name="migration_site" min="1" step="1" value=""></label></p>' ) . '<p><button class="button button-primary button-hero"' . disabled( ! $main || '' !== $status['pull_problem'], true, false ) . '>Migrar a este sitio</button></p></form>';
+		// En una red: si el origen es un WordPress individual, se importa como un sitio de la red (nuevo o reemplazando uno).
+		if ( $network && $main ) echo Digitalisimo_Backups_Site_Import::field( 'migrado', 'digitalisimo-backups-migrate-into' ) . '<p class="description">Sólo cuenta si el origen es un WordPress individual; el de una red reemplaza la red entera.</p>';
 		if ( $status['active'] ) echo '<p class="description">Migración en curso: ' . esc_html( $status['active']['status_label'] . ' · ' . $status['active']['phase_label'] . ' (' . (int) $status['active']['percent'] . ' %)' ) . '. Su avance está en «Trabajos»; cuando termine, el aviso de Backups dice cómo entrar (con «Conservar mi acceso», tu cuenta sigue sirviendo).</p>';
 		if ( $status['undo'] ) {
 			echo '<div class="digitalisimo-backups-migrate-undo"><h3>Deshacer la migración</h3><p>Última migración recibida de <strong>' . esc_html( $status['undo']['from'] ) . '</strong> el ' . esc_html( $status['undo']['date'] ) . '.</p><p>Deshacerla restaura la copia previa <code>' . esc_html( $status['undo']['file'] ) . '</code> (y antes guarda el estado actual en otra copia previa).</p><form method="post" action="' . $post . '" onsubmit="return confirm(\'¿Deshacer la migración y volver al estado anterior de este sitio?\')">';
@@ -2050,7 +2062,7 @@ final class Digitalisimo_Backups_Migrate {
 		$keep_admins = empty( $_POST['keep_admins_shown'] ) || ! empty( $_POST['keep_admins'] );
 		// De una red a este WordPress individual: el sitio de la red que se migra (vacío: el principal).
 		$site = isset( $_POST['migration_site'] ) && is_scalar( $_POST['migration_site'] ) ? trim( (string) wp_unslash( $_POST['migration_site'] ) ) : '';
-		$result = Digitalisimo_Backups::service_migrate( $key, array( 'network' => is_multisite(), 'confirm' => 'MIGRAR', 'keep_access' => $keep, 'keep_admins' => $keep_admins, 'site' => '' === $site ? null : $site, 'via' => 'admin-post' ) );
+		$result = Digitalisimo_Backups::service_migrate( $key, array( 'network' => is_multisite(), 'confirm' => 'MIGRAR', 'keep_access' => $keep, 'keep_admins' => $keep_admins, 'site' => '' === $site ? null : $site, 'via' => 'admin-post' ) + ( is_multisite() ? Digitalisimo_Backups_Site_Import::from_request( $_POST ) : array() ) );
 		if ( is_wp_error( $result ) ) Digitalisimo_Backups::redirect( false, 'La migración no empezó: ' . $result->get_error_message(), null, 'migrate' );
 		Digitalisimo_Backups::redirect( true, 'Migración en cola desde ' . $result['source'] . '. Su avance aparece en «Trabajos»: deja esta página abierta (o WP-Cron la continúa). ' . ( $keep ? 'Al terminar sigues entrando con tu cuenta; el aviso de Backups dice la URL de acceso.' : 'Al terminar, inicia sesión con un usuario del sitio de origen.' ), null, 'migrate' );
 	}

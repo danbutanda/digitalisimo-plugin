@@ -41,7 +41,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// Lo evidente se dice ya, sin crear el trabajo: un paquete parcial, de un subsitio o de otro tipo de instalación.
 		// Restaurar por partes: la selección ya normalizada (null es todo); lo elegido que el paquete no trae se dice ya.
 		$parts = is_array( $args['parts'] ?? null ) ? $args['parts'] : null;
-		if ( $report['zip'] instanceof ZipArchive ) self::restore_precheck( $report['zip'], $parts );
+		// Importar un sitio en una red (Digitalisimo_Backups_Site_Import): como sitio nuevo o reemplazando uno.
+		$into = is_array( $args['into'] ?? null ) && in_array( (string) ( $args['into']['mode'] ?? '' ), array( 'new', 'replace' ), true ) ? $args['into'] : null;
+		if ( $report['zip'] instanceof ZipArchive ) self::restore_precheck( $report['zip'], $parts, $into );
 		$file = wp_basename( (string) $report['source'] );
 		$tag = bin2hex( random_bytes( 3 ) );
 		// La ficha de lectura (sólo ese trabajo, sólo lectura, con caducidad): su valor va una vez en la respuesta.
@@ -113,6 +115,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'aside' => is_array( $args['aside'] ?? null ) ? array_intersect_key( $args['aside'], array_flip( array( 'kind', 'migration', 'from' ) ) ) : array(),
 			// Restaurar por partes (null: todo). La copia previa sigue siendo completa y la vuelta a ella repone lo mismo.
 			'parts' => $parts,
+			// Importar un sitio en una red: el sitio de destino (nuevo o el que se reemplaza); null, la restauración de siempre.
+			'into' => $into,
 		);
 		// El trabajo de la migración que encola su restauración espera a que termine: no cuenta como otro trabajo a medias.
 		$queued = Digitalisimo_Backups_Jobs::enqueue_restore( $spec, function( $job ) use ( $report ) {
@@ -141,20 +145,22 @@ trait Digitalisimo_Backups_Restore_Engine {
 	 * Alcance del paquete contra esta instalación, con los mismos mensajes que la verificación del trabajo. Si sus
 	 * metadatos no se leen, lo dirá la verificación completa en su orden de siempre (primero el contenido).
 	 */
-	private static function restore_precheck( $zip, $parts = null ) {
+	private static function restore_precheck( $zip, $parts = null, $into = null ) {
 		try {
 			$data = self::package_metadata( $zip );
 		} catch ( Exception $e ) {
 			return;
 		}
 		if ( null !== $parts ) Digitalisimo_Backups_Restore_Parts::check( $zip, $data, $parts, false, self::restore_layout() );
+		if ( $into && null !== $parts && array_diff( (array) $parts['parts'], array( 'database', 'plugins', 'themes', 'uploads' ) ) ) throw new Exception( 'Al importar un sitio en la red sólo se eligen la base de datos, los plugins, los temas y los medios: el núcleo, los mu-plugins y el resto de wp-content del respaldo nunca se mezclan en la red.' );
+		if ( $into && 'new' === $into['mode'] && ! Digitalisimo_Backups_Restore_Parts::has_database( $parts ) ) throw new Exception( 'Un sitio nuevo de la red se importa con su base de datos: elige también la base de datos (o reemplaza un sitio que ya existe).' );
 		if ( in_array( $data['type'] ?? '', array( 'incremental', 'database' ), true ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
 		if ( 'site' === ( $data['scope'] ?? '' ) ) throw new Exception( 'Una exportación anterior de subsitio no puede reemplazar una instalación completa.' );
 		// Un sitio extraído de una red (alcance explícito, sólo con manifiesto v3) se restaura en un WordPress individual.
 		$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' );
 		if ( $extracted && 'digitalisimo-backup/v3' !== ( $data['format'] ?? '' ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
-		if ( ! $extracted && ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
-		foreach ( self::package_installation_problems( $data ) as $problem ) throw new Exception( $problem );
+		if ( ! $extracted && ! in_array( $data['scope'] ?? '', array( 'network', 'installation', Digitalisimo_Backups_Site_Import::SCOPE ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
+		foreach ( self::package_installation_problems( $data, $into ) as $problem ) throw new Exception( $problem );
 	}
 	/** La selección de partes del trabajo (null: todo). */
 	private static function restore_parts( array $job ) { return Digitalisimo_Backups_Restore_Parts::from_spec( (array) ( $job['spec'] ?? array() ) ); }
@@ -216,7 +222,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// Desde la base de datos hasta el final, el sitio está en mantenimiento (los ticks con el testigo pasan). Una vuelta a
 		// la copia previa, desde su primera fase y sin caducar: el sitio quedó a medio cambiar (revisión, C2).
 		$rollback = ! empty( $job['spec']['rollback'] );
-		if ( $rollback || in_array( $phase, array( 'database', 'files', 'switch', 'finish', 'cleanup' ), true ) ) Digitalisimo_Backups_Restore_Maintenance::hold( (string) $job['spec']['token'], $rollback || self::restore_switched( $job ), $job['id'], Digitalisimo_Backups_Restore_Access::readers( $job ) );
+		self::import_begin( $job );
+		if ( $rollback || in_array( $phase, array( 'database', 'files', 'switch', 'finish', 'cleanup' ), true ) ) Digitalisimo_Backups_Restore_Maintenance::hold( (string) $job['spec']['token'], $rollback || self::restore_switched( $job ), $job['id'], Digitalisimo_Backups_Restore_Access::readers( $job ), self::import_maintenance( $job ) );
 		self::$restore_exact_files = ! empty( $job['spec']['exact_files'] );
 		switch ( $phase ) {
 			case 'inspect': return self::restore_inspect( $job );
@@ -245,6 +252,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 	 */
 	public static function restore_changed( array $job ) {
 		if ( ! empty( $job['spec']['rollback'] ) ) return true;
+		// Importar un sitio en una red: los usuarios se funden en la red antes de que pasen las tablas.
+		if ( self::import_into( $job ) && self::import_touched( $job ) ) return true;
 		if ( ! self::restore_switched( $job ) ) return false;
 		// Sin la base de datos (restaurar por partes) no hay tablas que miren: en el cambio, los archivos pueden haber
 		// empezado a moverse; ante la duda, cambió (la vuelta a la copia previa repone las mismas partes).
@@ -366,7 +375,15 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( '' === $relative || 'wp-config.php' === $relative || '.maintenance' === $relative || 0 === strpos( $relative, '.git/' ) || isset( $skip[ $relative ] ) ) return null;
 		// Las áreas de trabajo y las carpetas apartadas de una restauración nunca se restauran.
 		if ( false !== strpos( '/' . $relative, '/.digitalisimo-' ) ) return null;
+		// Importar un sitio en una red: los medios a los de ese sitio y los plugins y temas que faltan; nada más.
+		if ( is_array( self::$import_rules ) ) return Digitalisimo_Backups_Site_Import::target_of( $relative, self::$import_rules );
 		return $relative;
+	}
+	// La entrada del ZIP (con `wordpress/`) de una ruta del sitio, o null si el respaldo no la trae a esa ruta.
+	private static function restore_zip_name( $relative ) {
+		if ( ! is_array( self::$import_rules ) ) return 'wordpress/' . $relative;
+		$source = Digitalisimo_Backups_Site_Import::source_of( $relative, self::$import_rules );
+		return null === $source ? null : 'wordpress/' . $source;
 	}
 	/** Archivos activos de la base de datos SQLite (Playground): nunca se sobrescriben. Relativos a la raíz. */
 	private static function restore_skip() {
@@ -466,11 +483,13 @@ trait Digitalisimo_Backups_Restore_Engine {
 			if ( ! in_array( $cursor['format'], array( '', 'digitalisimo-backup/v2', 'digitalisimo-backup/v3' ), true ) ) throw new Exception( 'El formato del manifiesto no es compatible.' );
 		}
 		$data = self::package_metadata( $zip );
-		$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' );
+		// La copia de un sitio de una red (copia previa de una importación) es, como un sitio extraído, un paquete de un sitio.
+		$copy = Digitalisimo_Backups_Site_Import::SCOPE === ( $data['scope'] ?? '' );
+		$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' ) || $copy;
 		if ( 'digitalisimo-backup/v3' === $cursor['format'] ) {
 			// v3: la instalación (o red) completa, o un sitio extraído de una red (sin el wp-config.php de la red).
-			$required = $extracted ? Digitalisimo_Backups_Site_Extract::required_entries() : array( 'database.sql', 'wordpress/wp-config.php', 'wordpress/wp-load.php', 'wordpress/wp-settings.php', 'wordpress/wp-admin/index.php', 'wordpress/wp-includes/version.php' );
-			if ( $extracted && ( ! empty( $data['multisite'] ) || ! is_array( $data['extract'] ?? null ) ) ) throw new Exception( 'El manifiesto del sitio extraído no coincide con el ZIP.' );
+			$required = $extracted ? Digitalisimo_Backups_Site_Import::required_entries( $data ) : array( 'database.sql', 'wordpress/wp-config.php', 'wordpress/wp-load.php', 'wordpress/wp-settings.php', 'wordpress/wp-admin/index.php', 'wordpress/wp-includes/version.php' );
+			if ( $extracted && ( ! empty( $data['multisite'] ) || ! is_array( $data[ $copy ? 'site_copy' : 'extract' ] ?? null ) ) ) throw new Exception( 'El manifiesto del sitio extraído no coincide con el ZIP.' );
 			if ( 3 !== ( $data['backup_format_version'] ?? null ) || ( 'installation' !== ( $data['scope'] ?? '' ) && ! $extracted ) || 'full' !== ( $data['type'] ?? '' ) || null === $cursor['manifest_entries'] || (int) $cursor['manifest_entries'] !== (int) $cursor['observed'] ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
 			foreach ( $required as $file ) if ( empty( $cursor['present'][ $file ] ) && ( ! $extracted || false === $zip->locateName( $file ) ) ) throw new Exception( 'Falta el archivo obligatorio ' . $file . ' en el respaldo completo.' );
 			if ( (int) ( $data['file_count'] ?? -1 ) !== (int) $cursor['observed'] - 1 || (int) ( $data['uncompressed_size'] ?? -1 ) !== (int) $cursor['total'] ) throw new Exception( 'El tamaño o el número de archivos no coincide con el manifiesto.' );
@@ -480,7 +499,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( 'site' === ( $data['scope'] ?? '' ) ) throw new Exception( 'Una exportación anterior de subsitio no puede reemplazar una instalación completa.' );
 		if ( $extracted && 'digitalisimo-backup/v3' !== ( $data['format'] ?? '' ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
 		if ( ! $extracted && ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
-		foreach ( self::package_installation_problems( $data ) as $problem ) throw new Exception( $problem );
+		foreach ( self::package_installation_problems( $data, self::import_into( $job ) ) as $problem ) throw new Exception( $problem );
 		// Restaurar por partes: un sitio extraído se restaura entero. Que lo elegido esté en el respaldo se comprobó al encolar,
 		// con este mismo archivo (su huella se comprueba al abrirlo): repetir el inventario aquí sólo gastaría la petición.
 		$parts = self::restore_parts( $job );
@@ -595,8 +614,12 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$rollback = ! empty( $job['spec']['rollback'] );
 		$args = array( 'addresses' => 'backup' === ( $job['spec']['addresses'] ?? '' ) ? 'backup' : 'current', 'tables' => is_array( $data['database_tables'] ?? null ) ? $data['database_tables'] : null );
 		$destination = Digitalisimo_Backups_Relocate::describe();
-		// La vuelta a la copia previa es de esta misma instalación: nada que reubicar, aunque el sitio esté a medio cambiar.
-		if ( ! $rollback ) {
+		$pairs = array();
+		// Importar un sitio en una red: el destino es ese sitio (su prefijo, su dirección y su carpeta de medios).
+		if ( self::import_into( $job ) ) {
+			list( $plan, $destination, $pairs ) = self::import_plan( $job, $data, $source, $args );
+			if ( ! $plan ) unset( $plan );
+		} elseif ( ! $rollback ) {
 			// Un sitio extraído de una red: además, la URL de sus medios en la red (`/sites/N`) pasa a la de un sitio individual.
 			$plan = Digitalisimo_Backups_Site_Extract::adjust_plan( Digitalisimo_Backups_Relocate::plan( $source, $destination, $args ), $data );
 			if ( $plan->problems() ) throw new Digitalisimo_Backups_Permanent_Error( implode( ' ', $plan->problems() ) );
@@ -606,7 +629,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$with_database = self::restore_with_database( $job );
 		// Con el mismo prefijo, las tablas temporales también renombran: una vista no se puede restaurar por pasos.
 		if ( $with_database && ! empty( $cursor['views'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La restauración por pasos no restaura vistas SQL ni otros objetos que no son tablas (' . implode( ', ', array_slice( (array) $cursor['views'], 0, 5 ) ) . '): quítalos del origen y crea un respaldo nuevo. No se cambió nada del sitio.' );
-		self::restore_write_json( $job, 'plan.json', array( 'origin' => $source, 'destination' => $destination, 'args' => $args, 'skip' => $rollback ) );
+		self::restore_write_json( $job, 'plan.json', array( 'origin' => $source, 'destination' => $destination, 'args' => $args, 'skip' => $rollback ) + ( self::import_into( $job ) ? array( 'into' => true, 'pairs' => $pairs ) : array() ) );
 		// Tablas: del respaldo → de este sitio (con el prefijo de la reubicación) → temporal → vieja. Sólo las del WordPress
 		// que se restaura (las que llevan su prefijo): una tabla de otra aplicación que comparte la base de datos (otro
 		// WordPress, una tienda) nunca se borra ni se recrea; se informa (revisión de E1, H3).
@@ -963,6 +986,10 @@ trait Digitalisimo_Backups_Restore_Engine {
 	private static function restore_plan( array $job ) {
 		$saved = self::restore_read_json( $job, 'plan.json' );
 		if ( ! empty( $saved['skip'] ) ) return null;
+		if ( ! empty( $saved['into'] ) ) {
+			$plan = Digitalisimo_Backups_Site_Import::plan( (array) $saved['origin'], (array) $saved['destination'], (array) $saved['args'], (array) ( $saved['pairs'] ?? array() ) );
+			return $plan->problems() || ! $plan->needed() ? null : $plan;
+		}
 		$plan = Digitalisimo_Backups_Site_Extract::adjust_plan( Digitalisimo_Backups_Relocate::plan( (array) $saved['origin'], (array) $saved['destination'], (array) $saved['args'] ), (array) self::restore_read_json( $job, 'metadata.json' ) );
 		return $plan->problems() || ! $plan->needed() ? null : $plan;
 	}
@@ -978,6 +1005,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 	 * restauración y a la fila de la copia previa en el historial con la coherencia de su base de datos. Queda bloqueada.
 	 */
 	private static function restore_safety( array $job ) {
+		// Importar un sitio en una red: la copia previa es sólo la de ese sitio (o ninguna, si es nuevo).
+		if ( self::import_into( $job ) ) return self::import_safety( $job );
 		$cursor = (array) ( $job['checkpoint']['safety'] ?? array() );
 		if ( empty( $cursor['spec'] ) && ! empty( $job['spec']['safety_spec']['file'] ) ) {
 			$cursor = array( 'file' => (string) $job['spec']['safety_spec']['file'], 'spec' => (array) $job['spec']['safety_spec'] );
@@ -1060,6 +1089,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 
 	/** Importa el SQL a las tablas temporales, por tramos; el sitio sigue sirviéndose de las suyas. */
 	private static function restore_database( array $job ) {
+		// Importar como sitio nuevo de la red: el sitio se crea ahora (ya en mantenimiento), antes de importar nada.
+		if ( self::import_into( $job ) ) self::import_create( $job );
 		// Restaurar por partes sin la base de datos: no se importa nada (el mantenimiento empieza igual aquí).
 		if ( ! self::restore_with_database( $job ) ) return Digitalisimo_Backups_Restore_Parts::skip_database();
 		$cursor = (array) ( $job['checkpoint']['database'] ?? array() );
@@ -1081,6 +1112,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		self::restore_preswap_addresses( $job );
 		// De dos claves de usermeta iguales, la del sitio restaurado (E1, after_import()), también en las temporales.
 		foreach ( self::restore_preswap_collisions( $job, (array) ( $cursor['collisions'] ?? array() ) ) as $table => $removed ) $cursor['report']['tables'][ $table ]['collisions'] = (int) ( $cursor['report']['tables'][ $table ]['collisions'] ?? 0 ) + $removed;
+		// Importar un sitio en una red: `users` y `usermeta` del respaldo se funden en los de la red, no se cambian.
+		if ( self::import_into( $job ) ) self::import_split( $job );
 		return array( 'next' => 'files', 'checkpoint' => array( 'done' => time(), 'statements' => (int) $cursor['statements'], 'report' => (array) ( $cursor['report'] ?? array() ), 'names' => $cursor['names'] ?? '', 'restarted' => (int) ( $cursor['restarted'] ?? 0 ) ), 'message' => 'Base de datos lista en tablas temporales; preparando los archivos…' );
 	}
 	/**
@@ -1197,6 +1230,13 @@ trait Digitalisimo_Backups_Restore_Engine {
 		);
 		if ( defined( 'DIGITALISIMO_BACKUPS_FILE' ) && '' !== $layout['plugins'] ) $layout['self'] = $layout['plugins'] . '/' . basename( dirname( DIGITALISIMO_BACKUPS_FILE ) );
 		elseif ( '' !== $layout['plugins'] ) $layout['self'] = $layout['plugins'] . '/' . basename( dirname( __DIR__, 2 ) );
+		// Importar un sitio en una red: los medios son los de ese sitio y sólo ellos se recorren y se retiran; los plugins y
+		// temas que faltan entran como unidades nuevas y nada más de la red se toca.
+		if ( is_array( self::$import_rules ) ) {
+			$layout['uploads'] = (string) self::$import_rules['to_uploads'];
+			$layout['mu'] = '';
+			$layout['import'] = true;
+		}
 		return $layout;
 	}
 	/** Unidad de una ruta: carpeta de código que cambia entera (wp-admin, wp-includes, cada plugin o tema, mu-plugins) o '' (archivo suelto). */
@@ -1223,7 +1263,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 	}
 	// La carpeta está dentro de una raíz gestionada o lleva a una.
 	private static function restore_walk_into( $relative, array $layout ) {
-		foreach ( array( 'wp-admin', 'wp-includes', $layout['plugins'], $layout['themes'], $layout['mu'], $layout['uploads'] ) as $base ) {
+		foreach ( ! empty( $layout['import'] ) ? array( $layout['uploads'] ) : array( 'wp-admin', 'wp-includes', $layout['plugins'], $layout['themes'], $layout['mu'], $layout['uploads'] ) as $base ) {
 			if ( '' === $base ) continue;
 			if ( $relative === $base || 0 === strpos( $relative . '/', $base . '/' ) || 0 === strpos( $base . '/', $relative . '/' ) ) return true;
 		}
@@ -1232,6 +1272,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 	// Raíces donde se retira lo que el respaldo no tiene: núcleo (wp-admin, wp-includes y, en la raíz, todo archivo que PHP
 	// pueda ejecutar: `.php`, `.phtml`, `.phar`…), plugins, temas, mu-plugins y medios.
 	private static function restore_managed( $relative, array $layout ) {
+		if ( ! empty( $layout['import'] ) ) return '' !== $layout['uploads'] && 0 === strpos( $relative, $layout['uploads'] . '/' );
 		if ( false === strpos( $relative, '/' ) ) return (bool) preg_match( '/\.(?:php[0-9]?|phtml|pht|phar|phps)$/i', $relative );
 		// «Deshacer la migración» (la copia previa de este mismo sitio): también los drop-ins de wp-content
 		// (object-cache.php, db.php, advanced-cache.php…) que la copia no tiene, los que trajo el origen.
@@ -1328,7 +1369,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 					}
 					if ( ! self::restore_managed( $relative, $layout ) || ! $complete ) continue;
 					if ( ! Digitalisimo_Backups_Restore_Parts::removable( $parts, $relative, $layout, ! empty( $job['spec']['rollback'] ) ) ) continue;
-					if ( false !== $zip->locateName( 'wordpress/' . $relative ) || ( $nocase && false !== $zip->locateName( 'wordpress/' . $relative, ZipArchive::FL_NOCASE ) ) ) continue;
+					$named = self::restore_zip_name( $relative );
+					if ( null !== $named && ( false !== $zip->locateName( $named ) || ( $nocase && false !== $zip->locateName( $named, ZipArchive::FL_NOCASE ) ) ) ) continue;
 					// Ajeno al respaldo, dentro de lo que gestiona: se retira (antes, se comprueba que está en la copia previa).
 					if ( '' !== $unit ) {
 						$units[ $unit ]['changed'] = true;
@@ -1596,14 +1638,18 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$cursor += array( 'step' => 'tables' );
 		$started = microtime( true );
 		$deadline = self::restore_deadline( $job, 'switch', $cursor );
-		Digitalisimo_Backups_Restore_Maintenance::hold( (string) $job['spec']['token'], true, $job['id'], Digitalisimo_Backups_Restore_Access::readers( $job ) );
+		Digitalisimo_Backups_Restore_Maintenance::hold( (string) $job['spec']['token'], true, $job['id'], Digitalisimo_Backups_Restore_Access::readers( $job ), self::import_maintenance( $job ) );
 		$layout = self::restore_switch_layout( $job );
 		$tree = (string) self::restore_read_json( $job, 'tree.json' )['root'];
 		if ( 'tables' === $cursor['step'] ) {
 			// Restaurar por partes sin la base de datos: las tablas, el historial, el llavero, las credenciales, la
 			// configuración de Backups y el acceso siguen como están (nada del SQL entra).
 			$with_database = self::restore_with_database( $job );
-			if ( $with_database ) $cursor = self::restore_swap( $job, $cursor );
+			if ( $with_database && self::import_into( $job ) ) {
+				// Importar un sitio en una red: los usuarios se funden en la red (por tramos) y las tablas del sitio pasan.
+				$cursor = self::import_swap( $job, $cursor, $deadline );
+				if ( empty( $cursor['swapped_at'] ) ) return self::restore_slice( 'switch', $cursor, 'Fundiendo los usuarios del respaldo con los de la red (' . (int) ( $cursor['users'] ?? 0 ) . ')…', $started, 1, $job );
+			} elseif ( $with_database ) $cursor = self::restore_swap( $job, $cursor );
 			else $cursor['mode'] = 'none';
 			$cursor = self::restore_move_code( $job, $cursor, $layout, $tree );
 			$cursor['step'] = 'move';
@@ -2180,10 +2226,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 			}
 			$zip = $keeper['zips'][ $n ];
 			if ( ! $zip ) continue;
-			$stat = $zip->statName( 'wordpress/' . $relative );
+			$named = self::restore_zip_name( $relative );
+			$stat = null === $named ? false : $zip->statName( $named );
 			if ( ! $stat || (int) $stat['size'] !== (int) $size ) continue;
 			if ( null === $hash ) $hash = (string) @hash_file( 'sha256', $full );
-			$stream = self::zip_entry_reader( $zip, 'wordpress/' . $relative, (int) $stat['size'] );
+			$stream = self::zip_entry_reader( $zip, $named, (int) $stat['size'] );
 			if ( ! $stream ) continue;
 			$context = hash_init( 'sha256' );
 			while ( ! feof( $stream ) ) {
@@ -2237,9 +2284,16 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// Sin la base de datos (por partes) no hay nada que reubicar: las tablas son las de este sitio.
 		$plan = self::restore_with_database( $job ) ? self::restore_plan( $job ) : null;
 		$cursor = array( 'done' => time() );
-		if ( $plan ) {
+		if ( self::import_into( $job ) ) {
+			// Importar un sitio en una red: E1 dentro de ese sitio, y su fila en la red.
+			$report = self::import_finish( $job, $plan );
+			if ( ! $report ) return array( 'next' => 'cleanup', 'checkpoint' => $cursor, 'message' => 'Sitio importado; terminando…' );
+			$plan = true;
+		} elseif ( $plan ) {
 			// Los nombres de las tablas en este sitio (los del plan, que se calcularon con el sitio intacto).
 			$report = $plan->finish( array_column( self::restore_read_json( $job, 'tables.json' ), 'dest' ) );
+		}
+		if ( $plan ) {
 			$imported = (array) ( $job['checkpoint']['database']['report'] ?? array() );
 			foreach ( (array) ( $imported['tables'] ?? array() ) as $table => $counts ) foreach ( (array) $counts as $what => $n ) $report['tables'][ $table ][ $what ] = (int) ( $report['tables'][ $table ][ $what ] ?? 0 ) + (int) $n;
 			foreach ( (array) ( $imported['stats'] ?? array() ) as $what => $n ) $report['stats'][ $what ] = (int) ( $report['stats'][ $what ] ?? 0 ) + (int) $n;
@@ -2280,6 +2334,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 					$cursor['kept_dropped'] = array( 'dropped' => 0, 'errors' => array( $e->getMessage() ) );
 				}
 				foreach ( (array) $cursor['kept_dropped']['errors'] as $error ) $cursor['warnings'][] = 'No se pudo borrar una tabla apartada (' . $error . '); queda en el registro de tablas apartadas y se reintenta sola.';
+				// Importar un sitio en una red: las temporales de `users` y `usermeta` del respaldo, ya fundidos en la red.
+				if ( self::import_into( $job ) ) foreach ( self::import_cleanup( $job ) as $warning ) $cursor['warnings'][] = $warning;
 				$undone_tag = (string) ( $job['spec']['rollback']['tag'] ?? '' );
 				if ( '' !== $undone_tag ) foreach ( self::restore_leftover_tables( (string) $wpdb->base_prefix, array(), true ) as $table ) if ( false !== strpos( $table, '_' . $undone_tag . '_' ) ) $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $table ) );
 				$cursor['tables'] = true;
@@ -2379,11 +2435,13 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		$relocation = self::restore_read_json( $job, 'relocation.json', false );
 		$access = self::restore_read_json( $job, 'access.json', false );
+		$import = self::import_result( $job );
 		// Restaurar por partes: qué se restauró y qué no (y los avisos de coherencia que se dieron antes de confirmar).
 		$parts = Digitalisimo_Backups_Restore_Parts::report( self::restore_parts( $job ) );
 		// «Cómo entrar ahora» va primero: es lo que hay que leer al terminar una restauración en otro sitio.
 		$notice = is_array( $access ) && ! empty( $access['relocated'] ) ? (string) ( $access['text'] ?? '' ) : '';
 		if ( ! $parts['all'] ) $notice = $parts['text'] . ( '' !== $notice ? ' ' . $notice : '' );
+		if ( $import ) $notice = $import['text'] . ( '' !== $notice ? ' ' . $notice : '' ) . ( $import['warnings'] ? ' ' . implode( ' ', $import['warnings'] ) : '' );
 		$config = (array) ( self::restore_read_json( $job, 'config-notes.json', false ) ?? array() );
 		foreach ( $config as $relative => $notes ) $notice .= ' ' . $relative . ': ' . implode( '; ', (array) $notes ) . '.';
 		// Limpieza (revisión de E1, P1): un auto_prepend_file o auto_append_file que haya quedado apuntando a un archivo que
@@ -2457,6 +2515,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'wp_config' => (array) ( $spec['wp_config'] ?? array() ),
 			'access' => is_array( $access ) ? self::restore_access_public( $access ) : null,
 			'parts' => $parts,
+			'import' => $import,
 		);
 	}
 	// El informe de acceso tal como lo ven la pantalla, REST, WP-CLI y el correo (sin IDs internos ni secretos).
@@ -2538,6 +2597,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 	// mensaje del trabajo.
 	public static function restore_on_terminal( array $job, $status, $message ) {
 		global $wpdb;
+		// Importar un sitio en una red: un sitio nuevo se borra con lo que la importación añadió (si no, sigue lo de siempre).
+		$imported = self::import_terminal( $job, $status, $message );
+		if ( null !== $imported ) return $imported;
 		$spec = (array) ( $job['spec'] ?? array() );
 		$switched = self::restore_changed( $job );
 		$safety = self::restore_safety_file( $job );
@@ -2615,6 +2677,13 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'parts' => is_array( $spec['parts'] ?? null ) ? $spec['parts'] : null,
 			'readers' => Digitalisimo_Backups_Restore_Access::readers( $job ),
 		);
+		// Importar un sitio en una red (reemplazo): vuelve la copia de ese sitio, a su mismo sitio, y se quita lo que la
+		// importación añadió a la red (los usuarios que creó y los plugins y temas que instaló).
+		if ( self::import_into( $job ) ) {
+			$target = self::import_target( $job );
+			$rollback['into'] = array( 'mode' => 'replace', 'site_id' => (int) $target['site_id'], 'domain' => (string) $target['domain'], 'path' => (string) $target['path'], 'url' => (string) $target['url'], 'label' => (string) $target['label'] );
+			$rollback['rollback']['undo'] = self::import_undo_list( $job );
+		}
 		return Digitalisimo_Backups_Jobs::create_restore( $rollback );
 	}
 	// La restauración a medio cambiar se puede recuperar volviendo a su copia previa: la restauración original (la que

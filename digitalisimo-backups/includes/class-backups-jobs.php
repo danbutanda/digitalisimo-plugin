@@ -88,6 +88,8 @@ final class Digitalisimo_Backups_Jobs {
 	public static function restore_cron_jobs( $pre ) {
 		if ( null !== $pre || ! function_exists( '_get_cron_array' ) ) return $pre;
 		if ( ! defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' ) && ! Digitalisimo_Backups_Restore_Maintenance::ours() ) return $pre;
+		// La importación de un sitio en una red sólo pone en mantenimiento ese sitio: el WP-Cron de la red sigue igual.
+		if ( ! defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' ) && Digitalisimo_Backups_Restore_Maintenance::site_only() ) return $pre;
 		$ready = array();
 		$now = microtime( true );
 		foreach ( (array) _get_cron_array() as $timestamp => $hooks ) {
@@ -1190,7 +1192,7 @@ final class Digitalisimo_Backups_Jobs {
 	public static function phase_label( $phase, $job = null ) {
 		$backup = array( 'preflight' => 'Comprobaciones', 'database' => 'Base de datos', 'pack' => 'Archivos y ZIP', 'verify' => 'Verificación', 'publish' => 'Registro', 'transfer' => 'Transferencia', 'prune' => 'Retención' );
 		if ( is_array( $job ) ) {
-			if ( self::is_restore( $job ) ) return Digitalisimo_Backups_Restore_Job::LABELS[ $phase ] ?? ( $backup[ $phase ] ?? (string) $phase );
+			if ( self::is_restore( $job ) ) return Digitalisimo_Backups_Restore_Job::label( (string) $phase, $job ) ?? ( $backup[ $phase ] ?? (string) $phase );
 			// `files` es «Archivos» en una restauración y «ZIP convertido» en una importación.
 			if ( Digitalisimo_Backups_Import_Job::is_import( $job ) ) return Digitalisimo_Backups_Import_Job::LABELS[ $phase ] ?? ( $backup[ $phase ] ?? (string) $phase );
 			$info = self::phase_info( $phase, $job );

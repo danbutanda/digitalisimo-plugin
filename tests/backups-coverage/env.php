@@ -129,6 +129,8 @@ class Digi_Test_DB {
 	public function get_blog_prefix( $blog_id = null ) { return 1 === (int) $blog_id ? 'wp_' : 'wp_' . (int) $blog_id . '_'; }
 	public function suppress_errors( $suppress = true ) { return false; }
 	public function get_var( $query ) {
+		// La red de la prueba no tiene sitios en `wp_blogs` (importar un sitio en una red sólo mira si una dirección está libre).
+		if ( preg_match( '/^SELECT (?:blog_id|MAX\(blog_id\)) FROM `wp_blogs`/', $query ) ) return null;
 		if ( ! preg_match( "/^SELECT option_value FROM `wp_(?:(\\d+)_)?options` WHERE option_name = 'upload_path' LIMIT 1$/", $query, $match ) ) throw new RuntimeException( 'FALLA: consulta inesperada: ' . $query );
 		return $this->upload_paths[ empty( $match[1] ) ? 1 : (int) $match[1] ] ?? null;
 	}

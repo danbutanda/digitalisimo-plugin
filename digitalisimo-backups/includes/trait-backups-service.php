@@ -570,7 +570,10 @@ trait Digitalisimo_Backups_Service {
 			// Un punto incremental: su cadena se comprueba aquí (con la frase, si hace falta) y su respaldo completo se
 			// reconstruye por tramos en un trabajo que, al terminar, encola la restauración de siempre.
 			if ( $point ) {
-				$started = self::service_chain_restore( $point, $path, $secret, $confirmation, $args, $addresses, $loose || ! empty( $point['loose_links'] ) );
+				// Un punto de la cadena de un sitio, en una red: se importa como un sitio de la red (la fila dice de dónde viene).
+				$point_into = self::service_import_into( $args, array( 'scope' => (string) ( $point['scope'] ?? '' ), 'multisite' => 'network' === (string) ( $point['scope'] ?? '' ), 'home_url' => (string) ( $point['upload']['home'] ?? '' ) ) );
+				if ( is_wp_error( $point_into ) ) return $point_into;
+				$started = self::service_chain_restore( $point, $path, $secret, $confirmation, $args + array( 'into_spec' => $point_into ), $addresses, $loose || ! empty( $point['loose_links'] ) );
 				if ( is_wp_error( $started ) ) {
 					if ( in_array( $started->get_error_code(), array( 'digitalisimo_backups_chain_broken', 'digitalisimo_backups_chain_incomplete' ), true ) ) $event = array( 'ok' => false, 'started' => false, 'message' => $started->get_error_message() );
 					return $started;
@@ -594,6 +597,13 @@ trait Digitalisimo_Backups_Service {
 			$restored = null;
 			try { $restored = Digitalisimo_Backups_Archive_Inspector::manifest( $report['zip'] ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 			$extra = is_array( $restored ) && Digitalisimo_Backups_Site_Extract::SCOPE === ( $restored['scope'] ?? '' ) ? Digitalisimo_Backups_Site_Extract::restored_notice( $restored ) : '';
+			// En una red, el respaldo de un sitio se importa como un sitio de la red: nuevo (con su dirección) o reemplazando uno.
+			$into = self::service_import_into( $args, $restored );
+			if ( is_wp_error( $into ) ) return $into;
+			if ( $into ) {
+				$extra = '';
+				$safety_spec = array();
+			}
 			// La frase escrita sólo vive en esta petición: si se pidió, firma desde ya los respaldos nuevos.
 			$adopted = false;
 			$adopt_note = '';
@@ -608,7 +618,7 @@ trait Digitalisimo_Backups_Service {
 			}
 			try {
 				self::$restore_reader_token = '';
-				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra, 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ), 'parts' => $parts, 'token' => self::service_token( $args ) ) );
+				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra, 'into' => $into, 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ), 'parts' => $parts, 'token' => self::service_token( $args ) ) );
 				$reader = self::$restore_reader_token;
 				self::$restore_reader_token = '';
 			} catch ( Throwable $e ) {
@@ -794,6 +804,19 @@ trait Digitalisimo_Backups_Service {
 	 * confianza (firmada, registrada aquí o «sin firma») y encola el trabajo `chain`, que reconstruye el punto por tramos y
 	 * lo entrega a la restauración de siempre con los argumentos de esta petición. Devuelve el trabajo o el error.
 	 */
+	/**
+	 * En una red, el paquete de un sitio (un WordPress individual, un sitio extraído o la copia de un sitio) se importa como
+	 * un sitio de la red (Digitalisimo_Backups_Site_Import): el destino pedido (`into`: `new` o el ID de un sitio; `address`:
+	 * la dirección del sitio nuevo, sugerida desde el respaldo si no se da). null si el paquete no es de un sitio o esta
+	 * instalación no es una red; WP_Error si lo pedido no vale.
+	 */
+	private static function service_import_into( array $args, $manifest ) {
+		if ( ! is_array( $manifest ) || ! Digitalisimo_Backups_Site_Import::applies( $manifest ) ) return null;
+		$into = Digitalisimo_Backups_Site_Import::request( $args, (string) ( $manifest['home_url'] ?? '' ) );
+		if ( ! is_wp_error( $into ) ) return $into;
+		$data = (array) $into->get_error_data();
+		return self::service_error( substr( (string) $into->get_error_code(), strlen( 'digitalisimo_backups_' ) ), $into->get_error_message(), (int) ( $data['status'] ?? 400 ) );
+	}
 	private static function service_chain_restore( array $point, $path, $secret, $confirmation, array $args, $addresses, $loose ) {
 		$storage = self::local_directory();
 		$dir = Digitalisimo_Backups_Security::new_staging( $storage );
@@ -852,6 +875,8 @@ trait Digitalisimo_Backups_Service {
 					'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ),
 					'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ),
 					'token' => $token,
+					// Importar el punto de un sitio en una red (Digitalisimo_Backups_Site_Import).
+					'into' => is_array( $args['into_spec'] ?? null ) ? $args['into_spec'] : null,
 					'readers' => array( $reader['hash'] ),
 					'user_id' => $user,
 					'notice' => trim( $note ),
@@ -959,6 +984,13 @@ trait Digitalisimo_Backups_Service {
 			$checksum = @hash_file( 'sha256', $path );
 			if ( false === $checksum ) return self::service_error( 'invalid', 'No se pudo calcular el SHA-256 del respaldo.', 422 );
 			$problems = self::package_installation_problems( $data );
+			// En una red, el respaldo de un sitio se importa como un sitio de la red: dónde y qué pasa.
+			$import = null;
+			if ( Digitalisimo_Backups_Site_Import::applies( $data ) ) {
+				$target = Digitalisimo_Backups_Site_Import::request( $args, (string) ( $source['home'] ?? $data['home_url'] ?? '' ) );
+				if ( is_wp_error( $target ) ) $problems[] = $target->get_error_message();
+				else $import = array( 'mode' => $target['mode'], 'site_id' => (int) $target['site_id'], 'url' => (string) $target['url'], 'text' => Digitalisimo_Backups_Site_Import::summary( $target ) );
+			}
 			// «Origen → este sitio»: qué cambiaría al restaurarlo aquí (o por qué no se puede).
 			$relocation = null;
 			$convert = null;
@@ -979,7 +1011,7 @@ trait Digitalisimo_Backups_Service {
 				if ( $wrong ) return $wrong;
 			}
 			if ( ! $problems && ! $convert ) {
-				$plan = self::relocation_plan( $data, $source, array( 'addresses' => $addresses ) );
+				$plan = self::relocation_plan( $data, $source, array( 'addresses' => $addresses, 'into' => $import ? $target : null ) );
 				$problems = $plan->problems();
 				$relocation = $plan->summary();
 			}
@@ -1014,6 +1046,7 @@ trait Digitalisimo_Backups_Service {
 				'extract' => Digitalisimo_Backups_Site_Extract::summary( $data ),
 				// El respaldo de una red en un WordPress individual: el sitio que se restauraría y los de la red.
 				'convert' => $convert,
+				'import' => $import,
 				'wp_config' => self::config_report( $zip ),
 				// Un punto incremental: se verificó su cadena entera y el respaldo completo que reconstruye.
 				'chain' => $point ? array( 'sequence' => (int) $point['chain']['sequence'], 'links' => (int) $report['chain']['links'], 'files' => (int) $report['chain']['files'], 'trust' => (string) $report['chain']['trust'], 'summary' => (string) $report['chain']['summary'] ) : null,
@@ -1136,7 +1169,7 @@ trait Digitalisimo_Backups_Service {
 		$site = $args['site'] ?? null;
 		if ( null !== $site && '' !== $site && ( ! is_scalar( $site ) || ! preg_match( '/^[0-9]{1,10}$/D', trim( (string) $site ) ) || (int) $site < 1 ) ) return self::service_error( 'site', 'El sitio de la red se elige por su número (1 es el principal).', 400 );
 		try {
-			$queued = Digitalisimo_Backups_Migrate::enqueue_pull( $key, (string) ( $args['via'] ?? 'rest' ), array( 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ), 'site' => null === $site || '' === $site ? 0 : (int) $site ) );
+			$queued = Digitalisimo_Backups_Migrate::enqueue_pull( $key, (string) ( $args['via'] ?? 'rest' ), array( 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ), 'site' => null === $site || '' === $site ? 0 : (int) $site, 'import' => array( 'into' => (string) ( $args['into'] ?? '' ), 'address' => (string) ( $args['address'] ?? '' ) ) ) );
 		} catch ( InvalidArgumentException $e ) {
 			return self::service_error( 'migration_key_invalid', $e->getMessage(), 400 );
 		} catch ( Digitalisimo_Backups_Permanent_Error $e ) {

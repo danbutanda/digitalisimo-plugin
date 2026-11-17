@@ -70,7 +70,7 @@ trait Digitalisimo_Backups_Uploaded_List {
 	 * instalación (uploaded_restorable_scope()).
 	 */
 	private static function uploaded_scope( array $info ) {
-		if ( Digitalisimo_Backups_Site_Extract::SCOPE === (string) ( $info['scope'] ?? '' ) ) return Digitalisimo_Backups_Site_Extract::SCOPE;
+		if ( in_array( (string) ( $info['scope'] ?? '' ), array( Digitalisimo_Backups_Site_Extract::SCOPE, Digitalisimo_Backups_Site_Import::SCOPE ), true ) ) return (string) $info['scope'];
 		return ! empty( $info['multisite'] ) ? 'network' : 'installation';
 	}
 	/**
@@ -78,6 +78,8 @@ trait Digitalisimo_Backups_Uploaded_List {
 	 * red en un sitio individual, uno de sus sitios: trait-backups-network-to-single.php).
 	 */
 	private static function uploaded_restorable_scope( array $row ) {
+		// En una red, el respaldo de un sitio (individual, extraído o la copia de un sitio) se importa como un sitio de la red.
+		if ( Digitalisimo_Backups_Site_Import::row_applies( $row ) ) return true;
 		$scope = (string) ( $row['scope'] ?? '' );
 		if ( Digitalisimo_Backups_Site_Extract::SCOPE === $scope ) return ! is_multisite();
 		if ( self::network_restores_as_site( $row ) ) return true;
@@ -230,7 +232,7 @@ trait Digitalisimo_Backups_Uploaded_List {
 
 	/** Archivos del almacén que «Restaurar un archivo suelto» lista y que se pueden pasar a la lista (o borrar a mano). */
 	public static function loose_name( $file ) {
-		return (bool) preg_match( '/^(?:digitalisimo-[A-Za-z0-9._-]+\.(?:zip|dgbk)|safety-before-restore-[A-Za-z0-9._-]+\.zip|' . preg_quote( Digitalisimo_Backups_Site_Extract::FILE_PREFIX, '/' ) . '[A-Za-z0-9._-]+\.(?:zip|dgbk))$/', (string) $file );
+		return (bool) preg_match( '/^(?:digitalisimo-[A-Za-z0-9._-]+\.(?:zip|dgbk)|safety-before-restore-[A-Za-z0-9._-]+\.zip|' . preg_quote( Digitalisimo_Backups_Site_Extract::FILE_PREFIX, '/' ) . '[A-Za-z0-9._-]+\.(?:zip|dgbk)|' . preg_quote( Digitalisimo_Backups_Site_Import::FILE_PREFIX, '/' ) . '[A-Za-z0-9._-]+\.zip)$/', (string) $file );
 	}
 	/** El aviso de «Agregar al listado»: el origen de un archivo suelto no se conoce. */
 	public static function register_warning() {
