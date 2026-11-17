@@ -73,10 +73,14 @@ trait Digitalisimo_Backups_Uploaded_List {
 		if ( Digitalisimo_Backups_Site_Extract::SCOPE === (string) ( $info['scope'] ?? '' ) ) return Digitalisimo_Backups_Site_Extract::SCOPE;
 		return ! empty( $info['multisite'] ) ? 'network' : 'installation';
 	}
-	/** Una fila subida cuyo alcance se puede restaurar en esta instalación (una red en una red, un sitio en un sitio). */
+	/**
+	 * Una fila subida cuyo alcance se puede restaurar en esta instalación (una red en una red, un sitio en un sitio; una
+	 * red en un sitio individual, uno de sus sitios: trait-backups-network-to-single.php).
+	 */
 	private static function uploaded_restorable_scope( array $row ) {
 		$scope = (string) ( $row['scope'] ?? '' );
 		if ( Digitalisimo_Backups_Site_Extract::SCOPE === $scope ) return ! is_multisite();
+		if ( self::network_restores_as_site( $row ) ) return true;
 		return $scope === ( is_multisite() ? 'network' : 'installation' );
 	}
 	/**
@@ -123,6 +127,8 @@ trait Digitalisimo_Backups_Uploaded_List {
 			),
 		);
 		if ( $chain ) $row['chain'] = $chain;
+		// El respaldo de una red: sus sitios, para elegir cuál se restaura en un WordPress individual.
+		if ( ! empty( $row_info['sites'] ) ) $row['sites'] = (array) $row_info['sites'];
 		if ( Digitalisimo_Backups_Site_Extract::SCOPE === $row['scope'] ) $row['extract'] = array( 'site_id' => 0, 'label' => (string) ( $row_info['extract'] ?? '' ) );
 		self::change_history( function( &$history ) use ( $name, $row ) {
 			$history = array_values( array_filter( $history, function( $entry ) use ( $name ) { return ( $entry['file'] ?? '' ) !== $name; } ) );

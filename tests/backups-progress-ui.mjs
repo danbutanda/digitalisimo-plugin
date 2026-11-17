@@ -461,6 +461,16 @@ await scenario('P15 · la barra nunca retrocede: del punto incremental a su rest
   ok(backup.text(backup.ui.percent) === '81 %' && /vuelve a Archivos y ZIP/.test(backup.text(backup.message)) && /cuando pase de nuevo el 81 %/.test(backup.text(backup.message)) && backup.phases().includes('pack:current'), 'Una fase que vuelve atrás no se dice o la barra retrocede: ' + backup.text(backup.ui.percent) + ' / ' + backup.text(backup.message));
 });
 
+await scenario('P15b · la conversión del sitio de una red ocupa el primer 20 % y su restauración sigue sin retroceder (red → individual)', async () => {
+  const convert = (over = {}) => Object.assign({ id: CHAIN, kind: 'convert', status: 'running', status_label: 'En curso', phase: 'site_files', phase_label: 'Conversión de los archivos del sitio', percent: 60, detail: 'Convirtiendo los archivos del sitio (40 de 90)…', terminal: false, running: true, retry_in: 0, can_cancel: true, origin_label: 'Restaurar el sitio 2 de una red como este WordPress', destination_label: 'antes de restaurar red.zip', created_label: '2026-11-16 10:00', track: [['preflight', 'Comprobaciones', 0], ['site_read', 'Lectura del sitio en el respaldo de la red', 3], ['site_sql', 'Conversión de la base de datos del sitio', 25], ['site_files', 'Conversión de los archivos del sitio', 50], ['site_seal', 'Cierre del sitio convertido', 92], ['site_handoff', 'Entrega a la restauración', 98]], elapsed: 30, restore_job: '' }, over);
+  const page = screen({ view: convert() });
+  const before = parseInt(page.text(page.ui.percent), 10);
+  ok(before === 12 && page.text(page.ui.title) === 'Convirtiendo el sitio de la red en este WordPress' && page.phases().includes('site_files:current'), 'La conversión no se ve como la primera parte de la restauración: ' + before + ' / ' + page.text(page.ui.title) + ' / ' + page.phases());
+  await page.next(page.jobsReply([restoreView('inspect', 1, { from_point: true }), convert({ status: 'success', status_label: 'Completo', phase: 'site_handoff', percent: 100, terminal: true, running: false, can_cancel: false, restore_job: RID })]));
+  const after = parseInt(page.text(page.ui.percent), 10);
+  ok(after >= before && after === 21 && page.text(page.ui.title) === 'Restauración en curso', 'De la conversión a la restauración la barra retrocede o no sigue a la restauración: ' + before + ' -> ' + after + ' / ' + page.text(page.ui.title));
+});
+
 await scenario('P16 · sin sesión, la vista mínima de una que falló marca su fase y la vuelta dice que lo es; la barra no baja (B5, J20)', async () => {
   const page = screen({ view: restoreView('switch', 88), token: 't' });
   const minimal = { id: RID, kind: 'restore', status: 'failed', status_label: 'Fallido', phase: 'switch', phase_label: '', percent: 88, message: '', detail: 'La restauración no terminó bien. Entra al escritorio para ver el detalle y la copia previa.', terminal: true, running: false, retry_in: 0, can_cancel: false, origin_label: 'Restauración', destination_label: '', created_label: '2026-11-15 10:04', track: RESTORE_TRACK, elapsed: 300, parts: 'todo', rollback_of: '', followed_by: '', midway: true };

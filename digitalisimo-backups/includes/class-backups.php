@@ -46,6 +46,9 @@ require_once __DIR__ . '/trait-backups-keep-config.php';
 require_once __DIR__ . '/class-backups-relocate.php';
 require_once __DIR__ . '/class-backups-migrate.php';
 require_once __DIR__ . '/class-backups-site-extract.php';
+// El respaldo de una red en un WordPress individual: el sitio elegido se convierte (trabajo `convert`) y se restaura.
+require_once __DIR__ . '/class-backups-site-convert-job.php';
+require_once __DIR__ . '/trait-backups-network-to-single.php';
 require_once __DIR__ . '/trait-backups-service.php';
 // La pantalla: cuatro pestañas, franja de avisos y lo poco frecuente plegado («interfaz simple», 1.0.74).
 require_once __DIR__ . '/trait-backups-screen.php';
@@ -63,6 +66,7 @@ final class Digitalisimo_Backups {
 	use Digitalisimo_Backups_Remote_Retention; // Retención en el destino remoto (B6) y «sólo en el remoto» (I4).
 	use Digitalisimo_Backups_Remote_Service; // Respaldos en los destinos: listar, sincronizar y traer (B1b, B2, I13).
 	use Digitalisimo_Backups_Keep_Config; // La configuración propia de Backups se conserva al restaurar (H23).
+	use Digitalisimo_Backups_Network_To_Single; // El respaldo de una red en un WordPress individual: un sitio suyo, convertido.
 	/** @internal Lo que la última automatización guardada ajustó («Conservar» recortado), para el mensaje de la pantalla. */
 	private static $automation_notice = '';
 	/** @internal Foto de la configuración propia que anota el próximo diario de la restauración (H23); null: ninguna. */
@@ -1536,6 +1540,11 @@ final class Digitalisimo_Backups {
 			// Una cadena subida y registrada: se sigue validando como no confiable; el informe dice que se subió.
 			if ( 'untrusted' === $report['trust'] ) $report['vouched'] = (string) ( $plan['vouched'] ?? '' );
 			try {
+				// Un punto de una red en un WordPress individual: antes, la conversión del sitio elegido (trabajo `convert`).
+				$network = null;
+				try { $network = self::package_metadata( $report['zip'] ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+				if ( self::network_converts( $network ) ) $restore_job = self::chain_convert( $report, $restore );
+				else {
 				$config = self::config_report( $report['zip'] );
 				$restore_job = self::restore_enqueue( $report, array(
 					'addresses' => 'backup' === ( $restore['addresses'] ?? '' ) ? 'backup' : 'current',
@@ -1552,6 +1561,7 @@ final class Digitalisimo_Backups {
 					'user_id' => (int) ( $restore['user_id'] ?? 0 ),
 					'except' => $except,
 				) );
+				}
 			} finally {
 				Digitalisimo_Backups_Security::close( $report );
 				self::$restore_reader_token = '';
@@ -2615,6 +2625,8 @@ final class Digitalisimo_Backups {
 		echo self::keep_access_fields();
 		echo '<p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label></p>' . self::help_html( 'Sólo para un respaldo cifrado o firmado con una clave que este sitio no tiene (por ejemplo, al restaurar en otro servidor). No se guarda salvo que marques la casilla.' ) . '<p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p>';
 		// Restaurar por partes: las partes enteras (los plugins y temas concretos se eligen desde la fila del respaldo, REST o WP-CLI).
+		// El respaldo de una red en un WordPress individual: el sitio de la red que se restaura (vacío: el principal).
+		if ( ! is_multisite() ) echo '<p><label>Sitio de la red (sólo si el respaldo es de una red; su número, vacío para el principal) <input type="number" name="restore_site" min="1" step="1" value=""></label></p>';
 		echo self::restore_parts_field( '', false, '', true ) . '<p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form>';
 		echo '<script>document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("digitalisimo-backups-restore-file"),p=document.getElementById("digitalisimo-backups-relocation");if(!s||!p)return;var d=p.textContent;s.addEventListener("change",function(){var o=s.options[s.selectedIndex];p.textContent=o&&o.dataset.relocation?o.dataset.relocation:d})})</script>';
 		if ( $loose ) {
@@ -2683,6 +2695,9 @@ final class Digitalisimo_Backups {
 		$manifest = self::manifest_head( $zip );
 		$zip->close();
 		if ( ! is_array( $manifest ) ) return $cache[ $key ] = $none;
+		// El respaldo de una red en un WordPress individual: se restaura un sitio suyo (trait-backups-network-to-single.php).
+		$network = self::network_hint( $manifest );
+		if ( $network ) return $cache[ $key ] = $network;
 		$args = array_key_exists( 'database_tables', $manifest ) ? array( 'tables' => is_array( $manifest['database_tables'] ) ? $manifest['database_tables'] : null ) : array();
 		$plan = Digitalisimo_Backups_Relocate::plan( Digitalisimo_Backups_Relocate::origin_of( $manifest ), $here, $args );
 		$summary = $plan->summary();
@@ -2758,7 +2773,7 @@ final class Digitalisimo_Backups {
 			// navegador sigue la restauración durante el mantenimiento. Nunca con otro trabajo en curso (pisaría su cookie).
 			$token = Digitalisimo_Backups_Jobs::has_active() ? null : Digitalisimo_Backups_Restore_Maintenance::new_token();
 			if ( $token ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( $token );
-			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'keep_access' => $keep, 'keep_admins' => $keep_admins, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false, 'token' => $token ) + self::restore_request_parts() );
+			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'keep_access' => $keep, 'keep_admins' => $keep_admins, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false, 'token' => $token ) + self::restore_request_parts() + self::network_request() );
 			// Si no empezó (o terminó ya en esta petición), la cookie no sirve: se borra (revisión B8).
 			if ( $token && ( is_wp_error( $result ) || empty( $result['restoring'] ) ) ) Digitalisimo_Backups_Restore_Maintenance::clear_cookie();
 			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );

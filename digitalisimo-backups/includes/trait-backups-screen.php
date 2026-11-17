@@ -427,6 +427,8 @@ trait Digitalisimo_Backups_Screen {
 		wp_nonce_field( self::ACTION_RESTORE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><input type="hidden" name="backup_file" value="' . esc_attr( $file ) . '">';
 		echo '<p><strong>Restaurar el respaldo del ' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '.</strong> Antes se guarda una copia del sitio actual; escribe RESTAURAR para confirmar.</p>';
+		// El respaldo de una red en un WordPress individual: qué sitio suyo queda como este WordPress (por defecto el principal).
+		echo self::network_site_field( $item, $path, $shown ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en network_site_field().
 		// Uno subido sin firma con «sólo firmados»: se dice antes de escribir nada (la restauración lo rechazaría).
 		$signed_only = self::uploaded_signed_only_text( $item );
 		if ( '' !== $signed_only ) echo '<p class="digitalisimo-backups-warning">' . esc_html( $signed_only ) . '</p>';

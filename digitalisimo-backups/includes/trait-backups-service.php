@@ -151,6 +151,8 @@ trait Digitalisimo_Backups_Service {
 			// De dónde vino: `created` (hecho aquí), `uploaded` («Subir un respaldo» o «Agregar al listado») o `imported`.
 			'origin' => (string) ( $item['origin'] ?? 'created' ),
 			'uploaded' => self::uploaded_summary( $item ),
+			// El respaldo de una red en un WordPress individual: sus sitios (se restaura uno, `site` en restore).
+			'network_sites' => self::network_restores_as_site( $item ) ? (object) self::network_row_sites( $item ) : null,
 		);
 	}
 	/**
@@ -556,6 +558,15 @@ trait Digitalisimo_Backups_Service {
 					$report = null;
 				}
 			}
+			// El respaldo de una red en un WordPress individual: el sitio elegido (`site`) se convierte por tramos y pasa a la
+			// restauración de siempre (trait-backups-network-to-single.php). `site` no vale para otro respaldo.
+			if ( ! $point ) {
+				$network = null;
+				try { $network = self::package_metadata( $report['zip'] ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+				$convert_job = self::network_converts( $network ) ? self::service_convert_restore( $report, $path, $confirmation, $args, $addresses, $parts ) : self::network_args_problem( $args );
+				if ( is_wp_error( $convert_job ) ) return $convert_job;
+				if ( ! $convert_job ) unset( $convert_job );
+			}
 			// Un punto incremental: su cadena se comprueba aquí (con la frase, si hace falta) y su respaldo completo se
 			// reconstruye por tramos en un trabajo que, al terminar, encola la restauración de siempre.
 			if ( $point ) {
@@ -568,7 +579,7 @@ trait Digitalisimo_Backups_Service {
 			}
 			// Un completo (o un archivo suelto): la apertura, la confirmación y el encolado de siempre. Su cuerpo no cambia de
 			// sangría para no tocar sus líneas (la restauración por partes trabaja sobre ellas).
-			if ( ! isset( $chain_job ) ) {
+			if ( ! isset( $chain_job ) && ! isset( $convert_job ) ) {
 			try {
 				Digitalisimo_Backups_Security::require_confirmation( $report, $confirmation );
 			} catch ( Exception $e ) {
@@ -617,6 +628,7 @@ trait Digitalisimo_Backups_Service {
 		}
 		// Un punto incremental: la reconstrucción y después la restauración, por ticks (en WP-CLI, hasta terminar).
 		if ( isset( $chain_job ) ) return self::chain_outcome( $chain_job, $copies, array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );
+		if ( isset( $convert_job ) ) return self::convert_outcome( $convert_job, $copies, array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );
 		// El resto lo hacen ticks: los de esta petición (en WP-CLI, hasta terminar) y después la pantalla, WP-Cron o REST.
 		$id = (string) $job['id'];
 		$job = self::restore_drive( $id, array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );
@@ -843,6 +855,9 @@ trait Digitalisimo_Backups_Service {
 					'readers' => array( $reader['hash'] ),
 					'user_id' => $user,
 					'notice' => trim( $note ),
+					// Un punto de una red en un WordPress individual: el sitio que se convierte al terminar la reconstrucción.
+					'convert' => array_intersect_key( $args, array_flip( array( 'site', 'super_admins', 'network_secrets' ) ) ),
+					'parts' => self::service_parts( $args ),
 				),
 			);
 			$queued = Digitalisimo_Backups_Jobs::enqueue( $spec );
@@ -875,6 +890,9 @@ trait Digitalisimo_Backups_Service {
 		$id = (string) $chain['id'];
 		$job = self::restore_drive( $id, $cli );
 		$restore_id = (string) ( $job['result']['restore_job'] ?? '' );
+		// Un punto de una red en un WordPress individual: después de reconstruirlo se convierte su sitio (trabajo `convert`).
+		$next = '' !== $restore_id && $job && 'success' === $job['status'] ? Digitalisimo_Backups_Jobs::get( $restore_id ) : null;
+		if ( is_array( $next ) && Digitalisimo_Backups_Site_Convert_Job::KIND === ( $next['spec']['kind'] ?? '' ) ) return self::convert_outcome( $next, $copies, $cli, $reader );
 		if ( $job && 'success' === $job['status'] && '' !== $restore_id ) {
 			$restore = self::restore_drive( $restore_id, $cli );
 			$outcome = self::restore_outcome( $restore, $copies );
@@ -943,7 +961,24 @@ trait Digitalisimo_Backups_Service {
 			$problems = self::package_installation_problems( $data );
 			// «Origen → este sitio»: qué cambiaría al restaurarlo aquí (o por qué no se puede).
 			$relocation = null;
-			if ( ! $problems ) {
+			$convert = null;
+			if ( self::network_converts( $data ) ) {
+				// El respaldo de una red en un WordPress individual: qué sitio se restaura y su «origen → este sitio».
+				if ( ! $lock ) {
+					$lock = self::service_lock();
+					if ( is_wp_error( $lock ) ) { $busy = $lock; $lock = null; return $busy; }
+				}
+				$network = self::network_verify( $report, array( 'addresses' => $addresses ) + $args );
+				if ( is_wp_error( $network ) ) return $network;
+				$problems = $network['problems'];
+				$relocation = $network['relocation'];
+				$convert = $network['convert'];
+				if ( null !== $parts && ! empty( $parts['sites'] ) ) $problems[] = 'En un WordPress individual no se eligen los medios de un sitio de la red: elige el sitio con `site` y la parte «medios» entera.';
+			} else {
+				$wrong = self::network_args_problem( $args );
+				if ( $wrong ) return $wrong;
+			}
+			if ( ! $problems && ! $convert ) {
 				$plan = self::relocation_plan( $data, $source, array( 'addresses' => $addresses ) );
 				$problems = $plan->problems();
 				$relocation = $plan->summary();
@@ -977,6 +1012,8 @@ trait Digitalisimo_Backups_Service {
 				'plugin_version' => (string) ( $data['plugin_version'] ?? '' ),
 				'relocation' => $relocation,
 				'extract' => Digitalisimo_Backups_Site_Extract::summary( $data ),
+				// El respaldo de una red en un WordPress individual: el sitio que se restauraría y los de la red.
+				'convert' => $convert,
 				'wp_config' => self::config_report( $zip ),
 				// Un punto incremental: se verificó su cadena entera y el respaldo completo que reconstruye.
 				'chain' => $point ? array( 'sequence' => (int) $point['chain']['sequence'], 'links' => (int) $report['chain']['links'], 'files' => (int) $report['chain']['files'], 'trust' => (string) $report['chain']['trust'], 'summary' => (string) $report['chain']['summary'] ) : null,
@@ -1095,8 +1132,11 @@ trait Digitalisimo_Backups_Service {
 		if ( is_wp_error( $allowed ) ) return $allowed;
 		if ( 'MIGRAR' !== strtoupper( trim( (string) ( $args['confirm'] ?? '' ) ) ) ) return self::service_error( 'confirm', 'Escribe MIGRAR para confirmar: la migración reemplaza este sitio (con una copia previa para deshacerla).', 400 );
 		if ( ! is_string( $key ) || '' === trim( $key ) ) return self::service_error( 'migration_key_invalid', 'Pega la clave de migración que generaste en el sitio de origen.', 400 );
+		// De una red a un WordPress individual: el sitio de la red que se migra (por defecto, el principal).
+		$site = $args['site'] ?? null;
+		if ( null !== $site && '' !== $site && ( ! is_scalar( $site ) || ! preg_match( '/^[0-9]{1,10}$/D', trim( (string) $site ) ) || (int) $site < 1 ) ) return self::service_error( 'site', 'El sitio de la red se elige por su número (1 es el principal).', 400 );
 		try {
-			$queued = Digitalisimo_Backups_Migrate::enqueue_pull( $key, (string) ( $args['via'] ?? 'rest' ), array( 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ) ) );
+			$queued = Digitalisimo_Backups_Migrate::enqueue_pull( $key, (string) ( $args['via'] ?? 'rest' ), array( 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ), 'site' => null === $site || '' === $site ? 0 : (int) $site ) );
 		} catch ( InvalidArgumentException $e ) {
 			return self::service_error( 'migration_key_invalid', $e->getMessage(), 400 );
 		} catch ( Digitalisimo_Backups_Permanent_Error $e ) {

@@ -770,15 +770,16 @@ final class Digitalisimo_Backups_Site_Extract {
 	 * prefijo el que tenía en ella y su carpeta de medios la suya (`uploads/sites/N`): el motor de E1 pasa todo eso a las
 	 * del destino al restaurar. Las rutas del servidor (ABSPATH, wp-content) son las de la red, que son las mismas.
 	 */
-	public static function origin_block( array $report ) {
-		$origin = Digitalisimo_Backups_Relocate::describe( false );
+	public static function origin_block( array $report, $base = null ) {
+		// $base: el origen de la red cuando el sitio sale de su respaldo (Digitalisimo_Backups_Site_Convert), no de la red viva.
+		$origin = is_array( $base ) ? $base : Digitalisimo_Backups_Relocate::describe( false );
 		$origin['home'] = untrailingslashit( (string) $report['site']['url'] );
 		$origin['siteurl'] = untrailingslashit( (string) ( $report['site']['site_url'] ?? $report['site']['url'] ) );
 		$origin['uploads_dir'] = (string) ( $report['uploads']['basedir'] ?? '' );
 		$origin['prefix'] = (string) $report['source_prefix'];
 		$origin['multisite'] = false;
 		$origin['subdomain'] = false;
-		unset( $origin['network'], $origin['networks'], $origin['sites'], $origin['config'] );
+		unset( $origin['network'], $origin['networks'], $origin['sites'], $origin['config'], $origin['extra_urls'], $origin['oversized'], $origin['rename_problems'], $origin['budget'] );
 		return $origin;
 	}
 	/**
@@ -906,15 +907,21 @@ final class Digitalisimo_Backups_Site_Extract_Export {
 	private $active = array();
 	private $network_active = array();
 	private $blocked = 0;
+	/** Superadministradores de la red: ID => correo (para el recuento del informe). */
+	private $super = array();
 
-	public function __construct( array $site, array $options, array $tables, array $uploads ) {
+	/**
+	 * $prefixes: array( prefijo de la red, prefijo del sitio ) cuando las tablas no son las de esta base de datos (un sitio
+	 * dentro de un respaldo de red: Digitalisimo_Backups_Site_Convert); sin él, los de $wpdb.
+	 */
+	public function __construct( array $site, array $options, array $tables, array $uploads, $prefixes = null ) {
 		global $wpdb;
 		$this->site = $site;
 		$this->options = $options;
 		$this->tables = $tables;
 		$this->uploads = $uploads;
-		$this->base = (string) $wpdb->base_prefix;
-		$this->prefix = (string) $wpdb->get_blog_prefix( $site['id'] );
+		$this->base = is_array( $prefixes ) ? (string) $prefixes[0] : (string) $wpdb->base_prefix;
+		$this->prefix = is_array( $prefixes ) ? (string) $prefixes[1] : (string) $wpdb->get_blog_prefix( $site['id'] );
 	}
 	public function tables() { return $this->tables; }
 	/**
@@ -972,6 +979,7 @@ final class Digitalisimo_Backups_Site_Extract_Export {
 				foreach ( (array) $ids as $id ) $blocked[ (int) $id ] = true;
 			}
 		}
+		$this->super = $super;
 		$this->users = Digitalisimo_Backups_Site_Extract::users( $members, $super, array_unique( $authors ), $admin_emails, (string) $this->options['super_admins'], array_keys( $blocked ) );
 		$this->blocked = count( array_intersect_key( $blocked, array_flip( array_merge( $members, array_keys( $super ) ) ) ) );
 		// Metas por sitio que cada usuario ya tiene: la del sitio principal con el mismo nombre no viaja. Primero los nombres
@@ -994,6 +1002,38 @@ final class Digitalisimo_Backups_Site_Extract_Export {
 			}
 		}
 		$this->max_meta = (int) $wpdb->get_var( 'SELECT MAX(umeta_id) FROM `' . $usermeta . '`' );
+		// Lo que sólo ve la red (historial): tablas sin número de sitio que no viajan. En una red grande no se listan.
+		$this->settle( $network_keys, (int) ( $this->network_values['blog_count'] ?? 0 ) > Digitalisimo_Backups_Site_Extract::LIST_TABLES_UP_TO ? null : Digitalisimo_Backups_Site_Extract::global_plugin_tables( $this->site['id'] ) );
+	}
+	/**
+	 * Lo mismo que prepare() con los datos ya leídos de otra parte (un sitio dentro del SQL de un respaldo de red:
+	 * Digitalisimo_Backups_Site_Convert): las decisiones son las mismas, sólo cambia de dónde salen los datos. $facts:
+	 * `site_values` y `network_values` (nombre => valor ya leído), `network_keys`, `max_option`, `max_meta`, `members`,
+	 * `super` (ID => correo), `authors`, `blocked`, `own_suffixes` (ID => sufijo => true), `present` (opciones que el sitio
+	 * ya tiene: las materializadas se reescriben en su fila) y `excluded_tables` (lista o null).
+	 */
+	public function from_facts( array $facts ) {
+		$this->site_values = (array) ( $facts['site_values'] ?? array() );
+		$this->network_values = (array) ( $facts['network_values'] ?? array() );
+		$this->max_option = (int) ( $facts['max_option'] ?? 0 );
+		$this->max_meta = (int) ( $facts['max_meta'] ?? 0 );
+		$members = array_map( 'intval', (array) ( $facts['members'] ?? array() ) );
+		$super = array();
+		foreach ( (array) ( $facts['super'] ?? array() ) as $id => $email ) $super[ (int) $id ] = (string) $email;
+		$blocked = array_map( 'intval', (array) ( $facts['blocked'] ?? array() ) );
+		$admin_emails = array_filter( array( strtolower( (string) ( $this->site_values['admin_email'] ?? '' ) ) ), 'strlen' );
+		$this->super = $super;
+		$this->users = Digitalisimo_Backups_Site_Extract::users( $members, $super, array_values( array_unique( array_map( 'intval', (array) ( $facts['authors'] ?? array() ) ) ) ), $admin_emails, (string) $this->options['super_admins'], $blocked );
+		$this->blocked = count( array_intersect_key( array_flip( $blocked ), array_flip( array_merge( $members, array_keys( $super ) ) ) ) );
+		$this->own_suffixes = array();
+		foreach ( (array) ( $facts['own_suffixes'] ?? array() ) as $id => $rests ) foreach ( (array) $rests as $rest => $on ) if ( $on ) $this->own_suffixes[ (int) $id ][ (string) $rest ] = true;
+		$this->settle( (array) ( $facts['network_keys'] ?? array() ), array_key_exists( 'excluded_tables', $facts ) && is_array( $facts['excluded_tables'] ) ? array_values( $facts['excluded_tables'] ) : null );
+		foreach ( (array) ( $facts['present'] ?? array() ) as $name ) if ( array_key_exists( (string) $name, $this->materialized['set'] ) ) $this->written[ (string) $name ] = true;
+	}
+	/** Usuarios que viajan: ID => member, admin o author. */
+	public function users() { return $this->users; }
+	/** Plugins, ajustes materializados e informe, con los usuarios ya decididos. $tables: las que no viajan (o null: no se listan). */
+	private function settle( array $network_keys, $tables ) {
 		// Plugins: los del sitio, los activados en la red y este mismo, que es quien restaura en el destino.
 		$this->active = array_values( array_filter( array_map( 'strval', (array) ( $this->site_values['active_plugins'] ?? array() ) ), 'strlen' ) );
 		$this->network_active = array_values( array_filter( array_map( 'strval', array_keys( (array) ( $this->network_values['active_sitewide_plugins'] ?? array() ) ) ), 'strlen' ) );
@@ -1010,14 +1050,12 @@ final class Digitalisimo_Backups_Site_Extract_Export {
 			'source_prefix' => $this->prefix,
 			'network_prefix' => $this->base,
 			'uploads' => array( 'basedir' => $this->uploads['basedir'], 'baseurl' => $this->uploads['baseurl'], 'aliases' => array_values( (array) ( $this->uploads['aliases'] ?? array() ) ) ),
-			'users' => array( 'policy' => (string) $this->options['super_admins'], 'total' => count( $this->users ), 'members' => (int) ( $kinds['member'] ?? 0 ), 'super_admins' => (int) ( $kinds['admin'] ?? 0 ), 'authors' => (int) ( $kinds['author'] ?? 0 ), 'super_admins_left' => count( array_diff_key( $super, array_filter( $this->users, function( $kind ) { return 'author' !== $kind; } ) ) ), 'blocked' => (int) $this->blocked ),
+			'users' => array( 'policy' => (string) $this->options['super_admins'], 'total' => count( $this->users ), 'members' => (int) ( $kinds['member'] ?? 0 ), 'super_admins' => (int) ( $kinds['admin'] ?? 0 ), 'authors' => (int) ( $kinds['author'] ?? 0 ), 'super_admins_left' => count( array_diff_key( $this->super, array_filter( $this->users, function( $kind ) { return 'author' !== $kind; } ) ) ), 'blocked' => (int) $this->blocked ),
 			'plugins' => array( 'active' => $active, 'site' => $this->active, 'network' => $this->network_active ),
 			'themes' => array( 'stylesheet' => (string) ( $this->site_values['stylesheet'] ?? '' ), 'template' => (string) ( $this->site_values['template'] ?? '' ) ),
 			'settings' => array( 'materialized' => $this->materialized['report']['materialized'], 'secrets_withheld' => $this->materialized['report']['secrets'], 'not_copied' => $this->materialized['report']['unknown'], 'inactive' => $this->materialized['report']['inactive'], 'network_secrets' => ! empty( $this->options['network_secrets'] ), 'reset' => array_values( array_intersect( array( 'upload_path', 'upload_url_path' ), array_keys( $this->materialized['set'] ) ) ) ),
 			'network_options' => array_slice( Digitalisimo_Backups_Site_Extract::other_network_options( $network_keys ), 0, Digitalisimo_Backups_Site_Extract::REPORT_LIMIT ),
 		);
-		// Lo que sólo ve la red (historial): tablas sin número de sitio que no viajan. En una red grande no se listan.
-		$tables = (int) ( $this->network_values['blog_count'] ?? 0 ) > Digitalisimo_Backups_Site_Extract::LIST_TABLES_UP_TO ? null : Digitalisimo_Backups_Site_Extract::global_plugin_tables( $this->site['id'] );
 		$this->report['internal'] = array( 'excluded_tables' => null === $tables ? null : array_slice( $tables, 0, Digitalisimo_Backups_Site_Extract::REPORT_LIMIT ), 'excluded_tables_count' => null === $tables ? 0 : count( $tables ) );
 	}
 	public function report() { return $this->report; }

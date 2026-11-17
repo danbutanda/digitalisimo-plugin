@@ -471,18 +471,23 @@ trait Digitalisimo_Backups_Upload_Service {
 			$source = array();
 			$data = self::inspect_package( $report['zip'], 'untrusted' !== $report['trust'], false, $source, true );
 			$problems = self::package_installation_problems( $data );
+			// El respaldo de una red en un WordPress individual: se restaura un sitio suyo, que se elige al restaurarlo.
+			$network = self::network_converts( $data );
+			if ( $network ) $problems = array();
 			// Un punto incremental: se conserva y se restaura con su cadena (sus archivos se buscan en el almacén por nombre).
 			$chain = 'incremental' === ( $data['type'] ?? '' ) ? self::loose_chain_needs( $data ) : null;
 			if ( $chain && $chain['missing'] ) $problems[] = 'Es un punto incremental (' . $chain['sequence'] . ' de su cadena): se restaura con su cadena y faltan en el almacén ' . count( $chain['missing'] ) . ' archivos (' . implode( ', ', array_slice( $chain['missing'], 0, 3 ) ) . ( count( $chain['missing'] ) > 3 ? '…' : '' ) . '). Súbelos o tráelos de su destino con ese nombre.';
 			// «Origen → este sitio», como `verify`: qué cambiaría al restaurarlo aquí (o por qué no se puede).
 			$relocation = null;
-			if ( ! $problems ) {
+			if ( ! $problems && ! $network ) {
 				$plan = self::relocation_plan( $data, $source, array( 'addresses' => 'current' ) );
 				$problems = $plan->problems();
 				$relocation = $plan->summary();
 			}
 			if ( 'untrusted' === $report['trust'] && Digitalisimo_Backups_Security::settings()['require_signed'] ) $problems[] = 'Este sitio sólo restaura respaldos firmados (Backups → Ajustes → Cifrado y firma) y este archivo no tiene una firma válida de una clave de este sitio.';
 			$row = self::uploaded_row_info( $report, $data, $relocation, $problems );
+			$sites = $network ? self::network_sites_of( (array) $source ) : array();
+			if ( $sites ) $row['sites'] = $sites;
 			return array_merge( $summary, array(
 				'container' => (string) $report['container'],
 				'verified' => true,
@@ -501,6 +506,7 @@ trait Digitalisimo_Backups_Upload_Service {
 				'relocation' => $relocation,
 				'wp_config' => self::config_report( $report['zip'] ),
 				'chain' => $chain,
+				'convert' => $network ? array( 'sites' => $sites, 'main' => self::network_main_of( $sites, (array) ( $source['network'] ?? array() ) ), 'text' => 'Es el respaldo de una red y este WordPress es individual: al restaurarlo se elige qué sitio de la red (por defecto, el principal) queda como este WordPress.' ) : null,
 				'_row' => $row,
 			) );
 		} catch ( Exception $e ) {

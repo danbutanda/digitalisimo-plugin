@@ -98,6 +98,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | **Incrementales confiables (cadena íntegra).** Una automatización (o un respaldo manual pedido así) puede ser incremental: un completo empieza la cadena y cada incremental guarda sólo los archivos nuevos o cambiados (por SHA-256), la lista de borrados, el inventario completo del punto y la base de datos entera; nombra a todos sus antecesores por el SHA-256 de su manifiesto firmado. Cada incremental es un punto de restauración completo: restaurarlo (o verificarlo) comprueba antes la cadena entera y reconstruye por tramos (trabajo `chain`) el respaldo completo de ese momento, que entra en la restauración de siempre; sin historial (recuperación ante desastre) el punto y su cadena se reconocen por sus manifiestos, y «Traer al almacén» de un punto trae su cadena. La retención cuenta puntos y nunca borra un eslabón del que dependa un punto conservado (local, remota y manual); un completo nuevo cada N incrementales o D días; «Traer al almacén» de un punto trae su cadena. Ver «Incrementales». | rama `backups/incremental` (sin publicar) | `backups-incremental.php`, `backups-incremental-remote.php`, `tests/playground/backups-incremental.sh` |
 | **Restaurar por partes (decisión del 2026-11-13).** De un respaldo completo (propio, subido, traído de un destino o importado de Backuply) se elige qué vuelve: base de datos, núcleo de WordPress (todo lo que está fuera de wp-content, nunca `wp-config.php`), plugins, temas, medios, mu-plugins y el resto de wp-content; dentro de plugins y temas, plugins o temas concretos (los que trae el respaldo), y en una red, los medios de un sitio. Es la misma restauración por pasos que la completa (la selección viaja en la especificación del trabajo, `parts`; sin ella, todo): la misma verificación del paquete entero (SHA-256, firma, SQL en seco), la copia previa **completa** bloqueada, el mantenimiento, la reanudación y la vuelta automática a la copia previa, que repone sólo las mismas partes; «Volver a la copia previa» igual. Lo que no se eligió no se recorre, ni se compara, ni se prepara, ni se cambia: sin la base de datos ninguna tabla se toca (ningún `RENAME`) y sin una parte de archivos ninguno de sus archivos. Con la base de datos rigen la reubicación de E1, la configuración de Backups de H23 y el acceso de quien restaura de 1.0.76, como en la completa. Los medios sin la base de datos conservan lo subido después (la biblioteca de ahora lo usa) salvo lo que PHP puede ejecutar. Avisos de coherencia (nunca bloquean) antes de confirmar; pantalla («Qué restaurar», plegado y con «Todo» marcado), REST (`parts`, `plugins`, `themes`, `sites` en `verify` y `restore`) y WP-CLI (`--parts`, `--plugins`, `--themes`, `--sites`) con el mismo caso de uso; el informe, el aviso y el correo dicen qué se restauró y qué no. Ver «Restaurar por partes». | sin publicar (rama `backups/selective-restore`) | `backups-restore-parts.php`, `backups-restore-parts-surfaces.php`, `backups-restore-parts-ui.mjs` y, en Playground, `tests/playground/backups-restore-parts.sh` |
 | **Un solo panel de avance para respaldo y restauración (pedido del 2026-11-15).** La restauración se sigue en el mismo panel a todo lo ancho que el respaldo de «Respaldar ahora», en el mismo lugar (bajo el botón; arriba en las demás pestañas): porcentaje, la barra con sus tramos, las fases como pasos (hecha, en curso, pendiente), el paso dentro de la fase, el tiempo y «Cancelar» sólo antes del cambio; al terminar, qué se restauró, avisos, lo retirado y «Volver a la copia previa», o el error y la vuelta a la copia previa que sigue sola. Sobrevive al cambio de tablas (sesión o nonces que dejan de valer: pasa al tick por testigo, que da nonces nuevos a quien conserva su sesión), al 503 del mantenimiento, a cortes de red, a recargar la página y a que muera la petición que la empieza si PHP alcanza a responder (la cookie del testigo sale antes; ver «Quién recibe el testigo y cuándo llega»); si no puede seguir, lo dice y qué hacer. Una restauración que empezó en otra pestaña, por REST o WP-CLI entra al panel (que la sigue con la sesión: el testigo sólo lo tiene quien la empezó, y sólo abre la pantalla de Backups durante el mantenimiento). Con destino remoto, la barra de un respaldo ya no salta al 98 % al empezar la transferencia. Tras la revisión adversarial: «Volver a la copia previa» de una restauración por partes devuelve sólo esas partes; sin sesión de gestión, el tick por testigo sólo da esa restauración y sin rutas; la cookie dura 48 h, la renueva cada tick y se borra al terminar; la barra nunca retrocede. Ver «Pantalla» → «Avance». | sin publicar (rama `backups/restore-progress`) | `backups-progress.php`, `backups-progress-ui.mjs` (fallan con `77678f25`), `backups-restore-parts-ui.mjs` y, en Playground con Chrome, `tests/playground/backups-restore-progress.sh` |
+| **El respaldo de una red se restaura en un WordPress individual (pedido del propietario, 2026-11-16).** «Subí un respaldo y no me deja restaurarlo en otro sitio: me sale la etiqueta “No se restaura aquí”.» Un respaldo de una red (subido, agregado, traído, cifrado, un punto incremental o el paquete de una migración con clave) ya no sale «No se restaura aquí» en un WordPress individual: al restaurarlo se elige **qué sitio de la red** (la lista de sus sitios con su dirección; por defecto, el principal) y ése queda como este WordPress, convertido como «Extraer como WordPress individual» pero **desde el respaldo** (`Digitalisimo_Backups_Site_Convert`, trabajo `convert` por tramos reanudables): sus tablas con el prefijo de aquí, sus miembros con su contraseña y su rol (y quien restaura), los plugins activados en la red en `active_plugins`, su tema, `uploads/sites/N` en `uploads/`, sus direcciones las de aquí y ninguna tabla de la red ni de otros sitios. Después, la restauración de siempre (verificación, copia previa, por pasos, mantenimiento, vuelta a la copia previa, H23, «Conservar mi acceso», por partes). REST y WP-CLI: `site` (`--site`) en `verify`, `restore` y `migrate`. Ver «Restaurar una red en un WordPress individual». | rama `backups/network-to-single` | `backups-network-to-single.php` (falla con `ad515c71`), `backups-progress-ui.mjs` (P15b) y, en Playground con Chrome, `tests/playground/backups-network-to-single.sh` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -236,6 +237,7 @@ destinos por trabajo y restaurar directamente desde un destino remoto.
 | `includes/class-backups-relocate.php` | `Digitalisimo_Backups_Relocate`: reescritor de valores (URL y rutas en serializado, JSON y URL codificadas, sin `unserialize()`), prefijo de tablas y claves, plan de origen a destino (sitio o red) con sus comprobaciones previas, aplicación en la importación (`attach()`) o sobre una base ya importada (`rewrite_tables()`), red, direcciones, cachés y comprobación final (`finish()`). `Digitalisimo_Backups_Relocate_Probe` lee del SQL en seco las direcciones y la red del origen. |
 | `includes/class-backups-migrate.php` | `Digitalisimo_Backups_Migrate`: migración en un clic. Claves de migración (huella de la credencial en `digitalisimo_backups_vault_migration`, clave del paquete envuelta en `migrations/<id>.key` del almacén), su límite de intentos y su registro; la API del origen (`hello`, `package`, `step`, `download`, `finish`, `release`); el tipo de trabajo `migrate` del destino (fases `preflight`, `remote`, `download`, `check`, `restore` y `finish`, registrado con `Digitalisimo_Backups_Jobs::register_kind()`); deshacer; la pestaña «Migrar» y sus acciones `admin-post`. |
 | `includes/class-backups-site-extract.php` | `Digitalisimo_Backups_Site_Extract`: «Extraer como WordPress individual» (alcance `extracted-site`): qué tablas, usuarios, metas, opciones y archivos de un sitio de la red viajan, los ajustes de red DIGITALÍSIMO que se materializan, el bloque `origin` y los pares de URL de los medios que añade al plan de reubicación, y la configuración de Backups del destino que se conserva al restaurar. `Digitalisimo_Backups_Site_Extract_Export` decide fila a fila dentro de la instantánea del exportador. |
+| `includes/class-backups-site-convert.php`, `class-backups-site-convert-job.php`, `trait-backups-network-to-single.php` | El respaldo de una red en un WordPress individual: `Digitalisimo_Backups_Site_Convert` convierte el sitio N de un respaldo de red en un paquete de sitio extraído (las decisiones de la extracción sobre el SQL y los archivos del respaldo; se carga sólo al usarse), el trabajo `convert` lo hace por tramos y lo entrega a la restauración, y el trait reúne lo propio de la pantalla, los casos de uso, la cadena y la migración (ver «Restaurar una red en un WordPress individual»). |
 | `assets/backups-admin.css` | Presentación propia sobre el diseño compartido `digitalisimo-ui/`. |
 
 La configuración y el historial viven en opciones del sitio o de la red; el estado de los trabajos, en el almacén
@@ -731,7 +733,9 @@ sitio y clasifica cada fila candidata con el mismo criterio: `urls` y `paths` (l
 sigue ahí) deben ser 0; `guid`, `kept` (lo que se deja a propósito, también las rutas en el contenido público), `emails`
 y `other` se informan. Un error de la base de datos en la comprobación se avisa; nunca cuenta como 0.
 
-**Comprobaciones previas** (antes de la copia previa y de cualquier escritura, con qué cambiar): sitio individual ↔ red;
+**Comprobaciones previas** (antes de la copia previa y de cualquier escritura, con qué cambiar): sitio individual ↔ red
+(salvo el respaldo de una red en un WordPress individual, que restaura un sitio suyo: «Restaurar una red en un WordPress
+individual»);
 red por subdominios ↔ por subdirectorios («define SUBDOMAIN_INSTALL como …»); `DOMAIN_CURRENT_SITE` o
 `PATH_CURRENT_SITE` definidas en `wp-config.php` con otro dominio o ruta que los que tendrá la red (los de este sitio o,
 con «conservar las del respaldo», los del respaldo); `SITE_ID_CURRENT_SITE` o `BLOG_ID_CURRENT_SITE` que el respaldo no
@@ -1217,7 +1221,7 @@ selección.
   manifiesto, firma o registro, el SQL en seco con el guardián, el plan de origen a destino), aunque sólo se use una
   parte: un paquete con una parte alterada no se restaura por ninguna. El espacio libre cuenta sólo lo elegido. Un
   sitio extraído de una red se restaura entero (sus reglas de cuentas, plugins y ajustes son del paquete entero): por
-  partes, 422.
+  partes, 422; el sitio convertido de un respaldo de red (`converted_from`) sí se restaura por partes.
 - **Copia previa:** la de siempre, un respaldo **completo** bloqueado en el historial. Contiene lo que se va a
   reemplazar (y lo demás). Una copia previa sólo de lo elegido sería un archivo parcial, que esta decisión excluye, y
   exigiría cambiar la creación de respaldos (otra rama en paralelo la está cambiando). Su coste es el de siempre.
@@ -1439,6 +1443,100 @@ miembro del sitio (viaja con su rol del sitio, como cualquier miembro). Al extra
 recorre todas las tablas con el prefijo de la red. La URL `/files/` de una red con `ms_files_rewriting` se comprobó por
 unidad, no en un ensayo con una red así.
 
+## Restaurar una red en un WordPress individual
+
+Pedido del propietario del 2026-11-16: «Subí un respaldo y no me deja restaurarlo en otro sitio: me sale la etiqueta “No
+se restaura aquí”. Revisa a la perfección UpdraftPlus de referencia […] los sitios se podían respaldar entre varios WP sin
+problemas». Desde la rama `backups/network-to-single`, el respaldo de una red se restaura en un WordPress individual igual
+de simple que uno del mismo tipo: en la confirmación se elige **qué sitio de la red** queda como este WordPress.
+
+**Cómo se ve.** La fila del respaldo de la red (subido, agregado, traído de un destino o hecho aquí) ya no lleva «No se
+restaura aquí»: tiene «Restaurar» y su panel dice «Es el respaldo de una red y este WordPress es individual: se restaura
+el sitio *X* de la red como este WordPress (sus tablas, sus usuarios con sus roles, sus plugins, su tema y sus medios); lo
+demás de la red no entra», con la lista de sus sitios (dominio y ruta, el principal marcado y elegido por defecto). La lista
+la guarda la fila al subirlo (`sites`, de la verificación de la subida); una fila anterior la calcula al abrir su panel y
+la guarda; sin poder leerla (un `.dgbk` sin su clave) se pide el número del sitio. En «Más del sitio de la red», como al
+extraer un sitio: los superadministradores que no son miembros (ninguno por defecto) y copiar las claves de la red (no por
+defecto). «Restaurar un archivo suelto» pide el número (vacío: el principal). REST: `site`, `super_admins` y
+`network_secrets` en `verify` y `restore` (y `site` en `POST /migration/pull`); `GET /backups` da `network_sites`; `verify`
+añade `convert` (el sitio, su dirección, los de la red, el principal, sus usuarios, plugins y tema) y el «origen → este
+sitio» con la dirección de ese sitio y su prefijo (`wp_2_ → dst_`). WP-CLI: `--site`, `--super-admins` y
+`--network-secrets` en `verify` y `restore`, y `--site` en `migrate`. `site` en otro respaldo, o `sites` (medios de la red)
+en un WordPress individual, responden 400; un sitio que la red no tiene, 422 con la lista de sus sitios, sin tocar nada.
+
+**Qué queda.** Lo mismo que «Extraer como WordPress individual» aplicado a ese sitio **dentro del respaldo** (no a la red
+viva, que puede no existir): las decisiones son las de `Digitalisimo_Backups_Site_Extract_Export` (ahora `prepare()` lee la
+red viva y `from_facts()` recibe esos mismos datos leídos del SQL del respaldo) y el paquete es el de un sitio extraído
+(alcance `extracted-site`, con `converted_from`):
+
+- sus tablas (las `wp_N_*`; del principal, las `wp_*` que no son de la red ni de otro sitio) con el prefijo de aquí; ni
+  `blogs`, `site`, `sitemeta`, `signups`… ni las de otros sitios;
+- sus miembros con su contraseña y su rol (`wp_N_capabilities` → `<prefijo>capabilities`), los autores sin cuenta sólo con
+  su perfil público, los bloqueados en la red (spam o deleted) nunca como miembros, sus metas propias ganan a las del
+  principal; y quien restaura sigue entrando («Conservar mi acceso», 1.0.76). Los administradores de este WordPress los
+  conserva la pieza común de la rama `backups/keep-site-admins`, en el mismo punto (esta rama no toca
+  `class-restore-access.php`);
+- `active_plugins` = los del sitio + **los activados en la red** (`active_sitewide_plugins`, regla dura: UpdraftPlus los
+  pierde) + Backups; los ajustes de red DIGITALÍSIMO que hereda, materializados; su tema y su padre;
+- archivos: el núcleo (sin `wp-config.php` ni otra configuración de la red), mu-plugins, idiomas, los plugins activos, sus
+  temas y sus medios, que pasan de `uploads/sites/N` (o `blogs.dir/N/files`, o su `upload_path`) a `uploads/`; del
+  principal, `uploads/` sin `sites/`. Los drop-ins de la red no viajan;
+- la reubicación de E1 a la dirección, la ruta, las rutas del servidor y el prefijo de aquí, con las URL de sus medios en
+  la red (también las servidas desde el dominio del principal) a `uploads/`.
+
+**Cómo funciona.** La petición abre el respaldo como siempre (SHA-256, firma, descifrado de un `.dgbk`), pide su
+confirmación (`RESTAURAR`, o `RESTAURAR SIN FIRMA` para uno sin firma ni registro) y encola el trabajo `convert`
+(`Digitalisimo_Backups_Site_Convert_Job`, `includes/class-backups-site-convert-job.php`; la clase que convierte,
+`includes/class-backups-site-convert.php`, se carga sólo al usarse), que por tramos reanudables y sin tocar el sitio:
+copia `database.sql` comprobado contra su manifiesto; lee del SQL lo que la extracción lee de la red viva (sitios, opciones
+del sitio, ajustes de la red, miembros, superadministradores, autores, bloqueados, metas propias; sólo las filas que hacen
+falta, con el guardián SQL); escribe el SQL del sitio (cada sentencia por el guardián; usuarios, metas y opciones por el
+exportador de la extracción); copia al ZIP cada archivo que viaja, **comprobado contra el SHA-256 del manifiesto de la
+red**; cierra el manifiesto v3 del sitio, firmado con la clave del respaldo si este sitio la tiene, y lo entrega a la
+restauración de siempre, que lo vuelve a comprobar entrada por entrada. La confianza es la del respaldo de la red (firmado
+con una clave de aquí: firmado; con la frase escrita o registrado aquí: registrado; subido: «subido», basta `RESTAURAR`;
+sin firma: `RESTAURAR SIN FIRMA`). La conversión cuenta como una restauración en la cola (ningún respaldo empieza mientras
+dura) y se cancela sin que el sitio cambie. El panel de avance la sigue como el primer 20 % de la barra («Convirtiendo el
+sitio de la red en este WordPress», con sus fases) y la restauración, el resto.
+
+**Todo lo de siempre sigue valiendo:** verificación, copia previa completa y bloqueada, trabajo por pasos reanudable,
+mantenimiento, vuelta automática a la copia previa (una falla después del cambio deja el sitio como estaba), H23 (la
+configuración de Backups de aquí se conserva), «Conservar mi acceso», **restaurar por partes** (el sitio convertido sí lo
+admite: sólo la base de datos, sólo los medios, plugins concretos de ese sitio…), incrementales (el punto de la red se
+reconstruye, después se convierte su sitio y después se restaura), cifrado DGBK, subidos, agregados y traídos. La
+**migración con clave** de una red a un WordPress individual ya no se rechaza: la restauración de la migración pasa por
+la misma conversión del sitio elegido (`site`; por defecto el principal), con su copia previa marcada para «Deshacer». Un
+respaldo de una red en una red sigue restaurando la red entera, como siempre.
+
+**Reutilizable.** `Digitalisimo_Backups_Site_Convert::materialize( $report, $options, $almacén, $clave )` convierte en una
+petición el sitio N de un respaldo de red abierto en un paquete de sitio extraído (con `prepare()`, `read_slice()`,
+`sql_slice()`, `files_slice()` y `seal()` por tramos); `inspect_site()` lo describe sin convertirlo. La rama
+`backups/single-to-network` lo usará para «un sitio de una red → otra red».
+
+**UpdraftPlus 1.26.14** (leído, no copiado: `class-updraftplus.php` 5452-5455, `restorer.php`, `includes/migrator-lite.php`):
+con un respaldo de red en un sitio individual sólo avisa «Only the first site of the network will be accessible» y lo
+restaura **todo**: quedan `blogs`, `site`, `sitemeta` y las tablas de los demás sitios, los plugins activados en la red dejan
+de estar activos, los superadministradores dejan de serlo, `uploads/sites/N` se queda en el disco y no se puede elegir otro
+sitio que el primero. Aquí se elige el sitio, queda un WordPress individual limpio y equivalente, y todo pasa por la
+restauración verificada, con copia previa y vuelta atrás. Su migración directa con clave exige el mismo tipo de instalación.
+
+**Límites.** La conversión necesita espacio para el SQL del respaldo, el del sitio y su ZIP (se comprueba antes de copiar).
+Las carpetas de plugins, temas y mu-plugins del respaldo se buscan en las de su `wp-content` (el manifiesto no guarda
+`WP_PLUGIN_DIR` propios). Un archivo enorme se copia entero en un tramo (como al reconstruir un punto): con 30 s, WP-CLI.
+La lista de sitios de la pantalla muestra los 500 primeros (los demás, por su número). Un sitio con dominio propio queda
+con la dirección de aquí, como cualquier sitio extraído. Lo que la extracción ya declara: un plugin que guarda datos del
+sitio fuera de sus tablas y de su carpeta de medios no los lleva, y `ms_files_rewriting` se comprobó por unidad.
+
+**Pruebas.** `tests/backups-network-to-single.php` (falla con el código anterior: N1 a N11, la lista, verify, el sitio 2 y
+el principal, por partes, rechazos, REST y WP-CLI, la vuelta a la copia previa, un `.dgbk`, un punto incremental y la
+migración), `tests/backups-progress-ui.mjs` (P15b) y, en Playground con Chrome,
+`tests/playground/backups-network-to-single.sh`: una red de subdirectorios con el principal y dos sitios (contenido,
+medios, usuarios con roles distintos, un plugin activado en la red y uno por sitio, un tema por sitio), su respaldo
+**subido** a un WordPress individual en otra dirección por «Subir un respaldo», y desde la pantalla el sitio 2 y después el
+principal, con huellas del contenido, los medios servidos desde `uploads/`, los usuarios que entran con su contraseña, los
+plugins activos, ninguna tabla de la red y la portada sin errores; y una restauración con una falla después del cambio que
+vuelve sola a la copia previa.
+
 ## Importar respaldos de Backuply
 
 Desde 1.0.68 (I9 del inventario de brechas). Un sitio que viene de Backuply conserva sus respaldos: Backups los
@@ -1614,10 +1712,9 @@ del origen.
    restauración, una vez encolada, impide que empiece otro. El navegador que hace avanzar la migración recibe el testigo
    de su restauración (como «Restaurar») y la sigue durante el mantenimiento; WP-Cron también.
 
-**Qué se comprueba antes de tocar el destino.** Individual → individual y red → red del mismo tipo (subdominios o
-subdirectorios); si el origen es una red y el `wp-config.php` del destino no la declara, el mensaje dice qué definir
-(`WP_ALLOW_MULTISITE`, crear la red y `MULTISITE`, `SUBDOMAIN_INSTALL`, `DOMAIN_CURRENT_SITE` y `PATH_CURRENT_SITE`) y no
-se descarga nada; que la clave no sea de este mismo sitio; que el destino pueda hacer su copia previa (un respaldo
+**Qué se comprueba antes de tocar el destino.** Individual → individual, red → red del mismo tipo (subdominios o
+subdirectorios) y, desde la rama `backups/network-to-single`, red → individual: se migra el sitio de la red que se elige
+(`site`; por defecto el principal), convertido como al restaurar el respaldo de una red en un WordPress individual; que la clave no sea de este mismo sitio; que el destino pueda hacer su copia previa (un respaldo
 completo); espacio para descargar y descifrar. Después, antes de la copia previa: tamaño y SHA-256 anunciados por el
 origen, cabecera DGBK con la clave de esta migración, descifrado autenticado completo, firma del manifiesto, la
 inspección de archivos no confiables y el guardián SQL, y el plan de reubicación (con el `wp-config.php` de la red).

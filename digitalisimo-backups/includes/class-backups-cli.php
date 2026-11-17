@@ -426,6 +426,15 @@ final class Digitalisimo_Backups_Cli {
 	 * [--sites=<sites>]
 	 * : En una red: los medios de estos sitios (sus números, separados por comas; 1 es el principal).
 	 *
+	 * [--site=<id>]
+	 * : Sólo el respaldo de una red en un WordPress individual: el sitio de la red que se restaura como este WordPress (su número; por defecto, el principal). Ver `verify`.
+	 *
+	 * [--super-admins=<mode>]
+	 * : Con --site: los superadministradores de la red que no son miembros del sitio: none (por defecto), managing o all, como al extraer un sitio.
+	 *
+	 * [--network-secrets]
+	 * : Con --site: copia también las claves y cuentas que el sitio hereda de la red.
+	 *
 	 * [--format=<format>]
 	 * : table o json.
 	 * ---
@@ -433,7 +442,7 @@ final class Digitalisimo_Backups_Cli {
 	 * ---
 	 */
 	public function verify( $args, $assoc_args ) {
-		$report = self::result( Digitalisimo_Backups::service_verify( (string) ( $args[0] ?? '' ), array( 'secret' => self::secret( $assoc_args ), 'addresses' => (string) ( $assoc_args['addresses'] ?? '' ) ) + self::parts( $assoc_args ) ) );
+		$report = self::result( Digitalisimo_Backups::service_verify( (string) ( $args[0] ?? '' ), array( 'secret' => self::secret( $assoc_args ), 'addresses' => (string) ( $assoc_args['addresses'] ?? '' ) ) + self::parts( $assoc_args ) + self::network( $assoc_args ) ) );
 		if ( 'json' === ( $assoc_args['format'] ?? 'table' ) ) {
 			WP_CLI::line( wp_json_encode( $report ) );
 			return;
@@ -454,6 +463,12 @@ final class Digitalisimo_Backups_Cli {
 		if ( ! empty( $report['compatible'] ) && ! empty( $report['access']['applies'] ) && '' !== (string) ( $report['access']['text'] ?? '' ) ) WP_CLI::log( (string) $report['access']['text'] );
 		$trust = array( 'signed' => 'firmado' . ( '' !== $report['key'] ? ' con la clave ' . $report['key'] : '' ), 'provenance' => 'registrado en este sitio', 'untrusted' => 'uploaded' === ( $report['vouched'] ?? '' ) ? 'subido y en la lista, sin firma: se restaura con RESTAURAR' : 'sin firma ni registro: restaurarlo pide RESTAURAR SIN FIRMA' );
 		WP_CLI::success( 'Respaldo íntegro: ' . $report['file'] . ' (' . ( 'dgbk' === $report['container'] ? 'cifrado, ' : '' ) . $report['entries'] . ' entradas, SHA-256 ' . $report['sha256'] . ', ' . ( $trust[ $report['trust'] ] ?? $report['trust'] ) . ').' );
+		// El respaldo de una red en un WordPress individual: qué sitio se restaura y cuáles tiene la red.
+		if ( is_array( $report['convert'] ?? null ) ) {
+			$sites = array();
+			foreach ( array_slice( (array) $report['convert']['sites'], 0, 50, true ) as $id => $site ) $sites[] = $id . ' (' . (string) ( $site['label'] ?? '' ) . ')';
+			WP_CLI::log( (string) $report['convert']['text'] . ' Sitios de la red: ' . implode( ', ', $sites ) . ( count( (array) $report['convert']['sites'] ) > 50 ? '…' : '' ) . '; elige otro con --site=<id>.' );
+		}
 		if ( empty( $report['compatible'] ) ) WP_CLI::warning( 'No se puede restaurar en esta instalación: ' . implode( ' ', (array) $report['problems'] ) );
 		elseif ( ! empty( $report['relocation']['needed'] ) ) WP_CLI::log( $report['relocation']['text'] );
 		// wp-config.php no se restaura: qué constantes del respaldo faltan o difieren aquí (los valores secretos nunca se
@@ -468,6 +483,14 @@ final class Digitalisimo_Backups_Cli {
 	public static function parts( $assoc_args ) {
 		$out = array();
 		foreach ( array( 'parts', 'plugins', 'themes', 'sites' ) as $key ) if ( isset( $assoc_args[ $key ] ) ) $out[ $key ] = '' === (string) $assoc_args[ $key ] && 'parts' === $key ? array() : (string) $assoc_args[ $key ];
+		return $out;
+	}
+	/** El respaldo de una red en un WordPress individual: `--site`, `--super-admins` y `--network-secrets` (los valida el caso de uso). */
+	public static function network( $assoc_args ) {
+		$out = array();
+		if ( isset( $assoc_args['site'] ) ) $out['site'] = (string) $assoc_args['site'];
+		if ( isset( $assoc_args['super-admins'] ) ) $out['super_admins'] = (string) $assoc_args['super-admins'];
+		if ( ! empty( $assoc_args['network-secrets'] ) ) $out['network_secrets'] = true;
 		return $out;
 	}
 	/** Lo que reemplaza una selección por partes, lo que no toca y sus avisos de coherencia (nunca bloquean). */
@@ -518,6 +541,9 @@ final class Digitalisimo_Backups_Cli {
 	 * default: true
 	 * ---
 	 *
+	 * [--site=<id>]
+	 * : Si el origen es una red y este WordPress es individual: el sitio de la red que se migra (su número; por defecto, el principal).
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp digitalisimo-backups migrate --from-key-file=/root/clave-migracion.txt --yes
@@ -527,7 +553,7 @@ final class Digitalisimo_Backups_Cli {
 		$key = self::migration_key( $assoc_args );
 		WP_CLI::confirm( 'La migración reemplaza ' . ( is_multisite() ? 'esta red' : 'este sitio' ) . ' por el del origen (con una copia previa para deshacerla). ¿Continuar?', $assoc_args );
 		$async = ! empty( $assoc_args['async'] );
-		$view = self::result( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => 'MIGRAR', 'network' => ! empty( $assoc_args['network'] ), 'keep_access' => self::flag( $assoc_args, 'keep-access', true ), 'keep_admins' => self::flag( $assoc_args, 'keep-admins', true ), 'via' => 'cli', 'spawn' => $async ) ) );
+		$view = self::result( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => 'MIGRAR', 'network' => ! empty( $assoc_args['network'] ), 'keep_access' => self::flag( $assoc_args, 'keep-access', true ), 'keep_admins' => self::flag( $assoc_args, 'keep-admins', true ), 'site' => $assoc_args['site'] ?? null, 'via' => 'cli', 'spawn' => $async ) ) );
 		$key = '';
 		if ( $async ) {
 			WP_CLI::line( ! empty( $assoc_args['porcelain'] ) ? $view['id'] : 'Migración en cola desde ' . $view['source'] . ' (trabajo ' . $view['id'] . '). La continúan WP-Cron o `wp digitalisimo-backups jobs run`.' );
@@ -610,6 +636,15 @@ final class Digitalisimo_Backups_Cli {
 	 * [--sites=<sites>]
 	 * : En una red: los medios de estos sitios (sus números, separados por comas; 1 es el principal).
 	 *
+	 * [--site=<id>]
+	 * : Sólo el respaldo de una red en un WordPress individual: el sitio de la red que se restaura como este WordPress (su número; por defecto, el principal). Ver `verify`.
+	 *
+	 * [--super-admins=<mode>]
+	 * : Con --site: los superadministradores de la red que no son miembros del sitio: none (por defecto), managing o all, como al extraer un sitio.
+	 *
+	 * [--network-secrets]
+	 * : Con --site: copia también las claves y cuentas que el sitio hereda de la red.
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.zip --confirm=RESTAURAR
@@ -617,6 +652,7 @@ final class Digitalisimo_Backups_Cli {
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.zip --confirm=RESTAURAR --plugins=akismet
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.dgbk --confirm=RESTAURAR --secret-file=/root/frase.txt
 	 *     wp digitalisimo-backups restore digitalisimo-backup-otro-com-20261106-120000-1a2b3c4d.zip --from=sftp --confirm="RESTAURAR SIN FIRMA"
+	 *     wp digitalisimo-backups restore digitalisimo-upload-20261116-101500-1a2b3c4d.zip --site=2 --confirm=RESTAURAR
 	 */
 	public function restore( $args, $assoc_args ) {
 		if ( isset( $assoc_args['from'] ) ) {
@@ -639,7 +675,7 @@ final class Digitalisimo_Backups_Cli {
 				self::parts_preview( array( 'label' => Digitalisimo_Backups_Restore_Parts::label( $selection ), 'replaces' => $describe['replaces'], 'untouched' => $describe['untouched'], 'coherence' => Digitalisimo_Backups_Restore_Parts::coherence( $selection ) ) );
 			}
 		}
-		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'keep_access' => self::flag( $assoc_args, 'keep-access', true ), 'keep_admins' => self::flag( $assoc_args, 'keep-admins', true ), 'via' => 'cli' ) + $parts ) );
+		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'keep_access' => self::flag( $assoc_args, 'keep-access', true ), 'keep_admins' => self::flag( $assoc_args, 'keep-admins', true ), 'via' => 'cli' ) + $parts + self::network( $assoc_args ) ) );
 		WP_CLI::success( 'Restauración terminada desde ' . $result['file'] . '. Copia previa bloqueada: ' . $result['safety_backup'] . '. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 	}
 
