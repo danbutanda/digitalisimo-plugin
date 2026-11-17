@@ -143,7 +143,12 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/verify', array( $route( 'GET, POST', 'verify', array( 'secret' => $secret, 'addresses' => $addresses ) + $import + $parts ) ) );
 		// Junto a `keep_access`: los demás administradores de este sitio (en una red, los superadministradores y los del sitio
 		// principal) siguen entrando con su cuenta al restaurar el respaldo de otra instalación.
-		$keep_admins = array( 'type' => 'boolean', 'default' => true, 'description' => 'Si el respaldo es de otra instalación, los administradores de este sitio (en una red, los superadministradores y los del sitio principal) conservan su usuario, su contraseña y sus contraseñas de aplicación y siguen siendo administradores; una cuenta administradora del respaldo con el mismo usuario se funde con la suya (mismo ID). Con keep_access apagado, quien restaura no se conserva aunque sea administrador. Con un respaldo de esta misma instalación vuelven las cuentas del respaldo.' );
+		$keep_admins = array( 'type' => 'boolean', 'default' => true, 'description' => 'Si el respaldo es de otra instalación, los administradores de este sitio (en una red, los superadministradores y los del sitio principal) conservan su usuario, su contraseña y sus contraseñas de aplicación y siguen siendo administradores; una cuenta del respaldo con el mismo correo es la misma persona y se funde con la suya (mismo ID); una con el mismo usuario y otro correo es otra persona y cambia de usuario. Con keep_access apagado, quien restaura no se conserva aunque sea administrador. Con un respaldo de esta misma instalación vuelven las cuentas del respaldo.' );
+		// Al restaurar, sin decir (revisión A3): encendidos, salvo que el respaldo parezca de este mismo sitio (misma dirección,
+		// prefijo y carpeta, sin la identidad de esta instalación); `verify` dice cuál es el caso (`access.identity`).
+		$auto = ' Sin decirlo: activo, salvo que el respaldo parezca de este mismo sitio (misma dirección, prefijo y carpeta de WordPress o base de datos, sin la identidad de esta instalación en su manifiesto): ahí no se conserva ninguna cuenta de ahora salvo que se pida (verify lo dice en access.identity).';
+		$keep_access_restore = array( 'type' => 'boolean', 'description' => 'Si el respaldo es de otra instalación (otro sitio, un sitio extraído de una red), quien restaura conserva su usuario, su contraseña y sus contraseñas de aplicación. Con un respaldo de esta misma instalación vuelven las cuentas del respaldo. La ruta de acceso de este sitio se conserva siempre al restaurar en otro sitio, con o sin esta opción.' . $auto );
+		$keep_admins_restore = array( 'type' => 'boolean', 'description' => $keep_admins['description'] . $auto );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/restore', array(
 			$route( 'POST', 'restore', array(
 				'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'RESTAURAR, o RESTAURAR SIN FIRMA para un archivo sin firma válida ni registro: la restauración reemplaza la base de datos y los archivos.' ),
@@ -151,8 +156,8 @@ final class Digitalisimo_Backups_Rest {
 				'secret' => $secret,
 				'adopt_secret' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Usar la frase escrita para firmar y cifrar los respaldos nuevos.' ),
 				'addresses' => $addresses,
-				'keep_access' => array( 'type' => 'boolean', 'default' => true, 'description' => 'Si el respaldo es de otra instalación (otro sitio, un sitio extraído de una red), quien restaura conserva su usuario, su contraseña y sus contraseñas de aplicación. Con un respaldo de esta misma instalación vuelven las cuentas del respaldo. La ruta de acceso de este sitio se conserva siempre al restaurar en otro sitio, con o sin esta opción.' ),
-				'keep_admins' => $keep_admins,
+				'keep_access' => $keep_access_restore,
+				'keep_admins' => $keep_admins_restore,
 			) + $import + $parts ),
 		) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/fetch', array( $route( 'POST', 'fetch', array( 'network' => $network ) ) ) );
@@ -299,7 +304,7 @@ final class Digitalisimo_Backups_Rest {
 		if ( is_wp_error( $secret ) ) return $secret;
 		// La restauración es un trabajo por pasos: esta petición avanza lo que cabe en su tiempo y responde 202 si sigue
 		// (con el trabajo y el testigo del mantenimiento); POST /jobs/tick, la pantalla o WP-Cron la terminan.
-		$result = Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'addresses' => (string) $request['addresses'], 'keep_access' => null === $request['keep_access'] ? true : (bool) $request['keep_access'], 'keep_admins' => null === $request['keep_admins'] ? true : (bool) $request['keep_admins'], 'into' => (string) $request['into'], 'address' => (string) $request['address'], 'via' => 'rest', 'sync' => false, 'drive_cli' => false ) + self::parts( $request ) );
+		$result = Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'addresses' => (string) $request['addresses'], 'keep_access' => null === $request['keep_access'] ? null : (bool) $request['keep_access'], 'keep_admins' => null === $request['keep_admins'] ? null : (bool) $request['keep_admins'], 'into' => (string) $request['into'], 'address' => (string) $request['address'], 'via' => 'rest', 'sync' => false, 'drive_cli' => false ) + self::parts( $request ) );
 		if ( is_array( $result ) && ! empty( $result['maintenance_token'] ) ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
 		return self::respond( $result, is_array( $result ) && ! empty( $result['restoring'] ) ? 202 : 200 );
 	}

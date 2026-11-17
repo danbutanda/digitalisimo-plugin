@@ -680,6 +680,9 @@ final class Digitalisimo_Backups_Packer {
 				'table_prefix' => $wpdb->base_prefix,
 				// Direcciones, rutas del servidor y red del origen (1.0.63): con ellas se restaura en otro dominio o servidor.
 				'origin' => Digitalisimo_Backups_Relocate::describe( false ),
+				// La identidad de esta instalación (revisión A3 de 1.0.79): firmada con el manifiesto, dice si el respaldo es de
+				// este mismo sitio aunque vuelva subido o sin su fila (Digitalisimo_Backups::restore_identity()).
+				'installation' => Digitalisimo_Backups::manifest_installation(),
 				'database_tables' => (array) $database['tables'],
 				'multisite' => is_multisite(),
 				'file_count' => $totals['count'] - 1,

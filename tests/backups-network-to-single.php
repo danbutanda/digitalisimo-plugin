@@ -24,6 +24,8 @@
  *   N9  un respaldo de la red cifrado (DGBK) con su frase;
  *   N10 un punto incremental de la red: su cadena se reconstruye, el sitio se convierte y se restaura;
  *   N11 la migración con clave de una red a este WordPress: compatible y con su restauración marcada.
+ * Y (revisión M1 de 1.0.79) `keep_admins` = false llega a la restauración en los tres caminos: la conversión pedida
+ * (N3), el punto incremental (N10) y la migración con clave (N11).
  *
  * Deben fallar con el código anterior: el respaldo de una red no era restaurable en un WordPress individual
  * (uploaded_restorable_scope() y package_installation_problems() lo rechazaban) y no existía la conversión.
@@ -307,7 +309,7 @@ try {
 
 	$destination_tree = n2s_tree( $public );
 	n2s_case( 'N3 restaurar el sitio 2 de la red como este WordPress', function() use ( $file, $db, $public, $store, $destination_tree ) {
-		$restored = Digitalisimo_Backups::service_restore( $file, array( 'confirm' => 'RESTAURAR', 'site' => 2 ) );
+		$restored = Digitalisimo_Backups::service_restore( $file, array( 'confirm' => 'RESTAURAR', 'site' => 2, 'keep_admins' => false ) );
 		n2s_check( ! is_wp_error( $restored ) && true === $restored['restored'], 'La restauración del sitio 2 falló: ' . ( is_wp_error( $restored ) ? $restored->get_error_message() : json_encode( $restored ) ) );
 		n2s_check( false !== strpos( $restored['notice'], 'Se restauró el sitio red.test/dos (ID 2) del respaldo de la red como este WordPress individual' ), 'El aviso no dice qué sitio se restauró: ' . $restored['notice'] );
 		// Tablas: las del sitio con el prefijo de aquí; ninguna de la red ni de otros sitios.
@@ -323,6 +325,8 @@ try {
 		n2s_check( 'del dos' === ( n2s_meta( $db, 'dst_usermeta', 2 )['dst_user-settings'] ?? '' ), 'La meta propia del sitio no ganó a la del principal: ' . json_encode( n2s_meta( $db, 'dst_usermeta', 2 ) ) );
 		foreach ( $db->rows( 'dst_usermeta' ) as $m ) n2s_check( 0 !== strpos( $m['meta_key'], 'wp_' ), 'Quedó una meta con el prefijo de la red: ' . $m['meta_key'] );
 		n2s_check( ! empty( $restored['access']['kept'] ) && 'destino' === $restored['access']['user'], 'Quien restauró no sigue entrando: ' . json_encode( $restored['access'] ?? null ) );
+		// Revisión M1: keep_admins = false llega a la restauración que encola la conversión (antes se perdía: activo).
+		n2s_check( 'off' === ( $restored['access']['admins_state'] ?? '' ), 'keep_admins = false no llegó a la restauración de la conversión: ' . json_encode( $restored['access']['admins_state'] ?? null ) );
 		// Plugins: los activados en la red y los del sitio (regla dura: active_sitewide_plugins → active_plugins), su tema.
 		n2s_check( array( 'digitalisimo-backups/digitalisimo-backups.php', 'plugin-dos/plugin-dos.php', 'red-plugin/red-plugin.php' ) === get_option( 'active_plugins' ) && 'tema-hijo' === get_option( 'stylesheet' ) && 'tema' === get_option( 'template' ), 'Los plugins de la red y del sitio, o su tema, no quedaron activos: ' . json_encode( array( get_option( 'active_plugins' ), get_option( 'stylesheet' ) ) ) );
 		n2s_check( is_array( get_option( 'dst_user_roles' ) ) && isset( get_option( 'dst_user_roles' )['customer'] ), 'Los roles del sitio no quedaron en dst_user_roles.' );
@@ -473,8 +477,9 @@ try {
 		n2s_add( $root . '/punto.zip', $point );
 		$row = n2s_row( $point );
 		n2s_check( $row && true === $row['restorable'] && 'incremental' === $row['type'], 'El punto incremental de la red no se restaura aquí: ' . json_encode( $row ) );
-		$restored = Digitalisimo_Backups::service_restore( $point, array( 'confirm' => 'RESTAURAR', 'site' => 2 ) );
+		$restored = Digitalisimo_Backups::service_restore( $point, array( 'confirm' => 'RESTAURAR', 'site' => 2, 'keep_admins' => false ) );
 		n2s_check( ! is_wp_error( $restored ) && true === $restored['restored'], 'El sitio 2 del punto incremental no se restauró: ' . ( is_wp_error( $restored ) ? $restored->get_error_message() : json_encode( $restored ) ) );
+		n2s_check( 'off' === ( $restored['access']['admins_state'] ?? '' ), 'keep_admins = false no llegó a la restauración del punto incremental (M1): ' . json_encode( $restored['access']['admins_state'] ?? null ) );
 		$titles = array_column( $db->rows( 'dst_posts' ), 'post_title' );
 		n2s_check( in_array( 'Después de la base', $titles, true ) && is_file( $public . '/wp-content/uploads/2026/11/nueva.jpg' ) && 'tema-hijo' === get_option( 'stylesheet' ), 'El sitio no es el del punto (su entrada y su medio nuevos): ' . json_encode( $titles ) );
 	} );
@@ -497,17 +502,23 @@ try {
 		n2s_check( false !== strpos( $without_import, 'sitio nuevo o reemplazando uno' ), 'Sin importación, un individual en una red no se rechazó con el mensaje de elegir: ' . $without_import );
 		n2s_destination( $public, $db, $cap, $roles, $options, $posts, $users, $user );
 		copy( $saved, $store . '/paquete.zip' );
+		// La migración (revisión M1; aquí sólo se lee su especificación): pidió keep_admins = false.
+		$migration = Digitalisimo_Backups_Job_Store::new_id();
+		Digitalisimo_Backups_Job_Store::staging( $migration );
+		Digitalisimo_Backups_Job_Store::write( array( 'id' => $migration, 'kind' => 'import', 'status' => 'success', 'phase' => 'done', 'spec' => array( 'type' => 'migration', 'keep_access' => true, 'keep_admins' => false, 'origin' => array( 'user_id' => 1 ) ), 'created_at' => time() ) );
 		$report = Digitalisimo_Backups_Security::open( $store . '/paquete.zip' );
 		try {
-			$convert = Digitalisimo_Backups::migration_convert( $report, array( 'job' => 'migracion-de-prueba', 'from' => 'https://red.test', 'state' => 'restoring' ), 'migracion-de-prueba', 2 );
+			$convert = Digitalisimo_Backups::migration_convert( $report, array( 'job' => 'migracion-de-prueba', 'from' => 'https://red.test', 'state' => 'restoring' ), $migration, 2 );
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
 		}
 		n2s_check( 'convert' === $convert['spec']['kind'] && 2 === $convert['spec']['convert']['site'] && true === $convert['spec']['restore']['exact_tables'] && 'migracion-de-prueba' === $convert['spec']['restore']['safety_extra']['migration']['job'], 'La conversión de la migración no lleva lo de la migración: ' . json_encode( $convert['spec'] ) );
+		n2s_check( false === ( $convert['spec']['restore']['keep_admins'] ?? null ), 'La conversión de la migración perdió keep_admins = false (M1): ' . json_encode( $convert['spec']['restore'] ) );
 		$done = digi_drive( $convert['id'] );
 		n2s_check( 'success' === $done['status'], 'La conversión de la migración no terminó: ' . json_encode( $done ) );
 		$restore = Digitalisimo_Backups_Jobs::get( (string) Digitalisimo_Backups_Jobs::get( $convert['id'] )['result']['restore_job'] );
 		n2s_check( $restore && 'migration' === $restore['spec']['origin']['via'] && 'migracion-de-prueba' === $restore['spec']['safety_extra']['migration']['job'] && ! empty( $restore['spec']['exact_tables'] ), 'La restauración de la migración no quedó marcada: ' . json_encode( $restore['spec'] ?? null ) );
+		n2s_check( false === ( $restore['spec']['keep_admins'] ?? null ), 'La restauración de la migración perdió keep_admins = false (M1): ' . json_encode( $restore['spec']['keep_admins'] ?? null ) );
 		digi_drive( $restore['id'] );
 		n2s_check( 'tema-hijo' === get_option( 'stylesheet' ), 'La migración no dejó el sitio 2 de la red.' );
 	} );

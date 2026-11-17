@@ -1405,6 +1405,8 @@ final class Digitalisimo_Backups {
 				// Direcciones, rutas del servidor y red del origen: con ellas se restaura en otro dominio o servidor (un sitio
 				// extraído se describe como el WordPress individual que será).
 				'origin' => is_array( $extract ) ? Digitalisimo_Backups_Site_Extract::origin_block( $extract ) : Digitalisimo_Backups_Relocate::describe( false ),
+				// La identidad de esta instalación (revisión A3); un sitio extraído es otra instalación y no la lleva.
+				'installation' => is_array( $extract ) ? array() : self::manifest_installation(),
 				'database_tables' => (array) $database['tables'],
 				'multisite' => is_array( $extract ) ? false : is_multisite(),
 				'file_count' => count( $entries ) - 1,
@@ -1563,8 +1565,8 @@ final class Digitalisimo_Backups {
 					'sync' => false,
 					'wp_config' => $config,
 					'notice' => (string) ( $restore['notice'] ?? '' ),
-					'keep_access' => ! array_key_exists( 'keep_access', $restore ) || ! empty( $restore['keep_access'] ),
-					'keep_admins' => ! array_key_exists( 'keep_admins', $restore ) || ! empty( $restore['keep_admins'] ),
+					'keep_access' => self::keep_choice( $restore, 'keep_access' ),
+					'keep_admins' => self::keep_choice( $restore, 'keep_admins' ),
 					'token' => (string) ( $restore['token'] ?? '' ),
 					'readers' => (array) ( $restore['readers'] ?? array() ),
 					'user_id' => (int) ( $restore['user_id'] ?? 0 ),
@@ -2632,11 +2634,13 @@ final class Digitalisimo_Backups {
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '">' . self::return_field( 'tools', 'restore-file' ) . '<p><select name="backup_file" id="digitalisimo-backups-restore-file"><option value="">Elige un respaldo de Digitalisimo</option>';
 		// «Origen → este sitio» de cada archivo, antes de confirmar (de su manifiesto; un .dgbk lo dice al descifrarlo).
 		$here = Digitalisimo_Backups_Relocate::describe();
-		if ( $local ) { echo '<optgroup label="Historial">'; foreach ( $local as $item ) { $hint = self::relocation_hint( $dir . $item['file'], $here ); echo '<option value="' . esc_attr( $item['file'] ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $item['date'] . ' · ' . $item['file'] . Digitalisimo_Backups_Security::restore_label( $dir . $item['file'], $item ) . $hint['label'] . ( '' !== self::history_notices_text( $item ) ? ' · con avisos' : '' ) ) . '</option>'; } echo '</optgroup>'; }
-		if ( $loose ) { echo '<optgroup label="Archivos del almacén sin registro">'; foreach ( array_slice( $loose, 0, 100 ) as $file ) { $hint = self::relocation_hint( $dir . $file, $here ); echo '<option value="' . esc_attr( $file ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $file . ' · sin registro' . Digitalisimo_Backups_Security::restore_label( $dir . $file ) . $hint['label'] ) . '</option>'; } echo '</optgroup>'; }
+		if ( $local ) { echo '<optgroup label="Historial">'; foreach ( $local as $item ) { $hint = self::relocation_hint( $dir . $item['file'], $here ); echo '<option value="' . esc_attr( $item['file'] ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $item['date'] . ' · ' . $item['file'] . Digitalisimo_Backups_Security::restore_label( $dir . $item['file'], $item ) . $hint['label'] . self::keep_identity_label( $item['file'] ) . ( '' !== self::history_notices_text( $item ) ? ' · con avisos' : '' ) ) . '</option>'; } echo '</optgroup>'; }
+		if ( $loose ) { echo '<optgroup label="Archivos del almacén sin registro">'; foreach ( array_slice( $loose, 0, 100 ) as $file ) { $hint = self::relocation_hint( $dir . $file, $here ); echo '<option value="' . esc_attr( $file ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $file . ' · sin registro' . Digitalisimo_Backups_Security::restore_label( $dir . $file ) . $hint['label'] . self::keep_identity_label( $file ) ) . '</option>'; } echo '</optgroup>'; }
 		echo '</select></p><p class="description" id="digitalisimo-backups-relocation" aria-live="polite">Si viene de otra dirección, carpeta o prefijo de tablas, se reescribe al restaurar.</p>' . self::help_html( 'Qué se reescribe: las URL (también en datos serializados, JSON y URL codificadas, con y sin www, http o https), las rutas del servidor, el prefijo de tablas y las claves que lo llevan y, en una red, el dominio y la ruta de cada sitio. No se tocan la columna guid de las entradas ni los correos.' );
-		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><p><label><input type="radio" name="addresses" value="current" checked> Las de este sitio (' . esc_html( $here['home'] ) . '): las del respaldo se cambian por éstas</label></p><p><label><input type="radio" name="addresses" value="backup"> Las del respaldo: el sitio queda en su dirección original</label></p>' . self::help_html( 'Con las del respaldo, las rutas del servidor y el prefijo de tablas siguen siendo los de este servidor.' ) . '</fieldset>' . self::keep_access_field();
-		// «Conservar mi acceso» y «Conservar los administradores de este sitio» (con el respaldo de otra instalación).
+		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><p><label><input type="radio" name="addresses" value="current" checked> Las de este sitio (' . esc_html( $here['home'] ) . '): las del respaldo se cambian por éstas</label></p><p><label><input type="radio" name="addresses" value="backup"> Las del respaldo: el sitio queda en su dirección original</label></p>' . self::help_html( 'Con las del respaldo, las rutas del servidor y el prefijo de tablas siguen siendo los de este servidor.' ) . '</fieldset>';
+		// «Conservar mi acceso» y «Conservar los administradores de este sitio» (con el respaldo de otra instalación), una
+		// sola vez (revisión M2: dos pares de casillas dejaban pasar keep_admins=1 aunque se desmarcara uno). Marcadas
+		// valen `auto`: con un respaldo que parece de este mismo sitio (la lista lo dice) no se conservan.
 		echo self::keep_access_fields();
 		echo '<p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label></p>' . self::help_html( 'Sólo para un respaldo cifrado o firmado con una clave que este sitio no tiene (por ejemplo, al restaurar en otro servidor). No se guarda salvo que marques la casilla.' ) . '<p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p>';
 		// En una red: si el archivo es el respaldo de un sitio, cómo se importa (el de una red lo ignora).
@@ -2738,10 +2742,12 @@ final class Digitalisimo_Backups {
 		$head = (string) fread( $stream, 1048576 );
 		fclose( $stream );
 		$out = array();
-		foreach ( array( 'home_url', 'site_url', 'table_prefix', 'scope' ) as $name ) if ( preg_match( '/"' . $name . '"\s*:\s*("(?:[^"\\\\]|\\\\.)*")/', $head, $m ) ) $out[ $name ] = json_decode( $m[1] );
+		foreach ( array( 'home_url', 'site_url', 'table_prefix', 'scope', 'database_name', 'created_at' ) as $name ) if ( preg_match( '/"' . $name . '"\s*:\s*("(?:[^"\\\\]|\\\\.)*")/', $head, $m ) ) $out[ $name ] = json_decode( $m[1] );
 		if ( preg_match( '/"multisite"\s*:\s*(true|false)/', $head, $m ) ) $out['multisite'] = 'true' === $m[1];
 		if ( preg_match( '/"origin"\s*:\s*(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})/', $head, $m ) ) $out['origin'] = json_decode( $m[1], true );
 		if ( ! isset( $out['multisite'] ) && isset( $out['origin']['multisite'] ) ) $out['multisite'] = (bool) $out['origin']['multisite'];
+		// La identidad de la instalación (revisión A3: restore_identity_of()).
+		if ( preg_match( '/"installation"\s*:\s*(\{[^{}]*\})/', $head, $m ) ) $out['installation'] = json_decode( $m[1], true );
 		return $out;
 	}
 	/** Informe de la última restauración que reescribió direcciones, rutas o prefijo. */
@@ -2785,8 +2791,10 @@ final class Digitalisimo_Backups {
 			// la termina; la cookie del testigo deja a este navegador verla durante el mantenimiento.
 			// «Conservar mi acceso» y «Conservar los administradores de este sitio»: encendidos salvo que el formulario los
 			// muestre desmarcados.
-			$keep = empty( $_POST['keep_access_shown'] ) || ! empty( $_POST['keep_access'] );
-			$keep_admins = empty( $_POST['keep_admins_shown'] ) || ! empty( $_POST['keep_admins'] );
+			// Sin el campo, o la casilla marcada de serie (`auto`), lo decide la restauración (revisión A3: con un respaldo que
+			// parece de este mismo sitio, no se conservan).
+			$keep = empty( $_POST['keep_access_shown'] ) || 'auto' === ( $_POST['keep_access'] ?? '' ) ? null : ! empty( $_POST['keep_access'] );
+			$keep_admins = empty( $_POST['keep_admins_shown'] ) || 'auto' === ( $_POST['keep_admins'] ?? '' ) ? null : ! empty( $_POST['keep_admins'] );
 			// «Qué restaurar»: con «Todo» marcado (o un formulario sin el campo), todo; si no, las partes marcadas.
 			// El testigo va en la cookie antes de empezar: si esta petición muere en sus primeros tramos (memoria, un proxy), el
 			// navegador sigue la restauración durante el mantenimiento. Nunca con otro trabajo en curso (pisaría su cookie).

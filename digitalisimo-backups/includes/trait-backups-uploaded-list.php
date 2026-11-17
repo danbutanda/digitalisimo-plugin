@@ -18,8 +18,10 @@ defined( 'ABSPATH' ) || exit;
  *   basta RESTAURAR (`vouched` = `uploaded` en Digitalisimo_Backups_Security::open()), porque subirlo ya fue el acto de
  *   confianza de una cuenta con la capability. Atado a los bytes exactos: un archivo que cambie después en el almacén
  *   no coincide con el SHA-256 de su fila y se rechaza.
- * - Otro sitio: H23 (la configuración de Backups de aquí se conserva), «Conservar mi acceso» y la reubicación siguen
- *   tratándolo como de otra instalación (keep_config_same_installation()).
+ * - Otro sitio: H23 (la configuración de Backups de aquí se conserva) y la reubicación siguen tratándolo como de otra
+ *   instalación (keep_config_same_installation()). «Conservar mi acceso» y «Conservar los administradores» miran además la
+ *   identidad firmada en su manifiesto (revisión A3 de 1.0.79, restore_identity()): el respaldo de este mismo sitio subido
+ *   otra vez se restaura como el mismo sitio.
  * - Retención: ni la global ni la de una automatización lo cuentan ni borran su archivo (sólo retiran su fila si se quedó
  *   sin ninguna copia); el tope del historial lo cuenta aparte, con su propio tope de 100 filas subidas o agregadas
  *   (nunca desplaza la fila de un respaldo hecho aquí).

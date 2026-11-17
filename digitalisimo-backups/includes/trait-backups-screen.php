@@ -375,15 +375,18 @@ trait Digitalisimo_Backups_Screen {
 	 * a esos administradores (sólo su usuario). Con uno de esta misma instalación no aplica (vuelven las cuentas del
 	 * respaldo): el texto lo dice. La ruta de acceso de este sitio se conserva siempre, no depende de las casillas. Los campos
 	 * ocultos distinguen «desmarcado» de «sin campo». $help: el texto de ayuda (la migración dice el suyo).
+	 *
+	 * Revisión A3: marcadas de serie valen `auto` (lo decide la restauración: con un respaldo que parece de este mismo
+	 * sitio no se conservan); con $identity 'likely' (ya se sabe que lo parece) salen desmarcadas y marcarlas es pedirlo.
 	 */
-	public static function keep_access_fields( $help = '' ) {
+	public static function keep_access_fields( $help = '', $identity = 'other' ) {
 		$preview = self::keep_access_preview();
 		$names = implode( ', ', array_map( function( $login ) { return '«' . $login . '»'; }, $preview['admins'] ) ) . ( $preview['admins_total'] > count( $preview['admins'] ) ? ' y ' . ( $preview['admins_total'] - count( $preview['admins'] ) ) . ' más' : '' );
-		$html = '<p class="digitalisimo-backups-keep-access"><label><input type="checkbox" name="keep_access" value="1" checked> Conservar mi acceso' . ( '' !== $preview['you'] ? ' (' . esc_html( '«' . $preview['you'] . '»' ) . ')' : '' ) . '</label><input type="hidden" name="keep_access_shown" value="1"></p>';
-		$html .= '<p class="digitalisimo-backups-keep-admins"><label><input type="checkbox" name="keep_admins" value="1" checked> ' . esc_html( ( is_multisite() ? 'Conservar los superadministradores y los administradores del sitio principal' : 'Conservar los administradores de este sitio' ) . ( '' !== $names ? ': ' . $names : ' (no hay otros)' ) ) . '</label><input type="hidden" name="keep_admins_shown" value="1"></p>';
-		return $html . self::help_html( '' !== (string) $help ? (string) $help . ' Los demás administradores de este sitio también siguen entrando con su usuario y su contraseña, como administradores.' : 'Si el respaldo es de otro sitio (o un sitio extraído de una red), tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo, y los demás administradores de este sitio siguen entrando con los suyos, como administradores (si el respaldo tiene una cuenta administradora con el mismo usuario, se funden en una sola con su contenido). Con un respaldo de este mismo sitio vuelven las cuentas del respaldo.' );
+		$box = 'likely' === $identity ? 'value="1"' : 'value="auto" checked';
+		$html = '<p class="digitalisimo-backups-keep-access"><label><input type="checkbox" name="keep_access" ' . $box . '> Conservar mi acceso' . ( '' !== $preview['you'] ? ' (' . esc_html( '«' . $preview['you'] . '»' ) . ')' : '' ) . '</label><input type="hidden" name="keep_access_shown" value="1"></p>';
+		$html .= '<p class="digitalisimo-backups-keep-admins"><label><input type="checkbox" name="keep_admins" ' . $box . '> ' . esc_html( ( is_multisite() ? 'Conservar los superadministradores y los administradores del sitio principal' : 'Conservar los administradores de este sitio' ) . ( '' !== $names ? ': ' . $names : ' (no hay otros)' ) ) . '</label><input type="hidden" name="keep_admins_shown" value="1"></p>';
+		return $html . self::help_html( ( '' !== (string) $help ? (string) $help . ' Los demás administradores de este sitio también siguen entrando con su usuario y su contraseña, como administradores.' : 'Si el respaldo es de otro sitio (o un sitio extraído de una red), tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo, y los demás administradores de este sitio siguen entrando con los suyos, como administradores (una cuenta del respaldo con el mismo correo es la misma persona y se funde con la suya, con su contenido; una con el mismo usuario y otro correo es otra persona y cambia de usuario). Con un respaldo de este mismo sitio vuelven las cuentas del respaldo; con uno que sólo lo parece (misma dirección, prefijo y carpeta, sin la identidad de esta instalación), también, salvo que marques las casillas.' ) . self::keep_access_unsealed_text() );
 	}
-	private static function keep_access_field() { return self::keep_access_fields(); }
 	/** Quién conservaría su acceso (ver Digitalisimo_Backups_Restore_Access::preview()): sólo nombres de usuario. */
 	private static function keep_access_preview() {
 		// Una vez por petición y usuario: la lista pinta las casillas en el panel de cada fila.
@@ -397,21 +400,48 @@ trait Digitalisimo_Backups_Screen {
 		}
 	}
 	/**
-	 * La línea de la confirmación con el respaldo $file de otra instalación (sin la identidad de H23): quiénes siguen
-	 * entrando con su cuenta si se dejan las casillas como están. Vacía con uno de esta misma instalación.
+	 * La línea de la confirmación con el respaldo $file: con uno de otra instalación, quiénes siguen entrando con su cuenta
+	 * si se dejan las casillas como están; con uno que parece de este mismo sitio (revisión A3), que se restaura como el
+	 * mismo sitio y quiénes son los administradores de ahora creados después del respaldo. Vacía con uno de esta misma
+	 * instalación.
 	 */
-	private static function keep_access_summary( $file ) {
+	private static function keep_access_summary( $file, $identity = null ) {
 		try {
-			if ( self::keep_config_same_installation( (string) $file ) ) return '';
+			$identity = null === $identity ? self::restore_identity( (string) $file ) : (string) $identity;
 		} catch ( Throwable $e ) {
 			return '';
 		}
+		if ( 'same' === $identity ) return '';
 		$preview = self::keep_access_preview();
 		$names = array();
 		if ( '' !== $preview['you'] ) $names[] = '«' . $preview['you'] . '» (tú)';
 		foreach ( $preview['admins'] as $login ) $names[] = '«' . $login . '»';
+		$list = implode( ', ', $names ) . ( $preview['admins_total'] > count( $preview['admins'] ) ? ' y ' . ( $preview['admins_total'] - count( $preview['admins'] ) ) . ' más' : '' );
+		if ( 'likely' === $identity ) {
+			$newer = self::keep_access_newer( (string) $file );
+			return 'Parece un respaldo de este mismo sitio (misma dirección, prefijo de tablas y carpeta de WordPress o base de datos) pero no lleva la identidad de esta instalación: se restaura como el mismo sitio y vuelven las cuentas del respaldo con sus contraseñas; las de ahora no se conservan, por si están comprometidas.' . ( $newer ? ' Administradores de ahora creados después del respaldo: ' . implode( ', ', array_map( function( $login ) { return '«' . $login . '»'; }, $newer ) ) . '.' : '' ) . ( $names ? ' Si es de otra instalación y quieres que sigan entrando ' . $list . ', márcalo en «Opciones».' : '' ) . self::keep_access_unsealed_text();
+		}
 		if ( ! $names ) return '';
-		return 'Es el respaldo de otra instalación: siguen entrando con su usuario y su contraseña, como administradores, ' . implode( ', ', $names ) . ( $preview['admins_total'] > count( $preview['admins'] ) ? ' y ' . ( $preview['admins_total'] - count( $preview['admins'] ) ) . ' más' : '' ) . ' (en «Opciones» puedes cambiarlo).';
+		return 'Es el respaldo de otra instalación: siguen entrando con su usuario y su contraseña, como administradores, ' . $list . ' (en «Opciones» puedes cambiarlo).' . self::keep_access_unsealed_text();
+	}
+	/** Los administradores de este sitio creados después de la fecha del respaldo $file (sólo usuarios; revisión A3). */
+	private static function keep_access_newer( $file ) {
+		try {
+			$manifest = self::identity_manifest( (string) $file );
+			$since = is_array( $manifest ) ? (string) ( $manifest['created_at'] ?? '' ) : '';
+			return '' !== $since ? Digitalisimo_Backups_Restore_Access::newer_admins( $since, null, 10 ) : array();
+		} catch ( Throwable $e ) {
+			return array();
+		}
+	}
+	/**
+	 * Revisión B2: sin AUTH_KEY y SECURE_AUTH_KEY propias en wp-config.php no hay con qué cifrar el diario de la
+	 * restauración. Una clave sacada de las sales de la base no serviría: la restauración cambia la base (sus sales son
+	 * las del respaldo tras el cambio de tablas) y el diario se abre después, también tras una muerte; una guardada junto al
+	 * diario no protege nada. Se avisa antes de confirmar.
+	 */
+	private static function keep_access_unsealed_text() {
+		return Digitalisimo_Backups_Credentials::can_encrypt() ? '' : ' Este sitio no tiene AUTH_KEY y SECURE_AUTH_KEY propias en wp-config.php: mientras dura la restauración, su diario (en el almacén privado, con permisos 0600) guardaría sin cifrar los hashes de las contraseñas, las sesiones y las contraseñas de aplicación de las cuentas que se conservan y las claves de la base. Defínelas en wp-config.php antes de restaurar o desmarca las casillas.';
 	}
 	/** «Qué restaurar» (restaurar por partes): ver Digitalisimo_Backups_Restore_Parts::field(). */
 	private static function restore_parts_field( $path = '', $items = false, $link = '', $summary = false ) { return Digitalisimo_Backups_Restore_Parts::field( $path, $items, $link, self::restore_layout() ) . ( $summary ? '<p class="digitalisimo-backups-warning" data-restore-parts-summary hidden></p>' : '' ); }
@@ -441,14 +471,16 @@ trait Digitalisimo_Backups_Screen {
 		// «Volver a la copia previa» desde el panel de avance (?undo=…): qué vuelve y qué no se toca (lo pone el script).
 		echo '<p class="digitalisimo-backups-warning" data-restore-undo hidden></p>';
 		// Con el respaldo de otra instalación: quiénes siguen entrando (quien restaura y los administradores de este sitio).
-		$keep_summary = self::keep_access_summary( $file );
-		if ( '' !== $keep_summary ) echo '<p class="digitalisimo-backups-keep-summary">' . esc_html( $keep_summary ) . '</p>';
+		$identity = 'other';
+		try { $identity = self::restore_identity( $file ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		$keep_summary = self::keep_access_summary( $file, $identity );
+		if ( '' !== $keep_summary ) echo '<p class="digitalisimo-backups-keep-summary' . ( 'likely' === $identity ? ' digitalisimo-backups-warning' : '' ) . '">' . esc_html( $keep_summary ) . '</p>';
 		echo '<p class="digitalisimo-backups-restore-confirm"><label><span class="screen-reader-text">Confirmación</span><input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off" required></label> <button class="button button-primary">Restaurar</button> <a class="digitalisimo-backups-cancel" data-restore-cancel="' . esc_attr( $row_id ) . '" href="' . esc_url( self::tab_url( 'backups' ) ) . '">Cancelar</a></p>';
 		echo self::restore_parts_field( $path, $shown, self::tab_url( 'backups', '', array( 'restore' => rawurlencode( $file ), 'parts' => 1 ) ) . '#' . $row_id );
-		echo '<details class="digitalisimo-backups-restore-options"' . ( $needs_key || '' !== $hint['label'] ? ' open' : '' ) . '><summary>Opciones</summary>';
+		echo '<details class="digitalisimo-backups-restore-options"' . ( $needs_key || '' !== $hint['label'] || 'likely' === $identity ? ' open' : '' ) . '><summary>Opciones</summary>';
 		if ( '' !== $hint['label'] ) echo self::help_html( $hint['text'] );
 		// Al importar en la red, las direcciones son las del sitio de la red y nadie de la red pierde su acceso.
-		if ( ! $import ) echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><label><input type="radio" name="addresses" value="current" checked> Las de este sitio</label> <label><input type="radio" name="addresses" value="backup"> Las del respaldo</label></fieldset>' . self::keep_access_field();
+		if ( ! $import ) echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><label><input type="radio" name="addresses" value="current" checked> Las de este sitio</label> <label><input type="radio" name="addresses" value="backup"> Las del respaldo</label></fieldset>' . self::keep_access_fields( '', $identity );
 		echo '<p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label>' . ( $needs_key ? '<br><span class="description">Este respaldo está cifrado con una clave que este sitio no tiene.</span>' : '' ) . '</p><p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p></details>';
 		echo '</form></td></tr>';
 	}

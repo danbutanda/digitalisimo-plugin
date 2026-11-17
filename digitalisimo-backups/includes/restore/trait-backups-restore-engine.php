@@ -87,8 +87,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'site_id' => (int) get_current_blog_id(),
 			// Conservar el acceso de quien la lanza y de los administradores de este sitio con el respaldo de otra instalación
 			// (encendidos por defecto; ver Digitalisimo_Backups_Restore_Access).
-			'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ),
-			'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ),
+			// null: sin decir (encendidos, salvo que el respaldo parezca de este mismo sitio: keep_resolved()).
+			'keep_access' => self::keep_choice( $args, 'keep_access' ),
+			'keep_admins' => self::keep_choice( $args, 'keep_admins' ),
 			'reader' => array( 'hash' => $reader['hash'], 'issued' => $reader['issued'] ),
 			'readers' => array_values( array_filter( (array) ( $args['readers'] ?? array() ), function( $hash ) { return is_string( $hash ) && preg_match( '/^[0-9a-f]{64}$/D', $hash ); } ) ),
 			'origin' => array(
@@ -1772,12 +1773,15 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$relocated = ! $rollback && null !== self::restore_plan( $job );
 			$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( self::restore_read_json( $job, 'metadata.json' )['scope'] ?? '' );
 			$migration = ! empty( $job['spec']['safety_extra']['migration'] );
-			// «Mismo sitio» es la identidad de la instalación (la de H23: el respaldo tiene fila en el historial de aquí con su
-			// identidad), no la dirección (revisión B6): un respaldo propio de antes de cambiar el prefijo sigue siendo de
-			// este sitio, y uno de otra instalación en la misma dirección (otro servidor), no. Sin identidad, otro sitio.
-			$same = ! $rollback && ! $extracted && ! $migration && self::keep_config_same_installation( (string) ( $job['spec']['file'] ?? '' ) );
-			$keep = ! array_key_exists( 'keep_access', (array) $job['spec'] ) || ! empty( $job['spec']['keep_access'] );
-			$keep_admins = ! array_key_exists( 'keep_admins', (array) $job['spec'] ) || ! empty( $job['spec']['keep_admins'] );
+			// «Mismo sitio» es la identidad de la instalación, no la dirección (revisión B6): la fila hecha aquí (H23) o, subido,
+			// agregado o sin fila, la identidad firmada en su manifiesto (revisión A3 de 1.0.79: restore_identity()). Un
+			// respaldo propio de antes de cambiar el prefijo sigue siendo de este sitio; uno que sólo lo parece (misma
+			// dirección, prefijo y carpeta, sin la identidad) no conserva ninguna cuenta de ahora salvo que se pida.
+			$identity = $rollback || $extracted || $migration ? 'other' : self::restore_identity( (string) ( $job['spec']['file'] ?? '' ), self::restore_read_json( $job, 'metadata.json', false ) );
+			$same = ! $rollback && 'same' === $identity;
+			$keep = self::keep_resolved( self::keep_choice( (array) $job['spec'], 'keep_access' ), $identity );
+			$keep_admins = self::keep_resolved( self::keep_choice( (array) $job['spec'], 'keep_admins' ), $identity );
+			if ( 'likely' === $identity ) $entry['likely_same'] = array( 'access' => null === self::keep_choice( (array) $job['spec'], 'keep_access' ), 'admins' => null === self::keep_choice( (array) $job['spec'], 'keep_admins' ) );
 			$user_id = (int) ( $job['spec']['origin']['user_id'] ?? 0 );
 			$entry['state'] = Digitalisimo_Backups_Restore_Access::decide( $keep, $user_id, ! $same, $rollback );
 			$entry['admins'] = Digitalisimo_Backups_Restore_Access::decide_admins( $keep_admins, ! $same, $rollback );
@@ -1813,10 +1817,12 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// Un diario de antes de conservar a los administradores (1.0.78 o anterior) no trae `admins`: no se conserva a nadie más.
 		$states = array( 'access' => (string) ( $entry['state'] ?? 'same_site' ), 'admins' => (string) ( $entry['admins'] ?? ( 'on' === ( $entry['state'] ?? '' ) || 'off' === ( $entry['state'] ?? '' ) || 'no_user' === ( $entry['state'] ?? '' ) ? 'off' : ( $entry['state'] ?? 'same_site' ) ) ) );
 		$report = Digitalisimo_Backups_Restore_Access::apply( $states, $secret, ! empty( $entry['relocated'] ), $remember );
-		if ( '' !== (string) ( $entry['warning'] ?? '' ) ) {
-			$report['warnings'][] = (string) $entry['warning'];
-			$report['text'] = Digitalisimo_Backups_Restore_Access::text( $report );
-		}
+		// Revisión A3: con un respaldo que sólo parece de este mismo sitio, lo que no se pidió no se conservó (el informe lo dice).
+		$likely = is_array( $entry['likely_same'] ?? null ) ? $entry['likely_same'] : array();
+		$likely = array( 'access' => ! empty( $likely['access'] ) && 'off' === $states['access'], 'admins' => ! empty( $likely['admins'] ) && 'off' === $states['admins'] );
+		if ( $likely['access'] || $likely['admins'] ) $report['likely_same'] = $likely;
+		if ( '' !== (string) ( $entry['warning'] ?? '' ) ) $report['warnings'][] = (string) $entry['warning'];
+		if ( '' !== (string) ( $entry['warning'] ?? '' ) || isset( $report['likely_same'] ) ) $report['text'] = Digitalisimo_Backups_Restore_Access::text( $report );
 		$job = (string) ( $entry['job'] ?? '' );
 		if ( Digitalisimo_Backups_Job_Store::valid_id( $job ) ) {
 			try {
@@ -2537,6 +2543,10 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'admins_kept' => 'on' === ( $access['admins_state'] ?? '' ),
 			'kept_accounts' => array_values( array_map( 'strval', (array) ( $access['kept_accounts'] ?? array() ) ) ),
 			'merged_accounts' => array_values( array_map( 'strval', (array) ( $access['merged_accounts'] ?? array() ) ) ),
+			// Revisión M5: fundidas por el mismo correo cuyo usuario en el respaldo era otro (`login` ← `backup`).
+			'merged_with' => array_values( array_map( function( $pair ) { return array( 'login' => (string) ( $pair['login'] ?? '' ), 'backup' => (string) ( $pair['backup'] ?? '' ) ); }, array_filter( (array) ( $access['merged_with'] ?? array() ), 'is_array' ) ) ),
+			// Revisión A3: el respaldo parecía de este mismo sitio y no se pidió conservar cuentas de ahora.
+			'likely_same' => ! empty( $access['likely_same'] ),
 			'created_accounts' => array_values( array_map( 'strval', (array) ( $access['created_accounts'] ?? array() ) ) ),
 			'renamed_backup' => array_values( array_map( function( $pair ) { return array( 'from' => (string) ( $pair['from'] ?? '' ), 'to' => (string) ( $pair['to'] ?? '' ) ); }, array_filter( (array) ( $access['renamed_backup'] ?? array() ), 'is_array' ) ) ),
 			'users_total' => (int) ( $access['users_total'] ?? 0 ),
