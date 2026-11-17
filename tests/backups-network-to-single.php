@@ -482,15 +482,19 @@ try {
 	n2s_case( 'N11 migración con clave de una red a este WordPress: compatible y marcada', function() use ( $public, $db, $cap, $roles, $options, $posts, $users, $user, $saved, $store ) {
 		$hello = array( 'version' => 1, 'instance' => 'aaaaaaaaaaaaaaaa', 'ready' => true, 'multisite' => true, 'subdomain_install' => false );
 		n2s_check( true === Digitalisimo_Backups_Migrate::compatible( $hello ), 'La migración de una red a un WordPress individual se rechaza.' );
+		// Con la rama de importar en una red (fusionadas en 1.0.79): un individual en una red se acepta como sitio de la
+		// red y sólo se rechaza si no se puede importar (`$import` falso), con un mensaje que pide elegir.
 		$GLOBALS['digi']['multisite'] = true;
+		$single_to_network = Digitalisimo_Backups_Migrate::compatible( array( 'multisite' => false ) + $hello );
 		try {
-			Digitalisimo_Backups_Migrate::compatible( array( 'multisite' => false ) + $hello );
-			$single_to_network = false;
+			Digitalisimo_Backups_Migrate::compatible( array( 'multisite' => false ) + $hello, false );
+			$without_import = '';
 		} catch ( Exception $e ) {
-			$single_to_network = true;
+			$without_import = $e->getMessage();
 		}
 		$GLOBALS['digi']['multisite'] = false;
-		n2s_check( $single_to_network, 'Se aceptó migrar un individual a una red (es de la otra rama).' );
+		n2s_check( true === $single_to_network, 'No se aceptó importar un individual en una red por la migración.' );
+		n2s_check( false !== strpos( $without_import, 'sitio nuevo o reemplazando uno' ), 'Sin importación, un individual en una red no se rechazó con el mensaje de elegir: ' . $without_import );
 		n2s_destination( $public, $db, $cap, $roles, $options, $posts, $users, $user );
 		copy( $saved, $store . '/paquete.zip' );
 		$report = Digitalisimo_Backups_Security::open( $store . '/paquete.zip' );
