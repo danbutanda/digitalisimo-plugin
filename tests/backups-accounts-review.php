@@ -234,7 +234,7 @@ rva_case( 'A4 · red → red de otra instalación: «admin» del respaldo (otra 
 	rva_check( array( array( 'from' => 'admin', 'to' => 'admin-respaldo' ) ) === $report['renamed_backup'], 'El informe no dice que la cuenta del respaldo cambió de usuario.' );
 } );
 
-rva_case( 'A4 · fundida por el mismo correo, lo del respaldo de una cuenta que no era superadministradora se retira (contraseñas de aplicación y claves de API)', function() {
+rva_case( 'A4 · mismo correo, pero la del respaldo no era superadministradora y la de aquí sí: no se funden (revisión N1); la de aquí sigue superadministradora con lo suyo y la del respaldo, con lo que tenía', function() {
 	$GLOBALS['bk_multisite'] = true;
 	$db = rva_db( 'red-a4b', 'wp_', true );
 	rva_user( $db, 'wp_', 1, 'admin', RVA_AQUI, 'y@destino.test', 'administrator', array( '_application_passwords' => rva_apps( array( 'u-aqui' ) ) ) );
@@ -249,9 +249,11 @@ rva_case( 'A4 · fundida por el mismo correo, lo del respaldo de una cuenta que 
 	$GLOBALS['bk_site_options'] = array( 'site_admins' => array( 'root' ) );
 	$report = rva_apply( $sealed );
 	$admin = rva_row( $db, 'wp_', 'admin' );
-	rva_check( $admin && 4 === (int) $admin['ID'] && RVA_AQUI === $admin['user_pass'] && null === rva_row( $db, 'wp_', 'jefe' ), 'No quedó una sola cuenta (la del respaldo, con el usuario y la contraseña de aquí): ' . json_encode( $admin ) );
-	rva_check( array( 'u-aqui' ) === rva_uuids( $db, 'wp_', 4 ) && 0 === count( $db->rows( 'wp_woocommerce_api_keys', 'user_id = 4' ) ), 'Las contraseñas de aplicación o las claves de API de una cuenta que no era superadministradora siguen en una que ahora lo es.' );
-	rva_check( in_array( 'admin', (array) $GLOBALS['bk_site_options']['site_admins'], true ) && array( array( 'login' => 'admin', 'backup' => 'jefe' ) ) === $report['merged_with'] && false !== strpos( $report['text'], 'Se retiraron 1 contraseña(s) de aplicación' ), 'El informe no dice la fusión ni lo retirado: ' . $report['text'] );
+	$jefe = rva_row( $db, 'wp_', 'jefe' );
+	$aid = $admin ? (int) $admin['ID'] : 0;
+	rva_check( $admin && 4 !== $aid && RVA_AQUI === $admin['user_pass'] && array( 'u-aqui' ) === rva_uuids( $db, 'wp_', $aid ) && in_array( 'admin', (array) $GLOBALS['bk_site_options']['site_admins'], true ), '«admin» (superadministradora aquí) no siguió aparte, con su contraseña y como superadministradora: ' . json_encode( $admin ) );
+	rva_check( $jefe && 4 === (int) $jefe['ID'] && array( 'u-jefe' ) === rva_uuids( $db, 'wp_', 4 ) && 1 === count( $db->rows( 'wp_woocommerce_api_keys', 'user_id = 4' ) ) && ! in_array( 'jefe', (array) $GLOBALS['bk_site_options']['site_admins'], true ), '«jefe» del respaldo no quedó con lo que tenía (sin ganar el nivel de superadministrador): ' . json_encode( $jefe ) );
+	rva_check( array() === (array) $report['merged_with'] && in_array( 'jefe', (array) ( $report['shared_emails']['admin'] ?? array() ), true ), 'El informe dice que se fundieron o no avisa del correo compartido: ' . json_encode( array( $report['merged_with'], $report['shared_emails'] ?? null ) ) );
 } );
 
 rva_case( 'A4 · el nivel de superadministrador sólo lo da este sitio: una del respaldo que lo era, fundida con una de aquí que no lo es, deja de serlo', function() {

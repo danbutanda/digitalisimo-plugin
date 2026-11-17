@@ -215,7 +215,7 @@ ksa_case( 'f · dos administradores que chocan con dos cuentas distintas del res
 	ksa_check( array( 'admin' ) === $report['merged_accounts'] && array( array( 'from' => 'soporte', 'to' => 'soporte-respaldo-2' ) ) === $report['renamed_backup'], 'El informe no dice la fusión y el usuario cedido: ' . json_encode( array( $report['merged_accounts'], $report['renamed_backup'] ) ) );
 } );
 
-ksa_case( 'g · otra persona con el mismo usuario cede el suyo sin ganar privilegios; la misma persona (mismo correo) que no era administradora se funde sin su inicio social ni sus contraseñas de aplicación', function() use ( $A, $destination, $package, $capture, $on ) {
+ksa_case( 'g · otra persona con el mismo usuario cede el suyo sin ganar privilegios; una cuenta del respaldo con el correo de un administrador pero que allí no era administradora no se funde (revisión N1)', function() use ( $A, $destination, $package, $capture, $on ) {
 	$db = $destination();
 	$sealed = $capture();
 	$package( $db, array(
@@ -227,13 +227,17 @@ ksa_case( 'g · otra persona con el mismo usuario cede el suyo sin ganar privile
 	$soporte = ksa_row( $db, 'wpkx_', 'soporte' );
 	ksa_check( $client && 7 === (int) $client['ID'] && '$P$Bcliente.cliente.cliente.client' === $client['user_pass'] && ! ksa_is_admin( $db, 'wpkx_', 7 ) && array( 'subscriber' => true ) === @unserialize( (string) ksa_meta( $db, 'wpkx_', 7, 'wpkx_capabilities' ) ), 'La cuenta del respaldo que no era administradora ganó permisos o perdió su contraseña.' );
 	ksa_check( 'SECRETO-DEL-CLIENTE' === ksa_meta( $db, 'wpkx_', 7, '_two_factor_totp_key' ) && array( 'u-cliente' ) === ksa_uuids( $db, 'wpkx_', 7 ) && array( str_repeat( 'y', 64 ) ) === ksa_session_keys( $db, 'wpkx_', 7 ), 'La cuenta del respaldo perdió su segundo factor, sus contraseñas de aplicación o sus sesiones.' );
-	ksa_check( $soporte && 9 === (int) $soporte['ID'] && KSA_SOPORTE === $soporte['user_pass'] && ksa_is_admin( $db, 'wpkx_', 9 ) && array( 'u-soporte' ) === ksa_uuids( $db, 'wpkx_', 9 ), '«soporte» de este sitio perdió su acceso.' );
-	ksa_check( null === ksa_meta( $db, 'wpkx_', 9, '_two_factor_totp_key' ) && null === ksa_meta( $db, 'wpkx_', 9, 'nsl_google_id' ) && array( str_repeat( 'b', 64 ) ) === ksa_session_keys( $db, 'wpkx_', 9 ), 'La cuenta administradora heredó un modo de entrar de la del respaldo (inicio social, segundo factor o sesiones).' );
-	// Por correo: «compras» (cliente del respaldo con el correo de «admin») es la misma persona: queda una sola cuenta «admin»
-	// con su ID, sin su inicio social y sin su contraseña de aplicación (era cliente: abriría una administradora).
+	$sid = $soporte ? (int) $soporte['ID'] : 0;
+	ksa_check( $soporte && $sid > 8 && KSA_SOPORTE === $soporte['user_pass'] && ksa_is_admin( $db, 'wpkx_', $sid ) && array( 'u-soporte' ) === ksa_uuids( $db, 'wpkx_', $sid ), '«soporte» de este sitio perdió su acceso.' );
+	ksa_check( null === ksa_meta( $db, 'wpkx_', $sid, '_two_factor_totp_key' ) && null === ksa_meta( $db, 'wpkx_', $sid, 'nsl_google_id' ) && array( str_repeat( 'b', 64 ) ) === ksa_session_keys( $db, 'wpkx_', $sid ), 'La cuenta administradora heredó un modo de entrar de la del respaldo (inicio social, segundo factor o sesiones).' );
+	// Por correo (revisión N1): «compras» (cliente del respaldo con el correo de «admin», quizá cambiado sin confirmarlo) no
+	// era administradora allí, así que no es «la misma persona»: no se funde, sigue como cliente con lo suyo, y «admin» de
+	// este sitio se conserva aparte, administradora, con su contraseña y sin el inicio social del cliente.
+	$compras = ksa_row( $db, 'wpkx_', 'compras' );
+	ksa_check( $compras && 8 === (int) $compras['ID'] && ! ksa_is_admin( $db, 'wpkx_', 8 ) && 'google-de-compras' === ksa_meta( $db, 'wpkx_', 8, 'nsl_google_id' ) && array( 'u-compras' ) === ksa_uuids( $db, 'wpkx_', 8 ), 'La cuenta cliente del respaldo con el correo de «admin» se fundió o perdió lo suyo: ' . json_encode( $compras ) );
 	$admin = ksa_row( $db, 'wpkx_', 'admin' );
-	ksa_check( $admin && 8 === (int) $admin['ID'] && KSA_ADMIN === $admin['user_pass'] && ksa_is_admin( $db, 'wpkx_', 8 ) && null === ksa_row( $db, 'wpkx_', 'compras' ), '«admin» no quedó fundida con la cuenta del respaldo de su correo: ' . json_encode( $admin ) );
-	ksa_check( null === ksa_meta( $db, 'wpkx_', 8, 'nsl_google_id' ) && array( 'u-admin' ) === ksa_uuids( $db, 'wpkx_', 8 ) && 1 === (int) $report['app_passwords']['dropped_from_backup'], 'La cuenta fundida conserva el inicio social o la contraseña de aplicación de una cuenta que era cliente: ' . json_encode( array( ksa_meta( $db, 'wpkx_', 8, 'nsl_google_id' ), ksa_uuids( $db, 'wpkx_', 8 ) ) ) );
+	ksa_check( $admin && 8 !== (int) $admin['ID'] && KSA_ADMIN === $admin['user_pass'] && ksa_is_admin( $db, 'wpkx_', (int) $admin['ID'] ) && array( 'u-admin' ) === ksa_uuids( $db, 'wpkx_', (int) $admin['ID'] ) && null === ksa_meta( $db, 'wpkx_', (int) $admin['ID'], 'nsl_google_id' ), '«admin» de este sitio no se conservó aparte como administradora: ' . json_encode( $admin ) );
+	ksa_check( array() === (array) $report['merged_accounts'] && 0 === (int) ( $report['app_passwords']['dropped_from_backup'] ?? 0 ) && in_array( 'compras', (array) ( $report['shared_emails']['admin'] ?? array() ), true ), 'El informe no dice que «admin» comparte correo con «compras» o dice que se fundieron: ' . json_encode( array( $report['merged_accounts'], $report['shared_emails'] ?? null ) ) );
 	ksa_check( array( array( 'from' => 'soporte', 'to' => 'soporte-respaldo' ) ) === $report['renamed_backup'] && false !== strpos( $report['text'], '«soporte-respaldo»' ), 'El informe no dice que la cuenta del respaldo cedió su usuario: ' . $report['text'] );
 } );
 

@@ -35,7 +35,8 @@ defined( 'ABSPATH' ) || exit;
  * **Choques con una cuenta del respaldo** (plan_accounts(): se deciden juntas sobre las tablas restauradas antes de
  * escribir nada y la decisión va cifrada al diario, así que una segunda pasada tras una muerte sigue la misma; regla de la
  * revisión M5 de 1.0.79):
- *  - **mismo correo → la misma persona**, una sola cuenta (`merge`): la del respaldo, con su ID (la autoría no cambia),
+ *  - **mismo correo → la misma persona** si la cuenta del respaldo ya era administradora allí (superadministradora, si
+ *    aquí lo es; revisión N1), una sola cuenta (`merge`): la del respaldo, con su ID (la autoría no cambia),
  *    sus datos y sus metas, y el usuario, la contraseña, el correo, las sesiones, el segundo factor, el inicio social y el
  *    rol de aquí, sin marcas de bloqueo. Las metas de segundo factor e inicio social del respaldo (FACTOR_META y las
  *    tablas de USER_TABLES, p. ej. Wordfence) se retiran. Sus contraseñas de aplicación y sus claves de API sólo siguen si
@@ -443,7 +444,8 @@ final class Digitalisimo_Backups_Restore_Access {
 	/**
 	 * Qué se hará con cada cuenta que se conserva, decidido sobre las tablas restauradas ANTES de cambiar nada (revisión
 	 * M1, B1), una entrada por cuenta y en su orden. La regla (revisión M5 de 1.0.79):
-	 *  - **mismo correo → la misma persona** (`merge`): la cuenta del respaldo con su correo (antes la del mismo usuario;
+	 *  - **mismo correo → la misma persona** (`merge`), sólo si la cuenta del respaldo era administradora allí
+	 *    (superadministradora, si aquí lo es; revisión N1: si no, no se funden y el informe avisa del correo compartido): la cuenta del respaldo con su correo (antes la del mismo usuario;
 	 *    una por cuenta) queda como la de aquí, con su ID (la autoría no cambia) y sus datos, y el usuario, la contraseña, el
 	 *    correo, las sesiones, el segundo factor, el inicio social y el rol de aquí. Si su usuario era otro, toma el de aquí
 	 *    (`merged_from`) y la cuenta del respaldo que tuviera ese usuario lo cede (`renamed`). Sus contraseñas de aplicación
@@ -472,8 +474,15 @@ final class Digitalisimo_Backups_Restore_Access {
 			$email = self::email_key( $one['user']['user_email'] ?? '' );
 			if ( '' === $email ) continue;
 			$pick = null;
+			// Revisión N1: el mismo correo sólo hace a la misma persona si la cuenta del respaldo ya era administradora allí
+			// (superadministradora, si aquí lo es). Si no (un cliente que cambió su correo sin confirmarlo, por ejemplo), no se
+			// funden: no gana el rol de aquí ni conserva sus otras vías de entrada; se renombra o se crea aparte.
+			$here_super = is_multisite() && ! empty( $one['super_admin'] );
 			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::q( $users ) . ' WHERE user_email = %s ORDER BY ID', (string) $one['user']['user_email'] ), ARRAY_A ) as $candidate ) {
 				if ( self::email_key( $candidate['user_email'] ?? '' ) !== $email || isset( $claimed[ (int) $candidate['ID'] ] ) ) continue;
+				$candidate_super = self::in_site_admins( (string) $candidate['user_login'] );
+				$candidate_caps = self::array_value( (string) self::meta_of( (int) $candidate['ID'], self::blog_prefix( $options ) . 'capabilities' ) );
+				if ( $here_super ? ! $candidate_super : ( ! $candidate_super && empty( $candidate_caps['administrator'] ) ) ) continue;
 				if ( (string) $candidate['user_login'] === $login ) { $pick = $candidate; break; }
 				if ( ! $pick ) $pick = $candidate;
 			}
