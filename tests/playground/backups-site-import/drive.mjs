@@ -253,6 +253,9 @@ check(run?.job?.status === 'success' && two.blogname === 'Tienda del origen' && 
 check(two.files?.['2026/11/origen.png'] === origin.media_sha && !two.files?.['2026/11/dos.png'], 'los medios del sitio 2 son los del respaldo', JSON.stringify(two.files));
 const copy = (state.history || []).find((r) => r.scope === 'network-site' && r.site_copy === 2);
 check(copy && copy.locked && run?.job?.result?.restore?.safety_backup === copy.file, 'la copia previa es sólo la del sitio 2 y queda bloqueada', JSON.stringify({ copy, safety: run?.job?.result?.restore?.safety_backup }));
+await go(screen);
+const copyRow = copy ? await rowOf(copy.file) : null;
+check(copyRow && /Copia del sitio: red\.test\/dos/.test(copyRow.text) && /Bloqueado/.test(copyRow.text) && copyRow.restore, 'la lista muestra la copia del sitio 2 («Copia del sitio», bloqueada, con «Restaurar»)', copyRow?.text);
 check(state.users?.dueno2?.roles?.[2]?.includes('administrator') && (await probe('auth', `&login=dueno2&pass=${encodeURIComponent(red.passwords.dueno2)}`)).ok, 'el administrador del sitio 2 sigue siéndolo y entra con su contraseña');
 check((await loginAs('dueno2', red.passwords.dueno2, '/dos/wp-admin/')).ok, 'el administrador del sitio 2 entra a su escritorio tras el reemplazo');
 check(JSON.stringify(others(before, [1, id])) === JSON.stringify(others(state, [1, id])), 'el principal y el sitio nuevo no cambiaron con el reemplazo', differs(others(before, [1, id]), others(state, [1, id])));

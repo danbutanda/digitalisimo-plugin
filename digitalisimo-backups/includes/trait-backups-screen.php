@@ -324,6 +324,7 @@ trait Digitalisimo_Backups_Screen {
 		if ( 'dgbk' === ( $item['container'] ?? '' ) ) $badges[] = Digitalisimo_Backups_Security::history_badge( $item );
 		if ( '' !== self::history_notices_text( $item ) ) $badges[] = '<span class="digitalisimo-backups-badge is-warning" title="' . esc_attr( self::history_notices_text( $item ) ) . '">Con avisos</span>';
 		if ( $extract ) $badges[] = '<span class="digitalisimo-backups-badge">Sitio extraído' . ( '' !== (string) ( $item['extract']['label'] ?? '' ) ? ': ' . esc_html( (string) $item['extract']['label'] ) : '' ) . '</span>';
+		elseif ( Digitalisimo_Backups_Site_Import::SCOPE === $scope ) $badges[] = '<span class="digitalisimo-backups-badge" title="Copia previa de una importación en la red: sus tablas, las metas de sus usuarios en él y sus medios">Copia del sitio' . ( '' !== (string) ( $item['site_copy']['label'] ?? '' ) ? ': ' . esc_html( (string) $item['site_copy']['label'] ) : '' ) . '</span>';
 		elseif ( ! in_array( $scope, array( 'installation', 'network' ), true ) ) $badges[] = '<span class="digitalisimo-backups-badge">Exportación anterior</span>';
 		if ( $badges ) echo ' ' . implode( ' ', $badges );
 		echo '</td><td data-label="Tamaño">' . esc_html( size_format( (int) ( $item['size'] ?? 0 ) ) ) . '</td><td data-label="Dónde">' . esc_html( self::copies_label( $item ) ) . '</td><td class="digitalisimo-backups-actions">';
