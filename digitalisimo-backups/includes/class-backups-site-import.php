@@ -426,7 +426,7 @@ final class Digitalisimo_Backups_Site_Import {
 				if ( ! empty( $a['rollback'] ) ) { $journal['map'][ $old ] = 0; $journal['kind'][ $old ] = 'missing'; $journal['skipped'][] = $login; continue; }
 				if ( $by_email ) { self::note_user( $journal, $old, (int) $by_email[0]['ID'], 'email' ); continue; }
 				// La copia de un sitio restaurada desde la lista (revisión de 1.0.79, M3): quien ya no está en la red (borrado,
-				// o con otro correo y otro nombre) no vuelve con su contraseña de entonces; su contenido queda sin autor.
+				// o que cambió de correo) no vuelve con su contraseña de entonces; su contenido queda sin autor.
 				if ( ! empty( $a['copy'] ) ) { $journal['map'][ $old ] = 0; $journal['kind'][ $old ] = 'missing'; $journal['skipped'][] = $login; continue; }
 				$name = self::free_login( $login, $users, array_values( $journal['pending'] ) );
 				$journal['pending'][ $old ] = $name;
