@@ -6,14 +6,17 @@
  *   a · la decisión: sólo al reubicar, con un sitio extraído o en una migración, encendido por defecto, nunca en el mismo
  *       sitio (tras un hackeo no se reviven las credenciales de ahora) ni en la vuelta a la copia previa;
  *   b · el caso del incidente: el paquete trae «digitalisimo» (su contraseña de aplicación y la ruta privada de la red) y
- *       no trae «admin». Después: «admin» existe con su mismo hash, sus sesiones y su contraseña de aplicación, como
- *       administrador; «digitalisimo» sigue igual; `using_application_passwords` queda activo (sin él WordPress no mira
- *       ninguna contraseña de aplicación: la causa del 401 `rest_not_logged_in`); la ruta de acceso es la de este sitio
- *       (wp-login.php) y el informe dice la URL efectiva sin la ruta del respaldo ni ningún secreto;
+ *       no trae «admin», con el mismo correo. Desde la revisión M5 de 1.0.79 el mismo correo es la misma persona: queda
+ *       una sola cuenta, la de «digitalisimo» (su ID y su contenido), con el usuario «admin», su mismo hash, sus sesiones,
+ *       su contraseña de aplicación y la del respaldo (que vale con «admin» o con el correo), como administrador;
+ *       `using_application_passwords` queda activo (sin él WordPress no mira ninguna contraseña de aplicación: la causa
+ *       del 401 `rest_not_logged_in`); la ruta de acceso es la de este sitio (wp-login.php) y el informe dice la URL
+ *       efectiva y la fusión sin la ruta del respaldo ni ningún secreto;
  *   c · aplicarlo dos veces (el diario tras una muerte) deja lo mismo;
- *   d · el paquete tiene el mismo usuario sin ser administrador: esa cuenta pasa a ser la de quien restaura (mismo ID, así
- *       la autoría no cambia) y sus contraseñas de aplicación se retiran (ganarían permisos de administrador);
- *   e · el paquete tiene el mismo usuario y era administrador: se conservan las suyas junto a las de quien restaura;
+ *   d · el paquete tiene el mismo usuario con otro correo (otra persona): conserva todo con otro usuario y la cuenta de
+ *       quien restaura se crea aparte;
+ *   e · el paquete tiene el mismo usuario y el mismo correo y era administrador: se conservan sus contraseñas de aplicación
+ *       junto a las de quien restaura;
  *   f · la ruta privada de este sitio se conserva aunque el respaldo no traiga opciones de Tools ni de SEO;
  *   g · el diario lleva todo cifrado con la clave de este servidor (ningún hash en claro) y lo alterado no abre;
  *   h · la ficha de lectura: sólo la suya (o la heredada), sin caducar;
@@ -89,10 +92,10 @@ $destination = function() {
 	return $db;
 };
 /** Lo que deja el cambio de tablas con el paquete extraído del sitio 1 de la red: «digitalisimo» y la ruta privada de la red. */
-$package = function( Bk_Sqlite_DB $db, array $users = array() ) {
+$package = function( Bk_Sqlite_DB $db, array $users = array(), $red_email = 'dueno@ejemplo.test' ) {
 	foreach ( array( 'users', 'usermeta', 'options' ) as $table ) $db->pdo->exec( 'DROP TABLE `wpkx_' . $table . '`' );
 	ka_schema( $db, 'wpkx_' );
-	ka_user( $db, 'wpkx_', 1, 'digitalisimo', KA_RED, 'dueno@ejemplo.test', array( 'wpkx_capabilities' => serialize( array( 'administrator' => true ) ), 'wpkx_user_level' => '10', '_application_passwords' => serialize( array( ka_app( 'u-red', 'MCP de la red' ) ) ) ) );
+	ka_user( $db, 'wpkx_', 1, 'digitalisimo', KA_RED, $red_email, array( 'wpkx_capabilities' => serialize( array( 'administrator' => true ) ), 'wpkx_user_level' => '10', '_application_passwords' => serialize( array( ka_app( 'u-red', 'MCP de la red' ) ) ) ) );
 	foreach ( $users as $user ) ka_user( $db, 'wpkx_', $user[0], $user[1], $user[2], $user[3], $user[4] );
 	ka_options( $db, 'wpkx_', array( 'active_plugins' => serialize( array( 'digitalisimo-backups/digitalisimo-backups.php', 'digitalisimo-tools/digitalisimo-tools.php', 'digitalisimo-seo/digitalisimo-integrations.php' ) ) ) );
 	// get_option() de la prueba lee $GLOBALS['bk_options']: las opciones del paquete (sin using_application_passwords, que
@@ -111,7 +114,7 @@ ka_case( 'a · se conserva sólo con un respaldo de otra instalación, encendido
 	ka_check( 'rollback' === $A::decide( true, 5, true, true ), 'La vuelta a la copia previa conservaría acceso.' );
 } );
 
-ka_case( 'b · el caso de /wp: «admin» sigue entrando, la contraseña de aplicación de «digitalisimo» vale y la ruta es la de este sitio', function() use ( $A, $destination, $package, $capture ) {
+ka_case( 'b · el caso de /wp: «admin» sigue entrando (fundida con «digitalisimo», su mismo correo), la contraseña de aplicación del respaldo vale y la ruta es la de este sitio', function() use ( $A, $destination, $package, $capture ) {
 	$db = $destination();
 	// Un wp-config.php sin LOGGED_IN_KEY ni LOGGED_IN_SALT: WordPress las guarda en la base (la cookie depende de ellas).
 	$GLOBALS['bk_site_options']['logged_in_key'] = 'sal-del-destino-0123456789';
@@ -125,24 +128,23 @@ ka_case( 'b · el caso de /wp: «admin» sigue entrando, la contraseña de aplic
 	$admin = $db->rows( 'wpkx_users', "user_login = 'admin'" );
 	ka_check( 1 === count( $admin ), 'La cuenta de quien restauró no existe tras restaurar.' );
 	$id = (int) $admin[0]['ID'];
-	ka_check( 2 === $id && KA_HASH === $admin[0]['user_pass'] && 'dueno@ejemplo.test' === $admin[0]['user_email'], 'La cuenta no tiene su ID libre, su hash o su correo: ' . json_encode( array( $id, $admin[0]['user_email'] ) ) );
-	ka_check( KA_RED === $db->value( 'wpkx_users', 'user_pass', 'ID = 1' ) && 'digitalisimo' === $db->value( 'wpkx_users', 'user_login', 'ID = 1' ), '«digitalisimo» del paquete cambió.' );
+	ka_check( 1 === $id && KA_HASH === $admin[0]['user_pass'] && 'dueno@ejemplo.test' === $admin[0]['user_email'] && 1 === count( $db->rows( 'wpkx_users' ) ), 'No quedó una sola cuenta (la de «digitalisimo», su mismo correo) con su hash y su correo: ' . json_encode( array( $id, $admin[0]['user_email'] ) ) );
 	ka_check( array( 'administrator' => true ) === unserialize( (string) ka_meta( $db, 'wpkx_', $id, 'wpkx_capabilities' ) ) && '10' === ka_meta( $db, 'wpkx_', $id, 'wpkx_user_level' ), '«admin» no quedó como administrador con el prefijo de este sitio.' );
 	ka_check( ka_sessions( str_repeat( 'a', 64 ) ) !== null && array_keys( (array) unserialize( (string) ka_meta( $db, 'wpkx_', $id, 'session_tokens' ) ) ) === array( str_repeat( 'a', 64 ) ), 'Las sesiones de «admin» no volvieron (la cookie de su navegador dejaría de valer).' );
-	$apps = (array) unserialize( (string) ka_meta( $db, 'wpkx_', $id, '_application_passwords' ) );
-	ka_check( 1 === count( $apps ) && 'u-admin' === $apps[0]['uuid'], 'La contraseña de aplicación de «admin» no volvió: ' . json_encode( $apps ) );
-	ka_check( 'es_MX' === ka_meta( $db, 'wpkx_', $id, 'locale' ), 'El perfil de la cuenta creada no viajó.' );
+	$apps = array_column( (array) unserialize( (string) ka_meta( $db, 'wpkx_', $id, '_application_passwords' ) ), 'uuid' );
+	sort( $apps );
+	ka_check( array( 'u-admin', 'u-red' ) === $apps, 'La contraseña de aplicación de «admin» no volvió o se perdió la del respaldo (era administradora): ' . json_encode( $apps ) );
 	ka_check( 'sal-del-destino-0123456789' === $GLOBALS['bk_site_options']['logged_in_key'] && 'otra-sal-del-destino-0123456789' === $GLOBALS['bk_site_options']['logged_in_salt'], 'Las claves de la base de este sitio no volvieron (la cookie de «admin» dejaría de valer).' );
 	ka_check( false === strpos( json_encode( $report ), 'sal-del-destino' ), 'El informe lleva una clave.' );
 	ka_check( true === ( $GLOBALS['bk_options']['using_application_passwords'] ?? null ), 'using_application_passwords no quedó activo: WordPress no comprobaría ninguna contraseña de aplicación (401 rest_not_logged_in).' );
-	ka_check( ! empty( $report['app_passwords']['enabled_here'] ) && 2 === (int) $report['app_passwords']['users_with'], 'El informe no dice que las contraseñas de aplicación se activaron: ' . json_encode( $report['app_passwords'] ) );
+	ka_check( ! empty( $report['app_passwords']['enabled_here'] ) && 1 === (int) $report['app_passwords']['users_with'], 'El informe no dice que las contraseñas de aplicación se activaron: ' . json_encode( $report['app_passwords'] ) );
 	ka_check( '' === $A::effective_slug() && '' === $GLOBALS['bk_options']['digitalisimo_tools_site_options']['values']['login_slug'] && '' === $GLOBALS['bk_options']['digitalisimo_integrations_options']['seo_hide_login_slug'], 'La ruta privada de la red quedó (wp-login.php daría 404).' );
 	ka_check( 1 === $GLOBALS['bk_options']['digitalisimo_tools_site_options']['values']['redirect_attachments'] && 'x' === $GLOBALS['bk_options']['digitalisimo_integrations_options']['seo_title'], 'Se perdieron otros ajustes de Tools o SEO.' );
-	ka_check( 'created' === $report['account'] && 'admin' === $report['user'] && 'standard' === $report['login_path']['kept'] && ! empty( $report['login_path']['backup_differed'] ), 'El informe no dice qué pasó: ' . json_encode( $report ) );
-	ka_check( array( 'digitalisimo' ) === ( $report['shared_email'] ?? null ), 'El informe no avisa del correo compartido con «digitalisimo».' );
-	ka_check( in_array( 'admin', $report['admins'], true ) && in_array( 'digitalisimo', $report['admins'], true ), 'El informe no dice quién puede entrar: ' . json_encode( $report['admins'] ) );
+	ka_check( 'merged' === $report['account'] && 'admin' === $report['user'] && 'standard' === $report['login_path']['kept'] && ! empty( $report['login_path']['backup_differed'] ), 'El informe no dice qué pasó: ' . json_encode( $report ) );
+	ka_check( array( array( 'login' => 'admin', 'backup' => 'digitalisimo' ) ) === $report['merged_with'] && 1 === (int) $report['app_passwords']['kept_from_backup'], 'El informe no dice que «admin» se fundió con «digitalisimo»: ' . json_encode( $report['merged_with'] ) );
+	ka_check( array( 'admin' ) === $report['admins'], 'El informe no dice quién puede entrar: ' . json_encode( $report['admins'] ) );
 	$text = (string) $report['text'];
-	ka_check( 0 === strpos( $text, 'Cómo entrar ahora: ' ) && false !== strpos( $text, '«admin»' ), 'El texto no empieza por cómo entrar: ' . $text );
+	ka_check( 0 === strpos( $text, 'Cómo entrar ahora: ' ) && false !== strpos( $text, '«admin»' ) && false !== strpos( $text, 'como «digitalisimo» (la misma persona)' ), 'El texto no empieza por cómo entrar o no dice la fusión: ' . $text );
 	ka_check( false === strpos( json_encode( $report ), 'acceso-red' ) && false === strpos( json_encode( $report ), KA_HASH ) && false === strpos( json_encode( $report ), '$generic$' ), 'El informe lleva la ruta del respaldo o un secreto.' );
 } );
 
@@ -152,15 +154,15 @@ ka_case( 'c · aplicarlo otra vez (el diario tras una muerte) deja lo mismo', fu
 	$package( $db );
 	$A::apply( 'on', $A::open( $sealed ), true );
 	$second = $A::apply( 'on', $A::open( $sealed ), true );
-	ka_check( 1 === count( $db->rows( 'wpkx_users', "user_login = 'admin'" ) ) && 2 === count( $db->rows( 'wpkx_users' ) ), 'Repetirlo creó otra cuenta.' );
-	ka_check( 1 === count( $db->rows( 'wpkx_usermeta', "user_id = 2 AND meta_key = '_application_passwords'" ) ) && 1 === count( (array) unserialize( (string) ka_meta( $db, 'wpkx_', 2, '_application_passwords' ) ) ), 'Repetirlo duplicó metas o contraseñas.' );
+	ka_check( 1 === count( $db->rows( 'wpkx_users', "user_login = 'admin'" ) ) && 1 === count( $db->rows( 'wpkx_users' ) ), 'Repetirlo creó otra cuenta.' );
+	ka_check( 1 === count( $db->rows( 'wpkx_usermeta', "user_id = 1 AND meta_key = '_application_passwords'" ) ) && 2 === count( (array) unserialize( (string) ka_meta( $db, 'wpkx_', 1, '_application_passwords' ) ) ), 'Repetirlo duplicó metas o contraseñas.' );
 	ka_check( 0 === (int) ( $second['app_passwords']['dropped_from_backup'] ?? 0 ), 'Repetirlo retiró contraseñas propias: ' . json_encode( $second['app_passwords'] ) );
 } );
 
-ka_case( 'd · M1: el mismo usuario en el paquete sin ser administrador conserva todo y cambia de usuario; la de quien restaura se crea aparte', function() use ( $A, $destination, $package, $capture ) {
+ka_case( 'd · M1: el mismo usuario en el paquete con otro correo conserva todo y cambia de usuario; la de quien restaura se crea aparte', function() use ( $A, $destination, $package, $capture ) {
 	$db = $destination();
 	$sealed = $capture( 1 );
-	$package( $db, array( array( 7, 'admin', '$P$suscriptor', 'otra@ejemplo.test', array( 'wpkx_capabilities' => serialize( array( 'subscriber' => true ) ), '_application_passwords' => serialize( array( ka_app( 'u-ajena', 'Ajena' ) ) ), 'session_tokens' => ka_sessions( str_repeat( 'b', 64 ) ), '_two_factor_totp_key' => 'SECRETO-DEL-CLIENTE', 'nsl_google_id' => 'google-del-cliente' ) ) ) );
+	$package( $db, array( array( 7, 'admin', '$P$suscriptor', 'otra@ejemplo.test', array( 'wpkx_capabilities' => serialize( array( 'subscriber' => true ) ), '_application_passwords' => serialize( array( ka_app( 'u-ajena', 'Ajena' ) ) ), 'session_tokens' => ka_sessions( str_repeat( 'b', 64 ) ), '_two_factor_totp_key' => 'SECRETO-DEL-CLIENTE', 'nsl_google_id' => 'google-del-cliente' ) ) ), 'red@ejemplo.test' );
 	$report = $A::apply( 'on', $A::open( $sealed ), true );
 	$admin = $db->rows( 'wpkx_users', "user_login = 'admin'" );
 	ka_check( 1 === count( $admin ) && 8 === (int) $admin[0]['ID'] && KA_HASH === $admin[0]['user_pass'] && 'dueno@ejemplo.test' === $admin[0]['user_email'], 'La cuenta de quien restaura no se creó aparte con su usuario: ' . json_encode( $admin ) );
@@ -180,7 +182,7 @@ ka_case( 'd · B1: una muerte a mitad sigue la decisión anotada en el diario y 
 	$property->setValue( null, $entry );
 	bk_call( 'Digitalisimo_Backups', 'write_restore_journal' );
 	$property->setValue( null, null );
-	$package( $db, array( array( 7, 'admin', '$P$suscriptor', 'otra@ejemplo.test', array( 'wpkx_capabilities' => serialize( array( 'subscriber' => true ) ), '_application_passwords' => serialize( array( ka_app( 'u-ajena', 'Ajena' ) ) ) ) ) ) );
+	$package( $db, array( array( 7, 'admin', '$P$suscriptor', 'otra@ejemplo.test', array( 'wpkx_capabilities' => serialize( array( 'subscriber' => true ) ), '_application_passwords' => serialize( array( ka_app( 'u-ajena', 'Ajena' ) ) ) ) ) ), 'red@ejemplo.test' );
 	// La primera pasada muere (una sentencia falla) tras dejar la cuenta nueva sin su rol.
 	$db->fail_on = 'wpkx_capabilities';
 	bk_call( 'Digitalisimo_Backups', 'restore_access_apply', $entry );
@@ -196,10 +198,10 @@ ka_case( 'd · B1: una muerte a mitad sigue la decisión anotada en el diario y 
 	ka_check( array( 'subscriber' => true ) === unserialize( (string) ka_meta( $db, 'wpkx_', 7, 'wpkx_capabilities' ) ), 'La cuenta del paquete ganó permisos.' );
 } );
 
-ka_case( 'e · el mismo usuario en el paquete y administrador: fusión con sus contraseñas de aplicación y sin marcas de bloqueo (B9)', function() use ( $A, $destination, $package, $capture ) {
+ka_case( 'e · el mismo usuario y correo en el paquete y administrador: fusión con sus contraseñas de aplicación y sin marcas de bloqueo (B9)', function() use ( $A, $destination, $package, $capture ) {
 	$db = $destination();
 	$sealed = $capture( 1 );
-	$package( $db, array( array( 7, 'admin', '$P$otroadmin', 'dueno@ejemplo.test', array( 'wpkx_capabilities' => serialize( array( 'administrator' => true ) ), '_application_passwords' => serialize( array( ka_app( 'u-suya', 'Suya' ), ka_app( 'u-admin', 'Misma' ) ) ) ) ) ) );
+	$package( $db, array( array( 7, 'admin', '$P$otroadmin', 'dueno@ejemplo.test', array( 'wpkx_capabilities' => serialize( array( 'administrator' => true ) ), '_application_passwords' => serialize( array( ka_app( 'u-suya', 'Suya' ), ka_app( 'u-admin', 'Misma' ) ) ) ) ) ), 'red@ejemplo.test' );
 	$db->pdo->exec( 'UPDATE wpkx_users SET user_status = 1, spam = 1, deleted = 1 WHERE ID = 7' );
 	$report = $A::apply( 'on', $A::open( $sealed ), true );
 	$uuids = array_column( (array) unserialize( (string) ka_meta( $db, 'wpkx_', 7, '_application_passwords' ) ), 'uuid' );
@@ -263,7 +265,9 @@ ka_user( $origin, 'wp_', 1, 'digitalisimo', KA_RED, 'red@ejemplo.test', array( '
 ka_options( $origin, 'wp_', array( 'siteurl' => 'https://origen.test', 'home' => 'https://origen.test', 'blogname' => 'Origen', 'active_plugins' => serialize( array( 'digitalisimo-backups/digitalisimo-backups.php' ) ) ) );
 $GLOBALS['wpdb'] = $origin;
 $file = basename( bk_backup() );
-// Con su fila y la identidad de esta instalación (H23): un respaldo de este mismo sitio.
+// $file es «de otra instalación»: su identidad (revisión A3, en su manifiesto) deja de ser la de aquí al cambiar el
+// identificador del almacén. Con su fila y la identidad de esta instalación (H23): un respaldo de este mismo sitio.
+@unlink( bk_storage() . '/.installation-id' );
 $own = basename( bk_backup( true ) );
 $engine = function( $keep, $home = 'https://digitalisimo.mx/wp', $prefix = 'wpkx_', $backup = null, $drive = true ) use ( $file ) {
 	$db = ka_db( 'motor-' . $prefix . md5( $home . (string) $backup . (string) $keep . (string) $drive ), $prefix );
@@ -314,7 +318,8 @@ ka_case( 'i · B6: «mismo sitio» es la identidad de la instalación, no la dir
 	// Un respaldo propio (su fila con la identidad de aquí) restaurado con otro prefijo: mismo sitio, no se conserva nada.
 	list( $db, $result ) = $engine( true, 'https://origen.test', 'wpkx_', $own );
 	ka_check( 0 === count( $db->rows( 'wpkx_users', "user_login = 'admin'" ) ) && 'same_site' === ( $result['access']['state'] ?? '' ), 'Un respaldo de esta instalación restaurado con otro prefijo conservó la cuenta de ahora: ' . json_encode( $result['access'] ?? null ) );
-	// Uno de otra instalación (sin fila) en la misma dirección y con el mismo prefijo (otro servidor): se conserva.
+	// Uno de otra instalación (sin fila) en la misma dirección y con el mismo prefijo (otro servidor): parece de este sitio
+	// (revisión A3), así que se conserva si se pide (keep_access = true).
 	list( $db, $result ) = $engine( true, 'https://origen.test', 'wp_' );
 	ka_check( 1 === count( $db->rows( 'wp_users', "user_login = 'admin'" ) ) && 'on' === ( $result['access']['state'] ?? '' ), 'Un respaldo de otra instalación en la misma dirección dejó fuera a quien restaura: ' . json_encode( $result['access'] ?? null ) );
 	// Y el propio en la misma dirección y prefijo: mismo sitio.
@@ -361,7 +366,7 @@ ka_case( 'i · si el proceso muere justo tras el cambio de tablas, el diario rep
 	$path = bk_storage() . '/' . Digitalisimo_Backups::RESTORE_JOURNAL;
 	ka_check( DIRECTORY_SEPARATOR !== '/' || 0600 === ( fileperms( $path ) & 0777 ), 'El diario no es privado.' );
 	ka_check( false === strpos( (string) file_get_contents( $path ), KA_HASH ), 'El diario lleva el hash en claro.' );
-	$package( $db );
+	$package( $db, array(), 'red@ejemplo.test' );
 	bk_close_dead_locks();
 	Digitalisimo_Backups::release_operation_lock( Digitalisimo_Backups::try_operation_lock() );
 	ka_check( ! file_exists( $path ), 'El diario no se aplicó.' );
@@ -384,7 +389,7 @@ ka_case( 'i · B3: si el proceso muere antes del cambio de tablas, el diario no 
 	ka_check( ! file_exists( $report ), 'El diario aplicó el acceso sobre las tablas sin cambiar y dejó su informe.' );
 	// El tick siguiente vuelve a apuntar, cambia las tablas y aplica.
 	$entry['secret'] = $capture( 1 );
-	$package( $db );
+	$package( $db, array(), 'red@ejemplo.test' );
 	bk_call( 'Digitalisimo_Backups', 'restore_access_apply', $entry );
 	$final = json_decode( (string) file_get_contents( $report ), true );
 	ka_check( 'created' === ( $final['account'] ?? '' ) && in_array( 'digitalisimo', (array) ( $final['admins'] ?? array() ), true ) && 2 === (int) ( $final['users_total'] ?? 0 ), 'El informe no es el de después del cambio de tablas: ' . json_encode( $final ) );

@@ -378,6 +378,8 @@ jobs:
           php tests/backups-e5-findings.php
           php tests/backups-keep-access.php
           php tests/backups-keep-site-admins.php
+          php tests/backups-accounts-review.php
+          php tests/backups-accounts-nokeys.php
           php tests/backups-restore-parts.php
           php tests/backups-restore-parts-surfaces.php
           php tests/backups-restore-parts-upgrade.php

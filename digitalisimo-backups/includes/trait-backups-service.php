@@ -618,7 +618,7 @@ trait Digitalisimo_Backups_Service {
 			}
 			try {
 				self::$restore_reader_token = '';
-				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra, 'into' => $into, 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ), 'parts' => $parts, 'token' => self::service_token( $args ) ) );
+				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra, 'into' => $into, 'keep_access' => self::keep_choice( $args, 'keep_access' ), 'keep_admins' => self::keep_choice( $args, 'keep_admins' ), 'parts' => $parts, 'token' => self::service_token( $args ) ) );
 				$reader = self::$restore_reader_token;
 				self::$restore_reader_token = '';
 			} catch ( Throwable $e ) {
@@ -872,8 +872,8 @@ trait Digitalisimo_Backups_Service {
 					'via' => $via,
 					'adopted' => $adopted,
 					'safety_spec' => Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $safety_file, 'inline' => true ) ),
-					'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ),
-					'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ),
+					'keep_access' => self::keep_choice( $args, 'keep_access' ),
+					'keep_admins' => self::keep_choice( $args, 'keep_admins' ),
 					'token' => $token,
 					// Importar el punto de un sitio en una red (Digitalisimo_Backups_Site_Import).
 					'into' => is_array( $args['into_spec'] ?? null ) ? $args['into_spec'] : null,
@@ -1060,26 +1060,39 @@ trait Digitalisimo_Backups_Service {
 		}
 	}
 	/**
-	 * Para la confirmación (`verify`, WP-CLI): si el respaldo $file es de otra instalación (como lo decide la restauración:
-	 * sin la identidad de H23, o un sitio extraído de una red), quiénes siguen entrando con su cuenta con `keep_access` y
-	 * `keep_admins` encendidos: quien pregunta (`you`) y los administradores de este sitio (`admins`). Sólo nombres de
-	 * usuario; nunca falla la verificación.
+	 * Para la confirmación (`verify`, WP-CLI): de qué instalación es el respaldo $file como lo decide la restauración
+	 * (`identity`: same, likely u other; revisión A3) y quiénes siguen entrando con su cuenta con `keep_access` y
+	 * `keep_admins` sin decir (`default`) o encendidos: quien pregunta (`you`) y los administradores de este sitio
+	 * (`admins`); con uno que parece de este mismo sitio, los administradores de ahora creados después del respaldo
+	 * (`newer`). `unsealed`: sin claves propias en wp-config.php, el diario las guardaría sin cifrar (revisión B2). Sólo
+	 * nombres de usuario; nunca falla la verificación.
 	 */
 	private static function service_access_preview( $file, array $manifest ) {
-		$out = array( 'applies' => false, 'you' => '', 'admins' => array(), 'admins_total' => 0, 'text' => '' );
+		$out = array( 'applies' => false, 'identity' => 'other', 'default' => false, 'you' => '', 'admins' => array(), 'admins_total' => 0, 'newer' => array(), 'unsealed' => false, 'text' => '' );
 		try {
 			$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $manifest['scope'] ?? '' );
-			$out['applies'] = $extracted || ! self::keep_config_same_installation( (string) $file );
+			$out['identity'] = $extracted ? 'other' : self::restore_identity( (string) $file, $manifest );
+			$out['applies'] = 'same' !== $out['identity'];
 			if ( ! $out['applies'] ) {
 				$out['text'] = 'El respaldo es de esta misma instalación: al restaurarlo vuelven las cuentas, contraseñas y contraseñas de aplicación del respaldo.';
 				return $out;
 			}
+			$out['default'] = 'other' === $out['identity'];
+			$out['unsealed'] = ! Digitalisimo_Backups_Credentials::can_encrypt();
 			$preview = Digitalisimo_Backups_Restore_Access::preview( function_exists( 'get_current_user_id' ) ? get_current_user_id() : 0, null, 50 );
 			$out = array_merge( $out, $preview );
 			$names = array();
 			if ( '' !== $preview['you'] ) $names[] = '«' . $preview['you'] . '» (keep_access)';
 			foreach ( array_slice( $preview['admins'], 0, 10 ) as $login ) $names[] = '«' . $login . '»';
-			$out['text'] = $names ? 'Es el respaldo de otra instalación: con keep_access y keep_admins (por defecto) siguen entrando con su usuario y su contraseña, como administradores, ' . implode( ', ', $names ) . ( $preview['admins_total'] > 10 ? ' y ' . ( $preview['admins_total'] - 10 ) . ' más' : '' ) . '.' : 'Es el respaldo de otra instalación: este sitio no tiene administradores que conservar (sin --user, WP-CLI no tiene una cuenta de quien restaura).';
+			$list = implode( ', ', $names ) . ( $preview['admins_total'] > 10 ? ' y ' . ( $preview['admins_total'] - 10 ) . ' más' : '' );
+			if ( 'likely' === $out['identity'] ) {
+				$since = (string) ( $manifest['created_at'] ?? '' );
+				$out['newer'] = '' !== $since ? Digitalisimo_Backups_Restore_Access::newer_admins( $since, null, 10 ) : array();
+				$out['text'] = 'Parece un respaldo de este mismo sitio (misma dirección, prefijo de tablas y carpeta de WordPress o base de datos) pero no lleva la identidad de esta instalación: sin keep_access ni keep_admins se restaura como el mismo sitio y vuelven las cuentas del respaldo con sus contraseñas (las de ahora no se conservan, por si están comprometidas).' . ( $out['newer'] ? ' Administradores de ahora creados después del respaldo: ' . implode( ', ', array_map( function( $login ) { return '«' . $login . '»'; }, $out['newer'] ) ) . '.' : '' ) . ( $names ? ' Si es de otra instalación, con keep_access=true y keep_admins=true (--keep-access --keep-admins) siguen entrando ' . $list . '.' : '' );
+			} else {
+				$out['text'] = $names ? 'Es el respaldo de otra instalación: con keep_access y keep_admins (por defecto) siguen entrando con su usuario y su contraseña, como administradores, ' . $list . '.' : 'Es el respaldo de otra instalación: este sitio no tiene administradores que conservar (sin --user, WP-CLI no tiene una cuenta de quien restaura).';
+			}
+			if ( $out['unsealed'] ) $out['text'] .= ' Este sitio no tiene AUTH_KEY y SECURE_AUTH_KEY propias en wp-config.php: mientras dura la restauración, su diario (en el almacén privado, 0600) guardaría sin cifrar los hashes de las contraseñas, las sesiones y las contraseñas de aplicación de las cuentas que se conservan y las claves de la base. Defínelas antes de restaurar o usa keep_access=false y keep_admins=false.';
 		} catch ( Throwable $e ) {
 			$out['text'] = '';
 		}

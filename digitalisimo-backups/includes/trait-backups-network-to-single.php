@@ -149,7 +149,9 @@ trait Digitalisimo_Backups_Network_To_Single {
 			'via' => $via,
 			'adopted' => $adopted,
 			'safety_spec' => Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $safety_file, 'inline' => true ) ),
-			'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ),
+			// Conservar el acceso de quien restaura y de los administradores de este sitio (revisión M1: `keep_admins` se perdía).
+			'keep_access' => self::keep_choice( $args, 'keep_access' ),
+			'keep_admins' => self::keep_choice( $args, 'keep_admins' ),
 			'user_id' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0,
 			'notice' => trim( $note ),
 			'parts' => $parts,
@@ -259,7 +261,8 @@ trait Digitalisimo_Backups_Network_To_Single {
 					'sync' => false,
 					'wp_config' => self::config_report( $report['zip'] ),
 					'notice' => trim( $notice . ' ' . (string) ( $restore['notice'] ?? '' ) ),
-					'keep_access' => ! array_key_exists( 'keep_access', $restore ) || ! empty( $restore['keep_access'] ),
+					'keep_access' => self::keep_choice( $restore, 'keep_access' ),
+					'keep_admins' => self::keep_choice( $restore, 'keep_admins' ),
 					'token' => (string) ( $restore['token'] ?? '' ),
 					'readers' => (array) ( $restore['readers'] ?? array() ),
 					'user_id' => (int) ( $restore['user_id'] ?? 0 ),
@@ -308,6 +311,7 @@ trait Digitalisimo_Backups_Network_To_Single {
 			'except' => array( (string) $except ),
 			'user_id' => (int) ( $spec['origin']['user_id'] ?? 0 ),
 			'keep_access' => ! array_key_exists( 'keep_access', $spec ) || ! empty( $spec['keep_access'] ),
+			'keep_admins' => ! array_key_exists( 'keep_admins', $spec ) || ! empty( $spec['keep_admins'] ),
 			'readers' => isset( $spec['reader']['hash'] ) ? array( (string) $spec['reader']['hash'] ) : array(),
 		);
 		$job = self::network_enqueue( $report, (string) $report['source'], $options, $restore, 'migration', null, $safety_file );

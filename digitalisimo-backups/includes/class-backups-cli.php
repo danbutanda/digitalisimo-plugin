@@ -51,8 +51,9 @@ final class Digitalisimo_Backups_Cli {
 		WP_CLI\Utils\format_items( $format, $rows, $fields );
 	}
 	/** Una opción booleana de WP-CLI (`--x`, `--no-x`, `--x=false`) con su valor por defecto. */
+	/** Una bandera `--[no-]<nombre>`; sin ella, $default (null: sin decir, lo resuelve el caso de uso). */
 	public static function flag( $assoc_args, $name, $default ) {
-		if ( ! array_key_exists( $name, (array) $assoc_args ) ) return (bool) $default;
+		if ( ! array_key_exists( $name, (array) $assoc_args ) ) return null === $default ? null : (bool) $default;
 		$value = $assoc_args[ $name ];
 		if ( is_bool( $value ) ) return $value;
 		return ! in_array( strtolower( trim( (string) $value ) ), array( '0', 'false', 'no', 'off', '' ), true );
@@ -622,16 +623,10 @@ final class Digitalisimo_Backups_Cli {
 	 * : Restaura desde un destino remoto: primero trae el respaldo al almacén por fragmentos y lo comprueba (el de este sitio por su SHA-256; el de otro sitio, como archivo no confiable), después lo restaura. Ver `wp digitalisimo-backups destinations backups <destino>`.
 	 *
 	 * [--[no-]keep-access]
-	 * : Si el respaldo es de otra instalación (otro sitio, un sitio extraído de una red), el usuario de `--user` conserva su usuario, su contraseña y sus contraseñas de aplicación (encendido por defecto; sin `--user` no hay una cuenta de quien restaura que conservar). Con un respaldo de esta misma instalación vuelven las cuentas del respaldo. La ruta de acceso de este sitio se conserva siempre al restaurar en otro sitio.
-	 * ---
-	 * default: true
-	 * ---
+	 * : Si el respaldo es de otra instalación (otro sitio, un sitio extraído de una red), el usuario de `--user` conserva su usuario, su contraseña y sus contraseñas de aplicación (encendido por defecto; sin `--user` no hay una cuenta de quien restaura que conservar). Con un respaldo de esta misma instalación vuelven las cuentas del respaldo. Sin decirlo, con uno que parece de este mismo sitio (misma dirección, prefijo y carpeta, sin su identidad; `verify` lo dice) tampoco se conserva. La ruta de acceso de este sitio se conserva siempre al restaurar en otro sitio.
 	 *
 	 * [--[no-]keep-admins]
-	 * : Si el respaldo es de otra instalación, los administradores de este sitio (en una red, los superadministradores y los del sitio principal) conservan su usuario, su contraseña y sus contraseñas de aplicación y siguen siendo administradores; una cuenta administradora del respaldo con el mismo usuario se funde con la suya. Encendido por defecto; con `--no-keep-access`, el usuario de `--user` no se conserva aunque sea administrador. El informe final dice quiénes conservaron su acceso.
-	 * ---
-	 * default: true
-	 * ---
+	 * : Si el respaldo es de otra instalación, los administradores de este sitio (en una red, los superadministradores y los del sitio principal) conservan su usuario, su contraseña y sus contraseñas de aplicación y siguen siendo administradores; una cuenta del respaldo con el mismo correo es la misma persona y se funde con la suya; una con el mismo usuario y otro correo cambia de usuario. Encendido por defecto, salvo con un respaldo que parece de este mismo sitio (como `--keep-access`); con `--no-keep-access`, el usuario de `--user` no se conserva aunque sea administrador. El informe final dice quiénes conservaron su acceso.
 	 *
 	 * [--parts=<parts>]
 	 * : Restaurar por partes: database, core, plugins, themes, uploads, mu-plugins y content (resto de wp-content), separadas por comas. Sin esta opción (o con all), todo. Los respaldos son siempre completos: se elige qué vuelve.
@@ -692,7 +687,7 @@ final class Digitalisimo_Backups_Cli {
 				self::parts_preview( array( 'label' => Digitalisimo_Backups_Restore_Parts::label( $selection ), 'replaces' => $describe['replaces'], 'untouched' => $describe['untouched'], 'coherence' => Digitalisimo_Backups_Restore_Parts::coherence( $selection ) ) );
 			}
 		}
-		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'keep_access' => self::flag( $assoc_args, 'keep-access', true ), 'keep_admins' => self::flag( $assoc_args, 'keep-admins', true ), 'into' => (string) ( $assoc_args['into'] ?? '' ), 'address' => (string) ( $assoc_args['address'] ?? '' ), 'via' => 'cli' ) + $parts + self::network( $assoc_args ) ) );
+		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'keep_access' => self::flag( $assoc_args, 'keep-access', null ), 'keep_admins' => self::flag( $assoc_args, 'keep-admins', null ), 'into' => (string) ( $assoc_args['into'] ?? '' ), 'address' => (string) ( $assoc_args['address'] ?? '' ), 'via' => 'cli' ) + $parts + self::network( $assoc_args ) ) );
 		if ( ! empty( $result['import'] ) ) WP_CLI::success( 'Importación terminada desde ' . $result['file'] . ( '' !== (string) $result['safety_backup'] ? '. Copia previa del sitio bloqueada: ' . $result['safety_backup'] : '' ) . '. ' . $result['notice'] );
 		else WP_CLI::success( 'Restauración terminada desde ' . $result['file'] . '. Copia previa bloqueada: ' . $result['safety_backup'] . '. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 	}

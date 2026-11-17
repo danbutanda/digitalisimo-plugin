@@ -53,6 +53,94 @@ trait Digitalisimo_Backups_Keep_Config {
 		$here = self::installation_stamp();
 		return ! empty( $here['id'] ) && hash_equals( (string) $here['id'], (string) $stamp['id'] );
 	}
+
+	// ------------------------------------------------------------------ De qué instalación es un respaldo (revisión A3)
+	//
+	// Para «Conservar mi acceso» y «Conservar los administradores» (no para H23, que sigue con
+	// keep_config_same_installation()): 'same' (de esta misma instalación), 'likely' (parece de esta misma) u 'other'.
+	//  - 'same': su fila hecha aquí (keep_config_same_installation()) o, subido, agregado o sin fila, la identidad de esta
+	//    instalación en su manifiesto firmado (`installation`: id de installation_stamp(), su dirección y su prefijo) con la
+	//    misma dirección y el mismo prefijo de ahora. Se restaura como el mismo sitio: tras un hackeo vuelven las cuentas
+	//    del respaldo y no se conserva ninguna de ahora.
+	//  - 'likely': la misma identidad con otro prefijo o, sin identidad (respaldos de antes de 1.0.79) o con otra (el
+	//    almacén privado se borró y su identificador cambió), la misma dirección, el mismo prefijo y la misma carpeta de
+	//    WordPress o el mismo nombre de base de datos. La confirmación lo dice y por defecto (`keep_access` y `keep_admins`
+	//    sin decir) no se conserva ninguna cuenta de ahora; marcándolas, sí.
+	//  - 'other': lo demás (otro sitio, un sitio extraído, una migración).
+	public static function manifest_installation() {
+		global $wpdb;
+		$stamp = self::installation_stamp();
+		if ( empty( $stamp['id'] ) ) return array();
+		return array( 'id' => (string) $stamp['id'], 'home' => (string) ( $stamp['home'] ?? '' ), 'prefix' => (string) ( $wpdb->base_prefix ?? '' ) );
+	}
+	private static function restore_identity( $file, $manifest = null ) {
+		$file = wp_basename( (string) $file );
+		if ( '' !== $file && self::keep_config_same_installation( $file ) ) return 'same';
+		if ( ! is_array( $manifest ) ) $manifest = '' !== $file ? self::identity_manifest( $file ) : null;
+		if ( is_array( $manifest ) ) return self::restore_identity_of( $manifest );
+		// Sin manifiesto legible (un .dgbk subido, antes de descifrarlo): firmado con una clave de aquí y sin nada que reubicar.
+		$row = '' !== $file ? self::history_item( $file ) : array();
+		return ! empty( $row['upload']['same_site'] ) ? 'likely' : 'other';
+	}
+	public static function restore_identity_of( array $data ) {
+		global $wpdb;
+		if ( ! in_array( (string) ( $data['scope'] ?? 'installation' ), array( 'installation', 'network' ), true ) || ! empty( $data['multisite'] ) !== is_multisite() ) return 'other';
+		$prefix = (string) ( $wpdb->base_prefix ?? '' );
+		$stamp = is_array( $data['installation'] ?? null ) ? $data['installation'] : array();
+		$mine = self::installation_stamp();
+		if ( is_string( $stamp['id'] ?? null ) && '' !== $stamp['id'] && ! empty( $mine['id'] ) && hash_equals( (string) $mine['id'], $stamp['id'] ) ) {
+			return self::identity_url( (string) ( $stamp['home'] ?? '' ) ) === self::identity_url( (string) ( $mine['home'] ?? '' ) ) && (string) ( $stamp['prefix'] ?? $data['table_prefix'] ?? '' ) === $prefix ? 'same' : 'likely';
+		}
+		$origin = is_array( $data['origin'] ?? null ) ? $data['origin'] : array();
+		$here = Digitalisimo_Backups_Relocate::describe( false );
+		$home = self::identity_url( (string) ( $origin['home'] ?? $data['home_url'] ?? '' ) );
+		if ( '' === $home || $home !== self::identity_url( (string) $here['home'] ) || (string) ( $origin['prefix'] ?? $data['table_prefix'] ?? '' ) !== $prefix ) return 'other';
+		$paths = array_filter( array( (string) ( $origin['abspath'] ?? '' ), (string) ( $origin['abspath_real'] ?? '' ) ) );
+		$same_path = (bool) array_intersect( $paths, array_filter( array( (string) $here['abspath'], (string) $here['abspath_real'] ) ) );
+		$same_db = defined( 'DB_NAME' ) && '' !== (string) ( $data['database_name'] ?? '' ) && (string) $data['database_name'] === (string) DB_NAME;
+		return $same_path || $same_db ? 'likely' : 'other';
+	}
+	// Una dirección para compararla: sin esquema, en minúsculas y sin la barra final.
+	private static function identity_url( $url ) {
+		return (string) preg_replace( '#^[a-z][a-z0-9+.-]*://#', '', rtrim( strtolower( trim( (string) $url ) ), '/' ) );
+	}
+	// El comienzo del manifiesto de un respaldo del almacén (sin descifrar: un .dgbk da null), una vez por petición.
+	private static function identity_manifest( $file ) {
+		static $cache = array();
+		$path = self::local_path( (string) $file );
+		if ( '' === $path ) return null;
+		$key = $path . '|' . @filemtime( $path ) . '|' . @filesize( $path );
+		if ( array_key_exists( $key, $cache ) ) return $cache[ $key ];
+		$cache[ $key ] = null;
+		if ( ! class_exists( 'ZipArchive' ) || Digitalisimo_Backups_Encrypted_File::is_encrypted( $path ) ) return null;
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $path ) ) return null;
+		try {
+			$head = self::manifest_head( $zip );
+		} finally {
+			$zip->close();
+		}
+		return $cache[ $key ] = is_array( $head ) ? $head : null;
+	}
+	// « · parece de este mismo sitio» en la lista de «Restaurar un archivo suelto» (con las casillas marcadas, `auto`, no
+	// conserva ninguna cuenta de ahora).
+	private static function keep_identity_label( $file ) {
+		try {
+			return 'likely' === self::restore_identity( (string) $file ) ? ' · parece de este mismo sitio: vuelven sus cuentas' : '';
+		} catch ( Throwable $e ) {
+			return '';
+		}
+	}
+	// `keep_access` o `keep_admins` de una petición o de un trabajo: true o false si se pidió; null si no (o 'auto': la
+	// casilla marcada de serie de la pantalla), que la restauración resuelve con keep_resolved().
+	private static function keep_choice( array $args, $name ) {
+		if ( ! array_key_exists( $name, $args ) || null === $args[ $name ] || 'auto' === $args[ $name ] ) return null;
+		return ! empty( $args[ $name ] );
+	}
+	// Por defecto se conservan, salvo que el respaldo parezca de este mismo sitio ('likely'): ahí, sólo si se pidió.
+	private static function keep_resolved( $choice, $identity ) {
+		return null === $choice ? 'likely' !== $identity : (bool) $choice;
+	}
 	/** Este sitio tiene configuración de Backups propia (no la de una instalación recién hecha). */
 	private static function keep_config_wanted() {
 		try {

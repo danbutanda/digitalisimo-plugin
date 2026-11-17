@@ -9,14 +9,15 @@
  *       su usuario, su hash, su correo, sus sesiones y sus contraseñas de aplicación, como administradores; el editor no
  *       se conserva; las cuentas del respaldo quedan intactas; el informe dice quiénes (sólo usuarios, sin secretos);
  *   c · tres administradores: IDs nuevos consecutivos desde el siguiente libre;
- *   d · choque por usuario con una cuenta administradora del respaldo: una sola cuenta con el ID del respaldo (la autoría no
- *       cambia), sus datos y metas, y las credenciales de aquí; sus contraseñas de aplicación se suman;
- *   e · choque sólo por correo: no se fusionan (la del respaldo sigue entrando con su contraseña) y el informe avisa;
- *   f · dos administradores de aquí que chocan con dos usuarios distintos del respaldo (uno administrador, otro no), y un
- *       usuario cedido que no pisa el de otra cuenta que se conserva;
- *   g · un usuario del respaldo que NO es administrador y coincide con un administrador de aquí (por usuario o por correo):
- *       el de aquí no pierde su acceso y el del respaldo no gana privilegios (ni su segundo factor, inicio social ni
- *       contraseñas de aplicación pasan a la cuenta administradora);
+ *   d · mismo usuario y mismo correo que una cuenta administradora del respaldo: una sola cuenta con el ID del respaldo (la
+ *       autoría no cambia), sus datos y metas, y las credenciales de aquí; sus contraseñas de aplicación se suman;
+ *   e · sólo el mismo correo (revisión M5 de 1.0.79: la misma persona): una sola cuenta, la del respaldo, con el usuario y
+ *       las credenciales de aquí, y el informe dice con cuál se fundió;
+ *   f · dos administradores de aquí que chocan con dos cuentas distintas del respaldo (una con su correo, otra sólo con su
+ *       usuario), y un usuario cedido que no pisa el de otra cuenta que se conserva;
+ *   g · una cuenta del respaldo con el mismo usuario y otro correo (otra persona) cede su usuario sin ganar privilegios ni
+ *       perder su segundo factor; una que NO era administradora con el correo de un administrador de aquí (la misma
+ *       persona) se funde con él sin su inicio social ni sus contraseñas de aplicación (abrirían más: revisión A4);
  *   h · nunca se conserva una cuenta que aquí no es administradora (un editor, una marcada como spam); con `keep_access`
  *       apagado, quien restaura tampoco entra como administrador;
  *   i · red: los superadministradores y los administradores del sitio desde el que se restaura (no los de otro sitio);
@@ -177,10 +178,10 @@ ksa_case( 'c · tres administradores de este sitio: todos siguen, con IDs nuevos
 	ksa_check( array( 'admin', 'soporte', 'tecnico' ) === $report['kept_accounts'] && 5 === count( $db->rows( 'wpkx_users' ) ), 'El informe o las cuentas no son las esperadas: ' . json_encode( $report['kept_accounts'] ) );
 } );
 
-ksa_case( 'd · mismo usuario que una cuenta administradora del respaldo: una sola cuenta con el ID y los datos del respaldo y las credenciales de este sitio', function() use ( $A, $destination, $package, $capture, $on ) {
+ksa_case( 'd · mismo usuario y mismo correo que una cuenta administradora del respaldo: una sola cuenta con el ID y los datos del respaldo y las credenciales de este sitio', function() use ( $A, $destination, $package, $capture, $on ) {
 	$db = $destination();
 	$sealed = $capture();
-	$package( $db, array( array( 7, 'soporte', '$P$Bsoporte.del.origen.origen.or', 'soporte@origen.test', 'administrator', array( 'description' => 'Escribe en el blog desde 2019', 'session_tokens' => ksa_sessions( str_repeat( 'z', 64 ) ), '_application_passwords' => ksa_apps( array( 'u-sop-origen' ) ) ), array( 'display_name' => 'Soporte del origen', 'user_nicename' => 'soporte-origen', 'user_registered' => '2019-01-02 03:04:05', 'spam' => 1 ) ) ) );
+	$package( $db, array( array( 7, 'soporte', '$P$Bsoporte.del.origen.origen.or', 'soporte@destino.test', 'administrator', array( 'description' => 'Escribe en el blog desde 2019', 'session_tokens' => ksa_sessions( str_repeat( 'z', 64 ) ), '_application_passwords' => ksa_apps( array( 'u-sop-origen' ) ) ), array( 'display_name' => 'Soporte del origen', 'user_nicename' => 'soporte-origen', 'user_registered' => '2019-01-02 03:04:05', 'spam' => 1 ) ) ) );
 	$report = $A::apply( $on, $A::open( $sealed ), true );
 	$row = ksa_row( $db, 'wpkx_', 'soporte' );
 	ksa_check( $row && 7 === (int) $row['ID'] && 1 === count( $db->rows( 'wpkx_users', "user_login = 'soporte'" ) ), 'No quedó una sola cuenta «soporte» con el ID del respaldo (la autoría cambiaría): ' . json_encode( $row ? $row['ID'] : null ) );
@@ -190,23 +191,22 @@ ksa_case( 'd · mismo usuario que una cuenta administradora del respaldo: una so
 	ksa_check( array( 'soporte' ) === $report['merged_accounts'] && in_array( 'soporte', $report['kept_accounts'], true ) && false !== strpos( $report['text'], 'se fusionaron' ), 'El informe no dice que «soporte» se fusionó con la del respaldo: ' . json_encode( $report['merged_accounts'] ) . ' ' . $report['text'] );
 } );
 
-ksa_case( 'e · sólo el mismo correo que una cuenta del respaldo: no se fusionan, las dos siguen entrando y el informe avisa', function() use ( $A, $destination, $package, $capture, $on ) {
+ksa_case( 'e · sólo el mismo correo que una cuenta del respaldo: la misma persona, una sola cuenta con el usuario y las credenciales de este sitio, y el informe lo dice', function() use ( $A, $destination, $package, $capture, $on ) {
 	$db = $destination();
 	$sealed = $capture();
-	$package( $db, array( array( 7, 'equipo', '$P$Bequipo.del.origen.origen.orig', 'soporte@destino.test', 'administrator' ) ) );
+	$package( $db, array( array( 7, 'equipo', '$P$Bequipo.del.origen.origen.orig', 'soporte@destino.test', 'administrator', array( '_application_passwords' => ksa_apps( array( 'u-equipo' ) ) ) ) ) );
 	$report = $A::apply( $on, $A::open( $sealed ), true );
 	$soporte = ksa_row( $db, 'wpkx_', 'soporte' );
-	$equipo = ksa_row( $db, 'wpkx_', 'equipo' );
-	ksa_check( $soporte && 9 === (int) $soporte['ID'] && KSA_SOPORTE === $soporte['user_pass'], '«soporte» no se creó aparte con su contraseña.' );
-	ksa_check( $equipo && 7 === (int) $equipo['ID'] && '$P$Bequipo.del.origen.origen.orig' === $equipo['user_pass'] && ksa_is_admin( $db, 'wpkx_', 7 ), 'La cuenta del respaldo con el mismo correo perdió su contraseña o su usuario.' );
-	ksa_check( array( 'equipo' ) === ( $report['shared_emails']['soporte'] ?? null ) && false !== strpos( $report['text'], 'El correo de «soporte» también es el de «equipo»' ), 'El informe no avisa del correo compartido: ' . json_encode( $report['shared_emails'] ) );
+	ksa_check( $soporte && 7 === (int) $soporte['ID'] && KSA_SOPORTE === $soporte['user_pass'] && null === ksa_row( $db, 'wpkx_', 'equipo' ) && ksa_is_admin( $db, 'wpkx_', 7 ), '«soporte» no quedó como una sola cuenta con la del respaldo de su correo: ' . json_encode( $soporte ) );
+	ksa_check( array( 'u-equipo', 'u-soporte' ) === ksa_uuids( $db, 'wpkx_', 7 ), 'Las contraseñas de aplicación de la cuenta administradora del respaldo no se sumaron: ' . json_encode( ksa_uuids( $db, 'wpkx_', 7 ) ) );
+	ksa_check( array( 'soporte' ) === $report['merged_accounts'] && array( array( 'login' => 'soporte', 'backup' => 'equipo' ) ) === $report['merged_with'] && false !== strpos( $report['text'], '«equipo» (ahora «soporte»)' ) && empty( $report['shared_emails'] ), 'El informe no dice con qué cuenta se fundió: ' . $report['text'] );
 	ksa_check( false === strpos( json_encode( $report ), 'soporte@destino.test' ), 'El informe lleva el correo.' );
 } );
 
-ksa_case( 'f · dos administradores que chocan con dos usuarios distintos del respaldo, y un usuario cedido que no pisa otra cuenta que se conserva', function() use ( $A, $destination, $package, $capture, $on ) {
+ksa_case( 'f · dos administradores que chocan con dos cuentas distintas del respaldo, y un usuario cedido que no pisa otra cuenta que se conserva', function() use ( $A, $destination, $package, $capture, $on ) {
 	$db = $destination( 'wpkx_', array( array( 5, 'soporte-respaldo', KSA_TECNICO, 'tecnico@destino.test', 'administrator' ) ) );
 	$sealed = $capture();
-	$package( $db, array( array( 7, 'admin', '$P$Badmin.del.origen.origen.origen', 'admin@origen.test', 'administrator' ), array( 8, 'soporte', '$P$Bcliente.cliente.cliente.client', 'cliente@origen.test', 'subscriber' ) ) );
+	$package( $db, array( array( 7, 'admin', '$P$Badmin.del.origen.origen.origen', 'admin@destino.test', 'administrator' ), array( 8, 'soporte', '$P$Bcliente.cliente.cliente.client', 'cliente@origen.test', 'subscriber' ) ) );
 	$report = $A::apply( $on, $A::open( $sealed ), true );
 	$logins = array_column( $db->rows( 'wpkx_users' ), 'user_login', 'ID' );
 	ksa_check( array( 1 => 'dueno', 2 => 'editora', 7 => 'admin', 8 => 'soporte-respaldo-2', 9 => 'soporte', 10 => 'soporte-respaldo' ) === $logins, 'Las cuentas no quedaron como se esperaba: ' . json_encode( $logins ) );
@@ -215,22 +215,25 @@ ksa_case( 'f · dos administradores que chocan con dos usuarios distintos del re
 	ksa_check( array( 'admin' ) === $report['merged_accounts'] && array( array( 'from' => 'soporte', 'to' => 'soporte-respaldo-2' ) ) === $report['renamed_backup'], 'El informe no dice la fusión y el usuario cedido: ' . json_encode( array( $report['merged_accounts'], $report['renamed_backup'] ) ) );
 } );
 
-ksa_case( 'g · un usuario del respaldo que no es administrador y coincide con un administrador de este sitio no gana privilegios y el de aquí no pierde su acceso', function() use ( $A, $destination, $package, $capture, $on ) {
+ksa_case( 'g · otra persona con el mismo usuario cede el suyo sin ganar privilegios; la misma persona (mismo correo) que no era administradora se funde sin su inicio social ni sus contraseñas de aplicación', function() use ( $A, $destination, $package, $capture, $on ) {
 	$db = $destination();
 	$sealed = $capture();
 	$package( $db, array(
 		array( 7, 'soporte', '$P$Bcliente.cliente.cliente.client', 'cliente@origen.test', 'subscriber', array( '_two_factor_totp_key' => 'SECRETO-DEL-CLIENTE', 'nsl_google_id' => 'google-del-cliente', '_application_passwords' => ksa_apps( array( 'u-cliente' ) ), 'session_tokens' => ksa_sessions( str_repeat( 'y', 64 ) ) ) ),
-		array( 8, 'compras', '$P$Bcompras.compras.compras.compr', 'admin@destino.test', 'customer', array( 'nsl_google_id' => 'google-de-compras' ) ),
+		array( 8, 'compras', '$P$Bcompras.compras.compras.compr', 'admin@destino.test', 'customer', array( 'nsl_google_id' => 'google-de-compras', '_application_passwords' => ksa_apps( array( 'u-compras' ) ) ) ),
 	) );
 	$report = $A::apply( $on, $A::open( $sealed ), true );
 	$client = ksa_row( $db, 'wpkx_', 'soporte-respaldo' );
 	$soporte = ksa_row( $db, 'wpkx_', 'soporte' );
 	ksa_check( $client && 7 === (int) $client['ID'] && '$P$Bcliente.cliente.cliente.client' === $client['user_pass'] && ! ksa_is_admin( $db, 'wpkx_', 7 ) && array( 'subscriber' => true ) === @unserialize( (string) ksa_meta( $db, 'wpkx_', 7, 'wpkx_capabilities' ) ), 'La cuenta del respaldo que no era administradora ganó permisos o perdió su contraseña.' );
 	ksa_check( 'SECRETO-DEL-CLIENTE' === ksa_meta( $db, 'wpkx_', 7, '_two_factor_totp_key' ) && array( 'u-cliente' ) === ksa_uuids( $db, 'wpkx_', 7 ) && array( str_repeat( 'y', 64 ) ) === ksa_session_keys( $db, 'wpkx_', 7 ), 'La cuenta del respaldo perdió su segundo factor, sus contraseñas de aplicación o sus sesiones.' );
-	ksa_check( $soporte && 10 === (int) $soporte['ID'] && KSA_SOPORTE === $soporte['user_pass'] && ksa_is_admin( $db, 'wpkx_', 10 ) && array( 'u-soporte' ) === ksa_uuids( $db, 'wpkx_', 10 ), '«soporte» de este sitio perdió su acceso.' );
-	ksa_check( null === ksa_meta( $db, 'wpkx_', 10, '_two_factor_totp_key' ) && null === ksa_meta( $db, 'wpkx_', 10, 'nsl_google_id' ) && array( str_repeat( 'b', 64 ) ) === ksa_session_keys( $db, 'wpkx_', 10 ), 'La cuenta administradora heredó un modo de entrar de la del respaldo (inicio social, segundo factor o sesiones).' );
-	// Por correo: «compras» (cliente del respaldo con el correo de «admin») sigue siendo cliente; «admin» se crea aparte.
-	ksa_check( ! ksa_is_admin( $db, 'wpkx_', 8 ) && 'compras' === $db->value( 'wpkx_users', 'user_login', 'ID = 8' ) && KSA_ADMIN === ksa_row( $db, 'wpkx_', 'admin' )['user_pass'] && 8 !== (int) ksa_row( $db, 'wpkx_', 'admin' )['ID'], 'La cuenta del respaldo con el correo de «admin» ganó permisos o se fundió con él.' );
+	ksa_check( $soporte && 9 === (int) $soporte['ID'] && KSA_SOPORTE === $soporte['user_pass'] && ksa_is_admin( $db, 'wpkx_', 9 ) && array( 'u-soporte' ) === ksa_uuids( $db, 'wpkx_', 9 ), '«soporte» de este sitio perdió su acceso.' );
+	ksa_check( null === ksa_meta( $db, 'wpkx_', 9, '_two_factor_totp_key' ) && null === ksa_meta( $db, 'wpkx_', 9, 'nsl_google_id' ) && array( str_repeat( 'b', 64 ) ) === ksa_session_keys( $db, 'wpkx_', 9 ), 'La cuenta administradora heredó un modo de entrar de la del respaldo (inicio social, segundo factor o sesiones).' );
+	// Por correo: «compras» (cliente del respaldo con el correo de «admin») es la misma persona: queda una sola cuenta «admin»
+	// con su ID, sin su inicio social y sin su contraseña de aplicación (era cliente: abriría una administradora).
+	$admin = ksa_row( $db, 'wpkx_', 'admin' );
+	ksa_check( $admin && 8 === (int) $admin['ID'] && KSA_ADMIN === $admin['user_pass'] && ksa_is_admin( $db, 'wpkx_', 8 ) && null === ksa_row( $db, 'wpkx_', 'compras' ), '«admin» no quedó fundida con la cuenta del respaldo de su correo: ' . json_encode( $admin ) );
+	ksa_check( null === ksa_meta( $db, 'wpkx_', 8, 'nsl_google_id' ) && array( 'u-admin' ) === ksa_uuids( $db, 'wpkx_', 8 ) && 1 === (int) $report['app_passwords']['dropped_from_backup'], 'La cuenta fundida conserva el inicio social o la contraseña de aplicación de una cuenta que era cliente: ' . json_encode( array( ksa_meta( $db, 'wpkx_', 8, 'nsl_google_id' ), ksa_uuids( $db, 'wpkx_', 8 ) ) ) );
 	ksa_check( array( array( 'from' => 'soporte', 'to' => 'soporte-respaldo' ) ) === $report['renamed_backup'] && false !== strpos( $report['text'], '«soporte-respaldo»' ), 'El informe no dice que la cuenta del respaldo cedió su usuario: ' . $report['text'] );
 } );
 
@@ -296,6 +299,9 @@ ksa_options( $origin, 'wp_', array( 'siteurl' => 'https://origen.test', 'home' =
 function ksa_options( Bk_Sqlite_DB $db, $prefix, array $rows ) { foreach ( $rows as $name => $value ) $db->seed( $prefix . 'options', array( array( 'option_name' => $name, 'option_value' => is_scalar( $value ) ? (string) $value : serialize( $value ) ) ) ); }
 $GLOBALS['wpdb'] = $origin;
 $file = basename( bk_backup() );
+// $file es «de otra instalación»: su identidad (revisión A3, en su manifiesto) deja de ser la de aquí al cambiar el
+// identificador del almacén. $own, hecho después con su fila, sí es de esta instalación.
+@unlink( bk_storage() . '/.installation-id' );
 $own = basename( bk_backup( true ) );
 /** Restaurar por el motor (service_restore) en este sitio, con «admin» (1) lanzándola. */
 $engine = function( array $args, $home = 'https://destino.test', $prefix = 'wpkx_', $backup = null, array $extra = array() ) use ( $file ) {
@@ -349,10 +355,10 @@ ksa_case( 'j · el motor: con keep_access = false sigue el otro administrador y 
 	ksa_check( null === ksa_row( $db, 'wp_', 'soporte' ) && 'same_site' === ( $result['access']['admins_state'] ?? '' ), 'El respaldo propio en la misma dirección conservó a «soporte».' );
 }, true );
 
-ksa_case( 'n · el motor, prefijo final: un administrador de aquí con el mismo usuario que el administrador del respaldo (otro prefijo) queda como una sola cuenta con wpkx_capabilities y wpkx_user_level', function() use ( $engine ) {
-	list( $db, $result ) = $engine( array(), 'https://prefijo.test', 'wpkx_', null, array( array( 4, 'dueno', KSA_TECNICO, 'tecnico@destino.test', 'administrator' ) ) );
+ksa_case( 'n · el motor, prefijo final: un administrador de aquí con el mismo usuario y correo que el administrador del respaldo (otro prefijo) queda como una sola cuenta con wpkx_capabilities y wpkx_user_level', function() use ( $engine ) {
+	list( $db, $result ) = $engine( array(), 'https://prefijo.test', 'wpkx_', null, array( array( 4, 'dueno', KSA_TECNICO, 'dueno@origen.test', 'administrator' ) ) );
 	$dueno = $db->rows( 'wpkx_users', "user_login = 'dueno'" );
-	ksa_check( 1 === count( $dueno ) && 1 === (int) $dueno[0]['ID'] && KSA_TECNICO === $dueno[0]['user_pass'] && 'tecnico@destino.test' === $dueno[0]['user_email'], '«dueno» no quedó como una sola cuenta con el ID del respaldo y las credenciales de este sitio: ' . json_encode( array_map( function( $row ) { return $row['ID']; }, $dueno ) ) );
+	ksa_check( 1 === count( $dueno ) && 1 === (int) $dueno[0]['ID'] && KSA_TECNICO === $dueno[0]['user_pass'] && 'dueno@origen.test' === $dueno[0]['user_email'], '«dueno» no quedó como una sola cuenta con el ID del respaldo y las credenciales de este sitio: ' . json_encode( array_map( function( $row ) { return $row['ID']; }, $dueno ) ) );
 	$metas = array_column( $db->rows( 'wpkx_usermeta', 'user_id = 1' ), 'meta_value', 'meta_key' );
 	ksa_check( array( 'administrator' => true ) === @unserialize( (string) ( $metas['wpkx_capabilities'] ?? '' ) ) && '10' === ( $metas['wpkx_user_level'] ?? null ) && ! isset( $metas['wp_capabilities'] ) && ! isset( $metas['wp_user_level'] ), 'La cuenta fusionada no tiene sus permisos con el prefijo final: ' . json_encode( array_keys( $metas ) ) );
 	ksa_check( 1 === count( $db->rows( 'wpkx_usermeta', "user_id = 1 AND meta_key = 'wpkx_capabilities'" ) ) && 1 === count( $db->rows( 'wpkx_usermeta', "user_id = 1 AND meta_key = 'wpkx_user_level'" ) ), 'La cuenta fusionada tiene permisos repetidos.' );
@@ -449,25 +455,27 @@ ksa_case( 'm · la confirmación (pantalla y verify), REST y WP-CLI: quiénes co
 	} finally {
 		$GLOBALS['ksa_user'] = 0;
 	}
-	ksa_check( false !== strpos( $fields, 'name="keep_admins" value="1" checked' ) && false !== strpos( $fields, 'keep_admins_shown' ) && false !== strpos( $fields, '«soporte»' ) && false !== strpos( $fields, 'name="keep_access" value="1" checked' ), 'La pantalla no ofrece «Conservar los administradores de este sitio» con sus nombres: ' . strip_tags( $fields ) );
+	ksa_check( false !== strpos( $fields, 'name="keep_admins" value="auto" checked' ) && false !== strpos( $fields, 'keep_admins_shown' ) && false !== strpos( $fields, '«soporte»' ) && false !== strpos( $fields, 'name="keep_access" value="auto" checked' ), 'La pantalla no ofrece «Conservar los administradores de este sitio» con sus nombres: ' . strip_tags( $fields ) );
 	ksa_check( false !== strpos( $summary, '«admin» (tú)' ) && false !== strpos( $summary, '«soporte»' ), 'La confirmación no dice quiénes siguen entrando: ' . $summary );
 	ksa_check( ! is_wp_error( $verify ) && ! empty( $verify['access']['applies'] ) && 'admin' === ( $verify['access']['you'] ?? '' ) && array( 'soporte' ) === ( $verify['access']['admins'] ?? null ), 'verify no dice quiénes conservarían su acceso: ' . json_encode( is_wp_error( $verify ) ? $verify->get_error_message() : ( $verify['access'] ?? null ) ) );
 	ksa_check( false === strpos( json_encode( $verify ), 'soporte@destino.test' ), 'verify lleva un correo.' );
 	require_once dirname( __DIR__ ) . '/digitalisimo-backups/includes/class-backups-rest.php';
 	$GLOBALS['ksa_routes'] = array();
 	Digitalisimo_Backups_Rest::routes();
+	// restore: sin valor fijo (revisión A3: lo decide la restauración, activo salvo con un respaldo que parece de este
+	// mismo sitio); migration/pull: activo por defecto.
 	$found = array();
-	foreach ( (array) $GLOBALS['ksa_routes'] as $route => $args ) foreach ( (array) $args as $one ) if ( is_array( $one ) && isset( $one['args']['keep_admins'] ) && true === ( $one['args']['keep_admins']['default'] ?? null ) ) $found[] = preg_replace( '/\(\?P<[^)]+\)/', '<x>', $route );
-	ksa_check( 2 === count( $found ), 'La REST no ofrece keep_admins (activo por defecto) en restore y migration/pull: ' . json_encode( $found ) );
+	foreach ( (array) $GLOBALS['ksa_routes'] as $route => $args ) foreach ( (array) $args as $one ) if ( is_array( $one ) && isset( $one['args']['keep_admins'] ) ) $found[ false !== strpos( $route, 'migration' ) ? 'migration' : 'restore' ] = $one['args']['keep_admins']['default'] ?? 'sin decir';
+	ksa_check( array( 'restore' => 'sin decir', 'migration' => true ) === $found || array( 'migration' => true, 'restore' => 'sin decir' ) === $found, 'La REST no ofrece keep_admins en restore (sin decir) y migration/pull (activo por defecto): ' . json_encode( $found ) );
 	$rest = (string) file_get_contents( dirname( __DIR__ ) . '/digitalisimo-backups/includes/class-backups-rest.php' );
-	ksa_check( 2 === substr_count( $rest, "'keep_admins' => null === \$request['keep_admins'] ? true : (bool) \$request['keep_admins']" ), 'La REST no pasa keep_admins al caso de uso.' );
+	ksa_check( 1 === substr_count( $rest, "'keep_admins' => null === \$request['keep_admins'] ? true : (bool) \$request['keep_admins']" ) && 1 === substr_count( $rest, "'keep_admins' => null === \$request['keep_admins'] ? null : (bool) \$request['keep_admins']" ), 'La REST no pasa keep_admins al caso de uso.' );
 	$cli = (string) file_get_contents( dirname( __DIR__ ) . '/digitalisimo-backups/includes/class-backups-cli.php' );
-	ksa_check( 2 === substr_count( $cli, '[--[no-]keep-admins]' ) && 2 === substr_count( $cli, "'keep_admins' => self::flag( \$assoc_args, 'keep-admins', true )" ), 'WP-CLI no ofrece --[no-]keep-admins en restore y migrate.' );
-	foreach ( array( 'class-backups.php', 'class-backups-migrate.php' ) as $name ) ksa_check( false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/digitalisimo-backups/includes/' . $name ), "\$keep_admins = empty( \$_POST['keep_admins_shown'] ) || ! empty( \$_POST['keep_admins'] );" ), $name . ' no lee la casilla de los administradores.' );
+	ksa_check( 2 === substr_count( $cli, '[--[no-]keep-admins]' ) && 1 === substr_count( $cli, "'keep_admins' => self::flag( \$assoc_args, 'keep-admins', true )" ) && 1 === substr_count( $cli, "'keep_admins' => self::flag( \$assoc_args, 'keep-admins', null )" ), 'WP-CLI no ofrece --[no-]keep-admins en restore y migrate.' );
+	ksa_check( false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/digitalisimo-backups/includes/class-backups-migrate.php' ), "\$keep_admins = empty( \$_POST['keep_admins_shown'] ) || ! empty( \$_POST['keep_admins'] );" ) && false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/digitalisimo-backups/includes/class-backups.php' ), "\$keep_admins = empty( \$_POST['keep_admins_shown'] ) || 'auto' === ( \$_POST['keep_admins'] ?? '' ) ? null : ! empty( \$_POST['keep_admins'] );" ), 'La pantalla no lee la casilla de los administradores.' );
 } );
 
 bk_cleanup();
 foreach ( glob( $GLOBALS['bk_root'] . '-*.sqlite' ) ?: array() as $sqlite ) @unlink( $sqlite );
 @unlink( $GLOBALS['ksa_log'] );
-echo $failures ? "Conservar a los administradores de este sitio: {$failures} caso(s) con fallos.\n" : "DIGITALÍSIMO Backups: al restaurar el sitio de otra instalación, quien restaura y los administradores de este sitio siguen entrando con su usuario, su contraseña, sus sesiones y sus contraseñas de aplicación (una cuenta administradora del respaldo con el mismo usuario se funde con la suya, una que no lo era cede su usuario), sin conservar nunca una cuenta que aquí no es administradora ni dejar secretos en registros.\n";
+echo $failures ? "Conservar a los administradores de este sitio: {$failures} caso(s) con fallos.\n" : "DIGITALÍSIMO Backups: al restaurar el sitio de otra instalación, quien restaura y los administradores de este sitio siguen entrando con su usuario, su contraseña, sus sesiones y sus contraseñas de aplicación (una cuenta del respaldo con el mismo correo se funde con la suya, una con el mismo usuario y otro correo cede su usuario), sin conservar nunca una cuenta que aquí no es administradora ni dejar secretos en registros.\n";
 exit( $failures ? 1 : 0 );
