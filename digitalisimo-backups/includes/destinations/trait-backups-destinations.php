@@ -310,7 +310,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		@set_time_limit( 0 );
 		$result = self::service_fetch( wp_unslash( $_POST['file'] ?? '' ), array( 'network' => self::network_context() ) );
 		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
-		self::redirect( true, $result['message'] );
+		// El panel de avance sigue la descarga (o enseña su resultado, si terminó en esta misma petición).
+		self::redirect( true, $result['message'], null, '', (string) ( $result['job']['id'] ?? '' ) );
 	}
 
 	/* ------------------------------------------------------------------ Pantalla «Servidores» */

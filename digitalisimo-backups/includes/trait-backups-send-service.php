@@ -196,7 +196,7 @@ trait Digitalisimo_Backups_Send_Service {
 		check_admin_referer( 'digitalisimo_backups_send' );
 		$result = self::service_send( wp_unslash( (string) ( $_POST['file'] ?? '' ) ), array( 'destination' => sanitize_text_field( wp_unslash( (string) ( $_POST['destination'] ?? '' ) ) ), 'network' => is_multisite(), 'via' => 'admin-post', 'drive_cli' => false ) );
 		if ( is_wp_error( $result ) ) self::redirect( false, 'No se envió: ' . $result->get_error_message(), null, 'backups' );
-		self::redirect( true, ! empty( $result['sent'] ) ? (string) $result['message'] : 'Enviando a ' . self::destination_label( (string) $result['destination'] ) . ': sigue en «Trabajos».', null, 'backups' );
+		self::redirect( true, ! empty( $result['sent'] ) ? (string) $result['message'] : 'Enviando a ' . self::destination_label( (string) $result['destination'] ) . ': su avance se ve abajo.', null, 'backups', (string) ( $result['job']['id'] ?? '' ) );
 	}
 	/** El formulario «Enviar a» de la fila: sólo si se puede enviar y hay algún destino remoto con su conexión completa. */
 	private static function send_form( array $item ) {

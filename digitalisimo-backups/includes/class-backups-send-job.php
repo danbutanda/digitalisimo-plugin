@@ -30,6 +30,8 @@ final class Digitalisimo_Backups_Send_Job {
 		);
 		return $phases[ $phase ] ?? null;
 	}
+	/** Cómo se llama en el panel de avance la fase que comparte con el respaldo (la de su vista en curso, job_view()). */
+	public static function track_label( $phase ) { return 'preflight' === $phase ? 'Comprobación del respaldo' : ''; }
 	public static function run_phase( $phase, array $job ) { return Digitalisimo_Backups::send_phase( $phase, $job ); }
 	/** El estado reanudable de la subida vive en el área del trabajo y se conserva entre tramos. */
 	public static function discard( array $job, $phase ) {}

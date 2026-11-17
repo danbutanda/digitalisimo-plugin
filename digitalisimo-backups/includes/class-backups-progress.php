@@ -1,9 +1,11 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-// El panel de avance de la pantalla Backups, el mismo para un respaldo y para una restauración (docs/BACKUPS.md,
-// «Pantalla»): a todo lo ancho, con el porcentaje, la fase en lenguaje claro y los tramos de la barra, el paso dentro de la
-// fase, el tiempo transcurrido y, al terminar, el resultado. Aquí sólo están su marcado y el trabajo que sigue al cargar la
+// El panel de avance de la pantalla Backups, el mismo para un respaldo, una restauración y lo que trae o envía un respaldo
+// (la subida, la importación de Backuply, «Traer al almacén», «Enviar a un destino»; docs/BACKUPS.md, «Pantalla»): a todo
+// lo ancho, con el porcentaje, la fase en lenguaje claro y los tramos de la barra, el paso dentro de la fase, el tiempo
+// transcurrido y, al terminar, el resultado con lo que sigue. Uno solo en la página: el script lo pone en el hueco de la
+// sección donde se hizo la acción (`data-progress-slot`). Aquí sólo están su marcado y el trabajo que sigue al cargar la
 // página; lo pinta y lo hace avanzar assets/manual-progress.js con Digitalisimo_Backups_Jobs::screen_view(). Sólo lo carga
 // la pantalla (render()) y, tras su paso, el tick por testigo de quien no gestiona Backups (su vista mínima): no ocupa
 // memoria en las peticiones que restauran.
@@ -13,17 +15,23 @@ final class Digitalisimo_Backups_Progress {
 	const RECENT = 900;
 
 	// El trabajo que sigue el panel al cargar: la restauración en curso (o la reconstrucción de un punto incremental, o la
-	// vuelta a la copia previa); si no, en «Respaldos», el respaldo manual en curso; si no, la última restauración que
-	// terminó hace menos de RECENT segundos. Nunca la de una migración (o la que la deshace): la sigue «Migrar».
-	public static function initial( $home ) {
+	// vuelta a la copia previa); si no, el trabajo que pidió la acción de la que viene la página (`?job=`: una importación,
+	// «Traer al almacén» o «Enviar a un destino», en curso o terminada hace menos de RECENT segundos: así se ve su resultado
+	// aunque terminara en la misma petición); si no, en «Respaldos», el respaldo manual en curso; si no, el primero en la
+	// cola de los que traen o envían un respaldo (entry()); si no, la última restauración que terminó hace menos de RECENT
+	// segundos. Nunca la de una migración (o la que la deshace): la sigue «Migrar».
+	public static function initial( $home, $requested = '' ) {
 		try {
 			$jobs = Digitalisimo_Backups_Jobs::all();
 		} catch ( Throwable $e ) {
 			return null;
 		}
+		$requested = Digitalisimo_Backups_Job_Store::valid_id( (string) $requested ) ? (string) $requested : '';
 		$active = null;
 		$manual = null;
 		$recent = null;
+		$entry = null;
+		$asked = null;
 		foreach ( $jobs as $job ) {
 			$restore = Digitalisimo_Backups_Jobs::restore_like( $job );
 			if ( ! empty( $job['spec']['aside'] ) ) continue;
@@ -31,15 +39,27 @@ final class Digitalisimo_Backups_Progress {
 			if ( $restore && ! $terminal ) $active = $job;
 			elseif ( $restore && time() - (int) ( $job['finished_at'] ?? 0 ) < self::RECENT && ( ! $recent || (int) $job['finished_at'] >= (int) $recent['finished_at'] ) ) $recent = $job;
 			elseif ( ! $restore && ! $terminal && $home && 'manual' === ( $job['spec']['policy'] ?? '' ) && empty( $job['spec']['inline'] ) && 'backup' === ( $job['kind'] ?? 'backup' ) ) $manual = $job;
+			elseif ( self::entry( $job ) ) {
+				if ( '' !== $requested && hash_equals( $requested, (string) $job['id'] ) ) {
+					if ( ! $terminal || time() - (int) ( $job['finished_at'] ?? 0 ) < self::RECENT ) $asked = $job;
+				} elseif ( ! $terminal && ( ! $entry || (float) ( $job['queued_at'] ?? 0 ) < (float) ( $entry['queued_at'] ?? 0 ) ) ) $entry = $job;
+			}
 		}
-		return $active ?: ( $manual ?: $recent );
+		return $active ?: ( $asked ?: ( $manual ?: ( $entry ?: $recent ) ) );
+	}
+	// Un respaldo que entra en el almacén por el motor de trabajos, o sale a un destino, y que sigue el mismo panel: la
+	// importación de Backuply (`import`), «Traer al almacén» (`fetch`) y «Enviar a un destino» (`send`). La subida no es un
+	// trabajo: la sigue assets/upload.js en el mismo panel.
+	public static function entry( array $job ) {
+		if ( ! empty( $job['spec']['aside'] ) ) return false;
+		return 'import' === ( $job['kind'] ?? '' ) || in_array( (string) ( $job['spec']['kind'] ?? '' ), array( 'fetch', 'send' ), true );
 	}
 
 	// El marcado del panel (oculto: lo enseña el script) con el trabajo que sigue al cargar en data-view. En «Respaldos», bajo
 	// «Respaldar ahora»; en las demás pestañas, al principio (al enviar «Restaurar un archivo suelto» enseña que empieza).
 	// Devuelve el identificador del trabajo que sigue (la tarjeta «Trabajos» no lo repite) o '' si no sigue ninguno.
 	public static function panel( $network, $home ) {
-		$job = self::initial( $home );
+		$job = self::initial( $home, isset( $_GET['job'] ) && is_string( $_GET['job'] ) ? sanitize_key( wp_unslash( $_GET['job'] ) ) : '' );
 		$view = $job ? Digitalisimo_Backups_Jobs::screen_view( $job ) : null;
 		$screen = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-backups' ) : admin_url( 'admin.php?page=digitalisimo-backups' );
 		$login = function_exists( 'wp_login_url' ) ? wp_login_url( $screen ) : $screen;
@@ -54,6 +74,13 @@ final class Digitalisimo_Backups_Progress {
 		// Las regiones vivas (nota y resultado) están siempre en la página, vacías: el CSS las pliega (revisión B7).
 		echo '<div id="' . $id . '-result" class="' . $id . '-result" aria-live="polite"></div>';
 		echo '<div class="' . $id . '-actions"><button type="button" class="button" id="' . $id . '-cancel" hidden>Cancelar</button> <button type="button" class="button button-primary" id="' . $id . '-reload" hidden>Ver la lista actualizada</button> <a class="button" id="' . $id . '-safety" href="' . esc_url( $screen ) . '" hidden>Volver a la copia previa</a> <a class="button button-primary" id="' . $id . '-login" href="' . esc_url( $login ) . '" hidden>Iniciar sesión</a> ';
+		// Lo que sigue a un respaldo que entró (la subida, la importación, «Traer al almacén»): su fila para restaurarlo, o
+		// «Restaurar un archivo suelto» (lo pone el script); una comprobación que se interrumpió se termina sin subir otra vez.
+		echo '<a class="button button-primary" id="' . $id . '-go" href="' . esc_url( $screen ) . '" hidden>Ver en la lista</a> <button type="button" class="button button-primary" id="' . $id . '-resume" hidden>Terminar la comprobación</button> ';
+		// «Importarlo ahora» tras subir un .tar.gz de Backuply: la misma acción que su fila en «Respaldos de Backuply».
+		echo '<form id="' . $id . '-import" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" hidden>';
+		wp_nonce_field( Digitalisimo_Backups::ACTION_BACKUPLY_IMPORT );
+		echo '<input type="hidden" name="action" value="' . esc_attr( Digitalisimo_Backups::ACTION_BACKUPLY_IMPORT ) . '"><input type="hidden" name="backuply_file" value=""><input type="hidden" name="backuply_source" value="store">' . Digitalisimo_Backups::return_field( 'tools', 'import' ) . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-primary">Importarlo ahora</button></form> ';
 		// «Volver a la copia previa» de un sitio que quedó a medio cambiar: la misma acción que la franja de avisos.
 		echo '<form id="' . $id . '-rollback" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" hidden>';
 		wp_nonce_field( Digitalisimo_Backups::ACTION_RESTORE );

@@ -520,7 +520,7 @@ trait Digitalisimo_Backups_Screen {
 		self::servers_panel( $s, $credentials['locked'] );
 		echo '<details class="digitalisimo-backups-section" id="digitalisimo-backups-section-remote"' . ( 'remote' === $open ? ' open' : '' ) . '><summary><strong>Respaldos guardados en los destinos</strong> <span class="description">también los de otros sitios: sincronizar y traer</span></summary>';
 		ob_start();
-		try { self::remote_panel(); } finally { echo self::fold_long( (string) ob_get_clean() ); }
+		try { echo self::progress_slot( 'remote' ); self::remote_panel(); } finally { echo self::fold_long( (string) ob_get_clean() ); }
 		echo '</details>';
 	}
 
@@ -531,6 +531,8 @@ trait Digitalisimo_Backups_Screen {
 		$jobs = Digitalisimo_Backups_Jobs::views();
 		$active = (bool) array_filter( $jobs, function( $view ) { return ! $view['terminal']; } );
 		$migrating = (bool) array_filter( $jobs, function( $view ) { return ! $view['terminal'] && 'migration' === ( $view['kind'] ?? '' ); } );
+		// Una importación en curso se sigue en el panel de avance dentro de su sección, que se abre (como «Migrar»).
+		$importing = (bool) array_filter( $jobs, function( $view ) { return ! $view['terminal'] && 'import' === ( $view['kind'] ?? '' ); } );
 		$status = self::migration_status_data();
 		self::tool_section( 'migrate', 'Migrar', 'clave de un solo uso, migrar desde otro sitio, copia de pruebas, deshacer', 'migrate' === $open || $migrating, function() use ( $network, $status ) { Digitalisimo_Backups_Migrate::panel( $network, $status ); } );
 		// Una sola búsqueda para el resumen y la sección (sources() también retira las descargas cortadas).
@@ -538,14 +540,20 @@ trait Digitalisimo_Backups_Screen {
 		$backuply = array();
 		try { $backuply = $main ? Digitalisimo_Backups_Backuply_Import::sources() : array(); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		$found = count( $updraft ) + count( $backuply );
-		self::tool_section( 'import', 'Importar de Backuply o UpdraftPlus', $found ? $found . ' ' . ( 1 === $found ? 'respaldo detectado' : 'respaldos detectados' ) : 'no se detectaron respaldos', 'import' === $open, function() use ( $network, $updraft, $backuply ) { self::backuply_panel( $network, $backuply ); echo '<section class="digitalisimo-backups-card digitalisimo-backups-updraft">'; self::updraft_panel( $updraft ); echo '</section>'; } );
-		if ( $main ) self::tool_section( 'upload', 'Subir un respaldo', '.zip o .dgbk de DIGITALÍSIMO, o .tar.gz de Backuply', 'upload' === $open, function() use ( $network ) { Digitalisimo_Backups_Uploads::panel( $network ); } );
-		self::tool_section( 'restore-file', 'Restaurar un archivo suelto', 'archivos sin registro, de otro servidor o con su frase, y la última restauración en otro dominio', 'restore-file' === $open, function() use ( $history ) { self::restore_panel( $history ); } );
+		self::tool_section( 'import', 'Importar de Backuply o UpdraftPlus', $found ? $found . ' ' . ( 1 === $found ? 'respaldo detectado' : 'respaldos detectados' ) : 'no se detectaron respaldos', 'import' === $open || $importing, function() use ( $network, $updraft, $backuply ) { echo self::progress_slot( 'import' ); self::backuply_panel( $network, $backuply ); echo '<section class="digitalisimo-backups-card digitalisimo-backups-updraft">'; self::updraft_panel( $updraft ); echo '</section>'; } );
+		// La subida que se está comprobando (de esta cuenta) se sigue en su sección, abierta: el panel vuelve a ella al recargar.
+		if ( $main ) self::tool_section( 'upload', 'Subir un respaldo', '.zip o .dgbk de DIGITALÍSIMO, o .tar.gz de Backuply', 'upload' === $open || Digitalisimo_Backups_Uploads::checking_mine(), function() use ( $network ) { Digitalisimo_Backups_Uploads::panel( $network ); } );
+		self::tool_section( 'restore-file', 'Restaurar un archivo suelto', 'archivos sin registro, de otro servidor o con su frase, y la última restauración en otro dominio', 'restore-file' === $open, function() use ( $history ) { echo self::progress_slot( 'restore-file' ); self::restore_panel( $history ); } );
 		$count = count( self::policies() );
 		self::tool_section( 'automations', 'Automatizaciones (' . $count . ')', 'crear, editar, ejecutar ahora y borrar; cada una con su destino y su retención', 'automations' === $open, function() { self::automation_fields(); } );
 		if ( $network && is_multisite() ) self::tool_section( 'extract', 'Extraer un sitio de la red', 'un sitio de la red como WordPress individual, para otro servidor', 'extract' === $open, function() use ( $s ) { self::extract_panel( $s ); } );
 		self::tool_section( 'jobs', 'Trabajos y registros', $active ? 'hay trabajos en curso' : 'los últimos respaldos, restauraciones y migraciones', 'jobs' === $open || $active, function() use ( $network ) { self::jobs_panel( $network ); } );
 	}
+	/**
+	 * El hueco donde el panel de avance (uno solo en la página) se pone para seguir lo que se hace en esa sección: la subida,
+	 * la importación, «Traer al almacén» de un destino o lo que se pide en «Restaurar un archivo suelto» (assets/manual-progress.js).
+	 */
+	private static function progress_slot( $name ) { return '<div class="digitalisimo-backups-progress-slot" data-progress-slot="' . esc_attr( $name ) . '"></div>'; }
 	/** Una sección plegada de «Herramientas»: título, resumen de una línea y su contenido de antes. */
 	private static function tool_section( $id, $title, $summary, $open, callable $body ) {
 		echo '<details class="digitalisimo-backups-section" id="digitalisimo-backups-section-' . esc_attr( $id ) . '"' . ( $open ? ' open' : '' ) . '><summary><strong>' . esc_html( $title ) . '</strong> <span class="description">' . esc_html( $summary ) . '</span></summary>';

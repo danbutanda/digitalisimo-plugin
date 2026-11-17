@@ -21,6 +21,15 @@ defined( 'ABSPATH' ) || exit;
  */
 trait Digitalisimo_Backups_Upload_Service {
 	/**
+	 * Quien anota en la sesión el paso de la comprobación en curso (Digitalisimo_Backups_Uploads::checker()), sólo mientras
+	 * service_upload_finish() la comprueba: «Agregar al listado» usa la misma validación sin sesión y no anota nada.
+	 */
+	private static $upload_checking = null;
+	/** El paso de la comprobación de una subida para el panel de avance (un texto general, sin rutas). */
+	private static function upload_step( $key, $text ) {
+		if ( is_callable( self::$upload_checking ) ) call_user_func( self::$upload_checking, (string) $key, (string) $text );
+	}
+	/**
 	 * Sesión de una subida, o el error que corresponde. Con $owner, sólo la de la cuenta en curso (continuar y cerrar);
 	 * sin él, cualquiera (verla y descartarla).
 	 */
@@ -169,6 +178,7 @@ trait Digitalisimo_Backups_Upload_Service {
 		$lock = Digitalisimo_Backups_Uploads::lock( $state['id'] );
 		if ( ! $lock ) return self::upload_validating( $state );
 		$discard = false;
+		$observer = Digitalisimo_Backups_Jobs::$observer;
 		try {
 			$state = Digitalisimo_Backups_Uploads::read( $state['id'] );
 			if ( ! $state ) return self::service_error( 'upload_missing', 'La subida ya no existe; vuelve a empezarla.', 404 );
@@ -186,20 +196,29 @@ trait Digitalisimo_Backups_Upload_Service {
 			$state['phase'] = 'validating';
 			$state['attempts'] = (int) ( $state['attempts'] ?? 0 ) + 1;
 			$state['updated_at'] = time();
-			unset( $state['error'] );
+			unset( $state['error'], $state['check'] );
 			Digitalisimo_Backups_Uploads::write( $state );
 			// La comprobación sigue aunque el proxy corte la petición: el cliente consulta el estado y no vuelve a subirla.
 			if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
 			if ( function_exists( 'set_time_limit' ) ) @set_time_limit( 0 );
+			// El panel de avance consulta el estado mientras tanto: el paso en curso y, dentro de él, lo que la validación
+			// informa al motor («Verificando archivo 120 de 5 000»), anotados en la sesión como mucho cada 2 s.
+			$checking = Digitalisimo_Backups_Uploads::checker( $state['id'] );
+			self::$upload_checking = $checking;
+			Digitalisimo_Backups_Jobs::$observer = function( $percent, $message ) use ( $checking ) { $checking( '', $message ); };
 			$path = Digitalisimo_Backups_Uploads::data_path( $state['id'] );
 			$report = null;
 			if ( '' !== (string) $state['sha256'] ) {
+				self::upload_step( 'checksum', 'Calculando el SHA-256 del archivo para compararlo con el declarado…' );
 				$checksum = @hash_file( 'sha256', $path );
 				if ( false === $checksum ) $report = self::service_error( 'upload_error', 'No se pudo leer el archivo subido para calcular su SHA-256; se conserva para reintentar.', 500 );
 				elseif ( ! hash_equals( (string) $state['sha256'], $checksum ) ) $report = self::service_error( 'upload_checksum', 'El archivo recibido no coincide con el SHA-256 declarado y se descartó. Vuelve a subirlo.', 422 );
 			}
 			// Un respaldo de Backuply (.tar.gz) no se comprueba aquí: la importación lo valida entero, por pasos (I9).
-			if ( null === $report && self::upload_is_backuply( (string) $state['name'] ) ) $report = "\x1f\x8b" === (string) @file_get_contents( $path, false, null, 0, 2 ) ? array( 'container' => 'backuply' ) : self::service_error( 'upload_invalid', 'El archivo no es un respaldo de Backuply (.tar.gz comprimido con gzip) y se descartó.', 422 );
+			if ( null === $report && self::upload_is_backuply( (string) $state['name'] ) ) {
+				self::upload_step( 'gzip', 'Comprobando que es un .tar.gz de Backuply (la importación lo comprueba entero después)…' );
+				$report = "\x1f\x8b" === (string) @file_get_contents( $path, false, null, 0, 2 ) ? array( 'container' => 'backuply' ) : self::service_error( 'upload_invalid', 'El archivo no es un respaldo de Backuply (.tar.gz comprimido con gzip) y se descartó.', 422 );
+			}
 			if ( null === $report ) $report = self::upload_inspect( $path, is_string( $args['secret'] ?? null ) ? $args['secret'] : '' );
 			if ( is_wp_error( $report ) ) {
 				$code = $report->get_error_code();
@@ -207,6 +226,7 @@ trait Digitalisimo_Backups_Upload_Service {
 				$state['phase'] = $discard ? 'rejected' : 'uploading';
 				// Un rechazo por espacio, frase o el servidor no es un corte: no gasta intentos.
 				if ( ! $discard ) $state['attempts'] = 0;
+				unset( $state['check'] );
 				$state['error'] = array( 'code' => $code, 'message' => $report->get_error_message() );
 				$state['updated_at'] = time();
 				Digitalisimo_Backups_Uploads::write( $state );
@@ -221,6 +241,7 @@ trait Digitalisimo_Backups_Upload_Service {
 				if ( is_array( $state ) && Digitalisimo_Backups_Uploads::read( $state['id'] ) ) {
 					$state['phase'] = 'uploading';
 					$state['attempts'] = 0;
+					unset( $state['check'] );
 					$state['error'] = array( 'code' => 'digitalisimo_backups_upload_error', 'message' => $e->getMessage() );
 					$state['updated_at'] = time();
 					Digitalisimo_Backups_Uploads::write( $state );
@@ -228,6 +249,8 @@ trait Digitalisimo_Backups_Upload_Service {
 			} catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 			return self::service_error( 'upload_error', 'No se pudo terminar la subida; se conserva para reintentar o descartarla: ' . $e->getMessage(), 500 );
 		} finally {
+			self::$upload_checking = null;
+			Digitalisimo_Backups_Jobs::$observer = $observer;
 			Digitalisimo_Backups_Uploads::unlock( $lock );
 		}
 	}
@@ -248,6 +271,7 @@ trait Digitalisimo_Backups_Upload_Service {
 	 * puntos de su cadena (N4 de la verificación).
 	 */
 	private static function upload_place( array $state, $path, array $report, array $args ) {
+		self::upload_step( 'register', 'Calculando el SHA-256 de lo comprobado y registrándolo en la lista de respaldos…' );
 		$checksum = @hash_file( 'sha256', $path );
 		if ( false === $checksum ) throw new Exception( 'No se pudo calcular el SHA-256 del respaldo subido.' );
 		$size = (int) $state['size'];
@@ -331,7 +355,7 @@ trait Digitalisimo_Backups_Upload_Service {
 		$result['restorable'] = $loose ? false : self::restorable_item( $row );
 		$result['uploaded'] = $loose ? null : self::uploaded_summary( $row );
 		if ( $loose ) $result['problems'] = array( 'Está cifrado con la clave ' . (string) ( $public['key'] ?? '' ) . ', que este sitio no tiene: quedó en el almacén «sin registro», con el nombre ' . (string) $placed['file'] . '. Da su frase para agregarlo a la lista: «Agregar al listado» con su frase en Herramientas → «Restaurar un archivo suelto» (también se restaura desde ahí con su frase).' );
-		unset( $state['placing'] );
+		unset( $state['placing'], $state['check'] );
 		$state['phase'] = 'done';
 		$state['result'] = $result;
 		$state['updated_at'] = time();
@@ -375,6 +399,7 @@ trait Digitalisimo_Backups_Upload_Service {
 	 * respaldo de Backups ni aparece en «Restaurar» hasta convertirlo (Respaldos de Backuply, REST o WP-CLI).
 	 */
 	private static function upload_backuply_done( array $state, $path ) {
+		self::upload_step( 'register', 'Guardándolo en el almacén privado para importarlo…' );
 		$store = Digitalisimo_Backups_Backuply_Import::store_directory( true );
 		$name = Digitalisimo_Backups_Backuply_Import::upload_name( (string) $state['name'] );
 		if ( '' === $name ) $name = 'backuply-upload-' . gmdate( 'Ymd-His' ) . '.tar.gz';
@@ -386,6 +411,7 @@ trait Digitalisimo_Backups_Upload_Service {
 			return $file;
 		} );
 		$result = array( 'file' => $file, 'size' => (int) $state['size'], 'registered' => false, 'container' => 'backuply', 'backuply' => array( 'source' => 'store', 'name' => $file ), 'verified' => false, 'trust' => 'untrusted', 'confirmation' => 'RESTAURAR SIN FIRMA', 'needs_secret' => false, 'compatible' => false, 'problems' => array( 'Es un respaldo de Backuply: impórtalo en Herramientas → «Importar de Backuply o UpdraftPlus» (o con wp digitalisimo-backups backuply import ' . $file . ') para convertirlo en un ZIP de Backups y restaurarlo.' ) );
+		unset( $state['check'] );
 		$state['phase'] = 'done';
 		$state['result'] = $result;
 		$state['updated_at'] = time();
@@ -431,6 +457,7 @@ trait Digitalisimo_Backups_Upload_Service {
 		$summary = array( 'container' => 'zip', 'verified' => false, 'needs_secret' => false, 'trust' => 'untrusted', 'signature' => 'unsigned', 'key' => '', 'confirmation' => 'RESTAURAR SIN FIRMA', 'compatible' => false, 'problems' => array() );
 		if ( ! class_exists( 'ZipArchive' ) ) return self::service_error( 'upload_error', 'El servidor necesita la extensión PHP ZipArchive para comprobar el respaldo; la subida se conserva.', 500 );
 		if ( Digitalisimo_Backups_Encrypted_File::is_encrypted( $path ) ) {
+			self::upload_step( 'header', 'Comprobando la cabecera del respaldo cifrado…' );
 			try {
 				$parsed = Digitalisimo_Backups_Encrypted_File::read_header( $path );
 				$header = $parsed['header'];
@@ -467,8 +494,10 @@ trait Digitalisimo_Backups_Upload_Service {
 		}
 		$report = null;
 		try {
+			self::upload_step( 'open', 'dgbk' === $summary['container'] ? 'Descifrando el respaldo para comprobarlo entero…' : 'Abriendo el ZIP y comprobando la firma de su manifiesto…' );
 			$report = Digitalisimo_Backups_Security::open( $path, array(), $secret );
 			$source = array();
+			self::upload_step( 'contents', 'Comprobando cada archivo contra el manifiesto (CRC y SHA-256) y la base de datos en seco…' );
 			$data = self::inspect_package( $report['zip'], 'untrusted' !== $report['trust'], false, $source, true );
 			$problems = self::package_installation_problems( $data );
 			// El respaldo de una red en un WordPress individual: se restaura un sitio suyo, que se elige al restaurarlo.
@@ -480,6 +509,7 @@ trait Digitalisimo_Backups_Upload_Service {
 			// «Origen → este sitio», como `verify`: qué cambiaría al restaurarlo aquí (o por qué no se puede).
 			$relocation = null;
 			if ( ! $problems && ! $network ) {
+				self::upload_step( 'plan', 'Comprobando qué cambiaría al restaurarlo en este sitio («Origen → este sitio»)…' );
 				$plan = self::relocation_plan( $data, $source, array( 'addresses' => 'current' ) );
 				$problems = $plan->problems();
 				$relocation = $plan->summary();
