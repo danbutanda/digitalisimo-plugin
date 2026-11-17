@@ -384,7 +384,7 @@ final class Digitalisimo_Backups {
 		$migration = Digitalisimo_Backups_Jobs::get( (string) $except );
 		$spec = is_array( $migration ) ? (array) $migration['spec'] : array();
 		$readers = isset( $spec['reader']['hash'] ) ? array( (string) $spec['reader']['hash'] ) : array();
-		return self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => 'migration', 'safety_spec' => $safety_spec, 'safety_extra' => array( 'migration' => $tag ), 'exact_tables' => true, 'aside' => array( 'kind' => 'migration', 'migration' => (string) $except, 'from' => (string) ( $tag['from'] ?? '' ) ), 'except' => (string) $except, 'user_id' => (int) ( $spec['origin']['user_id'] ?? 0 ), 'keep_access' => ! array_key_exists( 'keep_access', $spec ) || ! empty( $spec['keep_access'] ), 'readers' => $readers ) );
+		return self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => 'migration', 'safety_spec' => $safety_spec, 'safety_extra' => array( 'migration' => $tag ), 'exact_tables' => true, 'aside' => array( 'kind' => 'migration', 'migration' => (string) $except, 'from' => (string) ( $tag['from'] ?? '' ) ), 'except' => (string) $except, 'user_id' => (int) ( $spec['origin']['user_id'] ?? 0 ), 'keep_access' => ! array_key_exists( 'keep_access', $spec ) || ! empty( $spec['keep_access'] ), 'keep_admins' => ! array_key_exists( 'keep_admins', $spec ) || ! empty( $spec['keep_admins'] ), 'readers' => $readers ) );
 	}
 	/** @internal Si el respaldo $file (una copia previa) sigue en el almacén privado de este servidor. */
 	public static function migration_safety_present( $file ) {
@@ -1546,6 +1546,7 @@ final class Digitalisimo_Backups {
 					'wp_config' => $config,
 					'notice' => (string) ( $restore['notice'] ?? '' ),
 					'keep_access' => ! array_key_exists( 'keep_access', $restore ) || ! empty( $restore['keep_access'] ),
+					'keep_admins' => ! array_key_exists( 'keep_admins', $restore ) || ! empty( $restore['keep_admins'] ),
 					'token' => (string) ( $restore['token'] ?? '' ),
 					'readers' => (array) ( $restore['readers'] ?? array() ),
 					'user_id' => (int) ( $restore['user_id'] ?? 0 ),
@@ -2610,6 +2611,8 @@ final class Digitalisimo_Backups {
 		if ( $loose ) { echo '<optgroup label="Archivos del almacén sin registro">'; foreach ( array_slice( $loose, 0, 100 ) as $file ) { $hint = self::relocation_hint( $dir . $file, $here ); echo '<option value="' . esc_attr( $file ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $file . ' · sin registro' . Digitalisimo_Backups_Security::restore_label( $dir . $file ) . $hint['label'] ) . '</option>'; } echo '</optgroup>'; }
 		echo '</select></p><p class="description" id="digitalisimo-backups-relocation" aria-live="polite">Si viene de otra dirección, carpeta o prefijo de tablas, se reescribe al restaurar.</p>' . self::help_html( 'Qué se reescribe: las URL (también en datos serializados, JSON y URL codificadas, con y sin www, http o https), las rutas del servidor, el prefijo de tablas y las claves que lo llevan y, en una red, el dominio y la ruta de cada sitio. No se tocan la columna guid de las entradas ni los correos.' );
 		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><p><label><input type="radio" name="addresses" value="current" checked> Las de este sitio (' . esc_html( $here['home'] ) . '): las del respaldo se cambian por éstas</label></p><p><label><input type="radio" name="addresses" value="backup"> Las del respaldo: el sitio queda en su dirección original</label></p>' . self::help_html( 'Con las del respaldo, las rutas del servidor y el prefijo de tablas siguen siendo los de este servidor.' ) . '</fieldset>' . self::keep_access_field();
+		// «Conservar mi acceso» y «Conservar los administradores de este sitio» (con el respaldo de otra instalación).
+		echo self::keep_access_fields();
 		echo '<p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label></p>' . self::help_html( 'Sólo para un respaldo cifrado o firmado con una clave que este sitio no tiene (por ejemplo, al restaurar en otro servidor). No se guarda salvo que marques la casilla.' ) . '<p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p>';
 		// Restaurar por partes: las partes enteras (los plugins y temas concretos se eligen desde la fila del respaldo, REST o WP-CLI).
 		echo self::restore_parts_field( '', false, '', true ) . '<p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form>';
@@ -2746,14 +2749,16 @@ final class Digitalisimo_Backups {
 			$addresses = 'backup' === sanitize_key( wp_unslash( $_POST['addresses'] ?? '' ) ) ? 'backup' : 'current';
 			// La restauración es un trabajo por pasos: esta petición avanza lo que cabe en su tiempo y la pantalla (o WP-Cron)
 			// la termina; la cookie del testigo deja a este navegador verla durante el mantenimiento.
-			// «Conservar mi acceso»: encendido salvo que el formulario lo muestre desmarcado.
+			// «Conservar mi acceso» y «Conservar los administradores de este sitio»: encendidos salvo que el formulario los
+			// muestre desmarcados.
 			$keep = empty( $_POST['keep_access_shown'] ) || ! empty( $_POST['keep_access'] );
+			$keep_admins = empty( $_POST['keep_admins_shown'] ) || ! empty( $_POST['keep_admins'] );
 			// «Qué restaurar»: con «Todo» marcado (o un formulario sin el campo), todo; si no, las partes marcadas.
 			// El testigo va en la cookie antes de empezar: si esta petición muere en sus primeros tramos (memoria, un proxy), el
 			// navegador sigue la restauración durante el mantenimiento. Nunca con otro trabajo en curso (pisaría su cookie).
 			$token = Digitalisimo_Backups_Jobs::has_active() ? null : Digitalisimo_Backups_Restore_Maintenance::new_token();
 			if ( $token ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( $token );
-			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'keep_access' => $keep, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false, 'token' => $token ) + self::restore_request_parts() );
+			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'keep_access' => $keep, 'keep_admins' => $keep_admins, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false, 'token' => $token ) + self::restore_request_parts() );
 			// Si no empezó (o terminó ya en esta petición), la cookie no sirve: se borra (revisión B8).
 			if ( $token && ( is_wp_error( $result ) || empty( $result['restoring'] ) ) ) Digitalisimo_Backups_Restore_Maintenance::clear_cookie();
 			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );

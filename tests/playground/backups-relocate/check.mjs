@@ -92,7 +92,20 @@ try {
     log(`· ${res.json?.relocation?.text || ''}`);
     const started = Date.now();
     res = await api('POST', `/backups/${file}/restore`, { headers: basic(setup.password), body: { confirm: 'RESTAURAR SIN FIRMA', network, addresses: 'current' } });
-    check(res.status === 200 && res.json?.restored === true, `destino: POST restore restaura (${Math.round((Date.now() - started) / 1000)} s)`, res.text.slice(0, 900));
+    // Desde 1.0.76 la respuesta sale tras 25 s de trabajo como mucho (202 con la ficha de lectura `follow`) y la
+    // restauración sigue por ticks: se sigue con la ficha hasta el final (con la PC cargada no cabe en una petición).
+    let restored = res.status === 200 ? res.json : null;
+    if (res.status === 202 && res.json?.follow) {
+      const follow = res.json.follow;
+      for (let i = 0; i < 900 && !restored; i++) {
+        const job = await request('GET', `/?rest_route=${encodeURIComponent(`/digitalisimo-backups/v1/jobs/${follow.job}`)}`, { headers: { [follow.header]: follow.token } });
+        if (job.status === 200 && job.json?.terminal) { restored = job.json.restore?.result || { restored: false, status: job.json.status, error: job.json.error }; break; }
+        await request('GET', '/wp-cron.php');
+        await new Promise((done) => setTimeout(done, 1000));
+      }
+    }
+    check(restored?.restored === true, `destino: POST restore restaura (${Math.round((Date.now() - started) / 1000)} s${res.status === 202 ? ', seguida por ticks con su ficha' : ''})`, JSON.stringify(restored || res.json || res.text).slice(0, 900));
+    res = { status: 200, json: restored || {}, text: JSON.stringify(restored || {}) };
     const relocation = res.json?.relocation || {};
     check(relocation.check && relocation.check.urls === 0 && relocation.check.paths === 0, 'destino: la comprobación final cuenta 0 URL del origen', JSON.stringify(relocation.check));
     // La comprobación ve de verdad la base de datos (en el SQLite de WordPress): el guid del origen, que no se toca, aparece.

@@ -877,7 +877,7 @@ final class Digitalisimo_Backups_Site_Extract {
 	/** Texto para quien restaura: con qué usuarios se entra después. */
 	public static function restored_notice( array $manifest ) {
 		$users = (array) ( $manifest['extract']['users'] ?? array() );
-		return 'Sitio extraído de ' . (string) ( $manifest['extract']['site']['label'] ?? 'una red' ) . ' restaurado: sus usuarios entran con su contraseña de la red' . ( ! empty( $users['authors'] ) ? ' (los autores que no eran miembros no tienen contraseña ni rol)' : '' ) . '; las cuentas que tenía este WordPress ya no existen. Fuera de la red, administradores y editores pueden publicar HTML sin filtrar (unfiltered_html), que en la red era sólo del superadministrador: si no lo quieres, define DISALLOW_UNFILTERED_HTML en wp-config.php.';
+		return 'Sitio extraído de ' . (string) ( $manifest['extract']['site']['label'] ?? 'una red' ) . ' restaurado: sus usuarios entran con su contraseña de la red' . ( ! empty( $users['authors'] ) ? ' (los autores que no eran miembros no tienen contraseña ni rol)' : '' ) . '; de las cuentas que tenía este WordPress sólo siguen quien restauró y sus administradores, si se conservaron (lo dice «Cómo entrar ahora»). Fuera de la red, administradores y editores pueden publicar HTML sin filtrar (unfiltered_html), que en la red era sólo del superadministrador: si no lo quieres, define DISALLOW_UNFILTERED_HTML en wp-config.php.';
 	}
 }
 
