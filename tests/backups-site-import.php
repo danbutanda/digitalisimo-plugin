@@ -485,7 +485,7 @@ si_case( 'k · por partes (sólo base, medios, plugins y temas), la migración c
 	$path = $GLOBALS['bk_root'] . '-partes.zip';
 	$zip = new ZipArchive();
 	$zip->open( $path, ZipArchive::CREATE | ZipArchive::OVERWRITE );
-	foreach ( array( 'database.sql' => 'SELECT 1;', 'manifest.json' => json_encode( array( 'format' => 'digitalisimo-backup/v3', 'scope' => 'installation', 'type' => 'full', 'multisite' => false, 'home_url' => 'https://tienda.com', 'table_prefix' => 'wp_' ) ), 'wordpress/wp-admin/index.php' => '<?php', 'wordpress/wp-content/uploads/a.jpg' => 'jpg', 'wordpress/wp-content/plugins/x/x.php' => '<?php', 'wordpress/wp-content/themes/t/style.css' => '/* */' ) as $name => $body ) $zip->addFromString( $name, $body );
+	foreach ( array( 'database.sql' => 'SELECT 1;', 'manifest.json' => json_encode( array( 'format' => 'digitalisimo-backup/v3', 'scope' => 'installation', 'type' => 'full', 'multisite' => false, 'home_url' => 'https://tienda.com', 'table_prefix' => 'wp_' ) ), 'wordpress/wp-admin/index.php' => '<?php', 'wordpress/wp-content/uploads/a.jpg' => 'jpg', 'wordpress/wp-content/plugins/x/x.php' => '<?php', 'wordpress/wp-content/themes/t/style.css' => '/* */', 'wordpress/wp-content/mu-plugins/m.php' => '<?php' ) as $name => $body ) $zip->addFromString( $name, $body );
 	$zip->close();
 	$zip->open( $path );
 	$new = array( 'mode' => 'new' );
@@ -494,7 +494,9 @@ si_case( 'k · por partes (sólo base, medios, plugins y temas), la migración c
 	try {
 		$ok = function( $selection, $into ) use ( $zip ) { try { bk_call( 'Digitalisimo_Backups', 'restore_precheck', $zip, $selection, $into ); return ''; } catch ( Exception $e ) { return $e->getMessage(); } };
 		si_check( '' === $ok( null, $new ) && '' === $ok( $parts( array( 'database', 'uploads' ) ), $new ) && '' === $ok( $parts( array( 'uploads', 'plugins' ) ), $replace ), 'Una selección válida de la importación se rechazó.' );
-		si_check( false !== strpos( $ok( $parts( array( 'core' ) ), $replace ), 'núcleo' ) && false !== strpos( $ok( $parts( array( 'database', 'mu-plugins' ) ), $new ), 'núcleo' ), 'Se aceptó mezclar en la red el núcleo o los mu-plugins del respaldo.' );
+		$core = $ok( $parts( array( 'core' ) ), $replace );
+		$mu = $ok( $parts( array( 'database', 'mu-plugins' ) ), $new );
+		si_check( false !== strpos( $core, 'nunca se mezclan en la red' ) && false !== strpos( $mu, 'nunca se mezclan en la red' ), 'Se aceptó mezclar en la red el núcleo o los mu-plugins del respaldo: ' . json_encode( array( $core, $mu ) ) );
 		si_check( false !== strpos( $ok( $parts( array( 'uploads' ) ), $new ), 'base de datos' ), 'Un sitio nuevo se aceptó sin su base de datos.' );
 		si_check( false !== strpos( $ok( null, null ), 'into=new' ), 'Sin destino, la restauración de un individual en una red no pide elegirlo.' );
 	} finally {
