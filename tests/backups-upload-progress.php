@@ -91,7 +91,7 @@ function up_section( $html, $id ) {
 	$tag = substr( $html, $start, strpos( $html, '>', $start ) - $start + 1 );
 	// Hasta la sección siguiente (dentro hay otros <details>: «Más», «Opciones»…).
 	$next = strpos( $html, '<details class="digitalisimo-backups-section"', $start + strlen( $head ) );
-	return array( 'open' => (bool) preg_match( '/\sopen[\s>]/', $tag ), 'body' => substr( $html, $start + strlen( $tag ), false === $next ? null : $next - $start - strlen( $tag ) ) );
+	return array( 'open' => (bool) preg_match( '/\sopen[\s>]/', $tag ), 'body' => false === $next ? (string) substr( $html, $start + strlen( $tag ) ) : (string) substr( $html, $start + strlen( $tag ), $next - $start - strlen( $tag ) ) ); // En PHP 7.4, substr() con largo null da ''.
 }
 /** Una petición AJAX de la subida: nonce, contexto y la respuesta JSON. */
 function up_ajax( $step, array $post ) {
@@ -203,7 +203,9 @@ up_case( 'S3 · «Subir un respaldo» sin barra propia, con el hueco del panel y
 	up_check( ! up_section( $tools, 'import' )['open'], 'Sin importación en curso, «Importar» se abre sola.' );
 	up_job( 'import', up_import_spec(), array( 'status' => 'running', 'phase' => 'files' ) );
 	up_check( up_section( up_render( 'tools' ), 'import' )['open'], 'Con una importación en curso, «Importar» no se abre para seguirla.' );
-	up_check( false !== strpos( (string) up_section( up_render( 'servers' ), 'remote' )['body'], 'data-progress-slot="remote"' ), '«Respaldos guardados en los destinos» no tiene el hueco del panel.' );
+	$servers = up_render( 'servers' );
+	$remote = up_section( $servers, 'remote' );
+	up_check( $remote && false !== strpos( $remote['body'], 'data-progress-slot="remote"' ), '«Respaldos guardados en los destinos» no tiene el hueco del panel: ' . ( $remote ? substr( $remote['body'], 0, 300 ) : 'sin la sección; ' . substr( preg_replace( '/\s+/', ' ', strip_tags( $servers ) ), 0, 400 ) ) );
 	$B::service_upload_cancel( $mine['id'] );
 	$B::service_upload_cancel( $other['id'] );
 	up_clear_jobs();
