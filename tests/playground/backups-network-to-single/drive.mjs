@@ -148,9 +148,19 @@ async function upload(path) {
   let status = '';
   for (let i = 0; i < 600; i++) {
     await sleep(1500);
-    status = await page.$eval('#digitalisimo-backups-upload .digitalisimo-backups-upload-status', (p) => p.textContent).catch(() => '');
+    // Desde el panel de avance de la subida (rama upload-progress), el resultado se ve en el panel; la línea de estado del
+    // formulario sólo dice lo previo a empezar (como en el ensayo de importar en una red).
+    const seen = await page.evaluate(() => {
+      const line = document.querySelector('#digitalisimo-backups-upload .digitalisimo-backups-upload-status');
+      const panel = document.getElementById('digitalisimo-backups-manual-progress');
+      const q = (id) => document.getElementById('digitalisimo-backups-progress-' + id);
+      const state = panel && !panel.hidden ? panel.getAttribute('data-state') || '' : '';
+      const text = [line ? line.textContent : '', state && q('title') ? q('title').textContent : '', state && q('result') ? q('result').textContent : ''].join(' ').replace(/\s+/g, ' ').trim();
+      return { state, text };
+    }).catch(() => ({ state: '', text: '' }));
+    status = seen.text;
     const busy = await page.$eval('#digitalisimo-backups-upload button[type=submit]', (b) => b.disabled).catch(() => false);
-    if (!busy && status) break;
+    if (!busy && status && (!seen.state || ['success', 'failed', 'error', 'warning', 'lost'].includes(seen.state))) break;
   }
   return status;
 }
