@@ -185,14 +185,21 @@ if (phase === 'a') {
   if (check(Boolean(input), '«Subir un respaldo» ofrece elegir el archivo')) {
     await input.uploadFile(zipA);
     await page.click('#digitalisimo-backups-upload button[type=submit]');
+    // Desde la rama upload-progress (1.0.79) la subida se sigue en el panel de avance de la pantalla (el mismo del
+    // respaldo y la restauración), no en la tarjeta: su título y su resultado dicen cómo terminó.
     let status = '';
     for (let i = 0; i < 400; i++) {
       await sleep(1500);
-      status = await page.$eval('#digitalisimo-backups-upload .digitalisimo-backups-upload-status', (p) => p.textContent).catch(() => '');
+      const panel = await page.evaluate(() => {
+        const p = document.getElementById('digitalisimo-backups-manual-progress');
+        const q = (id) => document.getElementById('digitalisimo-backups-progress-' + id);
+        return p ? { state: p.getAttribute('data-state'), text: q('title').textContent + '. ' + q('result').textContent } : null;
+      }).catch(() => null);
       const busy = await page.$eval('#digitalisimo-backups-upload button[type=submit]', (b) => b.disabled).catch(() => false);
-      if (!busy && status) break;
+      status = panel ? panel.text : '';
+      if (!busy && panel && ['success', 'failed', 'cancelled', 'paused'].includes(panel.state)) break;
     }
-    check(/Respaldo subido y verificado/.test(status) && /RESTAURAR/.test(status), '«Subir un respaldo» deja el de A en la lista', status);
+    check(/Respaldo subido y verificado/.test(status) && /Ya está en la lista de respaldos/.test(status) && /RESTAURAR/.test(status), '«Subir un respaldo» deja el de A en la lista', status);
   }
   await go(screen);
   const file = await page.evaluate(() => [...document.querySelectorAll('tr.digitalisimo-backups-row')].map((tr) => tr.dataset.file).find((f) => /sitio-a/.test(f || '')) || [...document.querySelectorAll('tr.digitalisimo-backups-row')].map((tr) => tr.dataset.file)[0] || '');
