@@ -52,6 +52,8 @@ final class Digitalisimo_Backups_Updraft_Import {
 	const CONFIG_PLACEHOLDER = "<?php\n// DIGITALÍSIMO Backups: los respaldos de UpdraftPlus no traen wp-config.php.\n// Marcador del ZIP convertido: la restauración nunca escribe wp-config.php.\n";
 	/** Trozo del descifrado (el de UpdraftPlus: 2 MiB, múltiplo de 16). */
 	const CRYPT_CHUNK = 2097152;
+	/** Código del error de decrypt() cuando el descifrado no cabe en el tope de una petición web (revisión bk-180, H6). */
+	const SLOW = 408;
 	const SPACE_EVERY = 16777216;
 
 	/* ------------------------------------------------------------------ Detección y orígenes */
@@ -248,8 +250,16 @@ final class Digitalisimo_Backups_Updraft_Import {
 	 * 224 o 256 bits según la longitud de la frase (completada con ceros, o cortada a 32 bytes), sin relleno y por trozos
 	 * de 2 MiB en un flujo continuo. Lo que sobra al final (el relleno del último trozo) lo ignora la descompresión. Lanza
 	 * si la frase no es la del conjunto (lo descifrado no empieza como un gzip).
+	 *
+	 * Revisión bk-180 (H6): se descifra en la petición que encola, porque la frase no puede ir al trabajo. Con 128, 192 o
+	 * 256 bits phpseclib usa OpenSSL (cientos de MB/s); con una frase de 17 a 20 o de 25 a 28 caracteres la clave es de
+	 * 160 o 224 bits, que OpenSSL no admite, y el Rijndael de PHP va a unos 5 MB/s: una base de 500 MB tardaría unos
+	 * 100 s, más que un proxy (Cloudflare, 100 s) o PHP-FPM, que cortarían la petición con un 504 y dejarían la copia a
+	 * medias. Con `$seconds` > 0 (una petición web) el descifrado se mide desde el primer trozo: si lo que falta no cabe en
+	 * ese tope, o se llega a él, se para, borra lo descifrado y lanza Digitalisimo_Backups_Permanent_Error con el código
+	 * SLOW y un mensaje que pide WP-CLI, que no tiene ese límite. 0: sin tope.
 	 */
-	public static function decrypt( $from, $phrase, $to ) {
+	public static function decrypt( $from, $phrase, $to, $seconds = 0 ) {
 		$phrase = (string) $phrase;
 		if ( '' === $phrase ) throw new Digitalisimo_Backups_Permanent_Error( 'La base de datos de este conjunto está cifrada: escribe la frase de cifrado de UpdraftPlus del sitio de origen.' );
 		require_once dirname( __DIR__ ) . '/lib/autoload.php';
@@ -271,17 +281,26 @@ final class Digitalisimo_Backups_Updraft_Import {
 			throw new Exception( 'No se pudo preparar el descifrado de la base de datos de UpdraftPlus.' );
 		}
 		@chmod( $to, 0600 );
+		$total = (int) @filesize( $from );
+		$started = microtime( true );
+		$read = 0;
 		try {
 			$first = true;
 			while ( ! feof( $in ) ) {
 				$part = fread( $in, self::CRYPT_CHUNK );
 				if ( false === $part ) throw new Exception( 'No se pudo leer la base de datos cifrada de UpdraftPlus.' );
 				if ( '' === $part ) break;
+				$read += strlen( $part );
 				if ( strlen( $part ) % 16 ) $part = str_pad( $part, strlen( $part ) + 16 - strlen( $part ) % 16, "\0" );
 				$plain = $cipher->decrypt( $part );
 				if ( $first && "\x1f\x8b" !== substr( (string) $plain, 0, 2 ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La frase no descifra la base de datos de este conjunto: no es la frase de cifrado de UpdraftPlus del sitio de origen.' );
 				$first = false;
 				if ( strlen( (string) $plain ) !== fwrite( $out, (string) $plain ) ) throw new Exception( 'No se pudo escribir la base de datos descifrada; revisa el espacio libre del almacén privado.' );
+				if ( $seconds > 0 && $read < $total ) {
+					$elapsed = microtime( true ) - $started;
+					$projected = $elapsed * $total / max( 1, $read );
+					if ( $elapsed >= $seconds || $projected > $seconds ) throw new Digitalisimo_Backups_Permanent_Error( self::slow_text( $bits, $total, $projected ), self::SLOW );
+				}
 			}
 			if ( $first ) throw new Digitalisimo_Backups_Permanent_Error( 'La base de datos cifrada de este conjunto está vacía.' );
 			fflush( $out );
@@ -293,6 +312,21 @@ final class Digitalisimo_Backups_Updraft_Import {
 		}
 		fclose( $in );
 		fclose( $out );
+	}
+	/**
+	 * Tope del descifrado en una petición web, en segundos: 40 (por debajo de los 60 s de nginx y de los 100 s de
+	 * Cloudflare), o menos si PHP sigue con un max_execution_time que no se pudo quitar; 0 (sin tope) en PHP CLI (WP-CLI).
+	 * Filtro `digitalisimo_backups_updraft_decrypt_seconds`.
+	 */
+	public static function decrypt_seconds() {
+		$seconds = 'cli' === PHP_SAPI ? 0.0 : 40.0;
+		$limit = (int) @ini_get( 'max_execution_time' );
+		if ( $seconds > 0 && $limit > 0 ) $seconds = min( $seconds, max( 5.0, $limit - 10.0 ) );
+		return max( 0.0, (float) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_updraft_decrypt_seconds', $seconds ) : $seconds ) );
+	}
+	private static function slow_text( $bits, $total, $projected ) {
+		$why = in_array( (int) $bits, array( 160, 224 ), true ) ? ' Su frase (de 17 a 20 o de 25 a 28 caracteres) da una clave de ' . (int) $bits . ' bits, que OpenSSL no admite: se descifra en PHP, decenas de veces más despacio.' : '';
+		return 'Descifrar la base de datos de este conjunto (' . Digitalisimo_Backups_Archive_Inspector::megabytes( $total ) . ') tardaría unos ' . max( 1, (int) ceil( $projected ) ) . ' s en este servidor, más de lo que espera una petición web.' . $why . ' No se importó nada: impórtalo con WP-CLI, que no tiene ese límite (wp digitalisimo-backups updraft import <conjunto> --secret-file=<archivo con la frase>).';
 	}
 
 	/* ------------------------------------------------------------------ Trabajo */
@@ -513,10 +547,11 @@ final class Digitalisimo_Backups_Updraft_Import {
 					try {
 						if ( 0 === (int) $cursor['entry'] ) {
 							try {
-								Digitalisimo_Backups_Archive_Inspector::entries( $zip, false, 'loose' );
+								$inspected = Digitalisimo_Backups_Archive_Inspector::entries( $zip, false, 'loose' );
 							} catch ( Exception $e ) {
 								throw new Digitalisimo_Backups_Permanent_Error( 'La pieza ' . $name . ' no se puede importar: ' . $e->getMessage() );
 							}
+							$cursor['declared'] = (int) ( $cursor['declared'] ?? 0 ) + self::expansion( $job, $name, (int) ( $inspected['declared'] ?? 0 ), (int) ( $cursor['declared'] ?? 0 ) );
 						}
 						$root = 'others' === $entity ? '' : self::zip_root( $zip, $entity, $name );
 						$count = (int) $zip->numFiles;
@@ -602,6 +637,23 @@ final class Digitalisimo_Backups_Updraft_Import {
 		$cursor['scale'] = Digitalisimo_Backups_Step_Budget::scale( $job, 'scan', (array) ( $job['checkpoint']['scan'] ?? array() ) );
 		Digitalisimo_Backups_Jobs::progress( 15 + (int) min( 10, $cursor['files'] / 2000 ), $message, true );
 		return array( 'next' => 'scan', 'checkpoint' => $cursor, 'message' => $message );
+	}
+	/**
+	 * Revisión bk-180 (H7). Las entradas de una pieza se copian por su tamaño declarado y antes sólo se comparaban con el
+	 * espacio libre, que no existe si el hosting desactiva disk_free_space(): un `uploads.zip` de 1 MB que declara 1 GB
+	 * escribía 1 GB en el almacén. Ahora, con o sin espacio libre conocido, lo que declara cada pieza no pasa del tope de
+	 * expansión de la base de datos (Digitalisimo_Backups_Backuply_Import::max_expansion(): 50 veces su tamaño, al menos
+	 * 64 MB, filtro `digitalisimo_backups_import_max_ratio`) y lo de todas juntas, del máximo que se importa (64 GB, filtro
+	 * `digitalisimo_backups_import_max_size`). Se decide en `scan`, antes de escribir nada. Devuelve lo declarado.
+	 */
+	private static function expansion( array $job, $name, $declared, $before ) {
+		$size = (int) ( $job['spec']['source']['pieces'][ $name ]['size'] ?? 0 );
+		$cap = Digitalisimo_Backups_Backuply_Import::max_expansion( $size );
+		$max = Digitalisimo_Backups_Backuply_Import::max_tar();
+		$mb = function( $bytes ) { return Digitalisimo_Backups_Archive_Inspector::megabytes( $bytes ); };
+		if ( $declared > $cap ) throw new Digitalisimo_Backups_Permanent_Error( $cap >= $max ? 'La pieza ' . $name . ' declara ' . $mb( $declared ) . ' descomprimida, más que el máximo que se importa (' . $mb( $max ) . ', filtro digitalisimo_backups_import_max_size): no se importa.' : 'La pieza ' . $name . ' declara ' . $mb( $declared ) . ' descomprimida, más de ' . $mb( $cap ) . ', muchas más veces su tamaño (' . $mb( $size ) . ') de lo que da un sitio real: no se importa (puede ser una bomba de descompresión). Si es legítima, sube el tope con el filtro digitalisimo_backups_import_max_ratio.' );
+		if ( $before + $declared > $max ) throw new Digitalisimo_Backups_Permanent_Error( 'Las piezas ZIP del conjunto declaran más de ' . $mb( $max ) . ' descomprimidas, más que el máximo que se importa (filtro digitalisimo_backups_import_max_size): no se importa.' );
+		return $declared;
 	}
 	/** Las piezas ZIP del trabajo en el orden de ENTITIES y de sus partes: array( entidad, nombre ). */
 	private static function zip_list( array $job ) {
@@ -753,9 +805,11 @@ final class Digitalisimo_Backups_Updraft_Import {
 			if ( ! $index ) throw new Exception( 'No se pudo leer el índice de la importación.' );
 			$source = function( array $entry, $skip ) use ( $job, $list, &$open ) {
 				if ( ! empty( $entry['l'] ) ) {
-					$path = rtrim( ABSPATH, '/\\' ) . '/' . $entry['n'];
-					$handle = is_link( $path ) ? false : @fopen( $path, 'rb' );
-					if ( ! $handle || ( $skip > 0 && 0 !== fseek( $handle, $skip ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo ' . $entry['n'] . ' de este WordPress cambió o ya no se puede leer durante la importación: vuelve a importar el conjunto.' );
+					// Revisión bk-180 (H2): el archivo debe seguir como lo anotó `scan` (tamaño y fecha), también al retomar una
+					// entrada a medias; si no, entraría truncado o mezclado con el SHA-256 de lo copiado como «correcto».
+					$path = self::local_unchanged( $entry );
+					$handle = @fopen( $path, 'rb' );
+					if ( ! $handle || ( $skip > 0 && 0 !== fseek( $handle, $skip ) ) ) throw self::local_changed( $entry );
 					return $handle;
 				}
 				$piece = (int) $entry['p'];
@@ -782,6 +836,7 @@ final class Digitalisimo_Backups_Updraft_Import {
 				if ( 'sql' === $state['src'] && ( ! $handle || 0 !== fseek( $handle, $raw ) ) ) throw new Exception( 'No se pudo leer el SQL convertido.' );
 				try {
 					if ( ! self::copy( $zip, $handle, (int) $state['s'] - $raw, $cursor, $deadline, $state ) ) return self::files_slice( $job, $zip, $entries, $cursor );
+					if ( 'sql' !== $state['src'] ) self::local_copied( (array) $state['entry'] );
 				} finally {
 					fclose( $handle );
 				}
@@ -825,6 +880,7 @@ final class Digitalisimo_Backups_Updraft_Import {
 				$handle = $source( $entry, 0 );
 				try {
 					if ( ! self::copy( $zip, $handle, (int) $entry['s'], $cursor, $deadline, array( 'src' => 'entry', 'entry' => $entry, 's' => (int) $entry['s'], 'next' => $next ) ) ) return self::files_slice( $job, $zip, $entries, $cursor );
+					self::local_copied( $entry );
 				} finally {
 					fclose( $handle );
 				}
@@ -875,6 +931,30 @@ final class Digitalisimo_Backups_Updraft_Import {
 			$zip->data( $chunk );
 		}
 		return true;
+	}
+	/**
+	 * Revisión bk-180 (H2). Un archivo de este WordPress (el núcleo o una parte que el conjunto no trae) puede cambiar entre
+	 * `scan` y `files` (entre medias pasa `database`, que en un sitio grande dura minutos u horas por cron): una
+	 * actualización automática de WordPress o de un plugin. copy() lee exactamente los bytes del índice, así que un archivo
+	 * que creció entraba truncado y uno del mismo tamaño, mezclado, con el SHA-256 de lo copiado en el manifiesto: la
+	 * restauración lo daba por bueno (error fatal en todo el sitio). Antes de abrirlo (y al retomar su entrada a medias) y
+	 * después de copiarlo, su tamaño y su fecha deben ser los del índice (el de después también ve un archivo que creció o
+	 * se reemplazó mientras se leía: lo leído no es el archivo de ahora). Si no, la importación falla con un error
+	 * permanente: el ZIP nunca lleva un núcleo de dos versiones. El SHA-256 del manifiesto es siempre el de los bytes
+	 * copiados (el escritor lo calcula sobre ellos). Devuelve la ruta.
+	 */
+	private static function local_unchanged( array $entry ) {
+		$path = rtrim( ABSPATH, '/\\' ) . '/' . $entry['n'];
+		clearstatcache( true, $path );
+		if ( is_link( $path ) || ! is_file( $path ) || (int) @filesize( $path ) !== (int) $entry['s'] || (int) @filemtime( $path ) !== (int) ( $entry['t'] ?? -1 ) ) throw self::local_changed( $entry );
+		return $path;
+	}
+	/** Tras copiar una entrada de este WordPress: el archivo no cambió mientras se leía. */
+	private static function local_copied( array $entry ) {
+		if ( ! empty( $entry['l'] ) ) self::local_unchanged( $entry );
+	}
+	private static function local_changed( array $entry ) {
+		return new Digitalisimo_Backups_Permanent_Error( 'El archivo ' . $entry['n'] . ' de este WordPress cambió durante la importación (quizá una actualización automática de WordPress o de un plugin) o ya no se puede leer: no se convierte un núcleo de dos versiones. Vuelve a importar el conjunto.' );
 	}
 	private static function done( $zip, $entries, array &$cursor ) {
 		self::put( $entries, wp_json_encode( $zip->finish() ) . "\n" );

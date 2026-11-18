@@ -25,8 +25,16 @@
  *   U7  subir las piezas por fragmentos (al almacén `updraft/` con su nombre exacto), importarlas y borrarlas;
  *   U8  conjunto de una red: manifiesto de red y su fila con sus sitios;
  *   U9  una muerte a mitad de cada tramo no cambia el ZIP convertido;
- *   U10 REST y pantalla.
- * Deben fallar con el código anterior (1.0.79, ea9753ca: no existe la importación de UpdraftPlus).
+ *   U10 REST y pantalla;
+ *   U11 (revisión bk-180, H2) un archivo de este WordPress que cambia entre `scan` y `files`, entre dos tramos de su copia o
+ *       mientras se lee hace fallar la importación; sin cambios, el SHA-256 del manifiesto es el de los bytes copiados;
+ *   U12 (H3, U07) una pieza reescrita a mitad de la importación la hace fallar;
+ *   U13 (H3, U08) el tope de expansión de la base de datos (bomba gzip);
+ *   U14 (H7) tope de expansión de cada pieza ZIP y tope absoluto de todas, también sin disk_free_space();
+ *   U15 (H6) un descifrado que no cabe en el tope de una petición web se para y pide WP-CLI, sin dejar nada;
+ *   U16 (H3) el inspector de cada pieza, el del ZIP final y los dos filtros de «others» bastan cada uno solo.
+ * Deben fallar con el código anterior (1.0.79, ea9753ca: no existe la importación de UpdraftPlus); U11, U14 y U15, con el
+ * de acda04b2 (1.0.80 antes de la revisión).
  */
 require __DIR__ . '/lib/backups-env.php';
 require __DIR__ . '/lib/backups-sqlite.php';
@@ -533,6 +541,240 @@ ud_case( 'U10 REST, WP-CLI, pantalla y panel de avance', function() use ( $set, 
 		$sent = false;
 	}
 	ud_check( ! $sent, 'La importación se pidió sin su nonce.' );
+} );
+
+/* ------------------------------------------------------------------ Revisión bk-180 (H2, H3, H6, H7) */
+
+/** Comprueba que el SHA-256 del manifiesto de un ZIP convertido es el de los bytes de cada entrada; devuelve el manifiesto. */
+function ud_manifest_matches( $path ) {
+	$zip = new ZipArchive();
+	ud_check( true === $zip->open( $path ), 'No se abre el ZIP convertido.' );
+	try {
+		$manifest = json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
+		$entries = (array) ( $manifest['entries'] ?? array() );
+		ud_check( count( $entries ) === $zip->numFiles - 1, 'El manifiesto no lista todas las entradas.' );
+		foreach ( $entries as $name => $entry ) {
+			$bytes = $zip->getFromName( $name );
+			ud_check( is_string( $bytes ) && strlen( $bytes ) === (int) $entry['size'] && hash( 'sha256', $bytes ) === $entry['sha256'], 'El SHA-256 del manifiesto no es el de los bytes de ' . $name . '.' );
+		}
+		return $manifest;
+	} finally {
+		$zip->close();
+	}
+}
+/** Importa y exige que falle con `$needle` sin dejar nada en el almacén ni en el área de trabajo. */
+function ud_import_fails( $name, array $args, $needle, $one = false, $between = null ) {
+	$before = scandir( bk_storage() );
+	$job = ud_import( $name, $args, $one, $between );
+	$error = is_array( $job['error'] ?? null ) ? (string) $job['error']['message'] : '';
+	ud_check( 'failed' === $job['status'], 'La importación no falló (se esperaba «' . $needle . '»): ' . json_encode( $job['result'] ?? null ) );
+	ud_check( false !== strpos( $error, $needle ), 'La importación falló por otra razón (se esperaba «' . $needle . '»): ' . $error );
+	ud_check( $before === scandir( bk_storage() ) && array() === ud_staging_left(), 'Quedó algo en el almacén o en el área de trabajo.' );
+	return $job;
+}
+/** La entrada de este WordPress que copy() está copiando ahora ('' si es otra cosa): para actuar a mitad de su copia. */
+function ud_copying() {
+	foreach ( debug_backtrace( DEBUG_BACKTRACE_PROVIDE_OBJECT ) as $frame ) {
+		if ( 'copy' === ( $frame['function'] ?? '' ) && 'Digitalisimo_Backups_Updraft_Import' === ( $frame['class'] ?? '' ) ) return (string) ( $frame['args'][5]['entry']['n'] ?? '' );
+	}
+	return '';
+}
+/** classify() de una entrada con otra disposición de carpetas: su línea del índice, o null si no se importa. */
+function ud_classify( $entity, $entry, array $layout ) {
+	$cursor = array( 'skipped' => array(), 'files' => 0, 'bytes' => 0, 'mu' => false );
+	$index = fopen( 'php://memory', 'w+' );
+	$method = new ReflectionMethod( 'Digitalisimo_Backups_Updraft_Import', 'classify' );
+	if ( PHP_VERSION_ID < 80100 ) $method->setAccessible( true );
+	$layout += array( 'plugins' => 'wp-content/plugins', 'themes' => 'wp-content/themes', 'mu' => 'wp-content/mu-plugins', 'uploads' => 'wp-content/uploads', 'content' => 'wp-content' );
+	$args = array( $entity, '', $entry, 0, array( 'size' => 3, 'mtime' => 0 ), $layout, &$cursor, $index );
+	$method->invokeArgs( null, $args );
+	rewind( $index );
+	$line = (string) stream_get_contents( $index );
+	fclose( $index );
+	return '' === $line ? null : json_decode( $line, true );
+}
+
+ud_case( 'U11 un archivo de este WordPress que cambia entre fases o mientras se copia hace fallar la importación (nunca entra truncado ni mezclado)', function() use ( $set, $abspath ) {
+	$target = $abspath . '/wp-includes/js/core.js';
+	$original = (string) file_get_contents( $target );
+	$mtime = (int) filemtime( $target );
+	$put = function( $bytes, $shift ) use ( $target, $mtime ) { file_put_contents( $target, $bytes ); touch( $target, $mtime + $shift ); clearstatcache(); };
+	try {
+		// Sin cambios: el SHA-256 de cada entrada del manifiesto es el de sus bytes; el del núcleo, el del disco. Sin firma.
+		$job = ud_import( $set, array( 'source' => 'updraft' ) );
+		ud_check( 'success' === $job['status'], 'La importación sin cambios falló: ' . json_encode( $job['error'] ) );
+		$manifest = ud_manifest_matches( bk_storage() . '/' . $job['result']['import']['file'] );
+		ud_check( hash( 'sha256', $original ) === ( $manifest['entries']['wordpress/wp-includes/js/core.js']['sha256'] ?? '' ), 'El núcleo del ZIP no es el del disco.' );
+		ud_check( 'untrusted' === ( $manifest['imported_from']['trust'] ?? '' ), 'El manifiesto de lo importado no dice que no es confiable: ' . json_encode( $manifest['imported_from'] ?? null ) );
+		$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 1;
+		// R1 de la revisión: crece entre `scan` y `files` (una actualización automática a mitad de la importación).
+		$armed = true;
+		ud_import_fails( $set, array( 'source' => 'updraft' ), 'cambió durante la importación', true, function( $job ) use ( &$armed, $put ) {
+			if ( $armed && 'done' === ( $job['checkpoint']['scan']['step'] ?? '' ) ) { $armed = false; $put( "/* núcleo de aquí */\n/* línea nueva de la actualización */ var nuevo = 1;\n", 0 ); }
+		} );
+		// Mismo tamaño y otra fecha: sería un núcleo con dos versiones mezcladas.
+		$put( $original, 0 );
+		$armed = true;
+		ud_import_fails( $set, array( 'source' => 'updraft' ), 'cambió durante la importación', true, function( $job ) use ( &$armed, $put, $original ) {
+			if ( $armed && 'done' === ( $job['checkpoint']['scan']['step'] ?? '' ) ) { $armed = false; $put( str_repeat( 'x', strlen( $original ) ), 5 ); }
+		} );
+		// Su entrada queda a medias entre tramos (trozos de 4 bytes) y el archivo cambia antes de retomarla.
+		$put( $original, 0 );
+		$armed = true;
+		$GLOBALS['bk_filters']['digitalisimo_backups_zip_chunk'] = function( $size ) { return 'wp-includes/js/core.js' === ud_copying() ? 4 : $size; };
+		ud_import_fails( $set, array( 'source' => 'updraft' ), 'cambió durante la importación', true, function( $job ) use ( &$armed, $put, $original ) {
+			$partial = $job['checkpoint']['files']['partial'] ?? null;
+			if ( $armed && is_array( $partial ) && 'wp-includes/js/core.js' === ( $partial['entry']['n'] ?? '' ) ) { $armed = false; $put( str_repeat( 'y', strlen( $original ) ), 7 ); }
+		} );
+		ud_check( ! $armed, 'La entrada del núcleo no quedó a medias entre tramos.' );
+		// Crece mientras se lee (después de abrirlo): lo ve la comprobación de después de copiarlo.
+		$put( $original, 0 );
+		$armed = true;
+		$GLOBALS['bk_filters']['digitalisimo_backups_zip_chunk'] = function( $size ) use ( &$armed, $target, $mtime ) {
+			if ( $armed && 'wp-includes/js/core.js' === ud_copying() ) { $armed = false; file_put_contents( $target, "/* crece */\n", FILE_APPEND ); touch( $target, $mtime ); clearstatcache(); }
+			return $size;
+		};
+		ud_import_fails( $set, array( 'source' => 'updraft' ), 'cambió durante la importación', true );
+		ud_check( ! $armed, 'El archivo no llegó a cambiar mientras se copiaba.' );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'], $GLOBALS['bk_filters']['digitalisimo_backups_zip_chunk'] );
+		$put( $original, 0 );
+	}
+} );
+
+ud_case( 'U12 una pieza que UpdraftPlus reescribe a mitad de la importación la hace fallar (nunca se mezclan dos versiones)', function() use ( $set, $updraft_dir ) {
+	$piece = $updraft_dir . '/' . $set . '-uploads.zip';
+	$bytes = (string) file_get_contents( $piece );
+	$mtime = (int) filemtime( $piece );
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 1;
+	$armed = true;
+	try {
+		ud_import_fails( $set, array( 'source' => 'updraft' ), 'cambió durante la importación', true, function( $job ) use ( &$armed, $piece ) {
+			if ( ! $armed || 'done' !== ( $job['checkpoint']['scan']['step'] ?? '' ) ) return;
+			$armed = false;
+			// Las mismas entradas con otros bytes (otra foto del mismo tamaño): sin comprobarla, entraría mezclada.
+			file_put_contents( $piece, ud_zip( array( 'uploads/2026/11/foto.jpg' => random_bytes( 70000 ) ) ) );
+			touch( $piece, time() - 1800 );
+		} );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+		file_put_contents( $piece, $bytes );
+		touch( $piece, $mtime );
+	}
+	ud_check( ! $armed, 'La pieza no llegó a cambiar.' );
+} );
+
+ud_case( 'U13 una base de datos de UpdraftPlus que se descomprime más allá del tope (bomba gzip) no se importa', function() {
+	$name = 'backup_2026-11-14-0700_Bomba_131313131313';
+	$filler = ud_table( 'ud_relleno', "CREATE TABLE `ud_relleno` (\n  `id` INTEGER PRIMARY KEY,\n  `v` longtext\n)", array( 'i', 's' ), array( array( 1, str_repeat( 'a', 600000 ) ) ) );
+	$pieces = ud_pieces( array( 'db' => ud_db( array(), array( $filler ) ) ) );
+	ud_put_set( ud_store(), $name, $pieces );
+	// El tope es 50 veces lo comprimido, al menos 64 MB y nunca más que el máximo que se importa: con ese máximo en
+	// 300 KB, esta base (más de 600 KB descomprimida, unos KB comprimida) se rechaza en la descompresión.
+	$GLOBALS['bk_filters']['digitalisimo_backups_import_max_size'] = 300000;
+	try {
+		ud_check( 300000 === Digitalisimo_Backups_Backuply_Import::max_expansion( strlen( $pieces['-db.gz'] ) ), 'El tope no es el máximo que se importa.' );
+		ud_import_fails( $name, array(), 'bomba de descompresión' );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_import_max_size'] );
+	}
+	$job = ud_import( $name );
+	ud_check( 'success' === $job['status'], 'Con el tope de siempre, la misma base no se importó: ' . json_encode( $job['error'] ) );
+	Digitalisimo_Backups::service_updraft_delete( $name );
+} );
+
+ud_case( 'U14 piezas ZIP: tope de expansión por pieza y tope absoluto, también sin disk_free_space()', function() {
+	$GLOBALS['bk_filters']['digitalisimo_backups_free_space'] = null;
+	try {
+		// Un uploads.zip de unos 70 KB que declara 70 MB (ceros, 1 000 veces): supera 64 MB, el mínimo del tope.
+		$sparse = tempnam( sys_get_temp_dir(), 'udcero' );
+		$handle = fopen( $sparse, 'r+' );
+		ftruncate( $handle, 70 * 1048576 );
+		fclose( $handle );
+		$path = tempnam( sys_get_temp_dir(), 'udbomba' );
+		@unlink( $path );
+		$zip = new ZipArchive();
+		$zip->open( $path, ZipArchive::CREATE );
+		$zip->addFile( $sparse, 'uploads/2026/11/ceros.bin' );
+		$zip->close();
+		@unlink( $sparse );
+		$name = 'backup_2026-11-14-0800_Bomba_141414141414';
+		$pieces = ud_pieces();
+		$pieces['-uploads.zip'] = (string) file_get_contents( $path );
+		@unlink( $path );
+		ud_check( strlen( $pieces['-uploads.zip'] ) < 1048576, 'La pieza de prueba no es pequeña: ' . strlen( $pieces['-uploads.zip'] ) );
+		ud_put_set( ud_store(), $name, $pieces );
+		ud_import_fails( $name, array(), 'bomba de descompresión' );
+		Digitalisimo_Backups::service_updraft_delete( $name );
+		// Tope absoluto: cada pieza cabe en el suyo (90 KB de 160 KB), pero las de medios juntas declaran más.
+		$name = 'backup_2026-11-14-0900_Grande_151515151515';
+		$pieces = ud_pieces();
+		$pieces['-uploads.zip'] = ud_zip( array( 'uploads/2026/11/a.bin' => random_bytes( 90000 ) ) );
+		$pieces['-uploads2.zip'] = ud_zip( array( 'uploads/2026/12/b.bin' => random_bytes( 90000 ) ) );
+		ud_put_set( ud_store(), $name, $pieces );
+		$GLOBALS['bk_filters']['digitalisimo_backups_import_max_size'] = 160000;
+		try {
+			ud_import_fails( $name, array(), 'el máximo que se importa' );
+		} finally {
+			unset( $GLOBALS['bk_filters']['digitalisimo_backups_import_max_size'] );
+		}
+		$job = ud_import( $name );
+		ud_check( 'success' === $job['status'], 'Con el máximo de siempre, el mismo conjunto no se importó: ' . json_encode( $job['error'] ) );
+		Digitalisimo_Backups::service_updraft_delete( $name );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_free_space'] );
+	}
+} );
+
+ud_case( 'U15 un descifrado que no cabe en el tope de una petición web se para y pide WP-CLI, sin dejar nada', function() {
+	// Frase de 19 caracteres: clave de 160 bits, el Rijndael de PHP (unos 5 MB/s). Más de un trozo de 2 MiB.
+	$phrase = 'una-frase-de-19-car';
+	$name = 'backup_2026-11-15-1000_Lento_161616161616';
+	$pieces = ud_pieces();
+	unset( $pieces['-db.gz'] );
+	$pieces['-db.gz.crypt'] = ud_encrypt( ud_db() . str_repeat( "\0", 3 * 1048576 ), $phrase );
+	ud_put_set( ud_store(), $name, $pieces );
+	$jobs = count( Digitalisimo_Backups_Job_Store::all() );
+	$GLOBALS['bk_filters']['digitalisimo_backups_updraft_decrypt_seconds'] = 0.02;
+	try {
+		$slow = Digitalisimo_Backups::service_updraft_import( $name, array( 'secret' => $phrase ) );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_updraft_decrypt_seconds'] );
+	}
+	ud_check( is_wp_error( $slow ) && 'digitalisimo_backups_updraft_slow' === $slow->get_error_code() && false !== strpos( $slow->get_error_message(), 'WP-CLI' ) && false !== strpos( $slow->get_error_message(), '--secret-file' ) && false !== strpos( $slow->get_error_message(), '160 bits' ), 'El descifrado lento no se paró pidiendo WP-CLI: ' . ( is_wp_error( $slow ) ? $slow->get_error_code() . ' ' . $slow->get_error_message() : 'se encoló' ) );
+	ud_check( false === strpos( $slow->get_error_message(), $phrase ), 'El mensaje lleva la frase.' );
+	ud_check( ! glob( ud_store() . '/.decrypted-*' ) && count( Digitalisimo_Backups_Job_Store::all() ) === $jobs, 'Quedó una copia descifrada a medias o un trabajo.' );
+	// Sin tope (PHP CLI, como WP-CLI), el mismo conjunto se importa.
+	ud_check( 0.0 === Digitalisimo_Backups_Updraft_Import::decrypt_seconds(), 'En PHP CLI el descifrado tiene tope.' );
+	$job = ud_import( $name, array( 'secret' => $phrase ) );
+	ud_check( 'success' === $job['status'], 'Sin tope no se importó: ' . json_encode( $job['error'] ) );
+	Digitalisimo_Backups::service_updraft_delete( $name );
+} );
+
+ud_case( 'U16 cada defensa basta sola: el inspector de cada pieza, el del ZIP final y los dos filtros de «others»', function() {
+	// Sólo el inspector de cada pieza ve un enlace simbólico: en el ZIP convertido sería un archivo normal.
+	$name = 'backup_2026-11-16-1100_Enlace_171717171717';
+	$pieces = ud_pieces();
+	$raw = tempnam( sys_get_temp_dir(), 'udlink' );
+	bk_raw_zip( $raw, array( array( 'name' => 'uploads/2026/11/foto.jpg', 'data' => 'jpg' ), array( 'name' => 'uploads/2026/11/enlace', 'data' => '/etc/passwd', 'attr' => 0120777 << 16 ) ) );
+	$pieces['-uploads.zip'] = (string) file_get_contents( $raw );
+	@unlink( $raw );
+	ud_put_set( ud_store(), $name, $pieces );
+	ud_import_fails( $name, array(), 'enlace simbólico' );
+	Digitalisimo_Backups::service_updraft_delete( $name );
+	// Sólo el inspector del ZIP final ve el mismo archivo en dos partes de una entidad (cada pieza, sola, está bien).
+	$name = 'backup_2026-11-16-1200_Doble_181818181818';
+	$pieces = ud_pieces();
+	$pieces['-uploads2.zip'] = ud_zip( array( 'uploads/2026/11/foto.jpg' => 'otra versión' ) );
+	ud_put_set( ud_store(), $name, $pieces );
+	ud_import_fails( $name, array(), 'duplicados' );
+	Digitalisimo_Backups::service_updraft_delete( $name );
+	// «others» nunca trae plugins, temas ni medios: por su carpeta de primer nivel (aunque los plugins de aquí vivan fuera
+	// de wp-content) y por las carpetas de esta instalación (aunque los medios de aquí se llamen de otra forma).
+	ud_check( null === ud_classify( 'others', 'plugins/colado.php', array( 'plugins' => 'app/plugins' ) ), 'Con los plugins de aquí fuera de wp-content, «others» trajo plugins/.' );
+	ud_check( null === ud_classify( 'others', 'media/2026/11/colado.jpg', array( 'uploads' => 'wp-content/media' ) ), 'Con los medios de aquí en wp-content/media, «others» los trajo.' );
+	$kept = ud_classify( 'others', 'languages/es_MX.mo', array() );
+	ud_check( is_array( $kept ) && 'wp-content/languages/es_MX.mo' === $kept['n'], 'Lo demás de «others» dejó de importarse: ' . json_encode( $kept ) );
 } );
 
 bk_cleanup();
