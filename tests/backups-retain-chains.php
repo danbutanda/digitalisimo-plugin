@@ -246,6 +246,23 @@ inc_case( 'RC2 «Conservar 2 cadenas» diario con un completo cada 6: la cadena 
 	rc_forget( 'cuatro' );
 } );
 
+inc_case( 'RC2 por cadenas, cada completo anterior a la cadena (sin bloque `chain`) cuenta como una cadena él solo', function() {
+	$dir = rtrim( bk_storage(), '/' );
+	$history = rc_history();
+	foreach ( array( 0, 1, 2 ) as $i ) {
+		$file = sprintf( 'digitalisimo-backup-example-test-antes-%05d.zip', $i );
+		file_put_contents( $dir . '/' . $file, 'completo ' . $i );
+		array_unshift( $history, array( 'date' => '2026-01-0' . ( $i + 1 ) . ' 00:00:00', 'file' => $file, 'sha256' => hash_file( 'sha256', $dir . '/' . $file ), 'destination' => 'local', 'scope' => 'installation', 'policy' => 'antes', 'type' => 'full', 'backup_type' => 'full', 'job' => 'antes-' . $i ) );
+	}
+	$GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] = $history;
+	// La automatización pasa a incremental con «Conservar 2 cadenas»: su primer punto es una base nueva.
+	rc_simulate( array( 'policy' => 'antes', 'period' => 86400, 'every' => 6, 'retain' => 2, 'unit' => 'chains', 'steps' => 1, 'start' => 10 ) );
+	$files = array_column( rc_policy_rows( 'antes' ), 'file' );
+	inc_check( array( 'digitalisimo-backup-example-test-antes-00010.zip', 'digitalisimo-backup-example-test-antes-00002.zip' ) === $files, 'Debían quedar la base nueva y el último completo de antes: ' . json_encode( $files ) );
+	inc_check( ! is_file( $dir . '/digitalisimo-backup-example-test-antes-00000.zip' ) && ! is_file( $dir . '/digitalisimo-backup-example-test-antes-00001.zip' ) && is_file( $dir . '/digitalisimo-backup-example-test-antes-00002.zip' ), 'Los completos de antes no salieron uno a uno.' );
+	rc_forget( 'antes' );
+} );
+
 /* ------------------------------------------------------------------ RC3 bloqueados */
 
 inc_case( 'RC3 un punto bloqueado de una cadena que sale la protege hasta él y no ocupa una de las N cadenas', function() {
@@ -381,6 +398,14 @@ inc_case( 'RC6 pantalla: «Programación» y las tarjetas pintan la unidad, la e
 		inc_check( 3 === substr_count( $tools, 'data-retain-estimate' ) && false !== strpos( $tools, 'Guardarás 3 respaldos completos.' ) && false !== strpos( $tools, 'Guardarás entre 8 y 14 respaldos en 2 cadenas.' ), 'Las tarjetas de las automatizaciones no pintan su estimación.' );
 		// En «Crear automatización» (completo por defecto) la unidad y la ayuda están ocultas y se ve «respaldos».
 		inc_check( preg_match( '#<h3>Crear automatización</h3>.*?<select class="digitalisimo-backups-retain-unit" name="digitalisimo_backup_automation\[retain_unit\]" aria-label="Qué cuenta «Conservar»" data-retain-unit hidden>.*?<span data-retain-noun>respaldos</span>.*?data-retain-estimate aria-live="polite">Guardarás 4 respaldos completos\.</p><div data-retain-chains-help hidden>#s', $tools ), '«Crear automatización» no oculta la unidad de un completo.' );
+		// Una estimación de más de 140 caracteres (cadena cortada por días) se ve entera: es una región viva que el
+		// script reescribe, y «Herramientas» no la pliega en «Más».
+		$policies = get_option( $B::POLICIES );
+		$policies[] = array( 'id' => 'horaria', 'label' => '', 'type' => 'full', 'schedule' => 'hourly', 'destination' => 'sftp', 'retain' => 2, 'retain_unit' => 'chains', 'enabled' => true, 'time' => '', 'remote_only' => false, 'mode' => 'incremental', 'full_every' => 30, 'full_days' => 1 );
+		update_option( $B::POLICIES, $policies, false );
+		$long = Digitalisimo_Backups_Chain::estimate( end( $policies ) )['text'];
+		inc_check( mb_strlen( $long, 'UTF-8' ) > 140, 'La estimación de prueba no es larga: ' . $long );
+		inc_check( false !== strpos( rc_render( 'tools', array( 'open' => 'automations' ) ), 'data-retain-estimate aria-live="polite">' . esc_html( $long ) . '</p>' ), 'Una estimación larga se plegó en «Herramientas»: ' . $long );
 		// Con la principal completa, «Programación» no enseña la unidad ni la ayuda.
 		update_option( $B::POLICIES, array( array( 'id' => 'monthly-full', 'label' => '', 'type' => 'full', 'schedule' => 'monthly', 'destination' => 'local', 'retain' => 4, 'enabled' => true ) ), false );
 		$plain = rc_render( 'settings' );
