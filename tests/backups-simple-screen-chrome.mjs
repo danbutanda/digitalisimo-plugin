@@ -6,7 +6,8 @@
 //   - «Restaurar» abre su panel bajo la fila con el foco en la confirmación y «Cancelar» lo cierra;
 //   - «Ajustes», «Destinos», «Herramientas» y el subsitio cumplen sus límites de palabras y de texto;
 //   - con la configuración de un respaldo pendiente (H26), lo que se pierde al aplicarla se ve y el único campo a la
-//     vista es el de APLICAR, sin salirse de la pantalla.
+//     vista es el de APLICAR, sin salirse de la pantalla;
+//   - en «Programación», elegir «Incremental», la unidad de «Conservar» y escribir N cambia su estimación al momento.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH, PUPPETEER_PATH (carpeta node_modules) y PHP_BIN
 // cambian las rutas.
 // Uso: timeout 300 node tests/backups-simple-screen-chrome.mjs
@@ -101,6 +102,26 @@ try {
     ok(m.overflow <= 0 && m.longestLength <= 140, `respaldos-aviso a ${width} px se sale ${m.overflow} px o tiene un texto de ${m.longestLength} caracteres: ${m.longest}`);
     ok(seen.warning.startsWith('Aplicarla reemplaza la de este sitio') && seen.field && seen.inside && m.fields === 1, `respaldos-aviso a ${width} px: lo que se pierde o el campo APLICAR no se ven: ${JSON.stringify(seen)} (${m.fields} campos)`);
     await page.close();
+  }
+  // «Conservar» de «Programación» (assets/retention.js): elegir «Incremental», la unidad, la frecuencia o escribir N
+  // cambia la estimación al momento, la unidad sólo se ve en una incremental y nada se sale de la pantalla.
+  for (const width of [1280, 390]) {
+    const conserve = await open('ajustes', width);
+    const form = 'form.digitalisimo-backups-schedule';
+    const unit = `${form} select[data-retain-unit]`;
+    const read = () => conserve.$eval(`${form} [data-retain-estimate]`, (el) => el.textContent);
+    const shown = (selector) => conserve.$eval(selector, (el) => !el.hidden && getComputedStyle(el).display !== 'none');
+    ok(await read() === 'Guardarás 4 respaldos completos.' && !(await shown(unit)) && await shown(`${form} [data-retain-noun]`), `ajustes a ${width} px: con «Completo cada vez» la unidad se ve o la estimación no es la del servidor: ${await read()}`);
+    await conserve.select(`${form} select[name="digitalisimo_backup_automation[mode]"]`, 'incremental');
+    await conserve.select(`${form} select[name="digitalisimo_backup_automation[schedule]"]`, 'daily');
+    ok(await shown(unit) && !(await shown(`${form} [data-retain-noun]`)) && await read() === 'Guardarás entre 4 y 10 respaldos en 1 o 2 cadenas. Hay días con una sola cadena: si su base se daña, no hay otra copia.', `ajustes a ${width} px: «Incremental» diario no mostró la unidad ni la estimación de «Conservar 4 respaldos»: ${await read()}`);
+    await conserve.select(unit, 'chains');
+    await conserve.$eval(`${form} input[name="digitalisimo_backup_automation[retain]"]`, (el) => { el.value = ''; });
+    await conserve.type(`${form} input[name="digitalisimo_backup_automation[retain]"]`, '2');
+    ok(await read() === 'Guardarás entre 8 y 14 respaldos en 2 cadenas. Siempre queda al menos una cadena anterior completa.', `ajustes a ${width} px: «Conservar 2 cadenas» no cambió la estimación al escribir: ${await read()}`);
+    const m = await conserve.evaluate(measure);
+    ok(m.overflow <= 0, `ajustes a ${width} px con la unidad a la vista se sale ${m.overflow} px de la pantalla.`);
+    await conserve.close();
   }
   // «Restaurar» abre su panel bajo la fila, con el foco en la confirmación; «Cancelar» lo cierra.
   const page = await open('respaldos', 1280);
