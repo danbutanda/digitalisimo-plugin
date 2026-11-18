@@ -75,9 +75,21 @@ for (const [name, body] of writers) {
 check(!/update_site_option\(\s*self::NETWORK_JOB/.test(runnerFns.network_summary || ''), 'network_summary() ya no escribe `done` por su cuenta (lo hace network_finish() bajo el cerrojo).');
 check(!/register_deactivation_hook/.test(Object.values(sources).join('\n')), 'Sin register_deactivation_hook: la publicación perezosa no deja nada que limpiar.');
 
-/* ---------------------------------------------------------------- Nada se borra ni cambia de tema */
+/* ---------------------------------------------------------------- Borrar y cambiar de tema: sólo la tarea completa */
+// Regla del propietario del 2026-11-18: Migrar borra lo reemplazado y cambia al tema propio donde es seguro, pero sólo
+// desde la tarea completa (includes/class-full.php) y cada llamada en su único sitio: delete_plugins() en la limpieza,
+// delete_theme() en la de Hello y switch_theme() en switch_theme_to(). Nada más de Migración borra ni cambia de tema.
 for (const [file, text] of Object.entries(sources)) {
-	check(!/\bdelete_plugins\s*\(/.test(text) && !/\bswitch_theme\s*\(/.test(text), 'Sin delete_plugins ni switch_theme: ' + file.replace(root, ''));
+	const rel = file.replace(root, '').replace(/^\/+/, '');
+	if (rel === 'includes/class-full.php') {
+		const fns = functions(text);
+		for (const [call, owner] of [['delete_plugins', 'stage_cleanup'], ['delete_theme', 'cleanup_theme'], ['switch_theme', 'switch_theme_to']]) {
+			const where = Object.entries(fns).filter(([, body]) => new RegExp('\\b' + call + '\\s*\\(').test(body)).map(([name]) => name);
+			check(where.length === 1 && where[0] === owner, `${call}() sólo en Full::${owner}(): ${where.join(', ')}`);
+		}
+		continue;
+	}
+	check(!/\bdelete_plugins\s*\(/.test(text) && !/\bswitch_theme\s*\(/.test(text) && !/\bdelete_theme\s*\(/.test(text), 'Sin delete_plugins, delete_theme ni switch_theme: ' + rel);
 }
 const deletes = [];
 for (const [file, text] of Object.entries(sources)) {
@@ -97,7 +109,12 @@ for (const meta of ['_digitalisimo_ep_backup', '_digitalisimo_ep_backup_page', '
 check(/BACKUP_PAGE\s*=\s*'_digitalisimo_ep_backup_page'/.test(migration) && /BACKUP_F8\s*=\s*'_digitalisimo_ep_backup_f8'/.test(migration) && /F8_MARK\s*=\s*'_digitalisimo_ep_f8'/.test(migration), 'Migration declara las tres metas nuevas.');
 
 /* ---------------------------------------------------------------- Un solo botón */
-check((migration.match(/<button/g) || []).length === 2, 'Las pantallas de Migración tienen un botón cada una (sitio y red).');
+{
+	// Un botón por pantalla: Screen::control() pinta el de la tarea completa (sitio individual y red) y la pantalla de
+	// siempre conserva sólo el de un sitio dentro de una red (la tarea de contenido de ese sitio).
+	const screen = read(join(root, 'includes', 'class-screen.php'));
+	check((migration.match(/<button/g) || []).length === 1 && (screen.match(/<button/g) || []).length === 1 && !/submit_button|type="submit"/.test(screen), 'Las pantallas de Migración tienen un botón cada una (sitio y red).');
+}
 check(!/<button/.test(runner) && !/<button/.test(read(join(legacy, 'class-report.php'))), 'El informe y el avance no añaden botones.');
 check(/add_action\(\s*'wp_ajax_'\s*\.\s*self::ANALYZE/.test(migration) && /check_ajax_referer\(\s*Runner::AJAX\s*\.\s*'_'\s*\.\s*get_current_blog_id\(\)\s*\)/.test(migration) && /current_user_can\(\s*'manage_options'\s*\)/.test(functions(code(migration)).analyze_ajax || ''), 'El análisis previo es una acción AJAX con el nonce y la capacidad del paso (no un botón).');
 check(!/<button/.test(js) && !/createElement\('button'\)/.test(js), 'migrate.js no crea botones.');

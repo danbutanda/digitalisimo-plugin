@@ -463,6 +463,13 @@ switch ( $scenario ) {
 		check( ! Full::theme_safety( array( 'hello' => false, 'name' => 'Astra' ) + $hello, $ready )[0], 'Otro tema no es seguro.' );
 		check( ! Full::theme_safety( $hello, array( 'builder' => false ) + $ready )[0], 'Sin el Theme Builder no es seguro.' );
 		check( ! Full::theme_safety( $hello, array( 'conflict' => true ) + $ready )[0], 'Con Elementor Pro activo no es seguro.' );
+		// Barreras de la limpieza: respaldo verificado, ninguna etapa fallida, portada verificada y permiso para borrar.
+		$green = array( 'backup' => array( 'ok' => true ), 'failed' => '', 'verified' => true, 'caps' => array( 'delete' => true ) );
+		check( '' === Full::cleanup_gate( $green ), 'Con todo en verde se puede borrar.' );
+		check( '' !== Full::cleanup_gate( array( 'backup' => array() ) + $green ), 'Sin respaldo verificado no se borra.' );
+		check( '' !== Full::cleanup_gate( array( 'failed' => 'import' ) + $green ), 'Con una etapa fallida no se borra.' );
+		check( '' !== Full::cleanup_gate( array( 'verified' => false ) + $green ), 'Sin la portada verificada no se borra.' );
+		check( '' !== Full::cleanup_gate( array( 'caps' => array( 'delete' => false ) ) + $green ), 'Sin permiso para borrar no se borra.' );
 		// UpdraftPlus conserva sus datos por defecto; con «borrar al desinstalar» y carpeta propia, no.
 		check( Full::updraft_keeps_data(), 'UpdraftPlus conserva sus datos al desinstalarse por defecto.' );
 		update_option( 'updraftplus_deinstall_option', 'yes' );
