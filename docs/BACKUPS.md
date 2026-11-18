@@ -2233,8 +2233,8 @@ Comprobado en respaldos reales del panel (que no entran al repositorio) y en las
   filtro `digitalisimo_backups_webuzo_home_directories`, que nunca puede dar una carpeta que no contenga a ABSPATH); el
   almacén privado (`webuzo/`), donde lo deja «Subir un respaldo» (por tramos, como los de Backuply) y `webuzo fetch` de un
   destino (el contrato `list()` y `get()`, con tamaño y forma comprobados). Se pide por nombre (la lista blanca de
-  Backuply, sin `sanitize_file_name()`), nunca por ruta. Uno que el panel cambió hace menos de un minuto no se importa
-  todavía. Los del almacén se borran desde la tarjeta, `DELETE /webuzo/<nombre>` y `webuzo delete`; los del home son del
+  Backuply, sin `sanitize_file_name()`), nunca por ruta. Uno del home que cambió hace menos de un minuto (el panel lo
+  está escribiendo) no se importa todavía. Los del almacén se borran desde la tarjeta, `DELETE /webuzo/<nombre>` y `webuzo delete`; los del home son del
   panel y no se tocan.
 - **Que no se confundan.** Por sus primeras entradas (sin descomprimirlo: 64 KB comprimidos): la carpeta `.` y después
   `backuply-data` es de Webuzo; `softsql.sql` o los archivos de WordPress en la raíz, del plugin Backuply. Un `.tar.gz`
@@ -2291,7 +2291,8 @@ tamaño y su «Importar este WordPress»; Eliminar los del almacén), «Subir un
 **Límites declarados.** Del respaldo de la cuenta sólo se importa un WordPress y su base: el correo, los certificados, el
 DNS, el FTP, el cron y las demás bases no (se avisa). Vistas, disparadores, eventos y rutinas no se importan (como en
 Backuply). Un WordPress con su `wp-config.php` fuera de su carpeta sólo se reconoce si está justo encima (como admite
-WordPress) y esa carpeta no es otro WordPress. El tar es de **un solo miembro gzip**: cada tramo vuelve a descomprimir lo
+WordPress) y esa carpeta no es otro WordPress. Un enlace duro dentro de la carpeta elegida hace fallar la importación (no
+se sabe qué datos tendría; fuera de ella se ignora) y los enlaces simbólicos no se importan. El tar es de **un solo miembro gzip**: cada tramo vuelve a descomprimir lo
 anterior (zlib no guarda su estado entre peticiones), así que por la web avanza bien hasta unos pocos GB descomprimidos y
 los respaldos grandes (de 2 a 8 GB comprimidos son normales en una cuenta) se importan con WP-CLI o el cron del sistema
 por PHP CLI, sin plazo; el análisis y la extracción son dos pasadas (una si ya hay análisis). Disco: el `.tar.gz`, los
