@@ -28,10 +28,14 @@ const schedules = ['disabled', 'hourly', 'digitalisimo_every_6_hours', 'digitali
 const cases = [];
 for (const retain_unit of ['points', 'chains']) for (const retain of [1, 2, 3, 4, 8, 14, 15, 33, 94, 95, 100]) for (const full_every of [1, 2, 6, 30, 60]) for (const full_days of [1, 3, 7, 8, 90]) for (const schedule of schedules) for (const destination of ['local', 'sftp']) {
   cases.push({ mode: 'incremental', retain, retain_unit, full_every, full_days, schedule, destination });
+  // «Sólo en el remoto»: la copia remota es la única (revisión M2).
+  if (destination === 'sftp' && retain <= 15) cases.push({ mode: 'incremental', retain, retain_unit, full_every, full_days, schedule, destination, remote_only: true });
 }
 for (const retain of [1, 4, 100, 150, 0, -3]) cases.push({ mode: 'full', retain, retain_unit: 'chains', schedule: 'daily' }, { retain });
 // Lo que puede llegar de un formulario: texto, vacío, decimales, signos, notación científica y unidades o modos raros.
-const odd = ['', 'abc', '2.9', ' 3', '+4', '-2', '1e1', '0', '.5', '5.', '0x1A', '999', null];
+// También lo exótico de la revisión (B6): exponentes enormes, más de 9 cifras, espacios al final (que PHP 7.4 no
+// tomaba por numéricos) y números de JSON con decimales.
+const odd = ['', 'abc', '2.9', ' 3', '+4', '-2', '1e1', '0', '.5', '5.', '0x1A', '999', null, '1e1000', '-1e1000', '1e19', '9e18', '3 ', '3\n', '\t3', '0.0000001', '1e-7', '-0', '00', '4e0', '+.5', '1234567890', '-1234567890', '0012', 2.5, 3.0, 1e12, -7, true, false];
 for (const value of odd) {
   cases.push({ mode: 'incremental', retain: value, retain_unit: 'chains', full_every: 6, full_days: 7, schedule: 'daily', destination: 'local' });
   cases.push({ mode: 'incremental', retain: 4, retain_unit: 'points', full_every: value, full_days: 7, schedule: 'hourly', destination: 'local' });
@@ -40,6 +44,7 @@ for (const value of odd) {
 for (const retain_unit of ['', 'cadenas', null, 'CHAINS']) cases.push({ mode: 'incremental', retain: 3, retain_unit, schedule: 'daily' });
 for (const mode of ['', 'Incremental', null, 'full']) cases.push({ mode, retain: 3, retain_unit: 'chains', schedule: 'daily' });
 for (const destination of ['', null, 'local', 'ftp-0a1b2c3d']) cases.push({ mode: 'incremental', retain: 2, schedule: 'daily', destination });
+for (const remote_only of [true, false, 1, 0, '1', '0', '', 'sí']) cases.push({ mode: 'incremental', retain: 2, schedule: 'daily', destination: 'sftp', remote_only });
 const clean = (policy) => Object.fromEntries(Object.entries(policy).filter(([, value]) => value !== null));
 const dir = mkdtempSync(join(tmpdir(), 'digi-bk-retain-'));
 try {
@@ -60,6 +65,21 @@ try {
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
+
+// Lo que se ve es corto en cualquier configuración que se pueda guardar (revisión B2): el texto y el detalle, de menos de
+// 140 caracteres, para cada frecuencia, unidad, M de 1 a 60, D de 1 a 90, N de 1 al tope (y uno más) y cada destino.
+let longest = { length: 0, text: '' };
+let swept = 0;
+for (const schedule of Object.keys({ hourly: 1, digitalisimo_every_6_hours: 1, digitalisimo_every_12_hours: 1, daily: 1, weekly: 1, monthly: 1, disabled: 1 })) for (const retain_unit of ['points', 'chains']) for (let full_every = 1; full_every <= 60; full_every++) for (let full_days = 1; full_days <= 90; full_days++) {
+  const cap = retain_unit === 'chains' ? Math.max(1, Math.floor(100 / (full_every + 1))) : 100 - full_every;
+  for (const retain of new Set([1, 2, 3, 4, 7, 14, 30, 61, cap, cap + 1])) for (const where of [{ destination: 'local' }, { destination: 'sftp' }, { destination: 'sftp', remote_only: true }]) {
+    const e = pure.digitalisimoBackupsRetention.estimate({ mode: 'incremental', retain, retain_unit, full_every, full_days, schedule, ...where });
+    swept++;
+    for (const text of [e.text, e.detail]) if ([...text].length > longest.length) longest = { length: [...text].length, text };
+  }
+}
+ok(longest.length < 140, `Un texto de la estimación tiene ${longest.length} caracteres: ${longest.text}`);
+ok(swept > 500000, 'Se recorrieron pocas configuraciones: ' + swept);
 
 // 2. La pantalla: un formulario de automatización como lo pinta el servidor (mode_fields(), retain_field(),
 // retain_estimate()), en «Programación» y en las tarjetas.
@@ -82,16 +102,18 @@ function automationForm({ mode = 'full', unit = 'points', retain = '4', every = 
     unit: select(N('retain_unit'), ['points', 'chains'], unit, { 'data-retain-unit': '', class: 'digitalisimo-backups-retain-unit' }),
     noun: new El('span', { 'data-retain-noun': '' }),
     other: Object.assign(new El('input', { type: 'time', name: N('time') }), { value: '03:00' }),
+    only: Object.assign(new El('input', { type: 'checkbox', name: N('remote_only') }), { value: '1', checked: false }),
   };
   const estimate = new El('p', { class: 'description digitalisimo-backups-retain-estimate', 'data-retain-estimate': '', 'aria-live': 'polite' });
   const help = new El('div', { 'data-retain-chains-help': '' });
+  const detail = help.appendChild(new El('p', { class: 'description', 'data-retain-detail': '' }));
   fields.noun.textContent = 'respaldos';
   if (mode === 'incremental') { fields.noun.hidden = true; } else { fields.unit.hidden = true; help.hidden = true; }
   // Como en el navegador: `name` y `form` son propiedades de cada campo.
   for (const el of Object.values(fields)) { form.appendChild(el); if (el.tagName !== 'SPAN') { el.form = form; el.name = el.getAttribute('name'); } }
   form.appendChild(estimate);
   form.appendChild(help);
-  return { form, fields, estimate, help };
+  return { form, fields, estimate, help, detail };
 }
 const listeners = {};
 const doc = new El('html');
@@ -116,15 +138,21 @@ ok(set(schedule.fields.unit, 'chains').startsWith('Guardarás entre 8 y 14 respa
 // Cambiar N al escribir (input) y M y D.
 ok(set(schedule.fields.retain, '3', 'input') === 'Guardarás entre 15 y 21 respaldos en 3 cadenas. Siempre quedan al menos 2 cadenas anteriores completas.', 'Escribir N = 3 no cambió la estimación');
 ok(set(schedule.fields.every, '2', 'input') === 'Guardarás entre 7 y 9 respaldos en 3 cadenas. Siempre quedan al menos 2 cadenas anteriores completas.', 'Cambiar «un completo cada» no cambió la estimación');
-ok(set(schedule.fields.days, '2', 'input') === 'Guardarás entre 5 y 6 respaldos en 3 cadenas. Con esta frecuencia la cadena se corta por días (un completo cada 2 días): 2 respaldos. Siempre quedan al menos 2 cadenas anteriores completas.', 'Cambiar los días no cortó la cadena: ' + schedule.form.querySelector('[data-retain-estimate]').textContent);
+ok(schedule.detail.textContent === 'Cada cadena: un completo y 2 incrementales (3 respaldos).', 'El detalle no cambió con «un completo cada»: ' + schedule.detail.textContent);
+ok(set(schedule.fields.days, '2', 'input') === 'Guardarás entre 5 y 6 respaldos en 3 cadenas. Siempre quedan al menos 2 cadenas anteriores completas.' && schedule.detail.textContent === 'Con esta frecuencia la cadena se corta por días (un completo cada 2 días): 2 respaldos.', 'Cambiar los días no cortó la cadena: ' + schedule.estimate.textContent + ' · ' + schedule.detail.textContent);
 ok(set(schedule.fields.schedule, 'hourly') === 'Guardarás entre 7 y 9 respaldos en 3 cadenas. Siempre quedan al menos 2 cadenas anteriores completas.', 'Cambiar la frecuencia no cambió la estimación');
-ok(set(schedule.fields.retain, '40', 'input').endsWith('«Conservar» quedará en 33.'), 'Más cadenas de las que caben no avisó el tope');
+ok(set(schedule.fields.retain, '40', 'input') === 'Guardarás entre 97 y 99 respaldos en 33 cadenas. Siempre quedan al menos 32 cadenas anteriores completas.' && schedule.detail.textContent.endsWith('«Conservar» quedará en 33.'), 'Más cadenas de las que caben no avisó el tope: ' + schedule.detail.textContent);
 set(schedule.fields.retain, '1', 'input');
 ok(set(schedule.fields.destination, 'sftp').endsWith('Una sola cadena: si su base se daña, sólo queda la copia remota.'), 'Cambiar el destino no cambió el aviso de la copia');
+// «Sólo en el remoto»: la remota es la única copia, así que el aviso no la promete (revisión M2).
+schedule.fields.only.checked = true;
+ok(set(schedule.fields.only, '1') === 'Guardarás entre 1 y 3 respaldos en 1 cadena. Una sola cadena y su única copia es la remota: conviene «2 cadenas».', 'Marcar «Sólo en el remoto» no cambió el aviso: ' + schedule.estimate.textContent);
+schedule.fields.only.checked = false;
+ok(set(schedule.fields.only, '1').endsWith('sólo queda la copia remota.'), 'Desmarcar «Sólo en el remoto» no volvió al aviso de la copia remota');
 // El modo: «Completo cada vez» oculta la unidad y la ayuda; «Incremental» las muestra.
 ok(set(schedule.fields.mode, 'full') === 'Guardarás 1 respaldo completo.' && schedule.fields.unit.hidden && !schedule.fields.noun.hidden && schedule.help.hidden, '«Completo cada vez» no ocultó la unidad');
 // Semanal con un completo cada 7 días: cada respaldo sale completo.
-ok(set(card.fields.mode, 'incremental') === 'Guardarás 4 respaldos en 4 cadenas. Con esta frecuencia cada respaldo sale completo (un completo cada 7 días). Siempre quedan al menos 3 cadenas anteriores completas.' && !card.fields.unit.hidden && card.fields.noun.hidden && !card.help.hidden, '«Incremental» no mostró la unidad ni la ayuda: ' + card.estimate.textContent);
+ok(set(card.fields.mode, 'incremental') === 'Guardarás 4 respaldos en 4 cadenas. Siempre quedan al menos 3 cadenas anteriores completas.' && card.detail.textContent === 'Con esta frecuencia cada respaldo sale completo (un completo cada 7 días).' && !card.fields.unit.hidden && card.fields.noun.hidden && !card.help.hidden, '«Incremental» no mostró la unidad ni la ayuda: ' + card.estimate.textContent);
 ok(schedule.estimate.textContent === 'Guardarás 1 respaldo completo.', 'Un formulario cambió la estimación del otro');
 // Otros campos y otros formularios no se tocan.
 let before = card.estimate.textContent;
@@ -140,4 +168,4 @@ fire('input', { name: N('retain') });
 ok(card.estimate.textContent === before, 'Un campo ajeno o sin formulario cambió la estimación');
 // Un texto raro en un campo se pinta como texto.
 ok(!/[<>]/.test(set(card.fields.retain, '<b>9</b>', 'input')), 'Un valor con HTML llegó a la estimación');
-console.log(`DIGITALÍSIMO Backups: la estimación de «Conservar» del navegador es la del servidor en ${cases.length} casos y cambia al momento con la unidad, N, M, D, la frecuencia, el destino y el modo (${checks} comprobaciones).`);
+console.log(`DIGITALÍSIMO Backups: la estimación de «Conservar» del navegador es la del servidor en ${cases.length} casos y cambia al momento con la unidad, N, M, D, la frecuencia, el destino, «Sólo en el remoto» y el modo; lo visible no pasa de 140 caracteres (${checks} comprobaciones).`);

@@ -9,7 +9,10 @@
  *      `GET /automations` lista `retain_unit` y `retain_estimate`; una automatización anterior sin unidad, `points`;
  *      en una red, cambiarla exige `network=true`;
  *   S2 WP-CLI: `automation add` con `--retain-unit=chains`, `automation update` (lo que no se pasa se queda; sin
- *      identificador falla sin crear otra) y `automation list` con las columnas `retain_unit` y `estimate`.
+ *      identificador falla sin crear otra) y `automation list` con las columnas `retain_unit` y `estimate`;
+ *   S3 (revisión): crear o cambiar por REST y WP-CLI programa la automatización en WP-Cron; una parcial anterior no se
+ *      convierte en completa; WP-CLI rechaza como REST un número que no es un entero de su rango; pedir «cadenas» en
+ *      «Completo cada vez» se avisa; no se crean más de 50 automatizaciones.
  *
  * Debe fallar con el código anterior (sin esas rutas ni esos subcomandos, y sin la unidad).
  */
@@ -24,6 +27,7 @@ require __DIR__ . '/backups-coverage/cli.php';
 require __DIR__ . '/backups-coverage/env.php';
 digi_make_wordpress( $root . '/public' );
 if ( ! function_exists( 'absint' ) ) { function absint( $value ) { return abs( (int) $value ); } }
+$GLOBALS['scheduled'] = array();
 if ( ! function_exists( 'wp_schedule_event' ) ) { function wp_schedule_event( $timestamp, $recurrence, $hook, $args = array() ) { $GLOBALS['scheduled'][] = array( $hook, $args, $recurrence ); return true; } }
 if ( ! function_exists( 'wp_unschedule_event' ) ) { function wp_unschedule_event( $timestamp, $hook, $args = array() ) { return true; } }
 $ns = 'digitalisimo-backups/v1';
@@ -136,6 +140,61 @@ try {
 		digi_assert( 0 === $code && 'points' === $rows[ $id ]['retain_unit'] && 0 === strpos( $rows[ $id ]['estimate'], 'Guardarás entre 4 y 10 respaldos' ) && 'points' === $rows['monthly-full']['retain_unit'] && ! isset( $rows[ $id ]['retain_estimate'] ), 'automation list no lleva retain_unit y estimate: ' . $out[0] );
 		list( $code, $out ) = digi_wp( $cmd, 'add', array(), array( 'mode' => 'incremental' ) );
 		digi_assert( 0 === $code && 0 === strpos( end( $out ), 'Success: Automatización creada: automation-' ) && false !== strpos( end( $out ), 'Guardarás entre 4 y 10 respaldos' ), 'automation add sin más opciones no creó una incremental diaria con «Conservar 4»: ' . implode( "\n", $out ) );
+	} );
+
+	rcs_case( 'S3 crear y cambiar por REST o WP-CLI la programan en WP-Cron; una parcial anterior no se convierte en completa', function() use ( $ns ) {
+		$scheduled = function( $id, $recurrence ) { foreach ( $GLOBALS['scheduled'] as $event ) if ( 'digitalisimo_backups_policy' === $event[0] && array( $id, 1 ) === $event[1] && $recurrence === $event[2] ) return true; return false; };
+		$GLOBALS['scheduled'] = array();
+		list( $code, $row ) = digi_rest( 'POST', $ns . '/automations', array( 'schedule' => 'hourly', 'mode' => 'incremental' ) );
+		digi_assert( 201 === $code && $scheduled( $row['id'], 'hourly' ), 'POST /automations no programó la automatización: ' . json_encode( $GLOBALS['scheduled'] ) );
+		$GLOBALS['scheduled'] = array();
+		list( $code ) = digi_rest( 'POST', $ns . '/automations/' . $row['id'], array( 'schedule' => 'daily' ) );
+		digi_assert( 200 === $code && $scheduled( $row['id'], 'daily' ), 'Cambiar la frecuencia por REST no la reprogramó: ' . json_encode( $GLOBALS['scheduled'] ) );
+		$GLOBALS['scheduled'] = array();
+		list( $code, $out ) = digi_wp( 'digitalisimo-backups automation', 'add', array(), array( 'schedule' => 'weekly', 'porcelain' => true ) );
+		digi_assert( 0 === $code && $scheduled( $out[0], 'weekly' ), '`automation add` no programó la automatización: ' . json_encode( $GLOBALS['scheduled'] ) );
+		$policies = get_option( Digitalisimo_Backups::POLICIES, Digitalisimo_Backups::default_policies() );
+		$policies[] = array( 'id' => 'parcial-vieja', 'label' => 'BD', 'type' => 'database', 'schedule' => 'daily', 'destination' => 'local', 'retain' => 3, 'enabled' => false );
+		update_option( Digitalisimo_Backups::POLICIES, $policies );
+		list( $code, $error ) = digi_rest( 'POST', $ns . '/automations/parcial-vieja', array( 'retain' => 2 ) );
+		digi_assert( 400 === $code && 'digitalisimo_backups_automation_partial' === $error['code'] && 'database' === rcs_policy( 'parcial-vieja' )['type'] && 3 === rcs_policy( 'parcial-vieja' )['retain'], 'Una automatización parcial anterior se cambió por REST: ' . $code . ' ' . json_encode( rcs_policy( 'parcial-vieja' ) ) );
+		list( $code ) = digi_wp( 'digitalisimo-backups automation', 'update', array( 'parcial-vieja' ), array( 'retain' => '2' ) );
+		digi_assert( 1 === $code && 'database' === rcs_policy( 'parcial-vieja' )['type'], 'Una automatización parcial anterior se cambió por WP-CLI.' );
+	} );
+
+	rcs_case( 'S3 WP-CLI rechaza como REST lo que no es un entero de su rango; «cadenas» en «Completo cada vez» se avisa', function() use ( $ns ) {
+		$cmd = 'digitalisimo-backups automation';
+		$before = get_option( Digitalisimo_Backups::POLICIES );
+		foreach ( array( array( 'retain' => '-3' ), array( 'retain' => '0' ), array( 'retain' => '101' ), array( 'retain' => '2.5' ), array( 'retain' => '1e1' ), array( 'full-every' => '500' ), array( 'full-every' => '0' ), array( 'full-days' => '9999' ), array( 'full-days' => '91' ) ) as $bad ) {
+			list( $code, $out ) = digi_wp( $cmd, 'add', array(), array( 'mode' => 'incremental' ) + $bad );
+			digi_assert( 1 === $code && false !== strpos( end( $out ), 'debe ser un número entero de 1 a' ), '`automation add` aceptó ' . json_encode( $bad ) . ': ' . implode( ' | ', $out ) );
+			$rest = array();
+			foreach ( $bad as $key => $value ) $rest[ str_replace( '-', '_', $key ) ] = $value;
+			list( $code, $error ) = digi_rest( 'POST', $ns . '/automations', array( 'mode' => 'incremental' ) + $rest );
+			digi_assert( 400 === $code && 0 === strpos( (string) $error['code'], 'digitalisimo_backups_automation_' ), 'POST /automations aceptó ' . json_encode( $rest ) . ': ' . $code );
+		}
+		digi_assert( $before === get_option( Digitalisimo_Backups::POLICIES ), 'Un número rechazado cambió las automatizaciones.' );
+		list( $code, $out ) = digi_wp( $cmd, 'add', array(), array( 'mode' => 'incremental', 'retain' => '100', 'full-every' => '60', 'full-days' => '90', 'porcelain' => true ) );
+		digi_assert( 0 === $code && 40 === rcs_policy( $out[0] )['retain'] && 60 === rcs_policy( $out[0] )['full_every'] && 90 === rcs_policy( $out[0] )['full_days'], 'Los máximos de cada rango no se aceptaron (con «Conservar» acotado a 40): ' . json_encode( rcs_policy( $out[0] ) ) );
+		list( $code, $row ) = digi_rest( 'POST', $ns . '/automations', array( 'schedule' => 'daily', 'retain' => 2, 'retain_unit' => 'chains' ) );
+		digi_assert( 201 === $code && 'points' === $row['retain_unit'] && false !== strpos( $row['notice'], 'la unidad «cadenas» sólo aplica a una automatización incremental' ), 'Pedir «cadenas» en una completa no avisó: ' . json_encode( $row ) );
+		list( $code, $out ) = digi_wp( $cmd, 'update', array( $row['id'] ), array( 'retain-unit' => 'chains' ) );
+		digi_assert( 0 === $code && 0 === strpos( $out[0], 'Warning: «Conservar» cuenta respaldos: la unidad «cadenas»' ), '`automation update --retain-unit=chains` en una completa no avisó: ' . implode( ' | ', $out ) );
+	} );
+
+	rcs_case( 'S3 no se crean más de 50 automatizaciones por REST ni por WP-CLI (cambiarlas sí)', function() use ( $ns ) {
+		$saved = get_option( Digitalisimo_Backups::POLICIES );
+		try {
+			$made = 0;
+			for ( $i = 0; $i < 80; $i++ ) { list( $code, $row ) = digi_rest( 'POST', $ns . '/automations', array( 'schedule' => 'hourly' ) ); if ( 201 !== $code ) break; $made++; }
+			digi_assert( 50 === count( Digitalisimo_Backups::policies() ) && 400 === $code && 'digitalisimo_backups_automation_limit' === $row['code'] && false !== strpos( $row['message'], 'Ya hay 50 automatizaciones, el tope' ), 'El tope de automatizaciones no se aplicó por REST: ' . count( Digitalisimo_Backups::policies() ) . ' ' . json_encode( $row ) );
+			list( $code, $out ) = digi_wp( 'digitalisimo-backups automation', 'add', array(), array( 'schedule' => 'daily' ) );
+			digi_assert( 1 === $code && false !== strpos( end( $out ), 'Ya hay 50 automatizaciones' ) && 50 === count( Digitalisimo_Backups::policies() ), '`automation add` pasó del tope: ' . implode( ' | ', $out ) );
+			list( $code ) = digi_rest( 'POST', $ns . '/automations/monthly-full', array( 'retain' => 3 ) );
+			digi_assert( 200 === $code, 'Con el tope lleno no se pudo cambiar una automatización: ' . $code );
+		} finally {
+			update_option( Digitalisimo_Backups::POLICIES, $saved );
+		}
 	} );
 
 	rcs_case( 'S1 REST y WP-CLI en una red: cambiar una automatización exige el alcance de red', function() use ( $ns, &$created ) {

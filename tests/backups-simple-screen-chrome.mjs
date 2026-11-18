@@ -119,6 +119,8 @@ try {
     await conserve.$eval(`${form} input[name="digitalisimo_backup_automation[retain]"]`, (el) => { el.value = ''; });
     await conserve.type(`${form} input[name="digitalisimo_backup_automation[retain]"]`, '2');
     ok(await read() === 'Guardarás entre 8 y 14 respaldos en 2 cadenas. Siempre queda al menos una cadena anterior completa.', `ajustes a ${width} px: «Conservar 2 cadenas» no cambió la estimación al escribir: ${await read()}`);
+    // El detalle de la cadena va debajo, en la ayuda de las cadenas, a la vista y corto.
+    ok(await shown(`${form} [data-retain-chains-help]`) && await conserve.$eval(`${form} [data-retain-detail]`, (el) => el.textContent) === 'Cada cadena: un completo y 6 incrementales (7 respaldos).', `ajustes a ${width} px: falta el detalle de la cadena en la ayuda.`);
     const m = await conserve.evaluate(measure);
     ok(m.overflow <= 0, `ajustes a ${width} px con la unidad a la vista se sale ${m.overflow} px de la pantalla.`);
     await conserve.close();
