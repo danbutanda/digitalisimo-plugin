@@ -133,8 +133,10 @@ print("miembros gzip:",n)' "$dir/set/$set_id-db.gz" > "$dir/formato/gzip.txt" 2>
   if errors "$dir/dest" | grep -q .; then echo "== $mode: errores de PHP en el destino"; errors "$dir/dest"; fail=1; fi
   cp "$dir/dest/server.log" "$OUT/server-$mode.log"
   stop_server; sleep 2
-  rm -rf "$dir/origin/plugin" "$dir/dest/plugin" "$dir/dest/store"
+  # Lo pesado no hace falta después (queda el formato en $dir/formato y las capturas).
+  rm -rf "$dir/origin/plugin" "$dir/dest/plugin" "$dir/dest/store" "$dir/set" "$dir/origin/updraft" "$dir/origin/store"
   port=$((port + 1))
 done
+rm -rf "$OUT/updraft-src"
 [ $fail -eq 0 ] || { echo 'Ensayo de UpdraftPlus con fallos'; exit 1; }
 echo "Conjuntos reales de UpdraftPlus importados y restaurados en Playground con Chrome en $(( $(date +%s) - start )) s ($OUT/shots)."
