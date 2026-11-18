@@ -362,7 +362,11 @@ final class Digitalisimo_Backups_Sql_Guard {
 		if ( 'word' !== $what[0] || 'TABLE' !== $what[1] ) {
 			// Una vista se comprueba y se deja para el final del cambio (Digitalisimo_Backups_Db_Compat): ni las tablas
 			// temporales ni otro prefijo cambian a qué apunta.
-			if ( '' !== $this->views_mode && 'VIEW' === $this->peek_object() ) { $this->i = $at; $this->view(); return; }
+			if ( '' !== $this->views_mode ) {
+				$this->i = $at;
+				if ( 'VIEW' === $this->peek_object() ) { $this->view(); return; }
+				$this->next();
+			}
 			// Lo escribió SHOW CREATE TABLE de este servidor (por ejemplo, una vista). Con otro prefijo no se puede asegurar
 			// a qué tablas apunta.
 			if ( $this->trusted && $this->renames ) {
@@ -642,6 +646,7 @@ final class Digitalisimo_Backups_Sql_Guard {
 		if ( 'word' === $token[0] ) return array( $end - strlen( $token[1] ), $end, substr( $this->s, $end - strlen( $token[1] ), strlen( $token[1] ) ) );
 		if ( 'ident' === $token[0] ) return array( $token[2], $token[3], $token[1] );
 		if ( 'str' === $token[0] ) return array( $token[2] - 1, $token[3] + 1, substr( $this->s, $token[2], $token[3] - $token[2] ) );
+		if ( 'num' === $token[0] ) return array( $end - strlen( $token[1] ), $end, $token[1] );
 		return null;
 	}
 	/**

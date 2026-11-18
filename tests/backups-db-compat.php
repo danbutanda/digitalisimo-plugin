@@ -333,6 +333,109 @@ dc_case( 'C7 avisos de versión del origen, sin bloquear', function() use ( $C, 
 	}
 } );
 
+/**
+ * C8 de punta a punta con el motor real (respaldo por la cola y restauración por pasos) sobre la base simulada, con un
+ * servidor de destino distinto (filtro digitalisimo_backups_db_server): MySQL 8 (0900, columnas generadas, una vista y
+ * un disparador) → MariaDB 10.11.
+ */
+class Dc_Test_DB extends Bk_Test_DB {
+	public $info = '8.0.46-0ubuntu0.24.04.1';
+	public $mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+	public $log_rows = array( array( 'id' => '0', 'note' => 'fila cero', 'total' => '0', 'stamp' => '1' ), array( 'id' => '5', 'note' => 'otra', 'total' => '10', 'stamp' => '6' ) );
+	public function tables() { return array_merge( parent::tables(), array( 'wp_v' ) ); }
+	public function db_server_info() { return $this->info; }
+	public function get_var( $query ) {
+		if ( 'SELECT @@SESSION.sql_mode' === $query ) return $this->mode;
+		if ( 'SELECT @@max_allowed_packet' === $query ) return '16777216';
+		return parent::get_var( $query );
+	}
+	public function get_row( $query, $format ) {
+		if ( 0 === strpos( $query, 'SHOW CREATE VIEW `wp_v`' ) ) { $this->last_error = ''; return array( 'wp_v', 'CREATE ALGORITHM=UNDEFINED DEFINER=`cuenta_origen`@`localhost` SQL SECURITY DEFINER VIEW `wp_v` AS select `wordpress_test`.`wp_posts`.`ID` AS `ID` from `wordpress_test`.`wp_posts`', 'utf8mb4', 'utf8mb4_0900_ai_ci' ); }
+		return parent::get_row( $query, $format );
+	}
+	public function get_results( $query, $format ) {
+		$this->last_error = '';
+		if ( "SHOW FULL TABLES WHERE Table_type = 'VIEW'" === $query ) return array( array( 'wp_v', 'VIEW' ) );
+		if ( false !== strpos( $query, 'information_schema.TRIGGERS' ) ) return array( array( 'n' => 'wp_cuenta_pedidos' ) );
+		if ( false !== strpos( $query, 'information_schema.' ) ) return array();
+		if ( false !== strpos( $query, 'SHOW INDEX FROM `wp_plugin_log`' ) ) return array( array( 'Key_name' => 'PRIMARY', 'Column_name' => 'id', 'Non_unique' => 0, 'Seq_in_index' => 1 ) );
+		if ( false !== strpos( $query, '`wp_plugin_log`' ) ) return bk_page( $this->log_rows, $query, 'id' );
+		return parent::get_results( $query, $format );
+	}
+	public function query( $sql ) {
+		if ( preg_match( "/^SET SESSION sql_mode = '([A-Z_,]*)'$/", (string) $sql, $m ) ) $this->mode = $m[1];
+		return parent::query( $sql );
+	}
+}
+dc_case( 'C8 de punta a punta: respaldo de MySQL 8 con vista, columnas generadas y disparador, restaurado en MariaDB 10.11', function() use ( $C, $mariadb ) {
+	$previous = $GLOBALS['wpdb'];
+	$db = new Dc_Test_DB();
+	$db->extra_tables['wp_plugin_log'] = "CREATE TABLE `wp_plugin_log` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `note` varchar(191) DEFAULT NULL,\n  `total` int GENERATED ALWAYS AS ((`id` * 2)) VIRTUAL,\n  `stamp` int GENERATED ALWAYS AS ((`id` + 1)) STORED,\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci";
+	$GLOBALS['wpdb'] = $db;
+	$GLOBALS['bk_filters']['digitalisimo_backups_job_backoff'] = 0;
+	try {
+		$C::server( true );
+		$backup = bk_backup( true );
+		$zip = new ZipArchive();
+		$zip->open( $backup );
+		$manifest = json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
+		$sql = (string) $zip->getFromName( 'database.sql' );
+		$zip->close();
+		dc_check( array( 'wp_v' ) === ( $manifest['database_views'] ?? null ) && ! in_array( 'wp_v', (array) $manifest['database_tables'], true ), 'La vista no quedó aparte en el manifiesto: ' . json_encode( array( $manifest['database_views'] ?? null, $manifest['database_tables'] ) ) );
+		dc_check( array( 'wp_cuenta_pedidos' ) === ( $manifest['database_objects']['triggers'] ?? null ) && '8.0.46-0ubuntu0.24.04.1' === ( $manifest['database_server'] ?? '' ), 'El manifiesto no dice los disparadores o el servidor de origen.' );
+		dc_check( (bool) preg_match( "/INSERT INTO `wp_plugin_log` \(`id`,`note`\) VALUES \('0','fila cero'\);/", $sql ) && false === strpos( $sql, '`total`)' ), 'El exportador escribió las columnas generadas: ' . substr( $sql, (int) strpos( $sql, 'INSERT INTO `wp_plugin_log`' ), 200 ) );
+		dc_check( (bool) preg_match( "/\nCREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `wp_v` AS select `wp_posts`.`ID` AS `ID` from `wp_posts`;\n\nSET foreign_key_checks = 1;\n$/", $sql ) && false === strpos( $sql, 'cuenta_origen' ) && false === strpos( $sql, 'wordpress_test' ), 'La vista no va al final, sin DEFINER y sin la base de datos: ' . substr( $sql, -300 ) );
+		$backup_job = null;
+		foreach ( Digitalisimo_Backups_Jobs::all() as $job ) if ( 'backup' === $job['kind'] ) $backup_job = $job;
+		dc_check( $backup_job && preg_grep( '/1 disparador\(es\) \(wp_cuenta_pedidos\) que el respaldo no lleva/', array_map( function( $w ) { return is_array( $w ) ? (string) ( $w['text'] ?? '' ) : (string) $w; }, (array) $backup_job['warnings'] ) ), 'El respaldo no avisó de los disparadores.' );
+		// En MariaDB 10.11 (sin 0900): la intercalación cambia en la tabla temporal, el 0 se conserva y la vista se crea al final.
+		$GLOBALS['bk_filters']['digitalisimo_backups_db_server'] = $mariadb;
+		$C::server( true );
+		$db->info = '10.11.14-MariaDB-0ubuntu0.24.04.1';
+		$db->queries = array();
+		$GLOBALS['bk_options']['blogname'] = 'Cambiado';
+		$result = Digitalisimo_Backups::service_restore( basename( $backup ), array( 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
+		dc_check( ! is_wp_error( $result ), 'La restauración no empezó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
+		for ( $i = 0; $i < 2000 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+		$restore = null;
+		foreach ( Digitalisimo_Backups_Jobs::all() as $job ) if ( 'restore' === $job['kind'] ) $restore = $job;
+		dc_check( $restore && 'success' === $restore['status'], 'La restauración no terminó bien: ' . json_encode( $restore['error'] ?? $restore['status'] ?? null ) );
+		$creates = preg_grep( '/^CREATE TABLE `wp_dgbkr_[0-9a-f]+_[0-9]+` \(\n  `id` bigint unsigned/', $db->queries );
+		dc_check( 1 === count( $creates ) && false !== strpos( reset( $creates ), 'COLLATE=utf8mb4_unicode_520_ci' ) && false === strpos( reset( $creates ), '0900' ), 'La tabla temporal no se creó con la intercalación de MariaDB: ' . json_encode( $creates ) );
+		$session = preg_grep( '/^SET SESSION sql_mode = /', $db->queries );
+		dc_check( $session && false !== strpos( reset( $session ), 'NO_AUTO_VALUE_ON_ZERO' ) && 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' === $db->mode && ! preg_grep( '/SET GLOBAL/i', $db->queries ), 'La importación no usó NO_AUTO_VALUE_ON_ZERO en su sesión o no la devolvió.' );
+		$order = array_keys( preg_grep( '/^(RENAME TABLE |CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `wp_v` AS select `wp_posts`\.`ID` AS `ID` from `wp_posts`$)/', $db->queries ) );
+		dc_check( 2 === count( $order ) && 0 === strpos( $db->queries[ $order[0] ], 'RENAME TABLE ' ), 'La vista no se creó después del cambio de tablas: ' . json_encode( array_values( preg_grep( '/VIEW/', $db->queries ) ) ) );
+		$notice = (string) ( $restore['result']['restore']['notice'] ?? '' );
+		dc_check( false !== strpos( $notice, 'Intercalación utf8mb4_0900_ai_ci → utf8mb4_unicode_520_ci (wp_plugin_log)' ) && false !== strpos( $notice, 'Se crearon 1 vista(s)' ) && false !== strpos( $notice, 'wp_cuenta_pedidos' ), 'El informe no dice lo que se adaptó: ' . $notice );
+		dc_check( array( 'wp_v' ) === ( $restore['result']['restore']['database']['views']['created'] ?? null ), 'El informe público no trae las vistas creadas.' );
+		dc_check( (bool) preg_grep( '/^Base de datos: Intercalación utf8mb4_0900_ai_ci/', array_map( 'strval', array_filter( (array) $restore['warnings'], 'is_string' ) ) ), 'El trabajo no avisó al terminar la verificación.' );
+		// Un max_allowed_packet que no alcanza: rechazo en la verificación, sin copia previa ni cambios.
+		$GLOBALS['bk_filters']['digitalisimo_backups_db_server'] = array( 'packet' => 300 ) + $mariadb;
+		$C::server( true );
+		foreach ( glob( bk_storage() . '/safety-before-restore-*' ) as $old ) @unlink( $old );
+		$db->queries = array();
+		$GLOBALS['bk_options']['blogname'] = 'Cambiado otra vez';
+		$refused = Digitalisimo_Backups::service_restore( basename( $backup ), array( 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
+		for ( $i = 0; $i < 200 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+		$last = null;
+		foreach ( Digitalisimo_Backups_Jobs::all() as $job ) if ( 'restore' === $job['kind'] && ( ! $last || (float) $job['queued_at'] >= (float) $last['queued_at'] ) ) $last = $job;
+		$message = is_wp_error( $refused ) ? $refused->get_error_message() : (string) ( $last['error']['message'] ?? '' );
+		dc_check( false !== strpos( $message, 'max_allowed_packet' ) && 'inspect' === ( $last['phase'] ?? '' ) && empty( $last['checkpoint']['safety'] ), 'max_allowed_packet no rechazó en la verificación: ' . $message );
+		dc_check( ! glob( bk_storage() . '/safety-before-restore-*' ) && ! preg_grep( '/^RENAME TABLE /', $db->queries ) && 'Cambiado otra vez' === $GLOBALS['bk_options']['blogname'], 'Antes del rechazo se creó la copia previa o se tocó el sitio.' );
+		// verify dice lo mismo antes de confirmar.
+		$GLOBALS['bk_filters']['digitalisimo_backups_db_server'] = $mariadb;
+		$C::server( true );
+		$GLOBALS['bk_caps'] = array( 'manage_options' => true, 'manage_network_options' => true );
+		$verify = Digitalisimo_Backups::service_verify( basename( $backup ) );
+		dc_check( ! is_wp_error( $verify ) && preg_grep( '/utf8mb4_0900_ai_ci → utf8mb4_unicode_520_ci/', (array) $verify['database']['changes'] ) && in_array( 'wp_v', (array) $verify['database']['views'], true ) && preg_grep( '/wp_cuenta_pedidos/', (array) $verify['database']['warnings'] ), 'verify no dice lo que se adaptará: ' . json_encode( is_wp_error( $verify ) ? $verify->get_error_message() : ( $verify['database'] ?? null ) ) );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_db_server'] );
+		$GLOBALS['wpdb'] = $previous;
+		$C::server( true );
+	}
+} );
+
 bk_cleanup();
 if ( $failures ) { echo "FALLA: " . $failures . " caso(s) de compatibilidad de la base de datos.\n"; exit( 1 ); }
 echo "DIGITALÍSIMO Backups: compatibilidad de la base de datos (intercalaciones, juegos de caracteres, motores, opciones, columnas generadas, vistas, sesión y versiones) en orden.\n";
