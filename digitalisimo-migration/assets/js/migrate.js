@@ -164,7 +164,8 @@
 			});
 			if (!sites.length) {
 				// Lo que queda espera a la red o corre con el WP-Cron de cada sitio: el resumen (que libera la barrera) cada 15 s.
-				return wait(POLL).then(function () { return summary(false); }).then(loop, fail);
+				// Las etapas de la tarea completa que avanzan en la red (respaldo, instalación, importación…) piden `again`.
+				return wait(data.again ? (data.pause ? BUSY : STEP) : POLL).then(function () { return summary(false); }).then(loop, fail);
 			}
 			// Fase 2 tras conducirlos: el paso de red libera la barrera si todos están listos; la fase 3 es la siguiente vuelta.
 			return driveSites(sites).then(function () { return summary(false); }).then(loop, fail);

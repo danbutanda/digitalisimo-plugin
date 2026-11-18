@@ -18,9 +18,10 @@ final class Cli {
 	 * ## OPTIONS
 	 *
 	 * [--run]
-	 * : Migración completa, como el botón Migrar: desactiva Element Pack, Elementor Pro, PRO Elements y Elementor,
-	 * convierte el contenido de Element Pack y el de los widgets fusionados, vacía las cachés y muestra el informe. Con
-	 * --network, lo mismo en toda la red (cada sitio en su propio proceso).
+	 * : Migración completa, como el botón Migrar: respaldo completo con DIGITALÍSIMO Backups, instalación de los plugins
+	 * DIGITALÍSIMO que reemplazan a los del sitio, conversión del contenido (desactiva Element Pack, Elementor Pro, PRO
+	 * Elements y Elementor), importación (SEO), tema DIGITALÍSIMO donde es seguro y, si todo salió bien, borrado de lo
+	 * reemplazado. Con --network, lo mismo en toda la red (cada sitio en su propio proceso).
 	 *
 	 * [--convert]
 	 * : Convierte todos los documentos pendientes al formato propio, con copia del original (Element Pack desactivado).
@@ -67,6 +68,11 @@ final class Cli {
 	 */
 	public function __invoke( $args, $assoc ) {
 		if ( ! empty( $assoc['run'] ) ) {
+			// «Migrar» lo hace todo (respaldo, instalación, contenido, importación, tema y limpieza): la tarea completa.
+			if ( class_exists( '\\Digitalisimo\\Migration\\Full' ) ) {
+				\Digitalisimo\Migration\Full::cli( ! empty( $assoc['network'] ) );
+				return;
+			}
 			empty( $assoc['network'] ) ? self::run_site() : self::run_network();
 			return;
 		}
@@ -234,6 +240,25 @@ final class Cli {
 			\WP_CLI::error( 'La migración de la red no terminó' . ( $failed ? ' (falta en ' . implode( ', ', $failed ) . ')' : '' ) . ': vuelve a ejecutar la orden; cada sitio sigue donde quedó (los que esperan a la red se liberan con el WP-Cron del sitio principal al vencer el plazo).' );
 		}
 		\WP_CLI::success( 'Migración de la red completada.' );
+	}
+
+	/**
+	 * La etapa de contenido de la tarea completa en una red (Full::cli()): cada sitio en su propio proceso, la barrera
+	 * y el cierre, como `--run --network` de siempre, sin el mensaje final (lo da la tarea completa).
+	 */
+	public static function network_content() {
+		$job = Runner::network_start( true );
+		if ( ! empty( $job['error'] ) ) {
+			\WP_CLI::error( (string) $job['error'] );
+		}
+		self::run_sites( $job );
+		$job = Runner::network_release();
+		if ( ! empty( $job['barrier'] ) && empty( $job['released'] ) && empty( $job['done'] ) ) {
+			self::run_sites( Runner::network_summary( false ) );
+			Runner::network_release();
+		}
+		self::run_sites( Runner::network_summary( false ) );
+		Runner::network_finish();
 	}
 
 	/** Cada sitio en marcha, en su propio proceso, con la salida en directo (el estado final de cada uno lo dice). */

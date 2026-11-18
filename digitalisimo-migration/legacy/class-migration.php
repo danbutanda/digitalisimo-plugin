@@ -938,17 +938,25 @@ final class Migration {
 		$state   = Runner::state();
 		$running = $state && empty( $state['done'] );
 		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO Elements</h1>';
-		echo '<p>Un solo paso. <strong>Migrar</strong> desactiva en este sitio los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro, PRO Elements, Element Pack con su Addon y, al final, Prime Slider), convierte al formato propio el contenido de Element Pack y de Prime Slider, sus plantillas, fuentes e iconos, el de los widgets fusionados y los widgets de PRO que ya tienen widget propio, vacía las cachés y deja aquí el informe. Guarda una copia de cada documento antes de tocarlo y no borra ningún plugin: los deja desactivados para que los elimines desde Plugins cuando hayas comprobado el sitio. Si cierras esta pantalla, la migración sigue sola y se reanuda al volver. Sólo afecta a este sitio' . ( is_multisite() ? '; Red → Ajustes → Migrar a DIGITALÍSIMO Elements hace lo mismo en todos los sitios de la red' : '' ) . '.</p>';
+		echo '<p>' . esc_html( \Digitalisimo\Migration\Screen::intro( false ) ) . '</p>';
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- sólo muestra el resultado de la acción.
 		if ( isset( $_GET['done'] ) && 'acknowledge' === sanitize_key( wp_unslash( $_GET['done'] ) ) ) {
 			echo '<div class="notice notice-success"><p>' . esc_html( absint( $_GET['count'] ?? 0 ) ? 'Página dada por revisada: deja de listarse mientras su contenido no cambie.' : 'No se indicó ninguna página.' ) . '</p></div>';
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
-		self::assets();
-		echo '<div id="digi-migrate" class="digi-migrate" data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( Runner::AJAX . '_' . get_current_blog_id() ) ) . '" data-network="0" data-running="' . ( $running ? '1' : '0' ) . '">';
-		echo '<p><button type="button" class="button button-primary button-hero digi-migrate__button"' . ( $running ? ' disabled' : '' ) . '>Migrar</button></p>';
-		echo '<div class="digi-migrate__status">' . Runner::render( $running ? $state : Runner::report() ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML ya escapado por Runner.
-		echo '</div>';
+		if ( is_multisite() ) {
+			// En un sitio de una red, el botón de siempre: la tarea de contenido de este sitio.
+			self::assets();
+			echo '<div id="digi-migrate" class="digi-migrate" data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( Runner::AJAX . '_' . get_current_blog_id() ) ) . '" data-network="0" data-running="' . ( $running ? '1' : '0' ) . '">';
+			echo '<p><button type="button" class="button button-primary button-hero digi-migrate__button"' . ( $running ? ' disabled' : '' ) . '>Migrar</button></p>';
+			echo '<div class="digi-migrate__status">' . Runner::render( $running ? $state : Runner::report() ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML ya escapado por Runner.
+			echo '</div>';
+		} else {
+			// Un sitio individual: la tarea completa (respaldo, instalación, contenido, importación, tema y limpieza).
+			list( $status, $full_running ) = \Digitalisimo\Migration\Screen::full_status( false );
+			echo \Digitalisimo\Migration\Screen::control( false, $status, $full_running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen y Full.
+			echo \Digitalisimo\Migration\Screen::plan_html( false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen.
+		}
 		echo '<h2>Qué hay en este sitio</h2>';
 		self::site_summary();
 		echo self::retire_plan(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.
@@ -1210,7 +1218,7 @@ final class Migration {
 			}
 			$rows[] = sprintf( '%s (%s; %s)', $info['label'], $groups[ $info['group'] ] ?? $info['group'], $info['late'] ? 'al final, cuando sus widgets estén convertidos' : 'al empezar, en una sola escritura con su grupo' );
 		}
-		return $rows ? '<p>' . esc_html( 'Se desactivarán, sin borrarse: ' . implode( '; ', $rows ) . '.' ) . '</p>' : '';
+		return $rows ? '<p>' . esc_html( 'Se desactivarán: ' . implode( '; ', $rows ) . '.' . ( is_multisite() ? ' Aquí no se borran.' : ' Cuáles se borran al final lo dice «Lo que hará Migrar».' ) ) . '</p>' : '';
 	}
 
 	/**
@@ -1266,16 +1274,12 @@ final class Migration {
 			return;
 		}
 		Runner::load();
-		$job     = Runner::network_state() ? Runner::network_summary() : null;
-		$running = $job && empty( $job['done'] );
 		$sites   = get_sites( array( 'number' => 500, 'fields' => 'ids' ) );
 		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO Elements en la red</h1>';
-		echo '<p>Un solo paso para toda la red. <strong>Migrar toda la red</strong> desactiva en toda la red los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro y PRO Elements al empezar; Element Pack y su Addon cuando cada sitio tiene listas sus plantillas; Prime Slider al final) y después hace en cada uno de los ' . count( $sites ) . ' sitios lo mismo que el botón de su herramienta: desactiva los que tenga activos por sitio, convierte su contenido de Element Pack, sus widgets fusionados y sus widgets de PRO con widget propio, vacía sus cachés y deja su informe en Herramientas → Migrar a DIGITALÍSIMO Elements. <strong>Modifica todos los sitios de la red.</strong> No borra ningún plugin: cuando hayas comprobado los sitios, los eliminas desde Red → Plugins.</p>';
-		self::assets();
-		echo '<div id="digi-migrate" class="digi-migrate" data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( Runner::AJAX . '_network' ) ) . '" data-network="1" data-running="' . ( $running ? '1' : '0' ) . '">';
-		echo '<p><button type="button" class="button button-primary button-hero digi-migrate__button"' . ( $running ? ' disabled' : '' ) . '>Migrar toda la red</button></p>';
-		echo '<div class="digi-migrate__status">' . Runner::render_network( $job ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML ya escapado por Runner.
-		echo '</div>';
+		echo '<p>' . esc_html( \Digitalisimo\Migration\Screen::intro( true ) ) . '</p>';
+		list( $status, $full_running ) = \Digitalisimo\Migration\Screen::full_status( true );
+		echo \Digitalisimo\Migration\Screen::control( true, $status, $full_running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen y Full.
+		echo \Digitalisimo\Migration\Screen::plan_html( true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen.
 		echo '<h2>Estado de cada sitio</h2>';
 		echo '<table class="widefat striped"><thead><tr><th>Sitio</th><th>Elementos compatibles</th><th>Sin adaptador</th><th>Documentos pendientes de convertir</th><th>Widgets fusionados</th><th>Widgets de PRO</th><th>Plugins sustituidos activos en el sitio</th><th>Sin equivalente</th><th>Última migración</th><th></th></tr></thead><tbody>';
 		$total_missing = 0;

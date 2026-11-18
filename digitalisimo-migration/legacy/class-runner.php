@@ -105,7 +105,10 @@ final class Runner {
 	private static $network_token = '';
 
 	public static function init() {
-		add_action( 'wp_ajax_' . self::AJAX, array( __CLASS__, 'ajax' ) );
+		// El paso AJAX lo recibe \Digitalisimo\Migration\Full::ajax(), que lo trae aquí en cada sitio de una red.
+		if ( ! class_exists( '\\Digitalisimo\\Migration\\Full' ) ) {
+			add_action( 'wp_ajax_' . self::AJAX, array( __CLASS__, 'ajax' ) );
+		}
 		add_action( self::CRON, array( __CLASS__, 'cron' ) );
 		add_action( self::NETWORK_TICK, array( __CLASS__, 'network_tick' ) );
 		add_filter( 'allowed_http_origins', array( __CLASS__, 'allowed_origins' ) );

@@ -4,18 +4,27 @@ namespace Digitalisimo\Migration;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Arranque de la compatibilidad heredada y de «Migrar».
+ * Arranque de «Migrar» y de la compatibilidad heredada.
  *
- * Necesita DIGITALÍSIMO Elements: sus widgets son el destino de cada adaptador y de la conversión.
+ * La tarea completa (respaldo, instalación, importación, tema y limpieza) no necesita nada más; la conversión y los
+ * adaptadores necesitan DIGITALÍSIMO Elements (sus widgets son el destino), que Migrar instala y activa.
  * Mientras Element Pack esté activo en un sitio, sus propios widgets se pintan con su código; Migrar
  * lo desactiva (junto con Elementor, Elementor Pro y PRO Elements) antes de convertir.
  */
 final class Plugin {
 	public static function boot() {
 		Updater::init();
+		// «Migrar» lo hace todo y funciona con Migración sola (regla del propietario del 2026-11-18): la tarea completa,
+		// su pantalla y WP-CLI se cargan siempre; lo que necesita DIGITALÍSIMO Elements llega cuando Migrar lo instala.
+		require_once DIGITALISIMO_MIGRATION_DIR . 'includes/class-full.php';
+		require_once DIGITALISIMO_MIGRATION_DIR . 'includes/class-screen.php';
+		Full::init();
 		if ( ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ) {
-			add_action( 'admin_notices', array( __CLASS__, 'missing_elements' ) );
-			add_action( 'network_admin_notices', array( __CLASS__, 'missing_elements' ) );
+			Screen::init();
+			if ( defined( 'WP_CLI' ) && WP_CLI ) {
+				require_once DIGITALISIMO_MIGRATION_DIR . 'includes/class-cli.php';
+				\WP_CLI::add_command( 'digitalisimo-migration', Cli::class );
+			}
 			return;
 		}
 		$legacy = DIGITALISIMO_MIGRATION_DIR . 'legacy/';
@@ -117,12 +126,5 @@ final class Plugin {
 				return apply_filters( 'element_pack_visibility_' . $name, ...$values );
 			}, 5, $args );
 		}
-	}
-
-	public static function missing_elements() {
-		if ( ! current_user_can( 'activate_plugins' ) ) {
-			return;
-		}
-		echo '<div class="notice notice-warning"><p>' . esc_html( 'DIGITALÍSIMO Migración necesita DIGITALÍSIMO Elements activo: sus widgets son el destino de la migración.' ) . '</p></div>';
 	}
 }

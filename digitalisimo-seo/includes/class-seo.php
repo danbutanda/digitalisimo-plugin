@@ -91,19 +91,46 @@ class Digitalisimo_Integrations_SEO {
 		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'digitalisimo_import_seo_data' ) ) wp_die( esc_html__( 'Solicitud no autorizada.', 'digitalisimo-integrations' ) );
 		$source = sanitize_key( wp_unslash( $_POST['source'] ?? '' ) );
 		if ( ! in_array( $source, array( 'rankmath', 'yoast', 'all' ), true ) ) $source = 'all';
-		$sources = 'all' === $source ? array( 'rankmath', 'yoast' ) : array( $source );
+		$result = self::import_legacy( 'all' === $source ? array( 'rankmath', 'yoast' ) : array( $source ) );
+		wp_safe_redirect( add_query_arg( array( 'page' => 'digitalisimo-seo', 'seo_imported' => $result['imported'], 'seo_found' => $result['found'], 'seo_source' => $source ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+	/** Metas de origen de cada importador: campo => clave propia, y las especiales (noindex y contenido pilar). */
+	private static function legacy_maps( $provider ) {
+		return 'rankmath' === $provider
+			? array( array( 'rank_math_title' => 'title', 'rank_math_description' => 'description', 'rank_math_focus_keyword' => 'keywords', 'rank_math_canonical_url' => 'canonical' ), array( 'rank_math_robots', 'rank_math_pillar_content' ) )
+			: array( array( '_yoast_wpseo_title' => 'title', '_yoast_wpseo_metadesc' => 'description', '_yoast_wpseo_focuskw' => 'keywords', '_yoast_wpseo_canonical' => 'canonical' ), array( '_yoast_wpseo_meta-robots-noindex', '_yoast_wpseo_is_cornerstone' ) );
+	}
+	/**
+	 * Importa título SEO, meta descripción, palabra clave, canonical, noindex y contenido pilar desde Rank Math o Yoast SEO
+	 * (aunque estén desactivados), sin pisar nunca un valor ya guardado en DIGITALÍSIMO SEO: es idempotente. Sin pantalla,
+	 * para el botón de arriba y para «Migrar» de DIGITALÍSIMO Migración. Con $limit, por lotes ordenados por ID a partir de
+	 * $after (de un solo origen); `next` es el último ID visto y `done`, si no queda nada.
+	 *
+	 * @return array{imported:int,found:int,next:int,done:bool}
+	 */
+	public static function import_legacy( array $sources, $after = 0, $limit = 0 ) {
 		$imported = 0;
 		$found = 0;
-		foreach ( $sources as $provider ) {
-			$map = 'rankmath' === $provider
-				? array( 'rank_math_title' => 'title', 'rank_math_description' => 'description', 'rank_math_focus_keyword' => 'keywords', 'rank_math_canonical_url' => 'canonical' )
-				: array( '_yoast_wpseo_title' => 'title', '_yoast_wpseo_metadesc' => 'description', '_yoast_wpseo_focuskw' => 'keywords', '_yoast_wpseo_canonical' => 'canonical' );
-			$special = 'rankmath' === $provider ? array( 'rank_math_robots', 'rank_math_pillar_content' ) : array( '_yoast_wpseo_meta-robots-noindex', '_yoast_wpseo_is_cornerstone' );
+		$next = (int) $after;
+		$done = true;
+		foreach ( array_values( array_intersect( array( 'rankmath', 'yoast' ), $sources ) ) as $provider ) {
+			list( $map, $special ) = self::legacy_maps( $provider );
 			$query = array( 'relation' => 'OR' );
 			foreach ( array_merge( array_keys( $map ), $special ) as $meta_key ) $query[] = array( 'key' => $meta_key, 'compare' => 'EXISTS' );
-			$ids = get_posts( array( 'post_type' => 'any', 'post_status' => 'any', 'posts_per_page' => -1, 'fields' => 'ids', 'meta_query' => $query ) );
+			$args = array( 'post_type' => 'any', 'post_status' => 'any', 'posts_per_page' => $limit > 0 ? (int) $limit : -1, 'fields' => 'ids', 'meta_query' => $query, 'orderby' => 'ID', 'order' => 'ASC', 'suppress_filters' => true );
+			$filter = null;
+			if ( $limit > 0 ) {
+				$filter = static function ( $where ) use ( $after ) { global $wpdb; return $where . $wpdb->prepare( " AND {$wpdb->posts}.ID > %d", (int) $after ); };
+				add_filter( 'posts_where', $filter );
+				$args['suppress_filters'] = false;
+			}
+			$ids = get_posts( $args );
+			if ( $filter ) remove_filter( 'posts_where', $filter );
 			$found += count( $ids );
+			if ( $limit > 0 && count( $ids ) >= (int) $limit ) $done = false;
 			foreach ( $ids as $id ) {
+				$next = max( $next, (int) $id );
 				foreach ( $map as $from => $to ) {
 					$value = get_post_meta( $id, $from, true );
 					$target = self::key( $to );
@@ -123,9 +150,8 @@ class Digitalisimo_Integrations_SEO {
 				if ( $is_pillar && ! get_post_meta( $id, $pillar, true ) ) { update_post_meta( $id, $pillar, 'on' ); $imported++; }
 			}
 		}
-		update_option( 'digitalisimo_seo_legacy_imported', time(), false );
-		wp_safe_redirect( add_query_arg( array( 'page' => 'digitalisimo-seo', 'seo_imported' => $imported, 'seo_found' => $found, 'seo_source' => $source ), admin_url( 'admin.php' ) ) );
-		exit;
+		if ( $done ) update_option( 'digitalisimo_seo_legacy_imported', time(), false );
+		return array( 'imported' => $imported, 'found' => $found, 'next' => $next, 'done' => $done );
 	}
 	public static function seo_page() {
 		if ( ! current_user_can( 'manage_options' ) ) return;
