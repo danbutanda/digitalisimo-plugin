@@ -171,7 +171,7 @@ function ud_pieces( array $o = array() ) {
 		'-mu-plugins.zip' => ud_zip( array( 'mu-plugins/propio.php' => "<?php // mu de UpdraftPlus\n" ) ),
 		'-uploads.zip' => ud_zip( array( 'uploads/2026/11/foto.jpg' => $GLOBALS['ud_foto'] ) ),
 		'-uploads2.zip' => ud_zip( array( 'uploads/2026/12/otra.txt' => "segunda parte de uploads\n" ) ),
-		'-others.zip' => ud_zip( array( 'languages/es_MX.mo' => "MO\n", 'index.php' => "<?php // Silence is golden.\n", 'wp-config.php' => "<?php // no debe viajar\n", 'plugins/colado.php' => "<?php // no\n", 'cache/pagina.html' => "cacheada\n" ) ),
+		'-others.zip' => ud_zip( array( 'languages/es_MX.mo' => "MO\n", 'index.php' => "<?php // Silence is golden.\n", 'wp-config.php' => "<?php // no debe viajar\n", 'plugins/colado.php' => "<?php // no\n", 'upgrade/temp.txt' => "temporal\n", 'cache/pagina.html' => "cacheada\n" ) ),
 	);
 }
 function ud_put_set( $dir, $set, array $pieces ) {
@@ -298,6 +298,13 @@ ud_case( 'U2 importación por tramos a un ZIP v3 sin firma, «Importado» en la 
 	Digitalisimo_Backups_Archive_Inspector::entries( $zip, false );
 	$manifest = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
 	ud_check( 'digitalisimo-backup/v3' === $manifest['format'] && 'ud_' === $manifest['table_prefix'] && false === $manifest['multisite'] && 'https://origen.com' === $manifest['home_url'] && '/var/www/origen' === $manifest['origin']['abspath'] && '/var/www/origen/wp-content/uploads' === $manifest['origin']['uploads_dir'] && 'updraft' === $manifest['imported_from']['format'] && '1.26.14' === $manifest['imported_from']['updraft_version'] && '6.8.1' === $manifest['wordpress_version'] && '8.2.24' === $manifest['php_version'], 'Manifiesto inesperado: ' . json_encode( $manifest ) );
+	// Las carpetas del origen salen de sus URL: los medios bajo el contenido, bajo el sitio (otra carpeta) o, si no se
+	// pueden deducir (un CDN), la de siempre.
+	$origin_of = function( $content, $uploads ) { return bk_call( 'Digitalisimo_Backups_Updraft_Import', 'origin', array( 'abspath' => '/var/www/o', 'siteurl' => 'https://o.com', 'home' => 'https://o.com', 'content_url' => $content, 'uploads_url' => $uploads, 'multisite' => false, 'sites' => array(), 'main_site' => 0 ), 'wp_' ); };
+	$a = $origin_of( 'https://o.com/app', 'https://o.com/app/uploads' );
+	$b = $origin_of( 'https://o.com/app', 'https://o.com/media' );
+	$c = $origin_of( 'https://o.com/wp-content', 'https://cdn.o.net/uploads' );
+	ud_check( '/var/www/o/app' === $a['content_dir'] && '/var/www/o/app/uploads' === $a['uploads_dir'] && '/var/www/o/media' === $b['uploads_dir'] && '/var/www/o/wp-content/uploads' === $c['uploads_dir'], 'Las carpetas del origen no salen de sus URL: ' . json_encode( array( $a, $b, $c ) ) );
 	ud_check( array( 'ud_options', 'ud_posts', 'ud_postmeta', 'ud_users', 'ud_usermeta', 'ud_binarios', 'ud_grande' ) === $manifest['database_tables'], 'Tablas del manifiesto: ' . json_encode( $manifest['database_tables'] ) );
 	$raw = json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
 	$notices = implode( ' ', (array) ( $raw['notices'] ?? array() ) );
@@ -307,7 +314,7 @@ ud_case( 'U2 importación por tramos a un ZIP v3 sin firma, «Importado» en la 
 	ud_check( $GLOBALS['ud_foto'] === $zip->getFromName( 'wordpress/wp-content/uploads/2026/11/foto.jpg' ), 'El binario de uploads no llegó idéntico.' );
 	ud_check( "<?php\n\$wp_version = '7.1.4';\n" === $zip->getFromName( 'wordpress/wp-includes/version.php' ), 'El núcleo no es el de este WordPress.' );
 	ud_check( false === strpos( (string) $zip->getFromName( 'wordpress/wp-config.php' ), 'no debe viajar' ) && false !== strpos( (string) $zip->getFromName( 'wordpress/wp-config.php' ), 'Marcador del ZIP convertido' ), 'wp-config.php no es el marcador.' );
-	foreach ( array( 'wordpress/wp-content/wp-config.php', 'wordpress/wp-content/plugins/colado.php', 'wordpress/wp-content/cache/pagina.html', 'wordpress/wp-content/plugins/example.php', 'wordpress/wp-content/updraft/' . $set . '-db.gz' ) as $absent ) ud_check( false === $zip->locateName( $absent ), 'El ZIP trae ' . $absent );
+	foreach ( array( 'wordpress/wp-content/wp-config.php', 'wordpress/wp-content/plugins/colado.php', 'wordpress/wp-content/upgrade/temp.txt', 'wordpress/wp-content/cache/pagina.html', 'wordpress/wp-content/plugins/example.php', 'wordpress/wp-content/updraft/' . $set . '-db.gz' ) as $absent ) ud_check( false === $zip->locateName( $absent ), 'El ZIP trae ' . $absent );
 	$sql = (string) $zip->getFromName( 'database.sql' );
 	$zip->close();
 	ud_check( 0 === strpos( $sql, "SET NAMES utf8mb4;\nSET foreign_key_checks = 0;\n" ), 'El SQL no tiene la forma del exportador.' );
@@ -361,7 +368,7 @@ ud_case( 'U4 base de datos cifrada: sin frase u otra se rechaza; con la suya (12
 		$item = array_values( array_filter( Digitalisimo_Backups::service_updraft()['sets'], function( $s ) use ( $name ) { return $name === $s['id']; } ) )[0];
 		ud_check( true === $item['encrypted'] && true === $item['importable'] && 'store' === $item['source'], 'El conjunto cifrado no se describe: ' . json_encode( $item ) );
 		$no = Digitalisimo_Backups::service_updraft_import( $name );
-		ud_check( is_wp_error( $no ) && 'digitalisimo_backups_updraft_secret' === $no->get_error_code(), 'Sin frase no pidió la frase.' );
+		ud_check( is_wp_error( $no ) && 'digitalisimo_backups_updraft_secret' === $no->get_error_code() && false !== strpos( $no->get_error_message(), $name . '-db.gz.crypt' ), 'Sin frase no pidió la frase (nombrando la pieza cifrada).' );
 		$wrong = Digitalisimo_Backups::service_updraft_import( $name, array( 'secret' => 'otra-frase' ) );
 		ud_check( is_wp_error( $wrong ) && 'digitalisimo_backups_updraft_secret' === $wrong->get_error_code() && false !== strpos( $wrong->get_error_message(), 'no descifra' ), 'Con otra frase no se rechazó: ' . ( is_wp_error( $wrong ) ? $wrong->get_error_message() : 'se encoló' ) );
 		ud_check( ! glob( ud_store() . '/.decrypted-*' ), 'Quedó una copia descifrada tras una frase equivocada.' );
