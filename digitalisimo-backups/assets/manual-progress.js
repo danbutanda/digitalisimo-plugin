@@ -386,6 +386,7 @@
   /* Lo que sigue a un respaldo que entró: su fila para restaurarlo o «Restaurar un archivo suelto». */
   function entryGo(kind, job) {
     if (job.status !== 'success' || !job.file) return null;
+    if (kind === 'import' && job.listed) return { text: 'Restaurarlo', href: screenUrl({ tab: 'backups', restore: job.file }, 'digitalisimo-backups-history'), title: 'Abre su fila «Importado» en la lista con «Restaurar» desplegado (RESTAURAR SIN FIRMA).' };
     if (kind === 'fetch' && job.fetch && job.fetch.registered) return { text: 'Restaurarlo', href: screenUrl({ tab: 'backups', restore: job.file }, 'digitalisimo-backups-history'), title: 'Abre la fila de ' + job.file + ' en la lista con «Restaurar» desplegado.' };
     if (kind === 'fetch' || kind === 'import') return { text: 'Ver en «Restaurar un archivo suelto»', href: screenUrl(LOOSE, 'digitalisimo-backups-section-restore-file'), title: 'Ahí se restaura (RESTAURAR SIN FIRMA salvo firma de una clave de este sitio) o se pasa a la lista con «Agregar al listado».' };
     return null;

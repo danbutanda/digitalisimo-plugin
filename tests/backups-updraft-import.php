@@ -490,7 +490,21 @@ ud_case( 'U9 una muerte a mitad de cada tramo no cambia el ZIP convertido', func
 	foreach ( $reference as $name => $hash ) ud_check( $hash === $again[ $name ], 'La entrada ' . $name . ' cambió con las muertes.' );
 } );
 
-ud_case( 'U10 REST, WP-CLI y pantalla', function() use ( $set ) {
+ud_case( 'U10 REST, WP-CLI, pantalla y panel de avance', function() use ( $set, &$converted ) {
+	// La fila «Importado» de la lista: su distintivo y su panel «Restaurar» piden RESTAURAR SIN FIRMA (lo que exige).
+	ud_check( '' !== $converted && ud_row( $converted ), 'No hay fila del ZIP convertido (falló U2).' );
+	if ( ! function_exists( 'wp_nonce_url' ) ) { function wp_nonce_url( $url, $action = -1 ) { return $url . '&_wpnonce=nonce-' . $action; } }
+	ob_start();
+	try {
+		bk_call( 'Digitalisimo_Backups', 'history_row', ud_row( $converted ), 0, false, $converted );
+	} finally {
+		$row = (string) ob_get_clean();
+	}
+	ud_check( false !== strpos( $row, '>Importado</span>' ) && false !== strpos( $row, 'Importado de UpdraftPlus (' . $set . ')' ) && false !== strpos( $row, 'escribe RESTAURAR SIN FIRMA para confirmar' ) && false !== strpos( $row, 'placeholder="RESTAURAR SIN FIRMA"' ), 'La fila «Importado» no se muestra como tal o su panel no pide RESTAURAR SIN FIRMA.' );
+	// El panel de avance lleva a esa fila al terminar la importación (`listed`), no a «Restaurar un archivo suelto».
+	$views = array();
+	foreach ( Digitalisimo_Backups_Job_Store::all() as $job ) if ( Digitalisimo_Backups_Import_Job::is_updraft( $job ) && 'success' === $job['status'] ) $views[] = Digitalisimo_Backups_Jobs::view( $job );
+	ud_check( $views && ! array_filter( $views, function( $view ) { return true !== $view['listed'] || 'Importación de UpdraftPlus' !== $view['origin_label']; } ), 'La vista de la importación no dice que quedó en la lista: ' . json_encode( $views[0] ?? null ) );
 	$GLOBALS['ud_routes'] = array();
 	Digitalisimo_Backups_Rest::routes();
 	foreach ( array( '/updraft', '/updraft/import', '/updraft/fetch' ) as $route ) ud_check( isset( $GLOBALS['ud_routes'][ $route ] ), 'Falta la ruta REST ' . $route );
