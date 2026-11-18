@@ -115,11 +115,14 @@ md += `PHP ${any ? any.php : '?'} · opcache ${any && any.opcache ? 'sí' : 'no'
 if (error) md += `**Error del conductor:** ${error}\n\n`;
 if (notes.length) md += `Notas: ${notes.join(' · ')}\n\n`;
 md += '## Pantallas (mediana del servidor: ms · consultas · MB pico)\n\n';
-md += `| Pantalla | ${sets.join(' | ')} | Δ ms el | Δ consultas el |\n| --- | ${sets.map(() => '---').join(' | ')} | --- | --- |\n`;
+// Diferencias: con Elements frente a sin plugins (la versión base si se midió) y, con las copias «antes», el arreglo.
+const baseEl = sets.includes('el-antes') ? 'el-antes' : 'el';
+const pairs = [['none', baseEl, `Δ ${baseEl} − none`]].concat(sets.includes('el-antes') ? [['el-antes', 'el', 'Δ arreglo el'], ['elmig-antes', 'elmig', 'Δ arreglo elmig']] : []).filter(([a, b]) => sets.includes(a) && sets.includes(b));
+md += `| Pantalla | ${sets.join(' | ')} | ${pairs.map((p) => p[2] + ' (ms · consultas)').join(' | ')} |\n| --- | ${sets.map(() => '---').join(' | ')} | ${pairs.map(() => '---').join(' | ')} |\n`;
 for (const label of labels) {
   const row = sets.map((s) => { const x = get(label, s); return x ? `${fmt(x.wp_ms)} · ${fmt(x.queries)} · ${fmt(x.mem_mb)}${x.status.some((c) => c >= 400) ? ' ⚠' + x.status.join('/') : ''}` : '—'; });
-  const n = get(label, 'none'); const e = get(label, 'el');
-  md += `| ${label} | ${row.join(' | ')} | ${n && e ? r1(e.wp_ms - n.wp_ms) : '—'} | ${n && e ? e.queries - n.queries : '—'} |\n`;
+  const deltas = pairs.map(([a, b]) => { const x = get(label, a); const y = get(label, b); return x && y ? `${r1(y.wp_ms - x.wp_ms)} · ${y.queries - x.queries}` : '—'; });
+  md += `| ${label} | ${row.join(' | ')} | ${deltas.join(' | ')} |\n`;
 }
 md += '\n## Consultas de los plugins por pantalla (conjunto el / elmig: origen n · ms)\n\n';
 for (const label of labels) {
@@ -142,7 +145,7 @@ for (const label of labels.filter((l) => !/^propia /.test(l))) {
   }
 }
 md += '\n## Bytes del HTML (mediana) sin y con plugins\n\n';
-for (const label of labels) { const n = get(label, 'none'); const e = get(label, 'el'); if (n && e && n.bytes && e.bytes) md += `- ${label}: ${n.bytes} → ${e.bytes} (${e.bytes - n.bytes >= 0 ? '+' : ''}${e.bytes - n.bytes})\n`; }
+for (const label of labels) { const n = get(label, 'none'); const e = get(label, baseEl); const f = sets.includes('el-antes') ? get(label, 'el') : null; if (n && e && n.bytes && e.bytes) md += `- ${label}: ${n.bytes} → ${e.bytes} (${e.bytes - n.bytes >= 0 ? '+' : ''}${e.bytes - n.bytes})${f ? ` → después ${f.bytes}` : ''}\n`; }
 md += '\n## Peticiones HTTP salientes (por carga)\n\n';
 for (const [k, x] of Object.entries(stats)) { const ours = Object.entries(x.http); if (ours.length) md += `- ${x.label} (${x.set}): ${ours.map(([h, n]) => `${h} ×${n}/${x.n}`).join('; ')}\n`; }
 md += '\n### GitHub caído / al día (cargas seguidas tras vaciar las cachés)\n\n';

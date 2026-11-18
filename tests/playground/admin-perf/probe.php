@@ -336,6 +336,21 @@ final class Digi_AP_Probe {
 		}
 		if ( 'clear-github' === $report ) {
 			global $wpdb;
+			// Como en un sitio donde WordPress ya consultó sus actualizaciones (`checked` con cada plugin): así los
+			// filtros de lectura de los actualizadores trabajan igual que en producción.
+			if ( ! function_exists( 'get_plugins' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			}
+			$updates               = new stdClass();
+			$updates->last_checked = time();
+			$updates->checked      = array();
+			$updates->response     = array();
+			$updates->no_update    = array();
+			$updates->translations = array();
+			foreach ( get_plugins() as $file => $data ) {
+				$updates->checked[ $file ] = $data['Version'];
+			}
+			set_site_transient( 'update_plugins', $updates );
 			$names = is_multisite()
 				? $wpdb->get_col( "SELECT meta_key FROM {$wpdb->sitemeta} WHERE meta_key LIKE '_site_transient_digitalisimo%'" ) // phpcs:ignore
 				: $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE '_site_transient_digitalisimo%'" ); // phpcs:ignore

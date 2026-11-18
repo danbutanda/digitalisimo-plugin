@@ -11,7 +11,11 @@ const base = process.argv[2];
 const OUT = process.env.OUT || '/tmp/digi-admin-perf';
 const SETS = (process.env.SETS || 'none,el,elmig').split(',');
 const REPS = Number(process.env.REPS || 5);
+// Repeticiones de REST, guardar, subir y actualizar (por defecto REPS; subir y actualizar, como mucho 3).
+const REPS_FUNC = Number(process.env.REPS_FUNC || REPS);
 const MULTI = process.env.MULTI === '1';
+// Conjuntos por fase (por defecto, todos los de SETS): CHROME_SETS, BUILDER_SETS, PROFILE_SETS, GITHUB_SETS.
+const setsFor = (name) => (process.env[name] ? process.env[name].split(',') : SETS).filter((s) => SETS.includes(s));
 const PHASES = new Set((process.env.PHASES || 'screens,own,rest,save,media,update,heartbeat,cron,profile,github,chrome,builder,lazymcp,autoload').split(','));
 const ids = JSON.parse(fs.readFileSync(path.join(OUT, 'ids.json'), 'utf8'));
 const measures = [];
@@ -151,16 +155,16 @@ async function main() {
       'wp-json/wp/v2/global-styles/themes/' + (process.env.THEME || 'twentytwentyfive') + '?context=view&_locale=user',
       'wp-json/',
     ];
-    await measure(restList.map((u) => ({ label: 'rest ' + u.replace(/^wp-json\//, '').replace(/\?.*$/, ''), url: u, headers: { 'X-WP-Nonce': restNonce }, kind: 'rest' })));
+    await measure(restList.map((u) => ({ label: 'rest ' + u.replace(/^wp-json\//, '').replace(/\?.*$/, ''), url: u, headers: { 'X-WP-Nonce': restNonce }, kind: 'rest' })), SETS, REPS_FUNC);
   }
   if (PHASES.has('save')) {
     let n = 0;
-    await measure([{ label: 'guardar-entrada', url: `wp-json/wp/v2/posts/${ids.post_edit}`, method: 'POST', body: () => JSON.stringify({ title: `Entrada editada ${++n}`, content: `<!-- wp:paragraph --><p>Contenido ${n}</p><!-- /wp:paragraph -->` }), headers: { 'X-WP-Nonce': restNonce, 'Content-Type': 'application/json' }, kind: 'rest' }]);
+    await measure([{ label: 'guardar-entrada', url: `wp-json/wp/v2/posts/${ids.post_edit}`, method: 'POST', body: () => JSON.stringify({ title: `Entrada editada ${++n}`, content: `<!-- wp:paragraph --><p>Contenido ${n}</p><!-- /wp:paragraph -->` }), headers: { 'X-WP-Nonce': restNonce, 'Content-Type': 'application/json' }, kind: 'rest' }], SETS, REPS_FUNC);
   }
   if (PHASES.has('media')) {
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAGklEQVR4nGNkaGBgIA0wkah+VMOohlENQ0kDAP+8ARHVPDlXAAAAAElFTkSuQmCC', 'base64');
     let n = 0;
-    await measure([{ label: 'subir-medio', url: 'wp-json/wp/v2/media', method: 'POST', body: () => png, headers: { 'X-WP-Nonce': restNonce, 'Content-Type': 'image/png', 'Content-Disposition': `attachment; filename="subida-${Date.now()}-${++n}.png"` }, kind: 'rest' }], SETS, Math.min(REPS, 3));
+    await measure([{ label: 'subir-medio', url: 'wp-json/wp/v2/media', method: 'POST', body: () => png, headers: { 'X-WP-Nonce': restNonce, 'Content-Type': 'image/png', 'Content-Disposition': `attachment; filename="subida-${Date.now()}-${++n}.png"` }, kind: 'rest' }], SETS, Math.min(REPS_FUNC, 3));
   }
   if (PHASES.has('update') && !MULTI) {
     const plugins = await req('wp-admin/plugins.php', { set: SETS[0], label: 'nonce', keepText: true });
@@ -169,7 +173,7 @@ async function main() {
     else {
       await measure([{ label: 'actualizar-plugin', url: 'wp-admin/admin-ajax.php', method: 'POST', kind: 'ajax',
         before: async (set) => { await req('wp-admin/index.php', { set, label: 'reset', headers: { 'X-Digi-Ap-Report': 'reset-dummy' } }); },
-        body: () => new URLSearchParams({ action: 'update-plugin', _ajax_nonce: nonce, plugin: 'digi-ap-dummy/digi-ap-dummy.php', slug: 'digi-ap-dummy' }), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }], SETS, Math.min(REPS, 3));
+        body: () => new URLSearchParams({ action: 'update-plugin', _ajax_nonce: nonce, plugin: 'digi-ap-dummy/digi-ap-dummy.php', slug: 'digi-ap-dummy' }), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }], SETS, Math.min(REPS_FUNC, 3));
     }
   }
   if (PHASES.has('cron')) {
@@ -184,13 +188,13 @@ async function main() {
   }
   if (PHASES.has('profile')) {
     const pick = CORE.filter(([l]) => /escritorio|entradas|editar-entrada|medios$|plugins|actualizaciones/.test(l)).map(([label, p]) => ({ label: 'perfil ' + label, url: screenUrl(p), kind: 'profile' }));
-    await measure(pick, SETS.filter((s) => s !== 'none'), 2, { 'X-Digi-Ap-Profile': '1' });
-    if (hb) await measure([{ label: 'perfil heartbeat', url: 'wp-admin/admin-ajax.php', method: 'POST', body: () => new URLSearchParams({ action: 'heartbeat', _nonce: hb, screen_id: 'dashboard', interval: '60', has_focus: 'false' }), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, kind: 'profile' }], SETS.filter((s) => s !== 'none'), 2, { 'X-Digi-Ap-Profile': '1' });
+    await measure(pick, setsFor('PROFILE_SETS').filter((s) => s !== 'none'), 2, { 'X-Digi-Ap-Profile': '1' });
+    if (hb) await measure([{ label: 'perfil heartbeat', url: 'wp-admin/admin-ajax.php', method: 'POST', body: () => new URLSearchParams({ action: 'heartbeat', _nonce: hb, screen_id: 'dashboard', interval: '60', has_focus: 'false' }), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, kind: 'profile' }], setsFor('PROFILE_SETS').filter((s) => s !== 'none'), 2, { 'X-Digi-Ap-Profile': '1' });
   }
   if (PHASES.has('github')) {
     // GitHub sin respuesta: cachés de las actualizaciones vacías y tres cargas seguidas de cada pantalla, contando las
     // peticiones salientes de cada una (la sonda las corta con un error, como un tiempo de espera agotado).
-    for (const set of SETS.filter((s) => s !== 'none')) {
+    for (const set of setsFor('GITHUB_SETS').filter((s) => s !== 'none')) {
       for (const [label, p] of [['escritorio', 'index.php'], ['plugins', 'plugins.php'], ['actualizaciones', 'update-core.php'], ['entradas', 'edit.php']]) {
         await req('wp-admin/index.php', { set, label: 'github-limpiar', headers: { 'X-Digi-Ap-Report': 'clear-github' } });
         for (let i = 1; i <= 3; i++) await req(admin(MULTI ? 'network/' + p : p), { set, label: `github-caido ${label} ${i}`, headers: { 'X-Digi-Ap-Github': 'down' }, extra: { kind: 'github' } });
@@ -222,7 +226,7 @@ async function chrome(own) {
   const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome', args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'] });
   const out = { screens: [], editor: [], builder: [] };
   const url = new URL(base);
-  for (const set of SETS) {
+  for (const set of [...new Set([...setsFor('CHROME_SETS'), ...setsFor('BUILDER_SETS')])]) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     await context.addCookies([...jar].map(([name, value]) => ({ name, value, domain: url.hostname, path: '/' })).concat([{ name: 'digi_ap_set', value: set, domain: url.hostname, path: '/' }]));
     const page = await context.newPage();
@@ -263,7 +267,7 @@ async function chrome(own) {
       const perf = await metrics();
       return { set, label, url: p, status, ms: Math.round(performance.now() - t), menu, perf, ...current };
     };
-    if (PHASES.has('chrome')) {
+    if (PHASES.has('chrome') && setsFor('CHROME_SETS').includes(set)) {
       const list = CORE.map(([label, p]) => [label, screenUrl(p)]).concat((own[set] || []).concat(own[set + ':red'] || []).filter((h) => !/action=elementor_new_post/.test(h)).map((h) => ['propia ' + h, admin(h)]));
       // Dos visitas por pantalla: la segunda, con la caché del navegador caliente, es la que se compara.
       for (const [label, p] of list) { const first = await visit(label, p, { wait: 300 }); const second = await visit(label, p); out.screens.push({ ...second, first: first.perf, console: [...new Set([...first.console, ...second.console])], pageerrors: [...new Set([...first.pageerrors, ...second.pageerrors])], failed: [...new Set([...first.failed, ...second.failed])] }); }
@@ -286,7 +290,7 @@ async function chrome(own) {
       out.editor.push({ ...ed, ready, loadRequests, save: saved, saveRequests: [...current.requests], afterSave: { console: current.console, pageerrors: current.pageerrors, failed: current.failed } });
       log(`chrome editor de bloques ${set}: listo=${ready} guardado=${JSON.stringify(saved)}`);
     }
-    if (PHASES.has('builder') && set !== 'none') {
+    if (PHASES.has('builder') && set !== 'none' && setsFor('BUILDER_SETS').includes(set)) {
       for (let rep = 1; rep <= Number(process.env.BUILDER_REPS || 3); rep++) {
         const id = ids.builder[rep % ids.builder.length];
         current = { console: [], pageerrors: [], failed: [], requests: [] };
@@ -326,7 +330,7 @@ async function chrome(own) {
   // MCP del navegador a demanda: sin WebMCP no se carga; con WebMCP (simulado) se carga entero y sin errores.
   if (PHASES.has('lazymcp')) {
     out.lazymcp = [];
-    for (const set of SETS.filter((s) => s !== 'none')) {
+    for (const set of setsFor('CHROME_SETS').filter((s) => s !== 'none')) {
       for (const webmcp of [false, true]) {
         const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
         await ctx.addCookies([...jar].map(([name, value]) => ({ name, value, domain: url.hostname, path: '/' })).concat([{ name: 'digi_ap_set', value: set, domain: url.hostname, path: '/' }]));
