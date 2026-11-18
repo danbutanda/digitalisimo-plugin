@@ -101,6 +101,15 @@ final class Digitalisimo_Backups_Sql_Guard {
 	/** Con el renombrado en seco (verify y la pasada previa a la restauración), lo que no se puede renombrar se anota. */
 	private $rename_strict = true;
 	private $rename_problems = array();
+	/** Compatibilidad entre servidores (Digitalisimo_Backups_Db_Compat): lo anotado, la sustitución y las vistas. */
+	private $collecting = false;
+	private $found = array();
+	private $four_byte = false;
+	private $compat = array();
+	private $views_mode = '';
+	private $declared_views = array();
+	private $view_current = null;
+	private $current_table = '';
 
 	/** $tables: lista del manifiesto v3; sin ella, $prefix (si no es vacío) acota las tablas. */
 	public function __construct( $dialect, $trusted, $tables = null, $prefix = '' ) {
@@ -214,8 +223,11 @@ final class Digitalisimo_Backups_Sql_Guard {
 		$this->insert = null;
 		$this->nested = false;
 		$this->skip_current = false;
+		$this->view_current = null;
+		$this->current_table = '';
 		try {
 			$allowed = $this->statement();
+			if ( $allowed && $this->collecting ) $this->collect_statement();
 			if ( $allowed && ! $this->skip_current && $this->insert_hook && null !== $this->insert ) {
 				$spans = call_user_func( $this->insert_hook, $this->insert, $this->s );
 				if ( false === $spans ) $this->skip_current = true;
@@ -305,7 +317,8 @@ final class Digitalisimo_Backups_Sql_Guard {
 			$this->next();
 			$charset = $this->next();
 			if ( 'word' !== $charset[0] || ! in_array( $charset[1], $safe, true ) ) $this->reject( 'juego de caracteres no permitido' );
-			if ( $this->peek_word( 'COLLATE' ) ) { $this->next(); $collation = $this->next(); if ( 'word' !== $collation[0] || ! $this->safe_charset_prefix( $collation[1] ) ) $this->reject( 'intercalación no permitida' ); }
+			$this->compat_value( 'charsets', $charset, $this->i );
+			if ( $this->peek_word( 'COLLATE' ) ) { $this->next(); $collation = $this->next(); if ( 'word' !== $collation[0] || ! $this->safe_charset_prefix( $collation[1] ) ) $this->reject( 'intercalación no permitida' ); $this->compat_value( 'collations', $collation, $this->i ); }
 			$this->end();
 			return;
 		}
@@ -344,8 +357,12 @@ final class Digitalisimo_Backups_Sql_Guard {
 		return false;
 	}
 	private function create() {
+		$at = $this->i;
 		$what = $this->next();
 		if ( 'word' !== $what[0] || 'TABLE' !== $what[1] ) {
+			// Una vista se comprueba y se deja para el final del cambio (Digitalisimo_Backups_Db_Compat): ni las tablas
+			// temporales ni otro prefijo cambian a qué apunta.
+			if ( '' !== $this->views_mode && 'VIEW' === $this->peek_object() ) { $this->i = $at; $this->view(); return; }
 			// Lo escribió SHOW CREATE TABLE de este servidor (por ejemplo, una vista). Con otro prefijo no se puede asegurar
 			// a qué tablas apunta.
 			if ( $this->trusted && $this->renames ) {
@@ -356,8 +373,9 @@ final class Digitalisimo_Backups_Sql_Guard {
 			$this->reject( 'sólo se admite CREATE TABLE' );
 		}
 		$this->kind = 'CREATE TABLE';
-		$this->table();
+		$table = $this->table();
 		if ( $this->renames ) $this->references();
+		if ( $this->collecting || $this->compat ) $this->compat_create( $table );
 		if ( $this->trusted ) return;
 		$open = $this->next();
 		if ( 'punct' !== $open[0] || '(' !== $open[1] || $this->peek_word( 'LIKE' ) ) $this->reject( 'las formas LIKE o SELECT de CREATE TABLE no se admiten' );
@@ -443,7 +461,7 @@ final class Digitalisimo_Backups_Sql_Guard {
 		$this->excerpt_end = $this->i;
 		$table = $this->table();
 		$this->excerpt_end = $this->i;
-		$record = null !== $this->insert_hook;
+		$record = null !== $this->insert_hook || $this->collecting;
 		$columns = null;
 		$rows = array();
 		$token = $this->next();
@@ -460,15 +478,27 @@ final class Digitalisimo_Backups_Sql_Guard {
 			$this->reject( 'falta la lista de columnas' );
 		}
 		if ( 'word' !== $token[0] || ! in_array( $token[1], array( 'VALUES', 'VALUE' ), true ) ) $this->reject( 'INSERT sólo admite VALUES con valores literales' );
+		// Columnas generadas de la tabla (un respaldo anterior trae su valor): DEFAULT, que es lo único que MySQL admite.
+		$generated = array();
+		$wanted = (array) ( $this->compat['generated'][ $table ] ?? array() );
+		if ( $wanted && null !== $columns ) foreach ( $columns as $n => $column ) if ( in_array( $column, $wanted, true ) ) $generated[ $n ] = true;
 		do {
 			$this->expect_punct( '(' );
 			$row = array();
-			do { $value = $this->literal(); if ( $record ) $row[] = $value; } while ( $this->accept_punct( ',' ) );
+			$n = 0;
+			do {
+				$from = $this->i;
+				$value = $this->literal();
+				if ( isset( $generated[ $n ] ) ) { $this->spans[] = array( $from, $this->i, ' DEFAULT' ); $value = array( 'type' => 'other' ); }
+				if ( $record ) $row[] = $value;
+				$n++;
+			} while ( $this->accept_punct( ',' ) );
 			$this->expect_punct( ')' );
 			if ( $record ) $rows[] = $row;
 		} while ( $this->accept_punct( ',' ) );
 		$this->end();
 		if ( $record ) $this->insert = array( 'table' => $table, 'columns' => $columns, 'rows' => $rows );
+		if ( $this->collecting && null !== $columns ) $this->collect_insert( $table, $columns, $rows );
 	}
 	/** Comprueba un literal y lo describe para el gancho de INSERT (ver on_insert()). */
 	private function literal() {
@@ -488,6 +518,7 @@ final class Digitalisimo_Backups_Sql_Guard {
 		if ( 'ident' !== $token[0] ) $this->reject( 'la tabla debe ir entre comillas invertidas' );
 		if ( $this->accept_punct( '.' ) ) $this->reject( 'no se admite otra base de datos' );
 		$name = $token[1];
+		if ( '' === $this->current_table ) $this->current_table = $name;
 		if ( null !== $this->tables ) { if ( ! isset( $this->tables[ $name ] ) ) $this->reject( 'la tabla no figura en el manifiesto' ); }
 		elseif ( '' !== $this->prefix && 0 !== strpos( $name, $this->prefix ) ) $this->reject( 'la tabla no usa el prefijo de este sitio' );
 		if ( isset( $this->renames[ $name ] ) ) {
@@ -563,5 +594,332 @@ final class Digitalisimo_Backups_Sql_Guard {
 		if ( '@' === $c && preg_match( '/\G@@?(?:`[^`]{1,64}`|[A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)?)/', $s, $match, 0, $start ) ) { $this->i += strlen( $match[0] ); return array( 'var', strtoupper( $match[0] ) ); }
 		$this->i++;
 		return array( 'punct', $c );
+	}
+
+	/* ------------------------------------------------------------------ Compatibilidad entre servidores (Db_Compat) */
+
+	/**
+	 * Pasada en seco: anota de cada CREATE TABLE los juegos de caracteres, intercalaciones, motores, opciones de tabla del
+	 * otro servidor y columnas generadas; la sentencia más grande; las vistas; y de las opciones, los plugins y temas
+	 * activos. $options: `four_byte` (anotar las tablas con caracteres de 4 bytes).
+	 */
+	public function collect( array $options = array() ) {
+		$this->collecting = true;
+		$this->four_byte = ! empty( $options['four_byte'] );
+		return $this;
+	}
+	public function found() { return $this->found; }
+	/**
+	 * Importación: aplica la decisión de Digitalisimo_Backups_Db_Compat::plan() sobre los tokens exactos de cada CREATE
+	 * TABLE (`charsets`, `collations`, `engines`, `drop_options`, `persistent`) y de cada INSERT (`generated`: DEFAULT).
+	 */
+	public function compat( array $plan ) {
+		$this->compat = $plan;
+		return $this;
+	}
+	/**
+	 * Vistas: 'defer' las comprueba y no las ejecuta (se crean al final del cambio); 'rewrite' las devuelve listas para
+	 * crearlas (CREATE OR REPLACE, sin DEFINER, SQL SECURITY INVOKER y los nombres de rename_tables()). $declared: las
+	 * vistas que declara el manifiesto, además de su lista de tablas (un respaldo anterior las listaba ahí).
+	 */
+	public function views( $mode, array $declared = array() ) {
+		$this->views_mode = in_array( $mode, array( 'defer', 'rewrite' ), true ) ? $mode : '';
+		$this->declared_views = array_fill_keys( array_map( 'strval', $declared ), true );
+		return $this;
+	}
+	/** Nombre de la vista de la última sentencia comprobada, o null. */
+	public function last_view() { return $this->view_current; }
+
+	/** Un valor de juego de caracteres o intercalación ($kind) que la decisión sustituye. $end: dónde termina el token. */
+	private function compat_value( $kind, array $token, $end ) {
+		$text = $this->token_text( $token, $end );
+		if ( null === $text ) return;
+		$name = strtolower( $text[2] );
+		if ( isset( $this->compat[ $kind ][ $name ] ) ) $this->spans[] = array( $text[0], $text[1], (string) $this->compat[ $kind ][ $name ] );
+	}
+	/** Inicio, fin y texto original de un token de valor (palabra, identificador o cadena), o null. */
+	private function token_text( array $token, $end ) {
+		if ( 'word' === $token[0] ) return array( $end - strlen( $token[1] ), $end, substr( $this->s, $end - strlen( $token[1] ), strlen( $token[1] ) ) );
+		if ( 'ident' === $token[0] ) return array( $token[2], $token[3], $token[1] );
+		if ( 'str' === $token[0] ) return array( $token[2] - 1, $token[3] + 1, substr( $this->s, $token[2], $token[3] - $token[2] ) );
+		return null;
+	}
+	/**
+	 * Recorre la definición de un CREATE TABLE sin interpretarla (en un archivo confiable no se recorre para comprobarla)
+	 * y anota o sustituye. Lo que no se puede leer no cambia nada: create_body() dirá por qué en un archivo no confiable.
+	 */
+	private function compat_create( $table ) {
+		$at = $this->i;
+		$keep = count( $this->spans );
+		try {
+			$this->compat_walk( (string) $table );
+		} catch ( UnexpectedValueException $e ) {
+			array_splice( $this->spans, $keep );
+		}
+		$this->i = $at;
+	}
+	private function compat_walk( $table ) {
+		$depth = 0;
+		$opened = false;
+		$element = false;
+		$column = null;
+		$generated = false;
+		$expect = '';
+		$drop = null;
+		$engine_mapped = false;
+		$row_format = null;
+		$found = array();
+		while ( true ) {
+			$token = $this->next();
+			if ( 'end' === $token[0] ) break;
+			$end = $this->i;
+			if ( 'exec' === $token[0] ) continue; // Particiones y opciones condicionales: no se miran (límite declarado).
+			if ( 'punct' === $token[0] ) {
+				if ( '=' === $token[1] ) continue;
+				$expect = '';
+				if ( '(' === $token[1] ) {
+					$depth++;
+					if ( 1 === $depth && ! $opened ) { $opened = true; $element = true; }
+				} elseif ( ')' === $token[1] ) {
+					if ( 1 === $depth && $generated && null !== $column ) $found['generated'][] = $column;
+					if ( 1 === $depth ) { $column = null; $generated = false; }
+					$depth = max( 0, $depth - 1 );
+				} elseif ( ',' === $token[1] && 1 === $depth ) {
+					if ( $generated && null !== $column ) $found['generated'][] = $column;
+					$element = true;
+					$column = null;
+					$generated = false;
+				}
+				continue;
+			}
+			if ( $element && 1 === $depth ) {
+				$element = false;
+				if ( 'ident' === $token[0] ) $column = $token[1];
+				continue;
+			}
+			if ( '' !== $expect ) {
+				$text = $this->token_text( $token, $end );
+				$kind = $expect;
+				$expect = '';
+				if ( null === $text ) continue;
+				if ( 'charsets' === $kind || 'collations' === $kind ) {
+					$name = strtolower( $text[2] );
+					if ( preg_match( '/^[a-z0-9_]{1,64}$/D', $name ) ) $found[ $kind ][ $name ] = true;
+					if ( isset( $this->compat[ $kind ][ $name ] ) ) $this->spans[] = array( $text[0], $text[1], (string) $this->compat[ $kind ][ $name ] );
+				} elseif ( 'engines' === $kind ) {
+					$name = strtoupper( $text[2] );
+					if ( preg_match( '/^[A-Z0-9_]{1,64}$/D', $name ) ) $found['engines'][ $name ] = true;
+					if ( isset( $this->compat['engines'][ $name ] ) ) { $this->spans[] = array( $text[0], $text[1], (string) $this->compat['engines'][ $name ] ); $engine_mapped = true; }
+				} elseif ( 'drop' === $kind && null !== $drop ) {
+					$this->spans[] = array( $drop, $text[1], '' );
+					$drop = null;
+				} elseif ( 'row_format' === $kind && 'PAGE' === strtoupper( $text[2] ) && is_array( $row_format ) ) {
+					$row_format = array( $row_format[0], $text[1], true );
+				}
+				continue;
+			}
+			if ( 'word' !== $token[0] ) continue;
+			$word = $token[1];
+			$start = $end - strlen( $word );
+			if ( 'CHARSET' === $word ) { $expect = 'charsets'; continue; }
+			if ( 'CHARACTER' === $word && $this->peek_word( 'SET' ) ) { $this->next(); $expect = 'charsets'; continue; }
+			if ( 'COLLATE' === $word ) { $expect = 'collations'; continue; }
+			if ( 0 === $depth && $opened ) {
+				if ( 'ENGINE' === $word || 'TYPE' === $word ) { $expect = 'engines'; continue; }
+				if ( 'ROW_FORMAT' === $word ) { $expect = 'row_format'; $row_format = array( $start, $end, false ); continue; }
+				if ( in_array( $word, Digitalisimo_Backups_Db_Compat::MARIADB_OPTIONS, true ) || in_array( $word, Digitalisimo_Backups_Db_Compat::MYSQL_OPTIONS, true ) ) {
+					$found['options'][ $word ] = true;
+					if ( in_array( $word, (array) ( $this->compat['drop_options'] ?? array() ), true ) ) { $drop = $start; $expect = 'drop'; }
+				}
+				continue;
+			}
+			if ( 1 === $depth && null !== $column ) {
+				if ( 'GENERATED' === $word ) $generated = true;
+				elseif ( 'AS' === $word && $this->accept_punct( '(' ) ) { $generated = true; $depth++; }
+				elseif ( 'PERSISTENT' === $word && $generated ) {
+					$found['persistent'] = true;
+					if ( ! empty( $this->compat['persistent'] ) ) $this->spans[] = array( $start, $end, 'STORED' );
+				}
+			}
+		}
+		// ROW_FORMAT=PAGE es de Aria: con otro motor no se entiende.
+		if ( $engine_mapped && is_array( $row_format ) && $row_format[2] ) $this->spans[] = array( $row_format[0], $row_format[1], '' );
+		if ( ! $this->collecting ) return;
+		foreach ( array( 'charsets', 'collations', 'engines', 'options' ) as $kind ) foreach ( array_keys( (array) ( $found[ $kind ] ?? array() ) ) as $name ) if ( count( (array) ( $this->found[ $kind ][ $name ] ?? array() ) ) < 20 ) $this->found[ $kind ][ $name ][] = $table;
+		if ( ! empty( $found['generated'] ) ) $this->found['generated'][ $table ] = array_values( array_unique( $found['generated'] ) );
+		if ( ! empty( $found['persistent'] ) ) $this->found['persistent'] = (int) ( $this->found['persistent'] ?? 0 ) + 1;
+	}
+	/** La sentencia más grande (una fila) y, sin utf8mb4 en el destino, las tablas con caracteres de 4 bytes. */
+	private function collect_statement() {
+		if ( 'INSERT' !== $this->kind || $this->skip_current ) return;
+		$length = $this->n;
+		if ( $length > (int) ( $this->found['largest'][0] ?? 0 ) ) $this->found['largest'] = array( $length, $this->current_table );
+		if ( $this->four_byte && ! isset( $this->found['four_byte'][ $this->current_table ] ) && preg_match( '/[\xF0-\xF4][\x80-\xBF]{3}/', $this->s ) ) $this->found['four_byte'][ $this->current_table ] = true;
+	}
+	/** De las opciones del respaldo: los plugins activos (también los de la red) y el tema, para los avisos de versión. */
+	private function collect_insert( $table, array $columns, array $rows ) {
+		$value = function( $row, $index ) {
+			$item = $row[ $index ] ?? null;
+			if ( ! is_array( $item ) || 'str' !== ( $item['type'] ?? '' ) ) return null;
+			return strtr( substr( $this->s, $item['start'], $item['end'] - $item['start'] ), array( '\\\\' => '\\', '\\0' => "\0", '\\n' => "\n", '\\r' => "\r", '\\Z' => "\x1a", "\\'" => "'", '\\"' => '"', "''" => "'" ) );
+		};
+		if ( '_options' === substr( $table, -8 ) ) { $name = array_search( 'option_name', $columns, true ); $data = array_search( 'option_value', $columns, true ); }
+		elseif ( '_sitemeta' === substr( $table, -9 ) ) { $name = array_search( 'meta_key', $columns, true ); $data = array_search( 'meta_value', $columns, true ); }
+		else return;
+		if ( false === $name || false === $data ) return;
+		foreach ( $rows as $row ) {
+			$key = $value( $row, $name );
+			if ( ! in_array( $key, array( 'active_plugins', 'active_sitewide_plugins', 'template', 'stylesheet' ), true ) ) continue;
+			$text = (string) $value( $row, $data );
+			if ( 'template' === $key || 'stylesheet' === $key ) {
+				if ( preg_match( '/^[A-Za-z0-9._-]{1,100}$/D', $text ) && count( (array) ( $this->found['themes'] ?? array() ) ) < 20 ) $this->found['themes'][ $text ] = true;
+				continue;
+			}
+			// Sin unserialize(): sólo las cadenas que nombran un archivo PHP de plugin.
+			if ( preg_match_all( '/s:[0-9]+:"([^"]{1,200}\.php)"/', substr( $text, 0, 65536 ), $m ) ) foreach ( $m[1] as $file ) if ( count( (array) ( $this->found['plugins'] ?? array() ) ) < 200 ) $this->found['plugins'][ $file ] = true;
+		}
+	}
+
+	/** La clase de objeto de un CREATE que no es TABLE (VIEW, TRIGGER, FUNCTION…), sin mover la lectura; '' si no se sabe. */
+	private function peek_object() {
+		$at = $this->i;
+		$kind = '';
+		try {
+			for ( $k = 0; $k < 40; $k++ ) {
+				$token = $this->next();
+				if ( 'end' === $token[0] ) break;
+				if ( 'word' === $token[0] && in_array( $token[1], array( 'VIEW', 'TRIGGER', 'FUNCTION', 'PROCEDURE', 'EVENT', 'TABLE', 'AS' ), true ) ) { $kind = $token[1]; break; }
+			}
+		} catch ( UnexpectedValueException $e ) {
+			$kind = '';
+		}
+		$this->i = $at;
+		return $kind;
+	}
+	/**
+	 * CREATE [OR REPLACE] [ALGORITHM = …] [DEFINER = …] [SQL SECURITY …] VIEW `nombre` [(columnas)] AS SELECT …
+	 * [WITH … CHECK OPTION]. En un archivo no confiable el SELECT sólo puede usar palabras y funciones de una lista
+	 * cerrada, nunca variables, comentarios ejecutables, otra base de datos ni tablas fuera del respaldo.
+	 */
+	private function view() {
+		$this->kind = 'CREATE VIEW';
+		$create_end = $this->i;
+		$replace = false;
+		$security = null;
+		$view_word = 0;
+		while ( true ) {
+			$token = $this->next();
+			$end = $this->i;
+			if ( 'word' !== $token[0] ) $this->reject( 'vista no reconocida' );
+			if ( 'OR' === $token[1] ) { $this->words( array( 'REPLACE' ) ); $replace = true; continue; }
+			if ( 'ALGORITHM' === $token[1] ) {
+				$this->expect_punct( '=' );
+				$value = $this->next();
+				if ( 'word' !== $value[0] || ! in_array( $value[1], array( 'UNDEFINED', 'MERGE', 'TEMPTABLE' ), true ) ) $this->reject( 'algoritmo de vista no reconocido' );
+				continue;
+			}
+			if ( 'DEFINER' === $token[1] ) {
+				$from = $end - strlen( 'DEFINER' );
+				$this->expect_punct( '=' );
+				$user = $this->next();
+				if ( 'word' === $user[0] && 'CURRENT_USER' === $user[1] ) { if ( $this->accept_punct( '(' ) ) $this->expect_punct( ')' ); }
+				elseif ( in_array( $user[0], array( 'ident', 'str', 'word' ), true ) ) {
+					$host = $this->next();
+					if ( 'punct' === $host[0] && '@' === $host[1] ) { $host = $this->next(); if ( ! in_array( $host[0], array( 'ident', 'str', 'word' ), true ) ) $this->reject( 'DEFINER no reconocido' ); }
+					elseif ( 'var' !== $host[0] || 0 === strpos( $host[1], '@@' ) ) $this->reject( 'DEFINER no reconocido' );
+				} else $this->reject( 'DEFINER no reconocido' );
+				if ( 'rewrite' === $this->views_mode ) $this->spans[] = array( $from, $this->i + strspn( $this->s, " \t\r\n", $this->i ), '' );
+				continue;
+			}
+			if ( 'SQL' === $token[1] ) {
+				$this->words( array( 'SECURITY' ) );
+				$value = $this->next();
+				if ( 'word' !== $value[0] || ! in_array( $value[1], array( 'DEFINER', 'INVOKER' ), true ) ) $this->reject( 'SQL SECURITY no reconocido' );
+				$security = array( $this->i - strlen( $value[1] ), $this->i );
+				continue;
+			}
+			if ( 'VIEW' === $token[1] ) { $view_word = $end - 4; break; }
+			$this->reject( 'vista no reconocida' );
+		}
+		$name = $this->next();
+		if ( 'ident' !== $name[0] ) $this->reject( 'la vista debe ir entre comillas invertidas' );
+		if ( $this->accept_punct( '.' ) ) $this->reject( 'no se admite otra base de datos' );
+		$view = $name[1];
+		if ( ! isset( $this->declared_views[ $view ] ) ) {
+			if ( null !== $this->tables ) { if ( ! isset( $this->tables[ $view ] ) ) $this->reject( 'la vista no figura en el manifiesto' ); }
+			elseif ( '' !== $this->prefix && 0 !== strpos( $view, $this->prefix ) ) $this->reject( 'la vista no usa el prefijo de este sitio' );
+		}
+		if ( 'rewrite' === $this->views_mode ) {
+			if ( ! $replace ) $this->spans[] = array( $create_end, $create_end, ' OR REPLACE' );
+			if ( null !== $security ) $this->spans[] = array( $security[0], $security[1], 'INVOKER' );
+			else $this->spans[] = array( $view_word, $view_word, 'SQL SECURITY INVOKER ' );
+			if ( isset( $this->renames[ $view ] ) ) $this->spans[] = array( $name[2], $name[3], '`' . str_replace( '`', '``', $this->renames[ $view ] ) . '`' );
+		}
+		if ( $this->accept_punct( '(' ) ) {
+			do { $column = $this->next(); if ( 'ident' !== $column[0] ) $this->reject( 'columna de la vista no reconocida' ); } while ( $this->accept_punct( ',' ) );
+			$this->expect_punct( ')' );
+		}
+		$this->words( array( 'AS' ) );
+		$this->view_body();
+		$this->view_current = $view;
+		if ( 'defer' === $this->views_mode ) $this->skip_current = true;
+		if ( $this->collecting ) $this->found['views'][ $view ] = true;
+	}
+	/** Palabras que puede usar el SELECT de una vista de un archivo no confiable (sin las funciones, que van aparte). */
+	const VIEW_WORDS = array( 'SELECT', 'DISTINCT', 'DISTINCTROW', 'ALL', 'AS', 'FROM', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'OUTER', 'CROSS', 'STRAIGHT_JOIN', 'NATURAL', 'ON', 'USING', 'WHERE', 'AND', 'OR', 'XOR', 'NOT', 'IS', 'NULL', 'TRUE', 'FALSE', 'UNKNOWN', 'IN', 'EXISTS', 'LIKE', 'ESCAPE', 'BETWEEN', 'REGEXP', 'RLIKE', 'GROUP', 'BY', 'ORDER', 'ASC', 'DESC', 'HAVING', 'LIMIT', 'OFFSET', 'UNION', 'INTERSECT', 'EXCEPT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'DIV', 'MOD', 'INTERVAL', 'MICROSECOND', 'SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR', 'DAY_HOUR', 'DAY_MINUTE', 'DAY_SECOND', 'HOUR_MINUTE', 'HOUR_SECOND', 'MINUTE_SECOND', 'YEAR_MONTH', 'WITH', 'ROLLUP', 'COLLATE', 'BINARY', 'CHAR', 'CHARACTER', 'CHARSET', 'SET', 'SIGNED', 'UNSIGNED', 'INTEGER', 'INT', 'DECIMAL', 'DOUBLE', 'FLOAT', 'REAL', 'DATE', 'DATETIME', 'TIME', 'TIMESTAMP', 'JSON', 'NCHAR', 'VARCHAR', 'SEPARATOR', 'OVER', 'PARTITION', 'ROWS', 'RANGE', 'PRECEDING', 'FOLLOWING', 'CURRENT', 'ROW', 'UNBOUNDED', 'WINDOW', 'ANY', 'SOME', 'SOUNDS', 'CASCADED', 'LOCAL', 'CHECK', 'OPTION', 'LEADING', 'TRAILING', 'BOTH', 'FOR', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'CURRENT_USER', 'LOCALTIME', 'LOCALTIMESTAMP', 'UTC_DATE', 'UTC_TIME', 'UTC_TIMESTAMP', 'USING', 'PATH', 'COLUMNS', 'NESTED', 'ORDINALITY', 'ERROR', 'EMPTY', 'DEFAULT', 'RETURNING' );
+	/** Funciones que puede llamar esa vista: de texto, números, fechas, JSON, control y agregados; nada que lea fuera de la base, espere o bloquee. */
+	const VIEW_FUNCTIONS = array( 'COUNT', 'SUM', 'MIN', 'MAX', 'AVG', 'GROUP_CONCAT', 'STD', 'STDDEV', 'VARIANCE', 'BIT_AND', 'BIT_OR', 'BIT_XOR', 'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'LAG', 'LEAD', 'FIRST_VALUE', 'LAST_VALUE', 'NTILE', 'CONCAT', 'CONCAT_WS', 'IFNULL', 'NULLIF', 'COALESCE', 'IF', 'ISNULL', 'GREATEST', 'LEAST', 'SUBSTRING', 'SUBSTR', 'MID', 'SUBSTRING_INDEX', 'LEFT', 'RIGHT', 'LENGTH', 'CHAR_LENGTH', 'CHARACTER_LENGTH', 'OCTET_LENGTH', 'BIT_LENGTH', 'LOWER', 'UPPER', 'LCASE', 'UCASE', 'TRIM', 'LTRIM', 'RTRIM', 'REPLACE', 'LOCATE', 'POSITION', 'INSTR', 'LPAD', 'RPAD', 'REVERSE', 'REPEAT', 'SPACE', 'FORMAT', 'CAST', 'CONVERT', 'HEX', 'UNHEX', 'ASCII', 'ORD', 'CHAR', 'FIELD', 'FIND_IN_SET', 'ELT', 'STRCMP', 'SOUNDEX', 'QUOTE', 'INSERT', 'TO_BASE64', 'FROM_BASE64', 'MD5', 'SHA1', 'SHA2', 'CRC32', 'ROUND', 'TRUNCATE', 'FLOOR', 'CEIL', 'CEILING', 'ABS', 'SIGN', 'MOD', 'POW', 'POWER', 'SQRT', 'EXP', 'LN', 'LOG', 'LOG2', 'LOG10', 'PI', 'DEGREES', 'RADIANS', 'SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', 'ATAN2', 'COT', 'CONV', 'BIN', 'OCT', 'DATE', 'TIME', 'TIMESTAMP', 'YEAR', 'MONTH', 'DAY', 'DAYOFMONTH', 'DAYOFWEEK', 'DAYOFYEAR', 'WEEKDAY', 'WEEK', 'WEEKOFYEAR', 'YEARWEEK', 'QUARTER', 'HOUR', 'MINUTE', 'SECOND', 'MICROSECOND', 'DAYNAME', 'MONTHNAME', 'NOW', 'CURDATE', 'CURTIME', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'LOCALTIME', 'LOCALTIMESTAMP', 'UTC_DATE', 'UTC_TIME', 'UTC_TIMESTAMP', 'SYSDATE', 'DATE_FORMAT', 'TIME_FORMAT', 'DATE_ADD', 'DATE_SUB', 'ADDDATE', 'SUBDATE', 'ADDTIME', 'SUBTIME', 'DATEDIFF', 'TIMEDIFF', 'TIMESTAMPDIFF', 'TIMESTAMPADD', 'FROM_UNIXTIME', 'UNIX_TIMESTAMP', 'STR_TO_DATE', 'FROM_DAYS', 'TO_DAYS', 'TO_SECONDS', 'SEC_TO_TIME', 'TIME_TO_SEC', 'MAKEDATE', 'MAKETIME', 'LAST_DAY', 'EXTRACT', 'PERIOD_ADD', 'PERIOD_DIFF', 'CONVERT_TZ', 'JSON_EXTRACT', 'JSON_UNQUOTE', 'JSON_VALUE', 'JSON_OBJECT', 'JSON_ARRAY', 'JSON_CONTAINS', 'JSON_CONTAINS_PATH', 'JSON_KEYS', 'JSON_LENGTH', 'JSON_TYPE', 'JSON_VALID', 'JSON_QUOTE', 'JSON_SEARCH', 'JSON_ARRAYAGG', 'JSON_OBJECTAGG', 'JSON_TABLE', 'JSON_MERGE_PATCH', 'JSON_MERGE_PRESERVE', 'JSON_SET', 'JSON_INSERT', 'JSON_REPLACE', 'JSON_REMOVE', 'INET_ATON', 'INET_NTOA', 'INET6_ATON', 'INET6_NTOA', 'BIT_COUNT', 'COLLATION', 'CHARSET', 'COERCIBILITY', 'VALUES', 'ROW', 'ANY_VALUE' );
+	/** El SELECT de una vista: en un archivo confiable sólo se lee (y renombra); en uno no confiable, además, se comprueba. */
+	private function view_body() {
+		$strict = ! $this->trusted;
+		$start = $this->i;
+		$prefix = $this->prefix;
+		$listed = null === $this->tables ? null : $this->tables + $this->declared_views;
+		$known = function( $name ) use ( $listed, $prefix ) { return null === $listed ? ( '' === $prefix || 0 === strpos( $name, $prefix ) ) : isset( $listed[ $name ] ); };
+		$aliases = array();
+		// Primera pasada: los alias (tras AS, tras otro identificador o tras un paréntesis).
+		$previous = null;
+		while ( true ) {
+			$token = $this->next();
+			if ( 'end' === $token[0] ) break;
+			if ( 'ident' === $token[0] && null !== $previous && ( ( 'word' === $previous[0] && 'AS' === $previous[1] ) || 'ident' === $previous[0] || ( 'punct' === $previous[0] && ')' === $previous[1] ) ) ) $aliases[ $token[1] ] = true;
+			$previous = $token;
+		}
+		$this->i = $start;
+		$previous = null;
+		$after_value = false;
+		while ( true ) {
+			$token = $this->next();
+			if ( 'end' === $token[0] ) break;
+			if ( 'ident' === $token[0] && isset( $this->renames[ $token[1] ] ) && 'rewrite' === $this->views_mode ) $this->spans[] = array( $token[2], $token[3], '`' . str_replace( '`', '``', $this->renames[ $token[1] ] ) . '`' );
+			if ( $strict ) {
+				if ( 'exec' === $token[0] ) $this->reject( 'comentario ejecutable en una vista de un archivo sin firma' );
+				if ( 'var' === $token[0] ) $this->reject( 'variables en una vista de un archivo sin firma' );
+				if ( 'word' === $token[0] && ! $after_value ) {
+					$call = $this->accept_punct( '(' );
+					if ( $call ) $this->i--;
+					$word = $token[1];
+					if ( ! in_array( $word, self::VIEW_FUNCTIONS, true ) && ! in_array( $word, self::VIEW_WORDS, true ) && ( $call || ! preg_match( '/^(?:N|_(?:UTF8MB4|UTF8MB3|UTF8|LATIN1|BINARY|ASCII))$/D', $word ) ) ) $this->reject( ( $call ? 'función ' : 'palabra ' ) . $word . ' no permitida en una vista de un archivo sin firma' );
+				}
+				if ( 'ident' === $token[0] ) {
+					$dotted = 'punct' === ( $previous[0] ?? '' ) && '.' === $previous[1];
+					if ( ! $dotted && $this->accept_punct( '.' ) ) {
+						$this->i--;
+						$second_at = $this->i;
+						$this->i++;
+						$second = $this->next();
+						$third = $this->accept_punct( '.' );
+						$this->i = $second_at;
+						if ( $third ) $this->reject( 'otra base de datos en una vista de un archivo sin firma' );
+						if ( 'ident' === $second[0] && ! $known( $token[1] ) && ! isset( $aliases[ $token[1] ] ) ) $this->reject( 'otra base de datos o una tabla que no está en el respaldo («' . $token[1] . '») en una vista de un archivo sin firma' );
+					} elseif ( ! $dotted && 'word' === ( $previous[0] ?? '' ) && in_array( $previous[1], array( 'FROM', 'JOIN', 'STRAIGHT_JOIN' ), true ) && ! $known( $token[1] ) ) {
+						$this->reject( 'una tabla que no está en el respaldo («' . $token[1] . '») en una vista de un archivo sin firma' );
+					}
+				}
+			}
+			// Tras COLLATE, CHARSET o CHARACTER SET viene un nombre (de intercalación o juego de caracteres), no una palabra clave.
+			$after_value = ( 'word' === $token[0] && in_array( $token[1], array( 'COLLATE', 'CHARSET', 'USING' ), true ) ) || ( 'word' === $token[0] && 'SET' === $token[1] && 'word' === ( $previous[0] ?? '' ) && 'CHARACTER' === $previous[1] );
+			$previous = $token;
+		}
 	}
 }

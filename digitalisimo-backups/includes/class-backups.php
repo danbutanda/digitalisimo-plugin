@@ -15,6 +15,8 @@ require_once __DIR__ . '/class-backups-restore-job.php';
 require_once __DIR__ . '/restore/trait-backups-restore-engine.php';
 // Seguridad: cifrado, firma y validación de archivos no confiables (ver docs/BACKUPS.md).
 foreach ( array( 'sodium', 'keys', 'credentials', 'manifest-auth', 'encrypted-file', 'archive-inspector', 'sql-guard', 'security' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/security/class-' . $digitalisimo_backups_part . '.php';
+// Compatibilidad de la base de datos al restaurar en otro servidor (intercalaciones, motores, vistas, versiones).
+require_once __DIR__ . '/restore/class-restore-db-compat.php';
 unset( $digitalisimo_backups_part );
 // Destinos remotos: contrato común, HTTP y cada proveedor (ver docs/BACKUPS.md, «Destinos»).
 foreach ( array( 'http', 'destination', 'destinations', 'destination-sftp', 'sftp-client', 'destination-ftp', 'destination-webdav', 'destination-cloud-drive', 'destination-dropbox', 'destination-s3', 'destination-pcloud' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/destinations/class-' . $digitalisimo_backups_part . '.php';
@@ -2975,6 +2977,8 @@ final class Digitalisimo_Backups {
 		$budget = Digitalisimo_Backups_Relocate::value_budget();
 		$probe = new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ), array( 'budget' => $budget, 'needles' => Digitalisimo_Backups_Relocate::manifest_needles( $data ) ) );
 		$guard = Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted )->on_insert( $probe );
+		// Lo que verify dice de la base de datos de este servidor (Digitalisimo_Backups_Db_Compat): mismo análisis.
+		Digitalisimo_Backups_Db_Compat::attach_scan( $guard, $data );
 		// Con otro prefijo, la pasada en seco renombra igual que la importación, también en verify: lo que no se puede
 		// renombrar (una vista, una tabla en un comentario ejecutable) queda anotado y el plan lo rechaza antes de la copia
 		// previa, con la misma respuesta en verify y en restore. Dos tablas que chocarían, o un nombre de más de 64
@@ -2985,6 +2989,7 @@ final class Digitalisimo_Backups {
 		$source = Digitalisimo_Backups_Relocate::origin_of( $data, $probe );
 		$source['rename_problems'] = $guard->rename_problems();
 		$source['budget'] = $budget;
+		$source['compat'] = $guard->found();
 		return $data;
 	}
 	/**
