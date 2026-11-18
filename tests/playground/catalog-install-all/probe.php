@@ -33,7 +33,7 @@ function probe_query( $url ) { $query = array(); parse_str( (string) wp_parse_ur
 function probe_page( $class, $get ) { $_GET = $get; $_REQUEST = $get; ob_start(); $class::page(); return (string) ob_get_clean(); }
 
 $html = probe_page( $class, array() );
-$label = 'seo' === $scenario ? 'Instalar todos (4)' : 'Instalar todos (4)';
+$label = 'Instalar todos (4)';
 if ( false === strpos( $html, $label ) ) $problems[] = 'el botón no dice «' . $label . '»';
 $url = preg_match( '#<a class="button button-primary button-hero" href="([^"]+)"#', $html, $m ) ? html_entity_decode( $m[1], ENT_QUOTES ) : '';
 if ( '' === $url ) $problems[] = 'sin botón «Instalar todos»';

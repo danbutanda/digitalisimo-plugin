@@ -46,6 +46,9 @@ function add_menu_page() {} function add_submenu_page() {} function remove_subme
 function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . $path; }
 function network_admin_url( $path = '' ) { return 'https://example.test/wp-admin/network/' . $path; }
 function wp_create_nonce( $action ) { return 'nonce-' . md5( $action ); }
+function wp_verify_nonce( $nonce, $action ) { return $nonce === wp_create_nonce( $action ) ? 1 : false; }
+$GLOBALS['php_notices'] = array();
+set_error_handler( function ( $no, $str, $file, $line ) { $GLOBALS['php_notices'][] = $str . ' @ ' . basename( $file ) . ':' . $line; return true; } );
 function wp_nonce_url( $url, $action ) { return add_query_arg( '_wpnonce', wp_create_nonce( $action ), $url ); }
 function check_admin_referer( $action ) {
 	$GLOBALS['referers'][] = $action;
@@ -151,6 +154,13 @@ foreach ( $classes as $label => $class ) {
 	$html = render_page( $class, query_of( $final ) );
 	check( false !== strpos( $html, 'notice-error' ) && false !== strpos( $html, 'No se pudo instalar: DIGITALÍSIMO Hosting' ) && false !== strpos( $html, 'notice-success' ), "$label: el resumen separa lo instalado de lo que falló." );
 	check( false !== strpos( $html, 'Instalar el plugin que falta' ), "$label: con uno solo pendiente el botón lo dice en singular." );
+	// 2b. Un enlace armado a mano (sin el nonce de la corrida) no muestra un resumen falso.
+	$forged = query_of( $final ); unset( $forged['_wpnonce'] ); $html = render_page( $class, $forged );
+	check( false === strpos( $html, 'notice-success' ) && false === strpos( $html, 'notice-error' ), "$label: sin el nonce de la corrida no hay resumen." );
+	// 2c. «tried» como arreglo se ignora sin avisos de PHP.
+	reset_site( array( 'digitalisimo-tools' ) ); $array_get = query_of( button_url( render_page( $class ) ) ); $array_get['tried'] = array( 'digitalisimo-seo' ); $_GET = $array_get; $next = '';
+	try { $class::install_all(); } catch ( Redirected $e ) { $next = $e->getMessage(); }
+	check( 1 === count( $GLOBALS['installs'] ) && false !== strpos( $next, 'admin-post.php' ), "$label: con «tried» como arreglo instala el primero que falta y sigue." );
 
 	// 3. Sin permiso para instalar plugins: ni botón ni instalación.
 	reset_site( array() ); $GLOBALS['can'] = false;
@@ -164,6 +174,13 @@ foreach ( $classes as $label => $class ) {
 	check( '' === button_url( $html ), "$label: un administrador de sitio en la red no ve «Instalar todos»." );
 	if ( 'Digitalisimo_Plugin_Catalog' === $label ) check( false !== strpos( $html, 'DIGITALÍSIMO Elements' ), "$label: el administrador de sitio sí ve el catálogo." );
 	$GLOBALS['multisite'] = false; $GLOBALS['can'] = true;
+	// 3c. Red con DISALLOW_FILE_MODS: WordPress niega install_plugins aun al superadministrador (que conserva manage_network_plugins): ni botón ni instalación.
+	reset_site( array() ); $GLOBALS['multisite'] = true; $GLOBALS['network_admin'] = true; $GLOBALS['can'] = array( 'manage_network_plugins', 'manage_network_options', 'manage_options' );
+	check( '' === button_url( render_page( $class ) ), "$label: con DISALLOW_FILE_MODS en la red no hay botón." );
+	$_GET = query_of( $start ); $died = false;
+	try { $class::install_all(); } catch ( Died $e ) { $died = true; } catch ( Redirected $e ) {}
+	check( $died && array() === $GLOBALS['installs'], "$label: con DISALLOW_FILE_MODS en la red install_all() no instala nada." );
+	$GLOBALS['multisite'] = false; $GLOBALS['network_admin'] = false; $GLOBALS['can'] = true;
 
 	// 4. Sin nonce válido no se instala nada.
 	reset_site( array() ); $bad = query_of( $start ); $bad['_wpnonce'] = 'otro'; $_GET = $bad; $died = false;
@@ -185,5 +202,6 @@ foreach ( $classes as $label => $class ) {
 	$GLOBALS['multisite'] = false; $GLOBALS['network_admin'] = false;
 }
 
+check( array() === $GLOBALS['php_notices'], 'Sin avisos de PHP: ' . implode( ' | ', array_slice( $GLOBALS['php_notices'], 0, 3 ) ) );
 if ( $failures ) { fwrite( STDERR, "$failures comprobaciones fallaron.\n" ); exit( 1 ); }
 echo "Instalar todos en los catálogos de SEO y Tools: correcto.\n";

@@ -126,7 +126,8 @@ final class Digitalisimo_Plugin_Catalog {
 		$data = get_file_data( $path, array( 'Version' => 'Version' ) );
 		return (string) ( $data['Version'] ?? '' );
 	}
-	private static function can_manage() { return is_multisite() ? current_user_can( 'manage_network_plugins' ) : current_user_can( 'install_plugins' ); }
+	/** Instalar plugins: `install_plugins` (WordPress la niega con DISALLOW_FILE_MODS y, en una red, a quien no es superadministrador) y, en una red, además `manage_network_plugins`. */
+	private static function can_manage() { return current_user_can( 'install_plugins' ) && ( ! is_multisite() || current_user_can( 'manage_network_plugins' ) ); }
 	private static function action_url( $action, $slug ) { $base = admin_url( 'admin-post.php' ); return wp_nonce_url( add_query_arg( array( 'action' => $action, 'slug' => $slug, 'digitalisimo_context' => is_network_admin() ? 'network' : 'site' ), $base ), $action . '_' . $slug ); }
 
 	public static function page() {
@@ -153,7 +154,7 @@ final class Digitalisimo_Plugin_Catalog {
 	private static function missing( $releases, $skip = array() ) {
 		$missing = array();
 		foreach ( self::plugins() as $slug => $plugin ) {
-			if ( in_array( $slug, $skip, true ) || self::installed_version( $plugin[1] ) || empty( $releases[ $slug ]['package'] ) ) continue;
+			if ( in_array( $slug, $skip, true ) || file_exists( WP_PLUGIN_DIR . '/' . $plugin[1] ) || empty( $releases[ $slug ]['package'] ) ) continue;
 			$missing[] = $slug;
 		}
 		return $missing;
@@ -161,7 +162,7 @@ final class Digitalisimo_Plugin_Catalog {
 
 	/** Plugins ya intentados en esta corrida de «Instalar todos»: sólo slugs del catálogo, sin repetir; así la cadena siempre termina. */
 	private static function tried() {
-		$raw   = isset( $_GET['tried'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['tried'] ) ) : '';
+		$raw   = isset( $_GET['tried'] ) && is_string( $_GET['tried'] ) ? sanitize_text_field( wp_unslash( $_GET['tried'] ) ) : '';
 		$tried = array();
 		foreach ( explode( ',', $raw ) as $slug ) {
 			$slug = sanitize_key( $slug );
@@ -181,16 +182,16 @@ final class Digitalisimo_Plugin_Catalog {
 	/** Botón «Instalar todos» (sólo si falta alguno) y, al volver de la corrida, el resumen de lo instalado y lo que falló. */
 	private static function install_all_box( $releases ) {
 		if ( ! self::can_manage() ) return;
-		if ( 'done' === sanitize_key( wp_unslash( $_GET['digitalisimo_install_all'] ?? '' ) ) ) {
+		if ( 'done' === sanitize_key( wp_unslash( $_GET['digitalisimo_install_all'] ?? '' ) ) && wp_verify_nonce( sanitize_key( wp_unslash( $_GET['_wpnonce'] ?? '' ) ), self::INSTALL_ALL_ACTION ) ) {
 			$installed = array();
 			$failed    = array();
 			foreach ( self::tried() as $slug ) {
 				$plugin = self::plugins()[ $slug ];
-				if ( self::installed_version( $plugin[1] ) ) $installed[] = $plugin[0]; else $failed[] = $plugin[0];
+				if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin[1] ) ) $installed[] = $plugin[0]; else $failed[] = $plugin[0];
 			}
 			$plugins_url = is_network_admin() ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' );
 			if ( $installed ) echo '<div class="notice notice-success"><p>' . esc_html( sprintf( 1 === count( $installed ) ? 'Se instaló %s.' : 'Se instalaron %s.', implode( ', ', $installed ) ) ) . ' <a href="' . esc_url( $plugins_url ) . '">' . esc_html( 1 === count( $installed ) ? 'Actívalo en Plugins' : 'Actívalos en Plugins' ) . '</a>.</p></div>';
-			if ( $failed ) echo '<div class="notice notice-error"><p>' . esc_html( sprintf( 'No se pudo instalar: %s. Vuelve a intentarlo con su botón «Instalar».', implode( ', ', $failed ) ) ) . '</p></div>';
+			if ( $failed ) echo '<div class="notice notice-error"><p>' . esc_html( sprintf( 'No se pudo instalar: %s. Suele pasar si WordPress no puede escribir en la carpeta de plugins (pide datos de FTP) o si ya existe una carpeta con ese nombre: revísalo en Plugins o instálalo con su botón «Instalar» para ver el error.', implode( ', ', $failed ) ) ) . '</p></div>';
 		}
 		$missing = self::missing( $releases );
 		if ( ! $missing ) return;
@@ -208,7 +209,7 @@ final class Digitalisimo_Plugin_Catalog {
 		$releases = self::releases();
 		$next     = self::missing( $releases, $tried );
 		if ( ! $next ) {
-			wp_safe_redirect( add_query_arg( array( 'page' => 'digitalisimo-plugins', 'digitalisimo_install_all' => 'done', 'tried' => implode( ',', $tried ) ), $network ? network_admin_url( 'admin.php' ) : admin_url( 'admin.php' ) ) );
+			wp_safe_redirect( add_query_arg( array( 'page' => 'digitalisimo-plugins', 'digitalisimo_install_all' => 'done', 'tried' => implode( ',', $tried ), '_wpnonce' => wp_create_nonce( self::INSTALL_ALL_ACTION ) ), $network ? network_admin_url( 'admin.php' ) : admin_url( 'admin.php' ) ) );
 			exit;
 		}
 		$tried[] = $next[0];
