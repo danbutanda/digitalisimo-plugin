@@ -97,6 +97,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 				'user_id' => $user_id,
 				'blog_id' => (int) get_current_blog_id(),
 				'context' => is_multisite() ? 'network' : 'site',
+				// Si esta petición web es de un servidor que usa .htaccess (revisión bk-180, H9); '' en PHP CLI.
+				'web_server' => Digitalisimo_Backups_Restore_Compat::web_server(),
 			),
 			'engine' => array( 'plugin_version' => defined( 'DIGITALISIMO_BACKUPS_VERSION' ) ? DIGITALISIMO_BACKUPS_VERSION : '', 'job_format' => Digitalisimo_Backups_Job_Store::JOB_FORMAT ),
 			// Para el informe: qué constantes de wp-config.php difieren (sin valores secretos) y un aviso del paquete (un sitio

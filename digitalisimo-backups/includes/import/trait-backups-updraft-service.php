@@ -71,9 +71,11 @@ trait Digitalisimo_Backups_Updraft_Service {
 				if ( function_exists( 'set_time_limit' ) ) @set_time_limit( 0 );
 				$decrypted = '.decrypted-' . bin2hex( random_bytes( 8 ) ) . '.gz';
 				try {
-					Digitalisimo_Backups_Updraft_Import::decrypt( $source, $secret, $store . '/' . $decrypted );
+					// En una petición web, con tope de tiempo: un descifrado lento pide WP-CLI (revisión bk-180, H6).
+					Digitalisimo_Backups_Updraft_Import::decrypt( $source, $secret, $store . '/' . $decrypted, Digitalisimo_Backups_Updraft_Import::decrypt_seconds() );
 				} catch ( Digitalisimo_Backups_Permanent_Error $e ) {
 					$decrypted = '';
+					if ( Digitalisimo_Backups_Updraft_Import::SLOW === $e->getCode() ) return self::service_error( 'updraft_slow', $e->getMessage(), 422 );
 					return self::service_error( 'updraft_secret', $e->getMessage(), 400 );
 				}
 			}

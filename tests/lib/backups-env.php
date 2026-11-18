@@ -214,7 +214,8 @@ function apply_filters( $hook, $value, ...$args ) {
 	return $GLOBALS['bk_filters'][ $hook ] instanceof Closure ? call_user_func( $GLOBALS['bk_filters'][ $hook ], $value, ...$args ) : $GLOBALS['bk_filters'][ $hook ];
 }
 function wp_upload_dir() { return array( 'basedir' => WP_CONTENT_DIR . '/uploads' ); }
-function get_theme_root() { return WP_CONTENT_DIR . '/themes'; }
+// Una prueba puede traer antes la suya (una carpeta de temas fuera de ABSPATH: backups-restore-files-compat.php).
+if ( ! function_exists( 'get_theme_root' ) ) { function get_theme_root( $slug = '' ) { return WP_CONTENT_DIR . '/themes'; } }
 function wp_clear_scheduled_hook() { return true; }
 
 require_once __DIR__ . '/../../digitalisimo-backups/includes/class-backups.php';

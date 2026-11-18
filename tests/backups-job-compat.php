@@ -64,12 +64,17 @@ $zip->addFromString( 'wordpress/index.php', bk_tree()['index.php'] );
 $zip->close();
 current_method( 'restore_digitalisimo_zip' )->invoke( null, $v2 );
 unlink( $v2 );
+// Un conjunto de UpdraftPlus se reconoce con la importación de 1.0.80 (Digitalisimo_Backups_Updraft_Import; las funciones
+// detect_updraft_sets() y validate_backup_set() de la ruta de una sola petición se retiraron en la revisión bk-180, H11).
 $updraft = WP_CONTENT_DIR . '/updraft';
 mkdir( $updraft, 0700, true );
 file_put_contents( $updraft . '/backup_2026-11-05-1200_Sitio_abcdef123456-db.gz', gzencode( "SET NAMES utf8mb4;\n" ) );
 file_put_contents( $updraft . '/backup_2026-11-05-1200_Sitio_abcdef123456-plugins.zip', 'PK' );
-$sets = Digitalisimo_Backups::detect_updraft_sets();
-bk_assert( ! empty( $sets['backup_2026-11-05-1200_Sitio_abcdef123456']['complete'] ) && true === Digitalisimo_Backups::validate_backup_set( $sets['backup_2026-11-05-1200_Sitio_abcdef123456'] ), 'Un conjunto Updraft completo dejó de reconocerse.' );
+foreach ( glob( $updraft . '/backup_*' ) as $piece ) touch( $piece, time() - 3600 );
+Digitalisimo_Backups::load_updraft_import();
+$sets = array_values( array_filter( Digitalisimo_Backups_Updraft_Import::sources(), function( $set ) { return 'backup_2026-11-05-1200_Sitio_abcdef123456' === $set['id']; } ) );
+bk_assert( 1 === count( $sets ) && 'updraft' === $sets[0]['source'] && true === $sets[0]['database'] && true === $sets[0]['importable'] && 1 === (int) ( $sets[0]['entities']['plugins'] ?? 0 ), 'Un conjunto Updraft completo dejó de reconocerse: ' . json_encode( $sets ) );
+bk_assert( ! method_exists( 'Digitalisimo_Backups', 'detect_updraft_sets' ) && ! method_exists( 'Digitalisimo_Backups', 'validate_backup_set' ), 'Siguen las funciones sin uso de la ruta de UpdraftPlus de una sola petición.' );
 Digitalisimo_Backups_Job_Store::remove_tree( $updraft );
 
 // AJAX de 1.0.58 (pestaña abierta durante la actualización): la opción antigua no bloquea y las respuestas tienen su forma.
