@@ -917,7 +917,6 @@ final class Digitalisimo_Backups_Sql_Guard {
 		$defined = array();
 		$qualifiers = array();
 		$previous = null;
-		$before = null;
 		$after_value = false;
 		while ( true ) {
 			$token = $this->next();
@@ -976,15 +975,15 @@ final class Digitalisimo_Backups_Sql_Guard {
 						} elseif ( ',' === $token[1] ) {
 							if ( $levels[ $top ]['from'] ) $levels[ $top ]['expect'] = true;
 						} elseif ( '.' === $token[1] ) {
-							// tabla.columna (o tabla.*): la primera parte, un identificador; nunca tres partes ni una función.
+							// tabla.columna (o tabla.*): la primera parte, un identificador; nunca tres partes (base.tabla.columna).
+							// `a`.`b`( lo rechaza la comprobación de cada identificador (una función por su nombre).
 							if ( 'ident' !== ( $previous[0] ?? '' ) ) $this->reject( 'nombre cualificado no reconocido en una vista de un archivo sin firma' );
-							if ( 'punct' === ( $before[0] ?? '' ) && '.' === $before[1] ) $this->reject( 'otra base de datos en una vista de un archivo sin firma' );
 							$at = $this->i;
 							$second = $this->next();
 							$third = $this->next();
 							$this->i = $at;
 							if ( 'ident' !== $second[0] && ! ( 'punct' === $second[0] && '*' === $second[1] ) ) $this->reject( 'nombre cualificado no reconocido en una vista de un archivo sin firma' );
-							if ( ( 'punct' === $third[0] && in_array( $third[1], array( '.', '(' ), true ) ) || ( 'num' === $third[0] && '.' === $third[1][0] ) ) $this->reject( 'otra base de datos en una vista de un archivo sin firma' );
+							if ( ( 'punct' === $third[0] && '.' === $third[1] ) || ( 'num' === $third[0] && '.' === $third[1][0] ) ) $this->reject( 'otra base de datos en una vista de un archivo sin firma' );
 							$qualifiers[ $previous[1] ] = true;
 						}
 					} elseif ( 'num' === $token[0] && '.' === $token[1][0] && 'ident' === ( $previous[0] ?? '' ) ) {
@@ -1018,7 +1017,6 @@ final class Digitalisimo_Backups_Sql_Guard {
 			}
 			// Tras COLLATE, CHARSET o CHARACTER SET viene un nombre (de intercalación o juego de caracteres), no una palabra clave.
 			$after_value = ( 'word' === $token[0] && in_array( $token[1], array( 'COLLATE', 'CHARSET', 'USING' ), true ) ) || ( 'word' === $token[0] && 'SET' === $token[1] && 'word' === ( $previous[0] ?? '' ) && 'CHARACTER' === $previous[1] );
-			$before = $previous;
 			$previous = $token;
 		}
 		if ( ! $strict ) return;

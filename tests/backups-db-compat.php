@@ -315,7 +315,8 @@ dc_case( 'C10 vista sin firma: ningún nombre de otra base de datos donde va una
 		'función de otra base' => 'CREATE VIEW `wp_v` AS select `otra_base`.`f`(1) AS `x` from `wp_posts` `otra_base`',
 		'función de otra base con espacio' => 'CREATE VIEW `wp_v` AS select `otra_base` . `f` (1) AS `x` from `wp_posts` `otra_base`',
 		'función entre comillas invertidas' => "CREATE VIEW `wp_v` AS select `sys_exec`('id') AS `x` from `wp_posts`",
-		'palabra delante del punto' => 'CREATE VIEW `wp_v` AS select date.`x` AS `x` from `wp_posts` `date`',
+		'palabra delante del punto' => 'CREATE VIEW `wp_v` AS select date.`x` AS `x` from `wp_posts` `DATE`',
+		'palabra donde va una tabla' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from dual',
 		'nombre que no es tabla ni alias' => 'CREATE VIEW `wp_v` AS select `otra_base`.`c` AS `x` from `wp_posts` `p`',
 		'tabla fuera del respaldo tras una coma' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from `wp_posts` `p`, `wp_users` `u`',
 		'nada donde va la tabla' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from { OJ `wp_posts` }',
@@ -561,6 +562,196 @@ dc_case( 'C9 lo que dice el servidor: nombres completos de MariaDB 10.10+, motor
 	$guard->rename_tables( array( 'wp_users' => 'wp_2_users' ) );
 	$guard->check( 'CREATE ALGORITHM=UNDEFINED DEFINER=`red`@`%` SQL SECURITY DEFINER VIEW `wp_2_v` AS select `p`.`ID` AS `ID`,`u`.`user_login` AS `l` from (`wp_2_posts` `p` join `wp_users` `u` on((`u`.`ID` = `p`.`ID`)))' );
 	dc_check( 'CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `wp_2_v` AS select `p`.`ID` AS `ID`,`u`.`user_login` AS `l` from (`wp_2_posts` `p` join `wp_2_users` `u` on((`u`.`ID` = `p`.`ID`)))' === $guard->rewritten(), 'La vista convertida no quedó lista: ' . $guard->rewritten() );
+} );
+
+/* ------------------------------------------------------------------------------- Revisión de 1.0.80 (H3, H10) */
+
+/**
+ * Base simulada con vistas: SHOW TABLES las lista como MySQL, SHOW FULL TABLES dice cuáles son, SHOW CREATE VIEW da su
+ * definición y CREATE OR REPLACE VIEW / DROP VIEW las cambian. `$fail_finish`: la primera sentencia que contiene ese
+ * texto, en una restauración que no es la vuelta a la copia previa y ya creadas sus vistas, falla (un fallo después
+ * del cambio, en la fase «Direcciones y cachés»).
+ */
+class Dc_Site_DB extends Bk_Test_DB {
+	public $info = '';
+	public $packet = 0;
+	public $views = array();
+	public $fail_finish = '';
+	public function tables() { return array_merge( parent::tables(), array_keys( $this->views ) ); }
+	public function db_server_info() { return $this->info; }
+	public function get_var( $query ) {
+		if ( 'SELECT @@max_allowed_packet' === $query ) return $this->packet ? (string) $this->packet : null;
+		return parent::get_var( $query );
+	}
+	public function get_row( $query, $format ) {
+		if ( preg_match( '/^SHOW CREATE VIEW `([^`]+)`/', (string) $query, $m ) ) { $this->last_error = ''; return isset( $this->views[ $m[1] ] ) ? array( $m[1], $this->views[ $m[1] ], 'utf8mb4', 'utf8mb4_unicode_520_ci' ) : null; }
+		return parent::get_row( $query, $format );
+	}
+	public function get_results( $query, $format ) {
+		$this->last_error = '';
+		if ( "SHOW FULL TABLES WHERE Table_type = 'VIEW'" === $query ) return array_map( function( $name ) { return array( $name, 'VIEW' ); }, array_keys( $this->views ) );
+		return parent::get_results( $query, $format );
+	}
+	public function query( $sql ) {
+		if ( '' !== $this->fail_finish && false !== strpos( (string) $sql, $this->fail_finish ) && preg_grep( '/^CREATE OR REPLACE .*VIEW `/', $this->queries ) ) {
+			$this->fail_finish = '';
+			$this->queries[] = $sql;
+			$this->last_error = 'Fallo simulado tras crear las vistas';
+			return false;
+		}
+		$done = parent::query( $sql );
+		if ( preg_match( '/^CREATE OR REPLACE .*?VIEW `([^`]+)` AS /s', (string) $sql, $m ) ) $this->views[ $m[1] ] = 'CREATE ALGORITHM=UNDEFINED DEFINER=`aqui`@`localhost` SQL SECURITY INVOKER VIEW `' . $m[1] . '` AS ' . substr( (string) $sql, strpos( (string) $sql, ' AS ', strpos( (string) $sql, 'VIEW `' ) ) + 4 );
+		if ( preg_match( '/^DROP VIEW IF EXISTS `([^`]+)`$/', (string) $sql, $m ) ) unset( $this->views[ $m[1] ] );
+		return $done;
+	}
+}
+/** Restauración por pasos de $file hasta terminar (sin reintentos); devuelve los trabajos de restauración, del primero al último. */
+function dc_restore( $file, $confirm = 'RESTAURAR' ) {
+	foreach ( Digitalisimo_Backups_Jobs::active() as $job ) Digitalisimo_Backups_Job_Store::remove_tree( Digitalisimo_Backups_Job_Store::directory( $job['id'] ) );
+	@unlink( ABSPATH . '.maintenance' );
+	$GLOBALS['bk_filters']['digitalisimo_backups_job_backoff'] = 0;
+	$GLOBALS['bk_filters']['digitalisimo_backups_job_max_attempts'] = 1;
+	$before = array_column( Digitalisimo_Backups_Jobs::all(), 'id' );
+	$refused = Digitalisimo_Backups::service_restore( basename( $file ), array( 'confirm' => $confirm, 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
+	for ( $i = 0; $i < 3000 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_job_max_attempts'] );
+	$jobs = array_values( array_filter( Digitalisimo_Backups_Jobs::all(), function( $job ) use ( $before ) { return 'restore' === $job['kind'] && ! in_array( $job['id'], $before, true ); } ) );
+	usort( $jobs, function( $a, $b ) { return (float) $a['queued_at'] <=> (float) $b['queued_at']; } );
+	return array( 'jobs' => $jobs, 'refused' => is_wp_error( $refused ) ? $refused->get_error_message() : '' );
+}
+/**
+ * Copia de un respaldo con su SQL y su manifiesto cambiados (como los escribía otra versión). Con $register, registrada
+ * como propia (de confianza); sin él, sin firma ni registro (se restaura con RESTAURAR SIN FIRMA).
+ */
+function dc_rezip( $source, $name, callable $sql, $manifest = null, $register = true ) {
+	$path = bk_storage() . '/' . $name;
+	copy( $source, $path );
+	$zip = new ZipArchive();
+	$zip->open( $path );
+	$text = (string) $sql( (string) $zip->getFromName( 'database.sql' ) );
+	$data = json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
+	if ( $manifest ) $data = $manifest( $data );
+	$data['entries']['database.sql'] = array( 'size' => strlen( $text ), 'sha256' => hash( 'sha256', $text ) );
+	$data['database_size'] = strlen( $text );
+	$data['uncompressed_size'] = array_sum( array_column( $data['entries'], 'size' ) );
+	if ( ! $register ) { unset( $data['auth'] ); $zip->setArchiveComment( '' ); }
+	$zip->addFromString( 'database.sql', $text );
+	$zip->addFromString( 'manifest.json', json_encode( $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+	$zip->close();
+	if ( $register ) bk_call( 'Digitalisimo_Backups', 'remember', $path, 'local', 'installation', array( 'id' => 'manual', 'type' => 'full' ) );
+	return $path;
+}
+/** La sentencia INSERT más larga del SQL de un respaldo (sin su «;»), como la mide la pasada en seco. */
+function dc_largest_insert( $file ) {
+	$zip = new ZipArchive();
+	$zip->open( $file );
+	$largest = 0;
+	foreach ( explode( "\n", (string) $zip->getFromName( 'database.sql' ) ) as $line ) if ( 0 === strpos( $line, 'INSERT INTO ' ) ) $largest = max( $largest, strlen( rtrim( $line, ';' ) ) );
+	$zip->close();
+	return $largest;
+}
+
+/**
+ * C11 (H3, M09 y M12): un respaldo anterior (de un exportador de un paso) escribía una vista como tabla: su DROP TABLE,
+ * su CREATE VIEW y sus filas, y la listaba en database_tables. Se restaura sin tabla temporal para ella (si no, la
+ * restauración falla tras la copia previa: «no crea la tabla»), sin ejecutar nada sobre ella en la base viva (ni su
+ * DROP TABLE ni sus filas) y la vista se crea al final del cambio.
+ */
+dc_case( 'C11 respaldo anterior con una vista listada como tabla: sin tabla temporal, sin tocarla en la base viva y creada al final', function() use ( $C ) {
+	$previous = $GLOBALS['wpdb'];
+	$db = new Dc_Site_DB();
+	$GLOBALS['wpdb'] = $db;
+	try {
+		$C::server( true );
+		$base = bk_backup( true );
+		$old = dc_rezip( $base, 'digitalisimo-backup-vista-como-tabla.zip', function( $sql ) {
+			$block = "DROP TABLE IF EXISTS `wp_v`;\nCREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `wp_v` AS select `wp_posts`.`ID` AS `ID` from `wp_posts`;\nINSERT INTO `wp_v` (`ID`) VALUES ('1');\nINSERT INTO `wp_v` (`ID`) VALUES ('2');\n\n";
+			$at = strrpos( $sql, 'SET foreign_key_checks = 1;' );
+			return false === $at ? $sql . $block : substr( $sql, 0, $at ) . $block . substr( $sql, $at );
+		}, function( $manifest ) { $manifest['database_tables'][] = 'wp_v'; unset( $manifest['database_views'] ); return $manifest; } );
+		$db->queries = array();
+		$outcome = dc_restore( $old );
+		$restore = end( $outcome['jobs'] );
+		dc_check( $restore && 'success' === $restore['status'], 'El respaldo anterior con una vista entre sus tablas no se restauró: ' . json_encode( array( $outcome['refused'], $restore['phase'] ?? null, $restore['error']['message'] ?? null ) ) );
+		dc_check( ! preg_grep( '/^(DROP TABLE IF EXISTS|INSERT INTO|CREATE TABLE) `wp_v`/', $db->queries ), 'Se ejecutó sobre la vista de la base viva lo que el respaldo anterior escribía para ella: ' . json_encode( array_values( preg_grep( '/`wp_v`/', $db->queries ) ) ) );
+		$renames = preg_grep( '/^RENAME TABLE /', $db->queries );
+		dc_check( 1 === count( $renames ) && false === strpos( (string) reset( $renames ), '`wp_v`' ), 'La vista entró en el cambio de tablas: ' . json_encode( array_values( $renames ) ) );
+		$order = array_keys( preg_grep( '/^(RENAME TABLE |CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `wp_v` AS select `wp_posts`\.`ID` AS `ID` from `wp_posts`$)/', $db->queries ) );
+		dc_check( 2 === count( $order ) && 0 === strpos( $db->queries[ $order[0] ], 'RENAME TABLE ' ), 'La vista no se creó al final del cambio: ' . json_encode( array_values( preg_grep( '/VIEW/', $db->queries ) ) ) );
+		dc_check( array( 'wp_v' ) === ( $restore['result']['restore']['database']['views']['created'] ?? null ), 'El informe no dice que se creó la vista.' );
+	} finally {
+		$GLOBALS['wpdb'] = $previous;
+		$C::server( true );
+	}
+} );
+
+/**
+ * C12 (H3, M08): la fila más grande cabe en max_allowed_packet tal como viene, pero reubicada (a un dominio más largo)
+ * ya no: se rechaza en la verificación, sin copia previa ni cambios.
+ */
+dc_case( 'C12 max_allowed_packet con la fila ya reubicada: rechazo en la verificación, sin copia previa', function() use ( $C, $mariadb ) {
+	$previous = $GLOBALS['wpdb'];
+	$options = $GLOBALS['bk_options'];
+	$db = new Dc_Site_DB();
+	$db->info = '10.11.14-MariaDB-0ubuntu0.24.04.1';
+	$db->posts[] = array( 'ID' => '3', 'post_content' => str_repeat( '<a href="https://o.test/p">x</a> ', 2000 ) );
+	$GLOBALS['wpdb'] = $db;
+	$GLOBALS['bk_options']['home'] = $GLOBALS['bk_options']['siteurl'] = 'https://o.test';
+	try {
+		$GLOBALS['bk_filters']['digitalisimo_backups_db_server'] = $mariadb;
+		$C::server( true );
+		$backup = bk_backup( true );
+		$largest = dc_largest_insert( $backup );
+		dc_check( $largest > 60000, 'La fila grande no quedó en el respaldo.' );
+		// Aquí, con un dominio 38 caracteres más largo (2000 veces), la fila crece unos 76 KB: el paquete deja 30 KB.
+		$GLOBALS['bk_options']['home'] = $GLOBALS['bk_options']['siteurl'] = 'https://destino-con-un-nombre-mucho-mas-largo.example';
+		$GLOBALS['bk_filters']['digitalisimo_backups_db_server'] = array( 'packet' => $largest + $C::PACKET_MARGIN + 30000 ) + $mariadb;
+		$C::server( true );
+		foreach ( glob( bk_storage() . '/safety-before-restore-*' ) as $copy ) @unlink( $copy );
+		$db->queries = array();
+		$outcome = dc_restore( $backup );
+		$last = end( $outcome['jobs'] );
+		$message = '' !== $outcome['refused'] ? $outcome['refused'] : (string) ( $last['error']['message'] ?? '' );
+		dc_check( false !== strpos( $message, 'max_allowed_packet' ) && false !== strpos( $message, 'No se cambió nada del sitio' ) && 'inspect' === ( $last['phase'] ?? '' ) && empty( $last['checkpoint']['safety'] ), 'La fila reubicada que no cabe en max_allowed_packet no se rechazó en la verificación: ' . json_encode( array( $message, $last['phase'] ?? null, $last['status'] ?? null ) ) );
+		dc_check( ! glob( bk_storage() . '/safety-before-restore-*' ) && ! preg_grep( '/^RENAME TABLE /', $db->queries ), 'Antes del rechazo se creó la copia previa o se tocó el sitio.' );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_db_server'] );
+		$GLOBALS['wpdb'] = $previous;
+		$GLOBALS['bk_options'] = $options;
+		$C::server( true );
+	}
+} );
+
+/**
+ * C13 (H1, al crearla): un archivo sin firma lista en su manifiesto la tabla de otra aplicación que comparte la base
+ * (sin el prefijo del sitio: la restauración no la trae ni la toca) y trae una vista que la lee. La pasada en seco la
+ * acepta (es una tabla del manifiesto, sin otra base delante), pero al crearla al final del cambio sólo valen las tablas
+ * que trae de verdad esta restauración: esa vista no se crea y el informe lo dice; la que lee las del sitio, sí.
+ */
+dc_case( 'C13 vista sin firma al crearla: sólo lee las tablas que trae la restauración, no las que sólo lista el manifiesto', function() use ( $C ) {
+	$previous = $GLOBALS['wpdb'];
+	$db = new Dc_Site_DB();
+	$GLOBALS['wpdb'] = $db;
+	try {
+		$C::server( true );
+		$base = bk_backup( true );
+		$unsigned = dc_rezip( $base, 'digitalisimo-backup-vista-de-otra-app.zip', function( $sql ) {
+			$table = "DROP TABLE IF EXISTS `otra_app`;\nCREATE TABLE `otra_app` (\n  `x` varchar(20) DEFAULT NULL\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\nINSERT INTO `otra_app` (`x`) VALUES ('secreto');\n\n";
+			$views = "CREATE VIEW `wp_v` AS select `o`.`x` AS `x` from `otra_app` `o`;\nCREATE VIEW `wp_w` AS select `wp_posts`.`ID` AS `ID` from `wp_posts`;\n\n";
+			$at = strrpos( $sql, 'SET foreign_key_checks = 1;' );
+			return substr( $sql, 0, $at ) . $table . $views . substr( $sql, $at );
+		}, function( $manifest ) { $manifest['database_tables'][] = 'otra_app'; $manifest['database_views'] = array( 'wp_v', 'wp_w' ); return $manifest; }, false );
+		$db->queries = array();
+		$outcome = dc_restore( $unsigned, 'RESTAURAR SIN FIRMA' );
+		$restore = end( $outcome['jobs'] );
+		dc_check( $restore && 'success' === $restore['status'], 'El archivo sin firma no se restauró: ' . json_encode( array( $outcome['refused'], $restore['phase'] ?? null, $restore['error']['message'] ?? null ) ) );
+		$views = (array) ( $restore['result']['restore']['database']['views'] ?? array() );
+		dc_check( array( 'wp_w' ) === ( $views['created'] ?? null ) && false !== strpos( (string) ( $views['failed']['wp_v'] ?? '' ), 'otra_app' ), 'La vista que lee una tabla que la restauración no trae se creó (o la otra no): ' . json_encode( $views ) );
+		dc_check( ! preg_grep( '/VIEW `wp_v`/', $db->queries ) && ! preg_grep( '/`otra_app`/', array_filter( $db->queries, function( $q ) { return 0 !== strpos( $q, 'SELECT' ) && 0 !== strpos( $q, 'SHOW' ); } ) ), 'Se ejecutó algo sobre la tabla de la otra aplicación o la vista que la lee.' );
+	} finally {
+		$GLOBALS['wpdb'] = $previous;
+		$C::server( true );
+	}
 } );
 
 bk_cleanup();
