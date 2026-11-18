@@ -76,9 +76,9 @@ echo 'Servidores: MySQL ' . $mysql->db_server_info() . ' y MariaDB ' . $maria->d
 
 dl_case( 'L1 MySQL 8 → MariaDB: utf8mb4_0900_ai_ci, columnas generadas y una fila con 0 en su AUTO_INCREMENT', function() use ( $mysql_sock, $maria_sock ) {
 	$source = dl_site( $mysql_sock, 'Origen MySQL' );
-	$source->must( "CREATE TABLE `wp_plugin_log` (`id` bigint unsigned NOT NULL AUTO_INCREMENT, `note` varchar(191) DEFAULT NULL, `total` int GENERATED ALWAYS AS ((`id` * 2)) VIRTUAL, `stamp` int GENERATED ALWAYS AS ((`id` + 1)) STORED, PRIMARY KEY (`id`), KEY `total` (`total`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci" );
+	$source->must( "CREATE TABLE `wp_plugin_log` (`id` bigint unsigned NOT NULL AUTO_INCREMENT, `note` varchar(191) DEFAULT NULL, `qty` int NOT NULL DEFAULT 0, `total` int GENERATED ALWAYS AS ((`qty` * 2)) VIRTUAL, `stamp` int GENERATED ALWAYS AS ((`qty` + 1)) STORED, PRIMARY KEY (`id`), KEY `total` (`total`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci" );
 	$source->must( "SET SESSION sql_mode = CONCAT_WS(',', @@SESSION.sql_mode, 'NO_AUTO_VALUE_ON_ZERO')" );
-	$source->must( "INSERT INTO `wp_plugin_log` (`id`, `note`) VALUES (0, 'registro por defecto'), (5, 'otro')" );
+	$source->must( "INSERT INTO `wp_plugin_log` (`id`, `note`, `qty`) VALUES (0, 'registro por defecto', 5), (5, 'otro', 7)" );
 	$backup = dl_backup( $source );
 	$target = dl_site( $maria_sock, 'Destino MariaDB' );
 	$outcome = dl_restore( $target, $backup );
@@ -87,7 +87,7 @@ dl_case( 'L1 MySQL 8 → MariaDB: utf8mb4_0900_ai_ci, columnas generadas y una f
 	dl_check( 'Origen MySQL' === $check->get_var( "SELECT option_value FROM wp_options WHERE option_name = 'blogname'" ), 'MariaDB no tiene los datos del respaldo.' );
 	dl_check( 'utf8mb4_unicode_520_ci' === $check->get_var( "SELECT TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'wordpress_test' AND TABLE_NAME = 'wp_plugin_log'" ), 'La tabla no quedó con utf8mb4_unicode_520_ci.' );
 	dl_check( 'registro por defecto' === $check->get_var( 'SELECT note FROM wp_plugin_log WHERE id = 0' ) && '2' === (string) $check->get_var( 'SELECT COUNT(*) FROM wp_plugin_log' ), 'La fila con 0 en su AUTO_INCREMENT cambió de número: ' . json_encode( $check->get_results( 'SELECT id, note FROM wp_plugin_log', 'ARRAY_A' ) ) );
-	dl_check( '10' === (string) $check->get_var( 'SELECT total FROM wp_plugin_log WHERE id = 5' ) && '6' === (string) $check->get_var( 'SELECT stamp FROM wp_plugin_log WHERE id = 5' ), 'Las columnas generadas no las calculó MariaDB.' );
+	dl_check( '14' === (string) $check->get_var( 'SELECT total FROM wp_plugin_log WHERE id = 5' ) && '8' === (string) $check->get_var( 'SELECT stamp FROM wp_plugin_log WHERE id = 5' ) && '10' === (string) $check->get_var( 'SELECT total FROM wp_plugin_log WHERE id = 0' ), 'Las columnas generadas no las calculó MariaDB.' );
 	dl_check( false !== strpos( (string) $check->get_var( 'SELECT post_content FROM wp_posts WHERE ID = 1' ), "\u{1F600}" ), 'Se perdió el emoji.' );
 	$notice = (string) ( $outcome['job']['result']['restore']['notice'] ?? '' );
 	dl_check( false !== strpos( $notice, 'utf8mb4_0900_ai_ci → utf8mb4_unicode_520_ci (wp_plugin_log)' ), 'El informe no dice la sustitución: ' . $notice );
