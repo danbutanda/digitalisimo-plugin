@@ -458,11 +458,15 @@ foreach ( $scan_roots as $dir ) {
 		foreach ( function_calls( $source ) as $call ) {
 			$where = $path . ':' . $call['line'];
 			$arg   = first_literal( $call );
+			// Excepciones declaradas (regla del propietario del 2026-11-18): «Migrar» de DIGITALÍSIMO Migración activa el tema
+			// propio donde es seguro (y vuelve al anterior si la portada no responde igual) sólo en Full::switch_theme_to(), y
+			// borra Hello Elementor reemplazado sólo en Full::cleanup_theme() (tests/migration-full.php).
+			$migration = 'digitalisimo-migration/includes/class-full.php' === $path;
 			if ( 'switch_theme' === $call['name'] ) {
 				$switch[] = $where . ' (' . $call['function'] . ')';
-				check( 'digitalisimo-theme/inc/switch.php' === $path && 'digitalisimo_theme_revert' === $call['function'], "Sólo digitalisimo_theme_revert() cambia de tema: {$where}." );
+				check( ( 'digitalisimo-theme/inc/switch.php' === $path && 'digitalisimo_theme_revert' === $call['function'] ) || ( $migration && 'switch_theme_to' === $call['function'] ), "Sólo digitalisimo_theme_revert() y el cambio de tema de Migrar cambian de tema: {$where}." );
 			}
-			check( 'delete_theme' !== $call['name'], "Nadie borra temas: {$where}." );
+			check( 'delete_theme' !== $call['name'] || ( $migration && 'cleanup_theme' === $call['function'] ), "Nadie borra temas (salvo Hello reemplazado, en la limpieza de Migrar): {$where}." );
 			if ( in_array( $call['name'], array( 'update_option', 'update_site_option', 'add_option', 'add_site_option' ), true ) ) {
 				$first = implode( '', array_map( 'token_text', $call['args'][0] ?? array() ) );
 				check( false === stripos( $first, 'allowedthemes' ), "Nadie habilita temas en la red ni en un sitio: {$where}." );
@@ -479,7 +483,7 @@ foreach ( $scan_roots as $dir ) {
 		}
 	}
 }
-check( 1 === count( $switch ), 'Exactamente un switch_theme( fuera del núcleo incluido: ' . implode( ', ', $switch ) );
+check( 2 === count( $switch ), 'Exactamente dos switch_theme( fuera del núcleo incluido (la vuelta del tema y Migrar): ' . implode( ', ', $switch ) );
 check( $scanned > 0, 'La estática recorrió archivos.' );
 foreach ( function_calls( file_get_contents( $theme . '/inc/switch.php' ) ) as $call ) {
 	if ( 'add_option' === $call['name'] ) {
