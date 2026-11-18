@@ -257,6 +257,8 @@ dc_case( 'C5 vistas: aplazadas, reescritas sin DEFINER y, sin firma, sólo dentr
 		'CREATE VIEW `wp_v` AS select sys_exec(\'id\') AS `x`' => 'función SYS_EXEC',
 		'CREATE VIEW `wp_v` AS select `mysql`.`user`.`authentication_string` AS `x` from `mysql`.`user`' => 'otra base de datos',
 		'CREATE VIEW `wp_v` AS select `u`.`x` AS `x` from `otra`.`wp_users` `u`' => 'otra base de datos',
+		// Tres partes son base.tabla.columna aunque la primera se parezca a un alias.
+		'CREATE VIEW `wp_v` AS select `mysql`.`user`.`authentication_string` AS `x` from `wp_posts` `mysql`' => 'otra base de datos en una vista',
 		'CREATE VIEW `wp_v` AS select @@datadir AS `x`' => 'variables',
 		'CREATE VIEW `wp_v` AS select 1 AS `x` from `wp_users`' => 'no está en el respaldo',
 		'CREATE VIEW `wp_v` AS select /*!50000 1 */ AS `x`' => 'comentario ejecutable',
