@@ -799,20 +799,54 @@ trait Digitalisimo_Backups_Restore_Engine {
 		foreach ( (array) ( $decision['warnings'] ?? array() ) as $warning ) $warnings[] = (string) $warning;
 		return $warnings;
 	}
-	/** Las vistas del respaldo, al final del cambio, con los nombres de este sitio. Nunca hace fallar la restauración. */
+	/**
+	 * Las vistas del respaldo, al final del cambio, con los nombres de este sitio. Nunca hace fallar la restauración.
+	 * Antes de crearlas anota cuáles va a crear y cuáles ya había (`db-views-planned.json`): si después algo falla y se
+	 * vuelve a la copia previa, esa vuelta quita las que creó esta restauración y la copia previa no trae (revisión de
+	 * 1.0.80, H10). Las que ya había están en la copia previa (el exportador respalda las vistas) y vuelven con ella.
+	 */
 	private static function restore_db_compat_views( array $job, $plan ) {
+		if ( is_file( self::restore_staging( $job ) . '/' . Digitalisimo_Backups_Db_Compat::VIEWS_FILE ) ) return;
+		$undo = array();
 		try {
 			$decision = (array) ( self::restore_read_json( $job, Digitalisimo_Backups_Db_Compat::FILE, false ) ?? array() );
 			$views = (array) ( $decision['view_statements'] ?? array() );
-			if ( ! $views || is_file( self::restore_staging( $job ) . '/' . Digitalisimo_Backups_Db_Compat::VIEWS_FILE ) ) return;
 			$tables = (array) ( self::restore_read_json( $job, 'tables.json', false ) ?? array() );
 			$renames = Digitalisimo_Backups_Db_Compat::view_renames( $tables, $views, $plan ? (string) ( $plan->origin()['prefix'] ?? '' ) : '', $plan ? (string) ( $plan->destination()['prefix'] ?? '' ) : '' );
-			// En un archivo sin firma, una vista sólo lee las tablas que trae esta restauración y sus propias vistas (H1).
-			$result = Digitalisimo_Backups_Db_Compat::create_views( self::restore_staging( $job ) . '/source.sql', $views, self::restore_read_json( $job, 'metadata.json' ), self::restore_trusted( $job ), $renames, array_column( $tables, 'backup' ) );
+			$names = array_values( array_unique( array_map( function( $view ) use ( $renames ) { $name = (string) ( $view[2] ?? '' ); return (string) ( $renames[ $name ] ?? $name ); }, $views ) ) );
+			// La vuelta a la copia previa: fuera las vistas que creó la restauración que deshace (antes de crear las suyas).
+			$undo = self::restore_undo_views( $job );
+			if ( ! $views && ! $undo ) return;
+			$result = array( 'created' => array(), 'failed' => array() );
+			if ( $views ) {
+				$planned = self::restore_staging( $job ) . '/' . Digitalisimo_Backups_Db_Compat::VIEWS_PLANNED;
+				if ( ! is_file( $planned ) ) self::restore_write_json( $job, Digitalisimo_Backups_Db_Compat::VIEWS_PLANNED, array( 'views' => $names, 'existed' => Digitalisimo_Backups_Db_Compat::views_among( $names ) ) );
+				// En un archivo sin firma, una vista sólo lee las tablas que trae esta restauración y sus propias vistas (H1).
+				$result = Digitalisimo_Backups_Db_Compat::create_views( self::restore_staging( $job ) . '/source.sql', $views, self::restore_read_json( $job, 'metadata.json' ), self::restore_trusted( $job ), $renames, array_column( $tables, 'backup' ) );
+			}
 		} catch ( Throwable $e ) {
 			$result = array( 'created' => array(), 'failed' => array( '*' => $e->getMessage() ) );
 		}
+		if ( $undo ) $result += $undo;
 		try { self::restore_write_json( $job, Digitalisimo_Backups_Db_Compat::VIEWS_FILE, $result ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+	}
+	/**
+	 * En la vuelta a la copia previa ($job con `rollback.of`): quita las vistas que creó la restauración que deshace (las
+	 * que anotó antes de crearlas, menos las que ya había). Las que ya había no se tocan aquí: la copia previa, que es la
+	 * base de antes, las trae y se vuelven a crear con su definición de antes justo después (si una no se pudo leer al
+	 * hacer la copia previa, se queda como la dejó la restauración: mejor eso que perderla). Devuelve `dropped` y
+	 * `drop_failed`, o array() si no hay nada que quitar.
+	 */
+	private static function restore_undo_views( array $job ) {
+		$of = (string) ( $job['spec']['rollback']['of'] ?? '' );
+		$undone = '' !== $of ? Digitalisimo_Backups_Jobs::get( $of ) : null;
+		if ( ! $undone ) return array();
+		$planned = self::restore_read_json( $undone, Digitalisimo_Backups_Db_Compat::VIEWS_PLANNED, false );
+		if ( ! is_array( $planned ) ) return array();
+		$drop = array_values( array_diff( array_map( 'strval', (array) ( $planned['views'] ?? array() ) ), array_map( 'strval', (array) ( $planned['existed'] ?? array() ) ) ) );
+		if ( ! $drop ) return array();
+		$done = Digitalisimo_Backups_Db_Compat::drop_views( $drop );
+		return array( 'dropped' => $done['dropped'], 'drop_failed' => $done['failed'] );
 	}
 	/** Para el informe: el texto y el resumen público (lo sustituido, los avisos y las vistas). */
 	private static function restore_db_compat_report( array $job ) {
@@ -821,7 +855,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( ! $decision && ! $views ) return array( 'text' => '', 'report' => null );
 		return array(
 			'text' => Digitalisimo_Backups_Db_Compat::notice( $decision, $views ),
-			'report' => array( 'changes' => array_values( (array) ( $decision['notes'] ?? array() ) ), 'warnings' => array_values( (array) ( $decision['warnings'] ?? array() ) ), 'views' => array( 'created' => array_values( (array) ( $views['created'] ?? array() ) ), 'failed' => (array) ( $views['failed'] ?? array() ) ) ),
+			'report' => array( 'changes' => array_values( (array) ( $decision['notes'] ?? array() ) ), 'warnings' => array_values( (array) ( $decision['warnings'] ?? array() ) ), 'views' => array( 'created' => array_values( (array) ( $views['created'] ?? array() ) ), 'failed' => (array) ( $views['failed'] ?? array() ) ) + ( isset( $views['dropped'] ) ? array( 'dropped' => array_values( (array) $views['dropped'] ), 'drop_failed' => (array) ( $views['drop_failed'] ?? array() ) ) : array() ) ),
 		);
 	}
 	/** Nombre en este sitio de cada tabla del respaldo (el prefijo de la reubicación). */

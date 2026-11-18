@@ -34,6 +34,8 @@ final class Digitalisimo_Backups_Db_Compat {
 	const FILE = 'db-compat.json';
 	/** Lo que pasó con las vistas al final del cambio. */
 	const VIEWS_FILE = 'db-views.json';
+	/** Antes de crearlas: las vistas que crea esta restauración y las que ya había (para la vuelta a la copia previa, H10). */
+	const VIEWS_PLANNED = 'db-views-planned.json';
 	/** Opciones de tabla que sólo entiende MariaDB (se quitan en MySQL) y sólo MySQL (se quitan en MariaDB). */
 	const MARIADB_OPTIONS = array( 'PAGE_CHECKSUM', 'TRANSACTIONAL', 'PAGE_COMPRESSED', 'PAGE_COMPRESSION_LEVEL', 'IETF_QUOTES', 'ENCRYPTED', 'ENCRYPTION_KEY_ID', 'SEQUENCE' );
 	const MYSQL_OPTIONS = array( 'SECONDARY_ENGINE', 'SECONDARY_ENGINE_ATTRIBUTE', 'ENGINE_ATTRIBUTE', 'AUTOEXTEND_SIZE', 'COMPRESSION', 'ENCRYPTION' );
@@ -555,6 +557,20 @@ final class Digitalisimo_Backups_Db_Compat {
 		return $result;
 	}
 	/**
+	 * Quita vistas por su nombre (la vuelta a la copia previa, H10). `DROP VIEW` nunca borra una tabla: con una tabla de
+	 * ese nombre la base de datos da error y se informa. Devuelve `dropped` y `failed` (nombre => error).
+	 */
+	public static function drop_views( array $names ) {
+		global $wpdb;
+		$result = array( 'dropped' => array(), 'failed' => array() );
+		foreach ( array_values( array_unique( array_map( 'strval', $names ) ) ) as $name ) {
+			if ( '' === $name ) continue;
+			if ( false !== $wpdb->query( 'DROP VIEW IF EXISTS `' . str_replace( '`', '``', $name ) . '`' ) ) $result['dropped'][] = $name;
+			else $result['failed'][ $name ] = '' !== (string) $wpdb->last_error ? (string) $wpdb->last_error : 'la base de datos no la quitó';
+		}
+		return $result;
+	}
+	/**
 	 * Si una vista de un respaldo de red es del sitio que se convierte (prefijo `<base>N_`, o el de la red sin ser de otro
 	 * sitio para el principal): las del sitio viajan con él; las de otros sitios, no.
 	 */
@@ -704,6 +720,8 @@ final class Digitalisimo_Backups_Db_Compat {
 		foreach ( (array) ( $decision['warnings'] ?? array() ) as $warning ) $text .= ' ' . $warning;
 		if ( ! empty( $views['created'] ) ) $text .= ' Se crearon ' . count( (array) $views['created'] ) . ' vista(s) del respaldo sin DEFINER y con SQL SECURITY INVOKER (' . implode( ', ', array_slice( (array) $views['created'], 0, 5 ) ) . ').';
 		foreach ( array_slice( (array) ( $views['failed'] ?? array() ), 0, 5, true ) as $name => $why ) $text .= ' No se pudo crear la vista ' . $name . ': ' . rtrim( (string) $why, '.' ) . '; créala a mano.';
+		if ( ! empty( $views['dropped'] ) ) $text .= ' Se quitaron ' . count( (array) $views['dropped'] ) . ' vista(s) que había creado la restauración que se deshizo y la copia previa no trae (' . implode( ', ', array_slice( (array) $views['dropped'], 0, 5 ) ) . ').';
+		foreach ( array_slice( (array) ( $views['drop_failed'] ?? array() ), 0, 5, true ) as $name => $why ) $text .= ' No se pudo quitar la vista ' . $name . ', que había creado la restauración que se deshizo: ' . rtrim( (string) $why, '.' ) . '; quítala a mano.';
 		return trim( $text );
 	}
 }

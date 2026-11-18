@@ -616,6 +616,8 @@ class Dc_Site_DB extends Bk_Test_DB {
 	public $packet = 0;
 	public $views = array();
 	public $fail_finish = '';
+	/** Vistas cuyo SHOW CREATE VIEW falla (una cuenta sin permiso para leer su definición). */
+	public $unreadable = array();
 	/** Filas de las tablas de extra_tables: nombre => array( columna de la clave primaria, filas ). */
 	public $rows = array();
 	public function tables() { return array_merge( parent::tables(), array_keys( $this->views ) ); }
@@ -625,7 +627,10 @@ class Dc_Site_DB extends Bk_Test_DB {
 		return parent::get_var( $query );
 	}
 	public function get_row( $query, $format ) {
-		if ( preg_match( '/^SHOW CREATE VIEW `([^`]+)`/', (string) $query, $m ) ) { $this->last_error = ''; return isset( $this->views[ $m[1] ] ) ? array( $m[1], $this->views[ $m[1] ], 'utf8mb4', 'utf8mb4_unicode_520_ci' ) : null; }
+		if ( preg_match( '/^SHOW CREATE VIEW `([^`]+)`/', (string) $query, $m ) ) {
+			$this->last_error = in_array( $m[1], $this->unreadable, true ) ? 'SHOW VIEW command denied' : '';
+			return isset( $this->views[ $m[1] ] ) && '' === $this->last_error ? array( $m[1], $this->views[ $m[1] ], 'utf8mb4', 'utf8mb4_unicode_520_ci' ) : null;
+		}
 		return parent::get_row( $query, $format );
 	}
 	public function get_results( $query, $format ) {
@@ -888,6 +893,79 @@ dc_case( 'C13 vista sin firma al crearla: sólo lee las tablas que trae la resta
 		dc_check( ! preg_grep( '/VIEW `wp_v`/', $db->queries ) && ! preg_grep( '/`otra_app`/', array_filter( $db->queries, function( $q ) { return 0 !== strpos( $q, 'SELECT' ) && 0 !== strpos( $q, 'SHOW' ); } ) ), 'Se ejecutó algo sobre la tabla de la otra aplicación o la vista que la lee.' );
 	} finally {
 		$GLOBALS['wpdb'] = $previous;
+		$C::server( true );
+	}
+} );
+
+/**
+ * C16 (revisión de 1.0.80, H10): una restauración (con reubicación) crea sus vistas al final del cambio y después falla
+ * («Direcciones y cachés»): la vuelta a la copia previa quita la vista que creó y que no había antes, y vuelve a crear
+ * con su definición de antes la que ya había (que la restauración reemplazó): la copia previa respalda las vistas.
+ */
+dc_case( 'C16 vuelta a la copia previa: fuera la vista que creó la restauración, de vuelta la que había antes', function() use ( $C ) {
+	$previous = $GLOBALS['wpdb'];
+	$options = $GLOBALS['bk_options'];
+	$db = new Dc_Site_DB();
+	$GLOBALS['wpdb'] = $db;
+	try {
+		// El origen (otro dominio) tiene dos vistas: una nueva aquí y otra con el nombre de una que aquí ya existe.
+		$GLOBALS['bk_options']['home'] = $GLOBALS['bk_options']['siteurl'] = 'https://o.test';
+		$db->views = array(
+			'wp_nueva' => 'CREATE ALGORITHM=UNDEFINED DEFINER=`origen`@`localhost` SQL SECURITY DEFINER VIEW `wp_nueva` AS select `wordpress_test`.`wp_posts`.`ID` AS `ID` from `wordpress_test`.`wp_posts`',
+			'wp_antes' => 'CREATE ALGORITHM=UNDEFINED DEFINER=`origen`@`localhost` SQL SECURITY DEFINER VIEW `wp_antes` AS select `wordpress_test`.`wp_posts`.`ID` AS `del_respaldo` from `wordpress_test`.`wp_posts`',
+		);
+		$C::server( true );
+		$backup = bk_backup( true );
+		// Aquí: otro dominio y sólo la vista de antes, con su propia definición.
+		$GLOBALS['bk_options']['home'] = $GLOBALS['bk_options']['siteurl'] = 'https://example.test';
+		$db->views = array( 'wp_antes' => 'CREATE ALGORITHM=UNDEFINED DEFINER=`aqui`@`localhost` SQL SECURITY DEFINER VIEW `wp_antes` AS select `wordpress_test`.`wp_options`.`option_name` AS `de_antes` from `wordpress_test`.`wp_options`' );
+		$db->fail_finish = 'UPDATE `wp_options` SET option_value';
+		foreach ( glob( bk_storage() . '/safety-before-restore-*' ) as $copy ) @unlink( $copy );
+		$db->queries = array();
+		$outcome = dc_restore( $backup );
+		$failed = $outcome['jobs'][0] ?? null;
+		$rollback = end( $outcome['jobs'] );
+		dc_check( $failed && 'failed' === $failed['status'] && $rollback && ! empty( $rollback['spec']['rollback'] ) && 'success' === $rollback['status'], 'No hubo la vuelta a la copia previa tras el fallo: ' . json_encode( array_map( function( $j ) { return array( $j['status'], $j['phase'], $j['error']['message'] ?? null ); }, $outcome['jobs'] ) ) );
+		$create = function( $view ) use ( $db ) { return array_keys( preg_grep( '/^CREATE OR REPLACE .*VIEW `' . $view . '` AS /', $db->queries ) ); };
+		$drop = function( $view ) use ( $db ) { return array_keys( preg_grep( '/^DROP VIEW IF EXISTS `' . $view . '`$/', $db->queries ) ); };
+		dc_check( 1 === count( $create( 'wp_nueva' ) ) && 2 === count( $create( 'wp_antes' ) ), 'La restauración no creó sus vistas o la vuelta no repuso la de antes: ' . json_encode( array_values( preg_grep( '/VIEW/', $db->queries ) ) ) );
+		dc_check( 1 === count( $drop( 'wp_nueva' ) ) && $drop( 'wp_nueva' )[0] > $create( 'wp_nueva' )[0] && ! $drop( 'wp_antes' ), 'La vuelta a la copia previa no quitó la vista que creó la restauración (o quitó la de antes): ' . json_encode( array_values( preg_grep( '/VIEW/', $db->queries ) ) ) );
+		dc_check( array( 'wp_antes' ) === array_keys( $db->views ) && false !== strpos( $db->views['wp_antes'], '`de_antes`' ) && false !== strpos( $db->views['wp_antes'], '`wp_options`' ), 'Tras la vuelta, las vistas no son las de antes: ' . json_encode( $db->views ) );
+		// La copia previa respaldó la vista de antes, con su definición.
+		$safety = glob( bk_storage() . '/safety-before-restore-*' );
+		dc_check( 1 === count( $safety ), 'No quedó la copia previa.' );
+		$zip = new ZipArchive();
+		$zip->open( $safety[0] );
+		$manifest = json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
+		$sql = (string) $zip->getFromName( 'database.sql' );
+		$zip->close();
+		dc_check( array( 'wp_antes' ) === ( $manifest['database_views'] ?? null ) && false !== strpos( $sql, 'VIEW `wp_antes` AS select `wp_options`.`option_name` AS `de_antes` from `wp_options`;' ), 'La copia previa no lleva la vista que había antes: ' . json_encode( $manifest['database_views'] ?? null ) );
+		$views = (array) ( $rollback['result']['restore']['database']['views'] ?? array() );
+		dc_check( array( 'wp_nueva' ) === ( $views['dropped'] ?? null ) && array( 'wp_antes' ) === ( $views['created'] ?? null ) && false !== strpos( (string) ( $rollback['result']['restore']['notice'] ?? '' ), 'Se quitaron 1 vista(s) que había creado la restauración que se deshizo y la copia previa no trae (wp_nueva)' ), 'El informe de la vuelta no dice qué vistas quitó y repuso: ' . json_encode( array( $views, $rollback['result']['restore']['notice'] ?? null ) ) );
+		// Si la copia previa no pudo leer la definición de la vista que ya había (un permiso), no la lleva: la vuelta no la
+		// borra (ya existía antes de la restauración); sólo quita la que la restauración creó.
+		$db->views = array( 'wp_antes' => 'CREATE ALGORITHM=UNDEFINED DEFINER=`aqui`@`localhost` SQL SECURITY DEFINER VIEW `wp_antes` AS select `wordpress_test`.`wp_options`.`option_name` AS `de_antes` from `wordpress_test`.`wp_options`' );
+		$db->unreadable = array( 'wp_antes' );
+		$db->fail_finish = 'UPDATE `wp_options` SET option_value';
+		foreach ( glob( bk_storage() . '/safety-before-restore-*' ) as $copy ) @unlink( $copy );
+		$db->queries = array();
+		$outcome = dc_restore( $backup );
+		$rollback = end( $outcome['jobs'] );
+		dc_check( 2 === count( $outcome['jobs'] ) && ! empty( $rollback['spec']['rollback'] ) && 'success' === $rollback['status'], 'Sin leer la vista de antes, no hubo la vuelta a la copia previa: ' . json_encode( array_map( function( $j ) { return array( $j['status'], $j['phase'], $j['error']['message'] ?? null ); }, $outcome['jobs'] ) ) );
+		dc_check( 1 === count( $drop( 'wp_nueva' ) ) && ! $drop( 'wp_antes' ) && array( 'wp_antes' ) === array_keys( $db->views ), 'La vuelta borró una vista que ya existía antes de la restauración: ' . json_encode( array_values( preg_grep( '/VIEW/', $db->queries ) ) ) );
+		// Un sitio sin ninguna vista antes de restaurar (la copia previa no trae ninguna): la vuelta quita las dos.
+		$db->views = array();
+		$db->unreadable = array();
+		$db->fail_finish = 'UPDATE `wp_options` SET option_value';
+		foreach ( glob( bk_storage() . '/safety-before-restore-*' ) as $copy ) @unlink( $copy );
+		$db->queries = array();
+		$outcome = dc_restore( $backup );
+		$rollback = end( $outcome['jobs'] );
+		dc_check( 2 === count( $outcome['jobs'] ) && ! empty( $rollback['spec']['rollback'] ) && 'success' === $rollback['status'] && 2 === count( preg_grep( '/^CREATE OR REPLACE .*VIEW `/', $db->queries ) ), 'Sin vistas antes, no hubo la restauración con vistas y su vuelta: ' . json_encode( array_map( function( $j ) { return array( $j['status'], $j['phase'], $j['error']['message'] ?? null ); }, $outcome['jobs'] ) ) );
+		dc_check( 1 === count( $drop( 'wp_nueva' ) ) && 1 === count( $drop( 'wp_antes' ) ) && array() === $db->views && array( 'wp_antes', 'wp_nueva' ) === array_values( array_intersect( array( 'wp_antes', 'wp_nueva' ), (array) ( $rollback['result']['restore']['database']['views']['dropped'] ?? array() ) ) ), 'Sin vistas antes, la vuelta dejó vistas de la restauración: ' . json_encode( array( $db->views, $rollback['result']['restore']['database'] ?? null ) ) );
+	} finally {
+		$GLOBALS['wpdb'] = $previous;
+		$GLOBALS['bk_options'] = $options;
 		$C::server( true );
 	}
 } );

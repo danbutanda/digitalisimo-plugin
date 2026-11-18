@@ -1093,28 +1093,34 @@ nombra en `database_views` (las versiones anteriores lo ignoran y, con su guardi
 nada, como antes). La restauración las comprueba en la verificación y no las ejecuta en las tablas temporales; al final
 del cambio (fase «Direcciones y cachés»), con las tablas ya en su sitio, crea cada una con `CREATE OR REPLACE`, sin
 `DEFINER`, con `SQL SECURITY INVOKER` y los nombres de este sitio (otro prefijo también), reintentando mientras alguna
-avance (una vista puede usar otra). Lo que no se puede crear se informa y nunca hace fallar la restauración. En un
-archivo **sin firma** sólo se acepta una vista cuyo `SELECT` use palabras y funciones de una lista cerrada (texto,
-números, fechas, JSON, control y agregados), sin variables ni comentarios ejecutables, y que sólo lea tablas del
-respaldo; si no, el guardián rechaza el archivo como siempre. Desde la revisión de 1.0.80 (H1) eso se decide por la
-posición en la sintaxis y no por nombres: donde va una tabla (tras `FROM`, `JOIN`, `STRAIGHT_JOIN` o una coma de la
-lista del `FROM`, también en una subconsulta, una tabla derivada, un `UNION` o una lista entre paréntesis) sólo vale
+avance (una vista puede usar otra). Lo que no se puede crear se informa y nunca hace fallar la restauración. Antes de
+crearlas, la restauración anota en su área de trabajo cuáles crea y cuáles ya había (`db-views-planned.json`): si
+después algo falla y se vuelve a la copia previa (sola o con «Volver a la copia previa»), esa vuelta quita con
+`DROP VIEW` las que creó la restauración y no había antes, y la copia previa, que respalda las vistas como cualquier
+respaldo, vuelve a crear las de antes con su definición de antes; el informe de la vuelta dice qué quitó. `DROP VIEW`
+nunca borra una tabla, y una vista de antes que la copia previa no pudo leer (un permiso) no se borra: se queda como la
+dejó la restauración (revisión de 1.0.80, H10; antes, la vista creada sobrevivía a la vuelta y el respaldo siguiente la
+llevaba). En un archivo **sin firma** sólo se acepta una vista cuyo `SELECT` use palabras y funciones de una lista
+cerrada (texto, números, fechas, JSON, control y agregados), sin variables ni comentarios ejecutables, y que sólo lea
+tablas del respaldo; si no, el guardián rechaza el archivo como siempre. Desde la revisión de 1.0.80 (H1) eso se decide
+por la posición en la sintaxis y no por nombres: donde va una tabla (tras `FROM`, `JOIN`, `STRAIGHT_JOIN` o una coma de
+la lista del `FROM`, también en una subconsulta, una tabla derivada, un `UNION` o una lista entre paréntesis) sólo vale
 el nombre **sin cualificar** de una tabla del respaldo (o de una vista suya); `otra`.`t`, `otra.t`,
-`information_schema`.… o `mysql`.`user` se rechazan aunque la vista tenga un alias llamado `otra` o el manifiesto
-(que en un archivo sin firma escribe su autor) liste `otra` entre sus tablas o vistas, con comillas o sin ellas, con
+`information_schema`.… o `mysql`.`user` se rechazan aunque la vista tenga un alias llamado `otra` o el manifiesto (que
+en un archivo sin firma escribe su autor) liste `otra` entre sus tablas o vistas, con comillas o sin ellas, con
 comentarios o espacios alrededor del punto. En una expresión, `a`.`b` sólo vale si `a` es una tabla o un alias que la
 misma vista pone en su `FROM`; nunca tres partes, `a`.`b`( (una función de otra base) ni `nombre`( (una función por su
 nombre entre comillas invertidas, que MySQL busca también entre las funciones instaladas en el servidor). Lo que el
-análisis no reconoce se rechaza. Antes, un alias o el manifiesto con el nombre de otra base dejaban pasar
-`otra`.`tabla` en el `FROM`, y la vista se creaba con `SQL SECURITY INVOKER`, es decir, con los permisos del usuario
-de WordPress sobre las demás bases del servidor. Al crearla al final del cambio, una vista de un archivo sin firma
-sólo puede leer las tablas que trae de verdad esa restauración (las de `tables.json`) y las vistas con su sentencia en
-el respaldo (`Digitalisimo_Backups_Sql_Guard::view_sources()`): una tabla que el respaldo lista pero no se restaura
-(la de otra aplicación que comparte la base) o una vista que sólo declara el manifiesto no se pueden leer; esa vista no
-se crea y el informe lo dice. Un archivo firmado o registrado no cambia: su `SELECT` no se comprueba. Un respaldo
-anterior que escribía la vista como tabla (su `DROP TABLE`, su `CREATE VIEW` y sus filas) se restaura igual: sólo
-cuenta la definición. La conversión de una red lleva en el paquete del sitio sus vistas (las de su prefijo) y deja
-fuera las de otros sitios, con un aviso en el manifiesto.
+análisis no reconoce se rechaza. Antes, un alias o el manifiesto con el nombre de otra base dejaban pasar `otra`.`tabla`
+en el `FROM`, y la vista se creaba con `SQL SECURITY INVOKER`, es decir, con los permisos del usuario de WordPress sobre
+las demás bases del servidor. Al crearla al final del cambio, una vista de un archivo sin firma sólo puede leer las
+tablas que trae de verdad esa restauración (las de `tables.json`) y las vistas con su sentencia en el respaldo
+(`Digitalisimo_Backups_Sql_Guard::view_sources()`): una tabla que el respaldo lista pero no se restaura (la de otra
+aplicación que comparte la base) o una vista que sólo declara el manifiesto no se pueden leer; esa vista no se crea y el
+informe lo dice. Un archivo firmado o registrado no cambia: su `SELECT` no se comprueba. Un respaldo anterior que
+escribía la vista como tabla (su `DROP TABLE`, su `CREATE VIEW` y sus filas) se restaura igual: sólo cuenta la
+definición. La conversión de una red lleva en el paquete del sitio sus vistas (las de su prefijo) y deja fuera las de
+otros sitios, con un aviso en el manifiesto.
 
 **Disparadores, rutinas y eventos.** No se respaldan, a propósito: necesitan permisos especiales (`TRIGGER`,
 `CREATE ROUTINE` y, con el registro binario, `SUPER` o `log_bin_trust_function_creators`, que UpdraftPlus cambia con
@@ -1315,8 +1321,8 @@ larga, 21,2 s, una de la copia previa; las de las fases, 15,5 s) ni de 64 MB (pi
 
 **Límites declarados.**
 
-- Las vistas no van a tablas temporales: se crean al final del cambio (ver «Restaurar en otro servidor de base de
-  datos»). Disparadores, rutinas y eventos no se respaldan ni se restauran. Una clave foránea con nombre que ya usa la tabla viva se crea con el nombre que
+- Las vistas no van a tablas temporales: se crean al final del cambio y la vuelta a la copia previa quita las que creó
+  (ver «Restaurar en otro servidor de base de datos»). Disparadores, rutinas y eventos no se respaldan ni se restauran. Una clave foránea con nombre que ya usa la tabla viva se crea con el nombre que
   pone MySQL. Una tabla viva que no está en el respaldo y tiene una clave foránea hacia una que sí sigue a su padre
   renombrado (InnoDB) y queda apuntando a la tabla vieja: la limpieza no puede borrarla y lo avisa (no probado en MySQL).
 - La copia previa va por tramos de T2, así que su base de datos puede salir tabla por tabla con el sitio abierto (sin una
