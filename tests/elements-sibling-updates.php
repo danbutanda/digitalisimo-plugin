@@ -121,4 +121,24 @@ $info = $s::info( false, 'plugin_information', (object) array( 'slug' => 'digita
 check_sibling( is_object( $info ) && 'digitalisimo-migration' === $info->slug && '' !== $info->version && false === stripos( $info->homepage . implode( '', $info->sections ), 'github' ), 'Elements da la ficha de un plugin Digitalisimo inactivo.' );
 $own = (object) array( 'slug' => 'digitalisimo-migration' );
 check_sibling( $own === $s::info( $own, 'plugin_information', (object) array( 'slug' => 'digitalisimo-migration' ) ) && false === $s::info( false, 'plugin_information', (object) array( 'slug' => 'otro-plugin' ) ), 'La ficha de su propio actualizador y la de otros plugins no se tocan.' );
+// GitHub sin respuesta (o la salida bloqueada): un intento y unos minutos de espera, no una petición con su tiempo de
+// espera en cada lectura de la caché de actualizaciones (varias por pantalla del escritorio) y por cada hermano.
+$GLOBALS['t']['cache']    = array();
+$GLOBALS['t']['manifest'] = null;
+$GLOBALS['t']['calls']    = 0;
+$tr = (object) array( 'checked' => array( $migration => '1.0.16' ), 'response' => array(), 'no_update' => array() );
+for ( $i = 0; $i < 3; $i++ ) {
+	$s::check( clone $tr );
+	$s::release( 'digitalisimo-tools' );
+}
+check_sibling( 1 === $GLOBALS['t']['calls'] && false !== get_site_transient( $s::RETRY ), 'Con GitHub caído el índice se pide una vez y se espera antes de volver a pedirlo (' . $GLOBALS['t']['calls'] . ' peticiones).' );
+check_sibling( ! isset( $GLOBALS['t']['cache'][ $s::MANIFEST_CACHE ] ), 'La caché compartida del índice no guarda el fallo: los demás actualizadores la leen igual que siempre.' );
+$_GET['force-check'] = '1';
+$s::native_force_check();
+unset( $_GET['force-check'] );
+$s::release( 'digitalisimo-tools' );
+check_sibling( 2 === $GLOBALS['t']['calls'], '«Buscar actualizaciones de nuevo» de WordPress vuelve a consultar de inmediato.' );
+$GLOBALS['t']['manifest'] = array( 'plugins' => array( 'digitalisimo-tools' => array( 'version' => '1.0.31', 'url' => $repo . 'digitalisimo-tools-1.0.31.zip' ) ) );
+$s::clear_after_upgrade( null, array( 'action' => 'update', 'type' => 'plugin', 'plugins' => array( 'digitalisimo-tools/digitalisimo-tools.php' ) ) );
+check_sibling( '1.0.31' === ( $s::release( 'digitalisimo-tools' )['version'] ?? '' ) && 3 === $GLOBALS['t']['calls'] && false === get_site_transient( $s::RETRY ), 'Tras actualizar un plugin Digitalisimo la espera se olvida y el índice vuelve a leerse.' );
 echo "DIGITALÍSIMO Elements: actualizaciones de los plugins Digitalisimo inactivos o en otra carpeta validadas.\n";

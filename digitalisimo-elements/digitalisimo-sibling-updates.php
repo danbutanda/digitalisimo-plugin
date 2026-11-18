@@ -30,6 +30,14 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	const MANIFEST_CACHE = 'digitalisimo_plugins_manifest';
 	const OWN_SLUG       = 'digitalisimo-elements';
 	const LINK_TEXT      = 'Buscar actualizaciones';
+	/**
+	 * GitHub no respondió hace poco: durante unos minutos no se vuelve a pedir el índice. Sin esta espera, con GitHub
+	 * caído o la salida bloqueada, cada lectura de la caché de actualizaciones (varias en cada pantalla del escritorio)
+	 * repetía la petición con su tiempo de espera de 10 s por cada plugin hermano. Clave propia: la caché compartida
+	 * del índice (MANIFEST_CACHE) sólo guarda índices válidos, como en los demás actualizadores.
+	 */
+	const RETRY          = 'digitalisimo_elements_sibling_retry';
+	const RETRY_AFTER    = 2 * MINUTE_IN_SECONDS;
 
 	/** @var array|null plugins Digitalisimo instalados en esta petición (se vuelve a leer al activar, desactivar o borrar uno). */
 	private static $installed = null;
@@ -49,8 +57,16 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_inline_update' ), 11 );
 		add_action( 'upgrader_process_complete', array( __CLASS__, 'clear_after_upgrade' ), 10, 2 );
+		// «Buscar actualizaciones de nuevo» de WordPress (update-core.php?force-check=1) consulta de inmediato.
+		add_action( 'load-update-core.php', array( __CLASS__, 'native_force_check' ), 1 );
 		foreach ( array( 'activated_plugin', 'deactivated_plugin', 'deleted_plugin' ) as $hook ) {
 			add_action( $hook, array( __CLASS__, 'forget' ) );
+		}
+	}
+
+	public static function native_force_check() {
+		if ( ! empty( $_GET['force-check'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo olvida la espera tras un fallo.
+			delete_site_transient( self::RETRY );
 		}
 	}
 
@@ -111,12 +127,13 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	public static function release( $slug ) {
 		$manifest = get_site_transient( self::MANIFEST_CACHE );
 		if ( ! is_array( $manifest ) ) {
-			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => 10, 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-Elements' ) ) );
-			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			if ( false !== get_site_transient( self::RETRY ) ) {
 				return array();
 			}
-			$manifest = json_decode( wp_remote_retrieve_body( $response ), true );
+			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => 10, 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-Elements' ) ) );
+			$manifest = is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ? null : json_decode( wp_remote_retrieve_body( $response ), true );
 			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) {
+				set_site_transient( self::RETRY, time(), self::RETRY_AFTER );
 				return array();
 			}
 			set_site_transient( self::MANIFEST_CACHE, $manifest, 10 * MINUTE_IN_SECONDS );
@@ -262,6 +279,7 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		check_admin_referer( self::ACTION );
 		$plugin = sanitize_text_field( rawurldecode( wp_unslash( $_GET['plugin'] ?? '' ) ) );
 		delete_site_transient( self::MANIFEST_CACHE );
+		delete_site_transient( self::RETRY );
 		$updates = get_site_transient( 'update_plugins' );
 		if ( is_object( $updates ) && isset( $updates->checked ) && is_array( $updates->checked ) ) {
 			// La entrada de este plugin se vuelve a calcular con el índice nuevo.
@@ -310,6 +328,7 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	public static function clear_after_upgrade( $upgrader, $options ) {
 		if ( 'update' === ( $options['action'] ?? '' ) && 'plugin' === ( $options['type'] ?? '' ) && array_intersect( (array) ( $options['plugins'] ?? array() ), array_keys( self::installed() ) ) ) {
 			delete_site_transient( self::MANIFEST_CACHE );
+			delete_site_transient( self::RETRY );
 			self::forget();
 		}
 	}
