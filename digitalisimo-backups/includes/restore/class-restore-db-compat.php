@@ -385,21 +385,26 @@ final class Digitalisimo_Backups_Db_Compat {
 	public static function session_begin() {
 		global $wpdb;
 		if ( self::is_sqlite() || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'query' ) ) return null;
-		$previous = method_exists( $wpdb, 'get_var' ) ? $wpdb->get_var( 'SELECT @@SESSION.sql_mode' ) : null;
-		if ( is_string( $previous ) ) {
-			$modes = array_filter( array_map( 'trim', explode( ',', strtoupper( $previous ) ) ), 'strlen' );
-			$modes = array_values( array_diff( $modes, array( 'NO_BACKSLASH_ESCAPES' ) ) );
-			if ( ! in_array( 'NO_AUTO_VALUE_ON_ZERO', $modes, true ) ) $modes[] = 'NO_AUTO_VALUE_ON_ZERO';
-			$wpdb->query( "SET SESSION sql_mode = '" . implode( ',', array_filter( $modes, function( $mode ) { return (bool) preg_match( '/^[A-Z_]+$/D', $mode ); } ) ) . "'" );
-			return $previous;
+		// Una conexión que no responde a esto (un drop-in, un doble de pruebas estricto) sigue como estaba.
+		try {
+			$previous = method_exists( $wpdb, 'get_var' ) ? $wpdb->get_var( 'SELECT @@SESSION.sql_mode' ) : null;
+			if ( is_string( $previous ) ) {
+				$modes = array_filter( array_map( 'trim', explode( ',', strtoupper( $previous ) ) ), 'strlen' );
+				$modes = array_values( array_diff( $modes, array( 'NO_BACKSLASH_ESCAPES' ) ) );
+				if ( ! in_array( 'NO_AUTO_VALUE_ON_ZERO', $modes, true ) ) $modes[] = 'NO_AUTO_VALUE_ON_ZERO';
+				$wpdb->query( "SET SESSION sql_mode = '" . implode( ',', array_filter( $modes, function( $mode ) { return (bool) preg_match( '/^[A-Z_]+$/D', $mode ); } ) ) . "'" );
+				return $previous;
+			}
+			$wpdb->query( "SET SESSION sql_mode = CONCAT_WS(',', NULLIF(REPLACE(@@SESSION.sql_mode, 'NO_BACKSLASH_ESCAPES', ''), ''), 'NO_AUTO_VALUE_ON_ZERO')" );
+		} catch ( Throwable $e ) {
+			unset( $e );
 		}
-		$wpdb->query( "SET SESSION sql_mode = CONCAT_WS(',', NULLIF(REPLACE(@@SESSION.sql_mode, 'NO_BACKSLASH_ESCAPES', ''), ''), 'NO_AUTO_VALUE_ON_ZERO')" );
 		return null;
 	}
 	public static function session_end( $previous ) {
 		global $wpdb;
 		if ( ! is_string( $previous ) || ! preg_match( '/^[A-Za-z_,]*$/D', $previous ) || ! is_object( $wpdb ) ) return;
-		$wpdb->query( "SET SESSION sql_mode = '" . $previous . "'" );
+		try { $wpdb->query( "SET SESSION sql_mode = '" . $previous . "'" ); } catch ( Throwable $e ) { unset( $e ); }
 	}
 
 	/* ------------------------------------------------------------------------------------------- Exportación */
