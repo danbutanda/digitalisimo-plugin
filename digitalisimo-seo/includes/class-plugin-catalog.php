@@ -5,6 +5,8 @@ defined( 'ABSPATH' ) || exit;
 final class Digitalisimo_Plugin_Catalog {
 	const INSTALL_ACTION = 'digitalisimo_catalog_install';
 	const UPDATE_ACTION  = 'digitalisimo_catalog_update';
+	/** «Instalar todos»: instala los plugins que faltan uno por petición (cada paso con su propio tiempo de ejecución) y vuelve al catálogo con el resumen. */
+	const INSTALL_ALL_ACTION = 'digitalisimo_catalog_install_all';
 	const CACHE_KEY      = 'digitalisimo_plugin_catalog_releases';
 	const REPOSITORY     = 'danbutanda/digitalisimo-plugin';
 	/**
@@ -30,6 +32,7 @@ final class Digitalisimo_Plugin_Catalog {
 		}
 		add_action( 'admin_post_' . self::INSTALL_ACTION, array( __CLASS__, 'install' ) );
 		add_action( 'admin_post_' . self::UPDATE_ACTION, array( __CLASS__, 'update' ) );
+		add_action( 'admin_post_' . self::INSTALL_ALL_ACTION, array( __CLASS__, 'install_all' ) );
 		// «Buscar actualizaciones» de cualquier plugin Digitalisimo (y la limpieza tras actualizar) borra el índice compartido: el catálogo se rehace entonces con el índice nuevo.
 		add_action( 'delete_site_transient_' . self::MANIFEST_CACHE, array( __CLASS__, 'clear' ) );
 	}
@@ -129,7 +132,9 @@ final class Digitalisimo_Plugin_Catalog {
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'manage_network_options' ) ) return;
 		$releases = self::releases();
-		echo '<div class="wrap"><h1>Plugins · Digitalisimo</h1><p>Instala y actualiza módulos publicados sin descargar ni subir ZIPs manualmente.</p><table class="widefat striped"><thead><tr><th>Plugin</th><th>Descripción</th><th>Instalada</th><th>Publicada</th><th>Estado</th><th>Acción</th></tr></thead><tbody>';
+		echo '<div class="wrap"><h1>Plugins · Digitalisimo</h1><p>Instala y actualiza módulos publicados sin descargar ni subir ZIPs manualmente.</p>';
+		self::install_all_box( $releases );
+		echo '<table class="widefat striped"><thead><tr><th>Plugin</th><th>Descripción</th><th>Instalada</th><th>Publicada</th><th>Estado</th><th>Acción</th></tr></thead><tbody>';
 		foreach ( self::plugins() as $slug => $plugin ) {
 			$installed = self::installed_version( $plugin[1] ); $release = $releases[ $slug ] ?? array(); $available = $release['version'] ?? ''; $update = $installed && $available && version_compare( $available, $installed, '>' );
 			echo '<tr><td><strong>' . esc_html( $plugin[0] ) . '</strong></td><td>' . esc_html( $plugin[2] ) . '</td><td>' . esc_html( $installed ?: '—' ) . '</td><td>' . esc_html( $available ?: 'Sin release' ) . '</td><td>' . esc_html( ! $installed ? 'Disponible' : ( $update ? 'Actualización disponible' : 'Actualizado' ) ) . '</td><td>';
@@ -142,6 +147,76 @@ final class Digitalisimo_Plugin_Catalog {
 		// Otros módulos añaden aquí sus secciones (Tools: «Tema»), con el contexto de la pantalla.
 		do_action( 'digitalisimo_plugin_catalog_after', is_network_admin() ? 'network' : 'site' );
 		echo '</div>';
+	}
+
+	/** Plugins del catálogo que faltan y tienen paquete publicado, en el orden del catálogo (Elements antes que Migración, que lo necesita), sin los ya intentados. */
+	private static function missing( $releases, $skip = array() ) {
+		$missing = array();
+		foreach ( self::plugins() as $slug => $plugin ) {
+			if ( in_array( $slug, $skip, true ) || self::installed_version( $plugin[1] ) || empty( $releases[ $slug ]['package'] ) ) continue;
+			$missing[] = $slug;
+		}
+		return $missing;
+	}
+
+	/** Plugins ya intentados en esta corrida de «Instalar todos»: sólo slugs del catálogo, sin repetir; así la cadena siempre termina. */
+	private static function tried() {
+		$raw   = isset( $_GET['tried'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['tried'] ) ) : '';
+		$tried = array();
+		foreach ( explode( ',', $raw ) as $slug ) {
+			$slug = sanitize_key( $slug );
+			if ( isset( self::plugins()[ $slug ] ) && ! in_array( $slug, $tried, true ) ) $tried[] = $slug;
+		}
+		return $tried;
+	}
+
+	private static function network_context() { return is_multisite() && 'network' === sanitize_key( wp_unslash( $_GET['digitalisimo_context'] ?? '' ) ); }
+
+	private static function install_all_url( $network, $tried = array() ) {
+		$args = array( 'action' => self::INSTALL_ALL_ACTION, 'digitalisimo_context' => $network ? 'network' : 'site' );
+		if ( $tried ) $args['tried'] = implode( ',', $tried );
+		return add_query_arg( '_wpnonce', wp_create_nonce( self::INSTALL_ALL_ACTION ), add_query_arg( $args, admin_url( 'admin-post.php' ) ) );
+	}
+
+	/** Botón «Instalar todos» (sólo si falta alguno) y, al volver de la corrida, el resumen de lo instalado y lo que falló. */
+	private static function install_all_box( $releases ) {
+		if ( ! self::can_manage() ) return;
+		if ( 'done' === sanitize_key( wp_unslash( $_GET['digitalisimo_install_all'] ?? '' ) ) ) {
+			$installed = array();
+			$failed    = array();
+			foreach ( self::tried() as $slug ) {
+				$plugin = self::plugins()[ $slug ];
+				if ( self::installed_version( $plugin[1] ) ) $installed[] = $plugin[0]; else $failed[] = $plugin[0];
+			}
+			$plugins_url = is_network_admin() ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' );
+			if ( $installed ) echo '<div class="notice notice-success"><p>' . esc_html( sprintf( 1 === count( $installed ) ? 'Se instaló %s.' : 'Se instalaron %s.', implode( ', ', $installed ) ) ) . ' <a href="' . esc_url( $plugins_url ) . '">' . esc_html( 1 === count( $installed ) ? 'Actívalo en Plugins' : 'Actívalos en Plugins' ) . '</a>.</p></div>';
+			if ( $failed ) echo '<div class="notice notice-error"><p>' . esc_html( sprintf( 'No se pudo instalar: %s. Vuelve a intentarlo con su botón «Instalar».', implode( ', ', $failed ) ) ) . '</p></div>';
+		}
+		$missing = self::missing( $releases );
+		if ( ! $missing ) return;
+		$label = 1 === count( $missing ) ? 'Instalar el plugin que falta' : sprintf( 'Instalar todos (%d)', count( $missing ) );
+		echo '<p><a class="button button-primary button-hero" href="' . esc_url( self::install_all_url( is_network_admin() ) ) . '" onclick="if(this.getAttribute(\'aria-disabled\')){return false;}this.setAttribute(\'aria-disabled\',\'true\');this.textContent=\'Instalando… puede tardar un par de minutos\';">' . esc_html( $label ) . '</a></p>';
+		echo '<p class="description">' . esc_html( 'Instala uno tras otro los plugins que faltan, sin activarlos; después los activas en Plugins.' ) . '</p>';
+	}
+
+	/** Un paso de «Instalar todos»: instala el siguiente plugin que falta y pasa al siguiente; al terminar vuelve al catálogo con el resumen. Un paquete que falla no detiene a los demás. */
+	public static function install_all() {
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
+		check_admin_referer( self::INSTALL_ALL_ACTION );
+		$network  = self::network_context();
+		$tried    = self::tried();
+		$releases = self::releases();
+		$next     = self::missing( $releases, $tried );
+		if ( ! $next ) {
+			wp_safe_redirect( add_query_arg( array( 'page' => 'digitalisimo-plugins', 'digitalisimo_install_all' => 'done', 'tried' => implode( ',', $tried ) ), $network ? network_admin_url( 'admin.php' ) : admin_url( 'admin.php' ) ) );
+			exit;
+		}
+		$tried[] = $next[0];
+		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		( new Plugin_Upgrader( new Automatic_Upgrader_Skin() ) )->install( $releases[ $next[0] ]['package'] );
+		wp_safe_redirect( self::install_all_url( $network, $tried ) );
+		exit;
 	}
 
 	private static function request_plugin() {

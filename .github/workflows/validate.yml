@@ -404,6 +404,7 @@ jobs:
           php tests/performance-site-kit.php
           php tests/seo-release-check.php
           php tests/plugin-catalog-manifest.php
+          php tests/plugin-catalog-install-all.php
           php tests/tools-bridge-manifest.php
           php tests/performance-form-ui.php
           php tests/sitemap.php

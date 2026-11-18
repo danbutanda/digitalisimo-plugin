@@ -5,6 +5,8 @@ defined( 'ABSPATH' ) || exit;
 /** Catálogo instalable sin exponer al administrador al flujo de GitHub. */
 final class Plugin_Catalog {
 	const ACTION = 'digitalisimo_tools_install_plugin';
+	/** «Instalar todos»: instala los plugins que faltan uno por petición (cada paso con su propio tiempo de ejecución) y vuelve al catálogo con el resumen. */
+	const INSTALL_ALL = 'digitalisimo_tools_install_all';
 	const CACHE = 'digitalisimo_tools_catalog_releases';
 	const REPOSITORY = 'danbutanda/digitalisimo-plugin';
 	/** Índice de versiones adjunto a cada Release (el ZIP vigente de los siete plugins): se descarga como un archivo, sin el límite de 60 consultas por hora de la API de GitHub que los plugins Digitalisimo agotan entre todos. */
@@ -17,6 +19,7 @@ final class Plugin_Catalog {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 99 );
 		if ( is_multisite() ) add_action( 'network_admin_menu', array( __CLASS__, 'network_menu' ), 99 );
 		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'install' ) );
+		add_action( 'admin_post_' . self::INSTALL_ALL, array( __CLASS__, 'install_all' ) );
 		// «Buscar actualizaciones» de cualquier plugin Digitalisimo (y la limpieza tras actualizar) borra el índice compartido: el catálogo se rehace entonces con el índice nuevo.
 		add_action( 'delete_site_transient_' . self::MANIFEST_CACHE, array( __CLASS__, 'clear' ) );
 	}
@@ -68,9 +71,44 @@ final class Plugin_Catalog {
 		return $index;
 	}
 	public static function page() {
-		if ( ! self::can_manage() ) return; $releases = self::releases(); echo '<div class="wrap"><h1>Plugins · Digitalisimo</h1><p>Instala módulos publicados de Digitalisimo sin descargar ni subir ZIPs manualmente.</p><table class="widefat striped"><thead><tr><th>Plugin</th><th>Descripción</th><th>Versión publicada</th><th>Estado</th><th>Acción</th></tr></thead><tbody>';
+		if ( ! self::can_manage() ) return; $releases = self::releases(); echo '<div class="wrap"><h1>Plugins · Digitalisimo</h1><p>Instala módulos publicados de Digitalisimo sin descargar ni subir ZIPs manualmente.</p>'; self::install_all_box( $releases ); echo '<table class="widefat striped"><thead><tr><th>Plugin</th><th>Descripción</th><th>Versión publicada</th><th>Estado</th><th>Acción</th></tr></thead><tbody>';
 		foreach ( self::catalog() as $slug => $plugin ) { $installed = file_exists( WP_PLUGIN_DIR . '/' . $plugin['file'] ); $release = $releases[ $slug ] ?? array(); echo '<tr><td><strong>' . esc_html( $plugin['name'] ) . '</strong></td><td>' . esc_html( $plugin['description'] ) . '</td><td>' . esc_html( $release['version'] ?? 'Sin Release publicada' ) . '</td><td>' . ( $installed ? 'Instalado' : 'Disponible' ) . '</td><td>'; if ( ! $installed && ! empty( $release['package'] ) ) { $url = wp_nonce_url( add_query_arg( array( 'action' => self::ACTION, 'slug' => $slug, 'digitalisimo_context' => is_network_admin() ? 'network' : 'site' ), admin_url( 'admin-post.php' ) ), self::ACTION . '_' . $slug ); echo '<a class="button button-primary" href="' . esc_url( $url ) . '">Instalar</a>'; } elseif ( $installed ) echo '<a class="button" href="' . esc_url( is_network_admin() ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' ) ) . '">Ver plugin</a>'; else echo 'Pendiente de publicar'; echo '</td></tr>'; }
 		echo '</tbody></table>'; do_action( 'digitalisimo_plugin_catalog_after', is_network_admin() ? 'network' : 'site' ); echo '</div>';
+	}
+	/** Plugins del catálogo que faltan y tienen paquete publicado, en el orden del catálogo (Elements antes que Migración, que lo necesita), sin los ya intentados. */
+	private static function missing( $releases, $skip = array() ) {
+		$missing = array(); foreach ( self::catalog() as $slug => $plugin ) if ( ! in_array( $slug, $skip, true ) && ! file_exists( WP_PLUGIN_DIR . '/' . $plugin['file'] ) && ! empty( $releases[ $slug ]['package'] ) ) $missing[] = $slug;
+		return $missing;
+	}
+	/** Plugins ya intentados en esta corrida de «Instalar todos»: sólo slugs del catálogo, sin repetir; así la cadena siempre termina. */
+	private static function tried() {
+		$raw = isset( $_GET['tried'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['tried'] ) ) : ''; $tried = array();
+		foreach ( explode( ',', $raw ) as $slug ) { $slug = sanitize_key( $slug ); if ( isset( self::catalog()[ $slug ] ) && ! in_array( $slug, $tried, true ) ) $tried[] = $slug; }
+		return $tried;
+	}
+	private static function network_context() { return is_multisite() && 'network' === sanitize_key( wp_unslash( $_GET['digitalisimo_context'] ?? '' ) ); }
+	private static function install_all_url( $network, $tried = array() ) {
+		$args = array( 'action' => self::INSTALL_ALL, 'digitalisimo_context' => $network ? 'network' : 'site' ); if ( $tried ) $args['tried'] = implode( ',', $tried );
+		return add_query_arg( '_wpnonce', wp_create_nonce( self::INSTALL_ALL ), add_query_arg( $args, admin_url( 'admin-post.php' ) ) );
+	}
+	/** Botón «Instalar todos» (sólo si falta alguno) y, al volver de la corrida, el resumen de lo instalado y lo que falló. */
+	private static function install_all_box( $releases ) {
+		if ( 'done' === sanitize_key( wp_unslash( $_GET['digitalisimo_install_all'] ?? '' ) ) ) {
+			$installed = array(); $failed = array(); foreach ( self::tried() as $slug ) { $plugin = self::catalog()[ $slug ]; if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin['file'] ) ) $installed[] = $plugin['name']; else $failed[] = $plugin['name']; }
+			$plugins_url = is_network_admin() ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' );
+			if ( $installed ) echo '<div class="notice notice-success"><p>' . esc_html( sprintf( 1 === count( $installed ) ? 'Se instaló %s.' : 'Se instalaron %s.', implode( ', ', $installed ) ) ) . ' <a href="' . esc_url( $plugins_url ) . '">' . esc_html( 1 === count( $installed ) ? 'Actívalo en Plugins' : 'Actívalos en Plugins' ) . '</a>.</p></div>';
+			if ( $failed ) echo '<div class="notice notice-error"><p>' . esc_html( sprintf( 'No se pudo instalar: %s. Vuelve a intentarlo con su botón «Instalar».', implode( ', ', $failed ) ) ) . '</p></div>';
+		}
+		$missing = self::missing( $releases ); if ( ! $missing || ! self::can_manage() ) return;
+		$label = 1 === count( $missing ) ? 'Instalar el plugin que falta' : sprintf( 'Instalar todos (%d)', count( $missing ) );
+		echo '<p><a class="button button-primary button-hero" href="' . esc_url( self::install_all_url( is_network_admin() ) ) . '" onclick="if(this.getAttribute(\'aria-disabled\')){return false;}this.setAttribute(\'aria-disabled\',\'true\');this.textContent=\'Instalando… puede tardar un par de minutos\';">' . esc_html( $label ) . '</a></p><p class="description">' . esc_html( 'Instala uno tras otro los plugins que faltan, sin activarlos; después los activas en Plugins.' ) . '</p>';
+	}
+	/** Un paso de «Instalar todos»: instala el siguiente plugin que falta y pasa al siguiente; al terminar vuelve al catálogo con el resumen. Un paquete que falla no detiene a los demás. */
+	public static function install_all() {
+		if ( ! self::can_manage() ) wp_die( esc_html__( 'No autorizado.', 'digitalisimo-tools' ) ); check_admin_referer( self::INSTALL_ALL ); $network = self::network_context(); $tried = self::tried(); $releases = self::releases(); $next = self::missing( $releases, $tried );
+		if ( ! $next ) { wp_safe_redirect( add_query_arg( array( 'page' => 'digitalisimo-plugins', 'digitalisimo_install_all' => 'done', 'tried' => implode( ',', $tried ) ), $network ? network_admin_url( 'admin.php' ) : admin_url( 'admin.php' ) ) ); exit; }
+		$tried[] = $next[0]; require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php'; require_once ABSPATH . 'wp-admin/includes/file.php'; ( new \Plugin_Upgrader( new \Automatic_Upgrader_Skin() ) )->install( $releases[ $next[0] ]['package'] );
+		wp_safe_redirect( self::install_all_url( $network, $tried ) ); exit;
 	}
 	public static function install() {
 		$slug = sanitize_key( $_GET['slug'] ?? '' ); if ( ! self::can_manage() ) wp_die( esc_html__( 'No autorizado.', 'digitalisimo-tools' ) ); check_admin_referer( self::ACTION . '_' . $slug ); $plugin = self::catalog()[ $slug ] ?? null; $release = self::releases()[ $slug ] ?? null; if ( ! $plugin || empty( $release['package'] ) ) wp_die( esc_html__( 'El paquete solicitado no está disponible.', 'digitalisimo-tools' ) );
