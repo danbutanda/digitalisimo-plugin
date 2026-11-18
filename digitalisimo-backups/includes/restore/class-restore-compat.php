@@ -10,8 +10,9 @@ defined( 'ABSPATH' ) || exit;
 //  - cambio de tablas: este plugin queda activo en la base de datos restaurada antes del RENAME (22);
 //  - limpieza, por tramos: caché de páginas (9), CSS de constructores (20), tema que falta (19) y servicios del origen
 //    que siguen conectados (21); al final, el bloque de WordPress de .htaccess (12) y el informe (17, 18 en verify).
-// Se carga a demanda (restore_phase() y config_report()), siempre antes de que el final de la restauración ponga la carpeta
-// de este plugin del respaldo. Comentarios `//`: sin opcache (php-wasm) un docblock ocupa memoria en cada petición.
+// Se carga a demanda (el autoload del final de class-backups.php: la primera llamada de una restauración o config_report()),
+// y restore_finale() la carga antes de poner la carpeta de este plugin del respaldo, que quizá no la tenga. Comentarios
+// `//`: sin opcache (php-wasm) un docblock ocupa memoria en cada petición.
 final class Digitalisimo_Backups_Restore_Compat {
 	const FILE = 'compat.json';
 	// Las carpetas de caché de página que se vacían al terminar cualquier restauración (relativas a wp-content): la de
