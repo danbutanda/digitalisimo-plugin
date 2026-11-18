@@ -26,6 +26,7 @@ final class Digitalisimo_Backups_Restore_Compat {
 
 	private static $modes = null;
 	private static $normalized = array();
+	private static $found_themes = null;
 
 	/* --------------------------------------------------------------------------------------------- Verificación */
 
@@ -51,6 +52,8 @@ final class Digitalisimo_Backups_Restore_Compat {
 			'dropins' => array(),
 			'extra_tables' => array(),
 			'extra_count' => 0,
+			// Revisión bk-180 (H9): si este servidor usa .htaccess, decidido ahora y no en el último tramo (ver server()).
+			'server' => self::server( $job, $layout ),
 		);
 		if ( $foreign && ! $import && '' !== (string) $layout['content'] ) {
 			foreach ( Digitalisimo_Backups_Site_Extract::DROP_INS as $name ) {
@@ -313,6 +316,7 @@ final class Digitalisimo_Backups_Restore_Compat {
 	private static function theme( array $ctx, array &$state ) {
 		global $wpdb;
 		$changed = false;
+		self::$found_themes = null;
 		foreach ( self::site_tables( $ctx ) as $site => $tables ) {
 			if ( ! isset( $tables['options'] ) ) continue;
 			$opts = self::options_of( $tables['options'], array( 'template', 'stylesheet', 'template_root', 'stylesheet_root' ) );
@@ -355,9 +359,26 @@ final class Digitalisimo_Backups_Restore_Compat {
 			if ( defined( 'WP_CONTENT_DIR' ) ) $roots[] = rtrim( WP_CONTENT_DIR, '/' ) . '/' . ltrim( $root_option, '/' );
 			$roots[] = rtrim( $root_option, '/' );
 		}
+		foreach ( self::theme_roots( $slug ) as $root ) $roots[] = $root;
 		if ( '' !== (string) $ctx['layout']['themes'] ) $roots[] = $ctx['root'] . $ctx['layout']['themes'];
-		foreach ( $roots as $root ) if ( is_dir( $root . '/' . $slug ) && ! is_link( $root . '/' . $slug ) ) return $root . '/' . $slug;
+		foreach ( $roots as $root ) if ( '' !== $root && is_dir( $root . '/' . $slug ) && ! is_link( $root . '/' . $slug ) ) return $root . '/' . $slug;
 		return '';
+	}
+	// Revisión bk-180 (H8): las carpetas de temas de WordPress, también fuera de ABSPATH (Bedrock: `web/app/themes`, donde
+	// la carpeta de temas de la restauración por pasos es '' y antes todo tema salía «inexistente»): la de ese tema según
+	// search_theme_directories() (todas las registradas con register_theme_directory(), vueltas a leer: la restauración
+	// pudo cambiarlas) y get_theme_root(), con su filtro `theme_root`.
+	private static function theme_roots( $slug ) {
+		$roots = array();
+		if ( function_exists( 'search_theme_directories' ) ) {
+			if ( null === self::$found_themes ) {
+				$found = search_theme_directories( true );
+				self::$found_themes = is_array( $found ) ? $found : array();
+			}
+			if ( isset( self::$found_themes[ $slug ]['theme_root'] ) && is_string( self::$found_themes[ $slug ]['theme_root'] ) ) $roots[] = rtrim( self::$found_themes[ $slug ]['theme_root'], '/\\' );
+		}
+		if ( function_exists( 'get_theme_root' ) ) $roots[] = rtrim( (string) get_theme_root( $slug ), '/\\' );
+		return $roots;
 	}
 	private static function theme_valid( array $ctx, $template, $stylesheet, array $opts ) {
 		$parent = self::theme_dir( $ctx, $template, (string) ( $opts['template_root'] ?? '' ) );
@@ -439,19 +460,21 @@ final class Digitalisimo_Backups_Restore_Compat {
 	// `digitalisimo_backups_restore_htaccess` fuerza (true) o apaga (false) la comprobación.
 	public static function htaccess( $tree, array $layout, $staging ) {
 		try {
-			$result = self::htaccess_fix( (string) $tree, $layout );
+			$result = self::htaccess_fix( (string) $tree, $layout, $staging );
 		} catch ( Throwable $e ) {
 			$result = array( 'state' => 'failed', 'error' => $e->getMessage() );
 		}
 		if ( $result ) self::write( $staging, 'htaccess.json', $result );
 		return $result;
 	}
-	private static function htaccess_fix( $tree, array $layout ) {
-		global $is_apache, $wp_rewrite;
+	private static function htaccess_fix( $tree, array $layout, $staging ) {
+		global $wp_rewrite;
 		$forced = function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_restore_htaccess', null ) : null;
 		if ( false === $forced ) return null;
-		$apache = true === $forced || ( ! empty( $is_apache ) && ( ! function_exists( 'apache_mod_loaded' ) || apache_mod_loaded( 'mod_rewrite', true ) ) );
-		if ( ! $apache || '' === (string) get_option( 'permalink_structure' ) ) return null;
+		// Lo decidido en la verificación (compat.json); una restauración verificada por una versión anterior, como antes.
+		$server = true === $forced ? 'apache' : (string) ( self::read( $staging )['server'] ?? '' );
+		if ( '' === $server ) $server = '' !== self::web_server() ? self::web_server() : 'unknown';
+		if ( 'other' === $server || '' === (string) get_option( 'permalink_structure' ) ) return null;
 		$home = '/' . trim( (string) wp_parse_url( (string) get_option( 'home' ), PHP_URL_PATH ), '/' );
 		$site = '/' . trim( (string) wp_parse_url( (string) get_option( 'siteurl' ), PHP_URL_PATH ), '/' );
 		// WordPress en su propia carpeta: su .htaccess vive fuera de esta raíz.
@@ -463,8 +486,9 @@ final class Digitalisimo_Backups_Restore_Compat {
 		if ( is_link( $file ) || ( file_exists( $file ) && ! is_file( $file ) ) ) return null;
 		$text = is_file( $file ) ? (string) @file_get_contents( $file, false, null, 0, 1048576 ) : '';
 		$block = self::wp_block( $text );
-		if ( is_multisite() ) return null === $block ? array( 'state' => 'network_missing' ) : null;
+		if ( is_multisite() ) return null === $block ? array( 'state' => 'apache' === $server ? 'network_missing' : 'skipped_cli' ) : null;
 		if ( null !== $block && preg_match( '/^\s*RewriteBase\s+' . preg_quote( $base, '/' ) . '\s*$/mi', $block ) && preg_match( '/^\s*RewriteRule\s+\.\s+' . preg_quote( $base, '/' ) . 'index\.php\b/mi', $block ) ) return null;
+		if ( 'apache' !== $server ) return array( 'state' => 'skipped_cli' );
 		if ( ! is_object( $wp_rewrite ) || ! method_exists( $wp_rewrite, 'mod_rewrite_rules' ) ) return array( 'state' => 'failed', 'error' => 'sin WP_Rewrite' );
 		if ( method_exists( $wp_rewrite, 'init' ) ) $wp_rewrite->init();
 		$rules = trim( (string) $wp_rewrite->mod_rewrite_rules() );
@@ -478,6 +502,27 @@ final class Digitalisimo_Backups_Restore_Compat {
 		}
 		if ( DIRECTORY_SEPARATOR === '/' ) @chmod( $file, $mode );
 		return array( 'state' => null === $block ? 'added' : 'fixed', 'base' => $base );
+	}
+	// Revisión bk-180 (H9): $is_apache sólo es verdadero en una petición web (WordPress lo deduce de SERVER_SOFTWARE), así
+	// que antes el bloque de .htaccess dependía de quién corría el último tramo: en el mismo Apache, la web lo escribía y
+	// WP-CLI o el cron del sistema (PHP CLI) no, sin decirlo. Ahora se decide una vez, en una petición web: la que lanza la
+	// restauración (la pantalla o REST, anotada al encolar en `origin.web_server`) o, si ésa fue de WP-CLI, la de la
+	// verificación. Sin ninguna petición web, cuenta el .htaccess de aquí: si tiene el bloque de WordPress, WordPress lo
+	// escribió porque el servidor lo usa. Si tampoco, `unknown`: el bloque no se toca y el informe lo dice (`skipped_cli`).
+	// 'apache' (Apache o LiteSpeed con mod_rewrite), 'other' (una petición web de nginx, IIS…) o '' (PHP CLI: no se sabe).
+	public static function web_server() {
+		global $is_apache;
+		if ( ! empty( $is_apache ) ) return ! function_exists( 'apache_mod_loaded' ) || apache_mod_loaded( 'mod_rewrite', true ) ? 'apache' : 'other';
+		return 'cli' === PHP_SAPI ? '' : 'other';
+	}
+	private static function server( array $job, array $layout ) {
+		$server = (string) ( $job['spec']['origin']['web_server'] ?? '' );
+		if ( in_array( $server, array( 'apache', 'other' ), true ) ) return $server;
+		$server = self::web_server();
+		if ( '' !== $server ) return $server;
+		$live = (string) ( $layout['root'] ?? '' ) . '.htaccess';
+		$text = is_file( $live ) && ! is_link( $live ) ? (string) @file_get_contents( $live, false, null, 0, 1048576 ) : '';
+		return null !== self::wp_block( $text ) ? 'apache' : 'unknown';
 	}
 	// El contenido entre `# BEGIN WordPress` y `# END WordPress`, o null si no están.
 	private static function wp_block( $text ) {
@@ -516,6 +561,7 @@ final class Digitalisimo_Backups_Restore_Compat {
 		elseif ( 'fixed' === $state ) $lines[] = 'Se corrigió en .htaccess el bloque de WordPress, que era de otra ruta (' . (string) ( $htaccess['base'] ?? '/' ) . ' ahora); las demás reglas se conservaron.';
 		elseif ( 'network_missing' === $state ) $lines[] = 'El .htaccess de esta red no tiene el bloque de WordPress: cópialo de Red → Configuración de la red, o las páginas de los sitios darán 404.';
 		elseif ( 'failed' === $state ) $lines[] = 'No se pudo escribir en .htaccess el bloque de WordPress (' . (string) ( $htaccess['error'] ?? '' ) . '): guarda los enlaces permanentes en Ajustes → Enlaces permanentes.';
+		elseif ( 'skipped_cli' === $state ) $lines[] = 'No se comprobó el bloque de WordPress de .htaccess: la restauración corrió entera fuera de una petición web (WP-CLI o el cron) y no se sabe si este servidor usa .htaccess. Si es Apache o LiteSpeed, guarda los enlaces permanentes en Ajustes → Enlaces permanentes (sin ese bloque las páginas internas darían 404).';
 		$extra = (int) ( $compat['extra_count'] ?? 0 );
 		if ( $extra ) $lines[] = 'Quedan ' . $extra . ' tabla(s) de este WordPress que el respaldo no trae (' . implode( ', ', array_slice( (array) $compat['extra_tables'], 0, 5 ) ) . ( $extra > 5 ? '…' : '' ) . '): son de plugins de este sitio y no estorban; bórralas si ya no las necesitas.';
 		foreach ( (array) ( $cleanup['warnings'] ?? array() ) as $warning ) $lines[] = rtrim( (string) $warning, '.' ) . '.';

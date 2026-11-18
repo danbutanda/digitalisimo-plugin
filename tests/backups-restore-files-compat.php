@@ -25,8 +25,15 @@
  *   j · tablas de este WordPress que el respaldo de otra instalación no trae (17): se quedan y se informan;
  *   k · CSS de constructores (20): restaurar sólo la base de datos vacía el CSS generado de Elements/Elementor (archivos y
  *       metadatos); con los medios, no;
- *   l · DISALLOW_FILE_MODS (18): el informe de wp-config.php (verify, el resultado, el correo) lo avisa.
- * Con el código anterior fallan a, b, c, d, e, g, h, i, j, k y l. Escribe «FALLA ·» si falla.
+ *   l · DISALLOW_FILE_MODS (18): el informe de wp-config.php (verify, el resultado, el correo) lo avisa;
+ *   n · (revisión bk-180, H8) con la carpeta de temas fuera de ABSPATH (Bedrock) el tema que existe no se cambia ni se
+ *       avisa, y el que falta pasa al tema por defecto de esa carpeta;
+ *   o · (H3, F04) Restore_Compat::activate() en una red: activado en la red, sigue activo en la red que entra, no se toca
+ *       si la red no entra y otra copia suya activada en la red se desactiva;
+ *   p · (H9) el bloque de WordPress de .htaccess se escribe igual si el último tramo corre en WP-CLI o en el cron, decidido
+ *       en una petición web o por el .htaccess de aquí; sin ninguna de las dos, el informe dice que no se comprobó.
+ *   Además (H3, F10), Jetpack y la CDN de WP Rocket no se avisan al restaurar un respaldo del mismo sitio.
+ * Con el código anterior fallan a, b, c, d, e, g, h, i, j, k y l; con el de acda04b2, n y p. Escribe «FALLA ·» si falla.
  */
 umask( 022 );
 /** wp_mkdir_p() de WordPress: hereda los permisos de la primera carpeta que existe (la del entorno común crea 0700). */
@@ -46,6 +53,10 @@ function wp_mkdir_p( $target ) {
 	}
 	return true;
 }
+/** get_theme_root() de WordPress: la carpeta de temas (o la de un tema), que en Bedrock queda fuera de ABSPATH (caso n). */
+function get_theme_root( $slug = '' ) { return $GLOBALS['fc_theme_root'] ?? WP_CONTENT_DIR . '/themes'; }
+/** search_theme_directories(): los temas de las carpetas registradas con register_theme_directory() (caso n). */
+function search_theme_directories( $force = false ) { return $GLOBALS['fc_theme_search'] ?? false; }
 require __DIR__ . '/lib/backups-env.php';
 require __DIR__ . '/lib/backups-sqlite.php';
 $GLOBALS['bk_filters']['digitalisimo_backups_job_backoff'] = 0;
@@ -152,6 +163,10 @@ $GLOBALS['wp_rewrite'] = new Fc_Rewrite();
 // no existe (un tema borrado después, o con otro nombre en este servidor).
 fc_set( 'template', 'tema-que-no-existe' );
 fc_set( 'stylesheet', 'tema-que-no-existe' );
+// Jetpack conectado y la CDN de WP Rocket, de este mismo sitio: al restaurar su respaldo no hay nada que avisar (F10).
+fc_set( 'active_plugins', serialize( array( 'demo/demo.php', FC_SELF, 'jetpack/jetpack.php', 'wp-rocket/wp-rocket.php' ) ) );
+fc_set( 'jetpack_options', serialize( array( 'id' => 654321, 'version' => '14.0' ) ) );
+fc_set( 'wp_rocket_settings', serialize( array( 'cdn' => 1, 'cdn_cnames' => array( 'cdn.este-sitio.test' ) ) ) );
 $same = bk_backup( true );
 $demo_dir = $root . '/wp-content/plugins/demo';
 
@@ -187,6 +202,7 @@ fc_case( 'c · la caché de páginas (y la de Divi y Avada) se vacía al termina
 	fc_check( is_file( $root . '/wp-content/cache/.htaccess' ) && is_dir( $root . '/wp-content/cache' ), 'Se borró la carpeta de caché o su .htaccess (sólo se vacían las páginas guardadas).' );
 	fc_check( false !== strpos( (string) $result['notice'], 'caché de páginas' ) && (int) ( $result['compat']['page_cache']['files'] ?? 0 ) >= 4, 'El informe no dice que se vació la caché de páginas: ' . (string) $result['notice'] );
 	fc_check( is_file( $root . '/wp-content/uploads/elementor/css/post-1.css' ) && null !== $GLOBALS['wpdb']->value( 'wp_postmeta', 'meta_value', "meta_key = '_elementor_css'" ), 'Con la base de datos y los medios juntos se vació el CSS de Elementor (no hacía falta).' );
+	fc_check( false === strpos( (string) $result['notice'], 'Jetpack' ) && false === strpos( (string) $result['notice'], 'WP Rocket' ) && false === strpos( json_encode( $result['compat']['warnings'] ?? array() ), 'Jetpack' ), 'El respaldo del mismo sitio avisó de Jetpack o de la CDN de WP Rocket (son de este sitio): ' . (string) $result['notice'] );
 } );
 
 fc_case( 'd · .htaccess: el bloque de WordPress que faltaba (respaldo de nginx) se escribe sin pisar las reglas propias', function() use ( $root ) {
@@ -310,6 +326,138 @@ fc_case( 'm · una carpeta preparada en otro disco se copia junto a su sitio con
 	fc_check( $ok && '0755' === fc_mode( $to ) && '0755' === fc_mode( $to . '/css' ) && '0644' === fc_mode( $to . '/css/a.css' ), 'La copia quedó con ' . fc_mode( $to ) . ', ' . fc_mode( $to . '/css' ) . ' y ' . fc_mode( $to . '/css/a.css' ) . '.' );
 	bk_remove_tree( $from );
 	bk_remove_tree( $to );
+} );
+
+/** Restaura por ticks cortos con $is_apache según la fase (`enqueue` al pedirla; luego la del trabajo): la web o PHP CLI. */
+function fc_restore_phased( $file, callable $apache ) {
+	$GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] = 0;
+	$before = array_column( Digitalisimo_Backups_Jobs::all(), 'id' );
+	try {
+		$GLOBALS['is_apache'] = $apache( 'enqueue' );
+		$queued = fc_restore( $file, array( 'sync' => false, 'drive_cli' => false ) );
+		fc_check( ! is_wp_error( $queued ), 'No se encoló la restauración: ' . ( is_wp_error( $queued ) ? $queued->get_error_message() : '' ) );
+		$id = '';
+		foreach ( Digitalisimo_Backups_Jobs::all() as $job ) if ( 'restore' === $job['kind'] && ! in_array( $job['id'], $before, true ) && empty( $job['spec']['rollback'] ) ) $id = $job['id'];
+		fc_check( '' !== $id, 'No aparece el trabajo de restauración.' );
+		for ( $i = 0; $i < 5000; $i++ ) {
+			$job = Digitalisimo_Backups_Jobs::get( $id );
+			if ( ! $job || Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break;
+			$GLOBALS['is_apache'] = $apache( (string) $job['phase'] );
+			Digitalisimo_Backups_Jobs::tick( 0.0 );
+		}
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] );
+		$GLOBALS['is_apache'] = true;
+	}
+	fc_check( $job && 'success' === $job['status'], 'La restauración por tramos no terminó bien: ' . json_encode( $job['error'] ?? null ) );
+	return (array) ( $job['result']['restore'] ?? array() );
+}
+
+fc_case( 'n · tema con la carpeta de temas fuera de ABSPATH (Bedrock): el que existe no se cambia ni se avisa; el que falta pasa al por defecto de esa carpeta', function() use ( $root ) {
+	$outside = $GLOBALS['bk_root'] . '-app/themes';
+	$other = $GLOBALS['bk_root'] . '-otra/themes';
+	$theme = function( $dir, $slug, $name, $block = false ) {
+		mkdir( $dir . '/' . $slug . ( $block ? '/templates' : '' ), 0755, true );
+		file_put_contents( $dir . '/' . $slug . '/style.css', "/*\nTheme Name: " . $name . "\n*/\n" );
+		file_put_contents( $dir . '/' . $slug . ( $block ? '/templates/index.html' : '/index.php' ), $block ? "<!-- wp:post-content /-->\n" : "<?php // tema\n" );
+	};
+	$theme( $outside, 'externo', 'Externo' );
+	$theme( $outside, 'twentytwentyfour', 'Twenty Twenty-Four', true );
+	$theme( $other, 'registrado', 'Registrado' );
+	$staging = $GLOBALS['bk_root'] . '-compat-staging';
+	@mkdir( $staging, 0700, true );
+	// La disposición de la restauración por pasos en Bedrock: los temas fuera de la raíz de WordPress (sin carpeta de temas).
+	$layout = array( 'root' => trailingslashit( wp_normalize_path( (string) realpath( ABSPATH ) ) ), 'themes' => '', 'plugins' => 'wp-content/plugins', 'mu' => 'wp-content/mu-plugins', 'uploads' => 'wp-content/uploads', 'content' => 'wp-content', 'self' => '' );
+	$run = function( $slug ) use ( $layout, $staging ) {
+		fc_set( 'template', $slug );
+		fc_set( 'stylesheet', $slug );
+		return Digitalisimo_Backups_Restore_Compat::cleanup( array( 'step' => 'theme' ), INF, array( 'id' => 'prueba', 'spec' => array() ), $layout, $staging, true, null );
+	};
+	$template = fc_option( 'template' );
+	$stylesheet = fc_option( 'stylesheet' );
+	$GLOBALS['fc_theme_root'] = $outside;
+	$GLOBALS['fc_theme_search'] = array( 'registrado' => array( 'theme_file' => 'registrado/style.css', 'theme_root' => $other ) );
+	try {
+		// En la carpeta de get_theme_root() (la de Bedrock) y en otra registrada que sólo da search_theme_directories().
+		foreach ( array( 'externo', 'registrado' ) as $slug ) {
+			$state = $run( $slug );
+			fc_check( $slug === fc_option( 'template' ) && ! $state['notes'] && ! $state['warnings'], 'El tema «' . $slug . '», que existe fuera de ABSPATH, se dio por inexistente: ' . json_encode( array( fc_option( 'template' ), $state['notes'], $state['warnings'] ) ) );
+		}
+		$state = $run( 'no-existe' );
+		fc_check( 'twentytwentyfour' === fc_option( 'template' ) && 'twentytwentyfour' === fc_option( 'stylesheet' ) && ! $state['warnings'] && false !== strpos( implode( ' ', $state['notes'] ), '«no-existe»' ), 'El tema que falta no pasó al tema por defecto de la carpeta de temas de WordPress: ' . json_encode( array( fc_option( 'template' ), $state['notes'], $state['warnings'] ) ) );
+	} finally {
+		unset( $GLOBALS['fc_theme_root'], $GLOBALS['fc_theme_search'] );
+		fc_set( 'template', $template );
+		fc_set( 'stylesheet', $stylesheet );
+		bk_remove_tree( dirname( $outside ) );
+		bk_remove_tree( dirname( $other ) );
+		bk_remove_tree( $staging );
+	}
+} );
+
+fc_case( 'o · activación en una red: activado en la red, sigue activo en la red que entra, no se toca si la red no entra y otra copia se desactiva', function() {
+	$db = $GLOBALS['wpdb'];
+	$staging = $GLOBALS['bk_root'] . '-activa-staging';
+	@mkdir( $staging, 0700, true );
+	$compat = function( $was ) use ( $staging ) { file_put_contents( $staging . '/compat.json', json_encode( array( 'v' => 1, 'self' => array( 'plugin' => FC_SELF, 'in_backup' => true, 'was' => $was ) ) ) ); @unlink( $staging . '/activation.json' ); };
+	$old = 'digitalisimo-backups-vieja/digitalisimo-backups.php';
+	$db->pdo->exec( "CREATE TABLE `dgbkr_t_options` (`option_id` INTEGER PRIMARY KEY, `option_name` varchar(191) NOT NULL UNIQUE, `option_value` longtext NOT NULL, `autoload` varchar(20) NOT NULL DEFAULT 'yes')" );
+	$db->pdo->exec( "CREATE TABLE `dgbkr_t_sitemeta` (`meta_id` INTEGER PRIMARY KEY, `site_id` bigint(20) NOT NULL DEFAULT 0, `meta_key` varchar(255), `meta_value` longtext)" );
+	$seed = function() use ( $db, $old ) {
+		$db->pdo->exec( 'DELETE FROM `dgbkr_t_options`' );
+		$db->pdo->exec( 'DELETE FROM `dgbkr_t_sitemeta`' );
+		$db->pdo->prepare( 'INSERT INTO `dgbkr_t_options` (option_name, option_value) VALUES (?, ?)' )->execute( array( 'active_plugins', serialize( array( 'demo/demo.php' ) ) ) );
+		$db->pdo->prepare( 'INSERT INTO `dgbkr_t_sitemeta` (site_id, meta_key, meta_value) VALUES (1, ?, ?)' )->execute( array( 'active_sitewide_plugins', serialize( array( $old => 1, 'otro/otro.php' => 1 ) ) ) );
+	};
+	$site = function() use ( $db ) { return (array) unserialize( (string) $db->value( 'dgbkr_t_options', 'option_value', "option_name = 'active_plugins'" ) ); };
+	$wide = function() use ( $db ) { return (array) unserialize( (string) $db->value( 'dgbkr_t_sitemeta', 'meta_value', "meta_key = 'active_sitewide_plugins'" ) ); };
+	$both = array( array( 'dest' => 'wp_options', 'temp' => 'dgbkr_t_options' ), array( 'dest' => 'wp_sitemeta', 'temp' => 'dgbkr_t_sitemeta' ) );
+	$GLOBALS['bk_multisite'] = true;
+	try {
+		// Activado en la red y la red entra (sitemeta está en el cambio): activo en la red que entra, la otra copia fuera.
+		$seed();
+		$compat( 'network' );
+		Digitalisimo_Backups_Restore_Compat::activate( $staging, $both );
+		$activation = json_decode( (string) @file_get_contents( $staging . '/activation.json' ), true );
+		fc_check( isset( $wide()[ FC_SELF ], $wide()['otro/otro.php'] ) && ! isset( $wide()[ $old ] ), 'En la red que entra, DIGITALÍSIMO Backups no quedó activo en la red o la otra copia siguió: ' . json_encode( $wide() ) );
+		fc_check( array( 'demo/demo.php' ) === $site() && 'network' === ( $activation['activated'] ?? '' ) && array( $old ) === ( $activation['replaced'] ?? null ), 'Activado en la red, se escribió en el sitio o no se anotó: ' . json_encode( array( $site(), $activation ) ) );
+		// Activado en la red y la red no entra (sólo las tablas de un sitio): sigue activo en la red de aquí; nada que escribir.
+		$seed();
+		$compat( 'network' );
+		Digitalisimo_Backups_Restore_Compat::activate( $staging, array( $both[0] ) );
+		fc_check( array( 'demo/demo.php' ) === $site() && ! is_file( $staging . '/activation.json' ), 'Con la red que no entra, se activó en el sitio (ya lo está en la red): ' . json_encode( $site() ) );
+		// Activado sólo en el sitio, en una red que entra: en el sitio; de la red sólo sale la otra copia.
+		$seed();
+		$compat( 'site' );
+		Digitalisimo_Backups_Restore_Compat::activate( $staging, $both );
+		fc_check( in_array( FC_SELF, $site(), true ) && ! isset( $wide()[ FC_SELF ] ) && ! isset( $wide()[ $old ] ) && isset( $wide()['otro/otro.php'] ), 'Activado en el sitio de una red, no quedó así: ' . json_encode( array( $site(), $wide() ) ) );
+	} finally {
+		$GLOBALS['bk_multisite'] = false;
+		$db->pdo->exec( 'DROP TABLE IF EXISTS `dgbkr_t_options`' );
+		$db->pdo->exec( 'DROP TABLE IF EXISTS `dgbkr_t_sitemeta`' );
+		bk_remove_tree( $staging );
+	}
+} );
+
+fc_case( 'p · .htaccess: el bloque se escribe igual si el último tramo corre en WP-CLI o en el cron; sin ninguna petición web ni bloque de aquí, se dice', function() use ( $root, $same ) {
+	$own = "# BEGIN Propias\nHeader set X-Prueba 1\n# END Propias\n";
+	$block = function() use ( $root ) { $text = (string) @file_get_contents( $root . '/.htaccess' ); return false !== strpos( $text, '# BEGIN WordPress' ) && false !== strpos( $text, 'RewriteRule . /index.php [L]' ) && false !== strpos( $text, '# BEGIN Propias' ) ? $text : ''; };
+	// Pedida desde la web (Apache) y terminada en PHP CLI ($is_apache es falso en WP-CLI y en el cron del sistema).
+	file_put_contents( $root . '/.htaccess', $own );
+	$result = fc_restore_phased( $same, function( $phase ) { return 'enqueue' === $phase; } );
+	fc_check( '' !== $block() && 'added' === ( $result['compat']['htaccess'] ?? '' ), 'Pedida en la web y terminada en PHP CLI, no se escribió el bloque: ' . json_encode( $result['compat']['htaccess'] ?? null ) . ' · ' . (string) @file_get_contents( $root . '/.htaccess' ) );
+	// Pedida por WP-CLI, verificada en la web (la pantalla de avance) y terminada en PHP CLI.
+	file_put_contents( $root . '/.htaccess', $own );
+	$result = fc_restore_phased( $same, function( $phase ) { return 'inspect' === $phase || '' === $phase; } );
+	fc_check( '' !== $block() && 'added' === ( $result['compat']['htaccess'] ?? '' ), 'Verificada en la web y terminada en PHP CLI, no se escribió el bloque: ' . json_encode( $result['compat']['htaccess'] ?? null ) );
+	// Toda en PHP CLI, con el bloque de WordPress de otra ruta en el .htaccess de aquí: lo escribió WordPress, el servidor lo usa.
+	file_put_contents( $root . '/.htaccess', $own . "\n# BEGIN WordPress\n<IfModule mod_rewrite.c>\nRewriteEngine On\nRewriteBase /viejo/\nRewriteRule . /viejo/index.php [L]\n</IfModule>\n# END WordPress\n" );
+	$result = fc_restore_phased( $same, function( $phase ) { return false; } );
+	fc_check( '' !== $block() && false === strpos( $block(), '/viejo/' ) && 'fixed' === ( $result['compat']['htaccess'] ?? '' ), 'Toda en PHP CLI con el bloque de aquí de otra ruta, no se corrigió: ' . json_encode( $result['compat']['htaccess'] ?? null ) );
+	// Toda en PHP CLI y sin el bloque de aquí: no se sabe si el servidor usa .htaccess; no se toca y el informe lo dice.
+	file_put_contents( $root . '/.htaccess', $own );
+	$result = fc_restore_phased( $same, function( $phase ) { return false; } );
+	fc_check( $own === (string) @file_get_contents( $root . '/.htaccess' ) && 'skipped_cli' === ( $result['compat']['htaccess'] ?? '' ) && false !== strpos( (string) $result['notice'], 'No se comprobó el bloque de WordPress de .htaccess' ), 'Toda en PHP CLI sin pistas, no se dijo que el bloque no se comprobó: ' . json_encode( $result['compat']['htaccess'] ?? null ) . ' · ' . (string) ( $result['notice'] ?? '' ) );
 } );
 
 fc_case( 'l · DISALLOW_FILE_MODS se avisa en el informe de wp-config.php (verify, resultado, correo)', function() use ( $same ) {
