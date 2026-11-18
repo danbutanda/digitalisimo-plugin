@@ -19,7 +19,8 @@ defined( 'ABSPATH' ) || exit;
  *   El filtro `digitalisimo_backups_restore_collation` puede elegir otra que el servidor tenga.
  * - Juego de caracteres que no tiene: `utf8mb3` ↔ `utf8` (el mismo); `utf8mb4` → `utf8mb3` sólo si ninguna fila trae
  *   caracteres de 4 bytes (si los trae, se rechaza: se perderían); cualquier otro → `utf8mb4` (el SQL ya viene en utf8mb4).
- * - Motor que no tiene (Aria, ARCHIVE, TokuDB…) → InnoDB (no MyISAM como UpdraftPlus); `ROW_FORMAT=PAGE` de Aria se quita.
+ * - Motor que no tiene (Aria, ARCHIVE, TokuDB…) → InnoDB (no MyISAM como UpdraftPlus); un `ROW_FORMAT` que InnoDB no
+ *   admite (`PAGE` de Aria, `FIXED`…) se quita.
  * - Opciones de tabla propias de MariaDB en MySQL (`PAGE_CHECKSUM`, `TRANSACTIONAL`…) y de MySQL en MariaDB
  *   (`SECONDARY_ENGINE`, `AUTOEXTEND_SIZE`…) se quitan; `PERSISTENT` de MariaDB es `STORED` en MySQL.
  * - Columnas generadas: el exportador ya no las escribe; un respaldo anterior que las trae importa `DEFAULT` en ellas.
@@ -236,6 +237,7 @@ final class Digitalisimo_Backups_Db_Compat {
 			}
 		}
 		foreach ( (array) ( $b['generated'] ?? array() ) as $table => $columns ) $a['generated'][ $table ] = array_values( array_unique( array_merge( (array) ( $a['generated'][ $table ] ?? array() ), (array) $columns ) ) );
+		foreach ( (array) ( $b['row_formats'] ?? array() ) as $engine => $formats ) foreach ( (array) $formats as $format => $tables ) $a['row_formats'][ $engine ][ $format ] = array_slice( array_values( array_unique( array_merge( (array) ( $a['row_formats'][ $engine ][ $format ] ?? array() ), (array) $tables ) ) ), 0, 20 );
 		foreach ( array( 'views', 'plugins', 'themes', 'four_byte' ) as $kind ) {
 			foreach ( (array) ( $b[ $kind ] ?? array() ) as $name => $value ) if ( isset( $a[ $kind ][ $name ] ) || count( (array) ( $a[ $kind ] ?? array() ) ) < self::CAP * 4 ) $a[ $kind ][ $name ] = $value;
 		}
@@ -294,7 +296,12 @@ final class Digitalisimo_Backups_Db_Compat {
 				if ( isset( $server['engines'][ $engine ] ) || ( 'MARIA' === $engine && isset( $server['engines']['ARIA'] ) ) ) continue;
 				if ( '' === $replacement ) { $plan['problems'][] = 'El respaldo usa el motor ' . $engine . ' (' . $list( (array) $tables ) . ') y ' . $label . ' no lo tiene.'; continue; }
 				$plan['engines'][ $engine ] = $replacement;
-				$plan['notes'][] = 'Motor ' . $engine . ' → ' . $replacement . ' (' . $list( (array) $tables ) . '): ' . $label . ' no lo tiene' . ( in_array( $engine, array( 'ARIA', 'MARIA' ), true ) ? '; se quitan también sus opciones (PAGE_CHECKSUM, TRANSACTIONAL, ROW_FORMAT=PAGE)' : '' ) . '.';
+				$plan['notes'][] = 'Motor ' . $engine . ' → ' . $replacement . ' (' . $list( (array) $tables ) . '): ' . $label . ' no lo tiene' . ( in_array( $engine, array( 'ARIA', 'MARIA' ), true ) ? '; se quitan también sus opciones (PAGE_CHECKSUM, TRANSACTIONAL)' : '' ) . '.';
+				// Y el ROW_FORMAT que el motor de destino no admite (H5): FIXED o PAGE en InnoDB harían fallar el CREATE TABLE.
+				foreach ( (array) ( $found['row_formats'][ $engine ] ?? array() ) as $format => $with ) {
+					if ( ! Digitalisimo_Backups_Sql_Guard::row_format_dropped( $format, $replacement ) ) continue;
+					$plan['notes'][] = 'Se quita ROW_FORMAT=' . strtoupper( (string) $format ) . ' (' . $list( (array) $with ) . '): ' . $replacement . ' no lo admite.';
+				}
 			}
 		}
 		// Opciones de tabla del otro servidor.

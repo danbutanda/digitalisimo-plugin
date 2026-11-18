@@ -564,6 +564,45 @@ dc_case( 'C9 lo que dice el servidor: nombres completos de MariaDB 10.10+, motor
 	dc_check( 'CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `wp_2_v` AS select `p`.`ID` AS `ID`,`u`.`user_login` AS `l` from (`wp_2_posts` `p` join `wp_2_users` `u` on((`u`.`ID` = `p`.`ID`)))' === $guard->rewritten(), 'La vista convertida no quedó lista: ' . $guard->rewritten() );
 } );
 
+/**
+ * C14 (revisión de 1.0.80, H5): al pasar de Aria (u otro motor que el servidor no tiene) a InnoDB, también se quita un
+ * ROW_FORMAT que InnoDB no admite (FIXED, PAGE: con innodb_strict_mode, el de serie de MySQL 5.7 y 8, CREATE TABLE da
+ * ER_ILLEGAL_HA_CREATE_OPTION después de la copia previa); los que admite (DYNAMIC, COMPACT, REDUNDANT, COMPRESSED,
+ * DEFAULT) se quedan, y con otro motor de destino sólo se quita PAGE (como antes). La decisión lo dice.
+ */
+dc_case( 'C14 Aria (u otro motor) → InnoDB quita el ROW_FORMAT que InnoDB no admite', function() use ( $C, $G, $mysql ) {
+	$to_innodb = array( 'engines' => array( 'ARIA' => 'InnoDB', 'TOKUDB' => 'InnoDB' ) );
+	$cases = array(
+		'CREATE TABLE `wp_x` (`a` int) ENGINE=Aria ROW_FORMAT=FIXED' => 'CREATE TABLE `wp_x` (`a` int) ENGINE=InnoDB ',
+		'CREATE TABLE `wp_x` (`a` int) ENGINE=Aria DEFAULT CHARSET=utf8mb4 ROW_FORMAT = fixed PAGE_CHECKSUM=1' => 'CREATE TABLE `wp_x` (`a` int) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  PAGE_CHECKSUM=1',
+		"CREATE TABLE `wp_x` (`a` int) ENGINE=Aria ROW_FORMAT=PAGE COMMENT='ROW_FORMAT=FIXED'" => "CREATE TABLE `wp_x` (`a` int) ENGINE=InnoDB  COMMENT='ROW_FORMAT=FIXED'",
+		'CREATE TABLE `wp_x` (`a` int) ENGINE=TokuDB ROW_FORMAT=TOKUDB_ZLIB' => 'CREATE TABLE `wp_x` (`a` int) ENGINE=InnoDB ',
+		'CREATE TABLE `wp_x` (`a` int) ENGINE=Aria ROW_FORMAT=DYNAMIC' => 'CREATE TABLE `wp_x` (`a` int) ENGINE=InnoDB ROW_FORMAT=DYNAMIC',
+		'CREATE TABLE `wp_x` (`a` int) ENGINE=Aria ROW_FORMAT=COMPRESSED' => 'CREATE TABLE `wp_x` (`a` int) ENGINE=InnoDB ROW_FORMAT=COMPRESSED',
+		// Sin cambio de motor no se toca nada.
+		'CREATE TABLE `wp_x` (`a` int) ENGINE=MyISAM ROW_FORMAT=FIXED' => 'CREATE TABLE `wp_x` (`a` int) ENGINE=MyISAM ROW_FORMAT=FIXED',
+	);
+	foreach ( array( true, false ) as $trusted ) {
+		foreach ( $cases as $sql => $expected ) {
+			$guard = ( new $G( 'exporter', $trusted, array( 'wp_x' ) ) )->compat( $to_innodb );
+			$guard->check( $sql );
+			dc_check( $expected === $guard->rewritten(), 'ROW_FORMAT con el motor cambiado a InnoDB: «' . $guard->rewritten() . '» en vez de «' . $expected . '».' );
+		}
+	}
+	// A un motor que no es InnoDB (un servidor sin InnoDB): FIXED se queda (MyISAM lo admite) y PAGE, como siempre, no.
+	$guard = ( new $G( 'exporter', true, array( 'wp_x' ) ) )->compat( array( 'engines' => array( 'ARIA' => 'MyISAM' ) ) );
+	$guard->check( 'CREATE TABLE `wp_x` (`a` int) ENGINE=Aria ROW_FORMAT=FIXED' );
+	dc_check( 'CREATE TABLE `wp_x` (`a` int) ENGINE=MyISAM ROW_FORMAT=FIXED' === $guard->rewritten(), 'A MyISAM se quitó FIXED: ' . $guard->rewritten() );
+	$guard->check( 'CREATE TABLE `wp_x` (`a` int) ENGINE=Aria ROW_FORMAT=PAGE' );
+	dc_check( 'CREATE TABLE `wp_x` (`a` int) ENGINE=MyISAM ' === $guard->rewritten(), 'A MyISAM no se quitó PAGE: ' . $guard->rewritten() );
+	// La decisión (MariaDB → MySQL 8) lo dice en sus notas, con la tabla.
+	$scan = ( new $G( 'exporter', true, array( 'wp_x', 'wp_y' ) ) )->collect();
+	$scan->check( 'CREATE TABLE `wp_x` (`a` int) ENGINE=Aria ROW_FORMAT=FIXED' );
+	$scan->check( 'CREATE TABLE `wp_y` (`a` int) ENGINE=Aria ROW_FORMAT=DYNAMIC' );
+	$plan = $C::plan( $scan->found(), $mysql );
+	dc_check( 'InnoDB' === ( $plan['engines']['ARIA'] ?? '' ) && preg_grep( '/ROW_FORMAT=FIXED \(wp_x\).*InnoDB no lo admite/', $plan['notes'] ) && ! preg_grep( '/ROW_FORMAT=DYNAMIC/', $plan['notes'] ), 'La decisión no dice que quita ROW_FORMAT=FIXED: ' . implode( ' | ', $plan['notes'] ) );
+} );
+
 /* ------------------------------------------------------------------------------- Revisión de 1.0.80 (H3, H10) */
 
 /**

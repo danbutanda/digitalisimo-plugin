@@ -682,7 +682,9 @@ final class Digitalisimo_Backups_Sql_Guard {
 		$generated = false;
 		$expect = '';
 		$drop = null;
+		$engine = '';
 		$engine_mapped = false;
+		$engine_target = '';
 		$row_format = null;
 		$found = array();
 		while ( true ) {
@@ -724,13 +726,13 @@ final class Digitalisimo_Backups_Sql_Guard {
 					if ( isset( $this->compat[ $kind ][ $name ] ) ) $this->spans[] = array( $text[0], $text[1], (string) $this->compat[ $kind ][ $name ] );
 				} elseif ( 'engines' === $kind ) {
 					$name = strtoupper( $text[2] );
-					if ( preg_match( '/^[A-Z0-9_]{1,64}$/D', $name ) ) $found['engines'][ $name ] = true;
-					if ( isset( $this->compat['engines'][ $name ] ) ) { $this->spans[] = array( $text[0], $text[1], (string) $this->compat['engines'][ $name ] ); $engine_mapped = true; }
+					if ( preg_match( '/^[A-Z0-9_]{1,64}$/D', $name ) ) { $found['engines'][ $name ] = true; $engine = $name; }
+					if ( isset( $this->compat['engines'][ $name ] ) ) { $this->spans[] = array( $text[0], $text[1], (string) $this->compat['engines'][ $name ] ); $engine_mapped = true; $engine_target = strtoupper( (string) $this->compat['engines'][ $name ] ); }
 				} elseif ( 'drop' === $kind && null !== $drop ) {
 					$this->spans[] = array( $drop, $text[1], '' );
 					$drop = null;
-				} elseif ( 'row_format' === $kind && 'PAGE' === strtoupper( $text[2] ) && is_array( $row_format ) ) {
-					$row_format = array( $row_format[0], $text[1], true );
+				} elseif ( 'row_format' === $kind && is_array( $row_format ) && preg_match( '/^[A-Za-z0-9_]{1,64}$/D', $text[2] ) ) {
+					$row_format = array( $row_format[0], $text[1], strtoupper( $text[2] ) );
 				}
 				continue;
 			}
@@ -742,7 +744,7 @@ final class Digitalisimo_Backups_Sql_Guard {
 			if ( 'COLLATE' === $word ) { $expect = 'collations'; continue; }
 			if ( 0 === $depth && $opened ) {
 				if ( 'ENGINE' === $word || 'TYPE' === $word ) { $expect = 'engines'; continue; }
-				if ( 'ROW_FORMAT' === $word ) { $expect = 'row_format'; $row_format = array( $start, $end, false ); continue; }
+				if ( 'ROW_FORMAT' === $word ) { $expect = 'row_format'; $row_format = array( $start, $end, '' ); continue; }
 				if ( in_array( $word, Digitalisimo_Backups_Db_Compat::MARIADB_OPTIONS, true ) || in_array( $word, Digitalisimo_Backups_Db_Compat::MYSQL_OPTIONS, true ) ) {
 					$found['options'][ $word ] = true;
 					if ( in_array( $word, (array) ( $this->compat['drop_options'] ?? array() ), true ) ) { $drop = $start; $expect = 'drop'; }
@@ -758,12 +760,23 @@ final class Digitalisimo_Backups_Sql_Guard {
 				}
 			}
 		}
-		// ROW_FORMAT=PAGE es de Aria: con otro motor no se entiende.
-		if ( $engine_mapped && is_array( $row_format ) && $row_format[2] ) $this->spans[] = array( $row_format[0], $row_format[1], '' );
+		// Con el motor sustituido, un ROW_FORMAT que el de destino no entiende: PAGE es de Aria y, con InnoDB, todo lo que
+		// InnoDB no admite (FIXED, PAGE, los de TokuDB…), que con innodb_strict_mode (el de serie de MySQL 5.7 y 8) haría
+		// fallar el CREATE TABLE después de la copia previa (revisión de 1.0.80, H5).
+		if ( $engine_mapped && is_array( $row_format ) && '' !== $row_format[2] && self::row_format_dropped( $row_format[2], $engine_target ) ) $this->spans[] = array( $row_format[0], $row_format[1], '' );
 		if ( ! $this->collecting ) return;
 		foreach ( array( 'charsets', 'collations', 'engines', 'options' ) as $kind ) foreach ( array_keys( (array) ( $found[ $kind ] ?? array() ) ) as $name ) if ( count( (array) ( $this->found[ $kind ][ $name ] ?? array() ) ) < 20 ) $this->found[ $kind ][ $name ][] = $table;
+		// Para la decisión: el ROW_FORMAT de cada motor, con sus tablas (sólo se quita si el motor cambia).
+		if ( '' !== $engine && is_array( $row_format ) && '' !== $row_format[2] && count( (array) ( $this->found['row_formats'][ $engine ][ $row_format[2] ] ?? array() ) ) < 20 ) $this->found['row_formats'][ $engine ][ $row_format[2] ][] = $table;
 		if ( ! empty( $found['generated'] ) ) $this->found['generated'][ $table ] = array_values( array_unique( $found['generated'] ) );
 		if ( ! empty( $found['persistent'] ) ) $this->found['persistent'] = (int) ( $this->found['persistent'] ?? 0 ) + 1;
+	}
+	/** Los ROW_FORMAT que admite InnoDB; con otro motor de destino sólo se quita PAGE (de Aria). */
+	const INNODB_ROW_FORMATS = array( 'DEFAULT', 'DYNAMIC', 'COMPACT', 'REDUNDANT', 'COMPRESSED' );
+	/** Si el ROW_FORMAT $format se quita al pasar la tabla al motor $target. */
+	public static function row_format_dropped( $format, $target ) {
+		$format = strtoupper( (string) $format );
+		return 'INNODB' === strtoupper( (string) $target ) ? ! in_array( $format, self::INNODB_ROW_FORMATS, true ) : 'PAGE' === $format;
 	}
 	/** La sentencia más grande (una fila) y, sin utf8mb4 en el destino, las tablas con caracteres de 4 bytes. */
 	private function collect_statement() {
