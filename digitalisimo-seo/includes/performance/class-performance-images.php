@@ -725,8 +725,41 @@ class Digitalisimo_Integrations_Performance_Images {
 		return $data;
 	}
 
+	/** Por sitio (una red puede tocar adjuntos de varios en una petición): cuándo subió la generación y si queda otra subida. */
+	private static $bumped_at = array();
+	private static $bump_pending = array();
+
+	/**
+	 * Subir una imagen llama a wp_update_attachment_metadata una vez por cada tamaño intermedio: antes cada llamada
+	 * reescribía esta opción con autoload. Ahora sube una vez en el primer cambio y, si hubo más cambios en la misma
+	 * petición, una vez más al terminarla (shutdown, antes de guardar el mapa): lo calculado entre medias queda
+	 * invalidado igual, con dos escrituras como mucho por sitio. Un proceso largo (WP-CLI, una importación) vuelve a
+	 * subirla en el acto si pasaron 30 s desde la última.
+	 */
 	public static function invalidate() {
-		update_option( self::GENERATION, self::generation() + 1, true );
+		self::$resolved = array();
+		self::$map      = null;
+		$blog = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
+		if ( empty( self::$bumped_at[ $blog ] ) || time() - self::$bumped_at[ $blog ] >= 30 ) {
+			self::$bumped_at[ $blog ] = time();
+			unset( self::$bump_pending[ $blog ] );
+			update_option( self::GENERATION, self::generation() + 1, true );
+			return;
+		}
+		if ( ! self::$bump_pending ) add_action( 'shutdown', array( __CLASS__, 'bump_pending' ), 10 );
+		self::$bump_pending[ $blog ] = true;
+	}
+
+	public static function bump_pending() {
+		$blogs = array_keys( self::$bump_pending );
+		self::$bump_pending = array();
+		$current = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
+		foreach ( $blogs as $blog ) {
+			$switch = $blog !== $current && function_exists( 'switch_to_blog' );
+			if ( $switch ) switch_to_blog( $blog );
+			update_option( self::GENERATION, self::generation() + 1, true );
+			if ( $switch ) restore_current_blog();
+		}
 		self::$resolved = array();
 		self::$map      = null;
 	}
