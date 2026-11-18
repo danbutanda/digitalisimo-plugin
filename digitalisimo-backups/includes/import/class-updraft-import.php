@@ -151,7 +151,8 @@ final class Digitalisimo_Backups_Updraft_Import {
 		foreach ( $pieces as $piece ) { $size += (int) $piece['size']; $latest = max( $latest, (int) $piece['mtime'] ); }
 		$entities = array();
 		foreach ( $plan['entities'] as $entity => $names ) $entities[ $entity ] = count( $names );
-		$busy = $latest > time() - self::SETTLE;
+		// Sólo en la carpeta de UpdraftPlus puede estar escribiéndolo él (una subida o una descarga ya terminaron).
+		$busy = 'updraft' === $origin && $latest > time() - self::SETTLE;
 		return array(
 			'source' => $origin,
 			'id' => $id,
