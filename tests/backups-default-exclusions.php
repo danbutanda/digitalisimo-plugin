@@ -104,6 +104,8 @@ try {
 		digi_assert( is_file( $wp . $relative ), 'La restauración retiró ' . $relative . ', que el respaldo excluye por defecto.' );
 	}
 	digi_assert( is_dir( $wp . 'wp-content/cache' ) && ! is_file( $wp . 'wp-content/cache/page_enhanced/example.test/index.html' ), 'La caché de páginas de antes de restaurar sigue (o se borró su carpeta).' );
+	// El sitio vuelve a llenar su caché (lo que comprueba el paso 3).
+	$put( 'wp-content/cache/page_enhanced/example.test/index.html', $excluded['wp-content/cache/page_enhanced/example.test/index.html'] );
 	digi_assert( $excluded['wp-content/backuply/backups-a1b2c3/backup_2026-11-01.tar.gz'] === file_get_contents( $wp . 'wp-content/backuply/backups-a1b2c3/backup_2026-11-01.tar.gz' ), 'La restauración cambió un respaldo de Backuply.' );
 	digi_assert( ! is_file( $wp . 'wp-content/uploads/2026/11/ajeno.jpg' ), 'La restauración ya no retira lo ajeno de los medios (la prueba no distinguiría nada).' );
 
