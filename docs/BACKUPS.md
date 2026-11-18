@@ -488,7 +488,7 @@ restaurar y verificar trabajan en la misma petición.
 | `GET /destinations` | `wp digitalisimo-backups destinations list [--format=…]` | Desde 1.0.62: cada destino remoto (la conexión principal de cada tipo y las adicionales) con su tipo, nombre, si está listo y, si sus credenciales no se abren, qué volver a escribir; nunca un valor secreto. |
 | `POST /destinations/<id>/test` | `wp digitalisimo-backups destinations test <id>` | Desde 1.0.62, «Probar conexión» de una conexión guardada: sube un archivo pequeño, lo verifica, lo descarga, lo busca al listar y lo borra (502 con el motivo si falla). |
 | `GET /automations` | `wp digitalisimo-backups automation list` | Automatizaciones y su próxima ejecución. Con `time`, la hora fija del sitio (vacía si no tiene); `retain_unit` (`points` o `chains`) y `retain_estimate` (en WP-CLI, la columna `estimate`): lo que guarda «Conservar» (ver «Incrementales» → «Retención»). |
-| `POST /automations` · `POST /automations/<id>` (`schedule`, `time`, `destination`, `retain`, `retain_unit`, `mode`, `full_every`, `full_days`, `remote_only`, `enabled`, `network`) | `wp digitalisimo-backups automation add\|update [<id>] [--schedule=…] [--time=…] [--destination=…] [--retain=…] [--retain-unit=points\|chains] [--mode=full\|incremental] [--full-every=…] [--full-days=…] [--[no-]remote-only] [--[no-]enabled] [--network] [--porcelain]` | Crear (201) o cambiar una automatización, como sus formularios (mismas reglas y el mismo tope de «Conservar», avisado en `notice`); al cambiar, lo que no se envía se queda como está. Una frecuencia, un destino, un modo o una unidad que no existen dan 400; en una red, `network`. |
+| `POST /automations` · `POST /automations/<id>` (`schedule`, `time`, `destination`, `retain`, `retain_unit`, `mode`, `full_every`, `full_days`, `remote_only`, `enabled`, `network`) | `wp digitalisimo-backups automation add\|update [<id>] [--schedule=…] [--time=…] [--destination=…] [--retain=…] [--retain-unit=points\|chains] [--mode=full\|incremental] [--full-every=…] [--full-days=…] [--[no-]remote-only] [--[no-]enabled] [--network] [--porcelain]` | Crear (201) o cambiar una automatización, como sus formularios (mismas reglas y el mismo tope de «Conservar», avisado en `notice`, como «cadenas» en una «Completo cada vez»); al cambiar, lo que no se envía se queda como está, y lo guardado se programa en WP-Cron. Una frecuencia, un destino, un modo o una unidad que no existen, un número que no es un entero de su rango (`retain` 1–100, `full_every` 1–60, `full_days` 1–90; igual en WP-CLI), una automatización parcial anterior o la 51.ª dan 400; en una red, `network`. |
 | `POST /automations/<id>/run` (`network`) | `wp digitalisimo-backups automation run <id> [--network] [--async] [--porcelain]` | «Ejecutar ahora»: encola la automatización (202), como `create`. |
 | `GET /jobs` (`limit`) · `GET /jobs/<id>` | `wp digitalisimo-backups jobs list [--limit=…] [--fields=…] [--format=…]` · `wp digitalisimo-backups jobs get <id> [--format=json]` | Trabajos sin terminar y los últimos terminados, con la vista de la tarjeta «Trabajos» (estado, fase, avance, reintento, archivo o error) más destino, automatización y si se cifra. Desde 1.0.76, `GET /jobs/<id>` también responde sin sesión a la ficha de lectura que dio `restore` o `migration/pull` (cabecera `X-Digitalisimo-Backups-Job-Token`, sin `Authorization`; en la URL, 400), aunque el sitio esté en mantenimiento o los usuarios hayan cambiado; `jobs get` da el estado y el informe de un trabajo (WP-CLI no depende de los usuarios de WordPress). |
 | `POST /jobs/<id>/cancel` | `wp digitalisimo-backups jobs cancel <id>` | Como «Cancelar»: uno en cola termina ya; uno en curso se detiene en su siguiente punto de control; uno ya verificado y registrado no se cancela (409). |
@@ -2501,6 +2501,12 @@ La retención (local y remota) nunca borra una base ni un eslabón del que depen
 dependen; una cadena antigua sale **entera** cuando ya no le queda ningún punto conservado. Lo mismo la retención global de
 los manuales, la de las copias remotas (también la global) y los puntos bloqueados (protegen a sus antecesores).
 
+**Cada retención cuenta sólo lo suyo** (revisión A1 de la rama `backups/retain-chains`). La global de los ajustes, que
+cierra cada respaldo manual, cuenta y borra sólo los manuales y los del programado anterior a las automatizaciones
+(`global_retention_row()`, como ya hacía la remota); los de una automatización tienen su «Conservar» y un manual nunca los
+cuenta ni los borra. Antes los contaba junto a los manuales: un manual con «Conservar 5» borraba la cadena anterior que
+«Conservar 2 cadenas» guardaba como plan B (y también los respaldos de «Conservar N respaldos»).
+
 **«Conservar» por cadenas** (pedido del propietario del 2026-11-18, rama `backups/retain-chains`). Contando puntos, con
 respaldo diario, un completo cada 6 y «Conservar 4», casi toda la semana queda **una sola cadena**: si su base se daña, no
 hay otra. Por eso «Conservar» de una automatización incremental elige la unidad (`retain_unit`):
@@ -2511,29 +2517,50 @@ hay otra. Por eso «Conservar» de una automatización incremental elige la unid
   una cadena anterior completa como plan B. Lo bloqueado no cuenta ni se borra y sigue protegiendo a sus antecesores (sin
   ocupar una de las N). La unidad viaja en el trabajo de la automatización (`spec.retain_unit` = `chains`, sólo en uno de
   retención `policy` e incremental; sin la clave, puntos) y la retención local y la de sus destinos remotos (que borra
-  las copias de lo retirado) la respetan. La retención global de los manuales no cambia. Con «Completo cada vez» la
-  unidad no aplica (todo punto es completo) y no se guarda.
+  las copias de lo retirado) la respetan; lo que usa un trabajo en curso no se borra y sostiene su cadena. Con
+  «Completo cada vez» la unidad no aplica (todo punto es completo) y no se guarda: pedir «cadenas» ahí se avisa al
+  guardar (pantalla, `notice` de REST, aviso de WP-CLI).
 
 **Tope.** El historial guarda 100 filas (y su tope nunca saca la fila de un eslabón del que depende una que se queda).
 Con un completo cada M incrementales, «Conservar N respaldos» guarda como mucho N + M puntos (N ≤ 100 − M) y «Conservar N
 cadenas», N × (M + 1) (N ≤ ⌊100 / (M + 1)⌋: 14 con un completo cada 6, 1 con uno cada 60). Al guardar se acota y se avisa
-(««Conservar» quedó en 14 cadenas: …»).
+(««Conservar» quedó en 14 cadenas: …»). Un sitio (o la red) tiene como mucho 50 automatizaciones (`MAX_AUTOMATIONS`):
+cada una es un respaldo completo con su frecuencia, y REST y WP-CLI ya pueden crearlas en serie; la 51.ª se rechaza en la
+pantalla, en REST (400 `automation_limit`) y en WP-CLI, y cambiar las que hay sigue igual.
 
-**Estimación** (`Digitalisimo_Backups_Chain::estimate()`; la misma cuenta y el mismo texto en `assets/retention.js`,
-que la rehace al momento al cambiar la unidad, N, el modo, «un completo cada M o D días», la frecuencia o el destino).
-Junto al campo, en REST (`retain_estimate`) y en WP-CLI (`estimate`). Una cadena tiene L = min(M + 1, ⌈D días / período
-de la frecuencia⌉) respaldos (cada hora, semanal o mensual se puede cortar antes por días: semanal con un completo cada 7
-días, cada respaldo sale completo; sin programación sólo cuenta M). Una vez lleno el historial:
+**Corte por días con el retraso de WP-Cron** (revisión M1). Una automatización con hora fija arranca cuando WP-Cron o la
+cola pueden, unos minutos tarde y no siempre igual. Con la regla exacta («la base tiene D días»), el respaldo que caía
+justo D días después de la base seguía la cadena si la base había empezado más tarde que él: semanal con un completo cada
+7 días salía a veces incremental, y diario con uno cada 3 días daba cadenas de 4. Ahora `plan()` cierra la cadena cuando
+la base tiene D días **menos un margen**: 6 horas o medio período de la automatización, lo menor (30 min cada hora, 3 h
+cada 6 horas, 6 h diaria, semanal o mensual; 6 h sin programación o en un manual). El período viaja en el trabajo
+(`spec.incremental.period`, de su `schedule`). Medio período nunca acorta la cadena de una frecuencia exacta (un período
+cabe entero en D días o no) y 6 horas cubren el retraso habitual de WP-Cron; un retraso mayor entre la base y ese
+respaldo sí la alarga uno (ver «Límites»). `chain_length()` y `assets/retention.js` cuentan con el mismo margen.
+
+**Estimación** (`Digitalisimo_Backups_Chain::estimate()`; la misma cuenta y los mismos textos en `assets/retention.js`,
+que la rehace al momento al cambiar la unidad, N, el modo, «un completo cada M o D días», la frecuencia, el destino o
+«Sólo en el remoto»). Junto al campo, en REST (`retain_estimate`) y en WP-CLI (`estimate`). Una cadena tiene
+L = min(M + 1, ⌈(D días − margen) / período de la frecuencia⌉) respaldos (cada hora, semanal o mensual se puede cortar
+antes por días: semanal con un completo cada 7 días, cada respaldo sale completo; sin programación sólo cuenta M). Una vez
+lleno el historial:
 - N respaldos: entre N y N + L − 1, en 1 + ⌊(N − 1) / L⌋ o 1 + ⌈(N − 1) / L⌉ cadenas;
 - N cadenas: entre (N − 1) × L + 1 y N × L, siempre N;
 - «Completo cada vez»: N.
 Todas las cadenas menos la actual están enteras, así que si el mínimo es una sola, el texto lo dice: «Hay días con una
-sola cadena: si su base se daña, sólo queda la copia remota» (con destino local, «no hay otra copia»; con frecuencias de
-menos de un día, «Hay horas»). Ejemplos (diario, un completo cada 6): «Conservar 4 respaldos» → «Guardarás entre 4 y 10
+sola cadena: si su base se daña, sólo queda la copia remota» (con destino local, «no hay otra copia»; con «Sólo en el
+remoto», donde la remota es la única copia, «Hay días con una sola cadena y su única copia es la remota: conviene
+«2 cadenas»»; con frecuencias de menos de un día, «Hay horas»). El texto a la vista (`text`) siempre tiene menos de 140
+caracteres; el detalle (`detail`: cuántos respaldos tiene cada cadena y por qué, como «Con esta frecuencia la cadena se
+corta por días (un completo cada 1 día): 24 respaldos.», y si «Conservar» quedará en su tope) va debajo, en la ayuda de
+las cadenas. «Próximo», en la pestaña Respaldos, dice «se conservan 2 cadenas (8 a 14 respaldos)». Los números se leen
+igual en PHP 7.4, 8.x y en el navegador (`Chain::integer()`): enteros o textos de dígitos; `1e1000`, decimales o
+hexadecimal no cuentan como número. Ejemplos (diario, un completo cada 6): «Conservar 4 respaldos» → «Guardarás entre 4 y 10
 respaldos en 1 o 2 cadenas. Hay días con una sola cadena…»; «Conservar 2 cadenas» → «Guardarás entre 8 y 14 respaldos en
 2 cadenas. Siempre queda al menos una cadena anterior completa.». `tests/backups-retain-chains.php` simula días (diario,
-cada hora y semanal; un completo cada 2, 6 o 30, o cada 1, 3 o 7 días; N = 1, 2 y 3; las dos unidades) con la retención
-real y comprueba que lo guardado es exactamente lo estimado. «Borrar» un eslabón del que dependen puntos posteriores, o uno que usa un trabajo en curso (el padre
+cada hora y semanal; un completo cada 2, 6 o 30, o cada 1, 3 o 7 días; N = 1, 2 y 3; las dos unidades), a la hora
+exacta y con retrasos de hasta 15 minutos, con la retención real, y comprueba que lo guardado es exactamente lo
+estimado. «Borrar» un eslabón del que dependen puntos posteriores, o uno que usa un trabajo en curso (el padre
 del incremental que se está haciendo), se niega; y si un eslabón desaparece mientras se hace un incremental, «publish»
 lo detecta y el trabajo sale como un completo.
 
@@ -2587,10 +2614,11 @@ remota borra las copias de una cadena sólo cuando ya no hay puntos que dependan
   con los archivos de su cadena, o usa la migración en un clic.
 - Un renombrado ocupa como nuevo; no hay deduplicación por contenido entre rutas.
 - Comparar por contenido lee todos los archivos en cada punto (no los comprime ni los escribe): ahorra espacio, no lectura.
-- La estimación de «Conservar» es la del historial lleno y con la frecuencia exacta: al empezar hay menos, «Ejecutar ahora»
-  suma puntos a la cadena del día, y una frecuencia justo en el límite de los días (semanal con un completo cada 7 días)
-  depende de los minutos de retraso de WP-Cron. El tope de cadenas sale de «un completo cada M» (N × (M + 1)), aunque la
-  frecuencia corte antes la cadena: un respaldo manual o «Ejecutar ahora» la alargan.
+- La estimación de «Conservar» es la del historial lleno: al empezar hay menos, y «Ejecutar ahora» suma puntos a la
+  cadena del día. El corte por días aguanta hasta 6 horas (o medio período) de diferencia de retraso de WP-Cron entre la
+  base y el respaldo que cae a los D días; con más (un sitio sin visitas durante horas), esa cadena sale con un respaldo
+  más que la estimación. El tope de cadenas sale de «un completo cada M» (N × (M + 1)), aunque la frecuencia corte antes
+  la cadena: un respaldo manual o «Ejecutar ahora» la alargan.
 
 Pruebas: `tests/backups-incremental.php` (cadena, inventario y borrados, reconstrucción, restauración de cada punto,
 cadenas rotas, retención y consolidación, cifrado y firma, reanudación por eslabón, superficies),
@@ -2958,7 +2986,8 @@ Desde 1.0.71 (B6 e I4 frente a Backuply; `trait-backups-remote-retention.php`).
 
 - **Qué borra la retención.** La de una automatización («Conservar N», respaldos o, en una incremental, cadenas enteras)
   retira sus respaldos más antiguos; la global
-  («Conservar» de los ajustes, para los manuales) retira los ZIP locales como siempre y, en el remoto, las copias de los
+  («Conservar» de los ajustes, para los manuales) retira los ZIP locales de los manuales (desde la rama
+  `backups/retain-chains`, nunca los de una automatización) y, en el remoto, las copias de los
   respaldos manuales más allá de los N más recientes con copia remota (nunca las de una automatización, que tiene su
   propia retención). De cada respaldo retirado se borra el ZIP local y, si la tiene, su copia remota.
 - **Qué nunca borra.** Una copia remota que no registró **esta instalación**: sólo se borra la de una fila creada aquí
