@@ -17,6 +17,13 @@
  *   C7  avisos de versión (PHP, lo que piden el núcleo, los plugins y el tema activos del respaldo, WordPress al
  *       restaurar sólo la base, otro servidor de base de datos) que nunca bloquean.
  * Deben fallar con el código anterior (no existía Digitalisimo_Backups_Db_Compat ni la anotación del guardián).
+ *
+ * Revisión adversarial de 1.0.80 (fallan con acda04b2 salvo C11 y C12, que cubren mutaciones que sobrevivían):
+ *   C10 (H1) vista sin firma: nunca otra base de datos donde va una tabla, ni con un alias ni con el manifiesto;
+ *   C11 (H3) un respaldo anterior que lista una vista como tabla; C12 (H3) max_allowed_packet con la fila reubicada;
+ *   C13 (H1) al crearla, una vista sin firma sólo lee las tablas que trae la restauración;
+ *   C14 (H5) ROW_FORMAT que InnoDB no admite; C15 (H4) claves únicas NO PAD → PAD SPACE con espacios al final;
+ *   C16 (H10) la vuelta a la copia previa quita las vistas que creó la restauración y repone las de antes.
  */
 require __DIR__ . '/lib/backups-env.php';
 
