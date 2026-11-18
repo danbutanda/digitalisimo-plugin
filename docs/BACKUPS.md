@@ -1227,8 +1227,12 @@ y preparar los archivos, justo antes del `RENAME`, en la limpieza (por tramos) y
 El informe (`notice` y la clave `compat` del resultado de REST, WP-CLI y la pantalla) dice todo lo anterior sin rutas del
 servidor. Lo comprueban `tests/backups-restore-files-compat.php` (motor real sobre SQLite, `wp_mkdir_p()` de WordPress y
 permisos de hosting: con el código de 1.0.79 fallan 8 de sus casos, entre ellos la carpeta de un plugin restaurada con
-`0700`) y `tests/playground/backups-restore-files.sh` (dos Playground: el respaldo de un sitio con drop-ins se restaura en
-otro con su caché vieja y sin `.htaccess`; en Chrome, la portada y la página interna con su CSS, su JS y su imagen en 200).
+`0700`) y `tests/playground/backups-restore-files.sh` (WordPress 7.1.4, PHP 8.5: el respaldo de un sitio con drop-ins se
+restaura por REST en otro con su caché vieja y sin `.htaccess`; en Chrome, la portada y la página interna con su CSS, su JS
+y su imagen en 200 y aplicados; después, sin el tema del origen, restaurar sólo la base de datos deja `twentytwentyfive`: 27
+comprobaciones en 124 s). Con el código de 1.0.79 el mismo ensayo deja el destino entero en 500 tras «restaurar bien»: el
+`object-cache.php` del origen corta cada petición, también REST, y ya no se puede volver a restaurar desde el escritorio.
+Al reubicar, la caché de páginas también conserva sus `.htaccess` y `web.config` (`Relocate::empty_dir()`).
 
 **Límites.** Playground no es Apache: el `.htaccess` se ensaya con el filtro. Un drop-in que el sitio necesita de verdad
 (la caché de objetos de este servidor) se instala con su plugin. La caché de una red se vacía entera al importar uno de sus
