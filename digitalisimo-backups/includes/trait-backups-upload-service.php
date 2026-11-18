@@ -225,6 +225,8 @@ trait Digitalisimo_Backups_Upload_Service {
 			if ( null === $report && self::upload_is_backuply( (string) $state['name'] ) ) {
 				self::upload_step( 'gzip', 'Comprobando que es un .tar.gz de Backuply (la importación lo comprueba entero después)…' );
 				$report = "\x1f\x8b" === (string) @file_get_contents( $path, false, null, 0, 2 ) ? array( 'container' => 'backuply' ) : self::service_error( 'upload_invalid', 'El archivo no es un respaldo de Backuply (.tar.gz comprimido con gzip) y se descartó.', 422 );
+				// Un respaldo de cuenta de Webuzo también es un .tar.gz: se reconoce por sus primeras entradas (backuply-data/).
+				if ( ! is_wp_error( $report ) && self::upload_is_webuzo( $path ) ) $report = array( 'container' => 'webuzo' );
 			}
 			if ( null === $report ) $report = self::upload_inspect( $path, is_string( $args['secret'] ?? null ) ? $args['secret'] : '' );
 			if ( is_wp_error( $report ) ) {
@@ -241,6 +243,7 @@ trait Digitalisimo_Backups_Upload_Service {
 				return $report;
 			}
 			if ( 'backuply' === ( $report['container'] ?? '' ) ) return self::upload_backuply_done( $state, $path );
+			if ( 'webuzo' === ( $report['container'] ?? '' ) ) return self::upload_webuzo_done( $state, $path );
 			if ( 'updraft' === ( $report['container'] ?? '' ) ) return self::upload_updraft_done( $state, $path );
 			return self::upload_place( $state, $path, $report, $args );
 		} catch ( Throwable $e ) {
@@ -420,7 +423,7 @@ trait Digitalisimo_Backups_Upload_Service {
 			@chmod( $store . '/' . $file, 0600 );
 			return $file;
 		} );
-		$result = array( 'file' => $file, 'size' => (int) $state['size'], 'registered' => false, 'container' => 'backuply', 'backuply' => array( 'source' => 'store', 'name' => $file ), 'verified' => false, 'trust' => 'untrusted', 'confirmation' => 'RESTAURAR SIN FIRMA', 'needs_secret' => false, 'compatible' => false, 'problems' => array( 'Es un respaldo de Backuply: impórtalo en Herramientas → «Importar de Backuply o UpdraftPlus» (o con wp digitalisimo-backups backuply import ' . $file . ') para convertirlo en un ZIP de Backups y restaurarlo.' ) );
+		$result = array( 'file' => $file, 'size' => (int) $state['size'], 'registered' => false, 'container' => 'backuply', 'backuply' => array( 'source' => 'store', 'name' => $file ), 'verified' => false, 'trust' => 'untrusted', 'confirmation' => 'RESTAURAR SIN FIRMA', 'needs_secret' => false, 'compatible' => false, 'problems' => array( 'Es un respaldo de Backuply: impórtalo en Herramientas → «Importar de Backuply, UpdraftPlus o Webuzo» (o con wp digitalisimo-backups backuply import ' . $file . ') para convertirlo en un ZIP de Backups y restaurarlo.' ) );
 		unset( $state['check'] );
 		$state['phase'] = 'done';
 		$state['result'] = $result;

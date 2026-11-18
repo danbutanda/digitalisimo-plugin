@@ -367,6 +367,8 @@ final class Digitalisimo_Backups_Backuply_Import {
 				$pax_size = null;
 				$chain = 0;
 				$header = Digitalisimo_Backups_Backuply_Tar::header( $block );
+				// Un respaldo de cuenta de Webuzo empieza por la carpeta «.» (y después backuply-data/): no es de Backuply.
+				if ( 0 === $pos && '5' === $header['type'] && in_array( $header['name'], array( '.', './' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Este archivo es un respaldo de cuenta de Webuzo (empieza por los datos de la cuenta, backuply-data/), no un respaldo del plugin Backuply: impórtalo en Herramientas → «Respaldo de cuenta de Webuzo» (o con wp digitalisimo-backups webuzo import).' );
 				// Nombre largo GNU (L) o cabecera PAX (x, también su `size`): valen para la cabecera siguiente. Una cadena
 				// larga de estas cabeceras no la escribe ningún tar (y no avanzaría dentro del plazo de un tramo).
 				while ( in_array( $header['type'], array( 'L', 'K', 'x', 'g' ), true ) ) {
@@ -1004,14 +1006,22 @@ final class Digitalisimo_Backups_Import_Job {
 	public static function is_import( $job ) { return is_array( $job ) && 'import' === ( $job['kind'] ?? '' ); }
 	/** Una importación de un conjunto de UpdraftPlus (el resto, de Backuply). */
 	public static function is_updraft( $job ) { return self::is_import( $job ) && 'updraft' === ( $job['spec']['format'] ?? '' ); }
-	/** «Importación de Backuply» o «Importación de UpdraftPlus», para la tarjeta del trabajo. */
-	public static function label( $job ) { return self::is_updraft( $job ) ? 'Importación de UpdraftPlus' : 'Importación de Backuply'; }
+	/** Una importación de un respaldo de cuenta de Webuzo. */
+	public static function is_webuzo( $job ) { return self::is_import( $job ) && 'webuzo' === ( $job['spec']['format'] ?? '' ); }
+	/** «Importación de Backuply», «de UpdraftPlus» o «de Webuzo», para la tarjeta del trabajo. */
+	public static function label( $job ) { return self::is_updraft( $job ) ? 'Importación de UpdraftPlus' : ( self::is_webuzo( $job ) ? 'Importación de Webuzo' : 'Importación de Backuply' ); }
 	public static function run_phase( $phase, array $job ) {
 		if ( Digitalisimo_Backups_Job_Store::JOB_FORMAT !== (int) ( $job['spec']['engine']['job_format'] ?? 0 ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La importación se creó con otra versión del motor; vuelve a iniciarla.' );
 		// Un conjunto de UpdraftPlus (brecha #7): las mismas fases, con su clase (se carga sólo al importar).
 		if ( self::is_updraft( $job ) ) {
 			Digitalisimo_Backups::load_updraft_import();
 			if ( in_array( $phase, self::PHASES, true ) ) return call_user_func( array( 'Digitalisimo_Backups_Updraft_Import', $phase ), $job );
+			throw new Digitalisimo_Backups_Permanent_Error( 'La importación está en una fase desconocida.' );
+		}
+		// Un respaldo de cuenta de Webuzo: las mismas fases, con su clase (se carga sólo al importar).
+		if ( self::is_webuzo( $job ) ) {
+			Digitalisimo_Backups::load_webuzo_import();
+			if ( in_array( $phase, self::PHASES, true ) ) return call_user_func( array( 'Digitalisimo_Backups_Webuzo_Import', $phase ), $job );
 			throw new Digitalisimo_Backups_Permanent_Error( 'La importación está en una fase desconocida.' );
 		}
 		switch ( $phase ) {

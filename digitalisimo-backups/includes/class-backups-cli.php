@@ -33,6 +33,7 @@ final class Digitalisimo_Backups_Cli {
 		WP_CLI::add_command( 'digitalisimo-backups upload', 'Digitalisimo_Backups_Cli_Upload' );
 		WP_CLI::add_command( 'digitalisimo-backups backuply', 'Digitalisimo_Backups_Cli_Backuply' );
 		WP_CLI::add_command( 'digitalisimo-backups updraft', 'Digitalisimo_Backups_Cli_Updraft' );
+		WP_CLI::add_command( 'digitalisimo-backups webuzo', 'Digitalisimo_Backups_Cli_Webuzo' );
 		WP_CLI::add_command( 'digitalisimo-backups migration', 'Digitalisimo_Backups_Cli_Migration' );
 		WP_CLI::add_command( 'digitalisimo-backups pre-update', 'Digitalisimo_Backups_Cli_Pre_Update' );
 		WP_CLI::add_command( 'digitalisimo-backups restore-config', 'Digitalisimo_Backups_Cli_Restore_Config' );
@@ -1611,6 +1612,107 @@ final class Digitalisimo_Backups_Cli_Updraft {
 	 */
 	public function fetch( $args, $assoc_args ) {
 		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_updraft_fetch( (string) ( $args[0] ?? '' ), (string) ( $args[1] ?? '' ) ) );
+		WP_CLI::success( $result['message'] );
+	}
+}
+
+/**
+ * Importar un WordPress de un respaldo de cuenta de Webuzo (`<usuario>_backup_…tar.gz` del panel).
+ */
+final class Digitalisimo_Backups_Cli_Webuzo {
+	/**
+	 * Respaldos de cuenta de Webuzo que se pueden importar (del home de la cuenta y del almacén privado) y, si ya se
+	 * analizaron, los WordPress que traen.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : table, json, csv o yaml.
+	 * ---
+	 * default: table
+	 * ---
+	 *
+	 * @subcommand list
+	 */
+	public function list_( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_webuzo() );
+		$rows = array();
+		foreach ( (array) $result['backups'] as $item ) {
+			$sites = array();
+			foreach ( (array) $item['sites'] as $site ) $sites[] = $site['root'] . ( $site['importable'] ? '' : ' (no: ' . $site['problem'] . ')' );
+			$rows[] = array( 'name' => $item['name'], 'source' => $item['source'], 'date' => $item['date'], 'size' => $item['size'], 'sites' => $item['analyzed'] ? implode( '; ', $sites ) : '(sin analizar)', 'importable' => $item['importable'] ? 'sí' : 'no', 'problem' => $item['problem'], 'imported' => implode( ', ', (array) $item['imported'] ) );
+		}
+		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'name', 'source', 'date', 'size', 'sites', 'importable', 'problem', 'imported' ) );
+	}
+	/**
+	 * Analiza un respaldo de cuenta de Webuzo e importa su WordPress: lo convierte, como archivo no confiable, en un
+	 * respaldo de Backups sin firma que entra en la lista como «Importado» y se restaura con
+	 * `restore --confirm="RESTAURAR SIN FIRMA"`. Si trae varios WordPress, sin --site dice cuáles hay. Salvo con --async,
+	 * hace avanzar la cola en este proceso (sin límite de tiempo: los respaldos grandes van mejor así).
+	 *
+	 * ## OPTIONS
+	 *
+	 * <name>
+	 * : Respaldo (.tar.gz), como aparece en `wp digitalisimo-backups webuzo list`.
+	 *
+	 * [--source=<source>]
+	 * : home (el home de la cuenta) o store (el almacén privado). Por defecto, donde esté.
+	 *
+	 * [--site=<carpeta>]
+	 * : Carpeta del WordPress, relativa al home (por ejemplo public_html), si el respaldo trae varios.
+	 *
+	 * [--async]
+	 * : Sólo lo encola; lo continúan WP-Cron o `wp digitalisimo-backups jobs run`.
+	 *
+	 * [--porcelain]
+	 * : Imprime sólo el nombre del ZIP convertido (o el trabajo, con --async).
+	 */
+	public function import( $args, $assoc_args ) {
+		$view = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_webuzo_import( (string) ( $args[0] ?? '' ), array( 'source' => (string) ( $assoc_args['source'] ?? '' ), 'site' => (string) ( $assoc_args['site'] ?? '' ), 'via' => 'cli' ) ) );
+		$porcelain = ! empty( $assoc_args['porcelain'] );
+		if ( ! empty( $assoc_args['async'] ) ) {
+			if ( $porcelain ) WP_CLI::line( $view['id'] );
+			else WP_CLI::success( 'Importación en cola (trabajo ' . $view['id'] . '). La continúan WP-Cron o `wp digitalisimo-backups jobs run`.' );
+			return;
+		}
+		$view = Digitalisimo_Backups_Cli::drive( $view, $porcelain );
+		if ( 'success' !== $view['status'] ) WP_CLI::error( ( 'cancelled' === $view['status'] ? 'Importación cancelada: ' : 'La importación falló: ' ) . ( $view['error'] ?: $view['detail'] ) );
+		if ( ! empty( $view['choose'] ) ) {
+			// Varios WordPress: se dice cuáles y cómo importar uno.
+			if ( $porcelain ) return;
+			WP_CLI::log( (string) $view['detail'] );
+			WP_CLI::success( 'Analizado. Importa uno con: wp digitalisimo-backups webuzo import ' . (string) ( $args[0] ?? '' ) . ' --site=<carpeta>' );
+			return;
+		}
+		foreach ( (array) ( $view['notices'] ?? array() ) as $notice ) WP_CLI::warning( $notice );
+		if ( $porcelain ) { WP_CLI::line( $view['file'] ); return; }
+		WP_CLI::success( 'WordPress importado del respaldo de Webuzo: ' . $view['file'] . ' (en la lista como «Importado»). Para restaurarlo: wp digitalisimo-backups restore ' . $view['file'] . ' --confirm="RESTAURAR SIN FIRMA".' );
+	}
+	/**
+	 * Borra un respaldo de Webuzo del almacén privado (subido o traído de un destino; los del home de la cuenta no).
+	 *
+	 * ## OPTIONS
+	 *
+	 * <name>
+	 * : Respaldo, como aparece en `wp digitalisimo-backups webuzo list` (origen store).
+	 */
+	public function delete( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_webuzo_delete( (string) ( $args[0] ?? '' ) ) );
+		WP_CLI::success( 'Respaldo de Webuzo borrado del almacén privado: ' . $result['name'] . '.' );
+	}
+	/**
+	 * Trae al almacén privado un respaldo de cuenta de Webuzo que está en un destino remoto, para importarlo.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <connection>
+	 * : Destino conectado (wp digitalisimo-backups destinations list).
+	 *
+	 * <name>
+	 * : Respaldo (.tar.gz) en el destino.
+	 */
+	public function fetch( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_webuzo_fetch( (string) ( $args[0] ?? '' ), (string) ( $args[1] ?? '' ) ) );
 		WP_CLI::success( $result['message'] );
 	}
 }

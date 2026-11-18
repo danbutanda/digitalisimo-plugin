@@ -1,7 +1,7 @@
 // Ensayo de UpdraftPlus con Chrome sin interfaz (puppeteer-core de PUPPETEER_PATH) contra el destino que levantó
 // backups-updraft.sh. Todo por la pantalla, como lo haría el propietario:
 //   1. «Subir un respaldo» de cada pieza del conjunto de UpdraftPlus (la base de datos y sus ZIP), con el panel de avance;
-//   2. Herramientas → «Importar de Backuply o UpdraftPlus» → «Importar» del conjunto: el trabajo lo convierte y queda en
+//   2. Herramientas → «Importar de Backuply, UpdraftPlus o Webuzo» → «Importar» del conjunto: el trabajo lo convierte y queda en
 //      la lista de respaldos como «Importado»;
 //   3. «Restaurar» de su fila escribiendo RESTAURAR SIN FIRMA (en una red, como sitio nuevo; el de una red en un
 //      individual, su sitio principal): el sitio queda con el contenido del origen y la dirección de aquí, las imágenes

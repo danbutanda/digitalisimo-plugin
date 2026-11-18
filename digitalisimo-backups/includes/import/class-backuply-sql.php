@@ -42,6 +42,14 @@ final class Digitalisimo_Backups_Backuply_Sql {
 	/** De qué programa es el volcado (los mensajes lo nombran) y la orden de WP-CLI que lo importa: ver label(). */
 	private static $label = 'Backuply';
 	private static $cli = 'wp digitalisimo-backups backuply import';
+	/**
+	 * Opciones del volcado de un respaldo de cuenta de Webuzo (mysqldump de MariaDB): `dialect` = `mysqldump` (vistas y
+	 * rutinas en comentarios ejecutables, `DROP … IF EXISTS` de rutinas), `database` (el único `CREATE DATABASE`, `USE` y
+	 * `ALTER DATABASE` que se aceptan, y se descartan), `prefix` y `exclude` (sólo las tablas que empiezan por `prefix` y
+	 * no por un prefijo de `exclude`: las de otro WordPress de la misma base se cuentan como `foreign` y se descartan) y
+	 * `capture` (valores de esas opciones de `<prefix>options`, en `captured`). Sin ellas, como siempre.
+	 */
+	private $opts = array();
 
 	/**
 	 * $in: el tar abierto; $base y $length: dónde empieza `softsql.sql` dentro de él y cuánto mide; $out: la salida ya
@@ -51,11 +59,12 @@ final class Digitalisimo_Backups_Backuply_Sql {
 	public function __construct( $in, $base, $length, $out, array $state, array $source = array() ) {
 		self::$label = (string) ( $source['label'] ?? 'Backuply' );
 		self::$cli = (string) ( $source['cli'] ?? 'wp digitalisimo-backups backuply import' );
+		$this->opts = array( 'dialect' => (string) ( $source['dialect'] ?? '' ), 'database' => (string) ( $source['database'] ?? '' ), 'prefix' => (string) ( $source['prefix'] ?? '' ), 'exclude' => array_values( array_filter( (array) ( $source['exclude'] ?? array() ), 'is_string' ) ), 'capture' => array_values( array_filter( (array) ( $source['capture'] ?? array() ), 'is_string' ) ) );
 		$this->in = $in;
 		$this->base = (int) $base;
 		$this->length = (int) $length;
 		$this->out = $out;
-		$this->state = $state + array( 'pos' => 0, 'out' => 0, 'tables' => array(), 'order' => array(), 'rows' => 0, 'statements' => 0, 'notes' => array(), 'done' => false );
+		$this->state = $state + array( 'pos' => 0, 'out' => 0, 'tables' => array(), 'order' => array(), 'rows' => 0, 'statements' => 0, 'notes' => array(), 'done' => false, 'skip' => array(), 'captured' => array() );
 		$this->guard = new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::EXPORTER, false );
 	}
 	public function state() { return $this->state; }
@@ -182,10 +191,19 @@ final class Digitalisimo_Backups_Backuply_Sql {
 			if ( preg_match( '/^!(?:M!)?[0-9]{5,6}\s+SET\s/i', $sql ) && false === strpos( substr( $sql, 1 ), '/*' ) ) { $this->note( 'session' ); return; }
 			// mysqldump (UpdraftPlus lo usa con las tablas grandes): `/*!40000 ALTER TABLE `t` DISABLE KEYS */`, sin efecto aquí.
 			if ( preg_match( '/^!(?:M!)?[0-9]{5,6}\s+ALTER\s+TABLE\s+`(?:[^`]|``)+`\s+(?:DISABLE|ENABLE)\s+KEYS\s*$/iD', $sql ) ) return;
+			if ( 'mysqldump' === $this->opts['dialect'] && $this->mysqldump_executable( substr( $sql, 1 ) ) ) return;
 			self::reject( 'comentario ejecutable no reconocido', $sql );
+		}
+		// mysqldump escribe la vista final en varios ejecutables seguidos (`/*!50001 CREATE ALGORITHM…*/ /*!50013 DEFINER…*/
+		// /*!50001 VIEW … */`): se cuenta como vista, sin importarla.
+		if ( 'mysqldump' === $this->opts['dialect'] && '/' === ( $sql[0] ?? '' ) && preg_match( '#^(?:/\*!(?:M!)?[0-9]{5,6}\s.*?\*/\s*)+$#sD', $sql ) ) {
+			if ( preg_match( '/\bVIEW\b/i', $sql ) ) { $this->note( 'views' ); return; }
+			if ( preg_match( '/\b(?:TRIGGER|FUNCTION|PROCEDURE|EVENT)\b/i', $sql ) ) { $this->note( 'routines' ); return; }
+			self::reject( 'comentarios ejecutables no reconocidos', $sql );
 		}
 		$t = new Digitalisimo_Backups_Backuply_Sql_Tokens( $sql );
 		$first = $t->word();
+		if ( '' !== $this->opts['database'] && ( 'USE' === $first || ( 'CREATE' === $first && in_array( $t->peek_word(), array( 'DATABASE', 'SCHEMA' ), true ) ) ) ) { $this->own_database( $sql ); return; }
 		switch ( $first ) {
 			case 'SET': $this->note( 'session' ); return;
 			case 'LOCK':
@@ -233,7 +251,9 @@ final class Digitalisimo_Backups_Backuply_Sql {
 		$table = $t->ident();
 		if ( null === $table || $t->punct( '.' ) ) self::reject( 'la tabla debe ir entre comillas invertidas y sin otra base de datos', $sql );
 		if ( ! self::valid_table( $table ) ) self::reject( 'nombre de tabla no válido', $sql );
-		if ( isset( $this->state['tables'][ $table ] ) ) self::reject( 'la tabla ' . $table . ' se crea dos veces', $sql );
+		if ( isset( $this->state['tables'][ $table ] ) || isset( $this->state['skip'][ $table ] ) ) self::reject( 'la tabla ' . $table . ' se crea dos veces', $sql );
+		// La tabla de otro WordPress (u otra aplicación) de la misma base: no se importa (ni sus filas).
+		if ( ! $this->ours( $table ) ) { $this->state['skip'][ $table ] = true; $this->note( 'foreign' ); return; }
 		if ( ! $t->punct( '(' ) ) self::reject( 'las formas LIKE o SELECT de CREATE TABLE no se admiten', $sql );
 		$columns = $t->columns();
 		if ( null === $columns || ! $columns ) self::reject( 'definición de columnas no reconocida', $sql );
@@ -265,6 +285,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 		if ( 'INTO' !== $p->word() ) self::reject( 'INSERT no reconocido', $excerpt );
 		$table = $p->ident();
 		if ( null === $table || $p->punct( '.' ) ) self::reject( 'la tabla debe ir entre comillas invertidas y sin otra base de datos', $excerpt );
+		if ( isset( $this->state['skip'][ $table ] ) ) return; // De otro prefijo: no se lee ni se escribe.
 		if ( ! isset( $this->state['tables'][ $table ] ) ) self::reject( 'INSERT en una tabla que el volcado no creó', $excerpt );
 		$columns = $this->state['tables'][ $table ];
 		if ( $p->punct( '(' ) ) {
@@ -282,6 +303,8 @@ final class Digitalisimo_Backups_Backuply_Sql {
 		if ( 'VALUES' !== $keyword && 'VALUE' !== $keyword ) self::reject( 'INSERT sólo admite VALUES con valores literales', $excerpt );
 		$head = 'INSERT INTO `' . str_replace( '`', '``', $table ) . '` (' . implode( ',', array_map( function( $column ) { return '`' . str_replace( '`', '``', $column ) . '`'; }, $columns ) ) . ') VALUES (';
 		$secret = self::secret_column( $table, $columns );
+		// Las opciones que se anotan (home y siteurl del WordPress elegido): su valor va justo después de su nombre.
+		$capture = $this->opts['capture'] && null !== $secret && $this->opts['prefix'] . 'options' === $table && 'option_value' === ( $columns[ $secret + 1 ] ?? '' ) ? $this->opts['capture'] : array();
 		$count = count( $columns );
 		$out = '';
 		$held = null;
@@ -299,6 +322,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 			$held = null === $secret ? null : '';
 			$sink( $head );
 			$k = 0;
+			$grab = '';
 			do {
 				if ( $k >= $count ) self::reject( 'una fila de ' . $table . ' tiene más valores que columnas (' . $count . ')', $excerpt );
 				if ( $k > 0 ) $sink( ',' );
@@ -310,6 +334,13 @@ final class Digitalisimo_Backups_Backuply_Sql {
 					$held = null;
 					if ( 0 === strpos( (string) $value, Digitalisimo_Backups_Keys::SECRET_PREFIX ) ) $skip = true;
 					else $sink( $prefix );
+					if ( in_array( (string) $value, $capture, true ) ) $grab = (string) $value;
+				} elseif ( '' !== $grab && $k === $secret + 1 ) {
+					$value = $p->value();
+					if ( false === $value ) self::reject( 'INSERT sólo admite cadenas, números o NULL', $excerpt );
+					$sink( Digitalisimo_Backups::sql_value( $value ) );
+					if ( is_string( $value ) ) $this->state['captured'][ $grab ] = substr( $value, 0, 2048 );
+					$grab = '';
 				} elseif ( ! $p->transcode( $sink ) ) {
 					self::reject( 'INSERT sólo admite cadenas, números o NULL', $excerpt );
 				}
@@ -323,6 +354,33 @@ final class Digitalisimo_Backups_Backuply_Sql {
 		} while ( $p->punct( ',' ) );
 		if ( ! $p->end() ) self::reject( 'texto de más al final', $excerpt );
 		if ( '' !== $out ) $this->write( $out );
+	}
+	/** La tabla es del WordPress que se importa: empieza por su prefijo y no por el de otro de la misma base. */
+	private function ours( $table ) {
+		if ( '' === $this->opts['prefix'] ) return true;
+		if ( 0 !== strpos( $table, $this->opts['prefix'] ) ) return false;
+		foreach ( $this->opts['exclude'] as $other ) if ( '' !== $other && 0 === strpos( $table, $other ) ) return false;
+		return true;
+	}
+	/**
+	 * `CREATE DATABASE` y `USE` de mysqldump `--databases`: sólo los de la base del volcado, que se descartan (la
+	 * restauración usa la base de este sitio). Otra base de datos se rechaza.
+	 */
+	private function own_database( $sql ) {
+		$name = preg_match( '#^(?:USE|CREATE\s+(?:DATABASE|SCHEMA)(?:\s+/\*!\d{5}\s+IF\s+NOT\s+EXISTS\s*\*/|\s+IF\s+NOT\s+EXISTS)?)\s+`((?:[^`]|``)+)`#i', $sql, $m ) ? str_replace( '``', '`', $m[1] ) : null;
+		if ( null === $name || $name !== $this->opts['database'] ) self::reject( 'otra base de datos', $sql );
+		if ( 0 === stripos( $sql, 'USE' ) && ! preg_match( '#^USE\s+`(?:[^`]|``)+`\s*$#iD', $sql ) ) self::reject( 'USE no reconocido', $sql );
+		$this->state['notes']['database'] = 1;
+	}
+	/** Lo que mysqldump escribe en un comentario ejecutable y no se importa: borrar vistas o rutinas, su vista temporal. */
+	private function mysqldump_executable( $sql ) {
+		if ( preg_match( '/^(?:M!)?[0-9]{5,6}\s+DROP\s+(?:VIEW|TRIGGER|FUNCTION|PROCEDURE|EVENT)\b/i', $sql ) ) return true;
+		// La vista temporal (`/*!50001 CREATE VIEW … AS SELECT 1 AS … */`, o una tabla en los mysqldump antiguos): la vista
+		// final la reemplaza y es la que se cuenta (en varios ejecutables seguidos, ver handle()).
+		if ( preg_match( '/^(?:M!)?50001\s+CREATE\s+(?:VIEW|TABLE)\b/i', $sql ) ) return true;
+		if ( preg_match( '/^(?:M!)?[0-9]{5,6}\s+CREATE\b.*\bVIEW\b/is', $sql ) ) { $this->note( 'views' ); return true; }
+		if ( '' !== $this->opts['database'] && preg_match( '/^(?:M!)?[0-9]{5,6}\s+ALTER\s+DATABASE\s+`((?:[^`]|``)+)`/i', $sql, $m ) && str_replace( '``', '`', $m[1] ) === $this->opts['database'] ) return true;
+		return false;
 	}
 	/** Columna con el nombre de la opción en `*options` y `*sitemeta` (para no importar las claves de Backups del origen). */
 	private static function secret_column( $table, array $columns ) {

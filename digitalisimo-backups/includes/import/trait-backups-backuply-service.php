@@ -46,6 +46,9 @@ trait Digitalisimo_Backups_Backuply_Service {
 				foreach ( array( 'backuply', 'store' ) as $candidate ) if ( '' !== Digitalisimo_Backups_Backuply_Import::source_path( $candidate, $name ) ) { $origin = $candidate; break; }
 			}
 			if ( '' === $origin || '' === Digitalisimo_Backups_Backuply_Import::source_path( $origin, $name ) ) return self::service_error( 'not_found', 'El respaldo de Backuply solicitado no está en la carpeta de Backuply de este sitio ni en el almacén privado.', 404 );
+			// Que no se confundan: un respaldo de cuenta de Webuzo (empieza por backuply-data/) va por su importador.
+			self::load_webuzo_import();
+			if ( 'webuzo' === Digitalisimo_Backups_Webuzo_Import::sniff( Digitalisimo_Backups_Backuply_Import::source_path( $origin, $name ) ) ) return self::service_error( 'webuzo_format', 'Este archivo es un respaldo de cuenta de Webuzo (empieza por los datos de la cuenta, backuply-data/), no del plugin Backuply: impórtalo en «Respaldo de cuenta de Webuzo» (o con wp digitalisimo-backups webuzo import).', 422 );
 			$spec = Digitalisimo_Backups_Backuply_Import::spec( $origin, $name, $args );
 			$queued = Digitalisimo_Backups_Jobs::enqueue_import( $spec );
 		} catch ( Exception $e ) {

@@ -25,7 +25,7 @@
   var detail = byId('digitalisimo-backups-manual-detail');
   var P = 'digitalisimo-backups-progress-';
   var ui = {};
-  ['title', 'percent', 'what', 'fill', 'ticks', 'phases', 'time', 'note', 'result', 'cancel', 'reload', 'safety', 'login', 'rollback', 'help', 'go', 'resume', 'import'].forEach(function (name) { ui[name] = byId(P + name); });
+  ['title', 'percent', 'what', 'fill', 'ticks', 'phases', 'time', 'note', 'result', 'cancel', 'reload', 'safety', 'login', 'rollback', 'help', 'go', 'resume', 'import', 'import-webuzo'].forEach(function (name) { ui[name] = byId(P + name); });
   var destination = form ? form.querySelector('[name="digitalisimo_backup_destination"]') : null;
   var remoteOnly = form ? form.querySelector('[name="digitalisimo_backup_remote_only"]') : null;
   var button = form ? form.querySelector('button[type="submit"], button:not([type])') : null;
@@ -300,7 +300,7 @@
     setText(ui.time, '');
     note('');
     empty(ui.result);
-    ['cancel', 'reload', 'safety', 'login', 'rollback', 'go', 'resume', 'import'].forEach(function (name) { show(ui[name], false); });
+    ['cancel', 'reload', 'safety', 'login', 'rollback', 'go', 'resume', 'import', 'import-webuzo'].forEach(function (name) { show(ui[name], false); });
     startedAt = 0;
   }
   /* La franja de avisos repite el estado de la restauración: mientras el panel la sigue, su línea se oculta. */
@@ -385,6 +385,8 @@
   var LOOSE = { tab: 'tools', open: 'restore-file' };
   /* Lo que sigue a un respaldo que entró: su fila para restaurarlo o «Restaurar un archivo suelto». */
   function entryGo(kind, job) {
+    /* El análisis de un respaldo de cuenta de Webuzo con varios WordPress: se elige cuál en su tarjeta. */
+    if (kind === 'import' && job.status === 'success' && job.choose) return { text: 'Elegir el WordPress', href: screenUrl({ tab: 'tools', open: 'import' }, 'digitalisimo-backups-webuzo'), title: 'Herramientas → «Respaldo de cuenta de Webuzo»: cada WordPress del respaldo con su base, y «Importar este WordPress».' };
     if (job.status !== 'success' || !job.file) return null;
     if (kind === 'import' && job.listed) return { text: 'Restaurarlo', href: screenUrl({ tab: 'backups', restore: job.file }, 'digitalisimo-backups-history'), title: 'Abre su fila «Importado» en la lista con «Restaurar» desplegado (RESTAURAR SIN FIRMA).' };
     if (kind === 'fetch' && job.fetch && job.fetch.registered) return { text: 'Restaurarlo', href: screenUrl({ tab: 'backups', restore: job.file }, 'digitalisimo-backups-history'), title: 'Abre la fila de ' + job.file + ' en la lista con «Restaurar» desplegado.' };
@@ -410,9 +412,13 @@
       if (go.title) ui.go.setAttribute('title', go.title);
     }
     show(ui.go, !!go);
-    var field = ui.import && ui.import.querySelector ? ui.import.querySelector('input[name="backuply_file"]') : null;
+    /* «Importarlo ahora»: el formulario de Backuply o, si lo subido es un respaldo de cuenta de Webuzo, el suyo. */
+    var webuzo = job.import_kind === 'webuzo';
+    var form = webuzo ? ui['import-webuzo'] : ui.import;
+    var field = form && form.querySelector ? form.querySelector(webuzo ? 'input[name="webuzo_file"]' : 'input[name="backuply_file"]') : null;
     if (field && job.import_file) field.value = job.import_file;
-    show(ui.import, !!(field && job.import_file));
+    show(ui.import, !webuzo && !!(field && job.import_file));
+    show(ui['import-webuzo'], webuzo && !!(field && job.import_file));
     show(ui.resume, !!job.resumable);
     /* La lista de «Respaldos» cambió (la fila vuelve a tener su ZIP o su copia remota): se recarga a petición. */
     show(ui.reload, job.status === 'success' && (kind === 'fetch' || kind === 'send'));
@@ -473,7 +479,7 @@
       quietStrip();
       if (button) button.disabled = !job.terminal;
     }
-    if (!job.terminal) { empty(ui.result); ['reload', 'safety', 'login', 'rollback', 'go', 'resume', 'import'].forEach(function (name) { show(ui[name], false); }); return; }
+    if (!job.terminal) { empty(ui.result); ['reload', 'safety', 'login', 'rollback', 'go', 'resume', 'import', 'import-webuzo'].forEach(function (name) { show(ui[name], false); }); return; }
     if (entry(kind)) { paintEntry(kind, job); return; }
     if (!restoring(kind)) return;
     paintResult(kind, job);
@@ -681,7 +687,7 @@
     });
   }
   function cancelJob(id, target, kind) {
-    var texts = { restore: '¿Cancelar la restauración? Lo preparado se retira y el sitio queda como estaba; la copia previa, si ya está, se conserva.', chain: '¿Cancelar la restauración del punto incremental? El sitio no se tocó.', convert: '¿Cancelar la restauración del sitio de la red? El sitio no se tocó.', import: '¿Cancelar la importación? Lo convertido hasta ahora se retira; el sitio no se toca y el respaldo original (de Backuply o UpdraftPlus) se conserva.', fetch: '¿Cancelar la descarga? Lo descargado a medias se retira; el respaldo sigue en el destino.', send: '¿Cancelar el envío? Lo copiado a medias en el destino se retira; el respaldo del almacén no se toca.' };
+    var texts = { restore: '¿Cancelar la restauración? Lo preparado se retira y el sitio queda como estaba; la copia previa, si ya está, se conserva.', chain: '¿Cancelar la restauración del punto incremental? El sitio no se tocó.', convert: '¿Cancelar la restauración del sitio de la red? El sitio no se tocó.', import: '¿Cancelar la importación? Lo convertido hasta ahora se retira; el sitio no se toca y el respaldo original (de Backuply, UpdraftPlus o Webuzo) se conserva.', fetch: '¿Cancelar la descarga? Lo descargado a medias se retira; el respaldo sigue en el destino.', send: '¿Cancelar el envío? Lo copiado a medias en el destino se retira; el respaldo del almacén no se toca.' };
     if (!window.confirm(texts[kind] || '¿Cancelar este respaldo? Lo que lleva hecho se descarta; un respaldo ya verificado se conserva en el historial.')) return;
     if (target) target.disabled = true;
     request('digitalisimo_backups_job_cancel', { id: id }, config.jobsNonce).then(function (data) {
@@ -737,6 +743,7 @@
   var FETCH = ['Traer al almacén', 'Empezando la descarga desde el destino…', 'Esta petición descarga lo que cabe en su tiempo; después la siguen esta pantalla y WP-Cron, por fragmentos y desde donde quedó si se corta.', null, QUEUE_LATE];
   var STARTS = {
     digitalisimo_backups_updraft_import: ['Importación', 'Encolando la importación de UpdraftPlus…', 'Se convierte por fases (base de datos, comprobación de sus piezas, base de datos convertida y ZIP) sin tocar el sitio; en unos segundos se ve aquí su avance. Al terminar queda en la lista como «Importado».', null, QUEUE_LATE],
+    digitalisimo_backups_webuzo_import: ['Importación', 'Encolando la importación de Webuzo…', 'Se recorre el respaldo de la cuenta sin tocar el sitio: primero se analiza (qué WordPress trae y sus bases) y después se extrae y convierte el elegido; en unos segundos se ve aquí su avance. Al terminar queda en la lista como «Importado».', null, QUEUE_LATE],
     digitalisimo_backups_backuply_import: ['Importación', 'Encolando la importación de Backuply…', 'Se convierte por fases (descompresión, comprobación, base de datos y ZIP) sin tocar el sitio; en unos segundos se ve aquí su avance.', null, QUEUE_LATE],
     digitalisimo_backups_fetch: FETCH,
     digitalisimo_backups_remote_fetch: FETCH,

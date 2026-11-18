@@ -337,7 +337,7 @@ trait Digitalisimo_Backups_Uploaded_List {
 		$upload = (array) ( ( (array) $row )['upload'] ?? array() );
 		$at = self::short_date( (string) ( $upload['at'] ?? '' ) );
 		$home = (string) ( $upload['home'] ?? '' );
-		$text = ( self::is_imported_row( $row ) ? 'Importado de UpdraftPlus (' . (string) ( $row['import']['source'] ?? '' ) . ')' : ( self::is_added_row( $row ) ? 'Agregado a mano desde el almacén' : 'Subido' ) ) . ( '' !== $at ? ' el ' . $at : '' );
+		$text = ( self::is_imported_row( $row ) ? 'Importado de ' . ( 'webuzo' === (string) ( $row['import']['format'] ?? '' ) ? 'Webuzo' : 'UpdraftPlus' ) . ' (' . (string) ( $row['import']['source'] ?? '' ) . ')' : ( self::is_added_row( $row ) ? 'Agregado a mano desde el almacén' : 'Subido' ) ) . ( '' !== $at ? ' el ' . $at : '' );
 		if ( ! empty( $upload['same_site'] ) ) $text .= ' · de este mismo sitio (firmado con su clave)';
 		elseif ( '' !== $home ) $text .= ' · de ' . $home;
 		if ( self::is_added_row( $row ) && empty( $upload['site_key'] ) ) $text .= ' · origen desconocido, sin firma de este sitio';

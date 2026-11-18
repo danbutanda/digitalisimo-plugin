@@ -81,6 +81,10 @@ final class Digitalisimo_Backups_Progress {
 		echo '<form id="' . $id . '-import" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" hidden>';
 		wp_nonce_field( Digitalisimo_Backups::ACTION_BACKUPLY_IMPORT );
 		echo '<input type="hidden" name="action" value="' . esc_attr( Digitalisimo_Backups::ACTION_BACKUPLY_IMPORT ) . '"><input type="hidden" name="backuply_file" value=""><input type="hidden" name="backuply_source" value="store">' . Digitalisimo_Backups::return_field( 'tools', 'import' ) . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-primary">Importarlo ahora</button></form> ';
+		// «Importarlo ahora» tras subir un respaldo de cuenta de Webuzo: la misma acción que su fila en «Respaldo de cuenta de Webuzo».
+		echo '<form id="' . $id . '-import-webuzo" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" hidden>';
+		wp_nonce_field( Digitalisimo_Backups::ACTION_WEBUZO_IMPORT );
+		echo '<input type="hidden" name="action" value="' . esc_attr( Digitalisimo_Backups::ACTION_WEBUZO_IMPORT ) . '"><input type="hidden" name="webuzo_file" value=""><input type="hidden" name="webuzo_source" value="store">' . Digitalisimo_Backups::return_field( 'tools', 'import' ) . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-primary">Importarlo ahora</button></form> ';
 		// «Volver a la copia previa» de un sitio que quedó a medio cambiar: la misma acción que la franja de avisos.
 		echo '<form id="' . $id . '-rollback" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" hidden>';
 		wp_nonce_field( Digitalisimo_Backups::ACTION_RESTORE );

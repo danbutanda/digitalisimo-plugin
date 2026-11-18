@@ -183,7 +183,7 @@ trait Digitalisimo_Backups_Updraft_Service {
 		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
 		self::redirect( true, 'Piezas de UpdraftPlus borradas del almacén privado: ' . $result['id'] . '.' );
 	}
-	/** Tarjeta «UpdraftPlus» de «Importar de Backuply o UpdraftPlus». $items: los de sources(), si ya se buscaron. */
+	/** Tarjeta «UpdraftPlus» de «Importar de Backuply, UpdraftPlus o Webuzo». $items: los de sources(), si ya se buscaron. */
 	private static function updraft_panel( $network = false, $items = null ) {
 		self::load_updraft_import();
 		if ( ! is_array( $items ) ) {
@@ -285,7 +285,7 @@ trait Digitalisimo_Backups_Updraft_Service {
 		} );
 		$pieces = Digitalisimo_Backups_Updraft_Import::set_pieces( 'store', $piece['set'] );
 		$item = Digitalisimo_Backups_Updraft_Import::describe( 'store', $piece['set'], $pieces );
-		$result = array( 'file' => $name, 'size' => (int) $state['size'], 'registered' => false, 'container' => 'updraft', 'updraft' => array( 'source' => 'store', 'set' => $piece['set'], 'pieces' => $item['pieces'], 'database' => $item['database'], 'encrypted' => $item['encrypted'] ), 'verified' => false, 'trust' => 'untrusted', 'confirmation' => 'RESTAURAR SIN FIRMA', 'needs_secret' => false, 'compatible' => false, 'problems' => array( 'Es una pieza de un respaldo de UpdraftPlus (' . $piece['set'] . ', ' . count( $item['pieces'] ) . ' en el almacén). Sube las demás piezas del conjunto (su …-db.gz y sus ZIP) e impórtalo en Herramientas → «Importar de Backuply o UpdraftPlus» (o con wp digitalisimo-backups updraft import ' . $piece['set'] . ').' ) );
+		$result = array( 'file' => $name, 'size' => (int) $state['size'], 'registered' => false, 'container' => 'updraft', 'updraft' => array( 'source' => 'store', 'set' => $piece['set'], 'pieces' => $item['pieces'], 'database' => $item['database'], 'encrypted' => $item['encrypted'] ), 'verified' => false, 'trust' => 'untrusted', 'confirmation' => 'RESTAURAR SIN FIRMA', 'needs_secret' => false, 'compatible' => false, 'problems' => array( 'Es una pieza de un respaldo de UpdraftPlus (' . $piece['set'] . ', ' . count( $item['pieces'] ) . ' en el almacén). Sube las demás piezas del conjunto (su …-db.gz y sus ZIP) e impórtalo en Herramientas → «Importar de Backuply, UpdraftPlus o Webuzo» (o con wp digitalisimo-backups updraft import ' . $piece['set'] . ').' ) );
 		$state['phase'] = 'done';
 		$state['result'] = $result;
 		$state['updated_at'] = time();

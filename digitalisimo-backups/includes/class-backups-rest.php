@@ -80,6 +80,11 @@ defined( 'ABSPATH' ) || exit;
  *                                           datos está cifrada): 202 con el trabajo; queda en la lista como «Importado»
  * - POST /updraft/fetch                     trae al almacén las piezas de un conjunto de un destino (`connection`, `set`)
  * - DELETE /updraft/<conjunto>              borra del almacén privado las piezas de un conjunto (no las de su carpeta)
+ * - GET  /webuzo                            respaldos de cuenta de Webuzo (home de la cuenta y almacén) y su análisis
+ * - POST /webuzo/import                     analiza un respaldo de Webuzo e importa su WordPress (`name`, `source`, `site`
+ *                                           si trae varios): 202 con el trabajo
+ * - POST /webuzo/fetch                      trae al almacén un respaldo de Webuzo de un destino (`connection`, `name`)
+ * - DELETE /webuzo/<nombre>                 borra un respaldo de Webuzo del almacén privado (no los del home)
  *
  * - GET  /migration                         estado de la migración: claves (sin secretos), registro, la que se puede deshacer
  *                                            y las tablas apartadas (`kept_tables`)
@@ -232,6 +237,11 @@ final class Digitalisimo_Backups_Rest {
 		$updraft_set = array( 'type' => 'string', 'required' => true, 'description' => 'Conjunto de UpdraftPlus (backup_<fecha>_<sitio>_<código>), como aparece en GET /updraft o en el destino.' );
 		register_rest_route( self::NAMESPACE_V1, '/updraft/import', array( $route( 'POST', 'updraft_import', array( 'set' => $updraft_set, 'source' => array( 'type' => 'string', 'default' => '', 'enum' => array( '', 'updraft', 'store' ), 'description' => 'updraft (la carpeta de UpdraftPlus de este sitio) o store (el almacén privado); vacío lo busca en los dos.' ), 'secret' => array( 'type' => 'string', 'default' => '', 'description' => 'Frase de cifrado de UpdraftPlus si la base de datos está cifrada (…-db.gz.crypt). Nunca se guarda.' ) ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/updraft/fetch', array( $route( 'POST', 'updraft_fetch', array( 'set' => $updraft_set, 'connection' => array( 'type' => 'string', 'required' => true, 'description' => 'Destino conectado (ver GET /destinations).' ) ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/webuzo', array( $route( 'GET', 'webuzo' ) ) );
+		$webuzo_name = array( 'type' => 'string', 'required' => true, 'description' => 'Nombre del respaldo de cuenta de Webuzo (.tar.gz), como aparece en GET /webuzo o en el destino.' );
+		register_rest_route( self::NAMESPACE_V1, '/webuzo/import', array( $route( 'POST', 'webuzo_import', array( 'name' => $webuzo_name, 'source' => array( 'type' => 'string', 'default' => '', 'enum' => array( '', 'home', 'store' ), 'description' => 'home (el home de la cuenta de Webuzo) o store (el almacén privado); vacío lo busca en los dos.' ), 'site' => array( 'type' => 'string', 'default' => '', 'description' => 'Carpeta del WordPress (relativa al home, como en el análisis) si el respaldo trae varios; vacío analiza y, si hay uno solo, lo importa.' ) ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/webuzo/fetch', array( $route( 'POST', 'webuzo_fetch', array( 'name' => $webuzo_name, 'connection' => array( 'type' => 'string', 'required' => true, 'description' => 'Destino conectado (ver GET /destinations).' ) ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/webuzo/(?P<name>[A-Za-z0-9][A-Za-z0-9._-]{0,190}\.tar\.gz)', array( $route( 'DELETE', 'webuzo_delete' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/updraft/(?P<set>backup_[0-9-]{15}_[A-Za-z0-9_.-]{1,64}_[0-9a-f]{12})', array( $route( 'DELETE', 'updraft_delete' ) ) );
 		// Migración: administración (la misma capability que la pantalla).
 		register_rest_route( self::NAMESPACE_V1, '/migration', array( $route( 'GET', 'migration_status' ) ) );
@@ -511,6 +521,14 @@ final class Digitalisimo_Backups_Rest {
 	public static function updraft_fetch( $request ) { return self::respond( Digitalisimo_Backups::service_updraft_fetch( (string) $request['connection'], (string) $request['set'] ) ); }
 	/** Borra del almacén las piezas de un conjunto de UpdraftPlus. */
 	public static function updraft_delete( $request ) { return self::respond( Digitalisimo_Backups::service_updraft_delete( (string) $request['set'] ) ); }
+	/** Respaldos de cuenta de Webuzo que se pueden importar, con su análisis. */
+	public static function webuzo( $request ) { return self::respond( Digitalisimo_Backups::service_webuzo() ); }
+	/** Encola el análisis y la importación de un respaldo de Webuzo: 202 con el trabajo. */
+	public static function webuzo_import( $request ) { return self::respond( Digitalisimo_Backups::service_webuzo_import( (string) $request['name'], array( 'source' => (string) $request['source'], 'site' => (string) $request['site'], 'via' => 'rest' ) ), 202 ); }
+	/** Trae al almacén un respaldo de Webuzo que está en un destino remoto. */
+	public static function webuzo_fetch( $request ) { return self::respond( Digitalisimo_Backups::service_webuzo_fetch( (string) $request['connection'], (string) $request['name'] ) ); }
+	/** Borra un respaldo de Webuzo del almacén privado. */
+	public static function webuzo_delete( $request ) { return self::respond( Digitalisimo_Backups::service_webuzo_delete( (string) $request['name'] ) ); }
 	/** Trae al almacén un respaldo de Backuply que está en un destino remoto. */
 	public static function backuply_fetch( $request ) { return self::respond( Digitalisimo_Backups::service_backuply_fetch( (string) $request['connection'], (string) $request['name'] ) ); }
 	public static function upload_cancel( $request ) {

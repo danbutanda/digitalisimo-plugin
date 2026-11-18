@@ -581,10 +581,15 @@ trait Digitalisimo_Backups_Screen {
 		}
 		$backuply = array();
 		try { $backuply = $main ? Digitalisimo_Backups_Backuply_Import::sources() : array(); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-		$found = count( $updraft ) + count( $backuply );
-		self::tool_section( 'import', 'Importar de Backuply o UpdraftPlus', $found ? $found . ' ' . ( 1 === $found ? 'respaldo detectado' : 'respaldos detectados' ) : 'no se detectaron respaldos', 'import' === $open || $importing, function() use ( $network, $updraft, $backuply ) { echo self::progress_slot( 'import' ); self::backuply_panel( $network, $backuply ); echo '<section class="digitalisimo-backups-card digitalisimo-backups-updraft">'; self::updraft_panel( $network, $updraft ); echo '</section>'; } );
+		$webuzo = array();
+		if ( $main ) {
+			self::load_webuzo_import();
+			try { $webuzo = Digitalisimo_Backups_Webuzo_Import::sources(); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		}
+		$found = count( $updraft ) + count( $backuply ) + count( $webuzo );
+		self::tool_section( 'import', 'Importar de Backuply, UpdraftPlus o Webuzo', $found ? $found . ' ' . ( 1 === $found ? 'respaldo detectado' : 'respaldos detectados' ) : 'no se detectaron respaldos', 'import' === $open || $importing, function() use ( $network, $updraft, $backuply, $webuzo, $main ) { echo self::progress_slot( 'import' ); self::backuply_panel( $network, $backuply ); echo '<section class="digitalisimo-backups-card digitalisimo-backups-updraft">'; self::updraft_panel( $network, $updraft ); echo '</section>'; if ( $main ) { echo '<section class="digitalisimo-backups-card digitalisimo-backups-webuzo">'; self::webuzo_panel( $network, $webuzo ); echo '</section>'; } } );
 		// La subida que se está comprobando (de esta cuenta) se sigue en su sección, abierta: el panel vuelve a ella al recargar.
-		if ( $main ) self::tool_section( 'upload', 'Subir un respaldo', '.zip o .dgbk de DIGITALÍSIMO, .tar.gz de Backuply o las piezas de UpdraftPlus', 'upload' === $open || Digitalisimo_Backups_Uploads::checking_mine(), function() use ( $network ) { Digitalisimo_Backups_Uploads::panel( $network ); } );
+		if ( $main ) self::tool_section( 'upload', 'Subir un respaldo', '.zip o .dgbk de DIGITALÍSIMO, .tar.gz de Backuply o de una cuenta de Webuzo, o las piezas de UpdraftPlus', 'upload' === $open || Digitalisimo_Backups_Uploads::checking_mine(), function() use ( $network ) { Digitalisimo_Backups_Uploads::panel( $network ); } );
 		self::tool_section( 'restore-file', 'Restaurar un archivo suelto', 'archivos sin registro, de otro servidor o con su frase, y la última restauración en otro dominio', 'restore-file' === $open, function() use ( $history ) { echo self::progress_slot( 'restore-file' ); self::restore_panel( $history ); } );
 		$count = count( self::policies() );
 		self::tool_section( 'automations', 'Automatizaciones (' . $count . ')', 'crear, editar, ejecutar ahora y borrar; cada una con su destino y su retención', 'automations' === $open, function() { self::automation_fields(); } );

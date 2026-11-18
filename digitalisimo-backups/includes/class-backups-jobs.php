@@ -1095,6 +1095,8 @@ final class Digitalisimo_Backups_Jobs {
 			'kind' => $restore ? 'restore' : ( $import ? 'import' : 'backup' ),
 			// Una importación que dejó su ZIP en la lista («Importado», UpdraftPlus): el panel lleva a su fila.
 			'listed' => $import && 'success' === $status && ! empty( $job['result']['import']['listed'] ),
+			// El análisis de un respaldo de Webuzo con varios WordPress: el panel lleva a elegir cuál.
+			'choose' => $import && 'success' === $status && ! empty( $job['result']['webuzo']['choose'] ),
 			'created_label' => ! empty( $job['created_at'] ) ? self::clock( (int) $job['created_at'], true ) : '',
 			'warnings' => count( (array) ( $job['warnings'] ?? array() ) ),
 			'notices' => $notices,

@@ -292,11 +292,18 @@
     var heading = '';
     var go = null;
     var importFile = '';
+    var importKind = '';
     if (result.container === 'updraft') {
       /* Una pieza de un conjunto de UpdraftPlus: se importa el conjunto entero cuando están todas (Herramientas). */
       heading = 'Pieza de UpdraftPlus subida';
       lines.push({ text: 'Quedó en el almacén privado como ' + result.file + '.' });
-      go = { text: 'Importar el conjunto', href: screenUrl({ tab: 'tools', open: 'import' }, 'digitalisimo-backups-section-import'), title: 'Herramientas → «Importar de Backuply o UpdraftPlus»: con todas sus piezas subidas, «Importar».' };
+      go = { text: 'Importar el conjunto', href: screenUrl({ tab: 'tools', open: 'import' }, 'digitalisimo-backups-section-import'), title: 'Herramientas → «Importar de Backuply, UpdraftPlus o Webuzo»: con todas sus piezas subidas, «Importar».' };
+    } else if (result.container === 'webuzo') {
+      /* Un respaldo de cuenta de Webuzo (reconocido por sus primeras entradas, aunque se subiera como de Backuply). */
+      heading = 'Respaldo de cuenta de Webuzo subido';
+      importFile = result.webuzo && result.webuzo.name || result.file;
+      importKind = 'webuzo';
+      lines.push({ text: 'Quedó en el almacén privado como ' + result.file + ': impórtalo para elegir su WordPress y convertirlo en un respaldo de Backups (no toca el sitio). La importación se sigue en este mismo panel.' });
     } else if (result.container === 'backuply') {
       heading = 'Respaldo de Backuply subido';
       importFile = result.backuply && result.backuply.name || result.file;
@@ -318,7 +325,7 @@
     }
     (result.problems || []).forEach(function (problem) { lines.push({ text: problem, warning: true }); });
     if (result.wp_config && result.wp_config.text) lines.push({ text: result.wp_config.text });
-    paint({ terminal: true, status: 'success', status_label: 'Completo', phase: 'register', phase_label: '', percent: 100, waiting: false, can_cancel: false, running: false, title: heading, lines: lines, go: go, import_file: importFile, detail: lines[0].text });
+    paint({ terminal: true, status: 'success', status_label: 'Completo', phase: 'register', phase_label: '', percent: 100, waiting: false, can_cancel: false, running: false, title: heading, lines: lines, go: go, import_file: importFile, import_kind: importKind, detail: lines[0].text });
   }
   /* Se detuvo: por qué y qué hacer (continuarla, terminarla con WP-CLI o descartarla); descartada, sin nada que continuar. */
   function failed(error) {
