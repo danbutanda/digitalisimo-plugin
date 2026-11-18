@@ -2,20 +2,32 @@
 
 Guía operativa para dejar de usar Elementor, Elementor Pro, PRO Elements, Element Pack (Pro o Lite), el Element Pack Addon y Prime Slider (Pro o Lite) sin que cambie lo que ven los visitantes. Complementa el [objetivo de migración](ELEMENT_PACK_MIGRATION_OBJECTIVE.md) (qué se adaptó y cómo se validó), la [tabla de decisiones](element-pack-decisions.md) (qué pasa con cada widget de Element Pack), la [de Prime Slider](prime-slider-map.json), el diseño de la etapa F8 ([fusion/f8.md](fusion/f8.md)) y [ELEMENTOR_CORE.md](ELEMENTOR_CORE.md) (el núcleo de Elementor incluido en DIGITALÍSIMO Elements).
 
-DIGITALÍSIMO Elements no contiene ni nombra nada de Element Pack ni de Prime Slider. Toda la compatibilidad y la migración están en **DIGITALÍSIMO Migración** (`digitalisimo-migration`), un plugin que sólo se instala mientras dura la migración. Migración 1.0.21 exige DIGITALÍSIMO Elements 4.3.0.170 o posterior: con uno anterior, «Migrar» no empieza y lo dice.
+DIGITALÍSIMO Elements no contiene ni nombra nada de Element Pack ni de Prime Slider. Toda la compatibilidad y la migración están en **DIGITALÍSIMO Migración** (`digitalisimo-migration`), un plugin que sólo se instala mientras dura la migración y que, desde el 2026-11-18, también instala lo que hace falta, importa, cambia el tema y limpia el sitio (abajo). Migración 1.0.21 exige DIGITALÍSIMO Elements 4.3.0.170 o posterior: con uno anterior, «Migrar» no empieza y lo dice.
 
 ## Un solo paso: Migrar
 
-1. Instala y activa DIGITALÍSIMO Elements y DIGITALÍSIMO Migración (en una red, los dos en toda la red). Haz un respaldo.
-2. Abre la herramienta y lee el **análisis previo**, que se calcula por trozos al abrirla: por documento, qué se convierte, qué se aproxima, qué se crea, qué no tiene equivalente y qué queda para revisar; qué cabeceras, pies y plantillas del Theme Builder de Element Pack se copian; y, en un recuadro, el JavaScript de Element Pack o Prime Slider que dejará de ejecutarse.
+Desde el 2026-11-18 (regla del propietario: «Migración debe hacer todo: tema y plugins y todo»), **Migrar lo hace todo**, empezando por un respaldo. Basta instalar DIGITALÍSIMO Migración (desde el catálogo de DIGITALÍSIMO Tools o subiendo su ZIP) y activarla: funciona sola.
+
+1. Instala y activa DIGITALÍSIMO Migración (en una red, en toda la red).
+2. Abre la herramienta y lee **«Lo que hará Migrar»**: qué plugins DIGITALÍSIMO se instalan y activan, qué plugin o tema del sitio reemplaza cada uno, qué se importa antes de retirarlo, qué se borrará al final y qué se queda como está (con el motivo), y qué pasará con el tema. Con DIGITALÍSIMO Elements ya activo, debajo va el **análisis del contenido**, por trozos: por documento, qué se convierte, qué se aproxima, qué se crea, qué no tiene equivalente y qué queda para revisar; qué cabeceras, pies y plantillas del Theme Builder de Element Pack se copian; y el JavaScript de Element Pack o Prime Slider que dejará de ejecutarse. Sin Elements, ese análisis llega en el informe, después de instalarlo.
 3. Pulsa **Migrar**:
    - En un sitio: **Herramientas → Migrar a DIGITALÍSIMO Elements → Migrar**.
-   - En una red: **Red → Ajustes → Migrar a DIGITALÍSIMO Elements → Migrar toda la red**. La pantalla dice que modifica todos los sitios de la red.
+   - En una red: **Red → Ajustes → Migrar a DIGITALÍSIMO Elements → Migrar toda la red**. La pantalla dice que modifica todos los sitios de la red. (En un sitio de una red, «Migrar» sólo convierte el contenido de ese sitio: instalar, importar, cambiar de tema y borrar son acciones de la red.)
    - Desde la terminal: `wp digitalisimo-migration --run --url=https://sitio/` o `wp digitalisimo-migration --run --network`.
-4. Lee el informe que queda en la misma pantalla. Sólo lo que está en «Pendiente de revisar» pide algo a una persona, con el enlace a cada página.
-5. Cuando hayas comprobado el sitio, borra desde Plugins los que el informe da por listos para borrarse y, al final, DIGITALÍSIMO Migración (antes, si quieres volver atrás, revierte: ver «Restaurar»).
+4. Migrar, en una sola tarea por etapas (`includes/class-full.php`):
+   - **respalda primero**: instala y activa DIGITALÍSIMO Backups si falta y hace un respaldo completo (de la red, en una red); si falla, se detiene sin tocar nada más;
+   - **instala y activa** desde la Release publicada (sólo paquetes del repositorio oficial) los plugins DIGITALÍSIMO que reemplazan a los del sitio, Elements antes que lo demás;
+   - **migra el contenido** (abajo, «Qué hace Migrar en cada sitio»);
+   - **importa**: DIGITALÍSIMO SEO desde Rank Math (metas, ajustes, redirecciones y bases de URL) o Yoast SEO (metas de cada contenido); DIGITALÍSIMO Backups comprueba que ve los respaldos de UpdraftPlus y Backuply, que se quedan en su carpeta para importarlos o restaurarlos;
+   - **desactiva** lo reemplazado y **cambia al tema DIGITALÍSIMO** donde es seguro: sólo desde Hello Elementor sin tema hijo y con el Theme Builder de Elements cargado (el tema propio reproduce a Hello y Elements pasa su cabecera y su pie a plantillas). Con otro tema o con un hijo de Hello, el tema se queda y el informe dice por qué;
+   - **comprueba** que la portada y unas páginas responden igual que antes de empezar (código HTTP, sin errores de PHP y el mismo texto visible); si no, vuelve al tema anterior y no borra nada;
+   - **borra lo reemplazado** sólo si todo salió bien y nada lo necesita: Element Pack, mientras quede contenido suyo por convertir o por revisar, se queda; Backuply se queda desactivado (su desinstalación no está verificada); UpdraftPlus, si al borrarlo DIGITALÍSIMO Backups dejara de encontrar sus respaldos; Hello, si un sitio o un tema hijo lo usa.
+5. Lee el informe que queda en la misma pantalla: el respaldo (y cómo volver con él), lo instalado, lo importado, lo reemplazado, lo borrado, el tema y lo que quedó como estaba. Sólo lo que está en «Pendiente de revisar» pide algo a una persona, con el enlace a cada página.
+6. Cuando hayas comprobado el sitio, desinstala DIGITALÍSIMO Migración.
 
-No hay más botones ni pasos. Si cierras la pantalla, la migración sigue con el WP-Cron del sitio y la pantalla la retoma al volver. Pulsar Migrar otra vez es seguro: sólo hace lo que quedó pendiente, y un documento ya migrado no se vuelve a convertir.
+No hay más botones ni pasos. Si cierras la pantalla, la migración sigue con el WP-Cron del sitio y la pantalla la retoma al volver. Pulsar Migrar otra vez es seguro: un clic repetido sigue la tarea en marcha, y una pasada nueva sólo hace lo que quedó pendiente (un documento ya migrado no se vuelve a convertir).
+
+**Volver atrás.** Lo borrado se recupera restaurando el respaldo de la migración (DIGITALÍSIMO Backups → Respaldos → Restaurar); `--revert` (abajo) deshace la conversión del contenido mientras Element Pack siga instalado.
 
 ## Qué hace Migrar en cada sitio
 
@@ -25,7 +37,7 @@ La migración es una tarea por etapas que avanza en peticiones cortas (`legacy/c
    - copia cada plantilla del Theme Builder de Element Pack (cabecera, pie, entrada, página, archivo, búsqueda, 404 y WooCommerce) al Theme Builder de DIGITALÍSIMO Elements, en borrador, con su tipo, sus condiciones traducidas y una prioridad manual que conserva cuál se veía;
    - crea sus fuentes propias con la misma familia y los mismos archivos, y sus conjuntos de iconos con una copia segura (la pestaña vieja sigue funcionando hasta convertir cada documento);
    - prepara el CSS y el JavaScript globales de Element Pack y Prime Slider como Código personalizado en borrador, y guarda la barra lateral.
-2. **Desactiva los plugins sustituidos**, sin borrar nada:
+2. **Desactiva los plugins sustituidos** (borrarlos es lo último de la tarea completa, con sus condiciones):
    - en una sola escritura y antes que nada, el grupo de Element Pack: el Addon junto a Element Pack (Pro o Lite), para que el Addon nunca quede activo sin él. Un plugin que parece el Addon y no se reconoce deja Element Pack activo y lo dice;
    - Elementor Pro, PRO Elements y Elementor (éste sólo si el núcleo incluido puede sustituirlo; si el plugin Elementor era más nuevo, el informe lo dice);
    - Element Pack **no** se desactiva si la preparación no terminó, si una cabecera o un pie que se ven hoy no tienen una copia que pueda publicarse o si el Theme Builder de DIGITALÍSIMO Elements no está disponible: se desactiva lo demás y el informe dice por qué. El sitio sigue como estaba. Con Elementor Pro o PRO Elements activos en el sitio, Migrar los desactiva primero y sigue sola en la petición siguiente, cuando el Theme Builder ya carga.
