@@ -12,7 +12,7 @@
  *       N = 1, 2, 3; por respaldos y por cadenas) con la retención real (prune_policy()): nunca rompe una cadena, por
  *       cadenas guarda exactamente las N más recientes enteras, y lo que se guarda (respaldos y cadenas, mínimo y máximo)
  *       es exactamente lo que dice la estimación;
- *   RC3 un punto bloqueado de una cadena vieja sigue protegiendo a sus antecesores y no cuenta como una de las N;
+ *   RC3 un punto bloqueado de una cadena vieja sigue protegiendo a sus antecesores y no ocupa una de las N cadenas;
  *   RC4 en el remoto: la retención por cadenas anota para borrar las copias remotas de la cadena que sale (también las
  *       de los puntos «sólo en el remoto») y ninguna de las que se quedan;
  *   RC5 con el motor de trabajos real: una automatización guardada con «Conservar 2 cadenas» (formulario) respalda y
@@ -248,27 +248,29 @@ inc_case( 'RC2 «Conservar 2 cadenas» diario con un completo cada 6: la cadena 
 
 /* ------------------------------------------------------------------ RC3 bloqueados */
 
-inc_case( 'RC3 un punto bloqueado de una cadena que sale la protege hasta él y no cuenta como una de las N', function() {
-	rc_simulate( array( 'policy' => 'bloq', 'period' => 86400, 'every' => 2, 'retain' => 1, 'unit' => 'chains', 'steps' => 3 ) );
-	$first = rc_policy_rows( 'bloq' );
-	inc_check( 3 === count( $first ), 'La primera cadena no está entera.' );
-	// Bloqueado el incremental 1 de la primera cadena (filas de la más reciente a la más antigua: 2, 1, 0).
-	$locked = $first[1]['file'];
-	foreach ( $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] as &$row ) if ( $locked === $row['file'] ) $row['locked'] = true;
+inc_case( 'RC3 un punto bloqueado de una cadena que sale la protege hasta él y no ocupa una de las N cadenas', function() {
+	$name = function( $k ) { return sprintf( 'digitalisimo-backup-example-test-bloq-%05d.zip', $k ); };
+	$run = function( $start, $steps ) { rc_simulate( array( 'policy' => 'bloq', 'period' => 86400, 'every' => 2, 'retain' => 2, 'unit' => 'chains', 'steps' => $steps, 'start' => $start ) ); };
+	$files = function() { return array_column( rc_policy_rows( 'bloq' ), 'file' ); };
+	$run( 0, 3 );
+	inc_check( array( $name( 2 ), $name( 1 ), $name( 0 ) ) === $files(), 'La primera cadena no está entera: ' . json_encode( $files() ) );
+	// Bloqueado el incremental 1 de la primera cadena.
+	foreach ( $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] as &$row ) if ( $name( 1 ) === $row['file'] ) $row['locked'] = true;
 	unset( $row );
-	rc_simulate( array( 'policy' => 'bloq', 'period' => 86400, 'every' => 2, 'retain' => 1, 'unit' => 'chains', 'steps' => 1, 'start' => 3 ) );
+	// La segunda cadena (3, 4, 5) y la base de la tercera (6): la primera sale menos el bloqueado y su base.
+	$run( 3, 4 );
 	rc_unbroken( 'bloqueado' );
-	$files = array_column( rc_policy_rows( 'bloq' ), 'file' );
-	inc_check( array( sprintf( 'digitalisimo-backup-example-test-bloq-%05d.zip', 3 ), $first[1]['file'], $first[2]['file'] ) === $files, 'Con «Conservar 1 cadena» y un incremental bloqueado debían quedar la cadena nueva, el bloqueado y su base: ' . json_encode( $files ) );
-	// El bloqueado no cuenta como una cadena: la cadena nueva sigue entera mientras crece.
-	rc_simulate( array( 'policy' => 'bloq', 'period' => 86400, 'every' => 2, 'retain' => 1, 'unit' => 'chains', 'steps' => 2, 'start' => 4 ) );
-	inc_check( 5 === count( rc_policy_rows( 'bloq' ) ), 'La cadena nueva no se conservó entera junto al bloqueado: ' . json_encode( array_column( rc_policy_rows( 'bloq' ), 'file' ) ) );
-	// Desbloqueado, la siguiente retención retira lo que quedaba de la cadena vieja.
+	inc_check( array( $name( 6 ), $name( 5 ), $name( 4 ), $name( 3 ), $name( 1 ), $name( 0 ) ) === $files(), 'Con «Conservar 2 cadenas» y un incremental bloqueado debían quedar la tercera y la segunda cadenas, el bloqueado y su base: ' . json_encode( $files() ) );
+	// Lo que queda por el bloqueado no ocupa una de las 2: la segunda cadena sigue entera mientras la tercera crece.
+	$run( 7, 1 );
+	rc_unbroken( 'bloqueado, la tercera crece' );
+	inc_check( array( $name( 7 ), $name( 6 ), $name( 5 ), $name( 4 ), $name( 3 ), $name( 1 ), $name( 0 ) ) === $files(), 'Lo bloqueado ocupó una de las 2 cadenas (la segunda debía seguir entera): ' . json_encode( $files() ) );
+	// Desbloqueado, la siguiente retención retira lo que quedaba de la primera.
 	foreach ( $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] as &$row ) unset( $row['locked'] );
 	unset( $row );
-	rc_simulate( array( 'policy' => 'bloq', 'period' => 86400, 'every' => 2, 'retain' => 1, 'unit' => 'chains', 'steps' => 1, 'start' => 6 ) );
+	$run( 8, 1 );
 	rc_unbroken( 'desbloqueado' );
-	inc_check( array( sprintf( 'digitalisimo-backup-example-test-bloq-%05d.zip', 6 ) ) === array_column( rc_policy_rows( 'bloq' ), 'file' ), 'Desbloqueado, la cadena vieja no salió: ' . json_encode( array_column( rc_policy_rows( 'bloq' ), 'file' ) ) );
+	inc_check( array( $name( 8 ), $name( 7 ), $name( 6 ), $name( 5 ), $name( 4 ), $name( 3 ) ) === $files(), 'Desbloqueado, lo que quedaba de la primera cadena no salió: ' . json_encode( $files() ) );
 	rc_forget( 'bloq' );
 } );
 
