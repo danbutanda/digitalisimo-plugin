@@ -200,6 +200,8 @@ check( array( 'uno', 'dos' ) === Digitalisimo_AI_Content_Playbook::generate( 'x'
 $GLOBALS['private_types'] = array( 'nota_interna' );
 $GLOBALS['posts'][9] = new WP_Post( array( 'ID' => 9, 'post_title' => 'Nota interna', 'post_content' => 'Margen interno del 40 %.', 'post_type' => 'nota_interna' ) );
 $GLOBALS['options']['digitalisimo_ai_knowledge'][9] = array( 'id' => 9, 'title' => 'Nota interna', 'url' => '', 'content' => 'Margen interno del 40 %.', 'tokens' => array( 'margen', 'interno' ) );
+// Un índice anterior no trae la lista de IDs que save() mantiene junto a él (admin-perf): se crea a partir del índice.
+unset( $GLOBALS['options']['digitalisimo_ai_knowledge_ids'] );
 check( array() === wp_list_ids( Digitalisimo_AI_Knowledge::search( 'margen interno', 4 ) ), 'Un índice anterior no entrega contenido de un tipo no público.' );
 Digitalisimo_AI_Knowledge::index_post( 9, $GLOBALS['posts'][9], true );
 check( ! isset( $GLOBALS['options']['digitalisimo_ai_knowledge'][9] ), 'Guardar contenido de un tipo no público lo quita del índice.' );

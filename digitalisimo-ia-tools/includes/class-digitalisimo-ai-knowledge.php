@@ -4,7 +4,10 @@ defined( 'ABSPATH' ) || exit;
 /** Base de conocimiento local para recuperación contextual (RAG) de DIGITALÍSIMO IA Tools. */
 class Digitalisimo_AI_Knowledge {
 	const OPTION = 'digitalisimo_ai_knowledge';
+	/** Huella del registro indexado de cada entrada (antes, su fecha de modificación): si no cambia, no se reescribe el índice. */
 	const META = '_digitalisimo_ai_knowledge';
+	/** IDs del índice, pequeña y sin autoload: saber si una entrada está indexada sin leer el índice completo. */
+	const IDS = 'digitalisimo_ai_knowledge_ids';
 
 	public static function init() {
 		add_action( 'save_post', array( __CLASS__, 'index_post' ), 90, 3 );
@@ -17,7 +20,18 @@ class Digitalisimo_AI_Knowledge {
 
 	private static function enabled() { return (bool) Digitalisimo_AI::get( 'knowledge_enabled' ); }
 	private static function index() { return (array) get_option( self::OPTION, array() ); }
-	private static function save( $index ) { update_option( self::OPTION, $index, false ); }
+	private static function save( $index ) { update_option( self::OPTION, $index, false ); update_option( self::IDS, array_map( 'intval', array_keys( $index ) ), false ); }
+	/** IDs indexados. Un índice de una versión anterior (sin la lista) la crea una vez; uno vacío no escribe nada. */
+	private static function ids() {
+		$ids = get_option( self::IDS, null );
+		if ( is_array( $ids ) ) return array_map( 'intval', $ids );
+		$ids = array_map( 'intval', array_keys( self::index() ) );
+		if ( $ids ) update_option( self::IDS, $ids, false );
+		return $ids;
+	}
+	private static function indexed( $post_id ) { return in_array( (int) $post_id, self::ids(), true ); }
+	/** Huella de lo que se indexa (sin la fecha de modificación, que cambia en cada guardado aunque el texto sea el mismo). */
+	private static function fingerprint( $record ) { unset( $record['modified'] ); return md5( serialize( $record ) ); }
 	/** Sólo contenido público: de un tipo público (como en rebuild()), publicado, sin contraseña y sin noindex. Lo protegido nunca llega al chatbot. */
 	private static function allowed( $post ) {
 		if ( ! $post instanceof WP_Post || 'publish' !== $post->post_status || '' !== (string) $post->post_password ) return false;
@@ -50,15 +64,31 @@ class Digitalisimo_AI_Knowledge {
 		);
 	}
 
+	/**
+	 * Guardar una entrada sólo lee y reescribe el índice completo (una opción que crece con todo el contenido público)
+	 * cuando cambia: una entrada que no se puede indexar y no estaba (menús, pedidos, borradores, autoguardados) no lo
+	 * toca, y una indexada cuyo registro es idéntico (el segundo guardado del editor de bloques, el de los metaboxes)
+	 * tampoco, así conserva además su embedding. Lo que deja de ser público sale siempre.
+	 */
 	public static function index_post( $post_id, $post, $update ) {
 		if ( wp_is_post_revision( $post_id ) || ! self::enabled() || ! Digitalisimo_AI::get( 'knowledge_auto_index' ) ) return;
-		$index = self::index();
-		if ( ! self::allowed( $post ) ) { unset( $index[ $post_id ] ); self::save( $index ); return; }
+		if ( ! self::allowed( $post ) ) {
+			if ( ! self::indexed( $post_id ) ) return;
+			$index = self::index(); unset( $index[ $post_id ] ); self::save( $index );
+			return;
+		}
 		$record = self::record( $post );
-		if ( $record ) { $index[ $post_id ] = $record; self::save( $index ); update_post_meta( $post_id, self::META, $record['modified'] ); }
+		if ( ! $record ) return;
+		$fingerprint = self::fingerprint( $record );
+		if ( $fingerprint === get_post_meta( $post_id, self::META, true ) && self::indexed( $post_id ) ) return;
+		$index = self::index(); $index[ $post_id ] = $record; self::save( $index ); update_post_meta( $post_id, self::META, $fingerprint );
 	}
 
-	public static function remove_post( $post_id ) { $index = self::index(); unset( $index[ $post_id ] ); self::save( $index ); }
+	/** Al borrar una entrada (y cada una de sus revisiones), el índice sólo se lee si la entrada estaba en él. */
+	public static function remove_post( $post_id ) {
+		if ( wp_is_post_revision( $post_id ) || ! self::indexed( $post_id ) ) return;
+		$index = self::index(); unset( $index[ $post_id ] ); self::save( $index );
+	}
 	public static function rebuild() {
 		if ( ! self::enabled() ) return;
 		$index = array();
