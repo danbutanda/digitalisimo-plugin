@@ -724,6 +724,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 			if ( ! preg_match( '/\.digitalisimo-restore-([0-9a-f]{6})/', (string) $leftover, $m ) || in_array( $m[1], array( (string) $job['spec']['tag'], $keep ), true ) ) continue;
 			self::restore_remove_tree( (string) $leftover );
 		}
+		// Archivos y lo de después (Digitalisimo_Backups_Restore_Compat): lo que se decide con el sitio intacto.
+		self::restore_compat_plan( $job, $rows );
 	}
 	/** Pasa las sentencias anotadas por el guardián y la reubicación sin ejecutarlas, con la memoria de la importación. */
 	private static function restore_dry_transform( array $job, array $data, $plan, array $rows, array $largest ) {
@@ -1368,6 +1370,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 						if ( self::restore_walk_into( $relative, $layout ) && Digitalisimo_Backups_Restore_Parts::relevant_dir( $parts, $relative, $layout ) ) $stack[] = $relative;
 						continue;
 					}
+					if ( Digitalisimo_Backups_Restore_Compat::keep_live( $staging, $unit, $layout ) ) continue;
 					if ( ! self::restore_managed( $relative, $layout ) || ! $complete ) continue;
 					if ( ! Digitalisimo_Backups_Restore_Parts::removable( $parts, $relative, $layout, ! empty( $job['spec']['rollback'] ) ) ) continue;
 					$named = self::restore_zip_name( $relative );
@@ -1477,6 +1480,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 				$relative = $stat ? self::restore_target( (string) $stat['name'], $skip ) : null;
 				if ( null === $relative ) continue;
 				if ( null !== $parts && ! Digitalisimo_Backups_Restore_Parts::selected( $parts, $relative, $layout ) ) continue;
+				if ( Digitalisimo_Backups_Restore_Compat::skip_entry( $staging, $relative, $layout ) ) continue;
 				$work++;
 				$unit = self::restore_unit( $relative, $layout );
 				$whole = '' !== $unit && empty( $units[ $unit ]['mixed'] );
@@ -1620,6 +1624,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$crc = @hash_file( 'crc32b', $temp );
 		if ( false === $written || ! $closed || $written !== $declared || false === $crc || $crc !== sprintf( '%08x', $stat['crc'] ) ) { @unlink( $temp ); throw new Exception( 'El archivo restaurado ' . $relative . ' quedó incompleto.' ); }
 		if ( ! @rename( $temp, $target ) ) { @unlink( $temp ); throw new Exception( 'No se pudo preparar el archivo ' . $relative . ' en el área de trabajo.' ); }
+		Digitalisimo_Backups_Restore_Compat::stage_mode( $base, $relative );
 		Digitalisimo_Backups_Jobs::progress( Digitalisimo_Backups_Restore_Job::FLOORS['files'], 'Preparando ' . $relative );
 	}
 
@@ -1716,6 +1721,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 				// Y va ya en la tabla temporal: el cambio de tablas trae el de aquí, sin ventana en la que una muerte deje en la
 				// base el del otro servidor (revisión C1: en un clon de la misma cuenta, su carpeta existe aquí).
 				self::restore_preswap_storage( $tables, $storage_before );
+				// Y este plugin, activo en la base de datos que entra (si el respaldo no lo activa): los ticks siguientes lo cargan.
+				Digitalisimo_Backups_Restore_Compat::activate( self::restore_staging( $job ), $tables );
 				self::write_restore_journal( $origin, $kept );
 				try {
 					if ( false === @file_put_contents( $marker, (string) time() ) ) throw new Exception( 'No se pudo anotar el cambio de tablas en el área de trabajo.' );
@@ -2068,13 +2075,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 	}
 	private static function restore_copy_tree( $from, $to ) {
 		if ( is_link( $from ) ) return false;
-		if ( is_file( $from ) ) return @copy( $from, $to ) && @filesize( $from ) === @filesize( $to );
+		// Cada copia lleva los permisos de lo preparado (Digitalisimo_Backups_Restore_Compat::stage_mode()).
+		if ( is_file( $from ) ) return @copy( $from, $to ) && @filesize( $from ) === @filesize( $to ) && Digitalisimo_Backups_Restore_Compat::same_mode( $from, $to );
 		if ( ! is_dir( $from ) || ( ! is_dir( $to ) && ! @mkdir( $to, 0755, true ) ) ) return false;
 		foreach ( (array) @scandir( $from ) as $name ) {
 			if ( '.' === $name || '..' === $name ) continue;
 			if ( ! self::restore_copy_tree( $from . '/' . $name, $to . '/' . $name ) ) return false;
 		}
-		return true;
+		return Digitalisimo_Backups_Restore_Compat::same_mode( $from, $to );
 	}
 	// Un archivo preparado a su lugar, apartando lo que estorbe (una carpeta donde va un archivo, un archivo donde va una carpeta).
 	private static function restore_place( $staged, $live, $old, $root ) {
@@ -2106,6 +2114,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( ! is_file( $from ) || is_link( $from ) ) return false;
 		$temp = $to . '.digitalisimo-restore-' . bin2hex( random_bytes( 4 ) );
 		if ( ! @copy( $from, $temp ) ) { @unlink( $temp ); return false; }
+		Digitalisimo_Backups_Restore_Compat::same_mode( $from, $temp );
 		clearstatcache();
 		if ( @filesize( $temp ) !== @filesize( $from ) || @hash_file( 'sha256', $temp ) !== @hash_file( 'sha256', $from ) || ! @rename( $temp, $to ) ) { @unlink( $temp ); return false; }
 		@unlink( $from );
@@ -2365,6 +2374,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 				self::restore_keeper_close( $keeper );
 			}
 			$cursor['kept'] += (int) $keeper['kept'];
+			// 3. Caché de páginas y de constructores, tema que falta y servicios del origen (Digitalisimo_Backups_Restore_Compat).
+			$cursor['compat'] = Digitalisimo_Backups_Restore_Compat::cleanup( (array) ( $cursor['compat'] ?? array() ), $deadline, $job, $layout, self::restore_staging( $job ), self::restore_with_database( $job ), self::restore_parts( $job ) );
+			if ( empty( $cursor['compat']['done'] ) ) return self::restore_slice( 'cleanup', $cursor, 'Vaciando la caché de páginas…', $started, max( 1, (int) $cursor['compat']['units'] ), $job );
 		} catch ( Digitalisimo_Backups_Job_Lease_Lost $e ) {
 			throw $e;
 		} catch ( Throwable $e ) {
@@ -2392,13 +2404,16 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		self::restore_keeper_close( $keeper );
 		$cursor['kept'] += (int) $keeper['kept'];
-		// Y los .htaccess sueltos, una sola vez y al final de todo (cada escritura recarga OpenLiteSpeed en Webuzo).
+		// Y los .htaccess sueltos, una sola vez y al final de todo (cada escritura recarga OpenLiteSpeed en Webuzo); antes, el
+		// bloque de WordPress, en el de la raíz del respaldo o en el de aquí (brecha 12).
+		Digitalisimo_Backups_Restore_Compat::htaccess( $tree, $layout, self::restore_staging( $job ) );
 		try {
 			if ( '' !== $tree ) $switch['htaccess'] = self::restore_place_htaccess( $tree, $layout );
 		} catch ( Throwable $e ) {
 			$warnings[] = 'No se pudo poner un .htaccess del respaldo: ' . $e->getMessage();
 		}
 		$result = self::restore_result( $job, $cursor, $warnings );
+		$result = Digitalisimo_Backups_Restore_Compat::report( $result, self::restore_staging( $job ), (array) ( $cursor['compat'] ?? array() ), function( $text ) use ( $job ) { return self::restore_public_text( $text, $job ); } );
 		if ( '' !== $tree ) self::restore_remove_tree( $tree );
 		$removed = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/removed.txt';
 		$list = self::restore_staging( $job ) . '/removed.txt';
@@ -2790,5 +2805,22 @@ trait Digitalisimo_Backups_Restore_Engine {
 			return array( 'state' => $state, 'job' => (string) $last['id'], 'file' => basename( (string) $last['spec']['file'] ), 'safety' => self::restore_safety_file( $last ), 'notice' => $message, 'recover' => $recover ? basename( (string) $recover['file'] ) : '', 'maintenance' => Digitalisimo_Backups_Restore_Maintenance::ours() );
 		}
 		return array( 'state' => 'none', 'notice' => '' );
+	}
+
+	/* =========================================================================================== Archivos y lo de después */
+
+	// Al final de la verificación, con el sitio intacto: si el respaldo es de otra instalación (la misma decisión que
+	// «Conservar mi acceso»: la identidad de H23, un sitio extraído o una migración; nunca la vuelta a la copia previa) y lo
+	// demás que Digitalisimo_Backups_Restore_Compat decide antes de tocar nada.
+	private static function restore_compat_plan( array $job, array $rows ) {
+		$rollback = ! empty( $job['spec']['rollback'] );
+		$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( self::restore_read_json( $job, 'metadata.json' )['scope'] ?? '' );
+		$foreign = ! $rollback && ( $extracted || ! empty( $job['spec']['safety_extra']['migration'] ) || ! self::keep_config_same_installation( (string) ( $job['spec']['file'] ?? '' ) ) );
+		$zip = self::restore_zip( $job );
+		try {
+			Digitalisimo_Backups_Restore_Compat::plan( self::restore_staging( $job ), $job, $foreign, self::restore_layout(), $zip, $rows, self::restore_parts( $job ) );
+		} finally {
+			self::close_quietly( $zip );
+		}
 	}
 }

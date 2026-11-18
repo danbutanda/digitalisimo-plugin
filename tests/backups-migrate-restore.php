@@ -6,8 +6,9 @@
  *
  *   (h1) con un respaldo a medias en el destino, la migración no reemplaza el sitio: espera (sin gastar intentos) a que
  *        termine, así que el respaldo que entra en el historial es coherente (la base de datos y los archivos de antes);
- *   (h2) «Deshacer la migración» deja el destino idéntico a su copia previa: sin el mu-plugin, el drop-in de wp-content,
- *        el plugin ni el medio del origen, con su medio propio de vuelta; y (P1) en tablas: sin la tabla que sólo tenía el
+ *   (h2) «Deshacer la migración» deja el destino idéntico a su copia previa: sin el mu-plugin, el plugin ni el medio del
+ *        origen, con su medio propio de vuelta (el drop-in de wp-content del origen ni siquiera llega: es de su servidor,
+ *        brecha 5 del estudio de UpdraftPlus); y (P1) en tablas: sin la tabla que sólo tenía el
  *        origen (apartada y borrada al terminar el deshacer, K1) y con la que sólo tenía el destino (que la migración
  *        retiró, porque el sitio se reemplaza por completo);
  *   (h4) una migración cuya restauración falla después del cambio vuelve sola a la copia previa y nunca se ofrece para
@@ -157,7 +158,7 @@ rs_case( 'h2 · deshacer deja el destino idéntico a su copia previa, en archivo
 	$GLOBALS['mig']['sites']['destino']['db']->pdo->exec( 'CREATE TABLE `dst_solo_destino` (`id` INTEGER PRIMARY KEY, `nota` text)' );
 	$GLOBALS['mig']['sites']['destino']['db']->seed( 'dst_solo_destino', array( array( 'id' => 1, 'nota' => 'dato del destino' ) ) );
 	$real = $GLOBALS['mig']['sites']['destino']['real'];
-	$foreign = array( 'wp-content/mu-plugins/del-origen.php', 'wp-content/object-cache.php', 'wp-content/plugins/solo-origen.php', 'wp-content/uploads/2026/11/foto-origen.jpg' );
+	$foreign = array( 'wp-content/mu-plugins/del-origen.php', 'wp-content/plugins/solo-origen.php', 'wp-content/uploads/2026/11/foto-origen.jpg' );
 	$before = mig_in( 'destino', function() { return array( get_option( 'blogname' ), $GLOBALS['wpdb']->posts ); } );
 	$migration = rs_pull( rs_key() );
 	$job = rs_drive_until( $migration, function() { return false; } );
@@ -165,6 +166,8 @@ rs_case( 'h2 · deshacer deja el destino idéntico a su copia previa, en archivo
 	mig_use( 'destino' );
 	$left = array_values( array_filter( $foreign, function( $file ) use ( $real ) { return ! file_exists( $real . '/' . $file ); } ) );
 	mig_assert( 'Origen' === get_option( 'blogname' ) && ! $left, 'La migración no llevó al destino el contenido y los archivos del origen: ' . implode( ', ', $left ) );
+	// Los drop-ins de wp-content son del servidor de origen (su Redis, su base de datos): no se instalan (brecha 5).
+	mig_assert( ! file_exists( $real . '/wp-content/object-cache.php' ), 'La migración instaló el object-cache.php del servidor de origen.' );
 	// El sitio se reemplaza por completo: la tabla y el medio propios del destino se retiran (están en la copia previa).
 	$tables = rs_tables();
 	mig_assert( in_array( 'dst_solo_origen', $tables, true ) && ! in_array( 'dst_solo_destino', $tables, true ) && ! file_exists( $real . '/wp-content/uploads/2026/11/solo-destino.txt' ), 'Tras migrar, el destino no tiene exactamente las tablas y los medios del origen: ' . implode( ', ', $tables ) );

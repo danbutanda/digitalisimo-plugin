@@ -6,7 +6,9 @@
  * respaldos en wp-content: el primer respaldo de Backups los arrastraba todos, con la caché de páginas y los registros.
  * Ahora no entran (y el manifiesto lo declara en `excluded`), el filtro `digitalisimo_backups_default_exclusions` permite
  * incluirlos, y la restauración nunca los retira, aunque el respaldo no los traiga; lo demás de las raíces gestionadas que
- * el respaldo no tiene se sigue retirando.
+ * el respaldo no tiene se sigue retirando. La caché de páginas (`wp-content/cache`) es la excepción desde la brecha 9 del
+ * estudio de UpdraftPlus: al terminar cualquier restauración se vacía (sus páginas son de antes de restaurar), sin borrar la
+ * carpeta (docs/BACKUPS.md, «Archivos y lo de después»).
  */
 $root = sys_get_temp_dir() . '/digitalisimo-exclusions-' . bin2hex( random_bytes( 4 ) );
 mkdir( $root . '/public', 0700, true );
@@ -97,8 +99,13 @@ try {
 	digi_assert( ! is_wp_error( $restored ) && ! empty( $restored['restored'] ), 'No se restauró el respaldo: ' . ( is_wp_error( $restored ) ? $restored->get_error_message() : json_encode( $restored ) ) );
 	foreach ( array_merge( array_keys( $excluded ), array( 'wp-content/uploads/wc-logs/nuevo-2026-11-02.log', 'wp-content/backuply/backups-a1b2c3/backup_2026-11-02.tar.gz' ) ) as $relative ) {
 		if ( 0 === strpos( $relative, 'wp-content/plugins/ejemplo/' ) ) continue; // la carpeta del plugin cambia entera si algo suyo cambia
+		// La caché de páginas no se retira por no estar en el respaldo: se vacía al terminar (brecha 9), y se comprueba abajo.
+		if ( 0 === strpos( $relative, 'wp-content/cache/' ) ) continue;
 		digi_assert( is_file( $wp . $relative ), 'La restauración retiró ' . $relative . ', que el respaldo excluye por defecto.' );
 	}
+	digi_assert( is_dir( $wp . 'wp-content/cache' ) && ! is_file( $wp . 'wp-content/cache/page_enhanced/example.test/index.html' ), 'La caché de páginas de antes de restaurar sigue (o se borró su carpeta).' );
+	// El sitio vuelve a llenar su caché (lo que comprueba el paso 3).
+	$put( 'wp-content/cache/page_enhanced/example.test/index.html', $excluded['wp-content/cache/page_enhanced/example.test/index.html'] );
 	digi_assert( $excluded['wp-content/backuply/backups-a1b2c3/backup_2026-11-01.tar.gz'] === file_get_contents( $wp . 'wp-content/backuply/backups-a1b2c3/backup_2026-11-01.tar.gz' ), 'La restauración cambió un respaldo de Backuply.' );
 	digi_assert( ! is_file( $wp . 'wp-content/uploads/2026/11/ajeno.jpg' ), 'La restauración ya no retira lo ajeno de los medios (la prueba no distinguiría nada).' );
 

@@ -1103,6 +1103,10 @@ final class Digitalisimo_Backups_Relocate {
 			if ( is_dir( $path ) && ! is_link( $path ) ) {
 				self::empty_dir( $path, $count, $warnings );
 				@rmdir( $path );
+			} elseif ( in_array( strtolower( $item ), array( '.htaccess', 'web.config' ), true ) && ! is_link( $path ) ) {
+				// Reglas de la caché (W3TC, WP Rocket), no páginas guardadas: se quedan, como al vaciarla tras cualquier
+				// restauración (Digitalisimo_Backups_Restore_Compat).
+				continue;
 			} elseif ( @unlink( $path ) ) {
 				$count++;
 			} else {

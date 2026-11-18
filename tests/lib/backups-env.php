@@ -149,8 +149,11 @@ class WP_Error {
 }
 function is_wp_error( $value ) { return $value instanceof WP_Error; }
 class Bk_Die extends Error {}
-/** $GLOBALS['bk_on_mkdir'] observa cada carpeta que se prepara (la extracción prepara una por archivo). */
-function wp_mkdir_p( $path ) { if ( isset( $GLOBALS['bk_on_mkdir'] ) ) call_user_func( $GLOBALS['bk_on_mkdir'], $path ); return is_dir( $path ) || @mkdir( $path, 0700, true ); }
+/**
+ * $GLOBALS['bk_on_mkdir'] observa cada carpeta que se prepara (la extracción prepara una por archivo). Una prueba puede
+ * traer antes la de WordPress, que hereda los permisos de la carpeta que existe (backups-restore-files-compat.php).
+ */
+if ( ! function_exists( 'wp_mkdir_p' ) ) { function wp_mkdir_p( $path ) { if ( isset( $GLOBALS['bk_on_mkdir'] ) ) call_user_func( $GLOBALS['bk_on_mkdir'], $path ); return is_dir( $path ) || @mkdir( $path, 0700, true ); } }
 function absint( $value ) { return abs( (int) $value ); }
 function wp_parse_args( $args, $defaults = array() ) { return array_merge( (array) $defaults, (array) $args ); }
 function get_site( $id ) { return (object) array( 'blog_id' => $id, 'domain' => 'example.test', 'path' => '/' ); }

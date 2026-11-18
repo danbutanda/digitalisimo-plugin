@@ -1252,7 +1252,8 @@ final class Digitalisimo_Backups {
 	 */
 	private static function config_report( $zip ) {
 		try { $server = self::wordpress_config_file(); } catch ( Exception $e ) { $server = ''; }
-		return Digitalisimo_Backups_Config_Diff::for_zip( $zip, $server );
+		// DISALLOW_FILE_MODS: se avisa (Digitalisimo_Backups_Restore_Compat::file_mods(), brecha 18).
+		return Digitalisimo_Backups_Restore_Compat::file_mods( Digitalisimo_Backups_Config_Diff::for_zip( $zip, $server ) );
 	}
 	private static function wordpress_config_file() {
 		$root = realpath( ABSPATH );
@@ -3247,3 +3248,5 @@ final class Digitalisimo_Backups {
 // respaldo (quizá de una versión sin este archivo) y después todavía escribe el informe (revisión A1). Va al final y su
 // lógica vive en la clase propia: en php-wasm, unos KB más de código en la clase principal suben 0,8 MB cada petición.
 require_once __DIR__ . '/restore/class-restore-parts.php';
+// Archivos y lo de después al restaurar (drop-ins, permisos, cachés, tema, .htaccess): por lo mismo, con el plugin.
+require_once __DIR__ . '/restore/class-restore-compat.php';
