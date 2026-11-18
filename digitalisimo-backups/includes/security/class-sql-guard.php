@@ -829,8 +829,11 @@ final class Digitalisimo_Backups_Sql_Guard {
 				$user = $this->next();
 				if ( 'word' === $user[0] && 'CURRENT_USER' === $user[1] ) { if ( $this->accept_punct( '(' ) ) $this->expect_punct( ')' ); }
 				elseif ( in_array( $user[0], array( 'ident', 'str', 'word' ), true ) ) {
+					// Sin «@servidor» (MariaDB con --skip-grant-tables escribe DEFINER=``), la palabra siguiente es de la vista.
+					$before_host = $this->i;
 					$host = $this->next();
 					if ( 'punct' === $host[0] && '@' === $host[1] ) { $host = $this->next(); if ( ! in_array( $host[0], array( 'ident', 'str', 'word' ), true ) ) $this->reject( 'DEFINER no reconocido' ); }
+					elseif ( 'word' === $host[0] && in_array( $host[1], array( 'SQL', 'VIEW' ), true ) ) $this->i = $before_host;
 					elseif ( 'var' !== $host[0] || 0 === strpos( $host[1], '@@' ) ) $this->reject( 'DEFINER no reconocido' );
 				} else $this->reject( 'DEFINER no reconocido' );
 				if ( 'rewrite' === $this->views_mode ) $this->spans[] = array( $from, $this->i + strspn( $this->s, " \t\r\n", $this->i ), '' );

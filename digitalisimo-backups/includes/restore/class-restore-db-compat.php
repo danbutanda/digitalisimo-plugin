@@ -83,7 +83,15 @@ final class Digitalisimo_Backups_Db_Compat {
 					$info['collations'] = array();
 					foreach ( $rows as $row ) {
 						$name = strtolower( (string) ( $row['Collation'] ?? '' ) );
-						if ( '' !== $name ) $info['collations'][ $name ] = strtolower( (string) ( $row['Charset'] ?? '' ) );
+						$charset = strtolower( (string) ( $row['Charset'] ?? '' ) );
+						// MariaDB 10.10+ lista las UCA 14.0 sin juego de caracteres (`uca1400_ai_ci`, Charset NULL): su nombre
+						// completo (`utf8mb4_uca1400_ai_ci`) sale de COLLATION_CHARACTER_SET_APPLICABILITY.
+						if ( '' !== $name && '' !== $charset ) $info['collations'][ $name ] = $charset;
+					}
+					foreach ( self::rows( 'SELECT * FROM information_schema.COLLATION_CHARACTER_SET_APPLICABILITY' ) as $row ) {
+						$name = strtolower( (string) ( $row['FULL_COLLATION_NAME'] ?? $row['COLLATION_NAME'] ?? '' ) );
+						$charset = strtolower( (string) ( $row['CHARACTER_SET_NAME'] ?? '' ) );
+						if ( '' !== $name && '' !== $charset && 0 === strpos( $name, $charset . '_' ) ) $info['collations'][ $name ] = $charset;
 					}
 				}
 				$rows = self::rows( 'SHOW ENGINES' );
@@ -444,7 +452,7 @@ final class Digitalisimo_Backups_Db_Compat {
 		if ( ! is_array( $row ) || empty( $row[1] ) || ! empty( $wpdb->last_error ) ) return null;
 		$sql = (string) $row[1];
 		if ( ! preg_match( '/^CREATE\s/i', $sql ) || false !== strpos( $sql, "\0" ) ) return null;
-		$sql = preg_replace( '/^(CREATE\s+(?:OR\s+REPLACE\s+)?(?:ALGORITHM\s*=\s*\w+\s+)?)DEFINER\s*=\s*(?:`(?:[^`]|``)*`|\'(?:[^\'\\\\]|\\\\.)*\'|[^\s@]+)@(?:`(?:[^`]|``)*`|\'(?:[^\'\\\\]|\\\\.)*\'|\S+)\s+/i', '$1', $sql, 1 );
+		$sql = preg_replace( '/^(CREATE\s+(?:OR\s+REPLACE\s+)?(?:ALGORITHM\s*=\s*\w+\s+)?)DEFINER\s*=\s*(?:`(?:[^`]|``)*`|\'(?:[^\'\\\\]|\\\\.)*\'|[^\s@]+)(?:@(?:`(?:[^`]|``)*`|\'(?:[^\'\\\\]|\\\\.)*\'|\S+))?\s+/i', '$1', $sql, 1 );
 		if ( defined( 'DB_NAME' ) && '' !== (string) DB_NAME ) $sql = str_replace( '`' . str_replace( '`', '``', (string) DB_NAME ) . '`.', '', $sql );
 		return $sql;
 	}
