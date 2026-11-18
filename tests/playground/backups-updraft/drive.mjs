@@ -69,7 +69,9 @@ page.setDefaultTimeout(300_000);
 page.setDefaultNavigationTimeout(300_000);
 await page.setViewport({ width: 1280, height: 900 });
 const jsErrors = [];
-page.on('pageerror', (e) => jsErrors.push(String(e.message || e).slice(0, 300)));
+// «Transition was aborted…» (ViewTransition) es del escritorio de WordPress cuando una navegación corta una transición,
+// no de Backups: como en los ensayos de los paneles de avance, no cuenta.
+page.on('pageerror', (e) => { const text = String(e && e.message || e); if (!/ViewTransition|Transition was aborted/.test(text)) jsErrors.push(`${page.url()} · ${text.slice(0, 300)}`); });
 page.on('dialog', async (d) => { await d.accept(); });
 const screen = network ? '/wp-admin/network/admin.php?page=digitalisimo-network-backups' : '/wp-admin/admin.php?page=digitalisimo-backups';
 const cookieHeader = async () => (await page.cookies(base)).map((c) => `${c.name}=${c.value}`).join('; ');
