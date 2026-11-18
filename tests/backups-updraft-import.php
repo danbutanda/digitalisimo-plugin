@@ -634,7 +634,7 @@ ud_case( 'U11 un archivo de este WordPress que cambia entre fases o mientras se 
 			if ( $armed && 'wp-includes/js/core.js' === ud_copying() ) { $armed = false; file_put_contents( $target, "/* crece */\n", FILE_APPEND ); touch( $target, $mtime ); clearstatcache(); }
 			return $size;
 		};
-		ud_import_fails( $set, array( 'source' => 'updraft' ), 'cambió durante la importación', true );
+		ud_import_fails( $set, array( 'source' => 'updraft' ), 'cambió mientras se copiaba', true );
 		ud_check( ! $armed, 'El archivo no llegó a cambiar mientras se copiaba.' );
 	} finally {
 		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'], $GLOBALS['bk_filters']['digitalisimo_backups_zip_chunk'] );
@@ -744,6 +744,8 @@ ud_case( 'U15 un descifrado que no cabe en el tope de una petición web se para 
 	ud_check( is_wp_error( $slow ) && 'digitalisimo_backups_updraft_slow' === $slow->get_error_code() && false !== strpos( $slow->get_error_message(), 'WP-CLI' ) && false !== strpos( $slow->get_error_message(), '--secret-file' ) && false !== strpos( $slow->get_error_message(), '160 bits' ), 'El descifrado lento no se paró pidiendo WP-CLI: ' . ( is_wp_error( $slow ) ? $slow->get_error_code() . ' ' . $slow->get_error_message() : 'se encoló' ) );
 	ud_check( false === strpos( $slow->get_error_message(), $phrase ), 'El mensaje lleva la frase.' );
 	ud_check( ! glob( ud_store() . '/.decrypted-*' ) && count( Digitalisimo_Backups_Job_Store::all() ) === $jobs, 'Quedó una copia descifrada a medias o un trabajo.' );
+	// La decisión: se para al llegar al tope o, antes, si al ritmo de lo hecho lo que falta no cabe (sin esperar a llegar).
+	ud_check( Digitalisimo_Backups_Updraft_Import::too_slow( 0.3, 2097152, 25165824, 2.0 ) && Digitalisimo_Backups_Updraft_Import::too_slow( 2.0, 23068672, 25165824, 2.0 ) && ! Digitalisimo_Backups_Updraft_Import::too_slow( 0.3, 2097152, 4194304, 2.0 ) && ! Digitalisimo_Backups_Updraft_Import::too_slow( 1.5, 23068672, 25165824, 2.0 ), 'El tope del descifrado no se decide por el ritmo de lo hecho y lo que falta.' );
 	// Sin tope (PHP CLI, como WP-CLI), el mismo conjunto se importa.
 	ud_check( 0.0 === Digitalisimo_Backups_Updraft_Import::decrypt_seconds(), 'En PHP CLI el descifrado tiene tope.' );
 	$job = ud_import( $name, array( 'secret' => $phrase ) );

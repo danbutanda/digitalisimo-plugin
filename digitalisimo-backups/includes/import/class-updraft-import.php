@@ -296,11 +296,7 @@ final class Digitalisimo_Backups_Updraft_Import {
 				if ( $first && "\x1f\x8b" !== substr( (string) $plain, 0, 2 ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La frase no descifra la base de datos de este conjunto: no es la frase de cifrado de UpdraftPlus del sitio de origen.' );
 				$first = false;
 				if ( strlen( (string) $plain ) !== fwrite( $out, (string) $plain ) ) throw new Exception( 'No se pudo escribir la base de datos descifrada; revisa el espacio libre del almacén privado.' );
-				if ( $seconds > 0 && $read < $total ) {
-					$elapsed = microtime( true ) - $started;
-					$projected = $elapsed * $total / max( 1, $read );
-					if ( $elapsed >= $seconds || $projected > $seconds ) throw new Digitalisimo_Backups_Permanent_Error( self::slow_text( $bits, $total, $projected ), self::SLOW );
-				}
+				if ( $seconds > 0 && $read < $total && self::too_slow( microtime( true ) - $started, $read, $total, $seconds ) ) throw new Digitalisimo_Backups_Permanent_Error( self::slow_text( $bits, $total, ( microtime( true ) - $started ) * $total / max( 1, $read ) ), self::SLOW );
 			}
 			if ( $first ) throw new Digitalisimo_Backups_Permanent_Error( 'La base de datos cifrada de este conjunto está vacía.' );
 			fflush( $out );
@@ -323,6 +319,13 @@ final class Digitalisimo_Backups_Updraft_Import {
 		$limit = (int) @ini_get( 'max_execution_time' );
 		if ( $seconds > 0 && $limit > 0 ) $seconds = min( $seconds, max( 5.0, $limit - 10.0 ) );
 		return max( 0.0, (float) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_updraft_decrypt_seconds', $seconds ) : $seconds ) );
+	}
+	/**
+	 * Si el descifrado se para: al ritmo de lo hecho, el total no cabe en el tope. Se decide tras cada trozo y no espera a
+	 * llegar al tope (si se llegó con algo por leer, la proyección ya lo pasa).
+	 */
+	public static function too_slow( $elapsed, $read, $total, $seconds ) {
+		return $elapsed * $total / max( 1, $read ) > $seconds;
 	}
 	private static function slow_text( $bits, $total, $projected ) {
 		$why = in_array( (int) $bits, array( 160, 224 ), true ) ? ' Su frase (de 17 a 20 o de 25 a 28 caracteres) da una clave de ' . (int) $bits . ' bits, que OpenSSL no admite: se descifra en PHP, decenas de veces más despacio.' : '';
@@ -943,18 +946,18 @@ final class Digitalisimo_Backups_Updraft_Import {
 	 * permanente: el ZIP nunca lleva un núcleo de dos versiones. El SHA-256 del manifiesto es siempre el de los bytes
 	 * copiados (el escritor lo calcula sobre ellos). Devuelve la ruta.
 	 */
-	private static function local_unchanged( array $entry ) {
+	private static function local_unchanged( array $entry, $copied = false ) {
 		$path = rtrim( ABSPATH, '/\\' ) . '/' . $entry['n'];
 		clearstatcache( true, $path );
-		if ( is_link( $path ) || ! is_file( $path ) || (int) @filesize( $path ) !== (int) $entry['s'] || (int) @filemtime( $path ) !== (int) ( $entry['t'] ?? -1 ) ) throw self::local_changed( $entry );
+		if ( is_link( $path ) || ! is_file( $path ) || (int) @filesize( $path ) !== (int) $entry['s'] || (int) @filemtime( $path ) !== (int) ( $entry['t'] ?? -1 ) ) throw self::local_changed( $entry, $copied );
 		return $path;
 	}
 	/** Tras copiar una entrada de este WordPress: el archivo no cambió mientras se leía. */
 	private static function local_copied( array $entry ) {
-		if ( ! empty( $entry['l'] ) ) self::local_unchanged( $entry );
+		if ( ! empty( $entry['l'] ) ) self::local_unchanged( $entry, true );
 	}
-	private static function local_changed( array $entry ) {
-		return new Digitalisimo_Backups_Permanent_Error( 'El archivo ' . $entry['n'] . ' de este WordPress cambió durante la importación (quizá una actualización automática de WordPress o de un plugin) o ya no se puede leer: no se convierte un núcleo de dos versiones. Vuelve a importar el conjunto.' );
+	private static function local_changed( array $entry, $copied = false ) {
+		return new Digitalisimo_Backups_Permanent_Error( 'El archivo ' . $entry['n'] . ' de este WordPress cambió ' . ( $copied ? 'mientras se copiaba' : 'durante la importación' ) . ' (quizá una actualización automática de WordPress o de un plugin) o ya no se puede leer: no se convierte un núcleo de dos versiones. Vuelve a importar el conjunto.' );
 	}
 	private static function done( $zip, $entries, array &$cursor ) {
 		self::put( $entries, wp_json_encode( $zip->finish() ) . "\n" );
