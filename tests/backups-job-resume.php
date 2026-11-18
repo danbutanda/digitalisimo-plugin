@@ -176,7 +176,9 @@ $GLOBALS['bk_remote'] = function( $method, $url, $args ) use ( &$fails, $google 
 	return $google( $method, $url, $args );
 };
 update_option( 'digitalisimo_backups_settings', array( 'google_client_id' => 'cliente', 'google_client_secret' => 'secreto', 'google_refresh_token' => 'renovar', 'google_folder_id' => '' ) );
-$waiting = bk_manual( 'google', 'copia-en-espera' );
+// Una política de la retención global distinta de «manual» (los dos trabajos conviven): desde 1.0.81 la retención global
+// sólo cuenta y rota respaldos de la retención global (manual y legacy-full), nunca los de una automatización.
+$waiting = bk_manual( 'google', 'legacy-full' );
 for ( $i = 0; $i < 20 && ! ( 'transfer' === bk_job( $waiting['id'] )['phase'] && 'queued' === bk_job( $waiting['id'] )['status'] ); $i++ ) Digitalisimo_Backups_Jobs::tick( 0 );
 Digitalisimo_Backups_Job_Store::with_lock( function() use ( $waiting ) { $job = Digitalisimo_Backups_Job_Store::read( $waiting['id'] ); $job['retry_at'] = time() + 3600; Digitalisimo_Backups_Job_Store::write( $job ); } );
 bk_assert( 'pending' === rows_for( $waiting['spec']['file'] )[0]['transfer'] && 1 === bk_job( $waiting['id'] )['attempts']['transfer'], 'La copia remota no quedó en espera de reintento.' );
