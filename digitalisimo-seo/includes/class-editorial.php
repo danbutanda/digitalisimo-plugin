@@ -114,7 +114,20 @@ class Digitalisimo_Integrations_Editorial {
 	/** Etiqueta usada en listados: sólo muestra una ubicación válida del catálogo editorial. */
 	public static function content_location_label( $post_id ) { $own = absint( get_post_meta( $post_id, '_related_location_id', true ) ); $id = self::related_location_id( $post_id ); if ( ! $id ) return ''; $parts = array_filter( array_reverse( self::location_parts( $id ), true ) ); $label = implode( ' · ', $parts ); return $label . ( ! $own ? ' (predeterminada)' : '' ); }
 	private static function pillars() { return get_posts( array( 'post_type' => self::types(), 'posts_per_page' => -1, 'meta_key' => 'digitalisimo_seo_pillar', 'meta_value' => 'on' ) ); }
-	public static function cluster_candidates() { return get_posts( array( 'post_type' => self::types(), 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ) ); }
+	/**
+	 * Contenido publicado que puede ser pilar, por título. Los selectores sólo usan ID, tipo, título y slug: se leen
+	 * esas cuatro columnas, no cada entrada completa con su contenido, metadatos y términos (get_posts con -1, que en
+	 * el editor crecía con todo lo publicado del sitio).
+	 */
+	public static function cluster_candidates() {
+		global $wpdb;
+		$types = self::types();
+		if ( ! $types ) return array();
+		$in   = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ID, post_title, post_type, post_name FROM {$wpdb->posts} WHERE post_type IN ($in) AND post_status = 'publish' ORDER BY post_title ASC, ID ASC", $types ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $in sólo son marcadores %s.
+		foreach ( (array) $rows as $row ) $row->ID = (int) $row->ID;
+		return (array) $rows;
+	}
 	public static function is_cluster_candidate( $post_id ) { $post = get_post( absint( $post_id ) ); return $post && 'publish' === $post->post_status && in_array( $post->post_type, self::types(), true ); }
 	/** Resuelve un ID local o un slug heredado desde la red al pilar de este sitio. */
 	public static function cluster_candidate_id( $value ) { $id = absint( $value ); if ( $id && self::is_cluster_candidate( $id ) ) return $id; $slug = sanitize_title( (string) $value ); if ( ! $slug ) return 0; $matches = get_posts( array( 'post_type' => self::types(), 'post_status' => 'publish', 'name' => $slug, 'posts_per_page' => 1, 'orderby' => 'ID', 'order' => 'ASC' ) ); return ! empty( $matches[0] ) ? (int) $matches[0]->ID : 0; }

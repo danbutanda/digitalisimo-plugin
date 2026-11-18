@@ -17,6 +17,8 @@ class Digitalisimo_Integrations_Video {
 	const YOUTUBE  = 'digitalisimo_seo_video_youtube';
 	const PENDING  = 'digitalisimo_seo_video_pending';
 	const VERSION  = 1;
+	/** Cuándo se comprobó por última vez que no quedaba nada por analizar ni por pedir a Vimeo (marca pequeña con autoload). */
+	const CHECKED  = 'digitalisimo_seo_video_checked';
 	const VERSION_META = 'digitalisimo_seo_video_v';
 	const HOOK     = 'digitalisimo_seo_video_batch';
 	const BATCH    = 50;
@@ -28,13 +30,27 @@ class Digitalisimo_Integrations_Video {
 		add_action( 'wp_after_insert_post', array( __CLASS__, 'after_save' ), 30, 4 );
 		add_action( self::HOOK, array( __CLASS__, 'run_batch' ) );
 		add_action( 'admin_init', array( __CLASS__, 'admin_init' ) );
+		add_action( 'update_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'forget_checked' ) );
+		add_action( 'update_site_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'forget_checked' ) );
 	}
 
 	public static function enabled() { return Digitalisimo_Integrations_Sitemap::enabled() && (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_sitemap_video_enabled', 0 ); }
 
+	/**
+	 * Programa la cola si quedó algo sin analizar. Sin nada pendiente, backlog() y pending() recorren el postmeta de todo
+	 * lo publicado (NOT EXISTS y !=, sin LIMIT efectivo): se comprueba como mucho una vez por hora, no en cada petición
+	 * del escritorio, del heartbeat ni de admin-ajax. Guardar un contenido lo analiza y lo encola en el momento
+	 * (after_save), y cambiar los ajustes borra la marca.
+	 */
 	public static function admin_init() {
-		if ( self::enabled() && ! wp_next_scheduled( self::HOOK ) && ( self::backlog( 1 ) || self::pending( 1 ) ) ) wp_schedule_single_event( time() + 30, self::HOOK );
+		if ( ! self::enabled() || wp_next_scheduled( self::HOOK ) ) return;
+		$checked = (int) get_option( self::CHECKED, 0 );
+		if ( $checked > time() - HOUR_IN_SECONDS && $checked <= time() ) return;
+		if ( self::backlog( 1 ) || self::pending( 1 ) ) { wp_schedule_single_event( time() + 30, self::HOOK ); return; }
+		update_option( self::CHECKED, time(), true );
 	}
+
+	public static function forget_checked() { delete_option( self::CHECKED ); }
 
 	/* ------------------------------------------------------------------ */
 	/* Detección y formato (puros).                                         */
