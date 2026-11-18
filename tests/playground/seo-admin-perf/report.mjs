@@ -62,7 +62,16 @@ for (const [hook, v] of Object.entries(r.cron || {})) if (hook !== 'before' && h
 if (r.plugin_postmeta) out.push('', `Metadatos de los plugins en postmeta: ${r.plugin_postmeta.map((x) => `${x.meta_key} ${x.n}`).join(', ')} (de ${r.postmeta_rows} filas).`);
 if (r.chrome) {
   out.push('', '## Chrome', '');
-  for (const [k, ev] of Object.entries(r.chrome.console)) if (ev.length) out.push(`- ${k}: ${ev.map((e) => `[${e.kind}] ${e.text}`).join(' · ')}`);
+  // Sólo lo que aparece con los plugins y no sin ellos; ERR_NAME_NOT_RESOLVED es la red cortada del arnés (gravatar, emoji).
+  const norm = (e) => `[${e.kind}] ${e.text}`;
+  let any = false;
+  for (const [k, ev] of Object.entries(r.chrome.console)) {
+    if (!k.startsWith('all ')) continue;
+    const base = new Set((r.chrome.console[`none ${k.slice(4)}`] || []).map(norm));
+    const extra = [...new Set(ev.map(norm).filter((x) => !base.has(x) && !/ERR_NAME_NOT_RESOLVED/.test(x)))];
+    if (extra.length) { any = true; out.push(`- ${k.slice(4)}: ${extra.join(' · ')}`); }
+  }
+  if (!any) out.push(`- Ningún error de consola, de JavaScript ni respuesta ≥ 400 que no aparezca también sin los plugins (${Object.keys(r.chrome.console).length} cargas de página).`);
   for (const [set, runs] of Object.entries(r.chrome.save)) out.push(`- guardar desde el editor [${set}]: ${runs.map((x) => `${x.wall_ms} ms (${x.requests.map((q) => `${q.method} ${q.uri.replace(/\?.*$/, '')} ${f(q.ms)} ms/${q.queries} q`).join(' + ')})`).join(' · ')}`);
 }
 console.log(out.join('\n'));

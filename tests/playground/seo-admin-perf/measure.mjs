@@ -154,8 +154,11 @@ for (const screen of screens) {
 const ownPaths = new Set();
 for (const start of ['/wp-admin/index.php', '/wp-admin/admin.php?page=digitalisimo-seo', ...(multisite ? ['/wp-admin/network/index.php', '/wp-admin/network/admin.php?page=digitalisimo-network-seo'] : [])]) {
   const r = await request('GET', start, { set: 'all' });
-  for (const m of r.text.matchAll(/href=["']((?:https?:\/\/[^"']+)?\/wp-admin\/(?:network\/)?admin\.php\?page=digitalisimo[^"'#]*)["']/g)) {
-    const u = m[1].replace(/&amp;/g, '&').replace(/^https?:\/\/[^/]+/, '');
+  const dir = start.startsWith('/wp-admin/network/') ? '/wp-admin/network/' : '/wp-admin/';
+  // Enlaces absolutos (pestañas) y relativos (el menú: admin.php?page=…).
+  for (const m of r.text.matchAll(/href=["']((?:https?:\/\/[^"']+)?(?:\/wp-admin\/(?:network\/)?)?admin\.php\?page=digitalisimo[^"'#]*)["']/g)) {
+    let u = m[1].replace(/&amp;/g, '&').replace(/^https?:\/\/[^/]+/, '');
+    if (!u.startsWith('/')) u = dir + u;
     if (!/action=|_wpnonce|delete|run|export|download/.test(u)) ownPaths.add(u);
   }
 }
