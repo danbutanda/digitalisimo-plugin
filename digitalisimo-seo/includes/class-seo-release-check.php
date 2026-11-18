@@ -20,12 +20,18 @@ final class Digitalisimo_SEO_Release_Check {
 
 	public static function init() {
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 30, 4 );
-		add_filter( 'site_transient_update_plugins', array( __CLASS__, 'inject' ), 30 );
+		// WordPress lee update_plugins en cada pantalla del escritorio (el contador del menú): esa lectura sólo usa lo ya
+		// sabido y nunca espera a GitHub. Descargan el cron y las consultas de WordPress (pre_set_…: Plugins,
+		// Actualizaciones, wp_update_plugins), que ya son momentos de red.
+		add_filter( 'site_transient_update_plugins', array( __CLASS__, 'inject_known' ), 30 );
 		add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject' ), 30 );
 		add_action( self::HOOK, array( __CLASS__, 'refresh' ) );
 		add_action( 'admin_post_digitalisimo_check_updates', array( __CLASS__, 'clear_for_manual' ), 1 );
 		add_filter( 'cron_schedules', array( __CLASS__, 'schedule' ) );
-		if ( ! wp_next_scheduled( self::HOOK ) ) wp_schedule_event( time() + 300, 'digitalisimo_five_minutes', self::HOOK );
+		// La caché y la última versión conocida son de red: en una red basta el cron del sitio principal (con uno por
+		// sitio, cada sitio descargaba el índice cada cinco minutos y vaciaba la caché de los demás).
+		if ( is_multisite() && ! is_main_site() ) { if ( wp_next_scheduled( self::HOOK ) ) wp_clear_scheduled_hook( self::HOOK ); }
+		elseif ( ! wp_next_scheduled( self::HOOK ) ) wp_schedule_event( time() + 300, 'digitalisimo_five_minutes', self::HOOK );
 	}
 
 	public static function schedule( $schedules ) {
@@ -45,10 +51,14 @@ final class Digitalisimo_SEO_Release_Check {
 		delete_site_transient( self::MANIFEST_CACHE );
 	}
 
-	/** El cron actualiza únicamente el índice de SEO y el aviso; no consulta WordPress.org. Si GitHub falla, release() conserva la última versión encontrada. */
+	/**
+	 * El cron actualiza únicamente el índice de SEO y el aviso; no consulta WordPress.org. Descarga el índice de nuevo y
+	 * lo deja en la caché compartida, sin vaciarla antes: si GitHub falla, los demás plugins conservan el índice que ya
+	 * tenían y release() conserva la última versión encontrada.
+	 */
 	public static function refresh() {
-		self::clear();
-		self::release();
+		delete_site_transient( self::CACHE_KEY );
+		self::release( true );
 		$updates = get_site_transient( 'update_plugins' );
 		if ( ! is_object( $updates ) || ! isset( $updates->checked ) || ! is_array( $updates->checked ) ) {
 			wp_update_plugins();
@@ -58,10 +68,10 @@ final class Digitalisimo_SEO_Release_Check {
 		if ( is_object( $updates ) && isset( $updates->checked ) && is_array( $updates->checked ) ) set_site_transient( 'update_plugins', $updates );
 	}
 
-	private static function release() {
+	private static function release( $fresh = false ) {
 		$cached = get_site_transient( self::CACHE_KEY );
 		if ( is_array( $cached ) ) return $cached;
-		$latest = self::from_manifest();
+		$latest = self::from_manifest( $fresh );
 		if ( ! $latest ) $latest = self::from_api();
 		if ( $latest ) {
 			update_site_option( self::LAST_KNOWN, $latest );
@@ -79,8 +89,8 @@ final class Digitalisimo_SEO_Release_Check {
 	private static function timeout() { return function_exists( 'wp_doing_cron' ) && wp_doing_cron() ? 10 : 3; }
 
 	/** Versión de SEO en el índice de la última Release; sólo acepta un ZIP suyo de este repositorio. */
-	private static function from_manifest() {
-		$manifest = get_site_transient( self::MANIFEST_CACHE );
+	private static function from_manifest( $fresh = false ) {
+		$manifest = $fresh ? false : get_site_transient( self::MANIFEST_CACHE );
 		if ( ! is_array( $manifest ) ) {
 			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => self::timeout(), 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-SEO-Updater' ) ) );
 			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) return array();
@@ -130,9 +140,22 @@ final class Digitalisimo_SEO_Release_Check {
 		return array( 'slug' => 'digitalisimo-seo', 'version' => $release['version'], 'package' => $release['package'], 'url' => $release['url'], 'requires_php' => '7.4' );
 	}
 
-	public static function inject( $transient ) {
+	/** Lo ya sabido sin red: la caché propia o, vencida, la última versión encontrada (el cron la renueva). */
+	private static function known() {
+		$cached = get_site_transient( self::CACHE_KEY );
+		if ( ! is_array( $cached ) ) $cached = get_site_option( self::LAST_KNOWN, array() );
+		return is_array( $cached ) && ! empty( $cached['version'] ) && version_compare( $cached['version'], DIGITALISIMO_INTEGRATIONS_VERSION, '>' ) ? $cached : array();
+	}
+
+	/** Lectura de update_plugins (cada pantalla del escritorio): sólo lo ya sabido, sin peticiones a GitHub. */
+	public static function inject_known( $transient ) { return self::apply( $transient, false ); }
+
+	/** Escritura de update_plugins (WordPress está consultando actualizaciones): puede descargar el índice. */
+	public static function inject( $transient ) { return self::apply( $transient, true ); }
+
+	private static function apply( $transient, $remote ) {
 		if ( ! is_object( $transient ) || ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) return $transient;
-		$release = self::pending();
+		$release = $remote ? self::pending() : self::known();
 		if ( ! $release ) return $transient;
 		$file = plugin_basename( DIGITALISIMO_INTEGRATIONS_FILE );
 		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) $transient->response = array();
