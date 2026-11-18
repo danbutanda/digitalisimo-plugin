@@ -340,9 +340,10 @@ trait Digitalisimo_Backups_Service {
 	 * mismos campos y las mismas reglas (automation_input(), con el tope de «Conservar»), y lo que no se envía conserva
 	 * su valor (al crear: diaria, local, «Conservar 4» y «Completo cada vez»). Campos: `schedule`, `time`, `destination`,
 	 * `retain`, `retain_unit` (`points` o `chains`; sólo cuenta en una incremental), `mode` (`full` o `incremental`),
-	 * `full_every`, `full_days`, `remote_only` y `enabled`. Una frecuencia, un destino, un modo o una unidad que no existen
-	 * se rechazan (400), en vez de cambiarse en silencio. Devuelve la automatización como GET /automations, con `notice`
-	 * si «Conservar» se acotó.
+	 * `full_every`, `full_days`, `remote_only` y `enabled`. Una frecuencia, un destino, un modo o una unidad que no existen,
+	 * o un número que no es un entero de su rango (1–100, 1–60, 1–90), se rechazan (400), en vez de cambiarse en silencio;
+	 * también crear más de MAX_AUTOMATIONS. Devuelve la automatización como GET /automations, con `notice` si «Conservar»
+	 * se acotó a su tope o se pidió «cadenas» en una «Completo cada vez».
 	 */
 	public static function service_save_automation( array $input, $id = '', array $args = array() ) {
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
@@ -358,8 +359,12 @@ trait Digitalisimo_Backups_Service {
 		foreach ( $choices as $key => $allowed_values ) {
 			if ( array_key_exists( $key, $input ) && ! in_array( (string) $input[ $key ], $allowed_values, true ) ) return self::service_error( 'automation_' . $key, 'Valor no válido para «' . $key . '»: ' . implode( ', ', $allowed_values ) . '.', 400 );
 		}
-		foreach ( array( 'retain', 'full_every', 'full_days' ) as $key ) {
-			if ( array_key_exists( $key, $input ) && ! is_numeric( $input[ $key ] ) ) return self::service_error( 'automation_' . $key, '«' . $key . '» debe ser un número.', 400 );
+		// Números enteros dentro de su rango, igual en REST (que ya los declara así) y en WP-CLI: nada se acota en silencio.
+		foreach ( array( 'retain' => 100, 'full_every' => Digitalisimo_Backups_Chain::MAX_FULL_EVERY, 'full_days' => Digitalisimo_Backups_Chain::MAX_FULL_DAYS ) as $key => $most ) {
+			if ( ! array_key_exists( $key, $input ) ) continue;
+			$number = Digitalisimo_Backups_Chain::integer( $input[ $key ], null );
+			if ( null === $number || $number < 1 || $number > $most ) return self::service_error( 'automation_' . $key, '«' . $key . '» debe ser un número entero de 1 a ' . $most . '.', 400 );
+			$input[ $key ] = $number;
 		}
 		$id = sanitize_key( (string) $id );
 		$policies = self::policies();
@@ -370,6 +375,7 @@ trait Digitalisimo_Backups_Service {
 			if ( 'full' !== ( $policies[ $index ]['type'] ?? '' ) ) return self::service_error( 'automation_partial', 'Esta automatización parcial anterior está desactivada: crea una completa.', 400 );
 			$input += array_intersect_key( (array) $policies[ $index ], array_flip( $fields ) );
 		} else {
+			if ( count( $policies ) >= self::MAX_AUTOMATIONS ) return self::service_error( 'automation_limit', self::automation_limit_text(), 400 );
 			$input += array( 'schedule' => 'daily', 'destination' => 'local', 'retain' => 4, 'mode' => 'full', 'enabled' => true );
 		}
 		self::$automation_notice = '';

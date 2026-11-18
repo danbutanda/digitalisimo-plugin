@@ -5,35 +5,41 @@
    dependencias; todo se pinta como texto. Sin JavaScript se ve la estimación de lo guardado. */
 (function (root) {
   'use strict';
-  var HISTORY_ROWS = 100, FULL_EVERY = 6, FULL_DAYS = 7, MAX_FULL_EVERY = 60, MAX_FULL_DAYS = 90;
+  var HISTORY_ROWS = 100, FULL_EVERY = 6, FULL_DAYS = 7, MAX_FULL_EVERY = 60, MAX_FULL_DAYS = 90, DAYS_MARGIN = 21600, BIG = 999999999;
   // Segundos entre dos ejecuciones de cada frecuencia (Digitalisimo_Backups_Chain::PERIODS); sin programación, 0.
   var PERIODS = { hourly: 3600, digitalisimo_every_6_hours: 21600, digitalisimo_every_12_hours: 43200, daily: 86400, weekly: 604800, monthly: 2592000 };
 
-  /* Un número entero como lo lee PHP (is_numeric + (int)); vacío o no numérico, `fallback`. */
+  /* Digitalisimo_Backups_Chain::integer(): un número entero, o un texto de dígitos con signo opcional y espacios alrededor
+     (más de 9 cifras, ±999 999 999); decimales, exponentes (1e1000), hexadecimal o vacío dan `fallback`. */
   function integer(value, fallback) {
-    if (typeof value === 'number') return isFinite(value) ? Math.trunc(value) : fallback;
-    var text = String(value === undefined || value === null ? '' : value).trim();
-    if (text === '' || !/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(text)) return fallback;
-    var number = Number(text);
-    return isFinite(number) ? Math.trunc(number) : fallback;
+    if (typeof value === 'number') return isFinite(value) && Math.floor(value) === value ? Math.max(-BIG, Math.min(BIG, value)) : fallback;
+    if (typeof value !== 'string') return fallback;
+    var match = /^[ \t\n\r]*([+-]?)0*(\d+)[ \t\n\r]*$/.exec(value);
+    if (!match) return fallback;
+    var number = match[2].length > 9 ? BIG : parseInt(match[2], 10);
+    return match[1] === '-' ? -number : number;
   }
+  /* empty() de PHP para una casilla: falso con nada, false, 0, '' o '0'. */
+  function filled(value) { return !(value === undefined || value === null || value === false || value === 0 || value === '' || value === '0'); }
   function clamp(value, low, high) { return Math.max(low, Math.min(high, value)); }
   function plural(n, one, many) { return n + (n === 1 ? one : many); }
 
-  /* Digitalisimo_Backups_Chain::estimate(): retain, retain_unit, mode, full_every, full_days, schedule y destination. */
+  /* Digitalisimo_Backups_Chain::estimate(): retain, retain_unit, mode, full_every, full_days, schedule, destination y
+     remote_only. `text` va a la vista (menos de 140 caracteres) y `detail`, a la ayuda. */
   function estimate(policy) {
     policy = policy || {};
     var retain = integer(policy.retain, 4);
     if (policy.mode !== 'incremental') {
       var all = clamp(retain, 1, HISTORY_ROWS);
-      return { unit: 'points', retain: all, cap: HISTORY_ROWS, min: all, max: all, chains_min: all, chains_max: all, previous_min: all - 1, chain_length: 1, text: 'Guardarás ' + all + (all === 1 ? ' respaldo completo.' : ' respaldos completos.') };
+      return { unit: 'points', retain: all, cap: HISTORY_ROWS, min: all, max: all, chains_min: all, chains_max: all, previous_min: all - 1, chain_length: 1, text: 'Guardarás ' + all + (all === 1 ? ' respaldo completo.' : ' respaldos completos.'), detail: '' };
     }
     var every = clamp(integer(policy.full_every, FULL_EVERY), 1, MAX_FULL_EVERY);
     var days = clamp(integer(policy.full_days, FULL_DAYS), 1, MAX_FULL_DAYS);
     var unit = policy.retain_unit === 'chains' ? 'chains' : 'points';
     var period = Object.prototype.hasOwnProperty.call(PERIODS, String(policy.schedule)) ? PERIODS[String(policy.schedule)] : 0;
     var length = every + 1;
-    if (period > 0) length = Math.min(length, Math.max(1, Math.floor((days * 86400 + period - 1) / period)));
+    // A los D días menos el margen del retraso de WP-Cron (Digitalisimo_Backups_Chain::days_margin()).
+    if (period > 0) length = Math.min(length, Math.max(1, Math.floor((days * 86400 - Math.min(DAYS_MARGIN, Math.floor(period / 2)) + period - 1) / period)));
     var cap = unit === 'chains' ? Math.max(1, Math.floor(HISTORY_ROWS / (every + 1))) : Math.max(1, HISTORY_ROWS - every);
     var n = clamp(retain, 1, cap);
     var min, max, low, high;
@@ -43,17 +49,21 @@
       min = n; max = n + length - 1;
       low = 1 + Math.floor((n - 1) / length); high = 1 + Math.floor((n + length - 2) / length);
     }
-    var daysText = 'cada ' + plural(days, ' día', ' días');
     var text = 'Guardarás ' + (min === max ? plural(min, ' respaldo', ' respaldos') : 'entre ' + min + ' y ' + max + ' respaldos') + ' en ' + (low === high ? plural(low, ' cadena', ' cadenas') : low + ' o ' + high + ' cadenas') + '.';
-    if (length < every + 1) text += length === 1 ? ' Con esta frecuencia cada respaldo sale completo (un completo ' + daysText + ').' : ' Con esta frecuencia la cadena se corta por días (un completo ' + daysText + '): ' + length + ' respaldos.';
     if (low > 1) {
       text += low === 2 ? ' Siempre queda al menos una cadena anterior completa.' : ' Siempre quedan al menos ' + (low - 1) + ' cadenas anteriores completas.';
     } else {
-      var when = high === 1 ? ' Una sola cadena' : (period > 0 && period < 86400 ? ' Hay horas' : ' Hay días') + ' con una sola cadena';
-      text += when + ': si su base se daña, ' + (String(policy.destination === undefined || policy.destination === null ? 'local' : policy.destination) === 'local' ? 'no hay otra copia.' : 'sólo queda la copia remota.');
+      var local = String(policy.destination === undefined || policy.destination === null ? 'local' : policy.destination) === 'local';
+      var only = filled(policy.remote_only);
+      var copy = local ? 'si su base se daña, no hay otra copia.' : (!only ? 'si su base se daña, sólo queda la copia remota.' : 'su única copia es la remota: conviene «2 cadenas».');
+      text += (high === 1 ? ' Una sola cadena' : (period > 0 && period < 86400 ? ' Hay horas' : ' Hay días') + ' con una sola cadena') + (local || !only ? ': ' : ' y ') + copy;
     }
-    if (retain > cap) text += ' «Conservar» quedará en ' + cap + '.';
-    return { unit: unit, retain: n, cap: cap, min: min, max: max, chains_min: low, chains_max: high, previous_min: low - 1, chain_length: length, text: text };
+    var daysText = 'cada ' + plural(days, ' día', ' días');
+    var detail = length < every + 1
+      ? (length === 1 ? 'Con esta frecuencia cada respaldo sale completo (un completo ' + daysText + ').' : 'Con esta frecuencia la cadena se corta por días (un completo ' + daysText + '): ' + length + ' respaldos.')
+      : 'Cada cadena: un completo y ' + plural(every, ' incremental', ' incrementales') + ' (' + length + ' respaldos).';
+    if (retain > cap) detail += ' «Conservar» quedará en ' + cap + '.';
+    return { unit: unit, retain: n, cap: cap, min: min, max: max, chains_min: low, chains_max: high, previous_min: low - 1, chain_length: length, text: text, detail: detail };
   }
 
   var NAME = 'digitalisimo_backup_automation';
@@ -66,15 +76,18 @@
     if (!output) return;
     var unit = form.querySelector('[data-retain-unit]');
     var mode = value(form, 'mode');
-    var policy = { retain: value(form, 'retain'), retain_unit: unit ? unit.value : 'points', mode: mode, full_every: value(form, 'full_every'), full_days: value(form, 'full_days'), schedule: value(form, 'schedule'), destination: value(form, 'destination') };
+    var only = field(form, 'remote_only');
+    var policy = { retain: value(form, 'retain'), retain_unit: unit ? unit.value : 'points', mode: mode, full_every: value(form, 'full_every'), full_days: value(form, 'full_days'), schedule: value(form, 'schedule'), destination: value(form, 'destination'), remote_only: !!(only && only.checked) };
     var incremental = mode === 'incremental';
     if (unit) unit.hidden = !incremental;
     var noun = form.querySelector('[data-retain-noun]');
     if (noun) noun.hidden = incremental;
     var help = form.querySelector('[data-retain-chains-help]');
     if (help) help.hidden = !incremental;
-    var text = estimate(policy).text;
-    if (output.textContent !== text) output.textContent = text;
+    var result = estimate(policy);
+    if (output.textContent !== result.text) output.textContent = result.text;
+    var detail = form.querySelector('[data-retain-detail]');
+    if (detail && detail.textContent !== result.detail) detail.textContent = result.detail;
   }
   function changed(event) {
     var target = event && event.target;

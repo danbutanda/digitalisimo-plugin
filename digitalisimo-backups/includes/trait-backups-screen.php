@@ -86,13 +86,12 @@ trait Digitalisimo_Backups_Screen {
 		return null === $folded ? $html : $folded;
 	}
 	/**
-	 * Un párrafo que fold_long() puede plegar. Nunca: uno con id (los scripts lo usan), una región viva (`aria-live`: un
-	 * script escribe en ella, como la estimación de «Conservar»), uno ya plegado (`data-folded`: el de help_html() o el de
-	 * fold_long()) ni una advertencia, que se ve entera: `<strong>`, la clase `digitalisimo-backups-warning`, `notice…` o
-	 * cualquier otra de aviso o error, o `role="alert"`.
+	 * Un párrafo que fold_long() puede plegar. Nunca: uno con id (los scripts lo usan), uno ya plegado (`data-folded`: el
+	 * de help_html() o el de fold_long()) ni una advertencia, que se ve entera: `<strong>`, la clase
+	 * `digitalisimo-backups-warning`, `notice…` o cualquier otra de aviso o error, o `role="alert"`.
 	 */
 	private static function foldable( $attrs, $body ) {
-		if ( preg_match( '/\s(?:id|data-folded|aria-live)=/', $attrs ) || preg_match( '/\srole=["\']alert/', $attrs ) ) return false;
+		if ( preg_match( '/\s(?:id|data-folded)=/', $attrs ) || preg_match( '/\srole=["\']alert/', $attrs ) ) return false;
 		if ( preg_match( '/\sclass=["\'][^"\']*\b(?:notice|[a-z-]*warning|[a-z-]*error)\b/', $attrs ) ) return false;
 		return ! preg_match( '#<(?:strong|b)\b#i', $body );
 	}
@@ -253,7 +252,7 @@ trait Digitalisimo_Backups_Screen {
 		echo '<dl class="digitalisimo-backups-status"><div><dt>Último respaldo</dt><dd>';
 		echo $last ? esc_html( self::short_date( $last['date'] ?? '' ) . ' · ' . size_format( (int) ( $last['size'] ?? 0 ) ) . ' · ' . self::copies_label( $last ) ) : 'Aún no hay respaldos';
 		echo '</dd></div><div><dt>Próximo</dt><dd>';
-		if ( $next ) echo esc_html( $next['when'] . ' · ' . $next['label'] . ' · se conservan ' . (int) $next['retain'] ) . ' <a href="' . esc_url( self::tab_url( 'settings', 'schedule' ) ) . '">Cambiar</a>';
+		if ( $next ) echo esc_html( $next['when'] . ' · ' . $next['label'] . ' · se conservan ' . $next['retain'] ) . ' <a href="' . esc_url( self::tab_url( 'settings', 'schedule' ) ) . '">Cambiar</a>';
 		else echo 'Sin programar · <a href="' . esc_url( self::tab_url( 'settings', 'schedule' ) ) . '">Programar</a>';
 		echo '</dd></div></dl>';
 		// Incrementales: cuánto ahorran frente a guardar un completo en cada punto.
@@ -269,7 +268,10 @@ trait Digitalisimo_Backups_Screen {
 			if ( empty( $policy['enabled'] ) || 'full' !== ( $policy['type'] ?? '' ) || 'disabled' === ( $policy['schedule'] ?? 'disabled' ) || empty( $policy['id'] ) ) continue;
 			$at = wp_next_scheduled( 'digitalisimo_backups_policy', array( (string) $policy['id'], get_current_blog_id() ) );
 			if ( ! $at || ( $best && $best['at'] <= $at ) ) continue;
-			$best = array( 'at' => (int) $at, 'label' => $schedules[ $policy['schedule'] ] ?? $policy['schedule'], 'retain' => (int) ( $policy['retain'] ?? 4 ) );
+			// «Conservar N cadenas»: cuántos respaldos son (Digitalisimo_Backups_Chain::estimate()).
+			$estimate = Digitalisimo_Backups_Chain::estimate( $policy );
+			$retain = 'chains' === $estimate['unit'] ? $estimate['retain'] . ( 1 === $estimate['retain'] ? ' cadena' : ' cadenas' ) . ' (' . $estimate['min'] . ' a ' . $estimate['max'] . ' respaldos)' : (string) (int) ( $policy['retain'] ?? 4 );
+			$best = array( 'at' => (int) $at, 'label' => $schedules[ $policy['schedule'] ] ?? $policy['schedule'], 'retain' => $retain );
 		}
 		if ( ! $best ) return null;
 		$best['when'] = ( new DateTimeImmutable( '@' . $best['at'] ) )->setTimezone( self::site_timezone() )->format( 'Y-m-d H:i' );

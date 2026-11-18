@@ -33,24 +33,63 @@ final class Digitalisimo_Backups_Chain {
 	const HISTORY_ROWS = 100;
 	/** Hasta este tamaño, un archivo del mismo tamaño que en el padre se compara por su SHA-256 antes de copiarlo. */
 	const HASH_FIRST_MAX = 268435456;
+	/**
+	 * Margen del corte por días (plan()): la cadena se cierra cuando su base tiene `full_days` días menos este margen, o
+	 * menos medio período de la automatización si es menor (DAYS_MARGIN y days_margin()). Una automatización con hora fija
+	 * arranca cuando WP-Cron o la cola pueden, unos minutos (o, en un sitio con pocas visitas, unas horas) tarde, y no
+	 * siempre lo mismo: sin margen, el respaldo que cae justo D días después de la base seguía la cadena si la base había
+	 * empezado más tarde que él, y la cadena salía más larga que la estimación. Con el margen, «un completo cada D días»
+	 * aguanta retrasos de hasta 6 horas (o medio período: 30 min cada hora) entre la base y ese respaldo, y medio período
+	 * nunca acorta la cadena de una frecuencia exacta (un período cabe entero en D días o no).
+	 */
+	const DAYS_MARGIN = 21600;
 
 	/* ------------------------------------------------------------------ Ajustes */
 
 	/** Modo y consolidación de una automatización o de un respaldo manual: `mode` (full o incremental), `full_every`, `full_days`. */
 	public static function settings( $input ) {
 		$input = is_array( $input ) ? $input : array();
-		$every = isset( $input['full_every'] ) && is_numeric( $input['full_every'] ) ? (int) $input['full_every'] : self::FULL_EVERY;
-		$days = isset( $input['full_days'] ) && is_numeric( $input['full_days'] ) ? (int) $input['full_days'] : self::FULL_DAYS;
+		$every = self::integer( $input['full_every'] ?? null, self::FULL_EVERY );
+		$days = self::integer( $input['full_days'] ?? null, self::FULL_DAYS );
 		return array(
 			'mode' => 'incremental' === ( $input['mode'] ?? '' ) ? 'incremental' : 'full',
 			'full_every' => max( 1, min( self::MAX_FULL_EVERY, $every ) ),
 			'full_days' => max( 1, min( self::MAX_FULL_DAYS, $days ) ),
 		);
 	}
-	/** Lo que fija la especificación de un trabajo: null si es completo. */
+	/**
+	 * Un entero de un formulario, de REST, de WP-CLI o guardado: un int, o un texto de dígitos con signo opcional y
+	 * espacios alrededor (más de 9 cifras cuentan como ±999 999 999); cualquier otra cosa (decimales, exponentes como
+	 * `1e1000`, hexadecimal, vacío) da `$fallback`. Lo mismo en todas las versiones de PHP y en assets/retention.js.
+	 */
+	public static function integer( $value, $fallback ) {
+		if ( is_int( $value ) ) return max( -999999999, min( 999999999, $value ) );
+		if ( is_float( $value ) ) return is_finite( $value ) && floor( $value ) === $value ? (int) max( -999999999, min( 999999999, $value ) ) : $fallback;
+		if ( ! is_string( $value ) || ! preg_match( '/^[ \t\n\r]*([+-]?)0*(\d+)[ \t\n\r]*$/D', $value, $match ) ) return $fallback;
+		$number = strlen( $match[2] ) > 9 ? 999999999 : (int) $match[2];
+		return '-' === $match[1] ? -$number : $number;
+	}
+	/**
+	 * Lo que fija la especificación de un trabajo: null si es completo. Con la frecuencia de su automatización (`schedule`,
+	 * o el `period` ya fijado), `period`: los segundos entre dos ejecuciones, para el margen del corte por días.
+	 */
 	public static function spec_value( $input ) {
 		$settings = self::settings( $input );
-		return 'incremental' === $settings['mode'] ? array( 'full_every' => $settings['full_every'], 'full_days' => $settings['full_days'] ) : null;
+		if ( 'incremental' !== $settings['mode'] ) return null;
+		$period = self::period( $input );
+		return array( 'full_every' => $settings['full_every'], 'full_days' => $settings['full_days'] ) + ( $period > 0 ? array( 'period' => $period ) : array() );
+	}
+	/** Segundos entre dos ejecuciones: los de su `schedule` (PERIODS) o el `period` de un trabajo; 0 sin programación. */
+	public static function period( $input ) {
+		$input = is_array( $input ) ? $input : array();
+		$schedule = (string) ( $input['schedule'] ?? '' );
+		if ( isset( self::PERIODS[ $schedule ] ) ) return self::PERIODS[ $schedule ];
+		$period = $input['period'] ?? 0;
+		return is_int( $period ) && in_array( $period, self::PERIODS, true ) ? $period : 0;
+	}
+	/** Margen del corte por días con un respaldo cada `$period` segundos: DAYS_MARGIN o medio período, el menor. */
+	public static function days_margin( $period ) {
+		return (int) $period > 0 ? min( self::DAYS_MARGIN, intdiv( (int) $period, 2 ) ) : self::DAYS_MARGIN;
 	}
 	/** El trabajo es de una cadena: respaldo de la instalación o la red, ni copia previa, ni extracción, ni migración. */
 	public static function job_enabled( array $spec ) {
@@ -156,7 +195,8 @@ final class Digitalisimo_Backups_Chain {
 		if ( ! $chain ) $why = 'not_chain';
 		elseif ( (string) ( $head['scope'] ?? '' ) !== (string) ( $spec['scope'] ?? '' ) ) $why = 'scope';
 		elseif ( $chain['sequence'] >= $settings['full_every'] ) $why = 'full_every';
-		elseif ( (int) $now - (int) ( $chain['base_at'] ?? 0 ) >= $settings['full_days'] * 86400 ) $why = 'full_days';
+		// A los D días menos el margen del retraso de WP-Cron (DAYS_MARGIN), como cuenta chain_length().
+		elseif ( (int) $now - (int) ( $chain['base_at'] ?? 0 ) >= $settings['full_days'] * 86400 - self::days_margin( self::period( (array) ( $spec['incremental'] ?? array() ) ) ) ) $why = 'full_days';
 		elseif ( (string) ( $head['key_id'] ?? '' ) !== (string) ( $spec['security']['key_id'] ?? '' ) || ( 'dgbk' === (string) ( $head['container'] ?? '' ) ) !== ! empty( $spec['security']['encrypt'] ) ) $why = 'security';
 		if ( '' === $why ) {
 			foreach ( $chain['links'] as $link ) {
@@ -368,18 +408,19 @@ final class Digitalisimo_Backups_Chain {
 	}
 	/**
 	 * Respaldos de una cadena entera: su completo y `$full_every` incrementales, salvo que la frecuencia la corte antes por
-	 * días (plan(): un completo nuevo cuando la base tiene `$full_days` días). Con un respaldo cada `$period` segundos caben
-	 * ⌈D × 86 400 / período⌉; sin programación (0), sólo cuenta el número.
+	 * días (plan(): un completo nuevo cuando la base tiene `$full_days` días menos el margen de days_margin()). Con un
+	 * respaldo cada `$period` segundos caben ⌈(D × 86 400 − margen) / período⌉; sin programación (0), sólo cuenta el número.
 	 */
 	public static function chain_length( $full_every, $full_days, $period ) {
 		$length = (int) $full_every + 1;
-		if ( (int) $period > 0 ) $length = min( $length, max( 1, intdiv( (int) $full_days * 86400 + (int) $period - 1, (int) $period ) ) );
+		$period = (int) $period;
+		if ( $period > 0 ) $length = min( $length, max( 1, intdiv( (int) $full_days * 86400 - self::days_margin( $period ) + $period - 1, $period ) ) );
 		return $length;
 	}
 	/**
 	 * Cuántos respaldos guarda una automatización (de su `retain`, `retain_unit`, `mode`, `full_every`, `full_days`,
-	 * `schedule` y `destination`) una vez que su historial se llena, y cuántas cadenas: lo que dicen la pantalla al
-	 * pintarse, REST y WP-CLI. assets/retention.js hace la misma cuenta al editar (las dos dan lo mismo,
+	 * `schedule`, `destination` y `remote_only`) una vez que su historial se llena, y cuántas cadenas: lo que dicen la
+	 * pantalla al pintarse, REST y WP-CLI. assets/retention.js hace la misma cuenta al editar (las dos dan lo mismo,
 	 * tests/backups-retain-chains-ui.mjs). Con L respaldos por cadena:
 	 * - «Conservar N respaldos»: los N más recientes y la cadena de la que dependen: entre N y N + L − 1, en
 	 *   1 + ⌊(N − 1) / L⌋ o 1 + ⌈(N − 1) / L⌉ cadenas;
@@ -387,18 +428,20 @@ final class Digitalisimo_Backups_Chain {
 	 *   N × L respaldos;
 	 * - «Completo cada vez»: N completos (la unidad no aplica).
 	 * Todas las cadenas menos la actual están enteras (la retención nunca rompe una), así que `previous_min` (las
-	 * anteriores completas que siempre hay) es el mínimo de cadenas menos una; con 0, el texto lo advierte.
+	 * anteriores completas que siempre hay) es el mínimo de cadenas menos una; con 0, el texto lo advierte. `text` (a la
+	 * vista, siempre de menos de 140 caracteres) dice cuánto y cuántas cadenas y el aviso; `detail` (en la ayuda), cuántos
+	 * respaldos tiene cada cadena y por qué, y si «Conservar» pasa del tope.
 	 */
 	public static function estimate( $policy ) {
 		$policy = is_array( $policy ) ? $policy : array();
-		$retain = isset( $policy['retain'] ) && is_numeric( $policy['retain'] ) ? (int) $policy['retain'] : 4;
+		$retain = self::integer( $policy['retain'] ?? null, 4 );
 		if ( 'incremental' !== ( $policy['mode'] ?? '' ) ) {
 			$n = max( 1, min( self::HISTORY_ROWS, $retain ) );
-			return array( 'unit' => 'points', 'retain' => $n, 'cap' => self::HISTORY_ROWS, 'min' => $n, 'max' => $n, 'chains_min' => $n, 'chains_max' => $n, 'previous_min' => $n - 1, 'chain_length' => 1, 'text' => 'Guardarás ' . $n . ( 1 === $n ? ' respaldo completo.' : ' respaldos completos.' ) );
+			return array( 'unit' => 'points', 'retain' => $n, 'cap' => self::HISTORY_ROWS, 'min' => $n, 'max' => $n, 'chains_min' => $n, 'chains_max' => $n, 'previous_min' => $n - 1, 'chain_length' => 1, 'text' => 'Guardarás ' . $n . ( 1 === $n ? ' respaldo completo.' : ' respaldos completos.' ), 'detail' => '' );
 		}
 		$settings = self::settings( $policy );
 		$unit = self::retain_unit( $policy );
-		$period = self::PERIODS[ (string) ( $policy['schedule'] ?? '' ) ] ?? 0;
+		$period = self::period( array( 'schedule' => (string) ( $policy['schedule'] ?? '' ) ) );
 		$length = self::chain_length( $settings['full_every'], $settings['full_days'], $period );
 		$cap = self::retain_cap( $unit, $settings['full_every'] );
 		$n = max( 1, min( $cap, $retain ) );
@@ -413,17 +456,20 @@ final class Digitalisimo_Backups_Chain {
 			$low = 1 + intdiv( $n - 1, $length );
 			$high = 1 + intdiv( $n + $length - 2, $length );
 		}
-		$days = 'cada ' . $settings['full_days'] . ( 1 === $settings['full_days'] ? ' día' : ' días' );
 		$text = 'Guardarás ' . ( $min === $max ? $min . ( 1 === $min ? ' respaldo' : ' respaldos' ) : 'entre ' . $min . ' y ' . $max . ' respaldos' ) . ' en ' . ( $low === $high ? $low . ( 1 === $low ? ' cadena' : ' cadenas' ) : $low . ' o ' . $high . ' cadenas' ) . '.';
-		if ( $length < $settings['full_every'] + 1 ) $text .= 1 === $length ? ' Con esta frecuencia cada respaldo sale completo (un completo ' . $days . ').' : ' Con esta frecuencia la cadena se corta por días (un completo ' . $days . '): ' . $length . ' respaldos.';
 		if ( $low > 1 ) {
 			$text .= 2 === $low ? ' Siempre queda al menos una cadena anterior completa.' : ' Siempre quedan al menos ' . ( $low - 1 ) . ' cadenas anteriores completas.';
 		} else {
-			$when = 1 === $high ? ' Una sola cadena' : ( $period > 0 && $period < 86400 ? ' Hay horas' : ' Hay días' ) . ' con una sola cadena';
-			$text .= $when . ': si su base se daña, ' . ( 'local' === (string) ( $policy['destination'] ?? 'local' ) ? 'no hay otra copia.' : 'sólo queda la copia remota.' );
+			$local = 'local' === (string) ( $policy['destination'] ?? 'local' );
+			// «Sólo en el remoto»: la copia remota es la única; no hay otra a la que volver si la base se daña.
+			$copy = $local ? 'si su base se daña, no hay otra copia.' : ( empty( $policy['remote_only'] ) ? 'si su base se daña, sólo queda la copia remota.' : 'su única copia es la remota: conviene «2 cadenas».' );
+			$text .= ( 1 === $high ? ' Una sola cadena' : ( $period > 0 && $period < 86400 ? ' Hay horas' : ' Hay días' ) . ' con una sola cadena' ) . ( $local || empty( $policy['remote_only'] ) ? ': ' : ' y ' ) . $copy;
 		}
-		if ( $retain > $cap ) $text .= ' «Conservar» quedará en ' . $cap . '.';
-		return array( 'unit' => $unit, 'retain' => $n, 'cap' => $cap, 'min' => $min, 'max' => $max, 'chains_min' => $low, 'chains_max' => $high, 'previous_min' => $low - 1, 'chain_length' => $length, 'text' => $text );
+		$days = 'cada ' . $settings['full_days'] . ( 1 === $settings['full_days'] ? ' día' : ' días' );
+		if ( $length < $settings['full_every'] + 1 ) $detail = 1 === $length ? 'Con esta frecuencia cada respaldo sale completo (un completo ' . $days . ').' : 'Con esta frecuencia la cadena se corta por días (un completo ' . $days . '): ' . $length . ' respaldos.';
+		else $detail = 'Cada cadena: un completo y ' . $settings['full_every'] . ( 1 === $settings['full_every'] ? ' incremental' : ' incrementales' ) . ' (' . $length . ' respaldos).';
+		if ( $retain > $cap ) $detail .= ' «Conservar» quedará en ' . $cap . '.';
+		return array( 'unit' => $unit, 'retain' => $n, 'cap' => $cap, 'min' => $min, 'max' => $max, 'chains_min' => $low, 'chains_max' => $high, 'previous_min' => $low - 1, 'chain_length' => $length, 'text' => $text, 'detail' => $detail );
 	}
 	/**
 	 * Retención de una automatización por cadenas: de sus filas (de la más reciente a la más antigua, sin las bloqueadas

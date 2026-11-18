@@ -76,12 +76,15 @@ function rc_unbroken( $label ) {
 function rc_simulate( array $o, $each = null ) {
 	$B = 'Digitalisimo_Backups';
 	$C = 'Digitalisimo_Backups_Chain';
-	$o += array( 'days' => 7, 'remote' => false, 'remote_only' => false, 'start' => 0, 'steps' => 0 );
+	$o += array( 'days' => 7, 'remote' => false, 'remote_only' => false, 'start' => 0, 'steps' => 0, 'late' => null );
 	$dir = rtrim( bk_storage(), '/' );
-	$spec = array( 'policy' => $o['policy'], 'scope' => 'installation', 'incremental' => array( 'full_every' => $o['every'], 'full_days' => $o['days'] ), 'security' => array( 'key_id' => '', 'encrypt' => false ) );
+	// Como run_policy(): la especificación lleva la frecuencia de la automatización (`period`, para el margen del corte por días).
+	$schedule = (string) array_search( $o['period'], $C::PERIODS, true );
+	$spec = array( 'policy' => $o['policy'], 'scope' => 'installation', 'incremental' => $C::spec_value( array( 'mode' => 'incremental', 'full_every' => $o['every'], 'full_days' => $o['days'], 'schedule' => $schedule ) ), 'security' => array( 'key_id' => '', 'encrypt' => false ) );
 	$stamp = bk_call( $B, 'installation_stamp' );
 	for ( $k = $o['start']; $k < $o['start'] + $o['steps']; $k++ ) {
-		$now = 1767225600 + $k * $o['period'];
+		// La hora fija de cada ejecución y, con `late`, los segundos que WP-Cron o la cola tardan en arrancarla ese día.
+		$now = 1767225600 + $k * $o['period'] + ( $o['late'] ? (int) call_user_func( $o['late'], $k ) : 0 );
 		$plan = $C::plan( $spec, rc_history(), $now, function() { return true; }, function() { return true; } );
 		$backup_id = wp_generate_uuid4();
 		$file = sprintf( 'digitalisimo-backup-example-test-%s-%05d.zip', $o['policy'], $k );
@@ -138,18 +141,18 @@ inc_case( 'RC1 estimación en los bordes: N = 1, cadenas cortadas por días, cad
 	$hourly = rc_estimate( array( 'retain' => 4, 'schedule' => 'hourly' ) );
 	inc_check( 7 === $hourly['chain_length'] && false !== strpos( $hourly['text'], 'Hay horas con una sola cadena' ), 'Cada hora la cadena es de 7 y el aviso habla de horas: ' . json_encode( $hourly ) );
 	$cut = rc_estimate( array( 'retain' => 2, 'retain_unit' => 'chains', 'schedule' => 'hourly', 'full_every' => 30, 'full_days' => 1 ) );
-	inc_check( array( 24, 25, 48 ) === array( $cut['chain_length'], $cut['min'], $cut['max'] ) && 'Guardarás entre 25 y 48 respaldos en 2 cadenas. Con esta frecuencia la cadena se corta por días (un completo cada 1 día): 24 respaldos. Siempre queda al menos una cadena anterior completa.' === $cut['text'], 'Cada hora con un completo cada 30 o cada día, la cadena se corta a 24: ' . json_encode( $cut ) );
+	inc_check( array( 24, 25, 48 ) === array( $cut['chain_length'], $cut['min'], $cut['max'] ) && 'Guardarás entre 25 y 48 respaldos en 2 cadenas. Siempre queda al menos una cadena anterior completa.' === $cut['text'] && 'Con esta frecuencia la cadena se corta por días (un completo cada 1 día): 24 respaldos.' === $cut['detail'], 'Cada hora con un completo cada 30 o cada día, la cadena se corta a 24: ' . json_encode( $cut ) );
 	// El tope sigue siendo el del número (N × (M + 1)): «Ejecutar ahora» también suma puntos a la cadena el mismo día.
 	$capped = rc_estimate( array( 'retain' => 2, 'retain_unit' => 'chains', 'schedule' => 'hourly', 'full_every' => 60, 'full_days' => 1 ) );
-	inc_check( 1 === $capped['retain'] && 24 === $capped['max'] && false !== strpos( $capped['text'], 'Una sola cadena: si su base se daña, no hay otra copia. «Conservar» quedará en 1.' ), 'Con un completo cada 60 sólo cabe una cadena aunque la frecuencia la corte antes: ' . json_encode( $capped ) );
+	inc_check( 1 === $capped['retain'] && 24 === $capped['max'] && false !== strpos( $capped['text'], 'Una sola cadena: si su base se daña, no hay otra copia.' ) && '«Conservar» quedará en 1.' === substr( $capped['detail'], -strlen( '«Conservar» quedará en 1.' ) ), 'Con un completo cada 60 sólo cabe una cadena aunque la frecuencia la corte antes: ' . json_encode( $capped ) );
 	$daily_cut = rc_estimate( array( 'retain' => 4, 'full_days' => 3 ) );
 	inc_check( array( 3, 4, 6, 2, 2 ) === array( $daily_cut['chain_length'], $daily_cut['min'], $daily_cut['max'], $daily_cut['chains_min'], $daily_cut['chains_max'] ), 'Diario con un completo cada 3 días: ' . json_encode( $daily_cut ) );
 	$weekly = rc_estimate( array( 'retain' => 4, 'schedule' => 'weekly' ) );
-	inc_check( array( 1, 4, 4, 4, 4, 3 ) === array( $weekly['chain_length'], $weekly['min'], $weekly['max'], $weekly['chains_min'], $weekly['chains_max'], $weekly['previous_min'] ) && false !== strpos( $weekly['text'], 'Con esta frecuencia cada respaldo sale completo (un completo cada 7 días).' ), 'Semanal con un completo cada 7 días: cada respaldo es completo: ' . json_encode( $weekly ) );
+	inc_check( array( 1, 4, 4, 4, 4, 3 ) === array( $weekly['chain_length'], $weekly['min'], $weekly['max'], $weekly['chains_min'], $weekly['chains_max'], $weekly['previous_min'] ) && 'Con esta frecuencia cada respaldo sale completo (un completo cada 7 días).' === $weekly['detail'], 'Semanal con un completo cada 7 días: cada respaldo es completo: ' . json_encode( $weekly ) );
 	$monthly = rc_estimate( array( 'retain' => 2, 'retain_unit' => 'chains', 'schedule' => 'monthly', 'full_days' => 90 ) );
 	inc_check( 3 === $monthly['chain_length'] && 4 === $monthly['min'] && 6 === $monthly['max'], 'Mensual con un completo cada 90 días: 3 por cadena: ' . json_encode( $monthly ) );
 	$manual = rc_estimate( array( 'retain' => 2, 'retain_unit' => 'chains', 'schedule' => 'disabled' ) );
-	inc_check( 7 === $manual['chain_length'] && false === strpos( $manual['text'], 'Con esta frecuencia' ), 'Sin programación la cadena sólo se corta por número: ' . json_encode( $manual ) );
+	inc_check( 7 === $manual['chain_length'] && 'Cada cadena: un completo y 6 incrementales (7 respaldos).' === $manual['detail'], 'Sin programación la cadena sólo se corta por número: ' . json_encode( $manual ) );
 	$full = Digitalisimo_Backups_Chain::estimate( array( 'mode' => 'full', 'retain' => 4, 'retain_unit' => 'chains', 'schedule' => 'daily' ) );
 	inc_check( array( 'points', 4, 4, 4, 4 ) === array( $full['unit'], $full['min'], $full['max'], $full['chains_min'], $full['chains_max'] ) && 'Guardarás 4 respaldos completos.' === $full['text'], '«Completo cada vez»: la unidad no aplica y se guardan N: ' . json_encode( $full ) );
 	inc_check( 'Guardarás 1 respaldo completo.' === Digitalisimo_Backups_Chain::estimate( array( 'retain' => 1 ) )['text'], 'Una automatización sin modo es «Completo cada vez».' );
@@ -164,12 +167,12 @@ inc_case( 'RC1 tope del historial: N + M respaldos o N × (M + 1) con cadenas ca
 		$cap = $C::retain_cap( 'chains', $every );
 		inc_check( $cap * ( $every + 1 ) <= 100 && ( $cap + 1 ) * ( $every + 1 ) > 100 || 1 === $cap, 'El tope de cadenas con un completo cada ' . $every . ' no es el mayor que cabe: ' . $cap );
 		$max = rc_estimate( array( 'retain' => 100, 'retain_unit' => 'chains', 'full_every' => $every, 'schedule' => 'disabled' ) );
-		inc_check( $max['retain'] === $cap && $max['max'] <= 100 && false !== strpos( $max['text'], '«Conservar» quedará en ' . $cap . '.' ), 'La estimación no acota «Conservar 100 cadenas» con un completo cada ' . $every . ': ' . json_encode( $max ) );
+		inc_check( $max['retain'] === $cap && $max['max'] <= 100 && false !== strpos( $max['detail'], '«Conservar» quedará en ' . $cap . '.' ) && false === strpos( $max['text'], 'quedará' ), 'La estimación no acota «Conservar 100 cadenas» con un completo cada ' . $every . ': ' . json_encode( $max ) );
 		$points = rc_estimate( array( 'retain' => 100, 'full_every' => $every, 'schedule' => 'disabled' ) );
 		inc_check( $points['retain'] === 100 - $every && $points['max'] <= 100, 'La estimación no acota «Conservar 100 respaldos» con un completo cada ' . $every . ': ' . json_encode( $points ) );
 	}
 	$fits = rc_estimate( array( 'retain' => 14, 'retain_unit' => 'chains' ) );
-	inc_check( 98 === $fits['max'] && false === strpos( $fits['text'], 'quedará' ), '«Conservar 14 cadenas» con un completo cada 6 cabe: ' . json_encode( $fits ) );
+	inc_check( 98 === $fits['max'] && false === strpos( $fits['text'] . $fits['detail'], 'quedará' ), '«Conservar 14 cadenas» con un completo cada 6 cabe: ' . json_encode( $fits ) );
 	$zero = rc_estimate( array( 'retain' => 0, 'retain_unit' => 'chains' ) );
 	inc_check( 1 === $zero['retain'] && 1 === $zero['min'], '«Conservar 0» cuenta como 1.' );
 } );
@@ -393,19 +396,20 @@ inc_case( 'RC6 pantalla: «Programación» y las tarjetas pintan la unidad, la e
 		inc_check( preg_match( '#<form method="post"[^>]*class="digitalisimo-backups-schedule">(.*?)</form>#s', $settings, $form ), 'No se pintó «Programación».' );
 		inc_check( preg_match( '#<input id="digitalisimo-backups-retain" type="number" min="1" max="100" name="digitalisimo_backup_automation\[retain\]" value="2"> <select class="digitalisimo-backups-retain-unit" name="digitalisimo_backup_automation\[retain_unit\]" aria-label="Qué cuenta «Conservar»" data-retain-unit><option value="points">respaldos</option><option value="chains" selected="selected">cadenas</option></select><span data-retain-noun hidden>respaldos</span>#', $form[1] ), '«Programación» no pinta «Conservar 2 cadenas»: ' . $form[1] );
 		inc_check( false !== strpos( $form[1], '<p class="description digitalisimo-backups-retain-estimate" data-retain-estimate aria-live="polite">Guardarás entre 8 y 14 respaldos en 2 cadenas. Siempre queda al menos una cadena anterior completa.</p>' ), '«Programación» no pinta la estimación del servidor.' );
-		inc_check( preg_match( '#<div data-retain-chains-help><p class="description">Una cadena es un completo y los incrementales que dependen de él: si su completo se daña, ninguno de sus puntos se restaura\.</p><details class="digitalisimo-backups-help"><summary>Más</summary>.*?«Conservar 2 cadenas» o más deja siempre una cadena anterior entera como plan B#s', $form[1] ), 'Falta la ayuda de las cadenas: ' . $form[1] );
+		inc_check( preg_match( '#<div data-retain-chains-help><p class="description" data-retain-detail>Cada cadena: un completo y 6 incrementales \(7 respaldos\)\.</p><p class="description">Una cadena es un completo y los incrementales que dependen de él: si su completo se daña, ninguno de sus puntos se restaura\.</p><details class="digitalisimo-backups-help"><summary>Más</summary>.*?«Conservar 2 cadenas» o más deja siempre una cadena anterior entera como plan B#s', $form[1] ), 'Falta la ayuda de las cadenas: ' . $form[1] );
 		$tools = rc_render( 'tools', array( 'open' => 'automations' ) );
 		inc_check( 3 === substr_count( $tools, 'data-retain-estimate' ) && false !== strpos( $tools, 'Guardarás 3 respaldos completos.' ) && false !== strpos( $tools, 'Guardarás entre 8 y 14 respaldos en 2 cadenas.' ), 'Las tarjetas de las automatizaciones no pintan su estimación.' );
 		// En «Crear automatización» (completo por defecto) la unidad y la ayuda están ocultas y se ve «respaldos».
 		inc_check( preg_match( '#<h3>Crear automatización</h3>.*?<select class="digitalisimo-backups-retain-unit" name="digitalisimo_backup_automation\[retain_unit\]" aria-label="Qué cuenta «Conservar»" data-retain-unit hidden>.*?<span data-retain-noun>respaldos</span>.*?data-retain-estimate aria-live="polite">Guardarás 4 respaldos completos\.</p><div data-retain-chains-help hidden>#s', $tools ), '«Crear automatización» no oculta la unidad de un completo.' );
-		// Una estimación de más de 140 caracteres (cadena cortada por días) se ve entera: es una región viva que el
-		// script reescribe, y «Herramientas» no la pliega en «Más».
+		// En las tarjetas, «Conservar» va después del modo y justo antes de su estimación (no entre la frecuencia y la hora).
+		inc_check( preg_match( '#name="digitalisimo_backup_automation\[full_days\]"[^>]*> días</label></p>.*?<p class="description">Cada incremental es un punto.*?<p><label>Conservar<br><input type="number"[^>]*value="2"> <select[^>]*data-retain-unit>.*?</label></p><p class="description digitalisimo-backups-retain-estimate"#s', $tools ), '«Conservar» no está junto a su estimación en la tarjeta.' );
+		// La estimación a la vista es corta aunque la cadena se corte por días; el porqué va en la ayuda.
 		$policies = get_option( $B::POLICIES );
 		$policies[] = array( 'id' => 'horaria', 'label' => '', 'type' => 'full', 'schedule' => 'hourly', 'destination' => 'sftp', 'retain' => 2, 'retain_unit' => 'chains', 'enabled' => true, 'time' => '', 'remote_only' => false, 'mode' => 'incremental', 'full_every' => 30, 'full_days' => 1 );
 		update_option( $B::POLICIES, $policies, false );
-		$long = Digitalisimo_Backups_Chain::estimate( end( $policies ) )['text'];
-		inc_check( mb_strlen( $long, 'UTF-8' ) > 140, 'La estimación de prueba no es larga: ' . $long );
-		inc_check( false !== strpos( rc_render( 'tools', array( 'open' => 'automations' ) ), 'data-retain-estimate aria-live="polite">' . esc_html( $long ) . '</p>' ), 'Una estimación larga se plegó en «Herramientas»: ' . $long );
+		$estimate = Digitalisimo_Backups_Chain::estimate( end( $policies ) );
+		$tools = rc_render( 'tools', array( 'open' => 'automations' ) );
+		inc_check( mb_strlen( $estimate['text'], 'UTF-8' ) < 140 && false !== strpos( $tools, 'data-retain-estimate aria-live="polite">' . esc_html( $estimate['text'] ) . '</p><div data-retain-chains-help><p class="description" data-retain-detail>Con esta frecuencia la cadena se corta por días (un completo cada 1 día): 24 respaldos.</p>' ), 'La estimación de una cadena cortada por días no es corta con su detalle en la ayuda: ' . json_encode( $estimate ) );
 		// Con la principal completa, «Programación» no enseña la unidad ni la ayuda.
 		update_option( $B::POLICIES, array( array( 'id' => 'monthly-full', 'label' => '', 'type' => 'full', 'schedule' => 'monthly', 'destination' => 'local', 'retain' => 4, 'enabled' => true ) ), false );
 		$plain = rc_render( 'settings' );
