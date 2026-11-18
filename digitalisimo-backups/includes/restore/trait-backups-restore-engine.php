@@ -807,7 +807,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 			if ( ! $views || is_file( self::restore_staging( $job ) . '/' . Digitalisimo_Backups_Db_Compat::VIEWS_FILE ) ) return;
 			$tables = (array) ( self::restore_read_json( $job, 'tables.json', false ) ?? array() );
 			$renames = Digitalisimo_Backups_Db_Compat::view_renames( $tables, $views, $plan ? (string) ( $plan->origin()['prefix'] ?? '' ) : '', $plan ? (string) ( $plan->destination()['prefix'] ?? '' ) : '' );
-			$result = Digitalisimo_Backups_Db_Compat::create_views( self::restore_staging( $job ) . '/source.sql', $views, self::restore_read_json( $job, 'metadata.json' ), self::restore_trusted( $job ), $renames );
+			// En un archivo sin firma, una vista sólo lee las tablas que trae esta restauración y sus propias vistas (H1).
+			$result = Digitalisimo_Backups_Db_Compat::create_views( self::restore_staging( $job ) . '/source.sql', $views, self::restore_read_json( $job, 'metadata.json' ), self::restore_trusted( $job ), $renames, array_column( $tables, 'backup' ) );
 		} catch ( Throwable $e ) {
 			$result = array( 'created' => array(), 'failed' => array( '*' => $e->getMessage() ) );
 		}

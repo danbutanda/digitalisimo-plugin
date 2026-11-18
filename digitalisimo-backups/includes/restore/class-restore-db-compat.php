@@ -467,9 +467,11 @@ final class Digitalisimo_Backups_Db_Compat {
 	/**
 	 * Crea las vistas del respaldo (posición y longitud de su sentencia en source.sql, anotadas en la verificación) con los
 	 * nombres de este sitio, sin DEFINER y con SQL SECURITY INVOKER. Una vista puede usar otra: se reintenta en pasadas
-	 * mientras alguna avance. Nunca hace fallar la restauración: lo que no se puede crear se informa.
+	 * mientras alguna avance. Nunca hace fallar la restauración: lo que no se puede crear se informa. $sources (nombres en
+	 * el respaldo): en un archivo sin firma, las únicas tablas que una vista puede leer, las que trae de verdad esta
+	 * restauración; las vistas de $views se añaden solas (lo que sólo declare el manifiesto sin firma no vale).
 	 */
-	public static function create_views( $sql_path, array $views, array $data, $trusted, array $renames ) {
+	public static function create_views( $sql_path, array $views, array $data, $trusted, array $renames, $sources = null ) {
 		global $wpdb;
 		$result = array( 'created' => array(), 'failed' => array() );
 		if ( ! $views ) return $result;
@@ -485,7 +487,9 @@ final class Digitalisimo_Backups_Db_Compat {
 				$statements = array_merge( $reader->feed( (string) fread( $handle, $length ) ), $reader->finish() );
 				try {
 					$guard = Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted );
-					$guard->views( 'rewrite', array_merge( self::declared_views( $data ), array_map( function( $v ) { return (string) ( $v[2] ?? '' ); }, $views ) ) );
+					$names = array_map( function( $v ) { return (string) ( $v[2] ?? '' ); }, $views );
+					$guard->views( 'rewrite', array_merge( self::declared_views( $data ), $names ) );
+					if ( is_array( $sources ) && method_exists( $guard, 'view_sources' ) ) $guard->view_sources( array_merge( array_map( 'strval', $sources ), $names ) );
 					if ( $renames ) $guard->rename_tables( $renames );
 					$sql = '';
 					foreach ( $statements as $statement ) if ( $guard->check( $statement ) ) $sql = $guard->rewritten();

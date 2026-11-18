@@ -108,6 +108,8 @@ final class Digitalisimo_Backups_Sql_Guard {
 	private $compat = array();
 	private $views_mode = '';
 	private $declared_views = array();
+	/** Con view_sources(): las tablas y vistas que puede leer una vista de un archivo sin firma (null: las del manifiesto). */
+	private $view_sources = null;
 	private $view_current = null;
 	private $current_table = '';
 
@@ -631,6 +633,15 @@ final class Digitalisimo_Backups_Sql_Guard {
 		$this->declared_views = array_fill_keys( array_map( 'strval', $declared ), true );
 		return $this;
 	}
+	/**
+	 * Al crear las vistas al final del cambio: las únicas tablas y vistas que puede leer una vista de un archivo sin firma,
+	 * las que trae de verdad esa restauración (sus tablas y las vistas con su sentencia en el respaldo), por su nombre en
+	 * el respaldo. Sin esto, las del manifiesto (database_tables y las vistas declaradas).
+	 */
+	public function view_sources( array $names ) {
+		$this->view_sources = array_fill_keys( array_map( 'strval', $names ), true );
+		return $this;
+	}
 	/** Nombre de la vista de la última sentencia comprobada, o null. */
 	public function last_view() { return $this->view_current; }
 
@@ -877,24 +888,36 @@ final class Digitalisimo_Backups_Sql_Guard {
 	const VIEW_WORDS = array( 'SELECT', 'DISTINCT', 'DISTINCTROW', 'ALL', 'AS', 'FROM', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'OUTER', 'CROSS', 'STRAIGHT_JOIN', 'NATURAL', 'ON', 'USING', 'WHERE', 'AND', 'OR', 'XOR', 'NOT', 'IS', 'NULL', 'TRUE', 'FALSE', 'UNKNOWN', 'IN', 'EXISTS', 'LIKE', 'ESCAPE', 'BETWEEN', 'REGEXP', 'RLIKE', 'GROUP', 'BY', 'ORDER', 'ASC', 'DESC', 'HAVING', 'LIMIT', 'OFFSET', 'UNION', 'INTERSECT', 'EXCEPT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'DIV', 'MOD', 'INTERVAL', 'MICROSECOND', 'SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR', 'DAY_HOUR', 'DAY_MINUTE', 'DAY_SECOND', 'HOUR_MINUTE', 'HOUR_SECOND', 'MINUTE_SECOND', 'YEAR_MONTH', 'WITH', 'ROLLUP', 'COLLATE', 'BINARY', 'CHAR', 'CHARACTER', 'CHARSET', 'SET', 'SIGNED', 'UNSIGNED', 'INTEGER', 'INT', 'DECIMAL', 'DOUBLE', 'FLOAT', 'REAL', 'DATE', 'DATETIME', 'TIME', 'TIMESTAMP', 'JSON', 'NCHAR', 'VARCHAR', 'SEPARATOR', 'OVER', 'PARTITION', 'ROWS', 'RANGE', 'PRECEDING', 'FOLLOWING', 'CURRENT', 'ROW', 'UNBOUNDED', 'WINDOW', 'ANY', 'SOME', 'SOUNDS', 'CASCADED', 'LOCAL', 'CHECK', 'OPTION', 'LEADING', 'TRAILING', 'BOTH', 'FOR', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'CURRENT_USER', 'LOCALTIME', 'LOCALTIMESTAMP', 'UTC_DATE', 'UTC_TIME', 'UTC_TIMESTAMP', 'USING', 'PATH', 'COLUMNS', 'NESTED', 'ORDINALITY', 'ERROR', 'EMPTY', 'DEFAULT', 'RETURNING' );
 	/** Funciones que puede llamar esa vista: de texto, números, fechas, JSON, control y agregados; nada que lea fuera de la base, espere o bloquee. */
 	const VIEW_FUNCTIONS = array( 'COUNT', 'SUM', 'MIN', 'MAX', 'AVG', 'GROUP_CONCAT', 'STD', 'STDDEV', 'VARIANCE', 'BIT_AND', 'BIT_OR', 'BIT_XOR', 'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'LAG', 'LEAD', 'FIRST_VALUE', 'LAST_VALUE', 'NTILE', 'CONCAT', 'CONCAT_WS', 'IFNULL', 'NULLIF', 'COALESCE', 'IF', 'ISNULL', 'GREATEST', 'LEAST', 'SUBSTRING', 'SUBSTR', 'MID', 'SUBSTRING_INDEX', 'LEFT', 'RIGHT', 'LENGTH', 'CHAR_LENGTH', 'CHARACTER_LENGTH', 'OCTET_LENGTH', 'BIT_LENGTH', 'LOWER', 'UPPER', 'LCASE', 'UCASE', 'TRIM', 'LTRIM', 'RTRIM', 'REPLACE', 'LOCATE', 'POSITION', 'INSTR', 'LPAD', 'RPAD', 'REVERSE', 'REPEAT', 'SPACE', 'FORMAT', 'CAST', 'CONVERT', 'HEX', 'UNHEX', 'ASCII', 'ORD', 'CHAR', 'FIELD', 'FIND_IN_SET', 'ELT', 'STRCMP', 'SOUNDEX', 'QUOTE', 'INSERT', 'TO_BASE64', 'FROM_BASE64', 'MD5', 'SHA1', 'SHA2', 'CRC32', 'ROUND', 'TRUNCATE', 'FLOOR', 'CEIL', 'CEILING', 'ABS', 'SIGN', 'MOD', 'POW', 'POWER', 'SQRT', 'EXP', 'LN', 'LOG', 'LOG2', 'LOG10', 'PI', 'DEGREES', 'RADIANS', 'SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', 'ATAN2', 'COT', 'CONV', 'BIN', 'OCT', 'DATE', 'TIME', 'TIMESTAMP', 'YEAR', 'MONTH', 'DAY', 'DAYOFMONTH', 'DAYOFWEEK', 'DAYOFYEAR', 'WEEKDAY', 'WEEK', 'WEEKOFYEAR', 'YEARWEEK', 'QUARTER', 'HOUR', 'MINUTE', 'SECOND', 'MICROSECOND', 'DAYNAME', 'MONTHNAME', 'NOW', 'CURDATE', 'CURTIME', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'LOCALTIME', 'LOCALTIMESTAMP', 'UTC_DATE', 'UTC_TIME', 'UTC_TIMESTAMP', 'SYSDATE', 'DATE_FORMAT', 'TIME_FORMAT', 'DATE_ADD', 'DATE_SUB', 'ADDDATE', 'SUBDATE', 'ADDTIME', 'SUBTIME', 'DATEDIFF', 'TIMEDIFF', 'TIMESTAMPDIFF', 'TIMESTAMPADD', 'FROM_UNIXTIME', 'UNIX_TIMESTAMP', 'STR_TO_DATE', 'FROM_DAYS', 'TO_DAYS', 'TO_SECONDS', 'SEC_TO_TIME', 'TIME_TO_SEC', 'MAKEDATE', 'MAKETIME', 'LAST_DAY', 'EXTRACT', 'PERIOD_ADD', 'PERIOD_DIFF', 'CONVERT_TZ', 'JSON_EXTRACT', 'JSON_UNQUOTE', 'JSON_VALUE', 'JSON_OBJECT', 'JSON_ARRAY', 'JSON_CONTAINS', 'JSON_CONTAINS_PATH', 'JSON_KEYS', 'JSON_LENGTH', 'JSON_TYPE', 'JSON_VALID', 'JSON_QUOTE', 'JSON_SEARCH', 'JSON_ARRAYAGG', 'JSON_OBJECTAGG', 'JSON_TABLE', 'JSON_MERGE_PATCH', 'JSON_MERGE_PRESERVE', 'JSON_SET', 'JSON_INSERT', 'JSON_REPLACE', 'JSON_REMOVE', 'INET_ATON', 'INET_NTOA', 'INET6_ATON', 'INET6_NTOA', 'BIT_COUNT', 'COLLATION', 'CHARSET', 'COERCIBILITY', 'VALUES', 'ROW', 'ANY_VALUE' );
-	/** El SELECT de una vista: en un archivo confiable sólo se lee (y renombra); en uno no confiable, además, se comprueba. */
+	/**
+	 * El SELECT de una vista: en un archivo confiable sólo se lee (y renombra); en uno no confiable, además, se comprueba.
+	 *
+	 * Revisión de 1.0.80 (H1): se decide por la posición en la sintaxis, no por nombres. `a`.`b` es base.tabla donde se
+	 * nombra una tabla (tras FROM, JOIN, STRAIGHT_JOIN o una coma de la lista del FROM, también dentro de una
+	 * subconsulta, una tabla derivada o una lista entre paréntesis) y tabla.columna en una expresión. Por eso, en un
+	 * archivo sin firma:
+	 * - donde va una tabla sólo vale un identificador sin cualificar que sea una tabla del respaldo (o una vista suya), una
+	 *   tabla derivada, una lista entre paréntesis o JSON_TABLE; nunca un nombre con otra base delante, aunque la vista
+	 *   tenga un alias con ese nombre o el manifiesto (que en un archivo sin firma escribe su autor) lo liste;
+	 * - en una expresión, `a`.`b` sólo si `a` es una tabla o un alias que la misma vista define donde van las tablas;
+	 *   nunca tres partes, `a`.`b`( (una función de otra base) ni `nombre`( (una función por su nombre entre comillas
+	 *   invertidas, que MySQL busca también entre las funciones instaladas en el servidor);
+	 * - con view_sources() (al crearla al final del cambio), las tablas y vistas que trae de verdad esa restauración.
+	 * Lo que no se reconoce se rechaza: así una forma que este análisis no conozca nunca abre la puerta.
+	 */
 	private function view_body() {
 		$strict = ! $this->trusted;
-		$start = $this->i;
 		$prefix = $this->prefix;
-		$listed = null === $this->tables ? null : $this->tables + $this->declared_views;
-		$known = function( $name ) use ( $listed, $prefix ) { return null === $listed ? ( '' === $prefix || 0 === strpos( $name, $prefix ) ) : isset( $listed[ $name ] ); };
-		$aliases = array();
-		// Primera pasada: los alias (tras AS, tras otro identificador o tras un paréntesis).
+		$listed = null !== $this->view_sources ? $this->view_sources : ( null === $this->tables ? null : $this->tables + $this->declared_views );
+		$readable = function( $name ) use ( $listed, $prefix ) { return null === $listed ? ( '' === $prefix || 0 === strpos( $name, $prefix ) ) : isset( $listed[ $name ] ); };
+		// Por cada nivel de paréntesis: si ya tuvo su SELECT, si está en la lista del FROM, si lo siguiente es una tabla,
+		// si puede venir su alias (1: tras una tabla; 2: tras AS) y si el nivel es él mismo una tabla (derivada, una lista
+		// de tablas o JSON_TABLE), cuyo alias viene tras cerrarlo.
+		$fresh = array( 'select' => false, 'from' => false, 'expect' => false, 'alias' => 0, 'ref' => false, 'json' => false );
+		$levels = array( $fresh );
+		$defined = array();
+		$qualifiers = array();
 		$previous = null;
-		while ( true ) {
-			$token = $this->next();
-			if ( 'end' === $token[0] ) break;
-			if ( 'ident' === $token[0] && null !== $previous && ( ( 'word' === $previous[0] && 'AS' === $previous[1] ) || 'ident' === $previous[0] || ( 'punct' === $previous[0] && ')' === $previous[1] ) ) ) $aliases[ $token[1] ] = true;
-			$previous = $token;
-		}
-		$this->i = $start;
-		$previous = null;
+		$before = null;
 		$after_value = false;
 		while ( true ) {
 			$token = $this->next();
@@ -903,31 +926,103 @@ final class Digitalisimo_Backups_Sql_Guard {
 			if ( $strict ) {
 				if ( 'exec' === $token[0] ) $this->reject( 'comentario ejecutable en una vista de un archivo sin firma' );
 				if ( 'var' === $token[0] ) $this->reject( 'variables en una vista de un archivo sin firma' );
-				if ( 'word' === $token[0] && ! $after_value ) {
-					$call = $this->accept_punct( '(' );
-					if ( $call ) $this->i--;
-					$word = $token[1];
-					if ( ! in_array( $word, self::VIEW_FUNCTIONS, true ) && ! in_array( $word, self::VIEW_WORDS, true ) && ( $call || ! preg_match( '/^(?:N|_(?:UTF8MB4|UTF8MB3|UTF8|LATIN1|BINARY|ASCII))$/D', $word ) ) ) $this->reject( ( $call ? 'función ' : 'palabra ' ) . $word . ' no permitida en una vista de un archivo sin firma' );
+				$top = count( $levels ) - 1;
+				$handled = false;
+				// El alias de una tabla: tras ella (o tras AS), un identificador.
+				if ( 2 === $levels[ $top ]['alias'] ) {
+					if ( 'ident' !== $token[0] ) $this->reject( 'alias no reconocido en una vista de un archivo sin firma' );
+					$defined[ $token[1] ] = true;
+					$levels[ $top ]['alias'] = 0;
+					$handled = true;
+				} elseif ( 1 === $levels[ $top ]['alias'] ) {
+					$levels[ $top ]['alias'] = 0;
+					if ( 'word' === $token[0] && 'AS' === $token[1] ) { $levels[ $top ]['alias'] = 2; $handled = true; }
+					elseif ( 'ident' === $token[0] ) { $defined[ $token[1] ] = true; $handled = true; }
 				}
-				if ( 'ident' === $token[0] ) {
-					$dotted = 'punct' === ( $previous[0] ?? '' ) && '.' === $previous[1];
-					if ( ! $dotted && $this->accept_punct( '.' ) ) {
-						$this->i--;
-						$second_at = $this->i;
-						$this->i++;
-						$second = $this->next();
-						$third = $this->accept_punct( '.' );
-						$this->i = $second_at;
-						if ( $third ) $this->reject( 'otra base de datos en una vista de un archivo sin firma' );
-						if ( 'ident' === $second[0] && ! $known( $token[1] ) && ! isset( $aliases[ $token[1] ] ) ) $this->reject( 'otra base de datos o una tabla que no está en el respaldo («' . $token[1] . '») en una vista de un archivo sin firma' );
-					} elseif ( ! $dotted && 'word' === ( $previous[0] ?? '' ) && in_array( $previous[1], array( 'FROM', 'JOIN', 'STRAIGHT_JOIN' ), true ) && ! $known( $token[1] ) ) {
-						$this->reject( 'una tabla que no está en el respaldo («' . $token[1] . '») en una vista de un archivo sin firma' );
+				// Donde va una tabla.
+				if ( ! $handled && $levels[ $top ]['expect'] ) {
+					$levels[ $top ]['expect'] = false;
+					$handled = true;
+					if ( 'ident' === $token[0] ) {
+						$at = $this->i;
+						$next = $this->next();
+						$this->i = $at;
+						if ( ( 'punct' === $next[0] && '.' === $next[1] ) || ( 'num' === $next[0] && '.' === $next[1][0] ) ) $this->reject( 'otra base de datos en una vista de un archivo sin firma («' . $token[1] . '.…» donde va una tabla)' );
+						if ( ! $readable( $token[1] ) ) $this->reject( 'una tabla que no está en el respaldo («' . $token[1] . '») en una vista de un archivo sin firma' );
+						$defined[ $token[1] ] = true;
+						$levels[ $top ]['alias'] = 1;
+					} elseif ( 'punct' === $token[0] && '(' === $token[1] ) {
+						// Una tabla derivada (una subconsulta) o una lista de tablas entre paréntesis: lo dice lo primero que sigue.
+						$at = $this->i;
+						do { $first = $this->next(); } while ( 'punct' === $first[0] && '(' === $first[1] );
+						$this->i = $at;
+						$list = ! ( 'word' === $first[0] && in_array( $first[1], array( 'SELECT', 'WITH', 'VALUES', 'TABLE' ), true ) );
+						$levels[] = array( 'from' => $list, 'expect' => $list, 'ref' => true ) + $fresh;
+					} elseif ( 'word' === $token[0] && 'JSON_TABLE' === $token[1] ) {
+						$levels[ $top ]['json'] = true;
+					} else {
+						$this->reject( 'se esperaba una tabla del respaldo en una vista de un archivo sin firma' );
+					}
+				}
+				if ( ! $handled ) {
+					if ( 'punct' === $token[0] ) {
+						if ( '(' === $token[1] ) {
+							$levels[] = array( 'ref' => $levels[ $top ]['json'] ) + $fresh;
+							$levels[ $top ]['json'] = false;
+						} elseif ( ')' === $token[1] ) {
+							if ( 0 === $top ) $this->reject( 'paréntesis sin abrir en una vista de un archivo sin firma' );
+							$closed = array_pop( $levels );
+							$levels[ $top - 1 ]['alias'] = $closed['ref'] ? 1 : 0;
+						} elseif ( ',' === $token[1] ) {
+							if ( $levels[ $top ]['from'] ) $levels[ $top ]['expect'] = true;
+						} elseif ( '.' === $token[1] ) {
+							// tabla.columna (o tabla.*): la primera parte, un identificador; nunca tres partes ni una función.
+							if ( 'ident' !== ( $previous[0] ?? '' ) ) $this->reject( 'nombre cualificado no reconocido en una vista de un archivo sin firma' );
+							if ( 'punct' === ( $before[0] ?? '' ) && '.' === $before[1] ) $this->reject( 'otra base de datos en una vista de un archivo sin firma' );
+							$at = $this->i;
+							$second = $this->next();
+							$third = $this->next();
+							$this->i = $at;
+							if ( 'ident' !== $second[0] && ! ( 'punct' === $second[0] && '*' === $second[1] ) ) $this->reject( 'nombre cualificado no reconocido en una vista de un archivo sin firma' );
+							if ( ( 'punct' === $third[0] && in_array( $third[1], array( '.', '(' ), true ) ) || ( 'num' === $third[0] && '.' === $third[1][0] ) ) $this->reject( 'otra base de datos en una vista de un archivo sin firma' );
+							$qualifiers[ $previous[1] ] = true;
+						}
+					} elseif ( 'num' === $token[0] && '.' === $token[1][0] && 'ident' === ( $previous[0] ?? '' ) ) {
+						$this->reject( 'otra base de datos en una vista de un archivo sin firma' );
+					} elseif ( 'ident' === $token[0] ) {
+						if ( $this->accept_punct( '(' ) ) $this->reject( 'función «' . $token[1] . '» no permitida en una vista de un archivo sin firma' );
+					} elseif ( 'word' === $token[0] ) {
+						if ( ! $after_value ) {
+							$call = $this->accept_punct( '(' );
+							if ( $call ) $this->i--;
+							$word = $token[1];
+							if ( ! in_array( $word, self::VIEW_FUNCTIONS, true ) && ! in_array( $word, self::VIEW_WORDS, true ) && ( $call || ! preg_match( '/^(?:N|_(?:UTF8MB4|UTF8MB3|UTF8|LATIN1|BINARY|ASCII))$/D', $word ) ) ) $this->reject( ( $call ? 'función ' : 'palabra ' ) . $word . ' no permitida en una vista de un archivo sin firma' );
+						}
+						$word = $token[1];
+						if ( 'SELECT' === $word ) {
+							$levels[ $top ]['select'] = true;
+							$levels[ $top ]['from'] = false;
+						} elseif ( 'FROM' === $word && $levels[ $top ]['select'] ) {
+							// El FROM de un SELECT de este nivel (el de EXTRACT, TRIM o SUBSTRING va en el paréntesis de la función).
+							$levels[ $top ]['from'] = true;
+							$levels[ $top ]['expect'] = true;
+						} elseif ( 'JOIN' === $word || ( 'STRAIGHT_JOIN' === $word && $levels[ $top ]['from'] ) ) {
+							$levels[ $top ]['expect'] = true;
+						} elseif ( in_array( $word, array( 'WHERE', 'GROUP', 'HAVING', 'ORDER', 'LIMIT', 'WINDOW', 'UNION', 'INTERSECT', 'EXCEPT', 'WITH', 'INTO', 'FOR', 'PROCEDURE', 'LOCK' ), true ) ) {
+							// Termina la lista del FROM (una coma de GROUP BY u ORDER BY no nombra una tabla). ON y USING no: tras
+							// su condición, una coma sigue la lista.
+							$levels[ $top ]['from'] = false;
+						}
 					}
 				}
 			}
 			// Tras COLLATE, CHARSET o CHARACTER SET viene un nombre (de intercalación o juego de caracteres), no una palabra clave.
 			$after_value = ( 'word' === $token[0] && in_array( $token[1], array( 'COLLATE', 'CHARSET', 'USING' ), true ) ) || ( 'word' === $token[0] && 'SET' === $token[1] && 'word' === ( $previous[0] ?? '' ) && 'CHARACTER' === $previous[1] );
+			$before = $previous;
 			$previous = $token;
 		}
+		if ( ! $strict ) return;
+		if ( count( $levels ) > 1 || $levels[0]['expect'] || 2 === $levels[0]['alias'] ) $this->reject( 'vista incompleta en un archivo sin firma' );
+		foreach ( array_keys( $qualifiers ) as $name ) if ( ! isset( $defined[ (string) $name ] ) ) $this->reject( 'nombre cualificado («' . $name . '») que no es una tabla ni un alias de la vista en un archivo sin firma' );
 	}
 }

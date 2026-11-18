@@ -274,6 +274,93 @@ dc_case( 'C5 vistas: aplazadas, reescritas sin DEFINER y, sin firma, sólo dentr
 	bk_expect_failure( 'sin modo', function() use ( $G, $view, $tables ) { ( new $G( 'exporter', false, $tables ) )->check( $view ); }, 'sólo se admite CREATE TABLE' );
 } );
 
+/**
+ * C10 (revisión de 1.0.80, H1): en una vista de un archivo sin firma, lo que va donde se nombra una tabla (tras FROM,
+ * JOIN o una coma de la lista del FROM, también en una subconsulta) no puede llevar otra base de datos delante, y ni un
+ * alias de la misma vista ni lo que diga el manifiesto (que en un archivo sin firma escribe su autor) lo permiten. Los
+ * seis casos de tests/rev-view-alias.php del revisor y sus variantes, en la pasada en seco y en la reescritura.
+ */
+dc_case( 'C10 vista sin firma: ningún nombre de otra base de datos donde va una tabla, con alias, manifiesto ni variantes', function() use ( $G ) {
+	$tables = array( 'wp_posts', 'wp_postmeta', 'wp_v' );
+	$other = array(
+		// Los del revisor: el alias (de columna o de tabla) o el manifiesto con el nombre de la otra base.
+		'alias de columna' => 'CREATE VIEW `wp_v` AS select `o`.`ID` AS `otra_base` from `otra_base`.`tabla` `o`',
+		'alias de tabla' => 'CREATE VIEW `wp_v` AS select `t`.`ID` AS `a` from (`wp_posts` `otra_base` join `otra_base`.`tabla` `t`)',
+		'sin alias' => 'CREATE VIEW `wp_v` AS select `o`.`ID` AS `x` from `otra_base`.`tabla` `o`',
+		// Comillas, comentarios, mayúsculas y espacios alrededor del punto.
+		'sin comillas' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from `wp_posts` `otra_base` join otra_base.tabla',
+		'sólo la base entre comillas' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from `wp_posts` `otra_base` join `otra_base`.tabla',
+		'sólo la tabla entre comillas' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from `wp_posts` `otra_base` join otra_base.`tabla`',
+		'comentarios en el punto' => 'CREATE VIEW `wp_v` AS select `t`.`ID` AS `a` from `wp_posts` `otra_base` join `otra_base` /* x */ . /* y */ `tabla` `t`',
+		'comentario de línea' => "CREATE VIEW `wp_v` AS select `t`.`ID` AS `a` from `wp_posts` `otra_base` join `otra_base` -- x\n.# y\n`tabla` `t`",
+		'mayúsculas' => 'CREATE VIEW `wp_v` AS SELECT `T`.`ID` AS `A` FROM `wp_posts` `OTRA_BASE` JOIN `OTRA_BASE`.`TABLA` `T`',
+		'espacios y saltos' => "CREATE VIEW `wp_v` AS select `t`.`ID` AS `a`\nfrom\t`wp_posts` `otra_base`\n join\n`otra_base`\n .\n `tabla`\t`t`",
+		'information_schema' => 'CREATE VIEW `wp_v` AS select `t`.`TABLE_NAME` AS `n` from `information_schema`.`TABLES` `t`',
+		'information_schema con alias' => 'CREATE VIEW `wp_v` AS select `t`.`TABLE_NAME` AS `n` from (`wp_posts` `information_schema` join `information_schema`.`TABLES` `t`)',
+		'information_schema sin comillas' => 'CREATE VIEW `wp_v` AS select 1 AS `n` from information_schema.tables',
+		'mysql.user con alias' => 'CREATE VIEW `wp_v` AS select `u`.`authentication_string` AS `x` from (`wp_posts` `mysql` join `mysql`.`user` `u`)',
+		// Otras formas de nombrar una tabla: la coma, STRAIGHT_JOIN, NATURAL, LEFT OUTER, subconsultas y UNION.
+		'coma del FROM' => 'CREATE VIEW `wp_v` AS select `u`.`authentication_string` AS `x` from `wp_posts` `mysql`, `mysql`.`user` `u`',
+		'coma tras ON' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from `wp_posts` `p` join `wp_postmeta` `otra_base` on((`otra_base`.`post_id` = `p`.`ID`)), `otra_base`.`tabla`',
+		'STRAIGHT_JOIN' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from `wp_posts` `otra_base` straight_join `otra_base`.`tabla`',
+		'NATURAL LEFT OUTER JOIN' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from `wp_posts` `otra_base` natural left outer join `otra_base`.`tabla`',
+		'lista entre paréntesis' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from (`wp_posts` `otra_base`, (`otra_base`.`tabla`))',
+		'subconsulta en la lista' => 'CREATE VIEW `wp_v` AS select (select `x`.`a` from `otra_base`.`t` `x` limit 1) AS `s` from `wp_posts` `otra_base`',
+		'subconsulta con IN' => 'CREATE VIEW `wp_v` AS select `p`.`ID` AS `ID` from `wp_posts` `p` where `p`.`ID` in (select `otra_base`.`t`.`id` from `otra_base`.`t`)',
+		'EXISTS' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from `wp_posts` `otra_base` where exists(select 1 from `otra_base`.`t`)',
+		'tabla derivada' => 'CREATE VIEW `wp_v` AS select `d`.`a` AS `a` from (select `t`.`a` AS `a` from `otra_base`.`t` `t`) `d`',
+		'UNION' => 'CREATE VIEW `wp_v` AS select 1 AS `a` from `wp_posts` `otra_base` union select 1 AS `1` from `otra_base`.`t`',
+		// En una expresión: tres partes, una función de otra base y una función por su nombre entre comillas invertidas.
+		'tres partes' => 'CREATE VIEW `wp_v` AS select `otra_base`.`tabla`.`c` AS `x` from `wp_posts` `otra_base`',
+		'función de otra base' => 'CREATE VIEW `wp_v` AS select `otra_base`.`f`(1) AS `x` from `wp_posts` `otra_base`',
+		'función de otra base con espacio' => 'CREATE VIEW `wp_v` AS select `otra_base` . `f` (1) AS `x` from `wp_posts` `otra_base`',
+		'función entre comillas invertidas' => "CREATE VIEW `wp_v` AS select `sys_exec`('id') AS `x` from `wp_posts`",
+		'palabra delante del punto' => 'CREATE VIEW `wp_v` AS select date.`x` AS `x` from `wp_posts` `date`',
+		'nombre que no es tabla ni alias' => 'CREATE VIEW `wp_v` AS select `otra_base`.`c` AS `x` from `wp_posts` `p`',
+		'tabla fuera del respaldo tras una coma' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from `wp_posts` `p`, `wp_users` `u`',
+		'nada donde va la tabla' => 'CREATE VIEW `wp_v` AS select 1 AS `x` from { OJ `wp_posts` }',
+	);
+	foreach ( $other as $label => $sql ) {
+		foreach ( array( 'defer', 'rewrite' ) as $mode ) {
+			bk_expect_failure( $mode . ' · ' . $label, function() use ( $G, $sql, $tables, $mode ) { ( new $G( 'exporter', false, $tables ) )->views( $mode )->check( $sql ); } );
+		}
+	}
+	// El manifiesto sin firma no da permiso: `otra_base` como tabla o como vista declarada.
+	$sql = 'CREATE VIEW `wp_v` AS select `o`.`ID` AS `x` from `otra_base`.`tabla` `o`';
+	foreach ( array( 'defer', 'rewrite' ) as $mode ) {
+		bk_expect_failure( $mode . ' · manifiesto con otra_base en database_tables', function() use ( $G, $sql, $mode ) { ( new $G( 'exporter', false, array( 'wp_posts', 'wp_v', 'otra_base' ) ) )->views( $mode )->check( $sql ); }, 'otra base de datos' );
+		bk_expect_failure( $mode . ' · manifiesto con otra_base en database_views', function() use ( $G, $sql, $mode ) { ( new $G( 'exporter', false, array( 'wp_posts', 'wp_v' ) ) )->views( $mode, array( 'otra_base' ) )->check( $sql ); }, 'otra base de datos' );
+	}
+	// Al crearla (reescritura con las tablas que trae de verdad esta restauración), una vista que sólo declara el manifiesto
+	// sin firma tampoco vale como origen.
+	bk_expect_failure( 'origen que sólo declara el manifiesto', function() use ( $G ) { ( new $G( 'exporter', false, array( 'wp_posts', 'wp_v' ) ) )->views( 'rewrite', array( 'wp_v', 'wp_fantasma' ) )->view_sources( array( 'wp_posts', 'wp_v' ) )->check( 'CREATE VIEW `wp_v` AS select `f`.`ID` AS `ID` from `wp_fantasma` `f`' ); }, 'no está en el respaldo' );
+	// Lo legítimo sigue valiendo (lo que escriben MySQL 8 y MariaDB con SHOW CREATE VIEW).
+	$fine = array(
+		'CREATE VIEW `wp_v` AS select `wp_posts`.`ID` AS `ID` from `wp_posts`',
+		'CREATE VIEW `wp_v` AS select `p`.`ID` AS `ID`,count(`m`.`meta_id`) AS `n` from (`wp_posts` `p` left join `wp_postmeta` `m` on((`m`.`post_id` = `p`.`ID`))) group by `p`.`ID`,`p`.`post_title` order by `p`.`ID` desc limit 5,10',
+		'CREATE VIEW `wp_v` AS select `p`.`ID` AS `ID` from `wp_posts` `p`, `wp_postmeta` `m` where (`m`.`post_id` = `p`.`ID`)',
+		'CREATE VIEW `wp_v` AS select `p`.`ID` AS `ID`,(select count(0) from `wp_postmeta` `m` where (`m`.`post_id` = `p`.`ID`)) AS `n` from `wp_posts` `p` where `p`.`ID` in (select `wp_postmeta`.`post_id` from `wp_postmeta`) and exists(select 1 from `wp_postmeta` `x` where (`x`.`post_id` = `p`.`ID`))',
+		'CREATE VIEW `wp_v` AS select `d`.`ID` AS `ID` from (select `wp_posts`.`ID` AS `ID` from `wp_posts`) `d`',
+		'CREATE VIEW `wp_v` AS select `wp_posts`.`ID` AS `ID` from `wp_posts` union all select `wp_postmeta`.`post_id` AS `post_id` from `wp_postmeta`',
+		"CREATE VIEW `wp_v` AS select extract(year from `p`.`post_date`) AS `y`,trim(both ' ' from `p`.`post_title`) AS `t`,substring(`p`.`post_title` from 2 for 3) AS `s`,convert(`p`.`post_title` using utf8mb4) AS `c`,cast(`p`.`ID` as char charset utf8mb4) AS `i` from `wp_posts` `p`",
+		"CREATE VIEW `wp_v` AS select `p`.`ID` AS `ID`,group_concat(distinct `m`.`meta_key` order by `m`.`meta_key` ASC separator ',') AS `k`,row_number() OVER (PARTITION BY `p`.`post_type` ORDER BY `p`.`ID` )  AS `r` from (`wp_posts` `p` join `wp_postmeta` `m` using (`ID`)) group by `p`.`ID`",
+		'CREATE VIEW `wp_v` AS select `p`.* from `wp_posts` AS `p` straight_join `wp_postmeta` AS `m` on((`m`.`post_id` = `p`.`ID`)) where (`p`.`ID` > .5) with cascaded check option',
+	);
+	foreach ( $fine as $sql ) {
+		foreach ( array( 'defer', 'rewrite' ) as $mode ) {
+			try {
+				( new $G( 'exporter', false, $tables ) )->views( $mode )->check( $sql );
+			} catch ( Exception $e ) {
+				throw new RuntimeException( 'Se rechazó una vista legítima (' . $mode . '): ' . $e->getMessage() );
+			}
+		}
+	}
+	// Una vista que usa otra del mismo respaldo (declarada) sigue valiendo, y con firma no se mira el SELECT.
+	( new $G( 'exporter', false, array( 'wp_posts' ) ) )->views( 'defer', array( 'wp_v', 'wp_v2' ) )->check( 'CREATE VIEW `wp_v` AS select `wp_v2`.`ID` AS `ID` from `wp_v2`' );
+	( new $G( 'exporter', false, array( 'wp_posts' ) ) )->views( 'rewrite', array( 'wp_v', 'wp_v2' ) )->view_sources( array( 'wp_posts', 'wp_v2' ) )->check( 'CREATE VIEW `wp_v` AS select `wp_v2`.`ID` AS `ID` from `wp_v2`' );
+	( new $G( 'exporter', true, $tables ) )->views( 'rewrite' )->check( 'CREATE VIEW `wp_v` AS select `t`.`ID` AS `ID` from `wordpress_test`.`wp_posts` `t`' );
+} );
+
 dc_case( 'C6 sesión de la importación: NO_AUTO_VALUE_ON_ZERO y sin NO_BACKSLASH_ESCAPES, nunca SET GLOBAL', function() use ( $C ) {
 	$db = $GLOBALS['wpdb'];
 	$mode = new class( $db ) {
