@@ -1144,7 +1144,7 @@ importación, así que tienen lo mismo. También un conjunto de UpdraftPlus: des
 rechazando lo mismo con todo activo, columnas generadas, vistas, sesión, versiones, de punta a punta con el motor real
 de MySQL 8 a MariaDB y lo que dice el servidor) falla con el código de 1.0.79. `tests/backups-db-compat-live.sh`
 descarga sin root los servidores de la distribución (`apt-get download` de MariaDB 10.11 y MySQL 8.0), los arranca con
-su socket y corre `tests/backups-db-compat-live.php` contra ellos: L1 MySQL 8 → MariaDB con `utf8mb4_0900_ai_ci`,
+su socket y corre `tests/backups-db-compat-live/check.php` contra ellos: L1 MySQL 8 → MariaDB con `utf8mb4_0900_ai_ci`,
 columnas generadas y una fila con 0 en su `AUTO_INCREMENT`; L2 con una vista y un disparador; L3 MariaDB → MySQL 8 con
 Aria y sus opciones, `utf8mb4_uca1400_ai_ci` y `PERSISTENT`; L4 `max_allowed_packet` de 2 MB contra una fila de 3 MB.
 Ensayo en la PC (WSL Ubuntu 24.04, sin root) con MySQL 8.0.46 y MariaDB 10.11.14 de la distribución: los cuatro casos

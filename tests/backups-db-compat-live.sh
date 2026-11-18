@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Restauración real entre MySQL 8.0 y MariaDB 10.11 (tests/backups-db-compat-live.php) con servidores de verdad,
+# Restauración real entre MySQL 8.0 y MariaDB 10.11 (tests/backups-db-compat-live/check.php) con servidores de verdad,
 # sin root ni instalar nada: descarga los paquetes del servidor de la distribución (apt-get download), los desempaca en
 # un temporal, arranca cada servidor con su socket y lo borra todo al terminar. Si no se pueden descargar (sin red o
 # sin apt), lo dice y sale con 0: la prueba unitaria (tests/backups-db-compat.php) cubre la lógica sin servidores.
@@ -33,4 +33,4 @@ for i in $(seq 1 60); do [ -S "$work/maria.sock" ] && [ -S "$work/mysql.sock" ] 
 [ -S "$work/maria.sock" ] || { echo "FALLA: MariaDB no arrancó"; tail -5 maria.log; exit 1; }
 [ -S "$work/mysql.sock" ] || { echo "FALLA: MySQL no arrancó"; tail -5 mysql.log; exit 1; }
 cd "$repo" || exit 1
-DC_MYSQL_SOCK="$work/mysql.sock" DC_MARIA_SOCK="$work/maria.sock" "$PHP_BIN" tests/backups-db-compat-live.php
+DC_MYSQL_SOCK="$work/mysql.sock" DC_MARIA_SOCK="$work/maria.sock" "$PHP_BIN" tests/backups-db-compat-live/check.php

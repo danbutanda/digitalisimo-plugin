@@ -23,8 +23,8 @@
  *       sin firma que lee otra base de datos con un alias de ese nombre se rechaza en la verificación (antes se creaba y
  *       leía la otra base con los permisos del usuario de WordPress).
  */
-require __DIR__ . '/lib/backups-env.php';
-require __DIR__ . '/lib/backups-mysqli.php';
+require __DIR__ . '/../lib/backups-env.php';
+require __DIR__ . '/../lib/backups-mysqli.php';
 
 $mysql_sock = (string) getenv( 'DC_MYSQL_SOCK' );
 $maria_sock = (string) getenv( 'DC_MARIA_SOCK' );
