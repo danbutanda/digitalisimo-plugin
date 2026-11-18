@@ -254,6 +254,7 @@ jobs:
           php tests/updater-manifest.php hosting
           php tests/updater-manifest.php ia
           php tests/ia-chat-server.php
+          php tests/ia-admin-perf.php
           node tests/ia-chat-xss.mjs
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
@@ -412,6 +413,8 @@ jobs:
           php tests/performance-tracking.php
           php tests/performance-site-kit.php
           php tests/seo-release-check.php
+          php tests/seo-release-check-admin.php
+          php tests/seo-admin-perf.php
           php tests/plugin-catalog-manifest.php
           php tests/plugin-catalog-install-all.php
           php tests/tools-bridge-manifest.php
