@@ -1116,8 +1116,8 @@ la base; y otro servidor de base de datos (el manifiesto guarda ahora `database_
 
 **Los otros caminos.** La importación de un sitio en una red, la conversión red → individual (su paquete se restaura
 con la restauración por pasos), la migración con clave y la vuelta a la copia previa pasan por la misma verificación e
-importación, así que tienen lo mismo. La ruta de UpdraftPlus (una petición, `restore_updraft_set()`) no: la rama
-`backups/updraft-import` la lleva a la restauración por pasos.
+importación, así que tienen lo mismo. También un conjunto de UpdraftPlus: desde 1.0.80 se importa a un ZIP de Backups
+(«Importar de UpdraftPlus») y se restaura con la restauración por pasos; la ruta de una sola petición ya no existe.
 
 **Pruebas.** `tests/backups-db-compat.php` (C1–C9: anotación, decisión, sustitución por tokens, el guardián sigue
 rechazando lo mismo con todo activo, columnas generadas, vistas, sesión, versiones, de punta a punta con el motor real
