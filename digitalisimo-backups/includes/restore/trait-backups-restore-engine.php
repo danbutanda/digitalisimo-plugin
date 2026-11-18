@@ -1716,6 +1716,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 				// Y va ya en la tabla temporal: el cambio de tablas trae el de aquí, sin ventana en la que una muerte deje en la
 				// base el del otro servidor (revisión C1: en un clon de la misma cuenta, su carpeta existe aquí).
 				self::restore_preswap_storage( $tables, $storage_before );
+				// Y este plugin, activo en la base que entra (un conjunto de UpdraftPlus o de Backuply no lo trae activo): tras
+				// el cambio, los ticks en WordPress mínimo sólo cargan este plugin si la base lo tiene activo (si no, se pararían).
+				self::restore_preswap_keep_self( $tables );
 				self::write_restore_journal( $origin, $kept );
 				try {
 					if ( false === @file_put_contents( $marker, (string) time() ) ) throw new Exception( 'No se pudo anotar el cambio de tablas en el área de trabajo.' );

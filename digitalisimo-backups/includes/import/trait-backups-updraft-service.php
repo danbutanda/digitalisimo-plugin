@@ -260,6 +260,39 @@ trait Digitalisimo_Backups_Updraft_Service {
 			return null;
 		}
 	}
+	/**
+	 * Antes del cambio de tablas, este plugin queda activo en la tabla temporal de opciones (o, si aquí está activado en la
+	 * red, en la de `sitemeta`) si la base que entra no lo tiene: un conjunto de UpdraftPlus o de Backuply de un sitio sin
+	 * Backups. Tras el cambio, los ticks cargan WordPress mínimo con sólo este plugin y sólo si la base lo tiene activo: sin
+	 * esto, una restauración que necesita más de una petición se quedaba en mantenimiento. Como UpdraftPlus, que se deja
+	 * activo al restaurar. Lo mejor posible: nunca aborta el cambio.
+	 */
+	private static function restore_preswap_keep_self( array $tables ) {
+		global $wpdb;
+		try {
+			$plugin = Digitalisimo_Backups_Restore_Maintenance::plugin();
+			$network = is_multisite() && isset( ( (array) get_site_option( 'active_sitewide_plugins', array() ) )[ $plugin ] );
+			$want = (string) $wpdb->base_prefix . ( $network ? 'sitemeta' : 'options' );
+			$temp = '';
+			foreach ( $tables as $row ) if ( $want === (string) ( $row['dest'] ?? '' ) ) $temp = (string) $row['temp'];
+			if ( '' === $temp ) return;
+			$name = Digitalisimo_Backups_Relocate::quote_name( $temp );
+			$site = $network && function_exists( 'get_current_network_id' ) ? (int) get_current_network_id() : 1;
+			$key = $network ? 'active_sitewide_plugins' : 'active_plugins';
+			$raw = $network ? $wpdb->get_var( $wpdb->prepare( 'SELECT meta_value FROM ' . $name . ' WHERE meta_key = %s AND site_id = %d', $key, $site ) ) : $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $name . ' WHERE option_name = %s', $key ) );
+			$list = is_string( $raw ) && '' !== $raw ? @unserialize( $raw, array( 'allowed_classes' => false ) ) : array();
+			$list = is_array( $list ) ? $list : array();
+			if ( $network ? isset( $list[ $plugin ] ) : in_array( $plugin, $list, true ) ) return;
+			if ( $network ) $list[ $plugin ] = time();
+			else { $list[] = $plugin; $list = array_values( array_filter( $list, 'is_string' ) ); }
+			$value = serialize( $list );
+			if ( null === $raw ) $done = $network ? $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $name . ' (`site_id`, `meta_key`, `meta_value`) VALUES (%d, %s, %s)', $site, $key, $value ) ) : $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $name . ' (`option_name`, `option_value`, `autoload`) VALUES (%s, %s, %s)', $key, $value, 'yes' ) );
+			else $done = $network ? $wpdb->query( $wpdb->prepare( 'UPDATE ' . $name . ' SET meta_value = %s WHERE meta_key = %s AND site_id = %d', $value, $key, $site ) ) : $wpdb->query( $wpdb->prepare( 'UPDATE ' . $name . ' SET option_value = %s WHERE option_name = %s', $value, $key ) );
+			if ( false === $done ) throw new Exception( (string) $wpdb->last_error );
+		} catch ( Throwable $e ) {
+			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: no se pudo dejar el plugin activo en la base que entra: ' . $e->getMessage() );
+		}
+	}
 	/** Una fila «Importado» de una importación (UpdraftPlus): no la de una sincronización de destinos, que no lleva `import`. */
 	public static function is_imported_row( $row ) {
 		return is_array( $row ) && 'imported' === (string) ( $row['origin'] ?? '' ) && is_array( $row['import'] ?? null );

@@ -187,7 +187,8 @@ if (listed && listed.restore) {
   await Promise.all([page.waitForNavigation({ waitUntil: 'load' }).catch(() => null), page.click(`${panel} button.button-primary`)]);
   const run = await drive('restauración');
   const job = jobs().filter((j) => j.kind !== 'import').sort((a, b) => Number(b.queued_at || 0) - Number(a.queued_at || 0))[0] || {};
-  check(run.open === 0 && job.status === 'success', `la restauración termina (${run.seconds} s)`, JSON.stringify({ kind: job.kind, status: job.status, error: job.error, message: job.progress?.message }));
+  const ticks = existsSync(`${store}/jobs/${job.id}/events.jsonl`) ? readFileSync(`${store}/jobs/${job.id}/events.jsonl`, 'utf8').split('\n').filter((line) => /"type":"phase"/.test(line)).length : 0;
+  check(run.open === 0 && job.status === 'success', `la restauración termina, en ${ticks} tramos (${run.seconds} s)`, JSON.stringify({ kind: job.kind, status: job.status, error: job.error, message: job.progress?.message }));
   state = await probe();
   let site = state;
   if (network) {

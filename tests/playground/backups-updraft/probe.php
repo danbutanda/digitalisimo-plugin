@@ -13,6 +13,9 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 	return new WP_Error( 'digi_no_loopback', 'Loopback cortado en el ensayo.' );
 }, 10, 3 );
 add_filter( 'pre_wp_mail', '__return_true' );
+// Peticiones de 8 s (5 de trabajo): la importación y la restauración necesitan varias, como en un hosting con límites, y
+// tras el cambio de tablas los ticks sólo siguen si la base que entra deja Backups activo (el origen no lo tiene).
+add_filter( 'digitalisimo_backups_request_limit', static function () { return 8; } );
 add_action( 'init', static function () {
 	if ( empty( $_GET['digi_ud'] ) ) return;
 	$token = trim( (string) @file_get_contents( '/digi-probe/token.txt' ) );

@@ -345,6 +345,9 @@ ud_case( 'U3 restaurar el importado en otro dominio, otra ruta y otro prefijo', 
 	$widget = unserialize( $opt( 'widget_text' ), array( 'allowed_classes' => false ) );
 	ud_check( is_array( $widget ) && 'Año ñandú €' === $widget[2]['title'] && false !== strpos( $widget[2]['text'], 'https://destino.test/sitio/contacto/' ), 'El serializado no se reubicó: ' . $opt( 'widget_text' ) );
 	ud_check( $abspath . '/wp-content/uploads' === $opt( 'upload_path' ), 'La ruta del servidor no se reubicó: ' . $opt( 'upload_path' ) );
+	// El conjunto no traía Backups activo: queda activo (si no, tras el cambio los ticks no cargarían el plugin).
+	$active = @unserialize( (string) $opt( 'active_plugins' ), array( 'allowed_classes' => false ) );
+	ud_check( is_array( $active ) && in_array( Digitalisimo_Backups_Restore_Maintenance::plugin(), $active, true ), 'Backups no quedó activo en la base restaurada: ' . json_encode( $active ) );
 	ud_check( "\x00\xff\x01binario'\\" === $dest->value( 'wp_binarios', 'datos', 'id = 1' ) && "\x05" === $dest->value( 'wp_binarios', 'bandera', 'id = 1' ), 'Los binarios no llegaron idénticos.' );
 	ud_check( str_repeat( 'Lorem ipsum ñ ', 4300 ) === $dest->value( 'wp_posts', 'post_content', 'ID = 2' ) && 'https://origen.com/?p=1' === $dest->value( 'wp_posts', 'guid', 'ID = 1' ), 'Contenido grande o guid.' );
 	ud_check( ! in_array( 'ud_options', $dest->names(), true ) && ! in_array( 'wp_vista', $dest->names(), true ), 'Quedaron tablas del origen o la vista: ' . json_encode( $dest->names() ) );
