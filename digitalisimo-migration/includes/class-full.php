@@ -524,7 +524,7 @@ final class Full {
 		if ( empty( $state['backup']['job'] ) ) {
 			$spec   = $jobs::spec( array( 'policy' => self::POLICY, 'destination' => 'local', 'retain' => 3, 'retention' => 'policy', 'via' => 'migration', 'network' => ! empty( $state['network'] ), 'site_id' => is_multisite() ? get_main_site_id() : 0 ) );
 			$queued = $jobs::enqueue( $spec );
-			$state['backup'] = array( 'job' => (string) $queued['job']['id'], 'started' => time() );
+			$state['backup'] = array( 'job' => (string) ( $queued['job']['id'] ?? '' ), 'file' => basename( (string) ( $queued['job']['spec']['file'] ?? ( $spec['file'] ?? '' ) ) ), 'started' => time() );
 			if ( method_exists( $jobs, 'schedule' ) ) {
 				$jobs::schedule( true );
 			}
@@ -536,7 +536,11 @@ final class Full {
 			$job = $jobs::get( (string) $state['backup']['job'] );
 		}
 		if ( ! $job ) {
-			return self::fail( $state, 'El trabajo del respaldo ya no existe.' );
+			// El registro de trabajos pudo retirarlo ya: el historial de Backups es la fuente de verdad del respaldo terminado.
+			$job = self::backup_from_history( $state );
+			if ( ! $job ) {
+				return self::fail( $state, sprintf( 'El trabajo del respaldo (%s) ya no existe y su archivo (%s) no figura en el historial de DIGITALÍSIMO Backups.', (string) $state['backup']['job'], (string) ( $state['backup']['file'] ?? '' ) ) );
+			}
 		}
 		if ( ! \Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) {
 			$state['backup']['percent'] = (int) ( $job['progress']['percent'] ?? 0 );
@@ -551,6 +555,26 @@ final class Full {
 		}
 		$state['backup'] = array_merge( $state['backup'], $checked, array( 'ok' => true, 'finished' => time() ) );
 		return self::next( $state, 'install' );
+	}
+
+	/**
+	 * El respaldo de esta tarea en el historial de Backups (por su archivo o, si Backups le cambió el nombre, por su
+	 * política y su fecha), como un trabajo terminado; null si no está.
+	 */
+	private static function backup_from_history( array $state ) {
+		$file    = (string) ( $state['backup']['file'] ?? '' );
+		$started = (int) ( $state['backup']['started'] ?? 0 );
+		foreach ( array_reverse( (array) get_option( 'digitalisimo_backups_history', array() ) ) as $item ) {
+			$item = (array) $item;
+			if ( 'full' !== (string) ( $item['backup_type'] ?? 'full' ) || 'created' !== (string) ( $item['origin'] ?? 'created' ) ) {
+				continue;
+			}
+			$mine = ( '' !== $file && $file === (string) ( $item['file'] ?? '' ) ) || ( self::POLICY === (string) ( $item['policy'] ?? '' ) && strtotime( (string) ( $item['date'] ?? '' ) . ' ' . wp_timezone_string() ) >= $started - 60 );
+			if ( $mine ) {
+				return array( 'status' => 'success', 'result' => array( 'file' => (string) $item['file'], 'size' => (int) ( $item['size'] ?? 0 ), 'sha256' => (string) ( $item['sha256'] ?? '' ) ) );
+			}
+		}
+		return null;
 	}
 
 	/**

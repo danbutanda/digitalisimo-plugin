@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'happy', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click' );
+	$scenarios = array( 'unit', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -89,6 +89,8 @@ function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return esc_html( $s ); }
 function esc_url( $s ) { return (string) $s; }
 function get_filesystem_method() { return 'direct'; }
+function wp_timezone_string() { return 'UTC'; }
+function current_time( $type ) { return gmdate( 'Y-m-d H:i:s' ); }
 function wp_clean_plugins_cache( $x = true ) {}
 function wp_clean_themes_cache( $x = true ) {}
 function get_plugins() { return $GLOBALS['t']['plugins']; }
@@ -233,7 +235,11 @@ final class Digitalisimo_Backups_Jobs {
 		return array( 'duplicate' => false, 'job' => $GLOBALS['t']['job'] );
 	}
 	public static function schedule( $spawn = false ) {}
-	public static function get( $id ) { return $GLOBALS['t']['job'] ?? null; }
+	public static function get( $id ) {
+		// Con `job_vanishes`, el registro de trabajos ya retiró el trabajo terminado: sólo queda el historial.
+		if ( ! empty( $GLOBALS['t']['job_vanishes'] ) && 'success' === ( $GLOBALS['t']['job']['status'] ?? '' ) ) { return null; }
+		return $GLOBALS['t']['job'] ?? null;
+	}
 	public static function tick( $budget = null ) {
 		$job = &$GLOBALS['t']['job'];
 		if ( ++$job['ticks'] < 2 ) { $job['progress']['percent'] = 40; return array( 'result' => 'worked' ); }
@@ -242,6 +248,7 @@ final class Digitalisimo_Backups_Jobs {
 		file_put_contents( TMP . '/store/backup-1.zip', $body );
 		$job['status'] = 'success';
 		$job['result'] = array( 'file' => 'backup-1.zip', 'size' => strlen( $body ), 'sha256' => hash( 'sha256', $body ) );
+		update_option( 'digitalisimo_backups_history', array( array( 'date' => gmdate( 'Y-m-d H:i:s' ), 'file' => 'backup-1.zip', 'size' => strlen( $body ), 'sha256' => hash( 'sha256', $body ), 'policy' => 'pre-migration', 'backup_type' => 'full', 'origin' => 'created' ) ) );
 		$GLOBALS['t']['log'][] = 'backup:success';
 		return array( 'result' => 'worked' );
 	}
@@ -505,6 +512,13 @@ switch ( $scenario ) {
 			check( false !== strpos( $html, $needle ), "El informe dice «{$needle}»." );
 		}
 		check( ! get_option( Full::JOB ) && empty( $GLOBALS['t']['cron'][ Full::CRON ] ), 'La tarea se cierra y se quita su continuación.' );
+		break;
+
+	case 'backup_history':
+		$GLOBALS['t']['job_vanishes'] = true;
+		drive();
+		$last = Full::last( false );
+		check( '' === $last['failed'] && ! empty( $last['backup']['ok'] ) && 'backup-1.zip' === $last['backup']['file'], 'Un respaldo terminado que ya no está en el registro de trabajos se toma del historial de Backups: ' . $last['error'] );
 		break;
 
 	case 'backup_fails':
