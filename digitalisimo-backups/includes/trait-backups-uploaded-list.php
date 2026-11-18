@@ -40,9 +40,12 @@ defined( 'ABSPATH' ) || exit;
  * `added`), no «Subido».
  */
 trait Digitalisimo_Backups_Uploaded_List {
-	/** Una fila del historial que entró de fuera: «Subir un respaldo» (`uploaded`) o «Agregar al listado» (`added`). */
+	/**
+	 * Una fila del historial que entró de fuera: «Subir un respaldo» (`uploaded`), «Agregar al listado» (`added`) o el
+	 * ZIP convertido de una importación de UpdraftPlus («Importado», is_imported_row()), que se trata igual.
+	 */
 	public static function is_uploaded_row( $row ) {
-		return is_array( $row ) && in_array( (string) ( $row['origin'] ?? '' ), array( 'uploaded', 'added' ), true );
+		return is_array( $row ) && ( in_array( (string) ( $row['origin'] ?? '' ), array( 'uploaded', 'added' ), true ) || self::is_imported_row( $row ) );
 	}
 	/** Una fila de «Agregar al listado»: un archivo del almacén de origen desconocido que alguien agregó a mano. */
 	public static function is_added_row( $row ) {
@@ -192,7 +195,7 @@ trait Digitalisimo_Backups_Uploaded_List {
 		$upload = (array) ( $row['upload'] ?? array() );
 		return array(
 			'origin' => (string) $row['origin'],
-			'label' => self::is_added_row( $row ) ? 'Agregado' : 'Subido',
+			'label' => self::is_imported_row( $row ) ? 'Importado' : ( self::is_added_row( $row ) ? 'Agregado' : 'Subido' ),
 			'at' => (string) ( $upload['at'] ?? '' ),
 			'via' => (string) ( $upload['via'] ?? '' ),
 			'name' => (string) ( $upload['name'] ?? '' ),
@@ -334,7 +337,7 @@ trait Digitalisimo_Backups_Uploaded_List {
 		$upload = (array) ( ( (array) $row )['upload'] ?? array() );
 		$at = self::short_date( (string) ( $upload['at'] ?? '' ) );
 		$home = (string) ( $upload['home'] ?? '' );
-		$text = ( self::is_added_row( $row ) ? 'Agregado a mano desde el almacén' : 'Subido' ) . ( '' !== $at ? ' el ' . $at : '' );
+		$text = ( self::is_imported_row( $row ) ? 'Importado de UpdraftPlus (' . (string) ( $row['import']['source'] ?? '' ) . ')' : ( self::is_added_row( $row ) ? 'Agregado a mano desde el almacén' : 'Subido' ) ) . ( '' !== $at ? ' el ' . $at : '' );
 		if ( ! empty( $upload['same_site'] ) ) $text .= ' · de este mismo sitio (firmado con su clave)';
 		elseif ( '' !== $home ) $text .= ' · de ' . $home;
 		if ( self::is_added_row( $row ) && empty( $upload['site_key'] ) ) $text .= ' · origen desconocido, sin firma de este sitio';

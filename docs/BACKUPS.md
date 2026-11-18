@@ -103,6 +103,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | **Subir e importar un respaldo externo con el mismo panel de avance (pedido del 2026-11-16).** «Al subir un respaldo la barra de progreso no es la misma que al generarlo […] usa esa misma, pero ahora para cuando se sube o importa un respaldo externo.» La tarjeta «Subir un respaldo» ya no pinta su `<progress>` ni su línea de estado: la subida, la importación de Backuply (desde su carpeta, desde una subida con «Importarlo ahora» o desde el almacén), «Traer al almacén» (de una fila o de «Respaldos guardados en los destinos») y «Enviar a un destino» se siguen en el mismo panel que el respaldo y la restauración (`assets/manual-progress.js`, marcado en `class-backups-progress.php`), con el mismo aspecto, a todo lo ancho, bajo «Respaldar ahora» o en el hueco de la sección donde se hizo la acción, que se abre. La subida tiene tres fases: «Subida» (bytes enviados de los totales, velocidad, tiempo restante y los reintentos a la vista), «Comprobación» (en el servidor y sin pasos medibles: lo subido queda lleno, el resto de la barra se mueve, sin `aria-valuenow`, y el panel dice en qué paso va, de lo que la validación anota en la sesión: abrir o descifrar, cada archivo contra el manifiesto con «Verificando archivo N de M», «Origen → este sitio») y «Registro»; termina en «Respaldo subido y verificado» con su fila y «Restaurarlo» (que abre esa fila en la lista), o con el motivo: «El respaldo se descartó», «Respaldo subido, sin registro» (un `.dgbk` sin su frase, con «Agregarlo a la lista»), «Respaldo de Backuply subido» (con «Importarlo ahora»), 507, 504 tras tres cortes (con la orden de WP-CLI). Conserva toda la robustez de la subida: fragmentos en el byte que espera el servidor, reintentos con espera, reanudar tras recargar con el mismo archivo, el cierre que responde 202 o no responde nunca (el proxy del ensayo de /wp) con el estado consultado a la vez, plazos por petición, «Cancelar» (sólo mientras se envían fragmentos). Al recargar, el panel vuelve a la comprobación en curso y la sigue; si nadie la comprueba ya, ofrece «Terminar la comprobación» (sin subir otra vez); una subida a medias se ve «en pausa» con qué hacer. La importación, traer y enviar se siguen con sus fases (las de `Digitalisimo_Backups_Import_Job`, `fetch` y `send`), sus cortes, «Cancelar» sólo cuando sirve y su resultado con lo que sigue; no se pierden al recargar (la acción vuelve con `?job=` y el panel toma al cargar el que está en curso). «Agregar al listado» dice en el panel, mientras su petición comprueba el archivo, que lo comprueba. La barra nunca retrocede. REST y WP-CLI no cambian (el paso de la comprobación sólo va en el estado de la pantalla por AJAX). Ver «Pantalla» → «Subir e importar con el mismo panel». | sin publicar (rama `backups/upload-progress`) | `backups-upload-ui.mjs`, `backups-progress-ui.mjs` (P29–P33), `backups-upload-progress.php` (fallan con `ad515c71`) y, en Playground con Chrome, `tests/playground/backups-upload-progress.sh` |
 | **Archivos y lo de después al restaurar en otra instalación (estudio de UpdraftPlus del 2026-11-16, brechas 5, 6, 9, 12 y 17 a 22).** «Te vas a una instalación diferente de WP, lo importas y te deja el sitio tal cual.» **Drop-ins (5):** con el respaldo de otra instalación (la misma decisión que «Conservar mi acceso»: sin la identidad de H23, un sitio extraído, una red convertida en individual o una migración) los drop-ins de wp-content del origen (`db.php`, `object-cache.php`, `advanced-cache.php`, `sunrise.php`…) no se instalan: el de este servidor se queda y el informe los nombra; antes, un `object-cache.php` de Redis o un `db.php` de HyperDB del origen daba error fatal en cada petición. Con un respaldo del mismo sitio, como siempre. **Permisos (6), defecto confirmado:** cada carpeta preparada nacía `0700` (el área de trabajo es privada y `wp_mkdir_p()` hereda sus permisos) y una carpeta de código entera se ponía así con `rename()`; donde el servidor web no es el usuario de PHP, su CSS, JS e imágenes daban 403. Ahora lo preparado recibe los permisos de WordPress (`FS_CHMOD_DIR`/`FS_CHMOD_FILE` o su valor por defecto) sumados a los que tenía y a los de lo que reemplaza (nunca se quita uno), también en la copia entre discos y en la vuelta a la copia previa. **Caché (9, 20):** al terminar cualquier restauración (también del mismo sitio, tras un hackeo) se vacían `wp-content/cache`, `wphb-cache`, `endurance-page-cache`, `et-cache` (Divi) y `fusion-styles`/`fusion-scripts` de los medios (Avada), sin borrar sus `.htaccess`; el CSS generado de Elements/Elementor (archivos y metadatos) se vacía si la base de datos y los medios no vinieron juntos. **`.htaccess` (12):** con Apache o LiteSpeed y enlaces permanentes, si falta el bloque de WordPress (un respaldo de nginx) o es de otra ruta, se escribe al final, una sola vez y entre sus marcas, sin tocar las reglas propias. **Tema (19):** el que no existe vuelve al tema por defecto de WordPress que sí está (nunca al tema DIGITALÍSIMO) y se dice. **Este plugin (22):** un paquete que no trae DIGITALÍSIMO Backups (como uno importado de Backuply) ya no lo retira, y queda activo en la base de datos que entra antes del `RENAME` (sin eso, los ticks siguientes no lo cargaban y la restauración se quedaba en mantenimiento); otra copia suya activa en el respaldo se desactiva. **Avisos:** Jetpack conectado y la CDN de WP Rocket del origen (21), las tablas de este WordPress que el respaldo no trae (17: se quedan) y `DISALLOW_FILE_MODS` en el informe de wp-config.php (18: se avisa, no se bloquea). Al importar un sitio en una red, el tema y los avisos sólo miran ese sitio. Ver «Restauración por pasos» → «Archivos y lo de después». | rama `backups/restore-files-compat` | `backups-restore-files-compat.php`, `tests/playground/backups-restore-files.sh` |
 | **Restaurar en otro servidor de base de datos (MySQL ↔ MariaDB), como UpdraftPlus y sin sus atajos (brechas 4, 8, 10, 11, 14, 15 y 16 del estudio, rama `backups/restore-db-compat`).** La verificación, antes de la copia previa, compara lo que trae cada `CREATE TABLE` del respaldo con lo que este servidor tiene (`SHOW CHARACTER SET`, `SHOW COLLATION` con los nombres completos de MariaDB 10.10+, `SHOW ENGINES`, `@@max_allowed_packet`) y decide la sustitución: una intercalación que no tiene (`utf8mb4_0900_ai_ci` en MariaDB, `utf8mb4_uca1400_ai_ci` en MySQL) pasa a la más cercana con la misma sensibilidad y el mismo idioma (las genéricas, a `utf8mb4_unicode_520_ci`, la del núcleo), un juego de caracteres que falta a uno que no pierde nada (sin utf8mb4 sólo si ninguna fila trae caracteres de 4 bytes: si los trae, se rechaza), un motor que falta (Aria) a InnoDB, y se quitan las opciones de tabla del otro servidor (`PAGE_CHECKSUM`, `TRANSACTIONAL`, `ROW_FORMAT=PAGE`; `PERSISTENT` pasa a `STORED`). El guardián lo aplica sobre los tokens exactos que leyó, también en un archivo confiable, y sigue rechazando todo lo que rechazaba. Una fila mayor que `max_allowed_packet` (también ya reubicada) se rechaza ahí, sin copia previa, con «súbelo a N MB». Cada tramo de la importación usa `NO_AUTO_VALUE_ON_ZERO` (y sin `NO_BACKSLASH_ESCAPES`) en su sesión, nunca `SET GLOBAL`. El exportador ya no escribe el valor de las columnas generadas (un respaldo anterior importa `DEFAULT`) y respalda las vistas aparte, al final del SQL y sin `DEFINER` (antes una vista hacía fallar el respaldo: no tiene motor); la restauración las crea al final del cambio con `SQL SECURITY INVOKER` y los nombres de este sitio (en un archivo sin firma, sólo las que no salen de la base ni del respaldo). Disparadores, rutinas y eventos no se respaldan: se avisa al respaldar y en la verificación. La verificación y el trabajo avisan también, sin bloquear, de las versiones del origen: PHP de otra serie, lo que piden el núcleo, los plugins y el tema activos del respaldo (`Requires PHP`), WordPress más nuevo al restaurar sólo la base y otro servidor de base de datos. Vale igual en la conversión red → individual (las vistas del sitio viajan en su paquete), la importación en una red y la vuelta a la copia previa. Ver «Restaurar en otro servidor de base de datos». | sin publicar (rama `backups/restore-db-compat`) | `backups-db-compat.php` (falla con `ea9753ca`) y, con MySQL 8.0 y MariaDB 10.11 de verdad, `backups-db-compat-live.sh` |
+| **Importar un respaldo de UpdraftPlus y restaurarlo con todas las garantías (brecha #7 del estudio de UpdraftPlus, 2026-11-16).** «Con Updraft es tan fácil como: creas el respaldo, te vas a una instalación diferente de WP, lo importas y te deja el sitio tal cual.» Un conjunto de UpdraftPlus (su `db.gz`, también cifrado con su frase, y sus ZIP de plugins, temas, medios, mu-plugins y «others», partidos o no; de un individual o de una red; de su carpeta, subido pieza a pieza o traído de un destino) se convierte con un trabajo `import` en un ZIP de Backups (manifiesto v3, SHA-256, sin firma) que entra en la lista como «Importado» y se restaura desde ahí con la restauración por pasos: verificación, copia previa y vuelta atrás, reubicación de E1, H23, conservar el acceso y a los administradores, por partes, red ↔ individual y el panel de avance. El núcleo de WordPress (que UpdraftPlus no respalda) y lo que el conjunto no trae se toman de este WordPress, así que restaurarlo los deja como están. La restauración directa de antes (una sola petición, sin copia previa ni reubicación) ya no existe. Ver «Importar de UpdraftPlus». | rama `backups/updraft-import` | `backups-updraft-import.php` (falla con `ea9753ca`) y, en Playground con Chrome y respaldos reales de UpdraftPlus 1.26.14, `tests/playground/backups-updraft.sh` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -188,7 +189,7 @@ una exportación sin cortes.
 | Restauración | Desde 1.0.64, trabajo por pasos con tablas temporales y un cambio atómico, archivos preparados y movidos, mantenimiento, reanudación, vuelta automática a la copia previa y, si ésa falla, «Volver a la copia previa» en la pantalla y `wp digitalisimo-backups jobs rollback` (ver «Restauración por pasos»). Desde E1 la base de datos se reubica (dominio, ruta, prefijo, red) con datos serializados seguros, también por pasos. Desde 1.0.69, restaurar desde un destino remoto (B1b) y sincronizar sus respaldos, también los de otro sitio (B2), con un trabajo `fetch` por fragmentos. Falta reanudar una descarga tras un fallo definitivo del trabajo (lo descargado se retira; la siguiente empieza de cero), descargar por rangos de FTP (hoy, entera en un paso), comprobar por tramos un archivo importable grande en la web (la validación de archivo no confiable es un paso, como en la subida: con 30 s, WP-CLI), el ensayo con destinos reales y el ensayo con MySQL real y el corte del laboratorio (Webuzo con OpenLiteSpeed, 30 s, 64 MB y Cloudflare), la prueba extremo a extremo a otro servidor real (E2), la migración en un clic y restaurar UpdraftPlus por pasos. **H19 (fase B del ensayo E2) no es de Backups: es el opcache del servidor.** El 500 por memoria tras restaurar en otro dominio con `memory_limit=64M` venía de que el destino del laboratorio sirve cuatro WordPress (con WooCommerce y Elements) desde un solo pool de PHP-FPM con `opcache.memory_consumption=128`, que no alcanza ni para uno entero (front-end, REST y administración de un sitio suman unos 3 200 scripts y llenan los 128 MB). Si otro sitio llena el opcache primero, cada petición del sitio que no cupo compila o carga su código en su propia memoria: la portada pasa de 26 a 171 MiB y `/wp-json/` de 45 a 156 MiB, y con 64 MB todo da 500 (también con todas las cachés de la reubicación repuestas). Con el código en el opcache, la primera visita tras restaurar regenera las cachés vaciadas dentro de 45 MiB. La «pasada con 128 MB» lo arregló porque cambiar el pool reinició PHP-FPM y vació el opcache. OpenLiteSpeed de Webuzo da a cada cuenta su `lsphp` y su opcache; los pools de un mismo PHP-FPM comparten el suyo. Cada WordPress así (front-end, REST y administración) ocupa unos 130–150 MB de opcache: varios en una misma cuenta o en un mismo PHP-FPM necesitan esa cantidad por sitio o más `memory_limit` (con 512 MB y tráfico en los cuatro sitios del laboratorio, el patrón de B5 vuelve a salir). Playground no tiene opcache: por eso allí, con Elements, ninguna petición cabe en 64 MB. |
 | Migración | Hecha en 1.0.66 (un clic, staging y deshacer). La restauración es la por pasos de 1.0.64 (se reanuda y vuelve sola a la copia previa). Falta: fusión de cambios entre dos sitios vivos (fuera de alcance, declarado); que la copia de pruebas apague sola las automatizaciones y los destinos que trajo del origen; y el ensayo entre dos servidores reales con MySQL y HTTPS (el de Playground usa HTTP con «Permitir HTTP»). |
 | Seguridad | Argon2id opcional para la frase. Botón «Inspeccionar» con el informe de un archivo antes de restaurarlo (hoy la inspección completa ocurre al restaurar, antes de la copia previa). Ensayo del cifrado en un hosting real con libsodium nativo y MySQL. Sin la extensión, sodium_compat es lento: en php-wasm, unos 11 s por MiB (36 MB tardaron unos 11 minutos en cifrarse y comprobarse y unos 6 en descifrarse y restaurarse); la pestaña mide la velocidad del servidor y estima el tiempo del último respaldo. |
-| Restauración (UpdraftPlus) | La ruta de UpdraftPlus ya valida todo antes de cambiar nada, pero aún no crea copia previa ni revierte si falla a medias. Su restauración y el diario de una restauración interrumpida sólo se han probado en php-wasm, sobre la base de datos simulada; falta ensayarlos en WordPress real. |
+| Restauración (UpdraftPlus) | Desde 1.0.80 (brecha #7 del estudio de UpdraftPlus) un conjunto de UpdraftPlus ya no se restaura en una sola petición: se importa a un ZIP de Backups «Importado» y se restaura por pasos con todo lo demás (ver «Importar de UpdraftPlus»). Ensayado en Playground con respaldos reales de UpdraftPlus 1.26.14; no probado en MySQL real ni con UpdraftPlus Premium (su núcleo, `more` y bases externas no se importan). |
 | Automatización | Hecho en 1.0.70: respaldo previo a las actualizaciones (I1, ver «Respaldo antes de actualizar»). Hechos en la rama `backups/incremental`: incrementales con borrados y cadena íntegra y retención que preserva dependencias (ver «Incrementales»). Quedan varios destinos por trabajo, el ensayo de las cadenas en un hosting con MySQL y 30 s, y reconstruir un punto por tramos (hoy es un paso, como descifrar un `.dgbk`). |
 | Escala | Bases y archivos grandes reales, BLOBs, objetos SQL especiales y consistencia entre archivos y base de datos (WooCommerce). |
 | Cobertura | Hecho en 1.0.60: REST y WP-CLI sobre los casos de uso de la pantalla, con la cola de «Trabajos» (crear y ejecutar encolan; WP-CLI hace avanzar la cola hasta terminar; listar, consultar, avanzar y cancelar trabajos) y la confianza y el cifrado de «Seguridad» (`.dgbk`, `RESTAURAR SIN FIRMA`, la frase sólo en el cuerpo de REST o por `--secret-file` o STDIN en WP-CLI, y un error claro sin la clave), y rutas externas que funcionan (`wp-config.php`) o fallan antes de exportar con un mensaje claro (carpetas). Falta respaldar de verdad wp-content, plugins, medios o temas fuera de `ABSPATH`, que necesita una raíz nueva del ZIP aceptada por el validador estricto de «Seguridad» y por el empaquetador de «Trabajos». Faltan en REST y WP-CLI bloquear, eliminar y descargar, y los ajustes de «Seguridad» (frase, cifrado y «sólo firmados»), que siguen sólo en la pantalla; también que la pantalla avise al abrirse de una estructura no respaldable y repetir en un hosting con MySQL el ensayo de REST y WP-CLI que ya pasa en Playground. |
@@ -247,7 +248,7 @@ destinos por trabajo y restaurar directamente desde un destino remoto.
 
 La configuración y el historial viven en opciones del sitio o de la red; el estado de los trabajos, en el almacén
 privado. Hay acciones `admin-post`, eventos WP-Cron, creación manual y políticas automáticas; destinos local, FTP/FTPS,
-SFTP, WebDAV, Google Drive, OneDrive, Dropbox, Amazon S3 y compatibles y pCloud; e importación de ZIP propio y de conjuntos Updraft. Los formatos heredados (copia de base de
+SFTP, WebDAV, Google Drive, OneDrive, Dropbox, Amazon S3 y compatibles y pCloud; e importación de ZIP propio y de conjuntos de UpdraftPlus (convertidos en un ZIP propio, «Importar de UpdraftPlus»). Los formatos heredados (copia de base de
 datos, copia por sitio, Updraft) siguen inventariados, pero no satisfacen el requisito de respaldo completo y no se
 presentan como verificados.
 
@@ -270,7 +271,6 @@ Riesgos conocidos del flujo actual:
    quedó inerte y falla cerrado; los incrementales son ahora puntos de una cadena del motor de trabajos. Reconstruir un
    punto para restaurarlo es un paso, como descifrar un `.dgbk`: en la web, con 30 s, uno grande necesita WP-CLI.
 3. `restore_digitalisimo_zip()` importa SQL antes de extraer archivos; la recuperación es de mejor esfuerzo, no atómica.
-   `restore_updraft_set()` no prueba que estén todas las piezas de WordPress.
 4. `database_sql()` heredado acumula SQL en memoria para exportaciones antiguas; el respaldo integral usa
    `database_sql_to_file()` e `import_zip_sql()`.
 
@@ -378,8 +378,8 @@ después, sitio y red).
     sitio), sus avisos, y «Ver la lista actualizada» cuando la lista cambió.
   - **Lo que no es un trabajo:** «Agregar al listado» comprueba el archivo en su propia petición (minutos con uno grande): el
     panel dice que lo comprueba (fases «Comprobación» y «Registro», indeterminada, con cuánto lleva y, pasados 40 s, qué
-    hacer) y el resultado es el aviso de «Respaldos» y su fila. La restauración de un conjunto de UpdraftPlus es una
-    restauración en una petición (no una importación): el panel dice que empieza, como cualquier restauración.
+    hacer) y el resultado es el aviso de «Respaldos» y su fila. Un conjunto de UpdraftPlus se importa como uno de
+    Backuply (el panel sigue el trabajo `import` con sus fases) y su resultado es una fila «Importado» de la lista.
 - **«Volver a la copia previa» tras una restauración que terminó bien.** Abre la fila de la copia previa
   (`?restore=<copia>&undo=<trabajo>`) con lo mismo que se restauró ya marcado: tras restaurar por partes, sólo esas partes,
   plugins, temas o medios de sitios (`undo_parts`, `undo_plugins`, `undo_themes`, `undo_sites`), nunca «Todo», y el aviso
@@ -779,7 +779,8 @@ Si no:
 - Las tablas dentro de comentarios ejecutables con otro prefijo: se rechazan antes de tocar nada. Las vistas sí cambian de
   prefijo: se crean al final del cambio (ver «Restaurar en otro servidor de base de datos»).
 - Las rutas del servidor de un respaldo anterior a 1.0.63: su manifiesto no las trae (las URL sí se reescriben).
-- Un conjunto de UpdraftPlus: sigue su propio camino, que exige el prefijo de este sitio y no reubica direcciones.
+- Un conjunto de UpdraftPlus: se importa a un ZIP de Backups (con el origen de la cabecera de su SQL: dirección, ABSPATH,
+  prefijo y red) y ese ZIP se reubica como cualquier otro (ver «Importar de UpdraftPlus»).
 - Las reglas de nginx o del `.htaccess` de una red si cambia la ruta: se avisa.
 
 La comprobación final busca en la base de datos (con `LIKE`) cada host y cada ruta del origen en las tablas de este
@@ -1023,8 +1024,8 @@ segundo factor e inicio social de los plugins conocidos) y de los plugins de seg
 en la lista (o que guardan su secreto cifrado con una clave de su sitio), ni se retira el del respaldo ni viaja el de
 aquí; otras credenciales que un plugin guarde en sus propias tablas (fuera de las claves de la API de WooCommerce) siguen
 con la cuenta fundida; con más de 200
-administradores se conservan los 200 primeros y el informe lo dice; la ruta de UpdraftPlus de este plugin (una sola
-petición, sin el motor de restauración) no conserva cuentas.
+administradores se conservan los 200 primeros y el informe lo dice. Un conjunto de UpdraftPlus, desde 1.0.80, se importa
+y se restaura con este mismo motor: conserva las cuentas como cualquier otro respaldo de otra instalación.
 
 Pruebas: `tests/backups-keep-site-admins.php` (dos y tres administradores, choques por usuario y por correo, un usuario
 del respaldo que no es administrador, una cuenta que aquí no lo es, red con superadministradores, mismo sitio, el motor
@@ -1310,7 +1311,6 @@ larga, 21,2 s, una de la copia previa; las de las fases, 15,5 s) ni de 64 MB (pi
 - El aviso por correo de una restauración sale en la primera petición de WP-Cron con WordPress entero después de terminar
   (un tick programado a 60 s); un sitio sin visitas, sin cron del sistema y con `DISABLE_WP_CRON` lo envía cuando algo
   vuelva a correr WP-Cron o la cola.
-- UpdraftPlus sigue restaurándose en una sola petición.
 - No probado en MySQL real ni en el hosting del laboratorio.
 
 ### Archivos y lo de después
@@ -1499,8 +1499,8 @@ restauración en curso y `digitalisimo_backups_last_restore` nombran la selecci�
   base entera. Restaurar sólo esas tablas podría dejar entradas con autores que no existen o cuentas sin su rol, sin
   forma de detectarlo antes; no se ofrece. Los medios de un sitio sí (son archivos), y para recuperar un sitio entero
   está «Extraer un sitio de la red».
-- **UpdraftPlus** sigue restaurándose en una sola petición (sin la restauración por pasos): entero; por partes se
-  rechaza. Backuply sí, porque su importación deja un ZIP de Backups que se restaura por pasos.
+- **UpdraftPlus y Backuply** se restauran por partes desde 1.0.80 y 1.0.68: su importación deja un ZIP de Backups que se
+  restaura por pasos.
 - **Un respaldo cifrado** (`.dgbk`): la pantalla ofrece las partes enteras, pero sus plugins y temas concretos sólo se
   ven al descifrarlo (`verify` por REST o WP-CLI con la frase); se eligen por REST o WP-CLI.
 
@@ -1991,6 +1991,130 @@ se importa (marca de fin, `size` y `path` de PAX, cabeceras globales y archivos 
 memoria libre se importa sólo con WP-CLI o el cron del sistema. `backuply fetch` es una sola petición (los respaldos grandes, con WP-CLI o la
 sincronización de destinos). Los ajustes de Backuply (`backuply_remote_backup_locs` con credenciales en claro) viajan
 como el resto de la base de datos: el ZIP convertido está en el almacén privado, como el `.tar.gz` original.
+
+## Importar de UpdraftPlus
+
+Desde 1.0.80 (brecha #7 del estudio de UpdraftPlus 1.26.14 del 2026-11-16).
+Pedido del propietario: «creas el respaldo, te vas a una instalación diferente de WP, lo importas y te deja el sitio tal
+cual […] que no rompa nada». Antes, un conjunto de UpdraftPlus se restauraba en una sola petición, con el SQL directo
+sobre las tablas vivas: sin copia previa ni vuelta atrás, sin reubicar (el guardián exigía el prefijo de aquí y no leía
+`# Backup of`), sin conservar el acceso, la configuración ni los administradores, y extrayendo encima. Con un conjunto de
+otro dominio el sitio quedaba apuntando al origen y quien restauraba, fuera. Ahora el conjunto se **importa**, como uno
+de Backuply, a un ZIP de Backups que entra en la lista como «Importado» y se restaura desde ahí con todo lo de la
+restauración por pasos: verificación, copia previa y vuelta atrás, reubicación de E1, H23, conservar el acceso y los
+administradores (1.0.76 y 1.0.79), por partes, red ↔ individual (1.0.79) y el panel de avance. La ruta de una sola
+petición ya no existe: pedirla (el formulario de antes) se rechaza diciendo cómo importarlo.
+
+### Formato de UpdraftPlus
+
+Leído en su código 1.26.14 (GPL; `backup.php`, `class-updraftplus.php`, `restorer.php`,
+`includes/class-updraftplus-encryption.php`) y comprobado con respaldos reales que hizo ese código en Playground
+(`tests/playground/backups-updraft.sh`):
+
+- **Nombres.** `backup_<AAAA-MM-DD-HHMM>_<sitio>_<nonce de 12 hexadecimales>-<entidad><n>.<ext>`: `db.gz` (o
+  `db.gz.crypt`), `plugins.zip`, `themes.zip`, `uploads.zip`, `mu-plugins.zip` y `others.zip`. Una entidad se parte a los
+  400 MB: `-uploads.zip`, `-uploads2.zip`, `-uploads3.zip`… Premium añade `wpcore`, `more` y bases externas
+  (`-db1.gz`…).
+- **ZIP.** `plugins/…`, `themes/…`, `mu-plugins/…` y `uploads/…` (la carpeta del origen con su nombre: su restauración la
+  busca con `get_first_directory()`); `others` lleva el resto de wp-content sin carpeta delante (`languages/…`, los
+  drop-ins) y, en versiones anteriores a su entidad propia, `mu-plugins/…`. Su restauración nunca saca de `others`
+  plugins, temas, medios ni `upgrade`.
+- **Base de datos.** gzip de **varios miembros** (la cabecera y cada tabla se escriben en archivos aparte y se
+  concatenan). Empieza por comentarios `#` (`backup_db_header()`): «Created by UpdraftPlus version», «WordPress Version:
+  …, running on PHP … MySQL …», «Backup of» (siteurl), «Home URL», «Content URL», «Uploads URL», «Table prefix», «ABSPATH»
+  y «Site info: multisite=…», con, en una red, `multisite_data` (dominio, ruta, siteurl y home de cada sitio) y el sitio
+  principal; después `/*!40101 SET … */`. Por tabla, `# Table:`, `DROP TABLE IF EXISTS`, el `CREATE TABLE` de `SHOW
+  CREATE TABLE` seguido de « ;» (con sus claves foráneas dentro) e INSERT de varias filas separadas por «,\n »: enteros
+  sin comillas (vacío o NULL, el valor por defecto de la columna), binarios `0x…`, BIT `b'…'`, cadenas con `\\`, `\'`,
+  `\0`, `\n`, `\r` y `\Z`. Las tablas de más de 8 000 filas pueden venir de mysqldump (`LOCK TABLES`, `/*!40000 ALTER
+  TABLE … DISABLE KEYS */`, `_binary '…'`). Vistas con `DROP VIEW IF EXISTS` y su `CREATE … VIEW`; disparadores y rutinas
+  al final, entre `DELIMITER ;;`.
+- **Cifrado.** Sólo la base de datos (`.gz.crypt`, una función de Premium que la versión gratuita sabe descifrar):
+  Rijndael de bloque de 128 bits en CBC con vector cero; la clave es la frase completada con ceros hasta 16, 20, 24, 28
+  o 32 bytes (o cortada a 32), así que según su longitud es AES o Rijndael de 160 o 224 bits; trozos de 2 MiB en un flujo
+  continuo, relleno sólo en el último si no es múltiplo de 16. **Sin la frase no se puede descifrar**: se pide al
+  importar.
+
+### Cómo se importa
+
+- **De dónde.** La carpeta de UpdraftPlus de este sitio (`source: updraft`: su opción `updraft_dir`, por defecto
+  `wp-content/updraft`, sólo si queda dentro de wp-content y no es un enlace) o `updraft/` del almacén privado
+  (`store`): ahí deja «Subir un respaldo» cada pieza (con su nombre exacto, sin `sanitize_file_name()`, que en una red sin
+  `gz` en `upload_filetypes` lo cambiaría; sólo se comprueba que sea un ZIP o un gzip) y ahí las trae `updraft fetch` de un
+  destino (las piezas con el nombre del conjunto, en streaming, con su tamaño). Las piezas se agrupan por conjunto. La
+  lista (`GET /updraft`, `wp digitalisimo-backups updraft list` y la tarjeta «UpdraftPlus» de Herramientas → «Importar
+  de Backuply o UpdraftPlus») dice de cada uno sus piezas, si trae la base de datos y si está cifrada, si se puede
+  importar y por qué no (sin base de datos, una pieza ZIP cifrada, dos piezas para la misma parte, o UpdraftPlus todavía
+  escribiéndolo: una pieza de su carpeta cambió hace menos de un minuto) y si ya se importó. Las piezas del almacén se
+  borran desde la tarjeta, `DELETE /updraft/<conjunto>` y `updraft delete`; las de la carpeta de UpdraftPlus son suyas.
+- **La frase.** Con la base cifrada, «Importar» pide la frase de cifrado de UpdraftPlus del origen (pantalla, `secret` en
+  el cuerpo de `POST /updraft/import`, `--secret-file` o `--secret-stdin`). Se descifra en esa misma petición a una copia
+  oculta del almacén (`updraft/.decrypted-<aleatorio>.gz`) y se comprueba que lo descifrado empiece como un gzip; con otra
+  frase, 400 sin dejar nada. La frase nunca se guarda ni va al trabajo; la copia se borra al terminar (bien, mal o
+  cancelada) y las que quedaran de un proceso muerto, a las 6 horas.
+- **Trabajo.** El mismo trabajo `import` que Backuply (`format: updraft`), con su cola, arrendamiento, latido,
+  reanudación, cancelación y panel de avance; su clase (`includes/import/class-updraft-import.php`) sólo se carga al
+  usarse. Cada pieza se comprueba en cada fase con su tamaño y su fecha: si cambia, falla. Nada toca el sitio:
+  1. `unpack`: la base de datos (o su copia descifrada) se descomprime a `source.sql` por tramos, miembro a miembro, con
+     los mismos topes contra bombas de descompresión que Backuply; lo que sigue al último miembro (el relleno del
+     cifrado) se ignora.
+  2. `scan`: la cabecera del SQL (sin ella, «no es la base de datos de un respaldo de UpdraftPlus»; una base externa de
+     Premium se rechaza); cada ZIP con el inspector de archivos no confiables y, por tramos, sus entradas al índice con
+     su ruta **en esta instalación** (plugins, temas, mu-plugins y medios en sus carpetas de aquí; `others`, en
+     wp-content). No se importan: `wp-config.php` (a ninguna profundidad), lo que su restauración tampoco saca de
+     `others`, lo que Backups no respalda (las carpetas de otros plugins de respaldo, la caché de páginas, los
+     registros: B8) ni una pieza ZIP con más de una carpeta de primer nivel (se rechaza). Después, **lo que el conjunto no
+     trae y la restauración dejaría como en el respaldo**: el núcleo de WordPress de este sitio (wp-admin, wp-includes y
+     los archivos PHP de la raíz salvo wp-config.php; UpdraftPlus sin Premium no respalda el núcleo) y, si al conjunto
+     le falta una parte gestionada (plugins, temas, medios o mu-plugins), la de este sitio. Así la restauración, que deja
+     cada parte como en el respaldo, las deja como están, igual que UpdraftPlus deja lo que su respaldo no trae.
+  3. `database`: el traductor del SQL de Backuply (mismo dialecto: comentarios `#`, ejecutables `/*!`, `DELIMITER`,
+     INSERT de varias filas) al formato del exportador, con el guardián en cada CREATE. Entiende además los literales
+     binarios `0x…` y `X'…'`, los BIT `b'…'` (pasan a sus bytes, como los escribe el exportador), el introductor
+     `_binary` y `/*!40000 ALTER TABLE … DISABLE KEYS */` de mysqldump. No importa vistas, disparadores ni rutinas (se
+     avisa) ni las filas `digitalisimo_backups_vault_*` del origen. El prefijo es el de la cabecera (o, si su `options`
+     no está, el de la tabla `options` más corta).
+  4. `files`: el ZIP con el escritor de T2: `database.sql`, un `wp-config.php` de marcador (la restauración nunca lo
+     escribe) y cada entrada del índice como `wordpress/<ruta>`, leída del ZIP de la pieza o de este WordPress; una
+     entrada grande queda a medias entre tramos y, al retomarla, su flujo se vuelve a leer hasta donde se quedó.
+  5. `finish`: manifiesto v3 sin firma: `home_url`, `site_url`, `wordpress_version`, `php_version` y
+     `database_version` de la cabecera, el bloque `origin` (ABSPATH y, de las URL de contenido y medios, sus carpetas;
+     en una red, su sitio principal, y si es por subdominios), las tablas en el orden del volcado, `multisite`,
+     `imported_from` (formato, versión de UpdraftPlus, conjunto, piezas, si estaba cifrado y qué se tomó de este
+     WordPress) y los avisos. Se comprueba con el inspector y el esquema estricto, se publica en el almacén como
+     `digitalisimo-updraft-<conjunto>.zip` (sin puntos: `sanitize_file_name()` no lo cambia) y **entra en la lista** con
+     su fila «Importado» (`origin` = `imported` con su bloque `import`; en una red, con sus sitios para elegir cuál se
+     restaura en un individual). Tras una muerte justo después de publicar, el intento siguiente encuentra el ZIP y
+     registra la fila sin duplicarla.
+- **Backups sigue activo.** Un conjunto de un sitio sin Backups trae un `active_plugins` sin él; tras el cambio de
+  tablas, los ticks cargan WordPress mínimo con sólo este plugin y sólo si la base lo tiene activo, así que una
+  restauración que necesitaba más de una petición se quedaba en mantenimiento (lo encontró el ensayo con peticiones
+  cortas). Antes del cambio, el plugin queda activo en la tabla temporal de opciones (o, si aquí está activado en la red,
+  en la de `sitemeta`), como UpdraftPlus, que se deja activo al restaurar. Vale para cualquier paquete que no lo traiga
+  activo (también uno de Backuply).
+- **La fila «Importado».** Se trata como una subida (`is_uploaded_row()`): fuera de la retención global y de las
+  automatizaciones, con su propio tope, de **otra instalación** para H23, y su alcance decide dónde se restaura (una red
+  en una red o, por 1.0.79, uno de sus sitios en un individual; un individual en un individual o como sitio de una red).
+  «Conservar mi acceso» y «Conservar los administradores» la miran como cualquier otra (`restore_identity_of()`: sin
+  identidad firmada, con la misma dirección, prefijo y carpeta de aquí parece de este mismo sitio). No está firmada:
+  pide `RESTAURAR SIN FIRMA` (su panel «Restaurar» lo dice; no se restaura con «Restaurar sólo respaldos firmados»). Se
+  descarga, se envía, se bloquea y se borra como las demás. Al terminar la importación, el panel de avance lleva a su fila
+  («Restaurarlo»).
+- **De paso, en la importación de Backuply:** cuando su `database.sql` quedaba a medias entre dos tramos, el marcador de
+  `wp-config.php` (de un respaldo sin él) no se escribía y la verificación rechazaba el ZIP; ahora se escribe después,
+  con su propio punto de control (las dos importaciones).
+
+Superficies: la tarjeta «UpdraftPlus» (Importar, con la frase si está cifrada, y Eliminar), «Subir un respaldo» (acepta
+las piezas y el panel lleva a importar el conjunto), `GET /updraft`, `POST /updraft/import`, `POST /updraft/fetch`,
+`DELETE /updraft/<conjunto>` y `wp digitalisimo-backups updraft list|import|fetch|delete`.
+
+**Límites declarados.** Lo de Premium: `wpcore` (se usa el núcleo de este WordPress), `more` y las bases externas no se
+importan (se avisa). El núcleo del ZIP es el de este WordPress **al importar**: si WordPress se actualiza entre la
+importación y la restauración, restaurarlo vuelve a ese núcleo (impórtalo otra vez). Un conjunto al que le falta una
+parte la toma de este sitio en ese momento. Vistas, disparadores y rutinas no se importan (como en Backuply). Las piezas
+ZIP se leen con su tamaño declarado sin comprobar su CRC (la restauración comprueba el SHA-256 de lo convertido). Disco:
+hacen falta las piezas, el SQL descomprimido y el ZIP a la vez. Subir un conjunto es subir cada pieza por separado.
+`updraft fetch` es una sola petición (los grandes, con WP-CLI). No probado con UpdraftPlus Premium real ni en MySQL real.
 
 ## Migración entre servidores y dominios
 
@@ -2956,7 +3080,7 @@ casilla «Usar esta frase para los respaldos nuevos» la guarda en el llavero de
 | Firmado con una clave del sitio o con la frase escrita | Firmado | `RESTAURAR` |
 | Fila del historial creada aquí con el mismo SHA-256 (todos los respaldos desde 1.0.39) | Registrado en este sitio | `RESTAURAR` |
 | Subido por una cuenta con la capability, o agregado con `AGREGAR SIN FIRMA` («Agregado»), con su fila y el mismo SHA-256, sin firma válida de una clave de este sitio | Sin firma, subido (`vouched` = `uploaded`): se valida como no confiable | `RESTAURAR`, o bloqueado con «Restaurar sólo respaldos firmados» |
-| Sin firma válida y sin fila (otro servidor, copiado por FTP, traído de un destino, versiones anteriores sin registro, UpdraftPlus) | Sin firma | `RESTAURAR SIN FIRMA`, o bloqueado con «Restaurar sólo respaldos firmados» |
+| Sin firma válida y sin fila (otro servidor, copiado por FTP, traído de un destino, versiones anteriores sin registro), o importado de UpdraftPlus («Importado») | Sin firma | `RESTAURAR SIN FIRMA`, o bloqueado con «Restaurar sólo respaldos firmados» |
 | Firma que no coincide, comentario sin bloque de firma o frase de otra clave | — | Se rechaza siempre |
 
 La copia `safety-before-restore-*` nunca se cifra (es local y se recupera sin depender de una clave que el SQL
@@ -3171,7 +3295,7 @@ pestaña mide la velocidad de este servidor y estima cuánto tardaría el últim
 ### Archivos no confiables
 
 Antes de la copia previa y antes de cualquier consulta o escritura, en el respaldo propio, en un archivo suelto del
-almacén, en un ZIP descifrado y en UpdraftPlus:
+almacén, en un ZIP descifrado y en las piezas de un conjunto de UpdraftPlus al importarlo:
 
 - **Archivo.** El tipo sale de los bytes mágicos (`PK` o `DGBK`), nunca de la extensión; debe ser un archivo normal
   de la raíz del almacén, no un enlace. Si tiene fila en el historial, su SHA-256 debe coincidir.

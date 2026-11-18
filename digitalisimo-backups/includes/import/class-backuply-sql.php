@@ -39,12 +39,18 @@ final class Digitalisimo_Backups_Backuply_Sql {
 	private $out;
 	private $state;
 	private $guard;
+	/** De qué programa es el volcado (los mensajes lo nombran) y la orden de WP-CLI que lo importa: ver label(). */
+	private static $label = 'Backuply';
+	private static $cli = 'wp digitalisimo-backups backuply import';
 
 	/**
 	 * $in: el tar abierto; $base y $length: dónde empieza `softsql.sql` dentro de él y cuánto mide; $out: la salida ya
-	 * truncada a `$state['out']`; $state: el punto de control (array() al empezar).
+	 * truncada a `$state['out']`; $state: el punto de control (array() al empezar). $source: el volcado de otro programa
+	 * con el mismo dialecto (UpdraftPlus: `label` y `cli` para los mensajes).
 	 */
-	public function __construct( $in, $base, $length, $out, array $state ) {
+	public function __construct( $in, $base, $length, $out, array $state, array $source = array() ) {
+		self::$label = (string) ( $source['label'] ?? 'Backuply' );
+		self::$cli = (string) ( $source['cli'] ?? 'wp digitalisimo-backups backuply import' );
 		$this->in = $in;
 		$this->base = (int) $base;
 		$this->length = (int) $length;
@@ -53,6 +59,8 @@ final class Digitalisimo_Backups_Backuply_Sql {
 		$this->guard = new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::EXPORTER, false );
 	}
 	public function state() { return $this->state; }
+	/** Nombre del programa del volcado en curso, para los mensajes (también los del lexer). */
+	public static function label() { return self::$label; }
 
 	/** Reserva de memoria que la traducción nunca toca (lo que necesitan el guardián, el escritor y el motor). */
 	const RESERVE = 3145728;
@@ -68,7 +76,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 		return (int) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_import_max_statement', $max ) : $max );
 	}
 	private function too_big( $at, $size ) {
-		throw new Digitalisimo_Backups_Permanent_Error( 'Una sentencia del SQL de Backuply (cerca del byte ' . ( (int) $this->state['pos'] + (int) $at ) . ') mide más de ' . Digitalisimo_Backups_Archive_Inspector::megabytes( (int) $size ) . ' y no cabe en la memoria libre de PHP en esta petición (memory_limit ' . ini_get( 'memory_limit' ) . '). Impórtalo con WP-CLI (wp digitalisimo-backups backuply import) o con el cron del sistema por PHP CLI, que suelen tener más memoria.' );
+		throw new Digitalisimo_Backups_Permanent_Error( 'Una sentencia del SQL de ' . self::$label . ' (cerca del byte ' . ( (int) $this->state['pos'] + (int) $at ) . ') mide más de ' . Digitalisimo_Backups_Archive_Inspector::megabytes( (int) $size ) . ' y no cabe en la memoria libre de PHP en esta petición (memory_limit ' . ini_get( 'memory_limit' ) . '). Impórtalo con WP-CLI (' . self::$cli . ') o con el cron del sistema por PHP CLI, que suelen tener más memoria.' );
 	}
 
 	/**
@@ -78,7 +86,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 	public function run( $deadline ) {
 		if ( $this->state['done'] ) return true;
 		if ( 0 === (int) $this->state['out'] ) $this->write( self::HEADER );
-		if ( 0 !== fseek( $this->in, $this->base + (int) $this->state['pos'] ) ) throw new Exception( 'No se pudo leer el SQL de Backuply en el área de trabajo.' );
+		if ( 0 !== fseek( $this->in, $this->base + (int) $this->state['pos'] ) ) throw new Exception( 'No se pudo leer el SQL de ' . self::$label . ' en el área de trabajo.' );
 		$buffer = '';
 		$at = 0;
 		$scan = new Digitalisimo_Backups_Backuply_Sql_Lexer();
@@ -91,7 +99,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 			$found = $scan->next( $buffer, $at, $eof );
 			if ( null === $found ) {
 				if ( $eof ) {
-					if ( '' !== trim( $scan->pending( $buffer, $at ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El SQL del respaldo de Backuply termina con una sentencia incompleta: el archivo está truncado o dañado.' );
+					if ( '' !== trim( $scan->pending( $buffer, $at ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El SQL del respaldo de ' . self::$label . ' termina con una sentencia incompleta: el archivo está truncado o dañado.' );
 					break;
 				}
 				// Antes de agrandar el búfer: lo que ya tiene más el trozo siguiente debe caber (con su copia al crecer).
@@ -101,7 +109,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 					if ( $want < 4096 ) $this->too_big( $at, max( strlen( $buffer ), $max ) );
 				}
 				$chunk = fread( $this->in, $want );
-				if ( false === $chunk || '' === $chunk ) throw new Exception( 'No se pudo leer el SQL de Backuply en el área de trabajo.' );
+				if ( false === $chunk || '' === $chunk ) throw new Exception( 'No se pudo leer el SQL de ' . self::$label . ' en el área de trabajo.' );
 				$buffer .= $chunk;
 				unset( $chunk );
 				continue;
@@ -131,7 +139,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 				return false;
 			}
 		}
-		if ( ! $this->state['tables'] ) throw new Digitalisimo_Backups_Permanent_Error( 'El SQL del respaldo de Backuply no trae ninguna tabla.' );
+		if ( ! $this->state['tables'] ) throw new Digitalisimo_Backups_Permanent_Error( 'El SQL del respaldo de ' . self::$label . ' no trae ninguna tabla.' );
 		$this->write( self::FOOTER );
 		$this->state['pos'] = $this->length;
 		$this->state['out'] = $this->flush();
@@ -163,7 +171,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 	private function note( $key ) { $this->state['notes'][ $key ] = (int) ( $this->state['notes'][ $key ] ?? 0 ) + 1; }
 	private static function reject( $why, $sql ) {
 		$excerpt = preg_replace( '/[\x00-\x1F\x7F]+/', ' ', substr( (string) $sql, 0, 80 ) );
-		throw new Digitalisimo_Backups_Permanent_Error( 'El SQL del respaldo de Backuply trae una sentencia que no se puede importar (' . $why . '): «' . $excerpt . ( strlen( (string) $sql ) > 80 ? '…' : '' ) . '».' );
+		throw new Digitalisimo_Backups_Permanent_Error( 'El SQL del respaldo de ' . self::$label . ' trae una sentencia que no se puede importar (' . $why . '): «' . $excerpt . ( strlen( (string) $sql ) > 80 ? '…' : '' ) . '».' );
 	}
 
 	/** Una sentencia completa, sin sus comentarios «--», «#» ni «/* *\/» (los ejecutables «/*!» se conservan). */
@@ -172,6 +180,8 @@ final class Digitalisimo_Backups_Backuply_Sql {
 		if ( '!' === ( $sql[0] ?? '' ) ) {
 			// Lo que el lexer marca como «comentario ejecutable» al principio: sólo los SET de sesión del volcado.
 			if ( preg_match( '/^!(?:M!)?[0-9]{5,6}\s+SET\s/i', $sql ) && false === strpos( substr( $sql, 1 ), '/*' ) ) { $this->note( 'session' ); return; }
+			// mysqldump (UpdraftPlus lo usa con las tablas grandes): `/*!40000 ALTER TABLE `t` DISABLE KEYS */`, sin efecto aquí.
+			if ( preg_match( '/^!(?:M!)?[0-9]{5,6}\s+ALTER\s+TABLE\s+`(?:[^`]|``)+`\s+(?:DISABLE|ENABLE)\s+KEYS\s*$/iD', $sql ) ) return;
 			self::reject( 'comentario ejecutable no reconocido', $sql );
 		}
 		$t = new Digitalisimo_Backups_Backuply_Sql_Tokens( $sql );
@@ -388,7 +398,7 @@ final class Digitalisimo_Backups_Backuply_Sql_Lexer {
 							// Rutina, disparador o evento: hasta la línea `DELIMITER ;` (se cuenta en su CREATE).
 							if ( ! preg_match( '/\n[ \t]*DELIMITER[ \t]+;[ \t]*\r?(?:\n|$)/i', $buffer, $close, PREG_OFFSET_CAPTURE, $after ) ) {
 								if ( ! $eof ) { $this->i = $i; return null; }
-								throw new Digitalisimo_Backups_Permanent_Error( 'El SQL del respaldo de Backuply abre un DELIMITER que nunca se cierra.' );
+								throw new Digitalisimo_Backups_Permanent_Error( 'El SQL del respaldo de ' . Digitalisimo_Backups_Backuply_Sql::label() . ' abre un DELIMITER que nunca se cierra.' );
 							}
 							$body = substr( $buffer, $after, $close[0][1] - $after );
 							$end = $close[0][1] + strlen( $close[0][0] );
@@ -543,8 +553,11 @@ final class Digitalisimo_Backups_Backuply_Sql_Tokens {
 	 */
 	public function value() {
 		$this->space();
+		$this->introducer();
 		$c = $this->s[ $this->i ] ?? '';
 		if ( $this->i >= $this->n ) return false;
+		$binary = $this->binary();
+		if ( null !== $binary ) return $binary;
 		if ( "'" === $c || '"' === $c ) return $this->string();
 		if ( $this->i + 4 <= $this->n && preg_match( '/\GNULL(?![A-Za-z0-9_])/i', $this->s, $m, 0, $this->i ) ) { $this->i += 4; return null; }
 		if ( preg_match( '/\G[+-]?(?:[0-9]{1,80}(?:\.[0-9]{0,80})?|\.[0-9]{1,80})(?:[eE][+-]?[0-9]{1,4})?(?![A-Za-z0-9_])/', $this->s, $m, 0, $this->i ) && $this->i + strlen( $m[0] ) <= $this->n ) { $this->i += strlen( $m[0] ); return $m[0]; }
@@ -556,7 +569,11 @@ final class Digitalisimo_Backups_Backuply_Sql_Tokens {
 	 */
 	public function transcode( callable $sink ) {
 		$this->space();
+		$this->introducer();
 		if ( $this->i >= $this->n ) return false;
+		// Binarios de UpdraftPlus (`0x…`) y mysqldump (`0x…` con --hex-blob), y BIT (`b'0101'`): sus bytes, como cadena.
+		$binary = $this->binary();
+		if ( null !== $binary ) { $sink( Digitalisimo_Backups::sql_value( $binary ) ); return true; }
 		$quote = $this->s[ $this->i ];
 		if ( "'" !== $quote && '"' !== $quote ) {
 			$value = $this->value();
@@ -596,6 +613,30 @@ final class Digitalisimo_Backups_Backuply_Sql_Tokens {
 			$i++;
 		}
 		return false;
+	}
+	/** El introductor `_binary` de mysqldump delante de una cadena o de un hexadecimal: no cambia los bytes. */
+	private function introducer() {
+		if ( '_' === ( $this->s[ $this->i ] ?? '' ) && preg_match( '/\G_binary\s*(?=[\'"0xXbB])/i', $this->s, $m, 0, $this->i ) && $this->i + strlen( $m[0] ) < $this->n ) $this->i += strlen( $m[0] );
+	}
+	/**
+	 * Un literal binario: `0x4A6F` o `X'4A6F'` (hexadecimal) y `b'0101'` o `0b0101` (BIT, como lo escribe UpdraftPlus):
+	 * sus bytes (el BIT, de izquierda a derecha y completado con ceros a la izquierda). null si lo que sigue no lo es.
+	 */
+	private function binary() {
+		if ( ! preg_match( '/\G(?:0x([0-9A-Fa-f]*)|[xX]\'([0-9A-Fa-f]*)\'|0b([01]*)|[bB]\'([01]*)\')(?![A-Za-z0-9_])/', $this->s, $m, 0, $this->i ) || $this->i + strlen( $m[0] ) > $this->n ) return null;
+		$hex = isset( $m[2] ) && '' !== $m[2] ? $m[2] : ( '' !== ( $m[1] ?? '' ) ? $m[1] : '' );
+		if ( '' === $hex && ( '' !== ( $m[3] ?? '' ) || '' !== ( $m[4] ?? '' ) ) ) {
+			$bits = '' !== ( $m[4] ?? '' ) ? $m[4] : $m[3];
+			$bits = str_repeat( '0', ( 8 - strlen( $bits ) % 8 ) % 8 ) . $bits;
+			$bytes = '';
+			foreach ( str_split( $bits, 8 ) as $byte ) $bytes .= chr( bindec( $byte ) );
+			$this->i += strlen( $m[0] );
+			return $bytes;
+		}
+		if ( '0x' === strtolower( substr( $m[0], 0, 2 ) ) && '' === $hex ) return null; // `0x` sola no es un literal.
+		$this->i += strlen( $m[0] );
+		if ( strlen( $hex ) % 2 ) $hex = '0' . $hex;
+		return '' === $hex ? '' : (string) hex2bin( $hex );
 	}
 	/** Cadena entre ' o ": barra invertida como en MySQL y la comilla duplicada. false si no cierra. */
 	private function string() {

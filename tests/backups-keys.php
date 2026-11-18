@@ -2,7 +2,7 @@
 /**
  * Claves y llavero: vectores fijos (contrastados con hashlib de Python), frase sin alterar, límites de la KDF, llavero
  * envuelto, fallo cerrado cuando cambian AUTH_KEY/SECURE_AUTH_KEY, filas del llavero fuera de database.sql, unión del
- * llavero tras restaurar (ya antes de extraer los archivos, y también desde UpdraftPlus), pestaña y redirects sin
+ * llavero tras restaurar (ya antes de extraer los archivos; UpdraftPlus ya no se restaura directamente), pestaña y redirects sin
  * secretos, nonce y capacidad. Al final, la clave en wp-config.php.
  */
 require __DIR__ . '/lib/backups-env.php';
@@ -112,7 +112,9 @@ $report = Digitalisimo_Backups_Security::open( $signed, array(), '' );
 try { bk_call( 'Digitalisimo_Backups', 'restore_digitalisimo_zip', $report['path'], $report ); } finally { Digitalisimo_Backups_Security::close( $report ); unset( $GLOBALS['bk_on_mkdir'] ); }
 if ( null === $seen ) throw new RuntimeException( 'La extracción no preparó ninguna carpeta después del SQL.' );
 if ( $seen['keyring'] !== $ring_before || empty( $seen['security']['encrypt'] ) || empty( $seen['security']['require_signed'] ) || ! in_array( 'marca-del-historial.zip', $seen['history'], true ) || ! preg_grep( '/^safety-before-restore-/', $seen['history'] ) ) throw new RuntimeException( 'Al empezar la extracción el llavero, la seguridad o el historial seguían como los dejó el SQL restaurado.' );
-// UpdraftPlus: su SQL también reemplaza wp_options; el llavero, la seguridad y el historial se conservan.
+// UpdraftPlus: la restauración directa de antes (una sola petición, sin copia previa) ya no existe (brecha #7): el
+// conjunto se importa (tests/backups-updraft-import.php) y se restaura por pasos, que conserva el llavero como cualquier
+// otra. Pedirla se rechaza sin tocar nada: ni la base de datos, ni los archivos, ni el llavero, la seguridad o el historial.
 $updraft = WP_CONTENT_DIR . '/updraft';
 mkdir( $updraft, 0700, true );
 $set = 'backup_2026-11-06-1200_Sitio_0123456789ab';
@@ -129,7 +131,7 @@ $GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ] = array( 'encryp
 $history_before = $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ];
 $GLOBALS['wpdb']->queries = array();
 list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'updraft' => '1', 'updraft_set' => $set, 'confirmation' => 'RESTAURAR SIN FIRMA' ) );
-if ( ! $ok || ! preg_grep( '/contenido de UpdraftPlus/', $GLOBALS['wpdb']->queries ) || ! is_file( WP_PLUGIN_DIR . '/de-updraft/de-updraft.php' ) || 'Sitio de UpdraftPlus' !== ( $GLOBALS['bk_options']['blogname'] ?? '' ) ) throw new RuntimeException( 'No se restauró el conjunto de UpdraftPlus: ' . $message );
+if ( $ok || false === strpos( (string) $message, 'impórtalo' ) || preg_grep( '/contenido de UpdraftPlus/', $GLOBALS['wpdb']->queries ) || is_file( WP_PLUGIN_DIR . '/de-updraft/de-updraft.php' ) || 'Sitio de UpdraftPlus' === ( $GLOBALS['bk_options']['blogname'] ?? '' ) ) throw new RuntimeException( 'La restauración directa de UpdraftPlus no se rechazó sin tocar nada: ' . $message );
 if ( ( $GLOBALS['bk_options'][ $K::KEYRING ] ?? null ) !== $ring_before || empty( $GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ]['encrypt'] ) || ( $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] ?? null ) !== $history_before ) throw new RuntimeException( 'La restauración de UpdraftPlus perdió el llavero, la seguridad o el historial.' );
 if ( file_exists( bk_storage() . '/' . Digitalisimo_Backups::RESTORE_JOURNAL ) ) throw new RuntimeException( 'La restauración de UpdraftPlus dejó su diario.' );
 bk_remove_tree( $updraft );

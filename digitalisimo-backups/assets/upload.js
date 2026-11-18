@@ -292,7 +292,12 @@
     var heading = '';
     var go = null;
     var importFile = '';
-    if (result.container === 'backuply') {
+    if (result.container === 'updraft') {
+      /* Una pieza de un conjunto de UpdraftPlus: se importa el conjunto entero cuando están todas (Herramientas). */
+      heading = 'Pieza de UpdraftPlus subida';
+      lines.push({ text: 'Quedó en el almacén privado como ' + result.file + '.' });
+      go = { text: 'Importar el conjunto', href: screenUrl({ tab: 'tools', open: 'import' }, 'digitalisimo-backups-section-import'), title: 'Herramientas → «Importar de Backuply o UpdraftPlus»: con todas sus piezas subidas, «Importar».' };
+    } else if (result.container === 'backuply') {
       heading = 'Respaldo de Backuply subido';
       importFile = result.backuply && result.backuply.name || result.file;
       lines.push({ text: 'Quedó en el almacén privado como ' + result.file + ': impórtalo para convertirlo en un ZIP de Backups (no toca el sitio). La importación se sigue en este mismo panel.' });

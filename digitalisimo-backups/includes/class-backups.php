@@ -59,6 +59,8 @@ require_once __DIR__ . '/trait-backups-service.php';
 require_once __DIR__ . '/trait-backups-screen.php';
 // Importar los respaldos de Backuply (I9): conversión por pasos a un ZIP de Backups sin firma.
 foreach ( array( 'class-backuply-sql', 'class-backuply-import', 'trait-backups-backuply-service' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/import/' . $digitalisimo_backups_part . '.php';
+// Importar los conjuntos de UpdraftPlus (brecha #7): el mismo trabajo `import`; la conversión se carga sólo al usarse.
+require_once __DIR__ . '/import/trait-backups-updraft-service.php';
 unset( $digitalisimo_backups_part );
 /** Respaldo manual completo: base de datos, archivos y copia opcional remota. */
 final class Digitalisimo_Backups {
@@ -80,6 +82,7 @@ final class Digitalisimo_Backups {
 	/** @internal Acceso de quien restaura y ruta de acceso de este sitio para el próximo diario (cifrado); null: ninguno. */
 	private static $access_kept = null;
 	use Digitalisimo_Backups_Backuply_Service; // Importar los respaldos de Backuply (pantalla, REST y WP-CLI).
+	use Digitalisimo_Backups_Updraft_Service; // Importar los conjuntos de UpdraftPlus (pantalla, REST y WP-CLI).
 	use Digitalisimo_Backups_Screen; // La pantalla: Respaldos, Ajustes, Destinos y Herramientas.
 	const OPTION = 'digitalisimo_backups_settings';
 	const STORAGE = 'digitalisimo_backups_private_storage';
@@ -128,6 +131,9 @@ final class Digitalisimo_Backups {
 	const ACTION_BACKUPLY_IMPORT = 'digitalisimo_backups_backuply_import';
 	/** «Eliminar» un `.tar.gz` de Backuply del almacén privado. */
 	const ACTION_BACKUPLY_DELETE = 'digitalisimo_backups_backuply_delete';
+	/** «Importar» un conjunto de UpdraftPlus y «Eliminar» sus piezas del almacén privado. */
+	const ACTION_UPDRAFT_IMPORT = 'digitalisimo_backups_updraft_import';
+	const ACTION_UPDRAFT_DELETE = 'digitalisimo_backups_updraft_delete';
 	/** Estado de una subida interrumpida que espera retirarse del destino, en el área de su trabajo. */
 	const ABANDON = 'abandon.json';
 	/** Segundos de espera de cada llamada al retirarla (fuera del cerrojo del registro de trabajos). */
@@ -137,7 +143,7 @@ final class Digitalisimo_Backups {
 	 * que el historial (en una red, el sitio principal).
 	 */
 	const DATA_VERSION = 'digitalisimo_backups_data_version';
-	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_CONNECTION, array( __CLASS__, 'save_connection' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_CONNECTION, array( __CLASS__, 'delete_connection' ) ); add_action( 'admin_post_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'test_destination' ) ); add_action( 'wp_ajax_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'ajax_test_destination' ) ); add_action( 'admin_post_' . self::ACTION_FETCH, array( __CLASS__, 'fetch_request' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_LOOSE, array( __CLASS__, 'delete_loose' ) ); add_action( 'admin_post_' . self::ACTION_REGISTER_LOOSE, array( __CLASS__, 'register_loose_request' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'realign_policy' ), 5, 2 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); add_action( 'update_option_timezone_string', array( __CLASS__, 'timezone_changed' ) ); add_action( 'init', array( __CLASS__, 'ensure_policy_schedules' ) ); add_action( 'update_option_gmt_offset', array( __CLASS__, 'timezone_changed' ) ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); Digitalisimo_Backups_Migrate::init(); add_action( 'admin_post_' . self::ACTION_BACKUPLY_IMPORT, array( __CLASS__, 'backuply_import_request' ) ); add_action( 'admin_post_' . self::ACTION_BACKUPLY_DELETE, array( __CLASS__, 'backuply_delete_request' ) ); Digitalisimo_Backups_Notify::init(); Digitalisimo_Backups_Pre_Update::init(); Digitalisimo_Backups_Uploads::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); add_action( 'init', array( __CLASS__, 'upgrade_data_on_load' ) ); }
+	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_CONNECTION, array( __CLASS__, 'save_connection' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_CONNECTION, array( __CLASS__, 'delete_connection' ) ); add_action( 'admin_post_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'test_destination' ) ); add_action( 'wp_ajax_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'ajax_test_destination' ) ); add_action( 'admin_post_' . self::ACTION_FETCH, array( __CLASS__, 'fetch_request' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_LOOSE, array( __CLASS__, 'delete_loose' ) ); add_action( 'admin_post_' . self::ACTION_REGISTER_LOOSE, array( __CLASS__, 'register_loose_request' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'realign_policy' ), 5, 2 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); add_action( 'update_option_timezone_string', array( __CLASS__, 'timezone_changed' ) ); add_action( 'init', array( __CLASS__, 'ensure_policy_schedules' ) ); add_action( 'update_option_gmt_offset', array( __CLASS__, 'timezone_changed' ) ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); Digitalisimo_Backups_Migrate::init(); add_action( 'admin_post_' . self::ACTION_BACKUPLY_IMPORT, array( __CLASS__, 'backuply_import_request' ) ); add_action( 'admin_post_' . self::ACTION_BACKUPLY_DELETE, array( __CLASS__, 'backuply_delete_request' ) ); add_action( 'admin_post_' . self::ACTION_UPDRAFT_IMPORT, array( __CLASS__, 'updraft_import_request' ) ); add_action( 'admin_post_' . self::ACTION_UPDRAFT_DELETE, array( __CLASS__, 'updraft_delete_request' ) ); Digitalisimo_Backups_Notify::init(); Digitalisimo_Backups_Pre_Update::init(); Digitalisimo_Backups_Uploads::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); add_action( 'init', array( __CLASS__, 'upgrade_data_on_load' ) ); }
 	private static function defaults() { return array( 'destination' => 'local', 'sftp_name' => 'SFTP', 'google_name' => 'Google Drive', 'onedrive_name' => 'OneDrive', 'sftp_host' => '', 'sftp_port' => '22', 'sftp_user' => '', 'sftp_path' => '/', 'sftp_password' => '', 'sftp_fingerprint' => '', 'google_client_id' => '', 'google_client_secret' => '', 'google_refresh_token' => '', 'google_folder_id' => '', 'onedrive_client_id' => '', 'onedrive_client_secret' => '', 'onedrive_refresh_token' => '', 'onedrive_folder' => 'Digitalisimo Backups', 'retention' => '5', 'full_schedule' => 'disabled', 'database_schedule' => 'disabled' ) + Digitalisimo_Backups_Destinations::defaults(); }
 	/** Los ZIP no deben quedar bajo una ruta servida por Apache, Nginx o el CDN. */
 	/** Carpeta del almacén ya comprobada en esta petición. */
@@ -971,7 +977,6 @@ final class Digitalisimo_Backups {
 			foreach ( self::policies() as $policy ) { $id = esc_attr( $policy['id'] ); if ( 'full' !== ( $policy['type'] ?? '' ) ) { echo '<section class="digitalisimo-backups-card"><h3>' . esc_html( $policy['label'] ?? $id ) . '</h3><p>Esta automatización parcial anterior está desactivada. Sus respaldos históricos se conservan; crea una automatización completa para proteger la instalación.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Borrar esta automatización anterior?\')">'; wp_nonce_field( self::ACTION_DELETE_AUTOMATION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE_AUTOMATION ) . '"><input type="hidden" name="policy_id" value="' . $id . '">' . self::return_field( 'tools', 'automations' ) . '<button class="button button-link-delete">Borrar automatización</button></form></section>'; continue; } echo '<section class="digitalisimo-backups-card"><h3>' . esc_html( self::policy_label( $policy ) ) . '</h3><p class="description">' . ( 'incremental' === ( $policy['mode'] ?? '' ) ? 'Incremental: cada punto se restaura completo.' : 'Respaldo completo cada vez.' ) . '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_UPDATE_AUTOMATION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_UPDATE_AUTOMATION ) . '"><input type="hidden" name="policy_id" value="' . $id . '">' . self::return_field( 'tools', 'automations' ) . '<p><label><input type="checkbox" name="digitalisimo_backup_automation[enabled]" value="1" ' . checked( ! empty( $policy['enabled'] ), true, false ) . '> Activa</label></p><p><label>Frecuencia<br><select name="digitalisimo_backup_automation[schedule]">'; foreach ( $schedules as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( $policy['schedule'], $value, false ) . '>' . esc_html( $label ) . '</option>'; echo '</select></label> <label>Destino<br><select name="digitalisimo_backup_automation[destination]">'; foreach ( $destinations as $destination ) echo '<option value="' . esc_attr( $destination ) . '" ' . selected( $policy['destination'], $destination, false ) . '>' . esc_html( self::destination_label( $destination ) ) . '</option>'; echo '</select></label> <label>Conservar<br><input type="number" min="1" max="100" name="digitalisimo_backup_automation[retain]" value="' . esc_attr( $policy['retain'] ) . '"></label> ' . self::time_field( $policy['time'] ?? '' ) . '</p>' . self::mode_fields( $policy ) . self::remote_only_field( ! empty( $policy['remote_only'] ) ) . '<p><button class="button button-primary">Guardar esta automatización</button></p></form><div class="digitalisimo-backups-actions"><form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_RUN_POLICY ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RUN_POLICY ) . '"><input type="hidden" name="digitalisimo_backup_policy" value="' . $id . '">' . self::return_field( 'tools', 'automations' ) . '<button class="button">Ejecutar ahora</button></form> <form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Borrar esta automatización? Sus respaldos ya creados se conservan.\')">'; wp_nonce_field( self::ACTION_DELETE_AUTOMATION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE_AUTOMATION ) . '"><input type="hidden" name="policy_id" value="' . $id . '">' . self::return_field( 'tools', 'automations' ) . '<button class="button button-link-delete">Borrar</button></form></div></section>'; }
 			echo '</div></section>';
 		}
-		private static function updraft_panel( $sets = null ) { $sets = is_array( $sets ) ? $sets : self::detect_updraft_sets(); echo '<h3>UpdraftPlus</h3><p class="description">Busca en <code>wp-content/updraft</code>; sólo se restauran los conjuntos completos y sin cifrado.</p>'; if ( ! $sets ) { echo '<p>No se detectaron respaldos de UpdraftPlus.</p>'; return; } echo '<table class="widefat striped"><thead><tr><th>Conjunto</th><th>Componentes</th><th>Estado</th></tr></thead><tbody>'; foreach ( $sets as $set ) { $components = array_map( function( $name, $parts ) { return $name . ( count( $parts ) > 1 ? ' × ' . count( $parts ) : '' ); }, array_keys( $set['files'] ), $set['files'] ); echo '<tr><td>' . esc_html( $set['id'] ) . '</td><td>' . esc_html( implode( ', ', $components ) ) . '</td><td>' . ( $set['complete'] ? 'Listo para restaurar' : 'Incompleto o cifrado' ) . '</td></tr>'; } echo '</tbody></table><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_RESTORE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><input type="hidden" name="updraft" value="1">' . self::return_field( 'tools', 'import' ) . '<p><select name="updraft_set"><option value="">Elige un conjunto UpdraftPlus</option>'; foreach ( $sets as $set ) if ( $set['complete'] ) echo '<option value="' . esc_attr( $set['id'] ) . '">' . esc_html( $set['id'] ) . '</option>'; echo '</select> <input type="text" name="confirmation" placeholder="RESTAURAR SIN FIRMA" autocomplete="off"> <button class="button">Restaurar conjunto</button></p>' . self::help_html( 'Sin firma de este sitio: escribe RESTAURAR SIN FIRMA. Su SQL se revisa entero antes de cambiar nada; restaurarlo instala su código y sus datos.' ) . '</form>'; }
 		private static function schedule_fields( $s ) { echo '<h2>Políticas automáticas</h2><p>Cada política tiene su propia frecuencia, destino y retención. Un incremental guarda la base de datos y sólo los archivos modificados desde su último punto base; al restaurar se aplica después de su respaldo completo base.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_SAVE_POLICIES ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE_POLICIES ) . '"><table class="widefat striped"><thead><tr><th>Activa</th><th>Nombre</th><th>Tipo</th><th>Frecuencia</th><th>Destino</th><th>Conservar</th><th>Ejecutar</th></tr></thead><tbody>'; foreach ( self::policies() as $policy ) { $id = esc_attr( $policy['id'] ); echo '<tr><td><input type="checkbox" name="digitalisimo_backups_policies[' . $id . '][enabled]" value="1" ' . checked( ! empty( $policy['enabled'] ), true, false ) . '></td><td><input type="hidden" name="digitalisimo_backups_policies[' . $id . '][id]" value="' . $id . '"><input type="text" name="digitalisimo_backups_policies[' . $id . '][label]" value="' . esc_attr( $policy['label'] ) . '"></td><td><strong>' . esc_html( array( 'full' => 'Completo', 'incremental' => 'Incremental', 'database' => 'Base de datos' )[ $policy['type'] ] ) . '</strong><input type="hidden" name="digitalisimo_backups_policies[' . $id . '][type]" value="' . esc_attr( $policy['type'] ) . '"></td><td><select name="digitalisimo_backups_policies[' . $id . '][schedule]">'; foreach ( self::schedule_options() as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( $policy['schedule'], $value, false ) . '>' . esc_html( $label ) . '</option>'; echo '</select></td><td><select name="digitalisimo_backups_policies[' . $id . '][destination]">'; foreach ( array_keys( self::destination_choices() ) as $destination ) echo '<option value="' . esc_attr( $destination ) . '" ' . selected( $policy['destination'], $destination, false ) . '>' . esc_html( self::destination_label( $destination ) ) . '</option>'; echo '</select></td><td><input type="number" min="1" max="100" name="digitalisimo_backups_policies[' . $id . '][retain]" value="' . esc_attr( $policy['retain'] ) . '"></td><td><button class="button" name="action" value="' . esc_attr( self::ACTION_RUN_POLICY ) . '" formaction="' . esc_url( admin_url( 'admin-post.php' ) ) . '" formmethod="post">Ejecutar ahora<input type="hidden" name="digitalisimo_backup_policy" value="' . $id . '"></button></td></tr>'; } echo '</tbody></table><p><button class="button button-primary">Guardar políticas automáticas</button></p></form>'; }
 	private static function download_url( $file ) { return wp_nonce_url( add_query_arg( array_merge( array( 'action' => self::ACTION_DOWNLOAD, 'file' => rawurlencode( $file ) ), self::context_args() ), admin_url( 'admin-post.php' ) ), self::ACTION_DOWNLOAD ); }
 	/** Descarga el ZIP local si sigue en el almacén (también el de un respaldo con copia remota); si no, la copia remota. */
@@ -2836,36 +2841,11 @@ final class Digitalisimo_Backups {
 			}
 			self::redirect( true, 'Restauración terminada. ' . ( ! empty( $result['access']['kept'] ) ? 'Revisa los enlaces permanentes.' : 'Entra de nuevo y revisa enlaces permanentes.' ) . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 		}
-		// UpdraftPlus reemplaza también la instalación entera: en una red, sólo desde el sitio principal de la red principal.
-		// Su ruta es la de una sola petición (sin la restauración por pasos): no admite restaurar por partes.
-		if ( self::restore_request_parts() ) self::redirect( false, Digitalisimo_Backups_Restore_Parts::UPDRAFT );
+		// UpdraftPlus ya no se restaura en una sola petición, sin copia previa ni reubicación (brecha #7): su conjunto se
+		// importa (un ZIP de Backups «Importado») y se restaura desde la lista con la restauración por pasos.
 		$allowed = self::service_scope( is_multisite(), true );
 		if ( is_wp_error( $allowed ) ) self::redirect( false, 'La restauración se detuvo: ' . $allowed->get_error_message() );
-		$set = sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) );
-		$mail = Digitalisimo_Backups_Notify::snapshot();
-		$event = null;
-		try {
-			$operation_lock = self::acquire_operation_lock();
-			try {
-				if ( Digitalisimo_Backups_Jobs::has_active() ) throw new Exception( Digitalisimo_Backups_Jobs::restore_active() ? 'Ya hay una restauración en curso. Espera a que termine.' : 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.' );
-				Digitalisimo_Backups_Security::require_confirmation( array( 'trust' => 'untrusted', 'auth' => 'unsigned' ), $confirmation );
-				try {
-					self::restore_updraft_set( $set );
-					$event = array( 'ok' => true, 'started' => true );
-				} catch ( Exception $failure ) {
-					$event = array( 'ok' => false, 'started' => true, 'message' => $failure->getMessage() );
-					throw $failure;
-				}
-			} finally {
-				self::release_operation_lock( $operation_lock );
-				// El SQL restaurado trae su propia opción `cron`: un trabajo encolado durante la restauración recupera su tick.
-				try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
-				if ( $event ) {
-					try { Digitalisimo_Backups_Notify::restore( $mail, $event['ok'], $event + array( 'file' => $set, 'kind' => 'updraft', 'via' => 'admin-post' ) ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
-				}
-			}
-		} catch ( Exception $e ) { self::redirect( false, 'La restauración se detuvo: ' . $e->getMessage() ); }
-		self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' );
+		self::redirect( false, self::updraft_direct_text() );
 	}
 	private static function local_path( $file ) { $file = sanitize_file_name( $file ); if ( '' === $file || '.' === $file[0] ) return ''; $root = realpath( self::local_directory() ); if ( ! $root || is_link( trailingslashit( $root ) . $file ) ) return ''; $path = realpath( trailingslashit( $root ) . $file ); return $path && dirname( wp_normalize_path( $path ) ) === wp_normalize_path( $root ) && is_file( $path ) ? $path : ''; }
 	/**
@@ -3167,83 +3147,9 @@ final class Digitalisimo_Backups {
 			fclose( $stream );
 		}
 	}
-	/**
-	 * UpdraftPlus siempre es un archivo no confiable: se inspeccionan todas sus piezas y se analiza su SQL (dialecto
-	 * mysqldump, tablas con el prefijo de este sitio) antes de cambiar nada; después se importa por fragmentos y se
-	 * extrae con el mismo escritor seguro que el respaldo propio, sin wp-config.php en ninguna profundidad.
-	 */
-	private static function restore_updraft_set( $id ) {
-		global $wpdb;
-		$sets = self::detect_updraft_sets();
-		if ( empty( $sets[ $id ] ) || true !== self::validate_backup_set( $sets[ $id ] ) ) throw new Exception( 'El conjunto UpdraftPlus no está completo, es cifrado o no se puede leer.' );
-		$set = $sets[ $id ];
-		$database = $set['files']['db'][0]['path'];
-		$pieces = array();
-		try {
-			foreach ( array( 'plugins' => WP_PLUGIN_DIR, 'themes' => get_theme_root(), 'uploads' => wp_upload_dir()['basedir'], 'others' => WP_CONTENT_DIR ) as $component => $root ) {
-				foreach ( (array) ( $set['files'][ $component ] ?? array() ) as $part ) {
-					if ( 'zip' !== strtolower( pathinfo( $part['path'], PATHINFO_EXTENSION ) ) ) throw new Exception( 'El archivo UpdraftPlus de ' . $component . ' no es ZIP.' );
-					if ( is_link( $part['path'] ) ) throw new Exception( 'Una pieza UpdraftPlus es un enlace simbólico.' );
-					$zip = new ZipArchive();
-					if ( true !== $zip->open( $part['path'], ZipArchive::CHECKCONS ) ) throw new Exception( 'No se pudo abrir una pieza UpdraftPlus.' );
-					$pieces[] = array( $zip, $root, $component );
-					Digitalisimo_Backups_Archive_Inspector::entries( $zip, false, 'loose' );
-				}
-			}
-			$prefix = (string) $wpdb->base_prefix;
-			self::updraft_sql( $database, new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::MYSQLDUMP, false, null, $prefix ), false );
-			// Su SQL reemplaza wp_options como el propio: el historial, el llavero y la seguridad no se pierden.
-			$history_before = (array) get_option( self::HISTORY, array() );
-			$vault_before = Digitalisimo_Backups_Keys::snapshot();
-			$storage_before = self::storage_record();
-			self::write_restore_journal();
-			Digitalisimo_Backups_Maintenance::start();
-			try {
-				self::updraft_sql( $database, new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::MYSQLDUMP, false, null, $prefix ), true );
-				try { self::after_restore_sql( $history_before, $vault_before, array(), null, $storage_before ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-				foreach ( $pieces as $piece ) self::extract_updraft_zip( $piece[0], $piece[1], $piece[2] );
-			} finally {
-				try {
-					self::after_restore_sql( $history_before, $vault_before, array(), null, $storage_before );
-					self::remove_restore_journal();
-				} finally {
-					Digitalisimo_Backups_Maintenance::stop();
-				}
-			}
-		} finally {
-			foreach ( $pieces as $piece ) self::close_quietly( $piece[0] );
-		}
-	}
-	private static function updraft_sql( $path, $guard, $execute ) {
-		global $wpdb;
-		$handle = function_exists( 'gzopen' ) ? @gzopen( $path, 'rb' ) : false;
-		if ( ! $handle ) throw new Exception( 'No se pudo descomprimir la base de datos de UpdraftPlus.' );
-		try {
-			return $guard->scan( function() use ( $handle ) {
-				Digitalisimo_Backups_Maintenance::heartbeat();
-				if ( gzeof( $handle ) ) return null;
-				$chunk = gzread( $handle, 65536 );
-				if ( false === $chunk || ( '' === $chunk && ! gzeof( $handle ) ) ) throw new Exception( 'No se pudo descomprimir la base de datos de UpdraftPlus.' );
-				return '' === $chunk ? null : $chunk;
-			}, $execute ? function( $statement ) use ( $wpdb ) {
-				if ( false === $wpdb->query( $statement ) ) throw new Exception( 'Falló una sentencia SQL: ' . $wpdb->last_error );
-			} : null );
-		} finally {
-			gzclose( $handle );
-		}
-	}
-	private static function extract_updraft_zip( $zip, $root, $component ) {
-		if ( ! wp_mkdir_p( $root ) ) throw new Exception( 'No se pudo crear una carpeta para UpdraftPlus.' );
-		$real_root = realpath( $root );
-		if ( false === $real_root ) throw new Exception( 'No se pudo resolver la carpeta de ' . $component . '.' );
-		$real_root = trailingslashit( wp_normalize_path( $real_root ) );
-		for ( $i = 0; $i < $zip->numFiles; $i++ ) {
-			$name = (string) $zip->getNameIndex( $i );
-			if ( '/' === substr( $name, -1 ) ) continue;
-			$relative = preg_replace( '#^(wp-content/)?' . preg_quote( $component, '#' ) . '/#', '', $name );
-			if ( ! $relative || 'wp-config.php' === basename( $relative ) ) continue;
-			self::write_entry( $zip, $i, $real_root, $relative, false );
-		}
+	/** La restauración directa de un conjunto de UpdraftPlus ya no existe: qué hacer en su lugar. */
+	public static function updraft_direct_text() {
+		return 'Los conjuntos de UpdraftPlus ya no se restauran directamente (sin copia previa, sin vuelta atrás y sin cambiar la dirección): impórtalo en Herramientas → «Importar de Backuply o UpdraftPlus» y restáuralo desde la lista de respaldos, donde aparece como «Importado».';
 	}
 	private static function history_item( $file ) { foreach ( (array) get_option( self::HISTORY, array() ) as $item ) if ( hash_equals( (string) ( $item['file'] ?? '' ), $file ) ) return $item; return array(); }
 	private static function remove_history( $file ) { self::change_history( function( &$history ) use ( $file ) { $history = array_values( array_filter( $history, function( $row ) use ( $file ) { return ! hash_equals( (string) ( $row['file'] ?? '' ), $file ); } ) ); } ); }

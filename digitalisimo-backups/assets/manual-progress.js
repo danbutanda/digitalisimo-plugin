@@ -386,6 +386,7 @@
   /* Lo que sigue a un respaldo que entró: su fila para restaurarlo o «Restaurar un archivo suelto». */
   function entryGo(kind, job) {
     if (job.status !== 'success' || !job.file) return null;
+    if (kind === 'import' && job.listed) return { text: 'Restaurarlo', href: screenUrl({ tab: 'backups', restore: job.file }, 'digitalisimo-backups-history'), title: 'Abre su fila «Importado» en la lista con «Restaurar» desplegado (RESTAURAR SIN FIRMA).' };
     if (kind === 'fetch' && job.fetch && job.fetch.registered) return { text: 'Restaurarlo', href: screenUrl({ tab: 'backups', restore: job.file }, 'digitalisimo-backups-history'), title: 'Abre la fila de ' + job.file + ' en la lista con «Restaurar» desplegado.' };
     if (kind === 'fetch' || kind === 'import') return { text: 'Ver en «Restaurar un archivo suelto»', href: screenUrl(LOOSE, 'digitalisimo-backups-section-restore-file'), title: 'Ahí se restaura (RESTAURAR SIN FIRMA salvo firma de una clave de este sitio) o se pasa a la lista con «Agregar al listado».' };
     return null;
@@ -680,7 +681,7 @@
     });
   }
   function cancelJob(id, target, kind) {
-    var texts = { restore: '¿Cancelar la restauración? Lo preparado se retira y el sitio queda como estaba; la copia previa, si ya está, se conserva.', chain: '¿Cancelar la restauración del punto incremental? El sitio no se tocó.', convert: '¿Cancelar la restauración del sitio de la red? El sitio no se tocó.', import: '¿Cancelar la importación? Lo convertido hasta ahora se retira; el sitio no se toca y el .tar.gz de Backuply se conserva.', fetch: '¿Cancelar la descarga? Lo descargado a medias se retira; el respaldo sigue en el destino.', send: '¿Cancelar el envío? Lo copiado a medias en el destino se retira; el respaldo del almacén no se toca.' };
+    var texts = { restore: '¿Cancelar la restauración? Lo preparado se retira y el sitio queda como estaba; la copia previa, si ya está, se conserva.', chain: '¿Cancelar la restauración del punto incremental? El sitio no se tocó.', convert: '¿Cancelar la restauración del sitio de la red? El sitio no se tocó.', import: '¿Cancelar la importación? Lo convertido hasta ahora se retira; el sitio no se toca y el respaldo original (de Backuply o UpdraftPlus) se conserva.', fetch: '¿Cancelar la descarga? Lo descargado a medias se retira; el respaldo sigue en el destino.', send: '¿Cancelar el envío? Lo copiado a medias en el destino se retira; el respaldo del almacén no se toca.' };
     if (!window.confirm(texts[kind] || '¿Cancelar este respaldo? Lo que lleva hecho se descarta; un respaldo ya verificado se conserva en el historial.')) return;
     if (target) target.disabled = true;
     request('digitalisimo_backups_job_cancel', { id: id }, config.jobsNonce).then(function (data) {
@@ -735,6 +736,7 @@
   var QUEUE_LATE = 'La petición tarda más de lo normal. Si el navegador muestra un error (504, «se agotó el tiempo»), vuelve a Backups: el trabajo sigue en la cola del servidor y este panel lo retoma.';
   var FETCH = ['Traer al almacén', 'Empezando la descarga desde el destino…', 'Esta petición descarga lo que cabe en su tiempo; después la siguen esta pantalla y WP-Cron, por fragmentos y desde donde quedó si se corta.', null, QUEUE_LATE];
   var STARTS = {
+    digitalisimo_backups_updraft_import: ['Importación', 'Encolando la importación de UpdraftPlus…', 'Se convierte por fases (base de datos, comprobación de sus piezas, base de datos convertida y ZIP) sin tocar el sitio; en unos segundos se ve aquí su avance. Al terminar queda en la lista como «Importado».', null, QUEUE_LATE],
     digitalisimo_backups_backuply_import: ['Importación', 'Encolando la importación de Backuply…', 'Se convierte por fases (descompresión, comprobación, base de datos y ZIP) sin tocar el sitio; en unos segundos se ve aquí su avance.', null, QUEUE_LATE],
     digitalisimo_backups_fetch: FETCH,
     digitalisimo_backups_remote_fetch: FETCH,

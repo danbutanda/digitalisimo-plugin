@@ -317,7 +317,7 @@ trait Digitalisimo_Backups_Screen {
 		$badges = array();
 		if ( ! empty( $item['locked'] ) ) $badges[] = '<span class="digitalisimo-backups-badge" title="La retención no lo borra">Bloqueado</span>';
 		// Subido o agregado a mano: discreto, con de dónde viene en el título (y en «⋯»).
-		if ( $uploaded ) $badges[] = '<span class="digitalisimo-backups-badge is-uploaded" title="' . esc_attr( self::uploaded_text( $item ) ) . '">' . ( self::is_added_row( $item ) ? 'Agregado' : 'Subido' ) . '</span>';
+		if ( $uploaded ) $badges[] = '<span class="digitalisimo-backups-badge is-uploaded" title="' . esc_attr( self::uploaded_text( $item ) ) . '">' . ( self::is_imported_row( $item ) ? 'Importado' : ( self::is_added_row( $item ) ? 'Agregado' : 'Subido' ) ) . '</span>';
 		if ( '' !== $blocked ) $badges[] = '<span class="digitalisimo-backups-badge is-warning" title="' . esc_attr( $blocked ) . '">' . ( $incomplete ? 'Cadena incompleta' : 'No se restaura aquí' ) . '</span>';
 		// Incrementales: un punto de restauración completo que sólo guarda lo nuevo; su base, en «⋯».
 		if ( $chain && $chain['sequence'] > 0 ) $badges[] = '<span class="digitalisimo-backups-badge is-incremental" title="' . esc_attr( 'Punto de restauración completo: se reconstruye con su cadena (' . ( $chain['sequence'] + 1 ) . ' archivos)' ) . '">Incremental</span>';
@@ -459,8 +459,10 @@ trait Digitalisimo_Backups_Screen {
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><input type="hidden" name="backup_file" value="' . esc_attr( $file ) . '">';
 		// En una red, el respaldo de un sitio se importa como un sitio de la red (Digitalisimo_Backups_Site_Import).
 		$import = Digitalisimo_Backups_Site_Import::row_applies( $item );
-		if ( $import ) echo '<p><strong>Importar en la red el respaldo del ' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '' . ( '' !== (string) ( $item['upload']['home'] ?? '' ) ? ' (' . esc_html( (string) $item['upload']['home'] ) . ')' : '' ) . '.</strong> Elige si entra como sitio nuevo o reemplazando uno; escribe RESTAURAR para confirmar.</p>' . Digitalisimo_Backups_Site_Import::field( Digitalisimo_Backups_Site_Import::suggest( (string) ( $item['upload']['home'] ?? '' ) ), $row_id . '-into' );
-		else echo '<p><strong>Restaurar el respaldo del ' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '.</strong> Antes se guarda una copia del sitio actual; escribe RESTAURAR para confirmar.</p>';
+		// Un «Importado» de UpdraftPlus no lleva firma ni la confianza de una subida: se confirma con RESTAURAR SIN FIRMA.
+		$word = self::is_imported_row( $item ) ? 'RESTAURAR SIN FIRMA' : 'RESTAURAR';
+		if ( $import ) echo '<p><strong>Importar en la red el respaldo del ' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '' . ( '' !== (string) ( $item['upload']['home'] ?? '' ) ? ' (' . esc_html( (string) $item['upload']['home'] ) . ')' : '' ) . '.</strong> Elige si entra como sitio nuevo o reemplazando uno; escribe ' . $word . ' para confirmar.</p>' . Digitalisimo_Backups_Site_Import::field( Digitalisimo_Backups_Site_Import::suggest( (string) ( $item['upload']['home'] ?? '' ) ), $row_id . '-into' );
+		else echo '<p><strong>Restaurar el respaldo del ' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '.</strong> Antes se guarda una copia del sitio actual; escribe ' . $word . ' para confirmar.</p>';
 		// El respaldo de una red en un WordPress individual: qué sitio suyo queda como este WordPress (por defecto el principal).
 		echo self::network_site_field( $item, $path, $shown ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en network_site_field().
 		// Uno subido sin firma con «sólo firmados»: se dice antes de escribir nada (la restauración lo rechazaría).
@@ -475,7 +477,7 @@ trait Digitalisimo_Backups_Screen {
 		try { $identity = self::restore_identity( $file ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		$keep_summary = self::keep_access_summary( $file, $identity );
 		if ( '' !== $keep_summary ) echo '<p class="digitalisimo-backups-keep-summary' . ( 'likely' === $identity ? ' digitalisimo-backups-warning' : '' ) . '">' . esc_html( $keep_summary ) . '</p>';
-		echo '<p class="digitalisimo-backups-restore-confirm"><label><span class="screen-reader-text">Confirmación</span><input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off" required></label> <button class="button button-primary">Restaurar</button> <a class="digitalisimo-backups-cancel" data-restore-cancel="' . esc_attr( $row_id ) . '" href="' . esc_url( self::tab_url( 'backups' ) ) . '">Cancelar</a></p>';
+		echo '<p class="digitalisimo-backups-restore-confirm"><label><span class="screen-reader-text">Confirmación</span><input type="text" name="confirmation" placeholder="' . esc_attr( $word ) . '" autocomplete="off" required></label> <button class="button button-primary">Restaurar</button> <a class="digitalisimo-backups-cancel" data-restore-cancel="' . esc_attr( $row_id ) . '" href="' . esc_url( self::tab_url( 'backups' ) ) . '">Cancelar</a></p>';
 		echo self::restore_parts_field( $path, $shown, self::tab_url( 'backups', '', array( 'restore' => rawurlencode( $file ), 'parts' => 1 ) ) . '#' . $row_id );
 		echo '<details class="digitalisimo-backups-restore-options"' . ( $needs_key || '' !== $hint['label'] || 'likely' === $identity ? ' open' : '' ) . '><summary>Opciones</summary>';
 		if ( '' !== $hint['label'] ) echo self::help_html( $hint['text'] );
@@ -568,13 +570,17 @@ trait Digitalisimo_Backups_Screen {
 		$status = self::migration_status_data();
 		self::tool_section( 'migrate', 'Migrar', 'clave de un solo uso, migrar desde otro sitio, copia de pruebas, deshacer', 'migrate' === $open || $migrating, function() use ( $network, $status ) { Digitalisimo_Backups_Migrate::panel( $network, $status ); } );
 		// Una sola búsqueda para el resumen y la sección (sources() también retira las descargas cortadas).
-		$updraft = self::detect_updraft_sets();
+		$updraft = array();
+		if ( $main ) {
+			self::load_updraft_import();
+			try { $updraft = Digitalisimo_Backups_Updraft_Import::sources(); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		}
 		$backuply = array();
 		try { $backuply = $main ? Digitalisimo_Backups_Backuply_Import::sources() : array(); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		$found = count( $updraft ) + count( $backuply );
-		self::tool_section( 'import', 'Importar de Backuply o UpdraftPlus', $found ? $found . ' ' . ( 1 === $found ? 'respaldo detectado' : 'respaldos detectados' ) : 'no se detectaron respaldos', 'import' === $open || $importing, function() use ( $network, $updraft, $backuply ) { echo self::progress_slot( 'import' ); self::backuply_panel( $network, $backuply ); echo '<section class="digitalisimo-backups-card digitalisimo-backups-updraft">'; self::updraft_panel( $updraft ); echo '</section>'; } );
+		self::tool_section( 'import', 'Importar de Backuply o UpdraftPlus', $found ? $found . ' ' . ( 1 === $found ? 'respaldo detectado' : 'respaldos detectados' ) : 'no se detectaron respaldos', 'import' === $open || $importing, function() use ( $network, $updraft, $backuply ) { echo self::progress_slot( 'import' ); self::backuply_panel( $network, $backuply ); echo '<section class="digitalisimo-backups-card digitalisimo-backups-updraft">'; self::updraft_panel( $network, $updraft ); echo '</section>'; } );
 		// La subida que se está comprobando (de esta cuenta) se sigue en su sección, abierta: el panel vuelve a ella al recargar.
-		if ( $main ) self::tool_section( 'upload', 'Subir un respaldo', '.zip o .dgbk de DIGITALÍSIMO, o .tar.gz de Backuply', 'upload' === $open || Digitalisimo_Backups_Uploads::checking_mine(), function() use ( $network ) { Digitalisimo_Backups_Uploads::panel( $network ); } );
+		if ( $main ) self::tool_section( 'upload', 'Subir un respaldo', '.zip o .dgbk de DIGITALÍSIMO, .tar.gz de Backuply o las piezas de UpdraftPlus', 'upload' === $open || Digitalisimo_Backups_Uploads::checking_mine(), function() use ( $network ) { Digitalisimo_Backups_Uploads::panel( $network ); } );
 		self::tool_section( 'restore-file', 'Restaurar un archivo suelto', 'archivos sin registro, de otro servidor o con su frase, y la última restauración en otro dominio', 'restore-file' === $open, function() use ( $history ) { echo self::progress_slot( 'restore-file' ); self::restore_panel( $history ); } );
 		$count = count( self::policies() );
 		self::tool_section( 'automations', 'Automatizaciones (' . $count . ')', 'crear, editar, ejecutar ahora y borrar; cada una con su destino y su retención', 'automations' === $open, function() { self::automation_fields(); } );

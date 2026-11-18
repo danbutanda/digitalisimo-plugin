@@ -573,6 +573,8 @@ final class Digitalisimo_Backups_Backuply_Import {
 		$paths = self::paths( $job );
 		$scan = (array) ( $job['checkpoint']['scan'] ?? array() );
 		$cursor = (array) ( $job['checkpoint']['files'] ?? array() ) + array( 'zip' => 0, 'entries' => 0, 'index' => 0, 'count' => 0, 'bytes' => 0, 'partial' => null, 'sql' => false );
+		// Un punto de control de antes de `config` con database.sql ya escrito ya escribió el marcador (si hacía falta).
+		if ( ! array_key_exists( 'config', $cursor ) ) $cursor['config'] = ! empty( $cursor['sql'] ) && empty( $cursor['partial'] );
 		if ( 0 === (int) $cursor['zip'] ) self::space( dirname( $paths['zip'] ), (int) $scan['bytes'] + (int) @filesize( $paths['sql'] ), 'escribir el ZIP convertido' );
 		$deadline = self::deadline( $job, 'files' );
 		$zip = null;
@@ -606,12 +608,14 @@ final class Digitalisimo_Backups_Backuply_Import {
 					if ( ! self::copy( $zip, $handles['sql'], 0, $sql_size, $cursor, $deadline, array( 'src' => 'sql', 'o' => 0, 's' => $sql_size, 'next' => 0 ) ) ) return self::files_slice( $job, $zip, $entries, $cursor );
 					self::done( $zip, $entries, $cursor );
 					$cursor['sql'] = true;
-					// Sin wp-config.php en el respaldo (estaba encima de ABSPATH): un marcador, que nunca se restaura.
-					if ( empty( $scan['special']['wp-config.php'] ) ) {
-						$zip->begin( 'wordpress/wp-config.php', time(), 0600, strlen( self::CONFIG_PLACEHOLDER ), 0 );
-						$zip->data( self::CONFIG_PLACEHOLDER );
-						self::done( $zip, $entries, $cursor );
-					}
+				}
+				// Sin wp-config.php en el respaldo (estaba encima de ABSPATH): un marcador, que nunca se restaura. Va después
+				// de database.sql, también si éste quedó a medias en el tramo anterior (antes, entonces faltaba).
+				if ( empty( $scan['special']['wp-config.php'] ) && empty( $cursor['config'] ) ) {
+					$zip->begin( 'wordpress/wp-config.php', time(), 0600, strlen( self::CONFIG_PLACEHOLDER ), 0 );
+					$zip->data( self::CONFIG_PLACEHOLDER );
+					self::done( $zip, $entries, $cursor );
+					$cursor['config'] = true;
 				}
 				fseek( $index, (int) $cursor['index'] );
 				while ( (int) $cursor['index'] < $limit ) {
@@ -998,8 +1002,18 @@ final class Digitalisimo_Backups_Import_Job {
 	const FLOORS = array( 'unpack' => 2, 'scan' => 20, 'database' => 25, 'files' => 50, 'finish' => 94 );
 
 	public static function is_import( $job ) { return is_array( $job ) && 'import' === ( $job['kind'] ?? '' ); }
+	/** Una importación de un conjunto de UpdraftPlus (el resto, de Backuply). */
+	public static function is_updraft( $job ) { return self::is_import( $job ) && 'updraft' === ( $job['spec']['format'] ?? '' ); }
+	/** «Importación de Backuply» o «Importación de UpdraftPlus», para la tarjeta del trabajo. */
+	public static function label( $job ) { return self::is_updraft( $job ) ? 'Importación de UpdraftPlus' : 'Importación de Backuply'; }
 	public static function run_phase( $phase, array $job ) {
 		if ( Digitalisimo_Backups_Job_Store::JOB_FORMAT !== (int) ( $job['spec']['engine']['job_format'] ?? 0 ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La importación se creó con otra versión del motor; vuelve a iniciarla.' );
+		// Un conjunto de UpdraftPlus (brecha #7): las mismas fases, con su clase (se carga sólo al importar).
+		if ( self::is_updraft( $job ) ) {
+			Digitalisimo_Backups::load_updraft_import();
+			if ( in_array( $phase, self::PHASES, true ) ) return call_user_func( array( 'Digitalisimo_Backups_Updraft_Import', $phase ), $job );
+			throw new Digitalisimo_Backups_Permanent_Error( 'La importación está en una fase desconocida.' );
+		}
 		switch ( $phase ) {
 			case 'unpack': return Digitalisimo_Backups_Backuply_Import::unpack( $job );
 			case 'scan': return Digitalisimo_Backups_Backuply_Import::scan( $job );
@@ -1012,6 +1026,10 @@ final class Digitalisimo_Backups_Import_Job {
 	/** Al terminar sin éxito, el área de trabajo se retira (el motor sólo la retira al terminar bien). */
 	public static function on_terminal( array $job, $status, $message ) {
 		Digitalisimo_Backups_Job_Store::remove_staging( $job['id'] );
+		if ( self::is_updraft( $job ) ) {
+			Digitalisimo_Backups::load_updraft_import();
+			Digitalisimo_Backups_Updraft_Import::drop_decrypted( $job );
+		}
 		return 'cancelled' === $status ? 'Importación cancelada: no se dejó nada en el almacén.' : (string) $message;
 	}
 	public static function discard( array $job, $phase ) {} // Cada fase empieza truncando a su punto de control.
