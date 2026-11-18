@@ -230,6 +230,7 @@ jobs:
           php tests/migration-runner.php
           php tests/migration-full.php
           php tests/seo-legacy-import.php
+          php tests/migration-admin-load.php
           php tests/migration-dropped-extensions.php
           php tests/migration-detection.php
           php tests/migration-report.php

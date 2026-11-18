@@ -27,6 +27,11 @@ final class Plugin {
 			}
 			return;
 		}
+		// Las opciones que Migración lee en cada petición (sin carga automática o inexistentes en un sitio que no
+		// migró): juntas en una consulta en lugar de una cada una (auditoría del escritorio, 2026-11-18).
+		if ( function_exists( 'wp_prime_option_caches' ) ) {
+			wp_prime_option_caches( self::option_names( is_admin() ) );
+		}
 		$legacy = DIGITALISIMO_MIGRATION_DIR . 'legacy/';
 		spl_autoload_register( array( __CLASS__, 'autoload' ) );
 		require_once $legacy . 'class-translator.php';
@@ -65,6 +70,18 @@ final class Plugin {
 			require_once $legacy . 'class-cli.php';
 			\WP_CLI::add_command( 'digitalisimo-migration', \Digitalisimo\Elements\Legacy\Cli::class );
 		}
+	}
+
+	/**
+	 * Opciones leídas en cada petición: el estado de las copias del Theme Builder (`Platform\Publisher::OPTION`) y los
+	 * alias de iconos (`Platform\Icons::ALIAS`); en el escritorio, además, la recuperación de condiciones
+	 * (`Migration::REPAIRED` y `Migration::REPAIR_TOTALS`). tests/migration-admin-load.php comprueba que coinciden.
+	 *
+	 * @return string[]
+	 */
+	public static function option_names( $admin ) {
+		$names = array( 'digitalisimo_migration_tb_state', 'digitalisimo_migration_icon_alias' );
+		return $admin ? array_merge( $names, array( 'digitalisimo_ep_conditions_repaired', 'digitalisimo_ep_conditions_repair_totals' ) ) : $names;
 	}
 
 	/**
