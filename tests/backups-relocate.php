@@ -408,8 +408,10 @@ e1_case( 'E5 comprobaciones previas con qué cambiar, antes de tocar nada', func
 	e1_check( ! $plan->problems() && ! $plan->needed(), 'Una red restaurada en su mismo sitio no debe reescribir nada: ' . json_encode( $plan->summary()['rewrites'] ) );
 	$plan = Digitalisimo_Backups_Relocate::plan( $origin, array( 'home' => 'https://destino.mx', 'prefix' => 'wp_', 'multisite' => false ) );
 	e1_check( false !== strpos( implode( ' ', $plan->problems() ), 'convierte esta instalación en una red por subdirectorios' ), 'Red en un sitio individual: ' . json_encode( $plan->problems() ) );
-	// Un respaldo de confianza con una vista: con otro prefijo no se puede asegurar a qué apunta, y se rechaza en la pasada
-	// en seco, antes de la copia previa.
+	// Un respaldo de confianza con una vista (como la escribía un exportador anterior, entre las tablas): desde la rama
+	// restore-db-compat ya no se rechaza; la vista se aplaza y se crea al final del cambio con el prefijo de este sitio
+	// (Digitalisimo_Backups_Db_Compat). Esta base SQLite de pruebas no entiende ALGORITHM ni SQL SECURITY: la vista no se
+	// puede crear aquí y el informe lo dice, sin hacer fallar la restauración.
 	$dest = e1_db( 'vista', 'v_' );
 	e1_tables( $dest, 'v_' );
 	e1_options( $dest, 'v_options', 'https://destino.mx', 'https://destino.mx' );
@@ -428,16 +430,18 @@ e1_case( 'E5 comprobaciones previas con qué cambiar, antes de tocar nada', func
 	$zip->addFromString( 'manifest.json', json_encode( $manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
 	$zip->close();
 	bk_call( 'Digitalisimo_Backups', 'remember', bk_storage() . '/' . $view, 'local', 'installation', array( 'id' => 'manual', 'type' => 'full' ) );
-	$before = $dest->names();
-	$copies = count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() );
-	$error = Digitalisimo_Backups::service_restore( $view, array( 'confirm' => 'RESTAURAR' ) );
-	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_rejected' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'no se puede cambiar el prefijo de una vista' ), 'Una vista con otro prefijo no se rechazó antes de tocar nada: ' . ( is_wp_error( $error ) ? $error->get_error_code() . ' ' . $error->get_error_message() : 'se restauró' ) );
-	e1_check( $before === $dest->names() && count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() ) === $copies, 'El rechazo de la vista tocó la base de datos o creó una copia previa.' );
-	// verify da la misma respuesta: el paquete está íntegro, pero no se puede restaurar aquí, y dice lo mismo.
+	$result = Digitalisimo_Backups::service_restore( $view, array( 'confirm' => 'RESTAURAR' ) );
+	e1_check( ! is_wp_error( $result ) && ! empty( $result['restored'] ), 'Un respaldo con una vista y otro prefijo no se restauró: ' . ( is_wp_error( $result ) ? $result->get_error_code() . ' ' . $result->get_error_message() : json_encode( $result ) ) );
+	e1_check( in_array( 'v_options', $dest->names(), true ) && ! in_array( 'v_vista', $dest->names(), true ) && false !== strpos( (string) $result['notice'], 'No se pudo crear la vista wp_vista' ), 'La vista no se aplazó al final del cambio o el informe no lo dice: ' . (string) ( $result['notice'] ?? '' ) );
 	$verify = Digitalisimo_Backups::service_verify( $view );
-	e1_check( ! is_wp_error( $verify ) && false === $verify['compatible'] && $verify['problems'] && false !== strpos( $error->get_error_message(), $verify['problems'][0] ), 'verify y restore no coinciden ante una vista con otro prefijo: ' . json_encode( is_wp_error( $verify ) ? $verify->get_error_message() : $verify['problems'] ) );
+	e1_check( ! is_wp_error( $verify ) && true === $verify['compatible'] && in_array( 'wp_vista', (array) $verify['database']['views'], true ), 'verify no dice que la vista se creará al final: ' . json_encode( is_wp_error( $verify ) ? $verify->get_error_message() : array( $verify['problems'], $verify['database'] ) ) );
 	bk_call( 'Digitalisimo_Backups', 'remove_history', $view );
 	@unlink( bk_storage() . '/' . $view );
+	$dest = e1_db( 'vista-2', 'v_' );
+	e1_tables( $dest, 'v_' );
+	e1_options( $dest, 'v_options', 'https://destino.mx', 'https://destino.mx' );
+	e1_use( $dest, 'https://destino.mx' );
+	$before = $dest->names();
 	// Un valor que menciona el origen y no cabe en la memoria para reescribirlo: rechazo antes de la copia previa.
 	$GLOBALS['bk_filters']['digitalisimo_backups_relocate_value_budget'] = 100;
 	$copies = count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() );
