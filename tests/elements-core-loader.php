@@ -34,6 +34,9 @@ namespace {
 	touch( $global . 'elementor-es_MX.l10n.php' );
 	check_core( $global === $core::lang_dir( $global, 'elementor', 'es_MX' ), 'Si WordPress tiene la traducción de Elementor, se usa ésa.' );
 	unlink( $global . 'elementor-es_MX.l10n.php' );
+	// La respuesta se recuerda durante la petición (el filtro corre una vez por script con traducciones): la misma
+	// carpeta y el mismo idioma no vuelven a recorrerse con glob(), aunque su contenido cambie a mitad de la petición.
+	check_core( $global === $core::lang_dir( $global, 'elementor', 'es_MX' ), 'La carpeta de idiomas de Elementor se calcula una vez por petición (sin un glob() por script).' );
 	rmdir( $global );
 	$json_file = '/no-existe/elementor-es_MX-' . md5( 'assets/js/common.js' ) . '.json';
 	check_core( is_readable( $core::script_translation_file( $json_file, 'elementor-common', 'elementor' ) ) && $json_file === $core::script_translation_file( $json_file, 'otro', 'woocommerce' ), 'El JSON de idioma de un script de Elementor sale del núcleo si falta el global.' );

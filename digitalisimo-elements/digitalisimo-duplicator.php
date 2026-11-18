@@ -14,7 +14,17 @@ final class Digitalisimo_Elements_Duplicator {
 		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'handle' ) );
 	}
 
+	/** @var string[]|null Tipos admitidos en esta petición (la lista de Entradas los consulta en cada fila). */
+	private static $types = null;
+
 	private static function post_types() {
+		if ( null === self::$types || ! function_exists( 'did_action' ) || ! did_action( 'wp_loaded' ) ) {
+			self::$types = self::compute_post_types();
+		}
+		return self::$types;
+	}
+
+	private static function compute_post_types() {
 		$types = get_post_types( array( 'public' => true, 'show_ui' => true ), 'names' );
 		$types = is_array( $types ) ? array_values( $types ) : array();
 		$templates = get_post_type_object( 'elementor_library' );

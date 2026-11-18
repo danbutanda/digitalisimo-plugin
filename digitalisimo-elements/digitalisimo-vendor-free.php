@@ -296,10 +296,10 @@ final class Digitalisimo_Elements_Vendor_Free {
 
 	/** Rutas REST de conexión con la cuenta, comentarios y permisos de servicios del proveedor. */
 	public static function rest_endpoints( $endpoints ) {
-		foreach ( array_keys( (array) $endpoints ) as $route ) {
-			if ( preg_match( self::REST_ROUTES, (string) $route ) ) {
-				unset( $endpoints[ $route ] );
-			}
+		// Una sola pasada de preg_grep() sobre las rutas: el filtro corre en cada despacho REST (unas 60 veces al abrir el
+		// editor de bloques) y un preg_match() por ruta en PHP costaba varias veces más.
+		foreach ( preg_grep( self::REST_ROUTES, array_map( 'strval', array_keys( (array) $endpoints ) ) ) as $route ) {
+			unset( $endpoints[ $route ] );
 		}
 		return $endpoints;
 	}

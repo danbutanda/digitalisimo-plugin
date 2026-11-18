@@ -314,13 +314,22 @@ final class Digitalisimo_Elements_Core {
 		}
 	}
 
-	/** Carpeta de idiomas de Elementor para un idioma: la global si tiene archivos, si no la del núcleo. */
+	/**
+	 * Carpeta de idiomas de Elementor para un idioma: la global si tiene archivos, si no la del núcleo. WordPress aplica
+	 * este filtro en cada consulta de la carpeta (una por script con traducciones: unas 20-35 por pantalla), así que la
+	 * respuesta se recuerda durante la petición en lugar de recorrer las carpetas con glob() cada vez.
+	 */
 	public static function lang_dir( $path, $domain, $locale ) {
-		if ( 'elementor' !== $domain || ( $path && glob( rtrim( $path, '/' ) . '/elementor-' . $locale . '.*' ) ) ) {
+		static $memo = array();
+		if ( 'elementor' !== $domain ) {
 			return $path;
 		}
-		$own = self::dir() . 'languages/';
-		return glob( $own . 'elementor-' . $locale . '.*' ) ? $own : $path;
+		$key = (string) $path . "\0" . (string) $locale;
+		if ( ! array_key_exists( $key, $memo ) ) {
+			$own          = self::dir() . 'languages/';
+			$memo[ $key ] = ( $path && glob( rtrim( $path, '/' ) . '/elementor-' . $locale . '.*' ) ) || ! glob( $own . 'elementor-' . $locale . '.*' ) ? $path : $own;
+		}
+		return $memo[ $key ];
 	}
 
 	/** Ruta relativa de un script del núcleo como la ve Elementor (sin «elementor/»), para encontrar su JSON de idioma. */
