@@ -19,6 +19,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.188' );
 define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
+// Las opciones que el constructor lee en cada petición, en una sola consulta antes de cargarlo, y el MCP del
+// navegador a demanda (digitalisimo-admin-load.php).
+require_once __DIR__ . '/digitalisimo-admin-load.php';
+Digitalisimo_Elements_Admin_Load::init();
 // Núcleo de Elementor incluido: se carga antes que todo lo demás y sólo si el plugin Elementor no está activo.
 require_once __DIR__ . '/digitalisimo-core.php';
 Digitalisimo_Elements_Core::load();
