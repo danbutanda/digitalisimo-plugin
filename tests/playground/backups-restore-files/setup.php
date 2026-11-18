@@ -29,6 +29,8 @@ try {
 		file_put_contents( $plugin . '/digi-demo-assets.php', "<?php\n/* Plugin Name: Demo de recursos */\nadd_action( 'wp_enqueue_scripts', static function () { wp_enqueue_style( 'digi-demo', plugins_url( 'assets/demo.css', __FILE__ ), array(), '1' ); wp_enqueue_script( 'digi-demo', plugins_url( 'assets/demo.js', __FILE__ ), array(), '1', true ); } );\n" );
 		file_put_contents( $plugin . '/assets/demo.css', "body{background-color:rgb(1,2,3)}\n" );
 		file_put_contents( $plugin . '/assets/demo.js', "window.digiDemo=1;\n" );
+		// La lista de plugins quedó en caché al activar Backups: sin limpiarla, el plugin recién escrito no existe.
+		wp_clean_plugins_cache( false );
 		$activated = activate_plugin( 'digi-demo-assets/digi-demo-assets.php' );
 		if ( is_wp_error( $activated ) ) throw new RuntimeException( 'No se activó el plugin de recursos: ' . $activated->get_error_message() );
 		$theme = get_theme_root() . '/tema-origen';
