@@ -182,6 +182,8 @@ md += `| Pantalla | ${chromeSets.join(' | ')} |\n| --- | ${chromeSets.map(() => 
 for (const label of [...new Set((chrome.screens || []).map((x) => x.label))]) {
   md += `| ${label} | ${chromeSets.map((s) => { const x = (chrome.screens || []).find((y) => y.label === label && y.set === s); return x && x.perf ? `${x.perf.script_ms} · ${x.perf.task_ms} · ${x.perf.js_kb} · ${x.perf.css_kb} · ${x.perf.dcl} · ${x.perf.heap_mb}` : '—'; }).join(' | ')} |\n`;
 }
+md += '\n### MCP del navegador (Escritorio: sin WebMCP / con WebMCP simulado)\n\n';
+for (const x of chrome.lazymcp || []) md += `- ${x.set} ${x.webmcp ? 'con WebMCP' : 'sin WebMCP'}: paquete ${x.capabilities ? 'cargado' : 'no cargado'}, editor-mcp ${x.editorMcp ? 'sí' : 'no'}, cargador ${x.loader ? 'sí' : 'no'}, ${x.mcp_scripts} archivos MCP, JS ${x.js_kb} KB; errores: ${(x.errors || []).join(' | ') || 'ninguno'}\n`;
 md += '\n### Editor de bloques\n\n';
 for (const e of chrome.editor || []) md += `- ${e.set}: listo ${e.ready}, guardado ${JSON.stringify(e.save)}, ${e.loadRequests.length} peticiones REST/AJAX al abrir y ${e.saveRequests.length} al guardar; errores: ${[...e.console, ...e.pageerrors, ...e.failed, ...e.afterSave.console, ...e.afterSave.pageerrors, ...e.afterSave.failed].join(' | ').slice(0, 500) || 'ninguno'}\n`;
 md += '\n### Editor del constructor (abrir y guardar)\n\n';

@@ -12,7 +12,7 @@ const OUT = process.env.OUT || '/tmp/digi-admin-perf';
 const SETS = (process.env.SETS || 'none,el,elmig').split(',');
 const REPS = Number(process.env.REPS || 5);
 const MULTI = process.env.MULTI === '1';
-const PHASES = new Set((process.env.PHASES || 'screens,own,rest,save,media,update,heartbeat,cron,profile,github,chrome,builder,autoload').split(','));
+const PHASES = new Set((process.env.PHASES || 'screens,own,rest,save,media,update,heartbeat,cron,profile,github,chrome,builder,lazymcp,autoload').split(','));
 const ids = JSON.parse(fs.readFileSync(path.join(OUT, 'ids.json'), 'utf8'));
 const measures = [];
 const notes = [];
@@ -210,7 +210,7 @@ async function main() {
   }
   fs.writeFileSync(path.join(OUT, 'measures.json'), JSON.stringify({ measures, notes }, null, 0));
 
-  if (PHASES.has('chrome') || PHASES.has('builder')) await chrome(own);
+  if (PHASES.has('chrome') || PHASES.has('builder') || PHASES.has('lazymcp')) await chrome(own);
   fs.writeFileSync(path.join(OUT, 'measures.json'), JSON.stringify({ measures, notes }, null, 0));
   log('fin');
 }
@@ -322,6 +322,35 @@ async function chrome(own) {
       }
     }
     await context.close();
+  }
+  // MCP del navegador a demanda: sin WebMCP no se carga; con WebMCP (simulado) se carga entero y sin errores.
+  if (PHASES.has('lazymcp')) {
+    out.lazymcp = [];
+    for (const set of SETS.filter((s) => s !== 'none')) {
+      for (const webmcp of [false, true]) {
+        const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+        await ctx.addCookies([...jar].map(([name, value]) => ({ name, value, domain: url.hostname, path: '/' })).concat([{ name: 'digi_ap_set', value: set, domain: url.hostname, path: '/' }]));
+        if (webmcp) await ctx.addInitScript(() => { const tools = []; const mc = { registerTool(t) { tools.push(t && t.name); }, unregisterTool() {}, provideContext() {}, clearContext() {}, tools }; Object.defineProperty(navigator, 'modelContext', { value: mc, configurable: true }); });
+        const pg = await ctx.newPage();
+        const errs = [];
+        pg.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 200)); });
+        pg.on('pageerror', (e) => errs.push(String(e.message || e).slice(0, 200)));
+        await ctx.setExtraHTTPHeaders({ 'X-Digi-Ap-Id': 'chrome', 'X-Digi-Ap-Label': `chrome mcp-${webmcp ? 'webmcp' : 'sin'}`, 'X-Digi-Ap-Set': set });
+        await pg.goto(`${base}/wp-admin/index.php`, { waitUntil: 'load', timeout: 240000 }).catch((e) => errs.push('navegación: ' + e.message));
+        await pg.waitForLoadState('networkidle', { timeout: 60000 }).catch(() => {});
+        await sleep(3000);
+        const facts = await pg.evaluate(() => ({
+          capabilities: !!(window.elementorV2 && window.elementorV2.elementorCapabilitiesMcp),
+          editorMcp: !!(window.elementorV2 && window.elementorV2.editorMcp),
+          loader: !!document.getElementById('digitalisimo-elements-browser-mcp'),
+          js_kb: Math.round(performance.getEntriesByType('resource').filter((r) => /\.js$/.test(r.name.split('?')[0])).reduce((a, r) => a + (r.decodedBodySize || 0), 0) / 1024),
+          mcp_scripts: performance.getEntriesByType('resource').filter((r) => /packages\/(editor-mcp|elementor-mcp-common|schema|elementor-capabilities-mcp)\//.test(r.name)).length,
+        })).catch((e) => ({ error: e.message }));
+        out.lazymcp.push({ set, webmcp, ...facts, errors: errs });
+        log(`mcp ${set} webmcp=${webmcp}: ${JSON.stringify(facts)} errores=${errs.length}`);
+        await ctx.close();
+      }
+    }
   }
   await browser.close();
   fs.writeFileSync(path.join(OUT, 'chrome.json'), JSON.stringify(out, null, 1));
