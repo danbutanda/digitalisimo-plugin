@@ -19,8 +19,12 @@
  *       retira cadenas enteras; una vieja sin unidad sigue contando respaldos; la especificación sólo lleva la unidad en
  *       el trabajo de una automatización incremental;
  *   RC6 la pantalla: «Programación» y las tarjetas de «Automatizaciones» pintan la unidad (sólo en una incremental), la
- *       estimación del servidor y la ayuda de las cadenas; guardar acota «Conservar» y lo avisa; un formulario sin la
- *       unidad la conserva; pasar a «Completo cada vez» la quita.
+ *       estimación del servidor (corta, con su detalle en la ayuda) y la ayuda de las cadenas; guardar acota «Conservar»
+ *       y lo avisa; un formulario sin la unidad la conserva; pasar a «Completo cada vez» la quita y avisa si se pidió
+ *       «cadenas»; «Próximo» dice las cadenas; no se crean más de 50 automatizaciones;
+ *   RC7 la retención global de un respaldo manual no cuenta ni borra los de una automatización (revisión A1);
+ *   RC8 por cadenas, lo que usa un trabajo en curso no se borra (ni su cadena).
+ * RC2 también simula el retraso normal de WP-Cron (revisión M1) y RC1, «Sólo en el remoto» (M2) y el largo del texto.
  *
  * Debe fallar con el código anterior (sin la unidad: la retención cuenta siempre respaldos y no hay estimación).
  */
@@ -160,6 +164,28 @@ inc_case( 'RC1 estimación en los bordes: N = 1, cadenas cortadas por días, cad
 	inc_check( 'points' === Digitalisimo_Backups_Chain::retain_unit( array( 'mode' => 'incremental' ) ) && 'points' === Digitalisimo_Backups_Chain::retain_unit( array( 'mode' => 'incremental', 'retain_unit' => 'otra' ) ) && 'points' === Digitalisimo_Backups_Chain::retain_unit( array( 'mode' => 'full', 'retain_unit' => 'chains' ) ) && 'chains' === Digitalisimo_Backups_Chain::retain_unit( array( 'mode' => 'incremental', 'retain_unit' => 'chains' ) ), 'La unidad no se resuelve como se espera.' );
 } );
 
+inc_case( 'RC1 «Sólo en el remoto»: la copia remota es la única, así que el aviso no promete otra; el texto a la vista no pasa de 140 caracteres', function() {
+	$C = 'Digitalisimo_Backups_Chain';
+	$only = rc_estimate( array( 'retain' => 4, 'destination' => 'sftp', 'remote_only' => true ) );
+	inc_check( 'Guardarás entre 4 y 10 respaldos en 1 o 2 cadenas. Hay días con una sola cadena y su única copia es la remota: conviene «2 cadenas».' === $only['text'], '«Sólo en el remoto» con «Conservar 4 respaldos»: ' . $only['text'] );
+	$one = rc_estimate( array( 'retain' => 1, 'retain_unit' => 'chains', 'destination' => 'sftp', 'remote_only' => true ) );
+	inc_check( false !== strpos( $one['text'], 'Una sola cadena y su única copia es la remota: conviene «2 cadenas».' ), '«Sólo en el remoto» con «Conservar 1 cadena»: ' . $one['text'] );
+	$two = rc_estimate( array( 'retain' => 2, 'retain_unit' => 'chains', 'destination' => 'sftp', 'remote_only' => true ) );
+	inc_check( false !== strpos( $two['text'], 'Siempre queda al menos una cadena anterior completa.' ), '«Sólo en el remoto» con «Conservar 2 cadenas»: ' . $two['text'] );
+	// Con destino local, «Sólo en el remoto» no aplica (no se guarda): el aviso es el de siempre.
+	inc_check( false !== strpos( rc_estimate( array( 'retain' => 4, 'remote_only' => true ) )['text'], 'no hay otra copia.' ), '«Sólo en el remoto» con destino local cambió el aviso.' );
+	// Lo visible es corto en cualquier configuración que se pueda guardar; el detalle (corte por días, tope) va aparte.
+	$longest = array( 0, '' );
+	foreach ( array_keys( $C::PERIODS ) as $schedule ) foreach ( array( 'points', 'chains' ) as $unit ) foreach ( range( 1, 60 ) as $every ) foreach ( array( 1, 2, 3, 6, 7, 8, 13, 29, 30, 31, 61, 89, 90 ) as $days ) {
+		$cap = $C::retain_cap( $unit, $every );
+		foreach ( array_unique( array( 1, 2, 3, min( $cap, 61 ), $cap, $cap + 5 ) ) as $retain ) foreach ( array( array( 'destination' => 'local' ), array( 'destination' => 'sftp' ), array( 'destination' => 'sftp', 'remote_only' => true ) ) as $where ) {
+			$e = $C::estimate( array( 'mode' => 'incremental', 'retain' => $retain, 'retain_unit' => $unit, 'schedule' => $schedule, 'full_every' => $every, 'full_days' => $days ) + $where );
+			foreach ( array( 'text', 'detail' ) as $key ) if ( mb_strlen( $e[ $key ], 'UTF-8' ) > $longest[0] ) $longest = array( mb_strlen( $e[ $key ], 'UTF-8' ), $e[ $key ] );
+		}
+	}
+	inc_check( $longest[0] < 140, 'Un texto de la estimación tiene ' . $longest[0] . ' caracteres: ' . $longest[1] );
+} );
+
 inc_case( 'RC1 tope del historial: N + M respaldos o N × (M + 1) con cadenas caben en 100 filas, y la estimación lo dice', function() {
 	$C = 'Digitalisimo_Backups_Chain';
 	inc_check( array( 94, 14, 1, 50, 40, 33 ) === array( $C::retain_cap( 'points', 6 ), $C::retain_cap( 'chains', 6 ), $C::retain_cap( 'chains', 60 ), $C::retain_cap( 'chains', 1 ), $C::retain_cap( 'points', 60 ), $C::retain_cap( 'chains', 2 ) ), 'Topes: ' . json_encode( array( $C::retain_cap( 'points', 6 ), $C::retain_cap( 'chains', 6 ), $C::retain_cap( 'chains', 60 ), $C::retain_cap( 'chains', 1 ), $C::retain_cap( 'points', 60 ), $C::retain_cap( 'chains', 2 ) ) ) );
@@ -179,23 +205,25 @@ inc_case( 'RC1 tope del historial: N + M respaldos o N × (M + 1) con cadenas ca
 
 /* ------------------------------------------------------------------ RC2 retención con días simulados */
 
-inc_case( 'RC2 retención con días simulados: nunca rompe una cadena y guarda exactamente lo que dice la estimación', function() {
+inc_case( 'RC2 retención con días simulados, a la hora exacta y con el retraso normal de WP-Cron: nunca rompe una cadena y guarda exactamente lo que dice la estimación', function() {
+	// Cada ejecución arranca cuando WP-Cron o la cola pueden: de 0 a 15 minutos tarde, distinto cada vez.
+	$late = function( $k ) { return ( ( $k * 7919 + 13 ) % 15 ) * 60 + ( $k * 31 ) % 60; };
 	$configs = array(
 		array( 'daily', 86400, 6, 7 ), array( 'daily', 86400, 2, 7 ), array( 'hourly', 3600, 6, 7 ), array( 'hourly', 3600, 2, 7 ),
 		array( 'daily', 86400, 6, 3 ), array( 'weekly', 604800, 6, 7 ), array( 'hourly', 3600, 30, 1 ),
 	);
 	$checked = 0;
-	foreach ( $configs as list( $schedule, $period, $every, $days ) ) {
+	foreach ( array( 'a la hora exacta' => null, 'con retraso de WP-Cron' => $late ) as $how => $delay ) foreach ( $configs as list( $schedule, $period, $every, $days ) ) {
 		foreach ( array( 1, 2, 3 ) as $n ) {
 			foreach ( array( 'points', 'chains' ) as $unit ) {
-				$label = $schedule . ', un completo cada ' . $every . ' o ' . $days . ' días, «Conservar ' . $n . ' ' . ( 'chains' === $unit ? 'cadenas' : 'respaldos' ) . '»';
+				$label = $schedule . ' ' . $how . ', un completo cada ' . $every . ' o ' . $days . ' días, «Conservar ' . $n . ' ' . ( 'chains' === $unit ? 'cadenas' : 'respaldos' ) . '»';
 				$estimate = rc_estimate( array( 'retain' => $n, 'retain_unit' => $unit, 'schedule' => $schedule, 'full_every' => $every, 'full_days' => $days ) );
 				$length = $estimate['chain_length'];
 				$warm = ( $n + 2 ) * $length;
 				$seen = array( 'min' => PHP_INT_MAX, 'max' => 0, 'chains_min' => PHP_INT_MAX, 'chains_max' => 0, 'previous_min' => PHP_INT_MAX );
 				$policy = 'sim-' . $checked;
 				try {
-				rc_simulate( array( 'policy' => $policy, 'period' => $period, 'every' => $every, 'days' => $days, 'retain' => $n, 'unit' => $unit, 'steps' => $warm + 2 * $length ), function( $k, $plan ) use ( &$seen, $policy, $label, $warm, $length, $n, $unit ) {
+				rc_simulate( array( 'policy' => $policy, 'period' => $period, 'every' => $every, 'days' => $days, 'retain' => $n, 'unit' => $unit, 'steps' => $warm + 2 * $length, 'late' => $delay ), function( $k, $plan ) use ( &$seen, $policy, $label, $warm, $length, $n, $unit ) {
 					rc_unbroken( $label );
 					$rows = rc_policy_rows( $policy );
 					$chains = rc_chains( $rows );
@@ -227,7 +255,33 @@ inc_case( 'RC2 retención con días simulados: nunca rompe una cadena y guarda e
 			}
 		}
 	}
-	inc_check( 42 === $checked, 'Se simularon ' . $checked . ' automatizaciones.' );
+	inc_check( 84 === $checked, 'Se simularon ' . $checked . ' automatizaciones.' );
+} );
+
+inc_case( 'RC2 con el retraso de WP-Cron, «un completo cada D días» corta donde dice la estimación: semanal cada 7 días y diario cada 3', function() {
+	$C = 'Digitalisimo_Backups_Chain';
+	// Semanal, un completo cada 7 días: la base arranca 10 minutos tarde y la siguiente semana sólo 1 (o al revés).
+	$weekly = rc_estimate( array( 'retain' => 4, 'schedule' => 'weekly', 'full_every' => 6, 'full_days' => 7 ) );
+	$sequences = array();
+	rc_simulate( array( 'policy' => 'semanal', 'period' => 604800, 'every' => 6, 'days' => 7, 'retain' => 4, 'steps' => 8, 'late' => function( $k ) { return 0 === $k % 2 ? 600 : 60; } ), function( $k, $plan ) use ( &$sequences ) { $sequences[] = $plan['sequence']; } );
+	inc_check( 1 === $weekly['chain_length'] && array( 0, 0, 0, 0, 0, 0, 0, 0 ) === $sequences, 'La estimación dice «' . $weekly['detail'] . '» y salieron las secuencias ' . implode( ',', $sequences ) );
+	rc_forget( 'semanal' );
+	// Diario, un completo cada 10 o cada 3 días: la base 12 minutos tarde, los demás 2 (y también al revés).
+	foreach ( array( function( $k ) { return 0 === $k % 4 ? 720 : 120; }, function( $k ) { return 0 === $k % 3 ? 60 : 900; } ) as $i => $delay ) {
+		$daily = rc_estimate( array( 'retain' => 1, 'retain_unit' => 'chains', 'schedule' => 'daily', 'full_every' => 10, 'full_days' => 3 ) );
+		$sequences = array();
+		rc_simulate( array( 'policy' => 'diaria-' . $i, 'period' => 86400, 'every' => 10, 'days' => 3, 'retain' => 1, 'unit' => 'chains', 'steps' => 12, 'late' => $delay ), function( $k, $plan ) use ( &$sequences ) { $sequences[] = $plan['sequence']; } );
+		inc_check( 3 === $daily['chain_length'] && array( 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2 ) === $sequences && 3 === count( rc_policy_rows( 'diaria-' . $i ) ), 'La estimación dice cadenas de ' . $daily['chain_length'] . ' y con el retraso salieron las secuencias ' . implode( ',', $sequences ) );
+		rc_forget( 'diaria-' . $i );
+	}
+	// El trabajo de una automatización lleva su frecuencia (para el margen); el manual no la tiene y usa el margen de 6 h.
+	inc_check( array( 'full_every' => 6, 'full_days' => 7, 'period' => 604800 ) === $C::spec_value( array( 'mode' => 'incremental', 'schedule' => 'weekly' ) ) && array( 'full_every' => 6, 'full_days' => 7 ) === $C::spec_value( array( 'mode' => 'incremental' ) ), 'La especificación no fija la frecuencia de la automatización.' );
+	inc_check( array( 1800, 10800, 21600, 21600, 21600, 21600 ) === array( $C::days_margin( 3600 ), $C::days_margin( 21600 ), $C::days_margin( 43200 ), $C::days_margin( 86400 ), $C::days_margin( 604800 ), $C::days_margin( 0 ) ), 'El margen del corte por días no es min(6 h, medio período).' );
+	// Un retraso mayor que el margen sí alarga la cadena (límite declarado): la base 7 h tarde y el día 3 a su hora.
+	$sequences = array();
+	rc_simulate( array( 'policy' => 'muy-tarde', 'period' => 86400, 'every' => 10, 'days' => 3, 'retain' => 1, 'unit' => 'chains', 'steps' => 4, 'late' => function( $k ) { return 0 === $k ? 25200 : 0; } ), function( $k, $plan ) use ( &$sequences ) { $sequences[] = $plan['sequence']; } );
+	inc_check( array( 0, 1, 2, 3 ) === $sequences, 'Con 7 h de retraso de la base, la cadena debía seguir (más allá del margen): ' . implode( ',', $sequences ) );
+	rc_forget( 'muy-tarde' );
 } );
 
 inc_case( 'RC2 «Conservar 2 cadenas» diario con un completo cada 6: la cadena anterior sale entera el día que la tercera empieza', function() {
@@ -264,6 +318,58 @@ inc_case( 'RC2 por cadenas, cada completo anterior a la cadena (sin bloque `chai
 	inc_check( array( 'digitalisimo-backup-example-test-antes-00010.zip', 'digitalisimo-backup-example-test-antes-00002.zip' ) === $files, 'Debían quedar la base nueva y el último completo de antes: ' . json_encode( $files ) );
 	inc_check( ! is_file( $dir . '/digitalisimo-backup-example-test-antes-00000.zip' ) && ! is_file( $dir . '/digitalisimo-backup-example-test-antes-00001.zip' ) && is_file( $dir . '/digitalisimo-backup-example-test-antes-00002.zip' ), 'Los completos de antes no salieron uno a uno.' );
 	rc_forget( 'antes' );
+} );
+
+/* ------------------------------------------------------------------ RC7 retención global de los manuales */
+
+inc_case( 'RC7 la retención global de un respaldo manual nunca cuenta ni borra los de una automatización: «Conservar 2 cadenas» sigue con su plan B', function() {
+	$B = 'Digitalisimo_Backups';
+	$dir = rtrim( bk_storage(), '/' );
+	// Diaria, un completo cada 6 y «Conservar 2 cadenas»: 19 días dejan la cadena anterior (7) y la actual (5).
+	rc_simulate( array( 'policy' => 'plan-b', 'period' => 86400, 'every' => 6, 'retain' => 2, 'unit' => 'chains', 'steps' => 19 ) );
+	foreach ( rc_policy_rows( 'plan-b' ) as $i => $row ) touch( $dir . '/' . $row['file'], 1767225600 - $i * 86400 );
+	$before = array_column( rc_policy_rows( 'plan-b' ), 'file' );
+	inc_check( 12 === count( $before ) && 2 === count( rc_chains( rc_policy_rows( 'plan-b' ) ) ), 'Preparación: ' . json_encode( $before ) );
+	// Seis respaldos manuales, el más nuevo después de toda la automatización; la retención global de los ajustes es 5.
+	$history = rc_history();
+	$manuals = array();
+	foreach ( range( 0, 5 ) as $i ) {
+		$file = sprintf( 'digitalisimo-backup-example-test-manual-%05d.zip', $i );
+		file_put_contents( $dir . '/' . $file, 'manual ' . $i );
+		touch( $dir . '/' . $file, 1767225600 + 3600 * ( $i + 1 ) );
+		array_unshift( $history, array( 'date' => gmdate( 'Y-m-d H:i:s', 1767225600 + 3600 * ( $i + 1 ) ), 'file' => $file, 'sha256' => hash_file( 'sha256', $dir . '/' . $file ), 'destination' => 'local', 'scope' => 'installation', 'policy' => 'manual', 'type' => 'full', 'backup_type' => 'full', 'job' => 'manual-' . $i ) );
+		$manuals[] = $file;
+	}
+	$GLOBALS['bk_options'][ $B::HISTORY ] = $history;
+	bk_call( $B, 'prune', bk_storage(), 5 );
+	rc_unbroken( 'RC7' );
+	inc_check( $before === array_column( rc_policy_rows( 'plan-b' ), 'file' ), 'La retención global de un manual borró respaldos de la automatización: quedan ' . json_encode( array_column( rc_policy_rows( 'plan-b' ), 'file' ) ) );
+	foreach ( $before as $file ) inc_check( is_file( $dir . '/' . $file ), 'La retención global borró ' . $file . ', de la automatización.' );
+	// Entre los manuales sí rota: de 6, se va el más antiguo.
+	inc_check( ! is_file( $dir . '/' . $manuals[0] ) && array_slice( array_reverse( $manuals ), 0, 5 ) === array_column( rc_policy_rows( 'manual' ), 'file' ), 'La retención global no rotó los manuales: ' . json_encode( array_column( rc_policy_rows( 'manual' ), 'file' ) ) );
+	rc_forget( 'plan-b' );
+	rc_forget( 'manual' );
+} );
+
+/* ------------------------------------------------------------------ RC8 lo que está en uso */
+
+inc_case( 'RC8 por cadenas, un respaldo que usa un trabajo en curso no se borra y sostiene su cadena hasta que el trabajo termina', function() {
+	$dir = rtrim( bk_storage(), '/' );
+	rc_simulate( array( 'policy' => 'ocupada', 'period' => 86400, 'every' => 2, 'retain' => 1, 'unit' => 'chains', 'steps' => 3 ) );
+	$first = array_column( rc_policy_rows( 'ocupada' ), 'file' );
+	// Un trabajo sin terminar usa el último de la primera cadena (como el verificado que espera reintentar su copia remota).
+	$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'en-uso', 'destination' => 'local', 'retention' => 'none', 'via' => 'test', 'file' => $first[0] ) ) );
+	try {
+		rc_simulate( array( 'policy' => 'ocupada', 'period' => 86400, 'every' => 2, 'retain' => 1, 'unit' => 'chains', 'steps' => 1, 'start' => 3 ) );
+		rc_unbroken( 'en uso' );
+		foreach ( $first as $file ) inc_check( is_file( $dir . '/' . $file ), 'La retención por cadenas borró ' . $file . ' mientras un trabajo usa ' . $first[0] );
+	} finally {
+		Digitalisimo_Backups_Jobs::cancel( $queued['job']['id'] );
+	}
+	rc_simulate( array( 'policy' => 'ocupada', 'period' => 86400, 'every' => 2, 'retain' => 1, 'unit' => 'chains', 'steps' => 1, 'start' => 4 ) );
+	rc_unbroken( 'libre' );
+	foreach ( $first as $file ) inc_check( ! is_file( $dir . '/' . $file ), 'Terminado el trabajo, la primera cadena no salió: queda ' . $file );
+	rc_forget( 'ocupada' );
 } );
 
 /* ------------------------------------------------------------------ RC3 bloqueados */
@@ -444,6 +550,35 @@ inc_case( 'RC6 guardar: acota «Conservar» por unidad y lo avisa; sin el campo 
 		// «Completo cada vez» no guarda la unidad (todo respaldo es completo) y su trabajo no la lleva.
 		list( $policy ) = $save( array( 'retain' => '3', 'retain_unit' => 'chains', 'mode' => 'full' ) );
 		inc_check( ! isset( $policy['retain_unit'] ) && 'points' === Digitalisimo_Backups_Chain::retain_unit( $policy ), '«Completo cada vez» guardó la unidad: ' . json_encode( $policy ) );
+	} finally {
+		update_option( $B::POLICIES, $saved, false );
+	}
+} );
+
+inc_case( 'RC6 «Próximo» dice las cadenas y cuántos respaldos son; «cadenas» en «Completo cada vez» se avisa; el tope de 50 automatizaciones', function() use ( $B ) {
+	$saved = get_option( $B::POLICIES );
+	try {
+		update_option( $B::POLICIES, array( array( 'id' => 'principal', 'label' => '', 'type' => 'full', 'schedule' => 'daily', 'destination' => 'local', 'retain' => 2, 'retain_unit' => 'chains', 'enabled' => true, 'time' => '', 'remote_only' => false, 'mode' => 'incremental', 'full_every' => 6, 'full_days' => 7 ) ), false );
+		$GLOBALS['inc_cron'][ 'digitalisimo_backups_policy' . json_encode( array( 'principal', 1 ) ) ] = time() + 3600;
+		inc_check( preg_match( '#Próximo</dt><dd>([^<]*)#u', rc_render( 'backups' ), $next ) && false !== strpos( $next[1], 'Diario · se conservan 2 cadenas (8 a 14 respaldos)' ), '«Próximo» no dice las cadenas: ' . ( $next[1] ?? '' ) );
+		update_option( $B::POLICIES, array( array( 'id' => 'principal', 'label' => '', 'type' => 'full', 'schedule' => 'daily', 'destination' => 'local', 'retain' => 4, 'enabled' => true, 'time' => '', 'remote_only' => false, 'mode' => 'incremental', 'full_every' => 6, 'full_days' => 7 ) ), false );
+		inc_check( preg_match( '#Próximo</dt><dd>([^<]*)#u', rc_render( 'backups' ), $next ) && false !== strpos( $next[1], '· se conservan 4 ' ) && false === strpos( $next[1], 'cadena' ), '«Próximo» de «Conservar 4 respaldos» cambió: ' . ( $next[1] ?? '' ) );
+		unset( $GLOBALS['inc_cron'][ 'digitalisimo_backups_policy' . json_encode( array( 'principal', 1 ) ) ] );
+		// Pedir «cadenas» con «Completo cada vez» no se ignora en silencio.
+		list( $ok, $message ) = bk_post( array( $B, 'update_automation' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_UPDATE_AUTOMATION, 'policy_id' => 'principal', 'digitalisimo_backup_automation' => array( 'type' => 'full', 'enabled' => '1', 'schedule' => 'daily', 'destination' => 'local', 'retain' => '3', 'retain_unit' => 'chains', 'mode' => 'full' ) ) );
+		inc_check( $ok && false !== strpos( $message, 'la unidad «cadenas» sólo aplica a una automatización incremental' ), 'Pedir «cadenas» en «Completo cada vez» no avisó: ' . $message );
+		list( $ok, $message ) = bk_post( array( $B, 'update_automation' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_UPDATE_AUTOMATION, 'policy_id' => 'principal', 'digitalisimo_backup_automation' => array( 'type' => 'full', 'enabled' => '1', 'schedule' => 'daily', 'destination' => 'local', 'retain' => '3', 'retain_unit' => 'points', 'mode' => 'full' ) ) );
+		inc_check( $ok && false === strpos( $message, 'cadenas' ), 'Una completa con «respaldos» avisó de las cadenas: ' . $message );
+		// Tope de 50 automatizaciones: la 51.ª no se crea y se dice por qué.
+		$many = array();
+		for ( $i = 0; $i < $B::MAX_AUTOMATIONS; $i++ ) $many[] = array( 'id' => 'auto-' . $i, 'label' => '', 'type' => 'full', 'schedule' => 'weekly', 'destination' => 'local', 'retain' => 2, 'enabled' => true, 'time' => '' );
+		update_option( $B::POLICIES, $many, false );
+		list( $ok, $message ) = bk_post( array( $B, 'create_automation' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_CREATE_AUTOMATION, 'digitalisimo_backup_automation' => array( 'type' => 'full', 'schedule' => 'daily', 'destination' => 'local', 'retain' => 4 ) ) );
+		inc_check( 50 === $B::MAX_AUTOMATIONS && ! $ok && false !== strpos( $message, 'Ya hay 50 automatizaciones, el tope' ) && 50 === count( $B::policies() ), 'Se creó la automatización 51: ' . $message );
+		array_pop( $many );
+		update_option( $B::POLICIES, $many, false );
+		list( $ok ) = bk_post( array( $B, 'create_automation' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_CREATE_AUTOMATION, 'digitalisimo_backup_automation' => array( 'type' => 'full', 'schedule' => 'daily', 'destination' => 'local', 'retain' => 4 ) ) );
+		inc_check( $ok && 50 === count( $B::policies() ), 'Con 49 no se pudo crear la 50.ª.' );
 	} finally {
 		update_option( $B::POLICIES, $saved, false );
 	}
