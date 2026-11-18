@@ -107,7 +107,11 @@ try {
 		if ( $info->isLink() ) continue;
 		if ( $info->isDir() ) { $put( './public_html/' . $relative . '/', '5' ); continue; }
 		if ( ! $info->isFile() ) continue;
-		$put( './public_html/' . $relative, '0', (string) file_get_contents( (string) $path ) );
+		$bytes = (string) file_get_contents( (string) $path );
+		// El wp-config.php de una cuenta real nombra su base de MySQL (la del volcado) y lleva sus credenciales: aquí, falsas.
+		if ( 'wp-config.php' === $relative ) $bytes = preg_replace( "/define\\(\\s*'DB_NAME'\\s*,\\s*'[^']*'\\s*\\);/", "define( 'DB_NAME', '$db' );\ndefine( 'DB_PASSWORD_ORIGEN', 'clave-secreta-no-viaja' );", $bytes, 1, $count );
+		if ( 'wp-config.php' === $relative && 1 !== $count ) throw new RuntimeException( 'El wp-config.php de Playground no tiene una línea DB_NAME que cambiar.' );
+		$put( './public_html/' . $relative, '0', $bytes );
 		$files++;
 	}
 	gzwrite( $gz, str_repeat( "\0", 10240 ) );
