@@ -111,9 +111,14 @@ try {
     // La comprobación ve de verdad la base de datos (en el SQLite de WordPress): el guid del origen, que no se toca, aparece.
     check(relocation.check && relocation.check.guid >= Object.keys(origin.pages).length, `destino: la comprobación final encuentra los guid de ${originHost} que se dejan a propósito`, JSON.stringify(relocation.check));
     log(`· aviso: ${res.json?.notice || ''}`);
-    // Después de restaurar, los usuarios son los del respaldo: vale la contraseña de aplicación del origen.
-    res = await api('GET', '/status', { headers: basic(origin.password) });
-    check(res.status === 200 && res.json?.ready === true, 'destino: REST responde con la cuenta del respaldo', `${res.status} ${res.text.slice(0, 300)}`);
+    // Después de restaurar, los usuarios son los del respaldo y, desde 1.0.79, también siguen los administradores de aquí:
+    // el «admin» del origen tiene otro correo (otra persona), así que conserva su contraseña de aplicación pero con otro
+    // usuario («admin-respaldo»); el «admin» de aquí (quien restauró) sigue con la suya.
+    const renamed = (/«admin» con otro correo.*?ahora se llama «([^»]+)»/.exec(res.json?.notice || '') || [])[1] || 'admin';
+    res = await api('GET', '/status', { headers: { Authorization: `Basic ${Buffer.from(`${renamed}:${origin.password}`).toString('base64')}` } });
+    check(res.status === 200 && res.json?.ready === true, `destino: REST responde con la cuenta del respaldo («${renamed}»)`, `${res.status} ${res.text.slice(0, 300)}`);
+    res = await api('GET', '/status', { headers: basic(setup.password) });
+    check(res.status === 200 && res.json?.ready === true, 'destino: REST responde también con la cuenta de quien restauró', `${res.status} ${res.text.slice(0, 300)}`);
     for (const [name, info] of Object.entries(origin.pages)) {
       const link = info.link.replace(`//${originHost}`, `//${host}`);
       const view = await page(link);
