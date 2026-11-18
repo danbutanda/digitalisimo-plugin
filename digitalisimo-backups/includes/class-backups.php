@@ -3248,8 +3248,5 @@ final class Digitalisimo_Backups {
 // respaldo (quizá de una versión sin este archivo) y después todavía escribe el informe (revisión A1). Va al final y su
 // lógica vive en la clase propia: en php-wasm, unos KB más de código en la clase principal suben 0,8 MB cada petición.
 require_once __DIR__ . '/restore/class-restore-parts.php';
-// Archivos y lo de después al restaurar (drop-ins, permisos, cachés, tema, .htaccess): sólo se carga cuando hace falta (una
-// restauración, el informe de wp-config.php), y el último paso la carga antes de poner este plugin del respaldo.
-spl_autoload_register( function( $class ) {
-	if ( 'Digitalisimo_Backups_Restore_Compat' === $class && is_file( __DIR__ . '/restore/class-restore-compat.php' ) ) require __DIR__ . '/restore/class-restore-compat.php';
-} );
+// Archivos y lo de después al restaurar (drop-ins, permisos, cachés, tema, .htaccess): por lo mismo, con el plugin.
+require_once __DIR__ . '/restore/class-restore-compat.php';

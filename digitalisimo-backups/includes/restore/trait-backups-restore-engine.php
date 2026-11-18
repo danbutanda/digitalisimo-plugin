@@ -2386,8 +2386,6 @@ trait Digitalisimo_Backups_Restore_Engine {
 	}
 	// El último paso de la restauración, sin cortes (ver restore_cleanup()).
 	private static function restore_finale( array $job, array $cursor, array $layout, $undone ) {
-		// Cargada antes de poner este plugin del respaldo, que quizá no la tenga (ver Digitalisimo_Backups_Restore_Compat).
-		$compat = class_exists( 'Digitalisimo_Backups_Restore_Compat' );
 		$warnings = (array) $cursor['warnings'];
 		$tree = self::restore_read_json( $job, 'tree.json', false );
 		$tree = is_array( $tree ) && ! empty( $tree['root'] ) ? (string) $tree['root'] : '';
@@ -2408,14 +2406,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$cursor['kept'] += (int) $keeper['kept'];
 		// Y los .htaccess sueltos, una sola vez y al final de todo (cada escritura recarga OpenLiteSpeed en Webuzo); antes, el
 		// bloque de WordPress, en el de la raíz del respaldo o en el de aquí (brecha 12).
-		if ( $compat ) Digitalisimo_Backups_Restore_Compat::htaccess( $tree, $layout, self::restore_staging( $job ) );
+		Digitalisimo_Backups_Restore_Compat::htaccess( $tree, $layout, self::restore_staging( $job ) );
 		try {
 			if ( '' !== $tree ) $switch['htaccess'] = self::restore_place_htaccess( $tree, $layout );
 		} catch ( Throwable $e ) {
 			$warnings[] = 'No se pudo poner un .htaccess del respaldo: ' . $e->getMessage();
 		}
 		$result = self::restore_result( $job, $cursor, $warnings );
-		if ( $compat ) $result = Digitalisimo_Backups_Restore_Compat::report( $result, self::restore_staging( $job ), (array) ( $cursor['compat'] ?? array() ), function( $text ) use ( $job ) { return self::restore_public_text( $text, $job ); } );
+		$result = Digitalisimo_Backups_Restore_Compat::report( $result, self::restore_staging( $job ), (array) ( $cursor['compat'] ?? array() ), function( $text ) use ( $job ) { return self::restore_public_text( $text, $job ); } );
 		if ( '' !== $tree ) self::restore_remove_tree( $tree );
 		$removed = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/removed.txt';
 		$list = self::restore_staging( $job ) . '/removed.txt';

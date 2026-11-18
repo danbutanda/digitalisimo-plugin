@@ -10,8 +10,8 @@ defined( 'ABSPATH' ) || exit;
 //  - cambio de tablas: este plugin queda activo en la base de datos restaurada antes del RENAME (22);
 //  - limpieza, por tramos: caché de páginas (9), CSS de constructores (20), tema que falta (19) y servicios del origen
 //    que siguen conectados (21); al final, el bloque de WordPress de .htaccess (12) y el informe (17, 18 en verify).
-// Se carga a demanda (el autoload del final de class-backups.php: la primera llamada de una restauración o config_report()),
-// y restore_finale() la carga antes de poner la carpeta de este plugin del respaldo, que quizá no la tenga. Comentarios
+// Se carga con el plugin, como Digitalisimo_Backups_Restore_Parts (revisión A1): el final de una restauración pone la carpeta
+// de este plugin del respaldo, quizá de una versión sin este archivo, y después todavía escribe el informe. Comentarios
 // `//`: sin opcache (php-wasm) un docblock ocupa memoria en cada petición.
 final class Digitalisimo_Backups_Restore_Compat {
 	const FILE = 'compat.json';
@@ -46,7 +46,8 @@ final class Digitalisimo_Backups_Restore_Compat {
 			'v' => 1,
 			'foreign' => (bool) $foreign,
 			'import' => $import,
-			'self' => array( 'plugin' => $plugin, 'dir' => $self, 'in_backup' => $import || '' === $self || false !== $zip->locateName( 'wordpress/' . $self . '/' . basename( $plugin ) ), 'was' => $was ),
+			// Sólo importa si la carpeta de este plugin está en este sitio (un plugin cargado desde otra carpeta no se retira).
+			'self' => array( 'plugin' => $plugin, 'dir' => $self, 'in_backup' => $import || '' === $self || ! is_dir( $layout['root'] . $self ) || false !== $zip->locateName( 'wordpress/' . $self . '/' . basename( $plugin ) ), 'was' => $was ),
 			'dropins' => array(),
 			'extra_tables' => array(),
 			'extra_count' => 0,

@@ -1208,7 +1208,7 @@ larga, 21,2 s, una de la copia previa; las de las fases, 15,5 s) ni de 64 MB (pi
 Lo que UpdraftPlus hace al restaurar en otra instalación y nos faltaba (estudio del 2026-11-16,
 `/var/tmp/digi-wt/ref-updraftplus-analisis/INFORME.md`, brechas 5, 6, 9, 12 y 17 a 22), dentro del motor por pasos y sin
 sus atajos. Toda la lógica vive en `Digitalisimo_Backups_Restore_Compat` (`includes/restore/class-restore-compat.php`,
-cargada a demanda); el motor la llama con una línea en cada punto: al final de la verificación (`compat.json`), al recorrer
+cargada con el plugin como la de restaurar por partes, por la revisión A1); el motor la llama con una línea en cada punto: al final de la verificación (`compat.json`), al recorrer
 y preparar los archivos, justo antes del `RENAME`, en la limpieza (por tramos) y en el último paso.
 
 | Qué | Cuándo | Qué hace |
