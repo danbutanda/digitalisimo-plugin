@@ -141,3 +141,5 @@
 	.digitalisimo-backups-actions { text-align: left; white-space: normal; }
 	.digitalisimo-backups-more-menu { right: auto; left: 0; }
 }
+/* «Conservar» de una automatización: el número y su unidad (respaldos o cadenas) juntos, sin el ancho de los demás selectores. */
+.digitalisimo-admin .wrap select.digitalisimo-backups-retain-unit { width: auto; min-width: 0; }

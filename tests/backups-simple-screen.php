@@ -511,7 +511,7 @@ try {
 			. '<link rel="stylesheet" href="file://' . $plugin . '/digitalisimo-ui/digitalisimo-ui.css"><link rel="stylesheet" href="file://' . $plugin . '/assets/backups-admin.css">'
 			. '<style>body{margin:0;font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f6f8ff}#wpcontent{padding:32px 0 0}.screen-reader-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.button{display:inline-block;padding:0 10px;line-height:2.15;text-decoration:none;cursor:pointer}.widefat{border-collapse:collapse}.widefat td,.widefat th{padding:8px 10px;text-align:left}</style></head>'
 			. '<body class="wp-admin digitalisimo-admin"><div id="wpcontent">';
-		$tail = '</div><script src="file://' . $plugin . '/assets/screen.js"></script></body></html>';
+		$tail = '</div><script src="file://' . $plugin . '/assets/screen.js"></script><script src="file://' . $plugin . '/assets/retention.js"></script></body></html>';
 		if ( ! is_dir( $fixture ) ) mkdir( $fixture, 0700, true );
 		foreach ( $pages as $name => $html ) file_put_contents( $fixture . '/' . $name . '.html', $head . $html . $tail );
 		echo 'Pantallas escritas en ' . $fixture . ': ' . implode( ', ', array_keys( $pages ) ) . "\n";

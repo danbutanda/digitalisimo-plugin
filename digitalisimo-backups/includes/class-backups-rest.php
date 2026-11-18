@@ -33,7 +33,12 @@ defined( 'ABSPATH' ) || exit;
  *                                           El respaldo de una red en un WordPress individual (verify y restore):
  *                                           `site` (el sitio de la red; por defecto el principal), `super_admins` y
  *                                           `network_secrets`; verify lo describe en `convert`
- * - GET  /automations                       automatizaciones y su próxima ejecución
+ * - GET  /automations                       automatizaciones y su próxima ejecución, con «Conservar» (`retain`,
+ *                                           `retain_unit`: points o chains) y lo que guardará (`retain_estimate`)
+ * - POST /automations                       crea una automatización (`schedule`, `time`, `destination`, `retain`,
+ *                                           `retain_unit`, `mode`, `full_every`, `full_days`, `remote_only`, `enabled`,
+ *                                           `network`): 201 con ella y `notice` si «Conservar» se acotó
+ * - POST /automations/<id>                  la cambia: lo que no se envía conserva su valor
  * - POST /automations/<id>/run              encola la automatización ahora (`network`): 202 con el trabajo
  * - GET  /jobs                              trabajos sin terminar y los últimos terminados
  * - GET  /jobs/<id>                         un trabajo; también sin sesión, sólo ese y sólo leerlo, con la ficha de
@@ -170,7 +175,22 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/send', array( $route( 'POST', 'send', array( 'destination' => array( 'type' => 'string', 'required' => true, 'description' => 'Destino remoto conectado (ver GET /destinations).' ), 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/destinations', array( $route( 'GET', 'destinations' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/destinations/(?P<id>[a-z0-9]+(?:-[a-f0-9]{8})?)/test', array( $route( 'POST', 'test_destination' ) ) );
-		register_rest_route( self::NAMESPACE_V1, '/automations', array( $route( 'GET', 'automations' ) ) );
+		// Crear y cambiar una automatización: lo que no se envía conserva su valor (sin `default`, salvo `network`).
+		$automation = array(
+			'schedule' => array( 'type' => 'string', 'description' => 'Frecuencia: disabled, hourly, digitalisimo_every_6_hours, digitalisimo_every_12_hours, daily, weekly o monthly.' ),
+			'time' => array( 'type' => 'string', 'description' => 'Hora fija del sitio (HH:MM) para diaria, semanal o mensual; vacía, cuando WP-Cron pueda.' ),
+			'destination' => array( 'type' => 'string', 'description' => 'local o un destino conectado (ver GET /destinations).' ),
+			'retain' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'description' => '«Conservar»: cuántos respaldos o, con retain_unit = chains, cuántas cadenas enteras.' ),
+			'retain_unit' => array( 'type' => 'string', 'enum' => array( 'points', 'chains' ), 'description' => 'Qué cuenta «Conservar» en una incremental: points (cada respaldo, por defecto) o chains (cadenas enteras: la actual y las anteriores completas).' ),
+			'mode' => array( 'type' => 'string', 'enum' => array( 'full', 'incremental' ), 'description' => 'full (completo cada vez) o incremental (cadena con un completo cada full_every incrementales o full_days días).' ),
+			'full_every' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => Digitalisimo_Backups_Chain::MAX_FULL_EVERY, 'description' => 'Incremental: un completo cada N incrementales.' ),
+			'full_days' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => Digitalisimo_Backups_Chain::MAX_FULL_DAYS, 'description' => 'Incremental: o cada D días.' ),
+			'remote_only' => array( 'type' => 'boolean', 'description' => 'Sólo en el remoto: no conservar el ZIP en este servidor (con destino remoto).' ),
+			'enabled' => array( 'type' => 'boolean', 'description' => 'Activa (se ejecuta según su frecuencia).' ),
+			'network' => $network,
+		);
+		register_rest_route( self::NAMESPACE_V1, '/automations', array( $route( 'GET', 'automations' ), $route( 'POST', 'create_automation', $automation ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/automations/(?P<id>[a-z0-9_-]+)', array( $route( 'POST', 'update_automation', $automation ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/automations/(?P<id>[a-z0-9_-]+)/run', array( $route( 'POST', 'run_automation', array( 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/jobs', array( $route( 'GET', 'jobs', array( 'limit' => array( 'type' => 'integer', 'default' => 8, 'minimum' => 1, 'maximum' => 200, 'description' => 'Cuántos trabajos terminados mostrar además de los que siguen en curso.' ) ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/jobs/tick', array( $route( 'POST', 'tick' ) ) );
@@ -326,6 +346,18 @@ final class Digitalisimo_Backups_Rest {
 	}
 	public static function automations( $request ) {
 		return self::respond( Digitalisimo_Backups::service_automations() );
+	}
+	/** Los campos de una automatización que trae la petición (los que no trae se quedan como están). */
+	private static function automation_fields( $request ) {
+		$out = array();
+		foreach ( array( 'schedule', 'time', 'destination', 'retain', 'retain_unit', 'mode', 'full_every', 'full_days', 'remote_only', 'enabled' ) as $key ) if ( null !== $request[ $key ] ) $out[ $key ] = $request[ $key ];
+		return $out;
+	}
+	public static function create_automation( $request ) {
+		return self::respond( Digitalisimo_Backups::service_save_automation( self::automation_fields( $request ), '', array( 'network' => (bool) $request['network'] ) ), 201 );
+	}
+	public static function update_automation( $request ) {
+		return self::respond( Digitalisimo_Backups::service_save_automation( self::automation_fields( $request ), (string) $request['id'], array( 'network' => (bool) $request['network'] ) ) );
 	}
 	public static function run_automation( $request ) {
 		return self::respond( Digitalisimo_Backups::service_run_automation( (string) $request['id'], array( 'network' => (bool) $request['network'], 'via' => 'rest' ) ), 202 );

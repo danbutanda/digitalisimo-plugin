@@ -86,12 +86,13 @@ trait Digitalisimo_Backups_Screen {
 		return null === $folded ? $html : $folded;
 	}
 	/**
-	 * Un párrafo que fold_long() puede plegar. Nunca: uno con id (los scripts lo usan), uno ya plegado (`data-folded`: el
-	 * de help_html() o el de fold_long()) ni una advertencia, que se ve entera: `<strong>`, la clase
-	 * `digitalisimo-backups-warning`, `notice…` o cualquier otra de aviso o error, o `role="alert"`.
+	 * Un párrafo que fold_long() puede plegar. Nunca: uno con id (los scripts lo usan), una región viva (`aria-live`: un
+	 * script escribe en ella, como la estimación de «Conservar»), uno ya plegado (`data-folded`: el de help_html() o el de
+	 * fold_long()) ni una advertencia, que se ve entera: `<strong>`, la clase `digitalisimo-backups-warning`, `notice…` o
+	 * cualquier otra de aviso o error, o `role="alert"`.
 	 */
 	private static function foldable( $attrs, $body ) {
-		if ( preg_match( '/\s(?:id|data-folded)=/', $attrs ) || preg_match( '/\srole=["\']alert/', $attrs ) ) return false;
+		if ( preg_match( '/\s(?:id|data-folded|aria-live)=/', $attrs ) || preg_match( '/\srole=["\']alert/', $attrs ) ) return false;
 		if ( preg_match( '/\sclass=["\'][^"\']*\b(?:notice|[a-z-]*warning|[a-z-]*error)\b/', $attrs ) ) return false;
 		return ! preg_match( '#<(?:strong|b)\b#i', $body );
 	}
@@ -537,7 +538,8 @@ trait Digitalisimo_Backups_Screen {
 		$zone = function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : 'UTC';
 		echo '</select> <label>a las <input type="time" step="60" name="digitalisimo_backup_automation[time]" value="' . esc_attr( (string) ( $policy['time'] ?? '' ) ) . '"></label><p class="description">Hora del sitio (' . esc_html( $zone ) . '). Vacía: cuando WP-Cron pueda.</p></td></tr>';
 		echo self::mode_fields( (array) $policy, true );
-		echo '<tr><th><label for="digitalisimo-backups-retain">Conservar</label></th><td><input id="digitalisimo-backups-retain" type="number" min="1" max="100" name="digitalisimo_backup_automation[retain]" value="' . esc_attr( (string) ( $policy['retain'] ?? 4 ) ) . '"> ' . ( 'incremental' === ( $policy['mode'] ?? '' ) ? 'puntos de restauración' : 'respaldos' ) . '</td></tr>';
+		// «Conservar» N respaldos o, en una incremental, N cadenas enteras, con lo que guardará (assets/retention.js).
+		echo '<tr><th><label for="digitalisimo-backups-retain">Conservar</label></th><td>' . self::retain_field( (array) $policy, 'digitalisimo-backups-retain' ) . self::retain_estimate( (array) $policy ) . '</td></tr>';
 		echo '<tr><th><label for="digitalisimo-backups-schedule-destination">Destino</label></th><td><select id="digitalisimo-backups-schedule-destination" name="digitalisimo_backup_automation[destination]">';
 		foreach ( array_keys( self::destination_choices() ) as $destination ) echo '<option value="' . esc_attr( $destination ) . '"' . selected( (string) ( $policy['destination'] ?? 'local' ), $destination, false ) . '>' . esc_html( self::destination_label( $destination ) ) . '</option>';
 		echo '</select><details class="digitalisimo-backups-help"><summary>Más opciones</summary>' . self::remote_only_field( ! empty( $policy['remote_only'] ) ) . '</details></td></tr></table>';

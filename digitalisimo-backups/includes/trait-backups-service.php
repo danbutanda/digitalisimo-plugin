@@ -326,11 +326,61 @@ trait Digitalisimo_Backups_Service {
 				'mode' => 'incremental' === ( $policy['mode'] ?? '' ) ? 'incremental' : 'full',
 				'full_every' => 'incremental' === ( $policy['mode'] ?? '' ) ? (int) Digitalisimo_Backups_Chain::settings( $policy )['full_every'] : 0,
 				'full_days' => 'incremental' === ( $policy['mode'] ?? '' ) ? (int) Digitalisimo_Backups_Chain::settings( $policy )['full_days'] : 0,
+				// «Conservar» cuenta respaldos (`points`) o, en una incremental, cadenas enteras (`chains`), y lo que guardará.
+				'retain_unit' => Digitalisimo_Backups_Chain::retain_unit( $policy ),
+				'retain_estimate' => Digitalisimo_Backups_Chain::estimate( $policy ),
 				'enabled' => $enabled,
 				'next_run' => $next ? gmdate( 'c', (int) $next ) : '',
 			);
 		}
 		return $out;
+	}
+	/**
+	 * Crea una automatización de respaldo completo (`$id` vacío) o cambia una, como sus formularios de la pantalla: los
+	 * mismos campos y las mismas reglas (automation_input(), con el tope de «Conservar»), y lo que no se envía conserva
+	 * su valor (al crear: diaria, local, «Conservar 4» y «Completo cada vez»). Campos: `schedule`, `time`, `destination`,
+	 * `retain`, `retain_unit` (`points` o `chains`; sólo cuenta en una incremental), `mode` (`full` o `incremental`),
+	 * `full_every`, `full_days`, `remote_only` y `enabled`. Una frecuencia, un destino, un modo o una unidad que no existen
+	 * se rechazan (400), en vez de cambiarse en silencio. Devuelve la automatización como GET /automations, con `notice`
+	 * si «Conservar» se acotó.
+	 */
+	public static function service_save_automation( array $input, $id = '', array $args = array() ) {
+		$allowed = self::service_scope( ! empty( $args['network'] ), true );
+		if ( is_wp_error( $allowed ) ) return $allowed;
+		$fields = array( 'schedule', 'time', 'destination', 'retain', 'retain_unit', 'mode', 'full_every', 'full_days', 'remote_only', 'enabled' );
+		$input = array_intersect_key( $input, array_flip( $fields ) );
+		$choices = array(
+			'schedule' => array_keys( self::schedule_options() ),
+			'destination' => array_map( 'strval', array_keys( self::destination_choices() ) ),
+			'mode' => array( 'full', 'incremental' ),
+			'retain_unit' => array( 'points', 'chains' ),
+		);
+		foreach ( $choices as $key => $allowed_values ) {
+			if ( array_key_exists( $key, $input ) && ! in_array( (string) $input[ $key ], $allowed_values, true ) ) return self::service_error( 'automation_' . $key, 'Valor no válido para «' . $key . '»: ' . implode( ', ', $allowed_values ) . '.', 400 );
+		}
+		foreach ( array( 'retain', 'full_every', 'full_days' ) as $key ) {
+			if ( array_key_exists( $key, $input ) && ! is_numeric( $input[ $key ] ) ) return self::service_error( 'automation_' . $key, '«' . $key . '» debe ser un número.', 400 );
+		}
+		$id = sanitize_key( (string) $id );
+		$policies = self::policies();
+		$index = null;
+		if ( '' !== $id ) {
+			foreach ( $policies as $position => $policy ) if ( $id === (string) ( $policy['id'] ?? '' ) ) { $index = $position; break; }
+			if ( null === $index ) return self::service_error( 'automation', 'La automatización no existe.', 404 );
+			if ( 'full' !== ( $policies[ $index ]['type'] ?? '' ) ) return self::service_error( 'automation_partial', 'Esta automatización parcial anterior está desactivada: crea una completa.', 400 );
+			$input += array_intersect_key( (array) $policies[ $index ], array_flip( $fields ) );
+		} else {
+			$input += array( 'schedule' => 'daily', 'destination' => 'local', 'retain' => 4, 'mode' => 'full', 'enabled' => true );
+		}
+		self::$automation_notice = '';
+		$automation = self::automation_input( $input, $id, 'full' );
+		if ( is_wp_error( $automation ) ) return self::service_error( 'automation_invalid', $automation->get_error_message(), 400 );
+		if ( null === $index ) $policies[] = $automation;
+		else $policies[ $index ] = $automation;
+		update_option( self::POLICIES, $policies, false );
+		self::sync_policy_schedules();
+		foreach ( self::service_automations() as $row ) if ( $row['id'] === $automation['id'] ) return $row + array( 'notice' => trim( self::$automation_notice ) );
+		return self::service_error( 'automation', 'No se pudo guardar la automatización.', 500 );
 	}
 	/**
 	 * Encola el respaldo completo de la instalación o de la red, el del botón «Crear respaldo completo»: comprueba antes

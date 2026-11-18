@@ -723,11 +723,14 @@ final class Digitalisimo_Backups_Cli {
 }
 
 /**
- * Automatizaciones de respaldo completo: listarlas y ejecutar una ahora.
+ * Automatizaciones de respaldo completo: listarlas, crearlas, cambiarlas y ejecutar una ahora.
  */
 final class Digitalisimo_Backups_Cli_Automation {
 	/**
-	 * Lista las automatizaciones y su próxima ejecución.
+	 * Lista las automatizaciones, su próxima ejecución y lo que guarda «Conservar».
+	 *
+	 * La columna `retain_unit` dice qué cuenta «Conservar» (points: respaldos; chains: cadenas enteras de una incremental)
+	 * y `estimate`, cuántos respaldos y cadenas guardará.
 	 *
 	 * ## OPTIONS
 	 *
@@ -741,7 +744,121 @@ final class Digitalisimo_Backups_Cli_Automation {
 	 */
 	public function list_( $args, $assoc_args ) {
 		$rows = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_automations() );
-		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'label', 'schedule', 'time', 'mode', 'full_every', 'destination', 'retain', 'enabled', 'next_run' ) );
+		foreach ( $rows as &$row ) $row['estimate'] = (string) ( $row['retain_estimate']['text'] ?? '' );
+		unset( $row );
+		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'label', 'schedule', 'time', 'mode', 'full_every', 'destination', 'retain', 'retain_unit', 'enabled', 'next_run', 'estimate' ) );
+	}
+
+	/**
+	 * Crea una automatización de respaldo completo, como «Crear automatización» de la pantalla.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--schedule=<schedule>]
+	 * : hourly, digitalisimo_every_6_hours, digitalisimo_every_12_hours, daily, weekly o monthly. Por defecto, daily.
+	 *
+	 * [--time=<hh:mm>]
+	 * : Hora fija del sitio para diaria, semanal o mensual.
+	 *
+	 * [--destination=<destination>]
+	 * : local o un destino conectado (ver `wp digitalisimo-backups destinations list`). Por defecto, local.
+	 *
+	 * [--retain=<n>]
+	 * : «Conservar»: cuántos respaldos o, con --retain-unit=chains, cuántas cadenas enteras. Por defecto, 4.
+	 *
+	 * [--retain-unit=<unit>]
+	 * : Qué cuenta «Conservar» en una incremental: points (cada respaldo, por defecto) o chains (cadenas enteras: la actual y las anteriores completas).
+	 *
+	 * [--mode=<mode>]
+	 * : full (completo cada vez, por defecto) o incremental.
+	 *
+	 * [--full-every=<n>]
+	 * : Incremental: un completo cada N incrementales (por defecto 6).
+	 *
+	 * [--full-days=<d>]
+	 * : Incremental: o cada D días (por defecto 7).
+	 *
+	 * [--remote-only]
+	 * : Sólo en el remoto: no conservar el ZIP en este servidor (con destino remoto).
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio en Multisite.
+	 *
+	 * [--porcelain]
+	 * : Imprime sólo el identificador de la automatización.
+	 */
+	public function add( $args, $assoc_args ) {
+		$this->save( '', $assoc_args, 'Automatización creada' );
+	}
+
+	/**
+	 * Cambia una automatización, como «Guardar esta automatización»: lo que no se pasa conserva su valor.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <id>
+	 * : Identificador de la automatización (ver `automation list`).
+	 *
+	 * [--schedule=<schedule>]
+	 * : disabled, hourly, digitalisimo_every_6_hours, digitalisimo_every_12_hours, daily, weekly o monthly.
+	 *
+	 * [--time=<hh:mm>]
+	 * : Hora fija del sitio para diaria, semanal o mensual (vacía: cuando WP-Cron pueda).
+	 *
+	 * [--destination=<destination>]
+	 * : local o un destino conectado.
+	 *
+	 * [--retain=<n>]
+	 * : «Conservar»: cuántos respaldos o cuántas cadenas enteras.
+	 *
+	 * [--retain-unit=<unit>]
+	 * : points (cada respaldo) o chains (cadenas enteras; sólo en una incremental).
+	 *
+	 * [--mode=<mode>]
+	 * : full o incremental.
+	 *
+	 * [--full-every=<n>]
+	 * : Incremental: un completo cada N incrementales.
+	 *
+	 * [--full-days=<d>]
+	 * : Incremental: o cada D días.
+	 *
+	 * [--[no-]remote-only]
+	 * : Sólo en el remoto.
+	 *
+	 * [--[no-]enabled]
+	 * : Activa o en pausa.
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio en Multisite.
+	 *
+	 * [--porcelain]
+	 * : Imprime sólo el identificador de la automatización.
+	 */
+	public function update( $args, $assoc_args ) {
+		$id = trim( (string) ( $args[0] ?? '' ) );
+		// Sin identificador, el caso de uso crearía una nueva: aquí sólo se cambia una que existe.
+		if ( '' === $id ) WP_CLI::error( 'Falta el identificador de la automatización (ver `automation list`).' );
+		$this->save( $id, $assoc_args, 'Automatización guardada' );
+	}
+
+	/** add y update: el mismo caso de uso que la pantalla y REST (service_save_automation()). */
+	private function save( $id, array $assoc_args, $done ) {
+		$input = array();
+		foreach ( array( 'schedule' => 'schedule', 'time' => 'time', 'destination' => 'destination', 'retain' => 'retain', 'retain-unit' => 'retain_unit', 'mode' => 'mode', 'full-every' => 'full_every', 'full-days' => 'full_days' ) as $option => $key ) {
+			if ( array_key_exists( $option, $assoc_args ) ) $input[ $key ] = is_bool( $assoc_args[ $option ] ) ? '' : (string) $assoc_args[ $option ];
+		}
+		foreach ( array( 'remote-only' => 'remote_only', 'enabled' => 'enabled' ) as $option => $key ) {
+			$flag = Digitalisimo_Backups_Cli::flag( $assoc_args, $option, null );
+			if ( null !== $flag ) $input[ $key ] = $flag;
+		}
+		$row = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_save_automation( $input, $id, array( 'network' => ! empty( $assoc_args['network'] ) ) ) );
+		if ( ! empty( $assoc_args['porcelain'] ) ) {
+			WP_CLI::line( (string) $row['id'] );
+			return;
+		}
+		if ( '' !== (string) ( $row['notice'] ?? '' ) ) WP_CLI::warning( (string) $row['notice'] );
+		WP_CLI::success( $done . ': ' . $row['id'] . '. ' . (string) ( $row['retain_estimate']['text'] ?? '' ) );
 	}
 
 	/**

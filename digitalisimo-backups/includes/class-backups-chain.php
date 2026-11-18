@@ -341,6 +341,110 @@ final class Digitalisimo_Backups_Chain {
 		if ( is_file( $path ) || is_link( $path ) ) @unlink( $path );
 	}
 
+	/* ------------------------------------------------------------------ «Conservar»: respaldos o cadenas */
+
+	/**
+	 * Segundos entre dos ejecuciones de cada frecuencia de una automatización (WP-Cron; «monthly» son 30 días); sin
+	 * programación, 0. La estimación de assets/retention.js usa la misma tabla (tests/backups-retain-chains-ui.mjs).
+	 */
+	const PERIODS = array( 'hourly' => 3600, 'digitalisimo_every_6_hours' => 21600, 'digitalisimo_every_12_hours' => 43200, 'daily' => 86400, 'weekly' => 604800, 'monthly' => 2592000 );
+
+	/**
+	 * Qué cuenta «Conservar» de una automatización: `chains` (cadenas enteras) sólo en una incremental que lo eligió; si
+	 * no, `points` (cada respaldo, como siempre). Una automatización anterior, sin `retain_unit`, cuenta respaldos.
+	 */
+	public static function retain_unit( $policy ) {
+		$policy = is_array( $policy ) ? $policy : array();
+		return 'incremental' === ( $policy['mode'] ?? '' ) && 'chains' === ( $policy['retain_unit'] ?? '' ) ? 'chains' : 'points';
+	}
+	/**
+	 * Tope de «Conservar» con un completo cada `$full_every` incrementales, para que lo conservado y la cadena de la que
+	 * depende quepan en las 100 filas del historial: N respaldos más una cadena (N + M ≤ 100) o N cadenas enteras
+	 * (N × (M + 1) ≤ 100).
+	 */
+	public static function retain_cap( $unit, $full_every ) {
+		$every = max( 1, min( self::MAX_FULL_EVERY, (int) $full_every ) );
+		return 'chains' === $unit ? max( 1, intdiv( self::HISTORY_ROWS, $every + 1 ) ) : max( 1, self::HISTORY_ROWS - $every );
+	}
+	/**
+	 * Respaldos de una cadena entera: su completo y `$full_every` incrementales, salvo que la frecuencia la corte antes por
+	 * días (plan(): un completo nuevo cuando la base tiene `$full_days` días). Con un respaldo cada `$period` segundos caben
+	 * ⌈D × 86 400 / período⌉; sin programación (0), sólo cuenta el número.
+	 */
+	public static function chain_length( $full_every, $full_days, $period ) {
+		$length = (int) $full_every + 1;
+		if ( (int) $period > 0 ) $length = min( $length, max( 1, intdiv( (int) $full_days * 86400 + (int) $period - 1, (int) $period ) ) );
+		return $length;
+	}
+	/**
+	 * Cuántos respaldos guarda una automatización (de su `retain`, `retain_unit`, `mode`, `full_every`, `full_days`,
+	 * `schedule` y `destination`) una vez que su historial se llena, y cuántas cadenas: lo que dicen la pantalla al
+	 * pintarse, REST y WP-CLI. assets/retention.js hace la misma cuenta al editar (las dos dan lo mismo,
+	 * tests/backups-retain-chains-ui.mjs). Con L respaldos por cadena:
+	 * - «Conservar N respaldos»: los N más recientes y la cadena de la que dependen: entre N y N + L − 1, en
+	 *   1 + ⌊(N − 1) / L⌋ o 1 + ⌈(N − 1) / L⌉ cadenas;
+	 * - «Conservar N cadenas»: la actual (aunque esté a medias) y las N − 1 anteriores enteras: entre (N − 1) × L + 1 y
+	 *   N × L respaldos;
+	 * - «Completo cada vez»: N completos (la unidad no aplica).
+	 * Todas las cadenas menos la actual están enteras (la retención nunca rompe una), así que `previous_min` (las
+	 * anteriores completas que siempre hay) es el mínimo de cadenas menos una; con 0, el texto lo advierte.
+	 */
+	public static function estimate( $policy ) {
+		$policy = is_array( $policy ) ? $policy : array();
+		$retain = isset( $policy['retain'] ) && is_numeric( $policy['retain'] ) ? (int) $policy['retain'] : 4;
+		if ( 'incremental' !== ( $policy['mode'] ?? '' ) ) {
+			$n = max( 1, min( self::HISTORY_ROWS, $retain ) );
+			return array( 'unit' => 'points', 'retain' => $n, 'cap' => self::HISTORY_ROWS, 'min' => $n, 'max' => $n, 'chains_min' => $n, 'chains_max' => $n, 'previous_min' => $n - 1, 'chain_length' => 1, 'text' => 'Guardarás ' . $n . ( 1 === $n ? ' respaldo completo.' : ' respaldos completos.' ) );
+		}
+		$settings = self::settings( $policy );
+		$unit = self::retain_unit( $policy );
+		$period = self::PERIODS[ (string) ( $policy['schedule'] ?? '' ) ] ?? 0;
+		$length = self::chain_length( $settings['full_every'], $settings['full_days'], $period );
+		$cap = self::retain_cap( $unit, $settings['full_every'] );
+		$n = max( 1, min( $cap, $retain ) );
+		if ( 'chains' === $unit ) {
+			$min = ( $n - 1 ) * $length + 1;
+			$max = $n * $length;
+			$low = $n;
+			$high = $n;
+		} else {
+			$min = $n;
+			$max = $n + $length - 1;
+			$low = 1 + intdiv( $n - 1, $length );
+			$high = 1 + intdiv( $n + $length - 2, $length );
+		}
+		$days = 'cada ' . $settings['full_days'] . ( 1 === $settings['full_days'] ? ' día' : ' días' );
+		$text = 'Guardarás ' . ( $min === $max ? $min . ( 1 === $min ? ' respaldo' : ' respaldos' ) : 'entre ' . $min . ' y ' . $max . ' respaldos' ) . ' en ' . ( $low === $high ? $low . ( 1 === $low ? ' cadena' : ' cadenas' ) : $low . ' o ' . $high . ' cadenas' ) . '.';
+		if ( $length < $settings['full_every'] + 1 ) $text .= 1 === $length ? ' Con esta frecuencia cada respaldo sale completo (un completo ' . $days . ').' : ' Con esta frecuencia la cadena se corta por días (un completo ' . $days . '): ' . $length . ' respaldos.';
+		if ( $low > 1 ) {
+			$text .= 2 === $low ? ' Siempre queda al menos una cadena anterior completa.' : ' Siempre quedan al menos ' . ( $low - 1 ) . ' cadenas anteriores completas.';
+		} else {
+			$when = 1 === $high ? ' Una sola cadena' : ( $period > 0 && $period < 86400 ? ' Hay horas' : ' Hay días' ) . ' con una sola cadena';
+			$text .= $when . ': si su base se daña, ' . ( 'local' === (string) ( $policy['destination'] ?? 'local' ) ? 'no hay otra copia.' : 'sólo queda la copia remota.' );
+		}
+		if ( $retain > $cap ) $text .= ' «Conservar» quedará en ' . $cap . '.';
+		return array( 'unit' => $unit, 'retain' => $n, 'cap' => $cap, 'min' => $min, 'max' => $max, 'chains_min' => $low, 'chains_max' => $high, 'previous_min' => $low - 1, 'chain_length' => $length, 'text' => $text );
+	}
+	/**
+	 * Retención de una automatización por cadenas: de sus filas (de la más reciente a la más antigua, sin las bloqueadas
+	 * ni las subidas), las que quedan fuera de sus `$keep` cadenas más recientes, enteras (nombre => true). La cadena en
+	 * curso, aunque esté a medias, cuenta como una; un completo que no es de una cadena (uno anterior a ser incremental)
+	 * es una cadena él solo.
+	 */
+	public static function outside_chains( array $rows, $keep ) {
+		$keep = max( 1, (int) $keep );
+		$order = array();
+		$out = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) || '' === (string) ( $row['file'] ?? '' ) ) continue;
+			$chain = self::row_chain( $row );
+			$key = $chain ? 'chain:' . $chain['id'] : 'file:' . $row['file'];
+			if ( ! isset( $order[ $key ] ) ) $order[ $key ] = count( $order );
+			if ( $order[ $key ] >= $keep ) $out[ (string) $row['file'] ] = true;
+		}
+		return $out;
+	}
+
 	/* ------------------------------------------------------------------ Retención */
 
 	/**
