@@ -855,12 +855,15 @@ final class Digitalisimo_Backups_Updraft_Import {
 	 */
 	private static function copy( $zip, $handle, $length, array &$cursor, $deadline, array $state ) {
 		$left = (int) $length;
+		$size = max( 1, (int) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_zip_chunk', Digitalisimo_Backups_Zip_Writer::CHUNK ) : Digitalisimo_Backups_Zip_Writer::CHUNK ) );
+		$chunks = 0;
 		while ( $left > 0 ) {
-			$chunk = fread( $handle, (int) min( Digitalisimo_Backups_Zip_Writer::CHUNK, $left ) );
+			$chunk = fread( $handle, (int) min( $size, $left ) );
+			$chunks++;
 			if ( false === $chunk || '' === $chunk ) throw new Digitalisimo_Backups_Permanent_Error( 'Un archivo del conjunto (' . ( 'sql' === $state['src'] ? 'database.sql' : (string) ( $state['entry']['e'] ?? $state['entry']['n'] ?? '' ) ) . ') es más corto de lo que declara: la pieza está dañada o el archivo cambió.' );
 			$left -= strlen( $chunk );
 			$cursor['bytes'] += strlen( $chunk );
-			if ( $left > 0 && is_finite( $deadline ) && Digitalisimo_Backups_Step_Budget::exhausted( $deadline ) ) {
+			if ( $left > 0 && is_finite( $deadline ) && Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $chunks ) ) {
 				$state['zip'] = $zip->suspend( $chunk );
 				$cursor['partial'] = $state;
 				return false;

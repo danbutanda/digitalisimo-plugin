@@ -466,16 +466,23 @@ ud_case( 'U8 conjunto de una red: manifiesto de red y su fila con sus sitios', f
 ud_case( 'U9 una muerte a mitad de cada tramo no cambia el ZIP convertido', function() use ( $set, &$converted ) {
 	ud_check( '' !== $converted, 'No hay ZIP convertido (falló U2).' );
 	$reference = ud_zip_map( bk_storage() . '/' . $converted );
+	// Trozos de 16 KB y dos unidades por tramo: la foto (70 KB) y database.sql quedan a medias entre tramos y, al
+	// retomarlas, su flujo (del ZIP de la pieza o del SQL convertido) se vuelve a leer hasta donde se quedaron.
 	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 2;
+	$GLOBALS['bk_filters']['digitalisimo_backups_zip_chunk'] = function() { return 16384; };
+	$partials = array();
 	try {
-		$job = ud_import( $set, array( 'source' => 'updraft' ), true, function( $job ) {
+		$job = ud_import( $set, array( 'source' => 'updraft' ), true, function( $job ) use ( &$partials ) {
+			$partial = $job['checkpoint']['files']['partial'] ?? null;
+			if ( is_array( $partial ) ) $partials[ 'sql' === $partial['src'] ? 'database.sql' : (string) $partial['entry']['n'] ] = true;
 			$staging = Digitalisimo_Backups_Job_Store::staging( $job['id'] );
 			foreach ( array( 'source.sql', 'index.jsonl', 'database.sql', 'converted.zip', 'entries.jsonl' ) as $file ) if ( is_file( $staging . '/' . $file ) ) file_put_contents( $staging . '/' . $file, 'basura de un proceso muerto', FILE_APPEND );
 		} );
 	} finally {
-		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'], $GLOBALS['bk_filters']['digitalisimo_backups_zip_chunk'] );
 	}
 	ud_check( 'success' === $job['status'], 'La importación con muertes falló: ' . json_encode( $job['error'] ) );
+	ud_check( isset( $partials['database.sql'], $partials['wp-content/uploads/2026/11/foto.jpg'] ), 'Ninguna entrada quedó a medias entre tramos (database.sql y la foto de una pieza ZIP): ' . json_encode( array_keys( $partials ) ) );
 	$again = ud_zip_map( bk_storage() . '/' . $job['result']['import']['file'] );
 	// El núcleo de este WordPress no cambió con la restauración de U3 (UpdraftPlus no lo trae): todo idéntico.
 	ud_check( array_keys( $reference ) === array_keys( $again ), 'El ZIP con muertes no tiene las mismas entradas.' );
