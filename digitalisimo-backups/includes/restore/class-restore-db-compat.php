@@ -505,6 +505,17 @@ final class Digitalisimo_Backups_Db_Compat {
 		foreach ( $pending as $name => $sql ) $result['failed'][ $name ] = '' !== ( $errors[ $name ] ?? '' ) ? $errors[ $name ] : 'la base de datos no la aceptó';
 		return $result;
 	}
+	/**
+	 * Si una vista de un respaldo de red es del sitio que se convierte (prefijo `<base>N_`, o el de la red sin ser de otro
+	 * sitio para el principal): las del sitio viajan con él; las de otros sitios, no.
+	 */
+	public static function site_owns( $view, $prefix, $base ) {
+		$view = (string) $view;
+		$prefix = (string) $prefix;
+		$base = (string) $base;
+		if ( '' === $prefix || 0 !== strncmp( $view, $prefix, strlen( $prefix ) ) ) return false;
+		return $prefix !== $base || ! preg_match( '/^' . preg_quote( $base, '/' ) . '[0-9]+_/', $view );
+	}
 	/** Nombres en este sitio de las tablas y vistas del respaldo: los de tables.json y, por el mismo prefijo, las vistas. */
 	public static function view_renames( array $tables, array $views, $from_prefix, $to_prefix ) {
 		$map = array();

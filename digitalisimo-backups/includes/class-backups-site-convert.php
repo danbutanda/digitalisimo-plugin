@@ -544,10 +544,7 @@ final class Digitalisimo_Backups_Site_Convert {
 				if ( ! $guard->check( $statement ) ) return;
 				if ( null !== $guard->last_view() ) {
 					$view = (string) $guard->last_view();
-					$base = (string) $facts['base'];
-					$prefix = (string) $facts['prefix'];
-					$own = 0 === strncmp( $view, $prefix, strlen( $prefix ) ) && ( $prefix !== $base || ! preg_match( '/^' . preg_quote( $base, '/' ) . '[0-9]+_/', $view ) );
-					if ( $own ) { self::write( $output, $guard->rewritten() . ";\n" ); $cursor['views'][] = $view; }
+					if ( Digitalisimo_Backups_Db_Compat::site_owns( $view, (string) $facts['prefix'], (string) $facts['base'] ) ) { self::write( $output, $guard->rewritten() . ";\n" ); $cursor['views'][] = $view; }
 					else $cursor['views_skipped'][] = $view;
 					$cursor['out'] = (int) ftell( $output );
 					return;

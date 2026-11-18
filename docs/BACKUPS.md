@@ -101,6 +101,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | **El respaldo de una red se restaura en un WordPress individual (pedido del propietario, 2026-11-16).** «Subí un respaldo y no me deja restaurarlo en otro sitio: me sale la etiqueta “No se restaura aquí”.» Un respaldo de una red (subido, agregado, traído, cifrado, un punto incremental o el paquete de una migración con clave) ya no sale «No se restaura aquí» en un WordPress individual: al restaurarlo se elige **qué sitio de la red** (la lista de sus sitios con su dirección; por defecto, el principal) y ése queda como este WordPress, convertido como «Extraer como WordPress individual» pero **desde el respaldo** (`Digitalisimo_Backups_Site_Convert`, trabajo `convert` por tramos reanudables): sus tablas con el prefijo de aquí, sus miembros con su contraseña y su rol (y quien restaura), los plugins activados en la red en `active_plugins`, su tema, `uploads/sites/N` en `uploads/`, sus direcciones las de aquí y ninguna tabla de la red ni de otros sitios. Después, la restauración de siempre (verificación, copia previa, por pasos, mantenimiento, vuelta a la copia previa, H23, «Conservar mi acceso», por partes). REST y WP-CLI: `site` (`--site`) en `verify`, `restore` y `migrate`. Ver «Restaurar una red en un WordPress individual». | rama `backups/network-to-single` | `backups-network-to-single.php` (falla con `ad515c71`), `backups-progress-ui.mjs` (P15b) y, en Playground con Chrome, `tests/playground/backups-network-to-single.sh` |
 | **Importar un WordPress individual en una red (pedido del propietario, 2026-11-16).** «Subí un respaldo y no me deja restaurarlo en otro sitio: me sale “No se restaura aquí”… déjalo igual que UpdraftPlus.» En una red, el respaldo de un WordPress individual (también un sitio extraído o la copia de un sitio de una red) se restaura desde la administración de la red **como sitio nuevo** (por defecto, con la dirección sugerida desde el respaldo: ruta o subdominio) o **reemplazando un sitio** que no es el principal. Es la restauración por pasos de siempre con `into`: tablas al prefijo `<base>N_` y E1 hacia ese sitio (los medios a `uploads/sites/N`, como par propio y antes que la URL del sitio); `users` y `usermeta` del respaldo se **funden** en los de la red dentro del paso del cambio, con diario (mismo usuario y correo, o mismo correo: la cuenta de la red; nombre ocupado por otra persona: uno libre; nadie de la red pierde su contraseña, su correo, sus metas globales ni su rol; los administradores del sitio que se reemplaza siguen siéndolo) y la autoría se reasigna a los ID de la red; los plugins y temas que faltan se instalan (activos o habilitados sólo en ese sitio; los que ya están no se reemplazan y se avisa la versión distinta); el núcleo, los mu-plugins, los drop-ins y el resto de wp-content nunca se mezclan; la configuración de Backups del respaldo y sus eventos de WP-Cron no quedan en el sitio. Copia previa sólo del sitio que se reemplaza (`site-copy-…`, alcance `network-site`); un sitio nuevo que falla tras empezar el cambio se borra con lo que añadió. Mantenimiento sólo de ese sitio. Pantalla, REST y WP-CLI (`into=new\|<id>`, `address`), verify, migración con clave e incrementales. Revisión de la rama de publicación 1.0.79: ningún usuario importado recibe metas de otro sitio de la red ni capacidades de red (se quitan de los roles y de cada usuario, y el informe lo dice); la copia de un sitio restaurada desde la lista no recrea cuentas borradas y reasigna la autoría; la respuesta dice que superadministradores y administradores del sitio reemplazado se conservan siempre. Ver «Importar un sitio en una red». | rama `backups/single-to-network` | `backups-site-import.php`, `backups-site-import-review.php`, `tests/playground/backups-site-import.sh` |
 | **Subir e importar un respaldo externo con el mismo panel de avance (pedido del 2026-11-16).** «Al subir un respaldo la barra de progreso no es la misma que al generarlo […] usa esa misma, pero ahora para cuando se sube o importa un respaldo externo.» La tarjeta «Subir un respaldo» ya no pinta su `<progress>` ni su línea de estado: la subida, la importación de Backuply (desde su carpeta, desde una subida con «Importarlo ahora» o desde el almacén), «Traer al almacén» (de una fila o de «Respaldos guardados en los destinos») y «Enviar a un destino» se siguen en el mismo panel que el respaldo y la restauración (`assets/manual-progress.js`, marcado en `class-backups-progress.php`), con el mismo aspecto, a todo lo ancho, bajo «Respaldar ahora» o en el hueco de la sección donde se hizo la acción, que se abre. La subida tiene tres fases: «Subida» (bytes enviados de los totales, velocidad, tiempo restante y los reintentos a la vista), «Comprobación» (en el servidor y sin pasos medibles: lo subido queda lleno, el resto de la barra se mueve, sin `aria-valuenow`, y el panel dice en qué paso va, de lo que la validación anota en la sesión: abrir o descifrar, cada archivo contra el manifiesto con «Verificando archivo N de M», «Origen → este sitio») y «Registro»; termina en «Respaldo subido y verificado» con su fila y «Restaurarlo» (que abre esa fila en la lista), o con el motivo: «El respaldo se descartó», «Respaldo subido, sin registro» (un `.dgbk` sin su frase, con «Agregarlo a la lista»), «Respaldo de Backuply subido» (con «Importarlo ahora»), 507, 504 tras tres cortes (con la orden de WP-CLI). Conserva toda la robustez de la subida: fragmentos en el byte que espera el servidor, reintentos con espera, reanudar tras recargar con el mismo archivo, el cierre que responde 202 o no responde nunca (el proxy del ensayo de /wp) con el estado consultado a la vez, plazos por petición, «Cancelar» (sólo mientras se envían fragmentos). Al recargar, el panel vuelve a la comprobación en curso y la sigue; si nadie la comprueba ya, ofrece «Terminar la comprobación» (sin subir otra vez); una subida a medias se ve «en pausa» con qué hacer. La importación, traer y enviar se siguen con sus fases (las de `Digitalisimo_Backups_Import_Job`, `fetch` y `send`), sus cortes, «Cancelar» sólo cuando sirve y su resultado con lo que sigue; no se pierden al recargar (la acción vuelve con `?job=` y el panel toma al cargar el que está en curso). «Agregar al listado» dice en el panel, mientras su petición comprueba el archivo, que lo comprueba. La barra nunca retrocede. REST y WP-CLI no cambian (el paso de la comprobación sólo va en el estado de la pantalla por AJAX). Ver «Pantalla» → «Subir e importar con el mismo panel». | sin publicar (rama `backups/upload-progress`) | `backups-upload-ui.mjs`, `backups-progress-ui.mjs` (P29–P33), `backups-upload-progress.php` (fallan con `ad515c71`) y, en Playground con Chrome, `tests/playground/backups-upload-progress.sh` |
+| **Restaurar en otro servidor de base de datos (MySQL ↔ MariaDB), como UpdraftPlus y sin sus atajos (brechas 4, 8, 10, 11, 14, 15 y 16 del estudio, rama `backups/restore-db-compat`).** La verificación, antes de la copia previa, compara lo que trae cada `CREATE TABLE` del respaldo con lo que este servidor tiene (`SHOW CHARACTER SET`, `SHOW COLLATION` con los nombres completos de MariaDB 10.10+, `SHOW ENGINES`, `@@max_allowed_packet`) y decide la sustitución: una intercalación que no tiene (`utf8mb4_0900_ai_ci` en MariaDB, `utf8mb4_uca1400_ai_ci` en MySQL) pasa a la más cercana con la misma sensibilidad y el mismo idioma (las genéricas, a `utf8mb4_unicode_520_ci`, la del núcleo), un juego de caracteres que falta a uno que no pierde nada (sin utf8mb4 sólo si ninguna fila trae caracteres de 4 bytes: si los trae, se rechaza), un motor que falta (Aria) a InnoDB, y se quitan las opciones de tabla del otro servidor (`PAGE_CHECKSUM`, `TRANSACTIONAL`, `ROW_FORMAT=PAGE`; `PERSISTENT` pasa a `STORED`). El guardián lo aplica sobre los tokens exactos que leyó, también en un archivo confiable, y sigue rechazando todo lo que rechazaba. Una fila mayor que `max_allowed_packet` (también ya reubicada) se rechaza ahí, sin copia previa, con «súbelo a N MB». Cada tramo de la importación usa `NO_AUTO_VALUE_ON_ZERO` (y sin `NO_BACKSLASH_ESCAPES`) en su sesión, nunca `SET GLOBAL`. El exportador ya no escribe el valor de las columnas generadas (un respaldo anterior importa `DEFAULT`) y respalda las vistas aparte, al final del SQL y sin `DEFINER` (antes una vista hacía fallar el respaldo: no tiene motor); la restauración las crea al final del cambio con `SQL SECURITY INVOKER` y los nombres de este sitio (en un archivo sin firma, sólo las que no salen de la base ni del respaldo). Disparadores, rutinas y eventos no se respaldan: se avisa al respaldar y en la verificación. La verificación y el trabajo avisan también, sin bloquear, de las versiones del origen: PHP de otra serie, lo que piden el núcleo, los plugins y el tema activos del respaldo (`Requires PHP`), WordPress más nuevo al restaurar sólo la base y otro servidor de base de datos. Vale igual en la conversión red → individual (las vistas del sitio viajan en su paquete), la importación en una red y la vuelta a la copia previa. Ver «Restaurar en otro servidor de base de datos». | sin publicar (rama `backups/restore-db-compat`) | `backups-db-compat.php` (falla con `ea9753ca`) y, con MySQL 8.0 y MariaDB 10.11 de verdad, `backups-db-compat-live.sh` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -774,7 +775,8 @@ Si no:
 - Las rutas del servidor en el contenido público y en textos libres (ver «Rutas del servidor»), y las de un origen en
   Windows (`C:\xampp\htdocs\…`).
 - Base64, entidades HTML (`&#x2F;`) y otras codificaciones propias de un plugin.
-- Las vistas SQL y las tablas dentro de comentarios ejecutables con otro prefijo: se rechazan antes de tocar nada.
+- Las tablas dentro de comentarios ejecutables con otro prefijo: se rechazan antes de tocar nada. Las vistas sí cambian de
+  prefijo: se crean al final del cambio (ver «Restaurar en otro servidor de base de datos»).
 - Las rutas del servidor de un respaldo anterior a 1.0.63: su manifiesto no las trae (las URL sí se reescriben).
 - Un conjunto de UpdraftPlus: sigue su propio camino, que exige el prefijo de este sitio y no reubica direcciones.
 - Las reglas de nginx o del `.htaccess` de una red si cambia la ruta: se avisa.
@@ -791,7 +793,7 @@ red por subdominios ↔ por subdirectorios («define SUBDOMAIN_INSTALL como …�
 `PATH_CURRENT_SITE` definidas en `wp-config.php` con otro dominio o ruta que los que tendrá la red (los de este sitio o,
 con «conservar las del respaldo», los del respaldo); `SITE_ID_CURRENT_SITE` o `BLOG_ID_CURRENT_SITE` que el respaldo no
 tiene; un respaldo sin lista de tablas (formato anterior al v3) con otro prefijo; tablas que acabarían con el mismo
-nombre o con más de 64 caracteres; una vista o una tabla dentro de un comentario ejecutable que no se puede renombrar
+nombre o con más de 64 caracteres; una tabla dentro de un comentario ejecutable que no se puede renombrar
 (`verify` responde lo mismo que la restauración); y un valor que menciona el origen y no cabe en la memoria de PHP para
 reescribirlo (ver «Escala y fallos»).
 
@@ -1037,6 +1039,108 @@ Wordfence 2FA al cambiar de usuario y al fundir por correo, cuentas nuevas sin r
 vez), `tests/backups-accounts-nokeys.php` (B2) y, para M1, `tests/backups-network-to-single.php` (N3, N10 y N11 con
 `keep_admins` = false).
 
+## Restaurar en otro servidor de base de datos
+
+Rama `backups/restore-db-compat` (sin publicar). El estudio frente a UpdraftPlus 1.26.14
+(`/var/tmp/digi-wt/ref-updraftplus-analisis/INFORME.md`, §2 y brechas 4, 8, 10, 11, 14, 15 y 16) encontró que la
+brecha más grave para «muévelo a otro WordPress» era la base de datos: basta **una** tabla de un plugin creada sin
+`$wpdb->get_charset_collate()` en MySQL 8 (`utf8mb4_0900_ai_ci`) para que su `CREATE TABLE` falle en MariaDB con
+«Unknown collation», después de pagar la copia previa. Lo mismo al revés con `utf8mb4_uca1400_ai_ci` de MariaDB 10.10+
+y con Aria, `PAGE_CHECKSUM` o `PERSISTENT` en MySQL. UpdraftPlus lo resuelve con un desplegable y búsquedas de texto;
+aquí se decide solo, en la verificación, y se aplica sobre los tokens exactos que leyó el guardián. El código vive en
+`Digitalisimo_Backups_Db_Compat` (`includes/restore/class-restore-db-compat.php`) y en la sección «Compatibilidad entre
+servidores» del guardián (`includes/security/class-sql-guard.php`).
+
+**Cuándo se decide.** La pasada en seco de la verificación (la misma que ya rechazaba lo peligroso) anota de cada
+`CREATE TABLE` sus juegos de caracteres, intercalaciones, motores, opciones de tabla del otro servidor y columnas
+generadas, la sentencia más grande, las vistas y, de las opciones, los plugins y el tema activos; también en un archivo
+confiable, cuyo `CREATE TABLE` antes no se recorría. Al terminar, con lo que dice este servidor (`SHOW CHARACTER SET`,
+`SHOW COLLATION` más `information_schema.COLLATION_CHARACTER_SET_APPLICABILITY`, porque MariaDB 10.10+ lista las UCA
+14.0 como `uca1400_ai_ci` sin juego de caracteres; `SHOW ENGINES`; `@@max_allowed_packet`), la decisión queda en
+`db-compat.json` del área de trabajo. Lo que no tiene arreglo seguro rechaza la restauración **antes de la copia
+previa** y sin tocar nada; lo demás se aplica en cada tramo de la importación y se dice en `verify` (REST: `database`
+con `changes`, `warnings`, `problems` y `views`; WP-CLI lo escribe), en el registro del trabajo al terminar la
+verificación y en el informe final (`notice` y `database`). Una lista que el servidor no da (SQLite de Playground, una
+cuenta sin permiso) es «no se sabe» y no se sustituye nada de esa clase: nunca se da por ausente lo que no se comprobó.
+
+**Qué se sustituye.**
+
+| Lo que trae el respaldo | En este servidor |
+| --- | --- |
+| Intercalación que no existe | La más cercana del mismo juego de caracteres: misma sensibilidad (sin mayúsculas, con acentos, con mayúsculas, binaria) y mismo idioma (`utf8mb4_es_0900_ai_ci` ↔ `utf8mb4_uca1400_spanish_ai_ci`, o `utf8mb4_spanish_ci`). Las genéricas sin mayúsculas (`0900_ai_ci`, `uca1400_ai_ci`, `unicode_520_nopad_ci`) van a `utf8mb4_unicode_520_ci`, la que WordPress da a sus tablas del núcleo; nunca a una que distinga menos que la original. El filtro `digitalisimo_backups_restore_collation` puede elegir otra, sólo si el servidor la tiene y es del mismo juego. `utf8_x` y `utf8mb3_x` son la misma. |
+| Juego de caracteres que no existe | `utf8mb3` ↔ `utf8` (el mismo); cualquier otro → `utf8mb4` (el SQL ya viene en utf8mb4: no se pierde nada). `utf8mb4` en un servidor que no lo tiene → `utf8mb3` sólo si ninguna fila trae caracteres de 4 bytes; si alguna los trae (emojis), se rechaza antes de tocar nada: se perderían. |
+| Motor que no existe (Aria, ARCHIVE, TokuDB…) | InnoDB (o el de serie si no hay InnoDB), no MyISAM como UpdraftPlus; con Aria se quitan `PAGE_CHECKSUM`, `TRANSACTIONAL` y `ROW_FORMAT=PAGE`. |
+| Opciones de tabla del otro servidor | En MySQL se quitan las de MariaDB (`PAGE_CHECKSUM`, `TRANSACTIONAL`, `PAGE_COMPRESSED`, `PAGE_COMPRESSION_LEVEL`, `IETF_QUOTES`, `ENCRYPTED`, `ENCRYPTION_KEY_ID`, `SEQUENCE`); en MariaDB, las de MySQL (`SECONDARY_ENGINE`, `ENGINE_ATTRIBUTE`, `AUTOEXTEND_SIZE`, `COMPRESSION`, `ENCRYPTION`). `PERSISTENT` (MariaDB) es `STORED` en MySQL. |
+| Columnas generadas | El exportador ya no escribe su valor (MySQL lo rechaza; mysqldump tampoco lo escribe) y su comprobación del SQL las excluye; un respaldo anterior que lo trae importa `DEFAULT` en ellas, sin que la reubicación toque ese valor. |
+| Una fila mayor que `max_allowed_packet` | Se rechaza en la verificación con «súbelo a N MB» (también si la reubicación la haría crecer). Nunca `SET GLOBAL max_allowed_packet` como UpdraftPlus, y nunca se descarta una fila. El exportador y el traductor de Backuply escriben un `INSERT` por fila: no hay nada que partir. |
+
+**Sesión de la importación.** Cada tramo pone en su sesión `NO_AUTO_VALUE_ON_ZERO` (una fila con 0 en su columna
+`AUTO_INCREMENT`, el registro «por defecto» de algunos plugins, conserva el 0 en vez de recibir otro número) y quita
+`NO_BACKSLASH_ESCAPES` (el SQL escapa con barra invertida, como lo lee el guardián: así el servidor ve exactamente las
+sentencias que comprobó), y devuelve el modo de antes al terminar el tramo. Nunca `SET GLOBAL`. El exportador no lo
+escribe en la cabecera del SQL: el guardián de las versiones 1.0.59 a 1.0.79 sólo admite ahí `SET NAMES` y
+`SET foreign_key_checks`, y un respaldo nuevo dejaría de restaurarse en un sitio con una de ellas (justo el caso «otra
+instalación»); quien lo importe con otra herramienta debe ponerlo (`mysql --init-command="SET SESSION
+sql_mode=CONCAT_WS(',',@@sql_mode,'NO_AUTO_VALUE_ON_ZERO')"`).
+
+**Vistas.** `SHOW TABLE STATUS` no da motor a una vista: con el exportador por tramos (desde 1.0.64) un sitio con una
+vista no se podía respaldar. Ahora el exportador separa las vistas (`SHOW FULL TABLES`), respalda sus tablas como
+siempre y escribe cada vista al final del SQL, antes del cierre, con su `SHOW CREATE VIEW` sin `DEFINER` (la cuenta de
+la base del origen no existe en otro servidor) y sin el nombre de la base delante de sus tablas; el manifiesto las
+nombra en `database_views` (las versiones anteriores lo ignoran y, con su guardián, rechazan la vista antes de tocar
+nada, como antes). La restauración las comprueba en la verificación y no las ejecuta en las tablas temporales; al final
+del cambio (fase «Direcciones y cachés»), con las tablas ya en su sitio, crea cada una con `CREATE OR REPLACE`, sin
+`DEFINER`, con `SQL SECURITY INVOKER` y los nombres de este sitio (otro prefijo también), reintentando mientras alguna
+avance (una vista puede usar otra). Lo que no se puede crear se informa y nunca hace fallar la restauración. En un
+archivo **sin firma** sólo se acepta una vista cuyo `SELECT` use palabras y funciones de una lista cerrada (texto,
+números, fechas, JSON, control y agregados), sin variables, comentarios ejecutables, otra base de datos (`otra`.`t`)
+ni tablas fuera del respaldo; si no, el guardián rechaza el archivo como siempre. Un respaldo anterior que escribía la
+vista como tabla (su `DROP TABLE`, su `CREATE VIEW` y sus filas) se restaura igual: sólo cuenta la definición. La
+conversión de una red lleva en el paquete del sitio sus vistas (las de su prefijo) y deja fuera las de otros sitios,
+con un aviso en el manifiesto.
+
+**Disparadores, rutinas y eventos.** No se respaldan, a propósito: necesitan permisos especiales (`TRIGGER`,
+`CREATE ROUTINE` y, con el registro binario, `SUPER` o `log_bin_trust_function_creators`, que UpdraftPlus cambia con
+`SET GLOBAL` y aquí no se toca), su cuerpo es SQL procedimental que el guardián no puede comprobar en un archivo sin
+firma, corren con los permisos de su `DEFINER` en cada fila, y en WordPress casi no existen. El respaldo los lista
+(`information_schema`) en `database_objects` del manifiesto y avisa en su registro y en su fila del historial; la
+verificación y el informe de la restauración lo repiten en otro sitio («vuelve a crearlos a mano»).
+
+**Versiones del origen (avisos, nunca bloquean).** En la verificación y en el registro del trabajo: PHP del respaldo
+de otra serie; lo que piden el núcleo del respaldo (`$required_php_version`), sus plugins activos (también los de la
+red) y su tema activo (cabeceras `Requires PHP` leídas dentro del ZIP) si este PHP es más viejo, porque tras una
+restauración «correcta» darían error fatal al cargarse; una base de datos de un WordPress más nuevo al restaurar sólo
+la base; y otro servidor de base de datos (el manifiesto guarda ahora `database_server`, la versión con su tipo).
+
+**Los otros caminos.** La importación de un sitio en una red, la conversión red → individual (su paquete se restaura
+con la restauración por pasos), la migración con clave y la vuelta a la copia previa pasan por la misma verificación e
+importación, así que tienen lo mismo. La ruta de UpdraftPlus (una petición, `restore_updraft_set()`) no: la rama
+`backups/updraft-import` la lleva a la restauración por pasos.
+
+**Pruebas.** `tests/backups-db-compat.php` (C1–C9: anotación, decisión, sustitución por tokens, el guardián sigue
+rechazando lo mismo con todo activo, columnas generadas, vistas, sesión, versiones, de punta a punta con el motor real
+de MySQL 8 a MariaDB y lo que dice el servidor) falla con el código de 1.0.79. `tests/backups-db-compat-live.sh`
+descarga sin root los servidores de la distribución (`apt-get download` de MariaDB 10.11 y MySQL 8.0), los arranca con
+su socket y corre `tests/backups-db-compat-live.php` contra ellos: L1 MySQL 8 → MariaDB con `utf8mb4_0900_ai_ci`,
+columnas generadas y una fila con 0 en su `AUTO_INCREMENT`; L2 con una vista y un disparador; L3 MariaDB → MySQL 8 con
+Aria y sus opciones, `utf8mb4_uca1400_ai_ci` y `PERSISTENT`; L4 `max_allowed_packet` de 2 MB contra una fila de 3 MB.
+@@ENSAYO@@
+
+**Límites declarados.**
+
+- Una intercalación sustituida puede comparar distinto: `utf8mb4_0900_ai_ci` no rellena espacios y
+  `utf8mb4_unicode_520_ci` sí, y sus tablas de pesos son de versiones distintas de Unicode. Dos valores que en el origen
+  eran distintos en una clave única pueden chocar en el destino; entonces la importación falla con «Duplicate entry»
+  antes del cambio, con el sitio intacto (después de la copia previa). Es raro y no se detecta en la verificación.
+- Las particiones (`/*!50100 PARTITION BY … ENGINE = … */`) y las opciones dentro de comentarios ejecutables no se
+  sustituyen; los índices funcionales de MySQL 8 (`KEY ((lower(x)))`), `SRID`, `COMPRESSED` de MariaDB y otras
+  sintaxis de columna propias de un servidor tampoco.
+- Una vista con funciones fuera de la lista no se restaura desde un archivo sin firma (el guardián lo rechaza, como
+  antes); firmado o registrado, sí. Una vista que usa una tabla que el respaldo no trae no se puede crear y se avisa.
+- La extracción de un sitio de la red viva (`Site_Extract`, exportador de un paso) no separa todavía las vistas: un
+  sitio con una vista de su prefijo no se puede extraer (como antes).
+- Disparadores, rutinas y eventos no viajan (decisión, ver arriba).
+
 ## Restauración por pasos
 
 Desde 1.0.64. El ensayo en un hosting real (`/var/tmp/digi-wt/bk-lab/LAB.md`: Webuzo con OpenLiteSpeed,
@@ -1177,8 +1281,8 @@ larga, 21,2 s, una de la copia previa; las de las fases, 15,5 s) ni de 64 MB (pi
 
 **Límites declarados.**
 
-- Las vistas SQL de un respaldo no se restauran por pasos: el renombrado a las tablas temporales las rechaza antes de la
-  copia previa, como E1 con otro prefijo. Una clave foránea con nombre que ya usa la tabla viva se crea con el nombre que
+- Las vistas no van a tablas temporales: se crean al final del cambio (ver «Restaurar en otro servidor de base de
+  datos»). Disparadores, rutinas y eventos no se respaldan ni se restauran. Una clave foránea con nombre que ya usa la tabla viva se crea con el nombre que
   pone MySQL. Una tabla viva que no está en el respaldo y tiene una clave foránea hacia una que sí sigue a su padre
   renombrado (InnoDB) y queda apuntando a la tabla vieja: la limpieza no puede borrarla y lo avisa (no probado en MySQL).
 - La copia previa va por tramos de T2, así que su base de datos puede salir tabla por tabla con el sitio abierto (sin una
@@ -1385,7 +1489,7 @@ datos.
 
 **Límites declarados.** La verificación y la copia previa cuestan lo mismo que en la completa (todo el paquete y todo
 el sitio), aunque se restaure un plugin. El plan de reubicación se calcula y sus problemas rechazan el respaldo también
-sin la base de datos (las mismas reglas). Las vistas SQL sólo impiden restaurar la base de datos. No probado en MySQL
+sin la base de datos (las mismas reglas). No probado en MySQL
 real ni en el hosting del laboratorio.
 
 ## Extraer un sitio de la red

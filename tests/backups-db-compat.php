@@ -436,6 +436,44 @@ dc_case( 'C8 de punta a punta: respaldo de MySQL 8 con vista, columnas generadas
 	}
 } );
 
+dc_case( 'C9 lo que dice el servidor: nombres completos de MariaDB 10.10+, motores disponibles y max_allowed_packet', function() use ( $C, $G ) {
+	$previous = $GLOBALS['wpdb'];
+	$GLOBALS['wpdb'] = new class() {
+		public $last_error = '';
+		public function db_server_info() { return '10.11.14-MariaDB-0ubuntu0.24.04.1'; }
+		public function db_version() { return '10.11.14'; }
+		public function suppress_errors( $s = true ) { return false; }
+		public function get_var( $q ) { return 'SELECT @@max_allowed_packet' === $q ? '16777216' : null; }
+		public function get_results( $q, $f ) {
+			if ( 'SHOW CHARACTER SET' === $q ) return array( array( 'Charset' => 'utf8mb4', 'Default collation' => 'utf8mb4_general_ci' ), array( 'Charset' => 'utf8mb3', 'Default collation' => 'utf8mb3_general_ci' ) );
+			if ( 'SHOW COLLATION' === $q ) return array( array( 'Collation' => 'utf8mb4_unicode_520_ci', 'Charset' => 'utf8mb4' ), array( 'Collation' => 'uca1400_ai_ci', 'Charset' => null ), array( 'Collation' => 'utf8mb3_general_ci', 'Charset' => 'utf8mb3' ) );
+			if ( false !== strpos( $q, 'COLLATION_CHARACTER_SET_APPLICABILITY' ) ) return array( array( 'COLLATION_NAME' => 'uca1400_ai_ci', 'CHARACTER_SET_NAME' => 'utf8mb4', 'FULL_COLLATION_NAME' => 'utf8mb4_uca1400_ai_ci' ), array( 'COLLATION_NAME' => 'uca1400_ai_ci', 'CHARACTER_SET_NAME' => 'utf8mb3', 'FULL_COLLATION_NAME' => 'utf8mb3_uca1400_ai_ci' ) );
+			if ( 'SHOW ENGINES' === $q ) return array( array( 'Engine' => 'InnoDB', 'Support' => 'DEFAULT' ), array( 'Engine' => 'Aria', 'Support' => 'YES' ), array( 'Engine' => 'FEDERATED', 'Support' => 'NO' ) );
+			return array();
+		}
+	};
+	try {
+		$server = $C::server( true );
+		dc_check( 'mariadb' === $server['kind'] && 16777216 === $server['packet'] && 'INNODB' === $server['default_engine'], 'No leyó el tipo, el paquete o el motor de serie: ' . json_encode( $server ) );
+		dc_check( 'utf8mb4' === ( $server['collations']['utf8mb4_uca1400_ai_ci'] ?? '' ) && ! isset( $server['collations']['uca1400_ai_ci'] ), 'No leyó el nombre completo de las intercalaciones UCA 14 de MariaDB: ' . json_encode( $server['collations'] ) );
+		dc_check( isset( $server['engines']['ARIA'] ) && ! isset( $server['engines']['FEDERATED'] ), 'Un motor que el servidor no da (NO) cuenta como disponible.' );
+		// Con eso, un respaldo de MariaDB 11 (uca1400) no se toca aquí.
+		$found = array( 'collations' => array( 'utf8mb4_uca1400_ai_ci' => array( 'wp_x' ) ) );
+		dc_check( ! $C::plan( $found, $server )['collations'], 'Se sustituyó una intercalación que MariaDB 10.11 sí tiene.' );
+	} finally {
+		$GLOBALS['wpdb'] = $previous;
+		$C::server( true );
+	}
+	// Conversión de una red: las vistas del sitio viajan con él; las de otros sitios, no.
+	dc_check( $C::site_owns( 'wp_2_v', 'wp_2_', 'wp_' ) && ! $C::site_owns( 'wp_3_v', 'wp_2_', 'wp_' ) && ! $C::site_owns( 'wp_v', 'wp_2_', 'wp_' ), 'Vistas de un sitio de la red mal repartidas.' );
+	dc_check( $C::site_owns( 'wp_v', 'wp_', 'wp_' ) && ! $C::site_owns( 'wp_2_v', 'wp_', 'wp_' ) && ! $C::site_owns( 'otra_v', 'wp_', 'wp_' ), 'Vistas del sitio principal mal repartidas.' );
+	// Y la conversión la deja lista para el paquete: los usuarios con el nombre del sitio, sin DEFINER.
+	$guard = ( new $G( 'exporter', true, array( 'wp_users', 'wp_2_posts', 'wp_2_v' ) ) )->views( 'rewrite' );
+	$guard->rename_tables( array( 'wp_users' => 'wp_2_users' ) );
+	$guard->check( 'CREATE ALGORITHM=UNDEFINED DEFINER=`red`@`%` SQL SECURITY DEFINER VIEW `wp_2_v` AS select `p`.`ID` AS `ID`,`u`.`user_login` AS `l` from (`wp_2_posts` `p` join `wp_users` `u` on((`u`.`ID` = `p`.`ID`)))' );
+	dc_check( 'CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `wp_2_v` AS select `p`.`ID` AS `ID`,`u`.`user_login` AS `l` from (`wp_2_posts` `p` join `wp_2_users` `u` on((`u`.`ID` = `p`.`ID`)))' === $guard->rewritten(), 'La vista convertida no quedó lista: ' . $guard->rewritten() );
+} );
+
 bk_cleanup();
 if ( $failures ) { echo "FALLA: " . $failures . " caso(s) de compatibilidad de la base de datos.\n"; exit( 1 ); }
 echo "DIGITALÍSIMO Backups: compatibilidad de la base de datos (intercalaciones, juegos de caracteres, motores, opciones, columnas generadas, vistas, sesión y versiones) en orden.\n";
