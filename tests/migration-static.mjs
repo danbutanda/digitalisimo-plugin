@@ -156,7 +156,14 @@ check(/data\.wait_network/.test(js) && /POLL = 15000/.test(js) && /MIN_SITE = 50
 check(/function analyze\(\)/.test(js) && /data-action/.test(js) && /digi-migrate__analysis/.test(js), 'La pantalla conduce el análisis previo por trozos.');
 check(/'wait_network'\s*=>\s*! empty\( \$state\['wait_network'\] \)/.test(runner), 'La respuesta del paso dice wait_network.');
 check(/Esperando a la migración de la red\./.test(read(join(legacy, 'class-cli.php'))), 'WP-CLI ante wait_network lo dice y sale sin relanzar.');
-check(/Requires Plugins: digitalisimo-elements/.test(read(join(root, 'digitalisimo-migration.php'))) && /Prime Slider/.test(read(join(root, 'digitalisimo-migration.php'))), 'La descripción del plugin nombra también Prime Slider (y sigue exigiendo Elements).');
+check(!/Requires Plugins/.test(read(join(root, 'digitalisimo-migration.php'))) && /Prime Slider/.test(read(join(root, 'digitalisimo-migration.php'))), 'La descripción del plugin nombra también Prime Slider y Migración se activa sola, sin exigir Elements (regla del propietario del 2026-11-18: Migrar lo instala).');
+{
+  const boot = read(join(root, 'includes', 'class-plugin.php'));
+  const at = boot.indexOf("if ( ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) )");
+  check(at > 0 && boot.indexOf('Full::init()') > 0 && boot.indexOf('Full::init()') < at && /Screen::init\(\)/.test(boot.slice(at, boot.indexOf('return;', at))) && !/missing_elements/.test(boot), 'Sin Elements, Migración carga la tarea completa, su pantalla y WP-CLI (ya no se queda en el aviso «necesita Elements»).');
+  check(/class_exists\( '\\\\Digitalisimo\\\\Migration\\\\Full' \)/.test(runner), 'El paso AJAX lo recibe la tarea completa; Runner sólo lo registra sin ella.');
+  check((js.match(/data\.again/g) || []).length >= 1, 'La pantalla de red avanza sin esperar 15 s en las etapas de la tarea completa.');
+}
 check(/ELEMENTS_MIN = '4\.3\.0\.170'/.test(runner), 'Migrar exige DIGITALÍSIMO Elements 4.3.0.170.');
 
 console.log(`DIGITALÍSIMO Migración: comprobaciones estáticas de F8: ${checks} en verde.`);
