@@ -265,13 +265,16 @@ trait Digitalisimo_Backups_Updraft_Service {
 	 * red, en la de `sitemeta`) si la base que entra no lo tiene: un conjunto de UpdraftPlus o de Backuply de un sitio sin
 	 * Backups. Tras el cambio, los ticks cargan WordPress mínimo con sólo este plugin y sólo si la base lo tiene activo: sin
 	 * esto, una restauración que necesita más de una petición se quedaba en mantenimiento. Como UpdraftPlus, que se deja
-	 * activo al restaurar. Lo mejor posible: nunca aborta el cambio.
+	 * activo al restaurar. Sólo con el respaldo de otra instalación (el de este mismo sitio vuelve tal cual, como H23) y si
+	 * aquí está activo. Lo mejor posible: nunca aborta el cambio.
 	 */
-	private static function restore_preswap_keep_self( array $tables ) {
+	private static function restore_preswap_keep_self( array $tables, $file ) {
 		global $wpdb;
 		try {
+			if ( self::keep_config_same_installation( $file ) ) return;
 			$plugin = Digitalisimo_Backups_Restore_Maintenance::plugin();
 			$network = is_multisite() && isset( ( (array) get_site_option( 'active_sitewide_plugins', array() ) )[ $plugin ] );
+			if ( ! $network && ! in_array( $plugin, (array) get_option( 'active_plugins', array() ), true ) ) return;
 			$want = (string) $wpdb->base_prefix . ( $network ? 'sitemeta' : 'options' );
 			$temp = '';
 			foreach ( $tables as $row ) if ( $want === (string) ( $row['dest'] ?? '' ) ) $temp = (string) $row['temp'];

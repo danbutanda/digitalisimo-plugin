@@ -336,6 +336,8 @@ ud_case( 'U2 importación por tramos a un ZIP v3 sin firma, «Importado» en la 
 ud_case( 'U3 restaurar el importado en otro dominio, otra ruta y otro prefijo', function() use ( $dest, $abspath, $set, &$converted, $config_before, $core_before, $updraft_dir ) {
 	ud_check( '' !== $converted, 'No hay ZIP convertido (falló U2).' );
 	ud_check( is_wp_error( Digitalisimo_Backups::service_restore( $converted, array( 'confirm' => 'RESTAURAR' ) ) ), 'Se restauró un importado sin firma con RESTAURAR.' );
+	// Backups está activo en este sitio (el conjunto viene de un sitio sin él).
+	$GLOBALS['bk_options']['active_plugins'] = array( Digitalisimo_Backups_Restore_Maintenance::plugin() );
 	$result = Digitalisimo_Backups::service_restore( $converted, array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
 	ud_check( ! is_wp_error( $result ), 'La restauración falló: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
 	$opt = function( $option ) use ( $dest ) { return $dest->value( 'wp_options', 'option_value', "option_name = '" . $option . "'" ); };

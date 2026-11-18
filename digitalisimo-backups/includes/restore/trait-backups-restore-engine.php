@@ -1718,7 +1718,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 				self::restore_preswap_storage( $tables, $storage_before );
 				// Y este plugin, activo en la base que entra (un conjunto de UpdraftPlus o de Backuply no lo trae activo): tras
 				// el cambio, los ticks en WordPress mínimo sólo cargan este plugin si la base lo tiene activo (si no, se pararían).
-				self::restore_preswap_keep_self( $tables );
+				self::restore_preswap_keep_self( $tables, (string) ( $job['spec']['file'] ?? '' ) );
 				self::write_restore_journal( $origin, $kept );
 				try {
 					if ( false === @file_put_contents( $marker, (string) time() ) ) throw new Exception( 'No se pudo anotar el cambio de tablas en el área de trabajo.' );
