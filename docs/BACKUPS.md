@@ -1151,10 +1151,21 @@ error de sintaxis. Las 33 mutaciones del código nuevo hacen fallar alguna prueb
 
 **Límites declarados.**
 
-- Una intercalación sustituida puede comparar distinto: `utf8mb4_0900_ai_ci` no rellena espacios y
-  `utf8mb4_unicode_520_ci` sí, y sus tablas de pesos son de versiones distintas de Unicode. Dos valores que en el origen
-  eran distintos en una clave única pueden chocar en el destino; entonces la importación falla con «Duplicate entry»
-  antes del cambio, con el sitio intacto (después de la copia previa). Es raro y no se detecta en la verificación.
+- Una intercalación sustituida puede comparar distinto. Lo que se detecta (revisión de 1.0.80, H4): las `_0900_` de
+  MySQL 8 no rellenan con espacios al comparar (NO PAD) y las que las sustituyen en MariaDB (`utf8mb4_unicode_520_ci`,
+  `utf8mb4_bin`) sí (PAD SPACE), así que «abc» y «abc » chocan en una clave única. Eso sólo puede pasar si algún valor
+  de la clave termina en espacio: la pasada en seco mira, sólo en las claves únicas (y la primaria) con columnas de texto
+  NO PAD, si algún valor termina en espacio, sin guardar ningún valor (también si las filas llegan en otro tramo que su
+  `CREATE TABLE`). Si la decisión pasa esa intercalación a una PAD SPACE, `verify` y el registro del trabajo lo avisan
+  antes de la copia previa con la tabla, la clave y cuántas filas, y proponen la intercalación NO PAD que el servidor
+  tenga (`utf8mb4_unicode_520_nopad_ci` en MariaDB) con el filtro `digitalisimo_backups_restore_collation`, o quitar
+  esos espacios en el origen; elegida una NO PAD, el aviso desaparece. No bloquea: sólo choca si el respaldo trae también
+  el mismo valor sin los espacios, y saberlo con certeza exigiría guardar todas las claves de la tabla; si choca, la
+  importación falla con «Duplicate entry» antes del cambio, con el sitio intacto (después de la copia previa). Lo que no
+  se detecta: las tablas de pesos son de versiones distintas de Unicode (UCA 9.0.0 frente a 5.2.0), y dos valores
+  distintos en el origen por otra diferencia de pesos podrían chocar igual (muy raro); tampoco se vigila una columna
+  con otro juego de caracteres y sin intercalación (no se sabe cuál era la de serie en el origen) ni una clave sobre
+  una expresión (índice funcional).
 - Las particiones (`/*!50100 PARTITION BY … ENGINE = … */`) y las opciones dentro de comentarios ejecutables no se
   sustituyen; los índices funcionales de MySQL 8 (`KEY ((lower(x)))`), `SRID`, `COMPRESSED` de MariaDB y otras
   sintaxis de columna propias de un servidor tampoco.

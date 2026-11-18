@@ -616,6 +616,8 @@ class Dc_Site_DB extends Bk_Test_DB {
 	public $packet = 0;
 	public $views = array();
 	public $fail_finish = '';
+	/** Filas de las tablas de extra_tables: nombre => array( columna de la clave primaria, filas ). */
+	public $rows = array();
 	public function tables() { return array_merge( parent::tables(), array_keys( $this->views ) ); }
 	public function db_server_info() { return $this->info; }
 	public function get_var( $query ) {
@@ -629,6 +631,11 @@ class Dc_Site_DB extends Bk_Test_DB {
 	public function get_results( $query, $format ) {
 		$this->last_error = '';
 		if ( "SHOW FULL TABLES WHERE Table_type = 'VIEW'" === $query ) return array_map( function( $name ) { return array( $name, 'VIEW' ); }, array_keys( $this->views ) );
+		foreach ( $this->rows as $table => $data ) {
+			if ( false === strpos( $query, '`' . $table . '`' ) ) continue;
+			if ( false !== strpos( $query, 'SHOW INDEX' ) ) return array( array( 'Key_name' => 'PRIMARY', 'Column_name' => $data[0], 'Non_unique' => 0, 'Seq_in_index' => 1 ) );
+			return bk_page( $data[1], $query, $data[0] );
+		}
 		return parent::get_results( $query, $format );
 	}
 	public function query( $sql ) {
@@ -689,6 +696,98 @@ function dc_largest_insert( $file ) {
 	$zip->close();
 	return $largest;
 }
+
+/**
+ * C15 (revisión de 1.0.80, H4): una clave única de texto con una intercalación NO PAD de MySQL 8 (`_0900_`) que la
+ * decisión pasa a una PAD SPACE (MariaDB no tiene las `_0900_`): «abc» y «abc » chocarían. La pasada en seco mira, sólo
+ * en esas claves, si algún valor termina en espacio (sin guardar valores) y la decisión lo avisa antes de la copia
+ * previa, con la intercalación NO PAD que el servidor tenga. También si las filas llegan en otro tramo que su CREATE
+ * TABLE, en verify y en el registro del trabajo.
+ */
+$GLOBALS['dc_slugs'] = "CREATE TABLE `wp_slugs` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `slug` varchar(191) NOT NULL,\n  `code` varchar(20) COLLATE utf8mb4_bin DEFAULT NULL,\n  `ref` varchar(20) COLLATE utf8mb4_0900_bin DEFAULT NULL,\n  `n` int DEFAULT NULL,\n  `note` text,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `slug` (`slug`(100)),\n  UNIQUE KEY `code` (`code`),\n  UNIQUE KEY `ref_n` (`ref`,`n`),\n  KEY `note` (`note`(10)),\n  CONSTRAINT `fk` FOREIGN KEY (`slug`) REFERENCES `wp_posts` (`ID`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci";
+dc_case( 'C15 NO PAD → PAD SPACE: valores con espacios al final en una clave única, avisados en la verificación', function() use ( $C, $G, $mariadb, $mysql ) {
+	$create = $GLOBALS['dc_slugs'];
+	$inserts = array(
+		"INSERT INTO `wp_slugs` (`id`,`slug`,`code`,`ref`,`n`,`note`) VALUES ('1','abc','x ','r','1','nota ')",
+		"INSERT INTO `wp_slugs` (`id`,`slug`,`code`,`ref`,`n`,`note`) VALUES ('2','abc ','y','s ','2',NULL)",
+		"INSERT INTO `wp_slugs` (`id`,`slug`,`code`,`ref`,`n`,`note`) VALUES ('3','d\\'e  ','z','t','3','x')",
+	);
+	$tables = array( 'wp_slugs', 'wp_posts' );
+	$scan = ( new $G( 'exporter', true, $tables ) )->collect();
+	$scan->check( $create );
+	foreach ( $inserts as $insert ) $scan->check( $insert );
+	$found = $scan->found();
+	dc_check( array( 'slug', 'ref_n' ) === array_keys( (array) ( $found['pad_watch']['wp_slugs'] ?? array() ) ) && array( 'slug' => 'utf8mb4_0900_ai_ci' ) === $found['pad_watch']['wp_slugs']['slug'] && array( 'ref' => 'utf8mb4_0900_bin' ) === $found['pad_watch']['wp_slugs']['ref_n'], 'No se vigilan justo las claves únicas NO PAD (ni la primaria entera, ni la PAD, ni la foránea, ni un índice normal): ' . json_encode( $found['pad_watch'] ?? null ) );
+	dc_check( 2 === ( $found['trailing']['wp_slugs']['slug']['rows'] ?? 0 ) && 1 === ( $found['trailing']['wp_slugs']['ref_n']['rows'] ?? 0 ) && ! isset( $found['trailing']['wp_slugs']['code'] ), 'Las filas con espacios al final no se contaron bien: ' . json_encode( $found['trailing'] ?? null ) );
+	dc_check( false === strpos( json_encode( $found ), 'abc' ), 'La pasada en seco guardó valores de la base de datos.' );
+	$to_maria = $C::plan( $found, $mariadb );
+	$warnings = preg_grep( '/clave única/', $to_maria['warnings'] );
+	dc_check( 2 === count( $warnings ) && preg_grep( '/^La tabla wp_slugs tiene 2 fila\(s\) en las que la clave única slug \(slug\) termina en espacio: utf8mb4_0900_ai_ci .*utf8mb4_unicode_520_ci.*PAD SPACE.*Duplicate entry.*después de la copia previa.*digitalisimo_backups_restore_collation.*utf8mb4_unicode_520_nopad_ci/', $warnings ) && preg_grep( '/clave única ref_n \(ref\).*utf8mb4_0900_bin.*utf8mb4_bin/', $warnings ), 'MySQL 8 → MariaDB no avisó de la clave única que puede chocar: ' . json_encode( $to_maria['warnings'] ) );
+	dc_check( ! $to_maria['problems'], 'El aviso no debe impedir la restauración.' );
+	// En MySQL 8 la intercalación no cambia: nada que avisar. Sin espacios al final, tampoco.
+	dc_check( ! preg_grep( '/clave única/', $C::plan( $found, $mysql )['warnings'] ), 'Se avisó sin cambiar la intercalación.' );
+	$clean = ( new $G( 'exporter', true, $tables ) )->collect();
+	$clean->check( $create );
+	$clean->check( "INSERT INTO `wp_slugs` (`id`,`slug`,`code`,`ref`,`n`,`note`) VALUES ('1','abc','x ','r','1','nota ')" );
+	dc_check( ! preg_grep( '/clave única/', $C::plan( $clean->found(), $mariadb )['warnings'] ), 'Se avisó sin ningún valor con espacios al final en una clave NO PAD.' );
+	// Con el remedio que propone (el filtro elige una NO PAD que el servidor tiene), esa clave ya no se avisa.
+	$GLOBALS['bk_filters']['digitalisimo_backups_restore_collation'] = function( $chosen, $from ) { return 'utf8mb4_0900_ai_ci' === $from ? 'utf8mb4_unicode_520_nopad_ci' : $chosen; };
+	try {
+		$nopad = $C::plan( $found, $mariadb );
+		dc_check( 'utf8mb4_unicode_520_nopad_ci' === ( $nopad['collations']['utf8mb4_0900_ai_ci'] ?? '' ) && ! preg_grep( '/clave única slug/', $nopad['warnings'] ) && preg_grep( '/clave única ref_n/', $nopad['warnings'] ), 'Con una intercalación NO PAD elegida se siguió avisando (o se dejó de avisar de la otra): ' . json_encode( $nopad['warnings'] ) );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_restore_collation'] );
+	}
+	// Un servidor sin ninguna intercalación NO PAD (MySQL 5.7): lo dice.
+	$mysql57 = $mysql;
+	foreach ( array_keys( $mysql57['collations'] ) as $name ) if ( false !== strpos( $name, '0900' ) ) unset( $mysql57['collations'][ $name ] );
+	dc_check( preg_grep( '/no tiene ninguna intercalación NO PAD de utf8mb4/', $C::plan( $found, $mysql57 )['warnings'] ), 'Sin intercalaciones NO PAD, el aviso no dice qué hacer.' );
+	// Por tramos: el CREATE TABLE en uno y las filas en el siguiente (la vigilancia pasa por lo anotado).
+	$first = ( new $G( 'exporter', true, $tables ) )->collect();
+	$first->check( $create );
+	$GLOBALS['bk_filters']['digitalisimo_backups_db_server'] = $mariadb;
+	try {
+		$C::server( true );
+		$second = $C::attach_scan( new $G( 'exporter', true, $tables ), array(), $first->found() );
+		foreach ( $inserts as $insert ) $second->check( $insert );
+		$merged = $C::merge( $first->found(), $second->found() );
+		dc_check( 2 === ( $merged['trailing']['wp_slugs']['slug']['rows'] ?? 0 ) && preg_grep( '/clave única slug/', $C::plan( $merged, $mariadb )['warnings'] ), 'Con las filas en otro tramo no se vio la clave que puede chocar: ' . json_encode( $merged['trailing'] ?? null ) );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_db_server'] );
+		$C::server( true );
+	}
+	// De punta a punta: un respaldo de MySQL 8 con esa tabla, verificado y restaurado en MariaDB 10.11.
+	$previous = $GLOBALS['wpdb'];
+	$db = new Dc_Site_DB();
+	$db->info = '8.0.46-0ubuntu0.24.04.1';
+	$db->extra_tables['wp_slugs'] = $create;
+	$db->rows['wp_slugs'] = array( 'id', array( array( 'id' => '1', 'slug' => 'abc', 'code' => 'x', 'ref' => 'r', 'n' => '1', 'note' => null ), array( 'id' => '2', 'slug' => 'abc ', 'code' => 'y', 'ref' => 's', 'n' => '2', 'note' => null ) ) );
+	$GLOBALS['wpdb'] = $db;
+	try {
+		$C::server( true );
+		$backup = bk_backup( true );
+		$GLOBALS['bk_filters']['digitalisimo_backups_db_server'] = $mariadb;
+		$C::server( true );
+		$db->info = '10.11.14-MariaDB-0ubuntu0.24.04.1';
+		$GLOBALS['bk_caps'] = array( 'manage_options' => true, 'manage_network_options' => true );
+		$verify = Digitalisimo_Backups::service_verify( basename( $backup ) );
+		dc_check( ! is_wp_error( $verify ) && preg_grep( '/^La tabla wp_slugs tiene 1 fila\(s\) en las que la clave única slug/', (array) $verify['database']['warnings'] ), 'verify no avisa de la clave única que puede chocar: ' . json_encode( is_wp_error( $verify ) ? $verify->get_error_message() : ( $verify['database'] ?? null ) ) );
+		// Una sentencia por tramo: el CREATE TABLE y sus filas, en tramos distintos de la pasada en seco.
+		$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 1;
+		try {
+			$outcome = dc_restore( $backup );
+		} finally {
+			unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+		}
+		$restore = end( $outcome['jobs'] );
+		$texts = array_map( function( $w ) { return is_array( $w ) ? (string) ( $w['text'] ?? '' ) : (string) $w; }, (array) ( $restore['warnings'] ?? array() ) );
+		dc_check( $restore && preg_grep( '/^La tabla wp_slugs tiene 1 fila\(s\) en las que la clave única slug/', $texts ), 'El trabajo no avisó al terminar la verificación: ' . json_encode( array( $restore['status'] ?? null, $texts ) ) );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_db_server'] );
+		$GLOBALS['wpdb'] = $previous;
+		$C::server( true );
+	}
+} );
 
 /**
  * C11 (H3, M09 y M12): un respaldo anterior (de un exportador de un paso) escribía una vista como tabla: su DROP TABLE,

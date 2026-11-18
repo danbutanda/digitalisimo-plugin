@@ -238,6 +238,12 @@ final class Digitalisimo_Backups_Db_Compat {
 		}
 		foreach ( (array) ( $b['generated'] ?? array() ) as $table => $columns ) $a['generated'][ $table ] = array_values( array_unique( array_merge( (array) ( $a['generated'][ $table ] ?? array() ), (array) $columns ) ) );
 		foreach ( (array) ( $b['row_formats'] ?? array() ) as $engine => $formats ) foreach ( (array) $formats as $format => $tables ) $a['row_formats'][ $engine ][ $format ] = array_slice( array_values( array_unique( array_merge( (array) ( $a['row_formats'][ $engine ][ $format ] ?? array() ), (array) $tables ) ) ), 0, 20 );
+		// H4: las claves únicas NO PAD vigiladas (pasan al tramo siguiente) y las filas con espacios al final.
+		foreach ( (array) ( $b['pad_watch'] ?? array() ) as $table => $keys ) if ( isset( $a['pad_watch'][ $table ] ) || count( (array) ( $a['pad_watch'] ?? array() ) ) < 200 ) $a['pad_watch'][ $table ] = $keys;
+		foreach ( (array) ( $b['trailing'] ?? array() ) as $table => $keys ) {
+			if ( ! isset( $a['trailing'][ $table ] ) && count( (array) ( $a['trailing'] ?? array() ) ) >= self::CAP ) continue;
+			foreach ( (array) $keys as $key => $info ) $a['trailing'][ $table ][ $key ] = array( 'columns' => (array) ( $info['columns'] ?? array() ), 'rows' => (int) ( $a['trailing'][ $table ][ $key ]['rows'] ?? 0 ) + (int) ( $info['rows'] ?? 0 ) );
+		}
 		foreach ( array( 'views', 'plugins', 'themes', 'four_byte' ) as $kind ) {
 			foreach ( (array) ( $b[ $kind ] ?? array() ) as $name => $value ) if ( isset( $a[ $kind ][ $name ] ) || count( (array) ( $a[ $kind ] ?? array() ) ) < self::CAP * 4 ) $a[ $kind ][ $name ] = $value;
 		}
@@ -287,6 +293,23 @@ final class Digitalisimo_Backups_Db_Compat {
 				$plan['collations'][ $collation ] = $closest;
 				$plan['notes'][] = 'Intercalación ' . $collation . ' → ' . $closest . ' (' . $list( (array) $tables ) . '): ' . $label . ' no la tiene.';
 			}
+			// Una clave única de texto NO PAD (`_0900_`) que pasa a una intercalación PAD SPACE: «abc» y «abc » serían el mismo
+			// valor. Sólo puede chocar si algún valor termina en espacio, y eso se miró en la pasada en seco (revisión de
+			// 1.0.80, H4): se dice antes de la copia previa, con qué hacer.
+			$warned = 0;
+			foreach ( (array) ( $found['trailing'] ?? array() ) as $table => $keys ) {
+				foreach ( (array) $keys as $key => $info ) {
+					$changed = array();
+					foreach ( (array) ( $info['columns'] ?? array() ) as $column => $collation ) {
+						$collation = strtolower( (string) $collation );
+						$target = $plan['collations'][ $collation ] ?? null;
+						if ( null !== $target && Digitalisimo_Backups_Sql_Guard::no_pad( $collation ) && ! Digitalisimo_Backups_Sql_Guard::no_pad( $target ) ) $changed[ (string) $column ] = array( $collation, (string) $target );
+					}
+					if ( ! $changed || ++$warned > 5 ) continue;
+					$first = reset( $changed );
+					$plan['warnings'][] = 'La tabla ' . $table . ' tiene ' . (int) ( $info['rows'] ?? 0 ) . ' fila(s) en las que la clave única ' . $key . ' (' . implode( ', ', array_keys( $changed ) ) . ') termina en espacio: ' . $first[0] . ' no rellena con espacios al comparar (NO PAD) y ' . $first[1] . ', la que la sustituye en ' . $label . ', sí (PAD SPACE), así que «abc» y «abc » serían el mismo valor. Si el respaldo trae también ese valor sin los espacios del final, la importación fallará con «Duplicate entry» después de la copia previa (antes del cambio: el sitio sigue intacto). ' . self::nopad_hint( self::charset_of( $first[1], $server ), $server );
+				}
+			}
 		}
 		// Motores.
 		if ( is_array( $server['engines'] ?? null ) && $server['engines'] ) {
@@ -334,6 +357,15 @@ final class Digitalisimo_Backups_Db_Compat {
 		$plan['drop_options'] = array_values( array_unique( $plan['drop_options'] ) );
 		return $plan;
 	}
+	/** Qué hacer con una clave única que puede chocar al pasar a PAD SPACE: la intercalación NO PAD que haya aquí, si la hay. */
+	private static function nopad_hint( $charset, array $server ) {
+		$charset = strtolower( (string) $charset );
+		$nopad = array();
+		foreach ( array_keys( (array) ( $server['collations'] ?? array() ) ) as $name ) if ( Digitalisimo_Backups_Sql_Guard::no_pad( $name ) && self::same_charset( self::charset_of( $name, $server ), $charset ) ) $nopad[] = (string) $name;
+		foreach ( array( $charset . '_unicode_520_nopad_ci', $charset . '_uca1400_nopad_ai_ci' ) as $preferred ) if ( in_array( $preferred, $nopad, true ) ) { $nopad = array( $preferred ); break; }
+		if ( $nopad ) return 'Para evitarlo, elige con el filtro digitalisimo_backups_restore_collation una intercalación NO PAD de este servidor (por ejemplo, ' . $nopad[0] . ') o quita esos espacios en el origen antes de respaldar.';
+		return 'Este servidor no tiene ninguna intercalación NO PAD de ' . $charset . ': quita esos espacios en el origen antes de respaldar, o restaura en un servidor que tenga la original.';
+	}
 	private static function server_label( array $server ) {
 		$kind = array( 'mysql' => 'MySQL', 'mariadb' => 'MariaDB', 'sqlite' => 'SQLite' )[ (string) ( $server['kind'] ?? '' ) ] ?? '';
 		$version = (string) ( $server['version'] ?? '' );
@@ -354,13 +386,14 @@ final class Digitalisimo_Backups_Db_Compat {
 
 	/**
 	 * La pasada en seco anota lo necesario. $data: el manifiesto (vistas declaradas). Con un servidor sin utf8mb4 mira
-	 * además qué tablas traen caracteres de 4 bytes.
+	 * además qué tablas traen caracteres de 4 bytes. $found: lo que anotaron los tramos anteriores.
 	 */
-	public static function attach_scan( $guard, array $data = array() ) {
+	public static function attach_scan( $guard, array $data = array(), array $found = array() ) {
 		if ( ! method_exists( $guard, 'collect' ) ) return $guard;
 		$server = self::is_sqlite() ? array() : self::server();
 		$four = is_array( $server['charsets'] ?? null ) && $server['charsets'] && null === self::charset_available( 'utf8mb4', $server );
-		$guard->collect( array( 'four_byte' => $four ) );
+		// $found: lo anotado por los tramos anteriores (las claves NO PAD de una tabla cuyas filas siguen en este).
+		$guard->collect( array( 'four_byte' => $four, 'pad_watch' => (array) ( $found['pad_watch'] ?? array() ) ) );
 		$guard->views( 'defer', self::declared_views( $data ) );
 		return $guard;
 	}

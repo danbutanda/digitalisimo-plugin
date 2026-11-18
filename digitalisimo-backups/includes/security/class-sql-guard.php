@@ -105,6 +105,11 @@ final class Digitalisimo_Backups_Sql_Guard {
 	private $collecting = false;
 	private $found = array();
 	private $four_byte = false;
+	/**
+	 * Claves únicas con columnas de texto de una intercalación NO PAD (`_0900_`, `_nopad_`), por tabla: sus INSERT se
+	 * miran por si algún valor termina en espacio (revisión de 1.0.80, H4). Pasa de un tramo al siguiente por found().
+	 */
+	private $pad_watch = array();
 	private $compat = array();
 	private $views_mode = '';
 	private $declared_views = array();
@@ -505,6 +510,7 @@ final class Digitalisimo_Backups_Sql_Guard {
 		$this->end();
 		if ( $record ) $this->insert = array( 'table' => $table, 'columns' => $columns, 'rows' => $rows );
 		if ( $this->collecting && null !== $columns ) $this->collect_insert( $table, $columns, $rows );
+		if ( $this->collecting && null !== $columns && isset( $this->pad_watch[ $table ] ) ) $this->collect_padding( $table, $columns, $rows );
 	}
 	/** Comprueba un literal y lo describe para el gancho de INSERT (ver on_insert()). */
 	private function literal() {
@@ -612,6 +618,8 @@ final class Digitalisimo_Backups_Sql_Guard {
 	public function collect( array $options = array() ) {
 		$this->collecting = true;
 		$this->four_byte = ! empty( $options['four_byte'] );
+		// Lo que un tramo anterior de la pasada en seco ya vio de cada CREATE TABLE (sus INSERT pueden venir en este).
+		foreach ( (array) ( $options['pad_watch'] ?? array() ) as $table => $keys ) if ( is_array( $keys ) ) $this->pad_watch[ (string) $table ] = $keys;
 		return $this;
 	}
 	public function found() { return $this->found; }
@@ -687,6 +695,20 @@ final class Digitalisimo_Backups_Sql_Guard {
 		$engine_target = '';
 		$row_format = null;
 		$found = array();
+		// Para H4: tipo, juego de caracteres e intercalación de cada columna, las claves únicas y lo de la tabla.
+		$columns = array();
+		$type = null;
+		$column_charset = null;
+		$column_collation = null;
+		$key = null;
+		$keys = array();
+		$table_charset = null;
+		$table_collation = null;
+		$close_element = function() use ( &$column, &$type, &$column_charset, &$column_collation, &$key, &$keys, &$columns ) {
+			if ( null !== $column ) $columns[ $column ] = array( 'type' => $type, 'charset' => $column_charset, 'collation' => $column_collation );
+			if ( is_array( $key ) && ! empty( $key['done'] ) && ! empty( $key['unique'] ) && $key['columns'] ) $keys[] = $key;
+			$type = $column_charset = $column_collation = $key = null;
+		};
 		while ( true ) {
 			$token = $this->next();
 			if ( 'end' === $token[0] ) break;
@@ -698,12 +720,16 @@ final class Digitalisimo_Backups_Sql_Guard {
 				if ( '(' === $token[1] ) {
 					$depth++;
 					if ( 1 === $depth && ! $opened ) { $opened = true; $element = true; }
+					// La lista de columnas de una clave única.
+					if ( 2 === $depth && is_array( $key ) && empty( $key['open'] ) && empty( $key['done'] ) ) $key['open'] = true;
 				} elseif ( ')' === $token[1] ) {
 					if ( 1 === $depth && $generated && null !== $column ) $found['generated'][] = $column;
-					if ( 1 === $depth ) { $column = null; $generated = false; }
+					if ( 1 === $depth ) { $close_element(); $column = null; $generated = false; }
+					if ( 2 === $depth && is_array( $key ) && ! empty( $key['open'] ) ) { $key['open'] = false; $key['done'] = true; }
 					$depth = max( 0, $depth - 1 );
 				} elseif ( ',' === $token[1] && 1 === $depth ) {
 					if ( $generated && null !== $column ) $found['generated'][] = $column;
+					$close_element();
 					$element = true;
 					$column = null;
 					$generated = false;
@@ -713,6 +739,15 @@ final class Digitalisimo_Backups_Sql_Guard {
 			if ( $element && 1 === $depth ) {
 				$element = false;
 				if ( 'ident' === $token[0] ) $column = $token[1];
+				elseif ( 'word' === $token[0] && in_array( $token[1], array( 'PRIMARY', 'UNIQUE' ), true ) ) $key = array( 'name' => 'PRIMARY' === $token[1] ? 'PRIMARY' : '', 'columns' => array(), 'unique' => true );
+				// CONSTRAINT `x` PRIMARY KEY / UNIQUE …: única sólo si lo dice (no FOREIGN KEY ni CHECK).
+				elseif ( 'word' === $token[0] && 'CONSTRAINT' === $token[1] ) $key = array( 'name' => '', 'columns' => array(), 'unique' => false );
+				continue;
+			}
+			// Una columna de una clave única (en su lista, sin la longitud del prefijo) y el nombre de la clave.
+			if ( is_array( $key ) && 'ident' === $token[0] ) {
+				if ( 2 === $depth && ! empty( $key['open'] ) ) $key['columns'][] = $token[1];
+				elseif ( 1 === $depth && empty( $key['open'] ) && empty( $key['done'] ) && '' === $key['name'] ) $key['name'] = $token[1];
 				continue;
 			}
 			if ( '' !== $expect ) {
@@ -724,6 +759,9 @@ final class Digitalisimo_Backups_Sql_Guard {
 					$name = strtolower( $text[2] );
 					if ( preg_match( '/^[a-z0-9_]{1,64}$/D', $name ) ) $found[ $kind ][ $name ] = true;
 					if ( isset( $this->compat[ $kind ][ $name ] ) ) $this->spans[] = array( $text[0], $text[1], (string) $this->compat[ $kind ][ $name ] );
+					// De la columna (en su definición) o de la tabla (tras el paréntesis).
+					if ( 1 === $depth && null !== $column ) { if ( 'charsets' === $kind ) $column_charset = $name; else $column_collation = $name; }
+					elseif ( 0 === $depth && $opened ) { if ( 'charsets' === $kind ) $table_charset = $name; else $table_collation = $name; }
 				} elseif ( 'engines' === $kind ) {
 					$name = strtoupper( $text[2] );
 					if ( preg_match( '/^[A-Z0-9_]{1,64}$/D', $name ) ) { $found['engines'][ $name ] = true; $engine = $name; }
@@ -751,6 +789,12 @@ final class Digitalisimo_Backups_Sql_Guard {
 				}
 				continue;
 			}
+			if ( 1 === $depth && null !== $column && null === $type ) { $type = $word; continue; }
+			// Antes de su lista de columnas: si la restricción es única y, sin comillas invertidas, su nombre.
+			if ( 1 === $depth && is_array( $key ) && empty( $key['open'] ) && empty( $key['done'] ) ) {
+				if ( in_array( $word, array( 'PRIMARY', 'UNIQUE' ), true ) ) { $key['unique'] = true; if ( 'PRIMARY' === $word && '' === $key['name'] ) $key['name'] = 'PRIMARY'; }
+				elseif ( '' === $key['name'] && ! in_array( $word, array( 'KEY', 'INDEX', 'FOREIGN', 'CHECK' ), true ) ) $key['name'] = $word;
+			}
 			if ( 1 === $depth && null !== $column ) {
 				if ( 'GENERATED' === $word ) $generated = true;
 				elseif ( 'AS' === $word && $this->accept_punct( '(' ) ) { $generated = true; $depth++; }
@@ -765,11 +809,56 @@ final class Digitalisimo_Backups_Sql_Guard {
 		// fallar el CREATE TABLE después de la copia previa (revisión de 1.0.80, H5).
 		if ( $engine_mapped && is_array( $row_format ) && '' !== $row_format[2] && self::row_format_dropped( $row_format[2], $engine_target ) ) $this->spans[] = array( $row_format[0], $row_format[1], '' );
 		if ( ! $this->collecting ) return;
+		$this->watch_padding( $table, $columns, $keys, $table_charset, $table_collation );
 		foreach ( array( 'charsets', 'collations', 'engines', 'options' ) as $kind ) foreach ( array_keys( (array) ( $found[ $kind ] ?? array() ) ) as $name ) if ( count( (array) ( $this->found[ $kind ][ $name ] ?? array() ) ) < 20 ) $this->found[ $kind ][ $name ][] = $table;
 		// Para la decisión: el ROW_FORMAT de cada motor, con sus tablas (sólo se quita si el motor cambia).
 		if ( '' !== $engine && is_array( $row_format ) && '' !== $row_format[2] && count( (array) ( $this->found['row_formats'][ $engine ][ $row_format[2] ] ?? array() ) ) < 20 ) $this->found['row_formats'][ $engine ][ $row_format[2] ][] = $table;
 		if ( ! empty( $found['generated'] ) ) $this->found['generated'][ $table ] = array_values( array_unique( $found['generated'] ) );
 		if ( ! empty( $found['persistent'] ) ) $this->found['persistent'] = (int) ( $this->found['persistent'] ?? 0 ) + 1;
+	}
+	/** Tipos de columna con intercalación. */
+	const TEXT_TYPES = array( 'CHAR', 'VARCHAR', 'TINYTEXT', 'TEXT', 'MEDIUMTEXT', 'LONGTEXT', 'ENUM', 'SET' );
+	/** Si una intercalación no rellena con espacios al comparar (NO PAD): las `_0900_` de MySQL 8 y las `nopad` de MariaDB. */
+	public static function no_pad( $collation ) { return (bool) preg_match( '/_0900_|nopad/', strtolower( (string) $collation ) ); }
+	/**
+	 * Revisión de 1.0.80 (H4). Las claves únicas (y la primaria) de esta tabla con columnas de texto NO PAD: si la
+	 * decisión las pasa a una intercalación PAD SPACE, «abc» y «abc » serían el mismo valor. Se vigilan sus INSERT.
+	 */
+	private function watch_padding( $table, array $columns, array $keys, $table_charset, $table_collation ) {
+		$watch = array();
+		foreach ( $keys as $key ) {
+			$watched = array();
+			foreach ( $key['columns'] as $column ) {
+				$info = $columns[ $column ] ?? null;
+				if ( ! $info || ! in_array( (string) $info['type'], self::TEXT_TYPES, true ) ) continue;
+				// La de la columna o, si no dice ni juego de caracteres ni intercalación, la de la tabla (sólo la columna con otro
+				// juego de caracteres y sin intercalación queda sin saber: la de serie de ese juego en el origen).
+				$collation = null !== $info['collation'] ? $info['collation'] : ( null === $info['charset'] || $info['charset'] === $table_charset ? $table_collation : null );
+				if ( null !== $collation && self::no_pad( $collation ) ) $watched[ $column ] = $collation;
+			}
+			if ( $watched ) $watch[ '' !== (string) $key['name'] ? (string) $key['name'] : implode( ',', $key['columns'] ) ] = $watched;
+		}
+		if ( ! $watch || ( ! isset( $this->pad_watch[ $table ] ) && count( $this->pad_watch ) >= 200 ) ) return;
+		$this->pad_watch[ $table ] = $watch;
+		$this->found['pad_watch'][ $table ] = $watch;
+	}
+	/** Filas de una tabla vigilada cuya clave única (alguna de sus columnas NO PAD) termina en espacio. Sin guardar valores. */
+	private function collect_padding( $table, array $columns, array $rows ) {
+		$positions = array_flip( $columns );
+		foreach ( (array) $this->pad_watch[ $table ] as $key => $watched ) {
+			$count = 0;
+			foreach ( $rows as $row ) {
+				foreach ( array_keys( (array) $watched ) as $column ) {
+					$item = $row[ $positions[ $column ] ?? -1 ] ?? null;
+					if ( ! is_array( $item ) || 'str' !== ( $item['type'] ?? '' ) || $item['end'] <= $item['start'] ) continue;
+					// Un espacio no se escapa: el literal termina en espacio si y sólo si el valor también.
+					if ( ' ' === $this->s[ $item['end'] - 1 ] ) { $count++; break; }
+				}
+			}
+			if ( ! $count ) continue;
+			$this->found['trailing'][ $table ][ $key ]['columns'] = $watched;
+			$this->found['trailing'][ $table ][ $key ]['rows'] = (int) ( $this->found['trailing'][ $table ][ $key ]['rows'] ?? 0 ) + $count;
+		}
 	}
 	/** Los ROW_FORMAT que admite InnoDB; con otro motor de destino sólo se quita PAGE (de Aria). */
 	const INNODB_ROW_FORMATS = array( 'DEFAULT', 'DYNAMIC', 'COMPACT', 'REDUNDANT', 'COMPRESSED' );

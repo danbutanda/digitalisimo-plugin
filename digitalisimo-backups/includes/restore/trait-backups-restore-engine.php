@@ -916,7 +916,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$cursor['budget'] = $budget;
 			$probe = method_exists( 'Digitalisimo_Backups_Relocate', 'manifest_needles' ) ? new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ), array( 'budget' => $budget, 'needles' => Digitalisimo_Backups_Relocate::manifest_needles( $data ) ) ) : new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ) );
 			$guard->on_insert( $probe );
-			Digitalisimo_Backups_Db_Compat::attach_scan( $guard, $data );
+			Digitalisimo_Backups_Db_Compat::attach_scan( $guard, $data, (array) ( $cursor['compat'] ?? array() ) );
 			try { $renames = self::relocation_renames( $data ); } catch ( Exception $e ) { $renames = array(); } // El plan lo dice.
 			// Sin estricto (como verify de E1): lo que no se puede renombrar se anota y el plan lo rechaza antes de la copia previa.
 			if ( $renames ) $guard->rename_tables( $renames, false );
