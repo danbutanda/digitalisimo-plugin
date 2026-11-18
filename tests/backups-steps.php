@@ -304,7 +304,9 @@ $db->on_select = null;
 $db->tables = $tables;
 // Memoria: cerca de memory_limit, un tramo se detiene tras una unidad.
 $limit = ini_get( 'memory_limit' );
-ini_set( 'memory_limit', (string) (int) ( memory_get_usage( true ) * 1.25 ) );
+// 2 MB por encima de lo ocupado: siempre dentro de la reserva (al menos 4 MB), use lo que use el proceso (con 1,25 veces
+// lo ocupado sólo funcionaba por debajo de unos 16 MB, y en la CI de GitHub 1.0.80 ya ocupa más).
+ini_set( 'memory_limit', (string) (int) ( memory_get_usage( true ) + 2 * 1024 * 1024 ) );
 $tight = Digitalisimo_Backups_Step_Budget::exhausted( INF, 1 ) && Digitalisimo_Backups_Step_Budget::memory_headroom() <= 0;
 ini_set( 'memory_limit', $limit );
 bk_assert( $tight && ! Digitalisimo_Backups_Step_Budget::exhausted( INF, 1 ), 'El presupuesto no se detiene cerca de memory_limit.' );
