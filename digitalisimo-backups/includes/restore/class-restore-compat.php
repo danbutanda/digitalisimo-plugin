@@ -35,18 +35,22 @@ final class Digitalisimo_Backups_Restore_Compat {
 		global $wpdb;
 		$plugin = Digitalisimo_Backups_Restore_Maintenance::plugin();
 		$self = (string) ( $layout['self'] ?? '' );
+		// Importar un sitio en una red (Digitalisimo_Backups_Site_Import): sólo vuelven sus tablas y sus medios; ni código,
+		// ni drop-ins, ni las tablas de la red, que no son «de más».
+		$import = is_array( $job['spec']['into'] ?? null );
 		$was = '';
 		if ( is_multisite() && isset( ( (array) get_site_option( 'active_sitewide_plugins', array() ) )[ $plugin ] ) ) $was = 'network';
 		elseif ( in_array( $plugin, (array) get_option( 'active_plugins', array() ), true ) ) $was = 'site';
 		$out = array(
 			'v' => 1,
 			'foreign' => (bool) $foreign,
-			'self' => array( 'plugin' => $plugin, 'dir' => $self, 'in_backup' => '' === $self || false !== $zip->locateName( 'wordpress/' . $self . '/' . basename( $plugin ) ), 'was' => $was ),
+			'import' => $import,
+			'self' => array( 'plugin' => $plugin, 'dir' => $self, 'in_backup' => $import || '' === $self || false !== $zip->locateName( 'wordpress/' . $self . '/' . basename( $plugin ) ), 'was' => $was ),
 			'dropins' => array(),
 			'extra_tables' => array(),
 			'extra_count' => 0,
 		);
-		if ( $foreign && '' !== (string) $layout['content'] ) {
+		if ( $foreign && ! $import && '' !== (string) $layout['content'] ) {
 			foreach ( Digitalisimo_Backups_Site_Extract::DROP_INS as $name ) {
 				$relative = $layout['content'] . '/' . $name;
 				$stat = $zip->statName( 'wordpress/' . $relative );
@@ -59,7 +63,7 @@ final class Digitalisimo_Backups_Restore_Compat {
 		}
 		// Brecha 17 (decisión: se informan, no se apartan): tablas con el prefijo de este WordPress que el respaldo de otra
 		// instalación no trae. Las de una migración ya se apartan (`exact_tables`); las de otra instalación vecina no son suyas.
-		if ( $foreign && $rows && empty( $job['spec']['exact_tables'] ) && is_object( $wpdb ) ) {
+		if ( $foreign && ! $import && $rows && empty( $job['spec']['exact_tables'] ) && is_object( $wpdb ) ) {
 			$base = (string) $wpdb->base_prefix;
 			$dests = array_flip( array_map( 'strval', array_column( $rows, 'dest' ) ) );
 			$neighbors = (array) ( self::read( $staging, 'neighbors.json' )['prefixes'] ?? array() );
@@ -166,6 +170,8 @@ final class Digitalisimo_Backups_Restore_Compat {
 			$options = (string) ( $temp[ $base . 'options' ] ?? '' );
 			$sitemeta = is_multisite() ? (string) ( $temp[ $base . 'sitemeta' ] ?? '' ) : '';
 			if ( '' === $options && '' === $sitemeta ) return;
+			// Activo en la red y la red no cambia (`sitemeta` no entra): sigue activo.
+			if ( 'network' === $was && '' === $sitemeta ) return;
 			$network = is_multisite() && function_exists( 'get_current_network_id' ) ? (int) get_current_network_id() : 1;
 			$list = '' === $options ? array() : self::unserialize_array( $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . self::q( $options ) . ' WHERE option_name = %s', 'active_plugins' ) ) );
 			$wide = '' === $sitemeta ? array() : self::unserialize_array( $wpdb->get_var( $wpdb->prepare( 'SELECT meta_value FROM ' . self::q( $sitemeta ) . ' WHERE meta_key = %s AND site_id = %d', 'active_sitewide_plugins', $network ) ) );
@@ -542,6 +548,13 @@ final class Digitalisimo_Backups_Restore_Compat {
 	private static function site_tables( array $ctx ) {
 		global $wpdb;
 		if ( ! is_object( $wpdb ) ) return array();
+		// Al importar un sitio en una red, sólo ése (el de into.json: el nuevo ya creado o el que se reemplaza).
+		$only = 0;
+		if ( ! empty( $ctx['compat']['import'] ) ) {
+			$into = self::read( $ctx['staging'], 'into.json' );
+			$only = (int) ( $into['target']['site_id'] ?? $ctx['job']['spec']['into']['site_id'] ?? 0 );
+			if ( $only < 1 ) return array();
+		}
 		$base = (string) $wpdb->base_prefix;
 		$out = array();
 		$like = method_exists( $wpdb, 'esc_like' ) ? $wpdb->esc_like( $base ) : addcslashes( $base, '_%\\' );
@@ -549,7 +562,9 @@ final class Digitalisimo_Backups_Restore_Compat {
 			$table = (string) $table;
 			if ( ! preg_match( '/^' . preg_quote( $base, '/' ) . '(?:([0-9]+)_)?(options|postmeta)$/D', $table, $m ) ) continue;
 			if ( '' !== $m[1] && ! is_multisite() ) continue;
-			$out[ '' === $m[1] ? 1 : (int) $m[1] ][ $m[2] ] = $table;
+			$site = '' === $m[1] ? 1 : (int) $m[1];
+			if ( $only && $site !== $only ) continue;
+			$out[ $site ][ $m[2] ] = $table;
 		}
 		ksort( $out );
 		return $out;

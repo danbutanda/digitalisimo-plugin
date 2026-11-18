@@ -87,7 +87,7 @@ function fc_unset( $name ) { $GLOBALS['wpdb']->pdo->prepare( 'DELETE FROM wp_opt
 function fc_restore( $file, array $args = array() ) {
 	$args += array( 'network' => false, 'sync' => true, 'drive_cli' => true, 'via' => 'test' );
 	$result = Digitalisimo_Backups::service_restore( basename( $file ), array( 'confirm' => 'RESTAURAR' ) + $args );
-	if ( is_wp_error( $result ) && 'confirm_unsigned' === $result->get_error_code() ) $result = Digitalisimo_Backups::service_restore( basename( $file ), array( 'confirm' => 'RESTAURAR SIN FIRMA' ) + $args );
+	if ( is_wp_error( $result ) && false !== strpos( $result->get_error_message(), 'RESTAURAR SIN FIRMA' ) ) $result = Digitalisimo_Backups::service_restore( basename( $file ), array( 'confirm' => 'RESTAURAR SIN FIRMA' ) + $args );
 	return $result;
 }
 function fc_restored( $result ) {
@@ -148,7 +148,10 @@ fc_perms( $root );
 $GLOBALS['is_apache'] = true;
 $GLOBALS['wp_rewrite'] = new Fc_Rewrite();
 
-// Respaldo del mismo sitio (con su fila y su identidad): sin .htaccess, como uno hecho en nginx.
+// Respaldo del mismo sitio (con su fila y su identidad): sin .htaccess, como uno hecho en nginx, y con un tema activo que
+// no existe (un tema borrado después, o con otro nombre en este servidor).
+fc_set( 'template', 'tema-que-no-existe' );
+fc_set( 'stylesheet', 'tema-que-no-existe' );
 $same = bk_backup( true );
 $demo_dir = $root . '/wp-content/plugins/demo';
 
@@ -163,8 +166,6 @@ fc_case( 'a · permisos: lo restaurado lleva los de WordPress sumados a los que 
 	fc_put( 'wp-content/et-cache/1/et-core-unified-1.min.css', 'body{}' );
 	fc_put( 'wp-content/wphb-cache/cache/example.test/index.html', '<html>vieja</html>' );
 	fc_put( '.htaccess', "# BEGIN Propias\nHeader set X-Prueba 1\n# END Propias\n" );
-	fc_set( 'template', 'tema-que-no-existe' );
-	fc_set( 'stylesheet', 'tema-que-no-existe' );
 	@unlink( $root . '/wp-content/object-cache.php' );
 	$mask = umask( 077 );
 	try {
