@@ -244,6 +244,10 @@ trait Digitalisimo_Backups_Updraft_Service {
 					'import' => array( 'format' => (string) ( $info['format'] ?? '' ), 'source' => (string) ( $info['source'] ?? '' ), 'from' => (string) ( $info['origin'] ?? '' ) ),
 					'upload' => array( 'at' => current_time( 'mysql' ), 'via' => (string) ( $info['via'] ?? '' ), 'user_id' => (int) ( $info['user_id'] ?? 0 ), 'name' => (string) ( $info['source'] ?? '' ), 'home' => (string) ( $info['home'] ?? '' ), 'verified' => false, 'signature' => 'unsigned', 'manifest_sha256' => '', 'site_key' => false, 'same_site' => false, 'problems' => array() ),
 				);
+				// El respaldo de una red: sus sitios (de la cabecera de UpdraftPlus), para elegir cuál se restaura en un individual.
+				$sites = array();
+				foreach ( array_slice( (array) ( $info['sites'] ?? array() ), 0, 500, true ) as $id => $site ) if ( is_array( $site ) && isset( $site['domain'] ) ) $sites[ (int) $id ] = Digitalisimo_Backups_Site_Extract::label( (string) $site['domain'], (string) ( $site['path'] ?? '/' ) );
+				if ( $sites && ! empty( $info['multisite'] ) ) { ksort( $sites ); $row['sites'] = $sites; }
 				$notices = array();
 				foreach ( (array) ( $info['notices'] ?? array() ) as $text ) $notices[] = array( 'notice' => 'import-' . md5( (string) $text ), 'text' => (string) $text );
 				if ( $notices ) $row['notices'] = $notices;

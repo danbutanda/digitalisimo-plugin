@@ -988,6 +988,7 @@ final class Digitalisimo_Backups_Updraft_Import {
 			'origin' => (string) $job['spec']['source']['origin'],
 			'home' => (string) ( $meta['home'] ?? '' ),
 			'multisite' => $multisite,
+			'sites' => (array) ( $meta['sites'] ?? array() ),
 			'created_at' => gmdate( 'c', self::set_time( (string) $job['spec']['source']['set'] ) ?: time() ),
 			'via' => (string) ( $job['spec']['origin']['via'] ?? '' ),
 			'user_id' => (int) ( $job['spec']['origin']['user_id'] ?? 0 ),
