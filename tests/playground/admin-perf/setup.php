@@ -6,11 +6,11 @@
  * Antes de activar deja la foto de las opciones con carga automática y de WP-Cron (autoload-0.json, cron-0.json) y
  * después la de la activación (autoload-1.json, cron-1.json). Escribe ids.json y ready.txt, o setup-error.txt.
  */
-require '/wordpress/wp-load.php';
+require ( getenv( 'DIGI_AP_WP' ) ? getenv( 'DIGI_AP_WP' ) : '/wordpress' ) . '/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 require_once ABSPATH . 'wp-admin/includes/image.php';
 require_once ABSPATH . 'wp-admin/includes/user.php';
-$dir   = '/wordpress/wp-content/probe';
+$dir   = WP_CONTENT_DIR . '/probe';
 $sizes = json_decode( (string) @file_get_contents( $dir . '/options.json' ), true ) ?: array();
 $n     = static function ( $key, $default ) use ( $sizes ) {
 	return (int) ( $sizes[ $key ] ?? $default );
@@ -19,8 +19,8 @@ try {
 	if ( ! is_dir( WPMU_PLUGIN_DIR ) ) {
 		mkdir( WPMU_PLUGIN_DIR, 0777, true );
 	}
-	file_put_contents( WPMU_PLUGIN_DIR . '/digi-ap-probe.php', '<?php require "/wordpress/wp-content/probe/probe.php";' );
-	file_put_contents( WPMU_PLUGIN_DIR . '/digi-fatal-log.php', '<?php register_shutdown_function( static function () { $e = error_get_last(); if ( $e && in_array( $e["type"], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR ), true ) ) { file_put_contents( "/wordpress/wp-content/probe/fatal.log", ( $_SERVER["REQUEST_URI"] ?? "" ) . "\n" . $e["message"] . " @ " . $e["file"] . ":" . $e["line"] . "\n\n", FILE_APPEND ); } } );' );
+	file_put_contents( WPMU_PLUGIN_DIR . '/digi-ap-probe.php', '<?php require WP_CONTENT_DIR . "/probe/probe.php";' );
+	file_put_contents( WPMU_PLUGIN_DIR . '/digi-fatal-log.php', '<?php register_shutdown_function( static function () { $e = error_get_last(); if ( $e && in_array( $e["type"], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR ), true ) ) { file_put_contents( WP_CONTENT_DIR . "/probe/fatal.log", ( $_SERVER["REQUEST_URI"] ?? "" ) . "\n" . $e["message"] . " @ " . $e["file"] . ":" . $e["line"] . "\n\n", FILE_APPEND ); } } );' );
 	require_once $dir . '/probe.php';
 
 	global $wpdb;
@@ -175,6 +175,9 @@ try {
 	$ids['templates'][] = $doc( 'elementor_library', 'Pie', 'footer', array( $section( '9003', $ids['media'][2] ) ), array( '_elementor_conditions' => array( 'include/general' ) ) );
 	$ids['templates'][] = $doc( 'elementor_library', 'Popup', 'popup', array( $section( '9004', $ids['media'][3] ) ) );
 	update_option( 'elementor_onboarded', true );
+	// Enlaces permanentes «bonitos» (la REST en /wp-json/, como en los sitios).
+	update_option( 'permalink_structure', '/%postname%/' );
+	flush_rewrite_rules( false );
 
 	// Foto después de activar.
 	file_put_contents( $dir . '/autoload-1.json', wp_json_encode( Digi_AP_Probe::autoload() ) );

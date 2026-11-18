@@ -1,7 +1,7 @@
 <?php
 /**
  * Sonda de la auditoría del escritorio (mu-plugin, la carga digi-ap-probe.php): por cada petición anota en
- * /wordpress/wp-content/probe/requests.jsonl tiempo, consultas (por origen), memoria pico, fases, peticiones HTTP
+ * wp-content/probe/requests.jsonl tiempo, consultas (por origen), memoria pico, fases, peticiones HTTP
  * salientes, avisos de PHP, scripts y estilos impresos y la pantalla. Lo controlan cabeceras de la petición:
  *   X-Digi-Ap-Set    conjunto de plugins activo en esta petición (ver SETS); sin ella, los de la base de datos
  *   X-Digi-Ap-Id     identificador de la medida (lo pone el conductor) · X-Digi-Ap-Label  etiqueta legible
@@ -15,7 +15,10 @@
 defined( 'ABSPATH' ) || exit;
 
 final class Digi_AP_Probe {
-	const DIR = '/wordpress/wp-content/probe';
+	/** Carpeta de la sonda: wp-content/probe (en Playground, montada; en el modo nativo, un enlace). */
+	public static function dir() {
+		return WP_CONTENT_DIR . '/probe';
+	}
 	/** Conjuntos de plugins: nombre => archivos. `antes` son las copias del código base (montadas aparte). */
 	const SETS = array(
 		'none'       => array(),
@@ -122,10 +125,11 @@ final class Digi_AP_Probe {
 	/** Origen de un archivo: núcleo de Elementor incluido, derivado de PRO, propio, Migración, sonda o WordPress. */
 	public static function origin_of_file( $file ) {
 		$file = str_replace( '\\', '/', (string) $file );
-		if ( preg_match( '#/plugins/digitalisimo-migration(?:-antes)?/#', $file ) ) {
+		// Sin «/plugins/» delante: en el modo nativo los plugins son enlaces y PHP ve la ruta real de la copia.
+		if ( preg_match( '#/digitalisimo-migration(?:-antes)?/#', $file ) ) {
 			return 'migracion';
 		}
-		if ( preg_match( '#/plugins/digitalisimo-elements(?:-antes)?/(.*)$#', $file, $m ) ) {
+		if ( preg_match( '#/digitalisimo-elements(?:-antes)?/(.*)$#', $file, $m ) ) {
 			$rel = $m[1];
 			if ( 0 === strpos( $rel, 'elementor/' ) ) {
 				return 'nucleo';
@@ -135,7 +139,7 @@ final class Digi_AP_Probe {
 			}
 			return 'pro';
 		}
-		if ( false !== strpos( $file, '/mu-plugins/' ) || false !== strpos( $file, '/wp-content/probe/' ) ) {
+		if ( false !== strpos( $file, '/mu-plugins/' ) || false !== strpos( $file, '/wp-content/probe/' ) || 0 === strpos( $file, str_replace( '\\', '/', (string) realpath( __DIR__ ) ) . '/' ) ) {
 			return 'sonda';
 		}
 		if ( false !== strpos( $file, '/wp-content/plugins/' ) ) {
@@ -196,7 +200,7 @@ final class Digi_AP_Probe {
 			return array( 'headers' => array(), 'body' => wp_json_encode( self::manifest() ), 'response' => array( 'code' => 200, 'message' => 'OK' ), 'cookies' => array(), 'filename' => null );
 		}
 		if ( false !== strpos( (string) $url, 'digi-ap-dummy' ) && ! empty( $args['filename'] ) ) {
-			copy( self::DIR . '/digi-ap-dummy-2.zip', $args['filename'] );
+			copy( self::dir() . '/digi-ap-dummy-2.zip', $args['filename'] );
 			if ( $i >= 0 ) {
 				self::$http[ $i ]['result'] = 'paquete de prueba (local)';
 			}
@@ -360,7 +364,7 @@ final class Digi_AP_Probe {
 			wp_send_json( array( 'cleared' => $names ) );
 		}
 		if ( 'reset-dummy' === $report ) {
-			wp_send_json( array( 'ok' => (bool) copy( self::DIR . '/digi-ap-dummy-1.php', WP_PLUGIN_DIR . '/digi-ap-dummy/digi-ap-dummy.php' ) ) );
+			wp_send_json( array( 'ok' => (bool) copy( self::dir() . '/digi-ap-dummy-1.php', WP_PLUGIN_DIR . '/digi-ap-dummy/digi-ap-dummy.php' ) ) );
 		}
 		if ( '' !== $cron ) {
 			$ran = 0;
@@ -486,7 +490,7 @@ final class Digi_AP_Probe {
 			'php'       => PHP_VERSION,
 			'fatal'     => error_get_last() && in_array( error_get_last()['type'], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR ), true ) ? error_get_last()['message'] . ' @ ' . self::rel( error_get_last()['file'] ) . ':' . error_get_last()['line'] : null,
 		);
-		file_put_contents( self::DIR . '/requests.jsonl', wp_json_encode( $line ) . "\n", FILE_APPEND | LOCK_EX );
+		file_put_contents( self::dir() . '/requests.jsonl', wp_json_encode( $line ) . "\n", FILE_APPEND | LOCK_EX );
 	}
 
 	public static function files_by_origin() {

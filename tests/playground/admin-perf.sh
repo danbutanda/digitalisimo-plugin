@@ -12,6 +12,7 @@
 #   PHP=8.2|7.4…  versión de PHP (8.2 por defecto) · MULTI=1 red Multisite (Elements y Migración activos en la red)
 #   REPS=5  cargas medidas por pantalla y conjunto (más una de calentamiento) · SETS=none,el,elmig
 #   PHASES=…  fases de run.mjs (todas por defecto) · ANTES_ELEMENTS=… ANTES_MIGRATION=…  copias del código base
+#   NATIVE=1  PHP nativo (php$PHP) con OPcache y SQLite servido con `php -S` (admin-perf/native.sh), sin Playground
 #   OUT, PORT  carpeta de resultados y puerto
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -41,11 +42,18 @@ MOUNTS=("--mount=${ELEMENTS_DIR:-$ROOT/digitalisimo-elements}:/wordpress/wp-cont
 fuser -k -n tcp "$PORT" >/dev/null 2>&1 || true
 sleep 1
 STARTED=$(date +%s)
+if [ "${NATIVE:-0}" = 1 ]; then
+  # PHP nativo con OPcache y SQLite (admin-perf/native.sh): mismo sitio, mismo conductor; sin red ni idioma.
+  . "$A/native.sh"
+  trap 'kill $SERVER 2>/dev/null; rm -rf "$WP"' EXIT
+  for i in $(seq 1 60); do sleep 1; curl -s -m 30 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/wp-login.php" | grep -q '^200$' && break; done
+else
 $CLI server --port="$PORT" --php="$PHP" --workers=1 --site-url="http://127.0.0.1:$PORT" --blueprint="$OUT/blueprint.json" \
   "${MOUNTS[@]}" --mount="$OUT:/wordpress/wp-content/probe" > "$OUT/server.log" 2>&1 &
 SERVER=$!
 stop_server() { kill $SERVER 2>/dev/null || true; for i in 1 2 3; do fuser -k -n tcp "$PORT" >/dev/null 2>&1 || break; sleep 1; done; }
 trap 'stop_server; playground_cleanup' EXIT
+fi
 for i in $(seq 1 400); do
   sleep 3
   if ! kill -0 $SERVER 2>/dev/null; then tail -30 "$OUT/server.log"; exit 1; fi
@@ -54,7 +62,7 @@ for i in $(seq 1 400); do
 done
 [ -f "$OUT/setup-error.txt" ] && { echo "Preparación incompleta:"; cat "$OUT/setup-error.txt"; exit 1; }
 [ -f "$OUT/ready.txt" ] || { echo 'El sitio no terminó de prepararse'; tail -30 "$OUT/server.log"; exit 1; }
-echo "Sitio listo en $(( $(date +%s) - STARTED )) s (PHP $PHP, multisitio=$MULTI)"
+echo "Sitio listo en $(( $(date +%s) - STARTED )) s (PHP $PHP, multisitio=$MULTI, nativo=${NATIVE:-0})"
 status=0
 OUT="$OUT" MULTI="$MULTI" node "$A/run.mjs" "http://127.0.0.1:$PORT" || status=$?
 OUT="$OUT" node "$A/report.mjs" || status=$?
