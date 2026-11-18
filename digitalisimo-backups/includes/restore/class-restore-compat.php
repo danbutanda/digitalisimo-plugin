@@ -473,7 +473,7 @@ final class Digitalisimo_Backups_Restore_Compat {
 		if ( false === $forced ) return null;
 		// Lo decidido en la verificación (compat.json); una restauración verificada por una versión anterior, como antes.
 		$server = true === $forced ? 'apache' : (string) ( self::read( $staging )['server'] ?? '' );
-		if ( '' === $server ) $server = '' !== self::web_server() ? self::web_server() : 'unknown';
+		if ( '' === $server ) $server = self::web_server() ?: 'unknown';
 		if ( 'other' === $server || '' === (string) get_option( 'permalink_structure' ) ) return null;
 		$home = '/' . trim( (string) wp_parse_url( (string) get_option( 'home' ), PHP_URL_PATH ), '/' );
 		$site = '/' . trim( (string) wp_parse_url( (string) get_option( 'siteurl' ), PHP_URL_PATH ), '/' );

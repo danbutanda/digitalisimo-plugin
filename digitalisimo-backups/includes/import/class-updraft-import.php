@@ -253,10 +253,10 @@ final class Digitalisimo_Backups_Updraft_Import {
 	 *
 	 * Revisión bk-180 (H6): se descifra en la petición que encola, porque la frase no puede ir al trabajo. Con 128, 192 o
 	 * 256 bits phpseclib usa OpenSSL (cientos de MB/s); con una frase de 17 a 20 o de 25 a 28 caracteres la clave es de
-	 * 160 o 224 bits, que OpenSSL no admite, y el Rijndael de PHP va a unos 5 MB/s: una base de 500 MB tardaría unos
-	 * 100 s, más que un proxy (Cloudflare, 100 s) o PHP-FPM, que cortarían la petición con un 504 y dejarían la copia a
+	 * 160 o 224 bits, que OpenSSL no admite, y el Rijndael de PHP va a unos 3 a 6 MB/s: una base de 500 MB tardaría
+	 * minutos, más que un proxy (Cloudflare, 100 s) o PHP-FPM, que cortarían la petición con un 504 y dejarían la copia a
 	 * medias. Con `$seconds` > 0 (una petición web) el descifrado se mide desde el primer trozo: si lo que falta no cabe en
-	 * ese tope, o se llega a él, se para, borra lo descifrado y lanza Digitalisimo_Backups_Permanent_Error con el código
+	 * ese tope (too_slow()), se para, borra lo descifrado y lanza Digitalisimo_Backups_Permanent_Error con el código
 	 * SLOW y un mensaje que pide WP-CLI, que no tiene ese límite. 0: sin tope.
 	 */
 	public static function decrypt( $from, $phrase, $to, $seconds = 0 ) {
