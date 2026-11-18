@@ -737,7 +737,7 @@ final class Digitalisimo_Backups_Updraft_Import {
 	public static function files( array $job ) {
 		$paths = self::paths( $job );
 		$scan = (array) ( $job['checkpoint']['scan'] ?? array() );
-		$cursor = (array) ( $job['checkpoint']['files'] ?? array() ) + array( 'zip' => 0, 'entries' => 0, 'index' => 0, 'count' => 0, 'bytes' => 0, 'partial' => null, 'sql' => false );
+		$cursor = (array) ( $job['checkpoint']['files'] ?? array() ) + array( 'zip' => 0, 'entries' => 0, 'index' => 0, 'count' => 0, 'bytes' => 0, 'partial' => null, 'sql' => false, 'config' => false );
 		if ( 0 === (int) $cursor['zip'] ) self::space( dirname( $paths['zip'] ), (int) $scan['bytes'] + (int) @filesize( $paths['sql'] ), 'escribir el ZIP convertido' );
 		$deadline = self::deadline( $job, 'files' );
 		$list = self::zip_list( $job );
@@ -802,9 +802,13 @@ final class Digitalisimo_Backups_Updraft_Import {
 				}
 				self::done( $zip, $entries, $cursor );
 				$cursor['sql'] = true;
+			}
+			// El marcador de wp-config.php va después de database.sql, también si éste quedó a medias en el tramo anterior.
+			if ( ! $cursor['config'] ) {
 				$zip->begin( 'wordpress/wp-config.php', time(), 0600, strlen( self::CONFIG_PLACEHOLDER ), 0 );
 				$zip->data( self::CONFIG_PLACEHOLDER );
 				self::done( $zip, $entries, $cursor );
+				$cursor['config'] = true;
 			}
 			$limit = (int) $scan['index'];
 			fseek( $index, (int) $cursor['index'] );

@@ -484,6 +484,7 @@ ud_case( 'U9 una muerte a mitad de cada tramo no cambia el ZIP convertido', func
 	ud_check( 'success' === $job['status'], 'La importación con muertes falló: ' . json_encode( $job['error'] ) );
 	ud_check( isset( $partials['database.sql'], $partials['wp-content/uploads/2026/11/foto.jpg'] ), 'Ninguna entrada quedó a medias entre tramos (database.sql y la foto de una pieza ZIP): ' . json_encode( array_keys( $partials ) ) );
 	$again = ud_zip_map( bk_storage() . '/' . $job['result']['import']['file'] );
+	ud_check( isset( $again['wordpress/wp-config.php'] ), 'Tras un database.sql a medias entre tramos, el ZIP no lleva el marcador de wp-config.php (la restauración lo exige).' );
 	// El núcleo de este WordPress no cambió con la restauración de U3 (UpdraftPlus no lo trae): todo idéntico.
 	ud_check( array_keys( $reference ) === array_keys( $again ), 'El ZIP con muertes no tiene las mismas entradas.' );
 	foreach ( $reference as $name => $hash ) ud_check( $hash === $again[ $name ], 'La entrada ' . $name . ' cambió con las muertes.' );

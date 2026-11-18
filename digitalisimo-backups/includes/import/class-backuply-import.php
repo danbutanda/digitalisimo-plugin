@@ -573,6 +573,8 @@ final class Digitalisimo_Backups_Backuply_Import {
 		$paths = self::paths( $job );
 		$scan = (array) ( $job['checkpoint']['scan'] ?? array() );
 		$cursor = (array) ( $job['checkpoint']['files'] ?? array() ) + array( 'zip' => 0, 'entries' => 0, 'index' => 0, 'count' => 0, 'bytes' => 0, 'partial' => null, 'sql' => false );
+		// Un punto de control de antes de `config` con database.sql ya escrito ya escribió el marcador (si hacía falta).
+		if ( ! array_key_exists( 'config', $cursor ) ) $cursor['config'] = ! empty( $cursor['sql'] ) && empty( $cursor['partial'] );
 		if ( 0 === (int) $cursor['zip'] ) self::space( dirname( $paths['zip'] ), (int) $scan['bytes'] + (int) @filesize( $paths['sql'] ), 'escribir el ZIP convertido' );
 		$deadline = self::deadline( $job, 'files' );
 		$zip = null;
@@ -606,12 +608,14 @@ final class Digitalisimo_Backups_Backuply_Import {
 					if ( ! self::copy( $zip, $handles['sql'], 0, $sql_size, $cursor, $deadline, array( 'src' => 'sql', 'o' => 0, 's' => $sql_size, 'next' => 0 ) ) ) return self::files_slice( $job, $zip, $entries, $cursor );
 					self::done( $zip, $entries, $cursor );
 					$cursor['sql'] = true;
-					// Sin wp-config.php en el respaldo (estaba encima de ABSPATH): un marcador, que nunca se restaura.
-					if ( empty( $scan['special']['wp-config.php'] ) ) {
-						$zip->begin( 'wordpress/wp-config.php', time(), 0600, strlen( self::CONFIG_PLACEHOLDER ), 0 );
-						$zip->data( self::CONFIG_PLACEHOLDER );
-						self::done( $zip, $entries, $cursor );
-					}
+				}
+				// Sin wp-config.php en el respaldo (estaba encima de ABSPATH): un marcador, que nunca se restaura. Va después
+				// de database.sql, también si éste quedó a medias en el tramo anterior (antes, entonces faltaba).
+				if ( empty( $scan['special']['wp-config.php'] ) && empty( $cursor['config'] ) ) {
+					$zip->begin( 'wordpress/wp-config.php', time(), 0600, strlen( self::CONFIG_PLACEHOLDER ), 0 );
+					$zip->data( self::CONFIG_PLACEHOLDER );
+					self::done( $zip, $entries, $cursor );
+					$cursor['config'] = true;
 				}
 				fseek( $index, (int) $cursor['index'] );
 				while ( (int) $cursor['index'] < $limit ) {
