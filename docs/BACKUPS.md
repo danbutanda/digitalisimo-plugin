@@ -1940,13 +1940,23 @@ Leído en su código 1.26.14 (GPL; `backup.php`, `class-updraftplus.php`, `resto
      su fila «Importado» (`origin` = `imported` con su bloque `import`; en una red, con sus sitios para elegir cuál se
      restaura en un individual). Tras una muerte justo después de publicar, el intento siguiente encuentra el ZIP y
      registra la fila sin duplicarla.
+- **Backups sigue activo.** Un conjunto de un sitio sin Backups trae un `active_plugins` sin él; tras el cambio de
+  tablas, los ticks cargan WordPress mínimo con sólo este plugin y sólo si la base lo tiene activo, así que una
+  restauración que necesitaba más de una petición se quedaba en mantenimiento (lo encontró el ensayo con peticiones
+  cortas). Antes del cambio, el plugin queda activo en la tabla temporal de opciones (o, si aquí está activado en la red,
+  en la de `sitemeta`), como UpdraftPlus, que se deja activo al restaurar. Vale para cualquier paquete que no lo traiga
+  activo (también uno de Backuply).
 - **La fila «Importado».** Se trata como una subida (`is_uploaded_row()`): fuera de la retención global y de las
   automatizaciones, con su propio tope, de **otra instalación** para H23, y su alcance decide dónde se restaura (una red
   en una red o, por 1.0.79, uno de sus sitios en un individual; un individual en un individual o como sitio de una red).
   «Conservar mi acceso» y «Conservar los administradores» la miran como cualquier otra (`restore_identity_of()`: sin
   identidad firmada, con la misma dirección, prefijo y carpeta de aquí parece de este mismo sitio). No está firmada:
-  pide `RESTAURAR SIN FIRMA` (y no se restaura con «Restaurar sólo respaldos firmados»). Se descarga, se envía, se
-  bloquea y se borra como las demás.
+  pide `RESTAURAR SIN FIRMA` (su panel «Restaurar» lo dice; no se restaura con «Restaurar sólo respaldos firmados»). Se
+  descarga, se envía, se bloquea y se borra como las demás. Al terminar la importación, el panel de avance lleva a su fila
+  («Restaurarlo»).
+- **De paso, en la importación de Backuply:** cuando su `database.sql` quedaba a medias entre dos tramos, el marcador de
+  `wp-config.php` (de un respaldo sin él) no se escribía y la verificación rechazaba el ZIP; ahora se escribe después,
+  con su propio punto de control (las dos importaciones).
 
 Superficies: la tarjeta «UpdraftPlus» (Importar, con la frase si está cifrada, y Eliminar), «Subir un respaldo» (acepta
 las piezas y el panel lleva a importar el conjunto), `GET /updraft`, `POST /updraft/import`, `POST /updraft/fetch`,
