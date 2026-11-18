@@ -1088,7 +1088,7 @@ final class Digitalisimo_Backups_Jobs {
 			'terminal' => $terminal,
 			'file' => 'success' === $status ? basename( (string) ( $import ? ( $job['result']['import']['file'] ?? '' ) : ( $spec['file'] ?? '' ) ) ) : '',
 			'error' => 'success' === $status ? '' : $error,
-			'origin_label' => $restore ? ( ! empty( $spec['rollback'] ) ? 'Vuelta a la copia previa' : 'Restauración' ) : ( $import ? 'Importación de Backuply' : self::origin_label( $spec ) ),
+			'origin_label' => $restore ? ( ! empty( $spec['rollback'] ) ? 'Vuelta a la copia previa' : 'Restauración' ) : ( $import ? Digitalisimo_Backups_Import_Job::label( $job ) : self::origin_label( $spec ) ),
 			'destination_label' => $restore ? basename( (string) ( $spec['file'] ?? '' ) ) : ( $import ? basename( (string) ( $spec['source']['name'] ?? '' ) ) : Digitalisimo_Backups::destination_name( (string) ( $spec['destination'] ?? 'local' ) ) ),
 			'kind' => $restore ? 'restore' : ( $import ? 'import' : 'backup' ),
 			'created_label' => ! empty( $job['created_at'] ) ? self::clock( (int) $job['created_at'], true ) : '',

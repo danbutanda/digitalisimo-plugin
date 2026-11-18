@@ -59,7 +59,9 @@ trait Digitalisimo_Backups_Upload_Service {
 		// Un .tar.gz de Backuply conserva su nombre (sanitize_file_name() lo cambiaría y, en una red sin `tar` en
 		// upload_filetypes, lo rechazaría): lista blanca propia, sin rutas. Esta subida ya pide capability y nonce.
 		$name = preg_match( '/\.tar\.gz$/i', $raw ) ? Digitalisimo_Backups_Backuply_Import::upload_name( $raw ) : sanitize_file_name( $raw );
-		if ( '' === $name || strlen( $name ) > 200 || ! preg_match( '/\.(?:zip|dgbk|tar\.gz)$/i', $name ) ) return self::service_error( 'upload_name', 'Elige un respaldo de DIGITALÍSIMO: un archivo .zip o .dgbk (o el .tar.gz de un respaldo de Backuply, para importarlo).', 400 );
+		// Una pieza de UpdraftPlus (…-db.gz, …-db.gz.crypt, …-plugins2.zip) conserva su nombre exacto: sus piezas se agrupan por él.
+		if ( self::upload_is_updraft( $raw ) ) $name = $raw;
+		if ( '' === $name || strlen( $name ) > 200 || ( ! preg_match( '/\.(?:zip|dgbk|tar\.gz)$/i', $name ) && ! self::upload_is_updraft( $name ) ) ) return self::service_error( 'upload_name', 'Elige un respaldo de DIGITALÍSIMO: un archivo .zip o .dgbk (o el .tar.gz de un respaldo de Backuply, o las piezas de un respaldo de UpdraftPlus, para importarlo).', 400 );
 		$size = is_numeric( $args['size'] ?? null ) ? (int) $args['size'] : 0;
 		if ( $size <= 0 ) return self::service_error( 'upload_size', 'El tamaño del respaldo no es válido.', 400 );
 		if ( $size > Digitalisimo_Backups_Uploads::MAX_SIZE ) return self::service_error( 'upload_size', 'El respaldo supera el tamaño máximo de una subida (64 GB).', 413 );
@@ -215,6 +217,11 @@ trait Digitalisimo_Backups_Upload_Service {
 				elseif ( ! hash_equals( (string) $state['sha256'], $checksum ) ) $report = self::service_error( 'upload_checksum', 'El archivo recibido no coincide con el SHA-256 declarado y se descartó. Vuelve a subirlo.', 422 );
 			}
 			// Un respaldo de Backuply (.tar.gz) no se comprueba aquí: la importación lo valida entero, por pasos (I9).
+			// Una pieza de UpdraftPlus: sólo su forma (un ZIP o un gzip); la importación del conjunto la valida entera.
+			if ( null === $report && self::upload_is_updraft( (string) $state['name'] ) ) {
+				self::upload_step( 'gzip', 'Comprobando que es una pieza de UpdraftPlus (la importación del conjunto la comprueba entera después)…' );
+				$report = self::upload_updraft_valid( (string) $state['name'], $path ) ? array( 'container' => 'updraft' ) : self::service_error( 'upload_invalid', 'El archivo no es una pieza de UpdraftPlus (un ZIP o un gzip con su nombre) y se descartó.', 422 );
+			}
 			if ( null === $report && self::upload_is_backuply( (string) $state['name'] ) ) {
 				self::upload_step( 'gzip', 'Comprobando que es un .tar.gz de Backuply (la importación lo comprueba entero después)…' );
 				$report = "\x1f\x8b" === (string) @file_get_contents( $path, false, null, 0, 2 ) ? array( 'container' => 'backuply' ) : self::service_error( 'upload_invalid', 'El archivo no es un respaldo de Backuply (.tar.gz comprimido con gzip) y se descartó.', 422 );
@@ -234,6 +241,7 @@ trait Digitalisimo_Backups_Upload_Service {
 				return $report;
 			}
 			if ( 'backuply' === ( $report['container'] ?? '' ) ) return self::upload_backuply_done( $state, $path );
+			if ( 'updraft' === ( $report['container'] ?? '' ) ) return self::upload_updraft_done( $state, $path );
 			return self::upload_place( $state, $path, $report, $args );
 		} catch ( Throwable $e ) {
 			// El servidor no pudo terminar (almacén, permisos): la subida se conserva para reintentar.
@@ -255,6 +263,8 @@ trait Digitalisimo_Backups_Upload_Service {
 		}
 	}
 	private static function upload_is_backuply( $name ) { return (bool) preg_match( '/\.tar\.gz$/i', (string) $name ); }
+	/** El nombre de una pieza de un respaldo de UpdraftPlus (`backup_…_<código>-<entidad>.zip|.gz[.crypt]`). */
+	private static function upload_is_updraft( $name ) { return (bool) preg_match( '/^backup_[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}_[A-Za-z0-9_.-]{1,64}?_[0-9a-f]{12}-(?:db|plugins|themes|uploads|mu-plugins|others|wpcore|more)[0-9]{0,3}\.(?:zip|gz)(?:\.crypt)?$/D', (string) $name ); }
 	/**
 	 * El archivo validado entra en el almacén y en la lista. Su SHA-256 se calcula aquí, sobre los mismos bytes que se
 	 * validaron (siguen en la sesión, con su cerrojo): es lo que ata la fila al archivo. Nombre, `rename()` y fila van con

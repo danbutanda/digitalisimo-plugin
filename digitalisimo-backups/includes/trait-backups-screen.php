@@ -317,7 +317,7 @@ trait Digitalisimo_Backups_Screen {
 		$badges = array();
 		if ( ! empty( $item['locked'] ) ) $badges[] = '<span class="digitalisimo-backups-badge" title="La retención no lo borra">Bloqueado</span>';
 		// Subido o agregado a mano: discreto, con de dónde viene en el título (y en «⋯»).
-		if ( $uploaded ) $badges[] = '<span class="digitalisimo-backups-badge is-uploaded" title="' . esc_attr( self::uploaded_text( $item ) ) . '">' . ( self::is_added_row( $item ) ? 'Agregado' : 'Subido' ) . '</span>';
+		if ( $uploaded ) $badges[] = '<span class="digitalisimo-backups-badge is-uploaded" title="' . esc_attr( self::uploaded_text( $item ) ) . '">' . ( self::is_imported_row( $item ) ? 'Importado' : ( self::is_added_row( $item ) ? 'Agregado' : 'Subido' ) ) . '</span>';
 		if ( '' !== $blocked ) $badges[] = '<span class="digitalisimo-backups-badge is-warning" title="' . esc_attr( $blocked ) . '">' . ( $incomplete ? 'Cadena incompleta' : 'No se restaura aquí' ) . '</span>';
 		// Incrementales: un punto de restauración completo que sólo guarda lo nuevo; su base, en «⋯».
 		if ( $chain && $chain['sequence'] > 0 ) $badges[] = '<span class="digitalisimo-backups-badge is-incremental" title="' . esc_attr( 'Punto de restauración completo: se reconstruye con su cadena (' . ( $chain['sequence'] + 1 ) . ' archivos)' ) . '">Incremental</span>';
@@ -568,13 +568,17 @@ trait Digitalisimo_Backups_Screen {
 		$status = self::migration_status_data();
 		self::tool_section( 'migrate', 'Migrar', 'clave de un solo uso, migrar desde otro sitio, copia de pruebas, deshacer', 'migrate' === $open || $migrating, function() use ( $network, $status ) { Digitalisimo_Backups_Migrate::panel( $network, $status ); } );
 		// Una sola búsqueda para el resumen y la sección (sources() también retira las descargas cortadas).
-		$updraft = self::detect_updraft_sets();
+		$updraft = array();
+		if ( $main ) {
+			self::load_updraft_import();
+			try { $updraft = Digitalisimo_Backups_Updraft_Import::sources(); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		}
 		$backuply = array();
 		try { $backuply = $main ? Digitalisimo_Backups_Backuply_Import::sources() : array(); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		$found = count( $updraft ) + count( $backuply );
-		self::tool_section( 'import', 'Importar de Backuply o UpdraftPlus', $found ? $found . ' ' . ( 1 === $found ? 'respaldo detectado' : 'respaldos detectados' ) : 'no se detectaron respaldos', 'import' === $open || $importing, function() use ( $network, $updraft, $backuply ) { echo self::progress_slot( 'import' ); self::backuply_panel( $network, $backuply ); echo '<section class="digitalisimo-backups-card digitalisimo-backups-updraft">'; self::updraft_panel( $updraft ); echo '</section>'; } );
+		self::tool_section( 'import', 'Importar de Backuply o UpdraftPlus', $found ? $found . ' ' . ( 1 === $found ? 'respaldo detectado' : 'respaldos detectados' ) : 'no se detectaron respaldos', 'import' === $open || $importing, function() use ( $network, $updraft, $backuply ) { echo self::progress_slot( 'import' ); self::backuply_panel( $network, $backuply ); echo '<section class="digitalisimo-backups-card digitalisimo-backups-updraft">'; self::updraft_panel( $network, $updraft ); echo '</section>'; } );
 		// La subida que se está comprobando (de esta cuenta) se sigue en su sección, abierta: el panel vuelve a ella al recargar.
-		if ( $main ) self::tool_section( 'upload', 'Subir un respaldo', '.zip o .dgbk de DIGITALÍSIMO, o .tar.gz de Backuply', 'upload' === $open || Digitalisimo_Backups_Uploads::checking_mine(), function() use ( $network ) { Digitalisimo_Backups_Uploads::panel( $network ); } );
+		if ( $main ) self::tool_section( 'upload', 'Subir un respaldo', '.zip o .dgbk de DIGITALÍSIMO, .tar.gz de Backuply o las piezas de UpdraftPlus', 'upload' === $open || Digitalisimo_Backups_Uploads::checking_mine(), function() use ( $network ) { Digitalisimo_Backups_Uploads::panel( $network ); } );
 		self::tool_section( 'restore-file', 'Restaurar un archivo suelto', 'archivos sin registro, de otro servidor o con su frase, y la última restauración en otro dominio', 'restore-file' === $open, function() use ( $history ) { echo self::progress_slot( 'restore-file' ); self::restore_panel( $history ); } );
 		$count = count( self::policies() );
 		self::tool_section( 'automations', 'Automatizaciones (' . $count . ')', 'crear, editar, ejecutar ahora y borrar; cada una con su destino y su retención', 'automations' === $open, function() { self::automation_fields(); } );

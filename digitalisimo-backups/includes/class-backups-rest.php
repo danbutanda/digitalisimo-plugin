@@ -70,6 +70,11 @@ defined( 'ABSPATH' ) || exit;
  * - POST /backuply/import                   importa un respaldo de Backuply (`name`, `source`): 202 con el trabajo
  * - POST /backuply/fetch                    trae al almacén un respaldo de Backuply de un destino (`connection`, `name`)
  * - DELETE /backuply/<nombre>               borra un respaldo de Backuply del almacén privado (no los de su carpeta)
+ * - GET  /updraft                           si UpdraftPlus está en el sitio y sus conjuntos que se pueden importar
+ * - POST /updraft/import                    importa un conjunto de UpdraftPlus (`set`, `source`, `secret` si su base de
+ *                                           datos está cifrada): 202 con el trabajo; queda en la lista como «Importado»
+ * - POST /updraft/fetch                     trae al almacén las piezas de un conjunto de un destino (`connection`, `set`)
+ * - DELETE /updraft/<conjunto>              borra del almacén privado las piezas de un conjunto (no las de su carpeta)
  *
  * - GET  /migration                         estado de la migración: claves (sin secretos), registro, la que se puede deshacer
  *                                            y las tablas apartadas (`kept_tables`)
@@ -202,6 +207,11 @@ final class Digitalisimo_Backups_Rest {
 		$backuply_name = array( 'type' => 'string', 'required' => true, 'description' => 'Nombre del respaldo de Backuply (.tar.gz), como aparece en GET /backuply o en el destino.' );
 		register_rest_route( self::NAMESPACE_V1, '/backuply/import', array( $route( 'POST', 'backuply_import', array( 'name' => $backuply_name, 'source' => array( 'type' => 'string', 'default' => '', 'enum' => array( '', 'backuply', 'store' ), 'description' => 'backuply (la carpeta de Backuply de este sitio) o store (el almacén privado); vacío lo busca en los dos.' ) ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/backuply/(?P<name>[A-Za-z0-9][A-Za-z0-9._-]{0,190}\.tar\.gz)', array( $route( 'DELETE', 'backuply_delete' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/updraft', array( $route( 'GET', 'updraft' ) ) );
+		$updraft_set = array( 'type' => 'string', 'required' => true, 'description' => 'Conjunto de UpdraftPlus (backup_<fecha>_<sitio>_<código>), como aparece en GET /updraft o en el destino.' );
+		register_rest_route( self::NAMESPACE_V1, '/updraft/import', array( $route( 'POST', 'updraft_import', array( 'set' => $updraft_set, 'source' => array( 'type' => 'string', 'default' => '', 'enum' => array( '', 'updraft', 'store' ), 'description' => 'updraft (la carpeta de UpdraftPlus de este sitio) o store (el almacén privado); vacío lo busca en los dos.' ), 'secret' => array( 'type' => 'string', 'default' => '', 'description' => 'Frase de cifrado de UpdraftPlus si la base de datos está cifrada (…-db.gz.crypt). Nunca se guarda.' ) ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/updraft/fetch', array( $route( 'POST', 'updraft_fetch', array( 'set' => $updraft_set, 'connection' => array( 'type' => 'string', 'required' => true, 'description' => 'Destino conectado (ver GET /destinations).' ) ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/updraft/(?P<set>backup_[0-9-]{15}_[A-Za-z0-9_.-]{1,64}_[0-9a-f]{12})', array( $route( 'DELETE', 'updraft_delete' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/backuply/fetch', array( $route( 'POST', 'backuply_fetch', array( 'name' => $backuply_name, 'connection' => array( 'type' => 'string', 'required' => true, 'description' => 'Destino conectado (ver GET /destinations).' ) ) ) ) );
 		// Migración: administración (la misma capability que la pantalla).
 		register_rest_route( self::NAMESPACE_V1, '/migration', array( $route( 'GET', 'migration_status' ) ) );
@@ -457,6 +467,18 @@ final class Digitalisimo_Backups_Rest {
 	public static function backuply_import( $request ) { return self::respond( Digitalisimo_Backups::service_backuply_import( (string) $request['name'], array( 'source' => (string) $request['source'], 'via' => 'rest' ) ), 202 ); }
 	/** Borra un respaldo de Backuply del almacén privado. */
 	public static function backuply_delete( $request ) { return self::respond( Digitalisimo_Backups::service_backuply_delete( (string) $request['name'] ) ); }
+	/** Si UpdraftPlus está en el sitio y sus conjuntos que se pueden importar (sin rutas). */
+	public static function updraft( $request ) { return self::respond( Digitalisimo_Backups::service_updraft() ); }
+	/** Encola la importación de un conjunto de UpdraftPlus: 202 con el trabajo. La frase no se guarda. */
+	public static function updraft_import( $request ) {
+		$secret = self::secret( $request );
+		if ( is_wp_error( $secret ) ) return $secret;
+		return self::respond( Digitalisimo_Backups::service_updraft_import( (string) $request['set'], array( 'source' => (string) $request['source'], 'secret' => $secret, 'via' => 'rest' ) ), 202 );
+	}
+	/** Trae al almacén las piezas de un conjunto de UpdraftPlus que están en un destino remoto. */
+	public static function updraft_fetch( $request ) { return self::respond( Digitalisimo_Backups::service_updraft_fetch( (string) $request['connection'], (string) $request['set'] ) ); }
+	/** Borra del almacén las piezas de un conjunto de UpdraftPlus. */
+	public static function updraft_delete( $request ) { return self::respond( Digitalisimo_Backups::service_updraft_delete( (string) $request['set'] ) ); }
 	/** Trae al almacén un respaldo de Backuply que está en un destino remoto. */
 	public static function backuply_fetch( $request ) { return self::respond( Digitalisimo_Backups::service_backuply_fetch( (string) $request['connection'], (string) $request['name'] ) ); }
 	public static function upload_cancel( $request ) {

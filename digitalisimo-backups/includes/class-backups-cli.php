@@ -32,6 +32,7 @@ final class Digitalisimo_Backups_Cli {
 		WP_CLI::add_command( 'digitalisimo-backups destinations', 'Digitalisimo_Backups_Cli_Destinations' );
 		WP_CLI::add_command( 'digitalisimo-backups upload', 'Digitalisimo_Backups_Cli_Upload' );
 		WP_CLI::add_command( 'digitalisimo-backups backuply', 'Digitalisimo_Backups_Cli_Backuply' );
+		WP_CLI::add_command( 'digitalisimo-backups updraft', 'Digitalisimo_Backups_Cli_Updraft' );
 		WP_CLI::add_command( 'digitalisimo-backups migration', 'Digitalisimo_Backups_Cli_Migration' );
 		WP_CLI::add_command( 'digitalisimo-backups pre-update', 'Digitalisimo_Backups_Cli_Pre_Update' );
 		WP_CLI::add_command( 'digitalisimo-backups restore-config', 'Digitalisimo_Backups_Cli_Restore_Config' );
@@ -1396,6 +1397,101 @@ final class Digitalisimo_Backups_Cli_Backuply {
 	 */
 	public function fetch( $args, $assoc_args ) {
 		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_backuply_fetch( (string) ( $args[0] ?? '' ), (string) ( $args[1] ?? '' ) ) );
+		WP_CLI::success( $result['message'] );
+	}
+}
+
+/**
+ * Conjuntos de UpdraftPlus: verlos, importarlos (convertirlos en un respaldo de Backups que queda en la lista como
+ * «Importado»), traerlos de un destino y borrar sus piezas del almacén.
+ */
+final class Digitalisimo_Backups_Cli_Updraft {
+	/**
+	 * Si UpdraftPlus está en el sitio y sus conjuntos que se pueden importar (de su carpeta y del almacén privado).
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : table, json, csv o yaml.
+	 * ---
+	 * default: table
+	 * ---
+	 *
+	 * @subcommand list
+	 */
+	public function list_( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_updraft() );
+		$rows = array();
+		foreach ( (array) $result['sets'] as $set ) $rows[] = array( 'id' => $set['id'], 'source' => $set['source'], 'date' => $set['date'], 'size' => $set['size'], 'pieces' => count( (array) $set['pieces'] ), 'database' => $set['database'] ? ( $set['encrypted'] ? 'cifrada' : 'sí' ) : 'no', 'importable' => $set['importable'] ? 'sí' : 'no', 'problem' => $set['problem'], 'imported' => $set['imported'] );
+		if ( 'table' === (string) ( $assoc_args['format'] ?? 'table' ) ) WP_CLI::log( $result['installed'] ? 'UpdraftPlus está en este sitio' . ( $result['active'] ? ' (activo).' : '.' ) : 'UpdraftPlus no está en este sitio.' );
+		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'source', 'date', 'size', 'pieces', 'database', 'importable', 'problem', 'imported' ) );
+	}
+	/**
+	 * Importa un conjunto de UpdraftPlus: lo convierte, como archivo no confiable, en un respaldo de Backups sin firma
+	 * que entra en la lista como «Importado» y se restaura con `restore --confirm="RESTAURAR SIN FIRMA"`. Salvo con
+	 * --async, hace avanzar la cola en este proceso.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <set>
+	 * : Conjunto (backup_<fecha>_<sitio>_<código>), como aparece en `wp digitalisimo-backups updraft list`.
+	 *
+	 * [--source=<source>]
+	 * : updraft (la carpeta de UpdraftPlus de este sitio) o store (el almacén privado). Por defecto, donde esté.
+	 *
+	 * [--secret-file=<ruta>]
+	 * : Archivo con la frase de cifrado de UpdraftPlus, si su base de datos está cifrada (…-db.gz.crypt).
+	 *
+	 * [--secret-stdin]
+	 * : Lee esa frase de la entrada estándar (en una terminal, sin eco).
+	 *
+	 * [--async]
+	 * : Sólo lo encola; lo continúan WP-Cron o `wp digitalisimo-backups jobs run`.
+	 *
+	 * [--porcelain]
+	 * : Imprime sólo el nombre del ZIP convertido (o el trabajo, con --async).
+	 */
+	public function import( $args, $assoc_args ) {
+		$secret = isset( $assoc_args['secret-file'] ) || ! empty( $assoc_args['secret-stdin'] ) || array_key_exists( 'secret', $assoc_args ) ? Digitalisimo_Backups_Cli::secret( $assoc_args, array( 'what' => 'frase de cifrado', 'prompt' => 'Frase de cifrado de UpdraftPlus: ', 'empty' => 'La frase de cifrado está vacía.' ) ) : '';
+		$view = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_updraft_import( (string) ( $args[0] ?? '' ), array( 'source' => (string) ( $assoc_args['source'] ?? '' ), 'secret' => $secret, 'via' => 'cli' ) ) );
+		$porcelain = ! empty( $assoc_args['porcelain'] );
+		if ( ! empty( $assoc_args['async'] ) ) {
+			if ( $porcelain ) WP_CLI::line( $view['id'] );
+			else WP_CLI::success( 'Importación en cola (trabajo ' . $view['id'] . '). La continúan WP-Cron o `wp digitalisimo-backups jobs run`.' );
+			return;
+		}
+		$view = Digitalisimo_Backups_Cli::drive( $view, $porcelain );
+		if ( 'success' !== $view['status'] ) WP_CLI::error( ( 'cancelled' === $view['status'] ? 'Importación cancelada: ' : 'La importación falló: ' ) . ( $view['error'] ?: $view['detail'] ) );
+		foreach ( (array) ( $view['notices'] ?? array() ) as $notice ) WP_CLI::warning( $notice );
+		if ( $porcelain ) { WP_CLI::line( $view['file'] ); return; }
+		WP_CLI::success( 'Conjunto de UpdraftPlus importado: ' . $view['file'] . ' (en la lista como «Importado»). Para restaurarlo: wp digitalisimo-backups restore ' . $view['file'] . ' --confirm="RESTAURAR SIN FIRMA".' );
+	}
+	/**
+	 * Borra del almacén privado las piezas de un conjunto (subidas o traídas de un destino; las de la carpeta de
+	 * UpdraftPlus no).
+	 *
+	 * ## OPTIONS
+	 *
+	 * <set>
+	 * : Conjunto, como aparece en `wp digitalisimo-backups updraft list` (origen store).
+	 */
+	public function delete( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_updraft_delete( (string) ( $args[0] ?? '' ) ) );
+		WP_CLI::success( 'Piezas de UpdraftPlus borradas del almacén privado: ' . $result['id'] . ' (' . $result['deleted'] . ').' );
+	}
+	/**
+	 * Trae al almacén privado las piezas de un conjunto de UpdraftPlus que están en un destino remoto, para importarlo.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <connection>
+	 * : Destino conectado (wp digitalisimo-backups destinations list).
+	 *
+	 * <set>
+	 * : Conjunto (backup_<fecha>_<sitio>_<código>) en el destino.
+	 */
+	public function fetch( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_updraft_fetch( (string) ( $args[0] ?? '' ), (string) ( $args[1] ?? '' ) ) );
 		WP_CLI::success( $result['message'] );
 	}
 }
