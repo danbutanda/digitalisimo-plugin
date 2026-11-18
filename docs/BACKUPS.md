@@ -1124,7 +1124,13 @@ descarga sin root los servidores de la distribución (`apt-get download` de Mari
 su socket y corre `tests/backups-db-compat-live.php` contra ellos: L1 MySQL 8 → MariaDB con `utf8mb4_0900_ai_ci`,
 columnas generadas y una fila con 0 en su `AUTO_INCREMENT`; L2 con una vista y un disparador; L3 MariaDB → MySQL 8 con
 Aria y sus opciones, `utf8mb4_uca1400_ai_ci` y `PERSISTENT`; L4 `max_allowed_packet` de 2 MB contra una fila de 3 MB.
-@@ENSAYO@@
+Ensayo en la PC (WSL Ubuntu 24.04, sin root) con MySQL 8.0.46 y MariaDB 10.11.14 de la distribución: los cuatro casos
+en orden con esta rama. Con el código de 1.0.79 (`ea9753ca`) fallan los cuatro: L1 y L3 con «Unknown collation» en la
+base de datos, después de la copia previa (el sitio queda intacto, pero la migración es imposible), L2 ya al respaldar
+(«No se pudo determinar el motor de la tabla wp_v») y L4 sin comprobación previa. De los servidores reales salió además
+que MariaDB 10.11 lista las intercalaciones UCA 14.0 sin juego de caracteres (`uca1400_ai_ci`, de ahí la consulta a
+`COLLATION_CHARACTER_SET_APPLICABILITY`) y que MySQL 8 rechaza `PAGE_CHECKSUM`, `TRANSACTIONAL` y `PERSISTENT` con un
+error de sintaxis. Las 33 mutaciones del código nuevo hacen fallar alguna prueba.
 
 **Límites declarados.**
 
