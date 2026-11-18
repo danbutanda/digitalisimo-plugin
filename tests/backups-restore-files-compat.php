@@ -214,6 +214,8 @@ fc_case( 'b · permisos tras la vuelta a la copia previa: lo que repone tampoco 
 	file_put_contents( $demo_dir . '/assets/demo.css', "body{color:#0f0}\n" );
 	file_put_contents( $root . '/wp-content/uploads/2026/11/foto.png', 'otra vez cambiada' );
 	chmod( $demo_dir, 0755 );
+	// Un bloque de WordPress correcto con lo que añade un plugin (filtro mod_rewrite_rules): no se reescribe.
+	file_put_contents( $root . '/.htaccess', str_replace( "RewriteEngine On\n", "RewriteEngine On\n# regla que añade un plugin\n", (string) file_get_contents( $root . '/.htaccess' ) ) );
 	$GLOBALS['wpdb']->queries = array();
 	// Después del cambio de tablas y del código, al poner los medios: falla y vuelve a la copia previa.
 	$GLOBALS['bk_on_mkdir'] = function( $path ) {
@@ -232,7 +234,7 @@ fc_case( 'b · permisos tras la vuelta a la copia previa: lo que repone tampoco 
 	fc_check( "body{color:#0f0}\n" === file_get_contents( $demo_dir . '/assets/demo.css' ), 'La vuelta a la copia previa no repuso el plugin.' );
 	fc_check( '0755' === fc_mode( $demo_dir ) && '0644' === fc_mode( $demo_dir . '/assets/demo.css' ), 'Tras la vuelta a la copia previa la carpeta del plugin quedó con ' . fc_mode( $demo_dir ) . ' y su CSS con ' . fc_mode( $demo_dir . '/assets/demo.css' ) . '.' );
 	$text = (string) @file_get_contents( $root . '/.htaccess' );
-	fc_check( 1 === substr_count( $text, '# BEGIN WordPress' ) && false !== strpos( $text, '# BEGIN Propias' ), 'Un .htaccess con el bloque correcto se reescribió o se duplicó: ' . $text );
+	fc_check( 1 === substr_count( $text, '# BEGIN WordPress' ) && false !== strpos( $text, '# BEGIN Propias' ) && false !== strpos( $text, '# regla que añade un plugin' ), 'Un .htaccess con el bloque correcto se reescribió o se duplicó: ' . $text );
 } );
 
 fc_case( 'k · CSS de constructores: restaurar sólo la base de datos vacía el CSS generado de Elements/Elementor', function() use ( $root, $same ) {
@@ -244,7 +246,7 @@ fc_case( 'k · CSS de constructores: restaurar sólo la base de datos vacía el 
 
 // Otra instalación: su respaldo (sin fila aquí) trae drop-ins de su servidor, Jetpack conectado, la CDN de WP Rocket, otra
 // copia de Backups activa en otra carpeta y no trae la carpeta de este plugin (como un paquete importado de Backuply).
-fc_case( 'g/h/i/j · el respaldo de otra instalación: drop-ins, este plugin, servicios del origen y tablas de aquí', function() use ( $root ) {
+fc_case( 'otra instalación · su respaldo se restaura aquí', function() use ( $root ) {
 	$db = $GLOBALS['wpdb'];
 	fc_put( 'wp-content/object-cache.php', "<?php require '/servidor-de-origen/redis-config.php'; // del ORIGEN\n" );
 	fc_put( 'wp-content/advanced-cache.php', "<?php // advanced-cache del ORIGEN con sus rutas\n" );
@@ -263,22 +265,51 @@ fc_case( 'g/h/i/j · el respaldo de otra instalación: drop-ins, este plugin, se
 	fc_unset( 'jetpack_options' );
 	fc_unset( 'wp_rocket_settings' );
 	$db->pdo->exec( 'CREATE TABLE `wp_tabla_de_aqui` (`id` INTEGER PRIMARY KEY)' );
-	$result = fc_restored( fc_restore( $foreign ) );
+	$GLOBALS['fc_foreign_result'] = fc_restored( fc_restore( $foreign ) );
+} );
+fc_case( 'g · drop-ins de otra instalación: no se instalan, se conservan los de este servidor y se dicen', function() use ( $root ) {
+	$result = fc_restored( $GLOBALS['fc_foreign_result'] ?? null );
 	$notice = (string) $result['notice'];
-	// g · drop-ins (5).
 	fc_check( ! file_exists( $root . '/wp-content/object-cache.php' ), 'Se instaló el object-cache.php del servidor de origen (error fatal en cada petición si su Redis no existe aquí).' );
 	fc_check( false !== strpos( (string) @file_get_contents( $root . '/wp-content/advanced-cache.php' ), 'ESTE servidor' ), 'El advanced-cache.php de este servidor se reemplazó por el del origen.' );
 	fc_check( array( 'object-cache.php' ) === ( $result['compat']['dropins']['not_installed'] ?? null ) && array( 'advanced-cache.php' ) === ( $result['compat']['dropins']['kept_here'] ?? null ) && false !== strpos( $notice, 'drop-ins' ), 'El informe no nombra los drop-ins: ' . json_encode( $result['compat']['dropins'] ?? null ) . ' · ' . $notice );
-	// h · este plugin (22).
+} );
+fc_case( 'h · este plugin: un paquete sin DIGITALÍSIMO Backups no lo retira, queda activo y otra copia suya se desactiva', function() use ( $root ) {
+	$result = fc_restored( $GLOBALS['fc_foreign_result'] ?? null );
+	$notice = (string) $result['notice'];
 	fc_check( is_file( $root . '/wp-content/plugins/digitalisimo-backups/digitalisimo-backups.php' ), 'Se retiró DIGITALÍSIMO Backups porque el respaldo no lo traía.' );
 	$active = (array) unserialize( (string) fc_option( 'active_plugins' ) );
 	fc_check( in_array( FC_SELF, $active, true ), 'DIGITALÍSIMO Backups no quedó activo en la base de datos restaurada (los ticks no lo cargarían): ' . json_encode( $active ) );
 	fc_check( ! in_array( 'digitalisimo-backups-vieja/digitalisimo-backups.php', $active, true ) && in_array( 'jetpack/jetpack.php', $active, true ), 'La otra copia de Backups sigue activa (error fatal) o se tocaron otros plugins: ' . json_encode( $active ) );
 	fc_check( false !== strpos( $notice, 'no traía DIGITALÍSIMO Backups' ) && false !== strpos( $notice, 'otra copia' ), 'El informe no dice qué pasó con DIGITALÍSIMO Backups: ' . $notice );
-	// i · servicios del origen (21).
+} );
+fc_case( 'i · servicios del origen: Jetpack conectado y la CDN de WP Rocket se avisan', function() {
+	$notice = (string) fc_restored( $GLOBALS['fc_foreign_result'] ?? null )['notice'];
 	fc_check( false !== strpos( $notice, 'Jetpack' ) && false !== strpos( $notice, 'cdn.origen.test' ), 'El informe no avisa de Jetpack ni de la CDN de WP Rocket del origen: ' . $notice );
-	// j · tablas de aquí (17).
+} );
+fc_case( 'j · tablas de este WordPress que el respaldo de otra instalación no trae: se quedan y se informan', function() {
+	$db = $GLOBALS['wpdb'];
+	$notice = (string) fc_restored( $GLOBALS['fc_foreign_result'] ?? null )['notice'];
 	fc_check( in_array( 'wp_tabla_de_aqui', $db->names(), true ) && false !== strpos( $notice, 'wp_tabla_de_aqui' ), 'La tabla propia de este sitio se borró o no se informa: ' . $notice );
+} );
+
+fc_case( 'm · una carpeta preparada en otro disco se copia junto a su sitio con sus permisos (no con los del umask)', function() use ( $root ) {
+	$from = $GLOBALS['bk_root'] . '-copia-de';
+	$to = $root . '/.digitalisimo-new-prueba';
+	mkdir( $from . '/css', 0755, true );
+	chmod( $from, 0755 );
+	chmod( $from . '/css', 0755 );
+	file_put_contents( $from . '/css/a.css', 'a{}' );
+	chmod( $from . '/css/a.css', 0644 );
+	$mask = umask( 077 );
+	try {
+		$ok = bk_call( 'Digitalisimo_Backups', 'restore_copy_tree', $from, $to );
+	} finally {
+		umask( $mask );
+	}
+	fc_check( $ok && '0755' === fc_mode( $to ) && '0755' === fc_mode( $to . '/css' ) && '0644' === fc_mode( $to . '/css/a.css' ), 'La copia quedó con ' . fc_mode( $to ) . ', ' . fc_mode( $to . '/css' ) . ' y ' . fc_mode( $to . '/css/a.css' ) . '.' );
+	bk_remove_tree( $from );
+	bk_remove_tree( $to );
 } );
 
 fc_case( 'l · DISALLOW_FILE_MODS se avisa en el informe de wp-config.php (verify, resultado, correo)', function() use ( $same ) {
