@@ -26,7 +26,7 @@ function add_filter() {} function do_action() {}
 function add_action( $hook, $callback = null ) { $GLOBALS['actions'][] = $hook; }
 function is_multisite() { return $GLOBALS['multisite']; }
 function is_network_admin() { return $GLOBALS['network_admin']; }
-function current_user_can() { return $GLOBALS['can']; }
+function current_user_can( $cap ) { return true === $GLOBALS['can'] || ( is_array( $GLOBALS['can'] ) && in_array( $cap, $GLOBALS['can'], true ) ); }
 function get_site_transient( $key ) { return $GLOBALS['cache'][ $key ] ?? false; }
 function set_site_transient( $key, $value, $ttl = 0 ) { $GLOBALS['cache'][ $key ] = $value; return true; }
 function delete_site_transient( $key ) { unset( $GLOBALS['cache'][ $key ] ); return true; }
@@ -158,7 +158,12 @@ foreach ( $classes as $label => $class ) {
 	$_GET = query_of( $start ); $died = false;
 	try { $class::install_all(); } catch ( Died $e ) { $died = true; } catch ( Redirected $e ) {}
 	check( $died && array() === $GLOBALS['installs'], "$label: sin permiso install_all() se detiene sin instalar nada." );
-	$GLOBALS['can'] = true;
+	// 3b. Administrador de un sitio de la red: ve el catálogo (manage_options) pero no instala plugins (eso es de la red): sin botón.
+	reset_site( array() ); $GLOBALS['multisite'] = true; $GLOBALS['can'] = array( 'manage_options', 'install_plugins' );
+	$html = render_page( $class );
+	check( '' === button_url( $html ), "$label: un administrador de sitio en la red no ve «Instalar todos»." );
+	if ( 'Digitalisimo_Plugin_Catalog' === $label ) check( false !== strpos( $html, 'DIGITALÍSIMO Elements' ), "$label: el administrador de sitio sí ve el catálogo." );
+	$GLOBALS['multisite'] = false; $GLOBALS['can'] = true;
 
 	// 4. Sin nonce válido no se instala nada.
 	reset_site( array() ); $bad = query_of( $start ); $bad['_wpnonce'] = 'otro'; $_GET = $bad; $died = false;
