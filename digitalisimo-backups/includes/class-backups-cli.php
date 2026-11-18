@@ -474,6 +474,8 @@ final class Digitalisimo_Backups_Cli {
 		}
 		if ( empty( $report['compatible'] ) ) WP_CLI::warning( 'No se puede restaurar en esta instalación: ' . implode( ' ', (array) $report['problems'] ) );
 		elseif ( ! empty( $report['relocation']['needed'] ) ) WP_CLI::log( $report['relocation']['text'] );
+		if ( '' !== (string) ( $report['database']['text'] ?? '' ) ) WP_CLI::log( (string) $report['database']['text'] );
+		foreach ( (array) ( $report['database']['warnings'] ?? array() ) as $warning ) WP_CLI::warning( (string) $warning );
 		// wp-config.php no se restaura: qué constantes del respaldo faltan o difieren aquí (los valores secretos nunca se
 		// muestran). Va después y aparte de «Origen → este sitio»: un respaldo de otro servidor suele traer las dos cosas.
 		$config = (array) ( $report['wp_config'] ?? array() );

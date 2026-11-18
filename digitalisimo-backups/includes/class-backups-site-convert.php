@@ -499,6 +499,9 @@ final class Digitalisimo_Backups_Site_Convert {
 		$travel = array_flip( self::site_tables( $facts ) );
 		$transform = array_flip( array( (string) $facts['base'] . 'users', (string) $facts['base'] . 'usermeta', (string) $facts['prefix'] . 'options' ) );
 		$guard = self::guard( $plan, $dir );
+		// Las vistas del respaldo de la red (al final de su SQL): las del sitio viajan listas para crearse (sin DEFINER y con
+		// los nombres de sus tablas en el paquete) y la restauración las crea al final del cambio; las de otros sitios, no.
+		$guard->views( 'rewrite', Digitalisimo_Backups_Db_Compat::declared_views( self::read_json( $dir . '/' . self::SOURCE ) ) );
 		if ( (string) $facts['prefix'] !== (string) $facts['base'] ) $guard->rename_tables( array( $facts['base'] . 'users' => $export->name( $facts['base'] . 'users' ), $facts['base'] . 'usermeta' => $export->name( $facts['base'] . 'usermeta' ) ) );
 		$pending = null;
 		$guard->on_insert( function( array $insert, $sql ) use ( $export, $transform, &$pending ) {
@@ -539,6 +542,13 @@ final class Digitalisimo_Backups_Site_Convert {
 				if ( null !== $table && ! isset( $travel[ $table ] ) ) return;
 				$pending = null;
 				if ( ! $guard->check( $statement ) ) return;
+				if ( null !== $guard->last_view() ) {
+					$view = (string) $guard->last_view();
+					if ( Digitalisimo_Backups_Db_Compat::site_owns( $view, (string) $facts['prefix'], (string) $facts['base'] ) ) { self::write( $output, $guard->rewritten() . ";\n" ); $cursor['views'][] = $view; }
+					else $cursor['views_skipped'][] = $view;
+					$cursor['out'] = (int) ftell( $output );
+					return;
+				}
 				if ( null !== $pending ) {
 					foreach ( $pending as $row ) self::write( $output, self::insert( $export->name( (string) $table ), $row ) );
 				} elseif ( ! $guard->skipped() ) {
@@ -733,6 +743,10 @@ final class Digitalisimo_Backups_Site_Convert {
 			'converted_from' => array( 'backup_id' => (string) $plan['source']['backup_id'], 'manifest_sha256' => (string) $plan['source']['manifest_sha256'], 'file' => (string) $plan['source']['file'], 'site' => (int) $facts['site'], 'label' => (string) $report['site']['label'] ),
 		);
 		$tail = array( 'packer' => 'site-convert', 'database_snapshot_at' => (string) ( $manifest['database_snapshot_at'] ?? '' ) );
+		// La base de datos (Digitalisimo_Backups_Db_Compat): las vistas del sitio, lo que no viaja y el servidor de origen.
+		if ( ! empty( $sql['views'] ) ) $tail['database_views'] = array_values( array_unique( array_map( 'strval', (array) $sql['views'] ) ) );
+		foreach ( array( 'database_objects', 'database_server' ) as $key ) if ( ! empty( $manifest[ $key ] ) ) $tail[ $key ] = $manifest[ $key ];
+		if ( ! empty( $sql['views_skipped'] ) ) $tail['notices'][] = 'Las vistas de otros sitios de la red no viajan con este sitio: ' . implode( ', ', array_slice( array_unique( (array) $sql['views_skipped'] ), 0, 10 ) ) . '.';
 		$target = $dir . '/' . self::ZIP;
 		$entries_path = $dir . '/' . self::ENTRIES;
 		$listed = (int) $files_cursor['entries'];

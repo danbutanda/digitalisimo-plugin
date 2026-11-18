@@ -698,6 +698,11 @@ final class Digitalisimo_Backups_Packer {
 				'files_started_at' => (string) $cursor['started_at'],
 				'files_completed_at' => (string) $cursor['completed_at'],
 			);
+			// La base de datos (Digitalisimo_Backups_Db_Compat): sus vistas (van al final del SQL), lo que no viaja
+			// (disparadores, rutinas, eventos) y el servidor de origen. Las versiones anteriores lo ignoran.
+			if ( ! empty( $database['views'] ) ) $tail['database_views'] = array_values( array_map( 'strval', (array) $database['views'] ) );
+			if ( ! empty( $database['objects'] ) ) $tail['database_objects'] = (array) $database['objects'];
+			if ( '' !== (string) ( $database['server'] ?? '' ) ) $tail['database_server'] = (string) $database['server'];
 			// Lo que faltó o cambió durante el empaquetado queda también en el manifiesto (las versiones anteriores lo ignoran).
 			if ( $notices ) $tail['notices'] = array_values( array_map( function( $notice ) { return (string) $notice['text']; }, $notices ) );
 			// Exclusiones por defecto (B8): lo que el respaldo no lleva a propósito; la restauración nunca lo retira.

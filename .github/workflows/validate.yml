@@ -385,6 +385,10 @@ jobs:
           php tests/backups-restore-parts-upgrade.php
           php tests/backups-restore-files-compat.php
           node tests/backups-restore-parts-ui.mjs
+          # Compatibilidad de la base de datos al restaurar en otro servidor (intercalaciones, motores, vistas, versiones) y
+          # la restauración real entre MySQL 8 y MariaDB 10.11 (descarga sus servidores sin root; si no puede, se omite).
+          php tests/backups-db-compat.php
+          bash tests/backups-db-compat-live.sh
           php tests/tools-site-options.php
           php tests/tools-media-svg.php
           php tests/tools-media-webp.php

@@ -38,6 +38,8 @@ final class Digitalisimo_Backups_Sql_Export {
 	private static $buffer = '';
 	/** @var bool Este tramo pidió la lista de tablas (una tabla que falta no es un cambio entre tramos). */
 	private static $listed = false;
+	/** @var array Columnas generadas de la tabla en curso (nombre => true): no se escribe su valor. */
+	private static $generated = array();
 
 	/** Un tramo de la fase «database»: devuelve el resultado de la fase para el motor de trabajos. */
 	public static function phase( array $job ) {
@@ -55,6 +57,9 @@ final class Digitalisimo_Backups_Sql_Export {
 			$cursor = self::fresh( $staging );
 			$cursor['restarts'] = $restarts;
 			$cursor['reason'] = $reason;
+			// Disparadores, rutinas y eventos no viajan: se avisa al respaldar (y la verificación lo repite en otro sitio).
+			$objects = Digitalisimo_Backups_Db_Compat::objects_text( (array) ( $cursor['objects'] ?? array() ) );
+			if ( '' !== $objects ) $warnings[] = array( 'notice' => 'database_objects', 'text' => $objects );
 		}
 		$started = microtime( true );
 		$cursor['scale'] = Digitalisimo_Backups_Step_Budget::scale( $job, 'database', $cursor );
@@ -94,10 +99,11 @@ final class Digitalisimo_Backups_Sql_Export {
 		if ( false === $size || false === $hash ) throw new Exception( 'No se pudo verificar el SQL exportado.' );
 		$snapshots = (int) $cursor['snapshots'];
 		$per_table = $snapshots > 1;
+		if ( ! empty( $cursor['views_failed'] ) ) $warnings[] = array( 'notice' => 'database_views', 'text' => 'No se pudo leer la definición de ' . count( (array) $cursor['views_failed'] ) . ' vista(s) de la base de datos (' . implode( ', ', array_slice( (array) $cursor['views_failed'], 0, 5 ) ) . '): el respaldo no las lleva.' );
 		if ( $per_table ) $warnings[] = array( 'notice' => 'database_per_table', 'text' => 'La base de datos se exportó en ' . $snapshots . ' tramos: cada tabla salió entera de una sola instantánea, pero no hay una instantánea común a todas (entre tablas puede haber diferencias de segundos o minutos). Para una instantánea única, respalda con WP-CLI o con el cron del sistema.' );
 		return array(
 			'next' => 'pack',
-			'checkpoint' => array( 'file' => basename( $final ), 'size' => (int) $size, 'sha256' => $hash, 'tables' => $cursor['tables'], 'mode' => $per_table ? $cursor['mode'] . '-per-table' : $cursor['mode'], 'at' => $cursor['at'], 'fp' => Digitalisimo_Backups_Backup_Job::fingerprint( $final ), 'segments' => $snapshots, 'rows' => (int) $cursor['total'], 'checked' => true, 'unchecked' => (array) ( $cursor['check']['unchecked'] ?? array() ), 'last' => Digitalisimo_Backups_Step_Budget::measure( $started, $units, $cursor['scale'] ) ),
+			'checkpoint' => array( 'file' => basename( $final ), 'size' => (int) $size, 'sha256' => $hash, 'tables' => $cursor['tables'], 'mode' => $per_table ? $cursor['mode'] . '-per-table' : $cursor['mode'], 'at' => $cursor['at'], 'fp' => Digitalisimo_Backups_Backup_Job::fingerprint( $final ), 'segments' => $snapshots, 'rows' => (int) $cursor['total'], 'checked' => true, 'unchecked' => (array) ( $cursor['check']['unchecked'] ?? array() ), 'last' => Digitalisimo_Backups_Step_Budget::measure( $started, $units, $cursor['scale'] ), 'views' => array_values( (array) ( $cursor['written_views'] ?? array() ) ), 'objects' => (array) ( $cursor['objects'] ?? array() ), 'server' => Digitalisimo_Backups_Db_Compat::server()['info'] ),
 			'message' => 'Base de datos exportada y comprobada; empaquetando archivos…',
 			'warnings' => $warnings,
 		);
@@ -124,9 +130,12 @@ final class Digitalisimo_Backups_Sql_Export {
 		if ( ! is_array( $tables ) || ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
 		// La lista entera: así se ve también si una tabla es de otra instalación que comparte la base (wp_ y wp_dev_).
 		$tables = Digitalisimo_Backups::exportable_tables( array_map( 'strval', $tables ) );
+		// Las vistas no son tablas: ni instantánea, ni bloqueo, ni filas; su definición va al final del SQL (Db_Compat).
+		$views = Digitalisimo_Backups_Db_Compat::views_among( $tables );
+		$tables = array_values( array_diff( $tables, $views ) );
 		if ( ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
 		self::$listed = true;
-		return array( 'v' => self::VERSION, 'host' => Digitalisimo_Backups_Jobs::host(), 'stage' => 'export', 'file' => 'database.' . Digitalisimo_Backups_Jobs::current_owner_tag() . '.sql.part', 'tables' => $tables, 'at' => $at, 'mode' => null, 'table' => 0, 'rows' => 0, 'size' => 0, 'snapshots' => 0, 'total' => 0, 'batch' => 0, 'abandons' => array(), 'check' => array( 'offset' => 0, 'table' => 0, 'unchecked' => array() ), 'scale' => 1.0 );
+		return array( 'views' => $views, 'objects' => Digitalisimo_Backups_Db_Compat::database_objects(), 'v' => self::VERSION, 'host' => Digitalisimo_Backups_Jobs::host(), 'stage' => 'export', 'file' => 'database.' . Digitalisimo_Backups_Jobs::current_owner_tag() . '.sql.part', 'tables' => $tables, 'at' => $at, 'mode' => null, 'table' => 0, 'rows' => 0, 'size' => 0, 'snapshots' => 0, 'total' => 0, 'batch' => 0, 'abandons' => array(), 'check' => array( 'offset' => 0, 'table' => 0, 'unchecked' => array() ), 'scale' => 1.0 );
 	}
 	/**
 	 * Las tablas temporales de una restauración que murió a mitad (`<prefijo>dgbkr_*`, las que se importaban, y
@@ -199,6 +208,7 @@ final class Digitalisimo_Backups_Sql_Export {
 				break;
 			}
 			if ( $cursor['table'] >= $count ) {
+				self::write_views( $out, $cursor );
 				self::write( $out, self::TRAILER );
 				$complete = true;
 			}
@@ -279,6 +289,8 @@ final class Digitalisimo_Backups_Sql_Export {
 		// Clave que no se compara igual que se ordena (ENUM, SET, FLOAT, TIMESTAMP…): por desplazamiento, que en una
 		// instantánea es exacto.
 		$by_offset = (bool) array_filter( $keys, function( $key ) { return 'o' === $key[1]; } );
+		// Columnas generadas: su valor lo calcula el servidor que importa (MySQL rechaza uno dado), como en mysqldump.
+		self::$generated = array_fill_keys( Digitalisimo_Backups_Db_Compat::generated_columns( (string) $create[1] ), true );
 		self::write( $out, 'DROP TABLE IF EXISTS `' . $escaped . "`;\n" . $create[1] . ";\n" );
 		$cursor['rows'] = 0;
 		$cursor['batch'] = 0;
@@ -363,6 +375,7 @@ final class Digitalisimo_Backups_Sql_Export {
 		$cursor['total']++;
 		if ( Digitalisimo_Backups::secret_row( $table, $row ) ) return 0;
 		$row = Digitalisimo_Backups::export_row( $table, $row ); // Ningún secreto de destino en claro (S4), como el exportador de un paso.
+		if ( self::$generated ) $row = array_diff_key( $row, self::$generated );
 		$columns = array();
 		$values = array();
 		$length = 0;
@@ -468,7 +481,7 @@ final class Digitalisimo_Backups_Sql_Export {
 				$units++;
 			}
 			$done = (int) $state['table'] >= $count;
-			if ( $done && self::TRAILER !== stream_get_contents( $in ) ) throw new Digitalisimo_Backups_Resume_Invalid( 'El SQL exportado no termina como lo escribe el exportador.' );
+			if ( $done ) self::check_views( (string) stream_get_contents( $in ), (array) ( $cursor['written_views'] ?? array() ) );
 		} finally {
 			fclose( $in );
 		}
@@ -488,7 +501,8 @@ final class Digitalisimo_Backups_Sql_Export {
 		} while ( ";\n" !== substr( $line, -2 ) );
 		if ( 0 !== strpos( $create, 'CREATE TABLE `' . $quoted . '`' ) ) throw $fail( 'falta su CREATE TABLE' );
 		preg_match_all( '/^\s+`((?:[^`]|``)+)`\s/m', $create, $match );
-		$columns = array_map( function( $name ) { return str_replace( '``', '`', $name ); }, $match[1] );
+		// Las columnas generadas no van en los INSERT (ni sus índices se comprueban: su valor lo calcula el servidor).
+		$columns = array_values( array_diff( array_map( function( $name ) { return str_replace( '``', '`', $name ); }, $match[1] ), Digitalisimo_Backups_Db_Compat::generated_columns( $create ) ) );
 		// Clave primaria y claves únicas (con su longitud de prefijo, si la tiene).
 		$indexes = array();
 		if ( preg_match_all( '/^\s+(PRIMARY KEY|UNIQUE (?:KEY|INDEX) `(?:[^`]|``)+`)\s*\(([^\n]+)\)/m', $create, $keys ) ) {
@@ -590,6 +604,39 @@ final class Digitalisimo_Backups_Sql_Export {
 		$b = ltrim( $b, '-' );
 		$order = strlen( $a ) <=> strlen( $b ) ?: strcmp( $a, $b );
 		return $negative_a ? -$order : $order;
+	}
+
+	/**
+	 * Las vistas, al final del SQL y antes de su cierre: la definición de cada una (sin DEFINER) seguida de «;». La
+	 * restauración las crea al final del cambio (Digitalisimo_Backups_Db_Compat). Una que no se puede leer se avisa.
+	 */
+	private static function write_views( $out, array &$cursor ) {
+		$cursor['written_views'] = array();
+		$cursor['views_failed'] = array();
+		foreach ( (array) ( $cursor['views'] ?? array() ) as $view ) {
+			$sql = Digitalisimo_Backups_Db_Compat::view_definition( (string) $view );
+			if ( null === $sql ) { $cursor['views_failed'][] = (string) $view; continue; }
+			self::write( $out, $sql . ";\n" );
+			$cursor['written_views'][] = (string) $view;
+		}
+		if ( $cursor['written_views'] ) self::write( $out, "\n" );
+	}
+	/** Lo que sigue a la última tabla: las vistas que se escribieron (una sentencia cada una) y el cierre. */
+	private static function check_views( $rest, array $views ) {
+		if ( strlen( $rest ) < strlen( self::TRAILER ) || self::TRAILER !== substr( $rest, -strlen( self::TRAILER ) ) ) throw new Digitalisimo_Backups_Resume_Invalid( 'El SQL exportado no termina como lo escribe el exportador.' );
+		$body = substr( $rest, 0, -strlen( self::TRAILER ) );
+		if ( ! $views ) { if ( '' !== $body ) throw new Digitalisimo_Backups_Resume_Invalid( 'El SQL exportado no termina como lo escribe el exportador.' ); return; }
+		$reader = new Digitalisimo_Backups_Sql_Reader();
+		$statements = array_merge( $reader->feed( $body ), $reader->finish() );
+		$guard = new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::EXPORTER, true );
+		$guard->views( 'defer', $views );
+		$seen = array();
+		foreach ( $statements as $statement ) {
+			try { $guard->check( $statement ); } catch ( Exception $e ) { throw new Digitalisimo_Backups_Resume_Invalid( 'El SQL exportado no se podría importar: ' . $e->getMessage() ); }
+			if ( null === $guard->last_view() ) throw new Digitalisimo_Backups_Resume_Invalid( 'El SQL exportado no se podría importar: tras las tablas hay algo que no es una vista.' );
+			$seen[] = $guard->last_view();
+		}
+		if ( $seen !== array_values( $views ) ) throw new Digitalisimo_Backups_Resume_Invalid( 'El SQL exportado no se podría importar: faltan vistas al final.' );
 	}
 
 	private static function write( $handle, $sql ) {

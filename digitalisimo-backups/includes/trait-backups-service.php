@@ -1019,6 +1019,9 @@ trait Digitalisimo_Backups_Service {
 			$preview = self::service_parts_preview( $zip, $parts );
 			if ( null !== $parts && Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' ) ) $problems[] = 'Un sitio extraído de una red se restaura entero: no admite restaurar por partes.';
 			if ( $preview['missing'] ) $problems[] = 'El respaldo no tiene ' . Digitalisimo_Backups_Restore_Parts::list_text( $preview['missing'], 10 ) . '.';
+			// La base de datos de este servidor: qué se sustituirá, qué se avisa (versiones) y qué impide restaurar.
+			$database = Digitalisimo_Backups_Db_Compat::preview( $data, (array) ( $source['compat'] ?? array() ), $zip, $parts );
+			if ( null === $parts || Digitalisimo_Backups_Restore_Parts::has_database( $parts ) ) $problems = array_merge( $problems, $database['problems'] );
 			return array(
 				'file' => wp_basename( $path ),
 				'verified' => true,
@@ -1053,6 +1056,7 @@ trait Digitalisimo_Backups_Service {
 				'parts' => $preview,
 				// Antes de confirmar: quiénes conservarían su acceso si se restaura aquí (sólo nombres de usuario).
 				'access' => self::service_access_preview( wp_basename( $path ), $data ),
+				'database' => $database,
 			);
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
