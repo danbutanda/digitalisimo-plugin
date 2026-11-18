@@ -401,9 +401,9 @@ try {
 	// la sección usan lo mismo; sources() retira además las descargas cortadas), y «Respaldos (N)» cuenta todos.
 	ss_case( 'T13 · una sola búsqueda en «Importar» y el contador con el total', function() use ( $B ) {
 		// Los paneles pintan lo que se les da, sin volver a buscar en el disco (aquí no hay nada de UpdraftPlus ni Backuply).
-		$set = array( 'id' => 'backup_2026-01-01-0000_Dado_0123456789ab', 'files' => array( 'db' => array( array( 'path' => '/no/existe-db.gz', 'part' => 0, 'encrypted' => false ) ) ), 'complete' => true );
-		ob_start(); bk_call( $B, 'updraft_panel', array( $set['id'] => $set ) ); $updraft = (string) ob_get_clean();
-		ss_check( false !== strpos( $updraft, '<option value="' . $set['id'] . '">' ), 'updraft_panel() vuelve a buscar en el disco en lugar de usar los conjuntos que ya calculó tools_tab().' );
+		$set = array( 'source' => 'store', 'id' => 'backup_2026-01-01-0000_Dado_0123456789ab', 'site' => 'Dado', 'created' => time(), 'date' => '2026-01-01 00:00', 'size' => 10, 'pieces' => array( 'backup_2026-01-01-0000_Dado_0123456789ab-db.gz' ), 'entities' => array(), 'database' => true, 'encrypted' => false, 'ignored' => array(), 'importable' => true, 'problem' => '', 'imported' => '' );
+		ob_start(); bk_call( $B, 'updraft_panel', false, array( $set ) ); $updraft = (string) ob_get_clean();
+		ss_check( false !== strpos( $updraft, 'name="updraft_set" value="' . $set['id'] . '"' ), 'updraft_panel() vuelve a buscar en el disco en lugar de usar los conjuntos que ya calculó tools_tab().' );
 		$item = array( 'source' => 'store', 'name' => 'backup_dado_2026.tar.gz', 'size' => 10, 'created' => time(), 'date' => '2026-01-01 00:00', 'database' => null, 'files' => null, 'site_url' => '', 'imported' => '' );
 		ob_start(); bk_call( $B, 'backuply_panel', false, array( $item ) ); $backuply = (string) ob_get_clean();
 		ss_check( false !== strpos( $backuply, 'value="backup_dado_2026.tar.gz"' ), 'backuply_panel() vuelve a llamar a sources() en lugar de usar los respaldos que ya calculó tools_tab().' );

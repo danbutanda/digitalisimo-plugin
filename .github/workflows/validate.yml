@@ -363,6 +363,7 @@ jobs:
           php tests/backups-pre-update-review.php
           node tests/backups-pre-update-ui.mjs
           php tests/backups-backuply-import.php
+          php tests/backups-updraft-import.php
           php tests/backups-updater.php
           php tests/backups-memory-64m.php
           php tests/backups-e2-findings.php

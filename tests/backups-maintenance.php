@@ -121,8 +121,8 @@ unlink( ABSPATH . '.maintenance' );
 
 // 6. El proceso muere en mitad del SQL: el sitio queda en mantenimiento y la operación siguiente lo retira y avisa.
 // Desde la restauración por pasos, la operación siguiente la reanuda (el SQL va a tablas temporales y el sitio no cambió)
-// y el mantenimiento se retira al terminar; un diario de la restauración en una sola petición (la de UpdraftPlus) sigue
-// retirándolo y avisando como antes.
+// y el mantenimiento se retira al terminar; un diario de la restauración en una sola petición (la de UpdraftPlus de versiones
+// anteriores) sigue retirándolo y avisando como antes.
 $GLOBALS['mails'] = array();
 $db->seen = array();
 $db->die_after = 3;
@@ -145,7 +145,7 @@ register_shutdown_function( function() use ( $B, $root, $created ) {
 		digi_assert( $last && 'success' === $last['status'] && in_array( 'interrupted', array_column( Digitalisimo_Backups_Job_Store::events( $last['id'] ), 'type' ), true ), 'La operación siguiente no reanudó la restauración muerta en mitad del SQL.' );
 		digi_assert( ! file_exists( ABSPATH . '.maintenance' ) && false === digi_wp_maintenance(), 'La operación siguiente no sacó al sitio del mantenimiento.' );
 		digi_assert( ! $GLOBALS['mails'], 'Una restauración reanudada avisó de un fallo.' );
-		// El diario de una restauración en una sola petición que murió (UpdraftPlus): la operación siguiente retira el
+		// El diario de una restauración en una sola petición que murió (la de UpdraftPlus de antes): la operación siguiente retira el
 		// mantenimiento y avisa a quien recibía los avisos antes del SQL.
 		Digitalisimo_Backups_Maintenance::start();
 		$journal = new ReflectionMethod( $B, 'write_restore_journal' );

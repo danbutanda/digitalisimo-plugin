@@ -2840,6 +2840,8 @@ final class Digitalisimo_Backups {
 		}
 		// UpdraftPlus ya no se restaura en una sola petición, sin copia previa ni reubicación (brecha #7): su conjunto se
 		// importa (un ZIP de Backups «Importado») y se restaura desde la lista con la restauración por pasos.
+		$allowed = self::service_scope( is_multisite(), true );
+		if ( is_wp_error( $allowed ) ) self::redirect( false, 'La restauración se detuvo: ' . $allowed->get_error_message() );
 		self::redirect( false, self::updraft_direct_text() );
 	}
 	private static function local_path( $file ) { $file = sanitize_file_name( $file ); if ( '' === $file || '.' === $file[0] ) return ''; $root = realpath( self::local_directory() ); if ( ! $root || is_link( trailingslashit( $root ) . $file ) ) return ''; $path = realpath( trailingslashit( $root ) . $file ); return $path && dirname( wp_normalize_path( $path ) ) === wp_normalize_path( $root ) && is_file( $path ) ? $path : ''; }
