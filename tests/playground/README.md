@@ -10,6 +10,7 @@ tiene en los sitios). No forman parte de los workflows: se corren a mano antes d
 | `core-switch.sh`, `brand-audit.sh` | Núcleo de Elementor incluido e identidad propia del constructor. |
 | `interaction.sh`, `slider.sh`, `front-budget.sh`, `form-submit.sh`, `conditions.sh` | Widgets en Chrome real, presupuesto del front (con la puerta de PRO, sus modos y Lighthouse), formularios y condiciones de visualización. |
 | `front-network.sh` | Ajustes «Rendimiento» de DIGITALÍSIMO Elements en una red Multisite sin Chrome: herencia, transición por sitio, permisos y vaciados (N1–N7). |
+| `admin-perf.sh` | Auditoría del escritorio de Elements y Migración: cada pantalla de WordPress y las propias sin plugins, con ellos y con el código base (`ANTES_*`), en mediana de varias cargas (tiempo, consultas por origen, memoria, peticiones salientes con GitHub simulado al día y caído, avisos de PHP, recursos encolados, WP-Cron y opciones con carga automática), el editor de bloques y el del constructor en Chrome, y el MCP del navegador a demanda. `MULTI=1` en una red; `NATIVE=1` con PHP nativo, OPcache y SQLite (`php -S`). |
 | `shared-ui.sh` | Diseño compartido de los siete plugins. |
 | `tools-catalog.sh`, `tools-php.sh` | Catálogo de plugins y código PHP de DIGITALÍSIMO Tools. |
 | `catalog-install-all.sh` | «Instalar todos» del catálogo de plugins (Tools y SEO) con el instalador real de WordPress y ZIP locales. |
