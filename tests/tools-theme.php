@@ -98,6 +98,10 @@ function add_query_arg( $args, $url = '', $third = null ) {
 	return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . implode( '&', $pairs ) . $fragment;
 }
 function nonce( $action ) { return 'n' . substr( md5( 'nonce|' . $action ), 0, 10 ); }
+// «Instalar todos» del catálogo de plugins (Tools 1.0.39): su botón lleva su propio nonce.
+function wp_create_nonce( $action ) { return nonce( $action ); }
+function wp_verify_nonce( $value, $action ) { return $value === nonce( $action ) ? 1 : false; }
+function sanitize_text_field( $text ) { return trim( strip_tags( (string) $text ) ); }
 function wp_nonce_url( $url, $action = -1 ) { return add_query_arg( '_wpnonce', nonce( $action ), $url ); }
 function check_admin_referer( $action ) { if ( ( $_REQUEST['_wpnonce'] ?? '' ) !== nonce( $action ) ) throw new Died( 'nonce' ); return 1; }
 function wp_die( $message = '' ) { throw new Died( (string) $message ); }

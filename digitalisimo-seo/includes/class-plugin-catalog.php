@@ -176,7 +176,8 @@ final class Digitalisimo_Plugin_Catalog {
 	private static function install_all_url( $network, $tried = array() ) {
 		$args = array( 'action' => self::INSTALL_ALL_ACTION, 'digitalisimo_context' => $network ? 'network' : 'site' );
 		if ( $tried ) $args['tried'] = implode( ',', $tried );
-		return add_query_arg( '_wpnonce', wp_create_nonce( self::INSTALL_ALL_ACTION ), add_query_arg( $args, admin_url( 'admin-post.php' ) ) );
+		$args['_wpnonce'] = wp_create_nonce( self::INSTALL_ALL_ACTION );
+		return add_query_arg( $args, admin_url( 'admin-post.php' ) );
 	}
 
 	/** Botón «Instalar todos» (sólo si falta alguno) y, al volver de la corrida, el resumen de lo instalado y lo que falló. */

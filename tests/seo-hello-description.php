@@ -61,6 +61,13 @@ function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOT
 function esc_url( $value ) { return (string) $value; }
 function admin_url( $path = '' ) { return 'https://ejemplo.test/wp-admin/' . $path; }
 function add_query_arg( $args, $url ) { return $url . '?' . http_build_query( $args ); }
+// «Instalar todos» del catálogo de plugins (SEO 1.0.255): botón con su nonce y resumen al volver.
+function network_admin_url( $path = '' ) { return 'https://ejemplo.test/wp-admin/network/' . $path; }
+function wp_create_nonce( $action ) { return 'nonce-' . md5( $action ); }
+function wp_verify_nonce( $value, $action ) { return $value === wp_create_nonce( $action ) ? 1 : false; }
+function sanitize_key( $key ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) ); }
+function sanitize_text_field( $text ) { return trim( strip_tags( (string) $text ) ); }
+function wp_unslash( $value ) { return $value; }
 function wp_nonce_url( $url, $action ) { return $url; }
 function current_user_can( $capability ) { return true; }
 function get_site_transient( $key ) { return 'digitalisimo_plugin_catalog_releases' === $key ? array( 'digitalisimo-seo' => array( 'version' => '1.0.229', 'package' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v1/digitalisimo-seo-1.0.229.zip' ) ) : false; }

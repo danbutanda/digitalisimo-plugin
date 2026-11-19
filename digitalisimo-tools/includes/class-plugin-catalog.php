@@ -90,7 +90,7 @@ final class Plugin_Catalog {
 	private static function network_context() { return is_multisite() && 'network' === sanitize_key( wp_unslash( $_GET['digitalisimo_context'] ?? '' ) ); }
 	private static function install_all_url( $network, $tried = array() ) {
 		$args = array( 'action' => self::INSTALL_ALL, 'digitalisimo_context' => $network ? 'network' : 'site' ); if ( $tried ) $args['tried'] = implode( ',', $tried );
-		return add_query_arg( '_wpnonce', wp_create_nonce( self::INSTALL_ALL ), add_query_arg( $args, admin_url( 'admin-post.php' ) ) );
+		$args['_wpnonce'] = wp_create_nonce( self::INSTALL_ALL ); return add_query_arg( $args, admin_url( 'admin-post.php' ) );
 	}
 	/** Botón «Instalar todos» (sólo si falta alguno) y, al volver de la corrida, el resumen de lo instalado y lo que falló. */
 	private static function install_all_box( $releases ) {
