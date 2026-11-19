@@ -90,7 +90,9 @@ async function login(label = 'inicio de sesión de admin en el destino') {
     await page.type('#user_pass', 'password');
     await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 120_000 }).catch(() => null), page.click('#wp-submit')]);
   }
-  return check(/wp-admin/.test(page.url()), label, page.url());
+  const inside = /wp-admin/.test(page.url());
+  if (!inside) await shot('acceso-fallido');
+  return check(inside, label, `${page.url()} ${await page.$eval('#login_error', (e) => e.innerText).catch(() => '')}`);
 }
 async function go(path) {
   const res = await page.goto(base + path, { waitUntil: 'load' });
@@ -187,7 +189,22 @@ if (listed && listed.restore) {
   const job = latest((j) => j.kind !== 'import');
   const ticks = existsSync(`${store}/jobs/${job.id}/events.jsonl`) ? readFileSync(`${store}/jobs/${job.id}/events.jsonl`, 'utf8').split('\n').filter((line) => /"type":"phase"/.test(line)).length : 0;
   check(run.open === 0 && job.status === 'success', `la restauración termina, en ${ticks} tramos (${run.seconds} s)`, JSON.stringify({ kind: job.kind, status: job.status, error: job.error, message: job.progress?.message }));
-  state = await probe();
+  log(`cuentas tras restaurar: ${String(job.result?.access?.text || JSON.stringify(job.result?.access || null)).slice(0, 900)}`);
+  if (real) {
+    // Un sitio real de una versión anterior: WordPress pide actualizar su base y el dueño pulsa su botón.
+    await page.goto(`${base}/wp-admin/upgrade.php`, { waitUntil: 'load' }).catch(() => {});
+    const step = await page.$('a.button[href*="step=1"]');
+    if (step) {
+      log('WordPress pide actualizar la base de datos (el respaldo es de una versión anterior): se actualiza con su botón');
+      await Promise.all([page.waitForNavigation({ waitUntil: 'load' }).catch(() => null), step.click()]);
+      await shot('base-actualizada');
+    }
+    // La sonda del destino era un mu-plugin y el respaldo real no la trae: el estado, por la API REST de WordPress.
+    const index = (await request('GET', '/?rest_route=%2F')).json || {};
+    state = { blogname: index.name, home: index.home, siteurl: index.url };
+  } else {
+    state = await probe();
+  }
   check(state.home === 'http://destino.test' && state.siteurl === 'http://destino.test' && state.blogname !== 'Destino antes de restaurar', 'el sitio queda con la dirección del destino y el nombre del origen', JSON.stringify({ blog: state.blogname, home: state.home, siteurl: state.siteurl, error: state.error }));
   if (!real) {
     check(state.blogname === 'Sitio de origen Webuzo' && (state.posts || []).includes('Entrada de Webuzo principal') && !(state.posts || []).includes('Entrada del destino'), 'el contenido es el del origen', JSON.stringify({ blog: state.blogname, posts: state.posts }));
@@ -201,7 +218,7 @@ if (listed && listed.restore) {
     }
   }
   await go(screen);
-  check(/wp-admin/.test(page.url()) && !/wp-login/.test(page.url()), 'quien restauró sigue dentro', page.url());
+  check(/wp-admin/.test(page.url()) && !/wp-login|upgrade\.php/.test(page.url()), 'quien restauró sigue dentro', page.url());
   await shot('restaurado');
   const front = await request('GET', '/');
   check(front.status === 200 && !/Fatal error|critical error|error crítico/i.test(front.text) && (real || (/Entrada de Webuzo principal/.test(front.text) && !/origen\.test/.test(front.text))), 'la portada del sitio restaurado carga' + (real ? '' : ' con el contenido del origen y sin origen.test'), `${front.status} ${front.text.slice(0, 300)}`);
