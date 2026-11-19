@@ -17,7 +17,18 @@ class Digitalisimo_AI_Images {
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 30 );
+		add_action( 'current_screen', array( __CLASS__, 'hidden_page_title' ) );
 		add_action( 'add_meta_boxes', array( __CLASS__, 'post_metabox' ) );
+	}
+
+	/**
+	 * «Imágenes de artículos» no tiene entrada en el menú (add_submenu_page( null, … )): sin título, admin-header.php
+	 * hacía strip_tags( null ), avisos «deprecated» de PHP 8.1+ en cada carga. Se toma el título con el que se registró.
+	 */
+	public static function hidden_page_title() {
+		global $title, $plugin_page, $submenu;
+		if ( ! empty( $title ) || 'digitalisimo-ai-images' !== $plugin_page ) return;
+		foreach ( (array) ( $submenu[''] ?? array() ) as $item ) if ( isset( $item[2], $item[3] ) && $item[2] === $plugin_page ) { $title = $item[3]; return; } // phpcs:ignore WordPress.WP.GlobalVariablesOverride -- es el título que WordPress buscaría.
 	}
 
 	public static function menu() {

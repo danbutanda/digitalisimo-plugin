@@ -62,7 +62,10 @@ class Digitalisimo_Integrations_URL_Bases {
 	/** @var array|null Rutas ocupadas de esta petición. */
 	private static $taken = null;
 
-	public static function forget() { self::$taken = null; delete_option( self::TAKEN ); }
+	/** Ya se borró en esta petición y taken() no la volvió a escribir: un guardado la dispara por el contenido y por su revisión. */
+	private static $forgotten = false;
+
+	public static function forget() { self::$taken = null; if ( self::$forgotten ) return; delete_option( self::TAKEN ); self::$forgotten = true; }
 
 	/** Rutas de primer nivel de páginas y, con /%postname%/, de entradas: una consulta y una opción sin autoload. */
 	private static function taken() {
@@ -75,6 +78,7 @@ class Digitalisimo_Integrations_URL_Bases {
 		$in    = "'" . implode( "','", $types ) . "'";
 		$taken = array_fill_keys( array_map( 'strval', $wpdb->get_col( "SELECT post_name FROM {$wpdb->posts} WHERE post_type IN ($in) AND post_parent = 0 AND post_status IN ('publish','private','future','draft','pending') AND post_name <> ''" ) ), true ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		update_option( self::TAKEN, $taken, false );
+		self::$forgotten = false;
 		return self::$taken = $taken;
 	}
 

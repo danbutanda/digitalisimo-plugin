@@ -128,6 +128,11 @@ class Digitalisimo_Integrations_Links {
 
 	public static function after_save( $post_id, $post, $update, $post_before ) {
 		if ( ! self::enabled() || ! self::installed() || wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) return;
+		// process() borra y vuelve a escribir los enlaces y resuelve cada URL interna con url_to_postid() (varias
+		// consultas por enlace). Si el contenido, el estado y el tipo no cambiaron y ya se analizó con esta versión, el
+		// resultado sería el mismo: así el segundo guardado del editor de bloques (el de los metaboxes) y los guardados
+		// que sólo tocan título o metadatos no lo repiten.
+		if ( $update && $post && $post_before && $post_before->post_content === $post->post_content && $post_before->post_status === $post->post_status && $post_before->post_type === $post->post_type && (string) self::VERSION === (string) get_post_meta( $post_id, self::META, true ) ) return;
 		self::process( $post_id );
 	}
 

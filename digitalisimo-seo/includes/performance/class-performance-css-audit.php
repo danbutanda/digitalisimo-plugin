@@ -26,8 +26,13 @@ class Digitalisimo_Integrations_Performance_CSS_Audit {
 		if ( is_multisite() ) add_action( 'update_site_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'invalidate_network' ) );
 	}
 
+	/** Ya se borró en esta petición y nada la volvió a escribir: un guardado dispara save_post, cada meta y cada opción. */
+	private static $cleared = false;
+
 	public static function invalidate() {
+		if ( self::$cleared ) return;
 		delete_option( self::OPTION );
+		self::$cleared = true;
 	}
 
 	public static function meta_changed( $meta_id, $post_id, $key, $value ) {
@@ -153,6 +158,7 @@ class Digitalisimo_Integrations_Performance_CSS_Audit {
 		if ( count( $cache['pages'][ $page ] ) > 8 ) $cache['pages'][ $page ] = array_slice( $cache['pages'][ $page ], -8, null, true );
 		if ( count( $cache['pages'] ) > 40 ) $cache['pages'] = array_slice( $cache['pages'], -40, null, true );
 		update_option( self::OPTION, $cache, false );
+		self::$cleared = false;
 		wp_send_json_success();
 	}
 }

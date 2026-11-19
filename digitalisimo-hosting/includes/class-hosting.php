@@ -75,7 +75,12 @@ class Digitalisimo_Hosting {
 			update_site_option( self::LEGACY_NETWORK_MIGRATED, time() );
 		}
 
-		if ( get_option( self::LEGACY_MIGRATED ) ) return;
+		if ( get_option( self::LEGACY_MIGRATED ) ) {
+			// La marca se guardaba sin autoload: una consulta en cada petición (escritorio, heartbeat, REST y front).
+			// Se pasa una vez a autoload; después WordPress la trae con el resto de opciones, sin consulta propia.
+			if ( function_exists( 'wp_set_option_autoload' ) && ! array_key_exists( self::LEGACY_MIGRATED, wp_load_alloptions() ) ) wp_set_option_autoload( self::LEGACY_MIGRATED, true );
+			return;
+		}
 		$local = self::local();
 		$legacy = (array) get_option( self::LEGACY_OPTION, array() );
 		$has_legacy = (bool) array_intersect_key( $legacy, $map );
@@ -88,7 +93,7 @@ class Digitalisimo_Hosting {
 			}
 		}
 		if ( $merged !== $local ) update_option( self::OPTION, $merged, false );
-		update_option( self::LEGACY_MIGRATED, time(), false );
+		update_option( self::LEGACY_MIGRATED, time(), true );
 	}
 
 	private static function migrated_values( $target, $legacy, $map ) {

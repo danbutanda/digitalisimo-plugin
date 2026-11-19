@@ -281,6 +281,7 @@ jobs:
           php tests/elements.php
           php tests/elements-load-order.php
           php tests/hosting-migration.php
+          php tests/hosting-admin-perf.php
           php tests/backups-sftp.php
           php tests/backups-sftp-phpseclib.php
           php tests/backups-sftp-keys.php

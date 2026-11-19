@@ -67,6 +67,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 25 );
 		add_action( 'add_meta_boxes', array( __CLASS__, 'metaboxes' ) ); add_action( 'save_post', array( __CLASS__, 'save_post' ), 15 ); add_action( 'wp_after_insert_post', array( __CLASS__, 'ensure_post_author' ), 15, 4 ); 
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'editor_assets' ) );
+		add_filter( 'redirect_post_location', array( __CLASS__, 'metabox_saved' ), PHP_INT_MAX );
 		// El editor de snippet es el panel principal de SEO: nunca debe quedar
 		// perdido por una preferencia heredada del usuario en Gutenberg.
 		add_filter( 'hidden_meta_boxes', array( __CLASS__, 'keep_snippet_visible' ), 10, 2 );
@@ -529,6 +530,17 @@ class Digitalisimo_Integrations_SEO_Suite {
 			// Se muestra completo en la barra lateral: Gutenberg mantiene ese panel siempre accesible.
 			add_meta_box( 'digitalisimo_native_seo', 'SEO de Digitalisimo', array( __CLASS__, 'metabox' ), $type, 'side', 'high' );
 		}
+	}
+	/**
+	 * El editor de bloques guarda los metaboxes heredados (los de SEO y los de otros plugins) con un POST aparte a
+	 * post.php?meta-box-loader=1 y descarta la respuesta. WordPress contesta con una redirección al editor que fetch
+	 * sigue: el servidor volvía a pintar el editor completo (con todos sus metaboxes) en cada guardado. Los datos ya
+	 * se guardaron (edit_post): para esa petición basta un 200 vacío. El editor clásico no lleva meta-box-loader.
+	 */
+	public static function metabox_saved( $location ) {
+		if ( empty( $_GET['meta-box-loader'] ) || 'POST' !== strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) || ! is_admin() ) return $location; // phpcs:ignore WordPress.Security.NonceVerification -- post.php ya comprobó el nonce del guardado.
+		if ( ! headers_sent() ) { status_header( 200 ); nocache_headers(); header( 'Content-Type: text/plain; charset=utf-8' ); }
+		exit;
 	}
 	public static function editor_assets( $hook ) {
 		if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return;

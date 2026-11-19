@@ -11,6 +11,19 @@ class Digitalisimo_AI {
 		add_shortcode( 'digitalisimo_chatbot', array( __CLASS__, 'shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'add_meta_boxes', array( __CLASS__, 'content_metabox' ) );
+		add_filter( 'redirect_post_location', array( __CLASS__, 'metabox_saved' ), PHP_INT_MAX );
+	}
+
+	/**
+	 * El editor de bloques guarda los metaboxes heredados (los de IA Tools y los de otros plugins) con un POST aparte a
+	 * post.php?meta-box-loader=1 y descarta la respuesta. WordPress contesta con una redirección al editor que fetch
+	 * sigue: el servidor volvía a pintar el editor completo en cada guardado. Los datos ya se guardaron (edit_post):
+	 * para esa petición basta un 200 vacío. El editor clásico no lleva meta-box-loader.
+	 */
+	public static function metabox_saved( $location ) {
+		if ( empty( $_GET['meta-box-loader'] ) || 'POST' !== strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) || ! is_admin() ) return $location; // phpcs:ignore WordPress.Security.NonceVerification -- post.php ya comprobó el nonce del guardado.
+		if ( ! headers_sent() ) { status_header( 200 ); nocache_headers(); header( 'Content-Type: text/plain; charset=utf-8' ); }
+		exit;
 	}
 
 	private static function defaults() {

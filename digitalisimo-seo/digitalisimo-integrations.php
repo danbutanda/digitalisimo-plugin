@@ -94,7 +94,17 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-perform
 // Debe decidirse antes de `plugins_loaded`: para entonces la ruta ya está resuelta.
 if ( ! Digitalisimo_Integrations_Settings::tools_handles_site_options() ) Digitalisimo_Integrations_Hide_Login::boot();
 
+/**
+ * Opciones sin autoload que SEO lee en cada petición del escritorio (también el heartbeat y admin-ajax): marcas de
+ * migración y de versión de tablas, estados y manifiestos. Sin caché de objetos persistente eran una consulta cada una
+ * (unas diez por petición); se piden juntas en una sola. Sólo lee: no cambia valores ni autoload.
+ */
+function digitalisimo_integrations_admin_options() {
+	return array( 'digitalisimo_seo_template_defaults_1_0_122', 'digitalisimo_seo_redirections_db', 'digitalisimo_seo_404_db', 'digitalisimo_seo_links_db', 'digitalisimo_seo_links_done', 'digitalisimo_seo_url_bases_state', 'digitalisimo_performance_font_inline_manifest', 'digitalisimo_performance_preload_manifest', 'digitalisimo_performance_hero_bootstrapped', 'digitalisimo_favicon_state', 'digitalisimo_image_roles' );
+}
+
 function digitalisimo_integrations_boot() {
+	if ( is_admin() && function_exists( 'wp_prime_option_caches' ) ) wp_prime_option_caches( digitalisimo_integrations_admin_options() );
 	Digitalisimo_Integrations_Settings::init();
 	Digitalisimo_Integrations_Performance_Manager::init();
 	Digitalisimo_Integrations_Performance_CSS::init();
