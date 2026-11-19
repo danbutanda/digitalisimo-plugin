@@ -364,6 +364,17 @@ namespace {
 	$check( 'boxed' === find( tree( $a ), 'q1' )['settings']['content_width'] && 'boxed' === find( tree( $b ), 'q9' )['settings']['content_width'] && 'digitalisimo-blockquote' === find( tree( $b ), 'q9' )['widgetType'], 'La etapa recupera el convertido antes y convierte el nuevo: ' . wp_json_encode( $state['counts'] ?? null ) );
 	$check( $kit_raw === get_metadata( 'post', $kit, '_elementor_data', true ), 'Un documento sin copia de la migración no se toca.' );
 
+	// 3g. El informe de la etapa `report` relee la copia original de un documento convertido antes (sin huella, como las
+	// copias de ≤ 1.0.20): sus claves de Element Pack ya las trató su etapa y no salen como ajustes de PRO perdidos (de
+	// ahí venían las filas `ep_*` del informe real).
+	fresh();
+	$id = migrated_doc( real_site(), array( box( array( w( 'digitalisimo-blockquote', array( '_digitalisimo_pro' => 'blockquote', 'blockquote_content' => 'Cita', 'content_width' => 'boxed' ), 'q1' ) ), 'c1' ) ), false );
+	Report::clear();
+	Report::begin( 'run' );
+	Runner::describe_backup( $id );
+	$codes = codes_of( Report::take(), $id );
+	$check( in_array( 'pro.converted:blockquote:', $codes, true ) && ! preg_grep( '/^pro\.unmapped/', $codes ) && ! preg_grep( '/:(ep_|element_pack_)/', $codes ), 'La relectura de la copia no da por perdidas las claves de Element Pack ni las inertes: ' . implode( ', ', $codes ) );
+
 	/* ================================================================ 4. WooCommerce inactivo */
 	fresh();
 	manager( array( 'digitalisimo-blockquote' ) );
