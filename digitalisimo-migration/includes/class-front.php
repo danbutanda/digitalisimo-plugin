@@ -48,16 +48,23 @@ final class Front {
 			return call_user_func( self::$fetcher, $url );
 		}
 		$url = add_query_arg( 'digitalisimo-migration-check', (string) microtime( true ), $url );
+		// Las cookies que pone una redirección (consentimiento, idioma) viajan al salto siguiente, como en un navegador.
+		$jar = array( 'comment_author_digitalisimo_migration' => '1' );
 		for ( $hop = 0; $hop <= 3; $hop++ ) {
 			$response = wp_remote_get( $url, array(
 				'timeout'     => 20,
 				'redirection' => 0,
 				'sslverify'   => (bool) apply_filters( 'https_local_ssl_verify', false ),
 				'headers'     => array( 'Cache-Control' => 'no-cache, no-store', 'Pragma' => 'no-cache' ),
-				'cookies'     => array( 'comment_author_digitalisimo_migration' => '1' ),
+				'cookies'     => $jar,
 			) );
 			if ( is_wp_error( $response ) ) {
 				return $response;
+			}
+			foreach ( (array) wp_remote_retrieve_cookies( $response ) as $cookie ) {
+				if ( is_object( $cookie ) && isset( $cookie->name ) ) {
+					$jar[ (string) $cookie->name ] = (string) $cookie->value;
+				}
 			}
 			$code     = (int) wp_remote_retrieve_response_code( $response );
 			$location = (string) wp_remote_retrieve_header( $response, 'location' );
