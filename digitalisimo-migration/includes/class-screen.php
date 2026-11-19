@@ -58,10 +58,7 @@ final class Screen {
 	/** ¿Hay una migración completa terminada y ninguna en marcha? Entonces el análisis se pliega bajo su informe. */
 	public static function finished( $network ) {
 		$state = Full::load( $network );
-		if ( $state && empty( $state['done'] ) ) {
-			return false;
-		}
-		$last = $state ? $state : Full::last( $network );
+		$last  = $state ? $state : Full::last( $network );
 		return is_array( $last ) && ! empty( $last['done'] );
 	}
 

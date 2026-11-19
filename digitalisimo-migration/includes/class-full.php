@@ -1761,17 +1761,11 @@ final class Full {
 	}
 
 	/**
-	 * El informe en texto para la terminal: una línea por párrafo, entrada, fila, encabezado o desplegable; el detalle por
-	 * documento (sólo en la pantalla) no entra.
+	 * El informe en texto para la terminal: una línea por párrafo, entrada, fila, encabezado o desplegable (el informe
+	 * para la terminal, `cli`, ya llega sin el detalle por documento).
 	 */
 	public static function text( $html ) {
-		// Sin expresión regular: el detalle por documento de un sitio grande pasaría del límite de PCRE.
-		$html = (string) $html;
-		while ( false !== ( $at = strpos( $html, '<details class="digi-migrate__docs">' ) ) ) {
-			$end  = strpos( $html, '</details>', $at );
-			$html = substr( $html, 0, $at ) . ( false === $end ? '' : substr( $html, $end + 10 ) );
-		}
-		$html = str_replace( '</td></tr>', '</tr>', $html );
+		$html = str_replace( '</td></tr>', '</tr>', (string) $html );
 		$text = str_replace( array( '</p>', '</li>', '</tr>', '</h2>', '</h3>', '</h4>', '</h5>', '</div>', '</summary>', '</caption>', '<ul>', '<ul ' ), array( "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n<ul>", "\n<ul " ), (string) $html );
 		$text = html_entity_decode( wp_strip_all_tags( str_replace( array( '</td>', '</th>' ), ' · ', $text ) ), ENT_QUOTES, 'UTF-8' );
 		return trim( (string) preg_replace( "/\n\s*\n+/", "\n", $text ) );

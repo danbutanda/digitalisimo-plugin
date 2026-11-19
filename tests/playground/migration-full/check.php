@@ -40,6 +40,7 @@ foreach ( $network ? get_sites( array( 'fields' => 'ids' ) ) : array( get_curren
 		'content'    => is_array( get_option( 'fake_runner_report' ) ) ? 'fake' : ( is_array( get_option( 'digitalisimo_migration_report' ) ) ? 'done' : 'missing' ),
 		'quote'      => (int) get_option( 'digi_probe_blockquote' ),
 		'cart'       => (int) get_option( 'digi_probe_woocommerce-cart' ),
+		'cart_types' => array_column( (array) ( json_decode( (string) get_post_meta( (int) get_option( 'digi_probe_woocommerce-cart' ), '_elementor_data', true ), true )[0]['elements'] ?? array() ), 'widgetType' ),
 		'quote_type' => (string) ( json_decode( (string) get_post_meta( (int) get_option( 'digi_probe_blockquote' ), '_elementor_data', true ), true )[0]['elements'][0]['widgetType'] ?? '' ),
 	);
 	if ( $network ) {

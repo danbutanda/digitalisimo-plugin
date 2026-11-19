@@ -327,6 +327,7 @@ namespace {
 	f8_check( 1 === substr_count( $agg, 'Se dejan tal cual, sin efecto en lo que se ve:' ), 'Lo inerte, en una sola línea.' );
 	preg_match( '#Se dejan tal cual, sin efecto en lo que se ve:[^<]*#', $agg, $m );
 	$inert_line = $m[0] ?? '';
+	f8_check( 'Se dejan tal cual, sin efecto en lo que se ve: ajustes guardados que no son del widget de PRO en 1 documento (_element_custom_width); ajustes de página de Element Pack que guardaban documentos migrados con una versión anterior.' === $inert_line, 'La línea de lo inerte, entera: ' . $inert_line );
 	f8_check( str_contains( $inert_line, '_element_custom_width' ) && str_contains( $inert_line, 'ajustes de página de Element Pack' ) && false === strpos( $inert_line, 'display_condition_list' ) && false === strpos( $inert_line, 'content_width' ), 'Lo que pasa tal cual y ya está como recuperado no vuelve a salir como inerte: ' . $inert_line );
 	f8_check( str_contains( $agg, 'Datos que el plugin anterior dejó en el sitio y la migración no borra (2 en el sitio) — archivos en uploads/element-pack, copias en uploads/element-pack-backups.' ), 'Lo del sitio, con su cantidad y su nota.' );
 	f8_check( str_contains( $agg, 'Plantilla creada con el contenido de un desplegable del mega menú' ) && str_contains( $agg, 'Servicios (Mega Menu)' ), 'Lo creado, con su nombre.' );
@@ -355,8 +356,9 @@ namespace {
 	$detail    = strpos( $html, '<details class="digi-migrate__detail">' );
 	f8_check( false !== $attention && false !== $detail && $attention < $detail && strpos( $html, 'Portada y páginas' ) < $attention, '«Necesita tu atención» va justo después del resultado y antes del detalle.' );
 	preg_match( '#<ul class="digi-migrate__attention"[^>]*>(.*?)</ul>#s', $html, $m );
-	$items = isset( $m[1] ) ? explode( '</li><li>', $m[1] ) : array();
+	$items = isset( $m[1] ) ? explode( '</li><li>', substr( $m[1], 4, -5 ) ) : array();
 	f8_check( 2 === count( $items ), 'Dos asuntos: las extensiones de Element Pack y WooCommerce (' . count( $items ) . ').' );
+	f8_check( str_starts_with( $items[0] ?? '', 'Widgets de PRO sin convertir porque su widget propio necesita WooCommerce' ) && str_starts_with( $items[1] ?? '', 'Ajustes de extensiones de Element Pack que ya no se aplican' ), 'Cada asunto empieza por lo que hay que hacer.' );
 	$woo = implode( '', array_filter( $items, static function ( $item ) {
 		return str_contains( $item, 'WooCommerce' );
 	} ) );
@@ -391,12 +393,18 @@ namespace {
 	f8_check( 1 === substr_count( $solo, 'Migración completada' ) && str_contains( $solo, 'Necesita tu atención' ) && str_contains( $solo, '<details class="digi-migrate__detail"><summary>Detalle</summary>' ) && false === stripos( $solo, 'había nada que' ), 'Solo, el informe del contenido tiene la misma forma.' );
 	f8_check( count( summary_lines( summary_visible( $solo ) ) ) < 15, 'Y también se lee de un vistazo: ' . count( summary_lines( summary_visible( $solo ) ) ) );
 	f8_check( false === strpos( $solo, 'Este sitio ya no depende' ), 'Con asuntos pendientes no dice que el sitio ya no depende de nada.' );
+	$solo_cli = Full::text( Runner::render( $content, 'cli' ) );
+	f8_check( false === strpos( $solo_cli, 'Por documento' ) && false === strpos( $solo_cli, $catalog['pro.recovered']['label'] ) && str_contains( $solo_cli, 'blockquote → digitalisimo-blockquote: ' ), 'En WP-CLI (un sitio de una red), el mismo resumen sin el detalle por documento.' );
 	// Una primera pasada: dice lo que hizo.
 	$first = $content;
 	$first['counts'] = array( 'pro' => 21, 'pro_elements' => 118, 'revisions' => 2 );
 	$parts = Runner::report_parts( $first );
 	f8_check( str_contains( $parts['summary'], 'En esta pasada: 21 documentos con widgets de PRO convertidos (118 widgets); 2 revisiones' ) && false === strpos( $parts['summary'], 'Ya estaba convertido' ), 'Una pasada que convierte dice lo que hizo: ' . $parts['summary'] );
 	f8_check( str_contains( $parts['detail'], 'Documentos con widgets de PRO convertidos a widgets propios: 21 (118 widgets).' ), 'Y el detalle lo cuenta entero.' );
+	// Los plugins desactivados: el informe solo dice si pueden borrarse; dentro de la tarea completa, no (ella los borra).
+	$off = $content;
+	$off['report']['plugins'] = array( 'elementor/elementor.php' => array( 'label' => 'Elementor', 'site' => false, 'network' => false ) );
+	f8_check( str_contains( Runner::render( $off ), 'Desactivados y listos para borrarse desde Plugins cuando hayas comprobado el sitio: Elementor.' ) && '' === Runner::report_parts( $off, 'site', 4 )['plugins'], 'Lo que puede borrarse lo dice el informe solo, nunca dentro del de la tarea completa (que dice lo que borró).' );
 	// Sin nada: lo dice en una línea, y nada pide atención.
 	Report::clear();
 	$empty = array( 'stage' => 'finish', 'done' => true, 'finished' => 1, 'counts' => array(), 'warnings' => array(), 'report' => array( 'f8' => array( 'v' => 1 ), 'plugins' => array() ) );
@@ -449,6 +457,9 @@ namespace {
 	}
 	f8_check( 1 === substr_count( $screen, 'Lo que hará Migrar</h' ) && false === strpos( summary_visible( $screen ), 'Qué hay en este sitio' ), '«Lo que hará Migrar» no se repite y nada del análisis se ve sin desplegar.' );
 	f8_check( false === strpos( $screen, 'pasan al tema propio' ) && str_contains( $screen, 'Se queda: es un tema hijo de Hello' ), 'La fila del tema hijo no sugiere que algo pase al tema propio.' );
+	// El análisis del contenido terminado: lo pendiente arriba, lo demás agregado, y su encabezado no repite el del plan.
+	$analysis = Migration::analysis_html( array( 'done' => true, 'processed' => 1, 'total' => 1, 'report' => $stored, 'pro' => null ) );
+	f8_check( str_starts_with( $analysis, '<h3>Lo que hará Migrar en el contenido</h3><h4>Pendiente de revisar</h4>' ) && str_contains( $analysis, 'si activas WooCommerce' ) && str_contains( $analysis, '<details class="digi-migrate__docs">' ) && false === strpos( summary_aggregate( $analysis ), esc_html( $catalog['pro.converted']['label'] ) ), 'El análisis previo usa el mismo resumen agregado, con su propio encabezado.' );
 	update_option( 'stylesheet', 'hello-elementor' );
 	$plan = Screen::plan_html( false );
 	f8_check( str_contains( $plan, 'pasan al tema propio' ) && str_contains( $plan, 'Tema DIGITALÍSIMO' ), 'Con Hello sin hijo, el plan sí dice lo que pasa al tema propio.' );
