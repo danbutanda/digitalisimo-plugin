@@ -161,6 +161,56 @@ final class Digitalisimo_Elements_Vendor_Free {
 		add_action( 'elementor/element/video/section_video/before_section_end', array( __CLASS__, 'video_defaults' ) );
 		add_filter( 'elementor/atomic-widgets/props-schema', array( __CLASS__, 'atomic_defaults' ) );
 		add_filter( 'plugin_row_meta', array( __CLASS__, 'plugin_row_meta' ), 20, 2 );
+		// SDK de novedades del proveedor (wp-notifications-package): lo instancia Hello (y cualquier producto suyo) con la
+		// copia del núcleo incluido; sin esto, cada 12 h en `admin_init`, al dejar el tema y al desactivar un plugin pide
+		// sus novedades al proveedor (api/v1/notifications; el escudo la corta, pero antes genera la clave de conexión).
+		add_action( 'admin_init', array( __CLASS__, 'drop_notifications' ), 0, 0 );
+		add_action( 'switch_theme', array( __CLASS__, 'drop_notifications' ), 0, 0 );
+		add_action( 'deactivate_plugin', array( __CLASS__, 'drop_plugin_notifications' ), 0, 1 );
+	}
+
+	/** Clase del SDK de novedades del proveedor que traen el núcleo, Hello y otros productos suyos. */
+	const NOTIFICATIONS_SDK = 'Elementor\\WPNotificationsPackage\\V120\\Notifications';
+
+	/** Métodos del SDK que piden novedades (o avisan de una baja) al proveedor, por gancho. */
+	const NOTIFICATIONS_CALLS = array( 'admin_init' => 'refresh_notifications', 'switch_theme' => 'on_theme_deactivated', 'deactivate_' => 'on_plugin_deactivated' );
+
+	/**
+	 * ¿La clase del SDK cargada es la copia del núcleo incluido? Sólo entonces es una petición del constructor (como
+	 * decide from_builder() en el escudo); si la cargó un producto del proveedor que el administrador instaló con su
+	 * propia copia, sigue funcionando como siempre.
+	 */
+	public static function bundled_notifications_sdk() {
+		if ( ! class_exists( self::NOTIFICATIONS_SDK, false ) ) {
+			return false;
+		}
+		$file = wp_normalize_path( (string) ( new ReflectionClass( self::NOTIFICATIONS_SDK ) )->getFileName() );
+		return 0 === strpos( $file, wp_normalize_path( dirname( DIGITALISIMO_ELEMENTS_FILE ) ) . '/' );
+	}
+
+	/** Quita del gancho en curso (o del indicado) los métodos del SDK que piden al proveedor. Devuelve cuántos quitó. */
+	public static function drop_notifications( $hook = null ) {
+		global $wp_filter;
+		$hook   = null === $hook ? current_filter() : (string) $hook;
+		$method = self::NOTIFICATIONS_CALLS[ 0 === strpos( $hook, 'deactivate_' ) ? 'deactivate_' : $hook ] ?? '';
+		if ( '' === $method || ! isset( $wp_filter[ $hook ] ) || ! is_object( $wp_filter[ $hook ] ) || ! self::bundled_notifications_sdk() ) {
+			return 0;
+		}
+		$dropped = 0;
+		foreach ( (array) $wp_filter[ $hook ]->callbacks as $priority => $callbacks ) {
+			foreach ( (array) $callbacks as $callback ) {
+				$function = $callback['function'] ?? null;
+				if ( is_array( $function ) && isset( $function[0], $function[1] ) && is_a( $function[0], self::NOTIFICATIONS_SDK ) && $method === $function[1] ) {
+					$dropped += remove_action( $hook, $function, $priority ) ? 1 : 0;
+				}
+			}
+		}
+		return $dropped;
+	}
+
+	/** `deactivate_plugin`: la baja que el SDK avisaría en `deactivate_{plugin}`. */
+	public static function drop_plugin_notifications( $plugin ) {
+		return self::drop_notifications( 'deactivate_' . $plugin );
 	}
 
 	/**

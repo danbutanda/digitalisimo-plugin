@@ -197,6 +197,7 @@ jobs:
           php tests/elements-products-carousel.php
           php tests/elements-core-loader.php
           php tests/elements-admin-load.php
+          php tests/elements-vendor-notifications.php
           php tests/elements-updater-manifest.php
           php tests/elements-installer.php
           php tests/elements-sibling-updates.php
