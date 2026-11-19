@@ -1,5 +1,7 @@
 # DIGITALÍSIMO Migración · historial
 
+- @NEXT_MIGRATION@: «Migrar» ya no deja la redirección de activación de DIGITALÍSIMO Elements (caso real del 2026-11-19): al activar Elements, su núcleo incluido deja `elementor_activation_redirect` y la siguiente pantalla del escritorio saltaba sola a la página de Elements. Tras cada activación, Migrar borra ese transitorio en el sitio y, en una red, también en el principal. Backups, SEO y Tools no dejan nada así. Prueba: `tests/migration-full.php` (escenarios `happy` y `network`, con un plugin de prueba cuyo gancho de activación deja el transitorio).
+
 - 1.0.32: código compartido de los siete plugins (auditoría del escritorio): el actualizador usa la espera común tras un fallo de GitHub (3 s en lecturas pasivas, 10 s en «Buscar actualizaciones» y acciones explícitas) y su caché se lee con las demás en una sola consulta.
 
 - 1.0.31: escritorio más ligero (auditoría del 2026-11-18): las cuatro opciones que Migración lee en cada pantalla (`digitalisimo_migration_tb_state`, `…_icon_alias`, `digitalisimo_ep_conditions_repaired` y `…_repair_totals`) se piden juntas con `wp_prime_option_caches()` al arrancar: 4 consultas → 1. Prueba: `tests/migration-admin-load.php`.

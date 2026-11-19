@@ -44,6 +44,8 @@ final class Full {
 	/** La misma acción AJAX que el botón de siempre (el paso de la tarea de contenido en cada sitio de una red). */
 	const AJAX   = 'digitalisimo_migration_step';
 	const POLICY = 'pre-migration';
+	/** Transitorios con los que un gancho de activación pide llevar la próxima pantalla del escritorio a la suya. */
+	const ACTIVATION_REDIRECTS = array( 'elementor_activation_redirect' );
 	const STAGES = array( 'plan', 'backup', 'install', 'content', 'import', 'retire', 'theme', 'verify', 'cleanup', 'finish' );
 	const LABELS = array(
 		'plan'    => 'Revisando lo que hay y guardando cómo se ve la portada',
@@ -627,8 +629,29 @@ final class Full {
 			if ( is_wp_error( $result ) ) {
 				return $result;
 			}
+			self::forget_activation_redirects( ! empty( $state['network'] ) );
 		}
 		return true;
+	}
+
+	/**
+	 * Tras cada activación, Migrar no deja que el gancho de activación del plugin lleve la próxima pantalla del escritorio
+	 * a su bienvenida: el núcleo incluido en DIGITALÍSIMO Elements deja `elementor_activation_redirect` (60 s) y la
+	 * siguiente carga del escritorio saltaba sola a la página de Elements. Se borra en el sitio en curso y, en una red,
+	 * también en el principal, donde corre el gancho al activar en toda la red. Backups, SEO y Tools no dejan nada así.
+	 */
+	private static function forget_activation_redirects( $network ) {
+		$sites = array( (int) get_current_blog_id() );
+		if ( $network && is_multisite() ) {
+			$sites[] = (int) get_main_site_id();
+		}
+		foreach ( array_unique( $sites ) as $site_id ) {
+			self::on_site( $site_id, static function () {
+				foreach ( self::ACTIVATION_REDIRECTS as $transient ) {
+					delete_transient( $transient );
+				}
+			} );
+		}
 	}
 
 	private static function stage_backup( array $state, $deadline ) {

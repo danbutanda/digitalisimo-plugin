@@ -106,11 +106,19 @@ function current_time( $type ) { return gmdate( 'Y-m-d H:i:s' ); }
 function wp_clean_plugins_cache( $x = true ) {}
 function wp_clean_themes_cache( $x = true ) {}
 function get_plugins() { return $GLOBALS['t']['plugins']; }
+// Transitorios por sitio, guardados como opciones (como WordPress sin caché de objetos).
+function set_transient( $k, $v, $e = 0 ) { return update_option( '_transient_' . $k, $v ); }
+function get_transient( $k ) { return get_option( '_transient_' . $k, false ); }
+function delete_transient( $k ) { return delete_option( '_transient_' . $k ); }
 function activate_plugin( $file, $r = '', $network = false ) {
 	if ( ! isset( $GLOBALS['t']['plugins'][ $file ] ) ) {
 		return new WP_Error( 'x', 'no instalado' );
 	}
 	$GLOBALS['t']['log'][] = 'activate:' . $file . ( $network ? ':red' : '' );
+	// El gancho de activación del plugin (`activate_<archivo>`), en el sitio en curso, como WordPress.
+	if ( isset( $GLOBALS['t']['on_activate'][ $file ] ) ) {
+		( $GLOBALS['t']['on_activate'][ $file ] )( $network );
+	}
 	if ( $network ) {
 		$GLOBALS['t']['site']['active_sitewide_plugins'][ $file ] = time();
 		return null;
@@ -643,6 +651,12 @@ switch ( $scenario ) {
 		break;
 
 	case 'happy':
+		// Como el núcleo incluido en Elements (elementor/includes/maintenance.php): su activación deja la redirección a
+		// su bienvenida para la próxima carga del escritorio.
+		$GLOBALS['t']['on_activate'][ ELEMENTS ] = static function () {
+			$GLOBALS['t']['log'][] = 'activation_hook:' . blog();
+			set_transient( 'elementor_activation_redirect', true, 60 );
+		};
 		$state = drive();
 		$last  = Full::last( false );
 		check( ! empty( $state['done'] ) && '' === $last['failed'], 'Termina sin fallos: ' . ( $last['error'] ?? '' ) );
@@ -668,6 +682,7 @@ switch ( $scenario ) {
 			check( false !== strpos( $html, $needle ), "El informe dice «{$needle}»." );
 		}
 		check( ! get_option( Full::JOB ) && empty( $GLOBALS['t']['cron'][ Full::CRON ] ), 'La tarea se cierra y se quita su continuación.' );
+		check( in_array( 'activation_hook:1', $GLOBALS['t']['log'], true ) && false === get_transient( 'elementor_activation_redirect' ), 'Migrar no deja la redirección de activación de Elements: la próxima pantalla no salta a su bienvenida.' );
 		break;
 
 	case 'backup_history':
@@ -1005,6 +1020,13 @@ switch ( $scenario ) {
 
 	case 'network':
 		make_network();
+		// La activación en toda la red corre el gancho en el sitio principal; ahí queda (y se borra) la redirección.
+		$GLOBALS['t']['on_activate'][ ELEMENTS ] = static function ( $network ) {
+			$GLOBALS['t']['log'][] = 'activation_hook:' . blog() . ( $network ? ':red' : '' );
+			switch_to_blog( 1 );
+			set_transient( 'elementor_activation_redirect', true, 60 );
+			restore_current_blog();
+		};
 		drive( 120 );
 		$last = Full::last( true );
 		check( $last && '' === $last['failed'] && ! empty( $last['verified'] ), 'La red termina verificada: ' . ( $last['error'] ?? '' ) );
@@ -1017,6 +1039,7 @@ switch ( $scenario ) {
 		check( ! isset( $GLOBALS['t']['themes']['hello-elementor'] ), 'Hello se borra cuando ningún sitio lo usa.' );
 		check( 'done' === ( $GLOBALS['t']['options'][2]['rm_job']['status'] ?? '' ) && 'done' === ( $GLOBALS['t']['options'][1]['rm_job']['status'] ?? '' ), 'Rank Math se importa en cada sitio.' );
 		check( ! get_site_option( Full::BASELINE ) , 'Verificada la red, no queda referencia de portada.' );
+		check( in_array( 'activation_hook:1:red', $GLOBALS['t']['log'], true ) && false === get_blog_option( 1, '_transient_elementor_activation_redirect', false ) && false === get_blog_option( 2, '_transient_elementor_activation_redirect', false ), 'En la red tampoco queda la redirección de activación de Elements (sitio principal).' );
 		break;
 }
 
