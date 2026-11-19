@@ -507,10 +507,21 @@ function loaded_now() {
 	return array_merge( (array) get_option( 'active_plugins', array() ), array_keys( (array) ( $GLOBALS['t']['site']['active_sitewide_plugins'] ?? array() ) ) );
 }
 
-/** Una petición nueva: carga los plugins activos y avanza la tarea. Con `slow_boot`, WordPress tardó 5 s en arrancar. */
+/**
+ * Una petición nueva: carga los plugins activos y avanza la tarea. Con `slow_boot`, WordPress tarda 3,5 s en arrancar:
+ * la petición empieza después del último cambio de plugins (como en la realidad) y la tarea trabaja 3,5 s más tarde.
+ */
 function request( $start = false, $run = 'clic1' ) {
 	usleep( 2000 );
-	$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) - ( ! empty( $GLOBALS['t']['slow_boot'] ) ? 5 : 0 );
+	$boot = ! empty( $GLOBALS['t']['slow_boot'] ) ? 3.5 : 0.0;
+	if ( $boot ) {
+		$job     = get_option( Full::JOB );
+		$changed = is_array( $job ) ? (float) ( $job['changed_at'] ?? 0 ) : 0.0;
+		while ( microtime( true ) - $boot <= $changed ) {
+			usleep( 100000 );
+		}
+	}
+	$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) - $boot;
 	$GLOBALS['t']['loaded']        = loaded_now();
 	return Full::step( ! empty( $GLOBALS['t']['multisite'] ), $start, 30, $run );
 }
