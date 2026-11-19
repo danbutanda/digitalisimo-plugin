@@ -21,6 +21,10 @@ final class Executor {
 	 * @return array|\WP_Error
 	 */
 	public static function run( string $tool, $input, $dispatch = null ) {
+		if ( Tools::SKYDROPX === $tool ) {
+			// Otra forma (acciones propias, no una tabla de rutas), las mismas reglas: modo, permiso y bitácora.
+			return Skydropx::run( $input, $dispatch );
+		}
 		$dispatch = is_callable( $dispatch ) ? $dispatch : array( __CLASS__, 'rest' );
 		$plan     = Router::resolve( $tool, $input );
 		if ( is_wp_error( $plan ) ) {
@@ -160,6 +164,9 @@ final class Executor {
 	 * @return true|\WP_Error
 	 */
 	public static function permission( string $tool, $input = null ) {
+		if ( Tools::SKYDROPX === $tool ) {
+			return Skydropx::permission( $input );
+		}
 		$floor = Tools::floor( $tool );
 		if ( ! current_user_can( $floor ) ) {
 			return self::forbidden( $floor );
@@ -250,7 +257,7 @@ final class Executor {
 	}
 
 	/** Error de WooCommerce con su código y su mensaje. */
-	private static function woo_error( int $status, $data ): \WP_Error {
+	public static function woo_error( int $status, $data ): \WP_Error {
 		$code    = is_array( $data ) && isset( $data['code'] ) && is_string( $data['code'] ) ? $data['code'] : 'digitalisimo_woo_mcp_woocommerce';
 		$message = is_array( $data ) && isset( $data['message'] ) && is_string( $data['message'] ) && '' !== $data['message'] ? $data['message'] : 'WooCommerce rechazó la petición.';
 		return new \WP_Error( $code, 'WooCommerce: ' . $message, array( 'status' => $status ) );
@@ -337,7 +344,7 @@ final class Executor {
 	}
 
 	/** Cabecera numérica de la respuesta (sin distinguir mayúsculas), o null. */
-	private static function header( $headers, string $name ) {
+	public static function header( $headers, string $name ) {
 		if ( ! is_array( $headers ) ) {
 			return null;
 		}
