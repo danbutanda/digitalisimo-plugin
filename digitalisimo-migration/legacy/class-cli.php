@@ -31,6 +31,9 @@ final class Cli {
 	 * después los documentos. Exige Element Pack activo (si no, el sitio se quedaría sin cabecera) y omite lo editado
 	 * después de migrar. Los plugins se reactivan a mano.
 	 *
+	 * [--run-id=<id>]
+	 * : Interno: el clic del proceso que relanzó esta orden (con --run), para no empezar otra migración si ya terminó.
+	 *
 	 * [--force]
 	 * : Con --revert: restaura también lo editado después de migrar, y sin Element Pack activo.
 	 *
@@ -68,9 +71,15 @@ final class Cli {
 	 */
 	public function __invoke( $args, $assoc ) {
 		if ( ! empty( $assoc['run'] ) ) {
+			// En un sitio de una red (`--run --url=…`, lo que lanza `--run --network` para cada sitio), la tarea de contenido
+			// de ese sitio, como siempre: la sustitución completa es de la red.
+			if ( empty( $assoc['network'] ) && is_multisite() ) {
+				self::run_site();
+				return;
+			}
 			// «Migrar» lo hace todo (respaldo, instalación, contenido, importación, tema y limpieza): la tarea completa.
 			if ( class_exists( '\\Digitalisimo\\Migration\\Full' ) ) {
-				\Digitalisimo\Migration\Full::cli( ! empty( $assoc['network'] ) );
+				\Digitalisimo\Migration\Full::cli( ! empty( $assoc['network'] ), (string) ( $assoc['run-id'] ?? '' ) );
 				return;
 			}
 			empty( $assoc['network'] ) ? self::run_site() : self::run_network();

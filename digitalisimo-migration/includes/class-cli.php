@@ -20,6 +20,9 @@ final class Cli {
 	 * [--network]
 	 * : Con --run, toda la red.
 	 *
+	 * [--run-id=<id>]
+	 * : Interno: el clic del proceso que relanzó esta orden.
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp digitalisimo-migration --run
@@ -29,6 +32,9 @@ final class Cli {
 		if ( empty( $assoc['run'] ) ) {
 			\WP_CLI::error( 'Sin DIGITALÍSIMO Elements sólo está disponible --run, que lo instala y migra todo.' );
 		}
-		Full::cli( ! empty( $assoc['network'] ) );
+		if ( empty( $assoc['network'] ) && is_multisite() ) {
+			\WP_CLI::error( 'En una red, la migración completa se lanza con --run --network (instala y activa DIGITALÍSIMO Elements en toda la red).' );
+		}
+		Full::cli( ! empty( $assoc['network'] ), (string) ( $assoc['run-id'] ?? '' ) );
 	}
 }

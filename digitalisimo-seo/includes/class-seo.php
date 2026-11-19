@@ -105,7 +105,8 @@ class Digitalisimo_Integrations_SEO {
 	 * Importa título SEO, meta descripción, palabra clave, canonical, noindex y contenido pilar desde Rank Math o Yoast SEO
 	 * (aunque estén desactivados), sin pisar nunca un valor ya guardado en DIGITALÍSIMO SEO: es idempotente. Sin pantalla,
 	 * para el botón de arriba y para «Migrar» de DIGITALÍSIMO Migración. Con $limit, por lotes ordenados por ID a partir de
-	 * $after (de un solo origen); `next` es el último ID visto y `done`, si no queda nada.
+	 * $after (de un solo origen); `next` es el último ID visto y `done`, si no queda nada. Los contenidos se buscan con una
+	 * consulta directa a `postmeta`, sin filtros: un plugin multilingüe (WPML) u otro filtro de consultas no esconde ninguno.
 	 *
 	 * @return array{imported:int,found:int,next:int,done:bool}
 	 */
@@ -115,18 +116,11 @@ class Digitalisimo_Integrations_SEO {
 		$next = (int) $after;
 		$done = true;
 		foreach ( array_values( array_intersect( array( 'rankmath', 'yoast' ), $sources ) ) as $provider ) {
+			global $wpdb;
 			list( $map, $special ) = self::legacy_maps( $provider );
-			$query = array( 'relation' => 'OR' );
-			foreach ( array_merge( array_keys( $map ), $special ) as $meta_key ) $query[] = array( 'key' => $meta_key, 'compare' => 'EXISTS' );
-			$args = array( 'post_type' => 'any', 'post_status' => 'any', 'posts_per_page' => $limit > 0 ? (int) $limit : -1, 'fields' => 'ids', 'meta_query' => $query, 'orderby' => 'ID', 'order' => 'ASC', 'suppress_filters' => true );
-			$filter = null;
-			if ( $limit > 0 ) {
-				$filter = static function ( $where ) use ( $after ) { global $wpdb; return $where . $wpdb->prepare( " AND {$wpdb->posts}.ID > %d", (int) $after ); };
-				add_filter( 'posts_where', $filter );
-				$args['suppress_filters'] = false;
-			}
-			$ids = get_posts( $args );
-			if ( $filter ) remove_filter( 'posts_where', $filter );
+			$keys = array_merge( array_keys( $map ), $special );
+			$sql  = "SELECT DISTINCT pm.post_id FROM {$wpdb->postmeta} pm INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE p.post_type <> 'revision' AND pm.meta_key IN (" . implode( ',', array_fill( 0, count( $keys ), '%s' ) ) . ') AND pm.post_id > %d ORDER BY pm.post_id ASC' . ( $limit > 0 ? ' LIMIT %d' : '' );
+			$ids  = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( $sql, array_merge( $keys, array( (int) $after ), $limit > 0 ? array( (int) $limit ) : array() ) ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared -- marcadores construidos arriba.
 			$found += count( $ids );
 			if ( $limit > 0 && count( $ids ) >= (int) $limit ) $done = false;
 			foreach ( $ids as $id ) {

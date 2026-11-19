@@ -37,9 +37,10 @@ function get_posts( array $args ) {
 		}
 	}
 	$after = preg_match( '/ID > (\d+)/', $where, $m ) ? (int) $m[1] : 0;
+	$only  = preg_match( '/ID IN \((\d+)\)/', $where, $m ) ? (int) $m[1] : 0;
 	$ids   = array();
 	foreach ( $GLOBALS['meta'] as $id => $meta ) {
-		if ( $id > $after && array_intersect( $keys, array_keys( $meta ) ) ) {
+		if ( $id > $after && ( ! $only || $id === $only ) && array_intersect( $keys, array_keys( $meta ) ) ) {
 			$ids[] = $id;
 		}
 	}
@@ -47,8 +48,31 @@ function get_posts( array $args ) {
 	return $args['posts_per_page'] > 0 ? array_slice( $ids, 0, $args['posts_per_page'] ) : $ids;
 }
 final class Fake_Wpdb {
-	public $posts = 'wp_posts';
-	public function prepare( $sql, ...$a ) { return str_replace( '%d', (string) (int) $a[0], $sql ); }
+	public $posts    = 'wp_posts';
+	public $postmeta = 'wp_postmeta';
+	public function prepare( $sql, ...$args ) {
+		$args = is_array( $args[0] ?? null ) ? $args[0] : $args;
+		$i    = 0;
+		return preg_replace_callback( '/%[sd]/', static function ( $m ) use ( $args, &$i ) {
+			$v = $args[ $i++ ];
+			return '%d' === $m[0] ? (string) (int) $v : "'" . addslashes( (string) $v ) . "'";
+		}, $sql );
+	}
+	/** La consulta directa del cursor: metas IN (…), post_id > N, orden por ID y LIMIT. Sin filtros de WordPress. */
+	public function get_col( $sql ) {
+		preg_match( "/meta_key IN \(([^)]*)\)/", $sql, $in );
+		preg_match_all( "/'([^']*)'/", $in[1] ?? '', $keys );
+		$after = preg_match( '/post_id > (\d+)/', $sql, $m ) ? (int) $m[1] : 0;
+		$limit = preg_match( '/LIMIT (\d+)/', $sql, $m ) ? (int) $m[1] : 0;
+		$ids   = array();
+		foreach ( $GLOBALS['meta'] as $id => $meta ) {
+			if ( $id > $after && array_intersect( $keys[1], array_keys( $meta ) ) ) {
+				$ids[] = $id;
+			}
+		}
+		sort( $ids );
+		return $limit ? array_slice( $ids, 0, $limit ) : $ids;
+	}
 }
 $GLOBALS['wpdb'] = new Fake_Wpdb();
 
@@ -62,6 +86,11 @@ $check    = static function ( $ok, $message ) use ( &$problems ) {
 		$problems[] = $message;
 	}
 };
+
+// Un plugin multilingüe (WPML) filtra las consultas de entradas a un idioma: aquí, sólo el 11. El importador no debe
+// depender de esos filtros (antes usaba get_posts() con filtros en los lotes y se dejaba el 12 y el 13).
+add_filter( 'posts_where', static function ( $where ) { return $where . ' AND wp_posts.ID IN (11)'; } );
+$GLOBALS['wpml'] = true;
 
 // Por lotes de 2 desde Yoast: 11, 12 → 13 → nada.
 $first = Digitalisimo_Integrations_SEO::import_legacy( array( 'yoast' ), 0, 2 );
@@ -83,7 +112,7 @@ $check( 0 === $again['imported'] && 3 === $again['found'] && $again['done'], 'Un
 // Rank Math, sin lotes (el botón de la pantalla).
 $rm = Digitalisimo_Integrations_SEO::import_legacy( array( 'rankmath' ) );
 $check( 'Título RM 20' === $GLOBALS['meta'][20]['digitalisimo_seo_title'] && array( 'noindex' ) === $GLOBALS['meta'][20]['digitalisimo_seo_robots'] && 'on' === $GLOBALS['meta'][20]['digitalisimo_seo_pillar'] && $rm['done'], 'Rank Math: título, noindex y pilar.' );
-$check( empty( $GLOBALS['filters']['posts_where'] ), 'El filtro del cursor se retira tras cada lote.' );
+$check( 1 === count( $GLOBALS['filters']['posts_where'] ?? array() ), 'El importador no deja filtros propios en las consultas.' );
 
 if ( $problems ) {
 	echo "FALLA seo-legacy-import\n  - " . implode( "\n  - ", $problems ) . "\n";

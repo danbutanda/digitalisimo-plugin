@@ -69,6 +69,10 @@ final class Screen {
 	public static function plan_html( $network ) {
 		$plan  = Replacements::plan( $network );
 		$html  = '<h2>' . esc_html( 'Lo que hará Migrar' ) . '</h2>';
+		$old   = Full::wp_too_old( $plan );
+		if ( '' !== $old ) {
+			$html .= '<div class="notice notice-error inline"><p>' . esc_html( $old ) . '</p></div>';
+		}
 		$todo  = array();
 		foreach ( $plan['needs'] as $slug ) {
 			$file = Replacements::own_file( $slug );
@@ -87,14 +91,16 @@ final class Screen {
 		foreach ( $plan['rows'] as $row ) {
 			$by    = '' !== (string) $row['by'] ? Replacements::own_label( $row['by'] ) : '—';
 			$after = '' !== (string) $row['by'] ? ( Replacements::DELETE_TEXT[ $row['delete'] ] ?? '' ) : (string) $row['reason'];
-			if ( '' !== (string) $row['by'] && 'never' !== $row['delete'] ) {
+			if ( ! empty( $row['dependents'] ) ) {
+				$after = sprintf( 'Se desactiva, pero se queda instalado: lo necesita %s.', implode( ', ', (array) $row['dependents'] ) );
+			} elseif ( '' !== (string) $row['by'] && 'never' !== $row['delete'] ) {
 				$deleted[] = $row['label'];
 			}
 			$state = $row['active'] ? 'activo' : 'desactivado';
 			$html .= '<tr><td>' . esc_html( $row['label'] . ' (' . $state . ')' ) . '</td><td>' . esc_html( $by ) . '</td><td>' . esc_html( '' !== (string) $row['by'] ? $row['imports'] : '—' ) . '</td><td>' . esc_html( $after ) . '</td></tr>';
 		}
 		$theme = $plan['theme'];
-		if ( $theme['hello'] ) {
+		if ( $theme['hello'] && ! $theme['child'] ) {
 			$deleted[] = 'Hello Elementor';
 		}
 		$html .= '<tr><td>' . esc_html( 'Tema: ' . $theme['name'] ) . '</td><td>' . esc_html( $theme['hello'] || $theme['own'] ? 'Tema DIGITALÍSIMO' : '—' ) . '</td><td>' . esc_html( $theme['hello'] ? 'Logo, menús, CSS adicional y ajustes de Hello pasan al tema propio; la cabecera y el pie, a plantillas de DIGITALÍSIMO Elements.' : '—' ) . '</td><td>' . esc_html( self::theme_text( $network, $theme ) ) . '</td></tr>';
@@ -104,6 +110,9 @@ final class Screen {
 		$html .= '</tbody></table>';
 		if ( $deleted ) {
 			$html .= '<p>' . esc_html( 'Se borrará al final, sólo si todo sale bien, la portada responde igual y nada lo necesita: ' . implode( ', ', array_values( array_unique( $deleted ) ) ) . '. Lo que no cumpla esas condiciones se queda desactivado, y el informe dirá por qué. Para volver atrás: restaurar el respaldo.' ) . '</p>';
+		}
+		if ( $network ) {
+			$html .= '<p>' . esc_html( sprintf( 'En la red: se comparan la portada y una página de los primeros %d sitios (los demás se informan); los plugins y Hello se borran para toda la red, y sólo si ningún sitio los usa. En una instalación con varias redes no se borra nada: lo reemplazado queda desactivado.', Full::VERIFY_SITES ) ) . '</p>';
 		}
 		if ( ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) && in_array( 'digitalisimo-elements', $plan['needs'], true ) ) {
 			$html .= '<p>' . esc_html( 'El análisis del contenido (widgets de Element Pack, Prime Slider y PRO) se calcula después de instalar DIGITALÍSIMO Elements, y el informe final lo incluye.' ) . '</p>';

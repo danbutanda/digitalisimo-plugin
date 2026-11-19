@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -57,18 +57,30 @@ class WP_Error {
 	public function get_error_message() { return $this->m; }
 }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
-function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['t']['options'] ) ? $GLOBALS['t']['options'][ $k ] : $d; }
-function update_option( $k, $v, $a = null ) { $GLOBALS['t']['options'][ $k ] = $v; return true; }
-function delete_option( $k ) { unset( $GLOBALS['t']['options'][ $k ] ); return true; }
-function get_site_option( $k, $d = false ) { return get_option( $k, $d ); }
-function update_site_option( $k, $v ) { return update_option( $k, $v ); }
-function delete_site_option( $k ) { return delete_option( $k ); }
+function blog() { return (int) ( $GLOBALS['t']['blog'] ?? 1 ); }
+function get_option( $k, $d = false ) { $o = $GLOBALS['t']['options'][ blog() ] ?? array(); return array_key_exists( $k, $o ) ? $o[ $k ] : $d; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['t']['options'][ blog() ][ $k ] = $v; return true; }
+function delete_option( $k ) { unset( $GLOBALS['t']['options'][ blog() ][ $k ] ); return true; }
+function get_blog_option( $id, $k, $d = false ) { $o = $GLOBALS['t']['options'][ (int) $id ] ?? array(); return array_key_exists( $k, $o ) ? $o[ $k ] : $d; }
+// Fuera de una red, las opciones «de red» son las del sitio, como en WordPress.
+function get_site_option( $k, $d = false ) { if ( ! is_multisite() ) { return get_option( $k, $d ); } return array_key_exists( $k, $GLOBALS['t']['site'] ?? array() ) ? $GLOBALS['t']['site'][ $k ] : $d; }
+function update_site_option( $k, $v ) { if ( ! is_multisite() ) { return update_option( $k, $v ); } $GLOBALS['t']['site'][ $k ] = $v; return true; }
+function delete_site_option( $k ) { if ( ! is_multisite() ) { return delete_option( $k ); } unset( $GLOBALS['t']['site'][ $k ] ); return true; }
+function switch_to_blog( $id ) { $GLOBALS['t']['stack'][] = blog(); $GLOBALS['t']['blog'] = (int) $id; return true; }
+function restore_current_blog() { $GLOBALS['t']['blog'] = array_pop( $GLOBALS['t']['stack'] ); return true; }
+function get_site( $id ) { return (object) array( 'archived' => 0, 'spam' => 0, 'deleted' => 0 ); }
+function get_sites( $args = array() ) { return array( 1, 2 ); }
+function get_current_network_id() { return 1; }
+function get_networks( $args = array() ) { return $GLOBALS['t']['networks'] ?? array( 1 ); }
+function get_bloginfo( $k ) { return 'Sitio ' . blog(); }
+function wp_is_file_mod_allowed( $context ) { return empty( $GLOBALS['t']['no_file_mods'] ); }
+$GLOBALS['wp_version'] = '6.9';
 function get_site_transient( $k ) { return $GLOBALS['t']['transients'][ $k ] ?? false; }
 function set_site_transient( $k, $v, $e = 0 ) { $GLOBALS['t']['transients'][ $k ] = $v; return true; }
-function is_multisite() { return false; }
-function is_main_site() { return true; }
+function is_multisite() { return ! empty( $GLOBALS['t']['multisite'] ); }
+function is_main_site() { return 1 === blog(); }
 function get_main_site_id() { return 1; }
-function get_current_blog_id() { return 1; }
+function get_current_blog_id() { return blog(); }
 function get_current_user_id() { return 1; }
 function current_user_can( $cap ) { return true; }
 function is_super_admin() { return true; }
@@ -80,9 +92,9 @@ function has_filter() { return false; }
 function wp_next_scheduled( $hook ) { return $GLOBALS['t']['cron'][ $hook ] ?? false; }
 function wp_schedule_single_event( $time, $hook ) { $GLOBALS['t']['cron'][ $hook ] = $time; return true; }
 function wp_clear_scheduled_hook( $hook ) { unset( $GLOBALS['t']['cron'][ $hook ] ); }
-function home_url( $path = '' ) { return 'http://example.test' . $path; }
+function home_url( $path = '' ) { return 'http://example.test' . ( 1 === blog() ? '' : '/dos' ) . $path; }
 function get_posts( $args ) { return array( 10 ); }
-function get_permalink( $id ) { return 'http://example.test/sobre/'; }
+function get_permalink( $id ) { return home_url( '/sobre/' ); }
 function add_query_arg( $k, $v, $url ) { return $url; }
 function wp_strip_all_tags( $s ) { return strip_tags( (string) $s ); }
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
@@ -98,27 +110,42 @@ function activate_plugin( $file, $r = '', $network = false ) {
 	if ( ! isset( $GLOBALS['t']['plugins'][ $file ] ) ) {
 		return new WP_Error( 'x', 'no instalado' );
 	}
-	$GLOBALS['t']['log'][] = 'activate:' . $file;
-	$active                = (array) get_option( 'active_plugins', array() );
-	$active[]              = $file;
+	$GLOBALS['t']['log'][] = 'activate:' . $file . ( $network ? ':red' : '' );
+	if ( $network ) {
+		$GLOBALS['t']['site']['active_sitewide_plugins'][ $file ] = time();
+		return null;
+	}
+	$active   = (array) get_option( 'active_plugins', array() );
+	$active[] = $file;
 	update_option( 'active_plugins', array_values( array_unique( $active ) ) );
 	return null;
 }
 function deactivate_plugins( $files, $silent = false, $network = null ) {
 	foreach ( (array) $files as $file ) {
-		$GLOBALS['t']['log'][] = 'deactivate:' . $file;
+		$GLOBALS['t']['log'][] = 'deactivate:' . $file . ( $network ? ':red' : '' );
+		if ( $network ) {
+			unset( $GLOBALS['t']['site']['active_sitewide_plugins'][ $file ] );
+		}
 	}
-	update_option( 'active_plugins', array_values( array_diff( (array) get_option( 'active_plugins', array() ), (array) $files ) ) );
+	if ( ! $network ) {
+		update_option( 'active_plugins', array_values( array_diff( (array) get_option( 'active_plugins', array() ), (array) $files ) ) );
+	}
 }
 function delete_plugins( $files ) {
 	foreach ( (array) $files as $file ) {
 		$GLOBALS['t']['log'][] = 'delete:' . $file;
 		unset( $GLOBALS['t']['plugins'][ $file ] );
 		@unlink( WP_PLUGIN_DIR . '/' . $file );
+		// Una petición que muere a mitad del borrado (después de borrar este).
+		if ( ( $GLOBALS['t']['crash_on'] ?? '' ) === $file ) {
+			unset( $GLOBALS['t']['crash_on'] );
+			throw new RuntimeException( 'la petición murió borrando' );
+		}
 	}
 	return true;
 }
 class WP_Theme {
+	public static function network_enable_theme( $s ) { $GLOBALS['t']['log'][] = 'network_enable_theme:' . $s; }
 	public $slug;
 	public function __construct( $slug ) { $this->slug = $slug; }
 	public function exists() { return isset( $GLOBALS['t']['themes'][ $this->slug ] ); }
@@ -302,6 +329,36 @@ namespace Digitalisimo\Elements\Legacy {
 		public static function state() { $s = get_option( 'fake_runner_job', null ); return is_array( $s ) ? $s : null; }
 		public static function report() { $r = get_option( 'fake_runner_report', null ); return is_array( $r ) ? $r : null; }
 		public static function has_pending( $report ) { return ! empty( $report['report']['ep_needed'] ); }
+		public static function render_network( $job ) { return ''; }
+		public static function network_state() { $j = get_site_option( 'fake_net_job', null ); return is_array( $j ) ? $j : null; }
+		/** Red: desactiva la familia de Elementor (en la red y en cada sitio) y, con `net_stuck`, nunca termina. */
+		public static function network_start( $capable = null ) {
+			$GLOBALS['t']['log'][] = 'content:network_start';
+			deactivate_plugins( array_values( array_intersect( self::FAMILY, array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) ) ), false, true );
+			foreach ( array( 1, 2 ) as $id ) {
+				switch_to_blog( $id );
+				deactivate_plugins( array_values( array_intersect( self::FAMILY, (array) get_option( 'active_plugins', array() ) ) ) );
+				restore_current_blog();
+			}
+			update_site_option( 'fake_net_job', array( 'started' => time(), 'done' => false, 'sites' => array( 1, 2 ) ) );
+			return array();
+		}
+		public static function network_release() { return (array) self::network_state(); }
+		public static function network_pending_sites( $job ) { return array(); }
+		public static function network_summary( $finish = true ) {
+			$job = self::network_state();
+			if ( ! $job || ! empty( $GLOBALS['t']['net_stuck'] ) ) { return (array) $job; }
+			foreach ( array( 1, 2 ) as $id ) {
+				switch_to_blog( $id );
+				update_option( 'fake_runner_report', array( 'done' => true, 'run' => 'red', 'finished' => time(), 'report' => array( 'ep_needed' => false, 'late_kept' => false, 'blocked' => array(), 'failed' => array(), 'review' => array() ) ) );
+				restore_current_blog();
+			}
+			$job['done'] = true;
+			update_site_option( 'fake_net_job', $job );
+			$GLOBALS['t']['log'][] = 'content:done';
+			return $job;
+		}
+
 		public static function render( $state ) { return '<p>contenido</p>'; }
 		public static function site_step( $start = false, $budget = null, $capable = null, $run = '' ) {
 			$GLOBALS['t']['runner_calls'] = (int) ( $GLOBALS['t']['runner_calls'] ?? 0 ) + 1;
@@ -321,6 +378,10 @@ namespace Digitalisimo\Elements\Legacy {
 			$GLOBALS['t']['log'][] = 'content:done';
 			return $report;
 		}
+	}
+	/** `--run --network` de siempre: cada sitio en su proceso (aquí sólo cuenta las rondas). */
+	final class Cli {
+		public static function network_content() { $GLOBALS['t']['net_rounds'] = (int) ( $GLOBALS['t']['net_rounds'] ?? 0 ) + 1; }
 	}
 }
 PHP
@@ -373,19 +434,82 @@ Packages::$installer = static function ( $slug, $package, $type ) {
 	return true;
 };
 $page = '<html><head><title>T</title></head><body><header>Vivero Las Flores</header><main>Plantas de interior, macetas artesanales y envíos a toda la ciudad cada semana</main><footer>Contacto y horarios</footer></body></html>';
+/**
+ * La portada de cada sitio (el 2 vive en /dos): enlaza la hoja del tema activo de ese sitio. Modos: `break` (error con el
+ * tema propio), `maintenance` (todas las URL dan la misma página), `cached` (siempre el HTML de antes, con Hello) y
+ * `changed` (otro texto, como un sitio ya migrado que se ve distinto).
+ */
 Front::$fetcher = static function ( $url ) use ( $page ) {
-	if ( ! empty( $GLOBALS['t']['break'] ) && 'digitalisimo-theme' === get_option( 'stylesheet' ) ) {
+	$blog  = false !== strpos( $url, '/dos' ) ? 2 : 1;
+	$theme = ! empty( $GLOBALS['t']['cached'] ) ? 'hello-elementor' : (string) get_blog_option( $blog, 'stylesheet' );
+	if ( ! empty( $GLOBALS['t']['break'] ) && 'digitalisimo-theme' === $theme ) {
 		return array( 500, '<p>There has been a critical error on this website.</p>' );
 	}
-	return array( 200, $page );
+	if ( ! empty( $GLOBALS['t']['maintenance'] ) ) {
+		return array( 200, '<html><body><h1>Volvemos pronto</h1><p>Estamos haciendo mejoras en el sitio web</p></body></html>' );
+	}
+	$body = ! empty( $GLOBALS['t']['changed'] ) ? str_replace( 'Plantas de interior, macetas artesanales y envíos a toda la ciudad cada semana', 'Página distinta con otro contenido completamente nuevo y ajeno', $page ) : $page;
+	// Cada página tiene además su propio texto (si no, todas iguales parecerían una página de mantenimiento).
+	$own  = false !== strpos( $url, 'sobre' ) ? 'Conoce nuestra historia familiar' : 'Bienvenidos a la portada principal';
+	$body = str_replace( '<footer>', '<section>' . $own . '</section><footer>', $body );
+	return array( 200, str_replace( '<head>', '<head><link rel="stylesheet" href="http://example.test/wp-content/themes/' . $theme . '/style.css">', $body ) );
 };
+
+/** Doble de WP-CLI: error() lanza, runcommand() anota el proceso que se relanzaría. */
+function fake_wp_cli() {
+	define( 'WP_CLI', true );
+	eval( 'final class WP_CLI {
+		public static function log( $m ) {}
+		public static function success( $m ) { $GLOBALS["t"]["cli_done"] = $m; }
+		public static function error( $m ) { throw new RuntimeException( $m ); }
+		public static function runcommand( $command, $options = array() ) { $GLOBALS["t"]["relaunch"][] = $command; }
+	}' );
+}
+
+/** «Procesos» de WP-CLI sucesivos: cada uno con el `--run-id` que le pasó el anterior. Devuelve el error, si lo hubo. */
+function cli_processes( $network, $max = 30 ) {
+	$run = '';
+	for ( $i = 0; $i < $max && empty( $GLOBALS['t']['cli_done'] ); $i++ ) {
+		usleep( 2000 );
+		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
+		$GLOBALS['t']['loaded']        = loaded_now();
+		$before                        = count( $GLOBALS['t']['relaunch'] ?? array() );
+		try {
+			Full::cli( $network, $run );
+		} catch ( RuntimeException $e ) {
+			return $e->getMessage();
+		}
+		if ( count( $GLOBALS['t']['relaunch'] ?? array() ) === $before ) {
+			break;
+		}
+		$run = preg_match( '/--run-id=(\S+)/', end( $GLOBALS['t']['relaunch'] ), $m ) ? $m[1] : '';
+	}
+	return '';
+}
+
+/** Red de dos sitios: Element Pack, Elementor y UpdraftPlus en toda la red; Rank Math y Hello en cada sitio. */
+function make_network() {
+	$GLOBALS['t']['multisite'] = true;
+	$GLOBALS['t']['site']['active_sitewide_plugins'] = array_fill_keys( array( 'elementor/elementor.php', 'bdthemes-element-pack/bdthemes-element-pack.php', 'updraftplus/updraftplus.php', 'digitalisimo-migration/digitalisimo-migration.php' ), 1 );
+	foreach ( array( 1, 2 ) as $id ) {
+		$GLOBALS['t']['options'][ $id ]['active_plugins'] = array( 'seo-by-rank-math/rank-math.php' );
+		$GLOBALS['t']['options'][ $id ]['template']       = 'hello-elementor';
+		$GLOBALS['t']['options'][ $id ]['stylesheet']     = 'hello-elementor';
+	}
+	$GLOBALS['t']['site']['digitalisimo_plugins_manifest_unused'] = 1;
+}
+
+/** Plugins cargados al empezar una petición: los activos en el sitio y en toda la red. */
+function loaded_now() {
+	return array_merge( (array) get_option( 'active_plugins', array() ), array_keys( (array) ( $GLOBALS['t']['site']['active_sitewide_plugins'] ?? array() ) ) );
+}
 
 /** Una petición nueva: carga los plugins activos y avanza la tarea. */
 function request( $start = false, $run = 'clic1' ) {
 	usleep( 2000 );
 	$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
-	$GLOBALS['t']['loaded']        = (array) get_option( 'active_plugins', array() );
-	return Full::step( false, $start, 30, $run );
+	$GLOBALS['t']['loaded']        = loaded_now();
+	return Full::step( ! empty( $GLOBALS['t']['multisite'] ), $start, 30, $run );
 }
 
 /** Pulsa Migrar y sigue pidiendo pasos (como migrate.js) hasta terminar. */
@@ -484,6 +608,16 @@ switch ( $scenario ) {
 		check( '' !== Full::cleanup_gate( array( 'failed' => 'import' ) + $green ), 'Con una etapa fallida no se borra.' );
 		check( '' !== Full::cleanup_gate( array( 'verified' => false ) + $green ), 'Sin la portada verificada no se borra.' );
 		check( '' !== Full::cleanup_gate( array( 'caps' => array( 'delete' => false ) ) + $green ), 'Sin permiso para borrar no se borra.' );
+		// Dependientes de terceros (Requires Plugins) y verificación más estricta.
+		check( array( 'Complemento' ) === Replacements::dependents( $rows['rank-math'], array( 'x/x.php' => array( 'Name' => 'Complemento', 'RequiresPlugins' => 'woocommerce, seo-by-rank-math' ), 'y/y.php' => array( 'Name' => 'Otro', 'RequiresPlugins' => 'woocommerce' ) ) ), 'Dependientes: sólo los que piden un plugin de la fila.' );
+		$uniform = Front::mark_uniform( array( 'a' => Front::fingerprint( 200, '<body>Volvemos pronto</body>' ), 'b' => Front::fingerprint( 200, '<body>Volvemos pronto</body>' ) ) );
+		check( null === Front::compare( $uniform['a'], $uniform['a'] )[0], 'Todas las URL con el mismo texto: no comparable.' );
+		check( null === Front::compare( array( 'status' => 302, 'words' => array(), 'login' => true ), $a )[0], 'Un muro de acceso: no comparable.' );
+		check( null === Front::compare( Front::fingerprint( 200, '<body><img src="x"></body>' ), $a )[0], 'Sin texto visible: no comparable (antes daba por buena cualquier cosa).' );
+		check( false === Front::compare( $a, $a, 'digitalisimo-theme' )[0], 'Tras cambiar de tema, un HTML sin el tema nuevo viene de caché.' );
+		$many = '<body>' . implode( ' ', array_map( static function ( $i ) { return 'palabra' . $i; }, range( 1, 900 ) ) ) . '</body>';
+		$fp   = Front::fingerprint( 200, $many );
+		check( 400 === count( $fp['words'] ) && count( preg_grep( '/^palabra[1-4]\d\d$/', $fp['words'] ) ) < 380, 'La muestra de palabras no se sesga por orden alfabético.' );
 		// UpdraftPlus conserva sus datos por defecto; con «borrar al desinstalar» y carpeta propia, no.
 		check( Full::updraft_keeps_data(), 'UpdraftPlus conserva sus datos al desinstalarse por defecto.' );
 		update_option( 'updraftplus_deinstall_option', 'yes' );
@@ -610,7 +744,7 @@ switch ( $scenario ) {
 		$saved = get_option( Full::JOB );
 		check( is_array( $saved ) && 'theme' === $saved['stage'] && ! empty( $GLOBALS['t']['cron'][ Full::CRON ] ), 'La tarea queda guardada con su continuación programada.' );
 		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
-		$GLOBALS['t']['loaded']        = (array) get_option( 'active_plugins', array() );
+		$GLOBALS['t']['loaded']        = loaded_now();
 		unset( $GLOBALS['t']['cron'][ Full::CRON ] );
 		Full::cron();
 		for ( $i = 0; $i < 40 && get_option( Full::JOB ); $i++ ) {
@@ -669,24 +803,183 @@ switch ( $scenario ) {
 		break;
 
 	case 'cli':
-		// `wp digitalisimo-migration --run`: la misma tarea; tras cambiar plugins o el tema sigue en un proceso nuevo.
-		define( 'WP_CLI', true );
-		eval( 'final class WP_CLI {
-			public static function log( $m ) {}
-			public static function success( $m ) { $GLOBALS["t"]["cli_done"] = $m; }
-			public static function error( $m ) { throw new RuntimeException( $m ); }
-			public static function runcommand( $command, $options = array() ) { $GLOBALS["t"]["relaunch"][] = $command; }
-		}' );
-		for ( $i = 0; $i < 30 && empty( $GLOBALS['t']['cli_done'] ); $i++ ) {
-			usleep( 2000 );
-			$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
-			$GLOBALS['t']['loaded']        = (array) get_option( 'active_plugins', array() );
-			Full::cli( false );
+		// `wp digitalisimo-migration --run`: la misma tarea; tras cambiar plugins o el tema sigue en un proceso nuevo, que
+		// recibe el clic del primero (`--run-id`).
+		fake_wp_cli();
+		$error = cli_processes( false );
+		$last  = Full::last( false );
+		check( '' === $error && 'Migración completada.' === ( $GLOBALS['t']['cli_done'] ?? '' ) && '' === $last['failed'], 'WP-CLI termina la migración: ' . $error . ( $last['error'] ?? '' ) );
+		$runs = array_values( array_unique( array_map( static function ( $c ) { return preg_replace( '/^.*--run-id=/', '', $c ); }, $GLOBALS['t']['relaunch'] ?? array() ) ) );
+		check( count( $GLOBALS['t']['relaunch'] ?? array() ) >= 3 && 1 === count( $runs ) && 0 === strpos( $GLOBALS['t']['relaunch'][0], 'digitalisimo-migration --run --run-id=' ), 'Sigue en procesos nuevos con el mismo clic: ' . implode( ' | ', $GLOBALS['t']['relaunch'] ?? array() ) );
+		check( ! installed_now( 'seo-by-rank-math/rank-math.php' ) && 'digitalisimo-theme' === get_option( 'stylesheet' ) && 1 === count( $GLOBALS['t']['specs'] ), 'Hace lo mismo que el botón (un respaldo, reemplazo y tema).' );
+		// El WP-Cron terminó esa misma pasada justo cuando WP-CLI relanzaba: el proceso nuevo muestra el informe, no empieza otra.
+		$GLOBALS['t']['cli_done'] = '';
+		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
+		Full::cli( false, $runs[0] );
+		check( 'Migración completada.' === $GLOBALS['t']['cli_done'] && ! get_option( Full::JOB ) && 1 === count( $GLOBALS['t']['specs'] ), 'Un proceso relanzado tras terminar la pasada no lanza otra migración.' );
+		break;
+
+	case 'cli_disallow':
+		// DISALLOW_FILE_MODS: WP-CLI no tiene cuenta, pero no puede instalar ni borrar.
+		fake_wp_cli();
+		$GLOBALS['t']['no_file_mods'] = true;
+		$error = cli_processes( false );
+		check( false !== strpos( $error, 'no puede instalar' ) && ! logged( 'install:' ), 'Sin escritura, WP-CLI no instala nada: ' . $error );
+		nothing_deleted();
+		break;
+
+	case 'cli_network':
+		// `--run --network` cuyo contenido no termina: tres rondas y se para (antes, hasta 7 200 vueltas lanzando procesos).
+		fake_wp_cli();
+		make_network();
+		$GLOBALS['t']['net_stuck'] = true;
+		$error = cli_processes( true, 40 );
+		check( false !== strpos( $error, 'tres rondas' ) && 3 === (int) ( $GLOBALS['t']['net_rounds'] ?? 0 ), 'Tres rondas de contenido y se para: ' . $error . ' (' . (int) ( $GLOBALS['t']['net_rounds'] ?? 0 ) . ')' );
+		nothing_deleted();
+		break;
+
+	case 'dependents':
+		// Un complemento que declara `Requires Plugins: seo-by-rank-math`: Rank Math no se desactiva ni se borra.
+		plugin( 'rank-math-addon/rank-math-addon.php', 'Complemento de Rank Math' );
+		$GLOBALS['t']['plugins']['rank-math-addon/rank-math-addon.php']['RequiresPlugins'] = 'seo-by-rank-math';
+		drive();
+		$last = Full::last( false );
+		check( active( 'seo-by-rank-math/rank-math.php' ) && installed_now( 'seo-by-rank-math/rank-math.php' ), 'Rank Math sigue activo e instalado.' );
+		check( false !== strpos( (string) ( $last['kept']['rank-math'] ?? '' ), 'Complemento de Rank Math' ), 'El informe nombra al dependiente: ' . ( $last['kept']['rank-math'] ?? '' ) );
+		check( ! installed_now( 'updraftplus/updraftplus.php' ), 'Lo que no tiene dependientes sí se reemplaza.' );
+		break;
+
+	case 'yoast_gaps':
+		// Yoast quitaba la base de las categorías: sin él, sus URL darían 404. Se queda activo, sin importar.
+		plugin( 'wordpress-seo/wp-seo.php', 'Yoast SEO' );
+		update_option( 'active_plugins', array_merge( (array) get_option( 'active_plugins' ), array( 'wordpress-seo/wp-seo.php' ) ) );
+		update_option( 'wpseo_titles', array( 'stripcategorybase' => true ) );
+		drive();
+		$last = Full::last( false );
+		check( active( 'wordpress-seo/wp-seo.php' ) && installed_now( 'wordpress-seo/wp-seo.php' ), 'Yoast sigue activo.' );
+		check( false !== strpos( (string) ( $last['kept']['yoast'] ?? '' ), 'base de las categorías' ), 'El informe dice qué no se importa: ' . ( $last['kept']['yoast'] ?? '' ) );
+		break;
+
+	case 'updraft_remote':
+		// UpdraftPlus con destino remoto y respaldos diarios: se desactiva, no se borra, y se avisa de la programación.
+		update_option( 'updraft_service', array( 's3' ) );
+		update_option( 'updraft_interval', 'daily' );
+		drive();
+		$last = Full::last( false );
+		check( installed_now( 'updraftplus/updraftplus.php' ) && ! active( 'updraftplus/updraftplus.php' ), 'UpdraftPlus queda desactivado, sin borrar.' );
+		check( false !== strpos( (string) ( $last['kept']['updraftplus'] ?? '' ), 'destino remoto' ), 'Con su motivo: ' . ( $last['kept']['updraftplus'] ?? '' ) );
+		check( (bool) preg_grep( '/daily/', (array) $last['notes'] ), 'Avisa de su programación.' );
+		check( false !== strpos( Full::render( false, $last ), 'Desactivado, sin borrar' ), 'El informe lo pone en «Desactivado, sin borrar».' );
+		break;
+
+	case 'updraft_unseen':
+		// Su historial tiene 3 respaldos y Backups sólo ve 2 en su carpeta: no se borra.
+		update_option( 'updraft_backup_history', array( 1 => array(), 2 => array(), 3 => array() ) );
+		drive();
+		$last = Full::last( false );
+		check( installed_now( 'updraftplus/updraftplus.php' ) && false !== strpos( (string) ( $last['kept']['updraftplus'] ?? '' ), 'no ve' ), 'Respaldos que Backups no ve: no se borra (' . ( $last['kept']['updraftplus'] ?? '' ) . ').' );
+		break;
+
+	case 'cleanup_crash':
+		// La petición muere justo después de borrar Rank Math: el informe no lo pierde ni dice «no se borró nada».
+		$GLOBALS['t']['crash_on'] = 'seo-by-rank-math/rank-math.php';
+		drive();
+		$last = Full::last( false );
+		check( 'cleanup' === $last['failed'], 'Se detiene en la limpieza.' );
+		check( isset( $last['deleted']['rank-math'], $last['deleted']['element-pack'] ), 'Lo borrado, también lo de la vuelta cortada, queda en el informe: ' . implode( ', ', array_keys( (array) $last['deleted'] ) ) );
+		$html = Full::render( false, $last );
+		check( false === strpos( $html, 'No se borró nada' ) && false !== strpos( $html, 'Ya se había borrado' ), 'El título no miente sobre lo borrado.' );
+		check( empty( $last['deleting'] ), 'Sin borrado en curso pendiente.' );
+		break;
+
+	case 'maintenance':
+		// Modo mantenimiento: todas las URL dan la misma página. No es comparable: ni tema ni borrado.
+		$GLOBALS['t']['maintenance'] = true;
+		drive();
+		$last = Full::last( false );
+		check( ! logged( 'switch_theme' ) && empty( $last['verified'] ), 'Sin portada comparable, no cambia el tema ni verifica.' );
+		nothing_deleted();
+		break;
+
+	case 'cached':
+		// Una caché devuelve el HTML de antes (con Hello) después de cambiar de tema: no es «responde igual».
+		$GLOBALS['t']['cached'] = true;
+		drive();
+		$last = Full::last( false );
+		check( empty( $last['verified'] ) && 'hello-elementor' === get_option( 'stylesheet' ), 'La respuesta de caché no verifica, y se vuelve a Hello.' );
+		check( (bool) array_filter( (array) $last['verify'], static function ( $r ) { return false !== strpos( (string) $r['reason'], 'caché' ); } ), 'El motivo dice caché.' );
+		nothing_deleted();
+		break;
+
+	case 'rerun':
+		// Primera pasada: la portada no responde igual; no se borra nada y su huella queda de referencia.
+		$GLOBALS['t']['break'] = true;
+		drive();
+		check( empty( Full::last( false )['verified'] ) && Full::baseline( false ), 'Primera pasada sin verificar: queda la referencia.' );
+		nothing_deleted();
+		// El sitio ya se ve distinto (está a medio migrar): una segunda pasada no puede tomarlo como referencia.
+		$GLOBALS['t']['break']   = false;
+		$GLOBALS['t']['changed'] = true;
+		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
+		$state = request( true, 'clic2' );
+		for ( $i = 0; $i < 80 && empty( $state['done'] ); $i++ ) {
+			$state = request();
+		}
+		$second = Full::last( false );
+		check( empty( $second['verified'] ) && (bool) preg_grep( '/primera pasada/', (array) $second['notes'] ), 'La segunda pasada compara con la portada de antes de la primera.' );
+		nothing_deleted();
+		// Con el sitio como antes, una tercera pasada verifica, borra y retira la referencia.
+		$GLOBALS['t']['changed'] = false;
+		$state = request( true, 'clic3' );
+		for ( $i = 0; $i < 80 && empty( $state['done'] ); $i++ ) {
+			$state = request();
+		}
+		$third = Full::last( false );
+		check( ! empty( $third['verified'] ) && ! installed_now( 'seo-by-rank-math/rank-math.php' ) && ! Full::baseline( false ), 'La tercera verifica, borra y retira la referencia: ' . $third['error'] );
+		break;
+
+	case 'backup_gone':
+		// El respaldo desaparece del almacén antes de la limpieza: no se borra nada.
+		drive( 80, 'verify' );
+		@unlink( TMP . '/store/backup-1.zip' );
+		for ( $i = 0; $i < 40 && get_option( Full::JOB ); $i++ ) {
+			request();
 		}
 		$last = Full::last( false );
-		check( 'Migración completada.' === ( $GLOBALS['t']['cli_done'] ?? '' ) && '' === $last['failed'], 'WP-CLI termina la migración: ' . ( $last['error'] ?? '' ) );
-		check( count( $GLOBALS['t']['relaunch'] ?? array() ) >= 3 && array( 'digitalisimo-migration --run' ) === array_values( array_unique( $GLOBALS['t']['relaunch'] ) ), 'Sigue en procesos nuevos tras cada cambio: ' . implode( ' | ', $GLOBALS['t']['relaunch'] ?? array() ) );
-		check( ! installed_now( 'seo-by-rank-math/rank-math.php' ) && 'digitalisimo-theme' === get_option( 'stylesheet' ) && 1 === count( $GLOBALS['t']['specs'] ), 'Hace lo mismo que el botón (un respaldo, reemplazo y tema).' );
+		check( false !== strpos( (string) ( $last['kept']['rank-math'] ?? '' ), 'respaldo' ), 'Sin respaldo entero, no se borra: ' . ( $last['kept']['rank-math'] ?? '' ) );
+		nothing_deleted();
+		break;
+
+	case 'uninstall_file':
+		// Element Pack con un uninstall.php propio: su código correría junto al núcleo incluido. No se borra.
+		file_put_contents( WP_PLUGIN_DIR . '/bdthemes-element-pack/uninstall.php', '<?php' );
+		drive();
+		$last = Full::last( false );
+		check( installed_now( 'bdthemes-element-pack/bdthemes-element-pack.php' ) && false !== strpos( (string) ( $last['kept']['element-pack'] ?? '' ), 'desinstalación' ), 'Element Pack con uninstall.php no se borra.' );
+		check( ! installed_now( 'seo-by-rank-math/rank-math.php' ), 'Lo demás sí.' );
+		break;
+
+	case 'old_wp':
+		// WordPress 6.6 con Elements (6.8) por instalar: Migrar no empieza ni toca nada.
+		$GLOBALS['wp_version'] = '6.6.2';
+		$state = request( true );
+		check( ! empty( $state['idle'] ) && false !== strpos( (string) ( $state['refused'] ?? '' ), '6.8' ) && ! logged( 'install:' ) && ! get_option( Full::JOB ), 'Con WordPress anterior al que piden los paquetes, no empieza: ' . ( $state['refused'] ?? '' ) );
+		break;
+
+	case 'network':
+		make_network();
+		drive( 120 );
+		$last = Full::last( true );
+		check( $last && '' === $last['failed'] && ! empty( $last['verified'] ), 'La red termina verificada: ' . ( $last['error'] ?? '' ) );
+		check( in_array( 'activate:' . ELEMENTS . ':red', $GLOBALS['t']['log'], true ) && in_array( 'activate:' . SEO . ':red', $GLOBALS['t']['log'], true ), 'Los plugins DIGITALÍSIMO se activan en toda la red.' );
+		check( in_array( 'network_enable_theme:digitalisimo-theme', $GLOBALS['t']['log'], true ) && 'digitalisimo-theme' === get_blog_option( 1, 'stylesheet' ) && 'digitalisimo-theme' === get_blog_option( 2, 'stylesheet' ), 'El tema propio se habilita en la red y se activa en los dos sitios.' );
+		check( 4 === count( $last['verify'] ), 'Portada y una página de cada sitio comparadas (' . count( $last['verify'] ) . ').' );
+		foreach ( array( 'bdthemes-element-pack/bdthemes-element-pack.php', 'seo-by-rank-math/rank-math.php', 'updraftplus/updraftplus.php', 'elementor/elementor.php' ) as $file ) {
+			check( ! installed_now( $file ), "Borrado en la red: {$file}" );
+		}
+		check( ! isset( $GLOBALS['t']['themes']['hello-elementor'] ), 'Hello se borra cuando ningún sitio lo usa.' );
+		check( 'done' === ( $GLOBALS['t']['options'][2]['rm_job']['status'] ?? '' ) && 'done' === ( $GLOBALS['t']['options'][1]['rm_job']['status'] ?? '' ), 'Rank Math se importa en cada sitio.' );
+		check( ! get_site_option( Full::BASELINE ) , 'Verificada la red, no queda referencia de portada.' );
 		break;
 }
 

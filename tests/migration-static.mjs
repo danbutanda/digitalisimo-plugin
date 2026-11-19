@@ -180,6 +180,12 @@ check(!/Requires Plugins/.test(read(join(root, 'digitalisimo-migration.php'))) &
   check(at > 0 && boot.indexOf('Full::init()') > 0 && boot.indexOf('Full::init()') < at && /Screen::init\(\)/.test(boot.slice(at, boot.indexOf('return;', at))) && !/missing_elements/.test(boot), 'Sin Elements, Migración carga la tarea completa, su pantalla y WP-CLI (ya no se queda en el aviso «necesita Elements»).');
   check(/class_exists\( '\\\\Digitalisimo\\\\Migration\\\\Full' \)/.test(runner), 'El paso AJAX lo recibe la tarea completa; Runner sólo lo registra sin ella.');
   check((js.match(/data\.again/g) || []).length >= 1, 'La pantalla de red avanza sin esperar 15 s en las etapas de la tarea completa.');
+  // `--run --network` lanza `--run --url=<sitio>` por cada sitio: en una red, eso es la tarea de contenido del sitio
+  // (antes iba a la tarea completa, que en una red la rechaza, y ningún sitio se convertía).
+  const cli = read(join(legacy, 'class-cli.php'));
+  const route = cli.indexOf("if ( empty( $assoc['network'] ) && is_multisite() ) {");
+  check(route > 0 && cli.indexOf('self::run_site();', route) < cli.indexOf('Full::cli(', route) && cli.indexOf('Full::cli(', route) > 0 && /--run-id/.test(cli), 'En un sitio de una red, --run --url sigue siendo la tarea de contenido de ese sitio, y el relanzado lleva --run-id.');
+  check(/run: first \? runId : ''/.test(js), 'La pantalla de red manda el identificador del clic.');
 }
 check(/ELEMENTS_MIN = '4\.3\.0\.170'/.test(runner), 'Migrar exige DIGITALÍSIMO Elements 4.3.0.170.');
 

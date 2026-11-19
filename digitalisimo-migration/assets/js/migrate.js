@@ -98,8 +98,10 @@
 		var inflight = {};
 		var last = {};
 		var boxes = {};
+		// Identificador de este clic, como en un sitio: un reintento tras perder la respuesta no lanza otra migración.
+		var runId = start ? Date.now().toString(36) + Math.random().toString(36).slice(2, 8) : '';
 		function summary(first) {
-			return post(ajax, { action: 'digitalisimo_migration_step', _ajax_nonce: nonce, network: '1', start: first ? '1' : '' });
+			return post(ajax, { action: 'digitalisimo_migration_step', _ajax_nonce: nonce, network: '1', start: first ? '1' : '', run: first ? runId : '' });
 		}
 		function siteRow(site, html) {
 			var box = document.createElement('div');

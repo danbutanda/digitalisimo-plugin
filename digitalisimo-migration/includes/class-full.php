@@ -150,10 +150,13 @@ final class Full {
 	 * WP-CLI: la tarea entera en este proceso. Tras activar o desactivar plugins sigue en un proceso nuevo (con los
 	 * mismos parámetros globales), que ya los carga como quedaron.
 	 */
-	public static function cli( $network ) {
+	public static function cli( $network, $run = '' ) {
 		self::$cli = true;
 		$start     = true;
-		$run       = 'cli' . time();
+		// El proceso relanzado trae el clic del primero (`--run-id`): si otro proceso o el WP-Cron terminó esa pasada,
+		// muestra su informe en vez de empezar otra migración.
+		$run     = '' !== (string) $run ? preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $run ) ) : 'cli' . time();
+		$content = 0;
 		for ( $i = 0; $i < 7200; $i++ ) {
 			$state = self::step( $network, $start, 60, $run );
 			$start = false;
@@ -161,17 +164,27 @@ final class Full {
 				\WP_CLI::error( 'Otra petición está ejecutando la migración: espera a que termine.' );
 			}
 			if ( ! empty( $state['idle'] ) ) {
-				\WP_CLI::error( (string) ( $state['refused'] ?? 'No hay ninguna migración en marcha.' ) );
+				$last = self::last( $network );
+				if ( empty( $state['refused'] ) && $last && (string) ( $last['run'] ?? '' ) === $run ) {
+					$state = $last;
+				} else {
+					\WP_CLI::error( (string) ( $state['refused'] ?? 'No hay ninguna migración en marcha.' ) );
+				}
 			}
 			if ( ! empty( $state['fresh_needed'] ) ) {
 				\WP_CLI::log( self::LABELS[ $state['stage'] ] ?? '' );
 				\WP_CLI::log( 'Plugins o tema cambiados: la migración sigue en un proceso nuevo.' );
-				\WP_CLI::runcommand( 'digitalisimo-migration --run' . ( $network ? ' --network' : '' ), array( 'launch' => true, 'exit_error' => true, 'return' => false ) );
+				\WP_CLI::runcommand( 'digitalisimo-migration --run' . ( $network ? ' --network' : '' ) . ' --run-id=' . $run, array( 'launch' => true, 'exit_error' => true, 'return' => false ) );
 				return;
 			}
 			if ( $network && 'content' === ( $state['stage'] ?? '' ) && empty( $state['done'] ) && is_callable( array( '\\Digitalisimo\\Elements\\Legacy\\Cli', 'network_content' ) ) ) {
-				// Cada sitio de la red se convierte en su propio proceso, como `--run --network` de siempre.
+				// Cada sitio de la red se convierte en su propio proceso, como `--run --network` de siempre. Si tres
+				// rondas no terminan el contenido, se para (no se relanzan procesos sin fin).
+				if ( ++$content > 3 ) {
+					\WP_CLI::error( 'La migración del contenido de la red no terminó tras tres rondas: revisa el informe de cada sitio y vuelve a ejecutar la orden; sigue donde quedó.' );
+				}
 				\Digitalisimo\Elements\Legacy\Cli::network_content();
+				sleep( 1 );
 				continue;
 			}
 			if ( ! empty( $state['done'] ) ) {
@@ -216,13 +229,15 @@ final class Full {
 	/** Capacidades de quien lanza la tarea (WP-CLI las tiene todas). */
 	public static function caps( $network ) {
 		if ( self::$cli || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
-			return array( 'install' => true, 'activate' => true, 'delete' => true, 'themes' => true );
+			// WP-CLI no tiene cuenta, pero sí respeta DISALLOW_FILE_MODS (y su filtro): sin escritura, ni instala ni borra.
+			$mods = ! function_exists( 'wp_is_file_mod_allowed' ) || wp_is_file_mod_allowed( 'digitalisimo_migration' );
+			return array( 'install' => $mods, 'activate' => true, 'delete' => $mods, 'themes' => $mods, 'delete_themes' => $mods );
 		}
 		if ( $network ) {
 			$super = is_super_admin() && current_user_can( 'manage_network_plugins' );
-			return array( 'install' => $super && current_user_can( 'install_plugins' ), 'activate' => $super, 'delete' => $super && current_user_can( 'delete_plugins' ), 'themes' => $super && current_user_can( 'manage_network_themes' ) && current_user_can( 'install_themes' ) );
+			return array( 'install' => $super && current_user_can( 'install_plugins' ), 'activate' => $super, 'delete' => $super && current_user_can( 'delete_plugins' ), 'themes' => $super && current_user_can( 'manage_network_themes' ) && current_user_can( 'install_themes' ), 'delete_themes' => $super && current_user_can( 'delete_themes' ) );
 		}
-		return array( 'install' => current_user_can( 'install_plugins' ), 'activate' => current_user_can( 'activate_plugins' ), 'delete' => current_user_can( 'delete_plugins' ), 'themes' => current_user_can( 'switch_themes' ) && current_user_can( 'install_themes' ) );
+		return array( 'install' => current_user_can( 'install_plugins' ), 'activate' => current_user_can( 'activate_plugins' ), 'delete' => current_user_can( 'delete_plugins' ), 'themes' => current_user_can( 'switch_themes' ) && current_user_can( 'install_themes' ), 'delete_themes' => current_user_can( 'delete_themes' ) );
 	}
 
 	public static function fresh( $network, $run = '' ) {
@@ -310,7 +325,24 @@ final class Full {
 			return 'En una red, la sustitución completa se lanza desde Red → Ajustes → Migrar a DIGITALÍSIMO Elements.';
 		}
 		$caps = self::caps( $network );
-		return empty( $caps['activate'] ) ? 'Quien pulsó Migrar no puede activar ni desactivar plugins.' : '';
+		if ( empty( $caps['activate'] ) ) {
+			return 'Quien pulsó Migrar no puede activar ni desactivar plugins.';
+		}
+		return self::wp_too_old( Replacements::plan( $network ) );
+	}
+
+	/** Motivo si este WordPress es anterior al que piden los paquetes que se instalarían ('' si no). */
+	public static function wp_too_old( array $plan ) {
+		global $wp_version;
+		$need = array_intersect_key( Replacements::REQUIRES_WP, array_flip( (array) ( $plan['needs'] ?? array() ) ) );
+		if ( ! empty( $plan['theme']['hello'] ) ) {
+			$need[ Replacements::THEME ] = Replacements::REQUIRES_WP[ Replacements::THEME ];
+		}
+		$min = '0';
+		foreach ( $need as $version ) {
+			$min = version_compare( $version, $min, '>' ) ? $version : $min;
+		}
+		return isset( $wp_version ) && version_compare( (string) $wp_version, $min, '<' ) ? sprintf( 'Migrar necesita WordPress %1$s o posterior (este sitio tiene %2$s): actualiza WordPress y vuelve a pulsar Migrar. No se tocó nada.', $min, (string) $wp_version ) : '';
 	}
 
 	private static function advance( array $state, $budget ) {
@@ -334,6 +366,11 @@ final class Full {
 			try {
 				$state = call_user_func( array( __CLASS__, 'stage_' . $stage ), $state, $deadline );
 			} catch ( \Throwable $e ) {
+				// Lo que la etapa guardó antes de lanzar (p. ej. cada borrado de la limpieza) no se pierde.
+				$saved = self::load( ! empty( $state['network'] ) );
+				if ( is_array( $saved ) && ( $saved['stage'] ?? '' ) === $stage ) {
+					$state = $saved;
+				}
 				$state = self::fail( $state, $e->getMessage() );
 			}
 			$state['attempts'] = 0;
@@ -354,6 +391,10 @@ final class Full {
 	private static function fail( array $state, $message ) {
 		$state['failed'] = (string) ( $state['stage'] ?? '' );
 		$state['error']  = (string) $message;
+		if ( in_array( $state['failed'], array( 'theme', 'verify' ), true ) ) {
+			// El tema cambiado aún no se comprobó: se vuelve al anterior.
+			$state = self::revert_themes( $state, 'La migración se detuvo antes de comprobar la portada: se volvió a %s.' );
+		}
 		return self::next( $state, 'finish' );
 	}
 
@@ -426,6 +467,15 @@ final class Full {
 					$state['sites'][] = (int) $site_id;
 				}
 			}
+			// Tras una pasada que no terminó en verde (falló o no verificó la portada), se compara con la portada de antes
+			// de la primera: la de ahora ya puede estar migrada y daría por buena cualquier cosa.
+			$baseline = self::baseline( ! empty( $state['network'] ) );
+			if ( $baseline ) {
+				$state['checks']    = $baseline['checks'];
+				$state['snap_from'] = (int) $baseline['started'];
+				$state['cursor']    = count( $state['checks'] );
+				return self::note( $state, 'Se compara con la portada de antes de la primera pasada de Migrar (' . gmdate( 'Y-m-d H:i', (int) $baseline['started'] ) . ' UTC), que aún no terminó en verde.' );
+			}
 			$state['checks'] = array();
 			foreach ( array_slice( self::targets( $state ), 0, self::VERIFY_SITES ) as $site_id ) {
 				$urls = self::on_site( $site_id, array( Front::class, 'urls' ) );
@@ -448,6 +498,19 @@ final class Full {
 				return $state;
 			}
 		}
+		if ( empty( $state['snap_from'] ) && empty( $state['uniform_checked'] ) ) {
+			// Un sitio cuyas URL dan todas el mismo texto (mantenimiento, acceso, cortafuegos) no es comparable.
+			$by_site = array();
+			foreach ( $checks as $check ) {
+				$by_site[ (int) $check[0] ][ $check[0] . '|' . $check[1] ] = self::get_snap( $state, $check[0] . '|' . $check[1] );
+			}
+			foreach ( $by_site as $snaps ) {
+				foreach ( Front::mark_uniform( $snaps ) as $key => $snap ) {
+					self::put_snap( $state, $key, $snap );
+				}
+			}
+			$state['uniform_checked'] = true;
+		}
 		return self::next( $state, 'backup' );
 	}
 
@@ -457,18 +520,49 @@ final class Full {
 	 */
 	const SNAP = 'digitalisimo_migration_full_snap_';
 
+	/** Referencia de la portada que sobrevive a una pasada que no terminó en verde (en una red, en `sitemeta`). */
+	const BASELINE = 'digitalisimo_migration_full_baseline';
+
+	/** Pasada dueña de las huellas: la propia o la primera que no terminó en verde. */
+	private static function snap_owner( array $state ) {
+		return (string) ( ! empty( $state['snap_from'] ) ? $state['snap_from'] : $state['started'] );
+	}
+
 	private static function put_snap( array $state, $key, array $snapshot ) {
-		update_option( self::SNAP . md5( (string) $state['started'] . '|' . $key ), $snapshot, false );
+		update_option( self::SNAP . md5( self::snap_owner( $state ) . '|' . $key ), $snapshot, false );
 	}
 
 	private static function get_snap( array $state, $key ) {
-		$snapshot = get_option( self::SNAP . md5( (string) $state['started'] . '|' . $key ), array() );
+		$snapshot = get_option( self::SNAP . md5( self::snap_owner( $state ) . '|' . $key ), array() );
 		return is_array( $snapshot ) ? $snapshot : array();
 	}
 
 	private static function drop_snaps( array $state ) {
 		foreach ( (array) $state['checks'] as $check ) {
-			delete_option( self::SNAP . md5( (string) $state['started'] . '|' . $check[0] . '|' . $check[1] ) );
+			delete_option( self::SNAP . md5( self::snap_owner( $state ) . '|' . $check[0] . '|' . $check[1] ) );
+		}
+	}
+
+	/** La referencia guardada (o null). */
+	public static function baseline( $network ) {
+		$baseline = $network ? get_site_option( self::BASELINE, null ) : get_option( self::BASELINE, null );
+		return is_array( $baseline ) && ! empty( $baseline['checks'] ) ? $baseline : null;
+	}
+
+	/**
+	 * Al terminar: con la portada verificada, las huellas y la referencia se retiran; si no, las huellas se quedan como
+	 * referencia de la pasada siguiente (la primera que no terminó en verde manda).
+	 */
+	private static function settle_baseline( array $state ) {
+		$network = ! empty( $state['network'] );
+		if ( ! empty( $state['verified'] ) ) {
+			self::drop_snaps( $state );
+			$network ? delete_site_option( self::BASELINE ) : delete_option( self::BASELINE );
+			return;
+		}
+		if ( ! self::baseline( $network ) && ! empty( $state['checks'] ) ) {
+			$baseline = array( 'started' => (int) self::snap_owner( $state ), 'checks' => array_values( (array) $state['checks'] ) );
+			$network ? update_site_option( self::BASELINE, $baseline ) : update_option( self::BASELINE, $baseline, false );
 		}
 	}
 
@@ -868,18 +962,22 @@ final class Full {
 				if ( method_exists( 'Digitalisimo_Backups', 'load_updraft_import' ) ) {
 					\Digitalisimo_Backups::load_updraft_import();
 				}
-				$count = 0;
-				foreach ( array( 'Digitalisimo_Backups_Updraft_Import', 'Digitalisimo_Backups_Backuply_Import' ) as $class ) {
+				$counts = array();
+				foreach ( array( 'updraft' => 'Digitalisimo_Backups_Updraft_Import', 'backuply' => 'Digitalisimo_Backups_Backuply_Import' ) as $name => $class ) {
 					if ( ! class_exists( $class ) || ! method_exists( $class, 'sources' ) ) {
 						return array( $state, 'fail', 'DIGITALÍSIMO Backups no cargó la lectura de los respaldos de UpdraftPlus y Backuply: actualízalo y vuelve a pulsar Migrar.' );
 					}
 					try {
-						$count += count( (array) $class::sources() );
+						$counts[ $name ] = count( (array) $class::sources() );
 					} catch ( \Throwable $e ) {
 						return array( $state, 'fail', 'DIGITALÍSIMO Backups no pudo leer los respaldos de UpdraftPlus o Backuply: ' . $e->getMessage() );
 					}
 				}
-				$done[ $kind ] = array( 'done' => true, 'count' => $count );
+				$done[ $kind ] = array( 'done' => true, 'count' => array_sum( $counts ) ) + $counts;
+				$updraft       = isset( $rows['updraftplus'] ) ? Replacements::updraft_state() : null;
+				if ( $updraft && 'manual' !== $updraft['interval'] ) {
+					$state = self::note( $state, sprintf( 'UpdraftPlus hacía respaldos programados (%s) y deja de hacerlos al desactivarse: DIGITALÍSIMO Backups queda con su programación por defecto; revísala en Backups → Ajustes.', $updraft['interval'] ) );
+				}
 			}
 		}
 		$state['imports'][ $site_id ] = $done;
@@ -1036,9 +1134,9 @@ final class Full {
 			if ( (int) $check[0] !== (int) $site_id ) {
 				continue;
 			}
+			// Comparable: la misma regla que Front::compare() aplica a la huella de antes.
 			$before = self::get_snap( $state, $check[0] . '|' . $check[1] );
-			$status = (int) ( $before['status'] ?? 0 );
-			if ( $status >= 200 && $status < 300 && empty( $before['fatal'] ) ) {
+			if ( null !== Front::compare( $before, $before )[0] ) {
 				return true;
 			}
 		}
@@ -1057,22 +1155,30 @@ final class Full {
 
 	private static function stage_verify( array $state, $deadline ) {
 		$checks = (array) $state['checks'];
-		// Antes de comparar, una petición a la portada de cada sitio que cambió de tema: ahí corre el paso desde Hello.
-		if ( 0 === (int) $state['cursor'] && empty( $state['warmed'] ) ) {
+		// Antes de comparar, una petición a la portada de cada sitio que cambió de tema (ahí corre el paso desde Hello), un
+		// sitio por vuelta y dentro del plazo: en una red no se corta la petición.
+		if ( empty( $state['warmed_done'] ) ) {
 			foreach ( (array) $state['theme'] as $site_id => $row ) {
-				if ( ! empty( $row['switched'] ) ) {
-					Front::fetch( self::on_site( (int) $site_id, static function () {
-						return home_url( '/' );
-					} ) );
+				if ( empty( $row['switched'] ) || in_array( (int) $site_id, (array) ( $state['warmed'] ?? array() ), true ) ) {
+					continue;
+				}
+				Front::fetch( self::on_site( (int) $site_id, static function () {
+					return home_url( '/' );
+				} ) );
+				$state['warmed'][] = (int) $site_id;
+				if ( microtime( true ) >= $deadline ) {
+					return $state;
 				}
 			}
-			$state['warmed'] = true;
+			$state['warmed_done'] = true;
 			return $state;
 		}
 		while ( $state['cursor'] < count( $checks ) ) {
 			list( $site_id, $url ) = $checks[ $state['cursor'] ];
 			$before                = self::get_snap( $state, $site_id . '|' . $url );
-			list( $ok, $reason )   = Front::compare( $before, Front::snapshot( $url ) );
+			// Tras cambiar de tema, el HTML de después debe enlazar el tema nuevo (si no, viene de una caché).
+			$theme                 = ! empty( $state['theme'][ $site_id ]['switched'] ) ? Replacements::THEME : '';
+			list( $ok, $reason )   = Front::compare( $before, Front::snapshot( $url, 0 ), $theme );
 			$state['verify'][]     = array( 'site' => (int) $site_id, 'url' => (string) $url, 'ok' => $ok, 'reason' => $reason );
 			++$state['cursor'];
 			if ( microtime( true ) >= $deadline ) {
@@ -1082,29 +1188,37 @@ final class Full {
 		$state['verified'] = self::verified( $state );
 		if ( ! $state['verified'] ) {
 			// Donde se cambió el tema y algo no responde igual, se vuelve al anterior.
-			$back = false;
-			foreach ( (array) $state['theme'] as $site_id => $row ) {
-				if ( empty( $row['switched'] ) ) {
-					continue;
-				}
-				self::on_site( (int) $site_id, static function () use ( $row ) {
-					if ( function_exists( 'digitalisimo_theme_revert' ) ) {
-						$result = digitalisimo_theme_revert();
-						if ( ! is_wp_error( $result ) ) {
-							return;
-						}
-					}
-					self::switch_theme_to( (string) $row['from'] );
-				} );
-				$state['theme'][ $site_id ]['switched'] = false;
-				$state['theme'][ $site_id ]['reverted'] = true;
-				$state['theme'][ $site_id ]['reason']   = 'La portada no respondió igual después de migrar: se volvió a ' . (string) $row['name'] . '.';
-				$back                                   = true;
-			}
-			$state = self::next( $state, 'cleanup' );
-			return $back ? self::changed( $state ) : $state;
+			$before = $state;
+			$state  = self::next( self::revert_themes( $state, 'La portada no respondió igual después de migrar: se volvió a %s.' ), 'cleanup' );
+			return $state['theme'] !== $before['theme'] ? self::changed( $state ) : $state;
 		}
 		return self::next( $state, 'cleanup' );
+	}
+
+	/**
+	 * Vuelve al tema anterior donde Migrar lo cambió: con digitalisimo_theme_revert() si está cargada; si no, con
+	 * switch_theme(), cuyo gancho en DIGITALÍSIMO Elements (`Theme\Module::left()`, activo en toda migración que cambia
+	 * de tema) retira la cabecera y el pie generados al dejar el tema propio.
+	 */
+	private static function revert_themes( array $state, $reason ) {
+		foreach ( (array) $state['theme'] as $site_id => $row ) {
+			if ( empty( $row['switched'] ) ) {
+				continue;
+			}
+			self::on_site( (int) $site_id, static function () use ( $row ) {
+				if ( function_exists( 'digitalisimo_theme_revert' ) ) {
+					$result = digitalisimo_theme_revert();
+					if ( ! is_wp_error( $result ) ) {
+						return;
+					}
+				}
+				self::switch_theme_to( (string) $row['from'] );
+			} );
+			$state['theme'][ $site_id ]['switched'] = false;
+			$state['theme'][ $site_id ]['reverted'] = true;
+			$state['theme'][ $site_id ]['reason']   = sprintf( $reason, (string) $row['name'] );
+		}
+		return $state;
 	}
 
 	/** ¿Respondieron igual todas las URL comparables, y había alguna en cada sitio comparado? */
@@ -1153,10 +1267,22 @@ final class Full {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 		require_once ABSPATH . 'wp-admin/includes/file.php';
-		// delete_plugins() y delete_theme() piden datos de FTP con un formulario y terminan la petición: sólo con escritura directa.
-		if ( 'direct' !== get_filesystem_method() ) {
+		// Barreras que no dependen de cada fila: el respaldo sigue entero en el almacén (no basta lo anotado al hacerlo),
+		// escritura directa (delete_plugins() y delete_theme() piden FTP con un formulario y terminan la petición) y una
+		// sola red (lo de esta red puede estar en uso en otra de la misma instalación).
+		$stop = self::backup_recheck( $state );
+		if ( '' === $stop && 'direct' !== get_filesystem_method() ) {
+			$stop = 'WordPress no puede escribir directamente en la carpeta de plugins (pide datos de FTP): queda desactivado para que lo borres desde Plugins.';
+		}
+		if ( '' === $stop && is_multisite() && function_exists( 'get_networks' ) && count( (array) get_networks( array( 'number' => 2, 'fields' => 'ids' ) ) ) > 1 ) {
+			$stop = 'Esta instalación tiene más de una red y lo reemplazado puede estar en uso en otra: queda desactivado, sin borrar.';
+		}
+		if ( '' !== $stop ) {
 			foreach ( (array) $state['plan']['rows'] as $key => $row ) {
-				$state['kept'][ $key ] = '' !== (string) $row['by'] ? 'WordPress no puede escribir directamente en la carpeta de plugins (pide datos de FTP): queda desactivado para que lo borres desde Plugins.' : (string) $row['reason'];
+				$state['kept'][ $key ] = '' !== (string) $row['by'] ? $stop : (string) $row['reason'];
+			}
+			if ( self::hello_replaced( $state ) ) {
+				$state['kept']['hello-elementor'] = $stop;
 			}
 			return self::next( $state, 'finish' );
 		}
@@ -1166,6 +1292,9 @@ final class Full {
 			}
 			$files = array_values( array_filter( array_keys( (array) $row['files'] ), array( Replacements::class, 'installed' ) ) );
 			if ( ! $files ) {
+				// Estaba al empezar y ya no está: lo borró una vuelta de esta limpieza que se cortó (o alguien a mano).
+				$state['deleted'][ $key ] = $row['label'];
+				self::store( $state );
 				continue;
 			}
 			list( $ok, $reason ) = Replacements::deletable( $row, self::delete_facts( $state, $row, $files ) );
@@ -1173,18 +1302,33 @@ final class Full {
 				$state['kept'][ $key ] = $reason;
 				continue;
 			}
+			// El borrado en curso queda anotado antes de empezar y lo borrado, después de cada fila: si la petición
+			// muere a mitad, el informe no pierde nada.
+			$state['deleting'] = $key;
+			self::store( $state );
 			$result = delete_plugins( $files );
+			unset( $state['deleting'] );
 			if ( true === $result ) {
 				$state['deleted'][ $key ] = $row['label'];
 			} else {
 				$state['kept'][ $key ] = 'WordPress no pudo borrarlo' . ( is_wp_error( $result ) ? ': ' . $result->get_error_message() : ' (no puede escribir en la carpeta de plugins).' );
 			}
+			self::store( $state );
 			if ( microtime( true ) >= $deadline ) {
 				return $state;
 			}
 		}
 		$state = self::cleanup_theme( $state );
 		return self::next( $state, 'finish' );
+	}
+
+	/** '' si el respaldo de esta tarea sigue en el almacén, entero y con su tamaño; si no, el motivo para no borrar. */
+	private static function backup_recheck( array $state ) {
+		if ( ! class_exists( 'Digitalisimo_Backups' ) ) {
+			return 'DIGITALÍSIMO Backups no está cargado: no se puede comprobar que el respaldo de esta migración sigue ahí. Queda desactivado, sin borrar.';
+		}
+		$checked = self::backup_file( array( 'status' => 'success', 'result' => array( 'file' => (string) ( $state['backup']['file'] ?? '' ), 'size' => (int) ( $state['backup']['size'] ?? 0 ), 'sha256' => (string) ( $state['backup']['sha256'] ?? '' ) ) ) );
+		return is_string( $checked ) ? 'El respaldo de esta migración ya no está entero en el almacén (' . $checked . '): sin él no se borra nada.' : '';
 	}
 
 	/** Hechos de una fila para Replacements::deletable(). */
@@ -1201,16 +1345,34 @@ final class Full {
 			}
 		}
 		$uninstall = (array) get_option( 'uninstall_plugins', array() );
-		return array(
+		// Con el núcleo incluido al mando, Elements quita de esa lista las rutinas de Elementor y Elementor Pro. Un
+		// `uninstall.php` propio (una versión futura de Element Pack o Prime Slider) también correría su código.
+		$safe = ! array_intersect( $files, array_keys( $uninstall ) );
+		foreach ( $files as $file ) {
+			$dir  = dirname( (string) $file );
+			$safe = $safe && ( '.' === $dir || ! is_file( WP_PLUGIN_DIR . '/' . $dir . '/uninstall.php' ) );
+		}
+		$facts = array(
 			'active'         => $active,
 			'by_active'      => Replacements::is_active( Replacements::own_file( $row['by'] ) ),
 			'imported'       => self::imported( $state, $row ),
 			'content'        => $content,
 			'keeps_data'     => self::updraft_keeps_data(),
 			'core_ready'     => Retire::core_ready(),
-			// Con el núcleo incluido al mando, Elements quita de esta lista las rutinas de Elementor y Elementor Pro.
-			'uninstall_safe' => ! array_intersect( $files, array_keys( $uninstall ) ),
+			'uninstall_safe' => $safe,
+			// Instalados ahora (pudieron llegar después de empezar).
+			'dependents'     => Replacements::dependents( $row, (array) get_plugins() ),
 		);
+		if ( 'updraftplus' === $row['key'] ) {
+			$updraft          = Replacements::updraft_state();
+			$visible          = 0;
+			foreach ( (array) $state['imports'] as $kinds ) {
+				$visible += (int) ( $kinds['backups_sets']['updraft'] ?? 0 );
+			}
+			$facts['remote'] = $updraft['remote'];
+			$facts['unseen'] = max( 0, $updraft['history'] - $visible );
+		}
+		return $facts;
 	}
 
 	/**
@@ -1259,7 +1421,7 @@ final class Full {
 				}
 			}
 		}
-		if ( '' === $reason && empty( $state['caps']['themes'] ) ) {
+		if ( '' === $reason && empty( $state['caps']['delete_themes'] ) ) {
 			$reason = 'Quien pulsó Migrar no puede borrar temas.';
 		}
 		if ( '' !== $reason ) {
@@ -1282,7 +1444,19 @@ final class Full {
 		$state['done']     = true;
 		$state['pause']    = false;
 		$state['finished'] = time();
-		self::drop_snaps( $state );
+		if ( ! empty( $state['deleting'] ) ) {
+			// Un borrado que se cortó a mitad: lo que ya no está, se dice borrado; lo que sigue, que sigue.
+			$key   = (string) $state['deleting'];
+			$row   = (array) ( $state['plan']['rows'][ $key ] ?? array() );
+			$still = array_filter( array_keys( (array) ( $row['files'] ?? array() ) ), array( Replacements::class, 'installed' ) );
+			if ( $still ) {
+				$state['kept'][ $key ] = 'El borrado se interrumpió y sigue instalado (al menos en parte): revísalo en Plugins.';
+			} else {
+				$state['deleted'][ $key ] = (string) ( $row['label'] ?? $key );
+			}
+			unset( $state['deleting'] );
+		}
+		self::settle_baseline( $state );
 		unset( $state['snap'], $state['checks'], $state['drive'] );
 		if ( ! empty( $state['network'] ) ) {
 			update_site_option( self::NETWORK_LAST, $state );
@@ -1409,7 +1583,12 @@ final class Full {
 		$rows  = (array) ( $state['plan']['rows'] ?? array() );
 		$items = array();
 		$kind  = '' !== (string) $state['failed'] ? 'error' : 'success';
-		$title = '' !== (string) $state['failed'] ? sprintf( 'La migración se detuvo en «%s»: %s No se borró nada.', self::LABELS[ $state['failed'] ] ?? $state['failed'], (string) $state['error'] ) : 'Migración completada.';
+		if ( '' !== (string) $state['failed'] ) {
+			$tail  = $state['deleted'] ? ' Ya se había borrado: ' . implode( ', ', array_values( (array) $state['deleted'] ) ) . '.' : ( 'cleanup' === $state['failed'] ? ' Revisa en Plugins qué quedó: el borrado se interrumpió.' : ' No se borró nada.' );
+			$title = sprintf( 'La migración se detuvo en «%s»: %s', self::LABELS[ $state['failed'] ] ?? $state['failed'], (string) $state['error'] ) . $tail;
+		} else {
+			$title = 'Migración completada.';
+		}
 		$html  = '<div class="notice notice-' . $kind . ' inline"><p><strong>' . esc_html( $title ) . '</strong></p></div>';
 		if ( ! empty( $state['backup']['ok'] ) ) {
 			$items[] = array( 'Respaldo', sprintf( '%s (%s MB, SHA-256 %s…). Para volver atrás: DIGITALÍSIMO Backups → Respaldos → Restaurar.', $state['backup']['file'], number_format( (float) $state['backup']['size'] / 1048576, 1 ), substr( (string) $state['backup']['sha256'], 0, 12 ) ) );
@@ -1461,13 +1640,18 @@ final class Full {
 		if ( $state['deleted'] ) {
 			$items[] = array( 'Borrado', implode( ', ', array_values( (array) $state['deleted'] ) ) . '. Para recuperarlo, restaura el respaldo de arriba.' );
 		}
-		$kept = array();
+		// Lo que Migrar desactivó y no borró, aparte de lo que no tocó.
+		$kept = array( 'off' => array(), 'same' => array() );
 		foreach ( (array) $state['kept'] as $key => $reason ) {
-			$label  = $rows[ $key ]['label'] ?? ( 'hello-elementor' === $key ? 'Hello Elementor' : $key );
-			$kept[] = $label . ': ' . $reason;
+			$label = $rows[ $key ]['label'] ?? ( 'hello-elementor' === $key ? 'Hello Elementor' : $key );
+			$off   = isset( $rows[ $key ] ) && ! empty( $rows[ $key ]['active'] ) && ! Replacements::active_files( array_keys( (array) $rows[ $key ]['files'] ), $network );
+			$kept[ $off ? 'off' : 'same' ][] = $label . ': ' . $reason;
 		}
-		if ( $kept ) {
-			$items[] = array( 'Quedó como estaba', implode( ' ', $kept ) );
+		if ( $kept['off'] ) {
+			$items[] = array( 'Desactivado, sin borrar', implode( ' ', $kept['off'] ) );
+		}
+		if ( $kept['same'] ) {
+			$items[] = array( 'Quedó como estaba', implode( ' ', $kept['same'] ) );
 		}
 		foreach ( (array) $state['notes'] as $note ) {
 			$items[] = array( 'Nota', $note );

@@ -38,6 +38,8 @@ final class Replacements {
 		'digitalisimo-elements' => array( 'file' => 'digitalisimo-elements/pro-elements.php', 'label' => 'DIGITALÍSIMO Elements' ),
 		'digitalisimo-seo'      => array( 'file' => 'digitalisimo-seo/digitalisimo-integrations.php', 'label' => 'DIGITALÍSIMO SEO' ),
 	);
+	/** WordPress mínimo de cada paquete (su «Requires at least»): Migrar no empieza por debajo del de lo que instalará. */
+	const REQUIRES_WP = array( 'digitalisimo-backups' => '6.0', 'digitalisimo-elements' => '6.8', 'digitalisimo-seo' => '6.0', 'digitalisimo-theme' => '6.8' );
 	/** Orden de instalación y activación: Backups (el respaldo va primero) y Elements antes que lo demás. */
 	const ORDER = array( 'digitalisimo-backups', 'digitalisimo-elements', 'digitalisimo-seo' );
 	/** Tema propio y el que reemplaza. */
@@ -147,6 +149,75 @@ final class Replacements {
 		return $rows;
 	}
 
+	/**
+	 * Plugins instalados fuera de la fila que la declaran como dependencia (`Requires Plugins`, WordPress 6.5+): con
+	 * alguno, la fila no se desactiva ni se borra (el dependiente se quedaría sin ella). Pura: `$plugins` es get_plugins().
+	 *
+	 * @return string[] nombres de los dependientes.
+	 */
+	public static function dependents( array $row, array $plugins ) {
+		$slugs = array();
+		foreach ( array_keys( (array) $row['files'] ) as $file ) {
+			$slugs[] = false !== strpos( (string) $file, '/' ) ? strstr( (string) $file, '/', true ) : basename( (string) $file, '.php' );
+		}
+		$out = array();
+		foreach ( $plugins as $file => $data ) {
+			if ( isset( $row['files'][ $file ] ) ) {
+				continue;
+			}
+			$requires = array_filter( array_map( 'trim', explode( ',', (string) ( $data['RequiresPlugins'] ?? '' ) ) ) );
+			if ( array_intersect( $slugs, $requires ) ) {
+				$out[] = (string) ( $data['Name'] ?? $file );
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Lo que Yoast SEO tiene en uso y el importador de DIGITALÍSIMO SEO no trae (sólo trae seis metas de cada
+	 * contenido). Con algo de esto, retirar Yoast cambiaría URLs, metas o verificaciones: Yoast se queda activo.
+	 *
+	 * @return string[]
+	 */
+	public static function yoast_gaps() {
+		global $wpdb;
+		$gaps   = array();
+		$titles = (array) get_option( 'wpseo_titles', array() );
+		if ( ! empty( $titles['stripcategorybase'] ) ) {
+			$gaps[] = 'quitar la base de las categorías (sin ella, sus URL darían 404)';
+		}
+		if ( array_filter( (array) get_option( 'wpseo_taxonomy_meta', array() ) ) ) {
+			$gaps[] = 'títulos y descripciones de categorías y etiquetas';
+		}
+		$main = (array) get_option( 'wpseo', array() );
+		foreach ( array( 'googleverify', 'msverify', 'yandexverify', 'baiduverify', 'pinterestverify' ) as $key ) {
+			if ( '' !== trim( (string) ( $main[ $key ] ?? '' ) ) ) {
+				$gaps[] = 'códigos de verificación de buscadores';
+				break;
+			}
+		}
+		if ( isset( $wpdb->postmeta ) && $wpdb->get_var( $wpdb->prepare( "SELECT meta_id FROM {$wpdb->postmeta} WHERE ( meta_key LIKE %s OR meta_key LIKE %s ) AND meta_value <> '' LIMIT 1", $wpdb->esc_like( '_yoast_wpseo_primary_' ) . '%', $wpdb->esc_like( '_yoast_wpseo_opengraph-' ) . '%' ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$gaps[] = 'categoría principal u Open Graph propios de algunos contenidos';
+		}
+		return $gaps;
+	}
+
+	/**
+	 * Estado de UpdraftPlus que decide si puede borrarse: destino remoto, conjuntos de su historial y programación.
+	 *
+	 * @return array{remote:bool, history:int, interval:string}
+	 */
+	public static function updraft_state() {
+		$get     = static function ( $key, $default ) {
+			return is_multisite() ? get_site_option( $key, $default ) : get_option( $key, $default );
+		};
+		$service = $get( 'updraft_service', '' );
+		$remote  = array_diff( array_filter( array_map( 'strval', (array) $service ) ), array( 'none', '' ) );
+		$history = $get( 'updraft_backup_history', array() );
+		$interval = (string) $get( 'updraft_interval', 'manual' );
+		return array( 'remote' => (bool) $remote, 'history' => is_array( $history ) ? count( $history ) : 0, 'interval' => '' === $interval ? 'manual' : $interval );
+	}
+
 	/** Plugins DIGITALÍSIMO que hacen falta para las filas con reemplazo (y Backups siempre: el respaldo va primero). */
 	public static function needs( array $rows, $theme_row = false ) {
 		$needs = array( 'digitalisimo-backups' => true );
@@ -169,9 +240,38 @@ final class Replacements {
 		if ( ! function_exists( 'get_plugins' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
-		$rows = self::rows( (array) get_plugins(), Retire::installed() );
+		$plugins = (array) get_plugins();
+		$rows    = self::rows( $plugins, Retire::installed() );
 		foreach ( $rows as $key => $row ) {
 			$rows[ $key ]['active'] = self::active_files( array_keys( $row['files'] ), $network );
+			// Un plugin de terceros que depende de esta fila impide borrarla y, salvo en la familia de Elementor (cuyos
+			// complementos siguen funcionando con el núcleo incluido en Elements), también desactivarla.
+			$dependents                  = '' !== (string) $row['by'] ? self::dependents( $row, $plugins ) : array();
+			$rows[ $key ]['dependents'] = $dependents;
+			if ( $dependents && 'content' !== $row['import'] ) {
+				$rows[ $key ]['by']     = '';
+				$rows[ $key ]['delete'] = '';
+				$rows[ $key ]['reason'] = sprintf( 'Lo necesita %s («Requires Plugins»): se queda como está.', implode( ', ', $dependents ) );
+			}
+		}
+		// Yoast con ajustes que su importador no trae se queda activo, en cada sitio de la red que los use.
+		if ( isset( $rows['yoast'] ) && '' !== (string) $rows['yoast']['by'] ) {
+			$gaps = array();
+			foreach ( $network && is_multisite() ? Retire::sites() : array( (int) get_current_blog_id() ) as $site_id ) {
+				$switch = is_multisite() && (int) $site_id !== (int) get_current_blog_id();
+				if ( $switch ) {
+					switch_to_blog( (int) $site_id );
+				}
+				$gaps = array_merge( $gaps, self::yoast_gaps() );
+				if ( $switch ) {
+					restore_current_blog();
+				}
+			}
+			if ( $gaps ) {
+				$rows['yoast']['by']     = '';
+				$rows['yoast']['delete'] = '';
+				$rows['yoast']['reason'] = 'Yoast SEO tiene en uso lo que el importador de DIGITALÍSIMO SEO no trae (' . implode( '; ', array_values( array_unique( $gaps ) ) ) . '): se queda activo para no cambiar URL ni metas.';
+			}
 		}
 		$theme = self::theme_state();
 		return array(
@@ -247,6 +347,10 @@ final class Replacements {
 		if ( '' === (string) ( $row['by'] ?? '' ) || '' === (string) ( $row['delete'] ?? '' ) ) {
 			return array( false, '' !== (string) ( $row['reason'] ?? '' ) ? (string) $row['reason'] : 'No tiene reemplazo en DIGITALÍSIMO.' );
 		}
+		$dependents = array_values( array_unique( array_merge( (array) ( $row['dependents'] ?? array() ), (array) ( $facts['dependents'] ?? array() ) ) ) );
+		if ( $dependents ) {
+			return array( false, sprintf( 'Lo necesita %s («Requires Plugins»): se queda instalado.', implode( ', ', $dependents ) ) );
+		}
 		if ( ! empty( $facts['active'] ) ) {
 			return array( false, 'Sigue activo en algún sitio.' );
 		}
@@ -261,6 +365,12 @@ final class Replacements {
 			case 'kept_data':
 				if ( empty( $facts['imported'] ) ) {
 					return array( false, 'DIGITALÍSIMO Backups no comprobó sus respaldos.' );
+				}
+				if ( ! empty( $facts['remote'] ) ) {
+					return array( false, 'Tiene un destino remoto configurado: sus copias remotas y su programación no pasan a DIGITALÍSIMO Backups. Se queda desactivado, sin borrar, para que puedas recuperar esas copias desde él.' );
+				}
+				if ( (int) ( $facts['unseen'] ?? 0 ) > 0 ) {
+					return array( false, sprintf( 'Su historial tiene %d respaldos que DIGITALÍSIMO Backups no ve en su carpeta. Se queda desactivado, sin borrar.', (int) $facts['unseen'] ) );
 				}
 				return empty( $facts['keeps_data'] ) ? array( false, 'Su ajuste «borrar los datos al desinstalar» está encendido y su carpeta de respaldos no es la habitual: al borrarlo, DIGITALÍSIMO Backups dejaría de encontrar sus respaldos. Se queda desactivado.' ) : array( true, '' );
 			case 'content':
