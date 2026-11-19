@@ -218,15 +218,21 @@ class Digitalisimo_Hosting {
 		return '<form class="digitalisimo-domain-search"><label>Dominio <input required name="domain" pattern="[A-Za-z0-9-]+" autocomplete="off"></label><label>Extensión <select required name="extension">' . $options . '</select></label><button type="submit">Verificar dominio</button><div class="digitalisimo-domain-result" aria-live="polite"></div></form>';
 	}
 
+	/**
+	 * Los ajustes se consultan cuando WooCommerce llama a cada gancho, no en `init`: antes se leían (una consulta, la
+	 * opción va sin autoload porque guarda la clave de Namecheap) en cada petición del sitio con WooCommerce, también en
+	 * cada pantalla del escritorio y en cada heartbeat, donde ninguno de estos ganchos corre.
+	 */
 	public static function cart_compatibility() {
-		if ( class_exists( 'Digitalisimo_Integrations_WooCommerce' ) || ! function_exists( 'WC' ) || empty( self::all()['enabled'] ) ) return;
-		add_filter( 'woocommerce_add_cart_item_data', array( __CLASS__, 'cart_domain' ), 10, 3 );
-		add_filter( 'woocommerce_get_item_data', array( __CLASS__, 'cart_item_data' ), 10, 2 );
-		add_action( 'woocommerce_checkout_create_order_line_item', array( __CLASS__, 'order_item_domain' ), 10, 4 );
-		add_filter( 'digitalisimo_ai_context', array( __CLASS__, 'ai_context' ), 10, 3 );
-		if ( self::all()['require_domain_hosting'] ) add_action( 'woocommerce_check_cart_items', array( __CLASS__, 'validate_cart' ) );
-		if ( self::all()['replace_hosting'] ) add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'replace_hosting' ), 10, 3 );
-		if ( self::all()['simplify_checkout'] ) add_filter( 'woocommerce_checkout_fields', array( __CLASS__, 'checkout_fields' ) );
+		if ( class_exists( 'Digitalisimo_Integrations_WooCommerce' ) || ! function_exists( 'WC' ) ) return;
+		$on = static function( $key = '' ) { $all = self::all(); return ! empty( $all['enabled'] ) && ( '' === $key || ! empty( $all[ $key ] ) ); };
+		add_filter( 'woocommerce_add_cart_item_data', static function( $data, $product_id, $variation_id ) use ( $on ) { return $on() ? self::cart_domain( $data, $product_id, $variation_id ) : $data; }, 10, 3 );
+		add_filter( 'woocommerce_get_item_data', static function( $data, $item ) use ( $on ) { return $on() ? self::cart_item_data( $data, $item ) : $data; }, 10, 2 );
+		add_action( 'woocommerce_checkout_create_order_line_item', static function( $item, $cart_item_key, $values, $order ) use ( $on ) { if ( $on() ) self::order_item_domain( $item, $cart_item_key, $values, $order ); }, 10, 4 );
+		add_filter( 'digitalisimo_ai_context', static function( $context, $profile, $request = null ) use ( $on ) { return $on() ? self::ai_context( $context, $profile, $request ) : $context; }, 10, 3 );
+		add_action( 'woocommerce_check_cart_items', static function() use ( $on ) { if ( $on( 'require_domain_hosting' ) ) self::validate_cart(); } );
+		add_filter( 'woocommerce_add_to_cart_validation', static function( $passed, $product_id, $quantity ) use ( $on ) { return $on( 'replace_hosting' ) ? self::replace_hosting( $passed, $product_id, $quantity ) : $passed; }, 10, 3 );
+		add_filter( 'woocommerce_checkout_fields', static function( $fields ) use ( $on ) { return $on( 'simplify_checkout' ) ? self::checkout_fields( $fields ) : $fields; } );
 	}
 	public static function cart_domain( $data, $product_id, $variation_id ) { $domain = $_REQUEST['digitalisimo_domain'] ?? $_REQUEST['domain_name'] ?? ''; if ( $domain ) $data['digitalisimo_domain'] = sanitize_text_field( wp_unslash( $domain ) ); return $data; }
 	public static function cart_item_data( $data, $item ) { if ( ! empty( $item['digitalisimo_domain'] ) ) $data[] = array( 'name' => 'Dominio', 'value' => $item['digitalisimo_domain'] ); return $data; }
