@@ -91,6 +91,11 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-perform
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-asset-diagnostics.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-measurements.php';
 
+// Antes de la primera lectura (la de abajo ya resuelve opciones): las opciones pequeñas de cada petición del
+// escritorio en una sola consulta y, en una red, los ajustes de red y su marca de migración.
+if ( is_admin() && function_exists( 'wp_prime_option_caches' ) ) wp_prime_option_caches( digitalisimo_integrations_admin_options() );
+if ( is_admin() && is_multisite() && function_exists( 'wp_prime_site_option_caches' ) ) wp_prime_site_option_caches( array( 'digitalisimo_integrations_options', 'digitalisimo_seo_template_defaults_1_0_122' ) );
+
 // Debe decidirse antes de `plugins_loaded`: para entonces la ruta ya está resuelta.
 if ( ! Digitalisimo_Integrations_Settings::tools_handles_site_options() ) Digitalisimo_Integrations_Hide_Login::boot();
 
@@ -100,13 +105,10 @@ if ( ! Digitalisimo_Integrations_Settings::tools_handles_site_options() ) Digita
  * (unas diez por petición); se piden juntas en una sola. Sólo lee: no cambia valores ni autoload.
  */
 function digitalisimo_integrations_admin_options() {
-	return array( 'digitalisimo_seo_template_defaults_1_0_122', 'digitalisimo_seo_redirections_db', 'digitalisimo_seo_404_db', 'digitalisimo_seo_links_db', 'digitalisimo_seo_links_done', 'digitalisimo_seo_url_bases_state', 'digitalisimo_performance_font_inline_manifest', 'digitalisimo_performance_preload_manifest', 'digitalisimo_performance_hero_bootstrapped', 'digitalisimo_favicon_state', 'digitalisimo_image_roles', 'digitalisimo_seo_network_inherit', 'digitalisimo_module_network_inherit' );
+	return array( 'digitalisimo_integrations_options', 'digitalisimo_seo_template_defaults_1_0_122', 'digitalisimo_seo_redirections_db', 'digitalisimo_seo_404_db', 'digitalisimo_seo_links_db', 'digitalisimo_seo_links_done', 'digitalisimo_seo_url_bases_state', 'digitalisimo_performance_font_inline_manifest', 'digitalisimo_performance_preload_manifest', 'digitalisimo_performance_hero_bootstrapped', 'digitalisimo_favicon_state', 'digitalisimo_image_roles', 'digitalisimo_seo_network_inherit', 'digitalisimo_module_network_inherit' );
 }
 
 function digitalisimo_integrations_boot() {
-	if ( is_admin() && function_exists( 'wp_prime_option_caches' ) ) wp_prime_option_caches( digitalisimo_integrations_admin_options() );
-	// En una red, los ajustes de red y su marca de migración también se leen en cada petición del escritorio.
-	if ( is_admin() && is_multisite() && function_exists( 'wp_prime_site_option_caches' ) ) wp_prime_site_option_caches( array( 'digitalisimo_integrations_options', 'digitalisimo_seo_template_defaults_1_0_122' ) );
 	Digitalisimo_Integrations_Settings::init();
 	Digitalisimo_Integrations_Performance_Manager::init();
 	Digitalisimo_Integrations_Performance_CSS::init();
