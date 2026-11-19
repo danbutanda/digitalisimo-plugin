@@ -86,6 +86,15 @@ let last = '';
 let closed = false;
 let steps = 0;
 while (!(data && data.done) && Date.now() - started < 40 * 60 * 1000) {
+	if ((data.stage || '') !== last) {
+		globalThis.since = Date.now();
+		globalThis.dumped = false;
+	} else if (!globalThis.dumped && Date.now() - (globalThis.since || Date.now()) > 120000) {
+		// Una etapa que no avanza en 2 minutos: el estado de la tarea, para diagnosticar.
+		globalThis.dumped = true;
+		const job = JSON.parse(await (await request(`${base}/wp-content/probe/check.php`)).text()).job || {};
+		console.log('ESTADO', JSON.stringify({ stage: job.stage, cursor: job.cursor, attempts: job.attempts, imports: job.imports, notes: job.notes, error: job.error, sites: job.sites }));
+	}
 	if ((data.stage || '') !== last || Date.now() - (globalThis.shown || 0) > 60000) {
 		last = data.stage || '';
 		globalThis.shown = Date.now();
