@@ -49,7 +49,7 @@ $copy( $probe . '/hello-elementor', WP_CONTENT_DIR . '/themes/hello-elementor' )
 
 $sites = array( get_current_blog_id() );
 if ( $network ) {
-	$second = wpmu_create_blog( parse_url( home_url(), PHP_URL_HOST ), '/segundo/', 'Segundo sitio', 1 );
+	$second = wpmu_create_blog( DOMAIN_CURRENT_SITE, PATH_CURRENT_SITE . 'segundo/', 'Segundo sitio', 1 );
 	$sites[] = (int) $second;
 	WP_Theme::network_enable_theme( 'hello-elementor' );
 	activate_plugin( 'digitalisimo-migration/digitalisimo-migration.php', '', true );

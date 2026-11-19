@@ -16,6 +16,24 @@ add_action( 'muplugins_loaded', static function () {
 
 add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 	$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+	// Red de la prueba en http://playground.test (multisite no admite puerto): como un archivo hosts, la petición va al
+	// servidor local con su cabecera Host. Sólo GET, que es lo que pide la verificación de la portada.
+	$port = (int) @file_get_contents( WP_CONTENT_DIR . '/probe/port' );
+	if ( 'playground.test' === $host && $port ) {
+		$local   = preg_replace( '#^https?://playground\.test#', 'http://127.0.0.1:' . $port, $url );
+		$context = stream_context_create( array( 'http' => array( 'method' => 'GET', 'header' => "Host: playground.test\r\n", 'ignore_errors' => true, 'timeout' => (float) ( $args['timeout'] ?? 20 ), 'follow_location' => 1, 'max_redirects' => 3 ) ) );
+		$body    = @file_get_contents( $local, false, $context );
+		if ( false === $body ) {
+			return new WP_Error( 'digi_probe_loopback', 'La petición local falló.' );
+		}
+		$code = 0;
+		foreach ( (array) ( $http_response_header ?? array() ) as $line ) {
+			if ( preg_match( '#^HTTP/\S+\s+(\d{3})#', $line, $m ) ) {
+				$code = (int) $m[1];
+			}
+		}
+		return array( 'headers' => array(), 'body' => $body, 'response' => array( 'code' => $code, 'message' => '' ), 'cookies' => array(), 'filename' => null );
+	}
 	if ( in_array( $host, array( '127.0.0.1', 'localhost', (string) wp_parse_url( home_url(), PHP_URL_HOST ) ), true ) ) {
 		return $pre;
 	}

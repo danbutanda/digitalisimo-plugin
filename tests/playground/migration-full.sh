@@ -6,7 +6,9 @@
 # comprueba: respaldo completo verificado (DIGITALÍSIMO Backups real, instalado desde su ZIP), Backups, SEO y el tema
 # instalados con el instalador de WordPress desde ZIP locales (`upgrader_pre_download`, sin GitHub), Elements activado,
 # metas de Rank Math importadas por el importador real de SEO, lo reemplazado borrado, Hello cambiado por el tema propio
-# y borrado, y la portada respondiendo. SCENARIO=network hace lo mismo en una red de dos sitios.
+# y borrado, y la portada respondiendo. SCENARIO=network hace lo mismo en una red de dos sitios. El almacén de Backups
+# va en /digi-store, montado, como en los arneses de Backups: con varios workers (la verificación de la portada pide
+# una petición a la propia portada), Playground sólo comparte entre ellos /wordpress y lo montado.
 #
 # Uso: bash tests/playground/migration-full.sh            (sitio)
 #      SCENARIO=network bash tests/playground/migration-full.sh
@@ -21,7 +23,7 @@ case "$SCENARIO" in site|network) ;; *) echo "SCENARIO debe ser site o network";
 OUT="${OUT:-/tmp/digi-migration-full}/$SCENARIO"
 PORT="${PORT:-9620}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
-rm -rf "$OUT" && mkdir -p "$OUT/zips"
+rm -rf "$OUT" && mkdir -p "$OUT/zips" "$OUT/store"
 
 HELLO_ZIP="${HELLO_ZIP:-$ROOT/reference/hello-elementor.3.5.1.zip}"
 if [ ! -f "$HELLO_ZIP" ]; then
@@ -64,24 +66,27 @@ PY
 
 if [ network = "$SCENARIO" ]; then
   STEPS='{"step":"enableMultisite"},'
+  BASE='http://playground.test'
 else
   STEPS=''
+  BASE="http://127.0.0.1:$PORT"
 fi
+echo "$PORT" > "$OUT/port"
 cat > "$OUT/blueprint.json" <<JSON
-{"steps":[${STEPS}{"step":"login"},{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"}]}
+{"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store"}},${STEPS}{"step":"login"},{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"}]}
 JSON
 
-$CLI server --port="$PORT" --workers=3 --site-url="http://127.0.0.1:$PORT" --blueprint="$OUT/blueprint.json" \
+$CLI server --port="$PORT" --workers=3 --site-url="$BASE" --blueprint="$OUT/blueprint.json" \
   --mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" \
   --mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" \
-  --mount="$OUT:/wordpress/wp-content/probe" > "$OUT/server.log" 2>&1 &
+  --mount="$OUT:/wordpress/wp-content/probe" --mount="$OUT/store:/digi-store" > "$OUT/server.log" 2>&1 &
 SERVER=$!
 stop_server() { kill $SERVER 2>/dev/null || true; for i in 1 2 3; do fuser -k -n tcp "$PORT" >/dev/null 2>&1 || break; sleep 1; done; }
 trap 'stop_server; playground_cleanup' EXIT
 for i in $(seq 1 180); do
   if ! kill -0 $SERVER 2>/dev/null; then tail -20 "$OUT/server.log"; exit 1; fi
-  [ -f "$OUT/setup.done" ] && ! curl -s "http://127.0.0.1:$PORT/" | grep -q 'not ready' && break
+  [ -f "$OUT/setup.done" ] && ! curl -s -H "Host: ${BASE#http://}" "http://127.0.0.1:$PORT/" | grep -q 'not ready' && break
   sleep 2
 done
 [ -f "$OUT/setup.done" ] || { echo 'La preparación del sitio no terminó'; tail -20 "$OUT/server.log"; exit 1; }
-node "$DIR/drive.mjs" "http://127.0.0.1:$PORT" "$SCENARIO"
+PORT="$PORT" node "$DIR/drive.mjs" "$BASE" "$SCENARIO"

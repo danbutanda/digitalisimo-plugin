@@ -9,10 +9,32 @@ const problems = [];
 const check = (ok, message) => { if (!ok) problems.push(message); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+import http from 'node:http';
+// La red vive en http://playground.test (multisite no admite puerto): cada petición va a 127.0.0.1:PORT con su Host.
+const PORT = process.env.PORT || '9620';
+function raw(url, options) {
+	const target = new URL(url);
+	return new Promise((resolve, reject) => {
+		const req = http.request({ host: '127.0.0.1', port: target.hostname === 'playground.test' ? PORT : (target.port || 80), path: target.pathname + target.search, method: options.method || 'GET', headers: { ...(options.headers || {}), Host: target.host } }, (res) => {
+			const chunks = [];
+			res.on('data', (c) => chunks.push(c));
+			res.on('end', () => {
+				const body = Buffer.concat(chunks).toString('utf8');
+				const cookies = [].concat(res.headers['set-cookie'] || []);
+				resolve({ status: res.statusCode, headers: { get: (k) => res.headers[k.toLowerCase()] || null, getSetCookie: () => cookies }, text: async () => body });
+			});
+		});
+		req.setTimeout(600000, () => req.destroy(new Error('tiempo agotado')));
+		req.on('error', reject);
+		if (options.body) req.write(String(options.body));
+		req.end();
+	});
+}
+
 async function request(url, options = {}) {
 	for (let hop = 0; hop < 10; hop++) {
 		const headers = { ...(options.headers || {}), Cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; ') };
-		const response = await fetch(url, { ...options, headers, redirect: 'manual' });
+		const response = await raw(url, { ...options, headers });
 		for (const line of response.headers.getSetCookie()) {
 			const [pair] = line.split(';');
 			const at = pair.indexOf('=');
