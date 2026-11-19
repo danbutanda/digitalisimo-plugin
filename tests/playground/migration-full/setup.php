@@ -1,8 +1,8 @@
 <?php
 /**
  * Sitio de partida de migration-full.sh (sólo Playground): Hello Elementor 3.5.1 oficial activo, Element Pack Pro,
- * Rank Math y UpdraftPlus de prueba (sólo su cabecera, como los de f8: sin código del proveedor), DIGITALÍSIMO Elements
- * instalado sin activar, DIGITALÍSIMO Migración activa y contenido con metas de Rank Math. En una red (escenario
+ * Rank Math y UpdraftPlus de prueba (sólo su cabecera, como los de f8: sin código del proveedor), DIGITALÍSIMO Migración
+ * sola activa y contenido con metas de Rank Math. En una red (escenario
  * `network`), además un segundo sitio con lo mismo, Element Pack y UpdraftPlus activados en toda la red y Rank Math por
  * sitio.
  */
