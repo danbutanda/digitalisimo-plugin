@@ -49,7 +49,7 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 }, 1, 3 );
 
 add_filter( 'upgrader_pre_download', static function ( $reply, $package ) {
-	$local = WP_CONTENT_DIR . '/probe/zips/' . basename( (string) $package );
+	$local = '/digi-zips/' . basename( (string) $package );
 	file_put_contents( WP_CONTENT_DIR . '/probe/downloads.log', basename( (string) $package ) . "\n", FILE_APPEND );
 	if ( ! is_file( $local ) ) {
 		return new WP_Error( 'digi_probe_missing', 'ZIP ausente en la prueba: ' . basename( (string) $package ) );

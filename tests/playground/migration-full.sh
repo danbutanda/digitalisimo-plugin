@@ -21,10 +21,13 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 DIR="$ROOT/tests/playground/migration-full"
 SCENARIO="${SCENARIO:-site}"
 case "$SCENARIO" in site|network) ;; *) echo "SCENARIO debe ser site o network"; exit 1;; esac
-OUT="${OUT:-/tmp/digi-migration-full}/$SCENARIO"
+BASE_OUT="${OUT:-/tmp/digi-migration-full}/$SCENARIO"
+# Lo pequeño de la prueba va en wp-content/probe; los ZIP y el almacén de Backups, fuera de /wordpress (si no, el
+# respaldo completo los incluiría: por esa ruta Backups no reconoce su almacén).
+OUT="$BASE_OUT/probe"; ZIPS="$BASE_OUT/zips"; STORE="$BASE_OUT/store"
 PORT="${PORT:-9620}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
-rm -rf "$OUT" && mkdir -p "$OUT/zips" "$OUT/store"
+rm -rf "$BASE_OUT" && mkdir -p "$OUT" "$ZIPS" "$STORE"
 
 HELLO_ZIP="${HELLO_ZIP:-$ROOT/reference/hello-elementor.3.5.1.zip}"
 if [ ! -f "$HELLO_ZIP" ]; then
@@ -38,14 +41,14 @@ sha256sum "$HELLO_ZIP" | grep -q '^c166fdcb091a38897f4f3339f83645e9747234fbc9615
 cp "$DIR/setup.php" "$DIR/mu-probe.php" "$DIR/check.php" "$OUT/"
 echo "$SCENARIO" > "$OUT/scenario"
 # ZIP de esta copia con su carpeta de siempre y el índice con las URL oficiales que valida Migración.
-python3 - "$ROOT" "$OUT" "$HELLO_ZIP" <<'PY'
+python3 - "$ROOT" "$OUT" "$HELLO_ZIP" "$ZIPS" <<'PY'
 import json, os, re, sys, zipfile
-root, out, hello = sys.argv[1:4]
+root, out, hello, zips = sys.argv[1:5]
 def version(path, key):
     m = re.search(r'^\s*\*?\s*' + key + r':\s*(\S+)', open(path, encoding='utf-8').read(), re.M)
     return m.group(1)
 def pack(folder, name):
-    with zipfile.ZipFile(f'{out}/zips/{name}', 'w', zipfile.ZIP_DEFLATED) as z:
+    with zipfile.ZipFile(f'{zips}/{name}', 'w', zipfile.ZIP_DEFLATED) as z:
         for base, dirs, files in os.walk(f'{root}/{folder}'):
             dirs[:] = [d for d in dirs if d not in ('node_modules', '.git')]
             for f in files:
@@ -79,14 +82,14 @@ JSON
 
 $CLI server --port="$PORT" --workers=3 --site-url="$BASE" --blueprint="$OUT/blueprint.json" \
   --mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" \
-  --mount="$OUT:/wordpress/wp-content/probe" --mount="$OUT/store:/digi-store" > "$OUT/server.log" 2>&1 &
+  --mount="$OUT:/wordpress/wp-content/probe" --mount="$ZIPS:/digi-zips" --mount="$STORE:/digi-store" > "$BASE_OUT/server.log" 2>&1 &
 SERVER=$!
 stop_server() { kill $SERVER 2>/dev/null || true; for i in 1 2 3; do fuser -k -n tcp "$PORT" >/dev/null 2>&1 || break; sleep 1; done; }
 trap 'stop_server; playground_cleanup' EXIT
 for i in $(seq 1 180); do
-  if ! kill -0 $SERVER 2>/dev/null; then tail -20 "$OUT/server.log"; exit 1; fi
+  if ! kill -0 $SERVER 2>/dev/null; then tail -20 "$BASE_OUT/server.log"; exit 1; fi
   [ -f "$OUT/setup.done" ] && ! curl -s -H "Host: ${BASE#http://}" "http://127.0.0.1:$PORT/" | grep -q 'not ready' && break
   sleep 2
 done
-[ -f "$OUT/setup.done" ] || { echo 'La preparación del sitio no terminó'; tail -20 "$OUT/server.log"; exit 1; }
+[ -f "$OUT/setup.done" ] || { echo 'La preparación del sitio no terminó'; tail -20 "$BASE_OUT/server.log"; exit 1; }
 PORT="$PORT" node "$DIR/drive.mjs" "$BASE" "$SCENARIO"
