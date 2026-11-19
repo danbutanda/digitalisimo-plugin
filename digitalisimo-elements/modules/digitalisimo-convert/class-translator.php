@@ -49,9 +49,10 @@ defined( 'ABSPATH' ) || exit;
  * cambios.
  *
  * Condiciones de visualización de otros plugins (CONDITION_FAMILIES, o cualquier clave no declarada cuyo nombre hable de
- * condiciones o de visibilidad): nunca se pierden en silencio. Apagadas (sin su interruptor encendido, o vacías) no
- * ocultaban nada y pasan tal cual (`pro.inert`); encendidas, el widget propio no sabe aplicarlas, así que el elemento no
- * se convierte (`pro.condition_kept`, con `keep`): sigue siendo el widget de PRO, que se ve y se oculta igual.
+ * condiciones o de visibilidad) y ajustes de otros plugins con un interruptor del mismo prefijo (`foreign()`): nunca se
+ * pierden en silencio. Apagados (sin su interruptor encendido, o vacíos) no hacían nada y pasan tal cual (`pro.inert`);
+ * encendidos, el widget propio no sabe aplicarlos, así que el elemento no se convierte (`pro.condition_kept`, con
+ * `keep`): sigue siendo el widget de PRO, que se ve y se oculta igual. Los códigos de una condición llevan `condition`.
  */
 final class Translator {
 	const DEVICES = array( '', '_widescreen', '_laptop', '_tablet_extra', '_tablet', '_mobile_extra', '_mobile' );
@@ -70,9 +71,20 @@ final class Translator {
 
 	/**
 	 * Condiciones de visualización de otros plugins de complementos: prefijo de sus claves => su interruptor. Sin el
-	 * interruptor encendido (Elementor no guarda el apagado) sus reglas no ocultaban nada.
+	 * interruptor encendido (Elementor no guarda el apagado) sus reglas no ocultaban nada, aunque Elementor guarde el
+	 * repetidor con su fila por defecto. Nombres tomados de los sitios y de la revisión, sin una copia de esos plugins en
+	 * el repositorio para comprobarlos: lo que no case aquí lo resuelve la regla del interruptor del mismo prefijo.
 	 */
-	const CONDITION_FAMILIES = array( 'display_condition_' => 'display_condition_enable' );
+	const CONDITION_FAMILIES = array(
+		'display_condition_'     => 'display_condition_enable',
+		'pa_display_conditions_' => 'pa_display_conditions_switcher',
+		'pa_condition_'          => 'pa_display_conditions_switcher',
+		'pp_display_condition'   => 'pp_display_conditions_enable',
+		'jedv_'                  => 'jedv_enabled',
+	);
+
+	/** Nombres de interruptor (sin dispositivo): `…_enable`, `…_enabled`, `…_switch`, `…_switcher`, `…_show`, `…_active`, `…_on`. */
+	const SWITCH_PATTERN = '/_(enable|enabled|switch|switcher|show|active|on)$/';
 
 	/** Nombres de clave que hablan de condiciones o de visibilidad (sin declarar: se tratan como condiciones). */
 	const CONDITION_PATTERN = '/condition|visibilit/i';
@@ -211,6 +223,21 @@ final class Translator {
 				}
 			}
 		}
+		// Claves que el mapa no declara (las que mira la regla del interruptor del mismo prefijo de foreign()).
+		$undeclared = array();
+		foreach ( array_keys( $settings ) as $key ) {
+			$key  = (string) $key;
+			$base = self::base( $key );
+			if ( ! isset( $handled[ $key ] ) && ! in_array( $key, $nested, true ) && self::MARKER !== $key && '__dynamic__' !== $key && '__globals__' !== $key && ! isset( $drop[ $base ] ) && ! isset( $drop[ $key ] ) && ! isset( $approx[ $base ] ) && ! self::common( $key ) ) {
+				$undeclared[] = $key;
+			}
+		}
+		$code_of = static function ( array $foreign, string $key ) use ( $prefix ): array {
+			$code = 'keep' === $foreign['state']
+				? self::code( self::KEEP, $prefix . $key, (string) $foreign['reason'], 'review' ) + array( 'keep' => true )
+				: self::code( 'pro.inert', $prefix . $key, (string) $foreign['reason'], 'converted' );
+			return $code + ( ! empty( $foreign['condition'] ) ? array( 'condition' => true ) : array() );
+		};
 		foreach ( array( '__dynamic__', '__globals__' ) as $bag ) {
 			if ( empty( $settings[ $bag ] ) || ! is_array( $settings[ $bag ] ) ) {
 				continue;
@@ -228,14 +255,13 @@ final class Translator {
 					$moved[ $key ] = $value;
 				} elseif ( isset( $drop[ self::base( (string) $key ) ] ) ) {
 					$codes[] = self::code( 'pro.dropped', $prefix . self::base( (string) $key ), (string) $drop[ self::base( (string) $key ) ], 'dropped' );
-				} elseif ( null !== self::foreign( (string) $key, $settings, $spec ) ) {
+				} elseif ( null !== ( $foreign = self::foreign( (string) $key, $settings, $spec, $undeclared ) ) ) { // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition
 					// Ajuste inerte o condición de otro plugin: su valor dinámico o global la acompaña (el código sale abajo).
 					if ( '' !== (string) $key ) {
 						$moved[ $key ] = $value;
 					}
 					if ( ! array_key_exists( $key, $settings ) ) {
-						$foreign = (array) self::foreign( (string) $key, $settings, $spec );
-						$codes[] = self::code( 'keep' === $foreign['state'] ? self::KEEP : 'pro.inert', $prefix . $key, (string) $foreign['reason'], 'keep' === $foreign['state'] ? 'review' : 'converted' ) + ( 'keep' === $foreign['state'] ? array( 'keep' => true ) : array() );
+						$codes[] = $code_of( $foreign, (string) $key );
 					}
 				} else {
 					$codes[] = self::code( 'pro.unmapped', $prefix . $key, 'Valor dinámico o global de un ajuste que el widget de PRO no declara (lo dejó otro plugin o una versión antigua): no pasa al widget propio. Si ese plugin lo usaba en este elemento, su efecto se pierde.', 'review' );
@@ -266,15 +292,13 @@ final class Translator {
 			if ( isset( $approx[ $base ] ) ) {
 				continue; // La traduce `filter` con el origen; su código sale abajo si cambió.
 			}
-			$foreign = self::foreign( $key, $settings, $spec );
+			$foreign = self::foreign( $key, $settings, $spec, $undeclared );
 			if ( null !== $foreign ) {
-				// Inerte (pasa tal cual, salvo la clave sin nombre) o condición de otro plugin (pasa; encendida, `keep`).
+				// Inerte (pasa tal cual, salvo la clave sin nombre) u otro plugin (pasa; encendido, `keep`).
 				if ( '' !== $key ) {
 					$out[ $key ] = $value;
 				}
-				$codes[] = 'keep' === $foreign['state']
-					? self::code( self::KEEP, $prefix . $key, $foreign['reason'], 'review' ) + array( 'keep' => true )
-					: self::code( 'pro.inert', $prefix . $key, $foreign['reason'], 'converted' );
+				$codes[] = $code_of( $foreign, $key );
 				continue;
 			}
 			$codes[] = self::code( 'pro.unmapped', $prefix . $key, 'Ajuste guardado que el widget de PRO no declara (lo dejó otro plugin o una versión antigua): no pasa al widget propio. Si ese plugin lo usaba en este elemento, su efecto se pierde.', 'review' );
@@ -335,36 +359,86 @@ final class Translator {
 	}
 
 	/**
-	 * Clave no declarada que no es del widget de PRO: inerte (INERT o `inert` del mapa) o condición de visualización de
-	 * otro plugin. `state`: `inert` (no ocultaba nada; pasa) o `keep` (condición encendida: el elemento no se convierte).
+	 * Clave no declarada que no es del widget de PRO: inerte (INERT o `inert` del mapa), condición de visualización de
+	 * otro plugin, o ajuste de otro plugin con un interruptor del mismo prefijo. `state`: `inert` (no hacía nada; pasa tal
+	 * cual) o `keep` (encendido y el widget propio no sabe aplicarlo: el elemento no se convierte). `condition`: si es una
+	 * condición o visibilidad.
 	 *
-	 * @return array{state:string, reason:string}|null null si no es ninguna de las dos (`pro.unmapped`).
+	 * Regla del interruptor del mismo prefijo, para lo que no está declarado: si entre las claves no declaradas del
+	 * elemento ($undeclared; sin ella, todas las demás) hay un interruptor (SWITCH_PATTERN) con el mismo primer segmento
+	 * (`xx_` de `xx_cl_logics`), manda ese interruptor; una clave que es ella misma un interruptor encendido también deja el
+	 * elemento como está. Sin interruptor, una condición con valor falla cerrado y otra clave sigue en `pro.unmapped`.
+	 *
+	 * @param string[]|null $undeclared Claves del elemento que el mapa no declara.
+	 * @return array{state:string, reason:string, condition:bool}|null null si no es nada de eso (`pro.unmapped`).
 	 */
-	public static function foreign( string $key, array $settings, array $spec = array() ): ?array {
+	public static function foreign( string $key, array $settings, array $spec = array(), ?array $undeclared = null ): ?array {
 		$base  = self::base( $key );
 		$inert = (array) ( $spec['inert'] ?? array() );
 		if ( isset( $inert[ $base ] ) || isset( $inert[ $key ] ) ) {
-			return array( 'state' => 'inert', 'reason' => (string) ( $inert[ $base ] ?? $inert[ $key ] ) );
+			return array( 'state' => 'inert', 'reason' => (string) ( $inert[ $base ] ?? $inert[ $key ] ), 'condition' => false );
 		}
 		if ( array_key_exists( $base, self::INERT ) ) {
-			return array( 'state' => 'inert', 'reason' => self::INERT[ $base ] );
+			return array( 'state' => 'inert', 'reason' => self::INERT[ $base ], 'condition' => false );
 		}
 		foreach ( self::CONDITION_FAMILIES as $prefix => $switch ) {
 			if ( 0 !== strpos( $base, $prefix ) ) {
 				continue;
 			}
 			if ( self::used( $settings[ $switch ] ?? null ) ) {
-				return array( 'state' => 'keep', 'reason' => sprintf( 'Condiciones de visualización de otro plugin encendidas (`%s`): el widget propio no sabe aplicarlas, así que este elemento se queda como widget de PRO, que se sigue viendo (y ocultando) igual.', $switch ) );
+				return array( 'state' => 'keep', 'reason' => sprintf( 'Condiciones de visualización de otro plugin encendidas (`%s`): el widget propio no sabe aplicarlas, así que este elemento se queda como widget de PRO, que se sigue viendo (y ocultando) igual.', $switch ), 'condition' => true );
 			}
-			return array( 'state' => 'inert', 'reason' => sprintf( 'Condiciones de visualización de otro plugin, apagadas (sin `%s` encendido): no ocultaban nada. Pasan tal cual al widget propio.', $switch ) );
+			return array( 'state' => 'inert', 'reason' => sprintf( 'Condiciones de visualización de otro plugin, apagadas (sin `%s` encendido): no ocultaban nada. Pasan tal cual al widget propio.', $switch ), 'condition' => true );
 		}
-		if ( '' !== $base && 1 === preg_match( self::CONDITION_PATTERN, $base ) ) {
-			if ( self::used( $settings[ $key ] ?? null ) ) {
-				return array( 'state' => 'keep', 'reason' => 'Ajuste de condiciones o de visibilidad de otro plugin que el widget propio no sabe aplicar: para no mostrar algo que estaba oculto, este elemento se queda como widget de PRO, que se sigue viendo (y ocultando) igual.' );
+		if ( '' === $base ) {
+			return null;
+		}
+		$condition = 1 === preg_match( self::CONDITION_PATTERN, $base );
+		$switch    = self::prefix_switch( $key, $settings, null === $undeclared ? array_map( 'strval', array_keys( $settings ) ) : $undeclared );
+		if ( null !== $switch ) {
+			if ( self::used( $settings[ $switch ] ?? null ) ) {
+				return array( 'state' => 'keep', 'reason' => sprintf( 'Ajuste de otro plugin con su interruptor encendido (`%s`) que el widget propio no sabe aplicar: para no perder lo que hacía (y no mostrar algo que estaba oculto), este elemento se queda como widget de PRO, que se sigue viendo igual.', $switch ), 'condition' => $condition );
 			}
-			return array( 'state' => 'inert', 'reason' => 'Ajuste de condiciones o de visibilidad de otro plugin, vacío: no ocultaba nada. Pasa tal cual al widget propio.' );
+			return array( 'state' => 'inert', 'reason' => sprintf( 'Ajuste de otro plugin con su interruptor apagado (`%s`): no hacía nada. Pasa tal cual al widget propio.', $switch ), 'condition' => $condition );
+		}
+		if ( 1 === preg_match( self::SWITCH_PATTERN, $base ) ) {
+			return self::used( $settings[ $key ] ?? null )
+				? array( 'state' => 'keep', 'reason' => 'Interruptor encendido de otro plugin que el widget propio no sabe aplicar: este elemento se queda como widget de PRO, que se sigue viendo igual.', 'condition' => $condition )
+				: array( 'state' => 'inert', 'reason' => 'Interruptor apagado de otro plugin: no hacía nada. Pasa tal cual al widget propio.', 'condition' => $condition );
+		}
+		if ( $condition ) {
+			if ( self::used( $settings[ $key ] ?? null ) ) {
+				return array( 'state' => 'keep', 'reason' => 'Ajuste de condiciones o de visibilidad de otro plugin, sin un interruptor que diga si estaba apagado, que el widget propio no sabe aplicar: para no mostrar algo que estaba oculto, este elemento se queda como widget de PRO, que se sigue viendo (y ocultando) igual.', 'condition' => true );
+			}
+			return array( 'state' => 'inert', 'reason' => 'Ajuste de condiciones o de visibilidad de otro plugin, vacío: no ocultaba nada. Pasa tal cual al widget propio.', 'condition' => true );
 		}
 		return null;
+	}
+
+	/**
+	 * Interruptor no declarado del mismo primer segmento que una clave (`xx_enable` para `xx_cl_logics`), o null. Sólo entre
+	 * $candidates (claves no declaradas), nunca la propia clave.
+	 */
+	private static function prefix_switch( string $key, array $settings, array $candidates ): ?string {
+		$base = self::base( $key );
+		$cut  = strpos( $base, '_' );
+		if ( false === $cut || 0 === $cut ) {
+			return null;
+		}
+		$head  = substr( $base, 0, $cut + 1 );
+		$found = null;
+		foreach ( $candidates as $candidate ) {
+			$candidate = (string) $candidate;
+			if ( $candidate === $key || self::base( $candidate ) === $base || 0 !== strpos( $candidate, $head ) || ! array_key_exists( $candidate, $settings ) || 1 !== preg_match( self::SWITCH_PATTERN, self::base( $candidate ) ) ) {
+				continue;
+			}
+			// Con varios, manda uno encendido (falla cerrado).
+			if ( self::used( $settings[ $candidate ] ) ) {
+				return $candidate;
+			}
+			$found = null === $found ? $candidate : $found;
+		}
+		return $found;
 	}
 
 	/** ¿Tiene efecto un valor guardado? (vacío, `no`, `false` o una lista vacía, no). */

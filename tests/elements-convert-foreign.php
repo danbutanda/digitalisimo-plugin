@@ -142,6 +142,35 @@ namespace {
 	fx_ok( false === strpos( $codes[0]['reason'], 'mapa no declara' ) && false !== strpos( $codes[0]['reason'], 'se pierde' ), 'El motivo ya no dice «clave que el mapa no declara»: ' . $codes[0]['reason'] );
 	fx_ok( null === Translator::foreign( 'zz_misterio', array() ) && 'keep' === Translator::foreign( 'display_condition_list', array( 'display_condition_enable' => 'yes' ) )['state'], 'foreign() es la única regla (la usa también Migración).' );
 
+	/* 6. Otros plugins: familias declaradas (repetidor guardado con su fila por defecto y el interruptor apagado) y la
+	 * regla del interruptor del mismo prefijo para lo que no está declarado. */
+	$families = array(
+		'Premium Addons' => array( array( 'pa_condition_repeater' => array( array( '_id' => 'a1', 'pa_condition_key' => 'browser' ) ) ), 'pa_display_conditions_switcher' ),
+		'PowerPack'      => array( array( 'pp_display_conditions' => array( array( '_id' => 'b1', 'pp_condition_key' => 'login_status' ) ) ), 'pp_display_conditions_enable' ),
+		'JetEngine'      => array( array( 'jedv_conditions' => array( array( '_id' => 'c1', 'jedv_condition' => 'equal' ) ) ), 'jedv_enabled' ),
+	);
+	foreach ( $families as $name => $case ) {
+		list( $settings, $switch ) = $case;
+		$key = (string) array_keys( $settings )[0];
+		list( $out, $codes ) = Translator::translate( $settings, $quote );
+		fx_ok( array( 'pro.inert:' . $key ) === fx_codes( $codes ) && $settings[ $key ] === $out[ $key ] && ! empty( $codes[0]['condition'] ), "$name: la fila por defecto con el interruptor apagado pasa tal cual, marcada como condición: " . implode( ', ', fx_codes( $codes ) ) );
+		list( , $codes ) = Translator::translate( $settings + array( $switch => 'yes' ), $quote );
+		fx_ok( in_array( 'pro.condition_kept:' . $key . ':keep', fx_codes( $codes ), true ), "$name: con $switch encendido, el widget se queda como de PRO: " . implode( ', ', fx_codes( $codes ) ) );
+	}
+	$logics = array( array( '_id' => 'e1', 'logic_type' => 'login_status' ) );
+	list( , $codes ) = Translator::translate( array( 'eael_cl_logics' => $logics, 'eael_cl_enable' => 'yes' ), $quote );
+	fx_ok( array( 'pro.condition_kept:eael_cl_enable:keep', 'pro.condition_kept:eael_cl_logics:keep' ) === fx_codes( $codes ), 'Sin declarar y sin «condition» en el nombre: un interruptor encendido del mismo prefijo deja el widget como de PRO: ' . implode( ', ', fx_codes( $codes ) ) );
+	list( $out, $codes ) = Translator::translate( array( 'eael_cl_logics' => $logics, 'eael_cl_enable' => '' ), $quote );
+	fx_ok( array( 'pro.inert:eael_cl_enable', 'pro.inert:eael_cl_logics' ) === fx_codes( $codes ) && $logics === $out['eael_cl_logics'], 'Con ese interruptor apagado, pasan tal cual: ' . implode( ', ', fx_codes( $codes ) ) );
+	list( , $codes ) = Translator::translate( array( 'eael_cl_logics' => $logics ), $quote );
+	fx_ok( array( 'pro.unmapped:eael_cl_logics' ) === fx_codes( $codes ), 'Sin interruptor ni nombre de condición: sigue en pro.unmapped.' );
+	list( , $codes ) = Translator::translate( array( 'zz_fx_enable' => 'yes' ), $quote );
+	fx_ok( array( 'pro.condition_kept:zz_fx_enable:keep' ) === fx_codes( $codes ), 'Un interruptor ajeno encendido, solo: keep.' );
+	list( , $codes ) = Translator::translate( array( 'zz_rules' => 'a', 'zz_show' => 'yes' ), array( 'source' => 'zz', 'target' => 'digitalisimo-zz', 'keep' => array( 'zz_show' ) ) );
+	fx_ok( array( 'pro.unmapped:zz_rules' ) === fx_codes( $codes ), 'Un ajuste declarado del mapa nunca hace de interruptor de una clave ajena.' );
+	list( , $codes ) = Translator::translate( array( 'xv_conditions' => array( array( '_id' => 'x' ) ), 'xv_switcher' => '' ), $quote );
+	fx_ok( array( 'pro.inert:xv_conditions', 'pro.inert:xv_switcher' ) === fx_codes( $codes ), 'Una condición desconocida con su interruptor del mismo prefijo apagado: pasa (no falla cerrado por la fila por defecto).' );
+
 	/* 5. Kits: niveles de los códigos nuevos y el aviso de lo que se queda como widget de PRO. */
 	$kits = (string) file_get_contents( $elements . 'modules/digitalisimo-import/kits/class-pro-convert.php' );
 	fx_ok( 1 === preg_match( "/'pro\\.inert'\\s*=>\\s*Part_Context::INFO/", $kits ) && 1 === preg_match( "/'pro\\.condition_kept'\\s*=>\\s*Part_Context::WARNING/", $kits ), 'El informe del kit da nivel a pro.inert (información) y pro.condition_kept (aviso).' );

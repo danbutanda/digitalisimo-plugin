@@ -45,8 +45,10 @@ defined( 'ABSPATH' ) || exit;
  *     estaba: nada oculto se vuelve visible.
  * - Recuperación (`recover_document()`): en un documento convertido por una versión anterior, lo que esa versión no
  *   pasó al widget propio y esta sí pasa vuelve desde la copia guardada antes de convertir, sólo donde falta (nunca
- *   cambia un valor). Una condición encendida que se perdió devuelve el widget de PRO sólo si el documento sigue como lo
- *   dejó la migración (huella F8) o el elemento no cambió; si no, el informe lo dice por documento.
+ *   cambia un valor). Una condición de otro plugin sólo vuelve si el elemento coincide con la traducción de su copia (la
+ *   copia puede ser anterior a la conversión: la huella F8 no basta); encendida, el elemento vuelve a ser el widget de
+ *   PRO con sus hijos actuales. Si no se puede saber, el informe lo dice por documento. Lo revisado sin nada pendiente
+ *   queda sellado (RECOVER_STAMP) y la etapa no lo vuelve a leer.
  * - Un widget propio que sólo se registra con otro plugin (WooCommerce, DEPENDENCIES) se informa como tal
  *   (`pro.target_dependency`), sin pedir que se actualice Elements.
  */
@@ -71,8 +73,22 @@ final class Pro {
 	const KEPT = 'pro.condition_kept';
 	/** Nombres de clave de condiciones o visibilidad (los mismos que `Translator::CONDITION_PATTERN` de Elements). */
 	const CONDITION_PATTERN = '/condition|visibilit/i';
-	/** Condiciones de visualización de otros plugins: prefijo => interruptor (`Translator::CONDITION_FAMILIES`). */
-	const CONDITION_FAMILIES = array( 'display_condition_' => 'display_condition_enable' );
+	/** Condiciones de visualización de otros plugins: prefijo => interruptor (los de `Translator::CONDITION_FAMILIES`). */
+	const CONDITION_FAMILIES = array(
+		'display_condition_'     => 'display_condition_enable',
+		'pa_display_conditions_' => 'pa_display_conditions_switcher',
+		'pa_condition_'          => 'pa_display_conditions_switcher',
+		'pp_display_condition'   => 'pp_display_conditions_enable',
+		'jedv_'                  => 'jedv_enabled',
+	);
+	/** Interruptores (`Translator::SWITCH_PATTERN`). */
+	const SWITCH_PATTERN = '/_(enable|enabled|switch|switcher|show|active|on)$/';
+	/**
+	 * Sello de un documento ya revisado por recover_document() sin nada pendiente (valor: RECOVER_VERSION). La etapa no
+	 * lo vuelve a leer ni a traducir; `--revert` lo quita. Sube RECOVER_VERSION cuando la recuperación cambie.
+	 */
+	const RECOVER_STAMP   = '_digitalisimo_pro_recovered';
+	const RECOVER_VERSION = '1';
 	/**
 	 * Widgets propios que sólo se registran con otro plugin: módulo de PRO (`Catalog::module()`) => nombre del plugin.
 	 * Sin él, el widget de PRO tampoco se pinta y el documento se queda como está.
@@ -247,8 +263,9 @@ final class Pro {
 	}
 
 	/**
-	 * Documentos (no revisiones) desde el id $after con widgets convertidos desde PRO (su marca, `MARKER`) y copia de la
-	 * migración, hasta $limit (0: todos): los que una versión anterior pudo convertir sin pasar todo (recover_document()).
+	 * Documentos (no revisiones) desde el id $after con widgets convertidos desde PRO (su marca, `MARKER`), copia de la
+	 * migración y sin el sello de esta recuperación, hasta $limit (0: todos): los que una versión anterior pudo convertir
+	 * sin pasar todo (recover_document()). Sólo consultas de ids: nunca carga las metas de los documentos.
 	 *
 	 * @return int[]
 	 */
@@ -263,9 +280,12 @@ final class Pro {
 		do {
 			$sql = "SELECT DISTINCT m.post_id FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE m.meta_key = '_elementor_data' AND p.post_type <> 'revision' AND m.post_id > %d AND m.meta_value LIKE %s ORDER BY m.post_id LIMIT " . (int) $batch;
 			$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( $sql, $cursor, '%' . $wpdb->esc_like( '"' . self::MARKER . '":"' ) . '%' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-			foreach ( $ids as $id ) {
-				$cursor = $id;
-				if ( '' !== (string) get_metadata( 'post', $id, Migration::BACKUP, true ) ) {
+			if ( $ids ) {
+				$cursor = (int) end( $ids );
+				$list   = implode( ',', array_map( 'intval', $ids ) );
+				$backup = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND post_id IN ( {$list} )", Migration::BACKUP ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ids enteros.
+				$done   = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value = %s AND post_id IN ( {$list} )", self::RECOVER_STAMP, self::RECOVER_VERSION ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ids enteros.
+				foreach ( array_values( array_diff( array_intersect( $ids, $backup ), $done ) ) as $id ) {
 					$out[] = $id;
 					if ( $limit && count( $out ) >= $limit ) {
 						return $out;
@@ -292,24 +312,34 @@ final class Pro {
 
 	/**
 	 * Widgets de PRO de las copias de un documento por id: primero la copia del estado previo a F8 (BACKUP_F8, la más
-	 * reciente) y, para los que no estén allí, la copia original (BACKUP).
+	 * reciente) y, para los que no estén allí, la copia original (BACKUP). Un id repetido dentro de una copia no se sabe a
+	 * qué elemento corresponde: va a `$repeated` y no se indexa.
 	 *
+	 * @param array<string,bool> $repeated Recibe los ids repetidos.
 	 * @return array<string,array>
 	 */
-	private static function copy_widgets( int $post_id ): array {
+	private static function copy_widgets( int $post_id, array &$repeated = array() ): array {
 		$out = array();
 		foreach ( array( Migration::BACKUP_F8, Migration::BACKUP ) as $meta ) {
 			$backup = json_decode( (string) get_metadata( 'post', $post_id, $meta, true ), true );
 			$data   = is_array( $backup ) && isset( $backup['data'] ) && is_string( $backup['data'] ) ? json_decode( $backup['data'], true ) : null;
 			if ( is_array( $data ) ) {
-				self::index_pro( $data, $out );
+				$found = array();
+				$seen  = array();
+				self::index_pro( $data, $found, $seen );
+				foreach ( $seen as $id => $times ) {
+					if ( $times > 1 ) {
+						$repeated[ (string) $id ] = true;
+					}
+				}
+				$out += $found;
 			}
 		}
-		return $out;
+		return array_diff_key( $out, $repeated );
 	}
 
-	/** Widgets de PRO de un árbol por id (sin pisar los que ya estén). */
-	private static function index_pro( array $elements, array &$out ): void {
+	/** Widgets de PRO de un árbol por id (el primero) y cuántas veces sale cada id. */
+	private static function index_pro( array $elements, array &$out, array &$seen = array() ): void {
 		$catalog = self::CATALOG;
 		foreach ( $elements as $element ) {
 			if ( ! is_array( $element ) ) {
@@ -317,11 +347,14 @@ final class Pro {
 			}
 			$id   = isset( $element['id'] ) && is_scalar( $element['id'] ) ? (string) $element['id'] : '';
 			$type = (string) ( $element['widgetType'] ?? '' );
+			if ( '' !== $id ) {
+				$seen[ $id ] = (int) ( $seen[ $id ] ?? 0 ) + 1;
+			}
 			if ( '' !== $id && ! isset( $out[ $id ] ) && 'widget' === ( $element['elType'] ?? '' ) && $catalog::is_pro( $type ) ) {
 				$out[ $id ] = $element;
 			}
 			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
-				self::index_pro( $element['elements'], $out );
+				self::index_pro( $element['elements'], $out, $seen );
 			}
 		}
 	}
@@ -351,14 +384,19 @@ final class Pro {
 	/**
 	 * Recupera en un documento convertido por una versión anterior lo que esa versión no pasó al widget propio y esta sí
 	 * pasa, desde la copia guardada antes de convertir (copy_widgets()). Por cada widget convertido (marca `MARKER`) cuyo
-	 * original (mismo id, mismo widget de PRO) está en la copia, se traduce el original con el traductor de hoy:
+	 * original (mismo id, mismo widget de PRO) está en la copia, se traduce el original con el traductor de hoy y se
+	 * compara con el elemento actual (same_settings()): la copia se escribe una sola vez y puede ser anterior a la
+	 * conversión (mapas publicados por tandas), así que la huella F8 del documento no basta.
 	 *
-	 * - Lo que pasa tal cual (`pro.inert`: ajustes que ningún widget lee, condiciones apagadas de otros plugins) se añade
-	 *   sólo donde falta, en el elemento y en cada fila por su `_id`: nunca cambia un valor, así que nada editado después
-	 *   se pisa. Una fila que ya no está se informa (`pro.recover_skipped`).
-	 * - Una condición encendida de otro plugin que se perdió (`keep`) devuelve el widget de PRO original (con los rasgos
-	 *   `digitalisimo_*` que la etapa de Element Pack le dio) sólo si el documento sigue como lo dejó la migración (huella
-	 *   F8, como `--revert`) o el elemento es idéntico a la traducción de su original; si no, `pro.condition_lost`.
+	 * - Lo que pasa tal cual y no es una condición (`pro.inert`: ajustes que ningún widget lee) se añade sólo donde falta,
+	 *   en el elemento y en cada fila (por su `_id`, o por su posición si ninguna lo tiene): nunca cambia un valor.
+	 *   Una fila con `_id` que ya no está se informa (`pro.recover_skipped`).
+	 * - Una condición de otro plugin (encendida o apagada en la copia) sólo se recupera si el elemento coincide con la
+	 *   traducción de su copia: encendida, el elemento vuelve a ser el widget de PRO (sólo `widgetType` y ajustes, con sus
+	 *   hijos actuales y los rasgos `digitalisimo_*` que le dio la etapa de Element Pack), `pro.condition_restored`;
+	 *   apagada, pasa tal cual. Si no coincide, no se puede saber cómo estaba al convertir: `pro.condition_lost`.
+	 * - Un id repetido en la copia o en el documento: no se sabe cuál es su original y no se toca (`pro.recover_ambiguous`).
+	 * - Los hijos se recorren siempre. Sin nada pendiente, el documento queda sellado (RECOVER_STAMP).
 	 *
 	 * @return array{changed:bool, count:int} si se escribió y cuántos ajustes o elementos volvieron.
 	 */
@@ -376,28 +414,38 @@ final class Pro {
 		if ( ! is_array( $current ) ) {
 			return $none;
 		}
-		$originals = self::copy_widgets( $post_id );
-		if ( ! $originals ) {
-			return $none;
+		$repeated  = array();
+		$originals = self::copy_widgets( $post_id, $repeated );
+		$seen      = array();
+		$ignored   = array();
+		self::index_pro( $current, $ignored, $seen );
+		foreach ( $seen as $id => $times ) {
+			if ( $times > 1 ) {
+				$repeated[ (string) $id ] = true;
+			}
 		}
-		$mark   = Migration::f8_mark( $post_id );
-		$exact  = is_array( $mark ) && md5( $raw ) === (string) ( $mark['hash'] ?? '' );
 		$report = array();
 		$count  = 0;
-		$data   = self::recover_walk( $current, $originals, $exact, $report, $count );
+		$data   = ( $originals || $repeated ) ? self::recover_walk( $current, $originals, $repeated, $report, $count ) : $current;
+		$open   = false;
 		foreach ( $report as $item ) {
 			Report::add( $post_id, $item[0], $item[1] );
+			$open = $open || in_array( $item[0], array( 'pro.condition_lost', 'pro.recover_ambiguous' ), true );
 		}
-		if ( ! $count || $data === $current ) {
-			return array( 'changed' => false, 'count' => 0 );
+		$changed = $count && $data !== $current;
+		if ( $changed ) {
+			self::save( $post_id, $raw, $data );
+			Migration::clear_css( $post_id );
 		}
-		self::save( $post_id, $raw, $data );
-		Migration::clear_css( $post_id );
-		return array( 'changed' => true, 'count' => $count );
+		if ( ! $open ) {
+			// Revisado sin nada pendiente: la etapa no vuelve a leerlo (lo pendiente se informa en cada Migrar).
+			update_metadata( 'post', $post_id, self::RECOVER_STAMP, self::RECOVER_VERSION );
+		}
+		return array( 'changed' => $changed, 'count' => $changed ? $count : 0 );
 	}
 
-	/** Recorre el documento actual y recupera cada widget convertido (recover_document()). */
-	private static function recover_walk( array $elements, array $originals, bool $exact, array &$report, int &$count ): array {
+	/** Recorre el documento actual y recupera cada widget convertido, siempre también en sus hijos. */
+	private static function recover_walk( array $elements, array $originals, array $repeated, array &$report, int &$count ): array {
 		foreach ( $elements as $index => $element ) {
 			if ( ! is_array( $element ) ) {
 				continue;
@@ -405,10 +453,13 @@ final class Pro {
 			$settings = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
 			$source   = isset( $settings[ self::MARKER ] ) && is_string( $settings[ self::MARKER ] ) ? $settings[ self::MARKER ] : '';
 			$id       = isset( $element['id'] ) && is_scalar( $element['id'] ) ? (string) $element['id'] : '';
-			if ( '' !== $source && '' !== $id && isset( $originals[ $id ] ) && $source === (string) ( $originals[ $id ]['widgetType'] ?? '' ) ) {
-				$element = self::recover_element( $element, $originals[ $id ], $exact, $report, $count );
-			} elseif ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
-				$element['elements'] = self::recover_walk( $element['elements'], $originals, $exact, $report, $count );
+			if ( '' !== $source && '' !== $id && isset( $repeated[ $id ] ) ) {
+				self::recover_note( $report, 'pro.recover_ambiguous', $source, (string) ( $element['widgetType'] ?? '' ), '', $id );
+			} elseif ( '' !== $source && '' !== $id && isset( $originals[ $id ] ) && $source === (string) ( $originals[ $id ]['widgetType'] ?? '' ) ) {
+				$element = self::recover_element( $element, $originals[ $id ], $report, $count );
+			}
+			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
+				$element['elements'] = self::recover_walk( $element['elements'], $originals, $repeated, $report, $count );
 			}
 			$elements[ $index ] = $element;
 		}
@@ -417,20 +468,21 @@ final class Pro {
 
 	/** Una fila del informe de la recuperación, agrupada por código, widget y ajuste. */
 	private static function recover_note( array &$report, string $code, string $source, string $target, string $key, string $element = '' ): void {
-		$sig = $code . '|' . $source . '|' . $key;
+		$sig = $code . '|' . $source . '|' . $key . '|' . $element;
 		if ( ! isset( $report[ $sig ] ) ) {
 			$report[ $sig ] = array( $code, array( 'widget' => $source, 'target' => $target, 'name' => $key, 'count' => 0 ) + ( '' !== $element ? array( 'element' => $element ) : array() ) );
 		}
 		++$report[ $sig ][1]['count'];
 	}
 
-	/** Recuperación de un widget convertido desde su original de la copia. */
-	private static function recover_element( array $element, array $original, bool $exact, array &$report, int &$count ): array {
+	/** Recuperación de un widget convertido desde su original de la copia (recover_document()). */
+	private static function recover_element( array $element, array $original, array &$report, int &$count ): array {
 		$registry   = self::REGISTRY;
 		$translator = self::TRANSLATOR;
 		$source     = (string) $original['widgetType'];
 		$map        = $registry::map( $source );
 		$settings   = (array) $element['settings'];
+		$id         = (string) ( $element['id'] ?? '' );
 		if ( ! is_array( $map ) || (string) ( $map['target'] ?? '' ) !== (string) ( $element['widgetType'] ?? '' ) ) {
 			return $element;
 		}
@@ -441,45 +493,62 @@ final class Pro {
 				return $translator::translate( $clean, $map );
 			}
 		);
-		$pass = array();
-		$keep = array();
+		$pass       = array();
+		$keep       = array();
+		$conditions = array();
 		foreach ( (array) $codes as $code ) {
 			$key = (string) ( $code['key'] ?? '' );
+			if ( '' === $key || '.' === substr( $key, -1 ) ) {
+				continue;
+			}
 			if ( ! empty( $code['keep'] ) ) {
 				$keep[] = $key;
-			} elseif ( 'pro.inert' === ( $code['code'] ?? '' ) && '' !== $key && '.' !== substr( $key, -1 ) ) {
+			} elseif ( 'pro.inert' === ( $code['code'] ?? '' ) ) {
 				$pass[] = $key;
 			}
-		}
-		if ( $keep ) {
-			// Una condición encendida que la versión anterior no pasó: el widget de PRO vuelve sólo con certeza.
-			$named = array();
-			foreach ( array_merge( $pass, $keep ) as $key ) {
-				$dot     = strpos( $key, '.' );
-				$named[] = false === $dot ? $key : (string) ( $map['repeaters'][ substr( $key, 0, $dot ) ]['target'] ?? substr( $key, 0, $dot ) ) . substr( $key, $dot );
+			if ( ! empty( $code['condition'] ) || ! empty( $code['keep'] ) ) {
+				$conditions[ $key ] = true;
 			}
-			$same = $exact || self::same_settings( $settings, (array) $translated, $named );
+		}
+		if ( ! $pass && ! $keep ) {
+			return $element;
+		}
+		// El repetidor con su nombre en el widget propio, para comparar.
+		$named = array();
+		foreach ( array_merge( $pass, $keep ) as $key ) {
+			$dot     = strpos( $key, '.' );
+			$named[] = false === $dot ? $key : (string) ( $map['repeaters'][ substr( $key, 0, $dot ) ]['target'] ?? substr( $key, 0, $dot ) ) . substr( $key, $dot );
+		}
+		$same = self::same_settings( $settings, (array) $translated, $named );
+		if ( $keep ) {
 			if ( ! $same ) {
 				foreach ( array_unique( $keep ) as $key ) {
-					self::recover_note( $report, 'pro.condition_lost', $source, $target, $key, (string) ( $element['id'] ?? '' ) );
+					self::recover_note( $report, 'pro.condition_lost', $source, $target, $key, $id );
 				}
 				return $element;
 			}
-			$restored = $original;
-			$own      = array();
+			// Vuelve el widget de PRO: sólo su tipo y sus ajustes; los hijos actuales se quedan.
+			$own = array();
 			foreach ( $settings as $key => $value ) {
 				if ( 0 === strpos( (string) $key, 'digitalisimo_' ) ) {
 					$own[ $key ] = $value; // Rasgos que la etapa de Element Pack dio al elemento (visibilidad…).
 				}
 			}
-			$restored['settings'] = $own + $clean;
+			$element['widgetType'] = $source;
+			$element['settings']   = $own + $clean;
 			foreach ( array_unique( $keep ) as $key ) {
 				self::recover_note( $report, 'pro.condition_restored', $source, $target, $key );
 			}
 			++$count;
-			return $restored;
+			return $element;
 		}
 		foreach ( $pass as $key ) {
+			if ( isset( $conditions[ $key ] ) && ! $same ) {
+				// Una condición apagada en la copia, en un elemento que cambió desde entonces: pudo encenderse antes de
+				// convertir; no se sabe y no se toca.
+				self::recover_note( $report, 'pro.condition_lost', $source, $target, $key, $id );
+				continue;
+			}
 			$dot = strpos( $key, '.' );
 			if ( false === $dot ) {
 				$added = false;
@@ -500,25 +569,31 @@ final class Pro {
 				}
 				continue;
 			}
-			// Subcampo de un repetidor (`repetidor.clave`): por el `_id` de cada fila.
+			// Subcampo de un repetidor (`repetidor.clave`): por el `_id` de cada fila o, sin él, por su posición.
 			$repeater = substr( $key, 0, $dot );
 			$sub      = substr( $key, $dot + 1 );
 			$to       = (string) ( $map['repeaters'][ $repeater ]['target'] ?? $repeater );
 			$rows     = is_array( $settings[ $to ] ?? null ) ? $settings[ $to ] : array();
-			foreach ( is_array( $translated[ $to ] ?? null ) ? $translated[ $to ] : array() as $row ) {
+			foreach ( is_array( $translated[ $to ] ?? null ) ? $translated[ $to ] : array() as $position => $row ) {
 				if ( ! is_array( $row ) || ! array_key_exists( $sub, $row ) ) {
 					continue;
 				}
 				$at = null;
-				foreach ( $rows as $i => $current ) {
-					if ( is_array( $current ) && isset( $row['_id'], $current['_id'] ) && (string) $row['_id'] === (string) $current['_id'] ) {
-						$at = $i;
-						break;
+				if ( isset( $row['_id'] ) ) {
+					foreach ( $rows as $i => $current ) {
+						if ( is_array( $current ) && isset( $current['_id'] ) && (string) $row['_id'] === (string) $current['_id'] ) {
+							$at = $i;
+							break;
+						}
 					}
-				}
-				if ( null === $at ) {
-					self::recover_note( $report, 'pro.recover_skipped', $source, $target, $key );
-					continue;
+					if ( null === $at ) {
+						self::recover_note( $report, 'pro.recover_skipped', $source, $target, $key );
+						continue;
+					}
+				} elseif ( isset( $rows[ $position ] ) && is_array( $rows[ $position ] ) && ! isset( $rows[ $position ]['_id'] ) ) {
+					$at = $position;
+				} else {
+					continue; // Sin `_id` y sin una fila en su lugar: nada que casar.
 				}
 				if ( ! array_key_exists( $sub, $rows[ $at ] ) ) {
 					$rows[ $at ][ $sub ] = $row[ $sub ];
@@ -534,10 +609,25 @@ final class Pro {
 		return $element;
 	}
 
+	/** Un valor con sus listas asociativas ordenadas por clave, a cualquier profundidad (para comparar). */
+	private static function sorted( $value ) {
+		if ( ! is_array( $value ) ) {
+			return $value;
+		}
+		foreach ( $value as $key => $item ) {
+			$value[ $key ] = self::sorted( $item );
+		}
+		if ( array_keys( $value ) !== range( 0, count( $value ) - 1 ) ) {
+			ksort( $value );
+		}
+		return $value;
+	}
+
 	/**
 	 * ¿Es el elemento actual la traducción de su original? Iguales sin lo que pasa tal cual ni las condiciones ($pass, con
 	 * el repetidor ya con su nombre en el widget propio) y sin los rasgos `digitalisimo_*` (los añade la etapa de Element
-	 * Pack).
+	 * Pack). Cualquier otra diferencia (una edición, el CSS de efectos o el movimiento que escribió la etapa de Element
+	 * Pack) dice que no se puede saber.
 	 */
 	private static function same_settings( array $current, array $translated, array $pass ): bool {
 		$strip = static function ( array $settings ) use ( $pass ): array {
@@ -564,8 +654,7 @@ final class Pro {
 					}
 				}
 			}
-			ksort( $settings );
-			return $settings;
+			return self::sorted( $settings );
 		};
 		return wp_json_encode( $strip( $current ) ) === wp_json_encode( $strip( $translated ) );
 	}
@@ -705,8 +794,13 @@ final class Pro {
 				}
 				$element['settings'] = $settings;
 				if ( $native && $post_id > 0 && isset( $settings[ self::MARKER ] ) && class_exists( __NAMESPACE__ . '\\Native' ) ) {
+					// Sólo el elemento (sus hijos los trató ya la etapa de Element Pack): los hijos vuelven tal cual.
+					$children = $element['elements'] ?? array();
 					list( $converted ) = Native::element( array( 'elements' => array() ) + $element, $post_id );
-					$element           = is_array( $converted ) ? $converted : $element;
+					if ( is_array( $converted ) ) {
+						$converted['elements'] = $children;
+						$element               = $converted;
+					}
 				}
 			}
 			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
@@ -717,14 +811,38 @@ final class Pro {
 		return $elements;
 	}
 
-	/** ¿Está encendida una condición de otro plugin? (como `Translator::foreign()` de Elements) */
-	public static function condition_active( string $key, array $settings ): bool {
+	/**
+	 * ¿Está encendido un ajuste de otro plugin que salió como `pro.unmapped`? (como `Translator::foreign()` de Elements):
+	 * su familia de condiciones, un interruptor del mismo primer segmento entre $candidates (las claves que el mapa no
+	 * declara), el propio interruptor, o una condición con valor. Una clave sin nada de eso, no.
+	 */
+	public static function condition_active( string $key, array $settings, ?array $candidates = null ): bool {
 		foreach ( self::CONDITION_FAMILIES as $prefix => $switch ) {
 			if ( 0 === strpos( $key, $prefix ) ) {
 				return self::used( $settings[ $switch ] ?? null );
 			}
 		}
-		return self::used( $settings[ $key ] ?? null );
+		$cut = strpos( $key, '_' );
+		if ( false !== $cut && $cut > 0 ) {
+			$head  = substr( $key, 0, $cut + 1 );
+			$found = false;
+			foreach ( null === $candidates ? array_keys( $settings ) : $candidates as $candidate ) {
+				$candidate = (string) $candidate;
+				if ( $candidate !== $key && 0 === strpos( $candidate, $head ) && array_key_exists( $candidate, $settings ) && 1 === preg_match( self::SWITCH_PATTERN, $candidate ) ) {
+					if ( self::used( $settings[ $candidate ] ) ) {
+						return true;
+					}
+					$found = true;
+				}
+			}
+			if ( $found ) {
+				return false;
+			}
+		}
+		if ( 1 === preg_match( self::SWITCH_PATTERN, $key ) ) {
+			return self::used( $settings[ $key ] ?? null );
+		}
+		return 1 === preg_match( self::CONDITION_PATTERN, $key ) && self::used( $settings[ $key ] ?? null );
 	}
 
 	/** ¿Tiene efecto un valor guardado? */
@@ -737,84 +855,79 @@ final class Pro {
 	}
 
 	/**
-	 * Red de seguridad para un Elements sin la corrección de las condiciones de otros plugins: un widget convertido cuyo
-	 * registro trae `pro.unmapped` de una condición o visibilidad encendida vuelve a su original (`$before`, por su
-	 * posición) y pasa a `$kept` con `pro.condition_kept`. Nada oculto se vuelve visible.
+	 * Red de seguridad para un Elements sin la corrección de los ajustes de otros plugins: un widget convertido cuyo
+	 * registro trae `pro.unmapped` de un ajuste encendido de otro plugin (condition_active()) vuelve a su original
+	 * (`$before`) y pasa a `$kept` con `pro.condition_kept`. Nada oculto se vuelve visible. Se recorre por posición (el
+	 * convertidor conserva el árbol), así que un id repetido no confunde un elemento con otro.
 	 *
 	 * @return array{0:array, 1:array, 2:array} árbol, registro y elementos que se quedan como están.
 	 */
 	private static function keep_conditions( array $out, array $before, array $log, array $kept ): array {
-		$restore = array();
-		foreach ( $log as $i => $row ) {
-			$why = array();
+		$unmapped = array();
+		foreach ( $log as $row ) {
 			foreach ( (array) ( $row['codes'] ?? array() ) as $code ) {
-				$key  = (string) ( $code['key'] ?? '' );
-				$base = false !== strpos( $key, '.' ) ? substr( $key, (int) strrpos( $key, '.' ) + 1 ) : $key;
-				if ( 'pro.unmapped' === ( $code['code'] ?? '' ) && 1 === preg_match( self::CONDITION_PATTERN, $base ) ) {
-					$why[] = $code + array( 'reason' => '' );
+				if ( 'pro.unmapped' === ( $code['code'] ?? '' ) && '' !== (string) ( $row['element'] ?? '' ) ) {
+					$unmapped[ (string) $row['element'] ][] = (string) ( $code['key'] ?? '' );
 				}
 			}
-			if ( ! $why || '' === (string) ( $row['element'] ?? '' ) ) {
-				continue;
-			}
-			$original = self::find_element( $before, (string) $row['element'] );
-			$settings = is_array( $original['settings'] ?? null ) ? $original['settings'] : array();
-			$active   = false;
-			foreach ( $why as $code ) {
-				$key    = (string) $code['key'];
-				$active = $active || ( false === strpos( $key, '.' ) ? self::condition_active( $key, $settings ) : true );
-			}
-			if ( ! $active || ! $original ) {
-				continue;
-			}
-			$restore[ (string) $row['element'] ] = $original;
-			$codes = array();
-			foreach ( $why as $code ) {
-				$codes[] = array( 'code' => self::KEPT, 'key' => (string) $code['key'], 'reason' => 'Condición o visibilidad de otro plugin encendida que el widget propio no sabe aplicar: el elemento se queda como widget de PRO, que se sigue viendo (y ocultando) igual.', 'section' => 'review', 'keep' => true );
-			}
-			$kept[] = array( 'source' => (string) $row['source'], 'target' => (string) $row['target'], 'element' => (string) $row['element'], 'codes' => $codes );
-			unset( $log[ $i ] );
 		}
-		if ( $restore ) {
-			$out = self::replace_elements( $out, $restore );
+		if ( ! $unmapped ) {
+			return array( $out, $log, $kept );
+		}
+		$restored = array();
+		$out      = self::keep_walk( $out, $before, $unmapped, $restored );
+		foreach ( $restored as $item ) {
+			// Fuera del registro una fila por elemento devuelto (la primera con su id y su widget de origen).
+			foreach ( $log as $i => $row ) {
+				if ( (string) ( $row['element'] ?? '' ) === $item['element'] && (string) ( $row['source'] ?? '' ) === $item['source'] ) {
+					$kept[] = array( 'source' => $item['source'], 'target' => (string) ( $row['target'] ?? '' ), 'element' => $item['element'], 'codes' => $item['codes'] );
+					unset( $log[ $i ] );
+					break;
+				}
+			}
 		}
 		return array( $out, array_values( $log ), $kept );
 	}
 
-	/** Primer elemento con ese id a cualquier profundidad, o null. */
-	private static function find_element( array $elements, string $id ): ?array {
-		foreach ( $elements as $element ) {
-			if ( ! is_array( $element ) ) {
+	/** Recorrido en paralelo de keep_conditions(): devuelve su original a cada widget con un ajuste ajeno encendido. */
+	private static function keep_walk( array $out, array $before, array $unmapped, array &$restored ): array {
+		foreach ( $out as $index => $element ) {
+			$original = $before[ $index ] ?? null;
+			if ( ! is_array( $element ) || ! is_array( $original ) ) {
 				continue;
 			}
-			if ( (string) ( $element['id'] ?? '' ) === $id ) {
-				return $element;
+			$id = (string) ( $original['id'] ?? '' );
+			if ( isset( $element['settings'][ self::MARKER ] ) && isset( $unmapped[ $id ] ) && (string) ( $element['id'] ?? '' ) === $id ) {
+				$settings   = is_array( $original['settings'] ?? null ) ? $original['settings'] : array();
+				$candidates = array();
+				foreach ( $unmapped[ $id ] as $key ) {
+					if ( false === strpos( $key, '.' ) ) {
+						$candidates[] = $key;
+					}
+				}
+				$codes = array();
+				foreach ( $unmapped[ $id ] as $key ) {
+					// Una clave de una fila no se puede evaluar fuera de ella: si habla de condiciones, falla cerrado.
+					$on = false === strpos( $key, '.' ) ? self::condition_active( $key, $settings, $candidates ) : 1 === preg_match( self::CONDITION_PATTERN, $key );
+					if ( $on && array_key_exists( false === strpos( $key, '.' ) ? $key : substr( $key, 0, (int) strpos( $key, '.' ) ), $settings ) ) {
+						$codes[] = array( 'code' => self::KEPT, 'key' => $key, 'reason' => 'Ajuste de otro plugin encendido (condición, visibilidad o interruptor) que el widget propio no sabe aplicar: el elemento se queda como widget de PRO, que se sigue viendo (y ocultando) igual.', 'section' => 'review', 'keep' => true );
+					}
+				}
+				if ( $codes ) {
+					$children            = $element['elements'] ?? null;
+					$element             = $original;
+					if ( null !== $children ) {
+						$element['elements'] = $children; // Los hijos, ya convertidos, se quedan.
+					}
+					$restored[] = array( 'element' => $id, 'source' => (string) ( $original['widgetType'] ?? '' ), 'codes' => $codes );
+				}
 			}
-			$hit = self::find_element( (array) ( $element['elements'] ?? array() ), $id );
-			if ( $hit ) {
-				return $hit;
+			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) && is_array( $original['elements'] ?? null ) ) {
+				$element['elements'] = self::keep_walk( $element['elements'], $original['elements'], $unmapped, $restored );
 			}
+			$out[ $index ] = $element;
 		}
-		return null;
-	}
-
-	/** Sustituye por id los elementos indicados (`id => elemento`), a cualquier profundidad. */
-	private static function replace_elements( array $elements, array $by_id ): array {
-		foreach ( $elements as $index => $element ) {
-			if ( ! is_array( $element ) ) {
-				continue;
-			}
-			$id = (string) ( $element['id'] ?? '' );
-			if ( '' !== $id && isset( $by_id[ $id ] ) ) {
-				$elements[ $index ] = $by_id[ $id ];
-				continue;
-			}
-			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
-				$element['elements'] = self::replace_elements( $element['elements'], $by_id );
-			}
-			$elements[ $index ] = $element;
-		}
-		return $elements;
+		return $out;
 	}
 
 	/** Lleva al informe los widgets de PRO que se quedan como están por una condición de otro plugin encendida. */
@@ -1151,6 +1264,16 @@ final class Pro {
 				if ( 0 !== strpos( $name, 'pro.' ) ) {
 					continue;
 				}
+				if ( 'pro.inert' === $name ) {
+					// Lo que pasa tal cual, en una línea por widget con sus claves: no ocupa el tope de líneas del documento.
+					$sig = $name . '|' . $source;
+					if ( ! isset( $codes[ $sig ] ) ) {
+						$codes[ $sig ] = array( $name, array( 'widget' => $source, 'target' => $target, 'name' => '', 'count' => 0 ), array() );
+					}
+					$codes[ $sig ][2][ (string) ( $code['key'] ?? '' ) ] = true;
+					++$codes[ $sig ][1]['count'];
+					continue;
+				}
 				$sig = $name . '|' . $source . '|' . (string) ( $code['key'] ?? '' ) . '|' . (string) ( $code['reason'] ?? '' );
 				if ( ! isset( $codes[ $sig ] ) ) {
 					$codes[ $sig ] = array( $name, array( 'widget' => $source, 'target' => $target, 'name' => (string) ( $code['key'] ?? '' ), 'note' => (string) ( $code['reason'] ?? '' ), 'count' => 0 ) );
@@ -1158,7 +1281,29 @@ final class Pro {
 				++$codes[ $sig ][1]['count'];
 			}
 		}
-		return array_merge( array_values( $converted ), array_values( $codes ) );
+		// Lo pendiente primero: el informe guarda un número de líneas por documento y lo demás se cuenta aparte.
+		$order = array( 'pro.unmapped' => 0, 'pro.condition_kept' => 0, 'pro.dropped' => 1, 'pro.approx' => 2, 'pro.css' => 3, 'pro.inert' => 5 );
+		$out   = array();
+		foreach ( $codes as $item ) {
+			if ( isset( $item[2] ) ) {
+				$keys           = array_keys( $item[2] );
+				$item[1]['name'] = implode( ', ', array_map( static function ( $key ) {
+					return '' === $key ? '(sin nombre)' : $key;
+				}, $keys ) );
+				unset( $item[2] );
+			}
+			$out[] = $item;
+		}
+		usort( $out, static function ( $a, $b ) use ( $order ) {
+			return ( $order[ $a[0] ] ?? 3 ) <=> ( $order[ $b[0] ] ?? 3 );
+		} );
+		$pending = array_values( array_filter( $out, static function ( $item ) use ( $order ) {
+			return ( $order[ $item[0] ] ?? 3 ) < 1;
+		} ) );
+		$rest    = array_values( array_filter( $out, static function ( $item ) use ( $order ) {
+			return ( $order[ $item[0] ] ?? 3 ) >= 1;
+		} ) );
+		return array_merge( $pending, array_values( $converted ), $rest );
 	}
 
 	/**

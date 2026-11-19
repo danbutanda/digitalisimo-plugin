@@ -774,6 +774,7 @@ final class Migration {
 		}
 		if ( $restored ) {
 			delete_metadata( 'post', $post_id, self::F8_MARK );
+			delete_metadata( 'post', $post_id, '_digitalisimo_pro_recovered' ); // Sello de Pro::recover_document().
 			self::clear_css( $post_id );
 		}
 		return $restored;

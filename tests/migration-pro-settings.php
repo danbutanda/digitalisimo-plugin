@@ -213,7 +213,7 @@ namespace {
 				w( 'blockquote', array( 'blockquote_content' => 'Cita' ) + foreign() + ep_defaults(), 'q1' ),
 				w( 'price-list', array( 'price_list' => array( array( '_id' => 'p1', 'title' => 'Plan', 'price' => '$9', 'old_price' => '$12', 'item_badge' => 'Oferta' ), array( '_id' => 'p2', 'title' => 'Otro', 'price' => '$5', 'old_price' => '$7' ) ) ), 'l1' ),
 				w( 'form', array( 'form_name' => 'Contacto', 'form_fields' => array( array( '_id' => 'f1', 'custom_id' => 'name', 'field_type' => 'text', 'dynamic' => array( 'active' => 'yes' ) ) ) ) + ep_defaults(), 'f1' ),
-				w( 'code-highlight', array( 'code' => 'echo 1;' ) + foreign(), 'k1' ),
+				w( 'code-highlight', array( 'code' => 'echo 1;', 'pa_condition_repeater' => array( array( '_id' => 'pa1', 'pa_condition_key' => 'browser' ) ) ) + foreign(), 'k1' ),
 				w( 'table-of-contents', array( 'title' => 'Índice' ) + ep_defaults(), 't1' ),
 			), 'c1' ),
 		);
@@ -234,7 +234,8 @@ namespace {
 	$rows = find( $data, 'l1' )['settings']['price_list'];
 	$check( '$12' === $rows[0]['old_price'] && 'Oferta' === $rows[0]['item_badge'] && '$7' === $rows[1]['old_price'], 'Precio anterior y distintivo pasan en sus filas.' );
 	$check( array( 'active' => 'yes' ) === find( $data, 'f1' )['settings']['form_fields'][0]['dynamic'], '«dynamic» pasa en la fila del formulario.' );
-	$check( in_array( 'pro.inert:blockquote:content_width', $codes, true ) && in_array( 'pro.inert:price-list:price_list.old_price', $codes, true ) && in_array( 'pro.inert:form:form_fields.dynamic', $codes, true ) && in_array( 'pro.inert:code-highlight:display_condition_list', $codes, true ), 'El informe dice en «Convertido» qué pasó tal cual: ' . implode( ', ', $codes ) );
+	$check( in_array( 'pro.inert:blockquote:content_width, display_condition_list', $codes, true ) && in_array( 'pro.inert:price-list:price_list.old_price, price_list.item_badge', $codes, true ) && in_array( 'pro.inert:form:form_fields.dynamic', $codes, true ) && in_array( 'pro.inert:code-highlight:pa_condition_repeater, content_width, display_condition_list', $codes, true ), 'El informe dice en «Convertido», en una línea por widget, qué pasó tal cual: ' . implode( ' | ', $codes ) );
+	$check( count( (array) $report['docs'][ $id ]['items'] ) <= 12 && 0 === (int) ( $report['docs'][ $id ]['more'] ?? 0 ), 'Cabe entero en el informe del documento (nada contado aparte).' );
 	$check( ! preg_grep( '/:(ep_|element_pack_)/', $codes ), 'Ninguna clave de Element Pack sale como ajuste de PRO.' );
 	// El análisis («Lo que hará Migrar»), sobre el documento sin convertir.
 	fresh();
@@ -320,11 +321,12 @@ namespace {
 	$report = run_doc( $id );
 	$data   = tree( $id );
 	$q1     = find( $data, 'q1' )['settings'];
-	$check( 'Cita editada' === $q1['blockquote_content'] && 'full' === $q1['content_width'] && foreign()['display_condition_list'] === $q1['display_condition_list'], 'Editado: lo editado se queda (content_width «full») y sólo vuelve lo que faltaba.' );
+	$check( 'Cita editada' === $q1['blockquote_content'] && 'full' === $q1['content_width'] && ! isset( $q1['display_condition_list'] ), 'Editado: lo editado se queda (content_width «full») y la condición apagada en la copia no vuelve: pudo encenderse antes de convertir.' );
 	$rows = find( $data, 'l1' )['settings']['price_list'];
 	$check( 1 === count( $rows ) && '$12' === $rows[0]['old_price'], 'La fila que sigue recupera su subcampo; la borrada no vuelve.' );
 	$codes = codes_of( $report, $id );
 	$check( in_array( 'pro.recover_skipped:price-list:price_list.item_badge', $codes, true ) && ! in_array( 'pro.recovered:blockquote:content_width', $codes, true ), 'El informe dice la fila que no se pudo recuperar: ' . implode( ', ', $codes ) );
+	$check( in_array( 'pro.condition_lost:blockquote:display_condition_list', $codes, true ) && '' === (string) get_metadata( 'post', $id, Pro::RECOVER_STAMP, true ), 'Y que no se puede saber la condición (por documento), sin sellarlo: se vuelve a informar en cada Migrar.' );
 	// 3c. Condición encendida perdida: vuelve el widget de PRO si el documento sigue como lo dejó la migración.
 	fresh();
 	$hidden   = w( 'blockquote', array( 'blockquote_content' => 'Oculta' ) + $on, 'q1' );
@@ -374,6 +376,96 @@ namespace {
 	Runner::describe_backup( $id );
 	$codes = codes_of( Report::take(), $id );
 	$check( in_array( 'pro.converted:blockquote:', $codes, true ) && ! preg_grep( '/^pro\.unmapped/', $codes ) && ! preg_grep( '/:(ep_|element_pack_)/', $codes ), 'La relectura de la copia no da por perdidas las claves de Element Pack ni las inertes: ' . implode( ', ', $codes ) );
+
+	/* ================================================================ 3h. Hallazgos de la revisión */
+	// Copia anterior a la conversión con la huella al día: la copia tenía la condición encendida y otro texto; antes de
+	// convertir se apagó y se cambió el texto. La huella coincide, pero el elemento no es la traducción de su copia.
+	fresh();
+	$copy  = w( 'blockquote', array( 'blockquote_content' => 'Texto viejo', 'display_condition_enable' => 'yes' ) + foreign(), 'q1' );
+	$later = w( 'blockquote', array( 'blockquote_content' => 'Texto nuevo' ) + foreign(), 'q1' );
+	$now   = array( box( array( old_convert( $later ) ), 'c1' ) );
+	$id    = migrated_doc( array( box( array( $copy ), 'c1' ) ), $now );
+	$report = run_doc( $id );
+	$check( $now === tree( $id ) && in_array( 'pro.condition_lost:blockquote:display_condition_enable', codes_of( $report, $id ), true ), 'Copia vieja con la huella al día: no se devuelve la copia (ni se oculta ni se pierde el texto); el informe dice que no se puede saber: ' . implode( ', ', codes_of( $report, $id ) ) );
+	// El CSS de efectos que escribió la etapa de Element Pack: tampoco es la traducción de la copia.
+	fresh();
+	$copy                                  = w( 'blockquote', array( 'blockquote_content' => 'Cita', 'display_condition_enable' => 'yes' ) + foreign(), 'q1' );
+	$fx                                    = old_convert( $copy );
+	$fx['settings']['custom_css']          = 'selector{filter:drop-shadow(0 0 4px #000)}';
+	$fx['settings']['motion_fx_motion_fx_scrolling'] = 'yes';
+	$id     = migrated_doc( array( box( array( $copy ), 'c1' ) ), array( box( array( $fx ), 'c1' ) ) );
+	$report = run_doc( $id );
+	$check( 'digitalisimo-blockquote' === find( tree( $id ), 'q1' )['widgetType'] && 'yes' === find( tree( $id ), 'q1' )['settings']['motion_fx_motion_fx_scrolling'] && in_array( 'pro.condition_lost:blockquote:display_condition_enable', codes_of( $report, $id ), true ), 'Con el CSS de efectos y el movimiento de la etapa de Element Pack, no se devuelve (no se pierden).' );
+	// Widgets anidados: al devolver cambian sólo el tipo y los ajustes (los hijos actuales se quedan) y los hijos se
+	// recorren siempre.
+	fresh();
+	$child_copy = w( 'blockquote', array( 'blockquote_content' => 'Hija' ), 'qh' );
+	$child_now  = old_convert( $child_copy );
+	$child_now['settings']['blockquote_content'] = 'Hija editada después';
+	$nc_copy    = array( 'id' => 'nc', 'elType' => 'widget', 'widgetType' => 'nested-carousel', 'settings' => array( 'display_condition_enable' => 'yes' ) + foreign(), 'elements' => array( box( array( $child_copy ), 'cc' ) ) );
+	$nc_now     = old_convert( $nc_copy );
+	$nc_now['elements'] = array( box( array( $child_now ), 'cc' ) );
+	$id     = migrated_doc( array( $nc_copy ), array( $nc_now ) );
+	$report = run_doc( $id );
+	$nc     = find( tree( $id ), 'nc' );
+	$check( 'nested-carousel' === $nc['widgetType'] && 'yes' === $nc['settings']['display_condition_enable'] && 'digitalisimo-blockquote' === find( $nc['elements'], 'qh' )['widgetType'] && 'Hija editada después' === find( $nc['elements'], 'qh' )['settings']['blockquote_content'], 'Anidado devuelto: vuelve el carrusel de PRO con sus hijos actuales (convertidos y editados), no los de la copia: ' . wp_json_encode( $nc['elements'] ) );
+	fresh();
+	$child_copy = w( 'blockquote', array( 'blockquote_content' => 'Hija oculta', 'display_condition_enable' => 'yes' ) + foreign(), 'qh' );
+	$nc_copy    = array( 'id' => 'nc', 'elType' => 'widget', 'widgetType' => 'nested-carousel', 'settings' => array( 'content_width' => 'boxed' ), 'elements' => array( box( array( $child_copy ), 'cc' ) ) );
+	$nc_now     = old_convert( $nc_copy );
+	$nc_now['elements'] = array( box( array( old_convert( $child_copy ) ), 'cc' ) );
+	$id     = migrated_doc( array( $nc_copy ), array( $nc_now ) );
+	$report = run_doc( $id );
+	$check( 'blockquote' === find( tree( $id ), 'qh' )['widgetType'] && 'boxed' === find( tree( $id ), 'nc' )['settings']['content_width'], 'Dentro de un anidado que también se recupera, la hija con la condición perdida se revisa y vuelve a ser de PRO.' );
+	// restore_legacy(): un widget anidado de PRO con claves de Element Pack que llega a la etapa `pro` conserva sus hijos.
+	fresh();
+	$id = doc( array( array( 'id' => 'nc', 'elType' => 'widget', 'widgetType' => 'nested-carousel', 'settings' => array( 'bdt_custom_option' => 'x' ), 'elements' => array( box( array( w( 'heading', array( 'title' => 'Diapositiva' ), 'h1' ) ), 'cc' ) ) ) ) );
+	run_doc( $id );
+	$nc = find( tree( $id ), 'nc' );
+	$check( 'digitalisimo-nested-carousel' === $nc['widgetType'] && find( (array) $nc['elements'], 'h1' ) && ! isset( $nc['settings']['bdt_custom_option'] ), 'El anidado convertido conserva sus diapositivas: ' . wp_json_encode( $nc['elements'] ?? null ) );
+	// IDs repetidos: en la copia o en el documento no se sabe cuál es cuál; no se toca y se informa.
+	fresh();
+	$a = w( 'blockquote', array( 'blockquote_content' => 'Primera', 'content_width' => 'boxed' ), 'qd' );
+	$b = w( 'blockquote', array( 'blockquote_content' => 'Segunda' ), 'qd' );
+	$now    = array( box( array( old_convert( $a ), old_convert( $b ) ), 'c1' ) );
+	$id     = migrated_doc( array( box( array( $a, $b ), 'c1' ) ), $now );
+	$report = run_doc( $id );
+	$check( $now === tree( $id ) && in_array( 'pro.recover_ambiguous:blockquote:', codes_of( $report, $id ), true ), 'Un id repetido: nada se cruza de un elemento a otro y el informe lo dice: ' . implode( ', ', codes_of( $report, $id ) ) );
+	list( $safe, $log, $kept ) = $net->invoke( null,
+		array( box( array( w( 'digitalisimo-blockquote', array( '_digitalisimo_pro' => 'blockquote' ), 'qd' ), w( 'digitalisimo-blockquote', array( '_digitalisimo_pro' => 'blockquote', 'blockquote_content' => 'Segunda' ), 'qd' ) ), 'c1' ) ),
+		array( box( array( w( 'blockquote', $on, 'qd' ), w( 'blockquote', array( 'blockquote_content' => 'Segunda', 'display_condition_list' => array( array( '_id' => 'z' ) ) ), 'qd' ) ), 'c1' ) ),
+		array(
+			array( 'source' => 'blockquote', 'target' => 'digitalisimo-blockquote', 'element' => 'qd', 'codes' => array( array( 'code' => 'pro.unmapped', 'key' => 'display_condition_enable' ), array( 'code' => 'pro.unmapped', 'key' => 'display_condition_list' ) ) ),
+			array( 'source' => 'blockquote', 'target' => 'digitalisimo-blockquote', 'element' => 'qd', 'codes' => array( array( 'code' => 'pro.unmapped', 'key' => 'display_condition_list' ) ) ),
+		),
+		array()
+	);
+	$check( 'blockquote' === $safe[0]['elements'][0]['widgetType'] && $on === $safe[0]['elements'][0]['settings'] && 'digitalisimo-blockquote' === $safe[0]['elements'][1]['widgetType'] && 'Segunda' === $safe[0]['elements'][1]['settings']['blockquote_content'] && 1 === count( $kept ), 'La red de seguridad, por posición: con ids repetidos devuelve sólo el de la condición encendida y no duplica nada.' );
+	$check( Pro::condition_active( 'eael_cl_logics', array( 'eael_cl_logics' => array( 1 ), 'eael_cl_enable' => 'yes' ), array( 'eael_cl_logics', 'eael_cl_enable' ) ) && ! Pro::condition_active( 'eael_cl_logics', array( 'eael_cl_logics' => array( 1 ), 'eael_cl_enable' => '' ), array( 'eael_cl_logics', 'eael_cl_enable' ) ) && ! Pro::condition_active( 'pa_condition_repeater', array( 'pa_condition_repeater' => array( 1 ) ) ), 'La red también usa el interruptor del mismo prefijo y las familias declaradas.' );
+	// Filas sin `_id`: se casan por su posición, sin avisos falsos.
+	fresh();
+	$rows_copy = w( 'price-list', array( 'price_list' => array( array( 'title' => 'Uno', 'price' => '$1', 'old_price' => '$2' ), array( 'title' => 'Dos', 'price' => '$3' ) ) ), 'l1' );
+	$id        = migrated_doc( array( box( array( $rows_copy ), 'c1' ) ), array( box( array( old_convert( $rows_copy ) ), 'c1' ) ) );
+	$report    = run_doc( $id );
+	$check( '$2' === find( tree( $id ), 'l1' )['settings']['price_list'][0]['old_price'] && ! preg_grep( '/recover_skipped/', codes_of( $report, $id ) ), 'Filas sin _id: vuelve el subcampo por posición y no hay aviso falso.' );
+	// `__globals__` de un ajuste que pasa tal cual.
+	fresh();
+	$gcopy  = w( 'blockquote', array( 'blockquote_content' => 'G', '__globals__' => array( 'content_width' => 'globals/x' ) ), 'q1' );
+	$id     = migrated_doc( array( box( array( $gcopy ), 'c1' ) ), array( box( array( old_convert( $gcopy ) ), 'c1' ) ) );
+	run_doc( $id );
+	$check( 'globals/x' === ( find( tree( $id ), 'q1' )['settings']['__globals__']['content_width'] ?? null ), 'También vuelve su valor global.' );
+	// Muchos documentos: la etapa los revisa una vez y los sella; la siguiente Migrar ya no los lee.
+	fresh();
+	$many = array();
+	for ( $i = 0; $i < 60; $i++ ) {
+		$q      = w( 'blockquote', array( 'blockquote_content' => 'Cita ' . $i, 'content_width' => 'boxed' ), 'q' . $i );
+		$many[] = migrated_doc( array( box( array( $q ), 'c' . $i ) ), array( box( array( old_convert( $q ) ), 'c' . $i ) ) );
+	}
+	$check( 60 === count( Pro::recover_documents() ), 'Los 60 convertidos con copia son candidatos.' );
+	run_pro_stage();
+	$check( 'boxed' === find( tree( $many[59] ), 'q59' )['settings']['content_width'] && Pro::RECOVER_VERSION === get_metadata( 'post', $many[0], Pro::RECOVER_STAMP, true ), 'La etapa los recupera y los sella.' );
+	$check( array() === Pro::recover_documents() && array() === Pro::stage_documents(), 'La siguiente Migrar no vuelve a leerlos.' );
+	$check( Migration::revert_document( $many[0] ) && '' === (string) get_metadata( 'post', $many[0], Pro::RECOVER_STAMP, true ), '--revert quita el sello.' );
 
 	/* ================================================================ 4. WooCommerce inactivo */
 	fresh();
