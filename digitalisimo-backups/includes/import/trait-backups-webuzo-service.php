@@ -54,7 +54,7 @@ trait Digitalisimo_Backups_Webuzo_Service {
 			$item = Digitalisimo_Backups_Webuzo_Import::describe( $origin, $path );
 			if ( ! $item || ! $item['importable'] ) return self::service_error( 'webuzo_busy', $item ? $item['problem'] : 'El respaldo de Webuzo no está disponible.', 409 );
 			// Que no se confundan: un respaldo del plugin Backuply va por su importador.
-			if ( 'backuply' === Digitalisimo_Backups_Webuzo_Import::sniff( $path ) ) return self::service_error( 'webuzo_format', 'Este archivo es un respaldo del plugin Backuply, no de una cuenta de Webuzo: impórtalo en «Respaldos de Backuply» (o con wp digitalisimo-backups backuply import).', 422 );
+			if ( 'backuply' === Digitalisimo_Backups_Webuzo_Import::sniff( $path ) ) return self::service_error( 'webuzo_format', 'Este archivo es un respaldo del plugin Backuply, no de una cuenta de Webuzo: impórtalo con «Importar» de su fila de Backuply en Herramientas → «Importar de Backuply, UpdraftPlus o Webuzo» (o con wp digitalisimo-backups backuply import).', 422 );
 			foreach ( Digitalisimo_Backups_Jobs::active() as $job ) {
 				if ( Digitalisimo_Backups_Jobs::is_restore( $job ) ) return self::service_error( 'busy', 'Hay una restauración en curso: importa el respaldo de Webuzo cuando termine.', 409, array( 'job' => (string) $job['id'] ) );
 				if ( Digitalisimo_Backups_Import_Job::is_import( $job ) && 'import:webuzo:' . $origin . ':' . $name === ( $job['spec']['policy'] ?? '' ) ) return self::service_error( 'duplicate', 'Ese respaldo de Webuzo ya se está importando o analizando (trabajo ' . $job['id'] . ').', 409, array( 'job' => (string) $job['id'] ) );
