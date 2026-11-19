@@ -62,10 +62,33 @@ class Digitalisimo_Integrations_URL_Bases {
 	/** @var array|null Rutas ocupadas de esta petición. */
 	private static $taken = null;
 
-	/** Ya se borró en esta petición y taken() no la volvió a escribir: un guardado la dispara por el contenido y por su revisión. */
-	private static $forgotten = false;
+	/**
+	 * Un guardado la dispara por el contenido y por su revisión (y una edición masiva, por cada uno): se borra una vez
+	 * por sitio al primer disparo y, si hubo más, otra al terminar la petición (por si el front la recalculó entre
+	 * medias y le faltaría una página nueva).
+	 */
+	private static $forgotten = array();
+	private static $again = array();
 
-	public static function forget() { self::$taken = null; if ( self::$forgotten ) return; delete_option( self::TAKEN ); self::$forgotten = true; }
+	public static function forget() {
+		self::$taken = null;
+		$blog = (int) get_current_blog_id();
+		if ( empty( self::$forgotten[ $blog ] ) ) { delete_option( self::TAKEN ); self::$forgotten[ $blog ] = true; return; }
+		if ( ! self::$again ) add_action( 'shutdown', array( __CLASS__, 'forget_again' ), 5 );
+		self::$again[ $blog ] = true;
+	}
+
+	public static function forget_again() {
+		$blogs = array_keys( self::$again ); self::$again = array();
+		$current = (int) get_current_blog_id();
+		foreach ( $blogs as $blog ) {
+			$switch = $blog !== $current && function_exists( 'switch_to_blog' );
+			if ( $switch ) switch_to_blog( $blog );
+			delete_option( self::TAKEN );
+			if ( $switch ) restore_current_blog();
+		}
+		self::$taken = null;
+	}
 
 	/** Rutas de primer nivel de páginas y, con /%postname%/, de entradas: una consulta y una opción sin autoload. */
 	private static function taken() {
@@ -78,7 +101,7 @@ class Digitalisimo_Integrations_URL_Bases {
 		$in    = "'" . implode( "','", $types ) . "'";
 		$taken = array_fill_keys( array_map( 'strval', $wpdb->get_col( "SELECT post_name FROM {$wpdb->posts} WHERE post_type IN ($in) AND post_parent = 0 AND post_status IN ('publish','private','future','draft','pending') AND post_name <> ''" ) ), true ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		update_option( self::TAKEN, $taken, false );
-		self::$forgotten = false;
+		unset( self::$forgotten[ (int) get_current_blog_id() ] );
 		return self::$taken = $taken;
 	}
 

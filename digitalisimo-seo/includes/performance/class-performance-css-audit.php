@@ -26,13 +26,30 @@ class Digitalisimo_Integrations_Performance_CSS_Audit {
 		if ( is_multisite() ) add_action( 'update_site_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'invalidate_network' ) );
 	}
 
-	/** Ya se borró en esta petición y nada la volvió a escribir: un guardado dispara save_post, cada meta y cada opción. */
-	private static $cleared = false;
+	/**
+	 * Un guardado dispara save_post, cada meta y cada opción: la caché se borra una vez por sitio al primer disparo y,
+	 * si hubo más, una vez más al terminar la petición (por si la medición del front la reescribió entre medias). Por
+	 * sitio: invalidate_network() recorre la red con switch_to_blog().
+	 */
+	private static $cleared = array();
+	private static $again = array();
 
 	public static function invalidate() {
-		if ( self::$cleared ) return;
-		delete_option( self::OPTION );
-		self::$cleared = true;
+		$blog = (int) get_current_blog_id();
+		if ( empty( self::$cleared[ $blog ] ) ) { delete_option( self::OPTION ); self::$cleared[ $blog ] = true; return; }
+		if ( ! self::$again ) add_action( 'shutdown', array( __CLASS__, 'invalidate_again' ), 5 );
+		self::$again[ $blog ] = true;
+	}
+
+	public static function invalidate_again() {
+		$blogs = array_keys( self::$again ); self::$again = array();
+		$current = (int) get_current_blog_id();
+		foreach ( $blogs as $blog ) {
+			$switch = $blog !== $current && function_exists( 'switch_to_blog' );
+			if ( $switch ) switch_to_blog( $blog );
+			delete_option( self::OPTION );
+			if ( $switch ) restore_current_blog();
+		}
 	}
 
 	public static function meta_changed( $meta_id, $post_id, $key, $value ) {
@@ -158,7 +175,7 @@ class Digitalisimo_Integrations_Performance_CSS_Audit {
 		if ( count( $cache['pages'][ $page ] ) > 8 ) $cache['pages'][ $page ] = array_slice( $cache['pages'][ $page ], -8, null, true );
 		if ( count( $cache['pages'] ) > 40 ) $cache['pages'] = array_slice( $cache['pages'], -40, null, true );
 		update_option( self::OPTION, $cache, false );
-		self::$cleared = false;
+		unset( self::$cleared[ (int) get_current_blog_id() ] );
 		wp_send_json_success();
 	}
 }
