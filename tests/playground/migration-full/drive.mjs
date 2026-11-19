@@ -159,6 +159,37 @@ for (const [id, site] of Object.entries(result.sites)) {
 	check(site.seo_title === 'Sobre el vivero familiar' && /macetas artesanales/.test(site.seo_desc), `Sitio ${id}: metas de Rank Math importadas (${site.seo_title} | ${site.seo_desc}).`);
 	check(site.home === 200 && site.home_text && !site.fatal, `Sitio ${id}: la portada responde (${site.home}).`);
 }
+// La pantalla final (pedido del propietario del 2026-11-19): el resultado arriba en pocas líneas, «Necesita tu atención»
+// con la acción y el enlace al editor, el detalle plegado y agregado, y el análisis previo plegado debajo.
+const finalScreen = await (await request(screen)).text();
+const statusAt = finalScreen.indexOf('digi-migrate__status');
+const foldAt = finalScreen.indexOf('<details class="digi-migrate__before"');
+const report = statusAt > -1 && foldAt > statusAt ? finalScreen.slice(statusAt, foldAt) : '';
+/** Lo que se ve sin desplegar: cada <details> cerrado se queda en su <summary>. */
+function visibleLines(html) {
+	let prev = null;
+	while (prev !== html) {
+		prev = html;
+		html = html.replace(/<details(?![^>]*\sopen)[^>]*>\s*<summary>([^<]*)<\/summary>(?:(?!<details)[\s\S])*?<\/details>/, '<p>$1</p>');
+	}
+	return html.replace(/<\/(p|li|tr|h[1-6]|div|summary|caption)>/g, '\n').replace(/<[^>]+>/g, ' ').split('\n').map((l) => l.trim()).filter(Boolean);
+}
+const lines = visibleLines(report);
+console.log(`pantalla final: ${lines.length} líneas visibles\n  ${lines.join('\n  ')}`);
+check(report && (report.match(/Migración completada/g) || []).length === 1, 'La pantalla final dice una sola vez «Migración completada».');
+check(foldAt > -1 && !/^<details class="digi-migrate__before"[^>]*\sopen/.test(finalScreen.slice(foldAt, foldAt + 300)) && /<summary>Ver el análisis/.test(finalScreen.slice(foldAt, foldAt + 400)), 'El análisis previo queda plegado bajo el informe.');
+check(lines.length > 0 && lines.length < 40, `Lo visible sin desplegar cabe en menos de 40 líneas (${lines.length}).`);
+check(!/había nada que/.test(report), 'Con conversiones, no dice «no había nada que migrar».');
+check(/<details class="digi-migrate__detail"><summary>Detalle<\/summary>/.test(report) && report.indexOf('Necesita tu atención') < report.indexOf('<details class="digi-migrate__detail">'), 'Lo que necesita atención va antes del detalle plegado.');
+if (!network) {
+	const site = Object.values(result.sites)[0] || {};
+	check(site.quote_type === 'digitalisimo-blockquote', `La Cita de PRO pasó a la propia (${site.quote_type}).`);
+	check(/blockquote → digitalisimo-blockquote: 1 en 1 documento/.test(report), 'El detalle agrega los widgets convertidos por tipo.');
+	check(new RegExp(`post\\.php\\?post=${site.cart}&(amp;)?action=elementor`).test(report) && /WooCommerce/.test(report) && /vuelve a pulsar Migrar/.test(report), 'El Carrito sin WooCommerce va en «Necesita tu atención», con la acción y el enlace a su editor.');
+} else {
+	check(/Necesita tu atención/.test(report) && /Sitios con asuntos por revisar/.test(report) && /Informe del sitio|tools\.php\?page=digitalisimo-ep-migration/.test(report), 'En la red, los sitios con asuntos van en «Necesita tu atención» con el enlace a su informe.');
+}
+
 if (problems.length) {
 	console.log('FALLA\n  - ' + problems.join('\n  - '));
 	process.exit(1);

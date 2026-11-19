@@ -192,7 +192,7 @@ final class Full {
 				continue;
 			}
 			if ( ! empty( $state['done'] ) ) {
-				\WP_CLI::log( self::text( self::render( $network, $state ) ) );
+				\WP_CLI::log( self::text( self::render( $network, $state, 'cli' ) ) );
 				if ( ! empty( $state['failed'] ) ) {
 					\WP_CLI::error( 'La migración se detuvo: ' . (string) $state['error'] );
 				}
@@ -1586,12 +1586,15 @@ final class Full {
 
 	/* ------------------------------------------------------------------ Vistas */
 
-	/** HTML del estado: avance de la tarea en marcha o informe de la terminada ('' sin ninguna). */
-	public static function render( $network, $state ) {
+	/**
+	 * HTML del estado: avance de la tarea en marcha o informe de la terminada ('' sin ninguna). `$where`: `site` (la
+	 * pantalla) o `cli` (la terminal: el mismo resumen, sin enlaces ni el detalle por documento).
+	 */
+	public static function render( $network, $state, $where = 'site' ) {
 		if ( ! is_array( $state ) || empty( $state['stage'] ) ) {
 			return '';
 		}
-		return empty( $state['done'] ) ? self::render_progress( (bool) $network, $state ) : self::render_report( (bool) $network, $state );
+		return empty( $state['done'] ) ? self::render_progress( (bool) $network, $state ) : self::render_report( (bool) $network, $state, 'cli' === $where ? 'cli' : 'site' );
 	}
 
 	private static function render_progress( $network, array $state ) {
@@ -1608,9 +1611,23 @@ final class Full {
 		return $html;
 	}
 
-	/** Informe de la tarea terminada. Todo pasa por esc_html(). */
-	private static function render_report( $network, array $state ) {
-		$rows  = (array) ( $state['plan']['rows'] ?? array() );
+	/**
+	 * Informe de la tarea terminada, para leerse en 30 segundos: arriba, el resultado en unas filas (respaldo y cómo
+	 * volver, lo instalado, importado, reemplazado y borrado, el contenido, el tema y la portada); después «Necesita tu
+	 * atención» (o una línea que dice que no hay nada) y el detalle, plegado y agregado. Todo pasa por esc_html().
+	 */
+	private static function render_report( $network, array $state, $where = 'site' ) {
+		$rows    = (array) ( $state['plan']['rows'] ?? array() );
+		$content = null;
+		if ( class_exists( Runner::class ) && ! empty( $state['content']['started'] ) ) {
+			if ( $network ) {
+				$job     = Runner::network_state() ? Runner::network_summary( false ) : null;
+				$content = is_array( $job ) && $job ? Runner::network_parts( $job, $where, 4 ) : null;
+			} else {
+				$report  = Runner::report();
+				$content = is_array( $report ) ? Runner::report_parts( $report, $where, 4 ) : null;
+			}
+		}
 		$items = array();
 		$kind  = '' !== (string) $state['failed'] ? 'error' : 'success';
 		if ( '' !== (string) $state['failed'] ) {
@@ -1619,7 +1636,7 @@ final class Full {
 		} else {
 			$title = 'Migración completada.';
 		}
-		$html  = '<div class="notice notice-' . $kind . ' inline"><p><strong>' . esc_html( $title ) . '</strong></p></div>';
+		$html = '<div class="notice notice-' . $kind . ' inline"><p><strong>' . esc_html( $title ) . '</strong></p></div>';
 		if ( ! empty( $state['backup']['ok'] ) ) {
 			$items[] = array( 'Respaldo', sprintf( '%s (%s MB, SHA-256 %s…). Para volver atrás: DIGITALÍSIMO Backups → Respaldos → Restaurar.', $state['backup']['file'], number_format( (float) $state['backup']['size'] / 1048576, 1 ), substr( (string) $state['backup']['sha256'], 0, 12 ) ) );
 		}
@@ -1651,22 +1668,6 @@ final class Full {
 		if ( $replaced ) {
 			$items[] = array( 'Reemplazado', implode( '; ', $replaced ) );
 		}
-		$themes = array();
-		foreach ( (array) $state['theme'] as $site_id => $row ) {
-			$where    = $network ? self::site_name( (int) $site_id ) . ': ' : '';
-			$themes[] = $where . ( ! empty( $row['switched'] ) ? sprintf( 'de %s al tema DIGITALÍSIMO', $row['name'] ) : (string) $row['reason'] );
-		}
-		if ( $themes ) {
-			$items[] = array( 'Tema', implode( ' ', $themes ) );
-		}
-		if ( $state['verify'] ) {
-			$bad = array_filter( (array) $state['verify'], static function ( $row ) {
-				return true !== $row['ok'];
-			} );
-			$items[] = array( 'Portada y páginas', $bad ? implode( ' ', array_map( static function ( $row ) {
-				return $row['url'] . ': ' . $row['reason'];
-			}, $bad ) ) : sprintf( '%d comprobadas: responden igual.', count( (array) $state['verify'] ) ) );
-		}
 		if ( $state['deleted'] ) {
 			$items[] = array( 'Borrado', implode( ', ', array_values( (array) $state['deleted'] ) ) . '. Para recuperarlo, restaura el respaldo de arriba.' );
 		}
@@ -1683,18 +1684,74 @@ final class Full {
 		if ( $kept['same'] ) {
 			$items[] = array( 'Quedó como estaba', implode( ' ', $kept['same'] ) );
 		}
+		if ( $content ) {
+			$items[] = array( 'Contenido', (string) $content['summary'] );
+		}
+		$themes = array();
+		foreach ( (array) $state['theme'] as $site_id => $row ) {
+			$where_name = $network ? self::site_name( (int) $site_id ) . ': ' : '';
+			$themes[]   = $where_name . ( ! empty( $row['switched'] ) ? sprintf( 'de %s al tema DIGITALÍSIMO', $row['name'] ) : (string) $row['reason'] );
+		}
+		if ( $themes ) {
+			$items[] = array( 'Tema', implode( ' ', $themes ) );
+		}
+		if ( $state['verify'] ) {
+			$items[] = array( 'Portada y páginas', self::verify_text( (array) $state['verify'] ) );
+		}
 		foreach ( (array) $state['notes'] as $note ) {
 			$items[] = array( 'Nota', $note );
 		}
-		$html .= '<table class="widefat striped digi-migrate__full"><tbody>';
+		$html .= '<table class="widefat striped digi-migrate__full"><caption class="screen-reader-text">' . esc_html( 'Resultado de la migración' ) . '</caption><tbody>';
 		foreach ( $items as $item ) {
 			$html .= '<tr><th scope="row">' . esc_html( $item[0] ) . '</th><td>' . esc_html( $item[1] ) . '</td></tr>';
 		}
 		$html .= '</tbody></table>';
-		if ( class_exists( Runner::class ) && ! empty( $state['content']['started'] ) ) {
-			$html .= '<h3>' . esc_html( 'Contenido' ) . '</h3>' . ( $network ? Runner::render_network( Runner::network_state() ? Runner::network_summary( false ) : null ) : Runner::render( Runner::report() ) );
+		// Necesita tu atención: lo único que pide algo a una persona, con su acción.
+		$attention = $content ? (array) $content['attention'] : array();
+		if ( '' !== (string) $state['failed'] ) {
+			array_unshift( $attention, esc_html( 'Resuelve lo que dice el aviso de arriba y vuelve a pulsar Migrar: el respaldo, si se hizo, permite volver atrás.' ) );
+		}
+		$html .= self::attention_html( $attention );
+		if ( $content && '' !== trim( (string) $content['detail'] ) ) {
+			$detail = '<h3>' . esc_html( 'Contenido' ) . '</h3>' . $content['detail'];
+			$html  .= '<details class="digi-migrate__detail"><summary>' . esc_html( 'Detalle' ) . '</summary>' . $detail . '</details>';
 		}
 		return $html;
+	}
+
+	/**
+	 * «Necesita tu atención» con sus entradas (HTML ya escapado), o una línea que dice que no hay nada. El mismo marcado
+	 * que Report::attention_html() de la conversión, que puede no estar cargada.
+	 */
+	public static function attention_html( array $items ) {
+		if ( ! $items ) {
+			return '<p class="digi-migrate__attention digi-migrate__attention--none"><strong>' . esc_html( 'Nada necesita tu atención.' ) . '</strong></p>';
+		}
+		return '<h2 class="digi-migrate__attention-title">' . esc_html( 'Necesita tu atención' ) . '</h2><ul class="digi-migrate__attention" style="list-style:disc;margin-left:20px"><li>' . implode( '</li><li>', $items ) . '</li></ul>';
+	}
+
+	/** La comprobación de la portada y las páginas en una frase: cuántas responden igual, cuáles no y cuáles no se compararon. */
+	private static function verify_text( array $verify ) {
+		$same = 0;
+		$bad  = array();
+		$skip = array();
+		foreach ( $verify as $row ) {
+			if ( true === $row['ok'] ) {
+				++$same;
+			} elseif ( false === $row['ok'] ) {
+				$bad[] = $row['url'] . ': ' . $row['reason'];
+			} else {
+				$skip[] = $row['url'] . ': ' . $row['reason'];
+			}
+		}
+		$parts = array( sprintf( 'Responden igual: %d de %d.', $same, count( $verify ) ) );
+		if ( $bad ) {
+			$parts[] = 'No responden igual: ' . implode( ' ', $bad );
+		}
+		if ( $skip ) {
+			$parts[] = 'Sin comparar: ' . implode( ' ', $skip );
+		}
+		return implode( ' ', $parts );
 	}
 
 	private static function site_name( $site_id ) {
@@ -1703,9 +1760,19 @@ final class Full {
 		} );
 	}
 
-	/** El informe en texto para la terminal. */
+	/**
+	 * El informe en texto para la terminal: una línea por párrafo, entrada, fila, encabezado o desplegable; el detalle por
+	 * documento (sólo en la pantalla) no entra.
+	 */
 	public static function text( $html ) {
-		$text = str_replace( array( '</p>', '</li>', '</tr>', '</h3>', '</div>' ), "\n", (string) $html );
+		// Sin expresión regular: el detalle por documento de un sitio grande pasaría del límite de PCRE.
+		$html = (string) $html;
+		while ( false !== ( $at = strpos( $html, '<details class="digi-migrate__docs">' ) ) ) {
+			$end  = strpos( $html, '</details>', $at );
+			$html = substr( $html, 0, $at ) . ( false === $end ? '' : substr( $html, $end + 10 ) );
+		}
+		$html = str_replace( '</td></tr>', '</tr>', $html );
+		$text = str_replace( array( '</p>', '</li>', '</tr>', '</h2>', '</h3>', '</h4>', '</h5>', '</div>', '</summary>', '</caption>', '<ul>', '<ul ' ), array( "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n<ul>", "\n<ul " ), (string) $html );
 		$text = html_entity_decode( wp_strip_all_tags( str_replace( array( '</td>', '</th>' ), ' · ', $text ) ), ENT_QUOTES, 'UTF-8' );
 		return trim( (string) preg_replace( "/\n\s*\n+/", "\n", $text ) );
 	}

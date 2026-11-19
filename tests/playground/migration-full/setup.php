@@ -2,7 +2,7 @@
 /**
  * Sitio de partida de migration-full.sh (sólo Playground): Hello Elementor 3.5.1 oficial activo, Element Pack Pro,
  * Rank Math y UpdraftPlus de prueba (sólo su cabecera, como los de f8: sin código del proveedor), DIGITALÍSIMO Migración
- * sola activa y contenido con metas de Rank Math. En una red (escenario
+ * sola activa y contenido con metas de Rank Math y, en borradores, una Cita y un Carrito de WooCommerce de PRO. En una red (escenario
  * `network`), además un segundo sitio con lo mismo, Element Pack y UpdraftPlus activados en toda la red y Rank Math por
  * sitio.
  */
@@ -76,6 +76,14 @@ foreach ( $sites as $site_id ) {
 	update_post_meta( $page, 'rank_math_title', 'Sobre el vivero familiar' );
 	update_post_meta( $page, 'rank_math_description', 'Plantas y macetas artesanales con envío semanal.' );
 	update_option( 'digi_probe_page', (int) $page );
+	// Widgets de PRO en borradores (fuera de la comprobación de la portada): una Cita, que pasa a la propia, y un Carrito
+	// de WooCommerce sin WooCommerce, que se queda y va a «Necesita tu atención» con el enlace a su editor.
+	foreach ( array( 'Cita de prueba' => array( 'blockquote', array( 'blockquote_content' => 'Las plantas también escuchan.', 'author_name' => 'Vivero' ) ), 'Carrito de prueba' => array( 'woocommerce-cart', array() ) ) as $title => $widget ) {
+		$draft = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => $title ) );
+		update_post_meta( $draft, '_elementor_edit_mode', 'builder' );
+		update_post_meta( $draft, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c' . $draft, 'elType' => 'container', 'settings' => array(), 'elements' => array( array( 'id' => 'w' . $draft, 'elType' => 'widget', 'widgetType' => $widget[0], 'settings' => $widget[1], 'elements' => array() ) ) ) ) ) ) );
+		update_option( 'digi_probe_' . $widget[0], (int) $draft );
+	}
 	if ( $network ) {
 		restore_current_blog();
 	}

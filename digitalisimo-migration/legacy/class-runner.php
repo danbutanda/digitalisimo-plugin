@@ -2220,12 +2220,15 @@ final class Runner {
 
 	/* ------------------------------------------------------------------ Vistas */
 
-	/** HTML del estado del sitio: avance de la tarea en marcha o informe de la terminada. */
-	public static function render( $state ) {
+	/**
+	 * HTML del estado del sitio: avance de la tarea en marcha o informe de la terminada. `$where`: `site` (la pantalla) o
+	 * `cli` (la terminal: sin enlaces ni el detalle por documento).
+	 */
+	public static function render( $state, $where = 'site' ) {
 		if ( ! is_array( $state ) || ! empty( $state['idle'] ) || empty( $state['stage'] ) ) {
 			return '';
 		}
-		return empty( $state['done'] ) ? self::render_progress( $state ) : self::render_report( $state );
+		return empty( $state['done'] ) ? self::render_progress( $state ) : self::render_report( $state, $where );
 	}
 
 	private static function render_progress( array $state ) {
@@ -2300,25 +2303,52 @@ final class Runner {
 		return function_exists( 'wp_date' ) ? (string) wp_date( 'd/m/Y H:i', (int) $time ) : gmdate( 'd/m/Y H:i', (int) $time );
 	}
 
-	/** Lista de documentos del informe (también los de informes anteriores, guardados como título). */
-	private static function render_documents( $label, array $docs ) {
-		$html = '<p>' . esc_html( $label ) . '</p><ul style="list-style:disc;margin-left:20px">';
-		foreach ( $docs as $id => $doc ) {
-			$title = is_array( $doc ) ? (string) $doc['title'] : (string) $doc;
-			$link  = is_array( $doc ) ? (string) $doc['link'] : admin_url( 'post.php?post=' . (int) $id . '&action=elementor' );
-			$html .= '<li><a href="' . esc_url( $link ) . '">' . esc_html( $title ) . '</a></li>';
+	/**
+	 * Informe de la tarea terminada del sitio, solo (en un sitio de una red, en WP-CLI): el resultado en una frase, los
+	 * plugins desactivados, «Necesita tu atención» y el detalle plegado (report_parts()).
+	 */
+	private static function render_report( array $state, $where = 'site' ) {
+		$parts = self::report_parts( $state, $where, 3, true );
+		$html  = '<div class="digi-migrate__done notice notice-success inline"><p><strong>Migración completada</strong>' . ( ! empty( $state['finished'] ) ? ' el ' . esc_html( self::date( $state['finished'] ) ) : '' ) . '.</p></div>';
+		$html .= '<p class="digi-migrate__summary">' . esc_html( $parts['summary'] ) . '</p>' . $parts['plugins'];
+		$html .= Report::attention_html( $parts['attention'] );
+		$html .= Report::folded( __( 'Detalle', 'digitalisimo-migration' ), $parts['detail'], 'digi-migrate__detail' );
+		if ( ! $parts['attention'] ) {
+			$html .= '<div class="notice notice-success inline"><p>Este sitio ya no depende de Elementor, Elementor Pro, PRO Elements ni Element Pack. Si usas una caché de página o una CDN, vacíala. Cuando hayas comprobado el sitio, borra esos plugins y DIGITALÍSIMO Migración.</p></div>';
 		}
-		return $html . '</ul>';
+		return $html;
 	}
 
-	private static function render_report( array $state ) {
-		$r    = (array) ( $state['report'] ?? array() );
-		$c    = (array) $state['counts'];
-		$html = '<div class="digi-migrate__done notice notice-success inline"><p><strong>Migración completada</strong>' . ( ! empty( $state['finished'] ) ? ' el ' . esc_html( self::date( $state['finished'] ) ) : '' ) . '.</p></div>';
-		$html .= self::render_counts( $c );
-		if ( empty( $c['deactivated'] ) && empty( $c['converted'] ) && empty( $c['revisions'] ) && empty( $c['aliases'] ) && empty( $c['pro'] ) && empty( $c['pro_css'] ) && empty( $c['recovered'] ) && empty( $c['repaired'] ) ) {
-			$html .= '<p>No había nada que migrar en este sitio.</p>';
+	/**
+	 * Partes del informe de una tarea terminada del sitio, para pintarlo solo (render_report()) o dentro del de la tarea
+	 * completa (Full::render()), sin repetir nada entre ellas:
+	 * - `summary`: una frase del contenido: lo que ya es de DIGITALÍSIMO Elements y lo que hizo esta pasada (si no hizo
+	 *   nada nuevo porque ya estaba convertido, lo dice; «no había nada que convertir» sólo cuando de verdad no lo había);
+	 * - `plugins`: HTML de los plugins desactivados y de si pueden borrarse (con $plugins; la tarea completa dice ella
+	 *   misma lo que desactivó y borró);
+	 * - `attention`: HTML de cada asunto que pide algo a una persona, con su acción y sus documentos enlazados;
+	 * - `detail`: HTML del detalle: lo de esta pasada, lo agregado del informe de F8 y, plegado, por documento;
+	 * - `pending`: si queda algo para una persona (has_pending()).
+	 *
+	 * @return array{summary:string, plugins:string, attention:string[], detail:string, pending:bool}
+	 */
+	public static function report_parts( array $state, $where = 'site', $level = 3, $plugins = false ) {
+		$where  = 'cli' === $where ? 'cli' : 'site';
+		$r      = (array) ( $state['report'] ?? array() );
+		$c      = (array) ( $state['counts'] ?? array() );
+		$f8     = isset( $r['f8'] ) ? Report::stored() : Report::none();
+		$digest = Report::digest( $f8 );
+		// Resumen: lo convertido (de esta pasada y de las anteriores, que el informe relee de la copia) y esta pasada.
+		$runs = self::run_phrases( $c );
+		$own  = Report::converted_phrase( $digest );
+		if ( $runs ) {
+			$summary = trim( $own . ' ' . 'En esta pasada: ' . implode( '; ', $runs ) . '.' );
+		} elseif ( Report::has_converted( $digest ) ) {
+			$summary = trim( $own . ' ' . 'Ya estaba convertido en una pasada anterior: en ésta no había nada nuevo que convertir.' );
+		} else {
+			$summary = 'No había nada que convertir en el contenido.';
 		}
+		// Plugins desactivados (sólo cuando el informe va solo).
 		$still     = array();
 		$deletable = array();
 		$later     = array();
@@ -2338,27 +2368,29 @@ final class Runner {
 				$deletable[] = $plugin['label'];
 			}
 		}
-		if ( $deletable ) {
-			$html .= '<p>' . esc_html( sprintf( 'Desactivados y listos para borrarse desde %s cuando hayas comprobado el sitio: %s. La migración no los borra.', is_multisite() ? 'Red → Plugins' : 'Plugins', implode( ', ', $deletable ) ) ) . '</p>';
+		$plugin_html = '';
+		if ( $plugins && $deletable ) {
+			$plugin_html .= '<p>' . esc_html( sprintf( 'Desactivados y listos para borrarse desde %s cuando hayas comprobado el sitio: %s. La migración no los borra.', is_multisite() ? 'Red → Plugins' : 'Plugins', implode( ', ', $deletable ) ) ) . '</p>';
 		}
-		if ( $later ) {
-			$html .= '<p>' . esc_html( 'Desactivados en este sitio, pero aún no los borres: ' . implode( ', ', $later ) . '. ' . ( is_multisite() ? 'El resumen de Red → Ajustes → Migrar a DIGITALÍSIMO dice cuándo pueden borrarse.' : 'Element Pack hace falta hasta convertir lo que queda pendiente.' ) ) . '</p>';
+		if ( $plugins && $later ) {
+			$plugin_html .= '<p>' . esc_html( 'Desactivados en este sitio, pero aún no los borres: ' . implode( ', ', $later ) . '. ' . ( is_multisite() ? 'El resumen de Red → Ajustes → Migrar a DIGITALÍSIMO dice cuándo pueden borrarse.' : 'Element Pack hace falta hasta convertir lo que queda pendiente.' ) ) . '</p>';
 		}
-		$pending = '';
+		// Lo que pide algo a una persona: una entrada por asunto, con su acción.
+		$attention = array();
 		if ( $still ) {
-			$pending .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Siguen activos: ' . implode( ', ', $still ) . '. Los avisos de abajo explican por qué y qué quedó pendiente.' ) . '</p></div>';
+			$attention[] = esc_html( 'Siguen activos: ' . implode( ', ', $still ) . '. Los demás asuntos de esta lista explican por qué y qué quedó pendiente.' );
 		}
-		foreach ( (array) $state['warnings'] as $warning ) {
-			$pending .= '<div class="notice notice-warning inline"><p>' . esc_html( (string) $warning ) . '</p></div>';
+		foreach ( (array) ( $state['warnings'] ?? array() ) as $warning ) {
+			$attention[] = esc_html( (string) $warning );
 		}
 		if ( ! empty( $r['unsupported'] ) ) {
-			$pending .= '<p>Widgets de Element Pack sin equivalente. Sin Element Pack no se muestran: sustitúyelos en el editor por la alternativa indicada o acepta que desaparezcan.</p><table class="widefat striped" style="max-width:860px"><thead><tr><th>Widget</th><th>Elementos</th><th>Documentos</th><th>Motivo y alternativa</th></tr></thead><tbody>';
+			$table = '<table class="widefat striped" style="max-width:860px"><thead><tr><th scope="col">Widget</th><th scope="col">Elementos</th><th scope="col">Documentos</th><th scope="col">Motivo y alternativa</th></tr></thead><tbody>';
 			foreach ( (array) $r['unsupported'] as $type => $row ) {
-				$pending .= '<tr><td><code>' . esc_html( (string) $type ) . '</code></td><td>' . (int) $row['elements'] . '</td><td>' . (int) $row['documents'] . '</td><td>' . esc_html( (string) $row['reason'] ) . '</td></tr>';
+				$table .= '<tr><td><code>' . esc_html( (string) $type ) . '</code></td><td>' . (int) $row['elements'] . '</td><td>' . (int) $row['documents'] . '</td><td>' . esc_html( (string) $row['reason'] ) . '</td></tr>';
 			}
-			$pending .= '</tbody></table>';
+			$attention[] = esc_html( 'Widgets de Element Pack sin equivalente. Sin Element Pack no se muestran: sustitúyelos en el editor por la alternativa indicada o acepta que desaparezcan.' ) . $table . '</tbody></table>';
 		}
-		// Lo que no tiene equivalente es información (no deja el sitio pendiente), salvo el contenido que hoy no se ve.
+		// Lo que no tiene equivalente es información (va en el detalle), salvo el contenido que hoy no se ve.
 		$info = '';
 		// Con el informe de F8 los descartes van en él (`ext.dropped.*`): la tabla antigua sólo para informes anteriores.
 		if ( ( ! empty( $r['dropped'] ) || ! empty( $r['dropped_omitted'] ) ) && ! isset( $r['f8'] ) ) {
@@ -2371,7 +2403,7 @@ final class Runner {
 			$kept = Dropped::kept_messages( array_merge( (array) ( $r['kept'] ?? array() ), (array) ( $r['kept_idle'] ?? array() ) ) );
 		}
 		foreach ( $kept['pending'] as $message ) {
-			$pending .= '<div class="notice notice-warning inline"><p>' . esc_html( $message ) . '</p></div>';
+			$attention[] = esc_html( $message );
 		}
 		foreach ( $kept['info'] as $message ) {
 			$info .= '<div class="notice notice-info inline"><p>' . esc_html( $message ) . '</p></div>';
@@ -2380,45 +2412,89 @@ final class Runner {
 			$info .= '<p>' . esc_html( Dropped::idle_message( $kept['idle'] ) ) . '</p>';
 		}
 		foreach ( array(
-			'blocked' => 'Páginas que conservan esos widgets:',
+			'blocked' => 'Páginas que conservan widgets de Element Pack sin equivalente: sustitúyelos en el editor.',
 			'review'  => 'Páginas sobrescritas por una conversión antigua sin revisión ni copia de la que recuperarlas: revísalas en el editor y guárdalas (dejan de listarse al guardarlas).',
 			'failed'  => 'Documentos que no pudieron convertirse (la conversión se cortó dos veces): se siguen viendo como antes; vuelve a pulsar Migrar o revísalos en el editor.',
 		) as $key => $label ) {
 			if ( ! empty( $r[ $key ] ) ) {
-				$pending .= self::render_documents( $label, (array) $r[ $key ] );
+				$attention[] = esc_html( $label ) . ' ' . self::documents_inline( (array) $r[ $key ], 'cli' !== $where );
 			}
 		}
 		foreach ( (array) ( $r['alias_blocked'] ?? array() ) as $type => $places ) {
-			$spec     = (array) ( $r['alias_targets'][ $type ] ?? array() );
-			$pending .= '<p>' . esc_html( sprintf( 'Los widgets %s siguen como alias de %s porque CSS, marcado o código del sitio nombra sus clases o su envoltorio (o el del widget fusionado): se siguen viendo igual. Para terminar, cambia ese código a las clases del widget fusionado (.%s en lugar de .%s, y elementor-widget-%s) y vuelve a pulsar Migrar. Lugares: %s.', $type, (string) ( $spec['target'] ?? '' ), (string) ( $spec['target_prefix'] ?? '' ), (string) ( $spec['prefix'] ?? '' ), (string) ( $spec['target'] ?? '' ), implode( '; ', (array) $places ) ) ) . '</p>';
+			$spec        = (array) ( $r['alias_targets'][ $type ] ?? array() );
+			$attention[] = esc_html( sprintf( 'Los widgets %s siguen como alias de %s porque CSS, marcado o código del sitio nombra sus clases o su envoltorio (o el del widget fusionado): se siguen viendo igual. Para terminar, cambia ese código a las clases del widget fusionado (.%s en lugar de .%s, y elementor-widget-%s) y vuelve a pulsar Migrar. Lugares: %s.', $type, (string) ( $spec['target'] ?? '' ), (string) ( $spec['target_prefix'] ?? '' ), (string) ( $spec['prefix'] ?? '' ), (string) ( $spec['target'] ?? '' ), implode( '; ', (array) $places ) ) );
 		}
 		if ( ! empty( $r['missing_figures'] ) ) {
-			$pending .= '<p>' . esc_html( 'Máscaras o separadores de Element Pack sin archivo, retirados para que la imagen siga visible: ' . implode( ', ', (array) $r['missing_figures'] ) . '.' ) . '</p>';
+			$attention[] = esc_html( 'Máscaras o separadores de Element Pack sin archivo, retirados para que la imagen siga visible: ' . implode( ', ', (array) $r['missing_figures'] ) . '.' );
 		}
 		if ( ! empty( $r['convertible'] ) ) {
-			$pending .= '<p>' . esc_html( sprintf( 'Quedan %d documentos con contenido de Element Pack por convertir: vuelve a pulsar Migrar cuando se resuelvan los avisos.', (int) $r['convertible'] ) ) . '</p>';
+			$attention[] = esc_html( sprintf( 'Quedan %d documentos con contenido de Element Pack por convertir: vuelve a pulsar Migrar cuando se resuelvan los avisos.', (int) $r['convertible'] ) );
 		}
 		if ( ! empty( $r['aliases_left'] ) ) {
-			$pending .= '<p>' . esc_html( sprintf( 'Quedan %d documentos con widgets fusionados por actualizar: vuelve a pulsar Migrar cuando se resuelvan los avisos.', (int) $r['aliases_left'] ) ) . '</p>';
+			$attention[] = esc_html( sprintf( 'Quedan %d documentos con widgets fusionados por actualizar: vuelve a pulsar Migrar cuando se resuelvan los avisos.', (int) $r['aliases_left'] ) );
 		}
-		if ( ! empty( $r['pro_left'] ) ) {
-			$pending .= '<p>' . esc_html( sprintf( 'Quedan %d documentos con widgets de PRO que ya tienen widget propio sin convertir: se siguen viendo igual; el informe dice por qué. Vuelve a pulsar Migrar cuando se resuelva.', (int) $r['pro_left'] ) ) . '</p>';
+		$f8_attention = Report::attention( $f8, $where, $digest );
+		// Los documentos de PRO sin convertir: si el informe de F8 ya dice por qué (un asunto `pro.`), sobra el recuento.
+		$pro_said = false;
+		foreach ( array_keys( (array) $digest['attention'] ) as $key ) {
+			$pro_said = $pro_said || 0 === strpos( (string) $key, 'pro.' );
 		}
-		$info = '' !== $info ? '<h3>Sin equivalente</h3>' . $info : '';
-		// Informe de F8 (por documento y por sitio), leído de su opción: cada campo escapado por Report.
-		if ( isset( $r['f8'] ) ) {
-			$f8 = Report::stored();
-			if ( ! Report::is_empty( $f8 ) ) {
-				$info .= '<div class="digi-migrate__f8">' . Report::render( $f8, 'site' ) . '</div>';
+		if ( ! empty( $r['pro_left'] ) && ! $pro_said ) {
+			$attention[] = esc_html( sprintf( 'Quedan %d documentos con widgets de PRO que ya tienen widget propio sin convertir: se siguen viendo igual. Vuelve a pulsar Migrar; si siguen, actualiza DIGITALÍSIMO Elements.', (int) $r['pro_left'] ) );
+		}
+		$attention = array_merge( $attention, $f8_attention );
+		// Detalle: lo de esta pasada, lo que no tiene equivalente de informes anteriores y lo agregado de F8.
+		$detail = '';
+		$counts = self::render_counts( $c );
+		if ( '' !== $counts ) {
+			$detail .= '<p>' . esc_html( 'En esta pasada' . ( ! empty( $state['finished'] ) ? ' (terminada el ' . self::date( $state['finished'] ) . ')' : '' ) . ':' ) . '</p>' . $counts;
+		}
+		$detail .= $info . Report::render_detail( $f8, $where, (int) $level, $digest );
+		return array(
+			'summary'   => $summary,
+			'plugins'   => $plugin_html,
+			'attention' => $attention,
+			'detail'    => $detail,
+			'pending'   => self::has_pending( $state ),
+		);
+	}
+
+	/** Lo que hizo esta pasada, en frases cortas para el resumen (el detalle lo cuenta entero con render_counts()). */
+	private static function run_phrases( array $c ) {
+		$out = array();
+		if ( ! empty( $c['pro'] ) ) {
+			$out[] = sprintf( '%d documentos con widgets de PRO convertidos (%d widgets)', (int) $c['pro'], (int) ( $c['pro_elements'] ?? 0 ) );
+		}
+		if ( ! empty( $c['converted'] ) ) {
+			$out[] = sprintf( '%d documentos de Element Pack y Prime Slider convertidos (%d elementos)', (int) $c['converted'], (int) ( $c['elements'] ?? 0 ) );
+		}
+		if ( ! empty( $c['revisions'] ) ) {
+			$out[] = sprintf( '%d revisiones y autoguardados convertidos', (int) $c['revisions'] );
+		}
+		if ( ! empty( $c['aliases'] ) ) {
+			$out[] = sprintf( '%d documentos con widgets fusionados actualizados', (int) $c['aliases'] );
+		}
+		foreach ( array(
+			'pro_css'   => '%d con CSS que nombra widgets de PRO, copiado para los widgets propios',
+			'recovered' => '%d páginas sobrescritas recuperadas',
+			'repaired'  => '%d documentos con reglas de visibilidad recuperadas',
+		) as $key => $text ) {
+			if ( ! empty( $c[ $key ] ) ) {
+				$out[] = sprintf( $text, (int) $c[ $key ] );
 			}
-			if ( ! empty( $r['f8']['pending'] ) && '' === $pending ) {
-				$pending = '<p>' . esc_html( 'Hay asuntos en «Pendiente de revisar», más abajo.' ) . '</p>';
-			}
 		}
-		if ( '' !== $pending ) {
-			return $html . '<h3>Pendiente de revisar</h3>' . $pending . $info;
+		return $out;
+	}
+
+	/** Documentos del informe en una línea, con su enlace (también los de informes anteriores, guardados como título). */
+	private static function documents_inline( array $docs, $links = true ) {
+		$out = array();
+		foreach ( $docs as $id => $doc ) {
+			$title = is_array( $doc ) ? (string) $doc['title'] : (string) $doc;
+			$link  = is_array( $doc ) ? (string) $doc['link'] : admin_url( 'post.php?post=' . (int) $id . '&action=elementor' );
+			$out[] = $links && '' !== $link ? '<a href="' . esc_url( $link ) . '">' . esc_html( $title ) . '</a>' : esc_html( $title );
 		}
-		return $html . $info . '<div class="notice notice-success inline"><p>Este sitio ya no depende de Elementor, Elementor Pro, PRO Elements ni Element Pack. Si usas una caché de página o una CDN, vacíala. Cuando hayas comprobado el sitio, borra esos plugins y DIGITALÍSIMO Migración.</p></div>';
+		return implode( ', ', $out ) . '.';
 	}
 
 	/** Nombres de sitios para un aviso. */
@@ -2446,106 +2522,164 @@ final class Runner {
 		return $out;
 	}
 
-	/** HTML de la migración de red: estado de cada sitio y, al terminar, qué plugins pueden borrarse. */
-	public static function render_network( $job ) {
+	/**
+	 * HTML de la migración de red. En marcha: el avance y el estado de cada sitio. Terminada: el resultado en una frase,
+	 * «Necesita tu atención» y el detalle plegado (network_parts()), como el informe de un sitio.
+	 */
+	public static function render_network( $job, $where = 'site' ) {
 		if ( ! is_array( $job ) || ! empty( $job['idle'] ) ) {
 			return '';
+		}
+		if ( ! empty( $job['done'] ) ) {
+			$parts = self::network_parts( $job, $where, 3, true );
+			$html  = '<div class="digi-migrate__done notice notice-success inline"><p><strong>Migración de la red completada</strong>' . ( ! empty( $job['finished'] ) ? ' el ' . esc_html( self::date( $job['finished'] ) ) : '' ) . '.</p></div>';
+			$html .= '<p class="digi-migrate__summary">' . esc_html( $parts['summary'] ) . '</p>' . $parts['plugins'];
+			return $html . Report::attention_html( $parts['attention'] ) . Report::folded( __( 'Detalle', 'digitalisimo-migration' ), $parts['detail'], 'digi-migrate__detail' );
 		}
 		$status = (array) ( $job['status'] ?? array() );
 		$done   = count( array_filter( $status, static function ( $row ) {
 			return 'done' === $row['status'];
 		} ) );
-		if ( empty( $job['done'] ) ) {
-			$html = '<div class="digi-migrate__progress notice notice-info inline"><p><span class="spinner is-active" style="float:none;margin:0 8px 0 0"></span><strong>' . esc_html( sprintf( 'Migrando la red: %d de %d sitios terminados.', $done, count( $status ) ) ) . '</strong></p><progress max="' . max( 1, count( $status ) ) . '" value="' . $done . '" style="width:100%;max-width:480px"></progress></div>';
-		} else {
-			$html = '<div class="digi-migrate__done notice notice-success inline"><p><strong>Migración de la red completada</strong>' . ( ! empty( $job['finished'] ) ? ' el ' . esc_html( self::date( $job['finished'] ) ) : '' ) . '.</p></div>';
-		}
+		$html = '<div class="digi-migrate__progress notice notice-info inline"><p><span class="spinner is-active" style="float:none;margin:0 8px 0 0"></span><strong>' . esc_html( sprintf( 'Migrando la red: %d de %d sitios terminados.', $done, count( $status ) ) ) . '</strong></p><progress max="' . max( 1, count( $status ) ) . '" value="' . $done . '" style="width:100%;max-width:480px"></progress></div>';
 		if ( ! empty( $job['deactivated'] ) ) {
 			$html .= '<p>' . esc_html( 'Desactivados en toda la red: ' . implode( ', ', (array) $job['deactivated'] ) . '.' ) . '</p>';
 		}
-		foreach ( (array) $job['warnings'] as $warning ) {
+		foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) {
 			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( (string) $warning ) . '</p></div>';
 		}
-		if ( ! empty( $job['barrier'] ) && empty( $job['released'] ) && empty( $job['done'] ) ) {
+		foreach ( self::network_notices( $job, $where ) as $notice ) {
+			$html .= '<div class="notice notice-warning inline"><p>' . $notice . '</p></div>';
+		}
+		if ( ! empty( $job['barrier'] ) && empty( $job['released'] ) ) {
 			$waiting = 0;
 			foreach ( $status as $row ) {
 				$waiting += ! empty( $row['waiting'] ) ? 1 : 0;
 			}
 			$html .= '<p>' . esc_html( sprintf( 'Esperando a que los sitios preparen sus plantillas para desactivar Element Pack en toda la red (%d de %d listos).', $waiting, count( (array) ( $job['barrier_sites'] ?? array() ) ) ) ) . '</p>';
 		}
+		return $html . self::sites_table( $status );
+	}
+
+	/**
+	 * Partes del informe de la red terminada (como report_parts() de un sitio): `summary` (cuántos sitios y cuántos con
+	 * asuntos), `plugins` (con $plugins: lo que puede borrarse; la tarea completa dice ella misma lo que borró),
+	 * `attention` (avisos, sitios bloqueados, sin migrar o con asuntos, con el enlace a su informe), `detail` (lo
+	 * desactivado y la tabla de cada sitio) y `pending`.
+	 *
+	 * @return array{summary:string, plugins:string, attention:string[], detail:string, pending:bool}
+	 */
+	public static function network_parts( $job, $where = 'site', $level = 3, $plugins = false ) {
+		$job     = is_array( $job ) ? $job : array();
+		$status  = (array) ( $job['status'] ?? array() );
+		$links   = 'cli' !== $where;
+		$done    = 0;
+		$pending = array();
+		$open    = array();
+		$ep      = false;
+		foreach ( $status as $row ) {
+			$name = (string) $row['name'] . ' (' . (string) $row['url'] . ')';
+			$link = $links && ! empty( $row['tool'] ) ? '<a href="' . esc_url( (string) $row['tool'] ) . '">' . esc_html( $name ) . '</a>' : esc_html( $name );
+			if ( 'done' === $row['status'] ) {
+				++$done;
+				$ep = $ep || ! empty( $row['ep_needed'] );
+				if ( ! empty( $row['pending'] ) ) {
+					$pending[] = $link;
+				}
+			} else {
+				$ep     = true;
+				$open[] = $link;
+			}
+		}
+		$summary = sprintf( 'Contenido migrado en %d de %d sitios', $done, count( $status ) ) . ( $pending ? sprintf( '; %d con asuntos por revisar', count( $pending ) ) : '' ) . '.';
+		$attention = array();
+		foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) {
+			$attention[] = esc_html( (string) $warning );
+		}
+		$attention = array_merge( $attention, self::network_notices( $job, $where ) );
+		if ( $open ) {
+			$attention[] = esc_html( 'Sitios sin terminar: vuelve a pulsar Migrar toda la red.' ) . ' ' . implode( ', ', $open ) . '.';
+		}
+		if ( $pending ) {
+			$attention[] = esc_html( 'Sitios con asuntos por revisar: el informe de cada uno dice qué hacer en cada documento.' ) . ' ' . implode( ', ', $pending ) . '.';
+		}
+		$deletable = array();
+		$still     = array();
+		foreach ( Retire::network_summary() as $row ) {
+			if ( $row['network'] ) {
+				$still[] = $row['label'] . ' (activo en toda la red)';
+			} elseif ( $row['sites'] ) {
+				$still[] = sprintf( '%s (activo en %d sitios)', $row['label'], (int) $row['sites'] );
+			} elseif ( $row['element_pack'] && $ep ) {
+				$still[] = $row['label'] . ' (desactivado, pero algún sitio aún tiene contenido suyo por convertir: no lo borres todavía)';
+			} else {
+				$deletable[] = $row['label'];
+			}
+		}
+		if ( $still ) {
+			$attention[] = esc_html( 'Aún no: ' . implode( ', ', $still ) . '. El informe de cada sitio explica por qué.' );
+		}
+		$plugin_html = $plugins && $deletable ? '<p>' . esc_html( 'Ya no están activos en ningún sitio de la red: puedes borrarlos desde Red → Plugins cuando hayas comprobado los sitios. La migración no los borra: ' . implode( ', ', $deletable ) . '.' ) . '</p>' : '';
+		$detail      = ! empty( $job['deactivated'] ) ? '<p>' . esc_html( 'Desactivados en toda la red: ' . implode( ', ', (array) $job['deactivated'] ) . '.' ) . '</p>' : '';
+		$detail     .= self::sites_table( $status );
+		return array(
+			'summary'   => $summary,
+			'plugins'   => $plugin_html,
+			'attention' => $attention,
+			'detail'    => $detail,
+			'pending'   => (bool) ( $attention ),
+		);
+	}
+
+	/** Avisos de la red (barrera vencida, sitios bloqueados, archivados o sin Elements), cada uno escapado. */
+	private static function network_notices( array $job, $where = 'site' ) {
+		$out   = array();
+		$links = 'cli' !== $where;
 		if ( ! empty( $job['unprepared'] ) ) {
-			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Element Pack se desactivó en la red al vencer el plazo sin que estos sitios terminaran de preparar sus plantillas (pueden haberse quedado un tiempo sin su cabecera de Element Pack): ' . self::site_names( (array) $job['unprepared'] ) . '.' ) . '</p></div>';
+			$out[] = esc_html( 'Element Pack se desactivó en la red al vencer el plazo sin que estos sitios terminaran de preparar sus plantillas (pueden haberse quedado un tiempo sin su cabecera de Element Pack): ' . self::site_names( (array) $job['unprepared'] ) . '.' );
 		}
 		if ( ! empty( $job['blocked'] ) ) {
 			// Cada sitio enlaza a su herramienta, donde el informe dice qué plantilla bloquea (con su enlace).
-			$links = array();
+			$names = array();
 			foreach ( (array) $job['blocked'] as $site_id ) {
 				$details = function_exists( 'get_blog_details' ) ? get_blog_details( (int) $site_id ) : null;
 				$name    = $details ? $details->blogname . ' (' . $details->siteurl . ')' : '#' . (int) $site_id;
-				$url     = function_exists( 'get_admin_url' ) ? get_admin_url( (int) $site_id, 'tools.php?page=' . Migration::PAGE ) : '';
-				$links[] = '' !== $url ? '<a href="' . esc_url( $url ) . '">' . esc_html( $name ) . '</a>' : esc_html( $name );
+				$url     = $links && function_exists( 'get_admin_url' ) ? get_admin_url( (int) $site_id, 'tools.php?page=' . Migration::PAGE ) : '';
+				$names[] = '' !== $url ? '<a href="' . esc_url( $url ) . '">' . esc_html( $name ) . '</a>' : esc_html( $name );
 			}
-			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Sitios con una cabecera o un pie de Element Pack visibles sin copia que pueda publicarse; Element Pack sigue activo en la red por ellos y nadie pierde su cabecera. Corrige la plantilla que indica su informe y vuelve a pulsar Migrar toda la red:' ) . ' ' . implode( ', ', $links ) . '.</p></div>';
+			$out[] = esc_html( 'Sitios con una cabecera o un pie de Element Pack visibles sin copia que pueda publicarse; Element Pack sigue activo en la red por ellos y nadie pierde su cabecera. Corrige la plantilla que indica su informe y vuelve a pulsar Migrar toda la red:' ) . ' ' . implode( ', ', $names ) . '.';
 		}
 		if ( ! empty( $job['excluded'] ) ) {
-			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Archivados, marcados como spam o borrados: no se migraron. Migrarán al volver a pulsar Migrar toda la red cuando estén activos: ' . self::site_names( (array) $job['excluded'] ) . '.' ) . '</p></div>';
+			$out[] = esc_html( 'Archivados, marcados como spam o borrados: no se migraron. Migrarán al volver a pulsar Migrar toda la red cuando estén activos: ' . self::site_names( (array) $job['excluded'] ) . '.' );
 		}
 		if ( ! empty( $job['skipped'] ) ) {
-			$names = array();
-			foreach ( (array) $job['skipped'] as $site_id ) {
-				$details = get_blog_details( (int) $site_id );
-				$names[] = $details ? $details->blogname . ' (' . $details->siteurl . ')' : '#' . (int) $site_id;
-			}
-			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Sin DIGITALÍSIMO Elements activo, no se tocaron: ' . implode( ', ', $names ) . '.' ) . '</p></div>';
+			$out[] = esc_html( 'Sin DIGITALÍSIMO Elements activo, no se tocaron: ' . self::site_names( (array) $job['skipped'] ) . '.' );
 		}
-		$html     .= '<table class="widefat striped digi-migrate__sites"><thead><tr><th>Sitio</th><th>Estado</th><th>Resultado</th><th></th></tr></thead><tbody>';
-		$ep_needed = false;
+		return $out;
+	}
+
+	/** Tabla del estado de cada sitio de la red, con el enlace a su informe. */
+	private static function sites_table( array $status ) {
+		$html = '<table class="widefat striped digi-migrate__sites"><thead><tr><th scope="col">Sitio</th><th scope="col">Estado</th><th scope="col">Resultado</th><th scope="col"><span class="screen-reader-text">Informe</span></th></tr></thead><tbody>';
 		foreach ( $status as $site_id => $row ) {
 			$c = (array) ( $row['counts'] ?? array() );
 			if ( 'done' === $row['status'] ) {
-				$ep_needed = $ep_needed || ! empty( $row['ep_needed'] );
-				$state     = ! empty( $row['pending'] ) ? 'Terminado, con asuntos por revisar' : 'Terminado';
-				$f8        = (array) ( $row['f8'] ?? array() );
-				$result    = sprintf( '%d documentos y %d revisiones convertidos, %d con widgets fusionados actualizados', (int) ( $c['converted'] ?? 0 ), (int) ( $c['revisions'] ?? 0 ), (int) ( $c['aliases'] ?? 0 ) )
+				$state  = ! empty( $row['pending'] ) ? 'Terminado, con asuntos por revisar' : 'Terminado';
+				$f8     = (array) ( $row['f8'] ?? array() );
+				$result = sprintf( '%d documentos y %d revisiones convertidos, %d con widgets fusionados actualizados', (int) ( $c['converted'] ?? 0 ), (int) ( $c['revisions'] ?? 0 ), (int) ( $c['aliases'] ?? 0 ) )
 					. ( ! empty( $c['pro'] ) ? sprintf( ', %d con widgets de PRO convertidos', (int) $c['pro'] ) : '' ) . ( ! empty( $c['deactivated'] ) ? '; desactivados: ' . implode( ', ', (array) $c['deactivated'] ) : '' )
 					. ( ! empty( $c['copies'] ) ? sprintf( '; plantillas: %d', (int) $c['copies'] ) : '' )
 					. ( $f8 ? sprintf( '; creado: %d, con diferencias: %d, pendientes: %d', (int) ( $f8['created'] ?? 0 ), (int) ( $f8['approx'] ?? 0 ), (int) ( $f8['review'] ?? 0 ) ) : '' )
 					. ( ! empty( $row['dropped'] ) ? sprintf( '; efectos heredados sin equivalente en %d documentos', (int) $row['dropped'] ) : '' )
 					. ( ! empty( $row['kept'] ) ? '; sin desactivar: ' . implode( ', ', (array) $row['kept'] ) : '' );
 			} elseif ( 'running' === $row['status'] ) {
-				$ep_needed = true;
-				$state     = ! empty( $row['waiting'] ) ? 'Esperando a la red' : 'En marcha';
-				$result    = self::LABELS[ $row['stage'] ] ?? (string) $row['stage'];
+				$state  = ! empty( $row['waiting'] ) ? 'Esperando a la red' : 'En marcha';
+				$result = self::LABELS[ $row['stage'] ] ?? (string) $row['stage'];
 			} else {
-				$ep_needed = true;
-				$state     = 'Sin tarea';
-				$result    = 'Vuelve a pulsar Migrar toda la red.';
+				$state  = 'Sin tarea';
+				$result = 'Vuelve a pulsar Migrar toda la red.';
 			}
 			$html .= '<tr data-site="' . (int) $site_id . '"><td><strong>' . esc_html( (string) $row['name'] ) . '</strong><br><code>' . esc_html( (string) $row['url'] ) . '</code></td><td class="digi-migrate__site-status">' . esc_html( $state ) . '</td><td>' . esc_html( $result ) . '</td><td><a href="' . esc_url( (string) $row['tool'] ) . '">Informe del sitio</a></td></tr>';
 		}
-		$html .= '</tbody></table>';
-		if ( ! empty( $job['done'] ) ) {
-			$deletable = array();
-			$still     = array();
-			foreach ( Retire::network_summary() as $row ) {
-				if ( $row['network'] ) {
-					$still[] = $row['label'] . ' (activo en toda la red)';
-				} elseif ( $row['sites'] ) {
-					$still[] = sprintf( '%s (activo en %d sitios)', $row['label'], (int) $row['sites'] );
-				} elseif ( $row['element_pack'] && $ep_needed ) {
-					$still[] = $row['label'] . ' (desactivado, pero algún sitio aún tiene contenido suyo por convertir: no lo borres todavía)';
-				} else {
-					$deletable[] = $row['label'];
-				}
-			}
-			if ( $deletable ) {
-				$html .= '<p>' . esc_html( 'Ya no están activos en ningún sitio de la red: puedes borrarlos desde Red → Plugins cuando hayas comprobado los sitios. La migración no los borra: ' . implode( ', ', $deletable ) . '.' ) . '</p>';
-			}
-			if ( $still ) {
-				$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Aún no: ' . implode( ', ', $still ) . '. El informe de cada sitio explica por qué.' ) . '</p></div>';
-			}
-
-		}
-		return $html;
+		return $html . '</tbody></table>';
 	}
 }

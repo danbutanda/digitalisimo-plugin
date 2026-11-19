@@ -216,6 +216,7 @@ jobs:
           php tests/migration-dropped-extensions.php
           php tests/migration-detection.php
           php tests/migration-report.php
+          php tests/migration-report-summary.php
           php tests/migration-legacy-baseline.php
           php tests/migration-end-to-end.php
           php tests/migration-scale.php

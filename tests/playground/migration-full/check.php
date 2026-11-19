@@ -38,6 +38,9 @@ foreach ( $network ? get_sites( array( 'fields' => 'ids' ) ) : array( get_curren
 		'home_text'  => false !== strpos( $body, 'Vivero' ) || false !== strpos( $body, 'Segundo' ),
 		'fatal'      => false !== stripos( $body, 'critical error' ) || false !== stripos( $body, 'Fatal error' ),
 		'content'    => is_array( get_option( 'fake_runner_report' ) ) ? 'fake' : ( is_array( get_option( 'digitalisimo_migration_report' ) ) ? 'done' : 'missing' ),
+		'quote'      => (int) get_option( 'digi_probe_blockquote' ),
+		'cart'       => (int) get_option( 'digi_probe_woocommerce-cart' ),
+		'quote_type' => (string) ( json_decode( (string) get_post_meta( (int) get_option( 'digi_probe_blockquote' ), '_elementor_data', true ), true )[0]['elements'][0]['widgetType'] ?? '' ),
 	);
 	if ( $network ) {
 		restore_current_blog();

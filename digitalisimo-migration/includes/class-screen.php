@@ -55,6 +55,31 @@ final class Screen {
 		return $html;
 	}
 
+	/** ¿Hay una migración completa terminada y ninguna en marcha? Entonces el análisis se pliega bajo su informe. */
+	public static function finished( $network ) {
+		$state = Full::load( $network );
+		if ( $state && empty( $state['done'] ) ) {
+			return false;
+		}
+		$last = $state ? $state : Full::last( $network );
+		return is_array( $last ) && ! empty( $last['done'] );
+	}
+
+	/**
+	 * Apertura del desplegable del análisis (lo que hará Migrar, lo que hay en el sitio): abierto mientras no hay informe;
+	 * cerrado debajo del informe cuando la migración terminó (migrate.js lo cierra al terminar en la pantalla). Se cierra
+	 * con analysis_close().
+	 */
+	public static function analysis_open( $finished, $network = false ) {
+		$before = $network ? 'Análisis de la red: lo que hará Migrar toda la red' : 'Análisis del sitio: lo que hará Migrar';
+		$after  = $network ? 'Ver el análisis de la red (lo que haría Migrar toda la red si lo pulsas otra vez)' : 'Ver el análisis del sitio (lo que haría Migrar si lo pulsas otra vez)';
+		return '<details class="digi-migrate__before"' . ( $finished ? '' : ' open' ) . ' data-done-label="' . esc_attr( $after ) . '"><summary>' . esc_html( $finished ? $after : $before ) . '</summary>';
+	}
+
+	public static function analysis_close() {
+		return '</details>';
+	}
+
 	/** Estado de la tarea completa (en marcha o la última) para la pantalla. */
 	public static function full_status( $network ) {
 		$state = Full::load( $network );
@@ -103,7 +128,9 @@ final class Screen {
 		if ( $theme['hello'] && ! $theme['child'] ) {
 			$deleted[] = 'Hello Elementor';
 		}
-		$html .= '<tr><td>' . esc_html( 'Tema: ' . $theme['name'] ) . '</td><td>' . esc_html( $theme['hello'] || $theme['own'] ? 'Tema DIGITALÍSIMO' : '—' ) . '</td><td>' . esc_html( $theme['hello'] ? 'Logo, menús, CSS adicional y ajustes de Hello pasan al tema propio; la cabecera y el pie, a plantillas de DIGITALÍSIMO Elements.' : '—' ) . '</td><td>' . esc_html( self::theme_text( $network, $theme ) ) . '</td></tr>';
+		// Un tema hijo de Hello se queda: nada en su fila sugiere que algo pase al tema propio.
+		$moves = $theme['hello'] && ! $theme['child'];
+		$html .= '<tr><td>' . esc_html( 'Tema: ' . $theme['name'] ) . '</td><td>' . esc_html( $moves || $theme['own'] ? 'Tema DIGITALÍSIMO' : '—' ) . '</td><td>' . esc_html( $moves ? 'Logo, menús, CSS adicional y ajustes de Hello pasan al tema propio; la cabecera y el pie, a plantillas de DIGITALÍSIMO Elements.' : '—' ) . '</td><td>' . esc_html( self::theme_text( $network, $theme ) ) . '</td></tr>';
 		if ( ! $plan['rows'] && ! $theme['hello'] ) {
 			$html .= '<tr><td colspan="4">' . esc_html( 'Ningún plugin de este sitio tiene reemplazo DIGITALÍSIMO.' ) . '</td></tr>';
 		}
@@ -146,7 +173,7 @@ final class Screen {
 			return;
 		}
 		echo self::control( false, $status, $running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en control() y en Full::render().
-		echo self::plan_html( false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en plan_html().
+		echo self::analysis_open( self::finished( false ) ) . self::plan_html( false ) . self::analysis_close(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en analysis_open() y plan_html().
 		echo '</div>';
 	}
 
@@ -158,7 +185,7 @@ final class Screen {
 		echo '<div class="wrap digi-migrate-wrap"><h1>' . esc_html( 'Migrar a DIGITALÍSIMO en la red' ) . '</h1>';
 		echo '<p>' . esc_html( self::intro( true ) ) . '</p>';
 		echo self::control( true, $status, $running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en control() y en Full::render().
-		echo self::plan_html( true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en plan_html().
+		echo self::analysis_open( self::finished( true ), true ) . self::plan_html( true ) . self::analysis_close(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en analysis_open() y plan_html().
 		echo '</div>';
 	}
 }

@@ -3,7 +3,8 @@
  * reloj virtual. Comprueba que `wait_network` termina drive() y la pantalla del sitio vuelve a preguntar cada 15 s;
  * que la de red conduce los sitios de dos en dos, sin más de una petición en vuelo por sitio ni más de una cada 5 s por
  * sitio, no conduce a los que esperan, pide el paso de red (que libera) y conduce después a los liberados (tres fases);
- * que el resumen se pide cada 15 s cuando no hay nada que conducir; y que el análisis previo avanza por trozos sin botón.
+ * que el resumen se pide cada 15 s cuando no hay nada que conducir; que el análisis previo avanza por trozos sin botón;
+ * y que, al terminar, el análisis se pliega bajo el informe (sitio y red) y no antes.
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -32,6 +33,7 @@ function element(tag) {
 		get firstChild() { return this.children[0] || null; },
 		getAttribute(name) { return Object.prototype.hasOwnProperty.call(this.attrs, name) ? this.attrs[name] : null; },
 		setAttribute(name, value) { this.attrs[name] = String(value); },
+		removeAttribute(name) { delete this.attrs[name]; },
 		appendChild(child) { this.children.push(child); child.parentNode = this; return child; },
 		insertBefore(child, ref) {
 			const i = ref ? this.children.indexOf(ref) : -1;
@@ -49,7 +51,7 @@ function element(tag) {
  * Entorno: reloj virtual, temporizadores ordenados y `fetch` que responde con `handler(url, body)` tras `latency` ms.
  * Registra cada petición con su hora, su sitio y las que había en vuelo para ese sitio.
  */
-function environment({ network, running = '0', handler, analysis = null, latency = 100 }) {
+function environment({ network, running = '0', handler, analysis = null, before = null, latency = 100 }) {
 	let now = 1_000_000;
 	let seq = 0;
 	const timers = [];
@@ -63,7 +65,7 @@ function environment({ network, running = '0', handler, analysis = null, latency
 	root.query = { '.digi-migrate__button': button, '.digi-migrate__status': status };
 	const document = {
 		getElementById: (id) => (id === 'digi-migrate' ? root : null),
-		querySelector: (sel) => (sel === '.digi-migrate__analysis' ? analysis : null),
+		querySelector: (sel) => (sel === '.digi-migrate__analysis' ? analysis : sel === '.digi-migrate__before' ? before : null),
 		createElement: (tag) => element(tag),
 		createTextNode: (text) => ({ textContent: text }),
 	};
@@ -309,6 +311,63 @@ function environment({ network, running = '0', handler, analysis = null, latency
 	check(hits.length === 3 && hits.every((r) => r.body._ajax_nonce === 'n'), 'El análisis pide trozos con el nonce de la herramienta hasta terminar.');
 	check(box.innerHTML === 'Lo que hará Migrar' && box.getAttribute('data-done') === '1', 'Y pinta el resultado.');
 	check(env.log.every((r) => r.body.action === 'digitalisimo_migration_analyze'), 'Sin pulsar nada, no arranca ninguna migración.');
+}
+
+/* ================================================================ Al terminar, el análisis se pliega bajo el informe */
+/** El desplegable del análisis, abierto como lo pinta la pantalla antes de migrar. */
+function beforeBox() {
+	const box = element('details');
+	const summary = element('summary');
+	summary.textContent = 'Análisis del sitio: lo que hará Migrar';
+	box.attrs = { open: '', 'data-done-label': 'Ver el análisis del sitio (lo que haría Migrar si lo pulsas otra vez)' };
+	box.query = { summary };
+	box.summary = summary;
+	return box;
+}
+{
+	const before = beforeBox();
+	let calls = 0;
+	const env = environment({
+		network: false,
+		before,
+		handler: () => {
+			calls++;
+			return calls < 3 ? { stage: 'content', html: 'Migrando' } : { stage: 'finish', done: true, html: 'Migración completada.' };
+		},
+	});
+	env.start();
+	env.button.listeners.click();
+	await env.run(250);
+	check(before.getAttribute('open') === '' && calls < 3, 'Mientras migra, el análisis sigue abierto.');
+	await env.run(5000);
+	check(env.status.innerHTML === 'Migración completada.' && before.getAttribute('open') === null, 'Al terminar, el análisis se pliega bajo el informe.');
+	check(before.summary.textContent === 'Ver el análisis del sitio (lo que haría Migrar si lo pulsas otra vez)', 'Y su título dice que es lo que haría Migrar otra vez.');
+}
+{
+	// Una pasada que se corta (la pantalla pierde la conexión) no lo pliega: no hay informe terminado.
+	const before = beforeBox();
+	const env = environment({ network: false, before, handler: () => { throw new Error('502'); } });
+	env.start();
+	env.button.listeners.click();
+	await env.run(60000);
+	check(before.getAttribute('open') === '' && env.button.disabled === false, 'Si la pantalla no llega al final, el análisis no se pliega.');
+}
+{
+	// Red: al terminar la migración de la red, igual.
+	const before = beforeBox();
+	let calls = 0;
+	const env = environment({
+		network: true,
+		before,
+		handler: () => {
+			calls++;
+			return calls < 3 ? { stage: 'backup', again: true, sites: [], html: 'Respaldo' } : { stage: 'finish', done: true, sites: [], html: 'Migración completada.' };
+		},
+	});
+	env.start();
+	env.button.listeners.click();
+	await env.run(5000);
+	check(calls >= 3 && before.getAttribute('open') === null, 'En la red, el análisis también se pliega al terminar.');
 }
 
 console.log(`DIGITALÍSIMO Migración: pantalla con la barrera de red: ${checks} comprobaciones en verde.`);

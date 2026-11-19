@@ -50,6 +50,17 @@
 		if (button) button.disabled = false;
 	}
 
+	// Al terminar, el análisis previo (lo que hará Migrar, lo que hay en el sitio) se pliega bajo el informe, como lo
+	// pinta la pantalla al volver a abrirla: el resultado y lo que necesita atención quedan arriba, sin repetirse.
+	function foldAnalysis(data) {
+		var before = data && data.done ? document.querySelector('.digi-migrate__before') : null;
+		if (!before) return;
+		before.removeAttribute('open');
+		var summary = before.querySelector('summary');
+		var label = before.getAttribute('data-done-label');
+		if (summary && label) summary.textContent = label;
+	}
+
 	// La tarea de un sitio, paso a paso, hasta que termina o espera a la red. Tolera fallos pasajeros (un 502, un tiempo
 	// agotado) y, si se pidió crearla, lo sigue pidiendo hasta que el servidor confirma que existe.
 	function drive(url, siteNonce, start, render) {
@@ -84,7 +95,7 @@
 				return data;
 			});
 		}
-		go(start).then(finish, function (error) {
+		go(start).then(function (data) { foldAnalysis(data); finish(); }, function (error) {
 			status.appendChild(notice('La migración se detuvo en esta pantalla (' + error.message + '). Sigue en segundo plano y continúa al volver a abrirla.'));
 			finish();
 		});
@@ -159,7 +170,7 @@
 				status.appendChild(notice(data.error));
 				return finish();
 			}
-			if (data.done || data.idle) return finish();
+			if (data.done || data.idle) { foldAnalysis(data); return finish(); }
 			var now = Date.now();
 			var sites = (data.sites || []).filter(function (site) {
 				return !site.waiting && !unreachable[site.id] && !inflight[site.id] && (!last[site.id] || now - last[site.id] >= MIN_SITE);

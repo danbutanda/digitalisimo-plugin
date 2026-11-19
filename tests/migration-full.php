@@ -368,6 +368,14 @@ namespace Digitalisimo\Elements\Legacy {
 		}
 
 		public static function render( $state ) { return '<p>contenido</p>'; }
+		/** Partes del informe para el de la tarea completa: con `content_attention`, un asunto pendiente. */
+		public static function report_parts( array $state, $where = 'site', $level = 3, $plugins = false ) {
+			$attention = ! empty( $GLOBALS['t']['content_attention'] ) ? array( 'Revisa <a href="#">Portada</a>.' ) : array();
+			return array( 'summary' => 'contenido convertido', 'plugins' => '', 'attention' => $attention, 'detail' => '<p>detalle del contenido</p>', 'pending' => (bool) $attention );
+		}
+		public static function network_parts( $job, $where = 'site', $level = 3, $plugins = false ) {
+			return array( 'summary' => 'contenido de la red', 'plugins' => '', 'attention' => array(), 'detail' => '<p>detalle de la red</p>', 'pending' => false );
+		}
 		public static function site_step( $start = false, $budget = null, $capable = null, $run = '' ) {
 			$GLOBALS['t']['runner_calls'] = (int) ( $GLOBALS['t']['runner_calls'] ?? 0 ) + 1;
 			$job = self::state();
@@ -681,6 +689,15 @@ switch ( $scenario ) {
 		foreach ( array( 'Respaldo', 'Instalado y activado', 'Importado', 'Reemplazado', 'Borrado', 'Tema', 'restaura el respaldo' ) as $needle ) {
 			check( false !== strpos( $html, $needle ), "El informe dice «{$needle}»." );
 		}
+		// El informe corto: el contenido en una fila, «Nada necesita tu atención» en una línea y el detalle plegado.
+		check( false !== strpos( $html, '<th scope="row">Contenido</th><td>contenido convertido</td>' ) && false !== strpos( $html, 'Nada necesita tu atención.' ) && false !== strpos( $html, '<details class="digi-migrate__detail"><summary>Detalle</summary><h3>Contenido</h3><p>detalle del contenido</p></details>' ), 'El contenido va en una fila, sin asuntos lo dice en una línea y el detalle va plegado.' );
+		check( false !== strpos( $html, 'Responden igual: 2 de 2.' ), 'La portada dice cuántas responden igual.' );
+		$GLOBALS['t']['content_attention'] = true;
+		$html = Full::render( false, $last );
+		check( false !== strpos( $html, '<h2 class="digi-migrate__attention-title">Necesita tu atención</h2><ul class="digi-migrate__attention" style="list-style:disc;margin-left:20px"><li>Revisa <a href="#">Portada</a>.</li></ul>' ) && strpos( $html, 'Necesita tu atención' ) < strpos( $html, '<details' ) && false === strpos( $html, 'Nada necesita' ), 'Lo que pide algo a una persona va antes del detalle, con su enlace.' );
+		$cli = Full::text( Full::render( false, $last, 'cli' ) );
+		check( false === strpos( $cli, '<' ) && false !== strpos( $cli, "Necesita tu atención\nRevisa Portada." ) && false !== strpos( $cli, 'Respaldo · backup-1.zip' ), 'WP-CLI da el mismo resumen en texto: ' . $cli );
+		unset( $GLOBALS['t']['content_attention'] );
 		check( ! get_option( Full::JOB ) && empty( $GLOBALS['t']['cron'][ Full::CRON ] ), 'La tarea se cierra y se quita su continuación.' );
 		check( in_array( 'activation_hook:1', $GLOBALS['t']['log'], true ) && false === get_transient( 'elementor_activation_redirect' ), 'Migrar no deja la redirección de activación de Elements: la próxima pantalla no salta a su bienvenida.' );
 		break;
@@ -702,6 +719,7 @@ switch ( $scenario ) {
 		check( 'hello-elementor' === get_option( 'stylesheet' ), 'No cambia el tema.' );
 		nothing_deleted();
 		check( false !== strpos( Full::render( false, $last ), 'No se borró nada' ), 'El informe dice que no se borró nada.' );
+		check( false !== strpos( Full::render( false, $last ), '<li>Resuelve lo que dice el aviso de arriba y vuelve a pulsar Migrar' ) && false === strpos( Full::render( false, $last ), 'Nada necesita' ), 'Una migración detenida pide atención: nunca dice que no hay nada.' );
 		break;
 
 	case 'install_fails':

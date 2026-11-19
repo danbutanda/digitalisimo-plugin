@@ -1006,6 +1006,8 @@ final class Migration {
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		if ( is_multisite() ) {
 			// En un sitio de una red, el botón de siempre: la tarea de contenido de este sitio.
+			$report   = Runner::report();
+			$finished = ! $running && is_array( $report ) && ! empty( $report['done'] );
 			self::assets();
 			echo '<div id="digi-migrate" class="digi-migrate" data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( Runner::AJAX . '_' . get_current_blog_id() ) ) . '" data-network="0" data-running="' . ( $running ? '1' : '0' ) . '">';
 			echo '<p><button type="button" class="button button-primary button-hero digi-migrate__button"' . ( $running ? ' disabled' : '' ) . '>Migrar</button></p>';
@@ -1014,7 +1016,12 @@ final class Migration {
 		} else {
 			// Un sitio individual: la tarea completa (respaldo, instalación, contenido, importación, tema y limpieza).
 			list( $status, $full_running ) = \Digitalisimo\Migration\Screen::full_status( false );
+			$finished                      = \Digitalisimo\Migration\Screen::finished( false );
 			echo \Digitalisimo\Migration\Screen::control( false, $status, $full_running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen y Full.
+		}
+		// Con la migración terminada, el análisis (lo que hará Migrar, lo que hay en el sitio) se pliega bajo el informe.
+		echo \Digitalisimo\Migration\Screen::analysis_open( $finished ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen.
+		if ( ! is_multisite() ) {
 			echo \Digitalisimo\Migration\Screen::plan_html( false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen.
 		}
 		echo '<h2>Qué hay en este sitio</h2>';
@@ -1030,7 +1037,7 @@ final class Migration {
 		$done = is_array( $cached ) && ! empty( $cached['done'] ) && Pro::current( $cached['pro'] ?? null );
 		$html = $done ? self::analysis_html( self::analysis_result( $cached ) ) : self::analysis_html( array( 'done' => false, 'processed' => 0, 'total' => 0 ) );
 		echo '<div class="digi-migrate__analysis" data-action="' . esc_attr( self::ANALYZE ) . '" data-done="' . ( $done ? '1' : '0' ) . '">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Report y Pro.
-		echo '</div>';
+		echo \Digitalisimo\Migration\Screen::analysis_close() . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- marcado fijo.
 	}
 
 	/* ---------------------------------------------------------------- Análisis previo por trozos (V.3.5, §3.G) */
@@ -1239,9 +1246,13 @@ final class Migration {
 			}
 			return '<p class="digi-migrate__analyzing">' . esc_html( sprintf( 'Analizando… (%d de %d)', (int) $result['processed'], (int) $result['total'] ) ) . '</p>';
 		}
-		$report = (array) ( $result['report'] ?? array() );
-		$html   = Report::render( $report, 'site' );
-		$html   = '' !== $html ? '<h3>' . esc_html( 'Lo que hará Migrar' ) . '</h3>' . $html : '<p>' . esc_html( 'Nada más que convertir en plantillas, efectos, Prime Slider, contenido conservado ni widgets de PRO.' ) . '</p>';
+		// Como el informe final: lo pendiente arriba, lo demás agregado y, plegado, por documento. Su encabezado no repite
+		// el de «Lo que hará Migrar» del plan, que va antes.
+		$report  = (array) ( $result['report'] ?? array() );
+		$digest  = Report::digest( $report );
+		$pending = Report::attention( $report, 'site', $digest );
+		$html    = ( $pending ? '<h4>' . esc_html( 'Pendiente de revisar' ) . '</h4><ul class="digi-migrate__attention" style="list-style:disc;margin-left:20px"><li>' . implode( '</li><li>', $pending ) . '</li></ul>' : '' ) . Report::render_detail( $report, 'site', 4, $digest );
+		$html    = '' !== $html ? '<h3>' . esc_html( 'Lo que hará Migrar en el contenido' ) . '</h3>' . $html : '<p>' . esc_html( 'Nada más que convertir en plantillas, efectos, Prime Slider, contenido conservado ni widgets de PRO.' ) . '</p>';
 		if ( isset( $result['pro'] ) && is_array( $result['pro'] ) ) {
 			$html .= Pro::table_html( Pro::describe( $result['pro'] ) );
 		}
@@ -1339,6 +1350,7 @@ final class Migration {
 		echo '<p>' . esc_html( \Digitalisimo\Migration\Screen::intro( true ) ) . '</p>';
 		list( $status, $full_running ) = \Digitalisimo\Migration\Screen::full_status( true );
 		echo \Digitalisimo\Migration\Screen::control( true, $status, $full_running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen y Full.
+		echo \Digitalisimo\Migration\Screen::analysis_open( \Digitalisimo\Migration\Screen::finished( true ), true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen.
 		echo \Digitalisimo\Migration\Screen::plan_html( true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen.
 		echo '<h2>Estado de cada sitio</h2>';
 		echo '<table class="widefat striped"><thead><tr><th>Sitio</th><th>Elementos compatibles</th><th>Sin adaptador</th><th>Documentos pendientes de convertir</th><th>Widgets fusionados</th><th>Widgets de PRO</th><th>Plugins sustituidos activos en el sitio</th><th>Sin equivalente</th><th>Última migración</th><th></th></tr></thead><tbody>';
@@ -1389,6 +1401,6 @@ final class Migration {
 		if ( class_exists( __NAMESPACE__ . '\\Platform\\Inventory' ) && method_exists( __NAMESPACE__ . '\\Platform\\Inventory', 'network_app_passwords' ) ) {
 			echo Platform\Inventory::app_passwords_html( (array) Platform\Inventory::network_app_passwords(), 'network' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Inventory.
 		}
-		echo '</div>';
+		echo \Digitalisimo\Migration\Screen::analysis_close() . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- marcado fijo.
 	}
 }
