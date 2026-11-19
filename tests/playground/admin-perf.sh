@@ -42,15 +42,15 @@ MOUNTS=("--mount=${ELEMENTS_DIR:-$ROOT/digitalisimo-elements}:/wordpress/wp-cont
 fuser -k -n tcp "$PORT" >/dev/null 2>&1 || true
 sleep 1
 STARTED=$(date +%s)
+# Una red Multisite no admite puertos: el sitio se llama admin-perf-red.test y el conductor resuelve ese nombre al puerto.
+SITE_URL="http://127.0.0.1:$PORT"; RESOLVE=''
+[ "$MULTI" = 1 ] && SITE_URL="http://admin-perf-red.test" && RESOLVE="127.0.0.1:$PORT"
 if [ "${NATIVE:-0}" = 1 ]; then
   # PHP nativo con OPcache y SQLite (admin-perf/native.sh): mismo sitio, mismo conductor; sin red ni idioma.
   . "$A/native.sh"
   trap 'kill $SERVER 2>/dev/null; rm -rf "$WP"' EXIT
   for i in $(seq 1 60); do sleep 1; curl -s -m 30 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/wp-login.php" | grep -q '^200$' && break; done
 else
-# Una red Multisite no admite puertos: el sitio se llama admin-perf-red.test y el conductor resuelve ese nombre al puerto.
-SITE_URL="http://127.0.0.1:$PORT"; RESOLVE=''
-[ "$MULTI" = 1 ] && SITE_URL="http://admin-perf-red.test" && RESOLVE="127.0.0.1:$PORT"
 $CLI server --port="$PORT" --php="$PHP" --workers=1 --site-url="$SITE_URL" --blueprint="$OUT/blueprint.json" \
   "${MOUNTS[@]}" --mount="$OUT:/wordpress/wp-content/probe" > "$OUT/server.log" 2>&1 &
 SERVER=$!
