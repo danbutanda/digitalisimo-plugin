@@ -1008,7 +1008,7 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 		$this->s['entries']++;
 		if ( $this->s['entries'] > Digitalisimo_Backups_Archive_Inspector::max_entries() ) $this->fail( 'tiene más de ' . Digitalisimo_Backups_Archive_Inspector::max_entries() . ' entradas, el máximo permitido (DIGITALISIMO_BACKUPS_MAX_ENTRIES).' );
 		// La carpeta `.` abre cada tramo: el primero, los datos de la cuenta; el segundo, su home.
-		if ( '' === trim( preg_replace( '#^(?:\./)+|^\.$#', '', rtrim( $raw, '/' ) . '/' ), '/' ) && ( '5' === $type || ( in_array( $type, array( '0', "\0" ), true ) && 0 === $header['size'] ) ) ) {
+		if ( preg_match( '#^\.(?:/\.)*/?$#D', $raw ) && ( '5' === $type || ( in_array( $type, array( '0', "\0" ), true ) && 0 === $header['size'] ) ) ) {
 			$this->s['dots']++;
 			return $this->begin( 'skip', 0, 0, array() );
 		}

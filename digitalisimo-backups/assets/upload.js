@@ -303,7 +303,7 @@
       heading = 'Respaldo de cuenta de Webuzo subido';
       importFile = result.webuzo && result.webuzo.name || result.file;
       importKind = 'webuzo';
-      lines.push({ text: 'Quedó en el almacén privado como ' + result.file + ': impórtalo para elegir su WordPress y convertirlo en un respaldo de Backups (no toca el sitio). La importación se sigue en este mismo panel.' });
+      lines.push({ text: 'Quedó en el almacén privado como ' + result.file + '. La importación (no toca el sitio) se sigue en este mismo panel.' });
     } else if (result.container === 'backuply') {
       heading = 'Respaldo de Backuply subido';
       importFile = result.backuply && result.backuply.name || result.file;
