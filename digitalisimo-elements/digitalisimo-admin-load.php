@@ -16,6 +16,8 @@
  *    carga a demanda: un cargador mínimo lo trae, en el mismo orden y con sus datos, sólo si el navegador expone
  *    WebMCP. El editor del constructor no cambia (sus paquetes se cargan por su propia lista). Con el plugin Elementor
  *    original activo, manda él y el MCP se encola como siempre.
+ * 3. Las hojas de Roboto desde Google Fonts que el núcleo encola en toda la administración (una petición a un tercero
+ *    desde el navegador en cada pantalla) no se cargan con el núcleo incluido: esa interfaz usa la fuente del sistema.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -40,6 +42,29 @@ final class Digitalisimo_Elements_Admin_Load {
 		add_action( 'shutdown', array( __CLASS__, 'learn' ), 0 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'defer_browser_mcp' ), 21 );
 		add_action( 'admin_print_footer_scripts', array( __CLASS__, 'print_browser_mcp_loader' ), 50 );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'drop_remote_fonts' ), 100 );
+	}
+
+	/**
+	 * Hojas de fuentes remotas que el núcleo encola en la administración: Roboto desde Google Fonts en todas las
+	 * pantallas (`elementor-one-admin-fonts`) y en las del constructor (`elementor-admin-top-bar-fonts`). Cada pantalla
+	 * pedía dos archivos a un tercero desde el navegador del administrador; sin ellas, esa interfaz usa la fuente del
+	 * sistema. Sólo con el núcleo incluido (con el plugin Elementor original, manda él).
+	 */
+	const REMOTE_FONTS = array( 'elementor-one-admin-fonts', 'elementor-admin-top-bar-fonts' );
+
+	public static function drop_remote_fonts() {
+		if ( ! class_exists( 'Digitalisimo_Elements_Core' ) || ! Digitalisimo_Elements_Core::bundled() ) {
+			return array();
+		}
+		$dropped = array();
+		foreach ( self::REMOTE_FONTS as $handle ) {
+			if ( wp_style_is( $handle, 'enqueued' ) ) {
+				wp_dequeue_style( $handle );
+				$dropped[] = $handle;
+			}
+		}
+		return $dropped;
 	}
 
 	/**

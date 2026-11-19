@@ -39,6 +39,9 @@ namespace {
 	function wp_dequeue_script( $handle ) { $GLOBALS['dequeued'][] = $handle; unset( $GLOBALS['enqueued'][ $handle ] ); }
 	function wp_cache_get( $key, $group ) { return 'notoptions' === $key && 'options' === $group ? $GLOBALS['notoptions'] : false; }
 	function wp_json_encode( $value, $flags = 0 ) { return json_encode( $value, $flags ); }
+	$GLOBALS['styles'] = array( 'elementor-one-admin-fonts' => true, 'elementor-admin-top-bar-fonts' => true, 'elementor-admin' => true );
+	function wp_style_is( $handle, $list = 'enqueued' ) { return ! empty( $GLOBALS['styles'][ $handle ] ); }
+	function wp_dequeue_style( $handle ) { unset( $GLOBALS['styles'][ $handle ] ); }
 	final class Digitalisimo_Elements_Core {
 		public static function bundled() { return $GLOBALS['bundled']; }
 	}
@@ -131,6 +134,12 @@ namespace {
 	$GLOBALS['enqueued'] = array();
 	$L::defer_browser_mcp();
 	check( array() === $GLOBALS['dequeued'], 'Si el núcleo no lo encoló, no se toca nada.' );
+
+	// Fuentes remotas del núcleo: fuera con el núcleo incluido; el resto de hojas sigue; con el plugin original, nada.
+	$GLOBALS['bundled'] = false;
+	check( array() === $L::drop_remote_fonts() && 3 === count( $GLOBALS['styles'] ), 'Con el plugin Elementor original no se quita ninguna hoja.' );
+	$GLOBALS['bundled'] = true;
+	check( array( 'elementor-one-admin-fonts', 'elementor-admin-top-bar-fonts' ) === $L::drop_remote_fonts() && array( 'elementor-admin' => true ) === $GLOBALS['styles'], 'Con el núcleo incluido no se piden las fuentes de Google en la administración; las demás hojas siguen.' );
 
 	// El arranque: se carga antes que el núcleo, para que la consulta única llegue antes que las individuales.
 	$main = (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/pro-elements.php' );
