@@ -1,6 +1,6 @@
-# DIGITALÍSIMO Elements @NEXT_ELEMENTS@
+# DIGITALÍSIMO Elements 4.3.0.189
 
-- @NEXT_ELEMENTS@ (auditoría del escritorio del 2026-11-18: que el escritorio no se vuelva más lento con Elements). Ningún archivo de `elementor/` se toca; medida antes/después con `tests/playground/admin-perf.sh`.
+- 4.3.0.189 (auditoría del escritorio del 2026-11-18: que el escritorio no se vuelva más lento con Elements). Ningún archivo de `elementor/` se toca; medida antes/después con `tests/playground/admin-perf.sh`.
   1. **Una consulta en lugar de ~48** (`digitalisimo-admin-load.php`): las opciones del constructor que faltan en cada petición (experimentos sin guardar, ajustes nunca tocados) se anotan en el escritorio, AJAX, REST y cron (sin nombres con ID; una opción que ya existe sale de la lista) y se piden juntas con `wp_prime_option_caches()` antes de cargar el núcleo, salvo con caché de objetos persistente; −40 a −56 consultas en cada pantalla, latido, REST y cron, y 1 976 → 709 al abrir el editor del constructor.
   2. **MCP del navegador a demanda**: el paquete `elementor-capabilities-mcp` (~1,8 MB de JavaScript en cada pantalla, para Angie y WebMCP) sólo se carga si el navegador expone WebMCP (o con Angie, o con el filtro `digitalisimo_elements_browser_mcp_eager`).
   3. Sin Google Fonts en el escritorio (Roboto de `elementor-one-admin-fonts` y `elementor-admin-top-bar-fonts`); el SDK de novedades del proveedor que cargan Hello y otros productos suyos con la copia del núcleo ya no las pide por sus ganchos (`admin_init` cada 12 h, `switch_theme`, `deactivate_{plugin}`); si una pantalla las pide directamente, el escudo corta la petición como antes.
