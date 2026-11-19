@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -442,6 +442,9 @@ $page = '<html><head><title>T</title></head><body><header>Vivero Las Flores</hea
 Front::$fetcher = static function ( $url ) use ( $page ) {
 	$blog  = false !== strpos( $url, '/dos' ) ? 2 : 1;
 	$theme = ! empty( $GLOBALS['t']['cached'] ) ? 'hello-elementor' : (string) get_blog_option( $blog, 'stylesheet' );
+	if ( ! empty( $GLOBALS['t']['verify_throws'] ) && 'digitalisimo-theme' === $theme ) {
+		throw new RuntimeException( 'la comprobación se cortó' );
+	}
 	if ( ! empty( $GLOBALS['t']['break'] ) && 'digitalisimo-theme' === $theme ) {
 		return array( 500, '<p>There has been a critical error on this website.</p>' );
 	}
@@ -957,6 +960,15 @@ switch ( $scenario ) {
 		$last = Full::last( false );
 		check( installed_now( 'bdthemes-element-pack/bdthemes-element-pack.php' ) && false !== strpos( (string) ( $last['kept']['element-pack'] ?? '' ), 'desinstalación' ), 'Element Pack con uninstall.php no se borra.' );
 		check( ! installed_now( 'seo-by-rank-math/rank-math.php' ), 'Lo demás sí.' );
+		break;
+
+	case 'verify_crash':
+		// La comprobación falla con el tema ya cambiado: la tarea se detiene y vuelve a Hello (no deja el tema sin comprobar).
+		$GLOBALS['t']['verify_throws'] = true;
+		drive();
+		$last = Full::last( false );
+		check( 'verify' === $last['failed'] && 'hello-elementor' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['reverted'] ), 'Fallo en la comprobación: vuelve a Hello (' . get_option( 'stylesheet' ) . ').' );
+		nothing_deleted();
 		break;
 
 	case 'old_wp':
