@@ -34,6 +34,7 @@ namespace {
 	function wp_prime_option_caches( $names ) { $GLOBALS['primed'][] = $names; }
 	function wp_installing() { return $GLOBALS['installing']; }
 	function add_action() { return true; }
+	function is_admin() { return $GLOBALS['is_admin'] ?? true; }
 	function apply_filters( $hook, $value ) { return array_key_exists( $hook, $GLOBALS['filters'] ) ? $GLOBALS['filters'][ $hook ] : $value; }
 	function wp_script_is( $handle, $list = 'enqueued' ) { return ! empty( $GLOBALS['enqueued'][ $handle ] ); }
 	function wp_dequeue_script( $handle ) { $GLOBALS['dequeued'][] = $handle; unset( $GLOBALS['enqueued'][ $handle ] ); }
@@ -60,18 +61,20 @@ namespace {
 	$missing = array( 'elementor_experiment-e_list' => true, 'can_compress_scripts' => true, 'elementor_cpt_support' => true, '_transient_x' => true );
 	$first   = $L::merge( null, $missing, '1.0' );
 	check( array( 'v' => '1.0', 'names' => array( 'elementor_cpt_support', 'elementor_experiment-e_list' ) ) === $first, 'La primera petición anota sólo las opciones del constructor que faltaron, ordenadas.' );
-	check( null === $L::merge( $first, array( 'elementor_cpt_support' => true, 'wp_x' => true ), '1.0' ), 'Sin opciones nuevas del constructor no se guarda nada.' );
-	check( null === $L::merge( $first, false, '1.0' ) && null === $L::merge( $first, 'x', '1.0' ), 'Sin caché de opciones ausentes no se guarda nada.' );
-	$second = $L::merge( $first, array( 'elementor_safe_mode' => true, 'elementor_cpt_support' => true ), '1.0' );
+	check( null === $L::merge( $first, array( 'elementor_cpt_support' => true, 'elementor_experiment-e_list' => true, 'wp_x' => true ), '1.0' ), 'Sin opciones nuevas del constructor no se guarda nada.' );
+	check( null === $L::merge( $first, 'x', '1.0' ), 'Con una caché de opciones ausentes inválida no se guarda nada.' );
+	$second = $L::merge( $first, array( 'elementor_safe_mode' => true, 'elementor_cpt_support' => true, 'elementor_experiment-e_list' => true ), '1.0' );
 	check( array( 'elementor_cpt_support', 'elementor_experiment-e_list', 'elementor_safe_mode' ) === $second['names'], 'Una opción nueva se suma a las ya anotadas.' );
 	$other = $L::merge( $second, array( 'elementor_safe_mode' => true ), '2.0' );
 	check( array( 'v' => '2.0', 'names' => array( 'elementor_safe_mode' ) ) === $other, 'Al cambiar de versión la lista empieza de nuevo.' );
 	$many = array();
 	for ( $i = 0; $i < 260; $i++ ) {
-		$many[ sprintf( 'elementor_dyn_%03d', $i ) ] = true;
+		$many[ 'elementor_dyn_' . chr( 97 + intdiv( $i, 26 ) ) . chr( 97 + $i % 26 ) ] = true;
 	}
 	$capped = $L::merge( null, $many, '1.0' );
-	check( $L::MAX === count( $capped['names'] ) && null === $L::merge( $capped, array( 'elementor_otra' => true ), '1.0' ), 'La lista tiene tope: opciones con nombres que dependen de un ID no la hacen crecer sin fin.' );
+	check( $L::MAX === count( $capped['names'] ) && null === $L::merge( $capped, array_merge( array_fill_keys( $capped['names'], true ), array( 'elementor_otra' => true ) ), '1.0' ), 'La lista tiene tope: con la lista llena, un nombre nuevo no desplaza a los anotados.' );
+	check( array( 'v' => '1.0', 'names' => array( 'elementor_otra' ) ) === $L::merge( null, array( 'elementor_atomic_styles_fonts-local-338-frontend' => true, 'elementor_otra' => true, 'elementor_x_12' => true ), '1.0' ), 'Los nombres con un ID (dos o más cifras) no se anotan.' );
+	check( null === $L::merge( $first, false, '1.0' ), 'Sin caché de opciones ausentes la lista no cambia.' );
 
 	// names()/prime(): sólo la lista de esta versión, en una sola llamada, nunca durante la instalación.
 	$GLOBALS['opts'][ $L::OPTION ] = array( 'v' => '1.0', 'names' => array( 'elementor_cpt_support' ) );

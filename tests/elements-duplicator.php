@@ -32,9 +32,13 @@ $GLOBALS['digi_terms'] = array();
 function add_filter( $name, $callback, $priority = 10, $args = 1 ) { $GLOBALS['digi_hooks'][] = $name; }
 function add_action( $name, $callback ) { $GLOBALS['digi_hooks'][] = $name; }
 function is_admin() { return true; }
-function get_post_types( $args, $output ) { return array( 'post' => 'post', 'page' => 'page', 'product' => 'product', 'attachment' => 'attachment' ); }
+$GLOBALS['digi_types_calls'] = 0;
+$GLOBALS['digi_types']       = array( 'post' => 'post', 'page' => 'page', 'product' => 'product', 'attachment' => 'attachment' );
+function get_post_types( $args, $output ) { ++$GLOBALS['digi_types_calls']; return $GLOBALS['digi_types']; }
+// Después de wp_loaded: la lista de tipos se calcula una vez por petición (la lista de Entradas la pide en cada fila).
+function did_action( $hook ) { return 'wp_loaded' === $hook ? 1 : 0; }
 function get_post_type_object( $type ) {
-	if ( ! in_array( $type, array( 'post', 'page', 'product', 'elementor_library' ), true ) ) return null;
+	if ( ! in_array( $type, array( 'post', 'page', 'product', 'elementor_library', 'portfolio' ), true ) ) return null;
 	return (object) array( 'show_ui' => true, 'cap' => (object) array( 'create_posts' => 'create_' . $type ) );
 }
 function apply_filters( $name, $value ) { return $value; }
@@ -68,6 +72,17 @@ $post = new WP_Post( 12 );
 $actions = Digitalisimo_Elements_Duplicator::row_action( array( 'edit' => 'Editar' ), $post );
 check_duplicator( isset( $actions['digitalisimo_elements_duplicate'] ) && str_contains( $actions['digitalisimo_elements_duplicate'], 'site.example.test/wp-admin/admin-post.php' ) && str_contains( $actions['digitalisimo_elements_duplicate'], '17_12' ), 'El enlace debe usar el sitio actual y un nonce ligado al blog y al post.' );
 check_duplicator( ! isset( Digitalisimo_Elements_Duplicator::row_action( array(), new WP_Post( 13, 'product' ) )['digitalisimo_elements_duplicate'] ), 'Un producto no debe duplicarse con este flujo editorial.' );
+// La lista de tipos se calcula una vez para todas las filas, y otra vez si después se registra un tipo.
+$calls = $GLOBALS['digi_types_calls'];
+for ( $i = 0; $i < 20; $i++ ) {
+	Digitalisimo_Elements_Duplicator::row_action( array(), new WP_Post( 100 + $i ) );
+}
+check_duplicator( $calls === $GLOBALS['digi_types_calls'] && 1 === $calls, 'Veinte filas no vuelven a calcular los tipos admitidos.' );
+check_duplicator( in_array( 'registered_post_type', $GLOBALS['digi_hooks'], true ), 'Registrar un tipo después vuelve a calcular la lista.' );
+$GLOBALS['digi_types']['portfolio'] = 'portfolio';
+check_duplicator( ! isset( Digitalisimo_Elements_Duplicator::row_action( array(), new WP_Post( 14, 'portfolio' ) )['digitalisimo_elements_duplicate'] ), 'Sin olvidar la lista, un tipo registrado después aún no cuenta.' );
+Digitalisimo_Elements_Duplicator::forget_types();
+check_duplicator( isset( Digitalisimo_Elements_Duplicator::row_action( array(), new WP_Post( 14, 'portfolio' ) )['digitalisimo_elements_duplicate'] ) && 2 === $GLOBALS['digi_types_calls'], 'Tras registered_post_type el tipo nuevo cuenta (un cálculo más).' );
 $new = Digitalisimo_Elements_Duplicator::duplicate( $post );
 check_duplicator( 91 === $new && 'draft' === $GLOBALS['digi_inserted']['post_status'] && 'Artículo original (copia)' === $GLOBALS['digi_inserted']['post_title'] && ! isset( $GLOBALS['digi_inserted']['guid'], $GLOBALS['digi_inserted']['post_name'] ), 'Debe crear un borrador nuevo con URL propia.' );
 check_duplicator( array( 2, 4 ) === $GLOBALS['digi_terms']['category'] && array() === $GLOBALS['digi_terms']['post_tag'], 'Las taxonomías deben copiarse por ID.' );

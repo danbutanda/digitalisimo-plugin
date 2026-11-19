@@ -27,6 +27,8 @@ Digitalisimo_Elements_Admin_Load::init();
 require_once __DIR__ . '/digitalisimo-core.php';
 Digitalisimo_Elements_Core::load();
 register_activation_hook( __FILE__, array( 'Digitalisimo_Elements_Core', 'activate' ) );
+// La lista de opciones que se piden juntas es una caché: se borra al desactivar.
+register_deactivation_hook( __FILE__, array( 'Digitalisimo_Elements_Admin_Load', 'deactivate' ) );
 add_action( 'admin_notices', array( 'Digitalisimo_Elements_Core', 'external_notice' ) );
 add_action( 'network_admin_notices', array( 'Digitalisimo_Elements_Core', 'external_notice' ) );
 add_action( 'admin_notices', array( 'Digitalisimo_Elements_Core', 'duplicate_copies_notice' ) );

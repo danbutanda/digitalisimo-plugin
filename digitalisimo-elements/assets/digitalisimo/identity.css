@@ -110,3 +110,9 @@ tr:has( + tr > td #elementor_enable_ai ),
 [data-digitalisimo-vendor="off"] {
 	display: none !important;
 }
+
+/* Sin Google Fonts en la administración (digitalisimo-admin-load.php): la interfaz del núcleo pide Roboto y, si no está
+   instalada, caía a Arial, más ancha (recortes en Inicio y en la barra superior). Cae a la fuente del sistema. */
+html:root {
+	--e-a-font-family: Roboto, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", "Noto Sans", "Liberation Sans", sans-serif;
+}

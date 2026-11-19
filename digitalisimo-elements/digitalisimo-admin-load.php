@@ -84,40 +84,69 @@ final class Digitalisimo_Elements_Admin_Load {
 		return array_values( array_filter( $stored['names'], array( __CLASS__, 'valid' ) ) );
 	}
 
+	/**
+	 * Nombre que puede anotarse: del constructor o de Elements y sin un número de dos o más cifras (los nombres por
+	 * entrada o por ID, como `elementor_atomic_styles_fonts-local-338-frontend`, llenarían la lista sin servir a otra
+	 * petición).
+	 */
 	public static function valid( $name ) {
-		return is_string( $name ) && 1 === preg_match( self::PREFIX, $name );
+		return is_string( $name ) && self::OPTION !== $name && 1 === preg_match( self::PREFIX, $name ) && 0 === preg_match( '/\d{2,}/', $name );
+	}
+
+	/**
+	 * ¿Aporta algo en esta petición? Con una caché de objetos persistente (Redis, Memcached) WordPress ya guarda las
+	 * opciones inexistentes entre peticiones: ni se piden ni se anotan.
+	 */
+	public static function enabled() {
+		return ! ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() ) && ! ( function_exists( 'wp_installing' ) && wp_installing() );
 	}
 
 	/** Antes de cargar el núcleo: las opciones anotadas, en una sola consulta. */
 	public static function prime() {
+		if ( ! self::enabled() ) {
+			return array();
+		}
 		$names = self::names();
-		if ( $names && function_exists( 'wp_prime_option_caches' ) && ! ( function_exists( 'wp_installing' ) && wp_installing() ) ) {
+		if ( $names && function_exists( 'wp_prime_option_caches' ) ) {
 			wp_prime_option_caches( $names );
 		}
 		return $names;
 	}
 
 	/**
-	 * Une a la lista las opciones del constructor que esta petición buscó sin encontrar. Devuelve la lista nueva o
-	 * null si no hay nada que guardar. Pura: la usan learn() y la prueba.
+	 * Lista siguiente: las anotadas que siguen sin existir (la precarga las dejó en `notoptions`; una que ya existe sale
+	 * de la lista y no se vuelve a pedir en cada petición) más las que esta petición buscó sin encontrar. Devuelve la
+	 * lista o null si no cambia. Pura: la usan learn() y la prueba.
 	 *
 	 * @param array      $stored  Valor guardado de OPTION.
 	 * @param array|bool $missing Caché `notoptions` (nombre => true).
 	 */
 	public static function merge( $stored, $missing, $version ) {
-		$known = is_array( $stored ) && ( $stored['v'] ?? '' ) === $version && is_array( $stored['names'] ?? null ) ? array_values( array_filter( $stored['names'], array( __CLASS__, 'valid' ) ) ) : array();
-		$new   = array_values( array_diff( array_filter( array_keys( is_array( $missing ) ? $missing : array() ), array( __CLASS__, 'valid' ) ), $known ) );
-		if ( ! $new || count( $known ) >= self::MAX ) {
-			return null;
+		if ( ! is_array( $missing ) ) {
+			return null; // Sin la caché de opciones ausentes no se sabe nada: la lista no cambia.
 		}
-		$names = array_slice( array_merge( $known, $new ), 0, self::MAX );
+		$missing = array_filter( array_map( 'strval', array_keys( $missing ) ), array( __CLASS__, 'valid' ) );
+		$known   = is_array( $stored ) && ( $stored['v'] ?? '' ) === $version && is_array( $stored['names'] ?? null ) ? array_values( array_filter( $stored['names'], array( __CLASS__, 'valid' ) ) ) : array();
+		$kept    = array_values( array_intersect( $known, $missing ) );
+		$names   = array_slice( array_values( array_unique( array_merge( $kept, array_diff( $missing, $kept ) ) ) ), 0, self::MAX );
 		sort( $names );
-		return array( 'v' => $version, 'names' => $names );
+		$before = $known;
+		sort( $before );
+		return $names === $before && is_array( $stored ) && ( $stored['v'] ?? '' ) === $version ? null : ( $names || $known ? array( 'v' => $version, 'names' => $names ) : null );
+	}
+
+	/**
+	 * ¿Se anota en esta petición? Sólo en la administración, AJAX, REST y cron (las visitas del front no escriben) y
+	 * en el sitio propio de la petición (nunca dentro de un switch_to_blog() sin restaurar).
+	 */
+	public static function learning() {
+		$context = ( function_exists( 'is_admin' ) && is_admin() ) || ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ( defined( 'WP_CLI' ) && WP_CLI );
+		return $context && ! ( function_exists( 'ms_is_switched' ) && ms_is_switched() );
 	}
 
 	/** `shutdown`: anota lo que faltó (sólo con el constructor cargado y fuera de la instalación). */
 	public static function learn() {
-		if ( ! defined( 'ELEMENTOR_VERSION' ) || ( function_exists( 'wp_installing' ) && wp_installing() ) || ! function_exists( 'wp_cache_get' ) ) {
+		if ( ! defined( 'ELEMENTOR_VERSION' ) || ! self::enabled() || ! self::learning() || ! function_exists( 'wp_cache_get' ) ) {
 			return;
 		}
 		$stored = get_option( self::OPTION, null );
@@ -129,9 +158,23 @@ final class Digitalisimo_Elements_Admin_Load {
 
 	// ----------------------------------------------------------------------------------------------- MCP del navegador
 
-	/** ¿Se carga siempre? Sólo con un plugin de Angie activo (servicio del proveedor que el administrador instale). */
+	/** Al desactivar Elements: la lista es una caché, se borra (en toda la red si se desactiva en la red). */
+	public static function deactivate( $network_wide = false ) {
+		if ( $network_wide && function_exists( 'is_multisite' ) && is_multisite() && function_exists( 'get_sites' ) ) {
+			foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $site_id ) {
+				delete_blog_option( (int) $site_id, self::OPTION );
+			}
+			return;
+		}
+		delete_option( self::OPTION );
+	}
+
+	/**
+	 * ¿Se carga siempre? Con Angie (servicio del proveedor que el administrador instale), reconocido por su constante,
+	 * por su clase o por la carpeta de su plugin activo, o con el filtro.
+	 */
 	private static function eager() {
-		$angie   = false;
+		$angie   = defined( 'ANGIE_VERSION' ) || defined( 'ANGIE_PLUGIN_FILE' ) || class_exists( 'Angie\\Plugin', false ) || class_exists( 'Angie\\Angie', false );
 		$network = function_exists( 'is_multisite' ) && is_multisite() ? array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) : array();
 		foreach ( array_merge( (array) get_option( 'active_plugins', array() ), $network ) as $file ) {
 			$angie = $angie || 0 === strpos( (string) $file, 'angie/' );
@@ -205,7 +248,8 @@ final class Digitalisimo_Elements_Admin_Load {
 		if ( ! $entries ) {
 			return;
 		}
-		echo '<script id="digitalisimo-elements-browser-mcp">' . self::loader_js( $entries ) . "</script>\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON de wp_json_encode() y código propio.
+		// Por wp_print_inline_script_tag(): los plugins de CSP con nonce pueden marcarlo como cualquier script en línea.
+		wp_print_inline_script_tag( self::loader_js( $entries ), array( 'id' => 'digitalisimo-elements-browser-mcp' ) );
 	}
 
 	/** Trae los paquetes en orden (cada uno tras el anterior, con sus datos antes y después) si hay WebMCP. */

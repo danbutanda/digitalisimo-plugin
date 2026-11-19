@@ -12,6 +12,12 @@ final class Digitalisimo_Elements_Duplicator {
 		add_filter( 'post_row_actions', array( __CLASS__, 'row_action' ), 10, 2 );
 		add_filter( 'page_row_actions', array( __CLASS__, 'row_action' ), 10, 2 );
 		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'handle' ) );
+		// Un tipo registrado después del primer cálculo (un plugin tardío) vuelve a calcular la lista.
+		add_action( 'registered_post_type', array( __CLASS__, 'forget_types' ) );
+	}
+
+	public static function forget_types() {
+		self::$types = null;
 	}
 
 	/** @var string[]|null Tipos admitidos en esta petición (la lista de Entradas los consulta en cada fila). */
