@@ -37,6 +37,30 @@ function keep(res) {
 }
 const cookieHeader = () => [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
 
+// RESOLVE=127.0.0.1:PUERTO: el sitio vive en un nombre sin puerto (una red Multisite no admite puertos) y las
+// peticiones van a ese servidor con su cabecera Host (fetch no deja cambiarla; por eso http.request).
+const RESOLVE = process.env.RESOLVE || '';
+async function rawFetch(target, { method, body, headers, signal }) {
+  if (!RESOLVE) return fetch(target, { method, body, headers, redirect: 'manual', signal });
+  const { request } = await import('node:http');
+  const u = new URL(target);
+  const [host, port] = RESOLVE.split(':');
+  return new Promise((resolve, reject) => {
+    const r = request({ host, port: Number(port), method, path: u.pathname + u.search, headers: { ...headers, Host: u.host }, signal }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        const cookies = [].concat(res.headers['set-cookie'] || []);
+        resolve({ status: res.statusCode, headers: { getSetCookie: () => cookies, get: (k) => res.headers[k.toLowerCase()] }, text: async () => text });
+      });
+    });
+    r.on('error', reject);
+    if (body) r.write(typeof body === 'string' || Buffer.isBuffer(body) ? body : String(body));
+    r.end();
+  });
+}
+
 async function req(url, { set = '', label = '', method = 'GET', body, headers = {}, extra = {}, keepText = false, timeout = 300000 } = {}) {
   const id = `m${Date.now()}-${++counter}`;
   const h = { Cookie: cookieHeader(), 'X-Digi-Ap-Id': id, 'X-Digi-Ap-Label': label, ...headers };
@@ -44,7 +68,8 @@ async function req(url, { set = '', label = '', method = 'GET', body, headers = 
   const t = performance.now();
   let res; let text = '';
   try {
-    res = await fetch(url.startsWith('http') ? url : `${base}/${url.replace(/^\//, '')}`, { method, body, headers: h, redirect: 'manual', signal: AbortSignal.timeout(timeout) });
+    if (body instanceof URLSearchParams) { h['Content-Type'] = h['Content-Type'] || 'application/x-www-form-urlencoded'; body = body.toString(); }
+    res = await rawFetch(url.startsWith('http') ? url : `${base}/${url.replace(/^\//, '')}`, { method, body, headers: h, signal: AbortSignal.timeout(timeout) });
     keep(res);
     text = await res.text();
   } catch (e) {
@@ -223,7 +248,7 @@ async function main() {
 async function chrome(own) {
   const require = createRequire(import.meta.url);
   const { chromium } = require(process.env.PLAYWRIGHT_CORE || `${process.env.HOME}/digi-wt/pw/node_modules/playwright-core`);
-  const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome', args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'] });
+  const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome', args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'].concat(RESOLVE ? [`--host-resolver-rules=MAP ${new URL(base).hostname} ${RESOLVE}`] : []) });
   const out = { screens: [], editor: [], builder: [] };
   const url = new URL(base);
   for (const set of [...new Set([...setsFor('CHROME_SETS'), ...setsFor('BUILDER_SETS')])]) {

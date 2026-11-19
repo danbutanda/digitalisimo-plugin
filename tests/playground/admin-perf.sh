@@ -48,7 +48,10 @@ if [ "${NATIVE:-0}" = 1 ]; then
   trap 'kill $SERVER 2>/dev/null; rm -rf "$WP"' EXIT
   for i in $(seq 1 60); do sleep 1; curl -s -m 30 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/wp-login.php" | grep -q '^200$' && break; done
 else
-$CLI server --port="$PORT" --php="$PHP" --workers=1 --site-url="http://127.0.0.1:$PORT" --blueprint="$OUT/blueprint.json" \
+# Una red Multisite no admite puertos: el sitio se llama admin-perf-red.test y el conductor resuelve ese nombre al puerto.
+SITE_URL="http://127.0.0.1:$PORT"; RESOLVE=''
+[ "$MULTI" = 1 ] && SITE_URL="http://admin-perf-red.test" && RESOLVE="127.0.0.1:$PORT"
+$CLI server --port="$PORT" --php="$PHP" --workers=1 --site-url="$SITE_URL" --blueprint="$OUT/blueprint.json" \
   "${MOUNTS[@]}" --mount="$OUT:/wordpress/wp-content/probe" > "$OUT/server.log" 2>&1 &
 SERVER=$!
 stop_server() { kill $SERVER 2>/dev/null || true; for i in 1 2 3; do fuser -k -n tcp "$PORT" >/dev/null 2>&1 || break; sleep 1; done; }
@@ -58,13 +61,13 @@ for i in $(seq 1 400); do
   sleep 3
   if ! kill -0 $SERVER 2>/dev/null; then tail -30 "$OUT/server.log"; exit 1; fi
   [ -f "$OUT/setup-error.txt" ] && break
-  curl -s -m 30 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/wp-login.php" 2>/dev/null | grep -q '^200$' && [ -f "$OUT/ready.txt" ] && break
+  curl -s -m 30 -o /dev/null -w '%{http_code}' -H "Host: ${SITE_URL#http://}" "http://127.0.0.1:$PORT/wp-login.php" 2>/dev/null | grep -q '^200$' && [ -f "$OUT/ready.txt" ] && break
 done
 [ -f "$OUT/setup-error.txt" ] && { echo "Preparación incompleta:"; cat "$OUT/setup-error.txt"; exit 1; }
 [ -f "$OUT/ready.txt" ] || { echo 'El sitio no terminó de prepararse'; tail -30 "$OUT/server.log"; exit 1; }
 echo "Sitio listo en $(( $(date +%s) - STARTED )) s (PHP $PHP, multisitio=$MULTI, nativo=${NATIVE:-0})"
 status=0
-OUT="$OUT" MULTI="$MULTI" node "$A/run.mjs" "http://127.0.0.1:$PORT" || status=$?
+OUT="$OUT" MULTI="$MULTI" RESOLVE="${RESOLVE:-}" node "$A/run.mjs" "${SITE_URL:-http://127.0.0.1:$PORT}" || status=$?
 OUT="$OUT" node "$A/report.mjs" || status=$?
 [ -s "$OUT/fatal.log" ] && { echo "Errores fatales:"; cat "$OUT/fatal.log"; status=1; }
 echo "Duración: $(( $(date +%s) - STARTED )) s"
