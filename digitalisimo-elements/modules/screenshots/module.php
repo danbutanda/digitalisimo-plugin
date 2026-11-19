@@ -30,7 +30,8 @@ class Module extends Module_Base {
 	 * @return string
 	 */
 	public function get_proxy_data( $url ) {
-		$response = wp_safe_remote_get( utf8_decode( $url ) );
+		// utf8_decode() está obsoleta desde PHP 8.2 (aviso en cada captura): la misma conversión a Latin-1 con mbstring.
+		$response = wp_safe_remote_get( function_exists( 'mb_convert_encoding' ) ? mb_convert_encoding( (string) $url, 'ISO-8859-1', 'UTF-8' ) : utf8_decode( $url ) );
 
 		if ( is_wp_error( $response ) ) {
 			return '';

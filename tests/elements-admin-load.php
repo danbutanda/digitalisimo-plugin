@@ -141,6 +141,15 @@ namespace {
 	$GLOBALS['bundled'] = true;
 	check( array( 'elementor-one-admin-fonts', 'elementor-admin-top-bar-fonts' ) === $L::drop_remote_fonts() && array( 'elementor-admin' => true ) === $GLOBALS['styles'], 'Con el núcleo incluido no se piden las fuentes de Google en la administración; las demás hojas siguen.' );
 
+	// Capturas de plantillas (derivado de PRO): sin utf8_decode() directo, obsoleta desde PHP 8.2 (un aviso en cada
+	// captura del editor), y la conversión a Latin-1 de mbstring da lo mismo que la antigua.
+	$shots = (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/modules/screenshots/module.php' );
+	check( false !== strpos( $shots, "mb_convert_encoding( (string) \$url, 'ISO-8859-1', 'UTF-8' )" ) && 1 === substr_count( $shots, 'utf8_decode( $url )' ) && false !== strpos( $shots, "function_exists( 'mb_convert_encoding' ) ?" ), 'El proxy de capturas convierte la URL con mbstring y sólo usa utf8_decode() sin mbstring.' );
+	if ( function_exists( 'mb_convert_encoding' ) && PHP_VERSION_ID < 80200 ) {
+		$u = 'https://sitio.test/fuente-ñandú.css?a=1';
+		check( utf8_decode( $u ) === mb_convert_encoding( $u, 'ISO-8859-1', 'UTF-8' ), 'mbstring convierte la URL igual que utf8_decode().' );
+	}
+
 	// El arranque: se carga antes que el núcleo, para que la consulta única llegue antes que las individuales.
 	$main = (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/pro-elements.php' );
 	check( false !== strpos( $main, "Digitalisimo_Elements_Admin_Load::init();" ) && strpos( $main, 'Digitalisimo_Elements_Admin_Load::init();' ) < strpos( $main, 'Digitalisimo_Elements_Core::load();' ), 'pro-elements.php arranca la carga del escritorio antes del núcleo incluido.' );
