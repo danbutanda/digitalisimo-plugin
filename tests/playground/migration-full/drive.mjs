@@ -24,7 +24,7 @@ function raw(url, options) {
 				resolve({ status: res.statusCode, headers: { get: (k) => res.headers[k.toLowerCase()] || null, getSetCookie: () => cookies }, text: async () => body });
 			});
 		});
-		req.setTimeout(600000, () => req.destroy(new Error('tiempo agotado')));
+		req.setTimeout(1500000, () => req.destroy(new Error('tiempo agotado')));
 		req.on('error', reject);
 		if (options.body) req.write(String(options.body));
 		req.end();
@@ -131,7 +131,7 @@ check(l.done && !l.failed, 'Sin fallos: ' + (l.error || ''));
 check(l.backup && l.backup.ok && /^[a-f0-9]{64}$/.test(l.backup.sha256 || ''), 'Respaldo completo verificado antes de tocar nada.');
 check(result.backups === 1, `Un solo respaldo de la migración (${result.backups}).`);
 const zips = result.downloads.map((z) => z.replace(/-[0-9.]+\.zip$/, ''));
-check(JSON.stringify(zips) === JSON.stringify(['digitalisimo-backups', 'digitalisimo-seo', 'digitalisimo-theme']), 'Se descargan una vez Backups, SEO y el tema, en ese orden: ' + zips.join(','));
+check(JSON.stringify(zips) === JSON.stringify(['digitalisimo-backups', 'digitalisimo-elements', 'digitalisimo-seo', 'digitalisimo-theme']), 'Se descargan una vez Backups, Elements, SEO y el tema, en ese orden: ' + zips.join(','));
 // Migración nunca consulta GitHub con el índice en caché (las demás peticiones bloqueadas se listan arriba).
 check(!result.blocked.some((url) => /github\.com/.test(url)), 'Migración no consulta GitHub: ' + result.blocked.filter((url) => /github/.test(url)).join(', '));
 for (const file of ['bdthemes-element-pack/bdthemes-element-pack.php', 'seo-by-rank-math/rank-math.php', 'updraftplus/updraftplus.php']) {

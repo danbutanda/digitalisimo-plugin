@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # «Migrar» lo hace todo (DIGITALÍSIMO Migración, regla del propietario del 2026-11-18) en WordPress Playground, modo
 # servidor: un sitio con Hello Elementor 3.5.1 oficial, Element Pack Pro, Rank Math y UpdraftPlus de prueba (sólo su
-# cabecera, como f8), contenido con metas de Rank Math, DIGITALÍSIMO Elements instalado sin activar y Migración sola
-# activa. drive.mjs pulsa Migrar por AJAX con sesión de administrador (doble clic, pantalla cerrada a mitad y vuelta) y
+# cabecera, como f8), contenido con metas de Rank Math y Migración sola activa (Backups, Elements, SEO y el tema los
+# instala Migrar desde ZIP locales; el respaldo, que va antes, no lleva Elements: comprimir sus 127 MB con el PHP en
+# WebAssembly de Playground pasaba de los 10 minutos de una petición). drive.mjs pulsa Migrar por AJAX con sesión de administrador (doble clic, pantalla cerrada a mitad y vuelta) y
 # comprueba: respaldo completo verificado (DIGITALÍSIMO Backups real, instalado desde su ZIP), Backups, SEO y el tema
 # instalados con el instalador de WordPress desde ZIP locales (`upgrader_pre_download`, sin GitHub), Elements activado,
 # metas de Rank Math importadas por el importador real de SEO, lo reemplazado borrado, Hello cambiado por el tema propio
@@ -55,7 +56,7 @@ plugins, themes = {}, {}
 for slug, main in (('digitalisimo-backups', 'digitalisimo-backups/digitalisimo-backups.php'), ('digitalisimo-seo', 'digitalisimo-seo/digitalisimo-integrations.php'), ('digitalisimo-elements', 'digitalisimo-elements/pro-elements.php'), ('digitalisimo-migration', 'digitalisimo-migration/digitalisimo-migration.php')):
     v = version(f'{root}/{main}', 'Version')
     plugins[slug] = {'version': v, 'url': f'{url}{slug}-{v}.zip'}
-    if slug in ('digitalisimo-backups', 'digitalisimo-seo'):
+    if slug in ('digitalisimo-backups', 'digitalisimo-seo', 'digitalisimo-elements'):
         pack(slug, f'{slug}-{v}.zip')
 v = version(f'{root}/digitalisimo-theme/style.css', 'Version')
 themes['digitalisimo-theme'] = {'version': v, 'url': f'{url}digitalisimo-theme-{v}.zip'}
@@ -77,7 +78,6 @@ cat > "$OUT/blueprint.json" <<JSON
 JSON
 
 $CLI server --port="$PORT" --workers=3 --site-url="$BASE" --blueprint="$OUT/blueprint.json" \
-  --mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" \
   --mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" \
   --mount="$OUT:/wordpress/wp-content/probe" --mount="$OUT/store:/digi-store" > "$OUT/server.log" 2>&1 &
 SERVER=$!
