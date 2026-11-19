@@ -16,6 +16,13 @@ add_action( 'muplugins_loaded', static function () {
 
 add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 	$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+	// El WP-Cron lanzado por petición (spawn_cron(), que la cola de Backups llama aunque DISABLE_WP_CRON esté puesto)
+	// correría el mismo respaldo en otro worker de Playground, cuyo bloqueo de archivos entre workers se traba. Como en
+	// un hosting sin loopback para el cron: no sale, y el conductor hace avanzar la tarea.
+	if ( false !== strpos( (string) $url, 'wp-cron.php' ) ) {
+		file_put_contents( WP_CONTENT_DIR . '/probe/cron-spawn.log', $url . "\n", FILE_APPEND );
+		return array( 'headers' => array(), 'body' => '', 'response' => array( 'code' => 200, 'message' => 'OK' ), 'cookies' => array(), 'filename' => null );
+	}
 	// Red de la prueba en http://playground.test (multisite no admite puerto): como un archivo hosts, la petición va al
 	// servidor local con su cabecera Host. Sólo GET, que es lo que pide la verificación de la portada.
 	$port = (int) @file_get_contents( WP_CONTENT_DIR . '/probe/port' );
