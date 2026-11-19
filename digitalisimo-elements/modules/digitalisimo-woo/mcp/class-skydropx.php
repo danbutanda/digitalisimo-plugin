@@ -729,8 +729,9 @@ final class Skydropx {
 			'topics' => array(),
 		);
 		try {
+			// `WC_Data_Store` reenvía sus métodos con `__call`: `method_exists()` daría falso.
 			$store = \WC_Data_Store::load( 'webhook' );
-			$ids   = method_exists( $store, 'get_webhooks_ids' ) ? (array) $store->get_webhooks_ids() : array();
+			$ids   = is_callable( array( $store, 'get_webhooks_ids' ) ) ? (array) $store->get_webhooks_ids() : array();
 		} catch ( \Throwable $e ) {
 			return null;
 		}

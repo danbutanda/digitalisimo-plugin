@@ -700,13 +700,20 @@ namespace {
 		$wc = $wc ?: new Sk_WooCommerce();
 		return $wc;
 	}
+	/** Como el real: un envoltorio que reenvía cada método al almacén con `__call` (method_exists() da falso). */
 	class WC_Data_Store {
+		private $instance;
 		public static function load( $type ) {
-			return new class() {
+			$store           = new self();
+			$store->instance = new class() {
 				public function get_webhooks_ids( $status = '' ) {
 					return array_keys( $GLOBALS['sk_webhooks'] ?? array() );
 				}
 			};
+			return $store;
+		}
+		public function __call( $method, $args ) {
+			return call_user_func_array( array( $this->instance, $method ), $args );
 		}
 	}
 	class Sk_Webhook {
@@ -1101,7 +1108,9 @@ PHP
 	// Entrada cerrada.
 	sk_reset( array( 'caps' => $manager, 'options' => array_merge( $GLOBALS['sk']['options'], $write ) ) );
 	$sk_store();
-	$err( $run( array( 'action' => 'status', 'post_id' => 3 ) ), 'digitalisimo_woo_mcp_input', 'Parámetro desconocido.' );
+	$unknown = $err( $run( array( 'action' => 'status', 'post_id' => 3 ) ), 'digitalisimo_woo_mcp_input', 'Parámetro desconocido.' );
+	check( false !== strpos( $unknown->get_error_message(), 'no admite: post_id' ), 'Un parámetro que el esquema no declara se nombra como desconocido.' );
+	$err( $run( array( 'action' => 'status', 'page' => 2 ) ), 'digitalisimo_woo_mcp_input', 'Un valor que no es el predeterminado, fuera de su acción, se rechaza.' );
 	$err( $run( array( 'action' => 'borrar' ) ), 'digitalisimo_woo_mcp_action', 'Acción desconocida.' );
 	$err( $run( array( 'action' => 'status', 'order_id' => 50 ) ), 'digitalisimo_woo_mcp_input', 'Un parámetro de otra acción se rechaza.' );
 	$ok( $run( array( 'action' => 'status', 'page' => 1, 'per_page' => 10, 'cache' => true, 'tracking_filter' => 'any' ) ), 'Los valores por defecto que rellena un cliente se ignoran.' );
@@ -1355,6 +1364,8 @@ PHP
 	$GLOBALS['sk_rest'] = array();
 	$ok( $run( array( 'action' => 'set_tracking', 'order_id' => 50, 'tracking' => array( 'number' => 'GUIA124' ) ) ), 'corregir el número' );
 	check( array( 'Tracking Number' => 'GUIA124', 'Tracking Company' => 'FedEx', 'Tracking URL' => 'https://rastreo.test/GUIA123' ) === $GLOBALS['sk_orders'][50]->lines[501]->meta && array() === $GLOBALS['sk_rest'], 'set_tracking: corrige un campo y conserva los otros.' );
+	$ok( $run( array( 'action' => 'set_tracking', 'order_id' => 50, 'tracking' => array( 'number' => 'GUIA124' ), 'order_status' => 'processing' ) ), 'mismo estado' );
+	check( array() === $GLOBALS['sk_rest'], 'set_tracking: un estado igual al actual no llama a WooCommerce.' );
 	$ok( $run( array( 'action' => 'set_tracking', 'order_id' => 51, 'shipping_line_id' => 512, 'tracking' => array( 'number' => 'B2', 'company' => 'DHL', 'url' => 'http://r.test/B2' ) ) ), 'otra línea' );
 	check( 'B2' === $GLOBALS['sk_orders'][51]->lines[512]->meta['Tracking Number'] && '7788-99' === $GLOBALS['sk_orders'][51]->lines[511]->meta['Tracking Number'], 'set_tracking: shipping_line_id elige la línea.' );
 	$err( $run( array( 'action' => 'set_tracking', 'order_id' => 51, 'shipping_line_id' => 999, 'tracking' => array( 'number' => 'C' ) ) ), 'digitalisimo_woo_mcp_skydropx_line', 'set_tracking: línea que no es del pedido.' );
