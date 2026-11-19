@@ -19,12 +19,12 @@ require_once dirname( __DIR__ ) . '/includes/class-screen.php';
 /**
  * Migración de documentos de Element Pack en el sitio actual.
  *
- * Herramientas → Migrar a DIGITALÍSIMO Elements tiene un solo botón, «Migrar», que lanza la tarea completa del
+ * Herramientas → Migrar a DIGITALÍSIMO tiene un solo botón, «Migrar», que lanza la tarea completa del
  * sitio (Runner): desactiva los plugins sustituidos, convierte por lotes cada documento al formato propio (`Native`:
  * widgets de DIGITALÍSIMO Elements o de PRO Elements, rasgos propios y CSS personalizado del elemento, sin
  * identificadores de Element Pack), actualiza los widgets fusionados y deja el informe. Antes de tocar un documento
  * guarda su `_elementor_data` original (`wp digitalisimo-migration --revert` lo restaura). Nunca toca otros sitios
- * de la red: en Multisite, Red → Ajustes → Migrar a DIGITALÍSIMO Elements recorre todos los sitios, y lo dice.
+ * de la red: en Multisite, Red → Ajustes → Migrar a DIGITALÍSIMO recorre todos los sitios, y lo dice.
  * Esta clase conserva el inventario, la conversión documento a documento y las recuperaciones de versiones antiguas
  * que la tarea encadena.
  */
@@ -304,11 +304,11 @@ final class Migration {
 	}
 
 	public static function menu() {
-		add_management_page( 'Migrar a DIGITALÍSIMO Elements', 'Migrar a DIGITALÍSIMO Elements', 'manage_options', self::PAGE, array( __CLASS__, 'page' ) );
+		add_management_page( 'Migrar a DIGITALÍSIMO', 'Migrar a DIGITALÍSIMO', 'manage_options', self::PAGE, array( __CLASS__, 'page' ) );
 	}
 
 	public static function network_menu() {
-		add_submenu_page( 'settings.php', 'Migrar a DIGITALÍSIMO Elements', 'Migrar a DIGITALÍSIMO Elements', 'manage_network_options', self::PAGE, array( __CLASS__, 'network_page' ) );
+		add_submenu_page( 'settings.php', 'Migrar a DIGITALÍSIMO', 'Migrar a DIGITALÍSIMO', 'manage_network_options', self::PAGE, array( __CLASS__, 'network_page' ) );
 	}
 
 	/** Motivo y alternativa de un widget de Element Pack sin adaptador (vacío si lo tiene). */
@@ -939,7 +939,7 @@ final class Migration {
 		Runner::load();
 		$state   = Runner::state();
 		$running = $state && empty( $state['done'] );
-		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO Elements</h1>';
+		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO</h1>';
 		echo '<p>' . esc_html( \Digitalisimo\Migration\Screen::intro( false ) ) . '</p>';
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- sólo muestra el resultado de la acción.
 		if ( isset( $_GET['done'] ) && 'acknowledge' === sanitize_key( wp_unslash( $_GET['done'] ) ) ) {
@@ -1277,7 +1277,7 @@ final class Migration {
 		}
 		Runner::load();
 		$sites   = get_sites( array( 'number' => 500, 'fields' => 'ids' ) );
-		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO Elements en la red</h1>';
+		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO en la red</h1>';
 		echo '<p>' . esc_html( \Digitalisimo\Migration\Screen::intro( true ) ) . '</p>';
 		list( $status, $full_running ) = \Digitalisimo\Migration\Screen::full_status( true );
 		echo \Digitalisimo\Migration\Screen::control( true, $status, $full_running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen y Full.

@@ -734,7 +734,7 @@ final class Runner {
 				if ( self::network_authorizes() ) {
 					Report::site( 'core.network_scope', array( 'name' => $info['label'] ) );
 				} else {
-					$state = self::warn( $state, sprintf( '%s está activo en toda la red: lo desactiva la migración de la red (Red → Ajustes → Migrar a DIGITALÍSIMO Elements).', $info['label'] ) );
+					$state = self::warn( $state, sprintf( '%s está activo en toda la red: lo desactiva la migración de la red (Red → Ajustes → Migrar a DIGITALÍSIMO).', $info['label'] ) );
 				}
 			}
 		}
@@ -2341,7 +2341,7 @@ final class Runner {
 			$html .= '<p>' . esc_html( sprintf( 'Desactivados y listos para borrarse desde %s cuando hayas comprobado el sitio: %s. La migración no los borra.', is_multisite() ? 'Red → Plugins' : 'Plugins', implode( ', ', $deletable ) ) ) . '</p>';
 		}
 		if ( $later ) {
-			$html .= '<p>' . esc_html( 'Desactivados en este sitio, pero aún no los borres: ' . implode( ', ', $later ) . '. ' . ( is_multisite() ? 'El resumen de Red → Ajustes → Migrar a DIGITALÍSIMO Elements dice cuándo pueden borrarse.' : 'Element Pack hace falta hasta convertir lo que queda pendiente.' ) ) . '</p>';
+			$html .= '<p>' . esc_html( 'Desactivados en este sitio, pero aún no los borres: ' . implode( ', ', $later ) . '. ' . ( is_multisite() ? 'El resumen de Red → Ajustes → Migrar a DIGITALÍSIMO dice cuándo pueden borrarse.' : 'Element Pack hace falta hasta convertir lo que queda pendiente.' ) ) . '</p>';
 		}
 		$pending = '';
 		if ( $still ) {

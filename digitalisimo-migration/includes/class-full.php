@@ -88,7 +88,7 @@ final class Full {
 				Runner::ajax();
 				return;
 			}
-			wp_send_json_error( 'DIGITALÍSIMO Elements no está activo en este sitio: la migración de la red lo activa (Red → Ajustes → Migrar a DIGITALÍSIMO Elements).', 409 );
+			wp_send_json_error( 'DIGITALÍSIMO Elements no está activo en este sitio: la migración de la red lo activa (Red → Ajustes → Migrar a DIGITALÍSIMO).', 409 );
 		}
 		if ( $network ) {
 			if ( ! is_multisite() || ! is_super_admin() ) {
@@ -322,7 +322,7 @@ final class Full {
 			return 'Esta instalación no es una red.';
 		}
 		if ( ! $network && is_multisite() ) {
-			return 'En una red, la sustitución completa se lanza desde Red → Ajustes → Migrar a DIGITALÍSIMO Elements.';
+			return 'En una red, la sustitución completa se lanza desde Red → Ajustes → Migrar a DIGITALÍSIMO.';
 		}
 		$caps = self::caps( $network );
 		if ( empty( $caps['activate'] ) ) {

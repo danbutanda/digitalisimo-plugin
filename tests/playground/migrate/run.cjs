@@ -108,7 +108,7 @@ async function probe(page, blog) {
     const before = await snapshot(guest, 'antes');
     await guest.close();
 
-    // 2. Un clic: Red → Ajustes → Migrar a DIGITALÍSIMO Elements → «Migrar toda la red».
+    // 2. Un clic: Red → Ajustes → Migrar a DIGITALÍSIMO → «Migrar toda la red».
     const admin = await browser.createBrowserContext();
     const page = await newPage(admin);
     await page.goto(`${base}/wp-login.php`, { waitUntil: 'networkidle0', timeout: 180000 });

@@ -11,8 +11,8 @@ Desde el 2026-11-18 (regla del propietario: «Migración debe hacer todo: tema y
 1. Instala y activa DIGITALÍSIMO Migración (en una red, en toda la red).
 2. Abre la herramienta y lee **«Lo que hará Migrar»**: qué plugins DIGITALÍSIMO se instalan y activan, qué plugin o tema del sitio reemplaza cada uno, qué se importa antes de retirarlo, qué se borrará al final y qué se queda como está (con el motivo), y qué pasará con el tema. Con DIGITALÍSIMO Elements ya activo, debajo va el **análisis del contenido**, por trozos: por documento, qué se convierte, qué se aproxima, qué se crea, qué no tiene equivalente y qué queda para revisar; qué cabeceras, pies y plantillas del Theme Builder de Element Pack se copian; y el JavaScript de Element Pack o Prime Slider que dejará de ejecutarse. Sin Elements, ese análisis llega en el informe, después de instalarlo.
 3. Pulsa **Migrar**:
-   - En un sitio: **Herramientas → Migrar a DIGITALÍSIMO Elements → Migrar**.
-   - En una red: **Red → Ajustes → Migrar a DIGITALÍSIMO Elements → Migrar toda la red**. La pantalla dice que modifica todos los sitios de la red. (En un sitio de una red, «Migrar» sólo convierte el contenido de ese sitio: instalar, importar, cambiar de tema y borrar son acciones de la red.)
+   - En un sitio: **Herramientas → Migrar a DIGITALÍSIMO → Migrar**.
+   - En una red: **Red → Ajustes → Migrar a DIGITALÍSIMO → Migrar toda la red**. La pantalla dice que modifica todos los sitios de la red. (En un sitio de una red, «Migrar» sólo convierte el contenido de ese sitio: instalar, importar, cambiar de tema y borrar son acciones de la red.)
    - Desde la terminal: `wp digitalisimo-migration --run --url=https://sitio/` o `wp digitalisimo-migration --run --network`.
 4. Migrar, en una sola tarea por etapas (`includes/class-full.php`):
    - **respalda primero**: instala y activa DIGITALÍSIMO Backups si falta y hace un respaldo completo (de la red, en una red); si falla, se detiene sin tocar nada más;

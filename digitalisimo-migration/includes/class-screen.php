@@ -7,7 +7,7 @@ require_once __DIR__ . '/class-full.php';
 
 /**
  * Pantalla de «Migrar» para quien sólo instaló DIGITALÍSIMO Migración (desde el catálogo de Tools): Herramientas →
- * Migrar a DIGITALÍSIMO Elements (y Red → Ajustes en una red), con el análisis del mapa de reemplazos, el botón único
+ * Migrar a DIGITALÍSIMO (y Red → Ajustes en una red), con el análisis del mapa de reemplazos, el botón único
  * y el estado de la tarea. Con DIGITALÍSIMO Elements activo, la pantalla de siempre (legacy/class-migration.php) pinta
  * lo mismo más el análisis del contenido.
  */
@@ -20,11 +20,11 @@ final class Screen {
 	}
 
 	public static function menu() {
-		add_management_page( 'Migrar a DIGITALÍSIMO Elements', 'Migrar a DIGITALÍSIMO Elements', 'activate_plugins', self::PAGE, array( __CLASS__, 'page' ) );
+		add_management_page( 'Migrar a DIGITALÍSIMO', 'Migrar a DIGITALÍSIMO', 'activate_plugins', self::PAGE, array( __CLASS__, 'page' ) );
 	}
 
 	public static function network_menu() {
-		add_submenu_page( 'settings.php', 'Migrar a DIGITALÍSIMO Elements', 'Migrar a DIGITALÍSIMO Elements', 'manage_network_plugins', self::PAGE, array( __CLASS__, 'network_page' ) );
+		add_submenu_page( 'settings.php', 'Migrar a DIGITALÍSIMO', 'Migrar a DIGITALÍSIMO', 'manage_network_plugins', self::PAGE, array( __CLASS__, 'network_page' ) );
 	}
 
 	private static function assets() {
@@ -40,7 +40,7 @@ final class Screen {
 			return 'Un solo paso para toda la red. Migrar toda la red hace primero un respaldo completo de la red con DIGITALÍSIMO Backups; después instala y activa en toda la red los plugins DIGITALÍSIMO que reemplazan a los de los sitios, migra el contenido de cada sitio, importa sus datos (SEO), cambia al tema DIGITALÍSIMO en los sitios donde es seguro y, al final, si todo salió bien y las portadas responden igual, borra lo reemplazado que ya no usa ningún sitio. Si algo falla, se detiene sin borrar nada. Modifica todos los sitios de la red. Si cierras esta pantalla, sigue sola y se reanuda al volver.';
 		}
 		if ( is_multisite() ) {
-			return 'En una red, la sustitución completa (respaldo, instalar, importar, tema y borrar lo reemplazado) se lanza desde Red → Ajustes → Migrar a DIGITALÍSIMO Elements. Aquí, Migrar convierte el contenido de este sitio a DIGITALÍSIMO Elements y desactiva, sin borrarlos, los plugins que Elements sustituye en este sitio (Elementor, Elementor Pro, PRO Elements, Element Pack con su Addon y, al final, Prime Slider).';
+			return 'En una red, la sustitución completa (respaldo, instalar, importar, tema y borrar lo reemplazado) se lanza desde Red → Ajustes → Migrar a DIGITALÍSIMO. Aquí, Migrar convierte el contenido de este sitio a DIGITALÍSIMO Elements y desactiva, sin borrarlos, los plugins que Elements sustituye en este sitio (Elementor, Elementor Pro, PRO Elements, Element Pack con su Addon y, al final, Prime Slider).';
 		}
 		return 'Un solo paso. Migrar hace primero un respaldo completo del sitio con DIGITALÍSIMO Backups; después instala y activa los plugins DIGITALÍSIMO que reemplazan a los de este sitio, migra el contenido a DIGITALÍSIMO Elements (desactiva Elementor, Elementor Pro, PRO Elements, Element Pack con su Addon y, al final, Prime Slider), importa sus datos (SEO), cambia al tema DIGITALÍSIMO si es seguro y, al final, si todo salió bien y la portada responde igual, borra lo reemplazado. Si algo falla, se detiene sin borrar nada, y el respaldo permite volver atrás. Si cierras esta pantalla, la migración sigue sola y se reanuda al volver.';
 	}
@@ -139,7 +139,7 @@ final class Screen {
 			return;
 		}
 		list( $status, $running ) = self::full_status( false );
-		echo '<div class="wrap digi-migrate-wrap"><h1>' . esc_html( 'Migrar a DIGITALÍSIMO Elements' ) . '</h1>';
+		echo '<div class="wrap digi-migrate-wrap"><h1>' . esc_html( 'Migrar a DIGITALÍSIMO' ) . '</h1>';
 		echo '<p>' . esc_html( self::intro( false ) ) . '</p>';
 		if ( is_multisite() ) {
 			echo '</div>';
@@ -155,7 +155,7 @@ final class Screen {
 			return;
 		}
 		list( $status, $running ) = self::full_status( true );
-		echo '<div class="wrap digi-migrate-wrap"><h1>' . esc_html( 'Migrar a DIGITALÍSIMO Elements en la red' ) . '</h1>';
+		echo '<div class="wrap digi-migrate-wrap"><h1>' . esc_html( 'Migrar a DIGITALÍSIMO en la red' ) . '</h1>';
 		echo '<p>' . esc_html( self::intro( true ) ) . '</p>';
 		echo self::control( true, $status, $running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en control() y en Full::render().
 		echo self::plan_html( true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en plan_html().

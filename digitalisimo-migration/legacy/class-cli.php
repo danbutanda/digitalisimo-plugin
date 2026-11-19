@@ -129,7 +129,7 @@ final class Cli {
 			\WP_CLI::success( sprintf( 'Páginas recuperadas desde su última revisión guardada o su copia original: %d', $count ) );
 			$left = count( Migration::overwritten_parents() );
 			if ( $left ) {
-				\WP_CLI::warning( sprintf( '%d páginas sin revisión guardada ni copia original distinta de la que las sobrescribió: revísalas en el editor (Herramientas → Migrar a DIGITALÍSIMO Elements las lista).', $left ) );
+				\WP_CLI::warning( sprintf( '%d páginas sin revisión guardada ni copia original distinta de la que las sobrescribió: revísalas en el editor (Herramientas → Migrar a DIGITALÍSIMO las lista).', $left ) );
 			}
 			return;
 		}
