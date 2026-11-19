@@ -28,6 +28,9 @@ final class Screen {
 	}
 
 	private static function assets() {
+		if ( ! function_exists( 'wp_enqueue_script' ) || ! defined( 'DIGITALISIMO_MIGRATION_FILE' ) ) {
+			return;
+		}
 		wp_enqueue_script( 'digitalisimo-migration-migrate', plugins_url( 'assets/js/migrate.js', DIGITALISIMO_MIGRATION_FILE ), array(), DIGITALISIMO_MIGRATION_VERSION, true );
 	}
 
@@ -37,9 +40,9 @@ final class Screen {
 			return 'Un solo paso para toda la red. Migrar toda la red hace primero un respaldo completo de la red con DIGITALÍSIMO Backups; después instala y activa en toda la red los plugins DIGITALÍSIMO que reemplazan a los de los sitios, migra el contenido de cada sitio, importa sus datos (SEO), cambia al tema DIGITALÍSIMO en los sitios donde es seguro y, al final, si todo salió bien y las portadas responden igual, borra lo reemplazado que ya no usa ningún sitio. Si algo falla, se detiene sin borrar nada. Modifica todos los sitios de la red. Si cierras esta pantalla, sigue sola y se reanuda al volver.';
 		}
 		if ( is_multisite() ) {
-			return 'En una red, la sustitución completa (respaldo, instalar, importar, tema y borrar lo reemplazado) se lanza desde Red → Ajustes → Migrar a DIGITALÍSIMO Elements. Aquí, Migrar convierte el contenido de este sitio a DIGITALÍSIMO Elements y desactiva, sin borrarlos, los plugins que Elements sustituye en este sitio.';
+			return 'En una red, la sustitución completa (respaldo, instalar, importar, tema y borrar lo reemplazado) se lanza desde Red → Ajustes → Migrar a DIGITALÍSIMO Elements. Aquí, Migrar convierte el contenido de este sitio a DIGITALÍSIMO Elements y desactiva, sin borrarlos, los plugins que Elements sustituye en este sitio (Elementor, Elementor Pro, PRO Elements, Element Pack con su Addon y, al final, Prime Slider).';
 		}
-		return 'Un solo paso. Migrar hace primero un respaldo completo del sitio con DIGITALÍSIMO Backups; después instala y activa los plugins DIGITALÍSIMO que reemplazan a los de este sitio, migra el contenido a DIGITALÍSIMO Elements, importa sus datos (SEO), cambia al tema DIGITALÍSIMO si es seguro y, al final, si todo salió bien y la portada responde igual, borra lo reemplazado. Si algo falla, se detiene sin borrar nada, y el respaldo permite volver atrás. Si cierras esta pantalla, la migración sigue sola y se reanuda al volver.';
+		return 'Un solo paso. Migrar hace primero un respaldo completo del sitio con DIGITALÍSIMO Backups; después instala y activa los plugins DIGITALÍSIMO que reemplazan a los de este sitio, migra el contenido a DIGITALÍSIMO Elements (desactiva Elementor, Elementor Pro, PRO Elements, Element Pack con su Addon y, al final, Prime Slider), importa sus datos (SEO), cambia al tema DIGITALÍSIMO si es seguro y, al final, si todo salió bien y la portada responde igual, borra lo reemplazado. Si algo falla, se detiene sin borrar nada, y el respaldo permite volver atrás. Si cierras esta pantalla, la migración sigue sola y se reanuda al volver.';
 	}
 
 	/** Botón y estado (`#digi-migrate`, el mismo que conduce migrate.js). */

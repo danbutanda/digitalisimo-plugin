@@ -13,6 +13,8 @@ require_once __DIR__ . '/class-retire.php';
 require_once __DIR__ . '/class-aliases.php';
 require_once __DIR__ . '/class-dropped.php';
 require_once __DIR__ . '/class-pro.php';
+// La pantalla usa el botón, el estado y el análisis de la tarea completa (\Digitalisimo\Migration\Full).
+require_once dirname( __DIR__ ) . '/includes/class-screen.php';
 
 /**
  * Migración de documentos de Element Pack en el sitio actual.

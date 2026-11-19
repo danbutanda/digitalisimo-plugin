@@ -3,7 +3,7 @@ namespace Digitalisimo\Migration;
 
 defined( 'ABSPATH' ) || exit;
 
-require_once DIGITALISIMO_MIGRATION_DIR . 'legacy/class-retire.php';
+require_once dirname( __DIR__ ) . '/legacy/class-retire.php';
 
 use Digitalisimo\Elements\Legacy\Retire;
 
