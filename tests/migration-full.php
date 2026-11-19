@@ -615,7 +615,8 @@ switch ( $scenario ) {
 		check( array( 'Complemento' ) === Replacements::dependents( $rows['rank-math'], array( 'x/x.php' => array( 'Name' => 'Complemento', 'RequiresPlugins' => 'woocommerce, seo-by-rank-math' ), 'y/y.php' => array( 'Name' => 'Otro', 'RequiresPlugins' => 'woocommerce' ) ) ), 'Dependientes: sólo los que piden un plugin de la fila.' );
 		$uniform = Front::mark_uniform( array( 'a' => Front::fingerprint( 200, '<body>Volvemos pronto</body>' ), 'b' => Front::fingerprint( 200, '<body>Volvemos pronto</body>' ) ) );
 		check( null === Front::compare( $uniform['a'], $uniform['a'] )[0], 'Todas las URL con el mismo texto: no comparable.' );
-		check( null === Front::compare( array( 'status' => 302, 'words' => array(), 'login' => true ), $a )[0], 'Un muro de acceso: no comparable.' );
+		$wall = Front::compare( array( 'status' => 302, 'words' => array(), 'login' => true ), $a );
+		check( null === $wall[0] && false !== strpos( $wall[1], 'sesión' ), 'Un muro de acceso: no comparable, por pedir sesión: ' . $wall[1] );
 		check( null === Front::compare( Front::fingerprint( 200, '<body><img src="x"></body>' ), $a )[0], 'Sin texto visible: no comparable (antes daba por buena cualquier cosa).' );
 		check( false === Front::compare( $a, $a, 'digitalisimo-theme' )[0], 'Tras cambiar de tema, un HTML sin el tema nuevo viene de caché.' );
 		$many = '<body>' . implode( ' ', array_map( static function ( $i ) { return 'palabra' . $i; }, range( 1, 900 ) ) ) . '</body>';
@@ -845,11 +846,16 @@ switch ( $scenario ) {
 		// Un complemento que declara `Requires Plugins: seo-by-rank-math`: Rank Math no se desactiva ni se borra.
 		plugin( 'rank-math-addon/rank-math-addon.php', 'Complemento de Rank Math' );
 		$GLOBALS['t']['plugins']['rank-math-addon/rank-math-addon.php']['RequiresPlugins'] = 'seo-by-rank-math';
+		// Un complemento de Elementor: el contenido se migra (sigue funcionando con el núcleo incluido), pero Elementor no se borra.
+		plugin( 'elementor-addon/elementor-addon.php', 'Complemento de Elementor' );
+		$GLOBALS['t']['plugins']['elementor-addon/elementor-addon.php']['RequiresPlugins'] = 'elementor';
 		drive();
 		$last = Full::last( false );
 		check( active( 'seo-by-rank-math/rank-math.php' ) && installed_now( 'seo-by-rank-math/rank-math.php' ), 'Rank Math sigue activo e instalado.' );
 		check( false !== strpos( (string) ( $last['kept']['rank-math'] ?? '' ), 'Complemento de Rank Math' ), 'El informe nombra al dependiente: ' . ( $last['kept']['rank-math'] ?? '' ) );
-		check( ! installed_now( 'updraftplus/updraftplus.php' ), 'Lo que no tiene dependientes sí se reemplaza.' );
+		check( ! installed_now( 'updraftplus/updraftplus.php' ) && ! installed_now( 'bdthemes-element-pack/bdthemes-element-pack.php' ), 'Lo que no tiene dependientes sí se reemplaza.' );
+		check( in_array( 'content:done', $GLOBALS['t']['log'], true ) && installed_now( 'elementor/elementor.php' ) && ! active( 'elementor/elementor.php' ), 'Con un complemento de Elementor, el contenido se migra y Elementor queda desactivado, sin borrar.' );
+		check( false !== strpos( (string) ( $last['kept']['elementor'] ?? '' ), 'Complemento de Elementor' ), 'El informe nombra al complemento: ' . ( $last['kept']['elementor'] ?? '' ) );
 		break;
 
 	case 'yoast_gaps':
