@@ -208,7 +208,7 @@ const SEO      = 'digitalisimo-seo/digitalisimo-integrations.php';
 spl_autoload_register( static function ( $class ) {
 	$loaded = (array) ( $GLOBALS['t']['loaded'] ?? array() );
 	$groups = array(
-		BACKUPS  => array( 'Digitalisimo_Backups_Jobs', 'Digitalisimo_Backups_Job_Store', 'Digitalisimo_Backups', 'Digitalisimo_Backups_Updraft_Import', 'Digitalisimo_Backups_Backuply_Import' ),
+		BACKUPS  => array( 'Digitalisimo_Backups_Jobs', 'Digitalisimo_Backups_Job_Store', 'Digitalisimo_Backups', 'Digitalisimo_Backups_Backuply_Import' ),
 		SEO      => array( 'Digitalisimo_Integrations_RankMath_Import', 'Digitalisimo_Integrations_SEO' ),
 		ELEMENTS => array( 'Digitalisimo\\Elements\\Legacy\\Runner', 'Digitalisimo_Elements_Core', 'ElementorPro\\Modules\\ThemeBuilder\\Module' ),
 	);
@@ -254,8 +254,15 @@ final class Digitalisimo_Backups_Jobs {
 	}
 }
 final class Digitalisimo_Backups_Job_Store { public static function is_terminal( $job ) { return in_array( $job['status'] ?? '', array( 'success', 'failed', 'cancelled' ), true ); } }
-final class Digitalisimo_Backups { public static function storage_directory() { return TMP . '/store'; } }
-final class Digitalisimo_Backups_Updraft_Import { public static function sources() { return array( array( 'id' => 'a' ), array( 'id' => 'b' ) ); } }
+final class Digitalisimo_Backups {
+	public static function storage_directory() { return TMP . '/store'; }
+	/** Como Backups: el lector de UpdraftPlus sólo se carga cuando se pide. */
+	public static function load_updraft_import() {
+		if ( ! class_exists( 'Digitalisimo_Backups_Updraft_Import', false ) ) {
+			eval( 'final class Digitalisimo_Backups_Updraft_Import { public static function sources() { return array( array( "id" => "a" ), array( "id" => "b" ) ); } }' );
+		}
+	}
+}
 final class Digitalisimo_Backups_Backuply_Import { public static function sources() { return array(); } }
 PHP
 		);

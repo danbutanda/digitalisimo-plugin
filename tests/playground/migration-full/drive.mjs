@@ -142,7 +142,7 @@ for (const file of ['digitalisimo-backups/digitalisimo-backups.php', 'digitalisi
 }
 check(!result.themes.includes('hello-elementor') && result.themes.includes('digitalisimo-theme'), 'Hello se reemplaza por el tema propio y se borra: ' + result.themes.join(','));
 for (const [id, site] of Object.entries(result.sites)) {
-	const active = network ? result.sitewide : site.active;
+	const active = Object.values(network ? result.sitewide : site.active);
 	for (const file of ['digitalisimo-backups/digitalisimo-backups.php', 'digitalisimo-elements/pro-elements.php', 'digitalisimo-seo/digitalisimo-integrations.php']) {
 		check(active.includes(file), `Sitio ${id}: activo ${file}`);
 	}

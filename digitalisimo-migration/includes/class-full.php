@@ -863,13 +863,21 @@ final class Full {
 				}
 				$done[ $kind ]['done'] = true;
 			} elseif ( 'backups_sets' === $kind ) {
-				// Backups lee los respaldos de UpdraftPlus y Backuply en sus carpetas: se comprueba que los ve.
+				// Backups lee los respaldos de UpdraftPlus y Backuply en sus carpetas: se comprueba que los ve. El lector de
+				// UpdraftPlus se carga sólo cuando hace falta (Digitalisimo_Backups::load_updraft_import()).
+				if ( method_exists( 'Digitalisimo_Backups', 'load_updraft_import' ) ) {
+					\Digitalisimo_Backups::load_updraft_import();
+				}
 				$count = 0;
 				foreach ( array( 'Digitalisimo_Backups_Updraft_Import', 'Digitalisimo_Backups_Backuply_Import' ) as $class ) {
 					if ( ! class_exists( $class ) || ! method_exists( $class, 'sources' ) ) {
 						return array( $state, 'fail', 'DIGITALÍSIMO Backups no cargó la lectura de los respaldos de UpdraftPlus y Backuply: actualízalo y vuelve a pulsar Migrar.' );
 					}
-					$count += count( (array) $class::sources() );
+					try {
+						$count += count( (array) $class::sources() );
+					} catch ( \Throwable $e ) {
+						return array( $state, 'fail', 'DIGITALÍSIMO Backups no pudo leer los respaldos de UpdraftPlus o Backuply: ' . $e->getMessage() );
+					}
 				}
 				$done[ $kind ] = array( 'done' => true, 'count' => $count );
 			}

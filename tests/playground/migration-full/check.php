@@ -9,7 +9,7 @@ wp_clean_plugins_cache( false );
 $network = is_multisite();
 $last    = \Digitalisimo\Migration\Full::last( $network );
 $out     = array(
-	'installed' => array_keys( get_plugins() ),
+	'installed' => array_values( array_keys( get_plugins() ) ),
 	'sitewide'  => $network ? array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) : array(),
 	'themes'    => array_keys( wp_get_themes() ),
 	'last'      => is_array( $last ) ? array_intersect_key( $last, array_flip( array( 'failed', 'error', 'deleted', 'kept', 'verified', 'verify', 'backup', 'installed', 'activated', 'imports', 'retired', 'theme', 'notes', 'done' ) ) ) : null,
@@ -30,7 +30,7 @@ foreach ( $network ? get_sites( array( 'fields' => 'ids' ) ) : array( get_curren
 	$response = wp_remote_get( home_url( '/' ), array( 'timeout' => 30 ) );
 	$body     = is_wp_error( $response ) ? '' : (string) wp_remote_retrieve_body( $response );
 	$out['sites'][ $site_id ] = array(
-		'active'     => (array) get_option( 'active_plugins', array() ),
+		'active'     => array_values( (array) get_option( 'active_plugins', array() ) ),
 		'stylesheet' => get_stylesheet(),
 		'seo_title'  => (string) get_post_meta( $page, 'digitalisimo_seo_title', true ),
 		'seo_desc'   => (string) get_post_meta( $page, 'digitalisimo_seo_description', true ),
