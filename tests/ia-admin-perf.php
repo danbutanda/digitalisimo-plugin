@@ -9,7 +9,10 @@
  *   2. guardar dos veces el mismo contenido escribe el índice una sola vez y conserva el embedding;
  *   3. lo que deja de ser público (borrador, contraseña, privado) sale del índice en el acto, como antes;
  *   4. borrar una revisión o una entrada no indexada no lo lee; borrar una indexada la quita;
- *   5. un índice de una versión anterior (sin la lista de IDs) sigue funcionando y crea la lista una vez.
+ *   5. un índice de una versión anterior (sin la lista de IDs) sigue funcionando y crea la lista una vez;
+ *   6. con la lista desfasada (vuelta a una versión anterior, dos guardados a la vez), lo que deja de ser público sale
+ *      igual (cuenta la huella META, que se borra al sacarlo), leer el índice entero repara la lista, y «Fuentes» y los
+ *      embeddings sólo ven lo público.
  */
 define( 'ABSPATH', __DIR__ );
 define( 'HOUR_IN_SECONDS', 3600 );
@@ -22,6 +25,7 @@ function update_option( $key, $value, $autoload = null ) {
 	if ( Digitalisimo_AI_Knowledge::OPTION === $key ) $GLOBALS['writes']++;
 	$GLOBALS['options'][ $key ] = $value; return true;
 }
+function get_post( $id ) { return $GLOBALS['posts'][ (int) $id ] ?? null; }
 function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['meta'][ $id ][ $key ] ?? ''; }
 function update_post_meta( $id, $key, $value ) { $GLOBALS['meta'][ $id ][ $key ] = $value; return true; }
 function delete_post_meta( $id, $key ) { unset( $GLOBALS['meta'][ $id ][ $key ] ); return true; }
@@ -81,4 +85,19 @@ $k::remove_post( 950 );
 if ( $GLOBALS['reads'] || $GLOBALS['writes'] ) fail( "Borrar 20 revisiones y una entrada no indexada leyó el índice {$GLOBALS['reads']} veces." );
 $k::remove_post( 5 );
 if ( isset( $GLOBALS['options'][ $k::OPTION ][5] ) || in_array( 5, $GLOBALS['options'][ $ids_key ], true ) ) fail( 'Borrar una entrada indexada la quita del índice y de la lista.' );
+// 6. Lista desfasada: una versión anterior indexó la 300 (con su huella) sin tocar la lista; luego pasa a borrador.
+post( 300 ); $GLOBALS['options'][ $k::OPTION ][300] = array( 'id' => 300, 'title' => 'Entrada 300', 'content' => 'x', 'tokens' => array() );
+$GLOBALS['meta'][300][ $k::META ] = '2026-11-01T10:00:00+00:00';
+if ( in_array( 300, $GLOBALS['options'][ $ids_key ], true ) ) fail( 'Preparación: la lista no debe conocer la 300.' );
+$k::index_post( 300, post( 300, 'post', 'draft' ), true );
+if ( isset( $GLOBALS['options'][ $k::OPTION ][300] ) ) fail( 'Con la lista desfasada, una entrada indexada (con huella) que pasa a borrador debe salir del índice.' );
+if ( isset( $GLOBALS['meta'][300][ $k::META ] ) ) fail( 'Al sacarla del índice se borra su huella.' );
+// Sin huella (índice antiguo escrito a mano o restaurado): leer el índice entero (pestaña Conocimiento) repara la lista.
+post( 301, 'post', 'private' ); $GLOBALS['options'][ $k::OPTION ][301] = array( 'id' => 301, 'title' => 'Privada', 'url' => 'https://sitio.test/?p=301', 'content' => 'secreto', 'tokens' => array() );
+$sources = $k::sources();
+if ( in_array( 301, array_column( $sources, 'id' ), true ) ) fail( '«Fuentes» (REST con edit_posts) no debe mostrar lo que ya no es público.' );
+if ( ! in_array( 301, $GLOBALS['options'][ $ids_key ], true ) ) fail( 'Leer el índice entero debe reparar la lista de IDs.' );
+$k::index_post( 301, $GLOBALS['posts'][301], true );
+if ( isset( $GLOBALS['options'][ $k::OPTION ][301] ) ) fail( 'Con la lista reparada, guardar lo privado lo saca del índice.' );
+if ( ! in_array( 1, array_column( $k::sources(), 'id' ), true ) ) fail( '«Fuentes» sigue mostrando lo público.' );
 echo "IA Tools: la base de conocimiento sólo se lee y se reescribe cuando una entrada indexada cambia.\n";

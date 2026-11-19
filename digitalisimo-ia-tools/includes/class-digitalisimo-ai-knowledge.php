@@ -19,17 +19,27 @@ class Digitalisimo_AI_Knowledge {
 	}
 
 	private static function enabled() { return (bool) Digitalisimo_AI::get( 'knowledge_enabled' ); }
-	private static function index() { return (array) get_option( self::OPTION, array() ); }
+	/** Leer el índice entero repara además la lista de IDs si quedó desfasada (otra versión del plugin, dos guardados a la vez). */
+	private static function index() { $index = (array) get_option( self::OPTION, array() ); self::sync_ids( $index ); return $index; }
 	private static function save( $index ) { update_option( self::OPTION, $index, false ); update_option( self::IDS, array_map( 'intval', array_keys( $index ) ), false ); }
-	/** IDs indexados. Un índice de una versión anterior (sin la lista) la crea una vez; uno vacío no escribe nada. */
+	private static function sync_ids( array $index ) {
+		$keys = array_map( 'intval', array_keys( $index ) );
+		$ids  = get_option( self::IDS, null );
+		if ( is_array( $ids ) ) { $ids = array_map( 'intval', $ids ); if ( ! array_diff( $keys, $ids ) && ! array_diff( $ids, $keys ) ) return; }
+		elseif ( ! $keys ) return;
+		update_option( self::IDS, $keys, false );
+	}
+	/** IDs indexados. Un índice de una versión anterior (sin la lista) la crea al leerse; uno vacío no escribe nada. */
 	private static function ids() {
 		$ids = get_option( self::IDS, null );
-		if ( is_array( $ids ) ) return array_map( 'intval', $ids );
-		$ids = array_map( 'intval', array_keys( self::index() ) );
-		if ( $ids ) update_option( self::IDS, $ids, false );
-		return $ids;
+		return is_array( $ids ) ? array_map( 'intval', $ids ) : array_map( 'intval', array_keys( self::index() ) );
 	}
-	private static function indexed( $post_id ) { return in_array( (int) $post_id, self::ids(), true ); }
+	private static function in_list( $post_id ) { return in_array( (int) $post_id, self::ids(), true ); }
+	/**
+	 * Para sacar algo del índice no basta la lista: una entrada con huella (META, la escriben esta versión y las
+	 * anteriores al indexar) también cuenta, por si la lista quedó desfasada. Lo que no es público sale siempre.
+	 */
+	private static function maybe_indexed( $post_id ) { return self::in_list( $post_id ) || '' !== (string) get_post_meta( (int) $post_id, self::META, true ); }
 	/** Huella de lo que se indexa (sin la fecha de modificación, que cambia en cada guardado aunque el texto sea el mismo). */
 	private static function fingerprint( $record ) { unset( $record['modified'] ); return md5( serialize( $record ) ); }
 	/** Sólo contenido público: de un tipo público (como en rebuild()), publicado, sin contraseña y sin noindex. Lo protegido nunca llega al chatbot. */
@@ -73,21 +83,22 @@ class Digitalisimo_AI_Knowledge {
 	public static function index_post( $post_id, $post, $update ) {
 		if ( wp_is_post_revision( $post_id ) || ! self::enabled() || ! Digitalisimo_AI::get( 'knowledge_auto_index' ) ) return;
 		if ( ! self::allowed( $post ) ) {
-			if ( ! self::indexed( $post_id ) ) return;
-			$index = self::index(); unset( $index[ $post_id ] ); self::save( $index );
+			if ( ! self::maybe_indexed( $post_id ) ) return;
+			$index = self::index(); if ( isset( $index[ $post_id ] ) ) { unset( $index[ $post_id ] ); self::save( $index ); }
+			delete_post_meta( $post_id, self::META );
 			return;
 		}
 		$record = self::record( $post );
 		if ( ! $record ) return;
 		$fingerprint = self::fingerprint( $record );
-		if ( $fingerprint === get_post_meta( $post_id, self::META, true ) && self::indexed( $post_id ) ) return;
+		if ( $fingerprint === get_post_meta( $post_id, self::META, true ) && self::in_list( $post_id ) ) return;
 		$index = self::index(); $index[ $post_id ] = $record; self::save( $index ); update_post_meta( $post_id, self::META, $fingerprint );
 	}
 
 	/** Al borrar una entrada (y cada una de sus revisiones), el índice sólo se lee si la entrada estaba en él. */
 	public static function remove_post( $post_id ) {
-		if ( wp_is_post_revision( $post_id ) || ! self::indexed( $post_id ) ) return;
-		$index = self::index(); unset( $index[ $post_id ] ); self::save( $index );
+		if ( wp_is_post_revision( $post_id ) || ! self::maybe_indexed( $post_id ) ) return;
+		$index = self::index(); if ( isset( $index[ $post_id ] ) ) { unset( $index[ $post_id ] ); self::save( $index ); }
 	}
 	public static function rebuild() {
 		if ( ! self::enabled() ) return;
@@ -112,7 +123,7 @@ class Digitalisimo_AI_Knowledge {
 	public static function generate_embeddings() {
 		if ( ! Digitalisimo_AI::get( 'knowledge_embeddings_enabled' ) ) return array( 'ok' => false, 'message' => 'Activa embeddings antes de generarlos.' );
 		$providers = (array) Digitalisimo_AI::get( 'providers' ); $openai = (array) ( $providers['openai'] ?? array() ); if ( empty( $openai['enabled'] ) || empty( $openai['key'] ) ) return array( 'ok' => false, 'message' => 'Configura y activa OpenAI para embeddings.' );
-		$index = self::index(); $ids = array_keys( $index ); if ( ! $ids ) return array( 'ok' => false, 'message' => 'No hay fuentes indexadas.' ); $ids = array_slice( $ids, 0, 20 ); $input = array(); foreach ( $ids as $id ) $input[] = wp_trim_words( ( $index[ $id ]['title'] ?? '' ) . "\n" . ( $index[ $id ]['content'] ?? '' ), 350, '' );
+		$index = self::index(); $ids = array_keys( self::public_index( $index ) ); if ( ! $ids ) return array( 'ok' => false, 'message' => 'No hay fuentes indexadas.' ); $ids = array_slice( $ids, 0, 20 ); $input = array(); foreach ( $ids as $id ) $input[] = wp_trim_words( ( $index[ $id ]['title'] ?? '' ) . "\n" . ( $index[ $id ]['content'] ?? '' ), 350, '' );
 		$response = wp_remote_post( 'https://api.openai.com/v1/embeddings', array( 'timeout' => 45, 'headers' => array( 'Authorization' => 'Bearer ' . $openai['key'], 'Content-Type' => 'application/json' ), 'body' => wp_json_encode( array( 'model' => sanitize_text_field( Digitalisimo_AI::get( 'knowledge_embeddings_model' ) ?: 'text-embedding-3-small' ), 'input' => $input ) ) ) );
 		if ( is_wp_error( $response ) ) return array( 'ok' => false, 'message' => $response->get_error_message() ); $data = json_decode( wp_remote_retrieve_body( $response ), true ); if ( wp_remote_retrieve_response_code( $response ) < 200 || wp_remote_retrieve_response_code( $response ) >= 300 || empty( $data['data'] ) ) return array( 'ok' => false, 'message' => 'OpenAI devolvió HTTP ' . wp_remote_retrieve_response_code( $response ) );
 		foreach ( $data['data'] as $position => $item ) if ( isset( $ids[ $position ], $item['embedding'] ) ) $index[ $ids[ $position ] ]['embedding'] = array_map( 'floatval', $item['embedding'] ); self::save( $index ); return array( 'ok' => true, 'message' => count( $ids ) . ' embeddings generados.' );
@@ -158,7 +169,13 @@ class Digitalisimo_AI_Knowledge {
 	}
 	public static function count() { return count( self::index() ); }
 	/** Fuentes administrativas sin contenido completo ni datos privados. */
+	/** Sólo lo que hoy es público: un índice desfasado puede conservar algo que pasó a privado o se borró. */
+	private static function public_index( $index = null ) {
+		$index = is_array( $index ) ? $index : self::index();
+		if ( $index && function_exists( '_prime_post_caches' ) ) _prime_post_caches( array_map( 'intval', array_keys( $index ) ), false, true );
+		return array_filter( $index, function( $record, $id ) { return self::allowed( get_post( (int) $id ) ); }, ARRAY_FILTER_USE_BOTH );
+	}
 	public static function sources() {
-		return array_map( function( $record ) { return array( 'id' => $record['id'] ?? 0, 'title' => $record['title'] ?? '', 'url' => $record['url'] ?? '', 'type' => $record['type'] ?? '', 'modified' => $record['modified'] ?? '', 'embedded' => ! empty( $record['embedding'] ) ); }, self::index() );
+		return array_map( function( $record ) { return array( 'id' => $record['id'] ?? 0, 'title' => $record['title'] ?? '', 'url' => $record['url'] ?? '', 'type' => $record['type'] ?? '', 'modified' => $record['modified'] ?? '', 'embedded' => ! empty( $record['embedding'] ) ); }, self::public_index() );
 	}
 }

@@ -73,6 +73,7 @@ function get_permalink( $post ) { return 'https://sitio.test/?p=' . ( is_object(
 function get_post_modified_time( $format = 'U', $gmt = false, $post = null ) { return '2026-11-05T00:00:00+00:00'; }
 function update_post_meta( $id, $key, $value ) { $GLOBALS['meta'][ $id ][ $key ] = $value; return true; }
 function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['meta'][ $id ][ $key ] ?? ''; }
+function delete_post_meta( $id, $key ) { unset( $GLOBALS['meta'][ $id ][ $key ] ); return true; }
 function get_post( $id ) { return $GLOBALS['posts'][ (int) $id ] ?? null; }
 function get_the_title( $id ) { return get_post( $id )->post_title ?? ''; }
 function current_user_can( $cap, $id = 0 ) { return ( 'edit_post' === $cap && in_array( (int) $id, $GLOBALS['editable'], true ) ) || ( 'read_post' === $cap && in_array( (int) $id, $GLOBALS['readable'] ?? array(), true ) ); }
@@ -200,8 +201,6 @@ check( array( 'uno', 'dos' ) === Digitalisimo_AI_Content_Playbook::generate( 'x'
 $GLOBALS['private_types'] = array( 'nota_interna' );
 $GLOBALS['posts'][9] = new WP_Post( array( 'ID' => 9, 'post_title' => 'Nota interna', 'post_content' => 'Margen interno del 40 %.', 'post_type' => 'nota_interna' ) );
 $GLOBALS['options']['digitalisimo_ai_knowledge'][9] = array( 'id' => 9, 'title' => 'Nota interna', 'url' => '', 'content' => 'Margen interno del 40 %.', 'tokens' => array( 'margen', 'interno' ) );
-// Un índice anterior no trae la lista de IDs que save() mantiene junto a él (admin-perf): se crea a partir del índice.
-unset( $GLOBALS['options']['digitalisimo_ai_knowledge_ids'] );
 check( array() === wp_list_ids( Digitalisimo_AI_Knowledge::search( 'margen interno', 4 ) ), 'Un índice anterior no entrega contenido de un tipo no público.' );
 Digitalisimo_AI_Knowledge::index_post( 9, $GLOBALS['posts'][9], true );
 check( ! isset( $GLOBALS['options']['digitalisimo_ai_knowledge'][9] ), 'Guardar contenido de un tipo no público lo quita del índice.' );
