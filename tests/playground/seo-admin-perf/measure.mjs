@@ -238,6 +238,9 @@ async function chrome() {
         await page.waitForFunction(() => window.wp?.data?.select('core/editor')?.getCurrentPostId?.(), { timeout: 120_000 });
         await sleep(1000);
         const t0 = Date.now() / 1000;
+        const marker = `clave medida ${set} ${i} ${Date.now()}`;
+        // Con SEO activo, una keyword escrita en su metabox debe guardarse aunque el POST de metaboxes ya no redirija.
+        const hasField = await page.evaluate((v) => { const f = document.querySelector('input[name="digitalisimo_editorial_keywords"]'); if (!f) return false; f.value = v; return true; }, marker);
         const wall = await page.evaluate(async (n) => {
           const t = performance.now();
           const ed = wp.data.dispatch('core/editor');
@@ -250,7 +253,9 @@ async function chrome() {
         await sleep(800);
         const t1 = Date.now() / 1000 + 1;
         const lines = logLines().filter((l) => l.t >= t0 && l.t <= t1 && l.set === SET_VALUE[set]);
-        out.save[set].push({ wall_ms: Math.round(wall), requests: lines.map((l) => ({ uri: l.uri.slice(0, 120), method: l.method, ms: l.ms, queries: l.queries, http: l.http.length, errors: l.errors.length })) });
+        const saved = hasField ? (await state(`meta&post=${P}&key=digitalisimo_seo_keywords`)).value : null;
+        const notices = await page.evaluate(() => (wp.data.select('core/notices').getNotices() || []).filter((x) => x.status === 'error').map((x) => x.content));
+        out.save[set].push({ wall_ms: Math.round(wall), metabox_field: hasField, metabox_saved: hasField ? saved === marker : null, error_notices: notices, requests: lines.map((l) => ({ uri: l.uri.slice(0, 120), method: l.method, ms: l.ms, queries: l.queries, http: l.http.length, errors: l.errors.length })) });
       }
     }
   } finally {

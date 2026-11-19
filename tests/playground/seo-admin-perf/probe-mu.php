@@ -202,6 +202,9 @@ add_action( 'init', static function () {
 		wp_cache_flush();
 		wp_send_json( array( 'expired' => true ) );
 	}
+	if ( 'meta' === $_GET['digi_ap_state'] ) {
+		wp_send_json( array( 'value' => get_post_meta( absint( $_GET['post'] ?? 0 ), sanitize_key( wp_unslash( $_GET['key'] ?? '' ) ), true ) ) );
+	}
 	if ( 'cron' === $_GET['digi_ap_state'] ) {
 		// Un evento de WP-Cron de los plugins, ejecutado una vez con sus argumentos (la sonda mide la petición).
 		$hook = sanitize_text_field( wp_unslash( $_GET['hook'] ?? '' ) );

@@ -72,6 +72,6 @@ if (r.chrome) {
     if (extra.length) { any = true; out.push(`- ${k.slice(4)}: ${extra.join(' · ')}`); }
   }
   if (!any) out.push(`- Ningún error de consola, de JavaScript ni respuesta ≥ 400 que no aparezca también sin los plugins (${Object.keys(r.chrome.console).length} cargas de página).`);
-  for (const [set, runs] of Object.entries(r.chrome.save)) out.push(`- guardar desde el editor [${set}]: ${runs.map((x) => `${x.wall_ms} ms (${x.requests.map((q) => `${q.method} ${q.uri.replace(/\?.*$/, '')} ${f(q.ms)} ms/${q.queries} q`).join(' + ')})`).join(' · ')}`);
+  for (const [set, runs] of Object.entries(r.chrome.save)) out.push(`- guardar desde el editor [${set}]: ${runs.map((x) => `${x.wall_ms} ms (${x.requests.map((q) => `${q.method} ${q.uri.replace(/\?.*$/, '')}${/meta-box-loader/.test(q.uri) ? ' [metaboxes]' : /message=/.test(q.uri) ? ' [recarga del editor]' : ''} ${f(q.ms)} ms/${q.queries} q`).join(' + ')})${x.metabox_field ? (x.metabox_saved ? ' · metabox guardado' : ' · METABOX SIN GUARDAR') : ''}${x.error_notices?.length ? ` · AVISOS: ${x.error_notices.join(' / ')}` : ''}`).join(' · ')}`);
 }
 console.log(out.join('\n'));
