@@ -1117,7 +1117,7 @@ final class Runner {
 
 	/** Documentos con widgets de PRO por convertir, para el avance de la etapa. */
 	private static function pro_total() {
-		return self::pro_ready() ? count( Pro::documents() ) : 0;
+		return self::pro_ready() ? count( self::has( 'Pro', 'stage_documents' ) ? Pro::stage_documents() : Pro::documents() ) : 0;
 	}
 
 	/**
@@ -1129,7 +1129,8 @@ final class Runner {
 		if ( ! self::pro_ready() ) {
 			return self::next( $state, 'retire_late' );
 		}
-		$batch = Pro::documents( (int) $state['cursor'], self::BATCH );
+		// También los convertidos por una versión anterior, para recuperar lo que no pasó (Pro::recover_document()).
+		$batch = self::has( 'Pro', 'stage_documents' ) ? Pro::stage_documents( (int) $state['cursor'], self::BATCH ) : Pro::documents( (int) $state['cursor'], self::BATCH );
 		list( $state, $complete ) = self::loop( $state, $batch, $deadline, static function ( $post_id, array &$state ) {
 			$result = Pro::convert_document( $post_id );
 			if ( ! empty( $result['converted'] ) ) {

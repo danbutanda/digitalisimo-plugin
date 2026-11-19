@@ -29,8 +29,11 @@ defined( 'ABSPATH' ) || exit;
  *   sufijo de un dispositivo (`align_tablet`), descarta sólo ese dispositivo aunque `keep` o `rename` conserven la clave.
  * - `approx`: `clave => motivo`, traducción aproximada (la hacen `rename`, `values` o `filter`); se informa en
  *   «Aproximado» si el sitio la cambió del default.
- * - `repeaters`: `clave => submapa` con `target`, `defaults`, `default_rows`, `keep`, `rename`, `values`, `drop` y
- *   `approx`; el `_id` de cada fila se conserva.
+ * - `inert`: `clave => motivo`, clave guardada que el widget de PRO no lee (la dejó otro plugin o una versión antigua)
+ *   y el widget propio tampoco: pasa tal cual, sin pérdida, y se informa en «Convertido» (`pro.inert`). Las de todo
+ *   widget están en INERT.
+ * - `repeaters`: `clave => submapa` con `target`, `defaults`, `default_rows`, `keep`, `rename`, `values`, `drop`,
+ *   `approx` e `inert`; el `_id` de cada fila se conserva.
  * - `classes`: `.clase de PRO => .clase propia`, para el CSS personalizado del propio elemento. `class_patterns`:
  *   `expresión regular => reemplazo`, para las clases que PRO arma con un dato (`.elementor-sitemap-item-<tipo>`); se
  *   aplican antes que `classes` y cuentan para el mismo código `pro.css`.
@@ -42,13 +45,40 @@ defined( 'ABSPATH' ) || exit;
  * el Personalizador): no lo cambia, añade tras cada regla que las nombra su copia con las clases propias.
  *
  * Los ajustes comunes de Elementor y de DIGITALÍSIMO (pestaña Avanzado, visibilidad, movimiento, fijado, atributos,
- * condiciones, rasgos `digitalisimo_*`) pasan sin cambios.
+ * condiciones de visualización de PRO `e_display_conditions`, CSS personalizado, rasgos `digitalisimo_*`) pasan sin
+ * cambios.
+ *
+ * Condiciones de visualización de otros plugins (CONDITION_FAMILIES, o cualquier clave no declarada cuyo nombre hable de
+ * condiciones o de visibilidad): nunca se pierden en silencio. Apagadas (sin su interruptor encendido, o vacías) no
+ * ocultaban nada y pasan tal cual (`pro.inert`); encendidas, el widget propio no sabe aplicarlas, así que el elemento no
+ * se convierte (`pro.condition_kept`, con `keep`): sigue siendo el widget de PRO, que se ve y se oculta igual.
  */
 final class Translator {
 	const DEVICES = array( '', '_widescreen', '_laptop', '_tablet_extra', '_tablet', '_mobile_extra', '_mobile' );
 
 	/** Claves comunes a todo elemento: pasan tal cual. */
 	const COMMON = array( 'custom_css', 'animation_duration', 'e_display_conditions', 'sticky', 'sticky_on', 'sticky_offset', 'sticky_effects_offset', 'sticky_anchor_link_offset', 'sticky_parent' );
+
+	/**
+	 * Claves que ningún widget lee, en cualquier widget cuyo mapa no las declare: `clave => motivo`. Pasan tal cual (sin
+	 * pérdida) salvo la clave sin nombre, que se quita. Se informan en «Convertido» (`pro.inert`).
+	 */
+	const INERT = array(
+		'content_width' => 'Ancho de contenido de un contenedor guardado en el widget (copiado o pegado desde un contenedor): ni el widget de PRO ni el propio lo leen. Pasa tal cual; no cambia nada de lo que se ve.',
+		''              => 'Ajuste sin nombre (dato dañado al guardar): ningún control lo lee. Se quita; no cambia nada de lo que se ve.',
+	);
+
+	/**
+	 * Condiciones de visualización de otros plugins de complementos: prefijo de sus claves => su interruptor. Sin el
+	 * interruptor encendido (Elementor no guarda el apagado) sus reglas no ocultaban nada.
+	 */
+	const CONDITION_FAMILIES = array( 'display_condition_' => 'display_condition_enable' );
+
+	/** Nombres de clave que hablan de condiciones o de visibilidad (sin declarar: se tratan como condiciones). */
+	const CONDITION_PATTERN = '/condition|visibilit/i';
+
+	/** Código que deja el elemento sin convertir (con `keep`). */
+	const KEEP = 'pro.condition_kept';
 
 	/** Prefijos de claves comunes. `_` cubre la pestaña Avanzado y el `_id` de las filas. */
 	const COMMON_PREFIXES = array( '_', 'motion_fx_', 'hide_', 'digitalisimo_', 'sticky_' );
@@ -198,8 +228,17 @@ final class Translator {
 					$moved[ $key ] = $value;
 				} elseif ( isset( $drop[ self::base( (string) $key ) ] ) ) {
 					$codes[] = self::code( 'pro.dropped', $prefix . self::base( (string) $key ), (string) $drop[ self::base( (string) $key ) ], 'dropped' );
+				} elseif ( null !== self::foreign( (string) $key, $settings, $spec ) ) {
+					// Ajuste inerte o condición de otro plugin: su valor dinámico o global la acompaña (el código sale abajo).
+					if ( '' !== (string) $key ) {
+						$moved[ $key ] = $value;
+					}
+					if ( ! array_key_exists( $key, $settings ) ) {
+						$foreign = (array) self::foreign( (string) $key, $settings, $spec );
+						$codes[] = self::code( 'keep' === $foreign['state'] ? self::KEEP : 'pro.inert', $prefix . $key, (string) $foreign['reason'], 'keep' === $foreign['state'] ? 'review' : 'converted' ) + ( 'keep' === $foreign['state'] ? array( 'keep' => true ) : array() );
+					}
 				} else {
-					$codes[] = self::code( 'pro.unmapped', $prefix . $key, 'Valor dinámico o global de una clave que el mapa no declara.', 'review' );
+					$codes[] = self::code( 'pro.unmapped', $prefix . $key, 'Valor dinámico o global de un ajuste que el widget de PRO no declara (lo dejó otro plugin o una versión antigua): no pasa al widget propio. Si ese plugin lo usaba en este elemento, su efecto se pierde.', 'review' );
 				}
 			}
 			if ( $moved ) {
@@ -227,7 +266,18 @@ final class Translator {
 			if ( isset( $approx[ $base ] ) ) {
 				continue; // La traduce `filter` con el origen; su código sale abajo si cambió.
 			}
-			$codes[] = self::code( 'pro.unmapped', $prefix . $key, 'Clave que el mapa no declara: no pasa al widget propio.', 'review' );
+			$foreign = self::foreign( $key, $settings, $spec );
+			if ( null !== $foreign ) {
+				// Inerte (pasa tal cual, salvo la clave sin nombre) o condición de otro plugin (pasa; encendida, `keep`).
+				if ( '' !== $key ) {
+					$out[ $key ] = $value;
+				}
+				$codes[] = 'keep' === $foreign['state']
+					? self::code( self::KEEP, $prefix . $key, $foreign['reason'], 'review' ) + array( 'keep' => true )
+					: self::code( 'pro.inert', $prefix . $key, $foreign['reason'], 'converted' );
+				continue;
+			}
+			$codes[] = self::code( 'pro.unmapped', $prefix . $key, 'Ajuste guardado que el widget de PRO no declara (lo dejó otro plugin o una versión antigua): no pasa al widget propio. Si ese plugin lo usaba en este elemento, su efecto se pierde.', 'review' );
 		}
 		foreach ( $approx as $key => $reason ) {
 			foreach ( self::DEVICES as $device ) {
@@ -282,6 +332,51 @@ final class Translator {
 			}
 		}
 		return $key;
+	}
+
+	/**
+	 * Clave no declarada que no es del widget de PRO: inerte (INERT o `inert` del mapa) o condición de visualización de
+	 * otro plugin. `state`: `inert` (no ocultaba nada; pasa) o `keep` (condición encendida: el elemento no se convierte).
+	 *
+	 * @return array{state:string, reason:string}|null null si no es ninguna de las dos (`pro.unmapped`).
+	 */
+	public static function foreign( string $key, array $settings, array $spec = array() ): ?array {
+		$base  = self::base( $key );
+		$inert = (array) ( $spec['inert'] ?? array() );
+		if ( isset( $inert[ $base ] ) || isset( $inert[ $key ] ) ) {
+			return array( 'state' => 'inert', 'reason' => (string) ( $inert[ $base ] ?? $inert[ $key ] ) );
+		}
+		if ( array_key_exists( $base, self::INERT ) ) {
+			return array( 'state' => 'inert', 'reason' => self::INERT[ $base ] );
+		}
+		foreach ( self::CONDITION_FAMILIES as $prefix => $switch ) {
+			if ( 0 !== strpos( $base, $prefix ) ) {
+				continue;
+			}
+			if ( self::used( $settings[ $switch ] ?? null ) ) {
+				return array( 'state' => 'keep', 'reason' => sprintf( 'Condiciones de visualización de otro plugin encendidas (`%s`): el widget propio no sabe aplicarlas, así que este elemento se queda como widget de PRO, que se sigue viendo (y ocultando) igual.', $switch ) );
+			}
+			return array( 'state' => 'inert', 'reason' => sprintf( 'Condiciones de visualización de otro plugin, apagadas (sin `%s` encendido): no ocultaban nada. Pasan tal cual al widget propio.', $switch ) );
+		}
+		if ( '' !== $base && 1 === preg_match( self::CONDITION_PATTERN, $base ) ) {
+			if ( self::used( $settings[ $key ] ?? null ) ) {
+				return array( 'state' => 'keep', 'reason' => 'Ajuste de condiciones o de visibilidad de otro plugin que el widget propio no sabe aplicar: para no mostrar algo que estaba oculto, este elemento se queda como widget de PRO, que se sigue viendo (y ocultando) igual.' );
+			}
+			return array( 'state' => 'inert', 'reason' => 'Ajuste de condiciones o de visibilidad de otro plugin, vacío: no ocultaba nada. Pasa tal cual al widget propio.' );
+		}
+		return null;
+	}
+
+	/** ¿Tiene efecto un valor guardado? (vacío, `no`, `false` o una lista vacía, no). */
+	private static function used( $value ): bool {
+		if ( is_array( $value ) ) {
+			return (bool) $value;
+		}
+		if ( null === $value || is_bool( $value ) ) {
+			return (bool) $value;
+		}
+		$value = strtolower( trim( (string) $value ) );
+		return '' !== $value && 'no' !== $value && 'false' !== $value && '0' !== $value;
 	}
 
 	/** ¿Es una clave común de todo elemento? */

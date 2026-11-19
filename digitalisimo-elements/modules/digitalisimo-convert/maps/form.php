@@ -360,6 +360,9 @@ return array(
 			// Los de cada campo y los que añaden los tipos de campo (fecha, hora, número, aceptación, subida, paso). Las
 			// condiciones de F7b (`digitalisimo_*`) pasan como comunes.
 			'keep'         => array_values( array_unique( array_merge( $digi_form_row, $digi_form_live_row ) ) ),
+			// No es un ajuste de los campos de PRO: lo guarda en cada fila otro plugin que extiende el formulario (o una
+			// versión antigua). PRO no lo lee y el Formulario propio tampoco: pasa tal cual, sin pérdida.
+			'inert'        => array( 'dynamic' => 'Ajuste «dynamic» de cada campo, que no es del Formulario de PRO (lo guardó otro plugin que lo extendía): PRO no lo usa y el Formulario propio tampoco. Pasa tal cual; no cambia nada de lo que se ve.' ),
 		),
 	),
 	// Los indicadores de los pasos son propios y los pinta el servidor; el resto del marcado conserva las clases de

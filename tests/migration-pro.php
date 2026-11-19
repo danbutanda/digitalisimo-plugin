@@ -574,7 +574,7 @@ namespace {
 	$check( 'pro.' === Report::CATALOGS['pro'], 'El informe declara el catálogo pro con su prefijo.' );
 	$mine = array_keys( $codes );
 	sort( $mine );
-	$check( array( 'pro.approx', 'pro.converted', 'pro.css', 'pro.css_external', 'pro.css_reverted', 'pro.dropped', 'pro.global', 'pro.global_missing', 'pro.target_missing', 'pro.unmapped' ) === $mine, 'Catálogo pro: ' . implode( ', ', $mine ) );
+	$check( array( 'pro.approx', 'pro.condition_kept', 'pro.condition_lost', 'pro.condition_restored', 'pro.converted', 'pro.css', 'pro.css_external', 'pro.css_reverted', 'pro.dropped', 'pro.global', 'pro.global_missing', 'pro.inert', 'pro.recover_skipped', 'pro.recovered', 'pro.target_dependency', 'pro.target_missing', 'pro.unmapped' ) === $mine, 'Catálogo pro: ' . implode( ', ', $mine ) );
 	foreach ( $codes as $code => $spec ) {
 		$check( isset( $catalog[ $code ] ) && $catalog[ $code ]['section'] === $spec['section'], 'El informe carga ' . $code . ' con su sección.' );
 	}

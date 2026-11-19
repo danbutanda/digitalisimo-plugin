@@ -643,8 +643,58 @@ final class Migration {
 	}
 
 	/**
+	 * Extensiones de página de Element Pack encendidas en unos ajustes de página (nombre visible de cada una): las de
+	 * ámbito `page` de `Effects\Dispatcher::keys()` con su interruptor usado y el menú contextual. Lo demás (los valores
+	 * globales de la caja de luz y de la información emergente que guardaban las versiones 9.x en cada página, o las
+	 * claves de una extensión apagada) no hacía nada sin Element Pack.
+	 *
+	 * @return string[]
+	 */
+	public static function residual_page( $settings ): array {
+		if ( ! is_array( $settings ) ) {
+			return array();
+		}
+		$out   = array();
+		$pages = array();
+		if ( class_exists( __NAMESPACE__ . '\\Effects\\Dispatcher' ) && method_exists( __NAMESPACE__ . '\\Effects\\Dispatcher', 'keys' ) ) {
+			foreach ( (array) Effects\Dispatcher::keys() as $slug => $spec ) {
+				if ( 'page' === ( $spec['scope'][0] ?? '' ) ) {
+					$pages[ (string) ( $spec['label'] ?? $slug ) ] = (array) ( $spec['switch'] ?? array() );
+				}
+			}
+		}
+		if ( ! $pages ) {
+			// Sin el catálogo de las extensiones (versiones sin el frente C): sus interruptores, por su nombre.
+			foreach ( array( 'ep_grid_line_enable', 'ep_custom_header_script', 'ep_custom_footer_script', 'ep_hash_link_enable', 'ep_content_protector_enable', 'ep_adblock_detector_enable' ) as $switch ) {
+				$pages[ $switch ] = array( $switch );
+			}
+		}
+		foreach ( $pages as $label => $switches ) {
+			foreach ( $switches as $switch ) {
+				if ( array_key_exists( $switch, $settings ) && self::used( $settings[ $switch ] ) ) {
+					$out[] = (string) $label;
+					break;
+				}
+			}
+		}
+		if ( array_key_exists( 'ep_context_menu_enable', $settings ) && self::used( $settings['ep_context_menu_enable'] ) ) {
+			$out[] = 'Menú contextual';
+		}
+		return array_values( array_unique( $out ) );
+	}
+
+	/** ¿Tiene efecto un valor guardado (interruptor, código)? */
+	private static function used( $value ) {
+		if ( is_array( $value ) || null === $value || is_bool( $value ) ) {
+			return (bool) $value;
+		}
+		$value = strtolower( trim( (string) $value ) );
+		return '' !== $value && 'no' !== $value && 'false' !== $value && '0' !== $value;
+	}
+
+	/**
 	 * Ajustes de la página: Effects\Page (C) y después Platform\Kit::clean_page (H), con copia la primera vez. En modo
-	 * restringido sólo se informan. Sin esas clases no cambia nada (1.0.20).
+	 * restringido sólo se informan (residual_page()). Sin esas clases no cambia nada (1.0.20).
 	 */
 	private static function convert_page( $post_id, $restricted ) {
 		$settings = get_metadata( 'post', $post_id, '_elementor_page_settings', true );
@@ -652,7 +702,14 @@ final class Migration {
 			return false;
 		}
 		if ( $restricted ) {
-			Report::add( $post_id, 'core.residual', array( 'element' => 'page' ) );
+			// Sin tocarlos: sólo se revisa lo que estaba encendido; el resto (valores globales que guardaban versiones
+			// antiguas, extensiones apagadas) no hacía nada sin Element Pack y va a una sola línea del sitio.
+			$active = self::residual_page( $settings );
+			if ( $active ) {
+				Report::add( $post_id, 'core.residual', array( 'element' => 'page', 'name' => implode( ', ', $active ) ) );
+			} else {
+				Report::site( 'core.residual_inert' );
+			}
 			return false;
 		}
 		$new = $settings;

@@ -12,7 +12,9 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Converter {
 	/**
-	 * Convierte un elemento (no sus hijos). null si no es un widget de PRO con mapa listo.
+	 * Convierte un elemento (no sus hijos). null si no es un widget de PRO con mapa listo, o si el traductor lo deja como
+	 * está (`keep`: condiciones de visualización de otro plugin encendidas, que el widget propio no sabe aplicar); en ese
+	 * caso `$codes` trae el motivo (`Translator::KEEP`).
 	 *
 	 * @param array      $element Elemento guardado.
 	 * @param array|null $codes   Recibe los códigos del informe del elemento.
@@ -34,11 +36,21 @@ final class Converter {
 				return Translator::translate( $settings, $map );
 			}
 		);
-		$element['widgetType'] = (string) $map['target'];
-		$element['settings']   = $settings;
+		$keep = false;
 		foreach ( $codes as &$code ) {
 			$code += array( 'source' => $type, 'target' => (string) $map['target'], 'element' => (string) ( $element['id'] ?? '' ) );
+			$keep  = $keep || ! empty( $code['keep'] );
 		}
+		unset( $code );
+		if ( $keep ) {
+			// Sólo el motivo: lo demás no se aplica, porque el elemento se queda como estaba.
+			$codes = array_values( array_filter( $codes, static function ( $code ) {
+				return ! empty( $code['keep'] );
+			} ) );
+			return null;
+		}
+		$element['widgetType'] = (string) $map['target'];
+		$element['settings']   = $settings;
 		return $element;
 	}
 
@@ -47,18 +59,20 @@ final class Converter {
 	 *
 	 * @param array      $elements Árbol.
 	 * @param array|null $log      Recibe un registro por elemento convertido: `source`, `target`, `element`, `codes`.
+	 * @param array|null $kept     Recibe, con el mismo formato, los widgets de PRO que se quedan como están (`keep`).
 	 */
-	public static function tree( array $elements, ?array &$log = null, bool $drafts = false ): array {
-		$log = array();
+	public static function tree( array $elements, ?array &$log = null, bool $drafts = false, ?array &$kept = null ): array {
+		$log  = array();
+		$kept = array();
 		// Un solo cambio de idioma por árbol (ver `Registry::in_site_locale()`).
 		return Registry::in_site_locale(
-			static function () use ( $elements, &$log, $drafts ) {
-				return self::walk( $elements, $log, $drafts );
+			static function () use ( $elements, &$log, $drafts, &$kept ) {
+				return self::walk( $elements, $log, $drafts, $kept );
 			}
 		);
 	}
 
-	private static function walk( array $elements, array &$log, bool $drafts ): array {
+	private static function walk( array $elements, array &$log, bool $drafts, array &$kept ): array {
 		foreach ( $elements as $index => $element ) {
 			if ( ! is_array( $element ) ) {
 				continue;
@@ -68,9 +82,11 @@ final class Converter {
 			if ( null !== $converted ) {
 				$log[]   = array( 'source' => (string) $element['widgetType'], 'target' => (string) $converted['widgetType'], 'element' => (string) ( $element['id'] ?? '' ), 'codes' => $codes );
 				$element = $converted;
+			} elseif ( $codes ) {
+				$kept[] = array( 'source' => (string) $element['widgetType'], 'target' => (string) ( $codes[0]['target'] ?? '' ), 'element' => (string) ( $element['id'] ?? '' ), 'codes' => $codes );
 			}
 			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
-				$element['elements'] = self::walk( $element['elements'], $log, $drafts );
+				$element['elements'] = self::walk( $element['elements'], $log, $drafts, $kept );
 			}
 			$elements[ $index ] = $element;
 		}

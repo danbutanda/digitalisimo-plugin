@@ -116,7 +116,7 @@ final class Native {
 			$element['settings'] = self::element_settings( $element, $post_id );
 			++$changes;
 		} elseif ( self::$restricted && self::effect_detect( $settings ) ) {
-			Report::add( $post_id, 'core.residual', array( 'element' => trim( (string) ( $element['elType'] ?? '' ) . ' #' . (string) ( $element['id'] ?? '' ) ) ) );
+			Report::add( $post_id, 'core.residual', array( 'element' => trim( (string) ( $element['elType'] ?? '' ) . ' #' . (string) ( $element['id'] ?? '' ) ), 'name' => self::residual_labels( $settings ) ) );
 		}
 		// Máscaras y separadores con figuras de Element Pack, en cualquier elemento (también en los ya convertidos).
 		if ( Masks::is_legacy( $element ) ) {
@@ -203,6 +203,21 @@ final class Native {
 	/** ¿Es una clave de una extensión que convierte el frente C (también sin prefijo)? */
 	private static function effect_key( $key ) {
 		return ! self::$restricted && self::has( 'Effects\\Dispatcher', 'is_key' ) && Effects\Dispatcher::is_key( $key );
+	}
+
+	/** Nombres de las extensiones de C cuyas claves lleva un elemento (para decir qué revisar), separados por comas. */
+	private static function residual_labels( array $settings ) {
+		if ( ! self::has( 'Effects\\Dispatcher', 'extension_of' ) ) {
+			return '';
+		}
+		$out = array();
+		foreach ( array_keys( $settings ) as $key ) {
+			$slug = Effects\Dispatcher::extension_of( (string) $key, true );
+			if ( null !== $slug ) {
+				$out[ $slug ] = Effects\Dispatcher::label( $slug );
+			}
+		}
+		return implode( ', ', $out );
 	}
 
 	/** ¿Tiene el elemento ajustes de las extensiones de C (con o sin prefijo)? */

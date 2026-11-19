@@ -49,6 +49,8 @@ final class Pro_Convert {
 		'pro.css_external_error' => Part_Context::WARNING,
 		'pro.dropped'        => Part_Context::WARNING,
 		'pro.unmapped'       => Part_Context::WARNING,
+		'pro.inert'          => Part_Context::INFO,
+		'pro.condition_kept' => Part_Context::WARNING,
 		'pro.target_missing' => Part_Context::WARNING,
 		'pro.global'         => Part_Context::INFO,
 		'pro.global_missing' => Part_Context::WARNING,
@@ -279,6 +281,11 @@ final class Pro_Convert {
 						if ( is_array( $converted ) && $converted['widgetType'] !== $type ) {
 							$element = $converted;
 							$log[]   = self::entry( 'pro.converted', array( 'widget' => $type, 'destino' => $target, 'elemento' => $id ) );
+							foreach ( (array) $codes as $code ) {
+								$log[] = self::code_entry( (array) $code, $type, $target, $id );
+							}
+						} elseif ( null === $converted && $codes ) {
+							// Se queda como widget de PRO (condiciones de otro plugin encendidas): sólo el motivo.
 							foreach ( (array) $codes as $code ) {
 								$log[] = self::code_entry( (array) $code, $type, $target, $id );
 							}

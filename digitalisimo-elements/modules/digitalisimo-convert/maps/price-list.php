@@ -48,6 +48,12 @@ return array(
 				array( 'title' => $digi_pl_t( 'Third item on the list' ), 'item_description' => $digi_pl_lorem, 'price' => '$32', 'link' => array( 'url' => '#' ) ),
 			),
 			'keep'         => array( 'price', 'title', 'item_description', 'image', 'link' ),
+			// No son ajustes de la Lista de precios de PRO (sus filas no tienen precio anterior ni distintivo): los dejó en
+			// cada fila otro plugin o un pegado desde otra lista. PRO no los pintaba y el widget propio tampoco.
+			'inert'        => array(
+				'old_price'  => 'Precio anterior guardado en la fila, que no es un ajuste de la Lista de precios de PRO (lo dejó otro plugin o un pegado desde otra lista): PRO no lo pintaba y el widget propio tampoco. Pasa tal cual; no cambia nada de lo que se ve.',
+				'item_badge' => 'Distintivo guardado en la fila, que no es un ajuste de la Lista de precios de PRO (lo dejó otro plugin o un pegado desde otra lista): PRO no lo pintaba y el widget propio tampoco. Pasa tal cual; no cambia nada de lo que se ve.',
+			),
 		),
 	),
 	// Encabezados del panel: no guardan valor.
