@@ -1669,11 +1669,14 @@ if ( ! class_exists( 'F8_Wpdb' ) ) {
 			}
 			$cursor = 0;
 			// Los %s y %d en orden: meta_key = %s, post_id > %d, LIKE %s.
-			preg_match_all( '/(meta_key\s*=\s*%s|post_id\s*>\s*%d|LIKE\s+%s|ID\s*>\s*%d)/i', $sql, $order );
-			$i = 0;
+			preg_match_all( '/(meta_key\s*=\s*%s|meta_value\s*=\s*%s|post_id\s*>\s*%d|LIKE\s+%s|ID\s*>\s*%d)/i', $sql, $order );
+			$i      = 0;
+			$equals = null;
 			foreach ( $order[1] as $token ) {
 				$value = $rest[ $i++ ] ?? null;
-				if ( stripos( $token, 'meta_key' ) === 0 ) {
+				if ( stripos( $token, 'meta_value' ) === 0 ) {
+					$equals = (string) $value; // `meta_value = %s`: sólo las filas con ese valor.
+				} elseif ( stripos( $token, 'meta_key' ) === 0 ) {
 					$keys[] = (string) $value;
 				} elseif ( stripos( $token, 'LIKE' ) === 0 ) {
 					$likes[] = (string) $value;
@@ -1700,6 +1703,9 @@ if ( ! class_exists( 'F8_Wpdb' ) ) {
 				}
 				foreach ( $keys as $key ) {
 					if ( ! array_key_exists( $key, $meta ) ) {
+						continue;
+					}
+					if ( null !== $equals && self::stored( $meta[ $key ] ) !== $equals ) {
 						continue;
 					}
 					if ( ! $likes ) {

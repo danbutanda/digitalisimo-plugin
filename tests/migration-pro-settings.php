@@ -38,6 +38,9 @@ namespace {
 	require __DIR__ . '/fixtures/f8-wp.php';
 	f8_wpdb( 'F8_Wpdb' );
 	f8_load_migration( array( 'translator', 'context', 'report', 'native', 'migration', 'retire', 'aliases', 'runner', 'pro' ) );
+	if ( ! defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ) {
+		define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.999' ); // El sello de la recuperación lleva la versión de Elements.
+	}
 	require_once dirname( __DIR__ ) . '/digitalisimo-elements/modules/digitalisimo-convert/class-module.php';
 	\Digitalisimo\Elements\Convert\Module::init();
 
@@ -479,6 +482,9 @@ namespace {
 	run_pro_stage();
 	$check( 'boxed' === find( tree( $many[59] ), 'q59' )['settings']['content_width'] && Pro::stamp() === get_metadata( 'post', $many[0], Pro::RECOVER_STAMP, true ), 'La etapa los recupera y los sella.' );
 	$check( array() === Pro::recover_documents() && array() === Pro::stage_documents(), 'La siguiente Migrar no vuelve a leerlos.' );
+	$check( Pro::RECOVER_VERSION . '|4.3.0.999' === Pro::stamp(), 'El sello lleva la versión de Elements: con otra, se vuelven a revisar.' );
+	update_metadata( 'post', $many[1], Pro::RECOVER_STAMP, Pro::RECOVER_VERSION . '|0.0.0' );
+	$check( array( $many[1] ) === Pro::recover_documents(), 'Un sello de otra versión de Elements no cuenta.' );
 	$check( Migration::revert_document( $many[0] ) && '' === (string) get_metadata( 'post', $many[0], Pro::RECOVER_STAMP, true ), '--revert quita el sello.' );
 
 	/* ================================================================ 3i. Segunda revisión */
