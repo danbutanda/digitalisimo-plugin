@@ -168,8 +168,10 @@ namespace {
 	fx_ok( array( 'pro.condition_kept:zz_fx_enable:keep' ) === fx_codes( $codes ), 'Un interruptor ajeno encendido, solo: keep.' );
 	list( , $codes ) = Translator::translate( array( 'zz_rules' => 'a', 'zz_show' => 'yes' ), array( 'source' => 'zz', 'target' => 'digitalisimo-zz', 'keep' => array( 'zz_show' ) ) );
 	fx_ok( array( 'pro.unmapped:zz_rules' ) === fx_codes( $codes ), 'Un ajuste declarado del mapa nunca hace de interruptor de una clave ajena.' );
-	list( , $codes ) = Translator::translate( array( 'xv_conditions' => array( array( '_id' => 'x' ) ), 'xv_switcher' => '' ), $quote );
-	fx_ok( array( 'pro.inert:xv_conditions', 'pro.inert:xv_switcher' ) === fx_codes( $codes ), 'Una condición desconocida con su interruptor del mismo prefijo apagado: pasa (no falla cerrado por la fila por defecto).' );
+	list( , $codes ) = Translator::translate( array( 'xv_conditions' => array( array( '_id' => 'x' ) ), 'xv_conditions_switcher' => '' ), $quote );
+	fx_ok( array( 'pro.inert:xv_conditions', 'pro.inert:xv_conditions_switcher' ) === fx_codes( $codes ), 'Una condición desconocida con su interruptor de condiciones del mismo prefijo apagado: pasa (no falla cerrado por la fila por defecto).' );
+	list( , $codes ) = Translator::translate( array( 'xv_conditions' => array( array( '_id' => 'x' ) ), 'xv_tooltip_enable' => '' ), $quote );
+	fx_ok( in_array( 'pro.condition_kept:xv_conditions:keep', fx_codes( $codes ), true ), 'El interruptor apagado de otro efecto del mismo plugin no apaga una condición: falla cerrado.' );
 
 	/* 5. Kits: niveles de los códigos nuevos y el aviso de lo que se queda como widget de PRO. */
 	$kits = (string) file_get_contents( $elements . 'modules/digitalisimo-import/kits/class-pro-convert.php' );

@@ -477,9 +477,70 @@ namespace {
 	}
 	$check( 60 === count( Pro::recover_documents() ), 'Los 60 convertidos con copia son candidatos.' );
 	run_pro_stage();
-	$check( 'boxed' === find( tree( $many[59] ), 'q59' )['settings']['content_width'] && Pro::RECOVER_VERSION === get_metadata( 'post', $many[0], Pro::RECOVER_STAMP, true ), 'La etapa los recupera y los sella.' );
+	$check( 'boxed' === find( tree( $many[59] ), 'q59' )['settings']['content_width'] && Pro::stamp() === get_metadata( 'post', $many[0], Pro::RECOVER_STAMP, true ), 'La etapa los recupera y los sella.' );
 	$check( array() === Pro::recover_documents() && array() === Pro::stage_documents(), 'La siguiente Migrar no vuelve a leerlos.' );
 	$check( Migration::revert_document( $many[0] ) && '' === (string) get_metadata( 'post', $many[0], Pro::RECOVER_STAMP, true ), '--revert quita el sello.' );
+
+	/* ================================================================ 3i. Segunda revisión */
+	// A. Una conversión hecha por esta versión, seguida de otra Migrar con la copia vieja: la copia tenía la condición
+	// encendida; después la persona la apagó (quitó el interruptor; el repetidor queda con su fila por defecto).
+	fresh();
+	$copy = w( 'blockquote', array( 'blockquote_content' => 'Visible', 'display_condition_enable' => 'yes' ) + foreign(), 'q1' );
+	$off  = w( 'blockquote', array( 'blockquote_content' => 'Visible' ) + foreign(), 'q1' );
+	$id   = doc( array( box( array( $off ), 'c1' ) ), array( Migration::BACKUP => wp_json_encode( array( 'time' => 1, 'data' => wp_json_encode( array( box( array( $copy ), 'c1' ) ) ) ) ) ) );
+	run_doc( $id );
+	$q1 = find( tree( $id ), 'q1' );
+	$check( 'digitalisimo-blockquote' === $q1['widgetType'] && isset( $q1['settings']['display_condition_list'] ) && Pro::stamp() === get_metadata( 'post', $id, Pro::RECOVER_STAMP, true ), 'Esta versión convierte el widget con la condición apagada, tal cual, y sella el documento.' );
+	$check( ! in_array( $id, Pro::recover_documents(), true ), 'La siguiente Migrar no lo vuelve a revisar.' );
+	delete_metadata( 'post', $id, Pro::RECOVER_STAMP ); // Aun sin el sello (otra versión de Elements), nada se deshace.
+	$raw    = get_metadata( 'post', $id, '_elementor_data', true );
+	$report = run_doc( $id );
+	$check( $raw === get_metadata( 'post', $id, '_elementor_data', true ) && ! codes_of( $report, $id ), 'Con la copia vieja (encendida), el widget ya convertido no vuelve a PRO ni se informa nada: ' . implode( ', ', codes_of( $report, $id ) ) );
+	// Lo mismo editado después: tampoco un «no se puede saber» falso, y queda sellado.
+	$ed = tree( $id );
+	$ed[0]['elements'][0]['settings']['blockquote_content'] = 'Editada';
+	update_metadata( 'post', $id, '_elementor_data', wp_slash( wp_json_encode( $ed ) ) );
+	delete_metadata( 'post', $id, Pro::RECOVER_STAMP );
+	$report = run_doc( $id );
+	$check( $ed === tree( $id ) && ! codes_of( $report, $id ) && Pro::stamp() === get_metadata( 'post', $id, Pro::RECOVER_STAMP, true ), 'Editado: ningún pro.condition_lost falso y el documento queda sellado.' );
+	// B. Un ajuste propio editado después (la leyenda del punto de interés) cuenta como edición: no se devuelve a PRO.
+	fresh();
+	$hot  = w( 'hotspot', array( 'display_condition_enable' => 'yes' ) + foreign(), 'h1' );
+	$conv = old_convert( $hot );
+	$conv['settings']['digitalisimo_hotspot_caption'] = 'Leyenda añadida después';
+	$id     = migrated_doc( array( box( array( $hot ), 'c1' ) ), array( box( array( $conv ), 'c1' ) ) );
+	$report = run_doc( $id );
+	$check( 'digitalisimo-hotspot' === find( tree( $id ), 'h1' )['widgetType'] && 'Leyenda añadida después' === find( tree( $id ), 'h1' )['settings']['digitalisimo_hotspot_caption'] && in_array( 'pro.condition_lost:hotspot:display_condition_enable', codes_of( $report, $id ), true ), 'La leyenda editada se queda: no vuelve a PRO y se informa que no se puede saber.' );
+	// C. --revert sobre un documento editado y luego recuperado: la recuperación no pone la huella al día.
+	fresh();
+	$quote = w( 'blockquote', array( 'blockquote_content' => 'Cita' ) + foreign(), 'q1' );
+	$id    = migrated_doc( array( box( array( $quote ), 'c1' ) ), array( box( array( old_convert( $quote ) ), 'c1' ) ) );
+	$ed    = tree( $id );
+	$ed[0]['elements'][0]['settings']['blockquote_content'] = 'Editada después de migrar';
+	update_metadata( 'post', $id, '_elementor_data', wp_slash( wp_json_encode( $ed ) ) );
+	run_doc( $id );
+	$check( 'boxed' === find( tree( $id ), 'q1' )['settings']['content_width'] && md5( (string) get_metadata( 'post', $id, '_elementor_data', true ) ) !== Migration::f8_mark( $id )['hash'], 'Editado y recuperado: content_width vuelve, pero la huella no se pone al día.' );
+	$rev = Runner::revert();
+	$check( $rev['skipped'] >= 1 && 'Editada después de migrar' === find( tree( $id ), 'q1' )['settings']['blockquote_content'], '--revert lo sigue viendo editado y no devuelve la copia.' );
+	// D. Una condición con valor y un interruptor apagado de otro efecto del mismo plugin: falla cerrado.
+	list( , $codes ) = Pro_Translator::translate( array( 'xw_conditions' => array( array( '_id' => 'r' ) ), 'xw_tooltip_enable' => '' ), Registry::map( 'blockquote' ) );
+	$check( in_array( 'xw_conditions', array_column( array_filter( $codes, static function ( $c ) { return ! empty( $c['keep'] ); } ), 'key' ), true ), 'Sólo un interruptor de condiciones apaga una condición.' );
+	$check( Pro::condition_active( 'xw_conditions', array( 'xw_conditions' => array( 1 ), 'xw_tooltip_enable' => '' ), array( 'xw_conditions', 'xw_tooltip_enable' ) ), 'Lo mismo en la red de seguridad.' );
+	// F. Ids repetidos sin original en la copia: nada que avisar; y en la red, la fila del registro que corresponde.
+	fresh();
+	$id = migrated_doc( array( box( array( w( 'heading', array(), 'zz' ) ), 'c1' ) ), array( box( array( w( 'digitalisimo-blockquote', array( '_digitalisimo_pro' => 'blockquote' ), 'qd' ), w( 'digitalisimo-blockquote', array( '_digitalisimo_pro' => 'blockquote' ), 'qd' ) ), 'c1' ) ) );
+	$report = run_doc( $id );
+	$check( ! codes_of( $report, $id ) && Pro::stamp() === get_metadata( 'post', $id, Pro::RECOVER_STAMP, true ), 'Repetidos que la copia no tiene: ni aviso ni documento sin sellar.' );
+	list( , $log, $kept ) = $net->invoke( null,
+		array( box( array( w( 'digitalisimo-blockquote', array( '_digitalisimo_pro' => 'blockquote' ), 'qd' ), w( 'digitalisimo-blockquote', array( '_digitalisimo_pro' => 'blockquote' ), 'qd' ) ), 'c1' ) ),
+		array( box( array( w( 'blockquote', array( 'display_condition_list' => array( array( '_id' => 'z' ) ) ), 'qd' ), w( 'blockquote', $on, 'qd' ) ), 'c1' ) ),
+		array(
+			array( 'source' => 'blockquote', 'target' => 'digitalisimo-blockquote', 'element' => 'qd', 'codes' => array( array( 'code' => 'pro.unmapped', 'key' => 'display_condition_list' ) ), 'first' => 1 ),
+			array( 'source' => 'blockquote', 'target' => 'digitalisimo-blockquote', 'element' => 'qd', 'codes' => array( array( 'code' => 'pro.unmapped', 'key' => 'display_condition_enable' ), array( 'code' => 'pro.unmapped', 'key' => 'display_condition_list' ) ) ),
+		),
+		array()
+	);
+	$check( 1 === count( $log ) && ! empty( $log[0]['first'] ) && 1 === count( $kept ), 'Con ids repetidos, la red quita del registro la fila del elemento devuelto (la segunda), no la primera.' );
 
 	/* ================================================================ 4. WooCommerce inactivo */
 	fresh();

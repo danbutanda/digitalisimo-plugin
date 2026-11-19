@@ -88,7 +88,13 @@ final class Pro {
 	 * lo vuelve a leer ni a traducir; `--revert` lo quita. Sube RECOVER_VERSION cuando la recuperación cambie.
 	 */
 	const RECOVER_STAMP   = '_digitalisimo_pro_recovered';
-	const RECOVER_VERSION = '1';
+	const RECOVER_VERSION = '2';
+	/**
+	 * Rasgos propios que la etapa de Element Pack escribe en cualquier elemento (visibilidad, figuras, enlace, información
+	 * emergente, distintivo y relieve): la comparación de la recuperación los ignora y vuelven con el widget de PRO. Los
+	 * demás `digitalisimo_*` son ajustes del widget propio (un pie de foto, un botón) y cuentan como edición.
+	 */
+	const EP_TRAITS = '/^digitalisimo_(visibility_|figures|element_link|tooltip|badge|relief)/';
 	/**
 	 * Widgets propios que sólo se registran con otro plugin: módulo de PRO (`Catalog::module()`) => nombre del plugin.
 	 * Sin él, el widget de PRO tampoco se pinta y el documento se queda como está.
@@ -274,6 +280,7 @@ final class Pro {
 		if ( ! self::available() ) {
 			return array();
 		}
+		$stamp  = self::stamp();
 		$out    = array();
 		$cursor = (int) $after;
 		$batch  = $limit ? max( 50, (int) $limit ) : 500;
@@ -284,7 +291,7 @@ final class Pro {
 				$cursor = (int) end( $ids );
 				$list   = implode( ',', array_map( 'intval', $ids ) );
 				$backup = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND post_id IN ( {$list} )", Migration::BACKUP ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ids enteros.
-				$done   = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value = %s AND post_id IN ( {$list} )", self::RECOVER_STAMP, self::RECOVER_VERSION ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ids enteros.
+				$done   = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value = %s AND post_id IN ( {$list} )", self::RECOVER_STAMP, $stamp ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ids enteros.
 				foreach ( array_values( array_diff( array_intersect( $ids, $backup ), $done ) ) as $id ) {
 					$out[] = $id;
 					if ( $limit && count( $out ) >= $limit ) {
@@ -294,6 +301,21 @@ final class Pro {
 			}
 		} while ( count( $ids ) === $batch );
 		return $out;
+	}
+
+	/** ¿Tiene el documento la copia de la migración? */
+	private static function copy_exists( int $post_id ): bool {
+		return '' !== (string) get_metadata( 'post', $post_id, Migration::BACKUP, true );
+	}
+
+	/** Valor del sello: la versión de la recuperación y la de Elements (que decide qué pasa tal cual). */
+	public static function stamp(): string {
+		return self::RECOVER_VERSION . '|' . ( defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? (string) DIGITALISIMO_ELEMENTS_VERSION : '' );
+	}
+
+	/** Sella un documento ya revisado (o convertido entero por esta versión): la etapa no lo vuelve a leer. */
+	private static function seal( int $post_id ): void {
+		update_metadata( 'post', $post_id, self::RECOVER_STAMP, self::stamp() );
 	}
 
 	/**
@@ -407,7 +429,7 @@ final class Pro {
 			return $none;
 		}
 		$raw = (string) get_metadata( 'post', $post_id, '_elementor_data', true );
-		if ( '' === $raw || false === strpos( $raw, '"' . self::MARKER . '"' ) ) {
+		if ( '' === $raw || false === strpos( $raw, '"' . self::MARKER . '"' ) || self::stamp() === (string) get_metadata( 'post', $post_id, self::RECOVER_STAMP, true ) ) {
 			return $none;
 		}
 		$current = json_decode( $raw, true );
@@ -420,7 +442,8 @@ final class Pro {
 		$ignored   = array();
 		self::index_pro( $current, $ignored, $seen );
 		foreach ( $seen as $id => $times ) {
-			if ( $times > 1 ) {
+			// Repetido en el documento: sólo importa si la copia tiene un original con ese id (si no, no hay qué recuperar).
+			if ( $times > 1 && ( isset( $originals[ (string) $id ] ) || isset( $repeated[ (string) $id ] ) ) ) {
 				$repeated[ (string) $id ] = true;
 			}
 		}
@@ -439,9 +462,9 @@ final class Pro {
 		}
 		if ( ! $open ) {
 			// Revisado sin nada pendiente: la etapa no vuelve a leerlo (lo pendiente se informa en cada Migrar).
-			update_metadata( 'post', $post_id, self::RECOVER_STAMP, self::RECOVER_VERSION );
+			self::seal( $post_id );
 		}
-		return array( 'changed' => $changed, 'count' => $changed ? $count : 0 );
+		return array( 'changed' => $changed, 'count' => $changed ? $count : 0, 'open' => $open );
 	}
 
 	/** Recorre el documento actual y recupera cada widget convertido, siempre también en sus hijos. */
@@ -519,6 +542,17 @@ final class Pro {
 			$dot     = strpos( $key, '.' );
 			$named[] = false === $dot ? $key : (string) ( $map['repeaters'][ substr( $key, 0, $dot ) ]['target'] ?? substr( $key, 0, $dot ) ) . substr( $key, $dot );
 		}
+		// Las versiones anteriores quitaban todas las claves de una condición de otro plugin: si el elemento lleva alguna
+		// (arriba, en `__dynamic__`/`__globals__` o en una fila), la pasó esta versión (o la persona la puso después) y no
+		// se perdió nada: ni se devuelve ni se informa.
+		$condition_keys = array_keys( $conditions );
+		if ( $condition_keys && self::has_any_key( $settings, $condition_keys, $map ) ) {
+			$keep = array();
+			$pass = array_values( array_diff( $pass, $condition_keys ) );
+			if ( ! $pass ) {
+				return $element;
+			}
+		}
 		$same = self::same_settings( $settings, (array) $translated, $named );
 		if ( $keep ) {
 			if ( ! $same ) {
@@ -530,7 +564,7 @@ final class Pro {
 			// Vuelve el widget de PRO: sólo su tipo y sus ajustes; los hijos actuales se quedan.
 			$own = array();
 			foreach ( $settings as $key => $value ) {
-				if ( 0 === strpos( (string) $key, 'digitalisimo_' ) ) {
+				if ( 1 === preg_match( self::EP_TRAITS, (string) $key ) ) {
 					$own[ $key ] = $value; // Rasgos que la etapa de Element Pack dio al elemento (visibilidad…).
 				}
 			}
@@ -609,6 +643,30 @@ final class Pro {
 		return $element;
 	}
 
+	/**
+	 * ¿Lleva el elemento alguna de esas claves (`clave` o `repetidor.clave`), arriba, en `__dynamic__`/`__globals__` o en
+	 * alguna fila del repetidor (con su nombre en el widget propio)?
+	 */
+	private static function has_any_key( array $settings, array $keys, array $map ): bool {
+		foreach ( $keys as $key ) {
+			$dot = strpos( (string) $key, '.' );
+			if ( false === $dot ) {
+				if ( array_key_exists( $key, $settings ) || isset( $settings['__dynamic__'][ $key ] ) || isset( $settings['__globals__'][ $key ] ) ) {
+					return true;
+				}
+				continue;
+			}
+			$to  = (string) ( $map['repeaters'][ substr( $key, 0, $dot ) ]['target'] ?? substr( $key, 0, $dot ) );
+			$sub = substr( $key, $dot + 1 );
+			foreach ( is_array( $settings[ $to ] ?? null ) ? $settings[ $to ] : array() as $row ) {
+				if ( is_array( $row ) && ( array_key_exists( $sub, $row ) || isset( $row['__dynamic__'][ $sub ] ) || isset( $row['__globals__'][ $sub ] ) ) ) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	/** Un valor con sus listas asociativas ordenadas por clave, a cualquier profundidad (para comparar). */
 	private static function sorted( $value ) {
 		if ( ! is_array( $value ) ) {
@@ -625,14 +683,14 @@ final class Pro {
 
 	/**
 	 * ¿Es el elemento actual la traducción de su original? Iguales sin lo que pasa tal cual ni las condiciones ($pass, con
-	 * el repetidor ya con su nombre en el widget propio) y sin los rasgos `digitalisimo_*` (los añade la etapa de Element
-	 * Pack). Cualquier otra diferencia (una edición, el CSS de efectos o el movimiento que escribió la etapa de Element
-	 * Pack) dice que no se puede saber.
+	 * el repetidor ya con su nombre en el widget propio) y sin los rasgos que escribe la etapa de Element Pack (EP_TRAITS).
+	 * Cualquier otra diferencia (una edición, también en un ajuste `digitalisimo_*` del widget propio, el CSS de efectos o
+	 * el movimiento que escribió la etapa de Element Pack) dice que no se puede saber.
 	 */
 	private static function same_settings( array $current, array $translated, array $pass ): bool {
 		$strip = static function ( array $settings ) use ( $pass ): array {
 			foreach ( array_keys( $settings ) as $key ) {
-				if ( 0 === strpos( (string) $key, 'digitalisimo_' ) || in_array( (string) $key, $pass, true ) ) {
+				if ( 1 === preg_match( self::EP_TRAITS, (string) $key ) || in_array( (string) $key, $pass, true ) ) {
 					unset( $settings[ $key ] );
 				}
 			}
@@ -828,7 +886,8 @@ final class Pro {
 			$found = false;
 			foreach ( null === $candidates ? array_keys( $settings ) : $candidates as $candidate ) {
 				$candidate = (string) $candidate;
-				if ( $candidate !== $key && 0 === strpos( $candidate, $head ) && array_key_exists( $candidate, $settings ) && 1 === preg_match( self::SWITCH_PATTERN, $candidate ) ) {
+				$fits = 1 !== preg_match( self::CONDITION_PATTERN, $key ) || 1 === preg_match( self::CONDITION_PATTERN, $candidate ); // Una condición, sólo con un interruptor de condiciones.
+				if ( $fits && $candidate !== $key && 0 === strpos( $candidate, $head ) && array_key_exists( $candidate, $settings ) && 1 === preg_match( self::SWITCH_PATTERN, $candidate ) ) {
 					if ( self::used( $settings[ $candidate ] ) ) {
 						return true;
 					}
@@ -875,28 +934,36 @@ final class Pro {
 			return array( $out, $log, $kept );
 		}
 		$restored = array();
-		$out      = self::keep_walk( $out, $before, $unmapped, $restored );
+		$nth      = array();
+		$out      = self::keep_walk( $out, $before, $unmapped, $restored, $nth );
+		$drop = array();
 		foreach ( $restored as $item ) {
-			// Fuera del registro una fila por elemento devuelto (la primera con su id y su widget de origen).
+			// Fuera del registro la fila de ese elemento: la n-ésima con su id (el registro va en el mismo orden).
+			$seen = 0;
 			foreach ( $log as $i => $row ) {
-				if ( (string) ( $row['element'] ?? '' ) === $item['element'] && (string) ( $row['source'] ?? '' ) === $item['source'] ) {
-					$kept[] = array( 'source' => $item['source'], 'target' => (string) ( $row['target'] ?? '' ), 'element' => $item['element'], 'codes' => $item['codes'] );
-					unset( $log[ $i ] );
+				if ( (string) ( $row['element'] ?? '' ) === $item['element'] && $seen++ === $item['nth'] ) {
+					$kept[]     = array( 'source' => $item['source'], 'target' => (string) ( $row['target'] ?? '' ), 'element' => $item['element'], 'codes' => $item['codes'] );
+					$drop[ $i ] = true;
 					break;
 				}
 			}
 		}
-		return array( $out, array_values( $log ), $kept );
+		return array( $out, array_values( array_diff_key( $log, $drop ) ), $kept );
 	}
 
 	/** Recorrido en paralelo de keep_conditions(): devuelve su original a cada widget con un ajuste ajeno encendido. */
-	private static function keep_walk( array $out, array $before, array $unmapped, array &$restored ): array {
+	private static function keep_walk( array $out, array $before, array $unmapped, array &$restored, array &$nth ): array {
 		foreach ( $out as $index => $element ) {
 			$original = $before[ $index ] ?? null;
 			if ( ! is_array( $element ) || ! is_array( $original ) ) {
 				continue;
 			}
 			$id = (string) ( $original['id'] ?? '' );
+			$at = -1;
+			if ( isset( $element['settings'][ self::MARKER ] ) ) {
+				$at         = (int) ( $nth[ $id ] ?? 0 );
+				$nth[ $id ] = $at + 1;
+			}
 			if ( isset( $element['settings'][ self::MARKER ] ) && isset( $unmapped[ $id ] ) && (string) ( $element['id'] ?? '' ) === $id ) {
 				$settings   = is_array( $original['settings'] ?? null ) ? $original['settings'] : array();
 				$candidates = array();
@@ -919,11 +986,11 @@ final class Pro {
 					if ( null !== $children ) {
 						$element['elements'] = $children; // Los hijos, ya convertidos, se quedan.
 					}
-					$restored[] = array( 'element' => $id, 'source' => (string) ( $original['widgetType'] ?? '' ), 'codes' => $codes );
+					$restored[] = array( 'element' => $id, 'source' => (string) ( $original['widgetType'] ?? '' ), 'codes' => $codes, 'nth' => $at );
 				}
 			}
 			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) && is_array( $original['elements'] ?? null ) ) {
-				$element['elements'] = self::keep_walk( $element['elements'], $original['elements'], $unmapped, $restored );
+				$element['elements'] = self::keep_walk( $element['elements'], $original['elements'], $unmapped, $restored, $nth );
 			}
 			$out[ $index ] = $element;
 		}
@@ -1023,6 +1090,10 @@ final class Pro {
 		}
 		if ( $css ) {
 			Report::add( $post_id, 'pro.css_external', array( 'count' => $css ) );
+		}
+		if ( $log && empty( $recovered['open'] ) && self::copy_exists( $post_id ) ) {
+			// Lo convertido por esta versión ya pasa todo lo que hoy se sabe pasar: nada que recuperar en otra Migrar.
+			self::seal( $post_id );
 		}
 		return array( 'converted' => count( $log ), 'blocked' => array(), 'css' => $css, 'recovered' => $recovered['count'] );
 	}
@@ -1222,9 +1293,10 @@ final class Pro {
 			add_metadata( 'post', $post_id, Migration::BACKUP, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw, 'f8' => self::mark( $post_id, $json ) ) ) ), true );
 		}
 		update_metadata( 'post', $post_id, '_elementor_data', wp_slash( $json ) );
-		if ( '' !== $backup && is_array( $mark ) ) {
-			// Ya lo tocó esta migración: se actualiza la huella para que --revert no lo tome por editado. Una copia sin
-			// marca (versión ≤ 1.0.20) se deja así: su modo restringido no cambia.
+		if ( '' !== $backup && is_array( $mark ) && md5( $raw ) === (string) ( $mark['hash'] ?? '' ) ) {
+			// Ya lo tocó esta migración y nadie lo editó después: se actualiza la huella para que --revert no lo tome por
+			// editado. Si se editó (la huella ya no coincidía), se deja como está: --revert lo seguirá viendo editado y no
+			// devolverá la copia. Una copia sin marca (versión ≤ 1.0.20) se deja así: su modo restringido no cambia.
 			$mark['hash'] = md5( $json );
 			update_metadata( 'post', $post_id, Migration::F8_MARK, wp_slash( wp_json_encode( $mark ) ) );
 		}

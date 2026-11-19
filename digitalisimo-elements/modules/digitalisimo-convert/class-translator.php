@@ -395,6 +395,9 @@ final class Translator {
 		}
 		$condition = 1 === preg_match( self::CONDITION_PATTERN, $base );
 		$switch    = self::prefix_switch( $key, $settings, null === $undeclared ? array_map( 'strval', array_keys( $settings ) ) : $undeclared );
+		if ( null !== $switch && $condition && 1 !== preg_match( self::CONDITION_PATTERN, self::base( $switch ) ) ) {
+			$switch = null; // Una condición sólo la apaga un interruptor de condiciones (no el de otro efecto del plugin).
+		}
 		if ( null !== $switch ) {
 			if ( self::used( $settings[ $switch ] ?? null ) ) {
 				return array( 'state' => 'keep', 'reason' => sprintf( 'Ajuste de otro plugin con su interruptor encendido (`%s`) que el widget propio no sabe aplicar: para no perder lo que hacía (y no mostrar algo que estaba oculto), este elemento se queda como widget de PRO, que se sigue viendo igual.', $switch ), 'condition' => $condition );
