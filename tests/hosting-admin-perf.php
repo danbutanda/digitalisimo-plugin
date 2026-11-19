@@ -10,7 +10,12 @@
 define( 'ABSPATH', __DIR__ );
 $GLOBALS['options'] = array(); $GLOBALS['autoload'] = array(); $GLOBALS['set_autoload'] = array();
 function is_multisite() { return false; }
-function WC() { return null; }
+/** Carrito de prueba: un plan de hosting (8) sin dominio y otro hosting (9). */
+class Digi_Test_Cart { public $removed = array(); public $items = array( 'a' => array( 'product_id' => 8 ), 'b' => array( 'product_id' => 9 ) ); public function get_cart() { return $this->items; } public function remove_cart_item( $k ) { $this->removed[] = $k; } }
+function WC() { static $wc = null; if ( ! $wc ) $wc = (object) array( 'cart' => new Digi_Test_Cart() ); return $wc; }
+function wc_add_notice( $msg, $type ) { $GLOBALS['notices'][] = $msg; }
+function has_term() { return false; }
+function absint( $v ) { return abs( (int) $v ); }
 function add_filter( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['hooks'][ $hook ] = $cb; }
 function add_action( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['hooks'][ $hook ] = $cb; }
 function sanitize_text_field( $v ) { return trim( (string) $v ); }
@@ -52,6 +57,23 @@ $data = call_user_func( $GLOBALS['hooks']['woocommerce_add_cart_item_data'], arr
 if ( isset( $data['digitalisimo_domain'] ) ) fail( 'Desactivado, el carrito no cambia.' );
 $fields = call_user_func( $GLOBALS['hooks']['woocommerce_checkout_fields'] ?? function( $f ) { return $f; }, array( 'billing' => array( 'x' => 1 ) ) );
 if ( array( 'billing' => array( 'x' => 1 ) ) !== $fields ) fail( 'Sin «simplificar el pago», los campos del pago no cambian.' );
+
+// Las tres opciones encendidas: cada gancho hace lo suyo; apagadas, nada. Y siguen siendo métodos con nombre
+// (un remove_filter( …, array( 'Digitalisimo_Hosting', … ) ) de un fragmento de Tools funciona).
+foreach ( array( 'woocommerce_check_cart_items' => 'maybe_validate_cart', 'woocommerce_add_to_cart_validation' => 'maybe_replace_hosting', 'woocommerce_checkout_fields' => 'maybe_checkout_fields', 'woocommerce_add_cart_item_data' => 'maybe_cart_domain' ) as $hook => $method ) {
+	if ( array( 'Digitalisimo_Hosting', $method ) !== ( $GLOBALS['hooks'][ $hook ] ?? null ) ) fail( "El gancho $hook debe ser el método con nombre Digitalisimo_Hosting::$method." );
+}
+$GLOBALS['options']['digitalisimo_hosting_options'] = array( 'enabled' => 1, 'require_domain_hosting' => 1, 'replace_hosting' => 1, 'simplify_checkout' => 1, 'hosting_product_ids' => '8, 9', 'domain_products' => ".mx|44" );
+$GLOBALS['notices'] = array();
+call_user_func( $GLOBALS['hooks']['woocommerce_check_cart_items'] );
+if ( 1 !== count( $GLOBALS['notices'] ) ) fail( '«Exigir dominio y hosting»: un plan sin dominio debe avisar en el carrito.' );
+$passed = call_user_func( $GLOBALS['hooks']['woocommerce_add_to_cart_validation'], true, 9, 1 );
+if ( true !== $passed || array( 'a', 'b' ) !== WC()->cart->removed ) fail( '«Reemplazar hosting»: añadir otro plan quita los planes que ya estaban: ' . json_encode( WC()->cart->removed ) );
+$fields = call_user_func( $GLOBALS['hooks']['woocommerce_checkout_fields'], array( 'billing' => array( 'x' => 1 ) ) );
+if ( ! isset( $fields['billing']['billing_first_name'] ) || isset( $fields['billing']['x'] ) ) fail( '«Simplificar el pago»: los campos del pago se sustituyen.' );
+$GLOBALS['options']['digitalisimo_hosting_options']['require_domain_hosting'] = 0; $GLOBALS['notices'] = array();
+call_user_func( $GLOBALS['hooks']['woocommerce_check_cart_items'] );
+if ( $GLOBALS['notices'] ) fail( 'Con «Exigir dominio y hosting» apagado, el carrito no avisa.' );
 
 if ( ! empty( $GLOBALS['failures'] ) ) exit( 1 );
 echo "Hosting: ni la marca de migración ni los ajustes de WooCommerce cuestan una consulta en cada petición.\n";

@@ -225,15 +225,23 @@ class Digitalisimo_Hosting {
 	 */
 	public static function cart_compatibility() {
 		if ( class_exists( 'Digitalisimo_Integrations_WooCommerce' ) || ! function_exists( 'WC' ) ) return;
-		$on = static function( $key = '' ) { $all = self::all(); return ! empty( $all['enabled'] ) && ( '' === $key || ! empty( $all[ $key ] ) ); };
-		add_filter( 'woocommerce_add_cart_item_data', static function( $data, $product_id, $variation_id ) use ( $on ) { return $on() ? self::cart_domain( $data, $product_id, $variation_id ) : $data; }, 10, 3 );
-		add_filter( 'woocommerce_get_item_data', static function( $data, $item ) use ( $on ) { return $on() ? self::cart_item_data( $data, $item ) : $data; }, 10, 2 );
-		add_action( 'woocommerce_checkout_create_order_line_item', static function( $item, $cart_item_key, $values, $order ) use ( $on ) { if ( $on() ) self::order_item_domain( $item, $cart_item_key, $values, $order ); }, 10, 4 );
-		add_filter( 'digitalisimo_ai_context', static function( $context, $profile, $request = null ) use ( $on ) { return $on() ? self::ai_context( $context, $profile, $request ) : $context; }, 10, 3 );
-		add_action( 'woocommerce_check_cart_items', static function() use ( $on ) { if ( $on( 'require_domain_hosting' ) ) self::validate_cart(); } );
-		add_filter( 'woocommerce_add_to_cart_validation', static function( $passed, $product_id, $quantity ) use ( $on ) { return $on( 'replace_hosting' ) ? self::replace_hosting( $passed, $product_id, $quantity ) : $passed; }, 10, 3 );
-		add_filter( 'woocommerce_checkout_fields', static function( $fields ) use ( $on ) { return $on( 'simplify_checkout' ) ? self::checkout_fields( $fields ) : $fields; } );
+		add_filter( 'woocommerce_add_cart_item_data', array( __CLASS__, 'maybe_cart_domain' ), 10, 3 );
+		add_filter( 'woocommerce_get_item_data', array( __CLASS__, 'maybe_cart_item_data' ), 10, 2 );
+		add_action( 'woocommerce_checkout_create_order_line_item', array( __CLASS__, 'maybe_order_item_domain' ), 10, 4 );
+		add_filter( 'digitalisimo_ai_context', array( __CLASS__, 'maybe_ai_context' ), 10, 3 );
+		add_action( 'woocommerce_check_cart_items', array( __CLASS__, 'maybe_validate_cart' ) );
+		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'maybe_replace_hosting' ), 10, 3 );
+		add_filter( 'woocommerce_checkout_fields', array( __CLASS__, 'maybe_checkout_fields' ) );
 	}
+	/** Hosting activado y, si se pide, también la opción concreta (se lee al dispararse el gancho). */
+	private static function on( $key = '' ) { $all = self::all(); return ! empty( $all['enabled'] ) && ( '' === $key || ! empty( $all[ $key ] ) ); }
+	public static function maybe_cart_domain( $data, $product_id, $variation_id ) { return self::on() ? self::cart_domain( $data, $product_id, $variation_id ) : $data; }
+	public static function maybe_cart_item_data( $data, $item ) { return self::on() ? self::cart_item_data( $data, $item ) : $data; }
+	public static function maybe_order_item_domain( $item, $cart_item_key, $values, $order ) { if ( self::on() ) self::order_item_domain( $item, $cart_item_key, $values, $order ); }
+	public static function maybe_ai_context( $context, $profile, $request = null ) { return self::on() ? self::ai_context( $context, $profile ) : $context; }
+	public static function maybe_validate_cart() { if ( self::on( 'require_domain_hosting' ) ) self::validate_cart(); }
+	public static function maybe_replace_hosting( $passed, $product_id, $quantity ) { return self::on( 'replace_hosting' ) ? self::replace_hosting( $passed, $product_id, $quantity ) : $passed; }
+	public static function maybe_checkout_fields( $fields ) { return self::on( 'simplify_checkout' ) ? self::checkout_fields( $fields ) : $fields; }
 	public static function cart_domain( $data, $product_id, $variation_id ) { $domain = $_REQUEST['digitalisimo_domain'] ?? $_REQUEST['domain_name'] ?? ''; if ( $domain ) $data['digitalisimo_domain'] = sanitize_text_field( wp_unslash( $domain ) ); return $data; }
 	public static function cart_item_data( $data, $item ) { if ( ! empty( $item['digitalisimo_domain'] ) ) $data[] = array( 'name' => 'Dominio', 'value' => $item['digitalisimo_domain'] ); return $data; }
 	public static function order_item_domain( $item, $cart_item_key, $values, $order ) { if ( ! empty( $values['digitalisimo_domain'] ) ) $item->add_meta_data( 'Dominio', $values['digitalisimo_domain'], true ); }

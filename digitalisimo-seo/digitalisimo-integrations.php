@@ -94,7 +94,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-perform
 // Antes de la primera lectura (la de abajo ya resuelve opciones): las opciones pequeñas de cada petición del
 // escritorio en una sola consulta y, en una red, los ajustes de red y su marca de migración.
 if ( is_admin() && function_exists( 'wp_prime_option_caches' ) ) wp_prime_option_caches( digitalisimo_integrations_admin_options() );
-if ( is_admin() && is_multisite() && function_exists( 'wp_prime_site_option_caches' ) ) wp_prime_site_option_caches( array( 'digitalisimo_integrations_options', 'digitalisimo_seo_template_defaults_1_0_122' ) );
+if ( is_admin() && is_multisite() && function_exists( 'wp_prime_site_option_caches' ) ) wp_prime_site_option_caches( array( 'digitalisimo_integrations_options', 'digitalisimo_seo_template_defaults_1_0_122', 'digitalisimo_seo_video_network_reset' ) );
 
 // Debe decidirse antes de `plugins_loaded`: para entonces la ruta ya está resuelta.
 if ( ! Digitalisimo_Integrations_Settings::tools_handles_site_options() ) Digitalisimo_Integrations_Hide_Login::boot();

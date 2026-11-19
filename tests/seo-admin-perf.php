@@ -10,7 +10,11 @@
  *      imágenes dos veces como mucho, no una escritura con autoload por tamaño, y el resultado sigue invalidando todo;
  *   4. Enlaces no repite su análisis (DELETE, url_to_postid por enlace e INSERT) cuando el contenido, el estado y el tipo
  *      no cambiaron: el segundo guardado del editor de bloques y los guardados que sólo tocan título o metadatos;
- *   5. un guardado borra la caché de la auditoría CSS y las rutas ocupadas una vez, no por cada save_post y meta.
+ *   5. un guardado borra la caché de la auditoría CSS y las rutas ocupadas dos veces como mucho por sitio (al primer
+ *      disparo y al terminar), no por cada save_post y meta, y en una red invalidate_network() borra la de cada sitio;
+ *   6. Enlaces sí vuelve a analizar un contenido sin cambios si le quedó un enlace interno sin destino;
+ *   7. la columna «Cluster» de una entrada sin pilar queda vacía (get_post( 0 ) devolvía la propia fila);
+ *   8. en una red, cambiar los ajustes de red hace que cada sitio vuelva a comprobar el vídeo en seguida.
  */
 define( 'ABSPATH', __DIR__ );
 define( 'HOUR_IN_SECONDS', 3600 );
@@ -28,12 +32,21 @@ function get_posts( $args ) { $GLOBALS['get_posts_calls'][] = $args; return $GLO
 function get_option( $key, $default = false ) { return $GLOBALS['options'][ $key ] ?? $default; }
 function update_option( $key, $value, $autoload = null ) { $GLOBALS['options'][ $key ] = $value; $GLOBALS['autoload'][ $key ] = $autoload; $GLOBALS['writes'][ $key ] = ( $GLOBALS['writes'][ $key ] ?? 0 ) + 1; return true; }
 function get_current_blog_id() { return $GLOBALS['blog'] ?? 1; }
-function delete_option( $key ) { $GLOBALS['deletes'][ $key ] = ( $GLOBALS['deletes'][ $key ] ?? 0 ) + 1; unset( $GLOBALS['options'][ $key ] ); return true; }
+function switch_to_blog( $id ) { $GLOBALS['blog_stack'][] = $GLOBALS['blog'] ?? 1; $GLOBALS['blog'] = (int) $id; return true; }
+function restore_current_blog() { $GLOBALS['blog'] = array_pop( $GLOBALS['blog_stack'] ); return true; }
+function get_sites( $args = array() ) { return array( 1, 2 ); }
+function is_multisite() { return ! empty( $GLOBALS['multisite'] ); }
+function get_site_option( $key, $default = false ) { return $GLOBALS['site_options'][ $key ] ?? $default; }
+function update_site_option( $key, $value ) { $GLOBALS['site_options'][ $key ] = $value; return true; }
+function absint( $v ) { return abs( (int) $v ); }
+function esc_html( $v ) { return htmlspecialchars( (string) $v ); }
+function wp_cache_get( $key, $group = '' ) { return false; }
+function delete_option( $key ) { $k = ( $GLOBALS['blog'] ?? 1 ) . ':' . $key; $GLOBALS['deletes'][ $k ] = ( $GLOBALS['deletes'][ $k ] ?? 0 ) + 1; unset( $GLOBALS['options'][ $key ] ); return true; }
 function delete_post_meta( $id, $key ) { unset( $GLOBALS['meta'][ $id ][ $key ] ); return true; }
 function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['meta'][ $id ][ $key ] ?? ''; }
 function wp_is_post_revision( $id ) { return false; }
 function wp_is_post_autosave( $id ) { return false; }
-function get_post( $id ) { return null; }
+function get_post( $id ) { return 0 === (int) $id ? (object) array( 'ID' => 77, 'post_title' => 'La propia fila' ) : null; } // como WordPress: get_post( 0 ) es el post global
 function wp_next_scheduled( $hook ) { return $GLOBALS['scheduled'][ $hook ] ?? false; }
 function wp_schedule_single_event( $time, $hook ) { $GLOBALS['scheduled'][ $hook ] = $time; return true; }
 /** Lo mínimo de otras clases de SEO que usa la del vídeo. */
@@ -57,6 +70,8 @@ class Digi_Test_WPDB {
 		return $sql;
 	}
 	public $deleted = array();
+	public $orphans = 0;
+	public function get_var( $sql ) { return false !== strpos( $sql, 'target_post_id = 0' ) ? $this->orphans : null; }
 	public function delete( $table, $where ) { $this->deleted[] = array( $table, $where ); return 1; }
 	public function get_results( $sql, $output = 'OBJECT' ) {
 		$this->queries[] = $sql;
@@ -158,14 +173,43 @@ $media = (object) array( 'ID' => 12, 'post_content' => '', 'post_status' => 'inh
 $links::after_save( 12, $media, false, null );
 if ( $GLOBALS['wpdb']->deleted ) fail( 'Subir un medio (un tipo que Enlaces no analiza) no debe borrar enlaces ni metadatos que no existen.' );
 
-// 5. Un guardado borra cada caché una sola vez aunque save_post, las metas y las opciones la disparen varias veces.
+// 5. Un guardado borra cada caché como mucho dos veces por sitio aunque save_post, las metas y las opciones la disparen más.
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-css-audit.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-url-bases.php';
-$GLOBALS['deletes'] = array();
-for ( $i = 0; $i < 4; $i++ ) { Digitalisimo_Integrations_Performance_CSS_Audit::invalidate(); Digitalisimo_Integrations_URL_Bases::forget(); }
-$css = $GLOBALS['deletes'][ Digitalisimo_Integrations_Performance_CSS_Audit::OPTION ] ?? 0;
-$url = $GLOBALS['deletes'][ Digitalisimo_Integrations_URL_Bases::TAKEN ] ?? 0;
-if ( 1 !== $css || 1 !== $url ) fail( "Cuatro disparos en un guardado borraron la caché de la auditoría CSS $css veces y las rutas ocupadas $url veces (cada borrado es una consulta)." );
+$css_class = Digitalisimo_Integrations_Performance_CSS_Audit::class; $url_class = Digitalisimo_Integrations_URL_Bases::class;
+$GLOBALS['deletes'] = array(); $GLOBALS['actions']['shutdown'] = array(); $GLOBALS['blog'] = 1;
+for ( $i = 0; $i < 4; $i++ ) { $css_class::invalidate(); $url_class::forget(); }
+foreach ( $GLOBALS['actions']['shutdown'] as $callback ) call_user_func( $callback );
+$css = $GLOBALS['deletes'][ '1:' . $css_class::OPTION ] ?? 0;
+$url = $GLOBALS['deletes'][ '1:' . $url_class::TAKEN ] ?? 0;
+if ( $css > 2 || $url > 2 ) fail( "Cuatro disparos en un guardado borraron la caché de la auditoría CSS $css veces y las rutas ocupadas $url veces (cada borrado es una consulta)." );
+if ( 2 !== $css || 2 !== $url ) fail( 'Con varios disparos se borra otra vez al terminar la petición (por si el front la reescribió entre medias).' );
+// En una red, invalidate_network() borra la caché de cada sitio, no sólo la del primero.
+$GLOBALS['deletes'] = array(); $GLOBALS['actions']['shutdown'] = array();
+$css_class::invalidate_network();
+if ( empty( $GLOBALS['deletes'][ '2:' . $css_class::OPTION ] ) ) fail( 'invalidate_network() debe borrar la caché de la auditoría CSS también en el segundo sitio de la red.' );
+
+// 6. Enlaces: un enlace interno sin destino (a algo que aún no existía) se vuelve a resolver al «Actualizar».
+$GLOBALS['wpdb']->deleted = array(); $GLOBALS['wpdb']->orphans = 1;
+$GLOBALS['meta'][10][ $links::META ] = (string) $links::VERSION;
+$links::after_save( 10, $post, true, $before );
+if ( 1 !== count( $GLOBALS['wpdb']->deleted ) ) fail( 'Con un enlace interno sin destino, guardar sin cambios debe volver a analizar los enlaces.' );
+$GLOBALS['wpdb']->orphans = 0;
+
+// 7. Columna «Cluster» sin pilar: vacía (antes, get_post( 0 ) pintaba el título de la propia fila).
+ob_start(); Digitalisimo_Integrations_Editorial::column_value( 'digitalisimo_cluster', 10 ); $cell = ob_get_clean();
+if ( '' !== $cell ) fail( "Una entrada sin pilar pintó «{$cell}» en la columna Cluster." );
+
+// 8. Red: los ajustes de red cambiados después de la última comprobación hacen comprobar en seguida.
+$GLOBALS['multisite'] = true; $GLOBALS['scheduled'] = array(); $GLOBALS['get_posts_result'] = array(); $GLOBALS['get_posts_calls'] = array();
+$GLOBALS['options']['digitalisimo_seo_video_checked'] = time() - 60;
+$video::admin_init();
+if ( $GLOBALS['get_posts_calls'] ) fail( 'Comprobado hace un minuto y sin cambios de red, no se vuelve a consultar.' );
+if ( method_exists( $video, 'forget_checked_network' ) ) $video::forget_checked_network(); else fail( 'Falta forget_checked_network() para los ajustes de red.' );
+$GLOBALS['options']['digitalisimo_seo_video_checked'] = time() - 60; // otro sitio, comprobado antes del cambio de red
+$video::admin_init();
+if ( ! $GLOBALS['get_posts_calls'] ) fail( 'Tras cambiar los ajustes de red, cada sitio debe volver a comprobar en seguida (sin esperar una hora).' );
+$GLOBALS['multisite'] = false;
 
 if ( ! empty( $GLOBALS['failures'] ) ) exit( 1 );
 echo "SEO: selector de pilar ligero, sitemap de vídeo sin recorrer el postmeta en cada petición, una generación de imágenes por subida, enlaces sin reanalizar lo que no cambió y cachés borradas una vez por guardado.\n";

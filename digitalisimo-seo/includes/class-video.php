@@ -19,6 +19,8 @@ class Digitalisimo_Integrations_Video {
 	const VERSION  = 1;
 	/** Cuándo se comprobó por última vez que no quedaba nada por analizar ni por pedir a Vimeo (marca pequeña con autoload). */
 	const CHECKED  = 'digitalisimo_seo_video_checked';
+	/** En una red: cuándo cambiaron los ajustes de red (sitemeta), para que cada sitio vuelva a comprobar en seguida. */
+	const NETWORK_RESET = 'digitalisimo_seo_video_network_reset';
 	const VERSION_META = 'digitalisimo_seo_video_v';
 	const HOOK     = 'digitalisimo_seo_video_batch';
 	const BATCH    = 50;
@@ -31,7 +33,7 @@ class Digitalisimo_Integrations_Video {
 		add_action( self::HOOK, array( __CLASS__, 'run_batch' ) );
 		add_action( 'admin_init', array( __CLASS__, 'admin_init' ) );
 		add_action( 'update_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'forget_checked' ) );
-		add_action( 'update_site_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'forget_checked' ) );
+		add_action( 'update_site_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'forget_checked_network' ) );
 	}
 
 	public static function enabled() { return Digitalisimo_Integrations_Sitemap::enabled() && (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_sitemap_video_enabled', 0 ); }
@@ -45,12 +47,16 @@ class Digitalisimo_Integrations_Video {
 	public static function admin_init() {
 		if ( ! self::enabled() || wp_next_scheduled( self::HOOK ) ) return;
 		$checked = (int) get_option( self::CHECKED, 0 );
-		if ( $checked > time() - HOUR_IN_SECONDS && $checked <= time() ) return;
+		$reset   = is_multisite() ? (int) get_site_option( self::NETWORK_RESET, 0 ) : 0;
+		if ( $checked > time() - HOUR_IN_SECONDS && $checked <= time() && $checked > $reset ) return;
 		if ( self::backlog( 1 ) || self::pending( 1 ) ) { wp_schedule_single_event( time() + 30, self::HOOK ); return; }
 		update_option( self::CHECKED, time(), true );
 	}
 
 	public static function forget_checked() { delete_option( self::CHECKED ); }
+
+	/** Ajustes de red: una marca de red que cada sitio compara con la suya (sin recorrer los sitios). */
+	public static function forget_checked_network() { update_site_option( self::NETWORK_RESET, time() ); delete_option( self::CHECKED ); }
 
 	/* ------------------------------------------------------------------ */
 	/* Detección y formato (puros).                                         */

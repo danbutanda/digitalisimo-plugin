@@ -134,8 +134,16 @@ class Digitalisimo_Integrations_Links {
 		// que sólo tocan título o metadatos no lo repiten.
 		// Un tipo que no se analiza (adjuntos, menús, plantillas) y nunca se analizó no tiene enlaces que borrar.
 		if ( $post && ! in_array( $post->post_type, self::types(), true ) && '' === (string) get_post_meta( $post_id, self::META, true ) ) return;
-		if ( $update && $post && $post_before && $post_before->post_content === $post->post_content && $post_before->post_status === $post->post_status && $post_before->post_type === $post->post_type && (string) self::VERSION === (string) get_post_meta( $post_id, self::META, true ) ) return;
+		// Si quedó algún enlace interno sin destino (enlazaba a algo que aún no existía), sí se vuelve a analizar: así
+		// «Actualizar» sigue resolviéndolo, con una consulta en lugar del análisis completo.
+		if ( $update && $post && $post_before && $post_before->post_content === $post->post_content && $post_before->post_status === $post->post_status && $post_before->post_type === $post->post_type && (string) self::VERSION === (string) get_post_meta( $post_id, self::META, true ) && ! self::has_orphans( $post_id ) ) return;
 		self::process( $post_id );
+	}
+
+	/** Enlaces internos de un contenido que no apuntan a nada del sitio (destino 0). */
+	private static function has_orphans( $post_id ) {
+		global $wpdb;
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM ' . self::table() . " WHERE post_id = %d AND type = 'internal' AND target_post_id = 0 LIMIT 1", (int) $post_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	/** Recalcula los enlaces de un contenido; uno que deja de estar publicado deja de contar. */

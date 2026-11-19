@@ -28,11 +28,13 @@ final class Digitalisimo_SEO_Release_Check {
 		add_action( self::HOOK, array( __CLASS__, 'refresh' ) );
 		add_action( 'admin_post_digitalisimo_check_updates', array( __CLASS__, 'clear_for_manual' ), 1 );
 		add_filter( 'cron_schedules', array( __CLASS__, 'schedule' ) );
-		// La caché y la última versión conocida son de red: en una red basta el cron del sitio principal (con uno por
-		// sitio, cada sitio descargaba el índice cada cinco minutos y vaciaba la caché de los demás).
-		if ( is_multisite() && ! is_main_site() ) { if ( wp_next_scheduled( self::HOOK ) ) wp_clear_scheduled_hook( self::HOOK ); }
-		elseif ( ! wp_next_scheduled( self::HOOK ) ) wp_schedule_event( time() + 300, 'digitalisimo_five_minutes', self::HOOK );
+		// Cada sitio con SEO programa el cron (así renueva aunque el principal no tenga SEO o no reciba visitas), pero la
+		// caché y la última versión conocida son de red: en una red, refresh() toma un candado y sólo uno descarga.
+		if ( ! wp_next_scheduled( self::HOOK ) ) wp_schedule_event( time() + 300, 'digitalisimo_five_minutes', self::HOOK );
 	}
+
+	/** Candado de red de refresh(): con un cron por sitio, una descarga del índice cada cinco minutos en toda la red. */
+	const LOCK = 'digitalisimo_seo_release_refresh_lock';
 
 	public static function schedule( $schedules ) {
 		$schedules['digitalisimo_five_minutes'] = array( 'interval' => 300, 'display' => 'Digitalisimo: cada cinco minutos' );
@@ -57,6 +59,10 @@ final class Digitalisimo_SEO_Release_Check {
 	 * tenían y release() conserva la última versión encontrada.
 	 */
 	public static function refresh() {
+		if ( is_multisite() ) {
+			if ( get_site_transient( self::LOCK ) ) return;
+			set_site_transient( self::LOCK, time(), 4 * MINUTE_IN_SECONDS );
+		}
 		delete_site_transient( self::CACHE_KEY );
 		self::release( true );
 		$updates = get_site_transient( 'update_plugins' );

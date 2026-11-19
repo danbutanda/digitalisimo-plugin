@@ -5,7 +5,8 @@
  * vencida, esa lectura descargaba el índice de GitHub (hasta 3 s, y otros 3 s por la API si fallaba). Ahora:
  *   1. leer el transient no hace ninguna petición y sigue mostrando la última versión conocida;
  *   2. cuando WordPress consulta (pre_set_…) y en el cron, SEO sí descarga y detecta la Release nueva;
- *   3. en una red sólo el sitio principal programa el cron de cinco minutos (y un subsitio retira el suyo);
+ *   3. en una red cada sitio con SEO programa el cron (aunque el principal no tenga SEO), pero con un candado de red
+ *      sólo uno descarga el índice cada cinco minutos;
  *   4. el cron no vacía el índice compartido: si GitHub falla, los demás plugins conservan el que tenían.
  */
 define( 'ABSPATH', __DIR__ );
@@ -88,14 +89,16 @@ if ( ( $GLOBALS['transients'][ $class::MANIFEST_CACHE ] ?? null ) !== $shared ) 
 if ( '1.0.203' !== ( $GLOBALS['transients']['update_plugins']->response[ $file ]->new_version ?? '' ) ) fail( 'Con GitHub caído se conserva la actualización ya detectada.' );
 $GLOBALS['doing_cron'] = false; $GLOBALS['github'] = 'ok';
 
-// 3. Red: el sitio principal programa el cron; un subsitio no, y retira el que tenía.
-$GLOBALS['multisite'] = true; $GLOBALS['main_site'] = false; $GLOBALS['scheduled'] = array( $class::HOOK => time() + 60 );
+// 3. Red: un subsitio programa el cron aunque el principal no tenga SEO; dos crons seguidos descargan una sola vez.
+$GLOBALS['multisite'] = true; $GLOBALS['main_site'] = false; $GLOBALS['scheduled'] = array(); $GLOBALS['doing_cron'] = true;
 $class::init();
-if ( isset( $GLOBALS['scheduled'][ $class::HOOK ] ) || ! in_array( $class::HOOK, $GLOBALS['cleared'], true ) ) fail( 'Un subsitio de la red no debe programar (y debe retirar) el cron de cinco minutos.' );
-$GLOBALS['cleared'] = array();
-$class::init();
-if ( $GLOBALS['cleared'] ) fail( 'Sin evento que retirar, el subsitio no escribe en su cron en cada carga.' );
-$GLOBALS['main_site'] = true;
-$class::init();
-if ( empty( $GLOBALS['scheduled'][ $class::HOOK ] ) ) fail( 'El sitio principal de la red programa el cron.' );
-echo "SEO: el escritorio no espera a GitHub, el cron renueva sin vaciar el índice compartido y en red corre sólo en el sitio principal.\n";
+if ( empty( $GLOBALS['scheduled'][ $class::HOOK ] ) ) fail( 'Un subsitio con SEO debe programar el cron aunque el sitio principal no lo tenga.' );
+unset( $GLOBALS['transients'][ $class::LOCK ] );
+$before = count( $GLOBALS['requests'] );
+$class::refresh(); $class::refresh(); $class::refresh();
+if ( 1 !== count( $GLOBALS['requests'] ) - $before ) fail( 'En una red, varios crons seguidos (uno por sitio) deben descargar el índice una sola vez: ' . ( count( $GLOBALS['requests'] ) - $before ) );
+unset( $GLOBALS['transients'][ $class::LOCK ] );
+$class::refresh();
+if ( 2 !== count( $GLOBALS['requests'] ) - $before ) fail( 'Vencido el candado, el siguiente cron vuelve a descargar.' );
+$GLOBALS['doing_cron'] = false;
+echo "SEO: el escritorio no espera a GitHub, el cron renueva sin vaciar el índice compartido y en red descarga un solo sitio a la vez.\n";

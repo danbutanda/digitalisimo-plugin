@@ -800,7 +800,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 			self::forget();
 			$settings = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
 			$settings['perf_font_guard_mode'] = 'auto';
-			update_option( Digitalisimo_Integrations_Settings::OPTION, $settings, false );
+			update_option( Digitalisimo_Integrations_Settings::OPTION, $settings, true );
 			if ( is_multisite() ) {
 				$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
 				$inherit['perf_font_guard_mode'] = 0;

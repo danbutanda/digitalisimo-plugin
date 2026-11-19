@@ -119,7 +119,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		$settings = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
 		$settings['perf_preload_mode'] = self::sanitize_mode( 'auto' );
 		$settings['perf_preload_limit'] = self::sanitize_limit( 2 );
-		update_option( Digitalisimo_Integrations_Settings::OPTION, $settings, false );
+		update_option( Digitalisimo_Integrations_Settings::OPTION, $settings, true );
 		if ( is_multisite() ) {
 			$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
 			$inherit['perf_preload_mode'] = 0;
