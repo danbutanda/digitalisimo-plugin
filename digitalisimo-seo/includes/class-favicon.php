@@ -163,7 +163,7 @@ class Digitalisimo_Integrations_Favicon {
 		$hash  = $path ? (string) md5_file( $path ) : '';
 		if ( ! $error && ! $force && $hash === ( $state['hash'] ?? '' ) && $url === ( $state['source'] ?? '' ) && empty( $state['error'] ) && is_file( self::dir()[0] . '/favicon.ico' ) ) return false;
 		if ( ! $error ) $error = self::generate( $path, self::dir()[0], $editor );
-		update_option( self::STATE, array( 'source' => $url, 'hash' => $hash, 'version' => $error ? '' : substr( $hash, 0, 10 ), 'generated' => time(), 'error' => $error ), false );
+		update_option( self::STATE, array( 'source' => $url, 'hash' => $hash, 'version' => $error ? '' : substr( $hash, 0, 10 ), 'generated' => time(), 'error' => $error ), true );
 		return true;
 	}
 

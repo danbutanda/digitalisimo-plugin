@@ -241,12 +241,25 @@ class Digitalisimo_Integrations_Settings {
 		add_action( 'admin_menu', array( __CLASS__, 'admin_menu' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		add_action( 'admin_init', array( __CLASS__, 'migrate_template_defaults' ), 1 );
+		add_action( 'admin_init', array( __CLASS__, 'ensure_autoload' ), 2 );
+	}
+
+	/**
+	 * La opción principal (≈8 KB) y el estado del favicon se leen en cada petición (escritorio, REST y front; en una red,
+	 * además por cada sitio del menú «Mis sitios»). Varias rutas los guardaban sin autoload, una consulta más en cada
+	 * petición de ese sitio: ahora se guardan con autoload y lo ya guardado se corrige una vez por sitio (WordPress 6.4+).
+	 */
+	public static function ensure_autoload() {
+		if ( ! function_exists( 'wp_set_option_autoload_values' ) ) return;
+		$all = wp_load_alloptions(); $fix = array();
+		foreach ( array( self::OPTION, 'digitalisimo_favicon_state' ) as $name ) if ( ! array_key_exists( $name, $all ) && false !== get_option( $name, false ) ) $fix[ $name ] = true;
+		if ( $fix ) wp_set_option_autoload_values( $fix );
 	}
 
 	/** Rellena una vez las plantillas que versiones previas dejaron vacías. */
 	public static function migrate_template_defaults() {
 		$keys = self::template_default_keys(); $defaults = self::defaults();
-		if ( ! get_option( self::TEMPLATE_DEFAULTS_MIGRATION ) ) { $site = (array) get_option( self::OPTION, array() ); foreach ( $keys as $key ) if ( ! array_key_exists( $key, $site ) || '' === trim( (string) $site[ $key ] ) ) $site[ $key ] = $defaults[ $key ]; update_option( self::OPTION, $site, false ); update_option( self::TEMPLATE_DEFAULTS_MIGRATION, 1, false ); }
+		if ( ! get_option( self::TEMPLATE_DEFAULTS_MIGRATION ) ) { $site = (array) get_option( self::OPTION, array() ); foreach ( $keys as $key ) if ( ! array_key_exists( $key, $site ) || '' === trim( (string) $site[ $key ] ) ) $site[ $key ] = $defaults[ $key ]; update_option( self::OPTION, $site, true ); update_option( self::TEMPLATE_DEFAULTS_MIGRATION, 1, false ); }
 		if ( is_multisite() && is_network_admin() && ! get_site_option( self::TEMPLATE_DEFAULTS_MIGRATION ) ) { $network = (array) get_site_option( self::OPTION, array() ); foreach ( $keys as $key ) if ( ! array_key_exists( $key, $network ) || '' === trim( (string) $network[ $key ] ) ) $network[ $key ] = $defaults[ $key ]; update_site_option( self::OPTION, $network ); update_site_option( self::TEMPLATE_DEFAULTS_MIGRATION, 1 ); }
 	}
 

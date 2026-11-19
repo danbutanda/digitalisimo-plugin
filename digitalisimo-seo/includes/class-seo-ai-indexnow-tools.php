@@ -9,7 +9,7 @@ class Digitalisimo_Integrations_SEO_AI_IndexNow_Tools {
 	public static function action() {
 		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'digitalisimo_indexnow_tools' ) ) wp_die( esc_html__( 'Solicitud no autorizada.', 'digitalisimo-integrations' ) );
 		$action = sanitize_key( wp_unslash( $_POST['indexnow_action'] ?? '' ) ); $option = (array) get_option( self::OPTION, array() );
-		if ( 'generate' === $action ) { $option['seo_ai_indexnow_key'] = wp_generate_password( 32, false, false ); $option['seo_ai_indexnow_enabled'] = 1; update_option( self::OPTION, $option, false ); Digitalisimo_Integrations_SEO_AI::refresh_rewrites(); }
+		if ( 'generate' === $action ) { $option['seo_ai_indexnow_key'] = wp_generate_password( 32, false, false ); $option['seo_ai_indexnow_enabled'] = 1; update_option( self::OPTION, $option, true ); Digitalisimo_Integrations_SEO_AI::refresh_rewrites(); }
 		if ( 'send' === $action ) wp_schedule_single_event( time() + 1, 'digitalisimo_seo_ai_indexnow' );
 		if ( 'resend' === $action ) { $url = esc_url_raw( wp_unslash( $_POST['indexnow_url'] ?? '' ) ); $kind = sanitize_key( wp_unslash( $_POST['indexnow_kind'] ?? 'update' ) ); if ( $url ) Digitalisimo_Integrations_SEO_AI::queue_url( $url, $kind, true ); wp_schedule_single_event( time() + 1, 'digitalisimo_seo_ai_indexnow' ); }
 		wp_safe_redirect( add_query_arg( array( 'page' => 'digitalisimo-seo-ai-indexnow', 'updated' => $action ), admin_url( 'admin.php' ) ) ); exit;

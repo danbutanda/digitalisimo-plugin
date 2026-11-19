@@ -501,7 +501,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 			$hook  = 'sanitize_option_' . Digitalisimo_Integrations_Settings::OPTION;
 			$saved = $wp_filter[ $hook ] ?? null;
 			unset( $wp_filter[ $hook ] );
-			update_option( Digitalisimo_Integrations_Settings::OPTION, $site, false );
+			update_option( Digitalisimo_Integrations_Settings::OPTION, $site, true );
 			if ( $saved ) $wp_filter[ $hook ] = $saved;
 			if ( is_multisite() ) update_option( 'digitalisimo_seo_network_inherit', $inherit, false );
 		}
