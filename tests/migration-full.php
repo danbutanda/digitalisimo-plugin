@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click' );
+	$scenarios = array( 'unit', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click', 'cli' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -644,6 +644,27 @@ switch ( $scenario ) {
 		check( ! empty( $state['idle'] ) && ! get_option( Full::JOB ) && Full::last( false )['finished'] === $finished, 'El mismo clic repetido no lanza otra migración.' );
 		check( 1 === count( $GLOBALS['t']['specs'] ), 'Un solo respaldo.' );
 		check( ! isset( $GLOBALS['t']['rows'][ Full::LOCK ] ), 'El cerrojo se suelta.' );
+		break;
+
+	case 'cli':
+		// `wp digitalisimo-migration --run`: la misma tarea; tras cambiar plugins o el tema sigue en un proceso nuevo.
+		define( 'WP_CLI', true );
+		eval( 'final class WP_CLI {
+			public static function log( $m ) {}
+			public static function success( $m ) { $GLOBALS["t"]["cli_done"] = $m; }
+			public static function error( $m ) { throw new RuntimeException( $m ); }
+			public static function runcommand( $command, $options = array() ) { $GLOBALS["t"]["relaunch"][] = $command; }
+		}' );
+		for ( $i = 0; $i < 30 && empty( $GLOBALS['t']['cli_done'] ); $i++ ) {
+			usleep( 2000 );
+			$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
+			$GLOBALS['t']['loaded']        = (array) get_option( 'active_plugins', array() );
+			Full::cli( false );
+		}
+		$last = Full::last( false );
+		check( 'Migración completada.' === ( $GLOBALS['t']['cli_done'] ?? '' ) && '' === $last['failed'], 'WP-CLI termina la migración: ' . ( $last['error'] ?? '' ) );
+		check( count( $GLOBALS['t']['relaunch'] ?? array() ) >= 3 && array( 'digitalisimo-migration --run' ) === array_values( array_unique( $GLOBALS['t']['relaunch'] ) ), 'Sigue en procesos nuevos tras cada cambio: ' . implode( ' | ', $GLOBALS['t']['relaunch'] ?? array() ) );
+		check( ! installed_now( 'seo-by-rank-math/rank-math.php' ) && 'digitalisimo-theme' === get_option( 'stylesheet' ) && 1 === count( $GLOBALS['t']['specs'] ), 'Hace lo mismo que el botón (un respaldo, reemplazo y tema).' );
 		break;
 }
 
