@@ -454,7 +454,7 @@ final class Pro {
 		if ( $keep ) {
 			// Una condición encendida que la versión anterior no pasó: el widget de PRO vuelve sólo con certeza.
 			$named = array();
-			foreach ( $pass as $key ) {
+			foreach ( array_merge( $pass, $keep ) as $key ) {
 				$dot     = strpos( $key, '.' );
 				$named[] = false === $dot ? $key : (string) ( $map['repeaters'][ substr( $key, 0, $dot ) ]['target'] ?? substr( $key, 0, $dot ) ) . substr( $key, $dot );
 			}
@@ -535,8 +535,9 @@ final class Pro {
 	}
 
 	/**
-	 * ¿Es el elemento actual la traducción de su original? Iguales sin lo que pasa tal cual ($pass, con el repetidor ya
-	 * con su nombre en el widget propio) y sin los rasgos `digitalisimo_*` (los añade la etapa de Element Pack).
+	 * ¿Es el elemento actual la traducción de su original? Iguales sin lo que pasa tal cual ni las condiciones ($pass, con
+	 * el repetidor ya con su nombre en el widget propio) y sin los rasgos `digitalisimo_*` (los añade la etapa de Element
+	 * Pack).
 	 */
 	private static function same_settings( array $current, array $translated, array $pass ): bool {
 		$strip = static function ( array $settings ) use ( $pass ): array {

@@ -53,6 +53,7 @@ jobs:
           php tests/elements-lazy-videos.php
           php tests/elements-facades.php
           php tests/elements-convert.php
+          php tests/elements-convert-foreign.php
           php tests/elements-convert-fidelity.php
           php tests/elements-blockquote.php
           node tests/elements-blockquote-align-chrome.mjs
@@ -215,6 +216,7 @@ jobs:
           php tests/migration-scale.php
           php tests/migration-network.php
           php tests/migration-pro.php
+          php tests/migration-pro-settings.php
           php tests/migration-pro-global.php
           php tests/migration-pro-site-css.php
           node tests/migration-static.mjs
