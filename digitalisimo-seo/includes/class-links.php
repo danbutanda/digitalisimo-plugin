@@ -132,6 +132,8 @@ class Digitalisimo_Integrations_Links {
 		// consultas por enlace). Si el contenido, el estado y el tipo no cambiaron y ya se analizó con esta versión, el
 		// resultado sería el mismo: así el segundo guardado del editor de bloques (el de los metaboxes) y los guardados
 		// que sólo tocan título o metadatos no lo repiten.
+		// Un tipo que no se analiza (adjuntos, menús, plantillas) y nunca se analizó no tiene enlaces que borrar.
+		if ( $post && ! in_array( $post->post_type, self::types(), true ) && '' === (string) get_post_meta( $post_id, self::META, true ) ) return;
 		if ( $update && $post && $post_before && $post_before->post_content === $post->post_content && $post_before->post_status === $post->post_status && $post_before->post_type === $post->post_type && (string) self::VERSION === (string) get_post_meta( $post_id, self::META, true ) ) return;
 		self::process( $post_id );
 	}
@@ -397,6 +399,8 @@ class Digitalisimo_Integrations_Links {
 		if ( $pillar && $pillar !== (int) $post->ID && ! in_array( $pillar, $linked, true ) && 'publish' === get_post_status( $pillar ) ) $items[ $pillar ] = 'tu contenido pilar';
 		foreach ( self::suggest( wp_strip_all_tags( strip_shortcodes( $post->post_content ) ), $linked, self::keyword_map( $post->ID ) ) as $id => $keyword ) if ( ! isset( $items[ $id ] ) ) $items[ $id ] = '«' . $keyword . '» aparece en el texto';
 		if ( ! $items ) { echo '<p class="description">Sin sugerencias: no hay otros contenidos cuya keyword principal aparezca en el texto sin enlazar.</p>'; return; }
+		// Una sola consulta para enlace y título de cada sugerencia (antes, una por sugerencia).
+		if ( function_exists( '_prime_post_caches' ) ) _prime_post_caches( array_map( 'intval', array_keys( $items ) ), false, false );
 		echo '<p><strong>Podrías enlazar:</strong></p><ul style="margin:0">';
 		foreach ( $items as $id => $why ) echo '<li><a href="' . esc_url( get_permalink( $id ) ) . '" target="_blank" rel="noopener">' . esc_html( get_the_title( $id ) ) . '</a><br><span class="description">' . esc_html( $why ) . '</span></li>';
 		echo '</ul><p class="description">Sólo son sugerencias: ningún enlace se inserta solo. Se actualizan al guardar.</p>';

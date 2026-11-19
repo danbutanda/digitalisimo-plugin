@@ -153,6 +153,10 @@ if ( 1 !== count( $GLOBALS['wpdb']->deleted ) ) fail( 'Un contenido sin analizar
 $GLOBALS['wpdb']->deleted = array();
 $links::after_save( 11, $post, false, null );
 if ( 1 !== count( $GLOBALS['wpdb']->deleted ) ) fail( 'Un contenido nuevo se analiza.' );
+$GLOBALS['wpdb']->deleted = array();
+$media = (object) array( 'ID' => 12, 'post_content' => '', 'post_status' => 'inherit', 'post_type' => 'attachment' );
+$links::after_save( 12, $media, false, null );
+if ( $GLOBALS['wpdb']->deleted ) fail( 'Subir un medio (un tipo que Enlaces no analiza) no debe borrar enlaces ni metadatos que no existen.' );
 
 // 5. Un guardado borra cada caché una sola vez aunque save_post, las metas y las opciones la disparen varias veces.
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-css-audit.php';

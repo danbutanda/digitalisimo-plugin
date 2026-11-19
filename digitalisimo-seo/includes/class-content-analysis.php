@@ -103,9 +103,11 @@ class Digitalisimo_Integrations_Content_Analysis {
 		// Sin prefiltro LIKE: tildes y mayúsculas sólo se comparan bien normalizadas en PHP, sea cual sea la colación.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT m.post_id, m.meta_value FROM {$wpdb->postmeta} m JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE m.meta_key = 'digitalisimo_seo_keywords' AND m.meta_value <> '' AND p.post_status = 'publish' AND p.ID <> %d ORDER BY p.post_date DESC LIMIT 2000", (int) $post_id ), ARRAY_A );
 		$norm = Digitalisimo_Integrations_Keyword_Match::normalize( $keyword );
-		$out  = array();
-		foreach ( (array) $rows as $row ) if ( Digitalisimo_Integrations_Keyword_Match::normalize( trim( explode( ',', (string) $row['meta_value'] )[0] ) ) === $norm ) $out[] = get_the_title( (int) $row['post_id'] );
-		return $out;
+		$ids  = array();
+		foreach ( (array) $rows as $row ) if ( Digitalisimo_Integrations_Keyword_Match::normalize( trim( explode( ',', (string) $row['meta_value'] )[0] ) ) === $norm ) $ids[] = (int) $row['post_id'];
+		// Una sola consulta para los títulos (antes, una por contenido repetido).
+		if ( $ids && function_exists( '_prime_post_caches' ) ) _prime_post_caches( $ids, false, false );
+		return array_map( 'get_the_title', $ids );
 	}
 
 	public static function data_for( $post ) {
