@@ -5,14 +5,14 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.257.zip', version: '1.0.257' },
-  { dir: 'digitalisimo-ia-tools', folder: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.61.zip', version: '1.0.61' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.31.zip', version: '1.0.31' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.82.zip', version: '1.0.82' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.258.zip', version: '1.0.258' },
+  { dir: 'digitalisimo-ia-tools', folder: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.62.zip', version: '1.0.62' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.32.zip', version: '1.0.32' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.83.zip', version: '1.0.83' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.40.zip', version: '1.0.40' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.189.zip', version: '4.3.0.189' };
-const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.31.zip', version: '1.0.31' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.41.zip', version: '1.0.41' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.190.zip', version: '4.3.0.190' };
+const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.32.zip', version: '1.0.32' };
 const themeModule = { dir: 'digitalisimo-theme', file: 'style.css', zip: 'digitalisimo-theme-1.0.0.zip', version: '1.0.0' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');

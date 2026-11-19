@@ -1,6 +1,6 @@
-# DIGITALÍSIMO Elements @NEXT_ELEMENTS@
+# DIGITALÍSIMO Elements 4.3.0.190
 
-- @NEXT_ELEMENTS@ (auditoría del escritorio, código compartido de los siete plugins): los actualizadores de los plugins hermanos usan la espera común de 2 minutos tras un fallo de GitHub (3 s en lecturas pasivas del escritorio, 10 s en acciones explícitas) y sus cachés se leen en una sola consulta en `init`, sólo para quien puede actualizar. Ningún archivo de `elementor/` se toca.
+- 4.3.0.190 (auditoría del escritorio, código compartido de los siete plugins): los actualizadores de los plugins hermanos usan la espera común de 2 minutos tras un fallo de GitHub (3 s en lecturas pasivas del escritorio, 10 s en acciones explícitas) y sus cachés se leen en una sola consulta en `init`, sólo para quien puede actualizar. Ningún archivo de `elementor/` se toca.
 
 - 4.3.0.189 (auditoría del escritorio del 2026-11-18: que el escritorio no se vuelva más lento con Elements). Ningún archivo de `elementor/` se toca; medida antes/después con `tests/playground/admin-perf.sh`.
   1. **Una consulta en lugar de ~48** (`digitalisimo-admin-load.php`): las opciones del constructor que faltan en cada petición (experimentos sin guardar, ajustes nunca tocados) se anotan en el escritorio, AJAX, REST y cron (sin nombres con ID; una opción que ya existe sale de la lista) y se piden juntas con `wp_prime_option_caches()` antes de cargar el núcleo, salvo con caché de objetos persistente; −40 a −56 consultas en cada pantalla, latido, REST y cron, y 1 976 → 709 al abrir el editor del constructor.

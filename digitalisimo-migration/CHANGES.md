@@ -1,6 +1,6 @@
 # DIGITALÍSIMO Migración · historial
 
-- @NEXT_MIGRATION@: código compartido de los siete plugins (auditoría del escritorio): el actualizador usa la espera común tras un fallo de GitHub (3 s en lecturas pasivas, 10 s en «Buscar actualizaciones» y acciones explícitas) y su caché se lee con las demás en una sola consulta.
+- 1.0.32: código compartido de los siete plugins (auditoría del escritorio): el actualizador usa la espera común tras un fallo de GitHub (3 s en lecturas pasivas, 10 s en «Buscar actualizaciones» y acciones explícitas) y su caché se lee con las demás en una sola consulta.
 
 - 1.0.31: escritorio más ligero (auditoría del 2026-11-18): las cuatro opciones que Migración lee en cada pantalla (`digitalisimo_migration_tb_state`, `…_icon_alias`, `digitalisimo_ep_conditions_repaired` y `…_repair_totals`) se piden juntas con `wp_prime_option_caches()` al arrancar: 4 consultas → 1. Prueba: `tests/migration-admin-load.php`.
 
