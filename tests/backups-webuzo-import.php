@@ -322,6 +322,9 @@ wz_case( 'W2 una cuenta con varios WordPress se analiza y se elige cuál', funct
 	wz_check( 'otro.com' === $sites['otro.com']['domain'] && 'dig' === $sites['otro.com']['prefix'] && false === $sites['otro.com']['database'] && false === $sites['otro.com']['importable'] && false !== strpos( $sites['otro.com']['problem'], 'no viene en el respaldo' ), 'Un WordPress sin su base se ofrece para importar: ' . json_encode( $sites['otro.com'] ) );
 	$view = Digitalisimo_Backups_Jobs::view( $job );
 	wz_check( true === $view['choose'] && '' === $view['file'], 'La vista del análisis no lleva a elegir: ' . json_encode( $view ) );
+	// Otro WordPress de la misma base con un prefijo que empieza por el del elegido (de su wp-config.php): sus tablas no son suyas.
+	$state = array( 'wp' => array( 'a' => array( 'core' => 15, 'version' => '' ), 'a/b' => array( 'core' => 15, 'version' => '' ), 'c' => array( 'core' => 15, 'version' => '' ) ), 'configs' => array( 'a' => array( 'db' => 'x', 'prefix' => 'wp_' ), 'a/b' => array( 'db' => 'x', 'prefix' => 'wp_shop_' ), 'c' => array( 'db' => 'y', 'prefix' => 'wp_otro_' ) ) );
+	wz_check( array( 'wp_shop_' ) === Digitalisimo_Backups_Webuzo_Stream::foreign( $state, 'a' ) && array() === Digitalisimo_Backups_Webuzo_Stream::foreign( $state, 'a/b' ), 'Los prefijos de otro WordPress de la misma base no se reconocen: ' . json_encode( Digitalisimo_Backups_Webuzo_Stream::foreign( $state, 'a' ) ) );
 	wz_check( array() === wz_staging_left(), 'El análisis dejó su área de trabajo.' );
 	// El análisis queda para la pantalla: la lista ya dice qué trae.
 	$item = Digitalisimo_Backups::service_webuzo()['backups'][0];
@@ -636,6 +639,14 @@ wz_case( 'W11 tamaño y tiempo: por la web el salto se mide y manda a WP-CLI; si
 	$again = 0;
 	foreach ( Digitalisimo_Backups_Job_Store::events( $job['id'] ) as $event ) if ( 'phase' === ( $event['type'] ?? '' ) && ( $event['phase'] ?? '' ) === ( $event['next'] ?? '' ) ) $again++;
 	wz_check( 'success' === $job['status'] && 1 === $again, 'Sin plazo, la importación no fue de una pasada por fase (análisis y extracción): ' . $again . ' ' . json_encode( $job['error'] ) );
+	// El plazo de una pasada: ninguno sin plazo por petición; el de un tramo con tramos.
+	wz_check( is_infinite( Digitalisimo_Backups_Webuzo_Import::pass_deadline( array( 'checkpoint' => array() ), 'unpack' ) ), 'Sin plazo por petición, la pasada tiene plazo.' );
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 1;
+	try {
+		wz_check( is_finite( Digitalisimo_Backups_Webuzo_Import::pass_deadline( array( 'checkpoint' => array() ), 'unpack' ) ), 'Con tramos, la pasada no tiene plazo.' );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+	}
 	// Aviso por tamaño en la lista, la tarjeta y REST.
 	$GLOBALS['bk_filters']['digitalisimo_backups_webuzo_web_max'] = 1000;
 	try {

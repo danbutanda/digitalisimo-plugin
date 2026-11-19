@@ -440,7 +440,7 @@ final class Digitalisimo_Backups_Webuzo_Import {
 					if ( $skip > 0 ) continue;
 				}
 				// WP-CLI y el cron del sistema (sin plazo): una sola pasada, con su latido.
-				if ( null === $deadline ) $deadline = $unbounded && ! Digitalisimo_Backups_Step_Budget::units() ? INF : self::deadline( $job, $phase );
+				if ( null === $deadline ) $deadline = self::pass_deadline( $job, $phase );
 				if ( $unbounded && ++$beat % 256 === 0 ) Digitalisimo_Backups_Jobs::progress( 'unpack' === $phase ? 10 : 22, 'Leyendo ' . $what . ': ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $offset ) . '…' );
 				if ( '' === $chunk ) continue;
 				if ( $offset + strlen( $chunk ) > $cap ) throw new Digitalisimo_Backups_Permanent_Error( Digitalisimo_Backups_Backuply_Import::max_tar() <= $cap ? ucfirst( $what ) . ' descomprimido supera ' . Digitalisimo_Backups_Archive_Inspector::megabytes( Digitalisimo_Backups_Backuply_Import::max_tar() ) . ', el máximo que se importa.' : ucfirst( $what ) . ' se descomprime a más de ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $cap ) . ', muchas más veces su tamaño (' . Digitalisimo_Backups_Archive_Inspector::megabytes( $total ) . ') de lo que da un sitio real: no se importa (puede ser una bomba de descompresión). Si es legítimo, sube el tope con el filtro digitalisimo_backups_import_max_ratio.' );
@@ -457,6 +457,10 @@ final class Digitalisimo_Backups_Webuzo_Import {
 		return array( 'done' => true, 'cursor' => array( 'offset' => $offset, 'c' => $member, 'u' => $member_at ), 'read' => $total, 'total' => $total );
 	}
 
+	/** Plazo de una pasada de descompresión: sin plazo por petición, ninguno (una pasada de una vez); si no, el del tramo. */
+	public static function pass_deadline( array $job, $phase ) {
+		return self::unbounded() && ! Digitalisimo_Backups_Step_Budget::units() ? INF : self::deadline( $job, $phase );
+	}
 	/** Sin plazo por petición (WP-CLI, el cron del sistema por PHP CLI): queda más de una hora. */
 	private static function unbounded() {
 		$left = Digitalisimo_Backups_Jobs::step_deadline() - microtime( true );
