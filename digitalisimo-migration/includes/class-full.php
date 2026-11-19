@@ -442,13 +442,34 @@ final class Full {
 		$checks = (array) $state['checks'];
 		while ( $state['cursor'] < count( $checks ) ) {
 			list( $site_id, $url )                    = $checks[ $state['cursor'] ];
-			$state['snap'][ $site_id . '|' . $url ] = Front::snapshot( $url );
+			self::put_snap( $state, $site_id . '|' . $url, Front::snapshot( $url ) );
 			++$state['cursor'];
 			if ( microtime( true ) >= $deadline ) {
 				return $state;
 			}
 		}
 		return self::next( $state, 'backup' );
+	}
+
+	/**
+	 * Huellas de la portada, fuera del estado (que se reescribe en cada paso): una opción sin carga automática por URL,
+	 * en el sitio en curso (en una red, el principal, donde vive el estado de red).
+	 */
+	const SNAP = 'digitalisimo_migration_full_snap_';
+
+	private static function put_snap( array $state, $key, array $snapshot ) {
+		update_option( self::SNAP . md5( (string) $state['started'] . '|' . $key ), $snapshot, false );
+	}
+
+	private static function get_snap( array $state, $key ) {
+		$snapshot = get_option( self::SNAP . md5( (string) $state['started'] . '|' . $key ), array() );
+		return is_array( $snapshot ) ? $snapshot : array();
+	}
+
+	private static function drop_snaps( array $state ) {
+		foreach ( (array) $state['checks'] as $check ) {
+			delete_option( self::SNAP . md5( (string) $state['started'] . '|' . $check[0] . '|' . $check[1] ) );
+		}
 	}
 
 	/* ------------------------------------------------------------------ 2. backup */
@@ -1021,7 +1042,7 @@ final class Full {
 		}
 		while ( $state['cursor'] < count( $checks ) ) {
 			list( $site_id, $url ) = $checks[ $state['cursor'] ];
-			$before                = (array) ( $state['snap'][ $site_id . '|' . $url ] ?? array() );
+			$before                = self::get_snap( $state, $site_id . '|' . $url );
 			list( $ok, $reason )   = Front::compare( $before, Front::snapshot( $url ) );
 			$state['verify'][]     = array( 'site' => (int) $site_id, 'url' => (string) $url, 'ok' => $ok, 'reason' => $reason );
 			++$state['cursor'];
@@ -1232,6 +1253,7 @@ final class Full {
 		$state['done']     = true;
 		$state['pause']    = false;
 		$state['finished'] = time();
+		self::drop_snaps( $state );
 		unset( $state['snap'], $state['checks'], $state['drive'] );
 		if ( ! empty( $state['network'] ) ) {
 			update_site_option( self::NETWORK_LAST, $state );
