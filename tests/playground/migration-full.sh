@@ -73,7 +73,7 @@ else
 fi
 echo "$PORT" > "$OUT/port"
 cat > "$OUT/blueprint.json" <<JSON
-{"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store"}},${STEPS}{"step":"login"},{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"}]}
+{"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","DISABLE_WP_CRON":true}},${STEPS}{"step":"login"},{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"}]}
 JSON
 
 $CLI server --port="$PORT" --workers=3 --site-url="$BASE" --blueprint="$OUT/blueprint.json" \
