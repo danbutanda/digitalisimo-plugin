@@ -62,6 +62,7 @@ final class Theme_Catalog {
 		$network = is_multisite() && 'network' === $context;
 		$subsite = is_multisite() && ! $network;
 		$copies  = Theme_Updates::installed();
+		Theme_Updates::explicit();
 		$release = Theme_Updates::release();
 		$direct  = self::direct_filesystem();
 		echo '<h2 id="digitalisimo-theme">Tema</h2>';
@@ -422,6 +423,7 @@ final class Theme_Catalog {
 			return Theme_Updates::SLUG === $stylesheet && ! wp_get_theme( $stylesheet )->exists();
 		} );
 		if ( ! self::direct_filesystem() ) self::back( 'filesystem' );
+		Theme_Updates::explicit();
 		$release = Theme_Updates::release();
 		if ( empty( $release['package'] ) ) self::back( 'no_release' );
 		self::load_upgrader();
@@ -441,6 +443,7 @@ final class Theme_Catalog {
 		} );
 		if ( ! self::direct_filesystem() ) self::back( 'filesystem' );
 		// La entrada de esa copia se rehace con el índice nuevo antes de actualizar.
+		Theme_Updates::explicit();
 		Theme_Updates::refresh( $stylesheet );
 		$release = Theme_Updates::release();
 		if ( empty( $release['version'] ) ) self::back( 'no_release' );

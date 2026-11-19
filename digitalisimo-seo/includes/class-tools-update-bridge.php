@@ -16,6 +16,13 @@ final class Digitalisimo_Tools_Update_Bridge {
 	const MANIFEST_URL = 'https://github.com/danbutanda/digitalisimo-plugin/releases/latest/download/digitalisimo-plugins.json';
 	/** Caché compartida del índice: un solo archivo sirve a todos los plugins que lo lean. */
 	const MANIFEST_CACHE = 'digitalisimo_plugins_manifest';
+	/** Un fallo de GitHub (índice o API, por separado) detiene dos minutos las consultas de todos los plugins Digitalisimo y del tema. */
+	const MANIFEST_RETRY = 'digitalisimo_plugins_manifest_retry';
+	const API_RETRY      = 'digitalisimo_github_api_retry';
+	/** Índice recién descargado (cuatro minutos): la consulta periódica de otro plugin lo reutiliza en vez de bajarlo otra vez. */
+	const MANIFEST_FRESH = 'digitalisimo_plugins_manifest_fresh';
+	/** Acción explícita en esta petición («Buscar actualizaciones», «Buscar de nuevo», «Ver detalles»): 10 s y sin la espera. */
+	private static $explicit = false;
 	/** Última versión encontrada: si GitHub no responde, la actualización sigue a la vista en lugar de desaparecer. */
 	const LAST_KNOWN = 'digitalisimo_tools_bridge_last_release';
 	private static $installed_version = '';
@@ -47,8 +54,11 @@ final class Digitalisimo_Tools_Update_Bridge {
 	public static function force_check() {
 		if ( ! self::can_update() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION );
+		self::$explicit = true;
 		delete_site_transient( self::CACHE );
 		delete_site_transient( self::MANIFEST_CACHE );
+		delete_site_transient( self::MANIFEST_RETRY );
+		delete_site_transient( self::API_RETRY );
 		delete_site_transient( 'digitalisimo_tools_release' );
 		delete_site_transient( 'digitalisimo_releases_index' );
 		$updates = get_site_transient( 'update_plugins' );
@@ -90,11 +100,14 @@ final class Digitalisimo_Tools_Update_Bridge {
 	private static function from_manifest() {
 		$manifest = get_site_transient( self::MANIFEST_CACHE );
 		if ( ! is_array( $manifest ) ) {
+			// GitHub falló hace menos de dos minutos (para cualquier plugin Digitalisimo): no se vuelve a intentar todavía.
+			if ( ! self::$explicit && false !== get_site_transient( self::MANIFEST_RETRY ) ) return array();
 			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => 10, 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-Tools-Bridge' ) ) );
-			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) return array();
+			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) { set_site_transient( self::MANIFEST_RETRY, 1, 2 * MINUTE_IN_SECONDS ); return array(); }
 			$manifest = json_decode( wp_remote_retrieve_body( $response ), true );
-			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) return array();
+			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) { set_site_transient( self::MANIFEST_RETRY, 1, 2 * MINUTE_IN_SECONDS ); return array(); }
 			set_site_transient( self::MANIFEST_CACHE, $manifest, 10 * MINUTE_IN_SECONDS );
+			set_site_transient( self::MANIFEST_FRESH, time(), 4 * MINUTE_IN_SECONDS );
 		}
 		$entry   = $manifest['plugins'][ self::SLUG ] ?? null;
 		$version = is_array( $entry ) ? (string) ( $entry['version'] ?? '' ) : '';
@@ -107,8 +120,9 @@ final class Digitalisimo_Tools_Update_Bridge {
 
 	/** Respaldo por la API de GitHub (sujeta a su límite de consultas): el asset más reciente de Tools. */
 	private static function from_api() {
+		if ( ! self::$explicit && false !== get_site_transient( self::API_RETRY ) ) return array();
 		$response = wp_remote_get( 'https://api.github.com/repos/' . self::REPOSITORY . '/releases?per_page=50', array( 'timeout' => 10, 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-Tools-Bridge' ) ) );
-		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) return array();
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) { set_site_transient( self::API_RETRY, 1, 2 * MINUTE_IN_SECONDS ); return array(); }
 		$best = array();
 		foreach ( (array) json_decode( wp_remote_retrieve_body( $response ), true ) as $release ) {
 			if ( ! empty( $release['draft'] ) || ! empty( $release['prerelease'] ) ) continue;

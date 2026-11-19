@@ -21,6 +21,13 @@ final class Theme_Updates {
 	const REPOSITORY     = 'danbutanda/digitalisimo-plugin';
 	const MANIFEST_URL   = 'https://github.com/danbutanda/digitalisimo-plugin/releases/latest/download/digitalisimo-plugins.json';
 	const MANIFEST_CACHE = 'digitalisimo_plugins_manifest';
+	/** Un fallo de GitHub (índice o API, por separado) detiene dos minutos las consultas de todos los plugins Digitalisimo y del tema. */
+	const MANIFEST_RETRY = 'digitalisimo_plugins_manifest_retry';
+	const API_RETRY      = 'digitalisimo_github_api_retry';
+	/** Índice recién descargado (cuatro minutos): la consulta periódica de otro plugin lo reutiliza en vez de bajarlo otra vez. */
+	const MANIFEST_FRESH = 'digitalisimo_plugins_manifest_fresh';
+	/** Acción explícita en esta petición («Buscar actualizaciones», «Buscar de nuevo», «Ver detalles»): 10 s y sin la espera. */
+	private static $explicit = false;
 	const CACHE          = 'digitalisimo_tools_theme_release';
 	const LAST_KNOWN     = 'digitalisimo_tools_theme_last_release';
 	const DETAILS        = 'digitalisimo_theme_details';
@@ -37,6 +44,7 @@ final class Theme_Updates {
 		add_action( 'admin_post_' . self::CHECK, array( __CLASS__, 'force_check' ) );
 		// En todos los sitios: un `wp --url=<subsitio>` o el cron de un subsitio rehacen el inventario de toda la red.
 		add_filter( 'update_themes_github.com', array( __CLASS__, 'uri_update' ), 31, 4 );
+		add_action( 'init', array( __CLASS__, 'prime' ), 0 );
 		add_filter( 'pre_set_site_transient_update_themes', array( __CLASS__, 'check' ), 31 );
 		add_filter( 'site_transient_update_themes', array( __CLASS__, 'check' ), 31 );
 		add_filter( 'upgrader_source_selection', array( __CLASS__, 'keep_folder' ), 11, 4 );
@@ -46,6 +54,26 @@ final class Theme_Updates {
 		add_action( 'switch_theme', array( __CLASS__, 'forget' ) );
 		add_action( 'deleted_theme', array( __CLASS__, 'forget' ) );
 		if ( is_multisite() ) add_filter( 'theme_action_links', array( __CLASS__, 'theme_action_links' ), 10, 3 );
+	}
+
+	/**
+	 * Las cachés de todos los actualizadores Digitalisimo en una sola consulta, en init: el menú del escritorio
+	 * (wp-admin/menu.php, antes de admin_init) lee update_plugins y update_themes en cada pantalla, y cada
+	 * actualizador leía entonces la suya con su propia consulta (WordPress nunca carga con autoload un transitorio de red).
+	 */
+	public static function prime() {
+		if ( ! is_admin() || wp_doing_ajax() || wp_using_ext_object_cache() ) return;
+		// Sólo quien ve el contador de actualizaciones del menú; nunca en los envíos de formularios ni en las subidas.
+		if ( in_array( $GLOBALS['pagenow'] ?? '', array( 'admin-post.php', 'async-upload.php' ), true ) || ! ( current_user_can( 'update_plugins' ) || current_user_can( 'update_themes' ) ) ) return;
+		$keys = array();
+		foreach ( array( 'digitalisimo_plugins_manifest', 'digitalisimo_releases_index', 'digitalisimo_backups_release', 'digitalisimo_tools_release', 'digitalisimo_elements_release', 'digitalisimo_migration_release', 'digitalisimo_seo_release_check', 'digitalisimo_theme_release', 'digitalisimo_tools_theme_release', 'digitalisimo_tools_bridge_release', 'digitalisimo_plugins_manifest_retry', 'digitalisimo_github_api_retry' ) as $key ) { $keys[] = '_site_transient_' . $key; $keys[] = '_site_transient_timeout_' . $key; }
+		if ( is_multisite() ) { if ( function_exists( 'wp_prime_network_option_caches' ) ) wp_prime_network_option_caches( get_current_network_id(), $keys ); }
+		elseif ( function_exists( 'wp_prime_option_caches' ) ) wp_prime_option_caches( $keys );
+	}
+
+	/** El catálogo (pintar, instalar, actualizar) es una acción explícita: 10 s y sin la espera tras un fallo. */
+	public static function explicit() {
+		self::$explicit = true;
 	}
 
 	public static function forget() {
@@ -74,6 +102,9 @@ final class Theme_Updates {
 		$template = (string) get_template();
 		return isset( self::installed()[ $template ] ) ? $template : '';
 	}
+
+	/** Una pantalla del escritorio no espera más de 3 s a GitHub; el cron y WP-CLI, hasta 10. */
+	private static function timeout() { return self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ? 10 : 3; }
 
 	/** Versión, ZIP y requisitos del tema en la última Release (caché de 10 minutos; 2 tras un fallo). */
 	public static function release() {
@@ -119,12 +150,15 @@ final class Theme_Updates {
 	private static function from_manifest() {
 		$manifest = get_site_transient( self::MANIFEST_CACHE );
 		if ( ! is_array( $manifest ) ) {
-			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => 10, 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-Tools' ) ) );
-			if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) return null;
+			// GitHub falló hace menos de dos minutos (para cualquier plugin Digitalisimo): no se vuelve a intentar todavía.
+			if ( ! self::$explicit && false !== get_site_transient( self::MANIFEST_RETRY ) ) return null;
+			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => self::timeout(), 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-Tools' ) ) );
+			if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) { set_site_transient( self::MANIFEST_RETRY, 1, 2 * MINUTE_IN_SECONDS ); return null; }
 			$manifest = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 			// Sólo se guarda (y se comparte) un índice con plugins, igual que en los actualizadores de los plugins.
-			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) return null;
+			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) { set_site_transient( self::MANIFEST_RETRY, 1, 2 * MINUTE_IN_SECONDS ); return null; }
 			set_site_transient( self::MANIFEST_CACHE, $manifest, 10 * MINUTE_IN_SECONDS );
+			set_site_transient( self::MANIFEST_FRESH, time(), 4 * MINUTE_IN_SECONDS );
 		}
 		$entry   = isset( $manifest['themes'] ) && is_array( $manifest['themes'] ) ? ( $manifest['themes'][ self::SLUG ] ?? null ) : null;
 		$version = is_array( $entry ) ? (string) ( $entry['version'] ?? '' ) : '';
@@ -145,8 +179,9 @@ final class Theme_Updates {
 
 	/** Respaldo por la API de GitHub (sujeta a su límite de consultas): el ZIP más reciente del tema. */
 	private static function from_api() {
-		$response = wp_remote_get( 'https://api.github.com/repos/' . self::REPOSITORY . '/releases?per_page=50', array( 'timeout' => 10, 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-Tools' ) ) );
-		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) return array();
+		if ( ! self::$explicit && false !== get_site_transient( self::API_RETRY ) ) return array();
+		$response = wp_remote_get( 'https://api.github.com/repos/' . self::REPOSITORY . '/releases?per_page=50', array( 'timeout' => self::timeout(), 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-Tools' ) ) );
+		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) { set_site_transient( self::API_RETRY, 1, 2 * MINUTE_IN_SECONDS ); return array(); }
 		$best = array();
 		foreach ( (array) json_decode( (string) wp_remote_retrieve_body( $response ), true ) as $release ) {
 			if ( ! is_array( $release ) || ! empty( $release['draft'] ) || ! empty( $release['prerelease'] ) ) continue;
@@ -343,6 +378,8 @@ final class Theme_Updates {
 	 */
 	public static function refresh( $stylesheet ) {
 		delete_site_transient( self::MANIFEST_CACHE );
+		delete_site_transient( self::MANIFEST_RETRY );
+		delete_site_transient( self::API_RETRY );
 		self::clear_own();
 		$updates = get_site_transient( 'update_themes' );
 		if ( is_object( $updates ) && isset( $updates->checked ) && is_array( $updates->checked ) ) {
@@ -362,6 +399,7 @@ final class Theme_Updates {
 		check_admin_referer( self::CHECK . '_' . $stylesheet );
 		if ( is_multisite() && 'network' !== self::context() ) wp_die( 'No autorizado.' );
 		if ( ! isset( self::installed()[ $stylesheet ] ) ) wp_die( 'El tema indicado no es una copia del tema DIGITALÍSIMO.' );
+		self::$explicit = true;
 		self::refresh( $stylesheet );
 		$default = is_multisite() ? network_admin_url( 'themes.php' ) : admin_url( 'admin.php?page=digitalisimo-plugins' );
 		$back    = wp_get_referer();
@@ -407,6 +445,7 @@ final class Theme_Updates {
 		$stylesheet = self::requested_theme();
 		$installed  = self::installed();
 		if ( ! isset( $installed[ $stylesheet ] ) && self::SLUG !== $stylesheet ) wp_die( 'El tema indicado no es una copia del tema DIGITALÍSIMO.' );
+		self::$explicit = true;
 		$release = self::release();
 		// iframe_header() lee la pantalla actual y $hook_suffix: sin ellos, admin-post.php imprimiría avisos de PHP.
 		set_current_screen( 'digitalisimo-theme-details' );

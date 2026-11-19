@@ -78,26 +78,31 @@ if ( 1 !== count( $GLOBALS['requests'] ) || '1.0.202' !== ( $out->response[ $fil
 // 4. El cron renueva el índice sin vaciar antes el compartido; si GitHub falla, el índice compartido se conserva.
 $GLOBALS['remote_version'] = '1.0.203'; $GLOBALS['doing_cron'] = true;
 $GLOBALS['transients']['update_plugins'] = $fresh();
+// La vuelta del cron llega minutos después: el índice ya no es «reciente» (4 min) para la descarga forzada.
+$forward = function () use ( $class ) { unset( $GLOBALS['transients'][ $class::MANIFEST_FRESH ], $GLOBALS['transients'][ $class::MANIFEST_RETRY ], $GLOBALS['transients'][ $class::API_RETRY ] ); };
+$forward();
 $class::refresh();
 if ( '1.0.203' !== ( $GLOBALS['transients']['update_plugins']->response[ $file ]->new_version ?? '' ) ) fail( 'El cron debe descubrir 1.0.203.' );
 if ( 10 !== end( $GLOBALS['requests'] )['timeout'] ) fail( 'En el cron la descarga puede esperar 10 s.' );
 $shared = $GLOBALS['transients'][ $class::MANIFEST_CACHE ] ?? null;
 if ( ! is_array( $shared ) ) fail( 'El cron deja el índice descargado en la caché compartida.' );
 $GLOBALS['github'] = 'down';
+$forward();
 $class::refresh();
 if ( ( $GLOBALS['transients'][ $class::MANIFEST_CACHE ] ?? null ) !== $shared ) fail( 'Con GitHub caído, el cron no debe vaciar el índice compartido que usan los demás plugins.' );
 if ( '1.0.203' !== ( $GLOBALS['transients']['update_plugins']->response[ $file ]->new_version ?? '' ) ) fail( 'Con GitHub caído se conserva la actualización ya detectada.' );
+if ( empty( $GLOBALS['transients'][ $class::MANIFEST_RETRY ] ) ) fail( 'Con GitHub caído el cron deja la espera compartida de dos minutos para los demás plugins.' );
 $GLOBALS['doing_cron'] = false; $GLOBALS['github'] = 'ok';
 
 // 3. Red: un subsitio programa el cron aunque el principal no tenga SEO; dos crons seguidos descargan una sola vez.
 $GLOBALS['multisite'] = true; $GLOBALS['main_site'] = false; $GLOBALS['scheduled'] = array(); $GLOBALS['doing_cron'] = true;
 $class::init();
 if ( empty( $GLOBALS['scheduled'][ $class::HOOK ] ) ) fail( 'Un subsitio con SEO debe programar el cron aunque el sitio principal no lo tenga.' );
-unset( $GLOBALS['transients'][ $class::LOCK ] );
+unset( $GLOBALS['transients'][ $class::LOCK ] ); $forward();
 $before = count( $GLOBALS['requests'] );
 $class::refresh(); $class::refresh(); $class::refresh();
 if ( 1 !== count( $GLOBALS['requests'] ) - $before ) fail( 'En una red, varios crons seguidos (uno por sitio) deben descargar el índice una sola vez: ' . ( count( $GLOBALS['requests'] ) - $before ) );
-unset( $GLOBALS['transients'][ $class::LOCK ] );
+unset( $GLOBALS['transients'][ $class::LOCK ] ); $forward(); // el candado y el índice reciente vencen a la vez (4 min)
 $class::refresh();
 if ( 2 !== count( $GLOBALS['requests'] ) - $before ) fail( 'Vencido el candado, el siguiente cron vuelve a descargar.' );
 $GLOBALS['doing_cron'] = false;

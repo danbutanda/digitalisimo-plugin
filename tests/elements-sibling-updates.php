@@ -131,7 +131,7 @@ for ( $i = 0; $i < 3; $i++ ) {
 	$s::check( clone $tr );
 	$s::release( 'digitalisimo-tools' );
 }
-check_sibling( 1 === $GLOBALS['t']['calls'] && false !== get_site_transient( $s::RETRY ), 'Con GitHub caído el índice se pide una vez y se espera antes de volver a pedirlo (' . $GLOBALS['t']['calls'] . ' peticiones).' );
+check_sibling( 1 === $GLOBALS['t']['calls'] && false !== get_site_transient( $s::MANIFEST_RETRY ), 'Con GitHub caído el índice se pide una vez y se espera antes de volver a pedirlo (' . $GLOBALS['t']['calls'] . ' peticiones).' );
 check_sibling( ! isset( $GLOBALS['t']['cache'][ $s::MANIFEST_CACHE ] ), 'La caché compartida del índice no guarda el fallo: los demás actualizadores la leen igual que siempre.' );
 $_GET['force-check'] = '1';
 $s::native_force_check();
@@ -140,5 +140,5 @@ $s::release( 'digitalisimo-tools' );
 check_sibling( 2 === $GLOBALS['t']['calls'], '«Buscar actualizaciones de nuevo» de WordPress vuelve a consultar de inmediato.' );
 $GLOBALS['t']['manifest'] = array( 'plugins' => array( 'digitalisimo-tools' => array( 'version' => '1.0.31', 'url' => $repo . 'digitalisimo-tools-1.0.31.zip' ) ) );
 $s::clear_after_upgrade( null, array( 'action' => 'update', 'type' => 'plugin', 'plugins' => array( 'digitalisimo-tools/digitalisimo-tools.php' ) ) );
-check_sibling( '1.0.31' === ( $s::release( 'digitalisimo-tools' )['version'] ?? '' ) && 3 === $GLOBALS['t']['calls'] && false === get_site_transient( $s::RETRY ), 'Tras actualizar un plugin Digitalisimo la espera se olvida y el índice vuelve a leerse.' );
+check_sibling( '1.0.31' === ( $s::release( 'digitalisimo-tools' )['version'] ?? '' ) && 3 === $GLOBALS['t']['calls'] && false === get_site_transient( $s::MANIFEST_RETRY ), 'Tras actualizar un plugin Digitalisimo la espera se olvida y el índice vuelve a leerse.' );
 echo "DIGITALÍSIMO Elements: actualizaciones de los plugins Digitalisimo inactivos o en otra carpeta validadas.\n";

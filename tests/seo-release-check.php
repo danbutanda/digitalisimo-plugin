@@ -64,7 +64,8 @@ function seo_manifest( $version, $url = null ) {
 	$url = $url ?? 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.10.15.389/digitalisimo-seo-' . $version . '.zip';
 	return array( 'code' => 200, 'body' => json_encode( array( 'tag' => 'v2026.10.15.389', 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v2026.10.15.389', 'themes' => theme_index(), 'plugins' => array( 'digitalisimo-seo' => array( 'version' => $version, 'url' => $url ), 'digitalisimo-tools' => array( 'version' => '1.0.28', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.10.15.389/digitalisimo-tools-1.0.28.zip' ) ) ) ) );
 }
-function seo_reset_caches() { delete_site_transient( Digitalisimo_SEO_Release_Check::CACHE_KEY ); delete_site_transient( Digitalisimo_SEO_Release_Check::MANIFEST_CACHE ); }
+// Cachés vencidas: también pasaron los dos minutos de espera compartida tras un fallo de GitHub.
+function seo_reset_caches() { foreach ( array( 'CACHE_KEY', 'MANIFEST_CACHE', 'MANIFEST_RETRY', 'API_RETRY' ) as $key ) delete_site_transient( constant( Digitalisimo_SEO_Release_Check::class . '::' . $key ) ); }
 function seo_inject() { return Digitalisimo_SEO_Release_Check::inject( (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array() ) ); }
 $GLOBALS['response_code'] = 200;
 // (a) Con un índice válido se usa su versión y no se consulta la API.
@@ -74,6 +75,8 @@ if ( '1.0.170' !== ( $detected->response[ $file ]->new_version ?? '' ) || false 
 if ( '1.0.170' !== ( $GLOBALS['site_options'][ $class::LAST_KNOWN ]['version'] ?? '' ) ) throw new RuntimeException( 'Debe recordar la última versión encontrada.' );
 // El cron descarga el índice de nuevo y descubre la Release siguiente sin la API.
 $GLOBALS['manifest_response'] = seo_manifest( '1.0.171' );
+// La vuelta del cron llega cinco minutos después: el índice ya no es «reciente» (los cuatro minutos en que otro plugin lo reutiliza).
+delete_site_transient( $class::MANIFEST_FRESH );
 $class::refresh();
 if ( '1.0.171' !== $GLOBALS['transients']['update_plugins']->response[ $file ]->new_version || $before !== $GLOBALS['requests'] ) throw new RuntimeException( 'El cron debe renovar el índice de la Release sin consultar la API.' );
 // (b) Un enlace ajeno (otro dominio, otro repositorio, otro slug) se rechaza y la API queda de respaldo.

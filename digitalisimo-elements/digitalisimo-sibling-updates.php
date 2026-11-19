@@ -31,18 +31,23 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	const OWN_SLUG       = 'digitalisimo-elements';
 	const LINK_TEXT      = 'Buscar actualizaciones';
 	/**
-	 * GitHub no respondió hace poco: durante unos minutos no se vuelve a pedir el índice. Sin esta espera, con GitHub
+	 * GitHub no respondió hace poco: durante dos minutos no se vuelve a pedir el índice. Sin esta espera, con GitHub
 	 * caído o la salida bloqueada, cada lectura de la caché de actualizaciones (varias en cada pantalla del escritorio)
-	 * repetía la petición con su tiempo de espera de 10 s por cada plugin hermano. Clave propia: la caché compartida
-	 * del índice (MANIFEST_CACHE) sólo guarda índices válidos, como en los demás actualizadores.
+	 * repetía la petición con su tiempo de espera por cada plugin hermano. La espera es la de todos los actualizadores
+	 * Digitalisimo (un fallo los detiene a todos); la caché del índice (MANIFEST_CACHE) sólo guarda índices válidos.
 	 */
-	const RETRY          = 'digitalisimo_elements_sibling_retry';
-	const RETRY_AFTER    = 2 * MINUTE_IN_SECONDS;
+	const MANIFEST_RETRY = 'digitalisimo_plugins_manifest_retry';
+	const API_RETRY      = 'digitalisimo_github_api_retry';
+	/** Índice recién descargado (cuatro minutos): la consulta periódica de otro plugin lo reutiliza en vez de bajarlo otra vez. */
+	const MANIFEST_FRESH = 'digitalisimo_plugins_manifest_fresh';
+	/** Acción explícita en esta petición («Buscar actualizaciones», «Buscar de nuevo», «Ver detalles»): 10 s y sin la espera. */
+	private static $explicit = false;
 
 	/** @var array|null plugins Digitalisimo instalados en esta petición (se vuelve a leer al activar, desactivar o borrar uno). */
 	private static $installed = null;
 
 	public static function init() {
+		add_action( 'init', array( __CLASS__, 'prime' ), 0 );
 		foreach ( array( 'pre_set_site_transient_update_plugins', 'pre_set_transient_update_plugins', 'site_transient_update_plugins', 'transient_update_plugins' ) as $hook ) {
 			add_filter( $hook, array( __CLASS__, 'check' ), 31 );
 		}
@@ -66,8 +71,25 @@ final class Digitalisimo_Elements_Sibling_Updates {
 
 	public static function native_force_check() {
 		if ( ! empty( $_GET['force-check'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo olvida la espera tras un fallo.
-			delete_site_transient( self::RETRY );
+			self::$explicit = true;
+			delete_site_transient( self::MANIFEST_RETRY );
+			delete_site_transient( self::API_RETRY );
 		}
+	}
+
+	/**
+	 * Las cachés de todos los actualizadores Digitalisimo en una sola consulta, en init: el menú del escritorio
+	 * (wp-admin/menu.php, antes de admin_init) lee update_plugins y update_themes en cada pantalla, y cada
+	 * actualizador leía entonces la suya con su propia consulta (WordPress nunca carga con autoload un transitorio de red).
+	 */
+	public static function prime() {
+		if ( ! is_admin() || wp_doing_ajax() || wp_using_ext_object_cache() ) return;
+		// Sólo quien ve el contador de actualizaciones del menú; nunca en los envíos de formularios ni en las subidas.
+		if ( in_array( $GLOBALS['pagenow'] ?? '', array( 'admin-post.php', 'async-upload.php' ), true ) || ! ( current_user_can( 'update_plugins' ) || current_user_can( 'update_themes' ) ) ) return;
+		$keys = array();
+		foreach ( array( 'digitalisimo_plugins_manifest', 'digitalisimo_releases_index', 'digitalisimo_backups_release', 'digitalisimo_tools_release', 'digitalisimo_elements_release', 'digitalisimo_migration_release', 'digitalisimo_seo_release_check', 'digitalisimo_theme_release', 'digitalisimo_tools_theme_release', 'digitalisimo_tools_bridge_release', 'digitalisimo_plugins_manifest_retry', 'digitalisimo_github_api_retry' ) as $key ) { $keys[] = '_site_transient_' . $key; $keys[] = '_site_transient_timeout_' . $key; }
+		if ( is_multisite() ) { if ( function_exists( 'wp_prime_network_option_caches' ) ) wp_prime_network_option_caches( get_current_network_id(), $keys ); }
+		elseif ( function_exists( 'wp_prime_option_caches' ) ) wp_prime_option_caches( $keys );
 	}
 
 	public static function forget() {
@@ -123,20 +145,25 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		}, ARRAY_FILTER_USE_BOTH );
 	}
 
+	/** Una pantalla del escritorio no espera más de 3 s a GitHub; el cron y WP-CLI, hasta 10. */
+	private static function timeout() { return self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ? 10 : 3; }
+
 	/** Versión y ZIP de un plugin en el índice de la última Release; sólo acepta un ZIP suyo de este repositorio. */
 	public static function release( $slug ) {
 		$manifest = get_site_transient( self::MANIFEST_CACHE );
 		if ( ! is_array( $manifest ) ) {
-			if ( false !== get_site_transient( self::RETRY ) ) {
+			// GitHub falló hace menos de dos minutos (para cualquier plugin Digitalisimo): no se vuelve a intentar todavía.
+			if ( ! self::$explicit && false !== get_site_transient( self::MANIFEST_RETRY ) ) {
 				return array();
 			}
-			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => 10, 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-Elements' ) ) );
+			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => self::timeout(), 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-Elements' ) ) );
 			$manifest = is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ? null : json_decode( wp_remote_retrieve_body( $response ), true );
 			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) {
-				set_site_transient( self::RETRY, time(), self::RETRY_AFTER );
+				set_site_transient( self::MANIFEST_RETRY, 1, 2 * MINUTE_IN_SECONDS );
 				return array();
 			}
 			set_site_transient( self::MANIFEST_CACHE, $manifest, 10 * MINUTE_IN_SECONDS );
+			set_site_transient( self::MANIFEST_FRESH, time(), 4 * MINUTE_IN_SECONDS );
 		}
 		$entry   = $manifest['plugins'][ $slug ] ?? null;
 		$version = is_array( $entry ) ? (string) ( $entry['version'] ?? '' ) : '';
@@ -205,7 +232,11 @@ final class Digitalisimo_Elements_Sibling_Updates {
 			if ( $info['slug'] !== $args->slug ) {
 				continue;
 			}
+			// «Ver detalles» consulta como acción explícita sólo mientras arma su ficha.
+			$was = self::$explicit;
+			self::$explicit = true;
 			$release = self::release( $info['slug'] );
+			self::$explicit = $was;
 			$version = (string) ( $release['version'] ?? $info['version'] );
 			return (object) array( 'name' => $info['name'], 'slug' => $info['slug'], 'version' => $version, 'author' => 'Digitalísimo', 'homepage' => 'https://digitalisimo.mx', 'download_link' => (string) ( $release['package'] ?? '' ), 'requires_php' => '7.4', 'sections' => array( 'changelog' => '<p>Versión ' . esc_html( $version ) . ' publicada.</p>' ) );
 		}
@@ -277,9 +308,11 @@ final class Digitalisimo_Elements_Sibling_Updates {
 			wp_die( 'No autorizado.' );
 		}
 		check_admin_referer( self::ACTION );
+		self::$explicit = true;
 		$plugin = sanitize_text_field( rawurldecode( wp_unslash( $_GET['plugin'] ?? '' ) ) );
 		delete_site_transient( self::MANIFEST_CACHE );
-		delete_site_transient( self::RETRY );
+		delete_site_transient( self::MANIFEST_RETRY );
+		delete_site_transient( self::API_RETRY );
 		$updates = get_site_transient( 'update_plugins' );
 		if ( is_object( $updates ) && isset( $updates->checked ) && is_array( $updates->checked ) ) {
 			// La entrada de este plugin se vuelve a calcular con el índice nuevo.
@@ -328,7 +361,8 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	public static function clear_after_upgrade( $upgrader, $options ) {
 		if ( 'update' === ( $options['action'] ?? '' ) && 'plugin' === ( $options['type'] ?? '' ) && array_intersect( (array) ( $options['plugins'] ?? array() ), array_keys( self::installed() ) ) ) {
 			delete_site_transient( self::MANIFEST_CACHE );
-			delete_site_transient( self::RETRY );
+			delete_site_transient( self::MANIFEST_RETRY );
+			delete_site_transient( self::API_RETRY );
 			self::forget();
 		}
 	}

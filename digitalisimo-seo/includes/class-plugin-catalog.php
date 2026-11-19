@@ -17,6 +17,12 @@ final class Digitalisimo_Plugin_Catalog {
 	const MANIFEST_URL   = 'https://github.com/danbutanda/digitalisimo-plugin/releases/latest/download/digitalisimo-plugins.json';
 	/** Caché compartida del índice: un solo archivo sirve a todos los plugins que lo lean. */
 	const MANIFEST_CACHE = 'digitalisimo_plugins_manifest';
+	/** Un fallo de GitHub (índice o API, por separado) detiene dos minutos las consultas de todos los plugins Digitalisimo y del tema. */
+	// El catálogo es una acción explícita: no respeta la espera tras un fallo, pero la deja para las lecturas del escritorio.
+	const MANIFEST_RETRY = 'digitalisimo_plugins_manifest_retry';
+	const API_RETRY      = 'digitalisimo_github_api_retry';
+	/** Índice recién descargado (cuatro minutos): la consulta periódica de otro plugin lo reutiliza en vez de bajarlo otra vez. */
+	const MANIFEST_FRESH = 'digitalisimo_plugins_manifest_fresh';
 	/** Último índice encontrado: si GitHub no responde, el catálogo sigue ofreciendo lo último publicado en lugar de vaciarse. */
 	const LAST_KNOWN     = 'digitalisimo_catalog_last_known';
 	private static $initialized = false;
@@ -88,10 +94,11 @@ final class Digitalisimo_Plugin_Catalog {
 		$manifest = get_site_transient( self::MANIFEST_CACHE );
 		if ( ! is_array( $manifest ) ) {
 			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => 10, 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-Plugin-Catalog' ) ) );
-			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) return array();
+			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) { set_site_transient( self::MANIFEST_RETRY, 1, 2 * MINUTE_IN_SECONDS ); return array(); }
 			$manifest = json_decode( wp_remote_retrieve_body( $response ), true );
-			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) return array();
+			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) { set_site_transient( self::MANIFEST_RETRY, 1, 2 * MINUTE_IN_SECONDS ); return array(); }
 			set_site_transient( self::MANIFEST_CACHE, $manifest, 10 * MINUTE_IN_SECONDS );
+			set_site_transient( self::MANIFEST_FRESH, time(), 4 * MINUTE_IN_SECONDS );
 		}
 		$index = array();
 		foreach ( $manifest['plugins'] as $slug => $entry ) {
@@ -109,6 +116,7 @@ final class Digitalisimo_Plugin_Catalog {
 	private static function from_api() {
 		$response = wp_remote_get( 'https://api.github.com/repos/' . self::REPOSITORY . '/releases?per_page=50', array( 'timeout' => 10, 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-Plugin-Catalog' ) ) );
 		$index = array();
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) set_site_transient( self::API_RETRY, 1, 2 * MINUTE_IN_SECONDS );
 		if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) foreach ( (array) json_decode( wp_remote_retrieve_body( $response ), true ) as $release ) {
 			if ( ! empty( $release['draft'] ) || ! empty( $release['prerelease'] ) ) continue;
 			foreach ( (array) ( $release['assets'] ?? array() ) as $asset ) {

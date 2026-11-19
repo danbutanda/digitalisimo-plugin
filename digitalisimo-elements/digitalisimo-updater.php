@@ -19,7 +19,21 @@ final class Digitalisimo_Elements_Updater {
 	/** Última versión encontrada: si GitHub no responde, la actualización sigue a la vista en lugar de desaparecer. */
 	const LAST_KNOWN = 'digitalisimo_elements_last_release';
 
+	/**
+	 * Un fallo de GitHub (índice o API, por separado) detiene dos minutos las consultas de todos los plugins Digitalisimo
+	 * y del tema: antes cada actualizador lo reintentaba por su cuenta en la misma carga del escritorio.
+	 */
+	const MANIFEST_RETRY = 'digitalisimo_plugins_manifest_retry';
+	const API_RETRY = 'digitalisimo_github_api_retry';
+	/** Índice recién descargado (cuatro minutos): la consulta periódica de otro plugin lo reutiliza en vez de bajarlo otra vez. */
+	const MANIFEST_FRESH = 'digitalisimo_plugins_manifest_fresh';
+	/** Acción explícita en esta petición («Buscar actualizaciones», «Buscar de nuevo», «Ver detalles»): 10 s y sin la espera. */
+	private static $explicit = false;
+	/** La última consulta no obtuvo nada de GitHub y se usó la última versión conocida. */
+	private static $failed = false;
+
 	public static function init() {
+		add_action( 'init', array( __CLASS__, 'prime' ), 0 );
 		foreach ( array( 'pre_set_site_transient_update_plugins', 'pre_set_transient_update_plugins', 'site_transient_update_plugins', 'transient_update_plugins' ) as $hook ) add_filter( $hook, array( __CLASS__, 'check' ), 30 );
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 30, 4 );
 		add_filter( 'plugins_api', array( __CLASS__, 'info' ), 20, 3 );
@@ -41,6 +55,21 @@ final class Digitalisimo_Elements_Updater {
 
 	/** @var string|null archivo principal tal como está instalado (carpeta real incluida). */
 	private static $file = null;
+
+	/**
+	 * Las cachés de todos los actualizadores Digitalisimo en una sola consulta, en init: el menú del escritorio
+	 * (wp-admin/menu.php, antes de admin_init) lee update_plugins y update_themes en cada pantalla, y cada
+	 * actualizador leía entonces la suya con su propia consulta (WordPress nunca carga con autoload un transitorio de red).
+	 */
+	public static function prime() {
+		if ( ! is_admin() || wp_doing_ajax() || wp_using_ext_object_cache() ) return;
+		// Sólo quien ve el contador de actualizaciones del menú; nunca en los envíos de formularios ni en las subidas.
+		if ( in_array( $GLOBALS['pagenow'] ?? '', array( 'admin-post.php', 'async-upload.php' ), true ) || ! ( current_user_can( 'update_plugins' ) || current_user_can( 'update_themes' ) ) ) return;
+		$keys = array();
+		foreach ( array( 'digitalisimo_plugins_manifest', 'digitalisimo_releases_index', 'digitalisimo_backups_release', 'digitalisimo_tools_release', 'digitalisimo_elements_release', 'digitalisimo_migration_release', 'digitalisimo_seo_release_check', 'digitalisimo_theme_release', 'digitalisimo_tools_theme_release', 'digitalisimo_tools_bridge_release', 'digitalisimo_plugins_manifest_retry', 'digitalisimo_github_api_retry' ) as $key ) { $keys[] = '_site_transient_' . $key; $keys[] = '_site_transient_timeout_' . $key; }
+		if ( is_multisite() ) { if ( function_exists( 'wp_prime_network_option_caches' ) ) wp_prime_network_option_caches( get_current_network_id(), $keys ); }
+		elseif ( function_exists( 'wp_prime_option_caches' ) ) wp_prime_option_caches( $keys );
+	}
 
 	/**
 	 * El archivo principal con su carpeta real: un plugin subido a mano con otro nombre de carpeta
@@ -96,21 +125,26 @@ final class Digitalisimo_Elements_Updater {
 	/** El botón nativo de WordPress consulta de inmediato: se olvidan la versión conocida y el índice compartido. */
 	public static function native_force_check() {
 		if ( empty( $_GET['force-check'] ) ) return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo vacía cachés propias.
+		self::$explicit = true;
 		self::clear();
 	}
 	public static function force_check() {
 		if ( ! self::can_update() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION );
+		self::$explicit = true;
+		self::$failed = false;
+		self::clear();
 		self::refresh();
 		$context = sanitize_key( wp_unslash( $_GET['digitalisimo_context'] ?? '' ) );
 		$default = is_multisite() && 'network' === $context ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' );
 		$back = wp_get_referer();
-		wp_safe_redirect( add_query_arg( 'digitalisimo-elements-checked', '1', $back ? $back : $default ) );
+		wp_safe_redirect( add_query_arg( 'digitalisimo-elements-checked', self::$failed ? 'failed' : '1', $back ? $back : $default ) );
 		exit;
 	}
 
 	public static function notice() {
 		if ( empty( $_GET['digitalisimo-elements-checked'] ) || ! self::can_update() ) return;
+		if ( 'failed' === sanitize_key( wp_unslash( $_GET['digitalisimo-elements-checked'] ) ) ) { echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html( 'No se pudo consultar GitHub para DIGITALÍSIMO Elements: no respondió a tiempo. Se muestra la última versión conocida; vuelve a intentarlo en unos minutos.' ) . '</p></div>'; return; }
 		$release = self::release();
 		$pending = ! empty( $release['version'] ) && version_compare( $release['version'], DIGITALISIMO_ELEMENTS_VERSION, '>' );
 		$message = $pending ? 'DIGITALÍSIMO Elements ' . $release['version'] . ' está disponible para actualizar.' : 'DIGITALÍSIMO Elements está al día.';
@@ -120,10 +154,18 @@ final class Digitalisimo_Elements_Updater {
 	public static function clear() {
 		delete_site_transient( self::CACHE_KEY );
 		delete_site_transient( self::MANIFEST_CACHE );
+		delete_site_transient( self::MANIFEST_RETRY );
+		delete_site_transient( self::API_RETRY );
 	}
 
+	/**
+	 * Consulta periódica (cada cinco minutos) y, tras clear(), «Buscar actualizaciones»: la versión propia se vuelve a leer y
+	 * el índice compartido sólo se descarga de nuevo si nadie lo bajó en los últimos cuatro minutos (las consultas
+	 * periódicas de los plugins Digitalisimo bajan un solo índice por vuelta, no uno cada una).
+	 */
 	public static function refresh() {
-		self::clear();
+		delete_site_transient( self::CACHE_KEY );
+		if ( false === get_site_transient( self::MANIFEST_FRESH ) ) delete_site_transient( self::MANIFEST_CACHE );
 		$updates = get_site_transient( 'update_plugins' );
 		if ( is_object( $updates ) && isset( $updates->checked ) && is_array( $updates->checked ) ) {
 			set_site_transient( 'update_plugins', self::check( $updates ) );
@@ -147,21 +189,30 @@ final class Digitalisimo_Elements_Updater {
 			return $best;
 		}
 		// GitHub no respondió o limitó las consultas: se conserva lo último encontrado y se reintenta pronto.
+		self::$failed = true;
 		$known = get_site_option( self::LAST_KNOWN, array() );
 		$known = is_array( $known ) ? $known : array();
 		set_site_transient( self::CACHE_KEY, $known, 2 * MINUTE_IN_SECONDS );
 		return $known;
 	}
 
+	/** Una pantalla del escritorio no espera más de 3 s a GitHub; el cron y WP-CLI, hasta 10. */
+	private static function timeout() { return self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ? 10 : 3; }
+
 	/** Versión de este plugin en el índice de la última Release; sólo acepta un ZIP suyo de este repositorio. */
 	private static function from_manifest() {
 		$manifest = get_site_transient( self::MANIFEST_CACHE );
 		if ( ! is_array( $manifest ) ) {
-			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => 10, 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-Elements' ) ) );
-			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) return array();
-			$manifest = json_decode( wp_remote_retrieve_body( $response ), true );
-			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) return array();
+			// GitHub falló hace menos de dos minutos (para cualquier plugin Digitalisimo): no se vuelve a intentar todavía.
+			if ( ! self::$explicit && false !== get_site_transient( self::MANIFEST_RETRY ) ) return array();
+			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => self::timeout(), 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-Elements' ) ) );
+			$manifest = is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ? null : json_decode( wp_remote_retrieve_body( $response ), true );
+			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) {
+				set_site_transient( self::MANIFEST_RETRY, 1, 2 * MINUTE_IN_SECONDS );
+				return array();
+			}
 			set_site_transient( self::MANIFEST_CACHE, $manifest, 10 * MINUTE_IN_SECONDS );
+			set_site_transient( self::MANIFEST_FRESH, time(), 4 * MINUTE_IN_SECONDS );
 		}
 		$entry   = $manifest['plugins'][ self::SLUG ] ?? null;
 		$version = is_array( $entry ) ? (string) ( $entry['version'] ?? '' ) : '';
@@ -174,8 +225,12 @@ final class Digitalisimo_Elements_Updater {
 
 	/** Respaldo por la API de GitHub (sujeta a su límite de consultas): el asset más reciente de este plugin. */
 	private static function from_api() {
-		$response = wp_remote_get( 'https://api.github.com/repos/' . self::REPOSITORY . '/releases?per_page=50', array( 'timeout' => 10, 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-Elements' ) ) );
-		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) return array();
+		if ( ! self::$explicit && false !== get_site_transient( self::API_RETRY ) ) return array();
+		$response = wp_remote_get( 'https://api.github.com/repos/' . self::REPOSITORY . '/releases?per_page=50', array( 'timeout' => self::timeout(), 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-Elements' ) ) );
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			set_site_transient( self::API_RETRY, 1, 2 * MINUTE_IN_SECONDS );
+			return array();
+		}
 		$best = array();
 		foreach ( (array) json_decode( wp_remote_retrieve_body( $response ), true ) as $release ) {
 			if ( ! is_array( $release ) || ! empty( $release['draft'] ) || ! empty( $release['prerelease'] ) ) continue;
@@ -191,7 +246,11 @@ final class Digitalisimo_Elements_Updater {
 	/** Ficha de «Ver detalles»: sin ella WordPress la pide a wordpress.org, que no conoce este plugin y responde con un error. */
 	public static function info( $result, $action, $args ) {
 		if ( 'plugin_information' !== $action || ! is_object( $args ) || self::SLUG !== ( $args->slug ?? '' ) ) return $result;
+		// «Ver detalles» consulta como acción explícita sólo mientras arma su ficha.
+		$was = self::$explicit;
+		self::$explicit = true;
 		$release = self::release();
+		self::$explicit = $was;
 		$version = (string) ( $release['version'] ?? DIGITALISIMO_ELEMENTS_VERSION );
 		return (object) array( 'name' => 'DIGITALÍSIMO Elements', 'slug' => self::SLUG, 'version' => $version, 'author' => 'Digitalísimo', 'homepage' => 'https://digitalisimo.mx', 'download_link' => (string) ( $release['package'] ?? '' ), 'requires' => '6.8', 'requires_php' => '7.4', 'sections' => array( 'changelog' => '<p>Versión ' . esc_html( $version ) . ' publicada.</p>' ) );
 	}
