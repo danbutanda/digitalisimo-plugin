@@ -67,7 +67,10 @@ trait Digitalisimo_Backups_Webuzo_Service {
 		if ( ! empty( $queued['busy'] ) ) return self::service_error( 'busy', 'Hay una restauración en curso: importa el respaldo de Webuzo cuando termine.', 409, array( 'job' => (string) $queued['job']['id'] ) );
 		if ( ! empty( $queued['duplicate'] ) ) return self::service_error( 'duplicate', 'Ese respaldo de Webuzo ya se está importando o analizando (trabajo ' . $queued['job']['id'] . ').', 409, array( 'job' => (string) $queued['job']['id'] ) );
 		Digitalisimo_Backups_Jobs::schedule( ! empty( $args['spawn'] ) );
-		return self::service_job_view( $queued['job'] );
+		$view = self::service_job_view( $queued['job'] );
+		// Por tamaño: por la web puede no caber (cada tramo vuelve a descomprimir lo ya leído); se avisa ya al encolar.
+		if ( ! empty( $item['large'] ) && 'cli' !== (string) ( $args['via'] ?? '' ) && is_array( $view ) ) $view['warning'] = (string) $item['advice'];
+		return $view;
 	}
 	/**
 	 * Trae al almacén (`webuzo/`) un respaldo de cuenta de Webuzo de un destino remoto (el contrato `list()` y `get()`, en
@@ -171,6 +174,7 @@ trait Digitalisimo_Backups_Webuzo_Service {
 			};
 			echo '<tr><td>' . esc_html( $item['date'] ) . '</td><td>' . esc_html( $item['name'] ) . ( $item['contains'] ? '<br><small>' . esc_html( 'Contiene: ' . implode( ', ', $item['contains'] ) ) . '</small>' : '' ) . '</td><td>' . esc_html( 'home' === $item['source'] ? 'Home de la cuenta' : 'Almacén privado' ) . '</td><td>' . esc_html( self::bytes_label( (int) $item['size'] ) ) . '</td><td>';
 			foreach ( (array) $item['imported'] as $file ) echo '<small>Importado como ' . esc_html( $file ) . '</small><br>';
+			if ( '' !== (string) ( $item['advice'] ?? '' ) ) echo '<small class="digitalisimo-backups-warning">' . esc_html( (string) $item['advice'] ) . '</small><br>';
 			if ( '' !== $item['problem'] ) echo '<small>' . esc_html( $item['problem'] ) . '</small><br>';
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
 			wp_nonce_field( self::ACTION_WEBUZO_IMPORT );

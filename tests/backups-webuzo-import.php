@@ -24,9 +24,14 @@
  *       de otro prefijo, opciones home y siteurl;
  *   W9  que no se confundan: la importación de Backuply rechaza uno de Webuzo y al revés; subir uno de Webuzo lo lleva a
  *       su almacén aunque parezca de Backuply;
- *   W10 REST, WP-CLI, pantalla y panel de avance.
+ *   W10 REST, WP-CLI, pantalla y panel de avance;
+ *   W11–W17 (revisión adversarial del 2026-11-19): el salto por tramos medido (WP-CLI sin tramos, la web manda a
+ *       WP-CLI) y el aviso por tamaño; los topes de entradas; DB_NAME o prefijo con varios valores; nombres con
+ *       caracteres de control o sin UTF-8; wp-config.php un nivel arriba y un origen del home que cambia; tablas de un
+ *       WordPress borrado y el disco entre fases; info o domains grandes o ilegibles.
  * Deben fallar con el código anterior (1.0.81, 446a8770: no existe la importación de Webuzo).
  */
+define( 'DIGITALISIMO_BACKUPS_MAX_ENTRIES', 200 );
 require __DIR__ . '/lib/backups-env.php';
 require __DIR__ . '/lib/backups-sqlite.php';
 require_once __DIR__ . '/../digitalisimo-backups/includes/class-backups-rest.php';
@@ -76,6 +81,14 @@ function wz_entry( $name, $type = '0', $data = '', $link = '' ) {
 	$out = '';
 	if ( strlen( $name ) > 99 ) $out .= wz_raw_header( '././@LongLink', 'L', strlen( $name ) + 1 ) . wz_pad( $name . "\0" );
 	return $out . wz_raw_header( $name, $type, in_array( $type, array( '0', "\0" ), true ) ? strlen( $data ) : 0, $link ) . ( in_array( $type, array( '0', "\0" ), true ) ? wz_pad( $data ) : '' );
+}
+/** Una cabecera PAX (`x`) con `path` y, después, la entrada con otro nombre: manda el de PAX. */
+function wz_pax( $path, $name, $data ) {
+	$record = ' path=' . $path . "\n";
+	$length = strlen( $record ) + 1;
+	while ( strlen( (string) $length ) + strlen( $record ) !== $length ) $length = strlen( (string) $length ) + strlen( $record );
+	$pax = $length . $record;
+	return wz_raw_header( './PaxHeaders/x', 'x', strlen( $pax ) ) . wz_pad( $pax ) . wz_entry( $name, '0', $data );
 }
 /** El tar entero: entradas y fin (dos bloques a cero, relleno hasta 10 KB como GNU tar). */
 function wz_tar( array $entries ) {
@@ -422,7 +435,9 @@ wz_case( 'W6 respaldos hostiles o que no son de Webuzo fallan sin dejar nada', f
 		'ruta no permitida ' => wz_account( $base + array( 'extra' => array( wz_entry( '/etc/cron.d/x', '0', 'x' ) ) ) ),
 		'ruta no permitida  ' => wz_account( $base + array( 'extra' => array( wz_entry( './public_html/a\\b.php', '0', 'x' ) ) ) ),
 		'enlace duro' => wz_account( $base + array( 'extra' => array( wz_entry( './public_html/duro.php', '1', '', 'public_html/index.php' ) ) ) ),
-		'dispositivo' => wz_account( $base + array( 'extra' => array( wz_entry( './tmp/tuberia', '6' ) ) ) ),
+		'dispositivo' => wz_account( $base + array( 'extra' => array( wz_entry( './public_html/wp-content/tuberia', '6' ) ) ) ),
+		'ruta no permitida   ' => wz_account( $base + array( 'extra' => array( wz_entry( './public_html/' . str_repeat( 'carpeta-larga/', 8 ) . '../../../../../../../../../../etc/passwd', '0', 'x' ) ) ) ),
+		'ruta no permitida    ' => wz_account( $base + array( 'extra' => array( wz_pax( '/etc/cron.d/colado', './public_html/inocente.txt', 'x' ) ) ) ),
 		'primer tramo' => wz_account( $base + array( 'first' => array( wz_entry( './', '5' ), wz_entry( './public_html/colado.php', '0', 'x' ) ) ) ),
 		'no empieza por la carpeta' => gzencode( wz_tar( array( wz_entry( 'backuply-data/info', '0', '{}' ) ) ) ),
 		'sólo sus datos' => gzencode( wz_tar( array( wz_entry( './', '5' ), wz_entry( './backuply-data/', '5' ) ) ) ),
@@ -438,6 +453,10 @@ wz_case( 'W6 respaldos hostiles o que no son de Webuzo fallan sin dejar nada', f
 		wz_check( 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], trim( $needle ) ) && array() === wz_staging_left(), 'El caso «' . trim( $needle ) . '» no falló como debía: ' . json_encode( $job['error'] ) );
 		unlink( wz_store() . '/' . $name );
 	}
+	// Una tubería o un dispositivo fuera del WordPress elegido se saltan: no tumban la importación.
+	$name = wz_put( wz_store(), 'tuberia_backup_full_remote_2026-03-01_00-00-00.tar.gz', wz_account( $base + array( 'extra' => array( wz_entry( './tmp/tuberia', '6' ), wz_entry( './tmp/disco', '4' ) ) ) ) );
+	$job = wz_import( $name );
+	wz_check( 'success' === $job['status'], 'Una tubería fuera del WordPress elegido tumbó la importación: ' . json_encode( $job['error'] ) );
 	// Una bomba: el tar se descomprime a mucho más que su tamaño.
 	$GLOBALS['bk_filters']['digitalisimo_backups_import_max_ratio'] = 1;
 	$GLOBALS['bk_filters']['digitalisimo_backups_import_max_size'] = 200000;
@@ -495,6 +514,7 @@ wz_case( 'W8 el traductor con el dialecto de mysqldump: base, prefijo, vistas, r
 		'otra base de datos' => "CREATE DATABASE /*!32312 IF NOT EXISTS*/ `otra` /*!40100 DEFAULT CHARACTER SET utf8mb4 */;\n",
 		'otra base de datos ' => "USE `otra`;\n",
 		'USE no reconocido' => "USE `cuenta_wp` extra;\n",
+		'otra base de datos  ' => "ALTER DATABASE `otra` CHARACTER SET utf8mb4;\n",
 		'comentario ejecutable' => "/*!50003 DROP DATABASE `cuenta_wp` */;\n",
 		'sin otra base' => "CREATE TABLE `cuenta_wp`.`wp_x` (`a` int);\n",
 		'tipo de sentencia' => "GRANT ALL ON *.* TO 'x'@'%';\n",
@@ -507,6 +527,10 @@ wz_case( 'W8 el traductor con el dialecto de mysqldump: base, prefijo, vistas, r
 		}
 		wz_check( $ok, 'Se aceptó: ' . trim( $bad ) );
 	}
+	// `ALTER DATABASE` de su base, sin comentario ejecutable (mysqldump, junto a rutinas de otra collation), y la vista
+	// temporal de un volcado viejo (`/*!50001 DROP TABLE IF EXISTS …*/`): se descartan.
+	list( $sql ) = $run( wz_dump( 'cuenta_wp', array( 'wp_' => 'https://cuenta.com' ), "ALTER DATABASE `cuenta_wp` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;\n/*!50001 DROP TABLE IF EXISTS `wp_vista`*/;\n" ), $opts );
+	wz_check( false === strpos( $sql, 'ALTER DATABASE' ) && false === strpos( $sql, 'cuenta_wp' ), 'ALTER DATABASE de su base o la vista temporal vieja no se descartaron.' );
 	// Una tabla con la sintaxis completa de MariaDB pasa por el guardián tal cual (sin su AUTO_INCREMENT).
 	$maria = "CREATE TABLE `wp_maria` (\n  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  `datos` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`datos`)),\n  `cuando` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n  PRIMARY KEY (`id`),\n  KEY `cuando` (`cuando`)\n) ENGINE=InnoDB AUTO_INCREMENT=42 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;\n";
 	list( $sql ) = $run( wz_dump( 'cuenta_wp', array( 'wp_' => 'https://cuenta.com' ), $maria ), $opts );
@@ -527,12 +551,20 @@ wz_case( 'W9 que no se confundan: Backuply y Webuzo, y la subida reconoce el de 
 	copy( wz_home() . '/' . $multi, $backuply_store . '/' . $multi );
 	$refused = Digitalisimo_Backups::service_backuply_import( $multi, array( 'source' => 'store' ) );
 	wz_check( is_wp_error( $refused ) && 422 === $refused->get_error_data()['status'] && false !== strpos( $refused->get_error_message(), 'Webuzo' ), 'La importación de Backuply aceptó uno de Webuzo: ' . json_encode( is_wp_error( $refused ) ? $refused->get_error_message() : $refused ) );
+	wz_check( ! is_file( $backuply_store . '/' . $multi ) && is_file( wz_store() . '/' . $multi ), 'El respaldo de Webuzo del almacén de Backuply no se mudó al de Webuzo.' );
+	unlink( wz_store() . '/' . $multi );
+	// Uno que quedó ahí de antes también aparece en la tarjeta de Webuzo (se muda al listar).
+	copy( wz_home() . '/' . $multi, $backuply_store . '/viejo_backup_full_remote_2026-01-01_00-00-00.tar.gz' );
+	$listed = array_column( Digitalisimo_Backups::service_webuzo()['backups'], 'source', 'name' );
+	wz_check( 'store' === ( $listed['viejo_backup_full_remote_2026-01-01_00-00-00.tar.gz'] ?? '' ) && ! is_file( $backuply_store . '/viejo_backup_full_remote_2026-01-01_00-00-00.tar.gz' ), 'La tarjeta de Webuzo no ve el que quedó en el almacén de Backuply: ' . json_encode( $listed ) );
+	unlink( wz_store() . '/viejo_backup_full_remote_2026-01-01_00-00-00.tar.gz' );
+	copy( wz_home() . '/' . $multi, $backuply_store . '/' . $multi );
 	// Aunque llegara al trabajo (puesto a mano), su `scan` lo reconoce.
 	$spec = Digitalisimo_Backups_Backuply_Import::spec( 'store', $multi );
 	$queued = Digitalisimo_Backups_Jobs::enqueue_import( $spec );
 	$job = wz_drive( $queued['job']['id'] );
 	wz_check( 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], 'respaldo de cuenta de Webuzo' ), 'El trabajo de Backuply no reconoce uno de Webuzo: ' . json_encode( $job['error'] ) );
-	unlink( $backuply_store . '/' . $multi );
+	@unlink( $backuply_store . '/' . $multi );
 	// Y al revés: uno de Backuply en el almacén de Webuzo.
 	$name = wz_put( wz_store(), 'backuply_backup_full_remote_2026-01-01_00-00-00.tar.gz', gzencode( wz_tar( array( wz_entry( 'softsql.sql', '0', "-- SQL\n" ), wz_entry( 'wp-load.php', '0', "<?php\n" ) ) ) ) );
 	$refused = Digitalisimo_Backups::service_webuzo_import( $name );
@@ -581,6 +613,151 @@ wz_case( 'W10 REST, WP-CLI, pantalla y panel de avance', function() use ( $multi
 	$progress = (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/includes/class-backups-progress.php' );
 	$js = (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/assets/manual-progress.js' );
 	wz_check( false !== strpos( $progress, 'ACTION_WEBUZO_IMPORT' ) && false !== strpos( $js, 'digitalisimo_backups_webuzo_import' ) && false !== strpos( $js, 'job.choose' ) && false !== strpos( (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/assets/upload.js' ), "result.container === 'webuzo'" ), 'El panel de avance no conoce la importación de Webuzo.' );
+} );
+
+/* ------------------------------------------------------------------ Revisión adversarial (2026-11-19) */
+
+wz_case( 'W11 tamaño y tiempo: por la web el salto se mide y manda a WP-CLI; sin plazo, una pasada; aviso por tamaño', function() use ( $single ) {
+	$name = wz_put( wz_store(), 'tiempo_backup_full_remote_2026-04-01_00-00-00.tar.gz', wz_single() );
+	// Por la web, con tramos: si volver a descomprimir lo ya leído no cabe en la petición, falla pronto y manda a WP-CLI.
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 1;
+	$GLOBALS['bk_filters']['digitalisimo_backups_webuzo_skip_share'] = 0;
+	try {
+		$job = wz_import( $name, array(), true );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'], $GLOBALS['bk_filters']['digitalisimo_backups_webuzo_skip_share'] );
+	}
+	wz_check( 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], 'wp digitalisimo-backups webuzo import ' . $name ) && array() === wz_staging_left(), 'Un salto que no cabe en la petición no mandó a WP-CLI: ' . json_encode( $job['error'] ) );
+	// Sin plazo (WP-CLI, el cron del sistema): cada pasada de una vez, sin tramos (análisis y extracción).
+	Digitalisimo_Backups::load_webuzo_import();
+	clearstatcache();
+	Digitalisimo_Backups_Webuzo_Import::forget_analysis( 'store', $name, filesize( wz_store() . '/' . $name ), filemtime( wz_store() . '/' . $name ) );
+	$job = wz_import( $name );
+	$again = 0;
+	foreach ( Digitalisimo_Backups_Job_Store::events( $job['id'] ) as $event ) if ( 'phase' === ( $event['type'] ?? '' ) && ( $event['phase'] ?? '' ) === ( $event['next'] ?? '' ) ) $again++;
+	wz_check( 'success' === $job['status'] && 1 === $again, 'Sin plazo, la importación no fue de una pasada por fase (análisis y extracción): ' . $again . ' ' . json_encode( $job['error'] ) );
+	// Aviso por tamaño en la lista, la tarjeta y REST.
+	$GLOBALS['bk_filters']['digitalisimo_backups_webuzo_web_max'] = 1000;
+	try {
+		$item = array_column( Digitalisimo_Backups::service_webuzo()['backups'], null, 'name' )[ $name ];
+		ob_start();
+		bk_call( 'Digitalisimo_Backups', 'webuzo_panel', false, array( $item ) );
+		$html = (string) ob_get_clean();
+		$view = Digitalisimo_Backups::service_webuzo_import( $name, array( 'via' => 'rest', 'site' => 'public_html' ) );
+		$cli = Digitalisimo_Backups::service_webuzo_import( 'otro_backup_x.tar.gz', array( 'via' => 'cli' ) );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_webuzo_web_max'] );
+	}
+	wz_check( true === $item['large'] && false !== strpos( $item['advice'], 'WP-CLI' ) && false !== strpos( $html, 'WP-CLI' ), 'La lista o la tarjeta no avisan por tamaño: ' . json_encode( $item ) );
+	wz_check( ! is_wp_error( $view ) && false !== strpos( (string) ( $view['warning'] ?? '' ), 'WP-CLI' ), 'REST no avisa por tamaño al encolar: ' . json_encode( $view ) );
+	wz_drive( $view['id'] );
+} );
+
+wz_case( 'W12 topes: el recorrido cuenta toda la cuenta y lo extraído, sólo el WordPress elegido', function() {
+	$mail = array();
+	for ( $i = 0; $i < 260; $i++ ) $mail[] = wz_entry( './mail/unico.mx/buzon/cur/' . $i . ':2,S', '0', "correo $i\n" );
+	$name = wz_put( wz_store(), 'buzon_backup_full_remote_2026-05-01_00-00-00.tar.gz', wz_account( array( 'user' => 'unico', 'wps' => array( 'public_html' => array( 'dig', 'unico_db' ) ), 'dumps' => array( 'unico_db' => wz_dump( 'unico_db', array( 'dig' => 'https://unico.mx' ), '', '/home/unico/public_html' ) ), 'domains' => array( 'unico.mx' => 'public_html' ), 'extra' => $mail ) ) );
+	$job = wz_import( $name );
+	wz_check( 'success' === $job['status'], 'Un buzón grande fuera del WordPress impidió importarlo: ' . json_encode( $job['error'] ) );
+	$many = array();
+	for ( $i = 0; $i < 220; $i++ ) $many[] = wz_entry( './public_html/wp-content/uploads/m' . $i . '.txt', '0', "$i\n" );
+	$name = wz_put( wz_store(), 'muchos_backup_full_remote_2026-05-01_00-00-00.tar.gz', wz_account( array( 'user' => 'unico', 'wps' => array( 'public_html' => array( 'dig', 'unico_db' ) ), 'dumps' => array( 'unico_db' => wz_dump( 'unico_db', array( 'dig' => 'https://unico.mx' ) ) ), 'domains' => array( 'unico.mx' => 'public_html' ), 'extra' => $many ) ) );
+	$job = wz_import( $name );
+	wz_check( 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], 'archivos en el WordPress elegido' ), 'El tope de lo extraído no se aplicó: ' . json_encode( $job['error'] ) );
+} );
+
+wz_case( 'W13 DB_NAME o $table_prefix con varios valores: el WordPress no se ofrece y se dice por qué', function() {
+	$base = array( 'user' => 'doble', 'dumps' => array( 'doble_prod' => wz_dump( 'doble_prod', array( 'wp_' => 'https://doble.mx' ) ), 'doble_staging' => wz_dump( 'doble_staging', array( 'wp_' => 'https://staging.doble.mx' ) ) ), 'domains' => array( 'doble.mx' => 'public_html', 'otro.doble.mx' => 'otro' ) );
+	$config = function( $body ) { return wz_entry( './public_html/wp-config.php', '0', "<?php\n" . $body . "require_once ABSPATH . 'wp-settings.php';\n" ); };
+	foreach ( array(
+		'DB_NAME' => "if ( getenv( 'STAGING' ) ) { define( 'DB_NAME', 'doble_staging' ); } else { define( 'DB_NAME', 'doble_prod' ); }\n\$table_prefix = 'wp_';\n",
+		'$table_prefix' => "define( 'DB_NAME', 'doble_prod' );\n\$table_prefix = 'wp_';\nif ( getenv( 'VIEJO' ) ) \$table_prefix = 'viejo_';\n",
+		'DB_NAME ' => "define( 'DB_NAME', getenv( 'DB' ) ?: 'doble_prod' );\ndefine( 'DB_NAME', 'doble_prod' );\n\$table_prefix = 'wp_';\n",
+	) as $what => $body ) {
+		$name = wz_put( wz_store(), 'doble' . strlen( $what ) . '_backup_full_remote_2026-06-01_00-00-00.tar.gz', wz_account( $base + array( 'wps' => array( 'public_html' => array( 'wp_', 'doble_prod', '6.8.3', false ) ), 'extra' => array( $config( $body ) ) ) ) );
+		$job = wz_import( $name );
+		wz_check( 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], 'define ' . trim( $what ) . ' más de una vez' ), 'Un wp-config.php con ' . trim( $what ) . ' de varios valores se importó o no dijo por qué: ' . json_encode( $job['error'] ) );
+	}
+	// El mismo valor dos veces (un define repetido) no es ambiguo.
+	$name = wz_put( wz_store(), 'repetido_backup_full_remote_2026-06-01_00-00-00.tar.gz', wz_account( $base + array( 'wps' => array( 'public_html' => array( 'wp_', 'doble_prod', '6.8.3', false ) ), 'extra' => array( $config( "define( 'DB_NAME', 'doble_prod' );\ndefine( 'DB_NAME', 'doble_prod' );\n\$table_prefix = 'wp_';\n" ) ) ) ) );
+	$job = wz_import( $name );
+	wz_check( 'success' === $job['status'], 'Un DB_NAME repetido con el mismo valor se rechazó: ' . json_encode( $job['error'] ) );
+} );
+
+wz_case( 'W14 nombres con caracteres de control o que no son UTF-8: nunca son un sitio, también con cortes entre tramos', function() {
+	$extra = array();
+	foreach ( array( "raro\x1b[31m", "caf\xe9" ) as $root ) foreach ( wz_wp( $root, 'wp_', 'mixta_wp' ) as $entry ) $extra[] = $entry;
+	$name = wz_put( wz_store(), 'mixta_backup_full_remote_2026-07-01_00-00-00.tar.gz', wz_account( array( 'user' => 'mixta', 'wps' => array( 'public_html' => array( 'wp_', 'mixta_wp' ) ), 'dumps' => array( 'mixta_wp' => wz_dump( 'mixta_wp', array( 'wp_' => 'https://mixta.mx' ) ) ), 'domains' => array( 'mixta.mx' => 'public_html' ), 'extra' => $extra ) ) );
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 1;
+	try {
+		$job = wz_import( $name, array(), true );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+	}
+	wz_check( 'success' === $job['status'] && 'public_html' === ( $job['result']['import']['site'] ?? '' ), 'Una carpeta con caracteres de control o sin UTF-8 se tomó por un sitio: ' . json_encode( array( $job['error'], $job['result'] ) ) );
+	wz_check( false === strpos( json_encode( $job ), '\\u001b' ) && false === strpos( (string) $job['progress']['message'], "\x1b" ), 'Un carácter de control llegó al trabajo.' );
+	// Dentro del WordPress elegido, un nombre así se rechaza.
+	$name = wz_put( wz_store(), 'control_backup_full_remote_2026-07-01_00-00-00.tar.gz', wz_account( array( 'user' => 'mixta', 'wps' => array( 'public_html' => array( 'wp_', 'mixta_wp' ) ), 'dumps' => array( 'mixta_wp' => wz_dump( 'mixta_wp', array( 'wp_' => 'https://mixta.mx' ) ) ), 'domains' => array( 'mixta.mx' => 'public_html' ), 'extra' => array( wz_entry( "./public_html/wp-content/uploads/a\x1b]0;x\x07.txt", '0', 'x' ) ) ) ) );
+	$job = wz_import( $name );
+	wz_check( 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], 'caracteres de control' ) && false === strpos( (string) $job['error']['message'], "\x1b" ), 'Un nombre con caracteres de control dentro del elegido no se rechazó bien: ' . json_encode( $job['error'] ) );
+} );
+
+wz_case( 'W15 wp-config.php un nivel arriba (en el home) y un origen del home que cambia durante la importación', function() {
+	$name = 'arriba_backup_full_remote_2026-08-01_00-00-00.tar.gz';
+	wz_put( wz_home(), $name, wz_account( array( 'user' => 'arriba', 'wps' => array( 'public_html' => array( 'wp_', 'arriba_wp', '6.8.3', false ) ), 'dumps' => array( 'arriba_wp' => wz_dump( 'arriba_wp', array( 'arr_' => 'https://arriba.mx' ) ) ), 'domains' => array( 'arriba.mx' => 'public_html' ), 'extra' => array( wz_entry( './wp-config.php', '0', "<?php\ndefine( 'DB_NAME', 'arriba_wp' );\n\$table_prefix = 'arr_';\n" ) ) ) ) );
+	$job = wz_import( $name, array( 'source' => 'home' ) );
+	wz_check( 'success' === $job['status'] && 'arr_' === $job['result']['import']['prefix'], 'El wp-config.php de arriba no se usó: ' . json_encode( array( $job['error'], $job['result'] ) ) );
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 1;
+	try {
+		$job = wz_import( $name, array( 'source' => 'home', 'site' => 'public_html' ), true, function( $job ) use ( $name ) {
+			static $done = false;
+			if ( $done ) return;
+			$done = true;
+			file_put_contents( wz_home() . '/' . $name, 'reescrito', FILE_APPEND );
+		} );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+	}
+	wz_check( 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], 'cambió durante la importación' ) && array() === wz_staging_left(), 'Un respaldo del home que cambió no hizo fallar la importación: ' . json_encode( $job['error'] ) );
+	@unlink( wz_home() . '/' . $name );
+} );
+
+wz_case( 'W16 tablas de un WordPress borrado con un prefijo que empieza por el del elegido; disco entre fases', function() {
+	$old = wz_table( 'wp_old_options', "  `option_id` INTEGER PRIMARY KEY,\n  `option_name` varchar(191) NOT NULL UNIQUE,\n  `option_value` longtext NOT NULL,\n  `autoload` varchar(20) NOT NULL DEFAULT 'yes'", array( array( 1, 'siteurl', 'https://viejo.mx', 'yes' ) ) ) . wz_table( 'wp_old_posts', "  `ID` INTEGER PRIMARY KEY,\n  `post_title` text NOT NULL", array( array( 1, 'Entrada vieja' ) ) ) . wz_table( 'wp_2_posts', "  `ID` INTEGER PRIMARY KEY,\n  `post_title` text NOT NULL", array( array( 1, 'Del sitio 2 de la red' ) ) );
+	$name = wz_put( wz_store(), 'borrado_backup_full_remote_2026-09-01_00-00-00.tar.gz', wz_account( array( 'user' => 'borrado', 'wps' => array( 'public_html' => array( 'wp_', 'borrado_wp' ) ), 'dumps' => array( 'borrado_wp' => wz_dump( 'borrado_wp', array( 'wp_' => 'https://borrado.mx' ), $old ) ), 'domains' => array( 'borrado.mx' => 'public_html' ) ) ) );
+	$seen = array();
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 1;
+	try {
+		$job = wz_import( $name, array(), true, function( $job ) use ( &$seen ) {
+			$staging = Digitalisimo_Backups_Job_Store::staging( $job['id'] );
+			if ( 'database' === $job['phase'] ) $seen['gz'] = ( $seen['gz'] ?? false ) || is_file( $staging . '/database.sql.gz' );
+			if ( 'files' === $job['phase'] ) $seen['sql'] = ( $seen['sql'] ?? false ) || is_file( $staging . '/source.sql' );
+		} );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+	}
+	wz_check( 'success' === $job['status'], 'La importación falló: ' . json_encode( $job['error'] ) );
+	$zip = new ZipArchive();
+	$zip->open( bk_storage() . '/' . $job['result']['import']['file'] );
+	$manifest = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
+	$sql = (string) $zip->getFromName( 'database.sql' );
+	$zip->close();
+	wz_check( ! in_array( 'wp_old_options', $manifest['database_tables'], true ) && ! in_array( 'wp_old_posts', $manifest['database_tables'], true ) && in_array( 'wp_2_posts', $manifest['database_tables'], true ) && false === strpos( $sql, 'Entrada vieja' ), 'Las tablas del WordPress borrado entraron (o las del sitio 2 de la red no): ' . json_encode( $manifest['database_tables'] ) );
+	wz_check( false !== strpos( implode( ' ', $job['result']['import']['notices'] ), 'wp_old_' ), 'No se avisa de las tablas del WordPress borrado.' );
+	wz_check( array( 'gz' => false, 'sql' => false ) === $seen, 'Lo intermedio no se borró al cerrar su fase: ' . json_encode( $seen ) );
+} );
+
+wz_case( 'W17 info o domains de más de 64 KB se leen enteros; si no se pueden leer, se avisa', function() {
+	$domains = array( 'grande.mx' => 'public_html', 'blog.grande.mx' => 'public_html/blog' );
+	for ( $i = 0; $i < 1500; $i++ ) $domains[ 'dominio-de-relleno-numero-' . $i . '.grande.mx' ] = 'relleno/' . $i;
+	$name = wz_put( wz_store(), 'grande_backup_full_remote_2026-10-01_00-00-00.tar.gz', wz_account( array( 'user' => 'grande', 'wps' => array( 'public_html' => array( 'wp_', 'grande_wp' ) ), 'dumps' => array( 'grande_wp' => wz_dump( 'grande_wp', array( 'wp_' => 'https://grande.mx' ) ) ), 'domains' => $domains, 'extra' => array( wz_entry( './public_html/blog/index.html', '0', "otro dominio dentro\n" ) ) ) ) );
+	$job = wz_import( $name );
+	wz_check( 'success' === $job['status'], 'La importación falló: ' . json_encode( $job['error'] ) );
+	wz_no_secrets( bk_storage() . '/' . $job['result']['import']['file'] );
+	$broken = gzencode( str_replace( wz_entry( './backuply-data/domains', '0', json_encode( array( 'roto.mx' => array( 'path' => '/home/roto/public_html', 'type' => 'main', 'force_https' => 1 ) ), JSON_UNESCAPED_SLASHES ) ), wz_entry( './backuply-data/domains', '0', '{"roto.mx": {"path": "/home/roto/public_html"' ), gzdecode( wz_account( array( 'user' => 'roto', 'wps' => array( 'public_html' => array( 'wp_', 'roto_wp' ) ), 'dumps' => array( 'roto_wp' => wz_dump( 'roto_wp', array( 'wp_' => 'https://roto.mx' ) ) ), 'domains' => array( 'roto.mx' => 'public_html' ) ) ) ) ) );
+	$name = wz_put( wz_store(), 'roto_backup_full_remote_2026-10-01_00-00-00.tar.gz', $broken );
+	$job = wz_import( $name );
+	wz_check( 'success' === $job['status'] && false !== strpos( implode( ' ', $job['result']['import']['notices'] ), 'No se pudo leer domains' ), 'Un domains ilegible no se avisa: ' . json_encode( array( $job['error'], $job['result']['import']['notices'] ?? null ) ) );
 } );
 
 bk_cleanup();

@@ -203,7 +203,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 		}
 		$t = new Digitalisimo_Backups_Backuply_Sql_Tokens( $sql );
 		$first = $t->word();
-		if ( '' !== $this->opts['database'] && ( 'USE' === $first || ( 'CREATE' === $first && in_array( $t->peek_word(), array( 'DATABASE', 'SCHEMA' ), true ) ) ) ) { $this->own_database( $sql ); return; }
+		if ( '' !== $this->opts['database'] && ( 'USE' === $first || ( in_array( $first, array( 'CREATE', 'ALTER' ), true ) && in_array( $t->peek_word(), array( 'DATABASE', 'SCHEMA' ), true ) ) ) ) { $this->own_database( $sql ); return; }
 		switch ( $first ) {
 			case 'SET': $this->note( 'session' ); return;
 			case 'LOCK':
@@ -367,14 +367,16 @@ final class Digitalisimo_Backups_Backuply_Sql {
 	 * restauración usa la base de este sitio). Otra base de datos se rechaza.
 	 */
 	private function own_database( $sql ) {
-		$name = preg_match( '#^(?:USE|CREATE\s+(?:DATABASE|SCHEMA)(?:\s+/\*!\d{5}\s+IF\s+NOT\s+EXISTS\s*\*/|\s+IF\s+NOT\s+EXISTS)?)\s+`((?:[^`]|``)+)`#i', $sql, $m ) ? str_replace( '``', '`', $m[1] ) : null;
+		$name = preg_match( '#^(?:USE|ALTER\s+(?:DATABASE|SCHEMA)|CREATE\s+(?:DATABASE|SCHEMA)(?:\s+/\*!\d{5}\s+IF\s+NOT\s+EXISTS\s*\*/|\s+IF\s+NOT\s+EXISTS)?)\s+`((?:[^`]|``)+)`#i', $sql, $m ) ? str_replace( '``', '`', $m[1] ) : null;
 		if ( null === $name || $name !== $this->opts['database'] ) self::reject( 'otra base de datos', $sql );
 		if ( 0 === stripos( $sql, 'USE' ) && ! preg_match( '#^USE\s+`(?:[^`]|``)+`\s*$#iD', $sql ) ) self::reject( 'USE no reconocido', $sql );
 		$this->state['notes']['database'] = 1;
 	}
 	/** Lo que mysqldump escribe en un comentario ejecutable y no se importa: borrar vistas o rutinas, su vista temporal. */
 	private function mysqldump_executable( $sql ) {
-		if ( preg_match( '/^(?:M!)?[0-9]{5,6}\s+DROP\s+(?:VIEW|TRIGGER|FUNCTION|PROCEDURE|EVENT)\b/i', $sql ) ) return true;
+		// También `/*!50001 DROP TABLE IF EXISTS <vista>*/` de los volcados viejos: aquí nada se borra (sólo se escriben los
+		// DROP de las tablas que se crean).
+		if ( preg_match( '/^(?:M!)?[0-9]{5,6}\s+DROP\s+(?:VIEW|TABLE|TRIGGER|FUNCTION|PROCEDURE|EVENT)\b/i', $sql ) ) return true;
 		// La vista temporal (`/*!50001 CREATE VIEW … AS SELECT 1 AS … */`, o una tabla en los mysqldump antiguos): la vista
 		// final la reemplaza y es la que se cuenta (en varios ejecutables seguidos, ver handle()).
 		if ( preg_match( '/^(?:M!)?50001\s+CREATE\s+(?:VIEW|TABLE)\b/i', $sql ) ) return true;

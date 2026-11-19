@@ -121,6 +121,7 @@ final class Digitalisimo_Backups_Webuzo_Import {
 	/** Respaldos de Webuzo que se pueden importar (home y almacén), del más reciente al más antiguo. Sin rutas. */
 	public static function sources() {
 		self::clean_partials();
+		self::adopt_backuply();
 		$items = array();
 		foreach ( self::home_directories() as $dir ) {
 			foreach ( (array) glob( $dir . '/*_backup_*.tar.gz' ) as $path ) {
@@ -137,6 +138,31 @@ final class Digitalisimo_Backups_Webuzo_Import {
 		} catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		usort( $items, function( $a, $b ) { return array( $b['created'], $a['source'], $a['name'] ) <=> array( $a['created'], $b['source'], $b['name'] ); } );
 		return $items;
+	}
+	/**
+	 * Un respaldo de cuenta de Webuzo que se subió antes de esta versión quedó en `backuply/` del almacén (Backuply ahora lo
+	 * rechaza): se muda a `webuzo/` con un nombre libre, salvo que un trabajo lo esté usando. Devuelve los mudados.
+	 */
+	public static function adopt_backuply() {
+		$moved = array();
+		try {
+			$from = Digitalisimo_Backups_Backuply_Import::store_directory();
+			if ( ! is_dir( $from ) ) return $moved;
+			$busy = array();
+			foreach ( Digitalisimo_Backups_Jobs::active() as $job ) if ( Digitalisimo_Backups_Import_Job::is_import( $job ) ) $busy[ (string) ( $job['spec']['source']['name'] ?? '' ) ] = true;
+			foreach ( (array) glob( $from . '/*.tar.gz' ) as $path ) {
+				$name = basename( (string) $path );
+				if ( isset( $busy[ $name ] ) || is_link( $path ) || ! is_file( $path ) || 'webuzo' !== self::sniff( $path ) ) continue;
+				$store = self::store_directory( true );
+				$moved[] = Digitalisimo_Backups_Job_Store::with_lock( function() use ( $path, $store, $name ) {
+					$file = $name;
+					while ( file_exists( $store . '/' . $file ) || is_link( $store . '/' . $file ) ) $file = substr( $name, 0, -7 ) . '-' . bin2hex( random_bytes( 3 ) ) . '.tar.gz';
+					if ( ! @rename( $path, $store . '/' . $file ) ) throw new Exception( 'No se pudo mover el respaldo de Webuzo al almacén de Webuzo.' );
+					return $file;
+				} );
+			}
+		} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		return $moved;
 	}
 	/** Lo que la pantalla, REST y WP-CLI dicen de un respaldo, con su análisis si ya lo hay. */
 	public static function describe( $origin, $path ) {
@@ -162,6 +188,8 @@ final class Digitalisimo_Backups_Webuzo_Import {
 			'sites' => is_array( $analysis ) ? (array) $analysis['sites'] : array(),
 			'importable' => ! $busy,
 			'problem' => $busy ? 'El panel de Webuzo todavía está escribiendo este respaldo (cambió hace menos de un minuto): espera a que termine.' : '',
+			'large' => $size > self::web_max(),
+			'advice' => self::size_advice( $size ),
 			'imported' => self::converted_names( $name ),
 		);
 	}
@@ -307,7 +335,7 @@ final class Digitalisimo_Backups_Webuzo_Import {
 	public static function clean_site( $site ) {
 		$site = (string) $site;
 		if ( '' === $site ) return '';
-		if ( '/' === $site[0] || false !== strpos( $site, '\\' ) || strlen( $site ) > 400 || false !== strpos( $site, "\0" ) || ! preg_match( '//u', $site ) ) return null;
+		if ( '/' === $site[0] || false !== strpos( $site, '\\' ) || strlen( $site ) > 400 || preg_match( '/[\x00-\x1F\x7F]/', $site ) || ! preg_match( '//u', $site ) ) return null;
 		$site = rtrim( $site, '/' );
 		foreach ( explode( '/', $site ) as $segment ) if ( '' === $segment || '.' === $segment || '..' === $segment ) return null;
 		return $site;
@@ -366,6 +394,13 @@ final class Digitalisimo_Backups_Webuzo_Import {
 	 */
 	private static function inflate( array $job, $phase, $source, array $cursor, $cap, callable $sink, callable $safe, $what ) {
 		$cursor += array( 'offset' => 0, 'c' => 0, 'u' => 0 );
+		$unbounded = self::unbounded();
+		// En la web, volver a descomprimir lo ya hecho de este miembro no puede comerse la petición: pasada la mitad de su
+		// tiempo (filtro digitalisimo_backups_webuzo_skip_share), falla pronto y manda a WP-CLI.
+		$window = Digitalisimo_Backups_Jobs::step_deadline() - microtime( true );
+		$share = (float) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_webuzo_skip_share', 0.5 ) : 0.5 );
+		$skip_until = $unbounded || ! is_finite( $window ) ? INF : microtime( true ) + max( 0.0, $share ) * max( 1.0, $window );
+		$beat = 0;
 		if ( ! function_exists( 'inflate_init' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El servidor necesita la extensión PHP zlib para leer un respaldo de Webuzo (.tar.gz).' );
 		$in = @fopen( $source, 'rb' );
 		if ( ! $in ) throw new Exception( 'No se pudo abrir ' . $what . '.' );
@@ -401,9 +436,12 @@ final class Digitalisimo_Backups_Webuzo_Import {
 					$drop = min( $skip, strlen( $chunk ) );
 					$chunk = (string) substr( $chunk, $drop );
 					$skip -= $drop;
+					if ( $skip > 0 && microtime( true ) > $skip_until ) throw new Digitalisimo_Backups_Permanent_Error( self::too_big_for_web( $job ) );
 					if ( $skip > 0 ) continue;
 				}
-				if ( null === $deadline ) $deadline = self::deadline( $job, $phase );
+				// WP-CLI y el cron del sistema (sin plazo): una sola pasada, con su latido.
+				if ( null === $deadline ) $deadline = $unbounded && ! Digitalisimo_Backups_Step_Budget::units() ? INF : self::deadline( $job, $phase );
+				if ( $unbounded && ++$beat % 256 === 0 ) Digitalisimo_Backups_Jobs::progress( 'unpack' === $phase ? 10 : 22, 'Leyendo ' . $what . ': ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $offset ) . '…' );
 				if ( '' === $chunk ) continue;
 				if ( $offset + strlen( $chunk ) > $cap ) throw new Digitalisimo_Backups_Permanent_Error( Digitalisimo_Backups_Backuply_Import::max_tar() <= $cap ? ucfirst( $what ) . ' descomprimido supera ' . Digitalisimo_Backups_Archive_Inspector::megabytes( Digitalisimo_Backups_Backuply_Import::max_tar() ) . ', el máximo que se importa.' : ucfirst( $what ) . ' se descomprime a más de ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $cap ) . ', muchas más veces su tamaño (' . Digitalisimo_Backups_Archive_Inspector::megabytes( $total ) . ') de lo que da un sitio real: no se importa (puede ser una bomba de descompresión). Si es legítimo, sube el tope con el filtro digitalisimo_backups_import_max_ratio.' );
 				$sink( $chunk );
@@ -417,6 +455,21 @@ final class Digitalisimo_Backups_Webuzo_Import {
 			fclose( $in );
 		}
 		return array( 'done' => true, 'cursor' => array( 'offset' => $offset, 'c' => $member, 'u' => $member_at ), 'read' => $total, 'total' => $total );
+	}
+
+	/** Sin plazo por petición (WP-CLI, el cron del sistema por PHP CLI): queda más de una hora. */
+	private static function unbounded() {
+		$left = Digitalisimo_Backups_Jobs::step_deadline() - microtime( true );
+		return ! is_finite( $left ) || $left > 3600;
+	}
+	/** Un `.tar.gz` mayor que esto (comprimido) se avisa en la tarjeta y en REST: por la web puede no caber. */
+	public static function web_max() { return (int) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_webuzo_web_max', 2147483648 ) : 2147483648 ); }
+	private static function too_big_for_web( array $job ) {
+		return 'Este respaldo de Webuzo es demasiado grande para importarlo por la web: es un solo bloque gzip y cada tramo vuelve a descomprimir lo ya leído, que ya no cabe en una petición. No se dejó nada a medias. Impórtalo con WP-CLI, que lo hace en una sola pasada y sin límite de tiempo: wp digitalisimo-backups webuzo import ' . (string) ( $job['spec']['source']['name'] ?? '<respaldo>' ) . ( '' !== (string) ( $job['spec']['site'] ?? '' ) ? ' --site=' . $job['spec']['site'] : '' ) . '.';
+	}
+	/** Aviso por tamaño para la tarjeta y REST ('' si no hace falta). */
+	public static function size_advice( $size ) {
+		return (int) $size > self::web_max() ? 'Mide ' . Digitalisimo_Backups_Archive_Inspector::megabytes( (int) $size ) . ': por la web puede no caber (cada tramo vuelve a descomprimir lo ya leído). Impórtalo con WP-CLI: wp digitalisimo-backups webuzo import <respaldo>.' : '';
 	}
 
 	/**
@@ -500,8 +553,16 @@ final class Digitalisimo_Backups_Webuzo_Import {
 		}
 		$out = self::append( $paths['sql_in'], $offset );
 		$checked = $offset;
+		$prefix = (string) $unpack['chosen']['prefix'];
+		$others = (array) ( $cursor['others'] ?? array() );
+		$tail = (string) base64_decode( (string) ( $cursor['tail'] ?? '' ) );
 		try {
-			$result = self::inflate( $job, 'scan', $paths['gz'], (array) ( $cursor['gzip'] ?? array() ), Digitalisimo_Backups_Backuply_Import::max_expansion( $gz_size ), function( $chunk ) use ( $out, $paths, &$checked ) {
+			$result = self::inflate( $job, 'scan', $paths['gz'], (array) ( $cursor['gzip'] ?? array() ), Digitalisimo_Backups_Backuply_Import::max_expansion( $gz_size ), function( $chunk ) use ( $out, $paths, &$checked, $prefix, &$others, &$tail ) {
+				// Otro WordPress de la misma base cuyo prefijo empieza por el del elegido (`wp_old_` de uno borrado junto a
+				// `wp_`): su tabla `<prefijo>options` lo delata. Las tablas `<prefijo><n>_` son de los sitios de una red.
+				$text = $tail . $chunk;
+				if ( preg_match_all( '/CREATE TABLE `([A-Za-z0-9_$]{1,64})options` \(/', $text, $found ) ) foreach ( $found[1] as $other ) if ( $other !== $prefix && 0 === strpos( $other, $prefix ) && ! preg_match( '/^' . preg_quote( $prefix, '/' ) . '[0-9]+_$/D', $other ) && count( $others ) < 50 ) $others[ $other ] = $other;
+				$tail = (string) substr( $text, -96 );
 				self::put( $out, $chunk );
 				if ( (int) ftell( $out ) - $checked >= self::SPACE_EVERY ) { self::space( dirname( $paths['sql_in'] ), self::SPACE_EVERY, 'descomprimir la base de datos del respaldo de Webuzo' ); $checked = (int) ftell( $out ); }
 			}, function() { return true; }, 'la base de datos del respaldo de Webuzo' );
@@ -511,10 +572,12 @@ final class Digitalisimo_Backups_Webuzo_Import {
 		}
 		if ( ! $result['done'] ) {
 			Digitalisimo_Backups_Jobs::progress( 20 + (int) min( 5, floor( 5 * $result['read'] / max( 1, $result['total'] ) ) ), 'Descomprimiendo la base de datos: ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $result['cursor']['offset'] ) . '…', true );
-			return array( 'next' => 'scan', 'checkpoint' => array( 'gzip' => $result['cursor'], 'scale' => Digitalisimo_Backups_Step_Budget::scale( $job, 'scan', $cursor ) ), 'message' => 'Descomprimiendo la base de datos del respaldo de Webuzo…' );
+			return array( 'next' => 'scan', 'checkpoint' => array( 'gzip' => $result['cursor'], 'others' => $others, 'tail' => base64_encode( $tail ), 'scale' => Digitalisimo_Backups_Step_Budget::scale( $job, 'scan', $cursor ) ), 'message' => 'Descomprimiendo la base de datos del respaldo de Webuzo…' );
 		}
 		if ( (int) $result['cursor']['offset'] < 16 ) throw new Digitalisimo_Backups_Permanent_Error( 'La base de datos del respaldo de Webuzo está vacía o truncada.' );
-		return array( 'next' => 'database', 'checkpoint' => array( 'sql_size' => (int) $result['cursor']['offset'] ), 'message' => 'Convirtiendo la base de datos del respaldo de Webuzo…' );
+		// Disco: la base comprimida ya no hace falta (si una fase posterior se repite, se vuelve a extraer).
+		@unlink( $paths['gz'] );
+		return array( 'next' => 'database', 'checkpoint' => array( 'sql_size' => (int) $result['cursor']['offset'], 'others' => array_values( $others ) ), 'message' => 'Convirtiendo la base de datos del respaldo de Webuzo…' );
 	}
 
 	/**
@@ -536,7 +599,7 @@ final class Digitalisimo_Backups_Webuzo_Import {
 		@chmod( $paths['sql'], 0600 );
 		try {
 			if ( ! ftruncate( $out, (int) ( $cursor['out'] ?? 0 ) ) || 0 !== fseek( $out, (int) ( $cursor['out'] ?? 0 ) ) ) throw new Exception( 'No se pudo preparar el SQL convertido.' );
-			$translator = new Digitalisimo_Backups_Backuply_Sql( $in, 0, $size, $out, $cursor, array( 'label' => 'Webuzo', 'cli' => 'wp digitalisimo-backups webuzo import', 'dialect' => 'mysqldump', 'database' => (string) $chosen['db'], 'prefix' => (string) $chosen['prefix'], 'exclude' => (array) $unpack['foreign'], 'capture' => array( 'home', 'siteurl' ) ) );
+			$translator = new Digitalisimo_Backups_Backuply_Sql( $in, 0, $size, $out, $cursor, array( 'label' => 'Webuzo', 'cli' => 'wp digitalisimo-backups webuzo import', 'dialect' => 'mysqldump', 'database' => (string) $chosen['db'], 'prefix' => (string) $chosen['prefix'], 'exclude' => array_values( array_unique( array_merge( (array) $unpack['foreign'], (array) ( $job['checkpoint']['scan']['others'] ?? array() ) ) ) ), 'capture' => array( 'home', 'siteurl' ) ) );
 			$done = $translator->run( $deadline );
 			$state = $translator->state();
 		} finally {
@@ -553,6 +616,8 @@ final class Digitalisimo_Backups_Webuzo_Import {
 		if ( ! in_array( $prefix . 'options', (array) $state['order'], true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La base de datos ' . $chosen['db'] . ' no trae la tabla ' . $prefix . 'options del prefijo de su wp-config.php: no es la base completa de ese WordPress.' );
 		$state['prefix'] = $prefix;
 		$state['skip'] = array();
+		// Disco: el SQL descomprimido ya está convertido.
+		@unlink( $paths['sql_in'] );
 		return array( 'next' => 'files', 'checkpoint' => $state, 'message' => 'Base de datos convertida; escribiendo el ZIP…' );
 	}
 
@@ -830,6 +895,8 @@ final class Digitalisimo_Backups_Webuzo_Import {
 		$out = Digitalisimo_Backups_Backuply_Import::notices( $notes, array() );
 		if ( ! empty( $notes['foreign'] ) ) $out[] = (int) $notes['foreign'] . ' tabla(s) de la base que no son del prefijo ' . (string) ( $unpack['chosen']['prefix'] ?? '' ) . ' (otro WordPress u otra aplicación en la misma base) no se importan.';
 		$skipped = (array) ( $unpack['skipped'] ?? array() );
+		if ( ! empty( $unpack['account']['meta_error'] ) ) $out[] = 'No se pudo leer ' . implode( ' ni ', (array) $unpack['account']['meta_error'] ) . ' de backuply-data: sin el home ni los dominios de la cuenta, no se excluyen las carpetas de otros dominios ni se reubican las rutas del servidor de origen.';
+		if ( ! empty( $job['checkpoint']['scan']['others'] ) ) $out[] = 'La base trae tablas de otro WordPress con un prefijo que empieza por el de éste (' . implode( ', ', array_slice( (array) $job['checkpoint']['scan']['others'], 0, 5 ) ) . '): no se importan.';
 		$out[] = 'Del respaldo de la cuenta sólo se importa el WordPress de ' . (string) ( $unpack['site'] ?? '' ) . ' y su base: nada del correo, los certificados, el DNS, el FTP ni el resto del home.';
 		$out[] = 'No se importa el wp-config.php del respaldo (lleva las credenciales de su servidor): la restauración nunca escribe wp-config.php.';
 		$nested = (int) ( $job['checkpoint']['files']['nested'] ?? 0 ) + (int) ( $skipped['domain'] ?? 0 );
@@ -915,6 +982,11 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 	private $paths;
 	private $rules = null;
 
+	/** Tope de entradas del recorrido de toda la cuenta: 20 veces el de un respaldo (filtro digitalisimo_backups_webuzo_max_walk). */
+	public static function max_walk() {
+		$max = 20 * Digitalisimo_Backups_Archive_Inspector::max_entries();
+		return max( 1, (int) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_webuzo_max_walk', $max ) : $max ) );
+	}
 	public function __construct( array $state, $site, array $paths ) {
 		$this->s = $state + array( 'pos' => 0, 'mode' => 'h', 'left' => 0, 'pad' => 0, 'act' => 'skip', 'cur' => array(), 'long' => null, 'pax_path' => null, 'pax_size' => null, 'chain' => 0, 'zeros' => 0, 'end' => false, 'dots' => 0, 'entries' => 0, 'symlinks' => 0, 'info' => array(), 'domains' => array(), 'dbs' => array(), 'wp' => array(), 'configs' => array(), 'sizes' => array(), 'out' => array( 'files' => 0, 'index' => 0, 'gz' => 0 ), 'x_files' => 0, 'x_bytes' => 0, 'x_skipped' => array(), 'db_done' => false, 'db_name' => '' );
 		$this->site = (string) $site;
@@ -932,7 +1004,7 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 	public function written() { return (int) $this->s['out']['files'] + (int) $this->s['out']['gz']; }
 	/** El estado puede guardarse aquí: ninguna cabecera ni lectura a medias. */
 	public function safe() {
-		if ( 'h' === $this->s['mode'] ) return '' === $this->buffer;
+		if ( 'h' === $this->s['mode'] ) return '' === $this->buffer && null === $this->s['long'] && null === $this->s['pax_path'] && null === $this->s['pax_size'];
 		if ( 'p' === $this->s['mode'] ) return true;
 		return in_array( $this->s['act'], array( 'skip', 'ext', 'db' ), true ) && empty( $this->s['cur']['grab'] );
 	}
@@ -1006,7 +1078,8 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 		$this->s['pax_size'] = null;
 		$this->s['chain'] = 0;
 		$this->s['entries']++;
-		if ( $this->s['entries'] > Digitalisimo_Backups_Archive_Inspector::max_entries() ) $this->fail( 'tiene más de ' . Digitalisimo_Backups_Archive_Inspector::max_entries() . ' entradas, el máximo permitido (DIGITALISIMO_BACKUPS_MAX_ENTRIES).' );
+		// El recorrido cuenta toda la cuenta (el correo de un buzón grande, otros sitios): su tope es otro, más alto.
+		if ( $this->s['entries'] > Digitalisimo_Backups_Webuzo_Stream::max_walk() ) $this->fail( 'tiene más de ' . Digitalisimo_Backups_Webuzo_Stream::max_walk() . ' entradas en toda la cuenta, el máximo que se recorre (filtro digitalisimo_backups_webuzo_max_walk).' );
 		// La carpeta `.` abre cada tramo: el primero, los datos de la cuenta; el segundo, su home.
 		if ( preg_match( '#^\.(?:/\.)*/?$#D', $raw ) && ( '5' === $type || ( in_array( $type, array( '0', "\0" ), true ) && 0 === $header['size'] ) ) ) {
 			$this->s['dots']++;
@@ -1020,8 +1093,10 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 			$type = '5';
 		}
 		$home = (int) $this->s['dots'] >= 2;
+		$plain = ! preg_match( '/[\x00-\x1F\x7F]/', $name ) && (bool) preg_match( '//u', $name );
 		if ( ! $home && 'backuply-data' !== $name && 0 !== strpos( $name, 'backuply-data/' ) ) $this->fail( 'no tiene la forma de un respaldo de cuenta de Webuzo: su primer tramo debe ser backuply-data/ (trae ' . Digitalisimo_Backups_Backuply_Tar::shown( $name ) . ').' );
 		$inside = $home && '' !== $this->site && 0 === strpos( $name . '/', $this->site . '/' ) && $name !== $this->site;
+		if ( $inside && ! $plain ) $this->fail( 'trae un nombre de archivo con caracteres de control o que no es UTF-8 válido dentro del WordPress elegido: ' . Digitalisimo_Backups_Backuply_Tar::shown( $name ) . '.' );
 		if ( '5' === $type ) return $this->begin( 'skip', 0, 0, array() );
 		if ( '2' === $type ) {
 			$this->s['symlinks']++;
@@ -1033,17 +1108,20 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 			if ( $inside ) $this->fail( 'trae un enlace duro dentro del WordPress elegido, que no se importa: ' . Digitalisimo_Backups_Backuply_Tar::shown( $name ) . '.' );
 			return $this->begin( 'skip', $header['size'], $padded, array() );
 		}
-		if ( ! in_array( $type, array( '0', "\0", '7' ), true ) ) $this->fail( 'trae una entrada de un tipo que no se importa (dispositivo, tubería u otro): ' . Digitalisimo_Backups_Backuply_Tar::shown( $name ) . '.' );
-		$this->regular( $name, $header, $padded, $home, $inside );
+		if ( ! in_array( $type, array( '0', "\0", '7' ), true ) ) {
+			if ( $inside ) $this->fail( 'trae una entrada de un tipo que no se importa (dispositivo, tubería u otro) dentro del WordPress elegido: ' . Digitalisimo_Backups_Backuply_Tar::shown( $name ) . '.' );
+			return $this->begin( 'skip', in_array( $type, array( '3', '4', '6' ), true ) ? 0 : $header['size'], in_array( $type, array( '3', '4', '6' ), true ) ? 0 : $padded, array() );
+		}
+		$this->regular( $name, $header, $padded, $home, $inside, $plain );
 	}
 
 	/** Un archivo regular: qué se lee de él (datos de la cuenta, piezas de un WordPress) y si se extrae. */
-	private function regular( $name, array $header, $padded, $home, $inside ) {
+	private function regular( $name, array $header, $padded, $home, $inside, $plain = true ) {
 		$size = (int) $header['size'];
 		$small = $size <= Digitalisimo_Backups_Webuzo_Import::MAX_GRAB;
 		if ( ! $home ) {
-			if ( 'backuply-data/info' === $name && $small ) return $this->begin( 'skip', $size, $padded, array( 'grab' => true, 'k' => 'info' ) );
-			if ( 'backuply-data/domains' === $name && $small ) return $this->begin( 'skip', $size, $padded, array( 'grab' => true, 'k' => 'domains' ) );
+			if ( 'backuply-data/info' === $name ) return $this->begin( 'skip', $size, $padded, $small ? array( 'grab' => true, 'k' => 'info', 'all' => true ) : array( 'k' => 'too_big_info' ) );
+			if ( 'backuply-data/domains' === $name ) return $this->begin( 'skip', $size, $padded, $small ? array( 'grab' => true, 'k' => 'domains', 'all' => true ) : array( 'k' => 'too_big_domains' ) );
 			if ( preg_match( '#^backuply-data/mysql/([A-Za-z0-9_$-]{1,64})\.sql\.gz$#D', $name, $m ) ) {
 				if ( count( $this->s['dbs'] ) < 1000 ) $this->s['dbs'][ $m[1] ] = $size;
 				if ( '' !== $this->site && '' !== $this->s['db_name'] && $m[1] === $this->s['db_name'] ) {
@@ -1053,6 +1131,9 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 			}
 			return $this->begin( 'skip', $size, $padded, array() );
 		}
+		// Una carpeta con caracteres de control o que no es UTF-8 nunca es un sitio (ni cuenta en los tamaños): su nombre no
+		// cabe en el punto de control ni en un mensaje.
+		if ( ! $plain ) return $this->begin( 'skip', $size, $padded, array() );
 		$this->size( $name, $size );
 		$base = basename( $name );
 		$dir = dirname( $name );
@@ -1076,6 +1157,7 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 		if ( ! preg_match( '//u', $relative ) ) $this->fail( 'trae un nombre de archivo que no es UTF-8 válido y no puede figurar en el manifiesto: ' . Digitalisimo_Backups_Backuply_Tar::shown( $relative ) . '.' );
 		$this->put( 'index', wp_json_encode( array( 'n' => $relative, 'o' => (int) $this->s['out']['files'], 's' => $size, 'm' => (int) $header['mode'], 't' => (int) $header['mtime'] ) ) . "\n" );
 		$this->s['x_files']++;
+		if ( $this->s['x_files'] > Digitalisimo_Backups_Archive_Inspector::max_entries() ) $this->fail( 'trae más de ' . Digitalisimo_Backups_Archive_Inspector::max_entries() . ' archivos en el WordPress elegido, el máximo permitido (DIGITALISIMO_BACKUPS_MAX_ENTRIES).' );
 		$this->s['x_bytes'] += $size;
 		return $this->begin( 'ext', $size, $padded, $options );
 	}
@@ -1127,7 +1209,8 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 		if ( 0 === (int) $size ) $this->complete();
 	}
 	private function data( $bytes ) {
-		if ( ! empty( $this->s['cur']['grab'] ) && strlen( $this->grab ) < Digitalisimo_Backups_Webuzo_Import::MAX_SMALL ) $this->grab .= substr( $bytes, 0, Digitalisimo_Backups_Webuzo_Import::MAX_SMALL - strlen( $this->grab ) );
+		$limit = empty( $this->s['cur']['all'] ) ? Digitalisimo_Backups_Webuzo_Import::MAX_SMALL : Digitalisimo_Backups_Webuzo_Import::MAX_GRAB;
+		if ( ! empty( $this->s['cur']['grab'] ) && strlen( $this->grab ) < $limit ) $this->grab .= substr( $bytes, 0, $limit - strlen( $this->grab ) );
 		if ( 'ext' === $this->s['act'] ) { $this->put( 'files', $bytes ); $this->s['out']['files'] += strlen( $bytes ); }
 		elseif ( 'db' === $this->s['act'] ) { $this->put( 'gz', $bytes ); $this->s['out']['gz'] += strlen( $bytes ); }
 	}
@@ -1167,6 +1250,8 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 			return;
 		}
 		$kind = (string) ( $cur['k'] ?? '' );
+		// Sin poder leer info o domains, la cuenta queda sin su home ni sus dominios: se avisa.
+		if ( in_array( $kind, array( 'too_big_info', 'too_big_domains' ), true ) || ( in_array( $kind, array( 'info', 'domains' ), true ) && ! is_array( json_decode( $bytes, true, 8 ) ) ) ) $this->s['meta_error'][ str_replace( 'too_big_', '', $kind ) ] = true;
 		if ( 'info' === $kind ) $this->info( $bytes );
 		elseif ( 'domains' === $kind ) $this->domains( json_decode( $bytes, true, 8 ) );
 		elseif ( 'config' === $kind && count( $this->s['configs'] ) < 500 ) $this->s['configs'][ (string) $cur['r'] ] = Digitalisimo_Backups_Webuzo_Stream::config( $bytes );
@@ -1219,20 +1304,31 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 			$code = preg_replace( array( '#/\*.*?\*/#s', '#(?://|\#)[^\n]*#' ), ' ', $code );
 		}
 		$out['db'] = preg_match( '/\bdefine\s*\(\s*[\'"]DB_NAME[\'"]\s*,\s*[\'"]([A-Za-z0-9_$-]{1,64})[\'"]\s*\)/', $code, $m ) ? $m[1] : '';
+		// Definidos más de una vez con valores distintos (o con una expresión): según el entorno, otra base u otro
+		// prefijo. No se adivina cuál usa el sitio.
+		$ambiguous = function( $all, $literal ) use ( $code ) {
+			$total = preg_match_all( $all, $code );
+			if ( $total < 2 ) return false;
+			$values = preg_match_all( $literal, $code, $found ) ? array_unique( $found[1] ) : array();
+			return 1 !== count( $values ) || count( $found[1] ) !== $total;
+		};
+		$out['conflict'] = array();
+		if ( $ambiguous( '/\bdefine\s*\(\s*[\'"]DB_NAME[\'"]\s*,/', '/\bdefine\s*\(\s*[\'"]DB_NAME[\'"]\s*,\s*[\'"]([A-Za-z0-9_$-]{1,64})[\'"]\s*\)/' ) ) $out['conflict'][] = 'DB_NAME';
+		if ( $ambiguous( '/\$table_prefix\s*=(?!=)/', '/\$table_prefix\s*=\s*[\'"]([A-Za-z0-9_]{1,64})[\'"]\s*;/' ) ) $out['conflict'][] = '$table_prefix';
 		return $out;
 	}
 
 	/* ------------------------------------------------------------------ Lo que dice el recorrido completo */
 
 	public static function account( array $s ) {
-		return array( 'user' => (string) ( $s['info']['user'] ?? '' ), 'homedir' => (string) ( $s['info']['homedir'] ?? '' ), 'domains' => count( (array) $s['domains'] ), 'databases' => count( (array) $s['dbs'] ) );
+		return array( 'user' => (string) ( $s['info']['user'] ?? '' ), 'homedir' => (string) ( $s['info']['homedir'] ?? '' ), 'domains' => count( (array) $s['domains'] ), 'databases' => count( (array) $s['dbs'] ), 'meta_error' => array_keys( (array) ( $s['meta_error'] ?? array() ) ) );
 	}
 	/** Los WordPress completos del home (núcleo entero), fuera de las carpetas que nunca son un sitio. */
 	private static function roots( array $s ) {
 		$out = array();
 		foreach ( (array) $s['wp'] as $root => $wp ) {
 			$root = (string) $root;
-			if ( '' === $root || 15 !== ( (int) $wp['core'] & 15 ) ) continue;
+			if ( '' === $root || 15 !== ( (int) $wp['core'] & 15 ) || preg_match( '/[\x00-\x1F\x7F]/', $root ) || ! preg_match( '//u', $root ) ) continue;
 			$first = explode( '/', $root )[0];
 			if ( in_array( $first, Digitalisimo_Backups_Webuzo_Import::NOT_SITES, true ) ) continue;
 			$hidden = false;
@@ -1269,6 +1365,7 @@ final class Digitalisimo_Backups_Webuzo_Stream {
 			$prefix = is_array( $config ) ? (string) $config['prefix'] : '';
 			$problem = '';
 			if ( ! is_array( $config ) ) $problem = 'no trae su wp-config.php: no se sabe cuál es su base de datos ni su prefijo.';
+			elseif ( ! empty( $config['conflict'] ) ) $problem = 'su wp-config.php define ' . implode( ' y ', (array) $config['conflict'] ) . ' más de una vez con valores distintos (por ejemplo, según el entorno): no se sabe qué base o qué prefijo usa este sitio, y no se adivina.';
 			elseif ( '' === $db ) $problem = 'su wp-config.php no declara DB_NAME con un nombre literal: no se sabe cuál es su base de datos.';
 			elseif ( '' === $prefix ) $problem = 'su wp-config.php no declara $table_prefix con un valor literal.';
 			elseif ( ! isset( $s['dbs'][ $db ] ) ) $problem = 'su base de datos (' . $db . ') no viene en el respaldo (backuply-data/mysql/' . $db . '.sql.gz): un WordPress sin su base no se restaura. Haz en el panel un respaldo que incluya las bases de datos.';
