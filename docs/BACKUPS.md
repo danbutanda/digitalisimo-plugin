@@ -2240,15 +2240,20 @@ Comprobado en respaldos reales del panel (que no entran al repositorio) y en las
   `backuply-data` es de Webuzo; `softsql.sql` o los archivos de WordPress en la raíz, del plugin Backuply. Un `.tar.gz`
   subido de Webuzo va a `webuzo/` aunque se suba como si fuera de Backuply, y su panel ofrece «Importarlo ahora». La
   importación de Backuply rechaza uno de Webuzo (y su `scan` lo reconoce si llega por otro camino) y la de Webuzo, uno de
-  Backuply, diciendo adónde va cada uno.
+  Backuply, diciendo adónde va cada uno. Uno de Webuzo que se subió antes de existir su importador quedó en `backuply/`:
+  se muda solo a `webuzo/` al listar los de Webuzo o al intentar importarlo como de Backuply.
 - **Trabajo.** El mismo trabajo `import` (`format: webuzo`), con su cola, arrendamiento, latido, reanudación, cancelación
   y panel de avance; su clase (`includes/import/class-webuzo-import.php`) sólo se carga al usarse. Nada toca el sitio:
   1. `unpack`: el `.tar.gz` **en flujo**, sin descomprimirlo entero al disco. Cada cabecera se comprueba con el lector de
      tar de Backuply (suma, tipo, tamaño también en base-256 y PAX, nombre largo GNU, rutas sin `..`, absolutas, unidades,
      NUL ni barra invertida, cadenas de cabeceras extendidas, la marca de fin) y con lo propio de este formato: empieza
-     por `./`, el primer tramo es sólo `backuply-data/`, sin dispositivos ni tuberías, sin enlaces duros dentro del
-     WordPress elegido, entradas acotadas (`DIGITALISIMO_BACKUPS_MAX_ENTRIES`) y el tope de expansión de Backuply (50
-     veces el `.tar.gz`, al menos 64 MB, nunca más de 64 GB). Como la base va en el primer tramo y el `wp-config.php`
+     por `./`, el primer tramo es sólo `backuply-data/`; dispositivos, tuberías y enlaces duros se saltan fuera del
+     WordPress elegido y dentro de él se rechazan, como un nombre con caracteres de control o que no es UTF-8 (fuera,
+     esa carpeta nunca es un sitio); lo que se extrae, acotado por `DIGITALISIMO_BACKUPS_MAX_ENTRIES`, y el recorrido de
+     toda la cuenta (el correo de un buzón grande cuenta) por 20 veces ese tope (filtro
+     `digitalisimo_backups_webuzo_max_walk`); y el tope de expansión de Backuply (50 veces el `.tar.gz`, al menos 64 MB,
+     nunca más de 64 GB). `info` y `domains` se leen enteros (hasta 1 MB); si no se pueden leer, se avisa (sin ellos no
+     se excluyen las carpetas de otros dominios ni se reubican las rutas). Como la base va en el primer tramo y el `wp-config.php`
      que dice cuál es, en el segundo, va en **dos pasadas**: el **análisis** (lee `info`, `domains`, el tamaño de cada
      `.sql.gz` y, de cada WordPress, `wp-config.php` y `version.php` hasta 64 KB, sin ejecutarlos: `token_get_all()` y
      expresiones; nada más del `wp-config.php` se guarda) y la **extracción** del elegido (sus archivos a `files.bin` con
@@ -2256,10 +2261,14 @@ Comprobado en respaldos reales del panel (que no entran al repositorio) y en las
      y fecha del archivo) para la pantalla y para que importar el elegido sea una sola pasada. Sin WordPress elegido:
      ninguno falla; **uno solo va solo**; con varios el trabajo termina con la lista y la persona elige
      («Importar este WordPress», `--site`, `site`). Un WordPress sin su `wp-config.php`, sin `DB_NAME` o `$table_prefix`
-     literales o **sin su base en el respaldo** no se ofrece: se dice por qué (no hay «sólo archivos»: Backups sólo
+     literales, con `DB_NAME` o `$table_prefix` definidos **más de una vez con valores distintos** (un `wp-config.php`
+     condicional: no se adivina cuál usa) o **sin su base en el respaldo** no se ofrece: se dice por qué (no hay «sólo archivos»: Backups sólo
      restaura respaldos completos). No se ofrecen los que están en carpetas ocultas, `tmp`, `mail`, `ssl`,
      `softaculous_backups` ni `backuply-data`.
-  2. `scan`: el `.sql.gz` extraído se descomprime a `source.sql`, con el tope de expansión.
+  2. `scan`: el `.sql.gz` extraído se descomprime a `source.sql`, con el tope de expansión, y se buscan otros WordPress
+     de la misma base cuyo prefijo empieza por el del elegido (su tabla `<prefijo>options`: `wp_old_` de uno borrado
+     junto a `wp_`; las `<prefijo><n>_` de los sitios de una red son suyas). Al cerrar, el `.sql.gz` se borra (y al cerrar
+     `database`, `source.sql`): menos disco a la vez.
   3. `database`: el traductor de Backuply con el dialecto de mysqldump: se descartan la línea sandbox (un comentario),
      `CREATE DATABASE`, `USE` y `ALTER DATABASE` **de esa base** (otra base se rechaza), `LOCK`/`UNLOCK`, `SET`,
      `COMMIT` y `DISABLE KEYS`; las vistas y las rutinas se cuentan y se avisan (no se importan); y sólo pasan las tablas
@@ -2292,12 +2301,16 @@ tamaño y su «Importar este WordPress»; Eliminar los del almacén), «Subir un
 DNS, el FTP, el cron y las demás bases no (se avisa). Vistas, disparadores, eventos y rutinas no se importan (como en
 Backuply). Un WordPress con su `wp-config.php` fuera de su carpeta sólo se reconoce si está justo encima (como admite
 WordPress) y esa carpeta no es otro WordPress. Un enlace duro dentro de la carpeta elegida hace fallar la importación (no
-se sabe qué datos tendría; fuera de ella se ignora) y los enlaces simbólicos no se importan. El tar es de **un solo miembro gzip**: cada tramo vuelve a descomprimir lo
-anterior (zlib no guarda su estado entre peticiones), así que por la web avanza bien hasta unos pocos GB descomprimidos y
-los respaldos grandes (de 2 a 8 GB comprimidos son normales en una cuenta) se importan con WP-CLI o el cron del sistema
-por PHP CLI, sin plazo; el análisis y la extracción son dos pasadas (una si ya hay análisis). Disco: el `.tar.gz`, los
+se sabe qué datos tendría; fuera de ella se ignora) y los enlaces simbólicos no se importan. El tar es de **un solo miembro gzip**: por la web, cada tramo vuelve a descomprimir lo
+anterior (zlib no guarda su estado entre peticiones). Ese salto se mide: si pasa de la mitad del tiempo de la petición
+(filtro `digitalisimo_backups_webuzo_skip_share`), la importación falla enseguida, sin dejar nada, y manda a WP-CLI.
+La tarjeta, la lista y REST (`warning` al encolar) avisan por tamaño desde 2 GB comprimidos (filtro
+`digitalisimo_backups_webuzo_web_max`): de 2 a 8 GB son normales en una cuenta. Con WP-CLI o el cron del sistema por
+PHP CLI (sin plazo), cada pasada va de una vez, sin tramos y con su latido: el análisis y la extracción (una sola si ya
+hay análisis), lineales. Disco: el `.tar.gz`, los
 archivos del WordPress elegido, su SQL descomprimido y el ZIP a la vez. Los tamaños por WordPress del análisis son
-aproximados (carpetas de hasta tres niveles). `webuzo fetch` es una sola petición (los grandes, con WP-CLI). Probado con
+aproximados (carpetas de hasta tres niveles). Las tablas de otra aplicación cuyo nombre empieza por el prefijo del elegido
+(`digest_…` con `dig`) entran si no hay un `<prefijo>options` que las delate. `webuzo fetch` es una sola petición (los grandes, con WP-CLI). Probado con
 respaldos sintéticos con la forma exacta del panel y con uno real de una cuenta pequeña en la PC; no en MySQL real.
 
 ## Migración entre servidores y dominios
