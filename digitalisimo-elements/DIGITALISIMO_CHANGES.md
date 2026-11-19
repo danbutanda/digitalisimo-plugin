@@ -1,5 +1,15 @@
 # DIGITALÍSIMO Elements 4.3.0.188
 
+- @NEXT_ELEMENTS@ (auditoría del escritorio del 2026-11-18: que el escritorio no se vuelva más lento con Elements). Ningún archivo de `elementor/` se toca; medida antes/después con `tests/playground/admin-perf.sh`.
+  1. **Una consulta en lugar de ~48** (`digitalisimo-admin-load.php`): las opciones del constructor que faltan en cada petición (experimentos sin guardar, ajustes nunca tocados) se anotan y se piden juntas con `wp_prime_option_caches()` antes de cargar el núcleo; −40 a −56 consultas en cada pantalla, latido, REST y cron, y 1 976 → 709 al abrir el editor del constructor.
+  2. **MCP del navegador a demanda**: el paquete `elementor-capabilities-mcp` (~1,8 MB de JavaScript en cada pantalla, para Angie y WebMCP) sólo se carga si el navegador expone WebMCP (o con Angie, o con el filtro `digitalisimo_elements_browser_mcp_eager`).
+  3. Sin Google Fonts en el escritorio (Roboto de `elementor-one-admin-fonts` y `elementor-admin-top-bar-fonts`); el SDK de novedades del proveedor que cargan Hello y otros productos suyos con la copia del núcleo ya no pide nada (`admin_init`, `switch_theme`, `deactivate_{plugin}`).
+  4. Carpeta de idiomas recordada por petición, rutas REST del proveedor en una pasada, tipos de «Duplicar» una vez por lista, `utf8_decode()` fuera del proxy de capturas y, con GitHub caído, las actualizaciones de los hermanos esperan 2 minutos en lugar de pedir en cada lectura (12 → 1).
+
+  Pruebas: `tests/elements-admin-load.php` y `tests/elements-vendor-notifications.php` (nuevas, en `validate.yml` y `release.yml`; PHP 7.4, 8.2 y 8.5), y casos nuevos en `tests/elements-sibling-updates.php` y `tests/elements-core-loader.php`; todas fallan con el código anterior.
+
+  Volver a la versión anterior no rompe nada: queda la opción `digitalisimo_elements_option_prime` (unos 3 KB, sin uso) y vuelven las consultas, el MCP en cada pantalla y las fuentes remotas.
+
 - 4.3.0.188 (conversión de widgets de PRO, caso real de una migración del 2026-11-18; va con DIGITALÍSIMO Migración 1.0.30). Ningún archivo de `elementor/` se toca. `Translator::foreign()` (`modules/digitalisimo-convert/`) separa los ajustes que no son del widget de PRO: los inertes (`content_width`, condiciones apagadas de otros plugins, también Premium Addons, PowerPack y JetEngine con su fila por defecto, y los subcampos ajenos de los repetidores del Formulario y la Lista de precios) pasan tal cual; una condición o un interruptor encendido de otro plugin deja el widget como de PRO para que nada oculto se vea. Lo usan la migración y la conversión de kits (`class-pro-convert.php`). Pruebas: `elements-convert-foreign.php`.
 
 - 4.3.0.187 (kit de ventas v4 y las cinco decisiones del operador del 2026-11-13, vía la sesión del cerebro; detalle en `docs/ELEMENTS_SALES_KIT.md`). Ningún archivo de `elementor/` se toca.
