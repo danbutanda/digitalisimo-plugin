@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -507,10 +507,10 @@ function loaded_now() {
 	return array_merge( (array) get_option( 'active_plugins', array() ), array_keys( (array) ( $GLOBALS['t']['site']['active_sitewide_plugins'] ?? array() ) ) );
 }
 
-/** Una petición nueva: carga los plugins activos y avanza la tarea. */
+/** Una petición nueva: carga los plugins activos y avanza la tarea. Con `slow_boot`, WordPress tardó 5 s en arrancar. */
 function request( $start = false, $run = 'clic1' ) {
 	usleep( 2000 );
-	$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
+	$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) - ( ! empty( $GLOBALS['t']['slow_boot'] ) ? 5 : 0 );
 	$GLOBALS['t']['loaded']        = loaded_now();
 	return Full::step( ! empty( $GLOBALS['t']['multisite'] ), $start, 30, $run );
 }
@@ -966,6 +966,14 @@ switch ( $scenario ) {
 		$last = Full::last( false );
 		check( installed_now( 'bdthemes-element-pack/bdthemes-element-pack.php' ) && false !== strpos( (string) ( $last['kept']['element-pack'] ?? '' ), 'desinstalación' ), 'Element Pack con uninstall.php no se borra.' );
 		check( ! installed_now( 'seo-by-rank-math/rank-math.php' ), 'Lo demás sí.' );
+		break;
+
+	case 'slow_boot':
+		// Un servidor lento: WordPress tarda 5 s en arrancar cada petición. El importador de Rank Math igual corre.
+		$GLOBALS['t']['slow_boot'] = true;
+		drive( 60 );
+		$last = Full::last( false );
+		check( $last && '' === $last['failed'] && ! installed_now( 'seo-by-rank-math/rank-math.php' ), 'Con un arranque lento la migración termina (antes el importador no corría nunca).' );
 		break;
 
 	case 'verify_crash':

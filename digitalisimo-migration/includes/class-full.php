@@ -68,6 +68,8 @@ final class Full {
 	private static $tokens = array();
 	/** @var bool ¿Proceso de WP-CLI? (nunca espera a otra petición: se relanza). */
 	private static $cli = false;
+	/** @var float cuándo empezó el trabajo de la tarea en esta petición (no la petición: su arranque puede tardar). */
+	private static $began = 0.0;
 
 	public static function init() {
 		add_action( 'wp_ajax_' . self::AJAX, array( __CLASS__, 'ajax' ) );
@@ -346,7 +348,8 @@ final class Full {
 	}
 
 	private static function advance( array $state, $budget ) {
-		$deadline       = microtime( true ) + max( 1, (float) $budget );
+		self::$began    = microtime( true );
+		$deadline       = self::$began + max( 1, (float) $budget );
 		$state['pause'] = false;
 		unset( $state['drive'] );
 		// Un proceso que arrancó antes del último cambio de plugins o de tema aún tiene cargado lo de antes.
@@ -427,9 +430,13 @@ final class Full {
 		return isset( $_SERVER['REQUEST_TIME_FLOAT'] ) ? (float) $_SERVER['REQUEST_TIME_FLOAT'] : microtime( true );
 	}
 
-	/** ¿Empezó esta petición hace poco? (un importador con su propio presupuesto sólo corre al principio de una petición). */
+	/**
+	 * ¿Empezó hace poco el trabajo de esta petición? Un importador con su propio presupuesto sólo corre al principio. Se
+	 * mide desde advance(), no desde el inicio de la petición: en un servidor lento el arranque de WordPress ya pasa de
+	 * 3 s y el importador no correría nunca.
+	 */
 	private static function early() {
-		return self::$cli || microtime( true ) - self::request_started() < 3;
+		return self::$cli || microtime( true ) - self::$began < 3;
 	}
 
 	/** Sitios de la tarea: el actual o, en la red, los que no están archivados, marcados como spam ni borrados. */
