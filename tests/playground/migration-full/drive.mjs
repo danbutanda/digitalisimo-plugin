@@ -144,6 +144,11 @@ check(JSON.stringify(zips) === JSON.stringify(['digitalisimo-backups', 'digitali
 // Migración nunca consulta GitHub con el índice en caché (las demás peticiones bloqueadas se listan arriba).
 check(!result.blocked.some((url) => /github\.com/.test(url)), 'Migración no consulta GitHub: ' + result.blocked.filter((url) => /github/.test(url)).join(', '));
 for (const file of ['bdthemes-element-pack/bdthemes-element-pack.php', 'seo-by-rank-math/rank-math.php', 'updraftplus/updraftplus.php']) {
+	// En el sitio queda contenido pendiente (el Carrito sin WooCommerce): Element Pack se desactiva y no se borra.
+	if (!network && /element-pack/.test(file)) {
+		check(result.installed.includes(file) && !Object.values((Object.values(result.sites)[0] || {}).active || {}).includes(file) && /Element Pack sigue haciendo falta/.test(JSON.stringify(l.kept || {})), `Con contenido pendiente, Element Pack queda desactivado sin borrar: ${JSON.stringify(l.kept)}`);
+		continue;
+	}
 	check(!result.installed.includes(file), `Borrado: ${file}`);
 }
 for (const file of ['digitalisimo-backups/digitalisimo-backups.php', 'digitalisimo-elements/pro-elements.php', 'digitalisimo-seo/digitalisimo-integrations.php', 'digitalisimo-migration/digitalisimo-migration.php']) {
@@ -186,9 +191,9 @@ if (!network) {
 	check(site.quote_type === 'digitalisimo-blockquote', `La Cita de PRO pasó a la propia (${site.quote_type}).`);
 	check(/blockquote → digitalisimo-blockquote: 1 en 1 documento/.test(report), 'El detalle agrega los widgets convertidos por tipo.');
 	check(JSON.stringify(site.cart_types) === JSON.stringify(['woocommerce-cart', 'blockquote']), `El Carrito sin WooCommerce se queda como estaba (${JSON.stringify(site.cart_types)}).`);
-	check(new RegExp(`post\\.php\\?post=${site.cart}&(amp;)?action=elementor`).test(report) && /WooCommerce/.test(report) && /vuelve a pulsar Migrar/.test(report), 'El Carrito sin WooCommerce va en «Necesita tu atención», con la acción y el enlace a su editor.');
+	check(new RegExp(`post\\.php\\?post=${site.cart}&(amp;|#038;)?action=elementor`).test(report) && /WooCommerce/.test(report) && /vuelve a pulsar Migrar/.test(report), 'El Carrito sin WooCommerce va en «Necesita tu atención», con la acción y el enlace a su editor.');
 } else {
-	check(/Necesita tu atención/.test(report) && /Sitios con asuntos por revisar/.test(report) && /Informe del sitio|tools\.php\?page=digitalisimo-ep-migration/.test(report), 'En la red, los sitios con asuntos van en «Necesita tu atención» con el enlace a su informe.');
+	check(/Nada necesita tu atención\./.test(report) && /<details class="digi-migrate__detail">[\s\S]*digi-migrate__sites[\s\S]*Informe del sitio/.test(report) && /Contenido migrado en 2 de 2 sitios\./.test(report), 'En la red sin asuntos: lo dice en una línea y la tabla de cada sitio, con el enlace a su informe, va plegada en el detalle.');
 }
 
 if (problems.length) {

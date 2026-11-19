@@ -76,11 +76,16 @@ foreach ( $sites as $site_id ) {
 	update_post_meta( $page, 'rank_math_title', 'Sobre el vivero familiar' );
 	update_post_meta( $page, 'rank_math_description', 'Plantas y macetas artesanales con envío semanal.' );
 	update_option( 'digi_probe_page', (int) $page );
-	// Widgets de PRO en borradores (fuera de la comprobación de la portada): una Cita, que pasa a la propia, y un Carrito
-	// de WooCommerce sin WooCommerce junto a otra Cita: el documento se queda como estaba y va a «Necesita tu atención»
-	// con el enlace a su editor.
+	// Widgets de PRO en borradores (fuera de la comprobación de la portada): una Cita, que pasa a la propia, y, en un
+	// sitio individual, un Carrito de WooCommerce sin WooCommerce junto a otra Cita: el documento se queda como estaba y
+	// va a «Necesita tu atención» con el enlace a su editor (y, con contenido pendiente, Element Pack no se borra). En la
+	// red no hay nada pendiente: ahí se comprueba que se borra.
 	$quote = array( 'blockquote', array( 'blockquote_content' => 'Las plantas también escuchan.', 'author_name' => 'Vivero' ) );
-	foreach ( array( 'Cita de prueba' => array( 'blockquote' => $quote ), 'Carrito de prueba' => array( 'woocommerce-cart' => array( 'woocommerce-cart', array() ), 'blockquote' => $quote ) ) as $title => $widgets ) {
+	$pro   = array( 'Cita de prueba' => array( 'blockquote' => $quote ) );
+	if ( ! $network ) {
+		$pro['Carrito de prueba'] = array( 'woocommerce-cart' => array( 'woocommerce-cart', array() ), 'blockquote' => $quote );
+	}
+	foreach ( $pro as $title => $widgets ) {
 		$draft    = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => $title ) );
 		$elements = array();
 		foreach ( array_values( $widgets ) as $i => $widget ) {
