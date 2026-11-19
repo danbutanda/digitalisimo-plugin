@@ -189,7 +189,7 @@ if (listed && listed.restore) {
   const job = latest((j) => j.kind !== 'import');
   const ticks = existsSync(`${store}/jobs/${job.id}/events.jsonl`) ? readFileSync(`${store}/jobs/${job.id}/events.jsonl`, 'utf8').split('\n').filter((line) => /"type":"phase"/.test(line)).length : 0;
   check(run.open === 0 && job.status === 'success', `la restauración termina, en ${ticks} tramos (${run.seconds} s)`, JSON.stringify({ kind: job.kind, status: job.status, error: job.error, message: job.progress?.message }));
-  log(`cuentas tras restaurar: ${String(job.result?.access?.text || JSON.stringify(job.result?.access || null)).slice(0, 900)}`);
+  log(`cuentas tras restaurar: ${String(job.result?.restore?.access?.text || JSON.stringify(job.result?.restore?.access || null)).slice(0, 900)}`);
   if (real) {
     // Un sitio real de una versión anterior: WordPress pide actualizar su base y el dueño pulsa su botón.
     await page.goto(`${base}/wp-admin/upgrade.php`, { waitUntil: 'load' }).catch(() => {});
