@@ -86,9 +86,11 @@ let last = '';
 let closed = false;
 let steps = 0;
 while (!(data && data.done) && Date.now() - started < 40 * 60 * 1000) {
-	if ((data.stage || '') !== last) {
+	if ((data.stage || '') !== last || Date.now() - (globalThis.shown || 0) > 60000) {
 		last = data.stage || '';
-		console.log(`${Math.round((Date.now() - started) / 1000)} s · ${last}`);
+		globalThis.shown = Date.now();
+		const text = String(data.html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+		console.log(`${Math.round((Date.now() - started) / 1000)} s · ${last} · ${text}`);
 	}
 	// Se cierra la pantalla a mitad (al empezar la importación) y se vuelve a abrir: la tarea sigue donde quedó.
 	if (!closed && ['import', 'retire', 'theme'].includes(last)) {
