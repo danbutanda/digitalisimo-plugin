@@ -313,7 +313,7 @@ final class Pro {
 	/**
 	 * Widgets de PRO de las copias de un documento por id: primero la copia del estado previo a F8 (BACKUP_F8, la más
 	 * reciente) y, para los que no estén allí, la copia original (BACKUP). Un id repetido dentro de una copia no se sabe a
-	 * qué elemento corresponde: va a `$repeated` y no se indexa.
+	 * qué elemento corresponde: va a `$repeated`, que recover_walk() salta.
 	 *
 	 * @param array<string,bool> $repeated Recibe los ids repetidos.
 	 * @return array<string,array>
@@ -335,7 +335,7 @@ final class Pro {
 				$out += $found;
 			}
 		}
-		return array_diff_key( $out, $repeated );
+		return $out; // Los repetidos los salta recover_walk() antes de mirar la copia.
 	}
 
 	/** Widgets de PRO de un árbol por id (el primero) y cuántas veces sale cada id. */

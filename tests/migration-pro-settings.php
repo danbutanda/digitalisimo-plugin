@@ -362,6 +362,7 @@ namespace {
 	$b        = doc( array( box( array( w( 'blockquote', array( 'blockquote_content' => 'Nueva', 'content_width' => 'boxed' ), 'q9' ) ), 'c9' ) ) );
 	$kit      = doc( array( box( array( old_convert( $quote ) ), 'c1' ) ) ); // Convertido por un kit: sin copia, no se toca.
 	$kit_raw  = get_metadata( 'post', $kit, '_elementor_data', true );
+	$check( in_array( $a, Pro::recover_documents(), true ) && ! in_array( $kit, Pro::recover_documents(), true ), 'Sólo son candidatos los convertidos con copia de la migración.' );
 	$state    = run_pro_stage();
 	$check( 'boxed' === find( tree( $a ), 'q1' )['settings']['content_width'] && 'boxed' === find( tree( $b ), 'q9' )['settings']['content_width'] && 'digitalisimo-blockquote' === find( tree( $b ), 'q9' )['widgetType'], 'La etapa recupera el convertido antes y convierte el nuevo: ' . wp_json_encode( $state['counts'] ?? null ) );
 	$check( $kit_raw === get_metadata( 'post', $kit, '_elementor_data', true ), 'Un documento sin copia de la migración no se toca.' );
@@ -431,6 +432,19 @@ namespace {
 	$id     = migrated_doc( array( box( array( $a, $b ), 'c1' ) ), $now );
 	$report = run_doc( $id );
 	$check( $now === tree( $id ) && in_array( 'pro.recover_ambiguous:blockquote:', codes_of( $report, $id ), true ), 'Un id repetido: nada se cruza de un elemento a otro y el informe lo dice: ' . implode( ', ', codes_of( $report, $id ) ) );
+	// El id repetido sólo en la copia (uno se borró después): tampoco se sabe cuál era.
+	fresh();
+	$id     = migrated_doc( array( box( array( $a, $b ), 'c1' ) ), array( box( array( old_convert( $b ) ), 'c1' ) ) );
+	$report = run_doc( $id );
+	$check( ! isset( find( tree( $id ), 'qd' )['settings']['content_width'] ) && in_array( 'pro.recover_ambiguous:blockquote:', codes_of( $report, $id ), true ), 'Repetido sólo en la copia: no recibe lo del otro y se informa.' );
+	// Las mismas medidas guardadas en otro orden (el editor reordena al guardar) siguen siendo el mismo elemento.
+	fresh();
+	$copy  = w( 'blockquote', array( 'blockquote_content' => 'Orden', '_margin' => array( 'unit' => 'px', 'top' => '4', 'right' => '0', 'bottom' => '4', 'left' => '0', 'isLinked' => false ), 'display_condition_enable' => 'yes' ) + foreign(), 'q1' );
+	$now   = old_convert( $copy );
+	$now['settings']['_margin'] = array( 'top' => '4', 'right' => '0', 'bottom' => '4', 'left' => '0', 'isLinked' => false, 'unit' => 'px' );
+	$id    = migrated_doc( array( box( array( $copy ), 'c1' ) ), array( box( array( $now ), 'c1' ) ) );
+	run_doc( $id );
+	$check( 'blockquote' === find( tree( $id ), 'q1' )['widgetType'], 'Medidas en otro orden: se compara a fondo y vuelve el widget de PRO.' );
 	list( $safe, $log, $kept ) = $net->invoke( null,
 		array( box( array( w( 'digitalisimo-blockquote', array( '_digitalisimo_pro' => 'blockquote' ), 'qd' ), w( 'digitalisimo-blockquote', array( '_digitalisimo_pro' => 'blockquote', 'blockquote_content' => 'Segunda' ), 'qd' ) ), 'c1' ) ),
 		array( box( array( w( 'blockquote', $on, 'qd' ), w( 'blockquote', array( 'blockquote_content' => 'Segunda', 'display_condition_list' => array( array( '_id' => 'z' ) ) ), 'qd' ) ), 'c1' ) ),
