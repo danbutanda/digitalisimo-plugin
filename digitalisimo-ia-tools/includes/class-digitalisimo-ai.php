@@ -166,7 +166,7 @@ class Digitalisimo_AI {
 		return new WP_Error( 'provider', 'No fue posible obtener una respuesta: ' . $last_error );
 	}
 
-	private static function log( $profile, $provider, $success, $status ) { $logs = (array) get_option( self::LOG_OPTION, array() ); $logs[] = array( 'time' => current_time( 'mysql' ), 'profile' => sanitize_key( $profile ), 'provider' => sanitize_key( $provider ), 'success' => (bool) $success, 'status' => absint( $status ) ); $days = max( 1, absint( self::get( 'log_retention' ) ?: 30 ) ); $cutoff = time() - ( $days * DAY_IN_SECONDS ); $logs = array_values( array_filter( $logs, function( $row ) use ( $cutoff ) { return strtotime( $row['time'] ?? '') >= $cutoff; } ) ); update_option( self::LOG_OPTION, array_slice( $logs, -500 ), false ); }
+	public static function log( $profile, $provider, $success, $status ) { $logs = (array) get_option( self::LOG_OPTION, array() ); $logs[] = array( 'time' => current_time( 'mysql' ), 'profile' => sanitize_key( $profile ), 'provider' => sanitize_key( $provider ), 'success' => (bool) $success, 'status' => absint( $status ) ); $days = max( 1, absint( self::get( 'log_retention' ) ?: 30 ) ); $cutoff = time() - ( $days * DAY_IN_SECONDS ); $logs = array_values( array_filter( $logs, function( $row ) use ( $cutoff ) { return strtotime( $row['time'] ?? '') >= $cutoff; } ) ); update_option( self::LOG_OPTION, array_slice( $logs, -500 ), false ); }
 
 	public static function chat( $request ) {
 		if ( ! self::get( 'chat_enabled' ) ) return new WP_Error( 'disabled', 'Chatbot desactivado', array( 'status' => 403 ) ); $message = trim( (string) $request['message'] ); if ( strlen( $message ) > 1200 ) return new WP_Error( 'message_length', 'El mensaje es demasiado largo.', array( 'status' => 400 ) );
