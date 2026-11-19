@@ -993,6 +993,12 @@ final class Full {
 				list( $ok, $reason ) = self::theme_safety( $theme, self::theme_facts( $state ) );
 				return array( 'from' => $theme['stylesheet'], 'name' => $theme['name'], 'hello' => ! empty( $theme['hello'] ), 'own' => ! empty( $theme['own'] ), 'safe' => $ok, 'reason' => $reason );
 			} );
+			if ( $row['safe'] && ! self::site_verifiable( $state, (int) $site_id ) ) {
+				// Sin una portada legible antes de empezar (un servidor que no puede pedirse a sí mismo), el cambio no
+				// podría comprobarse: no se hace.
+				$row['safe']   = false;
+				$row['reason'] = 'La portada no se pudo leer antes de migrar (el servidor no puede pedirse a sí mismo o no respondía bien): sin poder comprobar el cambio, se queda Hello.';
+			}
 			$state['theme'][ $site_id ] = $row + array( 'switched' => false );
 			if ( $row['safe'] ) {
 				$safe[] = $site_id;
@@ -1022,6 +1028,21 @@ final class Full {
 			$state['theme'][ $site_id ]['switched'] = true;
 		}
 		return self::changed( self::next( $state, 'verify' ) );
+	}
+
+	/** ¿Tiene el sitio alguna URL que respondía bien antes de empezar (comparable al final)? */
+	private static function site_verifiable( array $state, $site_id ) {
+		foreach ( (array) $state['checks'] as $check ) {
+			if ( (int) $check[0] !== (int) $site_id ) {
+				continue;
+			}
+			$before = self::get_snap( $state, $check[0] . '|' . $check[1] );
+			$status = (int) ( $before['status'] ?? 0 );
+			if ( $status >= 200 && $status < 300 && empty( $before['fatal'] ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

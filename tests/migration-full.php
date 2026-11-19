@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click', 'cli' );
+	$scenarios = array( 'unit', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_other', 'verify_fails', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -651,6 +651,21 @@ switch ( $scenario ) {
 		check( ! empty( $state['idle'] ) && ! get_option( Full::JOB ) && Full::last( false )['finished'] === $finished, 'El mismo clic repetido no lanza otra migración.' );
 		check( 1 === count( $GLOBALS['t']['specs'] ), 'Un solo respaldo.' );
 		check( ! isset( $GLOBALS['t']['rows'][ Full::LOCK ] ), 'El cerrojo se suelta.' );
+		break;
+
+	case 'no_loopback':
+		// Un servidor que no puede pedirse a sí mismo: sin portada legible antes de empezar, el tema no se cambia y no
+		// se borra nada (no hay verificación), aunque todo lo demás termine.
+		Front::$fetcher = static function ( $url ) {
+			return new WP_Error( 'x', 'cURL error 7: Failed to connect' );
+		};
+		drive();
+		$last = Full::last( false );
+		check( '' === $last['failed'] && empty( $last['verified'] ), 'Termina sin verificación: ' . $last['error'] );
+		check( ! logged( 'switch_theme' ) && 'hello-elementor' === get_option( 'stylesheet' ), 'El tema no se cambia sin poder comprobarlo.' );
+		check( false !== strpos( (string) $last['theme'][1]['reason'], 'no se pudo leer' ), 'El informe dice por qué: ' . $last['theme'][1]['reason'] );
+		nothing_deleted();
+		check( installed_now( 'seo-by-rank-math/rank-math.php' ) && ! active( 'seo-by-rank-math/rank-math.php' ), 'Lo reemplazado queda desactivado, sin borrar.' );
 		break;
 
 	case 'cli':
