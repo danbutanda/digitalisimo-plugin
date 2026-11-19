@@ -206,17 +206,19 @@ $names = array_keys( $catalog );
 sort( $names );
 check( array( 'demo/create-note', 'demo/delete-note', 'demo/no-annotations', 'demo/read-note', 'digitalisimo-ia/open-assistant' ) === $names, 'Sin el MCP de Elements: las abilities públicas de tipo herramienta, nada oculto ni recursos: ' . json_encode( $names ) );
 eval( 'namespace Elementor\\MCP\\Composer\\Admin; class McpSettingsController { public static $on = true; public static function is_enabled() { return self::$on; } }' );
-eval( 'namespace Elementor\\MCP\\Composer\\Mcp; class Registry { private static $i; public static function instance() { return self::$i ?: ( self::$i = new self() ); } public function get_tools() { return array_values( array_unique( array_merge( array( "demo/shop" ), \\apply_filters( "elementor/mcp/server/tools", array() ) ) ) ); } }' );
+eval( 'namespace Elementor\\MCP\\Composer\\Mcp; class Registry { private static $i; public static function instance() { return self::$i ?: ( self::$i = new self() ); } public function get_tools() { return array_values( array_unique( array_merge( array( "demo/shop", "demo/resource" ), \\apply_filters( "elementor/mcp/server/tools", array() ) ) ) ); } }' );
 Digitalisimo_AI_Assistant_Ability::init();
 $catalog = Digitalisimo_AI_Assistant_Tools::catalog();
 check( isset( $catalog['demo/shop'] ) && 'demo-shop' === $catalog['demo/shop']['tool'], 'Con el MCP de Elements, también lo de su registro (aunque no sea público)' );
+check( ! isset( $catalog['demo/resource'] ), 'Un recurso que llegue por el registro no es una herramienta' );
+check( in_array( 'digitalisimo-ia/open-assistant', apply_filters( 'elementor/mcp/server/tools', array() ), true ), 'open-assistant se suma al servidor MCP de Elements' );
 check( 1 === count( array_keys( apply_filters( 'elementor/mcp/server/tools', array( 'digitalisimo-ia/open-assistant' ) ), 'digitalisimo-ia/open-assistant' ) ), 'open-assistant entra una sola vez en el servidor de Elements' );
 \Elementor\MCP\Composer\Admin\McpSettingsController::$on = false;
 check( ! isset( Digitalisimo_AI_Assistant_Tools::catalog()['demo/shop'] ), 'Con el MCP de Elements apagado, nada de su registro' );
 \Elementor\MCP\Composer\Admin\McpSettingsController::$on = true;
 check( 'read' === Digitalisimo_AI_Assistant_Tools::kind( $catalog['demo/shop'], array( 'action' => 'list' ) ), 'Tienda: listar es leer' );
 check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $catalog['demo/shop'], array( 'action' => 'delete' ) ), 'Tienda: borrar es destructivo' );
-check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $catalog['demo/shop'], array( 'action' => 'gett' ) ), 'Tienda: una acción fuera del esquema no baja a lectura' );
+check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $catalog['demo/shop'], array( 'action' => 'gett' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $catalog['demo/shop'], array( 'action' => 'search' ) ), 'Tienda: una acción fuera de su enum no baja a lectura aunque suene a leer' );
 check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $catalog['demo/no-annotations'], array() ), 'Sin anotaciones cuenta como destructiva (como el MCP)' );
 check( 'write' === Digitalisimo_AI_Assistant_Tools::kind( $catalog['demo/create-note'], array() ) && 'read' === Digitalisimo_AI_Assistant_Tools::kind( $catalog['digitalisimo-ia/open-assistant'], array() ), 'Escribir y leer según sus anotaciones' );
 $tools = Digitalisimo_AI_Assistant::rest_tools()->data;
@@ -225,6 +227,9 @@ $masked = Digitalisimo_AI_Assistant_Tools::mask( array( 'author' => 4, 'password
 check( 4 === $masked['author'] && 'texto' === $masked['nested']['passage'], 'author y passage no se ocultan' );
 check( '••••' === $masked['password'] && '••••' === $masked['user_pass'] && '••••' === $masked['api_key'] && '••••' === $masked['nested']['access_token'] && '••••' === $masked['nested']['Authorization'], 'Contraseñas, claves y tokens se ocultan' );
 check( false === strpos( $masked['texto'], KEY_OPENAI ) && false === strpos( $masked['texto'], 'sk-proj-' ), 'Las claves dentro de un texto se borran' );
+$GLOBALS['options']['digitalisimo_ai_options']['providers']['deepseek'] = array( 'enabled' => 0, 'key' => 'clave-sin-forma-ABC123' );
+check( 'la [clave oculta] fin' === Digitalisimo_AI_Assistant_Tools::scrub( 'la clave-sin-forma-ABC123 fin' ), 'Una clave configurada se borra aunque no tenga forma de clave' );
+unset( $GLOBALS['options']['digitalisimo_ai_options']['providers']['deepseek'] );
 
 /* ---------------- L: el ciclo de herramientas ---------------- */
 // L1 leer directo, marcado como dato, sin secretos y con bitácora.
