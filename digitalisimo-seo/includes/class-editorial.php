@@ -156,7 +156,9 @@ class Digitalisimo_Integrations_Editorial {
 		if ( ! $primed && 'digitalisimo_cluster' === $column ) {
 			$primed = true; global $wp_query;
 			$pillars = array();
-			foreach ( (array) ( $wp_query->posts ?? array() ) as $row ) { $pillar = absint( get_post_meta( is_object( $row ) ? $row->ID : (int) $row, '_related_pillar', true ) ); if ( $pillar ) $pillars[ $pillar ] = $pillar; }
+			// Sólo filas con sus metadatos ya en caché (el listado de entradas los precarga). Páginas y otros tipos
+			// jerárquicos traen todos los IDs sin metadatos: leerlos aquí sería una consulta por cada página del sitio.
+			foreach ( (array) ( $wp_query->posts ?? array() ) as $row ) { $rid = is_object( $row ) ? (int) $row->ID : (int) $row; if ( ! $rid || false === wp_cache_get( $rid, 'post_meta' ) ) continue; $pillar = absint( get_post_meta( $rid, '_related_pillar', true ) ); if ( $pillar ) $pillars[ $pillar ] = $pillar; }
 			if ( $pillars && function_exists( '_prime_post_caches' ) ) _prime_post_caches( array_values( $pillars ), false, false );
 		}
 		if ( 'digitalisimo_location' === $column ) { $label = self::content_location_label( $id ); echo $label ? esc_html( $label ) : '—'; return; } $item = 'digitalisimo_cluster' === $column ? get_post( absint( get_post_meta( $id, '_related_pillar', true ) ) ) : null; if ( $item && ! is_wp_error( $item ) ) echo esc_html( $item->post_title ); }
