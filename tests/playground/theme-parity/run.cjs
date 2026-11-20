@@ -199,6 +199,43 @@ async function networkEnable(page, stylesheet) {
   check(r.allowed && r.allowed.includes(stylesheet), `El tema ${stylesheet} queda habilitado en la red: ${JSON.stringify(r)}`);
 }
 
+/**
+ * «Guardar y activar» de «Código PHP» de DIGITALÍSIMO Tools, de verdad, como el navegador del administrador: el
+ * editor del fragmento, su paso «prepare» (con la casilla de revisión), la visita del escritorio con la sesión y de la
+ * portada sin ella, y «activate» con sus reintentos. Devuelve la última respuesta de Tools.
+ */
+async function toolsActivate(browser, page, site, id) {
+  await page.goto(`${site.home}wp-admin/admin.php?page=digitalisimo-tools-elementor-templates&tab=php&edit=${id}`, { waitUntil: 'domcontentloaded' });
+  const cfg = await page.evaluate(() => window.digitalisimoToolsPhp || null);
+  const code = await page.evaluate(() => { const t = document.querySelector('textarea'); return t ? t.value : ''; });
+  if (!cfg || !code) return { success: false, data: { message: 'sin editor de Tools' } };
+  const post = (data) => page.evaluate(async (ajax, data) => {
+    const r = await fetch(ajax, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data).toString() });
+    const t = await r.text();
+    try { return JSON.parse(t); } catch (e) { return { success: false, data: { message: `(${r.status}) ${t.slice(0, 300)}` } }; }
+  }, cfg.ajax, { action: cfg.action, ...data });
+  const title = await page.evaluate(() => { const i = document.querySelector('input[name="title"]'); return i ? i.value : 'PHP del hijo'; });
+  const r1 = await post({ do: 'prepare', scope: cfg.scope, blog_id: cfg.blog, id: cfg.id, nonce: cfg.nonces.prepare, title, code_b64: Buffer.from(code).toString('base64'), reviewed: '1' });
+  if (!r1.success || !r1.data || !r1.data.sid) return r1;
+  const anon = await browser.createBrowserContext();
+  const visit = async (urls) => {
+    for (const u of urls || []) {
+      if (u.kind === 'admin') await page.goto(u.url, { waitUntil: 'domcontentloaded' }).catch(() => {});
+      else { const p2 = await anon.newPage(); await p2.goto(u.url, { waitUntil: 'domcontentloaded' }).catch(() => {}); await p2.close(); }
+    }
+  };
+  await visit(r1.data.urls);
+  await page.goto(`${site.home}wp-admin/`, { waitUntil: 'domcontentloaded' });
+  const step3 = (extra = {}) => post({ do: 'activate', scope: cfg.scope, blog_id: cfg.blog, id: cfg.id, nonce: r1.data.nonces.activate, sid: r1.data.sid, ...extra });
+  let r3 = await step3();
+  if (r3.success && r3.data && r3.data.retry) { await visit(r3.data.retry); r3 = await step3(); }
+  const deadline = Date.now() + 60000;
+  while (!r3.success && r3.data && r3.data.pending && Date.now() < deadline) { await sleep(1500); r3 = await step3(); }
+  if (!r3.success && r3.data && r3.data.pending) r3 = await step3({ final: '1' });
+  await anon.close();
+  return r3;
+}
+
 async function state(page) {
   const s = await api(page, 'state');
   return s;
@@ -333,6 +370,33 @@ function checkRecords(phase, st, sites) {
       checkRecords('B', st, sites);
       await capture(browser, 'B', sites);
       await compare(browser, 'B', sites);
+      // El hijo con PHP que se quedó, siguiendo el orden del informe con una activación real en Tools: activar su
+      // fragmento con el hijo todavía activo falla (declararía otra vez sus funciones); cambiar de tema en Apariencia y
+      // enseguida activarlo funciona, y el sitio vuelve a verse y comportarse como con el hijo.
+      const phpId = Object.keys(sites).find((id) => sites[id].kind === 'child-php');
+      if (phpId && !conf.break) {
+        const site = sites[phpId];
+        const index = (st.sites[phpId] || {}).tools || {};
+        const itemId = Object.keys(index.items || {}).find((k) => /^digitalisimo-theme:/.test(index.items[k].origin_key || ''));
+        check(!!itemId, `Migrar dejó el functions.php del hijo en Código PHP de Tools del sitio ${phpId}: ${JSON.stringify(Object.values(index.items || {}).map((x) => x.origin_key))}`);
+        if (itemId) {
+          check(index.items[itemId].review === true && !(index.items[itemId].status === 'active'), `El fragmento importado está inactivo y pide revisión: ${JSON.stringify(index.items[itemId])}`);
+          const early = await toolsActivate(browser, page, site, itemId);
+          result.toolsEarly = early;
+          check(!early.success, `Con el hijo activo, Tools no deja activar su functions.php: ${JSON.stringify(early).slice(0, 300)}`);
+          log(`  Tools con el hijo activo: ${String((early.data || {}).message || '').slice(0, 160)}`);
+          await activate(page, site, 'digitalisimo-theme');
+          const late = await toolsActivate(browser, page, site, itemId);
+          result.toolsLate = late;
+          check(late.success, `Después del cambio de tema, el fragmento se activa: ${JSON.stringify(late).slice(0, 300)}`);
+          log(`  Tools tras cambiar de tema: ${String((late.data || {}).message || '').slice(0, 160)}`);
+          const only = { [phpId]: site };
+          await capture(browser, 'B3', only);
+          const prev = result.phases.A;
+          await compare(browser, 'B3', only);
+          result.phases.A = prev;
+        }
+      }
     }
   } catch (e) {
     fail('excepción: ' + (e.stack || e));

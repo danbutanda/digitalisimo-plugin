@@ -1073,9 +1073,11 @@ final class Full {
 	 * reproduce a Hello (sus hojas, sus filtros, sus ajustes, su logo, sus menús y su CSS adicional), vuelve a encolar lo
 	 * que el functions.php del hijo encolaba (sus hojas y fuentes, desde su carpeta) y DIGITALÍSIMO Elements convierte
 	 * su cabecera y su pie dinámicos en plantillas del Theme Builder, así que lo que se ve no cambia. Un hijo con PHP que
-	 * no se puede trasladar sin ejecutarlo (otros ganchos, shortcodes, plantillas…) se queda, salvo que su functions.php
-	 * ya esté activo, tal cual, en Código PHP de DIGITALÍSIMO Tools. `$facts['child']`: `analyzed`, `blockers` (texto),
-	 * `covered` e `imported` (lo que contestó Tools al importarlo). Devuelve [bool, motivo].
+	 * no se puede trasladar sin ejecutarlo (otros ganchos, shortcodes, plantillas…) se queda siempre: ese PHP sólo puede
+	 * seguir corriendo como fragmento de Tools, y un fragmento con el functions.php del hijo no se puede activar mientras
+	 * el hijo se carga (declararía otra vez sus funciones o lo correría dos veces). El motivo da el orden que sí funciona:
+	 * cambiar de tema y enseguida activar el fragmento. `$facts['child']`: `analyzed`, `blockers` (texto), `imported`
+	 * (lo que contestó Tools al importarlo) y `tools` (Tools activo en el sitio). Devuelve [bool, motivo].
 	 *
 	 * @return array{0:bool,1:string}
 	 */
@@ -1100,11 +1102,11 @@ final class Full {
 			if ( empty( $child['analyzed'] ) ) {
 				return array( false, sprintf( 'El sitio usa un tema hijo de Hello («%s») y el tema DIGITALÍSIMO instalado no sabe leerlo (es anterior a 1.0.1). Se queda el tema hijo: actualiza el tema DIGITALÍSIMO y vuelve a pulsar Migrar.', (string) $theme['name'] ) );
 			}
-			if ( '' !== (string) ( $child['blockers'] ?? '' ) && empty( $child['covered'] ) ) {
-				$todo = in_array( (string) ( $child['imported'] ?? '' ), array( 'created', 'updated', 'unchanged', 'conflict' ), true )
-					? 'en DIGITALÍSIMO Tools → Código PHP, revisa «PHP del tema hijo ' . (string) $theme['name'] . '» (Migrar lo dejó ahí, inactivo, sin tocarlo) y actívalo'
-					: 'copia su functions.php tal cual en un fragmento de DIGITALÍSIMO Tools → Código PHP, revísalo y actívalo';
-				return array( false, sprintf( 'El sitio usa un tema hijo de Hello («%s») con PHP que no se puede trasladar sin ejecutarlo: %s. Se queda el tema hijo para no perder lo que ese PHP hace. Qué hacer: %s, y vuelve a pulsar Migrar (o cambia al tema DIGITALÍSIMO en Apariencia, que trae sus hojas, su CSS adicional y sus ajustes, pero no ese PHP).', (string) $theme['name'], (string) $child['blockers'], $todo ) );
+			if ( '' !== (string) ( $child['blockers'] ?? '' ) ) {
+				$snippet = in_array( (string) ( $child['imported'] ?? '' ), array( 'created', 'updated', 'unchanged', 'conflict' ), true )
+					? 'en DIGITALÍSIMO Tools → Código PHP revisa «PHP del tema hijo ' . (string) $theme['name'] . '» (Migrar lo dejó ahí, inactivo y sin tocar) y actívalo'
+					: ( ! empty( $child['tools'] ) ? 'en DIGITALÍSIMO Tools → Código PHP crea un fragmento con su functions.php, revísalo y actívalo' : 'activa DIGITALÍSIMO Tools en este sitio y, en su Código PHP, crea un fragmento con el functions.php del hijo, revísalo y actívalo' );
+				return array( false, sprintf( 'El sitio usa un tema hijo de Hello («%s») con PHP que no se puede trasladar sin ejecutarlo: %s. Se queda el tema hijo para no perder lo que ese PHP hace. Qué hacer, en este orden: 1) en Apariencia activa el tema DIGITALÍSIMO (trae sus hojas, sus fuentes, su CSS adicional y sus ajustes; desde ese momento el PHP del hijo deja de correr); 2) enseguida %s (no antes: con el hijo activo, ese fragmento choca con su functions.php); 3) revisa la portada y vuelve a pulsar Migrar para terminar.', (string) $theme['name'], (string) $child['blockers'], $snippet ) );
 			}
 		}
 		return array( true, '' );
@@ -1139,9 +1141,13 @@ final class Full {
 		return function_exists( 'digitalisimo_theme_child_plan' );
 	}
 
+	/** Archivo principal de DIGITALÍSIMO Tools (dueño de «Código PHP»). */
+	const TOOLS_FILE = 'digitalisimo-tools/digitalisimo-tools.php';
+
 	/**
-	 * Hechos del tema hijo activo en el sitio en curso: lo lee sin ejecutarlo y, si tiene PHP que no se traslada y no
-	 * está ya activo en Tools, deja su functions.php en Código PHP de Tools, inactivo y con revisión (si Tools está).
+	 * Hechos del tema hijo activo en el sitio en curso: lo lee sin ejecutarlo y, si tiene PHP que no se traslada, deja su
+	 * functions.php en Código PHP de Tools, inactivo y con revisión, sólo si Tools está activo en este sitio (en una red,
+	 * su filtro puede estar cargado por el sitio principal aunque este sitio no lo use).
 	 */
 	private static function child_facts() {
 		$child = wp_get_theme();
@@ -1150,20 +1156,19 @@ final class Full {
 		}
 		$plan     = digitalisimo_theme_child_plan( $child );
 		$blockers = $plan['blockers'] ? digitalisimo_theme_child_blockers_text( $plan['blockers'] ) : '';
-		$covered  = '' !== $blockers && digitalisimo_theme_child_php_covered( $child );
+		$tools    = Replacements::is_active( self::TOOLS_FILE );
 		return array(
 			'analyzed' => true,
 			'blockers' => $blockers,
-			'covered'  => $covered,
 			'carried'  => count( $plan['assets'] ),
-			'imported' => '' !== $blockers && ! $covered ? digitalisimo_theme_child_import_php( $child, $plan ) : '',
+			'tools'    => $tools,
+			'imported' => '' !== $blockers && $tools ? digitalisimo_theme_child_import_php( $child, $plan ) : '',
 		);
 	}
 
 	private static function stage_theme( array $state, $deadline ) {
 		if ( empty( $state['theme_planned'] ) ) {
-			$safe     = array();
-			$children = array();
+			$safe = array();
 			foreach ( self::targets( $state ) as $site_id ) {
 				$row = self::on_site( $site_id, static function () use ( $state ) {
 					$theme = Replacements::theme_state();
@@ -1187,7 +1192,9 @@ final class Full {
 			if ( ! $safe ) {
 				return self::next( $state, 'verify' );
 			}
+			$had       = function_exists( 'wp_get_theme' ) && wp_get_theme( Replacements::THEME )->exists();
 			$installed = Packages::install_theme();
+			$state['theme_installed_now'] = ! $had && true === $installed;
 			if ( is_wp_error( $installed ) ) {
 				foreach ( $safe as $site_id ) {
 					$state['theme'][ $site_id ]['safe']   = false;
@@ -1205,7 +1212,7 @@ final class Full {
 				} );
 				$theme                 = array( 'own' => false, 'hello' => true, 'child' => true, 'name' => $state['theme'][ $site_id ]['name'] );
 				list( $ok, $reason )   = self::theme_safety( $theme, array( 'builder' => true, 'conflict' => false, 'can' => true, 'child' => $facts ) );
-				$state['theme'][ $site_id ]['child_facts'] = array_intersect_key( $facts, array_flip( array( 'blockers', 'covered', 'carried', 'imported' ) ) );
+				$state['theme'][ $site_id ]['child_facts'] = array_intersect_key( $facts, array_flip( array( 'blockers', 'carried', 'tools', 'imported' ) ) );
 				$state['theme'][ $site_id ]['safe']        = $ok;
 				$state['theme'][ $site_id ]['reason']      = $reason;
 			}
@@ -1840,6 +1847,10 @@ final class Full {
 			} else {
 				$themes[] = $where_name . (string) $row['reason'];
 			}
+		}
+		if ( ! empty( $state['theme_installed_now'] ) && ! array_filter( array_column( (array) $state['theme'], 'switched' ) ) ) {
+			// Se instaló para leer el tema hijo y ningún sitio lo activó: queda instalado, sin activar, para el paso a mano.
+			$themes[] = 'El tema DIGITALÍSIMO quedó instalado sin activar (hace falta para el cambio a mano de arriba; si no lo vas a usar, bórralo en Apariencia).';
 		}
 		if ( $themes ) {
 			$items[] = array( 'Tema', implode( ' ', $themes ) );

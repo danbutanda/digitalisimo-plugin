@@ -75,6 +75,25 @@ if ( $network ) {
 		WP_Theme::network_enable_theme( $stylesheet );
 	}
 }
+// Con «Migrar», DIGITALÍSIMO Tools (su «Código PHP») activo en el sitio principal y en el del hijo con PHP, no en el
+// otro: el PHP de ese hijo se importa ahí y después se activa de verdad, en el orden que da el informe.
+if ( $migrar ) {
+	foreach ( array_keys( $sites ) as $site_id ) {
+		if ( 'child' === $sites[ $site_id ] ) {
+			continue;
+		}
+		if ( $network ) {
+			switch_to_blog( $site_id );
+		}
+		$on = activate_plugin( 'digitalisimo-tools/digitalisimo-tools.php' );
+		if ( is_wp_error( $on ) ) {
+			tp_error( 'No se activó Tools: ' . $on->get_error_message() );
+		}
+		if ( $network ) {
+			restore_current_blog();
+		}
+	}
+}
 update_site_option( 'tp_sites', $sites );
 
 $long = 'Texto de prueba para comparar Hello con el tema DIGITALÍSIMO: los colores, las fuentes, los enlaces y los botones deben verse igual.';

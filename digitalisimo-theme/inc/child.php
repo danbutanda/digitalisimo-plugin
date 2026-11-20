@@ -192,6 +192,10 @@ function digitalisimo_theme_child_tokens( $code ) {
 			if ( in_array( $token[0], array( T_WHITESPACE, T_COMMENT, T_DOC_COMMENT ), true ) ) {
 				continue;
 			}
+			if ( defined( 'T_ATTRIBUTE' ) && T_ATTRIBUTE === $token[0] ) {
+				$out[] = array( '[', '#[', $line ); // Un atributo de PHP 8 cierra con «]»: se cuenta como corchete (y bloquea).
+				continue;
+			}
 			if ( T_INLINE_HTML === $token[0] ) {
 				if ( '' !== trim( $token[1] ) ) {
 					$out[] = array( T_INLINE_HTML, $token[1], $line );
@@ -491,6 +495,9 @@ function digitalisimo_theme_child_body( array $body, array $hook, $where, array 
 			$name = strtolower( $body[ $i ][1] );
 			$args = digitalisimo_theme_child_args( $body, $i + 1, $close );
 			$vals = array();
+			if ( ! isset( $body[ $close + 1 ] ) || ';' !== $body[ $close + 1 ][0] ) {
+				$args = array( array() ); // `wp_enqueue_style( … ) || otra_cosa();` no es un encolado limpio.
+			}
 			foreach ( $args as $arg ) {
 				$value  = digitalisimo_theme_child_value( $arg, $consts, $vars, $ctx );
 				$ok     = $value[0];
@@ -506,7 +513,7 @@ function digitalisimo_theme_child_body( array $body, array $hook, $where, array 
 				if ( is_array( $asset ) ) {
 					$assets[] = $asset;
 				} else {
-					$ok = false === $asset;
+					$ok = false;
 				}
 			} else {
 				$ok = false;
@@ -520,8 +527,9 @@ function digitalisimo_theme_child_body( array $body, array $hook, $where, array 
 }
 
 /**
- * Un encolado o registro como entrada de la opción (claves cortas); false si apunta a un archivo del hijo que no existe
- * (no había nada que cargar) y null si su dirección o sus datos no se pueden traer.
+ * Un encolado o registro como entrada de la opción (claves cortas), o null si su dirección o sus datos no se pueden
+ * traer. Un archivo del hijo que no existe se trae igual: con Hello su handle existía (y lo que dependía de él se
+ * imprimía), así que en el tema queda como alias sin archivo.
  */
 function digitalisimo_theme_child_asset( $type, $enqueue, array $vals, $priority, array $ctx ) {
 	$handle = $vals[0];
@@ -540,9 +548,6 @@ function digitalisimo_theme_child_asset( $type, $enqueue, array $vals, $priority
 		$path  = $m[2];
 		if ( false !== strpos( $path, '..' ) || false !== strpos( $path, "\x01" ) || ! preg_match( '#^[A-Za-z0-9_./\-]+$#', $path ) ) {
 			return null;
-		}
-		if ( ! call_user_func( $ctx['exists'], $where, $path ) ) {
-			return false; // El archivo no existe: con Hello tampoco se cargaba nada.
 		}
 		$src = $path;
 	} elseif ( preg_match( '#^(https?:)?//[^/\s"\'<>]+[^\s"\'<>]*$#i', $src ) && false === strpos( $src, "\x01" ) ) {
@@ -762,9 +767,10 @@ function digitalisimo_theme_child_hooks() {
 }
 
 /**
- * Registra (la primera vez) y encola lo del hijo de esta prioridad, desde su carpeta, sólo en paridad y mientras el
- * archivo exista. Registrar antes que nadie hace que un fragmento de Tools con el mismo functions.php (que apuntaría a
- * la carpeta de este tema) no cambie la dirección del handle.
+ * Registra (la primera vez, todas las entradas: un handle que el hijo registraba en una prioridad posterior queda
+ * registrado antes) y encola lo del hijo de esta prioridad, desde su carpeta, sólo en paridad. Si el archivo ya no está,
+ * el handle queda como alias sin archivo con sus dependencias. Registrar antes que nadie hace que un fragmento de Tools
+ * con el mismo functions.php (que apuntaría a la carpeta de este tema) no cambie la dirección del handle.
  */
 function digitalisimo_theme_child_enqueue( $priority ) {
 	static $registered = null;
@@ -780,7 +786,7 @@ function digitalisimo_theme_child_enqueue( $priority ) {
 		foreach ( (array) $saved['assets'] as $index => $asset ) {
 			$url = digitalisimo_theme_child_asset_url( $saved, (array) $asset );
 			if ( '' === $url ) {
-				continue;
+				$url = false; // Sin archivo: alias con sus dependencias, para que lo que depende de él se siga imprimiendo.
 			}
 			$ver = $asset['v'] ?? false;
 			if ( 'script' === ( $asset['t'] ?? '' ) ) {
@@ -814,6 +820,50 @@ function digitalisimo_theme_child_asset_url( array $saved, array $asset ) {
 		return ''; // El hijo ya no está: no se imprime un enlace roto.
 	}
 	return get_theme_root_uri( $theme ) . '/' . $theme . '/' . $src;
+}
+
+/** El hijo cuyas hojas carga el tema (o '' si no hay ninguno). */
+function digitalisimo_theme_child_carried() {
+	$record = function_exists( 'digitalisimo_theme_switch_record' ) ? digitalisimo_theme_switch_record() : array();
+	$saved  = empty( $record['carry'] ) ? array() : get_option( 'digitalisimo_theme_child' );
+	return is_array( $saved ) && ! empty( $saved['child'] ) ? (string) $saved['child'] : '';
+}
+
+/** En Temas: el tema carga las hojas del hijo desde su carpeta (no lo borres) o el hijo ya no está. */
+function digitalisimo_theme_child_notice() {
+	if ( ! current_user_can( 'switch_themes' ) || ! function_exists( 'get_current_screen' ) ) {
+		return;
+	}
+	$screen = get_current_screen();
+	$child  = $screen && in_array( $screen->id, array( 'themes', 'themes-network' ), true ) ? digitalisimo_theme_child_carried() : '';
+	if ( '' === $child ) {
+		return;
+	}
+	if ( is_dir( get_theme_root( $child ) . '/' . $child ) ) {
+		/* translators: %s: folder of the child theme. */
+		echo '<div class="notice notice-info"><p>' . esc_html( sprintf( __( 'The DIGITALÍSIMO theme loads the stylesheets, fonts and scripts of the child theme %s from its folder: do not delete that theme.', 'digitalisimo-theme' ), $child ) ) . '</p></div>';
+		return;
+	}
+	/* translators: %s: folder of the child theme. */
+	echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'The child theme %s was deleted: the DIGITALÍSIMO theme can no longer load its stylesheets, fonts and scripts. Reinstall it to get them back.', 'digitalisimo-theme' ), $child ) ) . '</p></div>';
+}
+
+/** Al borrar el hijo cuyas hojas carga el tema, queda en la bitácora del paso. */
+function digitalisimo_theme_child_deleted( $stylesheet, $deleted = true ) {
+	if ( ! $deleted || (string) $stylesheet !== digitalisimo_theme_child_carried() || ! function_exists( 'digitalisimo_theme_switch_log' ) ) {
+		return;
+	}
+	$log             = digitalisimo_theme_switch_log();
+	$log['warnings'] = digitalisimo_theme_merge_warnings(
+		$log['warnings'] ?? array(),
+		array(
+			array(
+				'code'    => 'child_deleted',
+				'message' => sprintf( 'Se borró el tema hijo %s: el tema ya no carga sus hojas, fuentes y scripts. Reinstálalo para recuperarlos.', (string) $stylesheet ),
+			),
+		)
+	);
+	update_option( 'digitalisimo_theme_switch_log', $log, false );
 }
 
 /* ------------------------------------------------------------------ PHP del hijo en Código PHP de Tools */

@@ -13,6 +13,9 @@ require_once __DIR__ . '/child.php'; // Lo que aportaba un hijo de Hello (funcio
 
 add_action( 'after_switch_theme', 'digitalisimo_theme_after_switch', 20, 2 ); // Después de _wp_menus_changed (10).
 digitalisimo_theme_child_hooks(); // Lo que encolaba el hijo de Hello (inc/child.php), antes que las hojas del tema.
+add_action( 'admin_notices', 'digitalisimo_theme_child_notice' );
+add_action( 'network_admin_notices', 'digitalisimo_theme_child_notice' );
+add_action( 'deleted_theme', 'digitalisimo_theme_child_deleted', 10, 2 );
 
 /** Registro del paso (opción del sitio, carga automática, ~1 KB): origen, último tema, ajustes y modo de cabecera y pie. */
 function digitalisimo_theme_switch_record() {
@@ -426,7 +429,14 @@ function digitalisimo_theme_import_work( WP_Theme $old, $child_css, $dry, $via )
 	// T10 · Inventario del hijo y de los filtros del tema anterior. Lo que el functions.php del hijo encolaba con valores
 	// legibles sin ejecutarlo (inc/child.php) se vuelve a encolar desde su carpeta; lo demás se dice y su functions.php
 	// queda en Código PHP de DIGITALÍSIMO Tools, inactivo y con revisión.
-	if ( $child ) {
+	if ( $child && 'hello' !== $family ) {
+		// Un hijo de otro tema: sólo el inventario; nada suyo se encola ni va a Tools.
+		$log['child'] = digitalisimo_theme_child_inventory( $old );
+		unset( $record['carry'] );
+		if ( ! $dry ) {
+			delete_option( 'digitalisimo_theme_child' );
+		}
+	} elseif ( $child ) {
 		$log['child'] = digitalisimo_theme_child_inventory( $old );
 		$plan         = digitalisimo_theme_child_plan( $old );
 		$carried      = array_values( array_unique( array_column( $plan['assets'], 'h' ) ) );

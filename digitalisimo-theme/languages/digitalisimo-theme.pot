@@ -130,3 +130,15 @@ msgstr ""
 #: template-parts/single.php:29
 msgid "Tagged "
 msgstr ""
+
+#. translators: %s: folder of the child theme.
+#: inc/child.php
+#, php-format
+msgid "The DIGITALÍSIMO theme loads the stylesheets, fonts and scripts of the child theme %s from its folder: do not delete that theme."
+msgstr ""
+
+#. translators: %s: folder of the child theme.
+#: inc/child.php
+#, php-format
+msgid "The child theme %s was deleted: the DIGITALÍSIMO theme can no longer load its stylesheets, fonts and scripts. Reinstall it to get them back."
+msgstr ""

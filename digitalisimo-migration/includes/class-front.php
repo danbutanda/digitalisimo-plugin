@@ -169,7 +169,8 @@ final class Front {
 			$ids[ (string) $sheet[0] ]   = true;
 			$paths[ (string) $sheet[1] ] = true;
 		}
-		$missing = array();
+		$missing       = array();
+		$missing_paths = array();
 		foreach ( (array) ( $was['sheets'] ?? array() ) as $sheet ) {
 			list( $id, $path ) = array( (string) $sheet[0], (string) $sheet[1] );
 			if ( isset( self::PARITY_SHEETS[ $id ] ) ) {
@@ -184,13 +185,22 @@ final class Front {
 			if ( ( '' !== $id && isset( $ids[ $id ] ) ) || isset( $paths[ $path ] ) ) {
 				continue;
 			}
-			$missing[] = '' !== $id ? $id : $path;
+			$missing[]       = '' !== $id ? $id : $path;
+			$missing_paths[] = $path;
+		}
+		$combined = array_filter( $missing_paths, static function ( $sheet ) {
+			return (bool) preg_match( '#/(cache|autoptimize|litespeed|wp-rocket|wpo-minify|w3tc|fvm)/#i', (string) $sheet );
+		} );
+		if ( $missing_paths && count( $combined ) === count( $missing_paths ) && count( $missing_paths ) === count( $missing ) ) {
+			// Un plugin de caché combina las hojas con un nombre que cambia en cada regeneración: no se puede comparar.
+			return array( false, sprintf( 'Después de cambiar el tema cambiaron las hojas combinadas por un plugin de caché u optimización (%s): con la combinación activa no se puede comprobar que se pinte igual. Desactiva la combinación de CSS mientras corre Migrar y vuelve a pulsarlo, o cambia el tema en Apariencia.', implode( ', ', array_slice( $missing, 0, 3 ) ) ) );
 		}
 		if ( $missing ) {
 			return array( false, sprintf( 'Después de cambiar el tema faltan hojas de estilo que se cargaban antes: %s.', implode( ', ', array_slice( $missing, 0, 5 ) ) ) );
 		}
-		$gone = array_values( array_diff( array_filter( (array) ( $was['inline'] ?? array() ), static function ( $id ) {
-			return 0 !== strpos( (string) $id, 'hello-' );
+		$hello_inline = array( 'hello-elementor-inline-css', 'hello-elementor-theme-style-inline-css', 'hello-elementor-header-footer-inline-css' );
+		$gone         = array_values( array_diff( array_filter( (array) ( $was['inline'] ?? array() ), static function ( $id ) use ( $hello_inline ) {
+			return ! in_array( (string) $id, $hello_inline, true ); // Sólo los de Hello: el bloque de un hijo sí cuenta.
 		} ), (array) ( $now['inline'] ?? array() ) ) );
 		if ( in_array( 'wp-custom-css', $gone, true ) ) {
 			return array( false, 'Después de cambiar el tema falta el CSS adicional del sitio.' );

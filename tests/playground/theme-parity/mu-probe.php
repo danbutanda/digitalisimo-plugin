@@ -212,7 +212,7 @@ function tp_state() {
 			'log'        => get_option( 'digitalisimo_theme_switch_log' ),
 			'css'        => wp_get_custom_css( get_option( 'stylesheet' ) ),
 			'mods'       => get_option( 'theme_mods_' . get_option( 'stylesheet' ) ),
-			'tools'      => get_option( 'digitalisimo_tools_php_index' ),
+			'tools'      => get_option( 'digitalisimo_tools_php' ),
 		);
 		if ( is_multisite() ) {
 			restore_current_blog();

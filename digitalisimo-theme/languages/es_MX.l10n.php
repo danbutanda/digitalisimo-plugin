@@ -21,6 +21,8 @@ return [
 		'Canvas' => 'Lienzo',
 		'Full width' => 'Ancho completo',
 		'The DIGITALÍSIMO theme shows simple fallbacks until DIGITALÍSIMO Elements is active.' => 'El tema DIGITALÍSIMO muestra respaldos sencillos hasta que DIGITALÍSIMO Elements esté activo.',
+		'The DIGITALÍSIMO theme loads the stylesheets, fonts and scripts of the child theme %s from its folder: do not delete that theme.' => 'El tema DIGITALÍSIMO carga las hojas, fuentes y scripts del tema hijo %s desde su carpeta: no borres ese tema.',
+		'The child theme %s was deleted: the DIGITALÍSIMO theme can no longer load its stylesheets, fonts and scripts. Reinstall it to get them back.' => 'Se borró el tema hijo %s: el tema DIGITALÍSIMO ya no puede cargar sus hojas, fuentes y scripts. Reinstálalo para recuperarlos.',
 		'Header' => 'Cabecera',
 		'Footer' => 'Pie de página',
 		'Skip to content' => 'Saltar al contenido',

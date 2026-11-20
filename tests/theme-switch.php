@@ -300,6 +300,8 @@ $GLOBALS['themes'] = array(
 	'hello-elementor'    => array( 'stylesheet' => 'hello-elementor', 'template' => 'hello-elementor', 'version' => '3.5.1', 'templates' => array( 'page' => array( 'parent-tpl.php' => 'P' ) ) ),
 	'hello-child'        => array( 'stylesheet' => 'hello-child', 'template' => 'hello-elementor', 'version' => '1.0.0', 'parent' => 'hello-elementor', 'dir' => $child, 'templates' => array( 'page' => array( 'tpl-landing.php' => 'Landing' ) ) ),
 	'hello-child-ok'     => array( 'stylesheet' => 'hello-child-ok', 'template' => 'hello-elementor', 'version' => '2.0.0', 'parent' => 'hello-elementor', 'dir' => $child_ok ),
+	'astra'              => array( 'stylesheet' => 'astra', 'template' => 'astra', 'version' => '4.0' ),
+	'astra-hijo'         => array( 'stylesheet' => 'astra-hijo', 'template' => 'astra', 'version' => '1.0.0', 'parent' => 'astra', 'dir' => $child_ok ),
 	'twentytwentyfive'   => array( 'stylesheet' => 'twentytwentyfive', 'template' => 'twentytwentyfive', 'version' => '1.3' ),
 	'digitalisimo-theme' => array( 'stylesheet' => 'digitalisimo-theme', 'template' => 'digitalisimo-theme' ),
 	'hello-biz'          => array( 'stylesheet' => 'hello-biz', 'template' => 'hello-biz', 'version' => '1.2.0' ),
@@ -454,6 +456,10 @@ $php_warning = array_values( array_filter( journal()['warnings'], static functio
 check( 1 === count( $GLOBALS['tools_imports'] ) && 'hello-child-ok' === $GLOBALS['tools_imports'][0][0]['origin']['id'] && 'created' === journal()['child']['tools'], 'Con bloqueos, su functions.php va a Código PHP de Tools.' );
 check( false !== strpos( $php_warning, "functions.php, línea 11: add_action( 'wp_head' )" ) && false !== strpos( $php_warning, 'quedó en DIGITALÍSIMO Tools' ) && array( 'hello-elementor-child-style', 'hijo-extra' ) === array_column( get_option( 'digitalisimo_theme_child' )['assets'], 'h' ), 'El aviso dice la línea y dónde quedó; las hojas se traen igual: ' . $php_warning );
 check( ! in_array( 'child_css', warning_codes(), true ), 'Con su style.css encolado, no hay aviso del CSS del hijo.' );
+// 2c. Un hijo de otro tema (aunque el origen siga siendo Hello): sólo el inventario; ni lista, ni marca, ni Tools.
+$GLOBALS['tools_imports'] = array();
+switch_from( 'astra-hijo' );
+check( 'hello' === record()['origin']['family'] && ! isset( record()['carry'] ) && ! array_key_exists( 'digitalisimo_theme_child', $GLOBALS['options'] ) && array() === $GLOBALS['tools_imports'], 'Un hijo de otro tema no deja lista ni marca ni va a Tools.' );
 
 // 3. Otro tema: T1, T2 y T4 sí; T3 y T5 no.
 reset_site();

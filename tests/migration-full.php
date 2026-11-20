@@ -677,10 +677,19 @@ switch ( $scenario ) {
 		$hijo = array( 'child' => true, 'name' => 'Hijo' ) + $hello;
 		check( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => '' ) ) )[0], 'Un hijo cuyo PHP sólo encola hojas es seguro.' );
 		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => "functions.php, línea 9: add_action( 'wp_head' )" ) ) );
-		check( ! $kept[0] && false !== strpos( $kept[1], "add_action( 'wp_head' )" ) && false !== strpos( $kept[1], 'copia su functions.php' ) && false !== strpos( $kept[1], 'Código PHP' ), 'Un hijo con PHP que no se traslada se queda, con qué es y qué hacer: ' . $kept[1] );
+		check( ! $kept[0] && false !== strpos( $kept[1], "add_action( 'wp_head' )" ) && false !== strpos( $kept[1], 'activa DIGITALÍSIMO Tools en este sitio' ) && false !== strpos( $kept[1], '1) en Apariencia activa el tema DIGITALÍSIMO' ) && strpos( $kept[1], '1) en Apariencia' ) < strpos( $kept[1], 'Código PHP' ) && false !== strpos( $kept[1], 'no antes' ), 'Un hijo con PHP que no se traslada se queda, con qué es y qué hacer: ' . $kept[1] );
 		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => 'created' ) ) );
 		check( ! $kept[0] && false !== strpos( $kept[1], 'Migrar lo dejó ahí, inactivo' ), 'Si Migrar lo dejó en Tools, lo dice: ' . $kept[1] );
-		check( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'covered' => true ) ) )[0], 'Con su functions.php activo tal cual en Tools, es seguro.' );
+		check( false !== strpos( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'tools' => true ) ) )[1], 'en DIGITALÍSIMO Tools → Código PHP crea un fragmento' ), 'Con Tools activo y sin importar, dice que cree el fragmento.' );
+		check( ! Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'covered' => true ) ) )[0], 'Un hijo con bloqueos nunca cambia solo, aunque haya un fragmento (no puede estar activo con el hijo cargado).' );
+		// Hojas combinadas por un plugin de caché: un motivo propio, no «faltan hojas».
+		$cached = '<html><head><link rel="stylesheet" id="autoptimize-css" href="/wp-content/cache/autoptimize/css/autoptimize_abc.css"></head><body class="elementor-kit-7">Texto</body></html>';
+		$r      = Front::compare_styles( Front::fingerprint( 200, $cached ), Front::fingerprint( 200, str_replace( 'abc', 'def', str_replace( 'id="autoptimize-css" ', '', $cached ) ) ) );
+		check( false === $r[0] && false !== strpos( $r[1], 'hojas combinadas por un plugin de caché' ), 'Hojas combinadas: motivo claro: ' . $r[1] );
+		// El bloque de estilo de un hijo cuenta (sólo se excluyen los de Hello).
+		$child_inline = '<html><head><style id="hello-elementor-child-style-inline-css">.x{}</style><style id="hello-elementor-inline-css">.y{}</style></head><body>Texto</body></html>';
+		$r            = Front::compare_styles( Front::fingerprint( 200, $child_inline ), Front::fingerprint( 200, '<html><head></head><body>Texto</body></html>' ) );
+		check( false === $r[0] && false !== strpos( $r[1], 'hello-elementor-child-style-inline-css' ) && false === strpos( $r[1], 'hello-elementor-inline-css,' ), 'El bloque de estilo del hijo cuenta; el de Hello no: ' . $r[1] );
 		check( false !== strpos( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => false ) ) )[1], 'anterior a 1.0.1' ), 'Sin lector del hijo (tema viejo), se queda y dice que hay que actualizarlo.' );
 		check( ! Full::theme_safety( $hijo, array( 'can' => false ) + $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => '' ) ) )[0], 'Sin permiso para cambiar temas, un hijo tampoco cambia.' );
 		// Huella de estilo: hojas (con su handle), bloques de estilo, CSS adicional y kit.
@@ -826,11 +835,12 @@ switch ( $scenario ) {
 		$last = Full::last( false );
 		check( '' === $last['failed'], 'Termina: ' . $last['error'] );
 		check( 'hello-hijo' === get_option( 'stylesheet' ) && ! logged( 'switch_theme' ), 'Un hijo de Hello con PHP que no se traslada no se cambia.' );
-		check( false !== strpos( $last['theme'][1]['reason'], 'tema hijo' ) && false !== strpos( $last['theme'][1]['reason'], "functions.php, línea 10: add_action( 'wp_head' )" ) && false !== strpos( $last['theme'][1]['reason'], "línea 13: add_action( 'wp_footer' )" ) && false !== strpos( $last['theme'][1]['reason'], 'copia su functions.php tal cual en un fragmento de DIGITALÍSIMO Tools → Código PHP' ), 'El informe dice qué lo impide, en qué línea y qué hacer: ' . $last['theme'][1]['reason'] );
+		check( false !== strpos( $last['theme'][1]['reason'], 'tema hijo' ) && false !== strpos( $last['theme'][1]['reason'], "functions.php, línea 10: add_action( 'wp_head' )" ) && false !== strpos( $last['theme'][1]['reason'], "línea 13: add_action( 'wp_footer' )" ) && false !== strpos( $last['theme'][1]['reason'], 'activa DIGITALÍSIMO Tools en este sitio' ), 'El informe dice qué lo impide, en qué línea y el orden para hacerlo: ' . $last['theme'][1]['reason'] );
 		check( isset( $GLOBALS['t']['themes']['digitalisimo-theme'] ) && in_array( 'install:digitalisimo-theme', logged( 'install:' ), true ), 'El tema propio se instala para leer el hijo con su propio lector.' );
 		check( isset( $GLOBALS['t']['themes']['hello-elementor'] ), 'Hello no se borra.' );
 		check( ! installed_now( 'seo-by-rank-math/rank-math.php' ), 'Lo demás sí se reemplaza.' );
 		$html = Full::render( false, $last );
+		check( false !== strpos( $html, 'El tema DIGITALÍSIMO quedó instalado sin activar' ), 'El informe dice que el tema propio quedó instalado sin activar.' );
 		check( false !== strpos( (string) strstr( $html, 'digi-migrate__attention-title' ), 'Tema: El sitio usa un tema hijo de Hello' ) && false !== strpos( $html, 'se queda Hello Hijo (ver «Necesita tu atención»).' ) && false !== strpos( $html, 'notice-warning' ) && false === strpos( $html, 'Nada necesita' ), 'El tema hijo que se queda, con su acción, va en «Necesita tu atención».' );
 		break;
 
@@ -842,24 +852,30 @@ switch ( $scenario ) {
 			$GLOBALS['t']['imports'][] = $items;
 			return array( 'digitalisimo-theme:hello-hijo' => 'created' );
 		};
+		// Tools activo en este sitio (en una red, el filtro puede estar cargado aunque el sitio no lo use: ver abajo).
+		update_option( 'active_plugins', array_merge( (array) get_option( 'active_plugins', array() ), array( Full::TOOLS_FILE ) ) );
 		drive();
 		$last = Full::last( false );
 		check( 'hello-hijo' === get_option( 'stylesheet' ) && ! logged( 'switch_theme' ), 'Sigue sin cambiar: el PHP importado está inactivo.' );
 		check( 1 === count( (array) ( $GLOBALS['t']['imports'] ?? array() ) ) && 'hello-hijo' === $GLOBALS['t']['imports'][0][0]['origin']['id'] && PHP_CHILD === $GLOBALS['t']['imports'][0][0]['code'], 'Su functions.php va a Tools una vez, tal cual.' );
-		check( false !== strpos( $last['theme'][1]['reason'], 'revisa «PHP del tema hijo Hello Hijo» (Migrar lo dejó ahí, inactivo, sin tocarlo) y actívalo' ), 'Y el informe dice dónde quedó: ' . $last['theme'][1]['reason'] );
+		check( false !== strpos( $last['theme'][1]['reason'], '2) enseguida en DIGITALÍSIMO Tools → Código PHP revisa «PHP del tema hijo Hello Hijo» (Migrar lo dejó ahí, inactivo y sin tocar) y actívalo (no antes' ), 'Y el informe dice dónde quedó: ' . $last['theme'][1]['reason'] );
 		break;
 
 	case 'theme_child_covered':
-		// Su functions.php ya está activo, tal cual, en Tools: se cambia (su PHP sigue corriendo) y la portada se pinta igual.
+		// Tools no activo en el sitio aunque su filtro esté cargado (una red con Tools sólo en el principal): no se importa
+		// nada y el informe pide activarlo; y aunque hubiera una fila activa con su código, el hijo no cambia solo.
 		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
 		$GLOBALS['t']['child_sheet']                                  = 'hello-hijo';
-		$GLOBALS['t']['carry']                                        = true;
+		$GLOBALS['t']['filters']['digitalisimo_tools_php_import'][]   = static function ( $result, $items ) {
+			$GLOBALS['t']['imports'][] = $items;
+			return array( 'digitalisimo-theme:hello-hijo' => 'created' );
+		};
 		$GLOBALS['t']['filters']['digitalisimo_tools_php_sources'][] = static function ( $rows ) {
 			return array_merge( $rows, array( array( 'scope' => 'site', 'id' => 'a1', 'active' => true, 'hash' => hash( 'sha256', PHP_CHILD ) ) ) );
 		};
 		drive();
 		$last = Full::last( false );
-		check( '' === $last['failed'] && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ) && ! empty( $last['verified'] ), 'Con su PHP activo en Tools, el hijo pasa al tema propio y se verifica: ' . json_encode( $last['theme'][1] ) );
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && empty( $last['theme'][1]['switched'] ) && array() === (array) ( $GLOBALS['t']['imports'] ?? array() ) && false !== strpos( $last['theme'][1]['reason'], 'activa DIGITALÍSIMO Tools en este sitio' ), 'Sin Tools activo en el sitio no se importa y el hijo se queda: ' . json_encode( $last['theme'][1] ) );
 		break;
 
 	case 'theme_child_ok':
@@ -870,7 +886,7 @@ switch ( $scenario ) {
 		$state                       = drive();
 		$last                        = Full::last( false );
 		check( '' === $last['failed'] && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ), 'El hijo típico pasa al tema propio: ' . json_encode( $last['theme'][1] ) );
-		check( array( 'blockers' => '', 'covered' => false, 'carried' => 1, 'imported' => '' ) === $last['theme'][1]['child_facts'], 'Se lee: una hoja que se trae, sin bloqueos: ' . json_encode( $last['theme'][1]['child_facts'] ) );
+		check( array( 'blockers' => '', 'carried' => 1, 'tools' => false, 'imported' => '' ) === $last['theme'][1]['child_facts'], 'Se lee: una hoja que se trae, sin bloqueos: ' . json_encode( $last['theme'][1]['child_facts'] ) );
 		check( ! empty( $last['verified'] ) && 2 === count( $last['verify'] ), 'La portada y la página responden y se pintan igual.' );
 		check( isset( $GLOBALS['t']['themes']['hello-elementor'], $GLOBALS['t']['themes']['hello-hijo-ok'] ) && false !== strpos( (string) ( $last['kept']['hello-elementor'] ?? '' ), 'depende de Hello' ), 'Hello y el hijo se quedan (el tema propio carga la hoja del hijo desde su carpeta): ' . json_encode( $last['kept'] ) );
 		break;

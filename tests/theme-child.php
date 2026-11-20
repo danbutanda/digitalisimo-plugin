@@ -198,7 +198,7 @@ $by = array();
 foreach ( $plan['assets'] as $asset ) {
 	$by[ $asset['h'] ] = $asset;
 }
-check( array( 'tp-fonts', 'tp-main', 'tp-print', 'tp-parent', 'tp-js', 'tp-defer', 'tp-solo' ) === array_keys( $by ), 'Siete entradas, en orden, sin el archivo que falta ni el encolado repetido: ' . implode( ',', array_keys( $by ) ) );
+check( array( 'tp-fonts', 'tp-main', 'tp-print', 'tp-parent', 'tp-js', 'tp-defer', 'tp-falta', 'tp-solo' ) === array_keys( $by ), 'Ocho entradas, en orden, con el archivo que falta (su handle existía con Hello) y sin el encolado repetido: ' . implode( ',', array_keys( $by ) ) );
 check( false === $by['tp-solo']['e'] && true === $by['tp-main']['e'], 'Lo sólo registrado queda registrado, no encolado.' );
 check( 'url' === $by['tp-fonts']['w'] && null === $by['tp-fonts']['v'] && true === $by['tp-fonts']['e'] && 5 === $by['tp-fonts']['p'], 'La fuente de otra dirección, registrada y encolada después, se encola con versión null.' );
 check( 'style.css' === $by['tp-main']['s'] && '1700000000' === $by['tp-main']['v'] && array( 'tp-fonts' ) === $by['tp-main']['d'], 'get_stylesheet_uri() y filemtime() del hijo.' );
@@ -248,11 +248,17 @@ $bad = array(
 	"add_action( 'wp_enqueue_scripts', function () { wp_enqueue_style( 'a', 'https://x.test/a.css', 'no-array' ); } );" => "wp_enqueue_style( 'a' )",
 	"add_action( 'after_setup_theme', function () { add_theme_support( 'x' ); } );"         => "add_theme_support( 'x' )",
 	"add_action( 'init', 'f' ); function f() {}"                                          => "add_action( 'init' )",
+	"add_action( 'wp_enqueue_scripts', function () { wp_enqueue_style( 'a', 'https://x.test/a.css' ) || error_log( 'x' ); } );" => "wp_enqueue_style( 'a' )",
 );
 foreach ( $bad as $code => $expected ) {
 	$plan = plan_of( "<?php\n" . $code . "\n" );
 	check( $plan['blockers'] && false !== strpos( implode( ' | ', whats( $plan ) ), $expected ), "Bloquea «{$code}» como «{$expected}»: " . implode( ' | ', whats( $plan ) ) );
 	check( array() === $plan['assets'] || "add_action( 'wp_enqueue_scripts', function () { wp_dequeue_style( 'hello-elementor' ); } );" === $code, "Nada que traer de «{$code}»." );
+}
+// Un atributo de PHP 8 (`#[`) dentro de una función enganchada no desarma la lectura del resto del cuerpo.
+if ( PHP_VERSION_ID >= 80000 ) {
+	$plan = plan_of( "<?php\nfunction f() {\n\t\$a = #[X] fn() => 1;\n\twp_enqueue_style( 'a', 'https://x.test/a.css' );\n}\nadd_action( 'wp_enqueue_scripts', 'f' );\n" );
+	check( array( 'a' ) === array_column( $plan['assets'], 'h' ) && 1 === count( $plan['blockers'] ) && 3 === $plan['blockers'][0]['line'], 'Con un atributo de PHP 8 en el cuerpo, la línea del atributo bloquea y el encolado de después se lee: ' . json_encode( $plan ) );
 }
 $plan = plan_of( "<p>HTML antes</p><?php\n" );
 check( $plan['blockers'] && 'no se pudo leer como PHP' === $plan['blockers'][0]['what'], 'Un archivo que no empieza por PHP no se lee.' );
@@ -330,12 +336,58 @@ wp_register_style( 'hello-elementor-child-style-otro', 'x', array(), '1', 'all' 
 $GLOBALS['actions']['wp_enqueue_scripts'][5][0]();
 check( array( 'style:tp-fonts' ) === $GLOBALS['queue'], 'En la prioridad 5 sólo la fuente: ' . implode( ',', $GLOBALS['queue'] ) );
 check( array( 'https://sitio.test/wp-content/themes/hijo/style.css', array( 'hello-elementor-theme-style' ), '2.0.0', 'all' ) === $GLOBALS['styles']['hello-elementor-child-style'], 'El style.css del hijo, desde su carpeta, con su handle, dependencia y versión.' );
-check( ! isset( $GLOBALS['styles']['tp-ido'] ), 'Un archivo que ya no está no se registra (sin enlaces rotos).' );
+check( isset( $GLOBALS['styles']['tp-ido'] ) && false === $GLOBALS['styles']['tp-ido'][0], 'Un archivo que ya no está queda como alias sin archivo (sin enlace roto y sin perder lo que depende de él).' );
 check( 'https://sitio.test/wp-content/themes/hello-elementor/style.css' === $GLOBALS['styles']['tp-reg'][0] && 'https://fonts.example.test/css?family=A' === $GLOBALS['styles']['tp-fonts'][0] && array( 'https://sitio.test/wp-content/themes/hijo/style.css', array( 'jquery' ), '3', true ) === $GLOBALS['scripts']['tp-js'], 'Archivo de Hello, dirección externa y script con sus datos.' );
 $GLOBALS['actions']['wp_enqueue_scripts'][20][0]();
-check( array( 'style:tp-fonts', 'style:hello-elementor-child-style', 'script:tp-js' ) === $GLOBALS['queue'], 'En la 20, el style.css y el script; lo sólo registrado no se encola: ' . implode( ',', $GLOBALS['queue'] ) );
+check( array( 'style:tp-fonts', 'style:hello-elementor-child-style', 'style:tp-ido', 'script:tp-js' ) === $GLOBALS['queue'], 'En la 20, el style.css y el script; lo sólo registrado no se encola: ' . implode( ',', $GLOBALS['queue'] ) );
 $GLOBALS['options']['digitalisimo_theme_child']['assets'][0]['s'] = '../hello-elementor/style.css';
 check( '' === digitalisimo_theme_child_asset_url( $GLOBALS['options']['digitalisimo_theme_child'], $GLOBALS['options']['digitalisimo_theme_child']['assets'][0] ), 'Una ruta con «..» guardada no se sirve.' );
+
+// ------------------------------------------------------------------ 5b. Aviso en Temas y bitácora al borrar el hijo
+$GLOBALS['screen'] = 'themes';
+function get_current_screen() {
+	return (object) array( 'id' => $GLOBALS['screen'] );
+}
+function current_user_can( $cap ) {
+	return true;
+}
+function __( $text, $domain = '' ) {
+	return $text;
+}
+function esc_html( $text ) {
+	return htmlspecialchars( (string) $text, ENT_QUOTES );
+}
+function digitalisimo_theme_switch_log() {
+	return $GLOBALS['options']['digitalisimo_theme_switch_log'] ?? array();
+}
+function digitalisimo_theme_merge_warnings( $previous, array $current ) {
+	return array_merge( (array) $previous, $current );
+}
+function update_option( $key, $value, $autoload = null ) {
+	$GLOBALS['options'][ $key ] = $value;
+}
+$GLOBALS['options']['digitalisimo_theme_child']['assets'][0]['s'] = 'style.css';
+ob_start();
+digitalisimo_theme_child_notice();
+check( false !== strpos( ob_get_clean(), 'notice-info' ), 'En Temas, con el hijo en su carpeta: no lo borres.' );
+digitalisimo_theme_child_deleted( 'otro', true );
+check( ! isset( $GLOBALS['options']['digitalisimo_theme_switch_log'] ), 'Borrar otro tema no anota nada.' );
+rename( $GLOBALS['root'] . '/hijo', $GLOBALS['root'] . '/hijo-movido' );
+digitalisimo_theme_child_deleted( 'hijo', true );
+check( 'child_deleted' === ( $GLOBALS['options']['digitalisimo_theme_switch_log']['warnings'][0]['code'] ?? '' ), 'Borrar el hijo cuyas hojas carga el tema queda en la bitácora.' );
+ob_start();
+digitalisimo_theme_child_notice();
+check( false !== strpos( ob_get_clean(), 'notice-error' ), 'En Temas, sin el hijo: aviso de error.' );
+$GLOBALS['screen'] = 'dashboard';
+ob_start();
+digitalisimo_theme_child_notice();
+check( '' === ob_get_clean(), 'Fuera de Temas no avisa.' );
+$GLOBALS['options']['digitalisimo_theme_switch'] = array();
+$GLOBALS['screen'] = 'themes';
+ob_start();
+digitalisimo_theme_child_notice();
+check( '' === ob_get_clean(), 'Sin «carry» no avisa.' );
+rename( $GLOBALS['root'] . '/hijo-movido', $GLOBALS['root'] . '/hijo' );
 
 // ------------------------------------------------------------------ 6. PHP del hijo en Código PHP de Tools
 $GLOBALS['imports'] = array();

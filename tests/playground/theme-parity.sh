@@ -73,7 +73,7 @@ for slug, main in (('digitalisimo-backups', 'digitalisimo-backups/digitalisimo-b
 tv = version(f'{root}/digitalisimo-theme/style.css')
 json.dump({'tag': 'v2026.11.20.999', 'plugins': plugins, 'themes': {'digitalisimo-theme': {'version': tv, 'url': f'{url}{theme_zip}'}}}, open(f'{out}/manifest.json', 'w'))
 PY
-  MOUNTS+=(--mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" --mount="$ZIPS:/tp-zips" --mount="$STORE:/tp-store")
+  MOUNTS+=(--mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" --mount="$ROOT/digitalisimo-tools:/wordpress/wp-content/plugins/digitalisimo-tools" --mount="$ZIPS:/tp-zips" --mount="$STORE:/tp-store")
   CONSTS='"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/tp-store","DISABLE_WP_CRON":true'
 else
   MOUNTS+=(--mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" --mount="$BASE_OUT/themes/digitalisimo-theme:/wordpress/wp-content/themes/digitalisimo-theme")
