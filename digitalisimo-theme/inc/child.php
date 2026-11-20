@@ -877,13 +877,52 @@ function digitalisimo_theme_child_php_covered( WP_Theme $child ) {
 	if ( '' === $code || "\0" === $code ) {
 		return false;
 	}
-	$hash = hash( 'sha256', $code );
+	$hashes = array( hash( 'sha256', $code ) );
+	$wrap   = digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ) );
+	if ( '' !== $wrap ) {
+		$hashes[] = hash( 'sha256', $wrap );
+	}
 	foreach ( (array) apply_filters( 'digitalisimo_tools_php_sources', array(), array() ) as $row ) {
-		if ( is_array( $row ) && ! empty( $row['active'] ) && hash_equals( $hash, (string) ( $row['hash'] ?? '' ) ) ) {
+		if ( is_array( $row ) && ! empty( $row['active'] ) && in_array( (string) ( $row['hash'] ?? '' ), $hashes, true ) ) {
 			return true;
 		}
 	}
 	return false;
+}
+
+/**
+ * El functions.php del hijo dentro de una condición que sólo lo deja correr con el tema DIGITALÍSIMO activo: con el hijo
+ * activo el fragmento no hace nada (sus funciones ni se declaran), así que puede revisarse y activarse en Tools antes de
+ * cambiar de tema, sigue corriendo en cuanto el hijo deja de cargarse y se apaga solo si se vuelve al hijo. '' si el
+ * archivo no admite ir dentro de un bloque (namespace, use, declare, const de primer nivel o __halt_compiler).
+ */
+function digitalisimo_theme_child_wrap_php( $code, $name ) {
+	$code = (string) $code;
+	if ( ! preg_match( '/^<\?php\s/', $code ) || ! function_exists( 'token_get_all' ) ) {
+		return '';
+	}
+	$depth = 0;
+	$last  = null;
+	foreach ( token_get_all( $code ) as $token ) {
+		$type = is_array( $token ) ? $token[0] : $token;
+		if ( in_array( $type, array( '{', T_CURLY_OPEN, T_DOLLAR_OPEN_CURLY_BRACES ), true ) ) {
+			++$depth;
+		} elseif ( '}' === $type ) {
+			--$depth;
+		}
+		if ( 0 === $depth && in_array( $type, array( T_NAMESPACE, T_USE, T_DECLARE, T_CONST, T_HALT_COMPILER ), true ) ) {
+			return '';
+		}
+		if ( ! is_array( $token ) || ! in_array( $token[0], array( T_WHITESPACE, T_COMMENT, T_DOC_COMMENT ), true ) ) {
+			$last = $type;
+		}
+	}
+	$body  = (string) preg_replace( '/^<\?php\s/', '', $code, 1 );
+	$label = str_replace( array( '*/', "\r", "\n" ), '', (string) $name );
+	return "<?php\n// functions.php del tema hijo «" . $label . "», tal cual, dentro de esta condición: sólo corre con el tema DIGITALÍSIMO\n"
+		. "// activo. Con el hijo activo no hace nada, así que puede activarse antes de cambiar de tema y se apaga si se vuelve al hijo.\n"
+		. "if ( function_exists( 'digitalisimo_theme_parity' ) ) {\n" . rtrim( $body ) . "\n"
+		. ( in_array( $last, array( T_INLINE_HTML, T_CLOSE_TAG ), true ) ? "<?php\n}\n" : "}\n" );
 }
 
 /**
@@ -902,7 +941,10 @@ function digitalisimo_theme_child_import_php( WP_Theme $child, array $plan ) {
 	if ( ! $php || '' === $code || "\0" === $code || ! preg_match( '/^<\?php\s/', $code ) || ! has_filter( 'digitalisimo_tools_php_import' ) ) {
 		return '';
 	}
-	$notes  = array_slice( array_merge( array( 'Lo que el tema DIGITALÍSIMO no trae solo: ' . implode( '; ', array_slice( $php, 0, 10 ) ) . '.' ), $plan['assets'] ? array( 'Las hojas y scripts que encolaba ya los carga el tema DIGITALÍSIMO desde la carpeta del hijo.' ) : array() ), 0, 5 );
+	// Con la condición del tema propio, el fragmento puede activarse antes del cambio sin chocar con el hijo.
+	$wrap = digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ) );
+	$code = '' !== $wrap ? $wrap : $code;
+	$notes  = array_slice( array_merge( array( 'Lo que el tema DIGITALÍSIMO no trae solo: ' . implode( '; ', array_slice( $php, 0, 10 ) ) . '.' ), '' !== $wrap ? array( 'Va dentro de una condición que sólo lo deja correr con el tema DIGITALÍSIMO activo: puedes activarlo antes de cambiar de tema (con el hijo activo no hace nada) y se apaga solo si vuelves al hijo.' ) : array( 'Actívalo sólo después de cambiar al tema DIGITALÍSIMO: con el hijo activo chocaría con su functions.php.' ), $plan['assets'] ? array( 'Las hojas y scripts que encolaba ya los carga el tema DIGITALÍSIMO desde la carpeta del hijo.' ) : array() ), 0, 5 );
 	$result = apply_filters(
 		'digitalisimo_tools_php_import',
 		null,

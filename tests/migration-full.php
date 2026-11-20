@@ -677,11 +677,13 @@ switch ( $scenario ) {
 		$hijo = array( 'child' => true, 'name' => 'Hijo' ) + $hello;
 		check( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => '' ) ) )[0], 'Un hijo cuyo PHP sólo encola hojas es seguro.' );
 		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => "functions.php, línea 9: add_action( 'wp_head' )" ) ) );
-		check( ! $kept[0] && false !== strpos( $kept[1], "add_action( 'wp_head' )" ) && false !== strpos( $kept[1], 'activa DIGITALÍSIMO Tools en este sitio' ) && false !== strpos( $kept[1], '1) en Apariencia activa el tema DIGITALÍSIMO' ) && strpos( $kept[1], '1) en Apariencia' ) < strpos( $kept[1], 'Código PHP' ) && false !== strpos( $kept[1], 'no antes' ), 'Un hijo con PHP que no se traslada se queda, con qué es y qué hacer: ' . $kept[1] );
-		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => 'created' ) ) );
-		check( ! $kept[0] && false !== strpos( $kept[1], 'Migrar lo dejó ahí, inactivo' ), 'Si Migrar lo dejó en Tools, lo dice: ' . $kept[1] );
+		check( ! $kept[0] && false !== strpos( $kept[1], "add_action( 'wp_head' )" ) && false !== strpos( $kept[1], 'activa DIGITALÍSIMO Tools en este sitio y vuelve a pulsar Migrar' ), 'Un hijo con PHP que no se traslada se queda, con qué es y qué hacer: ' . $kept[1] );
+		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => 'created', 'wrap' => true, 'tools' => true ) ) );
+		check( ! $kept[0] && false !== strpos( $kept[1], 'Migrar lo dejó ahí, inactivo' ) && false !== strpos( $kept[1], 'puedes activarlo ya, con el hijo activo' ) && false !== strpos( $kept[1], 'vuelve a pulsar Migrar' ), 'Importado con la condición: activarlo ya y volver a pulsar Migrar: ' . $kept[1] );
+		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => 'created', 'wrap' => false, 'tools' => true ) ) );
+		check( ! $kept[0] && false !== strpos( $kept[1], '1) en Apariencia activa el tema DIGITALÍSIMO' ) && strpos( $kept[1], '1) en Apariencia' ) < strpos( $kept[1], '2) enseguida revisa' ) && false !== strpos( $kept[1], 'no antes' ), 'Sin la condición posible, el orden a mano: ' . $kept[1] );
 		check( false !== strpos( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'tools' => true ) ) )[1], 'en DIGITALÍSIMO Tools → Código PHP crea un fragmento' ), 'Con Tools activo y sin importar, dice que cree el fragmento.' );
-		check( ! Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'covered' => true ) ) )[0], 'Un hijo con bloqueos nunca cambia solo, aunque haya un fragmento (no puede estar activo con el hijo cargado).' );
+		check( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'covered' => true ) ) )[0], 'Con ese PHP ya activo en Tools, el hijo puede cambiar.' );
 		// Hojas combinadas por un plugin de caché: un motivo propio, no «faltan hojas».
 		$cached = '<html><head><link rel="stylesheet" id="autoptimize-css" href="/wp-content/cache/autoptimize/css/autoptimize_abc.css"></head><body class="elementor-kit-7">Texto</body></html>';
 		$r      = Front::compare_styles( Front::fingerprint( 200, $cached ), Front::fingerprint( 200, str_replace( 'abc', 'def', str_replace( 'id="autoptimize-css" ', '', $cached ) ) ) );
@@ -857,8 +859,21 @@ switch ( $scenario ) {
 		drive();
 		$last = Full::last( false );
 		check( 'hello-hijo' === get_option( 'stylesheet' ) && ! logged( 'switch_theme' ), 'Sigue sin cambiar: el PHP importado está inactivo.' );
-		check( 1 === count( (array) ( $GLOBALS['t']['imports'] ?? array() ) ) && 'hello-hijo' === $GLOBALS['t']['imports'][0][0]['origin']['id'] && PHP_CHILD === $GLOBALS['t']['imports'][0][0]['code'], 'Su functions.php va a Tools una vez, tal cual.' );
-		check( false !== strpos( $last['theme'][1]['reason'], '2) enseguida en DIGITALÍSIMO Tools → Código PHP revisa «PHP del tema hijo Hello Hijo» (Migrar lo dejó ahí, inactivo y sin tocar) y actívalo (no antes' ), 'Y el informe dice dónde quedó: ' . $last['theme'][1]['reason'] );
+		check( 1 === count( (array) ( $GLOBALS['t']['imports'] ?? array() ) ) && 'hello-hijo' === $GLOBALS['t']['imports'][0][0]['origin']['id'] && false !== strpos( $GLOBALS['t']['imports'][0][0]['code'], "if ( function_exists( 'digitalisimo_theme_parity' ) ) {\n" . substr( PHP_CHILD, 6 ) ), 'Su functions.php va a Tools una vez, tal cual, dentro de la condición del tema propio.' );
+		check( false !== strpos( $last['theme'][1]['reason'], 'revisa «PHP del tema hijo Hello Hijo» y actívalo (Migrar lo dejó ahí, inactivo; va dentro de una condición' ), 'Y el informe dice dónde quedó y que puede activarse ya: ' . $last['theme'][1]['reason'] );
+		// La persona lo activa (con el hijo todavía activo) y vuelve a pulsar Migrar: el tema cambia y el PHP sigue.
+		$wrapped = $GLOBALS['t']['imports'][0][0]['code'];
+		$GLOBALS['t']['filters']['digitalisimo_tools_php_sources'][] = static function ( $rows ) use ( $wrapped ) {
+			return array_merge( $rows, array( array( 'scope' => 'site', 'id' => 'a1', 'active' => true, 'hash' => hash( 'sha256', $wrapped ) ) ) );
+		};
+		$GLOBALS['t']['carry'] = true;
+		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
+		$state = request( true, 'clic2' );
+		for ( $i = 0; $i < 80 && empty( $state['done'] ); $i++ ) {
+			$state = request();
+		}
+		$last = Full::last( false );
+		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ) && ! empty( $last['theme'][1]['child_facts']['covered'] ) && 1 === count( $GLOBALS['t']['imports'] ), 'Con el fragmento activo, la siguiente pasada cambia el tema sin volver a importar: ' . json_encode( $last['theme'][1] ) );
 		break;
 
 	case 'theme_child_covered':
@@ -875,7 +890,7 @@ switch ( $scenario ) {
 		};
 		drive();
 		$last = Full::last( false );
-		check( 'hello-hijo' === get_option( 'stylesheet' ) && empty( $last['theme'][1]['switched'] ) && array() === (array) ( $GLOBALS['t']['imports'] ?? array() ) && false !== strpos( $last['theme'][1]['reason'], 'activa DIGITALÍSIMO Tools en este sitio' ), 'Sin Tools activo en el sitio no se importa y el hijo se queda: ' . json_encode( $last['theme'][1] ) );
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && empty( $last['theme'][1]['switched'] ) && array() === (array) ( $GLOBALS['t']['imports'] ?? array() ) && false !== strpos( $last['theme'][1]['reason'], 'activa DIGITALÍSIMO Tools en este sitio y vuelve a pulsar Migrar' ), 'Sin Tools activo en el sitio no se importa (ni cuenta como cubierto) y el hijo se queda: ' . json_encode( $last['theme'][1] ) );
 		break;
 
 	case 'theme_child_ok':
@@ -886,7 +901,7 @@ switch ( $scenario ) {
 		$state                       = drive();
 		$last                        = Full::last( false );
 		check( '' === $last['failed'] && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ), 'El hijo típico pasa al tema propio: ' . json_encode( $last['theme'][1] ) );
-		check( array( 'blockers' => '', 'carried' => 1, 'tools' => false, 'imported' => '' ) === $last['theme'][1]['child_facts'], 'Se lee: una hoja que se trae, sin bloqueos: ' . json_encode( $last['theme'][1]['child_facts'] ) );
+		check( array( 'blockers' => '', 'covered' => false, 'carried' => 1, 'tools' => false, 'wrap' => true, 'imported' => '' ) === $last['theme'][1]['child_facts'], 'Se lee: una hoja que se trae, sin bloqueos: ' . json_encode( $last['theme'][1]['child_facts'] ) );
 		check( ! empty( $last['verified'] ) && 2 === count( $last['verify'] ), 'La portada y la página responden y se pintan igual.' );
 		check( isset( $GLOBALS['t']['themes']['hello-elementor'], $GLOBALS['t']['themes']['hello-hijo-ok'] ) && false !== strpos( (string) ( $last['kept']['hello-elementor'] ?? '' ), 'depende de Hello' ), 'Hello y el hijo se quedan (el tema propio carga la hoja del hijo desde su carpeta): ' . json_encode( $last['kept'] ) );
 		break;

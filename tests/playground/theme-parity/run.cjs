@@ -301,6 +301,22 @@ function checkRecords(phase, st, sites) {
       checkRecords('B', st, sites);
       await capture(browser, 'B', sites);
       await compare(browser, 'B', sites, { expectDiff: Object.keys(sites).filter((id) => sites[id].kind === 'child-php') });
+      // El hijo con PHP: el paso dejó su functions.php en Código PHP de Tools (inactivo, dentro de la condición del tema
+      // propio); se activa de verdad desde Tools y el sitio vuelve a verse y comportarse como con el hijo.
+      const phpId = Object.keys(sites).find((id) => sites[id].kind === 'child-php');
+      if (phpId) {
+        const index = (st.sites[phpId] || {}).tools || {};
+        const itemId = Object.keys(index.items || {}).find((k) => /^digitalisimo-theme:/.test(index.items[k].origin_key || ''));
+        check(!!itemId && index.items[itemId].review === true, `El cambio de tema dejó el functions.php del hijo en Código PHP de Tools, inactivo y con revisión: ${JSON.stringify(index.items || {})}`);
+        if (itemId) {
+          const on = await toolsActivate(browser, page, sites[phpId], itemId);
+          result.toolsActivation = on;
+          check(on.success, `Tools activa el fragmento revisado: ${JSON.stringify(on).slice(0, 300)}`);
+          log(`  Tools: ${String((on.data || {}).message || '').slice(0, 160)}`);
+          await capture(browser, 'B3', { [phpId]: sites[phpId] });
+          await compare(browser, 'B3', { [phpId]: sites[phpId] });
+        }
+      }
       for (const s of Object.values(sites)) await activate(page, s, s.from);
       st = await state(page);
       for (const [id, s] of Object.entries(st.sites)) check(s.stylesheet === sites[id].from, `C sitio ${id}: vuelve a ${sites[id].from} (${s.stylesheet})`);
@@ -309,7 +325,8 @@ function checkRecords(phase, st, sites) {
       for (const s of Object.values(sites)) await activate(page, s, 'digitalisimo-theme');
       checkRecords('B2', await state(page), sites);
       await capture(browser, 'B2', sites);
-      await compare(browser, 'B2', sites, { expectDiff: Object.keys(sites).filter((id) => sites[id].kind === 'child-php') });
+      // Con el fragmento ya activo, el hijo con PHP también queda igual (la vuelta al hijo, C, no chocó con él).
+      await compare(browser, 'B2', sites, { expectDiff: Object.keys(sites).filter((id) => sites[id].kind === 'child-php' && !(result.toolsActivation && result.toolsActivation.success)) });
       for (const s of Object.values(sites)) {
         const r = await api(page, 'revert', '', s.home);
         check(r.ok && r.stylesheet === s.from, `R ${s.home}: la reversión vuelve a ${s.from}: ${JSON.stringify(r)}`);
@@ -388,32 +405,15 @@ function checkRecords(phase, st, sites) {
       checkRecords('B', st, sites);
       await capture(browser, 'B', sites);
       await compare(browser, 'B', sites);
-      // El hijo con PHP que se quedó, siguiendo el orden del informe con una activación real en Tools: activar su
-      // fragmento con el hijo todavía activo falla (declararía otra vez sus funciones); cambiar de tema en Apariencia y
-      // enseguida activarlo funciona, y el sitio vuelve a verse y comportarse como con el hijo.
+      // El hijo con PHP que se quedó: su functions.php queda en Código PHP de Tools del sitio, inactivo, con revisión y
+      // dentro de la condición del tema propio (la activación real se prueba con Apariencia, con un solo worker).
       const phpId = Object.keys(sites).find((id) => sites[id].kind === 'child-php');
       if (phpId && !conf.break) {
-        const site = sites[phpId];
         const index = (st.sites[phpId] || {}).tools || {};
-        const itemId = Object.keys(index.items || {}).find((k) => /^digitalisimo-theme:/.test(index.items[k].origin_key || ''));
-        check(!!itemId, `Migrar dejó el functions.php del hijo en Código PHP de Tools del sitio ${phpId}: ${JSON.stringify(Object.values(index.items || {}).map((x) => x.origin_key))}`);
-        if (itemId) {
-          check(index.items[itemId].review === true && !(index.items[itemId].status === 'active'), `El fragmento importado está inactivo y pide revisión: ${JSON.stringify(index.items[itemId])}`);
-          const early = await toolsActivate(browser, page, site, itemId);
-          result.toolsEarly = early;
-          check(!early.success, `Con el hijo activo, Tools no deja activar su functions.php: ${JSON.stringify(early).slice(0, 300)}`);
-          log(`  Tools con el hijo activo: ${String((early.data || {}).message || '').slice(0, 160)}`);
-          await activate(page, site, 'digitalisimo-theme');
-          const late = await toolsActivate(browser, page, site, itemId);
-          result.toolsLate = late;
-          check(late.success, `Después del cambio de tema, el fragmento se activa: ${JSON.stringify(late).slice(0, 300)}`);
-          log(`  Tools tras cambiar de tema: ${String((late.data || {}).message || '').slice(0, 160)}`);
-          const only = { [phpId]: site };
-          await capture(browser, 'B3', only);
-          const prev = result.phases.A;
-          await compare(browser, 'B3', only);
-          result.phases.A = prev;
-        }
+        const item = Object.values(index.items || {}).find((x) => /^digitalisimo-theme:/.test(x.origin_key || ''));
+        check(item && item.review === true && item.status !== 'active', `Migrar dejó el functions.php del hijo en Código PHP de Tools, inactivo y con revisión: ${JSON.stringify(item)}`);
+        const other = Object.keys(sites).find((id) => sites[id].kind === 'child');
+        check(!Object.values(((st.sites[other] || {}).tools || {}).items || {}).length, 'En el sitio sin Tools activo no se importa nada.');
       }
     }
   } catch (e) {

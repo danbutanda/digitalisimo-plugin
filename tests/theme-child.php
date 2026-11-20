@@ -400,7 +400,33 @@ $GLOBALS['filters']['digitalisimo_tools_php_import'][] = static function ( $resu
 check( '' === digitalisimo_theme_child_import_php( $child, array( 'blockers' => array( array( 'file' => 'header.php', 'line' => 0, 'what' => 'x' ) ), 'assets' => array() ) ) && array() === $GLOBALS['imports'], 'Sin bloqueos en functions.php no se importa.' );
 check( 'created' === digitalisimo_theme_child_import_php( $child, array( 'blockers' => array( array( 'file' => 'functions.php', 'line' => 3, 'what' => "add_action( 'wp_head' )" ) ), 'assets' => array( 1 ) ) ), 'Con bloqueos y Tools, se importa.' );
 $item = $GLOBALS['imports'][0][0];
-check( $code === $item['code'] && 'digitalisimo-theme' === $item['origin']['source'] && 'hijo' === $item['origin']['id'] && ! isset( $item['status'] ) && false !== strpos( $item['notes'][0], "functions.php, línea 3: add_action( 'wp_head' )" ) && 'child-' . hash( 'sha256', $code ) === $item['origin']['hash'], 'El fragmento lleva el functions.php normalizado, su origen y lo que no se trajo, sin estado (Tools lo deja inactivo).' );
+$wrapped = digitalisimo_theme_child_wrap_php( $code, 'Hijo' );
+check( $wrapped === $item['code'] && 'digitalisimo-theme' === $item['origin']['source'] && 'hijo' === $item['origin']['id'] && ! isset( $item['status'] ) && false !== strpos( $item['notes'][0], "functions.php, línea 3: add_action( 'wp_head' )" ) && 'child-' . hash( 'sha256', $wrapped ) === $item['origin']['hash'] && false !== strpos( $item['notes'][1], 'puedes activarlo antes de cambiar de tema' ), 'El fragmento lleva el functions.php normalizado dentro de la condición del tema propio, su origen y lo que no se trajo, sin estado (Tools lo deja inactivo).' );
+// La condición: con el hijo cargado (sin el tema propio) no declara nada, así que no choca; con el tema propio, corre.
+$dir = $GLOBALS['root'] . '/wrap';
+@mkdir( $dir, 0777, true );
+$sample = "<?php\nif ( ! defined( 'ABSPATH' ) ) {\n\texit;\n}\nfunction tp_named() { return 'ok'; }\nadd_action( 'wp_head', 'tp_named' );\n";
+file_put_contents( $dir . '/child.php', $sample );
+file_put_contents( $dir . '/wrap.php', digitalisimo_theme_child_wrap_php( $sample, 'Hijo' ) );
+$stub = "define( 'ABSPATH', '/' ); function add_action() {} ";
+$run  = static function ( $php ) {
+	exec( escapeshellarg( PHP_BINARY ) . ' -r ' . escapeshellarg( $php ) . ' 2>&1', $out, $status );
+	return array( $status, implode( "\n", $out ) );
+};
+list( $st, $out ) = $run( $stub . "require '{$dir}/child.php'; require '{$dir}/wrap.php'; echo function_exists( 'tp_named' ) ? 'hijo' : 'x';" );
+check( 0 === $st && 'hijo' === $out, 'Con el hijo cargado, el fragmento con la condición no declara nada ni choca: ' . $out );
+list( $st, $out ) = $run( $stub . "function digitalisimo_theme_parity() { return true; } require '{$dir}/wrap.php'; echo tp_named();" );
+check( 0 === $st && 'ok' === $out, 'Con el tema propio, el fragmento corre: ' . $out );
+list( $st, $out ) = $run( $stub . "require '{$dir}/child.php'; require '{$dir}/child.php';" );
+check( 0 !== $st && false !== stripos( $out, 'redeclare' ), 'Sin la condición, cargarlo con el hijo choca (la falla que la condición evita).' );
+foreach ( array( "<?php\nnamespace X;\nfunction a() {}\n", "<?php\nuse X\\Y;\n", "<?php\ndeclare( strict_types=1 );\n", "<?php\nconst A = 1;\n" ) as $no ) {
+	check( '' === digitalisimo_theme_child_wrap_php( $no, 'Hijo' ), 'No admite la condición: ' . $no );
+}
+check( '' !== digitalisimo_theme_child_wrap_php( "<?php\nclass Z { const A = 1; }\n", 'Hijo' ), 'Una constante de clase no impide la condición.' );
+$html = digitalisimo_theme_child_wrap_php( "<?php\nfunction b() {}\n?>\n<p>x</p>\n", 'Hijo' );
+file_put_contents( $dir . '/html.php', $html );
+list( $st, $out ) = $run( "require '{$dir}/html.php'; echo 'fin';" );
+check( "<?php\n}\n" === substr( $html, -8 ) && 0 === $st && 'fin' === $out, 'Con HTML al final, la condición cierra en PHP y el archivo es válido: ' . $out );
 check( ! digitalisimo_theme_child_php_covered( $child ), 'Sin fuentes de Tools no está cubierto.' );
 $GLOBALS['filters']['digitalisimo_tools_php_sources'][] = static function ( $rows ) use ( $code ) {
 	return array_merge( $rows, array( array( 'active' => false, 'hash' => hash( 'sha256', $code ) ), array( 'active' => true, 'hash' => hash( 'sha256', $code . ' ' ) ) ) );

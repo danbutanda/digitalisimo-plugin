@@ -76,7 +76,7 @@ PY
   MOUNTS+=(--mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" --mount="$ROOT/digitalisimo-tools:/wordpress/wp-content/plugins/digitalisimo-tools" --mount="$ZIPS:/tp-zips" --mount="$STORE:/tp-store")
   CONSTS='"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/tp-store","DISABLE_WP_CRON":true'
 else
-  MOUNTS+=(--mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" --mount="$BASE_OUT/themes/digitalisimo-theme:/wordpress/wp-content/themes/digitalisimo-theme")
+  MOUNTS+=(--mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" --mount="$ROOT/digitalisimo-tools:/wordpress/wp-content/plugins/digitalisimo-tools" --mount="$BASE_OUT/themes/digitalisimo-theme:/wordpress/wp-content/themes/digitalisimo-theme")
   CONSTS='"DISABLE_WP_CRON":true'
 fi
 if [ "$SCENARIO" = network ]; then STEPS='{"step":"enableMultisite"},'; SITE='http://playground.test'; else STEPS=''; SITE="http://127.0.0.1:$PORT"; fi

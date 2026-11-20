@@ -75,9 +75,9 @@ if ( $network ) {
 		WP_Theme::network_enable_theme( $stylesheet );
 	}
 }
-// Con «Migrar», DIGITALÍSIMO Tools (su «Código PHP») activo en el sitio principal y en el del hijo con PHP, no en el
-// otro: el PHP de ese hijo se importa ahí y después se activa de verdad, en el orden que da el informe.
-if ( $migrar ) {
+// En la red, DIGITALÍSIMO Tools (su «Código PHP») activo en el sitio principal y en el del hijo con PHP, no en el otro:
+// el PHP de ese hijo se importa ahí (al cambiar de tema o con «Migrar») y se activa de verdad desde su pantalla.
+if ( $network ) {
 	foreach ( array_keys( $sites ) as $site_id ) {
 		if ( 'child' === $sites[ $site_id ] ) {
 			continue;
