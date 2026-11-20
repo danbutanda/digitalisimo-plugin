@@ -313,9 +313,10 @@ async function main() {
   r = await admin.call({ action: 'audit_products', per_page: 50, page: 2 });
   const m2 = (await probe('requests')).last;
   check(!r.isError && r.data?.cached === true && r.data?.data?.length === 50 && r.data?.total === page1.total, `página 2 desde el recorrido de la 1 (${Date.now() - t1} ms en el cliente)`, r.text.slice(0, 200));
-  // Un recorrido nuevo cuesta al menos lo de la página 1; con HPOS cada petición suma el trabajo de fondo de WooCommerce
-  // (Action Scheduler, sincronización), así que el umbral es relativo: menos del 70 % de consultas y menos memoria.
-  check(m2 && m1 && m2.queries < m1.queries * 0.7 && m2.peak_mb < m1.peak_mb, `la página 2 no vuelve a recorrer: ${m2?.queries} consultas y ${m2?.peak_mb} MB frente a ${m1?.queries} y ${m1?.peak_mb}`);
+  // Un recorrido nuevo carga los 5 000 elementos otra vez: al menos la memoria pico de la página 1. Las consultas no sirven
+  // de criterio con HPOS (el trabajo de fondo de WooCommerce, Action Scheduler y sincronización, varía de una petición a
+  // otra); la página 2 sale de la caché (cached arriba) y con al menos un 15 % menos de memoria.
+  check(m2 && m1 && m2.peak_mb < m1.peak_mb * 0.85, `la página 2 no vuelve a recorrer: ${m2?.peak_mb} MB y ${m2?.queries} consultas frente a ${m1?.peak_mb} MB y ${m1?.queries}`);
   log(`medida · página 2: ${m2?.ms} ms, ${m2?.queries} consultas, ${m2?.peak_mb} MB pico`);
   r = await admin.call({ action: 'audit_products', per_page: 50, after_id: page1.next_after_id });
   const m3 = (await probe('requests')).last;
