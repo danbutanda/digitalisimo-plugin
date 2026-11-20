@@ -443,6 +443,7 @@ jobs:
           php tests/seo-admin-perf.php
           php tests/seo-fixed-cost.php
           php tests/seo-elementor-perf.php
+          php tests/ia-excerpt.php
           php tests/admin-perf-guards.php
           php tests/plugin-catalog-manifest.php
           php tests/plugin-catalog-install-all.php
