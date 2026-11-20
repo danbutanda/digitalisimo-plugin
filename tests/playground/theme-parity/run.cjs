@@ -223,12 +223,24 @@ async function toolsActivate(browser, page, site, id) {
   // redirecciones (la red de la prueba vive en playground.test: se pide a 127.0.0.1 con su cabecera Host).
   // Exactamente como tools-php: cada portada sin cookies, al puerto local (Playground atiende con su dirección), sin
   // seguir redirecciones y leída entera.
+  // Cada portada sin la sesión del administrador, al puerto local. En un subsitio, Playground contesta la primera visita
+  // con un 302 a la misma dirección que pone su cookie: se sigue con esa cookie (como un navegador), nada más.
   const anonGet = async (url) => {
     const u = new URL(url);
+    let target = `http://127.0.0.1:${PORT}${u.pathname}${u.search}`;
+    const jar = [];
     try {
-      const r = await fetch(`http://127.0.0.1:${PORT}${u.pathname}${u.search}`, { redirect: 'manual' });
-      const body = await r.text();
-      result.toolsVisits = (result.toolsVisits || []).concat([{ url, status: r.status, location: r.headers.get('location') || '', bytes: body.length, footer: /<\/html>/i.test(body) }]);
+      for (let hop = 0; hop < 4; hop++) {
+        const r = await fetch(target, { redirect: 'manual', headers: jar.length ? { Cookie: jar.join('; ') } : {} });
+        const body = await r.text();
+        for (const c of r.headers.getSetCookie ? r.headers.getSetCookie() : []) jar.push(c.split(';')[0]);
+        const loc = r.headers.get('location') || '';
+        result.toolsVisits = (result.toolsVisits || []).concat([{ url: target, status: r.status, location: loc, bytes: body.length, footer: /<\/html>/i.test(body) }]);
+        if (r.status < 300 || r.status >= 400 || !loc) return;
+        const next = new URL(loc, target);
+        if (next.pathname + next.search !== u.pathname + u.search) return; // Sólo la redirección a sí misma (la de la cookie).
+        target = `http://127.0.0.1:${PORT}${next.pathname}${next.search}`;
+      }
     } catch (e) { result.toolsVisits = (result.toolsVisits || []).concat([{ url, error: String(e.message || e) }]); }
   };
   const visit = async (urls) => {
