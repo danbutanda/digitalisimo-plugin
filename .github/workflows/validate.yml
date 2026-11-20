@@ -258,6 +258,8 @@ jobs:
           php tests/ia-chat-server.php
           php tests/ia-admin-perf.php
           node tests/ia-chat-xss.mjs
+          php tests/ia-assistant.php
+          node tests/ia-assistant-ui.mjs
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
           php tests/performance-cache.php
