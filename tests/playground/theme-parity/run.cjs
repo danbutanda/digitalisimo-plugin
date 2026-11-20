@@ -14,6 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
+const http = require('http');
 
 const OUT = process.env.OUT;
 const conf = JSON.parse(fs.readFileSync(path.join(OUT, 'conf.json'), 'utf8'));
@@ -217,12 +218,18 @@ async function toolsActivate(browser, page, site, id) {
   const title = await page.evaluate(() => { const i = document.querySelector('input[name="title"]'); return i ? i.value : 'PHP del hijo'; });
   const r1 = await post({ do: 'prepare', scope: cfg.scope, blog_id: cfg.blog, id: cfg.id, nonce: cfg.nonces.prepare, title, code_b64: Buffer.from(code).toString('base64'), reviewed: '1' });
   if (!r1.success || !r1.data || !r1.data.sid) return r1;
-  const anon = await browser.createBrowserContext();
+  // Como tools-php: el escritorio con la sesión (el navegador) y cada portada sin cookies, leída entera y sin seguir
+  // redirecciones (la red de la prueba vive en playground.test: se pide a 127.0.0.1 con su cabecera Host).
+  const anonGet = (url) => new Promise((resolve) => {
+    const u = new URL(url);
+    const req = http.request({ host: '127.0.0.1', port: u.hostname === 'playground.test' ? PORT : (u.port || 80), path: u.pathname + u.search, method: 'GET', headers: { Host: u.host } }, (res) => { res.resume(); res.on('end', resolve); });
+    req.on('error', resolve);
+    req.setTimeout(300000, () => { req.destroy(); resolve(); });
+    req.end();
+  });
   const visit = async (urls) => {
-    for (const u of urls || []) {
-      if (u.kind === 'admin') await page.goto(u.url, { waitUntil: 'domcontentloaded' }).catch(() => {});
-      else { const p2 = await anon.newPage(); await p2.goto(u.url, { waitUntil: 'domcontentloaded' }).catch(() => {}); await p2.close(); }
-    }
+    await Promise.all((urls || []).map((u) => (u.kind === 'admin' ? null : anonGet(u.url))));
+    for (const u of urls || []) if (u.kind === 'admin') await page.goto(u.url, { waitUntil: 'load' }).catch(() => {});
   };
   await visit(r1.data.urls);
   await page.goto(`${site.home}wp-admin/`, { waitUntil: 'domcontentloaded' });
@@ -232,7 +239,6 @@ async function toolsActivate(browser, page, site, id) {
   const deadline = Date.now() + 60000;
   while (!r3.success && r3.data && r3.data.pending && Date.now() < deadline) { await sleep(1500); r3 = await step3(); }
   if (!r3.success && r3.data && r3.data.pending) r3 = await step3({ final: '1' });
-  await anon.close();
   return r3;
 }
 
