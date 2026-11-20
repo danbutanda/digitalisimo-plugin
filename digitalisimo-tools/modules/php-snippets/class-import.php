@@ -27,6 +27,11 @@ final class Import {
 	const FILTER  = 'digitalisimo_tools_php_import';
 	const SOURCES = 'digitalisimo_tools_php_sources';
 	const READY   = 'digitalisimo_tools_php_ready';
+	/** Activar o desactivar un importado del tema hijo desde Migración (ver activate_import()). */
+	const ACTIVATE   = 'digitalisimo_tools_php_activate_import';
+	const DEACTIVATE = 'digitalisimo_tools_php_deactivate_import';
+	/** Único origen que puede activarse sin la casilla: el functions.php del tema hijo que traslada el tema propio. */
+	const CHILD_SOURCE = 'digitalisimo-theme';
 	/** Marca con autoload: el índice del sitio ya existe y `…_ready` ya se disparó. */
 	const READY_FLAG = 'digitalisimo_tools_php_index_ready';
 	const SUSPICIOUS_NOTE = 'Los datos de origen contienen caracteres que podrían alterar el código generado; revisa el código línea por línea.';
@@ -36,6 +41,8 @@ final class Import {
 	public static function init() {
 		add_filter( self::FILTER, array( __CLASS__, 'import' ), 10, 3 );
 		add_filter( self::SOURCES, array( __CLASS__, 'sources' ), 10, 2 );
+		add_filter( self::ACTIVATE, array( __CLASS__, 'activate_import' ), 10, 3 );
+		add_filter( self::DEACTIVATE, array( __CLASS__, 'deactivate_import' ), 10, 3 );
 		add_action( 'admin_init', array( __CLASS__, 'ready' ) );
 	}
 
@@ -88,6 +95,79 @@ final class Import {
 			$out[ $key ] = self::one( $key, $raw, $origin, $by );
 		}
 		return $out;
+	}
+
+	/**
+	 * Activa, desde «Migrar» de DIGITALÍSIMO Migración, el functions.php del tema hijo que importó el tema propio
+	 * (`digitalisimo-theme:<carpeta del hijo>`), sin la casilla «Revisé este código». Regla del propietario del 2026-11-20
+	 * («quedamos que migrar debe hacer todo, haz que haga todo; solo quiero migrar y que quede todo perfecto con tecnología
+	 * DIGITALÍSIMO plugins»): no es código nuevo, es el que ya corría en el sitio a través del hijo, y va dentro de la
+	 * condición que sólo lo deja correr con el tema propio activo. Sólo si el código es exactamente el que se importó
+	 * (`origin.code_hash`: nadie lo editó ni hay conflicto), la revisión sin ejecutar no lo bloquea, la edición no está
+	 * cerrada en el servidor (DISALLOW_FILE_EDIT) ni en modo seguro, y cabe en los topes. Lo firma y lo activa
+	 * Store::activate(), el mismo paso final de «Guardar y activar»; desde ahí lo vigila el guardián como a cualquier otro
+	 * (un error fatal atribuido lo desactiva). La prueba con el código corriendo es la de Migrar: la primera petición con
+	 * el tema propio no puede dar un 500 ni un error de PHP, el fragmento debe seguir activo y la portada pintarse igual;
+	 * si no, Migrar vuelve al hijo y lo desactiva (deactivate_import()). Quién puede hacerlo lo decide Migrar (edit_themes
+	 * + unfiltered_html de quien pulsó). Devuelve 'activated', 'active' (ese código ya estaba activo) o el motivo:
+	 * 'missing', 'changed', 'failed', 'blocked', 'reduced', 'check', 'error'. Sólo activa un importado en «sin revisar»: uno
+	 * que alguien (o el guardián, o la vuelta atrás de Migrar) desactivó no se vuelve a activar solo.
+	 *
+	 * @param mixed  $result  Lo que devolvió otro oyente.
+	 * @param string $key     `digitalisimo-theme:<carpeta del hijo>`.
+	 * @param array  $context { by: usuario que pulsó Migrar }
+	 */
+	public static function activate_import( $result, $key, $context = array() ) {
+		unset( $result );
+		$key = (string) $key;
+		if ( 0 !== strpos( $key, self::CHILD_SOURCE . ':' ) ) return 'missing';
+		if ( Access::editing_blocked() ) return 'blocked';
+		if ( Access::reduced() ) return 'reduced';
+		$by    = absint( is_array( $context ) ? ( $context['by'] ?? 0 ) : 0 );
+		$found = self::find( $key );
+		if ( '' === $found ) return 'missing';
+		$index = Store::index( 'site' );
+		$item  = Store::item( 'site', $found );
+		$meta  = $index['items'][ $found ];
+		if ( ! $item || ! empty( $meta['conflict'] ) ) return 'changed';
+		$hash = hash( 'sha256', $item['code'] );
+		if ( ! hash_equals( (string) ( $item['origin']['code_hash'] ?? '' ), $hash ) ) return 'changed';
+		$run   = Store::run( 'site' );
+		$state = Store::state( 'site', $found, $index, $run );
+		if ( 'active' === $state && hash_equals( (string) $run['items'][ $found ]['hash'], $hash ) ) return 'active';
+		// Sólo un importado que nadie revisó ni tocó: uno que se desactivó (a mano, por el guardián o por la vuelta atrás de
+		// Migrar) o que tuvo un error se queda como está; activarlo es de una persona.
+		if ( 'review' !== $state ) return 'failed' === $state ? 'failed' : 'changed';
+		$check = Tester::check( $item['code'] );
+		if ( empty( $check['ok'] ) ) return 'check';
+		Store::set_check( 'site', $found, $check );
+		$done = Store::activate( 'site', $found, $hash, array( 'by' => $by ) );
+		if ( is_wp_error( $done ) ) return 'error';
+		return 'activated';
+	}
+
+	/**
+	 * Desactiva el importado `digitalisimo-theme:<carpeta del hijo>` si sigue activo con el código que activó Migrar
+	 * ($context['hash']; sin él, cualquiera). Lo usa la vuelta atrás de Migrar. true si quedó inactivo; false si no existe
+	 * o alguien lo cambió (entonces no se toca).
+	 */
+	public static function deactivate_import( $result, $key, $context = array() ) {
+		unset( $result );
+		$found = 0 === strpos( (string) $key, self::CHILD_SOURCE . ':' ) ? self::find( (string) $key ) : '';
+		if ( '' === $found ) return false;
+		$run  = Store::run( 'site' );
+		$want = is_array( $context ) ? (string) ( $context['hash'] ?? '' ) : '';
+		if ( ! isset( $run['items'][ $found ] ) ) return true;
+		if ( '' !== $want && ! hash_equals( $want, (string) $run['items'][ $found ]['hash'] ) ) return false;
+		return true === Store::deactivate( 'site', $found, absint( is_array( $context ) ? ( $context['by'] ?? 0 ) : 0 ) );
+	}
+
+	/** Id del fragmento de sitio importado con ese `source:id` ('' si no hay). */
+	private static function find( $key ) {
+		foreach ( Store::index( 'site' )['items'] as $id => $meta ) {
+			if ( (string) ( $meta['origin_key'] ?? '' ) === (string) $key ) return (string) $id;
+		}
+		return '';
 	}
 
 	/** Importa un elemento. */

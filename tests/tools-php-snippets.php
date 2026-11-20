@@ -1226,6 +1226,34 @@ PHPCODE;
 	check( array( 'generatepress:9' => 'created' ) === $sus && $I::SUSPICIOUS_NOTE === $S::item( 'site', $sid9 )['origin']['notes'][0] && '' === $S::item( 'site', $sid9 )['origin']['hook'], 'metadatos sospechosos: nota y gancho descartado; nunca entran al código' );
 	$S::delete( 'site', $sid9, 1 );
 	check( array( 'generatepress:9' => 'skipped' ) === apply_filters( $I::FILTER, null, array( $item( 'h10', "<?php\n// 10\n", array( 'origin' => array( 'source' => 'generatepress', 'id' => '9', 'hash' => 'h10' ) ) ) ), array() ), 'eliminar un importado lo añade a gone: no vuelve' );
+	// Migración activa el functions.php del hijo que importó el tema propio (regla del propietario del 2026-11-20), sin la
+	// casilla, sólo si sigue sin revisar y con el código que se importó; la vuelta atrás lo desactiva.
+	$child_code = "<?php\nif ( function_exists( 'digitalisimo_theme_parity' ) ) {\nadd_action( 'wp_head', function () { echo '<style>.x{color:red}</style>'; } );\n}\n";
+	$child_item = array( 'title' => 'PHP del tema hijo Hijo', 'code' => $child_code, 'original' => $child_code, 'origin' => array( 'source' => 'digitalisimo-theme', 'id' => 'hijo', 'hash' => 'child-1' ) );
+	check( array( 'digitalisimo-theme:hijo' => 'created' ) === apply_filters( $I::FILTER, null, array( $child_item ), array() ), 'importado del hijo: created' );
+	check( 'missing' === apply_filters( $I::ACTIVATE, null, 'generatepress:123', array() ), 'sólo se activa un importado del tema propio' );
+	$cid = '';
+	foreach ( $S::index( 'site' )['items'] as $k => $meta ) if ( 'digitalisimo-theme:hijo' === $meta['origin_key'] ) $cid = (string) $k;
+	$GLOBALS['t']['caps'] = array( 'manage_options' ); // En WP-Cron no hay usuario: quién puede lo decide Migrar.
+	check( 'activated' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', array( 'by' => 1 ) ) && 'active' === $S::state( 'site', $cid ) && hash( 'sha256', $child_code ) === $S::run( 'site' )['items'][ $cid ]['hash'], 'activado: firmado y en _run con el código importado' );
+	check( 'activated' === $S::log_entries( 'site', 1 )[0]['event'] && ! $S::index( 'site' )['items'][ $cid ]['review'], 'queda en el registro como «Activado» y sin la marca de revisión' );
+	check( 'active' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', array() ), 'activarlo otra vez no cambia nada' );
+	check( false === apply_filters( $I::DEACTIVATE, false, 'digitalisimo-theme:hijo', array( 'hash' => str_repeat( 'a', 64 ) ) ) && 'active' === $S::state( 'site', $cid ), 'desactivar con otro hash no toca nada' );
+	check( true === apply_filters( $I::DEACTIVATE, false, 'digitalisimo-theme:hijo', array( 'hash' => hash( 'sha256', $child_code ) ) ) && 'inactive' === $S::state( 'site', $cid ), 'la vuelta atrás lo desactiva' );
+	check( 'changed' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', array() ) && 'inactive' === $S::state( 'site', $cid ), 'uno ya desactivado no se vuelve a activar solo' );
+	$GLOBALS['t']['caps'] = array( 'edit_themes', 'unfiltered_html', 'manage_options', 'manage_network_options' );
+	$edited = array_merge( $child_item, array( 'origin' => array( 'source' => 'digitalisimo-theme', 'id' => 'hijo2', 'hash' => 'child-2' ) ) );
+	apply_filters( $I::FILTER, null, array( $edited ), array() );
+	foreach ( $S::index( 'site' )['items'] as $k => $meta ) if ( 'digitalisimo-theme:hijo2' === $meta['origin_key'] ) $cid = (string) $k;
+	$S::save( 'site', $cid, 'PHP del tema hijo Hijo', $child_code . "// editado\n", 1 );
+	check( 'changed' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo2', array() ) && ! isset( $S::run( 'site' )['items'][ $cid ] ), 'uno editado en Tools no se activa' );
+	$broken = array_merge( $child_item, array( 'code' => "<?php\nif ( true ) {\n", 'original' => "<?php\nif ( true ) {\n", 'origin' => array( 'source' => 'digitalisimo-theme', 'id' => 'hijo3', 'hash' => 'child-3' ) ) );
+	apply_filters( $I::FILTER, null, array( $broken ), array() );
+	check( 'check' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo3', array() ), 'con un error de sintaxis no se activa' );
+	add_filter( 'file_mod_allowed', function () { return false; } );
+	check( 'blocked' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', array() ), 'con la edición cerrada en el servidor no se activa' );
+	$GLOBALS['t']['hooks']['file_mod_allowed'] = array();
+	foreach ( $S::index( 'site' )['items'] as $k => $meta ) if ( 0 === strpos( $meta['origin_key'], 'digitalisimo-theme:' ) ) $S::delete( 'site', (string) $k, 1 );
 	$many = array();
 	for ( $i = 0; $i < 500; $i++ ) $many[] = array( 'code' => '', 'origin' => array( 'source' => 'gp', 'id' => (string) $i ) );
 	$many[] = array( 'code' => "<?php\n", 'origin' => array( 'source' => 'gp', 'id' => 'ultimo' ) );

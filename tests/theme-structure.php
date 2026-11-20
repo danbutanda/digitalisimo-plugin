@@ -460,13 +460,13 @@ foreach ( $scan_roots as $dir ) {
 			$arg   = first_literal( $call );
 			// Excepciones declaradas (regla del propietario del 2026-11-18): «Migrar» de DIGITALÍSIMO Migración activa el tema
 			// propio donde es seguro (y vuelve al anterior si la portada no responde igual) sólo en Full::switch_theme_to(), y
-			// borra Hello Elementor reemplazado sólo en Full::cleanup_theme() (tests/migration-full.php).
+			// borra Hello Elementor y sus hijos reemplazados (2026-11-20) sólo en Full::cleanup_theme() (tests/migration-full.php).
 			$migration = 'digitalisimo-migration/includes/class-full.php' === $path;
 			if ( 'switch_theme' === $call['name'] ) {
 				$switch[] = $where . ' (' . $call['function'] . ')';
 				check( ( 'digitalisimo-theme/inc/switch.php' === $path && 'digitalisimo_theme_revert' === $call['function'] ) || ( $migration && 'switch_theme_to' === $call['function'] ), "Sólo digitalisimo_theme_revert() y el cambio de tema de Migrar cambian de tema: {$where}." );
 			}
-			check( 'delete_theme' !== $call['name'] || ( $migration && 'cleanup_theme' === $call['function'] ), "Nadie borra temas (salvo Hello reemplazado, en la limpieza de Migrar): {$where}." );
+			check( 'delete_theme' !== $call['name'] || ( $migration && 'cleanup_theme' === $call['function'] ), "Nadie borra temas (salvo Hello y sus hijos reemplazados, en la limpieza de Migrar): {$where}." );
 			if ( in_array( $call['name'], array( 'update_option', 'update_site_option', 'add_option', 'add_site_option' ), true ) ) {
 				$first = implode( '', array_map( 'token_text', $call['args'][0] ?? array() ) );
 				check( false === stripos( $first, 'allowedthemes' ), "Nadie habilita temas en la red ni en un sitio: {$where}." );

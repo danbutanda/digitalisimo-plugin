@@ -238,13 +238,13 @@ final class Full {
 		if ( self::$cli || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 			// WP-CLI no tiene cuenta, pero sí respeta DISALLOW_FILE_MODS (y su filtro): sin escritura, ni instala ni borra.
 			$mods = ! function_exists( 'wp_is_file_mod_allowed' ) || wp_is_file_mod_allowed( 'digitalisimo_migration' );
-			return array( 'install' => $mods, 'activate' => true, 'delete' => $mods, 'themes' => $mods, 'update_themes' => $mods, 'delete_themes' => $mods );
+			return array( 'install' => $mods, 'activate' => true, 'delete' => $mods, 'themes' => $mods, 'update_themes' => $mods, 'code' => $mods, 'delete_themes' => $mods );
 		}
 		if ( $network ) {
 			$super = is_super_admin() && current_user_can( 'manage_network_plugins' );
-			return array( 'install' => $super && current_user_can( 'install_plugins' ), 'activate' => $super, 'delete' => $super && current_user_can( 'delete_plugins' ), 'themes' => $super && current_user_can( 'manage_network_themes' ) && current_user_can( 'install_themes' ), 'update_themes' => $super && current_user_can( 'update_themes' ), 'delete_themes' => $super && current_user_can( 'delete_themes' ) );
+			return array( 'install' => $super && current_user_can( 'install_plugins' ), 'activate' => $super, 'delete' => $super && current_user_can( 'delete_plugins' ), 'themes' => $super && current_user_can( 'manage_network_themes' ) && current_user_can( 'install_themes' ), 'update_themes' => $super && current_user_can( 'update_themes' ), 'code' => $super && current_user_can( 'edit_themes' ) && current_user_can( 'unfiltered_html' ), 'delete_themes' => $super && current_user_can( 'delete_themes' ) );
 		}
-		return array( 'install' => current_user_can( 'install_plugins' ), 'activate' => current_user_can( 'activate_plugins' ), 'delete' => current_user_can( 'delete_plugins' ), 'themes' => current_user_can( 'switch_themes' ) && current_user_can( 'install_themes' ), 'update_themes' => current_user_can( 'update_themes' ), 'delete_themes' => current_user_can( 'delete_themes' ) );
+		return array( 'install' => current_user_can( 'install_plugins' ), 'activate' => current_user_can( 'activate_plugins' ), 'delete' => current_user_can( 'delete_plugins' ), 'themes' => current_user_can( 'switch_themes' ) && current_user_can( 'install_themes' ), 'update_themes' => current_user_can( 'update_themes' ), 'code' => current_user_can( 'edit_themes' ) && current_user_can( 'unfiltered_html' ), 'delete_themes' => current_user_can( 'delete_themes' ) );
 	}
 
 	public static function fresh( $network, $run = '' ) {
@@ -1125,7 +1125,19 @@ final class Full {
 			$imported = (string) ( $child['imported'] ?? '' );
 			$snippet  = '«PHP del tema hijo ' . $name . '»';
 			if ( in_array( $imported, array( 'created', 'updated', 'unchanged', 'conflict' ), true ) && ! empty( $child['wrap'] ) ) {
-				return array( false, $intro . ' Qué hacer: en DIGITALÍSIMO Tools → Código PHP revisa ' . $snippet . ' y actívalo (Migrar lo dejó ahí, inactivo; va dentro de una condición que sólo lo deja correr con el tema DIGITALÍSIMO, así que puedes activarlo ya, con el hijo activo, sin que choque) y vuelve a pulsar Migrar: el tema cambia y ese PHP sigue corriendo.' );
+				$why = array(
+					'nocaps'    => ' Migrar no lo activó solo porque quien lo pulsó no puede editar código PHP (edit_themes y unfiltered_html).',
+					'old_tools' => ' Migrar no lo activó solo porque la versión de DIGITALÍSIMO Tools instalada no lo permite (actualízala para que lo haga).',
+					'changed'   => ' Migrar no lo activó solo porque ya no está como lo dejó: se editó o se desactivó (también lo desactiva una vuelta atrás de Migrar), y activarlo de nuevo es de una persona.',
+					'failed'    => ' Migrar no lo activó solo porque DIGITALÍSIMO Tools lo desactivó por un error: revisa ese error antes.',
+					'blocked'   => ' Migrar no lo activó porque este servidor cierra la edición de código (DISALLOW_FILE_EDIT o DISALLOW_FILE_MODS).',
+					'reduced'   => ' Migrar no lo activó porque Código PHP de DIGITALÍSIMO Tools está en modo seguro.',
+					'check'     => ' Migrar no lo activó porque la revisión de DIGITALÍSIMO Tools encontró un error en el código.',
+					'error'     => ' Migrar no lo pudo activar (otra acción sobre los fragmentos estaba en curso o no cabe en los topes de Tools).',
+					'missing'   => ' Migrar no lo encontró en DIGITALÍSIMO Tools para activarlo.',
+				);
+				$because = 'conflict' === $imported ? ' Migrar no lo activó solo porque se editó en Tools después de importarlo.' : ( $why[ (string) ( $child['activate'] ?? '' ) ] ?? '' );
+				return array( false, $intro . $because . ' Qué hacer: en DIGITALÍSIMO Tools → Código PHP revisa ' . $snippet . ' y actívalo (Migrar lo dejó ahí, inactivo; va dentro de una condición que sólo lo deja correr con el tema DIGITALÍSIMO, así que puedes activarlo ya, con el hijo activo, sin que choque) y vuelve a pulsar Migrar: el tema cambia y ese PHP sigue corriendo.' );
 			}
 			if ( 'skipped' === $imported ) {
 				return array( false, $intro . ' El fragmento ' . $snippet . ' que Migrar había dejado en DIGITALÍSIMO Tools → Código PHP se borró, así que no lo vuelve a crear. Qué hacer: restáuralo (o crea uno con el functions.php del hijo), revísalo, actívalo y vuelve a pulsar Migrar.' );
@@ -1177,12 +1189,42 @@ final class Full {
 	/** Archivo principal de DIGITALÍSIMO Tools (dueño de «Código PHP»). */
 	const TOOLS_FILE = 'digitalisimo-tools/digitalisimo-tools.php';
 
+	/** Filtros de Tools (Import::activate_import() y ::deactivate_import()) para el functions.php del hijo. */
+	const SNIPPET_ACTIVATE   = 'digitalisimo_tools_php_activate_import';
+	const SNIPPET_DEACTIVATE = 'digitalisimo_tools_php_deactivate_import';
+
+	/** `source:id` del fragmento que deja en Tools el tema propio con el functions.php del hijo. */
+	private static function snippet_key( $stylesheet ) {
+		return 'digitalisimo-theme:' . (string) $stylesheet;
+	}
+
+	/**
+	 * Desactiva en Tools el fragmento del hijo que activó Migrar en cada sitio cuyo tema no cambió (o volvió atrás), sólo si
+	 * sigue activo con ese mismo código. La vuelta atrás deja el sitio como estaba antes de Migrar.
+	 */
+	private static function drop_snippets( array $state, array $keep = array() ) {
+		foreach ( (array) $state['theme'] as $site_id => $row ) {
+			if ( empty( $row['snippet'] ) || ! empty( $row['switched'] ) || in_array( (int) $site_id, $keep, true ) ) {
+				continue;
+			}
+			$done = self::on_site( (int) $site_id, static function () use ( $row ) {
+				if ( function_exists( 'wp_cache_delete' ) ) {
+					wp_cache_delete( 'alloptions', 'options' );
+				}
+				return has_filter( self::SNIPPET_DEACTIVATE ) ? apply_filters( self::SNIPPET_DEACTIVATE, false, self::snippet_key( (string) $row['from'] ), array( 'hash' => (string) $row['snippet'] ) ) : false;
+			} );
+			$state['theme'][ $site_id ]['snippet']     = '';
+			$state['theme'][ $site_id ]['snippet_off'] = true === $done ? 'off' : 'kept';
+		}
+		return $state;
+	}
+
 	/**
 	 * Hechos del tema hijo activo en el sitio en curso: lo lee sin ejecutarlo y, si tiene PHP que no se traslada, deja su
 	 * functions.php en Código PHP de Tools, inactivo y con revisión, sólo si Tools está activo en este sitio (en una red,
 	 * su filtro puede estar cargado por el sitio principal aunque este sitio no lo use).
 	 */
-	private static function child_facts() {
+	private static function child_facts( array $state = array() ) {
 		$child = wp_get_theme();
 		if ( ! self::child_reader() || ! $child->exists() ) {
 			return array( 'analyzed' => false );
@@ -1204,6 +1246,25 @@ final class Full {
 		$tools    = Replacements::is_active( self::TOOLS_FILE );
 		$covered  = '' !== $blockers && '' === $risks && $tools && digitalisimo_theme_child_php_covered( $child );
 		$code     = digitalisimo_theme_child_php_code( $child );
+		$wrap     = '' !== $code && "\0" !== $code ? digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ) ) : '';
+		$imported = '' !== $blockers && '' === $files && '' === $risks && $tools && ! $covered ? digitalisimo_theme_child_import_php( $child, $plan ) : '';
+		$activate = '';
+		if ( '' !== $wrap && in_array( $imported, array( 'created', 'updated', 'unchanged' ), true ) ) {
+			// «Migrar lo hace todo» (regla del propietario del 2026-11-20): el functions.php del hijo, ya en Código PHP de Tools
+			// y dentro de la condición del tema propio, se activa en la misma pasada por la vía de Tools (firma y guardián).
+			// Con el hijo activo no hace nada; la prueba con el código corriendo es la de verify, que vuelve atrás y lo
+			// desactiva si la portada no responde igual.
+			if ( empty( $state['caps']['code'] ) ) {
+				$activate = 'nocaps';
+			} elseif ( ! has_filter( self::SNIPPET_ACTIVATE ) ) {
+				$activate = 'old_tools';
+			} else {
+				$activate = (string) apply_filters( self::SNIPPET_ACTIVATE, null, self::snippet_key( $child->get_stylesheet() ), array( 'by' => (int) ( $state['user'] ?? 0 ) ) );
+				if ( in_array( $activate, array( 'activated', 'active' ), true ) ) {
+					$covered = digitalisimo_theme_child_php_covered( $child );
+				}
+			}
+		}
 		return array(
 			'analyzed' => true,
 			'blockers' => $blockers,
@@ -1213,19 +1274,25 @@ final class Full {
 			'carried'  => count( $plan['assets'] ),
 			'tools'    => $tools,
 			'filter'   => (bool) has_filter( 'digitalisimo_tools_php_import' ),
-			'wrap'     => '' !== $code && "\0" !== $code && '' !== digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ) ),
-			'imported' => '' !== $blockers && '' === $files && '' === $risks && $tools && ! $covered ? digitalisimo_theme_child_import_php( $child, $plan ) : '',
+			'wrap'     => '' !== $wrap,
+			'imported' => $imported,
+			'activate' => $activate,
+			'hash'     => '' !== $wrap ? hash( 'sha256', $wrap ) : '',
 		);
 	}
 
 	/** Lee el hijo del sitio (con el tema propio instalado) y decide con theme_safety(); guarda sus hechos en la fila. */
 	private static function child_check( array $state, $site_id ) {
-		$facts               = self::on_site( $site_id, static function () {
-			return self::child_facts();
+		$facts               = self::on_site( $site_id, static function () use ( $state ) {
+			return self::child_facts( $state );
 		} );
 		$theme               = array( 'own' => false, 'hello' => true, 'child' => true, 'name' => $state['theme'][ $site_id ]['name'] );
 		list( $ok, $reason ) = self::theme_safety( $theme, array( 'builder' => true, 'conflict' => false, 'can' => true, 'child' => $facts ) );
-		$state['theme'][ $site_id ]['child_facts'] = array_intersect_key( $facts, array_flip( array( 'blockers', 'files', 'risks', 'covered', 'carried', 'tools', 'filter', 'wrap', 'imported' ) ) );
+		$state['theme'][ $site_id ]['child_facts'] = array_intersect_key( $facts, array_flip( array( 'blockers', 'files', 'risks', 'covered', 'carried', 'tools', 'filter', 'wrap', 'imported', 'activate' ) ) );
+		if ( 'activated' === ( $facts['activate'] ?? '' ) ) {
+			// Lo activó Migrar: si el tema no cambia o vuelve atrás, Migrar lo desactiva (sólo ese código).
+			$state['theme'][ $site_id ]['snippet'] = (string) $facts['hash'];
+		}
 		$state['theme'][ $site_id ]['safe']        = $ok;
 		$state['theme'][ $site_id ]['reason']      = $reason;
 		return $state;
@@ -1322,6 +1389,7 @@ final class Full {
 			}
 			$safe[] = (int) $site_id;
 		}
+		$state = self::drop_snippets( $state, $safe );
 		if ( ! $safe ) {
 			return self::next( $state, 'verify' );
 		}
@@ -1469,7 +1537,7 @@ final class Full {
 			$state['theme'][ $site_id ]['reverted'] = true;
 			$state['theme'][ $site_id ]['reason']   = sprintf( $reason, (string) $row['name'] );
 		}
-		return $state;
+		return self::drop_snippets( $state );
 	}
 
 	/** ¿Respondieron igual todas las URL comparables, y había alguna en cada sitio comparado? */
@@ -1649,8 +1717,84 @@ final class Full {
 		return false;
 	}
 
+	/**
+	 * Los temas hijos de Hello que Migrar cambió por el tema propio se borran cuando ya no hacen falta (regla del
+	 * propietario del 2026-11-20: con «Migrar», Hello y el hijo se retiran como los plugins reemplazados): ningún sitio los
+	 * usa, el tema propio de cada sitio que venía de él ya tiene sus hojas y fuentes en su carpeta de `uploads`
+	 * (`digitalisimo_theme_child_assets_copied()` del tema propio instalado; sin esa función, el hijo se queda como antes)
+	 * y su functions.php, si corre en Código PHP, no lee nada de la carpeta del hijo. Lo que se borra está en el respaldo.
+	 * Devuelve carpeta => nombre de los que pueden borrarse (los borra cleanup_theme()) y anota en `kept` por qué no.
+	 */
+	private static function retired_children( array &$state ) {
+		$out  = array();
+		$from = array();
+		foreach ( (array) $state['theme'] as $site_id => $row ) {
+			if ( ! empty( $row['child'] ) && ! empty( $row['switched'] ) ) {
+				$from[ (string) $row['from'] ][] = (int) $site_id;
+			}
+		}
+		foreach ( $from as $slug => $sites ) {
+			$theme = wp_get_theme( $slug );
+			if ( ! $theme->exists() || Replacements::HELLO !== (string) $theme->get_template() || isset( $state['deleted'][ 'child:' . $slug ] ) ) {
+				continue;
+			}
+			$name   = (string) $theme->get( 'Name' );
+			$reason = '';
+			foreach ( is_multisite() ? Retire::sites() : array( (int) get_current_blog_id() ) as $site_id ) {
+				$uses = self::on_site( (int) $site_id, static function () use ( $slug ) {
+					return $slug === (string) get_option( 'stylesheet' ) || $slug === (string) get_option( 'template' );
+				} );
+				if ( $uses ) {
+					$reason = 'Algún sitio sigue usándolo.';
+					break;
+				}
+			}
+			if ( '' === $reason ) {
+				foreach ( $sites as $site_id ) {
+					$copied = self::on_site( $site_id, static function () {
+						return self::child_reader() && function_exists( 'digitalisimo_theme_child_assets_copied' ) && true === digitalisimo_theme_child_assets_copied();
+					} );
+					if ( ! $copied ) {
+						$reason = 'El tema DIGITALÍSIMO todavía carga sus hojas y fuentes desde su carpeta (no borrarlo).';
+						break;
+					}
+				}
+			}
+			if ( '' === $reason && is_file( $theme->get_stylesheet_directory() . '/functions.php' ) ) {
+				// Su functions.php sigue corriendo en Código PHP: si lee archivos (de su carpeta o por su nombre), la necesita.
+				// Las rutas del tema fuera de lo que el tema propio ya trae son un riesgo que impide el cambio, así que un hijo
+				// cambiado no las usa (las de sus encolados se quedan sin efecto: el tema registra antes esos handles).
+				$code = (string) file_get_contents( $theme->get_stylesheet_directory() . '/functions.php' );
+				if ( preg_match( '/__DIR__|__FILE__|\bdirname\s*\(|\b(?:include|require)(?:_once)?\b|\bfile_get_contents\s*\(|\bfopen\s*\(/i', $code ) || false !== stripos( $code, $slug ) ) {
+					$reason = 'Su functions.php, que sigue corriendo en DIGITALÍSIMO Tools → Código PHP, lee archivos de su carpeta.';
+				}
+			}
+			if ( '' === $reason && empty( $state['caps']['delete_themes'] ) ) {
+				$reason = 'Quien pulsó Migrar no puede borrar temas.';
+			}
+			if ( '' !== $reason ) {
+				$state['kept'][ 'child:' . $slug ] = $reason;
+				continue;
+			}
+			$out[ $slug ] = $name;
+		}
+		return $out;
+	}
+
 	/** Hello se borra si se reemplazó y ya nadie lo usa: ningún sitio lo tiene activo ni hay un tema hijo suyo instalado. */
 	private static function cleanup_theme( array $state ) {
+		foreach ( self::retired_children( $state ) as $slug => $name ) {
+			require_once ABSPATH . 'wp-admin/includes/theme.php';
+			$result = delete_theme( $slug );
+			if ( function_exists( 'wp_clean_themes_cache' ) ) {
+				wp_clean_themes_cache( false );
+			}
+			if ( true === $result ) {
+				$state['deleted'][ 'child:' . $slug ] = 'Tema hijo «' . $name . '»';
+			} else {
+				$state['kept'][ 'child:' . $slug ] = 'WordPress no pudo borrarlo' . ( is_wp_error( $result ) ? ': ' . $result->get_error_message() : '.' );
+			}
+		}
 		if ( ! self::hello_replaced( $state ) || ! function_exists( 'wp_get_theme' ) || ! wp_get_theme( Replacements::HELLO )->exists() ) {
 			return $state;
 		}
@@ -1918,7 +2062,7 @@ final class Full {
 		$off  = array();
 		$same = array();
 		foreach ( (array) $state['kept'] as $key => $reason ) {
-			$label = $rows[ $key ]['label'] ?? ( 'hello-elementor' === $key ? 'Hello Elementor' : $key );
+			$label = $rows[ $key ]['label'] ?? ( 'hello-elementor' === $key ? 'Hello Elementor' : ( 0 === strpos( (string) $key, 'child:' ) ? 'Tema hijo ' . substr( (string) $key, 6 ) : $key ) );
 			if ( isset( $rows[ $key ] ) && ! empty( $rows[ $key ]['active'] ) && ! Replacements::active_files( array_keys( (array) $rows[ $key ]['files'] ), $network ) ) {
 				$off[ (string) $reason ][] = $label;
 			} else {
@@ -1939,7 +2083,7 @@ final class Full {
 		foreach ( (array) $state['theme'] as $site_id => $row ) {
 			$where_name = $network ? self::site_name( (int) $site_id ) . ': ' : '';
 			if ( ! empty( $row['switched'] ) ) {
-				$themes[] = $where_name . sprintf( 'de %s al tema DIGITALÍSIMO', $row['name'] );
+				$themes[] = $where_name . sprintf( 'de %s al tema DIGITALÍSIMO', $row['name'] ) . ( ! empty( $row['snippet'] ) ? sprintf( '. Migrar activó «PHP del tema hijo %s» en DIGITALÍSIMO Tools → Código PHP: es el mismo functions.php que corría con el hijo, dentro de una condición que sólo lo deja correr con el tema DIGITALÍSIMO, y lo vigila el guardián de Tools. Para desactivarlo, pulsa «Desactivar» en esa fila (ese PHP deja de correr).', $row['name'] ) : '' );
 			} elseif ( ! empty( $row['hello'] ) && empty( $row['own'] ) && ! ( ! empty( $row['reverted'] ) && $bad ) ) {
 				// Hello (o su hijo) se queda por algo que una persona puede resolver: va en «Necesita tu atención» (la vuelta
 				// por una portada que no responde igual ya la dice la entrada de la portada).
@@ -1947,6 +2091,10 @@ final class Full {
 				$attention[] = esc_html( 'Tema: ' . $where_name . (string) $row['reason'] );
 			} else {
 				$themes[] = $where_name . (string) $row['reason'];
+			}
+			if ( ! empty( $row['snippet_off'] ) ) {
+				// El fragmento que había activado Migrar vuelve a quedar inactivo con el hijo (o se dice que no se pudo).
+				$themes[] = 'off' === $row['snippet_off'] ? sprintf( '«PHP del tema hijo %s», que Migrar había activado en DIGITALÍSIMO Tools, quedó otra vez inactivo.', $row['name'] ) : sprintf( '«PHP del tema hijo %s», que Migrar había activado en DIGITALÍSIMO Tools, sigue activo (alguien lo cambió): con el hijo activo no hace nada.', $row['name'] );
 			}
 		}
 		if ( ! empty( $state['theme_installed_now'] ) && ! array_filter( array_column( (array) $state['theme'], 'switched' ) ) ) {
