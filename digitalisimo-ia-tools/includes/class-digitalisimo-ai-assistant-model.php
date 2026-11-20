@@ -18,8 +18,8 @@ final class Digitalisimo_AI_Assistant_Model {
 	const NAMES         = array( 'openai' => 'OpenAI', 'anthropic' => 'Anthropic', 'google' => 'Google', 'xai' => 'xAI', 'deepseek' => 'DeepSeek' );
 	const AI_NAMES      = array( 'openai' => 'ChatGPT', 'anthropic' => 'Claude', 'google' => 'Gemini', 'xai' => 'Grok', 'deepseek' => 'DeepSeek' );
 	const OPENAI_URLS   = array( 'openai' => 'https://api.openai.com/v1/chat/completions', 'deepseek' => 'https://api.deepseek.com/v1/chat/completions', 'xai' => 'https://api.x.ai/v1/chat/completions' );
-	const MAX_TOKENS    = 2048;
-	const TIMEOUT       = 60;
+	const MAX_TOKENS    = 8192;
+	const TIMEOUT       = 45;
 
 	/**
 	 * Las IA disponibles, por proveedor: `provider`, `model`, `name`, `ai_name` y `profile`. Sin claves.
@@ -143,16 +143,21 @@ final class Digitalisimo_AI_Assistant_Model {
 
 	/** Respuesta del proveedor al formato neutro. */
 	public static function parse( $provider, array $data ) {
-		$text  = '';
-		$calls = array();
+		$text      = '';
+		$calls     = array();
+		$refusal   = '';
+		$truncated = false;
 		if ( isset( self::OPENAI_URLS[ $provider ] ) ) {
-			$message = (array) ( $data['choices'][0]['message'] ?? array() );
-			$text    = is_string( $message['content'] ?? null ) ? $message['content'] : '';
+			$message   = (array) ( $data['choices'][0]['message'] ?? array() );
+			$text      = is_string( $message['content'] ?? null ) ? $message['content'] : '';
+			$refusal   = is_string( $message['refusal'] ?? null ) ? $message['refusal'] : '';
+			$truncated = 'length' === ( $data['choices'][0]['finish_reason'] ?? '' );
 			foreach ( (array) ( $message['tool_calls'] ?? array() ) as $call ) {
 				$input   = json_decode( (string) ( $call['function']['arguments'] ?? '' ), true );
 				$calls[] = array( 'id' => (string) ( $call['id'] ?? '' ), 'name' => (string) ( $call['function']['name'] ?? '' ), 'input' => is_array( $input ) ? $input : array() );
 			}
 		} elseif ( 'anthropic' === $provider ) {
+			$truncated = 'max_tokens' === ( $data['stop_reason'] ?? '' );
 			foreach ( (array) ( $data['content'] ?? array() ) as $block ) {
 				if ( 'text' === ( $block['type'] ?? '' ) ) {
 					$text .= (string) ( $block['text'] ?? '' );
@@ -161,6 +166,7 @@ final class Digitalisimo_AI_Assistant_Model {
 				}
 			}
 		} elseif ( 'google' === $provider ) {
+			$truncated = 'MAX_TOKENS' === ( $data['candidates'][0]['finishReason'] ?? '' );
 			foreach ( (array) ( $data['candidates'][0]['content']['parts'] ?? array() ) as $part ) {
 				if ( isset( $part['text'] ) && empty( $part['thought'] ) ) {
 					$text .= (string) $part['text'];
@@ -170,7 +176,7 @@ final class Digitalisimo_AI_Assistant_Model {
 				}
 			}
 		}
-		return self::normalize( array( 'text' => $text, 'calls' => $calls ) );
+		return self::normalize( array( 'text' => $text, 'calls' => $calls, 'refusal' => $refusal, 'truncated' => $truncated ) );
 	}
 
 	/** Respuesta (de un proveedor o de un simulador) con su forma garantizada e IDs de llamada válidos y únicos. */
@@ -195,7 +201,7 @@ final class Digitalisimo_AI_Assistant_Model {
 			$seen[ $id ] = true;
 			$calls[]     = array( 'id' => $id, 'name' => substr( (string) $call['name'], 0, 128 ), 'input' => is_array( $call['input'] ?? null ) ? $call['input'] : array(), 'sig' => substr( (string) ( $call['sig'] ?? '' ), 0, 8192 ) );
 		}
-		return array( 'text' => is_string( $reply['text'] ?? null ) ? $reply['text'] : '', 'calls' => $calls );
+		return array( 'text' => is_string( $reply['text'] ?? null ) ? $reply['text'] : '', 'calls' => $calls, 'refusal' => is_string( $reply['refusal'] ?? null ) ? $reply['refusal'] : '', 'truncated' => ! empty( $reply['truncated'] ) );
 	}
 
 	private static function openai_messages( $system, array $messages ) {
@@ -204,6 +210,9 @@ final class Digitalisimo_AI_Assistant_Model {
 			if ( 'user' === $m['role'] ) {
 				$out[] = array( 'role' => 'user', 'content' => (string) $m['text'] );
 			} elseif ( 'assistant' === $m['role'] ) {
+				if ( '' === (string) $m['text'] && empty( $m['calls'] ) ) {
+					continue; // La API rechaza un assistant sin contenido ni llamadas.
+				}
 				$row = array( 'role' => 'assistant', 'content' => '' !== (string) $m['text'] ? (string) $m['text'] : null );
 				foreach ( (array) ( $m['calls'] ?? array() ) as $call ) {
 					$row['tool_calls'][] = array( 'id' => $call['id'], 'type' => 'function', 'function' => array( 'name' => $call['name'], 'arguments' => wp_json_encode( self::object( $call['input'] ) ) ) );

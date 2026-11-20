@@ -51,7 +51,8 @@
 	const STORE = 'digitalisimo-assistant-appearance';
 	const DEFAULT_LOOK = { variant: 'classic', mode: 'light', scheme: 'digitalisimo' };
 	const VERBS = { read: 'Consultó', write: 'Cambio', destructive: 'Acción destructiva', unknown: 'Herramienta' };
-	const STATES = { ok: 'hecho', error: 'error', denied: 'sin permiso', cancelled: 'cancelado' };
+	const STATES = { ok: 'hecho', error: 'error', denied: 'sin permiso', cancelled: 'cancelado', unknown: 'resultado desconocido' };
+	const LONG_INPUT = 1200;
 	const SUGGESTIONS = [
 		[ 'Lista las últimas entradas y páginas del sitio', 'Ver el contenido reciente' ],
 		[ 'Revisa el SEO de mi página de inicio', 'Revisar el SEO' ],
@@ -269,19 +270,33 @@
 		return h( Dialog, { title: 'Bitácora del Asistente', onClose: props.onClose, wide: true }, body );
 	}
 
-	/** Lo que el modelo quiere cambiar: qué y con qué datos; lo destructivo, con una casilla explícita. */
+	/**
+	 * Lo que el modelo quiere cambiar: qué y con exactamente qué datos (completos, en un área con desplazamiento; si
+	 * son largos, hay que abrirlos enteros antes de poder confirmar). Lo destructivo pide además una casilla explícita.
+	 * Una acción que se estaba ejecutando cuando se cortó ya no se puede confirmar.
+	 */
 	function ConfirmCard( props ) {
 		const action = props.action;
 		const [ ack, setAck ] = useState( false );
+		const long = String( action.input || '' ).length > LONG_INPUT;
+		const [ full, setFull ] = useState( ! long );
 		const destructive = 'destructive' === action.kind;
+		if ( 'running' === action.state ) {
+			return h( 'div', { className: 'dga-confirm is-destructive', role: 'alert', 'data-action': action.id, 'data-state': 'running' },
+				h( 'h3', null, h( Icon, { name: 'alert' } ), 'Resultado desconocido' ),
+				h( 'p', null, h( 'strong', null, action.label ), ' se estaba ejecutando cuando se cortó la conexión. No se puede confirmar otra vez: revisa en el sitio si se hizo antes de pedirlo de nuevo.' ) );
+		}
 		return h( 'div', { className: 'dga-confirm' + ( destructive ? ' is-destructive' : '' ), role: 'group', 'aria-label': 'Confirmación: ' + action.label, 'data-action': action.id, 'data-kind': action.kind },
 			h( 'h3', null, h( Icon, { name: destructive ? 'alert' : 'check' } ), destructive ? 'Acción destructiva: confirma explícitamente' : 'Confirma este cambio' ),
 			h( 'p', null, h( 'strong', null, action.label ), action.description ? ' — ' + action.description : '' ),
-			h( 'pre', { 'aria-label': 'Datos de la acción' }, action.input ),
+			action.after_read ? h( 'p', { className: 'dga-warn' }, 'Esta propuesta llega después de leer contenido del sitio: revisa que sea exactamente lo que pediste.' ) : null,
+			action.hidden ? h( 'p', { className: 'dga-warn' }, 'Hay ' + action.hidden + ( 1 === action.hidden ? ' valor secreto oculto' : ' valores secretos ocultos' ) + ' (contraseñas o claves). Si no los pediste tú, cancela.' ) : null,
+			h( 'pre', { className: 'dga-input' + ( full ? ' is-full' : '' ), 'aria-label': 'Datos completos de la acción', tabIndex: 0 }, action.input ),
+			full ? null : h( 'button', { type: 'button', className: 'dga-button dga-see-all', onClick: () => setFull( true ) }, 'Ver los datos completos (' + String( action.input ).length + ' caracteres) antes de confirmar' ),
 			action.simulation ? h( Fragment, null, h( 'p', null, 'Simulación (no cambió nada):' ), h( 'pre', null, action.simulation ) ) : null,
 			destructive ? h( 'label', null, h( 'input', { type: 'checkbox', className: 'dga-ack', checked: ack, onChange: ( e ) => setAck( e.target.checked ) } ), 'Entiendo que puede no tener vuelta atrás y quiero hacerlo.' ) : null,
 			h( 'div', { className: 'dga-actions' },
-				h( 'button', { type: 'button', className: 'dga-button ' + ( destructive ? 'is-danger' : 'is-primary' ), 'data-decision': 'approve', disabled: props.busy || ( destructive && ! ack ), onClick: () => props.onDecide( action, 'approve', ack ) }, h( Icon, { name: 'check' } ), destructive ? 'Sí, hacerlo' : 'Confirmar' ),
+				h( 'button', { type: 'button', className: 'dga-button ' + ( destructive ? 'is-danger' : 'is-primary' ), 'data-decision': 'approve', disabled: props.busy || ! full || ( destructive && ! ack ), onClick: () => props.onDecide( action, 'approve', ack ) }, h( Icon, { name: 'check' } ), destructive ? 'Sí, hacerlo' : 'Confirmar' ),
 				h( 'button', { type: 'button', className: 'dga-button', 'data-decision': 'deny', disabled: props.busy, onClick: () => props.onDecide( action, 'deny', false ) }, h( Icon, { name: 'close' } ), 'Cancelar' ) ) );
 	}
 
@@ -543,9 +558,18 @@
 			} );
 		};
 
+		// Lo que llegó escrito en un enlace (?prompt=, open-assistant) sólo se precarga: nunca se envía solo, y un atajo
+		// /herramienta precargado hay que editarlo antes de enviarlo.
+		const prefilled = String( initial.prompt || '' ).trim();
+		const fromLink = '' !== prefilled && draft.trim() === prefilled;
+		const isShortcut = ( value ) => '/' === value.trim().charAt( 0 );
 		const send = () => {
 			const text = draft.trim();
-			if ( ! text || busy || ! providers.length ) {
+			if ( ! text || busy || ( ! providers.length && ! isShortcut( text ) ) ) {
+				return;
+			}
+			if ( fromLink && isShortcut( text ) ) {
+				setMessages( ( list ) => list.concat( [ note( 'Ese atajo llegó escrito en un enlace: edítalo antes de enviarlo.', 'error' ) ] ) );
 				return;
 			}
 			setDraft( '' );
@@ -639,7 +663,7 @@
 						: h( Welcome, { onSuggestion: setDraft } ) ) ),
 				h( 'div', { className: 'dga-composer-area' },
 					h( 'div', { className: 'dga-column' },
-						h( Composer, { value: draft, onChange: setDraft, onSubmit: send, disabled: busy || noAi, placeholder: 'Escribe una instrucción…', max: ( config.limits && config.limits.message ) || 4000, hint: pending.length ? 'Hay una acción esperando tu confirmación.' : null } ),
+						h( Composer, { value: draft, onChange: setDraft, onSubmit: send, disabled: busy || ( noAi && ! isShortcut( draft ) ), placeholder: noAi ? 'Sin IA configurada: usa /ayuda para los atajos' : 'Escribe una instrucción…', max: ( config.limits && config.limits.message ) || 4000, hint: fromLink ? 'Este mensaje vino en un enlace: revísalo antes de enviarlo.' : ( pending.some( ( a ) => 'running' !== a.state ) ? 'Hay una acción esperando tu confirmación.' : null ) } ),
 						h( 'p', { className: 'dga-footnote' }, 'El asistente puede equivocarse: revisa la información importante. Cada acción queda en la bitácora.' ) ) ) ),
 			'appearance' === dialog ? h( Appearance, { look, setLook, onClose: () => setDialog( '' ) } ) : null,
 			'log' === dialog ? h( LogDialog, { onClose: () => setDialog( '' ) } ) : null );

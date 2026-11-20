@@ -29,7 +29,14 @@ for (const [name, source] of [['assistant.js', ui], ['assistant-adapters.js', ad
 ok(/wp\.element/.test(ui) && /createRoot/.test(ui) && /el\.render\(/.test(ui), 'La interfaz usa wp.element (createRoot y render para WordPress anteriores)');
 ok(/window\.digitalisimoAssistantAdapters\.create\(\s*config\s*\)/.test(ui) && !/fetch\(/.test(ui), 'La interfaz sólo habla con el servidor por los adaptadores');
 for (const piece of ['Nueva conversación', 'Buscar en el historial', 'IA Tools elige la IA', 'Apariencia', 'Classic', 'Modern', 'Oscuro', 'Confirmar', 'Sí, hacerlo', 'Entiendo que puede no tener vuelta atrás', 'Ver la bitácora', 'Borrar todo el historial', 'scrollTop = area.scrollHeight']) ok(ui.includes(piece), `La interfaz trae «${piece}»`);
-ok(/disabled: props\.busy \|\| \( destructive && ! ack \)/.test(ui), 'El botón de una acción destructiva sigue apagado hasta marcar la casilla');
+ok(/disabled: props\.busy \|\| ! full \|\| \( destructive && ! ack \)/.test(ui), 'El botón de una acción destructiva sigue apagado hasta marcar la casilla');
+// Revisión adversarial.
+ok(/const long = String\( action\.input \|\| '' \)\.length > LONG_INPUT;/.test(ui) && /useState\( ! long \)/.test(ui) && /dga-see-all/.test(ui) && !/action\.input\.slice|substring\(/.test(ui), 'A2: la tarjeta muestra los datos completos y, si son largos, hay que abrirlos antes de confirmar');
+ok(/action\.hidden \?/.test(ui) && /action\.after_read \?/.test(ui), 'A2: la tarjeta avisa de lo oculto y de que llega tras leer contenido del sitio');
+ok(/'running' === action\.state/.test(ui) && /No se puede confirmar otra vez/.test(ui) && /unknown: 'resultado desconocido'/.test(ui), 'A1: una acción que se estaba ejecutando no se puede confirmar y su resultado es desconocido');
+ok(/! providers\.length && ! isShortcut\( text \)/.test(ui) && /busy \|\| \( noAi && ! isShortcut\( draft \) \)/.test(ui), 'B3: sin IA configurada se pueden enviar atajos /herramienta');
+ok(/fromLink && isShortcut\( text \)/.test(ui) && /vino en un enlace/.test(ui), 'B5: lo que llega en un enlace sólo se precarga, avisado, y un atajo precargado hay que editarlo');
+ok(css.includes('.dga-confirm pre.is-full') && /max-block-size: 14rem; margin: 0; padding: var\(--ds-space-2\) var\(--ds-space-3\); overflow: auto/.test(css), 'A2: los datos van en un área con desplazamiento');
 
 // 2. Hoja.
 const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');

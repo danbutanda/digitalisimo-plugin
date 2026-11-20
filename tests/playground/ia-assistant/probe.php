@@ -15,6 +15,8 @@ const DIGI_ASIS_DIR = '/digi-asis';
 
 add_filter( 'wp_is_application_passwords_available', '__return_true' );
 add_filter( 'pre_wp_mail', '__return_true' );
+// Las abilities de prueba leen sin confirmar como las propias (las de otros plugins piden confirmación).
+add_filter( 'digitalisimo_ai_assistant_trusted_prefixes', static function ( $p ) { $p[] = 'digi-asis/'; return $p; } );
 
 set_error_handler(
 	static function ( $no, $message, $file ) {

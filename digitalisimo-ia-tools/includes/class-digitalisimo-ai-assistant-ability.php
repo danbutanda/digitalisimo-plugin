@@ -47,7 +47,7 @@ final class Digitalisimo_AI_Assistant_Ability {
 				'default'              => array(),
 				'properties'           => array(
 					'new_conversation' => array( 'type' => 'boolean', 'description' => 'Abrir con una conversación nueva (por defecto, la última).' ),
-					'message'          => array( 'type' => 'string', 'maxLength' => Digitalisimo_AI_Assistant::MAX_MESSAGE, 'description' => 'Mensaje inicial que queda escrito, sin enviar (abre una conversación nueva).' ),
+					'message'          => array( 'type' => 'string', 'maxLength' => Digitalisimo_AI_Assistant::MAX_PREFILL, 'description' => 'Mensaje inicial que queda escrito, sin enviar (abre una conversación nueva).' ),
 				),
 				'additionalProperties' => false,
 			),
@@ -77,7 +77,7 @@ final class Digitalisimo_AI_Assistant_Ability {
 
 	public static function execute( $input = null ) {
 		$input   = is_array( $input ) ? $input : array();
-		$message = Digitalisimo_AI_Assistant_Tools::clip( trim( sanitize_textarea_field( (string) ( $input['message'] ?? '' ) ) ), Digitalisimo_AI_Assistant::MAX_MESSAGE );
+		$message = Digitalisimo_AI_Assistant_Tools::clip( trim( sanitize_textarea_field( (string) ( $input['message'] ?? '' ) ) ), Digitalisimo_AI_Assistant::MAX_PREFILL );
 		$new     = ! empty( $input['new_conversation'] ) || '' !== $message;
 		$args    = array( 'page' => Digitalisimo_AI_Assistant::PAGE );
 		if ( $new ) {

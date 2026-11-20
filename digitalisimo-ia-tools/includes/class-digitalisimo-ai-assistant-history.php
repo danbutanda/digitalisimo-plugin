@@ -37,8 +37,24 @@ final class Digitalisimo_AI_Assistant_History {
 				'can_export'          => false,
 				'delete_with_user'    => true,
 				'supports'            => array( 'title', 'author' ),
+				// Capacidades propias que ningún rol tiene: ni XML-RPC (wp.getPosts, wp.editPost, wp.deletePost) ni ninguna
+				// otra vía con permisos de entradas llega a estas conversaciones. El Asistente las lee por su autor.
+				'capability_type'     => array( 'digitalisimo_ai_chat', 'digitalisimo_ai_chats' ),
+				'map_meta_cap'        => true,
 			)
 		);
+	}
+
+	/** Ni un superadministrador edita, lee ni borra por capacidades la conversación de otra persona. */
+	public static function map_meta_cap( $caps, $cap, $user_id, $args ) {
+		if ( ! in_array( $cap, array( 'edit_post', 'read_post', 'delete_post', 'publish_post' ), true ) || empty( $args[0] ) ) {
+			return $caps;
+		}
+		$post = get_post( (int) $args[0] );
+		if ( $post && self::TYPE === $post->post_type && (int) $post->post_author !== (int) $user_id ) {
+			return array( 'do_not_allow' );
+		}
+		return $caps;
 	}
 
 	/** Conversación nueva de este usuario, titulada con su primer mensaje. */
@@ -74,15 +90,35 @@ final class Digitalisimo_AI_Assistant_History {
 
 	public static function save( array $conv ) {
 		global $wpdb;
-		$messages = array_values( $conv['messages'] );
-		if ( count( $messages ) > self::MAX_MESSAGES ) {
-			$messages = array_slice( $messages, - self::MAX_MESSAGES );
-		}
+		$messages = self::trim( array_values( $conv['messages'] ) );
 		$json = wp_json_encode( array( 'v' => 1, 'messages' => $messages, 'pending' => array_values( (array) $conv['pending'] ), 'provider' => (string) $conv['provider'], 'categories' => $conv['categories'] ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
 		update_post_meta( (int) $conv['id'], self::META, wp_slash( (string) $json ) );
 		// La fecha de modificación ordena el historial. Sin wp_update_post: no dispara save_post en los demás plugins.
 		$wpdb->update( $wpdb->posts, array( 'post_modified' => current_time( 'mysql' ), 'post_modified_gmt' => current_time( 'mysql', true ) ), array( 'ID' => (int) $conv['id'] ) );
 		clean_post_cache( (int) $conv['id'] );
+	}
+
+	/**
+	 * Los últimos MAX_MESSAGES mensajes cortando en el límite de un turno (un mensaje de la persona), para que nunca
+	 * quede un resultado de herramienta sin su llamada; si un solo turno no cabe, se conserva desde su mensaje.
+	 */
+	public static function trim( array $messages ) {
+		$count = count( $messages );
+		if ( $count <= self::MAX_MESSAGES ) {
+			return $messages;
+		}
+		$cut = $count - self::MAX_MESSAGES;
+		for ( $i = $cut; $i < $count; $i++ ) {
+			if ( 'user' === ( $messages[ $i ]['role'] ?? '' ) ) {
+				return array_slice( $messages, $i );
+			}
+		}
+		for ( $i = $cut - 1; $i >= 0; $i-- ) {
+			if ( 'user' === ( $messages[ $i ]['role'] ?? '' ) ) {
+				return array_slice( $messages, $i );
+			}
+		}
+		return array_slice( $messages, $cut );
 	}
 
 	/** Las conversaciones de este usuario, de la más reciente a la más antigua. */
@@ -136,10 +172,9 @@ final class Digitalisimo_AI_Assistant_History {
 
 	/** Un mensaje guardado: `id`, `role`, `time` y sus campos, con los textos recortados. */
 	public static function message( $role, array $fields = array() ) {
-		foreach ( array( 'text', 'content' ) as $key ) {
-			if ( isset( $fields[ $key ] ) ) {
-				$fields[ $key ] = Digitalisimo_AI_Assistant_Tools::clip( (string) $fields[ $key ], 'content' === $key ? Digitalisimo_AI_Assistant_Tools::DATA_MAX + 200 : self::MAX_TEXT );
-			}
+		// El contenido de un resultado ya viene acotado en bytes y es JSON: recortarlo por caracteres lo rompería.
+		if ( isset( $fields['text'] ) ) {
+			$fields['text'] = Digitalisimo_AI_Assistant_Tools::clip( (string) $fields['text'], self::MAX_TEXT );
 		}
 		return array_merge( array( 'id' => 'm' . substr( md5( uniqid( (string) wp_rand(), true ) ), 0, 12 ), 'role' => (string) $role, 'time' => time() ), $fields );
 	}
@@ -183,6 +218,9 @@ final class Digitalisimo_AI_Assistant_History {
 				foreach ( (array) ( $m['calls'] ?? array() ) as $call ) {
 					$calls[] = array( 'id' => (string) $call['id'], 'name' => self::tool_of( $catalog, (string) $call['ability'] ), 'input' => is_array( $call['input'] ?? null ) ? $call['input'] : array(), 'sig' => (string) ( $call['sig'] ?? '' ) );
 				}
+				if ( ! $calls && '' === trim( (string) ( $m['text'] ?? '' ) ) ) {
+					continue; // Un turno vacío (de una versión anterior) rompería la petición siguiente.
+				}
 				$messages[] = array( 'role' => 'assistant', 'text' => (string) ( $m['text'] ?? '' ), 'calls' => $calls );
 			} elseif ( 'tool' === $role ) {
 				$messages[] = array( 'role' => 'tool', 'call' => (string) $m['call'], 'name' => self::tool_of( $catalog, (string) $m['ability'] ), 'content' => (string) $m['content'] );
@@ -201,9 +239,16 @@ final class Digitalisimo_AI_Assistant_History {
 			$start++;
 		}
 		if ( $start >= count( $messages ) ) {
-			// Ni el último turno cabe entero: se manda desde el último mensaje del usuario.
-			for ( $start = count( $messages ) - 1; $start > 0 && 'user' !== $messages[ $start ]['role']; $start-- ) {
-				continue;
+			// Ni el último turno cabe entero: se manda desde el último mensaje de la persona (nunca un resultado suelto).
+			$start = null;
+			for ( $i = count( $messages ) - 1; $i >= 0; $i-- ) {
+				if ( 'user' === $messages[ $i ]['role'] ) {
+					$start = $i;
+					break;
+				}
+			}
+			if ( null === $start ) {
+				return array();
 			}
 		}
 		return array_slice( $messages, max( 0, $start ) );
