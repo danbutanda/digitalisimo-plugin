@@ -25,7 +25,8 @@ class Digitalisimo_Content_Automation {
 		if ( ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || 'post' !== ( $data['post_type'] ?? '' ) || '' !== trim( (string) ( $data['post_excerpt'] ?? '' ) ) ) return $data;
 		$excerpt = self::excerpt( wp_unslash( (string) ( $data['post_content'] ?? '' ) ) );
 		if ( ! $excerpt ) return $data;
-		$data['post_excerpt'] = wp_slash( sanitize_post_field( 'post_excerpt', $excerpt, (int) ( $postarr['ID'] ?? 0 ), 'db' ) );
+		// Los filtros *_save_pre (kses sin unfiltered_html) esperan y devuelven datos escapados, como el resto de $data.
+		$data['post_excerpt'] = sanitize_post_field( 'post_excerpt', wp_slash( $excerpt ), (int) ( $postarr['ID'] ?? 0 ), 'db' );
 		return $data;
 	}
 }
