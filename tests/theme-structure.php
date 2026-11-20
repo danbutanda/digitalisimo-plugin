@@ -165,7 +165,7 @@ function first_literal( array $call ) {
 $expected = array(
 	'style.css', 'theme.json', 'functions.php', 'header.php', 'footer.php', 'index.php', 'comments.php', 'sidebar.php',
 	'screenshot.png', 'readme.txt', 'license.txt',
-	'inc/setup.php', 'inc/template-tags.php', 'inc/elements.php', 'inc/assets.php', 'inc/fallbacks.php', 'inc/switch.php', 'inc/cli.php', 'inc/class-updater.php',
+	'inc/setup.php', 'inc/template-tags.php', 'inc/elements.php', 'inc/assets.php', 'inc/fallbacks.php', 'inc/switch.php', 'inc/child.php', 'inc/cli.php', 'inc/class-updater.php',
 	'template-parts/header.php', 'template-parts/footer.php', 'template-parts/single.php', 'template-parts/archive.php', 'template-parts/search.php', 'template-parts/404.php',
 	'fallback/canvas.php', 'fallback/full-width.php',
 	'assets/css/base.css', 'assets/css/parity/reset.css', 'assets/css/parity/theme.css', 'assets/css/parity/header-footer.css',
@@ -355,7 +355,7 @@ function wp_add_inline_style( $handle, $css ) {
 	return true;
 }
 require $theme . '/functions.php';
-check( '1.0.0' === DIGITALISIMO_THEME_VERSION, 'Versión inicial del tema.' );
+check( '1.0.1' === DIGITALISIMO_THEME_VERSION, 'Versión del tema: 1.0.1 (lo que encola el hijo de Hello y la espera compartida del actualizador).' );
 check( 10 === hooked( 'digitalisimo_header', 'digitalisimo_theme_header' ) && 10 === hooked( 'digitalisimo_footer', 'digitalisimo_theme_footer' ), 'Cabecera y pie de respaldo en la prioridad 10.' );
 check( 10 === hooked( 'elementor/theme/register_locations', 'digitalisimo_theme_register_locations' ), 'Ubicaciones en la prioridad 10 (antes del 99 del constructor).' );
 check( 10 === hooked( 'wp_enqueue_scripts', 'digitalisimo_theme_enqueue_styles' ), 'Estilos en la prioridad 10.' );
@@ -703,7 +703,7 @@ unset( $GLOBALS['did']['elementor/loaded'] );
 set_record( array( 'origin' => array( 'family' => 'other' ) ) );
 $GLOBALS['styles'] = array();
 digitalisimo_theme_enqueue_styles();
-check( array( 'digitalisimo-theme' ) === array_keys( $GLOBALS['styles'] ) && '/assets/css/base.css' === substr( $GLOBALS['styles']['digitalisimo-theme']['src'], -20 ) && '1.0.0' === $GLOBALS['styles']['digitalisimo-theme']['ver'], 'Fuera de paridad sólo base.css, con la versión del tema.' );
+check( array( 'digitalisimo-theme' ) === array_keys( $GLOBALS['styles'] ) && '/assets/css/base.css' === substr( $GLOBALS['styles']['digitalisimo-theme']['src'], -20 ) && DIGITALISIMO_THEME_VERSION === $GLOBALS['styles']['digitalisimo-theme']['ver'], 'Fuera de paridad sólo base.css, con la versión del tema.' );
 add_filter( 'digitalisimo_theme_enqueue_style', '__return_false' );
 $GLOBALS['styles'] = array();
 digitalisimo_theme_enqueue_styles();

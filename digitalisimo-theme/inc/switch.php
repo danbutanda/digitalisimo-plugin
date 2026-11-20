@@ -9,7 +9,10 @@
  */
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/child.php'; // Lo que aportaba un hijo de Hello (funciones puras; Migración también lo lee).
+
 add_action( 'after_switch_theme', 'digitalisimo_theme_after_switch', 20, 2 ); // Después de _wp_menus_changed (10).
+digitalisimo_theme_child_hooks(); // Lo que encolaba el hijo de Hello (inc/child.php), antes que las hojas del tema.
 
 /** Registro del paso (opción del sitio, carga automática, ~1 KB): origen, último tema, ajustes y modo de cabecera y pie. */
 function digitalisimo_theme_switch_record() {
@@ -420,11 +423,43 @@ function digitalisimo_theme_import_work( WP_Theme $old, $child_css, $dry, $via )
 		}
 	}
 
-	// T10 · Inventario del hijo y de los filtros del tema anterior.
+	// T10 · Inventario del hijo y de los filtros del tema anterior. Lo que el functions.php del hijo encolaba con valores
+	// legibles sin ejecutarlo (inc/child.php) se vuelve a encolar desde su carpeta; lo demás se dice y su functions.php
+	// queda en Código PHP de DIGITALÍSIMO Tools, inactivo y con revisión.
 	if ( $child ) {
 		$log['child'] = digitalisimo_theme_child_inventory( $old );
-		if ( ! empty( $log['child']['php_files'] ) ) {
-			$warn( 'child_php', sprintf( 'El tema hijo %s tenía %d archivos PHP que este tema no carga: pásalos a fragmentos de DIGITALÍSIMO Tools.', $stylesheet, count( $log['child']['php_files'] ) ) );
+		$plan         = digitalisimo_theme_child_plan( $old );
+		$carried      = array_values( array_unique( array_column( $plan['assets'], 'h' ) ) );
+		$log['child'] += array(
+			'carried'  => $carried,
+			'blockers' => array_slice( $plan['blockers'], 0, 20 ),
+			'hash'     => $plan['hash'],
+		);
+		if ( $plan['assets'] ) {
+			$record['carry'] = 1; // El front lee la lista del hijo sólo con esta marca (sin consultas de más en los demás sitios).
+		} else {
+			unset( $record['carry'] );
+		}
+		if ( ! $dry ) {
+			if ( $plan['assets'] ) {
+				update_option( 'digitalisimo_theme_child', array( 'v' => $plan['v'], 'child' => $stylesheet, 'parent' => $template, 'assets' => $plan['assets'] ), true );
+			} else {
+				delete_option( 'digitalisimo_theme_child' );
+			}
+		}
+		if ( $plan['blockers'] ) {
+			$covered  = digitalisimo_theme_child_php_covered( $old );
+			$imported = $dry || $covered ? '' : digitalisimo_theme_child_import_php( $old, $plan );
+			$log['child']['tools'] = $covered ? 'active' : $imported;
+			$warn(
+				'child_php',
+				sprintf(
+					'Del tema hijo %s no se trajo lo que necesita ejecutar su PHP: %s. %s',
+					$stylesheet,
+					digitalisimo_theme_child_blockers_text( $plan['blockers'] ),
+					$covered ? 'Su functions.php ya está activo en Código PHP de DIGITALÍSIMO Tools.' : ( '' !== $imported ? 'Su functions.php quedó en DIGITALÍSIMO Tools → Código PHP, inactivo: revísalo y actívalo, o vuelve al tema hijo.' : 'Pásalo a Código PHP de DIGITALÍSIMO Tools (revisado y activado) o vuelve al tema hijo.' )
+				)
+			);
 		}
 		if ( $child_css ) {
 			$style = digitalisimo_theme_child_style( $old );
@@ -434,11 +469,17 @@ function digitalisimo_theme_import_work( WP_Theme $old, $child_css, $dry, $via )
 				$base  = null !== $write ? $write : $current;
 				$write = digitalisimo_theme_add_child_css( $base, $stylesheet, digitalisimo_theme_absolute_urls( $style, trailingslashit( get_theme_root_uri( $stylesheet ) ) . $stylesheet . '/' ) );
 			}
-		} elseif ( ! empty( $log['child']['style_bytes'] ) ) {
-			$warn( 'child_css', 'El style.css del tema hijo no se copió: «wp digitalisimo-theme import --child-css» lo añade al CSS adicional.' );
+		} elseif ( ! empty( $log['child']['style_bytes'] ) && $plan['blockers'] && ! in_array( 'style.css', array_column( array_filter( $plan['assets'], static function ( $asset ) {
+			return 'child' === $asset['w'];
+		} ), 's' ), true ) ) {
+			$warn( 'child_css', 'El style.css del tema hijo no se trajo (su functions.php no lo encola de una forma que se pueda leer sin ejecutarlo): «wp digitalisimo-theme import --child-css» lo añade al CSS adicional.' );
 		}
 	} elseif ( 'hello' === $family ) {
 		$log['child'] = array();
+		unset( $record['carry'] );
+		if ( ! $dry ) {
+			delete_option( 'digitalisimo_theme_child' );
+		}
 	}
 	if ( $origin_hello ) {
 		$log['filters'] = digitalisimo_theme_hello_filters();
@@ -643,38 +684,6 @@ function digitalisimo_theme_child_inventory( WP_Theme $child ) {
 		'selectors'           => $selectors,
 		'enqueues_hello_deps' => $deps,
 	);
-}
-
-/** Plantillas de página que sólo existen en el hijo y cuántos contenidos las usan. */
-function digitalisimo_theme_child_page_templates( WP_Theme $child ) {
-	$own = array();
-	foreach ( (array) $child->get_post_templates() as $list ) {
-		$own += (array) $list;
-	}
-	$parent = $child->parent();
-	if ( $parent ) {
-		foreach ( (array) $parent->get_post_templates() as $list ) {
-			foreach ( array_keys( (array) $list ) as $file ) {
-				unset( $own[ $file ] );
-			}
-		}
-	}
-	$out = array();
-	foreach ( array_keys( $own ) as $file ) {
-		$ids   = get_posts(
-			array(
-				'post_type'      => 'any',
-				'post_status'    => 'any',
-				'posts_per_page' => -1,
-				'fields'         => 'ids',
-				'no_found_rows'  => true,
-				'meta_key'       => '_wp_page_template', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
-				'meta_value'     => (string) $file, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
-			)
-		);
-		$out[] = array( 'template' => (string) $file, 'pages' => count( (array) $ids ) );
-	}
-	return $out;
 }
 
 /** Callbacks enganchados ahora a los filtros del tema anterior (fragmentos y plugins que dejarían de aplicarse). */

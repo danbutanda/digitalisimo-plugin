@@ -674,7 +674,7 @@ ok( digitalisimo_theme_hello_filters() === $inventory['filters'], 'Filtros del i
 $GLOBALS['wp_filter'] = $before_switch;
 ob_start(); C::render_inventory(); $html = (string) ob_get_clean();
 ok( array() === $writes, 'Inventario: cero escrituras.' );
-ok( false !== strpos( $html, 'Antes de cambiar de tema' ) && false !== strpos( $html, '<code>hello-child</code>' ) && false !== strpos( $html, '<code>hello_elementor_page_title</code>' ) && false !== strpos( $html, 'después del cambio no se imprimirá' ) && false !== strpos( $html, 'El código PHP del hijo no se carga con el tema DIGITALÍSIMO' ), 'Inventario: hijo, filtros, descripción perdida y aviso del PHP del hijo.' );
+ok( false !== strpos( $html, 'Antes de cambiar de tema' ) && false !== strpos( $html, '<code>hello-child</code>' ) && false !== strpos( $html, '<code>hello_elementor_page_title</code>' ) && false !== strpos( $html, 'después del cambio no se imprimirá' ) && false !== strpos( $html, 'Del PHP del hijo, el tema DIGITALÍSIMO sólo trae lo que encola' ) && false !== strpos( $html, 'lo sigue cargando desde la carpeta del hijo' ), 'Inventario: hijo, filtros, descripción perdida y aviso del PHP del hijo.' );
 ok( false === stripos( visible( $html ), 'elementor' ), 'Inventario: el nombre del constructor original sólo aparece en identificadores dentro de <code>.' );
 // Con SEO imprimiendo la descripción, el aviso cambia.
 if ( ! class_exists( 'Digitalisimo_Integrations_Settings', false ) ) { final class Digitalisimo_Integrations_Settings { public static function get( $key = null ) { return 'enable_seo' === $key ? 1 : null; } } }

@@ -160,6 +160,20 @@ function update_option( $key, $value, $autoload = null ) {
 function wp_cache_delete() {
 	return true;
 }
+function delete_option( $key ) {
+	unset( $GLOBALS['options'][ $key ] );
+	$GLOBALS['writes'][] = '-' . $key;
+	return true;
+}
+function has_filter( $hook ) {
+	return ! empty( $GLOBALS['hooks'][ $hook ] );
+}
+function home_url( $path = '' ) {
+	return 'https://sitio.test' . $path;
+}
+function get_theme_root( $stylesheet = '' ) {
+	return sys_get_temp_dir();
+}
 function get_template() {
 	return 'digitalisimo-theme';
 }
@@ -264,7 +278,9 @@ function is_customize_preview() {
 	return $GLOBALS['preview'];
 }
 
+$GLOBALS['options'] = array();
 require __DIR__ . '/../digitalisimo-theme/inc/switch.php';
+check( ! isset( $GLOBALS['hooks']['wp_enqueue_scripts'] ), 'Sin lista del hijo, cargar el tema no engancha encolados del hijo.' );
 
 // ------------------------------------------------------------------ Escenario
 $tmp   = sys_get_temp_dir() . '/digitalisimo-theme-switch-' . getmypid();
@@ -274,9 +290,16 @@ file_put_contents( $child . '/style.css', "/*\n Theme Name: Hello Child\n Templa
 file_put_contents( $child . '/functions.php', "<?php wp_enqueue_style( 'hijo', get_stylesheet_uri(), array( 'hello-elementor-theme-style' ) );\n" );
 file_put_contents( $child . '/inc/x.php', "<?php\n" );
 file_put_contents( $child . '/tpl-landing.php', "<?php /* Template Name: Landing */\n" );
+// Hijo típico: la plantilla oficial del hijo de Hello (sólo encola su style.css) y una hoja más.
+$child_ok = $tmp . '/hello-child-ok';
+@mkdir( $child_ok, 0777, true ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+file_put_contents( $child_ok . '/style.css', "/*\n Theme Name: Hello Child OK\n Template: hello-elementor\n*/\nbody{background:#fafafa}\n" );
+file_put_contents( $child_ok . '/extra.css', ".x{color:red}\n" );
+file_put_contents( $child_ok . '/functions.php', "<?php\nif ( ! defined( 'ABSPATH' ) ) {\n\texit;\n}\ndefine( 'HELLO_ELEMENTOR_CHILD_VERSION', '2.0.0' );\nfunction hello_elementor_child_scripts_styles() {\n\twp_enqueue_style( 'hello-elementor-child-style', get_stylesheet_directory_uri() . '/style.css', [ 'hello-elementor-theme-style' ], HELLO_ELEMENTOR_CHILD_VERSION );\n\twp_enqueue_style( 'hijo-extra', get_stylesheet_directory_uri() . '/extra.css', [ 'hello-elementor-child-style' ], HELLO_ELEMENTOR_CHILD_VERSION );\n}\nadd_action( 'wp_enqueue_scripts', 'hello_elementor_child_scripts_styles', 20 );\n" );
 $GLOBALS['themes'] = array(
 	'hello-elementor'    => array( 'stylesheet' => 'hello-elementor', 'template' => 'hello-elementor', 'version' => '3.5.1', 'templates' => array( 'page' => array( 'parent-tpl.php' => 'P' ) ) ),
 	'hello-child'        => array( 'stylesheet' => 'hello-child', 'template' => 'hello-elementor', 'version' => '1.0.0', 'parent' => 'hello-elementor', 'dir' => $child, 'templates' => array( 'page' => array( 'tpl-landing.php' => 'Landing' ) ) ),
+	'hello-child-ok'     => array( 'stylesheet' => 'hello-child-ok', 'template' => 'hello-elementor', 'version' => '2.0.0', 'parent' => 'hello-elementor', 'dir' => $child_ok ),
 	'twentytwentyfive'   => array( 'stylesheet' => 'twentytwentyfive', 'template' => 'twentytwentyfive', 'version' => '1.3' ),
 	'digitalisimo-theme' => array( 'stylesheet' => 'digitalisimo-theme', 'template' => 'digitalisimo-theme' ),
 	'hello-biz'          => array( 'stylesheet' => 'hello-biz', 'template' => 'hello-biz', 'version' => '1.2.0' ),
@@ -379,6 +402,11 @@ check( array( array( 'template' => 'tpl-landing.php', 'pages' => 2 ) ) === $log[
 check( array( 'hello-plus-theme/settings' => 2, 'hello_elementor_page_title' => 2 ) === $log['filters'], 'T10: callbacks en los filtros de Hello (FR-9).' );
 check( ! isset( $GLOBALS['css']['digitalisimo-theme'] ) && array() === $GLOBALS['css_writes'], 'Sin child_css no se escribe CSS.' );
 check( in_array( 'child_css', warning_codes(), true ) && in_array( 'child_php', warning_codes(), true ), 'Avisos del CSS y del PHP del hijo.' );
+$php_warning = array_values( array_filter( journal()['warnings'], static function ( $w ) {
+	return 'child_php' === $w['code'];
+} ) )[0]['message'];
+check( false !== strpos( $php_warning, "functions.php, línea 1: wp_enqueue_style( 'hijo' )" ) && false !== strpos( $php_warning, 'tpl-landing.php: plantilla de página que usan 2 contenidos' ) && false === strpos( $php_warning, 'inc/x.php' ) && false !== strpos( $php_warning, 'Pásalo a Código PHP' ), 'El aviso dice qué no se trajo y dónde (un PHP vacío no cuenta): ' . $php_warning );
+check( array() === $log['child']['carried'] && 2 === count( $log['child']['blockers'] ) && ! array_key_exists( 'digitalisimo_theme_child', $GLOBALS['options'] ), 'Nada legible que encolar: sin opción del hijo.' );
 $result = digitalisimo_theme_import_previous( wp_get_theme( 'hello-child' ), array( 'force' => true, 'child_css' => true, 'via' => 'cli' ) );
 $child_block    = $GLOBALS['css']['digitalisimo-theme'];
 check( ! is_wp_error( $result ) && 'cli' === record()['last']['via'], 'La importación por CLI.' );
@@ -393,6 +421,39 @@ file_put_contents( $child . '/style.css', "/*\n Theme Name: Hello Child\n Templa
 hello_site( 'hello-child' );
 digitalisimo_theme_import_previous( wp_get_theme( 'hello-child' ), array( 'force' => true, 'child_css' => true ) );
 check( ! isset( $GLOBALS['css']['digitalisimo-theme'] ) && in_array( 'child_css_import', warning_codes(), true ), 'Con @import no se copia nada y se avisa.' );
+
+// 2b. Hijo típico (plantilla oficial): sus hojas se encolan desde su carpeta, sin avisos; el PHP con bloqueos, a Tools.
+hello_site( 'hello-child-ok' );
+$GLOBALS['css']['hello-child-ok'] = '.tp{color:blue}';
+switch_from( 'hello-child-ok' );
+$saved = get_option( 'digitalisimo_theme_child' );
+check( is_array( $saved ) && 'hello-child-ok' === $saved['child'] && 'hello-elementor' === $saved['parent'] && true === $GLOBALS['autoload']['digitalisimo_theme_child'], 'El hijo típico deja su lista de encolados (con carga automática): ' . json_encode( $saved ) );
+check( array( 'hello-elementor-child-style', 'hijo-extra' ) === array_column( $saved['assets'], 'h' ) && 'style.css' === $saved['assets'][0]['s'] && 20 === $saved['assets'][0]['p'] && array( 'hello-elementor-child-style' ) === $saved['assets'][1]['d'], 'Con sus handles, archivos, dependencias y prioridad.' );
+check( strlen( serialize( $saved ) ) < 1024, 'La lista del hijo típico pesa menos de 1 KB.' );
+check( 1 === record()['carry'], 'El registro marca que hay algo del hijo que traer.' );
+check( array( 'hello-elementor-child-style', 'hijo-extra' ) === journal()['child']['carried'] && array() === journal()['child']['blockers'] && ! array_intersect( array( 'child_php', 'child_css' ), warning_codes() ), 'Sin bloqueos: sin avisos del hijo.' );
+check( '.tp{color:blue}' === $GLOBALS['css']['digitalisimo-theme'], 'El CSS adicional guardado con el hijo activo pasa al tema.' );
+digitalisimo_theme_import_previous( wp_get_theme( 'hello-child-ok' ), array( 'force' => true, 'dry_run' => true ) );
+check( $saved === get_option( 'digitalisimo_theme_child' ), 'Un dry-run no reescribe la lista.' );
+switch_from( 'hello-elementor' );
+check( ! array_key_exists( 'digitalisimo_theme_child', $GLOBALS['options'] ) && ! isset( record()['carry'] ), 'Desde Hello sin hijo, la lista del hijo anterior y su marca se retiran.' );
+// Con bloqueos y Tools activo: su functions.php se importa (una vez por paso) y el aviso lo dice; en dry-run, no.
+file_put_contents( $child_ok . '/functions.php', file_get_contents( $child_ok . '/functions.php' ) . "add_action( 'wp_head', function () { echo '<style>.x{}</style>'; } );\n" );
+hello_site( 'hello-child-ok' );
+$GLOBALS['tools_imports'] = array();
+add_filter( 'digitalisimo_tools_php_import', static function ( $result, $items ) {
+	$GLOBALS['tools_imports'][] = $items;
+	return array( 'digitalisimo-theme:hello-child-ok' => 'created' );
+}, 10, 2 );
+digitalisimo_theme_import_previous( wp_get_theme( 'hello-child-ok' ), array( 'force' => true, 'dry_run' => true ) );
+check( array() === $GLOBALS['tools_imports'], 'En dry-run no se importa a Tools.' );
+switch_from( 'hello-child-ok' );
+$php_warning = array_values( array_filter( journal()['warnings'], static function ( $w ) {
+	return 'child_php' === $w['code'];
+} ) )[0]['message'];
+check( 1 === count( $GLOBALS['tools_imports'] ) && 'hello-child-ok' === $GLOBALS['tools_imports'][0][0]['origin']['id'] && 'created' === journal()['child']['tools'], 'Con bloqueos, su functions.php va a Código PHP de Tools.' );
+check( false !== strpos( $php_warning, "functions.php, línea 11: add_action( 'wp_head' )" ) && false !== strpos( $php_warning, 'quedó en DIGITALÍSIMO Tools' ) && array( 'hello-elementor-child-style', 'hijo-extra' ) === array_column( get_option( 'digitalisimo_theme_child' )['assets'], 'h' ), 'El aviso dice la línea y dónde quedó; las hojas se traen igual: ' . $php_warning );
+check( ! in_array( 'child_css', warning_codes(), true ), 'Con su style.css encolado, no hay aviso del CSS del hijo.' );
 
 // 3. Otro tema: T1, T2 y T4 sí; T3 y T5 no.
 reset_site();

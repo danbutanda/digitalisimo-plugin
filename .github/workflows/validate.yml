@@ -449,6 +449,7 @@ jobs:
           php tests/theme-structure.php
           php tests/theme-updater.php
           php tests/theme-switch.php
+          php tests/theme-child.php
           node tests/release-manifest.mjs
           php tests/tools-theme.php
           php tests/seo-hello-description.php

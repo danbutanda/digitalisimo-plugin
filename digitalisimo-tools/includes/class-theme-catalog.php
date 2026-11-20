@@ -366,7 +366,7 @@ final class Theme_Catalog {
 			$rows[] = array( 'Tema hijo', '<code>' . esc_html( $origin['stylesheet'] ) . '</code>' );
 			$rows[] = array( 'Archivos PHP del hijo', $child['php_files'] ? esc_html( sprintf( '%d: ', count( $child['php_files'] ) ) ) . implode( ', ', array_map( static function ( $file ) { return '<code>' . esc_html( $file ) . '</code>'; }, array_slice( $child['php_files'], 0, 20 ) ) ) . ( count( $child['php_files'] ) > 20 ? esc_html( '…' ) : '' ) : esc_html( 'Ninguno' ) );
 			$style  = $child['style_bytes'] ? sprintf( '%s bytes de reglas propias', number_format_i18n( $child['style_bytes'] ) ) : 'Sin reglas propias';
-			$rows[] = array( 'style.css del hijo', esc_html( $style ) . ( $child['selectors'] ? esc_html( '; reescribe ' ) . implode( ', ', array_map( static function ( $selector ) { return '<code>' . esc_html( $selector ) . '</code>'; }, $child['selectors'] ) ) : '' ) . '<br>' . esc_html( 'No se copia solo: si lo necesitas, pégalo en el CSS adicional después de revisar el resultado.' ) );
+			$rows[] = array( 'style.css del hijo', esc_html( $style ) . ( $child['selectors'] ? esc_html( '; reescribe ' ) . implode( ', ', array_map( static function ( $selector ) { return '<code>' . esc_html( $selector ) . '</code>'; }, $child['selectors'] ) ) : '' ) . '<br>' . esc_html( 'Si su functions.php lo encola, el tema DIGITALÍSIMO (desde 1.0.1) lo sigue cargando desde la carpeta del hijo, igual que sus otras hojas y fuentes; si no lo encola, tampoco se cargaba con Hello.' ) );
 			$templates = array();
 			foreach ( $child['page_templates'] as $template ) $templates[ $template['template'] ] = $template['pages'];
 			$rows[] = array( 'Plantillas propias del hijo', $templates ? self::code_counts( $templates, '%d contenido la usa', '%d contenidos la usan' ) . '<br>' . esc_html( 'Esos contenidos se verán con la plantilla por defecto.' ) : esc_html( 'Ninguna' ) );
@@ -388,7 +388,7 @@ final class Theme_Catalog {
 		echo '<table class="widefat striped digitalisimo-theme-before"><tbody>';
 		foreach ( $rows as $row ) echo '<tr><th scope="row">' . esc_html( $row[0] ) . '</th><td>' . $row[1] . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- cada celda se escapó al armarla.
 		echo '</tbody></table>';
-		if ( $origin['child'] ) echo '<p><strong>' . esc_html( 'El código PHP del hijo no se carga con el tema DIGITALÍSIMO: pásalo a fragmentos PHP de Tools antes de activar.' ) . '</strong></p>';
+		if ( $origin['child'] ) echo '<p><strong>' . esc_html( 'Del PHP del hijo, el tema DIGITALÍSIMO sólo trae lo que encola (hojas, fuentes y scripts); el resto (otros ganchos, shortcodes, plantillas) no se carga: al activarlo, su functions.php queda en Código PHP, inactivo, para revisarlo y activarlo, y «Migrar» no cambia el tema mientras ese PHP no esté activo ahí.' ) . '</strong></p>';
 	}
 
 	/* ------------------------------------------------------------------------------------------------------------
