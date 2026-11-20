@@ -205,7 +205,7 @@ final class Cli {
 			\WP_CLI::runcommand( 'digitalisimo-migration --run', array( 'launch' => true, 'exit_error' => true, 'return' => false ) );
 			return;
 		}
-		\WP_CLI::log( self::text( Runner::render( $state ) ) );
+		\WP_CLI::log( self::text( Runner::render( $state, 'cli' ) ) );
 		if ( empty( $state['done'] ) ) {
 			\WP_CLI::error( 'La migración no terminó: vuelve a ejecutar la orden; sigue donde quedó.' );
 		}
@@ -244,7 +244,7 @@ final class Cli {
 				$failed[] = $row['url'];
 			}
 		}
-		\WP_CLI::log( self::text( Runner::render_network( $job ) ) );
+		\WP_CLI::log( self::text( Runner::render_network( $job, 'cli' ) ) );
 		if ( $failed || empty( $job['done'] ) ) {
 			\WP_CLI::error( 'La migración de la red no terminó' . ( $failed ? ' (falta en ' . implode( ', ', $failed ) . ')' : '' ) . ': vuelve a ejecutar la orden; cada sitio sigue donde quedó (los que esperan a la red se liberan con el WP-Cron del sitio principal al vencer el plazo).' );
 		}
@@ -281,8 +281,11 @@ final class Cli {
 		}
 	}
 
-	/** El informe en texto para la terminal. */
+	/** El informe en texto para la terminal (el de la tarea completa si está cargada: el mismo resumen). */
 	private static function text( $html ) {
+		if ( class_exists( '\\Digitalisimo\\Migration\\Full' ) ) {
+			return \Digitalisimo\Migration\Full::text( $html );
+		}
 		$text = str_replace( array( '</p>', '</li>', '</tr>', '</h3>', '</div>' ), "\n", (string) $html );
 		$text = html_entity_decode( wp_strip_all_tags( str_replace( '</td>', ' · ', $text ) ), ENT_QUOTES, 'UTF-8' );
 		return trim( (string) preg_replace( "/\n\s*\n+/", "\n", $text ) );

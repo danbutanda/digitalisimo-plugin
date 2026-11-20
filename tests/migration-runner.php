@@ -454,7 +454,7 @@ namespace {
 	$GLOBALS['t']['can'] = false;
 	$state = Runner::site_step( true, 100 );
 	check_runner( ! empty( $state['done'] ) && array() === $GLOBALS['t']['deactivated'] && array() === $GLOBALS['t']['converted'] && 0 === $state['counts']['aliases'] && str_contains( implode( ' ', $state['warnings'] ), 'no puede desactivar' ) && str_contains( implode( ' ', $state['warnings'] ), 'Element Pack sigue activo' ), 'Sin permiso no desactiva ni convierte con Element Pack activo (tampoco los alias), y lo dice.' );
-	check_runner( Runner::has_pending( $state ) && str_contains( Runner::render( $state ), 'Pendiente de revisar' ), 'El informe lo marca como pendiente.' );
+	check_runner( Runner::has_pending( $state ) && str_contains( Runner::render( $state ), 'Necesita tu atención' ), 'El informe lo marca como pendiente.' );
 	// Element Pack cargado en el proceso pero ya desactivado en las opciones: se espera a una petición nueva.
 	t_reset();
 	Aliases::set_map( $aliases );

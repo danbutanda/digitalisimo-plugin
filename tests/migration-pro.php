@@ -468,7 +468,7 @@ namespace {
 	$check( ! empty( $state['done'] ) && 2 === (int) $state['counts']['pro'] && 3 === (int) $state['counts']['pro_elements'], 'Migrar termina con 2 documentos y 3 widgets de PRO convertidos: ' . wp_json_encode( $state['counts'] ) );
 	$check( 0 === (int) ( $state['report']['pro_left'] ?? -1 ), 'El informe no deja documentos de PRO por convertir.' );
 	$html = Runner::render( $state );
-	$check( false !== strpos( $html, 'Documentos con widgets de PRO convertidos a widgets propios: 2 (3 widgets).' ) && false !== strpos( $html, 'Pendiente de revisar' ), 'El informe cuenta lo convertido y deja la clave sin declarar en «Pendiente de revisar».' );
+	$check( false !== strpos( $html, 'Documentos con widgets de PRO convertidos a widgets propios: 2 (3 widgets).' ) && false !== strpos( $html, 'Necesita tu atención' ), 'El informe cuenta lo convertido y deja la clave sin declarar en «Necesita tu atención».' );
 	$check( Runner::has_pending( $state ), 'Con una clave sin declarar, el sitio queda con asuntos por revisar.' );
 	$check( in_array( 'pro.converted', array_column( (array) Report::stored()['docs'][ $ids['page'] ]['items'], 'code' ), true ), 'El informe guardado de F8 tiene los códigos pro.' );
 	// Volver a pulsar Migrar: nada cambia y el informe sigue diciendo lo convertido (relee la copia).

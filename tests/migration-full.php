@@ -106,11 +106,19 @@ function current_time( $type ) { return gmdate( 'Y-m-d H:i:s' ); }
 function wp_clean_plugins_cache( $x = true ) {}
 function wp_clean_themes_cache( $x = true ) {}
 function get_plugins() { return $GLOBALS['t']['plugins']; }
+// Transitorios por sitio, guardados como opciones (como WordPress sin caché de objetos).
+function set_transient( $k, $v, $e = 0 ) { return update_option( '_transient_' . $k, $v ); }
+function get_transient( $k ) { return get_option( '_transient_' . $k, false ); }
+function delete_transient( $k ) { return delete_option( '_transient_' . $k ); }
 function activate_plugin( $file, $r = '', $network = false ) {
 	if ( ! isset( $GLOBALS['t']['plugins'][ $file ] ) ) {
 		return new WP_Error( 'x', 'no instalado' );
 	}
 	$GLOBALS['t']['log'][] = 'activate:' . $file . ( $network ? ':red' : '' );
+	// El gancho de activación del plugin (`activate_<archivo>`), en el sitio en curso, como WordPress.
+	if ( isset( $GLOBALS['t']['on_activate'][ $file ] ) ) {
+		( $GLOBALS['t']['on_activate'][ $file ] )( $network );
+	}
 	if ( $network ) {
 		$GLOBALS['t']['site']['active_sitewide_plugins'][ $file ] = time();
 		return null;
@@ -360,6 +368,14 @@ namespace Digitalisimo\Elements\Legacy {
 		}
 
 		public static function render( $state ) { return '<p>contenido</p>'; }
+		/** Partes del informe para el de la tarea completa: con `content_attention`, un asunto pendiente. */
+		public static function report_parts( array $state, $where = 'site', $level = 3, $plugins = false ) {
+			$attention = ! empty( $GLOBALS['t']['content_attention'] ) ? array( 'Revisa <a href="#">Portada</a>.' ) : array();
+			return array( 'summary' => 'contenido convertido', 'plugins' => '', 'attention' => $attention, 'detail' => '<p>detalle del contenido</p>', 'pending' => (bool) $attention );
+		}
+		public static function network_parts( $job, $where = 'site', $level = 3, $plugins = false ) {
+			return array( 'summary' => 'contenido de la red', 'plugins' => '', 'attention' => array(), 'detail' => '<p>detalle de la red</p>', 'pending' => false );
+		}
 		public static function site_step( $start = false, $budget = null, $capable = null, $run = '' ) {
 			$GLOBALS['t']['runner_calls'] = (int) ( $GLOBALS['t']['runner_calls'] ?? 0 ) + 1;
 			$job = self::state();
@@ -643,6 +659,12 @@ switch ( $scenario ) {
 		break;
 
 	case 'happy':
+		// Como el núcleo incluido en Elements (elementor/includes/maintenance.php): su activación deja la redirección a
+		// su bienvenida para la próxima carga del escritorio.
+		$GLOBALS['t']['on_activate'][ ELEMENTS ] = static function () {
+			$GLOBALS['t']['log'][] = 'activation_hook:' . blog();
+			set_transient( 'elementor_activation_redirect', true, 60 );
+		};
 		$state = drive();
 		$last  = Full::last( false );
 		check( ! empty( $state['done'] ) && '' === $last['failed'], 'Termina sin fallos: ' . ( $last['error'] ?? '' ) );
@@ -667,7 +689,17 @@ switch ( $scenario ) {
 		foreach ( array( 'Respaldo', 'Instalado y activado', 'Importado', 'Reemplazado', 'Borrado', 'Tema', 'restaura el respaldo' ) as $needle ) {
 			check( false !== strpos( $html, $needle ), "El informe dice «{$needle}»." );
 		}
+		// El informe corto: el contenido en una fila, «Nada necesita tu atención» en una línea y el detalle plegado.
+		check( false !== strpos( $html, '<th scope="row">Contenido</th><td>contenido convertido</td>' ) && false !== strpos( $html, 'Nada necesita tu atención.' ) && false !== strpos( $html, '<details class="digi-migrate__detail"><summary>Detalle</summary><h3>Contenido</h3><p>detalle del contenido</p></details>' ), 'El contenido va en una fila, sin asuntos lo dice en una línea y el detalle va plegado.' );
+		check( false !== strpos( $html, 'Responden igual: 2 de 2.' ), 'La portada dice cuántas responden igual.' );
+		$GLOBALS['t']['content_attention'] = true;
+		$html = Full::render( false, $last );
+		check( false !== strpos( $html, '<h2 class="digi-migrate__attention-title">Necesita tu atención</h2><ul class="digi-migrate__attention" style="list-style:disc;margin-left:20px"><li>Revisa <a href="#">Portada</a>.</li></ul>' ) && strpos( $html, 'Necesita tu atención' ) < strpos( $html, '<details' ) && false === strpos( $html, 'Nada necesita' ), 'Lo que pide algo a una persona va antes del detalle, con su enlace.' );
+		$cli = Full::text( Full::render( false, $last, 'cli' ) );
+		check( false === strpos( $cli, '<' ) && false !== strpos( $cli, "Necesita tu atención\nRevisa Portada." ) && false !== strpos( $cli, 'Respaldo · backup-1.zip' ), 'WP-CLI da el mismo resumen en texto: ' . $cli );
+		unset( $GLOBALS['t']['content_attention'] );
 		check( ! get_option( Full::JOB ) && empty( $GLOBALS['t']['cron'][ Full::CRON ] ), 'La tarea se cierra y se quita su continuación.' );
+		check( in_array( 'activation_hook:1', $GLOBALS['t']['log'], true ) && false === get_transient( 'elementor_activation_redirect' ), 'Migrar no deja la redirección de activación de Elements: la próxima pantalla no salta a su bienvenida.' );
 		break;
 
 	case 'backup_history':
@@ -687,6 +719,7 @@ switch ( $scenario ) {
 		check( 'hello-elementor' === get_option( 'stylesheet' ), 'No cambia el tema.' );
 		nothing_deleted();
 		check( false !== strpos( Full::render( false, $last ), 'No se borró nada' ), 'El informe dice que no se borró nada.' );
+		check( false !== strpos( Full::render( false, $last ), '<li>Resuelve lo que dice el aviso de arriba y vuelve a pulsar Migrar' ) && false === strpos( Full::render( false, $last ), 'Nada necesita' ), 'Una migración detenida pide atención: nunca dice que no hay nada.' );
 		break;
 
 	case 'install_fails':
@@ -718,6 +751,8 @@ switch ( $scenario ) {
 		check( false !== strpos( $last['theme'][1]['reason'], 'tema hijo' ), 'El informe dice por qué: ' . $last['theme'][1]['reason'] );
 		check( isset( $GLOBALS['t']['themes']['hello-elementor'] ), 'Hello no se borra.' );
 		check( ! installed_now( 'seo-by-rank-math/rank-math.php' ), 'Lo demás sí se reemplaza.' );
+		$html = Full::render( false, $last );
+		check( false !== strpos( (string) strstr( $html, 'digi-migrate__attention-title' ), 'Tema: El sitio usa un tema hijo de Hello' ) && false !== strpos( $html, 'se queda Hello Hijo (ver «Necesita tu atención»).' ) && false !== strpos( $html, 'notice-warning' ) && false === strpos( $html, 'Nada necesita' ), 'El tema hijo que se queda, con su acción, va en «Necesita tu atención».' );
 		break;
 
 	case 'theme_other':
@@ -740,6 +775,12 @@ switch ( $scenario ) {
 		nothing_deleted();
 		check( installed_now( 'seo-by-rank-math/rank-math.php' ) && ! active( 'seo-by-rank-math/rank-math.php' ), 'Lo reemplazado queda desactivado, sin borrar.' );
 		check( false !== strpos( (string) ( $last['kept']['rank-math'] ?? '' ), 'portada' ), 'El informe dice por qué no se borró.' );
+		// La portada que no responde igual pide atención: el aviso no es verde y nada dice que no haya nada pendiente.
+		$html = Full::render( false, $last );
+		check( false === strpos( $html, 'Nada necesita' ) && false === strpos( $html, 'notice-success' ) && false !== strpos( $html, 'notice-warning' ) && false !== strpos( $html, 'Migración terminada sin borrar nada: la portada o alguna página no responde igual y se volvió al tema anterior.' ), 'Con la portada que no responde igual, el aviso es amarillo y lo dice: ' . strip_tags( substr( $html, 0, 300 ) ) );
+		$attention = (string) strstr( $html, 'digi-migrate__attention-title' );
+		check( false !== strpos( $attention, 'No responden igual después de migrar: http://example.test/' ) && false !== strpos( $attention, 'se volvió a Hello Elementor' ) && false !== strpos( $attention, 'No se borró nada' ), 'Y «Necesita tu atención» lista la página con el motivo, la vuelta del tema y que no se borró nada.' );
+		check( false !== strpos( $attention, 'Desactivado, sin borrar hasta que la portada responda igual: Element Pack, Elementor, Rank Math SEO, UpdraftPlus.' ) && false === strpos( $attention, 'así que no se borró nada' ), 'Lo desactivado sin borrar, en la misma lista sin repetir el motivo: ' . strip_tags( $attention ) );
 		break;
 
 	case 'pending_content':
@@ -748,6 +789,8 @@ switch ( $scenario ) {
 		$last = Full::last( false );
 		check( installed_now( 'bdthemes-element-pack/bdthemes-element-pack.php' ), 'Element Pack, que aún hace falta, no se borra.' );
 		check( false !== strpos( (string) ( $last['kept']['element-pack'] ?? '' ), 'Element Pack' ), 'El informe dice por qué.' );
+		$html = Full::render( false, $last );
+		check( false !== strpos( (string) strstr( $html, 'digi-migrate__attention-title' ), 'Desactivado, sin borrar: Element Pack' ) && false === strpos( $html, '<th scope="row">Desactivado, sin borrar</th>' ) && false === strpos( $html, 'Nada necesita' ), 'Lo desactivado sin borrar va en «Necesita tu atención», no en la tabla.' );
 		check( ! installed_now( 'seo-by-rank-math/rank-math.php' ), 'Lo que no depende de él sí se reemplaza.' );
 		break;
 

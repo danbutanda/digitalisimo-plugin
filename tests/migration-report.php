@@ -265,7 +265,7 @@ namespace {
 	$state['stage']  = 'finish';
 	$state['report'] = array( 'f8' => array( 'v' => 1 ) + Report::summary( Report::stored() ), 'plugins' => array() );
 	$html  = $runner::render( $state );
-	f8_check( str_contains( $html, 'Pendiente de revisar' ) && false === strpos( $html, '<img' ) && str_contains( $html, '&lt;img' ), 'El informe del sitio pinta el detalle de F8 escapado.' );
+	f8_check( str_contains( $html, 'Necesita tu atención' ) && false === strpos( $html, '<img' ) && str_contains( $html, '&lt;img' ), 'El informe del sitio pinta lo pendiente de F8 arriba, escapado.' );
 	f8_check( $runner::has_pending( $state ), 'Y queda pendiente por core.residual.' );
 	// Columnas de la red, leídas del resumen guardado.
 	$job = array( 'started' => 1, 'done' => true, 'finished' => 2, 'sites' => array( 1 ), 'skipped' => array(), 'deactivated' => array(), 'warnings' => array(), 'status' => array( 1 => array( 'status' => 'done', 'counts' => array( 'converted' => 2, 'copies' => 1 ), 'pending' => true, 'f8' => array( 'created' => 3, 'approx' => 1, 'review' => 1 ), 'name' => $xss, 'url' => 'https://s1.test/', 'tool' => 'https://s1.test/wp-admin/tools.php' ) ) );

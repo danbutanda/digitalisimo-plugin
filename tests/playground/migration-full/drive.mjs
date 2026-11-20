@@ -144,6 +144,11 @@ check(JSON.stringify(zips) === JSON.stringify(['digitalisimo-backups', 'digitali
 // Migración nunca consulta GitHub con el índice en caché (las demás peticiones bloqueadas se listan arriba).
 check(!result.blocked.some((url) => /github\.com/.test(url)), 'Migración no consulta GitHub: ' + result.blocked.filter((url) => /github/.test(url)).join(', '));
 for (const file of ['bdthemes-element-pack/bdthemes-element-pack.php', 'seo-by-rank-math/rank-math.php', 'updraftplus/updraftplus.php']) {
+	// En el sitio queda contenido pendiente (el Carrito sin WooCommerce): Element Pack se desactiva y no se borra.
+	if (!network && /element-pack/.test(file)) {
+		check(result.installed.includes(file) && !Object.values((Object.values(result.sites)[0] || {}).active || {}).includes(file) && /Element Pack sigue haciendo falta/.test(JSON.stringify(l.kept || {})), `Con contenido pendiente, Element Pack queda desactivado sin borrar: ${JSON.stringify(l.kept)}`);
+		continue;
+	}
 	check(!result.installed.includes(file), `Borrado: ${file}`);
 }
 for (const file of ['digitalisimo-backups/digitalisimo-backups.php', 'digitalisimo-elements/pro-elements.php', 'digitalisimo-seo/digitalisimo-integrations.php', 'digitalisimo-migration/digitalisimo-migration.php']) {
@@ -159,6 +164,42 @@ for (const [id, site] of Object.entries(result.sites)) {
 	check(site.seo_title === 'Sobre el vivero familiar' && /macetas artesanales/.test(site.seo_desc), `Sitio ${id}: metas de Rank Math importadas (${site.seo_title} | ${site.seo_desc}).`);
 	check(site.home === 200 && site.home_text && !site.fatal, `Sitio ${id}: la portada responde (${site.home}).`);
 }
+// La pantalla final (pedido del propietario del 2026-11-19): el resultado arriba en pocas líneas, «Necesita tu atención»
+// con la acción y el enlace al editor, el detalle plegado y agregado, y el análisis previo plegado debajo.
+const finalScreen = await (await request(screen)).text();
+const statusAt = finalScreen.indexOf('digi-migrate__status');
+const foldAt = finalScreen.indexOf('<details class="digi-migrate__before"');
+const report = statusAt > -1 && foldAt > statusAt ? finalScreen.slice(statusAt, foldAt) : '';
+/** Lo que se ve sin desplegar: cada <details> cerrado se queda en su <summary>. */
+function visibleLines(html) {
+	let prev = null;
+	while (prev !== html) {
+		prev = html;
+		html = html.replace(/<details(?![^>]*\sopen)[^>]*>\s*<summary>([^<]*)<\/summary>(?:(?!<details)[\s\S])*?<\/details>/, '<p>$1</p>');
+	}
+	return html.replace(/<\/(p|li|tr|h[1-6]|div|summary|caption)>/g, '\n').replace(/<[^>]+>/g, ' ').split('\n').map((l) => l.trim()).filter(Boolean);
+}
+const lines = visibleLines(report);
+console.log(`pantalla final: ${lines.length} líneas visibles\n  ${lines.join('\n  ')}`);
+check(report && (report.match(/Migración completada/g) || []).length === 1, 'La pantalla final dice una sola vez «Migración completada».');
+check(foldAt > -1 && !/^<details class="digi-migrate__before"[^>]*\sopen/.test(finalScreen.slice(foldAt, foldAt + 300)) && /<summary>Ver el análisis/.test(finalScreen.slice(foldAt, foldAt + 400)), 'El análisis previo queda plegado bajo el informe.');
+check(lines.length > 0 && lines.length < 40, `Lo visible sin desplegar cabe en menos de 40 líneas (${lines.length}).`);
+check(!/había nada que/.test(report), 'Con conversiones, no dice «no había nada que migrar».');
+check(/<details class="digi-migrate__detail"><summary>Detalle<\/summary>/.test(report) && report.indexOf('Necesita tu atención') < report.indexOf('<details class="digi-migrate__detail">'), 'Lo que necesita atención va antes del detalle plegado.');
+if (!network) {
+	const site = Object.values(result.sites)[0] || {};
+	const redirect = result.redirect || {};
+	check(!!redirect.at_activation && !redirect.at_end && redirect.network_wide === false, `Activar Elements en el sitio deja la redirección y «Migrar» la borra en la misma petición (${JSON.stringify(redirect)}).`);
+	check(site.quote_type === 'digitalisimo-blockquote', `La Cita de PRO pasó a la propia (${site.quote_type}).`);
+	check(/blockquote → digitalisimo-blockquote: 1 en 1 documento/.test(report), 'El detalle agrega los widgets convertidos por tipo.');
+	check(JSON.stringify(site.cart_types) === JSON.stringify(['woocommerce-cart', 'blockquote']), `El Carrito sin WooCommerce se queda como estaba (${JSON.stringify(site.cart_types)}).`);
+	check(new RegExp(`post\\.php\\?post=${site.cart}&(amp;|#038;)?action=elementor`).test(report) && /WooCommerce/.test(report) && /vuelve a pulsar Migrar/.test(report), 'El Carrito sin WooCommerce va en «Necesita tu atención», con la acción y el enlace a su editor.');
+} else {
+	const redirect = result.redirect || {};
+	check(redirect.network_wide === true && !redirect.at_activation && !redirect.at_end, `Activar Elements en toda la red no deja la redirección (${JSON.stringify(redirect)}).`);
+	check(/Nada necesita tu atención\./.test(report) && /<details class="digi-migrate__detail">[\s\S]*digi-migrate__sites[\s\S]*Informe del sitio/.test(report) && /Contenido migrado en 2 de 2 sitios\./.test(report), 'En la red sin asuntos: lo dice en una línea y la tabla de cada sitio, con el enlace a su informe, va plegada en el detalle.');
+}
+
 if (problems.length) {
 	console.log('FALLA\n  - ' + problems.join('\n  - '));
 	process.exit(1);
