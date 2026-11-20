@@ -34,6 +34,13 @@ final class Skydropx {
 	const QUOTE_CACHE = 'digitalisimo_woo_skydropx_quote_';
 	const QUOTE_TTL   = 120;
 
+	/** Transitorio del recorrido de `audit_products` (por usuario) para sus páginas siguientes, y su vida. */
+	const AUDIT_CACHE = 'digitalisimo_woo_skydropx_audit_';
+	const AUDIT_TTL   = 300;
+
+	/** Tarifas ya cotizadas en esta petición PHP, por huella (ver `do_quote()`). @var array */
+	private static $quoted = array();
+
 	/** Valor numérico máximo aceptado para peso y medidas (en la unidad enviada). */
 	const MAX_MEASURE = 1000000;
 
@@ -56,7 +63,7 @@ final class Skydropx {
 		if ( 'off' === $mode ) {
 			return new \WP_Error( 'digitalisimo_woo_mcp_off', 'Las herramientas de tienda están apagadas en este sitio («WooCommerce en el MCP»: apagado).', array( 'status' => 403 ) );
 		}
-		$allowed = self::permission( $input );
+		$allowed = Skydropx_Tool::permission( $input );
 		if ( true !== $allowed ) {
 			if ( 'write' === $plan['kind'] ) {
 				Log::add( Log::entry( $plan, 'denied', 'forbidden', 403, $user ) );
@@ -77,8 +84,9 @@ final class Skydropx {
 		}
 		if ( 'write' === $plan['kind'] ) {
 			if ( is_wp_error( $result ) ) {
-				$data = $result->get_error_data();
-				Log::add( Log::entry( $plan, 'error', (string) $result->get_error_code(), is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 500, $user ) );
+				$data   = $result->get_error_data();
+				$denied = is_array( $data ) && ! empty( $data['denied'] );
+				Log::add( Log::entry( $plan, $denied ? 'denied' : 'error', $denied ? 'forbidden' : (string) $result->get_error_code(), is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 500, $user ) );
 			} else {
 				$partial = ! empty( $result['partial'] );
 				Log::add( Log::entry( $plan, $partial ? 'partial' : 'ok', $partial ? (string) ( $result['code'] ?? '' ) : '', 200, $user ) );
@@ -88,34 +96,9 @@ final class Skydropx {
 		return $result;
 	}
 
-	/**
-	 * Permiso: con una entrada válida, una capacidad de cada grupo de `Skydropx_Tool::capabilities()`; sin ella (lista de
-	 * herramientas, o una entrada que `run()` rechazará con su motivo), el mínimo.
-	 *
-	 * @return true|\WP_Error
-	 */
+	/** Permiso de la herramienta: lo resuelve la clase ligera (ver `Skydropx_Tool::permission()`). */
 	public static function permission( $input = null ) {
-		$groups = array( Skydropx_Tool::floor() );
-		if ( is_array( $input ) && isset( $input['action'] ) && is_string( $input['action'] ) && in_array( $input['action'], Skydropx_Tool::actions(), true ) ) {
-			$groups = array_merge( $groups, Skydropx_Tool::capabilities( $input['action'] ) );
-		}
-		foreach ( $groups as $group ) {
-			$ok = false;
-			foreach ( $group as $cap ) {
-				if ( current_user_can( $cap ) ) {
-					$ok = true;
-					break;
-				}
-			}
-			if ( ! $ok ) {
-				return new \WP_Error(
-					'digitalisimo_woo_mcp_forbidden',
-					sprintf( 'Tu usuario no tiene permiso para esto en la tienda: WooCommerce exige la capacidad «%s».', implode( '» o «', $group ) ),
-					array( 'status' => 403 )
-				);
-			}
-		}
-		return true;
+		return Skydropx_Tool::permission( $input );
 	}
 
 	/**
@@ -139,10 +122,12 @@ final class Skydropx {
 		}
 		// Un parámetro de otra acción se rechaza, salvo su valor por defecto (lo rellenan algunos clientes).
 		$defaults = array(
-			'page'            => 1,
-			'per_page'        => Tools::PER_PAGE_DEFAULT,
-			'cache'           => true,
-			'tracking_filter' => 'any',
+			'page'                 => 1,
+			'per_page'             => Tools::PER_PAGE_DEFAULT,
+			'cache'                => true,
+			'tracking_filter'      => 'any',
+			'after_id'             => 0,
+			'create_shipping_line' => false,
 		);
 		foreach ( $input as $key => $value ) {
 			$key = (string) $key;
@@ -201,6 +186,13 @@ final class Skydropx {
 				}
 			}
 			$plan['checks'] = array_values( array_unique( $checks ) );
+		}
+		$plan['after_id'] = 0;
+		if ( array_key_exists( 'after_id', $input ) ) {
+			if ( ! is_int( $input['after_id'] ) || $input['after_id'] < 0 ) {
+				return self::error( 'digitalisimo_woo_mcp_input', 'after_id es un entero igual o mayor que 0 (el next_after_id de la respuesta anterior).' );
+			}
+			$plan['after_id'] = $input['after_id'];
 		}
 		return $plan;
 	}
@@ -403,6 +395,13 @@ final class Skydropx {
 			}
 			$plan['shipping_line_id'] = $line;
 		}
+		$plan['create_shipping_line'] = false;
+		if ( array_key_exists( 'create_shipping_line', $input ) ) {
+			if ( ! is_bool( $input['create_shipping_line'] ) ) {
+				return self::error( 'digitalisimo_woo_mcp_input', 'create_shipping_line debe ser true o false.' );
+			}
+			$plan['create_shipping_line'] = $input['create_shipping_line'];
+		}
 		$plan['order_status'] = '';
 		if ( array_key_exists( 'order_status', $input ) ) {
 			if ( ! is_string( $input['order_status'] ) || 1 !== preg_match( '/^[a-z0-9_-]{1,40}$/', $input['order_status'] ) ) {
@@ -452,10 +451,16 @@ final class Skydropx {
 				$missing[] = Skydropx_Tool::LABEL_SERVICE . '::' . $constant;
 			}
 		}
-		if ( '' === self::shipping_method_class() ) {
+		// Con los envíos apagados WooCommerce no carga ningún método: no es una pieza faltante del plugin.
+		if ( self::shipping_enabled() && '' === self::shipping_method_class() ) {
 			$missing[] = Skydropx_Tool::SHIPPING_METHOD . '::calculate_shipping()';
 		}
 		return $missing;
+	}
+
+	/** ¿Calcula envíos la tienda? (WooCommerce → Ajustes → General, «Ubicaciones de envío» distinto de «Desactivar»). */
+	private static function shipping_enabled(): bool {
+		return ! function_exists( 'wc_shipping_enabled' ) || wc_shipping_enabled();
 	}
 
 	/**
@@ -522,6 +527,10 @@ final class Skydropx {
 		$origin    = self::origin();
 		$webhooks  = self::webhooks();
 		$pretty    = '' !== trim( (string) get_option( 'permalink_structure', '' ) );
+		$shipping  = self::shipping_enabled();
+		if ( ! $shipping ) {
+			$warnings[] = 'Los envíos están desactivados en WooCommerce (Ajustes → General → «Ubicaciones de envío»): el carrito no calcula envíos, así que no hay tarifas de Skydropx ni se carga su método.';
+		}
 		if ( $missing ) {
 			$warnings[] = 'Esta versión del plugin de Skydropx no trae algunas piezas que la herramienta usa (' . implode( ', ', $missing ) . '): las acciones que las necesitan lo dirán; lo demás funciona.';
 		}
@@ -533,7 +542,7 @@ final class Skydropx {
 		} elseif ( ! $quotation['url_set'] ) {
 			$warnings[] = 'La cotización está activa pero la plataforma no ha fijado su URL: el plugin no cotiza hasta que Skydropx la envíe.';
 		}
-		if ( ! $zone['found'] && ! $zone['instances'] ) {
+		if ( $shipping && ! $zone['found'] && ! $zone['instances'] ) {
 			$warnings[] = 'No hay ninguna zona de envío con el método de Skydropx: la plataforma la crea al activar la cotización.';
 		} elseif ( $zone['found'] && ! $zone['first'] ) {
 			$warnings[] = 'La zona «' . $zone['name'] . '» no es la primera: una zona anterior que cubra la misma dirección gana y el carrito no ofrecería las tarifas de Skydropx.';
@@ -547,11 +556,24 @@ final class Skydropx {
 		if ( is_array( $webhooks ) && 0 === $webhooks['active'] ) {
 			$warnings[] = 'No hay webhooks activos de Skydropx: los pedidos nuevos no se le avisan al momento (la plataforma los crea al vincular la tienda).';
 		}
+		// Las zonas, sus ubicaciones y los webhooks son ajustes de la tienda: `store-settings` los reserva a quien la
+		// administra. A los demás (sólo productos o sólo pedidos), un resumen que basta para los avisos.
+		$summary = ! current_user_can( 'manage_woocommerce' );
+		if ( $summary ) {
+			$zone     = array(
+				'found'          => $zone['found'],
+				'first'          => $zone['first'],
+				'method_enabled' => is_array( $zone['method'] ) && ! empty( $zone['method']['enabled'] ),
+			);
+			$webhooks = is_array( $webhooks ) ? array( 'active' => $webhooks['active'] > 0 ) : null;
+		}
 		return array(
 			'ok'       => true,
 			'tool'     => Skydropx_Tool::TOOL,
 			'action'   => 'status',
 			'data'     => array(
+				'detail'        => $summary ? 'summary' : 'full',
+				'shipping'      => $shipping,
 				'plugin'        => array(
 					'version'     => defined( 'SKYDROPX_VERSION' ) ? (string) SKYDROPX_VERSION : '',
 					'tested_with' => '2.1.5',
@@ -758,84 +780,157 @@ final class Skydropx {
 	// =================================================================================================================
 	// audit_products.
 
+	/**
+	 * La página 1 recorre la tienda; las siguientes (5 minutos, el mismo usuario y los mismos `checks` y `after_id`) leen
+	 * ese recorrido, guardado en compacto (ID y campos que faltan), y sólo cargan los productos de la página pedida.
+	 * `update_products` lo borra.
+	 */
 	private static function do_audit_products( array $plan ): array {
-		$checks  = null !== $plan['checks'] ? $plan['checks'] : self::default_checks();
-		$entries = self::quotable_products();
-		$scanned = 0;
-		$virtual = 0;
-		$issues  = array();
-		$counts  = array_fill_keys( array( 'weight', 'length', 'width', 'height', 'shipping_class' ), 0 );
-		$flush   = function_exists( 'wp_using_ext_object_cache' ) && ! wp_using_ext_object_cache();
-		foreach ( array_chunk( $entries['ids'], 100 ) as $chunk ) {
-			if ( function_exists( '_prime_post_caches' ) ) {
-				_prime_post_caches( $chunk, false, true );
+		$checks = null !== $plan['checks'] ? $plan['checks'] : self::default_checks();
+		$key    = self::AUDIT_CACHE . (int) get_current_user_id();
+		$sig    = md5( (string) wp_json_encode( array( $checks, $plan['after_id'] ) ) );
+		$scan   = null;
+		if ( $plan['page'] > 1 ) {
+			$stored = get_transient( $key );
+			$scan   = is_array( $stored ) && isset( $stored['sig'], $stored['issues'] ) && $sig === $stored['sig'] ? $stored : null;
+		}
+		$cached = null !== $scan;
+		if ( ! $cached ) {
+			$scan        = self::audit_scan( $checks, $plan['after_id'] );
+			$scan['sig'] = $sig;
+			set_transient( $key, $scan, self::AUDIT_TTL );
+		}
+		$per_page = $plan['per_page'];
+		$rows     = array();
+		foreach ( array_slice( $scan['issues'], ( $plan['page'] - 1 ) * $per_page, $per_page ) as $issue ) {
+			$product = wc_get_product( $issue[0] );
+			$rows[]  = $product ? self::product_row( $product, $issue[1] ) : array(
+				'id'      => (int) $issue[0],
+				'missing' => $issue[1],
+				'gone'    => true,
+			);
+		}
+		$total  = count( $scan['issues'] );
+		$result = array(
+			'ok'          => true,
+			'tool'        => Skydropx_Tool::TOOL,
+			'action'      => 'audit_products',
+			'data'        => $rows,
+			'total'       => $total,
+			'total_pages' => (int) ceil( $total / $per_page ),
+			'page'        => $plan['page'],
+			'per_page'    => $per_page,
+			'cached'      => $cached,
+			'summary'     => array(
+				'scanned'         => $scan['scanned'],
+				'skipped_virtual' => $scan['virtual'],
+				'with_issues'     => $total,
+				'missing'         => array_intersect_key( $scan['counts'], array_flip( self::fields_of( $checks ) ) ),
+				'checks'          => $checks,
+				'after_id'        => $plan['after_id'],
+				'units'           => array(
+					'weight'    => (string) get_option( 'woocommerce_weight_unit', 'kg' ),
+					'dimension' => (string) get_option( 'woocommerce_dimension_unit', 'cm' ),
+				),
+			),
+			'notice'      => 'Una variación sin peso o medidas propios usa los de su producto padre: ponerlos en el padre (update_products con su product_id) corrige todas las que heredan. Los productos virtuales o descargables no se cotizan.' . ( $cached ? ' Esta página sale del recorrido de la página 1 (de hace menos de 5 minutos); page 1 vuelve a revisar la tienda.' : '' ),
+		);
+		if ( $scan['next_after_id'] ) {
+			$result['truncated']     = true;
+			$result['next_after_id'] = $scan['next_after_id'];
+			$result['notice']       .= sprintf( ' La tienda tiene más de %d productos y variaciones publicados: se revisaron %d, en orden de ID; sigue con after_id: %d.', self::MAX_SCAN, self::MAX_SCAN, $scan['next_after_id'] );
+		}
+		return $result;
+	}
+
+	/**
+	 * Recorre hasta `MAX_SCAN` productos y variaciones (orden de ID, después de `$after_id`) en bloques de 100: precarga
+	 * entradas, metas y términos de cada bloque y de sus padres (una variación lee los datos del padre) y libera la memoria
+	 * de la petición al terminar cada uno.
+	 */
+	private static function audit_scan( array $checks, int $after_id ): array {
+		$all = self::quotable_ids();
+		if ( $after_id > 0 ) {
+			$all = array_values(
+				array_filter(
+					$all,
+					static function ( $id ) use ( $after_id ) {
+						return $id > $after_id;
+					}
+				)
+			);
+		}
+		$ids    = array_slice( $all, 0, self::MAX_SCAN );
+		$scan   = array(
+			'issues'        => array(),
+			'counts'        => array_fill_keys( array( 'weight', 'length', 'width', 'height', 'shipping_class' ), 0 ),
+			'scanned'       => 0,
+			'virtual'       => 0,
+			'next_after_id' => count( $all ) > self::MAX_SCAN ? (int) end( $ids ) : 0,
+		);
+		$prime  = function_exists( '_prime_post_caches' );
+		foreach ( array_chunk( $ids, 100 ) as $chunk ) {
+			if ( $prime ) {
+				_prime_post_caches( $chunk, true, true );
+				$parents = array();
+				foreach ( $chunk as $id ) {
+					$parent = (int) wp_get_post_parent_id( $id );
+					if ( $parent > 0 ) {
+						$parents[ $parent ] = $parent;
+					}
+				}
+				if ( $parents ) {
+					_prime_post_caches( array_values( $parents ), true, true );
+				}
 			}
 			foreach ( $chunk as $id ) {
 				$product = wc_get_product( $id );
 				if ( ! $product ) {
 					continue;
 				}
-				++$scanned;
+				++$scan['scanned'];
 				if ( $product->is_virtual() || $product->is_downloadable() ) {
 					// El plugin no los manda a cotizar (descargables o virtuales).
-					++$virtual;
+					++$scan['virtual'];
 					continue;
 				}
-				$row = self::product_row( $product, $checks );
-				if ( $row['missing'] ) {
-					foreach ( $row['missing'] as $field ) {
-						++$counts[ $field ];
+				$missing = self::missing_of( $product, $checks );
+				if ( $missing ) {
+					foreach ( $missing as $field ) {
+						++$scan['counts'][ $field ];
 					}
-					$issues[] = $row;
+					$scan['issues'][] = array( (int) $id, $missing );
 				}
 			}
-			if ( $flush ) {
-				// Sin caché persistente, lo ya revisado sale de la memoria de la petición (una tienda grande no la agota).
-				foreach ( $chunk as $id ) {
-					wp_cache_delete( $id, 'posts' );
-					wp_cache_delete( $id, 'post_meta' );
-				}
-			}
+			self::release( $chunk );
 		}
-		$total    = count( $issues );
-		$per_page = $plan['per_page'];
-		$result   = array(
-			'ok'          => true,
-			'tool'        => Skydropx_Tool::TOOL,
-			'action'      => 'audit_products',
-			'data'        => array_slice( $issues, ( $plan['page'] - 1 ) * $per_page, $per_page ),
-			'total'       => $total,
-			'total_pages' => (int) ceil( $total / $per_page ),
-			'page'        => $plan['page'],
-			'per_page'    => $per_page,
-			'summary'     => array(
-				'scanned'         => $scanned,
-				'skipped_virtual' => $virtual,
-				'with_issues'     => $total,
-				'missing'         => array_intersect_key( $counts, array_flip( self::fields_of( $checks ) ) ),
-				'checks'          => $checks,
-				'units'           => array(
-					'weight'    => (string) get_option( 'woocommerce_weight_unit', 'kg' ),
-					'dimension' => (string) get_option( 'woocommerce_dimension_unit', 'cm' ),
-				),
-			),
-			'notice'      => 'Una variación sin peso o medidas propios usa los de su producto padre: ponerlos en el padre (update_products con su product_id) corrige todas las que heredan. Los productos virtuales o descargables no se cotizan.',
-		);
-		if ( $entries['truncated'] ) {
-			$result['truncated'] = true;
-			$result['notice']   .= sprintf( ' La tienda tiene más de %d productos y variaciones publicados: se revisaron los primeros %d por ID.', self::MAX_SCAN, self::MAX_SCAN );
-		}
-		return $result;
+		return $scan;
 	}
 
-	/** Por defecto peso y medidas; la clase de envío si la tienda tiene alguna. */
-	private static function default_checks(): array {
-		$checks = array( 'weight', 'dimensions' );
-		$count  = function_exists( 'wp_count_terms' ) ? wp_count_terms( array( 'taxonomy' => 'product_shipping_class', 'hide_empty' => false ) ) : 0;
-		if ( ! is_wp_error( $count ) && (int) $count > 0 ) {
-			$checks[] = 'shipping_class';
+	/**
+	 * Saca de la memoria de la petición lo ya revisado: con una caché persistente que lo permite, vacía su capa en
+	 * memoria (lo demás vuelve de la caché, no de la base); si no, borra las entradas, metas y términos del bloque.
+	 */
+	private static function release( array $ids ): void {
+		if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() && function_exists( 'wp_cache_supports' ) && wp_cache_supports( 'flush_runtime' ) ) {
+			wp_cache_flush_runtime();
+			return;
 		}
-		return $checks;
+		if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() ) {
+			return; // Sin poder vaciar sólo la memoria, no se borra nada de la caché compartida.
+		}
+		foreach ( $ids as $id ) {
+			wp_cache_delete( $id, 'posts' );
+			wp_cache_delete( $id, 'post_meta' );
+			foreach ( array( 'product_type', 'product_visibility', 'product_cat', 'product_tag', 'product_shipping_class' ) as $taxonomy ) {
+				wp_cache_delete( $id, $taxonomy . '_relationships' );
+			}
+		}
+	}
+
+	/** Por defecto, lo que la cotización de Skydropx usa: peso y medidas (la clase de envío, sólo si se pide). */
+	private static function default_checks(): array {
+		return array( 'weight', 'dimensions' );
 	}
 
 	private static function fields_of( array $checks ): array {
@@ -847,14 +942,14 @@ final class Skydropx {
 	}
 
 	/**
-	 * IDs que el carrito puede mandar a cotizar: productos publicados que no son variables, agrupados ni externos, y las
-	 * variaciones activas de los variables publicados. Hasta `MAX_SCAN`.
+	 * IDs que el carrito puede mandar a cotizar, en orden de ID: productos publicados que no son variables, agrupados ni
+	 * externos, y las variaciones activas de los variables publicados (sólo IDs: barato aun en una tienda grande).
 	 */
-	private static function quotable_products(): array {
+	private static function quotable_ids(): array {
 		$base     = array(
 			'post_status'            => 'publish',
 			'fields'                 => 'ids',
-			'posts_per_page'         => self::MAX_SCAN + 1,
+			'posts_per_page'         => -1,
 			'orderby'                => 'ID',
 			'order'                  => 'ASC',
 			'no_found_rows'          => true,
@@ -874,21 +969,19 @@ final class Skydropx {
 		$simple   = get_posts( $base + array( 'post_type' => 'product', 'tax_query' => $type( array( 'variable', 'grouped', 'external' ), 'NOT IN' ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 		$variable = get_posts( $base + array( 'post_type' => 'product', 'tax_query' => $type( array( 'variable' ), 'IN' ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 		$children = $variable ? get_posts( $base + array( 'post_type' => 'product_variation', 'post_parent__in' => array_map( 'intval', $variable ) ) ) : array();
-		$ids      = array_merge( array_map( 'intval', $simple ), array_map( 'intval', $children ) );
-		return array(
-			'ids'       => array_slice( $ids, 0, self::MAX_SCAN ),
-			'truncated' => count( $ids ) > self::MAX_SCAN,
-		);
+		$ids      = array_values( array_unique( array_merge( array_map( 'intval', $simple ), array_map( 'intval', $children ) ) ) );
+		sort( $ids, SORT_NUMERIC );
+		return $ids;
 	}
 
-	/** Fila compacta de un producto con lo que le falta (los valores son los que el plugin leería, con herencia). */
-	private static function product_row( $product, array $checks ): array {
+	/** Lo que le falta a un producto (con la herencia del padre, como lo lee el plugin). */
+	private static function missing_of( $product, array $checks ): array {
 		$missing = array();
 		$values  = array(
-			'weight' => (string) $product->get_weight(),
-			'length' => (string) $product->get_length(),
-			'width'  => (string) $product->get_width(),
-			'height' => (string) $product->get_height(),
+			'weight' => $product->get_weight(),
+			'length' => $product->get_length(),
+			'width'  => $product->get_width(),
+			'height' => $product->get_height(),
 		);
 		foreach ( self::fields_of( $checks ) as $field ) {
 			if ( 'shipping_class' === $field ) {
@@ -897,10 +990,15 @@ final class Skydropx {
 				}
 				continue;
 			}
-			if ( null === self::measure( $values[ $field ] ) ) {
+			if ( ! self::stored_measure( $values[ $field ] ) ) {
 				$missing[] = $field;
 			}
 		}
+		return $missing;
+	}
+
+	/** Fila compacta de un producto con lo que le falta (los valores son los que el plugin leería, con herencia). */
+	private static function product_row( $product, array $missing ): array {
 		$parent = (int) $product->get_parent_id();
 		$row    = array(
 			'id'             => (int) $product->get_id(),
@@ -908,10 +1006,10 @@ final class Skydropx {
 			'name'           => (string) $product->get_name(),
 			'sku'            => (string) $product->get_sku(),
 			'missing'        => $missing,
-			'weight'         => $values['weight'],
-			'length'         => $values['length'],
-			'width'          => $values['width'],
-			'height'         => $values['height'],
+			'weight'         => (string) $product->get_weight(),
+			'length'         => (string) $product->get_length(),
+			'width'          => (string) $product->get_width(),
+			'height'         => (string) $product->get_height(),
 			'shipping_class' => (string) $product->get_shipping_class(),
 		);
 		if ( $parent > 0 ) {
@@ -935,10 +1033,12 @@ final class Skydropx {
 		$from_weight     = '' !== $plan['weight_unit'] ? $plan['weight_unit'] : $store_weight;
 		$from_dimension  = '' !== $plan['dimension_unit'] ? $plan['dimension_unit'] : $store_dimension;
 
-		// Todo se comprueba antes de escribir: un producto que no existe o una clase de envío desconocida (WooCommerce la
-		// cambiaría por «ninguna» sin avisar) detienen el lote entero.
+		// Todo se comprueba antes de escribir: un producto que no existe, una clase de envío que no es el slug de una
+		// existente (WooCommerce la busca por slug y, si no la encuentra, deja «ninguna» sin avisar) o un valor que en la
+		// unidad de la tienda quedaría en cero detienen el lote entero.
 		$groups   = array();
 		$problems = array();
+		$warnings = array();
 		foreach ( $plan['products'] as $item ) {
 			$target  = $item['variation_id'] ? $item['variation_id'] : $item['product_id'];
 			$product = wc_get_product( $target );
@@ -954,18 +1054,39 @@ final class Skydropx {
 				$problems[] = sprintf( 'items[%d]: %d es una variación: manda product_id del padre (%d) y variation_id.', $item['position'], $target, (int) $product->get_parent_id() );
 				continue;
 			}
-			if ( isset( $item['shipping_class'] ) && '' !== $item['shipping_class'] && ! term_exists( $item['shipping_class'], 'product_shipping_class' ) ) {
-				$problems[] = sprintf( 'items[%d]: no existe la clase de envío «%s» (créala con catalog, resource shipping_class).', $item['position'], $item['shipping_class'] );
-				continue;
+			if ( isset( $item['shipping_class'] ) && '' !== $item['shipping_class'] ) {
+				$term = get_term_by( 'slug', $item['shipping_class'], 'product_shipping_class' );
+				if ( ! $term ) {
+					$named = get_term_by( 'name', $item['shipping_class'], 'product_shipping_class' );
+					if ( ! $named ) {
+						$problems[] = sprintf( 'items[%d]: no existe la clase de envío con el slug «%s» (catalog, resource shipping_class, las lista; créala ahí si hace falta).', $item['position'], $item['shipping_class'] );
+						continue;
+					}
+					$warnings[]             = sprintf( 'items[%d]: «%s» es el nombre de la clase de envío, no su slug: se usó su slug «%s».', $item['position'], $item['shipping_class'], $named->slug );
+					$item['shipping_class'] = (string) $named->slug;
+				}
+			} elseif ( isset( $item['shipping_class'] ) && $item['variation_id'] ) {
+				$warnings[] = sprintf( 'items[%d]: en una variación, shipping_class vacío significa «la misma clase que el padre» (no «sin clase»).', $item['position'] );
 			}
 			$entry = array( 'id' => $target );
+			$tiny  = array();
 			if ( isset( $item['weight'] ) ) {
 				$entry['weight'] = self::convert( 'weight', $item['weight'], $from_weight, $store_weight );
+				if ( '' === $entry['weight'] ) {
+					$tiny[] = 'weight';
+				}
 			}
 			foreach ( array( 'length', 'width', 'height' ) as $field ) {
 				if ( isset( $item[ $field ] ) ) {
 					$entry['dimensions'][ $field ] = self::convert( 'dimension', $item[ $field ], $from_dimension, $store_dimension );
+					if ( '' === $entry['dimensions'][ $field ] ) {
+						$tiny[] = $field;
+					}
 				}
+			}
+			if ( $tiny ) {
+				$problems[] = sprintf( 'items[%d]: %s quedaría en cero con cuatro decimales en la unidad de la tienda (%s, %s): revisa la unidad.', $item['position'], implode( ', ', $tiny ), $store_weight, $store_dimension );
+				continue;
 			}
 			if ( isset( $item['shipping_class'] ) ) {
 				$entry['shipping_class'] = $item['shipping_class'];
@@ -1037,6 +1158,12 @@ final class Skydropx {
 				),
 			),
 		);
+		// Lo guardado ya no es lo que vieron la auditoría ni la cotización de este usuario: se vuelven a calcular.
+		delete_transient( self::AUDIT_CACHE . (int) get_current_user_id() );
+		delete_transient( self::QUOTE_CACHE . (int) get_current_user_id() );
+		if ( $warnings ) {
+			$result['warnings'] = $warnings;
+		}
 		if ( $failed ) {
 			$result['partial'] = true;
 			$result['code']    = $first;
@@ -1072,13 +1199,16 @@ final class Skydropx {
 			$value = 'weight' === $kind ? (float) wc_get_weight( $value, $to, $from ) : (float) wc_get_dimension( $value, $to, $from );
 		}
 		$text = rtrim( rtrim( number_format( $value, 4, '.', '' ), '0' ), '.' );
-		return '' === $text || '0' === $text ? '0.0001' : $text;
+		return '' === $text || '0' === $text ? '' : $text;
 	}
 
 	// =================================================================================================================
 	// quote.
 
 	private static function do_quote( array $plan ) {
+		if ( ! self::shipping_enabled() ) {
+			return self::error( 'digitalisimo_woo_mcp_skydropx_shipping_off', 'Los envíos están desactivados en WooCommerce (Ajustes → General → «Ubicaciones de envío»): el carrito no calcula envíos ni carga el método de Skydropx.', 409 );
+		}
 		$class = self::shipping_method_class();
 		if ( '' === $class ) {
 			return self::error( 'digitalisimo_woo_mcp_skydropx_compat', 'Esta versión del plugin de Skydropx no trae su método de envío (' . Skydropx_Tool::SHIPPING_METHOD . '::calculate_shipping()): la cotización de prueba no está disponible.', 501 );
@@ -1120,9 +1250,9 @@ final class Skydropx {
 			if ( $product->is_virtual() || $product->is_downloadable() ) {
 				$warnings[] = sprintf( 'cart[%d] (%d) es virtual o descargable: el plugin no lo manda a cotizar.', $index, $target );
 			} else {
-				$row = self::product_row( $product, array( 'weight', 'dimensions' ) );
-				if ( $row['missing'] ) {
-					$warnings[] = sprintf( 'cart[%d] (%d) no tiene %s: el plugin lo manda en cero y la cotización puede fallar o salir mal (corrígelo con update_products).', $index, $target, implode( ', ', $row['missing'] ) );
+				$missing = self::missing_of( $product, array( 'weight', 'dimensions' ) );
+				if ( $missing ) {
+					$warnings[] = sprintf( 'cart[%d] (%d) no tiene %s: el plugin lo manda en cero y la cotización puede fallar o salir mal (corrígelo con update_products).', $index, $target, implode( ', ', $missing ) );
 				}
 				$items[] = array(
 					'product_id'   => $line['product_id'],
@@ -1196,9 +1326,13 @@ final class Skydropx {
 		}
 
 		// Cotiza con el método del plugin, con su caché: un carrito y una sesión que sólo existen durante la llamada.
+		// La huella del plugin no cuenta peso ni medidas (como en un carrito real): la caché guardada aquí lleva además la
+		// de los artículos tal como se mandan, y se descarta si cambiaron (p. ej. tras update_products).
 		$cache_key = self::QUOTE_CACHE . (int) get_current_user_id();
-		$stored    = $plan['cache'] ? get_transient( $cache_key ) : array();
-		$session   = new Skydropx_Session( is_array( $stored ) ? $stored : array() );
+		$print     = md5( (string) wp_json_encode( array( $items, $destination, round( $subtotal, 2 ) ) ) );
+		$stored    = $plan['cache'] ? get_transient( $cache_key ) : false;
+		$reuse     = is_array( $stored ) && isset( $stored['items'], $stored['data'] ) && $stored['items'] === md5( (string) wp_json_encode( $items ) ) && is_array( $stored['data'] );
+		$session   = new Skydropx_Session( $reuse ? $stored['data'] : array() );
 		$tax_cart  = 'incl' === get_option( 'woocommerce_tax_display_cart' ) ? $with_tax - $subtotal : 0.0;
 		$cart      = new Skydropx_Cart( $lines, $subtotal, $tax_cart );
 		$wc        = WC();
@@ -1212,7 +1346,14 @@ final class Skydropx {
 			list( $wc->cart, $wc->session ) = $previous;
 		}
 		if ( $session->changed() ) {
-			set_transient( $cache_key, $session->data(), self::QUOTE_TTL );
+			set_transient(
+				$cache_key,
+				array(
+					'items' => md5( (string) wp_json_encode( $items ) ),
+					'data'  => $session->data(),
+				),
+				self::QUOTE_TTL
+			);
 		}
 		$rates = array();
 		foreach ( (array) $method->rates as $rate ) {
@@ -1237,7 +1378,18 @@ final class Skydropx {
 				return $a['cost'] <=> $b['cost'];
 			}
 		);
-		if ( ! $rates ) {
+		// El plugin no vuelve a cotizar la misma huella en la misma petición PHP (un cliente que encadena llamadas en una
+		// sola petición): entonces valen las tarifas de la primera, no «sin tarifas».
+		$repeated = false;
+		if ( $rates ) {
+			self::$quoted[ $print ] = $rates;
+		} elseif ( isset( self::$quoted[ $print ] ) ) {
+			$rates    = self::$quoted[ $print ];
+			$repeated = true;
+		}
+		if ( $repeated ) {
+			$warnings[] = 'Esta misma cotización ya se hizo en esta petición: el plugin no repite la llamada; son sus tarifas.';
+		} elseif ( ! $rates ) {
 			$warnings[] = 'Skydropx no devolvió tarifas para esta dirección y estos productos (el detalle queda en WooCommerce → Estado → Registros, fuente «Skydropx»).';
 		}
 		return array(
@@ -1247,7 +1399,7 @@ final class Skydropx {
 			'data'     => array(
 				'rates'      => $rates,
 				'total'      => count( $rates ),
-				'from_cache' => $rates && ! $session->changed(),
+				'from_cache' => $repeated || ( $rates && ! $session->changed() ),
 				'zone'       => $zone_out,
 				'method'     => array(
 					'instance_id' => (int) $method->get_instance_id(),
@@ -1337,63 +1489,86 @@ final class Skydropx {
 	}
 
 	private static function do_get_shipment( array $plan, $dispatch ) {
+		// El permiso sobre este pedido, también aquí (la REST lo vuelve a comprobar al leerlo).
+		$order = self::order_access( $plan['id'], 'read' );
+		if ( is_wp_error( $order ) ) {
+			return $order;
+		}
 		list( $status, $data ) = call_user_func( $dispatch, 'GET', Tools::REST . 'orders/' . $plan['id'], array( '_fields' => 'id,number,status,date_created,date_modified,shipping,shipping_lines,shipping_total' ), null );
 		if ( $status >= 400 ) {
 			return Executor::woo_error( (int) $status, $data );
 		}
-		$data  = is_array( $data ) ? $data : array();
-		$row   = self::shipment_row( $data, self::meta_keys() );
-		$ship  = isset( $data['shipping'] ) && is_array( $data['shipping'] ) ? $data['shipping'] : array();
-		$label = self::label_available( $plan['id'], $row['label'] );
-		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $plan['id'] ) : null;
+		$data = is_array( $data ) ? $data : array();
+		$row  = self::shipment_row( $data, self::meta_keys() );
+		$ship = isset( $data['shipping'] ) && is_array( $data['shipping'] ) ? $data['shipping'] : array();
+		if ( 'manual' !== $row['label'] ) {
+			$row['label'] = self::label_available( $order, $row['label'] );
+		}
 		$row['date_modified']  = isset( $data['date_modified'] ) ? (string) $data['date_modified'] : '';
 		$row['shipping_total'] = isset( $data['shipping_total'] ) ? (string) $data['shipping_total'] : '';
 		$row['destination']    = array_intersect_key( $ship, array_flip( array( 'city', 'state', 'postcode', 'country' ) ) );
-		$row['label']          = $label;
-		$row['edit_url']       = $order && method_exists( $order, 'get_edit_order_url' ) ? (string) $order->get_edit_order_url() : '';
+		$row['edit_url']       = method_exists( $order, 'get_edit_order_url' ) ? (string) $order->get_edit_order_url() : '';
+		$notices               = array(
+			'manual' => 'Rastreo registrado a mano: no hay guía de Skydropx en PDF (la caja del plugin dice «Guía generada» porque sólo mira las tres metas).',
+			'yes'    => 'Tiene guía de Skydropx: action label da el enlace para descargarla en el navegador.',
+			'no'     => 'Sin guía: el plugin la muestra cuando la línea de envío tiene número, paquetería y URL de rastreo (los pone Skydropx al generarla, o set_tracking para un envío hecho a mano).',
+		);
 		return array(
 			'ok'     => true,
 			'tool'   => Skydropx_Tool::TOOL,
 			'action' => 'get_shipment',
 			'data'   => $row,
-			'notice' => $label ? 'Tiene guía: action label da el enlace para descargarla en el navegador.' : 'Sin guía: el plugin la muestra cuando la línea de envío tiene número, paquetería y URL de rastreo (los pone Skydropx o set_tracking).',
+			'notice' => $notices[ 'manual' === $row['label'] ? 'manual' : ( $row['label'] ? 'yes' : 'no' ) ],
 		);
 	}
 
-	/** Pedido de la REST → fila compacta con su rastreo (de la primera línea de envío que lo tenga). */
+	/**
+	 * Pedido de la REST → fila compacta con su rastreo: el de la primera línea de envío con número (si ninguna lo tiene, la
+	 * primera con algún campo). `label`: true si el plugin muestra la guía (número, paquetería y URL), «manual» si ese
+	 * rastreo lo registró `set_tracking` (no hay PDF de Skydropx) y false si no.
+	 */
 	private static function shipment_row( array $order, array $keys ): array {
-		$lines    = array();
-		$tracking = null;
+		$lines = array();
+		$best  = null;
 		foreach ( isset( $order['shipping_lines'] ) && is_array( $order['shipping_lines'] ) ? $order['shipping_lines'] : array() as $line ) {
 			if ( ! is_array( $line ) ) {
 				continue;
 			}
-			$found = array(
+			$found  = array(
 				'number'  => '',
 				'company' => '',
 				'url'     => '',
 			);
+			$manual = '';
 			foreach ( isset( $line['meta_data'] ) && is_array( $line['meta_data'] ) ? $line['meta_data'] : array() as $meta ) {
-				if ( ! is_array( $meta ) || ! isset( $meta['key'] ) ) {
+				if ( ! is_array( $meta ) || ! isset( $meta['key'] ) || ! isset( $meta['value'] ) || ! is_scalar( $meta['value'] ) ) {
+					continue;
+				}
+				if ( Skydropx_Tool::MANUAL_META === $meta['key'] ) {
+					$manual = trim( (string) $meta['value'] );
 					continue;
 				}
 				$field = array_search( (string) $meta['key'], $keys, true );
-				if ( false !== $field && isset( $meta['value'] ) && is_scalar( $meta['value'] ) ) {
+				if ( false !== $field ) {
 					$found[ $field ] = trim( (string) $meta['value'] );
 				}
 			}
 			$has     = '' !== $found['number'] || '' !== $found['company'] || '' !== $found['url'];
-			$lines[] = array(
+			$entry   = array(
 				'id'           => isset( $line['id'] ) ? (int) $line['id'] : 0,
 				'method_id'    => isset( $line['method_id'] ) ? (string) $line['method_id'] : '',
 				'method_title' => isset( $line['method_title'] ) ? (string) $line['method_title'] : '',
 				'total'        => isset( $line['total'] ) ? (string) $line['total'] : '',
 				'tracking'     => $has ? $found : null,
+				'manual'       => '' !== $found['number'] && $manual === $found['number'],
 			);
-			if ( null === $tracking && $has ) {
-				$tracking = $found;
+			$lines[] = $entry;
+			if ( $has && ( null === $best || ( '' === $best['tracking']['number'] && '' !== $found['number'] ) ) ) {
+				$best = $entry;
 			}
 		}
+		$tracking = null !== $best ? $best['tracking'] : null;
+		$complete = null !== $tracking && '' !== $tracking['number'] && '' !== $tracking['company'] && '' !== $tracking['url'];
 		return array(
 			'id'             => isset( $order['id'] ) ? (int) $order['id'] : 0,
 			'number'         => isset( $order['number'] ) ? (string) $order['number'] : '',
@@ -1402,18 +1577,14 @@ final class Skydropx {
 			'shipping_lines' => $lines,
 			'has_tracking'   => null !== $tracking && '' !== $tracking['number'],
 			'tracking'       => $tracking,
-			'label'          => null !== $tracking && '' !== $tracking['number'] && '' !== $tracking['company'] && '' !== $tracking['url'],
+			'label'          => $complete && $best['manual'] ? 'manual' : $complete,
 		);
 	}
 
 	/** ¿Muestra el plugin la guía de este pedido? Con su propio método si existe; si no, la misma regla. */
-	private static function label_available( int $order_id, bool $fallback ): bool {
-		if ( ! function_exists( 'wc_get_order' ) || ! self::has_method( Skydropx_Tool::LABEL_SERVICE, 'has_label_tracking_meta' ) ) {
+	private static function label_available( $order, bool $fallback ): bool {
+		if ( ! self::has_method( Skydropx_Tool::LABEL_SERVICE, 'has_label_tracking_meta' ) ) {
 			return $fallback;
-		}
-		$order = wc_get_order( $order_id );
-		if ( ! $order ) {
-			return false;
 		}
 		try {
 			$class = Skydropx_Tool::LABEL_SERVICE;
@@ -1423,11 +1594,23 @@ final class Skydropx {
 		}
 	}
 
+	/** Línea de envío del rastreo del pedido (la primera con número) y si ese rastreo se registró a mano. */
+	private static function tracking_line( $order ): array {
+		$keys = self::meta_keys();
+		foreach ( $order->get_items( 'shipping' ) as $line ) {
+			$number = trim( (string) $line->get_meta( $keys['number'], true ) );
+			if ( '' !== $number ) {
+				return array( $line, $number === trim( (string) $line->get_meta( Skydropx_Tool::MANUAL_META, true ) ) );
+			}
+		}
+		return array( null, false );
+	}
+
 	// =================================================================================================================
 	// label.
 
 	private static function do_label( array $plan ) {
-		$order = self::order( $plan['id'] );
+		$order = self::order_access( $plan['id'], 'read' );
 		if ( is_wp_error( $order ) ) {
 			return $order;
 		}
@@ -1436,25 +1619,38 @@ final class Skydropx {
 			return self::error( 'digitalisimo_woo_mcp_skydropx_compat', 'Esta versión del plugin de Skydropx no trae su descarga de guías (' . Skydropx_Tool::LABEL_UI . '::add_orders_list_action() y PRINT_ACTION): descárgala desde el panel de Skydropx.', 501 );
 		}
 		if ( '' === self::print_url( $ui, $order ) ) {
-			return self::error( 'digitalisimo_woo_mcp_skydropx_no_label', sprintf( 'El pedido %d no tiene guía en el plugin: se muestra cuando su línea de envío tiene número, paquetería y URL de rastreo (los pone Skydropx al generarla, o set_tracking).', $plan['id'] ), 404 );
+			return self::error( 'digitalisimo_woo_mcp_skydropx_no_label', sprintf( 'El pedido %d no tiene guía en el plugin: se muestra cuando su línea de envío tiene número, paquetería y URL de rastreo (los pone Skydropx al generarla).', $plan['id'] ), 404 );
 		}
+		if ( self::tracking_line( $order )[1] ) {
+			return self::error( 'digitalisimo_woo_mcp_skydropx_manual', sprintf( 'El envío del pedido %d se registró a mano (set_tracking): no hay guía de Skydropx en PDF. La caja del plugin dice «Guía generada» porque sólo mira las tres metas; su botón «Imprimir guía» no encontraría el PDF.', $plan['id'] ), 409 );
+		}
+		$user    = (int) get_current_user_id();
+		$expires = time() + Skydropx_Tool::LABEL_TTL;
 		return array(
 			'ok'     => true,
 			'tool'   => Skydropx_Tool::TOOL,
 			'action' => 'label',
 			'data'   => array(
-				'order_id'  => $plan['id'],
-				'url'       => add_query_arg(
+				'order_id'   => $plan['id'],
+				'url'        => add_query_arg(
 					array(
 						'action'   => Skydropx_Tool::LABEL_ACTION,
 						'order_id' => $plan['id'],
+						'exp'      => $expires,
+						'sig'      => self::label_signature( $plan['id'], $user, $expires ),
 					),
 					admin_url( 'admin-post.php' )
 				),
-				'order_url' => method_exists( $order, 'get_edit_order_url' ) ? (string) $order->get_edit_order_url() : '',
+				'expires'    => gmdate( 'Y-m-d\TH:i:s\Z', $expires ),
+				'order_url'  => method_exists( $order, 'get_edit_order_url' ) ? (string) $order->get_edit_order_url() : '',
 			),
-			'notice' => 'Abre url en el navegador con la sesión de un administrador o gerente de la tienda: lleva al enlace de impresión del plugin de Skydropx (con su nonce y sus permisos), que descarga el PDF de la guía. El enlace no caduca y no sirve sin esa sesión. En order_url está el pedido, con el botón «Imprimir guía» del plugin.',
+			'notice' => 'Abre url en el navegador con la sesión del mismo usuario (administrador o gerente de la tienda) durante la próxima hora: lleva al enlace de impresión del plugin de Skydropx (con su nonce y sus permisos), que descarga el PDF de la guía. Después de esa hora, o con otro usuario, muestra un botón para descargarla. En order_url está el pedido, con el botón «Imprimir guía» del plugin.',
 		);
+	}
+
+	/** Firma del enlace de la guía: pedido, usuario y caducidad con las sales del sitio (`wp_hash()`); no es una clave. */
+	private static function label_signature( int $order_id, int $user, int $expires ): string {
+		return substr( wp_hash( 'skydropx-label|' . $order_id . '|' . $user . '|' . $expires, 'nonce' ), 0, 20 );
 	}
 
 	/** Interfaz de guías del plugin, si esta versión la trae. */
@@ -1480,45 +1676,71 @@ final class Skydropx {
 	}
 
 	/**
-	 * `admin-post.php?action=digitalisimo_woo_skydropx_label&order_id=…`, abierto en el navegador: con la sesión del
-	 * administrador, su permiso sobre los pedidos y la guía disponible, redirige al endpoint de impresión del plugin con
-	 * un nonce de esa sesión. Sin sesión, al acceso. No cambia nada: sólo lleva a una descarga.
+	 * `admin-post.php?action=digitalisimo_woo_skydropx_label&order_id=…&exp=…&sig=…`, abierto en el navegador. Sólo
+	 * responde con el MCP del sitio activo y «WooCommerce en el MCP» distinto de apagado; sin sesión, al acceso. Con el
+	 * permiso sobre ese pedido (como la REST) y una guía de Skydropx:
+	 * - con la firma de `label` para este usuario y sin caducar, redirige al endpoint de impresión del plugin con un nonce
+	 *   de esta sesión (el plugin comprueba su nonce y sus permisos, firma la petición y entrega el PDF);
+	 * - sin ella (un enlace caducado, de otro usuario o puesto por otra página), sólo muestra un botón con ese enlace: un
+	 *   GET ajeno no ejecuta nada.
 	 */
 	public static function handle_label(): void {
 		if ( ! is_user_logged_in() ) {
 			auth_redirect();
 			exit;
 		}
-		$order_id = isset( $_GET['order_id'] ) ? absint( wp_unslash( $_GET['order_id'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo lleva a una descarga; el endpoint del plugin pide su nonce.
-		$back     = admin_url( 'edit.php?post_type=shop_order' );
+		if ( ! Module::mcp_enabled() || 'off' === Settings::mode() ) {
+			wp_die( esc_html( 'Las herramientas de tienda del MCP no están activas en este sitio.' ), '', array( 'response' => 404 ) );
+		}
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- la firma propia (o el botón) hace de nonce; el endpoint del plugin pide el suyo.
+		$order_id = isset( $_GET['order_id'] ) ? absint( wp_unslash( $_GET['order_id'] ) ) : 0;
+		$expires  = isset( $_GET['exp'] ) ? absint( wp_unslash( $_GET['exp'] ) ) : 0;
+		$sig      = isset( $_GET['sig'] ) && is_string( $_GET['sig'] ) ? sanitize_key( wp_unslash( $_GET['sig'] ) ) : '';
+		// phpcs:enable
+		$hpos = class_exists( 'Automattic\\WooCommerce\\Utilities\\OrderUtil' ) && method_exists( 'Automattic\\WooCommerce\\Utilities\\OrderUtil', 'custom_orders_table_usage_is_enabled' ) && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+		$back = admin_url( $hpos ? 'admin.php?page=wc-orders' : 'edit.php?post_type=shop_order' );
 		if ( ! current_user_can( 'edit_shop_orders' ) ) {
 			wp_die( esc_html( 'No tienes permiso para ver las guías de los pedidos.' ), '', array( 'response' => 403 ) );
 		}
-		$order = $order_id > 0 && function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : null;
-		if ( ! $order || ! Skydropx_Tool::active() ) {
+		$order = $order_id > 0 && Skydropx_Tool::active() ? self::order_access( $order_id, 'read' ) : null;
+		if ( is_wp_error( $order ) && 403 === ( $order->get_error_data()['status'] ?? 0 ) ) {
+			wp_die( esc_html( $order->get_error_message() ), '', array( 'response' => 403 ) );
+		}
+		if ( ! $order || is_wp_error( $order ) ) {
 			wp_die( esc_html( 'El pedido no existe o el plugin de Skydropx no está activo.' ), '', array( 'response' => 404 ) );
 		}
 		$back = method_exists( $order, 'get_edit_order_url' ) ? (string) $order->get_edit_order_url() : $back;
+		$link = ' <a href="' . esc_url( $back ) . '">' . esc_html( 'Ver el pedido' ) . '</a>';
 		$ui   = self::label_ui();
 		$url  = null !== $ui ? self::print_url( $ui, $order ) : '';
 		if ( '' === $url ) {
-			wp_die(
-				esc_html( 'Este pedido no tiene guía de Skydropx (o esta versión del plugin no permite descargarla desde aquí).' ) . ' <a href="' . esc_url( $back ) . '">' . esc_html( 'Ver el pedido' ) . '</a>',
-				'',
-				array( 'response' => 404 )
-			);
+			wp_die( esc_html( 'Este pedido no tiene guía de Skydropx (o esta versión del plugin no permite descargarla desde aquí).' ) . $link, '', array( 'response' => 404 ) );
 		}
-		wp_safe_redirect( $url );
-		exit;
+		if ( self::tracking_line( $order )[1] ) {
+			wp_die( esc_html( 'El envío de este pedido se registró a mano: no hay guía de Skydropx en PDF.' ) . $link, '', array( 'response' => 404 ) );
+		}
+		if ( $expires >= time() && '' !== $sig && hash_equals( self::label_signature( $order_id, (int) get_current_user_id(), $expires ), $sig ) ) {
+			wp_safe_redirect( $url );
+			exit;
+		}
+		wp_die(
+			'<p>' . esc_html( sprintf( 'Guía de Skydropx del pedido %d.', $order_id ) ) . '</p><p><a class="button button-primary" href="' . esc_url( $url ) . '">' . esc_html( 'Descargar la guía' ) . '</a>' . $link . '</p>',
+			esc_html( 'Guía de Skydropx' ),
+			array( 'response' => 200 )
+		);
 	}
 
 	// =================================================================================================================
 	// set_tracking, resync.
 
 	private static function do_set_tracking( array $plan, $dispatch ) {
-		$order = self::order( $plan['id'] );
+		$order = self::order_access( $plan['id'], 'edit' );
 		if ( is_wp_error( $order ) ) {
 			return $order;
+		}
+		// El estado se comprueba antes de escribir nada (si no, el rastreo quedaría guardado y el estado no).
+		if ( '' !== $plan['order_status'] && function_exists( 'wc_get_order_statuses' ) && ! array_key_exists( 'wc-' . $plan['order_status'], wc_get_order_statuses() ) ) {
+			return self::error( 'digitalisimo_woo_mcp_value', sprintf( 'No se cambió nada: «%s» no es un estado de pedido de esta tienda (%s).', $plan['order_status'], implode( ', ', array_map( array( __CLASS__, 'unprefix_status' ), array_keys( wc_get_order_statuses() ) ) ) ) );
 		}
 		$keys  = self::meta_keys();
 		$lines = $order->get_items( 'shipping' );
@@ -1533,32 +1755,36 @@ final class Skydropx {
 				return self::error( 'digitalisimo_woo_mcp_skydropx_line', sprintf( 'El pedido %d no tiene la línea de envío %d (get_shipment las lista).', $plan['id'], $plan['shipping_line_id'] ), 404 );
 			}
 		} else {
-			foreach ( $lines as $line ) {
-				if ( '' !== trim( (string) $line->get_meta( $keys['number'], true ) ) ) {
-					$item = $line;
-					break;
-				}
-			}
+			$item = self::tracking_line( $order )[0];
 			if ( ! $item && $lines ) {
 				$item = reset( $lines );
 			}
+		}
+		if ( ! $item && ! $plan['create_shipping_line'] ) {
+			return self::error( 'digitalisimo_woo_mcp_skydropx_no_line', sprintf( 'No se cambió nada: el pedido %d no tiene línea de envío, y el plugin de Skydropx guarda el rastreo en ella. Para añadir una sin costo («Envío»), que el cliente verá en su pedido y en sus correos, repite con create_shipping_line:true, sólo si el usuario lo pide.', $plan['id'] ), 409 );
 		}
 		$current = array();
 		foreach ( $keys as $field => $meta ) {
 			$current[ $field ] = $item ? trim( (string) $item->get_meta( $meta, true ) ) : '';
 		}
 		$next = array_merge( $current, $plan['tracking'] );
-		$gaps = array_keys( array_filter( $next, static function ( $value ) {
-			return '' === $value;
-		} ) );
+		$gaps = array_keys(
+			array_filter(
+				$next,
+				static function ( $value ) {
+					return '' === $value;
+				}
+			)
+		);
 		if ( $gaps ) {
 			return self::error( 'digitalisimo_woo_mcp_skydropx_tracking', 'No se cambió nada: el plugin muestra la guía sólo con número, paquetería y URL de rastreo, y faltaría ' . implode( ', ', $gaps ) . ' (mándalo en tracking).' );
 		}
 		$created = false;
 		if ( ! $item ) {
-			// Un pedido sin línea de envío (p. ej. creado a mano): una línea sin costo, sin recalcular los totales.
+			// Sólo con create_shipping_line: una línea sin costo, sin recalcular los totales.
 			$item = new \WC_Order_Item_Shipping();
 			$item->set_method_title( 'Envío' );
+			$item->set_method_id( 'digitalisimo_manual' );
 			$item->set_total( 0 );
 			$order->add_item( $item );
 			$created = true;
@@ -1571,10 +1797,16 @@ final class Skydropx {
 		foreach ( $values as $field => $value ) {
 			$item->update_meta_data( $keys[ $field ], $value );
 		}
+		// Un número nuevo (o uno que ya era manual) es un envío hecho a mano: se marca para no ofrecer un PDF que no existe.
+		// Corregir paquetería o URL de una guía de Skydropx, con su mismo número, no la vuelve manual.
+		$manual = $values['number'] !== $current['number'] || ( '' !== $current['number'] && $current['number'] === trim( (string) $item->get_meta( Skydropx_Tool::MANUAL_META, true ) ) );
+		if ( $manual ) {
+			$item->update_meta_data( Skydropx_Tool::MANUAL_META, $values['number'] );
+		}
 		// El CRUD de WooCommerce (HPOS o entradas): guarda la línea y el pedido, y dispara `woocommerce_update_order`.
 		$order->save();
 
-		$result = array(
+		$result   = array(
 			'ok'     => true,
 			'tool'   => Skydropx_Tool::TOOL,
 			'action' => 'set_tracking',
@@ -1583,11 +1815,18 @@ final class Skydropx {
 				'shipping_line_id' => (int) $item->get_id(),
 				'created_line'     => $created,
 				'tracking'         => $values,
-				'label'            => self::label_available( $plan['id'], true ),
+				'label'            => $manual ? 'manual' : self::label_available( $order, true ),
 				'edit_url'         => method_exists( $order, 'get_edit_order_url' ) ? (string) $order->get_edit_order_url() : '',
 			),
 		);
-		$errors = array();
+		$notices  = array();
+		$errors   = array();
+		if ( $manual ) {
+			$notices[] = 'Rastreo registrado a mano: la caja del plugin de Skydropx en el pedido mostrará «Guía generada» e «Imprimir guía» (sólo mira las tres metas), pero no hay PDF de Skydropx para este envío; label lo dice.';
+		}
+		if ( $created ) {
+			$notices[] = 'El pedido no tenía línea de envío: se añadió una sin costo («Envío»), que el cliente verá en su pedido y en sus correos; los totales no cambian.';
+		}
 		if ( '' !== $plan['order_status'] && $plan['order_status'] !== $order->get_status() ) {
 			list( $status, $data ) = call_user_func( $dispatch, 'PUT', Tools::REST . 'orders/' . $plan['id'], array(), array( 'status' => $plan['order_status'] ) );
 			if ( $status >= 400 ) {
@@ -1597,20 +1836,27 @@ final class Skydropx {
 			}
 		}
 		if ( '' !== $plan['customer_note'] ) {
-			list( $status, $data ) = call_user_func(
-				$dispatch,
-				'POST',
-				Tools::REST . 'orders/' . $plan['id'] . '/notes',
-				array(),
-				array(
-					'note'          => sanitize_textarea_field( $plan['customer_note'] ),
-					'customer_note' => true,
-				)
-			);
-			if ( $status >= 400 ) {
-				$errors['customer_note'] = Executor::woo_error( (int) $status, $data );
+			$note = sanitize_textarea_field( $plan['customer_note'] );
+			if ( self::last_customer_note( $plan['id'] ) === trim( $note ) ) {
+				// Un reintento no le manda al cliente otro correo con la misma nota.
+				$result['data']['note_skipped'] = true;
+				$notices[]                      = 'La nota al cliente no se repitió: es igual a la última que ya tiene el pedido.';
 			} else {
-				$result['data']['note_id'] = is_array( $data ) && isset( $data['id'] ) ? (int) $data['id'] : 0;
+				list( $status, $data ) = call_user_func(
+					$dispatch,
+					'POST',
+					Tools::REST . 'orders/' . $plan['id'] . '/notes',
+					array(),
+					array(
+						'note'          => $note,
+						'customer_note' => true,
+					)
+				);
+				if ( $status >= 400 ) {
+					$errors['customer_note'] = Executor::woo_error( (int) $status, $data );
+				} else {
+					$result['data']['note_id'] = is_array( $data ) && isset( $data['id'] ) ? (int) $data['id'] : 0;
+				}
 			}
 		}
 		if ( $errors ) {
@@ -1624,15 +1870,31 @@ final class Skydropx {
 					'message' => $error->get_error_message(),
 				);
 			}
-			$result['notice'] = 'El rastreo quedó guardado, pero no todo lo demás: ver errors.';
-		} elseif ( $created ) {
-			$result['notice'] = 'El pedido no tenía línea de envío: se añadió una sin costo («Envío») para guardar el rastreo; los totales no cambian.';
+			array_unshift( $notices, 'El rastreo quedó guardado, pero no todo lo demás: ver errors.' );
+		}
+		if ( $notices ) {
+			$result['notice'] = implode( ' ', $notices );
 		}
 		return $result;
 	}
 
+	/** Texto de la última nota al cliente del pedido, o ''. */
+	private static function last_customer_note( int $order_id ): string {
+		if ( ! function_exists( 'wc_get_order_notes' ) ) {
+			return '';
+		}
+		$notes = wc_get_order_notes(
+			array(
+				'order_id' => $order_id,
+				'type'     => 'customer',
+				'limit'    => 1,
+			)
+		);
+		return $notes && isset( $notes[0]->content ) ? trim( wp_strip_all_tags( (string) $notes[0]->content ) ) : '';
+	}
+
 	private static function do_resync( array $plan ) {
-		$order = self::order( $plan['id'] );
+		$order = self::order_access( $plan['id'], 'edit' );
 		if ( is_wp_error( $order ) ) {
 			return $order;
 		}
@@ -1640,11 +1902,16 @@ final class Skydropx {
 		// `order.updated` de la plataforma; quien sincroniza por fecha también lo ve. Nada más del pedido cambia.
 		$order->set_date_modified( time() );
 		$order->save();
-		$webhooks = self::webhooks();
-		$order_hooks = is_array( $webhooks ) ? array_values( array_filter( $webhooks['topics'], static function ( $topic ) {
-			return 0 === strpos( $topic, 'order.' );
-		} ) ) : array();
-		$result = array(
+		$webhooks    = self::webhooks();
+		$order_hooks = is_array( $webhooks ) ? array_values(
+			array_filter(
+				$webhooks['topics'],
+				static function ( $topic ) {
+					return 0 === strpos( $topic, 'order.' );
+				}
+			)
+		) : array();
+		$result      = array(
 			'ok'     => true,
 			'tool'   => Skydropx_Tool::TOOL,
 			'action' => 'resync',
@@ -1653,7 +1920,7 @@ final class Skydropx {
 				'date_modified' => $order->get_date_modified() ? $order->get_date_modified()->date( 'c' ) : '',
 				'webhooks'      => $webhooks,
 			),
-			'notice' => 'Pedido guardado: WooCommerce encola el aviso a Skydropx (webhook order.updated) y lo entrega en segundos o con su siguiente tarea programada.',
+			'notice' => 'Pedido guardado: WooCommerce encola el aviso a Skydropx (webhook order.updated) y lo entrega con su cola de tareas, normalmente en segundos o con la siguiente tarea programada. Si ya había una entrega pendiente de este pedido, no agenda otra: la pendiente llevará el pedido al día.',
 		);
 		if ( ! in_array( 'order.updated', $order_hooks, true ) ) {
 			$result['warnings'] = array( 'No hay un webhook activo de Skydropx para order.updated: la plataforma verá el pedido en su próxima sincronización, no al momento. Vincular de nuevo la tienda (menú «Skydropx») vuelve a crearlo.' );
@@ -1661,7 +1928,37 @@ final class Skydropx {
 		return $result;
 	}
 
-	/** Un pedido (no un reembolso) que el usuario puede tocar, o el error. */
+	/**
+	 * Un pedido con el permiso sobre ese pedido que pide la REST de WooCommerce (`orders`): el de su tipo de contenido para
+	 * ese objeto (`edit_shop_order`: un pedido ajeno exige `edit_others_shop_orders`; al leer, `read_private_shop_orders`)
+	 * y el filtro `woocommerce_rest_check_permissions`, con el que los plugins de marketplace o de roles limitan a cada
+	 * usuario a sus pedidos. Como la REST: un pedido que no existe es 404 y uno ajeno, 403.
+	 *
+	 * @param string $context `read` o `edit`.
+	 * @return \WC_Order|\WP_Error
+	 */
+	private static function order_access( int $id, string $context ) {
+		$order = self::order( $id );
+		if ( is_wp_error( $order ) ) {
+			return $order;
+		}
+		$allowed = function_exists( 'wc_rest_check_post_permissions' )
+			? wc_rest_check_post_permissions( 'shop_order', $context, $id )
+			: current_user_can( 'edit' === $context ? 'edit_shop_order' : 'read_private_shop_orders', $id );
+		if ( ! $allowed ) {
+			return new \WP_Error(
+				'edit' === $context ? 'woocommerce_rest_cannot_edit' : 'woocommerce_rest_cannot_view',
+				sprintf( 'Tu usuario no tiene permiso sobre el pedido %d: WooCommerce lo comprueba pedido a pedido, igual que en la herramienta orders.', $id ),
+				array(
+					'status' => 403,
+					'denied' => true,
+				)
+			);
+		}
+		return $order;
+	}
+
+	/** Un pedido (no un reembolso), o el error. */
 	private static function order( int $id ) {
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $id ) : null;
 		if ( ! $order || ! is_a( $order, 'WC_Order' ) || 'shop_order' !== $order->get_type() ) {
@@ -1687,6 +1984,11 @@ final class Skydropx {
 		}
 		$value = (float) $value;
 		return is_finite( $value ) && $value > 0 && $value < self::MAX_MEASURE ? $value : null;
+	}
+
+	/** Un peso o una medida guardados como el plugin los lee (`(float)`): numérico y mayor que 0 (también «.5» o «1.»). */
+	private static function stored_measure( $value ): bool {
+		return is_numeric( $value ) && is_finite( (float) $value ) && (float) $value > 0;
 	}
 
 	private static function number( $value ): float {

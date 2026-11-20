@@ -59,6 +59,12 @@ final class Skydropx_Tool {
 	/** Acción de `admin-post.php` del enlace de la guía (lo abre el navegador del administrador). */
 	const LABEL_ACTION = Module::SKYDROPX_LABEL_ACTION;
 
+	/** Vida del enlace firmado de la guía (después, una página con un botón: nada se ejecuta solo). */
+	const LABEL_TTL = 3600;
+
+	/** Meta oculta de la línea de envío: el número de rastreo que `set_tracking` registró a mano (el plugin la ignora). */
+	const MANUAL_META = '_digitalisimo_manual_tracking';
+
 	/** ¿Está cargado el plugin de Skydropx en este sitio? Sin autocarga ni disco. */
 	public static function active(): bool {
 		return defined( 'SKYDROPX_VERSION' ) || class_exists( self::PLUGIN_CLASS, false );
@@ -105,6 +111,37 @@ final class Skydropx_Tool {
 		return array( 'edit_shop_orders', 'edit_products' );
 	}
 
+	/**
+	 * Permiso (`permission_callback` y `run()`): con una entrada que nombra una acción, una capacidad de cada grupo de
+	 * `capabilities()`; sin ella (lista de herramientas), el mínimo. Vive aquí, en la clase ligera, para que comprobarlo
+	 * (cada `tools/list`) no cargue la ejecución. El permiso sobre cada pedido lo comprueba `Skydropx` al ejecutar.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public static function permission( $input = null ) {
+		$groups = array( self::floor() );
+		if ( is_array( $input ) && isset( $input['action'] ) && is_string( $input['action'] ) && in_array( $input['action'], self::actions(), true ) ) {
+			$groups = array_merge( $groups, self::capabilities( $input['action'] ) );
+		}
+		foreach ( $groups as $group ) {
+			$ok = false;
+			foreach ( $group as $cap ) {
+				if ( current_user_can( $cap ) ) {
+					$ok = true;
+					break;
+				}
+			}
+			if ( ! $ok ) {
+				return new \WP_Error(
+					'digitalisimo_woo_mcp_forbidden',
+					sprintf( 'Tu usuario no tiene permiso para esto en la tienda: WooCommerce exige la capacidad «%s».', implode( '» o «', $group ) ),
+					array( 'status' => 403 )
+				);
+			}
+		}
+		return true;
+	}
+
 	/** Definición, con la misma forma que `Tools::definition()`. */
 	public static function definition( string $mode = 'read' ): array {
 		$tail = 'write' === $mode
@@ -132,7 +169,7 @@ final class Skydropx_Tool {
 		);
 	}
 
-	const DESCRIPTION = 'Envíos con Skydropx en la tienda WooCommerce de este sitio: lo que le toca a WordPress. Crear, pagar o cancelar envíos en la plataforma Skydropx se hace a mano en su panel, no aquí. Acciones de lectura: status (vinculación con Skydropx sin claves, cotización activa, zona y método de Skydropx, unidades de la tienda, dirección de origen completa o no, webhooks y versión del plugin); audit_products (productos y variaciones publicados a los que la cotización les manda peso o medidas vacíos o en cero, y sin clase de envío si se pide; paginado con page y per_page y con totales; checks elige weight, dimensions y shipping_class); quote (cotización de prueba con el método de Skydropx del propio plugin: address {postcode obligatorio, country, state, city, address_1} y cart [{product_id, variation_id, quantity}]; respeta la caché de 2 minutos del plugin salvo con cache:false); shipments (pedidos con su rastreo: statuses, after y before AAAA-MM-DD y tracking_filter any|with|without dentro de la página; paginado); get_shipment (un pedido con order_id: rastreo, si tiene guía y destino); label (order_id: un enlace para descargar la guía en PDF desde el navegador del administrador con su sesión; nunca el PDF ni la firma). Acciones que escriben: update_products (items [{product_id, variation_id, weight, length, width, height, shipping_class}] hasta 100, con weight_unit y dimension_unit si los valores no van en las unidades de la tienda; se convierten y se guardan con la API REST de WooCommerce, como products, para que Skydropx los reciba); set_tracking (order_id y tracking {number, company, url} de un envío hecho a mano, en las metas de la línea de envío que lee el plugin; opcionales shipping_line_id, order_status y customer_note, que avisa al cliente por correo); resync (order_id: guarda el pedido sin cambiar nada más para que WooCommerce avise a Skydropx por su webhook). Las claves, la URL de cotización y la vinculación del plugin nunca salen ni se cambian.';
+	const DESCRIPTION = 'Envíos con Skydropx en la tienda WooCommerce de este sitio: lo que le toca a WordPress. Crear, pagar o cancelar envíos en la plataforma Skydropx se hace a mano en su panel, no aquí. Acciones de lectura: status (vinculación con Skydropx sin claves, cotización activa, zona y método de Skydropx, unidades de la tienda, dirección de origen completa o no, webhooks y versión del plugin); audit_products (productos y variaciones publicados a los que la cotización les manda peso o medidas vacíos o en cero, y sin clase de envío si se pide en checks; paginado con page y per_page y con totales; con más de 5 000, sigue con after_id); quote (cotización de prueba con el método de Skydropx del propio plugin: address {postcode obligatorio, country, state, city, address_1} y cart [{product_id, variation_id, quantity}]; respeta la caché de 2 minutos del plugin salvo con cache:false); shipments (pedidos con su rastreo: statuses, after y before AAAA-MM-DD y tracking_filter any|with|without dentro de la página; paginado); get_shipment (un pedido con order_id: rastreo, si tiene guía de Skydropx —label true—, si el rastreo se registró a mano —label "manual", sin PDF— y destino); label (order_id: un enlace de 1 hora para descargar la guía de Skydropx en PDF desde el navegador del administrador con su sesión; nunca el PDF ni la firma). Acciones que escriben: update_products (items [{product_id, variation_id, weight, length, width, height, shipping_class}] hasta 100, con weight_unit y dimension_unit si los valores no van en las unidades de la tienda; se convierten y se guardan con la API REST de WooCommerce, como products, para que Skydropx los reciba); set_tracking (order_id y tracking {number, company, url} de un envío hecho a mano, en las metas de la línea de envío que lee el plugin; opcionales shipping_line_id, order_status y customer_note, que avisa al cliente por correo; un pedido sin línea de envío falla salvo create_shipping_line:true; la caja del plugin mostrará «Guía generada» aunque no haya PDF de Skydropx); resync (order_id: guarda el pedido sin cambiar nada más para que WooCommerce avise a Skydropx por su webhook). Las claves, la URL de cotización y la vinculación del plugin nunca salen ni se cambian.';
 
 	/** Esquema de entrada cerrado. */
 	public static function input_schema(): array {
@@ -149,7 +186,7 @@ final class Skydropx_Tool {
 				'length'         => $number + array( 'description' => 'Largo, mayor que 0.' ),
 				'width'          => $number + array( 'description' => 'Ancho, mayor que 0.' ),
 				'height'         => $number + array( 'description' => 'Alto, mayor que 0.' ),
-				'shipping_class' => array( 'type' => 'string', 'pattern' => '^[a-z0-9_-]{0,200}$', 'description' => 'Slug de una clase de envío existente; vacío la quita.' ),
+				'shipping_class' => array( 'type' => 'string', 'pattern' => '^[a-z0-9_-]{0,200}$', 'description' => 'Slug de una clase de envío existente (si coincide con un nombre y no con un slug, se usa su slug y se avisa). Vacío: en un producto, sin clase; en una variación, la misma del padre.' ),
 			),
 			'required'             => array( 'product_id' ),
 			'additionalProperties' => false,
@@ -189,8 +226,9 @@ final class Skydropx_Tool {
 					'type'        => 'array',
 					'items'       => array( 'type' => 'string', 'enum' => self::CHECKS ),
 					'maxItems'    => 3,
-					'description' => 'audit_products: qué revisar (por defecto weight y dimensions, y shipping_class si la tienda tiene clases de envío).',
+					'description' => 'audit_products: qué revisar (por defecto weight y dimensions; shipping_class sólo si se pide: Skydropx no la usa para cotizar).',
 				),
+				'after_id'         => array( 'type' => 'integer', 'minimum' => 0, 'default' => 0, 'description' => 'audit_products: revisar a partir de este ID (next_after_id de la respuesta anterior, cuando la tienda tiene más de 5 000 productos y variaciones).' ),
 				'address'          => array(
 					'type'                 => 'object',
 					'properties'           => array(
@@ -233,6 +271,7 @@ final class Skydropx_Tool {
 				),
 				'tracking_filter'  => array( 'type' => 'string', 'enum' => self::TRACKING_FILTER, 'default' => 'any', 'description' => 'shipments: any, with (con rastreo) o without (sin rastreo), dentro de la página pedida.' ),
 				'shipping_line_id' => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'set_tracking: línea de envío del pedido (por defecto la que ya tiene rastreo o la primera).' ),
+				'create_shipping_line' => array( 'type' => 'boolean', 'default' => false, 'description' => 'set_tracking: sólo si el pedido no tiene línea de envío y el usuario lo pide: true añade una sin costo («Envío»), que el cliente verá en su pedido y en sus correos. Sin ella, set_tracking falla en un pedido sin línea de envío.' ),
 				'order_status'     => array( 'type' => 'string', 'pattern' => '^[a-z0-9_-]{1,40}$', 'description' => 'set_tracking: estado nuevo del pedido (p. ej. completed), opcional.' ),
 				'customer_note'    => $text( 1000, 'set_tracking: nota para el cliente (WooCommerce se la manda por correo), opcional.' ),
 				'page'             => array( 'type' => 'integer', 'minimum' => 1, 'default' => 1, 'description' => 'Página de audit_products o shipments.' ),
@@ -246,13 +285,13 @@ final class Skydropx_Tool {
 	/** Parámetros que admite cada acción (además de `action`). */
 	const PARAMS = array(
 		'status'          => array(),
-		'audit_products'  => array( 'checks', 'page', 'per_page' ),
+		'audit_products'  => array( 'checks', 'after_id', 'page', 'per_page' ),
 		'quote'           => array( 'address', 'cart', 'cache' ),
 		'shipments'       => array( 'statuses', 'after', 'before', 'tracking_filter', 'page', 'per_page' ),
 		'get_shipment'    => array( 'order_id' ),
 		'label'           => array( 'order_id' ),
 		'update_products' => array( 'items', 'weight_unit', 'dimension_unit' ),
-		'set_tracking'    => array( 'order_id', 'tracking', 'shipping_line_id', 'order_status', 'customer_note' ),
+		'set_tracking'    => array( 'order_id', 'tracking', 'shipping_line_id', 'create_shipping_line', 'order_status', 'customer_note' ),
 		'resync'          => array( 'order_id' ),
 	);
 }

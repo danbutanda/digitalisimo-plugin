@@ -165,7 +165,7 @@ final class Executor {
 	 */
 	public static function permission( string $tool, $input = null ) {
 		if ( Tools::SKYDROPX === $tool ) {
-			return Skydropx::permission( $input );
+			return Skydropx_Tool::permission( $input );
 		}
 		$floor = Tools::floor( $tool );
 		if ( ! current_user_can( $floor ) ) {

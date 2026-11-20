@@ -184,9 +184,9 @@ namespace {
 	function add_filter( $hook, $callback, $priority = 10, $args = 1 ) {
 		$GLOBALS['sk']['hooks'][ $hook ][] = $callback;
 	}
-	function apply_filters( $hook, $value ) {
+	function apply_filters( $hook, $value, ...$args ) {
 		foreach ( $GLOBALS['sk']['hooks'][ $hook ] ?? array() as $callback ) {
-			$value = call_user_func( $callback, $value );
+			$value = call_user_func( $callback, $value, ...$args );
 		}
 		return $value;
 	}
@@ -295,13 +295,55 @@ namespace {
 		return true;
 	}
 	function wp_using_ext_object_cache() {
+		return ! empty( $GLOBALS['sk']['ext_cache'] );
+	}
+	function wp_cache_supports( $feature ) {
+		return 'flush_runtime' === $feature;
+	}
+	function wp_cache_flush_runtime() {
+		$GLOBALS['sk']['flushes'] = ( $GLOBALS['sk']['flushes'] ?? 0 ) + 1;
+		return true;
+	}
+	function _prime_post_caches( $ids, $terms = true, $meta = true ) {
+		$GLOBALS['sk']['primed'][] = array( $ids, $terms, $meta );
+	}
+	function wp_get_post_parent_id( $id ) {
+		return isset( $GLOBALS['sk_products'][ $id ] ) ? $GLOBALS['sk_products'][ $id ]->parent : 0;
+	}
+	function delete_transient( $name ) {
+		unset( $GLOBALS['sk']['transients'][ $name ] );
+		return true;
+	}
+	/** Clases de envío: slug → nombre (`get_term_by()` por slug, o por nombre sin distinguir mayúsculas, como MySQL). */
+	function get_term_by( $field, $value, $taxonomy ) {
+		foreach ( $GLOBALS['sk_classes'] ?? array() as $slug => $name ) {
+			if ( ( 'slug' === $field && $slug === $value ) || ( 'name' === $field && 0 === strcasecmp( $name, $value ) ) ) {
+				return (object) array( 'slug' => $slug, 'name' => $name );
+			}
+		}
 		return false;
 	}
-	function wp_count_terms( $args ) {
-		return count( $GLOBALS['sk_classes'] ?? array() );
+	function wp_hash( $data, $scheme = 'auth' ) {
+		return hash_hmac( 'md5', $data, 'sal-de-prueba-' . $scheme );
 	}
-	function term_exists( $slug, $taxonomy ) {
-		return 'product_shipping_class' === $taxonomy && in_array( $slug, $GLOBALS['sk_classes'] ?? array(), true ) ? array( 'term_id' => 1 ) : null;
+	function wc_shipping_enabled() {
+		return empty( $GLOBALS['sk']['shipping_off'] );
+	}
+	function wc_get_order_statuses() {
+		return array( 'wc-pending' => 'Pendiente', 'wc-processing' => 'Procesando', 'wc-on-hold' => 'En espera', 'wc-completed' => 'Completado', 'wc-cancelled' => 'Cancelado' );
+	}
+	function wc_get_order_notes( $args ) {
+		$note = $GLOBALS['sk_notes'][ $args['order_id'] ] ?? null;
+		return null === $note ? array() : array( (object) array( 'content' => $note ) );
+	}
+	/** Como WooCommerce: la meta-capacidad del pedido (uno ajeno exige edit_others_shop_orders) y su filtro. */
+	function wc_rest_check_post_permissions( $post_type, $context = 'read', $object_id = 0 ) {
+		$own        = in_array( (int) $object_id, $GLOBALS['sk']['own_orders'] ?? array(), true );
+		$permission = 'edit' === $context
+			? current_user_can( 'edit_others_shop_orders' ) || ( $own && current_user_can( 'edit_shop_orders' ) )
+			: current_user_can( 'read_private_shop_orders' ) || $own;
+		$GLOBALS['sk']['order_checks'][] = array( $context, (int) $object_id );
+		return apply_filters( 'woocommerce_rest_check_permissions', $permission, $context, $object_id, $post_type );
 	}
 	function get_post_status( $id ) {
 		$product = $GLOBALS['sk_products'][ (int) $id ] ?? null;
@@ -328,7 +370,7 @@ namespace {
 			$out[] = $id;
 		}
 		sort( $out );
-		return array_slice( $out, 0, $args['posts_per_page'] );
+		return -1 === $args['posts_per_page'] ? $out : array_slice( $out, 0, $args['posts_per_page'] );
 	}
 	function wp_die( $message = '', $title = '', $args = array() ) {
 		throw new Sk_Exit( 'die', (string) $message, (int) ( $args['response'] ?? 500 ) );
@@ -467,6 +509,10 @@ namespace {
 		}
 		public function set_method_title( $title ) {
 			$this->title = $title;
+		}
+		public $method_id = '';
+		public function set_method_id( $id ) {
+			$this->method_id = $id;
 		}
 		public function set_total( $total ) {
 			$this->total = $total;
@@ -907,7 +953,8 @@ class Skydropx_Shipping_Method extends WC_Shipping_Method {
 			$items[] = array( 'id' => $product->get_id(), 'quantity' => $line['quantity'], 'weight' => (float) wc_get_weight( (float) $product->get_weight(), 'kg' ), 'length' => (float) wc_get_dimension( (float) $product->get_length(), 'cm' ) );
 		}
 		$total = $cart instanceof WC_Cart ? (float) $cart->get_cart_contents_total() + ( $cart->display_prices_including_tax() ? (float) $cart->get_cart_contents_tax() : 0 ) : 0.0;
-		$print = md5( json_encode( array( $items, $package['destination']['postcode'], $total ) ) );
+		// Como compute_quote_fingerprint() del plugin: IDs y cantidades, destino y total; nunca peso ni medidas.
+		$print = md5( json_encode( array( array_map( static function ( $i ) { return array( $i['id'], $i['quantity'] ); }, $items ), $package['destination']['postcode'], $total ) ) );
 		$key   = 'SKYDROPX_QUOTE_CACHE:' . (int) $this->instance_id;
 		$cache = WC()->session ? WC()->session->get( $key ) : null;
 		if ( is_array( $cache ) && $print === $cache['fingerprint'] && time() <= $cache['expires'] ) {
@@ -937,7 +984,8 @@ PHP
 
 	// Tienda de prueba.
 	$sk_store = static function () {
-		$GLOBALS['sk_classes']  = array( 'chica', 'grande' );
+		$GLOBALS['sk_classes']  = array( 'chica' => 'Chica', 'grande' => 'XL' );
+		$GLOBALS['sk_notes']    = array();
 		$GLOBALS['sk_products'] = array();
 		$add                    = static function ( WC_Product $p ) {
 			$GLOBALS['sk_products'][ $p->id ] = $p;
@@ -1010,7 +1058,7 @@ PHP
 		$err( $run( array( 'action' => 'label', 'order_id' => 50 ) ), 'digitalisimo_woo_mcp_skydropx_compat', 'Otra versión sin la interfaz de guías: label lo dice.' );
 		$err( $run( array( 'action' => 'quote', 'address' => array( 'postcode' => '06700' ), 'cart' => array( array( 'product_id' => 10 ) ) ) ), 'digitalisimo_woo_mcp_skydropx_compat', 'Otra versión sin método de envío: quote lo dice.' );
 		$track = $ok( $run( array( 'action' => 'set_tracking', 'order_id' => 51, 'tracking' => array( 'number' => 'X1', 'company' => 'Estafeta', 'url' => 'https://rastreo.test/X1' ) ) ), 'Otra versión: set_tracking usa las metas de 2.1.5.' );
-		check( 'X1' === $GLOBALS['sk_orders'][51]->lines[511]->meta['Tracking Number'] && true === $track['data']['label'], 'Otra versión: metas «Tracking …» escritas y la guía se ve (regla propia).' );
+		check( 'X1' === $GLOBALS['sk_orders'][51]->lines[511]->meta['Tracking Number'] && 'manual' === $track['data']['label'], 'Otra versión: metas «Tracking …» de 2.1.5 escritas (rastreo manual).' );
 		$ok( $run( array( 'action' => 'get_shipment', 'order_id' => 50 ) ), 'Otra versión: get_shipment responde.' );
 		echo "compat-ok {$GLOBALS['sk_checks']}\n";
 		exit( 0 );
@@ -1142,6 +1190,18 @@ PHP
 	$text   = implode( ' ', $status['warnings'] );
 	check( 5 <= count( $status['warnings'] ) && false !== strpos( $text, 'vinculada' ) && false !== strpos( $text, 'desactivada' ) && false !== strpos( $text, 'código postal' ) && false !== strpos( $text, 'no es la primera' ) && false !== strpos( $text, 'webhooks' ) && false !== strpos( $text, 'enlaces permanentes' ), 'status: avisos de vinculación, cotización, origen, orden de zonas, webhooks y enlaces: ' . $text );
 	check( false === $status['data']['zone']['first'] && array( array( 'id' => 5, 'name' => 'Local' ) ) === $status['data']['zone']['zones_before'], 'status: qué zona va antes.' );
+	// B1 · Envíos apagados en la tienda: lo dice, no culpa a la versión del plugin, y quote responde 409 claro.
+	$GLOBALS['sk']['shipping_off'] = true;
+	$status = $seen( $run( array( 'action' => 'status' ) ) );
+	check( false === $status['data']['shipping'] && false !== strpos( implode( ' ', $status['warnings'] ), 'envíos están desactivados' ) && ! in_array( 'Skydropx_Shipping_Method::calculate_shipping()', $status['data']['plugin']['missing'], true ), 'status: envíos apagados, sin culpar a la versión del plugin.' );
+	$err( $run( array( 'action' => 'quote', 'address' => array( 'postcode' => '06700' ), 'cart' => array( array( 'product_id' => 10 ) ) ) ), 'digitalisimo_woo_mcp_skydropx_shipping_off', 'quote: envíos apagados, 409 claro.' );
+	unset( $GLOBALS['sk']['shipping_off'] );
+	// B7 · Sin manage_woocommerce: un resumen de zona y webhooks (store-settings los reserva a quien administra).
+	$GLOBALS['sk']['caps'] = array( 'edit_products' );
+	$status = $seen( $run( array( 'action' => 'status' ) ) );
+	check( 'summary' === $status['data']['detail'] && array( 'found', 'first', 'method_enabled' ) === array_keys( $status['data']['zone'] ) && array( 'active' => false ) === $status['data']['webhooks'], 'status: resumen sin ubicaciones, zonas ni temas para quien sólo edita productos: ' . json_encode( $status['data']['zone'] ) );
+	$GLOBALS['sk']['caps'] = $manager;
+	check( 'full' === $seen( $run( array( 'action' => 'status' ) ) )['data']['detail'], 'status: completo con manage_woocommerce.' );
 	$GLOBALS['sk_plugin'] = array( 'linked' => true, 'enabled' => true, 'url' => SK_QUOTE_URL, 'http' => 0, 'rates' => null );
 	sk_reset( array( 'caps' => $manager, 'options' => array_merge( $GLOBALS['sk']['options'], $write ) ) );
 	$sk_store();
@@ -1149,24 +1209,55 @@ PHP
 	// =================================================================================================================
 	// audit_products.
 	$log_before = count( Log::entries() );
+	$GLOBALS['sk']['primed'] = array();
 	$audit      = $ok( $seen( $run( array( 'action' => 'audit_products', 'per_page' => 100 ) ) ), 'audit_products' );
-	$ids   = array_column( $audit['data'], 'id' );
+	$ids        = array_column( $audit['data'], 'id' );
 	check( array( 11, 31 ) === $ids, 'audit: el simple con peso 0 y ancho vacío y la variación sin peso propio ni del padre; no los virtuales/descargables, agrupados, externos, borradores, variaciones desactivadas ni las que heredan: ' . json_encode( $ids ) );
-	check( array( 'weight', 'width', 'shipping_class' ) === $audit['data'][0]['missing'] && array( 'weight', 'shipping_class' ) === $audit['data'][1]['missing'], 'audit: qué falta de cada uno (con clase de envío, porque la tienda tiene clases): ' . json_encode( array_column( $audit['data'], 'missing' ) ) );
+	check( array( 'weight', 'width' ) === $audit['data'][0]['missing'] && array( 'weight' ) === $audit['data'][1]['missing'], 'audit: qué falta de cada uno (por defecto sólo peso y medidas, lo que Skydropx usa): ' . json_encode( array_column( $audit['data'], 'missing' ) ) );
 	check( 30 === $audit['data'][1]['parent_id'] && array( 'product_id' => 30, 'variation_id' => 31 ) === $audit['data'][1]['fix'] && array( 'product_id' => 11 ) === $audit['data'][0]['fix'], 'audit: cómo corregir cada uno (padre y variación).' );
-	check( 2 === $audit['total'] && 1 === $audit['total_pages'] && 7 === $audit['summary']['scanned'] && 2 === $audit['summary']['skipped_virtual'], 'audit: totales (' . json_encode( $audit['summary'] ) . ').' );
-	check( array( 'weight' => 2, 'length' => 0, 'width' => 1, 'height' => 0, 'shipping_class' => 2 ) === $audit['summary']['missing'] && array( 'weight', 'dimensions', 'shipping_class' ) === $audit['summary']['checks'], 'audit: recuento por campo.' );
-	$page = $ok( $run( array( 'action' => 'audit_products', 'per_page' => 1, 'page' => 2 ) ), 'audit: página 2' );
+	check( 2 === $audit['total'] && 1 === $audit['total_pages'] && 7 === $audit['summary']['scanned'] && 2 === $audit['summary']['skipped_virtual'] && false === $audit['cached'], 'audit: totales (' . json_encode( $audit['summary'] ) . ').' );
+	check( array( 'weight' => 2, 'length' => 0, 'width' => 1, 'height' => 0 ) === $audit['summary']['missing'] && array( 'weight', 'dimensions' ) === $audit['summary']['checks'], 'audit: recuento por campo, sin la clase de envío por defecto (B2).' );
+	$primed = $GLOBALS['sk']['primed'];
+	check( $primed && true === $primed[0][1] && true === $primed[0][2] && in_array( array( array( 20, 30 ), true, true ), $primed, true ), 'audit: precarga entradas, metas y términos de cada bloque y de los padres de sus variaciones: ' . json_encode( $primed ) );
+	check( in_array( 'posts:11', $GLOBALS['sk']['cache_deleted'], true ) && in_array( 'product_type_relationships:11', $GLOBALS['sk']['cache_deleted'], true ), 'audit: sin caché persistente, libera entradas, metas y términos de cada bloque.' );
+	$queries = count( $GLOBALS['sk']['get_posts'] );
+	$page    = $ok( $run( array( 'action' => 'audit_products', 'per_page' => 1, 'page' => 2 ) ), 'audit: página 2' );
 	check( array( 31 ) === array_column( $page['data'], 'id' ) && 2 === $page['total'] && 2 === $page['total_pages'], 'audit: paginado con totales.' );
+	check( true === $page['cached'] && $queries === count( $GLOBALS['sk']['get_posts'] ), 'audit: la página 2 lee el recorrido de la 1 sin volver a recorrer la tienda (M5).' );
 	$only = $ok( $run( array( 'action' => 'audit_products', 'checks' => array( 'dimensions' ) ) ), 'audit: sólo medidas' );
 	check( array( 11 ) === array_column( $only['data'], 'id' ) && array( 'width' ) === $only['data'][0]['missing'], 'audit: checks elige qué se revisa.' );
-	$GLOBALS['sk_classes'] = array();
-	$noclass = $ok( $run( array( 'action' => 'audit_products' ) ), 'audit sin clases de envío' );
-	check( array( 'weight', 'dimensions' ) === $noclass['summary']['checks'] && array( 'weight' ) === $noclass['data'][1]['missing'], 'audit: sin clases en la tienda, la clase de envío no se exige.' );
-	$GLOBALS['sk_classes'] = array( 'chica', 'grande' );
+	$cls = $ok( $run( array( 'action' => 'audit_products', 'checks' => array( 'weight', 'shipping_class' ) ) ), 'audit con clase de envío' );
+	check( array( 'weight', 'shipping_class' ) === $cls['data'][0]['missing'] && array( 'weight', 'shipping_class' ) === $cls['data'][1]['missing'], 'audit: la clase de envío sólo si se pide.' );
+	$other = $ok( $run( array( 'action' => 'audit_products', 'checks' => array( 'dimensions' ), 'page' => 2 ) ), 'audit: otra consulta en la página 2' );
+	check( false === $other['cached'], 'audit: la caché de páginas es por checks y after_id (otra consulta vuelve a recorrer).' );
+	$after = $ok( $run( array( 'action' => 'audit_products', 'after_id' => 21 ) ), 'audit después del 21' );
+	check( array( 31 ) === array_column( $after['data'], 'id' ) && 2 === $after['summary']['scanned'] && ! isset( $after['next_after_id'] ), 'audit: after_id revisa lo que sigue, en orden de ID.' );
 	$err( $run( array( 'action' => 'audit_products', 'checks' => array( 'peso' ) ) ), 'digitalisimo_woo_mcp_input', 'audit: checks cerrado.' );
+	$err( $run( array( 'action' => 'audit_products', 'after_id' => -1 ) ), 'digitalisimo_woo_mcp_input', 'audit: after_id no negativo.' );
 	$last = end( $GLOBALS['sk']['get_posts'] );
-	check( 'product_variation' === $last['post_type'] && array( 20, 30 ) === $last['post_parent__in'] && 'publish' === $last['post_status'] && Skydropx::MAX_SCAN + 1 === $last['posts_per_page'], 'audit: variaciones publicadas de los variables publicados, con tope.' );
+	check( 'product_variation' === $last['post_type'] && array( 20, 30 ) === $last['post_parent__in'] && 'publish' === $last['post_status'] && -1 === $last['posts_per_page'] && 'ids' === $last['fields'], 'audit: sólo IDs de las variaciones publicadas de los variables publicados.' );
+	// B3 · Un valor guardado como «.5» o «1.» se cotiza (el plugin hace (float)): no es un problema.
+	$GLOBALS['sk_products'][11]->props['weight'] = '.5';
+	$GLOBALS['sk_products'][11]->props['width']  = '1.';
+	$loose = $ok( $run( array( 'action' => 'audit_products' ) ), 'audit con valores sueltos' );
+	check( array( 31 ) === array_column( $loose['data'], 'id' ), 'audit: «.5» y «1.» cuentan como valores, como en el plugin.' );
+	$GLOBALS['sk_products'][11]->props['weight'] = '0';
+	$GLOBALS['sk_products'][11]->props['width']  = '';
+	// Más de 5 000: los primeros 5 000 por ID y un cursor para seguir; con caché persistente, la memoria se vacía por bloque.
+	for ( $i = 10001; $i <= 15000; $i++ ) {
+		$GLOBALS['sk_products'][ $i ] = new WC_Product( $i, 'simple', array( 'weight' => '1', 'length' => '1', 'width' => '1', 'height' => '1' ) );
+	}
+	$GLOBALS['sk']['ext_cache'] = true;
+	$GLOBALS['sk']['flushes']   = 0;
+	$big                        = $ok( $run( array( 'action' => 'audit_products' ) ), 'audit con 5 007' );
+	check( true === $big['truncated'] && 14993 === $big['next_after_id'] && 5000 === $big['summary']['scanned'] && array( 11, 31 ) === array_column( $big['data'], 'id' ), 'audit: tope de 5 000 en orden de ID con next_after_id: ' . json_encode( array( $big['next_after_id'] ?? null, $big['summary']['scanned'] ) ) );
+	check( 50 === $GLOBALS['sk']['flushes'], 'audit: con caché persistente, vacía su capa en memoria en cada bloque de 100 (' . $GLOBALS['sk']['flushes'] . ').' );
+	$rest = $ok( $run( array( 'action' => 'audit_products', 'after_id' => $big['next_after_id'] ) ), 'audit: lo que sigue' );
+	check( 7 === $rest['summary']['scanned'] && ! isset( $rest['next_after_id'] ) && array() === $rest['data'], 'audit: after_id sigue con los 7 restantes.' );
+	unset( $GLOBALS['sk']['ext_cache'] );
+	foreach ( range( 10001, 15000 ) as $id ) {
+		unset( $GLOBALS['sk_products'][ $id ] );
+	}
 	check( array() === $GLOBALS['sk_rest'] && $log_before === count( Log::entries() ), 'audit: sólo lee (nada a la REST, nada en la bitácora).' );
 
 	// =================================================================================================================
@@ -1230,6 +1321,8 @@ PHP
 		$err( $run( array( 'action' => 'update_products', 'items' => $case[0] ) ), $case[1], 'update rechaza: ' . $case[2] );
 	}
 	$err( $run( array( 'action' => 'update_products', 'weight_unit' => 'ton', 'items' => array( array( 'product_id' => 11, 'weight' => 1 ) ) ) ), 'digitalisimo_woo_mcp_unit', 'update: unidad desconocida.' );
+	// B8 · Un valor que en la unidad de la tienda quedaría en cero se rechaza (no se guarda «0.0001» en silencio).
+	$err( $run( array( 'action' => 'update_products', 'weight_unit' => 'g', 'items' => array( array( 'product_id' => 11, 'weight' => 0.04 ) ) ) ), 'digitalisimo_woo_mcp_skydropx_items', 'update: 0.04 g en una tienda en kg.' );
 	$many = array();
 	for ( $i = 1; $i <= 101; $i++ ) {
 		$many[] = array( 'product_id' => 1000 + $i, 'weight' => 1 );
@@ -1239,7 +1332,16 @@ PHP
 	foreach ( range( 1001, 1100 ) as $id ) {
 		$GLOBALS['sk_products'][ $id ] = new WC_Product( $id, 'simple' );
 	}
+	// M6 · La clase se busca por slug; un nombre («xl» de «XL») se cambia por su slug con aviso; en una variación, «» es la del padre.
+	$GLOBALS['sk_rest'] = array();
+	$named              = $ok( $run( array( 'action' => 'update_products', 'items' => array( array( 'product_id' => 11, 'shipping_class' => 'xl' ), array( 'product_id' => 30, 'variation_id' => 31, 'shipping_class' => '' ) ) ) ), 'update con el nombre de la clase' );
+	check( 'grande' === $GLOBALS['sk_rest'][0][3]['update'][0]['shipping_class'] && false !== strpos( implode( ' ', $named['warnings'] ), 'se usó su slug «grande»' ) && false !== strpos( implode( ' ', $named['warnings'] ), 'misma clase que el padre' ), 'update: nombre → slug con aviso, y «» en una variación explicado: ' . json_encode( $named['warnings'] ?? null ) );
+	// M4 · Corregir productos borra la caché de cotizaciones y la del recorrido de la auditoría de este usuario.
+	$GLOBALS['sk']['transients'][ Skydropx::QUOTE_CACHE . '7' ] = array( 'x' );
+	$GLOBALS['sk']['transients'][ Skydropx::AUDIT_CACHE . '7' ] = array( 'x' );
+	$GLOBALS['sk_rest'] = array();
 	$hundred = $ok( $run( array( 'action' => 'update_products', 'items' => array_slice( $many, 0, 100 ) ) ), 'update: 100 productos sí.' );
+	check( ! isset( $GLOBALS['sk']['transients'][ Skydropx::QUOTE_CACHE . '7' ] ) && ! isset( $GLOBALS['sk']['transients'][ Skydropx::AUDIT_CACHE . '7' ] ), 'update: borra las cachés de cotización y de auditoría del usuario.' );
 	check( 100 === $hundred['batch']['done'] && 1 === count( $GLOBALS['sk_rest'] ) && 100 === count( $GLOBALS['sk_rest'][0][3]['update'] ), 'update: el lote de 100 en una sola petición.' );
 	// Parcial y total.
 	$GLOBALS['sk_products'][404] = new WC_Product( 404, 'simple' );
@@ -1275,6 +1377,11 @@ PHP
 	check( 1 === $GLOBALS['sk_plugin']['http'] && true === $again['data']['from_cache'] && $quote['data']['rates'] === $again['data']['rates'], 'quote: la segunda vez, de la caché del plugin (sin otra petición).' );
 	$fresh = $ok( $run( $quote_input + array( 'cache' => false ) ), 'quote sin caché' );
 	check( 2 === $GLOBALS['sk_plugin']['http'] && false === $fresh['data']['from_cache'], 'quote: cache:false vuelve a cotizar.' );
+	// M4 · La huella del plugin no cuenta el peso: si cambió (p. ej. tras update_products), la caché guardada no vale.
+	$GLOBALS['sk_products'][10]->props['weight'] = '1.4';
+	$heavier = $ok( $run( $quote_input ), 'quote con otro peso' );
+	check( 3 === $GLOBALS['sk_plugin']['http'] && false === $heavier['data']['from_cache'] && 1.4 === $GLOBALS['sk_plugin']['sent']['items'][0]['weight'], 'quote: con otro peso no sale de la caché (M4).' );
+	$GLOBALS['sk_products'][10]->props['weight'] = '1.2';
 	$GLOBALS['sk']['options']['woocommerce_tax_display_cart'] = 'incl';
 	$ok( $run( array( 'action' => 'quote', 'cache' => false, 'address' => array( 'postcode' => '06700' ), 'cart' => array( array( 'product_id' => 10 ) ) ) ), 'quote con impuestos incluidos' );
 	check( 116.0 === $GLOBALS['sk_plugin']['sent']['total_price'], 'quote: con precios con impuestos, el total que manda el plugin los incluye.' );
@@ -1303,8 +1410,11 @@ PHP
 	$err( $run( $quote_input ), 'digitalisimo_woo_mcp_skydropx_origin', 'quote: sin código postal de origen.' );
 	$GLOBALS['sk']['options']['woocommerce_store_postcode'] = '44100';
 	$GLOBALS['sk_plugin']['rates']                          = array();
-	$empty = $ok( $run( $quote_input + array( 'cache' => false ) ), 'quote sin tarifas' );
+	$empty = $ok( $run( array_merge( $quote_input, array( 'cache' => false, 'address' => array( 'postcode' => '99999' ) ) ) ), 'quote sin tarifas' );
 	check( 0 === $empty['data']['total'] && false !== strpos( implode( ' ', $empty['warnings'] ), 'no devolvió tarifas' ), 'quote: sin tarifas, lo dice.' );
+	// B5 · La misma cotización otra vez en la misma petición (el plugin no repite la llamada): valen las tarifas de la primera.
+	$again = $ok( $run( $quote_input + array( 'cache' => false ) ), 'quote repetida en la petición' );
+	check( 2 === $again['data']['total'] && true === $again['data']['from_cache'] && false !== strpos( implode( ' ', $again['warnings'] ), 'ya se hizo en esta petición' ), 'quote: repetida en la misma petición, no «sin tarifas».' );
 	$GLOBALS['sk_plugin']['rates'] = null;
 	check( 0 === count( Log::entries() ), 'quote: es lectura (sin bitácora).' );
 
@@ -1337,6 +1447,18 @@ PHP
 	check( true === $one['data']['label'] && 'GUIA123' === $one['data']['tracking']['number'] && array( 'city' => 'CDMX', 'state' => 'DF', 'postcode' => '06700', 'country' => 'MX' ) === $one['data']['destination'] && false !== strpos( $one['data']['edit_url'], 'id=50' ), 'get_shipment: rastreo, guía (del plugin), destino sin nombre ni calle y enlace al pedido.' );
 	$GLOBALS['sk_responses']['GET /wc/v3/orders/999'] = array( 404, array( 'code' => 'woocommerce_rest_shop_order_invalid_id', 'message' => 'ID no válido.' ), array() );
 	$err( $run( array( 'action' => 'get_shipment', 'order_id' => 999 ) ), 'woocommerce_rest_shop_order_invalid_id', 'get_shipment: el 404 de WooCommerce.' );
+	// B8/M3 · El rastreo es el de la primera línea con número; uno registrado a mano es «manual», no una guía de Skydropx.
+	$GLOBALS['sk_responses']['GET /wc/v3/orders'] = array( 200, array( array( 'id' => 53, 'shipping_lines' => array( array( 'id' => 531, 'meta_data' => array( array( 'key' => 'Tracking Company', 'value' => 'DHL' ) ) ), array( 'id' => 532, 'meta_data' => array( array( 'key' => 'Tracking Number', 'value' => 'M-1' ), array( 'key' => 'Tracking Company', 'value' => 'Estafeta' ), array( 'key' => 'Tracking URL', 'value' => 'https://r.test/M-1' ), array( 'key' => Skydropx_Tool::MANUAL_META, 'value' => 'M-1' ) ) ) ) ) ), array() );
+	$manual_row = $ok( $run( array( 'action' => 'shipments' ) ), 'shipments con rastreo manual' )['data'][0];
+	check( true === $manual_row['has_tracking'] && 'M-1' === $manual_row['tracking']['number'] && 'manual' === $manual_row['label'] && true === $manual_row['shipping_lines'][1]['manual'], 'shipments: línea con número y rastreo manual marcado: ' . json_encode( $manual_row ) );
+	// A1 · Leer un pedido exige el permiso sobre ese pedido (y su filtro), como la REST.
+	add_filter( 'woocommerce_rest_check_permissions', static function ( $permission, $context, $id ) {
+		return 50 === (int) $id ? false : $permission;
+	} );
+	$err( $run( array( 'action' => 'get_shipment', 'order_id' => 50 ) ), 'woocommerce_rest_cannot_view', 'get_shipment: el filtro woocommerce_rest_check_permissions niega ese pedido.' );
+	$err( $run( array( 'action' => 'label', 'order_id' => 50 ) ), 'woocommerce_rest_cannot_view', 'label: el filtro niega ese pedido.' );
+	unset( $GLOBALS['sk']['hooks']['woocommerce_rest_check_permissions'] );
+	check( in_array( array( 'read', 50 ), $GLOBALS['sk']['order_checks'], true ), 'get_shipment y label comprueban el pedido con contexto read.' );
 
 	// =================================================================================================================
 	// set_tracking: las metas del plugin con el CRUD (sin recalcular totales), estado y nota por la REST.
@@ -1353,28 +1475,56 @@ PHP
 	$GLOBALS['sk_responses']['POST /wc/v3/orders/51/notes'] = array( 201, array( 'id' => 77, 'note' => 'x' ), array() );
 	$set = $ok( $seen( $run( array( 'action' => 'set_tracking', 'order_id' => 51, 'tracking' => array( 'number' => ' 7788-99 ', 'company' => 'Estafeta', 'url' => 'https://rastreo.test/778899' ), 'order_status' => 'wc-completed', 'customer_note' => 'Tu pedido va en camino.' ) ) ), 'set_tracking' );
 	$line = $GLOBALS['sk_orders'][51]->lines[511];
-	check( array( 'Tracking Number' => '7788-99', 'Tracking Company' => 'Estafeta', 'Tracking URL' => 'https://rastreo.test/778899' ) === $line->meta && array() === $GLOBALS['sk_orders'][51]->lines[512]->meta, 'set_tracking: las tres metas del plugin en la primera línea de envío.' );
+	check( array( 'Tracking Number' => '7788-99', 'Tracking Company' => 'Estafeta', 'Tracking URL' => 'https://rastreo.test/778899', Skydropx_Tool::MANUAL_META => '7788-99' ) === $line->meta && array() === $GLOBALS['sk_orders'][51]->lines[512]->meta, 'set_tracking: las tres metas del plugin en la primera línea de envío.' );
 	check( 1 === $GLOBALS['sk_orders'][51]->saves && 1 === $updates, 'set_tracking: un save() del pedido que dispara woocommerce_update_order (webhooks).' );
 	check( array( array( 'PUT', '/wc/v3/orders/51', array(), array( 'status' => 'completed' ) ), array( 'POST', '/wc/v3/orders/51/notes', array(), array( 'note' => 'Tu pedido va en camino.', 'customer_note' => true ) ) ) === $GLOBALS['sk_rest'], 'set_tracking: estado y nota al cliente por la REST, nunca shipping_lines (recalcularía los totales): ' . json_encode( $GLOBALS['sk_rest'] ) );
-	check( true === $set['ok'] && 511 === $set['data']['shipping_line_id'] && true === $set['data']['label'] && 'completed' === $set['data']['order_status'] && 77 === $set['data']['note_id'] && false === $set['data']['created_line'], 'set_tracking: resultado.' );
+	check( true === $set['ok'] && 511 === $set['data']['shipping_line_id'] && 'manual' === $set['data']['label'] && false !== strpos( $set['notice'], 'Guía generada' ) && 'completed' === $set['data']['order_status'] && 77 === $set['data']['note_id'] && false === $set['data']['created_line'], 'set_tracking: resultado.' );
 	$entry = Log::entries()[0];
 	check( 'ok' === $entry['result'] && 'set_tracking' === $entry['action'] && 51 === $entry['id'] && 'order' === $entry['resource'], 'set_tracking en la bitácora.' );
 	check( false === strpos( json_encode( Log::entries() ), '7788' ) && false === strpos( json_encode( Log::entries() ), 'Estafeta' ) && false === strpos( json_encode( Log::entries() ), 'camino' ), 'Bitácora sin número, paquetería ni nota.' );
 	// Corregir sólo el número: lo demás se conserva; sin estado ni nota, nada a la REST.
 	$GLOBALS['sk_rest'] = array();
 	$ok( $run( array( 'action' => 'set_tracking', 'order_id' => 50, 'tracking' => array( 'number' => 'GUIA124' ) ) ), 'corregir el número' );
-	check( array( 'Tracking Number' => 'GUIA124', 'Tracking Company' => 'FedEx', 'Tracking URL' => 'https://rastreo.test/GUIA123' ) === $GLOBALS['sk_orders'][50]->lines[501]->meta && array() === $GLOBALS['sk_rest'], 'set_tracking: corrige un campo y conserva los otros.' );
+	check( array( 'Tracking Number' => 'GUIA124', 'Tracking Company' => 'FedEx', 'Tracking URL' => 'https://rastreo.test/GUIA123', Skydropx_Tool::MANUAL_META => 'GUIA124' ) === $GLOBALS['sk_orders'][50]->lines[501]->meta && array() === $GLOBALS['sk_rest'], 'set_tracking: corrige un campo y conserva los otros.' );
 	$ok( $run( array( 'action' => 'set_tracking', 'order_id' => 50, 'tracking' => array( 'number' => 'GUIA124' ), 'order_status' => 'processing' ) ), 'mismo estado' );
 	check( array() === $GLOBALS['sk_rest'], 'set_tracking: un estado igual al actual no llama a WooCommerce.' );
 	$ok( $run( array( 'action' => 'set_tracking', 'order_id' => 51, 'shipping_line_id' => 512, 'tracking' => array( 'number' => 'B2', 'company' => 'DHL', 'url' => 'http://r.test/B2' ) ) ), 'otra línea' );
 	check( 'B2' === $GLOBALS['sk_orders'][51]->lines[512]->meta['Tracking Number'] && '7788-99' === $GLOBALS['sk_orders'][51]->lines[511]->meta['Tracking Number'], 'set_tracking: shipping_line_id elige la línea.' );
 	$err( $run( array( 'action' => 'set_tracking', 'order_id' => 51, 'shipping_line_id' => 999, 'tracking' => array( 'number' => 'C' ) ) ), 'digitalisimo_woo_mcp_skydropx_line', 'set_tracking: línea que no es del pedido.' );
 	$saves = $GLOBALS['sk_orders'][52]->saves;
-	$err( $run( array( 'action' => 'set_tracking', 'order_id' => 52, 'tracking' => array( 'number' => 'C3' ) ) ), 'digitalisimo_woo_mcp_skydropx_tracking', 'set_tracking: incompleto (sin paquetería ni URL) no escribe nada.' );
-	check( $saves === $GLOBALS['sk_orders'][52]->saves && array() === $GLOBALS['sk_orders'][52]->lines, 'set_tracking incompleto: nada guardado.' );
-	$new = $ok( $run( array( 'action' => 'set_tracking', 'order_id' => 52, 'tracking' => array( 'number' => 'C3', 'company' => 'Paquetexpress', 'url' => 'https://r.test/C3' ) ) ), 'pedido sin línea de envío' );
+	$err( $run( array( 'action' => 'set_tracking', 'order_id' => 50, 'tracking' => array( 'number' => 'C3', 'company' => '' ) ) ), 'digitalisimo_woo_mcp_value', 'set_tracking: paquetería vacía.' );
+	$GLOBALS['sk_orders'][56] = new WC_Order( 56, array( new WC_Order_Item_Shipping( 561 ) ) );
+	$err( $run( array( 'action' => 'set_tracking', 'order_id' => 56, 'tracking' => array( 'number' => 'C4', 'url' => 'https://r.test/C4' ) ) ), 'digitalisimo_woo_mcp_skydropx_tracking', 'set_tracking: incompleto (sin paquetería) no escribe nada.' );
+	check( 0 === $GLOBALS['sk_orders'][56]->saves && array() === $GLOBALS['sk_orders'][56]->lines[561]->meta, 'set_tracking incompleto: nada guardado.' );
+	// M2 · Un pedido sin línea de envío falla con un mensaje claro; sólo con create_shipping_line:true se añade una.
+	$full = array( 'number' => 'C3', 'company' => 'Paquetexpress', 'url' => 'https://r.test/C3' );
+	$err( $run( array( 'action' => 'set_tracking', 'order_id' => 52, 'tracking' => $full ) ), 'digitalisimo_woo_mcp_skydropx_no_line', 'set_tracking: sin línea de envío, no la crea por su cuenta.' );
+	check( $saves === $GLOBALS['sk_orders'][52]->saves && array() === $GLOBALS['sk_orders'][52]->lines, 'set_tracking sin línea: nada guardado.' );
+	$new     = $ok( $run( array( 'action' => 'set_tracking', 'order_id' => 52, 'tracking' => $full, 'create_shipping_line' => true ) ), 'pedido sin línea de envío, con create_shipping_line' );
 	$created = $GLOBALS['sk_orders'][52]->lines[ $new['data']['shipping_line_id'] ];
-	check( true === $new['data']['created_line'] && 0 === $created->total && 'C3' === $created->meta['Tracking Number'] && isset( $new['notice'] ), 'set_tracking: sin línea de envío, crea una sin costo y lo dice.' );
+	check( true === $new['data']['created_line'] && 0 === $created->total && 'digitalisimo_manual' === $created->method_id && 'C3' === $created->meta['Tracking Number'] && false !== strpos( $new['notice'], 'el cliente verá' ), 'set_tracking: con create_shipping_line, una línea sin costo y el aviso de lo que verá el cliente.' );
+	// M3 · Corregir paquetería o URL de una guía de Skydropx (mismo número) no la vuelve manual.
+	$GLOBALS['sk_orders'][54] = new WC_Order( 54, array( new WC_Order_Item_Shipping( 541, array( 'Tracking Number' => 'SKY-1', 'Tracking Company' => 'FedEx', 'Tracking URL' => 'https://r.test/SKY-1' ) ) ) );
+	$fix                      = $ok( $run( array( 'action' => 'set_tracking', 'order_id' => 54, 'tracking' => array( 'company' => 'FedEx Express' ) ) ), 'corregir la paquetería de una guía de Skydropx' );
+	check( true === $fix['data']['label'] && ! isset( $GLOBALS['sk_orders'][54]->lines[541]->meta[ Skydropx_Tool::MANUAL_META ] ), 'set_tracking: corregir la paquetería de una guía de Skydropx no la marca como manual.' );
+	// A1 · Escribir exige el permiso sobre ese pedido: sin edit_others_shop_orders, sólo los propios; y el filtro.
+	$GLOBALS['sk']['caps']       = array( 'edit_shop_orders', 'read_private_shop_orders' );
+	$GLOBALS['sk']['own_orders'] = array( 54 );
+	$before                      = $GLOBALS['sk_orders'][51]->lines[511]->meta;
+	$err( $run( array( 'action' => 'set_tracking', 'order_id' => 51, 'tracking' => array( 'number' => 'AJENO' ) ) ), 'woocommerce_rest_cannot_edit', 'set_tracking: un pedido ajeno sin edit_others_shop_orders.' );
+	check( $before === $GLOBALS['sk_orders'][51]->lines[511]->meta && 'denied' === Log::entries()[0]['result'] && 'forbidden' === Log::entries()[0]['code'], 'set_tracking ajeno: nada escrito y «denied» en la bitácora.' );
+	$err( $run( array( 'action' => 'resync', 'order_id' => 51 ) ), 'woocommerce_rest_cannot_edit', 'resync: un pedido ajeno tampoco.' );
+	$ok( $run( array( 'action' => 'resync', 'order_id' => 54 ) ), 'resync: el pedido propio sí' );
+	$GLOBALS['sk']['caps'] = $manager;
+	unset( $GLOBALS['sk']['own_orders'] );
+	add_filter( 'woocommerce_rest_check_permissions', static function ( $permission, $context, $id ) {
+		return 'edit' === $context && 50 === (int) $id ? false : $permission;
+	} );
+	$saves = $GLOBALS['sk_orders'][50]->saves;
+	$err( $run( array( 'action' => 'resync', 'order_id' => 50 ) ), 'woocommerce_rest_cannot_edit', 'resync: el filtro woocommerce_rest_check_permissions lo niega.' );
+	$err( $run( array( 'action' => 'set_tracking', 'order_id' => 50, 'tracking' => array( 'number' => 'X9' ) ) ), 'woocommerce_rest_cannot_edit', 'set_tracking: el filtro lo niega.' );
+	check( $saves === $GLOBALS['sk_orders'][50]->saves, 'Con el filtro en contra, nada guardado.' );
+	unset( $GLOBALS['sk']['hooks']['woocommerce_rest_check_permissions'] );
 	foreach ( array(
 		array( 'url' => 'javascript:alert(1)' ),
 		array( 'url' => 'ftp://r.test/x' ),
@@ -1392,9 +1542,17 @@ PHP
 	$GLOBALS['sk_orders'][60]       = new WC_Order( 60 );
 	$GLOBALS['sk_orders'][60]->type = 'shop_order_refund';
 	$err( $run( array( 'action' => 'set_tracking', 'order_id' => 60, 'tracking' => array( 'number' => 'A', 'company' => 'B', 'url' => 'https://r.test/a' ) ) ), 'woocommerce_rest_shop_order_invalid_id', 'set_tracking: un reembolso no es un pedido.' );
-	// Estado que WooCommerce rechaza: el rastreo queda y el resultado es parcial.
+	// B6 · Un estado que no existe se rechaza antes de escribir nada.
+	$err( $run( array( 'action' => 'set_tracking', 'order_id' => 50, 'tracking' => array( 'number' => 'GUIA126' ), 'order_status' => 'enviado' ) ), 'digitalisimo_woo_mcp_value', 'set_tracking: estado inexistente, rechazado antes.' );
+	check( 'GUIA124' === $GLOBALS['sk_orders'][50]->lines[501]->meta['Tracking Number'], 'set_tracking con estado inexistente: el rastreo no cambió.' );
+	// B6 · Un reintento no le repite al cliente la misma nota (ni el correo).
+	$GLOBALS['sk_notes'][51] = 'Tu pedido va en camino.';
+	$GLOBALS['sk_rest']      = array();
+	$retry                   = $ok( $run( array( 'action' => 'set_tracking', 'order_id' => 51, 'tracking' => array( 'number' => '7788-99' ), 'customer_note' => 'Tu pedido va en camino.' ) ), 'reintento con la misma nota' );
+	check( true === $retry['data']['note_skipped'] && array() === $GLOBALS['sk_rest'], 'set_tracking: la misma nota no se vuelve a mandar.' );
+	// Estado válido que WooCommerce rechaza: el rastreo queda y el resultado es parcial.
 	$GLOBALS['sk_responses']['PUT /wc/v3/orders/50'] = array( 400, array( 'code' => 'rest_invalid_param', 'message' => 'Estado no válido.' ), array() );
-	$part = $seen( $run( array( 'action' => 'set_tracking', 'order_id' => 50, 'tracking' => array( 'number' => 'GUIA125' ), 'order_status' => 'enviado' ) ) );
+	$part = $seen( $run( array( 'action' => 'set_tracking', 'order_id' => 50, 'tracking' => array( 'number' => 'GUIA125' ), 'order_status' => 'cancelled' ) ) );
 	check( ! is_wp_error( $part ) && false === $part['ok'] && true === $part['partial'] && 'rest_invalid_param' === $part['errors']['order_status']['code'] && 'GUIA125' === $GLOBALS['sk_orders'][50]->lines[501]->meta['Tracking Number'], 'set_tracking: estado rechazado, rastreo guardado, resultado parcial.' );
 	check( 'partial' === Log::entries()[0]['result'] && 'rest_invalid_param' === Log::entries()[0]['code'], 'set_tracking parcial en la bitácora.' );
 
@@ -1402,15 +1560,23 @@ PHP
 	// label: un enlace propio que lleva al endpoint del plugin con su nonce; nada sensible al modelo.
 	$sk_store();
 	$label = $ok( $seen( $run( array( 'action' => 'label', 'order_id' => 50 ) ) ), 'label' );
-	check( 'https://tienda.test/wp-admin/admin-post.php?action=digitalisimo_woo_skydropx_label&order_id=50' === $label['data']['url'] && false !== strpos( $label['data']['order_url'], 'id=50' ), 'label: enlace a admin-post.php sin nonce (va ligado a la sesión del navegador).' );
+	parse_str( (string) parse_url( $label['data']['url'], PHP_URL_QUERY ), $q );
+	$sign  = static function ( int $order, int $user, int $exp ): string {
+		return substr( wp_hash( 'skydropx-label|' . $order . '|' . $user . '|' . $exp, 'nonce' ), 0, 20 );
+	};
+	check( 0 === strpos( $label['data']['url'], 'https://tienda.test/wp-admin/admin-post.php?' ) && Mcp::SKYDROPX_LABEL_ACTION === $q['action'] && '50' === $q['order_id'] && abs( (int) $q['exp'] - ( time() + 3600 ) ) < 5 && $sign( 50, 7, (int) $q['exp'] ) === $q['sig'] && false !== strpos( $label['data']['order_url'], 'id=50' ), 'label: enlace propio firmado para este usuario, de una hora (M1): ' . $label['data']['url'] );
 	check( false === strpos( json_encode( $label ), 'skydropx_print_label' ), 'label: el enlace del plugin (con su nonce) no sale al modelo.' );
 	$nolabel = $err( $run( array( 'action' => 'label', 'order_id' => 51 ) ), 'digitalisimo_woo_mcp_skydropx_no_label', 'label: sin guía completa, error que dice por qué.' );
 	check( 404 === $nolabel->get_error_data()['status'], 'label sin guía: 404.' );
 	$err( $run( array( 'action' => 'label', 'order_id' => 404 ) ), 'woocommerce_rest_shop_order_invalid_id', 'label: pedido inexistente.' );
-	// La redirección en el navegador.
-	$open = static function ( array $state, int $order ) {
+	// M3 · Un rastreo registrado a mano no tiene PDF de Skydropx: label lo dice en lugar de dar un enlace que falla.
+	$GLOBALS['sk_orders'][55] = new WC_Order( 55, array( new WC_Order_Item_Shipping( 551, array( 'Tracking Number' => 'M-9', 'Tracking Company' => 'DHL', 'Tracking URL' => 'https://r.test/M-9', Skydropx_Tool::MANUAL_META => 'M-9' ) ) ) );
+	$manual = $err( $run( array( 'action' => 'label', 'order_id' => 55 ) ), 'digitalisimo_woo_mcp_skydropx_manual', 'label: rastreo manual, sin guía de Skydropx.' );
+	check( 409 === $manual->get_error_data()['status'] && false !== strpos( $manual->get_error_message(), 'Guía generada' ), 'label manual: 409 y explica la caja del plugin.' );
+	// La redirección en el navegador: sólo con la firma de este usuario y vigente; si no, una página con un botón.
+	$open = static function ( array $state, int $order, array $extra = array() ) {
 		sk_reset( $state );
-		$_GET = array( 'action' => Mcp::SKYDROPX_LABEL_ACTION, 'order_id' => (string) $order );
+		$_GET = array_merge( array( 'action' => Mcp::SKYDROPX_LABEL_ACTION, 'order_id' => (string) $order ), $extra );
 		try {
 			Skydropx::handle_label();
 		} catch ( Sk_Exit $exit ) {
@@ -1420,14 +1586,36 @@ PHP
 		}
 		return null;
 	};
-	$exit = $open( array( 'caps' => $manager, 'user' => 3 ), 50 );
-	check( $exit && 'redirect' === $exit->kind && 'https://tienda.test/wp-admin/admin-post.php?action=skydropx_print_label&order_id=50&_wpnonce=' . substr( md5( 'skydropx_print_label:50|3' ), 0, 10 ) === $exit->value, 'handle_label: redirige al endpoint del plugin con el nonce de la sesión del navegador (sin &amp;): ' . ( $exit ? $exit->value : '' ) );
-	$exit = $open( array( 'caps' => array( 'read' ) ), 50 );
+	$exp     = time() + 600;
+	$valid   = array( 'exp' => (string) $exp, 'sig' => $sign( 50, 3, $exp ) );
+	$plugin  = 'https://tienda.test/wp-admin/admin-post.php?action=skydropx_print_label&order_id=50&_wpnonce=' . substr( md5( 'skydropx_print_label:50|3' ), 0, 10 );
+	$exit    = $open( array( 'caps' => $manager, 'user' => 3 ), 50, $valid );
+	check( $exit && 'redirect' === $exit->kind && $plugin === $exit->value, 'handle_label: con la firma de este usuario, redirige al endpoint del plugin con el nonce de su sesión (sin &amp;): ' . ( $exit ? $exit->value : '' ) );
+	foreach ( array(
+		'sin firma'           => array(),
+		'de otro usuario'     => array( 'exp' => (string) $exp, 'sig' => $sign( 50, 4, $exp ) ),
+		'caducada'            => array( 'exp' => (string) ( time() - 1 ), 'sig' => $sign( 50, 3, time() - 1 ) ),
+		'de otro pedido'      => array( 'exp' => (string) $exp, 'sig' => $sign( 51, 3, $exp ) ),
+	) as $case => $extra ) {
+		$exit = $open( array( 'caps' => $manager, 'user' => 3 ), 50, $extra );
+		check( $exit && 'die' === $exit->kind && 200 === $exit->getCode() && false !== strpos( $exit->value, 'Descargar la guía' ) && false !== strpos( $exit->value, $plugin ), "handle_label $case: no redirige solo; muestra un botón (un GET ajeno no ejecuta nada)." );
+	}
+	$exit = $open( array( 'caps' => $manager, 'user' => 3, 'options' => array( 'elementor_mcp_enabled' => false ) ), 50, $valid );
+	check( $exit && 'die' === $exit->kind && 404 === $exit->getCode(), 'handle_label: con el MCP del sitio apagado no hace nada (M1).' );
+	$exit = $open( array( 'caps' => $manager, 'user' => 3, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'off', 'own' => array( 'mode' ) ) ) ), 50, $valid );
+	check( $exit && 'die' === $exit->kind && 404 === $exit->getCode(), 'handle_label: con «WooCommerce en el MCP» apagado tampoco.' );
+	$exit = $open( array( 'caps' => array( 'read' ) ), 50, $valid );
 	check( $exit && 'die' === $exit->kind && 403 === $exit->getCode(), 'handle_label: sin permiso sobre pedidos, 403.' );
+	$exit = $open( array( 'caps' => array( 'read_private_shop_orders' ), 'user' => 3 ), 50, $valid );
+	check( $exit && 'die' === $exit->kind && 403 === $exit->getCode(), 'handle_label: quien lee pedidos pero no los edita, 403 (como el plugin).' );
+	$exit = $open( array( 'caps' => array( 'edit_shop_orders' ), 'user' => 3 ), 50, $valid );
+	check( $exit && 'die' === $exit->kind && 403 === $exit->getCode(), 'handle_label: sin permiso sobre ese pedido (como la REST), 403.' );
 	$exit = $open( array( 'logged_in' => false ), 50 );
 	check( $exit && 'login' === $exit->kind, 'handle_label: sin sesión, al acceso.' );
 	$exit = $open( array( 'caps' => $manager ), 51 );
 	check( $exit && 'die' === $exit->kind && 404 === $exit->getCode() && false !== strpos( $exit->value, 'id=51' ), 'handle_label: sin guía, 404 con enlace al pedido.' );
+	$exit = $open( array( 'caps' => $manager ), 55 );
+	check( $exit && 'die' === $exit->kind && 404 === $exit->getCode() && false !== strpos( $exit->value, 'a mano' ), 'handle_label: rastreo manual, sin PDF.' );
 	$exit = $open( array( 'caps' => $manager ), 999 );
 	check( $exit && 'die' === $exit->kind && 404 === $exit->getCode(), 'handle_label: pedido inexistente.' );
 
