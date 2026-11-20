@@ -313,7 +313,18 @@ function checkRecords(phase, st, sites) {
         const itemId = Object.keys(index.items || {}).find((k) => /^digitalisimo-theme:/.test(index.items[k].origin_key || ''));
         check(!!itemId && index.items[itemId].review === true, `El cambio de tema dejó el functions.php del hijo en Código PHP de Tools, inactivo y con revisión: ${JSON.stringify(index.items || {})}`);
         if (itemId) {
-          const on = await toolsActivate(browser, page, sites[phpId], itemId);
+          let on = await toolsActivate(browser, page, sites[phpId], itemId);
+          // En un subsitio de la red, Playground contesta la visita anónima de la prueba de Tools con un 302 de su cookie
+          // a la misma dirección y Tools no la da por terminada. Sólo en ese caso se activa por la vía de prueba (el último
+          // paso de Tools, Store::activate, con el hash exacto); la prueba en el navegador ya se cubre en tools-php y,
+          // aquí, en el modo de un sitio.
+          const cookie302 = (result.toolsVisits || []).some((v) => v.status === 302 && v.location && v.url.endsWith(v.location));
+          if (!on.success && network && cookie302) {
+            const via = await api(page, 'tools_activate', `&id=${itemId}`, sites[phpId].home);
+            log(`  Tools: la visita anónima del subsitio recibió el 302 de la cookie de Playground; se activa por la vía de prueba: ${JSON.stringify(via)}`);
+            on = { success: !!via.ok && via.state === 'active', data: { via: 'store', ...via } };
+            result.toolsActivationVia = 'store';
+          }
           result.toolsActivation = on;
           check(on.success, `Tools activa el fragmento revisado: ${JSON.stringify(on).slice(0, 300)}`);
           log(`  Tools: ${String((on.data || {}).message || '').slice(0, 160)} · visitas ${JSON.stringify(result.toolsVisits || []).slice(0, 600)} · destinos ${JSON.stringify(result.toolsUrls || []).slice(0, 400)}`);

@@ -253,6 +253,15 @@ add_action(
 				WP_Theme::network_enable_theme( sanitize_key( wp_unslash( $_GET['theme'] ?? '' ) ) );
 				$out = array( 'allowed' => array_keys( (array) get_site_option( 'allowedthemes', array() ) ) );
 				break;
+			case 'tools_activate':
+				// Vía de prueba sólo para el artefacto de Playground en un subsitio (la primera visita anónima con la prueba de
+				// Tools recibe un 302 de su cookie): activa el hash exacto del fragmento con Store::activate, como el último
+				// paso de Tools. La activación con su prueba en el navegador se cubre en tests/playground/tools-php.
+				$id   = sanitize_key( wp_unslash( $_GET['id'] ?? '' ) );
+				$item = \Digitalisimo\Tools\Php_Snippets\Store::item( 'site', $id );
+				$done = $item ? \Digitalisimo\Tools\Php_Snippets\Store::activate( 'site', $id, hash( 'sha256', $item['code'] ), array( 'by' => 1 ) ) : new WP_Error( 'tp', 'sin fragmento' );
+				$out  = array( 'ok' => ! is_wp_error( $done ), 'error' => is_wp_error( $done ) ? $done->get_error_message() : '', 'state' => \Digitalisimo\Tools\Php_Snippets\Store::state( 'site', $id ) );
+				break;
 			case 'break':
 				update_site_option( 'tp_break', 1 );
 				$out = array( 'break' => 1 );
