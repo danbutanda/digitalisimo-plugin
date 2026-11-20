@@ -420,6 +420,7 @@ jobs:
           php tests/seo-release-check.php
           php tests/seo-release-check-admin.php
           php tests/seo-admin-perf.php
+          php tests/seo-fixed-cost.php
           php tests/admin-perf-guards.php
           php tests/plugin-catalog-manifest.php
           php tests/plugin-catalog-install-all.php

@@ -10,6 +10,8 @@ define( 'MINUTE_IN_SECONDS', 60 );
 $cache = array(); $site_options = array(); $calls = array(); $responses = array();
 function add_filter() {} function add_action() {}
 function get_file_data() { return array( 'Version' => '1.0.15' ); }
+// Tools inactivo (sin su constante): el puente lee la cabecera sólo en el escritorio, el cron o WP-CLI.
+function is_admin() { return true; } function wp_doing_cron() { return false; }
 function is_multisite() { return true; }
 function is_network_admin() { return true; }
 function current_user_can() { return true; }

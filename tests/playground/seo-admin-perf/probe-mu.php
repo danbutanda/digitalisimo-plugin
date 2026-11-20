@@ -162,6 +162,9 @@ function digi_ap_write() {
 		'ms'      => round( ( microtime( true ) - $GLOBALS['timestart'] ) * 1000, 2 ),
 		'queries' => (int) $wpdb->num_queries,
 		'peak_kb' => (int) round( memory_get_peak_usage() / 1024 ),
+		// Código de SEO incluido en la petición (archivos y KB): el costo fijo de cargarlo, que el autoloader acota.
+		'seo_files' => count( $digi_ap_seo = array_filter( get_included_files(), static function ( $f ) { return false !== strpos( $f, '/plugins/digitalisimo-seo/' ); } ) ),
+		'seo_kb'  => (int) round( array_sum( array_map( 'filesize', $digi_ap_seo ) ) / 1024 ),
 		'marks'   => $GLOBALS['digi_ap']['marks'],
 		'load'    => $GLOBALS['digi_ap']['load'],
 		'opcache' => function_exists( 'opcache_get_status' ) && is_array( $st = @opcache_get_status( false ) ) && ! empty( $st['opcache_enabled'] ),

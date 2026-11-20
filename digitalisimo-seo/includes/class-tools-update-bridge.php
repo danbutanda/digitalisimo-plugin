@@ -27,11 +27,20 @@ final class Digitalisimo_Tools_Update_Bridge {
 	const LAST_KNOWN = 'digitalisimo_tools_bridge_last_release';
 	private static $installed_version = '';
 
+	/**
+	 * Con Tools activo en su carpeta, su versión sale de su constante. Inactivo, su cabecera sólo se lee donde se habla de
+	 * actualizaciones (escritorio, cron, WP-CLI), no en cada visita del front ni en la REST.
+	 */
 	public static function init() {
 		$path = WP_PLUGIN_DIR . '/' . self::FILE;
-		if ( ! file_exists( $path ) ) return;
-		$header = get_file_data( $path, array( 'Version' => 'Version' ) );
-		self::$installed_version = (string) ( $header['Version'] ?? '' );
+		if ( defined( 'DIGITALISIMO_TOOLS_VERSION' ) && defined( 'DIGITALISIMO_TOOLS_FILE' ) && wp_normalize_path( (string) DIGITALISIMO_TOOLS_FILE ) === wp_normalize_path( $path ) ) {
+			self::$installed_version = (string) DIGITALISIMO_TOOLS_VERSION;
+		} else {
+			if ( ! is_admin() && ! wp_doing_cron() && ! ( defined( 'WP_CLI' ) && WP_CLI ) ) return;
+			if ( ! file_exists( $path ) ) return;
+			$header = get_file_data( $path, array( 'Version' => 'Version' ) );
+			self::$installed_version = (string) ( $header['Version'] ?? '' );
+		}
 		if ( ! self::$installed_version || version_compare( self::$installed_version, '1.0.17', '>=' ) ) return;
 		foreach ( array( 'pre_set_site_transient_update_plugins', 'pre_set_transient_update_plugins', 'site_transient_update_plugins', 'transient_update_plugins' ) as $hook ) add_filter( $hook, array( __CLASS__, 'inject' ), 100 );
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 100, 4 );
