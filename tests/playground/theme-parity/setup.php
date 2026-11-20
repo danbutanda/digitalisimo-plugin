@@ -122,7 +122,10 @@ foreach ( $sites as $site_id => $kind ) {
 			),
 		),
 	);
-	$front = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Portada TP', 'post_name' => 'tp-portada', 'post_content' => '<h1>Portada de paridad</h1>' . $html ) );
+	// El mismo texto que pintará el constructor (con su cabecera y su pie): con VIA=migrar, «Migrar» guarda la portada
+	// antes de instalar Elements y compara el texto visible al final.
+	$plain = '<p>Cabecera del constructor Contacto</p><h1>Portada de paridad</h1><h2>Subtítulo con el color primario</h2>' . $html . '<p>Botón del constructor</p><p>Pie del constructor con un enlace.</p>';
+	$front = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Portada TP', 'post_name' => 'tp-portada', 'post_content' => $plain ) );
 	update_post_meta( $front, '_elementor_edit_mode', 'builder' );
 	update_post_meta( $front, '_elementor_template_type', 'wp-page' );
 	update_post_meta( $front, '_elementor_data', wp_slash( wp_json_encode( $tree ) ) );
