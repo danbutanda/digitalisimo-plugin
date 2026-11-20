@@ -24,11 +24,21 @@ class Digitalisimo_Integrations_Performance_Hero {
 		add_action( 'admin_init', array( __CLASS__, 'bootstrap' ), 40 );
 	}
 
+	/** Páginas por vuelta del recorrido de todas (un solo evento que se vuelve a programar con su cursor). */
+	const BATCH = 20;
+	/** Dónde va el recorrido: generación que lo pidió y último ID hecho. */
+	const CURSOR = 'digitalisimo_performance_hero_cursor';
+
 	private static function key( $post_id ) { return 'digitalisimo_performance_hero_' . absint( $post_id ); }
+
+	/** Con el CSS crítico del Hero apagado no se imprime nada: guardar o editar en el constructor no programa trabajo. */
+	private static function enabled() {
+		return (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'perf_hero_critical' );
+	}
 
 	public static function schedule( $post_id ) {
 		$post_id = absint( $post_id );
-		if ( ! $post_id || wp_is_post_revision( $post_id ) || wp_next_scheduled( self::CRON, array( $post_id ) ) ) return;
+		if ( ! $post_id || wp_is_post_revision( $post_id ) || ! self::enabled() || wp_next_scheduled( self::CRON, array( $post_id ) ) ) return;
 		delete_option( self::key( $post_id ) );
 		wp_schedule_single_event( time() + 10, self::CRON, array( $post_id ) );
 	}
@@ -40,14 +50,29 @@ class Digitalisimo_Integrations_Performance_Hero {
 	}
 
 	public static function schedule_all() {
+		if ( ! self::enabled() ) return;
 		update_option( self::GENERATION, max( 1, (int) get_option( self::GENERATION, 1 ) ) + 1, false );
 		if ( ! wp_next_scheduled( self::CRON_ALL ) ) wp_schedule_single_event( time() + 10, self::CRON_ALL );
 	}
 
-	/** El recorrido de páginas ocurre únicamente en la cola, nunca durante el guardado. */
+	/**
+	 * El recorrido de páginas ocurre únicamente en la cola, nunca durante el guardado, y en un solo evento: cada vuelta
+	 * recalcula BATCH páginas en orden de ID y se vuelve a programar con su cursor (antes, un evento por página: con 60
+	 * páginas, 60 entradas más en la opción `cron`, reescrita entera con cada una). Si la generación cambia a mitad del
+	 * recorrido (otro cambio del kit o de los ajustes), empieza de nuevo.
+	 */
 	public static function schedule_pages() {
-		$ids = get_posts( array( 'post_type' => 'page', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids', 'meta_key' => '_elementor_edit_mode', 'meta_value' => 'builder' ) );
-		foreach ( (array) $ids as $id ) self::schedule( $id );
+		global $wpdb;
+		if ( ! self::enabled() ) { delete_option( self::CURSOR ); return; }
+		$generation = (int) get_option( self::GENERATION, 1 );
+		$cursor     = get_option( self::CURSOR, array() );
+		$after      = is_array( $cursor ) && $generation === (int) ( $cursor['generation'] ?? 0 ) ? absint( $cursor['after'] ?? 0 ) : 0;
+		$ids        = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT p.ID FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_elementor_edit_mode' AND m.meta_value = 'builder' WHERE p.post_type = 'page' AND p.post_status = 'publish' AND p.ID > %d ORDER BY p.ID ASC LIMIT %d", $after, self::BATCH + 1 ) ) );
+		$more       = count( $ids ) > self::BATCH;
+		foreach ( array_slice( $ids, 0, self::BATCH ) as $id ) self::rebuild( $id );
+		if ( ! $more ) { delete_option( self::CURSOR ); return; }
+		update_option( self::CURSOR, array( 'generation' => $generation, 'after' => $ids[ self::BATCH - 1 ] ), false );
+		if ( ! wp_next_scheduled( self::CRON_ALL ) ) wp_schedule_single_event( time() + 10, self::CRON_ALL );
 	}
 
 	public static function schedule_network() {

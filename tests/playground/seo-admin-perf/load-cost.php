@@ -21,6 +21,9 @@ foreach ( $plugins as $name => $main ) {
 	$dir  = dirname( $root . '/' . $main );
 	$text = (string) file_get_contents( $root . '/' . $main );
 	preg_match_all( "#require_once\\s+(?:__DIR__\\s*\\.\\s*'|DIGITALISIMO_INTEGRATIONS_DIR\\s*\\.\\s*')/?([^']+\\.php)'#", $text, $m );
+	// SEO ya no incluye sus clases: su mapa del autoloader («'Clase' => 'includes/…php'») da todo su código, que una
+	// petición sólo compila en parte (seo_files y seo_kb de la sonda dicen cuánto).
+	if ( preg_match_all( "#=>\\s*'(includes/[^']+\\.php)'#", $text, $mm ) ) $m[1] = array_merge( $m[1], $mm[1] );
 	$files = array_values( array_unique( array_filter( array_map( function( $f ) use ( $dir ) { return $dir . '/' . ltrim( $f, '/' ); }, $m[1] ), 'is_file' ) ) );
 	// Lo compartido (digitalisimo-ui, núcleo y actualizador) puede venir ya cargado por otro plugin: se mide aparte.
 	$bytes = 0; foreach ( $files as $f ) $bytes += filesize( $f );

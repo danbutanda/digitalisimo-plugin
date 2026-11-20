@@ -757,9 +757,12 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		self::schedule();
 	}
 
-	/** Comparte el evento de cron con las precargas: un solo recálculo por sitio. */
+	/**
+	 * Comparte el evento de cron con las precargas: un solo recálculo por sitio. Con las dos funciones de fuentes
+	 * apagadas no programa nada (schedule_for_content()): editar en el constructor no inventaría las fuentes del sitio.
+	 */
 	private static function schedule() {
-		if ( class_exists( 'Digitalisimo_Integrations_Performance_Preloads' ) ) Digitalisimo_Integrations_Performance_Preloads::schedule();
+		if ( class_exists( 'Digitalisimo_Integrations_Performance_Preloads' ) ) Digitalisimo_Integrations_Performance_Preloads::schedule_for_content();
 	}
 
 	/**
