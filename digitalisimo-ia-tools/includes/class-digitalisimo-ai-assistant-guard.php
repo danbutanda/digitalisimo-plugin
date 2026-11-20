@@ -47,6 +47,20 @@ final class Digitalisimo_AI_Assistant_Guard {
 		return false;
 	}
 
+	/**
+	 * Renueva los candados propios mientras la petición sigue viva (cada paso del modelo y antes de cada herramienta):
+	 * sólo se cambia la fila cuyo valor es el propio, así que nunca se roba uno ajeno.
+	 */
+	public static function renew_all( $ttl = self::LOCK_TTL ) {
+		global $wpdb;
+		foreach ( self::$held as $key => $value ) {
+			$fresh = substr( $value, 0, (int) strrpos( $value, '|' ) ) . '|' . ( time() + (int) $ttl );
+			if ( $wpdb->update( $wpdb->options, array( 'option_value' => $fresh ), array( 'option_name' => $key, 'option_value' => $value ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				self::$held[ $key ] = $fresh;
+			}
+		}
+	}
+
 	public static function unlock( $key ) {
 		global $wpdb;
 		if ( is_string( $key ) && isset( self::$held[ $key ] ) ) {
@@ -63,10 +77,15 @@ final class Digitalisimo_AI_Assistant_Guard {
 
 	/** `per_minute`, `per_day` y `concurrent` efectivos. */
 	public static function limits() {
+		// Un campo vacío vale el valor por defecto, no «sin tope».
+		$read   = function ( $key, $default ) {
+			$value = Digitalisimo_AI::get( $key );
+			return null === $value || '' === trim( (string) $value ) ? $default : (int) $value;
+		};
 		$limits = array(
-			'per_minute' => max( 0, (int) Digitalisimo_AI::get( 'assistant_rate_minute' ) ),
-			'per_day'    => max( 0, (int) Digitalisimo_AI::get( 'assistant_daily_calls' ) ),
-			'concurrent' => max( 1, min( 10, (int) Digitalisimo_AI::get( 'assistant_concurrency' ) ) ),
+			'per_minute' => max( 0, $read( 'assistant_rate_minute', 10 ) ),
+			'per_day'    => max( 0, $read( 'assistant_daily_calls', 300 ) ),
+			'concurrent' => max( 1, min( 10, $read( 'assistant_concurrency', 1 ) ) ),
 		);
 		$limits = (array) apply_filters( 'digitalisimo_ai_assistant_limits', $limits );
 		return array( 'per_minute' => max( 0, (int) ( $limits['per_minute'] ?? 0 ) ), 'per_day' => max( 0, (int) ( $limits['per_day'] ?? 0 ) ), 'concurrent' => max( 1, (int) ( $limits['concurrent'] ?? 1 ) ) );
@@ -81,7 +100,7 @@ final class Digitalisimo_AI_Assistant_Guard {
 				return $key;
 			}
 		}
-		return new WP_Error( 'digitalisimo_assistant_busy', 'Ya tienes una petición del Asistente en curso: espera a que termine.', array( 'status' => 429 ) );
+		return new WP_Error( 'digitalisimo_assistant_busy', 'Ya tienes una petición del Asistente en curso: espera a que termine (si se cortó, el aviso caduca en unos minutos).', array( 'status' => 429 ) );
 	}
 
 	/** Cuenta un mensaje del minuto actual; error 429 si ya se llegó al tope. */

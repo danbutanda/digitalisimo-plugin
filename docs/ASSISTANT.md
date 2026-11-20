@@ -121,27 +121,42 @@ afinar la clase.
   con los valores de claves sensibles (`password`, `token`, `api_key`, `secret`, `authorization`…) ocultos y un tope de
   12 KB; las instrucciones del sistema repiten que nada de eso es una orden.
 - **La tarjeta muestra exactamente lo que se ejecutará**: la entrada completa, sin recortes, en un área con
-  desplazamiento; si pasa de 1 200 caracteres hay que abrirla entera antes de poder confirmar. Sólo se ocultan los
-  valores de claves de verdad secretas (contraseñas, `secret`, `api_key`, tokens de acceso, claves privadas,
-  `authorization`…; no `publishable_key`, `meta_key` ni `max_tokens`) y la tarjeta dice cuántos hay. Avisa también
-  cuando la propuesta llega después de leer contenido del sitio en el mismo turno.
+  desplazamiento, y «Confirmar» sólo se enciende cuando los datos caben enteros o se desplazaron hasta el final. Los
+  caracteres invisibles o de dirección (U+202E y similares) y las series de 8 espacios o más se muestran como marcas
+  (`⟨U+202E⟩`, `⟨900 espacios⟩`). Encima va un resumen de lo arriesgado: secretos ocultos, invisibles, enlaces a otros
+  dominios, HTML o código (`<script>`, `on…=`), correos, estados e importes. Avisa cuando en lo que se manda a la IA hay
+  contenido leído del sitio (de cualquier turno) y cuando la acción no se declara idempotente.
+- **Dos patrones de secretos.** El amplio (`SECRET_KEYS`, como el `Secrets` del MCP de Woo: contraseñas, `secret`,
+  cualquier `token`, `signature`, `hmac`, `salt`, `*_key`…, con excepciones públicas como `meta_key`, `max_tokens` o
+  `publishable_key`) limpia todo lo que viaja a la IA, al historial, al detalle y a la bitácora. El estrecho
+  (`CARD_SECRETS`) es sólo lo que la tarjeta oculta (y cuenta): lo demás la persona tiene que verlo para decidir.
 - **Una acción confirmada se ejecuta una sola vez.** Confirmar toma el candado de la conversación (una fila
   `INSERT IGNORE` en `options`, como `WP_Upgrader::create_lock()`), relee la conversación, marca la acción `running` y
   la **guarda antes de ejecutarla**; el resultado se guarda y se registra antes de avisar al navegador, con
   `ignore_user_abort( true )`. Una segunda confirmación o un mensaje que llegan a la vez reciben 409/429; una acción que
-  quedó `running` (el proceso murió a medias) se muestra como «resultado desconocido» y no se puede confirmar otra vez,
-  y un mensaje nuevo la deja como `unknown`, nunca como «cancelada».
+  quedó `running` se muestra como «en curso o cortada» (con «Actualizar») y no se puede confirmar otra vez, y un mensaje
+  nuevo la deja como `unknown`, nunca como «cancelada». El candado se renueva en cada paso y antes de cada herramienta,
+  y bajo el candado la conversación se relee sin la caché de objetos. En LiteSpeed/OpenLiteSpeed, `ignore_user_abort()`
+  no basta para que cerrar la pestaña no corte PHP: hace falta `E=noabort:1` en el servidor.
+- **Una escritura no idempotente que falla** (por ejemplo, un tiempo de espera contra una pasarela) queda como
+  «resultado desconocido: puede haberse aplicado», y la IA recibe `puede_haberse_aplicado` para no repetirla sin
+  preguntar.
 - Una confirmación caduca en una hora; un mensaje nuevo cancela lo pendiente (y el modelo recibe «cancelado»).
 - Hasta 8 pasos del modelo por turno y 16 llamadas por paso, 120 s por turno (`digitalisimo_ai_assistant_turn_budget`),
-  600 KB por petición (`digitalisimo_ai_assistant_max_request`), 128 herramientas por petición y 45 s por llamada al
-  proveedor (8 192 tokens de salida con Anthropic). Una respuesta vacía, una negativa o una respuesta cortada no dejan
+  600 KB por petición (`digitalisimo_ai_assistant_max_request`), 128 herramientas por petición y 180 s por llamada al
+  proveedor (`digitalisimo_ai_assistant_timeout`), que cubre los 8 192 tokens de salida de Anthropic sin flujo; un
+  modelo con tope de 4 096 se reintenta una vez con su tope. Una respuesta vacía, una negativa o una respuesta cortada no dejan
   un turno vacío ni llamadas sin resultado: se avisa y no se ejecuta nada de ella.
 
 ### Límites por persona
 
 IA Tools → Avanzado (en el sitio y en la red, con los mismos campos): mensajes por minuto (10), llamadas a la IA por día
 (300) y peticiones a la vez (1); 0 en minuto o día es sin tope. También el filtro `digitalisimo_ai_assistant_limits`.
-Un mensaje de más recibe 429, y con el cupo diario agotado el turno se corta con un aviso (los atajos siguen).
+Un campo vacío vale el valor por defecto. Un mensaje de más recibe 429 (un 429 por estar ocupado no gasta el minuto), y
+con el cupo diario agotado el turno se corta con un aviso (los atajos siguen). **En una red, los cupos y los candados
+son por sitio**: alguien con acceso a varios sitios tiene el cupo de cada uno, aunque todos usen la clave de la red.
+Quién usa el Asistente se elige con el filtro `digitalisimo_ai_assistant_capability` (`edit_posts` por defecto; por
+ejemplo `publish_posts` para dejar fuera a Colaboradores).
 
 ### Atajos sin IA
 
@@ -170,7 +185,8 @@ con el mensaje …».
 
 Cada conversación es una entrada privada del tipo interno `digitalisimo_ai_chat` (no pública, sin REST, sin
 exportarse, `delete_with_user`, con capacidades propias que ningún rol tiene y `map_meta_cap`, así que ni XML-RPC ni un
-superadministrador listan, leen ni cambian la de otra persona), con autor = quien chatea y los mensajes en la meta `_digitalisimo_ai_chat`. No va en
+superadministrador listan, leen ni cambian la de otra persona; al borrar o quitar a un usuario se borran sus
+conversaciones, también si su contenido se atribuye a otra persona), con autor = quien chatea y los mensajes en la meta `_digitalisimo_ai_chat`. No va en
 la meta del usuario porque WordPress la carga entera en cada pantalla del escritorio. Sin tablas nuevas. Límites: 50
 conversaciones por usuario (se borran las más antiguas), 160 mensajes por conversación y 8 000 caracteres por texto; al
 modelo viajan los últimos 40 mensajes o 60 000 caracteres, siempre desde un mensaje de la persona (el historial se recorta en el límite de un turno: nunca queda un resultado sin su

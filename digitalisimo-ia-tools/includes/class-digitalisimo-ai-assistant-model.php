@@ -19,7 +19,9 @@ final class Digitalisimo_AI_Assistant_Model {
 	const AI_NAMES      = array( 'openai' => 'ChatGPT', 'anthropic' => 'Claude', 'google' => 'Gemini', 'xai' => 'Grok', 'deepseek' => 'DeepSeek' );
 	const OPENAI_URLS   = array( 'openai' => 'https://api.openai.com/v1/chat/completions', 'deepseek' => 'https://api.deepseek.com/v1/chat/completions', 'xai' => 'https://api.x.ai/v1/chat/completions' );
 	const MAX_TOKENS    = 8192;
-	const TIMEOUT       = 45;
+	const MIN_TOKENS    = 4096;
+	/** Sin flujo, 8 192 tokens de salida a 50-80 por segundo tardan hasta unos 160 s: la espera tiene que cubrirlos. */
+	const TIMEOUT       = 180;
 
 	/**
 	 * Las IA disponibles, por proveedor: `provider`, `model`, `name`, `ai_name` y `profile`. Sin claves.
@@ -79,12 +81,21 @@ final class Digitalisimo_AI_Assistant_Model {
 		if ( null !== $pre ) {
 			return self::normalize( $pre );
 		}
-		$request = self::build( $target, $system, $messages, $tools );
-		if ( is_wp_error( $request ) ) {
-			return $request;
+		$timeout = max( 10, (int) apply_filters( 'digitalisimo_ai_assistant_timeout', self::TIMEOUT ) );
+		for ( $try = 0; $try < 2; $try++ ) {
+			$request = self::build( $target, $system, $messages, $tools );
+			if ( is_wp_error( $request ) ) {
+				return $request;
+			}
+			$response = wp_remote_post( $request['url'], array( 'timeout' => $timeout, 'headers' => $request['headers'], 'body' => wp_json_encode( $request['body'] ) ) );
+			$code     = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+			// Un modelo de Anthropic con tope de salida menor (4 096) rechaza 8 192: se repite una vez con su tope.
+			if ( 400 === $code && 'anthropic' === $target['provider'] && empty( $target['max_tokens'] ) && false !== stripos( (string) wp_remote_retrieve_body( $response ), 'max_tokens' ) ) {
+				$target['max_tokens'] = self::MIN_TOKENS;
+				continue;
+			}
+			break;
 		}
-		$response = wp_remote_post( $request['url'], array( 'timeout' => self::TIMEOUT, 'headers' => $request['headers'], 'body' => wp_json_encode( $request['body'] ) ) );
-		$code     = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
 		if ( is_wp_error( $response ) || $code < 200 || $code >= 300 ) {
 			Digitalisimo_AI::log( 'assistant', $target['provider'], false, $code );
 			$ai = self::AI_NAMES[ $target['provider'] ] ?? $target['provider'];
@@ -112,7 +123,7 @@ final class Digitalisimo_AI_Assistant_Model {
 			return array( 'url' => $url ?: self::OPENAI_URLS[ $id ], 'headers' => array( 'Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $key ), 'body' => $body );
 		}
 		if ( 'anthropic' === $id ) {
-			$body = array( 'model' => $target['model'], 'max_tokens' => self::MAX_TOKENS, 'system' => $system, 'messages' => self::anthropic_messages( $messages ) );
+			$body = array( 'model' => $target['model'], 'max_tokens' => (int) ( $target['max_tokens'] ?? self::MAX_TOKENS ), 'system' => $system, 'messages' => self::anthropic_messages( $messages ) );
 			if ( $tools ) {
 				$body['tools'] = array();
 				foreach ( $tools as $tool ) {
@@ -158,6 +169,7 @@ final class Digitalisimo_AI_Assistant_Model {
 			}
 		} elseif ( 'anthropic' === $provider ) {
 			$truncated = 'max_tokens' === ( $data['stop_reason'] ?? '' );
+			$refusal   = 'refusal' === ( $data['stop_reason'] ?? '' ) ? 'La IA se negó a responder.' : '';
 			foreach ( (array) ( $data['content'] ?? array() ) as $block ) {
 				if ( 'text' === ( $block['type'] ?? '' ) ) {
 					$text .= (string) ( $block['text'] ?? '' );

@@ -72,7 +72,7 @@ final class Digitalisimo_AI_Assistant_Ability {
 	}
 
 	public static function permission( $input = null ) {
-		return is_user_logged_in() && current_user_can( Digitalisimo_AI_Assistant::CAP );
+		return is_user_logged_in() && current_user_can( Digitalisimo_AI_Assistant::cap() );
 	}
 
 	public static function execute( $input = null ) {

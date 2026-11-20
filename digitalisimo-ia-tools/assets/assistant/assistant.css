@@ -215,6 +215,8 @@
 .dga-confirm p { color: var(--ds-text-secondary); font-size: var(--font-size-xs); }
 .dga-confirm pre { border: 1px solid var(--ds-border-default); border-radius: var(--ds-radius-sm); }
 .dga-confirm pre.is-full { max-block-size: 60vh; }
+.dga-confirm .dga-risks { margin: 0; padding-inline-start: var(--ds-space-6); }
+.dga-confirm .dga-hint { color: var(--ds-text-secondary); font-size: var(--font-size-xs); }
 .dga-confirm .dga-warn { padding: var(--ds-space-2) var(--ds-space-3); border-radius: var(--ds-radius-sm); background: var(--ds-color-warning-subtle); color: var(--ds-text-primary); font-size: var(--font-size-xs); }
 .dga-tool[data-status="unknown"] .dga-tool-state { background: var(--ds-color-warning-subtle); color: var(--ds-color-warning); }
 .dga-confirm label { display: flex; align-items: center; gap: var(--ds-space-2); font-size: var(--font-size-sm); }

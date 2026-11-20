@@ -52,8 +52,7 @@
 	const DEFAULT_LOOK = { variant: 'classic', mode: 'light', scheme: 'digitalisimo' };
 	const VERBS = { read: 'Consultó', write: 'Cambio', destructive: 'Acción destructiva', unknown: 'Herramienta' };
 	const STATES = { ok: 'hecho', error: 'error', denied: 'sin permiso', cancelled: 'cancelado', unknown: 'resultado desconocido' };
-	const LONG_INPUT = 1200;
-	const SUGGESTIONS = [
+		const SUGGESTIONS = [
 		[ 'Lista las últimas entradas y páginas del sitio', 'Ver el contenido reciente' ],
 		[ 'Revisa el SEO de mi página de inicio', 'Revisar el SEO' ],
 		[ 'Crea el borrador de una página de venta', 'Crear un borrador' ],
@@ -271,32 +270,44 @@
 	}
 
 	/**
-	 * Lo que el modelo quiere cambiar: qué y con exactamente qué datos (completos, en un área con desplazamiento; si
-	 * son largos, hay que abrirlos enteros antes de poder confirmar). Lo destructivo pide además una casilla explícita.
-	 * Una acción que se estaba ejecutando cuando se cortó ya no se puede confirmar.
+	 * Lo que el modelo quiere cambiar: qué y con exactamente qué datos, completos y con los invisibles marcados, más un
+	 * resumen de lo arriesgado. «Confirmar» se enciende sólo cuando los datos caben enteros o se desplazaron hasta el
+	 * final. Lo destructivo pide además una casilla explícita. Una acción en curso (o cortada) no se puede confirmar.
 	 */
 	function ConfirmCard( props ) {
 		const action = props.action;
 		const [ ack, setAck ] = useState( false );
-		const long = String( action.input || '' ).length > LONG_INPUT;
-		const [ full, setFull ] = useState( ! long );
+		const [ seen, setSeen ] = useState( false );
+		const [ full, setFull ] = useState( false );
+		const box = useRef( null );
 		const destructive = 'destructive' === action.kind;
+		const check = () => {
+			const el = box.current;
+			if ( el && el.scrollTop + el.clientHeight >= el.scrollHeight - 4 ) {
+				setSeen( true );
+			}
+		};
+		useEffect( check, [ full, action.input ] );
 		if ( 'running' === action.state ) {
 			return h( 'div', { className: 'dga-confirm is-destructive', role: 'alert', 'data-action': action.id, 'data-state': 'running' },
-				h( 'h3', null, h( Icon, { name: 'alert' } ), 'Resultado desconocido' ),
-				h( 'p', null, h( 'strong', null, action.label ), ' se estaba ejecutando cuando se cortó la conexión. No se puede confirmar otra vez: revisa en el sitio si se hizo antes de pedirlo de nuevo.' ) );
+				h( 'h3', null, h( Icon, { name: 'alert' } ), 'En curso o cortada' ),
+				h( 'p', null, h( 'strong', null, action.label ), ' empezó a ejecutarse: o sigue en curso o se cortó. No se puede confirmar otra vez; revisa en el sitio si se hizo antes de pedirlo de nuevo.' ),
+				props.onRefresh ? h( 'div', { className: 'dga-actions' }, h( 'button', { type: 'button', className: 'dga-button dga-refresh', onClick: props.onRefresh }, 'Actualizar' ) ) : null );
 		}
+		const risks = Array.isArray( action.risks ) ? action.risks : [];
 		return h( 'div', { className: 'dga-confirm' + ( destructive ? ' is-destructive' : '' ), role: 'group', 'aria-label': 'Confirmación: ' + action.label, 'data-action': action.id, 'data-kind': action.kind },
 			h( 'h3', null, h( Icon, { name: destructive ? 'alert' : 'check' } ), destructive ? 'Acción destructiva: confirma explícitamente' : 'Confirma este cambio' ),
 			h( 'p', null, h( 'strong', null, action.label ), action.description ? ' — ' + action.description : '' ),
 			action.after_read ? h( 'p', { className: 'dga-warn' }, 'Esta propuesta llega después de leer contenido del sitio: revisa que sea exactamente lo que pediste.' ) : null,
-			action.hidden ? h( 'p', { className: 'dga-warn' }, 'Hay ' + action.hidden + ( 1 === action.hidden ? ' valor secreto oculto' : ' valores secretos ocultos' ) + ' (contraseñas o claves). Si no los pediste tú, cancela.' ) : null,
-			h( 'pre', { className: 'dga-input' + ( full ? ' is-full' : '' ), 'aria-label': 'Datos completos de la acción', tabIndex: 0 }, action.input ),
-			full ? null : h( 'button', { type: 'button', className: 'dga-button dga-see-all', onClick: () => setFull( true ) }, 'Ver los datos completos (' + String( action.input ).length + ' caracteres) antes de confirmar' ),
+			risks.length ? h( 'ul', { className: 'dga-warn dga-risks', 'aria-label': 'Lo arriesgado de esta acción' }, risks.map( ( r, i ) => h( 'li', { key: i }, r ) ) ) : null,
+			action.idempotent ? null : h( 'p', { className: 'dga-warn' }, 'Si falla, puede haberse aplicado igual: no la repitas sin revisar.' ),
+			h( 'pre', { className: 'dga-input' + ( full ? ' is-full' : '' ), ref: box, onScroll: check, 'aria-label': 'Datos completos de la acción', tabIndex: 0 }, action.input ),
+			seen ? null : h( 'p', { className: 'dga-hint' }, 'Desplázate hasta el final de los datos para poder confirmar.' ),
+			full ? null : h( 'button', { type: 'button', className: 'dga-button dga-see-all', onClick: () => setFull( true ) }, 'Agrandar los datos (' + String( action.input ).length + ' caracteres)' ),
 			action.simulation ? h( Fragment, null, h( 'p', null, 'Simulación (no cambió nada):' ), h( 'pre', null, action.simulation ) ) : null,
 			destructive ? h( 'label', null, h( 'input', { type: 'checkbox', className: 'dga-ack', checked: ack, onChange: ( e ) => setAck( e.target.checked ) } ), 'Entiendo que puede no tener vuelta atrás y quiero hacerlo.' ) : null,
 			h( 'div', { className: 'dga-actions' },
-				h( 'button', { type: 'button', className: 'dga-button ' + ( destructive ? 'is-danger' : 'is-primary' ), 'data-decision': 'approve', disabled: props.busy || ! full || ( destructive && ! ack ), onClick: () => props.onDecide( action, 'approve', ack ) }, h( Icon, { name: 'check' } ), destructive ? 'Sí, hacerlo' : 'Confirmar' ),
+				h( 'button', { type: 'button', className: 'dga-button ' + ( destructive ? 'is-danger' : 'is-primary' ), 'data-decision': 'approve', disabled: props.busy || ! seen || ( destructive && ! ack ), onClick: () => props.onDecide( action, 'approve', ack ) }, h( Icon, { name: 'check' } ), destructive ? 'Sí, hacerlo' : 'Confirmar' ),
 				h( 'button', { type: 'button', className: 'dga-button', 'data-decision': 'deny', disabled: props.busy, onClick: () => props.onDecide( action, 'deny', false ) }, h( Icon, { name: 'close' } ), 'Cancelar' ) ) );
 	}
 
@@ -327,7 +338,7 @@
 						h( 'div', { className: 'dga-bubble' }, m.text ),
 						m.time ? h( 'span', { className: 'dga-meta' }, timeOf( m.time ) ) : null ) );
 			} ),
-			props.pending.map( ( a ) => h( ConfirmCard, { key: a.id, action: a, busy: props.busy, onDecide: props.onDecide } ) ),
+			props.pending.map( ( a ) => h( ConfirmCard, { key: a.id, action: a, busy: props.busy, onDecide: props.onDecide, onRefresh: props.onRefresh } ) ),
 			props.busy ? h( 'div', { className: 'dga-message is-assistant' },
 				h( 'span', { className: 'dga-avatar', 'aria-hidden': 'true' }, 'IA' ),
 				h( 'div', { className: 'dga-bubble' }, h( 'span', { className: 'dga-pending', role: 'status' }, h( 'span', { className: 'dga-spinner', 'aria-hidden': 'true' } ), props.status || 'Pensando…' ) ) ) : null );
@@ -572,15 +583,31 @@
 				setMessages( ( list ) => list.concat( [ note( 'Ese atajo llegó escrito en un enlace: edítalo antes de enviarlo.', 'error' ) ] ) );
 				return;
 			}
+			const before = pending;
+			const local = 'local-' + Date.now();
 			setDraft( '' );
 			setPending( [] );
-			setMessages( ( list ) => list.concat( [ { id: 'local-' + Date.now(), role: 'me', text, time: Math.floor( Date.now() / 1000 ) } ] ) );
-			run( () => adapters.model.send( { conversation: activeRef.current || 0, message: text, provider: ai || 'auto', categories }, onEvent ) );
+			setMessages( ( list ) => list.concat( [ { id: local, role: 'me', text, time: Math.floor( Date.now() / 1000 ) } ] ) );
+			// Ocupado o al límite (409/429): nada se envió; el texto vuelve al cuadro y lo pendiente sigue como estaba.
+			run( () => adapters.model.send( { conversation: activeRef.current || 0, message: text, provider: ai || 'auto', categories }, onEvent ), ( e ) => {
+				if ( e && ( 409 === e.status || 429 === e.status ) ) {
+					setDraft( text );
+					setPending( before );
+					setMessages( ( list ) => list.filter( ( m ) => m.id !== local ) );
+				}
+			} );
 		};
 
 		const decide = ( action, decision, explicit ) => {
 			setPending( ( list ) => list.filter( ( a ) => a.id !== action.id ) );
-			run( () => adapters.model.confirm( { conversation: activeRef.current, action: action.id, decision, explicit: !! explicit }, onEvent ), () => setPending( ( list ) => list.concat( [ action ] ) ) );
+			// Ya no pendiente, en curso u ocupado (404/409/429): se vuelve a leer la conversación, nunca se repone la tarjeta.
+			run( () => adapters.model.confirm( { conversation: activeRef.current, action: action.id, decision, explicit: !! explicit }, onEvent ), ( e ) => {
+				if ( e && ( 404 === e.status || 409 === e.status || 429 === e.status ) ) {
+					open( activeRef.current );
+				} else {
+					setPending( ( list ) => list.concat( [ action ] ) );
+				}
+			} );
 		};
 
 		const startNew = () => {
@@ -659,7 +686,7 @@
 				noAi ? h( 'div', { className: 'dga-notice-area' }, h( 'div', { className: 'dga-notice', role: 'alert' }, h( Icon, { name: 'alert' } ), h( 'span', null, 'No hay ninguna IA configurada en IA Tools.' ), config.settingsUrl ? h( 'a', { href: config.settingsUrl }, 'Configurar un proveedor' ) : h( 'span', null, 'Pide a quien administra el sitio que active un proveedor.' ) ) ) : null,
 				h( 'div', { className: 'dga-thread-area', ref: threadRef },
 					h( 'div', { className: 'dga-column' }, showThread
-						? h( Thread, { messages, pending, busy, status, onDecide: decide } )
+						? h( Thread, { messages, pending, busy, status, onDecide: decide, onRefresh: () => open( activeRef.current ) } )
 						: h( Welcome, { onSuggestion: setDraft } ) ) ),
 				h( 'div', { className: 'dga-composer-area' },
 					h( 'div', { className: 'dga-column' },

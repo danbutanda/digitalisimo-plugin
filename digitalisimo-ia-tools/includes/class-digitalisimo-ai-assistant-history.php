@@ -50,11 +50,21 @@ final class Digitalisimo_AI_Assistant_History {
 		if ( ! in_array( $cap, array( 'edit_post', 'read_post', 'delete_post', 'publish_post' ), true ) || empty( $args[0] ) ) {
 			return $caps;
 		}
-		$post = get_post( (int) $args[0] );
+		// Como el núcleo: el argumento puede ser un ID o un WP_Post. Sólo cuenta el tipo del Asistente.
+		$post = $args[0] instanceof WP_Post ? $args[0] : ( is_numeric( $args[0] ) ? get_post( (int) $args[0] ) : null );
 		if ( $post && self::TYPE === $post->post_type && (int) $post->post_author !== (int) $user_id ) {
 			return array( 'do_not_allow' );
 		}
 		return $caps;
+	}
+
+	/**
+	 * Al borrar a un usuario (o quitarlo de un sitio de la red) sus conversaciones se borran con él, también cuando su
+	 * contenido se atribuye a otra persona: `delete_with_user` sólo vale sin reasignar, y la reasignación cambiaría el
+	 * autor de conversaciones privadas.
+	 */
+	public static function on_user_removed( $user_id ) {
+		self::delete_all( (int) $user_id );
 	}
 
 	/** Conversación nueva de este usuario, titulada con su primer mensaje. */
@@ -69,7 +79,12 @@ final class Digitalisimo_AI_Assistant_History {
 	}
 
 	/** La conversación si es de este usuario; null si no existe o es de otro. */
-	public static function get( $id, $user_id ) {
+	public static function get( $id, $user_id, $fresh = false ) {
+		if ( $fresh ) {
+			// Bajo el candado: lo que esté en la caché de objetos del proceso podría ser anterior al último guardado.
+			wp_cache_delete( (int) $id, 'post_meta' );
+			wp_cache_delete( (int) $id, 'posts' );
+		}
 		$post = get_post( (int) $id );
 		if ( ! $post || self::TYPE !== $post->post_type || (int) $post->post_author !== (int) $user_id || ! $user_id ) {
 			return null;
@@ -92,7 +107,10 @@ final class Digitalisimo_AI_Assistant_History {
 		global $wpdb;
 		$messages = self::trim( array_values( $conv['messages'] ) );
 		$json = wp_json_encode( array( 'v' => 1, 'messages' => $messages, 'pending' => array_values( (array) $conv['pending'] ), 'provider' => (string) $conv['provider'], 'categories' => $conv['categories'] ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
-		update_post_meta( (int) $conv['id'], self::META, wp_slash( (string) $json ) );
+		if ( ! is_string( $json ) || '' === $json ) {
+			return false; // Nunca se guarda una conversación vacía en lugar de la que había.
+		}
+		update_post_meta( (int) $conv['id'], self::META, wp_slash( $json ) );
 		// La fecha de modificación ordena el historial. Sin wp_update_post: no dispara save_post en los demás plugins.
 		$wpdb->update( $wpdb->posts, array( 'post_modified' => current_time( 'mysql' ), 'post_modified_gmt' => current_time( 'mysql', true ) ), array( 'ID' => (int) $conv['id'] ) );
 		clean_post_cache( (int) $conv['id'] );

@@ -127,7 +127,9 @@ function wp_insert_post( $d, $err = false ) {
 	$GLOBALS['posts'][ $id ] = new WP_Post( array_merge( $d, array( 'ID' => $id, 'post_modified_gmt' => current_time( 'mysql', true ) ) ) );
 	return $id;
 }
-function get_post( $id ) { return $GLOBALS['posts'][ (int) $id ] ?? null; }
+function get_post( $id ) { if ( $id instanceof WP_Post ) return $id; return $GLOBALS['posts'][ (int) $id ] ?? null; }
+function wp_cache_delete( $key, $group = '' ) { $GLOBALS['cache_deleted'][] = array( $key, $group ); return true; }
+function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
 function get_post_meta( $id, $k, $s = false ) { return $GLOBALS['meta'][ $id ][ $k ] ?? ''; }
 function update_post_meta( $id, $k, $v ) { $GLOBALS['meta'][ $id ][ $k ] = wp_unslash( $v ); return true; }
 function wp_delete_post( $id, $force = false ) { $p = $GLOBALS['posts'][ $id ] ?? null; unset( $GLOBALS['posts'][ $id ], $GLOBALS['meta'][ $id ] ); return $p; }
@@ -141,7 +143,10 @@ function get_posts( $a ) {
 // La tabla de opciones sólo para los candados: INSERT IGNORE (1 fila o 0), SELECT del valor y DELETE con su valor exacto.
 class Fake_DB {
 	public $posts = 'wp_posts'; public $options = 'wp_options'; public $rows = array();
-	public function update( $t, $d, $w ) { foreach ( $d as $k => $v ) $GLOBALS['posts'][ $w['ID'] ]->$k = $v; return 1; }
+	public function update( $t, $d, $w ) {
+		if ( 'wp_options' === $t ) { $n = $w['option_name']; if ( ! isset( $this->rows[ $n ] ) || $this->rows[ $n ] !== $w['option_value'] ) return 0; $this->rows[ $n ] = $d['option_value']; return 1; }
+		foreach ( $d as $k => $v ) $GLOBALS['posts'][ $w['ID'] ]->$k = $v; return 1;
+	}
 	public function prepare( $query, ...$args ) { return array( $query, $args ); }
 	public function query( $q ) { if ( is_array( $q ) && 0 === strpos( $q[0], 'INSERT IGNORE INTO wp_options' ) ) { if ( isset( $this->rows[ $q[1][0] ] ) ) return 0; $this->rows[ $q[1][0] ] = $q[1][1]; return 1; } return false; }
 	public function get_var( $q ) { return $this->rows[ $q[1][0] ] ?? null; }
@@ -153,7 +158,7 @@ function wp_register_ability_category( $n, $a ) { $GLOBALS['ability_categories']
 function wp_get_abilities() { return array_values( $GLOBALS['abilities'] ); }
 function wp_get_ability( $n ) { return $GLOBALS['abilities'][ $n ] ?? null; }
 $GLOBALS['http'] = array();
-function wp_remote_post( $url, $args ) { $GLOBALS['http'][] = array( 'url' => $url, 'args' => $args ); return $GLOBALS['http_reply']; }
+function wp_remote_post( $url, $args ) { $GLOBALS['http'][] = array( 'url' => $url, 'args' => $args ); return ! empty( $GLOBALS['http_replies'] ) ? array_shift( $GLOBALS['http_replies'] ) : $GLOBALS['http_reply']; }
 function wp_remote_retrieve_response_code( $r ) { return $r['code']; }
 function wp_remote_retrieve_body( $r ) { return $r['body']; }
 
@@ -177,6 +182,7 @@ wp_register_ability( 'demo/read-note', array( 'label' => 'Leer la nota', 'descri
 wp_register_ability( 'demo/create-note', array( 'label' => 'Crear una nota', 'description' => 'Crea una nota.', 'category' => 'demo', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'title' => array( 'type' => 'string' ), 'status' => array( 'type' => 'string', 'enum' => array( 'draft', 'publish' ) ), 'password' => array( 'type' => 'string' ) ) ), 'permission_callback' => $can_edit, 'execute_callback' => function ( $in ) { if ( ! empty( $GLOBALS['during'] ) ) { $f = $GLOBALS['during']; $GLOBALS['during'] = null; $f(); } return array( 'id' => 7, 'status' => $in['status'] ?? '' ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => false ), 'mcp' => array( 'public' => true ) ) ) );
 wp_register_ability( 'demo/delete-note', array( 'label' => 'Borrar la nota', 'category' => 'demo', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'id' => array( 'type' => 'integer' ), 'dry_run' => array( 'type' => 'boolean' ) ) ), 'permission_callback' => function () { return current_user_can( 'manage_options' ); }, 'execute_callback' => function ( $in ) { return array( 'deleted' => empty( $in['dry_run'] ), 'would_delete' => 1 ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => true ), 'digitalisimo' => array( 'dry_run' => true ), 'mcp' => array( 'public' => true ) ) ) );
 wp_register_ability( 'demo/purge', array( 'label' => 'Vaciar', 'category' => 'demo', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'dry_run' => array( 'type' => 'boolean' ) ) ), 'permission_callback' => $can_edit, 'execute_callback' => function ( $in ) { $GLOBALS['purged'][] = $in; return array( 'ok' => 1 ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => true ), 'mcp' => array( 'public' => true ) ) ) );
+wp_register_ability( 'demo/charge', array( 'label' => 'Cobrar', 'category' => 'demo', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'amount' => array( 'type' => 'number' ) ) ), 'permission_callback' => $can_edit, 'execute_callback' => function () { $GLOBALS['charged'] = ( $GLOBALS['charged'] ?? 0 ) + 1; return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => false ), 'mcp' => array( 'public' => true ) ) ) );
 wp_register_ability( 'otro/read', array( 'label' => 'Leer de otro plugin', 'category' => 'otro', 'permission_callback' => $can_edit, 'execute_callback' => function () { return 1; }, 'meta' => array( 'annotations' => array( 'readonly' => true, 'destructive' => false ), 'mcp' => array( 'public' => true ) ) ) );
 wp_register_ability( 'demo/shop', array( 'label' => 'Tienda', 'category' => 'shop', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'action' => array( 'type' => 'string', 'enum' => array( 'list', 'get', 'create', 'delete' ) ) ) ), 'permission_callback' => $can_edit, 'execute_callback' => function () { return array( 'ok' => 1 ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => true ), 'mcp' => array( 'public' => false ) ) ) );
 wp_register_ability( 'demo/hidden', array( 'label' => 'Oculta', 'category' => 'demo', 'permission_callback' => $can_edit, 'execute_callback' => function () { return 1; }, 'meta' => array( 'mcp' => array( 'public' => false ) ) ) );
@@ -225,7 +231,7 @@ check( is_wp_error( Digitalisimo_AI_Assistant_Model::target( 'google' ) ) && is_
 $catalog = Digitalisimo_AI_Assistant_Tools::catalog();
 $names = array_keys( $catalog );
 sort( $names );
-check( array( 'demo/create-note', 'demo/delete-note', 'demo/no-annotations', 'demo/purge', 'demo/read-note', 'digitalisimo-ia/open-assistant', 'otro/read' ) === $names, 'Sin el MCP de Elements: las abilities públicas de tipo herramienta, nada oculto ni recursos: ' . json_encode( $names ) );
+check( array( 'demo/charge', 'demo/create-note', 'demo/delete-note', 'demo/no-annotations', 'demo/purge', 'demo/read-note', 'digitalisimo-ia/open-assistant', 'otro/read' ) === $names, 'Sin el MCP de Elements: las abilities públicas de tipo herramienta, nada oculto ni recursos: ' . json_encode( $names ) );
 eval( 'namespace Elementor\\MCP\\Composer\\Admin; class McpSettingsController { public static $on = true; public static function is_enabled() { return self::$on; } }' );
 eval( 'namespace Elementor\\MCP\\Composer\\Mcp; class Registry { private static $i; public static function instance() { return self::$i ?: ( self::$i = new self() ); } public function get_tools() { return array_values( array_unique( array_merge( array( "demo/shop", "demo/resource" ), \\apply_filters( "elementor/mcp/server/tools", array() ) ) ) ); } }' );
 Digitalisimo_AI_Assistant_Ability::init();
@@ -476,7 +482,7 @@ $e = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::tar
 check( is_wp_error( $e ) && false !== strpos( $e->get_error_message(), 'ChatGPT' ) && false !== strpos( $e->get_error_message(), '401' ) && false === strpos( $e->get_error_message(), 'cuerpo-secreto' ) && false === strpos( $e->get_error_message(), KEY_OPENAI ), 'Un error del proveedor no repite su respuesta ni la clave' );
 $GLOBALS['http_reply'] = array( 'code' => 200, 'body' => json_encode( array( 'choices' => array( array( 'message' => array( 'content' => 'Hola' ) ) ) ) ) );
 $r = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'SYS', $msgs, $tools );
-check( 'Hola' === $r['text'] && array() === $r['calls'] && Digitalisimo_AI_Assistant_Model::TIMEOUT === end( $GLOBALS['http'] )['args']['timeout'] && 45 === Digitalisimo_AI_Assistant_Model::TIMEOUT, 'Una respuesta real del proveedor por HTTP' );
+check( 'Hola' === $r['text'] && array() === $r['calls'] && Digitalisimo_AI_Assistant_Model::TIMEOUT === end( $GLOBALS['http'] )['args']['timeout'] && 180 === Digitalisimo_AI_Assistant_Model::TIMEOUT, 'Una respuesta real del proveedor por HTTP' );
 $usage = get_option( Digitalisimo_AI::LOG_OPTION );
 check( 'assistant' === end( $usage )['profile'] && true === end( $usage )['success'] && false === strpos( json_encode( $usage ), KEY_OPENAI ), 'El uso queda en las métricas de IA Tools, sin la clave' );
 
@@ -671,6 +677,121 @@ unset( $GLOBALS['blogname'] );
 $shop = Digitalisimo_AI_Assistant_Tools::catalog()['demo/shop'];
 $in   = Digitalisimo_AI_Assistant_Tools::prepare_input( $shop, array( 'action' => 'batch', 'data' => array( 'create' => array( array( 'name' => 'A', 'status' => 'publish' ), array( 'name' => 'B' ) ) ) ) );
 check( 'draft' === $in['data']['create'][0]['status'] && ! isset( $in['data']['create'][1]['status'] ), 'B7: lo que crea un lote nace en borrador' );
+
+/* ---------------- R2: segunda ronda de la revisión (REVISION-2.md) ---------------- */
+$GLOBALS['user'] = 1;
+$GLOBALS['script'] = array();
+// R2-M1 Dos patrones: el amplio para lo que viaja al proveedor, al historial y a la bitácora; el estrecho, sólo la tarjeta.
+$secret_keys = array( 'api_token', 'bot_token', 'webhook_token', 'session_token', 'id_token', 'license_key', 'encryption_key', 'signing_key', 'hmac_key', 'ssh_key', 'access_key', 'consumer_key', 'api_signature', 'sandbox_api_signature', 'AUTH_KEY', 'SECURE_AUTH_SALT', 'LOGGED_IN_SALT', 'ipinfo_tokens', 'seo_ai_indexnow_key', 'hmac', 'password', 'user_pass', 'client_secret' );
+$row = array_fill_keys( $secret_keys, 'valor-secreto-123' ) + array( 'meta_key' => 'color', 'max_tokens' => 9, 'publishable_key' => 'pk_1', 'author' => 3, 'passage' => 'texto', 'post_status' => 'draft' );
+$masked = Digitalisimo_AI_Assistant_Tools::mask( $row );
+$leaks = array_filter( $secret_keys, function ( $k ) use ( $masked ) { return '••••' !== $masked[ $k ]; } );
+check( array() === $leaks, 'R2-M1: mask() oculta todas las claves sensibles de la revisión: ' . implode( ', ', $leaks ) );
+check( 'color' === $masked['meta_key'] && 9 === $masked['max_tokens'] && 'pk_1' === $masked['publishable_key'] && 3 === $masked['author'] && 'texto' === $masked['passage'], 'R2-M1: lo público sigue a la vista' );
+check( false === strpos( Digitalisimo_AI_Assistant_Tools::summary( $row, 5000 ), 'valor-secreto-123' ) && false === strpos( Digitalisimo_AI_Assistant_Tools::as_data( 'x', array( 'status' => 'ok', 'data' => $masked ) ), 'valor-secreto-123' ), 'R2-M1: ni la bitácora ni lo que va al modelo llevan esos valores' );
+check( false !== strpos( Digitalisimo_AI_Assistant_Tools::card( array( 'license_key' => 'L-1' ) )[0], 'L-1' ), 'R2-M1: la tarjeta, con el patrón estrecho, enseña la clave de licencia que se va a escribir' );
+
+// R2-M2 La tarjeta: invisibles y espacios visibles, y un resumen de lo arriesgado.
+list( $json, , $risks ) = Digitalisimo_AI_Assistant_Tools::card( array( 'url' => 'https://atacante.test/x', 'propia' => 'https://sitio.test/p', 'html' => '<img src=x onerror=alert(1)>', 'nota' => "a\u{202E}b" . str_repeat( ' ', 900 ) . 'fin', 'status' => 'publish', 'refund_amount' => 50, 'correo' => 'x@y.com' ) );
+check( false !== strpos( $json, '⟨U+202E⟩' ) && false === strpos( $json, "\u{202E}" ) && false !== strpos( $json, '⟨900 espacios⟩' ) && false === strpos( $json, str_repeat( ' ', 30 ) ), 'R2-M2: los caracteres de dirección y las series de espacios se ven como marcas' );
+$all = implode( ' | ', $risks );
+check( false !== strpos( $all, 'atacante.test' ) && false === strpos( $all, 'sitio.test' ) && false !== strpos( $all, 'Código o eventos' ) && false !== strpos( $all, 'Estado: publish' ) && false !== strpos( $all, 'refund_amount = 50' ) && false !== strpos( $all, '1 dirección' ) && false !== strpos( $all, 'invisible' ), 'R2-M2: el resumen de riesgos nombra lo arriesgado: ' . $all );
+// R2-M2 El aviso «tras leer» mira toda la ventana que se manda al modelo, no sólo el turno.
+$GLOBALS['script'] = array( array( 'calls' => array( array( 'id' => 'w1', 'name' => 'demo-read-note', 'input' => array() ) ) ), '¿La creo?' );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'Lee la nota' ) ) ) );
+$cw = $ev[0]['id'];
+$GLOBALS['script'] = array( array( 'calls' => array( array( 'id' => 'w2', 'name' => 'demo-create-note', 'input' => array( 'title' => 'Sí' ) ) ) ) );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'Sí', 'conversation' => $cw ) ) ) );
+check( true === $of( $ev, 'confirm' )[0]['action']['after_read'], 'R2-M2: la propuesta del turno siguiente a una lectura también avisa' );
+$GLOBALS['script'] = array( array( 'calls' => array( array( 'id' => 'w3', 'name' => 'demo-create-note', 'input' => array( 'title' => 'Limpia' ) ) ) ) );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'Crea una nota' ) ) ) );
+check( false === $of( $ev, 'confirm' )[0]['action']['after_read'], 'R2-M2: sin nada leído en la ventana no hay aviso' );
+
+// R2-M3 La espera cubre 8 192 tokens, y un modelo con menos tope se reintenta con 4 096.
+check( 180 === Digitalisimo_AI_Assistant_Model::TIMEOUT && Digitalisimo_AI_Assistant_Model::MAX_TOKENS / 60 < Digitalisimo_AI_Assistant_Model::TIMEOUT, 'R2-M3: 8 192 tokens a 60 por segundo caben en la espera' );
+remove_all_filters( 'digitalisimo_ai_assistant_pre_model' );
+$GLOBALS['http'] = array();
+$GLOBALS['http_replies'] = array( array( 'code' => 400, 'body' => '{"error":{"message":"max_tokens: 8192 > 4096, which is the maximum allowed"}}' ), array( 'code' => 200, 'body' => json_encode( array( 'content' => array( array( 'type' => 'text', 'text' => 'Hola' ) ), 'stop_reason' => 'end_turn' ) ) ) );
+$r = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'anthropic' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), array() );
+check( 'Hola' === $r['text'] && 2 === count( $GLOBALS['http'] ) && 4096 === json_decode( $GLOBALS['http'][1]['args']['body'], true )['max_tokens'], 'R2-B10: un modelo de 4 096 tokens se reintenta una vez con su tope' );
+check( 'La IA se negó a responder.' === Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'stop_reason' => 'refusal', 'content' => array() ) )['refusal'], 'R2-B10: la negativa de Anthropic se lee' );
+add_filter( 'digitalisimo_ai_assistant_pre_model', function ( $pre, $request ) { $GLOBALS['model_calls'][] = $request; return $GLOBALS['script'] ? array_shift( $GLOBALS['script'] ) : 'Listo.'; } );
+
+// R2-B1 El candado se renueva mientras la petición vive, y sólo el propio.
+$key = Digitalisimo_AI_Assistant_Guard::lock( 'vivo', 10 );
+$GLOBALS['wpdb']->rows[ Digitalisimo_AI_Assistant_Guard::PREFIX . 'otro' ] = 'ajeno|' . ( time() + 10 );
+Digitalisimo_AI_Assistant_Guard::renew_all( 500 );
+$exp = (int) substr( strrchr( $GLOBALS['wpdb']->rows[ $key ], '|' ), 1 );
+check( $exp >= time() + 499 && 'ajeno|' === substr( $GLOBALS['wpdb']->rows[ Digitalisimo_AI_Assistant_Guard::PREFIX . 'otro' ], 0, 6 ) && (int) substr( strrchr( $GLOBALS['wpdb']->rows[ Digitalisimo_AI_Assistant_Guard::PREFIX . 'otro' ], '|' ), 1 ) <= time() + 10, 'R2-B1: renovar alarga el candado propio y no toca el ajeno' );
+Digitalisimo_AI_Assistant_Guard::unlock( $key );
+check( ! isset( $GLOBALS['wpdb']->rows[ $key ] ), 'R2-B1: el candado renovado se suelta igual' );
+unset( $GLOBALS['wpdb']->rows[ Digitalisimo_AI_Assistant_Guard::PREFIX . 'otro' ] );
+
+// R2-B3 Bajo el candado se relee sin la caché de objetos.
+$GLOBALS['cache_deleted'] = array();
+$GLOBALS['script'] = array( array( 'calls' => array( array( 'id' => 'w4', 'name' => 'demo-create-note', 'input' => array( 'title' => 'C' ) ) ) ), 'Hecho.' );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'Crea', 'conversation' => $cw ) ) ) );
+$events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cw, 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'approve' ) ) ) );
+check( in_array( array( $cw, 'post_meta' ), $GLOBALS['cache_deleted'], true ), 'R2-B3: la confirmación relee la conversación sin caché' );
+
+// R2-B5 map_meta_cap acepta un WP_Post y no toca otros tipos ni avisa.
+$warn = array();
+set_error_handler( function ( $no, $msg ) use ( &$warn ) { $warn[] = $msg; return true; } );
+$own  = Digitalisimo_AI_Assistant_History::map_meta_cap( array( 'x' ), 'edit_post', 2, array( get_post( $cw ) ) );
+$page = Digitalisimo_AI_Assistant_History::map_meta_cap( array( 'edit_others_posts' ), 'edit_post', 2, array( new WP_Post( array( 'ID' => 5, 'post_type' => 'page', 'post_author' => 1 ) ) ) );
+restore_error_handler();
+check( array( 'do_not_allow' ) === $own && array( 'edit_others_posts' ) === $page && array() === $warn, 'R2-B5: con un WP_Post: la conversación ajena se niega, otro tipo no cambia y no hay avisos: ' . implode( ', ', $warn ) );
+
+// R2-B6 Las conversaciones se borran con su usuario aunque su contenido se reasigne.
+Digitalisimo_AI_Assistant::init();
+check( in_array( array( 'Digitalisimo_AI_Assistant_History', 'on_user_removed' ), $GLOBALS['hooks']['delete_user'] ?? array(), true ) && in_array( array( 'Digitalisimo_AI_Assistant_History', 'on_user_removed' ), $GLOBALS['hooks']['remove_user_from_blog'] ?? array(), true ), 'R2-B6: borrar o quitar a un usuario borra sus conversaciones' );
+Digitalisimo_AI_Assistant_History::create( 2, 'De la editora' );
+Digitalisimo_AI_Assistant_History::create( 2, 'Otra de la editora' );
+do_action( 'delete_user', 2, 1 );
+check( array() === Digitalisimo_AI_Assistant_History::all( 2 ) && array() !== Digitalisimo_AI_Assistant_History::all( 1 ), 'R2-B6: se borran las suyas, no las de quien recibe su contenido' );
+
+// R2-B7 Campo vacío = valor por defecto; el 429 por estar ocupado no gasta el minuto; capacidad configurable.
+remove_all_filters( 'digitalisimo_ai_assistant_limits' );
+$GLOBALS['options']['digitalisimo_ai_options']['assistant_rate_minute'] = '';
+check( 10 === Digitalisimo_AI_Assistant_Guard::limits()['per_minute'], 'R2-B7: un campo vacío vale el valor por defecto, no «sin tope»' );
+unset( $GLOBALS['options']['digitalisimo_ai_options']['assistant_rate_minute'] );
+add_filter( 'digitalisimo_ai_assistant_limits', function () { return $GLOBALS['limits']; } );
+do {
+	$GLOBALS['transients'] = array(); $minute = floor( time() / 60 ); $GLOBALS['limits']['per_minute'] = 1;
+	$busy = Digitalisimo_AI_Assistant_Guard::lock( 'u1_1' );
+	$r1   = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => '/ayuda', 'conversation' => $cw ) ) );
+	Digitalisimo_AI_Assistant_Guard::unlock( $busy );
+	$r2   = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => '/ayuda', 'conversation' => $cw ) ) );
+} while ( floor( time() / 60 ) !== $minute );
+$GLOBALS['limits']['per_minute'] = 0;
+check( is_wp_error( $r1 ) && 'digitalisimo_assistant_busy' === $r1->code && ! is_wp_error( $r2 ), 'R2-B7: un 429 por estar ocupado no gasta el cupo del minuto' );
+add_filter( 'digitalisimo_ai_assistant_capability', function () { return 'manage_options'; } );
+$GLOBALS['user'] = 2;
+check( is_wp_error( Digitalisimo_AI_Assistant::permission( $req() ) ), 'R2-B7: la capacidad para usar el Asistente es configurable' );
+$GLOBALS['user'] = 1;
+remove_all_filters( 'digitalisimo_ai_assistant_capability' );
+
+// R2-B8 destructiveHint cuenta aunque el núcleo rellene destructive => null.
+check( 'write' === $k( 'demo/x', array( 'readonly' => false, 'destructive' => null, 'destructiveHint' => false ) ), 'R2-B8: destructiveHint false con destructive null es escritura' );
+
+// R2-B9 Lo que no se puede mostrar no se propone, y una conversación nunca se guarda vacía.
+$deep = array(); $node = &$deep; for ( $i = 0; $i < 600; $i++ ) { $node['a'] = array(); $node = &$node['a']; } unset( $node );
+check( '' === Digitalisimo_AI_Assistant_Tools::card( $deep )[0], 'R2-B9: una entrada que no se puede codificar da una tarjeta vacía' );
+$before = $GLOBALS['meta'][ $cw ]['_digitalisimo_ai_chat'];
+$broken = Digitalisimo_AI_Assistant_History::get( $cw, 1 );
+$broken['messages'][] = array( 'role' => 'user', 'text' => 'x', 'deep' => $deep );
+check( false === Digitalisimo_AI_Assistant_History::save( $broken ) && $before === $GLOBALS['meta'][ $cw ]['_digitalisimo_ai_chat'], 'R2-B9: si no se puede codificar, se conserva lo guardado' );
+
+// R2-B11 Una escritura no idempotente que falla queda como «resultado desconocido» y el modelo lo sabe.
+$GLOBALS['charged'] = 0;
+$GLOBALS['script'] = array( array( 'calls' => array( array( 'id' => 'w5', 'name' => 'demo-charge', 'input' => array( 'amount' => 50 ) ) ) ), 'Revisa antes.' );
+$ev   = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'Cobra 50', 'conversation' => $cw ) ) ) );
+$card = $of( $ev, 'confirm' )[0]['action'];
+check( false === $card['idempotent'], 'R2-B11: la tarjeta sabe que no es idempotente' );
+$ev   = $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cw, 'action' => $card['id'], 'decision' => 'approve' ) ) ) );
+$tool = $of( $ev, 'tool' )[0]['message'];
+$sent = json_decode( end( end( $GLOBALS['model_calls'] )['messages'] )['content'], true );
+check( 1 === $GLOBALS['charged'] && 'unknown' === $tool['status'] && false !== strpos( $tool['detail'], 'puede haberse aplicado' ) && true === $sent['puede_haberse_aplicado'], 'R2-B11: falló pero puede haberse aplicado: resultado desconocido, también para el modelo' );
 
 /* ---------------- P: la pantalla ---------------- */
 Digitalisimo_AI_Assistant::menu();

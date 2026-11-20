@@ -62,6 +62,9 @@ add_filter(
 		if ( false !== strpos( $text, 'lee la nota' ) ) {
 			return digi_asis_call( 'digi-asis-read-note', array() );
 		}
+		if ( false !== strpos( $text, 'crea una nota larga' ) ) {
+			return digi_asis_call( 'digi-asis-create-note', array( 'title' => 'Nota larga', 'contenido' => str_repeat( 'texto de prueba ', 400 ) . 'FIN-DE-LOS-DATOS' ) );
+		}
 		if ( false !== strpos( $text, 'crea una nota' ) ) {
 			return digi_asis_call( 'digi-asis-create-note', array( 'title' => 'Nota del asistente', 'status' => 'publish' ) );
 		}

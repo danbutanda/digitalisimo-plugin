@@ -176,6 +176,18 @@ const lastAssistant = (page) => page.$$eval('.dga-message.is-assistant .dga-bubb
       const log = (await probe(target)).log;
       const kinds = log.map((r) => `${r.ability}:${r.kind}:${r.result}`);
       check('C14', ['digi-asis/read-note:read:ok', 'digi-asis/create-note:write:ok', 'digi-asis/delete-note:destructive:ok'].every((k) => kinds.includes(k)) && log.every((r) => r.user === 1 && r.time && !JSON.stringify(r).includes('sk-asis')), 'Bitácora de cada llamada con usuario y fecha, sin secretos', kinds.join(', '));
+      // C19 datos largos: «Confirmar» sólo tras desplazarlos hasta el final.
+      await chat(page, 'crea una nota larga');
+      await page.waitForSelector('.dga-confirm[data-kind="write"]', { timeout: 60000 });
+      const gate = async () => page.$eval('.dga-confirm[data-kind="write"] [data-decision="approve"]', (b) => b.disabled);
+      const before = await gate();
+      await page.$eval('.dga-confirm[data-kind="write"] pre.dga-input', (el) => { el.scrollTop = el.scrollHeight; el.dispatchEvent(new Event('scroll')); });
+      await page.waitForFunction(() => !document.querySelector('.dga-confirm[data-kind="write"] [data-decision="approve"]').disabled, { timeout: 10000 }).catch(() => {});
+      const after = await gate();
+      const end = await page.$eval('.dga-confirm[data-kind="write"] pre.dga-input', (el) => el.textContent.includes('FIN-DE-LOS-DATOS'));
+      check('C19', before === true && after === false && end, 'Con datos largos, «Confirmar» se enciende sólo tras desplazarlos hasta el final', JSON.stringify({ before, after, end }));
+      await page.click('.dga-confirm[data-kind="write"] [data-decision="deny"]');
+      await page.waitForFunction(() => !document.querySelector('.dga-pending') && !document.querySelector('.dga-confirm'), { timeout: 60000 });
       // C15 apariencia Modern y oscura.
       await page.click('.dga-appearance');
       await page.click('[data-choice="variant:modern"]');
@@ -188,7 +200,7 @@ const lastAssistant = (page) => page.$$eval('.dga-message.is-assistant .dga-bubb
       await page.reload({ waitUntil: 'networkidle0' });
       await page.waitForSelector('.dga-thread .dga-message', { timeout: 60000 });
       const again = await page.evaluate(() => ({ url: location.search, messages: document.querySelectorAll('.dga-thread .dga-message').length, tools: document.querySelectorAll('.dga-tool').length, theme: document.querySelector('.dga-root').dataset.theme, history: document.querySelectorAll('.dga-row').length }));
-      check('C16', /conversation=\d+/.test(again.url) && again.messages >= 8 && again.tools === 3 && again.theme === 'dark' && again.history === 1, 'Al recargar vuelve la conversación (historial) y la apariencia', JSON.stringify(again));
+      check('C16', /conversation=\d+/.test(again.url) && again.messages >= 8 && again.tools >= 3 && again.theme === 'dark' && again.history === 1, 'Al recargar vuelve la conversación (historial) y la apariencia', JSON.stringify(again));
       // C17 la bitácora en pantalla.
       await page.click('.dga-tools .dga-trigger');
       await page.waitForSelector('.dga-open-log');

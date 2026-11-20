@@ -29,12 +29,23 @@ final class Digitalisimo_AI_Assistant {
 	const TURN_BUDGET = 120;
 	const MAX_REQUEST = 600000;
 
+	/** @var int Hora límite del turno en curso (0: sin turno). */
+	private static $deadline = 0;
+
+	/** La capacidad para usar el Asistente (`edit_posts`; el filtro permite, p. ej., `publish_posts`). */
+	public static function cap() {
+		$cap = (string) apply_filters( 'digitalisimo_ai_assistant_capability', self::CAP );
+		return '' !== $cap ? $cap : self::CAP;
+	}
+
 	public static function init() {
 		add_action( 'init', array( 'Digitalisimo_AI_Assistant_History', 'register' ) );
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
 		add_filter( 'map_meta_cap', array( 'Digitalisimo_AI_Assistant_History', 'map_meta_cap' ), 10, 4 );
+		add_action( 'delete_user', array( 'Digitalisimo_AI_Assistant_History', 'on_user_removed' ) );
+		add_action( 'remove_user_from_blog', array( 'Digitalisimo_AI_Assistant_History', 'on_user_removed' ) );
 		Digitalisimo_AI_Assistant_Ability::init();
 	}
 
@@ -43,7 +54,7 @@ final class Digitalisimo_AI_Assistant {
 	/* ------------------------------------------------------------------ */
 
 	public static function menu() {
-		add_menu_page( 'Asistente IA', 'Asistente IA', self::CAP, self::PAGE, array( __CLASS__, 'page' ), self::icon(), 3 );
+		add_menu_page( 'Asistente IA', 'Asistente IA', self::cap(), self::PAGE, array( __CLASS__, 'page' ), self::icon(), 3 );
 	}
 
 	/** Destellos en SVG (WordPress lo pinta con el color del menú). */
@@ -52,7 +63,7 @@ final class Digitalisimo_AI_Assistant {
 	}
 
 	public static function page() {
-		if ( ! current_user_can( self::CAP ) ) {
+		if ( ! current_user_can( self::cap() ) ) {
 			wp_die( esc_html__( 'Sorry, you are not allowed to access this page.' ) );
 		}
 		echo '<div id="digitalisimo-assistant-root" class="digitalisimo-assistant"><noscript><p>El Asistente IA necesita JavaScript.</p></noscript><p class="digitalisimo-assistant-loading" role="status">Cargando el Asistente IA…</p></div>';
@@ -124,7 +135,7 @@ final class Digitalisimo_AI_Assistant {
 
 	/** Sesión, `edit_posts` y el nonce propio del Asistente. */
 	public static function permission( $request ) {
-		if ( ! is_user_logged_in() || ! current_user_can( self::CAP ) ) {
+		if ( ! is_user_logged_in() || ! current_user_can( self::cap() ) ) {
 			return new WP_Error( 'rest_forbidden', 'No tienes permiso para usar el Asistente IA.', array( 'status' => rest_authorization_required_code() ) );
 		}
 		$nonce = is_object( $request ) && method_exists( $request, 'get_header' ) ? (string) $request->get_header( self::HEADER ) : '';
@@ -214,20 +225,28 @@ final class Digitalisimo_AI_Assistant {
 		if ( is_wp_error( $target ) ) {
 			return $target;
 		}
-		$user = get_current_user_id();
-		$rate = Digitalisimo_AI_Assistant_Guard::rate( $user );
-		if ( is_wp_error( $rate ) ) {
-			return $rate;
-		}
+		$user  = get_current_user_id();
 		$id    = absint( $request->get_param( 'conversation' ) );
 		$locks = self::locks( $user, $id );
 		if ( is_wp_error( $locks ) ) {
 			return $locks;
 		}
 		try {
-			$conv = $id ? Digitalisimo_AI_Assistant_History::get( $id, $user ) : Digitalisimo_AI_Assistant_History::create( $user, $text );
+			// Se cuenta después de tomar los candados: un 429 por estar ocupado no gasta el cupo del minuto.
+			$rate = Digitalisimo_AI_Assistant_Guard::rate( $user );
+			if ( is_wp_error( $rate ) ) {
+				return $rate;
+			}
+			$conv = $id ? Digitalisimo_AI_Assistant_History::get( $id, $user, true ) : Digitalisimo_AI_Assistant_History::create( $user, $text );
 			if ( ! $conv ) {
 				return $id ? self::missing() : new WP_Error( 'digitalisimo_assistant_history', 'No se pudo guardar la conversación.', array( 'status' => 500 ) );
+			}
+			if ( ! $id ) {
+				// La conversación nueva también queda tomada mientras corre su primer turno.
+				$lock = Digitalisimo_AI_Assistant_Guard::lock( 'c' . (int) $conv['id'] );
+				if ( $lock ) {
+					$locks[] = $lock;
+				}
 			}
 			$conv['provider']   = $choice ?: 'auto';
 			$conv['categories'] = self::categories( $request->get_param( 'categories' ) );
@@ -269,7 +288,7 @@ final class Digitalisimo_AI_Assistant {
 			return $locks;
 		}
 		try {
-			$conv  = Digitalisimo_AI_Assistant_History::get( $id, $user );
+			$conv  = Digitalisimo_AI_Assistant_History::get( $id, $user, true );
 			$index = null;
 			foreach ( $conv['pending'] as $i => $pending ) {
 				if ( hash_equals( (string) $pending['id'], $action_id ) ) {
@@ -304,7 +323,8 @@ final class Digitalisimo_AI_Assistant {
 						$conv['pending'][ $index ]['state']   = 'running';
 						$conv['pending'][ $index ]['started'] = time();
 						Digitalisimo_AI_Assistant_History::save( $conv );
-						$result = Digitalisimo_AI_Assistant_Tools::run( $entry, $action['call']['input'] );
+						Digitalisimo_AI_Assistant_Guard::renew_all();
+						$result = self::maybe_applied( $entry, Digitalisimo_AI_Assistant_Tools::run( $entry, $action['call']['input'] ) );
 					}
 					array_splice( $conv['pending'], $index, 1 );
 					self::tool_result( $conv, $action['call'], $result, $action['kind'], $emit, $action['label'] ?? '' );
@@ -322,6 +342,18 @@ final class Digitalisimo_AI_Assistant {
 		} finally {
 			self::unlock( $locks );
 		}
+	}
+
+	/**
+	 * Una escritura que no se declara idempotente y falla (un tiempo de espera contra una pasarela, por ejemplo) pudo
+	 * aplicarse igual: su resultado es «desconocido», y el modelo recibe `puede_haberse_aplicado` para no repetirla sin
+	 * preguntar.
+	 */
+	private static function maybe_applied( array $entry, array $result ) {
+		if ( 'error' !== $result['status'] || true === ( $entry['annotations']['idempotent'] ?? null ) ) {
+			return $result;
+		}
+		return array_merge( $result, array( 'status' => 'unknown', 'maybe_applied' => true, 'error' => 'Resultado desconocido: falló, pero puede haberse aplicado (' . ( $result['error'] ?? '' ) . '). No la repitas sin revisar el sitio y preguntar.' ) );
 	}
 
 	/** El lugar del usuario y, si la conversación existe, su candado; o un error 429/409. */
@@ -379,15 +411,19 @@ final class Digitalisimo_AI_Assistant {
 	public static function turn( array &$conv, array $target, callable $emit ) {
 		$catalog = Digitalisimo_AI_Assistant_Tools::catalog( $conv['categories'] );
 		$tools   = Digitalisimo_AI_Assistant_Tools::definitions( $catalog );
-		$begun   = time();
-		$budget  = (int) apply_filters( 'digitalisimo_ai_assistant_turn_budget', self::TURN_BUDGET );
-		$read    = false;
+		$begun          = time();
+		$budget         = (int) apply_filters( 'digitalisimo_ai_assistant_turn_budget', self::TURN_BUDGET );
+		self::$deadline = $begun + $budget;
+		$read           = false;
 		for ( $step = 0; $step < self::MAX_STEPS; $step++ ) {
 			if ( $step > 0 && time() - $begun >= $budget ) {
 				self::notice( $conv, $emit, 'El turno ya tardó demasiado; escribe para seguir.', 'info' );
 				return;
 			}
+			Digitalisimo_AI_Assistant_Guard::renew_all();
 			$messages = Digitalisimo_AI_Assistant_History::for_model( $conv, $catalog );
+			// Lo que la IA propone puede venir de contenido del sitio leído en cualquier turno de lo que se le manda.
+			$read = $read || in_array( 'tool', array_column( $messages, 'role' ), true );
 			if ( ! $messages ) {
 				self::notice( $conv, $emit, 'No queda ningún mensaje tuyo que mandar a la IA: escribe de nuevo.', 'error' );
 				return;
@@ -460,9 +496,19 @@ final class Digitalisimo_AI_Assistant {
 				continue;
 			}
 			if ( 'read' === $kind ) {
+				if ( self::$deadline && time() >= self::$deadline ) {
+					self::tool_result( $conv, $call, array( 'status' => 'error', 'error' => 'No quedó tiempo en este turno: no se consultó.' ), $kind, $emit, $entry['label'] );
+					continue;
+				}
+				Digitalisimo_AI_Assistant_Guard::renew_all();
 				$emit( array( 'type' => 'status', 'text' => 'Consultando «' . $entry['label'] . '»…' ) );
 				self::tool_result( $conv, $call, Digitalisimo_AI_Assistant_Tools::run( $entry, $call['input'] ), $kind, $emit, $entry['label'] );
 				$read = true;
+				continue;
+			}
+			if ( '' === Digitalisimo_AI_Assistant_Tools::card( $call['input'] )[0] ) {
+				// Lo que no se puede mostrar no se puede confirmar.
+				self::tool_result( $conv, $call, array( 'status' => 'error', 'error' => 'La entrada de esta acción no se puede mostrar para confirmarla; no se propone.' ), $kind, $emit, $entry['label'] );
 				continue;
 			}
 			$action = array( 'id' => 'act' . strtolower( wp_generate_password( 16, false, false ) ), 'call' => $call, 'kind' => $kind, 'label' => $entry['label'], 'created' => time(), 'simulation' => null, 'shortcut' => (bool) $shortcut, 'after_read' => (bool) $read );
@@ -589,7 +635,7 @@ final class Digitalisimo_AI_Assistant {
 	 * existe y su estado (`running`: se estaba ejecutando, ya no se puede confirmar).
 	 */
 	public static function action_view( array $action, $entry ) {
-		list( $input, $hidden ) = Digitalisimo_AI_Assistant_Tools::card( $action['call']['input'] );
+		list( $input, $hidden, $risks ) = Digitalisimo_AI_Assistant_Tools::card( $action['call']['input'] );
 		return array(
 			'id'          => (string) $action['id'],
 			'ability'     => (string) $action['call']['ability'],
@@ -598,6 +644,8 @@ final class Digitalisimo_AI_Assistant {
 			'kind'        => (string) $action['kind'],
 			'input'       => $input,
 			'hidden'      => $hidden,
+			'risks'       => $risks,
+			'idempotent'  => $entry && true === ( $entry['annotations']['idempotent'] ?? null ),
 			'after_read'  => ! empty( $action['after_read'] ),
 			'state'       => (string) ( $action['state'] ?? 'pending' ),
 			'simulation'  => isset( $action['simulation'] ) ? $action['simulation'] : null,
@@ -645,7 +693,7 @@ final class Digitalisimo_AI_Assistant {
 		// Que cerrar la pestaña o perder la red no corte a medias una acción ni lo que se guarda después.
 		ignore_user_abort( true );
 		if ( function_exists( 'set_time_limit' ) ) {
-			@set_time_limit( 240 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			@set_time_limit( 600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		}
 		if ( $stream ) {
 			self::stream_start();
