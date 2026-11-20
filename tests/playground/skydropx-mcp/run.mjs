@@ -3,11 +3,12 @@
 // /wp-json/elementor/mcp con contraseñas de aplicación. La pantalla del pedido y la descarga de la guía se abren como
 // un navegador con la sesión del administrador (cookies de wp-login.php). Escribe <dir>/result.txt y result.json; sale 1
 // si algo falla. Ningún secreto (contraseñas, clave del plugin, token de cotización, secretos de webhooks) se escribe.
-// Uso: node run.mjs <puerto> <host> <dir>
+// Uso: node run.mjs <puerto> <host> <dir> <posts|hpos>
 import http from 'node:http';
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 
-const [port, host, dir] = process.argv.slice(2);
+const [port, host, dir, mode = 'posts'] = process.argv.slice(2);
+const hpos = mode === 'hpos';
 const token = readFileSync(`${dir}/probe/token.txt`, 'utf8').trim();
 const secrets = () => JSON.parse(readFileSync(`${dir}/probe/secrets.json`, 'utf8'));
 const results = [];
@@ -73,8 +74,8 @@ class Client {
     return res;
   }
   async tools() { return (await this.rpc('tools/list', {})).json?.result?.tools || []; }
-  async call(args) {
-    const res = await this.rpc('tools/call', { name: 'digitalisimo-woo-skydropx', arguments: args });
+  async call(args, tool = 'skydropx') {
+    const res = await this.rpc('tools/call', { name: `digitalisimo-woo-${tool}`, arguments: args });
     const result = res.json?.result;
     const error = res.json?.error;
     const text = (result?.content || []).map((c) => c.text || '').join('\n');
@@ -106,12 +107,13 @@ async function main() {
   check(tools.filter((t) => t.name.startsWith('digitalisimo-woo-')).length === 7 && !tools.some((t) => t.name === 'digitalisimo-woo-skydropx'), 'sin Skydropx: las 7 herramientas de tienda y no la de Skydropx', tools.map((t) => t.name).join(','));
   const act = await probe('activate-sky');
   check(act.active, 'Skydropx 2.1.5 activado', JSON.stringify(act));
+  check((await probe('hpos', hpos ? 'yes' : 'no')).hpos === (hpos ? 'yes' : 'no'), hpos ? 'HPOS activo (pedidos en sus tablas) y webhooks por Action Scheduler, como en una tienda real' : 'pedidos como entradas y webhooks entregados en la misma petición');
   const store = await probe('store');
   const P = store.products; const O = store.orders;
   check(P.complete && P.zero && P.grande && O.a && O.b && O.c, 'tienda con productos y pedidos de prueba', JSON.stringify(store));
   check((await probe('link')).linked === true, 'la «plataforma» vincula la tienda: clave del plugin, cotización con su URL y su zona, y webhooks de pedidos');
   ping = await probe('ping');
-  check(ping.sky === '2.1.5', 'Skydropx cargado', JSON.stringify(ping));
+  check(ping.sky === '2.1.5' && ping.hpos === hpos, `Skydropx cargado; HPOS ${ping.hpos}`, JSON.stringify(ping));
 
   start('S1 La herramienta aparece con Skydropx');
   tools = await admin.tools();
@@ -200,6 +202,8 @@ async function main() {
   const orderBefore = await probe('order', O.a);
   r = await admin.call({ action: 'set_tracking', order_id: O.a, tracking: { number: 'MANUAL-123', company: 'Estafeta', url: 'https://rastreo.test/MANUAL-123' }, order_status: 'completed', customer_note: 'Tu pedido va en camino con Estafeta.' });
   okCall(r, 'set_tracking');
+  check(r.data?.data?.label === 'manual' && /Guía generada/.test(r.data?.notice || ''), 'un rastreo hecho a mano queda como «manual» y la respuesta explica la caja del plugin', r.text.slice(0, 400));
+  if (hpos) check((await probe('run-queue')).ran >= 1, 'Action Scheduler entrega el webhook encolado');
   const orderAfter = await probe('order', O.a);
   const meta = orderAfter.lines?.[0]?.meta || {};
   check(meta['Tracking Number'] === 'MANUAL-123' && meta['Tracking Company'] === 'Estafeta' && meta['Tracking URL'] === 'https://rastreo.test/MANUAL-123', 'las tres metas que lee el plugin, en la línea de envío', JSON.stringify(orderAfter.lines));
@@ -207,8 +211,22 @@ async function main() {
   check(orderAfter.total === orderBefore.total && orderAfter.total_tax === orderBefore.total_tax && orderAfter.shipping_total === orderBefore.shipping_total, 'los totales del pedido no cambian (no se recalcula nada)', JSON.stringify({ before: orderBefore.total, after: orderAfter.total }));
   platform = await probe('platform');
   check((platform.webhooks || []).some((w) => w.topic === 'order.updated' && w.order === O.a && w.tracking === 'MANUAL-123'), 'WooCommerce avisó a la plataforma (webhook order.updated con el rastreo nuevo)', JSON.stringify(platform.webhooks));
-  r = await admin.call({ action: 'set_tracking', order_id: O.c, tracking: { number: 'X-1' } });
-  check(r.isError && /paquetería|company/.test(r.text), 'incompleto: no escribe y dice qué falta', r.text);
+  const cBefore = await probe('order', O.c);
+  r = await admin.call({ action: 'set_tracking', order_id: O.c, tracking: { number: 'X-1', company: 'DHL', url: 'https://rastreo.test/X-1' } });
+  check(r.isError && /no tiene línea de envío/.test(r.text) && /create_shipping_line/.test(r.text), 'un pedido sin línea de envío falla con un mensaje claro (no toca lo que ve el cliente)', r.text);
+  check((await probe('order', O.c)).lines.length === 0, 'y el pedido sigue sin línea de envío');
+  r = await admin.call({ action: 'set_tracking', order_id: O.c, tracking: { number: 'X-1', company: 'DHL', url: 'https://rastreo.test/X-1' }, create_shipping_line: true });
+  const cAfter = await probe('order', O.c);
+  check(!r.isError && r.data?.data?.created_line === true && cAfter.lines.length === 1 && cAfter.lines[0].method_id === 'digitalisimo_manual' && cAfter.total === cBefore.total && /el cliente verá/.test(r.data?.notice || ''), 'con create_shipping_line: una línea sin costo, los totales iguales y el aviso de lo que verá el cliente', r.text.slice(0, 400));
+  // Permiso por pedido (como la REST): un rol que edita pedidos pero no los ajenos no puede tocar uno ajeno.
+  const almacen = new Client('almacen');
+  await almacen.init();
+  const restDenied = await almacen.call({ action: 'update', order_id: O.b, data: { customer_note: 'x' } }, 'orders');
+  r = await almacen.call({ action: 'set_tracking', order_id: O.b, tracking: { number: 'AJENO-1' } });
+  const bNow = await probe('order', O.b);
+  check(restDenied.isError && r.isError && /permiso sobre el pedido/.test(r.text) && bNow.lines[0].meta['Tracking Number'] === 'SKY-777', 'Almacén (sin edit_others_shop_orders): orders update y set_tracking rechazan el pedido ajeno; nada escrito', `${restDenied.text.slice(0, 160)} · ${r.text.slice(0, 200)}`);
+  r = await almacen.call({ action: 'resync', order_id: O.b });
+  check(r.isError && /permiso sobre el pedido/.test(r.text), 'Almacén: resync tampoco', r.text.slice(0, 200));
 
   start('S8 La pantalla del pedido del plugin y la guía');
   keep(await request('POST', '/wp-login.php', { headers: { Cookie: 'wordpress_test_cookie=WP%20Cookie%20check' }, form: { log: 'admin', pwd: 'password', 'wp-submit': 'Log In', testcookie: '1', redirect_to: '/wp-admin/' } }));
@@ -218,9 +236,15 @@ async function main() {
   check(page.status === 200 && /Etiqueta de envío Skydropx/.test(page.text) && /Guía generada/.test(page.text) && /Imprimir guía/.test(page.text), 'la caja del plugin en la pantalla del pedido dice «Guía generada» con «Imprimir guía»', `${page.status} ${page.text.length}`);
   check(/MANUAL-123/.test(page.text) && /Estafeta/.test(page.text), 'el rastreo se ve en la línea de envío del pedido');
   r = await admin.call({ action: 'label', order_id: O.a });
-  okCall(r, 'label');
+  check(r.isError && /a mano/.test(r.text) && /Guía generada/.test(r.text), 'label de un rastreo hecho a mano: no ofrece un PDF que no existe', r.text.slice(0, 300));
+  r = await admin.call({ action: 'label', order_id: O.b });
+  okCall(r, 'label de una guía de Skydropx');
   const labelUrl = r.data?.data?.url || '';
-  check(/admin-post\.php\?action=digitalisimo_woo_skydropx_label&order_id=\d+$/.test(labelUrl) && !/_wpnonce|skydropx_print_label/.test(r.text), 'label: un enlace propio, sin nonce ni enlace del plugin en la respuesta', r.text.slice(0, 300));
+  check(/admin-post\.php\?action=digitalisimo_woo_skydropx_label&order_id=\d+&exp=\d+&sig=[0-9a-f]{20}$/.test(labelUrl) && !/_wpnonce|skydropx_print_label/.test(r.text), 'label: un enlace propio firmado para este usuario, sin nonce ni enlace del plugin en la respuesta', r.text.slice(0, 300));
+  const before3 = ((await probe('platform')).labels || []).length;
+  const cross = await request('GET', local(labelUrl.replace(/&exp=.*$/, '')), { headers: { Cookie: cookie() } });
+  const after3 = ((await probe('platform')).labels || []).length;
+  check(cross.status === 200 && /Descargar la guía/.test(cross.text) && after3 === before3, 'sin la firma (lo que pondría otra página), con la sesión abierta: sólo una página con un botón; nada se pide a Skydropx', `${cross.status} ${before3}→${after3}`);
   const hop = await request('GET', local(labelUrl), { headers: { Cookie: cookie() } });
   const loc = hop.headers.location || '';
   check(hop.status === 302 && /admin-post\.php\?action=skydropx_print_label&order_id=\d+&_wpnonce=[0-9a-f]{10}$/.test(loc), 'abierto con la sesión: lleva al endpoint del plugin con el nonce de esa sesión', `${hop.status} ${loc}`);
@@ -228,17 +252,19 @@ async function main() {
   check(pdf.status === 200 && /application\/pdf/.test(pdf.headers['content-type'] || '') && pdf.raw.subarray(0, 5).toString() === '%PDF-', 'el plugin descarga el PDF de la guía', `${pdf.status} ${pdf.headers['content-type']} ${pdf.text.slice(0, 80)}`);
   platform = await probe('platform');
   const lab = (platform.labels || []).at(-1);
-  check(lab?.order === O.a && lab?.signed === true && lab?.valid === true, 'el plugin pidió la guía firmada con su clave (firma válida)', JSON.stringify(platform.labels));
+  check(lab?.order === O.b && lab?.signed === true && lab?.valid === true, 'el plugin pidió la guía firmada con su clave (firma válida)', JSON.stringify(platform.labels));
   const anon = await request('GET', local(labelUrl));
   check(anon.status === 302 && /wp-login\.php/.test(anon.headers.location || ''), 'sin sesión, el enlace lleva al acceso', `${anon.status} ${anon.headers.location}`);
   r = await admin.call({ action: 'label', order_id: O.c });
-  check(r.isError && /no tiene guía/.test(r.text), 'un pedido sin guía: lo dice', r.text);
+  // C recibió arriba un rastreo a mano (create_shipping_line): no hay guía de Skydropx y la herramienta lo dice.
+  check(r.isError && /a mano/.test(r.text) && /pedido \d+/.test(r.text), 'label del pedido C (rastreo a mano): no ofrece un PDF que no existe', r.text);
 
   start('S9 Reenviar un pedido a Skydropx');
   const countBefore = (platform.webhooks || []).filter((w) => w.order === O.b && w.topic === 'order.updated').length;
   const modBefore = (await probe('order', O.b)).modified;
   r = await admin.call({ action: 'resync', order_id: O.b });
   okCall(r, 'resync');
+  if (hpos) check((await probe('run-queue')).ran >= 1, 'Action Scheduler entrega el webhook encolado por resync');
   platform = await probe('platform');
   const countAfter = (platform.webhooks || []).filter((w) => w.order === O.b && w.topic === 'order.updated').length;
   check(countAfter === countBefore + 1, 'WooCommerce entregó el webhook order.updated del pedido a la plataforma', JSON.stringify(platform.webhooks?.slice(-3)));
@@ -267,6 +293,35 @@ async function main() {
   check((await probe('deactivate-sky')).active === false, 'Skydropx desactivado');
   tools = await admin.tools();
   check(!tools.some((t) => t.name === 'digitalisimo-woo-skydropx') && tools.filter((t) => t.name.startsWith('digitalisimo-woo-')).length === 7, 'sin Skydropx la herramienta desaparece y las otras siete siguen', tools.map((t) => t.name).join(','));
+  if (!hpos) return;
+
+  start('S11 audit_products con 5 000 productos y variaciones');
+  check((await probe('activate-sky')).active, 'Skydropx activado de nuevo');
+  let expected = 0; let made = 0;
+  for (const batch of ['simple-1', 'simple-2', 'simple-3', 'simple-4', 'simple-5', 'simple-6', 'variable-7', 'variable-8', 'variable-9', 'variable-10']) {
+    const b = await probe('bulk', batch);
+    expected += b.missing; made += b.made;
+  }
+  check(made === 5000, `5 000 productos y variaciones de volumen (${expected} sin peso)`, String(made));
+  const t0 = Date.now();
+  r = await admin.call({ action: 'audit_products', per_page: 50 });
+  const m1 = (await probe('requests')).last;
+  const page1 = r.data || {};
+  check(!r.isError && page1.truncated === true && page1.summary?.scanned === 5000 && page1.cached === false && page1.data?.length === 50, `página 1: 5 000 revisados en orden de ID con next_after_id (${Date.now() - t0} ms en el cliente)`, r.text.slice(0, 300));
+  log(`medida · página 1: ${m1?.ms} ms, ${m1?.queries} consultas, ${m1?.peak_mb} MB pico`);
+  const t1 = Date.now();
+  r = await admin.call({ action: 'audit_products', per_page: 50, page: 2 });
+  const m2 = (await probe('requests')).last;
+  check(!r.isError && r.data?.cached === true && r.data?.data?.length === 50 && r.data?.total === page1.total, `página 2 desde el recorrido de la 1 (${Date.now() - t1} ms en el cliente)`, r.text.slice(0, 200));
+  // Un recorrido nuevo cuesta al menos lo de la página 1; con HPOS cada petición suma el trabajo de fondo de WooCommerce
+  // (Action Scheduler, sincronización), así que el umbral es relativo: menos del 70 % de consultas y menos memoria.
+  check(m2 && m1 && m2.queries < m1.queries * 0.7 && m2.peak_mb < m1.peak_mb, `la página 2 no vuelve a recorrer: ${m2?.queries} consultas y ${m2?.peak_mb} MB frente a ${m1?.queries} y ${m1?.peak_mb}`);
+  log(`medida · página 2: ${m2?.ms} ms, ${m2?.queries} consultas, ${m2?.peak_mb} MB pico`);
+  r = await admin.call({ action: 'audit_products', per_page: 50, after_id: page1.next_after_id });
+  const m3 = (await probe('requests')).last;
+  check(!r.isError && !r.data?.truncated && page1.total + r.data?.total === expected, `after_id sigue con el resto: ${page1.total} + ${r.data?.total} = ${expected} sin peso`, r.text.slice(0, 200));
+  log(`medida · after_id: ${m3?.ms} ms, ${m3?.queries} consultas, ${m3?.peak_mb} MB pico`);
+  check(m1.queries / 5000 < 4, `consultas por elemento en la página 1: ${(m1.queries / 5000).toFixed(2)} (términos y metas precargados por bloque)`);
 }
 
 try {

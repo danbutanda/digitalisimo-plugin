@@ -161,8 +161,36 @@ add_filter(
 );
 add_filter( 'pre_wp_mail', '__return_true' );
 add_filter( 'wp_is_application_passwords_available', '__return_true' );
-// En el ensayo los webhooks se entregan en la misma petición (en un sitio real, WooCommerce los encola).
-add_filter( 'woocommerce_webhook_deliver_async', '__return_false' );
+// Modo «posts»: los webhooks se entregan en la misma petición. Modo «hpos» (`digi_sk_async`): como en un sitio real,
+// WooCommerce los encola en Action Scheduler y el paso `run-queue` ejecuta la cola.
+add_filter(
+	'woocommerce_webhook_deliver_async',
+	static function () {
+		return 'yes' === get_option( 'digi_sk_async', 'no' );
+	}
+);
+// Medida de cada petición del MCP: tiempo, consultas y memoria pico (a /digi-probe/requests.jsonl).
+add_action(
+	'shutdown',
+	static function () {
+		if ( false === strpos( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'elementor%2Fmcp' ) && false === strpos( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'elementor/mcp' ) ) {
+			return;
+		}
+		global $wpdb;
+		file_put_contents(
+			DIGI_SK_DIR . '/requests.jsonl',
+			wp_json_encode(
+				array(
+					'ms'      => (int) round( ( microtime( true ) - (float) $_SERVER['REQUEST_TIME_FLOAT'] ) * 1000 ),
+					'queries' => (int) $wpdb->num_queries,
+					'peak_mb' => round( memory_get_peak_usage() / 1048576, 1 ),
+				)
+			) . "\n",
+			FILE_APPEND
+		);
+	},
+	PHP_INT_MAX
+);
 
 function digi_sk_out( array $data, int $status = 200 ) {
 	status_header( $status );
@@ -251,7 +279,9 @@ add_action(
 				break;
 			case 'users':
 				$users = array();
-				foreach ( array( 'gerente' => 'shop_manager', 'editora' => 'editor' ) as $login => $role ) {
+				// «Almacén»: edita pedidos pero no los ajenos (sin edit_others_shop_orders): como la REST, sólo los suyos.
+				add_role( 'almacen', 'Almacén', array( 'read' => true, 'edit_shop_orders' => true, 'read_private_shop_orders' => true ) );
+				foreach ( array( 'gerente' => 'shop_manager', 'editora' => 'editor', 'almacen' => 'almacen' ) as $login => $role ) {
 					$users[ $login ] = digi_sk_user( $login, $role );
 				}
 				$users['admin'] = digi_sk_user( 'admin', 'administrator' );
@@ -351,6 +381,57 @@ add_action(
 					$hook->save();
 				}
 				digi_sk_out( array( 'linked' => ( new Skydropx\Includes\Skydropx_Repository() )->has_plugin_api_keys() ) );
+				break;
+			case 'hpos':
+				// Antes de crear pedidos: las tablas de HPOS y su uso (sin sincronizar con las entradas), como una tienda nueva.
+				$sync = wc_get_container()->get( Automattic\WooCommerce\Internal\DataStores\Orders\DataSynchronizer::class );
+				if ( ! $sync->check_orders_table_exists() ) {
+					$sync->create_database_tables();
+				}
+				update_option( 'woocommerce_custom_orders_table_data_sync_enabled', 'no' );
+				update_option( 'woocommerce_custom_orders_table_enabled', 'yes' === $arg ? 'yes' : 'no' );
+				update_option( 'digi_sk_async', 'yes' === $arg ? 'yes' : 'no' );
+				digi_sk_out( array( 'hpos' => get_option( 'woocommerce_custom_orders_table_enabled' ) ) );
+				break;
+			case 'run-queue':
+				$ids = as_get_scheduled_actions( array( 'hook' => 'woocommerce_deliver_webhook_async', 'status' => ActionScheduler_Store::STATUS_PENDING, 'per_page' => 50 ), 'ids' );
+				foreach ( $ids as $action_id ) {
+					ActionScheduler::runner()->process_action( $action_id, 'digi-sk' );
+				}
+				digi_sk_out( array( 'ran' => count( $ids ) ) );
+				break;
+			case 'bulk':
+				// Volumen para medir audit_products: «simple-N» crea 500 simples, «variable-N» 100 variables con 5 variaciones.
+				// Uno de cada 10 simples y una de cada 7 variaciones (de padres sin peso) quedan sin peso.
+				list( $kind, $batch ) = array_pad( explode( '-', $arg ), 2, '0' );
+				$missing = 0;
+				$made    = 0;
+				wp_defer_term_counting( true );
+				$meta = static function ( $weight ) {
+					return array( '_weight' => $weight, '_length' => '10', '_width' => '10', '_height' => '10', '_regular_price' => '100', '_price' => '100', '_virtual' => 'no', '_downloadable' => 'no', '_stock_status' => 'instock' );
+				};
+				for ( $i = 0; $i < ( 'simple' === $kind ? 500 : 100 ); $i++ ) {
+					$n  = (int) $batch * 1000 + $i;
+					$id = wp_insert_post( array( 'post_type' => 'product', 'post_status' => 'publish', 'post_title' => 'Volumen ' . $kind . ' ' . $n, 'meta_input' => 'simple' === $kind ? $meta( 0 === $i % 10 ? '' : '1.5' ) : $meta( '' ) ) );
+					wp_set_object_terms( $id, $kind, 'product_type' );
+					if ( 'simple' === $kind ) {
+						++$made;
+						$missing += 0 === $i % 10 ? 1 : 0;
+						continue;
+					}
+					for ( $v = 0; $v < 5; $v++ ) {
+						$w = ( $i * 5 + $v ) % 7 ? '0.8' : '';
+						wp_insert_post( array( 'post_type' => 'product_variation', 'post_status' => 'publish', 'post_parent' => $id, 'post_title' => 'Variación ' . $n . '-' . $v, 'meta_input' => array( '_weight' => $w, '_regular_price' => '100', '_price' => '100', '_virtual' => 'no', '_downloadable' => 'no', '_stock_status' => 'instock' ) ) );
+						++$made;
+						$missing += '' === $w ? 1 : 0;
+					}
+				}
+				wp_defer_term_counting( false );
+				digi_sk_out( array( 'made' => $made, 'missing' => $missing ) );
+				break;
+			case 'requests':
+				$lines = file_exists( DIGI_SK_DIR . '/requests.jsonl' ) ? file( DIGI_SK_DIR . '/requests.jsonl', FILE_IGNORE_NEW_LINES ) : array();
+				digi_sk_out( array( 'last' => $lines ? json_decode( end( $lines ), true ) : null, 'count' => count( $lines ) ) );
 				break;
 			case 'mode':
 				update_option( 'digitalisimo_elements_woo_mcp', array( 'mode' => $arg, 'own' => array( 'mode' ) ), false );
