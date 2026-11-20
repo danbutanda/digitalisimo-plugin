@@ -238,13 +238,13 @@ final class Full {
 		if ( self::$cli || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 			// WP-CLI no tiene cuenta, pero sí respeta DISALLOW_FILE_MODS (y su filtro): sin escritura, ni instala ni borra.
 			$mods = ! function_exists( 'wp_is_file_mod_allowed' ) || wp_is_file_mod_allowed( 'digitalisimo_migration' );
-			return array( 'install' => $mods, 'activate' => true, 'delete' => $mods, 'themes' => $mods, 'delete_themes' => $mods );
+			return array( 'install' => $mods, 'activate' => true, 'delete' => $mods, 'themes' => $mods, 'update_themes' => $mods, 'delete_themes' => $mods );
 		}
 		if ( $network ) {
 			$super = is_super_admin() && current_user_can( 'manage_network_plugins' );
-			return array( 'install' => $super && current_user_can( 'install_plugins' ), 'activate' => $super, 'delete' => $super && current_user_can( 'delete_plugins' ), 'themes' => $super && current_user_can( 'manage_network_themes' ) && current_user_can( 'install_themes' ), 'delete_themes' => $super && current_user_can( 'delete_themes' ) );
+			return array( 'install' => $super && current_user_can( 'install_plugins' ), 'activate' => $super, 'delete' => $super && current_user_can( 'delete_plugins' ), 'themes' => $super && current_user_can( 'manage_network_themes' ) && current_user_can( 'install_themes' ), 'update_themes' => $super && current_user_can( 'update_themes' ), 'delete_themes' => $super && current_user_can( 'delete_themes' ) );
 		}
-		return array( 'install' => current_user_can( 'install_plugins' ), 'activate' => current_user_can( 'activate_plugins' ), 'delete' => current_user_can( 'delete_plugins' ), 'themes' => current_user_can( 'switch_themes' ) && current_user_can( 'install_themes' ), 'delete_themes' => current_user_can( 'delete_themes' ) );
+		return array( 'install' => current_user_can( 'install_plugins' ), 'activate' => current_user_can( 'activate_plugins' ), 'delete' => current_user_can( 'delete_plugins' ), 'themes' => current_user_can( 'switch_themes' ) && current_user_can( 'install_themes' ), 'update_themes' => current_user_can( 'update_themes' ), 'delete_themes' => current_user_can( 'delete_themes' ) );
 	}
 
 	public static function fresh( $network, $run = '' ) {
@@ -1258,12 +1258,19 @@ final class Full {
 				return self::next( $state, 'verify' );
 			}
 			$had       = function_exists( 'wp_get_theme' ) && wp_get_theme( Replacements::THEME )->exists();
-			$installed = Packages::install_theme();
-			$state['theme_installed_now'] = ! $had && true === $installed;
+			$from      = $had ? (string) wp_get_theme( Replacements::THEME )->get( 'Version' ) : '';
+			$installed = Packages::ensure_theme( ! empty( $state['caps']['update_themes'] ?? $state['caps']['themes'] ) );
+			$state['theme_installed_now'] = ! is_wp_error( $installed ) && 'installed' === $installed['action'];
+			if ( ! is_wp_error( $installed ) && 'updated' === $installed['action'] ) {
+				// El tema propio instalado era anterior al de la Release: se actualizó en la misma pasada (sin activarlo).
+				$state['theme_updated_now'] = array( 'from' => $installed['from'], 'to' => $installed['to'] );
+			}
 			if ( is_wp_error( $installed ) ) {
+				$what = $had ? sprintf( 'No se pudo actualizar el tema DIGITALÍSIMO instalado (%s) a la versión de la Release: ', '' === $from ? 'sin versión' : $from ) : 'No se pudo instalar el tema DIGITALÍSIMO: ';
+				$todo = $had ? ' Qué hacer: actualiza el tema DIGITALÍSIMO en Apariencia → Temas (o en DIGITALÍSIMO Tools → Plugins) y vuelve a pulsar Migrar.' : ' Qué hacer: comprueba que WordPress puede escribir en wp-content/themes (sin pedir datos de FTP) y vuelve a pulsar Migrar.';
 				foreach ( $safe as $site_id ) {
 					$state['theme'][ $site_id ]['safe']   = false;
-					$state['theme'][ $site_id ]['reason'] = 'No se pudo instalar el tema DIGITALÍSIMO: ' . $installed->get_error_message() . ' Se queda ' . $state['theme'][ $site_id ]['name'] . '.';
+					$state['theme'][ $site_id ]['reason'] = $what . rtrim( $installed->get_error_message(), '.' ) . '. Se queda ' . $state['theme'][ $site_id ]['name'] . ', sin cambiar el tema.' . $todo;
 				}
 				return self::next( $state, 'verify' );
 			}
@@ -1945,6 +1952,9 @@ final class Full {
 		if ( ! empty( $state['theme_installed_now'] ) && ! array_filter( array_column( (array) $state['theme'], 'switched' ) ) ) {
 			// Se instaló para leer el tema hijo y ningún sitio lo activó: queda instalado, sin activar, para el paso a mano.
 			$themes[] = 'El tema DIGITALÍSIMO quedó instalado sin activar (hace falta para el cambio a mano de arriba; si no lo vas a usar, bórralo en Apariencia).';
+		}
+		if ( ! empty( $state['theme_updated_now'] ) ) {
+			$themes[] = sprintf( 'El tema DIGITALÍSIMO instalado se actualizó de %s a %s antes del cambio, desde la Release y con la copia anterior guardada por WordPress hasta terminar.', '' === (string) $state['theme_updated_now']['from'] ? 'una versión sin número' : (string) $state['theme_updated_now']['from'], (string) $state['theme_updated_now']['to'] );
 		}
 		if ( $themes ) {
 			$items[] = array( 'Tema', implode( ' ', $themes ) );

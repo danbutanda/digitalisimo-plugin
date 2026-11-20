@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -468,7 +468,7 @@ $entries = array();
 foreach ( array( 'digitalisimo-backups' => '1.0.81', 'digitalisimo-elements' => '4.3.0.187', 'digitalisimo-seo' => '1.0.254' ) as $slug => $version ) {
 	$entries[ $slug ] = array( 'version' => $version, 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.11.18.999/' . $slug . '-' . $version . '.zip' );
 }
-set_site_transient( 'digitalisimo_plugins_manifest', array( 'plugins' => $entries, 'themes' => array( 'digitalisimo-theme' => array( 'version' => '1.0.0', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.11.18.999/digitalisimo-theme-1.0.0.zip' ) ) ) );
+set_site_transient( 'digitalisimo_plugins_manifest', array( 'plugins' => $entries, 'themes' => array( 'digitalisimo-theme' => array( 'version' => '1.0.1', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.11.18.999/digitalisimo-theme-1.0.1.zip' ) ) ) );
 
 require DIGITALISIMO_MIGRATION_DIR . 'includes/class-full.php';
 
@@ -482,8 +482,12 @@ Packages::$installer = static function ( $slug, $package, $type ) {
 	if ( in_array( $slug, (array) ( $GLOBALS['t']['install_fails'] ?? array() ), true ) ) {
 		return new WP_Error( 'x', 'el ZIP no se pudo descargar' );
 	}
-	if ( 'theme' === $type ) {
-		$GLOBALS['t']['themes'][ $slug ] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI );
+	if ( 'theme-update' === $type && in_array( 'theme-update', (array) ( $GLOBALS['t']['install_fails'] ?? array() ), true ) ) {
+		// WordPress restaura la copia anterior (temp_backup): la carpeta queda como estaba.
+		return new WP_Error( 'x', 'la descarga del paquete falló' );
+	}
+	if ( 'theme' === $type || 'theme-update' === $type ) {
+		$GLOBALS['t']['themes'][ $slug ] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI, 'Version' => preg_replace( '/^.*-(\d+(?:\.\d+)+)\.zip$/', '$1', $package ) );
 		if ( empty( $GLOBALS['t']['old_theme'] ) ) {
 			@mkdir( TMP . '/themes/' . $slug . '/inc', 0777, true );
 			copy( dirname( __DIR__ ) . '/digitalisimo-theme/inc/child.php', TMP . '/themes/' . $slug . '/inc/child.php' );
@@ -1048,12 +1052,44 @@ switch ( $scenario ) {
 		break;
 
 	case 'theme_child_old':
-		// Un tema propio ya instalado sin lector del hijo (anterior a 1.0.1): el hijo se queda y se pide actualizarlo.
-		$GLOBALS['t']['themes']['digitalisimo-theme'] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI );
+		// Caso real del 2026-11-20: el tema propio 1.0.0 ya instalado (sin lector del hijo) y un hijo de Hello. Migrar lo
+		// actualiza en la misma pasada, desde la Release, sin activarlo, y después cambia de tema.
+		$GLOBALS['t']['themes']['digitalisimo-theme'] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI, 'Version' => '1.0.0' );
 		child_theme( 'hello-hijo-ok', 'Hello Hijo OK', OFFICIAL_CHILD );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo-ok';
+		$GLOBALS['t']['carry']       = true;
 		drive();
 		$last = Full::last( false );
-		check( 'hello-hijo-ok' === get_option( 'stylesheet' ) && false !== strpos( $last['theme'][1]['reason'], 'actualiza el tema DIGITALÍSIMO' ), 'Sin lector, el hijo se queda: ' . $last['theme'][1]['reason'] );
+		check( in_array( 'install:digitalisimo-theme', logged( 'install:' ), true ) && '1.0.1' === $GLOBALS['t']['themes']['digitalisimo-theme']['Version'], 'El tema propio 1.0.0 se actualiza a 1.0.1: ' . json_encode( $GLOBALS['t']['themes']['digitalisimo-theme'] ) );
+		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ) && ! empty( $last['verified'] ), 'Y el hijo se cambia por el tema propio en la misma pasada: ' . ( $last['theme'][1]['reason'] ?? '' ) );
+		check( array( 'from' => '1.0.0', 'to' => '1.0.1' ) === ( $last['theme_updated_now'] ?? null ) && false !== strpos( Full::render( false, $last ), 'se actualizó de 1.0.0 a 1.0.1' ), 'El informe dice que se actualizó.' );
+		check( 1 === count( array_filter( $GLOBALS['t']['log'], static function ( $l ) { return 0 === strpos( $l, 'switch_theme:' ); } ) ), 'Sólo un cambio de tema (el de Migrar).' );
+		break;
+
+	case 'theme_child_old_fails':
+		// La actualización del tema propio falla: el hijo se queda, con el motivo y la acción, y el tema no cambia.
+		$GLOBALS['t']['themes']['digitalisimo-theme'] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI, 'Version' => '1.0.0' );
+		$GLOBALS['t']['install_fails']                = array( 'theme-update' );
+		child_theme( 'hello-hijo-ok', 'Hello Hijo OK', OFFICIAL_CHILD );
+		drive();
+		$last   = Full::last( false );
+		$reason = (string) ( $last['theme'][1]['reason'] ?? '' );
+		check( 'hello-hijo-ok' === get_option( 'stylesheet' ) && ! logged( 'switch_theme' ) && '1.0.0' === $GLOBALS['t']['themes']['digitalisimo-theme']['Version'], 'Sin actualizar, no se cambia el tema y la copia sigue en 1.0.0.' );
+		check( false !== strpos( $reason, 'No se pudo actualizar el tema DIGITALÍSIMO instalado (1.0.0)' ) && false !== strpos( $reason, 'la descarga del paquete falló' ) && false !== strpos( $reason, 'Qué hacer: actualiza el tema DIGITALÍSIMO' ), 'El motivo dice qué falló y qué hacer: ' . $reason );
+		check( false !== strpos( Full::render( false, $last ), 'No se pudo actualizar el tema DIGITALÍSIMO' ) && empty( $last['theme_updated_now'] ), 'Y llega al informe.' );
+		break;
+
+	case 'theme_old_current':
+		// Una copia que ya está al día no se vuelve a instalar.
+		$GLOBALS['t']['themes']['digitalisimo-theme'] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI, 'Version' => '1.0.1' );
+		@mkdir( TMP . '/themes/digitalisimo-theme/inc', 0777, true );
+		copy( dirname( __DIR__ ) . '/digitalisimo-theme/inc/child.php', TMP . '/themes/digitalisimo-theme/inc/child.php' );
+		child_theme( 'hello-hijo-ok', 'Hello Hijo OK', OFFICIAL_CHILD );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo-ok';
+		$GLOBALS['t']['carry']       = true;
+		drive();
+		$last = Full::last( false );
+		check( ! in_array( 'install:digitalisimo-theme', logged( 'install:' ), true ) && empty( $last['theme_updated_now'] ) && 'digitalisimo-theme' === get_option( 'stylesheet' ), 'Al día: no se reinstala y el tema cambia.' );
 		break;
 
 	case 'theme_pre_unreadable':
