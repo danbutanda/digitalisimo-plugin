@@ -296,7 +296,7 @@ namespace {
 		'retired'   => array( 'rank-math' ),
 		'deleted'   => array( 'rank-math' => 'Rank Math SEO y Rank Math SEO PRO' ),
 		'kept'      => array(),
-		'theme'     => array( 1 => array( 'name' => 'Hello Elementor Child', 'hello' => true, 'own' => false, 'safe' => false, 'switched' => false, 'reason' => 'El sitio usa un tema hijo de Hello («Hello Elementor Child»): su CSS y su PHP no se trasladan solos (el PHP va al editor de fragmentos de DIGITALÍSIMO Tools). Se queda; cámbialo en Apariencia cuando los hayas pasado.' ) ),
+		'theme'     => array( 1 => array( 'name' => 'Hello Elementor Child', 'hello' => true, 'own' => false, 'safe' => false, 'switched' => false, 'reason' => 'El sitio usa un tema hijo de Hello («Hello Elementor Child») con PHP que no se puede trasladar sin ejecutarlo: functions.php, línea 12: add_action( \'wp_head\' ). Se queda el tema hijo para no perder lo que ese PHP hace. Qué hacer: copia su functions.php tal cual en un fragmento de DIGITALÍSIMO Tools → Código PHP, revísalo y actívalo, y vuelve a pulsar Migrar (o cambia al tema DIGITALÍSIMO en Apariencia, que trae sus hojas, su CSS adicional y sus ajustes, pero no ese PHP).' ) ),
 		'verify'    => array(
 			array( 'site' => 1, 'url' => 'https://ejemplo.test/', 'ok' => true, 'reason' => '' ),
 			array( 'site' => 1, 'url' => 'https://ejemplo.test/blog/', 'ok' => true, 'reason' => '' ),
@@ -377,7 +377,7 @@ namespace {
 			return str_contains( $item, $needle );
 		} ) );
 	};
-	f8_check( str_starts_with( $find( 'tema hijo' ), 'Tema: El sitio usa un tema hijo de Hello' ) && str_contains( $find( 'tema hijo' ), 'cámbialo en Apariencia' ) && str_contains( $html, 'se queda Hello Elementor Child (ver «Necesita tu atención»).' ), 'El tema hijo que se queda, con su acción, va en «Necesita tu atención» (y su fila remite ahí).' );
+	f8_check( str_starts_with( $find( 'tema hijo' ), 'Tema: El sitio usa un tema hijo de Hello' ) && str_contains( $find( 'tema hijo' ), 'Código PHP' ) && str_contains( $find( 'tema hijo' ), 'línea 12' ) && str_contains( $html, 'se queda Hello Elementor Child (ver «Necesita tu atención»).' ), 'El tema hijo que se queda, con su acción, va en «Necesita tu atención» (y su fila remite ahí).' );
 	f8_check( str_contains( $find( 'no pudo guardarlo todo' ), 'faltan 2 anotaciones y 0 documentos' ), 'Lo que no cupo en el informe se dice arriba: puede esconder asuntos.' );
 	f8_check( str_starts_with( $find( 'necesita WooCommerce' ), 'Widgets de PRO sin convertir porque su widget propio necesita WooCommerce' ) && str_starts_with( $find( 'Sección fija' ), 'Ajustes de extensiones de Element Pack que ya no se aplican' ), 'Cada asunto empieza por lo que hay que hacer.' );
 	$woo = implode( '', array_filter( $items, static function ( $item ) {
@@ -484,7 +484,7 @@ namespace {
 		f8_check( false !== strpos( $screen, $needle ) && strpos( $screen, $needle ) > $fold_at, 'Plegado bajo el informe: ' . $needle );
 	}
 	f8_check( 1 === substr_count( $screen, 'Lo que hará Migrar</h' ) && false === strpos( summary_visible( $screen ), 'Qué hay en este sitio' ), '«Lo que hará Migrar» no se repite y nada del análisis se ve sin desplegar.' );
-	f8_check( false === strpos( $screen, 'pasan al tema propio' ) && str_contains( $screen, 'Se queda: es un tema hijo de Hello' ), 'La fila del tema hijo no sugiere que algo pase al tema propio.' );
+	f8_check( str_contains( $screen, 'sigue cargando las hojas y fuentes que encola el hijo (desde su carpeta)' ) && str_contains( $screen, 'Si el hijo tiene otro PHP (ganchos, shortcodes, plantillas), se queda y el informe dice qué es y qué hacer' ) && str_contains( $screen, 'Hello no se borra mientras el hijo esté instalado' ) && ! preg_match( '/Se borrará al final[^<]*Hello Elementor/', $screen ), 'La fila del tema hijo dice cuándo pasa al tema propio, qué trae, cuándo se queda, y Hello no se anuncia como borrado.' );
 	// El análisis del contenido terminado: lo pendiente arriba, lo demás agregado, y su encabezado no repite el del plan.
 	$analysis = Migration::analysis_html( array( 'done' => true, 'processed' => 1, 'total' => 1, 'report' => $stored, 'pro' => null ) );
 	f8_check( str_starts_with( $analysis, '<h3>Lo que hará Migrar en el contenido</h3><h4>Pendiente de revisar</h4>' ) && str_contains( $analysis, 'no pudo guardarlo todo' ) && str_contains( $analysis, 'si activas WooCommerce' ) && str_contains( $analysis, '<details class="digi-migrate__docs">' ) && false === strpos( summary_aggregate( $analysis ), esc_html( $catalog['pro.converted']['label'] ) ), 'El análisis previo usa el mismo resumen agregado, con su propio encabezado.' );

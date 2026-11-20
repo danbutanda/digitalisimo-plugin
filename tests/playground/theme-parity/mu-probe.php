@@ -172,6 +172,9 @@ function tp_prepare() {
 				'header' => array(
 					array( 'id' => 'tph0001', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Cabecera del constructor', 'header_size' => 'p' ), 'elements' => array() ),
 					array( 'id' => 'tph0002', 'elType' => 'widget', 'widgetType' => 'button', 'settings' => array( 'text' => 'Contacto', 'link' => array( 'url' => home_url( '/tp-pagina/' ) ) ), 'elements' => array() ),
+					// El mismo texto que la cabecera clásica de Hello (nombre, lema y menú): con VIA=migrar la portada se
+					// guarda antes de que existan estas plantillas y se compara su texto al final.
+					array( 'id' => 'tph0003', 'elType' => 'widget', 'widgetType' => 'text-editor', 'settings' => array( 'editor' => '<p>' . esc_html( get_bloginfo( 'name' ) . ' · ' . get_bloginfo( 'description' ) ) . ' · Inicio · Entrada · Página</p>' ), 'elements' => array() ),
 				),
 				'footer' => array(
 					array( 'id' => 'tpf0001', 'elType' => 'widget', 'widgetType' => 'text-editor', 'settings' => array( 'editor' => '<p>Pie del constructor con <a href="' . esc_url( home_url( '/' ) ) . '">un enlace</a>.</p>' ), 'elements' => array() ),
