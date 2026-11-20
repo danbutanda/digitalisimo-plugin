@@ -560,6 +560,20 @@ namespace {
 	$check( 'wc-add-to-cart' === find( tree( $id ), 'a1' )['widgetType'] && 'blockquote' === find( tree( $id ), 'q1' )['widgetType'], 'El documento se queda como estaba (nunca a medias).' );
 	$check( 'Pendiente: digitalisimo-woo-add-to-cart sólo se registra con WooCommerce activo' === Pro::status( 'wc-add-to-cart', '', 'C7' ), 'El inventario lo dice igual: ' . Pro::status( 'wc-add-to-cart', '', 'C7' ) );
 	$check( '' === Pro::missing_dependency( 'blockquote' ), 'Un widget sin dependencia no la informa.' );
+	// Un documento que sólo tiene widgets de WooCommerce no es candidato de la etapa `pro` (ninguno se convierte) y no
+	// llega al informe; el informe final lo encuentra sólo leyendo y lo pone en la misma entrada de WooCommerce.
+	$only = doc( array( box( array( w( 'woocommerce-cart', array(), 'k1' ) ), 'c2' ) ), array(), array( 'post_title' => 'Solo carrito' ) );
+	$check( ! in_array( $only, Pro::documents(), true ), 'Un documento sólo con widgets de WooCommerce no es candidato de la etapa `pro`.' );
+	Report::clear();
+	Report::begin( 'run' );
+	Pro::convert_document( $id );
+	Report::flush();
+	$parts = Runner::report_parts( array( 'stage' => 'finish', 'done' => true, 'finished' => 1, 'counts' => array(), 'warnings' => array(), 'report' => array( 'f8' => array( 'v' => 1 ), 'plugins' => array() ) ) );
+	$woo   = array_values( array_filter( $parts['attention'], static function ( $item ) {
+		return false !== strpos( $item, 'necesita WooCommerce' );
+	} ) );
+	$check( 1 === count( $woo ) && false !== strpos( $woo[0], 'post=' . $only . '&amp;action=elementor' ) && false !== strpos( $woo[0], 'Solo carrito' ) && false !== strpos( $woo[0], 'woocommerce-cart' ) && false !== strpos( $woo[0], 'post=' . $id . '&amp;action=elementor' ), 'El informe final pone el documento que sólo tiene WooCommerce en la misma entrada que el resto: ' . implode( ' | ', $parts['attention'] ) );
+	$check( 'woocommerce-cart' === find( tree( $only ), 'k1' )['widgetType'], 'Sin tocarlo: sólo se lee.' );
 	if ( ! class_exists( 'WooCommerce', false ) ) {
 		eval( 'class WooCommerce {} function WC() { return null; }' ); // phpcs:ignore Squiz.PHP.Eval
 	}

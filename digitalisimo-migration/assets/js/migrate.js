@@ -114,13 +114,11 @@
 		function summary(first) {
 			return post(ajax, { action: 'digitalisimo_migration_step', _ajax_nonce: nonce, network: '1', start: first ? '1' : '', run: first ? runId : '' });
 		}
+		// Cada caja lleva el nombre del sitio en su encabezado: su informe («Resultado», «Necesita tu atención») va debajo.
 		function siteRow(site, html) {
 			var box = document.createElement('div');
-			var title = document.createElement('p');
-			var strong = document.createElement('strong');
-			strong.textContent = site.name;
-			title.appendChild(strong);
-			title.appendChild(document.createTextNode(' · ' + site.url));
+			var title = document.createElement('h2');
+			title.textContent = site.name + ' · ' + site.url;
 			box.appendChild(title);
 			var body = document.createElement('div');
 			body.innerHTML = html;

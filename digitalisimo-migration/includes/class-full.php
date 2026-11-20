@@ -192,11 +192,12 @@ final class Full {
 				continue;
 			}
 			if ( ! empty( $state['done'] ) ) {
-				\WP_CLI::log( self::text( self::render( $network, $state, 'cli' ) ) );
+				$html = self::render( $network, $state, 'cli' );
+				\WP_CLI::log( self::text( $html ) );
 				if ( ! empty( $state['failed'] ) ) {
 					\WP_CLI::error( 'La migración se detuvo: ' . (string) $state['error'] );
 				}
-				\WP_CLI::success( 'Migración completada.' );
+				\WP_CLI::success( false !== strpos( $html, 'digi-migrate__attention-title' ) ? 'Migración completada, con asuntos que necesitan tu atención (arriba).' : 'Migración completada.' );
 				return;
 			}
 			if ( ! empty( $state['pause'] ) ) {
@@ -629,28 +630,21 @@ final class Full {
 			if ( is_wp_error( $result ) ) {
 				return $result;
 			}
-			self::forget_activation_redirects( ! empty( $state['network'] ) );
+			self::forget_activation_redirects();
 		}
 		return true;
 	}
 
 	/**
 	 * Tras cada activación, Migrar no deja que el gancho de activación del plugin lleve la próxima pantalla del escritorio
-	 * a su bienvenida: el núcleo incluido en DIGITALÍSIMO Elements deja `elementor_activation_redirect` (60 s) y la
-	 * siguiente carga del escritorio saltaba sola a la página de Elements. Se borra en el sitio en curso y, en una red,
-	 * también en el principal, donde corre el gancho al activar en toda la red. Backups, SEO y Tools no dejan nada así.
+	 * a su bienvenida: al activarse en un sitio, el núcleo incluido en DIGITALÍSIMO Elements deja
+	 * `elementor_activation_redirect` (60 s) en ese sitio, y la siguiente carga del escritorio saltaba sola a la página de
+	 * Elements. Se borra en el sitio en curso, donde corre el gancho. Al activar en toda la red el núcleo no lo deja
+	 * (`Maintenance::activation()` vuelve antes). Backups, SEO y Tools no dejan nada así.
 	 */
-	private static function forget_activation_redirects( $network ) {
-		$sites = array( (int) get_current_blog_id() );
-		if ( $network && is_multisite() ) {
-			$sites[] = (int) get_main_site_id();
-		}
-		foreach ( array_unique( $sites ) as $site_id ) {
-			self::on_site( $site_id, static function () {
-				foreach ( self::ACTIVATION_REDIRECTS as $transient ) {
-					delete_transient( $transient );
-				}
-			} );
+	private static function forget_activation_redirects() {
+		foreach ( self::ACTIVATION_REDIRECTS as $transient ) {
+			delete_transient( $transient );
 		}
 	}
 
@@ -1611,14 +1605,21 @@ final class Full {
 		return $html;
 	}
 
+	/** Notas de la tarea que piden algo a una persona (por su comienzo): van en «Necesita tu atención». */
+	const ACTION_NOTES = array( 'UpdraftPlus hacía respaldos programados' );
+
 	/**
-	 * Informe de la tarea terminada, para leerse en 30 segundos: arriba, el resultado en unas filas (respaldo y cómo
-	 * volver, lo instalado, importado, reemplazado y borrado, el contenido, el tema y la portada); después «Necesita tu
-	 * atención» (o una línea que dice que no hay nada) y el detalle, plegado y agregado. Todo pasa por esc_html().
+	 * Informe de la tarea terminada, para leerse en 30 segundos: arriba, el aviso (verde sólo si no queda nada para una
+	 * persona) y el resultado en unas filas (respaldo y cómo volver, lo instalado, importado, reemplazado y borrado, el
+	 * contenido, el tema y la portada); después «Necesita tu atención», con todo lo que pide algo a una persona (la
+	 * portada que no responde igual y la vuelta del tema, lo desactivado sin borrar, el tema que se queda con algo por
+	 * hacer, las notas con una acción y lo del contenido), o una línea que dice que no hay nada; y el detalle, plegado y
+	 * agregado. Todo pasa por esc_html().
 	 */
 	private static function render_report( $network, array $state, $where = 'site' ) {
 		$rows    = (array) ( $state['plan']['rows'] ?? array() );
 		$content = null;
+		$older   = '';
 		if ( class_exists( Runner::class ) && ! empty( $state['content']['started'] ) ) {
 			if ( $network ) {
 				$job     = Runner::network_state() ? Runner::network_summary( false ) : null;
@@ -1626,17 +1627,14 @@ final class Full {
 			} else {
 				$report  = Runner::report();
 				$content = is_array( $report ) ? Runner::report_parts( $report, $where, 4 ) : null;
+				// La tarea de contenido de esta pasada no terminó (la migración se detuvo antes): el informe es de otra.
+				if ( $content && ! empty( $report['finished'] ) && ! empty( $state['started'] ) && (int) $report['finished'] < (int) $state['started'] ) {
+					$older = sprintf( 'De la migración del %s: ', function_exists( 'wp_date' ) ? wp_date( 'd/m/Y H:i', (int) $report['finished'] ) : gmdate( 'd/m/Y H:i', (int) $report['finished'] ) );
+				}
 			}
 		}
-		$items = array();
-		$kind  = '' !== (string) $state['failed'] ? 'error' : 'success';
-		if ( '' !== (string) $state['failed'] ) {
-			$tail  = $state['deleted'] ? ' Ya se había borrado: ' . implode( ', ', array_values( (array) $state['deleted'] ) ) . '.' : ( 'cleanup' === $state['failed'] ? ' Revisa en Plugins qué quedó: el borrado se interrumpió.' : ' No se borró nada.' );
-			$title = sprintf( 'La migración se detuvo en «%s»: %s', self::LABELS[ $state['failed'] ] ?? $state['failed'], (string) $state['error'] ) . $tail;
-		} else {
-			$title = 'Migración completada.';
-		}
-		$html = '<div class="notice notice-' . $kind . ' inline"><p><strong>' . esc_html( $title ) . '</strong></p></div>';
+		$items     = array();
+		$attention = array();
 		if ( ! empty( $state['backup']['ok'] ) ) {
 			$items[] = array( 'Respaldo', sprintf( '%s (%s MB, SHA-256 %s…). Para volver atrás: DIGITALÍSIMO Backups → Respaldos → Restaurar.', $state['backup']['file'], number_format( (float) $state['backup']['size'] / 1048576, 1 ), substr( (string) $state['backup']['sha256'], 0, 12 ) ) );
 		}
@@ -1671,26 +1669,58 @@ final class Full {
 		if ( $state['deleted'] ) {
 			$items[] = array( 'Borrado', implode( ', ', array_values( (array) $state['deleted'] ) ) . '. Para recuperarlo, restaura el respaldo de arriba.' );
 		}
-		// Lo que Migrar desactivó y no borró, aparte de lo que no tocó.
-		$kept = array( 'off' => array(), 'same' => array() );
+		// La portada o una página que no responde igual: se volvió al tema anterior (si se cambió) y no se borró nada.
+		$bad      = array_values( array_filter( (array) $state['verify'], static function ( $row ) {
+			return false === $row['ok'];
+		} ) );
+		$reverted = array();
+		foreach ( (array) $state['theme'] as $site_id => $row ) {
+			if ( ! empty( $row['reverted'] ) ) {
+				$reverted[] = ( $network ? self::site_name( (int) $site_id ) . ': ' : '' ) . (string) $row['name'];
+			}
+		}
+		$gate = self::cleanup_gate( $state );
+		if ( $bad ) {
+			$pages = array();
+			foreach ( $bad as $row ) {
+				$pages[] = $row['url'] . ' (' . rtrim( (string) $row['reason'], '. ' ) . ')';
+			}
+			$attention[] = esc_html( 'No responden igual después de migrar: ' . implode( '; ', $pages ) . '. Ábrelas y revisa qué cambió' . ( $reverted ? '; se volvió a ' . implode( ', ', $reverted ) : '' ) . '. No se borró nada. Cuando lo corrijas, vuelve a pulsar Migrar.' );
+		}
+		// Lo que Migrar desactivó y no borró pide algo a una persona; lo que no tocó, no.
+		$off  = array();
+		$same = array();
 		foreach ( (array) $state['kept'] as $key => $reason ) {
 			$label = $rows[ $key ]['label'] ?? ( 'hello-elementor' === $key ? 'Hello Elementor' : $key );
-			$off   = isset( $rows[ $key ] ) && ! empty( $rows[ $key ]['active'] ) && ! Replacements::active_files( array_keys( (array) $rows[ $key ]['files'] ), $network );
-			$kept[ $off ? 'off' : 'same' ][] = $label . ': ' . $reason;
+			if ( isset( $rows[ $key ] ) && ! empty( $rows[ $key ]['active'] ) && ! Replacements::active_files( array_keys( (array) $rows[ $key ]['files'] ), $network ) ) {
+				$off[ (string) $reason ][] = $label;
+			} else {
+				$same[] = $label . ': ' . $reason;
+			}
 		}
-		if ( $kept['off'] ) {
-			$items[] = array( 'Desactivado, sin borrar', implode( ' ', $kept['off'] ) );
+		foreach ( $off as $reason => $labels_off ) {
+			// Con la portada que no responde igual, el motivo ya está en su entrada: sólo se dice qué quedó desactivado.
+			$attention[] = $bad && $reason === $gate ? esc_html( 'Desactivado, sin borrar hasta que la portada responda igual: ' . implode( ', ', $labels_off ) . '.' ) : esc_html( 'Desactivado, sin borrar: ' . implode( ', ', $labels_off ) . '. ' . rtrim( $reason, '. ' ) . '. Cuando se resuelva, vuelve a pulsar Migrar (o bórralo desde Plugins).' );
 		}
-		if ( $kept['same'] ) {
-			$items[] = array( 'Quedó como estaba', implode( ' ', $kept['same'] ) );
+		if ( $same ) {
+			$items[] = array( 'Quedó como estaba', implode( ' ', $same ) );
 		}
 		if ( $content ) {
-			$items[] = array( 'Contenido', (string) $content['summary'] );
+			$items[] = array( 'Contenido', $older . (string) $content['summary'] );
 		}
 		$themes = array();
 		foreach ( (array) $state['theme'] as $site_id => $row ) {
 			$where_name = $network ? self::site_name( (int) $site_id ) . ': ' : '';
-			$themes[]   = $where_name . ( ! empty( $row['switched'] ) ? sprintf( 'de %s al tema DIGITALÍSIMO', $row['name'] ) : (string) $row['reason'] );
+			if ( ! empty( $row['switched'] ) ) {
+				$themes[] = $where_name . sprintf( 'de %s al tema DIGITALÍSIMO', $row['name'] );
+			} elseif ( ! empty( $row['hello'] ) && empty( $row['own'] ) && ! ( ! empty( $row['reverted'] ) && $bad ) ) {
+				// Hello (o su hijo) se queda por algo que una persona puede resolver: va en «Necesita tu atención» (la vuelta
+				// por una portada que no responde igual ya la dice la entrada de la portada).
+				$themes[]    = $where_name . sprintf( 'se queda %s (ver «Necesita tu atención»).', $row['name'] );
+				$attention[] = esc_html( 'Tema: ' . $where_name . (string) $row['reason'] );
+			} else {
+				$themes[] = $where_name . (string) $row['reason'];
+			}
 		}
 		if ( $themes ) {
 			$items[] = array( 'Tema', implode( ' ', $themes ) );
@@ -1699,21 +1729,46 @@ final class Full {
 			$items[] = array( 'Portada y páginas', self::verify_text( (array) $state['verify'] ) );
 		}
 		foreach ( (array) $state['notes'] as $note ) {
-			$items[] = array( 'Nota', $note );
+			$action = false;
+			foreach ( self::ACTION_NOTES as $prefix ) {
+				$action = $action || 0 === strpos( (string) $note, $prefix );
+			}
+			if ( $action ) {
+				$attention[] = esc_html( (string) $note );
+			} else {
+				$items[] = array( 'Nota', $note );
+			}
 		}
-		$html .= '<table class="widefat striped digi-migrate__full"><caption class="screen-reader-text">' . esc_html( 'Resultado de la migración' ) . '</caption><tbody>';
+		if ( $content ) {
+			$attention = array_merge( $attention, (array) $content['attention'] );
+		}
+		if ( '' !== (string) $state['failed'] ) {
+			array_unshift( $attention, esc_html( 'Resuelve lo que dice el aviso de arriba y vuelve a pulsar Migrar: el respaldo, si se hizo, permite volver atrás.' ) );
+		}
+		// El aviso de arriba: rojo si se detuvo, amarillo si algo no respondió igual o queda algo para una persona.
+		if ( '' !== (string) $state['failed'] ) {
+			$kind  = 'error';
+			$tail  = $state['deleted'] ? ' Ya se había borrado: ' . implode( ', ', array_values( (array) $state['deleted'] ) ) . '.' : ( 'cleanup' === $state['failed'] ? ' Revisa en Plugins qué quedó: el borrado se interrumpió.' : ' No se borró nada.' );
+			$title = sprintf( 'La migración se detuvo en «%s»: %s', self::LABELS[ $state['failed'] ] ?? $state['failed'], (string) $state['error'] ) . $tail;
+		} elseif ( $bad ) {
+			$kind  = 'warning';
+			$title = 'Migración terminada sin borrar nada: la portada o alguna página no responde igual' . ( $reverted ? ' y se volvió al tema anterior' : '' ) . '. Mira «Necesita tu atención».';
+		} elseif ( $attention ) {
+			$kind  = 'warning';
+			$title = 'Migración completada, con asuntos que necesitan tu atención (abajo).';
+		} else {
+			$kind  = 'success';
+			$title = 'Migración completada.';
+		}
+		$html  = '<div class="notice notice-' . $kind . ' inline"><p><strong>' . esc_html( $title ) . '</strong></p></div>';
+		$html .= '<h2 class="digi-migrate__result-title">' . esc_html( 'Resultado' ) . '</h2><table class="widefat striped digi-migrate__full"><tbody>';
 		foreach ( $items as $item ) {
 			$html .= '<tr><th scope="row">' . esc_html( $item[0] ) . '</th><td>' . esc_html( $item[1] ) . '</td></tr>';
 		}
 		$html .= '</tbody></table>';
-		// Necesita tu atención: lo único que pide algo a una persona, con su acción.
-		$attention = $content ? (array) $content['attention'] : array();
-		if ( '' !== (string) $state['failed'] ) {
-			array_unshift( $attention, esc_html( 'Resuelve lo que dice el aviso de arriba y vuelve a pulsar Migrar: el respaldo, si se hizo, permite volver atrás.' ) );
-		}
 		$html .= self::attention_html( $attention );
 		if ( $content && '' !== trim( (string) $content['detail'] ) ) {
-			$detail = '<h3>' . esc_html( 'Contenido' ) . '</h3>' . $content['detail'];
+			$detail = '<h3>' . esc_html( '' !== $older ? 'Contenido (' . rtrim( $older, ': ' ) . ')' : 'Contenido' ) . '</h3>' . $content['detail'];
 			$html  .= '<details class="digi-migrate__detail"><summary>' . esc_html( 'Detalle' ) . '</summary>' . $detail . '</details>';
 		}
 		return $html;
@@ -1768,6 +1823,8 @@ final class Full {
 		$html = str_replace( '</td></tr>', '</tr>', (string) $html );
 		$text = str_replace( array( '</p>', '</li>', '</tr>', '</h2>', '</h3>', '</h4>', '</h5>', '</div>', '</summary>', '</caption>', '<ul>', '<ul ' ), array( "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n<ul>", "\n<ul " ), (string) $html );
 		$text = html_entity_decode( wp_strip_all_tags( str_replace( array( '</td>', '</th>' ), ' · ', $text ) ), ENT_QUOTES, 'UTF-8' );
+		// Ni C0 (salvo el salto de línea y el tabulador) ni DEL ni C1 (U+0080–U+009F: U+009B es CSI) llegan a la terminal.
+		$text = (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]|\xC2[\x80-\x9F]/', '', $text );
 		return trim( (string) preg_replace( "/\n\s*\n+/", "\n", $text ) );
 	}
 }

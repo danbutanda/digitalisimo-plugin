@@ -751,6 +751,8 @@ switch ( $scenario ) {
 		check( false !== strpos( $last['theme'][1]['reason'], 'tema hijo' ), 'El informe dice por qué: ' . $last['theme'][1]['reason'] );
 		check( isset( $GLOBALS['t']['themes']['hello-elementor'] ), 'Hello no se borra.' );
 		check( ! installed_now( 'seo-by-rank-math/rank-math.php' ), 'Lo demás sí se reemplaza.' );
+		$html = Full::render( false, $last );
+		check( false !== strpos( (string) strstr( $html, 'digi-migrate__attention-title' ), 'Tema: El sitio usa un tema hijo de Hello' ) && false !== strpos( $html, 'se queda Hello Hijo (ver «Necesita tu atención»).' ) && false !== strpos( $html, 'notice-warning' ) && false === strpos( $html, 'Nada necesita' ), 'El tema hijo que se queda, con su acción, va en «Necesita tu atención».' );
 		break;
 
 	case 'theme_other':
@@ -773,6 +775,12 @@ switch ( $scenario ) {
 		nothing_deleted();
 		check( installed_now( 'seo-by-rank-math/rank-math.php' ) && ! active( 'seo-by-rank-math/rank-math.php' ), 'Lo reemplazado queda desactivado, sin borrar.' );
 		check( false !== strpos( (string) ( $last['kept']['rank-math'] ?? '' ), 'portada' ), 'El informe dice por qué no se borró.' );
+		// La portada que no responde igual pide atención: el aviso no es verde y nada dice que no haya nada pendiente.
+		$html = Full::render( false, $last );
+		check( false === strpos( $html, 'Nada necesita' ) && false === strpos( $html, 'notice-success' ) && false !== strpos( $html, 'notice-warning' ) && false !== strpos( $html, 'Migración terminada sin borrar nada: la portada o alguna página no responde igual y se volvió al tema anterior.' ), 'Con la portada que no responde igual, el aviso es amarillo y lo dice: ' . strip_tags( substr( $html, 0, 300 ) ) );
+		$attention = (string) strstr( $html, 'digi-migrate__attention-title' );
+		check( false !== strpos( $attention, 'No responden igual después de migrar: http://example.test/' ) && false !== strpos( $attention, 'se volvió a Hello Elementor' ) && false !== strpos( $attention, 'No se borró nada' ), 'Y «Necesita tu atención» lista la página con el motivo, la vuelta del tema y que no se borró nada.' );
+		check( false !== strpos( $attention, 'Desactivado, sin borrar hasta que la portada responda igual: Element Pack, Elementor, Rank Math SEO, UpdraftPlus.' ) && false === strpos( $attention, 'así que no se borró nada' ), 'Lo desactivado sin borrar, en la misma lista sin repetir el motivo: ' . strip_tags( $attention ) );
 		break;
 
 	case 'pending_content':
@@ -781,6 +789,8 @@ switch ( $scenario ) {
 		$last = Full::last( false );
 		check( installed_now( 'bdthemes-element-pack/bdthemes-element-pack.php' ), 'Element Pack, que aún hace falta, no se borra.' );
 		check( false !== strpos( (string) ( $last['kept']['element-pack'] ?? '' ), 'Element Pack' ), 'El informe dice por qué.' );
+		$html = Full::render( false, $last );
+		check( false !== strpos( (string) strstr( $html, 'digi-migrate__attention-title' ), 'Desactivado, sin borrar: Element Pack' ) && false === strpos( $html, '<th scope="row">Desactivado, sin borrar</th>' ) && false === strpos( $html, 'Nada necesita' ), 'Lo desactivado sin borrar va en «Necesita tu atención», no en la tabla.' );
 		check( ! installed_now( 'seo-by-rank-math/rank-math.php' ), 'Lo que no depende de él sí se reemplaza.' );
 		break;
 
@@ -1038,13 +1048,6 @@ switch ( $scenario ) {
 
 	case 'network':
 		make_network();
-		// La activación en toda la red corre el gancho en el sitio principal; ahí queda (y se borra) la redirección.
-		$GLOBALS['t']['on_activate'][ ELEMENTS ] = static function ( $network ) {
-			$GLOBALS['t']['log'][] = 'activation_hook:' . blog() . ( $network ? ':red' : '' );
-			switch_to_blog( 1 );
-			set_transient( 'elementor_activation_redirect', true, 60 );
-			restore_current_blog();
-		};
 		drive( 120 );
 		$last = Full::last( true );
 		check( $last && '' === $last['failed'] && ! empty( $last['verified'] ), 'La red termina verificada: ' . ( $last['error'] ?? '' ) );
@@ -1057,7 +1060,6 @@ switch ( $scenario ) {
 		check( ! isset( $GLOBALS['t']['themes']['hello-elementor'] ), 'Hello se borra cuando ningún sitio lo usa.' );
 		check( 'done' === ( $GLOBALS['t']['options'][2]['rm_job']['status'] ?? '' ) && 'done' === ( $GLOBALS['t']['options'][1]['rm_job']['status'] ?? '' ), 'Rank Math se importa en cada sitio.' );
 		check( ! get_site_option( Full::BASELINE ) , 'Verificada la red, no queda referencia de portada.' );
-		check( in_array( 'activation_hook:1:red', $GLOBALS['t']['log'], true ) && false === get_blog_option( 1, '_transient_elementor_activation_redirect', false ) && false === get_blog_option( 2, '_transient_elementor_activation_redirect', false ), 'En la red tampoco queda la redirección de activación de Elements (sitio principal).' );
 		break;
 }
 

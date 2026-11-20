@@ -15,6 +15,7 @@ $out     = array(
 	'last'      => is_array( $last ) ? array_intersect_key( $last, array_flip( array( 'failed', 'error', 'deleted', 'kept', 'verified', 'verify', 'backup', 'installed', 'activated', 'imports', 'retired', 'theme', 'notes', 'done' ) ) ) : null,
 	'job'       => \Digitalisimo\Migration\Full::load( $network ),
 	'blocked'   => is_file( WP_CONTENT_DIR . '/probe/http-blocked.log' ) ? array_values( array_unique( array_filter( explode( "\n", (string) file_get_contents( WP_CONTENT_DIR . '/probe/http-blocked.log' ) ) ) ) ) : array(),
+	'redirect'  => json_decode( (string) @file_get_contents( WP_CONTENT_DIR . '/probe/activation-redirect.json' ), true ),
 	'downloads' => is_file( WP_CONTENT_DIR . '/probe/downloads.log' ) ? array_values( array_filter( explode( "\n", (string) file_get_contents( WP_CONTENT_DIR . '/probe/downloads.log' ) ) ) ) : array(),
 	'sites'     => array(),
 	// Respaldos de la migración en el historial de Backups (en una red, el del sitio principal).

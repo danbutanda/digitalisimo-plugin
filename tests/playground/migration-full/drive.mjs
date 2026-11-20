@@ -188,11 +188,15 @@ check(!/había nada que/.test(report), 'Con conversiones, no dice «no había na
 check(/<details class="digi-migrate__detail"><summary>Detalle<\/summary>/.test(report) && report.indexOf('Necesita tu atención') < report.indexOf('<details class="digi-migrate__detail">'), 'Lo que necesita atención va antes del detalle plegado.');
 if (!network) {
 	const site = Object.values(result.sites)[0] || {};
+	const redirect = result.redirect || {};
+	check(!!redirect.at_activation && !redirect.at_end && redirect.network_wide === false, `Activar Elements en el sitio deja la redirección y «Migrar» la borra en la misma petición (${JSON.stringify(redirect)}).`);
 	check(site.quote_type === 'digitalisimo-blockquote', `La Cita de PRO pasó a la propia (${site.quote_type}).`);
 	check(/blockquote → digitalisimo-blockquote: 1 en 1 documento/.test(report), 'El detalle agrega los widgets convertidos por tipo.');
 	check(JSON.stringify(site.cart_types) === JSON.stringify(['woocommerce-cart', 'blockquote']), `El Carrito sin WooCommerce se queda como estaba (${JSON.stringify(site.cart_types)}).`);
 	check(new RegExp(`post\\.php\\?post=${site.cart}&(amp;|#038;)?action=elementor`).test(report) && /WooCommerce/.test(report) && /vuelve a pulsar Migrar/.test(report), 'El Carrito sin WooCommerce va en «Necesita tu atención», con la acción y el enlace a su editor.');
 } else {
+	const redirect = result.redirect || {};
+	check(redirect.network_wide === true && !redirect.at_activation && !redirect.at_end, `Activar Elements en toda la red no deja la redirección (${JSON.stringify(redirect)}).`);
 	check(/Nada necesita tu atención\./.test(report) && /<details class="digi-migrate__detail">[\s\S]*digi-migrate__sites[\s\S]*Informe del sitio/.test(report) && /Contenido migrado en 2 de 2 sitios\./.test(report), 'En la red sin asuntos: lo dice en una línea y la tabla de cada sitio, con el enlace a su informe, va plegada en el detalle.');
 }
 

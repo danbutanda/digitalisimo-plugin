@@ -2309,8 +2309,10 @@ final class Runner {
 	 */
 	private static function render_report( array $state, $where = 'site' ) {
 		$parts = self::report_parts( $state, $where, 3, true );
-		$html  = '<div class="digi-migrate__done notice notice-success inline"><p><strong>Migración completada</strong>' . ( ! empty( $state['finished'] ) ? ' el ' . esc_html( self::date( $state['finished'] ) ) : '' ) . '.</p></div>';
-		$html .= '<p class="digi-migrate__summary">' . esc_html( $parts['summary'] ) . '</p>' . $parts['plugins'];
+		$when  = ! empty( $state['finished'] ) ? ' el ' . esc_html( self::date( $state['finished'] ) ) : '';
+		// Con algo que pide atención, el aviso de arriba no es verde.
+		$html  = $parts['attention'] ? '<div class="digi-migrate__done notice notice-warning inline"><p><strong>Migración completada' . $when . ', con asuntos que necesitan tu atención (abajo).</strong></p></div>' : '<div class="digi-migrate__done notice notice-success inline"><p><strong>Migración completada</strong>' . $when . '.</p></div>';
+		$html .= '<h2 class="digi-migrate__result-title">Resultado</h2><p class="digi-migrate__summary">' . esc_html( $parts['summary'] ) . '</p>' . $parts['plugins'];
 		$html .= Report::attention_html( $parts['attention'] );
 		$html .= Report::folded( __( 'Detalle', 'digitalisimo-migration' ), $parts['detail'], 'digi-migrate__detail' );
 		if ( ! $parts['attention'] ) {
@@ -2338,8 +2340,9 @@ final class Runner {
 		$c      = (array) ( $state['counts'] ?? array() );
 		$f8     = isset( $r['f8'] ) ? Report::stored() : Report::none();
 		$digest = Report::digest( $f8 );
-		// Resumen: lo convertido (de esta pasada y de las anteriores, que el informe relee de la copia) y esta pasada.
-		$runs = self::run_phrases( $c );
+		// Resumen: lo convertido (de esta pasada y de las anteriores, que el informe relee de la copia) y esta pasada. El
+		// informe de F8 empieza con cada tarea: lo recuperado de la copia y las condiciones devueltas son de esta pasada.
+		$runs = array_merge( self::run_phrases( $c ), self::recovered_phrases( $digest ) );
 		$own  = Report::converted_phrase( $digest );
 		if ( $runs ) {
 			$summary = trim( $own . ' ' . 'En esta pasada: ' . implode( '; ', $runs ) . '.' );
@@ -2383,12 +2386,22 @@ final class Runner {
 		foreach ( (array) ( $state['warnings'] ?? array() ) as $warning ) {
 			$attention[] = esc_html( (string) $warning );
 		}
+		// Los widgets de PRO que dependen de un plugin inactivo, también en los documentos que la etapa `pro` no toma.
+		$digest = self::dependency_documents( $digest );
+		// Asuntos que el informe de F8 trae otra vez: van en una sola entrada.
+		$skip = array();
 		if ( ! empty( $r['unsupported'] ) ) {
 			$table = '<table class="widefat striped" style="max-width:860px"><thead><tr><th scope="col">Widget</th><th scope="col">Elementos</th><th scope="col">Documentos</th><th scope="col">Motivo y alternativa</th></tr></thead><tbody>';
 			foreach ( (array) $r['unsupported'] as $type => $row ) {
 				$table .= '<tr><td><code>' . esc_html( (string) $type ) . '</code></td><td>' . (int) $row['elements'] . '</td><td>' . (int) $row['documents'] . '</td><td>' . esc_html( (string) $row['reason'] ) . '</td></tr>';
 			}
-			$attention[] = esc_html( 'Widgets de Element Pack sin equivalente. Sin Element Pack no se muestran: sustitúyelos en el editor por la alternativa indicada o acepta que desaparezcan.' ) . $table . '</tbody></table>';
+			// Dónde: los documentos de `core.no_adapter` (con su elemento) o, sin ellos, las páginas bloqueadas.
+			$places = Report::attention_places( $digest, 'core.no_adapter|', $where );
+			if ( '' === $places && ! empty( $r['blocked'] ) ) {
+				$places = '<span class="digi-migrate__where">' . esc_html( 'Dónde:' ) . ' ' . self::documents_inline( (array) $r['blocked'], 'cli' !== $where ) . '</span>';
+			}
+			$skip[]      = 'core.no_adapter|';
+			$attention[] = esc_html( 'Widgets de Element Pack sin equivalente. Sin Element Pack no se muestran: sustitúyelos en el editor por la alternativa indicada o acepta que desaparezcan.' ) . ( '' !== $places ? ' ' . $places : '' ) . $table . '</tbody></table>';
 		}
 		// Lo que no tiene equivalente es información (va en el detalle), salvo el contenido que hoy no se ve.
 		$info = '';
@@ -2411,12 +2424,22 @@ final class Runner {
 		if ( $kept['idle'] ) {
 			$info .= '<p>' . esc_html( Dropped::idle_message( $kept['idle'] ) ) . '</p>';
 		}
+		// Los documentos que fallaron: una entrada, la de F8 (con su enlace) si los trae todos; si no, la lista del runner.
+		$failed_f8 = count( Report::attention_docs( $digest, 'core.document_failed|' ) );
+		if ( ! empty( $r['failed'] ) && $failed_f8 ) {
+			if ( $failed_f8 >= count( (array) $r['failed'] ) ) {
+				unset( $r['failed'] );
+			} else {
+				$skip[] = 'core.document_failed|';
+			}
+		}
 		foreach ( array(
 			'blocked' => 'Páginas que conservan widgets de Element Pack sin equivalente: sustitúyelos en el editor.',
 			'review'  => 'Páginas sobrescritas por una conversión antigua sin revisión ni copia de la que recuperarlas: revísalas en el editor y guárdalas (dejan de listarse al guardarlas).',
 			'failed'  => 'Documentos que no pudieron convertirse (la conversión se cortó dos veces): se siguen viendo como antes; vuelve a pulsar Migrar o revísalos en el editor.',
 		) as $key => $label ) {
-			if ( ! empty( $r[ $key ] ) ) {
+			// Las páginas bloqueadas ya van en la entrada de los widgets sin equivalente.
+			if ( ! empty( $r[ $key ] ) && ! ( 'blocked' === $key && ! empty( $r['unsupported'] ) ) ) {
 				$attention[] = esc_html( $label ) . ' ' . self::documents_inline( (array) $r[ $key ], 'cli' !== $where );
 			}
 		}
@@ -2433,13 +2456,16 @@ final class Runner {
 		if ( ! empty( $r['aliases_left'] ) ) {
 			$attention[] = esc_html( sprintf( 'Quedan %d documentos con widgets fusionados por actualizar: vuelve a pulsar Migrar cuando se resuelvan los avisos.', (int) $r['aliases_left'] ) );
 		}
-		$f8_attention = Report::attention( $f8, $where, $digest );
-		// Los documentos de PRO sin convertir: si el informe de F8 ya dice por qué (un asunto `pro.`), sobra el recuento.
-		$pro_said = false;
+		$f8_attention = Report::attention( $f8, $where, $digest, $skip );
+		// Los documentos de PRO sin convertir: sobra el recuento sólo si el informe ya explica al menos tantos documentos
+		// con un asunto `pro.` (los que pasan del tope o se saltaron sin informe no estarían).
+		$pro_said = array();
 		foreach ( array_keys( (array) $digest['attention'] ) as $key ) {
-			$pro_said = $pro_said || 0 === strpos( (string) $key, 'pro.' );
+			if ( 0 === strpos( (string) $key, 'pro.' ) ) {
+				$pro_said = array_merge( $pro_said, Report::attention_docs( $digest, (string) $key ) );
+			}
 		}
-		if ( ! empty( $r['pro_left'] ) && ! $pro_said ) {
+		if ( ! empty( $r['pro_left'] ) && count( array_unique( $pro_said ) ) < (int) $r['pro_left'] ) {
 			$attention[] = esc_html( sprintf( 'Quedan %d documentos con widgets de PRO que ya tienen widget propio sin convertir: se siguen viendo igual. Vuelve a pulsar Migrar; si siguen, actualiza DIGITALÍSIMO Elements.', (int) $r['pro_left'] ) );
 		}
 		$attention = array_merge( $attention, $f8_attention );
@@ -2475,6 +2501,9 @@ final class Runner {
 			$out[] = sprintf( '%d documentos con widgets fusionados actualizados', (int) $c['aliases'] );
 		}
 		foreach ( array(
+			'pages'     => '%d ajustes de página con efectos de Element Pack convertidos',
+			'copies'    => '%d plantillas del Theme Builder de Element Pack convertidas',
+			'markers'   => '%d documentos con contenido conservado de kits convertidos',
 			'pro_css'   => '%d con CSS que nombra widgets de PRO, copiado para los widgets propios',
 			'recovered' => '%d páginas sobrescritas recuperadas',
 			'repaired'  => '%d documentos con reglas de visibilidad recuperadas',
@@ -2484,6 +2513,55 @@ final class Runner {
 			}
 		}
 		return $out;
+	}
+
+	/** Lo que esta pasada recuperó de la copia (el informe de F8 empieza con cada tarea), en frases cortas. */
+	private static function recovered_phrases( array $digest ) {
+		$out   = array();
+		$count = 0;
+		$docs  = array();
+		foreach ( (array) $digest['recovered'] as $row ) {
+			$count += (int) $row['count'];
+			$docs  += (array) $row['docs'];
+		}
+		if ( $count ) {
+			$out[] = self::plural( $count, 'ajuste recuperado', 'ajustes recuperados' ) . ' de la copia en ' . self::plural( count( array_filter( array_keys( $docs ) ) ), 'documento', 'documentos' );
+		}
+		$restored = (array) ( $digest['codes']['converted']['pro.condition_restored'] ?? array() );
+		if ( $restored ) {
+			$out[] = self::plural( (int) $restored['count'], 'condición de otro plugin devuelta', 'condiciones de otros plugins devueltas' ) . ' en ' . self::plural( count( array_filter( array_keys( (array) $restored['docs'] ) ) ), 'documento', 'documentos' );
+		}
+		return $out;
+	}
+
+	/** «1 documento», «9 documentos». */
+	private static function plural( $n, $one, $many ) {
+		return (int) $n . ' ' . ( 1 === (int) $n ? $one : $many );
+	}
+
+	/**
+	 * Documentos con widgets de PRO cuyo widget propio depende de un plugin inactivo (WooCommerce) y que el informe no
+	 * trae: la etapa `pro` sólo toma documentos con algún widget que se convierte, así que uno que sólo tiene esos widgets
+	 * no llega al informe. Se buscan aquí, sólo leyendo (como Pro::documents(), hasta MAX_DOCS por widget), y se añaden a
+	 * la misma entrada de «Necesita tu atención».
+	 */
+	private static function dependency_documents( array $digest ) {
+		global $wpdb;
+		if ( ! isset( $wpdb ) || ! self::has( 'Pro', 'missing_targets' ) || ! self::has( 'Pro', 'missing_dependency' ) || ! Pro::available() ) {
+			return $digest;
+		}
+		foreach ( Pro::missing_targets() as $type => $target ) {
+			$plugin = Pro::missing_dependency( (string) $type );
+			if ( '' === $plugin ) {
+				continue;
+			}
+			$sql = "SELECT DISTINCT m.post_id FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE m.meta_key = '_elementor_data' AND p.post_type <> 'revision' AND m.post_id > %d AND ( m.meta_value LIKE %s ) ORDER BY m.post_id LIMIT " . Report::MAX_DOCS;
+			$ids = (array) $wpdb->get_col( $wpdb->prepare( $sql, 0, '%' . $wpdb->esc_like( '"widgetType":"' . $type . '"' ) . '%' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- tabla y límite fijos.
+			foreach ( array_map( 'intval', $ids ) as $post_id ) {
+				$digest = Report::add_attention( $digest, 'pro.target_dependency', $plugin, $post_id, array( 'widget' => (string) $type, 'target' => (string) $target, 'name' => $plugin ) );
+			}
+		}
+		return $digest;
 	}
 
 	/** Documentos del informe en una línea, con su enlace (también los de informes anteriores, guardados como título). */
@@ -2532,8 +2610,9 @@ final class Runner {
 		}
 		if ( ! empty( $job['done'] ) ) {
 			$parts = self::network_parts( $job, $where, 3, true );
-			$html  = '<div class="digi-migrate__done notice notice-success inline"><p><strong>Migración de la red completada</strong>' . ( ! empty( $job['finished'] ) ? ' el ' . esc_html( self::date( $job['finished'] ) ) : '' ) . '.</p></div>';
-			$html .= '<p class="digi-migrate__summary">' . esc_html( $parts['summary'] ) . '</p>' . $parts['plugins'];
+			$when  = ! empty( $job['finished'] ) ? ' el ' . esc_html( self::date( $job['finished'] ) ) : '';
+			$html  = $parts['attention'] ? '<div class="digi-migrate__done notice notice-warning inline"><p><strong>Migración de la red completada' . $when . ', con asuntos que necesitan tu atención (abajo).</strong></p></div>' : '<div class="digi-migrate__done notice notice-success inline"><p><strong>Migración de la red completada</strong>' . $when . '.</p></div>';
+			$html .= '<h2 class="digi-migrate__result-title">Resultado</h2><p class="digi-migrate__summary">' . esc_html( $parts['summary'] ) . '</p>' . $parts['plugins'];
 			return $html . Report::attention_html( $parts['attention'] ) . Report::folded( __( 'Detalle', 'digitalisimo-migration' ), $parts['detail'], 'digi-migrate__detail' );
 		}
 		$status = (array) ( $job['status'] ?? array() );

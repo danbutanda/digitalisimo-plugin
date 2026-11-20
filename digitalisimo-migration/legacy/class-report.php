@@ -492,6 +492,8 @@ final class Report {
 
 	/** Códigos que «Necesita tu atención» agrupa también por su `name` (el plugin del que depende el widget propio). */
 	const ATTENTION_BY_NAME = array( 'pro.target_dependency' );
+	/** Documentos que «Necesita tu atención» enlaza por asunto; los demás, en «Detalle» → «Por documento». */
+	const ATTENTION_PLACES = 10;
 
 	/**
 	 * Acción concreta de los asuntos más frecuentes de «Pendiente de revisar», con la acción delante. Los demás usan su
@@ -527,7 +529,7 @@ final class Report {
 		$out     = array(
 			'attention' => array(),
 			'widgets'   => array(),
-			'globals'   => array( 'count' => 0, 'listed' => 0, 'docs' => array(), 'templates' => array() ),
+			'globals'   => array( 'count' => 0, 'listed' => 0, 'docs' => array(), 'templates' => array(), 'per' => array() ),
 			'recovered' => array(),
 			'inert'     => array( 'docs' => array(), 'names' => array(), 'pages' => array() ),
 			'codes'     => array( 'converted' => array(), 'approx' => array(), 'created' => array(), 'dropped' => array() ),
@@ -574,8 +576,9 @@ final class Report {
 			return $out;
 		}
 		if ( 'pro.converted' === $code && 'global' === $widget ) {
-			$out['globals']['count']             += $count;
-			$out['globals']['docs'][ $post_id ]   = true;
+			$out['globals']['count']                       += $count;
+			$out['globals']['docs'][ $post_id ]             = true;
+			$out['globals']['per'][ $post_id ]['converted'] = (int) ( $out['globals']['per'][ $post_id ]['converted'] ?? 0 ) + $count;
 			return $out;
 		}
 		if ( 'pro.converted' === $code ) {
@@ -586,11 +589,17 @@ final class Report {
 			return $out;
 		}
 		if ( 'pro.global' === $code ) {
-			$out['globals']['listed']           += $count;
-			$out['globals']['docs'][ $post_id ]  = true;
-			// La nota de cada instancia nombra su plantilla («Instancia de la plantilla 543 …»).
-			if ( preg_match( '/\d+/', (string) ( $detail['note'] ?? '' ), $m ) ) {
-				$out['globals']['templates'][ (int) $m[0] ] = true;
+			// La nota de cada instancia nombra su plantilla: «Instancia de la plantilla 543 pasada al widget global propio…»
+			// (sigue vinculada) o «…sustituida por el elemento guardado en su plantilla 543…» (con un Elements sin el widget
+			// global propio: ya no sigue a su plantilla).
+			$note                                        = (string) ( $detail['note'] ?? '' );
+			$kind                                        = false !== stripos( $note, 'sustituida' ) ? 'substituted' : 'linked';
+			$out['globals']['listed']                   += $count;
+			$out['globals']['docs'][ $post_id ]          = true;
+			$out['globals']['per'][ $post_id ]['listed'] = (int) ( $out['globals']['per'][ $post_id ]['listed'] ?? 0 ) + $count;
+			$out['globals']['per'][ $post_id ][ $kind ]  = (int) ( $out['globals']['per'][ $post_id ][ $kind ] ?? 0 ) + $count;
+			if ( preg_match( '/\d+/', $note, $m ) ) {
+				$out['globals']['templates'][ (int) $m[0] ] = $kind;
 			}
 			return $out;
 		}
@@ -603,8 +612,15 @@ final class Report {
 			return $out;
 		}
 		if ( 'pro.inert' === $code ) {
-			// Una línea por widget con sus claves separadas por comas (Pro::codes()); las recuperadas ya están arriba.
+			// Una línea por widget con sus claves separadas por comas (Pro::codes()); las recuperadas ya están arriba. Una
+			// línea larga llega recortada (Report::plain()): el último trozo, cortado, no es una clave y se descarta.
 			$keys = array_values( array_filter( array_map( 'trim', explode( ',', $name ) ), 'strlen' ) );
+			if ( $keys && in_array( substr( (string) end( $keys ), -3 ), array( '…', '...' ), true ) ) {
+				array_pop( $keys );
+				if ( ! array_diff( $keys, array_keys( (array) ( $recovered[ $widget ] ?? array() ) ) ) ) {
+					return $out;
+				}
+			}
 			$left = array_diff( $keys, array_keys( (array) ( $recovered[ $widget ] ?? array() ) ) );
 			if ( $keys && ! $left ) {
 				return $out;
@@ -635,47 +651,102 @@ final class Report {
 
 	/**
 	 * «Necesita tu atención»: una entrada por código (y plugin) con la acción concreta y cada documento enlazado a su
-	 * editor, con lo que identifica el asunto en él (elemento, widget, ajuste). HTML escapado de cada entrada, sin `<li>`.
+	 * editor, con lo que identifica el asunto en él (elemento, widget, destino, ajuste, cantidad); hasta ATTENTION_PLACES
+	 * documentos por asunto (los demás, en «Por documento»). Si el informe no pudo guardarlo todo (topes de documentos y
+	 * de anotaciones), una entrada lo dice: entre lo que no cupo puede haber asuntos. Sin las claves de $skip (asuntos que
+	 * quien llama ya junta con otro). HTML escapado de cada entrada, sin `<li>`.
 	 *
 	 * @return string[]
 	 */
-	public static function attention( array $report, string $where, ?array $digest = null ): array {
+	public static function attention( array $report, string $where, ?array $digest = null, array $skip = array() ): array {
 		$digest  = $digest ?? self::digest( $report );
-		$links   = 'cli' !== $where;
 		$actions = self::actions();
 		$out     = array();
-		foreach ( $digest['attention'] as $group ) {
+		foreach ( $digest['attention'] as $key => $group ) {
+			if ( in_array( (string) $key, $skip, true ) ) {
+				continue;
+			}
 			$code = (string) $group['code'];
 			$name = (string) $group['name'];
 			$text = (string) ( self::catalog()[ $code ]['label'] ?? $code );
 			if ( isset( $actions[ $code ] ) && ( false === strpos( $actions[ $code ], '%1$s' ) || '' !== $name ) ) {
 				$text = sprintf( $actions[ $code ], $name );
 			}
-			$skip   = in_array( $code, self::ATTENTION_BY_NAME, true ) ? array( 'name', 'target', 'count' ) : array( 'target', 'count' );
-			$places = array();
-			$docs   = (array) $group['docs'];
-			ksort( $docs );
-			// El sitio, al final.
-			if ( isset( $docs[0] ) ) {
-				$site = $docs[0];
-				unset( $docs[0] );
-				$docs[0] = $site;
-			}
-			foreach ( $docs as $post_id => $items ) {
-				$bits = array();
-				foreach ( $items as $item ) {
-					list( $parts, $note ) = self::detail_parts( $item, $skip );
-					$bit                  = implode( ' · ', $parts ) . ( '' !== $note ? ( $parts ? ' — ' : '' ) . $note : '' );
-					if ( '' !== $bit ) {
-						$bits[ $bit ] = true;
-					}
-				}
-				$place    = $post_id ? self::document_html( (int) $post_id, $links, true ) : esc_html( __( 'el sitio', 'digitalisimo-migration' ) );
-				$places[] = $place . ( $bits ? ' <span class="digi-migrate__detail">(' . esc_html( implode( '; ', array_keys( $bits ) ) ) . ')</span>' : '' );
-			}
-			$out[] = esc_html( $text ) . ' <span class="digi-migrate__where">' . esc_html( __( 'Dónde:', 'digitalisimo-migration' ) ) . ' ' . implode( ', ', $places ) . '.</span>';
+			$out[] = esc_html( $text ) . ' ' . self::attention_places( $digest, (string) $key, $where );
+		}
+		if ( $digest['more'] || $digest['omitted'] ) {
+			$out[] = esc_html(
+				sprintf(
+					'cli' === $where ? __( 'El informe no pudo guardarlo todo (guarda hasta %1$d anotaciones por documento y %2$d documentos): faltan %3$d anotaciones y %4$d documentos, y entre ellos puede haber asuntos que no salen en esta lista. Revisa el detalle por documento y el análisis del sitio en la pantalla Migrar a DIGITALÍSIMO.', 'digitalisimo-migration' ) : __( 'El informe no pudo guardarlo todo (guarda hasta %1$d anotaciones por documento y %2$d documentos): faltan %3$d anotaciones y %4$d documentos, y entre ellos puede haber asuntos que no salen en esta lista. Revisa «Por documento» en el detalle y el análisis del sitio, abajo.', 'digitalisimo-migration' ),
+					self::MAX_ITEMS,
+					self::MAX_DOCS,
+					(int) $digest['more'],
+					(int) $digest['omitted']
+				)
+			);
 		}
 		return $out;
+	}
+
+	/**
+	 * «Dónde: …» de un asunto de attention(): cada documento enlazado a su editor con lo que identifica el asunto en él,
+	 * hasta ATTENTION_PLACES. '' si el asunto no existe. HTML escapado.
+	 */
+	public static function attention_places( array $digest, string $key, string $where ): string {
+		if ( empty( $digest['attention'][ $key ]['docs'] ) ) {
+			return '';
+		}
+		$group  = $digest['attention'][ $key ];
+		$links  = 'cli' !== $where;
+		$skip   = in_array( (string) $group['code'], self::ATTENTION_BY_NAME, true ) ? array( 'name', 'target' ) : array();
+		$places = array();
+		$docs   = (array) $group['docs'];
+		ksort( $docs );
+		// El sitio, al final.
+		if ( isset( $docs[0] ) ) {
+			$site = $docs[0];
+			unset( $docs[0] );
+			$docs[0] = $site;
+		}
+		foreach ( array_slice( $docs, 0, self::ATTENTION_PLACES, true ) as $post_id => $items ) {
+			$bits = array();
+			foreach ( $items as $item ) {
+				// La cantidad sólo cuando dice algo (más de una).
+				if ( (int) ( $item['detail']['count'] ?? 0 ) <= 1 ) {
+					unset( $item['detail']['count'] );
+				}
+				list( $parts, $note ) = self::detail_parts( $item, $skip );
+				$bit                  = implode( ' · ', $parts ) . ( '' !== $note ? ( $parts ? ' — ' : '' ) . $note : '' );
+				if ( '' !== $bit ) {
+					$bits[ $bit ] = true;
+				}
+			}
+			$place    = $post_id ? self::document_html( (int) $post_id, $links, true ) : esc_html( __( 'el sitio', 'digitalisimo-migration' ) );
+			$places[] = $place . ( $bits ? ' <span class="digi-migrate__detail">(' . esc_html( implode( '; ', array_keys( $bits ) ) ) . ')</span>' : '' );
+		}
+		$rest = count( $docs ) - self::ATTENTION_PLACES;
+		$tail = $rest > 0 ? ' ' . esc_html( sprintf( 'cli' === $where ? __( 'y %d más (la lista completa está en la pantalla, en «Detalle» → «Por documento»)', 'digitalisimo-migration' ) : __( 'y %d más (lista completa en «Detalle» → «Por documento»)', 'digitalisimo-migration' ), $rest ) ) : '';
+		return '<span class="digi-migrate__where">' . esc_html( __( 'Dónde:', 'digitalisimo-migration' ) ) . ' ' . implode( ', ', $places ) . $tail . '.</span>';
+	}
+
+	/**
+	 * Añade a lo agregado (digest()) un asunto de un documento que el informe no trae (lo que quien llama encuentra por su
+	 * cuenta, sin escribir nada), salvo que ese documento ya esté en ese asunto.
+	 */
+	public static function add_attention( array $digest, string $code, string $name, int $post_id, array $detail ): array {
+		$key = $code . '|' . ( in_array( $code, self::ATTENTION_BY_NAME, true ) ? $name : '' );
+		if ( isset( $digest['attention'][ $key ]['docs'][ $post_id ] ) ) {
+			return $digest;
+		}
+		$digest['attention'][ $key ]['code']                = $code;
+		$digest['attention'][ $key ]['name']                = in_array( $code, self::ATTENTION_BY_NAME, true ) ? $name : '';
+		$digest['attention'][ $key ]['docs'][ $post_id ][] = array( 'code' => $code, 'detail' => $detail );
+		return $digest;
+	}
+
+	/** Documentos de un asunto de «Necesita tu atención» (sin el sitio). */
+	public static function attention_docs( array $digest, string $key ): array {
+		return array_values( array_filter( array_map( 'intval', array_keys( (array) ( $digest['attention'][ $key ]['docs'] ?? array() ) ) ) ) );
 	}
 
 	/**
@@ -691,8 +762,8 @@ final class Report {
 		}
 		$level  = max( 2, min( 5, $level ) );
 		$d      = $digest ?? self::digest( $report );
-		$labels = self::section_labels();
 		$html   = '';
+		$labels = self::section_labels();
 		foreach ( array( 'converted', 'approx', 'created', 'dropped' ) as $section ) {
 			$lines = 'converted' === $section ? self::converted_lines( $d ) : array();
 			foreach ( $d['codes'][ $section ] as $code => $row ) {
@@ -703,13 +774,11 @@ final class Report {
 			}
 			$html .= '<h' . $level . ' class="digi-migrate__section digi-migrate__section--' . esc_attr( $section ) . '">' . esc_html( $labels[ $section ] ) . '</h' . $level . '><ul class="digi-migrate__digest"><li>' . implode( '</li><li>', $lines ) . '</li></ul>';
 		}
-		if ( $d['more'] || $d['omitted'] ) {
-			$html .= '<p class="digi-migrate__more">' . esc_html( sprintf( __( 'Además: %1$d anotaciones más en los documentos listados y %2$d documentos que no caben en la lista.', 'digitalisimo-migration' ), (int) $d['more'], (int) $d['omitted'] ) ) . '</p>';
-		}
 		if ( 'cli' === $where ) {
 			return $html . ( '' !== $html ? '<p>' . esc_html( __( 'El detalle por documento está en la pantalla Migrar a DIGITALÍSIMO del sitio.', 'digitalisimo-migration' ) ) . '</p>' : '' );
 		}
-		$docs = self::render( $report, $where, array( 'converted', 'approx', 'created', 'dropped' ), $level + 1 );
+		// Por documento, todo: también lo pendiente, con cada campo (lo que «Necesita tu atención» no enlaza va aquí).
+		$docs = self::render( $report, $where, array( 'review', 'converted', 'approx', 'created', 'dropped' ), $level + 1 );
 		if ( '' !== $docs ) {
 			$html .= '<details class="digi-migrate__docs"><summary>' . esc_html( __( 'Por documento', 'digitalisimo-migration' ) ) . '</summary>' . $docs . '</details>';
 		}
@@ -727,19 +796,33 @@ final class Report {
 			$widgets += (int) $row['count'];
 			$docs    += (array) $row['docs'];
 		}
-		$globals = max( (int) $d['globals']['count'], (int) $d['globals']['listed'] );
+		$globals = self::globals_total( $d['globals'] );
 		$docs   += (array) $d['globals']['docs'];
 		$where   = self::docs_text( $docs );
+		// Con topes, lo contado se queda corto.
+		$least = $d['more'] || $d['omitted'] ? __( 'Al menos', 'digitalisimo-migration' ) . ' ' : '';
 		if ( $widgets && $globals ) {
-			return sprintf( __( '%1$s y %2$s en %3$s son ahora widgets propios de DIGITALÍSIMO Elements.', 'digitalisimo-migration' ), self::plural( $widgets, __( 'widget de PRO', 'digitalisimo-migration' ), __( 'widgets de PRO', 'digitalisimo-migration' ) ), self::plural( $globals, __( 'instancia del widget global', 'digitalisimo-migration' ), __( 'instancias de widgets globales', 'digitalisimo-migration' ) ), $where );
+			return $least . sprintf( __( '%1$s y %2$s en %3$s son ahora widgets propios de DIGITALÍSIMO Elements.', 'digitalisimo-migration' ), self::plural( $widgets, __( 'widget de PRO', 'digitalisimo-migration' ), __( 'widgets de PRO', 'digitalisimo-migration' ) ), self::plural( $globals, __( 'instancia del widget global', 'digitalisimo-migration' ), __( 'instancias de widgets globales', 'digitalisimo-migration' ) ), $where );
 		}
 		if ( $widgets ) {
-			return sprintf( __( '%1$s en %2$s son ahora widgets propios de DIGITALÍSIMO Elements.', 'digitalisimo-migration' ), self::plural( $widgets, __( 'widget de PRO', 'digitalisimo-migration' ), __( 'widgets de PRO', 'digitalisimo-migration' ) ), $where );
+			return $least . sprintf( __( '%1$s en %2$s son ahora widgets propios de DIGITALÍSIMO Elements.', 'digitalisimo-migration' ), self::plural( $widgets, __( 'widget de PRO', 'digitalisimo-migration' ), __( 'widgets de PRO', 'digitalisimo-migration' ) ), $where );
 		}
 		if ( $globals ) {
-			return sprintf( __( '%1$s en %2$s pasaron al widget global propio.', 'digitalisimo-migration' ), self::plural( $globals, __( 'instancia del widget global', 'digitalisimo-migration' ), __( 'instancias de widgets globales', 'digitalisimo-migration' ) ), $where );
+			return $least . sprintf( __( '%1$s en %2$s pasaron al widget global propio.', 'digitalisimo-migration' ), self::plural( $globals, __( 'instancia del widget global', 'digitalisimo-migration' ), __( 'instancias de widgets globales', 'digitalisimo-migration' ) ), $where );
 		}
 		return '';
+	}
+
+	/**
+	 * Instancias del widget global: por documento, lo mayor entre lo convertido (`pro.converted`) y lo listado
+	 * (`pro.global`), porque el tope de anotaciones puede dejar fuera cualquiera de los dos.
+	 */
+	private static function globals_total( array $g ): int {
+		$total = 0;
+		foreach ( (array) ( $g['per'] ?? array() ) as $row ) {
+			$total += max( (int) ( $row['converted'] ?? 0 ), (int) ( $row['listed'] ?? 0 ) );
+		}
+		return $total ? $total : max( (int) ( $g['count'] ?? 0 ), (int) ( $g['listed'] ?? 0 ) );
 	}
 
 	/** ¿Dice el informe que algo se convirtió, se creó o se dejó tal cual (en esta pasada o en una anterior)? */
@@ -791,14 +874,27 @@ final class Report {
 		}
 		$g = $d['globals'];
 		if ( $g['docs'] ) {
-			$templates = count( $g['templates'] );
-			$lines[]   = esc_html(
-				sprintf(
-					__( 'Widgets globales: %1$s pasaron al widget global propio y siguen vinculadas a %2$s, que se conservan en la biblioteca (editar una plantilla cambia todas las páginas que la usan).', 'digitalisimo-migration' ),
-					self::in_docs( max( (int) $g['count'], (int) $g['listed'] ), $g['docs'], __( 'instancias', 'digitalisimo-migration' ) ),
+			$substituted = 0;
+			foreach ( (array) $g['per'] as $row ) {
+				$substituted += (int) ( $row['substituted'] ?? 0 );
+			}
+			$total     = self::globals_total( $g );
+			$linked    = max( 0, $total - $substituted );
+			$templates = count( array_filter( (array) $g['templates'], static function ( $kind ) {
+				return 'linked' === $kind;
+			} ) );
+			$parts     = array();
+			if ( $linked ) {
+				$parts[] = sprintf(
+					1 === $linked ? __( '%1$s pasó al widget global propio y sigue vinculada a %2$s, que se conserva en la biblioteca (editar una plantilla cambia todas las páginas que la usan)', 'digitalisimo-migration' ) : __( '%1$s pasaron al widget global propio y siguen vinculadas a %2$s, que se conservan en la biblioteca (editar una plantilla cambia todas las páginas que la usan)', 'digitalisimo-migration' ),
+					self::in_docs( $linked, $g['docs'], __( 'instancia', 'digitalisimo-migration' ), __( 'instancias', 'digitalisimo-migration' ) ),
 					$templates ? sprintf( 1 === $templates ? __( '%d plantilla', 'digitalisimo-migration' ) : __( '%d plantillas', 'digitalisimo-migration' ), $templates ) : __( 'sus plantillas', 'digitalisimo-migration' )
-				)
-			);
+				);
+			}
+			if ( $substituted ) {
+				$parts[] = sprintf( 1 === $substituted ? __( '%d instancia se sustituyó por el elemento guardado en su plantilla: ya no sigue los cambios de la plantilla, que se conserva', 'digitalisimo-migration' ) : __( '%d instancias se sustituyeron por el elemento guardado en su plantilla: ya no siguen los cambios de la plantilla, que se conserva', 'digitalisimo-migration' ), $substituted );
+			}
+			$lines[] = esc_html( __( 'Widgets globales:', 'digitalisimo-migration' ) . ' ' . implode( '; ', $parts ) . '.' );
 		}
 		if ( $d['recovered'] ) {
 			$rows = $d['recovered'];
@@ -847,9 +943,10 @@ final class Report {
 	}
 
 	/** «12 en 9 documentos», «2 en el sitio», «3 en 2 documentos y en el sitio». Texto plano. */
-	private static function in_docs( int $count, array $docs, string $noun = '' ): string {
+	private static function in_docs( int $count, array $docs, string $one = '', string $many = '' ): string {
 		$site  = isset( $docs[0] );
 		$n     = count( $docs ) - ( $site ? 1 : 0 );
+		$noun  = 1 >= $count ? $one : ( '' !== $many ? $many : $one );
 		$count = max( 1, $count ) . ( '' !== $noun ? ' ' . $noun : '' );
 		if ( ! $n ) {
 			return ( '1' === $count ? '' : $count . ' ' ) . __( 'en el sitio', 'digitalisimo-migration' );

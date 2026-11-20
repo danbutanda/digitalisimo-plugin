@@ -72,3 +72,18 @@ add_filter( 'upgrader_pre_download', static function ( $reply, $package ) {
 	copy( $local, $tmp );
 	return $tmp;
 }, 10, 2 );
+
+// La redirección de activación de Elements (caso real del 2026-11-19): lo que deja el gancho de activación, leído justo
+// después de activar Elements (antes de que «Migrar» lo borre), y lo que queda al terminar esa misma petición.
+add_action( 'activated_plugin', static function ( $plugin, $network_wide ) {
+	if ( 'digitalisimo-elements/pro-elements.php' !== $plugin ) {
+		return;
+	}
+	$file = WP_CONTENT_DIR . '/probe/activation-redirect.json';
+	file_put_contents( $file, wp_json_encode( array( 'network_wide' => (bool) $network_wide, 'at_activation' => get_transient( 'elementor_activation_redirect' ) ) ) );
+	add_action( 'shutdown', static function () use ( $file ) {
+		$seen          = (array) json_decode( (string) file_get_contents( $file ), true );
+		$seen['at_end'] = get_transient( 'elementor_activation_redirect' );
+		file_put_contents( $file, wp_json_encode( $seen ) );
+	}, 1 );
+}, 10, 2 );

@@ -14,7 +14,12 @@
  * - el detalle plegado (`<details>`) y, dentro, el detalle por documento en otro desplegable;
  * - el análisis previo plegado al terminar (y abierto antes);
  * - la parte visible sin desplegar en menos de 40 líneas;
- * - el mismo resumen en WP-CLI (sin enlaces ni detalle por documento) y en la red.
+ * - el mismo resumen en WP-CLI (sin enlaces ni detalle por documento) y en la red;
+ * - y lo de la revisión adversarial: el tema hijo que se queda en «Necesita tu atención» y el aviso de arriba no verde, lo
+ *   que no cupo en el informe dicho arriba, una entrada por asunto (documentos fallidos y widgets sin equivalente), lo
+ *   que hizo esta pasada (ajustes de página, recuperado de la copia), destino y cantidad de lo pendiente, el recuento de
+ *   PRO por documentos, globales sustituidos y en singular, claves inertes recortadas, títulos con HTML y caracteres de
+ *   control (WP-CLI sin ellos) y la fila «Contenido» de una migración anterior.
  */
 namespace {
 	require __DIR__ . '/fixtures/f8-wp.php';
@@ -291,7 +296,7 @@ namespace {
 		'retired'   => array( 'rank-math' ),
 		'deleted'   => array( 'rank-math' => 'Rank Math SEO y Rank Math SEO PRO' ),
 		'kept'      => array(),
-		'theme'     => array( 1 => array( 'name' => 'Hello Elementor Child', 'switched' => false, 'reason' => 'El sitio usa un tema hijo de Hello («Hello Elementor Child»): su CSS y su PHP no se trasladan solos (el PHP va al editor de fragmentos de DIGITALÍSIMO Tools). Se queda; cámbialo en Apariencia cuando los hayas pasado.' ) ),
+		'theme'     => array( 1 => array( 'name' => 'Hello Elementor Child', 'hello' => true, 'own' => false, 'safe' => false, 'switched' => false, 'reason' => 'El sitio usa un tema hijo de Hello («Hello Elementor Child»): su CSS y su PHP no se trasladan solos (el PHP va al editor de fragmentos de DIGITALÍSIMO Tools). Se queda; cámbialo en Apariencia cuando los hayas pasado.' ) ),
 		'verify'    => array(
 			array( 'site' => 1, 'url' => 'https://ejemplo.test/', 'ok' => true, 'reason' => '' ),
 			array( 'site' => 1, 'url' => 'https://ejemplo.test/blog/', 'ok' => true, 'reason' => '' ),
@@ -331,14 +336,23 @@ namespace {
 	f8_check( str_contains( $inert_line, '_element_custom_width' ) && str_contains( $inert_line, 'ajustes de página de Element Pack' ) && false === strpos( $inert_line, 'display_condition_list' ) && false === strpos( $inert_line, 'content_width' ), 'Lo que pasa tal cual y ya está como recuperado no vuelve a salir como inerte: ' . $inert_line );
 	f8_check( str_contains( $agg, 'Datos que el plugin anterior dejó en el sitio y la migración no borra (2 en el sitio) — archivos en uploads/element-pack, copias en uploads/element-pack-backups.' ), 'Lo del sitio, con su cantidad y su nota.' );
 	f8_check( str_contains( $agg, 'Plantilla creada con el contenido de un desplegable del mega menú' ) && str_contains( $agg, 'Servicios (Mega Menu)' ), 'Lo creado, con su nombre.' );
-	f8_check( str_contains( $agg, 'Además: 2 anotaciones más' ) && 1 === substr_count( $html, 'Además:' ), 'Lo que no cupo se dice una vez.' );
+	f8_check( false === strpos( $html, 'Además:' ), 'Lo que no cupo ya no se dice en el detalle: va arriba.' );
 
 	/* ================================================================ Sin duplicados ni contradicciones */
 	f8_check( false === stripos( $html, 'había nada que' ), 'Con conversiones, nada dice «no había nada que migrar».' );
 	f8_check( 1 === substr_count( $html, 'Migración completada' ), 'Un solo «Migración completada»: ' . substr_count( $html, 'Migración completada' ) );
-	f8_check( str_contains( $html, 'Ya estaba convertido en una pasada anterior' ) && str_contains( $html, $total . ' widgets de PRO y ' . $expect['globals']['count'] . ' instancias de widgets globales en ' ), 'El contenido dice lo que ya es de DIGITALÍSIMO Elements y que esta pasada no tenía nada nuevo.' );
+	$recovered_total = 0;
+	$recovered_docs  = array();
+	foreach ( $expect['recovered'] as $row ) {
+		$recovered_total += $row['count'];
+		$recovered_docs  += $row['docs'];
+	}
+	f8_check( str_contains( $html, 'Al menos ' . $total . ' widgets de PRO y ' . $expect['globals']['count'] . ' instancias de widgets globales en ' ), 'El contenido dice lo que ya es de DIGITALÍSIMO Elements, «al menos» porque el informe no cupo entero.' );
+	f8_check( str_contains( $html, 'En esta pasada: ' . $recovered_total . ' ajustes recuperados de la copia en ' . count( $recovered_docs ) . ' documentos.' ) && false === strpos( $html, 'Ya estaba convertido' ), 'Lo recuperado de la copia es de esta pasada: el resumen no dice que no había nada nuevo.' );
 	f8_check( false === strpos( $html, 'Quedan 1 documentos con widgets de PRO' ), 'El recuento de documentos de PRO sin convertir no repite lo que ya explica «Necesita tu atención».' );
-	f8_check( 1 === substr_count( $html, 'Necesita tu atención' ) && 0 === substr_count( $html, 'Pendiente de revisar' ), '«Necesita tu atención» sale una vez y no se repite como «Pendiente de revisar».' );
+	f8_check( 1 === substr_count( $html, 'Necesita tu atención</h2>' ) && 0 === substr_count( $agg, 'Pendiente de revisar' ) && str_contains( $html, 'Pendiente de revisar' ), '«Necesita tu atención» sale una vez; «Pendiente de revisar», sólo dentro del detalle por documento.' );
+	f8_check( str_contains( $html, 'notice-warning' ) && str_contains( $html, 'Migración completada, con asuntos que necesitan tu atención (abajo).' ) && false === strpos( $html, 'notice-success' ), 'Con asuntos pendientes, el aviso de arriba no es verde.' );
+	f8_check( str_contains( $html, '<h2 class="digi-migrate__result-title">Resultado</h2><table' ), 'El resultado tiene su encabezado (h2), antes del detalle (h3).' );
 	f8_check( false === strpos( $html, 'pasan al tema propio' ), 'Con el tema hijo que se queda, nada dice que algo pase al tema propio.' );
 	$text = Full::text( $agg );
 	$seen = array();
@@ -352,17 +366,24 @@ namespace {
 	f8_check( ! $dupe, 'Ninguna línea se repite fuera del detalle por documento: ' . implode( ' | ', $dupe ) );
 
 	/* ================================================================ Lo pendiente, arriba, con su acción y su enlace */
-	$attention = strpos( $html, 'Necesita tu atención' );
+	$attention = strpos( $html, 'Necesita tu atención</h2>' );
 	$detail    = strpos( $html, '<details class="digi-migrate__detail">' );
 	f8_check( false !== $attention && false !== $detail && $attention < $detail && strpos( $html, 'Portada y páginas' ) < $attention, '«Necesita tu atención» va justo después del resultado y antes del detalle.' );
 	preg_match( '#<ul class="digi-migrate__attention"[^>]*>(.*?)</ul>#s', $html, $m );
 	$items = isset( $m[1] ) ? explode( '</li><li>', substr( $m[1], 4, -5 ) ) : array();
-	f8_check( 2 === count( $items ), 'Dos asuntos: las extensiones de Element Pack y WooCommerce (' . count( $items ) . ').' );
-	f8_check( str_starts_with( $items[0] ?? '', 'Widgets de PRO sin convertir porque su widget propio necesita WooCommerce' ) && str_starts_with( $items[1] ?? '', 'Ajustes de extensiones de Element Pack que ya no se aplican' ), 'Cada asunto empieza por lo que hay que hacer.' );
+	f8_check( 4 === count( $items ), 'Cuatro asuntos: el tema hijo, WooCommerce, las extensiones de Element Pack y lo que no cupo (' . count( $items ) . ').' );
+	$find = static function ( $needle ) use ( $items ) {
+		return implode( '', array_filter( $items, static function ( $item ) use ( $needle ) {
+			return str_contains( $item, $needle );
+		} ) );
+	};
+	f8_check( str_starts_with( $find( 'tema hijo' ), 'Tema: El sitio usa un tema hijo de Hello' ) && str_contains( $find( 'tema hijo' ), 'cámbialo en Apariencia' ) && str_contains( $html, 'se queda Hello Elementor Child (ver «Necesita tu atención»).' ), 'El tema hijo que se queda, con su acción, va en «Necesita tu atención» (y su fila remite ahí).' );
+	f8_check( str_contains( $find( 'no pudo guardarlo todo' ), 'faltan 2 anotaciones y 0 documentos' ), 'Lo que no cupo en el informe se dice arriba: puede esconder asuntos.' );
+	f8_check( str_starts_with( $find( 'necesita WooCommerce' ), 'Widgets de PRO sin convertir porque su widget propio necesita WooCommerce' ) && str_starts_with( $find( 'Sección fija' ), 'Ajustes de extensiones de Element Pack que ya no se aplican' ), 'Cada asunto empieza por lo que hay que hacer.' );
 	$woo = implode( '', array_filter( $items, static function ( $item ) {
 		return str_contains( $item, 'WooCommerce' );
 	} ) );
-	f8_check( str_contains( $woo, 'post.php?post=' . $ids['Carrito'] . '&amp;action=elementor' ) && str_contains( $woo, 'post.php?post=' . $ids['Cabecera'] . '&amp;action=elementor' ) && str_contains( $woo, 'si activas WooCommerce, vuelve a pulsar Migrar' ) && str_contains( $woo, 'woocommerce-cart' ) && str_contains( $woo, 'wc-add-to-cart' ), 'WooCommerce, en una entrada con la acción y el enlace al editor de cada documento.' );
+	f8_check( str_contains( $woo, 'post.php?post=' . $ids['Carrito'] . '&amp;action=elementor' ) && str_contains( $woo, 'post.php?post=' . $ids['Cabecera'] . '&amp;action=elementor' ) && str_contains( $woo, 'si activas WooCommerce, vuelve a pulsar Migrar' ) && str_contains( $woo, 'woocommerce-cart' ) && str_contains( $woo, 'wc-add-to-cart' ) && false === strpos( $woo, 'destino:' ), 'WooCommerce, en una entrada con la acción y el enlace al editor de cada documento (el destino sobra: lo dice la acción).' );
 	$ep = implode( '', array_filter( $items, static function ( $item ) {
 		return str_contains( $item, 'Element Pack' );
 	} ) );
@@ -376,10 +397,17 @@ namespace {
 		echo "--- visible\n", implode( "\n", $visible ), "\n--- cli\n", Full::text( Full::render( false, $full, 'cli' ) ), "\n";
 	}
 	f8_check( count( $visible ) < 40, 'Lo visible sin desplegar cabe en menos de 40 líneas: ' . count( $visible ) );
-	f8_check( count( $visible ) < 20, 'Y en este caso, en menos de 20: ' . count( $visible ) . "\n" . implode( "\n", $visible ) );
+	f8_check( count( $visible ) < 25, 'Y en este caso, en menos de 25: ' . count( $visible ) . "\n" . implode( "\n", $visible ) );
 	f8_check( str_contains( implode( "\n", $visible ), 'Responden igual: 2 de 3. Sin comparar: https://ejemplo.test/chat/' ), 'La portada dice cuántas responden igual y cuál no se pudo comparar: ' . implode( ' | ', preg_grep( '/Portada y/', $visible ) ) );
 	$was = summary_lines( Full::text( $html ) );
 	f8_check( count( $was ) > count( $visible ) + 30, 'Desplegado, el detalle sigue completo (' . count( $was ) . ' líneas).' );
+
+	// La fila «Contenido» de una tarea de contenido anterior (esta pasada se detuvo antes): con su fecha.
+	$stopped            = $full;
+	$stopped['started'] = (int) $content['finished'] + 86400;
+	$stopped_html       = Full::render( false, $stopped );
+	f8_check( str_contains( $stopped_html, '<th scope="row">Contenido</th><td>De la migración del ' ) && str_contains( $stopped_html, '<h3>Contenido (De la migración del ' ), 'Si el informe del contenido es de una migración anterior, la fila y el detalle lo dicen con su fecha: ' . substr( strip_tags( (string) strstr( $stopped_html, '<th scope="row">Contenido' ) ), 0, 160 ) );
+	f8_check( false === strpos( $html, 'De la migración del' ), 'Si es de esta, no.' );
 
 	/* ================================================================ WP-CLI: el mismo resumen */
 	$cli = Full::text( Full::render( false, $full, 'cli' ) );
@@ -390,7 +418,7 @@ namespace {
 
 	/* ================================================================ El informe de contenido solo (un sitio de una red) */
 	$solo = Runner::render( $content );
-	f8_check( 1 === substr_count( $solo, 'Migración completada' ) && str_contains( $solo, 'Necesita tu atención' ) && str_contains( $solo, '<details class="digi-migrate__detail"><summary>Detalle</summary>' ) && false === stripos( $solo, 'había nada que' ), 'Solo, el informe del contenido tiene la misma forma.' );
+	f8_check( 1 === substr_count( $solo, 'Migración completada' ) && str_contains( $solo, 'notice-warning' ) && str_contains( $solo, '<h2 class="digi-migrate__result-title">Resultado</h2>' ) && str_contains( $solo, 'Necesita tu atención' ) && str_contains( $solo, '<details class="digi-migrate__detail"><summary>Detalle</summary>' ) && false === stripos( $solo, 'había nada que' ), 'Solo, el informe del contenido tiene la misma forma.' );
 	f8_check( count( summary_lines( summary_visible( $solo ) ) ) < 15, 'Y también se lee de un vistazo: ' . count( summary_lines( summary_visible( $solo ) ) ) );
 	f8_check( false === strpos( $solo, 'Este sitio ya no depende' ), 'Con asuntos pendientes no dice que el sitio ya no depende de nada.' );
 	$solo_cli = Full::text( Runner::render( $content, 'cli' ) );
@@ -449,7 +477,7 @@ namespace {
 	ob_start();
 	Migration::page();
 	$screen = ob_get_clean();
-	$report_at = strpos( $screen, 'Migración completada.' );
+	$report_at = strpos( $screen, 'Migración completada, con asuntos que necesitan tu atención' );
 	$fold_at   = strpos( $screen, '<details class="digi-migrate__before" data-done-label=' );
 	f8_check( false !== $report_at && false !== $fold_at && $report_at < $fold_at, 'En la pantalla, el informe va antes del análisis plegado.' );
 	foreach ( array( '<h2>Lo que hará Migrar</h2>', '<h2>Qué hay en este sitio</h2>', 'digi-migrate__analysis' ) as $needle ) {
@@ -459,10 +487,82 @@ namespace {
 	f8_check( false === strpos( $screen, 'pasan al tema propio' ) && str_contains( $screen, 'Se queda: es un tema hijo de Hello' ), 'La fila del tema hijo no sugiere que algo pase al tema propio.' );
 	// El análisis del contenido terminado: lo pendiente arriba, lo demás agregado, y su encabezado no repite el del plan.
 	$analysis = Migration::analysis_html( array( 'done' => true, 'processed' => 1, 'total' => 1, 'report' => $stored, 'pro' => null ) );
-	f8_check( str_starts_with( $analysis, '<h3>Lo que hará Migrar en el contenido</h3><h4>Pendiente de revisar</h4>' ) && str_contains( $analysis, 'si activas WooCommerce' ) && str_contains( $analysis, '<details class="digi-migrate__docs">' ) && false === strpos( summary_aggregate( $analysis ), esc_html( $catalog['pro.converted']['label'] ) ), 'El análisis previo usa el mismo resumen agregado, con su propio encabezado.' );
+	f8_check( str_starts_with( $analysis, '<h3>Lo que hará Migrar en el contenido</h3><h4>Pendiente de revisar</h4>' ) && str_contains( $analysis, 'no pudo guardarlo todo' ) && str_contains( $analysis, 'si activas WooCommerce' ) && str_contains( $analysis, '<details class="digi-migrate__docs">' ) && false === strpos( summary_aggregate( $analysis ), esc_html( $catalog['pro.converted']['label'] ) ), 'El análisis previo usa el mismo resumen agregado, con su propio encabezado.' );
 	update_option( 'stylesheet', 'hello-elementor' );
 	$plan = Screen::plan_html( false );
 	f8_check( str_contains( $plan, 'pasan al tema propio' ) && str_contains( $plan, 'Tema DIGITALÍSIMO' ), 'Con Hello sin hijo, el plan sí dice lo que pasa al tema propio.' );
+
+	/* ================================================================ Revisión: casos que faltaban */
+	// Asuntos que el runner y el informe de F8 dicen a la vez: una sola entrada. Títulos con HTML y caracteres de control.
+	f8_reset();
+	\Digitalisimo\Elements\Legacy\Aliases::set_map( array() );
+	Report::reset_catalog();
+	$ugly   = '<b>Roto</b> ' . "\x1b[31m" . 'rojo' . "\xC2\x9B" . '2J';
+	$broken = f8_post( array( 'post_title' => $ugly, 'post_status' => 'publish' ) );
+	$stuck  = f8_post( array( 'post_title' => 'Con widget sin equivalente', 'post_status' => 'publish' ) );
+	$miss   = f8_post( array( 'post_title' => 'Sin destino', 'post_status' => 'publish' ) );
+	$pages  = f8_post( array( 'post_title' => 'Página con efectos', 'post_status' => 'publish' ) );
+	Report::clear();
+	Report::begin( 'run' );
+	Report::add( $broken, 'core.document_failed' );
+	Report::add( $stuck, 'core.no_adapter', array( 'widget' => 'bdt-foo', 'element' => 'widget #abc1234' ) );
+	Report::add( $miss, 'core.target_missing', array( 'widget' => 'bdt-bar', 'target' => 'digitalisimo-bar', 'count' => 3 ) );
+	Report::add( $pages, 'ext.converted.tooltip', array( 'count' => 2 ) );
+	// Varias claves inertes en una línea recortada: las recuperadas se absorben y el trozo cortado no sale como clave.
+	Report::add( $pages, 'pro.recovered', array( 'widget' => 'posts', 'target' => 'digitalisimo-posts', 'name' => 'content_width' ) );
+	Report::add( $pages, 'pro.recovered', array( 'widget' => 'posts', 'target' => 'digitalisimo-posts', 'name' => 'display_condition_list' ) );
+	Report::add( $pages, 'pro.inert', array( 'widget' => 'posts', 'target' => 'digitalisimo-posts', 'name' => 'content_width, display_condition_list, ' . str_repeat( 'clave_muy_larga_', 8 ), 'count' => 3 ) );
+	// Un widget global sustituido por su contenido (Elements sin el widget global propio), en singular.
+	Report::add( $pages, 'pro.converted', array( 'widget' => 'global', 'target' => 'digitalisimo-global', 'count' => 1 ) );
+	Report::add( $pages, 'pro.global', array( 'widget' => 'global', 'target' => 'digitalisimo-global', 'name' => 'templateID', 'count' => 1, 'note' => 'Instancia del widget global sustituida por el elemento guardado en su plantilla 777 (heading), con sus mismos ajustes; la plantilla se conserva.' ) );
+	Report::flush();
+	$two  = Report::stored();
+	$case = array(
+		'stage'    => 'finish',
+		'done'     => true,
+		'finished' => 2,
+		'counts'   => array( 'pages' => 4, 'failed' => array( $broken ) ),
+		'warnings' => array(),
+		'report'   => array(
+			'f8'          => array( 'v' => 1 ) + Report::summary( $two ),
+			'plugins'     => array(),
+			'failed'      => array( $broken => array( 'title' => $ugly, 'link' => 'https://s1.test/wp-admin/post.php?post=' . $broken . '&action=elementor' ) ),
+			'unsupported' => array( 'bdt-foo' => array( 'elements' => 2, 'documents' => 1, 'reason' => 'Sin equivalente: usa el widget Imagen.' ) ),
+			'blocked'     => array( $stuck => array( 'title' => 'Con widget sin equivalente', 'link' => 'https://s1.test/wp-admin/post.php?post=' . $stuck . '&action=elementor' ) ),
+			'pro_left'    => 5,
+		),
+	);
+	$p2  = Runner::report_parts( $case );
+	$all = implode( "\n", $p2['attention'] );
+	f8_check( 1 === substr_count( $all, 'cortó dos veces' ) && 1 === substr_count( $all, 'post.php?post=' . $broken . '&amp;action=elementor' ), 'Un documento que falló, en una sola entrada: ' . $all );
+	f8_check( 1 === count( array_filter( $p2['attention'], static function ( $item ) {
+		return false !== stripos( $item, 'Element Pack sin equivalente' );
+	} ) ) && 1 === substr_count( $all, 'post.php?post=' . $stuck . '&amp;action=elementor' ) && str_contains( $all, 'widget #abc1234' ) && str_contains( $all, '<table' ), 'Un widget de Element Pack sin equivalente, en una sola entrada con su tabla y sus documentos.' );
+	f8_check( false === strpos( $all, 'Páginas que conservan widgets de Element Pack' ), 'Las páginas bloqueadas van en esa misma entrada.' );
+	f8_check( str_contains( $all, 'destino: digitalisimo-bar' ) && str_contains( $all, 'cantidad: 3' ), 'Lo pendiente conserva su destino y su cantidad.' );
+	f8_check( str_contains( $all, 'Quedan 5 documentos con widgets de PRO' ), 'Si el informe no explica tantos documentos de PRO como quedan, el recuento se dice.' );
+	f8_check( str_contains( $p2['summary'], 'En esta pasada: 4 ajustes de página con efectos de Element Pack convertidos; 2 ajustes recuperados de la copia en 1 documento.' ) && false === strpos( $p2['summary'], 'Ya estaba convertido' ), 'Una pasada que convierte ajustes de página lo dice: ' . $p2['summary'] );
+	f8_check( str_contains( $p2['detail'], 'Widgets globales: 1 instancia se sustituyó por el elemento guardado en su plantilla' ) && false === strpos( $p2['detail'], 'siguen vinculadas' ) && false === strpos( $p2['detail'], '1 instancias' ), 'Un widget global sustituido no se dice vinculado, y en singular.' );
+	f8_check( false === strpos( summary_aggregate( $p2['detail'] ), 'clave_muy_larga' ) && false === strpos( $p2['detail'], 'Se dejan tal cual' ), 'Las claves inertes ya recuperadas se absorben aunque la línea llegue recortada (fuera del detalle por documento).' );
+	$cli2 = Full::text( Runner::render( $case, 'cli' ) );
+	f8_check( false === strpos( $cli2, "\x1b" ) && false === strpos( $cli2, "\xC2\x9B" ) && str_contains( $cli2, 'Roto' ), 'En WP-CLI, sin caracteres de control (C0 ni C1) del título.' );
+	f8_check( false === strpos( Runner::render( $case ), '<b>Roto</b>' ) && str_contains( Runner::render( $case ), '&lt;b&gt;Roto&lt;/b&gt;' ), 'Y en la pantalla, el título con HTML, escapado.' );
+	// Sólo un documento convertido antes (sin nada de esta pasada): ahí sí «ya estaba convertido».
+	Report::clear();
+	Report::begin( 'run' );
+	Report::add( $pages, 'pro.converted', array( 'widget' => 'blockquote', 'target' => 'digitalisimo-blockquote', 'count' => 1 ) );
+	Report::flush();
+	$before = Runner::report_parts( array( 'stage' => 'finish', 'done' => true, 'finished' => 2, 'counts' => array(), 'warnings' => array(), 'report' => array( 'f8' => array( 'v' => 1 ), 'plugins' => array() ) ) );
+	f8_check( '1 widget de PRO en 1 documento son ahora widgets propios de DIGITALÍSIMO Elements. Ya estaba convertido en una pasada anterior: en ésta no había nada nuevo que convertir.' === $before['summary'], 'Sin nada de esta pasada, dice que ya estaba convertido: ' . $before['summary'] );
+	// Muchos documentos en un asunto: diez enlazados y los demás, en «Por documento».
+	Report::clear();
+	Report::begin( 'run' );
+	for ( $i = 0; $i < 14; $i++ ) {
+		Report::add( f8_post( array( 'post_title' => 'Muchos ' . $i ) ), 'core.residual', array( 'element' => 'page', 'name' => 'Partículas' ) );
+	}
+	Report::flush();
+	$many = Report::attention( Report::stored(), 'site' );
+	f8_check( 1 === count( $many ) && 10 === substr_count( $many[0], '<a href=' ) && str_contains( $many[0], 'y 4 más (lista completa en «Detalle» → «Por documento»)' ), 'Un asunto en muchos documentos enlaza diez y remite al detalle para los demás.' );
 
 	f8_done( 'DIGITALÍSIMO Migración: informe final corto', 60 );
 }
