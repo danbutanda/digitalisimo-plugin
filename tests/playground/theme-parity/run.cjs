@@ -220,13 +220,25 @@ async function toolsActivate(browser, page, site, id) {
   if (!r1.success || !r1.data || !r1.data.sid) return r1;
   // Como tools-php: el escritorio con la sesión (el navegador) y cada portada sin cookies, leída entera y sin seguir
   // redirecciones (la red de la prueba vive en playground.test: se pide a 127.0.0.1 con su cabecera Host).
-  const anonGet = (url) => new Promise((resolve) => {
-    const u = new URL(url);
-    const req = http.request({ host: '127.0.0.1', port: u.hostname === 'playground.test' ? PORT : (u.port || 80), path: u.pathname + u.search, method: 'GET', headers: { Host: u.host } }, (res) => { res.resume(); res.on('end', resolve); });
-    req.on('error', resolve);
-    req.setTimeout(300000, () => { req.destroy(); resolve(); });
-    req.end();
-  });
+  // Playground contesta la primera visita sin cookies con una redirección a la misma dirección que pone la suya: se sigue
+  // con esa cookie (como un navegador sin sesión), sin las de la sesión del administrador.
+  const anonGet = async (url) => {
+    const jar = [];
+    for (let hop = 0; hop < 5; hop++) {
+      const res = await new Promise((resolve) => {
+        const u = new URL(url);
+        const req = http.request({ host: '127.0.0.1', port: u.hostname === 'playground.test' ? PORT : (u.port || 80), path: u.pathname + u.search, method: 'GET', headers: { Host: u.host, ...(jar.length ? { Cookie: jar.join('; ') } : {}) } }, (r) => { r.resume(); r.on('end', () => resolve(r)); });
+        req.on('error', () => resolve(null));
+        req.setTimeout(300000, () => { req.destroy(); resolve(null); });
+        req.end();
+      });
+      if (!res) return;
+      for (const c of [].concat(res.headers['set-cookie'] || [])) jar.push(c.split(';')[0]);
+      const loc = res.headers.location;
+      if (res.statusCode < 300 || res.statusCode >= 400 || !loc || /wp-login\.php|\/wp-admin\//.test(loc)) return;
+      url = new URL(loc, url).href;
+    }
+  };
   const visit = async (urls) => {
     await Promise.all((urls || []).map((u) => (u.kind === 'admin' ? null : anonGet(u.url))));
     for (const u of urls || []) if (u.kind === 'admin') await page.goto(u.url, { waitUntil: 'load' }).catch(() => {});
