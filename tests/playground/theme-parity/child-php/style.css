@@ -1,0 +1,8 @@
+/*
+ * Theme Name: TP Hello Child PHP
+ * Template: hello-elementor
+ * Description: Hijo de Hello con PHP que no se puede trasladar (salida en wp_head y wp_footer, un shortcode), como
+ *              muchos hijos reales. Prueba de paridad (theme-parity.sh). No se publica.
+ * Version: 1.0.0
+ */
+.tp-child-box { border: 2px solid rgb(30, 30, 200); }

@@ -1,0 +1,13 @@
+/*
+ * Theme Name: TP Hello Child
+ * Template: hello-elementor
+ * Description: Hijo típico de Hello para la prueba de paridad (theme-parity.sh): reglas propias, una fuente local, una
+ *              imagen relativa y el functions.php de la plantilla de hijo de Hello más una hoja y una fuente. No se publica.
+ * Version: 2.0.0
+ * Text Domain: tp-hello-child
+ */
+body { background-color: rgb(252, 250, 244); }
+.tp-child-box { border: 2px dashed rgb(200, 30, 30); padding: 6px; background: url(img/dot.svg) repeat; }
+.tp-links a { text-decoration-thickness: 3px; text-underline-offset: 4px; }
+h3 { letter-spacing: 2px; }
+.elementor-button { text-transform: uppercase; }
