@@ -7,16 +7,18 @@
 # Uso: bash tests/playground/theme-parity.sh
 #   SCENARIO=site|network   sitio individual (hijo típico) o red (1: Hello, 2: hijo típico, 3: hijo con PHP)
 #   VIA=apariencia|migrar   cambio desde Apariencia (con vuelta atrás y reversión) o con «Migrar»
+#   SITE_KIND=child|child-php  (SCENARIO=site) el sitio con el hijo típico o con el hijo con PHP
 #   BREAK=1                 (con VIA=migrar) el tema propio pierde el CSS adicional: «Migrar» debe volver solo
 #   OUT, PORT (9871), WORKERS (1 con Apariencia, 3 con Migrar), HELLO_ZIP, MAX_PIXELS (0.005), PLAYGROUND_CLI, PUPPETEER_PATH
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 . "$ROOT/tests/playground/playground-cleanup.sh"
 D="$ROOT/tests/playground/theme-parity"
-SCENARIO="${SCENARIO:-site}"; VIA="${VIA:-apariencia}"; BREAK="${BREAK:-0}"
+SCENARIO="${SCENARIO:-site}"; VIA="${VIA:-apariencia}"; BREAK="${BREAK:-0}"; SITE_KIND="${SITE_KIND:-child}"
+case "$SITE_KIND" in child|child-php) ;; *) echo 'SITE_KIND debe ser child o child-php'; exit 1;; esac
 case "$SCENARIO" in site|network) ;; *) echo 'SCENARIO debe ser site o network'; exit 1;; esac
 case "$VIA" in apariencia|migrar) ;; *) echo 'VIA debe ser apariencia o migrar'; exit 1;; esac
-BASE_OUT="${OUT:-/tmp/digi-theme-parity}/$SCENARIO-$VIA$([ "$BREAK" = 1 ] && echo -break || true)"
+BASE_OUT="${OUT:-/tmp/digi-theme-parity}/$SCENARIO$([ "$SITE_KIND" = child-php ] && echo -php || true)-$VIA$([ "$BREAK" = 1 ] && echo -break || true)"
 OUT="$BASE_OUT/probe"; ZIPS="$BASE_OUT/zips"; STORE="$BASE_OUT/store"
 PORT="${PORT:-9871}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
@@ -47,7 +49,7 @@ cp -r "$D/child" "$D/child-php" "$OUT/"
 cp "$D/setup.php" "$D/mu-probe.php" "$OUT/"
 head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$OUT/token"
 echo "$PORT" > "$OUT/port"
-printf '{"scenario":"%s","via":"%s","break":%s,"port":%s}\n' "$SCENARIO" "$VIA" "$([ "$BREAK" = 1 ] && echo true || echo false)" "$PORT" > "$OUT/conf.json"
+printf '{"scenario":"%s","via":"%s","site_kind":"%s","break":%s,"port":%s}\n' "$SCENARIO" "$VIA" "$SITE_KIND" "$([ "$BREAK" = 1 ] && echo true || echo false)" "$PORT" > "$OUT/conf.json"
 
 MOUNTS=(--mount="$OUT:/wordpress/wp-content/probe")
 if [ "$VIA" = migrar ]; then

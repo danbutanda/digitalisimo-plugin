@@ -171,6 +171,12 @@ function has_filter( $hook ) {
 function home_url( $path = '' ) {
 	return 'https://sitio.test' . $path;
 }
+function wp_upload_dir( $time = null, $create = true ) {
+	return array( 'basedir' => sys_get_temp_dir() . '/digitalisimo-theme-switch-uploads-' . getmypid(), 'baseurl' => 'https://sitio.test/wp-content/uploads', 'error' => false );
+}
+function wp_mkdir_p( $dir ) {
+	return is_dir( $dir ) || @mkdir( $dir, 0777, true );
+}
 function get_theme_root( $stylesheet = '' ) {
 	return sys_get_temp_dir();
 }
@@ -432,6 +438,7 @@ $saved = get_option( 'digitalisimo_theme_child' );
 check( is_array( $saved ) && 'hello-child-ok' === $saved['child'] && 'hello-elementor' === $saved['parent'] && true === $GLOBALS['autoload']['digitalisimo_theme_child'], 'El hijo típico deja su lista de encolados (con carga automática): ' . json_encode( $saved ) );
 check( array( 'hello-elementor-child-style', 'hijo-extra' ) === array_column( $saved['assets'], 'h' ) && 'style.css' === $saved['assets'][0]['s'] && 20 === $saved['assets'][0]['p'] && array( 'hello-elementor-child-style' ) === $saved['assets'][1]['d'], 'Con sus handles, archivos, dependencias y prioridad.' );
 check( strlen( serialize( $saved ) ) < 1024, 'La lista del hijo típico pesa menos de 1 KB.' );
+check( 1 === $saved['copied'] && 'copied' === journal()['child']['copy']['status'] && digitalisimo_theme_child_assets_copied(), 'Las hojas del hijo típico quedan copiadas en uploads (para poder borrar el hijo): ' . json_encode( journal()['child']['copy'] ) );
 check( 1 === record()['carry'], 'El registro marca que hay algo del hijo que traer.' );
 check( array( 'hello-elementor-child-style', 'hijo-extra' ) === journal()['child']['carried'] && array() === journal()['child']['blockers'] && ! array_intersect( array( 'child_php', 'child_css' ), warning_codes() ), 'Sin bloqueos: sin avisos del hijo.' );
 check( '.tp{color:blue}' === $GLOBALS['css']['digitalisimo-theme'], 'El CSS adicional guardado con el hijo activo pasa al tema.' );

@@ -348,6 +348,22 @@ function checkRecords(phase, st, sites) {
       }
       await capture(browser, 'R', sites);
       await compare(browser, 'R', sites);
+      // D: otra vez con el tema propio (el fragmento del hijo con PHP sigue activo en Tools); sus hojas, fuentes e imágenes
+      // quedan copiadas en uploads y se borran los hijos y Hello: el sitio se ve igual que con el hijo (A).
+      for (const s of Object.values(sites)) await activate(page, s, 'digitalisimo-theme');
+      for (const [id, s] of Object.entries(sites)) {
+        if (s.kind === 'hello') continue;
+        const c = await api(page, 'copied', '', s.home);
+        result.state[`D-copy-${id}`] = { ok: c.ok, issues: c.issues, copy: c.copy };
+        check(c.ok === true, `D sitio ${id}: las hojas del hijo están copiadas en uploads antes de borrarlo: ${JSON.stringify(c.issues)}`);
+      }
+      const gone = await api(page, 'delete_themes', '', base);
+      result.state.deleted = gone;
+      log(`  D: temas borrados ${JSON.stringify(gone)}`);
+      check(Object.values(gone).every((v) => v === 'deleted') && Object.keys(gone).length >= 2, `D: se borraron los hijos y Hello: ${JSON.stringify(gone)}`);
+      checkRecords('D', await state(page), sites);
+      await capture(browser, 'D', sites);
+      await compare(browser, 'D', sites, { expectDiff: Object.keys(sites).filter((id) => sites[id].kind === 'child-php' && !(result.toolsActivation && result.toolsActivation.success)) });
     } else {
       // «Migrar» por AJAX, con la sesión del administrador, como el botón.
       const screen = network ? `${base}/wp-admin/network/settings.php?page=digitalisimo-ep-migration` : `${base}/wp-admin/tools.php?page=digitalisimo-ep-migration`;

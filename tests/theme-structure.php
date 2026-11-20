@@ -165,7 +165,7 @@ function first_literal( array $call ) {
 $expected = array(
 	'style.css', 'theme.json', 'functions.php', 'header.php', 'footer.php', 'index.php', 'comments.php', 'sidebar.php',
 	'screenshot.png', 'readme.txt', 'license.txt',
-	'inc/setup.php', 'inc/template-tags.php', 'inc/elements.php', 'inc/assets.php', 'inc/fallbacks.php', 'inc/switch.php', 'inc/child.php', 'inc/cli.php', 'inc/class-updater.php',
+	'inc/setup.php', 'inc/template-tags.php', 'inc/elements.php', 'inc/assets.php', 'inc/fallbacks.php', 'inc/switch.php', 'inc/child.php', 'inc/hello-compat.php', 'inc/hello-compat-functions.php', 'inc/cli.php', 'inc/class-updater.php',
 	'template-parts/header.php', 'template-parts/footer.php', 'template-parts/single.php', 'template-parts/archive.php', 'template-parts/search.php', 'template-parts/404.php',
 	'fallback/canvas.php', 'fallback/full-width.php',
 	'assets/css/base.css', 'assets/css/parity/reset.css', 'assets/css/parity/theme.css', 'assets/css/parity/header-footer.css',
@@ -355,7 +355,7 @@ function wp_add_inline_style( $handle, $css ) {
 	return true;
 }
 require $theme . '/functions.php';
-check( '1.0.1' === DIGITALISIMO_THEME_VERSION, 'Versión del tema: 1.0.1 (lo que encola el hijo de Hello y la espera compartida del actualizador).' );
+check( '1.0.2' === DIGITALISIMO_THEME_VERSION, 'Versión del tema: 1.0.2 (compatibilidad con Hello y copia de lo que encolaba el hijo).' );
 check( 10 === hooked( 'digitalisimo_header', 'digitalisimo_theme_header' ) && 10 === hooked( 'digitalisimo_footer', 'digitalisimo_theme_footer' ), 'Cabecera y pie de respaldo en la prioridad 10.' );
 check( 10 === hooked( 'elementor/theme/register_locations', 'digitalisimo_theme_register_locations' ), 'Ubicaciones en la prioridad 10 (antes del 99 del constructor).' );
 check( 10 === hooked( 'wp_enqueue_scripts', 'digitalisimo_theme_enqueue_styles' ), 'Estilos en la prioridad 10.' );
@@ -643,6 +643,73 @@ set_record( array( 'origin' => array( 'family' => 'hello' ), 'hello' => array( '
 check( ! digitalisimo_theme_show_title(), 'El ajuste «título apagado» de Hello se respeta en paridad.' );
 $GLOBALS['options']['digitalisimo_theme_switch']['origin']['family'] = 'other';
 check( digitalisimo_theme_show_title(), 'Fuera de paridad el ajuste guardado de Hello no influye.' );
+
+// 14b. Compatibilidad con Hello (inc/hello-compat.php): sólo en paridad, nunca con Hello, después de Código PHP de Tools.
+check( PHP_INT_MIN + 1 === hooked( 'after_setup_theme', 'digitalisimo_theme_hello_compat' ), 'La compatibilidad con Hello se declara en after_setup_theme, justo después de Código PHP de Tools (PHP_INT_MIN).' );
+if ( ! function_exists( 'get_template' ) ) {
+	function get_template() {
+		return $GLOBALS['template'] ?? 'digitalisimo-theme';
+	}
+}
+if ( ! function_exists( 'untrailingslashit' ) ) {
+	function untrailingslashit( $s ) {
+		return rtrim( (string) $s, '/\\' );
+	}
+}
+if ( ! function_exists( 'wp_body_open' ) ) {
+	function wp_body_open() {
+		echo 'body-open';
+	}
+}
+set_record( array( 'origin' => array( 'family' => 'other' ) ) );
+digitalisimo_theme_hello_compat();
+check( ! defined( 'HELLO_ELEMENTOR_VERSION' ) && ! function_exists( 'hello_elementor_get_setting' ), 'Fuera de paridad no declara nada de Hello.' );
+set_record( array( 'origin' => array( 'family' => 'hello' ) ) );
+$GLOBALS['template'] = 'hello-elementor';
+digitalisimo_theme_hello_compat();
+check( ! defined( 'HELLO_ELEMENTOR_VERSION' ) && ! function_exists( 'hello_show_or_hide' ), 'Con Hello cargado no declara nada.' );
+$GLOBALS['template'] = 'digitalisimo-theme';
+add_filter( 'digitalisimo_theme_hello_compat', '__return_false' );
+digitalisimo_theme_hello_compat();
+check( ! defined( 'HELLO_ELEMENTOR_VERSION' ), 'El filtro digitalisimo_theme_hello_compat la apaga.' );
+$GLOBALS['hooks']['digitalisimo_theme_hello_compat'] = array();
+define( 'HELLO_THEME_IMAGES_URL', 'propia' ); // Una constante ya definida (por el hijo) no se toca.
+digitalisimo_theme_hello_compat();
+digitalisimo_theme_hello_compat(); // Dos veces: sin redeclarar nada.
+check( '3.5.1' === HELLO_ELEMENTOR_VERSION && 'hello-elementor' === EHP_THEME_SLUG && $GLOBALS['theme'] === HELLO_THEME_PATH && 'https://sitio.test/wp-content/themes/digitalisimo-theme/assets/css/' === HELLO_THEME_STYLE_URL && $GLOBALS['theme'] . '/assets/js/' === HELLO_THEME_SCRIPTS_PATH && 'propia' === HELLO_THEME_IMAGES_URL, 'En paridad, las constantes de Hello 3.5.1 con sus valores (las rutas, las del tema activo, como en Hello).' );
+foreach ( digitalisimo_theme_child_compat_names()['constants'] as $name ) {
+	check( defined( $name ), 'Constante de Hello declarada: ' . $name );
+}
+foreach ( digitalisimo_theme_child_compat_names()['functions'] as $name ) {
+	check( function_exists( $name ), 'Función de Hello declarada: ' . $name );
+}
+add_filter( 'hello_elementor_hello_header_logo_display', '__return_true' );
+add_filter( 'hello_elementor_hello_header_layout', function () {
+	return 'stacked';
+} );
+add_filter( 'hello_elementor_hello_header_menu_dropdown', function () {
+	return 'mobile';
+} );
+check( 'show' === hello_show_or_hide( 'hello_header_logo_display' ) && 'hide' === hello_show_or_hide( 'hello_footer_logo_display' ), 'hello_show_or_hide() lee el ajuste (y su filtro).' );
+check( 'header-stacked menu-dropdown-mobile' === hello_get_header_layout_class() && '' === hello_get_footer_layout_class(), 'Clases de cabecera y pie como Hello.' );
+check( hello_get_header_display() && ! hello_get_footer_display(), 'Cabecera visible por su ajuste; pie no.' );
+check( hello_elementor_display_header_footer(), 'Cabecera y pie visibles por defecto.' );
+add_filter( 'hello_elementor_header_footer', '__return_false' );
+check( ! hello_elementor_display_header_footer(), 'hello_elementor_display_header_footer() sigue su filtro.' );
+$GLOBALS['hooks']['hello_elementor_header_footer'] = array();
+check( true === hello_elementor_check_hide_title( true ) && ! hello_header_footer_experiment_active(), 'Sin constructor, el título no cambia; sin cabecera configurable guardada, el experimento está apagado.' );
+set_record( array( 'origin' => array( 'family' => 'hello' ), 'header_footer' => array( 'experiment' => true ) ) );
+check( hello_header_footer_experiment_active(), 'Con la cabecera configurable de Hello guardada, el experimento está activo.' );
+ob_start();
+hello_elementor_body_open();
+hello_elementor_setup();
+hello_elementor_scripts_styles();
+hello_elementor_add_description_meta_tag();
+hello_elementor_customizer();
+check( 'body-open' === ob_get_clean(), 'hello_elementor_body_open() es wp_body_open(); las de configuración, encolado y descripción no hacen nada más.' );
+foreach ( array( 'hello_elementor_header_logo_display', 'hello_elementor_hello_header_logo_display', 'hello_elementor_hello_header_layout', 'hello_elementor_hello_header_menu_dropdown' ) as $hook ) {
+	$GLOBALS['hooks'][ $hook ] = array();
+}
 
 set_record( array( 'origin' => array( 'family' => 'hello' ), 'hello' => array( 'skip_link' => true ) ) );
 ob_start();

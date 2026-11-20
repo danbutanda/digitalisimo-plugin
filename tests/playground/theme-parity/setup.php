@@ -61,7 +61,7 @@ if ( is_wp_error( $done ) ) {
 	tp_error( "No se activó $plugin: " . $done->get_error_message() );
 }
 
-$sites = array( 1 => $network ? 'hello' : 'child' );
+$sites = array( 1 => $network ? 'hello' : ( 'child-php' === ( $conf['site_kind'] ?? '' ) ? 'child-php' : 'child' ) );
 if ( $network ) {
 	foreach ( array( 'hijo' => 'child', 'hijo-php' => 'child-php' ) as $path => $kind ) {
 		$id = wpmu_create_blog( DOMAIN_CURRENT_SITE, PATH_CURRENT_SITE . $path . '/', 'Sitio ' . $kind, 1 );

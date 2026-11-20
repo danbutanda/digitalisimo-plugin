@@ -15,7 +15,7 @@ check_theme_package() {
   local archive="$1"
   local problems='' entries name rel required style vendor_re unpacked hits
   entries="$(unzip -Z1 "$archive")"
-  for required in style.css functions.php index.php header.php footer.php sidebar.php comments.php theme.json screenshot.png license.txt inc/class-updater.php inc/switch.php inc/child.php assets/css/base.css; do
+  for required in style.css functions.php index.php header.php footer.php sidebar.php comments.php theme.json screenshot.png license.txt inc/class-updater.php inc/switch.php inc/child.php inc/hello-compat.php inc/hello-compat-functions.php assets/css/base.css; do
     grep -qxF "digitalisimo-theme/$required" <<<"$entries" || problems+="falta digitalisimo-theme/$required"$'\n'
   done
   while IFS= read -r name; do
