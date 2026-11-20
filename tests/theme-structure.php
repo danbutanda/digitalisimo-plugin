@@ -683,7 +683,9 @@ foreach ( digitalisimo_theme_child_compat_names()['constants'] as $name ) {
 foreach ( digitalisimo_theme_child_compat_names()['functions'] as $name ) {
 	check( function_exists( $name ), 'Función de Hello declarada: ' . $name );
 }
-add_filter( 'hello_elementor_hello_header_logo_display', '__return_true' );
+add_filter( 'hello_elementor_hello_header_logo_display', function () {
+	return 'yes';
+} );
 add_filter( 'hello_elementor_hello_header_layout', function () {
 	return 'stacked';
 } );

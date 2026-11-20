@@ -35,11 +35,11 @@ y en Actualizaciones; sólo se instalan solas si activas la actualización autom
 == Changelog ==
 
 = 1.0.2 =
-* En paridad declara las constantes y funciones públicas de Hello que usan los temas hijo, así que el functions.php del
-  hijo en Código PHP de DIGITALÍSIMO Tools corre igual; sus rutas (get_stylesheet_directory_uri(), __DIR__…) apuntan al
-  hijo o a su copia.
+* En paridad declara las constantes y funciones públicas del tema anterior que usan sus temas hijo, así que el
+  functions.php del hijo en Código PHP de DIGITALÍSIMO Tools corre igual; sus rutas (get_stylesheet_directory_uri(),
+  __DIR__…) apuntan al hijo o a su copia.
 * Copia en uploads/digitalisimo-theme/child/ las hojas, fuentes, imágenes y scripts que el hijo encolaba (con sha256) y
-  los sirve desde ahí: el hijo y Hello pueden borrarse sin que cambie nada.
+  los sirve desde ahí: el hijo y el tema anterior pueden borrarse sin que cambie nada.
 
 = 1.0.1 =
 * El paso desde un tema hijo trae lo que su functions.php encolaba (hojas, fuentes y scripts, con su handle, sus

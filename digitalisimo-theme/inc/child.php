@@ -322,9 +322,9 @@ function digitalisimo_theme_child_describe( array $t, $i, $end ) {
 /**
  * Lee el functions.php de un hijo sin ejecutarlo. Pura respecto de `$ctx`: `version` (la del hijo), `parent_version`,
  * `exists( 'child'|'parent', $ruta )` y `mtime( $ruta )`. Devuelve `assets` (lo que encola, con su prioridad) y
- * `blockers` (archivo, línea y qué es).
+ * `blockers` (archivo, línea y qué es). En $clean, los tramos de tokens que el tema ya trae solo.
  */
-function digitalisimo_theme_child_functions_plan( $code, array $ctx = array() ) {
+function digitalisimo_theme_child_functions_plan( $code, array $ctx = array(), &$clean = null ) {
 	$ctx = array_merge(
 		array(
 			'version'        => '',
@@ -338,7 +338,8 @@ function digitalisimo_theme_child_functions_plan( $code, array $ctx = array() ) 
 		),
 		$ctx
 	);
-	$out = array( 'assets' => array(), 'blockers' => array(), 'risks' => array(), 'refs' => array() );
+	$out   = array( 'assets' => array(), 'blockers' => array(), 'risks' => array(), 'refs' => array() );
+	$clean = array();
 	$t   = digitalisimo_theme_child_tokens( $code );
 	if ( "\0" === $code || null === $t ) {
 		$out['blockers'][] = array( 'file' => 'functions.php', 'line' => 0, 'what' => 'no se pudo leer como PHP' );
@@ -443,7 +444,7 @@ function digitalisimo_theme_child_functions_plan( $code, array $ctx = array() ) 
 	}
 
 	$assets = array();
-	$clean  = array(); // Tramos de tokens que el tema trae solo (sin bloqueos): ahí las rutas del tema no importan.
+	// $clean: tramos de tokens que el tema trae solo (sin bloqueos): ahí las rutas del tema no importan.
 	foreach ( $hooks as $hook ) {
 		$target = $hook['target'];
 		$before = count( $out['blockers'] );
@@ -1502,7 +1503,17 @@ function digitalisimo_theme_child_rewrite_code( $code, $slug ) {
 	if ( null === $t || ! digitalisimo_theme_child_slug_ok( $slug ) ) {
 		return $code;
 	}
+	// Lo que el tema ya trae solo no se reescribe (su handle ya está registrado desde la carpeta del hijo o su copia): así
+	// el fragmento de la plantilla oficial queda igual que con 1.0.1, con el mismo hash.
+	digitalisimo_theme_child_functions_plan( $code, array(), $clean );
 	$rewrites = digitalisimo_theme_child_rewrites( $t );
+	foreach ( array_keys( $rewrites ) as $at ) {
+		foreach ( (array) $clean as $range ) {
+			if ( $at >= $range[0] && $at < $range[1] ) {
+				unset( $rewrites[ $at ] );
+			}
+		}
+	}
 	if ( ! $rewrites ) {
 		return $code;
 	}
@@ -1517,7 +1528,7 @@ function digitalisimo_theme_child_rewrite_code( $code, $slug ) {
 		} else {
 			$change[ $raw[ $i ] ]     = ( 0 === strpos( (string) $t[ $i ][1], '\\' ) ? '\\' : '' ) . $names[ $rewrite[0] ];
 			$empty                    = isset( $t[ $i + 2 ] ) && ')' === $t[ $i + 2 ][0];
-			$change[ $raw[ $i + 1 ] ] = '( ' . $slug_php . ( 'style' === $rewrite[0] ? ", 'style.css'" : '' ) . ( $empty ? ' ' : ', ' );
+			$change[ $raw[ $i + 1 ] ] = '( ' . $slug_php . ( 'style' === $rewrite[0] ? ", 'style.css'" : '' ) . ( $empty ? ' ' : ',' ); // El espacio de después sigue.
 		}
 	}
 	$out = '';

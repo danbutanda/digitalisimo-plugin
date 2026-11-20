@@ -178,7 +178,7 @@ function wp_mkdir_p( $dir ) {
 	return is_dir( $dir ) || @mkdir( $dir, 0777, true );
 }
 function get_theme_root( $stylesheet = '' ) {
-	return sys_get_temp_dir();
+	return $GLOBALS['theme_root'] ?? sys_get_temp_dir();
 }
 function get_template() {
 	return 'digitalisimo-theme';
@@ -290,10 +290,11 @@ check( ! isset( $GLOBALS['hooks']['wp_enqueue_scripts'] ), 'Sin lista del hijo, 
 
 // ------------------------------------------------------------------ Escenario
 $tmp   = sys_get_temp_dir() . '/digitalisimo-theme-switch-' . getmypid();
+$GLOBALS['theme_root'] = $tmp; // Las carpetas de los temas de la prueba (la copia del hijo las lee de ahí).
 $child = $tmp . '/hello-child';
 @mkdir( $child . '/inc', 0777, true ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 file_put_contents( $child . '/style.css', "/*\n Theme Name: Hello Child\n Template: hello-elementor\n*/\n.site-header{background:url(img/a.png)}\n.site-footer{background:url('../x.png') , url(data:image/png;base64,AA) , url(/abs.png) , url(\"https://cdn.test/x.png\") , url(./b.png)}\n" );
-file_put_contents( $child . '/functions.php', "<?php wp_enqueue_style( 'hijo', get_stylesheet_uri(), array( 'hello-elementor-theme-style' ) );\n" );
+file_put_contents( $child . '/functions.php', "<?php wp_enqueue_style( 'hijo', get_template_directory_uri() . '/x.css', array( 'hello-elementor-theme-style' ) );\n" );
 file_put_contents( $child . '/inc/x.php', "<?php\n" );
 file_put_contents( $child . '/tpl-landing.php', "<?php /* Template Name: Landing */\n" );
 // Hijo típico: la plantilla oficial del hijo de Hello (sólo encola su style.css) y una hoja más.
@@ -413,7 +414,7 @@ check( in_array( 'child_css', warning_codes(), true ) && in_array( 'child_php', 
 $php_warning = array_values( array_filter( journal()['warnings'], static function ( $w ) {
 	return 'child_php' === $w['code'];
 } ) )[0]['message'];
-check( false !== strpos( $php_warning, "functions.php, línea 1: wp_enqueue_style( 'hijo' )" ) && false !== strpos( $php_warning, 'tpl-landing.php: plantilla de página que usan 2 contenidos' ) && false === strpos( $php_warning, 'inc/x.php' ) && false !== strpos( $php_warning, 'no puede pasar tal cual a Código PHP de DIGITALÍSIMO Tools, porque con este tema haría otra cosa (functions.php, línea 1: usa get_stylesheet_uri()' ), 'El aviso dice qué no se trajo y dónde (un PHP vacío no cuenta), y que su ruta del tema cambiaría de sentido: ' . $php_warning );
+check( false !== strpos( $php_warning, "functions.php, línea 1: wp_enqueue_style( 'hijo' )" ) && false !== strpos( $php_warning, 'tpl-landing.php: plantilla de página que usan 2 contenidos' ) && false === strpos( $php_warning, 'inc/x.php' ) && false !== strpos( $php_warning, 'no puede pasar tal cual a Código PHP de DIGITALÍSIMO Tools, porque con este tema haría otra cosa (functions.php, línea 1: usa get_template_directory_uri()' ), 'El aviso dice qué no se trajo y dónde (un PHP vacío no cuenta), y que su ruta del tema cambiaría de sentido: ' . $php_warning );
 check( array() === $log['child']['carried'] && 2 === count( $log['child']['blockers'] ) && ! array_key_exists( 'digitalisimo_theme_child', $GLOBALS['options'] ), 'Nada legible que encolar: sin opción del hijo.' );
 $result = digitalisimo_theme_import_previous( wp_get_theme( 'hello-child' ), array( 'force' => true, 'child_css' => true, 'via' => 'cli' ) );
 $child_block    = $GLOBALS['css']['digitalisimo-theme'];
