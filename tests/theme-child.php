@@ -437,4 +437,37 @@ $GLOBALS['filters']['digitalisimo_tools_php_sources'][] = static function ( $row
 };
 check( digitalisimo_theme_child_php_covered( $child ), 'Activo y sin cambios en Tools: cubierto.' );
 
+// Lo que dentro de la condición, con el tema propio, haría otra cosa: se marca (y el hijo se queda), con su línea.
+$official = "<?php\ndefine( 'HELLO_ELEMENTOR_CHILD_VERSION', '2.0.0' );\nfunction hello_elementor_child_scripts_styles() {\n\twp_enqueue_style( 'hello-elementor-child-style', get_stylesheet_directory_uri() . '/style.css', [ 'hello-elementor-theme-style' ], HELLO_ELEMENTOR_CHILD_VERSION );\n}\nadd_action( 'wp_enqueue_scripts', 'hello_elementor_child_scripts_styles', 20 );\n";
+check( array() === plan_of( $official )['risks'] && array() === plan_of( $official . "add_action( 'wp_head', function () { echo '<style>.x{}</style>'; } );\n" )['risks'], 'La plantilla oficial (con su ruta del tema en lo que ya se trae y su propia constante) no tiene riesgos.' );
+$risky = array(
+	'constante de Hello'      => array( "add_action( 'wp_head', function () { echo HELLO_ELEMENTOR_VERSION; } );\n", '2:usa la constante HELLO_ELEMENTOR_VERSION de Hello' ),
+	'constante de Hello leída' => array( "function a() {\n\twp_enqueue_style( 'x', get_stylesheet_directory_uri() . '/x.css', [], HELLO_ELEMENTOR_VERSION );\n}\nadd_action( 'wp_enqueue_scripts', 'a' );\n", '3:usa la constante HELLO_ELEMENTOR_VERSION de Hello' ),
+	'función de Hello'        => array( "add_action( 'init', function () { hello_elementor_body_open(); } );\n", '2:llama a hello_elementor_body_open(), de Hello' ),
+	'ruta del tema'           => array( "require get_stylesheet_directory() . '/inc/x.php';\n", '2:usa get_stylesheet_directory(), que con el tema DIGITALÍSIMO apunta a su carpeta' ),
+	'ruta en un gancho'       => array( "add_action( 'wp_footer', function () {\n\techo '<img src=\"' . get_stylesheet_directory_uri() . '/a.png\">';\n} );\n", '3:usa get_stylesheet_directory_uri()' ),
+	'ruta en un if'           => array( "function a() {\n\tif ( is_page() ) {\n\t\twp_enqueue_style( 'child-landing', get_stylesheet_directory_uri() . '/css/landing.css' );\n\t}\n}\nadd_action( 'wp_enqueue_scripts', 'a' );\n", '4:usa get_stylesheet_directory_uri()' ),
+	'llamada antes'           => array( "child_boot();\nfunction child_boot() { add_action( 'wp_head', 'x' ); }\n", '2:llama a child_boot() antes de declararla' ),
+	'clase antes'             => array( "class Hija extends Base {}\nclass Base {}\n", '2:la clase Hija extiende Base, declarada más abajo' ),
+	'objeto antes'            => array( "\$o = new Cosa();\nclass Cosa {}\n", '2:crea un Cosa antes de declarar la clase' ),
+	'global de primer nivel'  => array( "\$tp_opts = array( 1 );\nfunction tp() { global \$tp_opts; return \$tp_opts; }\nadd_action( 'wp_head', 'tp' );\n", '3:usa global $tp_opts' ),
+);
+foreach ( $risky as $label => $case ) {
+	$found = array_map( static function ( $b ) {
+		return $b['line'] . ':' . $b['what'];
+	}, plan_of( "<?php\n" . $case[0] )['risks'] );
+	check( 1 === count( $found ) && 0 === strpos( $found[0], $case[1] ), "Riesgo «{$label}»: " . json_encode( $found ) );
+}
+check( array() === plan_of( "<?php\nfunction child_boot() {}\nchild_boot();\nadd_action( 'init', function () { otra(); } );\nfunction otra() {}\nclass Base {}\nclass Hija extends Base {}\n" )['risks'], 'Declarada antes, o usada dentro de una función, no es riesgo.' );
+// Por qué: dentro de la condición, una función usada antes de su línea todavía no existe (fuera de ella sí).
+file_put_contents( $dir . '/early.php', digitalisimo_theme_child_wrap_php( "<?php\nchild_boot();\nfunction child_boot() {}\n", 'Hijo' ) );
+list( $st, $out ) = $run( "function digitalisimo_theme_parity() {} require '{$dir}/early.php'; echo 'fin';" );
+check( 0 !== $st && false !== stripos( $out, 'undefined function' ), 'Dentro de la condición, la llamada anterior a la declaración es un error fatal: ' . $out );
+$GLOBALS['imports'] = array();
+check( '' === digitalisimo_theme_child_import_php( $child, array( 'blockers' => array( array( 'file' => 'functions.php', 'line' => 3, 'what' => "add_action( 'wp_head' )" ) ), 'risks' => array( array( 'file' => 'functions.php', 'line' => 3, 'what' => 'x' ) ), 'assets' => array() ) ) && array() === $GLOBALS['imports'], 'Con riesgos no se importa nada.' );
+// Un cierre de PHP en el nombre del tema no puede cerrar el comentario de la envoltura.
+file_put_contents( $dir . '/name.php', digitalisimo_theme_child_wrap_php( "<?php\nfunction b2() {}\n", 'Mi tema ?> <b>x</b> <?php echo 1;' ) );
+list( $st, $out ) = $run( "require '{$dir}/name.php'; echo 'fin';" );
+check( 0 === $st && 'fin' === $out, 'Con un cierre de PHP en el nombre, la envoltura no imprime nada: ' . $out );
+
 echo "Tema hijo de Hello: lectura del functions.php, bloqueos, archivos del hijo, encolado en el tema y PHP en Tools validados.\n";

@@ -407,7 +407,7 @@ check( in_array( 'child_css', warning_codes(), true ) && in_array( 'child_php', 
 $php_warning = array_values( array_filter( journal()['warnings'], static function ( $w ) {
 	return 'child_php' === $w['code'];
 } ) )[0]['message'];
-check( false !== strpos( $php_warning, "functions.php, línea 1: wp_enqueue_style( 'hijo' )" ) && false !== strpos( $php_warning, 'tpl-landing.php: plantilla de página que usan 2 contenidos' ) && false === strpos( $php_warning, 'inc/x.php' ) && false !== strpos( $php_warning, 'Pásalo a Código PHP' ), 'El aviso dice qué no se trajo y dónde (un PHP vacío no cuenta): ' . $php_warning );
+check( false !== strpos( $php_warning, "functions.php, línea 1: wp_enqueue_style( 'hijo' )" ) && false !== strpos( $php_warning, 'tpl-landing.php: plantilla de página que usan 2 contenidos' ) && false === strpos( $php_warning, 'inc/x.php' ) && false !== strpos( $php_warning, 'no puede pasar tal cual a Código PHP de DIGITALÍSIMO Tools, porque con este tema haría otra cosa (functions.php, línea 1: usa get_stylesheet_uri()' ), 'El aviso dice qué no se trajo y dónde (un PHP vacío no cuenta), y que su ruta del tema cambiaría de sentido: ' . $php_warning );
 check( array() === $log['child']['carried'] && 2 === count( $log['child']['blockers'] ) && ! array_key_exists( 'digitalisimo_theme_child', $GLOBALS['options'] ), 'Nada legible que encolar: sin opción del hijo.' );
 $result = digitalisimo_theme_import_previous( wp_get_theme( 'hello-child' ), array( 'force' => true, 'child_css' => true, 'via' => 'cli' ) );
 $child_block    = $GLOBALS['css']['digitalisimo-theme'];

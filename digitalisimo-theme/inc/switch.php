@@ -461,13 +461,17 @@ function digitalisimo_theme_import_work( WP_Theme $old, $child_css, $dry, $via )
 			$covered  = digitalisimo_theme_child_php_covered( $old );
 			$imported = $dry || $covered ? '' : digitalisimo_theme_child_import_php( $old, $plan );
 			$log['child']['tools'] = $covered ? 'active' : $imported;
+			$risks                 = $plan['risks'] ? digitalisimo_theme_child_blockers_text( $plan['risks'] ) : '';
+			if ( '' !== $risks ) {
+				$log['child']['risks'] = array_slice( $plan['risks'], 0, 20 );
+			}
 			$warn(
 				'child_php',
 				sprintf(
 					'Del tema hijo %s no se trajo lo que necesita ejecutar su PHP: %s. %s',
 					$stylesheet,
 					digitalisimo_theme_child_blockers_text( $plan['blockers'] ),
-					$covered ? 'Su functions.php ya está activo en Código PHP de DIGITALÍSIMO Tools.' : ( '' !== $imported ? 'Su functions.php quedó en DIGITALÍSIMO Tools → Código PHP, inactivo: revísalo y actívalo, o vuelve al tema hijo.' : 'Pásalo a Código PHP de DIGITALÍSIMO Tools (revisado y activado) o vuelve al tema hijo.' )
+					$covered ? 'Su functions.php ya está activo en Código PHP de DIGITALÍSIMO Tools.' : ( '' !== $risks ? 'Su functions.php no puede pasar tal cual a Código PHP de DIGITALÍSIMO Tools, porque con este tema haría otra cosa (' . $risks . '): adáptalo antes de llevarlo ahí, o vuelve al tema hijo.' : ( '' !== $imported ? 'Su functions.php quedó en DIGITALÍSIMO Tools → Código PHP, inactivo: revísalo y actívalo, o vuelve al tema hijo.' : 'Pásalo a Código PHP de DIGITALÍSIMO Tools (revisado y activado) o vuelve al tema hijo.' ) )
 				)
 			);
 		}

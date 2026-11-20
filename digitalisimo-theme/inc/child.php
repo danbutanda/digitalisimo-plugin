@@ -30,6 +30,7 @@ function digitalisimo_theme_child_plan( WP_Theme $child ) {
 		'hash'     => '',
 		'assets'   => array(),
 		'blockers' => array(),
+		'risks'    => array(), // Lo que cambiaría de sentido si su functions.php corre con el tema propio (ver _risks()).
 	);
 	$code = digitalisimo_theme_child_php_code( $child );
 	if ( '' !== $code ) {
@@ -50,6 +51,7 @@ function digitalisimo_theme_child_plan( WP_Theme $child ) {
 		);
 		$plan['assets']   = $found['assets'];
 		$plan['blockers'] = $found['blockers'];
+		$plan['risks']    = $found['risks'];
 	}
 	foreach ( digitalisimo_theme_child_other_files( $child ) as $blocker ) {
 		$plan['blockers'][] = $blocker;
@@ -326,7 +328,7 @@ function digitalisimo_theme_child_functions_plan( $code, array $ctx = array() ) 
 		),
 		$ctx
 	);
-	$out = array( 'assets' => array(), 'blockers' => array() );
+	$out = array( 'assets' => array(), 'blockers' => array(), 'risks' => array() );
 	$t   = digitalisimo_theme_child_tokens( $code );
 	if ( "\0" === $code || null === $t ) {
 		$out['blockers'][] = array( 'file' => 'functions.php', 'line' => 0, 'what' => 'no se pudo leer como PHP' );
@@ -363,7 +365,7 @@ function digitalisimo_theme_child_functions_plan( $code, array $ctx = array() ) 
 				++$k; // Tipo de retorno.
 			}
 			$body_end                            = digitalisimo_theme_child_close( $t, $k );
-			$funcs[ strtolower( $t[ $i + 1 ][1] ) ] = array( 'name' => $t[ $i + 1 ][1], 'from' => $k + 1, 'to' => $body_end, 'line' => $t[ $i ][2], 'used' => false );
+			$funcs[ strtolower( $t[ $i + 1 ][1] ) ] = array( 'name' => $t[ $i + 1 ][1], 'start' => $i, 'from' => $k + 1, 'to' => $body_end, 'line' => $t[ $i ][2], 'used' => false );
 			$i = $body_end + 1;
 			continue;
 		}
@@ -419,7 +421,7 @@ function digitalisimo_theme_child_functions_plan( $code, array $ctx = array() ) 
 						}
 					}
 					if ( $hook[0] && is_string( $hook[1] ) && $priority[0] && is_int( $priority[1] ) && null !== $target && in_array( $hook[1], array( 'wp_enqueue_scripts', 'after_setup_theme' ), true ) ) {
-						$hooks[] = array( 'hook' => $hook[1], 'priority' => $priority[1], 'target' => $target, 'line' => $t[ $i ][2] );
+						$hooks[] = array( 'hook' => $hook[1], 'priority' => $priority[1], 'target' => $target, 'line' => $t[ $i ][2], 'range' => array( $i, $end ) );
 						$i       = $end;
 						continue;
 					}
@@ -431,8 +433,10 @@ function digitalisimo_theme_child_functions_plan( $code, array $ctx = array() ) 
 	}
 
 	$assets = array();
+	$clean  = array(); // Tramos de tokens que el tema trae solo (sin bloqueos): ahí las rutas del tema no importan.
 	foreach ( $hooks as $hook ) {
 		$target = $hook['target'];
+		$before = count( $out['blockers'] );
 		if ( isset( $target['name'] ) ) {
 			if ( ! isset( $funcs[ $target['name'] ] ) ) {
 				$block( $hook['line'], sprintf( "add_action( '%s', '%s' ) con una función que no está en functions.php", $hook['hook'], $target['name'] ) );
@@ -447,7 +451,14 @@ function digitalisimo_theme_child_functions_plan( $code, array $ctx = array() ) 
 			$where = 'la función de ' . $hook['hook'];
 		}
 		digitalisimo_theme_child_body( $body, $hook, $where, $consts, $ctx, $assets, $block );
+		if ( count( $out['blockers'] ) === $before ) {
+			$clean[] = $hook['range'];
+			if ( isset( $target['name'] ) ) {
+				$clean[] = array( $funcs[ $target['name'] ]['start'], $funcs[ $target['name'] ]['to'] + 1 );
+			}
+		}
 	}
+	$out['risks'] = digitalisimo_theme_child_risks( $t, $clean );
 	foreach ( $funcs as $fn ) {
 		if ( ! $fn['used'] ) {
 			$block( $fn['line'], 'define la función ' . $fn['name'] . '()' );
@@ -471,6 +482,105 @@ function digitalisimo_theme_child_functions_plan( $code, array $ctx = array() ) 
 	}
 	$out['assets'] = array_values( $assets );
 	return $out;
+}
+
+/**
+ * Lo que en Código PHP de Tools, con el tema propio activo y dentro de la condición, haría otra cosa que en el hijo:
+ * constantes y funciones de Hello (con el tema propio no existen: un error fatal en cada página), las rutas del tema
+ * (`get_stylesheet_directory*()` y parecidas apuntarían a la carpeta del tema propio; no cuentan en lo que el tema ya trae
+ * solo, donde su handle ya está registrado), funciones o clases usadas antes de declararse (dentro de un `if` no se
+ * declaran por adelantado) y `global` de una variable de primer nivel (cada fragmento corre en su propio ámbito). Pura:
+ * recibe los tokens del lector y los tramos ya traídos [desde, hasta). Devuelve bloqueos (archivo, línea, qué es).
+ */
+function digitalisimo_theme_child_risks( array $t, array $clean = array() ) {
+	$n       = count( $t );
+	$stack   = array();
+	$pending = false;
+	$in_body = array();
+	$funcs   = array();
+	$classes = array();
+	$extends = array();
+	$defined = array();
+	$top     = array();
+	for ( $i = 0; $i < $n; $i++ ) {
+		$v             = $t[ $i ][0];
+		$in_body[ $i ] = in_array( 'body', $stack, true );
+		$prev          = $i > 0 ? $t[ $i - 1 ][0] : null;
+		if ( in_array( $v, array( T_FUNCTION, T_CLASS, T_TRAIT, T_INTERFACE ), true ) && T_DOUBLE_COLON !== $prev ) {
+			$pending = true;
+			$k       = isset( $t[ $i + 1 ] ) && '&' === $t[ $i + 1 ][0] ? $i + 2 : $i + 1;
+			if ( ! $in_body[ $i ] && isset( $t[ $k ] ) && T_STRING === $t[ $k ][0] ) {
+				$name = strtolower( $t[ $k ][1] );
+				if ( T_FUNCTION === $v ) {
+					$funcs += array( $name => $i );
+				} else {
+					$classes += array( $name => $i );
+					if ( isset( $t[ $k + 1 ], $t[ $k + 2 ] ) && T_EXTENDS === $t[ $k + 1 ][0] && T_STRING === $t[ $k + 2 ][0] ) {
+						$extends[] = array( $i, $t[ $k + 2 ][1], $t[ $k ][1] );
+					}
+				}
+			}
+		} elseif ( '{' === $v || T_CURLY_OPEN === $v || T_DOLLAR_OPEN_CURLY_BRACES === $v ) {
+			$stack[] = $pending && '{' === $v ? 'body' : 'block';
+			$pending = false;
+		} elseif ( '}' === $v ) {
+			array_pop( $stack );
+		} elseif ( ';' === $v ) {
+			$pending = false;
+		} elseif ( T_STRING === $v && 'define' === strtolower( $t[ $i ][1] ) && isset( $t[ $i + 1 ], $t[ $i + 2 ] ) && '(' === $t[ $i + 1 ][0] && T_CONSTANT_ENCAPSED_STRING === $t[ $i + 2 ][0] ) {
+			$defined[ trim( $t[ $i + 2 ][1], '\'"' ) ] = true;
+		} elseif ( T_CONST === $v && isset( $t[ $i + 1 ] ) && T_STRING === $t[ $i + 1 ][0] ) {
+			$defined[ $t[ $i + 1 ][1] ] = true;
+		} elseif ( T_VARIABLE === $v && ! $in_body[ $i ] && isset( $t[ $i + 1 ] ) && '=' === $t[ $i + 1 ][0] ) {
+			$top[ $t[ $i ][1] ] = true;
+		}
+	}
+	$skip = array();
+	foreach ( $clean as $range ) {
+		for ( $i = (int) $range[0]; $i < (int) $range[1] && $i < $n; $i++ ) {
+			$skip[ $i ] = true;
+		}
+	}
+	$paths = '/^(get_(stylesheet|template)_directory(_uri)?|get_stylesheet_uri|get_(parent_)?theme_file_(uri|path))$/i';
+	$names = array( T_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_CONST, T_CLASS, T_INTERFACE, T_TRAIT, T_EXTENDS, T_IMPLEMENTS, T_NEW );
+	if ( defined( 'T_NULLSAFE_OBJECT_OPERATOR' ) ) {
+		$names[] = T_NULLSAFE_OBJECT_OPERATOR;
+	}
+	$risks = array();
+	$add   = static function ( $line, $what ) use ( &$risks ) {
+		$risks[ $what ] = array( 'file' => 'functions.php', 'line' => (int) $line, 'what' => (string) $what );
+	};
+	for ( $i = 0; $i < $n; $i++ ) {
+		list( $v, $text, $line ) = $t[ $i ];
+		$prev = $i > 0 ? $t[ $i - 1 ][0] : null;
+		$call = isset( $t[ $i + 1 ] ) && '(' === $t[ $i + 1 ][0];
+		if ( T_STRING === $v && ! in_array( $prev, $names, true ) ) {
+			$lower = strtolower( $text );
+			if ( preg_match( '/^HELLO_ELEMENTOR_\w+$/', $text ) && ! $call && ! isset( $defined[ $text ] ) ) {
+				$add( $line, sprintf( 'usa la constante %s de Hello, que con el tema DIGITALÍSIMO no existe', $text ) );
+			} elseif ( $call && 0 === strpos( $lower, 'hello_elementor_' ) && ! isset( $funcs[ $lower ] ) ) {
+				$add( $line, sprintf( 'llama a %s(), de Hello, que con el tema DIGITALÍSIMO no existe', $text ) );
+			} elseif ( $call && empty( $skip[ $i ] ) && preg_match( $paths, $text ) ) {
+				$add( $line, sprintf( 'usa %s(), que con el tema DIGITALÍSIMO apunta a su carpeta y no a la del hijo', $text ) );
+			} elseif ( $call && ! $in_body[ $i ] && isset( $funcs[ $lower ] ) && $funcs[ $lower ] > $i ) {
+				$add( $line, sprintf( 'llama a %s() antes de declararla (dentro de la condición todavía no existiría)', $text ) );
+			}
+		} elseif ( T_STRING === $v && T_NEW === $prev && ! $in_body[ $i ] && isset( $classes[ strtolower( $text ) ] ) && $classes[ strtolower( $text ) ] > $i ) {
+			$add( $line, sprintf( 'crea un %s antes de declarar la clase (dentro de la condición todavía no existiría)', $text ) );
+		} elseif ( T_GLOBAL === $v && $in_body[ $i ] ) {
+			for ( $k = $i + 1; $k < $n && ';' !== $t[ $k ][0]; $k++ ) {
+				if ( T_VARIABLE === $t[ $k ][0] && isset( $top[ $t[ $k ][1] ] ) ) {
+					$add( $t[ $k ][2], sprintf( 'usa global %s, una variable de primer nivel del archivo (en Código PHP cada fragmento tiene su propio ámbito)', $t[ $k ][1] ) );
+				}
+			}
+		}
+	}
+	foreach ( $extends as $row ) {
+		if ( isset( $classes[ strtolower( $row[1] ) ] ) && $classes[ strtolower( $row[1] ) ] > $row[0] ) {
+			$add( $t[ $row[0] ][2], sprintf( 'la clase %s extiende %s, declarada más abajo (dentro de la condición todavía no existiría)', $row[2], $row[1] ) );
+		}
+	}
+	return array_values( $risks );
 }
 
 /** Cuerpo de una función enganchada: sólo encolados y registros con valores legibles. */
@@ -918,7 +1028,7 @@ function digitalisimo_theme_child_wrap_php( $code, $name ) {
 		}
 	}
 	$body  = (string) preg_replace( '/^<\?php\s/', '', $code, 1 );
-	$label = str_replace( array( '*/', "\r", "\n" ), '', (string) $name );
+	$label = str_replace( array( '*/', '?>', '<?', "\r", "\n" ), '', (string) $name );
 	return "<?php\n// functions.php del tema hijo «" . $label . "», tal cual, dentro de esta condición: sólo corre con el tema DIGITALÍSIMO\n"
 		. "// activo. Con el hijo activo no hace nada, así que puede activarse antes de cambiar de tema y se apaga si se vuelve al hijo.\n"
 		. "if ( function_exists( 'digitalisimo_theme_parity' ) ) {\n" . rtrim( $body ) . "\n"
@@ -938,7 +1048,7 @@ function digitalisimo_theme_child_import_php( WP_Theme $child, array $plan ) {
 		}
 	}
 	$code = digitalisimo_theme_child_php_code( $child );
-	if ( ! $php || '' === $code || "\0" === $code || ! preg_match( '/^<\?php\s/', $code ) || ! has_filter( 'digitalisimo_tools_php_import' ) ) {
+	if ( ! $php || ! empty( $plan['risks'] ) || '' === $code || "\0" === $code || ! preg_match( '/^<\?php\s/', $code ) || ! has_filter( 'digitalisimo_tools_php_import' ) ) {
 		return '';
 	}
 	// Con la condición del tema propio, el fragmento puede activarse antes del cambio sin chocar con el hijo.

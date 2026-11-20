@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_recheck', 'theme_warm_fatal', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -185,6 +185,21 @@ function child_theme( $slug, $name, $functions ) {
 }
 const OFFICIAL_CHILD = "<?php\nif ( ! defined( 'ABSPATH' ) ) {\n\texit;\n}\ndefine( 'HELLO_ELEMENTOR_CHILD_VERSION', '2.0.0' );\nfunction hello_elementor_child_scripts_styles() {\n\twp_enqueue_style( 'hello-elementor-child-style', get_stylesheet_directory_uri() . '/style.css', [ 'hello-elementor-theme-style' ], HELLO_ELEMENTOR_CHILD_VERSION );\n}\nadd_action( 'wp_enqueue_scripts', 'hello_elementor_child_scripts_styles', 20 );\n";
 const PHP_CHILD      = OFFICIAL_CHILD . "add_action( 'wp_head', function () {\n\techo '<style>.x{color:red}</style>';\n} );\nadd_action( 'wp_footer', function () {\n\techo '<script>1</script>';\n} );\n";
+/** Tools activo en el sitio, con su importación cargada (contesta $answer). */
+function tools_here( $answer = 'created' ) {
+	$GLOBALS['t']['filters']['digitalisimo_tools_php_import'][] = static function ( $result, $items ) use ( $answer ) {
+		$GLOBALS['t']['imports'][] = $items;
+		return array( 'digitalisimo-theme:' . $items[0]['origin']['id'] => $answer );
+	};
+	update_option( 'active_plugins', array_merge( (array) get_option( 'active_plugins', array() ), array( \Digitalisimo\Migration\Full::TOOLS_FILE ) ) );
+}
+/** El functions.php del hijo («Hello Hijo», PHP_CHILD), con la condición, activo en Tools salvo si está `paused`. */
+function snippet_active() {
+	$GLOBALS['t']['filters']['digitalisimo_tools_php_sources'][] = static function ( $rows ) {
+		$wrap = function_exists( 'digitalisimo_theme_child_wrap_php' ) ? digitalisimo_theme_child_wrap_php( PHP_CHILD, 'Hello Hijo' ) : '';
+		return array_merge( $rows, array( array( 'scope' => 'site', 'id' => 'a1', 'active' => empty( $GLOBALS['t']['paused'] ), 'hash' => hash( 'sha256', $wrap ) ) ) );
+	};
+}
 function wp_get_theme( $slug = null ) { return new WP_Theme( null === $slug ? get_option( 'stylesheet' ) : $slug ); }
 function wp_get_themes() {
 	$out = array();
@@ -490,6 +505,16 @@ Front::$fetcher = static function ( $url ) use ( $page ) {
 		return new WP_Error( 'x', 'sin respuesta' );
 	}
 	$theme = ! empty( $GLOBALS['t']['cached'] ) ? 'hello-elementor' : (string) get_blog_option( $blog, 'stylesheet' );
+	if ( ! empty( $GLOBALS['t']['pause_in_theme_stage'] ) && 'theme' === ( Full::load( false )['stage'] ?? '' ) ) {
+		$GLOBALS['t']['paused'] = true; // El fragmento se pausa mientras se toman las huellas de justo antes.
+	}
+	if ( 'digitalisimo-theme' === $theme && ! empty( $GLOBALS['t']['pause_on_switch'] ) ) {
+		$GLOBALS['t']['paused'] = true; // El guardián de Tools lo pausa en la primera petición con el tema propio.
+	}
+	if ( 'digitalisimo-theme' === $theme && ! empty( $GLOBALS['t']['warm_break'] ) ) {
+		$GLOBALS['t']['warm_break'] = false; // Sólo la primera petición con el tema propio falla; las demás responden.
+		return array( 500, '<p>There has been a critical error on this website.</p>' );
+	}
 	if ( ! empty( $GLOBALS['t']['verify_throws'] ) && 'digitalisimo-theme' === $theme ) {
 		throw new RuntimeException( 'la comprobación se cortó' );
 	}
@@ -684,6 +709,18 @@ switch ( $scenario ) {
 		check( ! $kept[0] && false !== strpos( $kept[1], '1) en Apariencia activa el tema DIGITALÍSIMO' ) && strpos( $kept[1], '1) en Apariencia' ) < strpos( $kept[1], '2) enseguida revisa' ) && false !== strpos( $kept[1], 'no antes' ), 'Sin la condición posible, el orden a mano: ' . $kept[1] );
 		check( false !== strpos( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'tools' => true ) ) )[1], 'en DIGITALÍSIMO Tools → Código PHP crea un fragmento' ), 'Con Tools activo y sin importar, dice que cree el fragmento.' );
 		check( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'covered' => true ) ) )[0], 'Con ese PHP ya activo en Tools, el hijo puede cambiar.' );
+		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => "functions.php, línea 9: add_action( 'wp_head' )", 'files' => 'header.php: plantilla que sustituye la del tema; template-landing.php: plantilla de página que usan 12 contenidos', 'covered' => true, 'tools' => true ) ) );
+		check( ! $kept[0] && false !== strpos( $kept[1], 'plantillas o archivos que el tema DIGITALÍSIMO no traslada: header.php' ) && false !== strpos( $kept[1], 'usan 12 contenidos' ) && false !== strpos( $kept[1], "Además, su functions.php tiene PHP que no se traslada solo: functions.php, línea 9" ), 'Con el fragmento activo, las plantillas del hijo lo siguen dejando: ' . $kept[1] );
+		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => '', 'files' => 'theme.json: estilos globales propios (theme.json)', 'tools' => true, 'wrap' => true ) ) );
+		check( ! $kept[0] && false !== strpos( $kept[1], 'theme.json' ) && false === strpos( $kept[1], 'no admite la condición' ) && false === strpos( $kept[1], 'activa DIGITALÍSIMO Tools' ), 'Sólo con archivos del hijo, su propio motivo (ni la condición ni Tools): ' . $kept[1] );
+		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'risks' => 'functions.php, línea 4: usa la constante HELLO_ELEMENTOR_VERSION de Hello', 'covered' => true, 'tools' => true, 'wrap' => true ) ) );
+		check( ! $kept[0] && false !== strpos( $kept[1], 'con el tema DIGITALÍSIMO haría otra cosa: functions.php, línea 4: usa la constante HELLO_ELEMENTOR_VERSION' ), 'Con un riesgo, aunque esté activo, se queda y lo dice: ' . $kept[1] );
+		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => 'skipped', 'tools' => true, 'filter' => true, 'wrap' => true ) ) );
+		check( ! $kept[0] && false !== strpos( $kept[1], 'se borró' ) && false === strpos( $kept[1], 'no admite la condición' ), 'Fragmento borrado en Tools: lo dice: ' . $kept[1] );
+		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => '', 'tools' => true, 'filter' => false, 'wrap' => true ) ) );
+		check( ! $kept[0] && false !== strpos( $kept[1], 'Migrar corre desde otro sitio de la red' ) && false === strpos( $kept[1], 'no admite la condición' ), 'Tools activo en el sitio pero no cargado en la petición: lo dice: ' . $kept[1] );
+		// La primera petición con el tema propio.
+		check( 'respondió HTTP 500.' === Front::broken( array( 500, 'x' ) ) && 'mostró un error de PHP.' === Front::broken( array( 200, '<p>There has been a critical error on this website.</p>' ) ) && '' === Front::broken( array( 200, '<p>Hola</p>' ) ) && '' === Front::broken( new WP_Error( 'x', 'y' ) ), 'Una primera petición con 500 o con un error de PHP falla.' );
 		// Hojas combinadas por un plugin de caché: un motivo propio, no «faltan hojas».
 		$cached = '<html><head><link rel="stylesheet" id="autoptimize-css" href="/wp-content/cache/autoptimize/css/autoptimize_abc.css"></head><body class="elementor-kit-7">Texto</body></html>';
 		$r      = Front::compare_styles( Front::fingerprint( 200, $cached ), Front::fingerprint( 200, str_replace( 'abc', 'def', str_replace( 'id="autoptimize-css" ', '', $cached ) ) ) );
@@ -715,6 +752,8 @@ switch ( $scenario ) {
 			check( false === $r[0] && false !== strpos( $r[1], $case[1] ), "Estilo {$label}: no se pinta igual y lo dice ({$r[1]})." );
 		}
 		check( true === Front::compare_styles( $pre, Front::fingerprint( 200, str_replace( '?ver=2', '?ver=3', $same ) ) )[0], 'Otra versión de la misma hoja no cuenta.' );
+		$moved = Front::compare_styles( $pre, Front::fingerprint( 200, str_replace( '//a.test/wp-content/themes/hijo/style.css', '//a.test/wp-content/themes/digitalisimo-theme/style.css', $same ) ) );
+		check( false === $moved[0] && false !== strpos( $moved[1], 'faltan hojas de estilo que se cargaban antes: hijo' ), 'El mismo handle desde otra ruta (la carpeta del tema propio) no es la misma hoja: ' . $moved[1] );
 		check( null === Front::compare_styles( array( 'status' => 0, 'error' => 'x' ), $pre )[0] && null === Front::compare_styles( array(), $pre )[0], 'Sin huella de antes, no comparable.' );
 		check( ! Full::theme_safety( array( 'hello' => false, 'name' => 'Astra' ) + $hello, $ready )[0], 'Otro tema no es seguro.' );
 		check( ! Full::theme_safety( $hello, array( 'builder' => false ) + $ready )[0], 'Sin el Theme Builder no es seguro.' );
@@ -901,9 +940,100 @@ switch ( $scenario ) {
 		$state                       = drive();
 		$last                        = Full::last( false );
 		check( '' === $last['failed'] && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ), 'El hijo típico pasa al tema propio: ' . json_encode( $last['theme'][1] ) );
-		check( array( 'blockers' => '', 'covered' => false, 'carried' => 1, 'tools' => false, 'wrap' => true, 'imported' => '' ) === $last['theme'][1]['child_facts'], 'Se lee: una hoja que se trae, sin bloqueos: ' . json_encode( $last['theme'][1]['child_facts'] ) );
+		check( array( 'blockers' => '', 'files' => '', 'risks' => '', 'covered' => false, 'carried' => 1, 'tools' => false, 'filter' => false, 'wrap' => true, 'imported' => '' ) === $last['theme'][1]['child_facts'], 'Se lee: una hoja que se trae, sin bloqueos: ' . json_encode( $last['theme'][1]['child_facts'] ) );
 		check( ! empty( $last['verified'] ) && 2 === count( $last['verify'] ), 'La portada y la página responden y se pintan igual.' );
 		check( isset( $GLOBALS['t']['themes']['hello-elementor'], $GLOBALS['t']['themes']['hello-hijo-ok'] ) && false !== strpos( (string) ( $last['kept']['hello-elementor'] ?? '' ), 'depende de Hello' ), 'Hello y el hijo se quedan (el tema propio carga la hoja del hijo desde su carpeta): ' . json_encode( $last['kept'] ) );
+		break;
+
+	case 'theme_child_files':
+		// Plantilla del hijo + PHP en functions.php ya activo en Tools: el fragmento cubre functions.php, no la plantilla.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		file_put_contents( TMP . '/themes/hello-hijo/header.php', "<?php\necho '<header>Hijo</header>';\n" );
+		tools_here();
+		$GLOBALS['t']['filters']['digitalisimo_tools_php_sources'][] = static function ( $rows ) {
+			$wrap = function_exists( 'digitalisimo_theme_child_wrap_php' ) ? digitalisimo_theme_child_wrap_php( PHP_CHILD, 'Hello Hijo' ) : '';
+			return array_merge( $rows, array( array( 'scope' => 'site', 'id' => 'a1', 'active' => true, 'hash' => hash( 'sha256', $wrap ) ) ) );
+		};
+		drive();
+		$last = Full::last( false );
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && ! logged( 'switch_theme' ) && false !== strpos( (string) $last['theme'][1]['reason'], 'header.php: plantilla que sustituye la del tema' ) && array() === (array) ( $GLOBALS['t']['imports'] ?? array() ), 'Con el fragmento activo, la plantilla del hijo lo deja y lo dice: ' . json_encode( $last['theme'][1] ) );
+		break;
+
+	case 'theme_child_files_only':
+		// Sólo archivos del hijo (functions.php típico): su motivo, sin importar nada ni mandar al camino a mano.
+		child_theme( 'hello-hijo-ok', 'Hello Hijo OK', OFFICIAL_CHILD );
+		file_put_contents( TMP . '/themes/hello-hijo-ok/theme.json', '{"version":2}' );
+		tools_here();
+		drive();
+		$last = Full::last( false );
+		$why  = (string) $last['theme'][1]['reason'];
+		check( 'hello-hijo-ok' === get_option( 'stylesheet' ) && false !== strpos( $why, 'theme.json' ) && false !== strpos( $why, 'plantillas o archivos' ) && false === strpos( $why, 'no admite la condición' ) && array() === (array) ( $GLOBALS['t']['imports'] ?? array() ), 'Sólo archivos del hijo: se queda con su propio motivo: ' . $why );
+		break;
+
+	case 'theme_child_risky':
+		// Su PHP usa una constante de Hello: dentro de Tools, con el tema propio, sería un error fatal. No se importa.
+		child_theme( 'hello-hijo', 'Hello Hijo', OFFICIAL_CHILD . "add_action( 'wp_head', function () {\n\techo '<meta name=\"v\" content=\"' . HELLO_ELEMENTOR_VERSION . '\">';\n} );\n" );
+		tools_here();
+		drive();
+		$last = Full::last( false );
+		$why  = (string) $last['theme'][1]['reason'];
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && false !== strpos( $why, 'línea 11: usa la constante HELLO_ELEMENTOR_VERSION de Hello' ) && array() === (array) ( $GLOBALS['t']['imports'] ?? array() ), 'Con un riesgo se queda, sin importar, y dice cuál: ' . $why );
+		break;
+
+	case 'theme_child_network':
+		// Tools activo en el sitio, pero su importación no está cargada en la petición de Migrar (otro sitio de la red).
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		update_option( 'active_plugins', array_merge( (array) get_option( 'active_plugins', array() ), array( Full::TOOLS_FILE ) ) );
+		drive();
+		$why = (string) Full::last( false )['theme'][1]['reason'];
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && false !== strpos( $why, 'Migrar corre desde otro sitio de la red' ) && false === strpos( $why, 'no admite la condición' ), 'Lo dice así, no como si no admitiera la condición: ' . $why );
+		break;
+
+	case 'theme_child_skipped':
+		// El fragmento que Migrar dejó se borró en Tools (la importación contesta skipped).
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		tools_here( 'skipped' );
+		drive();
+		$why = (string) Full::last( false )['theme'][1]['reason'];
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && false !== strpos( $why, 'se borró' ) && false === strpos( $why, 'no admite la condición' ), 'Dice que el fragmento se borró: ' . $why );
+		break;
+
+	case 'theme_child_paused':
+		// El fragmento estaba activo; en la primera petición con el tema propio el guardián de Tools lo pausa (un error):
+		// las demás páginas responden igual, pero el PHP del hijo ya no corre. Vuelve al hijo.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
+		$GLOBALS['t']['carry']       = true;
+		tools_here();
+		snippet_active();
+		$GLOBALS['t']['pause_on_switch'] = true;
+		drive();
+		$last = Full::last( false );
+		check( logged( 'switch_theme' ) && 'hello-hijo' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['reverted'] ) && empty( $last['verified'] ), 'Con el fragmento pausado tras el cambio, vuelve al hijo: ' . json_encode( $last['theme'][1] ) );
+		check( false !== strpos( json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ), 'ya no está activo en DIGITALÍSIMO Tools' ), 'Y dice por qué: ' . json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ) );
+		nothing_deleted();
+		break;
+
+	case 'theme_child_recheck':
+		// El fragmento estaba activo al planear, pero se pausa mientras se toman las huellas: justo antes del cambio se
+		// vuelve a mirar y el tema no cambia.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
+		tools_here();
+		snippet_active();
+		$GLOBALS['t']['pause_in_theme_stage'] = true;
+		drive();
+		$last = Full::last( false );
+		check( ! logged( 'switch_theme' ) && 'hello-hijo' === get_option( 'stylesheet' ) && empty( $last['theme'][1]['switched'] ) && empty( $last['theme'][1]['child_facts']['covered'] ), 'Pausado antes del cambio: no cambia: ' . json_encode( $last['theme'][1] ) );
+		break;
+
+	case 'theme_warm_fatal':
+		// La primera petición con el tema propio da un error fatal (500); las siguientes responden: vuelve a Hello.
+		$GLOBALS['t']['warm_break'] = true;
+		drive();
+		$last = Full::last( false );
+		check( 'hello-elementor' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['reverted'] ) && empty( $last['verified'] ) && false !== strpos( json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ), 'La primera petición después de cambiar el tema respondió HTTP 500.' ), 'Un 500 en la primera petición cuenta como falla: ' . json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ) );
+		nothing_deleted();
 		break;
 
 	case 'theme_child_old':

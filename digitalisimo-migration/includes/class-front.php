@@ -165,9 +165,11 @@ final class Front {
 		$now     = (array) ( $after['styles'] ?? array() );
 		$ids     = array();
 		$paths   = array();
+		$pairs   = array();
 		foreach ( (array) ( $now['sheets'] ?? array() ) as $sheet ) {
-			$ids[ (string) $sheet[0] ]   = true;
-			$paths[ (string) $sheet[1] ] = true;
+			$ids[ (string) $sheet[0] ]                              = true;
+			$paths[ (string) $sheet[1] ]                            = true;
+			$pairs[ (string) $sheet[0] . '|' . (string) $sheet[1] ] = true;
 		}
 		$missing       = array();
 		$missing_paths = array();
@@ -182,7 +184,9 @@ final class Front {
 			if ( false !== strpos( $path, '/themes/hello-elementor/' ) ) {
 				continue; // Otro archivo de Hello sin equivalente declarado: lo informa la paridad del tema.
 			}
-			if ( ( '' !== $id && isset( $ids[ $id ] ) ) || isset( $paths[ $path ] ) ) {
+			// El mismo handle con otra ruta (p. ej. una hoja del hijo que ahora apunta a la carpeta del tema propio) no es
+			// la misma hoja: sólo valen el mismo par handle y ruta o, sin handle, la misma ruta.
+			if ( isset( $pairs[ $id . '|' . $path ] ) || ( '' === $id && isset( $paths[ $path ] ) ) ) {
 				continue;
 			}
 			$missing[]       = '' !== $id ? $id : $path;
@@ -224,6 +228,22 @@ final class Front {
 			return array( 'status' => 0, 'fatal' => false, 'words' => array(), 'error' => $result->get_error_message() );
 		}
 		return self::fingerprint( $result[0], $result[1], $limit ) + ( 'login' === ( $result[2] ?? '' ) ? array( 'login' => true ) : array() );
+	}
+
+	/**
+	 * ¿Falló una respuesta de fetch()? '' si no; si sí, el final de una frase («respondió HTTP 500.», «mostró un error de
+	 * PHP.»). Una petición que no llegó no cuenta aquí: la comparación de después la detecta. Pura.
+	 *
+	 * @param array|\WP_Error $result
+	 */
+	public static function broken( $result ) {
+		if ( ! is_array( $result ) ) {
+			return '';
+		}
+		if ( (int) ( $result[0] ?? 0 ) >= 500 ) {
+			return sprintf( 'respondió HTTP %d.', (int) $result[0] );
+		}
+		return ! empty( self::fingerprint( (int) ( $result[0] ?? 0 ), (string) ( $result[1] ?? '' ), 1 )['fatal'] ) ? 'mostró un error de PHP.' : '';
 	}
 
 	/**
