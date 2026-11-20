@@ -126,7 +126,7 @@ if ( isset( $opt['write'] ) ) {
 	$php = "<?php\n/**\n * Ganchos de los módulos de DIGITALÍSIMO SEO que se registran sin cargar su clase (digitalisimo_integrations_lazy()).\n * Generado de su init() con `php tests/seo-fixed-cost.php --write`: no se edita a mano. Cada gancho es\n * [tipo (a acción, f filtro, s shortcode), nombre, método, prioridad, argumentos, contexto]; el contexto es escritorio\n * (a) o front (f) y sitio (s) o red (m), con * para cualquiera.\n */\ndefined( 'ABSPATH' ) || exit;\n\nreturn array(\n";
 	foreach ( $expected as $class => $entry ) {
 		$php .= "\t'$class' => array(" . ( isset( $entry['requires'] ) ? " 'requires' => '" . $entry['requires'] . "'," : '' ) . " 'hooks' => array(\n";
-		foreach ( $entry['hooks'] as $h ) $php .= "\t\tarray( " . implode( ', ', array_map( function( $v ) { return is_int( $v ) ? (string) $v : var_export( $v, true ); }, $h ) ) . " ),\n";
+		foreach ( $entry['hooks'] as $h ) $php .= "\t\tarray( " . implode( ', ', array_map( function( $v ) { return is_int( $v ) ? ( PHP_INT_MAX === $v ? 'PHP_INT_MAX' : ( PHP_INT_MIN === $v ? 'PHP_INT_MIN' : (string) $v ) ) : var_export( $v, true ); }, $h ) ) . " ),\n";
 		$php .= "\t) ),\n";
 	}
 	$php .= ");\n";
@@ -134,6 +134,11 @@ if ( isset( $opt['write'] ) ) {
 	echo "Escrito $lazy_file\n";
 	$current = $expected;
 }
+// Una prioridad PHP_INT_MAX se escribe con la constante: el literal de 64 bits sería un float en un PHP de 32 bits.
+if ( is_file( $lazy_file ) && preg_match( '/\b(9223372036854775807|-9223372036854775808)\b/', (string) file_get_contents( $lazy_file ) ) ) fail( 'includes/lazy-hooks.php escribe PHP_INT_MAX como número.' );
+// Ningún gancho diferido en shutdown: cargaría la clase al final de cada petición, también la que actualiza SEO (con sus
+// archivos fuera de su sitio hasta que WordPress restaura la copia, en shutdown).
+foreach ( $expected as $class => $entry ) foreach ( $entry['hooks'] as $h ) if ( 'shutdown' === $h[1] ) fail( "$class registra {$h[2]} en shutdown en cada petición." );
 if ( $current !== $expected ) fail( 'includes/lazy-hooks.php no corresponde a los init() de los módulos: regenéralo con php tests/seo-fixed-cost.php --write.' );
 foreach ( $runs as $ctx => $run ) foreach ( (array) $run['parity'] as $class => $diff ) fail( "En $ctx, $class registra con el arranque otra cosa que con init(): $diff" );
 
@@ -195,6 +200,7 @@ function digi_child( $seo, $ctx ) {
 	function wp_parse_args( $a, $d = array() ) { return array_merge( (array) $d, (array) $a ); }
 	function current_user_can() { return false; }
 	function __( $t ) { return $t; }
+	function apply_upgrader() { return digitalisimo_integrations_load_all( true ); }
 
 	$t0 = hrtime( true ); $m0 = memory_get_usage();
 	require $seo . '/digitalisimo-integrations.php';
@@ -211,6 +217,11 @@ function digi_child( $seo, $ctx ) {
 		$loaded[] = $b; $kb += filesize( $f );
 	}
 
+	$pre_errors = array();
+	// Antes de que WordPress toque los archivos de un plugin, SEO compila todas sus clases.
+	$pre = in_array( array( 'f', 'upgrader_pre_install', 'digitalisimo_integrations_load_all', 1, 1 ), $boot_hooks, true );
+	if ( $pre ) { apply_upgrader(); foreach ( digitalisimo_integrations_classes() as $class => $file ) if ( ! in_array( realpath( $seo . '/' . $file ), get_included_files(), true ) ) { $pre_errors[] = "Antes de actualizar no se cargó $file."; break; } }
+	else $pre_errors[] = 'SEO no precarga sus clases en upgrader_pre_install.';
 	// Cada módulo diferido: lo que registra digitalisimo_integrations_lazy() y lo que registra su init(), en el mismo contexto.
 	$init = array(); $parity = array();
 	foreach ( DIGI_LAZY as $class ) {
@@ -225,7 +236,7 @@ function digi_child( $seo, $ctx ) {
 	}
 
 	// Mapa: cada clase declarada en includes/ está en él y su archivo la declara.
-	$map = digitalisimo_integrations_classes(); $errors = array();
+	$map = digitalisimo_integrations_classes(); $errors = $pre_errors;
 	foreach ( $map as $class => $file ) {
 		if ( ! is_file( $seo . '/' . $file ) ) { $errors[] = "El mapa apunta a $file, que no existe."; continue; }
 		if ( ! preg_match( '/^\s*(?:final\s+|abstract\s+)?class\s+' . preg_quote( $class, '/' ) . '\b/m', (string) file_get_contents( $seo . '/' . $file ) ) ) $errors[] = "$file no declara $class.";
