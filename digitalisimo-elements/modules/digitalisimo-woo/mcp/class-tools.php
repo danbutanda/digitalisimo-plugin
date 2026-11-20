@@ -34,6 +34,9 @@ final class Tools {
 	/** Acciones de lectura de las herramientas con recursos (los informes son todos de lectura). */
 	const READ_ACTIONS = array( 'list', 'get' );
 
+	/** La octava herramienta, sólo con el plugin de Skydropx cargado (`Skydropx_Tool`, otra forma: no está en `TOOLS`). */
+	const SKYDROPX = 'skydropx';
+
 	/**
 	 * Herramientas: recursos (el primero es el predeterminado), acciones del enum, IDs que aceptan y mínimo para usarla.
 	 */
@@ -185,12 +188,24 @@ final class Tools {
 			return '';
 		}
 		$tool = substr( $id, strlen( self::PREFIX ) );
-		return isset( self::TOOLS[ $tool ] ) ? $tool : '';
+		return isset( self::TOOLS[ $tool ] ) || ( self::SKYDROPX === $tool && self::skydropx_active() ) ? $tool : '';
 	}
 
-	/** Las siete herramientas, en orden. */
+	/** Las siete herramientas, en orden, y la de Skydropx al final si su plugin está cargado. */
 	public static function tools(): array {
-		return array_keys( self::TOOLS );
+		$tools = array_keys( self::TOOLS );
+		if ( self::skydropx_active() ) {
+			$tools[] = self::SKYDROPX;
+		}
+		return $tools;
+	}
+
+	/**
+	 * ¿Está cargado el plugin de Skydropx? Lo mismo que `Skydropx_Tool::active()`, sin cargar esa clase: se pregunta en
+	 * cada petición con el MCP activo.
+	 */
+	public static function skydropx_active(): bool {
+		return defined( 'SKYDROPX_VERSION' ) || class_exists( 'Skydropx', false );
 	}
 
 	/** Recursos de una herramienta. */
@@ -200,6 +215,9 @@ final class Tools {
 
 	/** ¿La acción escribe? Todo lo que no es `list` o `get` (los informes, incluida `log`, sólo leen). */
 	public static function is_write( string $tool, string $action ): bool {
+		if ( self::SKYDROPX === $tool ) {
+			return Skydropx_Tool::is_write( $action );
+		}
 		return 'reports' !== $tool && ! in_array( $action, self::READ_ACTIONS, true );
 	}
 
@@ -213,6 +231,9 @@ final class Tools {
 	 * (`annotations`, `show_in_rest` y `mcp`). `$mode` (`read` o `write`) sólo cambia la última frase de la descripción.
 	 */
 	public static function definition( string $tool, string $mode = 'read' ): array {
+		if ( self::SKYDROPX === $tool ) {
+			return Skydropx_Tool::definition( $mode );
+		}
 		$readonly = self::is_readonly_tool( $tool );
 		$tail     = $readonly ? '' : ( 'write' === $mode
 			? ' Este sitio permite escribir («WooCommerce en el MCP»: lectura y escritura); toda escritura queda en la bitácora sin datos personales.'
@@ -243,6 +264,9 @@ final class Tools {
 
 	/** Esquema de entrada cerrado de una herramienta. */
 	public static function input_schema( string $tool ): array {
+		if ( self::SKYDROPX === $tool ) {
+			return Skydropx_Tool::input_schema();
+		}
 		$config     = self::TOOLS[ $tool ];
 		$properties = array(
 			'action' => array(
@@ -446,6 +470,9 @@ final class Tools {
 
 	/** Mínimo para usar la herramienta: deja fuera a un editor y a un suscriptor aunque WooCommerce les deje algo. */
 	public static function floor( string $tool ): string {
+		if ( self::SKYDROPX === $tool ) {
+			return implode( '» o «', Skydropx_Tool::floor() );
+		}
 		return isset( self::TOOLS[ $tool ] ) ? self::TOOLS[ $tool ]['floor'] : 'do_not_allow';
 	}
 }

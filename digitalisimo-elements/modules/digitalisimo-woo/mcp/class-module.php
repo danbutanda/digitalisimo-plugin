@@ -28,6 +28,9 @@ final class Module {
 	const CORE_MODULE  = 'Elementor\\Modules\\Mcp\\Module';
 	const CORE_SERVER  = 'Elementor\\MCP\\Composer\\Admin\\McpSettingsController';
 
+	/** Acción de `admin-post.php` del enlace de la guía de Skydropx (`Skydropx::handle_label()`). */
+	const SKYDROPX_LABEL_ACTION = 'digitalisimo_woo_skydropx_label';
+
 	/** @var bool */
 	private static $initialized = false;
 
@@ -44,6 +47,18 @@ final class Module {
 			return;
 		}
 		add_action( 'elementor/init', array( __CLASS__, 'boot' ), 20 );
+		// El enlace de la guía de Skydropx (acción `label`) se abre en el navegador: sólo esa petición de admin-post.php
+		// engancha su manejador; ninguna otra pantalla carga nada de la herramienta.
+		if ( self::is_label_request() ) {
+			add_action( 'admin_post_' . self::SKYDROPX_LABEL_ACTION, array( Skydropx::class, 'handle_label' ) );
+			add_action( 'admin_post_nopriv_' . self::SKYDROPX_LABEL_ACTION, array( Skydropx::class, 'handle_label' ) );
+		}
+	}
+
+	/** ¿Es ésta la petición del enlace de la guía? (`admin-post.php?action=…`; sólo compara texto). */
+	private static function is_label_request(): bool {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si se engancha el manejador.
+		return function_exists( 'is_admin' ) && is_admin() && isset( $_GET['action'] ) && self::SKYDROPX_LABEL_ACTION === $_GET['action'];
 	}
 
 	/**
