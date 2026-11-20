@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_recheck', 'theme_warm_fatal', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -524,6 +524,9 @@ Front::$fetcher = static function ( $url ) use ( $page ) {
 	if ( ! empty( $GLOBALS['t']['maintenance'] ) ) {
 		return array( 200, '<html><body><h1>Volvemos pronto</h1><p>Estamos haciendo mejoras en el sitio web</p></body></html>' );
 	}
+	if ( ! empty( $GLOBALS['t']['fatal_text'] ) && false === strpos( $url, 'sobre' ) ) {
+		$page = str_replace( '<main>', '<main>Cómo arreglar un Fatal error en WordPress. ', $page ); // Una entrada, no un error.
+	}
 	$body = ! empty( $GLOBALS['t']['changed'] ) ? str_replace( 'Plantas de interior, macetas artesanales y envíos a toda la ciudad cada semana', 'Página distinta con otro contenido completamente nuevo y ajeno', $page ) : $page;
 	// Cada página tiene además su propio texto (si no, todas iguales parecerían una página de mantenimiento).
 	$own  = false !== strpos( $url, 'sobre' ) ? 'Conoce nuestra historia familiar' : 'Bienvenidos a la portada principal';
@@ -1034,6 +1037,14 @@ switch ( $scenario ) {
 		$last = Full::last( false );
 		check( 'hello-elementor' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['reverted'] ) && empty( $last['verified'] ) && false !== strpos( json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ), 'La primera petición después de cambiar el tema respondió HTTP 500.' ), 'Un 500 en la primera petición cuenta como falla: ' . json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ) );
 		nothing_deleted();
+		break;
+
+	case 'theme_warm_fatal_before':
+		// La portada ya hablaba de un «Fatal error» antes del cambio (una entrada del blog): no es un error del tema.
+		$GLOBALS['t']['fatal_text'] = true;
+		drive();
+		$last = Full::last( false );
+		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ) && ! empty( $last['verified'] ), 'El texto que ya estaba antes no cuenta como falla: ' . json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ) );
 		break;
 
 	case 'theme_child_old':

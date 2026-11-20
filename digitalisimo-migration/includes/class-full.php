@@ -1371,7 +1371,9 @@ final class Full {
 					return home_url( '/' );
 				} );
 				$broken = Front::broken( Front::fetch( $home ) );
-				if ( '' !== $broken ) {
+				// Sólo si antes del cambio la portada respondía bien y sin ese texto (un blog puede hablar de un «Fatal error»).
+				$was    = self::get_snap( $state, 'pre|' . $site_id . '|' . $home ) ?: self::get_snap( $state, $site_id . '|' . $home );
+				if ( '' !== $broken && ( ! $was || ( (int) ( $was['status'] ?? 0 ) >= 200 && (int) ( $was['status'] ?? 0 ) < 300 && empty( $was['fatal'] ) ) ) ) {
 					// La primera petición con el tema propio (donde corre por primera vez el PHP del hijo en Tools) falló:
 					// aunque las siguientes respondan, cuenta como falla y el tema vuelve atrás.
 					$state['verify'][] = array( 'site' => (int) $site_id, 'url' => $home, 'ok' => false, 'reason' => 'La primera petición después de cambiar el tema ' . $broken );

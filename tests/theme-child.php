@@ -450,6 +450,17 @@ $risky = array(
 	'llamada antes'           => array( "child_boot();\nfunction child_boot() { add_action( 'wp_head', 'x' ); }\n", '2:llama a child_boot() antes de declararla' ),
 	'clase antes'             => array( "class Hija extends Base {}\nclass Base {}\n", '2:la clase Hija extiende Base, declarada más abajo' ),
 	'objeto antes'            => array( "\$o = new Cosa();\nclass Cosa {}\n", '2:crea un Cosa antes de declarar la clase' ),
+	'constante HELLO_'        => array( "add_action( 'wp_head', function () { echo HELLO_THEME_URL; } );\n", '2:usa la constante HELLO_THEME_URL de Hello' ),
+	'constante EHP_'          => array( "add_action( 'wp_head', function () { echo EHP_THEME_SLUG; } );\n", '2:usa la constante EHP_THEME_SLUG de Hello' ),
+	'constante calificada'    => array( "add_action( 'wp_head', function () { echo \\HELLO_ELEMENTOR_VERSION; } );\n", '2:usa la constante HELLO_ELEMENTOR_VERSION de Hello' ),
+	'otra constante calificada' => array( "add_action( 'wp_head', function () { echo \\CHILD_THING; } );\n", '2:usa la constante \\CHILD_THING' ),
+	'función hello_'          => array( "add_action( 'wp_head', function () { hello_get_header_display(); } );\n", '2:llama a hello_get_header_display(), de Hello' ),
+	'plantilla del tema'      => array( "add_action( 'wp_footer', function () { get_template_part( 'partials/modal' ); } );\n", '2:usa get_template_part(), que con el tema DIGITALÍSIMO lee el tema propio' ),
+	'ajuste del tema'         => array( "add_action( 'wp_head', function () { echo get_theme_mod( 'child_color' ); } );\n", '2:usa get_theme_mod()' ),
+	'hijo o no'               => array( "add_action( 'wp_head', function () { if ( is_child_theme() ) { echo 1; } } );\n", '2:usa is_child_theme()' ),
+	'__DIR__'                 => array( "require_once __DIR__ . '/inc/x.php';\n", '2:usa __DIR__, que en Código PHP apunta a DIGITALÍSIMO Tools' ),
+	'__FILE__'                => array( "add_action( 'wp_head', function () { echo basename( __FILE__ ); } );\n", '2:usa __FILE__' ),
+	'$GLOBALS'                => array( "\$cfg = 1;\nadd_action( 'wp_head', function () { echo \$GLOBALS['cfg']; } );\n", '3:usa $GLOBALS' ),
 	'global de primer nivel'  => array( "\$tp_opts = array( 1 );\nfunction tp() { global \$tp_opts; return \$tp_opts; }\nadd_action( 'wp_head', 'tp' );\n", '3:usa global $tp_opts' ),
 );
 foreach ( $risky as $label => $case ) {
@@ -469,5 +480,8 @@ check( '' === digitalisimo_theme_child_import_php( $child, array( 'blockers' => 
 file_put_contents( $dir . '/name.php', digitalisimo_theme_child_wrap_php( "<?php\nfunction b2() {}\n", 'Mi tema ?> <b>x</b> <?php echo 1;' ) );
 list( $st, $out ) = $run( "require '{$dir}/name.php'; echo 'fin';" );
 check( 0 === $st && 'fin' === $out, 'Con un cierre de PHP en el nombre, la envoltura no imprime nada: ' . $out );
+file_put_contents( $dir . '/name2.php', digitalisimo_theme_child_wrap_php( "<?php\nfunction b3() {}\n", 'a??>>b <<??php x' ) );
+list( $st, $out ) = $run( "require '{$dir}/name2.php'; echo 'fin';" );
+check( 0 === $st && 'fin' === $out && false !== strpos( (string) file_get_contents( $dir . '/name2.php' ), '«ab php x»' ), 'Con cierres de PHP repetidos en el nombre, sólo quedan letras, números y espacios: ' . $out );
 
 echo "Tema hijo de Hello: lectura del functions.php, bloqueos, archivos del hijo, encolado en el tema y PHP en Tools validados.\n";

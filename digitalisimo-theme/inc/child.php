@@ -550,16 +550,34 @@ function digitalisimo_theme_child_risks( array $t, array $clean = array() ) {
 	$add   = static function ( $line, $what ) use ( &$risks ) {
 		$risks[ $what ] = array( 'file' => 'functions.php', 'line' => (int) $line, 'what' => (string) $what );
 	};
+	// Lo que lee el tema activo (con el tema propio, el propio y no el hijo): plantillas, ajustes del Personalizador y datos
+	// del tema. Fuera de lo ya traído y dentro de lo ya traído: lo traído sólo tiene valores legibles, nunca estas llamadas.
+	$theme = '/^(get_template_part|locate_template|load_template|get_theme_mods?|get_stylesheet|get_template|wp_get_theme|is_child_theme|get_theme_root(_uri)?)$/i';
 	for ( $i = 0; $i < $n; $i++ ) {
 		list( $v, $text, $line ) = $t[ $i ];
-		$prev = $i > 0 ? $t[ $i - 1 ][0] : null;
-		$call = isset( $t[ $i + 1 ] ) && '(' === $t[ $i + 1 ][0];
-		if ( T_STRING === $v && ! in_array( $prev, $names, true ) ) {
+		$prev      = $i > 0 ? $t[ $i - 1 ][0] : null;
+		$call      = isset( $t[ $i + 1 ] ) && '(' === $t[ $i + 1 ][0];
+		$qualified = false;
+		if ( defined( 'T_NAME_FULLY_QUALIFIED' ) && T_NAME_FULLY_QUALIFIED === $v && 1 === substr_count( $text, '\\' ) ) {
+			list( $v, $text, $qualified ) = array( T_STRING, ltrim( $text, '\\' ), true ); // `\NOMBRE` (PHP 8).
+		} elseif ( T_STRING === $v && T_NS_SEPARATOR === $prev && ( $i < 2 || ! in_array( $t[ $i - 2 ][0], array( T_STRING, T_NAMESPACE ), true ) ) ) {
+			list( $qualified, $prev ) = array( true, $i >= 2 ? $t[ $i - 2 ][0] : null ); // `\NOMBRE` (PHP 7).
+		}
+		if ( T_DIR === $v || T_FILE === $v ) {
+			$add( $line, sprintf( 'usa %s, que en Código PHP apunta a DIGITALÍSIMO Tools y no a la carpeta del hijo', $text ) );
+		} elseif ( T_VARIABLE === $v && '$GLOBALS' === $text ) {
+			$add( $line, 'usa $GLOBALS (en Código PHP cada fragmento tiene su propio ámbito)' );
+		} elseif ( T_STRING === $v && ! in_array( $prev, $names, true ) ) {
 			$lower = strtolower( $text );
-			if ( preg_match( '/^HELLO_ELEMENTOR_\w+$/', $text ) && ! $call && ! isset( $defined[ $text ] ) ) {
+			$next  = isset( $t[ $i + 1 ] ) ? $t[ $i + 1 ][0] : null;
+			if ( ! $call && preg_match( '/^(HELLO|EHP)_\w+$/', $text ) && ! isset( $defined[ $text ] ) ) {
 				$add( $line, sprintf( 'usa la constante %s de Hello, que con el tema DIGITALÍSIMO no existe', $text ) );
-			} elseif ( $call && 0 === strpos( $lower, 'hello_elementor_' ) && ! isset( $funcs[ $lower ] ) ) {
+			} elseif ( ! $call && $qualified && T_DOUBLE_COLON !== $next && preg_match( '/^[A-Z][A-Z0-9_]*$/', $text ) ) {
+				$add( $line, sprintf( 'usa la constante \\%s, que con el tema DIGITALÍSIMO puede no existir', $text ) );
+			} elseif ( $call && 0 === strpos( $lower, 'hello_' ) && ! isset( $funcs[ $lower ] ) ) {
 				$add( $line, sprintf( 'llama a %s(), de Hello, que con el tema DIGITALÍSIMO no existe', $text ) );
+			} elseif ( $call && preg_match( $theme, $text ) ) {
+				$add( $line, sprintf( 'usa %s(), que con el tema DIGITALÍSIMO lee el tema propio y no el hijo', $text ) );
 			} elseif ( $call && empty( $skip[ $i ] ) && preg_match( $paths, $text ) ) {
 				$add( $line, sprintf( 'usa %s(), que con el tema DIGITALÍSIMO apunta a su carpeta y no a la del hijo', $text ) );
 			} elseif ( $call && ! $in_body[ $i ] && isset( $funcs[ $lower ] ) && $funcs[ $lower ] > $i ) {
@@ -1028,7 +1046,7 @@ function digitalisimo_theme_child_wrap_php( $code, $name ) {
 		}
 	}
 	$body  = (string) preg_replace( '/^<\?php\s/', '', $code, 1 );
-	$label = str_replace( array( '*/', '?>', '<?', "\r", "\n" ), '', (string) $name );
+	$label = (string) preg_replace( '/[^A-Za-z0-9 _.-]/', '', (string) $name ); // Nada que pueda cerrar el comentario o el PHP.
 	return "<?php\n// functions.php del tema hijo «" . $label . "», tal cual, dentro de esta condición: sólo corre con el tema DIGITALÍSIMO\n"
 		. "// activo. Con el hijo activo no hace nada, así que puede activarse antes de cambiar de tema y se apaga si se vuelve al hijo.\n"
 		. "if ( function_exists( 'digitalisimo_theme_parity' ) ) {\n" . rtrim( $body ) . "\n"
