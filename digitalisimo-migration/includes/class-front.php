@@ -8,6 +8,12 @@ defined( 'ABSPATH' ) || exit;
  * entradas publicadas (código HTTP y palabras visibles del cuerpo); al final las vuelve a pedir y las compara. Es la
  * última barrera antes de borrar: si una no responde, muestra un error de PHP o pierde contenido visible, no se borra
  * nada. No compara el marcado (cambia, a propósito, al convertir widgets o cambiar de tema) sino lo que se lee.
+ *
+ * Donde Migrar cambia el tema, además, la huella de estilo (`styles`: las hojas enlazadas, los bloques de estilo con
+ * id, el CSS adicional y la clase del kit del constructor) se toma justo antes del cambio y se compara después: si falta
+ * una hoja que no era del tema anterior (o la equivalente del tema propio a una de Hello), un bloque de estilo, el CSS
+ * adicional o el kit, lo que se ve cambió aunque el texto siga, y se vuelve al tema anterior. Sin un navegador en el
+ * servidor no se calculan estilos: lo que falta es lo que deja de pintar.
  */
 final class Front {
 	/** Páginas y entradas además de la portada. */
@@ -100,7 +106,105 @@ final class Front {
 			return strcmp( md5( $a ), md5( $b ) );
 		} );
 		preg_match_all( '#/wp-content/themes/([A-Za-z0-9._-]+)/#', $body, $themes );
-		return array( 'status' => (int) $status, 'fatal' => $fatal, 'themes' => array_values( array_unique( $themes[1] ) ), 'words' => $limit > 0 ? array_slice( $words, 0, (int) $limit ) : $words );
+		return array( 'status' => (int) $status, 'fatal' => $fatal, 'themes' => array_values( array_unique( $themes[1] ) ), 'words' => $limit > 0 ? array_slice( $words, 0, (int) $limit ) : $words, 'styles' => self::styles( $body ) );
+	}
+
+	/**
+	 * Huella de estilo de una respuesta: hojas enlazadas (handle de WordPress y ruta sin dominio ni consulta), bloques
+	 * de estilo con id, el hash del CSS adicional y la clase del kit del constructor. Pura.
+	 *
+	 * @return array{sheets:array<int,array{0:string,1:string}>,inline:string[],custom:string,kit:string}
+	 */
+	public static function styles( $body ) {
+		$body = (string) $body;
+		$out  = array( 'sheets' => array(), 'inline' => array(), 'custom' => '', 'kit' => '' );
+		if ( preg_match_all( '#<link\b[^>]*>#i', $body, $links ) ) {
+			foreach ( $links[0] as $tag ) {
+				if ( ! preg_match( '#\brel=(["\']?)stylesheet\1#i', $tag ) || ! preg_match( '#\bhref=(["\'])(.*?)\1#i', $tag, $href ) ) {
+					continue;
+				}
+				$id   = preg_match( '#\bid=(["\'])(.*?)\1#i', $tag, $m ) ? (string) preg_replace( '/-css$/', '', $m[2] ) : '';
+				$path = (string) preg_replace( '#^(?:https?:)?//[^/]+#i', '', html_entity_decode( $href[2], ENT_QUOTES ) );
+				$out['sheets'][] = array( $id, (string) preg_replace( '/[?#].*$/', '', $path ) );
+			}
+		}
+		if ( preg_match_all( '#<style\b[^>]*\bid=(["\'])(.*?)\1[^>]*>(.*?)</style>#is', $body, $styles, PREG_SET_ORDER ) ) {
+			foreach ( $styles as $style ) {
+				$out['inline'][] = (string) $style[2];
+				if ( 'wp-custom-css' === $style[2] ) {
+					$out['custom'] = md5( trim( (string) $style[3] ) );
+				}
+			}
+		}
+		if ( preg_match( '#<body\b[^>]*\bclass=(["\'])(.*?)\1#is', $body, $class ) && preg_match( '/(?:^|\s)(elementor-kit-\d+)(?:\s|$)/', $class[2], $kit ) ) {
+			$out['kit'] = $kit[1];
+		}
+		return $out;
+	}
+
+	/** Hojas de Hello y la equivalente del tema propio en paridad (mismo archivo, sin cambios). */
+	const PARITY_SHEETS = array(
+		'hello-elementor'               => 'digitalisimo-theme-parity-reset',
+		'hello-elementor-theme-style'   => 'digitalisimo-theme-parity',
+		'hello-elementor-header-footer' => 'digitalisimo-theme-parity-header-footer',
+	);
+
+	/**
+	 * ¿Sigue pintándose lo mismo tras cambiar de tema? Pura: compara la huella de estilo de justo antes del cambio con la
+	 * de después. Las hojas de Hello deben tener su equivalente del tema propio; todas las demás (también las del tema
+	 * hijo, que el tema propio vuelve a cargar desde su carpeta), los bloques de estilo con id que no son de Hello, el
+	 * CSS adicional y la clase del kit, seguir ahí. Devuelve [ok|null, motivo]; null si antes no había huella de estilo.
+	 *
+	 * @return array{0:?bool,1:string}
+	 */
+	public static function compare_styles( array $before, array $after ) {
+		$was = (array) ( $before['styles'] ?? array() );
+		if ( ! $was || (int) ( $before['status'] ?? 0 ) < 200 || (int) ( $before['status'] ?? 0 ) >= 300 ) {
+			return array( null, 'Justo antes de cambiar el tema no se pudo leer cómo se pintaba.' );
+		}
+		$now     = (array) ( $after['styles'] ?? array() );
+		$ids     = array();
+		$paths   = array();
+		foreach ( (array) ( $now['sheets'] ?? array() ) as $sheet ) {
+			$ids[ (string) $sheet[0] ]   = true;
+			$paths[ (string) $sheet[1] ] = true;
+		}
+		$missing = array();
+		foreach ( (array) ( $was['sheets'] ?? array() ) as $sheet ) {
+			list( $id, $path ) = array( (string) $sheet[0], (string) $sheet[1] );
+			if ( isset( self::PARITY_SHEETS[ $id ] ) ) {
+				if ( ! isset( $ids[ self::PARITY_SHEETS[ $id ] ] ) ) {
+					$missing[] = $id . ' (su equivalente ' . self::PARITY_SHEETS[ $id ] . ')';
+				}
+				continue;
+			}
+			if ( false !== strpos( $path, '/themes/hello-elementor/' ) ) {
+				continue; // Otro archivo de Hello sin equivalente declarado: lo informa la paridad del tema.
+			}
+			if ( ( '' !== $id && isset( $ids[ $id ] ) ) || isset( $paths[ $path ] ) ) {
+				continue;
+			}
+			$missing[] = '' !== $id ? $id : $path;
+		}
+		if ( $missing ) {
+			return array( false, sprintf( 'Después de cambiar el tema faltan hojas de estilo que se cargaban antes: %s.', implode( ', ', array_slice( $missing, 0, 5 ) ) ) );
+		}
+		$gone = array_values( array_diff( array_filter( (array) ( $was['inline'] ?? array() ), static function ( $id ) {
+			return 0 !== strpos( (string) $id, 'hello-' );
+		} ), (array) ( $now['inline'] ?? array() ) ) );
+		if ( in_array( 'wp-custom-css', $gone, true ) ) {
+			return array( false, 'Después de cambiar el tema falta el CSS adicional del sitio.' );
+		}
+		if ( $gone ) {
+			return array( false, sprintf( 'Después de cambiar el tema faltan bloques de estilo: %s.', implode( ', ', array_slice( $gone, 0, 5 ) ) ) );
+		}
+		if ( '' !== (string) ( $was['custom'] ?? '' ) && (string) $was['custom'] !== (string) ( $now['custom'] ?? '' ) ) {
+			return array( false, 'Después de cambiar el tema el CSS adicional no es el mismo.' );
+		}
+		if ( (string) ( $was['kit'] ?? '' ) !== (string) ( $now['kit'] ?? '' ) ) {
+			return array( false, sprintf( 'Después de cambiar el tema el kit del constructor (colores y tipografías globales) no se aplica igual (%s → %s).', '' !== (string) ( $was['kit'] ?? '' ) ? $was['kit'] : 'ninguno', '' !== (string) ( $now['kit'] ?? '' ) ? $now['kit'] : 'ninguno' ) );
+		}
+		return array( true, '' );
 	}
 
 	/** Huella de una URL (con `error` si no respondió y `login` si redirige al acceso). Con $limit 0, todas las palabras. */

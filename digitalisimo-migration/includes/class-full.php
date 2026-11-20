@@ -22,9 +22,11 @@ use Digitalisimo\Elements\Legacy\Runner;
  *  4. content  — la migración de contenido de siempre (Runner): desactiva la familia de Elementor y convierte.
  *  5. import   — importadores de SEO (Rank Math, Yoast) y comprobación de los respaldos de UpdraftPlus y Backuply.
  *  6. retire   — desactiva lo reemplazado cuya importación terminó.
- *  7. theme    — instala el tema propio y lo activa donde es seguro (Hello Elementor sin hijo, con el Theme Builder de
- *                Elements cargado); si no, lo dice.
- *  8. verify   — la portada y las páginas responden igual; si no, vuelve al tema anterior donde lo cambió.
+ *  7. theme    — instala el tema propio y lo activa donde es seguro (Hello Elementor o un hijo suyo cuyo PHP se puede
+ *                trasladar, con el Theme Builder de Elements cargado), tras guardar cómo se pintaba cada página; si no, dice
+ *                por qué y qué hacer.
+ *  8. verify   — la portada y las páginas responden igual y, donde cambió el tema, se pintan con las mismas hojas, el
+ *                mismo CSS adicional y el mismo kit; si no, vuelve al tema anterior donde lo cambió.
  *  9. cleanup  — sólo con el respaldo verificado, ninguna etapa fallida y la portada verificada: borra lo reemplazado
  *                que el mapa permite borrar y del que nada depende.
  * 10. finish   — informe: instalado, importado, reemplazado, borrado, lo que quedó como estaba y cómo volver.
@@ -550,6 +552,7 @@ final class Full {
 	private static function drop_snaps( array $state ) {
 		foreach ( (array) $state['checks'] as $check ) {
 			delete_option( self::SNAP . md5( self::snap_owner( $state ) . '|' . $check[0] . '|' . $check[1] ) );
+			delete_option( self::SNAP . md5( self::snap_owner( $state ) . '|pre|' . $check[0] . '|' . $check[1] ) );
 		}
 	}
 
@@ -1066,9 +1069,13 @@ final class Full {
 	/* ------------------------------------------------------------------ 7. theme */
 
 	/**
-	 * ¿Es seguro activar el tema propio en el sitio en curso? Sólo desde Hello Elementor sin hijo: el tema propio
-	 * reproduce a Hello (sus hojas, sus filtros, sus ajustes y su logo) y DIGITALÍSIMO Elements convierte su cabecera y
-	 * su pie dinámicos en plantillas del Theme Builder, así que lo que se ve no cambia. Devuelve [bool, motivo].
+	 * ¿Es seguro activar el tema propio en el sitio en curso? Desde Hello Elementor o un hijo suyo: el tema propio
+	 * reproduce a Hello (sus hojas, sus filtros, sus ajustes, su logo, sus menús y su CSS adicional), vuelve a encolar lo
+	 * que el functions.php del hijo encolaba (sus hojas y fuentes, desde su carpeta) y DIGITALÍSIMO Elements convierte
+	 * su cabecera y su pie dinámicos en plantillas del Theme Builder, así que lo que se ve no cambia. Un hijo con PHP que
+	 * no se puede trasladar sin ejecutarlo (otros ganchos, shortcodes, plantillas…) se queda, salvo que su functions.php
+	 * ya esté activo, tal cual, en Código PHP de DIGITALÍSIMO Tools. `$facts['child']`: `analyzed`, `blockers` (texto),
+	 * `covered` e `imported` (lo que contestó Tools al importarlo). Devuelve [bool, motivo].
 	 *
 	 * @return array{0:bool,1:string}
 	 */
@@ -1077,24 +1084,33 @@ final class Full {
 			return array( false, 'El tema DIGITALÍSIMO ya está activo.' );
 		}
 		if ( empty( $theme['hello'] ) ) {
-			return array( false, sprintf( 'El tema activo («%s») no es Hello Elementor: el tema DIGITALÍSIMO sólo reproduce a Hello, así que con otro tema podría cambiar lo que se ve. Se queda; si quieres cambiarlo, hazlo en Apariencia después de comprobarlo.', (string) $theme['name'] ) );
-		}
-		if ( ! empty( $theme['child'] ) ) {
-			return array( false, sprintf( 'El sitio usa un tema hijo de Hello («%s»): su CSS y su PHP no se trasladan solos (el PHP va al editor de fragmentos de DIGITALÍSIMO Tools). Se queda; cámbialo en Apariencia cuando los hayas pasado.', (string) $theme['name'] ) );
+			return array( false, sprintf( 'El tema activo («%s») no es Hello Elementor ni un hijo suyo: el tema DIGITALÍSIMO sólo reproduce a Hello, así que con otro tema podría cambiar lo que se ve. Se queda; si quieres cambiarlo, hazlo en Apariencia después de comprobarlo.', (string) $theme['name'] ) );
 		}
 		if ( empty( $facts['builder'] ) ) {
-			return array( false, 'El Theme Builder de DIGITALÍSIMO Elements no está cargado: la cabecera y el pie de Hello no podrían pasar a plantillas. Se queda Hello.' );
+			return array( false, 'El Theme Builder de DIGITALÍSIMO Elements no está cargado: la cabecera y el pie de Hello no podrían pasar a plantillas. Se queda ' . (string) $theme['name'] . '.' );
 		}
 		if ( ! empty( $facts['conflict'] ) ) {
-			return array( false, 'Elementor Pro o PRO Elements sigue activo: el Theme Builder de DIGITALÍSIMO Elements no carga mientras tanto. Se queda Hello.' );
+			return array( false, 'Elementor Pro o PRO Elements sigue activo: el Theme Builder de DIGITALÍSIMO Elements no carga mientras tanto. Se queda ' . (string) $theme['name'] . '.' );
 		}
 		if ( empty( $facts['can'] ) ) {
-			return array( false, 'Quien pulsó Migrar no puede instalar ni cambiar temas. Se queda Hello.' );
+			return array( false, 'Quien pulsó Migrar no puede instalar ni cambiar temas. Se queda ' . (string) $theme['name'] . '.' );
+		}
+		if ( ! empty( $theme['child'] ) ) {
+			$child = (array) ( $facts['child'] ?? array() );
+			if ( empty( $child['analyzed'] ) ) {
+				return array( false, sprintf( 'El sitio usa un tema hijo de Hello («%s») y el tema DIGITALÍSIMO instalado no sabe leerlo (es anterior a 1.0.1). Se queda el tema hijo: actualiza el tema DIGITALÍSIMO y vuelve a pulsar Migrar.', (string) $theme['name'] ) );
+			}
+			if ( '' !== (string) ( $child['blockers'] ?? '' ) && empty( $child['covered'] ) ) {
+				$todo = in_array( (string) ( $child['imported'] ?? '' ), array( 'created', 'updated', 'unchanged', 'conflict' ), true )
+					? 'en DIGITALÍSIMO Tools → Código PHP, revisa «PHP del tema hijo ' . (string) $theme['name'] . '» (Migrar lo dejó ahí, inactivo, sin tocarlo) y actívalo'
+					: 'copia su functions.php tal cual en un fragmento de DIGITALÍSIMO Tools → Código PHP, revísalo y actívalo';
+				return array( false, sprintf( 'El sitio usa un tema hijo de Hello («%s») con PHP que no se puede trasladar sin ejecutarlo: %s. Se queda el tema hijo para no perder lo que ese PHP hace. Qué hacer: %s, y vuelve a pulsar Migrar (o cambia al tema DIGITALÍSIMO en Apariencia, que trae sus hojas, su CSS adicional y sus ajustes, pero no ese PHP).', (string) $theme['name'], (string) $child['blockers'], $todo ) );
+			}
 		}
 		return array( true, '' );
 	}
 
-	/** Hechos del sitio en curso para theme_safety(). */
+	/** Hechos del sitio en curso para theme_safety() (sin los del tema hijo, que se leen con el tema ya instalado). */
 	private static function theme_facts( array $state ) {
 		$conflict = false;
 		foreach ( Retire::status() as $info ) {
@@ -1107,34 +1123,126 @@ final class Full {
 		);
 	}
 
+	/**
+	 * El lector del tema hijo del tema propio instalado (`inc/child.php`, funciones puras que no enganchan nada): la misma
+	 * copia que leerá el hijo al activarse. false si esa copia no lo trae.
+	 */
+	public static function child_reader() {
+		if ( function_exists( 'digitalisimo_theme_child_plan' ) ) {
+			return true;
+		}
+		$file = function_exists( 'get_theme_root' ) ? get_theme_root( Replacements::THEME ) . '/' . Replacements::THEME . '/inc/child.php' : '';
+		if ( '' === $file || ! is_file( $file ) ) {
+			return false;
+		}
+		require_once $file;
+		return function_exists( 'digitalisimo_theme_child_plan' );
+	}
+
+	/**
+	 * Hechos del tema hijo activo en el sitio en curso: lo lee sin ejecutarlo y, si tiene PHP que no se traslada y no
+	 * está ya activo en Tools, deja su functions.php en Código PHP de Tools, inactivo y con revisión (si Tools está).
+	 */
+	private static function child_facts() {
+		$child = wp_get_theme();
+		if ( ! self::child_reader() || ! $child->exists() ) {
+			return array( 'analyzed' => false );
+		}
+		$plan     = digitalisimo_theme_child_plan( $child );
+		$blockers = $plan['blockers'] ? digitalisimo_theme_child_blockers_text( $plan['blockers'] ) : '';
+		$covered  = '' !== $blockers && digitalisimo_theme_child_php_covered( $child );
+		return array(
+			'analyzed' => true,
+			'blockers' => $blockers,
+			'covered'  => $covered,
+			'carried'  => count( $plan['assets'] ),
+			'imported' => '' !== $blockers && ! $covered ? digitalisimo_theme_child_import_php( $child, $plan ) : '',
+		);
+	}
+
 	private static function stage_theme( array $state, $deadline ) {
+		if ( empty( $state['theme_planned'] ) ) {
+			$safe     = array();
+			$children = array();
+			foreach ( self::targets( $state ) as $site_id ) {
+				$row = self::on_site( $site_id, static function () use ( $state ) {
+					$theme = Replacements::theme_state();
+					// El hijo se lee después, con el tema propio instalado: aquí sólo lo demás.
+					list( $ok, $reason ) = self::theme_safety( array( 'child' => false ) + $theme, self::theme_facts( $state ) );
+					return array( 'from' => $theme['stylesheet'], 'name' => $theme['name'], 'hello' => ! empty( $theme['hello'] ), 'child' => ! empty( $theme['child'] ), 'own' => ! empty( $theme['own'] ), 'safe' => $ok, 'reason' => $reason );
+				} );
+				if ( $row['safe'] && ! self::site_verifiable( $state, (int) $site_id ) ) {
+					// Sin una portada legible antes de empezar (un servidor que no puede pedirse a sí mismo), el cambio no
+					// podría comprobarse: no se hace.
+					$row['safe']   = false;
+					$row['reason'] = 'La portada no se pudo leer antes de migrar (el servidor no puede pedirse a sí mismo o no respondía bien): sin poder comprobar el cambio, se queda ' . $row['name'] . '.';
+				}
+				$state['theme'][ $site_id ] = $row + array( 'switched' => false );
+				if ( $row['safe'] ) {
+					$safe[] = $site_id;
+				}
+			}
+			$state['theme_planned'] = true;
+			$state['theme_cursor']  = 0;
+			if ( ! $safe ) {
+				return self::next( $state, 'verify' );
+			}
+			$installed = Packages::install_theme();
+			if ( is_wp_error( $installed ) ) {
+				foreach ( $safe as $site_id ) {
+					$state['theme'][ $site_id ]['safe']   = false;
+					$state['theme'][ $site_id ]['reason'] = 'No se pudo instalar el tema DIGITALÍSIMO: ' . $installed->get_error_message() . ' Se queda ' . $state['theme'][ $site_id ]['name'] . '.';
+				}
+				return self::next( $state, 'verify' );
+			}
+			// Un hijo de Hello: se lee con el lector del tema propio ya instalado (lo que se trae y lo que no).
+			foreach ( $safe as $site_id ) {
+				if ( empty( $state['theme'][ $site_id ]['child'] ) ) {
+					continue;
+				}
+				$facts = self::on_site( $site_id, static function () {
+					return self::child_facts();
+				} );
+				$theme                 = array( 'own' => false, 'hello' => true, 'child' => true, 'name' => $state['theme'][ $site_id ]['name'] );
+				list( $ok, $reason )   = self::theme_safety( $theme, array( 'builder' => true, 'conflict' => false, 'can' => true, 'child' => $facts ) );
+				$state['theme'][ $site_id ]['child_facts'] = array_intersect_key( $facts, array_flip( array( 'blockers', 'covered', 'carried', 'imported' ) ) );
+				$state['theme'][ $site_id ]['safe']        = $ok;
+				$state['theme'][ $site_id ]['reason']      = $reason;
+			}
+			return $state;
+		}
+		// Huella de estilo de las páginas de cada sitio que va a cambiar, justo antes del cambio (con los plugins ya
+		// reemplazados): verify compara con ella para saber si se pinta lo mismo. Una por vuelta, dentro del plazo.
+		$checks = (array) $state['checks'];
+		while ( $state['theme_cursor'] < count( $checks ) ) {
+			list( $site_id, $url ) = $checks[ $state['theme_cursor'] ];
+			++$state['theme_cursor'];
+			if ( empty( $state['theme'][ $site_id ]['safe'] ) ) {
+				continue;
+			}
+			$snap = Front::snapshot( $url, 1 );
+			self::put_snap( $state, 'pre|' . $site_id . '|' . $url, array_intersect_key( $snap, array_flip( array( 'status', 'fatal', 'styles', 'error' ) ) ) );
+			if ( microtime( true ) >= $deadline ) {
+				return $state;
+			}
+		}
 		$safe = array();
-		foreach ( self::targets( $state ) as $site_id ) {
-			$row = self::on_site( $site_id, static function () use ( $state ) {
-				$theme = Replacements::theme_state();
-				list( $ok, $reason ) = self::theme_safety( $theme, self::theme_facts( $state ) );
-				return array( 'from' => $theme['stylesheet'], 'name' => $theme['name'], 'hello' => ! empty( $theme['hello'] ), 'own' => ! empty( $theme['own'] ), 'safe' => $ok, 'reason' => $reason );
-			} );
-			if ( $row['safe'] && ! self::site_verifiable( $state, (int) $site_id ) ) {
-				// Sin una portada legible antes de empezar (un servidor que no puede pedirse a sí mismo), el cambio no
-				// podría comprobarse: no se hace.
-				$row['safe']   = false;
-				$row['reason'] = 'La portada no se pudo leer antes de migrar (el servidor no puede pedirse a sí mismo o no respondía bien): sin poder comprobar el cambio, se queda Hello.';
+		foreach ( (array) $state['theme'] as $site_id => $row ) {
+			if ( empty( $row['safe'] ) ) {
+				continue;
 			}
-			$state['theme'][ $site_id ] = $row + array( 'switched' => false );
-			if ( $row['safe'] ) {
-				$safe[] = $site_id;
+			$readable = false;
+			foreach ( $checks as $check ) {
+				$readable = $readable || ( (int) $check[0] === (int) $site_id && null !== Front::compare_styles( self::get_snap( $state, 'pre|' . $check[0] . '|' . $check[1] ), array() )[0] );
 			}
+			if ( ! $readable ) {
+				$state['theme'][ $site_id ]['safe']   = false;
+				$state['theme'][ $site_id ]['reason'] = 'Justo antes de cambiar el tema la portada no se pudo leer: sin poder comprobar el cambio, se queda ' . $row['name'] . '.';
+				continue;
+			}
+			$safe[] = (int) $site_id;
 		}
 		if ( ! $safe ) {
-			return self::next( $state, 'verify' );
-		}
-		$installed = Packages::install_theme();
-		if ( is_wp_error( $installed ) ) {
-			foreach ( $safe as $site_id ) {
-				$state['theme'][ $site_id ]['safe']   = false;
-				$state['theme'][ $site_id ]['reason'] = 'No se pudo instalar el tema DIGITALÍSIMO: ' . $installed->get_error_message() . ' Se queda Hello.';
-			}
 			return self::next( $state, 'verify' );
 		}
 		if ( ! empty( $state['network'] ) && class_exists( '\\WP_Theme' ) && method_exists( '\\WP_Theme', 'network_enable_theme' ) ) {
@@ -1201,8 +1309,19 @@ final class Full {
 			list( $site_id, $url ) = $checks[ $state['cursor'] ];
 			$before                = self::get_snap( $state, $site_id . '|' . $url );
 			// Tras cambiar de tema, el HTML de después debe enlazar el tema nuevo (si no, viene de una caché).
-			$theme                 = ! empty( $state['theme'][ $site_id ]['switched'] ) ? Replacements::THEME : '';
-			list( $ok, $reason )   = Front::compare( $before, Front::snapshot( $url, 0 ), $theme );
+			$switched              = ! empty( $state['theme'][ $site_id ]['switched'] );
+			$after                 = Front::snapshot( $url, 0 );
+			list( $ok, $reason )   = Front::compare( $before, $after, $switched ? Replacements::THEME : '' );
+			if ( $switched && true === $ok ) {
+				// Con el tema cambiado, además se pinta lo mismo que justo antes del cambio (hojas, CSS adicional, kit).
+				$pre = self::get_snap( $state, 'pre|' . $site_id . '|' . $url );
+				if ( $pre ) {
+					list( $styled, $why ) = Front::compare_styles( $pre, $after );
+					if ( false === $styled ) {
+						list( $ok, $reason ) = array( false, $why );
+					}
+				}
+			}
 			$state['verify'][]     = array( 'site' => (int) $site_id, 'url' => (string) $url, 'ok' => $ok, 'reason' => $reason );
 			++$state['cursor'];
 			if ( microtime( true ) >= $deadline ) {

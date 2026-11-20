@@ -125,9 +125,10 @@ final class Screen {
 		if ( $theme['hello'] && ! $theme['child'] ) {
 			$deleted[] = 'Hello Elementor';
 		}
-		// Un tema hijo de Hello se queda: nada en su fila sugiere que algo pase al tema propio.
-		$moves = $theme['hello'] && ! $theme['child'];
-		$html .= '<tr><td>' . esc_html( 'Tema: ' . $theme['name'] ) . '</td><td>' . esc_html( $moves || $theme['own'] ? 'Tema DIGITALÍSIMO' : '—' ) . '</td><td>' . esc_html( $moves ? 'Logo, menús, CSS adicional y ajustes de Hello pasan al tema propio; la cabecera y el pie, a plantillas de DIGITALÍSIMO Elements.' : '—' ) . '</td><td>' . esc_html( self::theme_text( $network, $theme ) ) . '</td></tr>';
+		// Hello o un hijo suyo pasan al tema propio donde es seguro (un hijo, si su PHP se puede trasladar).
+		$moves = (bool) $theme['hello'];
+		$carry = $theme['child'] ? 'Logo, menús, CSS adicional y ajustes del hijo y de Hello pasan al tema propio, que sigue cargando las hojas y fuentes que encola el hijo (desde su carpeta); la cabecera y el pie, a plantillas de DIGITALÍSIMO Elements.' : 'Logo, menús, CSS adicional y ajustes de Hello pasan al tema propio; la cabecera y el pie, a plantillas de DIGITALÍSIMO Elements.';
+		$html .= '<tr><td>' . esc_html( 'Tema: ' . $theme['name'] ) . '</td><td>' . esc_html( $moves || $theme['own'] ? 'Tema DIGITALÍSIMO' : '—' ) . '</td><td>' . esc_html( $moves ? $carry : '—' ) . '</td><td>' . esc_html( self::theme_text( $network, $theme ) ) . '</td></tr>';
 		if ( ! $plan['rows'] && ! $theme['hello'] ) {
 			$html .= '<tr><td colspan="4">' . esc_html( 'Ningún plugin de este sitio tiene reemplazo DIGITALÍSIMO.' ) . '</td></tr>';
 		}
@@ -153,9 +154,9 @@ final class Screen {
 			return sprintf( 'Se queda %s: el tema DIGITALÍSIMO sólo reproduce a Hello Elementor, así que con otro tema podría cambiar lo que se ve.', $theme['name'] );
 		}
 		if ( $theme['child'] ) {
-			return 'Se queda: es un tema hijo de Hello con CSS o PHP propios que no se trasladan solos.';
+			return ( $network ? 'En cada sitio con Hello Elementor o un hijo suyo' : 'Se cambia' ) . ' al tema DIGITALÍSIMO si el functions.php del hijo sólo encola hojas, fuentes y scripts (se lee sin ejecutarlo, con el tema ya instalado) y el Theme Builder de DIGITALÍSIMO Elements carga. Si el hijo tiene otro PHP (ganchos, shortcodes, plantillas), se queda y el informe dice qué es y qué hacer. Si después la portada no responde o no se pinta igual, se vuelve al tema hijo. Hello no se borra mientras el hijo esté instalado.';
 		}
-		return ( $network ? 'En cada sitio con Hello Elementor sin hijo' : 'Se cambia' ) . ' al tema DIGITALÍSIMO, si el Theme Builder de DIGITALÍSIMO Elements carga (se comprueba después de instalarlo); si la portada no responde igual, se vuelve a Hello.';
+		return ( $network ? 'En cada sitio con Hello Elementor o un hijo suyo' : 'Se cambia' ) . ' al tema DIGITALÍSIMO, si el Theme Builder de DIGITALÍSIMO Elements carga (se comprueba después de instalarlo); si la portada no responde o no se pinta igual, se vuelve a Hello.';
 	}
 
 	public static function page() {
