@@ -208,7 +208,7 @@ async function networkEnable(page, stylesheet) {
 async function toolsActivate(browser, page, site, id) {
   await page.goto(`${site.home}wp-admin/admin.php?page=digitalisimo-tools-elementor-templates&tab=php&edit=${id}`, { waitUntil: 'domcontentloaded' });
   const cfg = await page.evaluate(() => window.digitalisimoToolsPhp || null);
-  const code = await page.evaluate(() => { const t = document.querySelector('textarea'); return t ? t.value : ''; });
+  const code = await page.evaluate(() => { const t = document.querySelector('#digitalisimo-php-code'); return t ? t.value : ''; });
   if (!cfg || !code) return { success: false, data: { message: 'sin editor de Tools' } };
   const post = (data) => page.evaluate(async (ajax, data) => {
     const r = await fetch(ajax, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data).toString() });
@@ -218,13 +218,18 @@ async function toolsActivate(browser, page, site, id) {
   const title = await page.evaluate(() => { const i = document.querySelector('input[name="title"]'); return i ? i.value : 'PHP del hijo'; });
   const r1 = await post({ do: 'prepare', scope: cfg.scope, blog_id: cfg.blog, id: cfg.id, nonce: cfg.nonces.prepare, title, code_b64: Buffer.from(code).toString('base64'), reviewed: '1' });
   if (!r1.success || !r1.data || !r1.data.sid) return r1;
+  result.toolsUrls = r1.data.urls;
   // Como tools-php: el escritorio con la sesión (el navegador) y cada portada sin cookies, leída entera y sin seguir
   // redirecciones (la red de la prueba vive en playground.test: se pide a 127.0.0.1 con su cabecera Host).
   // Exactamente como tools-php: cada portada sin cookies, al puerto local (Playground atiende con su dirección), sin
   // seguir redirecciones y leída entera.
   const anonGet = async (url) => {
     const u = new URL(url);
-    try { const r = await fetch(`http://127.0.0.1:${PORT}${u.pathname}${u.search}`, { redirect: 'manual' }); await r.text(); } catch (e) { /* la prueba de Tools dirá qué faltó */ }
+    try {
+      const r = await fetch(`http://127.0.0.1:${PORT}${u.pathname}${u.search}`, { redirect: 'manual' });
+      const body = await r.text();
+      result.toolsVisits = (result.toolsVisits || []).concat([{ url, status: r.status, location: r.headers.get('location') || '', bytes: body.length, footer: /<\/html>/i.test(body) }]);
+    } catch (e) { result.toolsVisits = (result.toolsVisits || []).concat([{ url, error: String(e.message || e) }]); }
   };
   const visit = async (urls) => {
     await Promise.all((urls || []).map((u) => (u.kind === 'admin' ? null : anonGet(u.url))));
@@ -299,7 +304,7 @@ function checkRecords(phase, st, sites) {
           const on = await toolsActivate(browser, page, sites[phpId], itemId);
           result.toolsActivation = on;
           check(on.success, `Tools activa el fragmento revisado: ${JSON.stringify(on).slice(0, 300)}`);
-          log(`  Tools: ${String((on.data || {}).message || '').slice(0, 160)}`);
+          log(`  Tools: ${String((on.data || {}).message || '').slice(0, 160)} · visitas ${JSON.stringify(result.toolsVisits || []).slice(0, 600)} · destinos ${JSON.stringify(result.toolsUrls || []).slice(0, 400)}`);
           await capture(browser, 'B3', { [phpId]: sites[phpId] });
           await compare(browser, 'B3', { [phpId]: sites[phpId] });
         }
