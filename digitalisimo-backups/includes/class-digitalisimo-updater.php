@@ -204,19 +204,28 @@ final class Digitalisimo_Backups_Updater {
 		return $known;
 	}
 
-	/** El cron, WP-CLI y una acción explícita pueden consultar GitHub también al leer la caché de actualizaciones. */
-	private static function may_download() { return self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ); }
+	/**
+	 * Puede consultar GitHub también al leer la caché de actualizaciones: el cron, WP-CLI, una acción explícita, las
+	 * pantallas Plugins y Actualizaciones y una actualización en curso (update.php, o por AJAX desde Plugins o Temas),
+	 * donde se mira y se instala la versión nueva (con 3 s y la espera compartida tras un fallo). El resto del escritorio, no.
+	 */
+	private static function may_download() {
+		if ( self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) return true;
+		if ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) return in_array( (string) ( $_REQUEST['action'] ?? '' ), array( 'update-plugin', 'update-theme' ), true ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si se puede esperar a GitHub; WordPress valida la acción.
+		return function_exists( 'is_admin' ) && is_admin() && in_array( (string) ( $GLOBALS['pagenow'] ?? '' ), array( 'plugins.php', 'update-core.php', 'update.php' ), true );
+	}
 
 	/**
 	 * Lo ya sabido, sin red: el índice compartido si otro actualizador Digitalisimo lo bajó hace poco (el cron lo renueva
-	 * cada cinco minutos) o, si no, la última versión encontrada. No escribe nada.
+	 * cada cinco minutos) y la última versión encontrada, la más alta. No escribe nada.
 	 */
 	private static function known() {
 		$manifest = get_site_transient( self::MANIFEST_CACHE );
 		$best = is_array( $manifest ) ? self::entry( $manifest ) : array();
-		if ( $best ) return $best;
 		$known = get_site_option( self::LAST_KNOWN, array() );
-		return is_array( $known ) ? $known : array();
+		// La más alta de las dos: el índice que otro bajó puede ser más nuevo, o haber vencido con la nueva ya conocida.
+		if ( is_array( $known ) && ! empty( $known['version'] ) && ( empty( $best['version'] ) || version_compare( $known['version'], $best['version'], '>' ) ) ) $best = $known;
+		return $best;
 	}
 
 	/** Una pantalla del escritorio no espera más de 3 s a GitHub; el cron y WP-CLI, hasta 10. */
@@ -296,9 +305,11 @@ final class Digitalisimo_Backups_Updater {
 	/** Lectura de update_plugins (cada pantalla del escritorio): la misma entrada con lo ya sabido, sin esperar a GitHub. */
 	public static function check_known( $transient ) {
 		self::$offline = true;
-		$transient = self::check( $transient );
-		self::$offline = false;
-		return $transient;
+		try {
+			return self::check( $transient );
+		} finally {
+			self::$offline = false;
+		}
 	}
 
 	public static function check( $transient ) {

@@ -87,7 +87,7 @@ final class Digitalisimo_Tools_Update_Bridge {
 		$cached = get_site_transient( self::CACHE );
 		if ( false !== $cached ) return (array) $cached;
 		// Una lectura de update_plugins usa lo ya sabido: descargan el cron, WP-CLI, las consultas de WordPress y las acciones explícitas.
-		if ( self::$offline && ! ( self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) ) return self::known();
+		if ( self::$offline && ! self::may_download() ) return self::known();
 		$best = self::from_manifest();
 		if ( ! $best ) $best = self::from_api();
 		if ( $best ) {
@@ -102,13 +102,24 @@ final class Digitalisimo_Tools_Update_Bridge {
 		return $known;
 	}
 
-	/** Lo ya sabido, sin red: el índice compartido si otro lo bajó hace poco o, si no, la última versión encontrada. */
+	/** Lo ya sabido, sin red: la versión más alta entre el índice compartido (si otro lo bajó hace poco) y la última encontrada. */
 	private static function known() {
 		$manifest = get_site_transient( self::MANIFEST_CACHE );
 		$best = is_array( $manifest ) ? self::entry( $manifest ) : array();
-		if ( $best ) return $best;
 		$known = get_site_option( self::LAST_KNOWN, array() );
-		return is_array( $known ) ? $known : array();
+		if ( is_array( $known ) && ! empty( $known['version'] ) && ( empty( $best['version'] ) || version_compare( $known['version'], $best['version'], '>' ) ) ) $best = $known;
+		return $best;
+	}
+
+	/**
+	 * Puede consultar GitHub también al leer la caché de actualizaciones: el cron, WP-CLI, una acción explícita, las
+	 * pantallas Plugins y Actualizaciones y una actualización en curso (update.php, o por AJAX desde Plugins o Temas),
+	 * donde se mira y se instala la versión nueva (con 3 s y la espera compartida tras un fallo). El resto del escritorio, no.
+	 */
+	private static function may_download() {
+		if ( self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) return true;
+		if ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) return in_array( (string) ( $_REQUEST['action'] ?? '' ), array( 'update-plugin', 'update-theme' ), true ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si se puede esperar a GitHub; WordPress valida la acción.
+		return function_exists( 'is_admin' ) && is_admin() && in_array( (string) ( $GLOBALS['pagenow'] ?? '' ), array( 'plugins.php', 'update-core.php', 'update.php' ), true );
 	}
 
 	/** Versión de Tools en el índice de la última Release; sólo acepta un ZIP suyo de este repositorio. */
@@ -165,9 +176,11 @@ final class Digitalisimo_Tools_Update_Bridge {
 	/** Lectura de update_plugins (cada pantalla del escritorio): la misma entrada con lo ya sabido, sin esperar a GitHub. */
 	public static function inject_known( $transient ) {
 		self::$offline = true;
-		$transient = self::inject( $transient );
-		self::$offline = false;
-		return $transient;
+		try {
+			return self::inject( $transient );
+		} finally {
+			self::$offline = false;
+		}
 	}
 
 	public static function inject( $transient ) {

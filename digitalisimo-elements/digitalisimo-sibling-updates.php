@@ -154,6 +154,17 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		}, ARRAY_FILTER_USE_BOTH );
 	}
 
+	/**
+	 * Puede consultar GitHub también al leer la caché de actualizaciones: el cron, WP-CLI, una acción explícita, las
+	 * pantallas Plugins y Actualizaciones y una actualización en curso (update.php, o por AJAX desde Plugins o Temas),
+	 * donde se mira y se instala la versión nueva (con 3 s y la espera compartida tras un fallo). El resto del escritorio, no.
+	 */
+	private static function may_download() {
+		if ( self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) return true;
+		if ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) return in_array( (string) ( $_REQUEST['action'] ?? '' ), array( 'update-plugin', 'update-theme' ), true ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si se puede esperar a GitHub; WordPress valida la acción.
+		return function_exists( 'is_admin' ) && is_admin() && in_array( (string) ( $GLOBALS['pagenow'] ?? '' ), array( 'plugins.php', 'update-core.php', 'update.php' ), true );
+	}
+
 	/** Una pantalla del escritorio no espera más de 3 s a GitHub; el cron y WP-CLI, hasta 10. */
 	private static function timeout() { return self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ? 10 : 3; }
 
@@ -162,7 +173,7 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		$manifest = get_site_transient( self::MANIFEST_CACHE );
 		if ( ! is_array( $manifest ) ) {
 			// Una lectura de update_plugins no descarga: las entradas guardadas en la última consulta de WordPress siguen ahí.
-			if ( self::$offline && ! ( self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) ) {
+			if ( self::$offline && ! self::may_download() ) {
 				return array();
 			}
 			// GitHub falló hace menos de dos minutos (para cualquier plugin Digitalisimo): no se vuelve a intentar todavía.
@@ -198,9 +209,11 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	 */
 	public static function check_known( $transient ) {
 		self::$offline = true;
-		$transient     = self::check( $transient );
-		self::$offline = false;
-		return $transient;
+		try {
+			return self::check( $transient );
+		} finally {
+			self::$offline = false;
+		}
 	}
 
 	/** Escritura de update_plugins (WordPress consulta actualizaciones): puede descargar el índice. */

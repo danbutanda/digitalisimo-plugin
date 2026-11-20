@@ -80,6 +80,17 @@ Reglas que cumplen todos (`tests/updater-*.php`, `tests/*-updater*.php`, `tests/
   (`releases/latest/download/digitalisimo-plugins.json`), sin pasar por la API de GitHub, que limita a 60 consultas por
   hora a cada servidor sin autenticar; la API queda sólo de respaldo, y si GitHub no responde se mantiene el último
   índice conocido.
+- **La lectura no usa la red** (auditoría del escritorio, 2026-11-20). WordPress lee `update_plugins` y `update_themes`
+  en cada pantalla del escritorio (el contador del menú); en esa lectura (`site_transient_update_*`, `check_known()` o
+  `inject_known()`) los actualizadores de los siete plugins, los hermanos de Elements, las copias del tema de Tools y
+  el puente de Tools sólo usan lo ya sabido: su caché, el índice compartido que otro bajó y la última versión
+  conocida (la más alta de las dos), sin escribir nada. Descargan, con 3 s en una pantalla y 10 en el cron, WP-CLI o
+  una acción explícita: la escritura (`pre_set_site_transient_update_*`, cuando WordPress consulta), el refresco de
+  cinco minutos y las actualizaciones automáticas (WP-Cron), WP-CLI, «Buscar actualizaciones», «Buscar de nuevo» y
+  «Ver detalles», y también la lectura en Plugins, Actualizaciones, `update.php` y las actualizaciones por AJAX
+  (`update-plugin`, `update-theme`), donde se mira y se instala la versión nueva. Todas respetan la espera compartida
+  de dos minutos tras un fallo de GitHub, salvo las acciones explícitas. El actualizador del tema aún descarga al leer
+  hasta su próxima versión. Prueba: `tests/updaters-github-backoff.php`.
 - «Actualízalo ahora» en Plugins usa `wp.updates.updatePlugin()` en la misma fila: el controlador
   `assets/js/update-in-place.js` es idéntico en los siete (`tests/update-in-place.mjs`), se carga sólo en `plugins.php`
   una vez y cada plugin declara su archivo con `wp_add_inline_script()`. Los plugins de otros desarrolladores quedan
