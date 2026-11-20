@@ -101,9 +101,21 @@ function digitalisimo_integrations_autoload( $class ) {
 	static $classes = null;
 	if ( 0 !== strpos( $class, 'Digitalisimo_' ) ) return;
 	if ( null === $classes ) $classes = digitalisimo_integrations_classes();
-	if ( isset( $classes[ $class ] ) ) require_once DIGITALISIMO_INTEGRATIONS_DIR . $classes[ $class ];
+	if ( isset( $classes[ $class ] ) && is_readable( DIGITALISIMO_INTEGRATIONS_DIR . $classes[ $class ] ) ) require_once DIGITALISIMO_INTEGRATIONS_DIR . $classes[ $class ];
 }
 spl_autoload_register( 'digitalisimo_integrations_autoload' );
+
+/**
+ * Antes de que WordPress mueva o sustituya los archivos de un plugin (actualizar, reinstalar, subir un ZIP encima), SEO
+ * compila todas sus clases, como hacía antes del autoloader: lo que se dispare después en esa petición (opciones, cron,
+ * `upgrader_process_complete`, `shutdown` antes de que WordPress restaure la copia si la actualización falla) no necesita
+ * sus archivos en disco ni mezcla clases de dos versiones.
+ */
+function digitalisimo_integrations_load_all( $response = true ) {
+	foreach ( array_keys( digitalisimo_integrations_classes() ) as $class ) class_exists( $class );
+	return $response;
+}
+add_filter( 'upgrader_pre_install', 'digitalisimo_integrations_load_all', 1 );
 
 /**
  * Registra los ganchos de un módulo sin cargar su clase: los mismos que su init() (nombre, método, prioridad, argumentos

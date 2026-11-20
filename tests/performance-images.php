@@ -17,6 +17,8 @@ class Digitalisimo_Integrations_Performance_Cache {
 	public static function get( $name, &$found = null ) { $key = $GLOBALS['blog'] . ':' . $name; $found = array_key_exists( $key, self::$store ); return $found ? self::$store[ $key ] : false; }
 	public static function set( $name, $value ) { self::$store[ $GLOBALS['blog'] . ':' . $name ] = $value; return true; }
 }
+// El mapa de URLs registra su guardado en shutdown al ensuciarse.
+function add_action() { return true; }
 function trailingslashit( $v ) { return rtrim( $v, '/' ) . '/'; }
 function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
 function is_ssl() { return true; }
