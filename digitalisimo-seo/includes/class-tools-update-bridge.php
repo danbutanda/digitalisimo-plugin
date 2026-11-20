@@ -23,6 +23,8 @@ final class Digitalisimo_Tools_Update_Bridge {
 	const MANIFEST_FRESH = 'digitalisimo_plugins_manifest_fresh';
 	/** Acción explícita en esta petición («Buscar actualizaciones», «Buscar de nuevo», «Ver detalles»): 10 s y sin la espera. */
 	private static $explicit = false;
+	/** Lectura de la caché de actualizaciones en curso (inject_known()): sin peticiones a GitHub salvo en el cron, WP-CLI o una acción explícita. */
+	private static $offline = false;
 	/** Última versión encontrada: si GitHub no responde, la actualización sigue a la vista en lugar de desaparecer. */
 	const LAST_KNOWN = 'digitalisimo_tools_bridge_last_release';
 	private static $installed_version = '';
@@ -33,7 +35,9 @@ final class Digitalisimo_Tools_Update_Bridge {
 		$header = get_file_data( $path, array( 'Version' => 'Version' ) );
 		self::$installed_version = (string) ( $header['Version'] ?? '' );
 		if ( ! self::$installed_version || version_compare( self::$installed_version, '1.0.17', '>=' ) ) return;
-		foreach ( array( 'pre_set_site_transient_update_plugins', 'pre_set_transient_update_plugins', 'site_transient_update_plugins', 'transient_update_plugins' ) as $hook ) add_filter( $hook, array( __CLASS__, 'inject' ), 100 );
+		foreach ( array( 'pre_set_site_transient_update_plugins', 'pre_set_transient_update_plugins' ) as $hook ) add_filter( $hook, array( __CLASS__, 'inject' ), 100 );
+		// La lectura de update_plugins (cada pantalla del escritorio) sólo usa lo ya sabido y nunca espera a GitHub.
+		foreach ( array( 'site_transient_update_plugins', 'transient_update_plugins' ) as $hook ) add_filter( $hook, array( __CLASS__, 'inject_known' ), 100 );
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 100, 4 );
 		add_filter( 'plugin_action_links_' . self::FILE, array( __CLASS__, 'action_link' ) );
 		add_filter( 'network_admin_plugin_action_links_' . self::FILE, array( __CLASS__, 'action_link' ) );
@@ -82,6 +86,8 @@ final class Digitalisimo_Tools_Update_Bridge {
 	private static function release() {
 		$cached = get_site_transient( self::CACHE );
 		if ( false !== $cached ) return (array) $cached;
+		// Una lectura de update_plugins usa lo ya sabido: descargan el cron, WP-CLI, las consultas de WordPress y las acciones explícitas.
+		if ( self::$offline && ! ( self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) ) return self::known();
 		$best = self::from_manifest();
 		if ( ! $best ) $best = self::from_api();
 		if ( $best ) {
@@ -94,6 +100,15 @@ final class Digitalisimo_Tools_Update_Bridge {
 		$known = is_array( $known ) ? $known : array();
 		set_site_transient( self::CACHE, $known, 2 * MINUTE_IN_SECONDS );
 		return $known;
+	}
+
+	/** Lo ya sabido, sin red: el índice compartido si otro lo bajó hace poco o, si no, la última versión encontrada. */
+	private static function known() {
+		$manifest = get_site_transient( self::MANIFEST_CACHE );
+		$best = is_array( $manifest ) ? self::entry( $manifest ) : array();
+		if ( $best ) return $best;
+		$known = get_site_option( self::LAST_KNOWN, array() );
+		return is_array( $known ) ? $known : array();
 	}
 
 	/** Versión de Tools en el índice de la última Release; sólo acepta un ZIP suyo de este repositorio. */
@@ -109,6 +124,11 @@ final class Digitalisimo_Tools_Update_Bridge {
 			set_site_transient( self::MANIFEST_CACHE, $manifest, 10 * MINUTE_IN_SECONDS );
 			set_site_transient( self::MANIFEST_FRESH, time(), 4 * MINUTE_IN_SECONDS );
 		}
+		return self::entry( $manifest );
+	}
+
+	/** Entrada de Tools en un índice ya descargado; sólo acepta un ZIP suyo de este repositorio. */
+	private static function entry( array $manifest ) {
 		$entry   = $manifest['plugins'][ self::SLUG ] ?? null;
 		$version = is_array( $entry ) ? (string) ( $entry['version'] ?? '' ) : '';
 		$package = is_array( $entry ) ? (string) ( $entry['url'] ?? '' ) : '';
@@ -140,6 +160,14 @@ final class Digitalisimo_Tools_Update_Bridge {
 		$release = self::release();
 		if ( empty( $release['version'] ) || empty( $release['package'] ) || ! version_compare( $release['version'], self::$installed_version, '>' ) ) return $update;
 		return array( 'slug' => 'digitalisimo-tools', 'version' => $release['version'], 'package' => $release['package'], 'url' => $release['url'], 'requires_php' => '7.4' );
+	}
+
+	/** Lectura de update_plugins (cada pantalla del escritorio): la misma entrada con lo ya sabido, sin esperar a GitHub. */
+	public static function inject_known( $transient ) {
+		self::$offline = true;
+		$transient = self::inject( $transient );
+		self::$offline = false;
+		return $transient;
 	}
 
 	public static function inject( $transient ) {
