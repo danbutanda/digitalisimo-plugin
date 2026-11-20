@@ -10,9 +10,8 @@
  *  5. En una pantalla el tiempo de espera es de 3 s; en el cron, 10.
  *  6. Toda copia que descarga el índice o consulta la API respeta las mismas marcas.
  * Se cargan a la vez las copias reales (familia compartida de SEO/IA/Hosting, Backups, Tools, Elements, Migración,
- * hermanos de Elements, copias del tema de Tools y comprobación de SEO) con WordPress simulado. El actualizador del tema
- * (digitalisimo-theme/inc/class-updater.php) queda igual hasta la próxima versión del tema, fijada en 1.0.0: la lista
- * conjunta ya incluye su caché.
+ * hermanos de Elements, copias del tema de Tools, comprobación de SEO y, desde el tema 1.0.1, el actualizador del tema)
+ * con WordPress simulado.
  */
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'WP_PLUGIN_DIR', __DIR__ . '/sin-plugins-instalados' );
@@ -83,6 +82,7 @@ require $root . 'digitalisimo-elements/digitalisimo-sibling-updates.php';
 require $root . 'digitalisimo-tools/includes/class-theme-updates.php';
 require $root . 'digitalisimo-seo/includes/class-seo-release-check.php';
 require $root . 'digitalisimo-tools/includes/class-plugin-catalog.php';
+require $root . 'digitalisimo-theme/inc/class-updater.php';
 foreach ( array( 'digitalisimo-seo/digitalisimo-integrations.php' => 'digitalisimo-seo', 'digitalisimo.chatbot/digitalisimo-chatbot.php' => 'digitalisimo-ia-tools', 'digitalisimo-hosting/digitalisimo-hosting.php' => 'digitalisimo-hosting' ) as $file => $slug ) Digitalisimo_Updater::register( '/plugins/' . $file, '1.0.0', $slug );
 function digi_check( $ok, $message ) { if ( ! $ok ) { fwrite( STDERR, 'FALLA: ' . $message . "\n" ); exit( 1 ); } }
 /** Una carga del escritorio: el menú lee update_plugins y update_themes, y cada actualizador pasa por su filtro. */
@@ -90,6 +90,7 @@ function admin_load() {
 	$plugins = (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array() );
 	foreach ( array( 'Digitalisimo_Updater::inject', 'Digitalisimo_Backups_Updater::check', 'Digitalisimo\Tools\Updater::check', 'Digitalisimo_Elements_Updater::check', 'Digitalisimo\Migration\Updater::check', 'Digitalisimo_SEO_Release_Check::inject_known', 'Digitalisimo_Elements_Sibling_Updates::check' ) as $cb ) $plugins = call_user_func( $cb, $plugins );
 	$themes = (object) array( 'checked' => array( 'digitalisimo-theme' => '1.0.0' ), 'response' => array(), 'no_update' => array() );
+	$themes = Digitalisimo_Theme_Updater::check( $themes );
 	$themes = Digitalisimo\Tools\Theme_Updates::check( $themes );
 	return array( $plugins, $themes );
 }
@@ -130,7 +131,7 @@ digi_check( array( 10 ) === array_values( array_unique( array_column( $GLOBALS['
 $GLOBALS['cron'] = false;
 
 // 6. Toda copia que descarga el índice o consulta la API usa las mismas marcas.
-foreach ( array( 'digitalisimo-seo/includes/class-digitalisimo-updater.php', 'digitalisimo-ia-tools/includes/class-digitalisimo-updater.php', 'digitalisimo-hosting/includes/class-digitalisimo-updater.php', 'digitalisimo-backups/includes/class-digitalisimo-updater.php', 'digitalisimo-tools/includes/class-updater.php', 'digitalisimo-elements/digitalisimo-updater.php', 'digitalisimo-migration/includes/class-updater.php', 'digitalisimo-elements/digitalisimo-sibling-updates.php', 'digitalisimo-tools/includes/class-theme-updates.php', 'digitalisimo-tools/includes/class-plugin-catalog.php', 'digitalisimo-seo/includes/class-plugin-catalog.php', 'digitalisimo-seo/includes/class-seo-release-check.php', 'digitalisimo-seo/includes/class-tools-update-bridge.php' ) as $file ) {
+foreach ( array( 'digitalisimo-seo/includes/class-digitalisimo-updater.php', 'digitalisimo-ia-tools/includes/class-digitalisimo-updater.php', 'digitalisimo-hosting/includes/class-digitalisimo-updater.php', 'digitalisimo-backups/includes/class-digitalisimo-updater.php', 'digitalisimo-tools/includes/class-updater.php', 'digitalisimo-elements/digitalisimo-updater.php', 'digitalisimo-migration/includes/class-updater.php', 'digitalisimo-elements/digitalisimo-sibling-updates.php', 'digitalisimo-tools/includes/class-theme-updates.php', 'digitalisimo-tools/includes/class-plugin-catalog.php', 'digitalisimo-seo/includes/class-plugin-catalog.php', 'digitalisimo-seo/includes/class-seo-release-check.php', 'digitalisimo-seo/includes/class-tools-update-bridge.php', 'digitalisimo-theme/inc/class-updater.php' ) as $file ) {
 	$src = (string) file_get_contents( $root . $file );
 	if ( false === strpos( $src, 'wp_remote_get' ) ) continue;
 	$catalog = false !== strpos( $file, 'class-plugin-catalog.php' );
@@ -151,7 +152,7 @@ foreach ( array( 'Digitalisimo_Updater::CACHE_KEY', 'Digitalisimo_Backups_Update
 	$key = constant( $const );
 	digi_check( in_array( '_site_transient_' . $key, $GLOBALS['primed'], true ) && in_array( '_site_transient_timeout_' . $key, $GLOBALS['primed'], true ), "La lectura conjunta incluye $key ($const)." );
 }
-foreach ( array( 'digitalisimo-seo/includes/class-digitalisimo-updater.php', 'digitalisimo-ia-tools/includes/class-digitalisimo-updater.php', 'digitalisimo-hosting/includes/class-digitalisimo-updater.php', 'digitalisimo-backups/includes/class-digitalisimo-updater.php', 'digitalisimo-tools/includes/class-updater.php', 'digitalisimo-elements/digitalisimo-updater.php', 'digitalisimo-migration/includes/class-updater.php', 'digitalisimo-elements/digitalisimo-sibling-updates.php', 'digitalisimo-tools/includes/class-theme-updates.php', 'digitalisimo-seo/includes/class-seo-release-check.php' ) as $file ) {
+foreach ( array( 'digitalisimo-seo/includes/class-digitalisimo-updater.php', 'digitalisimo-ia-tools/includes/class-digitalisimo-updater.php', 'digitalisimo-hosting/includes/class-digitalisimo-updater.php', 'digitalisimo-backups/includes/class-digitalisimo-updater.php', 'digitalisimo-tools/includes/class-updater.php', 'digitalisimo-elements/digitalisimo-updater.php', 'digitalisimo-migration/includes/class-updater.php', 'digitalisimo-elements/digitalisimo-sibling-updates.php', 'digitalisimo-tools/includes/class-theme-updates.php', 'digitalisimo-seo/includes/class-seo-release-check.php', 'digitalisimo-theme/inc/class-updater.php' ) as $file ) {
 	$src = (string) file_get_contents( $root . $file );
 	$at = strpos( $src, 'public static function prime()' );
 	digi_check( false !== strpos( $src, "add_action( 'init', array( __CLASS__, 'prime' ), 0 );" ) && false !== $at && preg_match_all( "/'(digitalisimo_[a-z_]+)'/", substr( $src, $at, (int) strpos( $src, ') as $key )', $at ) - $at ), $m ), "$file lee todas las cachés en una consulta (init, 0)." );
@@ -203,6 +204,18 @@ $GLOBALS['t'] = array( 'digitalisimo_plugins_manifest_retry' => 1, 'digitalisimo
 Digitalisimo\Tools\Theme_Updates::explicit();
 $release = Digitalisimo\Tools\Theme_Updates::release();
 digi_check( '9.0.0' === ( $release['version'] ?? '' ) && ! empty( $release['package'] ) && array( 10 ) === array_column( $GLOBALS['calls'], 'timeout' ), 'Instalar o actualizar el tema desde Tools consulta aunque haya espera, con 10 s.' );
+// El actualizador del tema solo, en una pantalla: espera como mucho 3 s y, si GitHub falla, deja las dos marcas.
+$GLOBALS['net'] = 'down'; $GLOBALS['t'] = array(); $GLOBALS['calls'] = array();
+Digitalisimo_Theme_Updater::check( (object) array( 'checked' => array( 'digitalisimo-theme' => '1.0.0' ), 'response' => array(), 'no_update' => array() ) );
+digi_check( 1 === $count( 'digitalisimo-plugins.json' ) && 1 === $count( 'api.github.com' ) && array( 3 ) === array_values( array_unique( array_column( $GLOBALS['calls'], 'timeout' ) ) ) && isset( $GLOBALS['t']['digitalisimo_plugins_manifest_retry'], $GLOBALS['t']['digitalisimo_github_api_retry'] ), 'El tema, en una pantalla: 3 s y deja la espera tras el fallo.' );
+$GLOBALS['net'] = 'up';
+// El actualizador del tema: con espera vigente su lectura pasiva no consulta; «Buscar actualizaciones de nuevo» sí, con 10 s.
+$GLOBALS['t'] = array( 'digitalisimo_plugins_manifest_retry' => 1, 'digitalisimo_github_api_retry' => 1 ); $GLOBALS['calls'] = array();
+Digitalisimo_Theme_Updater::check( (object) array( 'checked' => array( 'digitalisimo-theme' => '1.0.0' ), 'response' => array(), 'no_update' => array() ) );
+digi_check( 0 === count( $GLOBALS['calls'] ), 'Con la espera vigente, la lectura del tema no consulta GitHub.' );
+$_GET['force-check'] = '1'; Digitalisimo_Theme_Updater::native_force_check(); unset( $_GET['force-check'] );
+$themes = Digitalisimo_Theme_Updater::check( (object) array( 'checked' => array( 'digitalisimo-theme' => '1.0.0' ), 'response' => array(), 'no_update' => array() ) );
+digi_check( 1 === $count( 'digitalisimo-plugins.json' ) && array( 10 ) === array_values( array_unique( array_column( $GLOBALS['calls'], 'timeout' ) ) ) && '9.0.0' === ( $themes->response['digitalisimo-theme']['new_version'] ?? '' ) && 240 === ( $GLOBALS['ttl']['digitalisimo_plugins_manifest_fresh'] ?? 0 ), '«Buscar de nuevo» olvida la espera y consulta el índice del tema con 10 s.' );
 $src = (string) file_get_contents( $root . 'digitalisimo-tools/includes/class-theme-catalog.php' );
 foreach ( array( 'public static function render(', 'public static function install()', 'public static function update()' ) as $method ) {
 	$body = substr( $src, (int) strpos( $src, $method ), 1200 );

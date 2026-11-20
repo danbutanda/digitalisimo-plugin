@@ -217,7 +217,7 @@ Lo que no figura en este árbol está prohibido. Lo vigilan `tests/theme-structu
 ```
 style.css  theme.json  functions.php  header.php  footer.php  index.php  comments.php  sidebar.php
 screenshot.png  readme.txt  license.txt
-inc/{setup,template-tags,elements,assets,fallbacks,switch,cli,class-updater}.php
+inc/{setup,template-tags,elements,assets,fallbacks,switch,child,cli,class-updater}.php
 template-parts/{header,footer,single,archive,search,404}.php
 fallback/{canvas,full-width}.php
 assets/css/base.css  assets/css/parity/{reset,theme,header-footer}.css
@@ -273,6 +273,7 @@ WordPress dispara `after_switch_theme` en la petición siguiente al cambio de te
 | T8 | Limpia las cachés de CSS del constructor | Elements |
 | T9 | Anota si Hello imprimía la meta description y si SEO la imprime; si sólo la imprimía Hello, deja el aviso `description_lost` | Tema |
 | T10 | Hace el inventario del hijo (sus `*.php`, los bytes de `style.css`, sus plantillas de página y sus selectores) y de los callbacks de `hello_elementor_*` y `hello-plus-theme/*` | Tema |
+| T11 | Lee el `functions.php` del hijo sin ejecutarlo (`inc/child.php`, desde el tema 1.0.1): lo que encola con valores legibles queda en `digitalisimo_theme_child` y el tema lo vuelve a encolar desde la carpeta del hijo, con el mismo handle, dependencias, versión y prioridad; lo demás se anota como bloqueo (archivo, línea y qué es) y el `functions.php` va a «Código PHP» de Tools, inactivo | Tema |
 
 **Reversión** (`wp digitalisimo-theme revert`).
 - Vuelve a `last.stylesheet` y marca `reverted`.
@@ -409,7 +410,7 @@ La paridad rige con `origin.family = hello` y sin `reverted`. Fuera de paridad (
 | Logo, menús, CSS adicional y mods | Se trasladan (T1–T4) de forma idempotente, sin pisar lo editado en destino | El CSS adicional sólo se copia desde Hello. Si el destino ya tiene otro CSS, hay aviso |
 | Cabecera y pie | • `tb`: el Theme Builder cede igual.<br>• `dynamic`: plantillas generadas.<br>• `hidden` (sólo la cabecera): no se pinta. El pie con todo oculto se genera como un contenedor vacío, con su fondo y su relleno, porque Hello lo imprime vacío.<br>• `classic` y `disabled`: como en Hello | • `tb_partial`: en las URL excluidas, Hello pintaba su cabecera y el tema pinta la clásica (con aviso).<br>• Cabecera generada: el botón móvil y el desplegable son los del widget Menú (puntos de corte del kit), no `hello-frontend.js`; `smartmenus` pesa 24 109 B y necesita jQuery, frente a 1 830 B.<br>• Son plantillas del constructor: unos 20 nodos más que la de Hello (el envoltorio de cada widget) y, en páginas que no usaban el constructor, sus hojas y scripts (declarado en `theme-switch/known.json`).<br>• Si la primera petición tras el cambio es anónima, se ve la cabecera clásica hasta que corre el cron, que convierte como el administrador que activó el tema.<br>• La vista previa del Personalizador muestra la cabecera clásica |
 | Meta description | SEO imprime la suya y retira la de Hello | Sin SEO se pierde, con el aviso `description_lost` en la bitácora y en Tools |
-| Hijo de Hello | Inventario antes del cambio (Tools) y después (bitácora) | Su PHP no se carga: va a fragmentos de Tools (F1b). Su `style.css` sólo se copia con `--child-css` (D2) |
+| Hijo de Hello | Inventario antes del cambio (Tools) y después (bitácora). Desde 1.0.1, lo que su `functions.php` encola (su `style.css`, otras hojas, fuentes y scripts) se carga desde su carpeta, en el mismo punto de la cascada; el CSS adicional guardado con el hijo y sus mods pasan como los de Hello | Su PHP que no es un encolado legible no se carga: se dice con su archivo y su línea y va a fragmentos de Tools (F1b), inactivo. `--child-css` copia además su `style.css` al CSS adicional si se pide (D2). «Migrar» sólo cambia un hijo sin bloqueos (o con su `functions.php` activo tal cual en Tools) |
 | Hello+, `hello-biz`, `hello-commerce` | Familia `other`, con aviso | Sin conversión |
 | Versión de Hello | Paridad con 3.5.1 | Con otra versión de origen, la versión queda en el registro y la diferencia se informa |
 | `id="content"` | Uno solo por página | Se repite si el contenido ya usa ese id. Se desactiva con `digitalisimo_theme_skip_link_url` |
@@ -420,6 +421,7 @@ Lo hacen dos arneses. En ninguno se monta con escritura nada del repositorio, y 
 
 - **`tests/playground/theme-switch.sh`:** sitio individual, en Chrome, con `WOO=1`.
 - **`tests/playground/theme-network.sh`:** red Multisite, sin Chrome.
+- **`tests/playground/theme-parity.sh`** (tema 1.0.1, pedido del propietario del 2026-11-20): kit con colores y tipografías globales y «Estilo del tema» (botones, enlaces, encabezados y formularios), un hijo típico de Hello (`style.css` con reglas, `functions.php` de la plantilla oficial que además encola una hoja y una fuente local, CSS adicional guardado con el hijo y un mod propio) y, en la red, Hello sin hijo y un hijo con PHP que no se traslada. Compara con la fase A, por URL y en 1280 y 390 px, los estilos calculados de los elementos clave (exactos), los píxeles (máximo 0,5 %, como `theme-switch.sh`) y que ninguna hoja que no sea de Hello falte. Con `VIA=apariencia`: cambio desde Apariencia, vuelta al hijo desde Apariencia, otra ida y la reversión de WP-CLI; con `VIA=migrar`: «Migrar» completo (Backups, Elements y el tema desde ZIP locales), A justo antes de su etapa del tema; con `BREAK=1`, el tema propio pierde el CSS adicional y «Migrar» debe volver solo al hijo. Con Apariencia corre con un solo worker: con varios, Playground a veces no encuentra la carpeta de CSS del constructor en la primera petición tras el cambio de tema (la que vacía su caché) y el kit no se aplica, algo que no pasa con un solo worker ni en un servidor real.
 
 **Escenarios de `theme-switch.sh`:**
 - **S1** sin Theme Builder, con un fragmento que filtra `hello_elementor_page_title`.

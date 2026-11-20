@@ -3,7 +3,7 @@ Contributors: digitalisimo
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -23,7 +23,8 @@ Registra las cuatro ubicaciones del núcleo (cabecera, pie, entrada y archivo) y
 `digitalisimo_after_footer`).
 
 Al activarse copia lo que el sitio tenía en el tema anterior (logo, menús, CSS adicional y ajustes) sin pisar nada
-editado después, y deja el registro `digitalisimo_theme_switch` y la bitácora `digitalisimo_theme_switch_log`.
+editado después, vuelve a cargar desde su carpeta las hojas, fuentes y scripts que encolaba un tema hijo (leído sin
+ejecutar su PHP) y deja el registro `digitalisimo_theme_switch` y la bitácora `digitalisimo_theme_switch_log`.
 `wp digitalisimo-theme status|import|revert` los consulta, repite la importación o vuelve al tema anterior. El tema
 nunca se activa solo y se distribuye sin tema hijo: el código PHP propio de cada sitio va a los fragmentos de
 DIGITALÍSIMO Tools.
@@ -32,6 +33,12 @@ Las actualizaciones llegan desde las Releases del repositorio danbutanda/digital
 y en Actualizaciones; sólo se instalan solas si activas la actualización automática del tema.
 
 == Changelog ==
+
+= 1.0.1 =
+* El paso desde un tema hijo trae lo que su functions.php encolaba (hojas, fuentes y scripts, con su handle, sus
+  dependencias, su versión y su prioridad), desde la carpeta del hijo y en el mismo punto de la cascada; lo que necesita
+  ejecutar PHP se dice con su archivo y su línea, y su functions.php queda en Código PHP de DIGITALÍSIMO Tools, inactivo.
+* El actualizador respeta la espera compartida tras un fallo de GitHub y lee sus cachés con las de los plugins.
 
 = 1.0.0 =
 * Primera versión: tema clásico, ubicaciones del constructor, respaldos, paso desde el tema anterior con

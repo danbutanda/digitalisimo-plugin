@@ -1,7 +1,7 @@
 <?php
 /** DIGITALÍSIMO: carga las piezas del tema. Sin pantallas, sin JavaScript propio y sin opciones. */
 defined( 'ABSPATH' ) || exit;
-define( 'DIGITALISIMO_THEME_VERSION', '1.0.0' ); // Igual que « * Version:» de style.css (tests/theme-structure.php).
+define( 'DIGITALISIMO_THEME_VERSION', '1.0.1' ); // Igual que « * Version:» de style.css (tests/theme-structure.php).
 foreach ( array( 'switch', 'setup', 'template-tags', 'elements', 'assets', 'fallbacks' ) as $digitalisimo_part ) {
 	require get_template_directory() . '/inc/' . $digitalisimo_part . '.php';
 }
