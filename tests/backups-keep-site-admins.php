@@ -320,7 +320,7 @@ $engine = function( array $args, $home = 'https://destino.test', $prefix = 'wpkx
 	$GLOBALS['bk_options']['siteurl'] = $home;
 	$GLOBALS['ksa_user'] = 1;
 	try {
-		$result = Digitalisimo_Backups::service_restore( null === $backup ? $file : $backup, $args + array( 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => false, 'sync' => true, 'drive_cli' => true ) );
+		$result = Digitalisimo_Backups::service_restore( null === $backup ? $file : $backup, $args + array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( null === $backup ? $file : $backup ), 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => false, 'sync' => true, 'drive_cli' => true ) );
 	} finally {
 		$GLOBALS['ksa_user'] = 0;
 	}

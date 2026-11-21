@@ -76,6 +76,6 @@ $GLOBALS['bk_on_mkdir'] = function( $path ) use ( $dest ) {
 	$GLOBALS['ri_cut'] = true;
 	exit;
 };
-Digitalisimo_Backups::service_restore( $backup, array( 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => true ) );
+Digitalisimo_Backups::service_restore( $backup, array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $backup ), 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => true ) );
 echo "FALLA · la restauración terminó sin cortarse.\n";
 exit( 1 );

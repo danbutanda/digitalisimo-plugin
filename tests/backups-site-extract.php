@@ -488,7 +488,7 @@ try {
 	$check = $S::service_verify( $extracted );
 	digi_assert( ! is_wp_error( $check ) && true === $check['compatible'] && 'RESTAURAR SIN FIRMA' === $check['confirmation'], 'Un WordPress individual no acepta el sitio extraído: ' . json_encode( is_wp_error( $check ) ? $check->get_error_message() : $check ) );
 	digi_assert( false !== strpos( $check['relocation']['text'], 'https://red.test/sub2' ) && false !== strpos( $check['relocation']['text'], 'wp_2_ → dst_' ), 'verify no dice qué se reescribirá: ' . json_encode( $check['relocation'] ) );
-	$restored = $S::service_restore( $extracted, array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
+	$restored = $S::service_restore( $extracted, array( 'origin_domain' => $S::restore_origin_host( $extracted ), 'confirm' => 'RESTAURAR SIN FIRMA' ) );
 	digi_assert( ! is_wp_error( $restored ) && true === $restored['restored'], 'La restauración del sitio extraído falló: ' . ( is_wp_error( $restored ) ? $restored->get_error_message() : '' ) );
 	digi_assert( false !== strpos( $restored['notice'], 'red.test/sub2' ) && false !== strpos( $restored['notice'], 'contraseña' ), 'La restauración no dice con qué cuentas se entra: ' . $restored['notice'] );
 	digi_assert( ! isset( $db->tables['wp_2_options'] ) && ! isset( $db->tables['wp_2_users'] ) && isset( $db->tables['dst_users'] ), 'Las tablas no quedaron con el prefijo del destino: ' . json_encode( array_keys( $db->tables ) ) );
@@ -571,7 +571,7 @@ try {
 	$zip->addFromString( 'migration.json', wp_json_encode( array( 'scope' => 'site', 'type' => 'full' ) ) );
 	$zip->addFromString( 'wordpress/wp-load.php', '<?php' );
 	$zip->close();
-	$error = $S::service_restore( basename( $legacy ), array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
+	$error = $S::service_restore( basename( $legacy ), array( 'origin_domain' => $S::restore_origin_host( basename( $legacy ) ), 'confirm' => 'RESTAURAR SIN FIRMA' ) );
 	digi_assert( is_wp_error( $error ) && 422 === $error->get_error_data()['status'] && false !== strpos( $error->get_error_message(), 'subsitio' ), 'Se aceptó el alcance heredado site: ' . json_encode( is_wp_error( $error ) ? $error->get_error_message() : $error ) );
 
 	echo "ok · extraer como WordPress individual: paquete del sitio 2, usuarios y metas, roles, medios, plugins, ajustes de red, permisos y restauración en otra URL y otro prefijo\n";

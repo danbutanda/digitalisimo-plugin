@@ -156,7 +156,8 @@ $screen = function() use ( $call, $B ) {
 	return (string) ob_get_clean();
 };
 $restore = function( $file, $confirm, array $more = array() ) use ( $ns ) {
-	return digi_rest( 'POST', $ns . '/backups/' . $file . '/restore', array( 'confirm' => $confirm ) + $more );
+	// Un subido de otro sitio: su dominio de origen, escrito a mano como en la pantalla.
+	return digi_rest( 'POST', $ns . '/backups/' . $file . '/restore', array( 'confirm' => $confirm, 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $file ) ) + $more );
 };
 
 try {
@@ -202,7 +203,7 @@ try {
 	list( $code, $parts ) = $restore( $a, 'RESTAURAR', array( 'parts' => 'database' ) );
 	digi_assert( 200 === $code && true === $parts['restored'] && 'Sitio de prueba' === $GLOBALS['wpdb']->value( 'blogname' ) && "<?php // cambiado\n" === file_get_contents( WP_PLUGIN_DIR . '/example.php' ), 'Restaurar por partes el subido no devolvió sólo la base de datos: ' . json_encode( $parts ) );
 	// La pantalla (admin-post) también, con RESTAURAR.
-	$query = digi_admin_post( 'restore_request', $B::ACTION_RESTORE, array( 'backup_file' => $a, 'confirmation' => 'RESTAURAR' ) );
+	$query = digi_admin_post( 'restore_request', $B::ACTION_RESTORE, array( 'backup_file' => $a, 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $a ), 'confirmation' => 'RESTAURAR' ) );
 	digi_assert( 'ok' === ( $query['backup'] ?? '' ) && "<?php // plugin de ejemplo\n" === file_get_contents( WP_PLUGIN_DIR . '/example.php' ), '«Restaurar» de la pantalla no restauró el subido con RESTAURAR: ' . json_encode( $query ) );
 
 	// (c) Un archivo cambiado en el almacén después de registrarse no hereda la confianza de su fila.

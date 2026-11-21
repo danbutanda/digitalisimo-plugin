@@ -151,6 +151,7 @@ final class Digitalisimo_Backups_Jobs {
 	}
 	/** Encola sin duplicar: una política (o el respaldo manual) nunca tiene dos trabajos sin terminar. */
 	public static function enqueue( array $spec ) {
+		self::assert_same_site( 'Respaldar' );
 		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $spec ) {
 			foreach ( self::active() as $job ) {
 				if ( empty( $job['spec']['inline'] ) && ( $job['spec']['policy'] ?? '' ) === $spec['policy'] ) return array( 'duplicate' => true, 'job' => $job );
@@ -165,6 +166,9 @@ final class Digitalisimo_Backups_Jobs {
 		return array(
 			'format' => Digitalisimo_Backups_Job_Store::FORMAT,
 			'id' => $id,
+			// La instalación que lo creó (sin la dirección, que una restauración o una migración cambian a mitad del trabajo):
+			// claim() sólo toma los suyos, aunque el almacén se comparta.
+			'installation' => self::owner(),
 			'kind' => in_array( $kind, array( 'restore', 'import' ), true ) ? $kind : 'backup',
 			'rev' => 0,
 			'spec' => $spec,
@@ -193,6 +197,7 @@ final class Digitalisimo_Backups_Jobs {
 	 * ZIP descifrado); si lanza, el trabajo se retira.
 	 */
 	public static function enqueue_restore( array $spec, $prepare = null, $except = '' ) {
+		self::assert_same_site( 'Restaurar' );
 		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $spec, $prepare, $except ) {
 			// $except: el trabajo que pide la restauración y espera su resultado (una migración) no cuenta como otro a medias;
 			// puede ser una lista (la reconstrucción de un punto y los respaldos que sólo esperan en la cola).
@@ -215,6 +220,7 @@ final class Digitalisimo_Backups_Jobs {
 	 * dos veces el mismo archivo. Devuelve array( 'busy' | 'duplicate' => bool, 'job' => el nuevo o el que lo impide ).
 	 */
 	public static function enqueue_import( array $spec ) {
+		self::assert_same_site( 'Importar' );
 		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $spec ) {
 			foreach ( self::active() as $job ) {
 				if ( self::is_restore( $job ) ) return array( 'busy' => true, 'duplicate' => false, 'job' => $job );
@@ -255,7 +261,8 @@ final class Digitalisimo_Backups_Jobs {
 	}
 	public static function get( $id ) { return Digitalisimo_Backups_Job_Store::valid_id( $id ) ? Digitalisimo_Backups_Job_Store::read( $id ) : null; }
 	public static function all() { return Digitalisimo_Backups_Job_Store::all(); }
-	public static function active() { return array_values( array_filter( Digitalisimo_Backups_Job_Store::all(), function( $job ) { return ! Digitalisimo_Backups_Job_Store::is_terminal( $job ); } ) ); }
+	/** Trabajos sin terminar de esta instalación (los de otra que comparta el almacén no ocupan su cola). */
+	public static function active() { return array_values( array_filter( Digitalisimo_Backups_Job_Store::all(), function( $job ) { return ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) && self::owned( $job ); } ) ); }
 	public static function has_active() { return (bool) self::active(); }
 
 	/* ------------------------------------------------------------------ Ejecución */
@@ -274,8 +281,20 @@ final class Digitalisimo_Backups_Jobs {
 	 * Un tick: toma el cerrojo del almacén sin esperar (si está ocupado responde `busy`), reconoce los trabajos cuyo
 	 * proceso murió, elige el primer trabajo listo y ejecuta pasos hasta agotar el presupuesto.
 	 */
-	public static function tick( $budget = null ) {
+	public static function tick( $budget = null, $only = '' ) {
 		if ( self::off_main_site() ) return array( 'result' => 'error', 'message' => self::MAIN_SITE_ONLY );
+		// Candado «mismo sitio»: con la caché de objetos devolviendo los datos de otro sitio, ningún paso escribe nada.
+		$alien = self::same_site_refusal( 'Respaldar o Restaurar' );
+		if ( '' !== $alien && self::restoring_here() ) {
+			// Una restauración o una migración de este sitio a medias cambia `home` en la base por debajo de la caché: lo que
+			// queda en ella es de este sitio antes de restaurar. Se retira sólo eso y se vuelve a comprobar.
+			Digitalisimo_Same_Site::invalidate( array( 'home', 'siteurl' ) );
+			$alien = self::same_site_refusal( 'Respaldar o Restaurar' );
+		}
+		if ( '' !== $alien ) {
+			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: ' . $alien );
+			return array( 'result' => 'error', 'message' => $alien, 'code' => 'same_site' );
+		}
 		try {
 			$lock = Digitalisimo_Backups::try_operation_lock();
 		} catch ( Throwable $e ) {
@@ -297,7 +316,7 @@ final class Digitalisimo_Backups_Jobs {
 			// Nunca más allá del límite real de esta petición (T2): un tick que empieza tarde trabaja menos.
 			$budget = min( $budget, Digitalisimo_Backups_Step_Budget::request_remaining() );
 			do {
-				$job = self::claim();
+				$job = self::claim( (string) $only );
 				if ( ! $job ) break;
 				// WP-Cron retira el evento antes de llamar a este tick: si el proceso muere en el paso (límite del hosting,
 				// un reinicio), sin otro programado el trabajo esperaría al watchdog horario. Con el arrendamiento, a 60 s.
@@ -327,16 +346,29 @@ final class Digitalisimo_Backups_Jobs {
 		if ( class_exists( 'Digitalisimo_Backups_Pre_Update', false ) ) Digitalisimo_Backups_Pre_Update::after_tick();
 		return array( 'result' => $result );
 	}
-	/** Elige el primer trabajo listo en orden de llegada y le pone un arrendamiento nuevo. */
-	private static function claim() {
-		return Digitalisimo_Backups_Job_Store::with_lock( function() {
+	/**
+	 * Elige el primer trabajo listo en orden de llegada y le pone un arrendamiento nuevo. Sólo los de esta instalación
+	 * (owner()); con $only, sólo ese trabajo (Migrar conduce el respaldo que encoló, nunca otro).
+	 */
+	private static function claim( $only = '' ) {
+		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $only ) {
 			$now = time();
-			$jobs = Digitalisimo_Backups_Job_Store::all();
+			$mine = self::owner();
+			$all = Digitalisimo_Backups_Job_Store::all();
+			// El de otra identidad nunca se toma; sólo caduca a su plazo (p. ej. la raíz de WordPress cambió de ruta con un
+			// trabajo pendiente): si no, quedaría pendiente para siempre en el almacén.
+			foreach ( $all as $job ) {
+				if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) || ! empty( $job['lease'] ) || self::owned( $job, $mine ) ) continue;
+				$expiry = (int) self::filter( 'digitalisimo_backups_job_expiry', max( self::EXPIRES_AFTER, (int) ( $job['spec']['expires_after'] ?? 0 ) ) );
+				if ( $now - (int) $job['created_at'] > $expiry ) self::terminate( $job, 'failed', array( 'code' => 'expired', 'message' => 'El trabajo caducó sin terminar en ' . (int) round( $expiry / 3600 ) . ' horas (era de otra instalación o de otra ruta de WordPress).', 'permanent' => true ) );
+			}
+			$jobs = array_values( array_filter( $all, function( $job ) use ( $mine ) { return self::owned( $job, $mine ); } ) );
 			// Mientras una restauración no termina, ningún respaldo empieza: copiaría un sitio a medio restaurar.
 			$restoring = false;
 			foreach ( $jobs as $job ) if ( self::restore_like( $job ) && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) $restoring = true;
 			foreach ( $jobs as $job ) {
 				if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) || ! empty( $job['lease'] ) ) continue;
+				if ( '' !== $only && (string) $job['id'] !== $only ) continue;
 				if ( $restoring && ! self::restore_like( $job ) ) continue;
 				// Un trabajo puede pedir más plazo (el respaldo antes de actualizar, en un hosting lento), nunca menos.
 				$expiry = (int) self::filter( 'digitalisimo_backups_job_expiry', max( self::EXPIRES_AFTER, (int) ( $job['spec']['expires_after'] ?? 0 ) ) );
@@ -787,6 +819,8 @@ final class Digitalisimo_Backups_Jobs {
 			return;
 		}
 		if ( null !== $next ) $next = max( $next, (int) $not_before );
+		// La opción `cron` se lee y se vuelve a guardar: con la caché de otro sitio se escribirían sus eventos aquí.
+		if ( null !== $next && ! self::on_main_site( function() { return self::cron_safe(); } ) ) return;
 		self::on_main_site( function() use ( $next, $spawn ) {
 			$scheduled = wp_next_scheduled( self::HOOK_TICK );
 			if ( null === $next ) return;
@@ -794,7 +828,8 @@ final class Digitalisimo_Backups_Jobs {
 				if ( false !== $scheduled ) wp_unschedule_event( $scheduled, self::HOOK_TICK );
 				wp_schedule_single_event( $next, self::HOOK_TICK );
 			}
-			if ( $spawn && $next <= time() && function_exists( 'spawn_cron' ) && ! ( defined( 'DOING_CRON' ) && DOING_CRON ) ) spawn_cron();
+			// spawn_cron() llama a site_url(): sólo si su host es el de la base de este sitio (nunca la petición a otro sitio).
+			if ( $spawn && $next <= time() && function_exists( 'spawn_cron' ) && ! ( defined( 'DOING_CRON' ) && DOING_CRON ) && self::cron_safe() ) spawn_cron();
 		} );
 	}
 	/** Programa el tick de guardia de un trabajo recién reclamado; devuelve su hora si lo añadió este tick (si no, 0). */
@@ -1279,6 +1314,50 @@ final class Digitalisimo_Backups_Jobs {
 	 * En una red, la cola es de toda la instalación y su historial vive en el sitio principal: un paso, el detector o una
 	 * cancelación que llegan desde un subsitio no corren (registrarían el respaldo o su copia remota en ese subsitio).
 	 */
+	/**
+	 * Identidad de esta instalación para sus trabajos (Digitalisimo_Backups::installation_owner(): el identificador del
+	 * almacén privado y la raíz de WordPress, sin la dirección). '' si el almacén no está disponible.
+	 */
+	public static function owner() {
+		try {
+			return method_exists( 'Digitalisimo_Backups', 'installation_owner' ) ? (string) Digitalisimo_Backups::installation_owner() : '';
+		} catch ( Throwable $e ) {
+			return '';
+		}
+	}
+	/**
+	 * ¿Es $job de esta instalación? El que lleva la identidad de otra, nunca. Uno sin identidad (creado antes de que
+	 * existiera, durante la actualización) sólo si su almacén es el de esta instalación, como hasta ahora.
+	 */
+	public static function owned( $job, $mine = null ) {
+		$mine = null === $mine ? self::owner() : (string) $mine;
+		$stamp = is_array( $job ) ? (string) ( $job['installation'] ?? '' ) : '';
+		if ( '' === $stamp ) return true;
+		return '' !== $mine && hash_equals( $mine, $stamp );
+	}
+	/** ¿Hay una restauración (o lo que la prepara) o una migración de esta instalación sin terminar? */
+	private static function restoring_here() {
+		try {
+			foreach ( self::active() as $job ) if ( self::owned( $job ) && ( self::restore_like( $job ) || null !== self::kind_handler( (array) ( $job['spec'] ?? array() ) ) ) ) return true;
+		} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		return false;
+	}
+	/** Candado «mismo sitio» (class-digitalisimo-same-site.php): '' o el motivo para no escribir nada. */
+	public static function same_site_refusal( $action ) {
+		if ( ! class_exists( 'Digitalisimo_Same_Site', false ) && is_file( __DIR__ . '/class-digitalisimo-same-site.php' ) ) require_once __DIR__ . '/class-digitalisimo-same-site.php';
+		$alien = class_exists( 'Digitalisimo_Same_Site', false ) ? Digitalisimo_Same_Site::refusal( $action ) : '';
+		return '' === $alien ? '' : $alien . ' No se escribió nada.';
+	}
+	/** Lanza una Exception con el motivo si el candado «mismo sitio» falla (los que encolan ya la convierten en un error). */
+	public static function assert_same_site( $action ) {
+		$alien = self::same_site_refusal( $action );
+		if ( '' !== $alien ) throw new Exception( $alien );
+	}
+	/** ¿Se puede programar o lanzar el cron? No si la caché da otro sitio: `cron` y site_url() serían los suyos. */
+	private static function cron_safe() {
+		if ( '' !== self::same_site_refusal( 'Respaldar' ) ) return false;
+		return ! class_exists( 'Digitalisimo_Same_Site', false ) || ! function_exists( 'site_url' ) || Digitalisimo_Same_Site::own_url( site_url() ) || null === Digitalisimo_Same_Site::db_option( 'siteurl' );
+	}
 	public static function off_main_site() { return is_multisite() && ! is_main_site(); }
 	private static function on_main_site( callable $callback ) {
 		$switch = is_multisite() && function_exists( 'get_main_site_id' ) && (int) get_current_blog_id() !== (int) get_main_site_id();

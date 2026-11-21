@@ -48,10 +48,25 @@ class Digitalisimo_Integrations_Favicon {
 		return trim( (string) Digitalisimo_Integrations_SEO_Resolver::option( self::KEY ) );
 	}
 
-	/** Generado y vigente para el PNG maestro configurado. */
+	/**
+	 * Generado y vigente para el PNG maestro configurado, y con sus archivos en la carpeta de este sitio: el estado y la
+	 * fuente son opciones, y una caché de objetos compartida con otro sitio del servidor (sin WP_CACHE_KEY_SALT) daría los
+	 * suyos; entonces las etiquetas apuntarían a su favicon (el icono alternaba entre los dos sitios). Con el candado
+	 * «mismo sitio» de Backups, Migración o Tools cargado y fallando, tampoco.
+	 */
 	public static function active() {
 		$state = self::state();
-		return '' !== self::source() && ! empty( $state['version'] ) && ( $state['source'] ?? '' ) === self::source() && empty( $state['error'] );
+		if ( '' === self::source() || empty( $state['version'] ) || ( $state['source'] ?? '' ) !== self::source() || ! empty( $state['error'] ) ) return false;
+		return self::files_here();
+	}
+
+	/** ¿Están favicon.ico y los PNG generados en la carpeta de subidas de este sitio? (la caché de stat de PHP lo abarata). */
+	private static function files_here() {
+		$dir = self::dir()[0];
+		if ( ! is_file( $dir . '/favicon.ico' ) ) return false;
+		foreach ( array_keys( self::FILES ) as $file ) if ( ! is_file( $dir . '/' . $file ) ) return false;
+		$check = class_exists( 'Digitalisimo_Same_Site', false ) ? Digitalisimo_Same_Site::check( false ) : array( 'ok' => true );
+		return ! empty( $check['ok'] );
 	}
 
 	private static function dir() {

@@ -130,7 +130,7 @@ $engine = function( $file, array $args = array(), $home = 'https://mismo.test', 
 	$GLOBALS['bk_options']['siteurl'] = $home;
 	$GLOBALS['rva_user'] = 1;
 	try {
-		$result = Digitalisimo_Backups::service_restore( $file, $args + array( 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => false, 'sync' => true, 'drive_cli' => true ) );
+		$result = Digitalisimo_Backups::service_restore( $file, $args + array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $file ), 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => false, 'sync' => true, 'drive_cli' => true ) );
 	} finally {
 		$GLOBALS['rva_user'] = 0;
 	}

@@ -231,6 +231,12 @@ function digitalisimo_theme_import_previous( $old, array $opts = array() ) {
 	}
 	$dry = ! empty( $opts['dry_run'] );
 	$via = '' !== (string) $opts['via'] ? sanitize_key( (string) $opts['via'] ) : digitalisimo_theme_switch_via();
+	// Candado «mismo sitio» de los plugins DIGITALÍSIMO (si alguno está cargado): con la caché de objetos devolviendo los
+	// datos de otro sitio, copiar los ajustes del tema anterior guardaría aquí los del otro sitio. No se escribe nada.
+	$alien = digitalisimo_theme_alien();
+	if ( ! $dry && '' !== $alien ) {
+		return new WP_Error( 'digitalisimo_theme_same_site', $alien );
+	}
 	if ( ! $dry && ! digitalisimo_theme_lock() ) {
 		$log             = digitalisimo_theme_switch_log();
 		$log['warnings'] = digitalisimo_theme_merge_warnings(
@@ -262,6 +268,14 @@ function digitalisimo_theme_import_previous( $old, array $opts = array() ) {
 		'restore' => $result['restore'],
 		'dry_run' => $dry,
 	);
+}
+
+/**
+ * Motivo para no escribir si la caché de objetos devuelve los datos de otro sitio ('' si no, o si ningún plugin
+ * DIGITALÍSIMO con el candado «mismo sitio» está cargado: el tema no lleva copia del código compartido).
+ */
+function digitalisimo_theme_alien() {
+	return class_exists( 'Digitalisimo_Same_Site', false ) ? (string) Digitalisimo_Same_Site::refusal( 'Migrar' ) : '';
 }
 
 /** Cuerpo de la importación (con el cerrojo tomado, salvo en dry_run). */
@@ -403,7 +417,13 @@ function digitalisimo_theme_import_work( WP_Theme $old, $child_css, $dry, $via )
 		$warn( 'mods_kept', sprintf( 'Se conservaron %d ajustes que ya se habían editado en este tema: %s.', count( $skipped ), implode( ', ', array_keys( $skipped ) ) ) );
 	}
 	if ( $changed && ! $dry ) {
-		update_option( $target, $mods );
+		// Justo antes de guardar lo leído: la caché pudo empezar a dar otro sitio durante la importación.
+		$alien = digitalisimo_theme_alien();
+		if ( '' === $alien ) {
+			update_option( $target, $mods );
+		} else {
+			$warn( 'same_site', $alien . ' Los ajustes del Personalizador no se copiaron.' );
+		}
 	}
 
 	// T3 · CSS adicional (sólo desde Hello) y, si se pide, el style.css del tema hijo.

@@ -173,6 +173,7 @@ final class Digitalisimo_Backups_Rest {
 				'addresses' => $addresses,
 				'keep_access' => $keep_access_restore,
 				'keep_admins' => $keep_admins_restore,
+				'origin_domain' => array( 'type' => 'string', 'default' => '', 'description' => 'Con el respaldo de otro sitio (otra dirección u otra instalación): su dominio de origen, escrito a mano. Sin él, esa restauración se niega.' ),
 			) + $import + $parts ),
 		) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/fetch', array( $route( 'POST', 'fetch', array( 'network' => $network ) ) ) );
@@ -344,7 +345,7 @@ final class Digitalisimo_Backups_Rest {
 		if ( is_wp_error( $secret ) ) return $secret;
 		// La restauración es un trabajo por pasos: esta petición avanza lo que cabe en su tiempo y responde 202 si sigue
 		// (con el trabajo y el testigo del mantenimiento); POST /jobs/tick, la pantalla o WP-Cron la terminan.
-		$result = Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'addresses' => (string) $request['addresses'], 'keep_access' => null === $request['keep_access'] ? null : (bool) $request['keep_access'], 'keep_admins' => null === $request['keep_admins'] ? null : (bool) $request['keep_admins'], 'into' => (string) $request['into'], 'address' => (string) $request['address'], 'via' => 'rest', 'sync' => false, 'drive_cli' => false ) + self::parts( $request ) );
+		$result = Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'addresses' => (string) $request['addresses'], 'keep_access' => null === $request['keep_access'] ? null : (bool) $request['keep_access'], 'keep_admins' => null === $request['keep_admins'] ? null : (bool) $request['keep_admins'], 'into' => (string) $request['into'], 'address' => (string) $request['address'], 'via' => 'rest', 'sync' => false, 'drive_cli' => false, 'origin_domain' => (string) $request['origin_domain'] ) + self::parts( $request ) );
 		if ( is_array( $result ) && ! empty( $result['maintenance_token'] ) ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
 		return self::respond( $result, is_array( $result ) && ! empty( $result['restoring'] ) ? 202 : 200 );
 	}

@@ -37,6 +37,9 @@ trait Digitalisimo_Backups_Backuply_Service {
 	public static function service_backuply_import( $name, array $args = array() ) {
 		$allowed = self::service_scope( false, false );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		// Candado «mismo sitio»: con la caché de objetos dando los datos de otro sitio no se escribe nada.
+		$alien = self::same_site_error( 'Importar' );
+		if ( $alien ) return $alien;
 		$name = (string) $name;
 		$origin = (string) ( $args['source'] ?? '' );
 		if ( '' !== $origin && ! in_array( $origin, array( 'backuply', 'store' ), true ) ) return self::service_error( 'backuply_source', 'El origen debe ser backuply (la carpeta de Backuply de este sitio) o store (el almacén privado).', 400 );

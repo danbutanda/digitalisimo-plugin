@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_json', 'theme_child_retire_dir', 'theme_child_retire_official', 'theme_child_retire_network', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_json', 'theme_child_retire_dir', 'theme_child_retire_official', 'theme_child_retire_network', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback', 'alien_cache', 'alien_cache_midway' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -117,6 +117,10 @@ if ( ! defined( 'MB_IN_BYTES' ) ) {
 function wp_next_scheduled( $hook ) { return $GLOBALS['t']['cron'][ $hook ] ?? false; }
 function wp_schedule_single_event( $time, $hook ) { $GLOBALS['t']['cron'][ $hook ] = $time; return true; }
 function wp_clear_scheduled_hook( $hook ) { unset( $GLOBALS['t']['cron'][ $hook ] ); }
+/** Caché de objetos persistente (el escenario `alien_cache` la enciende con el `home` de otro sitio). */
+function wp_using_ext_object_cache() { return ! empty( $GLOBALS['t']['ext_cache'] ); }
+/** Lo que la caché de objetos tiene en `alloptions` (aquí, las opciones del sitio en curso). */
+function wp_load_alloptions() { return $GLOBALS['t']['options'][ blog() ] ?? array(); }
 function home_url( $path = '' ) { return 'http://example.test' . ( 1 === blog() ? '' : '/dos' ) . $path; }
 function get_posts( $args ) { return array( 10 ); }
 function get_permalink( $id ) { return home_url( '/sobre/' ); }
@@ -538,6 +542,12 @@ use Digitalisimo\Migration\Replacements;
 
 Packages::$installer = static function ( $slug, $package, $type ) {
 	$GLOBALS['t']['log'][] = 'install:' . $slug;
+	if ( ( $GLOBALS['t']['collide_on_install'] ?? '' ) === $slug ) {
+		// La caché compartida empieza a dar el `home` de otro sitio justo después de instalar (antes de activar).
+		$GLOBALS['t']['ext_cache'] = true;
+		update_option( 'home', 'https://digitalisimo.lat' );
+		$GLOBALS['t']['collided_at'] = count( $GLOBALS['t']['log'] );
+	}
 	if ( in_array( $slug, (array) ( $GLOBALS['t']['install_fails'] ?? array() ), true ) ) {
 		return new WP_Error( 'x', 'el ZIP no se pudo descargar' );
 	}
@@ -1734,6 +1744,44 @@ switch ( $scenario ) {
 		$last = Full::last( false );
 		check( 'verify' === $last['failed'] && 'hello-elementor' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['reverted'] ), 'Fallo en la comprobación: vuelve a Hello (' . get_option( 'stylesheet' ) . ').' );
 		nothing_deleted();
+		break;
+
+	case 'alien_cache':
+		// Incidente del 2026-11-20: la caché de objetos compartida da el `home` de otro sitio. Migrar no empieza ni toca nada.
+		$GLOBALS['t']['ext_cache']       = true;
+		$GLOBALS['t']['rows']['home']    = 'http://example.test';
+		$GLOBALS['t']['rows']['siteurl'] = 'http://example.test';
+		update_option( 'home', 'https://digitalisimo.lat' );
+		update_option( 'siteurl', 'https://digitalisimo.lat' );
+		$plugins = get_option( 'active_plugins' );
+		$state   = request( true );
+		$refused = (string) ( $state['refused'] ?? '' );
+		check( ! empty( $state['idle'] ) && false !== strpos( $refused, 'La caché de objetos de este servidor está devolviendo datos de otro sitio (digitalisimo.lat); define WP_CACHE_KEY_SALT por sitio o usa una base de caché distinta, y vuelve a pulsar Migrar.' ), 'Con la caché de otro sitio, Migrar no empieza y lo explica: ' . $refused );
+		check( ! logged( 'install:' ) && ! logged( 'activate:' ) && ! logged( 'switch_theme' ) && ! get_option( Full::JOB ) && $plugins === get_option( 'active_plugins' ) && empty( $GLOBALS['t']['cron'] ), 'Con la caché de otro sitio no se escribe nada (ni plugins, ni tema, ni cron).' );
+		// Corregida la caché, el mismo clic empieza.
+		update_option( 'home', 'http://example.test' );
+		update_option( 'siteurl', 'http://example.test' );
+		$state = request( true, 'clic2' );
+		check( empty( $state['refused'] ) && get_option( Full::JOB ), 'Con la caché corregida, Migrar empieza.' );
+		break;
+
+	case 'alien_cache_midway':
+		// La caché empieza a dar otro sitio a mitad de la tarea (tras instalar Elements, antes de activarlo): Migrar se
+		// detiene justo antes de activate_plugin() y no escribe nada más.
+		$GLOBALS['t']['rows']['home']       = 'http://example.test';
+		$GLOBALS['t']['rows']['siteurl']    = 'http://example.test';
+		$GLOBALS['t']['collide_on_install'] = 'digitalisimo-elements';
+		update_option( 'home', 'http://example.test' );
+		$theme = get_option( 'stylesheet' );
+		$state = drive();
+		$mark  = (int) ( $GLOBALS['t']['collided_at'] ?? 0 );
+		$after = array_slice( $GLOBALS['t']['log'], $mark );
+		$wrote = array_values( array_filter( $after, static function ( $line ) {
+			return 0 === strpos( $line, 'install:' ) || 0 === strpos( $line, 'activate:' ) || 0 === strpos( $line, 'deactivate' ) || 0 === strpos( $line, 'switch_theme' ) || 0 === strpos( $line, 'delete' );
+		} ) );
+		$last = Full::last( false );
+		check( $mark > 0 && ! $wrote && ! in_array( ELEMENTS, (array) get_option( 'active_plugins' ), true ) && $theme === get_option( 'stylesheet' ), 'Tras el choque no se activa, desactiva, borra ni cambia el tema: ' . implode( ', ', $wrote ) );
+		check( ! empty( $state['done'] ) && $last && 'install' === $last['failed'] && ! empty( $last['blocked'] ) && false !== strpos( (string) $last['error'], 'digitalisimo.lat' ) && ! get_option( Full::JOB ), 'El informe dice que la caché da otro sitio y la tarea termina: ' . ( $last['error'] ?? '' ) );
 		break;
 
 	case 'old_wp':

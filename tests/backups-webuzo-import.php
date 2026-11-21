@@ -392,9 +392,9 @@ wz_case( 'W4 una cuenta con un solo WordPress va sola y se restaura en otro domi
 	wz_check( 'success' === $job['status'] && empty( $job['result']['webuzo']['choose'] ) && 'dig' === $job['result']['import']['prefix'] && 'https://unico.mx' === $job['result']['import']['site_url'], 'Un solo WordPress no se importó solo: ' . json_encode( array( $job['error'], $job['result'] ) ) );
 	$file = $job['result']['import']['file'];
 	wz_no_secrets( bk_storage() . '/' . $file );
-	wz_check( is_wp_error( Digitalisimo_Backups::service_restore( $file, array( 'confirm' => 'RESTAURAR' ) ) ), 'Se restauró un importado sin firma con RESTAURAR.' );
+	wz_check( is_wp_error( Digitalisimo_Backups::service_restore( $file, array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $file ), 'confirm' => 'RESTAURAR' ) ) ), 'Se restauró un importado sin firma con RESTAURAR.' );
 	$GLOBALS['bk_options']['active_plugins'] = array( Digitalisimo_Backups_Restore_Maintenance::plugin() );
-	$result = Digitalisimo_Backups::service_restore( $file, array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
+	$result = Digitalisimo_Backups::service_restore( $file, array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $file ), 'confirm' => 'RESTAURAR SIN FIRMA' ) );
 	wz_check( ! is_wp_error( $result ), 'La restauración falló: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
 	$opt = function( $option ) use ( $dest ) { return $dest->value( 'wp_options', 'option_value', "option_name = '" . $option . "'" ); };
 	wz_check( 'https://destino.test/sitio' === $opt( 'home' ) && 'https://destino.test/sitio' === $opt( 'siteurl' ), 'home/siteurl: ' . $opt( 'home' ) );

@@ -1,5 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
+// Candado «mismo sitio» e invalidación de la caché sin vaciarla entera (copia idéntica en Migración y Tools).
+require_once __DIR__ . '/class-digitalisimo-same-site.php';
 require_once __DIR__ . '/class-backups-job-store.php';
 require_once __DIR__ . '/class-backups-jobs.php';
 require_once __DIR__ . '/class-backups-backup-job.php';
@@ -337,7 +339,8 @@ final class Digitalisimo_Backups {
 		$data = json_decode( (string) @file_get_contents( $path ), true );
 		if ( is_array( $data ) && is_string( $data['wordpress_root'] ?? null ) && $data['wordpress_root'] !== self::journal_owner() ) return; // De otra instalación: es suyo.
 		if ( is_array( $data ) && 1 === ( $data['version'] ?? null ) ) {
-			wp_cache_flush();
+			// Las tablas cambiaron por debajo: se invalida lo de este sitio (o de su red), nunca la caché global compartida.
+			Digitalisimo_Same_Site::invalidate_site( 'all' );
 			// Un sitio extraído: la configuración de Backups de este servidor vuelve (sin los secretos en claro, que no van al diario).
 			if ( is_array( $data['extract_kept'] ?? null ) ) Digitalisimo_Backups_Site_Extract::reapply( $data['extract_kept'] );
 			if ( is_array( $data['history'] ?? null ) ) update_option( self::HISTORY, $data['history'], false );
@@ -2874,7 +2877,7 @@ final class Digitalisimo_Backups {
 			if ( $token ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( $token );
 			// En una red, el respaldo de un sitio se importa como sitio nuevo (con su dirección) o reemplazando uno.
 			$import = is_multisite() ? Digitalisimo_Backups_Site_Import::from_request( $_POST ) : array();
-			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'keep_access' => $keep, 'keep_admins' => $keep_admins, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false, 'token' => $token ) + $import + self::restore_request_parts() + self::network_request() );
+			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'keep_access' => $keep, 'keep_admins' => $keep_admins, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false, 'token' => $token, 'origin_domain' => sanitize_text_field( wp_unslash( $_POST['origin_domain'] ?? '' ) ) ) + $import + self::restore_request_parts() + self::network_request() );
 			// Si no empezó (o terminó ya en esta petición), la cookie no sirve: se borra (revisión B8).
 			if ( $token && ( is_wp_error( $result ) || empty( $result['restoring'] ) ) ) Digitalisimo_Backups_Restore_Maintenance::clear_cookie();
 			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );
@@ -3056,7 +3059,8 @@ final class Digitalisimo_Backups {
 	 * seguridad deben reconstruirse, y las credenciales del respaldo cifrarse con las claves de este servidor. Idempotente.
 	 */
 	private static function after_restore_sql( $history_before, $vault_before, array $origin = array(), $kept = null, $storage = false ) {
-		wp_cache_flush();
+		// Sólo lo de esta instalación: la caché de objetos puede compartirse con otros sitios del servidor.
+		Digitalisimo_Same_Site::invalidate_site( 'all' );
 		// El almacén privado sigue siendo el de este servidor (H10), lo primero; false: quien llama no lo tomó (no se toca).
 		if ( false !== $storage ) self::keep_storage_record( $storage );
 		if ( is_array( $kept ) ) Digitalisimo_Backups_Site_Extract::reapply( $kept );

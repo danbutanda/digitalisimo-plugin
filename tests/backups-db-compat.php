@@ -491,7 +491,7 @@ dc_case( 'C8 de punta a punta: respaldo de MySQL 8 con vista, columnas generadas
 		$db->info = '10.11.14-MariaDB-0ubuntu0.24.04.1';
 		$db->queries = array();
 		$GLOBALS['bk_options']['blogname'] = 'Cambiado';
-		$result = Digitalisimo_Backups::service_restore( basename( $backup ), array( 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
+		$result = Digitalisimo_Backups::service_restore( basename( $backup ), array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( basename( $backup ) ), 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
 		dc_check( ! is_wp_error( $result ), 'La restauración no empezó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
 		for ( $i = 0; $i < 2000 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
 		$restore = null;
@@ -513,7 +513,7 @@ dc_case( 'C8 de punta a punta: respaldo de MySQL 8 con vista, columnas generadas
 		foreach ( glob( bk_storage() . '/safety-before-restore-*' ) as $old ) @unlink( $old );
 		$db->queries = array();
 		$GLOBALS['bk_options']['blogname'] = 'Cambiado otra vez';
-		$refused = Digitalisimo_Backups::service_restore( basename( $backup ), array( 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
+		$refused = Digitalisimo_Backups::service_restore( basename( $backup ), array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( basename( $backup ) ), 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
 		for ( $i = 0; $i < 200 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
 		$last = null;
 		foreach ( Digitalisimo_Backups_Jobs::all() as $job ) if ( 'restore' === $job['kind'] && ( ! $last || (float) $job['queued_at'] >= (float) $last['queued_at'] ) ) $last = $job;
@@ -670,7 +670,7 @@ function dc_restore( $file, $confirm = 'RESTAURAR' ) {
 	$GLOBALS['bk_filters']['digitalisimo_backups_job_backoff'] = 0;
 	$GLOBALS['bk_filters']['digitalisimo_backups_job_max_attempts'] = 1;
 	$before = array_column( Digitalisimo_Backups_Jobs::all(), 'id' );
-	$refused = Digitalisimo_Backups::service_restore( basename( $file ), array( 'confirm' => $confirm, 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
+	$refused = Digitalisimo_Backups::service_restore( basename( $file ), array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( basename( $file ) ), 'confirm' => $confirm, 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
 	for ( $i = 0; $i < 3000 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
 	unset( $GLOBALS['bk_filters']['digitalisimo_backups_job_max_attempts'] );
 	$jobs = array_values( array_filter( Digitalisimo_Backups_Jobs::all(), function( $job ) use ( $before ) { return 'restore' === $job['kind'] && ! in_array( $job['id'], $before, true ); } ) );

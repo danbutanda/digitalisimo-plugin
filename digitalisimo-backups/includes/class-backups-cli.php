@@ -659,6 +659,9 @@ final class Digitalisimo_Backups_Cli {
 	 * [--network-secrets]
 	 * : Con --site: copia también las claves y cuentas que el sitio hereda de la red.
 	 *
+	 * [--origin-domain=<domain>]
+	 * : Con el respaldo de otro sitio (otra dirección u otra instalación): su dominio de origen, escrito a mano. Sin él, esa restauración se niega.
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.zip --confirm=RESTAURAR
@@ -691,7 +694,7 @@ final class Digitalisimo_Backups_Cli {
 				self::parts_preview( array( 'label' => Digitalisimo_Backups_Restore_Parts::label( $selection ), 'replaces' => $describe['replaces'], 'untouched' => $describe['untouched'], 'coherence' => Digitalisimo_Backups_Restore_Parts::coherence( $selection ) ) );
 			}
 		}
-		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'keep_access' => self::flag( $assoc_args, 'keep-access', null ), 'keep_admins' => self::flag( $assoc_args, 'keep-admins', null ), 'into' => (string) ( $assoc_args['into'] ?? '' ), 'address' => (string) ( $assoc_args['address'] ?? '' ), 'via' => 'cli' ) + $parts + self::network( $assoc_args ) ) );
+		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'keep_access' => self::flag( $assoc_args, 'keep-access', null ), 'keep_admins' => self::flag( $assoc_args, 'keep-admins', null ), 'into' => (string) ( $assoc_args['into'] ?? '' ), 'address' => (string) ( $assoc_args['address'] ?? '' ), 'via' => 'cli', 'origin_domain' => (string) ( $assoc_args['origin-domain'] ?? '' ) ) + $parts + self::network( $assoc_args ) ) );
 		if ( ! empty( $result['import'] ) ) WP_CLI::success( 'Importación terminada desde ' . $result['file'] . ( '' !== (string) $result['safety_backup'] ? '. Copia previa del sitio bloqueada: ' . $result['safety_backup'] : '' ) . '. ' . $result['notice'] );
 		else WP_CLI::success( 'Restauración terminada desde ' . $result['file'] . '. Copia previa bloqueada: ' . $result['safety_backup'] . '. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 	}

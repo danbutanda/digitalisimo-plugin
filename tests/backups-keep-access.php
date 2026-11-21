@@ -281,6 +281,7 @@ $engine = function( $keep, $home = 'https://digitalisimo.mx/wp', $prefix = 'wpkx
 	unset( $GLOBALS['bk_options']['using_application_passwords'] );
 	$args = array( 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => false, 'sync' => true, 'drive_cli' => $drive );
 	if ( null !== $keep ) $args['keep_access'] = $keep;
+	$args['origin_domain'] = $args['origin_domain'] ?? Digitalisimo_Backups::restore_origin_host( null === $backup ? $file : $backup );
 	$result = Digitalisimo_Backups::service_restore( null === $backup ? $file : $backup, $args );
 	$GLOBALS['ka_user'] = 0;
 	if ( $drive ) ka_check( ! is_wp_error( $result ) && ! empty( $result['restored'] ), 'La restauración no terminó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : json_encode( $result ) ) );

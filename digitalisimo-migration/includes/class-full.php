@@ -10,6 +10,9 @@ require_once __DIR__ . '/class-front.php';
 use Digitalisimo\Elements\Legacy\Retire;
 use Digitalisimo\Elements\Legacy\Runner;
 
+/** La caché de objetos devuelve los datos de otro sitio: Full::blocked() detiene la tarea sin escribir nada más. */
+final class Same_Site_Exception extends \RuntimeException {}
+
 /**
  * «Migrar» lo hace todo (regla del propietario del 2026-11-18): una sola tarea por etapas, reanudable, con cerrojo y
  * WP-Cron, en el sitio (Herramientas) o en toda la red (Red → Ajustes), y `wp digitalisimo-migration --run [--network]`.
@@ -335,6 +338,11 @@ final class Full {
 		if ( empty( $caps['activate'] ) ) {
 			return 'Quien pulsó Migrar no puede activar ni desactivar plugins.';
 		}
+		// Candado «mismo sitio»: con la caché de objetos devolviendo los datos de otro sitio, nada empieza.
+		$alien = self::alien();
+		if ( '' !== $alien ) {
+			return $alien . ' No se tocó nada.';
+		}
 		return self::wp_too_old( Replacements::plan( $network ) );
 	}
 
@@ -352,6 +360,42 @@ final class Full {
 		return isset( $wp_version ) && version_compare( (string) $wp_version, $min, '<' ) ? sprintf( 'Migrar necesita WordPress %1$s o posterior (este sitio tiene %2$s): actualiza WordPress y vuelve a pulsar Migrar. No se tocó nada.', $min, (string) $wp_version ) : '';
 	}
 
+	/**
+	 * Candado «mismo sitio» (class-digitalisimo-same-site.php, copia idéntica en Backups y Tools): '' si este WordPress
+	 * lee sus propios datos; si la caché de objetos devuelve los de otro sitio (Redis, Memcached o LSMCD compartidos sin
+	 * WP_CACHE_KEY_SALT), el motivo. Se comprueba antes de empezar, antes de cada etapa y justo antes de activar un plugin.
+	 */
+	public static function alien() {
+		if ( ! class_exists( '\Digitalisimo_Same_Site', false ) && is_file( __DIR__ . '/class-digitalisimo-same-site.php' ) ) {
+			require_once __DIR__ . '/class-digitalisimo-same-site.php';
+		}
+		return class_exists( '\Digitalisimo_Same_Site', false ) ? \Digitalisimo_Same_Site::refusal( 'Migrar' ) : '';
+	}
+
+	/**
+	 * La caché da los datos de otro sitio: la tarea termina aquí sin escribir nada más en el sitio (ni volver al tema
+	 * anterior, ni tocar el cron: leer y volver a guardar mezclaría los dos sitios). El informe lo dice; al volver a pulsar
+	 * Migrar, con la caché corregida, la tarea empieza de nuevo y comprueba lo que ya estuviera hecho.
+	 */
+	private static function blocked( array $state, $message ) {
+		$stage             = (string) ( $state['stage'] ?? 'plan' );
+		$state['failed']   = $stage;
+		$state['blocked']  = true;
+		$state['error']    = (string) $message . ( in_array( $stage, array( 'plan', 'backup' ), true ) && empty( $state['activated'] ) && empty( $state['installed'] ) ? ' No se tocó nada.' : sprintf( ' La migración se detuvo antes de «%s» sin escribir nada más; lo hecho antes queda como estaba y se comprueba al volver a pulsar Migrar.', self::LABELS[ $stage ] ?? $stage ) );
+		$state['done']     = true;
+		$state['pause']    = false;
+		$state['finished'] = time();
+		unset( $state['snap'], $state['checks'], $state['drive'] );
+		if ( ! empty( $state['network'] ) ) {
+			update_site_option( self::NETWORK_LAST, $state );
+			delete_site_option( self::NETWORK_JOB );
+		} else {
+			update_option( self::LAST, $state, false );
+			delete_option( self::JOB );
+		}
+		return $state;
+	}
+
 	private static function advance( array $state, $budget ) {
 		self::$began    = microtime( true );
 		$deadline       = self::$began + max( 1, (float) $budget );
@@ -363,6 +407,11 @@ final class Full {
 		}
 		while ( empty( $state['done'] ) && empty( $state['pause'] ) && microtime( true ) < $deadline ) {
 			$stage = in_array( $state['stage'] ?? '', self::STAGES, true ) ? $state['stage'] : 'plan';
+			// Antes de cada etapa: la caché de objetos puede empezar a dar los datos de otro sitio a mitad de la tarea.
+			$alien = self::alien();
+			if ( '' !== $alien ) {
+				return self::blocked( $state, $alien );
+			}
 			// Una etapa que tumba la petición tres veces seguidas falla (y la tarea salta al informe sin borrar nada).
 			$state['attempts'] = (int) ( $state['attempts'] ?? 0 ) + 1;
 			if ( $state['attempts'] > self::MAX_ATTEMPTS ) {
@@ -373,6 +422,8 @@ final class Full {
 			self::store( $state );
 			try {
 				$state = call_user_func( array( __CLASS__, 'stage_' . $stage ), $state, $deadline );
+			} catch ( Same_Site_Exception $e ) {
+				return self::blocked( $state, $e->getMessage() );
 			} catch ( \Throwable $e ) {
 				// Lo que la etapa guardó antes de lanzar (p. ej. cada borrado de la limpieza) no se pierde.
 				$saved = self::load( ! empty( $state['network'] ) );
@@ -629,6 +680,11 @@ final class Full {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 		foreach ( $files as $file ) {
+			// activate_plugin() lee `active_plugins` y lo vuelve a guardar: con la caché de otro sitio guardaría su lista aquí.
+			$alien = self::alien();
+			if ( '' !== $alien ) {
+				throw new Same_Site_Exception( $alien );
+			}
 			$result = activate_plugin( $file, '', ! empty( $state['network'] ) );
 			if ( is_wp_error( $result ) ) {
 				return $result;
@@ -674,7 +730,8 @@ final class Full {
 		}
 		$job = $jobs::get( (string) $state['backup']['job'] );
 		if ( $job && ! \Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) {
-			$jobs::tick( max( 5, (int) floor( $deadline - microtime( true ) ) ) );
+			// Sólo el respaldo que encoló Migrar: nunca otro trabajo de la cola (ni el de otra instalación).
+			$jobs::tick( max( 5, (int) floor( $deadline - microtime( true ) ) ), (string) $state['backup']['job'] );
 			$job = $jobs::get( (string) $state['backup']['job'] );
 		}
 		if ( ! $job ) {
@@ -2111,6 +2168,10 @@ final class Full {
 			return;
 		}
 		$hook = $network ? self::NETWORK_CRON : self::CRON;
+		// La opción `cron` se lee y se vuelve a guardar: con la caché de otro sitio se guardarían sus eventos aquí.
+		if ( '' !== self::alien() ) {
+			return;
+		}
 		if ( ! wp_next_scheduled( $hook ) ) {
 			wp_schedule_single_event( time() + self::CRON_DELAY, $hook );
 		}

@@ -305,7 +305,8 @@ final class Digitalisimo_Backups_Restore_Compat {
 		}
 		if ( ! empty( $state['builders'] ) ) {
 			$state['notes'][] = 'Se vació el CSS generado de DIGITALÍSIMO Elements (o Elementor), porque la base de datos y los medios no se restauraron juntos: se regenera en la primera visita de cada página.';
-			if ( function_exists( 'wp_cache_flush' ) ) wp_cache_flush();
+			// Las metas y opciones vaciadas por SQL, en cada sitio: sólo lo de esta instalación, nunca la caché global.
+			if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate_site( 'all' );
 		}
 	}
 	// Brecha 19: si el tema activo de un sitio (o su padre) no existe o no es válido después de restaurar (sólo la base de
@@ -349,7 +350,7 @@ final class Digitalisimo_Backups_Restore_Compat {
 			$state['notes'][] = 'El tema activo' . $where . ' («' . $stylesheet . '») no existe en este servidor: se activó «' . $fallback . '», el tema por defecto de WordPress, para que la portada no salga en blanco. Sube ese tema y vuelve a activarlo si lo necesitas.';
 			$changed = true;
 		}
-		if ( $changed && function_exists( 'wp_cache_flush' ) ) wp_cache_flush();
+		if ( $changed && class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate( array( 'template', 'stylesheet', 'template_root', 'stylesheet_root', 'current_theme' ), array(), 'all' );
 	}
 	private static function theme_dir( array $ctx, $slug, $root_option ) {
 		if ( ! Digitalisimo_Backups_Site_Extract::safe_name( $slug ) ) return '';

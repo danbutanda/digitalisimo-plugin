@@ -55,6 +55,14 @@ trait Digitalisimo_Backups_Service {
 		if ( $write && ! $network ) return self::service_error( 'scope', 'En una red, el respaldo y la restauración abarcan todos los sitios: confirma el alcance de red.', 400 );
 		return true;
 	}
+	/**
+	 * Candado «mismo sitio» (class-digitalisimo-same-site.php): null si este WordPress lee sus propios datos; si la caché
+	 * de objetos devuelve los de otro sitio, el error (409) que lo explica, y quien llama no escribe nada.
+	 */
+	public static function same_site_error( $action ) {
+		$alien = Digitalisimo_Backups_Jobs::same_site_refusal( (string) $action );
+		return '' === $alien ? null : self::service_error( 'same_site', $alien, 409 );
+	}
 	/** La misma comprobación de permiso y alcance para los casos de uso de otras clases (p. ej. antes de actualizar). */
 	public static function service_check( $network, $write ) {
 		return self::service_scope( (bool) $network, (bool) $write );
@@ -395,6 +403,9 @@ trait Digitalisimo_Backups_Service {
 	public static function service_create( array $args = array() ) {
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		// Candado «mismo sitio»: con la caché de objetos dando los datos de otro sitio no se escribe nada.
+		$alien = self::same_site_error( 'Respaldar' );
+		if ( $alien ) return $alien;
 		$settings = self::settings();
 		$destination = sanitize_key( (string) ( $args['destination'] ?? '' ) );
 		if ( '' === $destination ) $destination = (string) $settings['destination'];
@@ -426,6 +437,9 @@ trait Digitalisimo_Backups_Service {
 		if ( ! is_multisite() ) return self::service_error( 'scope', 'Esta instalación no es una red: no hay sitios que extraer.', 400 );
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		// Candado «mismo sitio»: con la caché de objetos dando los datos de otro sitio no se escribe nada.
+		$alien = self::same_site_error( 'Respaldar' );
+		if ( $alien ) return $alien;
 		if ( ! ( defined( 'WP_CLI' ) && WP_CLI ) && ! is_super_admin() ) return self::service_error( 'forbidden', 'Sólo un superadministrador de la red puede extraer un sitio.', 403 );
 		$site = Digitalisimo_Backups_Site_Extract::site( $site_id );
 		if ( is_wp_error( $site ) ) return $site;
@@ -458,6 +472,9 @@ trait Digitalisimo_Backups_Service {
 	public static function service_run_automation( $id, array $args = array() ) {
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		// Candado «mismo sitio»: con la caché de objetos dando los datos de otro sitio no se escribe nada.
+		$alien = self::same_site_error( 'Respaldar' );
+		if ( $alien ) return $alien;
 		$id = sanitize_key( (string) $id );
 		if ( '' === $id || ! self::policy( $id ) ) return self::service_error( 'automation', 'La automatización no existe.', 404 );
 		try { self::ensure_ready(); } catch ( Throwable $e ) { return self::service_error( 'not_ready', $e->getMessage(), 422 ); }
@@ -567,6 +584,9 @@ trait Digitalisimo_Backups_Service {
 	public static function service_restore( $file, array $args = array() ) {
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		// Candado «mismo sitio»: con la caché de objetos dando los datos de otro sitio no se escribe nada.
+		$alien = self::same_site_error( 'Restaurar' );
+		if ( $alien ) return $alien;
 		$addresses = self::service_addresses( $args );
 		if ( is_wp_error( $addresses ) ) return $addresses;
 		$confirmation = strtoupper( trim( preg_replace( '/\s+/', ' ', (string) ( $args['confirm'] ?? '' ) ) ) );
@@ -656,6 +676,11 @@ trait Digitalisimo_Backups_Service {
 			// En una red, el respaldo de un sitio se importa como un sitio de la red: nuevo (con su dirección) o reemplazando uno.
 			$into = self::service_import_into( $args, $restored );
 			if ( is_wp_error( $into ) ) return $into;
+			// Encima de este sitio, el respaldo de otro (otra dirección u otra instalación) sólo con su dominio escrito a mano.
+			if ( ! $into ) {
+				$foreign = self::restore_origin_problem( $path, $restored, $args );
+				if ( '' !== $foreign ) return self::service_error( 'confirm_origin', $foreign, 409 );
+			}
 			if ( $into ) {
 				$extra = '';
 				$safety_spec = array();
@@ -1236,6 +1261,9 @@ trait Digitalisimo_Backups_Service {
 	public static function service_migrate( $key, array $args = array() ) {
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		// Candado «mismo sitio»: con la caché de objetos dando los datos de otro sitio no se escribe nada.
+		$alien = self::same_site_error( 'Migrar' );
+		if ( $alien ) return $alien;
 		if ( 'MIGRAR' !== strtoupper( trim( (string) ( $args['confirm'] ?? '' ) ) ) ) return self::service_error( 'confirm', 'Escribe MIGRAR para confirmar: la migración reemplaza este sitio (con una copia previa para deshacerla).', 400 );
 		if ( ! is_string( $key ) || '' === trim( $key ) ) return self::service_error( 'migration_key_invalid', 'Pega la clave de migración que generaste en el sitio de origen.', 400 );
 		// De una red a un WordPress individual: el sitio de la red que se migra (por defecto, el principal).
@@ -1261,6 +1289,9 @@ trait Digitalisimo_Backups_Service {
 	public static function service_migration_undo( array $args = array() ) {
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		// Candado «mismo sitio»: con la caché de objetos dando los datos de otro sitio no se escribe nada.
+		$alien = self::same_site_error( 'Deshacer la migración' );
+		if ( $alien ) return $alien;
 		if ( 'DESHACER' !== strtoupper( trim( (string) ( $args['confirm'] ?? '' ) ) ) ) return self::service_error( 'confirm', 'Escribe DESHACER para confirmar: este sitio vuelve al estado anterior a la migración.', 400 );
 		try { self::ensure_ready(); } catch ( Throwable $e ) { return self::service_error( 'not_ready', $e->getMessage(), 422 ); }
 		if ( function_exists( 'wp_raise_memory_limit' ) ) wp_raise_memory_limit( 'admin' );

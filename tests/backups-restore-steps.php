@@ -108,7 +108,7 @@ function rs_reset( $root, $backup ) {
 }
 /** La restauración por la pantalla (o REST): por tramos, con reintentos, como en la web. */
 function rs_restore( $file ) {
-	return Digitalisimo_Backups::service_restore( basename( $file ), array( 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
+	return Digitalisimo_Backups::service_restore( basename( $file ), array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( basename( $file ) ), 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
 }
 /** Hace avanzar la cola hasta que la restauración (o su vuelta a la copia previa) termina. */
 function rs_finish() {

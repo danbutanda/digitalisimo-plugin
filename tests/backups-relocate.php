@@ -96,7 +96,7 @@ function e1_backup( $origin_root = '/var/www/origen' ) {
 }
 function e1_restore( $file, array $args = array() ) {
 	$GLOBALS['e1_rastro'] = array();
-	$result = Digitalisimo_Backups::service_restore( $file, $args + array( 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => ! empty( $GLOBALS['bk_multisite'] ) ) );
+	$result = Digitalisimo_Backups::service_restore( $file, $args + array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $file ), 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => ! empty( $GLOBALS['bk_multisite'] ) ) );
 	if ( is_wp_error( $result ) ) throw new RuntimeException( 'La restauración falló: ' . $result->get_error_message() );
 	return $result;
 }
@@ -288,7 +288,7 @@ e1_case( 'E2 otro prefijo de tablas sin tocar otro WordPress de la misma base', 
 	e1_check( 'https://origen.com' === $dest->value( 'dst_options', 'option_value', "option_name = 'home'" ) && false !== strpos( $dest->value( 'dst_posts', 'post_content', 'ID = 1' ), 'https://origen.com/blog/' ), 'Con «conservar las del respaldo» cambiaron las URL.' );
 	e1_check( null !== $dest->value( 'dst_options', 'option_value', "option_name = 'dst_user_roles'" ) && $abspath . '/wp-content/uploads' === $dest->value( 'dst_options', 'option_value', "option_name = 'upload_path'" ), 'Con «conservar las del respaldo» no se cambiaron prefijo o rutas.' );
 	e1_check( 'backup' === $result['relocation']['addresses'] && false !== strpos( $result['relocation']['text'], 'Se conservan las direcciones del respaldo' ), 'El informe no dice que se conservaron las direcciones del respaldo.' );
-	$bad = Digitalisimo_Backups::service_restore( $single, array( 'confirm' => 'RESTAURAR SIN FIRMA', 'addresses' => 'otra' ) );
+	$bad = Digitalisimo_Backups::service_restore( $single, array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $single ), 'confirm' => 'RESTAURAR SIN FIRMA', 'addresses' => 'otra' ) );
 	e1_check( is_wp_error( $bad ) && 'digitalisimo_backups_addresses' === $bad->get_error_code() && 400 === $bad->get_error_data()['status'], 'Un valor de addresses inválido no se rechazó.' );
 } );
 
@@ -304,7 +304,7 @@ e1_case( 'E2 un fallo a mitad de la reescritura vuelve a la copia previa', funct
 	$dest->fail_on = 'INSERT INTO `dst_dgbkr_';
 	// Un solo intento: con reintentos (también en WP-CLI desde la revisión, P7) un fallo de una vez se recupera.
 	$GLOBALS['bk_filters']['digitalisimo_backups_job_max_attempts'] = 1;
-	$error = Digitalisimo_Backups::service_restore( $single, array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
+	$error = Digitalisimo_Backups::service_restore( $single, array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $single ), 'confirm' => 'RESTAURAR SIN FIRMA' ) );
 	unset( $GLOBALS['bk_filters']['digitalisimo_backups_job_max_attempts'] );
 	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_failed' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'antes de cambiar el sitio' ), 'El fallo no dejó el destino como estaba: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'terminó' ) );
 	e1_check( ! array_filter( $dest->names(), function( $table ) { return false !== strpos( $table, 'dgbk' ); } ), 'Quedaron tablas temporales tras el fallo.' );
@@ -389,7 +389,7 @@ e1_case( 'E5 comprobaciones previas con qué cambiar, antes de tocar nada', func
 	$dest = e1_network_destination( 'red-dir-2', 'wp_', array( 'domain' => 'destino.mx', 'path' => '/' ), false );
 	$before = array( $dest->names(), $dest->rows( 'wp_options' ) );
 	$copies = count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() );
-	$error = Digitalisimo_Backups::service_restore( $file, array( 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => true ) );
+	$error = Digitalisimo_Backups::service_restore( $file, array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $file ), 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => true ) );
 	e1_check( is_wp_error( $error ) && 422 === $error->get_error_data()['status'] && false !== strpos( $error->get_error_message(), 'El respaldo es una red por subdominios y esta red es por subdirectorios' ) && false !== strpos( $error->get_error_message(), 'SUBDOMAIN_INSTALL como true' ), 'Red de otro tipo: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'se restauró' ) );
 	e1_check( $before === array( $dest->names(), $dest->rows( 'wp_options' ) ) && count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() ) === $copies, 'El rechazo tocó la base de datos o creó una copia previa.' );
 	$origin = array( 'home' => 'https://origen.com', 'prefix' => 'wp_', 'multisite' => true, 'subdomain' => false, 'network' => array( 'domain' => 'origen.com', 'path' => '/' ), 'networks' => array( 1 => array( 'domain' => 'origen.com', 'path' => '/' ) ), 'sites' => array( 1 => array( 'domain' => 'origen.com', 'path' => '/' ) ) );
@@ -430,7 +430,7 @@ e1_case( 'E5 comprobaciones previas con qué cambiar, antes de tocar nada', func
 	$zip->addFromString( 'manifest.json', json_encode( $manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
 	$zip->close();
 	bk_call( 'Digitalisimo_Backups', 'remember', bk_storage() . '/' . $view, 'local', 'installation', array( 'id' => 'manual', 'type' => 'full' ) );
-	$result = Digitalisimo_Backups::service_restore( $view, array( 'confirm' => 'RESTAURAR' ) );
+	$result = Digitalisimo_Backups::service_restore( $view, array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $view ), 'confirm' => 'RESTAURAR' ) );
 	e1_check( ! is_wp_error( $result ) && ! empty( $result['restored'] ), 'Un respaldo con una vista y otro prefijo no se restauró: ' . ( is_wp_error( $result ) ? $result->get_error_code() . ' ' . $result->get_error_message() : json_encode( $result ) ) );
 	e1_check( in_array( 'v_options', $dest->names(), true ) && ! in_array( 'v_vista', $dest->names(), true ) && false !== strpos( (string) $result['notice'], 'No se pudo crear la vista wp_vista' ), 'La vista no se aplazó al final del cambio o el informe no lo dice: ' . (string) ( $result['notice'] ?? '' ) );
 	$verify = Digitalisimo_Backups::service_verify( $view );
@@ -445,7 +445,7 @@ e1_case( 'E5 comprobaciones previas con qué cambiar, antes de tocar nada', func
 	// Un valor que menciona el origen y no cabe en la memoria para reescribirlo: rechazo antes de la copia previa.
 	$GLOBALS['bk_filters']['digitalisimo_backups_relocate_value_budget'] = 100;
 	$copies = count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() );
-	$error = Digitalisimo_Backups::service_restore( $GLOBALS['e1_single'], array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
+	$error = Digitalisimo_Backups::service_restore( $GLOBALS['e1_single'], array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $GLOBALS['e1_single'] ), 'confirm' => 'RESTAURAR SIN FIRMA' ) );
 	unset( $GLOBALS['bk_filters']['digitalisimo_backups_relocate_value_budget'] );
 	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_rejected' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'no cabe en la memoria de PHP' ) && $before === $dest->names() && count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() ) === $copies, 'Un valor demasiado grande no se rechazó antes de la copia previa: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'se restauró' ) );
 	// Un nombre de tabla de más de 64 caracteres con el prefijo nuevo.
@@ -614,7 +614,7 @@ e1_case( 'E7 pantalla: «Origen → este sitio» antes de confirmar y conservar 
 	$html = ob_get_clean();
 	@unlink( bk_storage() . '/' . $big );
 	e1_check( false !== strpos( $html, esc_html( $big . ' · sin registro · origen https://origen.com (wp_) → este sitio' ) ), 'Con un manifiesto de más de 1 MiB la lista no dice «Origen → este sitio».' );
-	list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'backup_file' => $single, 'confirmation' => 'RESTAURAR SIN FIRMA', 'addresses' => 'backup' ) );
+	list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'backup_file' => $single, 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $single ), 'confirmation' => 'RESTAURAR SIN FIRMA', 'addresses' => 'backup' ) );
 	e1_check( $ok && false !== strpos( $message, 'Origen → este sitio' ), 'La pantalla no restauró o no dijo qué reescribió: ' . $message );
 	e1_check( 'https://origen.com' === $dest->value( 'pan_options', 'option_value', "option_name = 'home'" ) && null !== $dest->value( 'pan_options', 'option_value', "option_name = 'pan_user_roles'" ), 'La pantalla no envió «conservar las direcciones del respaldo».' );
 	e1_use( $dest, 'https://origen.com' );

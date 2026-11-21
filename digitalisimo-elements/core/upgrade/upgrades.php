@@ -576,7 +576,11 @@ class Upgrades {
 			// TODO: `$document->update_settings`.
 			$document->update_meta( Document::PAGE_META_KEY, $page_settings );
 
-			wp_cache_flush();
+			// DIGITALÍSIMO: sólo la memoria de esta petición, nunca la caché de objetos compartida (otros sitios del servidor
+			// pueden usar la misma sin sal propia). update_meta() ya actualiza la caché de las metas de esta entrada.
+			if ( function_exists( 'wp_cache_supports' ) && wp_cache_supports( 'flush_runtime' ) ) {
+				wp_cache_flush_runtime();
+			}
 		} // End foreach().
 
 		return $updater->should_run_again( $post_ids );

@@ -101,6 +101,50 @@ trait Digitalisimo_Backups_Keep_Config {
 		return $same_path || $same_db ? 'likely' : 'other';
 	}
 	// Una dirección para compararla: sin esquema, en minúsculas y sin la barra final.
+	/**
+	 * Restaurar encima de este sitio el respaldo de otro: sólo si la persona escribe a mano el dominio de origen. Pasa sin
+	 * escribirlo el respaldo de esta misma instalación (su identidad, o su fila hecha aquí) con la misma dirección que tiene
+	 * este sitio en su base; con otra dirección o de otra instalación, '' sólo si `origin_domain` es el host del origen.
+	 * Devuelve el motivo ('' si puede seguir). Sin manifiesto legible no decide (la apertura del paquete ya lo rechaza).
+	 */
+	public static function restore_origin_problem( $file, $manifest, array $args = array() ) {
+		if ( ! is_array( $manifest ) ) return '';
+		$origin = is_array( $manifest['origin'] ?? null ) ? $manifest['origin'] : array();
+		$from = (string) ( $origin['home'] ?? $manifest['home_url'] ?? '' );
+		$here = (string) Digitalisimo_Backups_Relocate::describe( false )['home'];
+		$stamp = is_array( $manifest['installation'] ?? null ) ? $manifest['installation'] : array();
+		$mine = self::installation_stamp();
+		$same_id = ( is_string( $stamp['id'] ?? null ) && '' !== $stamp['id'] && ! empty( $mine['id'] ) && hash_equals( (string) $mine['id'], $stamp['id'] ) ) || ( '' !== (string) $file && self::keep_config_same_installation( wp_basename( (string) $file ) ) );
+		$place = function( $url ) {
+			$path = rtrim( (string) wp_parse_url( (string) $url, PHP_URL_PATH ), '/' );
+			return Digitalisimo_Same_Site::host( $url ) . $path;
+		};
+		// Sin identidad (respaldos anteriores a 1.0.79 e importados de UpdraftPlus, Backuply o Webuzo) no hay identidad que
+		// no coincida: basta la misma dirección. Con otra identidad o con otra dirección, el dominio escrito.
+		$no_id = ! is_string( $stamp['id'] ?? null ) || '' === $stamp['id'];
+		// La dirección de este sitio: la de su base (describe()) o la que da home_url() (la que registra el manifiesto).
+		$heres = array_unique( array_filter( array( $place( $here ), function_exists( 'home_url' ) ? $place( home_url() ) : '' ) ) );
+		if ( ( $same_id || $no_id ) && '' !== $from && in_array( $place( $from ), $heres, true ) ) return '';
+		$host = Digitalisimo_Same_Site::host( $from );
+		$unknown = '' === $host || '.invalid' === substr( $host, -8 );
+		// Un origen desconocido (un Backuply sin su dirección): se confirma escribiendo el dominio de este sitio.
+		$expect = $unknown ? Digitalisimo_Same_Site::host( $here ) : $host;
+		$typed = Digitalisimo_Same_Site::host( (string) ( $args['origin_domain'] ?? '' ) );
+		if ( '' !== $typed && '' !== $expect && hash_equals( $expect, $typed ) ) return '';
+		if ( $unknown ) return 'Este respaldo no dice de qué sitio es: para restaurarlo encima de este sitio, escribe a mano el dominio de este sitio (' . $expect . ') en «Dominio de origen»' . ( '' !== $typed ? ' (escribiste ' . $typed . ')' : '' ) . '. No se tocó nada.';
+		$what = $same_id ? 'Este respaldo es de ' . $host . ' y este sitio es ' . Digitalisimo_Same_Site::host( $here ) : 'Este respaldo es de otra instalación (' . $host . ')';
+		return $what . ': para restaurarlo aquí, escribe a mano su dominio de origen (' . $host . ') en «Dominio de origen»' . ( '' !== $typed ? ' (escribiste ' . $typed . ')' : '' ) . '. No se tocó nada.';
+	}
+	/**
+	 * El dominio que hay que escribir en «Dominio de origen» para restaurar $file (un respaldo del almacén sin cifrar): el
+	 * host de su origen o, si no lo dice, el de este sitio. '' si no se puede leer.
+	 */
+	public static function restore_origin_host( $file ) {
+		$manifest = self::identity_manifest( wp_basename( (string) $file ) );
+		if ( ! is_array( $manifest ) ) return '';
+		$host = Digitalisimo_Same_Site::host( (string) ( $manifest['origin']['home'] ?? $manifest['home_url'] ?? '' ) );
+		return '' === $host || '.invalid' === substr( $host, -8 ) ? Digitalisimo_Same_Site::host( (string) Digitalisimo_Backups_Relocate::describe( false )['home'] ) : $host;
+	}
 	private static function identity_url( $url ) {
 		return (string) preg_replace( '#^[a-z][a-z0-9+.-]*://#', '', rtrim( strtolower( trim( (string) $url ) ), '/' ) );
 	}
@@ -203,7 +247,8 @@ trait Digitalisimo_Backups_Keep_Config {
 				elseif ( array_key_exists( 'value', $entry ) ) update_site_option( $name, $entry['value'] );
 			}
 		}
-		if ( function_exists( 'wp_cache_flush' ) ) wp_cache_flush();
+		// Sólo las opciones repuestas (de este sitio y de su red), nunca la caché global compartida.
+		Digitalisimo_Same_Site::invalidate( array_keys( (array) ( $snapshot['site'] ?? array() ) ), is_multisite() ? array_keys( (array) ( $snapshot['network'] ?? array() ) ) : array() );
 		self::keep_config_events();
 	}
 

@@ -437,9 +437,9 @@ bi_case( 'B2 importación por tramos a un ZIP de Backups sin firma', function() 
 
 bi_case( 'B3 restaurar el ZIP importado en otro dominio, otra ruta y otro prefijo', function() use ( $dest, $abspath, $name, &$converted, $config_before ) {
 	bi_check( '' !== $converted, 'No hay ZIP convertido (falló B2).' );
-	$result = Digitalisimo_Backups::service_restore( $converted, array( 'confirm' => 'RESTAURAR' ) );
+	$result = Digitalisimo_Backups::service_restore( $converted, array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $converted ), 'confirm' => 'RESTAURAR' ) );
 	bi_check( is_wp_error( $result ), 'Se restauró un archivo de fuera con RESTAURAR (sin «SIN FIRMA»).' );
-	$result = Digitalisimo_Backups::service_restore( $converted, array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
+	$result = Digitalisimo_Backups::service_restore( $converted, array( 'origin_domain' => Digitalisimo_Backups::restore_origin_host( $converted ), 'confirm' => 'RESTAURAR SIN FIRMA' ) );
 	bi_check( ! is_wp_error( $result ), 'La restauración falló: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
 	$opt = function( $option ) use ( $dest ) { return $dest->value( 'wp_options', 'option_value', "option_name = '" . $option . "'" ); };
 	bi_check( 'https://destino.test/sitio' === $opt( 'home' ) && 'https://destino.test/sitio' === $opt( 'siteurl' ), 'home/siteurl: ' . $opt( 'home' ) );

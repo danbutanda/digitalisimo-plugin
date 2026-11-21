@@ -1090,7 +1090,8 @@ final class Digitalisimo_Backups_Relocate {
 				if ( is_dir( $dir ) && ! is_link( $dir ) ) self::empty_dir( $dir, $out['page_cache_files'], $warnings );
 			}
 		}
-		if ( function_exists( 'wp_cache_flush' ) ) wp_cache_flush();
+		// Sólo lo de este sitio (o de su red): la caché de objetos puede ser compartida con otros sitios del servidor.
+		if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate_site( $this->site_scope ? null : 'all' );
 		return $out;
 	}
 	/** Vacía una carpeta sin seguir enlaces (los enlaces se retiran, su destino no se toca) y sin borrar la carpeta. */
@@ -1151,15 +1152,29 @@ final class Digitalisimo_Backups_Relocate {
 	 * direcciones sin barra final, rutas del servidor, prefijo, red (tipo, dominio y ruta) y, sólo para el destino, lo
 	 * que declara wp-config.php. Con `$with_config` = false no incluye `config`.
 	 */
+	/**
+	 * `home` o `siteurl` de este sitio sin pasar por la caché de objetos: una caché compartida con otro sitio daría los
+	 * suyos, y el respaldo registraría ese sitio como origen (o la restauración lo tomaría como destino). Con WP_HOME o
+	 * WP_SITEURL definidos (fuera de una red), el valor de la constante, como get_option(); si no, la lectura directa de la
+	 * tabla de opciones; sin ella, get_option().
+	 */
+	private static function stored_url( $name ) {
+		$constant = 'home' === $name ? 'WP_HOME' : 'WP_SITEURL';
+		if ( defined( $constant ) && ! ( function_exists( 'is_multisite' ) && is_multisite() ) ) return (string) constant( $constant );
+		if ( ! class_exists( 'Digitalisimo_Same_Site', false ) && is_file( __DIR__ . '/class-digitalisimo-same-site.php' ) ) require_once __DIR__ . '/class-digitalisimo-same-site.php';
+		$stored = class_exists( 'Digitalisimo_Same_Site', false ) ? Digitalisimo_Same_Site::db_option( $name ) : null;
+		if ( null !== $stored && '' !== $stored ) return $stored;
+		return function_exists( 'get_option' ) ? (string) get_option( $name ) : '';
+	}
 	public static function describe( $with_config = true ) {
 		global $wpdb;
-		$home = function_exists( 'get_option' ) ? (string) get_option( 'home' ) : '';
-		$siteurl = function_exists( 'get_option' ) ? (string) get_option( 'siteurl' ) : '';
+		$home = self::stored_url( 'home' );
+		$siteurl = self::stored_url( 'siteurl' );
 		$uploads = function_exists( 'wp_upload_dir' ) ? (array) wp_upload_dir( null, false ) : array();
 		if ( function_exists( 'is_multisite' ) && is_multisite() && function_exists( 'get_main_site_id' ) && function_exists( 'switch_to_blog' ) && (int) get_current_blog_id() !== (int) get_main_site_id() ) {
 			switch_to_blog( get_main_site_id() );
-			$home = (string) get_option( 'home' );
-			$siteurl = (string) get_option( 'siteurl' );
+			$home = self::stored_url( 'home' );
+			$siteurl = self::stored_url( 'siteurl' );
 			$uploads = (array) wp_upload_dir( null, false );
 			restore_current_blog();
 		}

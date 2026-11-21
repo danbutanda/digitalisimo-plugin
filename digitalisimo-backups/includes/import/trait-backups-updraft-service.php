@@ -43,6 +43,9 @@ trait Digitalisimo_Backups_Updraft_Service {
 	public static function service_updraft_import( $id, array $args = array() ) {
 		$allowed = self::service_scope( false, false );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		// Candado «mismo sitio»: con la caché de objetos dando los datos de otro sitio no se escribe nada.
+		$alien = self::same_site_error( 'Importar' );
+		if ( $alien ) return $alien;
 		self::load_updraft_import();
 		$id = (string) $id;
 		$origin = (string) ( $args['source'] ?? '' );

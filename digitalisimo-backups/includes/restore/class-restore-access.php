@@ -367,8 +367,9 @@ final class Digitalisimo_Backups_Restore_Access {
 	 */
 	public static function apply( $state, $secret, $relocated, $remember = null, array $options = array() ) {
 		$states = self::states( $state );
-		// Las tablas acaban de cambiar: lo que la caché de objetos tenga (`site_admins`, roles, usuarios) es de antes.
-		if ( function_exists( 'wp_cache_flush' ) ) wp_cache_flush();
+		// Las tablas acaban de cambiar: lo que la caché de objetos tenga (`site_admins`, roles, usuarios) es de antes. Se
+		// invalida lo de este sitio, nunca la caché global (puede compartirse con otros sitios del servidor).
+		if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate_site( 'all' );
 		$report = array( 'state' => $states['access'], 'admins_state' => $states['admins'], 'relocated' => (bool) $relocated, 'user' => '', 'account' => '', 'kept_accounts' => array(), 'merged_accounts' => array(), 'merged_with' => array(), 'created_accounts' => array(), 'renamed_backup' => array(), 'shared_emails' => array(), 'warnings' => array(), 'app_passwords' => array(), 'login_path' => null, 'login_url' => '', 'admins' => array(), 'admins_total' => 0, 'users_total' => 0, 'text' => '' );
 		$accounts = self::accounts_of( $secret, $states );
 		$login = is_array( $secret ) && is_array( $secret['login'] ?? null ) ? $secret['login'] : null;
@@ -428,7 +429,7 @@ final class Digitalisimo_Backups_Restore_Access {
 		} catch ( Throwable $e ) {
 			$report['warnings'][] = 'No se pudo comprobar las contraseñas de aplicación: ' . $e->getMessage();
 		}
-		if ( function_exists( 'wp_cache_flush' ) ) wp_cache_flush();
+		if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate_site( 'all' );
 		try {
 			$report['login_url'] = self::login_url();
 			$who = self::who_can_log_in();
@@ -764,7 +765,8 @@ final class Digitalisimo_Backups_Restore_Access {
 			$seo_network = get_site_option( self::SEO_OPTION, false );
 			if ( is_array( $seo_network ) && array_key_exists( self::SEO_KEY, $seo_network ) ) { $seo_network[ self::SEO_KEY ] = self::sanitize_slug( (string) ( $login['network']['seo'] ?? '' ) ); update_site_option( self::SEO_OPTION, $seo_network ); }
 		}
-		if ( function_exists( 'wp_cache_flush' ) ) wp_cache_flush();
+		// Sólo las opciones de la ruta de acceso que se acaban de escribir (las de este sitio y las de su red).
+		if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate( array( self::TOOLS_SITE, self::SEO_OPTION, self::SEO_INHERIT ), array( self::TOOLS_NETWORK, self::SEO_OPTION ) );
 		$after = self::effective_slug( false );
 		$report['login_path'] = array( 'kept' => '' === $slug ? 'standard' : 'private', 'backup_differed' => $before !== $slug, 'effective' => '' === $after ? 'standard' : 'private' );
 		if ( $after !== $slug ) $report['warnings'][] = 'La ruta de acceso no quedó como la de este sitio: revisa Herramientas → Ajustes del sitio (Tools) antes de cerrar la sesión.';

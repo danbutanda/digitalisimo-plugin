@@ -33,6 +33,15 @@ trait Digitalisimo_Backups_Remote_Retention {
 		$home = function_exists( 'home_url' ) ? rtrim( (string) home_url(), '/' ) : '';
 		return array( 'id' => hash( 'sha256', $id . "\n" . self::journal_owner() . "\n" . $home ), 'home' => $home );
 	}
+	/**
+	 * Identidad de esta instalación sin su dirección (para los trabajos del motor: una restauración o una migración cambian
+	 * `home` a mitad del trabajo): el SHA-256 del identificador del almacén privado y de la raíz de WordPress. Un almacén
+	 * compartido entre instalaciones (DIGITALISIMO_BACKUPS_STORAGE_DIR) da a cada una la suya. '' sin almacén.
+	 */
+	public static function installation_owner() {
+		$id = self::installation_id();
+		return '' === $id ? '' : hash( 'sha256', $id . "\n" . self::journal_owner() );
+	}
 	private static function installation_id() {
 		try {
 			$path = rtrim( self::local_directory(), '/\\' ) . '/.installation-id';
