@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_json', 'theme_child_retire_dir', 'theme_child_retire_official', 'theme_child_retire_network', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -319,9 +319,13 @@ final class Fake_Wpdb {
 	public function get_var( $sql ) {
 		$rows = &$this->rows();
 		// Búsqueda de rutas del tema hijo (Full::child_references()): `refs` dice qué contesta cada columna.
-		if ( preg_match( "/WHERE (post_content|meta_value|option_value) LIKE '%themes\/([^\/']+)\/%'/", $sql, $m ) ) {
-			$GLOBALS['t']['log'][] = 'refs:' . $m[1] . ':' . $m[2];
-			return $GLOBALS['t']['refs'][ $m[1] ] ?? null;
+		if ( preg_match( "/WHERE (post_content|meta_value|option_value) LIKE '%(.*?)%'/", $sql, $m ) ) {
+			$kind                  = false !== strpos( $m[2], '%2F' ) ? 'url' : ( false !== strpos( $m[2], '\\' ) ? 'json' : 'plain' );
+			$GLOBALS['t']['log'][] = 'refs:' . $m[1] . ':' . $kind;
+			if ( 'option_value' === $m[1] ) {
+				$GLOBALS['t']['last_option_sql'] = $sql;
+			}
+			return $GLOBALS['t']['refs'][ $m[1] . ':' . $kind ] ?? $GLOBALS['t']['refs'][ $m[1] ] ?? null;
 		}
 		return preg_match( "/WHERE option_name = '([^']*)'/", $sql, $m ) ? ( $rows[ $m[1] ] ?? null ) : null;
 	}
@@ -1107,7 +1111,7 @@ switch ( $scenario ) {
 		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['verified'] ), 'Cambia y verifica.' );
 		check( ! isset( $GLOBALS['t']['themes']['hello-hijo'], $GLOBALS['t']['themes']['hello-elementor'] ) && position( 'delete_theme:hello-hijo' ) < position( 'delete_theme:hello-elementor' ), 'El hijo y después Hello se borran: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
 		check( false !== strpos( Full::render( false, $last ), 'Tema hijo «Hello Hijo»' ), 'El informe dice que se borró (y cómo volver: el respaldo).' );
-		check( logged( 'refs:post_content:hello-hijo' ) && logged( 'refs:meta_value:hello-hijo' ) && logged( 'refs:option_value:hello-hijo' ) && ! is_dir( TMP . '/themes/hello-hijo' . Full::RETIRING ) && empty( $last['deleting_theme'] ), 'Antes busca enlaces a su carpeta en el contenido, los datos y las opciones, y no deja nada apartado.' );
+		check( logged( 'refs:post_content:plain' ) && logged( 'refs:meta_value:json' ) && logged( 'refs:option_value:url' ) && ! is_dir( TMP . '/themes/hello-hijo' . Full::RETIRING ) && empty( $last['deleting_theme'] ), 'Antes busca enlaces a su carpeta en el contenido, los datos y las opciones, y no deja nada apartado.' );
 		break;
 
 	case 'theme_child_retire_kept':
@@ -1120,7 +1124,7 @@ switch ( $scenario ) {
 		drive();
 		$last = Full::last( false );
 		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['verified'] ), 'Cambia y verifica.' );
-		check( isset( $GLOBALS['t']['themes']['hello-hijo'], $GLOBALS['t']['themes']['hello-elementor'] ) && ! logged( 'delete_theme' ) && false !== strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'carga sus hojas' ), 'No se borra ningún tema: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
+		check( isset( $GLOBALS['t']['themes']['hello-hijo'], $GLOBALS['t']['themes']['hello-elementor'] ) && ! logged( 'delete_theme' ) && false !== strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'todavía carga archivos desde su carpeta' ), 'No se borra ningún tema: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
 		break;
 
 	case 'theme_child_hello_paths':
@@ -1142,6 +1146,60 @@ switch ( $scenario ) {
 		check( false !== strpos( (string) ( $out['kept']['hello-elementor'] ?? '' ), 'constantes de ruta de Hello' ) && isset( $GLOBALS['t']['themes']['hello-elementor'] ), 'Con un fragmento que usa rutas de Hello, la limpieza deja Hello: ' . json_encode( $out['kept'] ?? array(), JSON_UNESCAPED_UNICODE ) );
 		break;
 
+	case 'theme_child_retire_json':
+		// La ruta del hijo sólo aparece con las barras escapadas de JSON (los datos de Elementor): el hijo se queda.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
+		$GLOBALS['t']['carry']       = true;
+		$GLOBALS['t']['refs']        = array( 'meta_value:json' => '12' );
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		check( isset( $GLOBALS['t']['themes']['hello-hijo'] ) && ! logged( 'delete_theme' ) && false !== strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'los datos de «Inicio» (ID 12)' ), 'Con la ruta escapada en los datos de Elementor, se queda: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
+		check( false !== strpos( (string) ( $GLOBALS['t']['last_option_sql'] ?? '' ), "option_name <> 'theme_mods_hello-hijo'" ) && false === strpos( (string) ( $GLOBALS['t']['last_option_sql'] ?? '' ), "'theme_mods_%'" ), 'Los ajustes del tema propio sí se miran; sólo se omiten los del propio hijo.' );
+		break;
+
+	case 'theme_child_retire_dir':
+		// Su PHP usa __DIR__ (el tema lo reescribe, así que cambia), pero después del retiro apuntaría a otra carpeta: se queda.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD . "add_action( 'wp_footer', function () {\n\techo '<!-- ' . esc_html( basename( __DIR__ ) ) . ' -->';\n} );\n" );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
+		$GLOBALS['t']['carry']       = true;
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && isset( $GLOBALS['t']['themes']['hello-hijo'] ) && false !== strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'lee archivos o rutas de su carpeta' ), 'Cambia, pero el hijo se queda: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) . ' ' . ( $last['theme'][1]['reason'] ?? '' ) );
+		break;
+
+	case 'theme_child_retire_official':
+		// La carpeta se llama hello-elementor-child (el handle de la plantilla oficial lleva ese nombre): eso no es leer su carpeta.
+		child_theme( 'hello-elementor-child', 'Hello Elementor Child', OFFICIAL_CHILD );
+		$GLOBALS['t']['child_sheet'] = 'hello-elementor-child';
+		$GLOBALS['t']['carry']       = true;
+		drive();
+		$last = Full::last( false );
+		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! isset( $GLOBALS['t']['themes']['hello-elementor-child'] ) && ! isset( $GLOBALS['t']['themes']['hello-elementor'] ), 'El hijo oficial se retira, y Hello después: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
+		break;
+
+	case 'theme_child_retire_network':
+		// Red: el sitio 1 ya usa el tema propio desde hello-hijo (un cambio anterior, sin la copia completa); hoy cambia el 2
+		// desde el mismo hijo. El hijo se queda: el sitio 1 todavía carga sus archivos de ahí.
+		make_network();
+		child_theme( 'hello-hijo', 'Hello Hijo', OFFICIAL_CHILD );
+		$GLOBALS['t']['options'][2]['stylesheet'] = 'hello-hijo';
+		$GLOBALS['t']['options'][1]['stylesheet'] = 'digitalisimo-theme';
+		$GLOBALS['t']['options'][1]['template']   = 'digitalisimo-theme';
+		$GLOBALS['t']['options'][1]['digitalisimo_theme_child'] = array( 'v' => 1, 'child' => 'hello-hijo', 'parent' => 'hello-elementor', 'assets' => array( array( 'type' => 'style', 'handle' => 'hello-elementor-child-style', 'file' => 'style.css', 'from' => 'child' ) ) );
+		$GLOBALS['t']['themes']['digitalisimo-theme'] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI, 'Version' => '1.0.1' );
+		@mkdir( TMP . '/themes/digitalisimo-theme/inc', 0777, true );
+		copy( dirname( __DIR__ ) . '/digitalisimo-theme/inc/child.php', TMP . '/themes/digitalisimo-theme/inc/child.php' );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
+		$GLOBALS['t']['carry']       = true;
+		drive( 120 );
+		$last = Full::last( true );
+		check( 'digitalisimo-theme' === get_blog_option( 2, 'stylesheet' ) && isset( $GLOBALS['t']['themes']['hello-hijo'], $GLOBALS['t']['themes']['hello-elementor'] ) && ! logged( 'delete_theme' ), 'El sitio 2 cambia y no se borra ningún tema: ' . json_encode( $last['kept'] ?? array(), JSON_UNESCAPED_UNICODE ) );
+		check( false !== strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'todavía carga archivos desde su carpeta' ), 'El motivo es la copia que le falta al otro sitio.' );
+		break;
+
 	case 'theme_child_retire_refs':
 		// Una imagen del hijo enlazada por su ruta en los datos de Elementor: el hijo y Hello se quedan, con el motivo.
 		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
@@ -1152,7 +1210,7 @@ switch ( $scenario ) {
 		drive();
 		$last = Full::last( false );
 		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && isset( $GLOBALS['t']['themes']['hello-hijo'], $GLOBALS['t']['themes']['hello-elementor'] ) && ! logged( 'delete_theme' ), 'Con enlaces a su carpeta no se borra ningún tema.' );
-		check( false !== strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'Todavía se enlazan archivos de su carpeta (wp-content/themes/hello-hijo/) en los datos de «Inicio» (ID 12' ) && false !== strpos( Full::render( false, $last ), 'Todavía se enlazan archivos' ), 'Y el informe dice dónde: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
+		check( false !== strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'todavía se enlazan archivos de su carpeta en los datos de «Inicio» (ID 12)' ) && false !== strpos( Full::render( false, $last ), 'Se queda instalado (no estorba' ), 'Y el informe dice dónde: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
 		break;
 
 	case 'theme_child_retire_broken':

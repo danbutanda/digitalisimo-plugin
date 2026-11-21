@@ -1763,6 +1763,12 @@ final class Full {
 				$from[ (string) $row['from'] ][] = (int) $site_id;
 			}
 		}
+		// Ante cualquier duda el hijo se queda: con el tema propio activo ni él ni Hello se cargan, así que dejarlo no
+		// estorba y borrarlo es sólo limpieza. El informe lo dice en una línea, sin pedir nada.
+		$keep = static function ( $why ) {
+			return 'Se queda instalado (no estorba: con el tema DIGITALÍSIMO no se carga) porque ' . $why . '.';
+		};
+		$all = is_multisite() ? Retire::sites() : array( (int) get_current_blog_id() );
 		foreach ( $from as $slug => $sites ) {
 			$theme = wp_get_theme( $slug );
 			if ( ! $theme->exists() || Replacements::HELLO !== (string) $theme->get_template() || isset( $state['deleted'][ 'child:' . $slug ] ) || isset( $state['kept'][ 'child:' . $slug ] ) ) {
@@ -1770,93 +1776,93 @@ final class Full {
 			}
 			$name   = (string) $theme->get( 'Name' );
 			$reason = '';
-			foreach ( is_multisite() ? Retire::sites() : array( (int) get_current_blog_id() ) as $site_id ) {
-				$uses = self::on_site( (int) $site_id, static function () use ( $slug ) {
-					return $slug === (string) get_option( 'stylesheet' ) || $slug === (string) get_option( 'template' );
+			// Cada sitio de la red: no lo usa como tema y, si el tema propio guardó que viene de él (en esta pasada o en un
+			// cambio anterior), su copia en uploads está completa (copy_assets() la hace o la pone al día).
+			$users = array();
+			foreach ( $all as $site_id ) {
+				$seen = self::on_site( (int) $site_id, static function () use ( $slug ) {
+					if ( $slug === (string) get_option( 'stylesheet' ) || $slug === (string) get_option( 'template' ) ) {
+						return array( 'uses', array() );
+					}
+					$saved = get_option( 'digitalisimo_theme_child' );
+					if ( ! is_array( $saved ) || $slug !== (string) ( $saved['child'] ?? '' ) ) {
+						return array( '', array() );
+					}
+					if ( ! self::child_reader() || ! function_exists( 'digitalisimo_theme_child_assets_copied' ) || ! function_exists( 'digitalisimo_theme_child_copy_assets' ) ) {
+						return array( 'old', array() );
+					}
+					digitalisimo_theme_child_copy_assets();
+					$issues = array();
+					return array( true === digitalisimo_theme_child_assets_copied( $issues ) ? 'copied' : 'missing', (array) $issues );
 				} );
-				if ( $uses ) {
-					$reason = 'Algún sitio sigue usándolo.';
+				if ( 'uses' === $seen[0] ) {
+					$reason = $keep( 'algún sitio lo tiene activo' );
+				} elseif ( 'old' === $seen[0] ) {
+					$reason = $keep( 'el tema DIGITALÍSIMO instalado no sabe copiar sus archivos a uploads' );
+				} elseif ( 'missing' === $seen[0] ) {
+					$why    = array_slice( array_filter( array_map( 'strval', (array) $seen[1] ) ), 0, 2 );
+					$reason = $keep( 'el tema DIGITALÍSIMO todavía carga archivos desde su carpeta' . ( is_multisite() ? ' en ' . self::site_name( (int) $site_id ) : '' ) . ( $why ? ' (' . implode( '; ', $why ) . ')' : '' ) );
+				} elseif ( 'copied' === $seen[0] ) {
+					$users[] = (int) $site_id;
+				}
+				if ( '' !== $reason ) {
 					break;
 				}
 			}
-			if ( '' === $reason ) {
-				foreach ( $sites as $site_id ) {
-					// La copia a uploads es del tema propio (idempotente): un sitio que cambió con una versión anterior no
-					// tiene nada copiado hasta que se pide.
-					$copied = self::on_site( $site_id, static function () {
-						if ( ! self::child_reader() || ! function_exists( 'digitalisimo_theme_child_assets_copied' ) ) {
-							return array( false, array() );
-						}
-						if ( function_exists( 'digitalisimo_theme_child_copy_assets' ) ) {
-							digitalisimo_theme_child_copy_assets();
-						}
-						$issues = array();
-						$ok     = true === digitalisimo_theme_child_assets_copied( $issues );
-						return array( $ok, (array) $issues );
-					} );
-					if ( empty( $copied[0] ) ) {
-						$why    = array_slice( array_filter( array_map( 'strval', (array) ( $copied[1] ?? array() ) ) ), 0, 3 );
-						$reason = 'El tema DIGITALÍSIMO todavía carga sus hojas y fuentes desde su carpeta (no borrarlo)' . ( $why ? ': ' . implode( '; ', $why ) : '' ) . '.';
-						break;
-					}
-				}
-			}
 			if ( '' === $reason && is_file( $theme->get_stylesheet_directory() . '/functions.php' ) ) {
-				// Su functions.php sigue corriendo en Código PHP: si lee archivos (de su carpeta o por su nombre), la necesita.
-				// Las rutas del tema fuera de lo que el tema propio ya trae son un riesgo que impide el cambio, así que un hijo
-				// cambiado no las usa (las de sus encolados se quedan sin efecto: el tema registra antes esos handles).
+				// Su functions.php sigue corriendo en Código PHP. Si lee o incluye archivos, usa __FILE__/__DIR__ (que después
+				// apuntarían a otra carpeta) o nombra su ruta, la necesita.
 				$code = (string) file_get_contents( $theme->get_stylesheet_directory() . '/functions.php' );
-				// (Las rutas del tema y __DIR__/__FILE__ las reescribe el tema propio hacia su copia en uploads, que sólo trae
-				// archivos estáticos: lo que incluye o lee archivos por su cuenta sí necesita la carpeta.)
-				if ( preg_match( '/\b(?:include|require)(?:_once)?\b|\bfile_get_contents\s*\(|\bfopen\s*\(|\bfile\s*\(|\breadfile\s*\(|\bglob\s*\(|\bscandir\s*\(/i', $code ) || false !== stripos( $code, $slug ) ) {
-					$reason = 'Su functions.php, que sigue corriendo en DIGITALÍSIMO Tools → Código PHP, lee archivos de su carpeta.';
+				if ( preg_match( '/\b(?:include|require)(?:_once)?\b|\bfile_get_contents\s*\(|\bfopen\s*\(|\bfile\s*\(|\breadfile\s*\(|\bglob\s*\(|\bscandir\s*\(|__FILE__|__DIR__/i', $code ) || false !== stripos( $code, 'themes/' . $slug ) ) {
+					$reason = $keep( 'su PHP, que sigue corriendo en Código PHP, lee archivos o rutas de su carpeta' );
 				}
 			}
 			if ( '' === $reason ) {
-				// Una imagen, una fuente o una hoja del hijo enlazada por su ruta en el contenido, los datos o el CSS de
-				// Elementor, el CSS adicional o los widgets dejaría de verse al borrar su carpeta.
-				foreach ( is_multisite() ? Retire::sites() : array( (int) get_current_blog_id() ) as $site_id ) {
+				foreach ( $all as $site_id ) {
 					$where = (string) self::on_site( (int) $site_id, static function () use ( $slug ) {
 						return self::child_references( $slug );
 					} );
 					if ( '' !== $where ) {
-						$reason = sprintf( 'Todavía se enlazan archivos de su carpeta (wp-content/themes/%s/) en %s%s. Sube esos archivos a Medios, cambia los enlaces y vuelve a pulsar Migrar.', $slug, $where, is_multisite() ? ' de ' . self::site_name( (int) $site_id ) : '' );
+						$reason = $keep( sprintf( 'todavía se enlazan archivos de su carpeta en %s%s', $where, is_multisite() ? ' de ' . self::site_name( (int) $site_id ) : '' ) );
 						break;
 					}
 				}
 			}
 			if ( '' === $reason && empty( $state['caps']['delete_themes'] ) ) {
-				$reason = 'Quien pulsó Migrar no puede borrar temas.';
+				$reason = $keep( 'quien pulsó Migrar no puede borrar temas' );
 			}
 			if ( '' !== $reason ) {
 				$state['kept'][ 'child:' . $slug ] = $reason;
 				continue;
 			}
-			$out[ $slug ] = array( 'name' => $name, 'sites' => $sites );
+			$out[ $slug ] = array( 'name' => $name, 'sites' => array_values( array_unique( array_merge( $sites, $users ) ) ) );
 		}
 		return $out;
 	}
 
 	/**
-	 * Dónde enlaza el sitio en curso algún archivo de la carpeta del hijo (`themes/<carpeta>/`): entradas y páginas (con el
-	 * CSS adicional del Personalizador, que es una entrada `custom_css`), metadatos (los datos y el CSS de Elementor),
-	 * opciones (widgets, menús, ajustes; no las del propio tema hijo, los transitorios ni las de Migrar, el tema propio y
-	 * Código PHP) y las hojas que Elementor genera en uploads/elementor/css. '' si en ninguna.
+	 * Dónde enlaza el sitio en curso algún archivo de la carpeta del hijo (`themes/<carpeta>/`, también con las barras
+	 * escapadas de JSON —los datos de Elementor— o codificada en una URL): entradas y páginas (con el CSS adicional del
+	 * Personalizador, que es una entrada `custom_css`), metadatos, opciones (widgets, menús, ajustes, también los del
+	 * tema propio; no los ajustes del propio hijo, los transitorios, ni las de Migrar, el registro del hijo del tema propio
+	 * y Código PHP) y las hojas que Elementor genera en uploads/elementor/css. '' si en ninguna.
 	 */
 	private static function child_references( $slug ) {
 		global $wpdb;
-		$like = '%' . $wpdb->esc_like( 'themes/' . $slug . '/' ) . '%';
-		$post = $wpdb->get_var( $wpdb->prepare( 'SELECT ID FROM ' . $wpdb->posts . " WHERE post_content LIKE %s AND post_status NOT IN ('trash','auto-draft','inherit') LIMIT 1", $like ) ); // phpcs:ignore WordPress.DB
-		if ( $post ) {
-			return 'custom_css' === get_post_type( (int) $post ) ? 'el CSS adicional' : sprintf( 'el contenido de «%s» (ID %d)', get_the_title( (int) $post ), (int) $post );
-		}
-		$meta = $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ' . $wpdb->postmeta . ' WHERE meta_value LIKE %s LIMIT 1', $like ) ); // phpcs:ignore WordPress.DB
-		if ( $meta ) {
-			return sprintf( 'los datos de «%s» (ID %d; Elementor u otro plugin)', get_the_title( (int) $meta ), (int) $meta );
-		}
-		$option = $wpdb->get_var( $wpdb->prepare( 'SELECT option_name FROM ' . $wpdb->options . ' WHERE option_value LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s LIMIT 1', $like, 'theme_mods_%', '%transient%', 'digitalisimo_migration%', 'digitalisimo_theme%', 'digitalisimo_tools_php%' ) ); // phpcs:ignore WordPress.DB
-		if ( $option ) {
-			return sprintf( 'la opción %s (widgets, menús o ajustes)', (string) $option );
+		foreach ( array( 'themes/' . $slug . '/', 'themes\\/' . $slug . '\\/', rawurlencode( 'themes/' . $slug . '/' ) ) as $needle ) {
+			$like = '%' . $wpdb->esc_like( $needle ) . '%';
+			$post = $wpdb->get_var( $wpdb->prepare( 'SELECT ID FROM ' . $wpdb->posts . " WHERE post_content LIKE %s AND post_status NOT IN ('trash','auto-draft','inherit') LIMIT 1", $like ) ); // phpcs:ignore WordPress.DB
+			if ( $post ) {
+				return 'custom_css' === get_post_type( (int) $post ) ? 'el CSS adicional' : sprintf( 'el contenido de «%s» (ID %d)', get_the_title( (int) $post ), (int) $post );
+			}
+			$meta = $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ' . $wpdb->postmeta . ' WHERE meta_value LIKE %s LIMIT 1', $like ) ); // phpcs:ignore WordPress.DB
+			if ( $meta ) {
+				return sprintf( 'los datos de «%s» (ID %d)', get_the_title( (int) $meta ), (int) $meta );
+			}
+			$option = $wpdb->get_var( $wpdb->prepare( 'SELECT option_name FROM ' . $wpdb->options . ' WHERE option_value LIKE %s AND option_name <> %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s LIMIT 1', $like, 'theme_mods_' . $slug, '%transient%', 'digitalisimo_migration%', 'digitalisimo_theme_child%', 'digitalisimo_theme_switch%', 'digitalisimo_tools_php%' ) ); // phpcs:ignore WordPress.DB
+			if ( $option ) {
+				return sprintf( 'la opción %s', (string) $option );
+			}
 		}
 		$uploads = function_exists( 'wp_upload_dir' ) ? (array) wp_upload_dir( null, false ) : array();
 		$css     = (string) ( $uploads['basedir'] ?? '' ) . '/elementor/css';
