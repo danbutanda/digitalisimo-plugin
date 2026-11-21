@@ -3,7 +3,7 @@
  * Plugin Name: DIGITALÍSIMO Elements
  * Description: Constructor visual completo de DIGITALÍSIMO: editor, funciones avanzadas, kits, plantillas y widgets propios en un solo plugin, compatible con el contenido, los kits y los complementos ya creados para el constructor.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.192
+ * Version: 4.3.0.193
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.192' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.193' );
 define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
 // Las opciones que el constructor lee en cada petición, en una sola consulta antes de cargarlo, y el MCP del
 // navegador a demanda (digitalisimo-admin-load.php).
