@@ -151,6 +151,7 @@ final class Import {
 		$done = Store::activate( 'site', $found, $hash, array( 'by' => $by ) );
 		if ( is_wp_error( $done ) ) return 'error';
 		self::mark( $found, $hash );
+		self::mail_activation( $by, (string) $meta['title'] );
 		return 'activated';
 	}
 
@@ -200,6 +201,30 @@ final class Import {
 			return true;
 		} );
 		return true === $done;
+	}
+
+	/**
+	 * Lo mismo que manda «Guardar y activar» (Admin::mail_activation()): a quien pulsó Migrar, el enlace de rescate personal
+	 * (entrar sin fragmentos, 7 días, una vez; sustituye a los anteriores) y, al correo de administración si es otro, el aviso
+	 * de que se activó y quién lo hizo. En WP-Cron no hay usuario actual: se usa el de la tarea.
+	 */
+	private static function mail_activation( $by, $title ) {
+		$user  = $by > 0 ? get_userdata( $by ) : false;
+		$mine  = $user && ! empty( $user->user_email ) ? (string) $user->user_email : '';
+		$site  = wp_specialchars_decode( (string) get_option( 'blogname' ), ENT_QUOTES );
+		$where = home_url( '/' );
+		$link  = '' !== $mine ? Rescue::create( $by, false ) : '';
+		if ( is_string( $link ) && '' !== $link ) {
+			Store::mail( $mine, sprintf( '[%s] Se activó un fragmento PHP', $site ), array(
+				sprintf( 'Migrar (DIGITALÍSIMO Migración) activó el fragmento PHP «%s» en %s: es el functions.php del tema hijo, que ya corría en el sitio. Si algo deja de funcionar, este enlace te deja entrar sin fragmentos durante 7 días y una sola vez; sustituye a los enlaces anteriores que recibiste: %s', $title, $where, $link ),
+			) );
+		}
+		$admin = Store::mail_to( 'site' );
+		if ( '' !== $admin && strtolower( $admin ) !== strtolower( $mine ) ) {
+			Store::mail( $admin, sprintf( '[%s] Se activó un fragmento PHP', $site ), array(
+				sprintf( 'Se activó el fragmento PHP «%s» en %s. Lo hizo Migrar (DIGITALÍSIMO Migración) al pulsarlo %s: es el functions.php del tema hijo, que ya corría en el sitio.', $title, $where, $user && ! empty( $user->display_name ) ? (string) $user->display_name : 'un usuario' ),
+			) );
+		}
 	}
 
 	/** Anota en el índice que Migrar activó ese código (`migration` = su hash); '' la quita. */
