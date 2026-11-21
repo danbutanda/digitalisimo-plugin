@@ -48,7 +48,6 @@ class Digitalisimo_Integrations_Performance_Images {
 		add_filter( 'digitalisimo_performance_probe_html', array( __CLASS__, 'probe_html' ) );
 		add_filter( 'digitalisimo_performance_probe_image_report', array( __CLASS__, 'probe_report' ) );
 		add_filter( 'digitalisimo_performance_probe_alt_report', array( __CLASS__, 'probe_alt_report' ) );
-		add_action( 'shutdown', array( __CLASS__, 'save_map' ), 20 );
 		foreach ( array( 'delete_attachment', 'edit_attachment' ) as $hook ) add_action( $hook, array( __CLASS__, 'invalidate' ) );
 		// Es un filtro: lo que devuelva se guarda como metadata. Una acción devolvería null y WordPress la borraría.
 		add_filter( 'wp_update_attachment_metadata', array( __CLASS__, 'invalidate_metadata' ) );
@@ -786,6 +785,8 @@ class Digitalisimo_Integrations_Performance_Images {
 		self::load_map();
 		self::$map['ids'][ $key ] = (int) $id;
 		if ( count( self::$map['ids'] ) > 2000 ) self::$map['ids'] = array_slice( self::$map['ids'], -2000, null, true );
+		// El guardado al terminar se registra al ensuciar el mapa, no en cada petición (ver Asset_Diagnostics::begin_probe()).
+		if ( ! self::$map_dirty ) add_action( 'shutdown', array( __CLASS__, 'save_map' ), 20 );
 		self::$map_dirty = true;
 	}
 

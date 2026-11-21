@@ -9,6 +9,8 @@ $test_version = '1.0.17';
 function add_filter( $name, $callback, $priority = 10, $args = 1 ) { global $test_hooks; $test_hooks[ $name ][] = $priority; }
 function add_action( $name, $callback, $priority = 10, $args = 1 ) { add_filter( $name, $callback, $priority, $args ); }
 function get_file_data() { return array( 'Version' => '1.0.15' ); }
+// Tools inactivo (sin su constante): el puente lee la cabecera sólo en el escritorio, el cron o WP-CLI.
+function is_admin() { return true; } function wp_doing_cron() { return false; }
 function is_multisite() { return true; }
 function is_main_site() { return true; }
 function is_network_admin() { return true; }

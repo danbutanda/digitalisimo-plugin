@@ -18,7 +18,6 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		add_action( 'template_redirect', array( __CLASS__, 'begin_probe' ), 0 );
 		add_action( 'wp_print_styles', array( __CLASS__, 'capture' ), 25 );
 		add_action( 'wp_print_footer_scripts', array( __CLASS__, 'capture' ), 25 );
-		add_action( 'shutdown', array( __CLASS__, 'finish_probe' ), 0 );
 		add_action( 'elementor/frontend/widget/before_render', array( __CLASS__, 'capture_widget' ) );
 	}
 
@@ -163,6 +162,9 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 			header( 'Referrer-Policy: no-referrer' );
 		}
 		self::$collecting = true;
+		// Sólo una petición de diagnóstico termina con el análisis: registrar shutdown en cada petición cargaría esta clase
+		// al final de todas (también durante una actualización de SEO, con sus archivos fuera de su sitio).
+		add_action( 'shutdown', array( __CLASS__, 'finish_probe' ), 0 );
 		// La página se pinta como la ve un visitante: sin barra de administración
 		// ni los scripts de edición de Elementor que sólo carga un administrador.
 		if ( function_exists( 'wp_set_current_user' ) ) wp_set_current_user( 0 );

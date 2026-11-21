@@ -51,6 +51,8 @@ function digi_ap_sets() {
 		'elements' => array( 'elements' ),
 		'migration' => array( 'elements', 'migration' ),
 		'mine' => array( 'backups', 'tools', 'theme' ),
+		// Los siete plugins sin el tema (para separar lo de los plugins de lo del tema, fijado a su ZIP).
+		'plugins' => array_values( array_diff( $all, array( 'theme' ) ) ),
 		'all' => $all,
 	);
 }

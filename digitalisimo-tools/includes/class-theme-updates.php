@@ -28,6 +28,8 @@ final class Theme_Updates {
 	const MANIFEST_FRESH = 'digitalisimo_plugins_manifest_fresh';
 	/** Acción explícita en esta petición («Buscar actualizaciones», «Buscar de nuevo», «Ver detalles»): 10 s y sin la espera. */
 	private static $explicit = false;
+	/** Lectura de la caché de actualizaciones en curso (check_known()): sin peticiones a GitHub salvo en el cron, WP-CLI o una acción explícita. */
+	private static $offline = false;
 	const CACHE          = 'digitalisimo_tools_theme_release';
 	const LAST_KNOWN     = 'digitalisimo_tools_theme_last_release';
 	const DETAILS        = 'digitalisimo_theme_details';
@@ -46,7 +48,8 @@ final class Theme_Updates {
 		add_filter( 'update_themes_github.com', array( __CLASS__, 'uri_update' ), 31, 4 );
 		add_action( 'init', array( __CLASS__, 'prime' ), 0 );
 		add_filter( 'pre_set_site_transient_update_themes', array( __CLASS__, 'check' ), 31 );
-		add_filter( 'site_transient_update_themes', array( __CLASS__, 'check' ), 31 );
+		// La lectura de update_themes (cada pantalla del escritorio, por el contador del menú) sólo usa lo ya sabido.
+		add_filter( 'site_transient_update_themes', array( __CLASS__, 'check_known' ), 31 );
 		add_filter( 'upgrader_source_selection', array( __CLASS__, 'keep_folder' ), 11, 4 );
 		add_action( 'upgrader_process_complete', array( __CLASS__, 'clear_after_upgrade' ), 10, 2 );
 		// «Buscar actualizaciones» de cualquier plugin Digitalisimo borra el índice compartido: la versión del tema se vuelve a leer.
@@ -67,6 +70,8 @@ final class Theme_Updates {
 		if ( in_array( $GLOBALS['pagenow'] ?? '', array( 'admin-post.php', 'async-upload.php' ), true ) || ! ( current_user_can( 'update_plugins' ) || current_user_can( 'update_themes' ) ) ) return;
 		$keys = array();
 		foreach ( array( 'digitalisimo_plugins_manifest', 'digitalisimo_releases_index', 'digitalisimo_backups_release', 'digitalisimo_tools_release', 'digitalisimo_elements_release', 'digitalisimo_migration_release', 'digitalisimo_seo_release_check', 'digitalisimo_theme_release', 'digitalisimo_tools_theme_release', 'digitalisimo_tools_bridge_release', 'digitalisimo_plugins_manifest_retry', 'digitalisimo_github_api_retry' ) as $key ) { $keys[] = '_site_transient_' . $key; $keys[] = '_site_transient_timeout_' . $key; }
+		// Las últimas versiones conocidas (opciones de red sin autoload): la lectura sin red las usa cuando vence una caché.
+		foreach ( array( 'digitalisimo_releases_last_known', 'digitalisimo_backups_last_release', 'digitalisimo_tools_last_release', 'digitalisimo_elements_last_release', 'digitalisimo_migration_last_release', 'digitalisimo_seo_last_release', 'digitalisimo_tools_theme_last_release', 'digitalisimo_tools_bridge_last_release' ) as $key ) $keys[] = $key;
 		if ( is_multisite() ) { if ( function_exists( 'wp_prime_network_option_caches' ) ) wp_prime_network_option_caches( get_current_network_id(), $keys ); }
 		elseif ( function_exists( 'wp_prime_option_caches' ) ) wp_prime_option_caches( $keys );
 	}
@@ -103,6 +108,17 @@ final class Theme_Updates {
 		return isset( self::installed()[ $template ] ) ? $template : '';
 	}
 
+	/**
+	 * Puede consultar GitHub también al leer la caché de actualizaciones: el cron, WP-CLI, una acción explícita, las
+	 * pantallas Plugins y Actualizaciones y una actualización en curso (update.php, o por AJAX desde Plugins o Temas),
+	 * donde se mira y se instala la versión nueva (con 3 s y la espera compartida tras un fallo). El resto del escritorio, no.
+	 */
+	private static function may_download() {
+		if ( self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) return true;
+		if ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) return in_array( (string) ( $_REQUEST['action'] ?? '' ), array( 'update-plugin', 'update-theme' ), true ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si se puede esperar a GitHub; WordPress valida la acción.
+		return function_exists( 'is_admin' ) && is_admin() && in_array( (string) ( $GLOBALS['pagenow'] ?? '' ), array( 'plugins.php', 'update-core.php', 'update.php' ), true );
+	}
+
 	/** Una pantalla del escritorio no espera más de 3 s a GitHub; el cron y WP-CLI, hasta 10. */
 	private static function timeout() { return self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ? 10 : 3; }
 
@@ -110,6 +126,8 @@ final class Theme_Updates {
 	public static function release() {
 		$cached = get_site_transient( self::CACHE );
 		if ( false !== $cached ) return is_array( $cached ) ? $cached : array();
+		// Una lectura de update_themes usa lo ya sabido: descargan el cron, WP-CLI, las consultas de WordPress y las acciones explícitas.
+		if ( self::$offline && ! self::may_download() ) return self::known();
 		$entry = self::from_manifest();
 		// Sólo si no se obtuvo el índice se consulta la API: un índice válido sin tema es «tema sin publicar».
 		if ( null === $entry ) $entry = self::from_api();
@@ -123,6 +141,19 @@ final class Theme_Updates {
 		$known = is_array( $known ) && ! empty( $known['version'] ) ? $known : array();
 		set_site_transient( self::CACHE, $known, 2 * MINUTE_IN_SECONDS );
 		return $known;
+	}
+
+	/**
+	 * Lo ya sabido, sin red: el índice compartido si un actualizador Digitalisimo lo bajó hace poco y la última versión
+	 * encontrada, la más alta. No escribe nada.
+	 */
+	private static function known() {
+		$manifest = get_site_transient( self::MANIFEST_CACHE );
+		$entry    = is_array( $manifest ) ? self::entry( $manifest ) : array();
+		$known    = get_site_option( self::LAST_KNOWN, array() );
+		// La más alta de las dos: el índice que otro bajó puede ser más nuevo, o haber vencido con la nueva ya conocida.
+		if ( is_array( $known ) && ! empty( $known['version'] ) && ( empty( $entry['version'] ) || version_compare( $known['version'], $entry['version'], '>' ) ) ) $entry = $known;
+		return $entry;
 	}
 
 	/** Expresión de un ZIP del tema en las Releases del repositorio oficial. */
@@ -160,6 +191,11 @@ final class Theme_Updates {
 			set_site_transient( self::MANIFEST_CACHE, $manifest, 10 * MINUTE_IN_SECONDS );
 			set_site_transient( self::MANIFEST_FRESH, time(), 4 * MINUTE_IN_SECONDS );
 		}
+		return self::entry( $manifest );
+	}
+
+	/** Entrada del tema en un índice ya descargado: array() si no trae un tema válido. */
+	private static function entry( array $manifest ) {
 		$entry   = isset( $manifest['themes'] ) && is_array( $manifest['themes'] ) ? ( $manifest['themes'][ self::SLUG ] ?? null ) : null;
 		$version = is_array( $entry ) ? (string) ( $entry['version'] ?? '' ) : '';
 		$package = is_array( $entry ) ? (string) ( $entry['url'] ?? '' ) : '';
@@ -256,6 +292,16 @@ final class Theme_Updates {
 	 * cargada se vuelve a escribir siempre, aunque ya tuviera entrada (una de wordpress.org con el mismo nombre, o una
 	 * anterior de Tools con una versión vieja); la cargada, sólo si su actualizador no dejó la suya.
 	 */
+	public static function check_known( $transient ) {
+		self::$offline = true;
+		try {
+			return self::check( $transient );
+		} finally {
+			self::$offline = false;
+		}
+	}
+
+	/** Escritura de update_themes (WordPress consulta actualizaciones de temas): puede descargar el índice. */
 	public static function check( $transient ) {
 		if ( ! is_object( $transient ) || ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) return $transient;
 		if ( ! ( wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) || current_user_can( 'update_themes' ) ) ) return $transient;

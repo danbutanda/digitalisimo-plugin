@@ -183,7 +183,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   // Actualizadores: caché vacía (a los 10 min), caché llena y GitHub caído, en el Escritorio y en Plugins.
   const dash = network ? `${net}/index.php` : `${admin}/index.php`;
   const plg = network ? `${net}/plugins.php` : `${admin}/plugins.php`;
-  for (const set of ['all', 'mine']) {
+  for (const set of (process.env.UPD_SETS || 'all,mine').split(',').filter(Boolean)) {
     const steps = [];
     const step = async (label, url, cookies) => { const r = await load(set, `upd-${label}`, url, '', { cookies }); steps.push({ label, ms: r.main && r.main.ms, http: r.main ? r.main.http : [], others: r.others.map((o) => o.http).flat(), queries: r.main && r.main.queries }); await clearExtra(); };
     await setCookies(set, `expire.${++seq}`); await cmd('expire');
@@ -201,7 +201,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   }
 
   // Una vuelta de WP-Cron con los eventos periódicos de los plugins vencidos.
-  for (const set of ['all', 'mine']) {
+  for (const set of (process.env.UPD_SETS || 'all,mine').split(',').filter(Boolean)) {
     await setCookies(set, `crondue.${++seq}`);
     const moved = await cmd('cron_due');
     const req = `${set}.cron.${++seq}`;

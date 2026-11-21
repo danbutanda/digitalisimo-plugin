@@ -25,10 +25,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let seq = 0;
 const jar = {};
 
-function request(method, path, { headers = {}, body, set } = {}) {
+function request(method, path, { headers = {}, body, set, anon = false } = {}) {
   return new Promise((resolve, reject) => {
     const id = `r${++seq}`;
-    const cookie = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
+    const cookie = anon ? '' : Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
     const all = { Host: host, 'X-Digi-AP-Id': id, ...(cookie ? { Cookie: cookie } : {}), ...(set ? { 'X-Digi-AP-Set': SET_VALUE[set] } : {}), ...headers };
     let data = body;
     if (body !== undefined && typeof body !== 'string' && !Buffer.isBuffer(body)) { data = JSON.stringify(body); all['Content-Type'] = all['Content-Type'] || 'application/json'; }
@@ -94,6 +94,14 @@ const SCREENS = [
   { key: 'actualizaciones', path: '/wp-admin/update-core.php' },
   { key: 'heartbeat', method: 'POST', path: '/wp-admin/admin-ajax.php', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: () => form({ action: 'heartbeat', _nonce: hb, screen_id: 'dashboard', interval: 60, has_focus: 'false' }) },
   { key: 'heartbeat-editor', method: 'POST', path: '/wp-admin/admin-ajax.php', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: () => form({ action: 'heartbeat', _nonce: hb, screen_id: 'post', interval: 15, has_focus: 'true', 'data[wp-refresh-post-lock][post_id]': P, 'data[wp-refresh-post-lock][lock]': '' }) },
+  // El front, sin sesión (anon): lo que paga cada visita.
+  { key: 'front-portada', path: '/', anon: true },
+  { key: 'front-entrada', path: `/?p=${P}`, anon: true },
+  { key: 'front-pagina', path: `/?page_id=${PG}`, anon: true },
+  { key: 'front-feed', path: '/?feed=rss2', anon: true },
+  { key: 'front-robots', path: '/?robots=1', anon: true },
+  { key: 'front-404', path: '/?p=99999999', anon: true },
+  { key: 'rest-anon', path: '/wp-json/wp/v2/posts?per_page=5', anon: true },
 ];
 if (multisite) {
   SCREENS.push(
@@ -110,7 +118,7 @@ const screens = ONLY.length ? SCREENS.filter((s) => ONLY.includes(s.key)) : SCRE
 
 async function hit(screen, set, extraHeaders = {}) {
   const body = typeof screen.body === 'function' ? screen.body() : screen.body;
-  const r = await request(screen.method || 'GET', screen.path, { headers: { ...(screen.headers || {}), ...extraHeaders }, body, set });
+  const r = await request(screen.method || 'GET', screen.path, { headers: { ...(screen.headers || {}), ...extraHeaders }, body, set, anon: !!screen.anon });
   const line = await waitLog(r.id);
   return { status: r.status, wall: r.wall, bytes: r.text.length, line, fatal: /Fatal error|There has been a critical error|Ha habido un error crítico/i.test(r.text) };
 }
@@ -133,6 +141,7 @@ for (const screen of screens) {
       status: [...new Set(rows[set].map((r) => r.status))],
       fatal: rows[set].some((r) => r.fatal),
       ms: median(lines.map((l) => l.ms)), queries: median(lines.map((l) => l.queries)), peak_kb: median(lines.map((l) => l.peak_kb)), bytes: median(rows[set].map((r) => r.bytes)),
+      seo_files: median(lines.map((l) => l.seo_files)), seo_kb: median(lines.map((l) => l.seo_kb)),
       marks: Object.fromEntries(Object.keys(lines[0]?.marks || {}).map((k) => [k, median(lines.map((l) => l.marks?.[k]))])),
       load: Object.fromEntries([...new Set(lines.flatMap((l) => Object.keys(l.load || {})))].map((k) => [k, median(lines.map((l) => l.load?.[k]))])),
       opcache: lines.some((l) => l.opcache),
@@ -147,7 +156,7 @@ for (const screen of screens) {
   for (const set of ['none', 'all']) { const d = await hit(screen, set, { 'X-Digi-AP-Detail': '1' }); out.detail[set] = d.line?.detail || null; }
   results.screens[screen.key] = out;
   const n = out.none || {}, a = out.all || {};
-  console.log(`${screen.key.padEnd(24)} sin: ${String(n.ms).padStart(8)} ms ${String(n.queries).padStart(4)} q ${String(n.peak_kb).padStart(6)} KB · con: ${String(a.ms).padStart(8)} ms ${String(a.queries).padStart(4)} q ${String(a.peak_kb).padStart(6)} KB · HTTP ${a.http?.length ?? 0} · avisos ${a.errors?.length ?? 0}`);
+  console.log(`${screen.key.padEnd(24)} sin: ${String(n.ms).padStart(8)} ms ${String(n.queries).padStart(4)} q ${String(n.peak_kb).padStart(6)} KB · con: ${String(a.ms).padStart(8)} ms ${String(a.queries).padStart(4)} q ${String(a.peak_kb).padStart(6)} KB · SEO ${a.seo_files ?? '-'} arch. ${a.seo_kb ?? '-'} KB · HTTP ${a.http?.length ?? 0} · avisos ${a.errors?.length ?? 0}`);
 }
 
 // Pantallas propias: los enlaces admin.php?page=digitalisimo* del menú y de las pestañas, con todo activo.

@@ -14,8 +14,8 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		add_action( 'init', array( __CLASS__, 'schedule_missing' ), 30 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_status_route' ) );
 		add_action( self::CRON, array( __CLASS__, 'rebuild' ) );
-		add_action( 'save_post_elementor_library', array( __CLASS__, 'schedule' ) );
-		add_action( 'elementor/core/files/clear_cache', array( __CLASS__, 'schedule' ) );
+		add_action( 'save_post_elementor_library', array( __CLASS__, 'schedule_for_content' ) );
+		add_action( 'elementor/core/files/clear_cache', array( __CLASS__, 'schedule_for_content' ) );
 		foreach ( array( 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ) as $hook ) add_action( $hook, array( __CLASS__, 'schedule_for_meta' ), 20, 4 );
 		add_action( 'update_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'schedule' ) );
 		add_action( 'update_option_digitalisimo_seo_network_inherit', array( __CLASS__, 'schedule' ) );
@@ -71,7 +71,22 @@ class Digitalisimo_Integrations_Performance_Preloads {
 	}
 
 	public static function schedule_for_meta( $meta_id, $post_id, $key, $value ) {
-		if ( in_array( $key, array( '_elementor_data', '_elementor_page_settings', '_elementor_edit_mode' ), true ) ) self::schedule();
+		if ( in_array( $key, array( '_elementor_data', '_elementor_page_settings', '_elementor_edit_mode' ), true ) ) self::schedule_for_content();
+	}
+
+	/**
+	 * Hay algo que recalcular cuando cambia el contenido del constructor sólo si una de las dos funciones de fuentes está
+	 * encendida: las precargas o el blindaje (las dos apagadas por defecto). El recálculo inventaría las fuentes de todo
+	 * el sitio; con las dos apagadas, editar en el constructor no lo programa. Encender una lo programa (cambian los ajustes).
+	 */
+	public static function fonts_active() {
+		return 'off' !== self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) )
+			|| 'off' !== Digitalisimo_Integrations_Performance_Font_Guard::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_font_guard_mode' ) );
+	}
+
+	/** Un cambio del contenido del constructor (no de los ajustes): sólo con alguna función de fuentes encendida. */
+	public static function schedule_for_content() {
+		if ( self::fonts_active() ) self::schedule();
 	}
 
 	public static function schedule() {

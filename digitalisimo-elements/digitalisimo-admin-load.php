@@ -18,6 +18,11 @@
  *    original activo, manda él y el MCP se encola como siempre.
  * 3. Las hojas de Roboto desde Google Fonts que el núcleo encola en toda la administración (una petición a un tercero
  *    desde el navegador en cada pantalla) no se cargan con el núcleo incluido: esa interfaz usa la fuente del sistema.
+ * 4. El latido del escritorio (heartbeat: cada 15-60 s por cada pestaña abierta de la administración) cargaba el
+ *    constructor entero (≈1 000 archivos y unas 11 consultas) aunque no le pidiera nada. Con el núcleo incluido, un
+ *    latido que sólo trae datos del núcleo de WordPress (sesión, bloqueos y nonces de entradas) no lo carga: ver
+ *    light_heartbeat(). El del editor del constructor (`elementor_post_lock`), el autoguardado del editor clásico y el
+ *    de cualquier otro plugin lo cargan como siempre.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -36,6 +41,62 @@ final class Digitalisimo_Elements_Admin_Load {
 
 	/** @var bool El paquete se retiró de la cola en esta petición y el cargador lo traerá a demanda. */
 	private static $deferred = false;
+
+	/**
+	 * Datos de un latido que el constructor no atiende: la sesión (`wp-auth-check`), el bloqueo y los nonces de la
+	 * entrada abierta en el editor de WordPress y los bloqueos de la lista de entradas. El autoguardado del editor
+	 * clásico (`wp_autosave`) no está: el constructor copia sus datos a la revisión.
+	 */
+	const LIGHT_HEARTBEAT_KEYS = array( 'wp-auth-check', 'wp-refresh-post-lock', 'wp-refresh-post-nonces', 'wp-check-locked-posts' );
+
+	/** @var bool|null Decisión de esta petición (light_heartbeat() sin argumentos). */
+	private static $light = null;
+
+	/**
+	 * ¿Es un latido del escritorio que no necesita el constructor? Sólo si todo lo que trae es del núcleo de WordPress
+	 * (LIGHT_HEARTBEAT_KEYS, o nada) y ningún plugin activo con «elementor» en su ruta (los complementos del
+	 * constructor) podría usarlo en su propio latido. Se desactiva con la constante DIGITALISIMO_ELEMENTS_FULL_HEARTBEAT
+	 * o con el filtro `digitalisimo_elements_light_heartbeat` (desde un mu-plugin: se decide al cargar Elements).
+	 *
+	 * @param array|null $request Petición ($_REQUEST si es null).
+	 * @param array|null $plugins Plugins activos (los del sitio y los de la red si es null).
+	 */
+	public static function light_heartbeat( $request = null, $plugins = null ) {
+		$memo = null === $request && null === $plugins;
+		if ( $memo && null !== self::$light ) {
+			return self::$light;
+		}
+		$light = self::decide_light_heartbeat( null === $request ? $_REQUEST : $request, $plugins ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide qué código cargar; WordPress valida el latido.
+		if ( $memo ) {
+			self::$light = $light;
+		}
+		return $light;
+	}
+
+	private static function decide_light_heartbeat( $request, $plugins ) {
+		if ( ! ( function_exists( 'wp_doing_ajax' ) ? wp_doing_ajax() : ( defined( 'DOING_AJAX' ) && DOING_AJAX ) ) || ! is_array( $request ) || 'heartbeat' !== ( $request['action'] ?? '' ) ) {
+			return false;
+		}
+		if ( defined( 'DIGITALISIMO_ELEMENTS_FULL_HEARTBEAT' ) && DIGITALISIMO_ELEMENTS_FULL_HEARTBEAT ) {
+			return false;
+		}
+		$data = $request['data'] ?? array();
+		if ( ! is_array( $data ) || array_diff( array_map( 'strval', array_keys( $data ) ), self::LIGHT_HEARTBEAT_KEYS ) ) {
+			return false;
+		}
+		if ( null === $plugins ) {
+			$plugins = (array) get_option( 'active_plugins', array() );
+			if ( function_exists( 'is_multisite' ) && is_multisite() ) {
+				$plugins = array_merge( $plugins, array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) );
+			}
+		}
+		foreach ( (array) $plugins as $file ) {
+			if ( false !== stripos( (string) $file, 'elementor' ) ) {
+				return false;
+			}
+		}
+		return (bool) apply_filters( 'digitalisimo_elements_light_heartbeat', true, $data );
+	}
 
 	public static function init() {
 		self::prime();
@@ -103,7 +164,8 @@ final class Digitalisimo_Elements_Admin_Load {
 
 	/** Antes de cargar el núcleo: las opciones anotadas, en una sola consulta. */
 	public static function prime() {
-		if ( ! self::enabled() ) {
+		// Un latido que no carga el constructor no necesita sus opciones.
+		if ( ! self::enabled() || self::light_heartbeat() ) {
 			return array();
 		}
 		$names = self::names();

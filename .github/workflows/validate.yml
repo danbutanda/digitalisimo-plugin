@@ -198,6 +198,7 @@ jobs:
           php tests/elements-core-loader.php
           php tests/elements-admin-load.php
           php tests/elements-admin-load-options.php
+          php tests/elements-light-heartbeat.php
           php tests/elements-vendor-notifications.php
           php tests/elements-updater-manifest.php
           php tests/elements-installer.php
@@ -420,6 +421,9 @@ jobs:
           php tests/seo-release-check.php
           php tests/seo-release-check-admin.php
           php tests/seo-admin-perf.php
+          php tests/seo-fixed-cost.php
+          php tests/seo-elementor-perf.php
+          php tests/ia-excerpt.php
           php tests/admin-perf-guards.php
           php tests/plugin-catalog-manifest.php
           php tests/plugin-catalog-install-all.php

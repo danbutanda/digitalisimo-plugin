@@ -9,6 +9,10 @@
  *  4. La vuelta del cron de cinco minutos (Backups, Tools, Elements, Migración y SEO) descarga un solo índice, no cinco.
  *  5. En una pantalla el tiempo de espera es de 3 s; en el cron, 10.
  *  6. Toda copia que descarga el índice o consulta la API respeta las mismas marcas.
+ *  7. (2026-11-20) Leer update_plugins o update_themes en una pantalla del escritorio no consulta GitHub en ninguna copia
+ *     de los plugins: usa la caché propia, el índice compartido que otro bajó o la última versión conocida, sin escribir
+ *     nada. Descargan el cron, WP-CLI, las consultas de WordPress (pre_set_…) y las acciones explícitas. El tema (fijado
+ *     byte a byte a su ZIP 1.0.1) aún descarga al leer: es el único que pide GitHub en una carga del escritorio.
  * Se cargan a la vez las copias reales (familia compartida de SEO/IA/Hosting, Backups, Tools, Elements, Migración,
  * hermanos de Elements, copias del tema de Tools, comprobación de SEO y, desde el tema 1.0.1, el actualizador del tema)
  * con WordPress simulado.
@@ -57,7 +61,7 @@ function get_plugins() {
 	return $out;
 }
 function wp_remote_get( $url, $args = array() ) {
-	$GLOBALS['calls'][] = array( 'url' => $url, 'timeout' => $args['timeout'] ?? null );
+	$GLOBALS['calls'][] = array( 'url' => $url, 'timeout' => $args['timeout'] ?? null, 'ua' => $args['headers']['User-Agent'] ?? '' );
 	if ( 'down' === $GLOBALS['net'] ) return array( 'code' => 503, 'body' => '' );
 	if ( false !== strpos( $url, 'api.github.com' ) ) return array( 'code' => 200, 'body' => '[]' );
 	$plugins = array();
@@ -85,15 +89,20 @@ require $root . 'digitalisimo-tools/includes/class-plugin-catalog.php';
 require $root . 'digitalisimo-theme/inc/class-updater.php';
 foreach ( array( 'digitalisimo-seo/digitalisimo-integrations.php' => 'digitalisimo-seo', 'digitalisimo.chatbot/digitalisimo-chatbot.php' => 'digitalisimo-ia-tools', 'digitalisimo-hosting/digitalisimo-hosting.php' => 'digitalisimo-hosting' ) as $file => $slug ) Digitalisimo_Updater::register( '/plugins/' . $file, '1.0.0', $slug );
 function digi_check( $ok, $message ) { if ( ! $ok ) { fwrite( STDERR, 'FALLA: ' . $message . "\n" ); exit( 1 ); } }
-/** Una carga del escritorio: el menú lee update_plugins y update_themes, y cada actualizador pasa por su filtro. */
+/** Una carga del escritorio: el menú lee update_plugins y update_themes, y cada actualizador pasa por su filtro de lectura. */
 function admin_load() {
 	$plugins = (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array() );
-	foreach ( array( 'Digitalisimo_Updater::inject', 'Digitalisimo_Backups_Updater::check', 'Digitalisimo\Tools\Updater::check', 'Digitalisimo_Elements_Updater::check', 'Digitalisimo\Migration\Updater::check', 'Digitalisimo_SEO_Release_Check::inject_known', 'Digitalisimo_Elements_Sibling_Updates::check' ) as $cb ) $plugins = call_user_func( $cb, $plugins );
+	foreach ( array( 'Digitalisimo_Updater::inject_known', 'Digitalisimo_Backups_Updater::check_known', 'Digitalisimo\Tools\Updater::check_known', 'Digitalisimo_Elements_Updater::check_known', 'Digitalisimo\Migration\Updater::check_known', 'Digitalisimo_SEO_Release_Check::inject_known', 'Digitalisimo_Elements_Sibling_Updates::check_known' ) as $cb ) $plugins = call_user_func( read_cb( $cb ), $plugins );
 	$themes = (object) array( 'checked' => array( 'digitalisimo-theme' => '1.0.0' ), 'response' => array(), 'no_update' => array() );
+	// El tema 1.0.1 lee con su check() de siempre (su árbol está fijado a su ZIP): sigue descargando al leer.
 	$themes = Digitalisimo_Theme_Updater::check( $themes );
-	$themes = Digitalisimo\Tools\Theme_Updates::check( $themes );
+	$themes = call_user_func( read_cb( 'Digitalisimo\Tools\Theme_Updates::check_known' ), $themes );
 	return array( $plugins, $themes );
 }
+/** El filtro de lectura de cada copia; antes de la lectura sin red (2026-11-20) era el mismo de la escritura. */
+function read_cb( $cb ) { list( $class, $method ) = explode( '::', $cb ); return method_exists( $class, $method ) ? $cb : $class . '::' . ( 'inject_known' === $method && 'Digitalisimo_SEO_Release_Check' !== $class ? 'inject' : 'check' ); }
+/** Peticiones de las copias de los plugins (todas menos las del tema). */
+function plugin_calls() { return array_values( array_filter( $GLOBALS['calls'], function ( $c ) { return 'Digitalisimo-Theme' !== $c['ua']; } ) ); }
 /** Lo que pasa a los 2 o 10 minutos: vencen las cachés propias de cada actualizador (no las marcas compartidas). */
 function expire_own() { foreach ( array_keys( $GLOBALS['t'] ) as $k ) if ( ! in_array( $k, array( 'digitalisimo_plugins_manifest_retry', 'digitalisimo_github_api_retry', 'digitalisimo_plugins_manifest_fresh' ), true ) ) unset( $GLOBALS['t'][ $k ] ); }
 $count = function ( $needle ) { return count( array_filter( $GLOBALS['calls'], function ( $c ) use ( $needle ) { return false !== strpos( $c['url'], $needle ); } ) ); };
@@ -102,6 +111,7 @@ $count = function ( $needle ) { return count( array_filter( $GLOBALS['calls'], f
 admin_load();
 $m = $count( 'digitalisimo-plugins.json' ); $a = $count( 'api.github.com' );
 digi_check( 1 === $m && 1 === $a, "Con GitHub caído una carga del escritorio debe hacer 1 petición al índice y 1 a la API entre todos; hizo $m y $a." );
+digi_check( array() === plugin_calls(), 'Leer update_plugins y update_themes no consulta GitHub en ninguna copia de los plugins (sólo el tema): ' . json_encode( plugin_calls() ) );
 digi_check( 120 === ( $GLOBALS['ttl']['digitalisimo_plugins_manifest_retry'] ?? 0 ) && 120 === ( $GLOBALS['ttl']['digitalisimo_github_api_retry'] ?? 0 ), 'El fallo se recuerda dos minutos, el del índice y el de la API.' );
 // 5. En una pantalla se espera como mucho 3 s.
 digi_check( array( 3 ) === array_values( array_unique( array_column( $GLOBALS['calls'], 'timeout' ) ) ), 'En una pantalla del escritorio las consultas a GitHub esperan como mucho 3 s.' );
@@ -113,10 +123,17 @@ digi_check( 0 === count( $GLOBALS['calls'] ), 'Dentro de los dos minutos ninguna
 
 // 3. «Buscar actualizaciones» olvida el fallo y consulta de inmediato (GitHub ya responde).
 $GLOBALS['net'] = 'up'; $GLOBALS['calls'] = array();
-Digitalisimo_Backups_Updater::clear();
 expire_own();
-list( $plugins, $themes ) = admin_load();
+// Lo que hace «Buscar actualizaciones» (sin su redirección): vaciar las cachés y las marcas, y volver a consultar.
+$GLOBALS['t']['update_plugins'] = (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array() );
+Digitalisimo_Backups_Updater::clear(); Digitalisimo_Backups_Updater::refresh();
+unset( $GLOBALS['t']['update_plugins'] );
 digi_check( 1 === $count( 'digitalisimo-plugins.json' ) && 0 === $count( 'api.github.com' ), '«Buscar actualizaciones» vuelve a consultar el índice una sola vez y sin la API.' );
+// La carga siguiente lee el índice que «Buscar actualizaciones» dejó en la caché compartida: ninguna copia consulta.
+$GLOBALS['calls'] = array();
+list( $plugins, $themes ) = admin_load();
+digi_check( 0 === count( $GLOBALS['calls'] ), 'Con el índice compartido en caché, ninguna lectura consulta GitHub; hizo ' . count( $GLOBALS['calls'] ) . '.' );
+digi_check( '9.0.0' === ( $plugins->response['digitalisimo-seo/digitalisimo-integrations.php']->new_version ?? '' ) && '9.0.0' === ( $plugins->response['digitalisimo-migration/digitalisimo-migration.php']->new_version ?? '' ), 'La lectura sin red ofrece la versión del índice compartido también a los actualizadores que no lo descargaron.' );
 digi_check( '9.0.0' === ( $plugins->response['digitalisimo-backups/digitalisimo-backups.php']->new_version ?? '' ) && '9.0.0' === ( $themes->response['digitalisimo-theme']['new_version'] ?? '' ), 'Con GitHub de vuelta se ofrecen las versiones nuevas de los plugins y del tema.' );
 digi_check( 240 === ( $GLOBALS['ttl']['digitalisimo_plugins_manifest_fresh'] ?? 0 ), 'El índice descargado queda marcado como reciente cuatro minutos.' );
 
@@ -129,6 +146,108 @@ $m = $count( 'digitalisimo-plugins.json' );
 digi_check( 1 === $m && 0 === $count( 'api.github.com' ), "La vuelta del cron descarga un solo índice entre los cinco actualizadores; descargó $m." );
 digi_check( array( 10 ) === array_values( array_unique( array_column( $GLOBALS['calls'], 'timeout' ) ) ), 'En el cron las consultas esperan hasta 10 s.' );
 $GLOBALS['cron'] = false;
+
+// 4b. Sin WP-Cron: vencen las cachés propias y el índice compartido (diez minutos después). La lectura del escritorio
+// no consulta GitHub (con GitHub vivo), no escribe nada y sigue ofreciendo la última versión conocida.
+$GLOBALS['net'] = 'up'; $GLOBALS['calls'] = array();
+expire_own(); unset( $GLOBALS['t']['digitalisimo_plugins_manifest'], $GLOBALS['t']['digitalisimo_plugins_manifest_fresh'] );
+$before = array( array_keys( $GLOBALS['t'] ), $GLOBALS['o'] );
+$t0 = $GLOBALS['t'];
+$plugins_only = (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array() );
+foreach ( array( 'Digitalisimo_Updater::inject_known', 'Digitalisimo_Backups_Updater::check_known', 'Digitalisimo\Tools\Updater::check_known', 'Digitalisimo_Elements_Updater::check_known', 'Digitalisimo\Migration\Updater::check_known', 'Digitalisimo_SEO_Release_Check::inject_known', 'Digitalisimo_Elements_Sibling_Updates::check_known' ) as $cb ) $plugins_only = call_user_func( $cb, $plugins_only );
+$themes_only = Digitalisimo\Tools\Theme_Updates::check_known( (object) array( 'checked' => array( 'digitalisimo-theme' => '1.0.0' ), 'response' => array(), 'no_update' => array() ) );
+digi_check( 0 === count( $GLOBALS['calls'] ), 'Sin cron y con todo vencido, la lectura del escritorio no consulta GitHub; hizo ' . count( $GLOBALS['calls'] ) . '.' );
+digi_check( $before === array( array_keys( $GLOBALS['t'] ), $GLOBALS['o'] ) && $t0 === $GLOBALS['t'], 'La lectura sin red no escribe transitorios ni opciones.' );
+foreach ( array( 'digitalisimo-backups/digitalisimo-backups.php', 'digitalisimo-tools/digitalisimo-tools.php', 'digitalisimo-elements/pro-elements.php', 'digitalisimo-migration/digitalisimo-migration.php', 'digitalisimo-seo/digitalisimo-integrations.php' ) as $file ) {
+	digi_check( '9.0.0' === ( $plugins_only->response[ $file ]->new_version ?? '' ), "Sin cron, la lectura sigue ofreciendo la última versión conocida de $file." );
+}
+// Una lectura sin nada sabido (instalación nueva, sin índice ni última versión) deja las entradas de WordPress como estaban.
+$o_saved = $GLOBALS['o']; $GLOBALS['o'] = array(); $GLOBALS['calls'] = array();
+$kept = (object) array( 'checked' => array( 'digitalisimo-hosting/digitalisimo-hosting.php' => '1.0.0' ), 'response' => array( 'digitalisimo-hosting/digitalisimo-hosting.php' => (object) array( 'new_version' => '8.0.0' ) ), 'no_update' => array() );
+$kept = Digitalisimo_Updater::inject_known( $kept );
+digi_check( '8.0.0' === ( $kept->response['digitalisimo-hosting/digitalisimo-hosting.php']->new_version ?? '' ) && 0 === count( $GLOBALS['calls'] ), 'Sin nada sabido, la lectura no quita la actualización que WordPress guardó ni consulta GitHub.' );
+$GLOBALS['o'] = $o_saved;
+// Cuando WordPress consulta (pre_set_…, en Plugins, Actualizaciones o su cron) sí se descarga, con 3 s en una pantalla.
+$GLOBALS['calls'] = array();
+Digitalisimo_Updater::inject( (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array() ) );
+digi_check( 1 === $count( 'digitalisimo-plugins.json' ) && array( 3 ) === array_column( $GLOBALS['calls'], 'timeout' ), 'La consulta de WordPress (pre_set) descarga el índice una vez, con 3 s en una pantalla.' );
+// Y en el cron (las actualizaciones automáticas leen update_plugins ahí) la lectura también puede descargar, con 10 s.
+$GLOBALS['cron'] = true; $GLOBALS['calls'] = array();
+expire_own(); unset( $GLOBALS['t']['digitalisimo_plugins_manifest'], $GLOBALS['t']['digitalisimo_plugins_manifest_fresh'] );
+Digitalisimo_Backups_Updater::check_known( (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array() ) );
+digi_check( 1 === $count( 'digitalisimo-plugins.json' ) && array( 10 ) === array_column( $GLOBALS['calls'], 'timeout' ), 'En el cron la lectura descarga el índice, con 10 s.' );
+$GLOBALS['cron'] = false;
+
+// 4c (revisión M1). Sin WP-Cron, Plugins, Actualizaciones y una actualización en curso (update.php, o AJAX desde Plugins
+// o Temas) sí pueden descargar al leer (3 s, con la espera compartida); el resto del escritorio y otro AJAX, no.
+$read_all = function () {
+	$t = (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array() );
+	foreach ( array( 'Digitalisimo_Updater::inject_known', 'Digitalisimo_Backups_Updater::check_known', 'Digitalisimo\Tools\Updater::check_known', 'Digitalisimo_Elements_Updater::check_known', 'Digitalisimo\Migration\Updater::check_known', 'Digitalisimo_Elements_Sibling_Updates::check_known' ) as $cb ) $t = call_user_func( read_cb( $cb ), $t );
+	call_user_func( read_cb( 'Digitalisimo\Tools\Theme_Updates::check_known' ), (object) array( 'checked' => array( 'digitalisimo-theme' => '1.0.0' ), 'response' => array(), 'no_update' => array() ) );
+	return $t;
+};
+$case = function ( $page, $ajax_action ) use ( $read_all ) {
+	expire_own(); unset( $GLOBALS['t']['digitalisimo_plugins_manifest'], $GLOBALS['t']['digitalisimo_plugins_manifest_fresh'], $GLOBALS['t']['digitalisimo_plugins_manifest_retry'] );
+	$GLOBALS['pagenow'] = $page; $GLOBALS['ajax'] = null !== $ajax_action; $_REQUEST = null !== $ajax_action ? array( 'action' => $ajax_action ) : array();
+	$GLOBALS['calls'] = array();
+	$rt = $read_all();
+	$GLOBALS['pagenow'] = ''; $GLOBALS['ajax'] = false; $_REQUEST = array();
+	return $rt;
+};
+foreach ( array( array( 'plugins.php', null ), array( 'update-core.php', null ), array( 'update.php', null ), array( 'admin-ajax.php', 'update-plugin' ), array( 'admin-ajax.php', 'update-theme' ) ) as $c ) {
+	$case( $c[0], $c[1] );
+	digi_check( 1 === $count( 'digitalisimo-plugins.json' ) && array( 3 ) === array_values( array_unique( array_column( $GLOBALS['calls'], 'timeout' ) ) ), 'Al leer en ' . $c[0] . ( $c[1] ? ' (' . $c[1] . ')' : '' ) . ' se descarga el índice una vez, con 3 s; hizo ' . count( $GLOBALS['calls'] ) . '.' );
+}
+foreach ( array( array( 'index.php', null ), array( 'edit.php', null ), array( 'admin-ajax.php', 'heartbeat' ) ) as $c ) {
+	$case( $c[0], $c[1] );
+	digi_check( 0 === count( $GLOBALS['calls'] ), 'Al leer en ' . $c[0] . ( $c[1] ? ' (' . $c[1] . ')' : '' ) . ' no se consulta GitHub; hizo ' . count( $GLOBALS['calls'] ) . '.' );
+}
+// Con la espera vigente tras un fallo, tampoco Plugins vuelve a esperar a GitHub.
+expire_own(); unset( $GLOBALS['t']['digitalisimo_plugins_manifest'] ); $GLOBALS['t']['digitalisimo_plugins_manifest_retry'] = 1; $GLOBALS['t']['digitalisimo_github_api_retry'] = 1;
+$GLOBALS['pagenow'] = 'plugins.php'; $GLOBALS['calls'] = array(); $read_all(); $GLOBALS['pagenow'] = '';
+digi_check( 0 === count( $GLOBALS['calls'] ), 'En Plugins, con la espera vigente, la lectura no consulta GitHub.' );
+unset( $GLOBALS['t']['digitalisimo_plugins_manifest_retry'], $GLOBALS['t']['digitalisimo_github_api_retry'] );
+
+// 4d (revisión M2). La lectura sin red ofrece la versión más alta entre el índice compartido y la última conocida.
+$zip = function ( $slug, $v ) { return 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v/' . $slug . '-' . $v . '.zip'; };
+$manifest_with = function ( $v ) use ( $zip ) {
+	$plugins = array();
+	foreach ( array( 'digitalisimo-seo', 'digitalisimo-ia-tools', 'digitalisimo-hosting', 'digitalisimo-backups', 'digitalisimo-tools', 'digitalisimo-elements', 'digitalisimo-migration' ) as $slug ) $plugins[ $slug ] = array( 'version' => $v, 'url' => $zip( $slug, $v ) );
+	return array( 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases', 'plugins' => $plugins, 'themes' => array( 'digitalisimo-theme' => array( 'version' => $v, 'url' => $zip( 'digitalisimo-theme', $v ) ) ) );
+};
+$known_all = function ( $v ) use ( $zip ) {
+	$GLOBALS['o']['digitalisimo_releases_last_known'] = array();
+	foreach ( array( 'digitalisimo-hosting' ) as $slug ) $GLOBALS['o']['digitalisimo_releases_last_known'][ $slug ] = array( 'version' => $v, 'package' => $zip( $slug, $v ), 'url' => 'u' );
+	foreach ( array( 'backups', 'tools', 'elements', 'migration' ) as $p ) $GLOBALS['o'][ 'digitalisimo_' . $p . '_last_release' ] = array( 'version' => $v, 'package' => $zip( 'digitalisimo-' . $p, $v ), 'url' => 'u' );
+	$GLOBALS['o']['digitalisimo_tools_theme_last_release'] = array( 'version' => $v, 'package' => $zip( 'digitalisimo-theme', $v ), 'url' => 'u', 'requires' => '6.8', 'requires_php' => '7.4' );
+};
+foreach ( array( array( '9.0.1', '9.0.2' ), array( '9.0.3', '9.0.2' ) ) as $pair ) {
+	list( $index_v, $known_v ) = $pair;
+	expire_own(); $GLOBALS['t']['digitalisimo_plugins_manifest'] = $manifest_with( $index_v ); $GLOBALS['exp']['digitalisimo_plugins_manifest'] = 0;
+	$known_all( $known_v ); $GLOBALS['calls'] = array();
+	$rt = $read_all();
+	$themes_m2 = Digitalisimo\Tools\Theme_Updates::check_known( (object) array( 'checked' => array( 'digitalisimo-theme' => '1.0.0' ), 'response' => array(), 'no_update' => array() ) );
+	$want = version_compare( $index_v, $known_v, '>' ) ? $index_v : $known_v;
+	// Digitalisimo_Updater registra sus módulos con la ruta del ensayo (/plugins/…), que los hermanos de Elements quitan
+	// por no estar instalada: se lee aparte.
+	$shared = Digitalisimo_Updater::inject_known( (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array() ) );
+	$rt->response['/plugins/digitalisimo-hosting/digitalisimo-hosting.php'] = $shared->response['/plugins/digitalisimo-hosting/digitalisimo-hosting.php'] ?? null;
+	foreach ( array( '/plugins/digitalisimo-hosting/digitalisimo-hosting.php', 'digitalisimo-backups/digitalisimo-backups.php', 'digitalisimo-tools/digitalisimo-tools.php', 'digitalisimo-elements/pro-elements.php', 'digitalisimo-migration/digitalisimo-migration.php' ) as $file ) {
+		digi_check( $want === ( $rt->response[ $file ]->new_version ?? '' ), "Índice $index_v y última conocida $known_v: la lectura de $file ofrece $want; ofreció " . ( $rt->response[ $file ]->new_version ?? '-' ) . '.' );
+	}
+	digi_check( $want === ( $themes_m2->response['digitalisimo-theme-1.0.0']['new_version'] ?? '' ), "Índice $index_v y última conocida $known_v: las copias del tema de Tools ofrecen $want." );
+	digi_check( 0 === count( $GLOBALS['calls'] ), 'Sin red al comparar.' );
+}
+
+// 4e (revisión S2). Si la escritura lanza una excepción durante una lectura, la lectura sin red no queda puesta para
+// el resto de la petición: la consulta siguiente de WordPress (pre_set) sigue descargando.
+final class Digi_Throwing_Transient { public function __isset( $k ) { throw new RuntimeException( 'transitorio roto' ); } }
+foreach ( array( 'Digitalisimo_Backups_Updater::check_known' => 'Digitalisimo_Backups_Updater::check', 'Digitalisimo_Updater::inject_known' => 'Digitalisimo_Updater::inject' ) as $read => $write ) {
+	try { call_user_func( $read, new Digi_Throwing_Transient() ); } catch ( RuntimeException $e ) {}
+	expire_own(); unset( $GLOBALS['t']['digitalisimo_plugins_manifest'], $GLOBALS['t']['digitalisimo_plugins_manifest_retry'] ); $GLOBALS['calls'] = array();
+	call_user_func( $write, (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array() ) );
+	digi_check( 1 === $count( 'digitalisimo-plugins.json' ), "Tras una excepción en $read, la escritura vuelve a descargar (la lectura sin red se restauró)." );
+}
 
 // 6. Toda copia que descarga el índice o consulta la API usa las mismas marcas.
 foreach ( array( 'digitalisimo-seo/includes/class-digitalisimo-updater.php', 'digitalisimo-ia-tools/includes/class-digitalisimo-updater.php', 'digitalisimo-hosting/includes/class-digitalisimo-updater.php', 'digitalisimo-backups/includes/class-digitalisimo-updater.php', 'digitalisimo-tools/includes/class-updater.php', 'digitalisimo-elements/digitalisimo-updater.php', 'digitalisimo-migration/includes/class-updater.php', 'digitalisimo-elements/digitalisimo-sibling-updates.php', 'digitalisimo-tools/includes/class-theme-updates.php', 'digitalisimo-tools/includes/class-plugin-catalog.php', 'digitalisimo-seo/includes/class-plugin-catalog.php', 'digitalisimo-seo/includes/class-seo-release-check.php', 'digitalisimo-seo/includes/class-tools-update-bridge.php', 'digitalisimo-theme/inc/class-updater.php' ) as $file ) {
@@ -143,7 +262,7 @@ foreach ( array( 'digitalisimo-seo/includes/class-digitalisimo-updater.php', 'di
 // de cada copia.
 $primed = array();
 function wp_using_ext_object_cache() { return false; }
-function is_admin() { return true; } function wp_doing_ajax() { return false; }
+function is_admin() { return true; } function wp_doing_ajax() { return ! empty( $GLOBALS['ajax'] ); }
 function wp_prime_option_caches( $keys ) { $GLOBALS['primed'] = $keys; }
 function wp_prime_network_option_caches( $network, $keys ) { $GLOBALS['primed_network'] = $keys; }
 $GLOBALS['pagenow'] = 'index.php';
@@ -158,6 +277,16 @@ foreach ( array( 'digitalisimo-seo/includes/class-digitalisimo-updater.php', 'di
 	digi_check( false !== strpos( $src, "add_action( 'init', array( __CLASS__, 'prime' ), 0 );" ) && false !== $at && preg_match_all( "/'(digitalisimo_[a-z_]+)'/", substr( $src, $at, (int) strpos( $src, ') as $key )', $at ) - $at ), $m ), "$file lee todas las cachés en una consulta (init, 0)." );
 	if ( ! isset( $GLOBALS['digi_prime_list'] ) ) $GLOBALS['digi_prime_list'] = $m[1];
 	digi_check( $m[1] === $GLOBALS['digi_prime_list'], "$file usa la misma lista de cachés que las demás copias." );
+	// Las copias de los plugins leen también, en la misma consulta, las últimas versiones conocidas (la lectura sin red las usa).
+	if ( 0 === strpos( $file, 'digitalisimo-theme/' ) ) continue;
+	$body = substr( $src, $at, (int) strpos( $src, 'if ( is_multisite() )', $at ) - $at );
+	digi_check( preg_match( "/foreach \\( array\\( ('digitalisimo_[a-z_]+last_[a-z_]+'(?:, )?)+ \\) as \\\$key \\) \\\$keys\\[\\] = \\\$key;/", $body, $lk ), "$file lee las últimas versiones conocidas en la misma consulta." );
+	if ( ! isset( $GLOBALS['digi_known_list'] ) ) $GLOBALS['digi_known_list'] = $lk[0];
+	digi_check( $lk[0] === $GLOBALS['digi_known_list'], "$file usa la misma lista de últimas versiones conocidas." );
+}
+foreach ( array( 'Digitalisimo_Updater', 'Digitalisimo_Backups_Updater', 'Digitalisimo\Tools\Updater', 'Digitalisimo_Elements_Updater', 'Digitalisimo\Migration\Updater', 'Digitalisimo_SEO_Release_Check', 'Digitalisimo\Tools\Theme_Updates', 'Digitalisimo_Tools_Update_Bridge' ) as $class ) {
+	if ( 'Digitalisimo_Tools_Update_Bridge' === $class && ! class_exists( $class ) ) require $root . 'digitalisimo-seo/includes/class-tools-update-bridge.php';
+	digi_check( in_array( constant( $class . '::LAST_KNOWN' ), $GLOBALS['primed'], true ), "La lectura conjunta incluye la última versión conocida de $class." );
 }
 // 8. La espera dura dos minutos y el índice reciente cuatro: a los 119 s ninguna lectura consulta; a los 121 s, una.
 $GLOBALS['net'] = 'down'; $GLOBALS['calls'] = array(); $GLOBALS['t'] = array();
