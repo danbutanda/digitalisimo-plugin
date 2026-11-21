@@ -54,10 +54,11 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 
 		/**
 		 * Valor de una opción de este sitio leído de la base, sin la caché de objetos (deserializado), o $default si no
-		 * existe. Sin acceso directo a la base, get_option(). Para las instantáneas que se reponen después de restaurar.
+		 * existe. Sin caché persistente (get_option() ya sale de la base) o sin acceso directo a la base, get_option(). Para
+		 * las instantáneas que se reponen después de restaurar.
 		 */
 		public static function db_value( $name, $default = false ) {
-			if ( ! self::db_ready() ) return function_exists( 'get_option' ) ? get_option( $name, $default ) : $default;
+			if ( ! self::external() || ! self::db_ready() ) return function_exists( 'get_option' ) ? get_option( $name, $default ) : $default;
 			$raw = self::db_option( $name );
 			return null === $raw ? $default : self::unserial( $raw );
 		}
@@ -73,8 +74,9 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 		/** Lo mismo con una opción de la red (sitemeta); fuera de una red, la del sitio. */
 		public static function db_site_value( $name, $default = false ) {
 			global $wpdb;
+			if ( ! self::external() || ! self::db_ready() ) return function_exists( 'get_site_option' ) ? get_site_option( $name, $default ) : $default;
 			if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) return self::db_value( $name, $default );
-			if ( ! self::db_ready() || empty( $wpdb->sitemeta ) ) return function_exists( 'get_site_option' ) ? get_site_option( $name, $default ) : $default;
+			if ( empty( $wpdb->sitemeta ) ) return function_exists( 'get_site_option' ) ? get_site_option( $name, $default ) : $default;
 			$network = function_exists( 'get_current_network_id' ) ? (int) get_current_network_id() : 1;
 			$raw = $wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->sitemeta} WHERE meta_key = %s AND site_id = %d LIMIT 1", (string) $name, $network ) );
 			return null === $raw ? $default : self::unserial( $raw );
