@@ -1012,7 +1012,7 @@ function digitalisimo_theme_child_rewrites( array $t ) {
 
 /** Nombre de carpeta de tema válido para la copia. */
 function digitalisimo_theme_child_slug_ok( $slug ) {
-	return is_string( $slug ) && preg_match( '/^[A-Za-z0-9_\-][A-Za-z0-9_.\-]{0,99}$/D', $slug ) && false === strpos( $slug, '..' );
+	return is_string( $slug ) && preg_match( '/^[A-Za-z0-9_\-][A-Za-z0-9_.\-]{0,99}$/D', $slug ); // Sin «/»: nunca sale de la carpeta.
 }
 
 /** Carpeta (o dirección, con $url) de la copia de un tema en uploads: uploads/digitalisimo-theme/child/<tema>. */

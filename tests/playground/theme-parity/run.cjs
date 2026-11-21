@@ -133,6 +133,9 @@ function ownSheet(sheet) {
   return /\/themes\/hello-elementor\//.test(sheet.href) || /^hello-elementor(-theme-style|-header-footer)?-css$/.test(sheet.id);
 }
 
+/** La copia del hijo en uploads (tema 1.0.2) es el mismo archivo que en la carpeta del hijo: la dirección no es una diferencia. */
+const sameFile = (v) => String(v).replace(/\/wp-content\/uploads\/(sites\/\d+\/)?digitalisimo-theme\/child\/([^/]+)\//g, '/wp-content/themes/$2/');
+
 /** Compara la fase `phase` con A. `expectDiff`: sitios donde una diferencia es lo esperado (y se anota). */
 async function compare(browser, phase, sites, opts = {}) {
   const page = await browser.newPage();
@@ -153,7 +156,7 @@ async function compare(browser, phase, sites, opts = {}) {
           const sb = b.styles[sel];
           if (!sa && !sb) continue;
           if (!sa || !sb) { diffs.push(`${key}@${w} ${sel}: ${sa ? 'desaparece' : 'aparece'}`); continue; }
-          for (const prop of PROPS) if (sa[prop] !== sb[prop]) diffs.push(`${key}@${w} ${sel} ${prop}: «${sa[prop]}» → «${sb[prop]}»`);
+          for (const prop of PROPS) if (sameFile(sa[prop]) !== sameFile(sb[prop])) diffs.push(`${key}@${w} ${sel} ${prop}: «${sa[prop]}» → «${sb[prop]}»`);
         }
         for (const sheet of a.sheets) {
           if (ownSheet(sheet)) continue;

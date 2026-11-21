@@ -76,8 +76,9 @@ if ( $network ) {
 	}
 }
 // En la red, DIGITALÍSIMO Tools (su «Código PHP») activo en el sitio principal y en el del hijo con PHP, no en el otro:
-// el PHP de ese hijo se importa ahí (al cambiar de tema o con «Migrar») y se activa de verdad desde su pantalla.
-if ( $network ) {
+// el PHP de ese hijo se importa ahí (al cambiar de tema o con «Migrar») y se activa de verdad desde su pantalla. En un
+// sitio individual, sólo con el hijo con PHP (SITE_KIND=child-php).
+if ( $network || 'child-php' === $sites[1] ) {
 	foreach ( array_keys( $sites ) as $site_id ) {
 		if ( 'child' === $sites[ $site_id ] ) {
 			continue;

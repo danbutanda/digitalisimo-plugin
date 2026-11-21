@@ -488,7 +488,7 @@ foreach ( $covered as $case ) {
 }
 check( array( 'img/a.png' ) === plan_of( "<?php\n" . $covered[2] )['refs'] && array( 'img/b.png', 'style.css' ) === plan_of( "<?php\n" . $covered[3] )['refs'] && array( 'inc/x.php' ) === plan_of( "<?php\n" . $covered[4] )['refs'], 'Las rutas reescritas dicen a qué archivo del hijo apuntan.' );
 check( array() === plan_of( $official )['refs'], 'Lo que el tema ya trae solo no cuenta como ruta del fragmento.' );
-check( array( '?' ) === plan_of( "<?php\nadd_action( 'wp_footer', function () { echo get_stylesheet_directory_uri() . '/img/' . \$x; } );\n" )['refs'], 'Una ruta que no se puede leer queda como «?».' );
+check( array( '?' ) === plan_of( "<?php\nadd_action( 'wp_footer', function () { echo get_stylesheet_directory_uri() . '/img/' . \$x; } );\n" )['refs'] && array( '?' ) === plan_of( "<?php\nadd_action( 'wp_footer', function () { echo get_stylesheet_directory_uri() . '/img/a' . \$x; } );\n" )['refs'], 'Una ruta que no se puede leer queda como «?».' );
 // Lo que de verdad no se puede traer sigue siendo riesgo.
 $still = array(
 	'constante de Hello en el primer nivel' => array( "echo HELLO_ELEMENTOR_VERSION;\n", '2:usa la constante HELLO_ELEMENTOR_VERSION de Hello en el primer nivel' ),
@@ -534,7 +534,8 @@ $c2 = $GLOBALS['root'] . '/hijo2';
 @mkdir( $c2 . '/fonts', 0777, true );
 @mkdir( $c2 . '/img', 0777, true );
 @mkdir( $GLOBALS['root'] . '/hello-elementor', 0777, true );
-file_put_contents( $c2 . '/style.css', "/* url(nada.png) */ body{background:url( 'img/fondo.png' )} @font-face{src:url(fonts/a.woff2?v=1#x) format('woff2'),url(data:font/woff2;base64,AA==),url(https://cdn.test/x.woff2)}" );
+file_put_contents( $c2 . '/img/comentado.png', 'PNG0' );
+file_put_contents( $c2 . '/style.css', "/* url(img/comentado.png) */ body{background:url( 'img/fondo.png' )} @font-face{src:url(fonts/a.woff2?v=1#x) format('woff2'),url(data:font/woff2;base64,AA==),url(https://cdn.test/x.woff2)}" );
 file_put_contents( $c2 . '/css/extra.css', '@import "sub.css"; .x{background:url(../img/b.png)} .y{background:url(/raiz.png)} .z{background:url(falta.png)}' );
 file_put_contents( $c2 . '/css/sub.css', '.s{color:red}' );
 file_put_contents( $c2 . '/fonts/a.woff2', 'FUENTE' );
@@ -563,7 +564,7 @@ check( 'copied' === $copy['status'] && 8 === $copy['files'] && array() === $copy
 foreach ( array( 'hijo2/style.css', 'hijo2/css/extra.css', 'hijo2/css/sub.css', 'hijo2/fonts/a.woff2', 'hijo2/img/fondo.png', 'hijo2/img/b.png', 'hijo2/img/pie.png', 'hello-elementor/theme.css' ) as $file ) {
 	check( is_file( $base . '/' . $file ) && hash_file( 'sha256', $base . '/' . $file ) === hash_file( 'sha256', $GLOBALS['root'] . '/' . $file ), 'Copiado igual: ' . $file );
 }
-check( ! is_file( $base . '/hijo2/img/falta.png' ) && ! is_file( $base . '/hijo2/nada.png' ) && array( 'hello-elementor', 'hijo2' ) === array_values( array_diff( scandir( $base ), array( '.', '..' ) ) ), 'Ni comentarios, ni enlaces rotos, ni temporales.' );
+check( ! is_file( $base . '/hijo2/img/falta.png' ) && ! is_file( $base . '/hijo2/img/comentado.png' ) && array( 'hello-elementor', 'hijo2' ) === array_values( array_diff( scandir( $base ), array( '.', '..' ) ) ), 'Ni comentarios, ni enlaces rotos, ni temporales.' );
 check( 'hijo2' === $saved2['child'] && ! empty( $saved2['copied'] ) && digitalisimo_theme_child_assets_copied( $why ) && array() === $why, 'Copia completa: ' . json_encode( $why ) );
 $manifest = $GLOBALS['options']['digitalisimo_theme_child_copy'];
 check( hash_file( 'sha256', $c2 . '/fonts/a.woff2' ) === $manifest['files']['hijo2']['fonts/a.woff2'], 'El manifiesto lleva el sha256 de cada archivo.' );
