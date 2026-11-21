@@ -355,7 +355,7 @@ function wp_add_inline_style( $handle, $css ) {
 	return true;
 }
 require $theme . '/functions.php';
-check( '1.0.2' === DIGITALISIMO_THEME_VERSION, 'Versión del tema: 1.0.2 (compatibilidad con Hello y copia de lo que encolaba el hijo).' );
+check( '1.0.3' === DIGITALISIMO_THEME_VERSION, 'Versión del tema: 1.0.3 (no copia ajustes con la caché de otro sitio).' );
 check( 10 === hooked( 'digitalisimo_header', 'digitalisimo_theme_header' ) && 10 === hooked( 'digitalisimo_footer', 'digitalisimo_theme_footer' ), 'Cabecera y pie de respaldo en la prioridad 10.' );
 check( 10 === hooked( 'elementor/theme/register_locations', 'digitalisimo_theme_register_locations' ), 'Ubicaciones en la prioridad 10 (antes del 99 del constructor).' );
 check( 10 === hooked( 'wp_enqueue_scripts', 'digitalisimo_theme_enqueue_styles' ), 'Estilos en la prioridad 10.' );

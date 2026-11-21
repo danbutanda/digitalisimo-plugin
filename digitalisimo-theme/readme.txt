@@ -3,7 +3,7 @@ Contributors: digitalisimo
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -33,6 +33,11 @@ Las actualizaciones llegan desde las Releases del repositorio danbutanda/digital
 y en Actualizaciones; sólo se instalan solas si activas la actualización automática del tema.
 
 == Changelog ==
+
+= 1.0.3 =
+* Con la caché de objetos de este servidor devolviendo los datos de otro sitio (Redis, Memcached o LSMCD compartidos sin
+  WP_CACHE_KEY_SALT), la importación del tema anterior no copia sus ajustes: los guardaría aquí desde el otro sitio. Usa el
+  candado «mismo sitio» de DIGITALÍSIMO Backups, Migración o Tools cuando alguno está cargado.
 
 = 1.0.2 =
 * En paridad declara las constantes y funciones públicas del tema anterior que usan sus temas hijo, así que el
