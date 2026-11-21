@@ -1254,7 +1254,9 @@ final class Full {
 		$tools    = Replacements::is_active( self::TOOLS_FILE );
 		$covered  = '' !== $blockers && '' === $risks && $tools && digitalisimo_theme_child_php_covered( $child );
 		$code     = digitalisimo_theme_child_php_code( $child );
-		$wrap     = '' !== $code && "\0" !== $code ? digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ) ) : '';
+		// La misma envoltura que importa el tema (con la carpeta real del hijo y su contexto: reescribe sus rutas), para que
+		// el hash que se pasa a Tools sea el del código importado.
+		$wrap     = '' !== $code && "\0" !== $code ? ( function_exists( 'digitalisimo_theme_child_ctx' ) ? digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ), (string) $child->get_stylesheet(), digitalisimo_theme_child_ctx( $child ) ) : digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ) ) ) : '';
 		$imported = '' !== $blockers && '' === $files && '' === $risks && $tools && ! $covered ? digitalisimo_theme_child_import_php( $child, $plan ) : '';
 		$activate = '';
 		if ( '' !== $wrap && in_array( $imported, array( 'created', 'updated', 'unchanged' ), true ) ) {

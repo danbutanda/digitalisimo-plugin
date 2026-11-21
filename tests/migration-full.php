@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -226,6 +226,12 @@ function tools_auto() {
 		if ( ! empty( $GLOBALS['t']['snippet_refuse'] ) ) {
 			return $GLOBALS['t']['snippet_refuse'];
 		}
+		// Como Tools: sólo activa si el hash es el del código que importó el tema.
+		$imported = end( $GLOBALS['t']['imports'] );
+		if ( ! $imported || hash( 'sha256', (string) $imported[0]['code'] ) !== (string) ( $context['hash'] ?? '' ) ) {
+			return 'mismatch';
+		}
+		$GLOBALS['t']['snippet_code'] = (string) $imported[0]['code'];
 		$was                          = ! empty( $GLOBALS['t']['snippet_on'] );
 		$GLOBALS['t']['snippet_on'] = true;
 		return $was ? 'active' : 'activated';
@@ -239,8 +245,7 @@ function tools_auto() {
 		if ( empty( $GLOBALS['t']['snippet_on'] ) ) {
 			return $rows;
 		}
-		$wrap = digitalisimo_theme_child_wrap_php( PHP_CHILD, 'Hello Hijo' );
-		return array_merge( $rows, array( array( 'scope' => 'site', 'id' => 'a1', 'active' => empty( $GLOBALS['t']['paused'] ), 'hash' => hash( 'sha256', $wrap ) ) ) );
+		return array_merge( $rows, array( array( 'scope' => 'site', 'id' => 'a1', 'active' => empty( $GLOBALS['t']['paused'] ), 'hash' => hash( 'sha256', (string) $GLOBALS['t']['snippet_code'] ) ) ) );
 	};
 }
 function wp_get_theme( $slug = null ) { return new WP_Theme( null === $slug ? get_option( 'stylesheet' ) : $slug ); }
@@ -1212,6 +1217,19 @@ switch ( $scenario ) {
 		drive();
 		$last = Full::last( false );
 		check( 'hello-elementor' === get_option( 'stylesheet' ) && empty( $last['verified'] ) && false !== strpos( json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ), 'la API REST' ), 'Con la API REST rota, vuelve a Hello: ' . json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ) );
+		break;
+
+	case 'theme_child_auto_paths':
+		// El PHP del hijo usa get_stylesheet_directory_uri() dentro de un gancho (el tema 1.0.2 lo reescribe a la carpeta del
+		// hijo al importarlo): Migrar pasa el hash de esa misma envoltura y un solo Migrar cambia de tema.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD . "add_action( 'wp_head', function () {\n\techo '<link rel=\"icon\" href=\"' . get_stylesheet_directory_uri() . '/img/a.png\">';\n} );\n" );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
+		$GLOBALS['t']['carry']       = true;
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		check( false !== strpos( (string) ( end( $GLOBALS['t']['imports'] )[0]['code'] ?? '' ), 'digitalisimo_theme_child_dir_uri(' ), 'El tema importa el PHP con la ruta reescrita.' );
+		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['snippet'] ) && in_array( 'snippet_activate:digitalisimo-theme:hello-hijo', $GLOBALS['t']['log'], true ), 'Y Migrar lo activa y cambia de tema: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
 		break;
 
 	case 'theme_child_auto_revert':
