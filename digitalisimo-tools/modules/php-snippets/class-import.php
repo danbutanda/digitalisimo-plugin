@@ -111,8 +111,10 @@ final class Import {
 	 * si no, Migrar vuelve al hijo y lo desactiva (deactivate_import()). Quién puede hacerlo lo decide Migrar (edit_themes
 	 * + unfiltered_html de quien pulsó). Devuelve 'activated', 'active' (ese código ya estaba activo) o el motivo:
 	 * 'missing', 'changed', 'mismatch' (no es el functions.php que hay en disco), 'signature' (el borrador no lleva la firma de
-	 * la importación), 'failed', 'blocked', 'reduced', 'check', 'error'. Sólo activa un importado en «sin revisar»: uno
-	 * que alguien (o el guardián, o la vuelta atrás de Migrar) desactivó no se vuelve a activar solo.
+	 * la importación), 'failed', 'blocked', 'reduced', 'check', 'error'. Sólo activa un importado en «sin revisar»: uno que
+	 * alguien desactivó a mano o que el guardián detuvo por un error no se vuelve a activar solo. La vuelta atrás de Migrar
+	 * (deactivate_import()) lo deja otra vez «sin revisar», como estaba, así que el siguiente Migrar puede volver a
+	 * activarlo y a comprobarlo.
 	 *
 	 * @param mixed  $result  Lo que devolvió otro oyente.
 	 * @param string $key     `digitalisimo-theme:<carpeta del hijo>`.
@@ -148,9 +150,14 @@ final class Import {
 		$check = Tester::check( $item['code'] );
 		if ( empty( $check['ok'] ) ) return 'check';
 		Store::set_check( 'site', $found, $check );
-		$done = Store::activate( 'site', $found, $hash, array( 'by' => $by ) );
-		if ( is_wp_error( $done ) ) return 'error';
+		// La marca va antes: si la petición muere justo después de activar, Migrar lo reconoce como suyo y la vuelta atrás
+		// sigue pudiendo quitarlo.
 		self::mark( $found, $hash );
+		$done = Store::activate( 'site', $found, $hash, array( 'by' => $by ) );
+		if ( is_wp_error( $done ) ) {
+			self::mark( $found, '' );
+			return 'error';
+		}
 		self::mail_activation( $by, (string) $meta['title'] );
 		return 'activated';
 	}
