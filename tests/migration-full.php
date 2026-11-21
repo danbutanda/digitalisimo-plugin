@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -97,6 +97,13 @@ function has_filter( $tag = '' ) { return ! empty( $GLOBALS['t']['filters'][ $ta
 function trailingslashit( $s ) { return rtrim( (string) $s, '/\\' ) . '/'; }
 function untrailingslashit( $s ) { return rtrim( (string) $s, '/\\' ); }
 function get_theme_root( $s = '' ) { return TMP . '/themes'; }
+function get_post_type( $id ) { return 'page'; }
+function get_the_title( $id ) { return 'Inicio'; }
+/** La carpeta del tema propio ya instalado, en disco (la copia propia de Migrar la necesita para actualizarlo). */
+function old_theme_dir( $version = '1.0.0' ) {
+	@mkdir( TMP . '/themes/digitalisimo-theme', 0777, true );
+	file_put_contents( TMP . '/themes/digitalisimo-theme/style.css', "/*\nTheme Name: DIGITALÍSIMO\nVersion: {$version}\n*/\n" );
+}
 if ( ! defined( 'MB_IN_BYTES' ) ) {
 	define( 'MB_IN_BYTES', 1048576 );
 }
@@ -252,7 +259,9 @@ function delete_theme( $slug ) {
 
 /** $wpdb mínimo para los cerrojos con INSERT IGNORE y token. */
 final class Fake_Wpdb {
-	public $options = 'wp_options';
+	public $options  = 'wp_options';
+	public $posts    = 'wp_posts';
+	public $postmeta = 'wp_postmeta';
 	public function get_blog_prefix( $id = null ) { return 'wp_'; }
 	public function esc_like( $s ) { return $s; }
 	public function prepare( $sql, ...$args ) {
@@ -297,6 +306,11 @@ final class Fake_Wpdb {
 	}
 	public function get_var( $sql ) {
 		$rows = &$this->rows();
+		// Búsqueda de rutas del tema hijo (Full::child_references()): `refs` dice qué contesta cada columna.
+		if ( preg_match( "/WHERE (post_content|meta_value|option_value) LIKE '%themes\/([^\/']+)\/%'/", $sql, $m ) ) {
+			$GLOBALS['t']['log'][] = 'refs:' . $m[1] . ':' . $m[2];
+			return $GLOBALS['t']['refs'][ $m[1] ] ?? null;
+		}
 		return preg_match( "/WHERE option_name = '([^']*)'/", $sql, $m ) ? ( $rows[ $m[1] ] ?? null ) : null;
 	}
 }
@@ -542,6 +556,15 @@ Front::$fetcher = static function ( $url ) use ( $page ) {
 		return new WP_Error( 'x', 'sin respuesta' );
 	}
 	$theme = ! empty( $GLOBALS['t']['cached'] ) ? 'hello-elementor' : (string) get_blog_option( $blog, 'stylesheet' );
+	if ( ! empty( $GLOBALS['t']['needs_child_dir'] ) && 'digitalisimo-theme' === $theme && ! is_dir( TMP . '/themes/' . $GLOBALS['t']['needs_child_dir'] ) ) {
+		return array( 500, '<p>There has been a critical error on this website.</p>' ); // Sin la carpeta del hijo, algo se rompe.
+	}
+	if ( ! empty( $GLOBALS['t']['rest_broken'] ) && false !== strpos( $url, 'wp-json' ) && 'digitalisimo-theme' === $theme ) {
+		return array( 500, '<p>There has been a critical error on this website.</p>' );
+	}
+	if ( ! empty( $GLOBALS['t']['own_breaks_after_update'] ) && 'digitalisimo-theme' === $theme && 1 === $blog && '1.0.1' === ( $GLOBALS['t']['themes']['digitalisimo-theme']['Version'] ?? '' ) ) {
+		return array( 500, '<p>There has been a critical error on this website.</p>' );
+	}
 	if ( ! empty( $GLOBALS['t']['pause_in_theme_stage'] ) && 'theme' === ( Full::load( false )['stage'] ?? '' ) ) {
 		$GLOBALS['t']['paused'] = true; // El fragmento se pausa mientras se toman las huellas de justo antes.
 	}
@@ -1043,6 +1066,7 @@ switch ( $scenario ) {
 		// wp_footer y el tema propio 1.0.0 instalado. Un solo Migrar actualiza el tema, deja el functions.php del hijo en
 		// Tools, lo activa, cambia de tema y verifica.
 		$GLOBALS['t']['themes']['digitalisimo-theme'] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI, 'Version' => '1.0.0' );
+		old_theme_dir();
 		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
 		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
 		$GLOBALS['t']['carry']       = true;
@@ -1071,6 +1095,7 @@ switch ( $scenario ) {
 		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['verified'] ), 'Cambia y verifica.' );
 		check( ! isset( $GLOBALS['t']['themes']['hello-hijo'], $GLOBALS['t']['themes']['hello-elementor'] ) && position( 'delete_theme:hello-hijo' ) < position( 'delete_theme:hello-elementor' ), 'El hijo y después Hello se borran: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
 		check( false !== strpos( Full::render( false, $last ), 'Tema hijo «Hello Hijo»' ), 'El informe dice que se borró (y cómo volver: el respaldo).' );
+		check( logged( 'refs:post_content:hello-hijo' ) && logged( 'refs:meta_value:hello-hijo' ) && logged( 'refs:option_value:hello-hijo' ) && ! is_dir( TMP . '/themes/hello-hijo' . Full::RETIRING ) && empty( $last['deleting_theme'] ), 'Antes busca enlaces a su carpeta en el contenido, los datos y las opciones, y no deja nada apartado.' );
 		break;
 
 	case 'theme_child_retire_kept':
@@ -1086,6 +1111,84 @@ switch ( $scenario ) {
 		check( isset( $GLOBALS['t']['themes']['hello-hijo'], $GLOBALS['t']['themes']['hello-elementor'] ) && ! logged( 'delete_theme' ) && false !== strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'carga sus hojas' ), 'No se borra ningún tema: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
 		break;
 
+	case 'theme_child_retire_refs':
+		// Una imagen del hijo enlazada por su ruta en los datos de Elementor: el hijo y Hello se quedan, con el motivo.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		$GLOBALS['t']['child_sheet']   = 'hello-hijo';
+		$GLOBALS['t']['carry']         = true;
+		$GLOBALS['t']['assets_copied'] = true;
+		$GLOBALS['t']['refs']          = array( 'meta_value' => '12' );
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && isset( $GLOBALS['t']['themes']['hello-hijo'], $GLOBALS['t']['themes']['hello-elementor'] ) && ! logged( 'delete_theme' ), 'Con enlaces a su carpeta no se borra ningún tema.' );
+		check( false !== strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'Todavía se enlazan archivos de su carpeta (wp-content/themes/hello-hijo/) en los datos de «Inicio» (ID 12' ) && false !== strpos( Full::render( false, $last ), 'Todavía se enlazan archivos' ), 'Y el informe dice dónde: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
+		break;
+
+	case 'theme_child_retire_broken':
+		// Sin la carpeta del hijo la portada se rompe: vuelve a su sitio y no se borra.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		$GLOBALS['t']['child_sheet']     = 'hello-hijo';
+		$GLOBALS['t']['carry']           = true;
+		$GLOBALS['t']['assets_copied']   = true;
+		$GLOBALS['t']['needs_child_dir'] = 'hello-hijo';
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		check( is_dir( TMP . '/themes/hello-hijo' ) && ! is_dir( TMP . '/themes/hello-hijo' . Full::RETIRING ) && isset( $GLOBALS['t']['themes']['hello-hijo'] ) && ! logged( 'delete_theme' ), 'La carpeta vuelve a su sitio y no se borra nada.' );
+		check( 0 === strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'Sin su carpeta, ' ), 'El motivo lo dice: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
+		break;
+
+	case 'theme_child_retire_resume':
+		// La petición murió con la carpeta del hijo apartada: la siguiente pasada la devuelve y lo dice.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		rename( TMP . '/themes/hello-hijo', TMP . '/themes/hello-hijo' . Full::RETIRING );
+		$m = new ReflectionMethod( Full::class, 'cleanup_theme' );
+		$m->setAccessible( true );
+		$out = $m->invoke( null, array( 'deleting_theme' => 'hello-hijo', 'theme' => array(), 'kept' => array(), 'deleted' => array(), 'caps' => array() ) );
+		check( is_dir( TMP . '/themes/hello-hijo' ) && empty( $out['deleting_theme'] ) && false !== strpos( (string) ( $out['kept']['child:hello-hijo'] ?? '' ), 'se interrumpió' ), 'La carpeta vuelve y el informe lo dice: ' . json_encode( $out['kept'] ?? array(), JSON_UNESCAPED_UNICODE ) );
+		break;
+
+	case 'theme_update_resume':
+		// Una actualización del tema se cortó a mitad (quedó la copia propia y una carpeta incompleta): la carpeta vuelve a la
+		// copia y se actualiza de nuevo.
+		$GLOBALS['t']['themes']['digitalisimo-theme'] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI, 'Version' => '1.0.0' );
+		old_theme_dir();
+		@mkdir( Packages::copy_dir(), 0777, true );
+		file_put_contents( Packages::copy_dir() . '/style.css', "/*\nTheme Name: DIGITALÍSIMO\nVersion: 1.0.0 copia\n*/\n" );
+		unlink( TMP . '/themes/digitalisimo-theme/style.css' ); // A medio copiar.
+		child_theme( 'hello-hijo-ok', 'Hello Hijo OK', OFFICIAL_CHILD );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo-ok';
+		$GLOBALS['t']['carry']       = true;
+		drive();
+		$last = Full::last( false );
+		check( false !== strpos( (string) file_get_contents( TMP . '/themes/digitalisimo-theme/style.css' ), '1.0.0 copia' ) && ! is_dir( Packages::copy_dir() ), 'La carpeta vuelve a ser la copia y la copia se borra.' );
+		check( false !== strpos( implode( ' ', (array) $last['notes'] ), 'se cortó a mitad' ) && '1.0.1' === $GLOBALS['t']['themes']['digitalisimo-theme']['Version'] && 'digitalisimo-theme' === get_option( 'stylesheet' ), 'Lo dice, actualiza de nuevo y cambia: ' . json_encode( $last['notes'], JSON_UNESCAPED_UNICODE ) );
+		break;
+
+	case 'theme_update_own_site':
+		// En una red, el sitio 1 ya usaba el tema propio (1.0.0) y el 2 cambia desde Hello: tras actualizar, la portada del
+		// sitio 1 se rompe. Se detecta, no se borra nada y el informe lo dice.
+		make_network();
+		$GLOBALS['t']['themes']['digitalisimo-theme'] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI, 'Version' => '1.0.0' );
+		old_theme_dir();
+		$GLOBALS['t']['options'][1]['stylesheet']     = 'digitalisimo-theme';
+		$GLOBALS['t']['options'][1]['template']       = 'digitalisimo-theme';
+		$GLOBALS['t']['own_breaks_after_update']      = true;
+		drive( 120 );
+		$last = Full::last( true );
+		check( '1.0.1' === $GLOBALS['t']['themes']['digitalisimo-theme']['Version'] && empty( $last['verified'] ), 'Se actualiza y la red no queda verificada.' );
+		check( false !== strpos( json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ), 'ya usaba el tema DIGITALÍSIMO y, después de actualizarlo' ) && isset( $GLOBALS['t']['themes']['hello-elementor'] ), 'Lo dice y no borra nada: ' . json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ) );
+		break;
+
+	case 'theme_rest_broken':
+		// La portada responde, pero la API REST da un 500 con el tema propio: vuelve atrás.
+		$GLOBALS['t']['rest_broken'] = true;
+		drive();
+		$last = Full::last( false );
+		check( 'hello-elementor' === get_option( 'stylesheet' ) && empty( $last['verified'] ) && false !== strpos( json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ), 'la API REST' ), 'Con la API REST rota, vuelve a Hello: ' . json_encode( $last['verify'], JSON_UNESCAPED_UNICODE ) );
+		break;
+
 	case 'theme_child_auto_revert':
 		// El guardián de Tools pausa el fragmento en la primera petición con el tema propio: vuelve al hijo y Migrar
 		// desactiva el fragmento que activó (sólo ese código).
@@ -1099,7 +1202,7 @@ switch ( $scenario ) {
 		$wrap = digitalisimo_theme_child_wrap_php( PHP_CHILD, 'Hello Hijo' );
 		check( 'hello-hijo' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['reverted'] ) && empty( $last['verified'] ), 'Con el fragmento pausado, vuelve al hijo: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
 		check( in_array( 'snippet_deactivate:digitalisimo-theme:hello-hijo:' . hash( 'sha256', $wrap ), $GLOBALS['t']['log'], true ) && empty( $GLOBALS['t']['snippet_on'] ) && 'off' === ( $last['theme'][1]['snippet_off'] ?? '' ), 'Y desactiva el fragmento que había activado.' );
-		check( false !== strpos( Full::render( false, $last ), 'quedó otra vez inactivo' ), 'El informe lo dice.' );
+		check( false !== strpos( Full::render( false, $last ), 'quedó otra vez desactivado y sin revisar' ), 'El informe lo dice.' );
 		nothing_deleted();
 		break;
 
@@ -1183,6 +1286,7 @@ switch ( $scenario ) {
 		// Caso real del 2026-11-20: el tema propio 1.0.0 ya instalado (sin lector del hijo) y un hijo de Hello. Migrar lo
 		// actualiza en la misma pasada, desde la Release, sin activarlo, y después cambia de tema.
 		$GLOBALS['t']['themes']['digitalisimo-theme'] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI, 'Version' => '1.0.0' );
+		old_theme_dir();
 		child_theme( 'hello-hijo-ok', 'Hello Hijo OK', OFFICIAL_CHILD );
 		$GLOBALS['t']['child_sheet'] = 'hello-hijo-ok';
 		$GLOBALS['t']['carry']       = true;
@@ -1198,6 +1302,7 @@ switch ( $scenario ) {
 		// La actualización del tema propio falla: el hijo se queda, con el motivo y la acción, y el tema no cambia.
 		$GLOBALS['t']['themes']['digitalisimo-theme'] = array( 'Name' => 'DIGITALÍSIMO', 'UpdateURI' => Replacements::THEME_URI, 'Version' => '1.0.0' );
 		$GLOBALS['t']['install_fails']                = array( 'theme-update' );
+		old_theme_dir();
 		child_theme( 'hello-hijo-ok', 'Hello Hijo OK', OFFICIAL_CHILD );
 		drive();
 		$last   = Full::last( false );
@@ -1205,6 +1310,7 @@ switch ( $scenario ) {
 		check( 'hello-hijo-ok' === get_option( 'stylesheet' ) && ! logged( 'switch_theme' ) && '1.0.0' === $GLOBALS['t']['themes']['digitalisimo-theme']['Version'], 'Sin actualizar, no se cambia el tema y la copia sigue en 1.0.0.' );
 		check( false !== strpos( $reason, 'No se pudo actualizar el tema DIGITALÍSIMO instalado (1.0.0)' ) && false !== strpos( $reason, 'la descarga del paquete falló' ) && false !== strpos( $reason, 'Qué hacer: actualiza el tema DIGITALÍSIMO' ), 'El motivo dice qué falló y qué hacer: ' . $reason );
 		check( false !== strpos( Full::render( false, $last ), 'No se pudo actualizar el tema DIGITALÍSIMO' ) && empty( $last['theme_updated_now'] ), 'Y llega al informe.' );
+		check( false !== strpos( (string) file_get_contents( TMP . '/themes/digitalisimo-theme/style.css' ), 'Version: 1.0.0' ) && ! is_dir( Packages::copy_dir() ), 'La carpeta queda como estaba y la copia propia se borra.' );
 		break;
 
 	case 'theme_old_current':

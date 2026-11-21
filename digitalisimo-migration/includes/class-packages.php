@@ -89,12 +89,6 @@ final class Packages {
 		return Replacements::installed( $file ) ? true : new \WP_Error( 'digitalisimo_migration_install', sprintf( 'El paquete de %s se descomprimió, pero no quedó en %s.', Replacements::own_label( $slug ), $file ) );
 	}
 
-	/** Instala el tema propio desde el índice si no está. true o WP_Error. */
-	public static function install_theme() {
-		$done = self::ensure_theme();
-		return is_wp_error( $done ) ? $done : true;
-	}
-
 	/**
 	 * Deja el tema DIGITALÍSIMO instalado y al día en su carpeta habitual, como Migrar deja los plugins: si falta, lo
 	 * instala; si la copia de esa carpeta es anterior a la de la Release (o a THEME_MIN, la que necesita la etapa del tema),
@@ -142,11 +136,25 @@ final class Packages {
 			// Sin permiso, una copia que ya sirve a la etapa se queda como está.
 			return $old ? new \WP_Error( 'digitalisimo_migration_caps', 'Quien pulsó Migrar no puede actualizar temas.' ) : array( 'action' => 'none', 'from' => $from, 'to' => $from );
 		}
+		if ( version_compare( (string) ( $GLOBALS['wp_version'] ?? '6.3' ), '6.3', '<' ) ) {
+			// Antes de 6.3, WordPress vacía la carpeta antes de copiar la versión nueva y no guarda la anterior.
+			return new \WP_Error( 'digitalisimo_migration_old_wp', 'Con WordPress anterior a 6.3 una actualización de tema no guarda la copia anterior: actualiza WordPress (o el tema, a mano).' );
+		}
+		// Copia propia de la carpeta antes de tocarla: si la actualización falla o la petición muere a mitad de la copia,
+		// la siguiente pasada (recover_theme()) la devuelve a su sitio.
+		if ( ! self::keep_copy() ) {
+			return new \WP_Error( 'digitalisimo_migration_copy', 'No se pudo guardar una copia del tema instalado antes de actualizarlo; no se cambió nada.' );
+		}
 		$result = self::run_installer( Replacements::THEME, $entry['package'], 'theme-update' );
 		if ( function_exists( 'wp_clean_themes_cache' ) ) {
 			wp_clean_themes_cache( false );
 		}
 		$to = (string) wp_get_theme( Replacements::THEME )->get( 'Version' );
+		if ( is_wp_error( $result ) || '' === $to || version_compare( $to, $entry['version'], '<' ) ) {
+			// La carpeta vuelve a ser la de antes, pase lo que pase con la de WordPress.
+			self::restore_copy();
+		}
+		self::drop_copy();
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
@@ -225,5 +233,87 @@ final class Packages {
 			remove_filter( 'site_transient_update_themes', $offer, PHP_INT_MAX );
 			remove_filter( 'upgrader_source_selection', $check, 1 );
 		}
+	}
+
+	/** Carpeta de la copia propia del tema mientras se actualiza (fuera de themes/, junto a la de WordPress). */
+	public static function copy_dir() {
+		return dirname( get_theme_root( Replacements::THEME ) ) . '/upgrade/digitalisimo-migration-theme';
+	}
+
+	/** Copia la carpeta del tema a copy_dir(), entera; false si no pudo (entonces no se toca nada). */
+	private static function keep_copy() {
+		self::drop_copy();
+		$from = get_theme_root( Replacements::THEME ) . '/' . Replacements::THEME;
+		return is_dir( $from ) && self::copy_tree( $from, self::copy_dir() ) && is_file( self::copy_dir() . '/style.css' );
+	}
+
+	/**
+	 * Devuelve la copia propia a la carpeta del tema: la carpeta que haya (a medias o rota) se aparta y se borra. true si
+	 * la carpeta quedó como la copia.
+	 */
+	private static function restore_copy() {
+		$copy = self::copy_dir();
+		$dir  = get_theme_root( Replacements::THEME ) . '/' . Replacements::THEME;
+		if ( ! is_file( $copy . '/style.css' ) ) {
+			return false;
+		}
+		$aside = $dir . '.digitalisimo-broken';
+		self::remove_tree( $aside );
+		if ( is_dir( $dir ) && ! @rename( $dir, $aside ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			return false;
+		}
+		$ok = self::copy_tree( $copy, $dir );
+		self::remove_tree( $aside );
+		if ( function_exists( 'wp_clean_themes_cache' ) ) {
+			wp_clean_themes_cache( false );
+		}
+		return $ok;
+	}
+
+	private static function drop_copy() {
+		self::remove_tree( self::copy_dir() );
+	}
+
+	/**
+	 * Al empezar la etapa del tema: si quedó la copia propia, una actualización anterior se cortó a mitad (la petición
+	 * murió): la carpeta vuelve a ser la copia. true si hubo que hacerlo.
+	 */
+	public static function recover_theme() {
+		if ( ! is_file( self::copy_dir() . '/style.css' ) ) {
+			self::drop_copy();
+			return false;
+		}
+		self::restore_copy();
+		self::drop_copy();
+		return true;
+	}
+
+	private static function copy_tree( $from, $to ) {
+		if ( ! is_dir( $to ) && ! @mkdir( $to, 0755, true ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			return false;
+		}
+		foreach ( (array) scandir( $from ) as $name ) {
+			if ( '.' === $name || '..' === $name ) {
+				continue;
+			}
+			$ok = is_dir( "$from/$name" ) ? self::copy_tree( "$from/$name", "$to/$name" ) : @copy( "$from/$name", "$to/$name" ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			if ( ! $ok ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static function remove_tree( $dir ) {
+		if ( ! is_dir( $dir ) || is_link( $dir ) ) {
+			return;
+		}
+		foreach ( (array) scandir( $dir ) as $name ) {
+			if ( '.' === $name || '..' === $name ) {
+				continue;
+			}
+			is_dir( "$dir/$name" ) && ! is_link( "$dir/$name" ) ? self::remove_tree( "$dir/$name" ) : @unlink( "$dir/$name" ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		}
+		@rmdir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 	}
 }

@@ -1195,6 +1195,9 @@ final class Full {
 	const SNIPPET_ACTIVATE   = 'digitalisimo_tools_php_activate_import';
 	const SNIPPET_DEACTIVATE = 'digitalisimo_tools_php_deactivate_import';
 
+	/** Sufijo de la carpeta del hijo mientras se comprueba el sitio sin ella, justo antes de borrarlo. */
+	const RETIRING = '.digitalisimo-retiring';
+
 	/** `source:id` del fragmento que deja en Tools el tema propio con el functions.php del hijo. */
 	private static function snippet_key( $stylesheet ) {
 		return 'digitalisimo-theme:' . (string) $stylesheet;
@@ -1306,6 +1309,9 @@ final class Full {
 
 	private static function stage_theme( array $state, $deadline ) {
 		if ( empty( $state['theme_planned'] ) ) {
+			if ( Packages::recover_theme() ) {
+				$state['notes'][] = 'Una actualización del tema DIGITALÍSIMO se cortó a mitad (la petición terminó antes): su carpeta volvió a la copia de antes y se actualizó de nuevo.';
+			}
 			$safe = array();
 			foreach ( self::targets( $state ) as $site_id ) {
 				$row = self::on_site( $site_id, static function () use ( $state ) {
@@ -1445,19 +1451,29 @@ final class Full {
 		// sitio por vuelta y dentro del plazo: en una red no se corta la petición.
 		if ( empty( $state['warmed_done'] ) ) {
 			foreach ( (array) $state['theme'] as $site_id => $row ) {
-				if ( empty( $row['switched'] ) || in_array( (int) $site_id, (array) ( $state['warmed'] ?? array() ), true ) ) {
+				// También los sitios que ya usaban el tema propio, si Migrar lo actualizó: su carpeta cambió en vivo.
+				$updated = ! empty( $row['own'] ) && ! empty( $state['theme_updated_now'] );
+				if ( ( empty( $row['switched'] ) && ! $updated ) || in_array( (int) $site_id, (array) ( $state['warmed'] ?? array() ), true ) ) {
 					continue;
 				}
 				$home   = (string) self::on_site( (int) $site_id, static function () {
 					return home_url( '/' );
 				} );
 				$broken = Front::broken( Front::fetch( $home ) );
+				if ( '' === $broken && ! empty( $row['switched'] ) ) {
+					// Además de la portada, la API REST (el escritorio y el editor dependen de ella): un error de PHP del hijo
+					// que sólo salta fuera de la portada también cuenta.
+					$rest = Front::broken( Front::fetch( rtrim( $home, '/' ) . '/wp-json/' ) );
+					if ( '' !== $rest ) {
+						$state['verify'][] = array( 'site' => (int) $site_id, 'url' => rtrim( $home, '/' ) . '/wp-json/', 'ok' => false, 'reason' => 'Después de cambiar el tema, la API REST ' . $rest );
+					}
+				}
 				// Sólo si antes del cambio la portada respondía bien y sin ese texto (un blog puede hablar de un «Fatal error»).
 				$was    = self::get_snap( $state, 'pre|' . $site_id . '|' . $home ) ?: self::get_snap( $state, $site_id . '|' . $home );
 				if ( '' !== $broken && ( ! $was || ( (int) ( $was['status'] ?? 0 ) >= 200 && (int) ( $was['status'] ?? 0 ) < 300 && empty( $was['fatal'] ) ) ) ) {
 					// La primera petición con el tema propio (donde corre por primera vez el PHP del hijo en Tools) falló:
 					// aunque las siguientes respondan, cuenta como falla y el tema vuelve atrás.
-					$state['verify'][] = array( 'site' => (int) $site_id, 'url' => $home, 'ok' => false, 'reason' => 'La primera petición después de cambiar el tema ' . $broken );
+					$state['verify'][] = array( 'site' => (int) $site_id, 'url' => $home, 'ok' => false, 'reason' => ( ! empty( $row['switched'] ) ? 'La primera petición después de cambiar el tema ' : 'Este sitio ya usaba el tema DIGITALÍSIMO y, después de actualizarlo, su portada ' ) . $broken . ( ! empty( $row['switched'] ) ? '' : ' La actualización no se deshace sola: si hace falta, restaura el respaldo de esta migración.' ) );
 				}
 				$state['warmed'][] = (int) $site_id;
 				if ( microtime( true ) >= $deadline ) {
@@ -1729,7 +1745,7 @@ final class Full {
 	 * usa, el tema propio de cada sitio que venía de él ya tiene sus hojas y fuentes en su carpeta de `uploads`
 	 * (`digitalisimo_theme_child_assets_copied()` del tema propio instalado; sin esa función, el hijo se queda como antes)
 	 * y su functions.php, si corre en Código PHP, no lee nada de la carpeta del hijo. Lo que se borra está en el respaldo.
-	 * Devuelve carpeta => nombre de los que pueden borrarse (los borra cleanup_theme()) y anota en `kept` por qué no.
+	 * Devuelve carpeta => { name, sites } de los que pueden borrarse (los borra cleanup_theme()) y anota en `kept` por qué no.
 	 */
 	private static function retired_children( array &$state ) {
 		$out  = array();
@@ -1741,7 +1757,7 @@ final class Full {
 		}
 		foreach ( $from as $slug => $sites ) {
 			$theme = wp_get_theme( $slug );
-			if ( ! $theme->exists() || Replacements::HELLO !== (string) $theme->get_template() || isset( $state['deleted'][ 'child:' . $slug ] ) ) {
+			if ( ! $theme->exists() || Replacements::HELLO !== (string) $theme->get_template() || isset( $state['deleted'][ 'child:' . $slug ] ) || isset( $state['kept'][ 'child:' . $slug ] ) ) {
 				continue;
 			}
 			$name   = (string) $theme->get( 'Name' );
@@ -1775,6 +1791,19 @@ final class Full {
 					$reason = 'Su functions.php, que sigue corriendo en DIGITALÍSIMO Tools → Código PHP, lee archivos de su carpeta.';
 				}
 			}
+			if ( '' === $reason ) {
+				// Una imagen, una fuente o una hoja del hijo enlazada por su ruta en el contenido, los datos o el CSS de
+				// Elementor, el CSS adicional o los widgets dejaría de verse al borrar su carpeta.
+				foreach ( is_multisite() ? Retire::sites() : array( (int) get_current_blog_id() ) as $site_id ) {
+					$where = (string) self::on_site( (int) $site_id, static function () use ( $slug ) {
+						return self::child_references( $slug );
+					} );
+					if ( '' !== $where ) {
+						$reason = sprintf( 'Todavía se enlazan archivos de su carpeta (wp-content/themes/%s/) en %s%s. Sube esos archivos a Medios, cambia los enlaces y vuelve a pulsar Migrar.', $slug, $where, is_multisite() ? ' de ' . self::site_name( (int) $site_id ) : '' );
+						break;
+					}
+				}
+			}
 			if ( '' === $reason && empty( $state['caps']['delete_themes'] ) ) {
 				$reason = 'Quien pulsó Migrar no puede borrar temas.';
 			}
@@ -1782,24 +1811,121 @@ final class Full {
 				$state['kept'][ 'child:' . $slug ] = $reason;
 				continue;
 			}
-			$out[ $slug ] = $name;
+			$out[ $slug ] = array( 'name' => $name, 'sites' => $sites );
 		}
 		return $out;
 	}
 
+	/**
+	 * Dónde enlaza el sitio en curso algún archivo de la carpeta del hijo (`themes/<carpeta>/`): entradas y páginas (con el
+	 * CSS adicional del Personalizador, que es una entrada `custom_css`), metadatos (los datos y el CSS de Elementor),
+	 * opciones (widgets, menús, ajustes; no las del propio tema hijo, los transitorios ni las de Migrar, el tema propio y
+	 * Código PHP) y las hojas que Elementor genera en uploads/elementor/css. '' si en ninguna.
+	 */
+	private static function child_references( $slug ) {
+		global $wpdb;
+		$like = '%' . $wpdb->esc_like( 'themes/' . $slug . '/' ) . '%';
+		$post = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status NOT IN ('trash','auto-draft','inherit') LIMIT 1", $like ) ); // phpcs:ignore WordPress.DB
+		if ( $post ) {
+			return 'custom_css' === get_post_type( (int) $post ) ? 'el CSS adicional' : sprintf( 'el contenido de «%s» (ID %d)', get_the_title( (int) $post ), (int) $post );
+		}
+		$meta = $wpdb->get_var( $wpdb->prepare( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_value LIKE %s LIMIT 1", $like ) ); // phpcs:ignore WordPress.DB
+		if ( $meta ) {
+			return sprintf( 'los datos de «%s» (ID %d; Elementor u otro plugin)', get_the_title( (int) $meta ), (int) $meta );
+		}
+		$option = $wpdb->get_var( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_value LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s LIMIT 1", $like, 'theme_mods_%', '%transient%', 'digitalisimo_migration%', 'digitalisimo_theme%', 'digitalisimo_tools_php%' ) ); // phpcs:ignore WordPress.DB
+		if ( $option ) {
+			return sprintf( 'la opción %s (widgets, menús o ajustes)', (string) $option );
+		}
+		$uploads = function_exists( 'wp_upload_dir' ) ? (array) wp_upload_dir( null, false ) : array();
+		$css     = (string) ( $uploads['basedir'] ?? '' ) . '/elementor/css';
+		foreach ( array_slice( '' !== (string) ( $uploads['basedir'] ?? '' ) && is_dir( $css ) ? (array) glob( $css . '/*.css' ) : array(), 0, 2000 ) as $file ) {
+			if ( false !== strpos( (string) file_get_contents( $file, false, null, 0, 2097152 ), 'themes/' . $slug . '/' ) ) {
+				return 'el CSS de Elementor (' . basename( $file ) . ')';
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Sin la carpeta del hijo (apartada un momento), ¿responden igual las páginas comparadas de los sitios que venían de él?
+	 * Mismas reglas que verify: el texto de antes de migrar y las hojas de justo antes del cambio. '' o el motivo.
+	 */
+	private static function recheck_without( array $state, array $sites ) {
+		foreach ( (array) $state['checks'] as $check ) {
+			list( $site_id, $url ) = $check;
+			if ( ! in_array( (int) $site_id, $sites, true ) ) {
+				continue;
+			}
+			$after               = Front::snapshot( $url, 0 );
+			list( $ok, $reason ) = Front::compare( self::get_snap( $state, $site_id . '|' . $url ), $after, Replacements::THEME );
+			$pre                 = self::get_snap( $state, 'pre|' . $site_id . '|' . $url );
+			if ( true === $ok && $pre ) {
+				list( $styled, $why ) = Front::compare_styles( $pre, $after );
+				list( $ok, $reason )  = false === $styled ? array( false, $why ) : array( $ok, $reason );
+			}
+			if ( false === $ok ) {
+				return $url . ' ' . rtrim( lcfirst( (string) $reason ), '. ' );
+			}
+		}
+		return '';
+	}
+
 	/** Hello se borra si se reemplazó y ya nadie lo usa: ningún sitio lo tiene activo ni hay un tema hijo suyo instalado. */
 	private static function cleanup_theme( array $state ) {
-		foreach ( self::retired_children( $state ) as $slug => $name ) {
+		if ( ! empty( $state['deleting_theme'] ) ) {
+			// Un retiro que se cortó a mitad: la carpeta apartada vuelve a su sitio; si ya no está ninguna, se borró.
+			$slug = (string) $state['deleting_theme'];
+			$dir  = get_theme_root( $slug ) . '/' . $slug;
+			if ( is_dir( $dir . self::RETIRING ) && ! is_dir( $dir ) ) {
+				@rename( $dir . self::RETIRING, $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			}
+			if ( is_dir( $dir ) ) {
+				$state['kept'][ 'child:' . $slug ] = 'Su retiro se interrumpió y la carpeta sigue en su sitio: vuelve a pulsar Migrar para terminar.';
+			} else {
+				$state['deleted'][ 'child:' . $slug ] = 'Tema hijo ' . $slug;
+			}
+			unset( $state['deleting_theme'] );
+			self::store( $state );
+		}
+		foreach ( self::retired_children( $state ) as $slug => $info ) {
+			// Antes de borrar: el estado se guarda, la carpeta se aparta y las páginas de los sitios que venían de él se
+			// comprueban sin ella. Si algo no responde igual, vuelve a su sitio y se queda; si todo responde, se borra.
+			$dir                     = get_theme_root( $slug ) . '/' . $slug;
+			$state['deleting_theme'] = $slug;
+			self::store( $state );
+			if ( ! @rename( $dir, $dir . self::RETIRING ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+				$state['kept'][ 'child:' . $slug ] = 'No se pudo apartar su carpeta para comprobar el sitio sin ella.';
+				unset( $state['deleting_theme'] );
+				self::store( $state );
+				continue;
+			}
+			if ( function_exists( 'wp_clean_themes_cache' ) ) {
+				wp_clean_themes_cache( false );
+			}
+			$bad = self::recheck_without( $state, (array) $info['sites'] );
+			@rename( $dir . self::RETIRING, $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			if ( function_exists( 'wp_clean_themes_cache' ) ) {
+				wp_clean_themes_cache( false );
+			}
+			if ( '' !== $bad ) {
+				$state['kept'][ 'child:' . $slug ] = 'Sin su carpeta, ' . $bad . ': se queda.';
+				unset( $state['deleting_theme'] );
+				self::store( $state );
+				continue;
+			}
 			require_once ABSPATH . 'wp-admin/includes/theme.php';
 			$result = delete_theme( $slug );
 			if ( function_exists( 'wp_clean_themes_cache' ) ) {
 				wp_clean_themes_cache( false );
 			}
 			if ( true === $result ) {
-				$state['deleted'][ 'child:' . $slug ] = 'Tema hijo «' . $name . '»';
+				$state['deleted'][ 'child:' . $slug ] = 'Tema hijo «' . $info['name'] . '»';
 			} else {
 				$state['kept'][ 'child:' . $slug ] = 'WordPress no pudo borrarlo' . ( is_wp_error( $result ) ? ': ' . $result->get_error_message() : '.' );
 			}
+			unset( $state['deleting_theme'] );
+			self::store( $state );
 		}
 		if ( ! self::hello_replaced( $state ) || ! function_exists( 'wp_get_theme' ) || ! wp_get_theme( Replacements::HELLO )->exists() ) {
 			return $state;
@@ -2100,7 +2226,7 @@ final class Full {
 			}
 			if ( ! empty( $row['snippet_off'] ) ) {
 				// El fragmento que había activado Migrar vuelve a quedar inactivo con el hijo (o se dice que no se pudo).
-				$themes[] = 'off' === $row['snippet_off'] ? sprintf( '«PHP del tema hijo %s», que Migrar había activado en DIGITALÍSIMO Tools, quedó otra vez inactivo.', $row['name'] ) : sprintf( '«PHP del tema hijo %s», que Migrar había activado en DIGITALÍSIMO Tools, sigue activo (alguien lo cambió): con el hijo activo no hace nada.', $row['name'] );
+				$themes[] = 'off' === $row['snippet_off'] ? sprintf( '«PHP del tema hijo %s», que Migrar había activado en DIGITALÍSIMO Tools, quedó otra vez desactivado y sin revisar, como estaba.', $row['name'] ) : sprintf( '«PHP del tema hijo %s», que Migrar había activado en DIGITALÍSIMO Tools, sigue activo (alguien lo cambió): con el hijo activo no hace nada.', $row['name'] );
 			}
 		}
 		if ( ! empty( $state['theme_installed_now'] ) && ! array_filter( array_column( (array) $state['theme'], 'switched' ) ) ) {
