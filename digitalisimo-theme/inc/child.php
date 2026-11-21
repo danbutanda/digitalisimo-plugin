@@ -21,9 +21,7 @@ defined( 'ABSPATH' ) || exit;
  * Sólo lee archivos del hijo; nunca los ejecuta.
  */
 function digitalisimo_theme_child_plan( WP_Theme $child ) {
-	$dir    = untrailingslashit( (string) $child->get_stylesheet_directory() );
-	$parent = $child->parent();
-	$plan   = array(
+	$plan = array(
 		'v'        => 1, // Formato del plan y de la opción `digitalisimo_theme_child`.
 		'child'    => (string) $child->get_stylesheet(),
 		'parent'   => (string) $child->get_template(),
@@ -36,20 +34,7 @@ function digitalisimo_theme_child_plan( WP_Theme $child ) {
 	$code = digitalisimo_theme_child_php_code( $child );
 	if ( '' !== $code ) {
 		$plan['hash'] = hash( 'sha256', $code );
-		$found        = digitalisimo_theme_child_functions_plan(
-			$code,
-			array(
-				'version'        => (string) $child->get( 'Version' ),
-				'parent_version' => $parent ? (string) $parent->get( 'Version' ) : '',
-				'exists'         => static function ( $where, $path ) use ( $dir, $parent ) {
-					$base = 'parent' === $where ? ( $parent ? untrailingslashit( (string) $parent->get_stylesheet_directory() ) : '' ) : $dir;
-					return '' !== $base && is_file( $base . '/' . $path );
-				},
-				'mtime'          => static function ( $path ) use ( $dir ) {
-					return is_file( $dir . '/' . $path ) ? (string) filemtime( $dir . '/' . $path ) : '';
-				},
-			)
-		);
+		$found        = digitalisimo_theme_child_functions_plan( $code, digitalisimo_theme_child_ctx( $child ) );
 		$plan['assets']   = $found['assets'];
 		$plan['blockers'] = $found['blockers'];
 		$plan['risks']    = $found['risks'];
@@ -574,7 +559,7 @@ function digitalisimo_theme_child_risks( array $t, array $clean = array() ) {
 	// Lo que el tema cubre (digitalisimo_theme_child_compat_covers()): las constantes y funciones de Hello que declara en
 	// paridad (dentro de una función: en el primer nivel del hijo tampoco existían con Hello) y las rutas del hijo y
 	// __DIR__/__FILE__ que la envoltura del fragmento reescribe (digitalisimo_theme_child_rewrites()).
-	$rewrites = digitalisimo_theme_child_rewrites( $t );
+	$rewrites = null === digitalisimo_theme_child_wrap_plan( $t ) ? array() : digitalisimo_theme_child_rewrites( $t ); // Sin envoltura no se reescribe nada.
 	// Lo que lee el tema activo (con el tema propio, el propio y no el hijo): plantillas y datos del tema. Los ajustes del
 	// Personalizador (get_theme_mod) no: el paso los trae al tema propio. Fuera de lo ya traído y dentro de lo ya traído:
 	// lo traído sólo tiene valores legibles, nunca estas llamadas.
@@ -900,7 +885,9 @@ function digitalisimo_theme_child_value( array $e, array $consts, array $vars, a
  */
 function digitalisimo_theme_child_compat_names() {
 	return array(
-		'constants' => array( 'HELLO_ELEMENTOR_VERSION', 'EHP_THEME_SLUG', 'HELLO_THEME_PATH', 'HELLO_THEME_URL', 'HELLO_THEME_ASSETS_PATH', 'HELLO_THEME_ASSETS_URL', 'HELLO_THEME_SCRIPTS_PATH', 'HELLO_THEME_SCRIPTS_URL', 'HELLO_THEME_STYLE_PATH', 'HELLO_THEME_STYLE_URL', 'HELLO_THEME_IMAGES_PATH', 'HELLO_THEME_IMAGES_URL' ),
+		// Sólo la versión: las rutas de Hello (HELLO_THEME_PATH…) apuntarían a archivos que el tema no tiene y EHP_THEME_SLUG
+		// la usa Hello Plus para saber si hay un tema Hello: quedan como riesgo (y el hijo y Hello se quedan).
+		'constants' => array( 'HELLO_ELEMENTOR_VERSION' ),
 		'functions' => array( 'hello_elementor_get_setting', 'hello_show_or_hide', 'hello_get_header_layout_class', 'hello_get_footer_layout_class', 'hello_get_header_display', 'hello_get_footer_display', 'hello_header_footer_experiment_active', 'hello_elementor_display_header_footer', 'hello_elementor_check_hide_title', 'hello_elementor_body_open', 'hello_elementor_content_width', 'hello_elementor_register_elementor_locations', 'hello_elementor_setup', 'hello_elementor_scripts_styles', 'hello_elementor_add_description_meta_tag', 'hello_elementor_customizer' ),
 		'paths'     => array( 'get_stylesheet_directory', 'get_stylesheet_directory_uri', 'get_stylesheet_uri', 'get_theme_file_uri', 'get_theme_file_path' ),
 		'theme'     => array( 'get_theme_mod', 'get_theme_mods' ),
@@ -948,8 +935,6 @@ function digitalisimo_theme_child_rewrites( array $t ) {
 	$pending = '';
 	$want    = false;
 	$params  = -1;
-	$first   = null;
-	$start   = true;
 	if ( defined( 'T_NULLSAFE_OBJECT_OPERATOR' ) ) {
 		$names[] = T_NULLSAFE_OBJECT_OPERATOR;
 	}
@@ -965,12 +950,34 @@ function digitalisimo_theme_child_rewrites( array $t ) {
 		}
 		return '?';
 	};
+	// ¿Va en una expresión constante (`static $x = …`, `const X = …`, también tras `if (): ` sin llaves)? Ahí una llamada no
+	// es válida: no se reescribe (y sigue siendo riesgo).
+	$constant = static function ( $at ) use ( $t ) {
+		$depth = 0;
+		for ( $k = $at - 1; $k >= 0; $k-- ) {
+			$v = $t[ $k ][0];
+			if ( ')' === $v || ']' === $v ) {
+				++$depth;
+			} elseif ( ( '(' === $v || '[' === $v ) && $depth ) {
+				--$depth;
+			} elseif ( ! $depth && in_array( $v, array( ';', '{', '}' ), true ) ) {
+				return false;
+			}
+			if ( T_CONST === $v || ( T_STATIC === $v && T_VARIABLE === ( $t[ $k + 1 ][0] ?? null ) ) ) {
+				return true;
+			}
+		}
+		return false;
+	};
+	// __FILE__: `dirname( __FILE__ ) . '/x'` es como __DIR__; `basename( __FILE__ )` no usa ningún archivo; lo demás
+	// (plugin_dir_url( __FILE__ ), filemtime( __FILE__ )…) no se sabe: `?`.
+	$file_ref = static function ( $at ) use ( $t, $suffix ) {
+		$fn = $at >= 2 && '(' === $t[ $at - 1 ][0] && T_STRING === $t[ $at - 2 ][0] && ')' === ( $t[ $at + 1 ][0] ?? null ) ? strtolower( $t[ $at - 2 ][1] ) : '';
+		return 'dirname' === $fn ? $suffix( $at + 2 ) : ( 'basename' === $fn ? '' : '?' );
+	};
 	for ( $i = 0, $n = count( $t ); $i < $n; $i++ ) {
 		list( $v, $text ) = $t[ $i ];
 		$prev             = $i ? $t[ $i - 1 ][0] : null;
-		if ( $start && ! in_array( $v, array( ';', '{', '}' ), true ) ) {
-			list( $first, $start ) = array( $v, false );
-		}
 		if ( ( T_FUNCTION === $v || $fn === $v ) && T_DOUBLE_COLON !== $prev && T_OBJECT_OPERATOR !== $prev ) {
 			list( $pending, $want ) = array( 'func', true );
 		} elseif ( in_array( $v, array( T_CLASS, T_TRAIT, T_INTERFACE ), true ) && T_DOUBLE_COLON !== $prev ) {
@@ -978,16 +985,15 @@ function digitalisimo_theme_child_rewrites( array $t ) {
 		} elseif ( '(' === $v && $want ) {
 			list( $params, $want ) = array( max( $params, digitalisimo_theme_child_close( $t, $i ) ), false );
 		} elseif ( in_array( $v, array( '{', T_CURLY_OPEN, T_DOLLAR_OPEN_CURLY_BRACES ), true ) ) {
-			$stack[]               = '{' === $v && '' !== $pending ? $pending : 'block';
-			list( $pending, $start ) = array( '', true );
+			$stack[] = '{' === $v && '' !== $pending ? $pending : 'block';
+			$pending = '';
 		} elseif ( '}' === $v ) {
 			array_pop( $stack );
-			$start = true;
 		} elseif ( ';' === $v ) {
-			list( $pending, $start ) = array( '', true );
+			$pending = '';
 		} elseif ( T_DIR === $v || T_FILE === $v ) {
-			if ( $i > $params && 'class' !== end( $stack ) && ! in_array( $first, array( T_STATIC, T_CONST ), true ) ) {
-				$out[ $i ] = T_DIR === $v ? array( 'dir', $suffix( $i + 1 ) ) : array( 'file', '' );
+			if ( $i > $params && 'class' !== end( $stack ) && ! $constant( $i ) ) {
+				$out[ $i ] = T_DIR === $v ? array( 'dir', $suffix( $i + 1 ) ) : array( 'file', $file_ref( $i ) );
 			}
 		} else {
 			$fq   = defined( 'T_NAME_FULLY_QUALIFIED' ) && T_NAME_FULLY_QUALIFIED === $v && 1 === substr_count( $text, '\\' );
@@ -996,6 +1002,9 @@ function digitalisimo_theme_child_rewrites( array $t ) {
 			if ( ( T_STRING === $v || $fq ) && isset( $map[ $name ], $t[ $i + 1 ] ) && '(' === $t[ $i + 1 ][0] && ! $ns && ( ! in_array( $prev, $names, true ) || T_NS_SEPARATOR === $prev ) ) {
 				$close = digitalisimo_theme_child_close( $t, $i + 1 );
 				$kind  = $map[ $name ];
+				if ( $close === $i + 3 && T_ELLIPSIS === $t[ $i + 2 ][0] ) {
+					continue; // `get_stylesheet_directory_uri(...)` (llamable de PHP 8.1): no se reescribe; sigue siendo riesgo.
+				}
 				$ref   = 'style' === $kind ? 'style.css' : '';
 				if ( 'file_uri' === $kind || 'file_path' === $kind ) {
 					$args = digitalisimo_theme_child_args( $t, $i + 1, $close );
@@ -1008,6 +1017,11 @@ function digitalisimo_theme_child_rewrites( array $t ) {
 		}
 	}
 	return $out;
+}
+
+/** Las rutas que se guardan del hijo: como mucho 50; con más, la última es `?` (la copia queda incompleta). */
+function digitalisimo_theme_child_saved_refs( array $refs ) {
+	return count( $refs ) > 50 ? array_merge( array_slice( array_values( $refs ), 0, 49 ), array( '?' ) ) : array_values( $refs );
 }
 
 /** Nombre de carpeta de tema válido para la copia. */
@@ -1031,6 +1045,11 @@ function digitalisimo_theme_child_copy_ready( $slug ) {
 	return is_array( $saved ) && ! empty( $saved['copied'] ) && (string) ( $saved['child'] ?? '' ) === (string) $slug;
 }
 
+/** ¿La copia de un archivo está al día con su original (si el original sigue ahí, no es más nuevo que la copia)? */
+function digitalisimo_theme_child_copy_fresh( $copy, $source ) {
+	return is_file( $copy ) && ( ! file_exists( $source ) || filemtime( $source ) <= filemtime( $copy ) );
+}
+
 /**
  * Dónde vive un archivo del hijo (o, con $file '', su carpeta): en la copia si está completa, si no en la carpeta del
  * hijo; un archivo que el hijo no tiene se busca en Hello (como get_theme_file_uri()). [ruta, dirección].
@@ -1046,10 +1065,12 @@ function digitalisimo_theme_child_locate( $slug, $file = '' ) {
 	$ready  = digitalisimo_theme_child_copy_ready( $slug );
 	$places = array();
 	foreach ( array( $slug, $parent ) as $theme ) {
-		if ( $ready ) {
+		$source = get_theme_root( $theme ) . '/' . $theme;
+		// La copia sólo si está al día: la carpeta, sólo sin el hijo; un archivo, si el del hijo no es más nuevo.
+		if ( $ready && ( '' === $file ? ! is_dir( $source ) : digitalisimo_theme_child_copy_fresh( digitalisimo_theme_child_copy_dir( $theme ) . '/' . $file, $source . '/' . $file ) ) ) {
 			$places[] = array( digitalisimo_theme_child_copy_dir( $theme ), digitalisimo_theme_child_copy_dir( $theme, true ) );
 		}
-		$places[] = array( get_theme_root( $theme ) . '/' . $theme, get_theme_root_uri( $theme ) . '/' . $theme );
+		$places[] = array( $source, get_theme_root_uri( $theme ) . '/' . $theme );
 		if ( '' === $file ) {
 			break;
 		}
@@ -1135,7 +1156,8 @@ function digitalisimo_theme_child_copy_list( array $saved ) {
 			$issues[] = 'una ruta del hijo que no se puede leer sin ejecutar su PHP';
 			continue;
 		}
-		$in      = is_file( $theme_dir( $child ) . '/' . ltrim( (string) $ref, '/' ) ) || ! digitalisimo_theme_child_slug_ok( $parent ) ? $child : $parent;
+		$rel_ref = ltrim( (string) $ref, '/' ); // En el hijo, salvo que sólo esté en Hello (como get_theme_file_uri()).
+		$in      = ! digitalisimo_theme_child_slug_ok( $parent ) || file_exists( $theme_dir( $child ) . '/' . $rel_ref ) || ! file_exists( $theme_dir( $parent ) . '/' . $rel_ref ) ? $child : $parent;
 		$queue[] = array( $in, (string) $ref, 'ruta' );
 	}
 	$seen = 0;
@@ -1151,15 +1173,32 @@ function digitalisimo_theme_child_copy_list( array $saved ) {
 			continue;
 		}
 		$abs = $theme_dir( $theme ) . '/' . $rel;
+		if ( is_link( $abs ) || ( is_file( $abs ) && 0 !== strpos( (string) realpath( $abs ), (string) realpath( $theme_dir( $theme ) ) . DIRECTORY_SEPARATOR ) ) ) {
+			$issues[] = sprintf( '%s/%s es un enlace simbólico o sale de la carpeta del tema: no se copia', $theme, $rel );
+			continue;
+		}
+		if ( is_dir( $abs ) ) {
+			$issues[] = sprintf( '%s/%s es una carpeta: no se sabe qué archivos usa', $theme, $rel );
+			continue;
+		}
 		if ( ! is_file( $abs ) ) {
-			continue; // Tampoco existe en el hijo: el enlace ya estaba roto (o el tema se borró: lo dice la comprobación).
+			// Una hoja encolada que falta ya estaba rota en el hijo (o el tema se borró: lo dice la comprobación de la copia).
+			// Una ruta de su PHP a un archivo que no está en un tema que sí está: no se sabe qué usa.
+			if ( 'ruta' === $why && is_dir( $theme_dir( $theme ) ) ) {
+				$issues[] = sprintf( '%s/%s no existe: no se sabe qué usa', $theme, $rel );
+			}
+			continue;
 		}
 		if ( ! digitalisimo_theme_child_copy_ext( $rel ) ) {
 			$issues[] = sprintf( '%s/%s no es un archivo estático que pueda copiarse', $theme, $rel );
 			continue;
 		}
 		$files[ $theme ][ $rel ] = $abs;
-		if ( ! preg_match( '/\.css$/iD', $rel ) || filesize( $abs ) > 4 * MB_IN_BYTES ) {
+		if ( ! preg_match( '/\.css$/iD', $rel ) ) {
+			continue;
+		}
+		if ( filesize( $abs ) > 4 * MB_IN_BYTES ) {
+			$issues[] = sprintf( '%s/%s pesa más de 4 MB: no se leen sus url()', $theme, $rel );
 			continue;
 		}
 		$css = (string) file_get_contents( $abs ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
@@ -1269,12 +1308,13 @@ function digitalisimo_theme_child_copy_assets() {
 	}
 	update_option( 'digitalisimo_theme_child_copy', $manifest, false );
 	$ready = ! $manifest['issues'] && '' !== $base;
-	if ( $ready !== ! empty( $saved['copied'] ) ) {
-		if ( $ready ) {
-			$saved['copied'] = 1;
-		} else {
-			unset( $saved['copied'] );
-		}
+	$was   = $saved;
+	unset( $saved['copied'], $saved['cv'] );
+	if ( $ready ) {
+		$saved['copied'] = 1;
+		$saved['cv']     = substr( hash( 'sha256', (string) json_encode( $manifest['files'] ) ), 0, 8 ); // Versión de la copia (en `ver`).
+	}
+	if ( $saved !== $was ) {
 		update_option( 'digitalisimo_theme_child', $saved, true );
 	}
 	return array(
@@ -1387,7 +1427,7 @@ function digitalisimo_theme_child_enqueue( $priority ) {
 			if ( '' === $url ) {
 				$url = false; // Sin archivo: alias con sus dependencias, para que lo que depende de él se siga imprimiendo.
 			}
-			$ver = $asset['v'] ?? false;
+			$ver = digitalisimo_theme_child_asset_ver( $saved, (array) $asset, $url );
 			if ( 'script' === ( $asset['t'] ?? '' ) ) {
 				wp_register_script( (string) $asset['h'], $url, (array) ( $asset['d'] ?? array() ), $ver, $asset['m'] ?? false );
 			} else {
@@ -1416,13 +1456,22 @@ function digitalisimo_theme_child_asset_url( array $saved, array $asset ) {
 		return '';
 	}
 	// Con la copia completa en uploads (digitalisimo_theme_child_copy_assets()), desde ahí: el hijo y Hello pueden borrarse.
-	if ( ! empty( $saved['copied'] ) && digitalisimo_theme_child_slug_ok( $theme ) && is_file( digitalisimo_theme_child_copy_dir( $theme ) . '/' . $src ) ) {
+	if ( ! empty( $saved['copied'] ) && digitalisimo_theme_child_slug_ok( $theme ) && digitalisimo_theme_child_copy_fresh( digitalisimo_theme_child_copy_dir( $theme ) . '/' . $src, get_theme_root( $theme ) . '/' . $theme . '/' . $src ) ) {
 		return digitalisimo_theme_child_copy_dir( $theme, true ) . '/' . $src;
 	}
 	if ( ! is_file( get_theme_root( $theme ) . '/' . $theme . '/' . $src ) ) {
 		return ''; // El hijo ya no está: no se imprime un enlace roto.
 	}
 	return get_theme_root_uri( $theme ) . '/' . $theme . '/' . $src;
+}
+
+/** La versión de una entrada: la del hijo y, servida desde la copia, más la versión de la copia (para la caché). */
+function digitalisimo_theme_child_asset_ver( array $saved, array $asset, $url ) {
+	$ver = $asset['v'] ?? false;
+	if ( is_string( $url ) && ! empty( $saved['cv'] ) && 0 === strpos( $url, digitalisimo_theme_child_copy_dir( '', true ) . '/' ) ) {
+		$ver = ( is_string( $ver ) && '' !== $ver ? $ver . '-' : '' ) . $saved['cv'];
+	}
+	return $ver;
 }
 
 /** El hijo cuyas hojas carga el tema (o '' si no hay ninguno). */
@@ -1481,7 +1530,7 @@ function digitalisimo_theme_child_php_covered( WP_Theme $child ) {
 		return false;
 	}
 	$hashes = array( hash( 'sha256', $code ) );
-	$wrap   = digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ), (string) $child->get_stylesheet() );
+	$wrap   = digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ), (string) $child->get_stylesheet(), digitalisimo_theme_child_ctx( $child ) );
 	if ( '' !== $wrap ) {
 		$hashes[] = hash( 'sha256', $wrap );
 	}
@@ -1494,18 +1543,76 @@ function digitalisimo_theme_child_php_covered( WP_Theme $child ) {
 }
 
 /**
- * El código con las rutas del hijo reescritas (digitalisimo_theme_child_rewrites()): `get_stylesheet_directory_uri()` pasa
- * a `digitalisimo_theme_child_dir_uri( '<hijo>' )` y así las demás, que apuntan a su copia en uploads o a su carpeta.
- * Sin nada que reescribir (o sin $slug) queda igual, con el mismo hash.
+ * Cómo envolver el archivo en la condición, sobre los tokens del lector: null si no se puede (namespace, declare,
+ * __halt_compiler, o un `const` de primer nivel con varias constantes). Los `use` de primer nivel se sacan delante de la
+ * condición (sólo dan nombres cortos) y cada `const X = …;` de primer nivel pasa a `define( 'X', … );` dentro de ella.
+ * Devuelve `use` (tramos [desde, hasta)) y `const` ([const, nombre, =, ;]).
  */
-function digitalisimo_theme_child_rewrite_code( $code, $slug ) {
-	$t = digitalisimo_theme_child_tokens( $code, $raw );
-	if ( null === $t || ! digitalisimo_theme_child_slug_ok( $slug ) ) {
-		return $code;
+function digitalisimo_theme_child_wrap_plan( array $t ) {
+	$plan  = array( 'use' => array(), 'const' => array() );
+	$depth = 0;
+	$n     = count( $t );
+	for ( $i = 0; $i < $n; $i++ ) {
+		$v = $t[ $i ][0];
+		if ( in_array( $v, array( '{', T_CURLY_OPEN, T_DOLLAR_OPEN_CURLY_BRACES ), true ) ) {
+			++$depth;
+			continue;
+		}
+		if ( '}' === $v ) {
+			--$depth;
+			continue;
+		}
+		if ( $depth ) {
+			continue;
+		}
+		$start = 0 === $i || in_array( $t[ $i - 1 ][0], array( ';', '{', '}', T_OPEN_TAG ), true );
+		if ( in_array( $v, array( T_NAMESPACE, T_DECLARE, T_HALT_COMPILER ), true ) ) {
+			return null;
+		}
+		if ( T_USE === $v && $start ) {
+			$end           = digitalisimo_theme_child_statement_end( $t, $i );
+			$plan['use'][] = array( $i, $end );
+			$i             = $end - 1;
+		} elseif ( T_CONST === $v ) {
+			$end   = digitalisimo_theme_child_statement_end( $t, $i );
+			$value = array_merge( array( array( '(', '(', 0 ) ), array_slice( $t, $i + 3, max( 0, $end - $i - 4 ) ), array( array( ')', ')', 0 ) ) );
+			if ( ! $start || ! isset( $t[ $i + 2 ] ) || T_STRING !== $t[ $i + 1 ][0] || '=' !== $t[ $i + 2 ][0] || ';' !== $t[ $end - 1 ][0] || 1 !== count( digitalisimo_theme_child_args( $value, 0, $close ) ) ) {
+				return null;
+			}
+			$plan['const'][] = array( $i, $i + 1, $i + 2, $end - 1 );
+			$i               = $end - 1;
+		}
 	}
-	// Lo que el tema ya trae solo no se reescribe (su handle ya está registrado desde la carpeta del hijo o su copia): así
-	// el fragmento de la plantilla oficial queda igual que con 1.0.1, con el mismo hash.
-	digitalisimo_theme_child_functions_plan( $code, array(), $clean );
+	return $plan;
+}
+
+/** El contexto del lector para este hijo (versiones, archivos y fechas), el mismo que usa digitalisimo_theme_child_plan(). */
+function digitalisimo_theme_child_ctx( WP_Theme $child ) {
+	$dir    = untrailingslashit( (string) $child->get_stylesheet_directory() );
+	$parent = $child->parent();
+	return array(
+		'version'        => (string) $child->get( 'Version' ),
+		'parent_version' => $parent ? (string) $parent->get( 'Version' ) : '',
+		'exists'         => static function ( $where, $path ) use ( $dir, $parent ) {
+			$base = 'parent' === $where ? ( $parent ? untrailingslashit( (string) $parent->get_stylesheet_directory() ) : '' ) : $dir;
+			return '' !== $base && is_file( $base . '/' . $path );
+		},
+		'mtime'          => static function ( $path ) use ( $dir ) {
+			return is_file( $dir . '/' . $path ) ? (string) filemtime( $dir . '/' . $path ) : '';
+		},
+	);
+}
+
+/**
+ * Los cambios de la envoltura sobre los tokens de token_get_all() (índice => texto): las rutas del hijo reescritas
+ * (digitalisimo_theme_child_rewrites()), salvo en lo que el tema ya trae solo (leído con el contexto real del hijo,
+ * $ctx), así que el fragmento de la plantilla oficial queda igual que con 1.0.1.
+ */
+function digitalisimo_theme_child_rewrite_changes( $code, array $t, array $raw, $slug, array $ctx ) {
+	if ( ! digitalisimo_theme_child_slug_ok( $slug ) ) {
+		return array();
+	}
+	digitalisimo_theme_child_functions_plan( $code, $ctx, $clean );
 	$rewrites = digitalisimo_theme_child_rewrites( $t );
 	foreach ( array_keys( $rewrites ) as $at ) {
 		foreach ( (array) $clean as $range ) {
@@ -1513,9 +1620,6 @@ function digitalisimo_theme_child_rewrite_code( $code, $slug ) {
 				unset( $rewrites[ $at ] );
 			}
 		}
-	}
-	if ( ! $rewrites ) {
-		return $code;
 	}
 	$slug_php = var_export( $slug, true );
 	$names    = array( 'dir' => 'digitalisimo_theme_child_dir', 'dir_uri' => 'digitalisimo_theme_child_dir_uri', 'style' => 'digitalisimo_theme_child_file_uri', 'file_uri' => 'digitalisimo_theme_child_file_uri', 'file_path' => 'digitalisimo_theme_child_file_path' );
@@ -1531,45 +1635,57 @@ function digitalisimo_theme_child_rewrite_code( $code, $slug ) {
 			$change[ $raw[ $i + 1 ] ] = '( ' . $slug_php . ( 'style' === $rewrite[0] ? ", 'style.css'" : '' ) . ( $empty ? ' ' : ',' ); // El espacio de después sigue.
 		}
 	}
-	$out = '';
-	foreach ( token_get_all( $code ) as $at => $token ) {
-		$out .= $change[ $at ] ?? ( is_array( $token ) ? $token[1] : $token );
-	}
-	return $out;
+	return $change;
 }
 
 /**
  * El functions.php del hijo dentro de una condición que sólo lo deja correr con el tema DIGITALÍSIMO activo: con el hijo
  * activo el fragmento no hace nada (sus funciones ni se declaran), así que puede revisarse y activarse en Tools antes de
- * cambiar de tema, sigue corriendo en cuanto el hijo deja de cargarse y se apaga solo si se vuelve al hijo. '' si el
- * archivo no admite ir dentro de un bloque (namespace, use, declare, const de primer nivel o __halt_compiler).
+ * cambiar de tema, sigue corriendo en cuanto el hijo deja de cargarse y se apaga solo si se vuelve al hijo. Con $slug
+ * (y el contexto del hijo, $ctx), sus rutas apuntan a su copia o a su carpeta; los `use` de primer nivel van delante y
+ * cada `const` pasa a define(). '' si el archivo no admite ir dentro de un bloque (digitalisimo_theme_child_wrap_plan()).
+ * Sin nada que cambiar, sale byte a byte igual que en 1.0.1.
  */
-function digitalisimo_theme_child_wrap_php( $code, $name, $slug = '' ) {
+function digitalisimo_theme_child_wrap_php( $code, $name, $slug = '', array $ctx = array() ) {
 	$code = (string) $code;
 	if ( ! preg_match( '/^<\?php\s/', $code ) || ! function_exists( 'token_get_all' ) ) {
 		return '';
 	}
-	$code = digitalisimo_theme_child_rewrite_code( $code, (string) $slug );
-	$depth = 0;
-	$last  = null;
-	foreach ( token_get_all( $code ) as $token ) {
-		$type = is_array( $token ) ? $token[0] : $token;
-		if ( in_array( $type, array( '{', T_CURLY_OPEN, T_DOLLAR_OPEN_CURLY_BRACES ), true ) ) {
-			++$depth;
-		} elseif ( '}' === $type ) {
-			--$depth;
+	$t    = digitalisimo_theme_child_tokens( $code, $raw );
+	$plan = null === $t ? null : digitalisimo_theme_child_wrap_plan( $t );
+	if ( null === $plan ) {
+		return '';
+	}
+	$change = digitalisimo_theme_child_rewrite_changes( $code, $t, $raw, (string) $slug, $ctx );
+	$all    = token_get_all( $code );
+	$uses   = '';
+	foreach ( $plan['use'] as $range ) {
+		$text = '';
+		for ( $at = $raw[ $range[0] ]; $at <= $raw[ $range[1] - 1 ]; $at++ ) {
+			$text         .= is_array( $all[ $at ] ) ? $all[ $at ][1] : $all[ $at ];
+			$change[ $at ] = '';
 		}
-		if ( 0 === $depth && in_array( $type, array( T_NAMESPACE, T_USE, T_DECLARE, T_CONST, T_HALT_COMPILER ), true ) ) {
-			return '';
-		}
-		if ( ! is_array( $token ) || ! in_array( $token[0], array( T_WHITESPACE, T_COMMENT, T_DOC_COMMENT ), true ) ) {
-			$last = $type;
+		$uses .= $text . "\n";
+	}
+	foreach ( $plan['const'] as $c ) {
+		$change[ $raw[ $c[0] ] ] = 'define(';
+		$change[ $raw[ $c[1] ] ] = var_export( (string) $t[ $c[1] ][1], true );
+		$change[ $raw[ $c[2] ] ] = ',';
+		$change[ $raw[ $c[3] ] ] = ');';
+	}
+	$out  = '';
+	$last = null;
+	foreach ( $all as $at => $token ) {
+		$out .= $change[ $at ] ?? ( is_array( $token ) ? $token[1] : $token );
+		if ( '' !== ( $change[ $at ] ?? null ) && ( ! is_array( $token ) || ! in_array( $token[0], array( T_WHITESPACE, T_COMMENT, T_DOC_COMMENT ), true ) ) ) {
+			$last = is_array( $token ) ? $token[0] : $token;
 		}
 	}
-	$body  = (string) preg_replace( '/^<\?php\s/', '', $code, 1 );
+	$body  = (string) preg_replace( '/^<\?php\s/', '', $out, 1 );
 	$label = (string) preg_replace( '/[^A-Za-z0-9 _.-]/', '', (string) $name ); // Nada que pueda cerrar el comentario o el PHP.
 	return "<?php\n// functions.php del tema hijo «" . $label . "», tal cual, dentro de esta condición: sólo corre con el tema DIGITALÍSIMO\n"
 		. "// activo. Con el hijo activo no hace nada, así que puede activarse antes de cambiar de tema y se apaga si se vuelve al hijo.\n"
+		. $uses
 		. "if ( function_exists( 'digitalisimo_theme_parity' ) ) {\n" . rtrim( $body ) . "\n"
 		. ( in_array( $last, array( T_INLINE_HTML, T_CLOSE_TAG ), true ) ? "<?php\n}\n" : "}\n" );
 }
@@ -1591,7 +1707,7 @@ function digitalisimo_theme_child_import_php( WP_Theme $child, array $plan ) {
 		return '';
 	}
 	// Con la condición del tema propio, el fragmento puede activarse antes del cambio sin chocar con el hijo.
-	$wrap = digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ), (string) $child->get_stylesheet() );
+	$wrap = digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ), (string) $child->get_stylesheet(), digitalisimo_theme_child_ctx( $child ) );
 	$code = '' !== $wrap ? $wrap : $code;
 	$notes  = array_slice( array_merge( array( 'Lo que el tema DIGITALÍSIMO no trae solo: ' . implode( '; ', array_slice( $php, 0, 10 ) ) . '.' ), '' !== $wrap ? array( 'Va dentro de una condición que sólo lo deja correr con el tema DIGITALÍSIMO activo: puedes activarlo antes de cambiar de tema (con el hijo activo no hace nada) y se apaga solo si vuelves al hijo.' ) : array( 'Actívalo sólo después de cambiar al tema DIGITALÍSIMO: con el hijo activo chocaría con su functions.php.' ), $plan['assets'] ? array( 'Las hojas y scripts que encolaba ya los carga el tema DIGITALÍSIMO desde la carpeta del hijo.' ) : array() ), 0, 5 );
 	$result = apply_filters(

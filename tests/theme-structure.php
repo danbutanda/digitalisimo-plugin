@@ -673,10 +673,9 @@ add_filter( 'digitalisimo_theme_hello_compat', '__return_false' );
 digitalisimo_theme_hello_compat();
 check( ! defined( 'HELLO_ELEMENTOR_VERSION' ), 'El filtro digitalisimo_theme_hello_compat la apaga.' );
 $GLOBALS['hooks']['digitalisimo_theme_hello_compat'] = array();
-define( 'HELLO_THEME_IMAGES_URL', 'propia' ); // Una constante ya definida (por el hijo) no se toca.
 digitalisimo_theme_hello_compat();
 digitalisimo_theme_hello_compat(); // Dos veces: sin redeclarar nada.
-check( '3.5.1' === HELLO_ELEMENTOR_VERSION && 'hello-elementor' === EHP_THEME_SLUG && $GLOBALS['theme'] === HELLO_THEME_PATH && 'https://sitio.test/wp-content/themes/digitalisimo-theme/assets/css/' === HELLO_THEME_STYLE_URL && $GLOBALS['theme'] . '/assets/js/' === HELLO_THEME_SCRIPTS_PATH && 'propia' === HELLO_THEME_IMAGES_URL, 'En paridad, las constantes de Hello 3.5.1 con sus valores (las rutas, las del tema activo, como en Hello).' );
+check( '3.5.1' === HELLO_ELEMENTOR_VERSION && ! defined( 'EHP_THEME_SLUG' ) && ! defined( 'HELLO_THEME_PATH' ) && ! defined( 'HELLO_THEME_STYLE_URL' ), 'En paridad, sólo la versión de Hello 3.5.1: ni sus rutas (apuntarían a archivos que el tema no tiene) ni EHP_THEME_SLUG (Hello Plus la usa para saber si hay un tema Hello).' );
 foreach ( digitalisimo_theme_child_compat_names()['constants'] as $name ) {
 	check( defined( $name ), 'Constante de Hello declarada: ' . $name );
 }

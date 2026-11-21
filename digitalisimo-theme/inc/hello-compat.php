@@ -1,7 +1,7 @@
 <?php
 /**
  * DIGITALÍSIMO: compatibilidad con el PHP típico de un hijo de Hello, sólo en paridad (el tema sustituye a Hello o a su
- * hijo). Declara, si no existen, las constantes de Hello 3.5.1 y sus funciones públicas más usadas por los hijos, con un
+ * hijo). Declara, si no existen, la versión de Hello 3.5.1 y sus funciones públicas más usadas por los hijos, con un
  * comportamiento equivalente y seguro (escrito aquí, sin código de Hello), para que el functions.php del hijo en Código
  * PHP de DIGITALÍSIMO Tools corra igual con este tema. La lista está en digitalisimo_theme_child_compat_names()
  * (inc/child.php), que también lee el lector de riesgos.
@@ -20,26 +20,10 @@ function digitalisimo_theme_hello_compat() {
 	if ( 'hello-elementor' === get_template() || ! digitalisimo_theme_parity() || ! apply_filters( 'digitalisimo_theme_hello_compat', true ) ) {
 		return;
 	}
-	$path      = untrailingslashit( get_template_directory() ); // Lo mismo que Hello: la carpeta del tema activo.
-	$url       = untrailingslashit( get_template_directory_uri() );
-	$constants = array(
-		'HELLO_ELEMENTOR_VERSION'  => '3.5.1',
-		'EHP_THEME_SLUG'           => 'hello-elementor',
-		'HELLO_THEME_PATH'         => $path,
-		'HELLO_THEME_URL'          => $url,
-		'HELLO_THEME_ASSETS_PATH'  => $path . '/assets/',
-		'HELLO_THEME_ASSETS_URL'   => $url . '/assets/',
-		'HELLO_THEME_SCRIPTS_PATH' => $path . '/assets/js/',
-		'HELLO_THEME_SCRIPTS_URL'  => $url . '/assets/js/',
-		'HELLO_THEME_STYLE_PATH'   => $path . '/assets/css/',
-		'HELLO_THEME_STYLE_URL'    => $url . '/assets/css/',
-		'HELLO_THEME_IMAGES_PATH'  => $path . '/assets/images/',
-		'HELLO_THEME_IMAGES_URL'   => $url . '/assets/images/',
-	);
-	foreach ( $constants as $name => $value ) {
-		if ( ! defined( $name ) ) {
-			define( $name, $value );
-		}
+	// Sólo la versión. Las rutas de Hello (HELLO_THEME_PATH…) apuntarían a archivos que este tema no tiene y EHP_THEME_SLUG
+	// la usa Hello Plus para saber si hay un tema Hello activo: no se declaran (el lector las deja como riesgo).
+	if ( ! defined( 'HELLO_ELEMENTOR_VERSION' ) ) {
+		define( 'HELLO_ELEMENTOR_VERSION', '3.5.1' );
 	}
 	require __DIR__ . '/hello-compat-functions.php';
 }

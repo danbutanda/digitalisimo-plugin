@@ -454,7 +454,7 @@ function digitalisimo_theme_import_work( WP_Theme $old, $child_css, $dry, $via )
 			if ( $plan['assets'] || $plan['refs'] ) {
 				$saved = array( 'v' => $plan['v'], 'child' => $stylesheet, 'parent' => $template, 'assets' => $plan['assets'] );
 				if ( $plan['refs'] ) {
-					$saved['refs'] = array_slice( $plan['refs'], 0, 50 ); // Archivos del hijo que usa su PHP (Código PHP).
+					$saved['refs'] = digitalisimo_theme_child_saved_refs( $plan['refs'] ); // Archivos del hijo que usa su PHP (Código PHP).
 				}
 				update_option( 'digitalisimo_theme_child', $saved, true );
 				// Copia en uploads de lo que el hijo encolaba (y sus fuentes e imágenes): el tema lo sirve de ahí y el hijo y
