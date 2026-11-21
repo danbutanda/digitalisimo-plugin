@@ -155,16 +155,14 @@ for (const file of ['digitalisimo-backups/digitalisimo-backups.php', 'digitalisi
 	check(result.installed.includes(file), `Instalado: ${file}`);
 }
 if (mode === 'child') {
-	// El hijo y Hello se borran sólo si el tema propio ya copió las hojas del hijo a uploads (rama theme/hello-compat);
-	// sin esa copia, se quedan los dos con su motivo.
+	// Con las hojas del hijo copiadas a uploads por el tema propio, el hijo y después Hello se borran.
 	const gone = !result.themes.includes('hello-hijo') && !result.themes.includes('hello-elementor');
-	const kept = result.themes.includes('hello-hijo') && result.themes.includes('hello-elementor') && /carga sus hojas/.test(JSON.stringify(l.kept || {}));
-	check(result.themes.includes('digitalisimo-theme') && (gone || kept), 'El hijo y Hello se borran juntos o se quedan con su motivo: ' + result.themes.join(',') + ' ' + JSON.stringify(l.kept || {}));
+	check(result.themes.includes('digitalisimo-theme') && gone, 'El hijo y Hello se retiran: ' + result.themes.join(',') + ' ' + JSON.stringify(l.kept || {}));
 	check(l.theme_updated_now && l.theme_updated_now.from === '1.0.0' && /1\.0\.[1-9]/.test(l.theme_updated_now.to), 'El tema propio 1.0.0 se actualiza en la misma pasada: ' + JSON.stringify(l.theme_updated_now));
 	const site = Object.values(result.sites)[0];
 	check(/^1\.0\.[1-9]/.test(site.theme_version), `Queda la versión nueva (${site.theme_version}).`);
-	check(site.child_head, 'El PHP del hijo (wp_head y wp_footer) sigue pintando en la portada con el tema propio.');
-	check(gone || site.child_sheet, 'La hoja del hijo sigue cargándose.');
+	check(site.child_head, 'El PHP del hijo (wp_head y wp_footer, con HELLO_ELEMENTOR_VERSION) sigue pintando en la portada con el tema propio.');
+	check(site.child_copy && !site.child_sheet, 'La hoja del hijo se carga desde su copia en uploads.');
 	check(site.snippets.some((s) => /PHP del tema hijo Hello Hijo/.test(s.title) && s.active), 'Su functions.php queda activo en Código PHP: ' + JSON.stringify(site.snippets));
 } else {
 	check(!result.themes.includes('hello-elementor') && result.themes.includes('digitalisimo-theme'), 'Hello se reemplaza por el tema propio y se borra: ' + result.themes.join(','));

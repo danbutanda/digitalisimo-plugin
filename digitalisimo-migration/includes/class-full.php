@@ -1773,11 +1773,22 @@ final class Full {
 			}
 			if ( '' === $reason ) {
 				foreach ( $sites as $site_id ) {
+					// La copia a uploads es del tema propio (idempotente): un sitio que cambió con una versión anterior no
+					// tiene nada copiado hasta que se pide.
 					$copied = self::on_site( $site_id, static function () {
-						return self::child_reader() && function_exists( 'digitalisimo_theme_child_assets_copied' ) && true === digitalisimo_theme_child_assets_copied();
+						if ( ! self::child_reader() || ! function_exists( 'digitalisimo_theme_child_assets_copied' ) ) {
+							return array( false, array() );
+						}
+						if ( function_exists( 'digitalisimo_theme_child_copy_assets' ) ) {
+							digitalisimo_theme_child_copy_assets();
+						}
+						$issues = array();
+						$ok     = true === digitalisimo_theme_child_assets_copied( $issues );
+						return array( $ok, (array) $issues );
 					} );
-					if ( ! $copied ) {
-						$reason = 'El tema DIGITALÍSIMO todavía carga sus hojas y fuentes desde su carpeta (no borrarlo).';
+					if ( empty( $copied[0] ) ) {
+						$why    = array_slice( array_filter( array_map( 'strval', (array) ( $copied[1] ?? array() ) ) ), 0, 3 );
+						$reason = 'El tema DIGITALÍSIMO todavía carga sus hojas y fuentes desde su carpeta (no borrarlo)' . ( $why ? ': ' . implode( '; ', $why ) : '' ) . '.';
 						break;
 					}
 				}
@@ -1787,7 +1798,9 @@ final class Full {
 				// Las rutas del tema fuera de lo que el tema propio ya trae son un riesgo que impide el cambio, así que un hijo
 				// cambiado no las usa (las de sus encolados se quedan sin efecto: el tema registra antes esos handles).
 				$code = (string) file_get_contents( $theme->get_stylesheet_directory() . '/functions.php' );
-				if ( preg_match( '/__DIR__|__FILE__|\bdirname\s*\(|\b(?:include|require)(?:_once)?\b|\bfile_get_contents\s*\(|\bfopen\s*\(/i', $code ) || false !== stripos( $code, $slug ) ) {
+				// (Las rutas del tema y __DIR__/__FILE__ las reescribe el tema propio hacia su copia en uploads, que sólo trae
+				// archivos estáticos: lo que incluye o lee archivos por su cuenta sí necesita la carpeta.)
+				if ( preg_match( '/\b(?:include|require)(?:_once)?\b|\bfile_get_contents\s*\(|\bfopen\s*\(|\bfile\s*\(|\breadfile\s*\(|\bglob\s*\(|\bscandir\s*\(/i', $code ) || false !== stripos( $code, $slug ) ) {
 					$reason = 'Su functions.php, que sigue corriendo en DIGITALÍSIMO Tools → Código PHP, lee archivos de su carpeta.';
 				}
 			}

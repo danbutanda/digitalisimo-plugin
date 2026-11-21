@@ -98,6 +98,13 @@ function trailingslashit( $s ) { return rtrim( (string) $s, '/\\' ) . '/'; }
 function untrailingslashit( $s ) { return rtrim( (string) $s, '/\\' ); }
 function get_theme_root( $s = '' ) { return TMP . '/themes'; }
 function get_post_type( $id ) { return 'page'; }
+/** Sin uploads en la prueba: la copia del hijo del tema propio no se puede hacer (y queda incompleta, con su motivo). */
+function wp_upload_dir( $time = null, $create = true ) { return array( 'error' => 'sin uploads en la prueba' ); }
+function wp_mkdir_p( $dir ) { return false; }
+/** Lo que deja el tema propio al cambiar desde un hijo cuya hoja carga: sin la copia completa en uploads. */
+function child_not_copied( $slug ) {
+	update_option( 'digitalisimo_theme_child', array( 'v' => 1, 'child' => $slug, 'parent' => 'hello-elementor', 'assets' => array( array( 'type' => 'style', 'handle' => 'hello-elementor-child-style', 'file' => 'style.css', 'from' => 'child' ) ) ) );
+}
 function get_the_title( $id ) { return 'Inicio'; }
 /** La carpeta del tema propio ya instalado, en disco (la copia propia de Migrar la necesita para actualizarlo). */
 function old_theme_dir( $version = '1.0.0' ) {
@@ -534,10 +541,6 @@ Packages::$installer = static function ( $slug, $package, $type ) {
 		if ( empty( $GLOBALS['t']['old_theme'] ) ) {
 			@mkdir( TMP . '/themes/' . $slug . '/inc', 0777, true );
 			copy( dirname( __DIR__ ) . '/digitalisimo-theme/inc/child.php', TMP . '/themes/' . $slug . '/inc/child.php' );
-			if ( isset( $GLOBALS['t']['assets_copied'] ) && false === strpos( (string) file_get_contents( TMP . '/themes/' . $slug . '/inc/child.php' ), 'function digitalisimo_theme_child_assets_copied' ) ) {
-				// Doble de la copia de hojas del hijo a uploads (rama theme/hello-compat) mientras este lector no la traiga.
-				file_put_contents( TMP . '/themes/' . $slug . '/inc/child.php', "\nfunction digitalisimo_theme_child_assets_copied() { return ! empty( \$GLOBALS['t']['assets_copied'] ); }\n", FILE_APPEND );
-			}
 		}
 		return true;
 	}
@@ -998,6 +1001,7 @@ switch ( $scenario ) {
 	case 'theme_child_ok':
 		// Hijo típico (plantilla oficial): pasa al tema propio, la portada se pinta con su hoja y Hello no se borra.
 		child_theme( 'hello-hijo-ok', 'Hello Hijo OK', OFFICIAL_CHILD );
+		child_not_copied( 'hello-hijo-ok' ); // Sin uploads, la copia del tema propio queda incompleta.
 		$GLOBALS['t']['child_sheet'] = 'hello-hijo-ok';
 		$GLOBALS['t']['carry']       = true;
 		$state                       = drive();
@@ -1089,7 +1093,6 @@ switch ( $scenario ) {
 		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
 		$GLOBALS['t']['child_sheet']   = 'hello-hijo';
 		$GLOBALS['t']['carry']         = true;
-		$GLOBALS['t']['assets_copied'] = true;
 		tools_auto();
 		drive();
 		$last = Full::last( false );
@@ -1104,7 +1107,7 @@ switch ( $scenario ) {
 		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
 		$GLOBALS['t']['child_sheet']   = 'hello-hijo';
 		$GLOBALS['t']['carry']         = true;
-		$GLOBALS['t']['assets_copied'] = false;
+		child_not_copied( 'hello-hijo' );
 		tools_auto();
 		drive();
 		$last = Full::last( false );
@@ -1117,7 +1120,6 @@ switch ( $scenario ) {
 		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
 		$GLOBALS['t']['child_sheet']   = 'hello-hijo';
 		$GLOBALS['t']['carry']         = true;
-		$GLOBALS['t']['assets_copied'] = true;
 		$GLOBALS['t']['refs']          = array( 'meta_value' => '12' );
 		tools_auto();
 		drive();
