@@ -1119,23 +1119,22 @@ switch ( $scenario ) {
 		break;
 
 	case 'theme_child_hello_paths':
-		// El PHP del hijo usa HELLO_THEME_PATH dentro de una función (cubierta por el tema propio): el hijo se retira, pero
-		// Hello se queda, con el motivo.
+		// El PHP del hijo usa HELLO_THEME_PATH (una ruta de Hello que el tema propio no declara): el hijo se queda con su
+		// motivo y Hello también. Si un tema futuro cubriera esa constante, Migrar igual dejaría Hello (`hello_paths`).
 		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD . "add_action( 'wp_footer', function () {\n\techo esc_html( HELLO_THEME_PATH );\n} );\n" );
 		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
-		$GLOBALS['t']['carry']       = true;
 		tools_auto();
-		$GLOBALS['t']['filters']['digitalisimo_tools_php_sources'] = array( static function ( $rows ) {
-			if ( empty( $GLOBALS['t']['snippet_on'] ) ) {
-				return $rows;
-			}
-			$code = (string) file_get_contents( TMP . '/themes/hello-hijo/functions.php' );
-			return array_merge( $rows, array( array( 'scope' => 'site', 'id' => 'a1', 'active' => true, 'hash' => hash( 'sha256', digitalisimo_theme_child_wrap_php( $code, 'Hello Hijo' ) ) ) ) );
-		} );
 		drive();
 		$last = Full::last( false );
-		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['child_facts']['hello_paths'] ), 'Cambia y anota que usa rutas de Hello: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
-		check( isset( $GLOBALS['t']['themes']['hello-elementor'] ) && false !== strpos( (string) ( $last['kept']['hello-elementor'] ?? '' ), 'constantes de ruta de Hello' ), 'Hello se queda, con el motivo: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && false !== strpos( (string) $last['theme'][1]['reason'], 'HELLO_THEME_PATH' ), 'El hijo se queda y el motivo nombra la constante: ' . $last['theme'][1]['reason'] );
+		check( isset( $GLOBALS['t']['themes']['hello-elementor'], $GLOBALS['t']['themes']['hello-hijo'] ) && ! logged( 'delete_theme' ), 'No se borra ningún tema.' );
+		unset( $GLOBALS['t']['themes']['hello-hijo'] ); // Como si el hijo ya no estuviera y el sitio usara el tema propio.
+		update_option( 'stylesheet', 'digitalisimo-theme' );
+		update_option( 'template', 'digitalisimo-theme' );
+		$m = new ReflectionMethod( Full::class, 'cleanup_theme' );
+		$m->setAccessible( true );
+		$out = $m->invoke( null, array( 'theme' => array( 1 => array( 'switched' => true, 'hello' => true, 'child' => false, 'from' => 'hello-elementor', 'name' => 'Hello Hijo', 'child_facts' => array( 'hello_paths' => true ) ) ), 'kept' => array(), 'deleted' => array(), 'caps' => array( 'delete_themes' => true ) ) );
+		check( false !== strpos( (string) ( $out['kept']['hello-elementor'] ?? '' ), 'constantes de ruta de Hello' ) && isset( $GLOBALS['t']['themes']['hello-elementor'] ), 'Con un fragmento que usa rutas de Hello, la limpieza deja Hello: ' . json_encode( $out['kept'] ?? array(), JSON_UNESCAPED_UNICODE ) );
 		break;
 
 	case 'theme_child_retire_refs':
