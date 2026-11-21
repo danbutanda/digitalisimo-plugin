@@ -372,6 +372,14 @@ final class Full {
 		return class_exists( '\Digitalisimo_Same_Site', false ) ? \Digitalisimo_Same_Site::refusal( 'Migrar' ) : '';
 	}
 
+	/** Lanza Same_Site_Exception si la caché da otro sitio (justo antes de una escritura de «leer y volver a guardar»). */
+	private static function assert_same_site() {
+		$alien = self::alien();
+		if ( '' !== $alien ) {
+			throw new Same_Site_Exception( $alien );
+		}
+	}
+
 	/**
 	 * La caché da los datos de otro sitio: la tarea termina aquí sin escribir nada más en el sitio (ni volver al tema
 	 * anterior, ni tocar el cron: leer y volver a guardar mezclaría los dos sitios). El informe lo dice; al volver a pulsar
@@ -1101,6 +1109,7 @@ final class Full {
 					return isset( ( (array) get_site_option( 'active_sitewide_plugins', array() ) )[ $file ] );
 				} ) );
 				if ( $sitewide ) {
+					self::assert_same_site();
 					deactivate_plugins( $sitewide, false, true );
 					$any = true;
 				}
@@ -1108,12 +1117,14 @@ final class Full {
 					$any = self::on_site( $site_id, static function () use ( $files ) {
 						$local = array_values( array_intersect( array_reverse( $files ), (array) get_option( 'active_plugins', array() ) ) );
 						if ( $local ) {
+							self::assert_same_site();
 							deactivate_plugins( $local, false, false );
 						}
 						return (bool) $local;
 					} ) || $any;
 				}
 			} elseif ( $here ) {
+				self::assert_same_site();
 				deactivate_plugins( $here, false, false );
 				$any = true;
 			}
@@ -1511,6 +1522,8 @@ final class Full {
 	 * 2026-11-18): activar el tema propio donde es seguro y, si la portada no responde igual, volver al anterior.
 	 */
 	private static function switch_theme_to( $stylesheet ) {
+		// switch_theme() lee y guarda `theme_mods_*` y `sidebars_widgets`: con la caché de otro sitio guardaría los suyos.
+		self::assert_same_site();
 		switch_theme( (string) $stylesheet );
 	}
 
@@ -1613,6 +1626,10 @@ final class Full {
 	 * de tema) retira la cabecera y el pie generados al dejar el tema propio.
 	 */
 	private static function revert_themes( array $state, $reason ) {
+		// Volver al tema anterior también lee y guarda opciones: con la caché de otro sitio no se toca (el informe lo dice).
+		if ( '' !== self::alien() ) {
+			return self::note( $state, 'El tema no se devolvió al anterior porque la caché de objetos estaba dando los datos de otro sitio: corrígela y vuelve a pulsar Migrar, que lo comprueba.' );
+		}
 		foreach ( (array) $state['theme'] as $site_id => $row ) {
 			if ( empty( $row['switched'] ) ) {
 				continue;

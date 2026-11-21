@@ -23,7 +23,7 @@ final class Cache_Notice {
 		if ( empty( $check['ok'] ) ) {
 			return array( 'state' => 'foreign', 'message' => 'L' . substr( (string) $check['message'], 1 ) . ' (en wp-config.php de cada sitio). Mientras tanto, DIGITALÍSIMO no migra, no respalda ni restaura este sitio, para no mezclarlo con el otro.' );
 		}
-		if ( \Digitalisimo_Same_Site::external() && ! \Digitalisimo_Same_Site::salted() ) {
+		if ( \Digitalisimo_Same_Site::external() && ! \Digitalisimo_Same_Site::isolated() ) {
 			$host = \Digitalisimo_Same_Site::host( (string) \Digitalisimo_Same_Site::db_option( 'home' ) );
 			return array( 'state' => 'unsalted', 'message' => 'Este sitio usa una caché de objetos persistente (Redis, Memcached o LSMCD) sin sal propia. Si otro sitio del servidor usa la misma, los dos leerán las opciones del otro (dirección, plugins activos, icono). Define en wp-config.php una sal para este sitio, por ejemplo define( \'WP_CACHE_KEY_SALT\', \'' . ( '' !== $host ? $host : 'este-sitio' ) . ':\' );, o usa una base de caché distinta para cada sitio.' );
 		}

@@ -275,7 +275,7 @@ function digitalisimo_theme_import_previous( $old, array $opts = array() ) {
  * DIGITALÍSIMO con el candado «mismo sitio» está cargado: el tema no lleva copia del código compartido).
  */
 function digitalisimo_theme_alien() {
-	return class_exists( 'Digitalisimo_Same_Site', false ) ? (string) Digitalisimo_Same_Site::refusal( 'Migrar' ) : '';
+	return class_exists( 'Digitalisimo_Same_Site', false ) ? (string) Digitalisimo_Same_Site::refusal( 'Migrar (o vuelve a activar el tema)' ) : '';
 }
 
 /** Cuerpo de la importación (con el cerrojo tomado, salvo en dry_run). */
@@ -534,8 +534,14 @@ function digitalisimo_theme_import_work( WP_Theme $old, $child_css, $dry, $via )
 				$from_post    = wp_get_custom_css_post( $stylesheet );
 				$preprocessed = $from_post && rtrim( (string) $from_post->post_content ) === rtrim( $write ) ? (string) $from_post->post_content_filtered : '';
 			}
-			$saved   = wp_update_custom_css_post( $write, array( 'stylesheet' => get_stylesheet(), 'preprocessed' => $preprocessed ) );
-			$post_id = is_object( $saved ) && isset( $saved->ID ) ? (int) $saved->ID : 0;
+			// wp_update_custom_css_post() guarda el tema_mod `custom_css_post_id`: no con la caché de otro sitio.
+			$alien = digitalisimo_theme_alien();
+			if ( '' === $alien ) {
+				$saved   = wp_update_custom_css_post( $write, array( 'stylesheet' => get_stylesheet(), 'preprocessed' => $preprocessed ) );
+				$post_id = is_object( $saved ) && isset( $saved->ID ) ? (int) $saved->ID : 0;
+			} else {
+				$warn( 'same_site_css', $alien . ' El CSS adicional no se copió.' );
+			}
 		}
 		if ( $own ) {
 			$from_post         = function_exists( 'wp_get_custom_css_post' ) ? wp_get_custom_css_post( $stylesheet ) : null;
