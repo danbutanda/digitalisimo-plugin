@@ -488,8 +488,9 @@ trait Digitalisimo_Backups_Screen {
 			$foreign = '';
 			try { $foreign = is_array( $manifest ) ? self::restore_origin_problem( $file, $manifest ) : ( 'same' === $identity ? '' : 'unknown' ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 			if ( '' !== $foreign ) {
-				$origin_host = is_array( $manifest ) ? Digitalisimo_Same_Site::host( (string) ( $manifest['origin']['home'] ?? $manifest['home_url'] ?? '' ) ) : '';
-				echo '<p class="digitalisimo-backups-warning"><label>Dominio de origen <input type="text" name="origin_domain" value="" autocomplete="off" spellcheck="false"' . ( is_array( $manifest ) ? ' required' : '' ) . ' placeholder="' . esc_attr( '' !== $origin_host ? $origin_host : 'dominio-de-origen.com' ) . '"></label><br><span class="description">' . esc_html( '' !== $origin_host ? 'Este respaldo es de ' . $origin_host . ', no de este sitio: escribe ese dominio a mano para restaurarlo aquí.' : 'Si este respaldo es de otro sitio, escribe a mano su dominio de origen para restaurarlo aquí.' ) . '</span></p>';
+				// El dominio que hay que escribir (el del origen; si el respaldo no lo dice, el de este sitio).
+				$origin_host = is_array( $manifest ) ? self::restore_origin_host( $file ) : '';
+				echo '<p class="digitalisimo-backups-warning"><label>Dominio de origen <input type="text" name="origin_domain" value="" autocomplete="off" spellcheck="false"' . ( is_array( $manifest ) ? ' required' : '' ) . ' placeholder="' . esc_attr( '' !== $origin_host ? $origin_host : 'dominio-de-origen.com' ) . '"></label><br><span class="description">' . esc_html( '' !== $origin_host ? 'Este respaldo no es de este sitio tal como está ahora: escribe a mano ' . $origin_host . ' para restaurarlo aquí.' : 'Si este respaldo es de otro sitio, escribe a mano su dominio de origen para restaurarlo aquí.' ) . '</span></p>';
 			}
 		}
 		echo '<p class="digitalisimo-backups-restore-confirm"><label><span class="screen-reader-text">Confirmación</span><input type="text" name="confirmation" placeholder="' . esc_attr( $word ) . '" autocomplete="off" required></label> <button class="button button-primary">Restaurar</button> <a class="digitalisimo-backups-cancel" data-restore-cancel="' . esc_attr( $row_id ) . '" href="' . esc_url( self::tab_url( 'backups' ) ) . '">Cancelar</a></p>';

@@ -167,7 +167,7 @@ final class Digitalisimo_Backups_Restore_Access {
 			if ( ! empty( $caps['administrator'] ) ) $ids[ (int) $row['user_id'] ] = true;
 		}
 		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
-			foreach ( (array) get_site_option( 'site_admins', array() ) as $login ) {
+			foreach ( (array) self::stored_site( 'site_admins', array() ) as $login ) {
 				if ( ! is_string( $login ) || '' === $login ) continue;
 				$id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT ID FROM ' . self::q( $users ) . ' WHERE user_login = %s', $login ) );
 				if ( $id > 0 ) $ids[ $id ] = true;
@@ -255,7 +255,7 @@ final class Digitalisimo_Backups_Restore_Access {
 			elseif ( self::factor_key( $key ) ) $factor[ $key ] = (string) $item['meta_value'];
 		}
 		$super = false;
-		if ( function_exists( 'is_multisite' ) && is_multisite() ) $super = in_array( (string) $row['user_login'], array_map( 'strval', (array) get_site_option( 'site_admins', array() ) ), true );
+		if ( function_exists( 'is_multisite' ) && is_multisite() ) $super = in_array( (string) $row['user_login'], array_map( 'strval', (array) self::stored_site( 'site_admins', array() ) ), true );
 		return array( 'format' => self::FORMAT, 'user' => $row, 'meta' => $metas, 'factor' => $factor, 'tables' => self::capture_tables( (int) $user_id, $blog_prefix ), 'super_admin' => $super );
 	}
 	/** Las filas de la cuenta en las tablas `factor` de USER_TABLES que existen aquí (sin su clave propia; valores en base64). */
@@ -293,8 +293,8 @@ final class Digitalisimo_Backups_Restore_Access {
 	public static function login_capture() {
 		$out = array( 'slug' => self::effective_slug( false ), 'network' => null );
 		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
-			$tools = get_site_option( self::TOOLS_NETWORK, false );
-			$seo = get_site_option( self::SEO_OPTION, false );
+			$tools = self::stored_site( self::TOOLS_NETWORK, false );
+			$seo = self::stored_site( self::SEO_OPTION, false );
 			$out['network'] = array( 'tools' => is_array( $tools ) ? (string) ( $tools['login_slug'] ?? '' ) : '', 'seo' => is_array( $seo ) ? (string) ( $seo[ self::SEO_KEY ] ?? '' ) : '' );
 		}
 		return $out;
@@ -303,7 +303,7 @@ final class Digitalisimo_Backups_Restore_Access {
 	public static function salts_capture() {
 		$out = array();
 		foreach ( self::SALTS as $name ) {
-			$value = get_site_option( $name, '' );
+			$value = self::stored_site( $name, '' );
 			if ( is_string( $value ) && '' !== $value ) $out[ $name ] = $value;
 		}
 		return $out;
@@ -367,9 +367,9 @@ final class Digitalisimo_Backups_Restore_Access {
 	 */
 	public static function apply( $state, $secret, $relocated, $remember = null, array $options = array() ) {
 		$states = self::states( $state );
-		// Las tablas acaban de cambiar: lo que la caché de objetos tenga (`site_admins`, roles, usuarios) es de antes. Se
-		// invalida lo de este sitio, nunca la caché global (puede compartirse con otros sitios del servidor).
-		if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate_site( 'all' );
+		// Las tablas acaban de cambiar: after_restore_sql() (o el diario) ya invalidó lo de esta instalación; aquí, lo que
+		// esto lee y vuelve a escribir (`site_admins` y las opciones de cada sitio), nunca la caché global.
+		if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate( array(), array( 'site_admins' ), 'all' );
 		$report = array( 'state' => $states['access'], 'admins_state' => $states['admins'], 'relocated' => (bool) $relocated, 'user' => '', 'account' => '', 'kept_accounts' => array(), 'merged_accounts' => array(), 'merged_with' => array(), 'created_accounts' => array(), 'renamed_backup' => array(), 'shared_emails' => array(), 'warnings' => array(), 'app_passwords' => array(), 'login_path' => null, 'login_url' => '', 'admins' => array(), 'admins_total' => 0, 'users_total' => 0, 'text' => '' );
 		$accounts = self::accounts_of( $secret, $states );
 		$login = is_array( $secret ) && is_array( $secret['login'] ?? null ) ? $secret['login'] : null;
@@ -429,7 +429,9 @@ final class Digitalisimo_Backups_Restore_Access {
 		} catch ( Throwable $e ) {
 			$report['warnings'][] = 'No se pudo comprobar las contraseñas de aplicación: ' . $e->getMessage();
 		}
-		if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate_site( 'all' );
+		// Las opciones y las claves que se acaban de escribir (sólo de esta instalación); las cuentas que tocó apply() las
+		// limpian las funciones de WordPress que las escriben.
+		if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate( array(), array_merge( array( 'site_admins' ), self::SALTS ), 'all' );
 		try {
 			$report['login_url'] = self::login_url();
 			$who = self::who_can_log_in();
@@ -621,7 +623,7 @@ final class Digitalisimo_Backups_Restore_Access {
 		// 6. Superadministradora sólo si aquí lo era (A4): la del respaldo con el mismo usuario no lo da, y la cuenta del
 		// respaldo que cede su usuario sigue siéndolo con el nuevo; el usuario anterior de una fundida deja de contar.
 		if ( is_multisite() ) {
-			$admins = array_values( array_map( 'strval', (array) get_site_option( 'site_admins', array() ) ) );
+			$admins = array_values( array_map( 'strval', (array) self::stored_site( 'site_admins', array() ) ) );
 			$before = $admins;
 			if ( ! empty( $plan['renamed'] ) && ! empty( $plan['renamed_super'] ) ) $admins = array_map( function( $one ) use ( $login, $plan ) { return $one === $login ? (string) $plan['renamed_to'] : $one; }, $admins );
 			if ( $merge && '' !== (string) ( $plan['merged_from'] ?? '' ) ) $admins = array_values( array_diff( $admins, array( (string) $plan['merged_from'] ) ) );
@@ -741,8 +743,8 @@ final class Digitalisimo_Backups_Restore_Access {
 	private static function restore_login_path( array $login, array &$report ) {
 		$slug = self::sanitize_slug( (string) ( $login['slug'] ?? '' ) );
 		$before = self::effective_slug( false );
-		$tools = get_option( self::TOOLS_SITE, false );
-		$seo = get_option( self::SEO_OPTION, false );
+		$tools = self::stored( self::TOOLS_SITE, false );
+		$seo = self::stored( self::SEO_OPTION, false );
 		if ( is_array( $tools ) ) {
 			$tools['values'] = (array) ( $tools['values'] ?? array() );
 			$tools['inherit'] = (array) ( $tools['inherit'] ?? array() );
@@ -754,15 +756,15 @@ final class Digitalisimo_Backups_Restore_Access {
 			$seo[ self::SEO_KEY ] = $slug;
 			update_option( self::SEO_OPTION, $seo );
 			if ( is_multisite() ) {
-				$inherit = get_option( self::SEO_INHERIT, false );
+				$inherit = self::stored( self::SEO_INHERIT, false );
 				if ( is_array( $inherit ) || array_key_exists( self::SEO_KEY, $seo ) ) { $inherit = (array) $inherit; $inherit[ self::SEO_KEY ] = false; update_option( self::SEO_INHERIT, $inherit ); }
 			}
 		}
 		if ( ! is_array( $tools ) && ! ( is_array( $seo ) && array_key_exists( self::SEO_KEY, $seo ) ) && '' !== $slug ) update_option( self::TOOLS_SITE, array( 'values' => array( 'login_slug' => $slug ), 'inherit' => array( 'login_slug' => false ) ), true );
 		if ( is_multisite() && is_array( $login['network'] ?? null ) ) {
-			$network = get_site_option( self::TOOLS_NETWORK, false );
+			$network = self::stored_site( self::TOOLS_NETWORK, false );
 			if ( is_array( $network ) ) { $network['login_slug'] = self::sanitize_slug( (string) ( $login['network']['tools'] ?? '' ) ); update_site_option( self::TOOLS_NETWORK, $network ); }
-			$seo_network = get_site_option( self::SEO_OPTION, false );
+			$seo_network = self::stored_site( self::SEO_OPTION, false );
 			if ( is_array( $seo_network ) && array_key_exists( self::SEO_KEY, $seo_network ) ) { $seo_network[ self::SEO_KEY ] = self::sanitize_slug( (string) ( $login['network']['seo'] ?? '' ) ); update_site_option( self::SEO_OPTION, $seo_network ); }
 		}
 		// Sólo las opciones de la ruta de acceso que se acaban de escribir (las de este sitio y las de su red).
@@ -805,6 +807,14 @@ final class Digitalisimo_Backups_Restore_Access {
 	 * La ruta privada de acceso efectiva leída de los datos (los ticks de una restauración cargan WordPress mínimo, sin
 	 * Tools ni SEO): Tools si está activo; si no, SEO si está activo; si no, ninguna.
 	 */
+	/** Una opción de este sitio leída de la base, sin la caché de objetos (que podría dar la de otro sitio). */
+	private static function stored( $name, $default = false ) {
+		return class_exists( 'Digitalisimo_Same_Site', false ) ? Digitalisimo_Same_Site::db_value( $name, $default ) : get_option( $name, $default );
+	}
+	/** Lo mismo con una opción de la red. */
+	private static function stored_site( $name, $default = false ) {
+		return class_exists( 'Digitalisimo_Same_Site', false ) ? Digitalisimo_Same_Site::db_site_value( $name, $default ) : get_site_option( $name, $default );
+	}
 	public static function effective_slug( $constant = true ) {
 		if ( $constant && defined( 'DIGITALISIMO_HIDE_LOGIN_DISABLE' ) && DIGITALISIMO_HIDE_LOGIN_DISABLE ) return '';
 		$active = self::active_files();
@@ -829,11 +839,11 @@ final class Digitalisimo_Backups_Restore_Access {
 	/** Como Digitalisimo\Tools\Site_Options::get( 'login_slug' ), con su importación desde SEO. */
 	private static function tools_value() {
 		$multisite = function_exists( 'is_multisite' ) && is_multisite();
-		$site = get_option( self::TOOLS_SITE, false );
+		$site = self::stored( self::TOOLS_SITE, false );
 		if ( false === $site ) {
-			$legacy = (array) get_option( self::SEO_OPTION, array() );
-			$map = (array) get_option( self::SEO_INHERIT, array() );
-			$network_legacy = $multisite ? (array) get_site_option( self::SEO_OPTION, array() ) : array();
+			$legacy = (array) self::stored( self::SEO_OPTION, array() );
+			$map = (array) self::stored( self::SEO_INHERIT, array() );
+			$network_legacy = $multisite ? (array) self::stored_site( self::SEO_OPTION, array() ) : array();
 			$values = array_key_exists( self::SEO_KEY, $legacy ) ? array( 'login_slug' => $legacy[ self::SEO_KEY ] ) : array();
 			$inherits = ! array_key_exists( self::SEO_KEY, $map ) || ! empty( $map[ self::SEO_KEY ] );
 			if ( $inherits && ! array_key_exists( self::SEO_KEY, $network_legacy ) && array_key_exists( 'login_slug', $values ) ) $inherits = false;
@@ -843,9 +853,9 @@ final class Digitalisimo_Backups_Restore_Access {
 			$inherit = (array) ( ( (array) $site )['inherit'] ?? array() );
 		}
 		if ( $multisite && ( ! array_key_exists( 'login_slug', $inherit ) || ! empty( $inherit['login_slug'] ) ) ) {
-			$network = get_site_option( self::TOOLS_NETWORK, false );
+			$network = self::stored_site( self::TOOLS_NETWORK, false );
 			if ( false === $network ) {
-				$legacy = (array) get_site_option( self::SEO_OPTION, array() );
+				$legacy = (array) self::stored_site( self::SEO_OPTION, array() );
 				return is_string( $legacy[ self::SEO_KEY ] ?? null ) ? $legacy[ self::SEO_KEY ] : '';
 			}
 			return is_string( ( (array) $network )['login_slug'] ?? null ) ? ( (array) $network )['login_slug'] : '';
@@ -854,11 +864,11 @@ final class Digitalisimo_Backups_Restore_Access {
 	}
 	/** Como Digitalisimo_Integrations_SEO_Resolver::option( 'seo_hide_login_slug' ). */
 	private static function seo_value() {
-		$site = (array) get_option( self::SEO_OPTION, array() );
+		$site = (array) self::stored( self::SEO_OPTION, array() );
 		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
-			$map = (array) get_option( self::SEO_INHERIT, array() );
+			$map = (array) self::stored( self::SEO_INHERIT, array() );
 			if ( ! array_key_exists( self::SEO_KEY, $map ) || ! empty( $map[ self::SEO_KEY ] ) ) {
-				$network = (array) get_site_option( self::SEO_OPTION, array() );
+				$network = (array) self::stored_site( self::SEO_OPTION, array() );
 				if ( array_key_exists( self::SEO_KEY, $network ) ) return is_string( $network[ self::SEO_KEY ] ) ? $network[ self::SEO_KEY ] : '';
 			}
 		}
@@ -882,7 +892,7 @@ final class Digitalisimo_Backups_Restore_Access {
 			$login = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT user_login FROM ' . self::q( $users ) . ' WHERE ID = %d', $id ) );
 			if ( '' !== $login ) $logins[] = $login;
 		}
-		if ( function_exists( 'is_multisite' ) && is_multisite() ) foreach ( (array) get_site_option( 'site_admins', array() ) as $login ) if ( is_string( $login ) && ! in_array( $login, $logins, true ) ) $logins[] = $login;
+		if ( function_exists( 'is_multisite' ) && is_multisite() ) foreach ( (array) self::stored_site( 'site_admins', array() ) as $login ) if ( is_string( $login ) && ! in_array( $login, $logins, true ) ) $logins[] = $login;
 		sort( $logins );
 		return array( 'admins' => array_slice( $logins, 0, 10 ), 'admins_total' => count( $logins ), 'users_total' => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::q( $users ) ) );
 	}
@@ -987,7 +997,7 @@ final class Digitalisimo_Backups_Restore_Access {
 	}
 	/** Si $login está en `site_admins` (en una red; en un individual, nunca). */
 	private static function in_site_admins( $login ) {
-		return is_multisite() && '' !== (string) $login && in_array( (string) $login, array_map( 'strval', (array) get_site_option( 'site_admins', array() ) ), true );
+		return is_multisite() && '' !== (string) $login && in_array( (string) $login, array_map( 'strval', (array) self::stored_site( 'site_admins', array() ) ), true );
 	}
 	/** El valor de una meta de una cuenta en las tablas de ahora, o null. */
 	private static function meta_of( $user_id, $key ) {

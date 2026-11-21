@@ -54,6 +54,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$user_id = array_key_exists( 'user_id', $args ) ? max( 0, (int) $args['user_id'] ) : ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 );
 		$spec = array(
 			'type' => 'restore',
+			// Las direcciones del origen del paquete: mientras la base cambia, la caché puede dar la de este sitio de antes o
+			// ésta (Digitalisimo_Backups_Jobs::expected_hosts()); cualquier otra detiene la restauración.
+			'expect_hosts' => self::restore_expect_hosts( $report ),
 			'scope' => is_multisite() ? 'network' : 'installation',
 			'policy' => 'restore',
 			'destination' => 'local',
@@ -136,6 +139,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 			throw new Exception( Digitalisimo_Backups_Jobs::is_restore( $other ) ? 'Ya hay una restauración en curso (' . Digitalisimo_Backups_Jobs::phase_label( (string) $other['phase'], $other ) . '). Espera a que termine.' : 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.' );
 		}
 		return $queued['job'];
+	}
+	/** Hosts del origen de un paquete abierto (`home_url`, `site_url` y `origin` de su manifiesto). */
+	private static function restore_expect_hosts( array $report ) {
+		$head = null;
+		try { $head = $report['zip'] instanceof ZipArchive ? self::manifest_head( $report['zip'] ) : null; } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		if ( ! is_array( $head ) ) return array();
+		$urls = array( $head['home_url'] ?? '', $head['site_url'] ?? '', $head['origin']['home'] ?? '', $head['origin']['siteurl'] ?? '' );
+		return array_values( array_unique( array_filter( array_map( array( 'Digitalisimo_Same_Site', 'host' ), array_map( 'strval', $urls ) ) ) ) );
 	}
 	private static function restore_notify_snapshot() {
 		try {
@@ -1843,6 +1854,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 				self::restore_preswap_storage( $tables, $storage_before );
 				// Y este plugin, activo en la base de datos que entra (si el respaldo no lo activa): los ticks siguientes lo cargan.
 				Digitalisimo_Backups_Restore_Compat::activate( self::restore_staging( $job ), $tables );
+				// Lo que la caché de objetos puede guardar de la base de antes (cuentas, entradas, opciones), para invalidarlo
+				// exactamente tras el cambio, aunque el respaldo no lo traiga (va también en el diario).
+				self::$cache_before = Digitalisimo_Same_Site::snapshot_site( 'all' );
 				self::write_restore_journal( $origin, $kept );
 				try {
 					if ( false === @file_put_contents( $marker, (string) time() ) ) throw new Exception( 'No se pudo anotar el cambio de tablas en el área de trabajo.' );

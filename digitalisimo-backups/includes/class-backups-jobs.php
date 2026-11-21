@@ -169,6 +169,8 @@ final class Digitalisimo_Backups_Jobs {
 			// La instalación que lo creó (sin la dirección, que una restauración o una migración cambian a mitad del trabajo):
 			// claim() sólo toma los suyos, aunque el almacén se comparta.
 			'installation' => self::owner(),
+			// Direcciones que este trabajo puede ver en la caché mientras cambia la base (expected_hosts()).
+			'expect' => array_values( array_unique( array_filter( array_merge( self::own_hosts(), array_map( array( 'Digitalisimo_Same_Site', 'host' ), array_map( 'strval', (array) ( $spec['expect_hosts'] ?? array() ) ) ) ) ) ) ),
 			'kind' => in_array( $kind, array( 'restore', 'import' ), true ) ? $kind : 'backup',
 			'rev' => 0,
 			'spec' => $spec,
@@ -285,11 +287,12 @@ final class Digitalisimo_Backups_Jobs {
 		if ( self::off_main_site() ) return array( 'result' => 'error', 'message' => self::MAIN_SITE_ONLY );
 		// Candado «mismo sitio»: con la caché de objetos devolviendo los datos de otro sitio, ningún paso escribe nada.
 		$alien = self::same_site_refusal( 'Respaldar o Restaurar' );
-		if ( '' !== $alien && self::restoring_here() ) {
-			// Una restauración o una migración de este sitio a medias cambia `home` en la base por debajo de la caché: lo que
-			// queda en ella es de este sitio antes de restaurar. Se retira sólo eso y se vuelve a comprobar.
-			Digitalisimo_Same_Site::invalidate( array( 'home', 'siteurl' ) );
-			$alien = self::same_site_refusal( 'Respaldar o Restaurar' );
+		if ( '' !== $alien ) {
+			// Una restauración o una migración de este sitio a medias cambia `home` en la base por debajo de la caché. Sólo
+			// se sigue si lo que da la caché, tal cual (sin vaciarla ni volver a llenarla desde la base), es una de las
+			// direcciones que ese trabajo espera: la de este sitio antes de empezar o la del origen del paquete.
+			$check = Digitalisimo_Same_Site::check();
+			if ( ! empty( $check['ok'] ) || ( '' !== (string) $check['foreign'] && in_array( (string) $check['foreign'], self::expected_hosts(), true ) ) ) $alien = '';
 		}
 		if ( '' !== $alien ) {
 			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: ' . $alien );
@@ -1335,12 +1338,21 @@ final class Digitalisimo_Backups_Jobs {
 		if ( '' === $stamp ) return true;
 		return '' !== $mine && hash_equals( $mine, $stamp );
 	}
-	/** ¿Hay una restauración (o lo que la prepara) o una migración de esta instalación sin terminar? */
-	private static function restoring_here() {
+	/**
+	 * Direcciones (hosts) que esperan las restauraciones (o lo que las prepara) y las migraciones de esta instalación sin
+	 * terminar: las de este sitio al encolarlas y las del origen del paquete (`expect`). Vacío sin ninguna.
+	 */
+	private static function expected_hosts() {
+		$hosts = array();
 		try {
-			foreach ( self::active() as $job ) if ( self::owned( $job ) && ( self::restore_like( $job ) || null !== self::kind_handler( (array) ( $job['spec'] ?? array() ) ) ) ) return true;
+			foreach ( self::active() as $job ) if ( self::restore_like( $job ) || null !== self::kind_handler( (array) ( $job['spec'] ?? array() ) ) ) $hosts = array_merge( $hosts, array_map( 'strval', (array) ( $job['expect'] ?? array() ) ) );
 		} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-		return false;
+		return array_values( array_unique( array_filter( $hosts ) ) );
+	}
+	/** Hosts de este sitio en su base (home y siteurl), para `expect` de un trabajo. */
+	private static function own_hosts() {
+		if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) return array();
+		return array_values( array_unique( array_filter( array( Digitalisimo_Same_Site::host( (string) Digitalisimo_Same_Site::db_option( 'home' ) ), Digitalisimo_Same_Site::host( (string) Digitalisimo_Same_Site::db_option( 'siteurl' ) ) ) ) ) );
 	}
 	/** Candado «mismo sitio» (class-digitalisimo-same-site.php): '' o el motivo para no escribir nada. */
 	public static function same_site_refusal( $action ) {
@@ -1355,8 +1367,10 @@ final class Digitalisimo_Backups_Jobs {
 	}
 	/** ¿Se puede programar o lanzar el cron? No si la caché da otro sitio: `cron` y site_url() serían los suyos. */
 	private static function cron_safe() {
-		if ( '' !== self::same_site_refusal( 'Respaldar' ) ) return false;
-		return ! class_exists( 'Digitalisimo_Same_Site', false ) || ! function_exists( 'site_url' ) || Digitalisimo_Same_Site::own_url( site_url() ) || null === Digitalisimo_Same_Site::db_option( 'siteurl' );
+		// Sin caché persistente no hay caché ajena: site_url() puede venir de un filtro (mapeo de dominios) y es el suyo.
+		if ( ! class_exists( 'Digitalisimo_Same_Site', false ) || ! Digitalisimo_Same_Site::external() ) return true;
+		// Con la caché comprobada, `cron` y site_url() salen de la base de este sitio.
+		return '' === self::same_site_refusal( 'Respaldar' );
 	}
 	public static function off_main_site() { return is_multisite() && ! is_main_site(); }
 	private static function on_main_site( callable $callback ) {

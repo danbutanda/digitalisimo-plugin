@@ -71,7 +71,8 @@ trait Digitalisimo_Backups_Keep_Config {
 		global $wpdb;
 		$stamp = self::installation_stamp();
 		if ( empty( $stamp['id'] ) ) return array();
-		return array( 'id' => (string) $stamp['id'], 'home' => (string) ( $stamp['home'] ?? '' ), 'prefix' => (string) ( $wpdb->base_prefix ?? '' ) );
+		// `owner`: la instalación sin su dirección (installation_owner()), para reconocerla aunque cambie de http a https.
+		return array( 'id' => (string) $stamp['id'], 'home' => (string) ( $stamp['home'] ?? '' ), 'prefix' => (string) ( $wpdb->base_prefix ?? '' ), 'owner' => self::installation_owner() );
 	}
 	private static function restore_identity( $file, $manifest = null ) {
 		$file = wp_basename( (string) $file );
@@ -115,6 +116,14 @@ trait Digitalisimo_Backups_Keep_Config {
 		$stamp = is_array( $manifest['installation'] ?? null ) ? $manifest['installation'] : array();
 		$mine = self::installation_stamp();
 		$same_id = ( is_string( $stamp['id'] ?? null ) && '' !== $stamp['id'] && ! empty( $mine['id'] ) && hash_equals( (string) $mine['id'], $stamp['id'] ) ) || ( '' !== (string) $file && self::keep_config_same_installation( wp_basename( (string) $file ) ) );
+		// La misma instalación con otra forma de su dirección (http → https, con o sin www): su id se recalcula con la
+		// dirección que guardó el manifiesto, o se compara `owner`, que no la lleva. Decide después la dirección ($place).
+		$owner = self::installation_owner();
+		if ( ! $same_id && '' !== $owner && is_string( $stamp['owner'] ?? null ) && hash_equals( $owner, $stamp['owner'] ) ) $same_id = true;
+		if ( ! $same_id && is_string( $stamp['id'] ?? null ) && '' !== $stamp['id'] && is_string( $stamp['home'] ?? null ) ) {
+			$id = self::installation_id();
+			if ( '' !== $id && hash_equals( hash( 'sha256', $id . "\n" . self::journal_owner() . "\n" . rtrim( $stamp['home'], '/' ) ), $stamp['id'] ) ) $same_id = true;
+		}
 		$place = function( $url ) {
 			$path = rtrim( (string) wp_parse_url( (string) $url, PHP_URL_PATH ), '/' );
 			return Digitalisimo_Same_Site::host( $url ) . $path;
@@ -204,13 +213,14 @@ trait Digitalisimo_Backups_Keep_Config {
 		$absent = '__digitalisimo_backups_absent__';
 		$out = array( 'format' => 1, 'site' => array(), 'network' => null );
 		foreach ( self::keep_config_options() as $name ) {
-			$value = get_option( $name, $absent );
+			// De la base, no de la caché de objetos (que podría dar los de otro sitio): esto se repone tras restaurar.
+			$value = Digitalisimo_Same_Site::db_value( $name, $absent );
 			$out['site'][ $name ] = $absent === $value ? array( 'absent' => true ) : array( 'value' => $value );
 		}
 		if ( is_multisite() ) {
 			$out['network'] = array();
 			foreach ( self::keep_config_options() as $name ) {
-				$value = get_site_option( $name, $absent );
+				$value = Digitalisimo_Same_Site::db_site_value( $name, $absent );
 				$out['network'][ $name ] = $absent === $value ? array( 'absent' => true ) : array( 'value' => $value );
 			}
 		}

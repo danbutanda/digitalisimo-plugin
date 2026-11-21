@@ -14,6 +14,12 @@ final class Same_Site_Test_DB extends Digitalisimo_Jobs_Test_DB {
 	public function get_var( $query ) { return preg_match( "/option_name = '([^']*)'/", (string) $query, $m ) ? ( $this->rows[ $m[1] ] ?? null ) : null; }
 }
 $GLOBALS['wpdb'] = new Same_Site_Test_DB();
+/** Un método privado (las pruebas de la cola no cargan tests/lib/backups-env.php). */
+function ss_call( $class, $method, ...$args ) {
+	$reflection = new ReflectionMethod( $class, $method );
+	if ( PHP_VERSION_ID < 80100 ) $reflection->setAccessible( true );
+	return $reflection->invokeArgs( null, $args );
+}
 $GLOBALS['ss_ext'] = true;
 function wp_using_ext_object_cache() { return ! empty( $GLOBALS['ss_ext'] ); }
 update_option( 'home', 'https://ejemplo.test' );
@@ -49,6 +55,28 @@ foreach ( array( 'service_create' => array( array( 'via' => 'test' ) ), 'service
 	$result = call_user_func_array( array( 'Digitalisimo_Backups', $method ), $args );
 	bk_assert( $result instanceof WP_Error && false !== strpos( $result->get_error_message(), 'digitalisimo.lat' ) && false !== strpos( $result->get_error_message(), 'WP_CACHE_KEY_SALT' ), $method . '() debe negarse con la caché de otro sitio: ' . ( $result instanceof WP_Error ? $result->get_error_message() : json_encode( $result ) ) );
 }
+// A1 · Con una restauración propia a medias, el candado no «pasa» por vaciar la caché y volver a llenarla desde la base:
+// sólo sigue si la caché, tal cual, da una dirección que ese trabajo espera (la de este sitio o la del origen).
+$restore = Digitalisimo_Backups_Jobs::create_restore( array( 'type' => 'restore', 'kind' => '', 'policy' => 'restore', 'destination' => 'local', 'file' => 'x.zip', 'tag' => '', 'expect_hosts' => array( 'https://origen.test' ) ) );
+bk_assert( array( 'ejemplo.test', 'origen.test' ) === $restore['expect'], 'La restauración debe guardar las direcciones que espera: ' . json_encode( $restore['expect'] ?? null ) );
+$tick = Digitalisimo_Backups_Jobs::tick( 0 );
+bk_assert( 'same_site' === ( $tick['code'] ?? '' ) && 'https://digitalisimo.lat' === get_option( 'home' ) && 0 === (int) bk_job( $restore['id'] )['started_at'], 'Con una restauración a medias y la caché de otro sitio (no esperado), tick() se niega sin vaciar la caché: ' . json_encode( $tick ) );
+update_option( 'home', 'https://origen.test' );
+update_option( 'siteurl', 'https://origen.test' );
+$ran = false;
+Digitalisimo_Backups_Jobs::$phase_runner = function( $phase, $job ) use ( &$ran ) { $ran = true; throw new Digitalisimo_Backups_Permanent_Error( 'Sólo se prueba que el paso corre.' ); };
+$tick = Digitalisimo_Backups_Jobs::tick( 0 );
+Digitalisimo_Backups_Jobs::$phase_runner = null;
+bk_assert( 'same_site' !== ( $tick['code'] ?? '' ) && $ran, 'Con la dirección del origen esperado en la caché, la restauración sigue: ' . json_encode( $tick ) );
+Digitalisimo_Backups_Job_Store::with_lock( function() use ( $restore ) { $job = Digitalisimo_Backups_Job_Store::read( $restore['id'] ); $job['status'] = 'cancelled'; $job['lease'] = null; $job['finished_at'] = time(); Digitalisimo_Backups_Job_Store::write( $job ); } );
+$collide( true );
+// A1 · Lo que se repone tras restaurar se lee de la base, no de la caché.
+$names = ss_call( 'Digitalisimo_Backups', 'keep_config_options' );
+$name = (string) reset( $names );
+$GLOBALS['wpdb']->rows[ $name ] = serialize( array( 'de' => 'la base' ) );
+update_option( $name, array( 'de' => 'la caché de otro sitio' ) );
+$snapshot = ss_call( 'Digitalisimo_Backups', 'keep_config_snapshot' );
+bk_assert( array( 'de' => 'la base' ) === ( $snapshot['site'][ $name ]['value'] ?? null ), 'La foto de la configuración debe leerse de la base: ' . json_encode( $snapshot['site'][ $name ] ?? null ) );
 $described = Digitalisimo_Backups_Relocate::describe( false );
 bk_assert( 'https://ejemplo.test' === $described['home'] && 'https://ejemplo.test' === $described['siteurl'], 'describe() debe leer home/siteurl de la base, no de la caché: ' . $described['home'] );
 
@@ -57,6 +85,17 @@ $collide( false );
 $tick = Digitalisimo_Backups_Jobs::tick( 0 );
 bk_assert( 'worked' === $tick['result'] && 0 < (int) bk_job( $first['id'] )['started_at'], 'Sin choque, tick() vuelve a tomar el trabajo: ' . json_encode( $tick ) );
 Digitalisimo_Backups_Job_Store::with_lock( function() use ( $first ) { $job = Digitalisimo_Backups_Job_Store::read( $first['id'] ); $job['status'] = 'cancelled'; $job['lease'] = null; $job['finished_at'] = time(); Digitalisimo_Backups_Job_Store::write( $job ); } );
+
+// M1 · Sin caché persistente, el tick se programa aunque site_url() venga de un filtro (mapeo de dominios).
+$GLOBALS['ss_ext'] = false;
+$GLOBALS['wpdb']->rows['home'] = $GLOBALS['wpdb']->rows['siteurl'] = 'https://interno.test';
+$queued = bk_manual( 'local', 'mapeado' );
+$GLOBALS['bk_cron'] = array();
+Digitalisimo_Backups_Jobs::schedule();
+bk_assert( in_array( Digitalisimo_Backups_Jobs::HOOK_TICK, $GLOBALS['bk_cron'], true ), 'Sin caché externa, schedule() debe programar el tick aunque site_url() no sea el de la base.' );
+$GLOBALS['wpdb']->rows['home'] = $GLOBALS['wpdb']->rows['siteurl'] = 'https://ejemplo.test';
+$GLOBALS['ss_ext'] = true;
+Digitalisimo_Backups_Job_Store::with_lock( function() use ( $queued ) { $job = Digitalisimo_Backups_Job_Store::read( $queued['job']['id'] ?? $queued['id'] ); $job['status'] = 'cancelled'; $job['finished_at'] = time(); Digitalisimo_Backups_Job_Store::write( $job ); } );
 
 // claim() ignora los trabajos de otra instalación (un almacén compartido).
 $foreign = bk_manual( 'local', 'ajeno' );
@@ -82,6 +121,11 @@ $same = array( 'home_url' => 'https://ejemplo.test', 'origin' => array( 'home' =
 bk_assert( '' === Digitalisimo_Backups::restore_origin_problem( '', $same, array() ), 'El respaldo de esta instalación y esta dirección se restaura sin escribir nada más.' );
 $moved = array( 'origin' => array( 'home' => 'https://antes.test' ) ) + $same;
 bk_assert( '' !== Digitalisimo_Backups::restore_origin_problem( '', $moved, array() ), 'La misma instalación con otro home también pide el dominio escrito.' );
+// M2 · El propio respaldo hecho cuando el sitio estaba en http (o con www): misma instalación, no pide el dominio.
+$id = (string) ss_call( 'Digitalisimo_Backups', 'installation_id' );
+$root = (string) ss_call( 'Digitalisimo_Backups', 'journal_owner' );
+$http = array( 'home_url' => 'http://www.ejemplo.test', 'origin' => array( 'home' => 'http://www.ejemplo.test' ), 'installation' => array( 'id' => hash( 'sha256', $id . "\n" . $root . "\n" . 'http://www.ejemplo.test' ), 'home' => 'http://www.ejemplo.test' ) );
+bk_assert( '' === Digitalisimo_Backups::restore_origin_problem( '', $http, array() ), 'El propio respaldo de antes de pasar a https no debe pedir el dominio: ' . Digitalisimo_Backups::restore_origin_problem( '', $http, array() ) );
 $stranger = array( 'origin' => array( 'home' => 'https://ejemplo.test' ), 'installation' => array( 'id' => str_repeat( 'b', 64 ) ) ) + $same;
 bk_assert( '' !== Digitalisimo_Backups::restore_origin_problem( '', $stranger, array() ), 'Otra instalación con el mismo home también pide el dominio escrito.' );
 

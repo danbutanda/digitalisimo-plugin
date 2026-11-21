@@ -83,6 +83,8 @@ final class Digitalisimo_Backups {
 	private static $automation_notice = '';
 	/** @internal Foto de la configuración propia que anota el próximo diario de la restauración (H23); null: ninguna. */
 	private static $config_kept = null;
+	/** Lo que la caché de objetos podía guardar antes del cambio de tablas (Digitalisimo_Same_Site::snapshot_site()). */
+	private static $cache_before = null;
 	/** @internal Acceso de quien restaura y ruta de acceso de este sitio para el próximo diario (cifrado); null: ninguno. */
 	private static $access_kept = null;
 	use Digitalisimo_Backups_Backuply_Service; // Importar los respaldos de Backuply (pantalla, REST y WP-CLI).
@@ -303,7 +305,7 @@ final class Digitalisimo_Backups {
 		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
 		// Las claves de las credenciales del servidor de origen van cifradas con las de este (nunca en claro): si el proceso
 		// muere entre el SQL y su nuevo cifrado, la operación siguiente lo termina.
-		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'restore_id' => bin2hex( random_bytes( 16 ) ), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'fetched' => self::fetched_records(), 'config_kept' => self::$config_kept, 'storage' => array( 'record' => self::storage_record() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot(), 'access' => self::$access_kept ) + ( is_array( $kept ) ? array( 'extract_kept' => Digitalisimo_Backups_Site_Extract::journal_snapshot( $kept ) ) : array() ) + Digitalisimo_Backups_Keys::public_snapshot() );
+		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'restore_id' => bin2hex( random_bytes( 16 ) ), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'fetched' => self::fetched_records(), 'config_kept' => self::$config_kept, 'storage' => array( 'record' => self::storage_record() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot(), 'access' => self::$access_kept, 'cache' => self::$cache_before ) + ( is_array( $kept ) ? array( 'extract_kept' => Digitalisimo_Backups_Site_Extract::journal_snapshot( $kept ) ) : array() ) + Digitalisimo_Backups_Keys::public_snapshot() );
 		$temp = $path . '.tmp';
 		if ( ! is_string( $json ) || is_link( $path ) || is_link( $temp ) || strlen( $json ) !== @file_put_contents( $temp, $json ) || ! @chmod( $temp, 0600 ) || ! @rename( $temp, $path ) ) {
 			@unlink( $temp );
@@ -340,7 +342,7 @@ final class Digitalisimo_Backups {
 		if ( is_array( $data ) && is_string( $data['wordpress_root'] ?? null ) && $data['wordpress_root'] !== self::journal_owner() ) return; // De otra instalación: es suyo.
 		if ( is_array( $data ) && 1 === ( $data['version'] ?? null ) ) {
 			// Las tablas cambiaron por debajo: se invalida lo de este sitio (o de su red), nunca la caché global compartida.
-			Digitalisimo_Same_Site::invalidate_site( 'all' );
+			Digitalisimo_Same_Site::invalidate_site( 'all', is_array( $data['cache'] ?? null ) ? $data['cache'] : null );
 			// Un sitio extraído: la configuración de Backups de este servidor vuelve (sin los secretos en claro, que no van al diario).
 			if ( is_array( $data['extract_kept'] ?? null ) ) Digitalisimo_Backups_Site_Extract::reapply( $data['extract_kept'] );
 			if ( is_array( $data['history'] ?? null ) ) update_option( self::HISTORY, $data['history'], false );
@@ -3059,8 +3061,8 @@ final class Digitalisimo_Backups {
 	 * seguridad deben reconstruirse, y las credenciales del respaldo cifrarse con las claves de este servidor. Idempotente.
 	 */
 	private static function after_restore_sql( $history_before, $vault_before, array $origin = array(), $kept = null, $storage = false ) {
-		// Sólo lo de esta instalación: la caché de objetos puede compartirse con otros sitios del servidor.
-		Digitalisimo_Same_Site::invalidate_site( 'all' );
+		// Sólo lo de esta instalación (lo de antes del cambio y lo de ahora): la caché puede compartirse con otros sitios.
+		Digitalisimo_Same_Site::invalidate_site( 'all', self::$cache_before );
 		// El almacén privado sigue siendo el de este servidor (H10), lo primero; false: quien llama no lo tomó (no se toca).
 		if ( false !== $storage ) self::keep_storage_record( $storage );
 		if ( is_array( $kept ) ) Digitalisimo_Backups_Site_Extract::reapply( $kept );

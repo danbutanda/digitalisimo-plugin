@@ -21,21 +21,19 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 	final class Digitalisimo_Same_Site {
 		/** Grupos de la caché de objetos que guardan datos de un sitio (o de la red de esta instalación). */
 		const SITE_GROUPS = array( 'options', 'site-options', 'site-transient', 'transient', 'posts', 'post_meta', 'post_parent', 'post-queries', 'terms', 'term_meta', 'term-queries', 'term_relationships', 'category_relationships', 'post_tag_relationships', 'post_format_relationships', 'nav_menu_relationships', 'comment', 'comment_meta', 'comment-queries', 'counts', 'users', 'user_meta', 'userlogins', 'useremail', 'userslugs', 'usernames', 'user-queries', 'networks', 'sites', 'site-details', 'blog-details', 'blog-id-cache', 'blog-lookup', 'blog_meta', 'site-queries', 'network-queries', 'themes', 'theme_json', 'plugins', 'bookmark', 'calendar', 'timeinfo', 'rss' );
-		/** Grupos con `last_changed`: subirlo invalida las consultas guardadas aunque el borrado por grupo no exista. */
+		/** Grupos con `last_changed`: borrarlo invalida las consultas guardadas aunque el borrado por grupo no exista. */
 		const QUERY_GROUPS = array( 'posts', 'terms', 'comment', 'users', 'sites', 'networks', 'site-options', 'options' );
 		/**
 		 * Grupos persistentes de plugins frecuentes (WooCommerce, ACF, Elementor): con borrado por grupo también se vacían
 		 * (sólo existen si el plugin los usa). Otros se añaden con el filtro `digitalisimo_same_site_groups`.
 		 */
 		const PLUGIN_GROUPS = array( 'woocommerce', 'products', 'orders', 'order-items', 'wc_session_id', 'store_api_rate_limit', 'taxonomy_attributes', 'acf', 'elementor' );
-		/** Tope de filas que el respaldo sin borrado por grupo enumera por tabla. */
-		const ENUMERATE_MAX = 200000;
-		/**
-		 * Sin borrado por grupo, los objetos que existían antes de restaurar y el respaldo no trae no están en la base para
-		 * enumerarlos: se borran también los identificadores siguientes al mayor restaurado (una cuenta, entrada o
-		 * comentario creados después del respaldo tienen identificadores mayores).
-		 */
-		const ID_TAIL = 20000;
+		/** Transitorios del núcleo que viven sólo en la caché externa (sin borrado por grupo no se pueden enumerar los demás). */
+		const CORE_TRANSIENTS = array( 'doing_cron', 'update_plugins', 'update_themes', 'update_core', 'plugin_slugs', 'wp_core_block_css_files', 'dirsize_cache', 'health-check-site-status-result', 'wp_theme_files_patterns' );
+		/** Filas por consulta y claves por borrado múltiple al recorrer una tabla o un rango. */
+		const BATCH = 1000;
+		/** Segundos, por defecto, que puede tardar invalidate_site() sin borrado por grupo. */
+		const BUDGET = 20;
 
 		/** @var array|null resultado de check() en esta petición. */
 		private static $last = null;
@@ -46,6 +44,40 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 			if ( ! isset( $wpdb ) || ! is_object( $wpdb ) || empty( $wpdb->options ) ) return null;
 			$value = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1", (string) $name ) );
 			return null === $value ? null : (string) $value;
+		}
+
+		/** ¿Se puede leer la base directamente? (un $wpdb con tabla de opciones). */
+		private static function db_ready() {
+			global $wpdb;
+			return isset( $wpdb ) && is_object( $wpdb ) && ! empty( $wpdb->options ) && method_exists( $wpdb, 'get_var' ) && method_exists( $wpdb, 'prepare' );
+		}
+
+		/**
+		 * Valor de una opción de este sitio leído de la base, sin la caché de objetos (deserializado), o $default si no
+		 * existe. Sin acceso directo a la base, get_option(). Para las instantáneas que se reponen después de restaurar.
+		 */
+		public static function db_value( $name, $default = false ) {
+			if ( ! self::db_ready() ) return function_exists( 'get_option' ) ? get_option( $name, $default ) : $default;
+			$raw = self::db_option( $name );
+			return null === $raw ? $default : self::unserial( $raw );
+		}
+
+		/** maybe_unserialize() de WordPress (o lo mismo sin él). */
+		private static function unserial( $raw ) {
+			if ( function_exists( 'maybe_unserialize' ) ) return maybe_unserialize( $raw );
+			if ( ! is_string( $raw ) || 1 !== preg_match( '/^(?:[aOs]:\d+:|[ibd]:[^;]*;|N;)/', trim( $raw ) ) ) return $raw;
+			$value = @unserialize( trim( $raw ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize,WordPress.PHP.NoSilencedErrors -- igual que maybe_unserialize().
+			return false === $value && 'b:0;' !== trim( $raw ) ? $raw : $value;
+		}
+
+		/** Lo mismo con una opción de la red (sitemeta); fuera de una red, la del sitio. */
+		public static function db_site_value( $name, $default = false ) {
+			global $wpdb;
+			if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) return self::db_value( $name, $default );
+			if ( ! self::db_ready() || empty( $wpdb->sitemeta ) ) return function_exists( 'get_site_option' ) ? get_site_option( $name, $default ) : $default;
+			$network = function_exists( 'get_current_network_id' ) ? (int) get_current_network_id() : 1;
+			$raw = $wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->sitemeta} WHERE meta_key = %s AND site_id = %d LIMIT 1", (string) $name, $network ) );
+			return null === $raw ? $default : self::unserial( $raw );
 		}
 
 		/** ¿Hay una caché de objetos externa (persistente)? */
@@ -60,6 +92,16 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 			}
 			if ( defined( 'WP_REDIS_CONFIG' ) && is_array( WP_REDIS_CONFIG ) && '' !== trim( (string) ( WP_REDIS_CONFIG['prefix'] ?? '' ) ) ) return true;
 			return false;
+		}
+
+		/**
+		 * ¿Está la caché de este sitio aislada de las de otros? Con sal o prefijo propio, o con una base de Redis propia
+		 * (WP_REDIS_DATABASE distinta de 0). Sólo decide el aviso de Tools: el candado compara siempre.
+		 */
+		public static function isolated() {
+			if ( self::salted() ) return true;
+			if ( defined( 'WP_REDIS_DATABASE' ) && (int) WP_REDIS_DATABASE > 0 ) return true;
+			return defined( 'WP_REDIS_CONFIG' ) && is_array( WP_REDIS_CONFIG ) && (int) ( WP_REDIS_CONFIG['database'] ?? 0 ) > 0;
 		}
 
 		/** Host normalizado de una URL o de un host (sin esquema, puerto, `www.` ni mayúsculas). */
@@ -100,15 +142,14 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 
 		/**
 		 * Comprueba que este WordPress lee sus propios datos. Devuelve array( 'ok' => bool, 'foreign' => host ajeno o '',
-		 * 'cached' => …, 'db' => …, 'request' => host pedido, 'message' => texto para el informe ). Sin caché persistente no
-		 * hay nada que comparar (lo de la petición sale de la base) y no consulta nada. Con ella compara el valor crudo de la
-		 * caché con la lectura directa de la tabla de opciones y, en una petición web cuyo host es el de la base, con ese
-		 * host. $force repite la comprobación aunque ya se hiciera en esta petición (por defecto: la caché puede cambiar
+		 * 'cached' => …, 'db' => …, 'message' => texto para el informe ). Sin caché persistente no hay nada que comparar (lo
+		 * de la petición sale de la base) y no consulta nada. Con ella compara el valor crudo de la caché con la lectura
+		 * directa de la tabla de opciones. $force repite la comprobación aunque ya se hiciera en esta petición (por defecto: la caché puede cambiar
 		 * entre dos etapas); check( false ) la reutiliza (avisos y salidas en cada página).
 		 */
 		public static function check( $force = true ) {
 			if ( ! $force && null !== self::$last ) return self::$last;
-			$result = array( 'ok' => true, 'foreign' => '', 'cached' => '', 'db' => '', 'request' => '', 'message' => '' );
+			$result = array( 'ok' => true, 'foreign' => '', 'cached' => '', 'db' => '', 'message' => '' );
 			if ( ! self::external() ) {
 				self::$last = $result;
 				return $result;
@@ -120,14 +161,6 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 			$result['cached'] = (string) $cached['home'];
 			foreach ( array( 'home', 'siteurl' ) as $name ) {
 				if ( null !== $db[ $name ] && null !== $cached[ $name ] && self::comparable( $cached[ $name ] ) !== self::comparable( $db[ $name ] ) ) { $foreign = $cached[ $name ]; break; }
-			}
-			// En una petición web: el host pedido es el de la base, pero la caché da otro (la petición es de este sitio).
-			$request = self::request_host();
-			$result['request'] = $request;
-			if ( '' === $foreign && '' !== $request && null !== $db['home'] && null !== $cached['home'] ) {
-				$mine = array_filter( array( self::host( $db['home'] ), self::host( (string) $db['siteurl'] ) ) );
-				foreach ( array( 'WP_HOME', 'WP_SITEURL' ) as $constant ) if ( defined( $constant ) ) $mine[] = self::host( (string) constant( $constant ) );
-				if ( in_array( $request, $mine, true ) && ! in_array( self::host( $cached['home'] ), $mine, true ) ) $foreign = $cached['home'];
 			}
 			if ( '' !== $foreign ) {
 				$result['ok']      = false;
@@ -153,14 +186,7 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 		public static function refusal( $action ) {
 			$check = self::check();
 			if ( ! empty( $check['ok'] ) ) return '';
-			return 'L' . substr( (string) $check['message'], 1 ) . ', y vuelve a pulsar ' . $action . '.';
-		}
-
-		/** Host de la petición web en curso ('' en WP-CLI, sin petición o en el cron del sistema). */
-		public static function request_host() {
-			if ( 'cli' === PHP_SAPI || ( defined( 'WP_CLI' ) && WP_CLI ) ) return '';
-			$host = isset( $_SERVER['HTTP_HOST'] ) ? (string) $_SERVER['HTTP_HOST'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sólo se compara.
-			return preg_match( '/^[A-Za-z0-9.\-:\[\]]{1,255}$/', $host ) ? self::host( $host ) : '';
+			return 'L' . substr( (string) $check['message'], 1 ) . ', y vuelve a pulsar ' . $action . '. Si este sitio acaba de cambiar de dirección, puede ser su propia caché vieja: vacía la caché de objetos de este sitio y vuelve a intentarlo.';
 		}
 
 		/** ¿El host de $url es el de este sitio según la base? (para no lanzar peticiones a otro sitio). */
@@ -210,60 +236,105 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 		}
 
 		/**
-		 * Tras cambiar las tablas por debajo de WordPress (una restauración, una reubicación): invalida lo de este sitio sin
-		 * vaciar la caché global. Con borrado por grupo (wp_cache_flush_group()), los grupos de un sitio, las relaciones de
-		 * cada taxonomía y los de plugins frecuentes (con una sal propia, sólo los de esta instalación; sin ella, esos
-		 * grupos también de los demás sitios, que los vuelven a leer de su base: nunca se mezclan datos). Si no, cada
-		 * opción, entrada, término, comentario y usuario que la base tiene ahora, los ID_TAIL identificadores siguientes al
-		 * mayor y `last_changed`. Límite declarado sin borrado por grupo: una opción no autocargada creada después del
-		 * respaldo puede seguir en la caché hasta que caduque. $blog_ids: null (el sitio en curso), 'all' (todos los sitios
-		 * de la red) o una lista.
+		 * Antes de reemplazar las tablas: lo que la base tiene ahora y la caché puede guardar (el identificador mayor de
+		 * entradas, términos, comentarios y usuarios de cada sitio, los nombres de sus opciones y los de cada cuenta). Lo
+		 * que el respaldo no trae ya no estará en la base para enumerarlo: invalidate_site() lo borra con esto.
 		 */
-		public static function invalidate_site( $blog_ids = null ) {
-			if ( ! function_exists( 'wp_cache_delete' ) ) return;
+		public static function snapshot_site( $blog_ids = null ) {
+			global $wpdb;
+			$out = array( 'v' => 1, 'sites' => array(), 'users' => array(), 'users_max' => 0, 'network' => array() );
+			if ( ! self::external() || self::supports( 'flush_group' ) || self::salted() || ! self::db_ready() ) return $out;
+			self::on_sites( $blog_ids, function() use ( $wpdb, &$out ) {
+				$out['sites'][ (int) ( function_exists( 'get_current_blog_id' ) ? get_current_blog_id() : 1 ) ] = array(
+					'posts'    => self::max_id( $wpdb->posts, 'ID' ),
+					'terms'    => self::max_id( $wpdb->terms, 'term_id' ),
+					'comments' => self::max_id( $wpdb->comments, 'comment_ID' ),
+					'options'  => self::keys( $wpdb->options, 'option_name' ),
+				);
+			} );
+			$out['users_max'] = self::max_id( $wpdb->users, 'ID' );
+			self::each_row( $wpdb->users, 'ID', 'ID, user_login, user_email, user_nicename', function( $row ) use ( &$out ) {
+				$out['users'][] = array( (string) $row->user_login, (string) $row->user_email, (string) $row->user_nicename );
+			} );
+			if ( function_exists( 'is_multisite' ) && is_multisite() && ! empty( $wpdb->sitemeta ) ) $out['network'] = self::keys( $wpdb->sitemeta, 'meta_key' );
+			return $out;
+		}
+
+		/**
+		 * Tras cambiar las tablas por debajo de WordPress (una restauración, una reubicación): invalida lo de este sitio.
+		 *  - Con borrado por grupo (wp_cache_flush_group()): los grupos de un sitio, las relaciones de cada taxonomía, los
+		 *    transitorios y los de plugins frecuentes.
+		 *  - Sin él, con la caché aislada (WP_CACHE_KEY_SALT o WP_REDIS_PREFIX): vaciarla sólo afecta a esta instalación,
+		 *    y es lo correcto.
+		 *  - Sin ninguno de los dos (una caché compartida sin sal): clave por clave, en lotes y con presupuesto de tiempo,
+		 *    las opciones de antes ($before, de snapshot_site()) y de ahora, las entradas, términos y comentarios hasta el
+		 *    identificador mayor de antes y de ahora, cada cuenta de antes y de ahora con sus metas, los transitorios del
+		 *    núcleo y `last_changed`. Límite declarado: los transitorios de plugins (sólo en la caché, sin nombre que
+		 *    enumerar) caducan solos.
+		 * $blog_ids: null (el sitio en curso), 'all' (todos los de la red) o una lista. Devuelve false si se agotó el
+		 * presupuesto ($budget segundos) antes de terminar.
+		 */
+		public static function invalidate_site( $blog_ids = null, $before = null, $budget = null ) {
+			if ( ! function_exists( 'wp_cache_delete' ) ) return true;
 			self::flush_runtime();
 			// Sin caché persistente basta la memoria de la petición (lo que hacía wp_cache_flush()).
-			if ( ! self::external() ) return;
+			if ( ! self::external() ) return true;
 			if ( self::supports( 'flush_group' ) && function_exists( 'wp_cache_flush_group' ) ) {
 				foreach ( self::groups() as $group ) wp_cache_flush_group( $group );
-				return;
+				return true;
+			}
+			if ( self::salted() && function_exists( 'wp_cache_flush' ) ) {
+				// Aislada por la sal o el prefijo: vaciarla no toca las claves de otros sitios.
+				return (bool) wp_cache_flush();
 			}
 			global $wpdb;
-			$users = false;
-			self::on_sites( $blog_ids, function() use ( $wpdb, &$users ) {
+			$before   = is_array( $before ) ? $before : array();
+			$deadline = microtime( true ) + ( null === $budget ? self::BUDGET : (float) $budget );
+			$complete = true;
+			$relations = array_map( function( $taxonomy ) { return $taxonomy . '_relationships'; }, self::taxonomies() );
+			// Primero las cuentas (de toda la instalación; una que el respaldo no trae no debe seguir entrando desde la caché):
+			// las de antes y las de ahora, con sus metas y sus búsquedas por nombre, correo y slug.
+			$complete = self::delete_range( max( (int) ( $before['users_max'] ?? 0 ), self::max_id( $wpdb->users, 'ID' ) ), array( 'users', 'user_meta' ), $deadline ) && $complete;
+			$lookups = array( 'userlogins' => array(), 'useremail' => array(), 'userslugs' => array() );
+			foreach ( (array) ( $before['users'] ?? array() ) as $row ) {
+				$row = array_values( (array) $row );
+				$lookups['userlogins'][] = (string) ( $row[0] ?? '' );
+				$lookups['useremail'][]  = (string) ( $row[1] ?? '' );
+				$lookups['userslugs'][]  = (string) ( $row[2] ?? '' );
+			}
+			if ( self::db_ready() && ! empty( $wpdb->users ) ) {
+				self::each_row( $wpdb->users, 'ID', 'ID, user_login, user_email, user_nicename', function( $row ) use ( &$lookups ) {
+					$lookups['userlogins'][] = (string) $row->user_login;
+					$lookups['useremail'][]  = (string) $row->user_email;
+					$lookups['userslugs'][]  = (string) $row->user_nicename;
+				} );
+			}
+			foreach ( $lookups as $group => $keys ) $complete = self::delete_keys( array_values( array_unique( array_filter( $keys, 'strlen' ) ) ), array( $group ), $deadline ) && $complete;
+			self::on_sites( $blog_ids, function() use ( $wpdb, $before, $deadline, $relations, &$complete ) {
+				$blog = (int) ( function_exists( 'get_current_blog_id' ) ? get_current_blog_id() : 1 );
+				$then = (array) ( $before['sites'][ $blog ] ?? array() );
 				wp_cache_delete( 'alloptions', 'options' );
 				wp_cache_delete( 'notoptions', 'options' );
-				foreach ( self::column( "SELECT option_name FROM {$wpdb->options}" ) as $name ) wp_cache_delete( $name, 'options' );
-				$relations = array_map( function( $taxonomy ) { return $taxonomy . '_relationships'; }, self::taxonomies() );
-				foreach ( self::ids( "SELECT ID FROM {$wpdb->posts}" ) as $id ) {
-					foreach ( array( 'posts', 'post_meta', 'post_parent' ) as $group ) wp_cache_delete( $id, $group );
-					foreach ( $relations as $group ) wp_cache_delete( $id, $group );
-				}
-				foreach ( self::ids( "SELECT term_id FROM {$wpdb->terms}" ) as $id ) { wp_cache_delete( $id, 'terms' ); wp_cache_delete( $id, 'term_meta' ); }
-				foreach ( self::ids( "SELECT comment_ID FROM {$wpdb->comments}" ) as $id ) { wp_cache_delete( $id, 'comment' ); wp_cache_delete( $id, 'comment_meta' ); }
-				foreach ( self::QUERY_GROUPS as $group ) wp_cache_delete( 'last_changed', $group );
-				if ( ! $users ) {
-					$users = true;
-					$top = 0;
-					foreach ( $wpdb->get_results( "SELECT ID, user_login, user_email, user_nicename FROM {$wpdb->users} LIMIT " . (int) self::ENUMERATE_MAX ) ?: array() as $row ) {
-						$top = max( $top, (int) $row->ID );
-						wp_cache_delete( (int) $row->ID, 'users' );
-						wp_cache_delete( (int) $row->ID, 'user_meta' );
-						wp_cache_delete( (string) $row->user_login, 'userlogins' );
-						wp_cache_delete( (string) $row->user_email, 'useremail' );
-						wp_cache_delete( (string) $row->user_nicename, 'userslugs' );
-					}
-					// Una cuenta creada después del respaldo (p. ej. la de un intruso): sin su objeto ni sus metas en la caché,
-					// su búsqueda por nombre llega a la base, que ya no la tiene.
-					for ( $id = $top + 1; $id <= $top + self::ID_TAIL; $id++ ) { wp_cache_delete( $id, 'users' ); wp_cache_delete( $id, 'user_meta' ); }
-				}
+				$names = array_values( array_unique( array_merge( array_map( 'strval', (array) ( $then['options'] ?? array() ) ), self::keys( $wpdb->options, 'option_name' ), self::CORE_TRANSIENTS ) ) );
+				$complete = self::delete_keys( $names, array( 'options' ), $deadline ) && $complete;
+				$complete = self::delete_keys( self::CORE_TRANSIENTS, array( 'transient' ), $deadline ) && $complete;
+				$complete = self::delete_range( max( (int) ( $then['posts'] ?? 0 ), self::max_id( $wpdb->posts, 'ID' ) ), array_merge( array( 'posts', 'post_meta', 'post_parent' ), $relations ), $deadline ) && $complete;
+				$complete = self::delete_range( max( (int) ( $then['terms'] ?? 0 ), self::max_id( $wpdb->terms, 'term_id' ) ), array( 'terms', 'term_meta' ), $deadline ) && $complete;
+				$complete = self::delete_range( max( (int) ( $then['comments'] ?? 0 ), self::max_id( $wpdb->comments, 'comment_ID' ) ), array( 'comment', 'comment_meta' ), $deadline ) && $complete;
+				foreach ( array_merge( self::QUERY_GROUPS, array( 'counts' ) ) as $group ) wp_cache_delete( 'last_changed', $group );
 			} );
 			if ( function_exists( 'is_multisite' ) && is_multisite() ) {
 				$network = function_exists( 'get_current_network_id' ) ? (int) get_current_network_id() : 1;
+				$names   = array_unique( array_merge( array_map( 'strval', (array) ( $before['network'] ?? array() ) ), empty( $wpdb->sitemeta ) ? array() : self::keys( $wpdb->sitemeta, 'meta_key' ), self::CORE_TRANSIENTS ) );
 				wp_cache_delete( $network . ':notoptions', 'site-options' );
-				if ( ! empty( $wpdb->sitemeta ) ) foreach ( self::column( $wpdb->prepare( "SELECT meta_key FROM {$wpdb->sitemeta} WHERE site_id = %d", $network ) ) as $name ) wp_cache_delete( $network . ':' . $name, 'site-options' );
-				if ( ! empty( $wpdb->blogs ) ) foreach ( self::column( "SELECT blog_id FROM {$wpdb->blogs}" ) as $id ) { wp_cache_delete( $id, 'sites' ); wp_cache_delete( $id, 'site-details' ); wp_cache_delete( $id, 'blog-details' ); wp_cache_delete( $id . 'short', 'blog-details' ); }
+				$complete = self::delete_keys( array_map( function( $name ) use ( $network ) { return $network . ':' . $name; }, $names ), array( 'site-options' ), $deadline ) && $complete;
+				$complete = self::delete_keys( self::CORE_TRANSIENTS, array( 'site-transient' ), $deadline ) && $complete;
+				if ( ! empty( $wpdb->blogs ) ) foreach ( self::keys( $wpdb->blogs, 'blog_id' ) as $id ) { wp_cache_delete( $id, 'sites' ); wp_cache_delete( $id, 'site-details' ); wp_cache_delete( $id, 'blog-details' ); wp_cache_delete( $id . 'short', 'blog-details' ); }
+			} else {
+				$complete = self::delete_keys( self::CORE_TRANSIENTS, array( 'site-transient' ), $deadline ) && $complete;
 			}
+			if ( ! $complete && function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO: la invalidación de la caché de objetos tras cambiar las tablas no terminó en ' . self::BUDGET . ' s; lo que falta caduca solo.' );
+			return $complete;
 		}
 
 		/** Grupos que invalida el borrado por grupo: los de un sitio, las relaciones de cada taxonomía y los de plugins. */
@@ -279,18 +350,56 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 			return array_values( array_unique( array_merge( array( 'category', 'post_tag', 'post_format', 'nav_menu', 'link_category' ), array_map( 'strval', $names ) ) ) );
 		}
 
-		/** Identificadores de una consulta y los ID_TAIL siguientes al mayor (lo creado después del respaldo). */
-		private static function ids( $sql ) {
-			$ids = array_map( 'intval', self::column( $sql ) );
-			$top = $ids ? max( $ids ) : 0;
-			return array_merge( $ids, range( $top + 1, $top + self::ID_TAIL ) );
+		/** Borra $keys en cada grupo, en lotes (wp_cache_delete_multiple() si existe); false si se acabó el tiempo. */
+		private static function delete_keys( array $keys, array $groups, $deadline ) {
+			foreach ( array_chunk( $keys, self::BATCH ) as $chunk ) {
+				if ( microtime( true ) > $deadline ) return false;
+				foreach ( $groups as $group ) {
+					if ( function_exists( 'wp_cache_delete_multiple' ) ) wp_cache_delete_multiple( $chunk, $group );
+					else foreach ( $chunk as $key ) wp_cache_delete( $key, $group );
+				}
+			}
+			return true;
 		}
 
-		/** Una columna de una consulta (como cadenas), con tope; un error da array(). */
-		private static function column( $sql ) {
+		/** Borra los identificadores 1…$max en cada grupo, en lotes; false si se acabó el tiempo. */
+		private static function delete_range( $max, array $groups, $deadline ) {
+			for ( $from = 1; $from <= (int) $max; $from += self::BATCH ) {
+				if ( ! self::delete_keys( range( $from, min( (int) $max, $from + self::BATCH - 1 ) ), $groups, $deadline ) ) return false;
+			}
+			return true;
+		}
+
+		/** El identificador mayor de una tabla (0 si está vacía o no se puede leer). */
+		private static function max_id( $table, $column ) {
 			global $wpdb;
-			$values = $wpdb->get_col( $sql . ' LIMIT ' . (int) self::ENUMERATE_MAX ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- consultas internas sin datos de fuera.
-			return is_array( $values ) ? array_map( 'strval', $values ) : array();
+			if ( '' === (string) $table || ! method_exists( $wpdb, 'get_var' ) ) return 0;
+			return (int) $wpdb->get_var( "SELECT MAX(`{$column}`) FROM {$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- tabla y columna internas.
+		}
+
+		/** Todos los valores de una columna clave, por lotes ordenados (sin tope). */
+		private static function keys( $table, $column ) {
+			$out = array();
+			self::each_row( $table, $column, $column, function( $row ) use ( $column, &$out ) { $out[] = (string) $row->$column; } );
+			return $out;
+		}
+
+		/** Recorre una tabla por lotes de su clave ($key, ordenada), con las columnas $columns. */
+		private static function each_row( $table, $key, $columns, callable $callback ) {
+			global $wpdb;
+			if ( '' === (string) $table || ! method_exists( $wpdb, 'get_results' ) ) return;
+			$after = null;
+			do {
+				$where = null === $after ? '' : ( method_exists( $wpdb, 'prepare' ) ? $wpdb->prepare( " WHERE `{$key}` > %s", $after ) : '' );
+				if ( null !== $after && '' === $where ) return;
+				$rows = $wpdb->get_results( "SELECT {$columns} FROM {$table}{$where} ORDER BY `{$key}` LIMIT " . self::BATCH ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- tabla y columnas internas.
+				$rows = is_array( $rows ) ? $rows : array();
+				foreach ( $rows as $row ) {
+					$row = (object) $row;
+					$callback( $row );
+					$after = (string) $row->$key;
+				}
+			} while ( count( $rows ) === self::BATCH );
 		}
 
 		/** Ejecuta $callback en el sitio en curso o en los indicados ('all': todos los de la red). */
@@ -301,7 +410,7 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 			}
 			if ( 'all' === $blog_ids ) {
 				global $wpdb;
-				$blog_ids = empty( $wpdb->blogs ) ? array( get_current_blog_id() ) : self::column( "SELECT blog_id FROM {$wpdb->blogs}" );
+				$blog_ids = empty( $wpdb->blogs ) ? array( get_current_blog_id() ) : self::keys( $wpdb->blogs, 'blog_id' );
 			}
 			foreach ( array_unique( array_map( 'intval', (array) $blog_ids ) ) as $id ) {
 				if ( $id <= 0 ) continue;
