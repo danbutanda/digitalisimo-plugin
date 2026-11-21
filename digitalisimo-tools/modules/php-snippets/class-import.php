@@ -110,12 +110,13 @@ final class Import {
 	 * el tema propio no puede dar un 500 ni un error de PHP, el fragmento debe seguir activo y la portada pintarse igual;
 	 * si no, Migrar vuelve al hijo y lo desactiva (deactivate_import()). Quién puede hacerlo lo decide Migrar (edit_themes
 	 * + unfiltered_html de quien pulsó). Devuelve 'activated', 'active' (ese código ya estaba activo) o el motivo:
-	 * 'missing', 'changed', 'failed', 'blocked', 'reduced', 'check', 'error'. Sólo activa un importado en «sin revisar»: uno
+	 * 'missing', 'changed', 'mismatch' (no es el functions.php que hay en disco), 'signature' (el borrador no lleva la firma de
+	 * la importación), 'failed', 'blocked', 'reduced', 'check', 'error'. Sólo activa un importado en «sin revisar»: uno
 	 * que alguien (o el guardián, o la vuelta atrás de Migrar) desactivó no se vuelve a activar solo.
 	 *
 	 * @param mixed  $result  Lo que devolvió otro oyente.
 	 * @param string $key     `digitalisimo-theme:<carpeta del hijo>`.
-	 * @param array  $context { by: usuario que pulsó Migrar }
+	 * @param array  $context { by: usuario que pulsó Migrar, hash: sha256 del functions.php del hijo envuelto, leído ahora del disco }
 	 */
 	public static function activate_import( $result, $key, $context = array() ) {
 		unset( $result );
@@ -124,6 +125,7 @@ final class Import {
 		if ( Access::editing_blocked() ) return 'blocked';
 		if ( Access::reduced() ) return 'reduced';
 		$by    = absint( is_array( $context ) ? ( $context['by'] ?? 0 ) : 0 );
+		$want  = is_array( $context ) ? (string) ( $context['hash'] ?? '' ) : '';
 		$found = self::find( $key );
 		if ( '' === $found ) return 'missing';
 		$index = Store::index( 'site' );
@@ -131,18 +133,24 @@ final class Import {
 		$meta  = $index['items'][ $found ];
 		if ( ! $item || ! empty( $meta['conflict'] ) ) return 'changed';
 		$hash = hash( 'sha256', $item['code'] );
-		if ( ! hash_equals( (string) ( $item['origin']['code_hash'] ?? '' ), $hash ) ) return 'changed';
+		// El código debe ser el functions.php del hijo tal como está ahora en disco (Migrar lo recalcula y pasa su hash).
+		if ( 1 !== preg_match( '/^[0-9a-f]{64}$/D', $want ) || ! hash_equals( $want, $hash ) ) return 'mismatch';
 		$run   = Store::run( 'site' );
 		$state = Store::state( 'site', $found, $index, $run );
-		if ( 'active' === $state && hash_equals( (string) $run['items'][ $found ]['hash'], $hash ) ) return 'active';
-		// Sólo un importado que nadie revisó ni tocó: uno que se desactivó (a mano, por el guardián o por la vuelta atrás de
-		// Migrar) o que tuvo un error se queda como está; activarlo es de una persona.
+		// Ya activo con ese código y por Migrar (la marca `migration`): una pasada que se repite lo reconoce como suyo.
+		if ( 'active' === $state && hash_equals( (string) $run['items'][ $found ]['hash'], $hash ) ) return hash_equals( (string) ( $meta['migration'] ?? '' ), $hash ) ? 'active' : 'changed';
+		// Sólo un importado que nadie revisó ni tocó: uno que se desactivó (a mano o por el guardián) o que tuvo un error se
+		// queda como está; activarlo es de una persona.
 		if ( 'review' !== $state ) return 'failed' === $state ? 'failed' : 'changed';
+		// El borrador tiene que llevar la firma que le puso la importación (`origin`): uno cambiado en la base de datos
+		// (`database`, `keys`) o guardado desde el editor no se activa sin la casilla.
+		if ( 'origin' !== Store::draft_status( 'site', $found, $item ) ) return 'signature';
 		$check = Tester::check( $item['code'] );
 		if ( empty( $check['ok'] ) ) return 'check';
 		Store::set_check( 'site', $found, $check );
 		$done = Store::activate( 'site', $found, $hash, array( 'by' => $by ) );
 		if ( is_wp_error( $done ) ) return 'error';
+		self::mark( $found, $hash );
 		return 'activated';
 	}
 
@@ -160,6 +168,21 @@ final class Import {
 		if ( ! isset( $run['items'][ $found ] ) ) return true;
 		if ( '' !== $want && ! hash_equals( $want, (string) $run['items'][ $found ]['hash'] ) ) return false;
 		return true === Store::deactivate( 'site', $found, absint( is_array( $context ) ? ( $context['by'] ?? 0 ) : 0 ) );
+	}
+
+	/** Anota en el índice que Migrar activó ese código (`migration` = su hash); '' la quita. */
+	private static function mark( $id, $hash ) {
+		Store::mutate( 'site', static function () use ( $id, $hash ) {
+			$index = Store::index( 'site' );
+			if ( ! isset( $index['items'][ $id ] ) ) return false;
+			if ( '' === $hash ) {
+				unset( $index['items'][ $id ]['migration'] );
+			} else {
+				$index['items'][ $id ]['migration'] = $hash;
+			}
+			update_option( Store::SITE_INDEX, $index, false );
+			return true;
+		} );
 	}
 
 	/** Id del fragmento de sitio importado con ese `source:id` ('' si no hay). */

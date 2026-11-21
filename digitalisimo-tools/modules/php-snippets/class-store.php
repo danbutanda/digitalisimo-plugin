@@ -210,6 +210,8 @@ final class Store {
 			);
 			if ( is_array( $item['error'] ?? null ) ) $entry['error'] = $item['error'];
 			if ( isset( $item['rev'] ) ) $entry['rev'] = max( 0, (int) $item['rev'] );
+			// Hash del código que activó «Migrar» (Import::activate_import()): sólo le sirve a Migrar para reconocerlo.
+			if ( is_string( $item['migration'] ?? null ) && preg_match( '/^[0-9a-f]{64}$/D', $item['migration'] ) ) $entry['migration'] = $item['migration'];
 			$out['items'][ (string) $id ] = $entry;
 		}
 		return $out;

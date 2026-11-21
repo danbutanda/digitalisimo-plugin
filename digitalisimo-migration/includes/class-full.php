@@ -1128,13 +1128,15 @@ final class Full {
 				$why = array(
 					'nocaps'    => ' Migrar no lo activó solo porque quien lo pulsó no puede editar código PHP (edit_themes y unfiltered_html).',
 					'old_tools' => ' Migrar no lo activó solo porque la versión de DIGITALÍSIMO Tools instalada no lo permite (actualízala para que lo haga).',
-					'changed'   => ' Migrar no lo activó solo porque ya no está como lo dejó: se editó o se desactivó (también lo desactiva una vuelta atrás de Migrar), y activarlo de nuevo es de una persona.',
+					'changed'   => ' Migrar no lo activó solo porque ya no está como lo dejó: se editó, se revisó o se desactivó a mano, y activarlo de nuevo es de una persona.',
 					'failed'    => ' Migrar no lo activó solo porque DIGITALÍSIMO Tools lo desactivó por un error: revisa ese error antes.',
 					'blocked'   => ' Migrar no lo activó porque este servidor cierra la edición de código (DISALLOW_FILE_EDIT o DISALLOW_FILE_MODS).',
 					'reduced'   => ' Migrar no lo activó porque Código PHP de DIGITALÍSIMO Tools está en modo seguro.',
 					'check'     => ' Migrar no lo activó porque la revisión de DIGITALÍSIMO Tools encontró un error en el código.',
 					'error'     => ' Migrar no lo pudo activar (otra acción sobre los fragmentos estaba en curso o no cabe en los topes de Tools).',
 					'missing'   => ' Migrar no lo encontró en DIGITALÍSIMO Tools para activarlo.',
+					'mismatch'  => ' Migrar no lo activó porque el fragmento de DIGITALÍSIMO Tools ya no es el functions.php que tiene ahora el tema hijo.',
+					'signature' => ' Migrar no lo activó porque el fragmento no lleva la firma que le puso la importación (se cambió fuera de Tools o cambiaron las claves de wp-config.php): revísalo línea por línea antes de activarlo.',
 				);
 				$because = 'conflict' === $imported ? ' Migrar no lo activó solo porque se editó en Tools después de importarlo.' : ( $why[ (string) ( $child['activate'] ?? '' ) ] ?? '' );
 				return array( false, $intro . $because . ' Qué hacer: en DIGITALÍSIMO Tools → Código PHP revisa ' . $snippet . ' y actívalo (Migrar lo dejó ahí, inactivo; va dentro de una condición que sólo lo deja correr con el tema DIGITALÍSIMO, así que puedes activarlo ya, con el hijo activo, sin que choque) y vuelve a pulsar Migrar: el tema cambia y ese PHP sigue corriendo.' );
@@ -1259,7 +1261,8 @@ final class Full {
 			} elseif ( ! has_filter( self::SNIPPET_ACTIVATE ) ) {
 				$activate = 'old_tools';
 			} else {
-				$activate = (string) apply_filters( self::SNIPPET_ACTIVATE, null, self::snippet_key( $child->get_stylesheet() ), array( 'by' => (int) ( $state['user'] ?? 0 ) ) );
+				// Tools compara el código con este hash, recalculado ahora del functions.php en disco: sólo se activa eso.
+				$activate = (string) apply_filters( self::SNIPPET_ACTIVATE, null, self::snippet_key( $child->get_stylesheet() ), array( 'by' => (int) ( $state['user'] ?? 0 ), 'hash' => hash( 'sha256', $wrap ) ) );
 				if ( in_array( $activate, array( 'activated', 'active' ), true ) ) {
 					$covered = digitalisimo_theme_child_php_covered( $child );
 				}
@@ -1289,9 +1292,12 @@ final class Full {
 		$theme               = array( 'own' => false, 'hello' => true, 'child' => true, 'name' => $state['theme'][ $site_id ]['name'] );
 		list( $ok, $reason ) = self::theme_safety( $theme, array( 'builder' => true, 'conflict' => false, 'can' => true, 'child' => $facts ) );
 		$state['theme'][ $site_id ]['child_facts'] = array_intersect_key( $facts, array_flip( array( 'blockers', 'files', 'risks', 'covered', 'carried', 'tools', 'filter', 'wrap', 'imported', 'activate' ) ) );
-		if ( 'activated' === ( $facts['activate'] ?? '' ) ) {
+		if ( in_array( (string) ( $facts['activate'] ?? '' ), array( 'activated', 'active' ), true ) ) {
+			// 'active' sólo vuelve si lo activó Migrar (una pasada que murió antes de guardar el estado).
 			// Lo activó Migrar: si el tema no cambia o vuelve atrás, Migrar lo desactiva (sólo ese código).
 			$state['theme'][ $site_id ]['snippet'] = (string) $facts['hash'];
+			// Guardado enseguida: si la petición muere ahora, la vuelta atrás sigue sabiendo qué desactivar.
+			self::store( $state );
 		}
 		$state['theme'][ $site_id ]['safe']        = $ok;
 		$state['theme'][ $site_id ]['reason']      = $reason;

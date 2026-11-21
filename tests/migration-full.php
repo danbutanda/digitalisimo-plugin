@@ -208,6 +208,7 @@ function tools_auto() {
 	tools_here();
 	$GLOBALS['t']['filters']['digitalisimo_tools_php_activate_import'][] = static function ( $result, $key, $context ) {
 		$GLOBALS['t']['log'][] = 'snippet_activate:' . $key;
+		$GLOBALS['t']['snippet_hash'] = (string) ( $context['hash'] ?? '' );
 		if ( ! empty( $GLOBALS['t']['snippet_refuse'] ) ) {
 			return $GLOBALS['t']['snippet_refuse'];
 		}
@@ -1052,6 +1053,7 @@ switch ( $scenario ) {
 		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ) && ! empty( $last['verified'] ) && '' === $last['failed'], 'Un solo Migrar termina con el tema propio y verificado: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
 		check( ! empty( $GLOBALS['t']['snippet_on'] ) && hash( 'sha256', $wrap ) === ( $last['theme'][1]['snippet'] ?? '' ) && in_array( 'snippet_activate:digitalisimo-theme:hello-hijo', $GLOBALS['t']['log'], true ), 'El fragmento del hijo queda activo y Migrar recuerda cuál activó.' );
 		check( position( 'snippet_activate:digitalisimo-theme:hello-hijo' ) < position( 'switch_theme:digitalisimo-theme' ), 'Se activa antes del cambio de tema.' );
+		check( hash( 'sha256', $wrap ) === ( $GLOBALS['t']['snippet_hash'] ?? '' ), 'Migrar pasa a Tools el hash del functions.php del hijo leído del disco (Tools sólo activa ese código).' );
 		check( ! logged( 'snippet_deactivate' ), 'Con todo bien, no se desactiva.' );
 		$html = Full::render( false, $last );
 		check( false !== strpos( $html, 'Migrar activó «PHP del tema hijo Hello Hijo»' ) && false !== strpos( $html, 'pulsa «Desactivar» en esa fila' ), 'El informe dice que lo activó y cómo desactivarlo.' );
