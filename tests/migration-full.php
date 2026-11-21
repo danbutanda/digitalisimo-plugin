@@ -677,6 +677,7 @@ function loaded_now() {
  * la petición empieza después del último cambio de plugins (como en la realidad) y la tarea trabaja 3,5 s más tarde.
  */
 function request( $start = false, $run = 'clic1' ) {
+	$GLOBALS['t']['log'][] = 'request';
 	usleep( 2000 );
 	$boot = ! empty( $GLOBALS['t']['slow_boot'] ) ? 3.5 : 0.0;
 	if ( $boot ) {
@@ -1097,6 +1098,8 @@ switch ( $scenario ) {
 		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ) && ! empty( $last['verified'] ) && '' === $last['failed'], 'Un solo Migrar termina con el tema propio y verificado: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
 		check( ! empty( $GLOBALS['t']['snippet_on'] ) && hash( 'sha256', $wrap ) === ( $last['theme'][1]['snippet'] ?? '' ) && in_array( 'snippet_activate:digitalisimo-theme:hello-hijo', $GLOBALS['t']['log'], true ), 'El fragmento del hijo queda activo y Migrar recuerda cuál activó.' );
 		check( position( 'snippet_activate:digitalisimo-theme:hello-hijo' ) < position( 'switch_theme:digitalisimo-theme' ), 'Se activa antes del cambio de tema.' );
+		$between = array_slice( $GLOBALS['t']['log'], position( 'install:digitalisimo-theme' ), position( 'snippet_activate:digitalisimo-theme:hello-hijo' ) - position( 'install:digitalisimo-theme' ) );
+		check( in_array( 'request', $between, true ), 'Tras actualizar el tema, el hijo se lee en una petición nueva (con el lector nuevo).' );
 		check( hash( 'sha256', $wrap ) === ( $GLOBALS['t']['snippet_hash'] ?? '' ), 'Migrar pasa a Tools el hash del functions.php del hijo leído del disco (Tools sólo activa ese código).' );
 		check( ! logged( 'snippet_deactivate' ), 'Con todo bien, no se desactiva.' );
 		$html = Full::render( false, $last );

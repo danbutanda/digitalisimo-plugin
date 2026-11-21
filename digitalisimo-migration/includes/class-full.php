@@ -1361,6 +1361,12 @@ final class Full {
 				}
 				return self::next( $state, 'verify' );
 			}
+			if ( ! empty( $state['theme_updated_now'] ) ) {
+				// Recién actualizado: el lector del hijo de la versión anterior puede seguir cargado en esta petición (el tema
+				// activo en el sitio principal, o una lectura anterior). Los hijos se leen en una petición nueva, justo antes
+				// del cambio (la segunda vuelta de esta etapa vuelve a leer cada hijo).
+				return self::changed( $state );
+			}
 			// Un hijo de Hello: se lee con el lector del tema propio ya instalado (lo que se trae y lo que no).
 			foreach ( $safe as $site_id ) {
 				if ( empty( $state['theme'][ $site_id ]['child'] ) ) {
