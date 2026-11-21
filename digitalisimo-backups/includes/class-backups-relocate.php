@@ -1091,7 +1091,7 @@ final class Digitalisimo_Backups_Relocate {
 			}
 		}
 		// Sólo lo de este sitio (o de su red): la caché de objetos puede ser compartida con otros sitios del servidor.
-		if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate_site( $this->site_scope ? null : 'all' );
+		if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Backups::cache_invalidate( $this->site_scope ? null : 'all' );
 		return $out;
 	}
 	/** Vacía una carpeta sin seguir enlaces (los enlaces se retiran, su destino no se toca) y sin borrar la carpeta. */

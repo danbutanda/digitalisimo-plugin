@@ -312,6 +312,49 @@ final class Digitalisimo_Backups {
 			throw new Exception( 'No se pudo escribir el diario de la restauración en el almacén. No se cambió nada del sitio.' );
 		}
 	}
+	/**
+	 * Invalida lo de esta instalación en la caché de objetos tras cambiar tablas (Digitalisimo_Same_Site::invalidate_site())
+	 * y, si el presupuesto no alcanzó, guarda lo que falta en el almacén privado: cada tick lo sigue hasta terminar
+	 * (cache_pending_resume()). Nunca se da por bueno a medias.
+	 */
+	public static function cache_invalidate( $blog_ids = null, $before = null ) {
+		$result = Digitalisimo_Same_Site::invalidate_site( $blog_ids, $before );
+		if ( ! empty( $result['done'] ) ) return true;
+		self::cache_pending_save( (array) ( $result['plan']['tasks'] ?? array() ), true );
+		if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: la invalidación de la caché de objetos tras cambiar las tablas quedó a medias; sigue en los próximos ticks hasta terminar.' );
+		return false;
+	}
+	private static function cache_pending_path() {
+		try { return trailingslashit( self::local_directory() ) . '.cache-pending.json'; } catch ( Throwable $e ) { return ''; }
+	}
+	/** ¿Queda invalidación de la caché por terminar? */
+	public static function cache_pending() {
+		$path = self::cache_pending_path();
+		return '' !== $path && is_file( $path ) && ! is_link( $path );
+	}
+	private static function cache_pending_save( array $tasks, $append = false ) {
+		$path = self::cache_pending_path();
+		if ( '' === $path ) return;
+		if ( $append && self::cache_pending() ) {
+			$old = json_decode( (string) @file_get_contents( $path ), true );
+			$tasks = array_merge( (array) ( $old['tasks'] ?? array() ), $tasks );
+		}
+		if ( ! $tasks ) { @unlink( $path ); return; }
+		@file_put_contents( $path, wp_json_encode( array( 'v' => 1, 'tasks' => array_values( $tasks ) ) ), LOCK_EX );
+		if ( DIRECTORY_SEPARATOR === '/' ) @chmod( $path, 0600 );
+	}
+	/** Sigue la invalidación pendiente unos segundos (cada tick y el watchdog). true si ya no queda nada. */
+	public static function cache_pending_resume( $budget = 5 ) {
+		if ( ! self::cache_pending() ) return true;
+		$plan = json_decode( (string) @file_get_contents( self::cache_pending_path() ), true );
+		$result = Digitalisimo_Same_Site::resume_invalidation( is_array( $plan ) ? $plan : array(), $budget );
+		self::cache_pending_save( ! empty( $result['done'] ) ? array() : (array) ( $result['plan']['tasks'] ?? array() ) );
+		return ! empty( $result['done'] );
+	}
+	/** Archivo de la instantánea de la caché antes del cambio de tablas (Digitalisimo_Same_Site::snapshot_site()). */
+	private static function cache_before_path() {
+		try { return trailingslashit( self::local_directory() ) . '.cache-before.jsonl'; } catch ( Throwable $e ) { return ''; }
+	}
 	private static function remove_restore_journal() { @unlink( trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL ); }
 	/**
 	 * Anota en el diario (cifrada) la decisión sobre la cuenta de quien restaura antes de la primera escritura (revisión
@@ -342,7 +385,7 @@ final class Digitalisimo_Backups {
 		if ( is_array( $data ) && is_string( $data['wordpress_root'] ?? null ) && $data['wordpress_root'] !== self::journal_owner() ) return; // De otra instalación: es suyo.
 		if ( is_array( $data ) && 1 === ( $data['version'] ?? null ) ) {
 			// Las tablas cambiaron por debajo: se invalida lo de este sitio (o de su red), nunca la caché global compartida.
-			Digitalisimo_Same_Site::invalidate_site( 'all', is_array( $data['cache'] ?? null ) ? $data['cache'] : null );
+			self::cache_invalidate( 'all', is_array( $data['cache'] ?? null ) ? $data['cache'] : null );
 			// Un sitio extraído: la configuración de Backups de este servidor vuelve (sin los secretos en claro, que no van al diario).
 			if ( is_array( $data['extract_kept'] ?? null ) ) Digitalisimo_Backups_Site_Extract::reapply( $data['extract_kept'] );
 			if ( is_array( $data['history'] ?? null ) ) update_option( self::HISTORY, $data['history'], false );
@@ -3062,7 +3105,7 @@ final class Digitalisimo_Backups {
 	 */
 	private static function after_restore_sql( $history_before, $vault_before, array $origin = array(), $kept = null, $storage = false ) {
 		// Sólo lo de esta instalación (lo de antes del cambio y lo de ahora): la caché puede compartirse con otros sitios.
-		Digitalisimo_Same_Site::invalidate_site( 'all', self::$cache_before );
+		self::cache_invalidate( 'all', self::$cache_before );
 		// El almacén privado sigue siendo el de este servidor (H10), lo primero; false: quien llama no lo tomó (no se toca).
 		if ( false !== $storage ) self::keep_storage_record( $storage );
 		if ( is_array( $kept ) ) Digitalisimo_Backups_Site_Extract::reapply( $kept );

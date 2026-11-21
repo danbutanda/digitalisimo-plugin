@@ -306,7 +306,7 @@ final class Digitalisimo_Backups_Restore_Compat {
 		if ( ! empty( $state['builders'] ) ) {
 			$state['notes'][] = 'Se vació el CSS generado de DIGITALÍSIMO Elements (o Elementor), porque la base de datos y los medios no se restauraron juntos: se regenera en la primera visita de cada página.';
 			// Las metas y opciones vaciadas por SQL, en cada sitio: sólo lo de esta instalación, nunca la caché global.
-			if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate_site( 'all' );
+			if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Backups::cache_invalidate( 'all' );
 		}
 	}
 	// Brecha 19: si el tema activo de un sitio (o su padre) no existe o no es válido después de restaurar (sólo la base de

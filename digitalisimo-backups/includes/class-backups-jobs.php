@@ -169,8 +169,9 @@ final class Digitalisimo_Backups_Jobs {
 			// La instalación que lo creó (sin la dirección, que una restauración o una migración cambian a mitad del trabajo):
 			// claim() sólo toma los suyos, aunque el almacén se comparta.
 			'installation' => self::owner(),
-			// Direcciones que este trabajo puede ver en la caché mientras cambia la base (expected_hosts()).
-			'expect' => array_values( array_unique( array_filter( array_merge( self::own_hosts(), array_map( array( 'Digitalisimo_Same_Site', 'host' ), array_map( 'strval', (array) ( $spec['expect_hosts'] ?? array() ) ) ) ) ) ) ),
+			// Las direcciones de este sitio al encolarlo: tras el cambio de tablas de una restauración pueden seguir en la caché
+			// (expected_hosts()). Nunca las del origen.
+			'expect' => self::own_hosts(),
 			'kind' => in_array( $kind, array( 'restore', 'import' ), true ) ? $kind : 'backup',
 			'rev' => 0,
 			'spec' => $spec,
@@ -288,9 +289,10 @@ final class Digitalisimo_Backups_Jobs {
 		// Candado «mismo sitio»: con la caché de objetos devolviendo los datos de otro sitio, ningún paso escribe nada.
 		$alien = self::same_site_refusal( 'Respaldar o Restaurar' );
 		if ( '' !== $alien ) {
-			// Una restauración o una migración de este sitio a medias cambia `home` en la base por debajo de la caché. Sólo
-			// se sigue si lo que da la caché, tal cual (sin vaciarla ni volver a llenarla desde la base), es una de las
-			// direcciones que ese trabajo espera: la de este sitio antes de empezar o la del origen del paquete.
+			// Una restauración de este sitio que ya cambió las tablas con las direcciones del respaldo deja en la base las del
+			// origen y en la caché, tal cual (sin vaciarla ni volver a llenarla desde la base), las de este sitio de antes.
+			// Sólo eso se acepta: las direcciones de este sitio que guardó la restauración que va a correr, y sólo desde su
+			// cambio de tablas. La dirección del origen en la caché nunca: sería la de otro sitio que comparte la caché.
 			$check = Digitalisimo_Same_Site::check();
 			if ( ! empty( $check['ok'] ) || ( '' !== (string) $check['foreign'] && in_array( (string) $check['foreign'], self::expected_hosts(), true ) ) ) $alien = '';
 		}
@@ -313,6 +315,8 @@ final class Digitalisimo_Backups_Jobs {
 		$finished = false;
 		$guard = 0;
 		try {
+			// Lo que quedó de invalidar en la caché tras un cambio de tablas: antes que cualquier paso.
+			Digitalisimo_Backups::cache_pending_resume();
 			self::recover();
 			$start = microtime( true );
 			$budget = null === $budget ? self::budget() : (float) $budget;
@@ -814,6 +818,8 @@ final class Digitalisimo_Backups_Jobs {
 				$at = ! empty( $job['lease'] ) ? time() + 60 : max( time(), (int) $job['retry_at'] );
 				$next = null === $next ? $at : min( $next, $at );
 			}
+			// La invalidación de la caché que quedó a medias tras un cambio de tablas se sigue en el próximo tick.
+			if ( Digitalisimo_Backups::cache_pending() ) $next = null === $next ? time() : min( $next, time() );
 			// Una subida cancelada o fallida que espera retirarse del destino también necesita su tick.
 			if ( Digitalisimo_Backups::job_transfer_pending_abandons() ) $next = null === $next ? time() : min( $next, time() );
 			// Avisos por correo que una petición con WordPress mínimo no envió: los manda un tick con WordPress entero.
@@ -860,6 +866,7 @@ final class Digitalisimo_Backups_Jobs {
 		if ( $lock ) {
 			try {
 				self::recover();
+				Digitalisimo_Backups::cache_pending_resume();
 				Digitalisimo_Backups::job_transfer_abandon_pending();
 				Digitalisimo_Backups::job_remote_retention_pending( 5, true );
 				if ( ! self::has_active() ) self::cleanup_orphans();
@@ -1343,11 +1350,17 @@ final class Digitalisimo_Backups_Jobs {
 	 * terminar: las de este sitio al encolarlas y las del origen del paquete (`expect`). Vacío sin ninguna.
 	 */
 	private static function expected_hosts() {
-		$hosts = array();
 		try {
-			foreach ( self::active() as $job ) if ( self::restore_like( $job ) || null !== self::kind_handler( (array) ( $job['spec'] ?? array() ) ) ) $hosts = array_merge( $hosts, array_map( 'strval', (array) ( $job['expect'] ?? array() ) ) );
+			// La restauración que va a correr (mientras haya una, claim() no toma otra cosa), ya en su cambio de tablas o
+			// después.
+			foreach ( self::active() as $job ) {
+				if ( ! self::is_restore( $job ) ) continue;
+				$at = array_search( (string) ( $job['phase'] ?? '' ), Digitalisimo_Backups_Restore_Job::PHASES, true );
+				$switch = array_search( 'switch', Digitalisimo_Backups_Restore_Job::PHASES, true );
+				return false !== $at && false !== $switch && $at >= $switch ? array_values( array_unique( array_filter( array_map( 'strval', (array) ( $job['expect'] ?? array() ) ) ) ) ) : array();
+			}
 		} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-		return array_values( array_unique( array_filter( $hosts ) ) );
+		return array();
 	}
 	/** Hosts de este sitio en su base (home y siteurl), para `expect` de un trabajo. */
 	private static function own_hosts() {

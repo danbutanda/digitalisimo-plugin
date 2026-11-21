@@ -867,8 +867,6 @@ final class Digitalisimo_Backups_Migrate {
 			if ( $into ) $spec['into'] = $into;
 			$reader = Digitalisimo_Backups_Restore_Access::new_reader();
 			$spec['reader'] = array( 'hash' => $reader['hash'], 'issued' => $reader['issued'] );
-			// El origen de la migración: su dirección puede verse en la caché mientras la base cambia (expected_hosts()).
-			$spec['expect_hosts'] = array( (string) ( $hello['home'] ?? '' ), (string) ( $hello['siteurl'] ?? '' ) );
 			$queued = Digitalisimo_Backups_Jobs::enqueue( $spec );
 			if ( empty( $queued['duplicate'] ) ) $queued['reader_token'] = $reader['token'];
 			if ( ! empty( $queued['duplicate'] ) ) {

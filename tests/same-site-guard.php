@@ -50,7 +50,7 @@ foreach ( $calls as $i => $call ) {
 	if ( 1 === preg_match( '#/includes/class-digitalisimo-same-site\.php:\d+$#', $call ) ) { $isolated[] = $call; unset( $calls[ $i ] ); }
 }
 ss_check( 3 === count( $isolated ), 'El candado debe vaciar la caché sólo en su rama aislada (una vez por copia): ' . implode( ', ', $isolated ) );
-ss_check( false !== strpos( (string) file_get_contents( $root . '/digitalisimo-backups/includes/class-digitalisimo-same-site.php' ), "if ( self::salted() && function_exists( 'wp_cache_flush' ) ) {" ), 'El vaciado del candado debe ir sólo con la sal o el prefijo propios.' );
+ss_check( false !== strpos( (string) file_get_contents( $root . '/digitalisimo-backups/includes/class-digitalisimo-same-site.php' ), "if ( self::selective_flush() && function_exists( 'wp_cache_flush' ) ) {" ), 'El vaciado del candado debe ir sólo con un vaciado selectivo de verdad (N4).' );
 ss_check( ! $calls, 'Quedan llamadas a wp_cache_flush() (vacía la caché global, compartida con otros sitios): ' . implode( ', ', $calls ) );
 
 $copies = array();
@@ -74,6 +74,12 @@ ss_check( 3 === preg_match_all( '/self::assert_same_site\(\);\s*deactivate_plugi
 ss_check( 1 === preg_match( '/self::assert_same_site\(\);\s*switch_theme\(/', $full ), 'Migrar debe comprobar el candado justo antes de switch_theme().' );
 $switch = (string) file_get_contents( $root . '/digitalisimo-theme/inc/switch.php' );
 ss_check( 1 === preg_match( '/\$alien = digitalisimo_theme_alien\(\);\s*if \( \'\' === \$alien \) \{\s*\$saved\s*= wp_update_custom_css_post\(/', $switch ), 'El tema debe comprobar el candado justo antes de wp_update_custom_css_post().' );
+$access = (string) file_get_contents( $root . '/digitalisimo-backups/includes/restore/class-restore-access.php' );
+ss_check( 1 === preg_match( '/self::restore_account\([^;]*\);\s*\} finally \{[^}]*self::forget_accounts\(/s', $access ), 'N5: cada restore_account() debe retirar de la caché las cuentas que reescribe (forget_accounts en finally).' );
+ss_check( 1 === preg_match( '/catch \( Same_Site_Exception \$e \) \{\s*return true;/', $full ), 'N6: al volver al tema en una red, la excepción del candado se captura por sitio.' );
+$all_src = '';
+foreach ( array( 'digitalisimo-backups/includes/class-backups.php', 'digitalisimo-backups/includes/class-digitalisimo-same-site.php' ) as $f ) $all_src .= (string) file_get_contents( $root . '/' . $f );
+ss_check( false === strpos( $all_src, 'caduca solo' ), 'N1: ni el log ni el informe dicen «caduca solo» con la invalidación incompleta.' );
 $service = (string) file_get_contents( $root . '/digitalisimo-backups/includes/trait-backups-service.php' );
 ss_check( false !== strpos( $service, "self::restore_origin_problem( \$path, \$restored, \$args )" ), 'La restauración debe comprobar el origen del manifiesto (restore_origin_problem).' );
 $relocate = (string) file_get_contents( $root . '/digitalisimo-backups/includes/class-backups-relocate.php' );
@@ -106,13 +112,18 @@ final class SS_Wpdb {
 	public $queries = array();
 	public $max = array( 'wp_posts' => 7, 'wp_users' => 1, 'wp_terms' => 0, 'wp_comments' => 0 );
 	public $user_rows = array( array( 'ID' => 1, 'user_login' => 'admin', 'user_email' => 'a@plomerito.com', 'user_nicename' => 'admin' ) );
-	public function prepare( $sql, ...$args ) { return str_replace( '%s', "'" . addslashes( (string) $args[0] ) . "'", $sql ); }
+	public function prepare( $sql, ...$args ) { return str_replace( array( '%s', '%d' ), array( "'" . addslashes( (string) $args[0] ) . "'", (string) (int) $args[0] ), $sql ); }
 	public function get_var( $sql ) {
 		$this->queries[] = $sql;
 		if ( preg_match( '/SELECT MAX\(`\w+`\) FROM (\w+)/', $sql, $m ) ) return $this->max[ $m[1] ] ?? 0;
 		return preg_match( "/option_name = '([^']*)'/", $sql, $m ) ? ( $GLOBALS['ss']['db'][ $m[1] ] ?? null ) : null;
 	}
 	public function get_col( $sql ) { $this->queries[] = $sql; return array(); }
+	public function get_row( $sql ) {
+		if ( ! preg_match( "/WHERE ID = (\\d+)/", $sql, $m ) ) return null;
+		foreach ( $this->user_rows as $row ) if ( (int) $row['ID'] === (int) $m[1] ) return (object) $row;
+		return null;
+	}
 	public function get_results( $sql ) {
 		$this->queries[] = $sql;
 		if ( false !== strpos( $sql, ' WHERE ' ) ) return array(); // Segundo lote: no hay más.
@@ -153,38 +164,64 @@ ss_check( in_array( 'delete:options:alloptions', $GLOBALS['ss']['log'], true ) &
 $GLOBALS['ss']['cache']['options']['alloptions'] = array( 'home' => 'https://digitalisimo.lat', 'siteurl' => 'https://digitalisimo.lat' );
 ss_check( false !== strpos( Digitalisimo_Same_Site::refusal( 'Migrar' ), 'vacía la caché de objetos de este sitio' ), 'El mensaje debe sugerir también vaciar la caché de este sitio (su propia caché vieja).' );
 
-// A2 · Sin borrado por grupo ni sal: lo de antes del cambio de tablas (instantánea) y lo de ahora, exactamente.
+// A2/N1/N2 · Sin borrado por grupo ni vaciado selectivo: lo de antes del cambio de tablas (instantánea en archivo) y lo
+// de ahora, exactamente; primero las claves exactas, después los rangos de mayor a menor, y reanudable.
 $GLOBALS['ss']['cache']['options']['alloptions'] = array( 'home' => 'https://plomerito.com', 'siteurl' => 'https://plomerito.com' );
 $GLOBALS['wpdb']->max = array( 'wp_posts' => 40, 'wp_users' => 9, 'wp_terms' => 3, 'wp_comments' => 2 );
 $GLOBALS['wpdb']->user_rows = array( array( 'ID' => 1, 'user_login' => 'admin', 'user_email' => 'a@plomerito.com', 'user_nicename' => 'admin' ), array( 'ID' => 9, 'user_login' => 'intruso', 'user_email' => 'x@malo.test', 'user_nicename' => 'intruso' ) );
 $GLOBALS['ss']['db']['opcion_nueva'] = 'x';
-$before = Digitalisimo_Same_Site::snapshot_site();
-ss_check( 9 === $before['users_max'] && 40 === $before['sites'][1]['posts'] && in_array( array( 'intruso', 'x@malo.test', 'intruso' ), $before['users'], true ) && in_array( 'opcion_nueva', $before['sites'][1]['options'], true ), 'snapshot_site() guarda los identificadores mayores, las cuentas y las opciones de antes: ' . json_encode( $before ) );
+$file = sys_get_temp_dir() . '/ss-before-' . getmypid() . '.jsonl';
+$before = Digitalisimo_Same_Site::snapshot_site( null, $file );
+$lines = is_file( $file ) ? (string) file_get_contents( $file ) : '';
+ss_check( 9 === $before['users_max'] && 40 === $before['sites'][1]['posts'] && ! isset( $before['users'] ) && ! isset( $before['sites'][1]['options'] ) && $file === $before['file'], 'snapshot_site() guarda en memoria sólo los identificadores mayores (N2): ' . json_encode( $before ) );
+ss_check( false !== strpos( $lines, '["u","intruso","x@malo.test","intruso"]' ) && false !== strpos( $lines, '["o",1,"opcion_nueva"]' ), 'Las cuentas y las opciones de antes van al archivo: ' . $lines );
 // El respaldo restaurado es más viejo: sin la cuenta 9, sin la opción nueva, con menos entradas.
 unset( $GLOBALS['ss']['db']['opcion_nueva'] );
 $GLOBALS['wpdb']->max = array( 'wp_posts' => 10, 'wp_users' => 1, 'wp_terms' => 3, 'wp_comments' => 2 );
 $GLOBALS['wpdb']->user_rows = array( array( 'ID' => 1, 'user_login' => 'admin', 'user_email' => 'a@plomerito.com', 'user_nicename' => 'admin' ) );
 $GLOBALS['wpdb']->queries = array();
 $GLOBALS['ss']['log'] = array();
-$done = Digitalisimo_Same_Site::invalidate_site( null, $before );
+$result = Digitalisimo_Same_Site::invalidate_site( null, $before );
 $log = $GLOBALS['ss']['log'];
-ss_check( $done && in_array( 'delete:users:9', $log, true ) && in_array( 'delete:user_meta:9', $log, true ) && in_array( 'delete:userlogins:intruso', $log, true ) && in_array( 'delete:useremail:x@malo.test', $log, true ), 'La cuenta creada después del respaldo (de la instantánea) debe salir de la caché: ' . implode( ', ', array_slice( $log, 0, 30 ) ) );
+ss_check( ! empty( $result['done'] ) && in_array( 'delete:users:9', $log, true ) && in_array( 'delete:user_meta:9', $log, true ) && in_array( 'delete:userlogins:intruso', $log, true ) && in_array( 'delete:useremail:x@malo.test', $log, true ), 'La cuenta creada después del respaldo (de la instantánea) debe salir de la caché: ' . implode( ', ', array_slice( $log, 0, 30 ) ) );
+$at = function( $entry ) use ( $log ) { $k = array_search( $entry, $log, true ); return false === $k ? PHP_INT_MAX : $k; };
+ss_check( $at( 'delete:userlogins:intruso' ) < $at( 'delete:users:9' ) && $at( 'delete:options:opcion_nueva' ) < $at( 'delete:users:9' ), 'N1: primero las claves exactas (login, correo, slug y opciones), después los rangos.' );
+ss_check( $at( 'delete:users:9' ) < $at( 'delete:users:1' ) && $at( 'delete:posts:40' ) < $at( 'delete:posts:1' ), 'N1: los rangos, de mayor a menor.' );
 ss_check( in_array( 'delete:posts:40', $log, true ) && ! in_array( 'delete:posts:41', $log, true ) && ! in_array( 'delete:users:10', $log, true ), 'Hasta el identificador mayor de antes y de ahora, sin colas fijas.' );
-ss_check( in_array( 'delete:options:opcion_nueva', $log, true ) && in_array( 'delete:transient:doing_cron', $log, true ) && in_array( 'delete:site-transient:update_plugins', $log, true ) && ! in_array( 'GLOBAL_FLUSH', $log, true ), 'Las opciones de antes y los transitorios del núcleo, sin vaciar la caché compartida.' );
+ss_check( in_array( 'delete:options:opcion_nueva', $log, true ) && in_array( 'delete:transient:doing_cron', $log, true ) && in_array( 'delete:site-transient:update_plugins', $log, true ) && ! in_array( 'GLOBAL_FLUSH', $log, true ) && ! is_file( $file ), 'Las opciones de antes y los transitorios del núcleo, sin vaciar la caché compartida; el archivo se retira al terminar.' );
 $unordered = array_filter( $GLOBALS['wpdb']->queries, function( $q ) { return 0 === strpos( $q, 'SELECT ' ) && false === strpos( $q, 'MAX(' ) && false === strpos( $q, 'option_value' ) && false === strpos( $q, 'ORDER BY' ); } );
 ss_check( ! $unordered && ! preg_grep( '/LIMIT 200000/', $GLOBALS['wpdb']->queries ), 'Los recorridos van por lotes ordenados, sin tope: ' . implode( ' | ', $unordered ) );
-ss_check( false === Digitalisimo_Same_Site::invalidate_site( null, array( 'users_max' => 5000000 ), 0.0 ), 'Con el presupuesto agotado, invalidate_site() lo dice (false).' );
+// N1 · Con el presupuesto agotado no termina, lo dice y lo que falta sigue después hasta terminar.
+$GLOBALS['wpdb']->max = array( 'wp_posts' => 5000, 'wp_users' => 3000, 'wp_terms' => 0, 'wp_comments' => 0 );
+$GLOBALS['ss']['log'] = array();
+$cut = Digitalisimo_Same_Site::invalidate_site( null, array(), 0.0 );
+ss_check( empty( $cut['done'] ) && ! empty( $cut['plan']['tasks'] ), 'Con el presupuesto agotado, invalidate_site() devuelve lo que falta: ' . json_encode( $cut ) );
+for ( $i = 0; $i < 50 && empty( $cut['done'] ); $i++ ) $cut = Digitalisimo_Same_Site::resume_invalidation( $cut['plan'], 0.0 );
+$cut = empty( $cut['done'] ) ? Digitalisimo_Same_Site::resume_invalidation( $cut['plan'], 10 ) : $cut;
+ss_check( ! empty( $cut['done'] ) && in_array( 'delete:users:3000', $GLOBALS['ss']['log'], true ) && in_array( 'delete:posts:1', $GLOBALS['ss']['log'], true ), 'Reanudada, la invalidación termina (todas las cuentas y entradas).' );
+$GLOBALS['wpdb']->max = array( 'wp_posts' => 10, 'wp_users' => 1, 'wp_terms' => 3, 'wp_comments' => 2 );
+// N5 · Las cuentas que una restauración reescribe por SQL salen de la caché (objeto, metas, login, correo y slug).
+$GLOBALS['ss']['log'] = array();
+Digitalisimo_Same_Site::forget_users( array( 1 ), array( 'nombre-anterior' ) );
+ss_check( in_array( 'delete:users:1', $GLOBALS['ss']['log'], true ) && in_array( 'delete:user_meta:1', $GLOBALS['ss']['log'], true ) && in_array( 'delete:userlogins:admin', $GLOBALS['ss']['log'], true ) && in_array( 'delete:useremail:a@plomerito.com', $GLOBALS['ss']['log'], true ) && in_array( 'delete:userlogins:nombre-anterior', $GLOBALS['ss']['log'], true ), 'forget_users(): ' . implode( ', ', $GLOBALS['ss']['log'] ) );
 $GLOBALS['ss']['supports'] = array( 'flush_group', 'flush_runtime' );
 $GLOBALS['ss']['log'] = array();
 Digitalisimo_Same_Site::invalidate_site();
 ss_check( in_array( 'flush_group:options', $GLOBALS['ss']['log'], true ) && in_array( 'flush_group:transient', $GLOBALS['ss']['log'], true ) && in_array( 'flush_runtime', $GLOBALS['ss']['log'], true ) && ! in_array( 'GLOBAL_FLUSH', $GLOBALS['ss']['log'], true ), 'Con borrado por grupo, invalidate_site() usa wp_cache_flush_group(): ' . implode( ', ', $GLOBALS['ss']['log'] ) );
-// Aislada por la sal (y sin borrado por grupo): vaciarla es seguro y lo correcto.
 $GLOBALS['ss']['supports'] = array();
+// N8 · Una base de Redis distinta de 0 no aísla por sí sola.
+define( 'WP_REDIS_DATABASE', 1 );
+ss_check( ! Digitalisimo_Same_Site::isolated(), 'WP_REDIS_DATABASE > 0 no cuenta como aislada.' );
+// N4 · Con sal pero sin vaciado selectivo, la invalidación exacta (wp_cache_flush() vaciaría la base de todos).
 define( 'WP_CACHE_KEY_SALT', 'plomerito.com:' );
 $GLOBALS['ss']['log'] = array();
 Digitalisimo_Same_Site::invalidate_site();
-ss_check( array( 'GLOBAL_FLUSH' ) === array_values( array_diff( $GLOBALS['ss']['log'], array( 'flush_runtime' ) ) ), 'Con WP_CACHE_KEY_SALT y sin borrado por grupo, wp_cache_flush(): ' . implode( ', ', $GLOBALS['ss']['log'] ) );
+ss_check( ! in_array( 'GLOBAL_FLUSH', $GLOBALS['ss']['log'], true ) && in_array( 'delete:options:alloptions', $GLOBALS['ss']['log'], true ), 'Con sal y sin WP_REDIS_SELECTIVE_FLUSH, nada de wp_cache_flush(): ' . implode( ', ', array_slice( $GLOBALS['ss']['log'], 0, 10 ) ) );
 ss_check( Digitalisimo_Same_Site::isolated(), 'Con sal, la caché está aislada (no hace falta el aviso).' );
+define( 'WP_REDIS_SELECTIVE_FLUSH', true );
+$GLOBALS['ss']['log'] = array();
+Digitalisimo_Same_Site::invalidate_site();
+ss_check( array( 'GLOBAL_FLUSH' ) === array_values( array_diff( $GLOBALS['ss']['log'], array( 'flush_runtime' ) ) ), 'Con sal y WP_REDIS_SELECTIVE_FLUSH, wp_cache_flush() (sólo esta instalación): ' . implode( ', ', $GLOBALS['ss']['log'] ) );
 
 if ( $problems ) {
 	echo "FALLA same-site-guard\n  - " . implode( "\n  - ", $problems ) . "\n";

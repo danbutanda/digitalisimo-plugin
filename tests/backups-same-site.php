@@ -55,20 +55,43 @@ foreach ( array( 'service_create' => array( array( 'via' => 'test' ) ), 'service
 	$result = call_user_func_array( array( 'Digitalisimo_Backups', $method ), $args );
 	bk_assert( $result instanceof WP_Error && false !== strpos( $result->get_error_message(), 'digitalisimo.lat' ) && false !== strpos( $result->get_error_message(), 'WP_CACHE_KEY_SALT' ), $method . '() debe negarse con la caché de otro sitio: ' . ( $result instanceof WP_Error ? $result->get_error_message() : json_encode( $result ) ) );
 }
-// A1 · Con una restauración propia a medias, el candado no «pasa» por vaciar la caché y volver a llenarla desde la base:
-// sólo sigue si la caché, tal cual, da una dirección que ese trabajo espera (la de este sitio o la del origen).
+// A1/N3 · Con una restauración propia a medias, el candado no «pasa» por vaciar la caché ni acepta el origen: sólo, desde
+// su cambio de tablas, que la caché siga dando la dirección de este sitio de antes (la base ya tiene la del respaldo).
 $restore = Digitalisimo_Backups_Jobs::create_restore( array( 'type' => 'restore', 'kind' => '', 'policy' => 'restore', 'destination' => 'local', 'file' => 'x.zip', 'tag' => '', 'expect_hosts' => array( 'https://origen.test' ) ) );
-bk_assert( array( 'ejemplo.test', 'origen.test' ) === $restore['expect'], 'La restauración debe guardar las direcciones que espera: ' . json_encode( $restore['expect'] ?? null ) );
+bk_assert( array( 'ejemplo.test' ) === $restore['expect'], 'La restauración sólo espera las direcciones de este sitio, nunca las del origen: ' . json_encode( $restore['expect'] ?? null ) );
 $tick = Digitalisimo_Backups_Jobs::tick( 0 );
-bk_assert( 'same_site' === ( $tick['code'] ?? '' ) && 'https://digitalisimo.lat' === get_option( 'home' ) && 0 === (int) bk_job( $restore['id'] )['started_at'], 'Con una restauración a medias y la caché de otro sitio (no esperado), tick() se niega sin vaciar la caché: ' . json_encode( $tick ) );
-update_option( 'home', 'https://origen.test' );
-update_option( 'siteurl', 'https://origen.test' );
+bk_assert( 'same_site' === ( $tick['code'] ?? '' ) && 'https://digitalisimo.lat' === get_option( 'home' ) && 0 === (int) bk_job( $restore['id'] )['started_at'], 'Con una restauración a medias y la caché de otro sitio, tick() se niega sin vaciar la caché: ' . json_encode( $tick ) );
+$phase = function( $name ) use ( $restore ) { Digitalisimo_Backups_Job_Store::with_lock( function() use ( $restore, $name ) { $job = Digitalisimo_Backups_Job_Store::read( $restore['id'] ); $job['phase'] = $name; $job['lease'] = null; $job['status'] = 'queued'; $job['retry_at'] = 0; Digitalisimo_Backups_Job_Store::write( $job ); } ); };
+// La base ya tiene la dirección del respaldo (origen.test) y la caché la de antes (ejemplo.test).
+$GLOBALS['wpdb']->rows['home'] = $GLOBALS['wpdb']->rows['siteurl'] = 'https://origen.test';
+update_option( 'home', 'https://ejemplo.test' );
+update_option( 'siteurl', 'https://ejemplo.test' );
+$tick = Digitalisimo_Backups_Jobs::tick( 0 );
+bk_assert( 'same_site' === ( $tick['code'] ?? '' ), 'Antes de su cambio de tablas no se acepta nada distinto de la base: ' . json_encode( $tick ) );
+$phase( 'switch' );
 $ran = false;
 Digitalisimo_Backups_Jobs::$phase_runner = function( $phase, $job ) use ( &$ran ) { $ran = true; throw new Digitalisimo_Backups_Permanent_Error( 'Sólo se prueba que el paso corre.' ); };
 $tick = Digitalisimo_Backups_Jobs::tick( 0 );
+bk_assert( 'same_site' !== ( $tick['code'] ?? '' ) && $ran, 'Desde su cambio de tablas, la dirección de este sitio de antes en la caché se acepta: ' . json_encode( $tick ) );
+// El origen en la caché (el sitio que la comparte) nunca, ni después del cambio.
+$phase( 'switch' );
+$GLOBALS['wpdb']->rows['home'] = $GLOBALS['wpdb']->rows['siteurl'] = 'https://ejemplo.test';
+update_option( 'home', 'https://origen.test' );
+update_option( 'siteurl', 'https://origen.test' );
+$ran = false;
+$tick = Digitalisimo_Backups_Jobs::tick( 0 );
 Digitalisimo_Backups_Jobs::$phase_runner = null;
-bk_assert( 'same_site' !== ( $tick['code'] ?? '' ) && $ran, 'Con la dirección del origen esperado en la caché, la restauración sigue: ' . json_encode( $tick ) );
+bk_assert( 'same_site' === ( $tick['code'] ?? '' ) && ! $ran, 'El origen en la caché sigue siendo un choque: ' . json_encode( $tick ) );
 Digitalisimo_Backups_Job_Store::with_lock( function() use ( $restore ) { $job = Digitalisimo_Backups_Job_Store::read( $restore['id'] ); $job['status'] = 'cancelled'; $job['lease'] = null; $job['finished_at'] = time(); Digitalisimo_Backups_Job_Store::write( $job ); } );
+// N1 · Una invalidación que quedó a medias sigue en el próximo tick hasta terminar.
+$collide( false );
+ss_call( 'Digitalisimo_Backups', 'cache_pending_save', array( array( 'do' => 'transients' ) ) );
+bk_assert( Digitalisimo_Backups::cache_pending(), 'Lo pendiente se guarda en el almacén privado.' );
+$GLOBALS['bk_cron'] = array();
+Digitalisimo_Backups_Jobs::schedule();
+bk_assert( in_array( Digitalisimo_Backups_Jobs::HOOK_TICK, $GLOBALS['bk_cron'], true ), 'Con invalidación pendiente, se programa un tick.' );
+Digitalisimo_Backups_Jobs::tick( 0 );
+bk_assert( ! Digitalisimo_Backups::cache_pending(), 'El tick siguiente termina la invalidación pendiente.' );
 $collide( true );
 // A1 · Lo que se repone tras restaurar se lee de la base, no de la caché.
 $names = ss_call( 'Digitalisimo_Backups', 'keep_config_options' );

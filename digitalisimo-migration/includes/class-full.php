@@ -1634,15 +1634,27 @@ final class Full {
 			if ( empty( $row['switched'] ) ) {
 				continue;
 			}
-			self::on_site( (int) $site_id, static function () use ( $row ) {
-				if ( function_exists( 'digitalisimo_theme_revert' ) ) {
-					$result = digitalisimo_theme_revert();
-					if ( ! is_wp_error( $result ) ) {
-						return;
+			// En una red, el candado se mira en cada sitio (la caché puede dar otro sitio sólo en éste): ese sitio se queda
+			// como está y el informe lo dice; la tarea no se atasca (esto corre también desde fail()).
+			$kept = self::on_site( (int) $site_id, static function () use ( $row ) {
+				try {
+					self::assert_same_site();
+					if ( function_exists( 'digitalisimo_theme_revert' ) ) {
+						$result = digitalisimo_theme_revert();
+						if ( ! is_wp_error( $result ) ) {
+							return false;
+						}
 					}
+					self::switch_theme_to( (string) $row['from'] );
+				} catch ( Same_Site_Exception $e ) {
+					return true;
 				}
-				self::switch_theme_to( (string) $row['from'] );
+				return false;
 			} );
+			if ( $kept ) {
+				$state = self::note( $state, sprintf( 'El tema de %s no se devolvió al anterior porque la caché de objetos estaba dando los datos de otro sitio: corrígela y vuelve a pulsar Migrar, que lo comprueba.', (string) $row['name'] ) );
+				continue;
+			}
 			$state['theme'][ $site_id ]['switched'] = false;
 			$state['theme'][ $site_id ]['reverted'] = true;
 			$state['theme'][ $site_id ]['reason']   = sprintf( $reason, (string) $row['name'] );

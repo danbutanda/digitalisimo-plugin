@@ -399,7 +399,13 @@ final class Digitalisimo_Backups_Restore_Access {
 		if ( is_array( $plans ) ) {
 			foreach ( $accounts as $i => $one ) {
 				try {
-					self::restore_account( $one, (array) ( $plans[ $i ] ?? array() ), $options, $report );
+					try {
+						self::restore_account( $one, (array) ( $plans[ $i ] ?? array() ), $options, $report );
+					} finally {
+						// restore_account() escribe por SQL: la caché de esas cuentas (objeto, metas, login, correo y slug, de antes
+						// y de ahora) se retira, o daría la fila del respaldo (su contraseña) hasta caducar.
+						self::forget_accounts( $one, (array) ( $plans[ $i ] ?? array() ) );
+					}
 				} catch ( Throwable $e ) {
 					if ( ! empty( $one['restorer'] ) ) {
 						$report['state'] = 'failed';
@@ -429,8 +435,8 @@ final class Digitalisimo_Backups_Restore_Access {
 		} catch ( Throwable $e ) {
 			$report['warnings'][] = 'No se pudo comprobar las contraseñas de aplicación: ' . $e->getMessage();
 		}
-		// Las opciones y las claves que se acaban de escribir (sólo de esta instalación); las cuentas que tocó apply() las
-		// limpian las funciones de WordPress que las escriben.
+		// Las opciones y las claves que se acaban de escribir (sólo de esta instalación); las cuentas que reescribió
+		// restore_account() ya se retiraron de la caché (forget_accounts()).
 		if ( class_exists( 'Digitalisimo_Same_Site', false ) ) Digitalisimo_Same_Site::invalidate( array(), array_merge( array( 'site_admins' ), self::SALTS ), 'all' );
 		try {
 			$report['login_url'] = self::login_url();
@@ -807,6 +813,14 @@ final class Digitalisimo_Backups_Restore_Access {
 	 * La ruta privada de acceso efectiva leída de los datos (los ticks de una restauración cargan WordPress mínimo, sin
 	 * Tools ni SEO): Tools si está activo; si no, SEO si está activo; si no, ninguna.
 	 */
+	/** Retira de la caché de objetos las cuentas que tocó restore_account() (la suya, la que cedió su usuario y sus nombres). */
+	private static function forget_accounts( array $captured, array $plan ) {
+		if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) return;
+		$row = (array) ( $captured['user'] ?? array() );
+		$ids = array( (int) ( $plan['target'] ?? 0 ), (int) ( $plan['renamed'] ?? 0 ), (int) ( $row['ID'] ?? 0 ) );
+		$names = array( (string) ( $plan['login'] ?? '' ), (string) ( $plan['renamed_to'] ?? '' ), (string) ( $plan['merged_from'] ?? '' ), (string) ( $row['user_login'] ?? '' ), (string) ( $row['user_email'] ?? '' ), (string) ( $row['user_nicename'] ?? '' ) );
+		Digitalisimo_Same_Site::forget_users( $ids, $names );
+	}
 	/** Una opción de este sitio leída de la base, sin la caché de objetos (que podría dar la de otro sitio). */
 	private static function stored( $name, $default = false ) {
 		return class_exists( 'Digitalisimo_Same_Site', false ) ? Digitalisimo_Same_Site::db_value( $name, $default ) : get_option( $name, $default );

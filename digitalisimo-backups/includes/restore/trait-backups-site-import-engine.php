@@ -313,7 +313,7 @@ trait Digitalisimo_Backups_Site_Import_Engine {
 		}
 		if ( function_exists( 'clean_blog_cache' ) ) clean_blog_cache( $id );
 		// Lo del sitio importado (y los usuarios de la red), nunca la caché global compartida con otros sitios.
-		Digitalisimo_Same_Site::invalidate_site( array( $id ) );
+		self::cache_invalidate( array( $id ) );
 		try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		$cursor['swapped_at'] = $cursor['swapped_at'] ?? time();
 		return $cursor;
@@ -343,7 +343,7 @@ trait Digitalisimo_Backups_Site_Import_Engine {
 			wp_update_site( $id, array( 'last_updated' => current_time( 'mysql', true ), 'public' => (int) $public ) );
 		}
 		if ( function_exists( 'clean_blog_cache' ) ) clean_blog_cache( $id );
-		Digitalisimo_Same_Site::invalidate_site( array( $id ) );
+		self::cache_invalidate( array( $id ) );
 		return $report;
 	}
 	// Limpieza: las temporales de `users` y `usermeta` del respaldo (ya fundidos).
