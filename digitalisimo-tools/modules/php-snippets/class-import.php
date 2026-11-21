@@ -155,19 +155,51 @@ final class Import {
 	}
 
 	/**
-	 * Desactiva el importado `digitalisimo-theme:<carpeta del hijo>` si sigue activo con el código que activó Migrar
-	 * ($context['hash']; sin él, cualquiera). Lo usa la vuelta atrás de Migrar. true si quedó inactivo; false si no existe
-	 * o alguien lo cambió (entonces no se toca).
+	 * Vuelta atrás de Migrar: desactiva el importado `digitalisimo-theme:<carpeta del hijo>` si sigue activo con el código
+	 * que activó Migrar ($context['hash']) y lo deja como estaba antes: sin revisar (con la casilla), con la firma de la
+	 * importación en el borrador y sin la versión «Activada» por quien pulsó en el historial; el registro lo atribuye a
+	 * Migrar. Uno que el guardián desactivó por un error se queda así (nunca vuelve a «sin revisar»). true si quedó sin
+	 * correr; false si no existe o alguien lo cambió (entonces no se toca).
 	 */
 	public static function deactivate_import( $result, $key, $context = array() ) {
 		unset( $result );
 		$found = 0 === strpos( (string) $key, self::CHILD_SOURCE . ':' ) ? self::find( (string) $key ) : '';
 		if ( '' === $found ) return false;
-		$run  = Store::run( 'site' );
-		$want = is_array( $context ) ? (string) ( $context['hash'] ?? '' ) : '';
-		if ( ! isset( $run['items'][ $found ] ) ) return true;
+		$run   = Store::run( 'site' );
+		$index = Store::index( 'site' );
+		$want  = is_array( $context ) ? (string) ( $context['hash'] ?? '' ) : '';
+		$mine  = '' !== $want && hash_equals( (string) ( $index['items'][ $found ]['migration'] ?? '' ), $want );
+		if ( ! isset( $run['items'][ $found ] ) ) {
+			if ( $mine ) self::mark( $found, '' );
+			return true;
+		}
 		if ( '' !== $want && ! hash_equals( $want, (string) $run['items'][ $found ]['hash'] ) ) return false;
-		return true === Store::deactivate( 'site', $found, absint( is_array( $context ) ? ( $context['by'] ?? 0 ) : 0 ) );
+		if ( 'failed' === Store::state( 'site', $found, $index, $run ) ) {
+			// El guardián ya lo detuvo por un error: no corre, y su registro del error se conserva.
+			if ( $mine ) self::mark( $found, '' );
+			return true;
+		}
+		if ( true !== Store::deactivate( 'site', $found, 0 ) ) return false;
+		if ( ! $mine ) return true;
+		$done = Store::mutate( 'site', static function () use ( $found, $want ) {
+			$index = Store::index( 'site' );
+			$item  = Store::item( 'site', $found );
+			if ( ! isset( $index['items'][ $found ] ) || ! $item || ! hash_equals( $want, hash( 'sha256', $item['code'] ) ) ) return false;
+			$index['items'][ $found ]['review'] = true;
+			$index['items'][ $found ]['by']     = 0;
+			unset( $index['items'][ $found ]['migration'] );
+			// Fuera la versión «Activada» que dejó Migrar (la más reciente con ese código): el historial queda como antes.
+			$history = array_values( (array) $item['history'] );
+			if ( isset( $history[0] ) && is_array( $history[0] ) && ! empty( $history[0]['activated'] ) && hash_equals( $want, (string) ( $history[0]['hash'] ?? '' ) ) ) array_shift( $history );
+			// Al activar, esa versión había sustituido a la de la importación: vuelve la de la importación, firmada por Tools.
+			$item['history'] = Store::remember( 'site', $found, $history, array( 'code' => $item['code'], 'hash' => $want, 'by' => 0, 'event' => 'origin' ) );
+			$item            = Store::sign_draft( 'site', $found, $item, 'origin' );
+			update_option( Store::option_name( 'site', 'item', $found ), $item, false );
+			update_option( Store::SITE_INDEX, $index, false );
+			Store::log( 'site', 'imported', array( 'id' => $found, 'hash' => $want, 'user' => 0, 'msg' => 'Migrar volvió al tema hijo: el fragmento queda desactivado y otra vez sin revisar.' ) );
+			return true;
+		} );
+		return true === $done;
 	}
 
 	/** Anota en el índice que Migrar activó ese código (`migration` = su hash); '' la quita. */
