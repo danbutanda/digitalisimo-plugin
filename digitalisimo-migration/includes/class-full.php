@@ -77,6 +77,11 @@ final class Full {
 	private static $cli = false;
 	/** @var float cuándo empezó el trabajo de la tarea en esta petición (no la petición: su arranque puede tardar). */
 	private static $began = 0.0;
+	/** @var array|null sal de la caché que DIGITALÍSIMO Tools acaba de escribir al pulsar Migrar (en esta petición). */
+	private static $salt = null;
+
+	/** Filtro de DIGITALÍSIMO Tools (Cache_Salt::ensure()) que agrega la sal de la caché de objetos a wp-config.php. */
+	const CACHE_SALT = 'digitalisimo_tools_cache_salt';
 
 	public static function init() {
 		add_action( 'wp_ajax_' . self::AJAX, array( __CLASS__, 'ajax' ) );
@@ -309,6 +314,10 @@ final class Full {
 						return array( 'idle' => true, 'refused' => $refused );
 					}
 					$state = self::fresh( $network, $run );
+					if ( self::$salt ) {
+						// La sal sólo vale desde la petición siguiente: la tarea queda creada y sigue en otra petición.
+						$state = self::salted( $state, self::$salt );
+					}
 					self::store( $state );
 				}
 			}
@@ -337,6 +346,14 @@ final class Full {
 		$caps = self::caps( $network );
 		if ( empty( $caps['activate'] ) ) {
 			return 'Quien pulsó Migrar no puede activar ni desactivar plugins.';
+		}
+		// Caché externa sin sal: Tools la agrega antes de nada (cura también una caché que ya da los datos de otro sitio:
+		// la comprobación del candado se repite en la petición siguiente, ya con la sal, antes de la primera etapa).
+		self::$salt = null;
+		$salt       = self::cache_salt();
+		if ( 'written' === ( $salt['state'] ?? '' ) ) {
+			self::$salt = $salt;
+			return self::wp_too_old( Replacements::plan( $network ) );
 		}
 		// Candado «mismo sitio»: con la caché de objetos devolviendo los datos de otro sitio, nada empieza.
 		$alien = self::alien();
@@ -370,6 +387,43 @@ final class Full {
 			require_once __DIR__ . '/class-digitalisimo-same-site.php';
 		}
 		return class_exists( '\Digitalisimo_Same_Site', false ) ? \Digitalisimo_Same_Site::refusal( 'Migrar' ) : '';
+	}
+
+	/**
+	 * Sal propia de la caché de objetos (regla del propietario del 2026-11-21: nadie edita wp-config.php a mano): con
+	 * caché externa sin `WP_CACHE_KEY_SALT` ni `WP_REDIS_PREFIX`, DIGITALÍSIMO Tools la agrega a wp-config.php
+	 * (Cache_Salt::ensure()). Si Tools está instalado pero no activo, se carga su clase desde su carpeta (sólo depende del
+	 * candado). Devuelve su resultado (`state`: written, pending, manual, failed o not_needed) o array() sin Tools.
+	 */
+	private static function cache_salt() {
+		self::alien(); // Carga el candado si hace falta.
+		if ( ! has_filter( self::CACHE_SALT ) && ! class_exists( '\\Digitalisimo\\Tools\\Cache_Salt', false ) && defined( 'WP_PLUGIN_DIR' ) ) {
+			$file = WP_PLUGIN_DIR . '/' . dirname( self::TOOLS_FILE ) . '/includes/class-cache-salt.php';
+			if ( is_file( $file ) && class_exists( '\\Digitalisimo_Same_Site', false ) ) {
+				require_once $file;
+			}
+		}
+		if ( has_filter( self::CACHE_SALT ) ) {
+			$result = apply_filters( self::CACHE_SALT, null, 'migration' );
+		} elseif ( class_exists( '\\Digitalisimo\\Tools\\Cache_Salt', false ) ) {
+			$result = \Digitalisimo\Tools\Cache_Salt::ensure( 'migration' );
+		} else {
+			$result = array();
+		}
+		return is_array( $result ) ? $result : array();
+	}
+
+	/** Anota la sal en la tarea; si se acaba de escribir, sigue en una petición nueva (la constante vale desde ahí). */
+	private static function salted( array $state, array $salt ) {
+		$state['salt'] = (string) ( $salt['state'] ?? 'none' );
+		if ( 'written' === $state['salt'] ) {
+			$state = self::note( $state, sprintf( 'La caché de objetos no tenía sal propia: se agregó a wp-config.php (%s), con copia previa en %s.', (string) ( $salt['salt'] ?? '' ), (string) ( $salt['backup'] ?? '' ) ) );
+			return self::changed( $state );
+		}
+		if ( in_array( $state['salt'], array( 'manual', 'failed' ), true ) ) {
+			$state = self::note( $state, 'La caché de objetos no tiene sal propia y DIGITALÍSIMO no pudo agregarla a wp-config.php (' . (string) ( $salt['message'] ?? '' ) . '). El candado «mismo sitio» sigue protegiendo cada etapa; la línea para copiar está en el aviso del Escritorio: ' . (string) ( $salt['line'] ?? '' ) );
+		}
+		return $state;
 	}
 
 	/** Lanza Same_Site_Exception si la caché da otro sitio (justo antes de una escritura de «leer y volver a guardar»). */
@@ -727,6 +781,13 @@ final class Full {
 			return $ensured;
 		}
 		$jobs = 'Digitalisimo_Backups_Jobs';
+		if ( empty( $state['backup']['job'] ) && ! isset( $state['salt'] ) ) {
+			// Antes del respaldo: la caché de objetos con su propia sal (si se escribe ahora, sigue en la petición siguiente).
+			$state = self::salted( $state, self::cache_salt() );
+			if ( ! empty( $state['pause'] ) ) {
+				return $state;
+			}
+		}
 		if ( empty( $state['backup']['job'] ) ) {
 			$spec   = $jobs::spec( array( 'policy' => self::POLICY, 'destination' => 'local', 'retain' => 3, 'retention' => 'policy', 'via' => 'migration', 'network' => ! empty( $state['network'] ), 'site_id' => is_multisite() ? get_main_site_id() : 0 ) );
 			$queued = $jobs::enqueue( $spec );
