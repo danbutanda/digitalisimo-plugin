@@ -99,4 +99,18 @@ foreach ( $sites as $site_id ) {
 		restore_current_blog();
 	}
 }
+if ( 'child' === $scenario ) {
+	// Caso real del 2026-11-20: el tema propio 1.0.0 ya instalado (sin lector del hijo), un hijo de Hello con la plantilla
+	// oficial más PHP de wp_head y wp_footer, y DIGITALÍSIMO Tools activo (dueño de Código PHP).
+	$zip = new ZipArchive();
+	$zip->open( $probe . '/theme-old.zip' );
+	$zip->extractTo( WP_CONTENT_DIR . '/themes' );
+	$zip->close();
+	@mkdir( WP_CONTENT_DIR . '/themes/hello-hijo', 0777, true );
+	file_put_contents( WP_CONTENT_DIR . '/themes/hello-hijo/style.css', "/*\nTheme Name: Hello Hijo\nTemplate: hello-elementor\nVersion: 2.0.0\n*/\nbody{background:#fafafa}\n" );
+	file_put_contents( WP_CONTENT_DIR . '/themes/hello-hijo/functions.php', "<?php\nif ( ! defined( 'ABSPATH' ) ) {\n\texit;\n}\ndefine( 'HELLO_ELEMENTOR_CHILD_VERSION', '2.0.0' );\nfunction hello_elementor_child_scripts_styles() {\n\twp_enqueue_style( 'hello-elementor-child-style', get_stylesheet_directory_uri() . '/style.css', [ 'hello-elementor-theme-style' ], HELLO_ELEMENTOR_CHILD_VERSION );\n}\nadd_action( 'wp_enqueue_scripts', 'hello_elementor_child_scripts_styles', 20 );\nadd_action( 'wp_head', function () {\n\techo '<style id=\"hijo-head\">.hijo{color:#c00}</style>';\n} );\nadd_action( 'wp_footer', function () {\n\techo '<script id=\"hijo-foot\">window.hijo=1;</script>';\n} );\n" );
+	wp_clean_themes_cache();
+	switch_theme( 'hello-hijo' );
+	activate_plugin( 'digitalisimo-tools/digitalisimo-tools.php' );
+}
 file_put_contents( $probe . '/setup.done', '1' );

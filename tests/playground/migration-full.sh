@@ -13,6 +13,9 @@
 #
 # Uso: bash tests/playground/migration-full.sh            (sitio)
 #      SCENARIO=network bash tests/playground/migration-full.sh
+#      SCENARIO=child bash tests/playground/migration-full.sh   (caso real del 2026-11-20: un hijo de Hello con PHP de
+#        wp_head y wp_footer, el tema propio 1.0.0 ya instalado desde rollback/ y DIGITALÍSIMO Tools activo; un solo
+#        Migrar actualiza el tema desde el ZIP local de esta copia, activa el functions.php del hijo en Código PHP y cambia)
 # Variables: OUT (resultados), PORT (9620), HELLO_ZIP (Hello 3.5.1 oficial; por defecto reference/ del repositorio
 # principal o .hello.zip en la raíz de esta copia), PLAYGROUND_CLI.
 set -euo pipefail
@@ -20,7 +23,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 . "$ROOT/tests/playground/playground-cleanup.sh"
 DIR="$ROOT/tests/playground/migration-full"
 SCENARIO="${SCENARIO:-site}"
-case "$SCENARIO" in site|network) ;; *) echo "SCENARIO debe ser site o network"; exit 1;; esac
+case "$SCENARIO" in site|network|child) ;; *) echo "SCENARIO debe ser site, network o child"; exit 1;; esac
 BASE_OUT="${OUT:-/tmp/digi-migration-full}/$SCENARIO"
 # Lo pequeño de la prueba va en wp-content/probe; los ZIP y el almacén de Backups, fuera de /wordpress (si no, el
 # respaldo completo los incluiría: por esa ruta Backups no reconoce su almacén).
@@ -39,6 +42,12 @@ fi
 sha256sum "$HELLO_ZIP" | grep -q '^c166fdcb091a38897f4f3339f83645e9747234fbc961560027d5563e3efd6447' || { echo "$HELLO_ZIP no es Hello Elementor 3.5.1 oficial"; exit 1; }
 
 cp "$DIR/setup.php" "$DIR/mu-probe.php" "$DIR/check.php" "$OUT/"
+EXTRA_MOUNT=()
+if [ child = "$SCENARIO" ]; then
+  [ -f "$ROOT/rollback/digitalisimo-theme-1.0.0.zip" ] || { echo "Falta rollback/digitalisimo-theme-1.0.0.zip"; exit 1; }
+  cp "$ROOT/rollback/digitalisimo-theme-1.0.0.zip" "$OUT/theme-old.zip"
+  EXTRA_MOUNT=(--mount="$ROOT/digitalisimo-tools:/wordpress/wp-content/plugins/digitalisimo-tools")
+fi
 echo "$SCENARIO" > "$OUT/scenario"
 # ZIP de esta copia con su carpeta de siempre y el índice con las URL oficiales que valida Migración.
 python3 - "$ROOT" "$OUT" "$HELLO_ZIP" "$ZIPS" <<'PY'
@@ -82,7 +91,7 @@ JSON
 
 $CLI server --port="$PORT" --workers=3 --site-url="$BASE" --blueprint="$OUT/blueprint.json" \
   --mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" \
-  --mount="$OUT:/wordpress/wp-content/probe" --mount="$ZIPS:/digi-zips" --mount="$STORE:/digi-store" > "$BASE_OUT/server.log" 2>&1 &
+  --mount="$OUT:/wordpress/wp-content/probe" --mount="$ZIPS:/digi-zips" --mount="$STORE:/digi-store" "${EXTRA_MOUNT[@]}" > "$BASE_OUT/server.log" 2>&1 &
 SERVER=$!
 stop_server() { kill $SERVER 2>/dev/null || true; for i in 1 2 3; do fuser -k -n tcp "$PORT" >/dev/null 2>&1 || break; sleep 1; done; }
 trap 'stop_server; playground_cleanup' EXIT

@@ -12,7 +12,7 @@ $out     = array(
 	'installed' => array_values( array_keys( get_plugins() ) ),
 	'sitewide'  => $network ? array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) : array(),
 	'themes'    => array_keys( wp_get_themes() ),
-	'last'      => is_array( $last ) ? array_intersect_key( $last, array_flip( array( 'failed', 'error', 'deleted', 'kept', 'verified', 'verify', 'backup', 'installed', 'activated', 'imports', 'retired', 'theme', 'notes', 'done' ) ) ) : null,
+	'last'      => is_array( $last ) ? array_intersect_key( $last, array_flip( array( 'failed', 'error', 'deleted', 'kept', 'verified', 'verify', 'backup', 'installed', 'activated', 'imports', 'retired', 'theme', 'theme_updated_now', 'theme', 'notes', 'done' ) ) ) : null,
 	'job'       => \Digitalisimo\Migration\Full::load( $network ),
 	'blocked'   => is_file( WP_CONTENT_DIR . '/probe/http-blocked.log' ) ? array_values( array_unique( array_filter( explode( "\n", (string) file_get_contents( WP_CONTENT_DIR . '/probe/http-blocked.log' ) ) ) ) ) : array(),
 	'redirect'  => json_decode( (string) @file_get_contents( WP_CONTENT_DIR . '/probe/activation-redirect.json' ), true ),
@@ -42,6 +42,10 @@ foreach ( $network ? get_sites( array( 'fields' => 'ids' ) ) : array( get_curren
 		'quote'      => (int) get_option( 'digi_probe_blockquote' ),
 		'cart'       => (int) get_option( 'digi_probe_woocommerce-cart' ),
 		'cart_types' => array_column( (array) ( json_decode( (string) get_post_meta( (int) get_option( 'digi_probe_woocommerce-cart' ), '_elementor_data', true ), true )[0]['elements'] ?? array() ), 'widgetType' ),
+		'theme_version' => (string) wp_get_theme( 'digitalisimo-theme' )->get( 'Version' ),
+		'child_head'    => false !== strpos( $body, 'id="hijo-head"' ) && false !== strpos( $body, 'id="hijo-foot"' ),
+		'child_sheet'   => (bool) preg_match( '#themes/hello-hijo/style\.css#', $body ),
+		'snippets'      => array_values( array_map( static function ( $row ) { return array( 'title' => $row['title'], 'active' => $row['active'] ); }, (array) apply_filters( 'digitalisimo_tools_php_sources', array(), array( 'scope' => 'site' ) ) ) ),
 		'quote_type' => (string) ( json_decode( (string) get_post_meta( (int) get_option( 'digi_probe_blockquote' ), '_elementor_data', true ), true )[0]['elements'][0]['widgetType'] ?? '' ),
 	);
 	if ( $network ) {
