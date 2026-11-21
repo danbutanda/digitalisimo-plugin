@@ -324,20 +324,33 @@ final class Digitalisimo_Backups {
 		if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: la invalidación de la caché de objetos tras cambiar las tablas quedó a medias; sigue en los próximos ticks hasta terminar.' );
 		return false;
 	}
+	/**
+	 * Archivo de lo pendiente, con la identidad de esta instalación en el nombre: un almacén compartido por
+	 * DIGITALISIMO_BACKUPS_STORAGE_DIR nunca mezcla lo de dos instalaciones.
+	 */
 	private static function cache_pending_path() {
-		try { return trailingslashit( self::local_directory() ) . '.cache-pending.json'; } catch ( Throwable $e ) { return ''; }
+		try { return trailingslashit( self::local_directory() ) . '.cache-pending-' . self::cache_file_tag() . '.json'; } catch ( Throwable $e ) { return ''; }
+	}
+	/** Parte del nombre de los archivos de la caché: los 16 primeros caracteres de installation_owner() (o de la raíz). */
+	private static function cache_file_tag() {
+		$owner = self::installation_owner();
+		return substr( '' !== $owner ? $owner : hash( 'sha256', self::journal_owner() ), 0, 16 );
 	}
 	/** ¿Queda invalidación de la caché por terminar? */
 	public static function cache_pending() {
 		$path = self::cache_pending_path();
+		// Lo que dejó pendiente la versión anterior (sin la identidad en el nombre) pasa al archivo de esta instalación.
+		$legacy = '' === $path ? '' : dirname( $path ) . '/.cache-pending.json';
+		if ( '' !== $legacy && is_file( $legacy ) && ! is_link( $legacy ) && ! file_exists( $path ) ) @rename( $legacy, $path );
 		return '' !== $path && is_file( $path ) && ! is_link( $path );
 	}
 	private static function cache_pending_save( array $tasks, $append = false ) {
 		$path = self::cache_pending_path();
 		if ( '' === $path ) return;
 		if ( $append && self::cache_pending() ) {
+			// Otra restauración dejó algo pendiente: se juntan los dos planes (las claves exactas de ambos antes que los rangos).
 			$old = json_decode( (string) @file_get_contents( $path ), true );
-			$tasks = array_merge( (array) ( $old['tasks'] ?? array() ), $tasks );
+			$tasks = (array) Digitalisimo_Same_Site::merge_plans( is_array( $old ) ? $old : array(), array( 'tasks' => $tasks ) )['tasks'];
 		}
 		if ( ! $tasks ) { @unlink( $path ); return; }
 		@file_put_contents( $path, wp_json_encode( array( 'v' => 1, 'tasks' => array_values( $tasks ) ) ), LOCK_EX );
@@ -351,9 +364,13 @@ final class Digitalisimo_Backups {
 		self::cache_pending_save( ! empty( $result['done'] ) ? array() : (array) ( $result['plan']['tasks'] ?? array() ) );
 		return ! empty( $result['done'] );
 	}
-	/** Archivo de la instantánea de la caché antes del cambio de tablas (Digitalisimo_Same_Site::snapshot_site()). */
+	/**
+	 * Archivo de la instantánea de la caché antes del cambio de tablas (Digitalisimo_Same_Site::snapshot_site()): uno por
+	 * restauración, con la identidad de esta instalación, para que una segunda restauración no pise el archivo que la
+	 * invalidación pendiente de la primera todavía recorre.
+	 */
 	private static function cache_before_path() {
-		try { return trailingslashit( self::local_directory() ) . '.cache-before.jsonl'; } catch ( Throwable $e ) { return ''; }
+		try { return trailingslashit( self::local_directory() ) . '.cache-before-' . self::cache_file_tag() . '-' . bin2hex( random_bytes( 6 ) ) . '.jsonl'; } catch ( Throwable $e ) { return ''; }
 	}
 	private static function remove_restore_journal() { @unlink( trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL ); }
 	/**

@@ -258,13 +258,15 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 			if ( ! self::external() || self::supports( 'flush_group' ) || self::selective_flush() || ! self::db_ready() ) return $out;
 			$handle = '' !== (string) $file ? @fopen( (string) $file, 'wb' ) : false; // phpcs:ignore WordPress.WP.AlternativeFunctions,WordPress.PHP.NoSilencedErrors
 			$write  = function( array $line ) use ( $handle ) { if ( $handle ) fwrite( $handle, json_encode( $line ) . "\n" ); }; // phpcs:ignore WordPress.WP.AlternativeFunctions
+			// Primero las cuentas, de la más nueva a la más vieja: si la invalidación se corta, la de un intruso (creada después
+			// del respaldo, con el identificador mayor) ya salió de la caché. Después las opciones de cada sitio.
+			$out['users_max'] = self::max_id( $wpdb->users, 'ID' );
+			self::each_row( $wpdb->users, 'ID', 'ID, user_login, user_email, user_nicename', function( $row ) use ( $write ) { $write( array( 'u', (string) $row->user_login, (string) $row->user_email, (string) $row->user_nicename ) ); }, true );
 			self::on_sites( $blog_ids, function() use ( $wpdb, &$out, $write ) {
 				$blog = (int) ( function_exists( 'get_current_blog_id' ) ? get_current_blog_id() : 1 );
 				$out['sites'][ $blog ] = array( 'posts' => self::max_id( $wpdb->posts, 'ID' ), 'terms' => self::max_id( $wpdb->terms, 'term_id' ), 'comments' => self::max_id( $wpdb->comments, 'comment_ID' ) );
 				self::each_row( $wpdb->options, 'option_name', 'option_name', function( $row ) use ( $blog, $write ) { $write( array( 'o', $blog, (string) $row->option_name ) ); } );
 			} );
-			$out['users_max'] = self::max_id( $wpdb->users, 'ID' );
-			self::each_row( $wpdb->users, 'ID', 'ID, user_login, user_email, user_nicename', function( $row ) use ( $write ) { $write( array( 'u', (string) $row->user_login, (string) $row->user_email, (string) $row->user_nicename ) ); } );
 			if ( function_exists( 'is_multisite' ) && is_multisite() && ! empty( $wpdb->sitemeta ) ) self::each_row( $wpdb->sitemeta, 'meta_id', 'meta_id, meta_key', function( $row ) use ( $write ) { $write( array( 'n', (string) $row->meta_key ) ); } );
 			if ( $handle ) {
 				fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions
@@ -314,6 +316,7 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 			foreach ( $blogs as $blog ) $tasks[] = array( 'do' => 'options', 'blog' => $blog, 'after' => '' );
 			if ( function_exists( 'is_multisite' ) && is_multisite() && ! empty( $wpdb->sitemeta ) ) $tasks[] = array( 'do' => 'network', 'after' => '' );
 			$tasks[] = array( 'do' => 'transients' );
+			foreach ( $blogs as $blog ) $tasks[] = array( 'do' => 'counts', 'blog' => $blog );
 			$tasks[] = array( 'do' => 'range', 'blog' => 0, 'groups' => array( 'users', 'user_meta' ), 'next' => max( (int) ( $before['users_max'] ?? 0 ), self::max_id( $wpdb->users, 'ID' ) ) );
 			$relations = array_map( function( $taxonomy ) { return $taxonomy . '_relationships'; }, self::taxonomies() );
 			foreach ( $blogs as $blog ) {
@@ -364,7 +367,28 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 							$done = self::run_rows( $task, $deadline, $wpdb->sitemeta, 'meta_id', 'meta_id, meta_key', function( $row ) use ( $network ) {
 								return array( array( $network . ':' . (string) $row->meta_key, 'site-options' ) );
 							} );
-							if ( $done && ! empty( $wpdb->blogs ) ) foreach ( self::keys( $wpdb->blogs, 'blog_id' ) as $id ) { foreach ( array( 'sites', 'site-details', 'blog-details' ) as $group ) wp_cache_delete( $id, $group ); wp_cache_delete( $id . 'short', 'blog-details' ); }
+							if ( $done && ! empty( $wpdb->blogs ) ) {
+								// Cada sitio por su número y por su dirección (get_blog_details() e get_blog_id_from_url() buscan por
+								// md5( dominio . ruta )).
+								self::each_row( $wpdb->blogs, 'blog_id', 'blog_id, domain, path', function( $row ) {
+									$id = (int) $row->blog_id;
+									foreach ( array( 'sites', 'site-details', 'blog-details' ) as $group ) wp_cache_delete( $id, $group );
+									wp_cache_delete( $id . 'short', 'blog-details' );
+									$where = md5( (string) $row->domain . (string) $row->path );
+									wp_cache_delete( $where, 'blog-lookup' );
+									wp_cache_delete( $where, 'blog-id-cache' );
+								} );
+							}
+							break;
+						case 'counts':
+							// Los recuentos de wp_count_posts(), wp_count_comments() y wp_count_attachments() (grupo `counts`, sin
+							// last_changed): uno por tipo de contenido de este sitio.
+							$types = method_exists( $wpdb, 'get_col' ) && ! empty( $wpdb->posts ) ? (array) $wpdb->get_col( "SELECT DISTINCT post_type FROM {$wpdb->posts}" ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- tabla interna.
+							foreach ( array_unique( array_merge( array( 'post', 'page', 'attachment' ), array_map( 'strval', $types ) ) ) as $type ) {
+								wp_cache_delete( 'posts-' . $type, 'counts' );
+								wp_cache_delete( 'posts-' . $type . '_readable', 'counts' );
+							}
+							foreach ( array( 'comments-0', 'attachments' ) as $key ) wp_cache_delete( $key, 'counts' );
 							break;
 						case 'transients':
 							foreach ( self::CORE_TRANSIENTS as $name ) { wp_cache_delete( $name, 'transient' ); wp_cache_delete( $name, 'site-transient' ); wp_cache_delete( $name, 'options' ); }
@@ -391,6 +415,17 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 				if ( $tasks && microtime( true ) > $deadline ) return array( 'done' => false, 'plan' => array( 'v' => 1, 'tasks' => $tasks ) );
 			}
 			return array( 'done' => true, 'plan' => array() );
+		}
+
+		/**
+		 * Junta dos planes (el que quedaba pendiente y uno nuevo) sin perder nada: primero todas las tareas de claves exactas
+		 * de los dos, en su orden, y después todos los rangos.
+		 */
+		public static function merge_plans( array $first, array $second ) {
+			$tasks = array_merge( array_values( (array) ( $first['tasks'] ?? array() ) ), array_values( (array) ( $second['tasks'] ?? array() ) ) );
+			$exact = array_values( array_filter( $tasks, function( $task ) { return 'range' !== ( $task['do'] ?? '' ); } ) );
+			$range = array_values( array_filter( $tasks, function( $task ) { return 'range' === ( $task['do'] ?? '' ); } ) );
+			return array( 'v' => 1, 'tasks' => array_merge( $exact, $range ) );
 		}
 
 		/** Recorre el archivo de la instantánea desde su cursor (`at`, en bytes) y borra sus claves exactas. */
@@ -509,14 +544,16 @@ if ( ! class_exists( 'Digitalisimo_Same_Site', false ) ) {
 		}
 
 		/** Recorre una tabla por lotes de su clave ($key, ordenada), con las columnas $columns. */
-		private static function each_row( $table, $key, $columns, callable $callback ) {
+		private static function each_row( $table, $key, $columns, callable $callback, $desc = false ) {
 			global $wpdb;
 			if ( '' === (string) $table || ! method_exists( $wpdb, 'get_results' ) ) return;
 			$after = null;
+			$op    = $desc ? '<' : '>';
+			$order = $desc ? ' DESC' : '';
 			do {
-				$where = null === $after ? '' : ( method_exists( $wpdb, 'prepare' ) ? $wpdb->prepare( " WHERE `{$key}` > %s", $after ) : '' );
+				$where = null === $after ? '' : ( method_exists( $wpdb, 'prepare' ) ? $wpdb->prepare( " WHERE `{$key}` {$op} %s", $after ) : '' );
 				if ( null !== $after && '' === $where ) return;
-				$rows = $wpdb->get_results( "SELECT {$columns} FROM {$table}{$where} ORDER BY `{$key}` LIMIT " . self::BATCH ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- tabla y columnas internas.
+				$rows = $wpdb->get_results( "SELECT {$columns} FROM {$table}{$where} ORDER BY `{$key}`{$order} LIMIT " . self::BATCH ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- tabla y columnas internas.
 				$rows = is_array( $rows ) ? $rows : array();
 				foreach ( $rows as $row ) {
 					$row = (object) $row;

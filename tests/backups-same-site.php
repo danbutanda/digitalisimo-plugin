@@ -92,6 +92,21 @@ Digitalisimo_Backups_Jobs::schedule();
 bk_assert( in_array( Digitalisimo_Backups_Jobs::HOOK_TICK, $GLOBALS['bk_cron'], true ), 'Con invalidación pendiente, se programa un tick.' );
 Digitalisimo_Backups_Jobs::tick( 0 );
 bk_assert( ! Digitalisimo_Backups::cache_pending(), 'El tick siguiente termina la invalidación pendiente.' );
+// F2 · Los archivos de la caché llevan la identidad de la instalación, y dos restauraciones no se pisan.
+$tag = substr( Digitalisimo_Backups::installation_owner(), 0, 16 );
+$pending_path = (string) ss_call( 'Digitalisimo_Backups', 'cache_pending_path' );
+$before_a = (string) ss_call( 'Digitalisimo_Backups', 'cache_before_path' );
+$before_b = (string) ss_call( 'Digitalisimo_Backups', 'cache_before_path' );
+bk_assert( false !== strpos( basename( $pending_path ), $tag ) && false !== strpos( basename( $before_a ), $tag ) && $before_a !== $before_b, 'F2: los nombres llevan la identidad y cada instantánea es suya: ' . basename( $pending_path ) . ' ' . basename( $before_a ) . ' ' . basename( $before_b ) );
+ss_call( 'Digitalisimo_Backups', 'cache_pending_save', array( array( 'do' => 'range', 'blog' => 0, 'groups' => array( 'users' ), 'next' => 5 ), array( 'do' => 'file', 'file' => $before_a, 'at' => 0 ) ) );
+ss_call( 'Digitalisimo_Backups', 'cache_pending_save', array( array( 'do' => 'file', 'file' => $before_b, 'at' => 0 ), array( 'do' => 'range', 'blog' => 0, 'groups' => array( 'users' ), 'next' => 9 ) ), true );
+$merged = json_decode( (string) file_get_contents( $pending_path ), true );
+bk_assert( array( 'file', 'file', 'range', 'range' ) === array_column( (array) $merged['tasks'], 'do' ) && $before_a === $merged['tasks'][0]['file'] && $before_b === $merged['tasks'][1]['file'], 'F2: la segunda restauración junta su plan con el pendiente (las claves exactas de las dos antes que los rangos): ' . json_encode( $merged ) );
+@unlink( $pending_path );
+file_put_contents( dirname( $pending_path ) . '/.cache-pending.json', json_encode( array( 'v' => 1, 'tasks' => array( array( 'do' => 'transients' ) ) ) ) );
+bk_assert( Digitalisimo_Backups::cache_pending() && is_file( $pending_path ) && ! is_file( dirname( $pending_path ) . '/.cache-pending.json' ), 'F2: lo pendiente de la versión anterior pasa al archivo con la identidad.' );
+Digitalisimo_Backups::cache_pending_resume();
+bk_assert( ! Digitalisimo_Backups::cache_pending(), 'Y se termina.' );
 $collide( true );
 // A1 · Lo que se repone tras restaurar se lee de la base, no de la caché.
 $names = ss_call( 'Digitalisimo_Backups', 'keep_config_options' );

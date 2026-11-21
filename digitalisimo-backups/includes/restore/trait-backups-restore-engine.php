@@ -1845,6 +1845,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 				Digitalisimo_Backups_Restore_Compat::activate( self::restore_staging( $job ), $tables );
 				// Lo que la caché de objetos puede guardar de la base de antes (cuentas, entradas, opciones), para invalidarlo
 				// exactamente tras el cambio, aunque el respaldo no lo traiga (va también en el diario).
+				// Lo que quedó pendiente de otra restauración se intenta terminar antes (si no alcanza, se junta con lo de ésta).
+				self::cache_pending_resume( 10 );
 				self::$cache_before = Digitalisimo_Same_Site::snapshot_site( 'all', self::cache_before_path() );
 				self::write_restore_journal( $origin, $kept );
 				try {

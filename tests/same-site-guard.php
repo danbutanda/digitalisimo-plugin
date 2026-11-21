@@ -118,7 +118,7 @@ final class SS_Wpdb {
 		if ( preg_match( '/SELECT MAX\(`\w+`\) FROM (\w+)/', $sql, $m ) ) return $this->max[ $m[1] ] ?? 0;
 		return preg_match( "/option_name = '([^']*)'/", $sql, $m ) ? ( $GLOBALS['ss']['db'][ $m[1] ] ?? null ) : null;
 	}
-	public function get_col( $sql ) { $this->queries[] = $sql; return array(); }
+	public function get_col( $sql ) { $this->queries[] = $sql; return false !== strpos( $sql, 'DISTINCT post_type' ) ? array( 'post', 'product' ) : array(); }
 	public function get_row( $sql ) {
 		if ( ! preg_match( "/WHERE ID = (\\d+)/", $sql, $m ) ) return null;
 		foreach ( $this->user_rows as $row ) if ( (int) $row['ID'] === (int) $m[1] ) return (object) $row;
@@ -128,7 +128,11 @@ final class SS_Wpdb {
 		$this->queries[] = $sql;
 		if ( false !== strpos( $sql, ' WHERE ' ) ) return array(); // Segundo lote: no hay más.
 		if ( false !== strpos( $sql, 'FROM wp_options' ) ) return array_map( function( $name ) { return (object) array( 'option_name' => $name ); }, array_keys( $GLOBALS['ss']['db'] ) );
-		if ( false !== strpos( $sql, 'FROM wp_users' ) ) return array_map( function( $row ) { return (object) $row; }, $this->user_rows );
+		if ( false !== strpos( $sql, 'FROM wp_users' ) ) {
+			$rows = $this->user_rows;
+			if ( false !== strpos( $sql, ' DESC' ) ) usort( $rows, function( $a, $b ) { return (int) $b['ID'] - (int) $a['ID']; } );
+			return array_map( function( $row ) { return (object) $row; }, $rows );
+		}
 		return array();
 	}
 }
@@ -175,6 +179,8 @@ $before = Digitalisimo_Same_Site::snapshot_site( null, $file );
 $lines = is_file( $file ) ? (string) file_get_contents( $file ) : '';
 ss_check( 9 === $before['users_max'] && 40 === $before['sites'][1]['posts'] && ! isset( $before['users'] ) && ! isset( $before['sites'][1]['options'] ) && $file === $before['file'], 'snapshot_site() guarda en memoria sólo los identificadores mayores (N2): ' . json_encode( $before ) );
 ss_check( false !== strpos( $lines, '["u","intruso","x@malo.test","intruso"]' ) && false !== strpos( $lines, '["o",1,"opcion_nueva"]' ), 'Las cuentas y las opciones de antes van al archivo: ' . $lines );
+$first = strtok( $lines, "\n" );
+ss_check( '["u","intruso","x@malo.test","intruso"]' === $first && strpos( $lines, '"admin"' ) < strpos( $lines, '["o",' ), 'F1: en el archivo, primero las cuentas de la más nueva a la más vieja y después las opciones: ' . $lines );
 // El respaldo restaurado es más viejo: sin la cuenta 9, sin la opción nueva, con menos entradas.
 unset( $GLOBALS['ss']['db']['opcion_nueva'] );
 $GLOBALS['wpdb']->max = array( 'wp_posts' => 10, 'wp_users' => 1, 'wp_terms' => 3, 'wp_comments' => 2 );
@@ -187,9 +193,12 @@ ss_check( ! empty( $result['done'] ) && in_array( 'delete:users:9', $log, true )
 $at = function( $entry ) use ( $log ) { $k = array_search( $entry, $log, true ); return false === $k ? PHP_INT_MAX : $k; };
 ss_check( $at( 'delete:userlogins:intruso' ) < $at( 'delete:users:9' ) && $at( 'delete:options:opcion_nueva' ) < $at( 'delete:users:9' ), 'N1: primero las claves exactas (login, correo, slug y opciones), después los rangos.' );
 ss_check( $at( 'delete:users:9' ) < $at( 'delete:users:1' ) && $at( 'delete:posts:40' ) < $at( 'delete:posts:1' ), 'N1: los rangos, de mayor a menor.' );
+ss_check( in_array( 'delete:counts:posts-product', $log, true ) && in_array( 'delete:counts:posts-page_readable', $log, true ) && in_array( 'delete:counts:comments-0', $log, true ), 'N7: los recuentos de cada tipo de contenido (grupo counts) también salen.' );
+$net_src = (string) file_get_contents( $root . '/digitalisimo-backups/includes/class-digitalisimo-same-site.php' );
+ss_check( false !== strpos( $net_src, "wp_cache_delete( \$where, 'blog-lookup' );" ) && false !== strpos( $net_src, "wp_cache_delete( \$where, 'blog-id-cache' );" ), 'N7: en una red, cada sitio también por su dirección (blog-lookup y blog-id-cache).' );
 ss_check( in_array( 'delete:posts:40', $log, true ) && ! in_array( 'delete:posts:41', $log, true ) && ! in_array( 'delete:users:10', $log, true ), 'Hasta el identificador mayor de antes y de ahora, sin colas fijas.' );
 ss_check( in_array( 'delete:options:opcion_nueva', $log, true ) && in_array( 'delete:transient:doing_cron', $log, true ) && in_array( 'delete:site-transient:update_plugins', $log, true ) && ! in_array( 'GLOBAL_FLUSH', $log, true ) && ! is_file( $file ), 'Las opciones de antes y los transitorios del núcleo, sin vaciar la caché compartida; el archivo se retira al terminar.' );
-$unordered = array_filter( $GLOBALS['wpdb']->queries, function( $q ) { return 0 === strpos( $q, 'SELECT ' ) && false === strpos( $q, 'MAX(' ) && false === strpos( $q, 'option_value' ) && false === strpos( $q, 'ORDER BY' ); } );
+$unordered = array_filter( $GLOBALS['wpdb']->queries, function( $q ) { return 0 === strpos( $q, 'SELECT ' ) && false === strpos( $q, 'MAX(' ) && false === strpos( $q, 'option_value' ) && false === strpos( $q, 'DISTINCT post_type' ) && false === strpos( $q, 'ORDER BY' ); } );
 ss_check( ! $unordered && ! preg_grep( '/LIMIT 200000/', $GLOBALS['wpdb']->queries ), 'Los recorridos van por lotes ordenados, sin tope: ' . implode( ' | ', $unordered ) );
 // N1 · Con el presupuesto agotado no termina, lo dice y lo que falta sigue después hasta terminar.
 $GLOBALS['wpdb']->max = array( 'wp_posts' => 5000, 'wp_users' => 3000, 'wp_terms' => 0, 'wp_comments' => 0 );
