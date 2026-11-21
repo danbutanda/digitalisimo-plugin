@@ -317,12 +317,13 @@ function checkRecords(phase, st, sites) {
         check(!!itemId && index.items[itemId].review === true, `El cambio de tema dejó el functions.php del hijo en Código PHP de Tools, inactivo y con revisión: ${JSON.stringify(index.items || {})}`);
         if (itemId) {
           let on = await toolsActivate(browser, page, sites[phpId], itemId);
-          // En un subsitio de la red, Playground contesta la visita anónima de la prueba de Tools con un 302 de su cookie
+          // En un subsitio de la red (y, desde la 3.1.56, también en un sitio individual con el hijo con PHP), Playground
+          // contesta la visita anónima de la prueba de Tools con un 302 de su cookie
           // a la misma dirección y Tools no la da por terminada. Sólo en ese caso se activa por la vía de prueba (el último
           // paso de Tools, Store::activate, con el hash exacto); la prueba en el navegador ya se cubre en tools-php y,
           // aquí, en el modo de un sitio.
           const cookie302 = (result.toolsVisits || []).some((v) => v.status === 302 && v.location && v.url.endsWith(v.location));
-          if (!on.success && network && cookie302) {
+          if (!on.success && cookie302) {
             const via = await api(page, 'tools_activate', `&id=${itemId}`, sites[phpId].home);
             log(`  Tools: la visita anónima del subsitio recibió el 302 de la cookie de Playground; se activa por la vía de prueba: ${JSON.stringify(via)}`);
             on = { success: !!via.ok && via.state === 'active', data: { via: 'store', ...via } };
