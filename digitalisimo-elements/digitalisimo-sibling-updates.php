@@ -42,14 +42,21 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	const MANIFEST_FRESH = 'digitalisimo_plugins_manifest_fresh';
 	/** Acción explícita en esta petición («Buscar actualizaciones», «Buscar de nuevo», «Ver detalles»): 10 s y sin la espera. */
 	private static $explicit = false;
+	/** Lectura de la caché de actualizaciones en curso (check_known()): sin peticiones a GitHub salvo en el cron, WP-CLI o una acción explícita. */
+	private static $offline = false;
 
 	/** @var array|null plugins Digitalisimo instalados en esta petición (se vuelve a leer al activar, desactivar o borrar uno). */
 	private static $installed = null;
 
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'prime' ), 0 );
-		foreach ( array( 'pre_set_site_transient_update_plugins', 'pre_set_transient_update_plugins', 'site_transient_update_plugins', 'transient_update_plugins' ) as $hook ) {
+		// WordPress consulta actualizaciones (pre_set_…): puede descargar el índice. La lectura de cada pantalla del escritorio
+		// sólo usa el índice ya descargado y nunca espera a GitHub.
+		foreach ( array( 'pre_set_site_transient_update_plugins', 'pre_set_transient_update_plugins' ) as $hook ) {
 			add_filter( $hook, array( __CLASS__, 'check' ), 31 );
+		}
+		foreach ( array( 'site_transient_update_plugins', 'transient_update_plugins' ) as $hook ) {
+			add_filter( $hook, array( __CLASS__, 'check_known' ), 31 );
 		}
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 31, 4 );
 		add_filter( 'plugins_api', array( __CLASS__, 'info' ), 25, 3 );
@@ -88,6 +95,8 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		if ( in_array( $GLOBALS['pagenow'] ?? '', array( 'admin-post.php', 'async-upload.php' ), true ) || ! ( current_user_can( 'update_plugins' ) || current_user_can( 'update_themes' ) ) ) return;
 		$keys = array();
 		foreach ( array( 'digitalisimo_plugins_manifest', 'digitalisimo_releases_index', 'digitalisimo_backups_release', 'digitalisimo_tools_release', 'digitalisimo_elements_release', 'digitalisimo_migration_release', 'digitalisimo_seo_release_check', 'digitalisimo_theme_release', 'digitalisimo_tools_theme_release', 'digitalisimo_tools_bridge_release', 'digitalisimo_plugins_manifest_retry', 'digitalisimo_github_api_retry' ) as $key ) { $keys[] = '_site_transient_' . $key; $keys[] = '_site_transient_timeout_' . $key; }
+		// Las últimas versiones conocidas (opciones de red sin autoload): la lectura sin red las usa cuando vence una caché.
+		foreach ( array( 'digitalisimo_releases_last_known', 'digitalisimo_backups_last_release', 'digitalisimo_tools_last_release', 'digitalisimo_elements_last_release', 'digitalisimo_migration_last_release', 'digitalisimo_seo_last_release', 'digitalisimo_tools_theme_last_release', 'digitalisimo_tools_bridge_last_release' ) as $key ) $keys[] = $key;
 		if ( is_multisite() ) { if ( function_exists( 'wp_prime_network_option_caches' ) ) wp_prime_network_option_caches( get_current_network_id(), $keys ); }
 		elseif ( function_exists( 'wp_prime_option_caches' ) ) wp_prime_option_caches( $keys );
 	}
@@ -145,6 +154,17 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		}, ARRAY_FILTER_USE_BOTH );
 	}
 
+	/**
+	 * Puede consultar GitHub también al leer la caché de actualizaciones: el cron, WP-CLI, una acción explícita, las
+	 * pantallas Plugins y Actualizaciones y una actualización en curso (update.php, o por AJAX desde Plugins o Temas),
+	 * donde se mira y se instala la versión nueva (con 3 s y la espera compartida tras un fallo). El resto del escritorio, no.
+	 */
+	private static function may_download() {
+		if ( self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) return true;
+		if ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) return in_array( (string) ( $_REQUEST['action'] ?? '' ), array( 'update-plugin', 'update-theme' ), true ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si se puede esperar a GitHub; WordPress valida la acción.
+		return function_exists( 'is_admin' ) && is_admin() && in_array( (string) ( $GLOBALS['pagenow'] ?? '' ), array( 'plugins.php', 'update-core.php', 'update.php' ), true );
+	}
+
 	/** Una pantalla del escritorio no espera más de 3 s a GitHub; el cron y WP-CLI, hasta 10. */
 	private static function timeout() { return self::$explicit || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ? 10 : 3; }
 
@@ -152,6 +172,10 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	public static function release( $slug ) {
 		$manifest = get_site_transient( self::MANIFEST_CACHE );
 		if ( ! is_array( $manifest ) ) {
+			// Una lectura de update_plugins no descarga: las entradas guardadas en la última consulta de WordPress siguen ahí.
+			if ( self::$offline && ! self::may_download() ) {
+				return array();
+			}
 			// GitHub falló hace menos de dos minutos (para cualquier plugin Digitalisimo): no se vuelve a intentar todavía.
 			if ( ! self::$explicit && false !== get_site_transient( self::MANIFEST_RETRY ) ) {
 				return array();
@@ -183,6 +207,16 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	 * archivo real (corre después de los actualizadores propios), y fuera las entradas huérfanas que un actualizador
 	 * antiguo deja con la carpeta habitual cuando el plugin está instalado en otra.
 	 */
+	public static function check_known( $transient ) {
+		self::$offline = true;
+		try {
+			return self::check( $transient );
+		} finally {
+			self::$offline = false;
+		}
+	}
+
+	/** Escritura de update_plugins (WordPress consulta actualizaciones): puede descargar el índice. */
 	public static function check( $transient ) {
 		if ( ! is_object( $transient ) || ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) {
 			return $transient;

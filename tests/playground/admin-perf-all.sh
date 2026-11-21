@@ -15,6 +15,7 @@
 #   SETS=none,…,all            conjuntos (por defecto todos; ver probe.php)
 #   LOADS=3                    cargas medidas por pantalla y conjunto
 #   LABEL=antes|despues        etiqueta de la corrida (carpeta en $OUT)
+#   UPD_SETS=all,mine          conjuntos de los escenarios de actualizadores y de WP-Cron
 #   FUNCTIONAL=0               sin las acciones (guardar, subir, actualizar)
 #   SRC=<carpeta>              de dónde se montan los plugins y el tema (por defecto, este árbol; p. ej. una
 #                              copia de `git archive` de la versión anterior para medir «antes»)

@@ -54,6 +54,10 @@ final class Digitalisimo_Elements_Core {
 		if ( defined( 'ELEMENTOR_VERSION' ) || ! is_readable( self::dir() . 'elementor.php' ) || self::external_active() || ( is_admin() && self::activating_external() ) ) {
 			return false;
 		}
+		// El latido del escritorio que no le pide nada al constructor no lo carga (digitalisimo-admin-load.php, punto 4).
+		if ( class_exists( 'Digitalisimo_Elements_Admin_Load', false ) && Digitalisimo_Elements_Admin_Load::light_heartbeat() ) {
+			return false;
+		}
 		define( 'DIGITALISIMO_ELEMENTS_CORE', self::version() );
 		// Sin telemetría del proveedor en el editor (sólo para el núcleo incluido: el plugin original no se toca).
 		if ( ! defined( 'ELEMENTOR_EDITOR_EVENTS_MIXPANEL_TOKEN' ) ) {

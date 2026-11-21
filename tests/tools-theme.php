@@ -255,7 +255,7 @@ ok( (bool) preg_match( '/function boot\(\)\s*\{[^}]*Theme_Updates::init\(\);[^}]
 scenario();
 $priority = function ( $hook, $method ) { foreach ( $GLOBALS['hooks'][ $hook ] ?? array() as $h ) if ( is_array( $h[0] ) && $method === $h[0][1] ) return array( $h[1], $h[2] ); return null; };
 ok( array( 31, 4 ) === $priority( 'update_themes_github.com', 'uri_update' ), 'update_themes_github.com en 31 con 4 argumentos (después del tema, en 30).' );
-ok( array( 31, 1 ) === $priority( 'pre_set_site_transient_update_themes', 'check' ) && array( 31, 1 ) === $priority( 'site_transient_update_themes', 'check' ), 'check() en pre_set y en la lectura de update_themes, en 31.' );
+ok( array( 31, 1 ) === $priority( 'pre_set_site_transient_update_themes', 'check' ) && array( 31, 1 ) === $priority( 'site_transient_update_themes', 'check_known' ), 'check() en pre_set y check_known() (sin red) en la lectura de update_themes, en 31.' );
 ok( array( 11, 4 ) === $priority( 'upgrader_source_selection', 'keep_folder' ), 'keep_folder en 11, detrás del filtro del tema (10).' );
 ok( null !== $priority( 'upgrader_process_complete', 'clear_after_upgrade' ) && null !== $priority( 'delete_site_transient_digitalisimo_plugins_manifest', 'clear_own' ), 'Limpieza tras actualizar y al borrar el índice compartido.' );
 ok( null !== $priority( 'switch_theme', 'forget' ) && null !== $priority( 'deleted_theme', 'forget' ), 'Las copias se vuelven a leer al cambiar o borrar un tema.' );

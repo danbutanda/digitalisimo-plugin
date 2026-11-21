@@ -55,6 +55,8 @@ final class Digitalisimo_SEO_Release_Check {
 		if ( in_array( $GLOBALS['pagenow'] ?? '', array( 'admin-post.php', 'async-upload.php' ), true ) || ! ( current_user_can( 'update_plugins' ) || current_user_can( 'update_themes' ) ) ) return;
 		$keys = array();
 		foreach ( array( 'digitalisimo_plugins_manifest', 'digitalisimo_releases_index', 'digitalisimo_backups_release', 'digitalisimo_tools_release', 'digitalisimo_elements_release', 'digitalisimo_migration_release', 'digitalisimo_seo_release_check', 'digitalisimo_theme_release', 'digitalisimo_tools_theme_release', 'digitalisimo_tools_bridge_release', 'digitalisimo_plugins_manifest_retry', 'digitalisimo_github_api_retry' ) as $key ) { $keys[] = '_site_transient_' . $key; $keys[] = '_site_transient_timeout_' . $key; }
+		// Las últimas versiones conocidas (opciones de red sin autoload): la lectura sin red las usa cuando vence una caché.
+		foreach ( array( 'digitalisimo_releases_last_known', 'digitalisimo_backups_last_release', 'digitalisimo_tools_last_release', 'digitalisimo_elements_last_release', 'digitalisimo_migration_last_release', 'digitalisimo_seo_last_release', 'digitalisimo_tools_theme_last_release', 'digitalisimo_tools_bridge_last_release' ) as $key ) $keys[] = $key;
 		if ( is_multisite() ) { if ( function_exists( 'wp_prime_network_option_caches' ) ) wp_prime_network_option_caches( get_current_network_id(), $keys ); }
 		elseif ( function_exists( 'wp_prime_option_caches' ) ) wp_prime_option_caches( $keys );
 	}
