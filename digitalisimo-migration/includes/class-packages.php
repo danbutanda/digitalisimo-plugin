@@ -150,9 +150,14 @@ final class Packages {
 			wp_clean_themes_cache( false );
 		}
 		$to = (string) wp_get_theme( Replacements::THEME )->get( 'Version' );
+		$lost = ! is_file( self::copy_dir() . '/style.css' );
 		if ( is_wp_error( $result ) || '' === $to || version_compare( $to, $entry['version'], '<' ) ) {
 			// La carpeta vuelve a ser la de antes, pase lo que pase con la de WordPress.
-			self::restore_copy();
+			if ( $lost || ! self::restore_copy() ) {
+				self::drop_copy();
+				$why = is_wp_error( $result ) ? rtrim( $result->get_error_message(), '.' ) . '. ' : '';
+				return new \WP_Error( 'digitalisimo_migration_restore', $why . 'Además no se pudo volver a dejar la copia anterior del tema en su carpeta: restaura el tema desde el respaldo de esta migración.' );
+			}
 		}
 		self::drop_copy();
 		if ( is_wp_error( $result ) ) {
@@ -235,9 +240,12 @@ final class Packages {
 		}
 	}
 
-	/** Carpeta de la copia propia del tema mientras se actualiza (fuera de themes/, junto a la de WordPress). */
+	/**
+	 * Carpeta de la copia propia del tema mientras se actualiza: fuera de themes/ y fuera de upgrade/, que WordPress vacía
+	 * entera antes de descomprimir un paquete (WP_Upgrader::unpack_package()).
+	 */
 	public static function copy_dir() {
-		return dirname( get_theme_root( Replacements::THEME ) ) . '/upgrade/digitalisimo-migration-theme';
+		return dirname( get_theme_root( Replacements::THEME ) ) . '/digitalisimo-migration-backup/theme';
 	}
 
 	/** Copia la carpeta del tema a copy_dir(), entera; false si no pudo (entonces no se toca nada). */
@@ -272,6 +280,7 @@ final class Packages {
 
 	private static function drop_copy() {
 		self::remove_tree( self::copy_dir() );
+		@rmdir( dirname( self::copy_dir() ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors -- Sólo si quedó vacía.
 	}
 
 	/**

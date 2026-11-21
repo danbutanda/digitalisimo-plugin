@@ -541,6 +541,9 @@ Packages::$installer = static function ( $slug, $package, $type ) {
 	if ( in_array( $slug, (array) ( $GLOBALS['t']['install_fails'] ?? array() ), true ) ) {
 		return new WP_Error( 'x', 'el ZIP no se pudo descargar' );
 	}
+	if ( 'theme-update' === $type ) {
+		exec( 'rm -rf ' . escapeshellarg( TMP . '/upgrade' ) ); // Como WP_Upgrader::unpack_package(): vacía wp-content/upgrade/.
+	}
 	if ( 'theme-update' === $type && in_array( 'theme-update', (array) ( $GLOBALS['t']['install_fails'] ?? array() ), true ) ) {
 		// WordPress restaura la copia anterior (temp_backup): la carpeta queda como estaba.
 		return new WP_Error( 'x', 'la descarga del paquete falló' );
@@ -1412,6 +1415,7 @@ switch ( $scenario ) {
 		check( false !== strpos( $reason, 'No se pudo actualizar el tema DIGITALÍSIMO instalado (1.0.0)' ) && false !== strpos( $reason, 'la descarga del paquete falló' ) && false !== strpos( $reason, 'Qué hacer: actualiza el tema DIGITALÍSIMO' ), 'El motivo dice qué falló y qué hacer: ' . $reason );
 		check( false !== strpos( Full::render( false, $last ), 'No se pudo actualizar el tema DIGITALÍSIMO' ) && empty( $last['theme_updated_now'] ), 'Y llega al informe.' );
 		check( false !== strpos( (string) file_get_contents( TMP . '/themes/digitalisimo-theme/style.css' ), 'Version: 1.0.0' ) && ! is_dir( Packages::copy_dir() ), 'La carpeta queda como estaba y la copia propia se borra.' );
+		check( false === strpos( Packages::copy_dir(), '/upgrade/' ) && ! is_dir( dirname( Packages::copy_dir() ) ), 'La copia propia va fuera de wp-content/upgrade/ (WordPress la vacía al descomprimir) y no deja carpetas.' );
 		break;
 
 	case 'theme_old_current':
