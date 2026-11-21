@@ -166,7 +166,12 @@ final class Front {
 		$ids     = array();
 		$paths   = array();
 		$pairs   = array();
+		$copies  = array();
 		foreach ( (array) ( $now['sheets'] ?? array() ) as $sheet ) {
+			if ( preg_match( '#/digitalisimo-theme/child/([^/]+)/(.+)$#', (string) $sheet[1], $m ) ) {
+				// La copia del tema hijo que sirve el tema propio desde uploads (1.0.2): mismo archivo, verificado por sha256.
+				$copies[ (string) $sheet[0] . '|' . $m[1] . '/' . $m[2] ] = true;
+			}
 			$ids[ (string) $sheet[0] ]                              = true;
 			$paths[ (string) $sheet[1] ]                            = true;
 			$pairs[ (string) $sheet[0] . '|' . (string) $sheet[1] ] = true;
@@ -187,6 +192,10 @@ final class Front {
 			// El mismo handle con otra ruta (p. ej. una hoja del hijo que ahora apunta a la carpeta del tema propio) no es
 			// la misma hoja: sólo valen el mismo par handle y ruta o, sin handle, la misma ruta.
 			if ( isset( $pairs[ $id . '|' . $path ] ) || ( '' === $id && isset( $paths[ $path ] ) ) ) {
+				continue;
+			}
+			// La misma hoja del hijo servida ahora desde su copia en uploads (mismo handle y mismo archivo dentro del hijo).
+			if ( preg_match( '#/themes/([^/]+)/(.+)$#', $path, $m ) && isset( $copies[ $id . '|' . $m[1] . '/' . $m[2] ] ) ) {
 				continue;
 			}
 			$missing[]       = '' !== $id ? $id : $path;

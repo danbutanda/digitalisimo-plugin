@@ -1198,6 +1198,9 @@ final class Full {
 	/** Sufijo de la carpeta del hijo mientras se comprueba el sitio sin ella, justo antes de borrarlo. */
 	const RETIRING = '.digitalisimo-retiring';
 
+	/** Constantes de ruta de Hello o de Hello Plus que un hijo puede usar para leer archivos de Hello. */
+	const HELLO_PATHS = '/\b(?:HELLO|EHP)_\w*(?:PATH|URL|URI|DIR)\w*\b/';
+
 	/** `source:id` del fragmento que deja en Tools el tema propio con el functions.php del hijo. */
 	private static function snippet_key( $stylesheet ) {
 		return 'digitalisimo-theme:' . (string) $stylesheet;
@@ -1284,6 +1287,9 @@ final class Full {
 			'imported' => $imported,
 			'activate' => $activate,
 			'hash'     => '' !== $wrap ? hash( 'sha256', $wrap ) : '',
+			// Constantes de ruta de Hello (HELLO_THEME_PATH, *_URL…): con ellas, el PHP del hijo puede leer la carpeta de
+			// Hello, así que Hello no se borra.
+			'hello_paths' => '' !== $code && "\0" !== $code && 1 === preg_match( self::HELLO_PATHS, $code ),
 		);
 	}
 
@@ -1294,7 +1300,7 @@ final class Full {
 		} );
 		$theme               = array( 'own' => false, 'hello' => true, 'child' => true, 'name' => $state['theme'][ $site_id ]['name'] );
 		list( $ok, $reason ) = self::theme_safety( $theme, array( 'builder' => true, 'conflict' => false, 'can' => true, 'child' => $facts ) );
-		$state['theme'][ $site_id ]['child_facts'] = array_intersect_key( $facts, array_flip( array( 'blockers', 'files', 'risks', 'covered', 'carried', 'tools', 'filter', 'wrap', 'imported', 'activate' ) ) );
+		$state['theme'][ $site_id ]['child_facts'] = array_intersect_key( $facts, array_flip( array( 'blockers', 'files', 'risks', 'covered', 'carried', 'tools', 'filter', 'wrap', 'imported', 'activate', 'hello_paths' ) ) );
 		if ( in_array( (string) ( $facts['activate'] ?? '' ), array( 'activated', 'active' ), true ) ) {
 			// 'active' sólo vuelve si lo activó Migrar (una pasada que murió antes de guardar el estado).
 			// Lo activó Migrar: si el tema no cambia o vuelve atrás, Migrar lo desactiva (sólo ese código).
@@ -1957,6 +1963,14 @@ final class Full {
 			foreach ( wp_get_themes() as $slug => $theme ) {
 				if ( Replacements::HELLO !== (string) $slug && Replacements::HELLO === (string) $theme->get_template() ) {
 					$reason = sprintf( 'El tema hijo «%s» depende de Hello Elementor.', (string) $theme->get( 'Name' ) );
+					break;
+				}
+			}
+		}
+		if ( '' === $reason ) {
+			foreach ( (array) $state['theme'] as $row ) {
+				if ( ! empty( $row['switched'] ) && ! empty( $row['child_facts']['hello_paths'] ) ) {
+					$reason = sprintf( 'El PHP del tema hijo «%s», que sigue corriendo en DIGITALÍSIMO Tools → Código PHP, usa constantes de ruta de Hello (HELLO_THEME_PATH, *_URL…): Hello se queda.', (string) $row['name'] );
 					break;
 				}
 			}

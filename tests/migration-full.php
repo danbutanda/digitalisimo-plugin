@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -818,6 +818,9 @@ switch ( $scenario ) {
 			check( false === $r[0] && false !== strpos( $r[1], $case[1] ), "Estilo {$label}: no se pinta igual y lo dice ({$r[1]})." );
 		}
 		check( true === Front::compare_styles( $pre, Front::fingerprint( 200, str_replace( '?ver=2', '?ver=3', $same ) ) )[0], 'Otra versión de la misma hoja no cuenta.' );
+		$copied = str_replace( "href='//a.test/wp-content/themes/hijo/style.css?ver=2'", "href='//a.test/wp-content/uploads/digitalisimo-theme/child/hijo/style.css?ver=2'", $same );
+		check( $copied !== $same && true === Front::compare_styles( $pre, Front::fingerprint( 200, $copied ) )[0], 'La hoja del hijo servida desde su copia en uploads (tema 1.0.2) es la misma hoja.' );
+		check( false === Front::compare_styles( $pre, Front::fingerprint( 200, str_replace( "href='//a.test/wp-content/themes/hijo/style.css?ver=2'", "href='//a.test/wp-content/uploads/digitalisimo-theme/child/otro/style.css?ver=2'", $same ) ) )[0], 'La copia de otro hijo no cuenta.' );
 		$moved = Front::compare_styles( $pre, Front::fingerprint( 200, str_replace( '//a.test/wp-content/themes/hijo/style.css', '//a.test/wp-content/themes/digitalisimo-theme/style.css', $same ) ) );
 		check( false === $moved[0] && false !== strpos( $moved[1], 'faltan hojas de estilo que se cargaban antes: hijo' ), 'El mismo handle desde otra ruta (la carpeta del tema propio) no es la misma hoja: ' . $moved[1] );
 		check( null === Front::compare_styles( array( 'status' => 0, 'error' => 'x' ), $pre )[0] && null === Front::compare_styles( array(), $pre )[0], 'Sin huella de antes, no comparable.' );
@@ -1007,7 +1010,7 @@ switch ( $scenario ) {
 		$state                       = drive();
 		$last                        = Full::last( false );
 		check( '' === $last['failed'] && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ), 'El hijo típico pasa al tema propio: ' . json_encode( $last['theme'][1] ) );
-		check( array( 'blockers' => '', 'files' => '', 'risks' => '', 'covered' => false, 'carried' => 1, 'tools' => false, 'filter' => false, 'wrap' => true, 'imported' => '', 'activate' => '' ) === $last['theme'][1]['child_facts'], 'Se lee: una hoja que se trae, sin bloqueos: ' . json_encode( $last['theme'][1]['child_facts'] ) );
+		check( array( 'blockers' => '', 'files' => '', 'risks' => '', 'covered' => false, 'carried' => 1, 'tools' => false, 'filter' => false, 'wrap' => true, 'imported' => '', 'activate' => '', 'hello_paths' => false ) === $last['theme'][1]['child_facts'], 'Se lee: una hoja que se trae, sin bloqueos: ' . json_encode( $last['theme'][1]['child_facts'] ) );
 		check( ! empty( $last['verified'] ) && 2 === count( $last['verify'] ), 'La portada y la página responden y se pintan igual.' );
 		check( isset( $GLOBALS['t']['themes']['hello-elementor'], $GLOBALS['t']['themes']['hello-hijo-ok'] ) && false !== strpos( (string) ( $last['kept']['hello-elementor'] ?? '' ), 'depende de Hello' ), 'Hello y el hijo se quedan (el tema propio carga la hoja del hijo desde su carpeta): ' . json_encode( $last['kept'] ) );
 		break;
@@ -1113,6 +1116,26 @@ switch ( $scenario ) {
 		$last = Full::last( false );
 		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['verified'] ), 'Cambia y verifica.' );
 		check( isset( $GLOBALS['t']['themes']['hello-hijo'], $GLOBALS['t']['themes']['hello-elementor'] ) && ! logged( 'delete_theme' ) && false !== strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'carga sus hojas' ), 'No se borra ningún tema: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
+		break;
+
+	case 'theme_child_hello_paths':
+		// El PHP del hijo usa HELLO_THEME_PATH dentro de una función (cubierta por el tema propio): el hijo se retira, pero
+		// Hello se queda, con el motivo.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD . "add_action( 'wp_footer', function () {\n\techo esc_html( HELLO_THEME_PATH );\n} );\n" );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
+		$GLOBALS['t']['carry']       = true;
+		tools_auto();
+		$GLOBALS['t']['filters']['digitalisimo_tools_php_sources'] = array( static function ( $rows ) {
+			if ( empty( $GLOBALS['t']['snippet_on'] ) ) {
+				return $rows;
+			}
+			$code = (string) file_get_contents( TMP . '/themes/hello-hijo/functions.php' );
+			return array_merge( $rows, array( array( 'scope' => 'site', 'id' => 'a1', 'active' => true, 'hash' => hash( 'sha256', digitalisimo_theme_child_wrap_php( $code, 'Hello Hijo' ) ) ) ) );
+		} );
+		drive();
+		$last = Full::last( false );
+		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['child_facts']['hello_paths'] ), 'Cambia y anota que usa rutas de Hello: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
+		check( isset( $GLOBALS['t']['themes']['hello-elementor'] ) && false !== strpos( (string) ( $last['kept']['hello-elementor'] ?? '' ), 'constantes de ruta de Hello' ), 'Hello se queda, con el motivo: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
 		break;
 
 	case 'theme_child_retire_refs':
