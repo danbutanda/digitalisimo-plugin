@@ -1825,21 +1825,21 @@ final class Full {
 	private static function child_references( $slug ) {
 		global $wpdb;
 		$like = '%' . $wpdb->esc_like( 'themes/' . $slug . '/' ) . '%';
-		$post = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status NOT IN ('trash','auto-draft','inherit') LIMIT 1", $like ) ); // phpcs:ignore WordPress.DB
+		$post = $wpdb->get_var( $wpdb->prepare( 'SELECT ID FROM ' . $wpdb->posts . " WHERE post_content LIKE %s AND post_status NOT IN ('trash','auto-draft','inherit') LIMIT 1", $like ) ); // phpcs:ignore WordPress.DB
 		if ( $post ) {
 			return 'custom_css' === get_post_type( (int) $post ) ? 'el CSS adicional' : sprintf( 'el contenido de «%s» (ID %d)', get_the_title( (int) $post ), (int) $post );
 		}
-		$meta = $wpdb->get_var( $wpdb->prepare( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_value LIKE %s LIMIT 1", $like ) ); // phpcs:ignore WordPress.DB
+		$meta = $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ' . $wpdb->postmeta . ' WHERE meta_value LIKE %s LIMIT 1', $like ) ); // phpcs:ignore WordPress.DB
 		if ( $meta ) {
 			return sprintf( 'los datos de «%s» (ID %d; Elementor u otro plugin)', get_the_title( (int) $meta ), (int) $meta );
 		}
-		$option = $wpdb->get_var( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_value LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s LIMIT 1", $like, 'theme_mods_%', '%transient%', 'digitalisimo_migration%', 'digitalisimo_theme%', 'digitalisimo_tools_php%' ) ); // phpcs:ignore WordPress.DB
+		$option = $wpdb->get_var( $wpdb->prepare( 'SELECT option_name FROM ' . $wpdb->options . ' WHERE option_value LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s LIMIT 1', $like, 'theme_mods_%', '%transient%', 'digitalisimo_migration%', 'digitalisimo_theme%', 'digitalisimo_tools_php%' ) ); // phpcs:ignore WordPress.DB
 		if ( $option ) {
 			return sprintf( 'la opción %s (widgets, menús o ajustes)', (string) $option );
 		}
 		$uploads = function_exists( 'wp_upload_dir' ) ? (array) wp_upload_dir( null, false ) : array();
 		$css     = (string) ( $uploads['basedir'] ?? '' ) . '/elementor/css';
-		foreach ( array_slice( '' !== (string) ( $uploads['basedir'] ?? '' ) && is_dir( $css ) ? (array) glob( $css . '/*.css' ) : array(), 0, 2000 ) as $file ) {
+		foreach ( array_slice( '' !== (string) ( $uploads['basedir'] ?? '' ) && is_dir( $css ) ? (array) glob( $css . DIRECTORY_SEPARATOR . '*.css' ) : array(), 0, 2000 ) as $file ) {
 			if ( false !== strpos( (string) file_get_contents( $file, false, null, 0, 2097152 ), 'themes/' . $slug . '/' ) ) {
 				return 'el CSS de Elementor (' . basename( $file ) . ')';
 			}
