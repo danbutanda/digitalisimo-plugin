@@ -212,6 +212,7 @@ jobs:
           php tests/migration-conditions-repair.php
           php tests/migration-runner.php
           php tests/migration-full.php
+          php tests/same-site-guard.php
           php tests/seo-legacy-import.php
           php tests/migration-admin-load.php
           php tests/migration-dropped-extensions.php
@@ -304,6 +305,7 @@ jobs:
           php tests/backups-manual-progress.php
           php tests/backups-cloud-verification.php
           php tests/backups-job-store.php
+          php tests/backups-same-site.php
           php tests/backups-job-states.php
           php tests/backups-job-heartbeat.php
           php tests/backups-job-resume.php
