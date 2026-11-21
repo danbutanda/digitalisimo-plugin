@@ -262,6 +262,25 @@ add_action(
 				$done = $item ? \Digitalisimo\Tools\Php_Snippets\Store::activate( 'site', $id, hash( 'sha256', $item['code'] ), array( 'by' => 1 ) ) : new WP_Error( 'tp', 'sin fragmento' );
 				$out  = array( 'ok' => ! is_wp_error( $done ), 'error' => is_wp_error( $done ) ? $done->get_error_message() : '', 'state' => \Digitalisimo\Tools\Php_Snippets\Store::state( 'site', $id ) );
 				break;
+			case 'copied':
+				// ¿Viven ya en uploads las hojas del hijo (y lo de Hello que encolaba)? Lo que mira Migración antes de borrarlos.
+				$why = array();
+				$ok  = function_exists( 'digitalisimo_theme_child_assets_copied' ) && digitalisimo_theme_child_assets_copied( $why );
+				$out = array( 'ok' => $ok, 'issues' => $why, 'child' => get_option( 'digitalisimo_theme_child' ), 'copy' => get_option( 'digitalisimo_theme_child_copy' ) );
+				break;
+			case 'delete_themes':
+				// Borra los hijos y Hello (sólo en este Playground efímero), como haría la limpieza de «Migrar».
+				require_once ABSPATH . 'wp-admin/includes/file.php';
+				require_once ABSPATH . 'wp-admin/includes/theme.php';
+				$out = array();
+				foreach ( array( 'tp-hello-child', 'tp-hello-child-php', 'hello-elementor' ) as $stylesheet ) {
+					if ( wp_get_theme( $stylesheet )->exists() ) {
+						$done                 = delete_theme( $stylesheet );
+						$out[ $stylesheet ] = true === $done ? 'deleted' : ( is_wp_error( $done ) ? $done->get_error_message() : 'no' );
+					}
+				}
+				wp_clean_themes_cache();
+				break;
 			case 'break':
 				update_site_option( 'tp_break', 1 );
 				$out = array( 'break' => 1 );

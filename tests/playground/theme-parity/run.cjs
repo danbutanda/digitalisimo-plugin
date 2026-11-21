@@ -133,6 +133,9 @@ function ownSheet(sheet) {
   return /\/themes\/hello-elementor\//.test(sheet.href) || /^hello-elementor(-theme-style|-header-footer)?-css$/.test(sheet.id);
 }
 
+/** La copia del hijo en uploads (tema 1.0.2) es el mismo archivo que en la carpeta del hijo: la dirección no es una diferencia. */
+const sameFile = (v) => String(v).replace(/\/wp-content\/uploads\/(sites\/\d+\/)?digitalisimo-theme\/child\/([^/]+)\//g, '/wp-content/themes/$2/');
+
 /** Compara la fase `phase` con A. `expectDiff`: sitios donde una diferencia es lo esperado (y se anota). */
 async function compare(browser, phase, sites, opts = {}) {
   const page = await browser.newPage();
@@ -153,7 +156,7 @@ async function compare(browser, phase, sites, opts = {}) {
           const sb = b.styles[sel];
           if (!sa && !sb) continue;
           if (!sa || !sb) { diffs.push(`${key}@${w} ${sel}: ${sa ? 'desaparece' : 'aparece'}`); continue; }
-          for (const prop of PROPS) if (sa[prop] !== sb[prop]) diffs.push(`${key}@${w} ${sel} ${prop}: «${sa[prop]}» → «${sb[prop]}»`);
+          for (const prop of PROPS) if (sameFile(sa[prop]) !== sameFile(sb[prop])) diffs.push(`${key}@${w} ${sel} ${prop}: «${sa[prop]}» → «${sb[prop]}»`);
         }
         for (const sheet of a.sheets) {
           if (ownSheet(sheet)) continue;
@@ -314,12 +317,13 @@ function checkRecords(phase, st, sites) {
         check(!!itemId && index.items[itemId].review === true, `El cambio de tema dejó el functions.php del hijo en Código PHP de Tools, inactivo y con revisión: ${JSON.stringify(index.items || {})}`);
         if (itemId) {
           let on = await toolsActivate(browser, page, sites[phpId], itemId);
-          // En un subsitio de la red, Playground contesta la visita anónima de la prueba de Tools con un 302 de su cookie
+          // En un subsitio de la red (y, desde la 3.1.56, también en un sitio individual con el hijo con PHP), Playground
+          // contesta la visita anónima de la prueba de Tools con un 302 de su cookie
           // a la misma dirección y Tools no la da por terminada. Sólo en ese caso se activa por la vía de prueba (el último
           // paso de Tools, Store::activate, con el hash exacto); la prueba en el navegador ya se cubre en tools-php y,
           // aquí, en el modo de un sitio.
           const cookie302 = (result.toolsVisits || []).some((v) => v.status === 302 && v.location && v.url.endsWith(v.location));
-          if (!on.success && network && cookie302) {
+          if (!on.success && cookie302) {
             const via = await api(page, 'tools_activate', `&id=${itemId}`, sites[phpId].home);
             log(`  Tools: la visita anónima del subsitio recibió el 302 de la cookie de Playground; se activa por la vía de prueba: ${JSON.stringify(via)}`);
             on = { success: !!via.ok && via.state === 'active', data: { via: 'store', ...via } };
@@ -348,6 +352,22 @@ function checkRecords(phase, st, sites) {
       }
       await capture(browser, 'R', sites);
       await compare(browser, 'R', sites);
+      // D: otra vez con el tema propio (el fragmento del hijo con PHP sigue activo en Tools); sus hojas, fuentes e imágenes
+      // quedan copiadas en uploads y se borran los hijos y Hello: el sitio se ve igual que con el hijo (A).
+      for (const s of Object.values(sites)) await activate(page, s, 'digitalisimo-theme');
+      for (const [id, s] of Object.entries(sites)) {
+        if (s.kind === 'hello') continue;
+        const c = await api(page, 'copied', '', s.home);
+        result.state[`D-copy-${id}`] = { ok: c.ok, issues: c.issues, copy: c.copy };
+        check(c.ok === true, `D sitio ${id}: las hojas del hijo están copiadas en uploads antes de borrarlo: ${JSON.stringify(c.issues)}`);
+      }
+      const gone = await api(page, 'delete_themes', '', base);
+      result.state.deleted = gone;
+      log(`  D: temas borrados ${JSON.stringify(gone)}`);
+      check(Object.values(gone).every((v) => v === 'deleted') && Object.keys(gone).length >= 2, `D: se borraron los hijos y Hello: ${JSON.stringify(gone)}`);
+      checkRecords('D', await state(page), sites);
+      await capture(browser, 'D', sites);
+      await compare(browser, 'D', sites, { expectDiff: Object.keys(sites).filter((id) => sites[id].kind === 'child-php' && !(result.toolsActivation && result.toolsActivation.success)) });
     } else {
       // «Migrar» por AJAX, con la sesión del administrador, como el botón.
       const screen = network ? `${base}/wp-admin/network/settings.php?page=digitalisimo-ep-migration` : `${base}/wp-admin/tools.php?page=digitalisimo-ep-migration`;

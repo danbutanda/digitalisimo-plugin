@@ -451,8 +451,16 @@ function digitalisimo_theme_import_work( WP_Theme $old, $child_css, $dry, $via )
 			unset( $record['carry'] );
 		}
 		if ( ! $dry ) {
-			if ( $plan['assets'] ) {
-				update_option( 'digitalisimo_theme_child', array( 'v' => $plan['v'], 'child' => $stylesheet, 'parent' => $template, 'assets' => $plan['assets'] ), true );
+			if ( $plan['assets'] || $plan['refs'] ) {
+				$saved = array( 'v' => $plan['v'], 'child' => $stylesheet, 'parent' => $template, 'assets' => $plan['assets'] );
+				if ( $plan['refs'] ) {
+					$saved['refs'] = array_slice( $plan['refs'], 0, 50 ); // Archivos del hijo que usa su PHP (Código PHP).
+				}
+				update_option( 'digitalisimo_theme_child', $saved, true );
+				// Copia en uploads de lo que el hijo encolaba (y sus fuentes e imágenes): el tema lo sirve de ahí y el hijo y
+				// Hello pueden borrarse (digitalisimo_theme_child_assets_copied()).
+				$copy                  = digitalisimo_theme_child_copy_assets();
+				$log['child']['copy'] = array( 'status' => $copy['status'], 'files' => $copy['files'], 'issues' => array_slice( $copy['issues'], 0, 5 ) );
 			} else {
 				delete_option( 'digitalisimo_theme_child' );
 			}

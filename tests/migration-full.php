@@ -1034,13 +1034,14 @@ switch ( $scenario ) {
 		break;
 
 	case 'theme_child_risky':
-		// Su PHP usa una constante de Hello: dentro de Tools, con el tema propio, sería un error fatal. No se importa.
-		child_theme( 'hello-hijo', 'Hello Hijo', OFFICIAL_CHILD . "add_action( 'wp_head', function () {\n\techo '<meta name=\"v\" content=\"' . HELLO_ELEMENTOR_VERSION . '\">';\n} );\n" );
+		// Su PHP usa una constante de Hello que el tema no declara (tema 1.0.2: sí declara HELLO_ELEMENTOR_VERSION): dentro de
+		// Tools, con el tema propio, sería un error fatal. No se importa.
+		child_theme( 'hello-hijo', 'Hello Hijo', OFFICIAL_CHILD . "add_action( 'wp_head', function () {\n\techo '<meta name=\"v\" content=\"' . HELLO_PLUS_VERSION . '\">';\n} );\n" );
 		tools_here();
 		drive();
 		$last = Full::last( false );
 		$why  = (string) $last['theme'][1]['reason'];
-		check( 'hello-hijo' === get_option( 'stylesheet' ) && false !== strpos( $why, 'línea 11: usa la constante HELLO_ELEMENTOR_VERSION de Hello' ) && array() === (array) ( $GLOBALS['t']['imports'] ?? array() ), 'Con un riesgo se queda, sin importar, y dice cuál: ' . $why );
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && false !== strpos( $why, 'línea 11: usa la constante HELLO_PLUS_VERSION de Hello' ) && array() === (array) ( $GLOBALS['t']['imports'] ?? array() ), 'Con un riesgo se queda, sin importar, y dice cuál: ' . $why );
 		break;
 
 	case 'theme_child_network':

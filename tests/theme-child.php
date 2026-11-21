@@ -441,25 +441,12 @@ check( digitalisimo_theme_child_php_covered( $child ), 'Activo y sin cambios en 
 $official = "<?php\ndefine( 'HELLO_ELEMENTOR_CHILD_VERSION', '2.0.0' );\nfunction hello_elementor_child_scripts_styles() {\n\twp_enqueue_style( 'hello-elementor-child-style', get_stylesheet_directory_uri() . '/style.css', [ 'hello-elementor-theme-style' ], HELLO_ELEMENTOR_CHILD_VERSION );\n}\nadd_action( 'wp_enqueue_scripts', 'hello_elementor_child_scripts_styles', 20 );\n";
 check( array() === plan_of( $official )['risks'] && array() === plan_of( $official . "add_action( 'wp_head', function () { echo '<style>.x{}</style>'; } );\n" )['risks'], 'La plantilla oficial (con su ruta del tema en lo que ya se trae y su propia constante) no tiene riesgos.' );
 $risky = array(
-	'constante de Hello'      => array( "add_action( 'wp_head', function () { echo HELLO_ELEMENTOR_VERSION; } );\n", '2:usa la constante HELLO_ELEMENTOR_VERSION de Hello' ),
-	'constante de Hello leída' => array( "function a() {\n\twp_enqueue_style( 'x', get_stylesheet_directory_uri() . '/x.css', [], HELLO_ELEMENTOR_VERSION );\n}\nadd_action( 'wp_enqueue_scripts', 'a' );\n", '3:usa la constante HELLO_ELEMENTOR_VERSION de Hello' ),
-	'función de Hello'        => array( "add_action( 'init', function () { hello_elementor_body_open(); } );\n", '2:llama a hello_elementor_body_open(), de Hello' ),
-	'ruta del tema'           => array( "require get_stylesheet_directory() . '/inc/x.php';\n", '2:usa get_stylesheet_directory(), que con el tema DIGITALÍSIMO apunta a su carpeta' ),
-	'ruta en un gancho'       => array( "add_action( 'wp_footer', function () {\n\techo '<img src=\"' . get_stylesheet_directory_uri() . '/a.png\">';\n} );\n", '3:usa get_stylesheet_directory_uri()' ),
-	'ruta en un if'           => array( "function a() {\n\tif ( is_page() ) {\n\t\twp_enqueue_style( 'child-landing', get_stylesheet_directory_uri() . '/css/landing.css' );\n\t}\n}\nadd_action( 'wp_enqueue_scripts', 'a' );\n", '4:usa get_stylesheet_directory_uri()' ),
 	'llamada antes'           => array( "child_boot();\nfunction child_boot() { add_action( 'wp_head', 'x' ); }\n", '2:llama a child_boot() antes de declararla' ),
 	'clase antes'             => array( "class Hija extends Base {}\nclass Base {}\n", '2:la clase Hija extiende Base, declarada más abajo' ),
 	'objeto antes'            => array( "\$o = new Cosa();\nclass Cosa {}\n", '2:crea un Cosa antes de declarar la clase' ),
-	'constante HELLO_'        => array( "add_action( 'wp_head', function () { echo HELLO_THEME_URL; } );\n", '2:usa la constante HELLO_THEME_URL de Hello' ),
-	'constante EHP_'          => array( "add_action( 'wp_head', function () { echo EHP_THEME_SLUG; } );\n", '2:usa la constante EHP_THEME_SLUG de Hello' ),
-	'constante calificada'    => array( "add_action( 'wp_head', function () { echo \\HELLO_ELEMENTOR_VERSION; } );\n", '2:usa la constante HELLO_ELEMENTOR_VERSION de Hello' ),
 	'otra constante calificada' => array( "add_action( 'wp_head', function () { echo \\CHILD_THING; } );\n", '2:usa la constante \\CHILD_THING' ),
-	'función hello_'          => array( "add_action( 'wp_head', function () { hello_get_header_display(); } );\n", '2:llama a hello_get_header_display(), de Hello' ),
 	'plantilla del tema'      => array( "add_action( 'wp_footer', function () { get_template_part( 'partials/modal' ); } );\n", '2:usa get_template_part(), que con el tema DIGITALÍSIMO lee el tema propio' ),
-	'ajuste del tema'         => array( "add_action( 'wp_head', function () { echo get_theme_mod( 'child_color' ); } );\n", '2:usa get_theme_mod()' ),
 	'hijo o no'               => array( "add_action( 'wp_head', function () { if ( is_child_theme() ) { echo 1; } } );\n", '2:usa is_child_theme()' ),
-	'__DIR__'                 => array( "require_once __DIR__ . '/inc/x.php';\n", '2:usa __DIR__, que en Código PHP apunta a DIGITALÍSIMO Tools' ),
-	'__FILE__'                => array( "add_action( 'wp_head', function () { echo basename( __FILE__ ); } );\n", '2:usa __FILE__' ),
 	'$GLOBALS'                => array( "\$cfg = 1;\nadd_action( 'wp_head', function () { echo \$GLOBALS['cfg']; } );\n", '3:usa $GLOBALS' ),
 	'global de primer nivel'  => array( "\$tp_opts = array( 1 );\nfunction tp() { global \$tp_opts; return \$tp_opts; }\nadd_action( 'wp_head', 'tp' );\n", '3:usa global $tp_opts' ),
 );
@@ -483,5 +470,142 @@ check( 0 === $st && 'fin' === $out, 'Con un cierre de PHP en el nombre, la envol
 file_put_contents( $dir . '/name2.php', digitalisimo_theme_child_wrap_php( "<?php\nfunction b3() {}\n", 'a??>>b <<??php x' ) );
 list( $st, $out ) = $run( "require '{$dir}/name2.php'; echo 'fin';" );
 check( 0 === $st && 'fin' === $out && false !== strpos( (string) file_get_contents( $dir . '/name2.php' ), '«ab php x»' ), 'Con cierres de PHP repetidos en el nombre, sólo quedan letras, números y espacios: ' . $out );
+
+// ------------------------------------------------------------------ 7. Lo que el tema ya cubre (1.0.2)
+// Constantes y funciones de Hello dentro de una función: el tema las declara en paridad (inc/hello-compat.php).
+$covered = array(
+	"add_action( 'wp_head', function () { echo HELLO_ELEMENTOR_VERSION . EHP_THEME_SLUG . \\HELLO_THEME_URL; } );\n",
+	"function tp_h() { return hello_get_header_display() && 'show' === hello_show_or_hide( 'x' ) ? hello_elementor_get_setting( 'y' ) : HELLO_THEME_STYLE_URL; }\nadd_action( 'wp_footer', 'tp_h' );\n",
+	"add_action( 'wp_footer', function () { echo '<img src=\"' . get_stylesheet_directory_uri() . '/img/a.png\">'; } );\n",
+	"add_action( 'wp_footer', function () { echo esc_url( get_theme_file_uri( 'img/b.png' ) ) . get_stylesheet_uri(); } );\n",
+	"require_once __DIR__ . '/inc/x.php';\n",
+	"add_action( 'wp_head', function () { echo basename( __FILE__ ) . get_theme_mod( 'child_color' ); } );\n",
+	"function a() {\n\tif ( is_page() ) {\n\t\twp_enqueue_style( 'child-landing', get_stylesheet_directory_uri() . '/css/landing.css' );\n\t}\n}\nadd_action( 'wp_enqueue_scripts', 'a' );\n",
+);
+foreach ( $covered as $case ) {
+	$plan = plan_of( "<?php\n" . $case );
+	check( array() === $plan['risks'], 'Cubierto por el tema: ' . $case . json_encode( $plan['risks'] ) );
+}
+check( array( 'img/a.png' ) === plan_of( "<?php\n" . $covered[2] )['refs'] && array( 'img/b.png', 'style.css' ) === plan_of( "<?php\n" . $covered[3] )['refs'] && array( 'inc/x.php' ) === plan_of( "<?php\n" . $covered[4] )['refs'], 'Las rutas reescritas dicen a qué archivo del hijo apuntan.' );
+check( array() === plan_of( $official )['refs'], 'Lo que el tema ya trae solo no cuenta como ruta del fragmento.' );
+check( array( '?' ) === plan_of( "<?php\nadd_action( 'wp_footer', function () { echo get_stylesheet_directory_uri() . '/img/' . \$x; } );\n" )['refs'] && array( '?' ) === plan_of( "<?php\nadd_action( 'wp_footer', function () { echo get_stylesheet_directory_uri() . '/img/a' . \$x; } );\n" )['refs'], 'Una ruta que no se puede leer queda como «?».' );
+// Lo que de verdad no se puede traer sigue siendo riesgo.
+$still = array(
+	'constante de Hello en el primer nivel' => array( "echo HELLO_ELEMENTOR_VERSION;\n", '2:usa la constante HELLO_ELEMENTOR_VERSION de Hello en el primer nivel' ),
+	'función de Hello en el primer nivel'   => array( "hello_elementor_get_setting( 'x' );\n", '2:llama a hello_elementor_get_setting(), de Hello, en el primer nivel' ),
+	'constante que Hello no tiene'          => array( "add_action( 'wp_head', function () { echo HELLO_PLUS_VERSION; } );\n", '2:usa la constante HELLO_PLUS_VERSION de Hello' ),
+	'función que no se declara'             => array( "add_action( 'wp_head', function () { hello_customizer_register( 1 ); } );\n", '2:llama a hello_customizer_register(), de Hello' ),
+	'carpeta de Hello'                      => array( "add_action( 'wp_head', function () { echo get_template_directory_uri(); } );\n", '2:usa get_template_directory_uri()' ),
+	'tema activo'                           => array( "add_action( 'wp_head', function () { echo wp_get_theme()->get( 'Name' ); } );\n", '2:usa wp_get_theme()' ),
+	'__DIR__ en una propiedad'              => array( "class Tp { public \$d = __DIR__; }\n", '2:usa __DIR__ donde no puede cambiarse' ),
+	'__DIR__ por defecto'                   => array( "function tp_d( \$d = __DIR__ ) { return \$d; }\nadd_action( 'wp_head', 'tp_d' );\n", '2:usa __DIR__ donde no puede cambiarse' ),
+	'__FILE__ en static'                    => array( "function tp_s() { static \$f = __FILE__; return \$f; }\nadd_action( 'wp_head', 'tp_s' );\n", '2:usa __FILE__ donde no puede cambiarse' ),
+);
+foreach ( $still as $label => $case ) {
+	$found = array_map( static function ( $b ) {
+		return $b['line'] . ':' . $b['what'];
+	}, plan_of( "<?php\n" . $case[0] )['risks'] );
+	check( 1 === count( $found ) && 0 === strpos( $found[0], $case[1] ), "Sigue siendo riesgo «{$label}»: " . json_encode( $found ) );
+}
+check( digitalisimo_theme_child_compat_covers( 'HELLO_ELEMENTOR_VERSION' ) && digitalisimo_theme_child_compat_covers( '\\HELLO_THEME_PATH' ) && digitalisimo_theme_child_compat_covers( 'hello_elementor_get_setting()' ) && digitalisimo_theme_child_compat_covers( 'get_stylesheet_directory_uri()' ) && digitalisimo_theme_child_compat_covers( 'get_theme_mod()' ) && digitalisimo_theme_child_compat_covers( array( 'name' => '__DIR__', 'rewritable' => true ) ), 'compat_covers: constantes, funciones, rutas, ajustes y __DIR__ reescribible.' );
+check( ! digitalisimo_theme_child_compat_covers( array( 'name' => 'HELLO_ELEMENTOR_VERSION', 'top' => true ) ) && ! digitalisimo_theme_child_compat_covers( 'HELLO_PLUS_VERSION' ) && ! digitalisimo_theme_child_compat_covers( 'hello_customizer_register()' ) && ! digitalisimo_theme_child_compat_covers( 'get_template_directory_uri()' ) && ! digitalisimo_theme_child_compat_covers( '__DIR__' ) && ! digitalisimo_theme_child_compat_covers( 'HELLO_ELEMENTOR_VERSION()' ) && ! digitalisimo_theme_child_compat_covers( 'wp_get_theme()' ), 'compat_covers: lo demás no.' );
+$keyed = plan_of( "<?php\nadd_action( 'wp_head', function () { echo HELLO_PLUS_VERSION; } );\n" )['risks'][0];
+check( 'HELLO_PLUS_VERSION' === $keyed['name'], 'Cada riesgo dice su nombre (para compat_covers()).' );
+
+// La envoltura reescribe las rutas del hijo; corrida de verdad, con el tema propio.
+$rw_code = "<?php\nfunction tp_paths() {\n\treturn array( get_stylesheet_directory_uri() . '/a.css', get_stylesheet_directory(), get_stylesheet_uri(), get_theme_file_uri( 'b.css' ), get_theme_file_path(), \\get_stylesheet_directory_uri(), __DIR__ . '/c.css', __FILE__, Tp_Paths::D, ( new Tp_Paths() )->get_stylesheet_directory() );\n}\nclass Tp_Paths {\n\tconst D = __DIR__;\n\tpublic function get_stylesheet_directory() { return 'método'; }\n}\nadd_action( 'wp_head', 'tp_paths' );\n";
+$rw_wrap = digitalisimo_theme_child_wrap_php( $rw_code, 'Hijo', 'hijo' );
+check( false !== strpos( $rw_wrap, "digitalisimo_theme_child_dir_uri( 'hijo' ) . '/a.css'" ) && false !== strpos( $rw_wrap, "digitalisimo_theme_child_file_uri( 'hijo', 'b.css' )" ) && false !== strpos( $rw_wrap, "digitalisimo_theme_child_file_uri( 'hijo', 'style.css' )" ) && false !== strpos( $rw_wrap, "const D = __DIR__;" ), 'La envoltura reescribe las rutas y deja __DIR__ en la constante: ' . $rw_wrap );
+file_put_contents( $dir . '/rw.php', $rw_wrap );
+list( $st, $out ) = $run( "function digitalisimo_theme_parity() {} function add_action( \$h, \$c ) {} function digitalisimo_theme_child_dir( \$s ) { return 'D:' . \$s; } function digitalisimo_theme_child_dir_uri( \$s ) { return 'U:' . \$s; } function digitalisimo_theme_child_file_uri( \$s, \$f = '' ) { return 'F:' . \$s . ':' . \$f; } function digitalisimo_theme_child_file_path( \$s, \$f = '' ) { return 'P:' . \$s . ':' . \$f; } require '{$dir}/rw.php'; echo json_encode( tp_paths() );" );
+check( 0 === $st && json_encode( array( 'U:hijo/a.css', 'D:hijo', 'F:hijo:style.css', 'F:hijo:b.css', 'P:hijo:', 'U:hijo', 'D:hijo/c.css', 'P:hijo:functions.php', $dir, 'método' ) ) === $out, 'Corrida: cada ruta apunta al hijo; la constante y el método quedan igual: ' . $out );
+check( digitalisimo_theme_child_wrap_php( $sample, 'Hijo', 'hijo' ) === digitalisimo_theme_child_wrap_php( $sample, 'Hijo' ), 'Sin rutas que reescribir, la envoltura es la misma de 1.0.1 (mismo hash en Tools).' );
+
+// ------------------------------------------------------------------ 8. Copia de los archivos del hijo en uploads
+$GLOBALS['uploads'] = $GLOBALS['root'] . '/uploads';
+function wp_upload_dir( $time = null, $create = true ) {
+	return array( 'basedir' => $GLOBALS['uploads'], 'baseurl' => 'https://sitio.test/wp-content/uploads', 'error' => false );
+}
+function wp_mkdir_p( $dir ) {
+	return is_dir( $dir ) || @mkdir( $dir, 0777, true );
+}
+$c2 = $GLOBALS['root'] . '/hijo2';
+@mkdir( $c2 . '/css', 0777, true );
+@mkdir( $c2 . '/fonts', 0777, true );
+@mkdir( $c2 . '/img', 0777, true );
+@mkdir( $GLOBALS['root'] . '/hello-elementor', 0777, true );
+file_put_contents( $c2 . '/img/comentado.png', 'PNG0' );
+file_put_contents( $c2 . '/style.css', "/* url(img/comentado.png) */ body{background:url( 'img/fondo.png' )} @font-face{src:url(fonts/a.woff2?v=1#x) format('woff2'),url(data:font/woff2;base64,AA==),url(https://cdn.test/x.woff2)}" );
+file_put_contents( $c2 . '/css/extra.css', '@import "sub.css"; .x{background:url(../img/b.png)} .y{background:url(/raiz.png)} .z{background:url(falta.png)}' );
+file_put_contents( $c2 . '/css/sub.css', '.s{color:red}' );
+file_put_contents( $c2 . '/fonts/a.woff2', 'FUENTE' );
+file_put_contents( $c2 . '/img/fondo.png', 'PNG1' );
+file_put_contents( $c2 . '/img/b.png', 'PNG2' );
+file_put_contents( $c2 . '/img/pie.png', 'PNG3' );
+file_put_contents( $GLOBALS['root'] . '/hello-elementor/theme.css', '.h{}' );
+$GLOBALS['options']['digitalisimo_theme_child'] = array(
+	'v'      => 1,
+	'child'  => 'hijo2',
+	'parent' => 'hello-elementor',
+	'assets' => array(
+		array( 't' => 'style', 'h' => 'hijo2-style', 'w' => 'child', 's' => 'style.css', 'd' => array(), 'v' => '1', 'm' => 'all', 'p' => 20, 'e' => true ),
+		array( 't' => 'style', 'h' => 'hijo2-extra', 'w' => 'child', 's' => 'css/extra.css', 'd' => array(), 'v' => '1', 'm' => 'all', 'p' => 20, 'e' => true ),
+		array( 't' => 'style', 'h' => 'hello-theme', 'w' => 'parent', 's' => 'theme.css', 'd' => array(), 'v' => '1', 'm' => 'all', 'p' => 20, 'e' => true ),
+		array( 't' => 'style', 'h' => 'remota', 'w' => 'url', 's' => 'https://cdn.test/a.css', 'd' => array(), 'v' => '1', 'm' => 'all', 'p' => 20, 'e' => true ),
+	),
+	'refs'   => array( 'img/pie.png' ),
+);
+$saved2 = &$GLOBALS['options']['digitalisimo_theme_child'];
+check( ! digitalisimo_theme_child_assets_copied( $why ) && array( 'los archivos del hijo todavía no se copiaron' ) === $why, 'Antes de copiar: no está copiado.' );
+check( 'https://sitio.test/wp-content/themes/hijo2/style.css' === digitalisimo_theme_child_asset_url( $saved2, $saved2['assets'][0] ) && 'https://sitio.test/wp-content/themes/hijo2' === digitalisimo_theme_child_dir_uri( 'hijo2' ), 'Sin copia, desde la carpeta del hijo.' );
+$copy = digitalisimo_theme_child_copy_assets();
+$base = $GLOBALS['uploads'] . '/digitalisimo-theme/child';
+check( 'copied' === $copy['status'] && 8 === $copy['files'] && array() === $copy['issues'], 'Copia: ' . json_encode( $copy ) );
+foreach ( array( 'hijo2/style.css', 'hijo2/css/extra.css', 'hijo2/css/sub.css', 'hijo2/fonts/a.woff2', 'hijo2/img/fondo.png', 'hijo2/img/b.png', 'hijo2/img/pie.png', 'hello-elementor/theme.css' ) as $file ) {
+	check( is_file( $base . '/' . $file ) && hash_file( 'sha256', $base . '/' . $file ) === hash_file( 'sha256', $GLOBALS['root'] . '/' . $file ), 'Copiado igual: ' . $file );
+}
+check( ! is_file( $base . '/hijo2/img/falta.png' ) && ! is_file( $base . '/hijo2/img/comentado.png' ) && array( 'hello-elementor', 'hijo2' ) === array_values( array_diff( scandir( $base ), array( '.', '..' ) ) ), 'Ni comentarios, ni enlaces rotos, ni temporales.' );
+check( 'hijo2' === $saved2['child'] && ! empty( $saved2['copied'] ) && digitalisimo_theme_child_assets_copied( $why ) && array() === $why, 'Copia completa: ' . json_encode( $why ) );
+$manifest = $GLOBALS['options']['digitalisimo_theme_child_copy'];
+check( hash_file( 'sha256', $c2 . '/fonts/a.woff2' ) === $manifest['files']['hijo2']['fonts/a.woff2'], 'El manifiesto lleva el sha256 de cada archivo.' );
+check( 'https://sitio.test/wp-content/uploads/digitalisimo-theme/child/hijo2/style.css' === digitalisimo_theme_child_asset_url( $saved2, $saved2['assets'][0] ) && 'https://sitio.test/wp-content/uploads/digitalisimo-theme/child/hello-elementor/theme.css' === digitalisimo_theme_child_asset_url( $saved2, $saved2['assets'][2] ) && 'https://cdn.test/a.css' === digitalisimo_theme_child_asset_url( $saved2, $saved2['assets'][3] ), 'Con la copia, el tema sirve desde uploads (y lo externo igual).' );
+check( 'https://sitio.test/wp-content/uploads/digitalisimo-theme/child/hijo2' === digitalisimo_theme_child_dir_uri( 'hijo2' ) && $base . '/hijo2/img/pie.png' === digitalisimo_theme_child_file_path( 'hijo2', 'img/pie.png' ) && 'https://sitio.test/wp-content/uploads/digitalisimo-theme/child/hello-elementor/theme.css' === digitalisimo_theme_child_file_uri( 'hijo2', 'theme.css' ), 'Las rutas del fragmento también van a la copia (y a la de Hello si el hijo no tiene el archivo).' );
+$mtime = filemtime( $base . '/hijo2/style.css' );
+check( 'unchanged' === digitalisimo_theme_child_copy_assets()['status'] && $mtime === filemtime( $base . '/hijo2/style.css' ), 'Idempotente: la segunda vez no escribe.' );
+file_put_contents( $c2 . '/style.css', 'body{color:blue}' );
+check( ! digitalisimo_theme_child_assets_copied( $why ) && false !== strpos( implode( ' ', $why ), 'hijo2/style.css cambió' ), 'El hijo cambió: la copia ya no vale.' );
+check( 'copied' === digitalisimo_theme_child_copy_assets()['status'] && digitalisimo_theme_child_assets_copied() && 'body{color:blue}' === file_get_contents( $base . '/hijo2/style.css' ) && ! is_file( $base . '/hijo2/fonts/a.woff2' ), 'Se rehace de una vez (sin lo que ya no se usa).' );
+file_put_contents( $c2 . '/style.css', "body{background:url( 'img/fondo.png' )}" );
+digitalisimo_theme_child_copy_assets();
+rename( $c2, $c2 . '-borrado' );
+rename( $GLOBALS['root'] . '/hello-elementor', $GLOBALS['root'] . '/hello-borrado' );
+check( digitalisimo_theme_child_assets_copied( $why ) && 'unchanged' === digitalisimo_theme_child_copy_assets()['status'], 'Sin el hijo ni Hello, la copia intacta sigue valiendo: ' . json_encode( $why ) );
+check( 'https://sitio.test/wp-content/uploads/digitalisimo-theme/child/hijo2/style.css' === digitalisimo_theme_child_asset_url( $saved2, $saved2['assets'][0] ), 'Sin el hijo, el tema sigue sirviendo su hoja desde la copia.' );
+$GLOBALS['options']['digitalisimo_theme_switch'] = array( 'carry' => 1 );
+ob_start();
+digitalisimo_theme_child_notice();
+check( '' === ob_get_clean(), 'Con la copia completa, Temas no avisa de nada al borrar el hijo.' );
+$GLOBALS['options']['digitalisimo_theme_switch_log'] = array();
+digitalisimo_theme_child_deleted( 'hijo2', true );
+check( array() === $GLOBALS['options']['digitalisimo_theme_switch_log'], 'Con la copia completa, borrar el hijo no anota «child_deleted».' );
+file_put_contents( $base . '/hijo2/img/fondo.png', 'otra' );
+check( ! digitalisimo_theme_child_assets_copied( $why ) && in_array( 'la copia de hijo2 está incompleta', $why, true ), 'Un archivo alterado en la copia se nota.' );
+check( 'incomplete' === digitalisimo_theme_child_copy_assets()['status'] && empty( $saved2['copied'] ), 'Alterada y sin el hijo: incompleta, y el tema deja de servir desde ahí.' );
+rename( $c2 . '-borrado', $c2 );
+rename( $GLOBALS['root'] . '/hello-borrado', $GLOBALS['root'] . '/hello-elementor' );
+check( 'copied' === digitalisimo_theme_child_copy_assets()['status'] && digitalisimo_theme_child_assets_copied(), 'Con el hijo de vuelta, se repara.' );
+// Lo que no se puede copiar: fuera del tema, PHP o una ruta que no se lee.
+file_put_contents( $c2 . '/style.css', 'body{background:url(../../../uploads/2024/x.jpg)}' );
+$saved2['refs'] = array( 'img/pie.png', 'inc/x.php', '?' );
+@mkdir( $c2 . '/inc' );
+file_put_contents( $c2 . '/inc/x.php', '<?php' );
+$copy = digitalisimo_theme_child_copy_assets();
+check( 'incomplete' === $copy['status'] && 3 === count( $copy['issues'] ) && empty( $saved2['copied'] ) && ! digitalisimo_theme_child_assets_copied( $why ) && 3 === count( $why ), 'Fuera del tema, PHP y rutas ilegibles no se copian y se dicen: ' . json_encode( $copy['issues'] ) );
+check( 'https://sitio.test/wp-content/themes/hijo2/style.css' === digitalisimo_theme_child_asset_url( $saved2, $saved2['assets'][0] ), 'Con la copia incompleta, desde la carpeta del hijo.' );
+check( ! is_file( $base . '/hijo2/inc/x.php' ), 'Nunca se copia PHP a uploads.' );
+$GLOBALS['options']['digitalisimo_theme_child'] = array( 'v' => 1, 'child' => '../x', 'assets' => array() );
+check( 'none' === digitalisimo_theme_child_copy_assets()['status'] && '' === digitalisimo_theme_child_dir( '../x' ) && '' === digitalisimo_theme_child_copy_dir( '..' ), 'Un nombre de tema inválido no copia ni resuelve nada.' );
+unset( $GLOBALS['options']['digitalisimo_theme_child'] );
+check( digitalisimo_theme_child_assets_copied(), 'Sin nada que cargar del hijo, está «copiado».' );
 
 echo "Tema hijo de Hello: lectura del functions.php, bloqueos, archivos del hijo, encolado en el tema y PHP en Tools validados.\n";

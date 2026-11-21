@@ -1,0 +1,3 @@
+/* Hoja del hijo con PHP: la encola una función con una condición (no se trae sola), con una imagen relativa. */
+.tp-php-sheet { display: block; padding: 8px 8px 8px 28px; color: rgb(20, 110, 60); background: url(../img/php.svg) no-repeat 6px center; border-left: 4px solid rgb(20, 110, 60); }
+.tp-php-img { display: block; width: 24px; height: 24px; }
