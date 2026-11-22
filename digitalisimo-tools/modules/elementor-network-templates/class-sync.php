@@ -10,7 +10,7 @@ final class Sync {
 		foreach ( $targets as $target ) if ( ! wp_next_scheduled( self::CRON, array( $uuid, absint( $target ) ) ) ) wp_schedule_single_event( time() + 5, self::CRON, array( $uuid, absint( $target ) ) );
 	}
 	public static function auto_enqueue( $post_id, $post, $update ) { if ( ! $update || get_current_blog_id() !== Registry::master_blog_id() ) return; $item = Registry::by_master_post( $post_id ); if ( $item && ! empty( $item['auto_sync'] ) ) self::enqueue( $item['uuid'] ); }
-	public static function run_job( $uuid, $blog_id = 0 ) { $item = Registry::get( $uuid ); if ( ! $item || empty( $item['active'] ) || ! is_multisite() || ! Elementor_Adapter::available() || ! $blog_id ) return; self::sync_to_blog( $item, absint( $blog_id ), array(), array() ); }
+	public static function run_job( $uuid, $blog_id = 0 ) { $item = Registry::get( $uuid ); if ( ! $item || empty( $item['active'] ) || ! is_multisite() || ! Elementor_Adapter::active_on( $item['master_blog_id'] ) || ! $blog_id ) return; self::sync_to_blog( $item, absint( $blog_id ), array(), array() ); }
 	private static function sync_to_blog( array $item, $target, array $stack, array $resolved ) {
 		if ( isset( $stack[ $item['uuid'] ] ) ) { Logger::add( $item['uuid'], $item['master_blog_id'], $target, 'error', 0, 'Dependencia circular detectada.' ); return new \WP_Error( 'digitalisimo_tools_cycle', 'Dependencia circular detectada.' ); }
 		$lock = self::LOCK_PREFIX . $item['uuid'] . '_' . $target; if ( get_site_transient( $lock ) ) return new \WP_Error( 'digitalisimo_tools_locked', 'La sincronización ya está en curso.' ); set_site_transient( $lock, 1, 10 * MINUTE_IN_SECONDS ); $started = microtime( true );

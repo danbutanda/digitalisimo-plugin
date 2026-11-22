@@ -3,6 +3,18 @@ namespace Digitalisimo\Tools\Elementor_Network_Templates;
 defined( 'ABSPATH' ) || exit;
 final class Elementor_Adapter {
 	public static function available() { return did_action( 'elementor/loaded' ) || defined( 'ELEMENTOR_VERSION' ); }
+	/**
+	 * ¿Está el constructor activo en ese sitio? La petición sólo carga los plugins de la red y los del sitio que la
+	 * atiende (en la red, el principal): para otro sitio maestro se mira su lista de plugins activos, sin cargarlo.
+	 * DIGITALÍSIMO Elements se reconoce por su archivo (`pro-elements.php`, en cualquier carpeta) y Elementor por el suyo.
+	 */
+	public static function active_on( $blog_id ) {
+		$blog_id = absint( $blog_id );
+		if ( ! is_multisite() || $blog_id === get_current_blog_id() ) return self::available();
+		$files = array_merge( array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ), (array) get_blog_option( $blog_id, 'active_plugins', array() ) );
+		foreach ( $files as $file ) if ( preg_match( '#(^|/)(pro-elements|elementor)\.php$#', (string) $file ) ) return true;
+		return false;
+	}
 	public static function template_posts() { return get_posts( array( 'post_type' => 'elementor_library', 'post_status' => array( 'publish', 'draft', 'private' ), 'numberposts' => -1, 'orderby' => 'title', 'order' => 'ASC' ) ); }
 	public static function export( array $item ) {
 		$master = get_post( absint( $item['master_post_id'] ) ); if ( ! $master || 'elementor_library' !== $master->post_type ) return new \WP_Error( 'digitalisimo_tools_master', 'La plantilla maestra no existe o no es una plantilla guardada de DIGITALÍSIMO Elements.' );
