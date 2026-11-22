@@ -79,7 +79,7 @@ try {
   await press('input[name="digitalisimo_hosting_network_save"]');
   check((await text()).includes('Configuración de red guardada.'), 'Hosting de red: «guardada»');
   await open(hostingNet);
-  check('api-red' === await value('input[name="hosting[api_user]"]') && (await text()).includes('Ya configurada'), 'Hosting de red: tras recargar, el usuario y la clave siguen');
+  check('api-red' === await value('input[name="hosting[api_user]"]') && (await text()).includes('Guardada · escribe una nueva'), 'Hosting de red: tras recargar, el usuario y la clave siguen');
   check('.com|10\n.mx|11' === (await value('textarea[name="hosting[domain_products]"]') || '').replace(/\r/g, ''), 'Hosting de red: tras recargar, los productos siguen');
 
   check(200 === await open(hostingSub), 'Hosting del subsitio abre');
@@ -95,7 +95,7 @@ try {
   await page.click('input[type=checkbox][name="hosting[inherit_network]"]');
   await press('input[name="digitalisimo_hosting_save"]');
   await open(hostingSub);
-  check(false === await isChecked('input[type=checkbox][name="hosting[inherit_network]"]') && 'api-red' === await value('input[name="hosting[api_user]"]') && (await text()).includes('Ya configurada') && (await text()).includes('Valor efectivo: Este sitio'), 'Hosting del subsitio: al dejar de heredar conserva los valores y la clave que veía');
+  check(false === await isChecked('input[type=checkbox][name="hosting[inherit_network]"]') && 'api-red' === await value('input[name="hosting[api_user]"]') && (await text()).includes('Guardada · escribe una nueva') && (await text()).includes('Valor efectivo: Este sitio'), 'Hosting del subsitio: al dejar de heredar conserva los valores y la clave que veía');
   rest = await page.goto(`${base}/uno/?rest_route=/digitalisimo-hosting/v1/check-domain&domain=prueba.com`, { waitUntil: 'load' }).then((r) => r.text());
   check(/"available":true/.test(rest), `tras dejar de heredar, el subsitio sigue consultando dominios con la clave que veía (${rest.slice(0, 120)})`);
   await open(hostingSub);

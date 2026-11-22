@@ -8,6 +8,12 @@ class Digitalisimo_Hosting {
 	const LEGACY_INHERIT = 'digitalisimo_module_network_inherit';
 	const LEGACY_MIGRATED = 'digitalisimo_hosting_ecommerce_migrated';
 	const LEGACY_NETWORK_MIGRATED = 'digitalisimo_hosting_ecommerce_network_migrated';
+	/**
+	 * Lo que muestra el campo de la clave con una guardada (pedido del propietario del 2026-11-22: «deben salir los *****
+	 * para saber que ya hay algo guardado»; el mismo patrón que IA Tools, SEO y Backups). Enviada tal cual conserva la
+	 * clave; la clave real nunca se imprime. «Quitar la clave» la borra.
+	 */
+	const MASK = '••••••••••••';
 
 	public static function init() {
 		self::migrate_legacy_options();
@@ -159,7 +165,7 @@ class Digitalisimo_Hosting {
 		if ( ! $network && is_multisite() ) echo '<p class="notice notice-info inline"><label><input type="hidden" name="hosting[inherit_network]" value="0"><input type="checkbox" name="hosting[inherit_network]" value="1" ' . checked( self::inherits(), true, false ) . '> <strong>Heredar configuración de la red</strong></label><br><span class="description">Valor efectivo: ' . esc_html( self::origin_label() ) . '. ' . ( self::inherits() ? 'Los campos de abajo muestran los valores de la red; para cambiarlos aquí, desmarca esta casilla.' : 'Al desactivar herencia, este sitio puede personalizar su configuración.' ) . '</span></p>';
 		self::check( 'enabled', $l['enabled'], $o );
 		echo '<h2>Namecheap</h2>';
-		self::field( 'api_user', $l['api_user'], $o ); self::field( 'username', $l['username'], $o ); self::field( 'api_key', $l['api_key'], $o, 'password' ); self::field( 'client_ip', $l['client_ip'], $o ); self::area( 'domain_products', $l['domain_products'], $o, 'Una línea por extensión: .com|123' );
+		self::field( 'api_user', $l['api_user'], $o ); self::field( 'username', $l['username'], $o ); self::field( 'api_key', $l['api_key'], $o, 'password', $network || ! self::inherits() ); self::field( 'client_ip', $l['client_ip'], $o ); self::area( 'domain_products', $l['domain_products'], $o, 'Una línea por extensión: .com|123' );
 		echo '<h2>Compra de hosting</h2>';
 		self::area( 'hosting_product_ids', $l['hosting_product_ids'], $o, 'IDs separados por comas.' ); self::area( 'hosting_category_ids', $l['hosting_category_ids'], $o, 'IDs separados por comas.' ); self::check( 'require_domain_hosting', $l['require_domain_hosting'], $o ); self::check( 'replace_hosting', $l['replace_hosting'], $o ); self::check( 'simplify_checkout', $l['simplify_checkout'], $o );
 		echo '<h2>Formulario de DIGITALÍSIMO Elements</h2>';
@@ -169,7 +175,13 @@ class Digitalisimo_Hosting {
 		echo '</form></div>';
 	}
 
-	private static function field( $key, $label, $o, $type = 'text' ) { $value = 'password' === $type ? '' : ( $o[ $key ] ?? '' ); echo '<p><label><strong>' . esc_html( $label ) . '</strong><br><input class="regular-text" type="' . esc_attr( $type ) . '" name="hosting[' . esc_attr( $key ) . ']" value="' . esc_attr( $value ) . '"></label>' . ( 'password' === $type && ! empty( $o[ $key ] ) ? ' <span class="description">Ya configurada; déjala vacía para conservarla.</span>' : '' ) . '</p>'; }
+	private static function field( $key, $label, $o, $type = 'text', $removable = false ) {
+		$secret = 'password' === $type; $saved = $secret && '' !== (string) ( $o[ $key ] ?? '' );
+		$value = $secret ? ( $saved ? self::MASK : '' ) : ( $o[ $key ] ?? '' );
+		echo '<p><label><strong>' . esc_html( $label ) . '</strong><br><input class="regular-text" type="' . esc_attr( $type ) . '" name="hosting[' . esc_attr( $key ) . ']" value="' . esc_attr( $value ) . '"' . ( $secret ? ' autocomplete="new-password"' : '' ) . '></label>';
+		if ( $saved ) echo ' <span class="description">Guardada · escribe una nueva sólo si quieres reemplazarla</span>' . ( $removable ? ' <label><input type="checkbox" name="hosting[' . esc_attr( $key ) . '_remove]" value="1"> Quitar la clave</label>' : '' );
+		echo '</p>';
+	}
 	private static function area( $key, $label, $o, $help = '' ) { echo '<p><label><strong>' . esc_html( $label ) . '</strong><br><textarea class="large-text code" rows="3" name="hosting[' . esc_attr( $key ) . ']">' . esc_textarea( $o[ $key ] ?? '' ) . '</textarea></label><br><span class="description">' . esc_html( $help ) . '</span></p>'; }
 	private static function check( $key, $label, $o ) { echo '<p><label><input type="hidden" name="hosting[' . esc_attr( $key ) . ']" value="0"><input type="checkbox" name="hosting[' . esc_attr( $key ) . ']" value="1" ' . checked( ! empty( $o[ $key ] ), true, false ) . '> <strong>' . esc_html( $label ) . '</strong></label></p>'; }
 
@@ -187,8 +199,11 @@ class Digitalisimo_Hosting {
 		foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids' ) as $key ) $o[ $key ] = sanitize_textarea_field( $in[ $key ] ?? '' );
 		foreach ( array( 'enabled', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout' ) as $key ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
 		if ( ! $network ) $o['inherit_network'] = is_multisite() && ! empty( $in['inherit_network'] ) ? 1 : 0;
-		if ( ! empty( $in['api_key'] ) ) $o['api_key'] = sanitize_text_field( $in['api_key'] );
-		// Al dejar de heredar, la clave que el formulario daba por «Ya configurada» era la de la red: con el campo vacío
+		// La máscara •••• es lo que el campo muestra con una clave guardada: llegar con ella (o vacío) no es escribir otra.
+		$typed = ! empty( $in['api_key'] ) && self::MASK !== $in['api_key'];
+		if ( ! empty( $in['api_key_remove'] ) && ! $typed ) $o['api_key'] = '';
+		elseif ( $typed ) $o['api_key'] = sanitize_text_field( $in['api_key'] );
+		// Al dejar de heredar, la clave que el formulario daba por «Guardada» era la de la red: con el campo vacío
 		// se conserva esa (como los demás campos, que ya traían los valores de la red), no la que el sitio tuviera antes.
 		elseif ( $was_inheriting && empty( $o['inherit_network'] ) && '' !== (string) ( $effective['api_key'] ?? '' ) ) $o['api_key'] = $effective['api_key'];
 		$ignored = array();
@@ -196,7 +211,7 @@ class Digitalisimo_Hosting {
 			$labels = self::labels();
 			foreach ( $labels as $key => $label ) {
 				// Un navegador envía los saltos de un textarea como \r\n: se comparan normalizados.
-				if ( 'api_key' === $key ? empty( $in['api_key'] ) : preg_replace( '/\r\n?/', "\n", (string) ( $o[ $key ] ?? '' ) ) === preg_replace( '/\r\n?/', "\n", (string) ( $effective[ $key ] ?? '' ) ) ) continue;
+				if ( 'api_key' === $key ? ! $typed : preg_replace( '/\r\n?/', "\n", (string) ( $o[ $key ] ?? '' ) ) === preg_replace( '/\r\n?/', "\n", (string) ( $effective[ $key ] ?? '' ) ) ) continue;
 				$ignored[] = $label;
 			}
 		}

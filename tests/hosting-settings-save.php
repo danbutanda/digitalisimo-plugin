@@ -6,7 +6,7 @@
 //   1. sitio individual: guarda todo, la clave no vuelve a la página y guardar con el campo vacío no la borra;
 //   2. red: guarda en sitemeta, sin la casilla «Heredar» y sin tocar las opciones del sitio;
 //   3. un sitio de la red que nunca guardó Hosting usa los valores de la red y su casilla «Heredar» sale marcada;
-//   4. al desmarcar «Heredar» con la clave vacía, el sitio conserva la clave que el formulario daba por «Ya configurada»
+//   4. al desmarcar «Heredar» con la clave vacía, el sitio conserva la clave que el formulario daba por «Guardada»
 //      (la de la red) y sigue consultando dominios: antes se quedaba sin clave («La consulta de dominios no está
 //      configurada»);
 //   5. un cambio hecho mientras el sitio hereda la red no se usa y la pantalla lo dice (antes: «guardada» y el valor
@@ -83,7 +83,7 @@ function hosting_submit( $network, array $fill ) {
 		if ( 'hidden' !== $type && array_key_exists( $name, $fill ) ) $value = $fill[ $name ];
 		$pairs[] = array( $name, $value ); $seen[ $name ] = true;
 	}
-	foreach ( $fill as $name => $value ) if ( null !== $value && ! isset( $seen[ $name ] ) && ! preg_match( '#inherit_network|enabled|require_domain_hosting|replace_hosting|simplify_checkout#', $name ) ) check( false, "El formulario no tiene el campo $name" );
+	foreach ( $fill as $name => $value ) if ( null !== $value && ! isset( $seen[ $name ] ) && ! preg_match( '#inherit_network|_remove|enabled|require_domain_hosting|replace_hosting|simplify_checkout#', $name ) ) check( false, "El formulario no tiene el campo $name" );
 	parse_str( implode( '&', array_map( function ( $p ) { return rawurlencode( $p[0] ) . '=' . rawurlencode( (string) $p[1] ); }, $pairs ) ), $_POST );
 	ob_start(); call_user_func( $page ); $after = ob_get_clean();
 	$_POST = array();
@@ -98,10 +98,22 @@ $o = get_option( 'digitalisimo_hosting_options' );
 check( 'api-sitio' === $o['api_user'] && 'CLAVE-SITIO-123' === $o['api_key'] && 1 === $o['simplify_checkout'], 'Sitio individual: guarda lo escrito y la casilla' );
 check( false === strpos( $before, 'hosting[inherit_network]' ), 'Sitio individual: sin la casilla «Heredar»' );
 check( false !== strpos( $after, 'Configuración guardada.' ) && false === strpos( $after, 'CLAVE-SITIO-123' ), 'Sitio individual: «guardada» y la clave no vuelve a la página' );
-check( false !== strpos( $after, 'Ya configurada' ), 'Sitio individual: la clave se ve «Ya configurada»' );
+check( false !== strpos( $after, 'Guardada · escribe una nueva' ), 'Sitio individual: la clave se ve «Guardada»' );
 hosting_submit( false, array() );
 check( 'CLAVE-SITIO-123' === get_option( 'digitalisimo_hosting_options' )['api_key'] && ".com|10\n.mx|11" === str_replace( "\r", '', get_option( 'digitalisimo_hosting_options' )['domain_products'] ), 'Sitio individual: guardar otra vez con el campo vacío no borra la clave ni los productos' );
 check( 'available' === hosting_check_domain(), 'Sitio individual: la consulta de dominios funciona' );
+// La máscara (pedido del propietario: «deben salir los *****»): el campo lleva •••• y no la clave; enviarla la conserva,
+// escribir otra la reemplaza y «Quitar la clave» la borra.
+ob_start(); Digitalisimo_Hosting::page(); $html = ob_get_clean();
+check( preg_match( '#name="hosting\[api_key\]" value="••••••••••••"#u', $html ) && false === strpos( $html, 'CLAVE-SITIO-123' ), 'Sitio individual: la clave guardada se ve como •••• y no se imprime' );
+check( false !== strpos( $html, 'name="hosting[api_key_remove]"' ), 'Sitio individual: «Quitar la clave» junto a la clave guardada' );
+hosting_submit( false, array( 'hosting[api_key]' => 'CLAVE-NUEVA-321' ) );
+check( 'CLAVE-NUEVA-321' === get_option( 'digitalisimo_hosting_options' )['api_key'], 'Sitio individual: escribir otra clave la reemplaza' );
+hosting_submit( false, array( 'hosting[api_key_remove]' => '1' ) );
+check( '' === get_option( 'digitalisimo_hosting_options' )['api_key'], 'Sitio individual: «Quitar la clave» la borra' );
+ob_start(); Digitalisimo_Hosting::page(); $html = ob_get_clean();
+check( preg_match( '#name="hosting\[api_key\]" value=""#', $html ) && false === strpos( $html, 'api_key_remove' ), 'Sin clave, el campo va vacío y sin «Quitar»' );
+hosting_submit( false, array( 'hosting[api_key]' => 'CLAVE-SITIO-123' ) );
 
 // 2. Administración de la red.
 $GLOBALS['multisite'] = true; $GLOBALS['network_admin'] = true; $GLOBALS['options'] = array();
@@ -113,7 +125,9 @@ check( false !== strpos( $before, 'también los que nunca guardaron Hosting' ), 
 check( array() === $GLOBALS['options'], 'Red: no escribe las opciones de ningún sitio' );
 check( false !== strpos( $after, 'Configuración de red guardada.' ) && false === strpos( $after, 'CLAVE-RED-456' ), 'Red: «guardada» y la clave no vuelve a la página' );
 hosting_submit( true, array() );
-check( 'CLAVE-RED-456' === $GLOBALS['site_options']['digitalisimo_hosting_options']['api_key'], 'Red: guardar otra vez con el campo vacío no borra la clave' );
+check( 'CLAVE-RED-456' === $GLOBALS['site_options']['digitalisimo_hosting_options']['api_key'], 'Red: guardar otra vez (con la máscara) no borra la clave' );
+ob_start(); Digitalisimo_Hosting::network_page(); $html = ob_get_clean();
+check( preg_match( '#name="hosting\[api_key\]" value="••••••••••••"#u', $html ) && false === strpos( $html, 'CLAVE-RED-456' ) && false !== strpos( $html, 'api_key_remove' ), 'Red: la clave se ve como ••••, no se imprime y se puede quitar' );
 
 // 3. Un sitio de la red que nunca guardó Hosting usa los valores de la red.
 $GLOBALS['network_admin'] = false;
@@ -121,6 +135,7 @@ check( 'api-red' === hosting_effective()['api_user'] && 'CLAVE-RED-456' === host
 check( 'available' === hosting_check_domain() && false !== strpos( $GLOBALS['remote'][0], 'ApiKey=CLAVE-RED-456' ), 'Un sitio que nunca guardó Hosting consulta dominios con la clave de la red' );
 ob_start(); Digitalisimo_Hosting::page(); $html = ob_get_clean();
 check( preg_match( '#name="hosting\[inherit_network\]" value="1" checked#', $html ) && false !== strpos( $html, 'Valor efectivo: Configuración de red' ), 'Su casilla «Heredar» sale marcada y dice que manda la red' );
+check( preg_match( '#name="hosting\[api_key\]" value="••••••••••••"#u', $html ) && false === strpos( $html, 'CLAVE-RED-456' ) && false === strpos( $html, 'api_key_remove' ), 'Mientras hereda, la clave de la red se ve como ••••, no se imprime y no se ofrece quitarla' );
 
 // 5. Un cambio mientras hereda no se usa, y la pantalla lo dice.
 list( , $after ) = hosting_submit( false, array( 'hosting[api_user]' => 'api-propio' ) );
@@ -133,9 +148,9 @@ check( false === strpos( $after, 'notice-warning' ), 'Guardar sin cambios mientr
 list( , $after ) = hosting_submit( false, array( 'hosting[inherit_network]' => null ) );
 $o = get_option( 'digitalisimo_hosting_options' );
 check( 0 === $o['inherit_network'] && 'api-red' === $o['api_user'] && ".org|20\n.net|21" === str_replace( "\r", '', $o['domain_products'] ), 'Al dejar de heredar, el sitio guarda los valores que veía' );
-check( 'CLAVE-RED-456' === ( $o['api_key'] ?? '' ), 'Al dejar de heredar con la clave vacía, el sitio conserva la clave que veía «Ya configurada»' );
+check( 'CLAVE-RED-456' === ( $o['api_key'] ?? '' ), 'Al dejar de heredar con la clave vacía, el sitio conserva la clave que veía «Guardada»' );
 check( 'available' === hosting_check_domain(), 'Tras dejar de heredar, la consulta de dominios sigue funcionando' );
-check( false !== strpos( $after, 'Valor efectivo: Este sitio' ) && false !== strpos( $after, 'Ya configurada' ), 'Tras dejar de heredar, la pantalla dice «Este sitio» y la clave sigue «Ya configurada»' );
+check( false !== strpos( $after, 'Valor efectivo: Este sitio' ) && false !== strpos( $after, 'Guardada · escribe una nueva' ), 'Tras dejar de heredar, la pantalla dice «Este sitio» y la clave sigue «Guardada»' );
 // Ya con valores propios, un cambio se guarda y se usa; la red no cambia.
 hosting_submit( false, array( 'hosting[api_user]' => 'api-propio', 'hosting[api_key]' => 'CLAVE-PROPIA-789' ) );
 check( 'api-propio' === hosting_effective()['api_user'] && 'CLAVE-PROPIA-789' === hosting_effective()['api_key'], 'Con valores propios, lo que se guarda es lo que usa el sitio' );
