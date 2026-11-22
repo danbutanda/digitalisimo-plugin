@@ -17,6 +17,8 @@ final class Registry {
 		$all = self::all(); $old = $all[ $uuid ] ?? array();
 		$all[ $uuid ] = wp_parse_args( $item, array( 'uuid' => $uuid, 'master_blog_id' => self::master_blog_id(), 'master_post_id' => 0, 'auto_sync' => false, 'targets' => array( 'mode' => 'all', 'include' => array(), 'exclude' => array() ), 'locked' => false, 'collection' => '', 'last_sync' => array(), 'active' => true ) );
 		if ( ! empty( $old['sites'] ) ) $all[ $uuid ]['sites'] = $old['sites']; elseif ( empty( $all[ $uuid ]['sites'] ) ) $all[ $uuid ]['sites'] = array();
+		// El formulario de la plantilla no lleva su «Última sincronización»: guardar su configuración no la borra.
+		if ( ! array_key_exists( 'last_sync', $item ) && ! empty( $old['last_sync'] ) ) $all[ $uuid ]['last_sync'] = $old['last_sync'];
 		update_site_option( self::OPTION, $all ); return $all[ $uuid ];
 	}
 	public static function update( $uuid, array $changes ) { $item = self::get( $uuid ); return $item ? self::save( array_merge( $item, $changes ) ) : new \WP_Error( 'digitalisimo_tools_missing', 'La plantilla global no existe.' ); }
