@@ -241,6 +241,7 @@ jobs:
           php tests/migration-detection.php
           php tests/migration-report.php
           php tests/migration-report-summary.php
+          php tests/migration-screen-network.php
           php tests/migration-legacy-baseline.php
           php tests/migration-end-to-end.php
           php tests/migration-scale.php
@@ -310,6 +311,7 @@ jobs:
           php tests/elements-load-order.php
           php tests/hosting-migration.php
           php tests/hosting-admin-perf.php
+          php tests/hosting-settings-save.php
           php tests/backups-sftp.php
           php tests/backups-sftp-phpseclib.php
           php tests/backups-sftp-keys.php
@@ -339,6 +341,7 @@ jobs:
           php tests/backups-progress.php
           php tests/backups-upload-progress.php
           php tests/backups-simple-screen.php
+          php tests/backups-network-forms.php
           node tests/backups-screen-ui.mjs
           node tests/backups-simple-screen-chrome.mjs
           php tests/backups-untrusted-archive.php
