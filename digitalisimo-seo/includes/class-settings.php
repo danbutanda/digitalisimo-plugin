@@ -293,6 +293,12 @@ class Digitalisimo_Integrations_Settings {
 	}
 
 	public static function sanitize( $input ) {
+		// WordPress aplica este filtro (sanitize_option_{opción}) a toda escritura de la opción, también a la de red:
+		// update_site_option() lo llama, y el resultado se armaba sobre las opciones del sitio en curso, así que guardar
+		// Red → SEO copiaba a la red los ajustes y las claves del sitio principal (enable_seo, OpenAI, proveedores…) y los
+		// heredaban todos los sitios. Las escrituras del código (red, SEO AI, importaciones) ya llegan saneadas y completas:
+		// sólo el envío parcial del formulario del sitio (options.php) se completa y se sanea aquí.
+		if ( ! self::is_form_submission() ) return $input;
 		$current = (array) get_option( self::OPTION, array() );
 		$output  = $current;
 		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_schema_unify', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'seo_redirect_enabled', 'seo_redirect_slug_watch', 'seo_404_enabled', 'seo_404_ignore_query', 'seo_noindex_paginated', 'seo_noindex_password', 'seo_disable_author_archives', 'seo_disable_date_archives', 'seo_breadcrumbs_show_home', 'seo_breadcrumbs_hide_current', 'seo_breadcrumbs_taxonomy', 'seo_breadcrumbs_blog_page', 'seo_sitemap_news_enabled', 'seo_sitemap_video_enabled', 'seo_links_counter', 'seo_links_check', 'seo_noindex_hidden_products', 'seo_wc_remove_generator', 'seo_strip_product_base', 'seo_strip_product_cat_base', 'seo_strip_category_base', 'seo_abilities_write', 'seo_avatar_alt', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
@@ -309,6 +315,7 @@ class Digitalisimo_Integrations_Settings {
 		foreach ( array( 'sitemap_post_types', 'seo_sitemap_taxonomies', 'seo_sitemap_news_types' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_sitemap_list( $input[ $key ] );
 		if ( isset( $input['seo_organization_type'] ) && ! array_key_exists( $output['seo_organization_type'], Digitalisimo_Integrations_SEO_Suite::entity_type_choices() ) ) $output['seo_organization_type'] = 'Organization';
 		if ( isset( $input['seo_separator'] ) && ! array_key_exists( $output['seo_separator'], Digitalisimo_Integrations_SEO_Suite::separator_choices() ) ) $output['seo_separator'] = '|';
+		if ( isset( $input['seo_twitter_card'] ) && ! array_key_exists( $output['seo_twitter_card'], Digitalisimo_Integrations_SEO_Suite::twitter_card_choices() ) ) $output['seo_twitter_card'] = 'summary_large_image';
 		// Sólo tipos oficiales de Schema.org: un texto libre publicaría un @type inventado.
 		if ( isset( $input['seo_local_type'] ) ) $output['seo_local_type'] = Digitalisimo_Integrations_Schema_Vocabulary::local_type( sanitize_text_field( $input['seo_local_type'] ) );
 		if ( isset( $input['seo_robots_rules'] ) ) $output['seo_robots_rules'] = Digitalisimo_Integrations_Robots::sanitize( $input['seo_robots_rules'] );
@@ -368,7 +375,9 @@ class Digitalisimo_Integrations_Settings {
 		if ( isset( $input['default_content_location'] ) ) $output['default_content_location'] = term_exists( absint( $input['default_content_location'] ), 'digitalisimo_seo_location' ) ? absint( $input['default_content_location'] ) : 0;
 		// Las claves sólo se escriben si llega un valor nuevo; vacío conserva la almacenada.
 		foreach ( array( 'openai_api_key', 'namecheap_api_key' ) as $key ) {
-			if ( ! empty( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
+			// La máscara •••• es lo que el campo muestra con una clave guardada: llegar con ella (o vacío) la conserva.
+			if ( ! empty( $input['secret_remove'][ $key ] ) ) $output[ $key ] = '';
+			elseif ( ! empty( $input[ $key ] ) && self::MASK !== $input[ $key ] ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
 			elseif ( ! array_key_exists( $key, $output ) ) $output[ $key ] = '';
 		}
 		if ( isset( $input['seo_local_phone'] ) ) $output['seo_local_phone'] = Digitalisimo_Integrations_Local_Business::sanitize_phone( $input['seo_local_phone'] );
@@ -390,10 +399,29 @@ class Digitalisimo_Integrations_Settings {
 		if ( isset( $input['ai_profile_model'] ) ) $output['ai_profile_model'] = sanitize_text_field( $input['ai_profile_model'] );
 		if ( is_multisite() && isset( $input['network_inherit'] ) ) {
 			$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
+			// Dejar de heredar sin escribir nada conserva el valor que se veía (el de la red): el campo seguía deshabilitado y
+			// no viajaba (sin JavaScript, o con un campo agrupado), y el sitio caía al predeterminado del plugin.
+			foreach ( (array) $input['network_inherit'] as $key => $flag ) {
+				if ( ! empty( $flag ) || array_key_exists( $key, $input ) || ! array_key_exists( $key, self::defaults() ) || ! Digitalisimo_Integrations_SEO_Resolver::inherits_network( $key ) ) continue;
+				$network = (array) get_site_option( self::OPTION, array() );
+				if ( array_key_exists( $key, $network ) ) $output[ $key ] = $network[ $key ];
+			}
 			foreach ( self::defaults() as $key => $unused ) if ( isset( $input['network_inherit'][ $key ] ) ) $inherit[ $key ] = empty( $input['network_inherit'][ $key ] ) ? 0 : 1;
 			update_option( 'digitalisimo_seo_network_inherit', $inherit, false );
+			// Un campo heredado se pinta deshabilitado, pero el «0» oculto de su casilla sí viaja: guardado en el sitio, y si
+			// la red aún no define esa clave, ganaba el 0 (guardar «Ajustes de keywords» apagaba el SEO propio del sitio).
+			// Lo que se hereda conserva el valor propio que el sitio tenía.
+			foreach ( (array) $input['network_inherit'] as $key => $flag ) {
+				if ( empty( $flag ) || ! array_key_exists( $key, self::defaults() ) ) continue;
+				if ( array_key_exists( $key, $current ) ) $output[ $key ] = $current[ $key ]; else unset( $output[ $key ] );
+			}
 		}
 		return $output;
+	}
+
+	/** El envío del formulario de ajustes de este sitio a options.php (settings_fields( 'digitalisimo_integrations' )). */
+	private static function is_form_submission() {
+		return 'options.php' === ( $GLOBALS['pagenow'] ?? '' ) && 'digitalisimo_integrations' === sanitize_key( wp_unslash( $_POST['option_page'] ?? '' ) ) && ! ( function_exists( 'is_network_admin' ) && is_network_admin() );
 	}
 
 	/** Proveedores de IA admitidos, en el orden en que se muestran. */
@@ -413,7 +441,8 @@ class Digitalisimo_Integrations_Settings {
 			$in = (array) $input[ $id ];
 			$output[ $id ]['enabled'] = empty( $in['enabled'] ) ? 0 : 1;
 			$output[ $id ]['url']     = esc_url_raw( $in['url'] ?? '' );
-			if ( ! empty( $in['key'] ) ) $output[ $id ]['key'] = sanitize_text_field( $in['key'] );
+			if ( ! empty( $in['remove'] ) ) $output[ $id ]['key'] = '';
+			elseif ( ! empty( $in['key'] ) && self::MASK !== $in['key'] ) $output[ $id ]['key'] = sanitize_text_field( $in['key'] );
 			elseif ( ! isset( $output[ $id ]['key'] ) ) $output[ $id ]['key'] = '';
 		}
 		return $output;
@@ -435,7 +464,7 @@ class Digitalisimo_Integrations_Settings {
 			$has_key = ! empty( $p['key'] );
 			echo '<fieldset style="margin:14px 0;padding:14px 16px;border:1px solid #ccd6e5;border-radius:12px"><legend><strong>' . esc_html( $name ) . '</strong></legend>';
 			echo '<p><label><input type="hidden" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label></p>';
-			echo '<p><input class="regular-text" type="password" autocomplete="new-password" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][key]" placeholder="' . esc_attr( $has_key ? self::MASK : 'API Key' ) . '"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span></p>';
+			echo '<p><input class="regular-text" type="password" autocomplete="new-password" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][key]" value="' . esc_attr( $has_key ? self::MASK : '' ) . '" placeholder="API Key"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span>' . ( $has_key ? ' <label><input type="checkbox" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][remove]" value="1"> Quitar la clave</label>' : '' ) . '</p>';
 			echo '<p><label>URL compatible <input class="regular-text" type="url" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p>';
 			echo '</fieldset>';
 		}
@@ -467,12 +496,13 @@ class Digitalisimo_Integrations_Settings {
 		} else {
 			$secret       = 'secret' === $type;
 			$actual_type  = $secret ? 'password' : $type;
-			$actual_value = $secret ? '' : $value;
-			// El valor nunca viaja al navegador: la máscara sólo va en el placeholder,
-			// así el campo sigue llegando vacío y la clave almacenada se conserva.
-			$placeholder  = ( $secret && ! empty( $value ) ) ? ' placeholder="' . esc_attr( self::MASK ) . '" autocomplete="new-password"' : '';
+			// El secreto nunca viaja al navegador: con una clave guardada el campo muestra la máscara (pedido del
+			// propietario: «deben salir los *****»), y al guardar la máscara conserva la clave almacenada.
+			$actual_value = $secret ? ( empty( $value ) ? '' : self::MASK ) : $value;
+			$placeholder  = $secret ? ' autocomplete="new-password"' : '';
 			echo '<input class="regular-text ' . esc_attr( $field_class ) . '" type="' . esc_attr( $actual_type ) . '" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="' . esc_attr( $actual_value ) . '"' . $placeholder . $disabled . '>';
 			if ( $secret ) echo ' <span class="digitalisimo-secret ' . ( empty( $value ) ? 'is-empty' : 'is-set' ) . '">' . esc_html( empty( $value ) ? __( 'Sin configurar', 'digitalisimo-integrations' ) : __( 'Guardada · escribe una nueva sólo si quieres reemplazarla', 'digitalisimo-integrations' ) ) . '</span>';
+			if ( $secret && ! empty( $value ) && ! $inherit ) echo ' <label><input type="checkbox" name="' . esc_attr( self::OPTION ) . '[secret_remove][' . esc_attr( $key ) . ']" value="1"> ' . esc_html__( 'Quitar la clave', 'digitalisimo-integrations' ) . '</label>';
 		}
 		if ( $help ) echo '<p class="description">' . esc_html( $help ) . '</p>';
 		if ( $is_default ) echo '<p class="description digitalisimo-default-note">Valor predeterminado del plugin.</p>';

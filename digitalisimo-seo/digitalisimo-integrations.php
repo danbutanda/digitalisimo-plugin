@@ -202,6 +202,10 @@ function digitalisimo_integrations_boot() {
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Product_Identifiers' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_SEO_Abilities' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_SEO_Abilities_Write' );
+	} elseif ( is_multisite() ) {
+		// La importación de red (Red → SEO → Importar) no depende del SEO propio del sitio principal, que es el sitio en curso
+		// de admin-post.php: sin esto, con el principal apagado, el botón de la red no tenía quien lo recibiera.
+		add_action( 'admin_post_digitalisimo_seo_rankmath_import_network', array( 'Digitalisimo_Integrations_RankMath_Import', 'handle_network' ) );
 	}
 	digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Robots' );
 	// La política robots pertenece a SEO y funciona aunque AI y Chatbot no esté instalado.
