@@ -13,6 +13,8 @@
  *   F3  un subsitio no guarda nada: el mismo envío (un formulario abierto antes, o hecho a mano por un superadministrador)
  *       se rechaza sin escribir opciones ni programar WP-Cron. Antes, las automatizaciones se guardaban en el subsitio y
  *       su evento fallaba en cada pasada;
+ *   F1b los secretos guardados de los destinos se pintan como •••• con «Guardada» (nunca el secreto); enviarlos sin
+ *       tocar los conserva y escribir otro los reemplaza (pedido del propietario: «deben salir los *****»);
  *   F4  un subsitio no crea ni consulta las automatizaciones por defecto (antes, una fila y una consulta por petición en
  *       cada subsitio, también en el front).
  * Uso: php tests/backups-network-forms.php
@@ -152,6 +154,12 @@ try {
 			list( $ok, $message ) = bk_post( array( $B, 'save' ), nf_submit( nf_form( nf_render( 'servers', $network, array( 'edit' => 'sftp' ) ), $B::ACTION_SAVE ), array( 'digitalisimo_backups' => array( 'sftp_name' => $name ) ) ) );
 			$after = bk_call( $B, 'settings' );
 			nf_check( $ok && $name === $after['sftp_name'] && 'Secreto-Del-Destino' === $after['sftp_password'], 'El destino principal no guardó su nombre o perdió su secreto: ' . $message );
+			// La máscara: la contraseña guardada se ve como •••• (nunca el secreto); escribir otra la reemplaza.
+			$html = nf_render( 'servers', $network, array( 'edit' => 'sftp' ) );
+			nf_check( false !== strpos( $html, 'name="digitalisimo_backups[sftp_password]" value="' . $B::MASK . '"' ) && false === strpos( $html, 'Secreto-Del-Destino' ), 'La contraseña guardada no se ve como •••• o se imprime.' );
+			list( $ok ) = bk_post( array( $B, 'save' ), nf_submit( nf_form( $html, $B::ACTION_SAVE ), array( 'digitalisimo_backups' => array( 'sftp_password' => 'Otro-Secreto-' . $surface ) ) ) );
+			nf_check( $ok && 'Otro-Secreto-' . $surface === bk_call( $B, 'settings' )['sftp_password'], 'Escribir otra contraseña no la reemplazó.' );
+			list( $ok ) = bk_post( array( $B, 'save' ), nf_submit( nf_form( nf_render( 'servers', $network, array( 'edit' => 'sftp' ) ), $B::ACTION_SAVE ), array( 'digitalisimo_backups' => array( 'sftp_password' => 'Secreto-Del-Destino' ) ) ) );
 			// «Migrar»: el laboratorio (HTTP y direcciones internas), marcado y desmarcado.
 			$migrate = nf_render( 'tools', $network, array( 'open' => 'migrate' ) );
 			$lab = ! Digitalisimo_Backups_Migrate::allow_http();
