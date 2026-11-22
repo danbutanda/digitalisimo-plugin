@@ -17,26 +17,42 @@ final class Cache_Notice {
 	}
 
 	/**
-	 * Estado: '' (bien), 'salted' (Tools acaba de agregar la sal a wp-config.php: vale desde la carga siguiente),
-	 * 'unsalted' (caché externa sin sal y Tools no pudo agregarla: la línea exacta para copiar, único caso en que se pide
-	 * algo a mano) o 'foreign' (lee datos de otro sitio), con el detalle.
+	 * Estado: '' (bien), 'salted' (DIGITALÍSIMO agregó la sal: se dice durante un día, también si la agregó Migrar),
+	 * 'unsalted' (caché externa sin aislar y sin forma de hacerlo sola: lo que falta, único caso en que se pide algo a
+	 * mano) o 'foreign' (lee datos de otro sitio), con el detalle.
 	 */
 	public static function status() {
 		if ( ! class_exists( '\\Digitalisimo_Same_Site', false ) ) return array( 'state' => '', 'message' => '' );
-		$salt    = class_exists( __NAMESPACE__ . '\\Cache_Salt', false ) && Cache_Salt::needed() ? Cache_Salt::result() : array();
-		// El bloque puesto hace rato y aún sin efecto (wp-config.php no lo alcanza) se trata como «no pudo».
-		if ( 'pending' === ( $salt['state'] ?? '' ) && time() - (int) ( $salt['at'] ?? 0 ) > 300 ) $salt = array( 'state' => 'manual', 'message' => 'wp-config.php ya trae el bloque de DIGITALÍSIMO, pero la constante no está en vigor: revisa que esté antes del require de wp-settings.php y fuera de una condición' ) + $salt;
-		$written = in_array( $salt['state'] ?? '', array( 'written', 'pending' ), true );
-		$manual  = in_array( $salt['state'] ?? '', array( 'manual', 'failed' ), true ) ? ' DIGITALÍSIMO no pudo agregarla solo (' . (string) ( $salt['message'] ?? '' ) . '): copia en ' . (string) ( '' !== (string) ( $salt['file'] ?? '' ) ? $salt['file'] : 'wp-config.php' ) . ', antes de «That\'s all, stop editing», esta línea: ' . (string) ( $salt['line'] ?? '' ) : '';
-		$check   = \Digitalisimo_Same_Site::check( false );
-		if ( empty( $check['ok'] ) ) {
-			if ( $written ) return array( 'state' => 'salted', 'message' => 'La caché de objetos devolvía datos de otro sitio porque no tenía sal propia. DIGITALÍSIMO ya agregó a wp-config.php una sal para este sitio (' . (string) $salt['salt'] . '); desde la siguiente carga lee sólo sus datos. No hace falta hacer nada.' );
-			return array( 'state' => 'foreign', 'message' => 'L' . substr( (string) $check['message'], 1 ) . '.' . $manual . ' Mientras tanto, DIGITALÍSIMO no migra, no respalda ni restaura este sitio, para no mezclarlo con el otro.' );
+		$salt  = class_exists( '\\Digitalisimo_Cache_Salt', false ) ? \Digitalisimo_Cache_Salt::result() : array();
+		$state = (string) ( $salt['state'] ?? '' );
+		$file  = basename( (string) ( $salt['file'] ?? '' ) );
+		$file  = '' !== $file ? $file : 'wp-config.php';
+		$where = 'dropin' === ( $salt['target'] ?? '' ) ? 'al principio de wp-content/object-cache.php (wp-config.php no se puede escribir; si el plugin de caché reescribe ese archivo, DIGITALÍSIMO la vuelve a poner)' : 'a ' . $file;
+		// Escrita hace rato y aún sin efecto: se dice por qué, sin pedir que se copie lo que ya está en el archivo.
+		if ( 'pending' === $state && time() - (int) ( $salt['at'] ?? 0 ) > 300 ) {
+			$frozen = function_exists( 'ini_get' ) && ini_get( 'opcache.enable' ) && ! ini_get( 'opcache.validate_timestamps' );
+			$state  = 'stuck';
+			$salt['message'] = $frozen ? 'PHP guarda en memoria una copia de ' . $file . ' (opcache.validate_timestamps=0): la sal entra en vigor cuando se reinicie PHP' : $file . ' ya trae el bloque de DIGITALÍSIMO, pero la constante no está en vigor: algo la define antes o el bloque no llega a ejecutarse';
 		}
-		if ( \Digitalisimo_Same_Site::external() && ! \Digitalisimo_Same_Site::isolated() ) {
-			if ( $written ) return array( 'state' => 'salted', 'message' => 'DIGITALÍSIMO agregó a wp-config.php una sal propia para la caché de objetos de este sitio (' . (string) $salt['salt'] . '), para que otro sitio del servidor no lea sus datos. Vale desde la siguiente carga; no hace falta hacer nada. El bloque queda aunque se desinstale Tools, y quitarlo a mano es seguro.' );
-			if ( '' !== $manual ) return array( 'state' => 'unsalted', 'message' => 'Este sitio usa una caché de objetos persistente (Redis, Memcached o LSMCD) sin sal propia: si otro sitio del servidor usa la misma, los dos leerán las opciones del otro (dirección, plugins activos, icono).' . $manual );
-			return array( 'state' => '', 'message' => '' ); // Tools la agrega en la siguiente carga del escritorio.
+		$manual = '';
+		if ( in_array( $state, array( 'manual', 'failed' ), true ) && '' !== (string) ( $salt['line'] ?? '' ) ) {
+			$manual = ' DIGITALÍSIMO no pudo agregarla solo (' . (string) ( $salt['message'] ?? '' ) . '): copia en ' . $file . ', antes de «That\'s all, stop editing», esta línea: ' . (string) $salt['line'];
+		} elseif ( in_array( $state, array( 'manual', 'failed', 'stuck', 'ignored' ), true ) ) {
+			$manual = ' ' . ucfirst( (string) ( $salt['message'] ?? '' ) ) . '.';
+		}
+		$kept   = ' El bloque queda aunque se desinstale DIGITALÍSIMO Tools; si alguien lo quita, hay que vaciar la caché de objetos de este sitio (con DIGITALÍSIMO activo, lo hace solo y vuelve a ponerla).';
+		$check  = \Digitalisimo_Same_Site::check( false );
+		$fresh  = in_array( $state, array( 'written', 'pending' ), true );
+		if ( empty( $check['ok'] ) ) {
+			if ( $fresh ) return array( 'state' => 'salted', 'message' => 'La caché de objetos devolvía datos de otro sitio porque no tenía sal propia. DIGITALÍSIMO ya agregó una sal para este sitio (' . (string) $salt['salt'] . ') ' . $where . '; desde la siguiente carga lee sólo sus datos. No hace falta hacer nada.' . $kept );
+			return array( 'state' => 'foreign', 'message' => 'L' . substr( (string) $check['message'], 1 ) . '.' . $manual . ( '' !== $manual ? ' Mientras tanto, Migrar trabaja leyendo directo de la base y sin vaciar la caché compartida, y Backups no respalda ni restaura este sitio, para no mezclarlo con el otro.' : ' Mientras tanto, DIGITALÍSIMO no respalda ni restaura este sitio, para no mezclarlo con el otro.' ) );
+		}
+		if ( $fresh ) return array( 'state' => 'salted', 'message' => 'DIGITALÍSIMO agregó una sal propia para la caché de objetos de este sitio (' . (string) $salt['salt'] . ') ' . $where . ', para que otro sitio del servidor no lea sus datos. Vale desde la siguiente carga; no hace falta hacer nada.' . $kept );
+		if ( '' !== $manual && \Digitalisimo_Same_Site::external() && ! ( class_exists( '\\Digitalisimo_Cache_Salt', false ) ? \Digitalisimo_Cache_Salt::isolated() : \Digitalisimo_Same_Site::isolated() ) ) {
+			return array( 'state' => 'unsalted', 'message' => 'Este sitio usa una caché de objetos persistente (Redis, Memcached o LSMCD) que no separa sus claves de las de otros sitios del servidor: si otro sitio usa la misma, los dos leerán las opciones del otro (dirección, plugins activos, icono).' . $manual . ' Mientras tanto, Migrar trabaja leyendo directo de la base y sin vaciar la caché compartida.' );
+		}
+		if ( 'active' === $state && time() - (int) ( $salt['done_at'] ?? 0 ) < \Digitalisimo_Cache_Salt::SHOW ) {
+			return array( 'state' => 'salted', 'message' => 'DIGITALÍSIMO agregó una sal propia para la caché de objetos de este sitio (' . (string) $salt['salt'] . ') ' . $where . ' y ya está en vigor: otro sitio del servidor no lee sus datos. No hace falta hacer nada.' . $kept );
 		}
 		return array( 'state' => '', 'message' => '' );
 	}
