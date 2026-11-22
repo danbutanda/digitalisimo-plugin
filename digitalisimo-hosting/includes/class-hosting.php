@@ -41,12 +41,20 @@ class Digitalisimo_Hosting {
 	}
 
 	private static function local() { return (array) get_option( self::OPTION, array() ); }
-	private static function all() {
+	private static function network() { return (array) get_site_option( self::OPTION, array() ); }
+	/**
+	 * ¿Este sitio usa la configuración de la red? En una red, la red define los valores por defecto: un sitio que nunca
+	 * guardó Hosting (sin ningún valor propio) la hereda; uno que la guardó decide con su casilla «Heredar».
+	 */
+	private static function inherits() {
+		if ( ! is_multisite() ) return false;
 		$local = self::local();
-		$source = ( is_multisite() && ! empty( $local['inherit_network'] ) ) ? (array) get_site_option( self::OPTION, array() ) : $local;
-		return wp_parse_args( $source, self::defaults() );
+		return array_key_exists( 'inherit_network', $local ) ? ! empty( $local['inherit_network'] ) : ! $local;
 	}
-	private static function origin_label() { return is_multisite() && ! empty( self::local()['inherit_network'] ) ? 'Configuración de red' : 'Este sitio'; }
+	private static function all() {
+		return wp_parse_args( self::inherits() ? self::network() : self::local(), self::defaults() );
+	}
+	private static function origin_label() { return self::inherits() ? 'Configuración de red' : 'Este sitio'; }
 
 	/**
 	 * Copia una sola vez los valores de Ecommerce. No borra las opciones antiguas:
@@ -123,8 +131,8 @@ class Digitalisimo_Hosting {
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) ) return;
 		$saved = isset( $_POST['digitalisimo_hosting_save'] ) && check_admin_referer( 'digitalisimo_hosting_save' );
-		if ( $saved ) self::save( false );
-		self::form( false, $saved );
+		$ignored = $saved ? self::save( false ) : array();
+		self::form( false, $saved, $ignored );
 	}
 	public static function network_page() {
 		if ( ! current_user_can( 'manage_network_options' ) ) return;
@@ -133,20 +141,29 @@ class Digitalisimo_Hosting {
 		self::form( true, $saved );
 	}
 
-	private static function form( $network, $saved = false ) {
-		$o = $network ? wp_parse_args( (array) get_site_option( self::OPTION, array() ), self::defaults() ) : self::all();
+	/** Campos del formulario y su etiqueta (los mismos en el sitio y en la red). */
+	private static function labels() {
+		return array( 'enabled' => 'Activar dominios y flujo WooCommerce', 'api_user' => 'Usuario API Namecheap', 'username' => 'Usuario Namecheap', 'api_key' => 'Clave API Namecheap', 'client_ip' => 'IP autorizada por Namecheap', 'domain_products' => 'Productos por extensión', 'hosting_product_ids' => 'IDs de productos de hosting', 'hosting_category_ids' => 'IDs de categorías de hosting', 'require_domain_hosting' => 'Exigir dominio y hosting juntos', 'replace_hosting' => 'Reemplazar el plan de hosting al elegir otro', 'simplify_checkout' => 'Simplificar checkout', 'form_selector' => 'Selector CSS del formulario', 'domain_field' => 'Campo dominio', 'extension_field' => 'Campo extensión' );
+	}
+
+	/** Un solo formulario para el sitio y para la red; $ignored: campos que un sitio que hereda cambió sin efecto. */
+	private static function form( $network, $saved = false, array $ignored = array() ) {
+		$o = $network ? wp_parse_args( self::network(), self::defaults() ) : self::all();
+		$l = self::labels();
 		echo '<div class="wrap"><h1>Digitalisimo · Hosting' . ( $network ? ' de red' : '' ) . '</h1><p>Dominios, planes de hosting y compra con WooCommerce.</p>';
 		if ( $saved ) echo '<div class="notice notice-success is-dismissible"><p>Configuración ' . ( $network ? 'de red ' : '' ) . 'guardada.</p></div>';
+		if ( $ignored ) echo '<div class="notice notice-warning"><p>Este sitio hereda la configuración de la red: no se usan tus cambios en ' . esc_html( implode( ', ', $ignored ) ) . '. Para usar valores propios, desmarca «Heredar configuración de la red» y guarda.</p></div>';
+		if ( $network ) echo '<p class="description">Estos valores los usa cada sitio de la red que tiene marcada «Heredar configuración de la red» (también los que nunca guardaron Hosting).</p>';
 		echo '<form method="post">';
 		wp_nonce_field( $network ? 'digitalisimo_hosting_network_save' : 'digitalisimo_hosting_save' );
-		if ( ! $network && is_multisite() ) echo '<p class="notice notice-info inline"><label><input type="hidden" name="hosting[inherit_network]" value="0"><input type="checkbox" name="hosting[inherit_network]" value="1" ' . checked( ! empty( self::local()['inherit_network'] ), true, false ) . '> <strong>Heredar configuración de la red</strong></label><br><span class="description">Valor efectivo: ' . esc_html( self::origin_label() ) . '. Al desactivar herencia, este sitio puede personalizar su configuración.</span></p>';
-		self::check( 'enabled', 'Activar dominios y flujo WooCommerce', $o );
+		if ( ! $network && is_multisite() ) echo '<p class="notice notice-info inline"><label><input type="hidden" name="hosting[inherit_network]" value="0"><input type="checkbox" name="hosting[inherit_network]" value="1" ' . checked( self::inherits(), true, false ) . '> <strong>Heredar configuración de la red</strong></label><br><span class="description">Valor efectivo: ' . esc_html( self::origin_label() ) . '. ' . ( self::inherits() ? 'Los campos de abajo muestran los valores de la red; para cambiarlos aquí, desmarca esta casilla.' : 'Al desactivar herencia, este sitio puede personalizar su configuración.' ) . '</span></p>';
+		self::check( 'enabled', $l['enabled'], $o );
 		echo '<h2>Namecheap</h2>';
-		self::field( 'api_user', 'Usuario API Namecheap', $o ); self::field( 'username', 'Usuario Namecheap', $o ); self::field( 'api_key', 'Clave API Namecheap', $o, 'password' ); self::field( 'client_ip', 'IP autorizada por Namecheap', $o ); self::area( 'domain_products', 'Productos por extensión', $o, 'Una línea por extensión: .com|123' );
+		self::field( 'api_user', $l['api_user'], $o ); self::field( 'username', $l['username'], $o ); self::field( 'api_key', $l['api_key'], $o, 'password' ); self::field( 'client_ip', $l['client_ip'], $o ); self::area( 'domain_products', $l['domain_products'], $o, 'Una línea por extensión: .com|123' );
 		echo '<h2>Compra de hosting</h2>';
-		self::area( 'hosting_product_ids', 'IDs de productos de hosting', $o, 'IDs separados por comas.' ); self::area( 'hosting_category_ids', 'IDs de categorías de hosting', $o, 'IDs separados por comas.' ); self::check( 'require_domain_hosting', 'Exigir dominio y hosting juntos', $o ); self::check( 'replace_hosting', 'Reemplazar el plan de hosting al elegir otro', $o ); self::check( 'simplify_checkout', 'Simplificar checkout', $o );
+		self::area( 'hosting_product_ids', $l['hosting_product_ids'], $o, 'IDs separados por comas.' ); self::area( 'hosting_category_ids', $l['hosting_category_ids'], $o, 'IDs separados por comas.' ); self::check( 'require_domain_hosting', $l['require_domain_hosting'], $o ); self::check( 'replace_hosting', $l['replace_hosting'], $o ); self::check( 'simplify_checkout', $l['simplify_checkout'], $o );
 		echo '<h2>Formulario de DIGITALÍSIMO Elements</h2>';
-		self::field( 'form_selector', 'Selector CSS del formulario', $o ); self::field( 'domain_field', 'Campo dominio', $o ); self::field( 'extension_field', 'Campo extensión', $o );
+		self::field( 'form_selector', $l['form_selector'], $o ); self::field( 'domain_field', $l['domain_field'], $o ); self::field( 'extension_field', $l['extension_field'], $o );
 		echo '<p>Usa <code>[resultado_dominio]</code> en el widget Formulario de DIGITALÍSIMO Elements. El shortcode anterior <code>[digitalisimo_domain_search]</code> se conserva para páginas existentes.</p>';
 		submit_button( $network ? 'Guardar Hosting de red' : 'Guardar Hosting', 'primary', $network ? 'digitalisimo_hosting_network_save' : 'digitalisimo_hosting_save' );
 		echo '</form></div>';
@@ -156,16 +173,35 @@ class Digitalisimo_Hosting {
 	private static function area( $key, $label, $o, $help = '' ) { echo '<p><label><strong>' . esc_html( $label ) . '</strong><br><textarea class="large-text code" rows="3" name="hosting[' . esc_attr( $key ) . ']">' . esc_textarea( $o[ $key ] ?? '' ) . '</textarea></label><br><span class="description">' . esc_html( $help ) . '</span></p>'; }
 	private static function check( $key, $label, $o ) { echo '<p><label><input type="hidden" name="hosting[' . esc_attr( $key ) . ']" value="0"><input type="checkbox" name="hosting[' . esc_attr( $key ) . ']" value="1" ' . checked( ! empty( $o[ $key ] ), true, false ) . '> <strong>' . esc_html( $label ) . '</strong></label></p>'; }
 
+	/**
+	 * Guarda el formulario del sitio o de la red. En un sitio de una red devuelve las etiquetas de los campos que se
+	 * cambiaron mientras el sitio hereda la red (no se usan: manda la red), para avisarlo.
+	 */
 	private static function save( $network ) {
-		$old = $network ? (array) get_site_option( self::OPTION, array() ) : self::local();
+		$was_inheriting = ! $network && self::inherits();
+		$effective = self::all();
+		$old = $network ? self::network() : self::local();
 		$in = (array) wp_unslash( $_POST['hosting'] ?? array() );
 		$o = $old;
 		foreach ( array( 'api_user', 'username', 'client_ip', 'form_selector', 'domain_field', 'extension_field' ) as $key ) $o[ $key ] = sanitize_text_field( $in[ $key ] ?? '' );
 		foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids' ) as $key ) $o[ $key ] = sanitize_textarea_field( $in[ $key ] ?? '' );
 		foreach ( array( 'enabled', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout' ) as $key ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
-		if ( ! $network ) $o['inherit_network'] = empty( $in['inherit_network'] ) ? 0 : 1;
+		if ( ! $network ) $o['inherit_network'] = is_multisite() && ! empty( $in['inherit_network'] ) ? 1 : 0;
 		if ( ! empty( $in['api_key'] ) ) $o['api_key'] = sanitize_text_field( $in['api_key'] );
+		// Al dejar de heredar, la clave que el formulario daba por «Ya configurada» era la de la red: con el campo vacío
+		// se conserva esa (como los demás campos, que ya traían los valores de la red), no la que el sitio tuviera antes.
+		elseif ( $was_inheriting && empty( $o['inherit_network'] ) && '' !== (string) ( $effective['api_key'] ?? '' ) ) $o['api_key'] = $effective['api_key'];
+		$ignored = array();
+		if ( ! $network && ! empty( $o['inherit_network'] ) ) {
+			$labels = self::labels();
+			foreach ( $labels as $key => $label ) {
+				// Un navegador envía los saltos de un textarea como \r\n: se comparan normalizados.
+				if ( 'api_key' === $key ? empty( $in['api_key'] ) : preg_replace( '/\r\n?/', "\n", (string) ( $o[ $key ] ?? '' ) ) === preg_replace( '/\r\n?/', "\n", (string) ( $effective[ $key ] ?? '' ) ) ) continue;
+				$ignored[] = $label;
+			}
+		}
 		if ( $network ) update_site_option( self::OPTION, $o ); else update_option( self::OPTION, $o, false );
+		return $ignored;
 	}
 
 	public static function routes() {
