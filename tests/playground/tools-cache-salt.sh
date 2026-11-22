@@ -6,7 +6,9 @@
 #  1. Tools, en el escritorio de un administrador: la primera carga agrega la sal a wp-config.php (copia, PHP válido); la
 #     segunda ya la tiene en vigor, lee su propia dirección y la clave del otro sitio sigue intacta (sin vaciar la
 #     caché global); la tercera no escribe nada.
-#  2. Migrar, sin Tools, con la misma caché que ya da los datos del otro sitio: migration-full.sh SCENARIO=salt pulsa
+#  2. Un clon (wp-config.php copiado con su bloque, otra base) en la misma caché: desde su primera petición, sin
+#     escritorio, usa otra sal, lee su propio nombre y no toca lo del original.
+#  3. Migrar, sin Tools, con la misma caché que ya da los datos del otro sitio: migration-full.sh SCENARIO=salt pulsa
 #     Migrar y termina solo (su copia de la clase pone la sal antes de nada), sin tocar lo del otro sitio.
 # Uso: bash tests/playground/tools-cache-salt.sh  (PHPV=8.2|7.4; SOLO_TOOLS=1 omite el paso 2)  → sale 0 si todo cuadra.
 set -euo pipefail
@@ -41,6 +43,23 @@ foreach ($p as $x) echo "FALLA $x\n";
 echo $p ? "" : "OK tools-cache-salt (Tools, Playground PHP " . PHP_VERSION . " lado CLI): sal " . $s["salt"] . "\n";
 exit($p ? 1 : 0);' "$RUN"
 sed -n '/DIGITALÍSIMO: sal/,/Fin de DIGITALÍSIMO/p' "$RUN/wp-config-despues.php"
+cat > "$RUN/clon.blueprint.json" <<JSON
+{"preferredVersions":{"php":"$PHPV","wp":"latest"},"steps":[
+{"step":"activatePlugin","pluginPath":"digitalisimo-tools/digitalisimo-tools.php"},
+{"step":"runPHP","code":"<?php putenv('DIGI_CS_STEP=preparar'); require '/digi-cs/clone.php';"},
+{"step":"runPHP","code":"<?php putenv('DIGI_CS_STEP=clon'); require '/digi-cs/clone.php';"}]}
+JSON
+$CLI run-blueprint --php="$PHPV" --blueprint="$RUN/clon.blueprint.json" --mount="$ROOT/digitalisimo-tools:/wordpress/wp-content/plugins/digitalisimo-tools" --mount="$RUN:/digi-cs" --mount="$RUN/cache:/digi-cache" > "$RUN/clon.log" 2>&1 || { tail -30 "$RUN/clon.log"; exit 1; }
+php -r '
+$d = $argv[1]; $s = json_decode((string) @file_get_contents("$d/dos.json"), true); $c = json_decode((string) @file_get_contents("$d/clon.json"), true);
+if (!$c) { echo "FALLA clon: sin resultado\n"; exit(1); }
+$p = array();
+if ("staging_db" !== $c["db_name"] || !is_string($c["salt"]) || !preg_match("/^dgs[0-9]*_[a-f0-9]{12}:$/", $c["salt"]) || $c["salt"] === $s["salt"]) $p[] = "el clon debe tener otra sal desde su primera petición: " . json_encode($c);
+if ("Clon de staging" !== $c["blogname"]) $p[] = "el clon lee su propio nombre: " . json_encode($c);
+if ("Clon de staging" === $c["original"] || "sin clave" === $c["original"]) $p[] = "lo del original en la caché sigue intacto: " . json_encode($c);
+foreach ($p as $x) echo "FALLA clon: $x\n";
+echo $p ? "" : "OK tools-cache-salt (clon): " . $s["salt"] . " → " . $c["salt"] . "\n";
+exit($p ? 1 : 0);' "$RUN"
 rm -rf "$RUN"
 [ "${SOLO_TOOLS:-0}" = 1 ] && exit 0
 SCENARIO=salt bash "$ROOT/tests/playground/migration-full.sh"

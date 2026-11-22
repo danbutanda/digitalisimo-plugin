@@ -35,7 +35,7 @@ function get_current_network_id() { return 1; }
 function get_current_blog_id() { return 1; }
 function current_user_can( $cap ) { $GLOBALS['cs']['caps'][] = $cap; return $GLOBALS['cs']['cap']; }
 function wp_doing_ajax() { return false; }
-function wp_doing_cron() { return false; }
+function wp_doing_cron() { return (bool) getenv( 'CS_CRON' ); }
 function wp_is_file_mod_allowed( $context ) { return $GLOBALS['cs']['mods']; }
 function add_action( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['cs']['filters'][ $hook ] = $cb; }
 function add_filter( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['cs']['filters'][ $hook ] = $cb; }
@@ -145,6 +145,7 @@ if ( $child ) {
 	$action = (string) getenv( 'CS_ACTION' );
 	$out    = array();
 	if ( 'admin' === $action ) Digitalisimo_Cache_Salt::admin();
+	if ( 'cron' === $action && method_exists( 'Digitalisimo_Cache_Salt', 'background' ) ) Digitalisimo_Cache_Salt::background();
 	if ( 'ensure' === $action || 'migration' === $action ) $out['result'] = Digitalisimo_Cache_Salt::ensure( $action );
 	if ( 'bypass' === $action ) {
 		$out['before'] = Digitalisimo_Same_Site::check()['ok'];
@@ -204,9 +205,20 @@ function cs_reset_config( $contents, $perms = 0640 ) {
 	$GLOBALS['cs']['np']   = array();
 	cs_request();
 }
-$id8  = substr( hash( 'sha256', realpath( ABSPATH ) . "\nplomerito_db\nlocalhost\nwp_" ), 0, 8 );
-$salt = "plomerito.com:{$id8}:";
-$line = "defined( 'WP_CACHE_KEY_SALT' ) || define( 'WP_CACHE_KEY_SALT', '{$salt}' );";
+$id8  = substr( md5( 'plomerito.com|plomerito_db|localhost|wp_' ), 0, 12 );
+$salt = "dgs_{$id8}:";
+$expr = function ( $gen, $prefix, $host = 'plomerito.com' ) { return "defined( 'WP_CACHE_KEY_SALT' ) || define( 'WP_CACHE_KEY_SALT', 'dgs{$gen}_' . substr( md5( '{$host}|' . ( defined( 'DB_NAME' ) ? DB_NAME : '' ) . '|' . ( defined( 'DB_HOST' ) ? DB_HOST : '' ) . '|' . {$prefix} ), 0, 12 ) . ':' );"; };
+$line      = $expr( '', "( isset( \$table_prefix ) ? \$table_prefix : '' )" );
+$line_drop = $expr( '', "( isset( \$GLOBALS['table_prefix'] ) ? \$GLOBALS['table_prefix'] : '' )" );
+/** Lo que da el bloque de $file en un proceso con esa base (N2: la sal se calcula en cada carga). */
+$evaluate = function ( $file, $db ) use ( $base ) {
+	$code = (string) file_get_contents( $file );
+	$from = strpos( $code, '/* DIGITALÍSIMO' );
+	$to   = strpos( $code, '/* Fin de DIGITALÍSIMO' );
+	if ( false === $from || false === $to ) return '';
+	file_put_contents( $base . '/eval.php', "<?php\ndefine( 'DB_NAME', '{$db}' );\ndefine( 'DB_HOST', 'localhost' );\n\$table_prefix = 'wp_';\n" . substr( $code, $from, $to - $from ) . "\necho WP_CACHE_KEY_SALT;\n" );
+	return (string) shell_exec( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( $base . '/eval.php' ) );
+};
 $mark = '/* DIGITALÍSIMO: sal propia de la caché de objetos */';
 $lint = function ( $code ) { try { token_get_all( $code, TOKEN_PARSE ); return true; } catch ( \Throwable $e ) { return false; } };
 
@@ -224,7 +236,9 @@ Digitalisimo_Cache_Salt::init();
 $r   = Digitalisimo_Cache_Salt::ensure( 'admin' );
 $now = (string) file_get_contents( $config );
 cs_check( 'written' === $r['state'] && $salt === ( $r['salt'] ?? '' ), '1/H1: escribe la sal de la ruta, la base y el prefijo (no la identidad copiable de Backups): ' . json_encode( $r ) );
-cs_check( 1 === substr_count( $now, $line ) && 1 === substr_count( $now, $mark ) && false !== strpos( $now, "defined( 'WP_REDIS_PREFIX' ) || define( 'WP_REDIS_PREFIX', '{$salt}' );" ), '1/S1: el bloque define WP_CACHE_KEY_SALT y WP_REDIS_PREFIX: ' . $now );
+cs_check( 1 === substr_count( $now, $line ) && 1 === substr_count( $now, $mark ) && false !== strpos( $now, "defined( 'WP_REDIS_PREFIX' ) || define( 'WP_REDIS_PREFIX', WP_CACHE_KEY_SALT );" ), '1/S1: el bloque define WP_CACHE_KEY_SALT y WP_REDIS_PREFIX: ' . $now );
+// N2 · La sal se calcula en cada carga: el mismo archivo da la sal de esta instalación y, en un clon con otra base, otra.
+cs_check( $salt === $evaluate( $config, 'plomerito_db' ) && $salt !== $evaluate( $config, 'staging_db' ) && preg_match( '/^dgs_[a-f0-9]{12}:$/', $evaluate( $config, 'staging_db' ) ) && false === strpos( $now, $id8 ), 'N2: el bloque calcula la sal (sin un valor fijo): un clon con otra base tiene otra desde su primera petición: ' . $evaluate( $config, 'plomerito_db' ) . ' / ' . $evaluate( $config, 'staging_db' ) );
 cs_check( strpos( $now, $mark ) < strpos( $now, "/* That's all, stop editing!" ) && $lint( $now ), '1: el bloque va antes de «That\'s all» y el PHP es válido.' );
 $copies = glob( $base . '/privado/wp-config-antes-de-la-sal-*.php' );
 cs_check( 1 === count( $copies ) && $original === file_get_contents( $copies[0] ) && 0600 === ( fileperms( $copies[0] ) & 0777 ), '1: copia previa idéntica y 0600: ' . json_encode( $copies ) );
@@ -262,19 +276,26 @@ cs_check( 'salted' === ( $a['status']['state'] ?? '' ) && false !== strpos( (str
 $a = cs_child( 'admin', array( 'WP_CACHE_KEY_SALT' => $salt, 'WP_REDIS_PREFIX' => $salt ) );
 cs_check( '' === $a['need'] && ! preg_grep( '/^delete:/', $a['log'] ), 'S1: después, nada que hacer: ' . json_encode( $a ) );
 
-// H1 · La caché da datos ajenos con nuestra sal (o la sal es de otra instalación): Tools la cambia sola.
+// H1 · La caché da datos ajenos con nuestra sal: Tools la cambia sola (otro <n>).
 cs_store( array( $salt . 'options:alloptions' => serialize( $neighbor ) ) + cs_store() );
 $a   = cs_child( 'admin', array( 'WP_CACHE_KEY_SALT' => $salt, 'WP_REDIS_PREFIX' => $salt ) );
 $now = (string) file_get_contents( $config );
-cs_check( 'written' === ( $a['last']['state'] ?? '' ) && "plomerito.com:{$id8}.1:" === ( $a['last']['salt'] ?? '' ) && 2 === substr_count( $now, "'plomerito.com:{$id8}.1:'" ) && 1 === substr_count( $now, $mark ) && false === strpos( $now, "'{$salt}'" ), 'H1: con la caché dando datos ajenos y nuestra sal, se cambia dentro del bloque: ' . json_encode( $a['last'] ) );
-cs_check( $lint( $now ), 'H1: el wp-config.php con la sal cambiada es PHP válido.' );
-// Un clon: wp-config.php copiado con la sal del original (otra ruta) → se reemplaza por la de esta instalación.
-$clone = str_replace( "plomerito.com:{$id8}.1:", 'plomerito.com:0badc0de:', $now );
-file_put_contents( $config, $clone );
-$GLOBALS['cs']['db']['digitalisimo_tools_cache_salt'] = serialize( array( 'state' => 'active', 'seen' => 'plomerito.com:0badc0de:', 'salt' => 'plomerito.com:0badc0de:' ) );
-$a   = cs_child( 'admin', array( 'WP_CACHE_KEY_SALT' => 'plomerito.com:0badc0de:', 'WP_REDIS_PREFIX' => 'plomerito.com:0badc0de:' ) );
-$now = (string) file_get_contents( $config );
-cs_check( 'written' === ( $a['last']['state'] ?? '' ) && 2 === substr_count( $now, "'{$salt}'" ) && false === strpos( $now, '0badc0de' ), 'H1: un clon con la sal del original la cambia por la suya: ' . json_encode( $a['last'] ) );
+cs_check( 'written' === ( $a['last']['state'] ?? '' ) && "dgs1_{$id8}:" === ( $a['last']['salt'] ?? '' ) && "dgs1_{$id8}:" === $evaluate( $config, 'plomerito_db' ) && 1 === substr_count( $now, $mark ) && $lint( $now ), 'H1: con la caché dando datos ajenos y nuestra sal, se cambia dentro del bloque: ' . json_encode( $a['last'] ) );
+// N6 · Con opcache congelado (sigue en vigor la sal de antes y el archivo ya trae la nueva): no se reescribe ni se copia.
+$copies = count( glob( $base . '/privado/*' ) );
+$a      = cs_child( 'admin', array( 'WP_CACHE_KEY_SALT' => $salt, 'WP_REDIS_PREFIX' => $salt ) );
+cs_check( 'pending' === ( $a['last']['state'] ?? '' ) && $now === file_get_contents( $config ) && $copies === count( glob( $base . '/privado/*' ) ), 'N6: el mismo contenido no se vuelve a escribir: ' . json_encode( $a['last'] ) );
+// N5 · Tope de cambios por datos ajenos: ROTATE_MAX al día; después, el aviso (sin reescribir wp-config.php en bucle).
+$log = Digitalisimo_Cache_Salt::last();
+$log['rotate_at'] = array( time(), time(), time() );
+$log['seen']      = "dgs1_{$id8}:";
+$log['state']     = 'active';
+$GLOBALS['cs']['db']['digitalisimo_tools_cache_salt'] = serialize( $log );
+cs_store( array( "dgs1_{$id8}:options:alloptions" => serialize( $neighbor ) ) + cs_store() );
+$a = cs_child( 'admin', array( 'WP_CACHE_KEY_SALT' => "dgs1_{$id8}:", 'WP_REDIS_PREFIX' => "dgs1_{$id8}:" ) );
+cs_check( 'manual' === ( $a['last']['state'] ?? '' ) && $now === file_get_contents( $config ), 'N5: pasado el tope diario, no se cambia la sal otra vez: ' . json_encode( $a['last'] ) );
+// N5 · La clave de prueba lleva la identidad de la instalación (un vecino no pisa la de este sitio).
+cs_check( false !== strpos( (string) file_get_contents( $root . '/digitalisimo-tools/includes/class-digitalisimo-cache-salt.php' ), "return self::PROBE . substr( self::salt( 0 ), 4, 12 );" ), 'N5: la clave de prueba es propia de la instalación.' );
 
 // 3 · Sin caché externa: no actúa.
 cs_reset_config( $original );
@@ -350,7 +371,8 @@ unlink( $config );
 symlink( $base . '/real-config.php', $config );
 cs_request();
 $r = Digitalisimo_Cache_Salt::ensure( 'admin' );
-cs_check( 'manual' === $r['state'] && $original === file_get_contents( $base . '/real-config.php' ) && is_link( $config ), '5: un wp-config.php enlazado no se reemplaza: ' . json_encode( $r ) );
+cs_check( 'written' === $r['state'] && 1 === substr_count( (string) file_get_contents( $base . '/real-config.php' ), $line ) && is_link( $config ) && $base . '/real-config.php' === $r['file'], 'N9: un wp-config.php enlazado (Bitnami) se escribe en su destino y el enlace se queda: ' . json_encode( $r ) );
+cs_check( false !== strpos( (string) file_get_contents( $root . '/digitalisimo-tools/includes/class-digitalisimo-cache-salt.php' ), "'/.digitalisimo-sal-' . bin2hex( random_bytes( 6 ) ) . '.php'" ), 'N8: el temporal termina en .php (nunca servido como texto).' );
 unlink( $config );
 cs_request();
 file_put_contents( $base . '/wp-config.php', $original );
@@ -363,7 +385,7 @@ cs_reset_config( $original, 0440 );
 file_put_contents( $dropin, $plugin );
 $r   = Digitalisimo_Cache_Salt::ensure( 'admin' );
 $now = (string) file_get_contents( $dropin );
-cs_check( 'written' === $r['state'] && 'dropin' === ( $r['target'] ?? '' ) && 0 === strpos( $now, "<?php\n" . $mark ) && strpos( $now, $line ) < strpos( $now, "define( 'WP_CACHE_KEY_SALT', '' )" ) && $lint( $now ) && $original === file_get_contents( $config ), 'H8: la sal se antepone en object-cache.php: ' . json_encode( $r ) . "\n" . $now );
+cs_check( 'written' === $r['state'] && 'dropin' === ( $r['target'] ?? '' ) && 0 === strpos( $now, "<?php\n" . $mark ) && false !== strpos( $now, $line_drop ) && strpos( $now, $line_drop ) < strpos( $now, "define( 'WP_CACHE_KEY_SALT', '' )" ) && $lint( $now ) && $original === file_get_contents( $config ), 'H8: la sal se antepone en object-cache.php: ' . json_encode( $r ) . "\n" . $now );
 $status = Cache_Notice::status();
 cs_check( 'salted' === $status['state'] && false !== strpos( $status['message'], 'object-cache.php' ), 'H8: el aviso dice que va en el drop-in: ' . json_encode( $status ) );
 // Con declare(strict_types=1), después de él; con namespace al principio, no hay sitio seguro y queda el aviso.
@@ -380,7 +402,7 @@ cs_check( 'manual' === $r['state'] && false === strpos( (string) file_get_conten
 cs_reset_config( $original );
 file_put_contents( $dropin, "<?php\n/**\n * W3 Total Cache Object Cache\n */\n" );
 $r = Digitalisimo_Cache_Salt::ensure( 'admin' );
-cs_check( 'written' === $r['state'] && 1 === preg_match( "/defined\( 'W3TC_INSTANCE_ID' \) \|\| define\( 'W3TC_INSTANCE_ID', [1-9][0-9]* \);/", (string) file_get_contents( $config ) ), 'S1: con W3 Total Cache el bloque define W3TC_INSTANCE_ID.' );
+cs_check( 'written' === $r['state'] && false !== strpos( (string) file_get_contents( $config ), "defined( 'W3TC_INSTANCE_ID' ) || define( 'W3TC_INSTANCE_ID', 1 + hexdec( substr( md5( WP_CACHE_KEY_SALT ), 0, 7 ) ) );" ), 'S1: con W3 Total Cache el bloque define W3TC_INSTANCE_ID.' );
 // H8/H3 · El plugin de caché reescribe su drop-in (la sal desaparece): se invalida lo viejo sin sal y se repone con otro valor.
 cs_reset_config( $original, 0440 );
 file_put_contents( $dropin, $plugin );
@@ -392,7 +414,15 @@ cs_store( array( 'user_meta:7' => serialize( array( 'wp_capabilities' => array( 
 $a   = cs_child( 'admin' );
 $now = (string) file_get_contents( $dropin );
 cs_check( ! array_key_exists( 'user_meta:7', cs_store() ), 'H3/H8: al desaparecer la sal, se invalidan las claves viejas de este sitio sin sal (capacidades): ' . json_encode( array_keys( cs_store() ) ) );
-cs_check( 'written' === ( $a['last']['state'] ?? '' ) && 2 === substr_count( $now, "'plomerito.com:{$id8}.1:'" ) && $lint( $now ), 'H3/H8: y se repone con otro valor (el espacio con la sal anterior también quedó viejo): ' . json_encode( $a['last'] ) );
+cs_check( 'written' === ( $a['last']['state'] ?? '' ) && "dgs1_{$id8}:" === ( $a['last']['salt'] ?? '' ) && false !== strpos( $now, "'dgs1_' . substr" ) && $lint( $now ) && array() === ( $a['last']['cleanup'] ?? null ), 'H3/H8/N4: se repone con otro valor (el espacio con la sal anterior también quedó viejo): ' . json_encode( $a['last'] ) );
+$src = (string) file_get_contents( $root . '/digitalisimo-tools/includes/class-digitalisimo-cache-salt.php' );
+cs_check( false !== strpos( $src, '$out = self::write( $out );' ) && strpos( $src, '$out = self::write( $out );' ) < strpos( $src, "if ( 'lost' === \$need && 'written' === \$out['state'] ) self::clean( \$out, true );" ), 'N4: primero se repone la sal y después se limpia lo viejo.' );
+// N3 · Si un plugin de caché que se actualiza solo (WP-Cron) reescribe el drop-in, el cron repone la sal.
+Digitalisimo_Cache_Salt::ensure( 'admin' );
+$a = cs_child( 'admin', array( 'WP_CACHE_KEY_SALT' => "dgs1_{$id8}:", 'WP_REDIS_PREFIX' => "dgs1_{$id8}:" ) );
+file_put_contents( $dropin, $plugin );
+$a = cs_child( 'cron', array(), array( 'CS_CRON' => '1' ) );
+cs_check( 'written' === ( $a['last']['state'] ?? '' ) && 'cron' === ( $a['last']['via'] ?? '' ) && false !== strpos( (string) file_get_contents( $dropin ), "'dgs2_' . substr" ), 'N3: el cron repone la sal en el drop-in: ' . json_encode( $a['last'] ) );
 cs_check( ! in_array( 'GLOBAL_FLUSH', $a['log'], true ), 'H3: sin vaciar la caché global.' );
 
 // H12 · Nunca en código que no se ejecuta siempre.
@@ -413,6 +443,16 @@ cs_reset_config( "<?php\n/**\n * That's all, stop editing (dentro de un comentar
 $r   = Digitalisimo_Cache_Salt::ensure( 'admin' );
 $now = (string) file_get_contents( $config );
 cs_check( 'written' === $r['state'] && strpos( $now, $line ) > strpos( $now, ' */' ) && strpos( $now, $line ) < strpos( $now, 'require_once(' ), '6: nunca dentro de un comentario; si no, antes del require: ' . $now );
+// N9 · Una sal vacía en wp-config.php (no aísla y se define antes que el bloque): se retira y el bloque pone la propia.
+cs_reset_config( "<?php\ndefine( 'WP_CACHE_KEY_SALT', '' );\n\$table_prefix = 'wp_';\n/* That's all, stop editing! */\nrequire_once ABSPATH . 'wp-settings.php';\n" );
+$r   = Digitalisimo_Cache_Salt::ensure( 'admin' );
+$now = (string) file_get_contents( $config );
+cs_check( 'written' === $r['state'] && false === strpos( $now, "define( 'WP_CACHE_KEY_SALT', '' )" ) && $salt === $evaluate( $config, 'plomerito_db' ) && $lint( $now ), 'N9: la sal vacía se reemplaza por la propia: ' . json_encode( $r ) . "\n" . $now );
+// N9 · Con el bloque antes de $table_prefix la sal no lo vería: va después (en el require).
+cs_reset_config( "<?php\n/* That's all, stop editing! */\n\$table_prefix = 'wp_';\nrequire_once ABSPATH . 'wp-settings.php';\n" );
+$r   = Digitalisimo_Cache_Salt::ensure( 'admin' );
+$now = (string) file_get_contents( $config );
+cs_check( 'written' === $r['state'] && strpos( $now, $mark ) > strpos( $now, '$table_prefix' ), 'N2: el bloque va después de $table_prefix: ' . $now );
 cs_reset_config( "<?php\nif ( getenv( 'X' ) ) define( 'WP_CACHE_KEY_SALT', 'otra:' );\nrequire_once ABSPATH . 'wp-settings.php';\n" );
 $r = Digitalisimo_Cache_Salt::ensure( 'admin' );
 cs_check( 'manual' === $r['state'] && false === strpos( (string) file_get_contents( $config ), $mark ) && false !== strpos( $r['message'], 'WP_CACHE_KEY_SALT' ), '6: con una sal ya escrita en wp-config.php no se agrega otra: ' . json_encode( $r ) );
@@ -423,10 +463,10 @@ cs_check( 'written' === ( $a['result']['state'] ?? '' ), 'H13: con WP_REDIS_CONF
 // S1 · Un drop-in que no respeta la sal (la clave de prueba sigue visible): «ignored», y Migrar lee directo de la base.
 cs_store( array( 'options:alloptions' => serialize( $neighbor ) ) + cs_store() );
 $a = cs_child( 'bypass', array( 'WP_REDIS_CONFIG' => array( 'token' => 'x' ), 'WP_CACHE_KEY_SALT' => $salt, 'WP_REDIS_PREFIX' => $salt ), array( 'CS_IGNORE' => '1' ) );
-cs_check( 'ignored' === ( $a['result']['state'] ?? '' ) && false !== strpos( (string) ( $a['result']['message'] ?? '' ), "'prefix' => '{$salt}'" ), 'S1: un drop-in que ignora la sal queda «ignored» y dice qué prefijo usar: ' . json_encode( $a['result'] ) );
+cs_check( 'ignored' === ( $a['result']['state'] ?? '' ) && false !== strpos( (string) ( $a['result']['message'] ?? '' ), "'prefix' => WP_CACHE_KEY_SALT" ), 'S1: un drop-in que ignora la sal queda «ignored» y dice qué prefijo usar: ' . json_encode( $a['result'] ) );
 cs_check( false === ( $a['before'] ?? null ) && true === ( $a['bypass'] ?? null ) && true === ( $a['after'] ?? null ) && 'https://www.plomerito.com' === ( $a['home'] ?? '' ), 'S1: sin forma de aislarla, bypass() hace que esta petición lea sus opciones de la base: ' . json_encode( $a ) );
 cs_check( ! in_array( 'GLOBAL_FLUSH', $a['log'], true ) && 'https://vecino.test' === ( unserialize( cs_store()['options:alloptions'] ?? 'b:0;' )['home'] ?? '' ), 'S1: sin vaciar la caché global ni tocar lo del vecino.' );
-cs_check( in_array( $a['status']['state'] ?? '', array( 'foreign', 'unsalted' ), true ) && false !== strpos( (string) ( $a['status']['message'] ?? '' ), 'Migrar trabaja leyendo directo de la base' ), 'S1: el aviso lo explica: ' . json_encode( $a['status'] ) );
+cs_check( in_array( $a['status']['state'] ?? '', array( 'foreign', 'unsalted' ), true ) && false !== strpos( (string) ( $a['status']['message'] ?? '' ), 'no separa sus claves con WP_CACHE_KEY_SALT' ), 'S1: el aviso lo explica: ' . json_encode( $a['status'] ) );
 // Con un prefijo propio (WP_REDIS_PREFIX o WP_REDIS_CONFIG['prefix']), nada que hacer.
 cs_reset_config( $original );
 foreach ( array( array( 'WP_REDIS_PREFIX' => 'mio:' ), array( 'WP_REDIS_CONFIG' => array( 'prefix' => 'mio' ) ), array( 'WP_CACHE_KEY_SALT' => 'mia' ) ) as $consts ) {
@@ -440,7 +480,7 @@ $GLOBALS['cs']['multi'] = true;
 $GLOBALS['cs']['db']['home'] = 'https://red.test';
 $GLOBALS['wpdb']->options = 'wp_3_options'; // Estamos en el sitio 3 (sub.red.test).
 $r = Digitalisimo_Cache_Salt::ensure( 'admin' );
-cs_check( 'written' === $r['state'] && "red.test:{$id8}:" === $r['salt'] && 2 === substr_count( (string) file_get_contents( $config ), "'red.test:{$id8}:'" ), '7: en una red, la sal del sitio principal: ' . json_encode( $r ) );
+cs_check( 'written' === $r['state'] && 'dgs_' . substr( md5( 'red.test|plomerito_db|localhost|wp_' ), 0, 12 ) . ':' === $r['salt'] && 1 === substr_count( (string) file_get_contents( $config ), "md5( 'red.test|'" ), '7: en una red, la sal del sitio principal: ' . json_encode( $r ) );
 cs_check( 'written' === ( $GLOBALS['cs']['meta']['digitalisimo_tools_cache_salt']['state'] ?? '' ), '7: el registro de una red va en la red.' );
 $GLOBALS['cs']['caps'] = array();
 cs_request();
@@ -463,7 +503,8 @@ $fn   = function ( $name ) use ( $full ) { $s = substr( $full, (int) strpos( $fu
 cs_check( false !== strpos( $fn( 'cache_salt' ), "__DIR__ . '/class-digitalisimo-cache-salt.php'" ) && false === strpos( $full, 'digitalisimo-tools/includes/class-cache-salt.php' ) && false === strpos( $full, "dirname( self::TOOLS_FILE ) . '/includes/class-cache-salt.php'" ), 'H7: Migrar usa su propia copia de la clase, no la de Tools.' );
 $step = substr( $full, (int) strpos( $full, 'public static function step(' ) );
 cs_check( false !== strpos( $step, 'self::isolation();' ) && strpos( $step, 'self::isolation();' ) < strpos( $step, 'self::refused( $network )' ), 'H14: la sal (y las lecturas directas) van antes del candado y del análisis en cada petición.' );
-cs_check( false !== strpos( $fn( 'isolation' ), '\\Digitalisimo_Cache_Salt::bypass()' ) && false !== strpos( $fn( 'isolation' ), "'ignored'" ) && false !== strpos( $fn( 'isolation' ), "'written'" ), 'S1/H14: mientras la caché no aísla, Migrar lee directo de la base.' );
+cs_check( false !== strpos( $fn( 'isolation' ), '\\Digitalisimo_Cache_Salt::bypass()' ) && false !== strpos( $fn( 'isolation' ), '\\Digitalisimo_Same_Site::ok()' ) && false === strpos( $fn( 'isolation' ), "'manual'" ) && false === strpos( $fn( 'isolation' ), "'ignored'" ), 'N1: Migrar lee directo de la base sólo con la sal recién escrita o con datos ajenos de verdad; si no, como siempre.' );
+cs_check( false !== strpos( $fn( 'salted' ), 'invalidate_site(' ) && false !== strpos( $fn( 'salted' ), "\$state['bypassed']" ), 'N1: tras leer directo de la base, una petición normal invalida lo de este sitio en la caché.' );
 cs_check( 1 === preg_match( "/'written' === \\\$now[^}]*return self::changed\( \\\$state \);/s", $fn( 'salted' ) ), 'H7: si la sal se acaba de escribir, Migrar sigue en una petición nueva (changed()).' );
 cs_check( false !== strpos( $fn( 'stage_install' ), 'self::isolation( true );' ), 'H7: después de instalar, otro intento de poner la sal.' );
 cs_check( false === strpos( $fn( 'stage_backup' ), 'cache_salt' ), 'H7: el respaldo ya no la pide (va al principio de cada petición).' );

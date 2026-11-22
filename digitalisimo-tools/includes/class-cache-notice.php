@@ -27,7 +27,7 @@ final class Cache_Notice {
 		$state = (string) ( $salt['state'] ?? '' );
 		$file  = basename( (string) ( $salt['file'] ?? '' ) );
 		$file  = '' !== $file ? $file : 'wp-config.php';
-		$where = 'dropin' === ( $salt['target'] ?? '' ) ? 'al principio de wp-content/object-cache.php (wp-config.php no se puede escribir; si el plugin de caché reescribe ese archivo, DIGITALÍSIMO la vuelve a poner)' : 'a ' . $file;
+		$where = 'dropin' === ( $salt['target'] ?? '' ) ? 'al principio de wp-content/object-cache.php (wp-config.php no se puede escribir; si el plugin de caché reescribe ese archivo, DIGITALÍSIMO la vuelve a poner en cuanto lo ve: en el escritorio, en el cron o al terminar la actualización)' : 'a ' . $file;
 		// Escrita hace rato y aún sin efecto: se dice por qué, sin pedir que se copie lo que ya está en el archivo.
 		if ( 'pending' === $state && time() - (int) ( $salt['at'] ?? 0 ) > 300 ) {
 			$frozen = function_exists( 'ini_get' ) && ini_get( 'opcache.enable' ) && ! ini_get( 'opcache.validate_timestamps' );
@@ -36,7 +36,7 @@ final class Cache_Notice {
 		}
 		$manual = '';
 		if ( in_array( $state, array( 'manual', 'failed' ), true ) && '' !== (string) ( $salt['line'] ?? '' ) ) {
-			$manual = ' DIGITALÍSIMO no pudo agregarla solo (' . (string) ( $salt['message'] ?? '' ) . '): copia en ' . $file . ', antes de «That\'s all, stop editing», esta línea: ' . (string) $salt['line'];
+			$manual = ' DIGITALÍSIMO no pudo agregarla solo (' . (string) ( $salt['message'] ?? '' ) . '): copia en wp-config.php, antes de «That\'s all, stop editing», esta línea: ' . (string) $salt['line'];
 		} elseif ( in_array( $state, array( 'manual', 'failed', 'stuck', 'ignored' ), true ) ) {
 			$manual = ' ' . ucfirst( (string) ( $salt['message'] ?? '' ) ) . '.';
 		}
@@ -49,7 +49,7 @@ final class Cache_Notice {
 		}
 		if ( $fresh ) return array( 'state' => 'salted', 'message' => 'DIGITALÍSIMO agregó una sal propia para la caché de objetos de este sitio (' . (string) $salt['salt'] . ') ' . $where . ', para que otro sitio del servidor no lea sus datos. Vale desde la siguiente carga; no hace falta hacer nada.' . $kept );
 		if ( '' !== $manual && \Digitalisimo_Same_Site::external() && ! ( class_exists( '\\Digitalisimo_Cache_Salt', false ) ? \Digitalisimo_Cache_Salt::isolated() : \Digitalisimo_Same_Site::isolated() ) ) {
-			return array( 'state' => 'unsalted', 'message' => 'Este sitio usa una caché de objetos persistente (Redis, Memcached o LSMCD) que no separa sus claves de las de otros sitios del servidor: si otro sitio usa la misma, los dos leerán las opciones del otro (dirección, plugins activos, icono).' . $manual . ' Mientras tanto, Migrar trabaja leyendo directo de la base y sin vaciar la caché compartida.' );
+			return array( 'state' => 'unsalted', 'message' => 'Este sitio usa una caché de objetos persistente (Redis, Memcached o LSMCD) que no separa sus claves de las de otros sitios del servidor: si otro sitio usa la misma, los dos leerán las opciones del otro (dirección, plugins activos, icono).' . $manual );
 		}
 		if ( 'active' === $state && time() - (int) ( $salt['done_at'] ?? 0 ) < \Digitalisimo_Cache_Salt::SHOW ) {
 			return array( 'state' => 'salted', 'message' => 'DIGITALÍSIMO agregó una sal propia para la caché de objetos de este sitio (' . (string) $salt['salt'] . ') ' . $where . ' y ya está en vigor: otro sitio del servidor no lee sus datos. No hace falta hacer nada.' . $kept );

@@ -79,6 +79,8 @@ final class Full {
 	private static $began = 0.0;
 	/** @var array|null sal de la caché de objetos en esta petición (Digitalisimo_Cache_Salt::ensure()). */
 	private static $salt = null;
+	/** @var bool esta petición lee directo de la base porque la caché da datos de otro sitio (no por una sal recién puesta). */
+	private static $foreign = false;
 
 	public static function init() {
 		add_action( 'wp_ajax_' . self::AJAX, array( __CLASS__, 'ajax' ) );
@@ -395,15 +397,17 @@ final class Full {
 	}
 
 	/**
-	 * Al principio de cada petición de Migrar: la sal (cache_salt()) y, mientras no aísla (se acaba de escribir y vale
-	 * desde la petición siguiente, no se puede escribir o el drop-in no la respeta), las opciones, entradas y cuentas se
-	 * leen directo de la base en esta petición, sin escribir ni vaciar la caché compartida
-	 * (Digitalisimo_Cache_Salt::bypass()). Así Migrar nunca lee los datos de otro sitio y termina sin pedir nada.
+	 * Al principio de cada petición de Migrar: la sal (cache_salt()) y, sólo si la sal se acaba de escribir (vale desde
+	 * la petición siguiente) o el candado ve de verdad datos de otro sitio, las opciones, entradas y cuentas se leen
+	 * directo de la base en esta petición, sin escribir ni vaciar la caché compartida (Digitalisimo_Cache_Salt::bypass()).
+	 * Sin choque, aunque no se haya podido poner la sal, Migrar trabaja como siempre (el candado sigue protegiendo).
 	 */
 	private static function isolation( $retry = false ) {
 		self::$salt = self::cache_salt( $retry );
-		if ( in_array( (string) ( self::$salt['state'] ?? '' ), array( 'written', 'pending', 'cleaning', 'manual', 'failed', 'ignored' ), true ) ) {
+		$foreign    = class_exists( '\\Digitalisimo_Same_Site', false ) && ! \Digitalisimo_Same_Site::ok();
+		if ( 'written' === (string) ( self::$salt['state'] ?? '' ) || $foreign ) {
 			\Digitalisimo_Cache_Salt::bypass();
+			self::$foreign = $foreign && 'written' !== (string) ( self::$salt['state'] ?? '' );
 		}
 		return self::$salt;
 	}
@@ -417,8 +421,18 @@ final class Full {
 			$state['salt'] = $now;
 			return self::changed( $state );
 		}
-		if ( class_exists( '\\Digitalisimo_Cache_Salt', false ) && \Digitalisimo_Cache_Salt::bypassed() && 'pending' !== $now ) {
-			$state = self::note( $state, 'La caché de objetos no se pudo separar de la de otros sitios (' . (string) ( $salt['message'] ?? '' ) . '): Migrar trabajó leyendo directo de la base, sin escribir ni vaciar la caché compartida.' );
+		if ( self::$foreign ) {
+			// Lo que se escribe en esta petición no llega a la caché persistente: al volver a una petición normal, se
+			// invalida lo de este sitio para que no siga sirviendo lo de antes de Migrar.
+			$state             = self::note( $state, 'La caché de objetos daba datos de otro sitio y no se pudo separar (' . (string) ( $salt['message'] ?? '' ) . '): Migrar trabajó leyendo directo de la base, sin escribir ni vaciar la caché compartida.' );
+			$state['bypassed'] = true;
+		} elseif ( ! empty( $state['bypassed'] ) && class_exists( '\\Digitalisimo_Same_Site', false ) ) {
+			$plan               = (array) ( $state['cache_plan'] ?? array() );
+			$clean              = $plan ? \Digitalisimo_Same_Site::resume_invalidation( $plan, 5 ) : \Digitalisimo_Same_Site::invalidate_site( ! empty( $state['network'] ) ? 'all' : null, null, 5 );
+			$state['cache_plan'] = empty( $clean['done'] ) ? (array) ( $clean['plan'] ?? array() ) : array();
+			if ( ! empty( $clean['done'] ) ) {
+				unset( $state['bypassed'], $state['cache_plan'] );
+			}
 		}
 		if ( '' !== $now ) {
 			$state['salt'] = $now;
