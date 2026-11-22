@@ -32,11 +32,14 @@ function admin_url( $p = '' ) { return 'https://sitio.test/wp-admin/' . $p; }
 function checked( $a, $b = true, $echo = true ) { return $a == $b ? 'checked' : ''; }
 function selected( $a, $b = true, $echo = true ) { return $a == $b ? 'selected' : ''; }
 require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-ai.php';
+function screen() { if ( ! empty( $GLOBALS['network_save'] ) ) Digitalisimo_AI::network_page(); else Digitalisimo_AI::page(); }
+require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-ai-content-playbook.php';
+function esc_textarea( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); }
 
 /** Pinta la pantalla y devuelve lo que enviaría un navegador al pulsar su botón de guardar, con $fill para los campos. */
 function submit_form( $tab, array $fill ) {
 	$_GET = array( 'tab' => $tab ); $_POST = array();
-	ob_start(); Digitalisimo_AI::page(); $html = ob_get_clean();
+	ob_start(); screen(); $html = ob_get_clean();
 	check( preg_match( '#<form method="post">(.*)</form>#s', $html, $m ), "La pestaña $tab tiene su formulario" );
 	$post = array();
 	preg_match_all( '#<input([^>]*)>#', $m[1], $inputs );
@@ -49,7 +52,7 @@ function submit_form( $tab, array $fill ) {
 	}
 	$query = implode( '&', array_map( function ( $p ) { return rawurlencode( $p[0] ) . '=' . rawurlencode( (string) $p[1] ); }, $post ) );
 	parse_str( $query, $_POST );
-	ob_start(); Digitalisimo_AI::page(); $after = ob_get_clean();
+	ob_start(); screen(); $after = ob_get_clean();
 	return $after;
 }
 
@@ -62,10 +65,29 @@ check( false !== strpos( $after, 'Configuración guardada.' ), 'Tras guardar se 
 check( false !== strpos( $after, 'Guardada · escribe una nueva sólo si quieres reemplazarla' ), 'Tras guardar, el proveedor dice que su clave está guardada' );
 check( false === strpos( $after, 'sk-ant-PRUEBA-123' ), 'La clave no vuelve a imprimirse en la página' );
 
-// 2. Volver a guardar sin escribir la clave no la borra.
+check( false !== strpos( $after, 'name="providers[anthropic][key]" autocomplete="new-password" value="••••••••••••"' ), 'Con una clave guardada, el campo muestra la máscara ••••, no un campo vacío' );
+
+// 2. Volver a guardar sin tocar la clave (llega la máscara) no la borra; vaciar el campo tampoco; una nueva la
+// reemplaza y «Quitar la clave» la borra (pedido del propietario: «deben salir los *****»).
+$key = function () { $o = get_option( 'digitalisimo_ai_options', array() ); return $o['providers']['anthropic']['key'] ?? null; };
 submit_form( 'providers', array() );
-$o = get_option( 'digitalisimo_ai_options', array() );
-check( 'sk-ant-PRUEBA-123' === ( $o['providers']['anthropic']['key'] ?? null ), 'Guardar otra vez con el campo vacío no borra la clave' );
+check( 'sk-ant-PRUEBA-123' === $key(), 'Guardar otra vez con la máscara conserva la clave' );
+submit_form( 'providers', array( 'providers[anthropic][key]' => '' ) );
+check( 'sk-ant-PRUEBA-123' === $key(), 'Guardar con el campo vaciado conserva la clave' );
+submit_form( 'providers', array( 'providers[anthropic][key]' => 'sk-ant-NUEVA' ) );
+check( 'sk-ant-NUEVA' === $key(), 'Escribir una clave nueva la reemplaza' );
+$after = submit_form( 'providers', array( 'providers[anthropic][remove]' => '1' ) );
+check( '' === $key() && false !== strpos( $after, 'Sin clave configurada' ), '«Quitar la clave» la borra' );
+
+// 2b. Lo mismo en la pantalla de red.
+$GLOBALS['multisite'] = true; $GLOBALS['network_save'] = true; $GLOBALS['site_options'] = array();
+$net = function () { $o = get_site_option( 'digitalisimo_ai_options', array() ); return $o['providers']['openai']['key'] ?? null; };
+submit_form( 'providers', array( 'providers[openai][key]' => 'sk-RED', 'providers[openai][enabled]' => '1' ) );
+$after = submit_form( 'providers', array() );
+check( 'sk-RED' === $net() && false !== strpos( $after, 'value="••••••••••••"' ) && false === strpos( $after, 'sk-RED' ), 'Red: la clave se ve como •••• y guardar sin tocarla la conserva' );
+submit_form( 'providers', array( 'providers[openai][remove]' => '1' ) );
+check( '' === $net(), 'Red: «Quitar la clave» la borra' );
+$GLOBALS['multisite'] = false; $GLOBALS['network_save'] = false; $GLOBALS['site_options'] = array();
 
 // 3. Otras pestañas también guardan (el mismo botón servía a todas).
 submit_form( 'advanced', array( 'ai[log_retention]' => '45' ) );
