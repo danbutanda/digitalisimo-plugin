@@ -17,7 +17,7 @@ namespace {
 	define( 'ABSPATH', __DIR__ . '/' );
 	define( 'OBJECT', 'OBJECT' );
 	define( 'MINUTE_IN_SECONDS', 60 );
-	require __DIR__ . '/lib/browser-form.php';
+	require __DIR__ . '/lib/browser-submit.php';
 
 	final class Tf_Redirect extends Exception {}
 	final class Tf_Die extends Exception {}

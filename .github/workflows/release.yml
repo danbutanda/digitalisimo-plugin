@@ -162,6 +162,7 @@ jobs:
           php tests/elements-advanced-heading.php
           php tests/elements-external-row.php
           php tests/elements-google-reviews.php
+          php tests/elements-forms.php
           php tests/elements-notification.php
           node tests/elements-notification-events.mjs
           php tests/elements-product-grid.php
