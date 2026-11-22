@@ -79,7 +79,8 @@ class Digitalisimo_AI {
 		elseif ( 'knowledge' === $tab ) { self::knowledge_fields( $o ); }
 			elseif ( 'images' === $tab ) { self::image_fields( $o ); }
 		else { self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' ); echo '<p>Los registros contienen fecha, perfil, proveedor y resultado. No se guardan claves, prompts, respuestas, IPs ni conversaciones.</p>'; self::assistant_fields( $o ); }
-		submit_button( 'Guardar configuración' ); echo '</form></div>';
+		// El botón envía el campo que activa el guardado (sin él, «Guardar» no guardaba nada: caso real del 2026-11-22).
+		submit_button( 'Guardar configuración', 'primary', 'digitalisimo_ai_save' ); echo '</form></div>';
 	}
 
 	public static function network_page() {
@@ -132,6 +133,7 @@ class Digitalisimo_AI {
 		echo '<p>Se registra el modelo, calidad, tamaño y costo estimado en USD de cada imagen nueva. El historial conserva miniatura, artículo relacionado y total acumulado.</p><p><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai-images' ) ) . '">Abrir imágenes y costos</a></p>';
 	}
 	private static function providers( $o ) {
+		if ( is_multisite() && ! ( function_exists( 'is_network_admin' ) && is_network_admin() ) && ! empty( self::local_options()['inherit_network'] ) ) echo '<div class="notice notice-warning inline"><p><strong>Este sitio hereda la configuración de IA de la red:</strong> usa las claves de la red. Para poner claves propias, desmarca «Heredar toda la configuración de IA de la red» en General y guarda.</p></div>';
 		$names = array( 'openai' => 'OpenAI / GPT', 'anthropic' => 'Anthropic / Claude', 'google' => 'Google / Gemini', 'deepseek' => 'DeepSeek', 'xai' => 'xAI / Grok' );
 		foreach ( $names as $id => $name ) { $p = $o['providers'][ $id ] ?? array(); $has_key = ! empty( $p['key'] ); echo '<fieldset style="margin:18px 0;padding:16px;border:1px solid #ccd6e5"><legend><strong>' . esc_html( $name ) . '</strong></legend><label><input type="hidden" name="providers[' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="providers[' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label><p><input class="regular-text" type="password" name="providers[' . esc_attr( $id ) . '][key]" autocomplete="new-password" placeholder="' . esc_attr( $has_key ? '••••••••••••' : 'API Key' ) . '"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span></p><p><label>URL compatible <input class="regular-text" type="url" name="providers[' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p></fieldset>'; }
 	}
