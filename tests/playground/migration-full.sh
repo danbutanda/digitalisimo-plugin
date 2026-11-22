@@ -16,6 +16,9 @@
 #      SCENARIO=child bash tests/playground/migration-full.sh   (caso real del 2026-11-20: un hijo de Hello con PHP de
 #        wp_head y wp_footer, el tema propio 1.0.0 ya instalado desde rollback/ y DIGITALÍSIMO Tools activo; un solo
 #        Migrar actualiza el tema desde el ZIP local de esta copia, activa el functions.php del hijo en Código PHP y cambia)
+#      SCENARIO=salt bash tests/playground/migration-full.sh   (incidente de plomerito: una caché de objetos compartida
+#        con otro sitio del servidor, sin sal, que ya da su dirección; Migrar, sin Tools, pone la sal antes de nada y
+#        termina solo sin tocar lo del otro sitio; tests/playground/tools-cache-salt/)
 # Variables: OUT (resultados), PORT (9620), HELLO_ZIP (Hello 3.5.1 oficial; por defecto reference/ del repositorio
 # principal o .hello.zip en la raíz de esta copia), PLAYGROUND_CLI.
 set -euo pipefail
@@ -23,7 +26,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 . "$ROOT/tests/playground/playground-cleanup.sh"
 DIR="$ROOT/tests/playground/migration-full"
 SCENARIO="${SCENARIO:-site}"
-case "$SCENARIO" in site|network|child) ;; *) echo "SCENARIO debe ser site, network o child"; exit 1;; esac
+case "$SCENARIO" in site|network|child|salt) ;; *) echo "SCENARIO debe ser site, network, child o salt"; exit 1;; esac
 BASE_OUT="${OUT:-/tmp/digi-migration-full}/$SCENARIO"
 # Lo pequeño de la prueba va en wp-content/probe; los ZIP y el almacén de Backups, fuera de /wordpress (si no, el
 # respaldo completo los incluiría: por esa ruta Backups no reconoce su almacén).
@@ -43,6 +46,11 @@ sha256sum "$HELLO_ZIP" | grep -q '^c166fdcb091a38897f4f3339f83645e9747234fbc9615
 
 cp "$DIR/setup.php" "$DIR/mu-probe.php" "$DIR/check.php" "$OUT/"
 EXTRA_MOUNT=()
+if [ salt = "$SCENARIO" ]; then
+  mkdir -p "$BASE_OUT/cache"
+  cp "$ROOT/tests/playground/tools-cache-salt/object-cache.php" "$ROOT/tests/playground/tools-cache-salt/seed-neighbor.php" "$OUT/"
+  EXTRA_MOUNT=(--mount="$BASE_OUT/cache:/digi-cache")
+fi
 if [ child = "$SCENARIO" ]; then
   [ -f "$ROOT/rollback/digitalisimo-theme-1.0.0.zip" ] || { echo "Falta rollback/digitalisimo-theme-1.0.0.zip"; exit 1; }
   cp "$ROOT/rollback/digitalisimo-theme-1.0.0.zip" "$OUT/theme-old.zip"

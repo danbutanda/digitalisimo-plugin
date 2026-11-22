@@ -113,4 +113,9 @@ if ( 'child' === $scenario ) {
 	switch_theme( 'hello-hijo' );
 	activate_plugin( 'digitalisimo-tools/digitalisimo-tools.php' );
 }
+if ( 'salt' === $scenario ) {
+	// Incidente de plomerito: la caché de objetos compartida (drop-in de prueba) ya tiene, sin sal, las opciones de otro
+	// sitio del servidor; desde la petición siguiente este WordPress lee su dirección.
+	require $probe . '/seed-neighbor.php';
+}
 file_put_contents( $probe . '/setup.done', '1' );

@@ -7,6 +7,9 @@ require_once ABSPATH . 'wp-admin/includes/plugin.php';
 header( 'Content-Type: application/json' );
 wp_clean_plugins_cache( false );
 $network = is_multisite();
+if ( ! class_exists( 'Digitalisimo_Cache_Salt', false ) && is_file( WP_PLUGIN_DIR . '/digitalisimo-migration/includes/class-digitalisimo-cache-salt.php' ) ) {
+	require_once WP_PLUGIN_DIR . '/digitalisimo-migration/includes/class-digitalisimo-cache-salt.php';
+}
 $last    = \Digitalisimo\Migration\Full::last( $network );
 $out     = array(
 	'installed' => array_values( array_keys( get_plugins() ) ),
@@ -18,6 +21,17 @@ $out     = array(
 	'redirect'  => json_decode( (string) @file_get_contents( WP_CONTENT_DIR . '/probe/activation-redirect.json' ), true ),
 	'downloads' => is_file( WP_CONTENT_DIR . '/probe/downloads.log' ) ? array_values( array_filter( explode( "\n", (string) file_get_contents( WP_CONTENT_DIR . '/probe/downloads.log' ) ) ) ) : array(),
 	'sites'     => array(),
+	// Escenario salt: la sal en wp-config.php, la clave sin sal del otro sitio intacta y la caché global sin vaciar.
+	'salt'      => array(
+		'marks'    => substr_count( (string) file_get_contents( ABSPATH . 'wp-config.php' ), '/* DIGITALÍSIMO: sal propia de la caché de objetos */' ),
+		'defined'  => defined( 'WP_CACHE_KEY_SALT' ) ? (string) WP_CACHE_KEY_SALT : '',
+		'neighbor' => is_file( '/digi-cache/' . md5( $GLOBALS['table_prefix'] . 'options:alloptions' ) . '.txt' ) ? (string) ( unserialize( (string) file_get_contents( '/digi-cache/' . md5( $GLOBALS['table_prefix'] . 'options:alloptions' ) . '.txt' ) )['home'] ?? '' ) : '',
+		'flushed'  => is_file( '/digi-cache/GLOBAL_FLUSH' ),
+		'raw_home' => (string) ( wp_load_alloptions()['home'] ?? '' ),
+		'db_home'  => (string) $GLOBALS['wpdb']->get_var( "SELECT option_value FROM {$GLOBALS['wpdb']->options} WHERE option_name = 'home'" ),
+		'state'    => class_exists( 'Digitalisimo_Cache_Salt', false ) ? (string) ( Digitalisimo_Cache_Salt::last()['state'] ?? '' ) : 'sin clase',
+		'notes'    => is_array( $last ) ? array_values( array_filter( (array) ( $last['notes'] ?? array() ), static function ( $n ) { return false !== stripos( (string) $n, 'caché de objetos' ); } ) ) : array(),
+	),
 	// Respaldos de la migración en el historial de Backups (en una red, el del sitio principal).
 	'backups'   => count( array_filter( (array) get_option( 'digitalisimo_backups_history', array() ), static function ( $item ) {
 		return 'pre-migration' === (string) ( ( (array) $item )['policy'] ?? '' );

@@ -216,4 +216,13 @@ if (problems.length) {
 	console.log('FALLA\n  - ' + problems.join('\n  - '));
 	process.exit(1);
 }
+if (mode === 'salt') {
+	// Incidente de plomerito: la caché compartida daba la dirección de otro sitio y Migrar terminó solo.
+	const salt = result.salt || {};
+	check(salt.marks === 1 && /^[a-z0-9.-]+:[a-f0-9]{8}(\.[0-9]+)?:$/.test(salt.defined), `La sal propia quedó en wp-config.php, una vez, y en vigor (${JSON.stringify(salt)}).`);
+	check(salt.raw_home === salt.db_home && salt.db_home && salt.db_home !== 'http://otro.test', `Este sitio lee su propia dirección y su base sigue con ella (${salt.raw_home} / ${salt.db_home}).`);
+	check(salt.neighbor === 'http://otro.test' && !salt.flushed, `Lo del otro sitio en la caché compartida sigue intacto y no se vació la caché global (${salt.neighbor}, vaciada: ${salt.flushed}).`);
+	check(salt.state === 'active' || salt.state === 'written', `La sal quedó comprobada (${salt.state}).`);
+	check((salt.notes || []).some((n) => /se agregó a wp-config\.php/.test(n)), 'El informe de Migrar dice que agregó la sal: ' + JSON.stringify(salt.notes));
+}
 console.log(`ok · ${mode}`);
