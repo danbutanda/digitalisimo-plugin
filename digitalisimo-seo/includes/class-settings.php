@@ -424,6 +424,23 @@ class Digitalisimo_Integrations_Settings {
 		return 'options.php' === ( $GLOBALS['pagenow'] ?? '' ) && 'digitalisimo_integrations' === sanitize_key( wp_unslash( $_POST['option_page'] ?? '' ) ) && ! ( function_exists( 'is_network_admin' ) && is_network_admin() );
 	}
 
+	/**
+	 * Una pantalla sólo de sitio (llms.txt, Referencias, IndexNow) que guarda estas claves en el sitio las personaliza: si
+	 * siguieran heredándose, el sitio seguiría usando las de la red y lo guardado parecería no haberse aplicado.
+	 */
+	public static function personalize( array $keys ) {
+		if ( ! is_multisite() ) return;
+		$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
+		foreach ( $keys as $key ) $inherit[ $key ] = 0;
+		update_option( 'digitalisimo_seo_network_inherit', $inherit, false );
+	}
+
+	/** Valores efectivos (sitio o red) de estas claves sobre las opciones del sitio, para pintar una pantalla de sitio. */
+	public static function effective_over( array $option, array $keys ) {
+		foreach ( $keys as $key ) $option[ $key ] = self::get( $key );
+		return $option;
+	}
+
 	/** Proveedores de IA admitidos, en el orden en que se muestran. */
 	public static function ai_providers() {
 		return array( 'openai' => 'OpenAI / GPT', 'anthropic' => 'Anthropic / Claude', 'google' => 'Google / Gemini', 'deepseek' => 'DeepSeek', 'xai' => 'xAI / Grok' );
