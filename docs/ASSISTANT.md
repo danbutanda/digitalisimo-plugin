@@ -12,7 +12,7 @@ instrucción, y lo nuevo nace en borrador.
 
 ## Qué es
 
-Un menú principal **Asistente IA** (`admin.php?page=digitalisimo-assistant`, icono de destellos, posición 3) para
+Un menú principal **Asistente IA** (`admin.php?page=digitalisimo-assistant`, icono de destellos, posición 2.1: justo debajo de «Escritorio»; y el mismo acceso en la barra superior del escritorio) para
 quien tiene `edit_posts`. La pantalla es el tema mini del asistente de `@digitalisimo/ui` 0.9.5 portado a
 `wp.element`, el React que ya trae WordPress: historial por día con «Nueva conversación», búsqueda y borrar; el hilo con
 autodesplazamiento; el cuadro de escritura (Enter envía, Mayús+Enter salta de línea); la barra con el selector de IA

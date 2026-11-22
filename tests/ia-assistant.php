@@ -95,6 +95,7 @@ function rest_sanitize_boolean( $value ) { if ( is_string( $value ) ) { $value =
 function get_transient( $k ) { return $GLOBALS['transients'][ $k ] ?? false; }
 function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['transients'][ $k ] = $v; return true; }
 function esc_attr( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); }
+function is_admin() { return ! empty( $GLOBALS['is_admin'] ); }
 function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); }
 function rest_authorization_required_code() { return is_user_logged_in() ? 403 : 401; }
 function rest_ensure_response( $d ) { return $d instanceof WP_REST_Response ? $d : new WP_REST_Response( $d ); }
@@ -796,6 +797,17 @@ check( 1 === $GLOBALS['charged'] && 'unknown' === $tool['status'] && false !== s
 /* ---------------- P: la pantalla ---------------- */
 Digitalisimo_AI_Assistant::menu();
 check( array( 'title' => 'Asistente IA', 'menu' => 'Asistente IA', 'cap' => 'edit_posts', 'slug' => 'digitalisimo-assistant' ) === array_intersect_key( $GLOBALS['menus'][0], array_flip( array( 'title', 'menu', 'cap', 'slug' ) ) ) && 0 === strpos( $GLOBALS['menus'][0]['icon'], 'data:image/svg+xml;base64,' ), 'Menú principal «Asistente IA» con su icono y edit_posts' );
+check( '2.1' === $GLOBALS['menus'][0]['pos'], 'El menú «Asistente IA» va justo debajo de «Escritorio» (posición 2.1)' );
+// Barra superior del escritorio: un acceso para quien puede usar el Asistente; nada fuera del escritorio ni sin permiso.
+$ab = new class() { public $nodes = array(); public function add_node( $n ) { $this->nodes[ $n['id'] ] = $n; } };
+check( in_array( array( 'Digitalisimo_AI_Assistant', 'admin_bar' ), $GLOBALS['hooks']['admin_bar_menu'] ?? array(), true ), 'Se engancha a admin_bar_menu' );
+$GLOBALS['is_admin'] = true; Digitalisimo_AI_Assistant::admin_bar( $ab );
+check( isset( $ab->nodes['digitalisimo-assistant'] ) && 'https://sitio.test/wp-admin/admin.php?page=digitalisimo-assistant' === $ab->nodes['digitalisimo-assistant']['href'] && false !== strpos( $ab->nodes['digitalisimo-assistant']['title'], 'Asistente IA' ), 'Barra superior: «Asistente IA» lleva al Asistente' );
+$ab2 = clone $ab; $ab2->nodes = array(); $GLOBALS['is_admin'] = false; Digitalisimo_AI_Assistant::admin_bar( $ab2 );
+check( array() === $ab2->nodes, 'Fuera del escritorio, la barra no lo agrega' );
+$ab3 = clone $ab; $ab3->nodes = array(); $GLOBALS['is_admin'] = true; $prev_user = $GLOBALS['user']; $GLOBALS['user'] = 0; Digitalisimo_AI_Assistant::admin_bar( $ab3 ); $GLOBALS['user'] = $prev_user;
+check( array() === $ab3->nodes, 'Sin permiso, la barra no lo agrega' );
+
 foreach ( array( 'index.php', 'edit.php', 'post.php', 'toplevel_page_digitalisimo', 'digitalisimo_page_digitalisimo-ai' ) as $hook ) Digitalisimo_AI_Assistant::assets( $hook );
 check( array() === $GLOBALS['enqueued'], 'Fuera de su pantalla no se encola nada' );
 Digitalisimo_AI_Assistant::assets( Digitalisimo_AI_Assistant::HOOK );

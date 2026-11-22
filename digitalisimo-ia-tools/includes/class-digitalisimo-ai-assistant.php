@@ -41,6 +41,7 @@ final class Digitalisimo_AI_Assistant {
 	public static function init() {
 		add_action( 'init', array( 'Digitalisimo_AI_Assistant_History', 'register' ) );
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
+		add_action( 'admin_bar_menu', array( __CLASS__, 'admin_bar' ), 35 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
 		add_filter( 'map_meta_cap', array( 'Digitalisimo_AI_Assistant_History', 'map_meta_cap' ), 10, 4 );
@@ -54,7 +55,31 @@ final class Digitalisimo_AI_Assistant {
 	/* ------------------------------------------------------------------ */
 
 	public static function menu() {
-		add_menu_page( 'Asistente IA', 'Asistente IA', self::cap(), self::PAGE, array( __CLASS__, 'page' ), self::icon(), 3 );
+		// Justo debajo de «Escritorio» (2): la posición 2.1 no choca con plugins que usan la 3 (Jetpack y otros).
+		add_menu_page( 'Asistente IA', 'Asistente IA', self::cap(), self::PAGE, array( __CLASS__, 'page' ), self::icon(), '2.1' );
+	}
+
+	/**
+	 * Acceso rápido en la barra superior del escritorio (pedido del propietario del 2026-11-22: «agrégalo a la izquierda
+	 * y arriba en el WP back»): sólo en el escritorio de un sitio, para quien puede usar el Asistente. No carga nada más.
+	 */
+	public static function admin_bar( $bar ) {
+		if ( ! is_object( $bar ) || ! method_exists( $bar, 'add_node' ) || ! is_admin() || ( function_exists( 'is_network_admin' ) && is_network_admin() ) || ! current_user_can( self::cap() ) ) {
+			return;
+		}
+		$bar->add_node(
+			array(
+				'id'    => 'digitalisimo-assistant',
+				'title' => '<span class="ab-icon" aria-hidden="true" style="background-image:url(\'' . esc_attr( self::icon_white() ) . '\');background-repeat:no-repeat;background-position:center;background-size:18px;width:20px;"></span><span class="ab-label">Asistente IA</span>',
+				'href'  => admin_url( 'admin.php?page=' . self::PAGE ),
+				'meta'  => array( 'title' => 'Abrir el Asistente IA' ),
+			)
+		);
+	}
+
+	/** El mismo icono en blanco, para la barra superior (fondo oscuro). */
+	public static function icon_white() {
+		return 'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="#f0f0f1" d="M8.5 1.5l1.8 4.7 4.7 1.8-4.7 1.8-1.8 4.7-1.8-4.7L2 8l4.7-1.8zM15.5 11.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg>' );
 	}
 
 	/** Destellos en SVG (WordPress lo pinta con el color del menú). */
