@@ -66,7 +66,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		add_filter( 'wp_sitemaps_enabled', array( __CLASS__, 'sitemap_enabled' ), PHP_INT_MAX );
 		// La red guarda, clona y lista sus sitios aunque el sitio principal tenga el SEO propio apagado: en la administración de
 		// la red, Settings::get( 'enable_seo' ) es el valor del sitio principal, y antes dejaba la red sin quien recibiera el envío.
-		if ( is_multisite() ) { add_action( 'network_admin_edit_digitalisimo_save_network_seo', array( __CLASS__, 'save_network' ) ); add_action( 'admin_post_digitalisimo_clone_site', array( __CLASS__, 'create_clone' ) ); add_action( 'network_admin_menu', array( __CLASS__, 'clone_menu' ), 40 ); add_action( 'digitalisimo_seo_clone_site', array( __CLASS__, 'run_clone' ) ); add_filter( 'manage_sites_action_links', array( __CLASS__, 'site_clone_action' ), 20, 3 ); }
+		if ( is_multisite() ) { add_action( 'network_admin_edit_digitalisimo_seo_network_polluted', array( __CLASS__, 'network_polluted_action' ) ); add_action( 'network_admin_edit_digitalisimo_save_network_seo', array( __CLASS__, 'save_network' ) ); add_action( 'admin_post_digitalisimo_clone_site', array( __CLASS__, 'create_clone' ) ); add_action( 'network_admin_menu', array( __CLASS__, 'clone_menu' ), 40 ); add_action( 'digitalisimo_seo_clone_site', array( __CLASS__, 'run_clone' ) ); add_filter( 'manage_sites_action_links', array( __CLASS__, 'site_clone_action' ), 20, 3 ); }
 		if ( ! Digitalisimo_Integrations_Settings::get( 'enable_seo' ) ) return;
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 25 );
 		add_action( 'add_meta_boxes', array( __CLASS__, 'metaboxes' ) ); add_action( 'save_post', array( __CLASS__, 'save_post' ), 15 ); add_action( 'wp_after_insert_post', array( __CLASS__, 'ensure_post_author' ), 15, 4 ); 
@@ -163,8 +163,41 @@ class Digitalisimo_Integrations_SEO_Suite {
 		if ( ! is_multisite() || ! current_user_can( 'manage_network_options' ) || ! is_super_admin() ) return;
 		$tab = sanitize_key( $_GET['tab'] ?? 'dashboard' ); $tabs = self::navigation_items(); if ( ! isset( $tabs[ $tab ] ) ) $tab = 'dashboard';
 		echo '<div class="wrap digitalisimo-admin-shell"><h1>SEO · Digitalisimo · Red</h1><p>Estas reglas comunes se heredan en los sitios que no tengan una personalización propia. La identidad SEO e imágenes predeterminadas se configuran siempre dentro de cada sitio.</p>';
+		self::network_polluted_notice();
 		self::navigation_tabs( $tab, true ); echo '<form method="post" action="' . esc_url( network_admin_url( 'edit.php?action=digitalisimo_save_network_seo' ) ) . '">'; wp_nonce_field( 'digitalisimo_network_seo' ); echo '<input type="hidden" class="digitalisimo-active-tab" name="digitalisimo_active_tab" value="' . esc_attr( $tab ) . '">';
 		foreach ( $tabs as $slug => $name ) { echo '<div class="digitalisimo-panel" data-tab="' . esc_attr( $slug ) . '"' . ( $slug === $tab ? '' : ' hidden' ) . '><table class="form-table" role="presentation">'; self::network_site_fields( $slug ); echo '</table></div>'; } submit_button( 'Guardar configuración de red' ); echo '</form></div>';
+	}
+	const NETWORK_KEPT = 'digitalisimo_seo_network_kept';
+	/**
+	 * Valores de red editables que son idénticos a los del sitio principal y no son el predeterminado: pueden venir del
+	 * guardado antiguo que copiaba el principal a la red (Settings::clean_network_secrets()). No se borran solos: Red → SEO
+	 * los lista para quitarlos o conservarlos.
+	 */
+	public static function network_polluted_keys() {
+		$network = (array) get_site_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+		$main = (array) get_blog_option( get_main_site_id(), Digitalisimo_Integrations_Settings::OPTION, array() );
+		$defaults = Digitalisimo_Integrations_Settings::defaults(); $kept = (array) get_site_option( self::NETWORK_KEPT, array() ); $out = array();
+		foreach ( $network as $key => $value ) {
+			if ( in_array( $key, $kept, true ) || ! array_key_exists( $key, $main ) || $main[ $key ] !== $value || '' === $value || array() === $value || ( array_key_exists( $key, $defaults ) && $defaults[ $key ] == $value ) ) continue;
+			$out[] = $key;
+		}
+		return $out;
+	}
+	private static function network_polluted_notice() {
+		if ( isset( $_GET['polluted'] ) ) echo '<div class="notice notice-success inline"><p>' . ( 'removed' === sanitize_key( $_GET['polluted'] ) ? 'Se quitaron de la red: cada sitio vuelve a usar su propio valor o el predeterminado.' : 'Se conservan en la red.' ) . '</p></div>';
+		$keys = self::network_polluted_keys(); if ( ! $keys ) return;
+		echo '<div class="notice notice-warning inline"><p><strong>Valores de red iguales a los del sitio principal.</strong> Una versión anterior copiaba a la red los ajustes del sitio principal al guardar, y los sitios que heredan los usan. Revisa si deben ser de toda la red: <code>' . esc_html( implode( ', ', $keys ) ) . '</code></p><form method="post" action="' . esc_url( network_admin_url( 'edit.php?action=digitalisimo_seo_network_polluted' ) ) . '">';
+		wp_nonce_field( 'digitalisimo_seo_network_polluted' );
+		foreach ( $keys as $key ) echo '<input type="hidden" name="keys[]" value="' . esc_attr( $key ) . '">';
+		echo '<p><button class="button button-primary" name="polluted" value="remove">Quitar de la red</button> <button class="button" name="polluted" value="keep">Conservar en la red</button></p></form></div>';
+	}
+	public static function network_polluted_action() {
+		if ( ! is_multisite() || ! current_user_can( 'manage_network_options' ) || ! is_super_admin() || ! check_admin_referer( 'digitalisimo_seo_network_polluted' ) ) wp_die( 'No autorizado.' );
+		$keys = array_values( array_intersect( array_map( 'sanitize_key', (array) wp_unslash( $_POST['keys'] ?? array() ) ), self::network_polluted_keys() ) );
+		$remove = 'remove' === sanitize_key( wp_unslash( $_POST['polluted'] ?? '' ) );
+		if ( $keys && $remove ) { $network = (array) get_site_option( Digitalisimo_Integrations_Settings::OPTION, array() ); foreach ( $keys as $key ) unset( $network[ $key ] ); update_site_option( Digitalisimo_Integrations_Settings::OPTION, $network ); }
+		elseif ( $keys ) update_site_option( self::NETWORK_KEPT, array_values( array_unique( array_merge( (array) get_site_option( self::NETWORK_KEPT, array() ), $keys ) ) ) );
+		wp_safe_redirect( network_admin_url( 'admin.php?page=digitalisimo-network-seo&polluted=' . ( $remove ? 'removed' : 'kept' ) ) ); exit;
 	}
 	/** Claves y credenciales de la red: nunca se devuelven al formulario en claro. */
 	private static function secret_keys() { return array( 'openai_api_key', 'namecheap_api_key', 'ipinfo_tokens' ); }

@@ -452,19 +452,28 @@ class Digitalisimo_Integrations_Settings {
 	public static function unmask( $raw ) { return sanitize_text_field( str_replace( '•', '', (string) $raw ) ); }
 
 	/**
-	 * Una vez por red: hasta esta versión, guardar Red → SEO o SEO AI de red copiaba a la red los proveedores de IA y la
-	 * clave de OpenAI del sitio principal (sanitize() se aplicaba también a la opción de red). Se retiran de la opción de
-	 * red los que son idénticos a los del sitio principal, sin tocar las opciones de ningún sitio, y queda el registro.
+	 * Lo que la red no puede editar desde sus pantallas y nadie lee de ella: los secretos y proveedores de IA antiguos, el
+	 * interruptor del SEO propio, lo exclusivo de cada sitio (identidad, imágenes, ubicación por ID, taxonomías) y lo que
+	 * pasó a Tools o a IA Tools. Las del módulo de dominios son de Hosting, que las migra a su propia opción.
+	 */
+	public static function network_uneditable_keys() {
+		return array_values( array_unique( array_merge( Digitalisimo_Integrations_SEO_Resolver::site_only_keys(), array( 'enable_seo', 'default_content_location', 'seo_taxonomies', 'seo_local_hours', 'perf_css_defer_handles', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_hide_login_slug', 'content_editorial_voice', 'content_editorial_context', 'content_editorial_cta', 'content_editorial_method' ) ) ) );
+	}
+
+	/**
+	 * Una vez por red: hasta esta versión, todo guardado de la red se armaba sobre las opciones del sitio principal
+	 * (sanitize() se aplicaba también a la opción de red), y lo que el formulario no llevaba quedaba en la red con el
+	 * valor del principal y lo heredaban los demás sitios (con el SEO propio apagado en el principal, se apagaba en todos).
+	 * Se retira de la opción de red todo lo que la red no puede editar (network_uneditable_keys()), coincida o no con el
+	 * principal; lo editable que coincide con el principal se señala en Red → SEO (SEO_Suite::network_polluted_keys()).
+	 * No toca las opciones de ningún sitio y deja el registro.
 	 */
 	public static function clean_network_secrets() {
 		if ( ! is_multisite() || get_site_option( self::NETWORK_CLEANED ) ) return;
 		$network = get_site_option( self::OPTION, null );
 		$removed = array();
 		if ( is_array( $network ) ) {
-			$main = (array) get_blog_option( get_main_site_id(), self::OPTION, array() );
-			foreach ( array( 'openai_api_key', 'openai_model', 'ai_providers', 'ai_profile_provider', 'ai_profile_model', 'ai_profile_fallback' ) as $key ) {
-				if ( array_key_exists( $key, $network ) && array_key_exists( $key, $main ) && $network[ $key ] === $main[ $key ] ) { unset( $network[ $key ] ); $removed[] = $key; }
-			}
+			foreach ( self::network_uneditable_keys() as $key ) if ( array_key_exists( $key, $network ) ) { unset( $network[ $key ] ); $removed[] = $key; }
 			if ( $removed ) update_site_option( self::OPTION, $network );
 		}
 		update_site_option( self::NETWORK_CLEANED, array( 'time' => time(), 'removed' => $removed ) );
