@@ -5,9 +5,12 @@ defined( 'ABSPATH' ) || exit;
  * El modelo del Asistente IA (docs/ASSISTANT.md): la IA y la clave que ya configura IA Tools, con llamadas a
  * herramientas en el formato de cada proveedor (OpenAI y compatibles —DeepSeek, xAI—, Anthropic y Google).
  *
- * - Las IA que se ofrecen salen de los perfiles de uso (menos «images») cuyo proveedor está activo y tiene clave; el
- *   modelo es el del perfil, nunca uno que elija la persona. «Auto» es el primer perfil disponible en
- *   PROFILE_ORDER (el de contenido, salvo que exista uno llamado «assistant»).
+ * - Las IA que se ofrecen salen de los perfiles de uso (menos «images») cuyo proveedor está activo y tiene clave, y de
+ *   los proveedores activos con clave. «Auto» es el primer perfil disponible en PROFILE_ORDER (el de contenido, salvo
+ *   que exista uno llamado «assistant»). El MODELO del Asistente no es el del perfil: es el de «Modelo del Asistente
+ *   IA» en IA Tools → Perfiles de uso (opción `assistant_models`, por proveedor), y por defecto el más capaz con
+ *   herramientas (ASSISTANT_MODELS; Anthropic: claude-opus-5-5; decisión del propietario del 2026-11-23: «si gasta
+ *   tokens no hay problema»). «Igual que el perfil de uso» vuelve al modelo del perfil. Nunca lo elige quien chatea.
  * - La clave sólo viaja del servidor al proveedor: nada de esta clase la devuelve al navegador. De un error sólo se
  *   muestra el mensaje del proveedor (`error.message`), recortado y sin claves; con 401/403, ni eso.
  * - Si el proveedor rechaza la petición (400) por una herramienta, se quita esa herramienta y se repite (MAX_DROPS).
@@ -19,10 +22,21 @@ final class Digitalisimo_AI_Assistant_Model {
 	const NAMES         = array( 'openai' => 'OpenAI', 'anthropic' => 'Anthropic', 'google' => 'Google', 'xai' => 'xAI', 'deepseek' => 'DeepSeek' );
 	const AI_NAMES      = array( 'openai' => 'ChatGPT', 'anthropic' => 'Claude', 'google' => 'Gemini', 'xai' => 'Grok', 'deepseek' => 'DeepSeek' );
 	const OPENAI_URLS   = array( 'openai' => 'https://api.openai.com/v1/chat/completions', 'deepseek' => 'https://api.deepseek.com/v1/chat/completions', 'xai' => 'https://api.x.ai/v1/chat/completions' );
-	const MAX_TOKENS    = 8192;
+	/** Modelo por defecto del Asistente por proveedor: el más capaz con herramientas (el dueño lo puede cambiar). */
+	const ASSISTANT_MODELS = array( 'anthropic' => 'claude-opus-5-5', 'openai' => 'gpt-4.1', 'google' => 'gemini-2.5-pro', 'xai' => 'grok-4', 'deepseek' => 'deepseek-chat' );
+	/** Modelos que se sugieren en el selector (además de escribir otro). */
+	const ASSISTANT_CHOICES = array(
+		'anthropic' => array( 'claude-opus-5-5' => 'Claude Opus 5.5 · el más capaz (recomendado; cuesta el doble que Sonnet 5.5)', 'claude-sonnet-5-5' => 'Claude Sonnet 5.5 · más económico', 'claude-haiku-5-5' => 'Claude Haiku 5.5 · el más barato, menos capaz' ),
+		'openai'    => array( 'gpt-4.1' => 'GPT-4.1 · el más capaz con herramientas (recomendado)', 'gpt-4o-mini' => 'GPT-4o mini · más económico' ),
+		'google'    => array( 'gemini-2.5-pro' => 'Gemini 2.5 Pro · el más capaz (recomendado)', 'gemini-2.5-flash' => 'Gemini 2.5 Flash · más económico' ),
+		'xai'       => array( 'grok-4' => 'Grok 4 · el más capaz (recomendado)', 'grok-3-mini' => 'Grok 3 mini · más económico' ),
+		'deepseek'  => array( 'deepseek-chat' => 'DeepSeek Chat (recomendado)' ),
+	);
+	/** Con razonamiento adaptativo, 16 384 tokens dejan sitio a pensar y a una composición larga. */
+	const MAX_TOKENS    = 16384;
 	const MIN_TOKENS    = 4096;
-	/** Sin flujo, 8 192 tokens de salida a 50-80 por segundo tardan hasta unos 160 s: la espera tiene que cubrirlos. */
-	const TIMEOUT       = 180;
+	/** Sin flujo, 16 384 tokens de salida a 60-80 por segundo tardan hasta unos 270 s: la espera tiene que cubrirlos. */
+	const TIMEOUT       = 300;
 	/** Herramientas que se pueden quitar, una por reintento, cuando el proveedor rechaza la petición por una de ellas. */
 	const MAX_DROPS     = 3;
 	/** Herramientas rechazadas por cada proveedor (transient de un día): `proveedor` => `nombre|md5 del esquema` => motivo. */
@@ -47,16 +61,37 @@ final class Digitalisimo_AI_Assistant_Model {
 			if ( ! isset( self::NAMES[ $id ] ) || '' === $model || isset( $out[ $id ] ) || empty( $providers[ $id ]['enabled'] ) || empty( $providers[ $id ]['key'] ) ) {
 				continue;
 			}
-			$out[ $id ] = array( 'provider' => $id, 'model' => $model, 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => (string) $profile );
+			$out[ $id ] = array( 'provider' => $id, 'model' => self::assistant_model( $id, $model, 'assistant' === $profile, $o ), 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => (string) $profile );
 		}
 		// Un proveedor activo con clave que ningún perfil eligió también está disponible, con su modelo recomendado
 		// (si no, activar sólo Anthropic dejaba el Asistente en «No hay ninguna IA configurada»).
 		foreach ( Digitalisimo_AI::usable_providers( $o ) as $id => $model ) {
 			if ( isset( self::NAMES[ $id ] ) && ! isset( $out[ $id ] ) ) {
-				$out[ $id ] = array( 'provider' => $id, 'model' => $model, 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => '' );
+				$out[ $id ] = array( 'provider' => $id, 'model' => self::assistant_model( $id, $model, false, $o ), 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => '' );
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * El modelo del Asistente para un proveedor: lo elegido en «Modelo del Asistente IA» (`assistant_models`); vacío,
+	 * el de un perfil llamado «assistant» si lo hay, y si no el recomendado (ASSISTANT_MODELS, filtro
+	 * `digitalisimo_ai_assistant_default_model`); «profile», el del perfil de uso (`$profile_model`).
+	 */
+	public static function assistant_model( $id, $profile_model, $assistant_profile = false, $o = null ) {
+		$o      = is_array( $o ) ? $o : Digitalisimo_AI::get();
+		$chosen = trim( (string) ( ( is_array( $o['assistant_models'] ?? null ) ? $o['assistant_models'] : array() )[ $id ] ?? '' ) );
+		if ( 'profile' === $chosen ) {
+			return (string) $profile_model;
+		}
+		if ( '' !== $chosen ) {
+			return $chosen;
+		}
+		if ( $assistant_profile && '' !== trim( (string) $profile_model ) ) {
+			return (string) $profile_model;
+		}
+		$recommended = (string) apply_filters( 'digitalisimo_ai_assistant_default_model', self::ASSISTANT_MODELS[ $id ] ?? '', $id );
+		return '' !== $recommended ? $recommended : (string) $profile_model;
 	}
 
 	/** La IA para una conversación (`auto` o la clave de un proveedor), con su clave y su URL: sólo para el servidor. */
@@ -245,6 +280,11 @@ final class Digitalisimo_AI_Assistant_Model {
 		}
 		if ( 'anthropic' === $id ) {
 			$body = array( 'model' => $target['model'], 'max_tokens' => (int) ( $target['max_tokens'] ?? self::MAX_TOKENS ), 'system' => $system, 'messages' => self::anthropic_messages( $messages ) );
+			// Caché automática de la API de Anthropic: cada paso de un turno reenvía la conversación entera (la memoria
+			// completa) y sólo crece al final, así que lo ya enviado se lee de la caché. No con una URL compatible propia.
+			if ( '' === $url && (bool) apply_filters( 'digitalisimo_ai_assistant_prompt_cache', true, $target ) ) {
+				$body['cache_control'] = array( 'type' => 'ephemeral' );
+			}
 			if ( $tools ) {
 				$body['tools'] = array();
 				foreach ( $tools as $tool ) {
