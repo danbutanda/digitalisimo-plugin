@@ -33,6 +33,11 @@ final class Elementor_Adapter {
 		Id_Mapper::mark( $local_id, $item ); self::clear_cache( $local_id ); return $local_id;
 	}
 	public static function clear_cache( $post_id ) {
+		// El CSS y el HTML guardados de la copia son de la versión anterior: se borran aquí, sin el constructor (la cola
+		// corre en un sitio que puede no cargarlo, y su clear_cache() sólo actúa una vez por petición). Se regeneran en
+		// la siguiente visita a la copia.
+		delete_post_meta( $post_id, '_elementor_css' );
+		delete_post_meta( $post_id, '_elementor_element_cache' );
 		clean_post_cache( $post_id ); if ( class_exists( '\Elementor\Plugin' ) ) { $plugin = \Elementor\Plugin::$instance; if ( isset( $plugin->files_manager ) && method_exists( $plugin->files_manager, 'clear_cache' ) ) $plugin->files_manager->clear_cache(); }
 		do_action( 'digitalisimo_tools_elementor_template_synced', $post_id );
 	}
