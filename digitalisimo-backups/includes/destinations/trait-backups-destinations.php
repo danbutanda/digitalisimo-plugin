@@ -475,14 +475,14 @@ trait Digitalisimo_Backups_Destinations_Screen {
 				echo '<label><input type="checkbox" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '" value="1"' . checked( '1', $value, false ) . '> ' . esc_html( (string) ( $spec['text'] ?? $label ) ) . '</label>';
 				break;
 			case 'textarea':
-				echo '<textarea class="large-text code" rows="4" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="off" spellcheck="false"' : '' ) . '>' . esc_html( $value ) . '</textarea>';
+				echo '<textarea class="large-text code" rows="4" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="off" spellcheck="false" onfocus="this.select()"' : '' ) . '>' . esc_html( $value ) . '</textarea>';
 				break;
 			default:
 				$input = 'password' === $type ? 'password' : ( 'number' === $type ? 'number' : 'text' );
 				$extra = 'number' === $type ? ' min="' . (int) ( $spec['min'] ?? 0 ) . '" max="' . (int) ( $spec['max'] ?? 65535 ) . '"' : '';
 				if ( ! empty( $spec['pattern'] ) ) $extra .= ' pattern="' . esc_attr( $spec['pattern'] ) . '"';
 				if ( ! empty( $spec['readonly'] ) ) $extra .= ' readonly';
-				echo '<input class="regular-text" type="' . esc_attr( $input ) . '" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '" value="' . esc_attr( $value ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="new-password"' : '' ) . $extra . '>';
+				echo '<input class="regular-text" type="' . esc_attr( $input ) . '" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '" value="' . esc_attr( $value ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="new-password" onfocus="this.select()"' : '' ) . $extra . '>';
 		}
 		if ( $saved ) echo ' <span class="description digitalisimo-backups-saved">Guardada · escribe una nueva sólo si quieres reemplazarla</span>';
 		if ( ! empty( $spec['help'] ) ) echo self::help_html( (string) $spec['help'] );
@@ -688,9 +688,13 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$result = self::service_test_destination( $id );
 		return $result['ok'] ? $result : self::service_error( 'destination_test', $result['message'], 502 );
 	}
-	/** Un campo que llega con la máscara exacta no se escribió: vacío, que conserva el secreto guardado. */
+	/**
+	 * Lo escrito en los campos secretos, sin la máscara: un secreto real nunca lleva «•», así que se quitan todos (quien
+	 * hace clic en el campo y pega el nuevo lo deja pegado a la máscara). Lo que queda vacío conserva el secreto guardado.
+	 * El mismo patrón que IA::unmask() de IA Tools.
+	 */
 	private static function unmask( array $input ) {
-		foreach ( $input as $key => $value ) if ( self::MASK === $value ) $input[ $key ] = '';
+		foreach ( self::secret_fields() as $key ) if ( isset( $input[ $key ] ) && is_string( $input[ $key ] ) ) $input[ $key ] = str_replace( '•', '', $input[ $key ] );
 		return $input;
 	}
 	/** Lo enviado por el formulario para la conexión que se prueba (principal o adicional). */

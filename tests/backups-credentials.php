@@ -193,7 +193,7 @@ $case( 'i', function() use ( $B, $C, $check, $leak, $settings ) {
 	$check( null === $leak( $html ), 'La pantalla de Servidores muestra un secreto.' );
 	// Cada uno de los cinco secretos guardados: campo de contraseña con la máscara •••• y «Guardada» (desde la
 	// entrega de destinos la pantalla tiene más campos de contraseña, de los demás destinos, que van vacíos y sin él).
-	$announced = preg_match_all( '#<input class="regular-text" type="password" id="(sftp_password|google_client_secret|google_refresh_token|onedrive_client_secret|onedrive_refresh_token)" name="digitalisimo_backups\[\1\]" value="••••••••••••" placeholder="Guardado · escribe sólo para reemplazar" autocomplete="new-password"> <span class="description digitalisimo-backups-saved">Guardada#', $html );
+	$announced = preg_match_all( '#<input class="regular-text" type="password" id="(sftp_password|google_client_secret|google_refresh_token|onedrive_client_secret|onedrive_refresh_token)" name="digitalisimo_backups\[\1\]" value="••••••••••••" placeholder="Guardado · escribe sólo para reemplazar" autocomplete="new-password" onfocus="this.select\(\)"> <span class="description digitalisimo-backups-saved">Guardada#', $html );
 	$check( 5 === substr_count( $html, 'placeholder="Guardado · escribe sólo para reemplazar"' ) && 5 === $announced, 'La pantalla no anuncia los cinco secretos guardados con la máscara.' );
 	$status = $B::service_status();
 	$json = json_encode( $status );
