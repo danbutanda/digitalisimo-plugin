@@ -154,6 +154,61 @@ reconstrucción.
   anidado con `}`). El texto lo pinta el renderizador del núcleo y no tiene filtro: quitarlo exigiría reescribir los
   archivos generados, así que se deja.
 
+## Ajustes del documento (`Settings_Merge`)
+
+Incidente: `elementor/update-page-settings` con sólo `{"custom_css": "…"}` sobre el kit global dejó el kit sin colores,
+tipografías, `__globals__`, estilos de botones y formularios, y `Kit::save()` regeneró el CSS sin las variables
+`--e-global-*`: el sitio entero perdió su diseño. **Causa** (núcleo 4.3.5): `Update_Settings_Ability::execute()` pasa lo
+recibido a `Document::save( [ 'settings' => … ] )` y `Page\Manager::save_settings_to_db()` lo guarda tal cual en
+`_elementor_page_settings` (reemplazo), aunque su esquema diga «merged into existing settings»; además
+`Settings_Layout::before_save()` recalcula los puntos de corte viejos (`viewport_md`, `viewport_lg`) de lo recibido.
+
+**Arreglo** (`modules/digitalisimo-mcp/class-settings-merge.php`, sin tocar `elementor/`): el `execute_callback` de la
+herramienta se envuelve con `wp_register_ability_args`, como `Preview_Link`, y antes de llamar al núcleo combina lo
+recibido sobre la meta guardada (sin valores por defecto de los controles): cada clave recibida reemplaza a la guardada,
+`null` la borra y `__globals__` se combina un nivel adentro (un global con `null` se desvincula). Se eligió combinar la
+entrada, y no un filtro de `elementor/document/save/data`, porque así todo el guardado del núcleo ve el documento
+completo, como cuando guarda el editor (que siempre manda todos los ajustes): las pestañas del kit (`before_save`
+corre antes de ese filtro y recalcularía los puntos de corte con datos parciales), kses, el CSS del kit y `after_save`.
+Si se borra la última clave, se borra la meta (el núcleo no guarda unos ajustes vacíos).
+
+- **Opciones de fuera.** Las pestañas del kit con `on_save` (identidad del sitio: `blogname`, `blogdescription`,
+  `site_icon`, el mod `custom_logo`; WooCommerce: las seis páginas) sólo corren si la petición trae
+  `post_status: publish`, y entonces leerían los valores guardados en el kit. Durante la herramienta,
+  `pre_update_option_<opción>` y `pre_set_theme_mod_custom_logo` conservan esas opciones salvo que su clave venga en la
+  petición. Sin `post_status: publish`, una de esas claves sólo cambia el ajuste del kit (como en el núcleo); la
+  descripción de la herramienta lo dice.
+- **Respuesta.** `changed_keys` y `removed_keys` (diferencia real de la meta antes y después; un global como
+  `__globals__.<clave>`) y `post_fields` (claves que van a la entrada: título, estado, plantilla…). La descripción y el
+  esquema de la herramienta dicen cómo se combina y cómo se borra. `settings: {}` no guarda nada.
+- **Autoguardados.** Al guardar los ajustes de una publicada, el núcleo borra su autoguardado más reciente, de
+  cualquier usuario (`Page\Manager::ajax_before_save_settings()`), y en el MCP ese autoguardado guarda los cambios
+  pendientes de `build-composition` y `manage-elements`: se perdían sin aviso. Durante la herramienta, `pre_delete_post`
+  no deja borrar ningún autoguardado del documento, y cada uno recibe las claves pedidas y las que cambiaron, con su
+  valor final, porque `publish-document` lo promueve entero (`Revisions_Manager::restore_revision()` copia todas las
+  metas `_elementor*`) y desharía la actualización. Como el guardado actualiza la fecha de la entrada, cada autoguardado
+  conservado pasa a ser un segundo más nuevo que ella: si no, el editor (`Document::get_newer_autosave()`) y la
+  publicación de componentes dejarían de verlo como cambios pendientes.
+- **kses.** Para quien no tiene `unfiltered_html` (en una red, el administrador de cada sitio), `Document::save()` pasa
+  kses por todos los ajustes. Una clave que no vino y que sólo cambió por kses (`.a > .b` → `.a &gt; .b` en el CSS del
+  kit) vuelve a su valor guardado: la escribió alguien con permiso y esta petición no la tocó.
+- **Otras herramientas.** Auditadas: `build-composition`, `manage-elements` (guardan sólo `elements`; el autoguardado
+  se crea copiando todas las metas), `manage-default-styles` (una entrada por etiqueta, combinada por punto de corte),
+  `manage-global-variable` (lee y guarda la colección completa), `manage-site-parts` (reemplaza las condiciones sólo si
+  vienen, como dice su esquema), `publish-document` (arriba) y las `digitalisimo-*` (`sales/create-page` crea una
+  página nueva; las de WooCommerce no guardan documentos). `manage-component` sí guardaba objetos parciales: al
+  actualizar manda `settings` con sólo `overridable_props`, y al publicar sólo el estado y el título, y el núcleo
+  borraba los demás ajustes del componente. Dentro de cualquier herramienta `elementor/…` o `digitalisimo-…` (también
+  por el proxy del editor, `/elementor/v1/mcp-proxy`, que llama sin el `execute_callback` registrado: su ámbito queda
+  ligado a esa petición y lo cierra la siguiente petición REST aunque un `\Error` impida `after_callbacks`; salvo
+  `update-page-settings`, ya combinada), `elementor/document/save/data` (prioridad mínima) combina unos `settings`
+  parciales sobre los guardados del documento que se guarda, sin borrar nada. En las dos combinaciones,
+  `overridable_props` y `variants` guardados no se vuelven a mandar si no vienen: son la copia vieja de las metas propias
+  del componente, y el `after_save` del núcleo las reescribiría con ella (al publicar, las props del borrador volverían
+  a las de antes); al dejar de guardarse esas copias no se informan como borradas. Fuera del MCP, `Document::save()` sigue igual.
+- **Límite.** Un valor que no es `__globals__` (una tipografía, una imagen, la lista `system_colors`) se reemplaza
+  entero: para cambiar un color del kit hay que mandar la lista completa.
+
 ## Pruebas
 
 - `tests/elements-mcp-css.php` (en `validate.yml` y `release.yml`; PHP 7.4, 8.2 y 8.5): ámbito de las herramientas
@@ -164,7 +219,17 @@ reconstrucción.
   hojas del núcleo, las metas `_elementor_*` de la publicada que no se escriben y su CSS de página en línea, la lista de
   componentes (`Cache_Validity` del núcleo), las claves frente a las constantes del núcleo y las listas de familias con
   el transformador real del núcleo. Falla con el código anterior (no existe el módulo).
-- `tests/validate-suite.mjs` exige los cinco archivos de `modules/digitalisimo-mcp/` en el ZIP de Elements.
+- `tests/elements-mcp-settings.php` (en `validate.yml` y `release.yml`): la herramienta real del núcleo registrada con la
+  Abilities API y el guardado del núcleo en dobles comprobados contra su código: kit completo y sólo `custom_css` (el
+  kit y sus variables `--e-global-*` quedan), un global, una página, borrar con `null`, opciones de WordPress y
+  WooCommerce con `post_status: publish`, autoguardados que el núcleo borraría, kses sin `unfiltered_html`,
+  `settings: {}`, `manage-component` (actualizar y publicar, también por el proxy), errores y descripción. Falla con el
+  código anterior (29 comprobaciones).
+- `tests/playground/elements-mcp-settings.sh` (manual, en la PC): lo mismo por JSON-RPC real contra
+  `/wp-json/elementor/mcp` con WooCommerce 11.2.1, leyendo la meta directo de la base y el CSS que carga la página, y
+  una publicada con un cambio pendiente de `build-composition` que `update-page-settings` no borra y
+  `publish-document` publica.
+- `tests/validate-suite.mjs` exige los archivos de `modules/digitalisimo-mcp/` en el ZIP de Elements.
 - `tests/playground/elements-mcp-css.sh` (manual, en la PC): Playground con WordPress 7.1, una contraseña de aplicación
   y JSON-RPC real contra `/wp-json/elementor/mcp`, en PHP 7.4, 8.2 y 8.5. Tras cada escritura abre el borrador como su
   administradora, un enlace firmado nuevo como visitante y la página publicada, y comprueba que cada clase `e-…` y global
