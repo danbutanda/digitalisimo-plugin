@@ -1,8 +1,8 @@
 // Recorrido de ms-forms.sh con Chrome sin interfaz (puppeteer-core de PUPPETEER_PATH): en una red real de Playground,
 // guarda cada formulario como un usuario (escribir, pulsar «Guardar»), recarga y comprueba que quedó, en la red, en el
 // sitio principal y en un subsitio:
-//   Hosting   la red guarda; el subsitio que nunca guardó usa la red («Heredar» marcada); un cambio mientras hereda avisa
-//             y no se usa; al desmarcar «Heredar» conserva los valores y la clave de la red, y consulta dominios con ella;
+//   Hosting   la red guarda sólo la cuenta de Namecheap; el subsitio que nunca guardó no hereda y dice cómo; con
+//             «Heredar» consulta con la cuenta de la red sin ver sus datos; al dejar de heredar no recibe su clave;
 //   Backups   «Avisos» guardado en la red se ve en el sitio principal y al revés; «Migrar desde otro sitio» ofrece
 //             «Importar en la red» en las dos; el subsitio sólo enlaza a la red;
 //   Migración la red tiene «Migrar toda la red»; el subsitio sin DIGITALÍSIMO Elements dice por qué no hay botón.
@@ -69,35 +69,36 @@ try {
   // ── Hosting ─────────────────────────────────────────────────────────────────────────────────────────────────────
   const hostingNet = '/wp-admin/network/admin.php?page=digitalisimo-network-hosting';
   const hostingSub = '/uno/wp-admin/admin.php?page=digitalisimo-hosting';
+  const domain = () => page.goto(`${base}/uno/?rest_route=/digitalisimo-hosting/v1/check-domain&domain=prueba.com`, { waitUntil: 'load' }).then((r) => r.text());
   check(200 === await open(hostingNet), 'Hosting de red abre');
-  check(null === await isChecked('input[type=checkbox][name="hosting[inherit_network]"]'), 'Hosting de red: sin la casilla «Heredar»');
+  check(null === await isChecked('input[type=checkbox][name="hosting[inherit_network]"]') && !(await page.$('textarea[name="hosting[hosting_product_ids]"]')), 'Hosting de red: sólo la cuenta de Namecheap, sin «Heredar» ni datos de tienda');
   await fill('input[name="hosting[api_user]"]', 'api-red');
   await fill('input[name="hosting[username]"]', 'cuenta-red');
   await fill('input[name="hosting[api_key]"]', 'CLAVE-RED-PG');
   await fill('input[name="hosting[client_ip]"]', '198.51.100.4');
-  await page.$eval('textarea[name="hosting[domain_products]"]', (el) => { el.value = '.com|10\n.mx|11'; });
   await press('input[name="digitalisimo_hosting_network_save"]');
   check((await text()).includes('Configuración de red guardada.'), 'Hosting de red: «guardada»');
   await open(hostingNet);
-  check('api-red' === await value('input[name="hosting[api_user]"]') && (await text()).includes('Guardada · escribe una nueva'), 'Hosting de red: tras recargar, el usuario y la clave siguen');
-  check('.com|10\n.mx|11' === (await value('textarea[name="hosting[domain_products]"]') || '').replace(/\r/g, ''), 'Hosting de red: tras recargar, los productos siguen');
+  check('api-red' === await value('input[name="hosting[api_user]"]') && '••••••••••••' === await value('input[name="hosting[api_key]"]') && !(await page.content()).includes('CLAVE-RED-PG'), 'Hosting de red: tras recargar, el usuario sigue y la clave se ve como •••• sin imprimirse');
 
   check(200 === await open(hostingSub), 'Hosting del subsitio abre');
-  check(true === await isChecked('input[type=checkbox][name="hosting[inherit_network]"]') && 'api-red' === await value('input[name="hosting[api_user]"]'), 'Hosting del subsitio que nunca guardó: hereda la red y muestra sus valores');
-  let rest = await page.goto(`${base}/uno/?rest_route=/digitalisimo-hosting/v1/check-domain&domain=prueba.com`, { waitUntil: 'load' }).then((r) => r.text());
-  check(/"available":true/.test(rest), `el subsitio consulta dominios con la clave de la red (${rest.slice(0, 120)})`);
+  check(false === await isChecked('input[type=checkbox][name="hosting[inherit_network]"]') && (await text()).includes('La red tiene una cuenta de Namecheap configurada'), 'Hosting del subsitio que nunca guardó: no hereda y dice cómo usar la cuenta de la red');
+  let rest = await domain();
+  check(!/"available":true/.test(rest), `el subsitio sin «Heredar» no consulta con la cuenta de la red (${rest.slice(0, 80)})`);
   await open(hostingSub);
-  await fill('input[name="hosting[api_user]"]', 'api-propio');
-  await press('input[name="digitalisimo_hosting_save"]');
-  check((await text()).includes('no se usan tus cambios en Usuario API Namecheap'), 'Hosting del subsitio: un cambio mientras hereda avisa que no se usa');
-  await open(hostingSub);
-  check('api-red' === await value('input[name="hosting[api_user]"]'), 'Hosting del subsitio: mientras hereda, manda la red');
   await page.click('input[type=checkbox][name="hosting[inherit_network]"]');
   await press('input[name="digitalisimo_hosting_save"]');
   await open(hostingSub);
-  check(false === await isChecked('input[type=checkbox][name="hosting[inherit_network]"]') && 'api-red' === await value('input[name="hosting[api_user]"]') && (await text()).includes('Guardada · escribe una nueva') && (await text()).includes('Valor efectivo: Este sitio'), 'Hosting del subsitio: al dejar de heredar conserva los valores y la clave que veía');
-  rest = await page.goto(`${base}/uno/?rest_route=/digitalisimo-hosting/v1/check-domain&domain=prueba.com`, { waitUntil: 'load' }).then((r) => r.text());
-  check(/"available":true/.test(rest), `tras dejar de heredar, el subsitio sigue consultando dominios con la clave que veía (${rest.slice(0, 120)})`);
+  check(true === await isChecked('input[type=checkbox][name="hosting[inherit_network]"]') && !(await page.$('input[name="hosting[api_user]"]')) && (await text()).includes('Usa la cuenta de Namecheap de la red') && !(await page.content()).includes('api-red'), 'Hosting del subsitio con «Heredar»: usa la cuenta de la red sin ver sus datos');
+  rest = await domain();
+  check(/"available":true/.test(rest), `con «Heredar», el subsitio consulta dominios con la clave de la red (${rest.slice(0, 80)})`);
+  await open(hostingSub);
+  await page.click('input[type=checkbox][name="hosting[inherit_network]"]');
+  await press('input[name="digitalisimo_hosting_save"]');
+  await open(hostingSub);
+  check(false === await isChecked('input[type=checkbox][name="hosting[inherit_network]"]') && '' === await value('input[name="hosting[api_key]"]'), 'Hosting del subsitio: al dejar de heredar no recibe la clave de la red');
+  rest = await domain();
+  check(!/"available":true/.test(rest), `tras dejar de heredar, el subsitio sin cuenta propia no consulta con la de la red (${rest.slice(0, 80)})`);
   await open(hostingSub);
   await fill('input[name="hosting[api_user]"]', 'api-propio');
   await press('input[name="digitalisimo_hosting_save"]');
