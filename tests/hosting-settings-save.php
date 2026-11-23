@@ -12,7 +12,9 @@
 //   4. con «Heredar», el sitio consulta con la cuenta de la red (sin ver sus datos) y su límite de consultas es de toda
 //      la red; sus productos, categorías y checkout siguen siendo los suyos;
 //   5. al dejar de heredar, el sitio recupera su propia clave (que se conservó) y nunca recibe la de la red; uno sin
-//      clave propia se queda sin clave.
+//      clave propia se queda sin clave;
+//   6. un sitio que ya heredaba la red (y con ella su tienda) ve una vez en el escritorio que ahora usa su propia
+//      configuración de tienda, con el enlace a revisarla; abrir la pantalla Hosting lo retira.
 error_reporting( E_ALL );
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'MINUTE_IN_SECONDS', 60 );
@@ -51,6 +53,8 @@ function set_transient( $k, $v, $t ) { $GLOBALS['transients'][ $k ] = $v; return
 function get_site_transient( $k ) { return $GLOBALS['site_transients'][ $k ] ?? false; }
 function set_site_transient( $k, $v, $t ) { $GLOBALS['site_transients'][ $k ] = $v; return true; }
 function wp_salt( $s ) { return 'sal'; }
+function admin_url( $p = '' ) { return 'https://sitio.test/wp-admin/' . $p; }
+function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); }
 function add_query_arg( $args, $url ) { return $url . '?' . http_build_query( $args ); }
 function rest_ensure_response( $r ) { return $r; }
 class WP_Error { public $code; public function __construct( $code = '', $message = '', $data = null ) { $this->code = $code; } }
@@ -176,5 +180,21 @@ hosting_submit( false, array( 'hosting[inherit_network]' => '1' ) );
 check( 'CLAVE-RED-456' === hosting_effective()['api_key'], 'Un sitio sin cuenta propia hereda la de la red al marcar la casilla' );
 hosting_submit( false, array( 'hosting[inherit_network]' => null ) );
 check( '' === hosting_effective()['api_key'] && false === strpos( serialize( $GLOBALS['options'] ), 'CLAVE-RED-456' ), 'Sin cuenta propia, dejar de heredar deja el sitio sin clave, no con la de la red' );
+
+// 6. Un sitio que heredaba la red entera (antes de esta versión) ve el aviso en el escritorio hasta abrir Hosting.
+function hosting_notice() { ob_start(); Digitalisimo_Hosting::store_notice(); return ob_get_clean(); }
+$GLOBALS['pagenow'] = 'index.php';
+$GLOBALS['options'] = array( 'digitalisimo_hosting_options' => array( 'inherit_network' => 1, 'domain_products' => '.com|1' ) );
+$html = hosting_notice();
+check( false !== strpos( $html, 'ya no usa la configuración de tienda de la red' ) && false !== strpos( $html, 'href="https://sitio.test/wp-admin/admin.php?page=digitalisimo-hosting"' ), 'Un sitio que heredaba la tienda de la red ve el aviso con el enlace a revisarla' );
+$GLOBALS['pagenow'] = 'edit.php';
+check( '' === hosting_notice(), 'El aviso sólo sale en el escritorio' );
+$GLOBALS['pagenow'] = 'index.php';
+ob_start(); Digitalisimo_Hosting::page(); ob_end_clean();
+check( '' === hosting_notice(), 'Abrir la pantalla Hosting retira el aviso' );
+$GLOBALS['options'] = array( 'digitalisimo_hosting_options' => array( 'inherit_network' => 0, 'domain_products' => '.com|1' ) );
+check( '' === hosting_notice(), 'Un sitio que no heredaba no ve el aviso' );
+$GLOBALS['options'] = array( 'digitalisimo_hosting_options' => array( 'inherit_network' => 1 ) + $GLOBALS['site_options']['digitalisimo_hosting_options'] );
+check( '' === hosting_notice(), 'Un sitio cuya tienda es igual a la de la red no ve el aviso' );
 
 echo "Hosting, guardar ajustes en sitio, subsitio y red: $checks comprobaciones correctas.\n";
