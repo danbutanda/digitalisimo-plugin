@@ -24,6 +24,7 @@ class Digitalisimo_Hosting {
 		// Compatibilidad con páginas creadas cuando este flujo pertenecía a Ecommerce.
 		add_shortcode( 'digitalisimo_domain_search', array( __CLASS__, 'legacy_shortcode' ) );
 		add_action( 'init', array( __CLASS__, 'cart_compatibility' ), 20 );
+		add_action( 'admin_notices', array( __CLASS__, 'store_notice' ) );
 	}
 
 	private static function defaults() {
@@ -56,6 +57,26 @@ class Digitalisimo_Hosting {
 	const NETWORK_KEYS = array( 'api_user', 'username', 'api_key', 'client_ip' );
 	/** ¿Este sitio usa la cuenta de Namecheap de la red? Sólo si su administrador marcó «Heredar» (opcional). */
 	private static function inherits() { return is_multisite() && ! empty( self::local()['inherit_network'] ); }
+	/** Aviso único: el sitio heredaba la red y ya no hereda su tienda (lo marca la visita a la pantalla Hosting). */
+	const STORE_NOTICE = 'digitalisimo_hosting_store_notice_seen';
+	/** Lo de la tienda que la red define distinto del sitio: lo que un sitio con «Heredar» usaba hasta esta versión. */
+	private static function store_changed() {
+		if ( ! self::inherits() ) return false;
+		$n = self::network(); $o = wp_parse_args( self::local(), self::defaults() );
+		foreach ( array_diff( array_keys( self::defaults() ), self::NETWORK_KEYS, array( 'inherit_network' ) ) as $key ) {
+			if ( array_key_exists( $key, $n ) && preg_replace( '/\r\n?/', "\n", (string) $n[ $key ] ) !== preg_replace( '/\r\n?/', "\n", (string) $o[ $key ] ) ) return true;
+		}
+		return false;
+	}
+	/**
+	 * En el escritorio de un sitio que heredaba la red: desde ahora sólo hereda la cuenta de Namecheap, y su tienda
+	 * (productos por extensión, IDs, checkout) es la suya, que puede ser distinta de la que usaba. Una vez, hasta que
+	 * se abre la pantalla Hosting.
+	 */
+	public static function store_notice() {
+		if ( ! is_multisite() || 'index.php' !== ( $GLOBALS['pagenow'] ?? '' ) || ! current_user_can( 'manage_options' ) || get_option( self::STORE_NOTICE ) || ! self::store_changed() ) return;
+		echo '<div class="notice notice-warning"><p><strong>DIGITALÍSIMO Hosting:</strong> este sitio ya no usa la configuración de tienda de la red (productos por extensión, IDs de productos y categorías, opciones del checkout); de la red sólo hereda la cuenta de Namecheap. <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-hosting' ) ) . '">Revisa la configuración de Hosting de este sitio</a>.</p></div>';
+	}
 	/** ¿La red tiene una cuenta de Namecheap guardada? */
 	private static function network_account() { $n = self::network(); return '' !== (string) ( $n['api_user'] ?? '' ) || '' !== (string) ( $n['api_key'] ?? '' ); }
 	/** Lo que usa el sitio: lo suyo y, si hereda, la cuenta de Namecheap de la red en lugar de la suya (que se conserva). */
@@ -141,6 +162,7 @@ class Digitalisimo_Hosting {
 
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) ) return;
+		if ( is_multisite() && ! get_option( self::STORE_NOTICE ) && self::store_changed() ) update_option( self::STORE_NOTICE, 1, false );
 		$saved = isset( $_POST['digitalisimo_hosting_save'] ) && check_admin_referer( 'digitalisimo_hosting_save' );
 		if ( $saved ) self::save( false );
 		self::form( false, $saved );

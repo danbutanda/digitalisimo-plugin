@@ -167,6 +167,9 @@ try {
 			// Pegada detrás de la máscara (clic en el campo y pegar): se guarda sin los «•».
 			list( $ok ) = bk_post( array( $B, 'save' ), nf_submit( nf_form( nf_render( 'servers', $network, array( 'edit' => 'sftp' ) ), $B::ACTION_SAVE ), array( 'digitalisimo_backups' => array( 'sftp_password' => $B::MASK . 'Pegada-' . $surface ) ) ) );
 			nf_check( $ok && 'Pegada-' . $surface === bk_call( $B, 'settings' )['sftp_password'], 'Una contraseña pegada detrás de la máscara se guardó con los «•»: ' . json_encode( bk_call( $B, 'settings' )['sftp_password'] ) );
+			// Una contraseña que elige el usuario puede llevar «•»: sólo se quita la máscara exacta.
+			list( $ok ) = bk_post( array( $B, 'save' ), nf_submit( nf_form( nf_render( 'servers', $network, array( 'edit' => 'sftp' ) ), $B::ACTION_SAVE ), array( 'digitalisimo_backups' => array( 'sftp_password' => 'Clave•con•puntos-' . $surface ) ) ) );
+			nf_check( $ok && 'Clave•con•puntos-' . $surface === bk_call( $B, 'settings' )['sftp_password'], 'Una contraseña con «•» elegida por el usuario se guardó cambiada: ' . json_encode( bk_call( $B, 'settings' )['sftp_password'] ) );
 			list( $ok ) = bk_post( array( $B, 'save' ), nf_submit( nf_form( nf_render( 'servers', $network, array( 'edit' => 'sftp' ) ), $B::ACTION_SAVE ), array( 'digitalisimo_backups' => array( 'sftp_password' => 'Secreto-Del-Destino' ) ) ) );
 			// «Migrar»: el laboratorio (HTTP y direcciones internas), marcado y desmarcado.
 			$migrate = nf_render( 'tools', $network, array( 'open' => 'migrate' ) );

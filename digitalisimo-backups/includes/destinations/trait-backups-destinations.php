@@ -689,12 +689,17 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		return $result['ok'] ? $result : self::service_error( 'destination_test', $result['message'], 502 );
 	}
 	/**
-	 * Lo escrito en los campos secretos, sin la máscara: un secreto real nunca lleva «•», así que se quitan todos (quien
-	 * hace clic en el campo y pega el nuevo lo deja pegado a la máscara). Lo que queda vacío conserva el secreto guardado.
+	 * Lo escrito en los campos secretos, sin la máscara: una clave de API o un token nunca llevan «•», así que se quitan
+	 * todos (quien hace clic en el campo y pega el nuevo lo deja pegado a la máscara); de una contraseña elegida por el
+	 * usuario, sólo la máscara exacta. Lo que queda vacío conserva el secreto guardado.
 	 * El mismo patrón que IA::unmask() de IA Tools.
 	 */
 	private static function unmask( array $input ) {
-		foreach ( self::secret_fields() as $key ) if ( isset( $input[ $key ] ) && is_string( $input[ $key ] ) ) $input[ $key ] = str_replace( '•', '', $input[ $key ] );
+		foreach ( self::secret_fields() as $key ) {
+			if ( ! isset( $input[ $key ] ) || ! is_string( $input[ $key ] ) ) continue;
+			// Una contraseña que elige el usuario sí puede llevar «•»: de ésas sólo se quita la máscara exacta.
+			$input[ $key ] = in_array( $key, self::USER_PASSWORDS, true ) ? str_replace( self::MASK, '', $input[ $key ] ) : str_replace( '•', '', $input[ $key ] );
+		}
 		return $input;
 	}
 	/** Lo enviado por el formulario para la conexión que se prueba (principal o adicional). */
