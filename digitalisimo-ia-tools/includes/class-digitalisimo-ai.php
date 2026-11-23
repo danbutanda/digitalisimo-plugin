@@ -67,39 +67,54 @@ class Digitalisimo_AI {
 
 	public static function menu() { add_submenu_page( null, 'DIGITALÍSIMO IA Tools', 'IA Tools', 'manage_options', 'digitalisimo-ai', array( __CLASS__, 'page' ) ); }
 
-	public static function page() {
-		if ( ! current_user_can( 'manage_options' ) ) return;
-		$saved = isset( $_POST['digitalisimo_ai_save'] ) && check_admin_referer( 'digitalisimo_ai_save' );
-		if ( $saved ) self::save_site();
-		$tab = sanitize_key( $_GET['tab'] ?? 'general' );
+	public static function page() { self::render( false ); }
+	public static function network_page() { self::render( true ); }
+
+	/**
+	 * Un solo dibujante para el sitio y la red (paridad del 2026-11-22: eran dos pantallas escritas por separado y ya
+	 * divergían; la del sitio no guardaba y la de red mostraba la redacción editorial del sitio principal). Cambian sólo el
+	 * almacén (opción del sitio u opción de red), la capacidad, el nonce y lo que es propio de cada sitio (herencia, índice
+	 * de conocimiento e historial de imágenes). Un sitio que hereda la red ve los valores de la red sin poder editarlos:
+	 * antes podía escribirlos, se guardaban en el sitio y la pantalla volvía a mostrar los de la red, como si se borraran.
+	 */
+	private static function render( $network ) {
+		if ( $network ? ( ! is_multisite() || ! current_user_can( 'manage_network_options' ) || ! is_super_admin() ) : ! current_user_can( 'manage_options' ) ) return;
+		$action = $network ? 'digitalisimo_ai_network_save' : 'digitalisimo_ai_save';
+		$saved = isset( $_POST[ $action ] ) && check_admin_referer( $action );
+		if ( $saved ) { if ( $network ) self::save_network(); else self::save_site(); }
 		$tabs = array( 'general' => 'General', 'providers' => 'Proveedores', 'profiles' => 'Perfiles de uso', 'writing' => 'Redacción', 'chat' => 'Chatbot', 'knowledge' => 'Conocimiento del sitio', 'images' => 'Imágenes', 'advanced' => 'Avanzado' );
-		$o = self::get();
-		echo '<div class="wrap"><h1>DIGITALÍSIMO IA Tools</h1><p>Herramientas de IA compartidas para chatbot, contenido, SEO, ecommerce, conocimiento e imágenes. Generan bajo demanda y nunca publican ni modifican contenido automáticamente.</p>';
-		if ( $saved ) echo '<div class="notice notice-success is-dismissible"><p>Configuración guardada.</p></div>';
-		if ( is_multisite() ) echo '<div class="notice notice-info inline"><p><strong>Valor efectivo:</strong> ' . esc_html( self::origin() ) . '. Puedes elegir heredar los ajustes completos de la red o usar los de este sitio.</p></div>';
-		echo '<h2 class="nav-tab-wrapper">'; foreach ( $tabs as $id => $name ) echo '<a class="nav-tab ' . ( $id === $tab ? 'nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai&tab=' . $id ) ) . '">' . esc_html( $name ) . '</a>'; echo '</h2><form method="post">'; wp_nonce_field( 'digitalisimo_ai_save' );
+		$tab = sanitize_key( $_GET['tab'] ?? 'general' ); if ( ! isset( $tabs[ $tab ] ) ) $tab = 'general';
+		$inherits = ! $network && is_multisite() && ! empty( self::local_options()['inherit_network'] );
+		$o = $network ? wp_parse_args( (array) get_site_option( self::OPTION, array() ), self::defaults() ) : self::get();
+		$base = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-ai' ) : admin_url( 'admin.php?page=digitalisimo-ai' );
+		echo '<div class="wrap"><h1>' . ( $network ? 'DIGITALÍSIMO IA Tools · Red' : 'DIGITALÍSIMO IA Tools' ) . '</h1><p>Herramientas de IA compartidas para chatbot, contenido, SEO, ecommerce, conocimiento e imágenes. Generan bajo demanda y nunca publican ni modifican contenido automáticamente.</p>';
+		if ( $saved ) echo '<div class="notice notice-success is-dismissible"><p>' . ( $network ? 'Configuración de red guardada.' : 'Configuración guardada.' ) . '</p></div>';
+		if ( $network ) echo '<div class="notice notice-info inline"><p>Valores de red: los sitios que heredan la configuración de IA los usan al momento, sin copiar credenciales. Los sitios que la personalizan conservan la suya.</p></div>';
+		elseif ( is_multisite() ) echo '<div class="notice notice-info inline"><p><strong>Valor efectivo:</strong> ' . esc_html( self::origin() ) . '. Puedes elegir heredar los ajustes completos de la red o usar los de este sitio.</p></div>';
+		if ( $inherits ) echo '<div class="notice notice-warning inline"><p><strong>Este sitio hereda la configuración de IA de la red:</strong> ves los valores de la red (también sus claves) y no se cambian desde aquí. Para usar una configuración y claves propias, desmarca «Heredar toda la configuración de IA de la red» en General y guarda.</p></div>';
+		echo '<h2 class="nav-tab-wrapper">'; foreach ( $tabs as $id => $name ) echo '<a class="nav-tab ' . ( $id === $tab ? 'nav-tab-active' : '' ) . '" href="' . esc_url( $base . '&tab=' . $id ) . '">' . esc_html( $name ) . '</a>'; echo '</h2><form method="post">'; wp_nonce_field( $action );
+		if ( 'general' === $tab && ! $network && is_multisite() ) { self::check( 'inherit_network', 'Heredar toda la configuración de IA de la red', self::local_options() ); echo '<p class="description">Desmarcada, este sitio usa su propia configuración y sus propias claves: las de la red no se copian.</p>'; }
+		// Los controles deshabilitados no se envían: un sitio que hereda sólo puede cambiar la herencia.
+		if ( $inherits ) echo '<fieldset disabled>';
+		self::tab_fields( $tab, $o, $network );
+		if ( $inherits ) echo '</fieldset>';
+		// El botón envía el campo que activa el guardado (sin él, «Guardar» no guardaba nada: caso real del 2026-11-22).
+		if ( ! $inherits || 'general' === $tab ) submit_button( $network ? 'Guardar configuración de red' : 'Guardar configuración', 'primary', $action );
+		echo '</form></div>';
+	}
+
+	/** Campos de cada pestaña, los mismos en el sitio y en la red; sólo lo que pertenece a un sitio queda fuera de la red. */
+	private static function tab_fields( $tab, $o, $network ) {
 		if ( 'general' === $tab ) {
-		if ( is_multisite() ) self::check( 'inherit_network', 'Heredar toda la configuración de IA de la red', self::local_options() );
 			self::check( 'chat_enabled', 'Activar DIGITALÍSIMO IA Tools', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento del sitio', $o ); self::check( 'mcp_featured_image_enabled', 'Permitir que Codex suba imágenes destacadas mediante MCP', $o );
 			echo '<p>Perfiles disponibles: chatbot, creación de contenido, SEO, ecommerce, automatizaciones e imágenes.</p>';
 		} elseif ( 'providers' === $tab ) self::providers( $o );
 		elseif ( 'profiles' === $tab ) self::profiles( $o );
-		elseif ( 'writing' === $tab ) { echo '<h3>Redacción editorial</h3><p>Este método guía la creación interna, el publisher y los clientes MCP. SEO conserva las señales técnicas; IA Tools administra la voz, el CTA, el chat editorial y los borradores.</p>'; Digitalisimo_AI_Content_Playbook::fields(); }
+		elseif ( 'writing' === $tab ) { echo '<h3>Redacción editorial</h3><p>Este método guía la creación interna, el publisher y los clientes MCP. SEO conserva las señales técnicas; IA Tools administra la voz, el CTA, el chat editorial y los borradores.</p>'; Digitalisimo_AI_Content_Playbook::fields( $network, $o ); }
 		elseif ( 'chat' === $tab ) { self::check( 'chat_enabled', 'Activar chatbot público', $o ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); echo '<p><code>[digitalisimo_chatbot]</code> añade el chat donde tú lo decidas. No registra prompts ni direcciones IP.</p>'; }
-		elseif ( 'knowledge' === $tab ) { self::knowledge_fields( $o ); }
-			elseif ( 'images' === $tab ) { self::image_fields( $o ); }
+		elseif ( 'knowledge' === $tab ) self::knowledge_fields( $o, $network );
+		elseif ( 'images' === $tab ) self::image_fields( $o, $network );
 		else { self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' ); echo '<p>Los registros contienen fecha, perfil, proveedor y resultado. No se guardan claves, prompts, respuestas, IPs ni conversaciones.</p>'; self::assistant_fields( $o ); }
-		// El botón envía el campo que activa el guardado (sin él, «Guardar» no guardaba nada: caso real del 2026-11-22).
-		submit_button( 'Guardar configuración', 'primary', 'digitalisimo_ai_save' ); echo '</form></div>';
-	}
-
-	public static function network_page() {
-		if ( ! current_user_can( 'manage_network_options' ) || ! is_super_admin() ) return;
-		if ( isset( $_POST['digitalisimo_ai_network_save'] ) && check_admin_referer( 'digitalisimo_ai_network_save' ) ) self::save_network();
-		$o = wp_parse_args( (array) get_site_option( self::OPTION, array() ), self::defaults() );
-		echo '<div class="wrap"><h1>Digitalisimo · IA Tools de red</h1><p>Estos valores son dinámicos: todos los sitios que elijan heredarlos reflejarán los cambios sin copiar credenciales.</p>'; if ( isset( $_POST['digitalisimo_ai_network_save'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Configuración de red guardada.</p></div>'; echo '<form method="post">'; wp_nonce_field( 'digitalisimo_ai_network_save' );
-			self::check( 'chat_enabled', 'Activar motor IA por defecto', $o ); self::check( 'mcp_featured_image_enabled', 'Permitir imágenes destacadas por MCP', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento por defecto', $o ); self::check( 'knowledge_embeddings_enabled', 'Permitir embeddings opcionales de OpenAI', $o ); self::check( 'knowledge_semantic_rerank', 'Reordenar conocimiento con similitud semántica', $o ); self::input( 'knowledge_embeddings_model', 'Modelo de embeddings', $o ); self::input( 'knowledge_results', 'Resultados de conocimiento por consulta', $o, 'number' ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); echo '<h2>Imágenes</h2>'; self::image_fields( $o ); echo '<h2>Redacción editorial</h2>'; Digitalisimo_AI_Content_Playbook::fields( true ); self::providers( $o ); self::profiles( $o ); self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' ); self::assistant_fields( $o );
-		submit_button( 'Guardar configuración de red', 'primary', 'digitalisimo_ai_network_save' ); echo '</form></div>';
 	}
 
 	/** Límites del Asistente IA por persona (los mismos campos en el sitio y en la red). */
@@ -111,11 +126,13 @@ class Digitalisimo_AI {
 	}
 	private static function check( $key, $label, $o ) { echo '<p><label><input type="hidden" name="ai[' . esc_attr( $key ) . ']" value="0"><input type="checkbox" name="ai[' . esc_attr( $key ) . ']" value="1" ' . checked( ! empty( $o[ $key ] ), true, false ) . '> <strong>' . esc_html( $label ) . '</strong></label></p>'; }
 	private static function input( $key, $label, $o, $type = 'text' ) { echo '<p><label><strong>' . esc_html( $label ) . '</strong><br><input class="regular-text" type="' . esc_attr( $type ) . '" name="ai[' . esc_attr( $key ) . ']" value="' . esc_attr( $o[ $key ] ?? '' ) . '"></label></p>'; }
-	private static function knowledge_fields( $o ) {
+	private static function knowledge_fields( $o, $network = false ) {
 		self::check( 'knowledge_enabled', 'Activar base de conocimiento', $o );
 		self::check( 'knowledge_auto_index', 'Actualizar al guardar contenido público', $o );
 		self::input( 'knowledge_results', 'Fuentes relevantes por consulta', $o, 'number' );
 		self::check( 'knowledge_embeddings_enabled', 'Activar embeddings opcionales de OpenAI', $o ); self::check( 'knowledge_semantic_rerank', 'Reordenar resultados con similitud semántica', $o ); self::input( 'knowledge_embeddings_model', 'Modelo de embeddings', $o );
+		// El índice es de cada sitio: la red sólo define los valores que heredan.
+		if ( $network ) { echo '<p class="description">Cada sitio indexa sólo su propio contenido público y lo reconstruye desde su propia pantalla.</p>'; return; }
 		$count = class_exists( 'Digitalisimo_AI_Knowledge' ) ? Digitalisimo_AI_Knowledge::count() : 0;
 		echo '<p><strong>Estado:</strong> ' . esc_html( $count ) . ' contenidos públicos indexados.</p><p>Digitalisimo usa una recuperación contextual local (RAG): toma sólo contenido público, no guarda prompts ni conversaciones, y no entrena modelos externos ni modifica contenido.</p>';
 		echo '<p><a class="button button-secondary" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=digitalisimo_ai_knowledge_rebuild' ), 'digitalisimo_ai_knowledge_rebuild' ) ) . '">Reconstruir base de conocimiento</a></p>';
@@ -129,7 +146,7 @@ class Digitalisimo_AI {
 		echo '</tbody></table>';
 	}
 	/** Configuración visible de imagen: el perfil también permanece disponible en Perfiles de uso. */
-	private static function image_fields( $o ) {
+	private static function image_fields( $o, $network = false ) {
 		$profile = (array) ( $o['profiles']['images'] ?? array() );
 		$model = $profile['model'] ?? 'gpt-image-1';
 		$quality = $o['image_quality'] ?? 'medium';
@@ -140,10 +157,9 @@ class Digitalisimo_AI {
 		foreach ( array( 'low' => 'Baja · menor costo', 'medium' => 'Media · recomendada', 'high' => 'Alta', 'xhigh' => 'Muy alta · sólo modelos 2.5', 'max' => 'Máxima · sólo modelos 2.5' ) as $id => $label ) echo '<option value="' . esc_attr( $id ) . '" ' . selected( $quality, $id, false ) . '>' . esc_html( $label ) . '</option>';
 		echo '</select></label></p>';
 		self::input( 'image_style', 'Estilo visual predeterminado', $o );
-		echo '<p>Se registra el modelo, calidad, tamaño y costo estimado en USD de cada imagen nueva. El historial conserva miniatura, artículo relacionado y total acumulado.</p><p><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai-images' ) ) . '">Abrir imágenes y costos</a></p>';
+		echo '<p>Se registra el modelo, calidad, tamaño y costo estimado en USD de cada imagen nueva. El historial conserva miniatura, artículo relacionado y total acumulado' . ( $network ? ' en cada sitio.</p>' : '.</p><p><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai-images' ) ) . '">Abrir imágenes y costos</a></p>' );
 	}
 	private static function providers( $o ) {
-		if ( is_multisite() && ! ( function_exists( 'is_network_admin' ) && is_network_admin() ) && ! empty( self::local_options()['inherit_network'] ) ) echo '<div class="notice notice-warning inline"><p><strong>Este sitio hereda la configuración de IA de la red:</strong> usa las claves de la red. Para poner claves propias, desmarca «Heredar toda la configuración de IA de la red» en General y guarda.</p></div>';
 		$names = array( 'openai' => 'OpenAI / GPT', 'anthropic' => 'Anthropic / Claude', 'google' => 'Google / Gemini', 'deepseek' => 'DeepSeek', 'xai' => 'xAI / Grok' );
 		foreach ( $names as $id => $name ) { $p = $o['providers'][ $id ] ?? array(); $has_key = ! empty( $p['key'] ); echo '<fieldset style="margin:18px 0;padding:16px;border:1px solid #ccd6e5"><legend><strong>' . esc_html( $name ) . '</strong></legend><label><input type="hidden" name="providers[' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="providers[' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label><p><input class="regular-text" type="password" name="providers[' . esc_attr( $id ) . '][key]" autocomplete="new-password" value="' . esc_attr( $has_key ? self::MASK : '' ) . '" onfocus="this.select()" placeholder="API Key"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span>' . ( $has_key ? ' <label><input type="checkbox" name="providers[' . esc_attr( $id ) . '][remove]" value="1"> Quitar la clave</label>' : '' ) . '</p><p><label>URL compatible <input class="regular-text" type="url" name="providers[' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p></fieldset>'; }
 	}
@@ -152,10 +168,12 @@ class Digitalisimo_AI {
 	private static function sanitize_values( $base ) {
 		$in = (array) wp_unslash( $_POST['ai'] ?? array() );
 		$o = array_merge( $base, array_map( 'sanitize_text_field', $in ) );
+		// La redacción editorial son textareas: sanitize_text_field() juntaba sus líneas en una sola.
+		foreach ( array( 'editorial_voice', 'editorial_context', 'editorial_cta', 'editorial_method' ) as $key ) if ( isset( $in[ $key ] ) ) $o[ $key ] = sanitize_textarea_field( $in[ $key ] );
 		foreach ( array( 'chat_enabled', 'inherit_network', 'knowledge_enabled', 'knowledge_auto_index', 'knowledge_embeddings_enabled', 'knowledge_semantic_rerank', 'mcp_featured_image_enabled' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
 		if ( isset( $in['image_quality'] ) ) $o['image_quality'] = in_array( $in['image_quality'], array( 'low', 'medium', 'high', 'xhigh', 'max' ), true ) ? $in['image_quality'] : 'medium';
 		if ( isset( $_POST['providers'] ) ) { $o['providers'] = $base['providers'] ?? array(); foreach ( (array) $_POST['providers'] as $id => $p ) { $id = sanitize_key( $id ); $o['providers'][ $id ]['enabled'] = ! empty( $p['enabled'] ); $o['providers'][ $id ]['url'] = esc_url_raw( $p['url'] ?? '' ); if ( ! empty( $p['remove'] ) ) $o['providers'][ $id ]['key'] = ''; elseif ( '' !== ( $new_key = self::unmask( $p['key'] ?? '' ) ) ) $o['providers'][ $id ]['key'] = $new_key; } }
-		if ( isset( $_POST['profiles'] ) ) { $o['profiles'] = $base['profiles'] ?? self::defaults()['profiles']; foreach ( (array) $_POST['profiles'] as $id => $p ) $o['profiles'][ sanitize_key( $id ) ] = array( 'provider' => sanitize_key( $p['provider'] ?? 'openai' ), 'model' => sanitize_text_field( $p['model'] ?? '' ), 'fallback' => sanitize_key( $p['fallback'] ?? '' ) ); }
+		if ( isset( $_POST['profiles'] ) ) { $o['profiles'] = $base['profiles'] ?? self::defaults()['profiles']; foreach ( (array) wp_unslash( $_POST['profiles'] ) as $id => $p ) $o['profiles'][ sanitize_key( $id ) ] = array( 'provider' => sanitize_key( $p['provider'] ?? 'openai' ), 'model' => sanitize_text_field( $p['model'] ?? '' ), 'fallback' => sanitize_key( $p['fallback'] ?? '' ) ); }
 		return $o;
 	}
 	private static function save_site() { $base = wp_parse_args( self::local_options(), self::defaults() ); update_option( self::OPTION, self::sanitize_values( $base ), false ); }
