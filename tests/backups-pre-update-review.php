@@ -135,6 +135,8 @@ try {
 		$status = $P::service_status();
 		digi_assert( '' !== $status['bypass_until'] && false !== strpos( $status['bypass_reason'], '2 respaldos previos fallidos' ) && ! $status['retained'], 'H1: el estado no muestra la ventana sin respaldo: ' . json_encode( $status ) );
 		digi_assert( false !== strpos( $notice(), 'sin respaldo previo hasta' ), 'H1: el escritorio no avisa de las actualizaciones sin respaldo.' );
+		// Queja del propietario del 2026-11-22 («no poder quitarlas»): el aviso lleva la X y lo importante queda en «Salud del sitio».
+		digi_assert( false !== strpos( $notice(), 'is-dismissible' ) && 'critical' === $P::health()['status'], 'H1: el aviso sin respaldo no lleva la X o no está en «Salud del sitio».' );
 		// Revisión de 1.0.74 (H11): la línea de la franja de Backups dice, en su detalle, qué actualizaciones esperaban.
 		$strip = $P::strip_item();
 		digi_assert( $status['bypassed'] && is_array( $strip ) && false !== strpos( $strip['detail'], '2 respaldos previos fallidos' ) && false !== strpos( $strip['detail'], 'esperaban: ' . implode( ', ', $status['bypassed'] ) ), 'H1: la franja de Backups no dice qué actualizaciones esperaban: ' . json_encode( $strip ) . ' · ' . json_encode( $status['bypassed'] ) );
@@ -164,6 +166,7 @@ try {
 		// H1 · aviso fijo mientras espera y, tras un fallo, pospuestas; el correo del núcleo sólo se calla la primera vez.
 		digi_assert( false === $auto( 'core', array( 'current' => '7.0' ) ), 'H1: el núcleo 7.0 no se retuvo.' );
 		digi_assert( false !== strpos( $notice(), 'en espera del respaldo previo' ), 'H1: el escritorio no avisa de la retención en curso.' );
+		digi_assert( false !== strpos( $notice(), 'is-dismissible' ) && 'recommended' === $P::health()['status'], 'H1: la espera no lleva la X o no está en «Salud del sitio».' );
 		// Revisión de 1.0.74 (H11): la franja también dice que se actualizarán igual, sin respaldo, pasado el tope.
 		digi_assert( false !== strpos( (string) ( $P::strip_item()['detail'] ?? '' ), 'Se actualizarán igual, sin respaldo' ), 'H1: la franja de Backups no dice que se actualizarán igual sin respaldo: ' . json_encode( $P::strip_item() ) );
 		$silenced = count( digi_hooked( 'send_core_update_notification_email' ) );

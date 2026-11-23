@@ -78,18 +78,20 @@ class Digitalisimo_Integrations_Media_Repair {
 		if ( ! ( $screen && 'upload' === $screen->id ) && 0 !== strpos( $page, 'digitalisimo-seo' ) ) return;
 		$job = self::job();
 		if ( 'running' === ( $job['status'] ?? '' ) ) {
-			echo '<div class="notice notice-info"><p>' . esc_html( sprintf( 'Reparando la metadata de los archivos: %1$d de %2$d. Sigue en segundo plano; puedes cerrar esta página.', (int) $job['done'], (int) $job['total'] ) ) . '</p></div>';
+			// Con la X y el cierre recordado: el progreso cambia, la huella no (vuelve con otra reparación).
+			Digitalisimo_Notices::show( 'seo-media-repair', 'info', '<p>' . esc_html( sprintf( 'Reparando la metadata de los archivos: %1$d de %2$d. Sigue en segundo plano; puedes cerrar esta página.', (int) $job['done'], (int) $job['total'] ) ) . '</p>', array( 'hash' => array( 'running', (int) ( $job['started'] ?? 0 ), (int) $job['total'] ), 'cap' => 'manage_options' ) );
 			return;
 		}
 		$missing = self::count_missing();
 		if ( 'done' === ( $job['status'] ?? '' ) && (int) ( $job['finished'] ?? 0 ) > time() - DAY_IN_SECONDS ) {
 			$failed = count( $job['failed'] ?? array() );
-			echo '<div class="notice notice-success"><p>' . esc_html( sprintf( 'Metadata reparada en %d archivos.', (int) $job['done'] ) . ( $failed ? sprintf( ' %d no se pudieron reparar porque su archivo no está en el servidor.', $failed ) : '' ) ) . '</p></div>';
+			Digitalisimo_Notices::show( 'seo-media-repair', 'success', '<p>' . esc_html( sprintf( 'Metadata reparada en %d archivos.', (int) $job['done'] ) . ( $failed ? sprintf( ' %d no se pudieron reparar porque su archivo no está en el servidor.', $failed ) : '' ) ) . '</p>', array( 'hash' => array( 'done', (int) ( $job['finished'] ?? 0 ) ), 'cap' => 'manage_options' ) );
 			if ( $missing <= $failed ) return;
 		}
 		if ( ! $missing ) return;
-		echo '<div class="notice notice-warning"><p><strong>' . esc_html( sprintf( '%d archivos de la biblioteca no tienen metadata', $missing ) ) . '</strong> (tamaños, ancho, alto o duración). Sin ella WordPress no puede servir versiones adaptadas a cada pantalla. Si se subieron entre el 1 de octubre de 2026 y DIGITALÍSIMO SEO 1.0.246, la borró un fallo ya corregido.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="digitalisimo_seo_media_repair">';
-		wp_nonce_field( 'digitalisimo_seo_media_repair' );
-		echo '<p><button class="button button-primary">Reparar en segundo plano</button> <span class="description">' . esc_html( self::BATCH ) . ' archivos cada 30 segundos, sólo en este sitio. No cambia los archivos que ya tienen metadata.</span></p></form></div>';
+		// Advertencia con la X: cerrada, vuelve a los 7 días si siguen faltando (la huella es «faltan», no el número).
+		Digitalisimo_Notices::show( 'seo-media-missing', 'warning', '<p><strong>' . esc_html( sprintf( '%d archivos de la biblioteca no tienen metadata', $missing ) ) . '</strong> (tamaños, ancho, alto o duración). Sin ella WordPress no puede servir versiones adaptadas a cada pantalla. Si se subieron entre el 1 de octubre de 2026 y DIGITALÍSIMO SEO 1.0.246, la borró un fallo ya corregido.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="digitalisimo_seo_media_repair">'
+			. wp_nonce_field( 'digitalisimo_seo_media_repair', '_wpnonce', true, false )
+			. '<p><button class="button button-primary">Reparar en segundo plano</button> <span class="description">' . esc_html( self::BATCH ) . ' archivos cada 30 segundos, sólo en este sitio. No cambia los archivos que ya tienen metadata.</span></p></form>', array( 'hash' => 'missing', 'cap' => 'manage_options' ) );
 	}
 }

@@ -18,6 +18,7 @@ define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
 
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'digitalisimo-ui/digitalisimo-ui.php';
+
 /**
  * Clases propias de SEO y su archivo. Ya no se incluyen las 70 en cada petición (1,3 MB de código: ~35 ms y 6,5 MB de
  * memoria sin OPcache, también en el front, el heartbeat y la REST): cada una se carga la primera vez que se usa. Lo
@@ -51,6 +52,8 @@ function digitalisimo_integrations_classes() {
 		'Digitalisimo_Integrations_SEO_Feed'                 => 'includes/class-seo-feed.php',
 		'Digitalisimo_Integrations_Video'                    => 'includes/class-video.php',
 		'Digitalisimo_Integrations_Media_Repair'             => 'includes/class-media-repair.php',
+		// Avisos con la X y el cierre recordado (copia idéntica en los siete plugins): se carga al pintar un aviso.
+		'Digitalisimo_Notices'                               => 'includes/class-digitalisimo-notices.php',
 		'Digitalisimo_Integrations_URL_Bases'                => 'includes/class-url-bases.php',
 		'Digitalisimo_Integrations_Product_Identifiers'      => 'includes/class-product-identifiers.php',
 		'Digitalisimo_Integrations_Robots'                   => 'includes/class-robots.php',
@@ -104,6 +107,9 @@ function digitalisimo_integrations_autoload( $class ) {
 	if ( isset( $classes[ $class ] ) && is_readable( DIGITALISIMO_INTEGRATIONS_DIR . $classes[ $class ] ) ) require_once DIGITALISIMO_INTEGRATIONS_DIR . $classes[ $class ];
 }
 spl_autoload_register( 'digitalisimo_integrations_autoload' );
+// La X de los avisos (Digitalisimo_Notices): el cierre por AJAX carga la clase sólo cuando llega (mismo callback que el
+// de las copias de los demás plugins: WordPress no lo registra dos veces).
+if ( is_admin() ) add_action( 'wp_ajax_digitalisimo_notice_dismiss', array( 'Digitalisimo_Notices', 'ajax' ) );
 
 /**
  * Antes de que WordPress mueva o sustituya los archivos de un plugin (actualizar, reinstalar, subir un ZIP encima), SEO

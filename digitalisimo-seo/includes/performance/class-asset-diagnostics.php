@@ -36,7 +36,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		submit_button( 'Analizar URL', 'secondary', 'submit', false );
 		echo '</form>';
 		if ( ! is_array( $result ) ) return;
-		if ( ! empty( $result['error'] ) ) { echo '<div class="notice notice-error"><p>' . esc_html( $result['error'] ) . '</p></div>'; return; }
+		if ( ! empty( $result['error'] ) ) { echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $result['error'] ) . '</p></div>'; return; }
 		if ( ! self::capture_belongs_to_site( $result, $site_id ) || (string) ( $result['url'] ?? '' ) !== $url ) return;
 		echo '<p><strong>Resultado:</strong> ' . esc_html( $result['url'] ?? '' ) . ' · ' . count( $result['resources'] ?? array() ) . ' recursos encolados</p>';
 		$measurements_url = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=measurements' ) : admin_url( 'admin.php?page=digitalisimo-performance&section=measurements' );

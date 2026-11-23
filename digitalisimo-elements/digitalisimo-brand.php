@@ -67,7 +67,7 @@ final class Digitalisimo_Elements_Brand {
 		if ( ! current_user_can( $capability ) ) wp_die( esc_html__( 'No autorizado.' ) );
 		$logo = plugins_url( 'assets/digitalisimo/logo-negro.webp', __FILE__ );
 		// El diseño compartido de los plugins Digitalisimo (digitalisimo-ui): armazón, encabezado, tarjeta y enlaces.
-		echo '<div class="wrap digitalisimo-elements-about"><h1>Elements</h1>';
+		echo '<div class="wrap digitalisimo-elements-about"><h1>Elements</h1><hr class="wp-header-end">';
 		echo '<p><img src="' . esc_url( $logo ) . '" width="320" height="55" alt="DIGITALÍSIMO" style="display:block;max-width:320px;width:100%;height:auto"></p>';
 		echo '<p>Constructor visual completo: editor, funciones avanzadas, kits, plantillas y widgets propios en un solo plugin.</p>';
 		echo '<div class="card" style="max-width:900px"><h2>DIGITALÍSIMO Elements ' . esc_html( DIGITALISIMO_ELEMENTS_VERSION ) . '</h2>';

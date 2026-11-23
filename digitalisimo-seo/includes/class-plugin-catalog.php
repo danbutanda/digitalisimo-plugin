@@ -141,7 +141,7 @@ final class Digitalisimo_Plugin_Catalog {
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'manage_network_options' ) ) return;
 		$releases = self::releases();
-		echo '<div class="wrap"><h1>Plugins · Digitalisimo</h1><p>Instala y actualiza módulos publicados sin descargar ni subir ZIPs manualmente.</p>';
+		echo '<div class="wrap"><h1>Plugins · Digitalisimo</h1><hr class="wp-header-end"><p>Instala y actualiza módulos publicados sin descargar ni subir ZIPs manualmente.</p>';
 		self::install_all_box( $releases );
 		echo '<table class="widefat striped"><thead><tr><th>Plugin</th><th>Descripción</th><th>Instalada</th><th>Publicada</th><th>Estado</th><th>Acción</th></tr></thead><tbody>';
 		foreach ( self::plugins() as $slug => $plugin ) {
@@ -199,8 +199,8 @@ final class Digitalisimo_Plugin_Catalog {
 				if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin[1] ) ) $installed[] = $plugin[0]; else $failed[] = $plugin[0];
 			}
 			$plugins_url = is_network_admin() ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' );
-			if ( $installed ) echo '<div class="notice notice-success"><p>' . esc_html( sprintf( 1 === count( $installed ) ? 'Se instaló %s.' : 'Se instalaron %s.', implode( ', ', $installed ) ) ) . ' <a href="' . esc_url( $plugins_url ) . '">' . esc_html( 1 === count( $installed ) ? 'Actívalo en Plugins' : 'Actívalos en Plugins' ) . '</a>.</p></div>';
-			if ( $failed ) echo '<div class="notice notice-error"><p>' . esc_html( sprintf( 'No se pudo instalar: %s. Suele pasar si WordPress no puede escribir en la carpeta de plugins (pide datos de FTP) o si ya existe una carpeta con ese nombre: revísalo en Plugins o instálalo con su botón «Instalar» para ver el error.', implode( ', ', $failed ) ) ) . '</p></div>';
+			if ( $installed ) echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( 1 === count( $installed ) ? 'Se instaló %s.' : 'Se instalaron %s.', implode( ', ', $installed ) ) ) . ' <a href="' . esc_url( $plugins_url ) . '">' . esc_html( 1 === count( $installed ) ? 'Actívalo en Plugins' : 'Actívalos en Plugins' ) . '</a>.</p></div>';
+			if ( $failed ) echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( sprintf( 'No se pudo instalar: %s. Suele pasar si WordPress no puede escribir en la carpeta de plugins (pide datos de FTP) o si ya existe una carpeta con ese nombre: revísalo en Plugins o instálalo con su botón «Instalar» para ver el error.', implode( ', ', $failed ) ) ) . '</p></div>';
 		}
 		$missing = self::missing( $releases );
 		if ( ! $missing ) return;

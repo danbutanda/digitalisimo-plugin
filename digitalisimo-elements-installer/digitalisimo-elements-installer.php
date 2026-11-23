@@ -201,7 +201,15 @@ final class Digitalisimo_Elements_Installer {
 		$installed = '' !== self::find_elements( get_plugins() );
 		$text = $installed ? 'DIGITALÍSIMO Elements ya está instalado: el instalador ya no hace falta.' : 'Falta un paso: descargar e instalar DIGITALÍSIMO Elements en el servidor.';
 		$button = $installed ? 'Activar DIGITALÍSIMO Elements y retirar el instalador' : 'Instalar DIGITALÍSIMO Elements';
-		echo '<div class="notice notice-info"><p><strong>DIGITALÍSIMO Elements · Instalador.</strong> ' . esc_html( $text ) . '</p><p><a class="button button-primary" href="' . esc_url( self::start_url( $scope ) ) . '">' . esc_html( $button ) . '</a></p></div>';
+		$html = '<p><strong>DIGITALÍSIMO Elements · Instalador.</strong> ' . esc_html( $text ) . '</p><p><a class="button button-primary" href="' . esc_url( self::start_url( $scope ) ) . '">' . esc_html( $button ) . '</a></p>';
+		// Con la X (queja del propietario del 2026-11-22: «no poder quitarlas»). Sin JavaScript propio: si un plugin
+		// DIGITALÍSIMO cargó Digitalisimo_Notices, el cierre queda recordado (vuelve a los 7 días mientras falte el paso);
+		// si no, se cierra en esa página y el instalador sigue en Plugins → «Instalar DIGITALÍSIMO Elements».
+		if ( class_exists( 'Digitalisimo_Notices', false ) ) {
+			Digitalisimo_Notices::show( 'elements-installer', 'info', $html, array( 'hash' => $installed ? 'installed' : 'missing', 'snooze' => 7 * DAY_IN_SECONDS, 'cap' => 'network' === $scope ? 'manage_network_plugins' : 'activate_plugins' ) );
+			return;
+		}
+		echo '<div class="notice notice-info is-dismissible">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.
 	}
 
 	// ── Origen del paquete ─────────────────────────────────────────────────────────────────────────────────────────
@@ -571,7 +579,7 @@ final class Digitalisimo_Elements_Installer {
 
 	public static function render() {
 		$scope = self::scope();
-		echo '<div class="wrap"><h1>DIGITALÍSIMO Elements · Instalador</h1>';
+		echo '<div class="wrap"><h1>DIGITALÍSIMO Elements · Instalador</h1><hr class="wp-header-end">';
 		if ( '' !== self::test_base() ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html( 'Origen de pruebas activo: ' . self::test_base() ) . '</p></div>';
 		}

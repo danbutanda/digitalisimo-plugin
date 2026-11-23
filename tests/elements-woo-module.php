@@ -294,6 +294,7 @@ namespace {
 	file_put_contents( $GLOBALS['wt_tmp'] . '/plugin/assets/js/filters.js', '/* filtros */' );
 
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-unknown-guard.php';
+	require __DIR__ . '/../digitalisimo-elements/digitalisimo-notices.php';
 	require $tmp . '/class-module.php';
 
 	use Digitalisimo\Elements\Unknown_Guard;
@@ -443,6 +444,7 @@ namespace {
 	Module::version_notice();
 	$text = (string) ob_get_clean();
 	check_wt( false !== strpos( $text, 'WooCommerce 10.0 o posterior' ) && false !== strpos( $text, '9.9.0' ), 'El aviso nombra la versión mínima y la instalada.' );
+	check_wt( false !== strpos( $text, 'is-dismissible' ), 'El aviso lleva la X (queja del propietario del 2026-11-22: «no poder quitarlas»).' );
 	check_wt( ! Module::requires( 'wishlist', array() ), 'Con WooCommerce incompatible, requires() siempre es false.' );
 
 	// 5. WooCommerce compatible: la base, después los submódulos; un símbolo que falta deja el suyo sin nada.

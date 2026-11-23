@@ -50,5 +50,6 @@ function digitalisimo_theme_fallback_notice() {
 	if ( ! $screen || ! in_array( $screen->id, array( 'themes', 'plugins' ), true ) ) {
 		return;
 	}
-	echo '<div class="notice notice-warning"><p>' . esc_html__( 'The DIGITALÍSIMO theme shows simple fallbacks until DIGITALÍSIMO Elements is active.', 'digitalisimo-theme' ) . '</p></div>';
+	digitalisimo_theme_notice( 'theme-fallbacks', 'warning', '<p>' . esc_html__( 'The DIGITALÍSIMO theme shows simple fallbacks until DIGITALÍSIMO Elements is active.', 'digitalisimo-theme' ) . '</p>', 'activate_plugins' );
 }
+

@@ -93,7 +93,7 @@ namespace {
 	function esc_html__( $t ) { return $t; }
 	function checked( $a, $b = true, $echo = true ) { return (string) $a === (string) $b ? " checked='checked'" : ''; }
 	function selected( $a, $b = true, $echo = true ) { return (string) $a === (string) $b ? " selected='selected'" : ''; }
-	function wp_nonce_field( $a ) { echo '<input type="hidden" id="_wpnonce" name="_wpnonce" value="n:' . $a . ':' . get_current_blog_id() . '"><input type="hidden" name="_wp_http_referer" value="/wp-admin/">'; }
+	function wp_nonce_field( $a, $name = '_wpnonce', $referer = true, $display = true ) { $f = '<input type="hidden" id="_wpnonce" name="_wpnonce" value="n:' . $a . ':' . get_current_blog_id() . '"><input type="hidden" name="_wp_http_referer" value="/wp-admin/">'; if ( $display ) echo $f; return $f; }
 	function check_admin_referer( $a ) { if ( ( $_POST['_wpnonce'] ?? '' ) !== 'n:' . $a . ':' . get_current_blog_id() ) throw new Tf_Die( "nonce $a" ); return 1; }
 	function submit_button( $text = 'Guardar cambios', $type = 'primary', $name = 'submit' ) { echo '<p class="submit"><input type="submit" name="' . $name . '" id="' . $name . '" class="button button-primary" value="' . esc_attr( $text ) . '"></p>'; }
 	function remove_accents( $v ) { return $v; }
@@ -129,7 +129,7 @@ namespace Digitalisimo\Tools\Php_Snippets {
 }
 
 namespace {
-	foreach ( array( 'modules/site-options/class-hide-login.php', 'modules/site-options/class-site-options.php', 'modules/elementor-network-templates/class-registry.php', 'modules/elementor-network-templates/class-id-mapper.php', 'modules/elementor-network-templates/class-dependency-resolver.php', 'modules/elementor-network-templates/class-elementor-adapter.php', 'modules/elementor-network-templates/class-logger.php', 'modules/elementor-network-templates/class-sync.php', 'modules/elementor-network-templates/class-network-admin.php' ) as $file ) require __DIR__ . '/../digitalisimo-tools/' . $file;
+	foreach ( array( 'includes/class-digitalisimo-notices.php', 'modules/site-options/class-hide-login.php', 'modules/site-options/class-site-options.php', 'modules/elementor-network-templates/class-registry.php', 'modules/elementor-network-templates/class-id-mapper.php', 'modules/elementor-network-templates/class-dependency-resolver.php', 'modules/elementor-network-templates/class-elementor-adapter.php', 'modules/elementor-network-templates/class-logger.php', 'modules/elementor-network-templates/class-sync.php', 'modules/elementor-network-templates/class-network-admin.php' ) as $file ) require __DIR__ . '/../digitalisimo-tools/' . $file;
 	use Digitalisimo\Tools\Site_Options;
 	use Digitalisimo\Tools\Elementor_Network_Templates\Network_Admin;
 	use Digitalisimo\Tools\Elementor_Network_Templates\Registry;

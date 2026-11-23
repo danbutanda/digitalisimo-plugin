@@ -69,8 +69,14 @@ final class Cache_Notice {
 		if ( ! self::screen_wanted() ) return;
 		$status = self::status();
 		if ( '' === $status['state'] ) return;
-		$class = 'foreign' === $status['state'] ? 'notice-error' : ( 'salted' === $status['state'] ? 'notice-success' : 'notice-warning' );
-		echo '<div class="notice ' . esc_attr( $class ) . '"><p><strong>DIGITALÍSIMO:</strong> ' . esc_html( $status['message'] ) . '</p></div>';
+		// Con la X y el cierre recordado (queja del propietario del 2026-11-22: «no poder quitarlas»): «salted» queda
+		// cerrado mientras diga lo mismo, «unsalted» vuelve a los 7 días y «foreign» (otro sitio) al día si sigue. Lo
+		// importante queda siempre en «Salud del sitio» (health()).
+		// La huella de «salted» es la sal: «vale desde la siguiente carga» y «ya está en vigor» son la misma noticia y,
+		// cerrada una, la otra no vuelve a salir; otra sal (rotada o repuesta) sí.
+		$type = 'foreign' === $status['state'] ? 'error' : ( 'salted' === $status['state'] ? 'success' : 'warning' );
+		$salt = 'salted' === $status['state'] && class_exists( '\\Digitalisimo_Cache_Salt', false ) ? (string) ( \Digitalisimo_Cache_Salt::result()['salt'] ?? '' ) : '';
+		\Digitalisimo_Notices::show( 'tools-cache', $type, '<p><strong>DIGITALÍSIMO:</strong> ' . esc_html( $status['message'] ) . '</p>', array( 'hash' => array( $status['state'], '' !== $salt ? $salt : $status['message'] ), 'cap' => is_multisite() ? 'manage_network_options' : 'manage_options' ) );
 	}
 
 	public static function tests( $tests ) {

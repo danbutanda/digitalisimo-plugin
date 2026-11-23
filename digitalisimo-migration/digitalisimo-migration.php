@@ -15,6 +15,7 @@ define( 'DIGITALISIMO_MIGRATION_FILE', __FILE__ );
 define( 'DIGITALISIMO_MIGRATION_DIR', __DIR__ . '/' );
 
 require_once DIGITALISIMO_MIGRATION_DIR . 'digitalisimo-ui/digitalisimo-ui.php';
+require_once DIGITALISIMO_MIGRATION_DIR . 'includes/class-digitalisimo-notices.php';
 require_once DIGITALISIMO_MIGRATION_DIR . 'includes/class-digitalisimo-same-site.php';
 require_once DIGITALISIMO_MIGRATION_DIR . 'includes/class-updater.php';
 require_once DIGITALISIMO_MIGRATION_DIR . 'includes/class-plugin.php';

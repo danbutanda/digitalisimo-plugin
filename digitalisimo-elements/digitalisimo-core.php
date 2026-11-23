@@ -233,7 +233,8 @@ final class Digitalisimo_Elements_Core {
 			foreach ( $files as $file ) {
 				$list[] = dirname( $file ) . ( self::active_sites( $file )['here'] ? ' (activa)' : ' (inactiva)' );
 			}
-			echo '<div class="notice notice-warning"><p>' . esc_html( sprintf( 'Hay %d copias instaladas del plugin «%s»: %s. Sólo hace falta una; borra la inactiva desde esta lista.', count( $files ), (string) ( $plugins[ $files[0] ]['Name'] ?? $files[0] ), implode( ', ', $list ) ) ) . '</p></div>';
+			// Con la X: cerrado, vuelve a los 7 días si siguen las dos copias (otras carpetas, otra huella).
+			Digitalisimo_Notices::show( 'elements-duplicate-' . Digitalisimo_Notices::fingerprint( $files ), 'warning', '<p>' . esc_html( sprintf( 'Hay %d copias instaladas del plugin «%s»: %s. Sólo hace falta una; borra la inactiva desde esta lista.', count( $files ), (string) ( $plugins[ $files[0] ]['Name'] ?? $files[0] ), implode( ', ', $list ) ) ) . '</p>', array( 'hash' => $list, 'cap' => 'activate_plugins' ) );
 		}
 	}
 
@@ -396,6 +397,7 @@ final class Digitalisimo_Elements_Core {
 		if ( self::bundled() || ! $screen || ! in_array( $screen->id, array( 'plugins', 'plugins-network' ), true ) || ! current_user_can( 'activate_plugins' ) || ! self::version() ) {
 			return;
 		}
-		echo '<div class="notice notice-info"><p>' . esc_html( sprintf( 'DIGITALÍSIMO Elements ya incluye su propio constructor (versión %s). Puedes desactivar el plugin Elementor (y después borrarlo): tus páginas, plantillas, kits y ajustes siguen igual.', self::version() ) ) . '</p></div>';
+		// Informativo: cerrado con la X, no vuelve mientras el constructor incluido sea la misma versión.
+		Digitalisimo_Notices::show( 'elements-external', 'info', '<p>' . esc_html( sprintf( 'DIGITALÍSIMO Elements ya incluye su propio constructor (versión %s). Puedes desactivar el plugin Elementor (y después borrarlo): tus páginas, plantillas, kits y ajustes siguen igual.', self::version() ) ) . '</p>', array( 'hash' => self::version(), 'cap' => 'activate_plugins' ) );
 	}
 }

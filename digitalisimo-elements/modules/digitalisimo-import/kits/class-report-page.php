@@ -228,7 +228,7 @@ final class Report_Page {
 		$sessions = Report::sessions();
 		$current  = self::current_session( $sessions );
 		echo '<div class="wrap digitalisimo-elements-kits">';
-		echo '<h1>' . esc_html( 'Kits' ) . '</h1>';
+		echo '<h1>' . esc_html( 'Kits' ) . '</h1><hr class="wp-header-end">';
 		echo '<p>' . esc_html( 'Importa y exporta kits con DIGITALÍSIMO Elements. Importar nunca instala ni activa plugins o temas, ni cambia experimentos. Por defecto, un kit entra en «sólo agregar»: no cambia nada de lo que ya tiene el sitio y lo que se ve queda en borrador para que lo revises.' ) . ' ';
 		echo '<a href="' . esc_url( self::app_url( '#/export-customization' ) ) . '">' . esc_html( 'Exportar este sitio como kit' ) . '</a></p>';
 		self::render_notices();
@@ -262,7 +262,7 @@ final class Report_Page {
 		if ( $count > 0 && in_array( $code, array( 'publish-ok', 'publish-partial' ), true ) ) {
 			$text .= ' ' . sprintf( 'Documentos publicados: %d.', $count );
 		}
-		echo '<div class="notice notice-' . esc_attr( $type ) . '">';
+		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible">';
 		if ( '' !== $text ) {
 			echo '<p>' . esc_html( $text ) . '</p>';
 		}

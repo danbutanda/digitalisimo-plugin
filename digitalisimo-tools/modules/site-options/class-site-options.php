@@ -125,9 +125,10 @@ final class Site_Options {
 	public static function page( $network ) {
 		if ( ! current_user_can( $network ? 'manage_network_options' : 'manage_options' ) ) return;
 		$notice = sanitize_key( $_GET['site_options'] ?? '' );
-		if ( 'saved' === $notice ) echo '<div class="notice notice-success inline"><p>Ajustes guardados.</p></div>';
+		// Resultado del formulario: arriba de la pantalla (no `inline`), con la X.
+		if ( 'saved' === $notice ) echo '<div class="notice notice-success is-dismissible"><p>Ajustes guardados.</p></div>';
 		$error = get_transient( 'digitalisimo_tools_site_options_error_' . get_current_user_id() );
-		if ( $error ) { delete_transient( 'digitalisimo_tools_site_options_error_' . get_current_user_id() ); echo '<div class="notice notice-error inline"><p>' . esc_html( $error ) . '</p></div>'; }
+		if ( $error ) { delete_transient( 'digitalisimo_tools_site_options_error_' . get_current_user_id() ); echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $error ) . '</p></div>'; }
 		echo '<h2>Ajustes del sitio</h2><p>' . ( $network ? 'Valores que heredan todos los sitios de la red. Cada sitio puede personalizarlos en su propio DIGITALÍSIMO Tools.' : 'Acceso al escritorio y comportamiento general del sitio.' ) . '</p>';
 		$slug = Hide_Login::slug();
 		if ( ! $network && $slug ) echo '<div class="notice notice-info inline"><p>Acceso activo en <code>' . esc_html( Hide_Login::login_url() ) . '</code>. Guarda esta URL.</p></div>';

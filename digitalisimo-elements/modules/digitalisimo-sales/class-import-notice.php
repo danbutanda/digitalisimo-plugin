@@ -92,6 +92,6 @@ final class Import_Notice {
 		$link = 'opcion' === $reason && current_user_can( 'manage_options' )
 			? ' <a href="' . esc_url( admin_url( 'admin.php?page=elementor-settings#tab-advanced' ) ) . '">Ir a Configuración → Avanzado</a>'
 			: '';
-		echo '<div class="notice notice-error digitalisimo-import-notice"><p>' . esc_html( self::MESSAGES[ $reason ] ) . $link . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $link se arma escapado.
+		echo '<div class="notice notice-error is-dismissible digitalisimo-import-notice"><p>' . esc_html( self::MESSAGES[ $reason ] ) . $link . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $link se arma escapado.
 	}
 }

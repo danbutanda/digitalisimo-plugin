@@ -513,7 +513,9 @@ trait Digitalisimo_Backups_Keep_Config {
 		$actions = ( $pending ? $form( 'apply', 'Aplicar la del respaldo', true ) : '' ) . $form( 'discard', 'Descartar', false );
 		// Lo que se pierde al aplicarla, a la vista antes del botón.
 		$warning = $pending && '' !== $notice['replaces'] ? '<p class="digitalisimo-backups-warning"><strong>' . esc_html( $notice['replaces'] ) . '</strong></p>' : '';
-		return '<div class="notice notice-warning digitalisimo-backups-restore-notice"><p><strong>Backups:</strong> ' . esc_html( $text ) . '</p>' . $warning . '<p>' . $actions . '</p></div>';
+		// Con la X (queja del propietario del 2026-11-22): cerrado, vuelve a los 7 días mientras siga pendiente, o antes si
+		// cambia; en la franja de la pantalla de Backups sigue siempre a la vista.
+		return Digitalisimo_Notices::html( 'backups-restore-config', 'warning', '<p><strong>Backups:</strong> ' . esc_html( $text ) . '</p>' . $warning . '<p>' . $actions . '</p>', array( 'hash' => array( $text, $pending ), 'cap' => is_multisite() ? 'manage_network_options' : 'manage_options', 'class' => 'digitalisimo-backups-restore-notice' ) );
 	}
 	/** admin_notices y network_admin_notices: sólo a quien gestiona los respaldos, en el sitio principal o la red. */
 	public static function restore_config_admin_notice() {

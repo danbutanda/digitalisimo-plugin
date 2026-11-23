@@ -179,7 +179,8 @@ final class Admin {
 		$notice = get_transient( $key );
 		if ( ! is_array( $notice ) ) return;
 		delete_transient( $key );
-		echo self::notice_html( in_array( $notice['type'] ?? '', array( 'success', 'error', 'warning', 'info' ), true ) ? $notice['type'] : 'info', (string) ( $notice['text'] ?? '' ) ); // phpcs:ignore WordPress.Security.EscapeOutput
+		// Resultado de la acción: arriba de la pantalla, con la X (sale una sola vez).
+		echo \Digitalisimo_Notices::html( '', in_array( $notice['type'] ?? '', array( 'success', 'error', 'warning', 'info' ), true ) ? $notice['type'] : 'info', '<p>' . esc_html( (string) ( $notice['text'] ?? '' ) ) . '</p>', array( 'persist' => false ) ); // phpcs:ignore WordPress.Security.EscapeOutput
 	}
 
 	/** Avisos propios de la pestaña: modo, servidor, claves y firmas. */
@@ -812,7 +813,8 @@ final class Admin {
 		foreach ( self::notice_messages( $scope ) as $m ) {
 			$link  = '' !== $m['link'] ? ' <a href="' . esc_url( $m['link'] ) . '">Revisar</a>' : '';
 			$forms = ! empty( $m['dismiss'] ) ? self::bar( self::button( 'dismiss', $scope, '', 'Ocultar', 'button-link' ) ) : '';
-			echo '<div class="notice notice-' . esc_attr( $m['type'] ) . '"><p>' . esc_html( $m['text'] ) . $link . '</p>' . $forms . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput
+			// Con la X y el cierre recordado por usuario (cada mensaje es su propio aviso): vuelve si sigue a los 7 días (advertencia) o al día (error).
+			\Digitalisimo_Notices::show( 'tools-php-' . $scope . '-' . \Digitalisimo_Notices::fingerprint( $m['text'] ), $m['type'], '<p>' . esc_html( $m['text'] ) . $link . '</p>' . $forms, array( 'hash' => $m['type'] . '|' . $m['text'], 'cap' => is_multisite() ? 'manage_network_options' : 'manage_options' ) );
 		}
 	}
 

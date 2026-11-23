@@ -91,7 +91,8 @@ final class Digitalisimo_AI_Assistant {
 		if ( ! current_user_can( self::cap() ) ) {
 			wp_die( esc_html__( 'Sorry, you are not allowed to access this page.' ) );
 		}
-		echo '<div id="digitalisimo-assistant-root" class="digitalisimo-assistant"><noscript><p>El Asistente IA necesita JavaScript.</p></noscript><p class="digitalisimo-assistant-loading" role="status">Cargando el Asistente IA…</p></div>';
+		// Sin título propio: los avisos de WordPress quedan antes del Asistente, nunca dentro.
+		echo '<hr class="wp-header-end"><div id="digitalisimo-assistant-root" class="digitalisimo-assistant"><noscript><p>El Asistente IA necesita JavaScript.</p></noscript><p class="digitalisimo-assistant-loading" role="status">Cargando el Asistente IA…</p></div>';
 	}
 
 	/** Sólo en la pantalla del Asistente: la hoja, React del núcleo (`wp-element`), los adaptadores y la interfaz. */

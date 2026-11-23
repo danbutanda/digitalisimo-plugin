@@ -252,17 +252,14 @@ final class Module {
 		if ( ! function_exists( 'current_user_can' ) || ! current_user_can( 'activate_plugins' ) || '' === self::wc_version() ) {
 			return;
 		}
-		printf(
-			'<div class="notice notice-warning"><p>%s</p></div>',
-			esc_html(
-				sprintf(
-					/* translators: 1: versión mínima, 2: versión instalada. */
-					__( 'Los widgets de WooCommerce de DIGITALÍSIMO Elements necesitan WooCommerce %1$s o posterior (versión instalada: %2$s). Sus ajustes se conservan y vuelven a aplicarse al actualizar WooCommerce.', 'pro-elements' ),
-					self::MIN_WC,
-					self::wc_version()
-				)
-			)
+		// Con la X: cerrado, vuelve a los 7 días si WooCommerce sigue sin actualizarse (otra versión instalada, otra huella).
+		$text = sprintf(
+			/* translators: 1: versión mínima, 2: versión instalada. */
+			__( 'Los widgets de WooCommerce de DIGITALÍSIMO Elements necesitan WooCommerce %1$s o posterior (versión instalada: %2$s). Sus ajustes se conservan y vuelven a aplicarse al actualizar WooCommerce.', 'pro-elements' ),
+			self::MIN_WC,
+			self::wc_version()
 		);
+		\Digitalisimo_Notices::show( 'elements-woo-version', 'warning', '<p>' . esc_html( $text ) . '</p>', array( 'hash' => self::wc_version(), 'cap' => 'activate_plugins' ) );
 	}
 
 	/** Llama a un método estático de una clase del módulo si la clase y el método existen. */

@@ -338,7 +338,7 @@ final class Publisher {
 		$title = function_exists( 'get_the_title' ) ? (string) get_the_title( $id ) : '';
 		/* translators: %s: título de la plantilla. */
 		$text = sprintf( __( '«%s» sigue en borrador: es una copia de una plantilla de Element Pack y se publicará sola cuando Element Pack deje de estar activo. Publicarla ahora mostraría dos cabeceras o dos pies.', 'digitalisimo-migration' ), '' !== $title ? $title : '#' . $id );
-		echo '<div class="notice notice-warning"><p>' . esc_html( $text ) . '</p></div>';
+		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html( $text ) . '</p></div>';
 	}
 
 	/* ================================================================ Estado */

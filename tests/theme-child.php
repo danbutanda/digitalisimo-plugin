@@ -357,6 +357,9 @@ function __( $text, $domain = '' ) {
 function esc_html( $text ) {
 	return htmlspecialchars( (string) $text, ENT_QUOTES );
 }
+function esc_attr( $text ) {
+	return htmlspecialchars( (string) $text, ENT_QUOTES );
+}
 function digitalisimo_theme_switch_log() {
 	return $GLOBALS['options']['digitalisimo_theme_switch_log'] ?? array();
 }
@@ -369,7 +372,11 @@ function update_option( $key, $value, $autoload = null ) {
 $GLOBALS['options']['digitalisimo_theme_child']['assets'][0]['s'] = 'style.css';
 ob_start();
 digitalisimo_theme_child_notice();
-check( false !== strpos( ob_get_clean(), 'notice-info' ), 'En Temas, con el hijo en su carpeta: no lo borres.' );
+$html = ob_get_clean();
+check( false !== strpos( $html, 'notice-info' ), 'En Temas, con el hijo en su carpeta: no lo borres.' );
+// Queja del propietario (2026-11-22, «no poder quitarlas»): sin ningún plugin DIGITALÍSIMO, el aviso lleva al menos la X
+// de WordPress (el tema no lleva JavaScript propio; con un plugin, el cierre queda recordado: tests/admin-notices.php).
+check( false !== strpos( $html, 'is-dismissible' ), 'El aviso del tema lleva la X.' );
 digitalisimo_theme_child_deleted( 'otro', true );
 check( ! isset( $GLOBALS['options']['digitalisimo_theme_switch_log'] ), 'Borrar otro tema no anota nada.' );
 rename( $GLOBALS['root'] . '/hijo', $GLOBALS['root'] . '/hijo-movido' );
