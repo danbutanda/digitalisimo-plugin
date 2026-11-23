@@ -9,6 +9,37 @@ class Digitalisimo_AI {
 	const MASK = '••••••••••••';
 
 	/**
+	 * Modelo recomendado por proveedor: se usa cuando un proveedor está activo con su clave y ningún perfil lo eligió
+	 * (caso real del propietario, 2026-11-22: activó sólo Anthropic y el Asistente decía «No hay ninguna IA configurada»,
+	 * porque los perfiles de fábrica apuntan a OpenAI). Se cambia en «Perfiles de uso».
+	 */
+	const DEFAULT_MODELS = array( 'openai' => 'gpt-4o-mini', 'anthropic' => 'claude-sonnet-5-5', 'google' => 'gemini-2.5-flash', 'deepseek' => 'deepseek-chat', 'xai' => 'grok-3-mini' );
+
+	/** El modelo recomendado de un proveedor ('' si no se conoce). */
+	public static function default_model( $id ) { return (string) apply_filters( 'digitalisimo_ai_default_model', self::DEFAULT_MODELS[ $id ] ?? '', $id ); }
+
+	/** Proveedores activos con clave, en el orden en que se intentan: [ id => modelo ]. */
+	public static function usable_providers( $o = null ) {
+		$o = is_array( $o ) ? $o : self::get(); $out = array();
+		foreach ( (array) ( $o['providers'] ?? array() ) as $id => $p ) { $id = sanitize_key( (string) $id ); if ( ! empty( $p['enabled'] ) && ! empty( $p['key'] ) && '' !== self::default_model( $id ) ) $out[ $id ] = self::default_model( $id ); }
+		return $out;
+	}
+
+	/**
+	 * Orden de proveedores de un perfil, con el modelo de cada uno: primero el del perfil (con su modelo), luego su
+	 * alternativa y por último cualquier otro proveedor activo con clave (con su modelo recomendado). Así un perfil
+	 * que apunta a un proveedor sin clave sigue funcionando con el que sí está configurado.
+	 */
+	private static function provider_order( $profile_data, $o ) {
+		$order = array(); $main = sanitize_key( (string) ( $profile_data['provider'] ?? '' ) ); $model = trim( (string) ( $profile_data['model'] ?? '' ) );
+		if ( '' !== $main ) $order[ $main ] = '' !== $model ? $model : self::default_model( $main );
+		$fallback = sanitize_key( (string) ( $profile_data['fallback'] ?? '' ) );
+		if ( '' !== $fallback && ! isset( $order[ $fallback ] ) ) $order[ $fallback ] = self::default_model( $fallback );
+		foreach ( self::usable_providers( $o ) as $id => $default ) if ( ! isset( $order[ $id ] ) ) $order[ $id ] = $default;
+		return array_filter( $order, 'strlen' );
+	}
+
+	/**
 	 * Lo escrito en un campo de clave, sin la máscara: una clave real nunca lleva «•», así que se quitan todos (quien hace
 	 * clic en el campo y pega la clave nueva la deja pegada a la máscara). Vacío = conservar la guardada.
 	 */
@@ -163,7 +194,7 @@ class Digitalisimo_AI {
 		$names = array( 'openai' => 'OpenAI / GPT', 'anthropic' => 'Anthropic / Claude', 'google' => 'Google / Gemini', 'deepseek' => 'DeepSeek', 'xai' => 'xAI / Grok' );
 		// Un sitio que personaliza no recibe las claves de la red: si la red tiene una, se le pide la suya.
 		$network_keys = is_multisite() && ! ( function_exists( 'is_network_admin' ) && is_network_admin() ) && empty( self::local_options()['inherit_network'] ) ? (array) ( ( (array) get_site_option( self::OPTION, array() ) )['providers'] ?? array() ) : array();
-		foreach ( $names as $id => $name ) { $p = $o['providers'][ $id ] ?? array(); $has_key = ! empty( $p['key'] ); if ( ! $has_key && ! empty( $network_keys[ $id ]['key'] ) ) echo '<p class="notice notice-info inline">' . esc_html( $name ) . ': la red tiene su clave, pero no se copia a los sitios que personalizan. Escribe la clave de este sitio.</p>'; echo '<fieldset style="margin:18px 0;padding:16px;border:1px solid #ccd6e5"><legend><strong>' . esc_html( $name ) . '</strong></legend><label><input type="hidden" name="providers[' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="providers[' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label><p><input class="regular-text" type="password" name="providers[' . esc_attr( $id ) . '][key]" autocomplete="new-password" value="' . esc_attr( $has_key ? self::MASK : '' ) . '" onfocus="this.select()" placeholder="API Key"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span>' . ( $has_key ? ' <label><input type="checkbox" name="providers[' . esc_attr( $id ) . '][remove]" value="1"> Quitar la clave</label>' : '' ) . '</p><p><label>URL compatible <input class="regular-text" type="url" name="providers[' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p></fieldset>'; }
+		foreach ( $names as $id => $name ) { $p = $o['providers'][ $id ] ?? array(); $has_key = ! empty( $p['key'] ); if ( ! $has_key && ! empty( $network_keys[ $id ]['key'] ) ) echo '<p class="notice notice-info inline">' . esc_html( $name ) . ': la red tiene su clave, pero no se copia a los sitios que personalizan. Escribe la clave de este sitio.</p>'; echo '<fieldset style="margin:18px 0;padding:16px;border:1px solid #ccd6e5"><legend><strong>' . esc_html( $name ) . '</strong></legend><label><input type="hidden" name="providers[' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="providers[' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label><p><input class="regular-text" type="password" name="providers[' . esc_attr( $id ) . '][key]" autocomplete="new-password" value="' . esc_attr( $has_key ? self::MASK : '' ) . '" onfocus="this.select()" placeholder="API Key"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span>' . ( $has_key && '' !== self::default_model( $id ) ? ' <span class="description">' . esc_html( sprintf( 'Si ningún perfil lo elige, se usa con %s (cámbialo en Perfiles de uso).', self::default_model( $id ) ) ) . '</span>' : '' ) . '' . ( $has_key ? ' <label><input type="checkbox" name="providers[' . esc_attr( $id ) . '][remove]" value="1"> Quitar la clave</label>' : '' ) . '</p><p><label>URL compatible <input class="regular-text" type="url" name="providers[' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p></fieldset>'; }
 	}
 	private static function profiles( $o ) { foreach ( $o['profiles'] as $id => $p ) { echo '<p><strong>' . esc_html( ucfirst( $id ) ) . '</strong><br><label>Proveedor <select name="profiles[' . esc_attr( $id ) . '][provider]">'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['provider'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label> <label>Modelo <input name="profiles[' . esc_attr( $id ) . '][model]" value="' . esc_attr( $p['model'] ) . '"></label> <label>Alternativa <select name="profiles[' . esc_attr( $id ) . '][fallback]"><option value="">Sin alternativa</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['fallback'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label></p>'; } }
 
@@ -202,13 +233,13 @@ class Digitalisimo_AI {
 
 	public static function complete( $profile, $prompt, $context = '' ) {
 		$o = self::get(); $profile_data = $o['profiles'][ $profile ] ?? null; if ( ! $profile_data ) return new WP_Error( 'profile', 'Perfil no configurado' );
-		$order = array_unique( array_filter( array( $profile_data['provider'], $profile_data['fallback'] ) ) ); $last_error = 'Ningún proveedor activo pudo responder.';
-		foreach ( $order as $id ) {
+		$order = self::provider_order( $profile_data, $o ); $last_error = 'Ningún proveedor activo pudo responder.';
+		foreach ( $order as $id => $model ) {
 			$provider = $o['providers'][ $id ] ?? array(); if ( empty( $provider['enabled'] ) || empty( $provider['key'] ) ) continue;
 			$system = 'Eres el asistente de este sitio. Responde con precisión usando solamente el contexto proporcionado. No inventes datos. ' . $context; $url = $provider['url'] ?? ''; $headers = array( 'Content-Type' => 'application/json' ); $body = array();
-			if ( in_array( $id, array( 'openai', 'deepseek', 'xai' ), true ) ) { $urls = array( 'openai' => 'https://api.openai.com/v1/chat/completions', 'deepseek' => 'https://api.deepseek.com/v1/chat/completions', 'xai' => 'https://api.x.ai/v1/chat/completions' ); $url = $url ?: $urls[ $id ]; $headers['Authorization'] = 'Bearer ' . $provider['key']; $body = array( 'model' => $profile_data['model'], 'messages' => array( array( 'role' => 'system', 'content' => $system ), array( 'role' => 'user', 'content' => $prompt ) ), 'temperature' => 0.4 ); }
-			elseif ( 'anthropic' === $id ) { $url = $url ?: 'https://api.anthropic.com/v1/messages'; $headers['x-api-key'] = $provider['key']; $headers['anthropic-version'] = '2023-06-01'; $body = array( 'model' => $profile_data['model'], 'max_tokens' => 1200, 'system' => $system, 'messages' => array( array( 'role' => 'user', 'content' => $prompt ) ) ); }
-			elseif ( 'google' === $id ) { $url = $url ?: 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode( $profile_data['model'] ) . ':generateContent?key=' . rawurlencode( $provider['key'] ); $body = array( 'contents' => array( array( 'parts' => array( array( 'text' => $system . "\n\n" . $prompt ) ) ) ) ); } else continue;
+			if ( in_array( $id, array( 'openai', 'deepseek', 'xai' ), true ) ) { $urls = array( 'openai' => 'https://api.openai.com/v1/chat/completions', 'deepseek' => 'https://api.deepseek.com/v1/chat/completions', 'xai' => 'https://api.x.ai/v1/chat/completions' ); $url = $url ?: $urls[ $id ]; $headers['Authorization'] = 'Bearer ' . $provider['key']; $body = array( 'model' => $model, 'messages' => array( array( 'role' => 'system', 'content' => $system ), array( 'role' => 'user', 'content' => $prompt ) ), 'temperature' => 0.4 ); }
+			elseif ( 'anthropic' === $id ) { $url = $url ?: 'https://api.anthropic.com/v1/messages'; $headers['x-api-key'] = $provider['key']; $headers['anthropic-version'] = '2023-06-01'; $body = array( 'model' => $model, 'max_tokens' => 1200, 'system' => $system, 'messages' => array( array( 'role' => 'user', 'content' => $prompt ) ) ); }
+			elseif ( 'google' === $id ) { $url = $url ?: 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode( $model ) . ':generateContent?key=' . rawurlencode( $provider['key'] ); $body = array( 'contents' => array( array( 'parts' => array( array( 'text' => $system . "\n\n" . $prompt ) ) ) ) ); } else continue;
 			$response = wp_remote_post( $url, array( 'timeout' => 35, 'headers' => $headers, 'body' => wp_json_encode( $body ) ) ); $code = is_wp_error( $response ) ? 0 : wp_remote_retrieve_response_code( $response );
 			if ( is_wp_error( $response ) || $code < 200 || $code >= 300 ) { $last_error = is_wp_error( $response ) ? $response->get_error_message() : 'HTTP ' . $code; self::log( $profile, $id, false, $code ); continue; }
 			$data = json_decode( wp_remote_retrieve_body( $response ), true ); $text = $data['choices'][0]['message']['content'] ?? $data['content'][0]['text'] ?? $data['candidates'][0]['content']['parts'][0]['text'] ?? '';

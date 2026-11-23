@@ -44,6 +44,13 @@ final class Digitalisimo_AI_Assistant_Model {
 			}
 			$out[ $id ] = array( 'provider' => $id, 'model' => $model, 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => (string) $profile );
 		}
+		// Un proveedor activo con clave que ningún perfil eligió también está disponible, con su modelo recomendado
+		// (si no, activar sólo Anthropic dejaba el Asistente en «No hay ninguna IA configurada»).
+		foreach ( Digitalisimo_AI::usable_providers( $o ) as $id => $model ) {
+			if ( isset( self::NAMES[ $id ] ) && ! isset( $out[ $id ] ) ) {
+				$out[ $id ] = array( 'provider' => $id, 'model' => $model, 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => '' );
+			}
+		}
 		return $out;
 	}
 

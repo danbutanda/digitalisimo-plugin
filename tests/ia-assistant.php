@@ -385,6 +385,14 @@ $e = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'hola' )
 check( is_wp_error( $e ) && 409 === $e->data['status'], 'Sin IA configurada, el chat lo dice' );
 $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => '/demo-read-note', 'conversation' => $conv_id ) ) ) );
 check( 'demo/read-note' === end( $GLOBALS['executed'] )[0], 'Sin IA, los atajos siguen funcionando' );
+// Caso real (2026-11-22): sólo Anthropic activo con su clave y los perfiles de fábrica en OpenAI. El Asistente debe
+// ofrecer Claude con su modelo recomendado, no «No hay ninguna IA configurada».
+$GLOBALS['options']['digitalisimo_ai_options']['providers'] = array( 'openai' => array( 'enabled' => 0, 'key' => '' ), 'anthropic' => array( 'enabled' => 1, 'key' => KEY_ANTHROPIC, 'url' => '' ) );
+unset( $GLOBALS['options']['digitalisimo_ai_options']['profiles'] );
+$t = Digitalisimo_AI_Assistant_Model::targets();
+check( array( 'anthropic' ) === array_keys( $t ) && 'claude-sonnet-5-5' === $t['anthropic']['model'], 'Sólo Anthropic activo con perfiles en OpenAI: el Asistente ofrece Claude con su modelo recomendado' );
+$target = Digitalisimo_AI_Assistant_Model::target( 'auto' );
+check( ! is_wp_error( $target ) && 'anthropic' === $target['provider'] && KEY_ANTHROPIC === $target['key'], 'En «Auto» usa Claude con su clave' );
 $GLOBALS['options']['digitalisimo_ai_options'] = $saved;
 $rows = Digitalisimo_AI_Assistant_Tools::log_rows();
 check( 'Ana Admin' === $rows[0]['user_name'] && $rows[0]['time'] >= end( $rows )['time'], 'La bitácora se lee de la más reciente a la más antigua, con el nombre de cada usuario' );
