@@ -528,6 +528,7 @@ jobs:
           php tests/elements-woo-mcp.php
           php tests/elements-woo-skydropx.php
           php tests/elements-mcp-css.php
+          php tests/elements-mcp-settings.php
           php tests/elements-mcp-preview-site.php
           php tests/elements-kit-woo-refs.php
           php tests/elements-f7b-module.php
