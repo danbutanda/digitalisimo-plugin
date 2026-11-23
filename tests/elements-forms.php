@@ -97,6 +97,9 @@ namespace {
 			$html = ef_page( 3 );
 			check( false !== strpos( ef_key_input( $html ), 'value=""' ) && false !== strpos( $html, 'Heredada de la red' ) && false === strpos( $html, 'AIza-segunda' ) && 'AIza-segunda' === Reviews::api_key(), 'network: un sitio sin clave propia hereda la de la red y lo dice' );
 		}
+		ef_submit( ef_page( $blog, $net ), array( 'remove_key' => true, 'google_places_key' => 'AIza-nueva' ) );
+		$GLOBALS['ef']['blog'] = $blog;
+		check( 'AIza-nueva' === $read(), "$mode: con «Quitar la clave» marcada y una clave nueva escrita, gana la nueva" );
 		ef_submit( ef_page( $blog, $net ), array( 'remove_key' => true ) );
 		$GLOBALS['ef']['blog'] = $blog;
 		check( '' === $read(), "$mode: «Quitar la clave» la borra" );

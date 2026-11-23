@@ -65,11 +65,12 @@ final class Google_Reviews_Service {
 		$network = 'network' === sanitize_key( $_POST['scope'] ?? '' );
 		if ( ! current_user_can( $network ? 'manage_network_options' : 'manage_options' ) ) { wp_die( 'No tienes permisos para guardar esta clave.' ); }
 		check_admin_referer( 'digitalisimo_elements_google_reviews_save_' . ( $network ? 'network' : 'site' ) );
-		if ( ! empty( $_POST['remove_key'] ) ) {
+		// Una clave nueva escrita gana sobre «Quitar la clave» marcada a la vez: lo último que hizo la persona fue escribirla.
+		$value = trim( self::unmask( $_POST['google_places_key'] ?? '' ) );
+		if ( '' !== $value ) {
+			$network ? update_site_option( self::KEY, $value ) : update_option( self::KEY, $value, false );
+		} elseif ( ! empty( $_POST['remove_key'] ) ) {
 			$network ? delete_site_option( self::KEY ) : delete_option( self::KEY );
-		} else {
-			$value = trim( self::unmask( $_POST['google_places_key'] ?? '' ) );
-			if ( '' !== $value ) { $network ? update_site_option( self::KEY, $value ) : update_option( self::KEY, $value, false ); }
 		}
 		$url = $network ? network_admin_url( 'settings.php?page=digitalisimo-elements-google-reviews&updated=1' ) : admin_url( 'options-general.php?page=digitalisimo-elements-google-reviews&updated=1' );
 		wp_safe_redirect( $url );
