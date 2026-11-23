@@ -38,6 +38,8 @@ switch ( $digi_step ) {
 		// El sitio principal apaga su SEO propio y tiene sus claves; el sitio 2 lo hereda todo.
 		update_option( OPT, array( 'enable_seo' => 0, 'seo_organization_name' => 'PRINCIPAL', 'openai_api_key' => 'sk-PRINCIPAL', 'ai_providers' => array( 'anthropic' => array( 'enabled' => 1, 'key' => 'sk-ant-PRINCIPAL', 'url' => '' ) ) ) );
 		update_option( 'digitalisimo_seo_network_inherit', array( 'enable_seo' => 0, 'seo_organization_name' => 0 ), false );
+		// Una red que el guardado antiguo ya contaminó con las claves del principal: la limpieza única debe quitarlas.
+		update_site_option( OPT, array( 'openai_api_key' => 'sk-PRINCIPAL', 'ai_providers' => get_option( OPT )['ai_providers'] ) );
 		$note( 2 === (int) $id && is_plugin_active_for_network( 'digitalisimo-seo/digitalisimo-integrations.php' ), 'red con el sitio 2 y los plugins activos en la red' );
 		break;
 	case 'net-seo':
@@ -45,6 +47,7 @@ switch ( $digi_step ) {
 		$to = digi_network_edit( $form['post'] );
 		$net = (array) get_site_option( OPT, array() );
 		$note( null !== $to, 'Red → SEO guarda aunque el sitio principal tenga el SEO apagado' );
+		$note( array( 'openai_api_key', 'ai_providers' ) === ( get_site_option( 'digitalisimo_seo_network_secrets_cleaned' )['removed'] ?? null ), 'la limpieza única quitó de la red las claves copiadas del principal y lo registró' );
 		$note( 'RED' === ( $net['seo_organization_name'] ?? '' ), 'la red guardó el nombre de la organización' );
 		$note( false === strpos( wp_json_encode( $net ), 'PRINCIPAL' ) && ! array_key_exists( 'enable_seo', $net ), 'la red no copió ajustes ni claves del sitio principal: ' . wp_json_encode( array_intersect_key( $net, array_flip( array( 'enable_seo', 'openai_api_key', 'ai_providers' ) ) ) ) );
 		break;
