@@ -32,7 +32,7 @@ class Digitalisimo_AI {
 	 */
 	private static function provider_order( $profile_data, $o ) {
 		$order = array(); $main = sanitize_key( (string) ( $profile_data['provider'] ?? '' ) ); $model = trim( (string) ( $profile_data['model'] ?? '' ) );
-		if ( '' !== $main ) $order[ $main ] = '' !== $model ? $model : self::default_model( $main );
+		if ( '' !== $main && 'auto' !== $main ) $order[ $main ] = '' !== $model ? $model : self::default_model( $main );
 		$fallback = sanitize_key( (string) ( $profile_data['fallback'] ?? '' ) );
 		if ( '' !== $fallback && ! isset( $order[ $fallback ] ) ) $order[ $fallback ] = self::default_model( $fallback );
 		foreach ( self::usable_providers( $o ) as $id => $default ) if ( ! isset( $order[ $id ] ) ) $order[ $id ] = $default;
@@ -75,11 +75,11 @@ class Digitalisimo_AI {
 			'editorial_voice' => '', 'editorial_context' => '', 'editorial_cta' => '', 'editorial_method' => '',
 			'providers' => array(),
 			'profiles' => array(
-				'chatbot' => array( 'provider' => 'openai', 'model' => 'gpt-4o-mini', 'fallback' => '' ),
-				'content' => array( 'provider' => 'openai', 'model' => 'gpt-4o-mini', 'fallback' => '' ),
-				'seo' => array( 'provider' => 'openai', 'model' => 'gpt-4o-mini', 'fallback' => '' ),
-				'ecommerce' => array( 'provider' => 'openai', 'model' => 'gpt-4o-mini', 'fallback' => '' ),
-				'automation' => array( 'provider' => 'openai', 'model' => 'gpt-4o-mini', 'fallback' => '' ),
+				'chatbot' => array( 'provider' => 'auto', 'model' => '', 'fallback' => '' ),
+				'content' => array( 'provider' => 'auto', 'model' => '', 'fallback' => '' ),
+				'seo' => array( 'provider' => 'auto', 'model' => '', 'fallback' => '' ),
+				'ecommerce' => array( 'provider' => 'auto', 'model' => '', 'fallback' => '' ),
+				'automation' => array( 'provider' => 'auto', 'model' => '', 'fallback' => '' ),
 				'images' => array( 'provider' => 'openai', 'model' => 'gpt-image-1', 'fallback' => '' ),
 			),
 		);
@@ -196,7 +196,7 @@ class Digitalisimo_AI {
 		$network_keys = is_multisite() && ! ( function_exists( 'is_network_admin' ) && is_network_admin() ) && empty( self::local_options()['inherit_network'] ) ? (array) ( ( (array) get_site_option( self::OPTION, array() ) )['providers'] ?? array() ) : array();
 		foreach ( $names as $id => $name ) { $p = $o['providers'][ $id ] ?? array(); $has_key = ! empty( $p['key'] ); if ( ! $has_key && ! empty( $network_keys[ $id ]['key'] ) ) echo '<p class="notice notice-info inline">' . esc_html( $name ) . ': la red tiene su clave, pero no se copia a los sitios que personalizan. Escribe la clave de este sitio.</p>'; echo '<fieldset style="margin:18px 0;padding:16px;border:1px solid #ccd6e5"><legend><strong>' . esc_html( $name ) . '</strong></legend><label><input type="hidden" name="providers[' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="providers[' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label><p><input class="regular-text" type="password" name="providers[' . esc_attr( $id ) . '][key]" autocomplete="new-password" value="' . esc_attr( $has_key ? self::MASK : '' ) . '" onfocus="this.select()" placeholder="API Key"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span>' . ( $has_key && '' !== self::default_model( $id ) ? ' <span class="description">' . esc_html( sprintf( 'Si ningún perfil lo elige, se usa con %s (cámbialo en Perfiles de uso).', self::default_model( $id ) ) ) . '</span>' : '' ) . '' . ( $has_key ? ' <label><input type="checkbox" name="providers[' . esc_attr( $id ) . '][remove]" value="1"> Quitar la clave</label>' : '' ) . '</p><p><label>URL compatible <input class="regular-text" type="url" name="providers[' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p></fieldset>'; }
 	}
-	private static function profiles( $o ) { foreach ( $o['profiles'] as $id => $p ) { echo '<p><strong>' . esc_html( ucfirst( $id ) ) . '</strong><br><label>Proveedor <select name="profiles[' . esc_attr( $id ) . '][provider]">'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['provider'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label> <label>Modelo <input name="profiles[' . esc_attr( $id ) . '][model]" value="' . esc_attr( $p['model'] ) . '"></label> <label>Alternativa <select name="profiles[' . esc_attr( $id ) . '][fallback]"><option value="">Sin alternativa</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['fallback'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label></p>'; } }
+	private static function profiles( $o ) { foreach ( $o['profiles'] as $id => $p ) { echo '<p><strong>' . esc_html( ucfirst( $id ) ) . '</strong><br><label>Proveedor <select name="profiles[' . esc_attr( $id ) . '][provider]">'; if ( 'images' !== $id ) echo '<option value="auto" ' . selected( in_array( $p['provider'], array( 'auto', '' ), true ), true, false ) . '>Auto (lo que esté configurado en Proveedores)</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['provider'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label> <label>Modelo <input name="profiles[' . esc_attr( $id ) . '][model]" value="' . esc_attr( $p['model'] ) . '" placeholder="El recomendado"></label> <label>Alternativa <select name="profiles[' . esc_attr( $id ) . '][fallback]"><option value="">Sin alternativa</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['fallback'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label></p>'; } }
 
 	private static function sanitize_values( $base ) {
 		$in = (array) wp_unslash( $_POST['ai'] ?? array() );
@@ -206,7 +206,7 @@ class Digitalisimo_AI {
 		foreach ( array( 'chat_enabled', 'inherit_network', 'knowledge_enabled', 'knowledge_auto_index', 'knowledge_embeddings_enabled', 'knowledge_semantic_rerank', 'mcp_featured_image_enabled' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
 		if ( isset( $in['image_quality'] ) ) $o['image_quality'] = in_array( $in['image_quality'], array( 'low', 'medium', 'high', 'xhigh', 'max' ), true ) ? $in['image_quality'] : 'medium';
 		if ( isset( $_POST['providers'] ) ) { $o['providers'] = $base['providers'] ?? array(); foreach ( (array) $_POST['providers'] as $id => $p ) { $id = sanitize_key( $id ); $o['providers'][ $id ]['enabled'] = ! empty( $p['enabled'] ); $o['providers'][ $id ]['url'] = esc_url_raw( $p['url'] ?? '' ); if ( ! empty( $p['remove'] ) ) $o['providers'][ $id ]['key'] = ''; elseif ( '' !== ( $new_key = self::unmask( $p['key'] ?? '' ) ) ) $o['providers'][ $id ]['key'] = $new_key; } }
-		if ( isset( $_POST['profiles'] ) ) { $o['profiles'] = $base['profiles'] ?? self::defaults()['profiles']; foreach ( (array) wp_unslash( $_POST['profiles'] ) as $id => $p ) $o['profiles'][ sanitize_key( $id ) ] = array( 'provider' => sanitize_key( $p['provider'] ?? 'openai' ), 'model' => sanitize_text_field( $p['model'] ?? '' ), 'fallback' => sanitize_key( $p['fallback'] ?? '' ) ); }
+		if ( isset( $_POST['profiles'] ) ) { $o['profiles'] = $base['profiles'] ?? self::defaults()['profiles']; foreach ( (array) wp_unslash( $_POST['profiles'] ) as $id => $p ) $o['profiles'][ sanitize_key( $id ) ] = array( 'provider' => ( sanitize_key( $p['provider'] ?? 'auto' ) ?: 'auto' ), 'model' => sanitize_text_field( $p['model'] ?? '' ), 'fallback' => sanitize_key( $p['fallback'] ?? '' ) ); }
 		return $o;
 	}
 	private static function save_site() {

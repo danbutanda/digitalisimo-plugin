@@ -393,6 +393,11 @@ $t = Digitalisimo_AI_Assistant_Model::targets();
 check( array( 'anthropic' ) === array_keys( $t ) && 'claude-sonnet-5-5' === $t['anthropic']['model'], 'Sólo Anthropic activo con perfiles en OpenAI: el Asistente ofrece Claude con su modelo recomendado' );
 $target = Digitalisimo_AI_Assistant_Model::target( 'auto' );
 check( ! is_wp_error( $target ) && 'anthropic' === $target['provider'] && KEY_ANTHROPIC === $target['key'], 'En «Auto» usa Claude con su clave' );
+// Un perfil en «Auto» (el de fábrica) usa lo que esté configurado: con OpenAI y Anthropic activos, los dos.
+$GLOBALS['options']['digitalisimo_ai_options']['providers']['openai'] = array( 'enabled' => 1, 'key' => KEY_OPENAI, 'url' => '' );
+$GLOBALS['options']['digitalisimo_ai_options']['profiles'] = array( 'content' => array( 'provider' => 'auto', 'model' => '', 'fallback' => '' ) );
+$t = Digitalisimo_AI_Assistant_Model::targets();
+check( array( 'openai', 'anthropic' ) === array_keys( $t ) && 'gpt-4o-mini' === $t['openai']['model'] && 'claude-sonnet-5-5' === $t['anthropic']['model'], 'Un perfil en «Auto» ofrece todo lo configurado, cada uno con su modelo' );
 $GLOBALS['options']['digitalisimo_ai_options'] = $saved;
 $rows = Digitalisimo_AI_Assistant_Tools::log_rows();
 check( 'Ana Admin' === $rows[0]['user_name'] && $rows[0]['time'] >= end( $rows )['time'], 'La bitácora se lee de la más reciente a la más antigua, con el nombre de cada usuario' );
