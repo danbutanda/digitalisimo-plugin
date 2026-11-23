@@ -1,4 +1,4 @@
-.digi-mm__toggle{align-self:var(--dmm-toggle-align);background-color:initial;border:initial;border-radius:0;box-shadow:none;color:inherit;display:none;margin:0;min-height:0;padding:initial;position:relative;user-select:none;z-index:1000}
+nav.digi-mm button.digi-mm__toggle{align-self:var(--dmm-toggle-align);background:none;border:0;border-radius:0;box-shadow:none;color:inherit;display:none;margin:0;min-height:0;padding:0;position:relative;user-select:none;z-index:1000}
 .digi-mm__toggle{--dmm-g:var(--dmm-toggle-icon-color)}
 .digi-mm__toggle:hover{--dmm-g:var(--dmm-toggle-icon-color-hover,var(--dmm-toggle-icon-color))}
 .digi-mm__toggle[aria-expanded=true]{--dmm-g:var(--dmm-toggle-icon-color-active,var(--dmm-toggle-icon-color))}

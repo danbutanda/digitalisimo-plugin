@@ -116,6 +116,7 @@ jobs:
           php tests/elements-pro-yoast-breadcrumbs.php
           php tests/elements-pro-nav-menu.php
           node tests/elements-pro-nav-menu-chrome.mjs
+          node tests/elements-control-buttons-chrome.mjs
           php tests/elements-pro-mega-menu.php
           node tests/elements-pro-mega-menu-chrome.mjs
           php tests/elements-pro-off-canvas.php

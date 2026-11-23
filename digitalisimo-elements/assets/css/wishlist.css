@@ -1,5 +1,6 @@
 .digi-wish,.digi-wish-link{display:inline-flex;align-items:center;gap:.4em;font:inherit;color:inherit;line-height:1.2;text-decoration:none}
 .digi-wish{padding:.45em .8em;border:1px solid currentColor;border-radius:999px;background:none;cursor:pointer}
+.digi-wish[aria-pressed],.digi-wish[aria-pressed]:is(:hover,:focus){padding:.45em .8em;border:1px solid currentColor;border-radius:999px;background:none;box-shadow:none;color:inherit}
 .digi-wish[hidden],.digi-wishlist [hidden],.digi-wish-merge[hidden]{display:none!important}
 .digi-wish[hidden=hidden]{display:inline-flex!important;visibility:hidden}
 .digi-wishlist [data-digi-wish-empty][hidden=hidden]{display:block!important;visibility:hidden}
@@ -17,9 +18,9 @@
 .digi-wishlist__body{display:grid;gap:.4rem;justify-items:start}
 .digi-wishlist__name{margin:0;font-size:1em}
 .digi-wishlist__body .stock{margin:0}
-.digi-wishlist__remove,.digi-wishlist__clear{padding:0;border:0;background:none;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}
+.digi-wishlist :is(.digi-wishlist__remove,.digi-wishlist__clear),.digi-wishlist :is(.digi-wishlist__remove,.digi-wishlist__clear):is(:hover,:focus){padding:0;border:0;border-radius:0;background:none;box-shadow:none;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}
 .digi-wishlist__clear{margin-top:1rem}
 .digi-wishlist__empty{margin:0}
 .digi-wish-merge{position:fixed;z-index:9999;inset-block-end:1rem;inset-inline:1rem;max-width:28rem;margin-inline:auto;padding:1rem;border:1px solid CanvasText;border-radius:.5rem;background:Canvas;color:CanvasText}
 .digi-wish-merge p{margin:0 0 .75rem}
-.digi-wish-merge button{margin-inline-end:.5rem;padding:.4em .9em;border:1px solid currentColor;border-radius:.35rem;background:none;font:inherit;color:inherit;cursor:pointer}
+.digi-wish-merge button[type=button],.digi-wish-merge button[type=button]:is(:hover,:focus){margin-inline-end:.5rem;padding:.4em .9em;border:1px solid currentColor;border-radius:.35rem;background:none;box-shadow:none;font:inherit;color:inherit;cursor:pointer}

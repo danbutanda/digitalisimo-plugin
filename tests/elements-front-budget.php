@@ -94,7 +94,7 @@ namespace {
 		$mine = array_filter( $found[0], function ( $r ) use ( $handle ) { return str_contains( $r, 'COUNTER_HANDLE' ) || str_contains( $r, 'self::HANDLE' ) || str_contains( $r, "'" . $handle . "'" ); } );
 		check_budget( 1 === count( $mine ) && str_contains( reset( $mine ), "'strategy' => 'defer'" ) && ! str_contains( reset( $mine ), "'jquery'" ), $handle . ': el script se registra con defer y sin jQuery.' );
 	}
-	check_budget( 3066 === filesize( $root . '/modules/digitalisimo-f7b/assets/css/nested-slider.css' ) && 5119 === filesize( $root . '/modules/digitalisimo-f7b/assets/js/nested-slider.js' ), 'El contador no cambia nested-slider.css ni nested-slider.js (3 066 B y 5 119 B, §5).' );
+	check_budget( 3007 === filesize( $root . '/modules/digitalisimo-f7b/assets/css/nested-slider.css' ) && 5119 === filesize( $root . '/modules/digitalisimo-f7b/assets/js/nested-slider.js' ), 'El contador no cambia nested-slider.css ni nested-slider.js (3 007 B tras el guardia frente al botón del kit, y 5 119 B, §5).' );
 	// Entradas del registro: nombre => array( 'file' => ..., 'class' => ..., 'css' => ... ) sin paréntesis anidados.
 	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(([^()]*)\)/", $registry, $entries, PREG_SET_ORDER );
 	$files = array();

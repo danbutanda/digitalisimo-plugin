@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>botones de control</title>
+<!-- Marcado de los botones de control de los widgets propios que no tienen fixture generado (copiado del render de cada
+     widget, con los ancestros que usan sus selectores). Lo usa tests/elements-control-buttons-chrome.mjs, que añade un kit
+     de Elementor con un estilo de botón llamativo. Lo que el JS abre (panel, notificación, diálogo) va abierto aquí. -->
+<style>body{margin:0;font:16px/1.5 sans-serif}.elementor-element{position:relative;margin:0 20px 40px}</style>
+<link rel="stylesheet" href="../../digitalisimo-elements/assets/css/carousel-engine.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/assets/css/offcanvas.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/assets/css/notification.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/assets/css/vertical-menu.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/assets/css/marquee.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/modules/digitalisimo-widgets/assets/css/video-player.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/assets/css/fancy-tabs.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/assets/css/quick-view.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/assets/css/wishlist.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/assets/css/cart-extras.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart-2.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/modules/digitalisimo-theme-elements/assets/css/search-form.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/modules/digitalisimo-navigation/assets/css/search.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/modules/digitalisimo-front/assets/facade.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/modules/digitalisimo-loop/assets/css/portfolio.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/modules/digitalisimo-loop/assets/css/taxonomy-filter.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/assets/css/filters.css">
+</head><body>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-logos" data-id="carousel">
+<section class="digi-carousel" role="region" aria-roledescription="carrusel" aria-label="Contenido" style="--digi-carousel-count:3"><div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides"><li class="digi-carousel__slide">1</li><li class="digi-carousel__slide">2</li></ul></div><div class="digi-carousel__controls"><button class="digi-carousel__button" type="button" data-digi-carousel-prev aria-label="Anterior">&#x2039;</button><button class="digi-carousel__button" type="button" data-digi-carousel-next aria-label="Siguiente">&#x203a;</button></div></section>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-offcanvas" data-id="offcanvas">
+<div class="digi-offcanvas"><div class="digi-offcanvas__trigger"><button type="button" class="elementor-button elementor-size-md digi-offcanvas__button" aria-controls="digi-offcanvas-1" aria-expanded="true" data-digi-offcanvas-open><span class="digi-offcanvas__text">Abrir</span></button></div>
+<div class="digi-offcanvas__panel digi-offcanvas__panel--right is-open" id="digi-offcanvas-1" role="dialog" aria-modal="true" aria-label="Abrir"><div class="digi-offcanvas__overlay" data-digi-offcanvas-backdrop></div><div class="digi-offcanvas__bar" tabindex="-1"><button type="button" class="digi-offcanvas__close" data-digi-offcanvas-close aria-label="Cerrar"><span class="digi-offcanvas__x" aria-hidden="true"></span></button></div></div></div>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-notification" data-id="notification">
+<aside class="digi-notification digi-notification--info digi-notification--top" data-digi-notification data-event="load"><div class="digi-notification__panel" role="status" aria-live="polite"><div class="digi-notification__content">Aviso</div><button type="button" class="digi-notification__close" aria-label="Cerrar notificación">×</button></div></aside>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-vertical-menu" data-id="vertical-menu">
+<nav><ul class="digi-vertical-menu"><li class="digi-vertical-menu__back"><button type="button" class="digi-vertical-menu__back-button" data-digi-menu-back>Volver</button></li><li class="digi-vertical-menu__item has-children"><div class="digi-vertical-menu__row"><button type="button" class="digi-vertical-menu__link" aria-expanded="false" aria-controls="digi-vm-1" data-digi-menu-toggle>Texto<span class="digi-vertical-menu__arrow" aria-hidden="true"></span></button><button type="button" class="digi-vertical-menu__toggle" aria-expanded="false" aria-controls="digi-vm-1" data-digi-menu-toggle aria-label="Submenú de Texto"><span class="digi-vertical-menu__arrow" aria-hidden="true"></span></button></div><ul id="digi-vm-1" class="digi-vertical-menu__submenu"><li><a class="digi-vertical-menu__link" href="#">Hijo</a></li></ul></li></ul></nav>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-marquee" data-id="marquee">
+<div class="digi-marquee"><button type="button" class="digi-marquee__toggle" aria-pressed="false" data-digi-marquee-toggle><span class="digi-marquee__toggle-text">Pausar</span></button></div>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-video-player" data-id="video-player">
+<div class="digi-video-player digi-video-player--playlist"><ul class="digi-video-player__playlist"><li><button type="button" class="digi-video-player__item" aria-pressed="true" data-kind="file"><span class="digi-video-player__item-title">Uno</span></button></li><li><button type="button" class="digi-video-player__item" aria-pressed="false" data-kind="file"><span class="digi-video-player__item-title">Dos</span></button></li></ul></div>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-fancy-tabs" data-id="fancy-tabs">
+<div class="digi-fancy-tabs digi-fancy-tabs--cards" data-digi-content-switcher data-digi-selected="0"><div class="digi-fancy-tabs__tabs" role="tablist" aria-label="Pestañas"><button class="digi-fancy-tabs__tab" type="button" role="tab" aria-selected="true" tabindex="0">Uno</button><button class="digi-fancy-tabs__tab" type="button" role="tab" aria-selected="false" tabindex="-1">Dos</button></div></div>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-fancy-tabs" data-id="switcher">
+<div class="digi-fancy-tabs digi-fancy-tabs--switcher" data-digi-content-switcher data-digi-selected="0"><div class="digi-fancy-tabs__tabs" role="tablist" aria-label="Pestañas"><button class="digi-fancy-tabs__tab" type="button" role="tab" aria-selected="true" tabindex="0">Mensual</button><button class="digi-fancy-tabs__tab" type="button" role="tab" aria-selected="false" tabindex="-1">Anual</button></div></div>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-wishlist" data-id="wishlist">
+<button type="button" class="digi-wish" aria-pressed="false"><svg class="digi-wish__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21 3 12a5 5 0 0 1 9-6 5 5 0 0 1 9 6z"/></svg><span class="screen-reader-text">Guardar</span></button>
+<section class="digi-wishlist digi-wishlist--list" data-digi-wishlist><ul class="digi-wishlist__items" data-digi-wish-items><li class="digi-wishlist__item" data-digi-wish-item="12"><div class="digi-wishlist__body">Producto <button type="button" class="digi-wishlist__remove" data-digi-wish-remove="12">Quitar<span class="screen-reader-text"> Producto</span></button></div></li></ul><button type="button" class="digi-wishlist__clear" data-digi-wish-clear>Vaciar lista</button></section>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-woo-cart" data-id="coupon">
+<div class="digi-coupon"><form class="digi-coupon__form"><span><input class="digi-coupon__input"><button type="submit" class="digi-coupon__apply">Aplicar</button></span></form><ul class="digi-coupon__list"><li><span class="digi-coupon__code">CODIGO</span> <button type="button" class="digi-coupon__remove" data-coupon="CODIGO">Quitar<span class="screen-reader-text"> cupón CODIGO</span></button></li></ul></div>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-menu-cart" data-id="menu-cart">
+<div class="digi-mc"><button type="button" class="digi-mc__btn elementor-button elementor-size-sm" aria-expanded="true" aria-controls="digi-mc-1"><span class="elementor-button-text">$0</span><span class="elementor-button-icon-qty" data-counter="0">0</span></button><div id="digi-mc-1" role="dialog" aria-label="Carrito"><button type="button" class="digi-mc__x" aria-label="Cerrar el carrito"></button><button type="button" class="digi-mc__xc" aria-label="Cerrar el carrito"><svg class="digi-mc__xi" aria-hidden="true" viewBox="0 0 10 10"><path d="M1 1l8 8M9 1 1 9" stroke="#000"/></svg></button><div class="digi-mc__btns"><a class="elementor-button digi-mc__view" href="#">Ver carrito</a></div></div></div>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-search-form" data-id="search-form">
+<div class="digi-search-form digi-search-form--skin-classic"><div class="digi-search-form__container"><input class="digi-search-form__input" type="search"><button class="digi-search-form__submit" type="submit" aria-label="Buscar">Ir</button></div></div>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-search-form" data-id="search-form-full">
+<div class="digi-search-form digi-search-form--skin-full_screen"><button type="button" class="digi-search-form__toggle" aria-haspopup="dialog" aria-expanded="true" aria-controls="sf-dialog" aria-label="Buscar">B</button><dialog class="digi-search-form__container" id="sf-dialog" open><form><input class="digi-search-form__input" type="search"></form><button type="button" class="digi-search-form__close" aria-label="Cerrar la búsqueda">×</button></dialog></div>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-search" data-id="search">
+<search class="digi-search" role="search"><form class="digi-search__form"><div class="digi-search__field"><input class="digi-search__input" type="search" value="x"><button type="button" class="digi-search__clear" aria-label="Borrar la búsqueda">×</button><button class="digi-search__submit" type="submit" aria-label="Buscar">Buscar</button></div></form></search>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-video" data-id="facade">
+<div class="digi-facade digi-facade--youtube" data-digi-facade style="position:relative;width:320px;height:180px"><button type="button" class="digi-facade__button" aria-label="Reproducir"><span class="digi-facade__play" aria-hidden="true"></span></button></div>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-portfolio" data-id="portfolio">
+<ul class="digi-portfolio__filters" aria-label="Filtrar"><li><button type="button" class="digi-portfolio__filter" data-filter="__all" aria-pressed="true">Todo</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="a" aria-pressed="false">A</button></li></ul>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-taxonomy-filter" data-id="taxonomy-filter">
+<search class="digi-tfilter"><button type="button" class="digi-tfilter__item" data-filter="__all" aria-pressed="true">Todo</button><button type="button" class="digi-tfilter__item" data-filter="a" aria-pressed="false">A</button></search>
+</div>
+<div class="elementor-element elementor-widget elementor-widget-digitalisimo-filter" data-id="filter">
+<div class="digi-filter"><div class="digi-filter__actions"><button type="submit" class="digi-filter__submit">Aplicar</button></div></div>
+</div>
+<dialog class="digi-qv" open><button type="button" class="digi-qv__close">Cerrar<span class="screen-reader-text"> la vista rápida</span></button><div class="digi-qv__body woocommerce"><div class="digi-qv__thumbs" role="group" aria-label="Imágenes"><button type="button" class="digi-qv__thumb" aria-pressed="true">1</button><button type="button" class="digi-qv__thumb" aria-pressed="false">2</button></div></div></dialog>
+<div class="digi-wish-merge" role="status"><p>¿Unir tu lista?</p><button type="button" data-add>Unir</button><button type="button">Descartar</button></div>
+</body></html>
