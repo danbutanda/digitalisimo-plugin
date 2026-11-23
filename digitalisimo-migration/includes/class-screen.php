@@ -45,6 +45,14 @@ final class Screen {
 		return 'Un solo paso. Migrar hace primero un respaldo completo del sitio con DIGITALÍSIMO Backups; después instala y activa los plugins DIGITALÍSIMO que reemplazan a los de este sitio, migra el contenido a DIGITALÍSIMO Elements (desactiva Elementor, Elementor Pro, PRO Elements, Element Pack con su Addon y, al final, Prime Slider), importa sus datos (SEO), cambia al tema DIGITALÍSIMO si es seguro y, al final, si todo salió bien y la portada responde igual, borra lo reemplazado. Si algo falla, se detiene sin borrar nada, y el respaldo permite volver atrás. Si cierras esta pantalla, la migración sigue sola y se reanuda al volver.';
 	}
 
+	/**
+	 * Un sitio de una red sin DIGITALÍSIMO Elements activo: el mismo motivo que da el paso AJAX (Full::ajax()) si se
+	 * pulsara Migrar aquí.
+	 */
+	public static function subsite_waiting() {
+		return 'DIGITALÍSIMO Elements no está activo en este sitio: la migración de la red lo instala y lo activa (Red → Ajustes → Migrar a DIGITALÍSIMO). Después aparece aquí el botón Migrar de este sitio.';
+	}
+
 	/** Botón y estado (`#digi-migrate`, el mismo que conduce migrate.js). */
 	public static function control( $network, $status_html, $running ) {
 		self::assets();
@@ -167,7 +175,10 @@ final class Screen {
 		echo '<div class="wrap digi-migrate-wrap"><h1>' . esc_html( 'Migrar a DIGITALÍSIMO' ) . '</h1>';
 		echo '<p>' . esc_html( self::intro( false ) ) . '</p>';
 		if ( is_multisite() ) {
-			echo '</div>';
+			// Sin DIGITALÍSIMO Elements en este sitio no hay botón: la pantalla lo dice (antes sólo quedaba la frase de
+			// arriba, que promete un «Migrar» que aquí no aparece) y quien administra la red tiene el enlace a la suya.
+			$link = current_user_can( 'manage_network_plugins' ) ? ' <a href="' . esc_url( network_admin_url( 'settings.php?page=' . self::PAGE ) ) . '">' . esc_html( 'Ir a Migrar a DIGITALÍSIMO en la red' ) . '</a>' : '';
+			echo '<div class="notice notice-info inline"><p>' . esc_html( self::subsite_waiting() ) . $link . '</p></div></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $link se escapa al construirlo.
 			return;
 		}
 		echo self::control( false, $status, $running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en control() y en Full::render().

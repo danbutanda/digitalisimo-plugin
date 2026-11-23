@@ -152,6 +152,11 @@ final class Digitalisimo_Backups {
 	 * que el historial (en una red, el sitio principal).
 	 */
 	const DATA_VERSION = 'digitalisimo_backups_data_version';
+	/**
+	 * Lo que muestra un campo secreto de un destino con algo guardado (el mismo patrón que IA Tools, SEO y Hosting).
+	 * Enviado tal cual conserva el secreto; el secreto real nunca se imprime. «Olvidar» lo retira.
+	 */
+	const MASK = '••••••••••••';
 	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_CONNECTION, array( __CLASS__, 'save_connection' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_CONNECTION, array( __CLASS__, 'delete_connection' ) ); add_action( 'admin_post_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'test_destination' ) ); add_action( 'wp_ajax_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'ajax_test_destination' ) ); add_action( 'admin_post_' . self::ACTION_FETCH, array( __CLASS__, 'fetch_request' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_LOOSE, array( __CLASS__, 'delete_loose' ) ); add_action( 'admin_post_' . self::ACTION_REGISTER_LOOSE, array( __CLASS__, 'register_loose_request' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'realign_policy' ), 5, 2 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); add_action( 'update_option_timezone_string', array( __CLASS__, 'timezone_changed' ) ); add_action( 'init', array( __CLASS__, 'ensure_policy_schedules' ) ); add_action( 'update_option_gmt_offset', array( __CLASS__, 'timezone_changed' ) ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); Digitalisimo_Backups_Migrate::init(); add_action( 'admin_post_' . self::ACTION_BACKUPLY_IMPORT, array( __CLASS__, 'backuply_import_request' ) ); add_action( 'admin_post_' . self::ACTION_BACKUPLY_DELETE, array( __CLASS__, 'backuply_delete_request' ) ); add_action( 'admin_post_' . self::ACTION_UPDRAFT_IMPORT, array( __CLASS__, 'updraft_import_request' ) ); add_action( 'admin_post_' . self::ACTION_UPDRAFT_DELETE, array( __CLASS__, 'updraft_delete_request' ) ); add_action( 'admin_post_' . self::ACTION_WEBUZO_IMPORT, array( __CLASS__, 'webuzo_import_request' ) ); add_action( 'admin_post_' . self::ACTION_WEBUZO_DELETE, array( __CLASS__, 'webuzo_delete_request' ) ); Digitalisimo_Backups_Notify::init(); Digitalisimo_Backups_Pre_Update::init(); Digitalisimo_Backups_Uploads::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); add_action( 'init', array( __CLASS__, 'upgrade_data_on_load' ) ); }
 	private static function defaults() { return array( 'destination' => 'local', 'sftp_name' => 'SFTP', 'google_name' => 'Google Drive', 'onedrive_name' => 'OneDrive', 'sftp_host' => '', 'sftp_port' => '22', 'sftp_user' => '', 'sftp_path' => '/', 'sftp_password' => '', 'sftp_fingerprint' => '', 'google_client_id' => '', 'google_client_secret' => '', 'google_refresh_token' => '', 'google_folder_id' => '', 'onedrive_client_id' => '', 'onedrive_client_secret' => '', 'onedrive_refresh_token' => '', 'onedrive_folder' => 'Digitalisimo Backups', 'retention' => '5', 'full_schedule' => 'disabled', 'database_schedule' => 'disabled' ) + Digitalisimo_Backups_Destinations::defaults(); }
 	/** Los ZIP no deben quedar bajo una ruta servida por Apache, Nginx o el CDN. */
@@ -557,6 +562,9 @@ final class Digitalisimo_Backups {
 	public static function default_policies() { return array( array( 'id' => 'monthly-full', 'label' => 'Completo mensual', 'type' => 'full', 'schedule' => 'monthly', 'retain' => 4, 'destination' => 'local', 'enabled' => true ) ); }
 	public static function policies() { $saved = (array) get_option( self::POLICIES, self::default_policies() ); $defaults = array(); foreach ( self::default_policies() as $policy ) $defaults[ $policy['id'] ] = $policy; foreach ( $saved as &$policy ) { $base = $defaults[ $policy['id'] ?? '' ] ?? array( 'enabled' => true ); $policy = wp_parse_args( (array) $policy, $base ); if ( 'full' !== ( $policy['type'] ?? '' ) ) { $policy['enabled'] = false; $policy['schedule'] = 'disabled'; } } unset( $policy ); return $saved; }
 	public static function activate_default_policies() {
+		// En una red las automatizaciones viven en el sitio principal: un subsitio no las lee ni las escribe (antes cada
+		// subsitio creaba su fila y la consultaba en cada petición, también en el front).
+		if ( is_multisite() && ! is_main_site() ) return;
 		$saved = get_option( self::POLICIES, false );
 		if ( false === $saved ) { add_option( self::POLICIES, self::default_policies(), '', false ); return; }
 		$saved = (array) $saved;
@@ -1195,6 +1203,7 @@ final class Digitalisimo_Backups {
 	public static function save_policies() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION_SAVE_POLICIES );
+		self::automations_here();
 		$allowed_types = array( 'full' ); $allowed_destinations = array_keys( self::destination_choices() ); $out = array();
 		foreach ( (array) ( $_POST['digitalisimo_backups_policies'] ?? array() ) as $id => $policy ) {
 			$id = sanitize_key( $id ); $type = sanitize_key( $policy['type'] ?? '' );
@@ -1236,24 +1245,34 @@ final class Digitalisimo_Backups {
 		return $automation;
 	}
 	public static function create_automation() {
-		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_CREATE_AUTOMATION );
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_CREATE_AUTOMATION ); self::automations_here();
 		$input = (array) ( $_POST['digitalisimo_backup_automation'] ?? array() ); $input['enabled'] = 1;
 		self::$automation_notice = '';
 		if ( count( self::policies() ) >= self::MAX_AUTOMATIONS ) self::redirect( false, self::automation_limit_text() );
 		$automation = self::automation_input( $input ); if ( is_wp_error( $automation ) ) self::redirect( false, $automation->get_error_message() );
 		$policies = self::policies(); $policies[] = $automation; update_option( self::POLICIES, $policies, false ); self::sync_policy_schedules(); self::redirect( true, 'Automatización creada.' . self::$automation_notice );
 	}
+	/**
+	 * En una red, las automatizaciones son de la red y su WP-Cron corre en el sitio principal: desde un subsitio no se
+	 * crean, cambian ni borran (antes se guardaban en el subsitio y su evento fallaba en cada pasada; REST y WP-CLI ya lo
+	 * rechazaban con service_scope()).
+	 */
+	private static function automations_here() {
+		if ( is_multisite() && ! is_main_site() ) self::redirect( false, 'Las automatizaciones de los respaldos son de toda la red: se gestionan desde la administración de red o el sitio principal.' );
+		// Con varias redes, el respaldo completo sólo se hace desde la principal (ensure_policy_schedules() no programa otra).
+		if ( is_multisite() && function_exists( 'is_main_network' ) && ! is_main_network() ) self::redirect( false, 'Esta instalación tiene varias redes: las automatizaciones de los respaldos se gestionan desde la red principal.' );
+	}
 	/** Tope de automatizaciones de un sitio (o de la red): cada una es un respaldo completo con su frecuencia. */
 	const MAX_AUTOMATIONS = 50;
 	private static function automation_limit_text() { return 'Ya hay ' . self::MAX_AUTOMATIONS . ' automatizaciones, el tope: cada una es un respaldo completo con su frecuencia. Borra alguna antes de crear otra.'; }
 	public static function update_automation() {
-		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_UPDATE_AUTOMATION );
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_UPDATE_AUTOMATION ); self::automations_here();
 		$id = sanitize_key( $_POST['policy_id'] ?? '' ); $policies = self::policies(); $found = false; self::$automation_notice = '';
 		foreach ( $policies as $index => $policy ) if ( $id === ( $policy['id'] ?? '' ) ) { $input = (array) ( $_POST['digitalisimo_backup_automation'] ?? array() ); if ( ! array_key_exists( 'mode', $input ) ) $input += array_intersect_key( (array) $policy, array_flip( array( 'mode', 'full_every', 'full_days' ) ) ); if ( ! array_key_exists( 'retain_unit', $input ) ) $input += array_intersect_key( (array) $policy, array( 'retain_unit' => true ) ); $automation = self::automation_input( $input, $id, $policy['type'] ); if ( is_wp_error( $automation ) ) self::redirect( false, $automation->get_error_message() ); $policies[ $index ] = $automation; $found = true; break; }
 		if ( ! $found ) self::redirect( false, 'La automatización ya no existe.' ); update_option( self::POLICIES, $policies, false ); self::sync_policy_schedules(); self::redirect( true, 'Automatización guardada.' . self::$automation_notice );
 	}
 	public static function delete_automation() {
-		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_DELETE_AUTOMATION );
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_DELETE_AUTOMATION ); self::automations_here();
 		$id = sanitize_key( $_POST['policy_id'] ?? '' ); $policies = self::policies(); $remaining = array(); $found = false;
 		foreach ( $policies as $policy ) { if ( $id === ( $policy['id'] ?? '' ) ) { $found = true; continue; } $remaining[] = $policy; }
 		if ( ! $found ) self::redirect( false, 'La automatización ya no existe.' ); wp_clear_scheduled_hook( 'digitalisimo_backups_policy', array( $id, get_current_blog_id() ) ); update_option( self::POLICIES, $remaining, false ); self::sync_policy_schedules(); self::redirect( true, 'Automatización eliminada. Los respaldos existentes se conservan.' );

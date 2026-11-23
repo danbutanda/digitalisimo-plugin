@@ -439,8 +439,9 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		}
 	}
 	/**
-	 * Un campo guiado. Un secreto guardado nunca vuelve al navegador: el campo va vacío y su estado se anuncia en el
-	 * placeholder. Mantiene el marcado de 1.0.60 para los campos de entonces.
+	 * Un campo guiado. Un secreto guardado nunca vuelve al navegador: el campo lleva la máscara (MASK) y «Guardada»
+	 * (pedido del propietario del 2026-11-22: «deben salir los ***** para saber que ya hay algo guardado»); enviada tal
+	 * cual, unmask() la vuelve vacía y se conserva lo guardado. Mantiene el marcado de 1.0.60 para los campos de entonces.
 	 */
 	private static function field( $key, $label, $s, $type = 'text', array $locked = array(), array $spec = array(), $name = 'digitalisimo_backups', $id_prefix = '', $server = '', $connection = '' ) {
 		$secret = ! empty( $spec['secret'] ) || in_array( $key, self::secret_fields(), true );
@@ -451,7 +452,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		elseif ( $secret && in_array( $locked_key, $locked, true ) ) $placeholder = 'Guardado con otras claves de wp-config.php · vuelve a escribirlo';
 		$id = $id_prefix . $key;
 		$field_name = $name . '[' . $key . ']';
-		$value = $secret ? '' : (string) ( $s[ $key ] ?? '' );
+		$saved = $secret && ! empty( $s[ $key ] );
+		$value = $secret ? ( $saved ? self::MASK : '' ) : (string) ( $s[ $key ] ?? '' );
 		$show = isset( $spec['show'] ) ? ' data-show="' . esc_attr( $spec['show'] ) . '"' : '';
 		$advanced = in_array( $key, self::advanced_fields(), true ) ? ' data-advanced="1"' : '';
 		echo '<tr data-server="' . esc_attr( $server ) . '"' . $show . $advanced . '><th><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
@@ -473,15 +475,16 @@ trait Digitalisimo_Backups_Destinations_Screen {
 				echo '<label><input type="checkbox" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '" value="1"' . checked( '1', $value, false ) . '> ' . esc_html( (string) ( $spec['text'] ?? $label ) ) . '</label>';
 				break;
 			case 'textarea':
-				echo '<textarea class="large-text code" rows="4" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="off" spellcheck="false"' : '' ) . '>' . esc_html( $value ) . '</textarea>';
+				echo '<textarea class="large-text code" rows="4" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="off" spellcheck="false" onfocus="this.select()"' : '' ) . '>' . esc_html( $value ) . '</textarea>';
 				break;
 			default:
 				$input = 'password' === $type ? 'password' : ( 'number' === $type ? 'number' : 'text' );
 				$extra = 'number' === $type ? ' min="' . (int) ( $spec['min'] ?? 0 ) . '" max="' . (int) ( $spec['max'] ?? 65535 ) . '"' : '';
 				if ( ! empty( $spec['pattern'] ) ) $extra .= ' pattern="' . esc_attr( $spec['pattern'] ) . '"';
 				if ( ! empty( $spec['readonly'] ) ) $extra .= ' readonly';
-				echo '<input class="regular-text" type="' . esc_attr( $input ) . '" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '" value="' . esc_attr( $value ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="new-password"' : '' ) . $extra . '>';
+				echo '<input class="regular-text" type="' . esc_attr( $input ) . '" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '" value="' . esc_attr( $value ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="new-password" onfocus="this.select()"' : '' ) . $extra . '>';
 		}
+		if ( $saved ) echo ' <span class="description digitalisimo-backups-saved">Guardada · escribe una nueva sólo si quieres reemplazarla</span>';
 		if ( ! empty( $spec['help'] ) ) echo self::help_html( (string) $spec['help'] );
 		if ( ! empty( $spec['warning'] ) ) echo self::fold_long( '<p class="description digitalisimo-backups-warning">' . esc_html( $spec['warning'] ) . '</p>' );
 		echo '</td></tr>';
@@ -492,7 +495,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$current = isset( $connections[ $editing ] ) ? $connections[ $editing ] : null;
 		$settings = $current ? self::connection_settings( $editing ) : array();
 		$locked = $current ? Digitalisimo_Backups_Credentials::locked( self::credential_settings() ) : array();
-		echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-connection"><h2>' . ( $current ? 'Editar «' . esc_html( $current['name'] ) . '»' : 'Añadir destino' ) . '</h2><p class="description">' . ( $current ? 'Los secretos ya guardados no se muestran; deja el campo vacío para conservarlos.' : 'Puedes tener varias del mismo tipo, cada una con su nombre.' ) . '</p>';
+		echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-connection"><h2>' . ( $current ? 'Editar «' . esc_html( $current['name'] ) . '»' : 'Añadir destino' ) . '</h2><p class="description">' . ( $current ? 'Los secretos guardados se ven como •••• y no se muestran: déjalos así para conservarlos.' : 'Puedes tener varias del mismo tipo, cada una con su nombre.' ) . '</p>';
 		// Sin salts propias store_connection() la rechazaría al guardar: el camino es la conexión principal.
 		if ( ! $current && ! Digitalisimo_Backups_Credentials::can_encrypt() ) echo '<p class="description digitalisimo-backups-warning">Sin AUTH_KEY y SECURE_AUTH_KEY propias, otra conexión no puede guardar sus credenciales: usa la <a href="' . esc_url( self::principal_form_url() ) . '">conexión principal</a>.</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-backups-connection-form">';
@@ -520,7 +523,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		// formulario va en el cuerpo y PHP le da prioridad, así que llega aquí. El botón pulsado viaja con el formulario:
 		// se prueba y no se guarda nada (H13 del ensayo E2).
 		if ( isset( $_POST['digitalisimo_backups_test'] ) ) { self::test_destination(); exit; }
-		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_SAVE ); if ( ! self::credentials_here() ) self::redirect( false, self::subsite_credentials_text() ); $old = self::settings(); $input = wp_unslash( (array) ( $_POST['digitalisimo_backups'] ?? array() ) ); $out = self::defaults();
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_SAVE ); if ( ! self::credentials_here() ) self::redirect( false, self::subsite_credentials_text() ); $old = self::settings(); $input = self::unmask( wp_unslash( (array) ( $_POST['digitalisimo_backups'] ?? array() ) ) ); $out = self::defaults();
 		$out['destination'] = Digitalisimo_Backups_Destinations::exists( $input['destination'] ?? '' ) ? (string) $input['destination'] : 'local'; $out['retention'] = min( 100, max( 1, absint( $input['retention'] ?? 5 ) ) );
 		try {
 			foreach ( Digitalisimo_Backups_Destinations::CLASSES as $class ) { $values = $class::sanitize( $input, $old ); self::refuse_metadata( $class, $values ); $out = array_merge( $out, $values ); }
@@ -568,7 +571,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$class = Digitalisimo_Backups_Destinations::class_of( $type );
 		try {
 			$old = '' !== $id ? self::connection_settings( $id ) : $class::defaults();
-			$values = $class::sanitize( wp_unslash( (array) ( $_POST['digitalisimo_backups_connection'] ?? array() ) ), $old );
+			$values = $class::sanitize( self::unmask( wp_unslash( (array) ( $_POST['digitalisimo_backups_connection'] ?? array() ) ) ), $old );
 			self::refuse_metadata( $class, $values );
 			if ( '' === $id ) $id = Digitalisimo_Backups_Destinations::new_connection_id( $type );
 			self::store_connection( $id, $type, $name, $values );
@@ -685,11 +688,20 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$result = self::service_test_destination( $id );
 		return $result['ok'] ? $result : self::service_error( 'destination_test', $result['message'], 502 );
 	}
+	/**
+	 * Lo escrito en los campos secretos, sin la máscara: un secreto real nunca lleva «•», así que se quitan todos (quien
+	 * hace clic en el campo y pega el nuevo lo deja pegado a la máscara). Lo que queda vacío conserva el secreto guardado.
+	 * El mismo patrón que IA::unmask() de IA Tools.
+	 */
+	private static function unmask( array $input ) {
+		foreach ( self::secret_fields() as $key ) if ( isset( $input[ $key ] ) && is_string( $input[ $key ] ) ) $input[ $key ] = str_replace( '•', '', $input[ $key ] );
+		return $input;
+	}
 	/** Lo enviado por el formulario para la conexión que se prueba (principal o adicional). */
 	private static function test_input() {
 		$id = sanitize_key( (string) ( $_POST['digitalisimo_backups_test'] ?? '' ) );
 		$input = isset( $_POST['digitalisimo_backups_connection'] ) ? (array) $_POST['digitalisimo_backups_connection'] : (array) ( $_POST['digitalisimo_backups'] ?? array() );
-		$input = wp_unslash( $input );
+		$input = self::unmask( wp_unslash( $input ) );
 		if ( '' === $id ) $input['__type'] = sanitize_key( $_POST['connection_type'] ?? '' );
 		return array( $id, $input );
 	}
