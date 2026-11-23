@@ -11,7 +11,10 @@
  *   A  la Ability digitalisimo-ia/open-assistant y su exposición en el servidor MCP de Elements;
  *   H  el historial: dueño, límites, borrado y lo que viaja al modelo;
  *   M  los formatos de OpenAI, Anthropic y Google (herramientas, resultados, clave fuera de la URL) y sus errores;
- *   P  la pantalla: menú con edit_posts y nada encolado fuera de ella.
+ *   P  la pantalla: menú con edit_posts y nada encolado fuera de ella;
+ *   S  esquemas que los proveedores rechazan (WooCommerce 11 con oneOf en la raíz, estilo REST de WordPress): saneados
+ *      a un cuerpo válido; si aun así el proveedor rechaza una herramienta, se quita y se repite (3 como mucho), y el
+ *      error muestra su motivo recortado y sin claves.
  */
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'DAY_IN_SECONDS', 86400 );
@@ -830,6 +833,152 @@ $no_key( $GLOBALS['inline'], 'El script en línea de la pantalla' );
 ob_start();
 Digitalisimo_AI_Assistant::page();
 check( false !== strpos( ob_get_clean(), 'id="digitalisimo-assistant-root"' ), 'La pantalla pinta su raíz' );
+
+/* ---------------- S: esquemas que los proveedores rechazan (plomerito, IA Tools 1.0.70: «Claude no respondió (HTTP 400).») ---------------- */
+// Reglas de Anthropic (JSON Schema 2020-12 y las suyas) sobre el esquema tal como viaja: lo que una prueba en JSON ve.
+$schema_problems = function ( $s, $path = 'input_schema' ) use ( &$schema_problems ) {
+	$errs = array();
+	if ( is_bool( $s ) ) return $errs;
+	if ( $s instanceof stdClass ) $s = (array) $s;
+	if ( ! is_array( $s ) || ( $s && array_keys( $s ) === range( 0, count( $s ) - 1 ) ) ) return array( "$path no es objeto" );
+	if ( isset( $s['type'] ) ) foreach ( (array) $s['type'] as $t ) if ( ! in_array( $t, array( 'object', 'array', 'string', 'number', 'integer', 'boolean', 'null' ), true ) ) $errs[] = "$path.type $t";
+	if ( array_key_exists( 'required', $s ) && ( ! is_array( $s['required'] ) || array_filter( $s['required'], function ( $x ) { return ! is_string( $x ); } ) ) ) $errs[] = "$path.required";
+	if ( array_key_exists( 'enum', $s ) && ( ! is_array( $s['enum'] ) || ! $s['enum'] ) ) $errs[] = "$path.enum";
+	foreach ( array( 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum' ) as $k ) if ( array_key_exists( $k, $s ) && ! is_int( $s[ $k ] ) && ! is_float( $s[ $k ] ) ) $errs[] = "$path.$k";
+	foreach ( array( 'context', 'readonly', 'arg_options', 'sanitize_callback', 'validate_callback', '$ref' ) as $k ) if ( array_key_exists( $k, $s ) ) $errs[] = "$path.$k";
+	if ( array_key_exists( 'properties', $s ) ) {
+		$props = $s['properties'] instanceof stdClass ? (array) $s['properties'] : $s['properties'];
+		if ( ! is_array( $props ) || ( ! ( $s['properties'] instanceof stdClass ) && ! $props ) ) $errs[] = "$path.properties como lista";
+		foreach ( (array) $props as $name => $sub ) {
+			if ( ! preg_match( '/^[a-zA-Z0-9_.-]{1,64}$/', (string) $name ) ) $errs[] = "$path.properties.$name nombre";
+			$errs = array_merge( $errs, $schema_problems( $sub, "$path.properties.$name" ) );
+		}
+	}
+	foreach ( array( 'items', 'additionalProperties', 'not' ) as $k ) if ( array_key_exists( $k, $s ) ) {
+		if ( array() === $s[ $k ] ) $errs[] = "$path.$k = []"; else $errs = array_merge( $errs, $schema_problems( $s[ $k ], "$path.$k" ) );
+	}
+	foreach ( array( 'anyOf', 'oneOf', 'allOf' ) as $k ) if ( array_key_exists( $k, $s ) ) {
+		if ( 'input_schema' === $path ) $errs[] = "$path.$k en la raíz";
+		foreach ( (array) $s[ $k ] as $i => $sub ) $errs = array_merge( $errs, $schema_problems( $sub, "$path.$k.$i" ) );
+	}
+	return $errs;
+};
+$anthropic_body_problems = function ( array $body ) use ( $schema_problems ) {
+	$errs = array(); $seen = array();
+	foreach ( $body['tools'] ?? array() as $i => $tool ) {
+		if ( isset( $seen[ $tool['name'] ] ) ) $errs[] = "tools.$i nombre repetido";
+		$seen[ $tool['name'] ] = true;
+		$s = json_decode( json_encode( $tool['input_schema'] ), true ); // como lo lee la API
+		if ( 'object' !== ( $s['type'] ?? '' ) ) $errs[] = "tools.$i type";
+		foreach ( $schema_problems( json_decode( json_encode( $tool['input_schema'] ) ) ) as $e ) $errs[] = "tools.$i $e";
+	}
+	return $errs;
+};
+// Los esquemas reales que lo rompían: WooCommerce 11.2.1 (product-create y product-update con oneOf en la raíz, que
+// Anthropic rechaza: «input_schema does not support oneOf, allOf, or anyOf at the top level») y los de estilo REST de
+// WordPress (required dentro de la propiedad, context, readonly, items vacío, propiedades vacías como lista).
+$price = array( 'type' => 'string', 'description' => 'Decimal price as a string.', 'pattern' => '^(?:-?(?:[0-9]+(?:[\.][0-9]+)?|[\.][0-9]+)|)$' );
+$woo_create = array(
+	'type'  => 'object',
+	'oneOf' => array(
+		array( 'type' => 'object', 'properties' => array( 'product_type_alias' => array( 'type' => 'string', 'enum' => array( 'physical' ), 'default' => 'physical' ), 'name' => array( 'type' => 'string' ), 'regular_price' => $price, 'status' => array( 'type' => 'string', 'enum' => array( 'draft', 'publish' ) ) ), 'required' => array( 'name' ), 'additionalProperties' => false ),
+		array( 'type' => 'object', 'properties' => array( 'product_type_alias' => array( 'type' => 'string', 'enum' => array( 'virtual' ) ), 'name' => array( 'type' => 'string' ), 'regular_price' => $price ), 'required' => array( 'product_type_alias', 'name' ), 'additionalProperties' => false ),
+		array( 'type' => 'object', 'properties' => array( 'product_type_alias' => array( 'type' => 'string', 'enum' => array( 'affiliate' ) ), 'name' => array( 'type' => 'string' ), 'product_url' => array( 'type' => 'string', 'format' => 'uri' ) ), 'required' => array( 'product_type_alias', 'name', 'product_url' ), 'additionalProperties' => false ),
+	),
+);
+$wp_rest = array(
+	'type'       => 'object',
+	'properties' => array(
+		'id'        => array( 'type' => 'integer', 'required' => true, 'context' => array( 'view', 'edit' ), 'readonly' => false, 'exclusiveMinimum' => true, 'minimum' => 0, 'sanitize_callback' => 'absint', 'arg_options' => array( 'validate_callback' => 'is_numeric' ) ),
+		'tags'      => array( 'type' => 'array', 'items' => array() ),
+		'meta'      => array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => array() ),
+		'mode'      => array( 'type' => 'string', 'enum' => array() ),
+		'loose'     => array( 'type' => 'mixed', 'description' => 'Cualquier cosa' ),
+		'tuple'     => array( 'type' => 'array', 'items' => array( array( 'type' => 'string' ), array( 'type' => 'integer' ) ) ),
+		'ref'       => array( '$ref' => '#/definitions/nope', 'description' => 'Referencia sin resolver' ),
+		'mal nombre' => array( 'type' => 'string' ),
+		'añadido'   => array( 'type' => 'string' ),
+		'limite'    => array( 'type' => 'integer', 'maximum' => '10', 'minLength' => -1 ),
+	),
+	'required'   => true,
+);
+$seo_empty = array( 'type' => 'object', 'properties' => array(), 'default' => array() );
+$bad_tools = array(
+	array( 'name' => 'woocommerce-product-create', 'description' => 'Crea', 'schema' => $woo_create ),
+	array( 'name' => 'demo-rest', 'description' => 'REST', 'schema' => $wp_rest ),
+	array( 'name' => 'digitalisimo-seo-get-site-status', 'description' => 'SEO', 'schema' => $seo_empty ),
+	array( 'name' => 'demo-rest', 'description' => 'Repetida', 'schema' => array() ),
+);
+$b = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'anthropic' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), $bad_tools );
+$problems = $anthropic_body_problems( $b['body'] );
+check( array() === $problems, 'S1: el cuerpo de Anthropic con los esquemas reales de WooCommerce y de estilo REST es válido: ' . implode( '; ', $problems ) );
+check( 3 === count( $b['body']['tools'] ) && array( 'woocommerce-product-create', 'demo-rest', 'digitalisimo-seo-get-site-status' ) === $b['tool_names'], 'S1: un nombre de herramienta repetido se manda una sola vez y tool_names sigue el orden del cuerpo' );
+$wc = json_decode( json_encode( $b['body']['tools'][0]['input_schema'] ), true );
+check( ! isset( $wc['oneOf'] ) && array( 'physical', 'virtual', 'affiliate' ) === $wc['properties']['product_type_alias']['enum'] && isset( $wc['properties']['product_url'], $wc['properties']['regular_price']['pattern'] ) && array( 'name' ) === $wc['required'], 'S2: oneOf de la raíz (WooCommerce) fundido: propiedades de todas las ramas, enum unidos y requerido sólo lo que piden todas' );
+$rest = json_decode( json_encode( $b['body']['tools'][1]['input_schema'] ), true );
+$id   = $rest['properties']['id'];
+check( array( 'id' ) === $rest['required'] && ! isset( $id['required'], $id['context'], $id['readonly'], $id['sanitize_callback'], $id['arg_options'] ) && 0 === $id['exclusiveMinimum'] && ! isset( $id['minimum'] ), 'S3: required: true de la propiedad pasa a la lista del padre; context, readonly, callbacks fuera; exclusiveMinimum de draft-04 a número' );
+check( '{}' === json_encode( $b['body']['tools'][1]['input_schema']['properties']['tags']['items'] ) && '{}' === json_encode( $b['body']['tools'][1]['input_schema']['properties']['meta']['properties'] ) && '{}' === json_encode( $b['body']['tools'][1]['input_schema']['properties']['meta']['additionalProperties'] ), 'S3: items, properties y additionalProperties vacíos viajan como {}' );
+check( ! isset( $rest['properties']['mode']['enum'] ) && ! isset( $rest['properties']['loose']['type'] ) && 'string' === $rest['properties']['tuple']['items']['type'] && ! isset( $rest['properties']['ref']['$ref'] ) && ! isset( $rest['properties']['mal nombre'] ) && ! isset( $rest['properties']['añadido'] ) && 10 === $rest['properties']['limite']['maximum'] && ! isset( $rest['properties']['limite']['minLength'] ), 'S3: enum vacío, tipo inexistente, tupla de draft-04, $ref sin resolver, nombres no admitidos y límites mal escritos' );
+check( '{"type":"object","properties":{},"default":{}}' === json_encode( $b['body']['tools'][2]['input_schema'] ), 'S3: propiedades vacías (SEO) como objeto y su default como objeto' );
+$decoded = Digitalisimo_AI_Assistant_Model::object_schema( array( 'type' => 'object', 'properties' => json_decode( '{"a":{"type":"string","enum":["x","y"]},"b":{"type":"object","properties":{}}}' ) ) );
+check( array( 'x', 'y' ) === $decoded['properties']['a']['enum'] && '{}' === json_encode( $decoded['properties']['b']['properties'] ), 'S3: propiedades que llegan como objetos de json_decode se conservan' );
+$o = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'openai' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), $bad_tools );
+check( ! isset( $o['body']['tools'][0]['function']['parameters']['oneOf'] ) && array() === $anthropic_body_problems( array( 'tools' => array_map( function ( $t ) { return array( 'name' => $t['function']['name'], 'input_schema' => $t['function']['parameters'] ); }, $o['body']['tools'] ) ) ), 'S4: OpenAI recibe los mismos esquemas saneados (sin oneOf en la raíz)' );
+$g_saved = $GLOBALS['options']['digitalisimo_ai_options'];
+$GLOBALS['options']['digitalisimo_ai_options']['providers']['google'] = array( 'enabled' => 1, 'key' => 'AIzaSyFAKEGOOGLEKEY000000000000000000', 'url' => '' );
+$gb = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'google' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), $bad_tools );
+$GLOBALS['options']['digitalisimo_ai_options'] = $g_saved;
+check( 'OBJECT' === $gb['body']['tools'][0]['functionDeclarations'][0]['parameters']['type'] && isset( $gb['body']['tools'][0]['functionDeclarations'][0]['parameters']['properties']['product_url'] ), 'S4: Gemini ve las propiedades de un oneOf de la raíz (antes la herramienta llegaba sin parámetros)' );
+
+// Reintento: el proveedor rechaza la petición por una herramienta (400) → se quita esa, se repite y queda anotada.
+remove_all_filters( 'digitalisimo_ai_assistant_pre_model' );
+unset( $GLOBALS['transients'][ Digitalisimo_AI_Assistant_Model::REJECTED ] );
+$ok_reply = array( 'code' => 200, 'body' => json_encode( array( 'content' => array( array( 'type' => 'text', 'text' => 'Hola' ) ), 'stop_reason' => 'end_turn' ) ) );
+$two = array( array( 'name' => 'demo-read-note', 'description' => 'Lee', 'schema' => array() ), array( 'name' => 'demo-create-note', 'description' => 'Escribe', 'schema' => array( 'type' => 'object', 'properties' => array( 'title' => array( 'type' => 'string' ) ) ) ), array( 'name' => 'demo-third', 'description' => 'Otra', 'schema' => array() ) );
+$GLOBALS['http'] = array();
+$GLOBALS['http_replies'] = array( array( 'code' => 400, 'body' => '{"type":"error","error":{"type":"invalid_request_error","message":"tools.1.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level"}}' ), $ok_reply );
+$r = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'anthropic' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), $two );
+$sent = array_map( function ( $h ) { return array_column( json_decode( $h['args']['body'], true )['tools'], 'name' ); }, $GLOBALS['http'] );
+check( ! is_wp_error( $r ) && 'Hola' === $r['text'] && array( array( 'demo-read-note', 'demo-create-note', 'demo-third' ), array( 'demo-read-note', 'demo-third' ) ) === $sent, 'S5: Anthropic rechaza tools.1 → se quita esa herramienta y la segunda petición responde' );
+$rows = get_option( Digitalisimo_AI_Assistant_Tools::LOG );
+$row  = end( $rows );
+check( 'rejected' === $row['kind'] && 'demo-create-note' === $row['ability'] && false !== strpos( $row['detail'], 'tools.1' ), 'S5: la bitácora anota qué herramienta se quitó y por qué' );
+$GLOBALS['http'] = array();
+$GLOBALS['http_replies'] = array( $ok_reply );
+Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'anthropic' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), $two );
+check( 1 === count( $GLOBALS['http'] ) && array( 'demo-read-note', 'demo-third' ) === array_column( json_decode( $GLOBALS['http'][0]['args']['body'], true )['tools'], 'name' ), 'S5: la herramienta rechazada no se vuelve a mandar (un día, mientras su esquema no cambie)' );
+$changed = $two; $changed[1]['schema']['properties']['extra'] = array( 'type' => 'string' );
+$GLOBALS['http'] = array();
+$GLOBALS['http_replies'] = array( $ok_reply );
+Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'anthropic' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), $changed );
+check( 3 === count( json_decode( $GLOBALS['http'][0]['args']['body'], true )['tools'] ), 'S5: con su esquema cambiado se vuelve a ofrecer' );
+unset( $GLOBALS['transients'][ Digitalisimo_AI_Assistant_Model::REJECTED ] );
+// OpenAI (param tools[0]) y Google (function_declarations[2]) también.
+$GLOBALS['http'] = array();
+$GLOBALS['http_replies'] = array( array( 'code' => 400, 'body' => '{"error":{"message":"Invalid schema for function \'demo-read-note\': [] is not of type \'object\'.","type":"invalid_request_error","param":"tools[0].function.parameters","code":"invalid_function_parameters"}}' ), array( 'code' => 200, 'body' => json_encode( array( 'choices' => array( array( 'message' => array( 'content' => 'Hola' ) ) ) ) ) ) );
+$r = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'openai' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), $two );
+check( 'Hola' === $r['text'] && 2 === count( $GLOBALS['http'] ) && array( 'demo-create-note', 'demo-third' ) === array_column( array_column( json_decode( $GLOBALS['http'][1]['args']['body'], true )['tools'], 'function' ), 'name' ), 'S6: OpenAI señala tools[0] en param → se quita y se repite' );
+check( 2 === Digitalisimo_AI_Assistant_Model::rejected_tool( 'google', 'Invalid JSON payload received. Unknown name "x" at \'tools[0].function_declarations[2].parameters\'' ) && 4 === Digitalisimo_AI_Assistant_Model::rejected_tool( 'anthropic', 'tools.4.custom.name: String should match pattern' ) && null === Digitalisimo_AI_Assistant_Model::rejected_tool( 'anthropic', 'messages.0.content: empty' ), 'S6: la herramienta señalada en los errores de Anthropic, OpenAI y Google (y nada si el error es de otra parte)' );
+unset( $GLOBALS['transients'][ Digitalisimo_AI_Assistant_Model::REJECTED ] );
+// Como mucho MAX_DROPS herramientas; después, el error con el motivo del proveedor.
+$GLOBALS['http'] = array();
+$GLOBALS['http_replies'] = array_fill( 0, 6, array( 'code' => 400, 'body' => '{"type":"error","error":{"type":"invalid_request_error","message":"tools.0.custom.input_schema: JSON schema is invalid. It must match JSON Schema draft 2020-12 (https://json-schema.org/draft/2020-12). Learn more about tool use at https://docs.anthropic.com/en/docs/tool-use. ' . str_repeat( 'x', 300 ) . '"}}' ) );
+$many = array_merge( $two, array( array( 'name' => 'demo-4', 'description' => '4', 'schema' => array() ), array( 'name' => 'demo-5', 'description' => '5', 'schema' => array() ) ) );
+$e = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'anthropic' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), $many );
+check( is_wp_error( $e ) && 1 + Digitalisimo_AI_Assistant_Model::MAX_DROPS === count( $GLOBALS['http'] ) && 3 === Digitalisimo_AI_Assistant_Model::MAX_DROPS, 'S7: como mucho 3 herramientas quitadas (4 peticiones) y después el error' );
+$msg = $e->get_error_message();
+check( 0 === strpos( $msg, 'Claude no respondió (HTTP 400: tools.0.custom.input_schema: JSON schema is invalid' ) && mb_strlen( $msg ) < 240 && false === strpos( $msg, str_repeat( 'x', 250 ) ), 'S7: el mensaje lleva el motivo del proveedor recortado: ' . $msg );
+unset( $GLOBALS['transients'][ Digitalisimo_AI_Assistant_Model::REJECTED ] );
+$GLOBALS['http'] = array();
+$GLOBALS['http_replies'] = array( array( 'code' => 400, 'body' => '{"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 250000 tokens > 200000 maximum (clave ' . KEY_ANTHROPIC . ')"}}' ) );
+$e = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'anthropic' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), $two );
+check( is_wp_error( $e ) && 1 === count( $GLOBALS['http'] ) && false !== strpos( $e->get_error_message(), 'HTTP 400: prompt is too long' ) && false === strpos( $e->get_error_message(), KEY_ANTHROPIC ) && false !== strpos( $e->get_error_message(), '[clave oculta]' ), 'S8: un 400 que no es de una herramienta no se reintenta y su motivo sale sin la clave' );
+$GLOBALS['http'] = array();
+$GLOBALS['http_replies'] = array( array( 'code' => 500, 'body' => '<html>Internal error</html>' ) );
+$e = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'anthropic' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), $two );
+check( 'Claude no respondió (HTTP 500).' === $e->get_error_message(), 'S8: sin motivo legible, sólo el código' );
+add_filter( 'digitalisimo_ai_assistant_pre_model', function ( $pre, $request ) { $GLOBALS['model_calls'][] = $request; return $GLOBALS['script'] ? array_shift( $GLOBALS['script'] ) : 'Listo.'; } );
 
 // M4 (al final: deja un búfer que no se puede quitar) El vaciado de búferes no gira para siempre.
 set_time_limit( 20 );

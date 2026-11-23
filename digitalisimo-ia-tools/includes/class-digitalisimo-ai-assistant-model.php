@@ -8,8 +8,9 @@ defined( 'ABSPATH' ) || exit;
  * - Las IA que se ofrecen salen de los perfiles de uso (menos «images») cuyo proveedor está activo y tiene clave; el
  *   modelo es el del perfil, nunca uno que elija la persona. «Auto» es el primer perfil disponible en
  *   PROFILE_ORDER (el de contenido, salvo que exista uno llamado «assistant»).
- * - La clave sólo viaja del servidor al proveedor: nada de esta clase la devuelve al navegador, y un error nunca
- *   repite el cuerpo de la respuesta del proveedor.
+ * - La clave sólo viaja del servidor al proveedor: nada de esta clase la devuelve al navegador. De un error sólo se
+ *   muestra el mensaje del proveedor (`error.message`), recortado y sin claves; con 401/403, ni eso.
+ * - Si el proveedor rechaza la petición (400) por una herramienta, se quita esa herramienta y se repite (MAX_DROPS).
  * - Los mensajes llegan en un formato neutro (user, assistant con calls, tool con call y content) y aquí se traducen.
  * - `digitalisimo_ai_assistant_pre_model` permite sustituir la llamada (pruebas y proveedores simulados).
  */
@@ -22,6 +23,10 @@ final class Digitalisimo_AI_Assistant_Model {
 	const MIN_TOKENS    = 4096;
 	/** Sin flujo, 8 192 tokens de salida a 50-80 por segundo tardan hasta unos 160 s: la espera tiene que cubrirlos. */
 	const TIMEOUT       = 180;
+	/** Herramientas que se pueden quitar, una por reintento, cuando el proveedor rechaza la petición por una de ellas. */
+	const MAX_DROPS     = 3;
+	/** Herramientas rechazadas por cada proveedor (transient de un día): `proveedor` => `nombre|md5 del esquema` => motivo. */
+	const REJECTED      = 'digitalisimo_ai_assistant_rejected_tools';
 
 	/**
 	 * Las IA disponibles, por proveedor: `provider`, `model`, `name`, `ai_name` y `profile`. Sin claves.
@@ -89,24 +94,45 @@ final class Digitalisimo_AI_Assistant_Model {
 			return self::normalize( $pre );
 		}
 		$timeout = max( 10, (int) apply_filters( 'digitalisimo_ai_assistant_timeout', self::TIMEOUT ) );
-		for ( $try = 0; $try < 2; $try++ ) {
+		$tools   = self::usable_tools( $target['provider'], $tools );
+		$dropped = 0;
+		for ( $try = 0; $try < 2 + self::MAX_DROPS; $try++ ) {
 			$request = self::build( $target, $system, $messages, $tools );
 			if ( is_wp_error( $request ) ) {
 				return $request;
 			}
 			$response = wp_remote_post( $request['url'], array( 'timeout' => $timeout, 'headers' => $request['headers'], 'body' => wp_json_encode( $request['body'] ) ) );
 			$code     = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+			if ( 400 !== $code ) {
+				break;
+			}
+			$raw    = (string) wp_remote_retrieve_body( $response );
+			$reason = self::error_reason( $raw );
+			$index  = self::rejected_tool( $target['provider'], $reason . ' ' . $raw );
 			// Un modelo de Anthropic con tope de salida menor (4 096) rechaza 8 192: se repite una vez con su tope.
-			if ( 400 === $code && 'anthropic' === $target['provider'] && empty( $target['max_tokens'] ) && false !== stripos( (string) wp_remote_retrieve_body( $response ), 'max_tokens' ) ) {
+			if ( null === $index && 'anthropic' === $target['provider'] && empty( $target['max_tokens'] ) && false !== stripos( $raw, 'max_tokens' ) ) {
 				$target['max_tokens'] = self::MIN_TOKENS;
 				continue;
 			}
-			break;
+			// Una herramienta que el proveedor rechaza (su esquema, su nombre) tumba toda la petición: se quita esa y se
+			// repite, hasta MAX_DROPS veces. Queda anotada un día (por proveedor y esquema) para no volver a mandarla.
+			if ( null === $index || $dropped >= self::MAX_DROPS || ! isset( $request['tool_names'][ $index ] ) ) {
+				break;
+			}
+			$tools = self::drop_tool( $target['provider'], $tools, $request['tool_names'][ $index ], $reason );
+			$dropped++;
 		}
 		if ( is_wp_error( $response ) || $code < 200 || $code >= 300 ) {
 			Digitalisimo_AI::log( 'assistant', $target['provider'], false, $code );
 			$ai = self::AI_NAMES[ $target['provider'] ] ?? $target['provider'];
-			$why = 0 === $code ? 'sin conexión con el proveedor' : ( in_array( $code, array( 401, 403 ), true ) ? 'HTTP ' . $code . ': revisa la clave en IA Tools' : 'HTTP ' . $code );
+			if ( 0 === $code ) {
+				$why = 'sin conexión con el proveedor';
+			} elseif ( in_array( $code, array( 401, 403 ), true ) ) {
+				$why = 'HTTP ' . $code . ': revisa la clave en IA Tools';
+			} else {
+				$reason = self::error_reason( (string) wp_remote_retrieve_body( $response ) );
+				$why    = 'HTTP ' . $code . ( '' !== $reason ? ': ' . $reason : '' );
+			}
 			return new WP_Error( 'digitalisimo_assistant_provider', sprintf( '%s no respondió (%s).', $ai, $why ), array( 'status' => 502 ) );
 		}
 		$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
@@ -114,9 +140,97 @@ final class Digitalisimo_AI_Assistant_Model {
 		return self::parse( $target['provider'], is_array( $data ) ? $data : array() );
 	}
 
-	/** URL, cabeceras y cuerpo de la petición al proveedor (pura: la prueba la lee sin red). */
+	/**
+	 * El motivo que da el proveedor en un error (`error.message` de Anthropic, OpenAI y Google), en una línea, sin claves
+	 * ni etiquetas y recortado a 200 caracteres; '' si no hay.
+	 */
+	public static function error_reason( $body ) {
+		$data    = json_decode( (string) $body, true );
+		$data    = is_array( $data ) && isset( $data[0] ) && is_array( $data[0] ) ? $data[0] : $data; // Google a veces manda una lista.
+		$error   = is_array( $data ) && array_key_exists( 'error', $data ) ? $data['error'] : null;
+		$message = is_array( $error ) && is_string( $error['message'] ?? null ) ? $error['message'] : '';
+		$message = trim( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $message ) ) );
+		return '' === $message ? '' : Digitalisimo_AI_Assistant_Tools::clip( Digitalisimo_AI_Assistant_Tools::scrub( $message ), 200 );
+	}
+
+	/**
+	 * La posición de la herramienta que el proveedor señala en su error, o null: Anthropic `tools.12.…`, OpenAI
+	 * `tools[3].…` y Google `function_declarations[3]` / `functionDeclarations[3]`.
+	 */
+	public static function rejected_tool( $provider, $reason ) {
+		$reason = (string) $reason;
+		if ( 'anthropic' === $provider && preg_match( '/\btools\.(\d+)\b/', $reason, $m ) ) {
+			return (int) $m[1];
+		}
+		if ( isset( self::OPENAI_URLS[ $provider ] ) && preg_match( '/\btools\[(\d+)\]/', $reason, $m ) ) {
+			return (int) $m[1];
+		}
+		if ( 'google' === $provider && preg_match( '/function_?declarations\[(\d+)\]/i', $reason, $m ) ) {
+			return (int) $m[1];
+		}
+		return null;
+	}
+
+	/** Quita una herramienta rechazada, la anota (un día) y lo deja en la bitácora del Asistente. */
+	private static function drop_tool( $provider, array $tools, $name, $reason ) {
+		$out = array();
+		foreach ( $tools as $tool ) {
+			if ( $tool['name'] === $name ) {
+				$rejected = get_transient( self::REJECTED );
+				$rejected = is_array( $rejected ) ? $rejected : array();
+				$rejected[ $provider ][ self::tool_key( $tool ) ] = (string) $reason;
+				set_transient( self::REJECTED, $rejected, DAY_IN_SECONDS );
+				continue;
+			}
+			$out[] = $tool;
+		}
+		Digitalisimo_AI_Assistant_Tools::log( array( 'user' => get_current_user_id(), 'ability' => $name, 'kind' => 'rejected', 'input' => '', 'result' => 'skipped', 'detail' => sprintf( '%s rechazó la herramienta y se quitó de la petición: %s', self::AI_NAMES[ $provider ] ?? $provider, $reason ) ) );
+		do_action( 'digitalisimo_ai_assistant_tool_rejected', $name, $provider, $reason );
+		return $out;
+	}
+
+	/** Las herramientas sin las que este proveedor ya rechazó (con el mismo esquema) en el último día. */
+	private static function usable_tools( $provider, array $tools ) {
+		$rejected = get_transient( self::REJECTED );
+		$rejected = is_array( $rejected ) && is_array( $rejected[ $provider ] ?? null ) ? $rejected[ $provider ] : array();
+		if ( ! $rejected ) {
+			return $tools;
+		}
+		return array_values(
+			array_filter(
+				$tools,
+				function ( $tool ) use ( $rejected ) {
+					return ! isset( $rejected[ self::tool_key( $tool ) ] );
+				}
+			)
+		);
+	}
+
+	private static function tool_key( array $tool ) {
+		return $tool['name'] . '|' . md5( (string) wp_json_encode( $tool['schema'] ?? null ) );
+	}
+
+	/**
+	 * URL, cabeceras y cuerpo de la petición al proveedor (pura: la prueba la lee sin red), y `tool_names`: el nombre
+	 * de cada herramienta en el orden del cuerpo (los errores del proveedor la señalan por su posición).
+	 */
 	public static function build( array $target, $system, array $messages, array $tools ) {
-		$id  = $target['provider'];
+		$id    = $target['provider'];
+		$names = array();
+		$tools = array_values(
+			array_filter(
+				$tools,
+				function ( $tool ) use ( &$names ) {
+					// Dos herramientas con el mismo nombre hacen que el proveedor rechace la petición entera.
+					if ( isset( $names[ $tool['name'] ] ) ) {
+						return false;
+					}
+					$names[ $tool['name'] ] = true;
+					return true;
+				}
+			)
+		);
+		$names = array_keys( $names );
 		$key = (string) ( $target['key'] ?? '' );
 		$url = (string) ( $target['url'] ?? '' );
 		if ( isset( self::OPENAI_URLS[ $id ] ) ) {
@@ -127,7 +241,7 @@ final class Digitalisimo_AI_Assistant_Model {
 					$body['tools'][] = array( 'type' => 'function', 'function' => array( 'name' => $tool['name'], 'description' => $tool['description'], 'parameters' => self::object_schema( $tool['schema'] ) ) );
 				}
 			}
-			return array( 'url' => $url ?: self::OPENAI_URLS[ $id ], 'headers' => array( 'Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $key ), 'body' => $body );
+			return array( 'url' => $url ?: self::OPENAI_URLS[ $id ], 'headers' => array( 'Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $key ), 'body' => $body, 'tool_names' => $names );
 		}
 		if ( 'anthropic' === $id ) {
 			$body = array( 'model' => $target['model'], 'max_tokens' => (int) ( $target['max_tokens'] ?? self::MAX_TOKENS ), 'system' => $system, 'messages' => self::anthropic_messages( $messages ) );
@@ -137,7 +251,7 @@ final class Digitalisimo_AI_Assistant_Model {
 					$body['tools'][] = array( 'name' => $tool['name'], 'description' => $tool['description'], 'input_schema' => self::object_schema( $tool['schema'] ) );
 				}
 			}
-			return array( 'url' => $url ?: 'https://api.anthropic.com/v1/messages', 'headers' => array( 'Content-Type' => 'application/json', 'x-api-key' => $key, 'anthropic-version' => '2023-06-01' ), 'body' => $body );
+			return array( 'url' => $url ?: 'https://api.anthropic.com/v1/messages', 'headers' => array( 'Content-Type' => 'application/json', 'x-api-key' => $key, 'anthropic-version' => '2023-06-01' ), 'body' => $body, 'tool_names' => $names );
 		}
 		if ( 'google' === $id ) {
 			$body = array( 'systemInstruction' => array( 'parts' => array( array( 'text' => $system ) ) ), 'contents' => self::google_messages( $messages ) );
@@ -154,7 +268,7 @@ final class Digitalisimo_AI_Assistant_Model {
 				$body['tools'] = array( array( 'functionDeclarations' => $declarations ) );
 			}
 			// La clave va en cabecera, no en la URL (que puede acabar en un registro de errores).
-			return array( 'url' => $url ?: 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode( $target['model'] ) . ':generateContent', 'headers' => array( 'Content-Type' => 'application/json', 'x-goog-api-key' => $key ), 'body' => $body );
+			return array( 'url' => $url ?: 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode( $target['model'] ) . ':generateContent', 'headers' => array( 'Content-Type' => 'application/json', 'x-goog-api-key' => $key ), 'body' => $body, 'tool_names' => $names );
 		}
 		return new WP_Error( 'digitalisimo_assistant_ai', 'Proveedor no compatible.', array( 'status' => 400 ) );
 	}
@@ -321,38 +435,285 @@ final class Digitalisimo_AI_Assistant_Model {
 		return is_array( $value ) && $value ? $value : new stdClass();
 	}
 
-	/** Esquema de entrada como objeto JSON válido para los tres formatos: `properties` vacías como `{}`. */
+	/**
+	 * Esquema de entrada como objeto JSON válido para los tres formatos (JSON Schema 2020-12 y las reglas de cada API:
+	 * Anthropic rechaza con un 400 toda la petición si UNA herramienta trae un esquema inválido). Se sanea lo que las
+	 * Abilities heredan de los esquemas REST de WordPress o de draft-04: `required: true` dentro de la propiedad pasa a
+	 * la lista `required` del padre; `items` o `additionalProperties` vacíos o como lista, a `{}`; se quitan `context`,
+	 * `readonly`, `arg_options`, los callbacks, `$ref` sin resolver, `enum` vacío, tipos inexistentes, límites que no
+	 * son números (`exclusiveMinimum: true` pasa a número), patrones que no compilan y propiedades con nombres que la
+	 * API no admite (^[a-zA-Z0-9_.-]{1,64}$). La raíz nunca lleva oneOf/anyOf/allOf: sus propiedades se funden.
+	 */
 	public static function object_schema( $schema ) {
 		$schema = is_array( $schema ) ? $schema : array();
 		if ( 'object' !== ( $schema['type'] ?? 'object' ) ) {
 			$schema = array( 'type' => 'object', 'properties' => array( 'value' => $schema ), 'required' => array( 'value' ) );
 		}
+		$schema = self::flatten_root( $schema );
+		$schema = self::clean_schema( $schema, 0 );
+		$schema = is_array( $schema ) ? $schema : array();
 		$schema['type'] = 'object';
 		if ( ! isset( $schema['properties'] ) ) {
-			$schema['properties'] = array();
-		}
-		return self::fix_objects( $schema );
-	}
-
-	private static function fix_objects( $schema ) {
-		if ( ! is_array( $schema ) ) {
-			return $schema;
-		}
-		foreach ( $schema as $key => $value ) {
-			if ( 'properties' === $key ) {
-				$props = array();
-				foreach ( (array) $value as $name => $sub ) {
-					$props[ $name ] = self::fix_objects( $sub );
-				}
-				$schema[ $key ] = $props ? $props : new stdClass();
-			} elseif ( is_array( $value ) && in_array( $key, array( 'items', 'additionalProperties', 'anyOf', 'oneOf', 'allOf', 'not' ), true ) ) {
-				$schema[ $key ] = self::is_list( $value ) ? array_map( array( __CLASS__, 'fix_objects' ), $value ) : self::fix_objects( $value );
-			}
-		}
-		if ( array_key_exists( 'default', $schema ) && array() === $schema['default'] && 'object' === ( $schema['type'] ?? '' ) ) {
-			$schema['default'] = new stdClass();
+			$schema['properties'] = new stdClass();
 		}
 		return $schema;
+	}
+
+	const SCHEMA_TYPES = array( 'object', 'array', 'string', 'number', 'integer', 'boolean', 'null' );
+	const TYPE_ALIASES = array( 'int' => 'integer', 'float' => 'number', 'double' => 'number', 'bool' => 'boolean', 'text' => 'string' );
+	/** Claves de los esquemas REST de WordPress que no son JSON Schema. */
+	const WP_KEYS = array( 'context', 'readonly', 'readOnly', 'arg_options', 'sanitize_callback', 'validate_callback', '$ref', '$schema', '$id', '$defs', 'definitions', '$comment', 'ignore' );
+
+	/**
+	 * oneOf/anyOf/allOf en la raíz (Anthropic y OpenAI lo rechazan; WooCommerce 11 lo usa en product-create y
+	 * product-update): las propiedades de las ramas se funden en la raíz, con los `enum` de una misma propiedad unidos.
+	 * Requeridas quedan las de allOf y las que piden TODAS las ramas de anyOf/oneOf. La Ability valida después la entrada
+	 * contra su esquema original, así que una combinación que ninguna rama admite sigue rechazándose.
+	 */
+	private static function flatten_root( array $schema ) {
+		foreach ( array( 'allOf', 'anyOf', 'oneOf' ) as $union ) {
+			if ( ! array_key_exists( $union, $schema ) ) {
+				continue;
+			}
+			$branches = array_values( array_filter( is_array( $schema[ $union ] ) ? $schema[ $union ] : array(), 'is_array' ) );
+			unset( $schema[ $union ] );
+			$props    = is_array( $schema['properties'] ?? null ) ? $schema['properties'] : array();
+			$required = is_array( $schema['required'] ?? null ) ? $schema['required'] : array();
+			$common   = null;
+			foreach ( $branches as $branch ) {
+				foreach ( ( is_array( $branch['properties'] ?? null ) ? $branch['properties'] : array() ) as $name => $sub ) {
+					if ( ! isset( $props[ $name ] ) ) {
+						$props[ $name ] = $sub;
+					} elseif ( is_array( $props[ $name ]['enum'] ?? null ) && is_array( $sub['enum'] ?? null ) ) {
+						$props[ $name ]['enum'] = array_values( array_unique( array_merge( $props[ $name ]['enum'], $sub['enum'] ), SORT_REGULAR ) );
+						unset( $props[ $name ]['default'] );
+					}
+				}
+				$branch_required = is_array( $branch['required'] ?? null ) ? $branch['required'] : array();
+				if ( 'allOf' === $union ) {
+					$required = array_merge( $required, $branch_required );
+				} else {
+					$common = null === $common ? $branch_required : array_values( array_intersect( $common, $branch_required ) );
+				}
+			}
+			$required = array_merge( $required, (array) $common );
+			$schema['properties'] = $props;
+			if ( $required ) {
+				$schema['required'] = $required;
+			}
+		}
+		return $schema;
+	}
+
+	/**
+	 * Un subesquema válido (o null si no se puede salvar). Los booleanos se conservan donde JSON Schema los admite.
+	 *
+	 * @return array|stdClass|bool|null
+	 */
+	private static function clean_schema( $schema, $depth ) {
+		if ( is_bool( $schema ) ) {
+			return $schema;
+		}
+		if ( is_object( $schema ) ) {
+			$schema = json_decode( (string) wp_json_encode( $schema ), true );
+		}
+		if ( ! is_array( $schema ) || $depth > 32 ) {
+			return null;
+		}
+		if ( ! $schema ) {
+			return new stdClass();
+		}
+		if ( self::is_list( $schema ) ) {
+			// Una lista donde va un esquema (items de draft-04 en forma de tupla): vale la primera.
+			return self::clean_schema( $schema[0], $depth );
+		}
+		$out = array();
+		foreach ( $schema as $key => $value ) {
+			$key = (string) $key;
+			if ( is_object( $value ) ) {
+				// Restos de un json_decode en objetos (properties, enum…): como arreglos, igual que el adaptador MCP.
+				$value = json_decode( (string) wp_json_encode( $value ), true );
+			}
+			if ( in_array( $key, self::WP_KEYS, true ) || 'required' === $key && ! is_array( $value ) ) {
+				continue;
+			}
+			switch ( $key ) {
+				case 'type':
+					$types = array();
+					foreach ( (array) $value as $type ) {
+						$type = is_string( $type ) ? strtolower( $type ) : '';
+						$type = self::TYPE_ALIASES[ $type ] ?? $type;
+						if ( in_array( $type, self::SCHEMA_TYPES, true ) && ! in_array( $type, $types, true ) ) {
+							$types[] = $type;
+						}
+					}
+					if ( $types ) {
+						$out['type'] = is_array( $value ) ? $types : $types[0];
+					}
+					break;
+				case 'properties':
+					$props    = array();
+					$required = array();
+					foreach ( ( is_array( $value ) ? $value : array() ) as $name => $sub ) {
+						$name = (string) $name;
+						if ( ! preg_match( '/^[a-zA-Z0-9_.-]{1,64}$/', $name ) ) {
+							continue;
+						}
+						if ( is_array( $sub ) && true === ( $sub['required'] ?? null ) ) {
+							$required[] = $name;
+						}
+						$sub = self::clean_schema( $sub, $depth + 1 );
+						if ( null !== $sub ) {
+							$props[ $name ] = $sub;
+						}
+					}
+					$out['properties'] = $props ? $props : new stdClass();
+					if ( $required ) {
+						$out['required'] = array_merge( is_array( $out['required'] ?? null ) ? $out['required'] : array(), $required );
+					}
+					break;
+				case 'required':
+					$out['required'] = array_merge( $value, is_array( $out['required'] ?? null ) ? $out['required'] : array() );
+					break;
+				case 'items':
+				case 'additionalProperties':
+				case 'not':
+				case 'if':
+				case 'then':
+				case 'else':
+				case 'contains':
+				case 'propertyNames':
+				case 'unevaluatedItems':
+				case 'unevaluatedProperties':
+					$sub = self::clean_schema( $value, $depth + 1 );
+					if ( null !== $sub ) {
+						$out[ $key ] = $sub;
+					} elseif ( 'items' === $key ) {
+						$out['items'] = new stdClass();
+					}
+					break;
+				case 'patternProperties':
+				case 'dependentSchemas':
+					$map = array();
+					foreach ( ( is_array( $value ) ? $value : array() ) as $name => $sub ) {
+						if ( 'patternProperties' === $key && ! self::valid_pattern( (string) $name ) ) {
+							continue;
+						}
+						$sub = self::clean_schema( $sub, $depth + 1 );
+						if ( null !== $sub ) {
+							$map[ (string) $name ] = $sub;
+						}
+					}
+					if ( $map ) {
+						$out[ $key ] = $map;
+					}
+					break;
+				case 'anyOf':
+				case 'oneOf':
+				case 'allOf':
+				case 'prefixItems':
+					$list = array();
+					foreach ( ( is_array( $value ) ? $value : array() ) as $sub ) {
+						$sub = self::clean_schema( $sub, $depth + 1 );
+						if ( null !== $sub ) {
+							$list[] = $sub;
+						}
+					}
+					if ( $list ) {
+						$out[ $key ] = $list;
+					}
+					break;
+				case 'enum':
+					if ( is_array( $value ) && $value ) {
+						$out['enum'] = array_values( $value );
+					}
+					break;
+				case 'minimum':
+				case 'maximum':
+				case 'multipleOf':
+					if ( is_int( $value ) || is_float( $value ) || is_numeric( $value ) ) {
+						$out[ $key ] = $value + 0;
+					}
+					break;
+				case 'exclusiveMinimum':
+				case 'exclusiveMaximum':
+					if ( is_int( $value ) || is_float( $value ) || ( is_string( $value ) && is_numeric( $value ) ) ) {
+						$out[ $key ] = $value + 0;
+					} elseif ( true === $value ) {
+						// draft-04: el booleano marca exclusivo el mínimo o máximo de al lado.
+						$limit = 'exclusiveMinimum' === $key ? 'minimum' : 'maximum';
+						if ( isset( $schema[ $limit ] ) && is_numeric( $schema[ $limit ] ) ) {
+							$out[ $key ] = $schema[ $limit ] + 0;
+						}
+					}
+					break;
+				case 'minLength':
+				case 'maxLength':
+				case 'minItems':
+				case 'maxItems':
+				case 'minProperties':
+				case 'maxProperties':
+				case 'minContains':
+				case 'maxContains':
+					if ( is_numeric( $value ) && (int) $value >= 0 && (float) $value === (float) (int) $value ) {
+						$out[ $key ] = (int) $value;
+					}
+					break;
+				case 'uniqueItems':
+					if ( is_bool( $value ) ) {
+						$out[ $key ] = $value;
+					}
+					break;
+				case 'pattern':
+					if ( is_string( $value ) && self::valid_pattern( $value ) ) {
+						$out[ $key ] = $value;
+					}
+					break;
+				case 'title':
+				case 'description':
+				case 'format':
+					if ( is_string( $value ) ) {
+						$out[ $key ] = $value;
+					}
+					break;
+				default:
+					$out[ $key ] = $value;
+			}
+		}
+		// Con los draft-04 resueltos, el número de al lado de un exclusivo ya no hace falta.
+		foreach ( array( 'exclusiveMinimum' => 'minimum', 'exclusiveMaximum' => 'maximum' ) as $exclusive => $limit ) {
+			if ( true === ( $schema[ $exclusive ] ?? null ) && isset( $out[ $exclusive ], $out[ $limit ] ) ) {
+				unset( $out[ $limit ] );
+			}
+		}
+		if ( isset( $out['required'] ) ) {
+			$names    = isset( $out['properties'] ) && is_array( $out['properties'] ) ? array_keys( $out['properties'] ) : null;
+			$required = array();
+			foreach ( $out['required'] as $name ) {
+				if ( is_string( $name ) && ( null === $names || in_array( $name, $names, true ) ) && ! in_array( $name, $required, true ) ) {
+					$required[] = $name;
+				}
+			}
+			if ( $required ) {
+				$out['required'] = $required;
+			} else {
+				unset( $out['required'] );
+			}
+		}
+		$type = $out['type'] ?? null;
+		if ( array_key_exists( 'default', $out ) && array() === $out['default'] && ( 'object' === $type || ( is_array( $type ) && in_array( 'object', $type, true ) ) || isset( $out['properties'] ) ) ) {
+			$out['default'] = new stdClass();
+		}
+		// OpenAI exige items en todo arreglo.
+		if ( ( 'array' === $type || ( is_array( $type ) && in_array( 'array', $type, true ) ) ) && ! isset( $out['items'] ) ) {
+			$out['items'] = new stdClass();
+		}
+		return $out ? $out : new stdClass();
+	}
+
+	/** ¿Compila como expresión regular? (las de JSON Schema son de ECMAScript; las que PCRE no entiende se quitan). */
+	private static function valid_pattern( $pattern ) {
+		return '' !== $pattern && false !== @preg_match( '/' . str_replace( '/', '\/', $pattern ) . '/u', '' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 	}
 
 	private static function is_list( array $value ) {
