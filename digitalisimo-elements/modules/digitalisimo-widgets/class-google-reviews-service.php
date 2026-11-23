@@ -37,6 +37,14 @@ final class Google_Reviews_Service {
 		return is_multisite() ? self::configured_key( true ) : '';
 	}
 
+	/**
+	 * Lo escrito en el campo, sin los «•» de la máscara: una clave real nunca los lleva, así que una clave pegada delante o
+	 * detrás de la máscara se guarda limpia y la máscara sola queda vacía (conserva la guardada). Patrón de IA Tools.
+	 */
+	public static function unmask( $raw ) {
+		return sanitize_text_field( str_replace( '•', '', (string) wp_unslash( is_scalar( $raw ) ? $raw : '' ) ) );
+	}
+
 	public static function settings_page() {
 		$network = is_network_admin();
 		if ( ! current_user_can( $network ? 'manage_network_options' : 'manage_options' ) ) { wp_die( 'No tienes permisos para configurar esta clave.' ); }
@@ -48,7 +56,7 @@ final class Google_Reviews_Service {
 		wp_nonce_field( 'digitalisimo_elements_google_reviews_save_' . ( $network ? 'network' : 'site' ) );
 		echo '<input type="hidden" name="action" value="digitalisimo_elements_google_reviews_save"><input type="hidden" name="scope" value="' . ( $network ? 'network' : 'site' ) . '">';
 		$state = $stored ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : ( $inherited ? 'Heredada de la red · escribe una sólo si este sitio necesita la suya' : 'Sin clave configurada' );
-		echo '<table class="form-table"><tr><th scope="row"><label for="digi-google-key">Clave API de Google Places</label></th><td><input id="digi-google-key" name="google_places_key" type="password" value="' . esc_attr( $stored ? self::MASK : '' ) . '" autocomplete="new-password" class="regular-text" placeholder="API Key"> <span class="digitalisimo-secret ' . ( $stored || $inherited ? 'is-set' : 'is-empty' ) . '">' . esc_html( $state ) . '</span>' . ( $stored ? ' <label><input type="checkbox" name="remove_key" value="1"> Quitar la clave</label>' : '' ) . '<p class="description">Dejar la máscara o el campo vacío conserva la clave guardada. En Multisite, un sitio sin clave propia hereda la de la red.</p></td></tr></table>';
+		echo '<table class="form-table"><tr><th scope="row"><label for="digi-google-key">Clave API de Google Places</label></th><td><input id="digi-google-key" name="google_places_key" type="password" value="' . esc_attr( $stored ? self::MASK : '' ) . '" onfocus="this.select()" autocomplete="new-password" class="regular-text" placeholder="API Key"> <span class="digitalisimo-secret ' . ( $stored || $inherited ? 'is-set' : 'is-empty' ) . '">' . esc_html( $state ) . '</span>' . ( $stored ? ' <label><input type="checkbox" name="remove_key" value="1"> Quitar la clave</label>' : '' ) . '<p class="description">Dejar la máscara o el campo vacío conserva la clave guardada. En Multisite, un sitio sin clave propia hereda la de la red.</p></td></tr></table>';
 		submit_button( 'Guardar clave' );
 		echo '</form></div>';
 	}
@@ -60,8 +68,8 @@ final class Google_Reviews_Service {
 		if ( ! empty( $_POST['remove_key'] ) ) {
 			$network ? delete_site_option( self::KEY ) : delete_option( self::KEY );
 		} else {
-			$value = trim( sanitize_text_field( wp_unslash( $_POST['google_places_key'] ?? '' ) ) );
-			if ( '' !== $value && self::MASK !== $value ) { $network ? update_site_option( self::KEY, $value ) : update_option( self::KEY, $value, false ); }
+			$value = trim( self::unmask( $_POST['google_places_key'] ?? '' ) );
+			if ( '' !== $value ) { $network ? update_site_option( self::KEY, $value ) : update_option( self::KEY, $value, false ); }
 		}
 		$url = $network ? network_admin_url( 'settings.php?page=digitalisimo-elements-google-reviews&updated=1' ) : admin_url( 'options-general.php?page=digitalisimo-elements-google-reviews&updated=1' );
 		wp_safe_redirect( $url );

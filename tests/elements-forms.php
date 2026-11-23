@@ -78,6 +78,14 @@ namespace {
 		ef_submit( ef_page( $blog, $net ), array( 'google_places_key' => '' ) );
 		$GLOBALS['ef']['blog'] = $blog;
 		check( 'AIza-primera' === $read(), "$mode: vaciar el campo la conserva" );
+		$html = ef_page( $blog, $net );
+		check( false !== strpos( ef_key_input( $html ), 'onfocus="this.select()"' ), "$mode: al entrar al campo se selecciona la máscara" );
+		ef_submit( $html, array( 'google_places_key' => Reviews::MASK . 'AIza-detras' ) );
+		$GLOBALS['ef']['blog'] = $blog;
+		check( 'AIza-detras' === $read(), "$mode: una clave pegada detrás de la máscara se guarda sin los puntos" );
+		ef_submit( ef_page( $blog, $net ), array( 'google_places_key' => 'AIza-delante' . Reviews::MASK ) );
+		$GLOBALS['ef']['blog'] = $blog;
+		check( 'AIza-delante' === $read(), "$mode: una clave pegada delante de la máscara se guarda sin los puntos" );
 		ef_submit( ef_page( $blog, $net ), array( 'google_places_key' => 'AIza-segunda' ) );
 		$GLOBALS['ef']['blog'] = $blog;
 		check( 'AIza-segunda' === $read(), "$mode: una nueva la reemplaza" );
