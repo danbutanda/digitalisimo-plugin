@@ -14,7 +14,9 @@
  *       se rechaza sin escribir opciones ni programar WP-Cron. Antes, las automatizaciones se guardaban en el subsitio y
  *       su evento fallaba en cada pasada;
  *   F1b los secretos guardados de los destinos se pintan como •••• con «Guardada» (nunca el secreto); enviarlos sin
- *       tocar los conserva y escribir otro los reemplaza (pedido del propietario: «deben salir los *****»);
+ *       tocar los conserva, escribir otro los reemplaza y uno pegado detrás de la máscara se guarda sin los «•»; el campo se
+ *       selecciona entero al enfocarlo (pedido del propietario: «deben salir los *****»);
+ *   F3b con varias redes, el sitio principal de una red secundaria tampoco guarda automatizaciones;
  *   F4  un subsitio no crea ni consulta las automatizaciones por defecto (antes, una fila y una consulta por petición en
  *       cada subsitio, también en el front).
  * Uso: php tests/backups-network-forms.php
@@ -33,6 +35,8 @@ if ( ! function_exists( 'wp_get_scheduled_event' ) ) { function wp_get_scheduled
 if ( ! function_exists( 'wp_unschedule_event' ) ) { function wp_unschedule_event( $at, $hook, $args = array() ) { unset( $GLOBALS['nf_cron'][ $hook . '|' . json_encode( $args ) ] ); return true; } }
 if ( ! function_exists( 'get_userdata' ) ) { function get_userdata( $id ) { return (object) array( 'user_email' => 'admin@example.test' ); } }
 $GLOBALS['nf_cron'] = array();
+// Varias redes: $GLOBALS['nf_main_network'] = false es el sitio principal de una red secundaria.
+if ( ! function_exists( 'is_main_network' ) ) { function is_main_network() { return $GLOBALS['nf_main_network'] ?? true; } }
 
 $failures = 0;
 function nf_check( $ok, $what ) { if ( ! $ok ) throw new RuntimeException( $what ); }
@@ -159,6 +163,10 @@ try {
 			nf_check( false !== strpos( $html, 'name="digitalisimo_backups[sftp_password]" value="' . $B::MASK . '"' ) && false === strpos( $html, 'Secreto-Del-Destino' ), 'La contraseña guardada no se ve como •••• o se imprime.' );
 			list( $ok ) = bk_post( array( $B, 'save' ), nf_submit( nf_form( $html, $B::ACTION_SAVE ), array( 'digitalisimo_backups' => array( 'sftp_password' => 'Otro-Secreto-' . $surface ) ) ) );
 			nf_check( $ok && 'Otro-Secreto-' . $surface === bk_call( $B, 'settings' )['sftp_password'], 'Escribir otra contraseña no la reemplazó.' );
+			nf_check( false !== strpos( $html, 'name="digitalisimo_backups[sftp_password]" value="' . $B::MASK . '" placeholder="Guardado · escribe sólo para reemplazar" autocomplete="new-password" onfocus="this.select()"' ), 'El campo de la contraseña guardada no se selecciona entero al enfocarlo.' );
+			// Pegada detrás de la máscara (clic en el campo y pegar): se guarda sin los «•».
+			list( $ok ) = bk_post( array( $B, 'save' ), nf_submit( nf_form( nf_render( 'servers', $network, array( 'edit' => 'sftp' ) ), $B::ACTION_SAVE ), array( 'digitalisimo_backups' => array( 'sftp_password' => $B::MASK . 'Pegada-' . $surface ) ) ) );
+			nf_check( $ok && 'Pegada-' . $surface === bk_call( $B, 'settings' )['sftp_password'], 'Una contraseña pegada detrás de la máscara se guardó con los «•»: ' . json_encode( bk_call( $B, 'settings' )['sftp_password'] ) );
 			list( $ok ) = bk_post( array( $B, 'save' ), nf_submit( nf_form( nf_render( 'servers', $network, array( 'edit' => 'sftp' ) ), $B::ACTION_SAVE ), array( 'digitalisimo_backups' => array( 'sftp_password' => 'Secreto-Del-Destino' ) ) ) );
 			// «Migrar»: el laboratorio (HTTP y direcciones internas), marcado y desmarcado.
 			$migrate = nf_render( 'tools', $network, array( 'open' => 'migrate' ) );
@@ -220,6 +228,18 @@ try {
 				nf_check( nf_state() === $before, '«' . $what . '» desde un subsitio escribió opciones o WP-Cron (' . $message . ').' );
 			}
 		} finally { $GLOBALS['bk_main_site'] = true; $GLOBALS['bk_blog_id'] = 1; }
+	} );
+
+	nf_case( 'F3b · el sitio principal de una red secundaria no guarda automatizaciones (nunca se programarían)', function() use ( $B ) {
+		nf_surface( 'main' );
+		$tools = nf_render( 'tools', false, array( 'open' => 'automations' ) );
+		$post = nf_submit( nf_form( $tools, $B::ACTION_CREATE_AUTOMATION ), array( 'digitalisimo_backup_automation' => array( 'schedule' => 'weekly' ) ) );
+		$GLOBALS['nf_main_network'] = false;
+		try {
+			$before = nf_state();
+			list( $ok, $message ) = bk_post( array( $B, 'create_automation' ), $post );
+			nf_check( ! $ok && false !== strpos( $message, 'red principal' ) && nf_state() === $before, 'Una red secundaria guardó una automatización: ' . $message );
+		} finally { $GLOBALS['nf_main_network'] = true; }
 	} );
 
 	nf_case( 'F4 · un subsitio no crea ni lee las automatizaciones por defecto', function() use ( $B ) {

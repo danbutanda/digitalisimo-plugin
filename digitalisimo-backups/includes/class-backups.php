@@ -1259,6 +1259,8 @@ final class Digitalisimo_Backups {
 	 */
 	private static function automations_here() {
 		if ( is_multisite() && ! is_main_site() ) self::redirect( false, 'Las automatizaciones de los respaldos son de toda la red: se gestionan desde la administración de red o el sitio principal.' );
+		// Con varias redes, el respaldo completo sólo se hace desde la principal (ensure_policy_schedules() no programa otra).
+		if ( is_multisite() && function_exists( 'is_main_network' ) && ! is_main_network() ) self::redirect( false, 'Esta instalación tiene varias redes: las automatizaciones de los respaldos se gestionan desde la red principal.' );
 	}
 	/** Tope de automatizaciones de un sitio (o de la red): cada una es un respaldo completo con su frecuencia. */
 	const MAX_AUTOMATIONS = 50;
