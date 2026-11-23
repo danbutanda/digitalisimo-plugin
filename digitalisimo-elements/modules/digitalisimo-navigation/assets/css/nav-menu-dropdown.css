@@ -1,7 +1,7 @@
 .digi-nav__container.digi-nav__dropdown{margin-top:10px;overflow-x:hidden;overflow-y:auto;transform-origin:top;transition:max-height .3s,transform .3s}
 .digi-nav__container.digi-nav__dropdown .digi-nav__sublink{font-size:.85em}
 .digi-nav--text-center .digi-nav__dropdown .digi-nav__list a{justify-content:center}
-.digi-nav .digi-nav__toggle{align-items:center;background-color:rgba(0,0,0,.05);border:0 solid;border-radius:3px;color:#33373d;cursor:pointer;display:flex;font-size:var(--digi-nav-toggle-size,22px);justify-content:center;padding:.25em;margin:0;min-width:0;min-height:0;font-family:inherit;line-height:normal;letter-spacing:normal;text-transform:none;box-shadow:none;-webkit-appearance:none;appearance:none}.digi-nav .digi-nav__toggle:is(:hover,:focus){background-color:rgba(0,0,0,.05);border:0 solid;border-radius:3px;box-shadow:none;color:#33373d}
+.digi-nav__toggle{display:flex}.digi-nav .digi-nav__toggle{align-items:center;background-color:rgba(0,0,0,.05);border:0 solid;border-radius:3px;color:#33373d;cursor:pointer;font-size:var(--digi-nav-toggle-size,22px);justify-content:center;padding:.25em;margin:0;min-width:0;min-height:0;font-family:inherit;line-height:normal;letter-spacing:normal;text-transform:none;box-shadow:none;-webkit-appearance:none;appearance:none}.digi-nav .digi-nav__toggle:is(:hover,:focus){background-color:rgba(0,0,0,.05);border:0 solid;border-radius:3px;box-shadow:none;color:#33373d}
 .digi-nav__toggle[aria-expanded=true] .digi-nav__toggle-open,.digi-nav__toggle:not([aria-expanded=true]) .digi-nav__toggle-close{display:none}
 .digi-nav__toggle .e-font-icon-svg{fill:#33373d;height:1em;width:1em}
 .digi-nav__toggle svg{fill:var(--nav-menu-icon-color,currentColor);height:auto;width:1em}

@@ -5,11 +5,13 @@
 	display:inline-block;
 	position:relative
 }
-.digi-mc .digi-mc__btn{
+/* Con el guardia :hover/:focus (0,3,1): el kit pinta `.elementor-button:hover/:focus` (0,3,0). */
+.digi-mc button.digi-mc__btn,.digi-mc button.digi-mc__btn:is(:hover,:focus){
 	align-items:center;
 	background-color:var(--mc-tbbc,transparent);
 	border:var(--mc-tbbw,1px) var(--mc-tbbt,solid) var(--mc-tbbc2,#69727d);
 	border-radius:var(--mc-tbbr,0);
+	box-shadow:none;
 	color:var(--mc-tbtc,#69727d);
 	display:inline-flex;
 	flex-direction:row;
@@ -21,7 +23,7 @@
 	letter-spacing:inherit;
 	margin:0
 }
-.digi-mc .digi-mc__btn:hover{
+.digi-mc button.digi-mc__btn:hover{
 	background-color:var(--mc-tbhbc,transparent);
 	border-color:var(--mc-tbhbc2,#69727d);
 	color:var(--mc-tbhtc,#69727d);
@@ -131,10 +133,13 @@
 .digi-mc--cart-type-mini-cart .digi-mc:not(.digi-mc--shown) .digi-mc__main{
 	transform:translateY(-10px)
 }
-.digi-mc__x,.digi-mc__xc{
+/* Cierre: en todos los estados, por encima del botón del kit. */
+.digi-mc :is(.digi-mc__x,.digi-mc__xc),.digi-mc :is(.digi-mc__x,.digi-mc__xc):is(:hover,:focus){
 	align-self:flex-end;
 	background:none;
 	border:0;
+	border-radius:0;
+	box-shadow:none;
 	padding:0;
 	color:var(--mc-ccbc,#69727d);
 	cursor:pointer;
@@ -148,7 +153,7 @@
 .digi-mc__x:hover,.digi-mc__xc:hover{
 	--mc-ccbc:var(--mc-ccbhc,#69727d)
 }
-.digi-mc__x{
+.digi-mc__x,.digi-mc__xc svg{
 	height:var(--mc-ccis,25px);
 	width:var(--mc-ccis,25px)
 }
@@ -172,9 +177,7 @@
 	font-size:var(--mc-ccis,25px)
 }
 .digi-mc__xc svg{
-	fill:currentColor;
-	height:var(--mc-ccis,25px);
-	width:var(--mc-ccis,25px)
+	fill:currentColor
 }
 .digi-mc :focus-visible{
 	outline:2px solid currentColor;

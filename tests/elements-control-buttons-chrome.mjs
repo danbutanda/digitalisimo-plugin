@@ -3,7 +3,7 @@
 // menos especificidad toma el color de botón del sitio (caso real: el botón invisible de cada submenú del menú de WordPress
 // se veía como un rectángulo de color junto al nombre). Sobre los fixtures de los widgets (los generados por sus pruebas y
 // tests/fixtures/control-buttons.html para los demás), con un kit llamativo cargado AL FINAL (el peor orden):
-// - cada botón de control visible, en reposo, con el puntero encima y con el foco (estados forzados por DevTools, también
+// - cada botón de control visible, en reposo, con el puntero encima, con el foco y con el foco del teclado (estados forzados por DevTools, también
 //   en los que no reciben el puntero), no toma del kit el fondo, el borde, la sombra, el color ni el relleno, ni el radio
 //   si pinta fondo, borde o sombra;
 // - los botones de acción (`.elementor-button`, salvo el del menú del carrito, y el «Aplicar» del cupón) sí toman el fondo
@@ -71,6 +71,9 @@ const ACTION_EXTRA = ['digi-coupon__apply'];
 // El título de la Lista de videos va en un botón con el color de los botones del sitio, como PRO (lo exigen
 // elements-pro-video-playlist{,-chrome}): de él sólo se mide que no tome el fondo, el borde, la sombra ni el relleno.
 const KIT_TEXT_AS_PRO = '.digi-vpl__title button';
+// El filtro del Portafolio deja la sombra de foco del sitio con el teclado, como PRO (elements-pro-posts-chrome.mjs,
+// diferencia declarada 1); en reposo, hover y foco con el ratón no la toma.
+const KIT_FOCUS_SHADOW_AS_PRO = '.digi-portfolio__filter';
 const isAction = cls => (cls.includes('elementor-button') && !cls.includes('digi-mc__btn')) || ACTION_EXTRA.some(c => cls.split(' ').includes(c));
 
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--allow-file-access-from-files', '--disable-gpu'] });
@@ -107,14 +110,15 @@ for (const pg of PAGES.filter(p => !only.length || only.includes(p.file))) {
     for (let i = 0; i < n; i++) {
       const sel = `[data-kit-probe="${i}"]`;
       const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: sel });
-      const read = () => page.evaluate((s, kitTextAsPro) => {
+      const read = () => page.evaluate((s, kitTextAsPro, focusShadowAsPro) => {
         const b = document.querySelector(s), c = getComputedStyle(b), r = b.getBoundingClientRect();
-        return { visible: r.width > 0 && r.height > 0 && c.visibility !== 'hidden', cls: String(b.className) || b.closest('[class]').className.split(' ')[0] + ' button', proText: b.matches(kitTextAsPro), parent: String(b.parentNode.className), bg: c.backgroundColor, color: c.color, border: ['Top', 'Right', 'Bottom', 'Left'].filter(e => parseFloat(c[`border${e}Width`]) > 0).map(e => c[`border${e}Color`]).join(' '), shadow: c.boxShadow, radius: c.borderTopLeftRadius, padding: c.paddingTop + ' ' + c.paddingLeft };
-      }, sel, KIT_TEXT_AS_PRO);
+        return { visible: r.width > 0 && r.height > 0 && c.visibility !== 'hidden', cls: String(b.className) || b.closest('[class]').className.split(' ')[0] + ' button', proText: b.matches(kitTextAsPro), focusShadowAsPro: b.matches(focusShadowAsPro), parent: String(b.parentNode.className), bg: c.backgroundColor, color: c.color, border: ['Top', 'Right', 'Bottom', 'Left'].filter(e => parseFloat(c[`border${e}Width`]) > 0).map(e => c[`border${e}Color`]).join(' '), shadow: c.boxShadow, radius: c.borderTopLeftRadius, padding: c.paddingTop + ' ' + c.paddingLeft };
+      }, sel, KIT_TEXT_AS_PRO, KIT_FOCUS_SHADOW_AS_PRO);
       const states = { reposo: await read() };
       if (!states.reposo.visible) continue;
-      for (const st of ['hover', 'focus']) {
-        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: [st] });
+      // El foco con el teclado es :focus y :focus-visible a la vez.
+      for (const [st, forced] of [['hover', ['hover']], ['focus', ['focus']], ['teclado', ['focus', 'focus-visible']]]) {
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: forced });
         states[st] = await read();
       }
       await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: [] });
@@ -134,7 +138,7 @@ for (const pg of PAGES.filter(p => !only.length || only.includes(p.file))) {
           if (s.bg === k.bg) bad.push('fondo ' + s.bg);
           if (s.color === k.color && !s.proText) bad.push('color ' + s.color);
           if (s.border.includes(k.border)) bad.push('borde ' + s.border);
-          if (s.shadow.includes(k.shadow)) bad.push('sombra ' + s.shadow);
+          if (s.shadow.includes(k.shadow) && !(st === 'teclado' && s.focusShadowAsPro)) bad.push('sombra ' + s.shadow);
         }
         // El radio sólo se ve si el botón pinta fondo, borde o sombra.
         if (s.radius === '31px' && (s.bg !== 'rgba(0, 0, 0, 0)' || s.border || s.shadow !== 'none')) bad.push('radio 31px');
