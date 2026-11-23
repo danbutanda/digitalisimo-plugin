@@ -120,9 +120,12 @@ final class Lock {
 			if ( $switch ) {
 				switch_to_blog( (int) $blog );
 			}
-			self::release( $option );
-			if ( $switch ) {
-				restore_current_blog();
+			try {
+				self::release( $option );
+			} finally {
+				if ( $switch ) {
+					restore_current_blog();
+				}
 			}
 		}
 	}

@@ -255,9 +255,12 @@ final class Transition {
 			if ( $switch ) {
 				switch_to_blog( (int) $blog );
 			}
-			self::unlock();
-			if ( $switch ) {
-				restore_current_blog();
+			try {
+				self::unlock();
+			} finally {
+				if ( $switch ) {
+					restore_current_blog();
+				}
 			}
 		}
 	}
