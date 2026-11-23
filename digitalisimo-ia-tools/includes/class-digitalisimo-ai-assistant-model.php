@@ -530,6 +530,10 @@ final class Digitalisimo_AI_Assistant_Model {
 		$out = array();
 		foreach ( $schema as $key => $value ) {
 			$key = (string) $key;
+			if ( is_object( $value ) ) {
+				// Restos de un json_decode en objetos (properties, enum…): como arreglos, igual que el adaptador MCP.
+				$value = json_decode( (string) wp_json_encode( $value ), true );
+			}
 			if ( in_array( $key, self::WP_KEYS, true ) || 'required' === $key && ! is_array( $value ) ) {
 				continue;
 			}
