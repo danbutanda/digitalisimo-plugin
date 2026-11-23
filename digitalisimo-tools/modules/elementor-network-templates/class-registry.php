@@ -31,5 +31,19 @@ final class Registry {
 		$ids = 'selected' === ( $targets['mode'] ?? 'all' ) ? array_intersect( array_map( 'absint', (array) ( $targets['include'] ?? array() ) ), $network ) : $network;
 		$ids = array_diff( $ids, array_map( 'absint', (array) ( $targets['exclude'] ?? array() ) ), array( absint( $item['master_blog_id'] ) ) ); return array_values( array_unique( array_filter( $ids ) ) );
 	}
+	/** Sitios de otra red que figuran en el registro de la plantilla (copias hechas antes de limitar los destinos a la red). */
+	public static function foreign_sites( array $item ) {
+		if ( ! is_multisite() ) return array();
+		$network = array_map( 'absint', wp_list_pluck( get_sites( array( 'number' => 0, 'network_id' => get_current_network_id() ) ), 'blog_id' ) );
+		$listed  = array_map( 'absint', array_merge( array_keys( (array) ( $item['sites'] ?? array() ) ), array_keys( (array) ( $item['last_sync'] ?? array() ) ) ) );
+		return array_values( array_unique( array_diff( $listed, $network ) ) );
+	}
+	/** Quita del registro las copias de otra red (no borra nada en esos sitios). */
+	public static function forget_foreign( $uuid ) {
+		$all = self::all(); if ( empty( $all[ $uuid ] ) ) return;
+		// Directo en el registro: save() conserva las copias anteriores a propósito.
+		foreach ( self::foreign_sites( $all[ $uuid ] ) as $blog ) unset( $all[ $uuid ]['sites'][ $blog ], $all[ $uuid ]['last_sync'][ $blog ] );
+		update_site_option( self::OPTION, $all );
+	}
 	public static function set_mapping( $uuid, $blog_id, $post_id ) { $item = self::get( $uuid ); if ( ! $item ) return; $item['sites'][ absint( $blog_id ) ] = absint( $post_id ); $item['last_sync'][ absint( $blog_id ) ] = time(); self::save( $item ); }
 }

@@ -258,26 +258,38 @@ final class Preview_Link {
 		$args['execute_callback'] = static function ( ...$params ) use ( $inner ) {
 			$result = call_user_func_array( $inner, $params );
 			if ( is_array( $result ) && ! empty( $result['revision_id'] ) ) {
-				self::stamp( (int) $result['revision_id'] );
+				self::stamp( (int) $result['revision_id'], (int) ( $result['expires_at_unix'] ?? 0 ) );
 			}
 			return $result;
 		};
 		return $args;
 	}
 
-	/** Marca una revisión con el sitio actual (en una red). `update_metadata()`: `update_post_meta()` iría a su página. */
-	public static function stamp( int $revision_id ): void {
-		if ( $revision_id > 0 && function_exists( 'is_multisite' ) && is_multisite() ) {
-			update_metadata( 'post', $revision_id, self::SITE_META, (string) get_current_blog_id() );
+	/**
+	 * Anota en la revisión (en una red) el enlace emitido: `<sitio>:<caducidad>`, una fila por enlace; las vencidas de
+	 * este sitio se quitan. Con la caducidad, el enlace de un sitio no vale en otro aunque los dos hayan emitido enlaces
+	 * de la misma página y revisión (un clon). `add_metadata()`: `add_post_meta()` iría a su página.
+	 */
+	public static function stamp( int $revision_id, int $expires ): void {
+		if ( $revision_id <= 0 || $expires <= 0 || ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
+			return;
 		}
+		$blog = (string) get_current_blog_id();
+		foreach ( (array) get_metadata( 'post', $revision_id, self::SITE_META, false ) as $mark ) {
+			list( $site, $until ) = array_pad( explode( ':', (string) $mark, 2 ), 2, '0' );
+			if ( $site === $blog && (int) $until < time() ) {
+				delete_metadata( 'post', $revision_id, self::SITE_META, $mark );
+			}
+		}
+		add_metadata( 'post', $revision_id, self::SITE_META, $blog . ':' . $expires );
 	}
 
-	/** ¿Emitió este sitio el enlace de esa revisión? Fuera de una red, siempre. */
-	public static function same_site( int $revision_id ): bool {
+	/** ¿Emitió este sitio el enlace de esa revisión con esa caducidad? Fuera de una red, siempre. */
+	public static function same_site( int $revision_id, int $expires ): bool {
 		if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
 			return true;
 		}
-		return (string) get_current_blog_id() === (string) get_metadata( 'post', $revision_id, self::SITE_META, true );
+		return in_array( get_current_blog_id() . ':' . $expires, array_map( 'strval', (array) get_metadata( 'post', $revision_id, self::SITE_META, false ) ), true );
 	}
 
 	/**
@@ -291,7 +303,7 @@ final class Preview_Link {
 			return;
 		}
 		$claims = self::claims( sanitize_text_field( wp_unslash( $_GET[ $arg ] ) ) );
-		if ( null !== $claims && ! self::same_site( (int) ( $claims['revision_id'] ?? 0 ) ) ) {
+		if ( null !== $claims && ! self::same_site( (int) ( $claims['revision_id'] ?? 0 ), (int) ( $claims['expires_at'] ?? 0 ) ) ) {
 			unset( $_GET[ $arg ], $_REQUEST[ $arg ] );
 		}
 	}
@@ -318,7 +330,7 @@ final class Preview_Link {
 		}
 		$id       = isset( $claims['post_id'] ) ? (int) $claims['post_id'] : 0;
 		$revision = isset( $claims['revision_id'] ) ? get_post( (int) $claims['revision_id'] ) : null;
-		if ( $id <= 0 || ! $revision || 'revision' !== $revision->post_type || (int) $revision->post_parent !== $id || ! self::same_site( (int) $revision->ID ) ) {
+		if ( $id <= 0 || ! $revision || 'revision' !== $revision->post_type || (int) $revision->post_parent !== $id || ! self::same_site( (int) $revision->ID, (int) ( $claims['expires_at'] ?? 0 ) ) ) {
 			return 0;
 		}
 		return $id;
