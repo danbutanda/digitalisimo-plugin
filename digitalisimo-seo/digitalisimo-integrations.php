@@ -147,7 +147,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-digitalisimo-update
 // Antes de la primera lectura (la de abajo ya resuelve opciones): las opciones pequeñas de cada petición del
 // escritorio en una sola consulta y, en una red, los ajustes de red y su marca de migración.
 if ( is_admin() && function_exists( 'wp_prime_option_caches' ) ) wp_prime_option_caches( digitalisimo_integrations_admin_options() );
-if ( is_admin() && is_multisite() && function_exists( 'wp_prime_site_option_caches' ) ) wp_prime_site_option_caches( array( 'digitalisimo_integrations_options', 'digitalisimo_seo_template_defaults_1_0_122', 'digitalisimo_seo_video_network_reset' ) );
+if ( is_admin() && is_multisite() && function_exists( 'wp_prime_site_option_caches' ) ) wp_prime_site_option_caches( array( 'digitalisimo_integrations_options', 'digitalisimo_seo_template_defaults_1_0_122', 'digitalisimo_seo_video_network_reset', 'digitalisimo_seo_network_secrets_cleaned' ) );
 
 // Debe decidirse antes de `plugins_loaded`: para entonces la ruta ya está resuelta.
 if ( ! Digitalisimo_Integrations_Settings::tools_handles_site_options() ) Digitalisimo_Integrations_Hide_Login::boot();
@@ -202,6 +202,10 @@ function digitalisimo_integrations_boot() {
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Product_Identifiers' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_SEO_Abilities' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_SEO_Abilities_Write' );
+	} elseif ( is_multisite() ) {
+		// La importación de red (Red → SEO → Importar) no depende del SEO propio del sitio principal, que es el sitio en curso
+		// de admin-post.php: sin esto, con el principal apagado, el botón de la red no tenía quien lo recibiera.
+		add_action( 'admin_post_digitalisimo_seo_rankmath_import_network', array( 'Digitalisimo_Integrations_RankMath_Import', 'handle_network' ) );
 	}
 	digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Robots' );
 	// La política robots pertenece a SEO y funciona aunque AI y Chatbot no esté instalado.

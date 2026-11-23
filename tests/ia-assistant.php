@@ -600,7 +600,7 @@ add_filter( 'digitalisimo_ai_assistant_limits', function () { return $GLOBALS['l
 ob_start(); Digitalisimo_AI::assistant_fields( Digitalisimo_AI::get() ); $fields = ob_get_clean();
 check( false !== strpos( $fields, 'name="ai[assistant_rate_minute]"' ) && false !== strpos( $fields, 'name="ai[assistant_daily_calls]"' ) && false !== strpos( $fields, 'name="ai[assistant_concurrency]"' ), 'M3: los tres límites se ajustan en IA Tools' );
 $src = file_get_contents( dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai.php' );
-check( 2 === substr_count( $src, 'self::assistant_fields( $o )' ), 'M3: los mismos campos en el sitio (Avanzado) y en la red' );
+check( 1 === substr_count( $src, 'self::assistant_fields( $o )' ) && 1 === substr_count( $src, 'self::tab_fields( $tab, $o, $network )' ), 'M3: los mismos campos en el sitio (Avanzado) y en la red: un solo dibujante para las dos pantallas' );
 do {
 	$GLOBALS['transients'] = array(); $minute = floor( time() / 60 ); $GLOBALS['limits']['per_minute'] = 2;
 	$r = array(); for ( $i = 0; $i < 3; $i++ ) $r[] = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => '/ayuda', 'conversation' => $cv ) ) );
