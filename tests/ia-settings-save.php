@@ -145,6 +145,8 @@ foreach ( IA_TABS as $tab ) {
 check( false !== strpos( render( 'providers' ), 'Guardada · escribe una nueva' ), 'Heredando, Proveedores muestra que la red tiene su clave' );
 submit_form( 'general', array( 'ai[inherit_network]' => '' ) );
 check( 0 === ( site_o()['inherit_network'] ?? null ) && $network_before === network_o(), 'Desmarcar la herencia la guarda en el sitio y no toca la red' );
+check( 1 === ( site_o()['mcp_featured_image_enabled'] ?? null ) && 'Voz network' === substr( (string) ( site_o()['editorial_voice'] ?? '' ), 0, 11 ), 'Dejar de heredar conserva lo que se veía (los valores de la red)' );
+check( '' === ( site_o()['providers']['openai']['key'] ?? '' ) && false !== strpos( render( 'providers' ), 'Escribe la clave de este sitio' ), 'Dejar de heredar nunca copia las claves de la red: el sitio pide la suya' );
 list( $after ) = submit_form( 'providers', array( 'providers[anthropic][key]' => 'sk-propia', 'providers[anthropic][enabled]' => '1' ) );
 check( 'sk-propia' === ( site_o()['providers']['anthropic']['key'] ?? null ) && false === strpos( $after, 'hereda la configuración de IA de la red' ), 'Ya personalizado, Proveedores guarda la clave propia del sitio' );
 

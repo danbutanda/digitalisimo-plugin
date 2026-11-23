@@ -161,7 +161,9 @@ class Digitalisimo_AI {
 	}
 	private static function providers( $o ) {
 		$names = array( 'openai' => 'OpenAI / GPT', 'anthropic' => 'Anthropic / Claude', 'google' => 'Google / Gemini', 'deepseek' => 'DeepSeek', 'xai' => 'xAI / Grok' );
-		foreach ( $names as $id => $name ) { $p = $o['providers'][ $id ] ?? array(); $has_key = ! empty( $p['key'] ); echo '<fieldset style="margin:18px 0;padding:16px;border:1px solid #ccd6e5"><legend><strong>' . esc_html( $name ) . '</strong></legend><label><input type="hidden" name="providers[' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="providers[' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label><p><input class="regular-text" type="password" name="providers[' . esc_attr( $id ) . '][key]" autocomplete="new-password" value="' . esc_attr( $has_key ? self::MASK : '' ) . '" onfocus="this.select()" placeholder="API Key"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span>' . ( $has_key ? ' <label><input type="checkbox" name="providers[' . esc_attr( $id ) . '][remove]" value="1"> Quitar la clave</label>' : '' ) . '</p><p><label>URL compatible <input class="regular-text" type="url" name="providers[' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p></fieldset>'; }
+		// Un sitio que personaliza no recibe las claves de la red: si la red tiene una, se le pide la suya.
+		$network_keys = is_multisite() && ! ( function_exists( 'is_network_admin' ) && is_network_admin() ) && empty( self::local_options()['inherit_network'] ) ? (array) ( ( (array) get_site_option( self::OPTION, array() ) )['providers'] ?? array() ) : array();
+		foreach ( $names as $id => $name ) { $p = $o['providers'][ $id ] ?? array(); $has_key = ! empty( $p['key'] ); if ( ! $has_key && ! empty( $network_keys[ $id ]['key'] ) ) echo '<p class="notice notice-info inline">' . esc_html( $name ) . ': la red tiene su clave, pero no se copia a los sitios que personalizan. Escribe la clave de este sitio.</p>'; echo '<fieldset style="margin:18px 0;padding:16px;border:1px solid #ccd6e5"><legend><strong>' . esc_html( $name ) . '</strong></legend><label><input type="hidden" name="providers[' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="providers[' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label><p><input class="regular-text" type="password" name="providers[' . esc_attr( $id ) . '][key]" autocomplete="new-password" value="' . esc_attr( $has_key ? self::MASK : '' ) . '" onfocus="this.select()" placeholder="API Key"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span>' . ( $has_key ? ' <label><input type="checkbox" name="providers[' . esc_attr( $id ) . '][remove]" value="1"> Quitar la clave</label>' : '' ) . '</p><p><label>URL compatible <input class="regular-text" type="url" name="providers[' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p></fieldset>'; }
 	}
 	private static function profiles( $o ) { foreach ( $o['profiles'] as $id => $p ) { echo '<p><strong>' . esc_html( ucfirst( $id ) ) . '</strong><br><label>Proveedor <select name="profiles[' . esc_attr( $id ) . '][provider]">'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['provider'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label> <label>Modelo <input name="profiles[' . esc_attr( $id ) . '][model]" value="' . esc_attr( $p['model'] ) . '"></label> <label>Alternativa <select name="profiles[' . esc_attr( $id ) . '][fallback]"><option value="">Sin alternativa</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['fallback'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label></p>'; } }
 
@@ -176,7 +178,19 @@ class Digitalisimo_AI {
 		if ( isset( $_POST['profiles'] ) ) { $o['profiles'] = $base['profiles'] ?? self::defaults()['profiles']; foreach ( (array) wp_unslash( $_POST['profiles'] ) as $id => $p ) $o['profiles'][ sanitize_key( $id ) ] = array( 'provider' => sanitize_key( $p['provider'] ?? 'openai' ), 'model' => sanitize_text_field( $p['model'] ?? '' ), 'fallback' => sanitize_key( $p['fallback'] ?? '' ) ); }
 		return $o;
 	}
-	private static function save_site() { $base = wp_parse_args( self::local_options(), self::defaults() ); update_option( self::OPTION, self::sanitize_values( $base ), false ); }
+	private static function save_site() {
+		$local = self::local_options(); $base = wp_parse_args( $local, self::defaults() );
+		// Dejar de heredar conserva lo que se veía (los valores de la red; los campos no viajan porque se pintan
+		// deshabilitados), igual que en SEO, pero nunca copia secretos: las claves quedan las propias del sitio, o vacías.
+		$in = (array) wp_unslash( $_POST['ai'] ?? array() );
+		if ( is_multisite() && ! empty( $local['inherit_network'] ) && array_key_exists( 'inherit_network', $in ) && empty( $in['inherit_network'] ) ) {
+			$own = (array) ( $base['providers'] ?? array() );
+			$base = wp_parse_args( (array) get_site_option( self::OPTION, array() ), self::defaults() );
+			foreach ( (array) $base['providers'] as $id => $provider ) $base['providers'][ $id ]['key'] = (string) ( $own[ $id ]['key'] ?? '' );
+			foreach ( $own as $id => $provider ) if ( ! isset( $base['providers'][ $id ] ) ) $base['providers'][ $id ] = $provider;
+		}
+		update_option( self::OPTION, self::sanitize_values( $base ), false );
+	}
 	private static function save_network() { $base = wp_parse_args( (array) get_site_option( self::OPTION, array() ), self::defaults() ); update_site_option( self::OPTION, self::sanitize_values( $base ) ); }
 
 	public static function routes() {
