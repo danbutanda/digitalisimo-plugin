@@ -13,6 +13,7 @@ return array(
 		array( 'a', 'admin_init', 'register_settings', 10, 1, '**' ),
 		array( 'a', 'admin_init', 'migrate_template_defaults', 1, 1, '**' ),
 		array( 'a', 'admin_init', 'ensure_autoload', 2, 1, '**' ),
+		array( 'a', 'admin_init', 'clean_network_secrets', 3, 1, '**' ),
 	) ),
 	'Digitalisimo_Integrations_Performance_Manager' => array( 'hooks' => array(
 		array( 'a', 'wp_print_styles', 'clean_styles', 20, 1, '**' ),

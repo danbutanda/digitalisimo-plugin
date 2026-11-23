@@ -34,7 +34,8 @@ function screens() {
 		$out[ 'Rendimiento → ' . $section ] = array( 'site' => array( array( 'Digitalisimo_Integrations_Performance_Console', 'site_page' ), array( 'page' => 'digitalisimo-performance', 'section' => $section ), 'options.php' ), 'network' => array( array( 'Digitalisimo_Integrations_Performance_Console', 'network_page' ), array( 'page' => 'digitalisimo-network-performance', 'section' => $section ), 'digitalisimo_save_network_seo' ) );
 	return $out;
 }
-function form_of( array $surface, array $fill = array() ) { return digi_browser_form( digi_seo_render( $surface[0], $surface[1] ), $fill, null, $surface[2] ); }
+/** Ningún secreto se imprime en ninguna pantalla ni modo (tampoco como «valor efectivo»): las claves de prueba empiezan por sk-. */
+function form_of( array $surface, array $fill = array() ) { $html = digi_seo_render( $surface[0], $surface[1] ); check( ! preg_match( '/sk-[A-Za-z-]*[A-Z]/', $html, $m ), 'Una pantalla imprimió un secreto (' . ( $m[0] ?? '' ) . '): ' . json_encode( $surface[1] ) . ( $GLOBALS['wp']['network_admin'] ? ' en la red' : ' en el sitio ' . $GLOBALS['wp']['blog'] ) ); return digi_browser_form( $html, $fill, null, $surface[2] ); }
 /** Opciones que pinta un formulario (también las deshabilitadas por la herencia). */
 function form_keys( array $form, $prefix ) { return array_values( array_diff( digi_browser_keys( array_merge( $form['names'], $form['disabled'] ), $prefix ), array( 'network_inherit' ) ) ); }
 /** Envía el formulario como WordPress lo procesa: options.php en el sitio, network/edit.php en la red. */
@@ -68,9 +69,9 @@ foreach ( screens() as $name => $screen ) {
 $site_only = Digitalisimo_Integrations_SEO_Resolver::site_only_keys();
 $only_site = array_values( array_unique( array_diff( $site_keys, $network_keys, $site_only ) ) ); sort( $only_site );
 $only_network = array_values( array_unique( array_diff( $network_keys, $site_keys ) ) ); sort( $only_network );
-// Ajustes antiguos de la página oculta «Ajustes de SEO» (digitalisimo-seo-settings): los proveedores de IA de SEO, que
-// pasaron a IA Tools, y el interruptor del módulo en cada sitio. Pendiente de decidir si la red los ofrece (INFORME).
-$legacy = array( 'ai_profile_fallback', 'ai_profile_model', 'ai_profile_provider', 'ai_providers', 'enable_seo', 'openai_api_key', 'openai_model' );
+// El interruptor del módulo de la página oculta «Ajustes de SEO» sólo existe en cada sitio (pendiente de decidir si la red lo
+// ofrece). Los proveedores de IA antiguos de SEO son exclusivos de cada sitio (site_only_keys()).
+$legacy = array( 'enable_seo' );
 check( array() === array_values( array_diff( $only_site, $legacy ) ), 'Opciones que el sitio ajusta y la red no ofrece: ' . implode( ', ', array_diff( $only_site, $legacy ) ) );
 check( array() === $only_network, 'Opciones que la red ofrece y ningún sitio puede personalizar: ' . implode( ', ', $only_network ) );
 
@@ -80,7 +81,7 @@ $GLOBALS['wp']['options'] = array(
 	1 => array( OPT => array( 'enable_seo' => 0, 'seo_organization_name' => 'PRINCIPAL', 'seo_twitter_user' => '@principal', 'openai_api_key' => 'sk-PRINCIPAL', 'ai_providers' => array( 'anthropic' => array( 'enabled' => 1, 'key' => 'sk-ant-PRINCIPAL', 'url' => '' ) ), 'seo_title_post' => '%title% · PRINCIPAL' ), 'digitalisimo_seo_network_inherit' => array( 'enable_seo' => 0, 'seo_organization_name' => 0, 'seo_twitter_user' => 0, 'seo_title_post' => 0 ) ),
 	2 => array(),
 );
-$GLOBALS['wp']['site_options'] = array( OPT => array( 'seo_organization_name' => 'RED', 'seo_twitter_user' => '@red', 'seo_title_post' => '%title% · RED', 'seo_schema_enabled' => 0, 'seo_robots_rules' => "User-agent: *\nDisallow: /red/", 'perf_safe_mode' => 0, 'seo_404_limit' => 500 ) );
+$GLOBALS['wp']['site_options'] = array( OPT => array( 'openai_api_key' => 'sk-RED-OAI', 'ai_providers' => array( 'openai' => array( 'enabled' => 1, 'key' => 'sk-RED-PROV', 'url' => '' ) ), 'noindex_search' => 1, 'seo_organization_name' => 'RED', 'seo_twitter_user' => '@red', 'seo_title_post' => '%title% · RED', 'seo_schema_enabled' => 0, 'seo_robots_rules' => "User-agent: *\nDisallow: /red/", 'perf_safe_mode' => 0, 'seo_404_limit' => 500 ) );
 // El plugin carga en la administración de la red con el sitio principal en curso.
 digi_seo_mode( 'network' ); Digitalisimo_Integrations_SEO_Suite::init();
 function on_blog( $blog, callable $read ) { switch_to_blog( $blog ); try { return $read(); } finally { restore_current_blog(); } }
@@ -93,7 +94,7 @@ foreach ( screens() as $name => $screen ) {
 	check( array() === changed( $before[1], on_blog( 2, 'effective' ) ), "Red, $name: guardar sin cambios cambió lo que heredan los sitios: " . implode( ', ', changed( $before[1], on_blog( 2, 'effective' ) ) ) );
 	check( array() === changed( $before[0], on_blog( 1, 'effective' ) ) && $before[2] === blog_option( 1 ) && $before[3] === blog_option( 2 ), "Red, $name: guardar la red no toca los ajustes de los sitios" );
 	$network = json_encode( get_site_option( OPT ) );
-	check( false === strpos( $network, 'PRINCIPAL' ), "Red, $name: guardar la red no copia en ella los ajustes ni las claves del sitio principal: " . $network );
+	check( false === strpos( preg_replace( '/"(openai_api_key|ai_providers)":("[^"]*"|\{.*?\}\}),?/', '', $network ), 'PRINCIPAL' ), "Red, $name: guardar la red no copia en ella los ajustes ni las claves del sitio principal: " . $network );
 	digi_seo_mode( 'site' );
 	$before = array( effective(), get_site_option( OPT ), on_blog( 1, 'effective' ) );
 	submit( $screen['site'] );
@@ -117,6 +118,10 @@ check( 'SITIO DOS' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_orga
 check( 'RED NUEVA' === get_site_option( OPT )['seo_organization_name'] && 'PRINCIPAL' === on_blog( 1, function () { return Digitalisimo_Integrations_SEO_Resolver::option( 'seo_organization_name' ); } ), 'Personalizar un sitio no toca la red ni el sitio principal' );
 submit( $seo( 'general', false ), array( $inherit . '[seo_organization_name]' => '1' ) );
 check( 'RED NUEVA' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_organization_name' ), 'Volver a heredar vuelve al valor de la red' );
+check( '1' === (string) Digitalisimo_Integrations_SEO_Resolver::option( 'noindex_search' ), 'El sitio 2 hereda «noindex» en búsquedas de la red' );
+submit( $seo( 'indexing', false ), array( $inherit . '[noindex_search]' => '' ) );
+check( '1' === (string) Digitalisimo_Integrations_SEO_Resolver::option( 'noindex_search' ), 'Dejar de heredar una casilla conserva lo que se veía, con o sin JavaScript (antes viajaba su «0» oculto y la apagaba)' );
+check( empty( blog_option( 2 )['openai_api_key'] ?? '' ) && empty( Digitalisimo_Integrations_SEO_Resolver::option( 'openai_api_key' ) ) && empty( ( Digitalisimo_Integrations_SEO_Resolver::option( 'ai_providers' )['openai']['key'] ) ?? '' ), 'Las claves de IA de SEO son de cada sitio: el sitio 2 no usa ni copia las que quedaron en la red' );
 
 // 4. WordPress individual: cada pantalla guarda sin cambios lo que ya tenía y guarda lo escrito.
 $GLOBALS['wp']['options'] = array( 1 => array( OPT => array( 'seo_organization_name' => 'SOLO', 'seo_title_post' => '%title% · SOLO', 'seo_404_limit' => 700, 'openai_api_key' => 'sk-SOLO' ) ) ); $GLOBALS['wp']['site_options'] = array();
@@ -142,6 +147,9 @@ $html = digi_seo_render( $keywords[0], $keywords[1] );
 check( 'sk-ant-SOLO' === blog_option( 1 )['ai_providers']['anthropic']['key'] && false === strpos( $html, 'sk-ant-SOLO' ) && false !== strpos( $html, 'name="' . OPT . '[ai_providers][anthropic][key]" value="••••••••••••"' ), 'Proveedores de SEO: la clave se guarda y se muestra como ••••' );
 submit( $keywords );
 check( 'sk-ant-SOLO' === blog_option( 1 )['ai_providers']['anthropic']['key'] && 'sk-NUEVA' === blog_option( 1 )['openai_api_key'], 'Guardar sin tocar las claves (llega la máscara) las conserva' );
+submit( $keywords, array( OPT . '[openai_api_key]' => '••••••••••••sk-PEGADA', OPT . '[ai_providers][anthropic][key]' => 'sk-ant-DELANTE••••••••••••' ) );
+check( 'sk-PEGADA' === blog_option( 1 )['openai_api_key'] && 'sk-ant-DELANTE' === blog_option( 1 )['ai_providers']['anthropic']['key'], 'Una clave pegada junto a la máscara guarda sólo la clave' );
+check( false !== strpos( digi_seo_render( $keywords[0], $keywords[1] ), 'value="••••••••••••" onfocus="this.select()"' ), 'Al enfocar un campo de clave se selecciona la máscara' );
 submit( $keywords, array( OPT . '[secret_remove][openai_api_key]' => '1', OPT . '[ai_providers][anthropic][remove]' => '1' ) );
 check( '' === blog_option( 1 )['openai_api_key'] && '' === blog_option( 1 )['ai_providers']['anthropic']['key'], '«Quitar la clave» borra la de OpenAI y la del proveedor' );
 
@@ -160,6 +168,7 @@ digi_seo_mode( 'site' );
 $form = seo_ai( 'llms', array( 'ai[seo_ai_llms_mode]' => 'manual' ) );
 check( array() === digi_browser_keys( $form['names'], 'ai' ) && 'automatic' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_ai_llms_mode' ), 'SEO AI, sitio que hereda: los campos no se envían (antes se guardaban en el sitio y la pantalla volvía a mostrar los de la red)' );
 seo_ai( 'general', array( 'ai_inherit' => '' ) );
+check( '1' === (string) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_ai_llms_enabled' ) && 'automatic' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_ai_llms_mode' ), 'SEO AI: dejar de heredar conserva lo que se veía (antes el sitio caía a sus valores o a los predeterminados)' );
 seo_ai( 'llms', array( 'ai[seo_ai_llms_mode]' => 'manual' ) );
 check( 'manual' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_ai_llms_mode' ) && 'automatic' === get_site_option( OPT )['seo_ai_llms_mode'], 'SEO AI, sitio que personaliza: guarda en el sitio y no toca la red' );
 seo_ai( 'general', array( 'ai[seo_ai_enabled]' => '' ) );
@@ -172,5 +181,20 @@ $_POST = $_REQUEST = array( '_wpnonce' => 'n:digitalisimo_indexnow_tools', 'inde
 try { Digitalisimo_Integrations_SEO_AI_IndexNow_Tools::action(); } catch ( Digi_Test_Redirect $r ) {}
 $_POST = $_REQUEST = array();
 check( '' !== (string) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_ai_indexnow_key' ), 'IndexNow: la clave generada en un sitio se aplica aunque la red defina una vacía' );
+seo_ai( 'general', array( 'ai_inherit' => '1' ) );
+$GLOBALS['wp']['options'][2][ OPT ]['seo_ai_indexnow_key'] = 'kkk'; Digitalisimo_Integrations_Settings::personalize( array( 'seo_ai_indexnow_key' ) );
+seo_ai( 'general' );
+check( 'kkk' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_ai_indexnow_key' ), '«Guardar SEO AI» sin tocar la herencia no deshace lo personalizado en IndexNow, llms.txt o Referencias' );
+
+// 7. Limpieza única de las redes contaminadas: la red pierde las claves idénticas a las del principal, una sola vez.
+$GLOBALS['wp']['options'] = array( 1 => array( OPT => array( 'openai_api_key' => 'sk-PRINCIPAL', 'openai_model' => 'gpt-x', 'ai_providers' => array( 'anthropic' => array( 'enabled' => 1, 'key' => 'sk-ant-PRINCIPAL', 'url' => '' ) ), 'ai_profile_model' => 'm' ) ), 2 => array( OPT => array( 'openai_api_key' => 'sk-DOS' ) ) );
+$GLOBALS['wp']['site_options'] = array( OPT => array( 'openai_api_key' => 'sk-PRINCIPAL', 'openai_model' => 'gpt-x', 'ai_providers' => array( 'anthropic' => array( 'enabled' => 1, 'key' => 'sk-ant-PRINCIPAL', 'url' => '' ) ), 'ai_profile_model' => 'propio-de-red', 'seo_organization_name' => 'RED' ) );
+$sites_before = $GLOBALS['wp']['options'];
+digi_seo_mode( 'network' ); Digitalisimo_Integrations_Settings::clean_network_secrets();
+$net = get_site_option( OPT ); $log = get_site_option( Digitalisimo_Integrations_Settings::NETWORK_CLEANED );
+check( ! isset( $net['openai_api_key'], $net['openai_model'], $net['ai_providers'] ) && 'propio-de-red' === $net['ai_profile_model'] && 'RED' === $net['seo_organization_name'], 'La limpieza quita de la red lo copiado del principal y conserva lo que es de la red' );
+check( array( 'openai_api_key', 'openai_model', 'ai_providers' ) === $log['removed'] && $sites_before === $GLOBALS['wp']['options'], 'La limpieza queda registrada y no toca ningún sitio' );
+$GLOBALS['wp']['site_options'][ OPT ]['openai_api_key'] = 'sk-PRINCIPAL'; Digitalisimo_Integrations_Settings::clean_network_secrets();
+check( 'sk-PRINCIPAL' === get_site_option( OPT )['openai_api_key'], 'La limpieza corre una sola vez por red' );
 
 echo "SEO, paridad sitio/red de los ajustes: $checks comprobaciones correctas (" . count( screens() ) . " pantallas).\n";

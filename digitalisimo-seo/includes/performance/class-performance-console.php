@@ -161,7 +161,7 @@ class Digitalisimo_Integrations_Performance_Console {
 		echo '</table>';
 		submit_button( 'Guardar rendimiento' );
 		echo '</form>';
-		if ( ! $network ) echo '<script>document.querySelectorAll(".digitalisimo-network-inherit").forEach(function(c){var f=document.getElementById(c.dataset.field);function s(){if(f)f.disabled=c.checked;}c.addEventListener("change",s);s();});</script>';
+		if ( ! $network ) echo Digitalisimo_Integrations_Settings::inherit_script();
 	}
 
 	private static function cache_section( $network ) {

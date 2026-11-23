@@ -19,7 +19,11 @@ class Digitalisimo_Integrations_SEO_Resolver {
 		return (string) apply_filters( 'digitalisimo_seo_foreign_plugin', $name );
 	}
 	/** Identidad e imágenes que pertenecen exclusivamente a cada sitio de la red. */
-	public static function site_only_keys() { return array( 'seo_site_name', 'seo_default_image', 'seo_default_image_alt', 'seo_alt_keyword', 'seo_favicon_source' ); }
+	/**
+	 * Los proveedores de IA antiguos de SEO (claves incluidas) también son de cada sitio: la red no los ofrece, y un fallo
+	 * de guardado de la red los había copiado del sitio principal (Settings::clean_network_secrets() lo limpia).
+	 */
+	public static function site_only_keys() { return array( 'seo_site_name', 'seo_default_image', 'seo_default_image_alt', 'seo_alt_keyword', 'seo_favicon_source', 'openai_api_key', 'openai_model', 'ai_providers', 'ai_profile_provider', 'ai_profile_model', 'ai_profile_fallback' ); }
 	public static function option( $key, $fallback = null ) {
 		$site = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
 		if ( is_multisite() && self::inherits_network( $key ) ) {
