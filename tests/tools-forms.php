@@ -157,7 +157,7 @@ namespace {
 		$_POST = $sent['post'];
 		$_GET  = array();
 		$hook  = $_POST['action'] ?? '';
-		$map   = array( Site_Options::ACTION => array( Site_Options::class, 'save' ), 'digitalisimo_tools_save_settings' => array( Network_Admin::class, 'save_settings' ), 'digitalisimo_tools_save_template' => array( Network_Admin::class, 'save_template' ), 'digitalisimo_tools_sync_template' => array( Network_Admin::class, 'sync_template' ) );
+		$map   = array( Site_Options::ACTION => array( Site_Options::class, 'save' ), 'digitalisimo_tools_save_settings' => array( Network_Admin::class, 'save_settings' ), 'digitalisimo_tools_save_template' => array( Network_Admin::class, 'save_template' ), 'digitalisimo_tools_sync_template' => array( Network_Admin::class, 'sync_template' ), 'digitalisimo_tools_forget_foreign' => array( Network_Admin::class, 'forget_foreign' ) );
 		check( isset( $map[ $hook ] ), "El formulario manda una acción con manejador: «{$hook}»" );
 		try {
 			call_user_func( $map[ $hook ] );
@@ -279,13 +279,44 @@ namespace {
 	$copy = (int) $copies[0]->ID;
 	$GLOBALS['tf']['meta'][3][ $copy ]['_elementor_css'] = array( 'status' => 'file' );
 	$GLOBALS['tf']['meta'][3][ $copy ]['_elementor_element_cache'] = 'html viejo';
+	$GLOBALS['tf']['meta'][3][ $copy ]['_elementor_page_assets'] = array( 'styles' => array( 'viejo' ) );
 	tf_screen( 1 );
 	Sync::run_job( 'cabecera-red', 3 );
-	check( ! isset( $GLOBALS['tf']['meta'][3][ $copy ]['_elementor_css'] ) && ! isset( $GLOBALS['tf']['meta'][3][ $copy ]['_elementor_element_cache'] ) && isset( $GLOBALS['tf']['meta'][3][ $copy ]['_elementor_data'] ), 'Plantillas: la copia sincronizada pierde su CSS y su HTML viejos' );
+	check( ! isset( $GLOBALS['tf']['meta'][3][ $copy ]['_elementor_css'] ) && ! isset( $GLOBALS['tf']['meta'][3][ $copy ]['_elementor_element_cache'] ) && ! isset( $GLOBALS['tf']['meta'][3][ $copy ]['_elementor_page_assets'] ) && isset( $GLOBALS['tf']['meta'][3][ $copy ]['_elementor_data'] ), 'Plantillas: la copia sincronizada pierde su CSS y su HTML viejos' );
 	// Varias redes: el selector del sitio maestro y «Todos los sitios» sólo ven la red actual.
 	check( false === strpos( $html, 'otra.test' ), 'Plantillas: el formulario no lista sitios de otra red' );
 	check( array( 1, 3 ) === Registry::destinations( array( 'targets' => array( 'mode' => 'all' ), 'master_blog_id' => 2 ) ), 'Plantillas: «Todos los sitios» no incluye sitios de otra red' );
 	check( array( 3 ) === Registry::destinations( array( 'targets' => array( 'mode' => 'selected', 'include' => array( 3, 4 ) ), 'master_blog_id' => 2 ) ), 'Plantillas: un sitio de otra red elegido a mano tampoco' );
+	// «Sincronizar» con un sitio de otra red o excluido (formulario manipulado o viejo) no copia nada.
+	$GLOBALS['tf']['cron'] = array();
+	$html = tf_page( 'elementor', 1, true );
+	tf_submit( $html, 'digitalisimo_tools_sync_template', array( 'blog_id' => '4' ) );
+	check( array() === ( $GLOBALS['tf']['cron'][1] ?? array() ), 'Plantillas: «Sincronizar» con un sitio de otra red no deja nada en la cola' );
+	Sync::enqueue( 'cabecera-red', 2 );
+	check( array() === ( $GLOBALS['tf']['cron'][1] ?? array() ), 'Plantillas: ni con el propio sitio maestro' );
+	tf_screen( 1 );
+	Sync::run_job( 'cabecera-red', 4 );
+	check( empty( $GLOBALS['tf']['posts'][4] ), 'Plantillas: un trabajo viejo en la cola para un sitio de otra red no copia nada' );
+	$items = $GLOBALS['tf']['site'][ Registry::OPTION ];
+	$items['cabecera-red']['targets']['exclude'] = array( 3 );
+	$GLOBALS['tf']['site'][ Registry::OPTION ] = $items;
+	$before = $GLOBALS['tf']['site'][ Registry::OPTION ]['cabecera-red']['last_sync'][3];
+	$GLOBALS['tf']['meta'][3][ $copy ]['_elementor_css'] = 'sigue';
+	Sync::run_job( 'cabecera-red', 3 );
+	check( 'sigue' === $GLOBALS['tf']['meta'][3][ $copy ]['_elementor_css'] && $before === $GLOBALS['tf']['site'][ Registry::OPTION ]['cabecera-red']['last_sync'][3], 'Plantillas: un sitio excluido después de programar el trabajo no recibe nada' );
+	$items['cabecera-red']['targets']['exclude'] = array();
+	$GLOBALS['tf']['site'][ Registry::OPTION ] = $items;
+	// Copias que llegaron a otra red antes del arreglo: la red las señala y las quita del registro sin borrarlas.
+	$items = $GLOBALS['tf']['site'][ Registry::OPTION ];
+	$items['cabecera-red']['sites'][4] = 500; $items['cabecera-red']['last_sync'][4] = time();
+	$GLOBALS['tf']['site'][ Registry::OPTION ] = $items;
+	$GLOBALS['tf']['posts'][4][500] = (object) array( 'ID' => 500, 'post_type' => 'elementor_library', 'post_title' => 'Cabecera' );
+	$html = tf_page( 'elementor', 1, true );
+	check( false !== strpos( $html, 'copias en sitios de otra red (sitio 4)' ) && false !== strpos( $html, 'Quitar del registro' ), 'Plantillas: la red avisa de las copias en otra red y ofrece quitarlas del registro' );
+	tf_submit( $html, 'digitalisimo_tools_forget_foreign' );
+	$item = Registry::get( 'cabecera-red' );
+	check( ! isset( $item['sites'][4], $item['last_sync'][4] ) && isset( $item['sites'][3], $item['last_sync'][3] ) && isset( $GLOBALS['tf']['posts'][4][500] ), 'Plantillas: «Quitar del registro» sólo olvida las de otra red; la copia sigue en su sitio' );
+	check( false === strpos( tf_page( 'elementor', 1, true ), 'copias en sitios de otra red' ), 'Plantillas: después ya no hay aviso' );
 	$html = tf_page( 'elementor', 1, true );
 	tf_submit( $html, 'digitalisimo_tools_save_settings', array( 'master_blog_id' => '4' ), array( 'enable' => array() ) );
 	check( 2 === Registry::master_blog_id(), 'Plantillas: un sitio maestro de otra red no se acepta' );
