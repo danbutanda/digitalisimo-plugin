@@ -94,7 +94,6 @@ final class Settings_Merge {
 		add_filter( 'elementor/document/save/data', array( __CLASS__, 'complete_settings' ), PHP_INT_MIN, 2 );
 		add_filter( 'rest_request_before_callbacks', array( __CLASS__, 'before_rest' ), 10, 3 );
 		add_filter( 'rest_request_after_callbacks', array( __CLASS__, 'after_rest' ), 10, 3 );
-		add_action( 'shutdown', array( __CLASS__, 'after_rest' ), 0, 0 );
 	}
 
 	/**
@@ -107,7 +106,7 @@ final class Settings_Merge {
 		return $response;
 	}
 
-	/** `rest_request_after_callbacks` (y `shutdown`): lo cierra. */
+	/** `rest_request_after_callbacks`: lo cierra. */
 	public static function after_rest( $response = null, $handler = null, $request = null ) {
 		self::$proxy = 0;
 		return $response;
