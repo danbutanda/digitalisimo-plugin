@@ -485,8 +485,9 @@ namespace {
 	check( 'digitalisimo-sales/x' !== Tools::id( 'x' ) || '' === Tools::tool_of( 'digitalisimo-sales/x' ), 'un id desconocido no es herramienta' );
 	check( '' === Tools::tool_of( 'digitalisimo-woo/products' ), 'otro prefijo no es herramienta' );
 	$cp = Tools::input_schema( 'create-page' );
-	check( array( 'template', 'title' ) === $cp['required'], 'create-page exige template y title' );
-	check( array( 'template', 'title', 'replacements', 'omit_blocks', 'whatsapp', 'close_date' ) === array_keys( $cp['properties'] ), 'create-page: plantilla, título, reemplazos, bloques que se quitan, WhatsApp y fecha de cierre, nada más' );
+	check( ! isset( $cp['required'] ), 'create-page: template y title los exige la ejecución (con product_id, template sobra y title es opcional)' );
+	check( array( 'template', 'title', 'replacements', 'omit_blocks', 'whatsapp', 'close_date', 'product_id', 'offer', 'finish' ) === array_keys( $cp['properties'] ), 'create-page: plantilla, título, reemplazos, bloques que se quitan, WhatsApp, fecha de cierre, producto, oferta y terminar, nada más' );
+	check( false === $cp['properties']['offer']['additionalProperties'] && array( 'price', 'regular_price', 'ends', 'label' ) === array_keys( $cp['properties']['offer']['properties'] ), 'create-page: offer cerrada (price, regular_price, ends, label)' );
 	check( preg_match( '/nunca se reordena/', Tools::DESCRIPTIONS['create-page'] ) && preg_match( '/nunca reordenar/', Tools::DESCRIPTIONS['list-templates'] ) && preg_match( '/no cambiar el orden/', Tools::DESCRIPTIONS['guide'] ), 'las descripciones dicen que un bloque se quita pero el orden no se cambia' );
 	check( $ids8 === $cp['properties']['template']['enum'], 'template: las ocho plantillas' );
 	check( '^[0-9]{8,15}$' === $cp['properties']['whatsapp']['pattern'], 'whatsapp: sólo dígitos' );
@@ -1046,7 +1047,7 @@ namespace {
 	check( 1 === count( $created ) && 'Mi página' === $created[0][0] && 'container' === $created[0][1][0]['elType'], 'create-page guarda los elementos de la variante elegida' );
 	check( $out['pending_count'] > 0 && $out['review'] && false !== strpos( $out['llm_instructions'], 'BORRADOR' ) && ! $out['whatsapp_pending'], 'create-page informa lo pendiente y lo que hay que revisar' );
 	check( array( '/aviso-de-privacidad/', '/carrito/', '/politica-de-reembolso/', '/terminos-y-condiciones/' ) === array_column( $out['pages_to_create'], 'path' ), 'create-page dice qué páginas del sitio faltan' );
-	$out = Executor::run( 'create-page', array( 'template' => 'gracias-compra', 'title' => 'Gracias', 'whatsapp' => '5218711234567' ), $fake );
+	$out = Executor::run( 'create-page', array( 'template' => 'gracias-compra', 'title' => 'Gracias', 'whatsapp' => '5218711234567', 'finish' => false ), $fake );
 	$redes = array_values( array_filter( $out['review'], static function ( $x ) { return false !== strpos( $x, 'Faltan los enlaces de las redes' ); } ) );
 	check( 4 === $out['social_pending'] && 1 === count( $redes ) && false !== strpos( $redes[0], '#[enlace de tu perfil]' ) && false !== strpos( $redes[0], 'en el editor' ), 'create-page (07): la revisión dice que faltan los enlaces de las redes y dónde se ponen' );
 	$out = Executor::run( 'create-page', array( 'template' => 'venta-corta', 'title' => 'Venta' ), $fake );

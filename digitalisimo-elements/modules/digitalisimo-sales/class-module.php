@@ -22,6 +22,9 @@ final class Module {
 		require_once __DIR__ . '/class-catalog.php';
 		require_once __DIR__ . '/class-placeholders.php';
 		require_once __DIR__ . '/class-builder.php';
+		require_once __DIR__ . '/class-site.php';
+		require_once __DIR__ . '/class-finisher.php';
+		require_once __DIR__ . '/class-product.php';
 		require_once __DIR__ . '/class-pages.php';
 		require_once __DIR__ . '/class-import-notice.php';
 		require_once __DIR__ . '/mcp/class-tools.php';

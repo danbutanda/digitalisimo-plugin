@@ -76,6 +76,9 @@ class Client {
   }
   async tools() { return (await this.rpc('tools/list', {})).json?.result?.tools || []; }
   async call(name, args) {
+    // Este ensayo compara cada página con su plantilla tal cual: sin terminarla (finish: false). La página terminada y la
+    // landing de producto las prueba tests/playground/sales-product.sh.
+    if (name === 'create-page' && args && !('finish' in args) && !('product_id' in args)) args = { ...args, finish: false };
     const res = await this.rpc('tools/call', { name: `digitalisimo-sales-${name}`, arguments: args });
     const result = res.json?.result;
     const error = res.json?.error;
@@ -126,7 +129,7 @@ async function main() {
     check(!/\bElementor\b/.test(`${t.title} ${t.description}`), `${t.name}: sin el nombre del constructor original`);
   }
   const cp = ours.find((t) => t.name === 'digitalisimo-sales-create-page');
-  check(JSON.stringify((cp?.inputSchema?.required || []).sort()) === '["template","title"]' && Object.keys(cp?.inputSchema?.properties || {}).join(',') === 'template,title,replacements,omit_blocks,whatsapp,close_date', 'create-page: plantilla, título, reemplazos, bloques, WhatsApp y fecha de cierre', JSON.stringify(cp?.inputSchema?.properties && Object.keys(cp.inputSchema.properties)));
+  check(!(cp?.inputSchema?.required || []).length && Object.keys(cp?.inputSchema?.properties || {}).join(',') === 'template,title,replacements,omit_blocks,whatsapp,close_date,product_id,offer,finish', 'create-page: plantilla, título, reemplazos, bloques, WhatsApp, fecha de cierre, producto, oferta y terminar (template y title los exige la ejecución)', JSON.stringify(cp?.inputSchema?.properties && Object.keys(cp.inputSchema.properties)));
 
   // Con el código anterior (sin el kit) S1–S6 fallan con una excepción; Chrome y el aviso de importación se prueban igual.
   let r;

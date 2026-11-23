@@ -1,0 +1,603 @@
+<?php
+/**
+ * Kit de ventas de DIGITALÍSIMO Elements: la landing TERMINADA de un producto de la tienda (`create-page` con
+ * `product_id` y `offer`) y el terminado de cualquier página del kit (`finish`, por defecto). Caso real (plomerito,
+ * 2026-11-23): la promo de Black Friday de un purificador de $10,000 a $7,500 «de hoy a fin de mes» salió como la
+ * plantilla con 36 placeholders sin llenar, el WhatsApp y el logo de muestra y enlaces a páginas que no existen.
+ *
+ * Con un producto simulado de la tienda (nombre, descripción con lista, tres imágenes, precio 10000, oferta 7500, fin de
+ * mes) y un sitio simulado (logo, pie con un enlace wa.me, privacidad y términos publicados, sin página de reembolso):
+ * - la página no lleva ningún [placeholder] (ninguna cadena con «[»), en contenedores y en secciones;
+ * - lleva el nombre, el precio normal tachado y el de oferta (sólo en la oferta), las tres imágenes, el botón que
+ *   agrega el producto al carrito y lleva a pagar, el WhatsApp del pie del sitio y el logo del sitio;
+ * - sólo enlaza a páginas que existen (ninguna ruta inventada del kit), y lo que falta se informa;
+ * - sin WhatsApp en el sitio no queda el número de muestra: el botón va a contacto o se quita;
+ * - una plantilla de curso sin datos (finish por defecto) tampoco deja placeholders a la vista, y con finish: false
+ *   queda como antes;
+ * - la oferta se valida (precio menor que el normal, fecha real, etiqueta sin enlaces) y se avisa si la tienda cobra
+ *   otro precio.
+ *
+ * Sin WordPress ni la tienda: dobles mínimos. Falla con el código anterior: create-page rechaza product_id
+ * («Parámetros desconocidos») y Site, Finisher y Product no existen.
+ */
+namespace Elementor {
+	class Plugin {
+		public static $instance;
+	}
+	class User {
+		public static function is_current_user_can_edit_post_type( $type ) {
+			return true;
+		}
+	}
+}
+
+namespace {
+	define( 'ABSPATH', __DIR__ . '/' );
+	define( 'OBJECT', 'OBJECT' );
+	define( 'ARRAY_A', 'ARRAY_A' );
+
+	set_error_handler(
+		static function ( $severity, $message, $file, $line ) {
+			throw new ErrorException( $message . ' en ' . basename( $file ) . ':' . $line, 0, $severity, $file, $line );
+		}
+	);
+	$GLOBALS['sp_count'] = 0;
+	function check( $ok, string $message ) {
+		++$GLOBALS['sp_count'];
+		if ( ! $ok ) {
+			throw new RuntimeException( $message );
+		}
+	}
+	function check_error( $result, string $code, string $message ) {
+		check( $result instanceof WP_Error && $code === $result->get_error_code(), $message . ' (esperaba ' . $code . ', llegó ' . ( $result instanceof WP_Error ? $result->get_error_code() . ': ' . $result->get_error_message() : 'un resultado' ) . ')' );
+	}
+
+	class WP_Error {
+		private $code;
+		private $message;
+		public function __construct( $code = '', $message = '', $data = '' ) {
+			$this->code    = $code;
+			$this->message = $message;
+		}
+		public function get_error_code() {
+			return $this->code;
+		}
+		public function get_error_message() {
+			return $this->message;
+		}
+	}
+	function is_wp_error( $thing ) {
+		return $thing instanceof WP_Error;
+	}
+	function add_action() {
+	}
+	function add_filter() {
+	}
+	function remove_filter() {
+	}
+	function current_user_can( $cap ) {
+		return 'edit_pages' === $cap;
+	}
+	function sanitize_text_field( $value ) {
+		$value = preg_replace( '#<(script|style)[^>]*?>.*?</\1>#si', '', (string) $value );
+		return trim( preg_replace( '/\s+/', ' ', strip_tags( $value ) ) );
+	}
+	function wp_kses_post( $value ) {
+		return strip_tags( (string) $value, '<p><br><strong><b><em><i><span><del><a><ul><ol><li><small>' );
+	}
+	function esc_html( $text ) {
+		return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+	}
+	function esc_attr( $text ) {
+		return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+	}
+	function wp_strip_all_tags( $text ) {
+		return trim( strip_tags( (string) $text ) );
+	}
+	function wp_parse_url( $url, $component = -1 ) {
+		return parse_url( $url, $component );
+	}
+	function home_url( $path = '' ) {
+		return 'https://tienda.test' . $path;
+	}
+	function wp_timezone() {
+		return new DateTimeZone( 'America/Mexico_City' );
+	}
+	function wp_timezone_string() {
+		return 'America/Mexico_City';
+	}
+	function get_bloginfo( $what ) {
+		return 'name' === $what ? 'Plomería Ensayo' : '';
+	}
+	function get_option( $name, $default = false ) {
+		return $GLOBALS['sp']['options'][ $name ] ?? $default;
+	}
+	function get_theme_mod( $name ) {
+		return 'custom_logo' === $name ? $GLOBALS['sp']['logo'] : false;
+	}
+	function wp_get_attachment_image_url( $id, $size = 'full' ) {
+		return $GLOBALS['sp']['attachments'][ (int) $id ] ?? false;
+	}
+	function get_post_meta( $id, $key, $single = false ) {
+		return '_wp_attachment_image_alt' === $key ? 'Foto ' . $id : '';
+	}
+	function get_post_status( $id ) {
+		return $GLOBALS['sp']['pages'][ (int) $id ]['status'] ?? false;
+	}
+	function get_permalink( $id ) {
+		if ( 252 === (int) $id ) {
+			return 'https://tienda.test/producto/purificador/';
+		}
+		return isset( $GLOBALS['sp']['pages'][ (int) $id ] ) ? 'https://tienda.test/' . $GLOBALS['sp']['pages'][ (int) $id ]['slug'] . '/' : false;
+	}
+	function get_page_by_path( $slug, $output = OBJECT, $type = 'page' ) {
+		foreach ( $GLOBALS['sp']['pages'] as $id => $page ) {
+			if ( $slug === $page['slug'] ) {
+				return (object) array( 'ID' => $id );
+			}
+		}
+		return null;
+	}
+	function wc_get_page_id( $page ) {
+		return $GLOBALS['sp']['wc_pages'][ $page ] ?? -1;
+	}
+	function wc_terms_and_conditions_page_id() {
+		return $GLOBALS['sp']['wc_pages']['terms'] ?? 0;
+	}
+	function get_woocommerce_currency() {
+		return 'MXN';
+	}
+	function get_woocommerce_currency_symbol() {
+		return '&#36;';
+	}
+	function wc_attribute_label( $name, $product = null ) {
+		return ucfirst( str_replace( 'pa_', '', $name ) );
+	}
+	function wc_get_product_terms( $id, $name, $args ) {
+		return array( 'Negro' );
+	}
+	function wc_format_dimensions( $dims ) {
+		return implode( ' &times; ', array_filter( $dims ) ) . ' cm';
+	}
+	function get_comments( $args ) {
+		return $GLOBALS['sp']['reviews'];
+	}
+	function get_comment_meta( $id, $key, $single ) {
+		return 'rating' === $key ? 5 : true;
+	}
+	function wc_get_product( $id ) {
+		return 252 === (int) $id ? $GLOBALS['sp']['product'] : ( 253 === (int) $id ? new Sp_Product( array( 'status' => 'draft' ) ) : false );
+	}
+	class Sp_Gateway {
+		public $enabled;
+		private $title;
+		public function __construct( $title, $enabled ) {
+			$this->title   = $title;
+			$this->enabled = $enabled;
+		}
+		public function get_title() {
+			return $this->title;
+		}
+	}
+	class Sp_Gateways {
+		public function payment_gateways() {
+			return array( new Sp_Gateway( 'Tarjeta de crédito o débito', 'yes' ), new Sp_Gateway( 'Transferencia bancaria', 'yes' ), new Sp_Gateway( 'Pago contra entrega', 'no' ) );
+		}
+	}
+	class Sp_Wc {
+		public function payment_gateways() {
+			return new Sp_Gateways();
+		}
+	}
+	function WC() {
+		return new Sp_Wc();
+	}
+	/** Un atributo visible de la tienda. */
+	class Sp_Attribute {
+		private $name;
+		private $options;
+		private $taxonomy;
+		public function __construct( $name, $options, $taxonomy ) {
+			$this->name     = $name;
+			$this->options  = $options;
+			$this->taxonomy = $taxonomy;
+		}
+		public function get_visible() {
+			return true;
+		}
+		public function get_name() {
+			return $this->name;
+		}
+		public function is_taxonomy() {
+			return $this->taxonomy;
+		}
+		public function get_options() {
+			return $this->options;
+		}
+	}
+	/** El producto del caso: Purificador y Alcalinizador ROTOPLAS, $10,000. */
+	class Sp_Product {
+		public $d;
+		public function __construct( array $d = array() ) {
+			$this->d = $d + array(
+				'status'      => 'publish',
+				'type'        => 'simple',
+				'name'        => 'Purificador y Alcalinizador de Agua sobre tarja Negro ROTOPLAS',
+				'short'       => '<p>Agua purificada y alcalina directo de tu tarja, sin garrafones. Instalación sencilla sobre la tarja.</p>',
+				'description' => '<p>El purificador elimina el cloro, el sarro y el mal sabor del agua de la llave.</p><ul><li>Agua alcalina: eleva el pH del agua para un mejor sabor</li><li>Filtra el 99 % de bacterias y sedimentos</li><li>Sin garrafones: ahorra dinero y espacio</li><li>Cartucho de larga duración</li></ul><p>Incluye garantía de 1 año contra defectos de fabricación.</p>',
+				'regular'     => '10000',
+				'sale'        => '',
+				'price'       => '10000',
+				'image'       => 501,
+				'gallery'     => array( 502, 503 ),
+				'stock'       => true,
+			);
+		}
+		public function get_status() {
+			return $this->d['status'];
+		}
+		public function get_type() {
+			return $this->d['type'];
+		}
+		public function get_name() {
+			return $this->d['name'];
+		}
+		public function get_short_description() {
+			return $this->d['short'];
+		}
+		public function get_description() {
+			return $this->d['description'];
+		}
+		public function get_regular_price() {
+			return $this->d['regular'];
+		}
+		public function get_sale_price() {
+			return $this->d['sale'];
+		}
+		public function get_price() {
+			return $this->d['price'];
+		}
+		public function get_image_id() {
+			return $this->d['image'];
+		}
+		public function get_gallery_image_ids() {
+			return $this->d['gallery'];
+		}
+		public function get_attributes() {
+			return array( new Sp_Attribute( 'pa_color', array(), true ), new Sp_Attribute( 'Capacidad', array( '2 litros por minuto' ), false ) );
+		}
+		public function get_date_on_sale_to() {
+			return null;
+		}
+		public function has_weight() {
+			return true;
+		}
+		public function get_weight() {
+			return '3.5';
+		}
+		public function has_dimensions() {
+			return true;
+		}
+		public function get_dimensions( $formatted ) {
+			return array( 30, 20, 45 );
+		}
+		public function is_purchasable() {
+			return true;
+		}
+		public function is_in_stock() {
+			return $this->d['stock'];
+		}
+	}
+	/** La base de datos: el pie del sitio (plantilla del constructor) con un enlace wa.me y una página con otro. */
+	class Sp_Wpdb {
+		public $posts    = 'wp_posts';
+		public $postmeta = 'wp_postmeta';
+		public function prepare( $query, ...$args ) {
+			return $query;
+		}
+		public function get_results( $query, $output ) {
+			if ( false !== strpos( $query, '_elementor_data' ) ) {
+				return $GLOBALS['sp']['meta_rows'];
+			}
+			return $GLOBALS['sp']['content_rows'];
+		}
+	}
+	class Sp_Experiments {
+		public function is_feature_active( $name ) {
+			return 'container' === $name && ! empty( $GLOBALS['sp']['containers'] );
+		}
+	}
+
+	function sp_reset( bool $whatsapp = true, bool $contact = true ) {
+		$GLOBALS['sp'] = array(
+			'containers'   => true,
+			'logo'         => 900,
+			'attachments'  => array(
+				900 => 'https://tienda.test/wp-content/uploads/logo-plomeria.png',
+				501 => 'https://tienda.test/wp-content/uploads/purificador-1.jpg',
+				502 => 'https://tienda.test/wp-content/uploads/purificador-2.jpg',
+				503 => 'https://tienda.test/wp-content/uploads/purificador-3.jpg',
+			),
+			'options'      => array( 'wp_page_for_privacy_policy' => 3, 'woocommerce_weight_unit' => 'kg' ),
+			'pages'        => array(
+				3  => array( 'slug' => 'aviso-de-privacidad-plomeria', 'status' => 'publish' ),
+				7  => array( 'slug' => 'terminos-de-servicio', 'status' => 'publish' ),
+				8  => array( 'slug' => 'carrito', 'status' => 'publish' ),
+				9  => array( 'slug' => 'finalizar-compra', 'status' => 'publish' ),
+				10 => array( 'slug' => 'politica-de-reembolso', 'status' => 'draft' ), // Existe, pero en borrador: no cuenta.
+			),
+			'wc_pages'     => array( 'terms' => 7, 'cart' => 8, 'checkout' => 9 ),
+			'product'      => new Sp_Product(),
+			'reviews'      => array(),
+			'meta_rows'    => array(),
+			'content_rows' => array(),
+		);
+		if ( $contact ) {
+			$GLOBALS['sp']['pages'][11] = array( 'slug' => 'contacto', 'status' => 'publish' );
+		}
+		if ( $whatsapp ) {
+			$GLOBALS['sp']['meta_rows'] = array(
+				array( 'ID' => 40, 'post_type' => 'elementor_library', 'post_title' => 'Pie', 'meta_key' => '_elementor_data', 'meta_value' => '[{"settings":{"link":{"url":"https:\/\/wa.me\/5218711112222?text=Hola"}}}]' ),
+			);
+			$GLOBALS['sp']['content_rows'] = array(
+				array( 'ID' => 41, 'post_type' => 'post', 'post_title' => 'Viejo', 'post_content' => '<a href="https://wa.me/5215550000000">viejo</a>' ),
+			);
+		}
+		$plugin                      = new stdClass();
+		$plugin->experiments         = new Sp_Experiments();
+		\Elementor\Plugin::$instance = $plugin;
+	}
+	$GLOBALS['wpdb'] = new Sp_Wpdb();
+	sp_reset();
+
+	$base = __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-sales';
+	require_once $base . '/class-module.php';
+	\Digitalisimo\Elements\Sales\Module::init();
+
+	use Digitalisimo\Elements\Sales\Catalog;
+	use Digitalisimo\Elements\Sales\Placeholders;
+	use Digitalisimo\Elements\Sales\Site;
+	use Digitalisimo\Elements\Sales\Mcp\Executor;
+
+	/** Cada cadena de la página (texto, enlaces, ajustes) con su ruta. */
+	function sp_strings( array $elements ): array {
+		$out = array();
+		Placeholders::map_strings(
+			$elements,
+			static function ( $owner, $path, $value ) use ( &$out ) {
+				$out[] = array( $owner, $path, $value );
+				return $value;
+			}
+		);
+		return $out;
+	}
+	function sp_all( array $elements ): string {
+		return implode( "\n", array_column( sp_strings( $elements ), 2 ) );
+	}
+	function sp_widgets( array $els, array &$out = array() ): array {
+		foreach ( $els as $e ) {
+			if ( 'widget' === ( $e['elType'] ?? '' ) ) {
+				$out[] = $e;
+			}
+			sp_widgets( $e['elements'] ?? array(), $out );
+		}
+		return $out;
+	}
+	/** Los enlaces de la página (ajustes `url` y `href` de los textos). */
+	function sp_links( array $elements ): array {
+		$out = array();
+		foreach ( sp_strings( $elements ) as $s ) {
+			if ( 'url' === substr( $s[1], -3 ) && '' !== $s[2] ) {
+				$out[] = $s[2];
+			}
+			if ( preg_match_all( '/href="([^"]*)"/', $s[2], $m ) ) {
+				$out = array_merge( $out, $m[1] );
+			}
+		}
+		return $out;
+	}
+
+	$created = array();
+	$fake    = static function ( $title, $elements ) use ( &$created ) {
+		$created[] = array( $title, $elements );
+		return array(
+			'id'          => 1040 + count( $created ),
+			'status'      => 'draft',
+			'edit_url'    => 'https://tienda.test/wp-admin/post.php?post=1041&action=elementor',
+			'preview_url' => 'https://tienda.test/?page_id=1041&preview=true',
+		);
+	};
+	// «De hoy a fin de mes»: el último día del mes de mañana, a las 23:59 (nunca en el pasado).
+	$tz       = new DateTimeZone( 'America/Mexico_City' );
+	$fin      = ( new DateTimeImmutable( 'tomorrow', $tz ) )->format( 'Y-m-t' );
+	$promo    = array(
+		'product_id' => 252,
+		'offer'      => array(
+			'price' => '7500',
+			'ends'  => $fin,
+			'label' => 'Black Friday',
+		),
+	);
+	$name     = 'Purificador y Alcalinizador de Agua sobre tarja Negro ROTOPLAS';
+	$images   = array( 'purificador-1.jpg', 'purificador-2.jpg', 'purificador-3.jpg' );
+	$checkout = 'https://tienda.test/finalizar-compra/?add-to-cart=252';
+
+	// ================================================================ 1. Site: el WhatsApp que el sitio ya publica
+	check( array( '5218711112222' ) === Site::whatsapp_numbers( '<a href="https://wa.me/5218711112222?text=Hola">' ), 'wa.me' );
+	check( array( '5218711112222' ) === Site::whatsapp_numbers( '"url":"https:\/\/wa.me\/+5218711112222"' ), 'wa.me en el JSON del constructor (con \\/ y +)' );
+	check( array( '528711112222' ) === Site::whatsapp_numbers( 'https://api.whatsapp.com/send?phone=528711112222&text=hola' ), 'api.whatsapp.com/send?phone=' );
+	check( array( '528711112222' ) === Site::whatsapp_numbers( 'https://api.whatsapp.com/send/?text=hola&amp;phone=%2B528711112222' ), 'api.whatsapp.com con phone después del texto' );
+	check( array( '528711112222' ) === Site::whatsapp_numbers( '{"chat_button_platform":"whatsapp","chat_button_number":"+52 871 111 2222"}' ), 'el botón flotante del constructor' );
+	check( array() === Site::whatsapp_numbers( 'https://wa.me/52XXXXXXXXXX y tel:8711112222' ), 'el número de muestra y un teléfono no son WhatsApp' );
+	check( array( '5218711112222', 'el pie' ) === Site::pick_whatsapp( array( array( 'wa.me/5215550000000', 1, 'una entrada' ), array( 'wa.me/5218711112222', 3, 'el pie' ) ) ), 'gana el número de la cabecera o el pie (más peso)' );
+	$site = Site::read();
+	check( '5218711112222' === $site['whatsapp'] && false !== strpos( $site['whatsapp_source'], 'Pie' ), 'Site::read: el WhatsApp del pie del sitio (' . $site['whatsapp'] . ' · ' . $site['whatsapp_source'] . ')' );
+	check( 'https://tienda.test/aviso-de-privacidad-plomeria/' === $site['links']['/aviso-de-privacidad/'] && 'https://tienda.test/terminos-de-servicio/' === $site['links']['/terminos-y-condiciones/'], 'Site::read: privacidad y términos, las páginas que el sitio declara' );
+	check( '' === $site['links']['/politica-de-reembolso/'] && '' === $site['links']['/gracias-compra/'], 'Site::read: una página en borrador o que no existe no cuenta' );
+	check( 'https://tienda.test/contacto/' === $site['contact_url'] && 'https://tienda.test/wp-content/uploads/logo-plomeria.png' === $site['logo']['url'] && array( 'Tarjeta de crédito o débito', 'Transferencia bancaria' ) === $site['gateways'] && '$' === $site['currency_symbol'], 'Site::read: contacto, logo, medios de pago activos y moneda' );
+
+	// ================================================================ 2. La landing del producto del caso
+	foreach ( array( true, false ) as $containers ) {
+		$variant = $containers ? 'contenedores' : 'secciones';
+		sp_reset();
+		$GLOBALS['sp']['containers'] = $containers;
+		$created                     = array();
+		$out                         = Executor::run( 'create-page', $promo, $fake );
+		check( is_array( $out ) && true === $out['ok'], "$variant: create-page con product_id crea la página (" . ( $out instanceof WP_Error ? $out->get_error_message() : '' ) . ')' );
+		$els = $created[0][1];
+		$all = sp_all( $els );
+		check( 'Black Friday: ' . $name === $out['title'] && 'venta-corta' === $out['template'] && 'draft' === $out['status'] && true === $out['finished'], "$variant: borrador terminado de la venta corta, con título de la promo" );
+		$left = array_filter(
+			sp_strings( $els ),
+			static function ( $s ) {
+				return false !== strpos( $s[2], '[' );
+			}
+		);
+		check( ! $left, "$variant: ningún [placeholder] en la página: " . json_encode( array_slice( array_values( $left ), 0, 3 ), JSON_UNESCAPED_UNICODE ) );
+		check( array() === $out['placeholders_left'], "$variant: la respuesta dice que no queda ningún placeholder" );
+		check( substr_count( $all, $name ) >= 3, "$variant: el nombre del producto (portada, «Conócelo», oferta)" );
+		check( false !== strpos( $all, '<del>$10,000 MXN</del>' ) && false !== strpos( $all, '$7,500 MXN' ) && false !== strpos( $all, 'Ahorras $2,500 MXN (25 %)' ), "$variant: precio normal tachado, precio de oferta y ahorro" );
+		foreach ( $images as $image ) {
+			check( false !== strpos( $all, 'https://tienda.test/wp-content/uploads/' . $image ), "$variant: la imagen del producto $image" );
+		}
+		check( false === strpos( $all, 'placeholder.png' ) && ! array_filter( sp_widgets( $els ), static function ( $w ) { return 'image' === $w['widgetType'] && empty( $w['settings']['image']['url'] ); } ), "$variant: ninguna imagen de muestra" );
+		check( substr_count( $all, 'logo-plomeria.png' ) >= 2, "$variant: el logo del sitio en la portada, la barra y el pie" );
+		$buttons = array_values( array_filter( sp_widgets( $els ), static function ( $w ) { return 'button' === $w['widgetType']; } ) );
+		$buy     = array_values( array_filter( $buttons, static function ( $w ) use ( $checkout ) { return $checkout === ( $w['settings']['link']['url'] ?? '' ); } ) );
+		check( 1 === count( $buy ) && '¡Sí, lo quiero ahora!' === $buy[0]['settings']['text'], "$variant: el botón de la oferta agrega el producto al carrito y lleva a pagar" );
+		check( false !== strpos( $all, 'https://wa.me/5218711112222' ) && false === strpos( $all, '52XXXXXXXXXX' ) && false === strpos( $all, '5215550000000' ), "$variant: el WhatsApp del pie del sitio, nunca el de muestra" );
+		check( '5218711112222' === $out['whatsapp'] && false !== strpos( $out['whatsapp_source'], 'Pie' ), "$variant: la respuesta dice de dónde salió el WhatsApp" );
+		// Sólo páginas que existen.
+		$real = array( 'https://tienda.test/aviso-de-privacidad-plomeria/', 'https://tienda.test/terminos-de-servicio/', $checkout );
+		foreach ( sp_links( $els ) as $link ) {
+			$ok = in_array( $link, $real, true ) || 0 === strpos( $link, 'https://wa.me/5218711112222' ) || 0 === strpos( $link, 'https://tienda.test/wp-content/uploads/' ) || '#oferta' === $link;
+			check( $ok, "$variant: un enlace a una página que no existe o a otro sitio: $link" );
+		}
+		check( false !== strpos( $all, 'href="https://tienda.test/aviso-de-privacidad-plomeria/"' ) && false !== strpos( $all, 'href="https://tienda.test/terminos-de-servicio/"' ) && false === strpos( $all, 'reembolso/' ), "$variant: el pie enlaza a la privacidad y los términos reales; sin página de reembolso, sin ese enlace" );
+		check( array( '/politica-de-reembolso/' ) === array_values( array_column( $out['pages_to_create'], 'path' ) ), "$variant: la respuesta dice qué página falta (" . json_encode( $out['pages_to_create'] ) . ')' );
+		// El precio sólo en la oferta.
+		foreach ( $els as $section ) {
+			$text = sp_all( array( $section ) );
+			if ( 'oferta' !== ( $section['settings']['_element_id'] ?? '' ) ) {
+				check( ! preg_match( '/\$\s?[0-9]|MXN/', $text ), "$variant: un precio fuera de la oferta en «" . ( $section['settings']['_title'] ?? '' ) . '»' );
+			}
+		}
+		// Datos del producto, no de curso.
+		check( false !== strpos( $all, 'Agua alcalina' ) && false !== strpos( $all, 'Filtra el 99 % de bacterias y sedimentos' ) && false !== strpos( $all, 'Capacidad: 2 litros por minuto' ) && false !== strpos( $all, 'Peso: 3.5 kg' ), "$variant: beneficios de la lista de la descripción y características de los atributos" );
+		check( false !== strpos( $all, 'Incluye garantía de 1 año contra defectos de fabricación.' ), "$variant: la garantía que dice el producto" );
+		check( ! preg_match( '/lecciones|módulo|BONUS|meses sin intereses|Hola, soy|CFDI|Testimonio/u', $all ), "$variant: nada de curso ni datos inventados (lecciones, bonus, meses, factura, testimonios)" );
+		check( false !== strpos( $all, 'Tarjeta de crédito o débito y Transferencia bancaria' ) && false === strpos( $all, 'OXXO' ), "$variant: los medios de pago activos de la tienda, no los de muestra" );
+		check( false !== strpos( $all, 'Black Friday' ) && 1 === count( array_filter( sp_widgets( $els ), static function ( $w ) { return 'countdown' === $w['widgetType']; } ) ), "$variant: la etiqueta de la promo y la barra con la cuenta regresiva al fin de mes" );
+		check( $fin . ' 23:59' === $out['close_date'] && false !== strpos( $all, 'Esta oferta termina el ' . (int) substr( $fin, 8 ) . ' de ' ) && false !== strpos( $all, 'Hasta el ' . (int) substr( $fin, 8 ) . ' de ' ) && false !== strpos( $all, 'Este precio termina el ' . (int) substr( $fin, 8 ) . ' de ' ), "$variant: el cierre real (fin de mes a las 23:59) en la barra, la oferta y las preguntas" );
+		check( ! preg_match( '/\((día|mes|hora) de cierre\)/u', $all ), "$variant: ningún placeholder disfrazado entre paréntesis" );
+		check( ! in_array( 'testimonios', array_column( $out['removed'], 'block' ), true ) && in_array( 'testimonios', $out['omitted_blocks'], true ), "$variant: sin reseñas reales, sin el bloque de testimonios" );
+		$sources = array_column( $out['filled_from'], 'source', 'field' );
+		check( isset( $sources['nombre del producto'], $sources['imágenes'], $sources['beneficios'], $sources['garantía'], $sources['whatsapp'], $sources['logo'], $sources['precio de oferta'], $sources['precio normal'] ), "$variant: filled_from dice qué se llenó y de dónde: " . implode( ', ', array_keys( $sources ) ) );
+		check( array() === array_filter( $out['pending'], static function ( $p ) { return ! empty( $p['required'] ); } ), "$variant: nada obligatorio pendiente: " . json_encode( $out['pending'], JSON_UNESCAPED_UNICODE ) );
+		check( (bool) preg_grep( '/La tienda cobra hoy \$10,000 MXN.*anuncia \$7,500 MXN/u', $out['review'] ), "$variant: avisa que la tienda cobra otro precio que la landing" );
+		check( 'https://tienda.test/?page_id=1041&preview=true' === $out['preview_url'] && false !== strpos( $out['edit_url'], 'action=elementor' ) && false !== strpos( $out['llm_instructions'], 'filled_from' ), "$variant: enlaces de edición y vista previa, e instrucciones para reportarlo corto" );
+		check( 252 === $out['product']['id'] && '7,500' === $out['product']['price'] && '10,000' === $out['product']['regular'] && $checkout === $out['product']['buy_url'], "$variant: el resumen del producto y la oferta" );
+	}
+
+	// ================================================================ 3. Sin WhatsApp en el sitio: nunca el número de muestra
+	sp_reset( false, true );
+	$created = array();
+	$out     = Executor::run( 'create-page', $promo, $fake );
+	$all     = sp_all( $created[0][1] );
+	check( false === strpos( $all, '52XXXXXXXXXX' ) && false === strpos( $all, 'wa.me' ), 'sin WhatsApp en el sitio: ni el número de muestra ni wa.me' );
+	$contact = array_values( array_filter( sp_widgets( $created[0][1] ), static function ( $w ) { return 'button' === $w['widgetType'] && 'https://tienda.test/contacto/' === ( $w['settings']['link']['url'] ?? '' ); } ) );
+	check( 1 === count( $contact ) && 'Contáctanos' === $contact[0]['settings']['text'] && 'fas fa-envelope' === $contact[0]['settings']['selected_icon']['value'], 'sin WhatsApp: el botón lleva a la página de contacto real' );
+	check( false === stripos( $all, 'whatsapp' ) && '' === $out['whatsapp'] && (bool) preg_grep( '/página de contacto/', $out['review'] ), 'sin WhatsApp: ningún texto manda a WhatsApp y la revisión lo dice' );
+	sp_reset( false, false );
+	$created = array();
+	$out     = Executor::run( 'create-page', $promo, $fake );
+	$all     = sp_all( $created[0][1] );
+	check( false === strpos( $all, '52XXXXXXXXXX' ) && false === stripos( $all, 'whatsapp' ) && (bool) preg_grep( '/se quitó el botón/', $out['review'] ), 'sin WhatsApp ni contacto: se quita el botón y la revisión lo dice' );
+	check( ! array_filter( sp_widgets( $created[0][1] ), static function ( $w ) { return 'button' === $w['widgetType'] && false !== strpos( (string) ( $w['settings']['link']['url'] ?? '' ), 'wa.me' ); } ), 'sin WhatsApp ni contacto: ningún botón a wa.me' );
+	// El WhatsApp que se pide gana al del sitio.
+	sp_reset();
+	$created = array();
+	$out     = Executor::run( 'create-page', $promo + array( 'whatsapp' => '5218719998888' ), $fake );
+	check( false !== strpos( sp_all( $created[0][1] ), 'https://wa.me/5218719998888' ) && 'el número que se pidió' === $out['whatsapp_source'], 'el whatsapp de la entrada gana al del sitio' );
+
+	// ================================================================ 4. Otros productos y ofertas
+	sp_reset();
+	$GLOBALS['sp']['product'] = new Sp_Product( array( 'sale' => '8000', 'price' => '8000', 'description' => '<p>Sin listas.</p>', 'gallery' => array() ) );
+	$GLOBALS['sp']['logo']    = 0;
+	$GLOBALS['sp']['reviews'] = array( (object) array( 'comment_ID' => 1, 'comment_content' => 'Funciona muy bien, el agua sabe mejor.', 'comment_author' => 'Laura' ) );
+	$created                  = array();
+	$out                      = Executor::run( 'create-page', array( 'product_id' => 252 ), $fake );
+	$all                      = sp_all( $created[0][1] );
+	check( true === $out['ok'] && $name === $out['title'] && null === $out['close_date'], 'sin offer: el precio rebajado de la tienda, sin etiqueta y sin cierre (' . json_encode( $out['close_date'] ) . ')' );
+	check( false !== strpos( $all, '<del>$10,000 MXN</del>' ) && false !== strpos( $all, '$8,000 MXN' ) && ! preg_grep( '/La tienda cobra hoy/', $out['review'] ), 'sin offer: el precio rebajado y el normal de la tienda; sin aviso de precio distinto' );
+	check( false !== strpos( $all, 'Funciona muy bien, el agua sabe mejor.' ) && false !== strpos( $all, 'Laura' ) && false !== strpos( $all, '★★★★★' ), 'una reseña aprobada real va en testimonios' );
+	check( false === strpos( $all, 'logo-plomeria.png' ) && ! array_filter( sp_widgets( $created[0][1] ), static function ( $w ) { return 'image' === $w['widgetType'] && empty( $w['settings']['image']['url'] ); } ), 'sin logo en el sitio: las imágenes de muestra del logo se quitan' );
+	check( ! array_filter( sp_widgets( $created[0][1] ), static function ( $w ) { return 'countdown' === $w['widgetType']; } ) && false === strpos( $all, 'termina el' ), 'sin fecha de fin real: sin contador ni textos de cierre' );
+	check( ! preg_grep( '/\[/', array_column( sp_strings( $created[0][1] ), 2 ) ), 'sin offer: tampoco quedan placeholders' );
+	// Sin garantía en el producto ni política de reembolso: se informa, sin inventarla.
+	sp_reset();
+	$GLOBALS['sp']['product'] = new Sp_Product( array( 'description' => '<ul><li>Uno</li></ul>' ) );
+	$created                  = array();
+	$out                      = Executor::run( 'create-page', $promo, $fake );
+	$pending                  = array_values( array_filter( $out['pending'], static function ( $p ) { return 'garantia-y-preguntas' === $p['block']; } ) );
+	check( 1 === count( $pending ) && $pending[0]['required'] && false !== strpos( $pending[0]['missing'], 'garantía' ) && ! preg_grep( '/garant/i', array_column( array_filter( sp_strings( $created[0][1] ), static function ( $s ) { return '_title' !== $s[1]; } ), 2 ) ), 'sin garantía real: no se inventa; se informa como pendiente con el bloque y el campo' );
+	check( (bool) preg_grep( '/Faltan datos en bloques obligatorios \(garantia-y-preguntas/', $out['review'] ), 'la revisión dice qué falta en un bloque obligatorio' );
+	// Agotado: el botón a la ficha.
+	sp_reset();
+	$GLOBALS['sp']['product'] = new Sp_Product( array( 'stock' => false ) );
+	$created                  = array();
+	$out                      = Executor::run( 'create-page', $promo, $fake );
+	check( false !== strpos( sp_all( $created[0][1] ), 'https://tienda.test/producto/purificador/' ) && false === strpos( sp_all( $created[0][1] ), 'add-to-cart' ) && (bool) preg_grep( '/agotado/', $out['review'] ), 'agotado: el botón lleva a la ficha y se avisa' );
+
+	// Candados de la oferta: nada se crea.
+	sp_reset();
+	$created = array();
+	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '12000' ) ), $fake ), 'digitalisimo_sales_offer', 'una oferta más cara que el precio normal' );
+	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '$7,500 MXN' ) ), $fake ), 'digitalisimo_sales_offer', 'un precio con moneda' );
+	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '7500', 'ends' => 'fin de mes' ) ), $fake ), 'digitalisimo_sales_offer', 'una fecha que no es fecha' );
+	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '7500', 'ends' => '2020-01-31' ) ), $fake ), 'digitalisimo_sales_close_date', 'una fecha que ya pasó' );
+	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'label' => 'Visita https://otro.test' ) ), $fake ), 'digitalisimo_sales_offer', 'una etiqueta con un enlace' );
+	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'precio' => '7500' ) ), $fake ), 'digitalisimo_sales_offer', 'una clave desconocida en offer' );
+	check_error( Executor::run( 'create-page', array( 'product_id' => 999 ), $fake ), 'digitalisimo_sales_product', 'un producto que no existe' );
+	check_error( Executor::run( 'create-page', array( 'product_id' => 253 ), $fake ), 'digitalisimo_sales_product', 'un producto en borrador' );
+	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'template' => 'venta-completa' ), $fake ), 'digitalisimo_sales_invalid', 'product_id con otra plantilla' );
+	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'finish' => false ), $fake ), 'digitalisimo_sales_invalid', 'product_id sin terminar' );
+	check_error( Executor::run( 'create-page', array( 'template' => 'venta-corta', 'title' => 'X', 'offer' => array( 'price' => '1' ) ), $fake ), 'digitalisimo_sales_invalid', 'offer sin product_id' );
+	check( array() === $created, 'con un error no se crea nada' );
+
+	// ================================================================ 5. Cualquier plantilla: terminada por defecto
+	foreach ( Catalog::ids() as $id ) {
+		sp_reset();
+		$created = array();
+		$out     = Executor::run( 'create-page', array( 'template' => $id, 'title' => 'Prueba ' . $id ), $fake );
+		check( is_array( $out ) && $out['finished'], "$id: creada y terminada" );
+		$left = array_filter(
+			sp_strings( $created[0][1] ),
+			static function ( $s ) {
+				return false !== strpos( $s[2], '[' );
+			}
+		);
+		check( ! $left, "$id: sin datos, ningún placeholder a la vista: " . json_encode( array_slice( array_values( $left ), 0, 2 ), JSON_UNESCAPED_UNICODE ) );
+		$all = sp_all( $created[0][1] );
+		check( false === strpos( $all, '52XXXXXXXXXX' ) && false !== strpos( $all . 'wa.me/5218711112222', 'wa.me/5218711112222' ), "$id: sin el número de muestra" );
+		foreach ( sp_links( $created[0][1] ) as $link ) {
+			check( '/' !== $link[0], "$id: ninguna ruta inventada del kit ($link)" );
+		}
+		check( ! array_filter( sp_widgets( $created[0][1] ), static function ( $w ) { return 'image' === $w['widgetType'] && empty( $w['settings']['image']['url'] ); } ), "$id: ninguna imagen de muestra" );
+		check( $out['pending'] === array_values( $out['pending'] ) && ! array_filter( $out['pending'], static function ( $p ) { return ! isset( $p['block'], $p['field'], $p['missing'] ); } ), "$id: lo pendiente con su bloque y su campo" );
+	}
+	// Con finish: false, la plantilla queda como antes (para llenarla a mano), con lo pendiente informado.
+	sp_reset();
+	$created = array();
+	$out     = Executor::run( 'create-page', array( 'template' => 'venta-corta', 'title' => 'A mano', 'finish' => false ), $fake );
+	check( false === $out['finished'] && $out['pending_count'] > 30 && false !== strpos( sp_all( $created[0][1] ), '[Beneficio 1]' ) && false !== strpos( sp_all( $created[0][1] ), 'wa.me/5218711112222' ), 'finish: false deja los placeholders (y usa el WhatsApp del sitio)' );
+
+	// ================================================================ 6. Guía y descripciones
+	$guide = Catalog::guide();
+	check( false !== strpos( $guide, 'product_id' ) && false !== strpos( $guide, 'datos que dio el usuario o que están en el sitio' ) && ! preg_match( '/Sólo datos que dio el usuario/u', $guide ), 'la guía explica product_id y deja usar los datos del sitio' );
+	check( (bool) preg_match( '/nunca .*testimonios.*urgencia/isu', Catalog::guide( 'reglas' ) ), 'la guía prohíbe inventar testimonios, reseñas, cifras o urgencia' );
+	$tools = \Digitalisimo\Elements\Sales\Mcp\Tools::DESCRIPTIONS['create-page'];
+	check( false !== strpos( $tools, 'product_id' ) && false !== strpos( $tools, 'datos que te dio el usuario o que están en el sitio' ) && false !== strpos( $tools, 'nunca inventes testimonios, reseñas' ), 'create-page: product_id y datos del sitio, sin inventar' );
+
+	echo 'Landing de producto del kit de ventas: ' . $GLOBALS['sp_count'] . ' comprobaciones en verde (PHP ' . PHP_VERSION . ").\n";
+}
