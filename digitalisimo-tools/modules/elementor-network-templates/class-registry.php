@@ -18,7 +18,10 @@ final class Registry {
 		$all[ $uuid ] = wp_parse_args( $item, array( 'uuid' => $uuid, 'master_blog_id' => self::master_blog_id(), 'master_post_id' => 0, 'auto_sync' => false, 'targets' => array( 'mode' => 'all', 'include' => array(), 'exclude' => array() ), 'locked' => false, 'collection' => '', 'last_sync' => array(), 'active' => true ) );
 		if ( ! empty( $old['sites'] ) ) $all[ $uuid ]['sites'] = $old['sites']; elseif ( empty( $all[ $uuid ]['sites'] ) ) $all[ $uuid ]['sites'] = array();
 		// El formulario de la plantilla no lleva su «Última sincronización»: guardar su configuración no la borra.
-		if ( ! array_key_exists( 'last_sync', $item ) && ! empty( $old['last_sync'] ) ) $all[ $uuid ]['last_sync'] = $old['last_sync'];
+		// Si cambia la plantilla maestra, las copias quedan pendientes de la nueva.
+		$same = absint( $old['master_post_id'] ?? 0 ) === absint( $all[ $uuid ]['master_post_id'] ) && absint( $old['master_blog_id'] ?? 0 ) === absint( $all[ $uuid ]['master_blog_id'] );
+		if ( ! array_key_exists( 'last_sync', $item ) && ! empty( $old['last_sync'] ) && $same ) $all[ $uuid ]['last_sync'] = $old['last_sync'];
+		if ( ! $same ) $all[ $uuid ]['last_sync'] = array();
 		update_site_option( self::OPTION, $all ); return $all[ $uuid ];
 	}
 	public static function update( $uuid, array $changes ) { $item = self::get( $uuid ); return $item ? self::save( array_merge( $item, $changes ) ) : new \WP_Error( 'digitalisimo_tools_missing', 'La plantilla global no existe.' ); }

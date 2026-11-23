@@ -5,15 +5,29 @@ final class Elementor_Adapter {
 	public static function available() { return did_action( 'elementor/loaded' ) || defined( 'ELEMENTOR_VERSION' ); }
 	/**
 	 * ¿Está el constructor activo en ese sitio? La petición sólo carga los plugins de la red y los del sitio que la
-	 * atiende (en la red, el principal): para otro sitio maestro se mira su lista de plugins activos, sin cargarlo.
-	 * DIGITALÍSIMO Elements se reconoce por su archivo (`pro-elements.php`, en cualquier carpeta) y Elementor por el suyo.
+	 * atiende (en la red, el principal): para otro sitio maestro se miran sus plugins activos y los de su red (la del
+	 * maestro, no la de la petición, si la instalación tiene varias), sin cargarlos.
 	 */
 	public static function active_on( $blog_id ) {
 		$blog_id = absint( $blog_id );
+		if ( ! $blog_id ) return false;
 		if ( ! is_multisite() || $blog_id === get_current_blog_id() ) return self::available();
-		$files = array_merge( array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ), (array) get_blog_option( $blog_id, 'active_plugins', array() ) );
-		foreach ( $files as $file ) if ( preg_match( '#(^|/)(pro-elements|elementor)\.php$#', (string) $file ) ) return true;
+		$site = get_site( $blog_id );
+		if ( ! $site ) return false;
+		$files = array_merge( array_keys( (array) get_network_option( (int) $site->network_id, 'active_sitewide_plugins', array() ) ), (array) get_blog_option( $blog_id, 'active_plugins', array() ) );
+		foreach ( $files as $file ) if ( self::is_builder( (string) $file ) ) return true;
 		return false;
+	}
+	/**
+	 * Elementor (`elementor.php`) o DIGITALÍSIMO Elements (`pro-elements.php` en cualquier carpeta, reconocido por su
+	 * cabecera): no el PRO Elements de terceros, que usa el mismo archivo y no trae el constructor.
+	 */
+	public static function is_builder( $file ) {
+		if ( preg_match( '#(^|/)elementor\.php$#', $file ) ) return true;
+		if ( ! preg_match( '#(^|/)pro-elements\.php$#', $file ) || ! defined( 'WP_PLUGIN_DIR' ) || false !== strpos( $file, '..' ) ) return false;
+		$path = WP_PLUGIN_DIR . '/' . $file;
+		$head = is_readable( $path ) ? (string) file_get_contents( $path, false, null, 0, 2048 ) : '';
+		return 1 === preg_match( '/^[ \t\/*#@]*Plugin Name:\s*DIGITALÍSIMO Elements\s*$/mi', $head );
 	}
 	public static function template_posts() { return get_posts( array( 'post_type' => 'elementor_library', 'post_status' => array( 'publish', 'draft', 'private' ), 'numberposts' => -1, 'orderby' => 'title', 'order' => 'ASC' ) ); }
 	public static function export( array $item ) {

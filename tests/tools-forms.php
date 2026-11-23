@@ -42,7 +42,25 @@ namespace {
 	function current_user_can( $cap ) { return in_array( $cap, $GLOBALS['tf']['caps'], true ); }
 	function switch_to_blog( $id ) { $GLOBALS['tf']['stack'][] = $GLOBALS['tf']['blog']; $GLOBALS['tf']['blog'] = (int) $id; return true; }
 	function restore_current_blog() { $GLOBALS['tf']['blog'] = array_pop( $GLOBALS['tf']['stack'] ); return true; }
-	function get_sites() { return $GLOBALS['tf']['multisite'] ? array_map( static function ( $id ) { return (object) array( 'blog_id' => (string) $id, 'domain' => 'red.test', 'path' => 1 === $id ? '/' : "/s$id/" ); }, array( 1, 2, 3 ) ) : array(); }
+	/* Instalación con dos redes: la 1 (sitios 1, 2 y 3) y la 2 (sitio 4), que nunca debe recibir nada de la 1. */
+	function tf_sites() { return $GLOBALS['tf']['multisite'] ? array( 1 => 1, 2 => 1, 3 => 1, 4 => 2 ) : array(); }
+	function get_sites( $args = array() ) {
+		$out = array();
+		foreach ( tf_sites() as $id => $net ) {
+			if ( isset( $args['network_id'] ) && (int) $args['network_id'] !== $net ) continue;
+			if ( isset( $args['site__in'] ) && ! in_array( $id, array_map( 'intval', (array) $args['site__in'] ), true ) ) continue;
+			$out[] = 'ids' === ( $args['fields'] ?? '' ) ? $id : (object) array( 'blog_id' => (string) $id, 'network_id' => (string) $net, 'domain' => 4 === $id ? 'otra.test' : 'red.test', 'path' => 1 === $id || 4 === $id ? '/' : "/s$id/" );
+		}
+		return $out;
+	}
+	function get_site( $id ) { foreach ( get_sites() as $site ) if ( (int) $site->blog_id === (int) $id ) return $site; return null; }
+	function get_current_network_id() { return tf_sites()[ get_current_blog_id() ] ?? 1; }
+	function get_network_option( $net, $k, $d = false ) { $o = 1 === (int) $net ? $GLOBALS['tf']['site'] : ( $GLOBALS['tf']['site2'] ?? array() ); return array_key_exists( $k, $o ) ? $o[ $k ] : $d; }
+	function delete_post_meta( $id, $k ) { unset( $GLOBALS['tf']['meta'][ get_current_blog_id() ][ (int) $id ][ $k ] ); return true; }
+	/* Plugins en disco: DIGITALÍSIMO Elements en dos carpetas y el PRO Elements de terceros, con el mismo archivo. */
+	define( 'WP_PLUGIN_DIR', sys_get_temp_dir() . '/digi-tools-forms-' . getmypid() );
+	foreach ( array( 'digitalisimo-elements' => 'DIGITALÍSIMO Elements', 'mi-carpeta' => 'DIGITALÍSIMO Elements', 'pro-elements' => 'PRO Elements' ) as $dir => $name ) { @mkdir( WP_PLUGIN_DIR . "/$dir", 0777, true ); file_put_contents( WP_PLUGIN_DIR . "/$dir/pro-elements.php", "<?php\n/**\n * Plugin Name: $name\n */\n" ); }
+	register_shutdown_function( static function () { foreach ( glob( WP_PLUGIN_DIR . '/*/pro-elements.php' ) as $f ) { unlink( $f ); rmdir( dirname( $f ) ); } @rmdir( WP_PLUGIN_DIR ); } );
 
 	function get_option( $k, $d = false ) { $o = $GLOBALS['tf']['options'][ get_current_blog_id() ]; return array_key_exists( $k, $o ) ? $o[ $k ] : $d; }
 	function update_option( $k, $v, $a = null ) { $GLOBALS['tf']['options'][ get_current_blog_id() ][ $k ] = $v; return true; }
@@ -256,6 +274,33 @@ namespace {
 	check( true === $item['locked'] && isset( $item['last_sync'][3], $item['sites'][3] ), 'Plantillas: guardar la configuración conserva «Última sincronización» y las copias' );
 	$html = tf_page( 'elementor', 1, true );
 	check( false === strpos( $html, '>Pendiente<' ) && false !== strpos( $html, '>Sincronizada<' ), 'Plantillas: tras guardar, sigue «Sincronizada»' );
+	// La copia tenía CSS y HTML guardados de la versión anterior: al sincronizar otra vez se borran, aunque el sitio que
+	// corre la cola no cargue el constructor (su clear_cache no está).
+	$copy = (int) $copies[0]->ID;
+	$GLOBALS['tf']['meta'][3][ $copy ]['_elementor_css'] = array( 'status' => 'file' );
+	$GLOBALS['tf']['meta'][3][ $copy ]['_elementor_element_cache'] = 'html viejo';
+	tf_screen( 1 );
+	Sync::run_job( 'cabecera-red', 3 );
+	check( ! isset( $GLOBALS['tf']['meta'][3][ $copy ]['_elementor_css'] ) && ! isset( $GLOBALS['tf']['meta'][3][ $copy ]['_elementor_element_cache'] ) && isset( $GLOBALS['tf']['meta'][3][ $copy ]['_elementor_data'] ), 'Plantillas: la copia sincronizada pierde su CSS y su HTML viejos' );
+	// Varias redes: el selector del sitio maestro y «Todos los sitios» sólo ven la red actual.
+	check( false === strpos( $html, 'otra.test' ), 'Plantillas: el formulario no lista sitios de otra red' );
+	check( array( 1, 3 ) === Registry::destinations( array( 'targets' => array( 'mode' => 'all' ), 'master_blog_id' => 2 ) ), 'Plantillas: «Todos los sitios» no incluye sitios de otra red' );
+	check( array( 3 ) === Registry::destinations( array( 'targets' => array( 'mode' => 'selected', 'include' => array( 3, 4 ) ), 'master_blog_id' => 2 ) ), 'Plantillas: un sitio de otra red elegido a mano tampoco' );
+	$html = tf_page( 'elementor', 1, true );
+	tf_submit( $html, 'digitalisimo_tools_save_settings', array( 'master_blog_id' => '4' ), array( 'enable' => array() ) );
+	check( 2 === Registry::master_blog_id(), 'Plantillas: un sitio maestro de otra red no se acepta' );
+	// Cambiar la plantilla maestra deja la fila «Pendiente» hasta sincronizar la nueva.
+	$html = tf_page( 'elementor', 1, true, array( 'edit' => 'cabecera-red' ) );
+	tf_submit( $html, 'digitalisimo_tools_save_template', array( 'master_post_id' => '12' ) );
+	$item = Registry::get( 'cabecera-red' );
+	check( 12 === $item['master_post_id'] && array() === $item['last_sync'] && isset( $item['sites'][3] ), 'Plantillas: cambiar la maestra vacía «Última sincronización» y conserva las copias' );
+	check( false !== strpos( tf_page( 'elementor', 1, true ), '>Pendiente<' ), 'Plantillas: con otra maestra, la fila vuelve a «Pendiente»' );
+	// El PRO Elements de terceros (mismo archivo, sin constructor) no cuenta.
+	$GLOBALS['tf']['options'][2]['active_plugins'] = array( 'pro-elements/pro-elements.php' );
+	check( false !== strpos( tf_page( 'elementor', 1, true ), 'debe estar activo en el sitio maestro' ), 'Plantillas: el PRO Elements de terceros no cuenta como constructor' );
+	// Elements activo en toda la otra red no cuenta para un maestro de esta.
+	$GLOBALS['tf']['site2']['active_sitewide_plugins'] = array( 'digitalisimo-elements/pro-elements.php' => time() );
+	check( false !== strpos( tf_page( 'elementor', 1, true ), 'debe estar activo en el sitio maestro' ), 'Plantillas: Elements activo en otra red no cuenta' );
 	// Sin Elements en el sitio maestro, sí lo dice.
 	$GLOBALS['tf']['options'][2]['active_plugins'] = array();
 	$html = tf_page( 'elementor', 1, true );
