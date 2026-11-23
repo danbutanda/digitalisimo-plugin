@@ -23,7 +23,9 @@ final class Registry {
 	}
 	public static function update( $uuid, array $changes ) { $item = self::get( $uuid ); return $item ? self::save( array_merge( $item, $changes ) ) : new \WP_Error( 'digitalisimo_tools_missing', 'La plantilla global no existe.' ); }
 	public static function destinations( array $item ) {
-		if ( ! is_multisite() ) return array(); $targets = (array) ( $item['targets'] ?? array() ); $ids = 'selected' === ( $targets['mode'] ?? 'all' ) ? array_map( 'absint', (array) ( $targets['include'] ?? array() ) ) : wp_list_pluck( get_sites( array( 'number' => 0 ) ), 'blog_id' );
+		if ( ! is_multisite() ) return array(); $targets = (array) ( $item['targets'] ?? array() ); // Sólo sitios de esta red: get_sites() sin network_id devuelve los de todas las redes de la instalación.
+		$network = array_map( 'absint', wp_list_pluck( get_sites( array( 'number' => 0, 'network_id' => get_current_network_id() ) ), 'blog_id' ) );
+		$ids = 'selected' === ( $targets['mode'] ?? 'all' ) ? array_intersect( array_map( 'absint', (array) ( $targets['include'] ?? array() ) ), $network ) : $network;
 		$ids = array_diff( $ids, array_map( 'absint', (array) ( $targets['exclude'] ?? array() ) ), array( absint( $item['master_blog_id'] ) ) ); return array_values( array_unique( array_filter( $ids ) ) );
 	}
 	public static function set_mapping( $uuid, $blog_id, $post_id ) { $item = self::get( $uuid ); if ( ! $item ) return; $item['sites'][ absint( $blog_id ) ] = absint( $post_id ); $item['last_sync'][ absint( $blog_id ) ] = time(); self::save( $item ); }
