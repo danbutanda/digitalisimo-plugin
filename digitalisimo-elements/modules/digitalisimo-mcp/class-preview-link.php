@@ -37,6 +37,16 @@ final class Preview_Link {
 	const TOKEN_CLASS = 'Elementor\\Modules\\Mcp\\Preview\\Preview_Token';
 	/** Prioridad de `parse_request`: después del manejador de enlaces firmados del núcleo (1). */
 	const PRIORITY    = 2;
+	/**
+	 * En una red, el sitio que emitió el enlace: meta de la revisión de la instantánea (`create-preview-link` la crea o
+	 * reutiliza en ese sitio). El token del núcleo no lleva el sitio y su firma usa la sal de toda la red, así que un
+	 * enlace de un sitio valdría en otro donde coincidan el número de la página y el de la revisión.
+	 */
+	const SITE_META   = '_digitalisimo_preview_site';
+	/** La herramienta del núcleo que emite los enlaces. */
+	const ABILITY     = 'elementor/create-preview-link';
+	/** Prioridad de `parse_request` del candado de sitio: antes del manejador del núcleo (1). */
+	const SITE_PRIORITY = 0;
 	/** Metas de la página que el render del núcleo escribe como caché (CSS de página, assets, HTML, uso de clases). */
 	const META_PREFIX = '_elementor_';
 	/** Raíces de las hojas atómicas del núcleo en el orden en que se registran (`base` 10, `default` 15, `global` 20, `local` 30). */
@@ -71,7 +81,9 @@ final class Preview_Link {
 			return;
 		}
 		self::$initialized = true;
+		add_action( 'parse_request', array( __CLASS__, 'site_guard' ), self::SITE_PRIORITY );
 		add_action( 'parse_request', array( __CLASS__, 'request' ), self::PRIORITY );
+		add_filter( 'wp_register_ability_args', array( __CLASS__, 'wrap_ability' ), PHP_INT_MAX, 2 );
 		add_action( 'shutdown', array( __CLASS__, 'shutdown' ), 0 );
 	}
 
@@ -234,7 +246,67 @@ final class Preview_Link {
 		return 'disable';
 	}
 
-	/** La página de un token válido (firma, vigencia y revisión de esa página, como el núcleo), o 0. */
+	/**
+	 * `wp_register_ability_args`: tras emitir un enlace, marca su revisión con el sitio que lo emitió (sólo en una red).
+	 * No cambia lo que devuelve la herramienta.
+	 */
+	public static function wrap_ability( $args, $name = '' ) {
+		if ( self::ABILITY !== $name || ! is_array( $args ) || empty( $args['execute_callback'] ) || ! is_callable( $args['execute_callback'] ) ) {
+			return $args;
+		}
+		$inner                    = $args['execute_callback'];
+		$args['execute_callback'] = static function ( ...$params ) use ( $inner ) {
+			$result = call_user_func_array( $inner, $params );
+			if ( is_array( $result ) && ! empty( $result['revision_id'] ) ) {
+				self::stamp( (int) $result['revision_id'] );
+			}
+			return $result;
+		};
+		return $args;
+	}
+
+	/** Marca una revisión con el sitio actual (en una red). `update_metadata()`: `update_post_meta()` iría a su página. */
+	public static function stamp( int $revision_id ): void {
+		if ( $revision_id > 0 && function_exists( 'is_multisite' ) && is_multisite() ) {
+			update_metadata( 'post', $revision_id, self::SITE_META, (string) get_current_blog_id() );
+		}
+	}
+
+	/** ¿Emitió este sitio el enlace de esa revisión? Fuera de una red, siempre. */
+	public static function same_site( int $revision_id ): bool {
+		if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
+			return true;
+		}
+		return (string) get_current_blog_id() === (string) get_metadata( 'post', $revision_id, self::SITE_META, true );
+	}
+
+	/**
+	 * `parse_request` 0, antes del manejador del núcleo: en una red, un enlace con firma válida emitido en otro sitio se
+	 * quita de la petición, así ni el núcleo ni esta clase pintan la instantánea (la página se ve como para cualquiera).
+	 */
+	public static function site_guard( $wp = null ): void {
+		$arg = Css_Sync::key( 'token' );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- el enlace lleva su propio token firmado.
+		if ( '' === $arg || ! isset( $_GET[ $arg ] ) || ! is_string( $_GET[ $arg ] ) || ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
+			return;
+		}
+		$claims = self::claims( sanitize_text_field( wp_unslash( $_GET[ $arg ] ) ) );
+		if ( null !== $claims && ! self::same_site( (int) ( $claims['revision_id'] ?? 0 ) ) ) {
+			unset( $_GET[ $arg ], $_REQUEST[ $arg ] );
+		}
+	}
+
+	/** Los datos de un token con firma válida y vigente, o null. */
+	private static function claims( string $raw ): ?array {
+		$class = self::TOKEN_CLASS;
+		if ( ! class_exists( $class ) || ! method_exists( $class, 'decode' ) || ! method_exists( $class, 'secret' ) || ! method_exists( $class, 'is_expired' ) ) {
+			return null;
+		}
+		$claims = $class::decode( $raw, $class::secret() );
+		return is_array( $claims ) && ! $class::is_expired( $claims, time() ) ? $claims : null;
+	}
+
+	/** La página de un token válido (firma, vigencia, revisión de esa página y, en una red, emitido en este sitio), o 0. */
 	public static function post_for( string $raw ): int {
 		$class = self::TOKEN_CLASS;
 		if ( ! class_exists( $class ) || ! method_exists( $class, 'decode' ) || ! method_exists( $class, 'secret' ) || ! method_exists( $class, 'is_expired' ) ) {
@@ -246,7 +318,7 @@ final class Preview_Link {
 		}
 		$id       = isset( $claims['post_id'] ) ? (int) $claims['post_id'] : 0;
 		$revision = isset( $claims['revision_id'] ) ? get_post( (int) $claims['revision_id'] ) : null;
-		if ( $id <= 0 || ! $revision || 'revision' !== $revision->post_type || (int) $revision->post_parent !== $id ) {
+		if ( $id <= 0 || ! $revision || 'revision' !== $revision->post_type || (int) $revision->post_parent !== $id || ! self::same_site( (int) $revision->ID ) ) {
 			return 0;
 		}
 		return $id;
