@@ -595,6 +595,17 @@ namespace {
 	update_option( 'blogdescription', 'Cambio fuera del MCP' );
 	check( 'Cambio fuera del MCP' === get_option( 'blogdescription' ), 'K4: fuera de la herramienta las opciones se escriben como siempre' );
 
+	// P0: una meta escrita a mano o copiada de otro sitio con campos de la entrada (post_title, post_status, template)
+	// no los vuelve a aplicar en cada llamada: sólo se aplica lo que viene en la petición.
+	ms_reset();
+	$stray = ms_meta( PAGE );
+	$stray = array_merge( is_array( $stray ) ? $stray : array(), array( 'post_title' => 'Título de otro sitio', 'post_status' => 'draft', 'template' => 'elementor_canvas' ) );
+	$GLOBALS['ms']['meta'][ PAGE ]['_elementor_page_settings'] = $stray;
+	$title_before = $GLOBALS['ms']['titles'][ PAGE ] ?? null;
+	$r = ms_run( 'elementor/update-page-settings', array( 'post_id' => PAGE, 'settings' => array( 'hide_title' => 'yes' ) ) );
+	check( is_array( $r ) && $r['success'] && $title_before === ( $GLOBALS['ms']['titles'][ PAGE ] ?? null ), 'P0: un post_title suelto en la meta no se vuelve a aplicar a la entrada' );
+	check( is_array( $r ) && array() === ( $r['post_fields'] ?? null ), 'P0: post_fields queda vacío si la petición no trae campos de la entrada' );
+
 	// P1: página con diseño, fondo y CSS; actualizar una clave conserva el resto.
 	ms_reset();
 	$before = ms_meta( PAGE );

@@ -229,7 +229,7 @@ Si se borra la última clave, se borra la meta (el núcleo no guarda unos ajuste
   `/wp-json/elementor/mcp` con WooCommerce 11.2.1, leyendo la meta directo de la base y el CSS que carga la página, y
   una publicada con un cambio pendiente de `build-composition` que `update-page-settings` no borra y
   `publish-document` publica.
-- `tests/validate-suite.mjs` exige los cinco archivos de `modules/digitalisimo-mcp/` en el ZIP de Elements.
+- `tests/validate-suite.mjs` exige los archivos de `modules/digitalisimo-mcp/` en el ZIP de Elements.
 - `tests/playground/elements-mcp-css.sh` (manual, en la PC): Playground con WordPress 7.1, una contraseña de aplicación
   y JSON-RPC real contra `/wp-json/elementor/mcp`, en PHP 7.4, 8.2 y 8.5. Tras cada escritura abre el borrador como su
   administradora, un enlace firmado nuevo como visitante y la página publicada, y comprueba que cada clase `e-…` y global

@@ -172,7 +172,7 @@ final class Settings_Merge {
 			return self::succeeded( $result ) ? $result + array( 'changed_keys' => array(), 'removed_keys' => array(), 'post_fields' => array() ) : $result;
 		}
 		$before = self::stored( $id );
-		$merged = self::merge( self::without_side_keys( $before, $changes ), $changes, true );
+		$merged = self::merge( self::without_side_keys( self::own( $before ), $changes ), $changes, true );
 
 		$params[0]             = $input;
 		$params[0]['settings'] = $merged;
@@ -222,7 +222,7 @@ final class Settings_Merge {
 		}
 		$stored = self::stored( (int) $post->ID );
 		if ( $stored ) {
-			$data['settings'] = self::merge( self::without_side_keys( $stored, $data['settings'] ), $data['settings'], false );
+			$data['settings'] = self::merge( self::without_side_keys( self::own( $stored ), $data['settings'] ), $data['settings'], false );
 		}
 		return $data;
 	}
@@ -351,7 +351,11 @@ final class Settings_Merge {
 		return $document;
 	}
 
-	/** Lo que queda en la meta (sin las claves de la entrada). */
+	/**
+	 * Lo que queda en la meta (sin las claves de la entrada). También se aplica a lo guardado antes de combinar: una
+	 * meta escrita a mano o copiada de otro sitio con `post_status`, `post_title` o `template` no se vuelve a aplicar a
+	 * la entrada en cada llamada (despublicaría la página o le cambiaría el título).
+	 */
 	private static function own( array $settings ): array {
 		return array_diff_key( $settings, array_flip( self::POST_FIELDS ) );
 	}
