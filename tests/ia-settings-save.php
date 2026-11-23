@@ -65,7 +65,7 @@ check( false !== strpos( $after, 'Configuración guardada.' ), 'Tras guardar se 
 check( false !== strpos( $after, 'Guardada · escribe una nueva sólo si quieres reemplazarla' ), 'Tras guardar, el proveedor dice que su clave está guardada' );
 check( false === strpos( $after, 'sk-ant-PRUEBA-123' ), 'La clave no vuelve a imprimirse en la página' );
 
-check( false !== strpos( $after, 'name="providers[anthropic][key]" autocomplete="new-password" value="••••••••••••"' ), 'Con una clave guardada, el campo muestra la máscara ••••, no un campo vacío' );
+check( false !== strpos( $after, 'name="providers[anthropic][key]" autocomplete="new-password" value="••••••••••••" onfocus="this.select()"' ), 'Con una clave guardada, el campo muestra la máscara ••••, no un campo vacío' );
 
 // 2. Volver a guardar sin tocar la clave (llega la máscara) no la borra; vaciar el campo tampoco; una nueva la
 // reemplaza y «Quitar la clave» la borra (pedido del propietario: «deben salir los *****»).
@@ -76,6 +76,10 @@ submit_form( 'providers', array( 'providers[anthropic][key]' => '' ) );
 check( 'sk-ant-PRUEBA-123' === $key(), 'Guardar con el campo vaciado conserva la clave' );
 submit_form( 'providers', array( 'providers[anthropic][key]' => 'sk-ant-NUEVA' ) );
 check( 'sk-ant-NUEVA' === $key(), 'Escribir una clave nueva la reemplaza' );
+submit_form( 'providers', array( 'providers[anthropic][key]' => '••••••••••••sk-ant-PEGADA' ) );
+check( 'sk-ant-PEGADA' === $key(), 'Pegar la clave nueva detrás de la máscara guarda sólo la clave' );
+submit_form( 'providers', array( 'providers[anthropic][key]' => 'sk-ant-DELANTE••••••••••••' ) );
+check( 'sk-ant-DELANTE' === $key(), 'Pegarla delante de la máscara también guarda sólo la clave' );
 $after = submit_form( 'providers', array( 'providers[anthropic][remove]' => '1' ) );
 check( '' === $key() && false !== strpos( $after, 'Sin clave configurada' ), '«Quitar la clave» la borra' );
 
