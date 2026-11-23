@@ -25,7 +25,7 @@
 .digi-filter__swatch{display:block;overflow:hidden;width:var(--digi-swatch-size,2em);height:var(--digi-swatch-size,2em);border-radius:var(--digi-swatch-radius,50%);background:var(--digi-swatch,none);box-shadow:inset 0 0 0 1px currentColor}
 .digi-filter__swatch img{display:block;width:100%;height:100%;object-fit:cover}
 .digi-filter__actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--digi-filter-gap,.75em)}
-.digi-filter__submit{min-height:2.75em;padding:.4em 1em;font:inherit;color:var(--digi-filter-button-color,inherit);background:var(--digi-filter-button-bg,none);border:1px solid currentColor;border-radius:var(--digi-filter-radius,.25em);cursor:pointer}
+.digi-filter .digi-filter__submit,.digi-filter .digi-filter__submit:is(:hover,:focus){min-height:2.75em;padding:.4em 1em;font:inherit;color:var(--digi-filter-button-color,inherit);background:var(--digi-filter-button-bg,none);border:1px solid currentColor;border-radius:var(--digi-filter-radius,.25em);box-shadow:none;cursor:pointer}
 .digi-filter--live .digi-filter__submit{display:none}
 .digi-filter__clear{color:inherit}
 .digi-filter :focus-visible{outline:2px solid;outline-offset:2px}

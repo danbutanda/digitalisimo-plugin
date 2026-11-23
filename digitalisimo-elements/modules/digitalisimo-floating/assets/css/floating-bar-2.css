@@ -14,7 +14,7 @@
 .digi-fbar--p2 .digi-fbar__headline-icon i{font-size:var(--digi-fbar-headline-icon-size)}
 .digi-fbar--p2 .digi-fbar__ticker-controls{align-items:stretch;display:flex;order:var(--digi-fbar-ticker-controls-order)}
 .digi-fbar--p2 .digi-fbar__play-pause-controls{align-items:stretch;display:flex;position:relative}
-.digi-fbar--p2 .digi-fbar__play-pause-controls button,.digi-fbar--p2 .digi-fbar__play-pause-controls button:focus,.digi-fbar--p2 .digi-fbar__play-pause-controls button:hover{align-items:center;background-color:var(--digi-fbar-pause-play-bg-color);border:0;border-radius:0;color:var(--digi-fbar-pause-play-icon-color);display:flex;justify-content:center;padding:16px;width:100%;z-index:1}
+.digi-fbar--p2 .digi-fbar__play-pause-controls button,.digi-fbar--p2 .digi-fbar__play-pause-controls button:focus,.digi-fbar--p2 .digi-fbar__play-pause-controls button:hover{align-items:center;background-color:var(--digi-fbar-pause-play-bg-color);border:0;border-radius:0;box-shadow:none;color:var(--digi-fbar-pause-play-icon-color);display:flex;justify-content:center;padding:16px;width:100%;z-index:1}
 .digi-fbar--p2 .digi-fbar__play-pause-controls svg{fill:var(--digi-fbar-pause-play-icon-color);height:var(--digi-fbar-controls-icon-size);width:var(--digi-fbar-controls-icon-size)}
 .digi-fbar--p2 .digi-fbar__play-pause-controls i{font-size:var(--digi-fbar-controls-icon-size)}
 .digi-fbar--p2 .digi-fbar__play-pause-controls [hidden]{display:none}

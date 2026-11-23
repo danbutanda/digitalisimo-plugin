@@ -37,7 +37,7 @@ ok(/\.digi-nslider__track\{[^}]*display:flex[^}]*overflow-x:auto[^}]*scroll-snap
 ok(/\.digi-nslider__track>\.e-con\{flex:0 0 100%[^}]*scroll-snap-align:start/.test(css) && !/align-items:(start|center|flex-start)[^}]*\}[^]*__track/.test(css.split('.digi-nslider__track{')[1].split('}')[0]), 'Cada diapositiva ocupa la pista y se estira a la más alta (align-items por defecto, stretch).');
 ok(/\.digi-nslider--stack>\.digi-nslider__track>\.e-con\{grid-area:1\/1;opacity:0;visibility:hidden\}/.test(css) && /\.digi-nslider--stack>\.digi-nslider__track\{display:grid/.test(css), 'fade y scale: diapositivas apiladas con grid-area 1/1 (altura de la más alta).');
 ok(/@media \(prefers-reduced-motion:reduce\)\{[^{]*--anim[^{]*\{transition:none\}\}/.test(css) && /\.digi-nslider--anim>/.test(css) && !/--stack>[^{]*\{[^}]*transition:/.test(css), 'Transiciones sólo tras el primer pase (--anim) y ninguna con movimiento reducido.');
-ok(/max\(24px,var\(--digi-ns-btn,40px\)\)/.test(css) && /\.digi-nslider \.digi-nslider__dot\{[^}]*width:24px;height:24px/.test(css), 'Botones y puntos de 24 × 24 px como mínimo.');
+ok(/max\(24px,var\(--digi-ns-btn,40px\)\)/.test(css) && /\.digi-nslider \.digi-nslider__dot:is\(\*,:hover,:focus\)\{[^}]*width:24px;height:24px/.test(css), 'Botones y puntos de 24 × 24 px como mínimo.');
 ok(/:focus-visible\{outline:2px solid currentColor/.test(css) && /\[aria-current=true\]::before\{background:currentColor;transform:scale\(1\.4\)\}/.test(css), 'Foco visible con currentColor; el punto actual se distingue por más que el color (relleno y tamaño).');
 ok(!/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|url\(|--e-global|!important[^}]*\}(?!\n\.digi-nslider\{)/i.test(css.replace(/^[^\n]*\n/, '')), 'Sin paleta propia, url() ni !important fuera de la regla [hidden].');
 ok((css.match(/\.([a-z][a-z0-9_-]*)/g) || []).every(c => /^\.(digi-|e-con|elementor-element|elementor-column)/.test(c)), 'Sólo clases digi- (y las del núcleo que se leen: e-con, elementor-element, elementor-column).');
@@ -515,7 +515,7 @@ const classOf = (n, c) => n.classList.contains(c);
 // 14. F8: contador opcional (V.10.4). Recursos, hoja sobre la rejilla real y script con un solo MutationObserver.
 {
   ok(statSync(counterJsFile).size <= 512 && statSync(counterCssFile).size <= 256, `Contador en sus topes de §5 (${statSync(counterJsFile).size} B de script ≤ 512, ${statSync(counterCssFile).size} B de hoja ≤ 256).`);
-  ok(statSync(jsFile).size === 5119 && statSync(cssFile).size === 3066, 'nested-slider.js y nested-slider.css no cambian (5 119 B y 3 066 B, docs/ELEMENTS_FRONT_OBJECTIVE.md:144).');
+  ok(statSync(jsFile).size === 5119 && statSync(cssFile).size === 3007, 'nested-slider.js y nested-slider.css no cambian (5 119 B y 3 007 B: 3 066 B de docs/ELEMENTS_FRONT_OBJECTIVE.md:144 más el guardia frente al botón del kit).');
   assert.doesNotThrow(() => new vm.Script(counterSource, { filename: 'nested-slider-counter.js' }), 'El script del contador compila.');
   ok(!/jQuery|\$\(|https?:\/\/|elementorFrontend/.test(counterSource), 'Contador sin jQuery, sin URL y sin depender del frontend del núcleo.');
   ok(/\.digi-nslider>\.digi-nslider__count\{grid-area:3\/2;justify-self:center;margin:0;color:var\(--digi-ns-fg\);font-variant-numeric:tabular-nums\}/.test(counterCss), 'Hoja: el contador va en la fila 3, columna central (la rejilla de 3 columnas de nested-slider.css), con el color de la navegación y cifras tabulares.');
