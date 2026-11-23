@@ -636,6 +636,32 @@ namespace {
 	check( 'method' === Settings_Section::process_save()['notice'], 'Sólo por POST.' );
 	$_POST = array();
 
+	// Como un navegador (paridad sitio/red, 2026-11-22): pinta la sección, la envía y vuelve a pintarla.
+	require_once __DIR__ . '/lib/browser-submit.php';
+	$wm_send = static function ( bool $network, array $fill, array $options = array() ) {
+		ob_start();
+		Settings_Section::render( $network );
+		$form = browser_form_find( (string) ob_get_clean(), 'value="' . ( $network ? Settings_Section::ACTION_SAVE_NETWORK : Settings_Section::ACTION_SAVE ) . '"' );
+		check( null !== $form, 'Navegador: la sección tiene su formulario.' );
+		$sent  = browser_form_submit( $form, $fill, $options + array( 'slash' => true ) );
+		$_POST = $sent['post'];
+		$_SERVER['REQUEST_METHOD'] = 'POST';
+		return $network ? Settings_Section::process_save_network() : Settings_Section::process_save();
+	};
+	// Sitio individual: elegir «escritura», guardar y volver a ver lo elegido.
+	wm_reset( array( 'caps' => array( 'manage_options' ) ) );
+	check( 'saved' === $wm_send( false, array( Settings::OPTION . '[mode]' => 'write' ) )['notice'] && 'write' === Settings::mode(), 'Navegador · sitio individual: guarda el modo elegido.' );
+	ob_start(); Settings_Section::render( false ); $html = (string) ob_get_clean();
+	check( (bool) preg_match( '#value="write"\s+selected|value="write"[^>]*selected#', $html ), 'Navegador · sitio individual: al recargar se ve el modo.' );
+	check( 'saved' === $wm_send( false, array() )['notice'] && 'write' === Settings::mode(), 'Navegador · sitio individual: guardar sin tocar nada lo conserva.' );
+	// Red: el modo que heredan los sitios.
+	wm_reset( array( 'multisite' => true, 'caps' => array( 'manage_network_options', 'manage_options' ) ) );
+	check( 'network-saved' === $wm_send( true, array( Settings::NETWORK_OPTION . '[mode]' => 'off' ) )['notice'] && array( 'mode' => 'off' ) === get_site_option( Settings::NETWORK_OPTION ) && 'off' === Settings::mode(), 'Navegador · red: guarda el modo de la red y el sitio que hereda lo aplica.' );
+	// Sitio de la red: con «Heredar» marcado el script deshabilita el desplegable; al desmarcarlo personaliza.
+	check( 'saved' === $wm_send( false, array(), array( 'disabled' => array( Settings::OPTION . '[mode]' ) ) )['notice'] && Settings::inherits_network() && 'off' === Settings::mode(), 'Navegador · sitio de la red: guardar heredando sigue heredando.' );
+	check( 'saved' === $wm_send( false, array( Settings::OPTION . '[inherit][mode]' => false, Settings::OPTION . '[mode]' => 'read' ) )['notice'] && ! Settings::inherits_network() && 'read' === Settings::mode() && array( 'mode' => 'off' ) === get_site_option( Settings::NETWORK_OPTION ), 'Navegador · sitio de la red: personaliza sin tocar la red.' );
+	$_POST = array();
+
 	// Ejecución por modo: read rechaza escrituras con un error que dice dónde se cambia; off no hace nada.
 	wm_reset( array( 'caps' => array( 'edit_products', 'publish_products', 'read_private_products', 'delete_products', 'edit_others_products', 'view_woocommerce_reports' ) ) );
 	$result = $run( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Mesa' ) ) );

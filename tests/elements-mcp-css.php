@@ -491,11 +491,11 @@ namespace {
 		check( ! empty( $hooks[ $hook ] ), "init() engancha $hook" );
 	}
 	check( 100 === $hooks['elementor/document/after_save'][0][1], 'after_save con prioridad 100 (después de los del núcleo, en 10 y 20)' );
-	check( 2 === $hooks['parse_request'][0][1], 'parse_request con prioridad 2 (después del manejador de enlaces firmados del núcleo, en 1)' );
+	check( array( 0, 2 ) === array_column( $hooks['parse_request'], 1 ), 'parse_request: el candado de sitio en 0 (antes del manejador de enlaces firmados del núcleo, en 1) y la instantánea en 2 (después)' );
 	check( 20 === $hooks['elementor/atomic-widgets/styles/transformers/register'][0][1], 'el transformador se registra con prioridad 20 (el del núcleo, en 10)' );
 	$counts = array_map( 'count', $GLOBALS['mc']['hooks'] );
 	\Digitalisimo\Elements\Mcp\Module::init();
-	check( $counts === array_map( 'count', $GLOBALS['mc']['hooks'] ) && 2 === count( $GLOBALS['mc']['hooks']['shutdown'] ) && 1 === count( $GLOBALS['mc']['hooks']['parse_request'] ), 'init() es idempotente (shutdown: Css_Sync y Preview_Link)' );
+	check( $counts === array_map( 'count', $GLOBALS['mc']['hooks'] ) && 2 === count( $GLOBALS['mc']['hooks']['shutdown'] ) && 2 === count( $GLOBALS['mc']['hooks']['parse_request'] ), 'init() es idempotente (shutdown: Css_Sync y Preview_Link)' );
 
 	// ---------------------------------------------------------------------------------------------------------------
 	// 2. Fuera de una herramienta del constructor no se anota nada (el editor y lo demás siguen como en el núcleo).

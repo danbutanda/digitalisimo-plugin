@@ -162,6 +162,7 @@ jobs:
           php tests/elements-advanced-heading.php
           php tests/elements-external-row.php
           php tests/elements-google-reviews.php
+          php tests/elements-forms.php
           php tests/elements-notification.php
           node tests/elements-notification-events.mjs
           php tests/elements-product-grid.php
@@ -439,6 +440,7 @@ jobs:
           php tests/backups-db-compat.php
           bash tests/backups-db-compat-live.sh
           php tests/tools-site-options.php
+          php tests/tools-forms.php
           php tests/tools-media-svg.php
           php tests/tools-media-webp.php
           php tests/tools-php-snippets.php
@@ -547,6 +549,7 @@ jobs:
           php tests/elements-woo-mcp.php
           php tests/elements-woo-skydropx.php
           php tests/elements-mcp-css.php
+          php tests/elements-mcp-preview-site.php
           php tests/elements-kit-woo-refs.php
           php tests/elements-f7b-module.php
           php tests/elements-f7b-usages.php

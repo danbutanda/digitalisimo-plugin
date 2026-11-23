@@ -795,5 +795,63 @@ namespace {
 	$page = $capture( array( Settings_Page::class, 'render_network' ) );
 	$check( false !== strpos( $page, '>Privacidad</h2>' ) && 2 === substr_count( $page, 'name="' . $network . '[' . $key . ']"' ) && false === strpos( $page, 'Heredar de la red' ) && 1 === substr_count( $page, '<form' ), 'Privacidad · red: la sección en el único formulario, sin «Heredar de la red».' );
 
+	// 13. Como un navegador (paridad sitio/red, 2026-11-22): pinta el formulario real, lo envía con lo que mandaría el
+	// navegador (el script deshabilita la casilla de cada clave heredada) y comprueba lo guardado y lo que se ve al recargar.
+	require_once __DIR__ . '/lib/browser-submit.php';
+	$inherited = static function ( string $html, array $unchecked = array() ): array {
+		$names = array();
+		preg_match_all( '#<input[^>]*class="digitalisimo-front-inherit"[^>]*>#', $html, $boxes );
+		foreach ( $boxes[0] as $box ) {
+			preg_match( '#data-field="([^"]+)"#', $box, $f );
+			preg_match( '#name="([^"]+)"#', $box, $n );
+			if ( false === strpos( $box, 'checked' ) || in_array( html_entity_decode( $n[1] ), $unchecked, true ) ) continue;
+			if ( preg_match( '#<input[^>]*id="' . preg_quote( $f[1], '#' ) . '"[^>]*name="([^"]+)"#', $html, $m ) ) $names[] = html_entity_decode( $m[1] );
+		}
+		return $names;
+	};
+	$send = static function ( string $html, string $action, array $fill, array $options = array() ) use ( $check ) {
+		$form = browser_form_find( $html, 'value="' . $action . '"' );
+		$check( null !== $form, "Navegador: la pantalla tiene el formulario {$action}." );
+		$sent = browser_form_submit( $form, $fill, $options + array( 'slash' => true ) );
+		$check( 'https://b.test/wp-admin/admin-post.php' === $sent['action'] && $action === $sent['post']['action'], "Navegador: {$action} va a admin-post.php con su acción." );
+		$_POST = $sent['post'];
+		$GLOBALS['fs']['network'] = false;
+		return Settings_Page::ACTION_SAVE_NETWORK === $action ? Settings_Page::process_save_network() : Settings_Page::process_save();
+	};
+	$opt = Settings::OPTION;
+	$net = Settings::NETWORK_OPTION;
+	// Sitio individual.
+	fs_reset( array( 'multisite' => false ) );
+	$html = $capture( array( Settings_Page::class, 'render' ) );
+	$send( $html, Settings_Page::ACTION_SAVE, array( $opt . '[lazy_libs]' => true, $opt . '[font_swap]' => false ) );
+	$check( true === Settings::get( 'lazy_libs' ) && false === Settings::get( 'font_swap' ), 'Navegador · sitio individual: guarda lo marcado y lo desmarcado.' );
+	$html = $capture( array( Settings_Page::class, 'render' ) );
+	$check( (bool) preg_match( '#id="digitalisimo-front-lazy-libs"[^>]*checked#', $html ) && ! preg_match( '#id="digitalisimo-front-font-swap"[^>]*checked#', $html ), 'Navegador · sitio individual: al recargar se ve lo guardado.' );
+	$before = $GLOBALS['fs']['options'][1][ $opt ];
+	$send( $html, Settings_Page::ACTION_SAVE, array() );
+	$check( $before === $GLOBALS['fs']['options'][1][ $opt ], 'Navegador · sitio individual: guardar sin tocar nada no cambia nada.' );
+	// Red.
+	fs_reset( array( 'network' => true, 'caps' => array( 'manage_network_options' ) ) );
+	$html = $capture( array( Settings_Page::class, 'render_network' ) );
+	$send( $html, Settings_Page::ACTION_SAVE_NETWORK, array( $net . '[lazy_libs]' => true ) );
+	$check( true === Settings::network_values()['lazy_libs'] && array() === $GLOBALS['fs']['options'][1], 'Navegador · red: guarda en la red y no en el sitio principal.' );
+	$GLOBALS['fs']['network'] = true;
+	$html = $capture( array( Settings_Page::class, 'render_network' ) );
+	$check( (bool) preg_match( '#id="digitalisimo-front-network-lazy-libs"[^>]*checked#', $html ), 'Navegador · red: al recargar se ve lo guardado.' );
+	// Sitio de la red: hereda; personaliza una clave y lo demás sigue heredando.
+	$network_saved = $GLOBALS['fs']['site'];
+	fs_reset( array( 'blog' => 2, 'site' => $network_saved ) );
+	$html = $capture( array( Settings_Page::class, 'render' ) );
+	$check( true === Settings::get( 'lazy_libs' ) && Settings::inherits_network( 'lazy_libs' ), 'Navegador · sitio de la red: hereda lo de la red.' );
+	$own = $opt . '[inherit][lazy_videos]';
+	$send( $html, Settings_Page::ACTION_SAVE, array( $own => false, $opt . '[lazy_videos]' => true ), array( 'disabled' => $inherited( $html, array( $own ) ) ) );
+	$check( true === Settings::get( 'lazy_videos' ) && ! Settings::inherits_network( 'lazy_videos' ) && Settings::inherits_network( 'lazy_libs' ) && true === Settings::get( 'lazy_libs' ), 'Navegador · sitio de la red: personaliza una clave y sigue heredando las demás.' );
+	$check( $network_saved === $GLOBALS['fs']['site'] && array() === $GLOBALS['fs']['options'][1], 'Navegador · sitio de la red: no toca la red ni otro sitio.' );
+	$html = $capture( array( Settings_Page::class, 'render' ) );
+	$send( $html, Settings_Page::ACTION_SAVE, array(), array( 'disabled' => $inherited( $html ) ) );
+	$check( true === Settings::get( 'lazy_videos' ) && ! Settings::inherits_network( 'lazy_videos' ) && Settings::inherits_network( 'lazy_libs' ), 'Navegador · sitio de la red: guardar otra vez no borra nada.' );
+	$GLOBALS['fs']['site'][ $net ]['lazy_libs'] = false;
+	$check( false === Settings::get( 'lazy_libs' ), 'Navegador · sitio de la red: lo heredado sigue a la red.' );
+
 	echo "F-front · ajustes: paridad sitio/red, herencia, own, capacidades, nonces, redirección, iconos, escapado, textos y la sección «Privacidad» de F7a en verde.\n";
 }

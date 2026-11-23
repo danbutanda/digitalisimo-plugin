@@ -1467,6 +1467,52 @@ PHPCODE;
 	check( false === $I::ready() && 0 === count_queries( 'digitalisimo_tools_php' ), 'ready: después, ninguna consulta' );
 
 	/* =================================================================== *
+	 * Como un navegador (paridad sitio/red, 2026-11-22): el editor real, «Guardar sin activar» sin JavaScript, en sitio
+	 * individual, en un sitio de la red y en la red; volver a abrirlo muestra lo guardado y no toca otro ámbito.
+	 * =================================================================== */
+	require_once __DIR__ . '/lib/browser-submit.php';
+	$php_browser = static function ( $network, $blog, $id, array $fill ) {
+		$D = 'Digitalisimo\\Tools\\Php_Snippets\\Admin';
+		if ( $blog !== get_current_blog_id() ) switch_to_blog( $blog );
+		$GLOBALS['t']['network_admin'] = $network;
+		$_GET = array( 'page' => 'digitalisimo-tools-elementor-templates', 'tab' => 'php', 'edit' => $id );
+		ob_start(); $D::page( $network ); $html = ob_get_clean();
+		$_GET = array();
+		$form = browser_form_find( $html, 'id="digitalisimo-php-editor"' );
+		check( null !== $form, 'navegador: el editor tiene su formulario' );
+		$sent = browser_form_submit( $form, $fill, array( 'button' => 'Guardar sin activar', 'slash' => true ) );
+		check( 'post' === $sent['method'] && 'https://sitio' . $blog . '.test/wp-admin/admin-post.php' === $sent['action'], 'navegador: el editor va a admin-post.php del sitio que lo pintó: ' . $sent['action'] );
+		$GLOBALS['t']['network_admin'] = false;
+		$r = $D::dispatch( $sent['post'] );
+		if ( 1 !== get_current_blog_id() ) restore_current_blog();
+		return $r;
+	};
+	foreach ( array( 'sitio individual' => array( false, false, 1 ), 'sitio de la red' => array( true, false, 2 ), 'red' => array( true, true, 1 ) ) as $mode => $c ) {
+		list( $ms, $net, $blog ) = $c;
+		reset_world( $ms );
+		users_world();
+		$scope = $net ? 'network' : 'site';
+		$code  = "<?php\n// navegador $mode: 'comillas' y \\barras\n";
+		$r     = $php_browser( $net, $blog, 'new', array( 'title' => "Prueba $mode", 'code' => $code ) );
+		check( $r['ok'] && 'Guardado sin activar.' === $r['message'], "navegador · $mode: «Guardar sin activar» responde bien: " . $r['message'] );
+		if ( $blog !== get_current_blog_id() ) switch_to_blog( $blog );
+		$items = $S::index( $scope )['items'];
+		check( 1 === count( $items ), "navegador · $mode: un fragmento en su ámbito" );
+		$id = (string) array_keys( $items )[0];
+		check( $code === $S::item( $scope, $id )['code'] && "Prueba $mode" === $items[ $id ]['title'] && 'inactive' === $S::state( $scope, $id ), "navegador · $mode: guarda el código tal cual (sin barras) y sin activarlo" );
+		if ( 1 !== get_current_blog_id() ) restore_current_blog();
+		if ( $ms ) {
+			$other = $net ? 'site' : 'network';
+			check( array() === $S::index( $other )['items'], "navegador · $mode: no escribe en el otro ámbito" );
+			if ( ! $net ) { switch_to_blog( 3 ); check( array() === $S::index( 'site' )['items'], "navegador · $mode: ni en otro sitio" ); restore_current_blog(); }
+		}
+		$r = $php_browser( $net, $blog, $id, array( 'title' => "Prueba $mode 2" ) );
+		if ( $blog !== get_current_blog_id() ) switch_to_blog( $blog );
+		check( $r['ok'] && $code === $S::item( $scope, $id )['code'] && "Prueba $mode 2" === $S::index( $scope )['items'][ $id ]['title'], "navegador · $mode: volver a guardar sin tocar el código lo conserva" );
+		if ( 1 !== get_current_blog_id() ) restore_current_blog();
+	}
+
+	/* =================================================================== *
 	 * Constante (al final: no se puede deshacer)
 	 * =================================================================== */
 	reset_world();

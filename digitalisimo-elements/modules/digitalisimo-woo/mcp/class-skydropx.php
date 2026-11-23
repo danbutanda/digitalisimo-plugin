@@ -1648,9 +1648,13 @@ final class Skydropx {
 		);
 	}
 
-	/** Firma del enlace de la guía: pedido, usuario y caducidad con las sales del sitio (`wp_hash()`); no es una clave. */
+	/**
+	 * Firma del enlace de la guía: sitio, pedido, usuario y caducidad con las sales (`wp_hash()`); no es una clave. Las
+	 * sales son las mismas en toda la red y los números de pedido se repiten entre sitios: sin el sitio, el enlace de un
+	 * pedido de una tienda abriría solo la guía del pedido con el mismo número de otra.
+	 */
 	private static function label_signature( int $order_id, int $user, int $expires ): string {
-		return substr( wp_hash( 'skydropx-label|' . $order_id . '|' . $user . '|' . $expires, 'nonce' ), 0, 20 );
+		return substr( wp_hash( 'skydropx-label|' . get_current_blog_id() . '|' . $order_id . '|' . $user . '|' . $expires, 'nonce' ), 0, 20 );
 	}
 
 	/** Interfaz de guías del plugin, si esta versión la trae. */

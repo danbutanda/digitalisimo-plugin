@@ -7,6 +7,8 @@ defined( 'ABSPATH' ) || exit;
 final class Google_Reviews_Service {
 	private const KEY = 'digitalisimo_elements_google_places_key';
 	private const ACTION = 'digitalisimo_elements_google_reviews';
+	/** Lo que muestra el campo con una clave guardada (pedido del propietario del 2026-11-22: «deben salir los *****»). Enviada tal cual, conserva la clave; el secreto nunca se imprime. */
+	const MASK = '••••••••••••';
 
 	public static function init() {
 		add_action( 'admin_menu', array( self::class, 'site_menu' ) );
@@ -35,6 +37,14 @@ final class Google_Reviews_Service {
 		return is_multisite() ? self::configured_key( true ) : '';
 	}
 
+	/**
+	 * Lo escrito en el campo, sin los «•» de la máscara: una clave real nunca los lleva, así que una clave pegada delante o
+	 * detrás de la máscara se guarda limpia y la máscara sola queda vacía (conserva la guardada). Patrón de IA Tools.
+	 */
+	public static function unmask( $raw ) {
+		return sanitize_text_field( str_replace( '•', '', (string) wp_unslash( is_scalar( $raw ) ? $raw : '' ) ) );
+	}
+
 	public static function settings_page() {
 		$network = is_network_admin();
 		if ( ! current_user_can( $network ? 'manage_network_options' : 'manage_options' ) ) { wp_die( 'No tienes permisos para configurar esta clave.' ); }
@@ -45,7 +55,8 @@ final class Google_Reviews_Service {
 		echo '<form action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" method="post">';
 		wp_nonce_field( 'digitalisimo_elements_google_reviews_save_' . ( $network ? 'network' : 'site' ) );
 		echo '<input type="hidden" name="action" value="digitalisimo_elements_google_reviews_save"><input type="hidden" name="scope" value="' . ( $network ? 'network' : 'site' ) . '">';
-		echo '<table class="form-table"><tr><th scope="row"><label for="digi-google-key">Clave API de Google Places</label></th><td><input id="digi-google-key" name="google_places_key" type="password" value="" autocomplete="new-password" class="regular-text" placeholder="' . ( $stored ? 'Clave guardada' : ( $inherited ? 'Heredada de la red' : 'Sin configurar' ) ) . '"><p class="description">Deja el campo vacío para conservar la clave actual. En Multisite, un sitio sin clave propia hereda la de la red.</p><label><input type="checkbox" name="remove_key" value="1"> Eliminar la clave de este ámbito</label></td></tr></table>';
+		$state = $stored ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : ( $inherited ? 'Heredada de la red · escribe una sólo si este sitio necesita la suya' : 'Sin clave configurada' );
+		echo '<table class="form-table"><tr><th scope="row"><label for="digi-google-key">Clave API de Google Places</label></th><td><input id="digi-google-key" name="google_places_key" type="password" value="' . esc_attr( $stored ? self::MASK : '' ) . '" onfocus="this.select()" autocomplete="new-password" class="regular-text" placeholder="API Key"> <span class="digitalisimo-secret ' . ( $stored || $inherited ? 'is-set' : 'is-empty' ) . '">' . esc_html( $state ) . '</span>' . ( $stored ? ' <label><input type="checkbox" name="remove_key" value="1"> Quitar la clave</label>' : '' ) . '<p class="description">Dejar la máscara o el campo vacío conserva la clave guardada. En Multisite, un sitio sin clave propia hereda la de la red.</p></td></tr></table>';
 		submit_button( 'Guardar clave' );
 		echo '</form></div>';
 	}
@@ -54,11 +65,12 @@ final class Google_Reviews_Service {
 		$network = 'network' === sanitize_key( $_POST['scope'] ?? '' );
 		if ( ! current_user_can( $network ? 'manage_network_options' : 'manage_options' ) ) { wp_die( 'No tienes permisos para guardar esta clave.' ); }
 		check_admin_referer( 'digitalisimo_elements_google_reviews_save_' . ( $network ? 'network' : 'site' ) );
-		if ( ! empty( $_POST['remove_key'] ) ) {
+		// Una clave nueva escrita gana sobre «Quitar la clave» marcada a la vez: lo último que hizo la persona fue escribirla.
+		$value = trim( self::unmask( $_POST['google_places_key'] ?? '' ) );
+		if ( '' !== $value ) {
+			$network ? update_site_option( self::KEY, $value ) : update_option( self::KEY, $value, false );
+		} elseif ( ! empty( $_POST['remove_key'] ) ) {
 			$network ? delete_site_option( self::KEY ) : delete_option( self::KEY );
-		} else {
-			$value = trim( sanitize_text_field( wp_unslash( $_POST['google_places_key'] ?? '' ) ) );
-			if ( '' !== $value ) { $network ? update_site_option( self::KEY, $value ) : update_option( self::KEY, $value, false ); }
 		}
 		$url = $network ? network_admin_url( 'settings.php?page=digitalisimo-elements-google-reviews&updated=1' ) : admin_url( 'options-general.php?page=digitalisimo-elements-google-reviews&updated=1' );
 		wp_safe_redirect( $url );

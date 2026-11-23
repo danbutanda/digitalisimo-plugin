@@ -224,6 +224,9 @@ namespace {
 	function is_multisite() {
 		return $GLOBALS['sk']['multisite'];
 	}
+	function get_current_blog_id() {
+		return 1;
+	}
 	function is_admin() {
 		return $GLOBALS['sk']['admin'];
 	}
@@ -1562,7 +1565,7 @@ PHP
 	$label = $ok( $seen( $run( array( 'action' => 'label', 'order_id' => 50 ) ) ), 'label' );
 	parse_str( (string) parse_url( $label['data']['url'], PHP_URL_QUERY ), $q );
 	$sign  = static function ( int $order, int $user, int $exp ): string {
-		return substr( wp_hash( 'skydropx-label|' . $order . '|' . $user . '|' . $exp, 'nonce' ), 0, 20 );
+		return substr( wp_hash( 'skydropx-label|' . ( $GLOBALS['sk_sign_blog'] ?? 1 ) . '|' . $order . '|' . $user . '|' . $exp, 'nonce' ), 0, 20 );
 	};
 	check( 0 === strpos( $label['data']['url'], 'https://tienda.test/wp-admin/admin-post.php?' ) && Mcp::SKYDROPX_LABEL_ACTION === $q['action'] && '50' === $q['order_id'] && abs( (int) $q['exp'] - ( time() + 3600 ) ) < 5 && $sign( 50, 7, (int) $q['exp'] ) === $q['sig'] && false !== strpos( $label['data']['order_url'], 'id=50' ), 'label: enlace propio firmado para este usuario, de una hora (M1): ' . $label['data']['url'] );
 	check( false === strpos( json_encode( $label ), 'skydropx_print_label' ), 'label: el enlace del plugin (con su nonce) no sale al modelo.' );
@@ -1596,6 +1599,7 @@ PHP
 		'de otro usuario'     => array( 'exp' => (string) $exp, 'sig' => $sign( 50, 4, $exp ) ),
 		'caducada'            => array( 'exp' => (string) ( time() - 1 ), 'sig' => $sign( 50, 3, time() - 1 ) ),
 		'de otro pedido'      => array( 'exp' => (string) $exp, 'sig' => $sign( 51, 3, $exp ) ),
+		'de otro sitio de la red' => ( function () use ( $sign, $exp ) { $GLOBALS['sk_sign_blog'] = 2; $sig = $sign( 50, 3, $exp ); unset( $GLOBALS['sk_sign_blog'] ); return array( 'exp' => (string) $exp, 'sig' => $sig ); } )(),
 	) as $case => $extra ) {
 		$exit = $open( array( 'caps' => $manager, 'user' => 3 ), 50, $extra );
 		check( $exit && 'die' === $exit->kind && 200 === $exit->getCode() && false !== strpos( $exit->value, 'Descargar la guía' ) && false !== strpos( $exit->value, $plugin ), "handle_label $case: no redirige solo; muestra un botón (un GET ajeno no ejecuta nada)." );

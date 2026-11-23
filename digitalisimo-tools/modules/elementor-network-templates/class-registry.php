@@ -17,11 +17,18 @@ final class Registry {
 		$all = self::all(); $old = $all[ $uuid ] ?? array();
 		$all[ $uuid ] = wp_parse_args( $item, array( 'uuid' => $uuid, 'master_blog_id' => self::master_blog_id(), 'master_post_id' => 0, 'auto_sync' => false, 'targets' => array( 'mode' => 'all', 'include' => array(), 'exclude' => array() ), 'locked' => false, 'collection' => '', 'last_sync' => array(), 'active' => true ) );
 		if ( ! empty( $old['sites'] ) ) $all[ $uuid ]['sites'] = $old['sites']; elseif ( empty( $all[ $uuid ]['sites'] ) ) $all[ $uuid ]['sites'] = array();
+		// El formulario de la plantilla no lleva su «Última sincronización»: guardar su configuración no la borra.
+		// Si cambia la plantilla maestra, las copias quedan pendientes de la nueva.
+		$same = absint( $old['master_post_id'] ?? 0 ) === absint( $all[ $uuid ]['master_post_id'] ) && absint( $old['master_blog_id'] ?? 0 ) === absint( $all[ $uuid ]['master_blog_id'] );
+		if ( ! array_key_exists( 'last_sync', $item ) && ! empty( $old['last_sync'] ) && $same ) $all[ $uuid ]['last_sync'] = $old['last_sync'];
+		if ( ! $same ) $all[ $uuid ]['last_sync'] = array();
 		update_site_option( self::OPTION, $all ); return $all[ $uuid ];
 	}
 	public static function update( $uuid, array $changes ) { $item = self::get( $uuid ); return $item ? self::save( array_merge( $item, $changes ) ) : new \WP_Error( 'digitalisimo_tools_missing', 'La plantilla global no existe.' ); }
 	public static function destinations( array $item ) {
-		if ( ! is_multisite() ) return array(); $targets = (array) ( $item['targets'] ?? array() ); $ids = 'selected' === ( $targets['mode'] ?? 'all' ) ? array_map( 'absint', (array) ( $targets['include'] ?? array() ) ) : wp_list_pluck( get_sites( array( 'number' => 0 ) ), 'blog_id' );
+		if ( ! is_multisite() ) return array(); $targets = (array) ( $item['targets'] ?? array() ); // Sólo sitios de esta red: get_sites() sin network_id devuelve los de todas las redes de la instalación.
+		$network = array_map( 'absint', wp_list_pluck( get_sites( array( 'number' => 0, 'network_id' => get_current_network_id() ) ), 'blog_id' ) );
+		$ids = 'selected' === ( $targets['mode'] ?? 'all' ) ? array_intersect( array_map( 'absint', (array) ( $targets['include'] ?? array() ) ), $network ) : $network;
 		$ids = array_diff( $ids, array_map( 'absint', (array) ( $targets['exclude'] ?? array() ) ), array( absint( $item['master_blog_id'] ) ) ); return array_values( array_unique( array_filter( $ids ) ) );
 	}
 	public static function set_mapping( $uuid, $blog_id, $post_id ) { $item = self::get( $uuid ); if ( ! $item ) return; $item['sites'][ absint( $blog_id ) ] = absint( $post_id ); $item['last_sync'][ absint( $blog_id ) ] = time(); self::save( $item ); }

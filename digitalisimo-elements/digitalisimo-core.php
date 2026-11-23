@@ -383,8 +383,11 @@ final class Digitalisimo_Elements_Core {
 			return;
 		}
 		switch_to_blog( (int) $site->blog_id );
-		\Elementor\Core\Kits\Manager::create_default_kit();
-		restore_current_blog();
+		try {
+			\Elementor\Core\Kits\Manager::create_default_kit();
+		} finally {
+			restore_current_blog();
+		}
 	}
 
 	/** Aviso en Plugins cuando Elementor sigue activo: ya no hace falta. */
