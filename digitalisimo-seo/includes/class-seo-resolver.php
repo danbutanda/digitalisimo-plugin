@@ -24,6 +24,8 @@ class Digitalisimo_Integrations_SEO_Resolver {
 	 * de guardado de la red los había copiado del sitio principal (Settings::clean_network_secrets() lo limpia).
 	 */
 	public static function site_only_keys() { return array( 'seo_site_name', 'seo_default_image', 'seo_default_image_alt', 'seo_alt_keyword', 'seo_favicon_source', 'openai_api_key', 'openai_model', 'ai_providers', 'ai_profile_provider', 'ai_profile_model', 'ai_profile_fallback' ); }
+	/** Las del módulo de dominios y la tienda: las administra DIGITALÍSIMO Hosting (con su propia herencia). */
+	public static function module_keys() { return array( 'enable_woocommerce', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'namecheap_api_user', 'namecheap_username', 'namecheap_api_key', 'namecheap_client_ip', 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'enable_ipinfo', 'ipinfo_tokens', 'ipinfo_cache_minutes' ); }
 	public static function option( $key, $fallback = null ) {
 		$site = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
 		if ( is_multisite() && self::inherits_network( $key ) ) {
@@ -39,8 +41,7 @@ class Digitalisimo_Integrations_SEO_Resolver {
 	public static function inherits_network( $key ) {
 		if ( ! is_multisite() ) return false;
 		if ( in_array( $key, self::site_only_keys(), true ) ) return false;
-		$module_keys = array( 'enable_woocommerce', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'namecheap_api_user', 'namecheap_username', 'namecheap_api_key', 'namecheap_client_ip', 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'enable_ipinfo', 'ipinfo_tokens', 'ipinfo_cache_minutes' );
-		if ( in_array( $key, $module_keys, true ) ) { $module_inherit = (array) get_option( 'digitalisimo_module_network_inherit', array() ); return ! array_key_exists( $key, $module_inherit ) || ! empty( $module_inherit[ $key ] ); }
+		if ( in_array( $key, self::module_keys(), true ) ) { $module_inherit = (array) get_option( 'digitalisimo_module_network_inherit', array() ); return ! array_key_exists( $key, $module_inherit ) || ! empty( $module_inherit[ $key ] ); }
 		$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
 		return ! array_key_exists( $key, $inherit ) || ! empty( $inherit[ $key ] );
 	}

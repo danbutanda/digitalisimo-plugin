@@ -62,7 +62,8 @@ function digi_browser_form( $html, array $fill = array(), $button = null, $form 
 		} elseif ( 'checkbox' === $type || 'radio' === $type ) {
 			$value = $control->hasAttribute( 'value' ) ? $control->getAttribute( 'value' ) : 'on';
 			$checked = $control->hasAttribute( 'checked' );
-			if ( array_key_exists( $name, $fill ) ) $checked = 'radio' === $type ? (string) $fill[ $name ] === $value : ( '' !== (string) $fill[ $name ] && false !== $fill[ $name ] && '0' !== (string) $fill[ $name ] );
+			// Varias casillas con el mismo nombre de lista («keys[]»): se marcan las que tienen alguno de los valores dados.
+			if ( array_key_exists( $name, $fill ) ) $checked = 'radio' === $type || '[]' === substr( $name, -2 ) ? in_array( $value, array_map( 'strval', (array) $fill[ $name ] ), true ) : ( '' !== (string) $fill[ $name ] && false !== $fill[ $name ] && '0' !== (string) $fill[ $name ] );
 			if ( $checked ) $pairs[] = array( $name, $value );
 		} elseif ( 'file' === $type ) {
 			continue;

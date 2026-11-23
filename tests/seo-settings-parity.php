@@ -186,30 +186,44 @@ $GLOBALS['wp']['options'][2][ OPT ]['seo_ai_indexnow_key'] = 'kkk'; Digitalisimo
 seo_ai( 'general' );
 check( 'kkk' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_ai_indexnow_key' ), '«Guardar SEO AI» sin tocar la herencia no deshace lo personalizado en IndexNow, llms.txt o Referencias' );
 
-// 7. Limpieza única de las redes contaminadas por el guardado antiguo (armaba la red sobre el sitio principal): sale de la
-// red todo lo que la red no puede editar, coincida o no con el principal; lo editable que coincide se señala en Red → SEO.
-$GLOBALS['wp']['options'] = array( 1 => array( OPT => array( 'enable_seo' => 0, 'openai_api_key' => 'sk-PRINCIPAL-NUEVA', 'seo_organization_name' => 'PRINCIPAL', 'perf_ga4_id' => 'G-PRINCIPAL', 'seo_twitter_user' => '@principal', 'default_content_location' => 7 ) ), 2 => array( OPT => array( 'enable_seo' => 1, 'openai_api_key' => 'sk-DOS' ) ) );
-$GLOBALS['wp']['site_options'] = array( OPT => array( 'enable_seo' => 0, 'openai_api_key' => 'sk-PRINCIPAL-VIEJA', 'openai_model' => 'gpt-x', 'ai_providers' => array( 'anthropic' => array( 'enabled' => 1, 'key' => 'sk-ant-PRINCIPAL', 'url' => '' ) ), 'ai_profile_model' => 'm', 'default_content_location' => 7, 'content_editorial_voice' => 'Voz del principal', 'seo_organization_name' => 'PRINCIPAL', 'perf_ga4_id' => 'G-PRINCIPAL', 'seo_twitter_user' => '@red', 'seo_schema_enabled' => 1 ) );
+// 7. Redes contaminadas por el guardado antiguo (armaba la red sobre el sitio principal). Sólo las claves secretas de IA
+// salen solas; lo demás se queda (la red lo usa a propósito: la ruta de acceso sin Tools, el SEO propio, el horario…) y
+// Red → SEO lo revisa con casillas, explica qué pasa al quitarlo, guarda lo quitado y permite deshacerlo.
+$GLOBALS['wp']['options'] = array( 1 => array( OPT => array( 'enable_seo' => 1, 'openai_api_key' => 'sk-PRINCIPAL-NUEVA', 'seo_organization_name' => 'PRINCIPAL', 'perf_ga4_id' => 'G-PRINCIPAL', 'seo_twitter_user' => '@principal', 'namecheap_api_user' => 'cuenta' ) ), 2 => array( OPT => array( 'enable_seo' => 0, 'seo_hide_login_slug' => '', 'openai_api_key' => 'sk-DOS' ) ) );
+$GLOBALS['wp']['site_options'] = array( OPT => array( 'enable_seo' => 1, 'seo_hide_login_slug' => 'acceso-red', 'seo_local_hours' => 'Mo-Fr 09:00-18:00', 'content_editorial_voice' => 'Voz de la red', 'namecheap_api_user' => 'cuenta', 'openai_api_key' => 'sk-PRINCIPAL-VIEJA', 'openai_model' => 'gpt-x', 'ai_providers' => array( 'anthropic' => array( 'enabled' => 1, 'key' => 'sk-ant-PRINCIPAL', 'url' => '' ) ), 'ai_profile_model' => 'm', 'seo_organization_name' => 'PRINCIPAL', 'perf_ga4_id' => 'G-PRINCIPAL', 'seo_twitter_user' => '@red' ) );
+$GLOBALS['wp']['site_options']['digitalisimo_seo_network_secrets_cleaned'] = array( 'time' => 1, 'removed' => array() ); // la limpieza anterior ya pasó por esta red
 $sites_before = $GLOBALS['wp']['options'];
-digi_seo_mode( 'site' );
-check( '0' === (string) Digitalisimo_Integrations_SEO_Resolver::option( 'enable_seo' ), 'Antes de la limpieza, el sitio 2 hereda el SEO apagado que la red copió del principal' );
 digi_seo_mode( 'network' ); Digitalisimo_Integrations_Settings::clean_network_secrets();
 $net = get_site_option( OPT ); $log = get_site_option( Digitalisimo_Integrations_Settings::NETWORK_CLEANED );
-foreach ( array( 'enable_seo', 'openai_api_key', 'openai_model', 'ai_providers', 'ai_profile_model', 'default_content_location', 'content_editorial_voice' ) as $key ) check( ! array_key_exists( $key, $net ) && in_array( $key, $log['removed'], true ), "La limpieza quita de la red $key (la red no puede editarlo), coincida o no con el principal, y lo registra" );
-check( 'PRINCIPAL' === $net['seo_organization_name'] && '@red' === $net['seo_twitter_user'] && $sites_before === $GLOBALS['wp']['options'], 'La limpieza conserva lo editable de la red y no toca ningún sitio' );
+check( array( 'openai_api_key', 'ai_providers', 'ai_profile_model' ) === $log['removed'] && ! isset( $net['openai_api_key'], $net['ai_providers'], $net['ai_profile_model'] ), 'Sólo salen solas las claves secretas de IA, aunque ya no coincidan con las del principal, también donde corrió la limpieza anterior' );
+check( false === strpos( json_encode( $log ), 'sk-' ), 'El registro de la limpieza no guarda secretos' );
+foreach ( array( 'enable_seo' => 1, 'seo_hide_login_slug' => 'acceso-red', 'seo_local_hours' => 'Mo-Fr 09:00-18:00', 'content_editorial_voice' => 'Voz de la red', 'namecheap_api_user' => 'cuenta', 'openai_model' => 'gpt-x' ) as $key => $value ) check( $value === $net[ $key ], "La limpieza conserva en la red $key" );
+check( $sites_before === $GLOBALS['wp']['options'], 'La limpieza no toca ningún sitio' );
 digi_seo_mode( 'site' );
-check( '1' === (string) Digitalisimo_Integrations_SEO_Resolver::option( 'enable_seo' ), 'Tras la limpieza, el sitio 2 vuelve a tener su SEO propio' );
+check( '1' === (string) Digitalisimo_Integrations_SEO_Resolver::option( 'enable_seo' ) && 'acceso-red' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_hide_login_slug' ), 'Sin Tools, el sitio 2 conserva la ruta privada de acceso y su SEO activo (caso de la sonda)' );
 digi_seo_mode( 'network' );
-$GLOBALS['wp']['site_options'][ OPT ]['openai_api_key'] = 'sk-PRINCIPAL-VIEJA'; Digitalisimo_Integrations_Settings::clean_network_secrets();
-check( 'sk-PRINCIPAL-VIEJA' === get_site_option( OPT )['openai_api_key'], 'La limpieza corre una sola vez por red' );
-unset( $GLOBALS['wp']['site_options'][ OPT ]['openai_api_key'] );
-$html = digi_seo_render( array( 'Digitalisimo_Integrations_SEO_Suite', 'network_page' ), array( 'page' => 'digitalisimo-network-seo' ) );
-check( 1 === preg_match( '#Valores de red iguales a los del sitio principal.*?<code>([^<]*)</code>#s', $html, $m ) && array( 'perf_ga4_id', 'seo_organization_name' ) === ( function ( $l ) { sort( $l ); return $l; } )( explode( ', ', $m[1] ) ), 'Red → SEO avisa de lo editable que coincide con el principal (no lo distinto ni lo predeterminado): ' . ( $m[1] ?? '' ) );
-$form = digi_browser_form( $html, array(), 'polluted', 'digitalisimo_seo_network_polluted' );
-$_POST = $_REQUEST = $form['post']; $_POST['polluted'] = $_REQUEST['polluted'] = 'remove';
-try { do_action( 'network_admin_edit_digitalisimo_seo_network_polluted' ); } catch ( Digi_Test_Redirect $r ) {} $_POST = $_REQUEST = array();
-$net = get_site_option( OPT );
-check( ! isset( $net['seo_organization_name'] ) && ! isset( $net['perf_ga4_id'] ) && '@red' === $net['seo_twitter_user'] && $sites_before === $GLOBALS['wp']['options'], '«Quitar de la red» quita sólo esos valores de la red y no toca los sitios' );
-check( false === strpos( digi_seo_render( array( 'Digitalisimo_Integrations_SEO_Suite', 'network_page' ), array( 'page' => 'digitalisimo-network-seo' ) ), 'Valores de red iguales a los del sitio principal' ), 'Sin coincidencias, el aviso desaparece' );
+$review = function () { return digi_seo_render( array( 'Digitalisimo_Integrations_SEO_Suite', 'network_page' ), array( 'page' => 'digitalisimo-network-seo' ) ); };
+$html = $review();
+preg_match_all( '#name="keys\[\]" value="([^"]+)"#', $html, $m ); $listed = $m[1]; sort( $listed );
+check( array( 'content_editorial_voice', 'enable_seo', 'openai_model', 'perf_ga4_id', 'seo_local_hours', 'seo_organization_name' ) === $listed, 'Red → SEO lista lo que coincide con el principal y lo que la red ya no edita, sin Hosting ni Tools sin activar: ' . implode( ', ', $listed ) );
+check( false !== strpos( $html, 'los sitios que lo heredan usarán su propio valor guardado' ) && false === strpos( $html, 'Deshacer' ), 'El aviso explica qué pasa en los sitios al quitar un valor' );
+$send = function ( array $fill, $button ) use ( $review ) {
+	$form = digi_browser_form( $review(), $fill, 'polluted', 'digitalisimo_seo_network_polluted' );
+	$_POST = $_REQUEST = $form['post']; $_POST['polluted'] = $_REQUEST['polluted'] = $button;
+	try { do_action( 'network_admin_edit_digitalisimo_seo_network_polluted' ); } catch ( Digi_Test_Redirect $r ) {} $_POST = $_REQUEST = array();
+};
+$send( array( 'keys[]' => 'enable_seo' ), 'remove' );
+$net = get_site_option( OPT ); $removed = get_site_option( Digitalisimo_Integrations_SEO_Suite::NETWORK_REMOVED );
+check( ! isset( $net['enable_seo'] ) && 'PRINCIPAL' === $net['seo_organization_name'] && 'acceso-red' === $net['seo_hide_login_slug'] && array( 'enable_seo' => 1 ) === $removed['values'] && $sites_before === $GLOBALS['wp']['options'], '«Quitar seleccionadas» quita sólo lo marcado, guarda su valor y no toca los sitios' );
+digi_seo_mode( 'site' ); check( '0' === (string) Digitalisimo_Integrations_SEO_Resolver::option( 'enable_seo' ), 'Quitado de la red, el sitio usa su propio valor guardado' ); digi_seo_mode( 'network' );
+$html = $review();
+check( false !== strpos( $html, 'Deshacer lo quitado (enable_seo)' ), 'Mientras hay registro, el aviso ofrece «Deshacer»' );
+$send( array(), 'undo' );
+check( 1 === get_site_option( OPT )['enable_seo'] && false === get_site_option( Digitalisimo_Integrations_SEO_Suite::NETWORK_REMOVED ), '«Deshacer» devuelve a la red lo quitado y borra el registro' );
+$send( array( 'keys[]' => 'perf_ga4_id' ), 'keep' );
+preg_match_all( '#name="keys\[\]" value="([^"]+)"#', $review(), $m );
+check( ! in_array( 'perf_ga4_id', $m[1], true ) && 'G-PRINCIPAL' === get_site_option( OPT )['perf_ga4_id'], '«Conservar seleccionadas» lo deja en la red y deja de listarlo' );
+$GLOBALS['wp']['site_options'][ OPT ]['openai_api_key'] = 'sk-OTRA'; Digitalisimo_Integrations_Settings::clean_network_secrets();
+check( 'sk-OTRA' === get_site_option( OPT )['openai_api_key'], 'La limpieza corre una sola vez por red' );
 
 echo "SEO, paridad sitio/red de los ajustes: $checks comprobaciones correctas (" . count( screens() ) . " pantallas).\n";

@@ -8,7 +8,7 @@ class Digitalisimo_Integrations_Settings {
 	/** Máscara mostrada en lugar de un secreto ya guardado. */
 	const MASK = '••••••••••••';
 	/** Registro de la limpieza única de la opción de red (clean_network_secrets()). */
-	const NETWORK_CLEANED = 'digitalisimo_seo_network_secrets_cleaned';
+	const NETWORK_CLEANED = 'digitalisimo_seo_network_cleanup_2';
 
 	public static function defaults() {
 		return array(
@@ -451,29 +451,34 @@ class Digitalisimo_Integrations_Settings {
 	/** Lo escrito en un campo de clave, sin la máscara: una clave real nunca lleva «•» (el mismo criterio que IA::unmask()). */
 	public static function unmask( $raw ) { return sanitize_text_field( str_replace( '•', '', (string) $raw ) ); }
 
-	/**
-	 * Lo que la red no puede editar desde sus pantallas y nadie lee de ella: los secretos y proveedores de IA antiguos, el
-	 * interruptor del SEO propio, lo exclusivo de cada sitio (identidad, imágenes, ubicación por ID, taxonomías) y lo que
-	 * pasó a Tools o a IA Tools. Las del módulo de dominios son de Hosting, que las migra a su propia opción.
-	 */
-	public static function network_uneditable_keys() {
-		return array_values( array_unique( array_merge( Digitalisimo_Integrations_SEO_Resolver::site_only_keys(), array( 'enable_seo', 'default_content_location', 'seo_taxonomies', 'seo_local_hours', 'perf_css_defer_handles', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_hide_login_slug', 'content_editorial_voice', 'content_editorial_context', 'content_editorial_cta', 'content_editorial_method' ) ) ) );
-	}
+	/** Claves de IA antiguas de SEO que guardan secretos: nadie las lee de la red (son exclusivas de cada sitio). */
+	public static function network_secret_keys() { return array( 'openai_api_key', 'ai_providers', 'ai_profile_provider', 'ai_profile_model', 'ai_profile_fallback' ); }
 
 	/**
-	 * Una vez por red: hasta esta versión, todo guardado de la red se armaba sobre las opciones del sitio principal
-	 * (sanitize() se aplicaba también a la opción de red), y lo que el formulario no llevaba quedaba en la red con el
-	 * valor del principal y lo heredaban los demás sitios (con el SEO propio apagado en el principal, se apagaba en todos).
-	 * Se retira de la opción de red todo lo que la red no puede editar (network_uneditable_keys()), coincida o no con el
-	 * principal; lo editable que coincide con el principal se señala en Red → SEO (SEO_Suite::network_polluted_keys()).
-	 * No toca las opciones de ningún sitio y deja el registro.
+	 * Lo que la red ya no puede editar desde Red → SEO pero sigue leyéndose de ella (lo exclusivo de cada sitio, el
+	 * interruptor del SEO propio, el horario antiguo, los textos editoriales que lee IA Tools y lo que pasó a Tools).
+	 * Nunca se quita solo: Red → SEO lo lista para que quien administra la red decida (SEO_Suite::network_review_keys()).
+	 */
+	public static function network_uneditable_keys() {
+		return array_values( array_diff( array_unique( array_merge( Digitalisimo_Integrations_SEO_Resolver::site_only_keys(), array( 'enable_seo', 'default_content_location', 'seo_taxonomies', 'seo_local_hours', 'perf_css_defer_handles', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_hide_login_slug', 'content_editorial_voice', 'content_editorial_context', 'content_editorial_cta', 'content_editorial_method' ) ) ), self::network_secret_keys() ) );
+	}
+
+	/** Las que Tools administra cuando está activo; SEO las sigue sirviendo mientras no lo esté. */
+	public static function tools_keys() { return array( 'seo_hide_login_slug', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll' ); }
+
+	/**
+	 * Una vez por red (bandera nueva: también corre donde pasó la limpieza anterior). Hasta esta versión, todo guardado
+	 * de la red se armaba sobre las opciones del sitio principal (sanitize() se aplicaba también a la opción de red) y
+	 * copiaba a la red sus claves de IA. Sólo se quitan solas esas claves secretas, que nadie lee de la red; todo lo
+	 * demás se queda y Red → SEO lo revisa con quien administra la red. No toca ningún sitio y deja el registro (sin
+	 * valores: son secretos).
 	 */
 	public static function clean_network_secrets() {
 		if ( ! is_multisite() || get_site_option( self::NETWORK_CLEANED ) ) return;
 		$network = get_site_option( self::OPTION, null );
 		$removed = array();
 		if ( is_array( $network ) ) {
-			foreach ( self::network_uneditable_keys() as $key ) if ( array_key_exists( $key, $network ) ) { unset( $network[ $key ] ); $removed[] = $key; }
+			foreach ( self::network_secret_keys() as $key ) if ( array_key_exists( $key, $network ) ) { unset( $network[ $key ] ); $removed[] = $key; }
 			if ( $removed ) update_site_option( self::OPTION, $network );
 		}
 		update_site_option( self::NETWORK_CLEANED, array( 'time' => time(), 'removed' => $removed ) );
