@@ -72,7 +72,7 @@ function wp_json_encode( $v ) { return json_encode( $v ); }
 function wp_unslash( $v ) { return $v; }
 function checked( $a, $b = true, $echo = true ) { return $a == $b ? 'checked="checked"' : ''; }
 function absint( $v ) { return abs( (int) $v ); }
-function wp_salt( $s = 'auth' ) { return 'sal-de-prueba-' . $s; }
+function wp_salt( $s = 'auth' ) { return ( $GLOBALS['salt'] ?? 'sal-de-prueba-' ) . $s; }
 function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
 function wp_date( $f, $t ) { return gmdate( $f, $t ); }
 function admin_url( $p = '' ) { return 'https://tienda.test/wp-admin/' . $p; }

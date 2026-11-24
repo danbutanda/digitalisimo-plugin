@@ -145,8 +145,12 @@ $P::svc_set( $s6, array( 'suspend_reason' => 'auto', 'suspend_for' => $exp6 ) );
 $P::enqueue( $P::HOOK_SUSPEND, $s6 ); digi_run_queue( true, 1 );
 check( 'active' === $P::svc( $s6, 'status' ) && 1 === count( $GLOBALS['queue'] ), 'La suspensión que falló por red queda con su reintento' );
 $suspends = digi_webuzo_count( 'users', 'suspend', 'pagatarde' );
+// Orden real de Action Scheduler: la renovación pagada (asíncrona) corre ANTES que el reintento programado a futuro.
+$retry6 = $GLOBALS['queue']; $GLOBALS['queue'] = array();
 $r6->update_status( 'processing' ); digi_run_queue();
-check( $suspends === digi_webuzo_count( 'users', 'suspend', 'pagatarde' ) && 'active' === $P::svc( $s6, 'status' ) && '' === $GLOBALS['webuzo']['users']['pagatarde']['status'], 'El cliente pagó antes del reintento: la suspensión pendiente se cancela' );
+check( 'active' === $P::svc( $s6, 'status' ) && (int) $P::svc( $s6, 'expires' ) > $exp6, 'La renovación pagada corre primero' );
+$GLOBALS['queue'] = $retry6; digi_run_queue();
+check( $suspends === digi_webuzo_count( 'users', 'suspend', 'pagatarde' ) && 'active' === $P::svc( $s6, 'status' ) && '' === $GLOBALS['webuzo']['users']['pagatarde']['status'], 'Después corre el reintento de la suspensión y ya no suspende a quien pagó' );
 // Suspendida a mano (p. ej. por abuso): el pago la renueva pero no la reactiva.
 list( , $s7 ) = digi_provisioned( 'abuso.com' );
 $exp7 = (int) $P::svc( $s7, 'expires' );

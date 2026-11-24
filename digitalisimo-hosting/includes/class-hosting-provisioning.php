@@ -422,6 +422,8 @@ class Digitalisimo_Hosting_Provisioning {
 		$known = false;
 		foreach ( self::services() as $sid ) {
 			if ( $sid === (int) $service || strtolower( (string) self::svc( $sid, 'domain' ) ) !== $domain ) continue;
+			// Sólo cuentan los servicios entregados (un pedido detenido en revisión no le da el dominio a nadie).
+			if ( ! in_array( (string) self::svc( $sid, 'status' ), array( 'active', 'suspended', 'expired' ), true ) ) continue;
 			$owner = (int) self::svc( $sid, 'customer' );
 			if ( ! $customer || $owner !== $customer ) return self::stop( 'owner', 'El dominio ' . $domain . ' ya tiene un servicio de otro cliente (servicio #' . $sid . ', pedido #' . (int) self::svc( $sid, 'order' ) . '): no se creó nada. Revísalo a mano.' );
 			$known = true;
