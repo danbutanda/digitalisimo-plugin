@@ -129,7 +129,8 @@ add_action( 'init', static function () {
 		case 'store':
 			update_option( 'woocommerce_currency', 'MXN' );
 			update_option( 'woocommerce_default_country', 'MX:JA' );
-			update_option( 'woocommerce_calc_taxes', 'no' );
+			update_option( 'woocommerce_calc_taxes', 'yes' ); // como digitalisimo.lat (IVA 16 % a México, precios sin IVA)
+			update_option( 'woocommerce_prices_include_tax', 'no' );
 			update_option( 'woocommerce_enable_guest_checkout', 'yes' );
 			update_option( 'woocommerce_cheque_settings', array( 'enabled' => 'yes', 'title' => 'Cheque', 'description' => '', 'instructions' => '' ) );
 			update_option( 'woocommerce_bacs_settings', array( 'enabled' => 'yes', 'title' => 'Transferencia', 'description' => '', 'instructions' => '' ) );
@@ -145,7 +146,7 @@ add_action( 'init', static function () {
 			};
 			$ids = array( 'starter' => $make( 'Web Hosting Starter', 970, 'digitalisimo_starter', array( $cat ) ), 'pro' => $make( 'Web Hosting Pro', 5850, 'digitalisimo_pro', array( $cat ) ), 'com' => $make( 'Dominio .com', 300 ), 'mx' => $make( 'Dominio .mx', 600 ) );
 			update_option( 'digitalisimo_hosting_options', array(
-				'enabled' => 1, 'provision_enabled' => 1, 'inherit_network' => 0,
+				'enabled' => 1, 'provision_enabled' => 1, 'provision_since' => time() - 60, 'inherit_network' => 0,
 				'api_user' => 'nc-ensayo', 'username' => 'nc-ensayo', 'api_key' => 'NC-' . wp_generate_password( 24, false ), 'client_ip' => '203.0.113.5',
 				'domain_products' => ".com|{$ids['com']}\n.mx|{$ids['mx']}", 'hosting_product_ids' => '', 'hosting_category_ids' => (string) $cat,
 				'webuzo_url' => 'https://webuzo.test:2005', 'webuzo_api_user' => 'root', 'webuzo_api_key' => 'WZ-' . wp_generate_password( 24, false ),
@@ -158,7 +159,8 @@ add_action( 'init', static function () {
 			break;
 		case 'pay':
 			$order = wc_get_order( $id );
-			$order->update_status( 'processing', 'Pago por transferencia confirmado (ensayo).' );
+			// Cheque y transferencia son pagos fuera de línea: el administrador confirma el cobro marcándolo «completado».
+			$order->update_status( 'completed', 'Pago por transferencia confirmado (ensayo).' );
 			$out['status'] = $order->get_status();
 			break;
 		case 'run':
