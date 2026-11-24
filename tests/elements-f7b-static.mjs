@@ -274,7 +274,7 @@ for (const path of php) {
   const source = code(read(path));
   for (const m of source.matchAll(/'prefix_class'\s*=>\s*'([^']*)'/g)) ok(m[1].startsWith('digi-'), `${rel(path)}: prefix_class con prefijo digi- (${m[1]}).`);
 }
-const ADMIN = /^(wrap|widefat|striped|fixed|notice|notice-[a-z-]*|is-dismissible|is-active|is-inactive|button|button-[a-z-]+|dashicons|dashicons-[a-z-]+|description|regular-text|small-text|large-text|ul-disc|code|spinner|card|form-table|page-title-action|hidden|wp-heading-inline|alignleft|alignright|subsubsub|count|current|tablenav|actions|row-actions|column-[a-z_-]+)$/;
+const ADMIN = /^(wrap|widefat|striped|fixed|notice|notice-[a-z-]*|is-dismissible|wp-header-end|is-active|is-inactive|button|button-[a-z-]+|dashicons|dashicons-[a-z-]+|description|regular-text|small-text|large-text|ul-disc|code|spinner|card|form-table|page-title-action|hidden|wp-heading-inline|alignleft|alignright|subsubsub|count|current|tablenav|actions|row-actions|column-[a-z_-]+)$/;
 // En el marcado PHP (panel del editor y pantallas), además de digi-, el prefijo de digitalisimo-ui: digitalisimo-.
 const markupOk = (token) => classOk(token) || /^digitalisimo-/.test(token);
 for (const path of [...php, ...js]) {

@@ -854,7 +854,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 	}
 
 	public static function render_network_recalculate() {
-		if ( isset( $_GET['font_network_scheduled'] ) ) echo '<div class="notice notice-success"><p>Recálculo programado en ' . esc_html( absint( $_GET['font_network_scheduled'] ) ) . ' sitios, cada uno con sus propias fuentes. Sitios omitidos por tener el blindaje apagado: ' . esc_html( absint( $_GET['font_network_skipped'] ?? 0 ) ) . '. Cada sitio se procesa en su próximo cron.</p></div>';
+		if ( isset( $_GET['font_network_scheduled'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Recálculo programado en ' . esc_html( absint( $_GET['font_network_scheduled'] ) ) . ' sitios, cada uno con sus propias fuentes. Sitios omitidos por tener el blindaje apagado: ' . esc_html( absint( $_GET['font_network_skipped'] ?? 0 ) ) . '. Cada sitio se procesa en su próximo cron.</p></div>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin:12px 0 18px"><input type="hidden" name="action" value="digitalisimo_performance_recalculate_network_fonts">';
 		wp_nonce_field( 'digitalisimo_performance_recalculate_network_fonts' );
 		submit_button( 'Recalcular fuentes en todos los sitios', 'primary', 'submit', false );

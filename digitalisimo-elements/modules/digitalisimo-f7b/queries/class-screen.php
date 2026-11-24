@@ -176,11 +176,11 @@ final class Screen {
 		if ( ! isset( $notices[ $code ] ) || '' === $notices[ $code ][1] ) {
 			return;
 		}
-		echo '<div class="notice notice-' . esc_attr( $notices[ $code ][0] ) . '"><p>' . esc_html( $notices[ $code ][1] ) . '</p></div>';
+		echo '<div class="notice notice-' . esc_attr( $notices[ $code ][0] ) . ' is-dismissible"><p>' . esc_html( $notices[ $code ][1] ) . '</p></div>';
 	}
 
 	private static function render_list(): void {
-		echo '<h1>' . esc_html__( 'Consultas', 'pro-elements' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Consultas', 'pro-elements' ) . '</h1><hr class="wp-header-end">';
 		echo '<p>' . esc_html__( 'Consultas de entradas que se eligen en los widgets Entradas, Portafolio, Loop Grid y Loop Carousel con «Consulta guardada». Cambiar una consulta aquí cambia todos los widgets que la usan.', 'pro-elements' ) . '</p>';
 		echo '<p><a class="button button-primary" href="' . esc_url( self::url( array( 'action' => 'new' ) ) ) . '">' . esc_html__( 'Nueva consulta', 'pro-elements' ) . '</a></p>';
 		self::render_notice();
@@ -281,8 +281,8 @@ final class Screen {
 	private static function render_form( int $id ): void {
 		$query = $id > 0 ? Store::get( $id, true ) : null;
 		if ( $id > 0 && null === $query ) {
-			echo '<h1>' . esc_html__( 'Consultas', 'pro-elements' ) . '</h1>';
-			echo '<div class="notice notice-error"><p>' . esc_html( self::notices()['not_found'][1] ) . '</p></div>';
+			echo '<h1>' . esc_html__( 'Consultas', 'pro-elements' ) . '</h1><hr class="wp-header-end">';
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( self::notices()['not_found'][1] ) . '</p></div>';
 			echo '<p><a href="' . esc_url( self::url() ) . '">' . esc_html__( 'Volver a Consultas', 'pro-elements' ) . '</a></p>';
 			return;
 		}
@@ -291,7 +291,7 @@ final class Screen {
 		$context  = $query ? $query['context'] : 'none';
 		list( $kind, $arg ) = Store::relation_parts( $query ? $query['relation'] : 'none' );
 
-		echo '<h1>' . esc_html( $query ? __( 'Editar consulta', 'pro-elements' ) : __( 'Nueva consulta', 'pro-elements' ) ) . '</h1>';
+		echo '<h1>' . esc_html( $query ? __( 'Editar consulta', 'pro-elements' ) : __( 'Nueva consulta', 'pro-elements' ) ) . '</h1><hr class="wp-header-end">';
 		echo '<p><a href="' . esc_url( self::url() ) . '">' . esc_html__( '← Volver a Consultas', 'pro-elements' ) . '</a></p>';
 		self::render_notice();
 		if ( $query ) {
@@ -509,7 +509,7 @@ final class Screen {
 			return;
 		}
 		delete_transient( $key );
-		echo '<div class="notice notice-info"><p>';
+		echo '<div class="notice notice-info is-dismissible"><p>';
 		if ( '' !== ( $result['reason'] ?? '' ) ) {
 			echo esc_html( $result['reason'] );
 		} else {

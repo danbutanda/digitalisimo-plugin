@@ -11,6 +11,7 @@ defined( 'ABSPATH' ) || exit;
 define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.87' );
 define( 'DIGITALISIMO_BACKUPS_FILE', __FILE__ );
 require_once __DIR__ . '/digitalisimo-ui/digitalisimo-ui.php';
+require_once __DIR__ . '/includes/class-digitalisimo-notices.php';
 require_once __DIR__ . '/includes/class-digitalisimo-same-site.php';
 require_once __DIR__ . '/includes/class-digitalisimo-core.php';
 require_once __DIR__ . '/includes/class-digitalisimo-updater.php';

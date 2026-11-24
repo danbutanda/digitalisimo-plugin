@@ -682,11 +682,11 @@ final class Deletion {
 		$post = $id > 0 ? get_post( $id ) : null;
 		echo '<div class="wrap">';
 		if ( ! is_object( $post ) || self::kind( $post ) !== $kind || ! current_user_can( 'edit_post', $id ) ) {
-			echo '<h1>' . esc_html__( 'Dónde se usa', 'pro-elements' ) . '</h1><p>' . esc_html__( 'No existe o no tienes permiso para verlo.', 'pro-elements' ) . '</p></div>';
+			echo '<h1>' . esc_html__( 'Dónde se usa', 'pro-elements' ) . '</h1><hr class="wp-header-end"><p>' . esc_html__( 'No existe o no tienes permiso para verlo.', 'pro-elements' ) . '</p></div>';
 			return;
 		}
 		/* translators: %s: título. */
-		echo '<h1>' . esc_html( sprintf( __( 'Dónde se usa «%s»', 'pro-elements' ), self::title( $id ) ) ) . '</h1>';
+		echo '<h1>' . esc_html( sprintf( __( 'Dónde se usa «%s»', 'pro-elements' ), self::title( $id ) ) ) . '</h1><hr class="wp-header-end">';
 		if ( Scan::running() ) {
 			echo '<p>' . esc_html__( 'Calculando…', 'pro-elements' ) . '</p></div>';
 			return;

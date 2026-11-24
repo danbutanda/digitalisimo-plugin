@@ -66,7 +66,7 @@ class Digitalisimo_Integrations_Performance_Console {
 		$section = sanitize_key( $_GET['section'] ?? 'audit' );
 		$sections = self::sections();
 		if ( ! isset( $sections[ $section ] ) ) $section = 'audit';
-		echo '<div class="wrap digitalisimo-admin-shell"><h1>Rendimiento y calidad · Digitalísimo' . ( $network ? ' · Red' : '' ) . '</h1>';
+		echo '<div class="wrap digitalisimo-admin-shell"><h1>Rendimiento y calidad · Digitalísimo' . ( $network ? ' · Red' : '' ) . '</h1><hr class="wp-header-end">';
 		self::navigation( $network, $section );
 		if ( 'status' === $section ) {
 			echo '<p>Las optimizaciones nuevas permanecen desactivadas hasta validar el sitio. El modo seguro conserva recursos centrales del constructor y WooCommerce.</p>';

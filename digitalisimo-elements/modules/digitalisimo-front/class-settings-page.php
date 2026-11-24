@@ -155,7 +155,7 @@ final class Settings_Page {
 			wp_die( esc_html( self::NOTICES['forbidden'][1] ), '', array( 'response' => 403 ) );
 		}
 		echo '<div class="wrap digitalisimo-elements-front">';
-		echo '<h1>' . esc_html( self::TITLE ) . '</h1>';
+		echo '<h1>' . esc_html( self::TITLE ) . '</h1><hr class="wp-header-end">';
 		echo '<p>' . esc_html( 'Ajustes que hacen más ligeras las páginas de DIGITALÍSIMO Elements. Cada cambio se aplica en este sitio vaciando sus archivos generados y las cachés de página que escuchan ese vaciado. Ante cualquier duda, el constructor carga todo como siempre.' ) . '</p>';
 		echo '<p class="description">' . esc_html( 'Guardar los ajustes del constructor escribe todos sus campos: desde ese momento, cómo se muestran las fuentes, la caché de elementos y la carga de imágenes quedan como elección del sitio, y los valores por defecto de esta pantalla dejan de aplicarse en ellos. Cada interruptor lo indica.' ) . '</p>';
 		self::render_notices();
@@ -185,7 +185,7 @@ final class Settings_Page {
 			wp_die( esc_html( self::NOTICES['forbidden'][1] ), '', array( 'response' => 403 ) );
 		}
 		echo '<div class="wrap digitalisimo-elements-front">';
-		echo '<h1>' . esc_html( self::TITLE ) . '</h1>';
+		echo '<h1>' . esc_html( self::TITLE ) . '</h1><hr class="wp-header-end">';
 		echo '<p>' . esc_html( 'Valores que heredan todos los sitios de la red. Cada sitio puede personalizarlos en su propia pantalla «Rendimiento» y aplica los cambios en su siguiente visita, vaciando sus archivos generados.' ) . '</p>';
 		self::render_notices();
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
@@ -400,7 +400,7 @@ final class Settings_Page {
 			return;
 		}
 		list( $type, $text ) = self::NOTICES[ $code ];
-		echo '<div class="notice notice-' . esc_attr( $type ) . '"><p>' . esc_html( $text ) . '</p></div>';
+		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible"><p>' . esc_html( $text ) . '</p></div>';
 	}
 
 	private static function badge( bool $active ): string {

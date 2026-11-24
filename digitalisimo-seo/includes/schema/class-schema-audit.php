@@ -141,7 +141,7 @@ class Digitalisimo_Integrations_Schema_Audit {
 		$all      = (array) get_option( self::OPTION, array() );
 		$selected = isset( $_GET['schema_url'] ) ? esc_url_raw( rawurldecode( wp_unslash( $_GET['schema_url'] ) ) ) : '';
 		echo '<div id="' . self::ANCHOR . '"><h3>Auditor de Schema</h3><p>Descarga el HTML final de una URL de este sitio y revisa todos sus JSON-LD: tipos y propiedades contra el vocabulario oficial de Schema.org, requisitos de resultados enriquecidos de Google, @id repetidos o contradictorios, entidades duplicadas y schemas faltantes. Sólo informa; no modifica el contenido.</p>';
-		if ( 'foreign' === ( $_GET['schema_status'] ?? '' ) ) echo '<div class="notice notice-error inline"><p>Sólo se pueden auditar direcciones de este sitio.</p></div>';
+		if ( 'foreign' === ( $_GET['schema_status'] ?? '' ) ) echo '<div class="notice notice-error is-dismissible"><p>Sólo se pueden auditar direcciones de este sitio.</p></div>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="' . self::ACTION . '">';
 		wp_nonce_field( self::ACTION );
 		echo '<p><label>Página <select name="schema_url">';

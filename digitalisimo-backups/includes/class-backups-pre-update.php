@@ -81,6 +81,8 @@ final class Digitalisimo_Backups_Pre_Update {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
 		add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
+		// Lo mismo en «Salud del sitio», donde queda aunque se cierre el aviso.
+		add_filter( 'site_status_tests', array( __CLASS__, 'health_tests' ) );
 		// WP-CLI: el respaldo va antes de que empiece el actualizador (nunca con el sitio en mantenimiento).
 		if ( defined( 'WP_CLI' ) && WP_CLI && class_exists( 'WP_CLI' ) && method_exists( 'WP_CLI', 'add_hook' ) ) {
 			foreach ( array( 'core' => 'core update', 'plugin' => 'plugin update', 'theme' => 'theme update' ) as $type => $command ) WP_CLI::add_hook( 'before_invoke:' . $command, function() use ( $type ) { Digitalisimo_Backups_Pre_Update::cli_before( $type ); } );
@@ -661,6 +663,33 @@ final class Digitalisimo_Backups_Pre_Update {
 
 	/* ------------------------------------------------------------------ Casos de uso (pantalla, REST y WP-CLI) */
 
+	/** `site_status_tests`: actualizaciones automáticas retenidas, pospuestas o sin respaldo previo. */
+	public static function health_tests( $tests ) {
+		$tests['direct']['digitalisimo_backups_pre_update'] = array( 'label' => 'Respaldo antes de las actualizaciones automáticas', 'test' => array( __CLASS__, 'health' ) );
+		return $tests;
+	}
+	public static function health() {
+		$result = array( 'label' => 'Ninguna actualización automática espera su respaldo previo ni se hace sin él', 'status' => 'good', 'badge' => array( 'label' => 'DIGITALÍSIMO', 'color' => 'blue' ), 'description' => '<p>' . esc_html( 'DIGITALÍSIMO Backups no tiene actualizaciones automáticas retenidas ni pospuestas.' ) . '</p>', 'actions' => '', 'test' => 'digitalisimo_backups_pre_update' );
+		try {
+			$state = self::state();
+			if ( empty( $state['auto'] ) && (int) $state['bypass_until'] <= time() ) return $result;
+			$status = self::service_status();
+		} catch ( Throwable $e ) {
+			return $result;
+		}
+		if ( is_wp_error( $status ) ) return $result;
+		if ( $status['bypassed'] || '' !== $status['bypass_reason'] ) {
+			$result['label']       = 'Las actualizaciones automáticas se hacen sin respaldo previo';
+			$result['status']      = 'critical';
+			$result['description'] = '<p>' . esc_html( 'Hasta ' . $status['bypass_until'] . ' (' . $status['bypass_reason'] . ')' . ( $status['bypassed'] ? '; esperaban: ' . implode( ', ', $status['bypassed'] ) : '' ) . '. Revísalo en Backups → Ajustes → Antes de actualizar.' ) . '</p>';
+		} elseif ( $status['retained'] ) {
+			$result['label']       = $status['postponed'] ? 'Actualizaciones automáticas pospuestas: el respaldo previo falló' : 'Actualizaciones automáticas en espera del respaldo previo';
+			$result['status']      = $status['postponed'] ? 'critical' : 'recommended';
+			$result['description'] = '<p>' . esc_html( implode( ', ', $status['retained'] ) . '. Se actualizarán igual, sin respaldo, a las ' . (int) ( self::MAX_HOLD / 3600 ) . ' h de la primera espera o tras ' . (int) self::MAX_FAILS . ' fallos seguidos.' ) . '</p>';
+		}
+		return $result;
+	}
+
 	public static function service_status() {
 		$allowed = Digitalisimo_Backups::service_check( false, false );
 		if ( is_wp_error( $allowed ) ) return $allowed;
@@ -835,13 +864,16 @@ final class Digitalisimo_Backups_Pre_Update {
 		}
 		if ( is_wp_error( $status ) ) return;
 		$link = '<a href="' . esc_url( is_multisite() ? network_admin_url( 'admin.php?page=digitalisimo-network-backups&tab=settings&open=pre-update' ) : admin_url( 'admin.php?page=digitalisimo-backups&tab=settings&open=pre-update' ) ) . '">Backups → Ajustes → Antes de actualizar</a>';
+		// Con la X (queja del propietario del 2026-11-22): cerrado, un error vuelve al día y una espera a los 7 días si
+		// siguen igual, o antes si cambian; en la franja de la pantalla de Backups siguen siempre a la vista.
+		$args = array( 'cap' => is_multisite() ? 'manage_network_options' : 'manage_options', 'class' => 'digitalisimo-backups-pre-update-alert' );
 		if ( $status['bypassed'] || '' !== $status['bypass_reason'] ) {
-			echo '<div class="notice notice-error digitalisimo-backups-pre-update-alert"><p><strong>Las actualizaciones automáticas se hacen sin respaldo previo hasta ' . esc_html( $status['bypass_until'] ) . '</strong> (' . esc_html( $status['bypass_reason'] ) . ')' . ( $status['bypassed'] ? '; esperaban: ' . esc_html( implode( ', ', $status['bypassed'] ) ) : '' ) . '. Revisa ' . $link . '.</p></div>';
+			Digitalisimo_Notices::show( 'backups-pre-update', 'error', '<p><strong>Las actualizaciones automáticas se hacen sin respaldo previo hasta ' . esc_html( $status['bypass_until'] ) . '</strong> (' . esc_html( $status['bypass_reason'] ) . ')' . ( $status['bypassed'] ? '; esperaban: ' . esc_html( implode( ', ', $status['bypassed'] ) ) : '' ) . '. Revisa ' . $link . '.</p>', $args + array( 'hash' => array( 'bypass', $status['bypass_until'], $status['bypass_reason'], $status['bypassed'] ) ) );
 			return;
 		}
 		if ( ! $status['retained'] ) return;
 		$text = $status['postponed'] ? 'Actualizaciones automáticas pospuestas: el respaldo previo falló (' . $status['failure'] . ')' : 'Actualizaciones automáticas en espera del respaldo previo';
-		echo '<div class="notice notice-' . ( $status['postponed'] ? 'error' : 'warning' ) . ' digitalisimo-backups-pre-update-alert"><p><strong>' . esc_html( $text ) . '.</strong> ' . esc_html( implode( ', ', $status['retained'] ) ) . '. Se actualizarán igual, sin respaldo, a las ' . (int) ( self::MAX_HOLD / 3600 ) . ' h de la primera espera o tras ' . (int) self::MAX_FAILS . ' fallos seguidos. ' . $link . '.</p></div>';
+		Digitalisimo_Notices::show( 'backups-pre-update', $status['postponed'] ? 'error' : 'warning', '<p><strong>' . esc_html( $text ) . '.</strong> ' . esc_html( implode( ', ', $status['retained'] ) ) . '. Se actualizarán igual, sin respaldo, a las ' . (int) ( self::MAX_HOLD / 3600 ) . ' h de la primera espera o tras ' . (int) self::MAX_FAILS . ' fallos seguidos. ' . $link . '.</p>', $args + array( 'hash' => array( $text, $status['retained'] ) ) );
 	}
 	/** Pantallas de actualización (las de la red también): el script que crea el respaldo antes de enviar la actualización. */
 	public static function enqueue( $hook = '' ) {

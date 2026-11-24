@@ -22,6 +22,8 @@ define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
 // Las opciones que el constructor lee en cada petición, en una sola consulta antes de cargarlo, y el MCP del
 // navegador a demanda (digitalisimo-admin-load.php).
 require_once __DIR__ . '/digitalisimo-admin-load.php';
+// Avisos de administración con la X y el cierre recordado por usuario (copia idéntica en los siete plugins).
+require_once __DIR__ . '/digitalisimo-notices.php';
 Digitalisimo_Elements_Admin_Load::init();
 // Núcleo de Elementor incluido: se carga antes que todo lo demás y sólo si el plugin Elementor no está activo.
 require_once __DIR__ . '/digitalisimo-core.php';
@@ -56,16 +58,19 @@ function pro_elements_plugin_load_plugin() {
 	if ( digitalisimo_elements_conflicting_plugin_active() ) {
 		add_action( 'admin_notices', 'digitalisimo_elements_conflict_notice' );
 		add_action( 'network_admin_notices', 'digitalisimo_elements_conflict_notice' );
+		digitalisimo_elements_health_problem( 'DIGITALÍSIMO Elements no se cargó porque Elementor Pro u otra versión derivada ya está activa. Deja activo sólo uno de estos plugins.' );
 		return;
 	}
 	if ( ! did_action( 'elementor/loaded' ) ) {
 		add_action( 'admin_notices', 'pro_elements_plugin_fail_load' );
+		digitalisimo_elements_health_problem( 'No se pudo cargar el constructor incluido en DIGITALÍSIMO Elements: falta o no se puede leer su carpeta elementor/. Vuelve a instalar DIGITALÍSIMO Elements desde su ZIP.' );
 
 		return;
 	}
 	if ( defined( 'ELEMENTOR_PRO_VERSION' ) ) {
 		add_action( 'admin_notices', 'digitalisimo_elements_conflict_notice' );
 		add_action( 'network_admin_notices', 'digitalisimo_elements_conflict_notice' );
+		digitalisimo_elements_health_problem( 'DIGITALÍSIMO Elements no se cargó porque Elementor Pro u otra versión derivada ya está activa. Deja activo sólo uno de estos plugins.' );
 		return;
 	}
 
@@ -196,15 +201,34 @@ add_action( 'plugins_loaded', 'pro_elements_plugin_load_plugin', 10 );
 
 function digitalisimo_elements_conflict_notice() {
 	if ( ! current_user_can( 'activate_plugins' ) ) return;
-	echo '<div class="notice notice-error"><p>DIGITALÍSIMO Elements no se cargó porque Elementor Pro u otra versión derivada ya está activa. Deja activo sólo uno de estos plugins.</p></div>';
+	Digitalisimo_Notices::show( Digitalisimo_Notices::site( 'elements-conflict' ), 'error', '<p>DIGITALÍSIMO Elements no se cargó porque Elementor Pro u otra versión derivada ya está activa. Deja activo sólo uno de estos plugins.</p>', array( 'cap' => 'activate_plugins' ) );
 }
 
-function pro_elements_print_error( $message ) {
+/**
+ * Elements no cargó: queda como prueba crítica de «Salud del sitio», a la vista aunque se cierre el aviso.
+ */
+function digitalisimo_elements_health_problem( $text ) {
+	$GLOBALS['digitalisimo_elements_health_problem'] = (string) $text;
+	add_filter( 'site_status_tests', 'digitalisimo_elements_health_tests' );
+}
+function digitalisimo_elements_health_tests( $tests ) {
+	$tests['direct']['digitalisimo_elements_loaded'] = array( 'label' => 'DIGITALÍSIMO Elements cargado', 'test' => 'digitalisimo_elements_health' );
+	return $tests;
+}
+function digitalisimo_elements_health() {
+	return array( 'label' => 'DIGITALÍSIMO Elements no se cargó', 'status' => 'critical', 'badge' => array( 'label' => 'DIGITALÍSIMO', 'color' => 'red' ), 'description' => '<p>' . esc_html( (string) ( $GLOBALS['digitalisimo_elements_health_problem'] ?? '' ) ) . '</p>', 'actions' => '', 'test' => 'digitalisimo_elements_loaded' );
+}
+
+/**
+ * Errores de carga de Elements: con la X (queja del propietario del 2026-11-22: «no poder quitarlas»); cerrado, vuelve
+ * al día si el problema sigue. $id distingue cada caso.
+ */
+function pro_elements_print_error( $message, $id = 'elements-load' ) {
 	if ( ! $message ) {
 		return;
 	}
 	// PHPCS - $message should not be escaped
-	echo '<div class="error">' . $message . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	Digitalisimo_Notices::show( $id, 'error', $message, array( 'cap' => 'activate_plugins' ) );
 }
 /**
  * Show in WP Dashboard notice about the plugin is not activated.
@@ -224,7 +248,7 @@ function pro_elements_plugin_fail_load() {
 	// El constructor viene incluido: nunca se pide instalar ni activar otro plugin.
 	$message  = '<h3>' . esc_html__( 'No se pudo cargar el constructor incluido en DIGITALÍSIMO Elements.', 'elementor-pro' ) . '</h3>';
 	$message .= '<p>' . esc_html__( 'Falta o no se puede leer su carpeta elementor/. Vuelve a instalar DIGITALÍSIMO Elements desde su ZIP.', 'elementor-pro' ) . '</p>';
-	pro_elements_print_error( $message );
+	pro_elements_print_error( $message, 'elements-fail-load' );
 }
 
 /** Un plugin Elementor externo anterior a 4.0 sigue activo y manda: basta desactivarlo. */
@@ -235,7 +259,7 @@ function pro_elements_external_builder_notice() {
 	$message  = '<h3>' . esc_html__( 'Hay otro constructor activo que reemplaza al incluido en DIGITALÍSIMO Elements.', 'elementor-pro' ) . '</h3>';
 	$message .= '<p>' . esc_html__( 'Desactívalo en Plugins: DIGITALÍSIMO Elements trae su propio constructor y lo usa en cuanto el otro deja de estar activo.', 'elementor-pro' ) . '</p>';
 	$message .= '<p>' . sprintf( '<a href="%s" class="button-primary">%s</a>', esc_url( self_admin_url( 'plugins.php' ) ), esc_html__( 'Ir a Plugins', 'elementor-pro' ) ) . '</p>';
-	pro_elements_print_error( $message );
+	pro_elements_print_error( $message, Digitalisimo_Notices::site( 'elements-external-builder' ) );
 }
 
 function pro_elements_plugin_fail_load_out_of_date() {

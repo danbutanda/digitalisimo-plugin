@@ -103,7 +103,7 @@ trait Digitalisimo_Backups_Screen {
 
 	private static function render( $network ) {
 		try { self::local_directory(); }
-		catch ( Throwable $e ) { echo '<div class="wrap digitalisimo-backups"><h1>Backups · Digitalisimo</h1><div class="notice notice-error"><p>' . esc_html( $e->getMessage() ) . '</p></div></div>'; return; }
+		catch ( Throwable $e ) { echo '<div class="wrap digitalisimo-backups"><h1>Backups · Digitalisimo</h1><hr class="wp-header-end"><div class="notice notice-error"><p>' . esc_html( $e->getMessage() ) . '</p></div></div>'; return; }
 		// H17: abrir la pantalla, en cualquier pestaña, deja en 0600 lo que dejó una versión anterior (hasta 1.0.73 lo hacía
 		// «Restaurar», que se pintaba siempre; ahora vive plegado en «Herramientas»).
 		self::private_storage_files( self::local_directory() );
@@ -111,7 +111,7 @@ trait Digitalisimo_Backups_Screen {
 		// Una restauración interrumpida: al tomar el bloqueo se aplica su diario (si otra operación lo tiene, espera).
 		if ( is_file( trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL ) ) { try { self::release_operation_lock( self::acquire_operation_lock() ); } catch ( Exception $e ) {} } // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		list( $tab, $open ) = self::screen_route();
-		echo '<div class="wrap digitalisimo-backups" data-tab="' . esc_attr( $tab ) . '"><h1>Backups · Digitalisimo</h1>';
+		echo '<div class="wrap digitalisimo-backups" data-tab="' . esc_attr( $tab ) . '"><h1>Backups · Digitalisimo</h1><hr class="wp-header-end">';
 		self::result_notice();
 		// Un subsitio de la red: los respaldos son de toda la red y se hacen desde su administración.
 		if ( is_multisite() && ! $network && ! is_main_site() ) { self::subsite_screen(); echo '</div>'; return; }

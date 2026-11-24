@@ -836,7 +836,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 	public static function render_network() {
 		$queued = isset( $_GET['rankmath_queued'] ) ? absint( $_GET['rankmath_queued'] ) : null; // phpcs:ignore WordPress.Security.NonceVerification
 		echo '<tr><td colspan="2">';
-		if ( null !== $queued ) echo '<div class="notice notice-success inline"><p>' . esc_html( sprintf( 'Importación encolada en %d sitios. Cada sitio avanza con su propio cron.', $queued ) ) . '</p></div>';
+		if ( null !== $queued ) echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( 'Importación encolada en %d sitios. Cada sitio avanza con su propio cron.', $queued ) ) . '</p></div>';
 		echo '<p>Importa en cada sitio de la red los datos de Rank Math que guardó ese sitio. Cada sitio sólo modifica sus propios datos y nunca sobrescribe lo que ya personalizó.</p>';
 		$url = wp_nonce_url( add_query_arg( 'action', 'digitalisimo_seo_rankmath_import_network', admin_url( 'admin-post.php' ) ), 'digitalisimo_seo_rankmath_network', 'digitalisimo_rankmath_nonce' );
 		echo '<p><button type="submit" class="button button-primary" formaction="' . esc_url( $url ) . '" formnovalidate>Importar Rank Math en todos los sitios</button></p>';
