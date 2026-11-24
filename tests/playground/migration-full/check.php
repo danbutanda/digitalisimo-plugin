@@ -61,7 +61,9 @@ foreach ( $network ? get_sites( array( 'fields' => 'ids' ) ) : array( get_curren
 		'child_head'    => false !== strpos( $body, 'id="hijo-head" data-hello="3.5.1"' ) && false !== strpos( $body, 'id="hijo-foot"' ),
 		// Escenario rerun: el gancho y el shortcode del hijo siguen en la portada con el tema propio.
 		'child_foot'    => false !== strpos( $body, 'id="hijo-foot"' ),
-		'shortcode'     => false !== strpos( $body, 'Hola desde el tema hijo' ) && false === strpos( $body, '[hijo_saludo]' ),
+		// Sin el shortcode registrado WordPress deja «[hijo_saludo]» tal cual: el texto que devuelve prueba que corre (la
+		// descripción de SEO puede seguir citando el contenido sin procesar).
+		'shortcode'     => false !== strpos( $body, 'Hola desde el tema hijo' ),
 		'tools_active'  => in_array( 'digitalisimo-tools/digitalisimo-tools.php', (array) get_option( 'active_plugins', array() ), true ),
 		// Diagnóstico de Código PHP: el indicador (con carga automática) que mira el front, en la caché y en la base, y el final de la portada.
 		'tools_flag'    => array( 'cache' => (string) ( wp_load_alloptions()['digitalisimo_tools_php_on'] ?? '' ), 'db' => (string) $GLOBALS['wpdb']->get_var( "SELECT option_value FROM {$GLOBALS['wpdb']->options} WHERE option_name = 'digitalisimo_tools_php_on'" ), 'run_db' => null !== $GLOBALS['wpdb']->get_var( "SELECT option_id FROM {$GLOBALS['wpdb']->options} WHERE option_name = 'digitalisimo_tools_php_run'" ) ),
