@@ -159,7 +159,7 @@ const withoutLinks = (text) => String(text).replace(/\[([^\]\n]{1,100})\]\((http
     const t2draft = t2.events.findIndex((e) => e.type === 'tool' && e.message.kind === 'draft' && e.message.status === 'ok' && e.message.ability === 'digitalisimo-sales/create-page');
     const askedBefore = t2.events.slice(0, t2draft < 0 ? t2.events.length : t2draft).filter((e) => e.type === 'message' && e.message.role === 'assistant' && /\?/.test(e.message.text));
     check('Q1', t2draft >= 0, 'la landing se crea en el primer turno del pedido, sin tarjeta', JSON.stringify(t2.events.filter((e) => e.type !== 'status').map((e) => (e.message ? `${e.type}:${e.message.kind || e.message.role}:${e.message.ability || ''}:${e.message.status || ''}` : e.type))));
-    check('Q2', askedBefore.length === 0 && !t2.visible.some((v) => (v.match(/\?/g) || []).length > 1), `cero preguntas antes de crear (y como mucho una al final): ${askedBefore.length}`, askedBefore.map((e) => e.message.text).join(' | '));
+    check('Q2', askedBefore.length === 0 && !t2.visible.some((v) => (withoutLinks(v).match(/\?/g) || []).length > 1), `cero preguntas antes de crear (y como mucho una al final): ${askedBefore.length}`, [...askedBefore.map((e) => e.message.text), ...t2.visible].join(' | '));
 
     // W · Sólo lo que se pidió.
     const productTry = tools.filter((m) => /digitalisimo-woo\/(products|catalog)|woocommerce\/|digi-ias\/apply-offer/.test(m.ability) && m.kind !== 'read');
