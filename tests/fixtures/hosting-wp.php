@@ -1,0 +1,311 @@
+<?php
+/**
+ * Arnés de las pruebas de la venta automática de DIGITALÍSIMO Hosting (tests/hosting-provision.php,
+ * tests/hosting-renewal.php y tests/hosting-services.php), sin WordPress ni WooCommerce: lo mínimo de ambos que usa el
+ * código (ganchos, opciones de sitio y de red, entradas y su meta, pedidos, productos, correos, Action Scheduler) y,
+ * por `pre_http_request` como en WordPress, un servidor Webuzo y una cuenta de Namecheap simulados. Ninguna petición
+ * sale de la máquina: sin filtro que conteste, `wp_remote_post()` devuelve un error.
+ */
+error_reporting( E_ALL );
+require_once __DIR__ . '/php74.php';
+define( 'ABSPATH', __DIR__ . '/' );
+define( 'DAY_IN_SECONDS', 86400 );
+define( 'HOUR_IN_SECONDS', 3600 );
+define( 'MINUTE_IN_SECONDS', 60 );
+define( 'DIGITALISIMO_HOSTING_FILE', __DIR__ . '/digitalisimo-hosting.php' );
+
+$GLOBALS['checks'] = 0;
+function check( $c, $m ) { if ( ! $c ) { echo "FALLA: $m\n"; exit( 1 ); } $GLOBALS['checks']++; }
+
+// ── Ganchos ─────────────────────────────────────────────────────────────────────────────────────────────────
+$GLOBALS['hooks'] = array();
+function add_filter( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['hooks'][ $hook ][ $prio ][] = array( $cb, $args ); return true; }
+function add_action( $hook, $cb, $prio = 10, $args = 1 ) { return add_filter( $hook, $cb, $prio, $args ); }
+function apply_filters( $hook, $value, ...$rest ) {
+	if ( empty( $GLOBALS['hooks'][ $hook ] ) ) return $value;
+	ksort( $GLOBALS['hooks'][ $hook ] );
+	foreach ( $GLOBALS['hooks'][ $hook ] as $cbs ) foreach ( $cbs as $cb ) $value = call_user_func_array( $cb[0], array_slice( array_merge( array( $value ), $rest ), 0, max( 1, $cb[1] ) ) );
+	return $value;
+}
+function do_action( $hook, ...$args ) {
+	if ( empty( $GLOBALS['hooks'][ $hook ] ) ) return;
+	ksort( $GLOBALS['hooks'][ $hook ] );
+	foreach ( $GLOBALS['hooks'][ $hook ] as $cbs ) foreach ( $cbs as $cb ) call_user_func_array( $cb[0], array_slice( $args, 0, max( 1, $cb[1] ) ) );
+}
+function add_shortcode() {} function register_rest_route() {} function register_post_type() {}
+
+// ── Opciones (sitio y red) ──────────────────────────────────────────────────────────────────────────────────
+$GLOBALS['multisite'] = false; $GLOBALS['blog'] = 1; $GLOBALS['blogs'] = array( 1 => array() ); $GLOBALS['site_options'] = array();
+function is_multisite() { return $GLOBALS['multisite']; }
+function is_network_admin() { return ! empty( $GLOBALS['network_admin'] ); }
+function get_current_blog_id() { return $GLOBALS['blog']; }
+function switch_blog( $id ) { $GLOBALS['blogs'][ $GLOBALS['blog'] ] = $GLOBALS['options']; $GLOBALS['blog'] = $id; $GLOBALS['options'] = $GLOBALS['blogs'][ $id ] ?? array(); }
+$GLOBALS['options'] = array( 'admin_email' => 'admin@tienda.test', 'blogname' => 'Tienda' );
+function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['options'] ) ? $GLOBALS['options'][ $k ] : $d; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['options'][ $k ] = $v; return true; }
+function add_option( $k, $v = '', $x = '', $a = null ) { if ( array_key_exists( $k, $GLOBALS['options'] ) ) return false; $GLOBALS['options'][ $k ] = $v; return true; }
+function delete_option( $k ) { unset( $GLOBALS['options'][ $k ] ); return true; }
+function wp_load_alloptions() { return $GLOBALS['options']; }
+function wp_set_option_autoload( $k, $a ) { return true; }
+function get_site_option( $k, $d = false ) { if ( ! $GLOBALS['multisite'] ) return get_option( $k, $d ); return array_key_exists( $k, $GLOBALS['site_options'] ) ? $GLOBALS['site_options'][ $k ] : $d; }
+function update_site_option( $k, $v ) { if ( ! $GLOBALS['multisite'] ) return update_option( $k, $v ); $GLOBALS['site_options'][ $k ] = $v; return true; }
+function delete_site_option( $k ) { if ( ! $GLOBALS['multisite'] ) return delete_option( $k ); unset( $GLOBALS['site_options'][ $k ] ); return true; }
+function get_transient( $k ) { return false; } function set_transient() { return true; } function get_site_transient( $k ) { return false; } function set_site_transient() { return true; }
+function get_bloginfo( $k = '' ) { return get_option( 'blogname', 'Tienda' ); }
+
+// ── Utilidades de WordPress ─────────────────────────────────────────────────────────────────────────────────
+function wp_parse_args( $a, $d = array() ) { return array_merge( (array) $d, (array) $a ); }
+function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
+function sanitize_text_field( $t ) { return trim( preg_replace( '/[\r\n\t ]+/', ' ', strip_tags( (string) $t ) ) ); }
+function sanitize_textarea_field( $t ) { return trim( strip_tags( (string) $t ) ); }
+function esc_attr( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); }
+function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); }
+function esc_textarea( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); }
+function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); }
+function esc_url_raw( $u ) { return (string) $u; }
+function wp_kses_post( $t ) { return (string) $t; }
+function wpautop( $t ) { return '<p>' . $t . '</p>'; }
+function wptexturize( $t ) { return (string) $t; }
+function wp_strip_all_tags( $t ) { return strip_tags( (string) $t ); }
+function wp_specialchars_decode( $t, $q = 0 ) { return htmlspecialchars_decode( (string) $t, ENT_QUOTES ); }
+function wp_json_encode( $v ) { return json_encode( $v ); }
+function wp_unslash( $v ) { return $v; }
+function checked( $a, $b = true, $echo = true ) { return $a == $b ? 'checked="checked"' : ''; }
+function absint( $v ) { return abs( (int) $v ); }
+function wp_salt( $s = 'auth' ) { return 'sal-de-prueba-' . $s; }
+function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
+function wp_date( $f, $t ) { return gmdate( $f, $t ); }
+function admin_url( $p = '' ) { return 'https://tienda.test/wp-admin/' . $p; }
+function add_query_arg( $args, $url ) { return $url . '?' . http_build_query( $args ); }
+function rest_ensure_response( $r ) { return $r; }
+function current_user_can( $cap ) { return in_array( $cap, $GLOBALS['caps'] ?? array( 'manage_options', 'manage_woocommerce', 'manage_network_options' ), true ); }
+function wp_get_current_user() { return (object) array( 'user_login' => 'admin' ); }
+function wp_create_nonce( $a ) { return 'n:' . $a; }
+function wp_nonce_field( $a, $name = '_wpnonce', $ref = true ) { echo '<input type="hidden" name="' . $name . '" value="n:' . $a . '">'; }
+function check_admin_referer( $a ) { if ( ( $_POST['_wpnonce'] ?? '' ) !== 'n:' . $a ) throw new Digi_Test_Die( 'nonce', 403 ); return true; }
+function submit_button( $text = 'Guardar', $type = 'primary', $name = 'submit' ) { echo '<input type="submit" name="' . $name . '" value="' . $text . '">'; }
+class Digi_Test_Die extends Exception { public $status; public function __construct( $m, $s = 500 ) { parent::__construct( $m ); $this->status = $s; } }
+class Digi_Test_Redirect extends Exception {}
+function wp_die( $m = '', $code = 500 ) { throw new Digi_Test_Die( (string) $m, is_array( $code ) ? 500 : (int) $code ); }
+function wp_safe_redirect( $u ) { $GLOBALS['redirect'] = $u; throw new Digi_Test_Redirect( $u ); }
+function wp_next_scheduled( $hook, $args = array() ) { return $GLOBALS['cron'][ $hook ] ?? false; }
+function wp_schedule_event( $t, $r, $hook, $args = array() ) { $GLOBALS['cron'][ $hook ] = $t; return true; }
+function wp_schedule_single_event( $t, $hook, $args = array() ) { $GLOBALS['cron'][ $hook ] = $t; return true; }
+class WP_Error { public $code; public $message; public function __construct( $code = '', $message = '', $data = null ) { $this->code = $code; $this->message = $message; } public function get_error_message() { return $this->message; } }
+function is_wp_error( $v ) { return $v instanceof WP_Error; }
+
+// ── Correo ──────────────────────────────────────────────────────────────────────────────────────────────────
+$GLOBALS['mails'] = array();
+function wp_mail( $to, $subject, $body, $headers = '', $att = array() ) { $GLOBALS['mails'][] = array( 'to' => $to, 'subject' => $subject, 'body' => $body ); return true; }
+
+// ── HTTP: sólo lo que contesta un filtro pre_http_request ──────────────────────────────────────────────────────
+$GLOBALS['http'] = array();
+function wp_remote_post( $url, $args = array() ) {
+	$GLOBALS['http'][] = array( 'url' => $url, 'args' => $args );
+	$r = apply_filters( 'pre_http_request', false, $args + array( 'method' => 'POST' ), $url );
+	return false === $r ? new WP_Error( 'http_request_failed', 'Sin red en la prueba' ) : $r;
+}
+function wp_remote_get( $url, $args = array() ) { return wp_remote_post( $url, $args ); }
+function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? (int) ( $r['response']['code'] ?? 0 ) : 0; }
+function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? (string) ( $r['body'] ?? '' ) : ''; }
+
+// ── Entradas y su meta (servicios) ─────────────────────────────────────────────────────────────────────────
+$GLOBALS['posts'] = array(); $GLOBALS['postmeta'] = array(); $GLOBALS['next_id'] = 1000;
+function wp_insert_post( $a ) { $id = ++$GLOBALS['next_id']; $GLOBALS['posts'][ $id ] = (object) ( $a + array( 'ID' => $id, 'blog' => $GLOBALS['blog'] ) ); $GLOBALS['posts'][ $id ]->ID = $id; return $id; }
+function get_post( $id ) { $p = $GLOBALS['posts'][ (int) $id ] ?? null; return $p && $p->blog === $GLOBALS['blog'] ? $p : null; }
+function get_posts( $q ) { $out = array(); foreach ( $GLOBALS['posts'] as $id => $p ) if ( $p->post_type === $q['post_type'] && $p->blog === $GLOBALS['blog'] ) $out[] = $id; return $out; }
+function get_post_meta( $id, $k, $single = false ) { return $GLOBALS['postmeta'][ (int) $id ][ $k ] ?? ''; }
+function update_post_meta( $id, $k, $v ) { $GLOBALS['postmeta'][ (int) $id ][ $k ] = $v; return true; }
+function has_term() { return false; }
+
+// ── WooCommerce ─────────────────────────────────────────────────────────────────────────────────────────────
+class Digi_Test_Product { public $id; public $name; public $price; public function __construct( $id, $name, $price ) { $this->id = $id; $this->name = $name; $this->price = $price; } public function get_id() { return $this->id; } public function get_name() { return $this->name; } }
+$GLOBALS['products'] = array();
+function digi_product( $id, $name, $price, $plan = '' ) { $GLOBALS['products'][ $id ] = new Digi_Test_Product( $id, $name, $price ); if ( $plan ) update_post_meta( $id, '_digitalisimo_webuzo_plan', $plan ); }
+function wc_get_product( $id ) { return $GLOBALS['products'][ (int) $id ] ?? null; }
+class Digi_Test_Item {
+	public $product; public $variation = 0; public $qty = 1; public $meta = array(); public $name;
+	public function __construct( $pid, $name, $qty = 1, $meta = array() ) { $this->product = $pid; $this->name = $name; $this->qty = $qty; $this->meta = $meta; }
+	public function get_product_id() { return $this->product; } public function get_variation_id() { return $this->variation; }
+	public function get_quantity() { return $this->qty; } public function get_name() { return $this->name; }
+	public function get_meta( $k ) { return $this->meta[ $k ] ?? ''; }
+}
+class WC_Order {
+	public $id; public $status = 'pending'; public $items = array(); public $meta = array(); public $notes = array(); public $billing = array(); public $customer = 7; public $total = 0;
+	public function get_id() { return $this->id; }
+	public function get_status() { return $this->status; }
+	public function get_items() { return $this->items; }
+	public function get_meta( $k ) { return $this->meta[ $k ] ?? ''; }
+	public function update_meta_data( $k, $v ) { $this->meta[ $k ] = $v; }
+	public function save() { $GLOBALS['saved'][ $this->id ] = json_encode( array( $this->status, $this->meta ) ); return $this->id; }
+	public function add_order_note( $n, $customer = 0 ) { $this->notes[] = $n; return count( $this->notes ); }
+	public function update_status( $s, $note = '' ) { $old = $this->status; $this->status = $s; if ( $note ) $this->add_order_note( $note ); $this->save(); if ( $old !== $s ) do_action( 'woocommerce_order_status_' . $s, $this->id, $this ); return true; }
+	public function get_customer_id() { return $this->customer; }
+	public function __call( $name, $args ) {
+		if ( preg_match( '/^get_billing_(\w+)$/', $name, $m ) ) return $this->billing[ $m[1] ] ?? '';
+		if ( preg_match( '/^set_billing_(\w+)$/', $name, $m ) ) { $this->billing[ $m[1] ] = $args[0]; return null; }
+		throw new Error( 'WC_Order::' . $name . ' no existe en el arnés' );
+	}
+	public function get_address( $t ) { return $this->billing; }
+	public function set_address( $a, $t ) { $this->billing = $a; }
+	public function add_product( $p, $qty ) { $this->items[] = new Digi_Test_Item( $p->get_id(), $p->get_name(), $qty ); $this->total += $p->price; return count( $this->items ); }
+	public function calculate_totals() { return $this->total; }
+	public function needs_payment() { return in_array( $this->status, array( 'pending', 'failed' ), true ); }
+	public function is_paid() { return in_array( $this->status, array( 'processing', 'completed' ), true ); }
+	public function get_checkout_payment_url() { return 'https://tienda.test/checkout/order-pay/' . $this->id . '/?pay_for_order=true&key=wc_order_x'; }
+	public function get_edit_order_url() { return admin_url( 'post.php?post=' . $this->id . '&action=edit' ); }
+}
+$GLOBALS['orders'] = array(); $GLOBALS['next_order'] = 500;
+function wc_get_order( $id ) { return $GLOBALS['orders'][ (int) $id ] ?? false; }
+function wc_create_order( $a = array() ) { $o = new WC_Order(); $o->id = ++$GLOBALS['next_order']; $o->customer = (int) ( $a['customer_id'] ?? 0 ); $GLOBALS['orders'][ $o->id ] = $o; return $o; }
+function wc_add_order_item_meta( $item_id, $k, $v ) { foreach ( $GLOBALS['orders'] as $o ) { if ( isset( $o->items[ $item_id - 1 ] ) && $o->id === $GLOBALS['next_order'] ) $o->items[ $item_id - 1 ]->meta[ $k ] = $v; } return true; }
+/** Un pedido del cliente, como lo deja el checkout. */
+function digi_order( array $items, array $billing = array() ) {
+	$o = wc_create_order( array( 'customer_id' => 7 ) );
+	$o->status = 'on-hold';
+	foreach ( $items as $i ) $o->items[] = $i;
+	$o->billing = $billing + array( 'first_name' => 'Ana', 'last_name' => 'López', 'company' => '', 'address_1' => 'Av. Juárez 100', 'address_2' => '', 'city' => 'Guadalajara', 'state' => 'JA', 'postcode' => '44100', 'country' => 'MX', 'phone' => '33 1234 5678', 'email' => 'ana@cliente.test' );
+	return $o;
+}
+class Digi_Test_Countries {
+	public function get_states( $cc ) { return 'MX' === $cc ? array( 'JA' => 'Jalisco', 'CX' => 'Ciudad de M&eacute;xico' ) : array(); }
+	public function get_country_calling_code( $cc ) { return array( 'MX' => '+52', 'US' => '+1' )[ $cc ] ?? ''; }
+}
+class Digi_Test_Mailer { private $emails = null; public function get_emails() { if ( null === $this->emails ) $this->emails = apply_filters( 'woocommerce_email_classes', array() ); return $this->emails; } }
+class Digi_Test_WC { public $countries; public $cart = null; private $mailer; public function __construct() { $this->countries = new Digi_Test_Countries(); $this->mailer = new Digi_Test_Mailer(); } public function mailer() { return $this->mailer; } }
+function WC() { static $wc = null; if ( ! $wc ) $wc = new Digi_Test_WC(); return $wc; }
+class WC_Email {
+	public $id; public $title; public $description; public $customer_email = false; public $placeholders = array(); public $recipient; public $object; public $enabled = 'yes';
+	public function __construct() { $this->enabled = get_option( 'woocommerce_' . $this->id . '_settings', array( 'enabled' => 'yes' ) )['enabled'] ?? 'yes'; }
+	public function is_enabled() { return 'yes' === $this->enabled; }
+	public function get_recipient() { return $this->recipient; }
+	public function format_string( $s ) { return strtr( $s, $this->placeholders ); }
+	public function get_subject() { return $this->format_string( $this->get_default_subject() ); }
+	public function get_heading() { return $this->format_string( $this->get_default_heading() ); }
+	public function get_additional_content() { return $this->get_default_additional_content(); }
+	public function get_content() { return $this->get_content_html(); }
+	public function get_headers() { return ''; } public function get_attachments() { return array(); }
+	public function send( $to, $subject, $message, $headers, $att ) { return wp_mail( $to, $subject, $message, $headers, $att ); }
+}
+
+// ── Action Scheduler ────────────────────────────────────────────────────────────────────────────────────────
+$GLOBALS['queue'] = array();
+function as_enqueue_async_action( $hook, $args = array(), $group = '' ) { $GLOBALS['queue'][] = array( 'hook' => $hook, 'args' => $args, 'at' => 0, 'group' => $group ); return count( $GLOBALS['queue'] ); }
+function as_schedule_single_action( $t, $hook, $args = array(), $group = '' ) { $GLOBALS['queue'][] = array( 'hook' => $hook, 'args' => $args, 'at' => $t, 'group' => $group ); return count( $GLOBALS['queue'] ); }
+function as_has_scheduled_action( $hook, $args = null, $group = '' ) { foreach ( $GLOBALS['queue'] as $a ) if ( $a['hook'] === $hook && ( null === $args || $a['args'] === $args ) ) return true; return false; }
+/** Corre lo encolado (también lo programado a futuro si $all); devuelve cuántas tareas corrió. */
+function digi_run_queue( $all = true, $max = 50 ) {
+	$n = 0;
+	while ( $GLOBALS['queue'] && $n < $max ) {
+		$a = array_shift( $GLOBALS['queue'] );
+		if ( ! $all && $a['at'] > time() ) { $GLOBALS['queue'][] = $a; break; }
+		do_action( $a['hook'], ...$a['args'] ); $n++;
+	}
+	return $n;
+}
+
+// ── Servidores simulados ────────────────────────────────────────────────────────────────────────────────────
+/**
+ * Webuzo: cuentas en $GLOBALS['webuzo']['users']; modos: 'auth' (clave rechazada con el texto de bloqueo por intentos),
+ * 'html' (página de acceso), 'timeout' (las próximas N llamadas no llegan), 'lost_create' (crea la cuenta pero la
+ * respuesta se pierde). Anota cada llamada (act y campos, sin la clave) en $GLOBALS['webuzo']['calls'].
+ * Namecheap: dominios de la cuenta en $GLOBALS['nc']['domains'] (dominio => vencimiento), saldo, precios y modos
+ * 'timeout' (por comando) y 'auth'.
+ */
+function digi_servers_reset() {
+	$GLOBALS['webuzo'] = array( 'users' => array( 'otro' => array( 'user' => 'otro', 'domain' => 'otro-cliente.com', 'status' => '' ) ), 'calls' => array(), 'mode' => '', 'timeout' => 0, 'key' => 'CLAVE-WEBUZO-OK', 'keys_seen' => array() );
+	$GLOBALS['nc'] = array( 'domains' => array(), 'balance' => 50.0, 'price' => array( 'com' => 11.28, 'mx' => 25.0 ), 'calls' => array(), 'timeout' => array(), 'mode' => '' );
+}
+digi_servers_reset();
+function digi_json( $data, $code = 200 ) { return array( 'response' => array( 'code' => $code ), 'body' => json_encode( $data ), 'headers' => array() ); }
+function digi_xml( $inner, $ok = true ) { return array( 'response' => array( 'code' => 200 ), 'headers' => array(), 'body' => '<?xml version="1.0" encoding="utf-8"?><ApiResponse Status="' . ( $ok ? 'OK' : 'ERROR' ) . '" xmlns="http://api.namecheap.com/xml.response">' . ( $ok ? '<Errors /><CommandResponse>' . $inner . '</CommandResponse>' : '<Errors>' . $inner . '</Errors>' ) . '</ApiResponse>' ); }
+add_filter(
+	'pre_http_request',
+	function ( $pre, $args, $url ) {
+		$body = (array) ( $args['body'] ?? array() );
+		if ( 0 === strpos( $url, 'https://webuzo.test:2005/' ) ) {
+			$w = &$GLOBALS['webuzo'];
+			parse_str( (string) parse_url( $url, PHP_URL_QUERY ), $q );
+			$fields = $body; unset( $fields['apikey'] );
+			$w['calls'][] = array( 'act' => $q['act'] ?? '', 'fields' => $fields, 'url' => $url );
+			$w['keys_seen'][] = $body['apikey'] ?? '';
+			if ( $w['timeout'] > 0 ) { $w['timeout']--; return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out after 45001 milliseconds' ); }
+			if ( 'html' === $w['mode'] ) return array( 'response' => array( 'code' => 200 ), 'body' => '<html><body>Login</body></html>', 'headers' => array() );
+			if ( 'auth' === $w['mode'] || ( $body['apikey'] ?? '' ) !== $w['key'] ) return digi_json( array( 'error' => array( 'Incorrect Username or Password. 1 attempt(s) left' ) ) );
+			$act = $q['act'] ?? '';
+			if ( 'users' === $act && isset( $body['suspend'] ) ) { if ( ! isset( $w['users'][ $body['suspend'] ] ) ) return digi_json( array( 'error' => array( 'User not found' ) ) ); $w['users'][ $body['suspend'] ]['status'] = 'suspended'; return digi_json( array( 'done' => array( 'msg' => 'User suspended successfully' ) ) ); }
+			if ( 'users' === $act && isset( $body['unsuspend'] ) ) { $w['users'][ $body['unsuspend'] ]['status'] = ''; return digi_json( array( 'done' => array( 'msg' => 'User unsuspended successfully' ) ) ); }
+			if ( 'users' === $act ) return digi_json( array( 'users' => $w['users'] ) );
+			if ( 'add_user' === $act && ! empty( $body['create_user'] ) ) {
+				if ( isset( $w['users'][ $body['user'] ] ) ) return digi_json( array( 'error' => array( 'The username already exists' ) ) );
+				if ( $body['user_passwd'] !== $body['cnf_user_passwd'] ) return digi_json( array( 'error' => array( 'Passwords do not match' ) ) );
+				$w['users'][ $body['user'] ] = array( 'user' => $body['user'], 'domain' => $body['domain'], 'email' => $body['email'], 'plan' => $body['plan'], 'status' => '', 'pass' => $body['user_passwd'] );
+				if ( 'lost_create' === $w['mode'] ) { $w['mode'] = ''; return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' ); }
+				return digi_json( array( 'done' => array( 'msg' => 'The User has been saved successfully' ) ) );
+			}
+			return digi_json( array( 'error' => array( 'Unknown act' ) ) );
+		}
+		if ( 0 === strpos( $url, 'https://api.namecheap.com/xml.response' ) || 0 === strpos( $url, 'https://api.sandbox.namecheap.com/' ) ) {
+			$n = &$GLOBALS['nc'];
+			$cmd = (string) ( $body['Command'] ?? '' );
+			$fields = $body; unset( $fields['ApiKey'] );
+			$n['calls'][] = array( 'cmd' => $cmd, 'fields' => $fields, 'key' => $body['ApiKey'] ?? '' );
+			if ( ! empty( $n['timeout'][ $cmd ] ) ) { $n['timeout'][ $cmd ]--; return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' ); }
+			if ( 'auth' === $n['mode'] ) return digi_xml( '<Error Number="1011102">Parameter APIKey is invalid</Error>', false );
+			switch ( $cmd ) {
+				case 'namecheap.users.getBalances':
+					return digi_xml( '<UserGetBalancesResult Currency="USD" AvailableBalance="' . number_format( $n['balance'], 2, '.', '' ) . '" AccountBalance="' . number_format( $n['balance'], 2, '.', '' ) . '" />' );
+				case 'namecheap.users.getPricing':
+					$p = $n['price'][ $body['ProductName'] ] ?? 9.99;
+					return digi_xml( '<UserGetPricingResult><ProductType Name="domains"><ProductCategory Name="' . strtolower( $body['ActionName'] ) . '"><Product Name="' . $body['ProductName'] . '"><Price Duration="1" DurationType="YEAR" Price="' . $p . '" YourPrice="' . $p . '" AdditionalCost="0.18" Currency="USD" /><Price Duration="2" DurationType="YEAR" Price="' . ( 2 * $p ) . '" YourPrice="' . ( 2 * $p ) . '" AdditionalCost="0.36" Currency="USD" /></Product></ProductCategory></ProductType></UserGetPricingResult>' );
+				case 'namecheap.domains.getInfo':
+					$d = $body['DomainName'];
+					if ( ! isset( $n['domains'][ $d ] ) ) return digi_xml( '<Error Number="2019166">Domain not found</Error>', false );
+					return digi_xml( '<DomainGetInfoResult Status="Ok" DomainName="' . $d . '"><DomainDetails><CreatedDate>01/01/2026</CreatedDate><ExpiredDate>' . gmdate( 'm/d/Y', $n['domains'][ $d ] ) . '</ExpiredDate></DomainDetails></DomainGetInfoResult>' );
+				case 'namecheap.domains.create':
+					$d = $body['DomainName'];
+					if ( isset( $n['domains'][ $d ] ) ) return digi_xml( '<Error Number="2030280">Domain is not available</Error>', false );
+					$cost = ( $n['price'][ substr( $d, strpos( $d, '.' ) + 1 ) ] ?? 9.99 ) + 0.18;
+					if ( $n['balance'] < $cost ) return digi_xml( '<Error Number="2528166">Insufficient funds</Error>', false );
+					$n['balance'] -= $cost; $n['domains'][ $d ] = strtotime( '+1 year' );
+					return digi_xml( '<DomainCreateResult Domain="' . $d . '" Registered="true" ChargedAmount="' . number_format( $cost, 2 ) . '" DomainID="9' . count( $n['domains'] ) . '" OrderID="1" TransactionID="1" WhoisguardEnable="false" NonRealTimeDomain="false" />' );
+				case 'namecheap.domains.dns.setCustom':
+					$n['dns'][ $body['SLD'] . '.' . $body['TLD'] ] = $body['Nameservers'];
+					return digi_xml( '<DomainDNSSetCustomResult Domain="' . $body['SLD'] . '.' . $body['TLD'] . '" Updated="true" />' );
+				case 'namecheap.domains.renew':
+					$d = $body['DomainName'];
+					$cost = ( $n['price'][ substr( $d, strpos( $d, '.' ) + 1 ) ] ?? 9.99 ) + 0.18;
+					$n['balance'] -= $cost; $n['domains'][ $d ] = strtotime( '+1 year', $n['domains'][ $d ] );
+					return digi_xml( '<DomainRenewResult DomainName="' . $d . '" DomainID="1" Renew="true" OrderID="2" TransactionID="2" ChargedAmount="' . number_format( $cost, 2 ) . '" />' );
+			}
+			return digi_xml( '<Error Number="1010000">Unknown command</Error>', false );
+		}
+		return $pre;
+	},
+	10,
+	3
+);
+
+/** Contadores de llamadas por acción. */
+function digi_webuzo_count( $act, $field = null, $value = null ) { $c = 0; foreach ( $GLOBALS['webuzo']['calls'] as $call ) if ( $call['act'] === $act && ( null === $field || ( $call['fields'][ $field ] ?? null ) === $value ) ) $c++; return $c; }
+function digi_nc_count( $cmd ) { $c = 0; foreach ( $GLOBALS['nc']['calls'] as $call ) if ( $call['cmd'] === $cmd ) $c++; return $c; }
+
+/** Ajustes de una tienda lista para vender (lo que el dueño configura en Digitalisimo → Hosting). */
+function digi_store_settings( array $extra = array() ) {
+	update_option( 'digitalisimo_hosting_ecommerce_migrated', 1 );
+	update_option( 'digitalisimo_hosting_options', $extra + array(
+		'enabled' => 1, 'provision_enabled' => 1, 'api_user' => 'nc-api', 'username' => 'nc-user', 'api_key' => 'CLAVE-NAMECHEAP', 'client_ip' => '203.0.113.5',
+		'domain_products' => ".com|20\n.mx|21", 'hosting_product_ids' => '', 'hosting_category_ids' => '63',
+		'webuzo_url' => 'https://webuzo.test:2005', 'webuzo_api_user' => 'root', 'webuzo_api_key' => 'CLAVE-WEBUZO-OK', 'grace_days' => 7,
+		'nameservers' => 'ns1.digitalisimo.website, ns2.digitalisimo.website',
+	) );
+}
+
+define( 'DIGITALISIMO_HOSTING_URL', 'https://tienda.test/wp-content/plugins/digitalisimo-hosting/' );
+define( 'DIGITALISIMO_HOSTING_VERSION', '9.9.9' );
+foreach ( array( 'class-hosting', 'class-hosting-webuzo', 'class-hosting-namecheap', 'class-hosting-provisioning', 'class-hosting-services-page' ) as $digi_file ) require __DIR__ . '/../../digitalisimo-hosting/includes/' . $digi_file . '.php';
+Digitalisimo_Hosting_Provisioning::init();
+digi_product( 14693, 'Web Hosting Starter', 970, 'digitalisimo_starter' );
+digi_product( 14696, 'Web Hosting Pro', 5850, 'digitalisimo_pro' );
+digi_product( 20, 'Dominio .com', 300 );
+digi_product( 21, 'Dominio .mx', 600 );

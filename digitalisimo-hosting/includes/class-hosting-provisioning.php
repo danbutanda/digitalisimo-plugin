@@ -86,7 +86,10 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! $order ) return;
 		if ( $order->get_meta( self::META_RENEWAL ) ) {
 			$state = (array) $order->get_meta( self::META_RENEW );
-			if ( empty( $state['done'] ) ) self::enqueue( self::HOOK_RENEW, $order->get_id() );
+			if ( empty( $state['done'] ) ) {
+				if ( empty( $state['paid'] ) ) { $state['paid'] = time(); $order->update_meta_data( self::META_RENEW, $state ); $order->save(); }
+				self::enqueue( self::HOOK_RENEW, $order->get_id() );
+			}
 			return;
 		}
 		$items = self::items( $order );
@@ -526,7 +529,7 @@ class Digitalisimo_Hosting_Provisioning {
 		$order->update_meta_data( $key, $state ); $order->save();
 		if ( $service ) { self::svc_set( $service, array( 'status' => $is_renew ? self::svc( $service, 'status' ) : 'on-hold', 'error' => $message ) ); self::svc_log( $service, $message ); }
 		$note = 'DIGITALÍSIMO Hosting: ' . $message;
-		if ( 'on-hold' !== $order->get_status() && ! $is_renew ) $order->update_status( 'on-hold', $note );
+		if ( 'on-hold' !== $order->get_status() ) $order->update_status( 'on-hold', $note );
 		else $order->add_order_note( $note );
 		if ( 'blocked' !== $kind && 'auth' !== $kind ) self::alert_admin( 'pedido #' . $order->get_id() . ' en espera', $message . "\n\nPedido: " . self::order_link( $order ) . "\nServicios: " . admin_url( 'admin.php?page=digitalisimo-hosting-services' ) );
 	}
@@ -600,7 +603,9 @@ class Digitalisimo_Hosting_Provisioning {
 		$days = (int) floor( ( $expires - $now ) / DAY_IN_SECONDS );
 		if ( $days > 30 ) return;
 		$renewal = self::renewal_order( $id );
-		if ( ! $renewal || in_array( $renewal->get_status(), array( 'processing', 'completed' ), true ) ) return;
+		// Pagada (aunque la renovación esté a medias, p. ej. sin saldo en Namecheap): ni avisos ni suspensión.
+		$paid = $renewal ? (array) $renewal->get_meta( self::META_RENEW ) : array();
+		if ( ! $renewal || in_array( $renewal->get_status(), array( 'processing', 'completed' ), true ) || ! empty( $paid['paid'] ) ) return;
 		$sent = self::svc( $id, 'notices' ); $sent = is_array( $sent ) && (int) ( $sent['cycle'] ?? 0 ) === $expires ? $sent : array( 'cycle' => $expires, 'sent' => array() );
 		$type = '';
 		if ( $days > 7 && ! in_array( '30', $sent['sent'], true ) ) $type = '30';
@@ -776,9 +781,9 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( empty( $state['done'] ) ) { unset( $state['attempts'], $state['blocked_noted'] ); self::save_state( $order, $state ); self::enqueue( self::HOOK_PROVISION, $order->get_id() ); $queued = true; }
 		}
 		$renewal = wc_get_order( (int) self::svc( $id, 'renewal_order' ) );
-		if ( $renewal && in_array( $renewal->get_status(), array( 'processing', 'completed', 'on-hold' ), true ) && $renewal->is_paid() ) {
+		if ( $renewal ) {
 			$s = (array) $renewal->get_meta( self::META_RENEW );
-			if ( empty( $s['done'] ) ) { unset( $s['attempts'], $s['blocked_noted'] ); $renewal->update_meta_data( self::META_RENEW, $s ); $renewal->save(); self::enqueue( self::HOOK_RENEW, $renewal->get_id() ); $queued = true; }
+			if ( ! empty( $s['paid'] ) && empty( $s['done'] ) ) { unset( $s['attempts'], $s['blocked_noted'] ); $renewal->update_meta_data( self::META_RENEW, $s ); $renewal->save(); self::enqueue( self::HOOK_RENEW, $renewal->get_id() ); $queued = true; }
 		}
 		if ( 'suspended' !== self::svc( $id, 'status' ) && self::svc( $id, 'error' ) && ! $queued && self::svc( $id, 'suspend_reason' ) ) { self::enqueue( self::HOOK_SUSPEND, $id ); $queued = true; }
 		return $queued;
