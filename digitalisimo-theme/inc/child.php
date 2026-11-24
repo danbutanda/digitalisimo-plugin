@@ -1481,22 +1481,6 @@ function digitalisimo_theme_child_carried() {
 	return is_array( $saved ) && ! empty( $saved['child'] ) ? (string) $saved['child'] : '';
 }
 
-if ( ! function_exists( 'digitalisimo_theme_notice' ) ) {
-	/**
-	 * Aviso del tema con la X de WordPress (aquí y en Temas y Plugins, inc/fallbacks.php). Si un plugin DIGITALÍSIMO
-	 * cargó `Digitalisimo_Notices`, el cierre queda recordado para el usuario (una advertencia vuelve a los 7 días, un
-	 * error al día, lo informativo no vuelve mientras diga lo mismo); si no, se cierra sólo en esa página: el tema no
-	 * lleva JavaScript propio.
-	 */
-	function digitalisimo_theme_notice( $id, $type, $content, $cap ) {
-		if ( class_exists( 'Digitalisimo_Notices', false ) ) {
-			Digitalisimo_Notices::show( $id, $type, $content, array( 'cap' => $cap ) );
-			return;
-		}
-		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible">' . $content . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- llega escapado.
-	}
-}
-
 /** En Temas: el tema carga las hojas del hijo desde su carpeta (no lo borres) o el hijo ya no está. */
 function digitalisimo_theme_child_notice() {
 	if ( ! current_user_can( 'switch_themes' ) || ! function_exists( 'get_current_screen' ) ) {
@@ -1509,11 +1493,11 @@ function digitalisimo_theme_child_notice() {
 	}
 	if ( is_dir( get_theme_root( $child ) . '/' . $child ) ) {
 		/* translators: %s: folder of the child theme. */
-		digitalisimo_theme_notice( 'theme-child-kept', 'info', '<p>' . esc_html( sprintf( __( 'The DIGITALÍSIMO theme loads the stylesheets, fonts and scripts of the child theme %s from its folder: do not delete that theme.', 'digitalisimo-theme' ), $child ) ) . '</p>', 'switch_themes' );
+		echo '<div class="notice notice-info"><p>' . esc_html( sprintf( __( 'The DIGITALÍSIMO theme loads the stylesheets, fonts and scripts of the child theme %s from its folder: do not delete that theme.', 'digitalisimo-theme' ), $child ) ) . '</p></div>';
 		return;
 	}
 	/* translators: %s: folder of the child theme. */
-	digitalisimo_theme_notice( 'theme-child-deleted', 'error', '<p>' . esc_html( sprintf( __( 'The child theme %s was deleted: the DIGITALÍSIMO theme can no longer load its stylesheets, fonts and scripts. Reinstall it to get them back.', 'digitalisimo-theme' ), $child ) ) . '</p>', 'switch_themes' );
+	echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'The child theme %s was deleted: the DIGITALÍSIMO theme can no longer load its stylesheets, fonts and scripts. Reinstall it to get them back.', 'digitalisimo-theme' ), $child ) ) . '</p></div>';
 }
 
 /** Al borrar el hijo cuyas hojas carga el tema, queda en la bitácora del paso. */

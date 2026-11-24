@@ -73,6 +73,10 @@ $skip = array( '/digitalisimo-elements/elementor/', '/vendor/', '/node_modules/'
 // usar (es todo su contenido).
 $allowed = array(
 	'digitalisimo-backups/includes/trait-backups-screen.php' => array( 'digitalisimo-backups-strip', '<h1>Backups · Digitalisimo</h1><hr class="wp-header-end"><div class="notice notice-error">' ),
+	// El tema: su árbol debe ser el ZIP publicado de su versión (tests/elements-document-controls.php) y aquí no se
+	// suben versiones; su cambio va en /var/tmp/digi-wt/avisos-reports/tema-avisos.patch para aplicarlo al subirla.
+	'digitalisimo-theme/inc/fallbacks.php'                   => array( 'digitalisimo_theme_fallback_notice', 'The DIGITALÍSIMO theme shows simple fallbacks' ),
+	'digitalisimo-theme/inc/child.php'                       => array( 'The DIGITALÍSIMO theme loads the stylesheets', 'The child theme %s was deleted' ),
 );
 // `</h1>` que no son el título de una pantalla de administración: expresiones regulares, plantillas del front y del
 // correo, la página de rescate de Código PHP y la página suelta de la clave de migración (sin escritorio).
@@ -119,8 +123,7 @@ an_check( count( $heads ) >= 40, 'Se encontraron pocos títulos de pantalla (' .
 an_check( ! $bare, 'Avisos sin la X o títulos sin wp-header-end (queja del propietario del 2026-11-22): ' . implode( ', ', $bare ) );
 // El Asistente IA no tiene título: la marca va antes de su raíz.
 an_check( false !== strpos( (string) @file_get_contents( $root . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant.php' ), '<hr class="wp-header-end"><div id="digitalisimo-assistant-root"' ), 'El Asistente IA lleva la marca antes de su raíz.' );
-// El tema y el instalador no llevan JavaScript propio: usan el ayudante si un plugin lo cargó y, si no, la X sola.
-an_check( false !== strpos( (string) @file_get_contents( $root . '/digitalisimo-theme/inc/child.php' ), "class_exists( 'Digitalisimo_Notices', false )" ), 'El tema usa el ayudante de avisos si un plugin lo cargó.' );
+// El instalador no lleva JavaScript propio: usa el ayudante si un plugin lo cargó y, si no, la X sola.
 an_check( false !== strpos( (string) @file_get_contents( $root . '/digitalisimo-elements-installer/digitalisimo-elements-installer.php' ), "class_exists( 'Digitalisimo_Notices', false )" ), 'El instalador usa el ayudante de avisos si un plugin lo cargó.' );
 
 $helper = $root . '/digitalisimo-tools/includes/class-digitalisimo-notices.php';
