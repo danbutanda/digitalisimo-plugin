@@ -107,6 +107,13 @@ check( 'Sigo' === $r['text'] && 3 === count( $GLOBALS['http'] ) && false === str
 $woo = array( 'name' => 'digitalisimo-woo/products', 'annotations' => array( 'readonly' => false, 'destructive' => true ), 'schema' => array( 'type' => 'object', 'properties' => array( 'action' => array( 'type' => 'string', 'enum' => array( 'list', 'get', 'create', 'update', 'delete', 'batch' ) ), 'resource' => array( 'type' => 'string' ) ) ) );
 check( 'write' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'product_id' => 13, 'data' => array( 'sale_price' => '7500' ) ) ) && 'write' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'create' ) ), 'G8: poner un precio de oferta (update) en la tienda pide confirmación normal, sin casilla de destructiva (así un «sí» lo confirma)' );
 check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'delete' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'batch' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-woo/orders' ) ), array( 'action' => 'create', 'resource' => 'refund' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'otro/products' ) ), array( 'action' => 'update' ) ), 'G8: borrar, lotes, reembolsos y lo de plugins ajenos siguen siendo destructivos' );
+foreach ( array( array( 'digitalisimo-woo/products', null, 'write' ), array( 'digitalisimo-woo/products', 'variation', 'write' ), array( 'digitalisimo-woo/catalog', 'category', 'write' ), array( 'digitalisimo-woo/catalog', 'attribute_term', 'write' ), array( 'digitalisimo-woo/catalog', 'review', 'destructive' ), array( 'digitalisimo-woo/orders', 'order', 'destructive' ), array( 'digitalisimo-woo/orders', 'note', 'destructive' ), array( 'digitalisimo-woo/orders', 'refund', 'destructive' ), array( 'digitalisimo-woo/orders', null, 'destructive' ), array( 'digitalisimo-woo/customers', 'customer', 'destructive' ), array( 'digitalisimo-woo/coupons', 'coupon', 'destructive' ), array( 'digitalisimo-woo/coupons', null, 'destructive' ), array( 'digitalisimo-woo/store-settings', 'setting', 'destructive' ), array( 'digitalisimo-woo/store-settings', 'shipping_zone', 'destructive' ), array( 'digitalisimo-woo/products', array( 'x' ), 'destructive' ) ) as $case ) {
+	foreach ( array( 'create', 'update' ) as $act ) {
+		$in = array( 'action' => $act );
+		if ( null !== $case[1] ) $in['resource'] = $case[1];
+		check( $case[2] === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => $case[0] ) ), $in ), "G9: {$case[0]} " . json_encode( $in ) . " es {$case[2]}" );
+	}
+}
 check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-woo/customers' ) ), array( 'action' => 'update' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'resource' => 'customer' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'elementor/manage-component' ) ), array( 'action' => 'update' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-sales/x' ) ), array( 'action' => 'update' ) ), 'G8: sólo la tienda de DIGITALÍSIMO baja a escritura; clientes, usuarios y cualquier otra herramienta (elementor/manage-component update) siguen destructivas' );
 check( 'read' === Digitalisimo_AI_Assistant_Tools::kind( array( 'name' => 'woocommerce/products-query', 'annotations' => array( 'readonly' => true, 'destructive' => false ), 'schema' => array() ), array() ), 'G7: leer productos con las Abilities del núcleo de WooCommerce no pide confirmación' );
 add_filter( 'digitalisimo_ai_assistant_pre_model', function ( $pre, $request ) { $GLOBALS['model_calls'][] = $request; return $GLOBALS['script'] ? array_shift( $GLOBALS['script'] ) : 'Listo.'; } );
@@ -167,8 +174,8 @@ check( null === Digitalisimo_AI_Assistant_History::display( $conv['messages'][0]
 check( Digitalisimo_AI_Assistant_History::context_chars( 'anthropic', 'claude-opus-5-5' ) >= 1500000 && Digitalisimo_AI_Assistant_History::context_chars( 'openai', 'gpt-4o-mini' ) < 400000 && Digitalisimo_AI_Assistant_History::context_chars( 'x', 'desconocido' ) === Digitalisimo_AI_Assistant_History::CONTEXT_DEFAULT, 'K6: el presupuesto es el del contexto real de cada modelo' );
 
 /* ---------------- Y: confirmar escribiendo ---------------- */
-foreach ( array( 'sí hazlo', 'Sí, créala', 'dale', 'ok', 'confirmo', 'SÍ', 'sí por favor', 'de acuerdo', 'adelante', 'sí, hazlo ya' ) as $yes ) check( Digitalisimo_AI_Assistant::affirmation( $yes ), "Y0: «{$yes}» confirma" );
-foreach ( array( 'no', 'sí, pero cambia el precio', 'es una nueva landing, no modificas templates verdad', 'mejor no', 'créala primero luego agregamos eso', '¿qué vas a hacer?', 'espera', 'ok no', 'ok gracias', 'perfecto gracias', 'correcto', 'perfecto', 'listo', 'todo bien', 'gracias', 'Crea', 'publica', 'sí crea otra' ) as $no ) check( ! Digitalisimo_AI_Assistant::affirmation( $no ), "Y0: «{$no}» no confirma" );
+foreach ( array( 'sí hazlo', 'Sí, créala', 'dale', 'ok', 'confirmo', 'SÍ', 'sí por favor', 'de acuerdo', 'adelante', 'sí, hazlo ya', 'ok ya', 'sí!' ) as $yes ) check( Digitalisimo_AI_Assistant::affirmation( $yes ), "Y0: «{$yes}» confirma" );
+foreach ( array( 'no', 'sí, pero cambia el precio', 'es una nueva landing, no modificas templates verdad', 'mejor no', 'créala primero luego agregamos eso', '¿qué vas a hacer?', 'espera', 'ok no', 'ok gracias', 'perfecto gracias', 'correcto', 'perfecto', 'listo', 'todo bien', 'gracias', 'Crea', 'publica', 'sí crea otra', '¿sí?', '¿ok?', 'ok?', 'sí?' ) as $no ) check( ! Digitalisimo_AI_Assistant::affirmation( $no ), "Y0: «{$no}» no confirma" );
 $fresh = function ( array $calls, $message ) use ( $req, $events ) { $GLOBALS['script'] = array( array( 'text' => 'Voy.', 'calls' => $calls ) ); $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => $message ) ) ) ); return $ev; };
 // Y1 Una acción pendiente, escritura, sin nada leído: «sí hazlo» la ejecuta (la guardada, con su bitácora).
 $GLOBALS['created_notes'] = array();
@@ -274,11 +281,23 @@ $GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-com
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'pon el código', 'conversation' => $cd ) ) ) );
 check( 1 === count( $of( $ev, 'confirm' ) ) && $n === count( $GLOBALS['ran'] ), 'D6: con lo leído en la conversación, código en la edición del borrador pasa por la tarjeta' );
 $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cd, 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'deny' ) ) ) );
-$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created, 'xml' => '<e-heading title="Oferta"/>' ) ) ) ) );
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created, 'settings' => array( 'title' => 'Oferta de fin de mes', 'html' => '<p>Hasta el <strong>30 de noviembre</strong></p>' ) ) ) ) ) );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'pon el título', 'conversation' => $cd ) ) ) );
-check( ! $of( $ev, 'confirm' ) && $n + 1 === count( $GLOBALS['ran'] ), 'D6: sin código, sigue directo' );
+check( ! $of( $ev, 'confirm' ) && $n + 1 === count( $GLOBALS['ran'] ), 'D6: con texto y HTML que wp_kses_post() deja igual, sigue directo' );
+// D7 El criterio no reconoce código: compara con wp_kses_post(). Las evasiones de un filtro de patrones van a la tarjeta.
+$evasions = array( '<a href="java&#115;cript:alert(1)">x</a>', "<a href=\"java\tscript:alert(1)\">x</a>", '<a href="javascript&colon;alert(1)">x</a>', '<meta http-equiv="refresh" content="0;url=//x.test">', '<base href="//x.test/">', '<style>@import url(//x.test/a.css)</style>' );
+foreach ( $evasions as $evasion ) {
+	check( Digitalisimo_AI_Assistant_Tools::needs_review( array( 'post_id' => 1, 'settings' => array( 'html' => $evasion ) ) ), 'D7: va a la tarjeta: ' . $evasion );
+	$n = count( $GLOBALS['ran'] );
+	$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created, 'settings' => array( 'html' => $evasion ) ) ) ) ) );
+	$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'cámbialo', 'conversation' => $cd ) ) ) );
+	check( 1 === count( $of( $ev, 'confirm' ) ) && $n === count( $GLOBALS['ran'] ), 'D7: y el Asistente no la ejecuta sin tarjeta: ' . $evasion );
+	$events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cd, 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'deny' ) ) ) );
+}
+$deep = 'texto'; for ( $i = 0; $i < 40; $i++ ) $deep = array( 'a' => $deep );
+check( Digitalisimo_AI_Assistant_Tools::needs_review( array( 'post_id' => 1, 'settings' => $deep ) ), 'D7: una entrada más honda que el límite que se revisa va a la tarjeta' );
+check( ! Digitalisimo_AI_Assistant_Tools::needs_review( array( 'post_id' => 1, 'title' => 'Oferta', 'n' => 3, 'ok' => true ) ), 'D7: texto y números normales no' );
 array_pop( $GLOBALS['users'][1]['caps'] );
-check( Digitalisimo_AI_Assistant_Tools::has_code( array( 'a' => array( 'b' => '<img src=x onerror=alert(1)>' ) ) ) && Digitalisimo_AI_Assistant_Tools::has_code( 'javascript:alert(1)' ) && ! Digitalisimo_AI_Assistant_Tools::has_code( array( 'xml' => '<e-flexbox><e-heading title="Hola"/></e-flexbox>' ) ), 'D6: has_code() ve script, iframe, on…= y javascript:, no el marcado normal' );
 $GLOBALS['posts'][ $created ]->post_status = 'publish';
 $GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created ) ) ) ) );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'otro cambio', 'conversation' => $cd ) ) ) );
@@ -314,6 +333,7 @@ check( isset( $GLOBALS['routes']['digitalisimo-ai/v1/assistant/continue'] ) && i
 $ui = file_get_contents( dirname( __DIR__ ) . '/digitalisimo-ia-tools/assets/assistant/assistant.js' );
 $ad = file_get_contents( dirname( __DIR__ ) . '/digitalisimo-ia-tools/assets/assistant/assistant-adapters.js' );
 check( false !== strpos( $ui, "'continue' === event.type" ) && false !== strpos( $ui, 'adapters.model.resume(' ) && false !== strpos( $ad, "stream( 'continue', payload, onEvent )" ), 'T2: la pantalla sigue sola con resume() por la ruta continue' );
+check( false !== strpos( $ui, 'datos de clientes y pedidos) se envía al proveedor de IA' ) && false !== strpos( file_get_contents( dirname( __DIR__ ) . '/docs/ASSISTANT.md' ), '**Privacidad.**' ), 'T3: la pantalla y la documentación dicen que consultar clientes y pedidos envía sus datos al proveedor de IA' );
 
 /* ---------------- R: leer el sitio ---------------- */
 $catalog = Digitalisimo_AI_Assistant_Tools::catalog();

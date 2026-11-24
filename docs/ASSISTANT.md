@@ -130,14 +130,21 @@ permiso), y antes se comprueba `check_permissions()` con esa entrada: sin permis
 | Clase | Regla | Qué pasa |
 |---|---|---|
 | `read` | `annotations.readonly` es `true` estricto, sin `destructive` true, y la Ability es de un espacio de nombres de confianza (`digitalisimo-`, `elementor/`, `core/`, `mcp-adapter/` o el filtro `digitalisimo_ai_assistant_trusted_prefixes`) | se ejecuta solo |
-| `draft` | (tras leer contenido del sitio, si la entrada trae código —script, iframe, on…=, javascript:— y la persona tiene `unfiltered_html`, pasa por la tarjeta) crea contenido NUEVO en borrador (`DRAFT_CREATORS`: `digitalisimo-sales/create-page`, `elementor/create-page`; sin `post_id` y sin un estado distinto de `draft`) o edita por `post_id` un borrador que creó ESTA conversación y sigue en borrador (`DRAFT_EDITORS`: `elementor/build-composition`, `elementor/manage-elements`, `elementor/update-page-settings`; sin claves de estado, visibilidad o contraseña en la entrada, y con `edit_post`). Listas explícitas, filtros `digitalisimo_ai_assistant_draft_creators` y `…_draft_editors` | se ejecuta solo (no toca nada publicado) y queda en la bitácora como `draft` |
+| `draft` | (tras leer contenido del sitio, si la persona tiene `unfiltered_html` y algún texto de la entrada cambia al pasar por `wp_kses_post()` —script, iframe, meta, base, style, atributos on…, protocolos como `javascript:` aunque vengan con entidades o tabuladores— o la entrada es más honda de 32 niveles, pasa por la tarjeta: no se intenta reconocer el código, se compara con su versión filtrada) crea contenido NUEVO en borrador (`DRAFT_CREATORS`: `digitalisimo-sales/create-page`, `elementor/create-page`; sin `post_id` y sin un estado distinto de `draft`) o edita por `post_id` un borrador que creó ESTA conversación y sigue en borrador (`DRAFT_EDITORS`: `elementor/build-composition`, `elementor/manage-elements`, `elementor/update-page-settings`; sin claves de estado, visibilidad o contraseña en la entrada, y con `edit_post`). Listas explícitas, filtros `digitalisimo_ai_assistant_draft_creators` y `…_draft_editors` | se ejecuta solo (no toca nada publicado) y queda en la bitácora como `draft` |
 | `write` | `annotations.destructive` es `false`, o una lectura de un plugin ajeno | tarjeta con qué hará y con qué datos; botón «Confirmar» o «Cancelar» |
 | `destructive` | cualquier otro caso (`readonly` que no es un `true` estricto, contradicciones, sin anotaciones, como el MCP) | tarjeta con una casilla «Entiendo…» que enciende «Sí, hacerlo»; el servidor exige `explicit` (`true`, `1` o `"true"`). Sólo si la Ability lo declara (`meta.digitalisimo.dry_run` true y `dry_run` booleano en su esquema) la tarjeta trae una simulación, que queda en la bitácora como `simulation` |
 
 Una herramienta con `action` en su esquema (las de tienda) cuenta como lectura cuando la acción pedida es de
-`READ_ACTIONS` (`list`, `get`, `read`, `search`…) y está en su `enum`. Sólo en las de tienda de DIGITALÍSIMO
-(`digitalisimo-woo/`, que anotan como destructiva toda escritura), `create` y `update` son `write`, salvo clientes,
-usuarios, cuentas, reembolsos y pasarelas (siguen destructivos, como cualquier otra herramienta). `digitalisimo_ai_assistant_tool_kind` permite
+`READ_ACTIONS` (`list`, `get`, `read`, `search`…) y está en su `enum`. Sólo en el catálogo de la tienda de
+DIGITALÍSIMO (`digitalisimo-woo/products` y `digitalisimo-woo/catalog`, que anotan como destructiva toda escritura),
+`create` y `update` de productos, variaciones, categorías, etiquetas, marcas, atributos y clases de envío son `write`;
+pedidos, notas al cliente, reembolsos, clientes, cupones, ajustes, envíos, impuestos y reseñas siguen destructivos,
+como cualquier otra herramienta.
+
+**Privacidad.** Las lecturas corren sin confirmar: si el Asistente consulta clientes o pedidos, sus datos personales
+(nombres, correos, direcciones, teléfonos) se envían al proveedor de IA elegido sin un clic. La pantalla lo dice al pie
+(«Lo que consulta (también datos de clientes y pedidos) se envía al proveedor de IA»); quien no quiera que eso pase
+apaga la categoría de tienda en la barra de herramientas del Asistente o el MCP de tienda. `digitalisimo_ai_assistant_tool_kind` permite
 afinar la clase.
 
 - **Lo nuevo nace en borrador**: si la Ability crea (`create`, `new`, `add`, `insert`, `duplicate`, `generate` en su
@@ -172,7 +179,7 @@ afinar la clase.
   acción pendiente, no destructiva, no propuesta tras leer contenido del sitio (`after_read`) y nada a medio ejecutar,
   una afirmación clara (todas sus palabras de afirmación o relleno: «sí», «sí hazlo», «dale», «ok», «confirmo»; un verbo
   con pronombre sólo si corresponde a la acción: «créala» confirma una creación, «publícala» no; «gracias», «perfecto»,
-  «correcto», «listo», «no», «pero», «cambia…» no confirman) ejecuta la acción GUARDADA como el botón (mismo permiso,
+  «correcto», «listo», «no», «pero», «cambia…» no confirman, ni «¿sí?» u «¿ok?» como pregunta) ejecuta la acción GUARDADA como el botón (mismo permiso,
   caducidad, `running` antes de ejecutar y bitácora; nunca con argumentos nuevos del modelo) y después el modelo recibe
   el resultado y el «sí». Con varias pendientes, tras leer o destructiva, un «sí» no hace nada: un aviso pide el botón
   (y la casilla, si es destructiva) y lo pendiente sigue. Cualquier otro mensaje cancela lo pendiente (el modelo recibe

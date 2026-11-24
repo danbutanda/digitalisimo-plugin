@@ -515,6 +515,10 @@ final class Digitalisimo_AI_Assistant {
 	 * precio»… no lo son.
 	 */
 	public static function affirmation( $text ) {
+		// «¿sí?» u «¿ok?» son preguntas, no confirmaciones.
+		if ( false !== strpos( (string) $text, '?' ) || false !== strpos( (string) $text, '¿' ) ) {
+			return false;
+		}
 		$strong = false;
 		foreach ( self::words( $text ) as $word ) {
 			if ( in_array( $word, self::AFFIRM_STRONG, true ) || '' !== self::verb_of( $word ) ) {
@@ -757,9 +761,9 @@ final class Digitalisimo_AI_Assistant {
 				continue;
 			}
 			$draft = 'read' === $kind ? '' : Digitalisimo_AI_Assistant_Tools::draft_mode( $entry, $call['input'], (array) ( $conv['drafts'] ?? array() ) );
-			// Tras leer contenido del sitio, código (script, iframe, on…=, javascript:) de quien publica HTML sin filtrar
-			// pasa por la tarjeta: podría venir de un texto de terceros.
-			if ( '' !== $draft && $read && current_user_can( 'unfiltered_html' ) && Digitalisimo_AI_Assistant_Tools::has_code( $call['input'] ) ) {
+			// Tras leer contenido del sitio, lo que quien publica HTML sin filtrar escribiría y wp_kses_post() no dejaría
+			// pasar (o una entrada demasiado honda para revisarla) va a la tarjeta: podría venir de un texto de terceros.
+			if ( '' !== $draft && $read && current_user_can( 'unfiltered_html' ) && Digitalisimo_AI_Assistant_Tools::needs_review( $call['input'] ) ) {
 				$draft = '';
 			}
 			if ( '' !== $draft ) {

@@ -140,6 +140,8 @@ const MESSAGES = [
       check('Y2', confirmed && confirmed.events.some((e) => e.type === 'tool' && e.message.ability === 'digi-ias/apply-offer' && e.message.status === 'ok') && state.product.sale === '7500', 'con el botón de la tarjeta, sí (precio de oferta 7500 en la tienda)', JSON.stringify({ product: state.product, confirmed: confirmed && confirmed.status }));
       check('R2', (state.made || []).some((p) => p.whatsapp.includes('5218711234567')), 'la landing lleva el WhatsApp del sitio', JSON.stringify((state.made || []).map((p) => p.whatsapp)));
       check('T1', transcript.every((t) => !t.error), 'ninguna petición falló', JSON.stringify(transcript.map((t) => t.error).filter(Boolean)));
+      const review = state.review || {};
+      check('D3', Object.keys(review).filter((k) => k.startsWith('evade-')).length === 6 && Object.entries(review).every(([k, v]) => v === k.startsWith('evade-')), 'con el wp_kses_post() real, las 6 evasiones van a la tarjeta y el texto o HTML normal no', JSON.stringify(review));
     } else {
       // Evaluación de la conversación real.
       const landing = (state.made || [])[0];

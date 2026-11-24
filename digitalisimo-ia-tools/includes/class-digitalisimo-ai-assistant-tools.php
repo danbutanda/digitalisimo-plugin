@@ -17,6 +17,8 @@ defined( 'ABSPATH' ) || exit;
  *   tarjeta (clase `draft`). Publicar, borrar, cambiar lo publicado, precios, pedidos o ajustes siguen pidiendo
  *   confirmación. Las listas son explícitas (filtros `digitalisimo_ai_assistant_draft_creators` y
  *   `digitalisimo_ai_assistant_draft_editors`); nada se deduce de las anotaciones.
+ * - Privacidad: las lecturas corren sin confirmar, así que consultar clientes o pedidos envía sus datos personales
+ *   (nombres, correos, direcciones, teléfonos) al proveedor de IA sin un clic; la pantalla lo dice.
  * - Ejecución con `WP_Ability::execute()`, que vuelve a comprobar el permiso del usuario que chatea.
  * - Lo que vuelve al modelo va envuelto como dato (DATA_NOTICE), con lo secreto enmascarado y con un tope de tamaño.
  * - Bitácora de cada llamada (opción sin carga automática, LOG_MAX filas y la retención de IA Tools).
@@ -26,13 +28,17 @@ final class Digitalisimo_AI_Assistant_Tools {
 	const LOG_MAX      = 500;
 	const DATA_MAX     = 12000;
 	/**
-	 * Acciones que cambian sin destruir: SÓLO en las herramientas de tienda de DIGITALÍSIMO (WRITE_PREFIX, que anotan como
-	 * destructiva toda escritura), crear o actualizar es `write` (confirmación con la tarjeta). Borrar, lotes, reembolsos,
-	 * pasarelas de pago y todo lo de clientes o usuarios siguen siendo destructivos, igual que cualquier otra herramienta.
+	 * Acciones que cambian sin destruir: SÓLO en el catálogo de la tienda de DIGITALÍSIMO (WRITE_TOOLS: productos,
+	 * variaciones, categorías, etiquetas, marcas, atributos y clases de envío, WRITE_RESOURCES; esas herramientas anotan
+	 * como destructiva toda escritura), crear o actualizar es `write` (confirmación con la tarjeta). Todo lo demás de la
+	 * tienda —pedidos, notas al cliente, reembolsos, clientes, cupones, ajustes, envíos, impuestos, reseñas— y borrar o
+	 * los lotes siguen siendo destructivos, igual que cualquier otra herramienta.
 	 */
-	const WRITE_ACTIONS = array( 'create', 'update' );
-	const WRITE_PREFIX  = 'digitalisimo-woo/';
-	const SENSITIVE     = '/refund|reembolso|gateway|payment|pasarela|customer|cliente|user|usuario|account|cuenta/i';
+	const WRITE_ACTIONS   = array( 'create', 'update' );
+	const WRITE_TOOLS     = array( 'digitalisimo-woo/products', 'digitalisimo-woo/catalog' );
+	const WRITE_RESOURCES = array( '', 'product', 'variation', 'category', 'tag', 'brand', 'attribute', 'attribute_term', 'shipping_class' );
+	/** Profundidad máxima que se revisa de una entrada; más honda, pasa por la tarjeta. */
+	const REVIEW_DEPTH    = 32;
 	const READ_ACTIONS = array( 'list', 'get', 'read', 'search', 'find', 'count', 'view', 'show', 'retrieve', 'describe', 'schema', 'status' );
 	/** Amplio: lo que viaja al proveedor, al historial, al detalle y a la bitácora (como `Secrets` del MCP de Woo). */
 	const SECRET_KEYS  = '/((^|[_-])pass(word|wd|phrase)?($|[_-])|password|passwd|secret|token|signature|hmac|salt|bearer|cookie|authorization|credentials?|private[_-]?key|api[_-]?key|apikey|(^|[_-])auth($|[_-])|^nonce$|[_-]key$|^key$)/i';
@@ -176,7 +182,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 		$action = is_array( $input ) && isset( $input['action'] ) && is_string( $input['action'] ) ? strtolower( $input['action'] ) : '';
 		if ( 'read' !== $kind && $trusted && '' !== $action && in_array( $action, self::READ_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) ) {
 			$kind = 'read';
-		} elseif ( 'destructive' === $kind && 0 === strpos( (string) $entry['name'], self::WRITE_PREFIX ) && false === ( $entry['annotations']['readonly'] ?? null ) && in_array( $action, self::WRITE_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) && ! preg_match( self::SENSITIVE, (string) $entry['name'] . ' ' . ( is_array( $input ) && is_scalar( $input['resource'] ?? null ) ? (string) $input['resource'] : '' ) ) ) {
+		} elseif ( 'destructive' === $kind && in_array( (string) $entry['name'], self::WRITE_TOOLS, true ) && false === ( $entry['annotations']['readonly'] ?? null ) && in_array( $action, self::WRITE_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) && in_array( is_array( $input ) && is_string( $input['resource'] ?? null ) ? strtolower( $input['resource'] ) : ( isset( $input['resource'] ) ? '?' : '' ), self::WRITE_RESOURCES, true ) ) {
 			$kind = 'write';
 		}
 		$kind = apply_filters( 'digitalisimo_ai_assistant_tool_kind', $kind, $entry['name'], $input );
@@ -231,17 +237,27 @@ final class Digitalisimo_AI_Assistant_Tools {
 		return false;
 	}
 
-	/** ¿La entrada lleva, en algún texto, código que se ejecuta en el navegador (script, iframe, on…=, javascript:)? */
-	public static function has_code( $input, $depth = 0 ) {
+	/**
+	 * ¿Esta entrada debe pasar por la tarjeta aunque sea un borrador? Sí si algún texto cambia al pasar por
+	 * wp_kses_post() (HTML que el editor de una entrada no admitiría: script, iframe, meta, base, style, atributos on…,
+	 * protocolos como javascript: escritos con entidades o tabuladores…), si es más honda que REVIEW_DEPTH o si no se
+	 * puede comprobar. No intenta reconocer el código: compara la entrada con su versión filtrada.
+	 */
+	public static function needs_review( $input, $depth = 0 ) {
+		if ( $depth > self::REVIEW_DEPTH ) {
+			return true;
+		}
 		if ( is_string( $input ) ) {
-			return (bool) preg_match( '#<\s*(script|iframe|object|embed)|\bon[a-z]+\s*=|javascript:#i', $input );
-		}
-		if ( ! is_array( $input ) || $depth > 32 ) {
-			return false;
-		}
-		foreach ( $input as $value ) {
-			if ( self::has_code( $value, $depth + 1 ) ) {
+			if ( ! function_exists( 'wp_kses_post' ) ) {
 				return true;
+			}
+			return wp_kses_post( $input ) !== $input;
+		}
+		if ( is_array( $input ) ) {
+			foreach ( $input as $key => $value ) {
+				if ( ( is_string( $key ) && self::needs_review( $key, $depth + 1 ) ) || self::needs_review( $value, $depth + 1 ) ) {
+					return true;
+				}
 			}
 		}
 		return false;

@@ -141,6 +141,33 @@ function wp_timezone_string() { return 'America/Mexico_City'; }
 function remove_accents( $t ) { return strtr( (string) $t, array( 'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'ñ' => 'n', 'Ñ' => 'N', 'ü' => 'u' ) ); }
 function get_post_type_object( $t ) { return in_array( $t, array( 'post', 'page', 'product', 'attachment', 'elementor_library', 'shop_coupon', 'feedback', 'flamingo_inbound' ), true ) ? (object) array( 'name' => $t ) : null; }
 function is_post_type_viewable( $o ) { return is_object( $o ) && in_array( $o->name, array( 'post', 'page', 'product', 'attachment' ), true ); }
+// Como wp_kses_post() en lo que importa aquí: quita etiquetas no admitidas en una entrada (script, style, meta, base,
+// iframe…) y los atributos peligrosos, y los protocolos que no sean http(s), mailto o tel aunque vengan con entidades
+// o espacios; lo admitido queda tal cual. En el Playground se comprueba con el wp_kses_post() real.
+function wp_kses_post( $html ) {
+	$allowed = array( 'a', 'p', 'strong', 'em', 'b', 'i', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'img', 'span', 'div', 'br', 'blockquote', 'figure', 'figcaption' );
+	return preg_replace_callback(
+		'#<(/?)([a-z][a-z0-9-]*)([^>]*)>#i',
+		function ( $m ) use ( $allowed ) {
+			if ( ! in_array( strtolower( $m[2] ), $allowed, true ) ) {
+				return '';
+			}
+			preg_match_all( '/([a-z-]+)\s*=\s*("([^"]*)"|\'([^\']*)\'|(\S+))/i', $m[3], $attrs, PREG_SET_ORDER );
+			foreach ( $attrs as $a ) {
+				$name  = strtolower( $a[1] );
+				$value = html_entity_decode( $a[3] ?? ( $a[4] ?? ( $a[5] ?? '' ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+				if ( ! in_array( $name, array( 'href', 'src', 'title', 'alt', 'class', 'id', 'target', 'rel' ), true ) ) {
+					return '<' . $m[1] . $m[2] . '>';
+				}
+				if ( in_array( $name, array( 'href', 'src' ), true ) && preg_match( '/^([a-z][a-z0-9+.-]*):/i', preg_replace( '/[\x00-\x20]+/', '', $value ), $p ) && ! in_array( strtolower( $p[1] ), array( 'http', 'https', 'mailto', 'tel' ), true ) ) {
+					return '<' . $m[1] . $m[2] . '>';
+				}
+			}
+			return $m[0];
+		},
+		(string) $html
+	);
+}
 function wp_has_ability( $n ) { return isset( $GLOBALS['abilities'][ $n ] ); }
 function selected( $a, $b, $echo = true ) { return (string) $a === (string) $b ? ' selected="selected"' : ''; }
 function checked( $a, $b, $echo = true ) { return (string) $a === (string) $b ? ' checked="checked"' : ''; }

@@ -707,7 +707,7 @@
 				h( 'div', { className: 'dga-composer-area' },
 					h( 'div', { className: 'dga-column' },
 						h( Composer, { value: draft, onChange: setDraft, onSubmit: send, disabled: busy || ( noAi && ! isShortcut( draft ) ), placeholder: noAi ? 'Sin IA configurada: usa /ayuda para los atajos' : 'Escribe una instrucción…', max: ( config.limits && config.limits.message ) || 4000, hint: fromLink ? 'Este mensaje vino en un enlace: revísalo antes de enviarlo.' : ( pending.some( ( a ) => 'running' !== a.state ) ? 'Hay una acción esperando tu confirmación.' : null ) } ),
-						h( 'p', { className: 'dga-footnote' }, 'El asistente puede equivocarse: revisa la información importante. Cada acción queda en la bitácora.' ) ) ) ),
+						h( 'p', { className: 'dga-footnote' }, 'El asistente puede equivocarse: revisa la información importante. Cada acción queda en la bitácora. Lo que consulta (también datos de clientes y pedidos) se envía al proveedor de IA.' ) ) ) ),
 			'appearance' === dialog ? h( Appearance, { look, setLook, onClose: () => setDialog( '' ) } ) : null,
 			'log' === dialog ? h( LogDialog, { onClose: () => setDialog( '' ) } ) : null );
 	}

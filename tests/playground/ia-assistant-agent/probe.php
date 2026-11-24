@@ -273,6 +273,22 @@ add_action(
 				'seen'    => get_option( 'digi_ias_seen', array() ),
 				'log'     => get_option( 'digitalisimo_ai_assistant_log', array() ),
 				'key_set' => '' !== (string) ( get_option( 'digitalisimo_ai_options', array() )['providers']['anthropic']['key'] ?? '' ),
+				// needs_review() con el wp_kses_post() real de WordPress: las evasiones van a la tarjeta, el texto normal no.
+				'review'  => array_map(
+					static function ( $html ) {
+						return Digitalisimo_AI_Assistant_Tools::needs_review( array( 'post_id' => 1, 'settings' => array( 'html' => $html ) ) );
+					},
+					array(
+						'evade-entity'  => '<a href="java&#115;cript:alert(1)">x</a>',
+						'evade-tab'     => "<a href=\"java\tscript:alert(1)\">x</a>",
+						'evade-colon'   => '<a href="javascript&colon;alert(1)">x</a>',
+						'evade-meta'    => '<meta http-equiv="refresh" content="0;url=//x.test">',
+						'evade-base'    => '<base href="//x.test/">',
+						'evade-style'   => '<style>@import url(//x.test/a.css)</style>',
+						'plain-text'    => 'Oferta de fin de mes',
+						'plain-html'    => '<p>Hasta el <strong>30 de noviembre</strong></p>',
+					)
+				),
 			),
 			null,
 			JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR
