@@ -5,12 +5,12 @@
  *
  *   window.digitalisimoAssistantAdapters.create( config ) → {
  *     history: { list(), get( id ), remove( id ), clear() },
- *     model:   { providers(), send( payload, onEvent ), confirm( payload, onEvent ) },
+ *     model:   { providers(), send( payload, onEvent ), confirm( payload, onEvent ), resume( payload, onEvent ) },
  *     tools:   { list(), log() },
  *   }
  *
- * Todo devuelve promesas. `send` y `confirm` entregan eventos ({ type: conversation | status | message | tool |
- * confirm | done }) a medida que llegan: el servidor los manda en flujo (NDJSON) y, si algo en medio guarda la
+ * Todo devuelve promesas. `send`, `confirm` y `resume` entregan eventos ({ type: conversation | status | message |
+ * tool | confirm | continue | done }) a medida que llegan (`continue`: el turno sigue; la pantalla llama a `resume`): el servidor los manda en flujo (NDJSON) y, si algo en medio guarda la
  * respuesta entera, llegan juntos. Esta implementación habla con la REST de IA Tools (digitalisimo-ai/v1/assistant)
  * con la sesión de WordPress: nonce wp_rest y el nonce propio del Asistente. Otra implementación se registra
  * definiendo window.digitalisimoAssistantAdapters antes que este archivo (filtro PHP
@@ -149,6 +149,9 @@
 				},
 				confirm: function ( payload, onEvent ) {
 					return stream( 'confirm', payload, onEvent );
+				},
+				resume: function ( payload, onEvent ) {
+					return stream( 'continue', payload, onEvent );
 				},
 			},
 			tools: {

@@ -50,7 +50,7 @@
 	];
 	const STORE = 'digitalisimo-assistant-appearance';
 	const DEFAULT_LOOK = { variant: 'classic', mode: 'light', scheme: 'digitalisimo' };
-	const VERBS = { read: 'Consultó', write: 'Cambio', destructive: 'Acción destructiva', unknown: 'Herramienta' };
+	const VERBS = { read: 'Consultó', draft: 'Borrador', write: 'Cambio', destructive: 'Acción destructiva', unknown: 'Herramienta' };
 	const STATES = { ok: 'hecho', error: 'error', denied: 'sin permiso', cancelled: 'cancelado', unknown: 'resultado desconocido' };
 		const SUGGESTIONS = [
 		[ 'Lista las últimas entradas y páginas del sitio', 'Ver el contenido reciente' ],
@@ -450,6 +450,8 @@
 		const [ dialog, setDialog ] = useState( '' );
 		const threadRef = useRef( null );
 		const activeRef = useRef( activeId );
+		// El servidor pausó un turno largo (evento «continue»): la pantalla lo sigue sola, sin que la persona escriba.
+		const continueRef = useRef( false );
 
 		const setLook = ( next ) => {
 			setLookState( next );
@@ -551,13 +553,27 @@
 				setMessages( ( list ) => list.concat( [ event.message ] ) );
 			} else if ( 'confirm' === event.type && event.action ) {
 				setPending( ( list ) => list.concat( [ event.action ] ) );
+			} else if ( 'continue' === event.type ) {
+				continueRef.current = true;
 			}
+		};
+
+		// Mientras el servidor diga «continue», se pide la continuación del mismo turno (otros adaptadores sin resume: no).
+		const follow = () => {
+			if ( ! continueRef.current || ! activeRef.current || 'function' !== typeof adapters.model.resume ) {
+				continueRef.current = false;
+				return null;
+			}
+			continueRef.current = false;
+			setStatus( 'Sigo trabajando…' );
+			return adapters.model.resume( { conversation: activeRef.current }, onEvent ).then( follow );
 		};
 
 		const run = ( call, onError ) => {
 			setBusy( true );
 			setStatus( 'Pensando…' );
-			return call().catch( ( e ) => {
+			continueRef.current = false;
+			return call().then( follow ).catch( ( e ) => {
 				setMessages( ( list ) => list.concat( [ note( e && e.message ? e.message : 'Error de conexión.', 'error' ) ] ) );
 				if ( onError ) {
 					onError( e );
@@ -691,7 +707,7 @@
 				h( 'div', { className: 'dga-composer-area' },
 					h( 'div', { className: 'dga-column' },
 						h( Composer, { value: draft, onChange: setDraft, onSubmit: send, disabled: busy || ( noAi && ! isShortcut( draft ) ), placeholder: noAi ? 'Sin IA configurada: usa /ayuda para los atajos' : 'Escribe una instrucción…', max: ( config.limits && config.limits.message ) || 4000, hint: fromLink ? 'Este mensaje vino en un enlace: revísalo antes de enviarlo.' : ( pending.some( ( a ) => 'running' !== a.state ) ? 'Hay una acción esperando tu confirmación.' : null ) } ),
-						h( 'p', { className: 'dga-footnote' }, 'El asistente puede equivocarse: revisa la información importante. Cada acción queda en la bitácora.' ) ) ) ),
+						h( 'p', { className: 'dga-footnote' }, 'El asistente puede equivocarse: revisa la información importante. Cada acción queda en la bitácora. Lo que consulta (también datos de clientes y pedidos) se envía al proveedor de IA.' ) ) ) ),
 			'appearance' === dialog ? h( Appearance, { look, setLook, onClose: () => setDialog( '' ) } ) : null,
 			'log' === dialog ? h( LogDialog, { onClose: () => setDialog( '' ) } ) : null );
 	}

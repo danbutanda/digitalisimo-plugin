@@ -11,7 +11,8 @@ defined( 'ABSPATH' ) || exit;
  * Se expone igual que las demás herramientas de los plugins: pública para MCP (`meta.mcp.public`, el servidor genérico
  * del adaptador) y, con el MCP de DIGITALÍSIMO Elements activo, en su servidor `/wp-json/elementor/mcp` por el filtro
  * `elementor/mcp/server/tools` (allí se llama `digitalisimo-ia-open-assistant`). Sin la Abilities API (WordPress 6.9)
- * no se registra nada.
+ * no se registra nada. Con ella se registran también las de lectura del sitio (Digitalisimo_AI_Site_Reader:
+ * `digitalisimo-ia/read-page-text` y `digitalisimo-ia/site-contact`), con la misma exposición.
  */
 final class Digitalisimo_AI_Assistant_Ability {
 	const NAME     = 'digitalisimo-ia/open-assistant';
@@ -31,10 +32,15 @@ final class Digitalisimo_AI_Assistant_Ability {
 	}
 
 	public static function register() {
-		if ( ! function_exists( 'wp_register_ability' ) || ( function_exists( 'wp_has_ability' ) && wp_has_ability( self::NAME ) ) ) {
+		if ( ! function_exists( 'wp_register_ability' ) ) {
 			return;
 		}
-		wp_register_ability( self::NAME, self::definition() );
+		if ( ! function_exists( 'wp_has_ability' ) || ! wp_has_ability( self::NAME ) ) {
+			wp_register_ability( self::NAME, self::definition() );
+		}
+		if ( class_exists( 'Digitalisimo_AI_Site_Reader' ) ) {
+			Digitalisimo_AI_Site_Reader::register();
+		}
 	}
 
 	public static function definition() {
@@ -98,8 +104,18 @@ final class Digitalisimo_AI_Assistant_Ability {
 	/** El servidor MCP de DIGITALÍSIMO Elements la ofrece junto a las suyas. */
 	public static function server_tools( $tools ) {
 		$tools = is_array( $tools ) ? $tools : array();
-		if ( function_exists( 'wp_register_ability' ) && ! in_array( self::NAME, $tools, true ) ) {
-			$tools[] = self::NAME;
+		if ( ! function_exists( 'wp_register_ability' ) ) {
+			return $tools;
+		}
+		$names = array( self::NAME );
+		if ( class_exists( 'Digitalisimo_AI_Site_Reader' ) ) {
+			$names[] = Digitalisimo_AI_Site_Reader::READ_TEXT;
+			$names[] = Digitalisimo_AI_Site_Reader::CONTACT;
+		}
+		foreach ( $names as $name ) {
+			if ( ! in_array( $name, $tools, true ) ) {
+				$tools[] = $name;
+			}
 		}
 		return $tools;
 	}
