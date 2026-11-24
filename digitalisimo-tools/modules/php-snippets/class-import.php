@@ -334,8 +334,10 @@ final class Import {
 			$old = $item['origin'];
 			if ( hash_equals( (string) ( $old['hash'] ?? '' ), $origin['hash'] ) ) return 'unchanged';
 			$run    = Store::run( 'site' );
-			$intact = '' !== (string) ( $old['code_hash'] ?? '' ) && hash_equals( (string) $old['code_hash'], hash( 'sha256', $item['code'] ) ) && ! isset( $run['items'][ $found ] );
 			$meta   = $index['items'][ $found ];
+			// Revisión adversarial H8: uno que una persona revisó y desactivó (sin la marca «sin revisar») o que el guardián
+			// detuvo por un error no vuelve a «sin revisar» porque cambie el origen: se trata como un conflicto.
+			$intact = '' !== (string) ( $old['code_hash'] ?? '' ) && hash_equals( (string) $old['code_hash'], hash( 'sha256', $item['code'] ) ) && ! isset( $run['items'][ $found ] ) && ! empty( $meta['review'] ) && empty( $meta['error'] );
 			if ( $intact ) {
 				$item['code']    = $code;
 				$item['origin']  = $origin;

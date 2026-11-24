@@ -1265,6 +1265,9 @@ PHPCODE;
 	delete_option( $S::off_name( 'site', $cid, hash( 'sha256', $child_code ) ) );
 	$S::deactivate( 'site', $cid, 1 );
 	check( 'changed' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', $ch ) && 'inactive' === $S::state( 'site', $cid ), 'uno desactivado a mano no se vuelve a activar solo' );
+	// Revisión adversarial H8: aunque cambie el origen, lo que una persona desactivó no vuelve a «sin revisar».
+	$child_new = "<?php\nif ( function_exists( 'digitalisimo_theme_parity' ) ) {\nadd_action( 'wp_head', function () { echo '<style>.y{color:red}</style>'; } );\n}\n";
+	check( array( 'digitalisimo-theme:hijo' => 'conflict' ) === apply_filters( $I::FILTER, null, array( array_merge( $child_item, array( 'code' => $child_new, 'original' => $child_new, 'origin' => array( 'source' => 'digitalisimo-theme', 'id' => 'hijo', 'hash' => 'child-1b' ) ) ) ), array() ) && 'inactive' === $S::state( 'site', $cid ) && 'changed' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', array( 'hash' => hash( 'sha256', $child_new ) ) ), 'origen nuevo sobre uno desactivado a mano: conflicto, sigue desactivado y Migrar no lo activa' );
 	$GLOBALS['t']['caps'] = array( 'edit_themes', 'unfiltered_html', 'manage_options', 'manage_network_options' );
 	$edited = array_merge( $child_item, array( 'origin' => array( 'source' => 'digitalisimo-theme', 'id' => 'hijo2', 'hash' => 'child-2' ) ) );
 	apply_filters( $I::FILTER, null, array( $edited ), array() );

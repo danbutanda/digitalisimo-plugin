@@ -80,13 +80,21 @@ function digitalisimo_theme_child_other_files( WP_Theme $child ) {
 		$files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY, RecursiveIteratorIterator::CATCH_GET_CHILD );
 		$seen  = 0;
 		foreach ( $files as $file ) {
-			if ( ++$seen > 2000 || count( $blockers ) >= 20 ) {
-				break;
-			}
 			$rel = ltrim( str_replace( '\\', '/', substr( $file->getPathname(), strlen( $dir ) ) ), '/' );
 			$ext = strtolower( (string) $file->getExtension() );
 			if ( 'functions.php' === $rel || ! $file->isFile() ) {
 				continue;
+			}
+			// Sólo cuenta lo que puede pintar algo (PHP, HTML, theme.json y plantillas de bloques): imágenes, SVG y fuentes no
+			// agotan el tope. Si aun así se llega a él, lo que quede sin revisar cuenta como plantilla desconocida: el hijo se
+			// queda (revisión adversarial H2).
+			$matters = in_array( $ext, array( 'php', 'phtml', 'inc', 'html', 'htm' ), true ) || 'theme.json' === $rel || preg_match( '#^(templates|parts|block-templates|block-template-parts)/#', $rel );
+			if ( ! $matters ) {
+				continue;
+			}
+			if ( ++$seen > 2000 || count( $blockers ) >= 20 ) {
+				$blockers[] = array( 'file' => '', 'line' => 0, 'what' => 'más archivos de plantilla de los que se revisan (quedan sin revisar)' );
+				break;
 			}
 			if ( 'theme.json' === $rel || preg_match( '#^(templates|parts|block-templates|block-template-parts)/#', $rel ) ) {
 				$blockers[] = array( 'file' => $rel, 'line' => 0, 'what' => 'theme.json' === $rel ? 'estilos globales propios (theme.json)' : 'plantilla de bloques' );

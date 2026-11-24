@@ -151,7 +151,7 @@ final class Packages {
 			wp_cache_delete( 'alloptions', 'options' );
 		}
 		$now = self::plugin_active( $file );
-		if ( ( empty( $was['network'] ) || $now['network'] ) && ( empty( $was['site'] ) || $now['site'] || $now['network'] ) ) {
+		if ( ( empty( $was['network'] ) || $now['network'] ) && ( empty( $was['site'] ) || $now['site'] ) ) {
 			return true;
 		}
 		if ( ! function_exists( 'activate_plugin' ) ) {
@@ -159,7 +159,8 @@ final class Packages {
 		}
 		$errors = array();
 		foreach ( array( 'network' => true, 'site' => false ) as $scope => $network_wide ) {
-			if ( empty( $was[ $scope ] ) || ( $network_wide ? $now['network'] : ( $now['site'] || $now['network'] ) ) ) {
+			// Revisión adversarial H9: activo en el sitio y en la red, vuelve a los dos.
+			if ( empty( $was[ $scope ] ) || ( $network_wide ? $now['network'] : $now['site'] ) ) {
 				continue;
 			}
 			$done = activate_plugin( $file, '', $network_wide, true );
@@ -168,7 +169,7 @@ final class Packages {
 			}
 		}
 		$now = self::plugin_active( $file );
-		if ( ( empty( $was['network'] ) || $now['network'] ) && ( empty( $was['site'] ) || $now['site'] || $now['network'] ) ) {
+		if ( ( empty( $was['network'] ) || $now['network'] ) && ( empty( $was['site'] ) || $now['site'] ) ) {
 			return true;
 		}
 		return new \WP_Error( 'digitalisimo_migration_reactivate', sprintf( 'WordPress lo desactivó para actualizarlo y no se pudo volver a activar%s%s.', ! empty( $was['network'] ) ? ' en toda la red' : '', $errors ? ': ' . implode( '; ', $errors ) : '' ) );
