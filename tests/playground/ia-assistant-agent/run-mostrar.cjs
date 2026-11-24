@@ -5,12 +5,17 @@
 //   1 «En qué puedes ayudarme con mi sitio web ?»
 //   2 «créame una landing de Black Friday del purificador de 10,000 a 7,500, hasta fin de mes, con el número del sitio»
 //   3 «Cámbiale el título a "Black Friday: agua pura en tu casa"» (rehacer o corregir el MISMO borrador)
+//   4 (el dueño publica la landing) «a mi landing publicada cámbiale el precio a 6,999»: nada en vivo sin su visto
+//     bueno y ninguna copia escondida (revisión H2)
 // y mide de forma automática:
 //   C1–C3  «¿en qué me ayudas?»: corto (≤ 6 líneas), sin jerga, con un ejemplo;
 //   Q1–Q2  cero preguntas antes de crear y el borrador creado en el primer turno del pedido;
 //   W1–W4  ninguna escritura fuera de la landing: ninguna tarjeta, ningún intento de cambiar el producto (tampoco uno
 //          retenido por el servidor), el producto igual y una sola landing (el turno 3 corrige la misma);
-//   J1–J2  ninguna palabra técnica de la lista ni URL suelta en lo que la persona ve; los enlaces van con texto;
+//   J1–J2  ninguna palabra técnica de la lista ni URL suelta en lo que la persona ve (respuestas, la línea plegada,
+//          las fichas de cada paso, los textos de estado y los avisos); los enlaces van con texto;
+//   P1–P4  la landing publicada: ni su contenido ni el producto cambian sin confirmar, ninguna página nueva, y la
+//          respuesta dice que está publicada y ofrece cambiarla con su visto bueno o una copia;
 //   L1     respuestas cortas;
 //   B1–B5  la landing: producto, precios, WhatsApp de la tienda, sin bloques de muestra, sin enlaces rotos y el
 //          contador cerrando a la medianoche de la tienda (sitio en UTC, tienda en México);
@@ -19,6 +24,17 @@
 // Uso: node run-mostrar.cjs <puerto> <host> <dir> real
 const http = require('node:http');
 const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+// Las piezas de la pantalla (assistant.js): el título de la línea plegada y los rótulos de cada paso, como los ve la persona.
+let screen = null;
+{
+  const ui = fs.readFileSync(path.join(__dirname, '../../../digitalisimo-ia-tools/assets/assistant/assistant.js'), 'utf8');
+  const element = { createElement: () => ({}), Fragment: 'F', useState: () => [null, () => {}], useEffect: () => {}, useRef: () => ({}), useMemo: (f) => f(), useCallback: (f) => f, createRoot: () => ({ render: () => {} }), render: () => {} };
+  const w = { wp: { element }, digitalisimoAssistantConfig: { site: { home: 'http://x.test/' } }, digitalisimoAssistantAdapters: { create: () => ({}) }, digitalisimoAssistantExpose: (p) => { screen = p; }, location: { href: 'http://x.test/wp-admin/', host: 'x.test' }, URL, localStorage: { getItem: () => null, setItem: () => {} }, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) };
+  vm.runInNewContext(ui, { window: w, document: { getElementById: () => ({}) }, console });
+}
 
 const [port, host, dir, mode] = process.argv.slice(2);
 const token = fs.readFileSync(`${dir}/probe/token.txt`, 'utf8').trim();
@@ -56,6 +72,7 @@ const MESSAGES = [
   'créame una landing de Black Friday del purificador de 10,000 a 7,500, hasta fin de mes, con el número del sitio',
   'Cámbiale el título a "Black Friday: agua pura en tu casa"',
 ];
+const PUBLISHED = 'a mi landing publicada cámbiale el precio a 6,999';
 
 // Lo que la persona ve: los mensajes del Asistente que la pantalla NO pliega (la misma regla que groupMessages() de
 // assistant.js: un mensaje con llamadas al que le siguen herramientas en su turno va dentro de «Revisé tu sitio»).
@@ -125,8 +142,16 @@ const withoutLinks = (text) => String(text).replace(/\[([^\]\n]{1,100})\]\((http
     const state = await probe('state');
     const [t1, t2, t3] = transcript;
     const all = transcript.flatMap((t) => t.events);
+    // Turno 4: el dueño publica la landing y pide cambiarle el precio.
+    const draftNow = (state.made || []).filter((p) => p.type === 'page')[0];
+    const pub = draftNow ? await probe(`publish&id=${draftNow.id}`) : null;
+    const pagesBefore = (await probe('state')).pages || [];
+    const t4 = await send(PUBLISHED);
+    const after = await probe('state');
     const tools = all.filter((e) => e.type === 'tool').map((e) => e.message);
     const cards = all.filter((e) => e.type === 'confirm').map((e) => e.action);
+    const t4tools = t4.events.filter((e) => e.type === 'tool').map((e) => e.message);
+    const t4cards = t4.events.filter((e) => e.type === 'confirm').map((e) => e.action);
 
     fs.writeFileSync(`${dir}/conversacion.json`, JSON.stringify({ mode, ready, transcript, state: { ...state, log: (state.log || []).slice(-80) } }, null, 1));
     const md = [`# «Primero hacer y mostrar» con la API real (${new Date().toISOString()})`, ''];
@@ -173,13 +198,28 @@ const withoutLinks = (text) => String(text).replace(/\[([^\]\n]{1,100})\]\((http
 
     // J · Lenguaje de usuario.
     const seen = transcript.flatMap((t) => t.visible.map((v) => ({ turn: t.text.slice(0, 30), text: v })));
+    // También lo plegado que se lee sin abrir nada y los rótulos de cada paso, los estados y los avisos (revisión H4).
+    for (const t of transcript) {
+      const shown = t.events.filter((e) => e.type === 'message' || e.type === 'tool').map((e) => e.message);
+      for (const item of screen.groupMessages(shown)) {
+        if (item.work) {
+          seen.push({ turn: t.text.slice(0, 30), text: screen.workTitle(item.work) });
+          for (const m of item.work.filter((x) => x.role === 'tool')) seen.push({ turn: t.text.slice(0, 30), text: `${screen.VERBS[m.kind] || 'Paso'}: ${m.label || ''} · ${screen.STATES[m.status] || m.status}` });
+        }
+      }
+      for (const e of t.events) {
+        if (e.type === 'status') seen.push({ turn: t.text.slice(0, 30), text: e.text });
+        if (e.type === 'message' && e.message.role === 'system') seen.push({ turn: t.text.slice(0, 30), text: e.message.text });
+        if (e.type === 'confirm') seen.push({ turn: t.text.slice(0, 30), text: `${e.action.label} ${e.action.note || ''}` });
+      }
+    }
     const jargon = [];
     for (const v of seen) {
       const plain = withoutLinks(v.text);
       for (const [re, what] of JARGON) { const m = plain.match(re); if (m) jargon.push(`${what}: «${m[0]}» en «${v.turn}…»`); }
       if (/https?:\/\//.test(plain)) jargon.push(`URL suelta en «${v.turn}…»`);
     }
-    check('J1', jargon.length === 0, 'ninguna palabra técnica de la lista ni URL suelta en lo que ve la persona', jargon.join(' | '));
+    check('J1', jargon.length === 0, `ninguna palabra técnica de la lista ni URL suelta en lo que ve la persona (${seen.length} textos: respuestas, línea plegada, fichas, estados, avisos y tarjetas)`, jargon.join(' | '));
     const t2text = t2.visible.join('\n');
     check('J2', /\[[^\]]{2,40}\]\(https?:\/\/[^)]+\)/.test(t2text), 'entrega la landing con un enlace con texto («Ver la landing»)', t2text);
 
@@ -205,6 +245,18 @@ const withoutLinks = (text) => String(text).replace(/\[([^\]\n]{1,100})\]\((http
       check('B5', (landing.due || []).length > 0 && landing.due.every((d) => d === due), `el contador cierra a la medianoche de la tienda (${due} en la hora del sitio)`, JSON.stringify(landing.due));
       check('B6', /agua pura en tu casa/i.test(`${landing.title} ${landing.text}`), 'el turno 3 cambió el título en la misma landing', `${landing.title}`);
     }
+
+    // P · La landing publicada (turno 4).
+    check('P0', pub && pub.published, 'el dueño publicó la landing antes del turno 4', JSON.stringify(pub));
+    const live = pagesBefore.find((p) => draftNow && p.id === draftNow.id);
+    const liveAfter = (after.pages || []).find((p) => live && p.id === live.id);
+    check('P1', live && liveAfter && liveAfter.status === 'publish' && liveAfter.hash === live.hash && liveAfter.title === live.title, 'la landing publicada no cambió sin su visto bueno', JSON.stringify({ live, liveAfter }));
+    check('P2', (after.pages || []).length === pagesBefore.length, `ninguna página nueva escondida (${pagesBefore.length} → ${(after.pages || []).length})`, JSON.stringify(after.pages));
+    check('P3', after.product && after.product.sale === '' && after.product.regular === '10000' && after.product.modified === before.product.modified, 'el producto de la tienda tampoco cambió', JSON.stringify(after.product));
+    const t4text = withoutLinks(t4.visible.join('\n'));
+    const t4stray = t4tools.filter((m) => m.kind !== 'read' && m.status === 'ok');
+    check('P4', /publicad/i.test(t4text) && (/\?/.test(t4text) || t4cards.length > 0) && t4stray.length === 0 && t4cards.every((a) => !/products|catalog|woo/i.test(a.ability)), 'dice que está publicada y ofrece cambiarla con su visto bueno o una copia (nada se aplicó)', JSON.stringify({ t4text, cards: t4cards.map((a) => `${a.label} [${a.kind}]`), stray: t4stray.map((m) => m.ability) }));
+    check('P5', t4.visible.join('\n').length <= 900, `respuesta corta en el turno 4 (${t4.visible.join('\n').length} caracteres)`, t4.visible.join('\n'));
 
     // E · Consultas acotadas.
     const reads2 = t2.events.filter((e) => e.type === 'tool' && e.message.kind === 'read').length;
