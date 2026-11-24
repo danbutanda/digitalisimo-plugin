@@ -264,7 +264,7 @@ namespace {
 			return $this->d['gallery'];
 		}
 		public function get_attributes() {
-			return array( new Sp_Attribute( 'pa_color', array(), true ), new Sp_Attribute( 'Capacidad', array( '2 litros por minuto' ), false ) );
+			return $this->d['attributes'] ?? array( new Sp_Attribute( 'pa_color', array(), true ), new Sp_Attribute( 'Capacidad', array( '2 litros por minuto' ), false ) );
 		}
 		public function get_date_on_sale_to() {
 			return null;
@@ -316,6 +316,13 @@ namespace {
 			return $query;
 		}
 		public function get_results( $query, $output ) {
+			$rows = $this->rows( $query );
+			if ( false !== strpos( $query, "post_password = ''" ) ) {
+				$rows = array_values( array_filter( $rows, static function ( $r ) { return empty( $r['post_password'] ); } ) );
+			}
+			return $rows;
+		}
+		private function rows( $query ) {
 			if ( false !== strpos( $query, "p.post_type IN ('elementor_library'" ) ) {
 				return $GLOBALS['sp']['meta_rows']; // Cabecera, pie, botón flotante y menús, en su propia consulta.
 			}
@@ -327,6 +334,35 @@ namespace {
 				return array_slice( array_merge( $GLOBALS['sp']['page_rows'], $GLOBALS['sp']['meta_rows'] ), 0, 60 );
 			}
 			return $GLOBALS['sp']['content_rows'];
+		}
+	}
+	/** Un método de envío de la tienda. */
+	class Sp_Method {
+		public $id;
+		public $enabled = 'yes';
+		public $requires;
+		public $min_amount;
+		private $title;
+		public function __construct( $id, $title, $requires = '', $min_amount = '' ) {
+			$this->id         = $id;
+			$this->title      = $title;
+			$this->requires   = $requires;
+			$this->min_amount = $min_amount;
+		}
+		public function get_title() {
+			return $this->title;
+		}
+	}
+	class WC_Shipping_Zones {
+		public static function get_zones() {
+			return $GLOBALS['sp']['zones'];
+		}
+	}
+	class WC_Shipping_Zone {
+		public function __construct( $id = 0 ) {
+		}
+		public function get_shipping_methods( $enabled = false ) {
+			return array();
 		}
 	}
 	class Sp_Experiments {
@@ -360,13 +396,14 @@ namespace {
 			'page_rows'    => array(),
 			'content_rows' => array(),
 			'ratings'      => array(),
+			'zones'        => array(),
 		);
 		if ( $contact ) {
 			$GLOBALS['sp']['pages'][11] = array( 'slug' => 'contacto', 'status' => 'publish' );
 		}
 		if ( $whatsapp ) {
 			$GLOBALS['sp']['meta_rows'] = array(
-				array( 'ID' => 40, 'post_type' => 'elementor_library', 'post_title' => 'Pie', 'meta_key' => '_elementor_data', 'meta_value' => '[{"settings":{"link":{"url":"https:\/\/wa.me\/5218711112222?text=Hola"}}}]' ),
+				array( 'ID' => 40, 'post_type' => 'elementor_library', 'post_title' => 'Pie', 'meta_key' => '_elementor_data', 'meta_value' => '[{"settings":{"link":{"url":"https:\/\/wa.me\/5218711112222?text=Hola"}}}]', 'conditions' => serialize( array( 'include/general' ) ) ),
 			);
 			$GLOBALS['sp']['content_rows'] = array(
 				array( 'ID' => 41, 'post_type' => 'post', 'post_title' => 'Viejo', 'post_content' => '<a href="https://wa.me/5215550000000">viejo</a>' ),
@@ -643,7 +680,7 @@ namespace {
 	check( false !== strpos( $all, 'Formas de pago: Tarjeta de crédito o débito y Transferencia bancaria' ) && false === strpos( $all, 'en línea' ), 'R2: «Formas de pago: …» y ningún «en línea»' );
 	// 3. WhatsApp: cada origen cuenta una vez; el pie no queda fuera por las páginas recientes; aviso con los candidatos.
 	sp_reset();
-	$GLOBALS['sp']['meta_rows'] = array( array( 'ID' => 40, 'post_type' => 'elementor_library', 'post_title' => 'Pie', 'meta_key' => '_elementor_data', 'meta_value' => '[{"url":"https:\/\/wa.me\/5218711112222"}]' ) );
+	$GLOBALS['sp']['meta_rows'] = array( array( 'ID' => 40, 'post_type' => 'elementor_library', 'post_title' => 'Pie', 'meta_key' => '_elementor_data', 'meta_value' => '[{"url":"https:\/\/wa.me\/5218711112222"}]', 'conditions' => serialize( array( 'include/general' ) ) ) );
 	$GLOBALS['sp']['page_rows'] = array_fill( 0, 60, array( 'ID' => 50, 'post_type' => 'page', 'post_title' => 'Promos', 'meta_key' => '_elementor_data', 'meta_value' => '[{"url":"https:\/\/wa.me\/5219990001111"},{"url":"https:\/\/wa.me\/5219990001111"},{"url":"https:\/\/wa.me\/5219990001111"},{"url":"https:\/\/wa.me\/5219990001111"}]' ) );
 	$GLOBALS['sp']['content_rows'] = array();
 	$site = Site::read();
@@ -720,6 +757,73 @@ namespace {
 		list( $out, $all )        = $run( $promo );
 		check( false === strpos( $all, '<p style="text-align:center">' . $frase ) && in_array( 'garantia-y-preguntas', array_column( $out['pending'], 'block' ), true ), "R10 «{$frase}»: no se toma como garantía (queda pendiente)" );
 	}
+
+	// ================================================================ 5c. Segunda revisión (2026-11-23)
+	// S1. La hora del cierre se nombra con la zona del sitio SÓLO en los textos del cierre: la fecha de un evento (03, 04)
+	//     la escribe el usuario en la hora que dice, y su «(hora del centro de México)» se queda.
+	$evento = array( '[Día]' => '5', '[mes]' => 'diciembre', '[hora]' => '19:00', '[remitente]' => 'Plomería Ensayo' );
+	foreach ( array( 'UTC' => 'hora UTC', 'America/Cancun' => 'hora de Cancún' ) as $zona => $etiqueta ) {
+		foreach ( array( true, false ) as $terminar ) {
+			$modo = $terminar ? 'terminada' : 'a mano';
+			sp_reset();
+			$GLOBALS['sp']['tz'] = $zona;
+			list( $out, $all )   = $run( array( 'template' => 'captacion', 'title' => 'Clase', 'replacements' => $evento, 'finish' => $terminar ) );
+			check( false !== strpos( $all, '5 de diciembre · 19:00 (hora del centro de México)' ) && false === strpos( $all, $etiqueta ), "S1 $zona, 03 $modo: la hora del evento sigue «(hora del centro de México)»" );
+			list( $out, $all ) = $run( array( 'template' => 'gracias-registro', 'title' => 'Gracias', 'replacements' => $evento, 'finish' => $terminar ) );
+			check( false !== strpos( $all, '5 de diciembre a las 19:00 (centro de México)' ) && false === strpos( $all, $etiqueta ), "S1 $zona, 04 $modo: la hora del evento sigue «(centro de México)»" );
+			list( $out, $all ) = $run( array( 'template' => 'venta-corta', 'title' => 'Venta', 'close_date' => $fin . ' 23:59', 'finish' => $terminar ) );
+			check( false !== strpos( $all, '23:59 (' . $etiqueta . ')' ) && false === strpos( $all, 'de cierre] (hora del centro' ), "S1 $zona, 02 $modo: el cierre dice ($etiqueta)" );
+		}
+	}
+	// S2. Envío gratis con condiciones: se dice con su condición; nunca «el envío es gratis» a secas.
+	check( 'en compras desde $1,500' === Site::free_condition( 'min_amount', '1500' ) && 'con cupón' === Site::free_condition( 'coupon', '' ) && 'en compras desde $999.50 o con cupón' === Site::free_condition( 'either', '999.5' ) && 'en compras desde $1,500 y con cupón' === Site::free_condition( 'both', '1500' ) && '' === Site::free_condition( '', '' ), 'S2: la condición de un envío gratis (mínimo, cupón, cualquiera, ambos)' );
+	sp_reset();
+	$GLOBALS['sp']['zones'] = array(
+		array( 'zone_id' => 1, 'shipping_methods' => array( new Sp_Method( 'flat_rate', 'Envío a domicilio' ), new Sp_Method( 'local_pickup', 'Recoger en tienda' ) ) ),
+		array( 'zone_id' => 2, 'shipping_methods' => array( new Sp_Method( 'free_shipping', 'Envío a domicilio', 'min_amount', '1500' ) ) ),
+	);
+	$envio = Site::read()['shipping'];
+	check( 2 === count( $envio ) && false === $envio[1]['free'] && 'en compras desde $1,500' === $envio[1]['condition'], 'S2: cada método de cada zona por separado (no se juntan por título), sin recoger en tienda' );
+	list( $out, $all ) = $run( $promo );
+	check( false !== strpos( $all, 'Opciones de envío: Envío a domicilio y Envío a domicilio (en compras desde $1,500). El costo se calcula al pagar.' ) && false === strpos( $all, 'el envío es gratis' ) && false === strpos( $all, 'Hay envío gratis' ), 'S2: el envío gratis con mínimo se dice con su condición' );
+	$GLOBALS['sp']['zones'] = array( array( 'zone_id' => 1, 'shipping_methods' => array( new Sp_Method( 'free_shipping', 'Envío gratis', 'coupon' ) ) ) );
+	list( $out, $all )      = $run( $promo );
+	check( false !== strpos( $all, 'Envío gratis (con cupón)' ) && false === strpos( $all, 'el envío es gratis' ), 'S2: un envío gratis con cupón no es «el envío es gratis»' );
+	// S3. Garantía: las negaciones van sobre la garantía, no sobre otra palabra.
+	$garantia = static function ( string $html, array $attributes = array() ) use ( $run, $promo ) {
+		sp_reset();
+		$GLOBALS['sp']['product'] = new Sp_Product( array( 'description' => '<ul><li>Uno</li></ul>' . $html ) );
+		if ( $attributes ) {
+			$GLOBALS['sp']['product']->d['attributes'] = $attributes;
+		}
+		return $run( $promo );
+	};
+	foreach ( array( '<p>Ningún tipo de garantía.</p>', '<p>Garantía: ninguna.</p>', '<p>Garantía: -</p>' ) as $frase ) {
+		list( $out, $all ) = $garantia( $frase );
+		check( in_array( 'garantia-y-preguntas', array_column( $out['pending'], 'block' ), true ), 'S3 «' . strip_tags( $frase ) . '»: no es una garantía' );
+	}
+	foreach ( array( 'Envío sin costo y garantía de 12 meses' => 'garantía de 12 meses', 'No te preocupes, tienes garantía de 2 años' => 'tienes garantía de 2 años' ) as $frase => $ve ) {
+		list( $out, $all ) = $garantia( '<p>' . $frase . '.</p>' );
+		check( false !== strpos( $all, '<p style="text-align:center">' . $frase . '.</p>' ) && ! in_array( 'garantia-y-preguntas', array_column( $out['pending'], 'block' ), true ), "S3 «{$frase}»: sí es una garantía ($ve)" );
+	}
+	list( $out, $all ) = $garantia( '', array( new Sp_Attribute( 'Garantía', array( '-' ), false ) ) );
+	check( in_array( 'garantia-y-preguntas', array_column( $out['pending'], 'block' ), true ), 'S3: el atributo «Garantía: -» no es una garantía' );
+	// S4. Variaciones empatadas en precio: la de ID menor (orden estable), con su propio precio normal.
+	sp_reset();
+	$GLOBALS['sp']['product'] = new Sp_Product( array( 'type' => 'variable', 'regular' => '', 'sale' => '', 'price' => '7000', 'variations' => array( 'price' => array( 12 => '7000', 11 => '7000' ), 'regular_price' => array( 12 => '7500', 11 => '7000' ), 'sale_price' => array( 12 => '7000', 11 => '' ) ) ) );
+	list( $out, $all )        = $run( array( 'product_id' => 252 ) );
+	check( false === strpos( $all, '<del>' ) && false !== strpos( $all, 'Precio: <span>$7,000 MXN</span>' ), 'S4: con dos variaciones al mismo precio gana la de ID menor (11, sin rebaja): sin tachado' );
+	// S5. WhatsApp: ni páginas con contraseña ni plantillas guardadas sin uso le ganan a la parte del sitio en uso.
+	sp_reset();
+	$GLOBALS['sp']['content_rows'] = array();
+	for ( $i = 0; $i < 4; $i++ ) {
+		$GLOBALS['sp']['content_rows'][] = array( 'ID' => 60 + $i, 'post_type' => 'page', 'post_title' => 'Privada ' . $i, 'post_password' => 'x', 'post_content' => '<a href="https://wa.me/5214440000000">x</a>' );
+	}
+	check( '5218711112222' === Site::read()['whatsapp'], 'S5: las páginas con contraseña no cuentan' );
+	$GLOBALS['sp']['content_rows'] = array();
+	$GLOBALS['sp']['meta_rows'][]  = array( 'ID' => 70, 'post_type' => 'elementor_library', 'post_title' => 'Pie viejo', 'meta_key' => '_elementor_data', 'meta_value' => '[{"url":"https:\/\/wa.me\/5213330000000"}]', 'conditions' => null );
+	$GLOBALS['sp']['meta_rows'][]  = array( 'ID' => 71, 'post_type' => 'elementor_library', 'post_title' => 'Borrador de pie', 'meta_key' => '_elementor_data', 'meta_value' => '[{"url":"https:\/\/wa.me\/5213330000000"}]', 'conditions' => serialize( array() ) );
+	check( '5218711112222' === Site::read()['whatsapp'], 'S5: dos plantillas guardadas sin uso pesan menos que el pie en uso' );
 
 	// ================================================================ 6. Guía y descripciones
 	$guide = Catalog::guide();

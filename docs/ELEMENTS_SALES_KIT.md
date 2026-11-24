@@ -202,7 +202,13 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
   misma variación («Desde» si los precios difieren); la pregunta de envíos sólo con métodos que llevan el producto (sin
   recoger en tienda) y si el producto se envía, y dice «gratis» con envío gratis; la hora del cierre se nombra con la
   zona real del sitio; sólo reseñas de 4 o 5 estrellas sin las respuestas de la tienda; un producto con contraseña se
-  rechaza; una oración que niega la garantía no es una garantía.
+  rechaza; una oración que niega la garantía no es una garantía. Segunda revisión: la zona del sitio sólo se nombra en
+  los textos del cierre (los que llevan `[… de cierre]`; la hora de un evento de la 03 y la 04 la escribe el usuario y
+  se queda «del centro de México»); un envío gratis con mínimo o cupón se dice con su condición y cada método de cada
+  zona cuenta por separado; la negación de la garantía debe ir sobre la garantía («ningún tipo de garantía»,
+  «garantía: ninguna»/«-»; no «envío sin costo y garantía de 12 meses»); variaciones empatadas, la de ID menor;
+  WhatsApp sin páginas con contraseña, y una plantilla guardada sin condiciones de visualización pesa menos que la
+  cabecera o el pie en uso; un enlace que se pone en el editor quita su botón, no el bloque.
 - **Terminada (`finish`, por defecto).** `Finisher` termina cualquier página del kit: `[Marca]` y `[año]` con los datos
   del sitio; las rutas del kit (`/aviso-de-privacidad/`, `/terminos-y-condiciones/`, `/politica-de-reembolso/`,
   `/carrito/`, `/pago/`…) a la página real que el sitio declara o tiene con esa dirección (`Site::read()`), y si no la

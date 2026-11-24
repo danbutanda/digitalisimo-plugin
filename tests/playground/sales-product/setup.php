@@ -144,6 +144,7 @@ try {
 	update_post_meta( $footer, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
 	update_post_meta( $footer, '_elementor_template_type', 'footer' );
 	update_post_meta( $footer, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $footer, '_elementor_conditions', array( 'include/general' ) ); // Un pie en uso en todo el sitio.
 
 	// El producto del caso.
 	$images  = array(

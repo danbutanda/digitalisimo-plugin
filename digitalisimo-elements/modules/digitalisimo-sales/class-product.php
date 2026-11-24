@@ -156,8 +156,13 @@ final class Product {
 			$prices  = method_exists( $p, 'get_variation_prices' ) ? (array) $p->get_variation_prices( true ) : array();
 			$active  = array_filter( array_map( array( self::class, 'number' ), (array) ( $prices['price'] ?? array() ) ) );
 			if ( $active ) {
-				asort( $active );
-				$vid     = array_key_first( $active );
+				// El más barato y, si empatan, la variación de ID menor (orden estable también en PHP 7.4).
+				$vid = null;
+				foreach ( $active as $id_var => $amount ) {
+					if ( null === $vid || $amount < $active[ $vid ] || ( $amount === $active[ $vid ] && (int) $id_var < (int) $vid ) ) {
+						$vid = $id_var;
+					}
+				}
 				$price   = $active[ $vid ];
 				$normal  = self::number( $prices['regular_price'][ $vid ] ?? null );
 				$regular = $normal;
@@ -357,7 +362,7 @@ final class Product {
 	/** Lo que el producto dice de su garantía (una oración o un atributo), o ''. */
 	public static function warranty( array $product ): string {
 		foreach ( $product['attributes'] as $attribute ) {
-			if ( preg_match( '/garant[ií]a/iu', $attribute['name'] ) && ! preg_match( '/^\s*(no|sin|ningun[ao]?|n\/a|-|0)\b/iu', $attribute['value'] ) && ! self::denies_warranty( $attribute['value'] ) ) {
+			if ( preg_match( '/garant[ií]a/iu', $attribute['name'] ) && ! self::denies_warranty( $attribute['value'] ) && ! self::denies_warranty( $attribute['name'] . ': ' . $attribute['value'] ) ) {
 				return $attribute['name'] . ': ' . $attribute['value'];
 			}
 		}
@@ -371,9 +376,17 @@ final class Product {
 		return '';
 	}
 
-	/** ¿La oración niega la garantía? («No incluye garantía», «sin garantía», «la garantía no aplica»). */
+	/**
+	 * ¿El texto niega la garantía? Sólo si la negación va sobre la garantía: «no incluye garantía», «sin garantía»,
+	 * «ningún tipo de garantía», «garantía: ninguna», «garantía: -», «la garantía no aplica». No cuentan «envío sin costo
+	 * y garantía de 12 meses» ni «no te preocupes, tienes garantía» (la negación es de otra palabra).
+	 */
 	public static function denies_warranty( string $text ): bool {
-		return 1 === preg_match( '/\b(no|sin|ni|nunca|carece de|excluye|excluido|excluida)\b(?:\s+\S+){0,3}?\s+garant[ií]a|garant[ií]a\s+(?:\S+\s+){0,2}?(no|nula|anulada|excluid[ao])\b/iu', $text );
+		$glue = '(?:incluye|incluyen|tiene|tienen|cuenta|cuentan|con|ofrece|ofrecemos|aplica|hay|de|del|la|el|una|un|su|sus|tipo|ningún|alguna|ningun[ao]?|se|da|damos|otorga)';
+		$before = '/\b(?:no|sin|ni|nunca|ning[uú]n[ao]?|carece\s+de|excluye)\s+(?:' . $glue . '\s+){0,3}garant[ií]as?\b/iu';
+		$after  = '/\bgarant[ií]as?\s*(?::|-|=)?\s*(?:-+\s*$|n\/a\b|ning[uú]n[ao]?\b|nula\b|anulada\b|no\b(?!\s+te\b))/iu';
+		$value  = '/^\s*(?:no|sin|ning[uú]n[ao]?|n\/a|-+|0)\s*\.?\s*$/iu';
+		return 1 === preg_match( $before, $text ) || 1 === preg_match( $after, $text ) || 1 === preg_match( $value, $text );
 	}
 
 	/** «Título» y «descripción» de un beneficio («Título: descripción», o una frase corta). */
@@ -832,16 +845,29 @@ final class Product {
 
 		// Preguntas frecuentes con lo que la tienda sabe.
 		// Envíos: sólo los que llevan el producto (sin recoger en tienda) y sólo si el producto se envía (no virtual ni
-		// descargable). «Gratis» sólo con un envío gratis sin condiciones.
-		$methods  = array();
-		foreach ( (array) ( $site['shipping'] ?? array() ) as $method ) {
-			$method = is_array( $method ) ? $method : array( 'title' => (string) $method, 'method' => '', 'free' => false );
-			if ( ! in_array( (string) ( $method['method'] ?? '' ), Site::PICKUP, true ) ) {
-				$methods[] = $method;
+		// descargable). «Gratis» sólo con un envío gratis sin condiciones; uno con mínimo o cupón se dice con su condición.
+		// Los métodos de varias zonas con el mismo nombre y la misma condición se nombran una vez.
+		$options = array();
+		$free    = 0;
+		$paid    = 0;
+		foreach ( empty( $product['virtual'] ) ? (array) ( $site['shipping'] ?? array() ) : array() as $method ) {
+			$method = is_array( $method ) ? $method : array( 'title' => (string) $method );
+			if ( in_array( (string) ( $method['method'] ?? '' ), Site::PICKUP, true ) ) {
+				continue;
+			}
+			$condition = (string) ( $method['condition'] ?? '' );
+			$text      = str_replace( array( '[', ']' ), array( '(', ')' ), (string) $method['title'] ) . ( '' !== $condition ? ' (' . $condition . ')' : '' );
+			if ( isset( $options[ $text ] ) ) {
+				continue;
+			}
+			$options[ $text ] = true;
+			if ( ! empty( $method['free'] ) ) {
+				++$free;
+			} else {
+				++$paid;
 			}
 		}
-		$shipping = empty( $product['virtual'] ) ? $plainify( array_column( $methods, 'title' ) ) : array();
-		$free     = array_filter( array_column( $methods, 'free' ) );
+		$shipping = array_keys( $options );
 		$tabs     = array(
 			array( '¿Cómo lo compro?', $direct ? 'Pulsa «' . self::BUY_TEXT . '»: el producto se agrega a tu carrito y, al terminar tu pedido, eliges la forma de pago.' : 'Pulsa «' . self::VIEW_TEXT . '» y elige tus opciones en la tienda.' ),
 		);
@@ -849,7 +875,7 @@ final class Product {
 			$tabs[] = array( '¿Cómo puedo pagar?', 'Con ' . self::enumerate( $gateways ) . '.' );
 		}
 		if ( $shipping ) {
-			if ( count( $free ) === count( $shipping ) ) {
+			if ( 0 === $paid ) {
 				$tabs[] = array( '¿Hacen envíos?', 'Sí, el envío es gratis' . ( count( $shipping ) > 1 || 'envío gratis' !== mb_strtolower_safe( $shipping[0] ) ? ' (' . self::enumerate( $shipping ) . ')' : '' ) . '.' );
 			} elseif ( $free ) {
 				$tabs[] = array( '¿Hacen envíos?', 'Sí. Opciones de envío: ' . self::enumerate( $shipping ) . '. Hay envío gratis; el costo de las demás opciones se muestra al pagar.' );

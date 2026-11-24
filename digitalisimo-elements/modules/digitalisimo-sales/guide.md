@@ -32,8 +32,9 @@ Lo que no se rompe nunca, ni al llenar una plantilla ni al pedírselo a un asist
   reembolso del sitio) y preguntas frecuentes con los medios de pago y envíos activos. Sin bloques de curso (módulos,
   lecciones, bonus, meses sin intereses, la persona detrás). Si la tienda cobra otro precio que la landing, la
   respuesta lo avisa: se pone el precio rebajado en el producto antes de publicar.
-- **La urgencia, sólo si es cierta.** Fecha y hora de cierre reales (hora del centro de México) y su motivo, en la
-  barra de cierre y junto al precio. Sin una fecha de cierre real no hay contador: `create-page` quita la barra de
+- **La urgencia, sólo si es cierta.** Fecha y hora de cierre reales, en la hora del sitio (la de su zona horaria:
+  `create-page` la nombra en los textos del cierre, p. ej. «hora del centro de México» o «hora de Tijuana»), y su
+  motivo, en la barra de cierre y junto al precio. Sin una fecha de cierre real no hay contador: `create-page` quita la barra de
   cierre y el contador del carrito, y los textos que nombran el cierre quedan pendientes. Un contador que se reinicia es
   mentira.
 - **Se promete trabajo, no resultados.** Nada de promesas de ingresos ni de «libertad financiera»; el pie dice que los
@@ -185,7 +186,7 @@ Se escriben con la voz de DIGITALÍSIMO, sin promesas de ingresos y con cifras q
 | El botón | «¡Sí, quiero [producto] ahora!», con un subtexto que recuerda lo que se lleva |
 | Los caminos | «A · [opción] (arriesgado)», «B · … (costoso)», «C · … (inteligente)» |
 | La garantía | «Garantía [nombre]: [N] días», cómo funciona y por qué la damos |
-| La urgencia | «Cierra el [día] a las [hora] (centro de México) porque [motivo]», sólo si es real |
+| La urgencia | «Cierra el [día] a las [hora] ([hora del sitio]) porque [motivo]», sólo si es real |
 | El cierre | «¿Qué esperas?» y tres o cuatro «¿Quieres…?» |
 
 ## Las páginas, una por una
@@ -226,7 +227,8 @@ Se escriben con la voz de DIGITALÍSIMO, sin promesas de ingresos y con cifras q
   lo hay (si no, se quita la imagen de muestra).
 - Imágenes reales en cada hueco; ninguna generada que se haga pasar por real.
 - Testimonios, cifras y casos reales y con permiso; si no hay, se quita el bloque.
-- Contador sólo con una fecha de cierre real y el sitio en la zona horaria de la Ciudad de México.
+- Contador sólo con una fecha de cierre real, en la hora del sitio; revisa que la zona horaria del sitio sea la de la
+  venta (Ajustes → Generales), porque el contador y los textos del cierre usan esa.
 - Precios en pesos, con su valor tachado real y los meses sin intereses sólo si la pasarela los da; sólo los medios
   de pago que de verdad se aceptan.
 - Formularios: guardan cada envío, avisan al correo correcto y llevan a la página siguiente; se hace un envío de

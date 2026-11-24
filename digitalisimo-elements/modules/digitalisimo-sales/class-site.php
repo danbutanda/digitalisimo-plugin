@@ -123,6 +123,14 @@ final class Site {
 		return array( $digits, $source[ $digits ][0], $candidates );
 	}
 
+	/** ¿Una plantilla del constructor se muestra en el sitio? (tiene condiciones de visualización: cabecera, pie…) */
+	public static function in_use( $conditions ): bool {
+		if ( is_string( $conditions ) && '' !== $conditions ) {
+			$conditions = function_exists( 'maybe_unserialize' ) ? maybe_unserialize( $conditions ) : @unserialize( $conditions, array( 'allowed_classes' => false ) ); // phpcs:ignore
+		}
+		return is_array( $conditions ) && (bool) array_filter( $conditions );
+	}
+
 	/** Cómo se nombra la hora del sitio en un texto: «hora del centro de México», «hora de Tijuana», «hora UTC»… */
 	public static function timezone_label( string $tz ): string {
 		$names = array(
@@ -279,7 +287,11 @@ final class Site {
 		return array_values( array_unique( $out ) );
 	}
 
-	/** Los métodos de envío activos (todas las zonas), sin los de recoger en tienda: ['title', 'method', 'free']. */
+	/**
+	 * Los métodos de envío activos (todas las zonas), sin los de recoger en tienda: ['title', 'method', 'zone', 'free',
+	 * 'condition']. `free` sólo con un envío gratis sin condiciones; uno que pide un mínimo o un cupón lleva su
+	 * condición («en compras desde $1,500», «con cupón»). Cada método de cada zona por separado (no se juntan por título).
+	 */
 	private static function shipping(): array {
 		if ( ! class_exists( '\WC_Shipping_Zones' ) ) {
 			return array();
@@ -287,7 +299,10 @@ final class Site {
 		$out = array();
 		try {
 			$zones   = (array) \WC_Shipping_Zones::get_zones();
-			$zones[] = array( 'shipping_methods' => ( new \WC_Shipping_Zone( 0 ) )->get_shipping_methods( true ) );
+			$zones[] = array(
+				'zone_id'          => 0,
+				'shipping_methods' => ( new \WC_Shipping_Zone( 0 ) )->get_shipping_methods( true ),
+			);
 			foreach ( $zones as $zone ) {
 				foreach ( (array) ( $zone['shipping_methods'] ?? array() ) as $method ) {
 					if ( ! is_object( $method ) || 'yes' !== ( $method->enabled ?? '' ) || ! method_exists( $method, 'get_title' ) ) {
@@ -298,17 +313,43 @@ final class Site {
 					if ( '' === $title || in_array( $id, self::PICKUP, true ) || preg_match( '/recoge|recolec|pickup|en tienda|en sucursal/iu', $title ) ) {
 						continue;
 					}
-					$out[ $title ] = array(
-						'title'  => $title,
-						'method' => $id,
-						'free'   => 'free_shipping' === $id,
+					$condition = 'free_shipping' === $id ? self::free_condition( (string) ( $method->requires ?? '' ), (string) ( $method->min_amount ?? '' ) ) : '';
+					$out[]     = array(
+						'title'     => $title,
+						'method'    => $id,
+						'zone'      => (int) ( $zone['zone_id'] ?? ( $zone['id'] ?? 0 ) ),
+						'free'      => 'free_shipping' === $id && '' === $condition,
+						'condition' => $condition,
 					);
 				}
 			}
 		} catch ( \Throwable $e ) {
 			return array();
 		}
-		return array_values( $out );
+		return $out;
+	}
+
+	/**
+	 * La condición de un envío gratis (`requires` del método de la tienda: '', `min_amount`, `coupon`, `either` o
+	 * `both`), o '' si no tiene: «en compras desde $1,500», «con cupón», «en compras desde $1,500 o con cupón»…
+	 */
+	public static function free_condition( string $requires, string $min_amount ): string {
+		$amount = is_numeric( str_replace( ',', '', $min_amount ) ) ? (float) str_replace( ',', '', $min_amount ) : 0.0;
+		$symbol = function_exists( 'get_woocommerce_currency_symbol' ) ? html_entity_decode( (string) get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ) : '$';
+		$since  = $amount > 0 ? 'en compras desde ' . $symbol . number_format( $amount, abs( $amount - round( $amount ) ) < 0.005 ? 0 : 2, '.', ',' ) : 'con un monto mínimo de compra';
+		switch ( $requires ) {
+			case '':
+				return '';
+			case 'min_amount':
+				return $since;
+			case 'coupon':
+				return 'con cupón';
+			case 'either':
+				return $since . ' o con cupón';
+			case 'both':
+				return $since . ' y con cupón';
+		}
+		return 'con condiciones';
 	}
 
 	/**
@@ -344,7 +385,7 @@ final class Site {
 		// poco no los dejan fuera del límite.
 		$rows = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT p.ID, p.post_type, p.post_title, m.meta_key, m.meta_value FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE p.post_status = 'publish' AND p.post_type IN ('elementor_library', 'e-floating-buttons', 'nav_menu_item') AND m.meta_key IN ('_elementor_data', '_menu_item_url') AND ( $where ) ORDER BY p.post_modified DESC LIMIT 200",
+				"SELECT p.ID, p.post_type, p.post_title, m.meta_key, m.meta_value, c.meta_value AS conditions FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id LEFT JOIN {$wpdb->postmeta} c ON c.post_id = p.ID AND c.meta_key = '_elementor_conditions' WHERE p.post_status = 'publish' AND p.post_password = '' AND p.post_type IN ('elementor_library', 'e-floating-buttons', 'nav_menu_item') AND m.meta_key IN ('_elementor_data', '_menu_item_url') AND ( $where ) ORDER BY p.post_modified DESC LIMIT 200",
 				...$likes
 			),
 			ARRAY_A
@@ -353,7 +394,7 @@ final class Site {
 			$rows,
 			(array) $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT p.ID, p.post_type, p.post_title, m.meta_key, m.meta_value FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE p.post_status = 'publish' AND p.post_type NOT IN ('elementor_library', 'e-floating-buttons', 'nav_menu_item', 'revision') AND m.meta_key = '_elementor_data' AND ( $where ) ORDER BY p.post_modified DESC LIMIT 40",
+					"SELECT p.ID, p.post_type, p.post_title, m.meta_key, m.meta_value FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE p.post_status = 'publish' AND p.post_password = '' AND p.post_type NOT IN ('elementor_library', 'e-floating-buttons', 'nav_menu_item', 'revision') AND m.meta_key = '_elementor_data' AND ( $where ) ORDER BY p.post_modified DESC LIMIT 40",
 					...$likes
 				),
 				ARRAY_A
@@ -361,7 +402,7 @@ final class Site {
 		);
 		$posts = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT ID, post_type, post_title, post_content FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type IN ('page', 'post', 'wp_block', 'wp_template_part', 'wp_navigation') AND ( post_content LIKE %s OR post_content LIKE %s ) ORDER BY post_modified DESC LIMIT 30",
+				"SELECT ID, post_type, post_title, post_content FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_password = '' AND post_type IN ('page', 'post', 'wp_block', 'wp_template_part', 'wp_navigation') AND ( post_content LIKE %s OR post_content LIKE %s ) ORDER BY post_modified DESC LIMIT 30",
 				'%wa.me%',
 				'%whatsapp.com%'
 			),
@@ -372,10 +413,11 @@ final class Site {
 			$type = (string) ( $row['post_type'] ?? '' );
 			if ( '_menu_item_url' === ( $row['meta_key'] ?? '' ) ) {
 				$found[] = array( (string) $row['meta_value'], 3, 'el menú del sitio' ); // Todos los menús son un solo origen.
-			} elseif ( in_array( $type, array( 'elementor_library', 'e-floating-buttons' ), true ) ) {
-				$found[] = array( (string) $row['meta_value'], 3, sprintf( 'la plantilla «%s» del sitio (n.º %d: cabecera, pie o botón)', (string) $row['post_title'], (int) $row['ID'] ) );
+			} elseif ( 'e-floating-buttons' === $type || ( 'elementor_library' === $type && self::in_use( $row['conditions'] ?? null ) ) ) {
+				// Una parte del sitio en uso: el botón flotante, o una cabecera o un pie con condiciones de visualización.
+				$found[] = array( (string) $row['meta_value'], 4, sprintf( 'la plantilla «%s» del sitio (n.º %d: cabecera, pie o botón)', (string) $row['post_title'], (int) $row['ID'] ) );
 			} else {
-				$found[] = array( (string) $row['meta_value'], 1, sprintf( 'la página «%s» (%d)', (string) $row['post_title'], (int) $row['ID'] ) );
+				$found[] = array( (string) $row['meta_value'], 1, sprintf( 'elementor_library' === $type ? 'la plantilla guardada «%s» (%d, sin uso en el sitio)' : 'la página «%s» (%d)', (string) $row['post_title'], (int) $row['ID'] ) );
 			}
 		}
 		foreach ( (array) $posts as $row ) {

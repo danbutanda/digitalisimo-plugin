@@ -334,7 +334,9 @@ final class Finisher {
 			$last = (string) $key;
 			if ( in_array( $last, Placeholders::URL_KEYS, true ) ) {
 				if ( false !== strpos( $value, '[' ) ) {
-					$this->pending( $block, $type, $path, 'un enlace (video, grupo o perfil) que se pone en el editor' );
+					// Un enlace que se pone en el editor (video, grupo, perfil) quita su botón, no el bloque entero.
+					$this->pending( $block, $type, $path, 'un enlace (video, grupo o perfil) que se pone en el editor', false );
+					$this->removed( $block, 'un botón o un video cuyo enlace se pone en el editor' );
 					$drop = true;
 					return $settings;
 				}
@@ -437,14 +439,6 @@ final class Finisher {
 			if ( false !== strpos( $value, "\x01" ) ) {
 				// Sin la página: fuera el enlace y su separador (« · »).
 				$value = (string) preg_replace( array( '/\s*·\s*\x01/u', '/\x01\s*·\s*/u', '/\x01/' ), '', $value );
-			}
-		}
-		// La hora del cierre es la de la zona del sitio (close_date): si no es la del centro de México, el texto la nombra.
-		$tz = trim( (string) ( $this->site['timezone'] ?? '' ) );
-		if ( '' !== $tz && false !== strpos( $value, 'centro de México)' ) ) {
-			$label = Site::timezone_label( $tz );
-			if ( 'hora del centro de México' !== $label ) {
-				$value = str_replace( array( '(hora del centro de México)', '(centro de México)' ), '(' . $label . ')', $value );
 			}
 		}
 		if ( '' === $this->whatsapp && false !== stripos( $value, 'whatsapp' ) ) {

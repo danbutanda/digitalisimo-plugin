@@ -291,9 +291,17 @@ final class Builder {
 				return $clean;
 			};
 		};
+		// La hora del cierre es la de la zona del sitio (close_date se lee en ella): los textos que nombran el cierre
+		// ([día de cierre], [hora de cierre]…) la dicen. Sólo ésos: la fecha de un evento (03, 04) la escribe el usuario en
+		// la hora que él dice, y su «(hora del centro de México)» se queda.
+		$tz_name  = isset( $env['timezone'] ) && $env['timezone'] instanceof \DateTimeZone ? $env['timezone']->getName() : '';
+		$tz_label = '' !== $tz_name ? Site::timezone_label( $tz_name ) : '';
 		$content = Placeholders::map_strings(
 			$content,
-			static function ( $owner, $path, $value, $id = '' ) use ( $resolver, $whatsapp, $due, $gone, $block_of, &$here, &$where ) {
+			static function ( $owner, $path, $value, $id = '' ) use ( $resolver, $whatsapp, $due, $gone, $block_of, &$here, &$where, $tz_label ) {
+				if ( '' !== $tz_label && 'hora del centro de México' !== $tz_label && false !== strpos( $value, ' de cierre]' ) ) {
+					$value = str_replace( array( '(hora del centro de México)', '(centro de México)' ), '(' . $tz_label . ')', $value );
+				}
 				$here  = isset( $gone[ $id ] );
 				$where = $block_of[ $id ] ?? '';
 				$field = Placeholders::field( $owner, $path, $value );
