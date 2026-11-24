@@ -92,7 +92,7 @@ try {
   check(create.length === 1 && create[0].fields.RegistrantStateProvince === 'Jalisco' && create[0].fields.AuxBillingPhone === '+52.3312345678' && create[0].fields.TechEmailAddress === 'ana@cliente.test' && create[0].key_ok, 'Namecheap: dominio registrado con los datos de facturación del cliente', JSON.stringify(create[0]?.fields));
   check(s.dns['mitienda.com'] === 'ns1.digitalisimo.website,ns2.digitalisimo.website', 'El dominio apunta a ns1 y ns2.digitalisimo.website', JSON.stringify(s.dns));
   const pass = passwords().mitienda || '§';
-  const mail = s.mails.find((m) => m.to === 'ana@cliente.test');
+  const mail = s.mails.find((m) => m.to === 'ana@cliente.test' && m.subject.startsWith('Tus accesos de hosting'));
   check(mail && mail.subject.includes('mitienda.com') && mail.body.includes(pass) && mail.body.includes('https://webuzo.test:2003/'), 'El cliente recibe el correo de WooCommerce con su panel (2003), usuario y contraseña', mail?.subject);
   check(!notes(s).includes(pass) && !s.order.meta.includes(pass) && s.order.notes.every((n) => !n.customer), 'Las notas son privadas y ni ellas ni la meta del pedido llevan la contraseña');
   check(s.order.status === 'completed' && s.service.status === 'active' && s.service.webuzo_user === 'mitienda' && s.service.has_pass, 'Pedido completado y servicio activo (contraseña sólo cifrada en el servicio)', JSON.stringify(s.service));
@@ -101,7 +101,7 @@ try {
   const before = s.calls.length;
   await probe('pay', { id: order1 }); await probe('run', { all: 1 });
   s = await probe('state', { id: order1 });
-  check(s.calls.length === before && s.mails.filter((m) => m.to === 'ana@cliente.test').length === 1, 'Volver a marcarlo pagado no llama a nadie ni reenvía el correo');
+  check(s.calls.length === before && s.mails.filter((m) => m.to === 'ana@cliente.test' && m.subject.startsWith('Tus accesos de hosting')).length === 1, 'Volver a marcarlo pagado no llama a nadie ni reenvía el correo');
 
   start('Precios de dominios');
   const prices = await probe('prices');
@@ -145,8 +145,8 @@ try {
   const renewal = Number(s.service.renewal_order);
   const r = await probe('state', { id: renewal });
   check(renewal && r.order.status === 'pending' && r.order.renewal_of === svc && r.order.items.length === 2, 'A 29 días se crea el pedido de renovación pendiente de pago con el plan y el dominio', JSON.stringify(r.order));
-  const reminder = r.mails.filter((m) => m.to === 'ana@cliente.test' && m.subject.includes('vence en 30 días'));
-  check(reminder.length === 1 && reminder[0].body.includes('order-pay'), 'El cliente recibe el aviso con el enlace de pago de WooCommerce', reminder[0]?.subject);
+  const reminder = r.mails.filter((m) => m.to === 'ana@cliente.test' && m.subject === 'Tu hosting vence en 30 días: mitienda.com');
+  check(reminder.length === 1 && reminder[0].body.includes('order-pay') && reminder[0].body.includes(String(renewal)), 'El cliente recibe el aviso con el enlace de pago de WooCommerce de su pedido de renovación', `${reminder.length} · ${(reminder[0]?.body || '').replace(/\s+/g, ' ').slice(0, 400)}`);
   await probe('daily', { svc, offset: 8 }); await probe('run');
   s = await probe('state', { svc });
   check(s.service.status === 'suspended' && s.users.mitienda.status === 'suspended', 'Pasados los 7 días de gracia sin pago, la cuenta se suspende en Webuzo', JSON.stringify(s.service));
@@ -159,7 +159,9 @@ try {
 
   start('Pantalla de servicios');
   const screen = await probe('screen');
-  check(screen.html.includes('mitienda.com') && screen.html.includes('digitalisimo_starter') && screen.html.includes('digitalisimo_hosting_service_suspend_') && screen.html.includes('window.confirm') && screen.html.includes('Precios de dominios'), 'La lista muestra los servicios con sus acciones (nonce y confirmación) y el historial de precios');
+  const needles = ['mitienda.com', 'digitalisimo_starter', 'name="op" value="suspend"', 'name="_wpnonce"', 'window.confirm', 'admin-post.php', 'Precios de dominios', 'Banxico FIX'];
+  const missing = needles.filter((n) => !screen.html.includes(n));
+  check(!missing.length, 'La lista muestra los servicios con sus acciones (nonce y confirmación) y el historial de precios', `falta: ${missing.join(', ')} · ${screen.html.replace(/\s+/g, ' ').slice(0, 300)}`);
   check(!screen.html.includes(pass), 'Sin contraseñas en la pantalla');
 } catch (e) {
   check(false, 'El ensayo terminó', e.stack || e.message);
