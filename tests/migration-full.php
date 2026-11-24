@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_mismatch', 'theme_child_nowrap', 'theme_child_nowrap_refused', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_json', 'theme_child_retire_dir', 'theme_child_retire_official', 'theme_child_retire_network', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback', 'alien_cache', 'alien_cache_midway', 'stale_cache', 'lost_click', 'done_job' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_mismatch', 'theme_child_nowrap', 'theme_child_nowrap_paused', 'theme_switch_throw', 'theme_switch_crash', 'theme_revert_snippet_stuck', 'theme_revert_order', 'theme_child_nowrap_refused', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_json', 'theme_child_retire_dir', 'theme_child_retire_official', 'theme_child_retire_network', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback', 'alien_cache', 'alien_cache_midway', 'plugin_update_reactivates', 'stale_cache', 'lost_click', 'done_job' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -52,9 +52,11 @@ function check( $ok, $message ) {
 /* ---------------------------------------------------------------- WordPress mínimo */
 
 class WP_Error {
+	private $c;
 	private $m;
-	public function __construct( $c = '', $m = '' ) { $this->m = $m; }
+	public function __construct( $c = '', $m = '' ) { $this->c = $c; $this->m = $m; }
 	public function get_error_message() { return $this->m; }
+	public function get_error_code() { return $this->c; }
 }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function blog() { return (int) ( $GLOBALS['t']['blog'] ?? 1 ); }
@@ -147,9 +149,12 @@ function get_plugins() { return $GLOBALS['t']['plugins']; }
 function set_transient( $k, $v, $e = 0 ) { return update_option( '_transient_' . $k, $v ); }
 function get_transient( $k ) { return get_option( '_transient_' . $k, false ); }
 function delete_transient( $k ) { return delete_option( '_transient_' . $k ); }
-function activate_plugin( $file, $r = '', $network = false ) {
+function activate_plugin( $file, $r = '', $network = false, $silent = false ) {
 	if ( ! isset( $GLOBALS['t']['plugins'][ $file ] ) ) {
 		return new WP_Error( 'x', 'no instalado' );
+	}
+	if ( isset( $GLOBALS['t']['fail_activate'][ $file ] ) ) {
+		return new WP_Error( 'x', $GLOBALS['t']['fail_activate'][ $file ] );
 	}
 	$GLOBALS['t']['log'][] = 'activate:' . $file . ( $network ? ':red' : '' );
 	// El gancho de activación del plugin (`activate_<archivo>`), en el sitio en curso, como WordPress.
@@ -239,6 +244,14 @@ function tools_auto() {
 		if ( ! empty( $GLOBALS['t']['snippet_refuse'] ) ) {
 			return $GLOBALS['t']['snippet_refuse'];
 		}
+		if ( ! empty( $GLOBALS['t']['crash_activate'] ) && 'digitalisimo-theme' === get_option( 'stylesheet' ) ) {
+			unset( $GLOBALS['t']['crash_activate'] );
+			$GLOBALS['t']['log'][] = 'crash';
+			if ( ! empty( $GLOBALS['t']['crash_snapshot'] ) ) {
+				$GLOBALS['t']['dead_job'] = get_option( \Digitalisimo\Migration\Full::JOB ); // Lo guardado en este instante.
+			}
+			throw new RuntimeException( 'algo lanzó al activar el fragmento' );
+		}
 		if ( ! empty( $GLOBALS['t']['mismatch_once'] ) ) {
 			return 'mismatch'; // El fragmento se editó en Tools: ya no es el functions.php del hijo (hasta volver a traerlo).
 		}
@@ -262,6 +275,9 @@ function tools_auto() {
 	};
 	$GLOBALS['t']['filters']['digitalisimo_tools_php_deactivate_import'][] = static function ( $result, $key, $context ) {
 		$GLOBALS['t']['log'][]        = 'snippet_deactivate:' . $key . ':' . ( $context['hash'] ?? '' );
+		if ( ! empty( $GLOBALS['t']['deactivate_fails'] ) ) {
+			return false; // Alguien lo cambió: Tools no lo toca.
+		}
 		$GLOBALS['t']['snippet_on'] = false;
 		return true;
 	};
@@ -598,8 +614,16 @@ Packages::$installer = static function ( $slug, $package, $type ) {
 	plugin( Replacements::own_file( $slug ), Replacements::own_label( $slug ) );
 	// La versión del paquete; una actualización (`plugin-update`) deja cargado su código nuevo (`on_update`).
 	$GLOBALS['t']['plugins'][ Replacements::own_file( $slug ) ]['Version'] = preg_replace( '/^.*-(\d+(?:\.\d+)+)\.zip$/', '$1', $package );
-	if ( 'plugin-update' === $type && isset( $GLOBALS['t']['on_update'][ $slug ] ) ) {
-		( $GLOBALS['t']['on_update'][ $slug ] )();
+	if ( 'plugin-update' === $type ) {
+		// Como Plugin_Upgrader::upgrade() (`deactivate_plugin_before_upgrade`, fuera de WP-Cron): lo desactiva antes de
+		// sustituirlo, en el sitio y, si lo estaba, en toda la red, sin sus ganchos.
+		$file = Replacements::own_file( $slug );
+		$GLOBALS['t']['log'][] = 'upgrader_deactivate:' . $file;
+		update_option( 'active_plugins', array_values( array_diff( (array) get_option( 'active_plugins', array() ), array( $file ) ) ) );
+		unset( $GLOBALS['t']['site']['active_sitewide_plugins'][ $file ] );
+		if ( isset( $GLOBALS['t']['on_update'][ $slug ] ) ) {
+			( $GLOBALS['t']['on_update'][ $slug ] )();
+		}
 	}
 	return true;
 };
@@ -622,6 +646,7 @@ $page = '<html><head><title>T</title></head><body><header>Vivero Las Flores</hea
  * `changed` (otro texto, como un sitio ya migrado que se ve distinto).
  */
 Front::$fetcher = static function ( $url ) use ( $page ) {
+	$GLOBALS['t']['fetched'][] = (string) $url;
 	$blog  = false !== strpos( $url, '/dos' ) ? 2 : 1;
 	if ( ! empty( $GLOBALS['t']['fail_in_theme_stage'] ) && 'theme' === ( Full::load( false )['stage'] ?? '' ) ) {
 		return new WP_Error( 'x', 'sin respuesta' );
@@ -845,16 +870,22 @@ switch ( $scenario ) {
 		check( ! $kept[0] && false !== strpos( $kept[1], "add_action( 'wp_head' )" ) && false !== strpos( $kept[1], 'DIGITALÍSIMO Tools no quedó activo en este sitio: no se pudo instalar: sin red' ) && ! $manual( $kept[1] ), 'Sin Tools (Migrar no pudo instalarlo), el hijo se queda con qué es y por qué, sin pasos a mano: ' . $kept[1] );
 		check( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => 'created', 'wrap' => true, 'tools' => true, 'activate' => 'activated' ) ) )[0], 'Importado y activado por Migrar: cambia.' );
 		check( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => 'created', 'wrap' => false, 'tools' => true, 'activate' => 'after_switch' ) ) )[0], 'Sin la condición posible, se activa justo después del cambio: cambia.' );
-		foreach ( array( 'nocaps' => 'edit_themes', 'blocked' => 'DISALLOW_FILE_EDIT', 'old_tools' => 'versión de DIGITALÍSIMO Tools', 'changed' => 'una persona', 'failed' => 'error de PHP' ) as $code => $says ) {
+		foreach ( array( 'nocaps' => 'edit_themes', 'blocked' => 'DISALLOW_FILE_EDIT', 'old_tools' => 'versión de DIGITALÍSIMO Tools', 'failed' => 'error de PHP' ) as $code => $says ) {
 			$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => 'created', 'wrap' => true, 'tools' => true, 'filter' => true, 'activate' => $code ) ) );
 			check( ! $kept[0] && false !== strpos( $kept[1], $says ) && ! $manual( $kept[1] ), "Tools no lo activó ({$code}): el motivo concreto, sin pasos a mano: " . $kept[1] );
 		}
+		// Revisión adversarial M3: lo que decidió una persona en Tools no se deshace; el motivo dice qué decidir (no el tema).
+		foreach ( array( 'changed' => 'una persona desactivó o cambió', 'mismatch' => 'una persona editó' ) as $code => $says ) {
+			$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => 'created', 'wrap' => true, 'tools' => true, 'filter' => true, 'activate' => $code ) ) );
+			check( ! $kept[0] && false !== strpos( $kept[1], $says ) && false === strpos( $kept[1], 'Apariencia' ) && false === strpos( $kept[1], 'vuelve a pulsar' ), "Decisión de una persona ({$code}): " . $kept[1] );
+		}
+		check( ! Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => false, 'not_child' => true ) ) )[0], 'Revisión M4: si el tema activo ya no es un hijo, no se lee como hijo.' );
 		check( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'covered' => true ) ) )[0], 'Con ese PHP ya activo en Tools, el hijo puede cambiar.' );
 		check( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => "functions.php, línea 9: add_action( 'wp_head' )", 'files' => 'header.php: plantilla que sustituye la del tema; template-landing.php: plantilla de página que usan 12 contenidos', 'covered' => true, 'tools' => true ) ) )[0], 'Con el fragmento activo, las plantillas del hijo ya no lo dejan: cambia y la verificación lo comprueba.' );
 		check( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => '', 'files' => 'theme.json: estilos globales propios (theme.json)', 'tools' => true, 'wrap' => true ) ) )[0], 'Sólo con archivos del hijo: cambia y se comprueba.' );
 		check( Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'risks' => 'functions.php, línea 4: usa la constante HELLO_PLUS_VERSION de Hello', 'covered' => true, 'tools' => true, 'wrap' => true ) ) )[0], 'Con un riesgo y el PHP activo: cambia y lo decide la verificación.' );
 		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => 'skipped', 'tools' => true, 'filter' => true, 'wrap' => true ) ) );
-		check( ! $kept[0] && false !== strpos( $kept[1], 'no lo pudo volver a crear' ) && ! $manual( $kept[1] ), 'Fragmento borrado que Tools no vuelve a crear: lo dice: ' . $kept[1] );
+		check( ! $kept[0] && false !== strpos( $kept[1], 'una persona borró su fragmento' ) && ! $manual( $kept[1] ), 'Fragmento borrado por una persona en Tools: no se vuelve a crear y lo dice: ' . $kept[1] );
 		$kept = Full::theme_safety( $hijo, $ready + array( 'child' => array( 'analyzed' => true, 'blockers' => 'x', 'imported' => '', 'tools' => true, 'filter' => false, 'wrap' => true ) ) );
 		check( ! $kept[0] && false !== strpos( $kept[1], 'sitio principal de la red' ) && ! $manual( $kept[1] ), 'Tools activo en el sitio pero no cargado en la petición: lo dice: ' . $kept[1] );
 		check( ! $manual( Full::theme_safety( array( 'hello' => false, 'name' => 'Astra' ) + $hello, $ready )[1] ), 'Otro tema se queda sin pedir que se cambie a mano.' );
@@ -1043,6 +1074,7 @@ switch ( $scenario ) {
 		drive();
 		$last = Full::last( false );
 		check( array( 'from' => '1.0.40', 'to' => '1.0.48' ) === ( $last['upgraded']['digitalisimo-tools'] ?? null ) && '1.0.48' === $GLOBALS['t']['plugins'][ Full::TOOLS_FILE ]['Version'], 'Tools se actualiza de 1.0.40 a 1.0.48: ' . json_encode( $last['upgraded'] ?? null ) );
+		check( logged( 'upgrader_deactivate:' . Full::TOOLS_FILE ) && active( Full::TOOLS_FILE ) && ! in_array( 'digitalisimo-tools', (array) $last['activated'], true ), 'WordPress lo desactiva para actualizarlo y Migrar lo deja activo en la misma petición, sin contarlo como «activado» por Migrar.' );
 		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ) && ! empty( $last['verified'] ) && ! empty( $GLOBALS['t']['snippet_on'] ), 'Y en la misma pasada cambia, con el fragmento activo: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
 		check( false !== strpos( (string) end( $GLOBALS['t']['imports'] )[0]['code'], "if ( function_exists( 'digitalisimo_theme_parity' ) ) {\n" . substr( PHP_CHILD, 6 ) ), 'Su functions.php va a Tools tal cual, dentro de la condición del tema propio.' );
 		check( false !== strpos( Full::render( false, $last ), 'DIGITALÍSIMO Tools 1.0.40 → 1.0.48' ), 'El informe dice que actualizó Tools.' );
@@ -1094,6 +1126,10 @@ switch ( $scenario ) {
 		$last = Full::last( false );
 		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['verified'] ) && ! empty( $GLOBALS['t']['snippet_on'] ), 'Con plantillas en el hijo, Migrar cambia y verifica: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
 		check( (bool) preg_grep( '/header\.php: plantilla que sustituye la del tema/', (array) $last['notes'] ), 'El informe dice qué archivos del hijo no usa el tema propio: ' . json_encode( $last['notes'], JSON_UNESCAPED_UNICODE ) );
+		// Revisión adversarial A2: header.php pinta todas las vistas: se compara también una de cada tipo (aquí la de 404,
+		// que no estaba entre las de siempre), y el hijo no se borra.
+		check( (bool) preg_grep( '/digitalisimo-migrar-comprobacion-404/', (array) $GLOBALS['t']['fetched'] ), 'Se compara también una vista de cada tipo (404).' );
+		check( isset( $GLOBALS['t']['themes']['hello-hijo'] ) && ! logged( 'delete_theme:hello-hijo' ) && false !== strpos( (string) ( $last['kept']['child:hello-hijo'] ?? '' ), 'plantillas o archivos propios' ), 'El hijo con plantillas no se borra: ' . json_encode( $last['kept'], JSON_UNESCAPED_UNICODE ) );
 		break;
 
 	case 'theme_child_files_only':
@@ -1133,8 +1169,8 @@ switch ( $scenario ) {
 		break;
 
 	case 'theme_child_skipped':
-		// El fragmento que Migrar dejó se borró en Tools (la importación contesta skipped): Migrar lo vuelve a traer del hijo
-		// (Import::reset_import()), lo activa y cambia.
+		// Revisión adversarial M3: el fragmento que Migrar dejó lo borró una persona en Tools (la importación contesta
+		// skipped). Migrar no lo vuelve a crear ni lo activa: el hijo se queda y el informe lo dice.
 		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
 		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
 		$GLOBALS['t']['carry']       = true;
@@ -1142,12 +1178,13 @@ switch ( $scenario ) {
 		$GLOBALS['t']['import_answer'] = 'skipped';
 		drive();
 		$last = Full::last( false );
-		check( in_array( 'snippet_reset:digitalisimo-theme:hello-hijo', $GLOBALS['t']['log'], true ) && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['verified'] ) && ! empty( $GLOBALS['t']['snippet_on'] ), 'Borrado en Tools: se vuelve a traer, se activa y cambia: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
+		$why  = (string) $last['theme'][1]['reason'];
+		check( ! logged( 'snippet_reset' ) && ! logged( 'snippet_activate' ) && 'hello-hijo' === get_option( 'stylesheet' ) && false !== strpos( $why, 'una persona borró su fragmento' ), 'Borrado por una persona: no renace ni se activa, y lo dice: ' . $why );
 		break;
 
 	case 'theme_child_mismatch':
-		// El fragmento se editó en Tools y ya no es el functions.php del hijo (Tools contesta mismatch al activarlo): Migrar
-		// lo vuelve a traer del hijo (lo editado queda en su historial), lo activa y cambia.
+		// Revisión adversarial M3: el fragmento se editó en Tools y ya no es el functions.php del hijo (Tools contesta
+		// mismatch). Migrar no sustituye lo editado: el hijo se queda y el informe dice qué decidir.
 		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
 		$GLOBALS['t']['child_sheet']   = 'hello-hijo';
 		$GLOBALS['t']['carry']         = true;
@@ -1155,7 +1192,8 @@ switch ( $scenario ) {
 		tools_auto();
 		drive();
 		$last = Full::last( false );
-		check( in_array( 'snippet_reset:digitalisimo-theme:hello-hijo', $GLOBALS['t']['log'], true ) && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['verified'] ) && ! empty( $GLOBALS['t']['snippet_on'] ), 'Editado en Tools: se vuelve a traer, se activa y cambia: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
+		$why  = (string) $last['theme'][1]['reason'];
+		check( ! logged( 'snippet_reset' ) && empty( $GLOBALS['t']['snippet_on'] ) && 'hello-hijo' === get_option( 'stylesheet' ) && false !== strpos( $why, 'una persona editó su fragmento' ), 'Editado por una persona: no se sustituye ni se activa, y lo dice: ' . $why );
 		break;
 
 	case 'theme_child_nowrap':
@@ -1168,9 +1206,94 @@ switch ( $scenario ) {
 		drive();
 		$last = Full::last( false );
 		$at   = position( 'switch_theme:digitalisimo-theme' );
-		check( 'after_switch' === ( $last['theme'][1]['child_facts']['activate'] ?? '' ) && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['verified'] ) && ! empty( $GLOBALS['t']['snippet_on'] ), 'Sin la condición: cambia y el fragmento queda activo: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
+		check( 'activated' === ( $last['theme'][1]['child_facts']['activate'] ?? '' ) && ! empty( $last['theme'][1]['child_facts']['covered'] ) && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['verified'] ) && ! empty( $GLOBALS['t']['snippet_on'] ), 'Sin la condición: cambia y el fragmento queda activo: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
 		check( $at > -1 && position( 'snippet_activate:digitalisimo-theme:hello-hijo' ) === $at + 1, 'Se activa justo después del cambio, en la misma petición.' );
 		check( false === strpos( (string) end( $GLOBALS['t']['imports'] )[0]['code'], 'digitalisimo_theme_parity' ) && hash( 'sha256', (string) end( $GLOBALS['t']['imports'] )[0]['code'] ) === ( $last['theme'][1]['snippet'] ?? '' ), 'Va a Tools tal cual y Migrar recuerda ese código para la vuelta atrás.' );
+		break;
+
+	case 'theme_child_nowrap_paused':
+		// Revisión adversarial M1: el fragmento sin la condición, activado justo después del cambio, lo pausa el guardián en
+		// la primera petición con el tema propio. verify lo ve, vuelve al hijo y el hijo no se borra.
+		child_theme( 'hello-hijo', 'Hello Hijo', "<?php\nnamespace Hijo;\nadd_action( 'wp_head', function () {\n\techo '<style>.x{color:red}</style>';\n} );\n" );
+		$GLOBALS['t']['child_sheet']     = 'hello-hijo';
+		$GLOBALS['t']['carry']           = true;
+		$GLOBALS['t']['pause_on_switch'] = true;
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		check( in_array( 'switch_theme:digitalisimo-theme', $GLOBALS['t']['log'], true ) && 'hello-hijo' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['reverted'] ) && empty( $last['verified'] ), 'Pausado por el guardián: verify lo ve y vuelve al hijo: ' . json_encode( $last['theme'][1], JSON_UNESCAPED_UNICODE ) );
+		check( isset( $GLOBALS['t']['themes']['hello-hijo'] ) && ! logged( 'delete_theme' ), 'El hijo no se borra.' );
+		break;
+
+	case 'theme_switch_throw':
+		// Revisión adversarial M4: algo lanza justo después de cambiar el tema (al activar el fragmento sin la condición).
+		// La vuelta atrás ve el cambio (estaba guardado) y vuelve al hijo.
+		child_theme( 'hello-hijo', 'Hello Hijo', "<?php\nnamespace Hijo;\nadd_action( 'wp_head', function () {\n\techo '<style>.x{color:red}</style>';\n} );\n" );
+		$GLOBALS['t']['child_sheet']    = 'hello-hijo';
+		$GLOBALS['t']['carry']          = true;
+		$GLOBALS['t']['crash_activate'] = true;
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		check( logged( 'crash' ) && 'hello-hijo' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['reverted'] ) && 'theme' === $last['failed'], 'Con una excepción tras el cambio, la vuelta atrás lo ve y vuelve al hijo: ' . json_encode( array( get_option( 'stylesheet' ), $last['theme'][1] ?? array(), $last['failed'] ), JSON_UNESCAPED_UNICODE ) );
+		break;
+
+	case 'theme_switch_crash':
+		// Revisión adversarial M4: la petición muere justo después de cambiar el tema (se emula con lo que quedó guardado en
+		// ese instante). La vuelta siguiente sabe que ya cambió: no lee el tema propio como si fuera el hijo, no importa su
+		// functions.php, no cambia dos veces y termina verificada con el fragmento del hijo activo.
+		child_theme( 'hello-hijo', 'Hello Hijo', "<?php\nnamespace Hijo;\nadd_action( 'wp_head', function () {\n\techo '<style>.x{color:red}</style>';\n} );\n" );
+		$GLOBALS['t']['child_sheet']    = 'hello-hijo';
+		$GLOBALS['t']['carry']          = true;
+		$GLOBALS['t']['crash_activate'] = true;
+		$GLOBALS['t']['crash_snapshot'] = true;
+		tools_auto();
+		drive();
+		// «Murió» ahí: el sitio con el tema propio, la tarea como estaba guardada en ese instante y sin informe.
+		$dead = $GLOBALS['t']['dead_job'] ?? null;
+		check( is_array( $dead ), 'Se guardó el estado en el instante del cambio.' );
+		update_option( 'stylesheet', 'digitalisimo-theme' );
+		update_option( 'template', 'digitalisimo-theme' );
+		update_option( Full::JOB, $dead );
+		delete_option( Full::LAST );
+		$imported = count( (array) ( $GLOBALS['t']['imports'] ?? array() ) );
+		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) + 1;
+		$state = request();
+		for ( $i = 0; $i < 80 && empty( $state['done'] ); $i++ ) {
+			$state = request();
+		}
+		$last = Full::last( false );
+		check( ! empty( $last['theme'][1]['switched'] ) && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['verified'] ) && ! empty( $GLOBALS['t']['snippet_on'] ), 'Tras la petición que murió, sigue y termina verificada con el fragmento activo: ' . json_encode( $last['theme'][1] ?? array(), JSON_UNESCAPED_UNICODE ) );
+		check( $imported === count( (array) $GLOBALS['t']['imports'] ) && 1 === count( logged( 'switch_theme:digitalisimo-theme' ) ), 'Nunca importa el functions.php del tema propio ni cambia dos veces.' );
+		break;
+
+	case 'theme_revert_snippet_stuck':
+		// Revisión adversarial M2: la portada no responde igual con el tema propio y el fragmento sin la condición no se
+		// puede desactivar. Volver al hijo haría correr su PHP dos veces: el sitio se queda con el tema propio y lo dice.
+		child_theme( 'hello-hijo', 'Hello Hijo', "<?php\nnamespace Hijo;\nadd_action( 'wp_head', function () {\n\techo '<style>.x{color:red}</style>';\n} );\n" );
+		$GLOBALS['t']['child_sheet']      = 'hello-hijo';
+		$GLOBALS['t']['carry']            = true;
+		$GLOBALS['t']['break']            = true;
+		$GLOBALS['t']['deactivate_fails'] = true;
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		$deac = position( 'snippet_deactivate:digitalisimo-theme:hello-hijo:' . ( $last['theme'][1]['child_facts']['hash'] ?? '' ) );
+		check( $deac > -1 && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['revert_blocked'] ) && (bool) preg_grep( '/no se pudo desactivar/', (array) $last['notes'] ), 'Sin poder desactivar el fragmento sin condición, no vuelve al hijo y lo dice: ' . json_encode( array( get_option( 'stylesheet' ), $last['notes'] ), JSON_UNESCAPED_UNICODE ) );
+		nothing_deleted();
+		break;
+
+	case 'theme_revert_order':
+		// Revisión adversarial M2: al volver atrás, primero se desactiva el fragmento y después se vuelve al hijo.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
+		$GLOBALS['t']['carry']       = true;
+		$GLOBALS['t']['break']       = true;
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		$deac = array_keys( array_filter( $GLOBALS['t']['log'], static function ( $l ) { return 0 === strpos( $l, 'snippet_deactivate:' ); } ) );
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && $deac && reset( $deac ) < position( 'switch_theme:hello-hijo' ) && 'off' === ( $last['theme'][1]['snippet_off'] ?? '' ), 'Desactiva el fragmento antes de volver al hijo: ' . implode( ', ', array_slice( $GLOBALS['t']['log'], -12 ) ) );
 		break;
 
 	case 'theme_child_nowrap_refused':
@@ -1430,7 +1553,7 @@ switch ( $scenario ) {
 		tools_auto();
 		drive();
 		$last = Full::last( false );
-		check( 'hello-hijo' === get_option( 'stylesheet' ) && ! logged( 'switch_theme' ) && false !== strpos( (string) $last['theme'][1]['reason'], 'lo desactivó o lo cambió una persona' ) && false === strpos( (string) $last['theme'][1]['reason'], 'vuelve a pulsar' ), 'Sin activar, el hijo se queda con su motivo: ' . $last['theme'][1]['reason'] );
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && ! logged( 'switch_theme' ) && false !== strpos( (string) $last['theme'][1]['reason'], 'una persona desactivó o cambió' ) && false === strpos( (string) $last['theme'][1]['reason'], 'vuelve a pulsar' ), 'Sin activar, el hijo se queda con su motivo: ' . $last['theme'][1]['reason'] );
 		break;
 
 	case 'theme_child_auto_network':
@@ -1881,6 +2004,35 @@ switch ( $scenario ) {
 		$last = Full::last( false );
 		check( $mark > 0 && ! $wrote && ! in_array( ELEMENTS, (array) get_option( 'active_plugins' ), true ) && $theme === get_option( 'stylesheet' ), 'Tras el choque no se activa, desactiva, borra ni cambia el tema: ' . implode( ', ', $wrote ) );
 		check( ! empty( $state['done'] ) && $last && 'install' === $last['failed'] && ! empty( $last['blocked'] ) && false !== strpos( (string) $last['error'], 'digitalisimo.lat' ) && ! get_option( Full::JOB ), 'El informe dice que la caché da otro sitio y la tarea termina: ' . ( $last['error'] ?? '' ) );
+		break;
+
+	case 'plugin_update_reactivates':
+		// Revisión adversarial A1: Plugin_Upgrader::upgrade() desactiva el plugin antes de sustituirlo. update_plugin() lo
+		// deja activo como estaba, en el sitio y en toda la red, y si no puede, lo dice sin culpar a la Release.
+		plugin( SEO, 'DIGITALÍSIMO SEO' );
+		$GLOBALS['t']['plugins'][ SEO ]['Version'] = '1.0.200';
+		update_option( 'active_plugins', array_merge( (array) get_option( 'active_plugins', array() ), array( SEO ) ) );
+		$r = Packages::update_plugin( 'digitalisimo-seo' );
+		check( ! is_wp_error( $r ) && 'updated' === $r['action'] && active( SEO ) && logged( 'upgrader_deactivate:' . SEO ), 'Actualizado y otra vez activo en el sitio: ' . json_encode( is_wp_error( $r ) ? $r->get_error_message() : $r ) );
+		// En una red, activo en toda la red: vuelve a toda la red.
+		$GLOBALS['t']['multisite'] = true;
+		$GLOBALS['t']['plugins'][ SEO ]['Version'] = '1.0.200';
+		update_option( 'active_plugins', array_values( array_diff( (array) get_option( 'active_plugins', array() ), array( SEO ) ) ) );
+		$GLOBALS['t']['site']['active_sitewide_plugins'][ SEO ] = time();
+		$r = Packages::update_plugin( 'digitalisimo-seo' );
+		check( ! is_wp_error( $r ) && isset( $GLOBALS['t']['site']['active_sitewide_plugins'][ SEO ] ) && ! active( SEO ), 'En una red vuelve a toda la red (no sólo al sitio).' );
+		// Inactivo: se queda inactivo.
+		unset( $GLOBALS['t']['site']['active_sitewide_plugins'][ SEO ] );
+		$GLOBALS['t']['plugins'][ SEO ]['Version'] = '1.0.200';
+		$r = Packages::update_plugin( 'digitalisimo-seo' );
+		check( ! is_wp_error( $r ) && ! isset( $GLOBALS['t']['site']['active_sitewide_plugins'][ SEO ] ) && ! active( SEO ), 'Uno inactivo sigue inactivo.' );
+		// No se puede volver a activar: el motivo real.
+		$GLOBALS['t']['multisite'] = false;
+		$GLOBALS['t']['plugins'][ SEO ]['Version'] = '1.0.200';
+		update_option( 'active_plugins', array_merge( (array) get_option( 'active_plugins', array() ), array( SEO ) ) );
+		$GLOBALS['t']['fail_activate'][ SEO ] = 'Error fatal al activarlo';
+		$r = Packages::update_plugin( 'digitalisimo-seo' );
+		check( is_wp_error( $r ) && 'digitalisimo_migration_reactivate' === $r->get_error_code() && false !== strpos( $r->get_error_message(), 'Error fatal al activarlo' ) && false === strpos( $r->get_error_message(), 'Release' ), 'Sin poder reactivarlo, el motivo real: ' . ( is_wp_error( $r ) ? $r->get_error_message() : 'sin error' ) );
 		break;
 
 	case 'stale_cache':

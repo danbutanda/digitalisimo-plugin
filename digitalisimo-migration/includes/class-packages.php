@@ -91,8 +91,11 @@ final class Packages {
 
 	/**
 	 * Actualiza un plugin DIGITALÍSIMO instalado a la versión de la Release si la suya es anterior (como el tema: con
-	 * Plugin_Upgrader::upgrade(), que guarda la copia anterior y la restaura si la nueva no queda; no cambia si está activo
-	 * o no). Devuelve array( action: none|updated, from, to ) o WP_Error.
+	 * Plugin_Upgrader::upgrade(), que guarda la copia anterior y la restaura si la nueva no queda). Plugin_Upgrader lo
+	 * desactiva antes de sustituirlo (`deactivate_plugin_before_upgrade`, fuera de WP-Cron): aquí se anota antes si estaba
+	 * activo en este sitio y en toda la red, y en la misma petición se vuelve a activar tal como estaba y se comprueba.
+	 * Devuelve array( action: none|updated, from, to ) o WP_Error con el motivo real (también si la versión nueva quedó
+	 * instalada pero no se pudo volver a activar: `digitalisimo_migration_reactivate`).
 	 *
 	 * @return array{action:string,from:string,to:string}|\WP_Error
 	 */
@@ -112,18 +115,63 @@ final class Packages {
 		if ( version_compare( (string) ( $GLOBALS['wp_version'] ?? '6.3' ), '6.3', '<' ) ) {
 			return new \WP_Error( 'digitalisimo_migration_old_wp', 'Con WordPress anterior a 6.3 una actualización no guarda la copia anterior del plugin.' );
 		}
+		$was    = self::plugin_active( $file );
 		$result = self::run_installer( $slug, $entry['package'], 'plugin-update' );
 		if ( function_exists( 'wp_clean_plugins_cache' ) ) {
 			wp_clean_plugins_cache( false );
 		}
+		// Activo como estaba (sitio y red), haya salido bien o no la actualización: WordPress restaura la copia anterior.
+		$back = self::reactivate( $file, $was );
 		if ( is_wp_error( $result ) ) {
 			return $result;
+		}
+		if ( is_wp_error( $back ) ) {
+			return $back;
 		}
 		$to = self::plugin_version( $file );
 		if ( '' === $to || version_compare( $to, $entry['version'], '<' ) ) {
 			return new \WP_Error( 'digitalisimo_migration_install', sprintf( 'WordPress terminó sin dejar %s %s (quedó %s).', Replacements::own_label( $slug ), $entry['version'], '' === $to ? 'sin versión' : $to ) );
 		}
 		return array( 'action' => 'updated', 'from' => $from, 'to' => $to );
+	}
+
+	/** ¿Activo en este sitio y en toda la red? */
+	public static function plugin_active( $file ) {
+		$site    = in_array( $file, (array) get_option( 'active_plugins', array() ), true );
+		$network = function_exists( 'is_multisite' ) && is_multisite() && isset( ( (array) get_site_option( 'active_sitewide_plugins', array() ) )[ $file ] );
+		return array( 'site' => $site, 'network' => $network );
+	}
+
+	/**
+	 * Vuelve a activar $file donde estaba activo ($was de plugin_active()), sin sus ganchos de activación (la
+	 * desactivación de Plugin_Upgrader también fue silenciosa), y lo comprueba. true o WP_Error.
+	 */
+	private static function reactivate( $file, array $was ) {
+		if ( function_exists( 'wp_cache_delete' ) ) {
+			wp_cache_delete( 'alloptions', 'options' );
+		}
+		$now = self::plugin_active( $file );
+		if ( ( empty( $was['network'] ) || $now['network'] ) && ( empty( $was['site'] ) || $now['site'] || $now['network'] ) ) {
+			return true;
+		}
+		if ( ! function_exists( 'activate_plugin' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		$errors = array();
+		foreach ( array( 'network' => true, 'site' => false ) as $scope => $network_wide ) {
+			if ( empty( $was[ $scope ] ) || ( $network_wide ? $now['network'] : ( $now['site'] || $now['network'] ) ) ) {
+				continue;
+			}
+			$done = activate_plugin( $file, '', $network_wide, true );
+			if ( is_wp_error( $done ) ) {
+				$errors[] = $done->get_error_message();
+			}
+		}
+		$now = self::plugin_active( $file );
+		if ( ( empty( $was['network'] ) || $now['network'] ) && ( empty( $was['site'] ) || $now['site'] || $now['network'] ) ) {
+			return true;
+		}
+		return new \WP_Error( 'digitalisimo_migration_reactivate', sprintf( 'WordPress lo desactivó para actualizarlo y no se pudo volver a activar%s%s.', ! empty( $was['network'] ) ? ' en toda la red' : '', $errors ? ': ' . implode( '; ', $errors ) : '' ) );
 	}
 
 	/** Versión instalada de un plugin (su cabecera, leída del disco). */

@@ -1248,6 +1248,8 @@ PHPCODE;
 	update_option( 'admin_email', 'dueno@sitio.test' );
 	check( 'activated' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', $ch + array( 'by' => 1 ) ) && 'active' === $S::state( 'site', $cid ) && hash( 'sha256', $child_code ) === $S::run( 'site' )['items'][ $cid ]['hash'], 'activado: firmado y en _run con el código importado' );
 	check( in_array( 'activated', array_column( $S::log_entries( 'site', 3 ), 'event' ), true ) && ! $S::index( 'site' )['items'][ $cid ]['review'], 'queda en el registro como «Activado» y sin la marca de revisión' );
+	// Revisión adversarial M2: el fragmento del hijo activado por Migrar sólo corre con el tema DIGITALÍSIMO activo.
+	check( 'digitalisimo-theme' === ( $S::run( 'site' )['items'][ $cid ]['theme'] ?? '' ) && 'digitalisimo-theme' === ( array_values( array_filter( \Digitalisimo\Tools\Php_Snippets\Runner::plan( get_option( $S::SITE_RUN ), array(), array() ), static function ( $e ) use ( $cid ) { return $cid === $e['id']; } ) )[0]['theme'] ?? '' ), 'marcado para correr sólo con el tema DIGITALÍSIMO (también en el plan del front)' );
 	$bodies = implode( "\n", array_column( $GLOBALS['t']['mails'], 'body' ) );
 	check( false !== strpos( $bodies, 'Migrar (DIGITALÍSIMO Migración) activó el fragmento PHP «PHP del tema hijo Hijo»' ) && false !== strpos( $bodies, 'sin fragmentos durante 7 días' ) && false !== strpos( $bodies, 'Lo hizo Migrar' ), 'como «Guardar y activar»: enlace de rescate a quien pulsó y aviso al administrador: ' . $bodies );
 	check( 'active' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', $ch ) && hash( 'sha256', $child_code ) === $S::index( 'site' )['items'][ $cid ]['migration'], 'activarlo otra vez no cambia nada: Tools recuerda que lo activó Migrar' );

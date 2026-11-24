@@ -816,9 +816,11 @@ final class Full {
 		if ( empty( $state['caps']['install'] ) ) {
 			return self::fail( $state, sprintf( '%s es una versión anterior a la que Migrar necesita y quien pulsó Migrar no puede actualizar plugins.', Replacements::own_label( $slug ) ) );
 		}
+		// La actualización y la reactivación leen y guardan `active_plugins`: con la caché de otro sitio, nada.
+		self::assert_same_site();
 		$result = Packages::update_plugin( $slug );
 		if ( is_wp_error( $result ) ) {
-			return self::fail( $state, sprintf( 'No se pudo actualizar %s a la versión de la Release: %s', Replacements::own_label( $slug ), $result->get_error_message() ) );
+			return self::fail( $state, sprintf( 'digitalisimo_migration_reactivate' === $result->get_error_code() ? '%s se actualizó, pero %s' : 'No se pudo actualizar %s a la versión de la Release: %s', Replacements::own_label( $slug ), $result->get_error_message() ) );
 		}
 		if ( 'updated' !== $result['action'] ) {
 			return null;
@@ -1334,6 +1336,9 @@ final class Full {
 		}
 		$child = (array) ( $facts['child'] ?? array() );
 		$name  = (string) $theme['name'];
+		if ( ! empty( $child['not_child'] ) ) {
+			return array( false, sprintf( 'El tema activo ya no es el tema hijo «%s»: no se lee ni se importa nada de él.', $name ) );
+		}
 		if ( empty( $child['analyzed'] ) ) {
 			return array( false, sprintf( 'El tema DIGITALÍSIMO instalado no sabe leer el tema hijo («%s»): es anterior a 1.0.1 y no se pudo poner al día. Se queda el tema hijo.', $name ) );
 		}
@@ -1350,14 +1355,14 @@ final class Full {
 		$why      = array(
 			'nocaps'    => 'quien pulsó Migrar no puede activar código PHP en este sitio (le faltan los permisos edit_themes y unfiltered_html; en un sitio individual suele ser DISALLOW_FILE_EDIT en wp-config.php)',
 			'old_tools' => 'la versión de DIGITALÍSIMO Tools instalada no puede activarlo y la de la Release no se pudo instalar',
-			'changed'   => 'su fragmento en DIGITALÍSIMO Tools lo desactivó o lo cambió una persona mientras corría, y Migrar no deshace esa decisión',
+			'changed'   => 'una persona desactivó o cambió su fragmento en DIGITALÍSIMO Tools, y Migrar no deshace esa decisión: si quieres que ese PHP corra con el tema DIGITALÍSIMO, actívalo tú en DIGITALÍSIMO Tools → Código PHP y Migrar lo llevará en la siguiente pasada',
 			'failed'    => 'DIGITALÍSIMO Tools ya lo detuvo antes por un error de PHP',
 			'blocked'   => 'este servidor cierra la edición de código (DISALLOW_FILE_EDIT o DISALLOW_FILE_MODS) y DIGITALÍSIMO Tools no activa código PHP con esa regla',
 			'reduced'   => 'Código PHP de DIGITALÍSIMO Tools está en modo seguro',
 			'check'     => 'la revisión de DIGITALÍSIMO Tools encontró un error en ese código',
 			'error'     => 'DIGITALÍSIMO Tools no pudo activarlo (otra acción sobre los fragmentos estaba en curso o no cabe en sus topes)',
 			'missing'   => 'no apareció en DIGITALÍSIMO Tools para activarlo',
-			'mismatch'  => 'el fragmento de DIGITALÍSIMO Tools no coincide con el functions.php del hijo ni después de volver a traerlo',
+			'mismatch'  => 'una persona editó su fragmento en DIGITALÍSIMO Tools y ya no es el functions.php del hijo; Migrar no sustituye lo editado: revisa esa versión en DIGITALÍSIMO Tools → Código PHP y, si es la buena, actívala',
 			'signature' => 'el fragmento no lleva la firma de su importación (se cambió fuera de Tools o cambiaron las claves de wp-config.php)',
 		);
 		if ( empty( $child['tools'] ) ) {
@@ -1367,9 +1372,9 @@ final class Full {
 		} elseif ( isset( $why[ $activate ] ) ) {
 			$because = $why[ $activate ] . ( 'old_tools' === $activate && '' !== (string) ( $child['tools_error'] ?? '' ) ? ' (' . rtrim( (string) $child['tools_error'], '. ' ) . ')' : '' );
 		} elseif ( 'conflict' === $imported ) {
-			$because = 'su fragmento se editó en DIGITALÍSIMO Tools y está corriendo con ese cambio, y Migrar no lo sustituye mientras corre';
+			$because = 'una persona editó su fragmento en DIGITALÍSIMO Tools después de importarlo, y Migrar no sustituye lo editado: revisa esa versión en DIGITALÍSIMO Tools → Código PHP y, si es la buena, actívala';
 		} elseif ( 'skipped' === $imported ) {
-			$because = 'DIGITALÍSIMO Tools no lo pudo volver a crear (se borró y su versión no permite traerlo de nuevo, o no cabe en sus topes)';
+			$because = 'una persona borró su fragmento en DIGITALÍSIMO Tools (o no cabe en sus topes), y Migrar no vuelve a crear lo que alguien borró';
 		} else {
 			$because = 'su functions.php no se pudo pasar a DIGITALÍSIMO Tools (no se pudo leer, no empieza con <?php o pasa del tamaño que admite)';
 		}
@@ -1459,6 +1464,11 @@ final class Full {
 		if ( ! self::child_reader() || ! $child->exists() ) {
 			return array( 'analyzed' => false );
 		}
+		if ( (string) $child->get_template() === (string) $child->get_stylesheet() || Replacements::is_own_theme( (string) $child->get_stylesheet() ) ) {
+			// El tema activo ya no es un hijo (p. ej. el propio, tras un cambio que no llegó a guardarse): nunca se lee ni se
+			// importa su functions.php como si lo fuera.
+			return array( 'analyzed' => false, 'not_child' => true );
+		}
 		$plan = digitalisimo_theme_child_plan( $child );
 		$php  = array();
 		$rest = array();
@@ -1486,11 +1496,6 @@ final class Full {
 		// Lo que podría cambiar de sentido con el tema propio (`risks`) también se importa: lo comprueba la verificación.
 		$import   = array( 'risks' => array() ) + $plan;
 		$imported = '' !== $blockers && $tools && ! $covered ? (string) digitalisimo_theme_child_import_php( $child, $import ) : '';
-		$may      = ! empty( $state['caps']['code'] ) && has_filter( self::SNIPPET_RESET );
-		if ( in_array( $imported, array( 'skipped', 'conflict' ), true ) && $readable && $may && true === apply_filters( self::SNIPPET_RESET, false, $key ) ) {
-			// Se borró o se cambió en Tools: Migrar lo vuelve a traer del hijo (lo anterior queda en su historial).
-			$imported = (string) digitalisimo_theme_child_import_php( $child, $import );
-		}
 		$activate = '';
 		if ( '' !== $hash && in_array( $imported, array( 'created', 'updated', 'unchanged' ), true ) ) {
 			// «Migrar lo hace todo» (reglas del propietario del 2026-11-20 y del 2026-11-23): el functions.php del hijo, ya en
@@ -1506,12 +1511,9 @@ final class Full {
 				$activate = 'after_switch';
 			} else {
 				// Tools compara el código con este hash, recalculado ahora del functions.php en disco: sólo se activa eso.
+				// Un fragmento que una persona borró, editó o desactivó en Tools, o que el guardián detuvo, no se toca: Tools
+				// contesta el motivo (`skipped`, `conflict`, `mismatch`, `changed`, `failed`) y el informe lo dice.
 				$activate = self::activate_snippet( $state, $key, $hash );
-				if ( 'mismatch' === $activate && $may && true === apply_filters( self::SNIPPET_RESET, false, $key ) ) {
-					// El fragmento ya no es el functions.php del hijo (se editó en Tools): se vuelve a traer y se activa ese.
-					$imported = (string) digitalisimo_theme_child_import_php( $child, $import );
-					$activate = in_array( $imported, array( 'created', 'updated', 'unchanged' ), true ) ? self::activate_snippet( $state, $key, $hash ) : 'mismatch';
-				}
 				if ( in_array( $activate, array( 'activated', 'active' ), true ) ) {
 					$covered = digitalisimo_theme_child_php_covered( $child );
 				}
@@ -1640,9 +1642,16 @@ final class Full {
 				return $state;
 			}
 		}
-		$safe = array();
+		$safe    = array();
+		$already = array();
 		foreach ( (array) $state['theme'] as $site_id => $row ) {
 			if ( empty( $row['safe'] ) ) {
+				continue;
+			}
+			if ( ! empty( $row['switched'] ) ) {
+				// Cambiado en una vuelta que murió antes de pasar a verify: el tema activo ya es el propio (no se vuelve a leer
+				// como si fuera el hijo ni se cambia otra vez).
+				$already[] = (int) $site_id;
 				continue;
 			}
 			if ( ! empty( $row['child'] ) ) {
@@ -1664,9 +1673,15 @@ final class Full {
 			}
 			$safe[] = (int) $site_id;
 		}
-		$state = self::drop_snippets( $state, $safe );
+		$state = self::drop_snippets( $state, array_merge( $safe, $already ) );
+		foreach ( $already as $site_id ) {
+			$facts = (array) ( $state['theme'][ $site_id ]['child_facts'] ?? array() );
+			if ( 'after_switch' === (string) ( $facts['activate'] ?? '' ) && empty( $state['theme'][ $site_id ]['snippet'] ) ) {
+				$state = self::activate_after_switch( $state, (int) $site_id, $facts );
+			}
+		}
 		if ( ! $safe ) {
-			return self::next( $state, 'verify' );
+			return $already ? self::changed( self::next( $state, 'verify' ) ) : self::next( $state, 'verify' );
 		}
 		if ( ! empty( $state['network'] ) && class_exists( '\\WP_Theme' ) && method_exists( '\\WP_Theme', 'network_enable_theme' ) ) {
 			// Excepción declarada (AGENTS.md, «Migrar toda la red»): el tema propio queda habilitado en la red para
@@ -1679,12 +1694,15 @@ final class Full {
 				self::switch_theme_to( Replacements::THEME );
 			} );
 			$state['theme'][ $site_id ]['switched'] = true;
+			// Guardado enseguida, antes de nada más (activar el fragmento firma, revisa y manda correos): si la petición muere
+			// o algo lanza, la vuelta siguiente y la vuelta atrás saben que este sitio ya cambió y desde qué tema.
+			self::store( $state );
 			$facts = (array) ( $state['theme'][ $site_id ]['child_facts'] ?? array() );
 			if ( 'after_switch' === (string) ( $facts['activate'] ?? '' ) ) {
 				$state = self::activate_after_switch( $state, (int) $site_id, $facts );
 			}
 			if ( ! empty( $state['theme'][ $site_id ]['switched'] ) && '' !== (string) ( $facts['files'] ?? '' ) ) {
-				$state = self::note( $state, sprintf( 'El tema hijo «%s» tenía plantillas o archivos que el tema DIGITALÍSIMO no usa (%s): la verificación compara también las páginas que los usaban.', (string) $state['theme'][ $site_id ]['name'], (string) $facts['files'] ) );
+				$state = self::note( $state, sprintf( 'El tema hijo «%s» tenía plantillas o archivos que el tema DIGITALÍSIMO no usa (%s): la verificación compara también una vista de cada tipo que pintaban, y el hijo no se borra.', (string) $state['theme'][ $site_id ]['name'], (string) $facts['files'] ) );
 			}
 		}
 		return self::changed( self::next( $state, 'verify' ) );
@@ -1749,6 +1767,10 @@ final class Full {
 		} );
 		if ( in_array( $got, array( 'activated', 'active' ), true ) ) {
 			$state['theme'][ $site_id ]['snippet'] = (string) ( $facts['hash'] ?? '' );
+			// Como uno con la condición: verify comprueba, en una petición posterior, que siga activo y sin error antes de
+			// permitir la limpieza (si el guardián lo pausó, vuelve al hijo y el hijo no se borra).
+			$state['theme'][ $site_id ]['child_facts']['covered']  = true;
+			$state['theme'][ $site_id ]['child_facts']['activate'] = $got;
 			self::store( $state );
 			return $state;
 		}
@@ -1785,7 +1807,13 @@ final class Full {
 			}
 			$state['installed'][] = $slug;
 		} else {
+			if ( ! empty( $state['caps']['install'] ) ) {
+				self::assert_same_site();
+			}
 			$result = ! empty( $state['caps']['install'] ) ? Packages::update_plugin( $slug ) : new \WP_Error( 'digitalisimo_migration_caps', 'quien pulsó Migrar no puede actualizar plugins' );
+			if ( is_wp_error( $result ) && 'digitalisimo_migration_reactivate' === $result->get_error_code() ) {
+				return array( $state, 'se actualizó, pero ' . $result->get_error_message() );
+			}
 			if ( ! is_wp_error( $result ) && 'updated' === $result['action'] ) {
 				$state['upgraded'][ $slug ] = array( 'from' => $result['from'], 'to' => $result['to'] );
 			} elseif ( Replacements::is_active( $file ) && ( ! has_filter( self::SNIPPET_ACTIVATE ) || ! has_filter( self::SNIPPET_RESET ) ) ) {
@@ -1804,31 +1832,77 @@ final class Full {
 	}
 
 	/**
-	 * Páginas publicadas que usan una plantilla de página propia del hijo (hasta 6): entran en la comparación de la
-	 * portada, con su huella de ahora (con el hijo activo) como referencia.
+	 * Revisión adversarial A2: las vistas que pintan las plantillas y archivos del hijo que el tema propio no usa entran en la
+	 * comparación de la portada (verify y la comprobación sin su carpeta antes de borrarlo), con su huella de ahora (con el
+	 * hijo activo) como referencia: las páginas que usan sus plantillas de página y una URL real de cada tipo afectado
+	 * (single.php → una entrada; archive, category, tag, taxonomy, author, date, home e index → un archivo de categoría y una
+	 * entrada; 404.php → una URL que no existe; search → una búsqueda; woocommerce/ → una ficha de producto y la tienda;
+	 * header, footer, sidebar, comments, template-parts, theme.json, plantillas de bloques u otro PHP → de todo). Hasta 10.
+	 * Además, un hijo con esos archivos no se borra al final (retired_children()): ante la duda se queda, inactivo.
 	 */
 	private static function template_checks( array $state, $site_id ) {
 		$urls = (array) self::on_site( $site_id, static function () {
-			if ( ! function_exists( 'digitalisimo_theme_child_page_templates' ) ) {
+			if ( ! function_exists( 'digitalisimo_theme_child_page_templates' ) || ! function_exists( 'digitalisimo_theme_child_other_files' ) ) {
 				return array();
 			}
-			$out = array();
-			foreach ( digitalisimo_theme_child_page_templates( wp_get_theme() ) as $row ) {
+			$child = wp_get_theme();
+			$out   = array();
+			foreach ( digitalisimo_theme_child_page_templates( $child ) as $row ) {
 				if ( (int) $row['pages'] < 1 ) {
 					continue;
 				}
 				$ids = get_posts( array( 'post_type' => 'any', 'post_status' => 'publish', 'posts_per_page' => 2, 'fields' => 'ids', 'no_found_rows' => true, 'meta_key' => '_wp_page_template', 'meta_value' => (string) $row['template'] ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
 				foreach ( (array) $ids as $id ) {
-					$url = (string) get_permalink( (int) $id );
-					if ( '' !== $url ) {
-						$out[] = $url;
-					}
-				}
-				if ( count( $out ) >= 6 ) {
-					break;
+					$out[] = (string) get_permalink( (int) $id );
 				}
 			}
-			return array_slice( array_values( array_unique( $out ) ), 0, 6 );
+			$types = array();
+			foreach ( digitalisimo_theme_child_other_files( $child ) as $blocker ) {
+				$file = (string) ( $blocker['file'] ?? '' );
+				if ( false !== strpos( (string) ( $blocker['what'] ?? '' ), 'plantilla de página' ) ) {
+					continue;
+				}
+				if ( preg_match( '#^(single|singular)[^/]*\.php$#', $file ) ) {
+					$types['post'] = true;
+				} elseif ( preg_match( '#^(archive|category|tag|taxonomy|author|date|home|index)[^/]*\.php$#', $file ) ) {
+					$types['archive'] = $types['post'] = true;
+				} elseif ( '404.php' === $file ) {
+					$types['404'] = true;
+				} elseif ( preg_match( '#^search[^/]*\.php$#', $file ) ) {
+					$types['search'] = true;
+				} elseif ( 0 === strpos( $file, 'woocommerce/' ) ) {
+					$types['product'] = true;
+				} elseif ( preg_match( '#^page[^/]*\.php$#', $file ) ) {
+					$types['page'] = true;
+				} else {
+					$types += array( 'post' => true, 'archive' => true, 'page' => true, '404' => true, 'search' => true, 'product' => true );
+				}
+			}
+			$latest = static function ( $type ) {
+				$ids = get_posts( array( 'post_type' => $type, 'post_status' => 'publish', 'posts_per_page' => 1, 'fields' => 'ids', 'no_found_rows' => true ) );
+				return $ids ? (string) get_permalink( (int) reset( $ids ) ) : '';
+			};
+			if ( isset( $types['post'] ) ) {
+				$out[] = $latest( 'post' );
+			}
+			if ( isset( $types['page'] ) ) {
+				$out[] = $latest( 'page' );
+			}
+			if ( isset( $types['archive'] ) && function_exists( 'get_categories' ) && function_exists( 'get_category_link' ) ) {
+				$cats  = get_categories( array( 'number' => 1, 'hide_empty' => true, 'orderby' => 'count', 'order' => 'DESC' ) );
+				$out[] = $cats ? (string) get_category_link( (int) reset( $cats )->term_id ) : '';
+			}
+			if ( isset( $types['404'] ) ) {
+				$out[] = home_url( '/digitalisimo-migrar-comprobacion-404/' );
+			}
+			if ( isset( $types['search'] ) ) {
+				$out[] = home_url( '/?s=a' );
+			}
+			if ( isset( $types['product'] ) && function_exists( 'post_type_exists' ) && post_type_exists( 'product' ) ) {
+				$out[] = $latest( 'product' );
+				$out[] = function_exists( 'wc_get_page_permalink' ) ? (string) wc_get_page_permalink( 'shop' ) : '';
+			}
+			return array_slice( array_values( array_unique( array_filter( $out ) ) ), 0, 10 );
 		} );
 		foreach ( $urls as $url ) {
 			foreach ( (array) $state['checks'] as $check ) {
@@ -1973,6 +2047,24 @@ final class Full {
 		foreach ( (array) $state['theme'] as $site_id => $row ) {
 			if ( empty( $row['switched'] ) ) {
 				continue;
+			}
+			if ( ! empty( $row['snippet'] ) ) {
+				// Revisión adversarial M2: primero se desactiva el fragmento del hijo que activó Migrar y sólo después se vuelve
+				// al hijo. Si no se puede desactivar y no lleva la condición del tema propio, volver al hijo haría correr su
+				// functions.php dos veces (ganchos duplicados o «Cannot redeclare»): el sitio se queda con el tema propio y lo dice.
+				$off = self::on_site( (int) $site_id, static function () use ( $row ) {
+					if ( function_exists( 'wp_cache_delete' ) ) {
+						wp_cache_delete( 'alloptions', 'options' );
+					}
+					return has_filter( self::SNIPPET_DEACTIVATE ) ? apply_filters( self::SNIPPET_DEACTIVATE, false, self::snippet_key( (string) $row['from'] ), array( 'hash' => (string) $row['snippet'] ) ) : false;
+				} );
+				$state['theme'][ $site_id ]['snippet']     = '';
+				$state['theme'][ $site_id ]['snippet_off'] = true === $off ? 'off' : 'kept';
+				if ( true !== $off && empty( $row['child_facts']['wrap'] ) ) {
+					$state['theme'][ $site_id ]['revert_blocked'] = true;
+					$state = self::note( $state, sprintf( 'No se volvió a %1$s: «PHP del tema hijo %1$s» no se pudo desactivar en DIGITALÍSIMO Tools y, sin la condición del tema propio, correría junto con el functions.php del hijo. El sitio sigue con el tema DIGITALÍSIMO; nada se borró.', (string) $row['name'] ) );
+					continue;
+				}
 			}
 			// En una red, el candado se mira en cada sitio (la caché puede dar otro sitio sólo en éste): ese sitio se queda
 			// como está y el informe lo dice; la tarea no se atasca (esto corre también desde fail()).
@@ -2239,6 +2331,17 @@ final class Full {
 				}
 				if ( '' !== $reason ) {
 					break;
+				}
+			}
+			if ( '' === $reason ) {
+				// Revisión adversarial A2: plantillas o archivos propios que el tema propio no usa (single.php, header.php,
+				// woocommerce/, theme.json…): sus vistas se compararon, pero ante la duda el hijo no se borra.
+				foreach ( $sites as $site_id ) {
+					$files = (string) ( $state['theme'][ $site_id ]['child_facts']['files'] ?? '' );
+					if ( '' !== $files ) {
+						$reason = $keep( 'tiene plantillas o archivos propios que el tema DIGITALÍSIMO no usa (' . $files . '); sus vistas se compararon y responden igual' );
+						break;
+					}
 				}
 			}
 			if ( '' === $reason && is_file( $theme->get_stylesheet_directory() . '/functions.php' ) ) {

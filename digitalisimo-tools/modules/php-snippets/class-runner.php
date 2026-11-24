@@ -130,7 +130,7 @@ final class Runner {
 				continue;
 			}
 			if ( $stopped || $off( $id, $item ) ) continue;
-			$out[] = array( 'scope' => $scope, 'id' => (string) $id, 'title' => $item['title'], 'code' => $item['code'], 'hash' => $item['hash'], 'sig' => $item['sig'], 'rev' => 'network' === $scope ? (int) $item['rev'] : 0, 'kid' => (string) $kid, 'candidate' => false );
+			$out[] = array( 'scope' => $scope, 'id' => (string) $id, 'title' => $item['title'], 'code' => $item['code'], 'hash' => $item['hash'], 'sig' => $item['sig'], 'rev' => 'network' === $scope ? (int) $item['rev'] : 0, 'kid' => (string) $kid, 'candidate' => false, 'theme' => (string) ( $item['theme'] ?? '' ) );
 		}
 		foreach ( $candidates as $candidate ) $out[] = $candidate;
 		return $out;
@@ -142,6 +142,9 @@ final class Runner {
 	 * búferes que el fragmento haya dejado o cerrado, y borra el código del envoltorio.
 	 */
 	private static function load( array $e, $test ) {
+		// El functions.php de un tema hijo que activó Migrar sólo corre con el tema DIGITALÍSIMO activo: si se vuelve al hijo
+		// (por Apariencia o por la vuelta atrás), su propio functions.php ya lo hace y los dos juntos chocarían.
+		if ( 'digitalisimo-theme' === ( $e['theme'] ?? '' ) && ! function_exists( 'digitalisimo_theme_parity' ) ) return;
 		if ( empty( $e['candidate'] ) && ! Store::verify( $e ) ) {
 			Store::flag_bad_signature( $e['scope'], '' !== $e['kid'] && hash_equals( Store::kid(), $e['kid'] ) );
 			return;

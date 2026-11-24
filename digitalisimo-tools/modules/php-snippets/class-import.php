@@ -156,7 +156,9 @@ final class Import {
 		// La marca va antes: si la petición muere justo después de activar, Migrar lo reconoce como suyo y la vuelta atrás
 		// sigue pudiendo quitarlo.
 		self::mark( $found, $hash );
-		$done = Store::activate( 'site', $found, $hash, array( 'by' => $by ) );
+		// `theme`: sólo corre con el tema DIGITALÍSIMO activo (Runner::load()), también si no admite la condición (revisión
+		// adversarial M2): con el hijo activo otra vez, su functions.php y este fragmento nunca corren juntos.
+		$done = Store::activate( 'site', $found, $hash, array( 'by' => $by, 'theme' => self::CHILD_SOURCE ) );
 		if ( is_wp_error( $done ) ) {
 			self::mark( $found, '' );
 			return 'error';
