@@ -26,7 +26,7 @@ final class Digitalisimo_AI_Site_Reader {
 	const DEFAULT   = 20000;
 	const SCAN      = 40;
 	/** Claves de ajustes de Elementor que nunca son texto visible. */
-	const SKIP_KEYS = '/^(_|css|custom_css|html_tag|header_size|align|layout|content_width|gap|structure|link_to|icon|selected_icon|image_size|thumbnail|animation|motion_fx|background|border|typography|color|.*_color|.*_size|.*_width|.*_height|.*_position|.*_align|.*_spacing|.*_margin|.*_padding|.*_radius|.*_shadow|.*_type|.*_style|.*_view|.*_skin|.*_effect|.*_id|id|classes|element_id|hover_animation|entrance_animation|template_id|view|skin|tag|shape|ratio|aspect_ratio|position|width|height|.*_unit|unit|sizes|size)$/i';
+	const SKIP_KEYS = '/^(_.*|css|custom_css|html_tag|header_size|align.*|layout|content_width|gap|structure|link_to|icon|selected_icon|image_size|thumbnail|animation.*|motion_fx.*|background.*|border.*|typography.*|flex_.*|.*_(color|size|width|height|position|align|alignment|spacing|margin|padding|radius|shadow|type|style|view|skin|effect|id|unit|gap|ratio|opacity|transition|duration|delay|offset|direction|wrap|justify|overflow|display|family|weight|index|icon|library)(_[a-z0-9]+)?|.*_(tablet|mobile|widescreen|laptop|hover)|id|classes|element_id|hover_animation|entrance_animation|template_id|view|skin|tag|shape|ratio|aspect_ratio|position|width|height|unit|sizes|size|library)$/i';
 
 	public static function definitions() {
 		$annotations = array( 'readonly' => true, 'destructive' => false, 'idempotent' => true );
@@ -138,7 +138,7 @@ final class Digitalisimo_AI_Site_Reader {
 		if ( ! $post || in_array( $post->post_type, array( 'digitalisimo_ai_chat', 'revision', 'nav_menu_item', 'customize_changeset', 'oembed_cache', 'user_request', 'wp_global_styles' ), true ) ) {
 			return new WP_Error( 'digitalisimo_reader_missing', 'No encontré esa página en el sitio.', array( 'status' => 404 ) );
 		}
-		$public = 'publish' === $post->post_status && '' === (string) $post->post_password;
+		$public = 'publish' === $post->post_status && '' === (string) ( $post->post_password ?? '' );
 		if ( ! $public && ! current_user_can( 'edit_post', $post->ID ) ) {
 			return new WP_Error( 'digitalisimo_reader_forbidden', 'No tienes permiso para leer esa página.', array( 'status' => 403 ) );
 		}
@@ -158,7 +158,7 @@ final class Digitalisimo_AI_Site_Reader {
 			self::walk( $data, $lines, $links, 0 );
 			return array( 'text' => self::join( $lines ), 'links' => self::unique_links( $links ), 'source' => 'elementor' );
 		}
-		$html = (string) $post->post_content;
+		$html = (string) ( $post->post_content ?? '' );
 		if ( function_exists( 'do_blocks' ) && function_exists( 'has_blocks' ) && has_blocks( $html ) ) {
 			$html = do_blocks( $html );
 		}
@@ -222,8 +222,11 @@ final class Digitalisimo_AI_Site_Reader {
 			self::link( $value, '', $links );
 			return;
 		}
-		if ( preg_match( '/^(#[0-9a-f]{3,8}|-?[\d.]+(px|em|rem|%|vh|vw)?|[a-z]+(-[a-z]+)*|yes|no|true|false|\{\{.*\}\})$/i', $value ) && ! preg_match( '/\s/', $value ) && ! preg_match( '/[A-ZÁÉÍÓÚÑ]/u', $value ) ) {
-			return; // Valores de diseño o de control (colores, medidas, palabras clave), no texto.
+		if ( preg_match( '/^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|(fa[srbld]?|eicon|e-icon)[ -][a-z0-9 -]+)$/i', $value ) ) {
+			return; // Colores e iconos, no texto.
+		}
+		if ( preg_match( '/^(-?[\d.]+(px|em|rem|%|vh|vw)?|[a-z]+(-[a-z]+)*|yes|no|true|false|\{\{.*\}\})$/i', $value ) && ! preg_match( '/\s/', $value ) && ! preg_match( '/[A-ZÁÉÍÓÚÑ]/u', $value ) ) {
+			return; // Valores de diseño o de control (medidas, palabras clave), no texto.
 		}
 		foreach ( self::links_in_html( $value ) as $found ) {
 			$links[] = $found;
@@ -347,7 +350,7 @@ final class Digitalisimo_AI_Site_Reader {
 		}
 		foreach ( $posts as $item ) {
 			list( $post, $kind, $plain ) = $item;
-			if ( '' !== (string) $post->post_password ) {
+			if ( '' !== (string) ( $post->post_password ?? '' ) ) {
 				continue;
 			}
 			$content = self::content( $post );

@@ -32,6 +32,14 @@ final class Digitalisimo_AI_Assistant_Model {
 		'xai'       => array( 'grok-4' => 'Grok 4 · el más capaz (recomendado)', 'grok-3-mini' => 'Grok 3 mini · más económico' ),
 		'deepseek'  => array( 'deepseek-chat' => 'DeepSeek Chat (recomendado)' ),
 	);
+	/**
+	 * Modelos de Anthropic que escriben sus notas entre llamadas a herramientas como bloques `thinking` (vacíos salvo
+	 * con `display: "updates"`, beta UPDATES_BETA): sin pedirlas, un turno que termina en una herramienta llega sin texto.
+	 */
+	const UPDATES_MODELS = '/^claude-(opus-5-5|sonnet-5-5|haiku-5-5|fable-5|mythos-5)/';
+	const UPDATES_BETA   = 'thinking-display-updates-2026-08-18';
+	/** Texto con el que la API marca una nota de avance cortada (no es para la persona). */
+	const UPDATES_CUT    = 'This part of the response was interrupted before it finished.';
 	/** Con razonamiento adaptativo, 16 384 tokens dejan sitio a pensar y a una composición larga. */
 	const MAX_TOKENS    = 16384;
 	const MIN_TOKENS    = 4096;
@@ -144,6 +152,11 @@ final class Digitalisimo_AI_Assistant_Model {
 			$raw    = (string) wp_remote_retrieve_body( $response );
 			$reason = self::error_reason( $raw );
 			$index  = self::rejected_tool( $target['provider'], $reason . ' ' . $raw );
+			// Si la API no acepta las notas de avance (`display: "updates"` o su beta), se repite una vez sin ellas.
+			if ( null === $index && 'anthropic' === $target['provider'] && empty( $target['no_updates'] ) && ! empty( $request['body']['thinking'] ) && preg_match( '/thinking|display|beta/i', $raw ) ) {
+				$target['no_updates'] = true;
+				continue;
+			}
 			// Un modelo de Anthropic con tope de salida menor (4 096) rechaza 8 192: se repite una vez con su tope.
 			if ( null === $index && 'anthropic' === $target['provider'] && empty( $target['max_tokens'] ) && false !== stripos( $raw, 'max_tokens' ) ) {
 				$target['max_tokens'] = self::MIN_TOKENS;
@@ -291,7 +304,13 @@ final class Digitalisimo_AI_Assistant_Model {
 					$body['tools'][] = array( 'name' => $tool['name'], 'description' => $tool['description'], 'input_schema' => self::object_schema( $tool['schema'] ) );
 				}
 			}
-			return array( 'url' => $url ?: 'https://api.anthropic.com/v1/messages', 'headers' => array( 'Content-Type' => 'application/json', 'x-api-key' => $key, 'anthropic-version' => '2023-06-01' ), 'body' => $body, 'tool_names' => $names );
+			$headers = array( 'Content-Type' => 'application/json', 'x-api-key' => $key, 'anthropic-version' => '2023-06-01' );
+			// Las notas que el modelo escribe entre herramientas («Creo la landing…», «Verifico…») llegan como texto.
+			if ( empty( $target['no_updates'] ) && preg_match( self::UPDATES_MODELS, (string) $target['model'] ) && (bool) apply_filters( 'digitalisimo_ai_assistant_progress_updates', true, $target ) ) {
+				$body['thinking']          = array( 'type' => 'adaptive', 'display' => 'updates' );
+				$headers['anthropic-beta'] = self::UPDATES_BETA;
+			}
+			return array( 'url' => $url ?: 'https://api.anthropic.com/v1/messages', 'headers' => $headers, 'body' => $body, 'tool_names' => $names );
 		}
 		if ( 'google' === $id ) {
 			$body = array( 'systemInstruction' => array( 'parts' => array( array( 'text' => $system ) ) ), 'contents' => self::google_messages( $messages ) );
@@ -334,6 +353,9 @@ final class Digitalisimo_AI_Assistant_Model {
 			foreach ( (array) ( $data['content'] ?? array() ) as $block ) {
 				if ( 'text' === ( $block['type'] ?? '' ) ) {
 					$text .= (string) ( $block['text'] ?? '' );
+				} elseif ( 'thinking' === ( $block['type'] ?? '' ) && '' !== trim( (string) ( $block['thinking'] ?? '' ) ) && self::UPDATES_CUT !== trim( (string) $block['thinking'] ) ) {
+					// Con `display: "updates"`, un bloque thinking con texto es una nota de avance para la persona.
+					$text .= ( '' !== $text ? "\n\n" : '' ) . trim( (string) $block['thinking'] );
 				} elseif ( 'tool_use' === ( $block['type'] ?? '' ) ) {
 					$calls[] = array( 'id' => (string) ( $block['id'] ?? '' ), 'name' => (string) ( $block['name'] ?? '' ), 'input' => is_array( $block['input'] ?? null ) ? $block['input'] : array() );
 				}

@@ -73,6 +73,19 @@ $_POST = array();
 check( array( 'anthropic' => 'claude-opus-5-5-fast', 'openai' => 'profile' ) === $saved['assistant_models'], 'G4: se guarda lo elegido (otro modelo escrito, perfil) y lo inválido vuelve al recomendado: ' . json_encode( $saved['assistant_models'] ) );
 $b = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), array() );
 check( 'claude-opus-5-5' === $b['body']['model'] && array( 'type' => 'ephemeral' ) === $b['body']['cache_control'] && $b['body']['max_tokens'] >= 16000, 'G5: la petición a Anthropic va con Opus, caché automática (la conversación completa se reenvía) y sitio para pensar' );
+check( array( 'type' => 'adaptive', 'display' => 'updates' ) === $b['body']['thinking'] && 'thinking-display-updates-2026-08-18' === $b['headers']['anthropic-beta'], 'G6: con Opus 5.5 se piden las notas de avance (si no, un turno que termina en una herramienta llega sin texto)' );
+$old = Digitalisimo_AI_Assistant_Model::build( array( 'provider' => 'anthropic', 'model' => 'claude-sonnet-4-5', 'key' => 'k' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), array() );
+check( ! isset( $old['body']['thinking'] ) && ! isset( $old['headers']['anthropic-beta'] ), 'G6: a un modelo anterior no se le piden' );
+$p = Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'stop_reason' => 'tool_use', 'content' => array( array( 'type' => 'thinking', 'thinking' => '', 'signature' => 'x' ), array( 'type' => 'thinking', 'thinking' => 'Creo la landing en borrador con el producto.', 'signature' => 'y' ), array( 'type' => 'tool_use', 'id' => 'toolu_1', 'name' => 'demo-create-note', 'input' => array() ) ) ) );
+check( 'Creo la landing en borrador con el producto.' === $p['text'] && 1 === count( $p['calls'] ), 'G6: la nota de avance llega como texto para la persona (el razonamiento vacío no)' );
+check( '' === Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'content' => array( array( 'type' => 'thinking', 'thinking' => Digitalisimo_AI_Assistant_Model::UPDATES_CUT ) ) ) )['text'], 'G6: la marca de nota cortada no se muestra' );
+remove_all_filters( 'digitalisimo_ai_assistant_pre_model' );
+$GLOBALS['http'] = array();
+$GLOBALS['http_replies'] = array( array( 'code' => 400, 'body' => '{"type":"error","error":{"type":"invalid_request_error","message":"thinking.display: Input should be \'summarized\' or \'omitted\'"}}' ), array( 'code' => 200, 'body' => json_encode( array( 'content' => array( array( 'type' => 'text', 'text' => 'Hola' ) ), 'stop_reason' => 'end_turn' ) ) ) );
+$r = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), array() );
+check( 'Hola' === $r['text'] && 2 === count( $GLOBALS['http'] ) && ! isset( json_decode( $GLOBALS['http'][1]['args']['body'], true )['thinking'] ) && ! isset( $GLOBALS['http'][1]['args']['headers']['anthropic-beta'] ), 'G6: si la API no las acepta, se repite una vez sin ellas' );
+check( 'read' === Digitalisimo_AI_Assistant_Tools::kind( array( 'name' => 'woocommerce/products-query', 'annotations' => array( 'readonly' => true, 'destructive' => false ), 'schema' => array() ), array() ), 'G7: leer productos con las Abilities del núcleo de WooCommerce no pide confirmación' );
+add_filter( 'digitalisimo_ai_assistant_pre_model', function ( $pre, $request ) { $GLOBALS['model_calls'][] = $request; return $GLOBALS['script'] ? array_shift( $GLOBALS['script'] ) : 'Listo.'; } );
 
 /* ---------------- K: la conversación del caso ---------------- */
 $GLOBALS['options']['wp_page_for_privacy_policy'] = 0;
@@ -245,7 +258,7 @@ check( isset( $catalog['digitalisimo-ia/read-page-text'], $catalog['digitalisimo
 check( in_array( 'digitalisimo-ia/read-page-text', apply_filters( 'elementor/mcp/server/tools', array() ), true ) || ! isset( $GLOBALS['hooks']['elementor/mcp/server/tools'] ), 'R0: y el servidor MCP de Elements las ofrece' );
 check( in_array( 'digitalisimo-ia/site-contact', Digitalisimo_AI_Assistant_Ability::server_tools( array() ), true ) && in_array( 'digitalisimo-ia/read-page-text', Digitalisimo_AI_Assistant_Ability::server_tools( array() ), true ), 'R0: server_tools() las suma al servidor MCP de Elements' );
 $elementor = array(
-	array( 'elType' => 'container', 'settings' => array( 'content_width' => 'boxed', 'background_color' => '#ffffff' ), 'elements' => array(
+	array( 'elType' => 'container', 'settings' => array( 'content_width' => 'boxed', 'background_color' => '#ffffff', 'background_color_b' => '#0B2A45', '_title' => '1 · La portada: logo, promesa y botón' ), 'elements' => array(
 		array( 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Purificador y Alcalinizador ROTOPLAS', 'header_size' => 'h1', 'title_color' => '#000' ) ),
 		array( 'elType' => 'widget', 'widgetType' => 'text-editor', 'settings' => array( 'editor' => '<p>Agua <strong>alcalina</strong> sin instalación complicada.</p><p>Precio de oferta: $7,500</p>' ) ),
 		array( 'elType' => 'widget', 'widgetType' => 'button', 'settings' => array( 'text' => 'Pedir por WhatsApp', 'link' => array( 'url' => 'https://wa.me/5218711234567', 'is_external' => 'on' ), 'size' => 'lg' ) ),
@@ -257,7 +270,7 @@ $landing = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publi
 update_post_meta( $landing, '_elementor_data', wp_slash( json_encode( $elementor ) ) );
 $r = $GLOBALS['abilities']['digitalisimo-ia/read-page-text']->execute( array( 'id' => $landing ) );
 check( is_array( $r ) && 'elementor' === $r['source'] && false !== strpos( $r['text'], 'Purificador y Alcalinizador ROTOPLAS' ) && false !== strpos( $r['text'], 'Agua alcalina sin instalación complicada.' ) && false !== strpos( $r['text'], 'Pedir por WhatsApp' ) && false !== strpos( $r['text'], 'Garantía de 1 año' ) && false !== strpos( $r['text'], 'Título atómico v4' ), 'R1: read-page-text devuelve el texto de los widgets de Elementor (clásicos y atómicos): ' . json_encode( $r['text'] ?? $r, JSON_UNESCAPED_UNICODE ) );
-check( false === strpos( $r['text'], '<' ) && false === strpos( $r['text'], '#ffffff' ) && false === strpos( $r['text'], 'fas fa-check' ) && false === strpos( $r['text'], 'boxed' ), 'R1: sin HTML ni valores de diseño' );
+check( false === strpos( $r['text'], '<' ) && false === strpos( $r['text'], '#ffffff' ) && false === strpos( $r['text'], '#0B2A45' ) && false === strpos( $r['text'], 'La portada' ) && false === strpos( $r['text'], 'fas fa-check' ) && false === strpos( $r['text'], 'boxed' ), 'R1: sin HTML, valores de diseño ni las etiquetas internas del navegador de Elementor (_title)' );
 check( in_array( 'https://wa.me/5218711234567', array_column( $r['links'], 'url' ), true ) && in_array( 'https://sitio.test/aviso-de-privacidad/', array_column( $r['links'], 'url' ), true ) && '5218711234567' === $r['whatsapp'][0]['number'], 'R1: con sus enlaces y el WhatsApp que lleva' );
 $r = $GLOBALS['abilities']['digitalisimo-ia/read-page-text']->execute( array( 'url' => 'https://sitio.test/landing/' ) );
 check( is_array( $r ) && $landing === $r['id'], 'R1: también por la URL del sitio' );

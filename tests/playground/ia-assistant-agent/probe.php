@@ -241,7 +241,7 @@ add_action(
 				$host = (string) wp_parse_url( $link['url'], PHP_URL_HOST );
 				if ( 0 === strpos( $link['url'], '/' ) || $host === (string) wp_parse_url( home_url(), PHP_URL_HOST ) ) {
 					$path = trim( (string) wp_parse_url( $link['url'], PHP_URL_PATH ), '/' );
-					if ( '' !== $path && ! url_to_postid( $link['url'] ) && ! get_page_by_path( $path ) && ! get_page_by_path( $path, OBJECT, 'product' ) ) {
+					if ( '' !== $path && 0 !== strpos( $path, 'wp-content/' ) && ! preg_match( '/\.[a-z0-9]{2,5}$/i', $path ) && ! url_to_postid( $link['url'] ) && ! get_page_by_path( $path ) && ! get_page_by_path( $path, OBJECT, 'product' ) ) {
 						$broken[] = $link['url'];
 					}
 				}
