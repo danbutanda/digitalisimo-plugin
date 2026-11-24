@@ -622,7 +622,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		wp_nonce_field( 'digitalisimo_native_seo', 'digitalisimo_native_seo_nonce' );
 		$v = function( $key ) use ( $post ) { return get_post_meta( $post->ID, self::P . $key, true ); };
 		$written_excerpt = self::written_excerpt( $post );
-		$excerpt = $written_excerpt ?: wp_trim_words( wp_strip_all_tags( $post->post_content ), 30, '' );
+		$excerpt = $written_excerpt ?: Digitalisimo_Integrations_SEO_Variables::summary( $post );
 		$fallback_title = self::replace( self::o( 'seo_title_' . ( 'page' === $post->post_type ? 'page' : 'post' ) ), array( 'title' => $post->post_title, 'excerpt' => $excerpt ) ) ?: $post->post_title;
 		$fallback_description = $excerpt ?: get_bloginfo( 'description' );
 		$description_value = $v( 'description' ) ?: $written_excerpt;
@@ -838,7 +838,25 @@ class Digitalisimo_Integrations_SEO_Suite {
 		echo '<tr><th>Uso</th><td><code>[digitalisimo_breadcrumbs]</code><p class="description">La misma ruta se publica en el JSON-LD de cada contenido.</p></td></tr>';
 	}
 	/** Título, descripción y canonical efectivos de un contenido: lo que publica el head y lo que mide el análisis. */
-	public static function snippet_for( $p ) { $id = $p ? (int) $p->ID : 0; $type = $p ? $p->post_type : 'post'; $fallback = 'page' === $type ? 'page' : 'post'; $excerpt = $p ? ( self::written_excerpt( $p ) ?: wp_trim_words( wp_strip_all_tags( $p->post_content ), 30, '' ) ) : ''; $vars = array( 'title' => get_the_title( $id ), 'excerpt' => $excerpt, 'id' => $id ); $title = self::replace( get_post_meta( $id, self::P . 'title', true ) ?: self::template( $type, 'title' ), $vars ); $description = self::replace( get_post_meta( $id, self::P . 'description', true ) ?: self::template( $type, 'description' ), $vars ); $title = $title ?: get_the_title( $id ); $description = $description ?: ( $excerpt ?: get_bloginfo( 'description' ) ); return array( 'id' => $id, 'title' => $title, 'description' => $description, 'canonical' => get_post_meta( $id, self::P . 'canonical', true ) ?: get_permalink( $id ) ); }
+	/**
+	 * Título, descripción y canonical de un contenido. Lo escrito a mano manda; si falta, la plantilla. Sin descripción
+	 * propia, una plantilla que queda vacía o que sólo repite el título se sustituye por un resumen del contenido de
+	 * 155 caracteres o menos (auditoría del 2026-11-24: «|» o «Web Hosting IA |» como descripción).
+	 */
+	public static function snippet_for( $p ) {
+		$id      = $p ? (int) $p->ID : 0;
+		$type    = $p ? $p->post_type : 'post';
+		$excerpt = $p ? ( self::written_excerpt( $p ) ?: Digitalisimo_Integrations_SEO_Variables::summary( $p ) ) : '';
+		$vars    = array( 'title' => get_the_title( $id ), 'excerpt' => $excerpt, 'id' => $id );
+		$own_title       = (string) get_post_meta( $id, self::P . 'title', true );
+		$own_description = (string) get_post_meta( $id, self::P . 'description', true );
+		$title       = self::replace( $own_title ?: self::template( $type, 'title' ), $vars );
+		$description = self::replace( $own_description ?: self::template( $type, 'description' ), $vars );
+		if ( '' === trim( $own_description ) && Digitalisimo_Integrations_SEO_Variables::same_text( $description, $vars['title'] ) ) $description = '';
+		$title       = $title ?: get_the_title( $id );
+		$description = $description ?: ( $excerpt ?: get_bloginfo( 'description' ) );
+		return array( 'id' => $id, 'title' => $title, 'description' => $description, 'canonical' => get_post_meta( $id, self::P . 'canonical', true ) ?: get_permalink( $id ) );
+	}
 	private static function current() { if ( is_singular() ) { return self::snippet_for( get_post( get_queried_object_id() ) ); } if ( is_tax() || is_category() || is_tag() ) { $t = get_queried_object(); $desc = term_description( $t ); return array( 'term' => $t, 'title' => self::replace( get_term_meta( $t->term_id, self::P . 'title', true ) ?: self::tax_template( $t->taxonomy, 'title' ), array( 'term' => $t->name, 'title' => $t->name, 'description' => wp_strip_all_tags( $desc ), 'term_id' => $t->term_id ) ), 'description' => self::replace( get_term_meta( $t->term_id, self::P . 'description', true ) ?: self::tax_template( $t->taxonomy, 'description' ), array( 'term' => $t->name, 'title' => $t->name, 'description' => wp_strip_all_tags( $desc ), 'term_id' => $t->term_id ) ), 'canonical' => get_term_link( $t ) ); } $object = get_queried_object(); $special = self::special_context( $object ); if ( $special ) return $special; $base = is_search() ? sprintf( 'Resultados para: %s', get_search_query() ) : ( is_author() && $object ? $object->display_name : ( is_post_type_archive() && $object ? $object->labels->name : get_bloginfo( 'name' ) ) ); $type = is_post_type_archive() ? (string) ( ( (array) get_query_var( 'post_type' ) )[0] ?? '' ) : ''; $tpl = function( $field ) use ( $type ) { return '' !== $type ? self::archive_template( $type, $field ) : self::o( 'seo_' . $field . '_archive' ); }; return array( 'title' => self::replace( $tpl( 'title' ), array( 'title' => $base ) ), 'description' => self::replace( $tpl( 'description' ), array( 'title' => $base ) ), 'canonical' => self::canonical_url() ); }
 	/**
 	 * Portada de últimas entradas y archivo de autor (RM16): sus plantillas propias, o null para seguir

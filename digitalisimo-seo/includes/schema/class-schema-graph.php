@@ -863,7 +863,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 	public static function post_page( $post ) {
 		$front   = (int) get_option( 'page_on_front' );
 		$url     = get_post_meta( $post->ID, Digitalisimo_Integrations_SEO_Suite::P . 'canonical', true ) ?: get_permalink( $post );
-		$excerpt = trim( wp_strip_all_tags( $post->post_excerpt ) ) ?: wp_trim_words( wp_strip_all_tags( strip_shortcodes( $post->post_content ) ), 30, '' );
+		$excerpt = trim( wp_strip_all_tags( $post->post_excerpt ) ) ?: Digitalisimo_Integrations_SEO_Variables::summary( $post );
 		$title   = get_post_meta( $post->ID, Digitalisimo_Integrations_SEO_Suite::P . 'title', true ) ?: get_the_title( $post );
 		$desc    = get_post_meta( $post->ID, Digitalisimo_Integrations_SEO_Suite::P . 'description', true ) ?: $excerpt;
 		return self::singular_page( $post, $front && $front === (int) $post->ID, $url, $title, $desc );

@@ -288,6 +288,7 @@ jobs:
           php tests/quality-audit.php
           php tests/llms.php
           php tests/seo-excerpt.php
+          php tests/seo-title-description.php
           php tests/image-alt.php
           php tests/favicon.php
           php tests/schema.php
