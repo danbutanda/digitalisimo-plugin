@@ -119,13 +119,22 @@ function update_post_meta( $id, $k, $v ) { $GLOBALS['postmeta'][ (int) $id ][ $k
 function has_term() { return false; }
 
 // ── WooCommerce ─────────────────────────────────────────────────────────────────────────────────────────────
-class Digi_Test_Product { public $id; public $name; public $price; public function __construct( $id, $name, $price ) { $this->id = $id; $this->name = $name; $this->price = $price; } public function get_id() { return $this->id; } public function get_name() { return $this->name; } }
+class Digi_Test_Product {
+	public $id; public $name; public $price; public $sale = ''; public $saves = 0;
+	public function __construct( $id, $name, $price ) { $this->id = $id; $this->name = $name; $this->price = $price; }
+	public function get_id() { return $this->id; } public function get_name() { return $this->name; }
+	public function get_regular_price() { return (string) $this->price; } public function set_regular_price( $p ) { $this->price = $p; }
+	public function get_sale_price() { return (string) $this->sale; } public function set_sale_price( $p ) { $this->sale = $p; }
+	public function save() { $this->saves++; return $this->id; }
+}
 $GLOBALS['products'] = array();
 function digi_product( $id, $name, $price, $plan = '' ) { $GLOBALS['products'][ $id ] = new Digi_Test_Product( $id, $name, $price ); if ( $plan ) update_post_meta( $id, '_digitalisimo_webuzo_plan', $plan ); }
 function wc_get_product( $id ) { return $GLOBALS['products'][ (int) $id ] ?? null; }
 class Digi_Test_Item {
 	public $product; public $variation = 0; public $qty = 1; public $meta = array(); public $name;
-	public function __construct( $pid, $name, $qty = 1, $meta = array() ) { $this->product = $pid; $this->name = $name; $this->qty = $qty; $this->meta = $meta; }
+	public $total;
+	public function __construct( $pid, $name, $qty = 1, $meta = array(), $total = null ) { $this->product = $pid; $this->name = $name; $this->qty = $qty; $this->meta = $meta; $p = $GLOBALS['products'][ $pid ] ?? null; $this->total = null !== $total ? $total : ( $p ? (float) $p->price * $qty : 0 ); }
+	public function get_total() { return $this->total; }
 	public function get_product_id() { return $this->product; } public function get_variation_id() { return $this->variation; }
 	public function get_quantity() { return $this->qty; } public function get_name() { return $this->name; }
 	public function get_meta( $k ) { return $this->meta[ $k ] ?? ''; }
@@ -192,7 +201,8 @@ class WC_Email {
 $GLOBALS['queue'] = array();
 function as_enqueue_async_action( $hook, $args = array(), $group = '' ) { $GLOBALS['queue'][] = array( 'hook' => $hook, 'args' => $args, 'at' => 0, 'group' => $group ); return count( $GLOBALS['queue'] ); }
 function as_schedule_single_action( $t, $hook, $args = array(), $group = '' ) { $GLOBALS['queue'][] = array( 'hook' => $hook, 'args' => $args, 'at' => $t, 'group' => $group ); return count( $GLOBALS['queue'] ); }
-function as_has_scheduled_action( $hook, $args = null, $group = '' ) { foreach ( $GLOBALS['queue'] as $a ) if ( $a['hook'] === $hook && ( null === $args || $a['args'] === $args ) ) return true; return false; }
+function as_schedule_recurring_action( $t, $interval, $hook, $args = array(), $group = '' ) { $GLOBALS['recurring'][ $hook ] = array( $t, $interval, $group ); return 1; }
+function as_has_scheduled_action( $hook, $args = null, $group = '' ) { foreach ( $GLOBALS['queue'] as $a ) if ( $a['hook'] === $hook && ( null === $args || $a['args'] === $args ) ) return true; return isset( $GLOBALS['recurring'][ $hook ] ); }
 /** Corre lo encolado (también lo programado a futuro si $all); devuelve cuántas tareas corrió. */
 function digi_run_queue( $all = true, $max = 50 ) {
 	$n = 0;
@@ -215,6 +225,13 @@ function digi_run_queue( $all = true, $max = 50 ) {
 function digi_servers_reset() {
 	$GLOBALS['webuzo'] = array( 'users' => array( 'otro' => array( 'user' => 'otro', 'domain' => 'otro-cliente.com', 'status' => '' ) ), 'calls' => array(), 'mode' => '', 'timeout' => 0, 'key' => 'CLAVE-WEBUZO-OK', 'keys_seen' => array() );
 	$GLOBALS['nc'] = array( 'domains' => array(), 'balance' => 50.0, 'price' => array( 'com' => 11.28, 'mx' => 25.0 ), 'calls' => array(), 'timeout' => array(), 'mode' => '' );
+	$GLOBALS['fx'] = array( 'token' => 'TOKEN-BANXICO', 'banxico' => 'ok', 'banxico_rate' => '18.5000', 'frankfurter' => 'ok', 'frankfurter_rate' => 18.6, 'calls' => array() );
+}
+/** Precio de Namecheap: un número (registro = renovación, cargo ICANN 0.18) o array( REGISTER, RENEW, extra ). */
+function digi_nc_price( $tld, $action ) {
+	$p = $GLOBALS['nc']['price'][ $tld ] ?? 9.99;
+	if ( is_array( $p ) ) return array( (float) $p[ $action ], (float) ( $p['extra'] ?? 0 ) );
+	return array( (float) $p, 0.18 );
 }
 digi_servers_reset();
 function digi_json( $data, $code = 200 ) { return array( 'response' => array( 'code' => $code ), 'body' => json_encode( $data ), 'headers' => array() ); }
@@ -222,6 +239,7 @@ function digi_xml( $inner, $ok = true ) { return array( 'response' => array( 'co
 add_filter(
 	'pre_http_request',
 	function ( $pre, $args, $url ) {
+		if ( false !== $pre ) return $pre; // otro filtro ya contestó (una falla puntual de una prueba)
 		$body = (array) ( $args['body'] ?? array() );
 		if ( 0 === strpos( $url, 'https://webuzo.test:2005/' ) ) {
 			$w = &$GLOBALS['webuzo'];
@@ -245,6 +263,19 @@ add_filter(
 			}
 			return digi_json( array( 'error' => array( 'Unknown act' ) ) );
 		}
+		if ( 0 === strpos( $url, 'https://www.banxico.org.mx/SieAPIRest/service/v1/series/SF43718/datos/oportuno' ) ) {
+			$f = &$GLOBALS['fx'];
+			$f['calls'][] = array( 'src' => 'banxico', 'token' => $args['headers']['Bmx-Token'] ?? '' );
+			if ( 'down' === $f['banxico'] ) return new WP_Error( 'http_request_failed', 'cURL error 28' );
+			if ( ( $args['headers']['Bmx-Token'] ?? '' ) !== $f['token'] ) return array( 'response' => array( 'code' => 401 ), 'body' => '{"error":{"mensaje":"Token inválido"}}', 'headers' => array() );
+			return digi_json( array( 'bmx' => array( 'series' => array( array( 'idSerie' => 'SF43718', 'titulo' => 'Tipo de cambio Pesos por dólar E.U.A. Fecha de determinación (FIX)', 'datos' => array( array( 'fecha' => '21/11/2026', 'dato' => 'ne' === $f['banxico'] ? 'N/E' : $f['banxico_rate'] ) ) ) ) ) ) );
+		}
+		if ( 0 === strpos( $url, 'https://api.frankfurter.dev/v2/rate/usd/mxn' ) ) {
+			$f = &$GLOBALS['fx'];
+			$f['calls'][] = array( 'src' => 'frankfurter' );
+			if ( 'down' === $f['frankfurter'] ) return array( 'response' => array( 'code' => 503 ), 'body' => '', 'headers' => array() );
+			return digi_json( array( 'date' => '2026-11-21', 'base' => 'USD', 'quote' => 'MXN', 'rate' => $f['frankfurter_rate'] ) );
+		}
 		if ( 0 === strpos( $url, 'https://api.namecheap.com/xml.response' ) || 0 === strpos( $url, 'https://api.sandbox.namecheap.com/' ) ) {
 			$n = &$GLOBALS['nc'];
 			$cmd = (string) ( $body['Command'] ?? '' );
@@ -256,8 +287,9 @@ add_filter(
 				case 'namecheap.users.getBalances':
 					return digi_xml( '<UserGetBalancesResult Currency="USD" AvailableBalance="' . number_format( $n['balance'], 2, '.', '' ) . '" AccountBalance="' . number_format( $n['balance'], 2, '.', '' ) . '" />' );
 				case 'namecheap.users.getPricing':
-					$p = $n['price'][ $body['ProductName'] ] ?? 9.99;
-					return digi_xml( '<UserGetPricingResult><ProductType Name="domains"><ProductCategory Name="' . strtolower( $body['ActionName'] ) . '"><Product Name="' . $body['ProductName'] . '"><Price Duration="1" DurationType="YEAR" Price="' . $p . '" YourPrice="' . $p . '" AdditionalCost="0.18" Currency="USD" /><Price Duration="2" DurationType="YEAR" Price="' . ( 2 * $p ) . '" YourPrice="' . ( 2 * $p ) . '" AdditionalCost="0.36" Currency="USD" /></Product></ProductCategory></ProductType></UserGetPricingResult>' );
+					list( $p, $extra ) = digi_nc_price( $body['ProductName'], $body['ActionName'] );
+					$attr = $n['extra_attr'] ?? 'YourAdditonalCost'; // así, mal escrito, lo manda Namecheap
+					return digi_xml( '<UserGetPricingResult><ProductType Name="domains"><ProductCategory Name="' . strtolower( $body['ActionName'] ) . '"><Product Name="' . $body['ProductName'] . '"><Price Duration="1" DurationType="YEAR" Price="' . ( $p + 5 ) . '" PricingType="MULTIPLE" ' . ( 'AdditionalCost' === $attr ? '' : 'AdditionalCost="' . ( $extra + 9 ) . '" ' ) . 'YourPrice="' . $p . '" ' . $attr . '="' . $extra . '" Currency="USD" /><Price Duration="2" DurationType="YEAR" Price="' . ( 2 * $p ) . '" YourPrice="' . ( 2 * $p ) . '" ' . $attr . '="' . ( 2 * $extra ) . '" Currency="USD" /></Product></ProductCategory></ProductType></UserGetPricingResult>' );
 				case 'namecheap.domains.getInfo':
 					$d = $body['DomainName'];
 					if ( ! isset( $n['domains'][ $d ] ) ) return digi_xml( '<Error Number="2019166">Domain not found</Error>', false );
@@ -265,7 +297,7 @@ add_filter(
 				case 'namecheap.domains.create':
 					$d = $body['DomainName'];
 					if ( isset( $n['domains'][ $d ] ) ) return digi_xml( '<Error Number="2030280">Domain is not available</Error>', false );
-					$cost = ( $n['price'][ substr( $d, strpos( $d, '.' ) + 1 ) ] ?? 9.99 ) + 0.18;
+					$cost = array_sum( digi_nc_price( substr( $d, strpos( $d, '.' ) + 1 ), 'REGISTER' ) );
 					if ( $n['balance'] < $cost ) return digi_xml( '<Error Number="2528166">Insufficient funds</Error>', false );
 					$n['balance'] -= $cost; $n['domains'][ $d ] = strtotime( '+1 year' );
 					return digi_xml( '<DomainCreateResult Domain="' . $d . '" Registered="true" ChargedAmount="' . number_format( $cost, 2 ) . '" DomainID="9' . count( $n['domains'] ) . '" OrderID="1" TransactionID="1" WhoisguardEnable="false" NonRealTimeDomain="false" />' );
@@ -274,7 +306,7 @@ add_filter(
 					return digi_xml( '<DomainDNSSetCustomResult Domain="' . $body['SLD'] . '.' . $body['TLD'] . '" Updated="true" />' );
 				case 'namecheap.domains.renew':
 					$d = $body['DomainName'];
-					$cost = ( $n['price'][ substr( $d, strpos( $d, '.' ) + 1 ) ] ?? 9.99 ) + 0.18;
+					$cost = array_sum( digi_nc_price( substr( $d, strpos( $d, '.' ) + 1 ), 'RENEW' ) );
 					$n['balance'] -= $cost; $n['domains'][ $d ] = strtotime( '+1 year', $n['domains'][ $d ] );
 					return digi_xml( '<DomainRenewResult DomainName="' . $d . '" DomainID="1" Renew="true" OrderID="2" TransactionID="2" ChargedAmount="' . number_format( $cost, 2 ) . '" />' );
 			}
@@ -303,7 +335,7 @@ function digi_store_settings( array $extra = array() ) {
 
 define( 'DIGITALISIMO_HOSTING_URL', 'https://tienda.test/wp-content/plugins/digitalisimo-hosting/' );
 define( 'DIGITALISIMO_HOSTING_VERSION', '9.9.9' );
-foreach ( array( 'class-hosting', 'class-hosting-webuzo', 'class-hosting-namecheap', 'class-hosting-provisioning', 'class-hosting-services-page' ) as $digi_file ) require __DIR__ . '/../../digitalisimo-hosting/includes/' . $digi_file . '.php';
+foreach ( array( 'class-hosting', 'class-hosting-webuzo', 'class-hosting-namecheap', 'class-hosting-pricing', 'class-hosting-provisioning', 'class-hosting-services-page' ) as $digi_file ) require __DIR__ . '/../../digitalisimo-hosting/includes/' . $digi_file . '.php';
 Digitalisimo_Hosting_Provisioning::init();
 digi_product( 14693, 'Web Hosting Starter', 970, 'digitalisimo_starter' );
 digi_product( 14696, 'Web Hosting Pro', 5850, 'digitalisimo_pro' );

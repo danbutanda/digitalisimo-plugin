@@ -56,6 +56,15 @@ class Digitalisimo_Hosting {
 			'nameservers'           => self::DEFAULT_NAMESERVERS,
 			'webuzo_user_prefix'    => '',
 			'grace_days'            => 7,
+			// Precios de dominios en tiempo real (agregado del propietario del 2026-11-24): apagado hasta encenderlo.
+			'pricing_enabled'       => 0,
+			'banxico_token'         => '',
+			'pricing_cushion'       => 3,
+			'pricing_margin'        => 25,
+			'pricing_fee'           => 3.6,
+			'pricing_vat'           => 16,
+			'pricing_min_margin'    => 10,
+			'pricing_rounding'      => '10',
 		);
 	}
 	/** Los nameservers de DIGITALÍSIMO a los que apunta cada dominio registrado (pedido del propietario del 2026-11-23). */
@@ -66,7 +75,9 @@ class Digitalisimo_Hosting {
 	 */
 	const CONSTANTS = array( 'webuzo_url' => 'DIGITALISIMO_WEBUZO_URL', 'webuzo_api_user' => 'DIGITALISIMO_WEBUZO_API_USER', 'webuzo_api_key' => 'DIGITALISIMO_WEBUZO_API_KEY' );
 	/** Claves secretas: el campo lleva la máscara, nunca la clave, y «Quitar la clave» la borra. */
-	const SECRET_KEYS = array( 'api_key', 'webuzo_api_key' );
+	const SECRET_KEYS = array( 'api_key', 'webuzo_api_key', 'banxico_token' );
+	/** Porcentajes de la fórmula de precios de dominios (0 a 90, con decimales). */
+	const PERCENT_KEYS = array( 'pricing_cushion', 'pricing_margin', 'pricing_fee', 'pricing_vat', 'pricing_min_margin' );
 
 	private static function local() { return (array) get_option( self::OPTION, array() ); }
 	private static function network() { return (array) get_site_option( self::OPTION, array() ); }
@@ -75,7 +86,7 @@ class Digitalisimo_Hosting {
 	 * IDs de productos y categorías de WooCommerce, casillas que cambian el carrito y el checkout, el formulario) es
 	 * siempre del sitio, también con «Heredar» (revisión del 2026-11-22: los IDs de otra tienda no sirven en ésta).
 	 */
-	const NETWORK_KEYS = array( 'api_user', 'username', 'api_key', 'client_ip', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers' );
+	const NETWORK_KEYS = array( 'api_user', 'username', 'api_key', 'client_ip', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers', 'banxico_token' );
 	/** ¿Este sitio usa la cuenta de Namecheap de la red? Sólo si su administrador marcó «Heredar» (opcional). */
 	private static function inherits() { return is_multisite() && ! empty( self::local()['inherit_network'] ); }
 	/** Aviso único: el sitio heredaba la red y ya no hereda su tienda (lo marca la visita a la pantalla Hosting). */
@@ -236,6 +247,18 @@ class Digitalisimo_Hosting {
 			echo '<p class="description">Los planes se reconocen por el paquete de Webuzo del producto (campo personalizado <code>_digitalisimo_webuzo_plan</code>) o por los IDs y categorías de hosting de abajo. La lista de servicios está en WooCommerce → Servicios de hosting.</p>';
 			self::field( 'webuzo_user_prefix', 'Prefijo de los usuarios de Webuzo', $o, 'text', 'Opcional, sólo letras y números (por ejemplo «prueba» para un ensayo).' );
 			self::field( 'grace_days', 'Días de gracia antes de suspender', $o, 'number', 'Días después del vencimiento sin pago antes de suspender la cuenta en Webuzo.' );
+			echo '<h2>Precios de dominios</h2>';
+			self::check( 'pricing_enabled', 'Actualizar a diario el precio de cada producto de dominio con el costo de Namecheap y el tipo de cambio', $o );
+			echo '<p class="description">Precio sin IVA = costo × (1 + colchón) × (1 + margen) ÷ (1 − comisión × (1 + IVA)), con el costo mayor entre registro y renovación. La pasarela cobra su comisión sobre el total con IVA; así el margen se cumple después de pagarla. Si una consulta falla, no se cambia ningún precio y se te avisa. Historial en WooCommerce → Servicios de hosting.</p>';
+			foreach ( array( 'pricing_cushion' => 'Colchón sobre el tipo de cambio (%)', 'pricing_margin' => 'Margen (%)', 'pricing_fee' => 'Comisión de la pasarela (%)', 'pricing_vat' => 'IVA sobre el que cobra la pasarela (%)', 'pricing_min_margin' => 'Margen mínimo al registrar o renovar (%)' ) as $key => $label ) self::field( $key, $label, $o, 'percent', 'pricing_min_margin' === $key ? 'Si al registrar o renovar un dominio pagado su costo real ya no deja este margen, el pedido queda en espera en lugar de registrarse con pérdida.' : '' );
+			$rounding = class_exists( 'Digitalisimo_Hosting_Pricing' ) ? Digitalisimo_Hosting_Pricing::ROUNDING : array( '10' => 'Múltiplo de 10' );
+			echo '<p><label><strong>Redondeo hacia arriba</strong><br><select name="hosting[pricing_rounding]">';
+			foreach ( $rounding as $value => $label ) echo '<option value="' . esc_attr( $value ) . '"' . ( (string) $value === (string) ( $o['pricing_rounding'] ?? '10' ) ? ' selected' : '' ) . '>' . esc_html( $label ) . '</option>';
+			echo '</select></label></p>';
+		}
+		if ( ! $inherits ) {
+			if ( $network ) echo '<h2>Tipo de cambio</h2>';
+			self::field( 'banxico_token', 'Token de consulta del SIE de Banxico', $o, 'password', 'Para el tipo de cambio FIX (serie SF43718). Se pide gratis en banxico.org.mx (SIE API → token). Sin él se usa Frankfurter como respaldo.' );
 		}
 		if ( ! $network ) {
 			self::area( 'domain_products', 'Productos por extensión', $o, 'Una línea por extensión: .com|123' );
@@ -257,7 +280,8 @@ class Digitalisimo_Hosting {
 		}
 		$secret = 'password' === $type; $saved = $secret && '' !== (string) ( $o[ $key ] ?? '' );
 		$value = $secret ? ( $saved ? self::MASK : '' ) : ( $o[ $key ] ?? '' );
-		echo '<p><label><strong>' . esc_html( $label ) . '</strong><br><input class="' . ( 'number' === $type ? 'small-text' : 'regular-text' ) . '" type="' . esc_attr( $type ) . '" name="hosting[' . esc_attr( $key ) . ']" value="' . esc_attr( $value ) . '"' . ( $secret ? ' autocomplete="new-password" onfocus="this.select()"' : '' ) . ( 'number' === $type ? ' min="0" max="90" step="1"' : '' ) . '></label>';
+		$number = 'number' === $type || 'percent' === $type;
+		echo '<p><label><strong>' . esc_html( $label ) . '</strong><br><input class="' . ( $number ? 'small-text' : 'regular-text' ) . '" type="' . ( $number ? 'number' : esc_attr( $type ) ) . '" name="hosting[' . esc_attr( $key ) . ']" value="' . esc_attr( $value ) . '"' . ( $secret ? ' autocomplete="new-password" onfocus="this.select()"' : '' ) . ( $number ? ' min="0" max="90" step="' . ( 'percent' === $type ? '0.01' : '1' ) . '"' : '' ) . '></label>';
 		if ( $saved ) echo ' <span class="description">Guardada · escribe una nueva sólo si quieres reemplazarla</span> <label><input type="checkbox" name="hosting[' . esc_attr( $key ) . '_remove]" value="1"> Quitar la clave</label>';
 		if ( '' !== $help ) echo '<br><span class="description">' . esc_html( $help ) . '</span>';
 		echo '</p>';
@@ -292,6 +316,9 @@ class Digitalisimo_Hosting {
 			foreach ( array( 'enabled', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'provision_enabled' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
 			if ( array_key_exists( 'webuzo_user_prefix', $in ) ) $o['webuzo_user_prefix'] = substr( preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $in['webuzo_user_prefix'] ) ), 0, 6 );
 			if ( array_key_exists( 'grace_days', $in ) ) $o['grace_days'] = min( 90, absint( $in['grace_days'] ) );
+			if ( array_key_exists( 'pricing_enabled', $in ) ) $o['pricing_enabled'] = empty( $in['pricing_enabled'] ) ? 0 : 1;
+			foreach ( self::PERCENT_KEYS as $key ) if ( array_key_exists( $key, $in ) && is_numeric( str_replace( ',', '.', (string) $in[ $key ] ) ) ) $o[ $key ] = round( max( 0, min( 90, (float) str_replace( ',', '.', (string) $in[ $key ] ) ) ), 2 );
+			if ( array_key_exists( 'pricing_rounding', $in ) && in_array( (string) $in['pricing_rounding'], array( '10', '9', 'end9', 'none' ), true ) ) $o['pricing_rounding'] = (string) $in['pricing_rounding'];
 			$o['inherit_network'] = is_multisite() && ! empty( $in['inherit_network'] ) ? 1 : 0;
 		}
 		$webuzo_key = false;
@@ -305,6 +332,7 @@ class Digitalisimo_Hosting {
 		// Una clave de Webuzo escrita a mano levanta la parada por «clave rechazada» (y vuelve a encolar lo detenido).
 		if ( $webuzo_key && class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) Digitalisimo_Hosting_Webuzo::unblock();
 		if ( ! $network && ! empty( $o['provision_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) Digitalisimo_Hosting_Provisioning::ensure_daily();
+		if ( ! $network && ! empty( $o['pricing_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Pricing' ) ) Digitalisimo_Hosting_Pricing::ensure_schedule();
 	}
 	/** URL del panel de administración de Webuzo: sólo https con host (y puerto); cualquier otra cosa se descarta. */
 	private static function webuzo_url( $raw ) {

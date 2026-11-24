@@ -61,6 +61,7 @@ class Digitalisimo_Hosting_Provisioning {
 		add_action( 'digitalisimo_hosting_webuzo_unblocked', array( __CLASS__, 'on_unblocked' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'admin_notice' ) );
 		if ( class_exists( 'Digitalisimo_Hosting_Services_Page' ) ) Digitalisimo_Hosting_Services_Page::init();
+		if ( class_exists( 'Digitalisimo_Hosting_Pricing' ) ) Digitalisimo_Hosting_Pricing::init();
 	}
 
 	/** Servicios: entradas privadas, sin pantalla propia de WordPress (la lista vive en WooCommerce → Servicios de hosting). */
@@ -425,6 +426,8 @@ class Digitalisimo_Hosting_Provisioning {
 				if ( $missing ) return self::stop( 'data', 'Faltan datos del titular del dominio en la facturación del pedido (' . implode( ', ', $missing ) . '). Complétalos en el pedido y reintenta.' );
 				$price = $nc->price( $tld, 'REGISTER' );
 				if ( 'ok' !== $price['kind'] ) return self::stop( self::nc_kind( $price ), $price['message'] );
+				$guard = self::price_guard( $items['domains'][0]['item'], $price['value'], 'registrar ' . $domain );
+				if ( $guard ) return $guard;
 				$balance = $nc->balance();
 				if ( 'ok' !== $balance['kind'] ) return self::stop( self::nc_kind( $balance ), $balance['message'] );
 				if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en Namecheap para registrar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );
@@ -443,6 +446,13 @@ class Digitalisimo_Hosting_Provisioning {
 		self::svc_set( $service, array( 'domain_registered' => 1 ) );
 		$order->add_order_note( 'DIGITALÍSIMO Hosting: ' . $domain . ' apunta a ' . implode( ' y ', $ns ) . '.' );
 		return null;
+	}
+
+	/** Lo cobrado por el dominio (sin IVA, tras descuentos) contra su costo real de hoy (Digitalisimo_Hosting_Pricing::guard). */
+	private static function price_guard( $item, $cost_usd, $label ) {
+		if ( ! class_exists( 'Digitalisimo_Hosting_Pricing' ) ) return null;
+		$charged = method_exists( $item, 'get_total' ) ? (float) $item->get_total() : 0.0;
+		return Digitalisimo_Hosting_Pricing::guard( $charged, $cost_usd, $label );
 	}
 
 	/** Un error de clave de Namecheap no detiene Webuzo: se trata como configuración (sin reintentar). */
@@ -714,6 +724,10 @@ class Digitalisimo_Hosting_Provisioning {
 		$split = self::split( $domain );
 		$price = $nc->price( $split ? $split[1] : '', 'RENEW' );
 		if ( 'ok' !== $price['kind'] ) return self::stop( self::nc_kind( $price ), $price['message'] );
+		$item = null;
+		foreach ( $order->get_items() as $row ) if ( (int) $row->get_product_id() === (int) self::svc( $id, 'domain_product' ) ) { $item = $row; break; }
+		$guard = $item ? self::price_guard( $item, $price['value'], 'renovar ' . $domain ) : null;
+		if ( $guard ) return $guard;
 		$balance = $nc->balance();
 		if ( 'ok' !== $balance['kind'] ) return self::stop( self::nc_kind( $balance ), $balance['message'] );
 		if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en Namecheap para renovar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );

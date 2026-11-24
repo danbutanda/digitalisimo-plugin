@@ -72,6 +72,7 @@ $GLOBALS['multisite'] = true; $GLOBALS['network_admin'] = true;
 ob_start(); Digitalisimo_Hosting::network_page(); $net = ob_get_clean();
 check( false !== strpos( $net, 'name="hosting[webuzo_url]"' ) && false !== strpos( $net, 'name="hosting[webuzo_api_key]"' ) && false !== strpos( $net, 'name="hosting[nameservers]"' ), 'La red pinta el servidor Webuzo, su clave y los nameservers' );
 check( false === strpos( $net, 'hosting[provision_enabled]' ) && false === strpos( $net, 'hosting[grace_days]' ) && false === strpos( $net, 'hosting[webuzo_user_prefix]' ), 'La red no pinta lo de cada tienda (venta automática, gracia, prefijo)' );
+check( false !== strpos( $net, 'name="hosting[banxico_token]"' ) && false === strpos( $net, 'hosting[pricing_enabled]' ) && false === strpos( $net, 'hosting[pricing_margin]' ), 'La red pinta el token de Banxico (heredable) y no la fórmula de precios de cada tienda' );
 $_POST = array( '_wpnonce' => 'n:digitalisimo_hosting_network_save', 'digitalisimo_hosting_network_save' => 1, 'hosting' => array( 'webuzo_url' => 'https://webuzo.test:2005/', 'webuzo_api_user' => 'root', 'webuzo_api_key' => 'CLAVE-RED-MALA', 'nameservers' => 'NS1.Red.Test,  ns2.red.test, no valido', 'provision_enabled' => 1, 'grace_days' => 3 ) );
 ob_start(); Digitalisimo_Hosting::network_page(); $after = ob_get_clean(); $_POST = array();
 $n = $GLOBALS['site_options']['digitalisimo_hosting_options'];

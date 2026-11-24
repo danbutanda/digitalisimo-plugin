@@ -81,7 +81,7 @@ class Digitalisimo_Hosting_Namecheap {
 		return $r;
 	}
 
-	/** Lo que cobra Namecheap por un año de la extensión (precio propio de la cuenta más cargos adicionales, en USD). */
+	/** Lo que cobra Namecheap por un año de la extensión (YourPrice más el cargo ICANN, en USD). */
 	public function price( $tld, $action = 'REGISTER' ) {
 		$r = $this->call( 'namecheap.users.getPricing', array( 'ProductType' => 'DOMAIN', 'ActionName' => $action, 'ProductName' => ltrim( strtolower( $tld ), '.' ) ) );
 		if ( 'ok' !== $r['kind'] ) return $r;
@@ -89,7 +89,10 @@ class Digitalisimo_Hosting_Namecheap {
 		foreach ( $r['xml']->xpath( '//*[local-name()="Price"]' ) ?: array() as $price ) {
 			if ( '1' !== (string) $price['Duration'] || 'YEAR' !== strtoupper( (string) $price['DurationType'] ) ) continue;
 			$your = '' !== (string) $price['YourPrice'] ? (float) $price['YourPrice'] : (float) $price['Price'];
-			$best = $your + (float) $price['AdditionalCost'];
+			// El cargo ICANN de la cuenta: Namecheap lo llama «YourAdditonalCost» (sic); se aceptan las otras formas.
+			$extra = '';
+			foreach ( array( 'YourAdditonalCost', 'YourAdditionalCost', 'AdditionalCost' ) as $attr ) if ( '' !== (string) $price[ $attr ] ) { $extra = (string) $price[ $attr ]; break; }
+			$best = $your + (float) $extra;
 			break;
 		}
 		if ( null === $best ) return array( 'kind' => 'api', 'message' => 'Namecheap no informó el precio de ' . $action . ' para .' . ltrim( $tld, '.' ) . '.' ) + $r;

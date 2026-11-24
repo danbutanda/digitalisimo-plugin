@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 class Digitalisimo_Hosting_Services_Page {
 	const SLUG   = 'digitalisimo-hosting-services';
 	const ACTION = 'digitalisimo_hosting_service';
-	const OPS    = array( 'retry', 'suspend', 'unsuspend', 'resend' );
+	const OPS    = array( 'retry', 'suspend', 'unsuspend', 'resend', 'prices' );
 
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 60 );
@@ -41,12 +41,22 @@ class Digitalisimo_Hosting_Services_Page {
 		$P = 'Digitalisimo_Hosting_Provisioning';
 		echo '<div class="wrap digitalisimo-hosting-services"><h1>Servicios de hosting</h1><hr class="wp-header-end">';
 		$done = sanitize_key( (string) ( $_GET['done'] ?? '' ) );
-		$texts = array( 'retry' => 'Reintento en cola.', 'suspend' => 'Suspensión en cola.', 'unsuspend' => 'Reactivación en cola.', 'resend' => 'Reenvío de accesos en cola.', 'nothing' => 'No había nada a medias que reintentar.' );
+		$texts = array( 'prices' => 'Actualización de precios en cola.', 'retry' => 'Reintento en cola.', 'suspend' => 'Suspensión en cola.', 'unsuspend' => 'Reactivación en cola.', 'resend' => 'Reenvío de accesos en cola.', 'nothing' => 'No había nada a medias que reintentar.' );
 		if ( isset( $texts[ $done ] ) ) echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $texts[ $done ] ) . ' Se procesa en segundo plano en unos instantes.</p></div>';
 		$o = Digitalisimo_Hosting::settings();
 		if ( empty( $o['provision_enabled'] ) ) echo '<div class="notice notice-info inline"><p>La venta automática está apagada. Enciéndela en <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-hosting' ) ) . '">Digitalisimo → Hosting</a>.</p></div>';
 		$ids = $P::services();
-		if ( ! $ids ) { echo '<p>Todavía no hay servicios. Aparecen aquí al pagarse el primer pedido de hosting o dominio.</p></div>'; return; }
+		if ( ! $ids ) echo '<p>Todavía no hay servicios. Aparecen aquí al pagarse el primer pedido de hosting o dominio.</p>';
+		else self::table( $ids );
+		if ( class_exists( 'Digitalisimo_Hosting_Pricing' ) ) {
+			Digitalisimo_Hosting_Pricing::render_history();
+			if ( ! empty( $o['pricing_enabled'] ) ) self::button( 'prices', 0, 'Actualizar precios ahora' );
+		}
+		echo '</div>';
+	}
+
+	private static function table( array $ids ) {
+		$P = 'Digitalisimo_Hosting_Provisioning';
 		echo '<table class="widefat striped"><thead><tr><th>Cliente</th><th>Dominio</th><th>Plan</th><th>Cuenta Webuzo</th><th>Vencimiento</th><th>Estado</th><th>Pedido</th><th>Acciones</th></tr></thead><tbody>';
 		foreach ( array_reverse( $ids ) as $id ) {
 			$status = (string) $P::svc( $id, 'status' );
@@ -70,7 +80,7 @@ class Digitalisimo_Hosting_Services_Page {
 			if ( '' !== $user && $P::svc( $id, 'pass' ) ) self::button( 'resend', $id, 'Reenviar accesos' );
 			echo '</td></tr>';
 		}
-		echo '</tbody></table></div>';
+		echo '</tbody></table>';
 	}
 
 	/** admin-post.php: capacidad, nonce de la acción y del servicio, y la tarea en cola. */
@@ -81,6 +91,11 @@ class Digitalisimo_Hosting_Services_Page {
 		if ( ! in_array( $op, self::OPS, true ) ) wp_die( 'Acción no válida.', 400 );
 		check_admin_referer( self::nonce_action( $op, $id ) );
 		$P = 'Digitalisimo_Hosting_Provisioning';
+		if ( 'prices' === $op ) {
+			if ( function_exists( 'as_enqueue_async_action' ) ) as_enqueue_async_action( Digitalisimo_Hosting_Pricing::HOOK_NOW, array(), $P::GROUP );
+			wp_safe_redirect( admin_url( 'admin.php?page=' . self::SLUG . '&done=prices' ) );
+			exit;
+		}
 		if ( ! $P::is_service( $id ) ) wp_die( 'Servicio no encontrado.', 404 );
 		$done = $op;
 		if ( 'retry' === $op ) $done = $P::retry( $id ) ? 'retry' : 'nothing';
