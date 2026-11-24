@@ -15,6 +15,7 @@
  * - otra herramienta del MCP que guarda `settings` parciales (`manage-component`, también por el proxy del editor)
  *   combina, y al publicar un componente no reescribe sus props con la copia vieja de sus ajustes; fuera del MCP nada
  *   cambia; la descripción y el esquema lo dicen.
+ * - `post_name` (el slug) va a la entrada con `wp_update_post()` y `page_template` en null, nunca a la meta (N1–N3).
  *
  * Sin WordPress: dobles mínimos de sus funciones (ganchos con prioridad, metas, opciones, `pre_update_option_*` y
  * `pre_set_theme_mod_*` como en el núcleo de WordPress) y del guardado del núcleo de Elementor (`Document::save()`,
@@ -489,6 +490,21 @@ namespace {
 		);
 		\Elementor\Plugin::$instance = (object) array( 'documents' => new Ms_Documents() );
 	}
+	/** `sanitize_title()` en lo que importa aquí: minúsculas, guiones y nada más. */
+	function sanitize_title( $title ) {
+		return trim( preg_replace( '/[^a-z0-9]+/', '-', strtolower( (string) $title ) ), '-' );
+	}
+	/** `wp_update_post()`: anota lo recibido y aplica el slug a la entrada. */
+	function wp_update_post( $postarr, $wp_error = false ) {
+		$GLOBALS['ms']['updates'][] = $postarr;
+		if ( isset( $postarr['post_name'] ) ) {
+			$GLOBALS['ms']['slugs'][ (int) $postarr['ID'] ] = $postarr['post_name'];
+		}
+		return (int) $postarr['ID'];
+	}
+	function get_post_field( $field, $id, $context = 'display' ) {
+		return 'post_name' === $field ? ( $GLOBALS['ms']['slugs'][ (int) $id ] ?? 'slug-viejo' ) : '';
+	}
 	function ms_meta( int $id ) {
 		return $GLOBALS['ms']['meta'][ $id ]['_elementor_page_settings'] ?? null;
 	}
@@ -616,6 +632,22 @@ namespace {
 	ms_reset();
 	$r = ms_run( 'elementor/update-page-settings', array( 'post_id' => PAGE, 'settings' => array( 'post_title' => 'Título nuevo', 'background_color' => '#F4F4F4' ) ) );
 	check( is_array( $r ) && ms_page_settings() === ms_meta( PAGE ) && array() === $r['changed_keys'] && array( 'post_title' ) === $r['post_fields'] && 'Título nuevo' === ( $GLOBALS['ms']['titles'][ PAGE ] ?? '' ), 'P1: un valor igual no cuenta como cambio y el título va a la entrada' );
+
+	// N1–N3: post_name (el slug) va a la entrada, nunca a la meta, y sin tocar la plantilla (incidente digitalisimo.lat,
+	// 2026-11-23). Con el código anterior se guardaba como ajuste y el slug no cambiaba.
+	ms_reset();
+	$r = ms_run( 'elementor/update-page-settings', array( 'post_id' => PAGE, 'settings' => array( 'post_name' => 'Black Friday 2026' ) ) );
+	$upd = $GLOBALS['ms']['updates'][0] ?? array();
+	check( is_array( $r ) && ! empty( $r['success'] ) && 'black-friday-2026' === ( $GLOBALS['ms']['slugs'][ PAGE ] ?? '' ) && 'black-friday-2026' === ( $r['post_name'] ?? '' ), 'N1: post_name cambia el slug de la entrada y la respuesta da el final' );
+	check( PAGE === ( $upd['ID'] ?? 0 ) && array_key_exists( 'page_template', $upd ) && null === $upd['page_template'] && 1 === count( $GLOBALS['ms']['updates'] ), 'N1: un solo wp_update_post, con page_template null (no revalida ni reescribe la plantilla)' );
+	check( ms_page_settings() === ms_meta( PAGE ) && array( 'post_name' ) === ( $r['post_fields'] ?? null ) && array() === ( $r['changed_keys'] ?? null ), 'N1: post_name no se guarda como ajuste: la meta queda igual y va en post_fields' );
+	ms_reset();
+	$r = ms_run( 'elementor/update-page-settings', array( 'post_id' => PAGE, 'settings' => array( 'post_name' => ' ¡¡ ', 'hide_title' => 'yes' ) ) );
+	check( is_wp_error( $r ) && 'invalid_post_name' === $r->get_error_code() && ms_page_settings() === ms_meta( PAGE ) && empty( $GLOBALS['ms']['updates'] ), 'N2: un slug vacío se rechaza sin guardar nada' );
+	ms_reset();
+	$GLOBALS['ms']['meta'][ PAGE ]['_elementor_page_settings']['post_name'] = 'basura-de-antes';
+	$r = ms_run( 'elementor/update-page-settings', array( 'post_id' => PAGE, 'settings' => array( 'hide_title' => 'yes' ) ) );
+	check( is_array( $r ) && ! array_key_exists( 'post_name', (array) ms_meta( PAGE ) ) && empty( $GLOBALS['ms']['updates'] ), 'N3: un post_name guardado antes como ajuste se limpia y no se aplica a la entrada' );
 
 	// P2: borrar la última clave borra la meta (el núcleo no guarda ajustes vacíos).
 	ms_reset();
