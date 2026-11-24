@@ -227,6 +227,7 @@ return array(
 	'Digitalisimo_Integrations_404_Monitor' => array( 'hooks' => array(
 		array( 'a', 'admin_init', 'maybe_install', 10, 1, '**' ),
 		array( 'a', 'digitalisimo_seo_404_cleanup', 'cleanup', 10, 1, '**' ),
+		array( 'a', 'digitalisimo_seo_404_flush', 'flush', 10, 1, '**' ),
 		array( 'a', 'admin_post_digitalisimo_seo_404_action', 'handle_action', 10, 1, '**' ),
 		array( 'a', 'template_redirect', 'record', 99, 1, 'f*' ),
 	) ),
