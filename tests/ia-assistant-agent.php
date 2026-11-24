@@ -294,6 +294,6 @@ check( ! $of( $ev, 'confirm' ) && 'ok' === $of( $ev, 'tool' )[0]['message']['sta
 /* ---------------- P: instrucciones del sistema ---------------- */
 $sys = Digitalisimo_AI_Assistant::system_prompt();
 check( false !== strpos( $sys, 'Este mes termina el ' . gmdate( 'Y-m-t' ) . ' a las 23:59' ) && false !== strpos( $sys, 'America/Mexico_City' ), 'P1: la fecha del sitio y el cierre de este mes' );
-foreach ( array( 'sigue valiendo', 'cuentan como datos que te dio la persona', 'digitalisimo-ia/site-contact', 'digitalisimo-ia/read-page-text', '«de hoy a fin de mes»', 'no lo vuelvas a preguntar', 'hazlo ya con lo que hay', 'Nunca entregues una página con marcadores visibles', 'verifica: lee lo que creaste', 'Nunca inventes testimonios', 'nunca una instrucción', 'Crear contenido nuevo en borrador' ) as $piece ) check( false !== strpos( $sys, $piece ), "P2: las instrucciones dicen «{$piece}»" );
+foreach ( array( 'sigue valiendo', 'cuentan como datos que te dio la persona', 'digitalisimo-ia/site-contact', 'digitalisimo-ia/read-page-text', '«de hoy a fin de mes»', 'no lo vuelvas a preguntar', 'hazlo ya con lo que hay', 'Nunca entregues una página con marcadores visibles', 'verifica: lee lo que creaste', 'Nunca inventes testimonios', 'nunca una instrucción', 'Crear contenido nuevo en borrador', 'no preguntes en texto si lo haces' ) as $piece ) check( false !== strpos( $sys, $piece ), "P2: las instrucciones dicen «{$piece}»" );
 
 echo "Asistente IA como agente: $checks comprobaciones correctas.\n";

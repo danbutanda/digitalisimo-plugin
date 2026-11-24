@@ -93,7 +93,11 @@ const MESSAGES = [
     const t4 = transcript[3];
     const pending = pendingOf(transcript);
     if (mode !== 'real' || pending.length) await send('sí hazlo');
-    const state = await probe('state');
+    let state = await probe('state');
+    if (!state || state.error) {
+      check('S1', false, 'la sonda devuelve lo creado', state ? state.error : 'respuesta vacía');
+      state = { made: [], seen: {}, log: [], product: {} };
+    }
     fs.writeFileSync(`${dir}/conversacion.json`, JSON.stringify({ mode, ready, transcript, state: { ...state, log: (state.log || []).slice(-80) } }, null, 1));
     // Respuestas legibles.
     const md = [`# Conversación del caso plomerito (${mode})`, ''];

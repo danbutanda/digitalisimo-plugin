@@ -133,6 +133,7 @@ try {
 				'pages'     => array( 'privacidad' => $privacy, 'terminos' => $terms, 'reembolso' => $refund ),
 				'footer'    => (int) $footer,
 				'admin'     => (int) $admin->ID,
+				'last_id'   => (int) $GLOBALS['wpdb']->get_var( "SELECT MAX(ID) FROM {$GLOBALS['wpdb']->posts}" ),
 				'wp'        => $GLOBALS['wp_version'],
 				'php'       => PHP_VERSION,
 				'woo'       => defined( 'WC_VERSION' ) ? WC_VERSION : '',

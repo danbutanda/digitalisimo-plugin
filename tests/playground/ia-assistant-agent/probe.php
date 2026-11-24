@@ -195,7 +195,7 @@ add_action(
 );
 
 add_action(
-	'init',
+	'wp_loaded',
 	static function () {
 		if ( ! isset( $_GET['digi_ias'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
@@ -219,13 +219,14 @@ add_action(
 			update_option( 'digitalisimo_ai_options', $o, false );
 			wp_send_json( array( 'wiped' => true ) );
 		}
-		// state: lo creado por el Asistente y lo visto por el modelo.
+		// state: lo creado por el Asistente y lo visto por el modelo (un error se devuelve como JSON, no como pantalla).
+		try {
 		$known = array_map( 'intval', array_values( (array) $ready['pages'] ) );
 		$pages = get_posts( array( 'post_type' => array( 'page', 'post', 'elementor_library' ), 'post_status' => array( 'draft', 'pending', 'private', 'publish' ), 'posts_per_page' => 50, 'orderby' => 'ID', 'order' => 'DESC', 'suppress_filters' => true ) );
 		$made  = array();
 		$fake  = '/\[[^\]\n]{2,80}\]|lorem ipsum|5210000000000|52XXXXXXXXXX|tu (n[uú]mero|logo|nombre)|nombre del producto|precio aqu[ií]/iu';
 		foreach ( $pages as $post ) {
-			if ( in_array( (int) $post->ID, $known, true ) || (int) $post->ID === (int) $ready['footer'] || 'draft' !== $post->post_status ) {
+			if ( (int) $post->ID <= (int) ( $ready['last_id'] ?? 0 ) || in_array( (int) $post->ID, $known, true ) || (int) $post->ID === (int) $ready['footer'] || 'draft' !== $post->post_status ) {
 				continue;
 			}
 			$content = Digitalisimo_AI_Site_Reader::content( $post );
@@ -269,8 +270,13 @@ add_action(
 				'seen'    => get_option( 'digi_ias_seen', array() ),
 				'log'     => get_option( 'digitalisimo_ai_assistant_log', array() ),
 				'key_set' => '' !== (string) ( get_option( 'digitalisimo_ai_options', array() )['providers']['anthropic']['key'] ?? '' ),
-			)
+			),
+			null,
+			JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR
 		);
+		} catch ( Throwable $e ) {
+			wp_send_json( array( 'error' => $e->getMessage() . ' @ ' . basename( $e->getFile() ) . ':' . $e->getLine() ) );
+		}
 	},
 	1
 );
