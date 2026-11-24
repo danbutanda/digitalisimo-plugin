@@ -23,6 +23,7 @@
 #        clic deja en la caché que la tarea no existe. Un solo clic, como migrate.js, hace una pasada nueva entera: respaldo
 #        nuevo, tema descargado e instalado, Tools instalado y activo con el PHP del hijo, tema propio activo, el shortcode
 #        del hijo sigue en la portada, y el hijo y Hello retirados)
+#        Con TOOLS_OLD=1, Tools 1.0.47 ya instalado y activo: Migrar lo actualiza y queda activo (revisión A1).
 #      SCENARIO=salt bash tests/playground/migration-full.sh   (incidente de plomerito: una caché de objetos compartida
 #        con otro sitio del servidor, sin sal, que ya da su dirección; Migrar, sin Tools, pone la sal antes de nada y
 #        termina solo sin tocar lo del otro sitio; tests/playground/tools-cache-salt/)
@@ -65,6 +66,12 @@ if [ rerun = "$SCENARIO" ]; then
   sed 's/return WP_CACHE_KEY_SALT \. (/return (/' "$ROOT/tests/playground/tools-cache-salt/object-cache.php" > "$OUT/object-cache-nosalt.php"
   grep -q "return ( in_array( \$group" "$OUT/object-cache-nosalt.php" || { echo "No se pudo preparar el drop-in sin sal"; exit 1; }
   EXTRA_MOUNT=(--mount="$BASE_OUT/cache:/digi-cache")
+  # TOOLS_OLD=1 (revisión adversarial A1): DIGITALÍSIMO Tools 1.0.47 ya instalado y activo, como en digitalisimo.lat;
+  # Migrar lo actualiza con Plugin_Upgrader (que lo desactiva para sustituirlo) y debe dejarlo activo.
+  if [ "${TOOLS_OLD:-0}" = 1 ]; then
+    [ -f "$ROOT/rollback/digitalisimo-tools-1.0.47.zip" ] || { echo "Falta rollback/digitalisimo-tools-1.0.47.zip"; exit 1; }
+    cp "$ROOT/rollback/digitalisimo-tools-1.0.47.zip" "$OUT/tools-old.zip"
+  fi
 fi
 if [ child = "$SCENARIO" ]; then
   [ -f "$ROOT/rollback/digitalisimo-theme-1.0.0.zip" ] || { echo "Falta rollback/digitalisimo-theme-1.0.0.zip"; exit 1; }

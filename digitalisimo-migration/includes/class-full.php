@@ -70,6 +70,8 @@ final class Full {
 	const MAX_ATTEMPTS = 3;
 	/** Sitios de una red cuya portada se compara (los demás se informan). */
 	const VERIFY_SITES = 100;
+	/** Días tras los que una tarea quieta o una referencia de la portada ya no valen (Full::orphan(), baseline()). */
+	const STALE_DAYS = 1;
 	/** Un paso de un clic cuya pasada ya no está guardada (Full::step(), `lost`). */
 	const LOST = 'La migración que empezó este clic no aparece guardada en el sitio, así que no se muestra el informe anterior como si fuera el de ahora. Recarga esta pantalla: si la migración sigue en marcha, continúa sola; si no, pulsa Migrar.';
 
@@ -242,7 +244,23 @@ final class Full {
 			$network ? delete_site_option( self::NETWORK_JOB ) : delete_option( self::JOB );
 			return null;
 		}
+		if ( self::orphan( $state ) ) {
+			// Revisión adversarial (bajo): una tarea que no pasó del respaldo, de otra versión de Migración o quieta desde hace
+			// más de un día (como la que quedó huérfana en digitalisimo.lat), no se retoma con sus permisos y su versión de
+			// entonces: se descarta (no había tocado nada) y el clic siguiente empieza una pasada nueva.
+			$network ? delete_site_option( self::NETWORK_JOB ) : delete_option( self::JOB );
+			return null;
+		}
 		return $state;
+	}
+
+	/** ¿Tarea que no llegó a tocar nada (plan o respaldo) y es de otra versión o lleva más de un día quieta? */
+	private static function orphan( array $state ) {
+		if ( ! in_array( (string) ( $state['stage'] ?? '' ), array( 'plan', 'backup' ), true ) || ! empty( $state['installed'] ) || ! empty( $state['activated'] ) ) {
+			return false;
+		}
+		$version = defined( 'DIGITALISIMO_MIGRATION_VERSION' ) ? DIGITALISIMO_MIGRATION_VERSION : '';
+		return (string) ( $state['version'] ?? '' ) !== (string) $version || (int) ( $state['updated'] ?? 0 ) < time() - self::STALE_DAYS * 86400;
 	}
 
 	public static function last( $network ) {
@@ -282,13 +300,23 @@ final class Full {
 		if ( self::$cli || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 			// WP-CLI no tiene cuenta, pero sí respeta DISALLOW_FILE_MODS (y su filtro): sin escritura, ni instala ni borra.
 			$mods = ! function_exists( 'wp_is_file_mod_allowed' ) || wp_is_file_mod_allowed( 'digitalisimo_migration' );
-			return array( 'install' => $mods, 'activate' => true, 'delete' => $mods, 'themes' => $mods, 'update_themes' => $mods, 'code' => $mods, 'delete_themes' => $mods );
+			return array( 'install' => $mods, 'activate' => true, 'delete' => $mods, 'switch' => true, 'themes' => $mods, 'update_themes' => $mods, 'code' => $mods, 'delete_themes' => $mods );
 		}
 		if ( $network ) {
 			$super = is_super_admin() && current_user_can( 'manage_network_plugins' );
-			return array( 'install' => $super && current_user_can( 'install_plugins' ), 'activate' => $super, 'delete' => $super && current_user_can( 'delete_plugins' ), 'themes' => $super && current_user_can( 'manage_network_themes' ) && current_user_can( 'install_themes' ), 'update_themes' => $super && current_user_can( 'update_themes' ), 'code' => $super && current_user_can( 'edit_themes' ) && current_user_can( 'unfiltered_html' ), 'delete_themes' => $super && current_user_can( 'delete_themes' ) );
+			return array( 'install' => $super && current_user_can( 'install_plugins' ), 'activate' => $super, 'delete' => $super && current_user_can( 'delete_plugins' ), 'switch' => $super && current_user_can( 'manage_network_themes' ), 'themes' => $super && current_user_can( 'manage_network_themes' ) && current_user_can( 'install_themes' ), 'update_themes' => $super && current_user_can( 'update_themes' ), 'code' => $super && current_user_can( 'edit_themes' ) && current_user_can( 'unfiltered_html' ), 'delete_themes' => $super && current_user_can( 'delete_themes' ) );
 		}
-		return array( 'install' => current_user_can( 'install_plugins' ), 'activate' => current_user_can( 'activate_plugins' ), 'delete' => current_user_can( 'delete_plugins' ), 'themes' => current_user_can( 'switch_themes' ) && current_user_can( 'install_themes' ), 'update_themes' => current_user_can( 'update_themes' ), 'code' => current_user_can( 'edit_themes' ) && current_user_can( 'unfiltered_html' ), 'delete_themes' => current_user_can( 'delete_themes' ) );
+		return array( 'install' => current_user_can( 'install_plugins' ), 'activate' => current_user_can( 'activate_plugins' ), 'delete' => current_user_can( 'delete_plugins' ), 'switch' => current_user_can( 'switch_themes' ), 'themes' => current_user_can( 'switch_themes' ) && current_user_can( 'install_themes' ), 'update_themes' => current_user_can( 'update_themes' ), 'code' => current_user_can( 'edit_themes' ) && current_user_can( 'unfiltered_html' ), 'delete_themes' => current_user_can( 'delete_themes' ) );
+	}
+
+	/** ¿Deja el servidor modificar archivos? (DISALLOW_FILE_MODS y su filtro). */
+	private static function file_mods() {
+		return ! function_exists( 'wp_is_file_mod_allowed' ) || wp_is_file_mod_allowed( 'digitalisimo_migration' );
+	}
+
+	/** Por qué no se instala ni se actualiza: la regla del servidor o el permiso de quien pulsó. */
+	private static function no_install() {
+		return self::file_mods() ? 'quien pulsó Migrar no puede instalar ni actualizar plugins' : 'una regla del servidor (DISALLOW_FILE_MODS) no deja instalar ni actualizar plugins';
 	}
 
 	public static function fresh( $network, $run = '' ) {
@@ -734,6 +762,13 @@ final class Full {
 	/** La referencia guardada (o null). */
 	public static function baseline( $network ) {
 		$baseline = self::stored( self::BASELINE, $network );
+		$version  = defined( 'DIGITALISIMO_MIGRATION_VERSION' ) ? DIGITALISIMO_MIGRATION_VERSION : '';
+		if ( is_array( $baseline ) && ( (string) ( $baseline['version'] ?? '' ) !== (string) $version || (int) ( $baseline['at'] ?? $baseline['started'] ?? 0 ) < time() - self::STALE_DAYS * 86400 ) ) {
+			// Revisión adversarial (bajo): una portada de referencia de otra versión o de hace más de un día ya no es la de
+			// antes de Migrar (el sitio siguió cambiando): compararse con ella haría volver atrás sin motivo. Se descarta.
+			$network ? delete_site_option( self::BASELINE ) : delete_option( self::BASELINE );
+			return null;
+		}
 		return is_array( $baseline ) && ! empty( $baseline['checks'] ) ? $baseline : null;
 	}
 
@@ -749,7 +784,7 @@ final class Full {
 			return;
 		}
 		if ( ! self::baseline( $network ) && ! empty( $state['checks'] ) ) {
-			$baseline = array( 'started' => (int) self::snap_owner( $state ), 'checks' => array_values( (array) $state['checks'] ) );
+			$baseline = array( 'started' => (int) self::snap_owner( $state ), 'at' => time(), 'version' => defined( 'DIGITALISIMO_MIGRATION_VERSION' ) ? DIGITALISIMO_MIGRATION_VERSION : '', 'checks' => array_values( (array) $state['checks'] ) );
 			$network ? update_site_option( self::BASELINE, $baseline ) : update_option( self::BASELINE, $baseline, false );
 		}
 	}
@@ -774,7 +809,7 @@ final class Full {
 		$file = Replacements::own_file( $slug );
 		if ( ! Replacements::installed( $file ) ) {
 			if ( empty( $state['caps']['install'] ) ) {
-				return self::fail( $state, sprintf( 'Hace falta %s y quien pulsó Migrar no puede instalar plugins.', Replacements::own_label( $slug ) ) );
+				return self::fail( $state, sprintf( 'Hace falta %s y %s.', Replacements::own_label( $slug ), self::no_install() ) );
 			}
 			$result = Packages::install_plugin( $slug );
 			if ( is_wp_error( $result ) ) {
@@ -814,7 +849,7 @@ final class Full {
 		}
 		$state['update_tried'][] = $slug;
 		if ( empty( $state['caps']['install'] ) ) {
-			return self::fail( $state, sprintf( '%s es una versión anterior a la que Migrar necesita y quien pulsó Migrar no puede actualizar plugins.', Replacements::own_label( $slug ) ) );
+			return self::fail( $state, sprintf( '%s es una versión anterior a la que Migrar necesita y %s.', Replacements::own_label( $slug ), self::no_install() ) );
 		}
 		// La actualización y la reactivación leen y guardan `active_plugins`: con la caché de otro sitio, nada.
 		self::assert_same_site();
@@ -991,7 +1026,7 @@ final class Full {
 				continue;
 			}
 			if ( empty( $state['caps']['install'] ) ) {
-				return self::fail( $state, sprintf( 'Hace falta %s y quien pulsó Migrar no puede instalar plugins.', Replacements::own_label( $slug ) ) );
+				return self::fail( $state, sprintf( 'Hace falta %s y %s.', Replacements::own_label( $slug ), self::no_install() ) );
 			}
 			$result = Packages::install_plugin( $slug );
 			if ( is_wp_error( $result ) ) {
@@ -1329,7 +1364,7 @@ final class Full {
 			return array( false, 'Elementor Pro o PRO Elements sigue activo: el Theme Builder de DIGITALÍSIMO Elements no carga mientras tanto. Se queda ' . (string) $theme['name'] . '.' );
 		}
 		if ( empty( $facts['can'] ) ) {
-			return array( false, 'Quien pulsó Migrar no puede instalar ni cambiar temas en este sitio. Se queda ' . (string) $theme['name'] . '.' );
+			return array( false, ( self::file_mods() ? 'Quien pulsó Migrar no puede cambiar de tema (ni instalar el tema DIGITALÍSIMO) en este sitio.' : 'Una regla del servidor (DISALLOW_FILE_MODS) no deja instalar el tema DIGITALÍSIMO, que aún no está instalado.' ) . ' Se queda ' . (string) $theme['name'] . '.' );
 		}
 		if ( empty( $theme['child'] ) ) {
 			return array( true, '' );
@@ -1390,7 +1425,8 @@ final class Full {
 		return array(
 			'builder'  => class_exists( '\\ElementorPro\\Modules\\ThemeBuilder\\Module' ) && Replacements::is_active( Replacements::own_file( 'digitalisimo-elements' ) ),
 			'conflict' => $conflict,
-			'can'      => ! empty( $state['caps']['themes'] ),
+			// Con el tema propio ya instalado basta con poder cambiar de tema (switch_themes); si falta, también instalarlo.
+			'can'      => ! empty( $state['caps']['switch'] ?? $state['caps']['themes'] ) && ( ! empty( $state['caps']['themes'] ) || wp_get_theme( Replacements::THEME )->exists() ),
 		);
 	}
 
@@ -1799,7 +1835,7 @@ final class Full {
 		$file = self::TOOLS_FILE;
 		if ( ! Replacements::installed( $file ) ) {
 			if ( empty( $state['caps']['install'] ) ) {
-				return array( $state, 'quien pulsó Migrar no puede instalar plugins' );
+				return array( $state, self::no_install() );
 			}
 			$result = Packages::install_plugin( $slug );
 			if ( is_wp_error( $result ) ) {
@@ -1810,7 +1846,7 @@ final class Full {
 			if ( ! empty( $state['caps']['install'] ) ) {
 				self::assert_same_site();
 			}
-			$result = ! empty( $state['caps']['install'] ) ? Packages::update_plugin( $slug ) : new \WP_Error( 'digitalisimo_migration_caps', 'quien pulsó Migrar no puede actualizar plugins' );
+			$result = ! empty( $state['caps']['install'] ) ? Packages::update_plugin( $slug ) : new \WP_Error( 'digitalisimo_migration_caps', self::no_install() );
 			if ( is_wp_error( $result ) && 'digitalisimo_migration_reactivate' === $result->get_error_code() ) {
 				return array( $state, 'se actualizó, pero ' . $result->get_error_message() );
 			}

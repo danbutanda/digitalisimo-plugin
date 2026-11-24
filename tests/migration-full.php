@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_mismatch', 'theme_child_nowrap', 'theme_child_nowrap_paused', 'theme_switch_throw', 'theme_switch_crash', 'theme_revert_snippet_stuck', 'theme_revert_order', 'theme_child_nowrap_refused', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_json', 'theme_child_retire_dir', 'theme_child_retire_official', 'theme_child_retire_network', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback', 'alien_cache', 'alien_cache_midway', 'plugin_update_reactivates', 'stale_cache', 'lost_click', 'done_job' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_mismatch', 'theme_child_nowrap', 'theme_child_nowrap_paused', 'theme_switch_throw', 'theme_switch_crash', 'theme_revert_snippet_stuck', 'theme_revert_order', 'theme_child_nowrap_refused', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_json', 'theme_child_retire_dir', 'theme_child_retire_official', 'theme_child_retire_network', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback', 'alien_cache', 'alien_cache_midway', 'plugin_update_reactivates', 'orphan_job', 'stale_cache', 'lost_click', 'done_job' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -1811,7 +1811,7 @@ switch ( $scenario ) {
 		fake_wp_cli();
 		$GLOBALS['t']['no_file_mods'] = true;
 		$error = cli_processes( false );
-		check( false !== strpos( $error, 'no puede instalar' ) && ! logged( 'install:' ), 'Sin escritura, WP-CLI no instala nada: ' . $error );
+		check( false !== strpos( $error, 'regla del servidor (DISALLOW_FILE_MODS)' ) && false === strpos( $error, 'quien pulsó' ) && ! logged( 'install:' ), 'Sin escritura, WP-CLI no instala nada y lo atribuye a la regla del servidor: ' . $error );
 		nothing_deleted();
 		break;
 
@@ -2033,6 +2033,22 @@ switch ( $scenario ) {
 		$GLOBALS['t']['fail_activate'][ SEO ] = 'Error fatal al activarlo';
 		$r = Packages::update_plugin( 'digitalisimo-seo' );
 		check( is_wp_error( $r ) && 'digitalisimo_migration_reactivate' === $r->get_error_code() && false !== strpos( $r->get_error_message(), 'Error fatal al activarlo' ) && false === strpos( $r->get_error_message(), 'Release' ), 'Sin poder reactivarlo, el motivo real: ' . ( is_wp_error( $r ) ? $r->get_error_message() : 'sin error' ) );
+		break;
+
+	case 'orphan_job':
+		// Revisión adversarial (bajo): la tarea que quedó huérfana en digitalisimo.lat (de otra versión, sin pasar del
+		// respaldo) no se retoma con su versión y sus permisos de entonces, y una referencia de la portada vieja no se usa.
+		update_option( Full::JOB, array( 'version' => '1.0.32', 'stage' => 'plan', 'started' => time() - 3600, 'updated' => time() - 3600 ) + Full::fresh( false, 'viejo' ) );
+		check( null === Full::load( false ) && false === get_option( Full::JOB ), 'Tarea huérfana de otra versión que no pasó del respaldo: se descarta.' );
+		update_option( Full::JOB, array( 'stage' => 'backup', 'updated' => time() - 3 * 86400 ) + Full::fresh( false, 'quieta' ) );
+		check( null === Full::load( false ), 'Una tarea quieta hace días en el respaldo: también.' );
+		update_option( Full::JOB, array( 'version' => '1.0.32', 'stage' => 'content', 'updated' => time() - 3 * 86400, 'activated' => array( 'digitalisimo-elements' ) ) + Full::fresh( false, 'amedias' ) );
+		check( 'amedias' === ( Full::load( false )['run'] ?? '' ), 'Una que ya cambió algo se retoma (no se abandona a medias).' );
+		delete_option( Full::JOB );
+		update_option( Full::BASELINE, array( 'started' => 1763604000, 'checks' => array( array( 1, 'http://example.test/' ) ) ) );
+		check( null === Full::baseline( false ) && false === get_option( Full::BASELINE ), 'La referencia de la portada del 19-nov (sin versión) se descarta.' );
+		update_option( Full::BASELINE, array( 'started' => time(), 'at' => time(), 'version' => DIGITALISIMO_MIGRATION_VERSION, 'checks' => array( array( 1, 'http://example.test/' ) ) ) );
+		check( null !== Full::baseline( false ), 'Una de hoy y de esta versión vale.' );
 		break;
 
 	case 'stale_cache':

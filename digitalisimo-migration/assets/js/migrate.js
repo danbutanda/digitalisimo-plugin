@@ -31,7 +31,12 @@
 		return fetch(url, { method: 'POST', credentials: cross ? 'include' : 'same-origin', body: body }).then(function (response) {
 			return response.json().catch(function () { throw new Error('respuesta no válida (' + response.status + ')'); });
 		}).then(function (result) {
-			if (!result || !result.success) throw new Error(result && typeof result.data === 'string' ? result.data : 'la petición fue rechazada');
+			if (!result || !result.success) {
+				// Una negativa del servidor (no un fallo pasajero): no se reintenta y su mensaje va tal cual.
+				var refused = new Error(result && typeof result.data === 'string' ? result.data : 'la petición fue rechazada');
+				refused.refused = true;
+				throw refused;
+			}
 			return result.data;
 		});
 	}
@@ -79,7 +84,7 @@
 				return wait(data.busy ? BUSY : STEP).then(step);
 			}, function (error) {
 				failures++;
-				if (failures > 4) throw error;
+				if (error.refused || failures > 4) throw error;
 				return wait(1500 * failures).then(step);
 			});
 		}
@@ -98,7 +103,8 @@
 			});
 		}
 		go(start).then(function (data) { foldAnalysis(data); finish(); }, function (error) {
-			status.appendChild(notice('La migración se detuvo en esta pantalla (' + error.message + '). Sigue en segundo plano y continúa al volver a abrirla.'));
+			// Una negativa trae su propio motivo (y no sigue en segundo plano); un corte de la conexión, sí sigue.
+			status.appendChild(notice(error.refused ? error.message : 'La migración se detuvo en esta pantalla (' + error.message + '). Sigue en segundo plano y continúa al volver a abrirla.'));
 			finish();
 		});
 	}

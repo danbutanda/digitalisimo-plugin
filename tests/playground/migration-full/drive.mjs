@@ -174,7 +174,12 @@ if (mode === 'rerun') {
 	check(l.run === 'clicrerun', `El informe es el de este clic (${l.run}), no el del 19-nov.`);
 	check(l.backup && l.backup.ok && !/20261119/.test(l.backup.file || '') && result.history.includes(l.backup.file), `Respaldo nuevo, en el historial de Backups: ${l.backup && l.backup.file}`);
 	check(l.theme_installed_now && result.themes.includes('digitalisimo-theme'), 'El tema DIGITALÍSIMO se descargó e instaló desde la Release.');
-	check(site.tools_active && (l.installed || []).includes('digitalisimo-tools'), 'DIGITALÍSIMO Tools se instaló y quedó activo: ' + JSON.stringify(l.installed));
+	if (result.tools_old) {
+		// Revisión adversarial A1: Plugin_Upgrader lo desactiva para sustituirlo; Migrar lo deja activo en la misma petición.
+		check(site.tools_active && l.upgraded && l.upgraded['digitalisimo-tools'] && l.upgraded['digitalisimo-tools'].from === '1.0.47' && result.tools_version !== '1.0.47' && !(l.activated || []).includes('digitalisimo-tools'), 'DIGITALÍSIMO Tools 1.0.47 se actualizó y siguió activo: ' + JSON.stringify({ upgraded: l.upgraded, activated: l.activated, version: result.tools_version, active: site.tools_active }));
+	} else {
+		check(site.tools_active && (l.installed || []).includes('digitalisimo-tools'), 'DIGITALÍSIMO Tools se instaló y quedó activo: ' + JSON.stringify(l.installed));
+	}
 	check(site.snippets.some((s) => /PHP del tema hijo Hello Elementor Child/.test(s.title) && s.active), 'El functions.php del hijo queda activo en Código PHP: ' + JSON.stringify(site.snippets));
 	check(site.shortcode && site.child_foot, 'Con el tema propio, el shortcode y el gancho del hijo siguen en la portada: ' + JSON.stringify({ shortcode: site.shortcode, foot: site.child_foot, flag: site.tools_flag, salt: site.salt_state, tail: site.body_tail }));
 	check(!result.themes.includes('hello-hijo') && !result.themes.includes('hello-elementor'), 'El hijo y Hello se retiran: ' + result.themes.join(',') + ' ' + JSON.stringify(l.kept || {}));

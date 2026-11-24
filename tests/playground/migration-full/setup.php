@@ -134,6 +134,16 @@ if ( 'rerun' === $scenario ) {
 		'theme' => array( 1 => array( 'from' => 'hello-hijo', 'name' => 'Hello Elementor Child', 'hello' => true, 'child' => true, 'own' => false, 'safe' => false, 'switched' => false, 'reason' => 'El sitio usa un tema hijo de Hello («Hello Elementor Child»): su CSS y su PHP no se trasladan solos (el PHP va al editor de fragmentos de DIGITALÍSIMO Tools). Se queda; cámbialo en Apariencia cuando los hayas pasado.' ) ),
 		'verify' => array(), 'deleted' => array(), 'kept' => array(), 'notes' => array(),
 	), false );
+	if ( is_file( $probe . '/tools-old.zip' ) ) {
+		// TOOLS_OLD=1: Tools 1.0.47 instalado y activo (sin la vía de Migrar para volver a traer un fragmento).
+		$zip = new ZipArchive();
+		$zip->open( $probe . '/tools-old.zip' );
+		$zip->extractTo( WP_PLUGIN_DIR );
+		$zip->close();
+		wp_clean_plugins_cache( false );
+		activate_plugin( 'digitalisimo-tools/digitalisimo-tools.php' );
+		file_put_contents( $probe . '/tools-old', '1' );
+	}
 	// La caché de objetos persistente (al final: esta petición no la usa).
 	@mkdir( '/digi-cache', 0777, true );
 	copy( $probe . '/object-cache-nosalt.php', WP_CONTENT_DIR . '/object-cache.php' );
