@@ -194,6 +194,15 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
   preguntas frecuentes de compra, pago, envío y cierre con lo que la tienda tiene activo. Sin bloques de curso. Si la
   tienda cobra otro precio que la landing, `review` lo dice (se pone el precio rebajado en el producto antes de
   publicar); el producto no se toca.
+- **Revisión adversarial (2026-11-23).** El nombre del producto no pasa por la regla del precio (el mensaje de WhatsApp
+  se escribe directo: «Bomba 0.50 HP» no es un precio); los medios de pago se dicen «Formas de pago», sin «en línea»;
+  el WhatsApp del sitio cuenta cada origen una vez, busca la cabecera, el pie, el botón flotante y los menús en su
+  propia consulta (no los tapan las páginas recientes), toma Joinchat y Click to Chat sólo con su plugin activo y avisa
+  en `review` si hay más de un número (`whatsapp_candidates`); con variaciones, el tachado y el ahorro sólo son de la
+  misma variación («Desde» si los precios difieren); la pregunta de envíos sólo con métodos que llevan el producto (sin
+  recoger en tienda) y si el producto se envía, y dice «gratis» con envío gratis; la hora del cierre se nombra con la
+  zona real del sitio; sólo reseñas de 4 o 5 estrellas sin las respuestas de la tienda; un producto con contraseña se
+  rechaza; una oración que niega la garantía no es una garantía.
 - **Terminada (`finish`, por defecto).** `Finisher` termina cualquier página del kit: `[Marca]` y `[año]` con los datos
   del sitio; las rutas del kit (`/aviso-de-privacidad/`, `/terminos-y-condiciones/`, `/politica-de-reembolso/`,
   `/carrito/`, `/pago/`…) a la página real que el sitio declara o tiene con esa dirección (`Site::read()`), y si no la

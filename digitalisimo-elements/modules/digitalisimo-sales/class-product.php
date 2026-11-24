@@ -58,6 +58,7 @@ final class Product {
 		'g_text'        => 'c9d26cb',
 		'g_divider'     => 'b73d0f0',
 		'faq'           => '7713728',
+		'wa_btn'        => '52c6da5',
 		'foot_contact'  => '172fcdb',
 		'foot_notice'   => '252648f',
 	);
@@ -81,6 +82,10 @@ final class Product {
 		}
 		if ( 'publish' !== $p->get_status() ) {
 			return self::error( 'digitalisimo_sales_product', sprintf( 'El producto %d no está publicado (%s): la landing llevaría a una ficha que nadie puede ver.', $id, $p->get_status() ) );
+		}
+		$password = method_exists( $p, 'get_post_password' ) ? (string) $p->get_post_password() : ( function_exists( 'get_post_field' ) ? (string) get_post_field( 'post_password', $id ) : '' );
+		if ( '' !== $password ) {
+			return self::error( 'digitalisimo_sales_product', sprintf( 'El producto %d está protegido con contraseña (privado): la landing llevaría a una ficha que el público no puede ver.', $id ) );
 		}
 		$images = array();
 		foreach ( array_merge( array( (int) $p->get_image_id() ), array_map( 'intval', (array) $p->get_gallery_image_ids() ) ) as $image_id ) {
@@ -118,19 +123,50 @@ final class Product {
 					'post_id' => $id,
 					'status'  => 'approve',
 					'type'    => 'review',
-					'number'  => 6,
+					'parent'  => 0, // Sin las respuestas de la tienda a una reseña.
+					'number'  => 20,
 				)
 			) as $comment ) {
+				if ( ! empty( $comment->comment_parent ) ) {
+					continue;
+				}
+				$rating = function_exists( 'get_comment_meta' ) ? (int) get_comment_meta( (int) $comment->comment_ID, 'rating', true ) : 0;
+				if ( $rating < 4 ) {
+					continue; // Sólo reseñas con calificación de 4 o 5 estrellas: sin calificación no es una recomendación.
+				}
 				$reviews[] = array(
 					'content'  => (string) ( $comment->comment_content ?? '' ),
 					'author'   => (string) ( $comment->comment_author ?? '' ),
-					'rating'   => function_exists( 'get_comment_meta' ) ? (int) get_comment_meta( (int) $comment->comment_ID, 'rating', true ) : 0,
+					'rating'   => $rating,
 					'verified' => function_exists( 'get_comment_meta' ) ? (bool) get_comment_meta( (int) $comment->comment_ID, 'verified', true ) : false,
 				);
 			}
 		}
 		$sale_to = method_exists( $p, 'get_date_on_sale_to' ) ? $p->get_date_on_sale_to() : null;
 		$type    = (string) $p->get_type();
+		$regular = self::number( $p->get_regular_price() );
+		$sale    = self::number( $p->get_sale_price() );
+		$price   = self::number( $p->get_price() );
+		$from    = false;
+		if ( 'variable' === $type ) {
+			// El precio más bajo y, sólo si es de esa misma variación, su precio normal: nunca el normal de una variación con
+			// el rebajado de otra. Con variaciones de distinto precio, «Desde».
+			$regular = null;
+			$sale    = null;
+			$prices  = method_exists( $p, 'get_variation_prices' ) ? (array) $p->get_variation_prices( true ) : array();
+			$active  = array_filter( array_map( array( self::class, 'number' ), (array) ( $prices['price'] ?? array() ) ) );
+			if ( $active ) {
+				asort( $active );
+				$vid     = array_key_first( $active );
+				$price   = $active[ $vid ];
+				$normal  = self::number( $prices['regular_price'][ $vid ] ?? null );
+				$regular = $normal;
+				$sale    = null !== $normal && $normal > $price ? $price : null;
+				$from    = count( array_unique( array_map( 'strval', $active ) ) ) > 1;
+			} else {
+				$from = true;
+			}
+		}
 		return array(
 			'id'            => $id,
 			'type'          => $type,
@@ -138,9 +174,11 @@ final class Product {
 			'short'         => (string) $p->get_short_description(),
 			'description'   => (string) $p->get_description(),
 			'permalink'     => function_exists( 'get_permalink' ) ? (string) get_permalink( $id ) : '',
-			'regular_price' => self::number( 'variable' === $type && method_exists( $p, 'get_variation_regular_price' ) ? $p->get_variation_regular_price( 'min' ) : $p->get_regular_price() ),
-			'sale_price'    => self::number( 'variable' === $type && method_exists( $p, 'get_variation_sale_price' ) ? $p->get_variation_sale_price( 'min' ) : $p->get_sale_price() ),
-			'price'         => self::number( $p->get_price() ),
+			'regular_price' => $regular,
+			'sale_price'    => $sale,
+			'price'         => $price,
+			'price_from'    => $from,
+			'virtual'       => ( method_exists( $p, 'is_virtual' ) && $p->is_virtual() ) || ( method_exists( $p, 'is_downloadable' ) && $p->is_downloadable() ),
 			'sale_to'       => $sale_to && is_object( $sale_to ) && method_exists( $sale_to, 'getTimestamp' ) ? (int) $sale_to->getTimestamp() : 0,
 			'images'        => array_values( $images ),
 			'attributes'    => $attributes,
@@ -210,12 +248,13 @@ final class Product {
 		if ( null === $price ) {
 			return self::error( 'digitalisimo_sales_offer', 'El producto no tiene precio en la tienda: pasa offer.price.' );
 		}
-		if ( null === $regular && isset( $offer['price'] ) && null !== $product['regular_price'] && $price > $product['regular_price'] ) {
+		$mixed = ! empty( $product['price_from'] ) && isset( $offer['price'] ); // Un precio pedido para un producto con variaciones de distinto precio.
+		if ( null === $regular && isset( $offer['price'] ) && ! $mixed && null !== $product['regular_price'] && $price > $product['regular_price'] ) {
 			return self::error( 'digitalisimo_sales_offer', sprintf( 'El precio de oferta (%s) es mayor que el precio normal del producto (%s): revisa la cifra o pasa regular_price.', self::money( $price ), self::money( (float) $product['regular_price'] ) ) );
 		}
 		if ( null !== $regular ) {
 			$sources['precio normal'] = 'la oferta que se pidió';
-		} elseif ( null !== $product['regular_price'] && $product['regular_price'] > $price ) {
+		} elseif ( ! $mixed && null !== $product['regular_price'] && $product['regular_price'] > $price ) {
 			$regular                  = $product['regular_price'];
 			$sources['precio normal'] = 'el precio normal del producto en la tienda';
 		}
@@ -256,6 +295,7 @@ final class Product {
 			'label'       => $label,
 			'sources'     => $sources,
 			'store_price' => $product['price'],
+			'from'        => ! empty( $product['price_from'] ) && ! isset( $offer['price'] ),
 		);
 	}
 
@@ -317,18 +357,23 @@ final class Product {
 	/** Lo que el producto dice de su garantía (una oración o un atributo), o ''. */
 	public static function warranty( array $product ): string {
 		foreach ( $product['attributes'] as $attribute ) {
-			if ( preg_match( '/garant[ií]a/iu', $attribute['name'] ) ) {
+			if ( preg_match( '/garant[ií]a/iu', $attribute['name'] ) && ! preg_match( '/^\s*(no|sin|ningun[ao]?|n\/a|-|0)\b/iu', $attribute['value'] ) && ! self::denies_warranty( $attribute['value'] ) ) {
 				return $attribute['name'] . ': ' . $attribute['value'];
 			}
 		}
 		$text = self::plain( (string) preg_replace( '#</(p|li|div|h[1-6])>|<br\s*/?>#i', ". \n", $product['short'] . "\n" . $product['description'] ) );
 		foreach ( preg_split( '/(?<=[.!?])\s+/u', $text ) as $sentence ) {
 			$sentence = trim( $sentence, " .\t\n" );
-			if ( preg_match( '/garant[ií]a/iu', $sentence ) && strlen( $sentence ) <= 240 ) {
+			if ( preg_match( '/garant[ií]a/iu', $sentence ) && strlen( $sentence ) <= 240 && ! self::denies_warranty( $sentence ) ) {
 				return $sentence . '.';
 			}
 		}
 		return '';
+	}
+
+	/** ¿La oración niega la garantía? («No incluye garantía», «sin garantía», «la garantía no aplica»). */
+	public static function denies_warranty( string $text ): bool {
+		return 1 === preg_match( '/\b(no|sin|ni|nunca|carece de|excluye|excluido|excluida)\b(?:\s+\S+){0,3}?\s+garant[ií]a|garant[ií]a\s+(?:\S+\s+){0,2}?(no|nula|anulada|excluid[ao])\b/iu', $text );
 	}
 
 	/** «Título» y «descripción» de un beneficio («Título: descripción», o una frase corta). */
@@ -687,8 +732,9 @@ final class Product {
 			$el['settings']['editor'] = '<p style="text-align:center">Precio normal: <del>' . $fmt( (float) $regular ) . '</del></p>';
 			return $el;
 		};
-		$edits[ self::W['offer_price'] ] = static function ( $el ) use ( $price, $regular, $fmt ) {
-			$el['settings']['title'] = ( null === $regular ? 'Precio: ' : 'Hoy: ' ) . '<span>' . $fmt( $price ) . '</span>';
+		$from = ! empty( $offer['from'] );
+		$edits[ self::W['offer_price'] ] = static function ( $el ) use ( $price, $regular, $fmt, $from ) {
+			$el['settings']['title'] = ( $from ? ( null === $regular ? 'Desde: ' : 'Hoy, desde: ' ) : ( null === $regular ? 'Precio: ' : 'Hoy: ' ) ) . '<span>' . $fmt( $price ) . '</span>';
 			return $el;
 		};
 		$edits[ self::W['offer_months'] ] = static function () {
@@ -709,11 +755,12 @@ final class Product {
 			return $el;
 		};
 		$ends = $offer['ends'];
-		$edits[ self::W['offer_close'] ] = static function ( $el ) use ( $ends ) {
+		$hour = Site::timezone_label( (string) ( $site['timezone'] ?? '' ) ); // La zona real del sitio, la de close_date.
+		$edits[ self::W['offer_close'] ] = static function ( $el ) use ( $ends, $hour ) {
 			if ( '' === $ends ) {
 				return null;
 			}
-			$el['settings']['editor'] = '<p style="text-align:center">⏰ Este precio termina el [día de cierre] de [mes de cierre] a las [hora de cierre] (hora del centro de México).</p>';
+			$el['settings']['editor'] = '<p style="text-align:center">⏰ Este precio termina el [día de cierre] de [mes de cierre] a las [hora de cierre] (' . $hour . ').</p>';
 			return $el;
 		};
 		$plainify = static function ( $items ): array {
@@ -731,7 +778,8 @@ final class Product {
 			if ( ! $gateways ) {
 				return null;
 			}
-			$el['settings']['editor'] = '<p style="text-align:center">🔒 Pago en línea: ' . $e( self::enumerate( $gateways ) ) . '</p>';
+			// Neutro: entre los medios activos puede haber transferencia o pago contra entrega, que no son «en línea».
+			$el['settings']['editor'] = '<p style="text-align:center">💳 Formas de pago: ' . $e( self::enumerate( $gateways ) ) . '</p>';
 			return $el;
 		};
 		$edits[ self::W['offer_pay_img'] ] = static function () {
@@ -783,18 +831,34 @@ final class Product {
 		}
 
 		// Preguntas frecuentes con lo que la tienda sabe.
-		$shipping = $plainify( $site['shipping'] ?? array() );
+		// Envíos: sólo los que llevan el producto (sin recoger en tienda) y sólo si el producto se envía (no virtual ni
+		// descargable). «Gratis» sólo con un envío gratis sin condiciones.
+		$methods  = array();
+		foreach ( (array) ( $site['shipping'] ?? array() ) as $method ) {
+			$method = is_array( $method ) ? $method : array( 'title' => (string) $method, 'method' => '', 'free' => false );
+			if ( ! in_array( (string) ( $method['method'] ?? '' ), Site::PICKUP, true ) ) {
+				$methods[] = $method;
+			}
+		}
+		$shipping = empty( $product['virtual'] ) ? $plainify( array_column( $methods, 'title' ) ) : array();
+		$free     = array_filter( array_column( $methods, 'free' ) );
 		$tabs     = array(
-			array( '¿Cómo lo compro?', $direct ? 'Pulsa «' . self::BUY_TEXT . '»: el producto se agrega a tu carrito y terminas tu compra en línea.' : 'Pulsa «' . self::VIEW_TEXT . '» y elige tus opciones en la tienda.' ),
+			array( '¿Cómo lo compro?', $direct ? 'Pulsa «' . self::BUY_TEXT . '»: el producto se agrega a tu carrito y, al terminar tu pedido, eliges la forma de pago.' : 'Pulsa «' . self::VIEW_TEXT . '» y elige tus opciones en la tienda.' ),
 		);
 		if ( $gateways ) {
 			$tabs[] = array( '¿Cómo puedo pagar?', 'Con ' . self::enumerate( $gateways ) . '.' );
 		}
 		if ( $shipping ) {
-			$tabs[] = array( '¿Hacen envíos?', 'Sí. Opciones de envío: ' . self::enumerate( $shipping ) . '. El costo se calcula al pagar.' );
+			if ( count( $free ) === count( $shipping ) ) {
+				$tabs[] = array( '¿Hacen envíos?', 'Sí, el envío es gratis' . ( count( $shipping ) > 1 || 'envío gratis' !== mb_strtolower_safe( $shipping[0] ) ? ' (' . self::enumerate( $shipping ) . ')' : '' ) . '.' );
+			} elseif ( $free ) {
+				$tabs[] = array( '¿Hacen envíos?', 'Sí. Opciones de envío: ' . self::enumerate( $shipping ) . '. Hay envío gratis; el costo de las demás opciones se muestra al pagar.' );
+			} else {
+				$tabs[] = array( '¿Hacen envíos?', 'Sí. Opciones de envío: ' . self::enumerate( $shipping ) . '. El costo se calcula al pagar.' );
+			}
 		}
 		if ( '' !== $ends ) {
-			$tabs[] = array( '¿Hasta cuándo es este precio?', 'Hasta el [día de cierre] de [mes de cierre] a las [hora de cierre] (hora del centro de México).' );
+			$tabs[] = array( '¿Hasta cuándo es este precio?', 'Hasta el [día de cierre] de [mes de cierre] a las [hora de cierre] (' . $hour . ').' );
 		}
 		$tabs[] = array( '¿Y si tengo otra duda?', 'Escríbenos por WhatsApp.' );
 		// Los textos son del kit (con los placeholders de cierre, que llena Builder) y los nombres de la tienda, sin corchetes.
@@ -808,6 +872,16 @@ final class Product {
 				);
 			}
 			$el['settings']['tabs'] = $out;
+			return $el;
+		};
+
+		// El mensaje del botón de WhatsApp con el nombre del producto, escrito aquí (no como reemplazo: un nombre como «Bomba
+		// 0.50 HP» o con «MXN» no es un precio y no debe pasar por la regla del precio fuera de la oferta).
+		$edits[ self::W['wa_btn'] ] = static function ( $el ) use ( $name ) {
+			$url = (string) ( $el['settings']['link']['url'] ?? '' );
+			if ( false !== strpos( $url, '[producto]' ) ) {
+				$el['settings']['link']['url'] = str_replace( '[producto]', rawurlencode( $name ), $url );
+			}
 			return $el;
 		};
 
@@ -828,7 +902,7 @@ final class Product {
 		return array(
 			'template'     => $template,
 			'omit'         => array_values( array_unique( $omit ) ),
-			'replacements' => array( '[producto]' => $name ),
+			'replacements' => array(),
 			'close_date'   => $ends,
 			'filled'       => $filled,
 			'pending'      => $pending,

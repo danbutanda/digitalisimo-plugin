@@ -320,6 +320,14 @@ final class Executor {
 		if ( $built['social_pending'] ) {
 			$review[] = sprintf( 'Faltan los enlaces de las redes: %d iconos de redes llevan el enlace de muestra %s, que abre la misma página. Pon en el editor el de cada perfil del sitio (el icono → Enlace, y «Abrir en una nueva ventana» si lo quieres) o quita los que no uses; por aquí no entra ninguna URL de otro sitio.', $built['social_pending'], Builder::PROFILE_SAMPLE );
 		}
+		$candidates = (array) ( $site['whatsapp_candidates'] ?? array() );
+		if ( count( $candidates ) > 1 && '' === (string) ( $input['whatsapp'] ?? '' ) && ! $built['whatsapp_pending'] ) {
+			$list = array();
+			foreach ( array_slice( $candidates, 0, 4 ) as $candidate ) {
+				$list[] = sprintf( '%s (%s)', $candidate['whatsapp'], implode( ', ', array_slice( (array) $candidate['sources'], 0, 3 ) ) );
+			}
+			$review[] = sprintf( 'El sitio publica más de un número para el bloque whatsapp: %s. Se usó %s; si es otro, pásalo en whatsapp.', implode( '; ', $list ), $whatsapp );
+		}
 		if ( $landing ) {
 			foreach ( $landing['warnings'] as $warning ) {
 				$review[] = $warning;
@@ -346,6 +354,7 @@ final class Executor {
 			'real_data'        => $built['real_data'],
 			'whatsapp'         => $built['whatsapp_pending'] ? '' : (string) $whatsapp,
 			'whatsapp_source'  => $built['whatsapp_pending'] ? '' : $whatsapp_source,
+			'whatsapp_candidates' => $candidates,
 			'whatsapp_pending' => $built['whatsapp_pending'],
 			'close_date'       => $built['close_date'],
 			'removed_urgency'  => $built['removed_urgency'],

@@ -101,10 +101,10 @@ namespace {
 		return 'https://tienda.test' . $path;
 	}
 	function wp_timezone() {
-		return new DateTimeZone( 'America/Mexico_City' );
+		return new DateTimeZone( $GLOBALS['sp']['tz'] ?? 'America/Mexico_City' );
 	}
 	function wp_timezone_string() {
-		return 'America/Mexico_City';
+		return $GLOBALS['sp']['tz'] ?? 'America/Mexico_City';
 	}
 	function get_bloginfo( $what ) {
 		return 'name' === $what ? 'Plomería Ensayo' : '';
@@ -163,7 +163,7 @@ namespace {
 		return $GLOBALS['sp']['reviews'];
 	}
 	function get_comment_meta( $id, $key, $single ) {
-		return 'rating' === $key ? 5 : true;
+		return 'rating' === $key ? ( $GLOBALS['sp']['ratings'][ (int) $id ] ?? 5 ) : true;
 	}
 	function wc_get_product( $id ) {
 		return 252 === (int) $id ? $GLOBALS['sp']['product'] : ( 253 === (int) $id ? new Sp_Product( array( 'status' => 'draft' ) ) : false );
@@ -287,6 +287,26 @@ namespace {
 		public function is_in_stock() {
 			return $this->d['stock'];
 		}
+		public function get_post_password() {
+			return $this->d['password'] ?? '';
+		}
+		public function is_virtual() {
+			return ! empty( $this->d['virtual'] );
+		}
+		public function is_downloadable() {
+			return false;
+		}
+		/** Producto con variaciones: los precios por variación (como WC_Product_Variable::get_variation_prices()). */
+		public function get_variation_prices( $for_display = false ) {
+			return $this->d['variations'];
+		}
+		/** Lo que leía el código anterior: el mínimo de cada precio, de variaciones distintas. */
+		public function get_variation_regular_price( $which ) {
+			return min( $this->d['variations']['regular_price'] );
+		}
+		public function get_variation_sale_price( $which ) {
+			return min( $this->d['variations']['sale_price'] );
+		}
 	}
 	/** La base de datos: el pie del sitio (plantilla del constructor) con un enlace wa.me y una página con otro. */
 	class Sp_Wpdb {
@@ -296,8 +316,15 @@ namespace {
 			return $query;
 		}
 		public function get_results( $query, $output ) {
+			if ( false !== strpos( $query, "p.post_type IN ('elementor_library'" ) ) {
+				return $GLOBALS['sp']['meta_rows']; // Cabecera, pie, botón flotante y menús, en su propia consulta.
+			}
+			if ( false !== strpos( $query, 'p.post_type NOT IN' ) ) {
+				return array_slice( $GLOBALS['sp']['page_rows'], 0, 40 );
+			}
 			if ( false !== strpos( $query, '_elementor_data' ) ) {
-				return $GLOBALS['sp']['meta_rows'];
+				// Una sola consulta (el código anterior): las páginas editadas hace poco llenan el límite de 60.
+				return array_slice( array_merge( $GLOBALS['sp']['page_rows'], $GLOBALS['sp']['meta_rows'] ), 0, 60 );
 			}
 			return $GLOBALS['sp']['content_rows'];
 		}
@@ -330,7 +357,9 @@ namespace {
 			'product'      => new Sp_Product(),
 			'reviews'      => array(),
 			'meta_rows'    => array(),
+			'page_rows'    => array(),
 			'content_rows' => array(),
+			'ratings'      => array(),
 		);
 		if ( $contact ) {
 			$GLOBALS['sp']['pages'][11] = array( 'slug' => 'contacto', 'status' => 'publish' );
@@ -429,7 +458,7 @@ namespace {
 	check( array( '528711112222' ) === Site::whatsapp_numbers( 'https://api.whatsapp.com/send/?text=hola&amp;phone=%2B528711112222' ), 'api.whatsapp.com con phone después del texto' );
 	check( array( '528711112222' ) === Site::whatsapp_numbers( '{"chat_button_platform":"whatsapp","chat_button_number":"+52 871 111 2222"}' ), 'el botón flotante del constructor' );
 	check( array() === Site::whatsapp_numbers( 'https://wa.me/52XXXXXXXXXX y tel:8711112222' ), 'el número de muestra y un teléfono no son WhatsApp' );
-	check( array( '5218711112222', 'el pie' ) === Site::pick_whatsapp( array( array( 'wa.me/5215550000000', 1, 'una entrada' ), array( 'wa.me/5218711112222', 3, 'el pie' ) ) ), 'gana el número de la cabecera o el pie (más peso)' );
+	check( array( '5218711112222', 'el pie' ) === array_slice( Site::pick_whatsapp( array( array( 'wa.me/5215550000000', 1, 'una entrada' ), array( 'wa.me/5218711112222', 3, 'el pie' ) ) ), 0, 2 ), 'gana el número de la cabecera o el pie (más peso)' );
 	$site = Site::read();
 	check( '5218711112222' === $site['whatsapp'] && false !== strpos( $site['whatsapp_source'], 'Pie' ), 'Site::read: el WhatsApp del pie del sitio (' . $site['whatsapp'] . ' · ' . $site['whatsapp_source'] . ')' );
 	check( 'https://tienda.test/aviso-de-privacidad-plomeria/' === $site['links']['/aviso-de-privacidad/'] && 'https://tienda.test/terminos-de-servicio/' === $site['links']['/terminos-y-condiciones/'], 'Site::read: privacidad y términos, las páginas que el sitio declara' );
@@ -579,7 +608,9 @@ namespace {
 		);
 		check( ! $left, "$id: sin datos, ningún placeholder a la vista: " . json_encode( array_slice( array_values( $left ), 0, 2 ), JSON_UNESCAPED_UNICODE ) );
 		$all = sp_all( $created[0][1] );
-		check( false === strpos( $all, '52XXXXXXXXXX' ) && false !== strpos( $all . 'wa.me/5218711112222', 'wa.me/5218711112222' ), "$id: sin el número de muestra" );
+		$has_whatsapp = false !== strpos( json_encode( Catalog::load( $id, 'containers' ) ), 'wa.me' );
+		check( false === strpos( $all, '52XXXXXXXXXX' ), "$id: sin el número de muestra" );
+		check( ! $has_whatsapp || false !== strpos( $all, 'https://wa.me/5218711112222' ), "$id: los botones de WhatsApp de la plantilla llevan al número del sitio" );
 		foreach ( sp_links( $created[0][1] ) as $link ) {
 			check( '/' !== $link[0], "$id: ninguna ruta inventada del kit ($link)" );
 		}
@@ -591,6 +622,104 @@ namespace {
 	$created = array();
 	$out     = Executor::run( 'create-page', array( 'template' => 'venta-corta', 'title' => 'A mano', 'finish' => false ), $fake );
 	check( false === $out['finished'] && $out['pending_count'] > 30 && false !== strpos( sp_all( $created[0][1] ), '[Beneficio 1]' ) && false !== strpos( sp_all( $created[0][1] ), 'wa.me/5218711112222' ), 'finish: false deja los placeholders (y usa el WhatsApp del sitio)' );
+
+	// ================================================================ 5b. Revisión adversarial (2026-11-23)
+	$run = static function ( array $args, array $deps = array() ) use ( $fake, &$created ) {
+		$created = array();
+		$out     = Executor::run( 'create-page', $args, $fake, $deps );
+		return array( $out, is_array( $out ) && $created ? sp_all( $created[0][1] ) : '' );
+	};
+	// 1. Un nombre con decimales, «$», «MXN» o «pesos» no es un precio: no pasa por la regla del precio fuera de la oferta.
+	foreach ( array( 'Bomba periférica 0.50 HP', 'Manguera 1.25 m', 'Tinaco de 450 pesos $ MXN' ) as $nombre ) {
+		sp_reset();
+		$GLOBALS['sp']['product'] = new Sp_Product( array( 'name' => $nombre ) );
+		list( $out, $all )        = $run( $promo );
+		check( is_array( $out ) && true === $out['ok'], "R1 «{$nombre}»: create-page no lo toma por precio (" . ( $out instanceof WP_Error ? $out->get_error_message() : '' ) . ')' );
+		check( false !== strpos( $all, 'text=Hola,%20tengo%20una%20pregunta%20sobre%20' . rawurlencode( $nombre ) ), "R1 «{$nombre}»: el mensaje de WhatsApp lleva el nombre" );
+	}
+	// 2. Pagos: neutro, sin «en línea» (transferencia y pago contra entrega no lo son).
+	sp_reset();
+	list( $out, $all ) = $run( $promo );
+	check( false !== strpos( $all, 'Formas de pago: Tarjeta de crédito o débito y Transferencia bancaria' ) && false === strpos( $all, 'en línea' ), 'R2: «Formas de pago: …» y ningún «en línea»' );
+	// 3. WhatsApp: cada origen cuenta una vez; el pie no queda fuera por las páginas recientes; aviso con los candidatos.
+	sp_reset();
+	$GLOBALS['sp']['meta_rows'] = array( array( 'ID' => 40, 'post_type' => 'elementor_library', 'post_title' => 'Pie', 'meta_key' => '_elementor_data', 'meta_value' => '[{"url":"https:\/\/wa.me\/5218711112222"}]' ) );
+	$GLOBALS['sp']['page_rows'] = array_fill( 0, 60, array( 'ID' => 50, 'post_type' => 'page', 'post_title' => 'Promos', 'meta_key' => '_elementor_data', 'meta_value' => '[{"url":"https:\/\/wa.me\/5219990001111"},{"url":"https:\/\/wa.me\/5219990001111"},{"url":"https:\/\/wa.me\/5219990001111"},{"url":"https:\/\/wa.me\/5219990001111"}]' ) );
+	$GLOBALS['sp']['content_rows'] = array();
+	$site = Site::read();
+	check( '5218711112222' === $site['whatsapp'] && 2 === count( $site['whatsapp_candidates'] ), 'R3: gana el pie del sitio (una página que repite otro número cuenta una vez; el pie no se queda fuera del límite): ' . $site['whatsapp'] );
+	list( $out, $all ) = $run( $promo );
+	check( (bool) preg_grep( '/más de un número para el bloque whatsapp: 5218711112222 .*5219990001111/u', $out['review'] ) && 2 === count( $out['whatsapp_candidates'] ), 'R3: la revisión avisa los números en disputa con su origen' );
+	// 11. Joinchat sólo con su plugin activo.
+	sp_reset( false );
+	$GLOBALS['sp']['options']['joinchat'] = array( 'telephone' => '+52 871 555 4444' );
+	check( '' === Site::read()['whatsapp'], 'R11: los ajustes de Joinchat sin el plugin activo no cuentan' );
+	define( 'JOINCHAT_VERSION', '5.0' );
+	check( '528715554444' === Site::read()['whatsapp'], 'R11: con el plugin activo, sí' );
+	// 4. Producto con variaciones: nunca el normal de una con el rebajado de otra.
+	sp_reset();
+	$GLOBALS['sp']['product'] = new Sp_Product(
+		array(
+			'type'       => 'variable',
+			'regular'    => '',
+			'sale'       => '',
+			'price'      => '7000',
+			'variations' => array(
+				'price'         => array( 11 => '8000', 12 => '7000' ),
+				'regular_price' => array( 11 => '8000', 12 => '7500' ),
+				'sale_price'    => array( 11 => '', 12 => '7000' ),
+			),
+		)
+	);
+	list( $out, $all ) = $run( array( 'product_id' => 252 ) );
+	check( false !== strpos( $all, '<del>$7,500 MXN</del>' ) && false !== strpos( $all, 'Hoy, desde: <span>$7,000 MXN</span>' ) && false === strpos( $all, '$8,000' ) && false !== strpos( $all, 'Ahorras $500 MXN' ), 'R4: el tachado y el ahorro son de la misma variación (la más barata), con «desde»' );
+	$GLOBALS['sp']['product'] = new Sp_Product( array( 'type' => 'variable', 'regular' => '', 'sale' => '', 'price' => '7000', 'variations' => array( 'price' => array( 11 => '9000', 12 => '7000' ), 'regular_price' => array( 11 => '9000', 12 => '7000' ), 'sale_price' => array( 11 => '', 12 => '' ) ) ) );
+	list( $out, $all ) = $run( array( 'product_id' => 252 ) );
+	check( false !== strpos( $all, 'Desde: <span>$7,000 MXN</span>' ) && false === strpos( $all, '<del>' ) && false === strpos( $all, 'Ahorras' ), 'R4: sin rebaja en esa variación, «Desde $X» sin tachado ni ahorro' );
+	// 5. Envíos: sólo métodos que llevan el producto, y sólo si el producto se envía; envío gratis, dicho.
+	$envios = static function ( array $methods, array $product = array() ) use ( $run, $promo ) {
+		sp_reset();
+		$GLOBALS['sp']['product'] = new Sp_Product( $product );
+		$site                     = Site::read();
+		$site['shipping']         = $methods;
+		return $run( $promo, array( 'site' => $site ) )[1];
+	};
+	$pickup = array( 'title' => 'Recoger en tienda', 'method' => 'local_pickup', 'free' => false );
+	$flat   = array( 'title' => 'Envío estándar', 'method' => 'flat_rate', 'free' => false );
+	$gratis = array( 'title' => 'Envío gratis', 'method' => 'free_shipping', 'free' => true );
+	check( false === strpos( $envios( array( $pickup ) ), '¿Hacen envíos?' ), 'R5: recoger en tienda no es un envío' );
+	check( false !== strpos( $envios( array( $gratis, $pickup ) ), 'Sí, el envío es gratis.' ) && false === strpos( $envios( array( $gratis ) ), 'se calcula al pagar' ), 'R5: envío gratis, dicho (sin «el costo se calcula al pagar»)' );
+	check( false !== strpos( $envios( array( $flat ) ), 'Opciones de envío: Envío estándar. El costo se calcula al pagar.' ), 'R5: envío con costo' );
+	check( false === strpos( $envios( array( $flat ), array( 'virtual' => true ) ), '¿Hacen envíos?' ), 'R5: un producto virtual no habla de envíos' );
+	// 6. La hora del cierre, en la zona real del sitio.
+	foreach ( array( 'UTC' => '(hora UTC)', 'America/Tijuana' => '(hora de Tijuana)' ) as $zona => $texto ) {
+		sp_reset();
+		$GLOBALS['sp']['tz'] = $zona;
+		list( $out, $all )   = $run( $promo );
+		check( substr_count( $all, $texto ) >= 3 && false === strpos( $all, 'centro de México' ) && $fin . ' 23:59' === $out['close_date'], "R6 $zona: la barra, la oferta y la pregunta dicen $texto, nunca «centro de México»" );
+	}
+	// 8. Reseñas: sin respuestas de la tienda y sólo de 4 o 5 estrellas.
+	sp_reset();
+	$GLOBALS['sp']['reviews'] = array(
+		(object) array( 'comment_ID' => 1, 'comment_parent' => 0, 'comment_content' => 'Excelente, el agua sabe mejor.', 'comment_author' => 'Laura' ),
+		(object) array( 'comment_ID' => 2, 'comment_parent' => 0, 'comment_content' => 'Regular, tardó el envío.', 'comment_author' => 'Pedro' ),
+		(object) array( 'comment_ID' => 3, 'comment_parent' => 1, 'comment_content' => 'Gracias por tu compra.', 'comment_author' => 'La tienda' ),
+		(object) array( 'comment_ID' => 4, 'comment_parent' => 0, 'comment_content' => 'Sin estrellas.', 'comment_author' => 'Ana' ),
+	);
+	$GLOBALS['sp']['ratings'] = array( 2 => 3, 4 => 0 );
+	list( $out, $all )        = $run( $promo );
+	check( false !== strpos( $all, 'Excelente, el agua sabe mejor.' ) && false === strpos( $all, 'Regular, tardó' ) && false === strpos( $all, 'Gracias por tu compra' ) && false === strpos( $all, 'Sin estrellas' ), 'R8: sólo reseñas de 4 o 5 estrellas, sin respuestas de la tienda' );
+	// 9. Producto con contraseña: privado.
+	sp_reset();
+	$GLOBALS['sp']['product'] = new Sp_Product( array( 'password' => 'secreta' ) );
+	check_error( $run( $promo )[0], 'digitalisimo_sales_product', 'R9: un producto con contraseña se rechaza como privado' );
+	// 10. Garantía: una oración que la niega no es una garantía.
+	foreach ( array( 'Este producto no incluye garantía.', 'Se vende sin garantía.', 'La garantía no aplica en liquidación.' ) as $frase ) {
+		sp_reset();
+		$GLOBALS['sp']['product'] = new Sp_Product( array( 'description' => '<ul><li>Uno</li></ul><p>' . $frase . '</p>' ) );
+		list( $out, $all )        = $run( $promo );
+		check( false === strpos( $all, '<p style="text-align:center">' . $frase ) && in_array( 'garantia-y-preguntas', array_column( $out['pending'], 'block' ), true ), "R10 «{$frase}»: no se toma como garantía (queda pendiente)" );
+	}
 
 	// ================================================================ 6. Guía y descripciones
 	$guide = Catalog::guide();

@@ -439,6 +439,14 @@ final class Finisher {
 				$value = (string) preg_replace( array( '/\s*·\s*\x01/u', '/\x01\s*·\s*/u', '/\x01/' ), '', $value );
 			}
 		}
+		// La hora del cierre es la de la zona del sitio (close_date): si no es la del centro de México, el texto la nombra.
+		$tz = trim( (string) ( $this->site['timezone'] ?? '' ) );
+		if ( '' !== $tz && false !== strpos( $value, 'centro de México)' ) ) {
+			$label = Site::timezone_label( $tz );
+			if ( 'hora del centro de México' !== $label ) {
+				$value = str_replace( array( '(hora del centro de México)', '(centro de México)' ), '(' . $label . ')', $value );
+			}
+		}
 		if ( '' === $this->whatsapp && false !== stripos( $value, 'whatsapp' ) ) {
 			$contact = '' !== (string) ( $this->site['contact_url'] ?? '' );
 			$value   = (string) preg_replace(

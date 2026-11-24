@@ -49,6 +49,9 @@ final class Site {
 		),
 	);
 
+	/** Métodos de envío que no llevan el producto a nadie: recoger en tienda. */
+	const PICKUP = array( 'local_pickup', 'pickup_location' );
+
 	/** Direcciones probables de la página de contacto. */
 	const CONTACT_SLUGS = array( 'contacto', 'contactanos', 'contactenos', 'contact', 'contact-us' );
 
@@ -83,32 +86,78 @@ final class Site {
 	}
 
 	/**
-	 * El número que más pesa entre los hallazgos: lista de [texto, peso, origen]. Devuelve [dígitos, origen] o ['', ''].
+	 * El número que más pesa entre los hallazgos: lista de [texto, peso, origen]. Cada origen (una plantilla, un menú, una
+	 * página) cuenta una sola vez por número, aunque lo repita: un pie con tres botones al mismo número no le gana a la
+	 * cabecera por tener más botones. Devuelve [dígitos, origen, candidatos]: los candidatos (dígitos, peso y orígenes)
+	 * de mayor a menor, para avisar si hay más de un número en el sitio. ['', '', []] si no hay ninguno.
 	 */
 	public static function pick_whatsapp( array $found ): array {
 		$score  = array();
 		$source = array();
+		$seen   = array();
 		foreach ( $found as $item ) {
 			list( $text, $weight, $where ) = $item;
-			foreach ( self::whatsapp_numbers( (string) $text ) as $digits ) {
-				$score[ $digits ] = ( $score[ $digits ] ?? 0 ) + (int) $weight;
-				if ( ! isset( $source[ $digits ] ) ) {
-					$source[ $digits ] = (string) $where;
+			foreach ( array_unique( self::whatsapp_numbers( (string) $text ) ) as $digits ) {
+				$key = $digits . '|' . $where;
+				if ( isset( $seen[ $key ] ) ) {
+					continue;
 				}
+				$seen[ $key ]        = true;
+				$score[ $digits ]    = ( $score[ $digits ] ?? 0 ) + (int) $weight;
+				$source[ $digits ][] = (string) $where;
 			}
 		}
 		if ( ! $score ) {
-			return array( '', '' );
+			return array( '', '', array() );
 		}
 		arsort( $score );
+		$candidates = array();
+		foreach ( $score as $digits => $weight ) {
+			$candidates[] = array(
+				'whatsapp' => (string) $digits,
+				'weight'   => $weight,
+				'sources'  => $source[ $digits ],
+			);
+		}
 		$digits = (string) array_key_first( $score );
-		return array( $digits, $source[ $digits ] );
+		return array( $digits, $source[ $digits ][0], $candidates );
+	}
+
+	/** Cómo se nombra la hora del sitio en un texto: «hora del centro de México», «hora de Tijuana», «hora UTC»… */
+	public static function timezone_label( string $tz ): string {
+		$names = array(
+			'America/Mexico_City'    => 'hora del centro de México',
+			'America/Monterrey'      => 'hora del centro de México',
+			'America/Merida'         => 'hora del centro de México',
+			'America/Bahia_Banderas' => 'hora del centro de México',
+			'America/Matamoros'      => 'hora de Matamoros',
+			'America/Tijuana'        => 'hora de Tijuana',
+			'America/Cancun'         => 'hora de Cancún',
+			'America/Hermosillo'     => 'hora de Sonora',
+			'America/Mazatlan'       => 'hora del Pacífico mexicano',
+			'America/Chihuahua'      => 'hora de Chihuahua',
+			'America/Ciudad_Juarez'  => 'hora de Ciudad Juárez',
+			'America/Ojinaga'        => 'hora de Ojinaga',
+		);
+		$tz = trim( $tz );
+		if ( isset( $names[ $tz ] ) ) {
+			return $names[ $tz ];
+		}
+		if ( '' === $tz || 'UTC' === strtoupper( $tz ) || preg_match( '/^[+-]?0?0:?00$/', $tz ) ) {
+			return 'hora UTC';
+		}
+		if ( preg_match( '/^[+-][0-9]{1,2}(:?[0-9]{2})?$/', $tz ) ) {
+			return 'hora UTC' . $tz;
+		}
+		$city = substr( (string) strrchr( '/' . $tz, '/' ), 1 );
+		return 'hora de ' . str_replace( '_', ' ', $city );
 	}
 
 	/**
 	 * Lo que se sabe del sitio. Claves: `name`, `logo` (['id', 'url'] o null), `whatsapp` (dígitos o ''),
 	 * `whatsapp_source`, `contact_url`, `links` (ruta del kit → URL real o ''), `currency`, `currency_symbol`,
-	 * `timezone`, `gateways` y `shipping` (títulos de lo activo en la tienda).
+	 * `timezone`, `gateways` (títulos de los medios de pago activos), `shipping` (['title', 'method', 'free'] de los
+	 * envíos activos, sin recoger en tienda) y `whatsapp_candidates` (todos los números hallados).
 	 */
 	public static function read(): array {
 		$site = array(
@@ -130,7 +179,7 @@ final class Site {
 		foreach ( self::LINKS as $path => $how ) {
 			$site['links'][ $path ] = self::link( $how['kind'], $how['slugs'] );
 		}
-		list( $site['whatsapp'], $site['whatsapp_source'] ) = self::pick_whatsapp( self::whatsapp_sources() );
+		list( $site['whatsapp'], $site['whatsapp_source'], $site['whatsapp_candidates'] ) = self::pick_whatsapp( self::whatsapp_sources() );
 		return $site;
 	}
 
@@ -230,7 +279,7 @@ final class Site {
 		return array_values( array_unique( $out ) );
 	}
 
-	/** Títulos de los métodos de envío activos (todas las zonas). */
+	/** Los métodos de envío activos (todas las zonas), sin los de recoger en tienda: ['title', 'method', 'free']. */
 	private static function shipping(): array {
 		if ( ! class_exists( '\WC_Shipping_Zones' ) ) {
 			return array();
@@ -241,18 +290,25 @@ final class Site {
 			$zones[] = array( 'shipping_methods' => ( new \WC_Shipping_Zone( 0 ) )->get_shipping_methods( true ) );
 			foreach ( $zones as $zone ) {
 				foreach ( (array) ( $zone['shipping_methods'] ?? array() ) as $method ) {
-					if ( is_object( $method ) && 'yes' === ( $method->enabled ?? '' ) && method_exists( $method, 'get_title' ) ) {
-						$title = trim( wp_strip_all_tags_safe( (string) $method->get_title() ) );
-						if ( '' !== $title ) {
-							$out[] = $title;
-						}
+					if ( ! is_object( $method ) || 'yes' !== ( $method->enabled ?? '' ) || ! method_exists( $method, 'get_title' ) ) {
+						continue;
 					}
+					$id    = (string) ( $method->id ?? '' );
+					$title = trim( wp_strip_all_tags_safe( (string) $method->get_title() ) );
+					if ( '' === $title || in_array( $id, self::PICKUP, true ) || preg_match( '/recoge|recolec|pickup|en tienda|en sucursal/iu', $title ) ) {
+						continue;
+					}
+					$out[ $title ] = array(
+						'title'  => $title,
+						'method' => $id,
+						'free'   => 'free_shipping' === $id,
+					);
 				}
 			}
 		} catch ( \Throwable $e ) {
 			return array();
 		}
-		return array_values( array_unique( $out ) );
+		return array_values( $out );
 	}
 
 	/**
@@ -262,14 +318,19 @@ final class Site {
 	 */
 	private static function whatsapp_sources(): array {
 		$found = array();
+		// Los botones de chat más comunes, sólo si su plugin está activo (sus ajustes quedan al desactivarlo).
 		if ( function_exists( 'get_option' ) ) {
-			$chat = get_option( 'joinchat' );
-			if ( is_array( $chat ) && ! empty( $chat['telephone'] ) ) {
-				$found[] = array( 'wa.me/' . preg_replace( '/[^0-9]/', '', (string) $chat['telephone'] ), 5, 'el botón de chat del sitio' );
+			if ( defined( 'JOINCHAT_VERSION' ) || class_exists( '\Joinchat' ) ) {
+				$chat = get_option( 'joinchat' );
+				if ( is_array( $chat ) && ! empty( $chat['telephone'] ) ) {
+					$found[] = array( 'wa.me/' . preg_replace( '/[^0-9]/', '', (string) $chat['telephone'] ), 5, 'el botón de chat del sitio' );
+				}
 			}
-			$ctc = get_option( 'ht_ctc_chat_options' );
-			if ( is_array( $ctc ) && ! empty( $ctc['number'] ) ) {
-				$found[] = array( 'wa.me/' . preg_replace( '/[^0-9]/', '', (string) $ctc['number'] ), 5, 'el botón de chat del sitio' );
+			if ( defined( 'HT_CTC_VERSION' ) ) {
+				$ctc = get_option( 'ht_ctc_chat_options' );
+				if ( is_array( $ctc ) && ! empty( $ctc['number'] ) ) {
+					$found[] = array( 'wa.me/' . preg_replace( '/[^0-9]/', '', (string) $ctc['number'] ), 5, 'el botón de chat del sitio' );
+				}
 			}
 		}
 		global $wpdb;
@@ -279,12 +340,24 @@ final class Site {
 		$likes = array( '%wa.me%', '%whatsapp.com%', '%whatsapp:%', '%"whatsapp"%' );
 		$where = implode( ' OR ', array_fill( 0, count( $likes ), 'm.meta_value LIKE %s' ) );
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-		$rows = $wpdb->get_results(
+		// Primero la cabecera, el pie, el botón flotante y los menús, en su propia consulta: muchas páginas editadas hace
+		// poco no los dejan fuera del límite.
+		$rows = (array) $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT p.ID, p.post_type, p.post_title, m.meta_key, m.meta_value FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE p.post_status = 'publish' AND m.meta_key IN ('_elementor_data', '_menu_item_url') AND ( $where ) ORDER BY p.post_modified DESC LIMIT 60",
+				"SELECT p.ID, p.post_type, p.post_title, m.meta_key, m.meta_value FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE p.post_status = 'publish' AND p.post_type IN ('elementor_library', 'e-floating-buttons', 'nav_menu_item') AND m.meta_key IN ('_elementor_data', '_menu_item_url') AND ( $where ) ORDER BY p.post_modified DESC LIMIT 200",
 				...$likes
 			),
 			ARRAY_A
+		);
+		$rows = array_merge(
+			$rows,
+			(array) $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT p.ID, p.post_type, p.post_title, m.meta_key, m.meta_value FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE p.post_status = 'publish' AND p.post_type NOT IN ('elementor_library', 'e-floating-buttons', 'nav_menu_item', 'revision') AND m.meta_key = '_elementor_data' AND ( $where ) ORDER BY p.post_modified DESC LIMIT 40",
+					...$likes
+				),
+				ARRAY_A
+			)
 		);
 		$posts = $wpdb->get_results(
 			$wpdb->prepare(
@@ -298,16 +371,16 @@ final class Site {
 		foreach ( (array) $rows as $row ) {
 			$type = (string) ( $row['post_type'] ?? '' );
 			if ( '_menu_item_url' === ( $row['meta_key'] ?? '' ) ) {
-				$found[] = array( (string) $row['meta_value'], 3, 'el menú del sitio' );
+				$found[] = array( (string) $row['meta_value'], 3, 'el menú del sitio' ); // Todos los menús son un solo origen.
 			} elseif ( in_array( $type, array( 'elementor_library', 'e-floating-buttons' ), true ) ) {
-				$found[] = array( (string) $row['meta_value'], 3, sprintf( 'la plantilla «%s» del sitio (cabecera, pie o botón)', (string) $row['post_title'] ) );
+				$found[] = array( (string) $row['meta_value'], 3, sprintf( 'la plantilla «%s» del sitio (n.º %d: cabecera, pie o botón)', (string) $row['post_title'], (int) $row['ID'] ) );
 			} else {
-				$found[] = array( (string) $row['meta_value'], 1, sprintf( 'la página «%s»', (string) $row['post_title'] ) );
+				$found[] = array( (string) $row['meta_value'], 1, sprintf( 'la página «%s» (%d)', (string) $row['post_title'], (int) $row['ID'] ) );
 			}
 		}
 		foreach ( (array) $posts as $row ) {
 			$weight  = in_array( (string) ( $row['post_type'] ?? '' ), array( 'wp_template_part', 'wp_navigation' ), true ) ? 3 : 1;
-			$found[] = array( (string) $row['post_content'], $weight, sprintf( 'la página «%s»', (string) $row['post_title'] ) );
+			$found[] = array( (string) $row['post_content'], $weight, sprintf( 'la página «%s» (%d)', (string) $row['post_title'], (int) $row['ID'] ) );
 		}
 		return $found;
 	}
