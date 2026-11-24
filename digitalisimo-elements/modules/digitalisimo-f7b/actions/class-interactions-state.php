@@ -306,8 +306,10 @@ final class Interactions_State {
 		$html .= wp_nonce_field( self::nonce_action(), '_wpnonce', true, false );
 		$html .= '<p><button type="submit" class="button button-primary">' . esc_html__( 'Reproducir las interacciones guardadas', 'pro-elements' ) . '</button></p></form>';
 		// Con la X (queja del propietario del 2026-11-22: «no poder quitarlas»): cerrado, vuelve a los 7 días mientras
-		// sigan en pausa, o antes si cambian los documentos.
-		return \Digitalisimo_Notices::html( 'elements-interactions-' . ( function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1 ), 'warning', $html, array( 'hash' => array( $total, $inventory['docs'] ), 'cap' => 'manage_options', 'class' => 'digitalisimo-interactions-notice' ) );
+		// sigan en pausa, o antes si cambian los documentos. En las pantallas de Elements sale siempre: el botón
+		// «Reproducir las interacciones guardadas» sólo está aquí y no puede quedar sin acceso (revisión del 2026-11-24).
+		$page = isset( $_GET['page'] ) && is_string( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si se recuerda el cierre.
+		return \Digitalisimo_Notices::html( 'elements-interactions-' . ( function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1 ), 'warning', $html, array( 'hash' => array( $total, $inventory['docs'] ), 'cap' => 'manage_options', 'class' => 'digitalisimo-interactions-notice', 'persist' => 0 !== strpos( $page, 'digitalisimo-elements' ) ) );
 	}
 
 	/** Nonce de la acción, por sitio. */

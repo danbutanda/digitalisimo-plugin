@@ -24,7 +24,8 @@ final class Network_Admin {
 		foreach ( Registry::all() as $item ) {
 			$foreign = Registry::foreign_sites( $item ); if ( ! $foreign ) continue;
 			$html = '<p>' . esc_html( sprintf( 'La plantilla global «%s» tiene copias en sitios de otra red (%s), hechas antes de que la sincronización se limitara a esta red. No se tocaron: si ya no deben estar ahí, bórralas desde esos sitios. Quitarlas del registro deja de seguirlas.', $item['uuid'], implode( ', ', array_map( static function ( $b ) { return 'sitio ' . $b; }, $foreign ) ) ) ) . '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">' . wp_nonce_field( 'digitalisimo_tools_forget_foreign', '_wpnonce', true, false ) . self::context_field() . '<input type="hidden" name="action" value="digitalisimo_tools_forget_foreign"><input type="hidden" name="uuid" value="' . esc_attr( $item['uuid'] ) . '"><p><button class="button">Quitar del registro</button></p></form>';
-			\Digitalisimo_Notices::show( 'tools-templates-foreign-' . sanitize_key( $item['uuid'] ), 'warning', $html, array( 'hash' => $foreign, 'cap' => 'manage_network_options' ) );
+			// En su propia pantalla, con la X pero sin recordar el cierre: «Quitar del registro» sólo está aquí (revisión del 2026-11-24).
+			\Digitalisimo_Notices::show( 'tools-templates-foreign-' . sanitize_key( $item['uuid'] ), 'warning', $html, array( 'hash' => $foreign, 'cap' => 'manage_network_options', 'persist' => false ) );
 		}
 	}
 	public static function page() {

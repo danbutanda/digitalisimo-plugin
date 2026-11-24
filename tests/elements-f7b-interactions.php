@@ -214,11 +214,16 @@ namespace {
 	$GLOBALS['options'][ State::OPTION ] = array( 'clear', true );
 	check_ix( '' === $notice(), 'Con clear no hay aviso.' );
 	$GLOBALS['options'][ State::OPTION ] = array( 'pending', true );
+	// En otra pantalla DIGITALÍSIMO el cierre se recuerda; en las de Elements, donde está su botón, sale siempre.
+	$_GET = array( 'page' => 'digitalisimo-seo' );
 	$html = $notice();
 	check_ix( false !== strpos( $html, 'notice-warning' ) && false !== strpos( $html, 'is-dismissible' ) && false !== strpos( $html, 'data-digitalisimo-notice="elements-interactions-3"' ), 'El aviso de pausa lleva la X y su id.' );
 	preg_match( '/data-digitalisimo-notice-hash="([0-9a-f]{12})"/', $html, $m );
 	\Digitalisimo_Notices::dismiss( 7, 'elements-interactions-3', $m[1] ?? '' );
 	check_ix( '' === $notice(), 'Cerrado con la X, ya no sale.' );
+	$_GET = array( 'page' => 'digitalisimo-elements-front' );
+	check_ix( false !== strpos( $notice(), 'Reproducir las interacciones guardadas' ), 'Cerrado, en las pantallas de Elements sigue a la vista con su botón (revisión del 2026-11-24).' );
+	$_GET = array( 'page' => 'digitalisimo-seo' );
 	$GLOBALS['user_meta'][7]['digitalisimo_notice_elements-interactions-3']['t'] = time() - 8 * 86400;
 	check_ix( '' !== $notice(), 'A los 7 días, si siguen en pausa, vuelve.' );
 	\Digitalisimo_Notices::dismiss( 7, 'elements-interactions-3', $m[1] ?? '' );

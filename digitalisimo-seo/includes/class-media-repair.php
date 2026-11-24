@@ -89,9 +89,10 @@ class Digitalisimo_Integrations_Media_Repair {
 			if ( $missing <= $failed ) return;
 		}
 		if ( ! $missing ) return;
-		// Advertencia con la X: cerrada, vuelve a los 7 días si siguen faltando (la huella es «faltan», no el número).
+		// Advertencia con la X: cerrada, vuelve a los 7 días si siguen faltando (la huella es «faltan», no el número). En
+		// Medios sale siempre: «Reparar en segundo plano» sólo está en este aviso (revisión del 2026-11-24).
 		Digitalisimo_Notices::show( Digitalisimo_Notices::site( 'seo-media-missing' ), 'warning', '<p><strong>' . esc_html( sprintf( '%d archivos de la biblioteca no tienen metadata', $missing ) ) . '</strong> (tamaños, ancho, alto o duración). Sin ella WordPress no puede servir versiones adaptadas a cada pantalla. Si se subieron entre el 1 de octubre de 2026 y DIGITALÍSIMO SEO 1.0.246, la borró un fallo ya corregido.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="digitalisimo_seo_media_repair">'
 			. wp_nonce_field( 'digitalisimo_seo_media_repair', '_wpnonce', true, false )
-			. '<p><button class="button button-primary">Reparar en segundo plano</button> <span class="description">' . esc_html( self::BATCH ) . ' archivos cada 30 segundos, sólo en este sitio. No cambia los archivos que ya tienen metadata.</span></p></form>', array( 'hash' => 'missing', 'cap' => 'manage_options' ) );
+			. '<p><button class="button button-primary">Reparar en segundo plano</button> <span class="description">' . esc_html( self::BATCH ) . ' archivos cada 30 segundos, sólo en este sitio. No cambia los archivos que ya tienen metadata.</span></p></form>', array( 'hash' => 'missing', 'cap' => 'manage_options', 'persist' => ! ( $screen && 'upload' === $screen->id ) ) );
 	}
 }

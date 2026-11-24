@@ -279,6 +279,11 @@ foreach ( array(
 	foreach ( $needles as $needle ) an_check( false !== strpos( $text, $needle ), "{$file}: el aviso de cada sitio lleva el sitio ({$needle})." );
 }
 
+// Acciones que sólo están en un aviso: en su pantalla, el aviso sale aunque se haya cerrado (revisión del 2026-11-24).
+an_check( false !== strpos( (string) @file_get_contents( $root . '/digitalisimo-seo/includes/class-media-repair.php' ), "'persist' => ! ( \$screen && 'upload' === \$screen->id )" ), 'En Medios, el aviso con «Reparar en segundo plano» sale aunque se haya cerrado.' );
+an_check( 1 === preg_match( "/tools-templates-foreign-[^;]*'persist' => false/", (string) @file_get_contents( $root . '/digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php' ) ), 'En su pantalla, el aviso con «Quitar del registro» no recuerda el cierre.' );
+an_check( false !== strpos( (string) @file_get_contents( $root . '/digitalisimo-elements/modules/digitalisimo-f7b/actions/class-interactions-state.php' ), "'persist' => 0 !== strpos( \$page, 'digitalisimo-elements' )" ), 'En las pantallas de Elements, el aviso con «Reproducir las interacciones guardadas» sale aunque se haya cerrado.' );
+
 // El script: si el cierre no se guarda (nonce vencido, sin sesión), el aviso se queda y dice por qué.
 ob_start(); Digitalisimo_Notices::print_script(); $script = ob_get_clean();
 an_check( false !== strpos( $script, 'stopPropagation' ) && false !== strpos( $script, 'No se pudo guardar el cierre de este aviso' ) && false !== strpos( $script, 'j.success' ), 'Si el cierre falla, el aviso no desaparece en silencio: se queda con el motivo.' );
