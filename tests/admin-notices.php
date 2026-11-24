@@ -153,7 +153,7 @@ function wp_unslash( $value ) { return $value; }
 function esc_attr( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' ); }
 function esc_html( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' ); }
 function wp_json_encode( $value ) { return json_encode( $value ); }
-function admin_url( $path = '' ) { return 'https://plomerito.test/wp-admin/' . $path; }
+function admin_url( $path = '', $scheme = 'admin' ) { return ( 'relative' === $scheme ? '' : 'https://plomerito.test' ) . '/wp-admin/' . $path; }
 function is_multisite() { return $GLOBALS['an']['multi']; }
 function is_network_admin() { return $GLOBALS['an']['network_admin']; }
 function get_current_blog_id() { return $GLOBALS['an']['blog'] ?? 1; }
@@ -179,6 +179,9 @@ an_check( 'prueba' === $attr( $html, 'data-digitalisimo-notice' ) && 1 === preg_
 an_check( isset( $GLOBALS['an']['actions']['admin_print_footer_scripts'] ), 'Con un aviso que recordar, se imprime el script del cierre.' );
 ob_start(); Digitalisimo_Notices::print_script(); $script = ob_get_clean();
 an_check( false !== strpos( $script, 'digitalisimo_notice_dismiss' ) && false !== strpos( $script, '.notice-dismiss' ) && false !== strpos( $script, 'admin-ajax.php' ) && false !== strpos( $script, ',true)' ), 'El script manda el cierre al pulsar la X (en captura, antes de que WordPress quite el aviso).' );
+// Revisión del 2026-11-24: con una URL absoluta, el escritorio abierto por otro host (túnel, IP:puerto, www) o tras un
+// proxy TLS mandaba el cierre a otro origen y el aviso no se cerraba nunca. Va a la ajaxurl de WordPress o a la ruta relativa.
+an_check( false === strpos( $script, 'plomerito.test' ) && false !== strpos( $script, 'window.ajaxurl' ) && false !== strpos( $script, '"\/wp-admin\/admin-ajax.php"' ), 'El cierre usa la ajaxurl de WordPress o la ruta relativa, nunca una URL absoluta: ' . substr( $script, 0, 160 ) );
 $once = Digitalisimo_Notices::html( '', 'error', '<p>No se guardó.</p>', array( 'persist' => false ) );
 an_check( '<div class="notice notice-error is-dismissible"><p>No se guardó.</p></div>' === $once, 'Un resultado de formulario lleva la X sin recordar el cierre: ' . $once );
 

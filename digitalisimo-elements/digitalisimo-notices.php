@@ -162,9 +162,12 @@ if ( ! class_exists( 'Digitalisimo_Notices' ) ) {
 		 * queda con una línea que dice por qué. Sin jQuery ni dependencias; sin `fetch`, WordPress lo cierra en la página.
 		 */
 		public static function print_script() {
-			$url  = function_exists( 'admin_url' ) ? admin_url( 'admin-ajax.php' ) : '/wp-admin/admin-ajax.php';
+			// Ruta relativa (o la `ajaxurl` de WordPress, también relativa): con una URL absoluta, un escritorio abierto por
+			// otro host (túnel, IP:puerto, www o sin www) o tras un proxy que termina TLS hacía la petición a otro origen o
+			// como contenido mixto, y el aviso no se cerraba nunca.
+			$url  = function_exists( 'admin_url' ) ? admin_url( 'admin-ajax.php', 'relative' ) : '/wp-admin/admin-ajax.php';
 			$json = static function ( $value ) { return function_exists( 'wp_json_encode' ) ? wp_json_encode( $value ) : json_encode( $value ); };
-			echo '<script id="digitalisimo-notices-js">(function(){var u=' . $json( $url ) . ',a=' . $json( self::ACTION ) . ',m=' . $json( 'No se pudo guardar el cierre de este aviso: recarga la página y vuelve a cerrarlo.' ) . ';'
+			echo '<script id="digitalisimo-notices-js">(function(){var u=(typeof window.ajaxurl==="string"&&window.ajaxurl)||' . $json( $url ) . ',a=' . $json( self::ACTION ) . ',m=' . $json( 'No se pudo guardar el cierre de este aviso: recarga la página y vuelve a cerrarlo.' ) . ';'
 				. 'function g(n,k){return n.getAttribute("data-digitalisimo-notice"+k)||"";}'
 				. 'function say(n,t){var p=n.querySelector(".digitalisimo-notice-failed");if(!p){p=document.createElement("p");p.className="digitalisimo-notice-failed";p.setAttribute("role","alert");n.appendChild(p);}p.textContent=t;n.removeAttribute("aria-busy");}'
 				. 'document.addEventListener("click",function(e){var t=e.target,b=t&&t.closest?t.closest(".notice-dismiss"):null,n=b?b.closest("[data-digitalisimo-notice]"):null;if(!n||!window.fetch||!window.FormData)return;'
