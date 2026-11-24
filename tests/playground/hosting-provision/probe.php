@@ -200,8 +200,9 @@ add_action( 'init', static function () {
 		case 'key':
 			// Lo mismo que «Guardar» con una clave escrita en Digitalisimo → Hosting.
 			$secrets = json_decode( (string) file_get_contents( DIGI_HP_DIR . '/secrets.json' ), true );
-			$o = get_option( 'digitalisimo_hosting_options' ); $o['webuzo_api_key'] = $secrets['webuzo']; update_option( 'digitalisimo_hosting_options', $o, false );
-			Digitalisimo_Hosting_Webuzo::unblock();
+			$o = get_option( 'digitalisimo_hosting_options' ); $old = $o['webuzo_api_key']; $o['webuzo_api_key'] = $secrets['webuzo']; update_option( 'digitalisimo_hosting_options', $o, false );
+			Digitalisimo_Hosting_Webuzo::forget( $old );
+			Digitalisimo_Hosting_Webuzo::resume();
 			break;
 		case 'badkey':
 			$o = get_option( 'digitalisimo_hosting_options' ); $o['webuzo_api_key'] = 'CLAVE-VIEJA-' . wp_generate_password( 8, false ); update_option( 'digitalisimo_hosting_options', $o, false );
