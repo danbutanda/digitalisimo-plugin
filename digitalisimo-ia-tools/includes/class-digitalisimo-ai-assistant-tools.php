@@ -26,12 +26,13 @@ final class Digitalisimo_AI_Assistant_Tools {
 	const LOG_MAX      = 500;
 	const DATA_MAX     = 12000;
 	/**
-	 * Acciones que cambian sin destruir: en una herramienta de confianza con `action` en su esquema (las de tienda anotan
-	 * como destructiva toda escritura), crear o actualizar es `write` (confirmación con la tarjeta o un «sí» escrito);
-	 * borrar, lotes, reembolsos y pasarelas de pago siguen siendo destructivos.
+	 * Acciones que cambian sin destruir: SÓLO en las herramientas de tienda de DIGITALÍSIMO (WRITE_PREFIX, que anotan como
+	 * destructiva toda escritura), crear o actualizar es `write` (confirmación con la tarjeta). Borrar, lotes, reembolsos,
+	 * pasarelas de pago y todo lo de clientes o usuarios siguen siendo destructivos, igual que cualquier otra herramienta.
 	 */
 	const WRITE_ACTIONS = array( 'create', 'update' );
-	const MONEY         = '/refund|reembolso|gateway|payment|pasarela/i';
+	const WRITE_PREFIX  = 'digitalisimo-woo/';
+	const SENSITIVE     = '/refund|reembolso|gateway|payment|pasarela|customer|cliente|user|usuario|account|cuenta/i';
 	const READ_ACTIONS = array( 'list', 'get', 'read', 'search', 'find', 'count', 'view', 'show', 'retrieve', 'describe', 'schema', 'status' );
 	/** Amplio: lo que viaja al proveedor, al historial, al detalle y a la bitácora (como `Secrets` del MCP de Woo). */
 	const SECRET_KEYS  = '/((^|[_-])pass(word|wd|phrase)?($|[_-])|password|passwd|secret|token|signature|hmac|salt|bearer|cookie|authorization|credentials?|private[_-]?key|api[_-]?key|apikey|(^|[_-])auth($|[_-])|^nonce$|[_-]key$|^key$)/i';
@@ -175,7 +176,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 		$action = is_array( $input ) && isset( $input['action'] ) && is_string( $input['action'] ) ? strtolower( $input['action'] ) : '';
 		if ( 'read' !== $kind && $trusted && '' !== $action && in_array( $action, self::READ_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) ) {
 			$kind = 'read';
-		} elseif ( 'destructive' === $kind && $trusted && false === ( $entry['annotations']['readonly'] ?? null ) && in_array( $action, self::WRITE_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) && ! preg_match( self::MONEY, (string) ( $entry['name'] ?? '' ) . ' ' . ( is_array( $input ) && is_scalar( $input['resource'] ?? null ) ? (string) $input['resource'] : '' ) ) ) {
+		} elseif ( 'destructive' === $kind && 0 === strpos( (string) $entry['name'], self::WRITE_PREFIX ) && false === ( $entry['annotations']['readonly'] ?? null ) && in_array( $action, self::WRITE_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) && ! preg_match( self::SENSITIVE, (string) $entry['name'] . ' ' . ( is_array( $input ) && is_scalar( $input['resource'] ?? null ) ? (string) $input['resource'] : '' ) ) ) {
 			$kind = 'write';
 		}
 		$kind = apply_filters( 'digitalisimo_ai_assistant_tool_kind', $kind, $entry['name'], $input );
@@ -224,6 +225,22 @@ final class Digitalisimo_AI_Assistant_Tools {
 				return true;
 			}
 			if ( is_array( $value ) && self::touches_status( $value, $depth + 1 ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** ¿La entrada lleva, en algún texto, código que se ejecuta en el navegador (script, iframe, on…=, javascript:)? */
+	public static function has_code( $input, $depth = 0 ) {
+		if ( is_string( $input ) ) {
+			return (bool) preg_match( '#<\s*(script|iframe|object|embed)|\bon[a-z]+\s*=|javascript:#i', $input );
+		}
+		if ( ! is_array( $input ) || $depth > 32 ) {
+			return false;
+		}
+		foreach ( $input as $value ) {
+			if ( self::has_code( $value, $depth + 1 ) ) {
 				return true;
 			}
 		}

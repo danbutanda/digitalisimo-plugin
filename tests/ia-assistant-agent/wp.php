@@ -139,6 +139,8 @@ function is_email( $e ) { return (bool) filter_var( $e, FILTER_VALIDATE_EMAIL );
 function wp_date( $f, $ts = null ) { return gmdate( $f, null === $ts ? time() : $ts ); }
 function wp_timezone_string() { return 'America/Mexico_City'; }
 function remove_accents( $t ) { return strtr( (string) $t, array( 'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'ñ' => 'n', 'Ñ' => 'N', 'ü' => 'u' ) ); }
+function get_post_type_object( $t ) { return in_array( $t, array( 'post', 'page', 'product', 'attachment', 'elementor_library', 'shop_coupon', 'feedback', 'flamingo_inbound' ), true ) ? (object) array( 'name' => $t ) : null; }
+function is_post_type_viewable( $o ) { return is_object( $o ) && in_array( $o->name, array( 'post', 'page', 'product', 'attachment' ), true ); }
 function wp_has_ability( $n ) { return isset( $GLOBALS['abilities'][ $n ] ); }
 function selected( $a, $b, $echo = true ) { return (string) $a === (string) $b ? ' selected="selected"' : ''; }
 function checked( $a, $b, $echo = true ) { return (string) $a === (string) $b ? ' checked="checked"' : ''; }

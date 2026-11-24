@@ -373,8 +373,10 @@ final class Digitalisimo_AI_Assistant_History {
 	/** Un mensaje guardado: `id`, `role`, `time` y sus campos, con los textos recortados. */
 	public static function message( $role, array $fields = array() ) {
 		// El contenido de un resultado ya viene acotado en bytes y es JSON: recortarlo por caracteres lo rompería.
-		if ( isset( $fields['text'] ) ) {
-			$fields['text'] = Digitalisimo_AI_Assistant_Tools::clip( (string) $fields['text'], self::MAX_TEXT );
+		foreach ( array( 'text', 'notes' ) as $key ) {
+			if ( isset( $fields[ $key ] ) ) {
+				$fields[ $key ] = Digitalisimo_AI_Assistant_Tools::clip( (string) $fields[ $key ], self::MAX_TEXT );
+			}
 		}
 		return array_merge( array( 'id' => 'm' . substr( md5( uniqid( (string) wp_rand(), true ) ), 0, 12 ), 'role' => (string) $role, 'time' => time() ), $fields );
 	}
@@ -387,7 +389,8 @@ final class Digitalisimo_AI_Assistant_History {
 			return $out + array( 'role' => 'me', 'text' => (string) ( $m['text'] ?? '' ) );
 		}
 		if ( 'assistant' === $role ) {
-			return '' === (string) ( $m['text'] ?? '' ) ? null : $out + array( 'role' => 'assistant', 'text' => (string) $m['text'], 'provider' => (string) ( $m['provider'] ?? '' ) );
+			$text = trim( implode( "\n\n", array_filter( array( trim( (string) ( $m['notes'] ?? '' ) ), trim( (string) ( $m['text'] ?? '' ) ) ), 'strlen' ) ) );
+			return '' === $text ? null : $out + array( 'role' => 'assistant', 'text' => $text, 'provider' => (string) ( $m['provider'] ?? '' ) );
 		}
 		if ( 'tool' === $role ) {
 			return $out + array( 'role' => 'tool', 'ability' => (string) ( $m['ability'] ?? '' ), 'label' => (string) ( $m['label'] ?? '' ), 'kind' => (string) ( $m['kind'] ?? '' ), 'status' => (string) ( $m['status'] ?? '' ), 'summary' => (string) ( $m['summary'] ?? '' ), 'detail' => (string) ( $m['detail'] ?? '' ) );
@@ -430,7 +433,8 @@ final class Digitalisimo_AI_Assistant_History {
 				if ( ! $calls && '' === trim( (string) ( $m['text'] ?? '' ) ) ) {
 					continue; // Un turno vacío (de una versión anterior) rompería la petición siguiente.
 				}
-				$messages[] = array( 'role' => 'assistant', 'text' => (string) ( $m['text'] ?? '' ), 'calls' => $calls );
+				// Las notas de avance son para la persona: al modelo vuelven sólo dentro de sus bloques thinking.
+				$messages[] = array( 'role' => 'assistant', 'text' => (string) ( $m['text'] ?? '' ), 'calls' => $calls, 'thinking' => is_array( $m['thinking'] ?? null ) ? $m['thinking'] : array() );
 			} elseif ( 'tool' === $role ) {
 				$messages[] = array( 'role' => 'tool', 'call' => (string) $m['call'], 'name' => self::tool_of( $catalog, (string) $m['ability'] ), 'content' => (string) $m['content'] );
 			}
@@ -497,10 +501,17 @@ final class Digitalisimo_AI_Assistant_History {
 			$summary[] = self::summarize( self::as_stored( array_slice( $messages, 0, $cut ) ) );
 			$messages  = array_slice( $messages, $cut );
 		}
+		// Bloques thinking: sólo los del turno en curso (después del último mensaje de la persona), tal cual; quitar
+		// todos los anteriores es válido para el control de historial de la API (se quita un tramo inicial).
+		$current = self::turn_starts( $messages );
+		$current = $current ? end( $current ) : 0;
 		foreach ( $messages as $i => $m ) {
 			if ( 'assistant' === $m['role'] ) {
 				foreach ( $m['calls'] as $j => $call ) {
 					unset( $messages[ $i ]['calls'][ $j ]['ability'] );
+				}
+				if ( $i < $current || ! $messages[ $i ]['thinking'] ) {
+					unset( $messages[ $i ]['thinking'] );
 				}
 			}
 		}

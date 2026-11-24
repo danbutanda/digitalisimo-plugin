@@ -83,8 +83,14 @@ paquete y se encola en lugar de `assistant.js`.
   tokens no hay problema». Las demás herramientas siguen con sus perfiles y `DEFAULT_MODELS`.
 - Anthropic: 16 384 tokens de salida (razonamiento adaptativo y una composición larga), 300 s de espera y la caché
   automática de la API (`cache_control` en la petición; no con una URL compatible propia; filtro
-  `digitalisimo_ai_assistant_prompt_cache`): cada paso reenvía la conversación entera y sólo crece al final. Los bloques
-  de razonamiento no se reenvían (quitarlos todos es válido para el control de historial de los modelos 5.x).
+  `digitalisimo_ai_assistant_prompt_cache`): cada paso reenvía la conversación entera y sólo crece al final; por eso las
+  instrucciones llevan la fecha del sitio, no la hora. Con los modelos 5.5 (Opus, Sonnet, Haiku) y Fable/Mythos 5: esfuerzo
+  `high` (`output_config.effort`, filtro `digitalisimo_ai_assistant_effort`; Opus 5.5 trae `medium`), notas de avance
+  (`thinking.display: "updates"`, beta `thinking-display-updates-2026-08-18`) que la persona ve como texto, y los bloques
+  `thinking` del turno en curso se reenvían tal cual en los pasos siguientes (los de turnos anteriores no: quitar el
+  tramo inicial es válido), con `block_binding.prefix_mismatch_behavior: drop_block` (beta
+  `thinking-binding-controls-2026-08-01`) para que una compactación no rechace la petición. Si la API rechaza algo de
+  eso, se repite sin ello y, si aún rechaza un bloque reenviado, sin reenviarlos.
 - Llamadas a herramientas nativas de cada proveedor: OpenAI y compatibles (DeepSeek, xAI) con `tools`/`tool_calls`,
   Anthropic con `tool_use`/`tool_result` y Google con `functionDeclarations`/`functionCall` (esquemas reducidos al
   subconjunto que acepta Gemini; un objeto libre se pide como texto JSON y se decodifica; la firma de pensamiento se
@@ -105,7 +111,9 @@ persona: `digitalisimo-ia/read-page-text`, el texto legible de una página, entr
 Elementor clásicos y atómicos o bloques, sin HTML, con sus enlaces, teléfonos y WhatsApp— y `digitalisimo-ia/site-contact`,
 el WhatsApp, teléfonos, correos y dirección que el sitio ya publica —pie y cabecera de Elementor, portada, contacto,
 menús, widgets, WooCommerce, DIGITALÍSIMO SEO Local— y las páginas reales de privacidad, términos, reembolso, contacto y
-tienda; las dos de sólo lectura, con `edit_posts`, públicas para MCP y en el servidor de Elements):
+tienda; las dos de sólo lectura, con `edit_posts`, públicas para MCP y en el servidor de Elements; sólo leen tipos que
+se ven en el sitio —`is_post_type_viewable`— y plantillas de Elementor, nunca cupones, formularios recibidos ni otros
+tipos internos, y lo no público sólo con `edit_post`):
 
 1. con el MCP de DIGITALÍSIMO Elements activo (`elementor_mcp_enabled`), lo que su servidor `/wp-json/elementor/mcp`
    publica: su registro compartido (constructor, ventas, WooCommerce) más el filtro `elementor/mcp/server/tools`;
@@ -122,12 +130,14 @@ permiso), y antes se comprueba `check_permissions()` con esa entrada: sin permis
 | Clase | Regla | Qué pasa |
 |---|---|---|
 | `read` | `annotations.readonly` es `true` estricto, sin `destructive` true, y la Ability es de un espacio de nombres de confianza (`digitalisimo-`, `elementor/`, `core/`, `mcp-adapter/` o el filtro `digitalisimo_ai_assistant_trusted_prefixes`) | se ejecuta solo |
-| `draft` | crea contenido NUEVO en borrador (`DRAFT_CREATORS`: `digitalisimo-sales/create-page`, `elementor/create-page`; sin `post_id` y sin un estado distinto de `draft`) o edita por `post_id` un borrador que creó ESTA conversación y sigue en borrador (`DRAFT_EDITORS`: `elementor/build-composition`, `elementor/manage-elements`, `elementor/update-page-settings`; sin claves de estado, visibilidad o contraseña en la entrada, y con `edit_post`). Listas explícitas, filtros `digitalisimo_ai_assistant_draft_creators` y `…_draft_editors` | se ejecuta solo (no toca nada publicado) y queda en la bitácora como `draft` |
+| `draft` | (tras leer contenido del sitio, si la entrada trae código —script, iframe, on…=, javascript:— y la persona tiene `unfiltered_html`, pasa por la tarjeta) crea contenido NUEVO en borrador (`DRAFT_CREATORS`: `digitalisimo-sales/create-page`, `elementor/create-page`; sin `post_id` y sin un estado distinto de `draft`) o edita por `post_id` un borrador que creó ESTA conversación y sigue en borrador (`DRAFT_EDITORS`: `elementor/build-composition`, `elementor/manage-elements`, `elementor/update-page-settings`; sin claves de estado, visibilidad o contraseña en la entrada, y con `edit_post`). Listas explícitas, filtros `digitalisimo_ai_assistant_draft_creators` y `…_draft_editors` | se ejecuta solo (no toca nada publicado) y queda en la bitácora como `draft` |
 | `write` | `annotations.destructive` es `false`, o una lectura de un plugin ajeno | tarjeta con qué hará y con qué datos; botón «Confirmar» o «Cancelar» |
 | `destructive` | cualquier otro caso (`readonly` que no es un `true` estricto, contradicciones, sin anotaciones, como el MCP) | tarjeta con una casilla «Entiendo…» que enciende «Sí, hacerlo»; el servidor exige `explicit` (`true`, `1` o `"true"`). Sólo si la Ability lo declara (`meta.digitalisimo.dry_run` true y `dry_run` booleano en su esquema) la tarjeta trae una simulación, que queda en la bitácora como `simulation` |
 
 Una herramienta con `action` en su esquema (las de tienda) cuenta como lectura cuando la acción pedida es de
-`READ_ACTIONS` (`list`, `get`, `read`, `search`…) y está en su `enum`. `digitalisimo_ai_assistant_tool_kind` permite
+`READ_ACTIONS` (`list`, `get`, `read`, `search`…) y está en su `enum`. Sólo en las de tienda de DIGITALÍSIMO
+(`digitalisimo-woo/`, que anotan como destructiva toda escritura), `create` y `update` son `write`, salvo clientes,
+usuarios, cuentas, reembolsos y pasarelas (siguen destructivos, como cualquier otra herramienta). `digitalisimo_ai_assistant_tool_kind` permite
 afinar la clase.
 
 - **Lo nuevo nace en borrador**: si la Ability crea (`create`, `new`, `add`, `insert`, `duplicate`, `generate` en su
@@ -158,13 +168,15 @@ afinar la clase.
 - **Una escritura no idempotente que falla** (por ejemplo, un tiempo de espera contra una pasarela) queda como
   «resultado desconocido: puede haberse aplicado», y la IA recibe `puede_haberse_aplicado` para no repetirla sin
   preguntar.
-- Una confirmación caduca en una hora. **Confirmar escribiendo**: si hay acciones pendientes (ninguna destructiva ni a
-  medio ejecutar) y el mensaje es una afirmación clara (todas sus palabras son de afirmación o relleno: «sí», «sí
-  hazlo», «dale», «ok», «confirmo», «créala»…; con «no», «pero», «espera», «cambia…» no lo es), el servidor ejecuta
-  las acciones GUARDADAS como si se hubiera pulsado el botón (mismo permiso, caducidad, `running` antes de ejecutar y
-  bitácora; nunca con argumentos nuevos del modelo) y después el modelo recibe los resultados y el «sí». Con una acción
-  destructiva pendiente, «sí» no basta: un aviso pide el botón y la casilla y no se hace nada. Cualquier otro mensaje
-  cancela lo pendiente (y el modelo recibe «cancelado»).
+- Una confirmación caduca en una hora. **Confirmar escribiendo** (`typed_confirmation()`): sólo con EXACTAMENTE una
+  acción pendiente, no destructiva, no propuesta tras leer contenido del sitio (`after_read`) y nada a medio ejecutar,
+  una afirmación clara (todas sus palabras de afirmación o relleno: «sí», «sí hazlo», «dale», «ok», «confirmo»; un verbo
+  con pronombre sólo si corresponde a la acción: «créala» confirma una creación, «publícala» no; «gracias», «perfecto»,
+  «correcto», «listo», «no», «pero», «cambia…» no confirman) ejecuta la acción GUARDADA como el botón (mismo permiso,
+  caducidad, `running` antes de ejecutar y bitácora; nunca con argumentos nuevos del modelo) y después el modelo recibe
+  el resultado y el «sí». Con varias pendientes, tras leer o destructiva, un «sí» no hace nada: un aviso pide el botón
+  (y la casilla, si es destructiva) y lo pendiente sigue. Cualquier otro mensaje cancela lo pendiente (el modelo recibe
+  «cancelado»). En el caso real, el cambio de precio de la tienda queda en su tarjeta: el «sí hazlo» no lo aplica.
 - Hasta 40 pasos del modelo y 100 llamadas a herramientas por turno (filtros `digitalisimo_ai_assistant_max_steps` y
   `…_max_calls`), contando sus continuaciones. Cada tramo dura hasta 150 s (`digitalisimo_ai_assistant_turn_budget`, y
   menos si `max_execution_time` es menor): si se acaba con trabajo por hacer, la conversación guarda dónde iba

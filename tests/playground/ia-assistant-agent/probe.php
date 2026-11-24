@@ -142,6 +142,9 @@ function digi_ias_script( array $read, array $seen ) {
 			return digi_ias_tools( $calls, 'Reviso el sitio: contacto, políticas, producto y la guía.' );
 		}
 		$lastname = (string) end( $names );
+		if ( 'digi-ias-apply-offer' === $lastname ) {
+			return digi_ias_reply( array( array( 'type' => 'text', 'text' => 'Listo: el precio de oferta quedó aplicado hasta fin de mes.' ) ) );
+		}
 		if ( 'digitalisimo-sales-create-page' === $lastname ) {
 			$id = digi_ias_id( $find( 'digitalisimo-sales-create-page' ) );
 			return digi_ias_tools( array( array( 'digitalisimo-ia-read-page-text', array( 'id' => $id ) ) ), 'Verifico lo creado.' );

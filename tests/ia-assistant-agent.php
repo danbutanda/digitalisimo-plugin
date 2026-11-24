@@ -73,20 +73,41 @@ $_POST = array();
 check( array( 'anthropic' => 'claude-opus-5-5-fast', 'openai' => 'profile' ) === $saved['assistant_models'], 'G4: se guarda lo elegido (otro modelo escrito, perfil) y lo inválido vuelve al recomendado: ' . json_encode( $saved['assistant_models'] ) );
 $b = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), array() );
 check( 'claude-opus-5-5' === $b['body']['model'] && array( 'type' => 'ephemeral' ) === $b['body']['cache_control'] && $b['body']['max_tokens'] >= 16000, 'G5: la petición a Anthropic va con Opus, caché automática (la conversación completa se reenvía) y sitio para pensar' );
-check( array( 'type' => 'adaptive', 'display' => 'updates' ) === $b['body']['thinking'] && 'thinking-display-updates-2026-08-18' === $b['headers']['anthropic-beta'], 'G6: con Opus 5.5 se piden las notas de avance (si no, un turno que termina en una herramienta llega sin texto)' );
+check( 'adaptive' === $b['body']['thinking']['type'] && 'updates' === $b['body']['thinking']['display'] && array( 'prefix_mismatch_behavior' => 'drop_block' ) === $b['body']['thinking']['block_binding'] && 'thinking-display-updates-2026-08-18,thinking-binding-controls-2026-08-01' === $b['headers']['anthropic-beta'], 'G6: con Opus 5.5 se piden las notas de avance, y los bloques reenviados que ya no cuadran se descartan en vez de rechazar la petición' );
+check( array( 'effort' => 'high' ) === $b['body']['output_config'], 'G6: el Asistente con Opus 5.5 trabaja con esfuerzo alto (el de fábrica es medium)' );
 $old = Digitalisimo_AI_Assistant_Model::build( array( 'provider' => 'anthropic', 'model' => 'claude-sonnet-4-5', 'key' => 'k' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), array() );
-check( ! isset( $old['body']['thinking'] ) && ! isset( $old['headers']['anthropic-beta'] ), 'G6: a un modelo anterior no se le piden' );
+check( ! isset( $old['body']['thinking'] ) && ! isset( $old['headers']['anthropic-beta'] ) && ! isset( $old['body']['output_config'] ), 'G6: a un modelo anterior no se le piden ni se fija el esfuerzo' );
 $p = Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'stop_reason' => 'tool_use', 'content' => array( array( 'type' => 'thinking', 'thinking' => '', 'signature' => 'x' ), array( 'type' => 'thinking', 'thinking' => 'Creo la landing en borrador con el producto.', 'signature' => 'y' ), array( 'type' => 'tool_use', 'id' => 'toolu_1', 'name' => 'demo-create-note', 'input' => array() ) ) ) );
-check( 'Creo la landing en borrador con el producto.' === $p['text'] && 1 === count( $p['calls'] ), 'G6: la nota de avance llega como texto para la persona (el razonamiento vacío no)' );
+check( '' === $p['text'] && 'Creo la landing en borrador con el producto.' === $p['notes'] && 2 === count( $p['thinking'] ) && 'y' === $p['thinking'][1]['signature'] && 1 === count( $p['calls'] ), 'G6: la nota de avance es para la persona (notes) y los bloques thinking se guardan tal cual, sin pasar a texto' );
+// Reenvío: los bloques thinking del turno en curso van tal cual y primero; los de turnos anteriores, no.
+$neutral = array(
+	array( 'role' => 'user', 'text' => 'uno' ),
+	array( 'role' => 'assistant', 'text' => 'Hecho.', 'calls' => array(), 'thinking' => array( array( 'type' => 'thinking', 'thinking' => '', 'signature' => 'VIEJA' ) ) ),
+	array( 'role' => 'user', 'text' => 'dos' ),
+	array( 'role' => 'assistant', 'text' => '', 'calls' => array( array( 'id' => 'toolu_9', 'name' => 'demo-create-note', 'input' => array(), 'sig' => '' ) ), 'thinking' => array( array( 'type' => 'thinking', 'thinking' => 'Nota', 'signature' => 'NUEVA' ), array( 'type' => 'redacted_thinking', 'data' => 'ZZZ' ) ) ),
+	array( 'role' => 'tool', 'call' => 'toolu_9', 'name' => 'demo-create-note', 'content' => '{}' ),
+);
+$stored = array( 'messages' => array() );
+foreach ( $neutral as $m ) { $m['role'] = $m['role']; if ( 'assistant' === $m['role'] ) foreach ( $m['calls'] as $i => $c ) $m['calls'][ $i ]['ability'] = 'demo/create-note'; if ( 'tool' === $m['role'] ) $m['ability'] = 'demo/create-note'; $stored['messages'][] = $m; }
+$fm = Digitalisimo_AI_Assistant_History::for_model( $stored, Digitalisimo_AI_Assistant_Tools::catalog() );
+check( ! isset( $fm[1]['thinking'] ) && 'NUEVA' === $fm[3]['thinking'][0]['signature'], 'G6: al modelo van sólo los bloques thinking del turno en curso' );
+$body = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'S', $fm, array() )['body'];
+$last_assistant = $body['messages'][3];
+check( 'assistant' === $last_assistant['role'] && 'thinking' === $last_assistant['content'][0]['type'] && 'NUEVA' === $last_assistant['content'][0]['signature'] && 'Nota' === $last_assistant['content'][0]['thinking'] && 'redacted_thinking' === $last_assistant['content'][1]['type'] && 'tool_use' === $last_assistant['content'][2]['type'] && false === strpos( json_encode( $body ), 'VIEJA' ), 'G6: Anthropic recibe esos bloques tal cual, antes del tool_use (y la nota nunca como texto)' );
 check( '' === Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'content' => array( array( 'type' => 'thinking', 'thinking' => Digitalisimo_AI_Assistant_Model::UPDATES_CUT ) ) ) )['text'], 'G6: la marca de nota cortada no se muestra' );
 remove_all_filters( 'digitalisimo_ai_assistant_pre_model' );
 $GLOBALS['http'] = array();
 $GLOBALS['http_replies'] = array( array( 'code' => 400, 'body' => '{"type":"error","error":{"type":"invalid_request_error","message":"thinking.display: Input should be \'summarized\' or \'omitted\'"}}' ), array( 'code' => 200, 'body' => json_encode( array( 'content' => array( array( 'type' => 'text', 'text' => 'Hola' ) ), 'stop_reason' => 'end_turn' ) ) ) );
 $r = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), array() );
-check( 'Hola' === $r['text'] && 2 === count( $GLOBALS['http'] ) && ! isset( json_decode( $GLOBALS['http'][1]['args']['body'], true )['thinking'] ) && ! isset( $GLOBALS['http'][1]['args']['headers']['anthropic-beta'] ), 'G6: si la API no las acepta, se repite una vez sin ellas' );
+check( 'Hola' === $r['text'] && 2 === count( $GLOBALS['http'] ) && ! isset( json_decode( $GLOBALS['http'][1]['args']['body'], true )['thinking'] ) && ! isset( json_decode( $GLOBALS['http'][1]['args']['body'], true )['output_config'] ) && ! isset( $GLOBALS['http'][1]['args']['headers']['anthropic-beta'] ), 'G6: si la API no las acepta, se repite una vez sin ellas' );
+$GLOBALS['http'] = array();
+$GLOBALS['http_replies'] = array( array( 'code' => 400, 'body' => '{"type":"error","error":{"type":"invalid_request_error","message":"thinking.display: unknown"}}' ), array( 'code' => 400, 'body' => '{"type":"error","error":{"type":"invalid_request_error","message":"messages.1.content.0: Invalid `signature` in `thinking` block."}}' ), array( 'code' => 200, 'body' => json_encode( array( 'content' => array( array( 'type' => 'text', 'text' => 'Sigo' ) ), 'stop_reason' => 'end_turn' ) ) ) );
+$r = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'S', $fm, array() );
+check( 'Sigo' === $r['text'] && 3 === count( $GLOBALS['http'] ) && false === strpos( $GLOBALS['http'][2]['args']['body'], '"thinking"' ), 'G6: si la API rechaza un bloque thinking reenviado, se repite una vez sin reenviarlos' );
 $woo = array( 'name' => 'digitalisimo-woo/products', 'annotations' => array( 'readonly' => false, 'destructive' => true ), 'schema' => array( 'type' => 'object', 'properties' => array( 'action' => array( 'type' => 'string', 'enum' => array( 'list', 'get', 'create', 'update', 'delete', 'batch' ) ), 'resource' => array( 'type' => 'string' ) ) ) );
 check( 'write' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'product_id' => 13, 'data' => array( 'sale_price' => '7500' ) ) ) && 'write' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'create' ) ), 'G8: poner un precio de oferta (update) en la tienda pide confirmación normal, sin casilla de destructiva (así un «sí» lo confirma)' );
 check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'delete' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'batch' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-woo/orders' ) ), array( 'action' => 'create', 'resource' => 'refund' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'otro/products' ) ), array( 'action' => 'update' ) ), 'G8: borrar, lotes, reembolsos y lo de plugins ajenos siguen siendo destructivos' );
+check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-woo/customers' ) ), array( 'action' => 'update' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'resource' => 'customer' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'elementor/manage-component' ) ), array( 'action' => 'update' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-sales/x' ) ), array( 'action' => 'update' ) ), 'G8: sólo la tienda de DIGITALÍSIMO baja a escritura; clientes, usuarios y cualquier otra herramienta (elementor/manage-component update) siguen destructivas' );
 check( 'read' === Digitalisimo_AI_Assistant_Tools::kind( array( 'name' => 'woocommerce/products-query', 'annotations' => array( 'readonly' => true, 'destructive' => false ), 'schema' => array() ), array() ), 'G7: leer productos con las Abilities del núcleo de WooCommerce no pide confirmación' );
 add_filter( 'digitalisimo_ai_assistant_pre_model', function ( $pre, $request ) { $GLOBALS['model_calls'][] = $request; return $GLOBALS['script'] ? array_shift( $GLOBALS['script'] ) : 'Listo.'; } );
 
@@ -147,12 +168,13 @@ check( Digitalisimo_AI_Assistant_History::context_chars( 'anthropic', 'claude-op
 
 /* ---------------- Y: confirmar escribiendo ---------------- */
 foreach ( array( 'sí hazlo', 'Sí, créala', 'dale', 'ok', 'confirmo', 'SÍ', 'sí por favor', 'de acuerdo', 'adelante', 'sí, hazlo ya' ) as $yes ) check( Digitalisimo_AI_Assistant::affirmation( $yes ), "Y0: «{$yes}» confirma" );
-foreach ( array( 'no', 'sí, pero cambia el precio', 'es una nueva landing, no modificas templates verdad', 'mejor no', 'créala primero luego agregamos eso', '¿qué vas a hacer?', 'espera', 'ok no' ) as $no ) check( ! Digitalisimo_AI_Assistant::affirmation( $no ), "Y0: «{$no}» no confirma" );
+foreach ( array( 'no', 'sí, pero cambia el precio', 'es una nueva landing, no modificas templates verdad', 'mejor no', 'créala primero luego agregamos eso', '¿qué vas a hacer?', 'espera', 'ok no', 'ok gracias', 'perfecto gracias', 'correcto', 'perfecto', 'listo', 'todo bien', 'gracias', 'Crea', 'publica', 'sí crea otra' ) as $no ) check( ! Digitalisimo_AI_Assistant::affirmation( $no ), "Y0: «{$no}» no confirma" );
+$fresh = function ( array $calls, $message ) use ( $req, $events ) { $GLOBALS['script'] = array( array( 'text' => 'Voy.', 'calls' => $calls ) ); $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => $message ) ) ) ); return $ev; };
+// Y1 Una acción pendiente, escritura, sin nada leído: «sí hazlo» la ejecuta (la guardada, con su bitácora).
 $GLOBALS['created_notes'] = array();
-$GLOBALS['script'] = array( array( 'text' => 'Voy a crear la nota.', 'calls' => array( $call( 'demo-create-note', array( 'title' => 'Nota del caso' ) ) ) ) );
-$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'crea la nota' ) ) ) );
+$ev = $fresh( array( $call( 'demo-create-note', array( 'title' => 'Nota del caso' ) ) ), 'crea la nota' );
 $cy = $ev[0]['id'];
-check( 1 === count( $of( $ev, 'confirm' ) ) && array() === $GLOBALS['created_notes'], 'Y1: escribir algo que no es un borrador pide confirmación' );
+check( 1 === count( $of( $ev, 'confirm' ) ) && false === $of( $ev, 'confirm' )[0]['action']['after_read'] && array() === $GLOBALS['created_notes'], 'Y1: escribir algo que no es un borrador pide confirmación' );
 $GLOBALS['script'] = array( 'Creada.' );
 $calls_before = count( $GLOBALS['model_calls'] );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'sí hazlo', 'conversation' => $cy ) ) ) );
@@ -163,12 +185,12 @@ check( 'tool' === $sent[ count( $sent ) - 2 ]['role'] && 'user' === end( $sent )
 $log = get_option( Digitalisimo_AI_Assistant_Tools::LOG );
 check( 'demo/create-note' === end( $log )['ability'] && 'ok' === end( $log )['result'] && 'write' === end( $log )['kind'], 'Y1: queda en la bitácora como la escritura confirmada' );
 check( array() === Digitalisimo_AI_Assistant_History::get( $cy, 1 )['pending'], 'Y1: no queda nada pendiente' );
-// Con un «sí, pero…» se cancela, como antes.
+// Y2 Con un «sí, pero…» se cancela, como antes.
 $GLOBALS['script'] = array( array( 'calls' => array( $call( 'demo-create-note', array( 'title' => 'Otra' ) ) ) ), 'Cambio el precio.' );
 $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'crea otra', 'conversation' => $cy ) ) ) );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'sí, pero cambia el precio', 'conversation' => $cy ) ) ) );
 check( 1 === count( $GLOBALS['created_notes'] ) && 'cancelled' === $of( $ev, 'tool' )[0]['message']['status'], 'Y2: «sí, pero…» no ejecuta: lo pendiente se cancela y el modelo atiende el cambio' );
-// Lo destructivo: «sí» no basta.
+// Y3 Lo destructivo: «sí» no basta.
 $GLOBALS['deleted_notes'] = array();
 $GLOBALS['script'] = array( array( 'calls' => array( $call( 'demo-delete-note', array( 'id' => 7 ) ) ) ) );
 $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'borra la nota', 'conversation' => $cy ) ) ) );
@@ -178,26 +200,52 @@ $c = Digitalisimo_AI_Assistant_History::get( $cy, 1 );
 check( array() === $GLOBALS['deleted_notes'] && 1 === count( $c['pending'] ) && $calls_before === count( $GLOBALS['model_calls'] ) && false !== strpos( $of( $ev, 'message' )[0]['message']['text'], 'destructiva' ), 'Y3: con una acción destructiva, «sí» no la ejecuta: sigue pendiente de botón y casilla' );
 check( 'sí' !== end( $c['messages'] )['text'] || 'user' !== end( $c['messages'] )['role'], 'Y3: y el «sí» no queda suelto tras la llamada sin resultado' );
 $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cy, 'action' => $c['pending'][0]['id'], 'decision' => 'deny' ) ) ) );
-// Caducada: «sí» no la revive.
-$GLOBALS['script'] = array( array( 'calls' => array( $call( 'demo-create-note', array( 'title' => 'Vieja' ) ) ) ), 'Vale.' );
-$events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'crea la vieja', 'conversation' => $cy ) ) ) );
-$c = Digitalisimo_AI_Assistant_History::get( $cy, 1 );
+// Y4 Caducada: «sí» no la revive.
+$ev = $fresh( array( $call( 'demo-create-note', array( 'title' => 'Vieja' ) ) ), 'crea la vieja' );
+$cv = $ev[0]['id'];
+$c = Digitalisimo_AI_Assistant_History::get( $cv, 1 );
 $c['pending'][0]['created'] = time() - 2 * HOUR_IN_SECONDS;
 Digitalisimo_AI_Assistant_History::save( $c );
-$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'sí', 'conversation' => $cy ) ) ) );
+$GLOBALS['script'] = array( 'Vale.' );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'sí', 'conversation' => $cv ) ) ) );
 check( 1 === count( $GLOBALS['created_notes'] ) && 'cancelled' === $of( $ev, 'tool' )[0]['message']['status'], 'Y4: una acción caducada no se ejecuta con «sí»' );
-// Sin permiso: «sí» no salta el permiso de la ability.
-$GLOBALS['script'] = array( array( 'calls' => array( $call( 'demo-create-note', array( 'title' => 'Sin permiso' ) ) ) ), 'Vale.' );
-$events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'crea sin permiso', 'conversation' => $cy ) ) ) );
+// Y5 Sin permiso: «sí» no salta el permiso de la ability.
+$ev = $fresh( array( $call( 'demo-create-note', array( 'title' => 'Sin permiso' ) ) ), 'crea sin permiso' );
+$cp = $ev[0]['id'];
+$GLOBALS['abilities']['demo/create-note']->args['permission_callback'] = function () { return current_user_can( 'manage_options' ); };
 $caps = $GLOBALS['users'][1]['caps'];
 $GLOBALS['users'][1]['caps'] = array( 'edit_posts', 'read' );
-add_filter( 'digitalisimo_ai_assistant_capability', function () { return 'edit_posts'; } );
-$GLOBALS['abilities']['demo/create-note']->args['permission_callback'] = function () { return current_user_can( 'manage_options' ); };
-$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'sí', 'conversation' => $cy ) ) ) );
+$GLOBALS['script'] = array( 'Vale.' );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'sí', 'conversation' => $cp ) ) ) );
 check( 1 === count( $GLOBALS['created_notes'] ) && 'denied' === $of( $ev, 'tool' )[0]['message']['status'], 'Y5: «sí» pasa por el mismo permiso: sin él, no se ejecuta' );
 $GLOBALS['abilities']['demo/create-note']->args['permission_callback'] = $can_edit;
 $GLOBALS['users'][1]['caps'] = $caps;
-remove_all_filters( 'digitalisimo_ai_assistant_capability' );
+// Y6 Dos acciones pendientes: un «sí» escrito no dice cuál; no se ejecuta ninguna y siguen las dos tarjetas.
+$ev = $fresh( array( $call( 'demo-create-note', array( 'title' => 'Una' ) ), $call( 'demo-create-note', array( 'title' => 'Dos' ) ) ), 'crea dos notas' );
+$c2 = $ev[0]['id'];
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'sí hazlo', 'conversation' => $c2 ) ) ) );
+check( 1 === count( $GLOBALS['created_notes'] ) && 2 === count( Digitalisimo_AI_Assistant_History::get( $c2, 1 )['pending'] ) && false !== strpos( $of( $ev, 'message' )[0]['message']['text'], '2 acciones pendientes' ), 'Y6: con dos acciones pendientes, «sí hazlo» no ejecuta ninguna (botón)' );
+// Y7 Una acción propuesta tras leer contenido del sitio: «sí» no basta (la persona revisa la tarjeta); el botón sí.
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'demo-big-read', array( 'n' => 1 ) ) ) ), array( 'text' => 'Propongo la nota.', 'calls' => array( $call( 'demo-create-note', array( 'title' => 'Tras leer' ) ) ) ) );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'lee y crea' ) ) ) );
+$c3 = $ev[0]['id'];
+check( true === $of( $ev, 'confirm' )[0]['action']['after_read'], 'Y7: la tarjeta avisa que llega tras leer' );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'sí hazlo', 'conversation' => $c3 ) ) ) );
+$c = Digitalisimo_AI_Assistant_History::get( $c3, 1 );
+check( 1 === count( $GLOBALS['created_notes'] ) && 1 === count( $c['pending'] ) && false !== strpos( $of( $ev, 'message' )[0]['message']['text'], 'después de leer' ), 'Y7: tras leer contenido del sitio, «sí hazlo» no ejecuta: la acción sigue en su tarjeta' );
+$GLOBALS['script'] = array( 'Creada.' );
+$events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $c3, 'action' => $c['pending'][0]['id'], 'decision' => 'approve' ) ) ) );
+check( 2 === count( $GLOBALS['created_notes'] ), 'Y7: con el botón, sí' );
+// Y8 Un verbo que no corresponde a la acción pendiente no la confirma: «publícala» con una creación pendiente.
+$ev = $fresh( array( $call( 'demo-create-note', array( 'title' => 'Verbo' ) ) ), 'crea otra nota' );
+$c4 = $ev[0]['id'];
+$GLOBALS['script'] = array( 'Para publicar necesito otra acción.' );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'publícala', 'conversation' => $c4 ) ) ) );
+check( 2 === count( $GLOBALS['created_notes'] ) && 'cancelled' === $of( $ev, 'tool' )[0]['message']['status'], 'Y8: «publícala» no confirma una creación pendiente: es otra instrucción' );
+$ev = $fresh( array( $call( 'demo-create-note', array( 'title' => 'Créala' ) ) ), 'crea la última' );
+$GLOBALS['script'] = array( 'Hecha.' );
+$events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'sí, créala', 'conversation' => $ev[0]['id'] ) ) ) );
+check( 3 === count( $GLOBALS['created_notes'] ), 'Y8: «sí, créala» sí confirma una creación pendiente' );
 
 /* ---------------- D: borradores sin confirmar ---------------- */
 $GLOBALS['ran'] = array();
@@ -219,6 +267,18 @@ foreach ( array( array( 'elementor-build-composition', array( 'post_id' => $othe
 	check( 1 === count( $of( $ev, 'confirm' ) ) && $n === count( $GLOBALS['ran'] ), $case[2] . ' sigue pidiendo confirmación' );
 	$events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cd, 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'deny' ) ) ) );
 }
+// D6 Tras leer contenido del sitio, editar el borrador con código (script, on…=) teniendo unfiltered_html pide tarjeta.
+$GLOBALS['users'][1]['caps'][] = 'unfiltered_html';
+$n = count( $GLOBALS['ran'] );
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created, 'xml' => '<e-html><script>fetch("//x.test")</script></e-html>' ) ) ) ) );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'pon el código', 'conversation' => $cd ) ) ) );
+check( 1 === count( $of( $ev, 'confirm' ) ) && $n === count( $GLOBALS['ran'] ), 'D6: con lo leído en la conversación, código en la edición del borrador pasa por la tarjeta' );
+$events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cd, 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'deny' ) ) ) );
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created, 'xml' => '<e-heading title="Oferta"/>' ) ) ) ) );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'pon el título', 'conversation' => $cd ) ) ) );
+check( ! $of( $ev, 'confirm' ) && $n + 1 === count( $GLOBALS['ran'] ), 'D6: sin código, sigue directo' );
+array_pop( $GLOBALS['users'][1]['caps'] );
+check( Digitalisimo_AI_Assistant_Tools::has_code( array( 'a' => array( 'b' => '<img src=x onerror=alert(1)>' ) ) ) && Digitalisimo_AI_Assistant_Tools::has_code( 'javascript:alert(1)' ) && ! Digitalisimo_AI_Assistant_Tools::has_code( array( 'xml' => '<e-flexbox><e-heading title="Hola"/></e-flexbox>' ) ), 'D6: has_code() ve script, iframe, on…= y javascript:, no el marcado normal' );
 $GLOBALS['posts'][ $created ]->post_status = 'publish';
 $GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created ) ) ) ) );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'otro cambio', 'conversation' => $cd ) ) ) );
@@ -281,6 +341,11 @@ check( is_wp_error( $GLOBALS['abilities']['digitalisimo-ia/read-page-text']->exe
 $blocks = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'publish', 'post_title' => 'Entrada', 'post_content' => '<h2>Beneficios</h2><p>Llámanos al <a href="tel:+52 871 123 4567">871 123 4567</a></p>' ) );
 $r = $GLOBALS['abilities']['digitalisimo-ia/read-page-text']->execute( array( 'id' => $blocks ) );
 check( 'content' === $r['source'] && "Beneficios\nLlámanos al 871 123 4567" === $r['text'] && '528711234567' === $r['phones'][0]['number'], 'R2: sin Elementor, el texto del contenido, con su teléfono' );
+$coupon   = wp_insert_post( array( 'post_type' => 'shop_coupon', 'post_status' => 'publish', 'post_title' => 'DESCUENTO90' ) );
+$feedback = wp_insert_post( array( 'post_type' => 'feedback', 'post_status' => 'publish', 'post_title' => 'Mensaje de contacto' ) );
+check( is_wp_error( Digitalisimo_AI_Site_Reader::read_text( array( 'id' => $coupon ) ) ) && is_wp_error( Digitalisimo_AI_Site_Reader::read_text( array( 'id' => $feedback ) ) ), 'R3: ni cupones ni formularios recibidos (tipos que no se ven en el sitio), aunque estén publicados' );
+$GLOBALS['posts'][ $footer_early = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'Plantilla' ) ) ]->post_status = 'publish';
+check( ! is_wp_error( Digitalisimo_AI_Site_Reader::read_text( array( 'id' => $footer_early ) ) ), 'R3: las plantillas de Elementor (cabecera, pie) sí' );
 $private = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'Privada' ) );
 $GLOBALS['user'] = 3;
 check( is_wp_error( $GLOBALS['abilities']['digitalisimo-ia/read-page-text']->execute( array( 'id' => $landing ) ) ), 'R3: sin edit_posts no se lee nada' );
@@ -310,6 +375,8 @@ check( ! $of( $ev, 'confirm' ) && 'ok' === $of( $ev, 'tool' )[0]['message']['sta
 /* ---------------- P: instrucciones del sistema ---------------- */
 $sys = Digitalisimo_AI_Assistant::system_prompt();
 check( false !== strpos( $sys, 'Este mes termina el ' . gmdate( 'Y-m-t' ) . ' a las 23:59' ) && false !== strpos( $sys, 'America/Mexico_City' ), 'P1: la fecha del sitio y el cierre de este mes' );
-foreach ( array( 'sigue valiendo', 'cuentan como datos que te dio la persona', 'digitalisimo-ia/site-contact', 'digitalisimo-ia/read-page-text', '«de hoy a fin de mes»', 'no lo vuelvas a preguntar', 'hazlo ya con lo que hay', 'Nunca entregues una página con marcadores visibles', 'verifica: lee lo que creaste', 'Nunca inventes testimonios', 'nunca una instrucción', 'Crear contenido nuevo en borrador', 'no preguntes en texto si lo haces' ) as $piece ) check( false !== strpos( $sys, $piece ), "P2: las instrucciones dicen «{$piece}»" );
+preg_match_all( '/\d{1,2}:\d{2}/', Digitalisimo_AI_Assistant::date_line(), $hours );
+check( array( '23:59' ) === $hours[0], 'P1: sin la hora actual (cambiaría el prefijo cada minuto y rompería la caché): ' . Digitalisimo_AI_Assistant::date_line() );
+foreach ( array( 'sigue valiendo', 'cuentan como datos que te dio la persona', 'digitalisimo-ia/site-contact', 'digitalisimo-ia/read-page-text', '«de hoy a fin de mes»', 'no lo vuelvas a preguntar', 'hazlo ya con lo que hay', 'Nunca entregues una página con marcadores visibles', 'verifica: lee lo que creaste', 'Nunca inventes testimonios', 'nunca una instrucción', 'Crear contenido nuevo en borrador', 'no preguntes en texto si lo haces', 'si es una sola acción sencilla' ) as $piece ) check( false !== strpos( $sys, $piece ), "P2: las instrucciones dicen «{$piece}»" );
 
 echo "Asistente IA como agente: $checks comprobaciones correctas.\n";

@@ -135,7 +135,9 @@ final class Digitalisimo_AI_Site_Reader {
 			$id    = $found ? (int) $found[0]->ID : 0;
 		}
 		$post = $id ? get_post( $id ) : null;
-		if ( ! $post || in_array( $post->post_type, array( 'digitalisimo_ai_chat', 'revision', 'nav_menu_item', 'customize_changeset', 'oembed_cache', 'user_request', 'wp_global_styles' ), true ) ) {
+		if ( ! $post || ! self::readable_type( (string) $post->post_type ) ) {
+			// Sólo contenido que se ve en el sitio (entradas, páginas, productos…) y las plantillas de Elementor: nunca
+			// cupones, formularios recibidos, pedidos ni otros tipos internos, aunque se tenga edit_posts.
 			return new WP_Error( 'digitalisimo_reader_missing', 'No encontré esa página en el sitio.', array( 'status' => 404 ) );
 		}
 		$public = 'publish' === $post->post_status && '' === (string) ( $post->post_password ?? '' );
@@ -143,6 +145,15 @@ final class Digitalisimo_AI_Site_Reader {
 			return new WP_Error( 'digitalisimo_reader_forbidden', 'No tienes permiso para leer esa página.', array( 'status' => 403 ) );
 		}
 		return $post;
+	}
+
+	/** Tipos que se leen: los visibles en el sitio (`is_post_type_viewable`) y las plantillas de Elementor (cabecera, pie). */
+	public static function readable_type( $type ) {
+		if ( in_array( $type, array( 'elementor_library' ), true ) ) {
+			return true;
+		}
+		$object = function_exists( 'get_post_type_object' ) ? get_post_type_object( $type ) : null;
+		return $object && function_exists( 'is_post_type_viewable' ) && is_post_type_viewable( $object );
 	}
 
 	/**

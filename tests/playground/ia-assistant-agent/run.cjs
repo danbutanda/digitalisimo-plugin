@@ -93,6 +93,15 @@ const MESSAGES = [
     const t4 = transcript[3];
     const pending = pendingOf(transcript);
     if (mode !== 'real' || pending.length) await send('sí hazlo');
+    // El «sí hazlo» del caso no debe aplicar un cambio propuesto tras leer el sitio: queda en su tarjeta (la tienda
+    // sigue igual) y sólo el botón lo aplica. En el modo simulado se pulsa después el botón para comprobarlo.
+    let before = await probe('state');
+    let confirmed = null;
+    if (mode !== 'real' && pending.length) {
+      const res = await call('confirm', { conversation, action: pending[0].id, decision: 'approve' });
+      confirmed = { status: res.status, events: res.json?.events || [] };
+      transcript.push({ text: '[botón «Confirmar»]', events: confirmed.events, seconds: res.seconds, requests: 1 });
+    }
     let state = await probe('state');
     if (!state || state.error) {
       check('S1', false, 'la sonda devuelve lo creado', state ? state.error : 'respuesta vacía');
@@ -127,7 +136,8 @@ const MESSAGES = [
       check('D1', draftTools.some((e) => e.message.ability === 'digitalisimo-sales/create-page' && e.message.status === 'ok') && !t4.events.some((e) => e.type === 'confirm' && e.action.ability === 'digitalisimo-sales/create-page'), 'el borrador de la landing se creó sin pedir confirmación', JSON.stringify(t4.events.filter((e) => e.type === 'tool' || e.type === 'confirm').map((e) => e.message || e.action).map((m) => `${m.kind}:${m.ability}:${m.status || ''}`)));
       check('D2', t4.events.some((e) => e.type === 'confirm' && e.action.ability === 'digi-ias/apply-offer'), 'cambiar el precio en la tienda sí pidió confirmación');
       const t5 = transcript[4];
-      check('Y1', t5 && t5.events.some((e) => e.type === 'tool' && e.message.ability === 'digi-ias/apply-offer' && e.message.status === 'ok') && state.product.sale === '7500', '«sí hazlo» ejecutó la acción pendiente (precio de oferta 7500 en la tienda)', JSON.stringify({ product: state.product, events: t5 && t5.events.map((e) => e.type) }));
+      check('Y1', t5 && !t5.events.some((e) => e.type === 'tool' && e.message.ability === 'digi-ias/apply-offer') && t5.events.some((e) => e.type === 'message' && /bot[oó]n/.test(e.message.text)) && before && before.product && before.product.sale === '', '«sí hazlo» NO aplicó el cambio de precio propuesto tras leer el sitio: sigue en su tarjeta y la tienda no cambió', JSON.stringify({ product: before && before.product, events: t5 && t5.events.map((e) => e.type) }));
+      check('Y2', confirmed && confirmed.events.some((e) => e.type === 'tool' && e.message.ability === 'digi-ias/apply-offer' && e.message.status === 'ok') && state.product.sale === '7500', 'con el botón de la tarjeta, sí (precio de oferta 7500 en la tienda)', JSON.stringify({ product: state.product, confirmed: confirmed && confirmed.status }));
       check('R2', (state.made || []).some((p) => p.whatsapp.includes('5218711234567')), 'la landing lleva el WhatsApp del sitio', JSON.stringify((state.made || []).map((p) => p.whatsapp)));
       check('T1', transcript.every((t) => !t.error), 'ninguna petición falló', JSON.stringify(transcript.map((t) => t.error).filter(Boolean)));
     } else {
@@ -143,11 +153,12 @@ const MESSAGES = [
         check('E6', landing.broken.length === 0, 'ningún enlace a páginas que no existen', landing.broken.join(', '));
       }
       check('E7', fromFour.every((r) => r.purificador && r.precio && r.fin_de_mes), 'el modelo nunca perdió lo que dijo la persona');
-      if (pending.length) {
-        const t5 = transcript[4];
-        check('E8', t5 && t5.events.some((e) => e.type === 'tool' && e.message.status === 'ok' && pending.some((a) => a.ability === e.message.ability)), '«sí hazlo» ejecutó lo que quedó pendiente (' + pending.map((a) => `${a.label} [${a.kind}]`).join(', ') + ')', JSON.stringify({ product: state.product, said: t5 && t5.events.filter((e) => e.type === 'message').map((e) => e.message.text) }));
-        check('E9', state.product.sale === '7500', 'el producto quedó con el precio de oferta 7,500 en la tienda', JSON.stringify(state.product));
-      }
+      // El cambio de precio de la tienda termina propuesto en su tarjeta: un «sí hazlo» ambiguo (después de leer el sitio,
+      // o con más de una cosa pendiente) no lo aplica.
+      const priced = pending.filter((a) => /products|precio|price/i.test(`${a.ability} ${a.input}`));
+      check('E8', priced.length > 0, 'el cambio de precio de la tienda quedó propuesto en una tarjeta', JSON.stringify(pending.map((a) => `${a.label} [${a.kind}]`)));
+      const t5 = transcript[4];
+      check('E9', state.product.sale !== '7500' && (!t5 || !t5.events.some((e) => e.type === 'tool' && e.message.status === 'ok' && priced.some((a) => a.ability === e.message.ability))), '«sí hazlo» no bajó el precio real del producto: sigue esperando el botón', JSON.stringify({ product: state.product, said: t5 && t5.events.filter((e) => e.type === 'message').map((e) => e.message.text) }));
       fs.writeFileSync(`${dir}/evaluacion.json`, JSON.stringify({ results, landing: landing ? { id: landing.id, title: landing.title, whatsapp: landing.whatsapp, placeholders: landing.placeholders, broken: landing.broken } : null, requests: requests.length, seconds: transcript.reduce((n, t) => n + t.seconds, 0) }, null, 1));
       if (landing) {
         try {
