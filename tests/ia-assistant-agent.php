@@ -278,12 +278,12 @@ foreach ( array( array( 'elementor-build-composition', array( 'post_id' => $othe
 	check( 1 === count( $of( $ev, 'confirm' ) ) && $n === count( $GLOBALS['ran'] ), $case[2] . ' sigue pidiendo confirmación' );
 	$events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cd, 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'deny' ) ) ) );
 }
-// D3b «Crear» sobre una página existente (caso plomerito 2): un borrador NUEVO, sin tarjeta y sin tocar la publicada.
+// D3b «Crear» sobre una página publicada (revisión del caso plomerito 2): no se crea nada a escondidas ni se toca.
 $n = count( $GLOBALS['ran'] );
 $GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-create-page', array( 'title' => 'X', 'status' => 'publish', 'post_id' => $published ) ) ) ) );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'haz el cambio', 'conversation' => $cd ) ) ) );
 $sent = json_decode( end( end( $GLOBALS['model_calls'] )['messages'] )['content'], true );
-check( ! $of( $ev, 'confirm' ) && 'create' === end( $GLOBALS['ran'] )[0] && $published !== end( $GLOBALS['ran'] )[1] && 'publish' === get_post( $published )->post_status && 'draft' === get_post( end( $GLOBALS['ran'] )[1] )->post_status && false !== strpos( (string) ( $sent['nota'] ?? '' ), 'No menciones el anterior' ), 'D3b: «crear» sobre una página publicada crea un borrador nuevo, sin tarjeta, y la publicada queda igual' );
+check( ! $of( $ev, 'confirm' ) && $n === count( $GLOBALS['ran'] ) && 'publish' === get_post( $published )->post_status && 'skipped' === $sent['estado'] && false !== strpos( $sent['error'], 'está publicada' ), 'D3b: «crear» sobre una página publicada no crea nada ni la toca, y el modelo sabe qué ofrecer' );
 // D6 Tras leer contenido del sitio, editar el borrador con código (script, on…=) teniendo unfiltered_html pide tarjeta.
 $GLOBALS['users'][1]['caps'][] = 'unfiltered_html';
 $n = count( $GLOBALS['ran'] );

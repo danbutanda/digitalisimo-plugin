@@ -83,13 +83,25 @@ final class Digitalisimo_AI_Assistant {
 		add_filter( 'digitalisimo_sales_regenerable', array( __CLASS__, 'kit_regenerable' ), 10, 2 );
 	}
 
+	/** @var int El borrador que la persona acaba de confirmar rehacer con la tarjeta (tiene cambios suyos). */
+	private static $confirmed_draft = 0;
+
 	/**
 	 * El kit de ventas de Elements regenera sólo sus borradores; también puede rehacer uno que el Asistente creó para
-	 * esta persona (DRAFT_META), aunque no lleve la marca del kit. El kit sigue exigiendo borrador y `edit_post`.
+	 * esta persona (DRAFT_META), aunque no lleve la marca del kit, si nadie lo tocó a mano desde que lo dejó el
+	 * Asistente (su huella) o si la persona acaba de confirmarlo en la tarjeta. El kit sigue exigiendo borrador y
+	 * `edit_post`.
 	 */
 	public static function kit_regenerable( $ok, $post_id ) {
+		$id   = (int) $post_id;
 		$user = (int) get_current_user_id();
-		return true === $ok || ( $user > 0 && $user === (int) get_post_meta( (int) $post_id, Digitalisimo_AI_Assistant_Tools::DRAFT_META, true ) );
+		if ( true === $ok ) {
+			return true;
+		}
+		if ( $user <= 0 || $user !== (int) get_post_meta( $id, Digitalisimo_AI_Assistant_Tools::DRAFT_META, true ) ) {
+			return false;
+		}
+		return $id === self::$confirmed_draft || 'clean' === Digitalisimo_AI_Assistant_Tools::draft_state( $id, array() );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -437,26 +449,45 @@ final class Digitalisimo_AI_Assistant {
 			$conv['pending'][ $index ]['started'] = time();
 			Digitalisimo_AI_Assistant_History::save( $conv );
 			Digitalisimo_AI_Assistant_Guard::renew_all();
-			$result = self::maybe_applied( $entry, Digitalisimo_AI_Assistant_Tools::run( $entry, $action['call']['input'] ) );
-			self::remember_draft( $conv, $entry, $result );
+			// Rehacer un borrador con cambios de la persona: lo acaba de aprobar en la tarjeta.
+			self::$confirmed_draft = ! empty( $action['edited'] ) && is_numeric( $action['call']['input']['post_id'] ?? null ) ? (int) $action['call']['input']['post_id'] : 0;
+			try {
+				$result = self::maybe_applied( $entry, Digitalisimo_AI_Assistant_Tools::run( $entry, $action['call']['input'] ) );
+			} finally {
+				self::$confirmed_draft = 0;
+			}
+			self::remember_draft( $conv, $entry, $result, $action['call']['input'] );
 		}
 		array_splice( $conv['pending'], $index, 1 );
 		self::tool_result( $conv, $action['call'], $result, $action['kind'], $emit, $action['label'] ?? '' );
 		return $action;
 	}
 
-	/** Anota el borrador que acaba de crear una herramienta de DRAFT_CREATORS (para poder seguir editándolo sin tarjeta). */
-	private static function remember_draft( array &$conv, array $entry, array $result ) {
-		if ( 'ok' !== $result['status'] || ! in_array( $entry['name'], (array) apply_filters( 'digitalisimo_ai_assistant_draft_creators', Digitalisimo_AI_Assistant_Tools::DRAFT_CREATORS ), true ) ) {
+	/**
+	 * Tras crear, rehacer o editar un borrador: lo anota (si lo creó una herramienta de DRAFT_CREATORS: en la
+	 * conversación y con DRAFT_META, para seguir editándolo sin tarjeta) y guarda la huella de lo que dejó el Asistente
+	 * (STAMP_META): si después alguien lo retoca a mano, rehacerlo vuelve a pedir tarjeta.
+	 */
+	private static function remember_draft( array &$conv, array $entry, array $result, $input = array() ) {
+		if ( 'ok' !== $result['status'] ) {
 			return;
 		}
-		$id   = Digitalisimo_AI_Assistant_Tools::created_id( $result['data'] ?? null );
+		$creator = in_array( $entry['name'], (array) apply_filters( 'digitalisimo_ai_assistant_draft_creators', Digitalisimo_AI_Assistant_Tools::DRAFT_CREATORS ), true );
+		$editor  = in_array( $entry['name'], (array) apply_filters( 'digitalisimo_ai_assistant_draft_editors', Digitalisimo_AI_Assistant_Tools::DRAFT_EDITORS ), true );
+		if ( ! $creator && ! $editor ) {
+			return;
+		}
+		$id   = $creator ? Digitalisimo_AI_Assistant_Tools::created_id( $result['data'] ?? null ) : ( is_array( $input ) && is_numeric( $input['post_id'] ?? null ) ? (int) $input['post_id'] : 0 );
 		$post = $id ? get_post( $id ) : null;
-		if ( $post && in_array( (string) $post->post_status, array( 'draft', 'auto-draft' ), true ) ) {
+		if ( ! $post || ! in_array( (string) $post->post_status, array( 'draft', 'auto-draft' ), true ) ) {
+			return;
+		}
+		if ( $creator ) {
 			$conv['drafts'] = array_values( array_unique( array_merge( array_map( 'intval', (array) ( $conv['drafts'] ?? array() ) ), array( $id ) ) ) );
 			// Para rehacerlo o editarlo después, también desde otra conversación de esta persona.
 			update_post_meta( $id, Digitalisimo_AI_Assistant_Tools::DRAFT_META, (int) get_current_user_id() );
 		}
+		Digitalisimo_AI_Assistant_Tools::stamp( $id );
 	}
 
 	/**
@@ -774,8 +805,13 @@ final class Digitalisimo_AI_Assistant {
 				continue;
 			}
 			$call['input'] = Digitalisimo_AI_Assistant_Tools::prepare_input( $entry, $call['input'] );
-			// Rehacer un borrador que no se puede rehacer: se crea uno nuevo (nada publicado cambia) en vez de un error.
-			list( $call['input'], $fresh ) = Digitalisimo_AI_Assistant_Tools::regenerate_or_new( $entry, $call['input'], (array) ( $conv['drafts'] ?? array() ) );
+			// Rehacer con post_id: lo publicado o inexistente no se toca ni se copia a escondidas; un borrador ajeno se hace
+			// en uno nuevo (y se dice); uno propio con cambios a mano va a la tarjeta (Tools::regenerate_or_new()).
+			list( $call['input'], $redo ) = Digitalisimo_AI_Assistant_Tools::regenerate_or_new( $entry, $call['input'], (array) ( $conv['drafts'] ?? array() ) );
+			if ( 'published' === $redo || 'missing' === $redo ) {
+				self::tool_result( $conv, $call, array( 'status' => 'skipped', 'error' => 'published' === $redo ? Digitalisimo_AI_Assistant_Tools::PUBLISHED_NOTE : Digitalisimo_AI_Assistant_Tools::MISSING_NOTE ), 'draft', $emit, $entry['label'] );
+				continue;
+			}
 			$kind          = Digitalisimo_AI_Assistant_Tools::kind( $entry, $call['input'] );
 			if ( ! Digitalisimo_AI_Assistant_Tools::allowed( $entry, $call['input'] ) ) {
 				self::tool_result( $conv, $call, array( 'status' => 'denied', 'error' => 'No tienes permiso para esta acción en WordPress.' ), $kind, $emit, $entry['label'] );
@@ -798,10 +834,10 @@ final class Digitalisimo_AI_Assistant {
 				Digitalisimo_AI_Assistant_Guard::renew_all();
 				$emit( array( 'type' => 'status', 'text' => 'create' === $draft ? 'Preparando el borrador…' : 'Ajustando el borrador…' ) );
 				$result = self::maybe_applied( $entry, Digitalisimo_AI_Assistant_Tools::run( $entry, $call['input'] ) );
-				if ( $fresh && 'ok' === $result['status'] ) {
-					$result['note'] = 'Se creó un borrador nuevo: el anterior no se podía rehacer y quedó como estaba. No menciones el anterior.';
+				if ( 'new' === $redo && 'ok' === $result['status'] ) {
+					$result['note'] = Digitalisimo_AI_Assistant_Tools::NEW_NOTE;
 				}
-				self::remember_draft( $conv, $entry, $result );
+				self::remember_draft( $conv, $entry, $result, $call['input'] );
 				self::tool_result( $conv, $call, $result, 'draft', $emit, $entry['label'] );
 				continue;
 			}
@@ -822,6 +858,11 @@ final class Digitalisimo_AI_Assistant {
 				continue;
 			}
 			$action = array( 'id' => 'act' . strtolower( wp_generate_password( 16, false, false ) ), 'call' => $call, 'kind' => $kind, 'label' => $entry['label'], 'created' => time(), 'simulation' => null, 'shortcut' => (bool) $shortcut, 'after_read' => (bool) $read );
+			if ( 'edited' === $redo ) {
+				// Un borrador propio que la persona retocó a mano: rehacerlo encima lo aprueba ella.
+				$action['edited'] = true;
+				$action['note']   = 'Este borrador tiene cambios tuyos: ¿lo rehago encima?';
+			}
 			if ( 'destructive' === $kind ) {
 				$action['simulation'] = Digitalisimo_AI_Assistant_Tools::simulate( $entry, $call['input'], $conv['id'] );
 			}
@@ -1008,6 +1049,7 @@ final class Digitalisimo_AI_Assistant {
 			'after_read'  => ! empty( $action['after_read'] ),
 			'state'       => (string) ( $action['state'] ?? 'pending' ),
 			'simulation'  => isset( $action['simulation'] ) ? $action['simulation'] : null,
+			'note'        => (string) ( $action['note'] ?? '' ),
 		);
 	}
 
@@ -1036,7 +1078,8 @@ final class Digitalisimo_AI_Assistant {
 			'- Si el producto que nombra no existe, usa el más parecido de la tienda y dilo en una frase al final; si no hay nada parecido, crea la página con lo que dijo la persona.',
 			'- Pregunta antes sólo si falta algo imposible de deducir sin lo cual no puedes hacer nada. Como mucho una pregunta corta. Nunca pidas listas de datos.',
 			'- Deduce: «de hoy a fin de mes» es hasta el fin de mes de arriba; «el número del sitio» es el WhatsApp o teléfono que publica el sitio; «está en políticas» son las páginas de políticas del sitio; «de 10000 a 7500» es precio normal 10,000 y de oferta 7,500. Todo lo que la persona dijo antes en esta conversación sigue valiendo: no lo vuelvas a preguntar.',
-			'- Si en esta conversación ya preparaste un borrador para lo mismo y te piden rehacerlo o cambiarlo, hazlo sobre ese mismo (create-page con su post_id, o edítalo). Si no se puede, se crea uno nuevo: no menciones el anterior.',
+			'- Si en esta conversación ya preparaste un borrador para lo mismo y te piden rehacerlo o cambiarlo, hazlo sobre ese mismo (create-page con su post_id, o edítalo). La herramienta te dice qué pasó y tú lo dices en una frase llana: si tuvo que hacerlo en una página nueva, dilo; si el borrador tiene cambios de la persona, ella confirma en pantalla si lo rehaces encima.',
+			'- Si lo que piden cambiar es una página ya publicada, no hagas copias a escondidas: dile en una frase llana que esa página está publicada y que cambiarla en vivo necesita su visto bueno, y ofrécele cambiarla directamente (ella lo confirma en pantalla) o hacer una copia en borrador para revisarla. Haz sólo lo que elija.',
 			'- Tras crear, lee una vez lo creado con read-page-text y corrige lo que haya quedado mal. Nada de marcadores [entre corchetes], textos o fotos de muestra ni enlaces a páginas que no existen: si no hay un dato real, ese bloque se quita.',
 			'- Al terminar contesta corto: una línea con lo que hiciste, los enlaces para verlo y editarlo y, al final, una o dos frases con lo que conviene revisar. Nada más.',
 			'',

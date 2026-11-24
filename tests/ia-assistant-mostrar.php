@@ -11,8 +11,10 @@
  *   M3  en el turno en que se preparó un borrador, un cambio en vivo (el precio del producto) no se propone: queda «no se
  *       hizo», sin tarjeta, y el modelo sabe que debe ofrecerlo; en el turno siguiente, si la persona lo pide, sí;
  *   M4  lo que quedó con resultado desconocido no se repite en el mismo turno;
- *   M5  un error que dice que no se hizo nada (4xx) no es «resultado desconocido»;
- *   M6  rehacer un borrador propio (create-page con post_id) no pide tarjeta, también desde otra conversación; uno que
+ *   M5  un error previo a ejecutar no es «resultado desconocido»; uno posterior (salida inválida) o dudoso sí, en llano;
+ *   M6  rehacer un borrador propio sin tocar (create-page con post_id) no pide tarjeta, también desde otra conversación;
+ *       uno retocado a mano pide tarjeta («tiene cambios tuyos»); una página publicada o inexistente no crea nada (y el
+ *       modelo ofrece cambiarla con confirmación o una copia); uno ajeno se hace en una página nueva, dicho; uno que
  *       no se puede rehacer se crea nuevo, sin tocar el otro y con la nota de no mencionarlo;
  *   M7  el filtro del kit `digitalisimo_sales_regenerable` acepta los borradores que el Asistente creó para esa persona;
  *   M8  read-page-text no lee el pie de una imagen que no se ve («Foto de la persona detrás de la marca»);
@@ -52,6 +54,7 @@ wp_register_ability(
 				return array_shift( $GLOBALS['kit_fail'] );
 			}
 			if ( isset( $in['post_id'] ) ) {
+				$GLOBALS['regen_ok'] = apply_filters( 'digitalisimo_sales_regenerable', false, (int) $in['post_id'] );
 				$GLOBALS['posts'][ (int) $in['post_id'] ]->post_title = $in['title'] ?? 'Rehecha';
 				return array( 'ok' => true, 'id' => (int) $in['post_id'], 'status' => 'draft', 'regenerated' => true, 'preview_url' => 'https://sitio.test/?page_id=' . (int) $in['post_id'] . '&preview=true', 'edit_url' => 'https://sitio.test/wp-admin/post.php?post=' . (int) $in['post_id'] . '&action=elementor' );
 			}
@@ -104,7 +107,8 @@ foreach ( array(
 	'«¿Quieres que ponga el precio de oferta en la tienda?»',
 	'No llames a la herramienta hasta que la persona lo pida',
 	'nunca lo repitas: primero consulta el estado real',
-	'no menciones el anterior',
+	'no hagas copias a escondidas',
+	'ofrécele cambiarla directamente (ella lo confirma en pantalla) o hacer una copia en borrador',
 	'Nunca escribas IDs',
 	'[Ver la landing](URL)',
 	'Nunca pegues una URL suelta',
@@ -203,17 +207,38 @@ $GLOBALS['kit_runs'] = array();
 $GLOBALS['script']   = array( array( 'calls' => array( $call( 'digitalisimo-sales-create-page', $offer + array( 'post_id' => $draft ) ) ) ), array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $draft, 'xml' => '<e-flexbox/>' ) ) ) ), 'Rehecha.' );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'rehaz mi landing de ayer' ) ) ) );
 check( ! $of( $ev, 'confirm' ) && $draft === (int) ( $GLOBALS['kit_runs'][0]['post_id'] ?? 0 ) && array( $draft ) === ( $GLOBALS['built'] ?? array() ), 'M6: un borrador que el Asistente creó para esta persona se rehace y se edita sin tarjeta desde otra conversación: ' . json_encode( array( $draft, $GLOBALS['kit_runs'], $GLOBALS['built'] ?? null, array_map( function ( $e ) { return $e['type'] . ':' . ( $e['message']['kind'] ?? '' ) . ':' . ( $e['message']['status'] ?? '' ) . ':' . ( $e['message']['detail'] ?? ( $e['message']['text'] ?? '' ) ); }, $ev ) ), JSON_UNESCAPED_UNICODE ) );
-// Uno que no se puede rehacer (de otra persona, publicado o creado antes de la marca): se crea uno nuevo, sin tocarlo.
-$ajeno     = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'Oferta de fin de mes', 'post_author' => 2 ) );
-$publicada = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Inicio' ) );
-foreach ( array( $ajeno => 'un borrador viejo sin marca', $publicada => 'una página publicada' ) as $id => $what ) {
+// Un borrador ajeno (de otra persona o sin marca): se hace en una página nueva, sin tocarlo, y el modelo debe decirlo.
+$ajeno = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'Oferta de fin de mes', 'post_author' => 2 ) );
+$GLOBALS['kit_runs'] = array();
+$GLOBALS['script']   = array( array( 'calls' => array( $call( 'digitalisimo-sales-create-page', $offer + array( 'post_id' => $ajeno ) ) ) ), 'Hecha.' );
+$ev   = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'rehaz la landing' ) ) ) );
+$data = $sent();
+check( ! $of( $ev, 'confirm' ) && 1 === count( $GLOBALS['kit_runs'] ) && ! isset( $GLOBALS['kit_runs'][0]['post_id'] ) && 'ok' === $data['estado'] && $ajeno !== (int) $data['datos']['id'] && false !== strpos( (string) ( $data['nota'] ?? '' ), 'Díselo a la persona' ), 'M6: con un borrador ajeno se hace una página nueva y el modelo sabe que debe decirlo (nada en silencio)' );
+// Una página publicada o un número que no es una página: no se crea NADA y el modelo sabe qué decir.
+$publicada = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Black Friday' ) );
+$entrada   = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'Una entrada' ) );
+foreach ( array( $publicada => array( 'una página publicada', 'está publicada' ), 99999 => array( 'un número inventado', 'no hay ninguna página' ), $entrada => array( 'una entrada (no una página)', 'no hay ninguna página' ) ) as $id => $c ) {
 	$GLOBALS['kit_runs'] = array();
-	$GLOBALS['script']   = array( array( 'calls' => array( $call( 'digitalisimo-sales-create-page', $offer + array( 'post_id' => $id ) ) ) ), 'Hecha.' );
-	$ev   = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'rehaz la landing' ) ) ) );
+	$antes               = count( $GLOBALS['posts'] );
+	$GLOBALS['script']   = array( array( 'calls' => array( $call( 'digitalisimo-sales-create-page', $offer + array( 'post_id' => $id ) ) ) ), 'Tu landing está publicada: ¿la cambio directo o hago una copia en borrador?' );
+	$ev   = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'a mi landing publicada cámbiale el precio a 6,999' ) ) ) );
 	$data = $sent();
-	check( ! $of( $ev, 'confirm' ) && 1 === count( $GLOBALS['kit_runs'] ) && ! isset( $GLOBALS['kit_runs'][0]['post_id'] ) && 'ok' === $data['estado'] && $id !== (int) $data['datos']['id'] && false !== strpos( (string) ( $data['nota'] ?? '' ), 'No menciones el anterior' ), "M6: con $what se crea un borrador nuevo (sin tarjeta) y el modelo sabe que no debe mencionar el anterior" );
+	check( ! $of( $ev, 'confirm' ) && array() === $GLOBALS['kit_runs'] && $antes + 1 === count( $GLOBALS['posts'] ) && 'skipped' === $data['estado'] && false !== strpos( $data['error'], $c[1] ), "M6: con {$c[0]} no se crea nada (ni una copia escondida) y el modelo recibe qué decir: " . $data['error'] );
 }
-check( 'Oferta de fin de mes' === get_post( $ajeno )->post_title && 'publish' === get_post( $publicada )->post_status, 'M6: el viejo y la publicada quedaron como estaban' );
+check( false !== strpos( Digitalisimo_AI_Assistant_Tools::PUBLISHED_NOTE, 'cambiarla en vivo necesita su visto bueno' ) && false !== strpos( Digitalisimo_AI_Assistant_Tools::PUBLISHED_NOTE, 'copia en borrador' ), 'M6: con una publicada, ofrece cambiarla con su confirmación o una copia en borrador' );
+check( 'Oferta de fin de mes' === get_post( $ajeno )->post_title && 'publish' === get_post( $publicada )->post_status && 'Black Friday' === get_post( $publicada )->post_title, 'M6: el ajeno y la publicada quedaron como estaban' );
+// Un borrador propio retocado a mano después: rehacerlo pide tarjeta, «Este borrador tiene cambios tuyos».
+update_post_meta( $draft, '_elementor_data', '[{"id":"a","elType":"widget","settings":{"title":"Mi texto a mano"}}]' );
+check( 'edited' === Digitalisimo_AI_Assistant_Tools::draft_state( $draft, array() ) && false === apply_filters( 'digitalisimo_sales_regenerable', false, $draft ), 'M6: tras un cambio a mano, el borrador ya no se rehace sin preguntar (tampoco por el filtro del kit)' );
+$GLOBALS['kit_runs'] = array();
+$GLOBALS['script']   = array( array( 'calls' => array( $call( 'digitalisimo-sales-create-page', $offer + array( 'post_id' => $draft ) ) ) ), 'Rehecha.' );
+$ev   = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'rehaz mi landing', 'conversation' => $c6 ) ) ) );
+$card = $of( $ev, 'confirm' )[0]['action'] ?? array();
+check( array() === $GLOBALS['kit_runs'] && 'Este borrador tiene cambios tuyos: ¿lo rehago encima?' === ( $card['note'] ?? '' ), 'M6: rehacer un borrador con cambios tuyos pide la tarjeta con «Este borrador tiene cambios tuyos: ¿lo rehago encima?»' );
+$GLOBALS['regen_ok'] = null;
+$ev = $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $c6, 'action' => $card['id'], 'decision' => 'approve' ) ) ) );
+check( $draft === (int) ( $GLOBALS['kit_runs'][0]['post_id'] ?? 0 ) && true === $GLOBALS['regen_ok'] && 'clean' === Digitalisimo_AI_Assistant_Tools::draft_state( $draft, array() ), 'M6: con el botón se rehace encima (el filtro del kit lo acepta en ese momento) y queda con la huella nueva' );
+check( false === apply_filters( 'digitalisimo_sales_regenerable', false, $ajeno ), 'M6: fuera de esa confirmación, el filtro sigue sin aceptar lo ajeno' );
 
 /* ---------------- M7: el filtro del kit ---------------- */
 check( true === apply_filters( 'digitalisimo_sales_regenerable', false, $draft ) && false === apply_filters( 'digitalisimo_sales_regenerable', false, $ajeno ), 'M7: el kit puede rehacer un borrador que el Asistente creó para esta persona, y no uno ajeno' );

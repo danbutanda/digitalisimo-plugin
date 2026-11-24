@@ -364,6 +364,7 @@
 		return h( 'div', { className: 'dga-confirm' + ( destructive ? ' is-destructive' : '' ), role: 'group', 'aria-label': 'Confirmación: ' + action.label, 'data-action': action.id, 'data-kind': action.kind },
 			h( 'h3', null, h( Icon, { name: destructive ? 'alert' : 'check' } ), destructive ? 'Este cambio no tiene vuelta atrás: confírmalo' : 'Confirma este cambio' ),
 			h( 'p', null, h( 'strong', null, action.label ) ),
+			action.note ? h( 'p', { className: 'dga-warn dga-note' }, action.note ) : null,
 			action.after_read ? h( 'p', { className: 'dga-warn' }, 'Revisa que sea exactamente lo que pediste antes de confirmar.' ) : null,
 			risks.length ? h( 'ul', { className: 'dga-warn dga-risks', 'aria-label': 'Lo arriesgado de esta acción' }, risks.map( ( r, i ) => h( 'li', { key: i }, r ) ) ) : null,
 			action.idempotent ? null : h( 'p', { className: 'dga-warn' }, 'Si falla, puede haberse aplicado igual: no la repitas sin revisar.' ),
@@ -569,7 +570,7 @@
 		return h( 'div', { className: 'dga-welcome' },
 			h( 'span', { className: 'dga-welcome-icon' }, h( Icon, { name: 'sparkle' } ) ),
 			h( 'h2', null, '¿En qué te ayudo hoy?' ),
-			h( 'p', null, 'Pídeme lo que necesites de tu sitio. Primero lo preparo en borrador para que lo veas; nada se publica ni cambia sin que tú lo confirmes.' ),
+			h( 'p', null, 'Pídeme lo que necesites de tu sitio. Primero lo preparo en borrador para que lo veas. Nada se publica ni cambia en tu sitio sin que tú lo confirmes, y si un borrador tiene cambios tuyos, te pregunto antes de rehacerlo.' ),
 			h( 'div', { className: 'dga-suggestions' }, SUGGESTIONS.map( ( s ) => h( 'button', { key: s[ 1 ], type: 'button', className: 'dga-suggestion', onClick: () => props.onSuggestion( s[ 0 ] ) }, h( Icon, { name: 'sparkle' } ), s[ 1 ] ) ) ) );
 	}
 

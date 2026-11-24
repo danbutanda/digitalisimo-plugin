@@ -214,7 +214,9 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
   borrador), sólo si lo creó el kit en este sitio, el usuario puede editarlo (`edit_post`) y está en borrador; una
   página publicada, programada, privada, en revisión, de otro sitio o que no creó el kit da error y no se toca. Un
   borrador de este sitio sin la marca (creado antes de que el kit la guardara, o por el Asistente IA de IA Tools para
-  esa persona) se acepta sólo si el filtro `digitalisimo_sales_regenerable` lo dice, y al rehacerse queda marcado
+  esa persona) se acepta sólo si el filtro `digitalisimo_sales_regenerable` lo dice, y al rehacerse queda marcado. La marca guarda
+  además la huella (`hash`, md5 del `_elementor_data`) de lo que dejó el kit, para que el Asistente sepa si alguien lo
+  retocó a mano antes de rehacerlo
   (caso plomerito 2, 2026-11-24: «no aceptó rehacer el borrador 1040, aunque lo creó ella misma»). El
   núcleo marca la página como cambiada por el MCP. Los encabezados sueltos de la descripción («Beneficios»,
   «Características:», «Detalles:», un `<h3>`) no se copian como beneficio ni como párrafo.

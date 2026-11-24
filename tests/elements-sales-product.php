@@ -910,7 +910,7 @@ namespace {
 	// T1. post_id regenera el MISMO borrador del kit (Pages de verdad, sin $create de prueba).
 	sp_reset();
 	$primera = Executor::run( 'create-page', $promo );
-	check( is_array( $primera ) && false === $primera['regenerated'] && 'draft' === $GLOBALS['sp']['posts'][ $primera['id'] ]['post_status'] && array( 'blog' => 1, 'template' => 'venta-corta' ) === $GLOBALS['sp']['postmeta'][ $primera['id'] ]['_digitalisimo_sales_kit'], 'T1: el borrador nuevo lleva la marca del kit (sitio y plantilla)' );
+	check( is_array( $primera ) && false === $primera['regenerated'] && 'draft' === $GLOBALS['sp']['posts'][ $primera['id'] ]['post_status'] && array( 'blog' => 1, 'template' => 'venta-corta' ) === array_intersect_key( $GLOBALS['sp']['postmeta'][ $primera['id'] ]['_digitalisimo_sales_kit'], array( 'blog' => 1, 'template' => 1 ) ) && md5( '' ) === ( $GLOBALS['sp']['postmeta'][ $primera['id'] ]['_digitalisimo_sales_kit']['hash'] ?? '' ), 'T1: el borrador nuevo lleva la marca del kit (sitio, plantilla y la huella de lo que dejó)' );
 	$antes   = count( $GLOBALS['sp']['inserted'] );
 	$segunda = Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'Otra vuelta' ) );
 	check( is_array( $segunda ) && true === $segunda['regenerated'] && $primera['id'] === $segunda['id'] && $antes === count( $GLOBALS['sp']['inserted'] ) && 'Otra vuelta' === $GLOBALS['sp']['posts'][ $primera['id'] ]['post_title'] && 'draft' === $GLOBALS['sp']['posts'][ $primera['id'] ]['post_status'], 'T1: con post_id se regenera el mismo borrador (mismo ID, sin crear otro, sigue en borrador)' );

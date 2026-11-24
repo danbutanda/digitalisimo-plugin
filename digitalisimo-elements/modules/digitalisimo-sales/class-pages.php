@@ -192,6 +192,12 @@ final class Pages {
 				)
 			);
 		}
+		// La huella de lo que dejó el kit: quien lo rehace después (el Asistente IA) sabe si alguien lo retocó a mano.
+		$mark = function_exists( 'get_post_meta' ) ? get_post_meta( $post_id, self::META, true ) : null;
+		if ( is_array( $mark ) ) {
+			$mark['hash'] = md5( (string) get_post_meta( $post_id, '_elementor_data', true ) );
+			update_post_meta( $post_id, self::META, $mark );
+		}
 		$document = \Elementor\Plugin::$instance->documents->get( $post_id, false );
 		return array(
 			'id'          => $post_id,
