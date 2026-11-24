@@ -231,6 +231,16 @@ return array(
 		array( 'a', 'admin_post_digitalisimo_seo_404_action', 'handle_action', 10, 1, '**' ),
 		array( 'a', 'template_redirect', 'record', 99, 1, 'f*' ),
 	) ),
+	'Digitalisimo_Integrations_Index_Hygiene' => array( 'hooks' => array(
+		array( 'a', 'save_post', 'on_save', 30, 2, '**' ),
+		array( 'a', 'digitalisimo_seo_hygiene_scan', 'run_batch', 10, 1, '**' ),
+		array( 'a', 'admin_init', 'maybe_start', 20, 1, '**' ),
+		array( 'a', 'activated_plugin', 'request_rescan', 10, 1, '**' ),
+		array( 'a', 'deactivated_plugin', 'request_rescan', 10, 1, '**' ),
+		array( 'a', 'switch_theme', 'request_rescan', 10, 1, '**' ),
+		array( 'a', 'upgrader_process_complete', 'request_rescan', 10, 1, '**' ),
+		array( 'a', 'admin_post_digitalisimo_seo_index_lock', 'handle_lock', 10, 1, '**' ),
+	) ),
 	'Digitalisimo_Integrations_Verification' => array( 'hooks' => array(
 		array( 'a', 'wp_head', 'output', 2, 1, '**' ),
 	) ),
