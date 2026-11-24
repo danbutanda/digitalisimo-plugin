@@ -123,7 +123,8 @@ class Digitalisimo_Integrations_Brand_Check {
 		$urls  = self::configured();
 		$state = self::state();
 		$stale = (int) ( $state['at'] ?? 0 ) < time() - 2 * DAY_IN_SECONDS;
-		if ( ! array_filter( $urls ) && empty( $state['urls'] ) ) return false;
+		// Sin imagen social ni logo de SEO no hay nada que comprobar: el logo del tema y el icono sólo son reservas.
+		if ( '' === $urls['image'] && '' === $urls['logo'] && empty( $state['urls'] ) ) return false;
 		if ( ( $state['fp'] ?? '' ) === self::fingerprint( $urls ) && ! $stale ) return false;
 		if ( wp_next_scheduled( self::HOOK ) ) return false;
 		return (bool) wp_schedule_single_event( time() + 5, self::HOOK );
@@ -152,7 +153,7 @@ class Digitalisimo_Integrations_Brand_Check {
 		);
 		update_option( self::OPTION, $state, true );
 		if ( $retry && ! wp_next_scheduled( self::HOOK, array( self::RETRY ) ) ) wp_schedule_single_event( time() + HOUR_IN_SECONDS, self::HOOK, array( self::RETRY ) );
-		if ( array_filter( $urls ) && ! wp_next_scheduled( self::HOOK, array( self::DAILY ) ) ) wp_schedule_single_event( time() + DAY_IN_SECONDS, self::HOOK, array( self::DAILY ) );
+		if ( ( '' !== $urls['image'] || '' !== $urls['logo'] ) && ! wp_next_scheduled( self::HOOK, array( self::DAILY ) ) ) wp_schedule_single_event( time() + DAY_IN_SECONDS, self::HOOK, array( self::DAILY ) );
 		return $state;
 	}
 

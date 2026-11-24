@@ -91,7 +91,8 @@ function social_html() {
 
 // 4. Un sitio sin imágenes de marca no cambia: nada que comprobar ni avisar.
 check( '' === $B::url( 'image' ) && '' === $B::url( 'logo' ), 'Sin imágenes configuradas no se publica ninguna.' );
-check( false === $B::refresh() && ! $GLOBALS['cron'], 'Sin imágenes configuradas no se programa nada.' );
+$GLOBALS['theme']['custom_logo'] = 11;
+check( false === $B::refresh() && ! $GLOBALS['cron'], 'Sin imagen social ni logo de SEO no se programa nada, aunque el tema tenga logo.' );
 check( array() === $B::warnings(), 'Sin imágenes configuradas no hay avisos.' );
 
 // Imágenes como las de la auditoría: la social en un dominio que ya no existe y el logo de una demo.
