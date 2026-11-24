@@ -232,7 +232,7 @@ class Digitalisimo_Hosting {
 		if ( $inherits ) echo '<p class="description">Usa la cuenta de Namecheap de la red.</p>';
 		else { self::field( 'api_user', 'Usuario API Namecheap', $o ); self::field( 'username', 'Usuario Namecheap', $o ); self::field( 'api_key', 'Clave API Namecheap', $o, 'password' ); self::field( 'client_ip', 'IP autorizada por Namecheap', $o ); }
 		echo '<h2>Webuzo (cuentas de hosting)</h2>';
-		if ( class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) Digitalisimo_Hosting_Webuzo::settings_banner( $network );
+		if ( class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) Digitalisimo_Hosting_Webuzo::settings_banner( $network, $o );
 		if ( $inherits ) echo '<p class="description">Usa el servidor Webuzo y los nameservers de la red.</p>';
 		else {
 			self::field( 'webuzo_url', 'URL del panel de administración de Webuzo', $o, 'text', 'Por ejemplo https://servidor.ejemplo.com:2005 (el puerto 2005 es el de administración; los clientes entran por el 2003).' );
@@ -304,6 +304,9 @@ class Digitalisimo_Hosting {
 	private static function save( $network ) {
 		$o = $network ? self::network() : self::local();
 		$in = (array) wp_unslash( $_POST['hosting'] ?? array() );
+		// La clave de Webuzo que usaba esta pantalla antes de guardar (la heredada o la de wp-config.php también cuentan).
+		$old_webuzo = $network ? (string) ( $o['webuzo_api_key'] ?? '' ) : (string) ( self::all()['webuzo_api_key'] ?? '' );
+		$was_on = ! $network && ! empty( $o['provision_enabled'] );
 		$text = $network ? array( 'api_user', 'username', 'client_ip', 'webuzo_api_user' ) : array( 'api_user', 'username', 'client_ip', 'form_selector', 'domain_field', 'extension_field', 'webuzo_api_user' );
 		foreach ( $text as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = sanitize_text_field( $in[ $key ] );
 		// Las mismas reglas en el sitio y en la red: la URL del panel sólo https con host, los nameservers sólo nombres
@@ -328,12 +331,15 @@ class Digitalisimo_Hosting {
 			if ( '' !== $typed ) { $o[ $key ] = $typed; $webuzo_key = $webuzo_key || 'webuzo_api_key' === $key; }
 			elseif ( ! empty( $in[ $key . '_remove' ] ) ) $o[ $key ] = '';
 		}
+		// Al encender la venta automática se anota desde cuándo: los pedidos anteriores nunca se aprovisionan solos.
+		if ( ! $network && ! $was_on && ! empty( $o['provision_enabled'] ) ) $o['provision_since'] = time();
 		if ( $network ) update_site_option( self::OPTION, $o ); else update_option( self::OPTION, $o, false );
-		// Una clave de Webuzo NUEVA levanta la parada de su servidor por «clave rechazada» (y vuelve a encolar lo detenido);
-		// la misma clave sólo con «Ya corregí la causa» (p. ej. la IP autorizada). Las paradas de otros servidores no se tocan.
-		if ( ( $webuzo_key || ! empty( $in['webuzo_unblock'] ) ) && class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) {
-			$s = $network ? wp_parse_args( $o, self::defaults() ) : self::all();
-			( new Digitalisimo_Hosting_Webuzo( $s['webuzo_url'], $s['webuzo_api_user'], $s['webuzo_api_key'], ! empty( $s['webuzo_insecure'] ) ) )->unblock_mine( ! empty( $in['webuzo_unblock'] ) );
+		// La parada por clave rechazada es de la CLAVE: una clave distinta guardada ya no está detenida (y se retoma lo
+		// detenido; la parada de la clave reemplazada se olvida). La misma clave sólo con «Ya corregí la causa».
+		if ( class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) {
+			$new_webuzo = $network ? (string) ( $o['webuzo_api_key'] ?? '' ) : (string) ( self::all()['webuzo_api_key'] ?? '' );
+			if ( ! empty( $in['webuzo_unblock'] ) ) { Digitalisimo_Hosting_Webuzo::forget( $new_webuzo ); Digitalisimo_Hosting_Webuzo::resume(); }
+			elseif ( $webuzo_key && '' !== $new_webuzo && ! hash_equals( $old_webuzo, $new_webuzo ) ) { Digitalisimo_Hosting_Webuzo::forget( $old_webuzo ); Digitalisimo_Hosting_Webuzo::resume(); }
 		}
 		if ( ! $network && ! empty( $o['provision_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) Digitalisimo_Hosting_Provisioning::ensure_daily();
 		if ( ! $network && ! empty( $o['pricing_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Pricing' ) ) Digitalisimo_Hosting_Pricing::ensure_schedule();
@@ -438,7 +444,8 @@ class Digitalisimo_Hosting {
 		// Un dominio se registra a nombre del cliente y Namecheap exige su dirección completa: con un dominio en el
 		// carrito, «simplificar» conserva los campos de dirección (como los pinta WooCommerce, obligatorios).
 		$keep = array();
-		if ( self::cart_has_domain() ) foreach ( array( 'billing_last_name', 'billing_country', 'billing_address_1', 'billing_city', 'billing_state', 'billing_postcode' ) as $key ) if ( isset( $fields['billing'][ $key ] ) ) $keep[ $key ] = array( 'required' => true ) + $fields['billing'][ $key ];
+		// Sólo con la venta automática encendida (es la que registra a nombre del cliente): instalar no cambia el pago.
+		if ( ! empty( self::all()['provision_enabled'] ) && self::cart_has_domain() ) foreach ( array( 'billing_last_name', 'billing_country', 'billing_address_1', 'billing_city', 'billing_state', 'billing_postcode' ) as $key ) if ( isset( $fields['billing'][ $key ] ) ) $keep[ $key ] = array( 'required' => true ) + $fields['billing'][ $key ];
 		$fields = self::simple_checkout_fields( $fields );
 		$fields['billing'] += $keep;
 		return $fields;

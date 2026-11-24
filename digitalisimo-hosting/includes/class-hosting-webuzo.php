@@ -24,13 +24,21 @@ defined( 'ABSPATH' ) || exit;
  * correos ni registros.
  */
 class Digitalisimo_Hosting_Webuzo {
-	/** Paradas por clave rechazada, de toda la red: servidor => array( 't' => cuándo, 'msg' => motivo, 'key' => huella de la clave ). */
+	/**
+	 * Claves rechazadas, de toda la red: huella de la clave => array( 't' => cuándo, 'msg' => motivo, 'key' => huella ).
+	 * La parada va por CLAVE y no por servidor: escribir la URL de otra forma (IP en vez de nombre, otro puerto) no la
+	 * salta. La huella no usa las sales de WordPress (rotarlas tampoco la salta).
+	 */
 	const BLOCK = 'digitalisimo_hosting_webuzo_block';
+	/** Operaciones que cambian algo en Webuzo: nunca sin la consulta previa de sólo lectura (act=users) en esta petición. */
+	const MUTATING = array( 'add_user', 'suspend', 'unsuspend' );
 
 	private $url;
 	private $user;
 	private $key;
 	private $insecure;
+	/** La consulta de sólo lectura ya respondió bien en esta petición (con esta clave). */
+	private $verified = false;
 
 	public function __construct( $url, $user, $key, $insecure = false ) {
 		$this->url      = rtrim( (string) $url, '/' );
@@ -42,16 +50,22 @@ class Digitalisimo_Hosting_Webuzo {
 	/** El servidor de los ajustes de este sitio (con la herencia de la red y las constantes de wp-config.php). */
 	public static function from_settings() {
 		$o = Digitalisimo_Hosting::settings();
+		return self::from_values( $o );
+	}
+
+	public static function from_values( array $o ) {
 		return new self( $o['webuzo_url'] ?? '', $o['webuzo_api_user'] ?? '', $o['webuzo_api_key'] ?? '', ! empty( $o['webuzo_insecure'] ) );
 	}
 
 	public function configured() { return (bool) preg_match( '#^https://#i', $this->url ) && '' !== $this->user && '' !== $this->key; }
 
-	/** Identificador del servidor (URL y usuario), sin la clave. */
+	/** Identificador del servidor (URL y usuario), sin la clave. Sólo informativo: la parada no depende de él. */
 	public function server() { return substr( md5( strtolower( $this->url ) . '|' . strtolower( $this->user ) ), 0, 12 ); }
 
-	/** Huella de la clave (no reversible): una clave distinta de la rechazada levanta la parada sola. */
-	private function fingerprint() { return substr( hash_hmac( 'sha256', $this->key, function_exists( 'wp_salt' ) ? wp_salt( 'auth' ) : 'digitalisimo' ), 0, 16 ); }
+	/** Huella no reversible de una clave (SHA-256 recortado, sin sales: una clave de API ya es aleatoria). */
+	public static function fingerprint_of( $key ) { return '' === (string) $key ? '' : substr( hash( 'sha256', 'digitalisimo-webuzo-key|' . $key ), 0, 24 ); }
+
+	private function fingerprint() { return self::fingerprint_of( $this->key ); }
 
 	/** El panel de los clientes: el mismo servidor en el puerto 2003. */
 	public function panel_url() {
@@ -60,66 +74,80 @@ class Digitalisimo_Hosting_Webuzo {
 		return function_exists( 'apply_filters' ) ? (string) apply_filters( 'digitalisimo_hosting_panel_url', $url, $this->url ) : $url;
 	}
 
-	/** La parada vigente de este servidor (o null): sigue mientras la clave sea la misma que Webuzo rechazó. */
+	/** La parada de esta clave (o null): sigue hasta guardar otra clave o marcar «Ya corregí la causa». */
 	public function blocked() {
-		$all = (array) get_site_option( self::BLOCK, array() );
-		$row = $all[ $this->server() ] ?? null;
-		if ( ! is_array( $row ) ) return null;
-		return hash_equals( (string) ( $row['key'] ?? '' ), $this->fingerprint() ) ? $row : null;
+		$fp = $this->fingerprint();
+		if ( '' === $fp ) return null;
+		foreach ( (array) get_site_option( self::BLOCK, array() ) as $row ) if ( is_array( $row ) && hash_equals( (string) ( $row['key'] ?? '' ), $fp ) ) return $row;
+		return null;
 	}
 
-	/** ¿Hay alguna parada guardada (de cualquier servidor)? */
+	/** ¿Hay alguna parada guardada (de cualquier clave)? */
 	public static function any_block() {
 		foreach ( (array) get_site_option( self::BLOCK, array() ) as $row ) if ( is_array( $row ) ) return $row;
 		return null;
 	}
 
 	/**
-	 * El administrador escribió una clave para este servidor: se levanta su parada sólo si la clave es otra (la misma
-	 * clave rechazada sigue detenida, salvo $force: «ya corregí la IP autorizada, reintentar con la misma clave»). Las
-	 * paradas de otros servidores no se tocan. Avisa para volver a encolar lo detenido.
+	 * Quita la parada de una clave (la que se reemplazó al guardar otra, o la misma con «Ya corregí la causa») y avisa
+	 * para volver a encolar lo detenido. Las paradas de otras claves siguen.
 	 */
-	public function unblock_mine( $force = false ) {
+	public static function forget( $key ) {
+		$fp = self::fingerprint_of( $key );
 		$all = (array) get_site_option( self::BLOCK, array() );
-		$row = $all[ $this->server() ] ?? null;
-		if ( ! is_array( $row ) ) return false;
-		if ( ! $force && hash_equals( (string) ( $row['key'] ?? '' ), $this->fingerprint() ) ) return false;
-		unset( $all[ $this->server() ] );
-		if ( $all ) update_site_option( self::BLOCK, $all ); else delete_site_option( self::BLOCK );
-		if ( function_exists( 'do_action' ) ) do_action( 'digitalisimo_hosting_webuzo_unblocked', true );
-		return true;
+		$had = false;
+		foreach ( $all as $k => $row ) if ( ! is_array( $row ) || ( '' !== $fp && hash_equals( (string) ( $row['key'] ?? '' ), $fp ) ) ) { unset( $all[ $k ] ); $had = true; }
+		if ( $had ) { if ( $all ) update_site_option( self::BLOCK, $all ); else delete_site_option( self::BLOCK ); }
+		return $had;
 	}
 
-	/** Compatibilidad: levanta la parada del servidor de los ajustes de este sitio si su clave ya es otra. */
-	public static function unblock() { return self::from_settings()->unblock_mine(); }
+	/** Tras guardar: retoma lo detenido (con una clave nueva, o con la misma tras «Ya corregí la causa»). */
+	public static function resume() { if ( function_exists( 'do_action' ) ) do_action( 'digitalisimo_hosting_webuzo_unblocked', true ); }
+
+	/** «Ya corregí la causa» con esta clave: quita su parada y retoma. */
+	public function unblock_mine( $force = false ) {
+		if ( ! $force ) return false;
+		$had = self::forget( $this->key );
+		self::resume();
+		return $had;
+	}
 
 	private function block( $message ) {
 		$all = (array) get_site_option( self::BLOCK, array() );
 		$row = array( 't' => time(), 'msg' => self::clean( $message ), 'key' => $this->fingerprint() );
-		$all[ $this->server() ] = $row;
+		$all[ $row['key'] ] = $row;
 		update_site_option( self::BLOCK, $all );
 		if ( function_exists( 'do_action' ) ) do_action( 'digitalisimo_hosting_webuzo_blocked', $row );
 	}
 
-	/** El aviso de la pantalla de ajustes (sitio o red) mientras haya una parada. */
-	public static function settings_banner( $network = false ) {
-		$row = self::any_block();
+	/** El aviso de la pantalla de ajustes (sitio o red) mientras la clave de esa pantalla esté detenida. */
+	public static function settings_banner( $network = false, $o = null ) {
+		$row = is_array( $o ) ? self::from_values( $o )->blocked() : self::any_block();
 		if ( ! $row ) return;
-		echo '<div class="notice notice-error inline"><p><strong>Aprovisionamiento detenido:</strong> Webuzo rechazó la clave de API el ' . esc_html( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i', (int) $row['t'] ) : gmdate( 'Y-m-d H:i', (int) $row['t'] ) ) . ' (' . esc_html( (string) $row['msg'] ) . '). No se hará ninguna llamada a Webuzo hasta que escribas y guardes una clave nueva aquí' . ( $network ? '' : ' (o en la red, si este sitio la hereda)' ) . '. Antes, revisa en Webuzo que la clave exista y que la IP de este servidor esté autorizada.</p><p><label><input type="checkbox" name="hosting[webuzo_unblock]" value="1"> Ya corregí la causa (por ejemplo, autoricé la IP): reintentar con la misma clave al guardar</label></p></div>';
+		echo '<div class="notice notice-error inline"><p><strong>Aprovisionamiento detenido:</strong> Webuzo rechazó la clave de API el ' . esc_html( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i', (int) $row['t'] ) : gmdate( 'Y-m-d H:i', (int) $row['t'] ) ) . ' (' . esc_html( (string) $row['msg'] ) . '). No se hará ninguna llamada a Webuzo con esta clave hasta que escribas y guardes una clave nueva aquí' . ( $network ? '' : ' (o en la red, si este sitio la hereda)' ) . '. Antes, revisa en Webuzo que la clave exista y que la IP de este servidor esté autorizada.</p><p><label><input type="checkbox" name="hosting[webuzo_unblock]" value="1"> Ya corregí la causa (por ejemplo, autoricé la IP): reintentar con la misma clave al guardar</label></p></div>';
 	}
 
 	/**
 	 * Una llamada a la API. Devuelve array( 'kind' => ok|transient|auth|api|blocked|config, 'data' => JSON, 'message' ).
-	 *   transient  no llegó a Webuzo o Webuzo no pudo atender (red, tiempo agotado, 5xx): se puede reintentar.
-	 *   auth       clave rechazada o respuesta que no se reconoce: parada global, nunca se reintenta.
-	 *   api        Webuzo contestó con un error que no es de clave (usuario repetido, plan inexistente…): no se reintenta.
-	 *   blocked    hay una parada vigente: no se llamó.
+	 *   transient  sólo fallas de transporte: sin conexión, tiempo agotado, 5xx/408/429 sin cuerpo de la API.
+	 *   auth       la API rechazó o contestó algo que no se reconoce: parada de esta clave, nunca se reintenta. La
+	 *              consulta de sólo lectura (act=users) es CERRADA: cualquier error suyo, en cualquier idioma, o una
+	 *              respuesta sin la forma esperada, se trata como clave rechazada.
+	 *   api        error de una operación (add_user, suspend, unsuspend) que no es de clave; no se reintenta.
+	 *   blocked    hay una parada vigente para esta clave: no se llamó.
 	 *   config     faltan la URL, el usuario o la clave: no se llamó.
+	 * Las operaciones que cambian algo hacen antes, en la misma petición, la consulta de sólo lectura: ninguna ruta
+	 * (crear, suspender, reactivar, renovar, reintento manual) llama a Webuzo sin pasar por esa decisión.
 	 */
 	public function call( $act, array $post = array() ) {
 		if ( ! $this->configured() ) return array( 'kind' => 'config', 'data' => array(), 'message' => 'Faltan la URL, el usuario o la clave de la API de Webuzo en Digitalisimo → Hosting.' );
 		$blocked = $this->blocked();
 		if ( $blocked ) return array( 'kind' => 'blocked', 'data' => array(), 'message' => 'Aprovisionamiento detenido: Webuzo rechazó la clave de API (' . $blocked['msg'] . '). Guarda una clave nueva en Digitalisimo → Hosting.' );
+		$op = 'users' === $act ? ( isset( $post['suspend'] ) ? 'suspend' : ( isset( $post['unsuspend'] ) ? 'unsuspend' : 'list' ) ) : $act;
+		if ( 'list' !== $op && ! $this->verified ) {
+			$pre = $this->users();
+			if ( 'ok' !== $pre['kind'] ) return $pre;
+		}
 		$url      = $this->url . '/index.php?api=json&act=' . rawurlencode( $act );
 		$response = wp_remote_post(
 			$url,
@@ -133,10 +161,16 @@ class Digitalisimo_Hosting_Webuzo {
 		self::$redact = array_filter( array( $this->key, (string) ( $post['user_passwd'] ?? '' ) ), 'strlen' );
 		$result = self::classify( $response );
 		self::$redact = array();
-		// Crear, suspender y reactivar sólo cuentan como hechos con la confirmación «done» de la documentación.
-		if ( 'ok' === $result['kind'] && 'users' !== $act && ! isset( $result['data']['done'] ) ) $result = array( 'kind' => 'api', 'data' => $result['data'], 'message' => 'Webuzo no confirmó la operación (sin «done»)' );
-		if ( 'ok' === $result['kind'] && 'users' === $act && ( isset( $post['suspend'] ) || isset( $post['unsuspend'] ) ) && ! isset( $result['data']['done'] ) ) $result = array( 'kind' => 'api', 'data' => $result['data'], 'message' => 'Webuzo no confirmó la operación (sin «done»)' );
+		if ( 'list' === $op ) {
+			// Cerrada: un error de la consulta de sólo lectura es una clave rechazada, diga lo que diga.
+			if ( 'api' === $result['kind'] ) $result['kind'] = 'auth';
+			if ( 'ok' === $result['kind'] && ( ! isset( $result['data']['users'] ) || ! is_array( $result['data']['users'] ) ) ) $result = array( 'kind' => 'auth', 'data' => array(), 'message' => 'La lista de cuentas de Webuzo no trae «users»; se trata como clave rechazada para no gastar intentos' );
+		} elseif ( 'ok' === $result['kind'] && ! isset( $result['data']['done'] ) ) {
+			// Crear, suspender y reactivar sólo cuentan como hechos con la confirmación «done» de la documentación.
+			$result = array( 'kind' => 'api', 'data' => $result['data'], 'message' => 'Webuzo no confirmó la operación (sin «done»)' );
+		}
 		if ( 'auth' === $result['kind'] ) $this->block( $result['message'] );
+		if ( 'list' === $op && 'ok' === $result['kind'] ) $this->verified = true;
 		return $result;
 	}
 
@@ -156,13 +190,16 @@ class Digitalisimo_Hosting_Webuzo {
 			$message = self::flatten( $json['error'] );
 			return array( 'kind' => self::is_auth_message( $message ) ? 'auth' : 'api', 'data' => $json, 'message' => $message );
 		}
-		if ( $code >= 500 ) return array( 'kind' => 'transient', 'data' => $json, 'message' => 'Webuzo no pudo atender (HTTP ' . $code . ')' );
 		return array( 'kind' => 'ok', 'data' => $json, 'message' => isset( $json['done'] ) ? self::flatten( $json['done'] ) : '' );
 	}
 
-	/** ¿El error es de credenciales o del bloqueo por intentos? (textos de https://webuzo.com/docs/api/brute-force/). */
+	/**
+	 * ¿El error de una operación es de credenciales o del bloqueo por intentos? Textos de
+	 * https://webuzo.com/docs/api/brute-force/ (configurables por el administrador de Webuzo, también en español). Es la
+	 * segunda red: la primera es la consulta de sólo lectura cerrada que precede a toda operación.
+	 */
 	public static function is_auth_message( $message ) {
-		return (bool) preg_match( '/incorrect\s+(user\s*name|username|password|api)|invalid\s+(api|login|credential|key)|api\s*key|apikey|attempt\(s\)\s*left|attempts?\s+left|exceeded\s+maximum\s+login|blacklist|unauthori[sz]ed|not\s+authori[sz]ed|authenticat|access\s+denied|permission\s+denied|login\s+(failed|required)|please\s+log\s*in/i', (string) $message );
+		return (bool) preg_match( '/incorrect\s+(user\s*name|username|password|api)|invalid\s+(api|login|credential|key)|api\s*key|apikey|attempt\(s\)\s*left|attempts?\s+left|exceeded\s+maximum\s+login|blacklist|unauthori[sz]ed|not\s+authori[sz]ed|authenticat|access\s+denied|permission\s+denied|login\s+(failed|required)|please\s+log\s*in|contrase|usuario\s+o\s+clave|clave\s+(de\s+)?api|intento|bloquead|lista\s+negra|acceso\s+denegado|no\s+autorizad|credencial|inicia(r)?\s+sesi/iu', (string) $message );
 	}
 
 	/** Un error de Webuzo puede ser un texto o una lista; se junta en una línea sin HTML. */
@@ -184,15 +221,10 @@ class Digitalisimo_Hosting_Webuzo {
 		return substr( trim( preg_replace( '/\s+/', ' ', strip_tags( $text ) ) ), 0, 300 );
 	}
 
-	/** Cuentas del servidor: usuario => array( 'user', 'domain', 'status', … ). */
+	/** Cuentas del servidor: usuario => array( 'user', 'domain', 'status', … ). Es la consulta de sólo lectura. */
 	public function users() {
 		$r = $this->call( 'users' );
 		if ( 'ok' !== $r['kind'] ) return $r;
-		if ( ! isset( $r['data']['users'] ) || ! is_array( $r['data']['users'] ) ) {
-			// Sin cuentas Webuzo puede devolver la lista vacía; cualquier otra forma no se reconoce.
-			if ( array_key_exists( 'users', $r['data'] ) ) $r['data']['users'] = array();
-			else return array( 'kind' => 'api', 'data' => array(), 'message' => 'La lista de cuentas de Webuzo no trae «users».' );
-		}
 		$users = array();
 		foreach ( $r['data']['users'] as $name => $row ) {
 			$row = (array) $row;
@@ -207,7 +239,15 @@ class Digitalisimo_Hosting_Webuzo {
 		return $this->call( 'add_user', array( 'create_user' => 1, 'user' => $user, 'domain' => $domain, 'user_passwd' => $password, 'cnf_user_passwd' => $password, 'email' => $email, 'plan' => $plan ) );
 	}
 
-	public function suspend( $user ) { return $this->call( 'users', array( 'suspend' => $user, 'skip' => 1 ) ); }
+	/** Suspender y reactivar: antes la consulta de sólo lectura, y la cuenta tiene que existir. */
+	public function suspend( $user ) { return $this->toggle( $user, 'suspend' ); }
 
-	public function unsuspend( $user ) { return $this->call( 'users', array( 'unsuspend' => $user, 'skip' => 1 ) ); }
+	public function unsuspend( $user ) { return $this->toggle( $user, 'unsuspend' ); }
+
+	private function toggle( $user, $op ) {
+		$list = $this->users();
+		if ( 'ok' !== $list['kind'] ) return $list;
+		if ( ! isset( $list['users'][ strtolower( (string) $user ) ] ) ) return array( 'kind' => 'api', 'data' => array(), 'message' => 'La cuenta «' . $user . '» no existe en Webuzo' );
+		return $this->call( 'users', array( $op => $user, 'skip' => 1 ) );
+	}
 }
