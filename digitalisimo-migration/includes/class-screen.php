@@ -159,12 +159,13 @@ final class Screen {
 			return 'Ya está activo.';
 		}
 		if ( ! $theme['hello'] ) {
-			return sprintf( 'Se queda %s: el tema DIGITALÍSIMO sólo reproduce a Hello Elementor, así que con otro tema podría cambiar lo que se ve.', $theme['name'] );
+			return sprintf( 'Se queda %s: el tema DIGITALÍSIMO reproduce a Hello Elementor, así que con otro tema cambiaría lo que se ve.', $theme['name'] );
 		}
+		$where = $network ? 'En cada sitio con Hello Elementor o un hijo suyo, Migrar' : 'Migrar';
 		if ( $theme['child'] ) {
-			return ( $network ? 'En cada sitio con Hello Elementor o un hijo suyo' : 'Se cambia' ) . ' al tema DIGITALÍSIMO si el functions.php del hijo sólo encola hojas, fuentes y scripts (se lee sin ejecutarlo, con el tema ya instalado) y el Theme Builder de DIGITALÍSIMO Elements carga. Si el hijo tiene otro PHP (ganchos, shortcodes, plantillas), se queda y el informe dice qué es: Migrar deja ese PHP en Código PHP de DIGITALÍSIMO Tools, inactivo, para que lo revises y lo actives, y al volver a pulsar Migrar el tema cambia y ese PHP sigue corriendo. Si después la portada no responde o no se pinta igual, se vuelve al tema hijo. Hello no se borra mientras el hijo esté instalado.';
+			return $where . ' instala o actualiza el tema DIGITALÍSIMO desde la Release y lo activa en la misma pasada. Las hojas y fuentes del hijo las carga el tema propio; el resto de su functions.php (ganchos, shortcodes, funciones) pasa a Código PHP de DIGITALÍSIMO Tools, que Migrar instala, actualiza o activa si hace falta, y queda activo. Después compara la portada, las páginas y las que usan plantillas del hijo: si algo no responde o no se pinta igual, vuelve solo al tema hijo y el informe dice qué página y qué cambió. Con el tema propio verificado, retira el hijo y Hello cuando nada los usa.';
 		}
-		return ( $network ? 'En cada sitio con Hello Elementor o un hijo suyo' : 'Se cambia' ) . ' al tema DIGITALÍSIMO, si el Theme Builder de DIGITALÍSIMO Elements carga (se comprueba después de instalarlo); si la portada no responde o no se pinta igual, se vuelve a Hello.';
+		return $where . ' instala o actualiza el tema DIGITALÍSIMO desde la Release y lo activa si el Theme Builder de DIGITALÍSIMO Elements carga; si la portada no responde o no se pinta igual, vuelve solo a Hello.';
 	}
 
 	public static function page() {

@@ -70,14 +70,22 @@ if (/name="log"/.test(html)) {
 }
 const nonce = (html.match(/id="digi-migrate"[^>]*data-nonce="([^"]+)"/) || [])[1];
 check(!!nonce, 'La pantalla de Migrar (sin Elements activo) pinta el botón con su nonce.');
-check(/Lo que hará Migrar/.test(html) && /Rank Math/.test(html) && /UpdraftPlus/.test(html) && (mode === 'child' ? /Hello Hijo/ : /Hello Elementor/).test(html), 'El análisis previo dice lo que se instala, importa, reemplaza y borra.');
+check(/Lo que hará Migrar/.test(html) && /Rank Math/.test(html) && /UpdraftPlus/.test(html) && (mode === 'child' ? /Hello Hijo/ : mode === 'rerun' ? /Hello Elementor Child/ : /Hello Elementor/).test(html), 'El análisis previo dice lo que se instala, importa, reemplaza y borra.');
+const OLD = /cámbialo en Apariencia/;
+if (mode === 'rerun') {
+	// De partida, la pantalla pinta el informe «completado» del 19-nov (y esta petición deja en la caché que no hay tarea).
+	check(OLD.test(html) && /20261119-200445/.test(html), 'De partida, la pantalla pinta el informe del 19-nov.');
+	check(!/Apariencia/.test(html.slice(html.indexOf('digi-migrate__before'))), 'El análisis no pide cambiar el tema a mano.');
+}
 check(!/necesita DIGITALÍSIMO Elements activo/.test(html), 'Sin el aviso «necesita Elements».');
 const ajax = `${base}/wp-admin/admin-ajax.php`;
 const common = { action: 'digitalisimo_migration_step', _ajax_nonce: nonce || '' };
 if (network) common.network = '1';
 
-// Doble clic: dos peticiones de inicio a la vez, con clics distintos.
-const first = await Promise.all([step(ajax, { ...common, start: '1', run: 'clicuno' }), step(ajax, { ...common, start: '1', run: 'clicdos' })]);
+// Doble clic: dos peticiones de inicio a la vez, con clics distintos. En rerun, un solo clic como migrate.js: cada paso lleva
+// el identificador del clic y la pantalla se detiene con `done` o con `idle` (lo que pinta en ese momento es lo que ve el dueño).
+if (mode === 'rerun') common.run = 'clicrerun';
+const first = mode === 'rerun' ? [await step(ajax, { ...common, start: '1' })] : await Promise.all([step(ajax, { ...common, start: '1', run: 'clicuno' }), step(ajax, { ...common, start: '1', run: 'clicdos' })]);
 console.log('inicio:', first.map((r) => r.success ? `${r.data.stage || ''}${r.data.busy ? ' (ocupado)' : ''}` : r.data).join(' | '));
 check(first.every((r) => r.success), 'Las dos peticiones del doble clic responden: ' + first.map((r) => r.success ? 'ok' : r.data).join(' | '));
 
@@ -128,6 +136,11 @@ while (!(data && data.done) && Date.now() - started < 40 * 60 * 1000) {
 		break;
 	}
 	data = r.data;
+	if (mode === 'rerun' && data.idle) {
+		// migrate.js se detiene aquí: lo que pinta es lo que ve el dueño (antes del arreglo, el informe del 19-nov).
+		check(!OLD.test(String(data.html || '')), `El clic no termina mostrando el informe del 19-nov (paso ${steps}, ${Math.round((Date.now() - started) / 1000)} s).`);
+		if (!data.done || OLD.test(String(data.html || ''))) break;
+	}
 	if (data.busy || data.pause) await sleep(data.busy ? 2000 : 300);
 }
 console.log(`${Math.round((Date.now() - started) / 1000)} s · terminó tras ${steps} pasos`);
@@ -140,7 +153,8 @@ check(l.done && !l.failed, 'Sin fallos: ' + (l.error || ''));
 check(l.backup && l.backup.ok && /^[a-f0-9]{64}$/.test(l.backup.sha256 || ''), 'Respaldo completo verificado antes de tocar nada.');
 check(result.backups === 1, `Un solo respaldo de la migración (${result.backups}).`);
 const zips = result.downloads.map((z) => z.replace(/-[0-9.]+\.zip$/, ''));
-check(JSON.stringify(zips) === JSON.stringify(['digitalisimo-backups', 'digitalisimo-elements', 'digitalisimo-seo', 'digitalisimo-theme']), 'Se descargan una vez Backups, Elements, SEO y el tema, en ese orden: ' + zips.join(','));
+const wantZips = mode === 'rerun' ? ['digitalisimo-backups', 'digitalisimo-elements', 'digitalisimo-seo', 'digitalisimo-theme', 'digitalisimo-tools'] : ['digitalisimo-backups', 'digitalisimo-elements', 'digitalisimo-seo', 'digitalisimo-theme'];
+check(JSON.stringify(zips) === JSON.stringify(wantZips), 'Se descargan una vez, en ese orden: ' + wantZips.join(',') + ' (se descargó: ' + zips.join(',') + ')');
 // Migración nunca consulta GitHub con el índice en caché (las demás peticiones bloqueadas se listan arriba).
 check(!result.blocked.some((url) => /github\.com/.test(url)), 'Migración no consulta GitHub: ' + result.blocked.filter((url) => /github/.test(url)).join(', '));
 for (const file of ['bdthemes-element-pack/bdthemes-element-pack.php', 'seo-by-rank-math/rank-math.php', 'updraftplus/updraftplus.php']) {
@@ -154,7 +168,17 @@ for (const file of ['bdthemes-element-pack/bdthemes-element-pack.php', 'seo-by-r
 for (const file of ['digitalisimo-backups/digitalisimo-backups.php', 'digitalisimo-elements/pro-elements.php', 'digitalisimo-seo/digitalisimo-integrations.php', 'digitalisimo-migration/digitalisimo-migration.php']) {
 	check(result.installed.includes(file), `Instalado: ${file}`);
 }
-if (mode === 'child') {
+if (mode === 'rerun') {
+	// Caso real de digitalisimo.lat: un solo clic hizo una pasada nueva entera y el informe del 19-nov se sustituyó.
+	const site = Object.values(result.sites)[0] || {};
+	check(l.run === 'clicrerun', `El informe es el de este clic (${l.run}), no el del 19-nov.`);
+	check(l.backup && l.backup.ok && !/20261119/.test(l.backup.file || '') && result.history.includes(l.backup.file), `Respaldo nuevo, en el historial de Backups: ${l.backup && l.backup.file}`);
+	check(l.theme_installed_now && result.themes.includes('digitalisimo-theme'), 'El tema DIGITALÍSIMO se descargó e instaló desde la Release.');
+	check(site.tools_active && (l.installed || []).includes('digitalisimo-tools'), 'DIGITALÍSIMO Tools se instaló y quedó activo: ' + JSON.stringify(l.installed));
+	check(site.snippets.some((s) => /PHP del tema hijo Hello Elementor Child/.test(s.title) && s.active), 'El functions.php del hijo queda activo en Código PHP: ' + JSON.stringify(site.snippets));
+	check(site.shortcode && site.child_foot, 'Con el tema propio, el shortcode y el gancho del hijo siguen en la portada: ' + JSON.stringify({ shortcode: site.shortcode, foot: site.child_foot, flag: site.tools_flag, salt: site.salt_state, tail: site.body_tail }));
+	check(!result.themes.includes('hello-hijo') && !result.themes.includes('hello-elementor'), 'El hijo y Hello se retiran: ' + result.themes.join(',') + ' ' + JSON.stringify(l.kept || {}));
+} else if (mode === 'child') {
 	// Con las hojas del hijo copiadas a uploads por el tema propio, el hijo y después Hello se borran.
 	const gone = !result.themes.includes('hello-hijo') && !result.themes.includes('hello-elementor');
 	check(result.themes.includes('digitalisimo-theme') && gone, 'El hijo y Hello se retiran: ' + result.themes.join(',') + ' ' + JSON.stringify(l.kept || {}));

@@ -72,6 +72,8 @@
 			return post(url, { action: 'digitalisimo_migration_step', _ajax_nonce: siteNonce, start: create ? '1' : '', run: run }).then(function (data) {
 				failures = 0;
 				if (data.stage || data.done) create = false;
+				// Un segundo clic sobre una pasada en marcha la sigue a ella: su informe es el de este clic.
+				if (data.run) run = data.run;
 				render(data.html || '');
 				if (data.done || data.wait_network || (data.idle && !create)) return data;
 				return wait(data.busy ? BUSY : STEP).then(step);

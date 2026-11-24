@@ -246,14 +246,22 @@ final class Runner {
 
 	/** Estado de la tarea del sitio en curso (null si no hay ninguna). */
 	public static function state() {
-		$state = get_option( self::JOB, null );
+		$state = self::stored( self::JOB );
 		return is_array( $state ) ? $state : null;
 	}
 
 	/** Último informe terminado del sitio en curso (null si nunca terminó una). */
 	public static function report() {
-		$report = get_option( self::REPORT, null );
+		$report = self::stored( self::REPORT );
 		return is_array( $report ) ? $report : null;
+	}
+
+	/**
+	 * Leída de la base, no de la caché de objetos, como la tarea completa (\Digitalisimo\Migration\Full::stored()): una
+	 * petición que trabaja sin escribir en la caché compartida deja la caché con lo de antes.
+	 */
+	private static function stored( $name ) {
+		return class_exists( '\\Digitalisimo\\Migration\\Full', false ) ? \Digitalisimo\Migration\Full::stored( $name ) : get_option( $name, null );
 	}
 
 	/**

@@ -30,6 +30,8 @@ final class Import {
 	/** Activar o desactivar un importado del tema hijo desde Migración (ver activate_import()). */
 	const ACTIVATE   = 'digitalisimo_tools_php_activate_import';
 	const DEACTIVATE = 'digitalisimo_tools_php_deactivate_import';
+	/** Volver a traer del tema hijo un importado borrado o cambiado en Tools, desde Migración (ver reset_import()). */
+	const RESET = 'digitalisimo_tools_php_reset_import';
 	/** Único origen que puede activarse sin la casilla: el functions.php del tema hijo que traslada el tema propio. */
 	const CHILD_SOURCE = 'digitalisimo-theme';
 	/** Marca con autoload: el índice del sitio ya existe y `…_ready` ya se disparó. */
@@ -43,6 +45,7 @@ final class Import {
 		add_filter( self::SOURCES, array( __CLASS__, 'sources' ), 10, 2 );
 		add_filter( self::ACTIVATE, array( __CLASS__, 'activate_import' ), 10, 3 );
 		add_filter( self::DEACTIVATE, array( __CLASS__, 'deactivate_import' ), 10, 3 );
+		add_filter( self::RESET, array( __CLASS__, 'reset_import' ), 10, 2 );
 		add_action( 'admin_init', array( __CLASS__, 'ready' ) );
 	}
 
@@ -205,6 +208,48 @@ final class Import {
 			update_option( Store::option_name( 'site', 'item', $found ), $item, false );
 			update_option( Store::SITE_INDEX, $index, false );
 			Store::log( 'site', 'imported', array( 'id' => $found, 'hash' => $want, 'user' => 0, 'msg' => 'Migrar volvió al tema hijo: el fragmento queda desactivado y otra vez sin revisar.' ) );
+			return true;
+		} );
+		return true === $done;
+	}
+
+	/**
+	 * «Migrar hace todo» (regla del propietario del 2026-11-23: «no tengo por qué cambiar el tema yo, debe ser Migrar»): el
+	 * functions.php del tema hijo que traslada el tema propio vuelve a poder importarse tal como está en disco aunque en
+	 * Tools se haya borrado (la marca `gone` impedía crearlo de nuevo) o su código ya no sea el importado (editado aquí sin
+	 * cambiar el origen, o en conflicto con él). Sólo con `digitalisimo-theme:<carpeta del hijo>` y nunca con un fragmento
+	 * que esté corriendo: el código guardado no se borra (queda en su historial) y la siguiente importación lo sustituye por
+	 * el del hijo, sin revisar y firmado por la importación, para que activate_import() lo compruebe como siempre. true si
+	 * quedó listo para volver a importarse.
+	 */
+	public static function reset_import( $result, $key ) {
+		unset( $result );
+		$key = (string) $key;
+		if ( 0 !== strpos( $key, self::CHILD_SOURCE . ':' ) ) return false;
+		$done = Store::mutate( 'site', static function () use ( $key ) {
+			$index = Store::index( 'site' );
+			$found = '';
+			foreach ( $index['items'] as $id => $meta ) {
+				if ( (string) ( $meta['origin_key'] ?? '' ) === $key ) {
+					$found = (string) $id;
+					break;
+				}
+			}
+			$was = isset( $index['gone'][ $key ] );
+			unset( $index['gone'][ $key ] );
+			if ( '' === $found ) {
+				if ( $was ) update_option( Store::SITE_INDEX, $index, false );
+				return true;
+			}
+			if ( isset( Store::run( 'site' )['items'][ $found ] ) ) return false;
+			$item = Store::item( 'site', $found );
+			if ( ! $item ) return false;
+			// Como si el código guardado fuera el que trajo la importación anterior: la siguiente lo sustituye (`updated`).
+			$item['origin']                     = array_merge( (array) $item['origin'], array( 'hash' => '', 'code_hash' => hash( 'sha256', (string) $item['code'] ) ) );
+			$index['items'][ $found ]['conflict'] = false;
+			update_option( Store::option_name( 'site', 'item', $found ), $item, false );
+			update_option( Store::SITE_INDEX, $index, false );
+			Store::log( 'site', 'imported', array( 'id' => $found, 'hash' => hash( 'sha256', (string) $item['code'] ), 'user' => 0, 'msg' => 'Migrar vuelve a traer el functions.php del tema hijo; el código anterior queda en el historial.' ) );
 			return true;
 		} );
 		return true === $done;

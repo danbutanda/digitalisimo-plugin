@@ -1269,6 +1269,17 @@ PHPCODE;
 	foreach ( $S::index( 'site' )['items'] as $k => $meta ) if ( 'digitalisimo-theme:hijo2' === $meta['origin_key'] ) $cid = (string) $k;
 	$S::save( 'site', $cid, 'PHP del tema hijo Hijo', $child_code . "// editado\n", 1 );
 	check( 'mismatch' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo2', $ch ) && ! isset( $S::run( 'site' )['items'][ $cid ] ), 'uno editado en Tools no se activa' );
+	// «Migrar hace todo» (propietario, 2026-11-23): Migrar vuelve a traer del hijo el editado (lo editado queda en el
+	// historial) y lo activa; nunca uno de otro origen ni uno que esté corriendo.
+	check( false === apply_filters( $I::RESET, false, 'generatepress:9' ), 'reset: sólo un importado del tema propio' );
+	check( true === apply_filters( $I::RESET, false, 'digitalisimo-theme:hijo2' ) && array( 'digitalisimo-theme:hijo2' => 'updated' ) === apply_filters( $I::FILTER, null, array( $edited ), array() ) && $child_code === $S::item( 'site', $cid )['code'], 'reset: la importación siguiente sustituye lo editado por el functions.php del hijo' );
+	check( in_array( $child_code . "// editado\n", array_column( $S::item( 'site', $cid )['history'], 'code' ), true ), 'lo editado queda en el historial' );
+	check( 'activated' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo2', $ch + array( 'by' => 1 ) ) && 'active' === $S::state( 'site', $cid ), 'y se activa por la vía de Migrar' );
+	check( false === apply_filters( $I::RESET, false, 'digitalisimo-theme:hijo2' ) && $child_code === $S::item( 'site', $cid )['code'], 'reset: uno que está corriendo no se toca' );
+	apply_filters( $I::DEACTIVATE, false, 'digitalisimo-theme:hijo2', $ch );
+	$S::delete( 'site', $cid, 1 );
+	check( array( 'digitalisimo-theme:hijo2' => 'skipped' ) === apply_filters( $I::FILTER, null, array( $edited ), array() ), 'borrado en Tools: la importación no lo vuelve a crear' );
+	check( true === apply_filters( $I::RESET, false, 'digitalisimo-theme:hijo2' ) && array( 'digitalisimo-theme:hijo2' => 'created' ) === apply_filters( $I::FILTER, null, array( $edited ), array() ), 'reset: borrado en Tools, Migrar lo vuelve a crear' );
 	$broken = array_merge( $child_item, array( 'code' => "<?php\nif ( true ) {\n", 'original' => "<?php\nif ( true ) {\n", 'origin' => array( 'source' => 'digitalisimo-theme', 'id' => 'hijo3', 'hash' => 'child-3' ) ) );
 	apply_filters( $I::FILTER, null, array( $broken ), array() );
 	check( 'check' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo3', array( 'hash' => hash( 'sha256', "<?php\nif ( true ) {\n" ) ) ), 'con un error de sintaxis no se activa' );
