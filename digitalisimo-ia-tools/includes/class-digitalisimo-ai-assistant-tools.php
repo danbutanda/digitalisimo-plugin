@@ -64,10 +64,19 @@ final class Digitalisimo_AI_Assistant_Tools {
 	/** Meta con la que el kit de ventas marca sus borradores. */
 	const KIT_META       = '_digitalisimo_sales_kit';
 	/**
-	 * Errores que dicen que la herramienta NO hizo nada (la entrada no era válida, faltaba permiso, no existe): no son
-	 * «resultado desconocido». Un 4xx también, salvo 408, 409, 425 y 429 (espera, conflicto o límite: pudo quedar a medias).
+	 * Errores que salen ANTES de ejecutar, así que la herramienta no hizo nada: la validación de la entrada y el permiso
+	 * de WP_Ability::execute() y los de la REST de WordPress (se comprueban antes de llamar al manejador). No son
+	 * «resultado desconocido». `ability_invalid_output` NO va: la salida se valida después de ejecutar (la escritura ya
+	 * ocurrió). Un 4xx cualquiera tampoco: el manejador pudo escribir y después fallar.
 	 */
-	const NOT_APPLIED    = array( 'ability_invalid_input', 'ability_invalid_permissions', 'ability_invalid_output', 'rest_invalid_param', 'rest_missing_callback_param', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit' );
+	const NOT_APPLIED    = array( 'ability_invalid_input', 'ability_invalid_permissions', 'rest_invalid_param', 'rest_missing_callback_param', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit' );
+	/**
+	 * El kit de ventas valida todo (entrada, oferta, plantilla, producto, borrador a rehacer, permiso) antes de crear o
+	 * tocar la página: sus errores 4xx son previos (los posteriores al guardado son 500).
+	 */
+	const NOT_APPLIED_PREFIXES = array( 'digitalisimo_sales_' );
+	/** La huella del contenido que dejó la última generación o edición del Asistente (para saber si alguien lo tocó). */
+	const STAMP_META     = '_digitalisimo_ai_assistant_stamp';
 
 	/** Nombres de las abilities que expone el MCP del sitio, sin repetir. */
 	public static function mcp_names() {
@@ -508,17 +517,30 @@ final class Digitalisimo_AI_Assistant_Tools {
 		return array( 'status' => 'ok', 'data' => $data );
 	}
 
-	/** ¿Este error dice que no se hizo nada? (NOT_APPLIED o un 4xx que no es espera, conflicto ni límite). */
+	/**
+	 * ¿Este error dice que no se hizo nada? Sólo los que salen antes de ejecutar: NOT_APPLIED, y los 4xx de una
+	 * herramienta que valida todo antes de escribir (NOT_APPLIED_PREFIXES; 408, 409, 425 y 429 nunca). Ante la duda, no:
+	 * queda como resultado desconocido.
+	 */
 	public static function not_applied( $error ) {
 		if ( ! is_wp_error( $error ) ) {
 			return false;
 		}
-		if ( in_array( (string) $error->get_error_code(), self::NOT_APPLIED, true ) ) {
+		$code = (string) $error->get_error_code();
+		if ( in_array( $code, self::NOT_APPLIED, true ) ) {
 			return true;
 		}
 		$data   = $error->get_error_data();
 		$status = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 0;
-		return $status >= 400 && $status < 500 && ! in_array( $status, array( 408, 409, 425, 429 ), true );
+		if ( $status < 400 || $status >= 500 || in_array( $status, array( 408, 409, 425, 429 ), true ) ) {
+			return false;
+		}
+		foreach ( self::NOT_APPLIED_PREFIXES as $prefix ) {
+			if ( 0 === strpos( $code, $prefix ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

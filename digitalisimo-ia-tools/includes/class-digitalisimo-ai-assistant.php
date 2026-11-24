@@ -593,7 +593,7 @@ final class Digitalisimo_AI_Assistant {
 			$result['error'] = rtrim( (string) ( $result['error'] ?? '' ), '. ' ) . '. No se aplicó nada.';
 			return $result;
 		}
-		return array_merge( $result, array( 'status' => 'unknown', 'maybe_applied' => true, 'error' => 'Resultado desconocido: falló, pero puede haberse aplicado (' . ( $result['error'] ?? '' ) . '). No la repitas sin revisar el sitio y preguntar.' ) );
+		return array_merge( $result, array( 'status' => 'unknown', 'maybe_applied' => true, 'error' => 'No pude confirmar si se hizo; revisa antes de repetir. (Falló, pero puede haberse aplicado: ' . rtrim( (string) ( $result['error'] ?? '' ), '. ' ) . '.) No la repitas sin revisar el sitio y preguntar.' ) );
 	}
 
 	/** El lugar del usuario y, si la conversación existe, su candado; o un error 429/409. */

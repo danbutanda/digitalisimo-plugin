@@ -200,9 +200,12 @@ afinar la clase.
   cambio se ofrece en una frase («¿Quieres que ponga el precio de oferta en la tienda?») y se propone cuando la persona
   lo pida (filtro `digitalisimo_ai_assistant_hold_after_draft`; editar el propio borrador, aunque su código lo mande a
   la tarjeta, no se retiene).
-- Un error que dice que no se hizo nada (`ability_invalid_input`, sin permiso, o un 4xx que no es 408, 409, 425 ni 429,
-  como «la página no es un borrador del kit») queda como `error` con «No se aplicó nada», nunca como «resultado
-  desconocido» (`Tools::not_applied()`).
+- Un error que sale ANTES de ejecutar (`ability_invalid_input`, sin permiso, los de validación y permiso de la REST de
+  WordPress, o un 4xx del kit de ventas, que valida todo antes de tocar la página: «la página no es un borrador del
+  kit») queda como `error` con «No se aplicó nada» (`Tools::not_applied()`). Lo demás, ante la duda, queda como
+  desconocido: `ability_invalid_output` (la salida se valida DESPUÉS de ejecutar: la escritura ya ocurrió) y cualquier
+  otro 4xx (el manejador pudo escribir y después fallar). Lo desconocido se dice en llano: «No pude confirmar si se
+  hizo; revisa antes de repetir».
 - Una confirmación caduca en una hora. **Confirmar escribiendo** (`typed_confirmation()`): sólo con EXACTAMENTE una
   acción pendiente, no destructiva, no propuesta tras leer contenido del sitio (`after_read`) y nada a medio ejecutar,
   una afirmación clara (todas sus palabras de afirmación o relleno: «sí», «sí hazlo», «dale», «ok», «confirmo»; un verbo

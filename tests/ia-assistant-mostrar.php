@@ -175,9 +175,17 @@ $GLOBALS['script']   = array( array( 'calls' => array( $call( 'digitalisimo-sale
 $ev   = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'créala otra vez' ) ) ) );
 $tool = $of( $ev, 'tool' )[0]['message'];
 check( 'error' === $tool['status'] && false !== strpos( $tool['detail'], 'No se aplicó nada' ) && empty( $sent()['puede_haberse_aplicado'] ), 'M5: un 400 del kit es un error («no se aplicó nada»), nunca «resultado desconocido»' );
-foreach ( array( array( 'x', 409, false ), array( 'x', 429, false ), array( 'x', 500, false ), array( 'x', 404, true ), array( 'ability_invalid_input', 0, true ) ) as $c ) {
+foreach ( array( array( 'x', 409, false ), array( 'x', 429, false ), array( 'x', 500, false ), array( 'x', 404, false ), array( 'x', 400, false ), array( 'ability_invalid_output', 0, false ), array( 'ability_invalid_output', 400, false ), array( 'digitalisimo_sales_save', 500, false ), array( 'digitalisimo_sales_post_id', 409, false ), array( 'digitalisimo_sales_post_id', 404, true ), array( 'ability_invalid_input', 0, true ), array( 'ability_invalid_permissions', 0, true ), array( 'rest_invalid_param', 400, true ) ) as $c ) {
 	check( $c[2] === Digitalisimo_AI_Assistant_Tools::not_applied( new WP_Error( $c[0], 'm', $c[1] ? array( 'status' => $c[1] ) : '' ) ), "M5: {$c[0]} {$c[1]} " . ( $c[2] ? 'no se aplicó' : 'pudo aplicarse' ) );
 }
+
+// La salida inválida se detecta DESPUÉS de ejecutar: la escritura ya pudo ocurrir. Queda como desconocido, en llano.
+wp_register_ability( 'demo/salida-rara', array( 'label' => 'Guardar algo', 'category' => 'demo', 'input_schema' => array( 'type' => 'object' ), 'permission_callback' => $can_edit, 'execute_callback' => function () { $GLOBALS['escrito'] = true; return new WP_Error( 'ability_invalid_output', 'La salida no cumple el esquema.' ); }, 'meta' => $ann( false, false ) ) );
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'demo-salida-rara', array() ) ) ) );
+$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'guárdalo' ) ) ) );
+$ev = $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $ev[0]['id'], 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'approve' ) ) ) );
+$tool = $of( $ev, 'tool' )[0]['message'];
+check( ! empty( $GLOBALS['escrito'] ) && 'unknown' === $tool['status'] && 0 === strpos( $tool['detail'], 'No pude confirmar si se hizo; revisa antes de repetir.' ), 'M5: ability_invalid_output (la escritura ya ocurrió) queda como desconocido, dicho en llano: ' . $tool['detail'] );
 
 /* ---------------- M6: rehacer el borrador propio ---------------- */
 $GLOBALS['kit_fail'] = array();
