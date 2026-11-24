@@ -463,8 +463,9 @@ class Digitalisimo_Integrations_Schema_Graph {
 			'org_name' => self::o( 'seo_organization_name' ) ?: $name,
 			'org_type' => self::o( 'seo_organization_type' ) ?: 'Organization',
 			'org_url'  => self::o( 'seo_organization_url' ),
-			'logo'     => self::o( 'seo_logo' ),
-			'image'    => self::o( 'seo_default_image' ),
+			// Comprobadas en segundo plano (Brand_Check): una imagen rota o de demo cae a la de reserva o no se publica.
+			'logo'     => Digitalisimo_Integrations_Brand_Check::url( 'logo' ),
+			'image'    => Digitalisimo_Integrations_Brand_Check::url( 'image' ),
 			'same_as'  => Digitalisimo_Integrations_Social_Profiles::all_urls(),
 			'email'    => is_email( self::o( 'seo_organization_email' ) ) ? self::o( 'seo_organization_email' ) : '',
 			'language' => get_bloginfo( 'language' ),

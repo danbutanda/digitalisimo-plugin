@@ -301,6 +301,12 @@ return array(
 	'Digitalisimo_Integrations_SEO_Abilities_Write' => array( 'requires' => 'wp_register_ability', 'hooks' => array(
 		array( 'a', 'wp_abilities_api_init', 'register', 10, 1, '**' ),
 	) ),
+	'Digitalisimo_Integrations_Brand_Check' => array( 'hooks' => array(
+		array( 'a', 'digitalisimo_seo_brand_check', 'run', 10, 1, '**' ),
+		array( 'a', 'update_option_digitalisimo_integrations_options', 'changed', 10, 1, '**' ),
+		array( 'a', 'add_option_digitalisimo_integrations_options', 'changed', 10, 1, '**' ),
+		array( 'a', 'admin_notices', 'notice', 10, 1, '**' ),
+	) ),
 	'Digitalisimo_Integrations_Robots' => array( 'hooks' => array(
 		array( 'f', 'robots_txt', 'append', 50, 2, '**' ),
 	) ),

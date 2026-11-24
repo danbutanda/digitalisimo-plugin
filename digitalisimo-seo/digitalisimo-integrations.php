@@ -71,6 +71,7 @@ function digitalisimo_integrations_classes() {
 		'Digitalisimo_SEO_Release_Check'                     => 'includes/class-seo-release-check.php',
 		'Digitalisimo_Integrations_Social_Profiles'          => 'includes/class-social-profiles.php',
 		'Digitalisimo_Integrations_Local_Business'           => 'includes/class-local-business.php',
+		'Digitalisimo_Integrations_Brand_Check'              => 'includes/class-brand-check.php',
 		'Digitalisimo_Media_Field'                           => 'includes/class-media-field.php',
 		'Digitalisimo_Admin_UI'                              => 'includes/class-admin-ui.php',
 		'Digitalisimo_Integrations_Editorial'                => 'includes/class-editorial.php',
@@ -207,6 +208,7 @@ function digitalisimo_integrations_boot() {
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Product_Identifiers' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_SEO_Abilities' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_SEO_Abilities_Write' );
+		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Brand_Check' );
 	} elseif ( is_multisite() ) {
 		// La importación de red (Red → SEO → Importar) no depende del SEO propio del sitio principal, que es el sitio en curso
 		// de admin-post.php: sin esto, con el principal apagado, el botón de la red no tenía quien lo recibiera.

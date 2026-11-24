@@ -310,6 +310,7 @@ jobs:
           php tests/llms.php
           php tests/seo-excerpt.php
           php tests/seo-title-description.php
+          php tests/seo-brand-images.php
           php tests/image-alt.php
           php tests/favicon.php
           php tests/schema.php

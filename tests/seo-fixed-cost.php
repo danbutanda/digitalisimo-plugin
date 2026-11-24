@@ -30,6 +30,7 @@ const DIGI_LAZY = array(
 	'Digitalisimo_Integrations_Links', 'Digitalisimo_Integrations_Content_Analysis', 'Digitalisimo_Integrations_SEO_Bulk',
 	'Digitalisimo_Integrations_SEO_Feed', 'Digitalisimo_Integrations_Video', 'Digitalisimo_Integrations_URL_Bases',
 	'Digitalisimo_Integrations_Product_Identifiers', 'Digitalisimo_Integrations_SEO_Abilities', 'Digitalisimo_Integrations_SEO_Abilities_Write',
+	'Digitalisimo_Integrations_Brand_Check',
 	'Digitalisimo_Integrations_Robots', 'Digitalisimo_Integrations_SEO_AI_Crawler_Tools', 'Digitalisimo_Integrations_SEO_AI',
 	'Digitalisimo_Integrations_SEO_AI_Crawler_Verifier', 'Digitalisimo_Integrations_SEO_AI_Audit_Tools', 'Digitalisimo_Integrations_SEO_AI_LLMS_Tools',
 	'Digitalisimo_Integrations_SEO_AI_IndexNow_Tools', 'Digitalisimo_Integrations_SEO_AI_Referral_Tools', 'Digitalisimo_Integrations_SEO_AI_Entities_Tools',
