@@ -259,7 +259,7 @@ final class Module {
 			self::MIN_WC,
 			self::wc_version()
 		);
-		\Digitalisimo_Notices::show( 'elements-woo-version', 'warning', '<p>' . esc_html( $text ) . '</p>', array( 'hash' => self::wc_version(), 'cap' => 'activate_plugins' ) );
+		\Digitalisimo_Notices::show( \Digitalisimo_Notices::site( 'elements-woo-version' ), 'warning', '<p>' . esc_html( $text ) . '</p>', array( 'hash' => self::wc_version(), 'cap' => 'activate_plugins' ) );
 	}
 
 	/** Llama a un método estático de una clase del módulo si la clase y el método existen. */

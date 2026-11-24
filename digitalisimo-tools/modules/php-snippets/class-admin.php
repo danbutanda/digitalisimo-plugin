@@ -814,7 +814,7 @@ final class Admin {
 			$link  = '' !== $m['link'] ? ' <a href="' . esc_url( $m['link'] ) . '">Revisar</a>' : '';
 			$forms = ! empty( $m['dismiss'] ) ? self::bar( self::button( 'dismiss', $scope, '', 'Ocultar', 'button-link' ) ) : '';
 			// Con la X y el cierre recordado por usuario (cada mensaje es su propio aviso): vuelve si sigue a los 7 días (advertencia) o al día (error).
-			\Digitalisimo_Notices::show( 'tools-php-' . $scope . '-' . \Digitalisimo_Notices::fingerprint( $m['text'] ), $m['type'], '<p>' . esc_html( $m['text'] ) . $link . '</p>' . $forms, array( 'hash' => $m['type'] . '|' . $m['text'], 'cap' => is_multisite() ? 'manage_network_options' : 'manage_options' ) );
+			\Digitalisimo_Notices::show( ( 'site' === $scope ? \Digitalisimo_Notices::site( 'tools-php-site' ) : 'tools-php-network' ) . '-' . \Digitalisimo_Notices::fingerprint( $m['text'] ), $m['type'], '<p>' . esc_html( $m['text'] ) . $link . '</p>' . $forms, array( 'hash' => $m['type'] . '|' . $m['text'], 'cap' => is_multisite() ? 'manage_network_options' : 'manage_options' ) );
 		}
 	}
 

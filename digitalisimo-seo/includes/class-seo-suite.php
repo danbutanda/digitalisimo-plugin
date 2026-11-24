@@ -76,7 +76,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		// perdido por una preferencia heredada del usuario en Gutenberg.
 		add_filter( 'hidden_meta_boxes', array( __CLASS__, 'keep_snippet_visible' ), 10, 2 );
 		add_action( 'init', array( __CLASS__, 'taxonomies' ) ); add_action( 'created_term', array( __CLASS__, 'save_term' ), 10, 3 ); add_action( 'edited_term', array( __CLASS__, 'save_term' ), 10, 3 );
-		remove_action( 'wp_head', 'rel_canonical' ); add_filter( 'pre_get_document_title', array( __CLASS__, 'title' ), 20 ); add_action( 'wp_head', array( __CLASS__, 'mobile_horizontal_scroll_css' ), 0 ); add_action( 'wp_head', array( __CLASS__, 'head' ), 1 ); add_filter( 'wp_robots', array( __CLASS__, 'robots' ) ); add_action( 'admin_notices', array( __CLASS__, 'foreign_notice' ) ); add_action( 'network_admin_notices', array( __CLASS__, 'foreign_notice' ) );
+		remove_action( 'wp_head', 'rel_canonical' ); add_filter( 'pre_get_document_title', array( __CLASS__, 'title' ), 20 ); add_action( 'wp_head', array( __CLASS__, 'mobile_horizontal_scroll_css' ), 0 ); add_action( 'wp_head', array( __CLASS__, 'head' ), 1 ); add_filter( 'wp_robots', array( __CLASS__, 'robots' ) ); add_action( 'admin_notices', array( __CLASS__, 'foreign_notice' ) ); add_action( 'network_admin_notices', array( __CLASS__, 'foreign_notice' ) ); add_filter( 'site_status_tests', array( __CLASS__, 'health_tests' ) );
 		add_action( 'wp_loaded', array( __CLASS__, 'remove_wc_generator' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'attachment_redirect' ) ); add_action( 'template_redirect', array( __CLASS__, 'archive_redirect' ), 1 ); add_shortcode( 'digitalisimo_breadcrumbs', array( __CLASS__, 'breadcrumb_shortcode' ) );
 	}
@@ -862,8 +862,22 @@ class Digitalisimo_Integrations_SEO_Suite {
 		$page   = sanitize_key( $_GET['page'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification
 		if ( 0 !== strpos( $page, 'digitalisimo-seo' ) && ! ( $screen && in_array( $screen->id, array( 'plugins', 'plugins-network' ), true ) ) ) return;
 		$import = 'Rank Math' === $foreign ? ' <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-import' ) ) . '">Importa sus datos</a> y, cuando la revisión esté lista, desactívalo: DIGITALÍSIMO SEO toma el relevo al instante con los mismos títulos, descripciones, redirecciones y URL.' : ' Importa sus datos y desactívalo cuando quieras que DIGITALÍSIMO SEO tome el relevo.';
-		// Con la X: cerrado, vuelve a los 7 días si el otro plugin sigue activo (y en «Salud del sitio» queda siempre).
-		Digitalisimo_Notices::show( 'seo-foreign', 'warning', '<p><strong>' . esc_html( $foreign ) . ' está activo.</strong> Para no duplicar señales, DIGITALÍSIMO SEO no publica título, descripción, canonical, robots, schema, sitemap, verificación ni redirecciones mientras tanto: sigue mandando ' . esc_html( $foreign ) . '.' . $import . '</p>', array( 'hash' => $foreign, 'cap' => 'manage_options' ) );
+		// Con la X: cerrado, vuelve a los 7 días si el otro plugin sigue activo (y en «Salud del sitio» queda siempre: health()).
+		Digitalisimo_Notices::show( Digitalisimo_Notices::site( 'seo-foreign' ), 'warning', '<p><strong>' . esc_html( $foreign ) . ' está activo.</strong> Para no duplicar señales, DIGITALÍSIMO SEO no publica título, descripción, canonical, robots, schema, sitemap, verificación ni redirecciones mientras tanto: sigue mandando ' . esc_html( $foreign ) . '.' . $import . '</p>', array( 'hash' => $foreign, 'cap' => 'manage_options' ) );
+	}
+	/** `site_status_tests`: otro plugin de SEO activo, a la vista aunque se cierre el aviso. */
+	public static function health_tests( $tests ) {
+		$tests['direct']['digitalisimo_seo_foreign'] = array( 'label' => 'Un solo plugin de SEO', 'test' => array( __CLASS__, 'health' ) );
+		return $tests;
+	}
+	public static function health() {
+		$foreign = Digitalisimo_Integrations_SEO_Resolver::foreign_seo();
+		$result  = array( 'label' => 'DIGITALÍSIMO SEO publica las señales SEO de este sitio', 'status' => 'good', 'badge' => array( 'label' => 'DIGITALÍSIMO', 'color' => 'blue' ), 'description' => '<p>' . esc_html( 'No hay otro plugin de SEO activo que duplique título, descripción, canonical, robots, schema, sitemap, verificación o redirecciones.' ) . '</p>', 'actions' => '', 'test' => 'digitalisimo_seo_foreign' );
+		if ( '' === $foreign ) return $result;
+		$result['label']       = $foreign . ' está activo: DIGITALÍSIMO SEO no publica sus señales';
+		$result['status']      = 'recommended';
+		$result['description'] = '<p>' . esc_html( 'Para no duplicar señales, DIGITALÍSIMO SEO no publica título, descripción, canonical, robots, schema, sitemap, verificación ni redirecciones mientras ' . $foreign . ' esté activo. Importa sus datos y desactívalo cuando quieras que DIGITALÍSIMO SEO tome el relevo.' ) . '</p>';
+		return $result;
 	}
 	public static function title( $title ) { if ( Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return $title; $c = self::current(); return $c['title'] ?: $title; }
 	private static function canonical_url() { global $wp; return home_url( add_query_arg( array(), $wp->request ?? '' ) ); }

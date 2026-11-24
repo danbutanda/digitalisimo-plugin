@@ -201,13 +201,9 @@ add_action( 'plugins_loaded', 'pro_elements_plugin_load_plugin', 10 );
 
 function digitalisimo_elements_conflict_notice() {
 	if ( ! current_user_can( 'activate_plugins' ) ) return;
-	Digitalisimo_Notices::show( 'elements-conflict', 'error', '<p>DIGITALÍSIMO Elements no se cargó porque Elementor Pro u otra versión derivada ya está activa. Deja activo sólo uno de estos plugins.</p>', array( 'cap' => 'activate_plugins' ) );
+	Digitalisimo_Notices::show( Digitalisimo_Notices::site( 'elements-conflict' ), 'error', '<p>DIGITALÍSIMO Elements no se cargó porque Elementor Pro u otra versión derivada ya está activa. Deja activo sólo uno de estos plugins.</p>', array( 'cap' => 'activate_plugins' ) );
 }
 
-/**
- * Errores de carga de Elements: con la X (queja del propietario del 2026-11-22: «no poder quitarlas»); cerrado, vuelve
- * al día si el problema sigue. $id distingue cada caso.
- */
 /**
  * Elements no cargó: queda como prueba crítica de «Salud del sitio», a la vista aunque se cierre el aviso.
  */
@@ -223,6 +219,10 @@ function digitalisimo_elements_health() {
 	return array( 'label' => 'DIGITALÍSIMO Elements no se cargó', 'status' => 'critical', 'badge' => array( 'label' => 'DIGITALÍSIMO', 'color' => 'red' ), 'description' => '<p>' . esc_html( (string) ( $GLOBALS['digitalisimo_elements_health_problem'] ?? '' ) ) . '</p>', 'actions' => '', 'test' => 'digitalisimo_elements_loaded' );
 }
 
+/**
+ * Errores de carga de Elements: con la X (queja del propietario del 2026-11-22: «no poder quitarlas»); cerrado, vuelve
+ * al día si el problema sigue. $id distingue cada caso.
+ */
 function pro_elements_print_error( $message, $id = 'elements-load' ) {
 	if ( ! $message ) {
 		return;
@@ -259,7 +259,7 @@ function pro_elements_external_builder_notice() {
 	$message  = '<h3>' . esc_html__( 'Hay otro constructor activo que reemplaza al incluido en DIGITALÍSIMO Elements.', 'elementor-pro' ) . '</h3>';
 	$message .= '<p>' . esc_html__( 'Desactívalo en Plugins: DIGITALÍSIMO Elements trae su propio constructor y lo usa en cuanto el otro deja de estar activo.', 'elementor-pro' ) . '</p>';
 	$message .= '<p>' . sprintf( '<a href="%s" class="button-primary">%s</a>', esc_url( self_admin_url( 'plugins.php' ) ), esc_html__( 'Ir a Plugins', 'elementor-pro' ) ) . '</p>';
-	pro_elements_print_error( $message, 'elements-external-builder' );
+	pro_elements_print_error( $message, Digitalisimo_Notices::site( 'elements-external-builder' ) );
 }
 
 function pro_elements_plugin_fail_load_out_of_date() {

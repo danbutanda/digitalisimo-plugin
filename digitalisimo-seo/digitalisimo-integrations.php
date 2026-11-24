@@ -18,7 +18,6 @@ define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
 
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'digitalisimo-ui/digitalisimo-ui.php';
-
 /**
  * Clases propias de SEO y su archivo. Ya no se incluyen las 70 en cada petición (1,3 MB de código: ~35 ms y 6,5 MB de
  * memoria sin OPcache, también en el front, el heartbeat y la REST): cada una se carga la primera vez que se usa. Lo

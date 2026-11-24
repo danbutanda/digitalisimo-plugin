@@ -205,8 +205,9 @@ final class Digitalisimo_Elements_Installer {
 		// Con la X (queja del propietario del 2026-11-22: «no poder quitarlas»). Sin JavaScript propio: si un plugin
 		// DIGITALÍSIMO cargó Digitalisimo_Notices, el cierre queda recordado (vuelve a los 7 días mientras falte el paso);
 		// si no, se cierra en esa página y el instalador sigue en Plugins → «Instalar DIGITALÍSIMO Elements».
-		if ( class_exists( 'Digitalisimo_Notices', false ) ) {
-			Digitalisimo_Notices::show( 'elements-installer', 'info', $html, array( 'hash' => $installed ? 'installed' : 'missing', 'snooze' => 7 * DAY_IN_SECONDS, 'cap' => 'network' === $scope ? 'manage_network_plugins' : 'activate_plugins' ) );
+		// class_exists con autocarga: con sólo SEO activo, su autocargador trae la clase.
+		if ( class_exists( 'Digitalisimo_Notices' ) ) {
+			Digitalisimo_Notices::show( 'network' === $scope ? 'elements-installer' : Digitalisimo_Notices::site( 'elements-installer' ), 'info', $html, array( 'hash' => $installed ? 'installed' : 'missing', 'snooze' => 7 * DAY_IN_SECONDS, 'cap' => 'network' === $scope ? 'manage_network_plugins' : 'activate_plugins' ) );
 			return;
 		}
 		echo '<div class="notice notice-info is-dismissible">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.

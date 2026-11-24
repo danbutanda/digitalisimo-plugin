@@ -7,7 +7,7 @@
  *  - la caché se declara externa y el filtro `digitalisimo_same_site_check` dice que da el `home` de otro sitio, cuyo
  *    nombre sale de la opción `digi_an_foreign` (cambiarla cambia la situación y, con ella, la huella del aviso).
  * Con `?digi_an=` (sólo un administrador): `host:<nombre>` cambia ese nombre y `age:<id>:<segundos>` envejece el cierre
- * del aviso <id> del usuario actual. Contesta JSON y termina.
+ * del aviso <id> del usuario actual (user meta `digitalisimo_notice_<id>`). Contesta JSON y termina.
  */
 defined( 'ABSPATH' ) || exit;
 if ( ! defined( 'WP_CACHE_KEY_SALT' ) ) define( 'WP_CACHE_KEY_SALT', 'sal-ajena-de-prueba:' );
@@ -22,10 +22,10 @@ add_action( 'init', static function () {
 	$out  = array( 'cmd' => $cmd[0] );
 	if ( 'host' === $cmd[0] ) $out['saved'] = update_option( 'digi_an_foreign', sanitize_text_field( $cmd[1] ?? 'otro.test' ) );
 	if ( 'age' === $cmd[0] ) {
-		$all = get_user_meta( get_current_user_id(), 'digitalisimo_notices_dismissed', true );
-		if ( is_array( $all ) && isset( $all[ $cmd[1] ] ) ) { $all[ $cmd[1] ]['t'] -= (int) ( $cmd[2] ?? 0 ); update_user_meta( get_current_user_id(), 'digitalisimo_notices_dismissed', $all ); $out['aged'] = true; }
+		$key = 'digitalisimo_notice_' . preg_replace( '/[^a-z0-9_-]/', '', (string) ( $cmd[1] ?? '' ) );
+		$row = get_user_meta( get_current_user_id(), $key, true );
+		if ( is_array( $row ) ) { $row['t'] -= (int) ( $cmd[2] ?? 0 ); update_user_meta( get_current_user_id(), $key, $row ); $out['aged'] = true; }
 	}
-	$out['dismissed'] = get_user_meta( get_current_user_id(), 'digitalisimo_notices_dismissed', true );
 	wp_send_json( $out );
 }, 1 );
 // Un error fatal queda anotado para el arnés.

@@ -219,7 +219,7 @@ namespace {
 	preg_match( '/data-digitalisimo-notice-hash="([0-9a-f]{12})"/', $html, $m );
 	\Digitalisimo_Notices::dismiss( 7, 'elements-interactions-3', $m[1] ?? '' );
 	check_ix( '' === $notice(), 'Cerrado con la X, ya no sale.' );
-	$GLOBALS['user_meta'][7][ \Digitalisimo_Notices::META ]['elements-interactions-3']['t'] = time() - 8 * 86400;
+	$GLOBALS['user_meta'][7]['digitalisimo_notice_elements-interactions-3']['t'] = time() - 8 * 86400;
 	check_ix( '' !== $notice(), 'A los 7 días, si siguen en pausa, vuelve.' );
 	\Digitalisimo_Notices::dismiss( 7, 'elements-interactions-3', $m[1] ?? '' );
 	$GLOBALS['options'][ State::INVENTORY ][0]['docs'][] = 99;

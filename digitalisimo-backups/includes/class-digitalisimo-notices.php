@@ -5,12 +5,15 @@
  * Queja del propietario (2026-11-22): «se están mostrando alertas así y son molestas, no poder quitarlas; mándalas a las
  * alertas globales de WP pero no las pongas en el contenido». Por eso todo aviso propio de `admin_notices` pasa por aquí:
  *  - lleva la X de WordPress (`is-dismissible`) y, al pulsarla, el cierre queda guardado para ese usuario (user meta
- *    `digitalisimo_notices_dismissed`, global en una red: vale igual en la administración de la red y en cada sitio) con
- *    el id del aviso y la huella de la situación; si la situación cambia (otra huella), el aviso vuelve a salir;
+ *    `digitalisimo_notice_<id>`, una fila por aviso: dos cierres a la vez no se pisan) con la huella de la situación; si
+ *    la situación cambia (otra huella), el aviso vuelve a salir. La user meta es global en una red: un aviso de toda la
+ *    red se cierra una vez (en la red o en cualquier sitio); uno que depende de cada sitio lleva el sitio en su id
+ *    (`site()`), y cerrarlo en un sitio no lo oculta en otro;
  *  - lo informativo y los éxitos («no hace falta hacer nada») quedan cerrados mientras la huella no cambie; una
  *    advertencia que pide algo vuelve a los 7 días y un error a 1 día si el problema sigue (`snooze`);
  *  - el cierre va por AJAX (`wp_ajax_digitalisimo_notice_dismiss`) con un nonce atado al id, la huella y la capacidad
- *    del aviso, y sólo lo guarda quien tiene esa capacidad.
+ *    del aviso, y sólo lo guarda quien tiene esa capacidad. Si el cierre no se guarda (nonce vencido, sin sesión), el
+ *    aviso se queda y dice por qué.
  * El aviso no se pinta dentro del contenido: cada pantalla propia lleva `<hr class="wp-header-end">` tras su título y
  * el JavaScript común de WordPress mueve ahí los avisos (sin esa marca los ponía tras el primer h1/h2 de `.wrap`, que en
  * nuestras pantallas podía caer dentro de una tarjeta o de una pestaña).
@@ -26,15 +29,13 @@ defined( 'ABSPATH' ) || exit;
 if ( ! class_exists( 'Digitalisimo_Notices' ) ) {
 	final class Digitalisimo_Notices {
 		const VERSION = 1;
-		/** User meta con los cierres: array( id => array( 'h' => huella, 't' => cuándo ) ). */
-		const META = 'digitalisimo_notices_dismissed';
+		/** Prefijo de la user meta de cada cierre: `digitalisimo_notice_<id>` => array( 'h' => huella, 't' => cuándo ). */
+		const META = 'digitalisimo_notice_';
 		/** Acción AJAX del cierre. */
 		const ACTION = 'digitalisimo_notice_dismiss';
 		/** Cuánto dura el cierre de una advertencia y de un error (segundos); éxitos e informativos: hasta que cambie la huella. */
 		const WARNING_SNOOZE = 604800;
 		const ERROR_SNOOZE   = 86400;
-		/** Cierres que se guardan por usuario (los más viejos salen primero). */
-		const LIMIT = 100;
 
 		private static $booted = false;
 		private static $script = false;
@@ -56,6 +57,11 @@ if ( ! class_exists( 'Digitalisimo_Notices' ) ) {
 		/** Id de un aviso: minúsculas, dígitos, «-» y «_», hasta 80 caracteres. */
 		public static function key( $id ) {
 			return substr( preg_replace( '/[^a-z0-9_-]/', '', strtolower( (string) $id ) ), 0, 80 );
+		}
+
+		/** Id de un aviso que depende del sitio: en una red lleva el sitio (cerrarlo en un sitio no lo oculta en otro). */
+		public static function site( $id ) {
+			return function_exists( 'is_multisite' ) && is_multisite() && function_exists( 'get_current_blog_id' ) ? $id . '-s' . (int) get_current_blog_id() : (string) $id;
 		}
 
 		/** Huella de la situación (12 hex). Sin los nonces, que cambian solos cada pocas horas. */
@@ -103,9 +109,8 @@ if ( ! class_exists( 'Digitalisimo_Notices' ) ) {
 		public static function dismissed( $id, $hash, $snooze = 0, $user = null ) {
 			$user = null === $user ? ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ) : (int) $user;
 			if ( $user <= 0 || ! function_exists( 'get_user_meta' ) ) return false;
-			$all   = get_user_meta( $user, self::META, true );
-			$entry = is_array( $all ) && isset( $all[ $id ] ) && is_array( $all[ $id ] ) ? $all[ $id ] : null;
-			if ( ! $entry || (string) ( $entry['h'] ?? '' ) !== (string) $hash ) return false;
+			$entry = get_user_meta( $user, self::META . self::key( $id ), true );
+			if ( ! is_array( $entry ) || (string) ( $entry['h'] ?? '' ) !== (string) $hash ) return false;
 			return 0 === (int) $snooze || time() - (int) ( $entry['t'] ?? 0 ) < (int) $snooze;
 		}
 
@@ -114,15 +119,8 @@ if ( ! class_exists( 'Digitalisimo_Notices' ) ) {
 			$user = (int) $user;
 			$id   = self::key( $id );
 			if ( $user <= 0 || '' === $id || ! function_exists( 'update_user_meta' ) ) return false;
-			$all = get_user_meta( $user, self::META, true );
-			$all = is_array( $all ) ? $all : array();
-			unset( $all[ $id ] );
-			$all[ $id ] = array( 'h' => (string) $hash, 't' => time() );
-			if ( count( $all ) > self::LIMIT ) {
-				uasort( $all, static function ( $a, $b ) { return (int) ( $a['t'] ?? 0 ) <=> (int) ( $b['t'] ?? 0 ); } );
-				$all = array_slice( $all, -self::LIMIT, null, true );
-			}
-			return (bool) update_user_meta( $user, self::META, $all );
+			// Una fila por aviso: sin leer y reescribir una lista, dos cierres a la vez (dos pestañas) no se pisan.
+			return false !== update_user_meta( $user, self::META . $id, array( 'h' => (string) $hash, 't' => time() ) );
 		}
 
 		/** `wp_ajax_digitalisimo_notice_dismiss`: nonce del aviso (id, huella y capacidad) y la capacidad que pide. */
@@ -159,12 +157,21 @@ if ( ! class_exists( 'Digitalisimo_Notices' ) ) {
 		}
 
 		/**
-		 * Antes que WordPress quite el aviso (fase de captura): manda id, huella, capacidad y nonce. Sin jQuery ni
-		 * dependencias; si `fetch` no existe, el aviso se cierra sólo en esta página.
+		 * La X de un aviso propio (fase de captura, antes que WordPress lo quite): manda id, huella, capacidad y nonce y
+		 * sólo quita el aviso cuando el cierre quedó guardado; si no (nonce vencido, sesión cerrada, sin red), el aviso se
+		 * queda con una línea que dice por qué. Sin jQuery ni dependencias; sin `fetch`, WordPress lo cierra en la página.
 		 */
 		public static function print_script() {
-			$url = function_exists( 'admin_url' ) ? admin_url( 'admin-ajax.php' ) : '/wp-admin/admin-ajax.php';
-			echo '<script id="digitalisimo-notices-js">(function(){var u=' . ( function_exists( 'wp_json_encode' ) ? wp_json_encode( $url ) : json_encode( $url ) ) . ',a=' . json_encode( self::ACTION ) . ';document.addEventListener("click",function(e){var t=e.target,b=t&&t.closest?t.closest(".notice-dismiss"):null,n=b?b.closest("[data-digitalisimo-notice]"):null;if(!n||!window.fetch||!window.FormData)return;var d=new FormData();d.append("action",a);d.append("id",n.getAttribute("data-digitalisimo-notice")||"");d.append("hash",n.getAttribute("data-digitalisimo-notice-hash")||"");d.append("cap",n.getAttribute("data-digitalisimo-notice-cap")||"");d.append("nonce",n.getAttribute("data-digitalisimo-notice-nonce")||"");fetch(u,{method:"POST",credentials:"same-origin",body:d});},true);})();</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON de valores propios.
+			$url  = function_exists( 'admin_url' ) ? admin_url( 'admin-ajax.php' ) : '/wp-admin/admin-ajax.php';
+			$json = static function ( $value ) { return function_exists( 'wp_json_encode' ) ? wp_json_encode( $value ) : json_encode( $value ); };
+			echo '<script id="digitalisimo-notices-js">(function(){var u=' . $json( $url ) . ',a=' . $json( self::ACTION ) . ',m=' . $json( 'No se pudo guardar el cierre de este aviso: recarga la página y vuelve a cerrarlo.' ) . ';'
+				. 'function g(n,k){return n.getAttribute("data-digitalisimo-notice"+k)||"";}'
+				. 'function say(n,t){var p=n.querySelector(".digitalisimo-notice-failed");if(!p){p=document.createElement("p");p.className="digitalisimo-notice-failed";p.setAttribute("role","alert");n.appendChild(p);}p.textContent=t;n.removeAttribute("aria-busy");}'
+				. 'document.addEventListener("click",function(e){var t=e.target,b=t&&t.closest?t.closest(".notice-dismiss"):null,n=b?b.closest("[data-digitalisimo-notice]"):null;if(!n||!window.fetch||!window.FormData)return;'
+				. 'e.preventDefault();e.stopPropagation();if(n.getAttribute("aria-busy"))return;n.setAttribute("aria-busy","true");'
+				. 'var d=new FormData();d.append("action",a);d.append("id",g(n,""));d.append("hash",g(n,"-hash"));d.append("cap",g(n,"-cap"));d.append("nonce",g(n,"-nonce"));'
+				. 'fetch(u,{method:"POST",credentials:"same-origin",body:d}).then(function(r){return r.json().catch(function(){return{};}).then(function(j){if(r.ok&&j&&j.success){n.style.transition="opacity .1s";n.style.opacity="0";setTimeout(function(){if(n.parentNode)n.parentNode.removeChild(n);},120);}else{say(n,j&&j.data&&j.data.message?j.data.message:m);}});}).catch(function(){say(n,m);});'
+				. '},true);})();</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON de valores propios.
 		}
 	}
 }

@@ -124,7 +124,7 @@ an_check( ! $bare, 'Avisos sin la X o títulos sin wp-header-end (queja del prop
 // El Asistente IA no tiene título: la marca va antes de su raíz.
 an_check( false !== strpos( (string) @file_get_contents( $root . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant.php' ), '<hr class="wp-header-end"><div id="digitalisimo-assistant-root"' ), 'El Asistente IA lleva la marca antes de su raíz.' );
 // El instalador no lleva JavaScript propio: usa el ayudante si un plugin lo cargó y, si no, la X sola.
-an_check( false !== strpos( (string) @file_get_contents( $root . '/digitalisimo-elements-installer/digitalisimo-elements-installer.php' ), "class_exists( 'Digitalisimo_Notices', false )" ), 'El instalador usa el ayudante de avisos si un plugin lo cargó.' );
+an_check( false !== strpos( (string) @file_get_contents( $root . '/digitalisimo-elements-installer/digitalisimo-elements-installer.php' ), "class_exists( 'Digitalisimo_Notices' )" ), 'El instalador usa el ayudante de avisos si un plugin lo cargó o lo puede autocargar (SEO).' );
 
 $helper = $root . '/digitalisimo-tools/includes/class-digitalisimo-notices.php';
 if ( ! is_file( $helper ) ) {
@@ -156,6 +156,7 @@ function wp_json_encode( $value ) { return json_encode( $value ); }
 function admin_url( $path = '' ) { return 'https://plomerito.test/wp-admin/' . $path; }
 function is_multisite() { return $GLOBALS['an']['multi']; }
 function is_network_admin() { return $GLOBALS['an']['network_admin']; }
+function get_current_blog_id() { return $GLOBALS['an']['blog'] ?? 1; }
 function get_current_screen() { return (object) array( 'id' => $GLOBALS['an']['screen'] ); }
 function sanitize_key( $key ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) ); }
 require $helper;
@@ -207,11 +208,11 @@ $GLOBALS['an']['user'] = 7;
 // Con nonce y capacidad: se guarda y el aviso ya no sale para ese usuario; otro usuario lo sigue viendo.
 $r = $ajax( array( 'id' => 'prueba', 'hash' => $hash, 'cap' => 'read', 'nonce' => $nonce ) );
 an_check( $r && $r->ok, 'Con nonce y capacidad, el cierre se guarda.' );
-an_check( $hash === ( $GLOBALS['an']['meta'][7][ Digitalisimo_Notices::META ]['prueba']['h'] ?? '' ), 'El cierre queda en el user meta con la huella.' );
+an_check( $hash === ( $GLOBALS['an']['meta'][7]['digitalisimo_notice_prueba']['h'] ?? '' ), 'El cierre queda en su propia fila de user meta (digitalisimo_notice_<id>) con la huella.' );
 an_check( '' === Digitalisimo_Notices::html( 'prueba', 'success', '<p>Se agregó algo. No hace falta hacer nada.</p>' ), 'Cerrado, el aviso ya no sale.' );
 ob_start(); $shown = Digitalisimo_Notices::show( 'prueba', 'success', '<p>Se agregó algo. No hace falta hacer nada.</p>' ); $out = ob_get_clean();
 an_check( false === $shown && '' === $out, 'show() tampoco lo pinta.' );
-$GLOBALS['an']['meta'][7][ Digitalisimo_Notices::META ]['prueba']['t'] = time() - 400 * DAY_IN_SECONDS;
+$GLOBALS['an']['meta'][7]['digitalisimo_notice_prueba']['t'] = time() - 400 * DAY_IN_SECONDS;
 an_check( '' === Digitalisimo_Notices::html( 'prueba', 'success', '<p>Se agregó algo. No hace falta hacer nada.</p>' ), 'Un éxito cerrado no vuelve con el tiempo.' );
 an_check( '' !== Digitalisimo_Notices::html( 'prueba', 'success', '<p>Se agregó otra cosa.</p>' ), 'Si cambia la situación (otra huella), vuelve a salir.' );
 $GLOBALS['an']['user'] = 9;
@@ -224,16 +225,51 @@ foreach ( array( 'warning' => 7, 'error' => 1 ) as $type => $days ) {
 	$h = Digitalisimo_Notices::html( 'plazo-' . $type, $type, '<p>Pide algo.</p>' );
 	Digitalisimo_Notices::dismiss( 7, 'plazo-' . $type, $attr( $h, 'data-digitalisimo-notice-hash' ) );
 	an_check( '' === Digitalisimo_Notices::html( 'plazo-' . $type, $type, '<p>Pide algo.</p>' ), "Una {$type} cerrada no sale enseguida." );
-	$GLOBALS['an']['meta'][7][ Digitalisimo_Notices::META ][ 'plazo-' . $type ]['t'] = time() - ( $days * DAY_IN_SECONDS - 60 );
+	$GLOBALS['an']['meta'][7][ 'digitalisimo_notice_plazo-' . $type ]['t'] = time() - ( $days * DAY_IN_SECONDS - 60 );
 	an_check( '' === Digitalisimo_Notices::html( 'plazo-' . $type, $type, '<p>Pide algo.</p>' ), "Una {$type} cerrada sigue cerrada antes de {$days} día(s)." );
-	$GLOBALS['an']['meta'][7][ Digitalisimo_Notices::META ][ 'plazo-' . $type ]['t'] = time() - ( $days * DAY_IN_SECONDS + 60 );
+	$GLOBALS['an']['meta'][7][ 'digitalisimo_notice_plazo-' . $type ]['t'] = time() - ( $days * DAY_IN_SECONDS + 60 );
 	an_check( '' !== Digitalisimo_Notices::html( 'plazo-' . $type, $type, '<p>Pide algo.</p>' ), "Una {$type} vuelve a los {$days} día(s) si el problema sigue." );
 }
 an_check( 7 * DAY_IN_SECONDS === Digitalisimo_Notices::snooze_for( 'warning' ) && DAY_IN_SECONDS === Digitalisimo_Notices::snooze_for( 'error' ) && 0 === Digitalisimo_Notices::snooze_for( 'info' ) && 0 === Digitalisimo_Notices::snooze_for( 'success' ), 'Plazos por tipo.' );
 
-// Límite de cierres guardados por usuario: los más viejos salen.
-for ( $i = 0; $i < Digitalisimo_Notices::LIMIT + 5; $i++ ) Digitalisimo_Notices::dismiss( 11, 'lote-' . $i, 'aaaaaaaaaaaa' );
-an_check( Digitalisimo_Notices::LIMIT === count( $GLOBALS['an']['meta'][11][ Digitalisimo_Notices::META ] ) && isset( $GLOBALS['an']['meta'][11][ Digitalisimo_Notices::META ][ 'lote-' . ( Digitalisimo_Notices::LIMIT + 4 ) ] ), 'Como mucho LIMIT cierres por usuario, sin perder el último.' );
+// Dos cierres a la vez (dos pestañas) no se pisan: cada aviso tiene su fila; cerrar uno no reescribe los demás.
+$GLOBALS['an']['meta'][11] = array();
+Digitalisimo_Notices::dismiss( 11, 'pestana-a', 'aaaaaaaaaaaa' );
+$before = $GLOBALS['an']['meta'][11];
+$GLOBALS['an']['meta'][11] = array(); // Lo que la otra pestaña leyó antes de que se guardara el primero.
+Digitalisimo_Notices::dismiss( 11, 'pestana-b', 'bbbbbbbbbbbb' );
+$GLOBALS['an']['meta'][11] = $before + $GLOBALS['an']['meta'][11]; // La base guarda las dos escrituras, cada una en su fila.
+an_check( Digitalisimo_Notices::dismissed( 'pestana-a', 'aaaaaaaaaaaa', 0, 11 ) && Digitalisimo_Notices::dismissed( 'pestana-b', 'bbbbbbbbbbbb', 0, 11 ) && array( 'digitalisimo_notice_pestana-a', 'digitalisimo_notice_pestana-b' ) === array_keys( $GLOBALS['an']['meta'][11] ), 'Dos cierres a la vez quedan los dos (una fila de user meta por aviso, sin leer y reescribir una lista).' );
+
+// Red: un aviso que depende del sitio lleva el sitio en su id; cerrarlo en el sitio A no lo oculta en el B.
+$GLOBALS['an']['multi'] = true; $GLOBALS['an']['blog'] = 2;
+an_check( method_exists( 'Digitalisimo_Notices', 'site' ), 'El ayudante tiene site() para los avisos que dependen de cada sitio.' );
+$site = function ( $id ) { return method_exists( 'Digitalisimo_Notices', 'site' ) ? Digitalisimo_Notices::site( $id ) : $id; };
+an_check( 'seo-foreign-s2' === $site( 'seo-foreign' ), 'En una red, site() agrega el sitio al id: ' . $site( 'seo-foreign' ) );
+$a = Digitalisimo_Notices::html( $site( 'por-sitio' ), 'warning', '<p>Algo de este sitio.</p>' );
+Digitalisimo_Notices::dismiss( 7, $attr( $a, 'data-digitalisimo-notice' ), $attr( $a, 'data-digitalisimo-notice-hash' ) );
+an_check( '' === Digitalisimo_Notices::html( $site( 'por-sitio' ), 'warning', '<p>Algo de este sitio.</p>' ), 'Cerrado en el sitio A, ya no sale en A.' );
+$GLOBALS['an']['blog'] = 3;
+an_check( '' !== Digitalisimo_Notices::html( $site( 'por-sitio' ), 'warning', '<p>Algo de este sitio.</p>' ), 'Cerrado en el sitio A, sigue saliendo en el sitio B.' );
+$GLOBALS['an']['multi'] = false; $GLOBALS['an']['blog'] = 1;
+an_check( 'seo-foreign' === $site( 'seo-foreign' ), 'Sin red, site() deja el id igual.' );
+// Los avisos de cada sitio usan site() (revisión adversarial del 2026-11-23); los de toda la red o de la instalación, no.
+foreach ( array(
+	'digitalisimo-seo/includes/class-media-repair.php'                => array( "site( 'seo-media-repair' )", "site( 'seo-media-missing' )" ),
+	'digitalisimo-seo/includes/class-seo-suite.php'                   => array( "site( 'seo-foreign' )" ),
+	'digitalisimo-tools/modules/php-snippets/class-admin.php'         => array( "site( 'tools-php-site' )" ),
+	'digitalisimo-elements/modules/digitalisimo-woo/class-module.php' => array( "site( 'elements-woo-version' )" ),
+	'digitalisimo-elements/digitalisimo-core.php'                     => array( "site( 'elements-external' )" ),
+	'digitalisimo-elements/pro-elements.php'                          => array( "site( 'elements-conflict' )", "site( 'elements-external-builder' )" ),
+	'digitalisimo-elements-installer/digitalisimo-elements-installer.php' => array( "site( 'elements-installer' )" ),
+) as $file => $needles ) {
+	$text = (string) @file_get_contents( $root . '/' . $file );
+	foreach ( $needles as $needle ) an_check( false !== strpos( $text, $needle ), "{$file}: el aviso de cada sitio lleva el sitio ({$needle})." );
+}
+
+// El script: si el cierre no se guarda (nonce vencido, sin sesión), el aviso se queda y dice por qué.
+ob_start(); Digitalisimo_Notices::print_script(); $script = ob_get_clean();
+an_check( false !== strpos( $script, 'stopPropagation' ) && false !== strpos( $script, 'No se pudo guardar el cierre de este aviso' ) && false !== strpos( $script, 'j.success' ), 'Si el cierre falla, el aviso no desaparece en silencio: se queda con el motivo.' );
 
 // Red: el cierre en la administración de la red vale en cada sitio (user meta, no opción del sitio).
 $GLOBALS['an']['multi'] = true; $GLOBALS['an']['network_admin'] = true; $GLOBALS['an']['caps']['manage_network_options'] = true;
@@ -280,11 +316,26 @@ $html = $cache();
 an_check( false !== strpos( $html, 'notice-error' ) && false !== strpos( $html, 'is-dismissible' ), 'El error de la caché ajena también lleva la X.' );
 Digitalisimo_Notices::dismiss( 7, $attr( $html, 'data-digitalisimo-notice' ), $attr( $html, 'data-digitalisimo-notice-hash' ) );
 an_check( '' === $cache(), 'Cerrado, el error no sale enseguida.' );
-$GLOBALS['an']['meta'][7][ Digitalisimo_Notices::META ][ $attr( $html, 'data-digitalisimo-notice' ) ]['t'] = time() - DAY_IN_SECONDS - 60;
+$GLOBALS['an']['meta'][7][ 'digitalisimo_notice_' . $attr( $html, 'data-digitalisimo-notice' ) ]['t'] = time() - DAY_IN_SECONDS - 60;
 an_check( '' !== $cache(), 'Al día, si la caché sigue dando datos de otro sitio, el error vuelve.' );
 // Lo importante queda siempre en «Salud del sitio».
 an_check( 'critical' === \Digitalisimo\Tools\Cache_Notice::health()['status'], 'La caché ajena sigue en «Salud del sitio» aunque se haya cerrado el aviso.' );
 $GLOBALS['an']['screen'] = 'edit-post';
 an_check( '' === $cache(), 'Fuera del Escritorio, Plugins y las pantallas DIGITALÍSIMO no sale.' );
+
+/* ------------------------------------------------------------------ SEO: otro plugin de SEO en «Salud del sitio» */
+
+// El aviso de otro plugin de SEO se puede cerrar; lo importante queda en «Salud del sitio» (revisión del 2026-11-23).
+final class Digitalisimo_Integrations_SEO_Resolver { public static $foreign = 'Rank Math'; public static function foreign_seo() { return self::$foreign; } }
+$suite = $root . '/digitalisimo-seo/includes/class-seo-suite.php';
+require $suite;
+an_check( method_exists( 'Digitalisimo_Integrations_SEO_Suite', 'health' ) && false !== strpos( (string) file_get_contents( $suite ), "add_filter( 'site_status_tests', array( __CLASS__, 'health_tests' ) )" ), 'SEO registra su prueba de «Salud del sitio» del otro plugin de SEO.' );
+if ( method_exists( 'Digitalisimo_Integrations_SEO_Suite', 'health' ) ) {
+	$h = Digitalisimo_Integrations_SEO_Suite::health();
+	an_check( 'recommended' === $h['status'] && false !== strpos( $h['label'], 'Rank Math' ), 'Con otro plugin de SEO activo, «Salud del sitio» lo recomienda revisar: ' . $h['label'] );
+	Digitalisimo_Integrations_SEO_Resolver::$foreign = '';
+	an_check( 'good' === Digitalisimo_Integrations_SEO_Suite::health()['status'], 'Sin otro plugin de SEO, la prueba está bien.' );
+	an_check( isset( Digitalisimo_Integrations_SEO_Suite::health_tests( array() )['direct']['digitalisimo_seo_foreign'] ), 'La prueba se registra como directa.' );
+}
 
 an_done();

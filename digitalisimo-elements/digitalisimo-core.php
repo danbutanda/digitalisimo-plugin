@@ -398,6 +398,6 @@ final class Digitalisimo_Elements_Core {
 			return;
 		}
 		// Informativo: cerrado con la X, no vuelve mientras el constructor incluido sea la misma versión.
-		Digitalisimo_Notices::show( 'elements-external', 'info', '<p>' . esc_html( sprintf( 'DIGITALÍSIMO Elements ya incluye su propio constructor (versión %s). Puedes desactivar el plugin Elementor (y después borrarlo): tus páginas, plantillas, kits y ajustes siguen igual.', self::version() ) ) . '</p>', array( 'hash' => self::version(), 'cap' => 'activate_plugins' ) );
+		Digitalisimo_Notices::show( Digitalisimo_Notices::site( 'elements-external' ), 'info', '<p>' . esc_html( sprintf( 'DIGITALÍSIMO Elements ya incluye su propio constructor (versión %s). Puedes desactivar el plugin Elementor (y después borrarlo): tus páginas, plantillas, kits y ajustes siguen igual.', self::version() ) ) . '</p>', array( 'hash' => self::version(), 'cap' => 'activate_plugins' ) );
 	}
 }

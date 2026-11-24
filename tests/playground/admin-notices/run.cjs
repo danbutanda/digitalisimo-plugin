@@ -7,7 +7,8 @@
 //   X  el aviso tiene la X; al pulsarla se guarda el cierre (AJAX) y, al recargar, ya no sale ni ahí ni en las demás
 //      pantallas; en la red, cerrado en la administración de la red tampoco sale en el sitio;
 //   H  si cambia la situación (otro sitio en la caché: otra huella) vuelve a salir;
-//   T  cerrado de nuevo, vuelve al pasar su plazo (error: 1 día) si el problema sigue.
+//   T  cerrado de nuevo, vuelve al pasar su plazo (error: 1 día) si el problema sigue;
+//   F  si el cierre no se guarda (nonce vencido), el aviso se queda y dice por qué.
 // Uso: node run.cjs <puerto> <host> <dir> <fase>
 const puppeteer = require('puppeteer-core');
 const fs = require('fs');
@@ -127,6 +128,18 @@ function inspect(id, text) {
     ok(aged.aged === true, 'T la sonda envejece el cierre un día');
     r = await open(first);
     ok(r.notice, `T ${first}: pasado un día, el error vuelve si la caché sigue dando datos de otro sitio`);
+    // F: si el cierre no se guarda (nonce vencido), el aviso no desaparece en silencio: se queda y dice por qué.
+    if (r.notice) {
+      await page.evaluate((id) => { const n = document.querySelector(`div.notice[data-digitalisimo-notice="${id}"]`); if (n) n.setAttribute('data-digitalisimo-notice-nonce', 'vencido00'); }, ID);
+      const failedSave = page.waitForResponse((res) => res.url().includes('admin-ajax.php') && res.request().method() === 'POST', { timeout: 60000 });
+      await page.click(`div.notice[data-digitalisimo-notice="${ID}"] button.notice-dismiss`).catch(() => {});
+      const res = await failedSave.catch(() => null);
+      await page.waitForSelector(`div.notice[data-digitalisimo-notice="${ID}"] .digitalisimo-notice-failed`, { timeout: 10000 }).catch(() => {});
+      const said = await page.evaluate((id) => { const n = document.querySelector(`div.notice[data-digitalisimo-notice="${id}"]`); const p = n && n.querySelector('.digitalisimo-notice-failed'); return { present: !!n, text: p ? p.textContent : '' }; }, ID);
+      ok(res && res.status() === 403 && said.present && /recarga la página/.test(said.text), `F ${first}: con el nonce vencido, el aviso se queda y dice «${said.text.slice(0, 60)}»`);
+      r = await open(first);
+      ok(r.notice, `F ${first}: y no quedó cerrado`);
+    }
     ok(jsErrors.length === 0, `Sin errores de JavaScript${jsErrors.length ? ': ' + jsErrors.join(' | ') : ''}`);
   } catch (e) {
     ok(false, `Excepción: ${e && e.stack ? e.stack.split('\n').slice(0, 3).join(' ') : e}`);
