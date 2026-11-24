@@ -13,7 +13,13 @@ defined( 'ABSPATH' ) || exit;
  * reconstruye entonces y, si el cron se retrasa, lo hace la primera visita que lo note.
  */
 class Digitalisimo_Integrations_Redirections {
-	const DB_VERSION = 2;
+	const DB_VERSION = 3;
+	/** Hasta cuántos saltos se sigue una cadena de reglas del propio sitio (A→B→C) para mandar directo al final. */
+	const MAX_HOPS   = 5;
+	/** Subpáginas que se cubren cuando cambia la dirección de una página padre. */
+	const MAX_DESCENDANTS = 300;
+	/** Marca de que la migración volvió a encender el vigilante que la importación de Rank Math había apagado. */
+	const RESTORED   = 'digitalisimo_seo_slug_watch_restored';
 	const DB_OPTION  = 'digitalisimo_seo_redirections_db';
 	const FLAG       = 'digitalisimo_seo_redirect_on';
 	const INDEX      = 'digitalisimo_seo_redirect_index';
@@ -77,7 +83,26 @@ class Digitalisimo_Integrations_Redirections {
 			KEY import_key (import_key),
 			KEY category (category)
 		) $charset;" );
+		self::restore_slug_watch();
 		update_option( self::DB_OPTION, self::DB_VERSION, false );
+	}
+
+	/**
+	 * Una sola vez por sitio (DB_VERSION 3): la importación de Rank Math copiaba su «Auto Post Redirect», que Rank Math
+	 * trae apagado de fábrica, y dejaba sin 301 los cambios de enlace (una página renombrada respondía 404). Si el
+	 * vigilante quedó apagado en un sitio que importó de Rank Math sin tener ese ajuste encendido, se vuelve a encender.
+	 * Un sitio que nunca importó, o que lo apagó con Rank Math encendido, no cambia.
+	 */
+	public static function restore_slug_watch() {
+		$site = get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+		if ( ! is_array( $site ) || ! array_key_exists( 'seo_redirect_slug_watch', $site ) || (int) $site['seo_redirect_slug_watch'] ) return false;
+		if ( ! get_option( 'digitalisimo_seo_rankmath_job' ) ) return false;
+		$rank_math = get_option( 'rank-math-options-general', array() );
+		if ( is_array( $rank_math ) && in_array( strtolower( (string) ( $rank_math['redirections_post_redirect'] ?? '' ) ), array( 'on', '1', 'yes', 'true' ), true ) ) return false;
+		$site['seo_redirect_slug_watch'] = 1;
+		update_option( Digitalisimo_Integrations_Settings::OPTION, $site );
+		update_option( self::RESTORED, time(), false );
+		return true;
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -197,6 +222,62 @@ class Digitalisimo_Integrations_Redirections {
 	}
 
 	/**
+	 * Ruta relativa de un destino si es del propio sitio (ruta que empieza por una sola barra, o URL con el mismo
+	 * host); null si es externo. Un destino con referencias ($1) no se puede comparar y cuenta como externo.
+	 */
+	public static function own_path( $to, $home_host, $home_path = '/' ) {
+		$to = trim( (string) $to );
+		if ( '' === $to || preg_match( '/\$\d/', $to ) || 0 === strpos( $to, '//' ) ) return null;
+		if ( preg_match( '#^https?://#i', $to ) && strtolower( (string) parse_url( $to, PHP_URL_HOST ) ) !== strtolower( (string) $home_host ) ) return null;
+		if ( ! preg_match( '#^(https?://|/)#i', $to ) ) return null;
+		list( $path ) = self::relative( $to, $home_path );
+		return $path;
+	}
+
+	/**
+	 * Sigue la cadena de reglas del propio sitio desde un destino: con A→B y B→C, A va directo a C (un solo salto
+	 * para buscadores y visitantes). Devuelve el destino final, o '' si la cadena vuelve a una ruta ya vista (A→B→A):
+	 * un bucle nunca se sirve. Una regla automática de cambio de enlace sólo cuenta si su ruta ya no existe ($alive).
+	 *
+	 * @param callable|null $alive Recibe una ruta relativa y dice si hoy responde con un contenido.
+	 */
+	public static function follow( array $index, $to, $from_path, $home_host, $home_path = '/', $alive = null ) {
+		$seen = array( (string) $from_path => true );
+		for ( $hop = 0; $hop < self::MAX_HOPS; $hop++ ) {
+			$path = self::own_path( $to, $home_host, $home_path );
+			if ( null === $path ) return $to;
+			if ( isset( $seen[ $path ] ) ) return '';
+			$seen[ $path ] = true;
+			$next = '' === $path ? null : self::find( $index, $path );
+			if ( ! $next || ! in_array( (int) $next['rule']['c'], array( 301, 302, 307 ), true ) ) return $to;
+			if ( 'slug' === ( $next['rule']['o'] ?? '' ) && $alive && call_user_func( $alive, $path ) ) return $to;
+			$dest = self::destination( $next );
+			if ( '' === $dest ) return $to;
+			$to = $dest;
+		}
+		return $to;
+	}
+
+	/**
+	 * Al mover un contenido de $from a $to, qué reglas activas hay que reapuntar: las que llevaban a $from van ahora a
+	 * $new_url (A→B y luego B→C deja A→C), salvo las que salen de $to, que harían un bucle y se desactivan.
+	 *
+	 * @param array $rows Filas con id, sources (JSON) y url_to.
+	 * @return array{update:array<int,string>,deactivate:int[]}
+	 */
+	public static function retarget( array $rows, $from, $to, $new_url, $home_host, $home_path = '/' ) {
+		$out = array( 'update' => array(), 'deactivate' => array() );
+		foreach ( $rows as $row ) {
+			if ( self::own_path( $row['url_to'] ?? '', $home_host, $home_path ) !== (string) $from ) continue;
+			$loops = false;
+			foreach ( (array) json_decode( (string) ( $row['sources'] ?? '' ), true ) as $source ) if ( is_array( $source ) && 'exact' === ( $source['comparison'] ?? '' ) && strtolower( trim( (string) $source['pattern'], '/' ) ) === strtolower( (string) $to ) ) $loops = true;
+			if ( $loops ) $out['deactivate'][] = (int) $row['id'];
+			else $out['update'][ (int) $row['id'] ] = (string) $new_url;
+		}
+		return $out;
+	}
+
+	/**
 	 * Índice compacto de las reglas activas y vigentes, de la más reciente a la más antigua. `next` es el
 	 * próximo instante (timestamp) en que una regla programada entra o sale; 0 si ninguna cambiará.
 	 */
@@ -213,7 +294,7 @@ class Digitalisimo_Integrations_Redirections {
 			if ( ! is_array( $sources ) || ! $sources ) continue;
 			$id      = (int) $row['id'];
 			$pattern = false;
-			$index['rules'][ $id ] = array( 'i' => $id, 's' => $sources, 'u' => (string) $row['url_to'], 'c' => (int) $row['header_code'] );
+			$index['rules'][ $id ] = array( 'i' => $id, 's' => $sources, 'u' => (string) $row['url_to'], 'c' => (int) $row['header_code'], 'o' => (string) ( $row['origin'] ?? '' ) );
 			foreach ( $sources as $source ) {
 				if ( 'exact' !== $source['comparison'] ) { $pattern = true; continue; }
 				$key = trim( (string) $source['pattern'], '/' );
@@ -280,6 +361,9 @@ class Digitalisimo_Integrations_Redirections {
 			// Una regla programada entró o salió y el cron aún no pasó: el índice se rehace ahora.
 			if ( is_array( $index ) && ! empty( $index['next'] ) && time() >= (int) $index['next'] ) $index = self::refresh_index();
 			$match = is_array( $index ) ? self::find( $index, $path, $query ) : null;
+			// Una 301 creada por un cambio de enlace sólo vale mientras la dirección anterior no exista: si un contenido
+			// nuevo ocupa esa dirección, se sirve el contenido (como hace WordPress con _wp_old_slug).
+			if ( $match && 'slug' === ( $match['rule']['o'] ?? '' ) && ! is_404() ) $match = null;
 		}
 		if ( ! $match ) {
 			$fallback = $fallback ?: (string) self::o( 'seo_redirect_fallback_url', '' );
@@ -297,7 +381,10 @@ class Digitalisimo_Integrations_Redirections {
 			nocache_headers();
 			return;
 		}
-		self::send( self::destination( $match ), $code, $path, $query );
+		$home_path = (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH );
+		$to = self::follow( $index, self::destination( $match ), $path, (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ), $home_path, function( $p ) { return (bool) url_to_postid( home_url( '/' . $p . '/' ) ); } );
+		if ( '' === $to ) return; // Bucle entre reglas: mejor un 404 que una redirección infinita.
+		self::send( $to, $code, $path, $query );
 	}
 
 	/**
@@ -331,7 +418,7 @@ class Digitalisimo_Integrations_Redirections {
 	public static function refresh_index() {
 		global $wpdb;
 		self::maybe_install();
-		$rows  = $wpdb->get_results( 'SELECT id, sources, url_to, header_code, starts, ends FROM ' . self::table() . " WHERE status = 'active' ORDER BY updated DESC, id DESC", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows  = $wpdb->get_results( 'SELECT id, sources, url_to, header_code, origin, starts, ends FROM ' . self::table() . " WHERE status = 'active' ORDER BY updated DESC, id DESC", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$index = self::build_index( (array) $rows );
 		update_option( self::INDEX, $index, false );
 		// Con sólo reglas futuras el front también debe leer el índice para notar cuándo empiezan.
@@ -400,12 +487,6 @@ class Digitalisimo_Integrations_Redirections {
 		return $row ?: null;
 	}
 
-	/** ¿Ya hay una regla con este origen exacto? Evita crear dos veces la misma redirección automática. */
-	private static function exact_source_exists( $path ) {
-		$index = get_option( self::INDEX, array() );
-		return is_array( $index ) && ( isset( $index['exact'][ $path ] ) || isset( $index['exact_ci'][ strtolower( $path ) ] ) );
-	}
-
 	/* ------------------------------------------------------------------ */
 	/* Vigilante de enlaces permanentes.                                   */
 	/* ------------------------------------------------------------------ */
@@ -419,7 +500,26 @@ class Digitalisimo_Integrations_Redirections {
 		$old = self::$before[ 'p' . $post_id ] ?? '';
 		unset( self::$before[ 'p' . $post_id ] );
 		if ( ! $old || ! $after || 'publish' !== $after->post_status || 'publish' !== $before->post_status || wp_is_post_revision( $post_id ) ) return;
-		self::watch( $old, get_permalink( $after ) );
+		$new = get_permalink( $after );
+		if ( ! self::watch( $old, $new, false ) ) return;
+		// Una página padre que cambia de slug o de padre cambia también la dirección de todas sus subpáginas.
+		if ( is_post_type_hierarchical( $after->post_type ) ) self::watch_descendants( $post_id, $after->post_type, $old, $new );
+		self::refresh_index();
+	}
+
+	/** 301 de cada subpágina publicada: su dirección anterior es la nueva con el prefijo del padre de antes. */
+	private static function watch_descendants( $post_id, $post_type, $old, $new ) {
+		$home_path = (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH );
+		list( $from ) = self::relative( $old, $home_path );
+		list( $to )   = self::relative( $new, $home_path );
+		if ( '' === $from || '' === $to ) return;
+		$children = get_pages( array( 'child_of' => (int) $post_id, 'post_type' => $post_type, 'post_status' => 'publish', 'hierarchical' => 0 ) );
+		foreach ( array_slice( (array) $children, 0, self::MAX_DESCENDANTS ) as $child ) {
+			$link = get_permalink( $child );
+			list( $path ) = self::relative( $link, $home_path );
+			if ( 0 !== strpos( $path, $to . '/' ) ) continue;
+			self::watch( home_url( '/' . $from . substr( $path, strlen( $to ) ) . '/' ), $link, false );
+		}
 	}
 
 	public static function remember_term( $term_id, $taxonomy ) {
@@ -431,23 +531,43 @@ class Digitalisimo_Integrations_Redirections {
 		$old = self::$before[ 't' . $term_id ] ?? '';
 		unset( self::$before[ 't' . $term_id ] );
 		$new = get_term_link( (int) $term_id, $taxonomy );
-		if ( $old && ! is_wp_error( $new ) ) self::watch( $old, $new );
+		if ( $old && ! is_wp_error( $new ) && self::watch( $old, $new, false ) ) self::refresh_index();
 	}
 
-	/** Un cambio de enlace crea una 301 del anterior al nuevo, salvo que ya haya una regla para ese origen. */
-	private static function watch( $old, $new ) {
-		if ( ! self::o( 'seo_redirect_enabled', 1 ) || ! self::o( 'seo_redirect_slug_watch', 1 ) ) return;
+	/**
+	 * Un cambio de enlace crea una 301 del anterior al nuevo, salvo que ya haya una regla para ese origen. Sin cadenas
+	 * ni bucles: la regla que redirigía la dirección nueva se desactiva (vuelve a estar viva) y las que llevaban a la
+	 * anterior pasan a llevar a la nueva (A→B y luego B→C deja A→C y B→C). Devuelve si cambió alguna regla.
+	 */
+	private static function watch( $old, $new, $refresh = true ) {
+		if ( ! self::o( 'seo_redirect_enabled', 1 ) || ! self::o( 'seo_redirect_slug_watch', 1 ) ) return false;
 		$home_path = (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH );
 		list( $from ) = self::relative( $old, $home_path );
 		list( $to )   = self::relative( $new, $home_path );
-		if ( '' === $from || $from === $to ) return;
+		if ( '' === $from || $from === $to ) return false;
 		self::maybe_install();
-		// La ruta nueva vuelve a estar viva: una regla que la redirigía crearía un bucle con la nueva.
-		$index = (array) get_option( self::INDEX, array() );
-		foreach ( array( $index['exact'][ $to ] ?? 0, $index['exact_ci'][ strtolower( $to ) ] ?? 0 ) as $stale ) if ( $stale ) self::set_status( (int) $stale, 'inactive', false );
-		if ( (int) get_option( self::FLAG, 0 ) && self::exact_source_exists( $from ) ) { self::refresh_index(); return; }
+		global $wpdb;
 		$slash = '' !== $to && '/' === substr( (string) $new, -1 ) ? '/' : '';
-		self::save( array( 'sources' => array( array( 'pattern' => $from, 'comparison' => 'exact' ) ), 'url_to' => '/' . $to . $slash, 'header_code' => 301, 'origin' => 'slug' ) );
+		// La ruta nueva vuelve a estar viva: una regla que la redirigía crearía un bucle con la nueva.
+		foreach ( self::exact_rules( $to ) as $stale ) self::set_status( (int) $stale, 'inactive', false );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT id, sources, url_to FROM ' . self::table() . " WHERE status = 'active' AND url_to LIKE %s", '%' . $wpdb->esc_like( $from ) . '%' ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$plan = self::retarget( $rows, $from, $to, '/' . $to . $slash, (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ), $home_path );
+		foreach ( $plan['update'] as $id => $url ) $wpdb->update( self::table(), array( 'url_to' => $url, 'updated' => current_time( 'mysql', true ) ), array( 'id' => (int) $id ) );
+		foreach ( $plan['deactivate'] as $id ) self::set_status( (int) $id, 'inactive', false );
+		if ( ! self::exact_rules( $from ) ) self::save( array( 'sources' => array( array( 'pattern' => $from, 'comparison' => 'exact' ) ), 'url_to' => '/' . $to . $slash, 'header_code' => 301, 'origin' => 'slug' ), 0, false );
+		if ( $refresh ) self::refresh_index();
+		return true;
+	}
+
+	/** IDs de las reglas activas con este origen exacto. Lee la tabla: el índice puede no estar reconstruido aún. */
+	private static function exact_rules( $path ) {
+		global $wpdb;
+		$ids  = array();
+		$like = '%' . $wpdb->esc_like( '"pattern":' . wp_json_encode( (string) $path, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ) . '%';
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT id, sources FROM ' . self::table() . " WHERE status = 'active' AND sources LIKE %s", $like ), ARRAY_A ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			foreach ( (array) json_decode( (string) $row['sources'], true ) as $source ) if ( is_array( $source ) && 'exact' === ( $source['comparison'] ?? '' ) && strtolower( trim( (string) $source['pattern'], '/' ) ) === strtolower( (string) $path ) ) $ids[] = (int) $row['id'];
+		}
+		return array_values( array_unique( $ids ) );
 	}
 
 	private static function set_status( $id, $status, $refresh = true ) {
@@ -642,10 +762,13 @@ class Digitalisimo_Integrations_Redirections {
 		$csv = sanitize_key( $_GET['redirect_csv'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification
 		if ( 'invalid' === $csv ) echo '<div class="notice notice-error is-dismissible"><p>El archivo debe ser un CSV de hasta 2 MB.</p></div>';
 		if ( 'done' === $csv ) echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( 'CSV importado: %1$d añadidas, %2$d ya existían, %3$d no válidas.', absint( $_GET['added'] ?? 0 ), absint( $_GET['skipped'] ?? 0 ), absint( $_GET['invalid'] ?? 0 ) ) ) . '</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification
+		$restored = (int) get_option( self::RESTORED, 0 );
+		if ( $restored > time() - 30 * DAY_IN_SECONDS ) echo '<div class="notice notice-info inline"><p>' . esc_html( sprintf( '«Redirigir al cambiar un enlace» se volvió a encender el %s: la importación de Rank Math lo había apagado porque Rank Math trae ese ajuste apagado de fábrica, y sin él una página renombrada responde 404. Puedes apagarlo arriba si de verdad no lo quieres.', get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $restored ), 'Y-m-d' ) ) ) . '</p></div>';
 		if ( isset( $_GET['redirect_saved'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Redirección guardada.</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification
 		$edit = sanitize_key( $_GET['edit'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification
 		$rule = ctype_digit( $edit ) ? self::get( (int) $edit ) : null;
 		$prefill = sanitize_text_field( wp_unslash( $_GET['source'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		$prefill_to = self::sanitize_target( sanitize_text_field( wp_unslash( $_GET['target'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		echo '<h2>' . ( $rule ? 'Editar redirección' : 'Nueva redirección' ) . '</h2>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-redirect-form"><input type="hidden" name="action" value="digitalisimo_seo_redirect_save"><input type="hidden" name="redirect_id" value="' . esc_attr( $rule['id'] ?? 0 ) . '">';
 		wp_nonce_field( 'digitalisimo_seo_redirect_save' );
@@ -655,7 +778,7 @@ class Digitalisimo_Integrations_Redirections {
 		echo '<tr><th scope="row"><label for="digitalisimo_redirect_comparison">Coincidencia</label></th><td><select id="digitalisimo_redirect_comparison" name="comparison">';
 		foreach ( self::comparisons() as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( $first['comparison'], $value, false ) . '>' . esc_html( $label ) . '</option>';
 		echo '</select> <label><input type="checkbox" name="ignore_case" value="1" ' . checked( 'case', $first['ignore'], false ) . '> Sin distinguir mayúsculas</label><p class="description">Con expresión regular, ancla el patrón con ^ y $ y usa $1, $2… en el destino para reutilizar lo capturado.</p></td></tr>';
-		echo '<tr><th scope="row"><label for="digitalisimo_redirect_to">Destino</label></th><td><input class="regular-text" id="digitalisimo_redirect_to" name="url_to" value="' . esc_attr( $rule['url_to'] ?? '' ) . '" placeholder="/pagina-nueva/"><p class="description">Ruta de este sitio o URL completa. Vacío sólo con 410 o 451.</p></td></tr>';
+		echo '<tr><th scope="row"><label for="digitalisimo_redirect_to">Destino</label></th><td><input class="regular-text" id="digitalisimo_redirect_to" name="url_to" value="' . esc_attr( $rule['url_to'] ?? $prefill_to ) . '" placeholder="/pagina-nueva/"><p class="description">Ruta de este sitio o URL completa. Vacío sólo con 410 o 451.</p></td></tr>';
 		echo '<tr><th scope="row"><label for="digitalisimo_redirect_code">Respuesta</label></th><td><select id="digitalisimo_redirect_code" name="header_code">';
 		foreach ( self::code_labels() as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( (int) ( $rule['header_code'] ?? self::o( 'seo_redirect_default_code', 301 ) ), $value, false ) . '>' . esc_html( $label ) . '</option>';
 		echo '</select> <select name="status" aria-label="Estado"><option value="active" ' . selected( $rule['status'] ?? 'active', 'active', false ) . '>Activa</option><option value="inactive" ' . selected( $rule['status'] ?? 'active', 'inactive', false ) . '>Inactiva</option></select></td></tr>';

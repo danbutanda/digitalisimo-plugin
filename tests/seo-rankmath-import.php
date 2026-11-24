@@ -109,6 +109,9 @@ check( '%title%' === $set['seo_title_post'] && in_array( 'title_vars', $opt['not
 check( '%sitename% %page% %sep% %sitedesc%' === $set['seo_title_home'] && '%name% %sep% %sitename% %page%' === $set['seo_title_author'] && '%user_description%' === $set['seo_description_author'] && ! isset( $set['seo_description_home'] ), 'Portada y archivo de autor traen sus plantillas.' );
 check( 'Calle 1' === $set['seo_local_address'] && 'mx' === $set['seo_local_country'] && '19.43' === $set['seo_local_latitude'] && '-99.13' === $set['seo_local_longitude'], 'Dirección y coordenadas se importan.' );
 check( 0 === $set['seo_breadcrumbs'] && 'gcode' === $set['seo_verify_google'] && 1 === $set['seo_redirect_slug_watch'] && 1 === $set['seo_404_enabled'] && 1 === $set['seo_sitemap_images'] && '4,5' === $set['sitemap_exclude_ids'], 'Migas, verificación, vigilante, 404 y sitemap se importan.' );
+// Rank Math trae «Auto Post Redirect» apagado de fábrica: importarlo apagado dejaba sin 301 los cambios de enlace.
+$off = $rmo; $off['general']['redirections_post_redirect'] = 'off';
+check( ! isset( $i::map_options( $off, $site, $defaults, $ctx )['set']['seo_redirect_slug_watch'] ), 'El vigilante apagado de Rank Math no apaga el propio.' );
 check( ! isset( $set['seo_redirect_fallback_url'] ) && in_array( 'fallback_home', $opt['notes'], true ), 'Redirigir todos los 404 a la portada no se importa.' );
 check( "User-agent: *\nDisallow: /" === $opt['robots_txt'] && in_array( 'robots_txt', $opt['notes'], true ), 'El robots.txt sólo se muestra para revisión.' );
 check( array( 'https://facebook.com/acme' ) === $set['_profiles'], 'Los perfiles sociales pasan al clasificador.' );
