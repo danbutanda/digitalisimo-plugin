@@ -223,6 +223,15 @@ an_check( '' !== Digitalisimo_Notices::html( 'prueba', 'success', '<p>Se agregó
 $GLOBALS['an']['user'] = 7;
 an_check( Digitalisimo_Notices::fingerprint( '<input type="hidden" name="_wpnonce" value="0123456789">' ) === Digitalisimo_Notices::fingerprint( '<input type="hidden" name="_wpnonce" value="9876543210">' ), 'La huella por defecto no cambia con el nonce de un formulario.' );
 
+// Ids largos (con un uuid): sin chocar por recortarlos a 80 caracteres (revisión del 2026-11-24).
+$long_a = 'tools-templates-foreign-' . str_repeat( 'plantilla-global-de-la-red-', 3 ) . 'a';
+$long_b = 'tools-templates-foreign-' . str_repeat( 'plantilla-global-de-la-red-', 3 ) . 'b';
+an_check( strlen( Digitalisimo_Notices::key( $long_a ) ) <= 80 && Digitalisimo_Notices::key( $long_a ) !== Digitalisimo_Notices::key( $long_b ), 'Dos ids largos con el mismo principio no chocan: ' . Digitalisimo_Notices::key( $long_a ) );
+an_check( 'tools-cache' === Digitalisimo_Notices::key( 'tools-cache' ), 'Un id corto queda igual.' );
+$la = Digitalisimo_Notices::html( $long_a, 'warning', '<p>Copias de A.</p>' );
+Digitalisimo_Notices::dismiss( 7, $attr( $la, 'data-digitalisimo-notice' ), $attr( $la, 'data-digitalisimo-notice-hash' ) );
+an_check( '' === Digitalisimo_Notices::html( $long_a, 'warning', '<p>Copias de A.</p>' ) && '' !== Digitalisimo_Notices::html( $long_b, 'warning', '<p>Copias de A.</p>' ), 'Cerrar el aviso de una plantilla no cierra el de otra con el mismo principio.' );
+
 // Plazos: advertencia, 7 días; error, 1 día.
 foreach ( array( 'warning' => 7, 'error' => 1 ) as $type => $days ) {
 	$h = Digitalisimo_Notices::html( 'plazo-' . $type, $type, '<p>Pide algo.</p>' );

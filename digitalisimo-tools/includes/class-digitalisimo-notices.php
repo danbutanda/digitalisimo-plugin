@@ -19,9 +19,11 @@
  * nuestras pantallas podía caer dentro de una tarjeta o de una pestaña).
  *
  * Copia idéntica en los siete plugins (`includes/class-digitalisimo-notices.php`; en Elements, `digitalisimo-notices.php`)
- * con guardia `class_exists`: cualquiera funciona sola y se usa la primera que carga. tests/admin-notices.php comprueba
- * las copias. El tema y el instalador de Elements (sin JavaScript propio) la usan si algún plugin la cargó y, si no,
- * pintan el aviso con la X de WordPress sin recordar el cierre.
+ * con guardia `class_exists`: cualquiera funciona sola y se usa la primera que carga, que puede ser la de un plugin sin
+ * actualizar. Por eso su API sólo crece de forma compatible: no se cambia ni se quita un método, una constante ni el
+ * formato de la user meta; lo que se agregue después de esta primera versión se usa sólo tras comprobar que existe
+ * (`method_exists`). tests/admin-notices.php comprueba las copias. El instalador de Elements (sin JavaScript propio) la
+ * usa si un plugin la cargó o la puede autocargar y, si no, pinta el aviso con la X de WordPress sin recordar el cierre.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -54,9 +56,13 @@ if ( ! class_exists( 'Digitalisimo_Notices' ) ) {
 			return 0;
 		}
 
-		/** Id de un aviso: minúsculas, dígitos, «-» y «_», hasta 80 caracteres. */
+		/**
+		 * Id de un aviso: minúsculas, dígitos, «-» y «_», hasta 80 caracteres. Uno más largo (p. ej. con un uuid) no se
+		 * recorta a secas, que haría chocar dos ids con el mismo principio: sus primeros 67 caracteres y 12 del md5 del id.
+		 */
 		public static function key( $id ) {
-			return substr( preg_replace( '/[^a-z0-9_-]/', '', strtolower( (string) $id ) ), 0, 80 );
+			$id = (string) preg_replace( '/[^a-z0-9_-]/', '', strtolower( (string) $id ) );
+			return strlen( $id ) <= 80 ? $id : substr( $id, 0, 67 ) . '-' . substr( md5( $id ), 0, 12 );
 		}
 
 		/** Id de un aviso que depende del sitio: en una red lleva el sitio (cerrarlo en un sitio no lo oculta en otro). */
