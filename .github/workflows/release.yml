@@ -322,6 +322,7 @@ jobs:
           php tests/hosting-services-screen.php
           php tests/hosting-pricing.php
           php tests/hosting-hardening.php
+          php tests/hosting-third-review.php
           php tests/backups-sftp.php
           php tests/backups-sftp-phpseclib.php
           php tests/backups-sftp-keys.php
