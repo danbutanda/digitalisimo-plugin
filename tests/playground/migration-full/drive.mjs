@@ -153,7 +153,7 @@ check(l.done && !l.failed, 'Sin fallos: ' + (l.error || ''));
 check(l.backup && l.backup.ok && /^[a-f0-9]{64}$/.test(l.backup.sha256 || ''), 'Respaldo completo verificado antes de tocar nada.');
 check(result.backups === 1, `Un solo respaldo de la migración (${result.backups}).`);
 const zips = result.downloads.map((z) => z.replace(/-[0-9.]+\.zip$/, ''));
-const wantZips = mode === 'rerun' ? ['digitalisimo-backups', 'digitalisimo-elements', 'digitalisimo-seo', 'digitalisimo-theme', 'digitalisimo-tools'] : ['digitalisimo-backups', 'digitalisimo-elements', 'digitalisimo-seo', 'digitalisimo-theme'];
+const wantZips = mode === 'rerun' || result.tools_old ? ['digitalisimo-backups', 'digitalisimo-elements', 'digitalisimo-seo', 'digitalisimo-theme', 'digitalisimo-tools'] : ['digitalisimo-backups', 'digitalisimo-elements', 'digitalisimo-seo', 'digitalisimo-theme'];
 check(JSON.stringify(zips) === JSON.stringify(wantZips), 'Se descargan una vez, en ese orden: ' + wantZips.join(',') + ' (se descargó: ' + zips.join(',') + ')');
 // Migración nunca consulta GitHub con el índice en caché (las demás peticiones bloqueadas se listan arriba).
 check(!result.blocked.some((url) => /github\.com/.test(url)), 'Migración no consulta GitHub: ' + result.blocked.filter((url) => /github/.test(url)).join(', '));
@@ -176,7 +176,7 @@ if (mode === 'rerun') {
 	check(l.theme_installed_now && result.themes.includes('digitalisimo-theme'), 'El tema DIGITALÍSIMO se descargó e instaló desde la Release.');
 	if (result.tools_old) {
 		// Revisión adversarial A1: Plugin_Upgrader lo desactiva para sustituirlo; Migrar lo deja activo en la misma petición.
-		check(site.tools_active && l.upgraded && l.upgraded['digitalisimo-tools'] && l.upgraded['digitalisimo-tools'].from === '1.0.47' && result.tools_version !== '1.0.47' && !(l.activated || []).includes('digitalisimo-tools'), 'DIGITALÍSIMO Tools 1.0.47 se actualizó y siguió activo: ' + JSON.stringify({ upgraded: l.upgraded, activated: l.activated, version: result.tools_version, active: site.tools_active }));
+		check(site.tools_active && l.upgraded && l.upgraded['digitalisimo-tools'] && l.upgraded['digitalisimo-tools'].from === '1.0.43' && result.tools_version !== '1.0.43' && !(l.activated || []).includes('digitalisimo-tools'), 'DIGITALÍSIMO Tools 1.0.43 se actualizó y siguió activo: ' + JSON.stringify({ upgraded: l.upgraded, activated: l.activated, version: result.tools_version, active: site.tools_active }));
 	} else {
 		check(site.tools_active && (l.installed || []).includes('digitalisimo-tools'), 'DIGITALÍSIMO Tools se instaló y quedó activo: ' + JSON.stringify(l.installed));
 	}
@@ -193,6 +193,12 @@ if (mode === 'rerun') {
 	check(site.child_head, 'El PHP del hijo (wp_head y wp_footer, con HELLO_ELEMENTOR_VERSION) sigue pintando en la portada con el tema propio.');
 	check(site.child_copy && !site.child_sheet, 'La hoja del hijo se carga desde su copia en uploads.');
 	check(site.snippets.some((s) => /PHP del tema hijo Hello Hijo/.test(s.title) && s.active), 'Su functions.php queda activo en Código PHP: ' + JSON.stringify(site.snippets));
+} else if (network && result.tools_old) {
+	// Revisión adversarial H4: Tools 1.0.43 activado en toda la red se actualiza y sigue activado en toda la red; el hijo del
+	// segundo sitio pasa al tema propio con su PHP activo en Tools.
+	const second = Object.values(result.sites)[1] || {};
+	check(result.sitewide.includes('digitalisimo-tools/digitalisimo-tools.php') && l.upgraded && l.upgraded['digitalisimo-tools'] && l.upgraded['digitalisimo-tools'].from === '1.0.43' && result.tools_version !== '1.0.43' && !(l.activated || []).includes('digitalisimo-tools'), 'Tools 1.0.43 activado en toda la red se actualizó y sigue activado en toda la red: ' + JSON.stringify({ upgraded: l.upgraded, activated: l.activated, version: result.tools_version, sitewide: result.sitewide }));
+	check(second.stylesheet === 'digitalisimo-theme' && second.child_foot && second.snippets.some((s) => /PHP del tema hijo/.test(s.title) && s.active), 'El segundo sitio pasa del hijo al tema propio con el PHP del hijo activo: ' + JSON.stringify({ stylesheet: second.stylesheet, foot: second.child_foot, snippets: second.snippets }));
 } else {
 	check(!result.themes.includes('hello-elementor') && result.themes.includes('digitalisimo-theme'), 'Hello se reemplaza por el tema propio y se borra: ' + result.themes.join(','));
 }

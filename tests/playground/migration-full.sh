@@ -23,7 +23,8 @@
 #        clic deja en la caché que la tarea no existe. Un solo clic, como migrate.js, hace una pasada nueva entera: respaldo
 #        nuevo, tema descargado e instalado, Tools instalado y activo con el PHP del hijo, tema propio activo, el shortcode
 #        del hijo sigue en la portada, y el hijo y Hello retirados)
-#        Con TOOLS_OLD=1, Tools 1.0.47 ya instalado y activo: Migrar lo actualiza y queda activo (revisión A1).
+#        Con TOOLS_OLD=1 (también con SCENARIO=network), Tools 1.0.43 ya instalado y activo: Migrar lo actualiza y queda
+#        activo igual que antes (revisiones A1 y H4).
 #      SCENARIO=salt bash tests/playground/migration-full.sh   (incidente de plomerito: una caché de objetos compartida
 #        con otro sitio del servidor, sin sal, que ya da su dirección; Migrar, sin Tools, pone la sal antes de nada y
 #        termina solo sin tocar lo del otro sitio; tests/playground/tools-cache-salt/)
@@ -66,12 +67,15 @@ if [ rerun = "$SCENARIO" ]; then
   sed 's/return WP_CACHE_KEY_SALT \. (/return (/' "$ROOT/tests/playground/tools-cache-salt/object-cache.php" > "$OUT/object-cache-nosalt.php"
   grep -q "return ( in_array( \$group" "$OUT/object-cache-nosalt.php" || { echo "No se pudo preparar el drop-in sin sal"; exit 1; }
   EXTRA_MOUNT=(--mount="$BASE_OUT/cache:/digi-cache")
-  # TOOLS_OLD=1 (revisión adversarial A1): DIGITALÍSIMO Tools 1.0.47 ya instalado y activo, como en digitalisimo.lat;
-  # Migrar lo actualiza con Plugin_Upgrader (que lo desactiva para sustituirlo) y debe dejarlo activo.
-  if [ "${TOOLS_OLD:-0}" = 1 ]; then
-    [ -f "$ROOT/rollback/digitalisimo-tools-1.0.47.zip" ] || { echo "Falta rollback/digitalisimo-tools-1.0.47.zip"; exit 1; }
-    cp "$ROOT/rollback/digitalisimo-tools-1.0.47.zip" "$OUT/tools-old.zip"
-  fi
+fi
+# TOOLS_OLD=1 (revisiones adversariales A1 y H4), en rerun o network: DIGITALÍSIMO Tools 1.0.43 (sin la vía de Migrar para
+# activar el functions.php del hijo) ya instalado y activo (en la red, activado en toda la red, con un hijo de Hello con PHP
+# en el segundo sitio). Migrar tiene que actualizarlo con Plugin_Upgrader, que lo desactiva para sustituirlo, y dejarlo
+# activo igual que antes.
+if [ "${TOOLS_OLD:-0}" = 1 ]; then
+  case "$SCENARIO" in rerun|network) ;; *) echo "TOOLS_OLD=1 sólo con SCENARIO=rerun o network"; exit 1;; esac
+  [ -f "$ROOT/rollback/digitalisimo-tools-1.0.43.zip" ] || { echo "Falta rollback/digitalisimo-tools-1.0.43.zip"; exit 1; }
+  cp "$ROOT/rollback/digitalisimo-tools-1.0.43.zip" "$OUT/tools-old.zip"
 fi
 if [ child = "$SCENARIO" ]; then
   [ -f "$ROOT/rollback/digitalisimo-theme-1.0.0.zip" ] || { echo "Falta rollback/digitalisimo-theme-1.0.0.zip"; exit 1; }

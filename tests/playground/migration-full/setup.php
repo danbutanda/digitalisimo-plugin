@@ -135,7 +135,7 @@ if ( 'rerun' === $scenario ) {
 		'verify' => array(), 'deleted' => array(), 'kept' => array(), 'notes' => array(),
 	), false );
 	if ( is_file( $probe . '/tools-old.zip' ) ) {
-		// TOOLS_OLD=1: Tools 1.0.47 instalado y activo (sin la vía de Migrar para volver a traer un fragmento).
+		// TOOLS_OLD=1: Tools 1.0.43 instalado y activo (sin la vía de Migrar para activar el functions.php del hijo).
 		$zip = new ZipArchive();
 		$zip->open( $probe . '/tools-old.zip' );
 		$zip->extractTo( WP_PLUGIN_DIR );
@@ -147,6 +147,24 @@ if ( 'rerun' === $scenario ) {
 	// La caché de objetos persistente (al final: esta petición no la usa).
 	@mkdir( '/digi-cache', 0777, true );
 	copy( $probe . '/object-cache-nosalt.php', WP_CONTENT_DIR . '/object-cache.php' );
+}
+if ( 'network' === $scenario && is_file( $probe . '/tools-old.zip' ) ) {
+	// TOOLS_OLD=1 en la red: un hijo de Hello con PHP (un gancho) en el segundo sitio y Tools 1.0.43 activado en toda la red.
+	@mkdir( WP_CONTENT_DIR . '/themes/hello-hijo', 0777, true );
+	file_put_contents( WP_CONTENT_DIR . '/themes/hello-hijo/style.css', "/*\nTheme Name: Hello Elementor Child\nTemplate: hello-elementor\nVersion: 2.0.0\n*/\nbody{background:#fafafa}\n" );
+	file_put_contents( WP_CONTENT_DIR . '/themes/hello-hijo/functions.php', "<?php\nif ( ! defined( 'ABSPATH' ) ) {\n\texit;\n}\nadd_action( 'wp_footer', function () {\n\techo '<script id=\"hijo-foot\">window.hijo=1;</script>';\n} );\n" );
+	wp_clean_themes_cache();
+	WP_Theme::network_enable_theme( 'hello-hijo' );
+	switch_to_blog( $sites[1] );
+	switch_theme( 'hello-hijo' );
+	restore_current_blog();
+	$zip = new ZipArchive();
+	$zip->open( $probe . '/tools-old.zip' );
+	$zip->extractTo( WP_PLUGIN_DIR );
+	$zip->close();
+	wp_clean_plugins_cache( false );
+	activate_plugin( 'digitalisimo-tools/digitalisimo-tools.php', '', true );
+	file_put_contents( $probe . '/tools-old', '1' );
 }
 if ( 'salt' === $scenario ) {
 	// Incidente de plomerito: la caché de objetos compartida (drop-in de prueba) ya tiene, sin sal, las opciones de otro
