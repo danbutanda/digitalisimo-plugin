@@ -389,8 +389,14 @@ final class Digitalisimo_AI_Assistant_History {
 			return $out + array( 'role' => 'me', 'text' => (string) ( $m['text'] ?? '' ) );
 		}
 		if ( 'assistant' === $role ) {
-			$text = trim( implode( "\n\n", array_filter( array( trim( (string) ( $m['notes'] ?? '' ) ), trim( (string) ( $m['text'] ?? '' ) ) ), 'strlen' ) ) );
-			return '' === $text ? null : $out + array( 'role' => 'assistant', 'text' => $text, 'provider' => (string) ( $m['provider'] ?? '' ) );
+			// Las notas de avance y el texto que acompaña a una llamada son «trabajo»: la pantalla los pliega con las
+			// consultas (caso plomerito 2: la persona sólo necesita ver el resultado).
+			$notes = trim( (string) ( $m['notes'] ?? '' ) );
+			$text  = trim( (string) ( $m['text'] ?? '' ) );
+			if ( '' === $notes && '' === $text ) {
+				return null;
+			}
+			return $out + array( 'role' => 'assistant', 'text' => '' !== $text ? $text : $notes, 'notes' => '' !== $text ? $notes : '', 'work' => ! empty( $m['calls'] ), 'provider' => (string) ( $m['provider'] ?? '' ) );
 		}
 		if ( 'tool' === $role ) {
 			return $out + array( 'role' => 'tool', 'ability' => (string) ( $m['ability'] ?? '' ), 'label' => (string) ( $m['label'] ?? '' ), 'kind' => (string) ( $m['kind'] ?? '' ), 'status' => (string) ( $m['status'] ?? '' ), 'summary' => (string) ( $m['summary'] ?? '' ), 'detail' => (string) ( $m['detail'] ?? '' ) );

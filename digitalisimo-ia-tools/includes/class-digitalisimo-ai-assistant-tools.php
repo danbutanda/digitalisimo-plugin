@@ -59,6 +59,15 @@ final class Digitalisimo_AI_Assistant_Tools {
 	const DRAFT_EDITORS  = array( 'elementor/build-composition', 'elementor/manage-elements', 'elementor/update-page-settings' );
 	/** Claves de entrada que cambiarían el estado (publicarían): con ellas, siempre con confirmación. */
 	const STATUS_KEYS    = array( 'status', 'post_status', 'publish', 'visibility', 'post_password', 'password' );
+	/** Meta de los borradores que creó el Asistente (el ID de la persona): los puede seguir editando o rehaciendo. */
+	const DRAFT_META     = '_digitalisimo_ai_assistant_draft';
+	/** Meta con la que el kit de ventas marca sus borradores. */
+	const KIT_META       = '_digitalisimo_sales_kit';
+	/**
+	 * Errores que dicen que la herramienta NO hizo nada (la entrada no era válida, faltaba permiso, no existe): no son
+	 * «resultado desconocido». Un 4xx también, salvo 408, 409, 425 y 429 (espera, conflicto o límite: pudo quedar a medias).
+	 */
+	const NOT_APPLIED    = array( 'ability_invalid_input', 'ability_invalid_permissions', 'ability_invalid_output', 'rest_invalid_param', 'rest_missing_callback_param', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit' );
 
 	/** Nombres de las abilities que expone el MCP del sitio, sin repetir. */
 	public static function mcp_names() {
@@ -207,20 +216,77 @@ final class Digitalisimo_AI_Assistant_Tools {
 					return '';
 				}
 			}
-			return isset( $input['post_id'] ) || isset( $input['id'] ) ? '' : 'create';
+			if ( isset( $input['id'] ) ) {
+				return '';
+			}
+			if ( ! isset( $input['post_id'] ) ) {
+				return 'create';
+			}
+			// Rehacer (create-page con post_id) un borrador propio no toca nada publicado: igual que editarlo.
+			$id = is_numeric( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+			return self::own_draft( $id, $drafts ) ? 'edit' : '';
 		}
 		if ( ! in_array( $name, (array) apply_filters( 'digitalisimo_ai_assistant_draft_editors', self::DRAFT_EDITORS ), true ) ) {
 			return '';
 		}
 		$id = isset( $input['post_id'] ) && is_numeric( $input['post_id'] ) ? (int) $input['post_id'] : 0;
-		if ( $id <= 0 || ! in_array( $id, array_map( 'intval', $drafts ), true ) || self::touches_status( $input ) ) {
+		if ( self::touches_status( $input ) ) {
 			return '';
 		}
-		$post = get_post( $id );
+		return self::own_draft( $id, $drafts ) ? 'edit' : '';
+	}
+
+	/**
+	 * ¿Es un borrador de esta persona que el Asistente puede seguir editando o rehacer sin tarjeta? Sigue en borrador,
+	 * la persona puede editarlo y lo creó esta conversación, el Asistente para esta persona (DRAFT_META) o el kit de
+	 * ventas con esta persona como autora (KIT_META). Caso plomerito 2: «no aceptó rehacer el borrador 1040, aunque lo
+	 * creó ella misma».
+	 *
+	 * @param int[] $drafts IDs de los borradores que creó esta conversación.
+	 */
+	public static function own_draft( $id, array $drafts ) {
+		$id   = (int) $id;
+		$post = $id > 0 ? get_post( $id ) : null;
 		if ( ! $post || ! in_array( (string) $post->post_status, array( 'draft', 'auto-draft' ), true ) ) {
-			return '';
+			return false;
 		}
-		return function_exists( 'current_user_can' ) && current_user_can( 'edit_post', $id ) ? 'edit' : '';
+		if ( ! function_exists( 'current_user_can' ) || ! current_user_can( 'edit_post', $id ) ) {
+			return false;
+		}
+		$user = (int) get_current_user_id();
+		if ( in_array( $id, array_map( 'intval', $drafts ), true ) ) {
+			return true;
+		}
+		if ( $user > 0 && $user === (int) get_post_meta( $id, self::DRAFT_META, true ) ) {
+			return true;
+		}
+		return $user > 0 && $user === (int) ( $post->post_author ?? 0 ) && is_array( get_post_meta( $id, self::KIT_META, true ) );
+	}
+
+	/**
+	 * Rehacer con `post_id` un documento que no se puede rehacer (no es un borrador propio, o el kit no lo acepta): en
+	 * vez de un error o de la tarjeta, se crea un borrador NUEVO con la misma entrada (crear en borrador no toca nada
+	 * publicado). Devuelve la entrada (sin `post_id` si hizo falta) y si se cambió.
+	 *
+	 * @param int[] $drafts IDs de los borradores que creó esta conversación.
+	 * @return array{0:array,1:bool}
+	 */
+	public static function regenerate_or_new( array $entry, $input, array $drafts ) {
+		$input = is_array( $input ) ? $input : array();
+		if ( ! isset( $input['post_id'] ) || isset( $input['id'] ) || ! in_array( (string) $entry['name'], (array) apply_filters( 'digitalisimo_ai_assistant_draft_creators', self::DRAFT_CREATORS ), true ) ) {
+			return array( $input, false );
+		}
+		$id = is_numeric( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+		$ok = self::own_draft( $id, $drafts );
+		$kit = 'Digitalisimo\\Elements\\Sales\\Pages';
+		if ( $ok && 'digitalisimo-sales/create-page' === $entry['name'] && class_exists( $kit ) && method_exists( $kit, 'regenerable' ) ) {
+			$ok = true === call_user_func( array( $kit, 'regenerable' ), $id );
+		}
+		if ( $ok ) {
+			return array( $input, false );
+		}
+		unset( $input['post_id'] );
+		return array( $input, true );
 	}
 
 	/** ¿La entrada lleva, a cualquier profundidad, una clave que cambiaría el estado o la visibilidad? */
@@ -429,13 +495,30 @@ final class Digitalisimo_AI_Assistant_Tools {
 		}
 		if ( is_wp_error( $result ) ) {
 			$denied = in_array( $result->get_error_code(), array( 'ability_invalid_permissions', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit' ), true );
-			return array( 'status' => $denied ? 'denied' : 'error', 'error' => self::clip( self::scrub( wp_strip_all_tags( (string) $result->get_error_message() ) ), 400 ) );
+			$out    = array( 'status' => $denied ? 'denied' : 'error', 'error' => self::clip( self::scrub( wp_strip_all_tags( (string) $result->get_error_message() ) ), 400 ) );
+			if ( self::not_applied( $result ) ) {
+				$out['not_applied'] = true;
+			}
+			return $out;
 		}
 		$data = self::mask( $result );
 		if ( is_array( $result ) && 'error' === ( $result['status'] ?? '' ) ) {
 			return array( 'status' => 'error', 'error' => self::clip( self::scrub( (string) ( $result['message'] ?? 'La herramienta devolvió un error.' ) ), 400 ), 'data' => $data );
 		}
 		return array( 'status' => 'ok', 'data' => $data );
+	}
+
+	/** ¿Este error dice que no se hizo nada? (NOT_APPLIED o un 4xx que no es espera, conflicto ni límite). */
+	public static function not_applied( $error ) {
+		if ( ! is_wp_error( $error ) ) {
+			return false;
+		}
+		if ( in_array( (string) $error->get_error_code(), self::NOT_APPLIED, true ) ) {
+			return true;
+		}
+		$data   = $error->get_error_data();
+		$status = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 0;
+		return $status >= 400 && $status < 500 && ! in_array( $status, array( 408, 409, 425, 429 ), true );
 	}
 
 	/**
@@ -468,6 +551,9 @@ final class Digitalisimo_AI_Assistant_Tools {
 		}
 		if ( ! empty( $result['maybe_applied'] ) ) {
 			$payload['puede_haberse_aplicado'] = true;
+		}
+		if ( isset( $result['note'] ) && is_string( $result['note'] ) && '' !== $result['note'] ) {
+			$payload['nota'] = $result['note'];
 		}
 		if ( array_key_exists( 'data', $result ) ) {
 			$payload['datos'] = $result['data'];
