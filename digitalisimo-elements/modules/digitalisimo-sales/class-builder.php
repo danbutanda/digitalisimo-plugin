@@ -72,8 +72,9 @@ final class Builder {
 	/**
 	 * @param array $template Plantilla (formato 0.4, con `content`).
 	 * @param array $meta     Su entrada del manifiesto (`urgency`, `has_countdown`).
-	 * @param array $input    `replacements`, `whatsapp` y `close_date` de la entrada.
-	 * @param array $env      `site_host` (host del sitio), `timezone` (\DateTimeZone del sitio) y `now` (marca de tiempo).
+	 * @param array $input    `replacements`, `whatsapp`, `close_date` y `finish` (terminar la página: `Finisher`).
+	 * @param array $env      `site_host` (host del sitio), `timezone` (\DateTimeZone del sitio), `now` (marca de tiempo) y,
+	 *                        con `finish`, `site` (`Site::read()`).
 	 * @return array|\WP_Error `elements` y el informe.
 	 */
 	public static function build( array $template, array $meta, array $input, array $env ) {
@@ -290,9 +291,17 @@ final class Builder {
 				return $clean;
 			};
 		};
+		// La hora del cierre es la de la zona del sitio (close_date se lee en ella): los textos que nombran el cierre
+		// ([día de cierre], [hora de cierre]…) la dicen. Sólo ésos: la fecha de un evento (03, 04) la escribe el usuario en
+		// la hora que él dice, y su «(hora del centro de México)» se queda.
+		$tz_name  = isset( $env['timezone'] ) && $env['timezone'] instanceof \DateTimeZone ? $env['timezone']->getName() : '';
+		$tz_label = '' !== $tz_name ? Site::timezone_label( $tz_name ) : '';
 		$content = Placeholders::map_strings(
 			$content,
-			static function ( $owner, $path, $value, $id = '' ) use ( $resolver, $whatsapp, $due, $gone, $block_of, &$here, &$where ) {
+			static function ( $owner, $path, $value, $id = '' ) use ( $resolver, $whatsapp, $due, $gone, $block_of, &$here, &$where, $tz_label ) {
+				if ( '' !== $tz_label && 'hora del centro de México' !== $tz_label && false !== strpos( $value, ' de cierre]' ) ) {
+					$value = str_replace( array( '(hora del centro de México)', '(centro de México)' ), '(' . $tz_label . ')', $value );
+				}
 				$here  = isset( $gone[ $id ] );
 				$where = $block_of[ $id ] ?? '';
 				$field = Placeholders::field( $owner, $path, $value );
@@ -345,6 +354,17 @@ final class Builder {
 					'reason'      => 'Sólo aparece en bloques que se quitaron (omit_blocks, o la urgencia sin close_date): no está en la página.',
 				);
 			}
+		}
+
+		// Terminar (`finish`, lo normal en create-page): ningún placeholder a la vista, enlaces a páginas reales, el logo
+		// del sitio, sin el número de muestra (Finisher). Sin `finish`, la página queda como antes, con lo pendiente.
+		$finish = null;
+		if ( ! empty( $input['finish'] ) ) {
+			$tz      = isset( $env['timezone'] ) && $env['timezone'] instanceof \DateTimeZone ? $env['timezone'] : new \DateTimeZone( 'UTC' );
+			$year    = (int) ( new \DateTimeImmutable( '@' . (int) ( $env['now'] ?? time() ) ) )->setTimezone( $tz )->format( 'Y' );
+			$finish  = Finisher::finish( $content, $blocks, (array) ( $env['site'] ?? array() ), $whatsapp, $year );
+			$content = $finish['elements'];
+			unset( $finish['elements'] );
 		}
 
 		$ids     = array();
@@ -403,6 +423,7 @@ final class Builder {
 			'removed_urgency'  => $removed,
 			'social_pending'   => $social,
 			'event_logo'       => self::event_logo_sample( $content ),
+			'finish'           => $finish,
 		);
 	}
 
