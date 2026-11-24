@@ -262,6 +262,10 @@ add_action(
 				'broken'       => array_values( array_unique( $broken ) ),
 				'links'        => array_slice( $content['links'], 0, 60 ),
 				'product'      => (bool) preg_match( '/purificador|rotoplas/i', $content['text'] ),
+				// La fecha que guarda el contador (en la zona del sitio) y si el borrador lo marcó el kit o el Asistente.
+				'due'          => preg_match_all( '/"due_date"\s*:\s*"([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2})/', $raw, $due ) ? array_values( array_unique( $due[1] ) ) : array(),
+				'kit'          => is_array( get_post_meta( $post->ID, '_digitalisimo_sales_kit', true ) ),
+				'assistant'    => (int) get_post_meta( $post->ID, '_digitalisimo_ai_assistant_draft', true ),
 				'price'        => (bool) preg_match( '/7[,.]?500/', $content['text'] ),
 			);
 		}
@@ -269,7 +273,8 @@ add_action(
 		wp_send_json(
 			array(
 				'made'    => $made,
-				'product' => array( 'id' => $product->get_id(), 'regular' => $product->get_regular_price(), 'sale' => $product->get_sale_price() ),
+				'product' => array( 'id' => $product->get_id(), 'regular' => $product->get_regular_price(), 'sale' => $product->get_sale_price(), 'modified' => (string) $product->get_date_modified() ),
+				'site_tz' => wp_timezone_string(),
 				'seen'    => get_option( 'digi_ias_seen', array() ),
 				'log'     => get_option( 'digitalisimo_ai_assistant_log', array() ),
 				'key_set' => '' !== (string) ( get_option( 'digitalisimo_ai_options', array() )['providers']['anthropic']['key'] ?? '' ),
