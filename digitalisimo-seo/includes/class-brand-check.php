@@ -14,7 +14,8 @@ defined( 'ABSPATH' ) || exit;
  *   no hay ninguna buena, no se publica imagen. Una imagen en otro dominio que sí responde se publica, con aviso.
  * - Mientras no hay comprobación, se publica lo configurado (como antes): un sitio sin imágenes de marca no cambia.
  * - Los avisos (`warnings()`) salen en el Escritorio y en las pantallas DIGITALÍSIMO, y en la ability
- *   `digitalisimo-seo/get-site-status` del MCP.
+ *   `digitalisimo-seo/get-site-status` del MCP. Incluyen lo del schema que no se publica o que conviene confirmar (A2:
+ *   nombre con emoji, datos del negocio que faltan, horario 24×7, perfiles para sameAs).
  */
 class Digitalisimo_Integrations_Brand_Check {
 	const OPTION   = 'digitalisimo_seo_brand_check';
@@ -69,6 +70,22 @@ class Digitalisimo_Integrations_Brand_Check {
 		if ( ! self::bad( $row ) && ! self::looks_demo( $configured ) ) return $configured;
 		$fallback = (string) ( $state[ 'fallback_' . ( 'logo' === $kind ? 'logo' : 'image' ) ] ?? '' );
 		return $fallback !== $configured ? $fallback : '';
+	}
+
+	/** Emojis y pictogramas (no ©, ® ni ™, que son parte de muchos nombres) y sus modificadores. */
+	const EMOJI = '/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{2300}-\x{23FF}\x{1F1E6}-\x{1F1FF}\x{FE0E}\x{FE0F}\x{200D}\x{20E3}\x{E0020}-\x{E007F}]/u';
+
+	public static function has_emoji( $text ) { return 1 === preg_match( self::EMOJI, (string) $text ); }
+
+	/**
+	 * Nombre sin emojis para el schema y og:site_name (auditoría A2: «DIGITALÍSIMO 🥇»). Un nombre que sólo era emoji
+	 * se deja como estaba, para no publicar un nombre vacío.
+	 */
+	public static function plain_name( $name ) {
+		$name  = (string) $name;
+		$plain = trim( (string) preg_replace( '/\s+/u', ' ', (string) preg_replace( self::EMOJI, '', $name ) ) );
+		$plain = trim( (string) preg_replace( '/^[\s|·•\-–—]+|[\s|·•\-–—]+$/u', '', $plain ) );
+		return '' !== $plain ? $plain : $name;
 	}
 
 	/* ------------------------------------------------------------------ *
@@ -229,7 +246,46 @@ class Digitalisimo_Integrations_Brand_Check {
 			if ( ! self::same_site( self::host( $url ), $home ) ) $out[] = array( 'code' => $kind . '_offsite', 'message' => $label . ' está en otro dominio (' . self::host( $url ) . '). Si ese dominio deja de responder, se pierde: súbela a la biblioteca de este sitio.' );
 			if ( 'logo' === $kind && is_array( $row ) && ! empty( $row['width'] ) && ( $row['width'] < self::MIN_LOGO || $row['height'] < self::MIN_LOGO ) ) $out[] = array( 'code' => 'logo_small', 'message' => 'El logo del schema mide ' . (int) $row['width'] . '×' . (int) $row['height'] . ' px; Google pide al menos ' . self::MIN_LOGO . '×' . self::MIN_LOGO . '.' );
 		}
+		return array_merge( $out, self::identity_warnings(), self::local_warnings() );
+	}
+
+	/** Nombre del sitio y de la organización con emoji (A2) y perfiles para sameAs. */
+	private static function identity_warnings() {
+		$out  = array();
+		$site = (string) ( self::o( 'seo_site_name' ) ?: get_bloginfo( 'name' ) );
+		$org  = (string) self::o( 'seo_organization_name' );
+		foreach ( array_unique( array_filter( array( $site, $org ) ) ) as $name ) {
+			if ( self::has_emoji( $name ) ) $out[] = array( 'code' => 'name_emoji', 'message' => 'El nombre «' . $name . '» lleva emoji: en el schema y en og:site_name se publica como «' . self::plain_name( $name ) . '», pero en los títulos (%sitename%) sí aparece. Quítalo en SEO → Identidad o en Ajustes → Generales.' );
+		}
+		if ( class_exists( 'Digitalisimo_Integrations_Social_Profiles' ) ) {
+			if ( ! Digitalisimo_Integrations_Social_Profiles::all_urls() ) $out[] = array( 'code' => 'same_as_empty', 'message' => 'No hay perfiles oficiales (redes y Google Business): el schema no puede enlazar la marca con ellos (sameAs). Agrégalos en SEO → Identidad → Perfiles oficiales.' );
+			elseif ( self::o( 'seo_local_enabled' ) && '' === trim( (string) ( Digitalisimo_Integrations_Social_Profiles::values()['google_business'] ?? '' ) ) ) $out[] = array( 'code' => 'same_as_gbp', 'message' => 'SEO local está activo pero falta el enlace al Perfil de Google Business en los perfiles oficiales: agrégalo para que el schema lo publique en sameAs.' );
+		}
 		return $out;
+	}
+
+	/** SEO local: lo que falta no se publica (A2), y el horario 24 horas los 7 días se confirma. */
+	private static function local_warnings() {
+		if ( ! self::o( 'seo_local_enabled' ) || ! class_exists( 'Digitalisimo_Integrations_Local_Business' ) ) return array();
+		$out     = array();
+		$missing = array();
+		if ( '' === trim( (string) self::o( 'seo_local_city' ) ) || ( '' === trim( (string) self::o( 'seo_local_address' ) ) && '' === trim( (string) self::o( 'seo_local_postal' ) ) ) ) $missing[] = 'la dirección (calle o código postal, y ciudad)';
+		if ( '' === Digitalisimo_Integrations_Local_Business::phone() ) $missing[] = 'el teléfono';
+		if ( ! Digitalisimo_Integrations_Local_Business::schema_hours() ) $missing[] = 'el horario';
+		if ( $missing ) $out[] = array( 'code' => 'local_missing', 'message' => 'SEO local está activo pero falta ' . implode( ', ', $missing ) . ': no se publica' . ( count( $missing ) > 1 ? 'n' : '' ) . ' en el schema. Complétalo en SEO → Local con los datos reales del negocio.' );
+		if ( self::always_open() ) $out[] = array( 'code' => 'local_24x7', 'message' => 'El horario dice abierto las 24 horas los 7 días. Si no es real, cámbialo en SEO → Local: Google lo muestra tal cual en la ficha del negocio.' );
+		return $out;
+	}
+
+	/** ¿El horario efectivo es 24 horas los 7 días (por día o con 00:00–23:59)? */
+	public static function always_open() {
+		$days = Digitalisimo_Integrations_Local_Business::schedule();
+		if ( count( $days ) < 7 ) return false;
+		foreach ( $days as $row ) {
+			$all_day = 'open' === $row['state'] && '00:00' === $row['from'] && in_array( $row['to'], array( '23:59', '23:30' ), true );
+			if ( 'always' !== $row['state'] && ! $all_day ) return false;
+		}
+		return true;
 	}
 
 	/** Aviso en el Escritorio y en las pantallas DIGITALÍSIMO, para quien administra el sitio. */

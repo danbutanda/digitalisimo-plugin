@@ -27,7 +27,7 @@ class Digitalisimo_Integrations_Social_Profiles {
 			'whatsapp'        => array( 'WhatsApp', 'https://wa.me/521XXXXXXXXXX', array( 'wa.me', 'whatsapp.com' ) ),
 			'pinterest'       => array( 'Pinterest', 'https://pinterest.com/tumarca', array( 'pinterest.com', 'pin.it' ) ),
 			'threads'         => array( 'Threads', 'https://threads.net/@tumarca', array( 'threads.net', 'threads.com' ) ),
-			'google_business' => array( 'Perfil de Google Business', 'https://g.page/tumarca', array( 'g.page', 'business.google.com', 'maps.app.goo.gl' ) ),
+			'google_business' => array( 'Perfil de Google Business', 'https://g.page/tumarca', array( 'g.page', 'business.google.com', 'maps.app.goo.gl', 'maps.google.com', 'share.google', 'g.co' ) ),
 		);
 	}
 

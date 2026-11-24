@@ -442,14 +442,15 @@ class Digitalisimo_Integrations_Schema_Graph {
 	private static function o( $key, $default = '' ) { return Digitalisimo_Integrations_Settings::get( $key, $default ); }
 
 	public static function site() {
-		$name  = self::o( 'seo_site_name' ) ?: get_bloginfo( 'name' );
+		// Nombres sin emoji (auditoría A2: «DIGITALÍSIMO 🥇»); el aviso del escritorio lo dice.
+		$name  = Digitalisimo_Integrations_Brand_Check::plain_name( self::o( 'seo_site_name' ) ?: get_bloginfo( 'name' ) );
 		$local = null;
 		if ( self::o( 'seo_local_enabled' ) ) {
 			$lat = trim( (string) self::o( 'seo_local_latitude' ) );
 			$lng = trim( (string) self::o( 'seo_local_longitude' ) );
 			$local = array(
 				'type'      => Digitalisimo_Integrations_Schema_Vocabulary::local_type( self::o( 'seo_local_type' ) ),
-				'name'      => self::o( 'seo_local_name' ) ?: ( self::o( 'seo_organization_name' ) ?: $name ),
+				'name'      => Digitalisimo_Integrations_Brand_Check::plain_name( self::o( 'seo_local_name' ) ?: ( self::o( 'seo_organization_name' ) ?: $name ) ),
 				'telephone' => Digitalisimo_Integrations_Local_Business::phone(),
 				'price'     => self::o( 'seo_local_price_range' ),
 				'address'   => array( 'streetAddress' => self::o( 'seo_local_address' ), 'addressLocality' => self::o( 'seo_local_city' ), 'addressRegion' => self::o( 'seo_local_region' ), 'postalCode' => self::o( 'seo_local_postal' ), 'addressCountry' => self::o( 'seo_local_country' ) ),
@@ -460,7 +461,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 		return array(
 			'home'     => home_url( '/' ),
 			'name'     => $name,
-			'org_name' => self::o( 'seo_organization_name' ) ?: $name,
+			'org_name' => Digitalisimo_Integrations_Brand_Check::plain_name( self::o( 'seo_organization_name' ) ?: $name ),
 			'org_type' => self::o( 'seo_organization_type' ) ?: 'Organization',
 			'org_url'  => self::o( 'seo_organization_url' ),
 			// Comprobadas en segundo plano (Brand_Check): una imagen rota o de demo cae a la de reserva o no se publica.
