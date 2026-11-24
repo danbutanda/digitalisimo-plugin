@@ -248,6 +248,8 @@ class Fake_Order {
 	public function get_id() { return $this->id; }
 	/** Pasarela en línea: el pago queda fechado al pasar a un estado pagado (como WC_Order::maybe_set_date_paid()). */
 	public function get_payment_method() { return 'stripe'; }
+	public function get_transaction_id() { return 'txn_' . $this->id; }
+	public function get_currency() { return 'MXN'; }
 	public function get_date_paid() { return $this->is_paid() ? new DateTime( '@' . time() ) : null; }
 	public function get_date_created() { return new DateTime( '@' . time() ); }
 	public function delete_meta_data( $k ) { unset( $this->meta[ $k ] ); }

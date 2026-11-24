@@ -99,7 +99,7 @@ $GLOBALS['nc']['balance'] = 0.02; $GLOBALS['mails'] = array();
 $renews = digi_nc_count( 'namecheap.domains.renew' );
 $r2->update_status( 'processing' ); digi_run_queue();
 check( $renews === digi_nc_count( 'namecheap.domains.renew' ) && false !== strpos( digi_notes( $r2 ), 'Saldo insuficiente en Namecheap para renovar pobre.com' ), 'Sin saldo no se renueva y la nota lo dice' );
-check( 1 === count( digi_mails_to( 'admin@tienda.test' ) ) && $exp2 === (int) $P::svc( $s2, 'expires' ) && ! $GLOBALS['queue'], 'Aviso al administrador, sin extender el vencimiento y sin reintentos automáticos' );
+check( 1 === count( digi_mails_to( 'admin@tienda.test' ) ) && strtotime( '+1 year', $exp2 ) === (int) $P::svc( $s2, 'expires' ) && ! $GLOBALS['queue'] && false !== strpos( digi_notes( $r2 ), 'la renovación del dominio queda pendiente' ), 'Aviso al administrador; el cliente que pagó recupera su año de hosting y sólo el dominio queda pendiente, sin reintentos automáticos' );
 $GLOBALS['nc']['balance'] = 30;
 check( true === $P::retry( $s2 ), '«Reintentar» encola la renovación pagada' );
 digi_run_queue();

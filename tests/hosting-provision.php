@@ -144,7 +144,7 @@ ob_start(); Digitalisimo_Hosting::page(); ob_end_clean();
 check( get_option( Digitalisimo_Hosting_Webuzo::BLOCK ) && ! $GLOBALS['queue'], 'Guardar sin escribir una clave no levanta la parada' );
 $_POST = array( '_wpnonce' => 'n:digitalisimo_hosting_save', 'digitalisimo_hosting_save' => 1, 'hosting' => array( 'webuzo_api_key' => 'CLAVE-WEBUZO-OK' ) );
 ob_start(); Digitalisimo_Hosting::page(); ob_end_clean(); $_POST = array();
-check( ! get_option( Digitalisimo_Hosting_Webuzo::BLOCK ) && array( 'digitalisimo_hosting_provision', 'digitalisimo_hosting_provision', 'digitalisimo_hosting_suspend' ) === array_column( $GLOBALS['queue'], 'hook' ), 'Una clave nueva levanta la parada y vuelve a encolar lo detenido: los dos pedidos y la suspensión' );
+check( null === Digitalisimo_Hosting_Webuzo::from_settings()->blocked() && array( 'digitalisimo_hosting_provision', 'digitalisimo_hosting_provision', 'digitalisimo_hosting_suspend' ) === array_column( $GLOBALS['queue'], 'hook' ), 'Una clave nueva levanta la parada y vuelve a encolar lo detenido: los dos pedidos y la suspensión' );
 digi_run_queue();
 check( 'completed' === $order->get_status() && 'completed' === $second->get_status() && 2 === digi_webuzo_count( 'add_user' ), 'Con la clave nueva los pedidos detenidos se entregan' );
 check( 1 === count( array_filter( $GLOBALS['webuzo']['keys_seen'], function ( $k ) { return 'CLAVE-VIEJA' === $k; } ) ), 'La clave rechazada se usó una sola vez en total' );

@@ -143,14 +143,16 @@ ob_start(); Digitalisimo_Hosting::page(); ob_end_clean(); $_POST = array();
 check( $W::from_settings()->blocked(), 'Guardar otros ajustes no levanta la parada' );
 
 // ── 4. La reactivación manual se respeta ────────────────────────────────────────────────────────────────────
+// Con fechas reales (la reactivación ocurre de verdad después de la gracia): vencido hace 10 días, gracia de 7.
 digi_reset();
 $o = digi_buy( 'promete.com' ); $s = digi_pay_run( $o );
-$e4 = (int) $P::svc( $s, 'expires' );
-$P::daily( $e4 - 29 * DAY_IN_SECONDS ); $P::daily( $e4 + 8 * DAY_IN_SECONDS ); digi_run_queue();
+$P::svc_set( $s, array( 'expires' => time() - 10 * DAY_IN_SECONDS ) );
+$P::daily(); digi_run_queue();
 check( 'suspended' === $P::svc( $s, 'status' ), 'Suspendido tras la gracia' );
 $P::enqueue( $P::HOOK_UNSUSPEND, $s ); digi_run_queue();
-$P::daily( $e4 + 9 * DAY_IN_SECONDS ); digi_run_queue();
+$P::daily( time() + DAY_IN_SECONDS ); digi_run_queue();
 check( 'active' === $P::svc( $s, 'status' ), 'Reactivado a mano: la revisión del día siguiente no lo vuelve a suspender' );
+check( abs( (int) $P::svc( $s, 'reprieve_until' ) - ( time() + 7 * DAY_IN_SECONDS ) ) < 60, 'La prórroga es una sola gracia desde hoy (no el doble)' );
 ob_start(); Digitalisimo_Hosting_Services_Page::render(); $html = ob_get_clean();
 check( false !== strpos( $html, 'Prórroga (reactivado a mano) hasta el' ), 'La prórroga se ve en Servicios de hosting' );
 $P::daily( (int) $P::svc( $s, 'reprieve_until' ) + DAY_IN_SECONDS ); digi_run_queue();

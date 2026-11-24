@@ -112,7 +112,7 @@ check( false !== strpos( $net, 'Aprovisionamiento detenido' ), 'La pantalla de r
 $before = count( $W->calls );
 $_POST = array( '_wpnonce' => 'n:digitalisimo_hosting_network_save', 'digitalisimo_hosting_network_save' => 1, 'hosting' => array( 'webuzo_api_key' => $W->key ) );
 ob_start(); Digitalisimo_Hosting::network_page(); ob_end_clean(); $_POST = array(); $GLOBALS['network_admin'] = false;
-check( ! isset( $GLOBALS['site_options'][ Digitalisimo_Hosting_Webuzo::BLOCK ] ) && $before === count( $W->calls ), 'Guardar la clave nueva en la red levanta la parada (sin llamar a Webuzo al guardar)' );
+check( null === Digitalisimo_Hosting_Webuzo::from_values( $GLOBALS['site_options']['digitalisimo_hosting_options'] )->blocked() && $before === count( $W->calls ), 'Guardar la clave nueva en la red levanta la parada (sin llamar a Webuzo al guardar)' );
 run_queue();
 check( 'completed' === $o4->status && 'red.com' === ( $W->users['pruebared']['domain'] ?? '' ) && array( 'ns1.red.test', 'ns2.red.test' ) === $N->domains['red.com']['ns'], 'Y el pedido detenido se entrega con el servidor y los nameservers de la red (usuario con el prefijo del sitio)' );
 $GLOBALS['multisite'] = false;

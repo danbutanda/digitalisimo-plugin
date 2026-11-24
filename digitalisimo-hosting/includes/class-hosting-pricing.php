@@ -199,7 +199,9 @@ class Digitalisimo_Hosting_Pricing {
 	 * ¿Lo cobrado (sin IVA) cubre el costo real de hoy más el margen mínimo, tras la comisión de la pasarela? null si sí;
 	 * si no, el motivo para dejar el pedido en espera. Corre siempre, con precios automáticos o manuales.
 	 */
-	public static function guard( $charged, $cost_usd, $label ) {
+	public static function guard( $charged, $cost_usd, $label, $currency = null ) {
+		// La moneda del PEDIDO (no la de la tienda, que pudo cambiar): sólo se comprueba en MXN.
+		if ( null !== $currency && 'MXN' !== strtoupper( (string) $currency ) ) return array( 'kind' => 'config', 'message' => 'El pedido está en ' . strtoupper( (string) $currency ) . ' y el costo sólo se comprueba en MXN: no se hizo ' . $label . '. Hazlo a mano.' );
 		// Siempre, aunque los precios sean manuales: un precio mal puesto o un cupón del 100 % no deben registrar con pérdida.
 		$fx = self::current_fx();
 		if ( 'ok' !== $fx['kind'] ) return array( 'kind' => 'config' === $fx['kind'] ? 'config' : 'transient', 'message' => 'No se pudo comprobar el costo de ' . $label . ': ' . $fx['message'] );

@@ -146,6 +146,10 @@ class WC_Order {
 	/** Pasarela en línea por defecto (paga y fecha el pago al pasar a «procesando»); 'cod', 'bacs', 'cheque' o '' son fuera de línea. */
 	public $method = 'stripe'; public $date_paid = 0; public $created = 0;
 	public function get_payment_method() { return $this->method; }
+	/** Número de transacción: lo deja payment_complete() de una pasarela en línea (las fuera de línea no). */
+	public $txn = null; public $currency = 'MXN';
+	public function get_transaction_id() { return null !== $this->txn ? $this->txn : ( in_array( $this->method, array( 'cod', 'bacs', 'cheque', '' ), true ) ? '' : 'txn_' . $this->id ); }
+	public function get_currency() { return $this->currency; }
 	public function get_date_paid() { return $this->date_paid ? new DateTime( '@' . $this->date_paid ) : null; }
 	public function get_date_created() { return new DateTime( '@' . ( $this->created ?: time() ) ); }
 	public function delete_meta_data( $k ) { unset( $this->meta[ $k ] ); }

@@ -116,6 +116,8 @@ class Digitalisimo_Hosting_Webuzo {
 		$all = (array) get_site_option( self::BLOCK, array() );
 		$row = array( 't' => time(), 'msg' => self::clean( $message ), 'key' => $this->fingerprint() );
 		$all[ $row['key'] ] = $row;
+		// Se recuerdan las claves rechazadas (no sólo la última): alternar A, B, A no vuelve a gastar intentos con A.
+		$all = array_slice( $all, -30, null, true );
 		update_site_option( self::BLOCK, $all );
 		if ( function_exists( 'do_action' ) ) do_action( 'digitalisimo_hosting_webuzo_blocked', $row );
 	}
@@ -199,7 +201,9 @@ class Digitalisimo_Hosting_Webuzo {
 	 * segunda red: la primera es la consulta de sólo lectura cerrada que precede a toda operación.
 	 */
 	public static function is_auth_message( $message ) {
-		return (bool) preg_match( '/incorrect\s+(user\s*name|username|password|api)|invalid\s+(api|login|credential|key)|api\s*key|apikey|attempt\(s\)\s*left|attempts?\s+left|exceeded\s+maximum\s+login|blacklist|unauthori[sz]ed|not\s+authori[sz]ed|authenticat|access\s+denied|permission\s+denied|login\s+(failed|required)|please\s+log\s*in|contrase|usuario\s+o\s+clave|clave\s+(de\s+)?api|intento|bloquead|lista\s+negra|acceso\s+denegado|no\s+autorizad|credencial|inicia(r)?\s+sesi/iu', (string) $message );
+		// Sólo textos de autenticación conocidos: un error de validación («La contraseña debe tener al menos 20
+		// caracteres») no detiene todo. La consulta de sólo lectura sigue cerrada (cualquier error la detiene).
+		return (bool) preg_match( '/incorrect\s+(user\s*name|username|password)|invalid\s+(api\s*key|apikey|login|credentials?)|attempt\(s\)\s*left|attempts?\s+left|exceeded\s+maximum\s+login|blacklist|unauthori[sz]ed|not\s+authori[sz]ed|authentication\s+failed|access\s+denied|please\s+log\s*in|usuario\s+o\s+contrase(ñ|n)a\s+incorrect|intento\(s\)|intentos?\s+restantes?|le\s+quedan?\s+\d+\s+intento|bloquead[ao]|lista\s+negra|acceso\s+denegado|no\s+autorizad[ao]|clave\s+(de\s+)?api\s+(no\s+v[aá]lida|inv[aá]lida|incorrecta)/iu', (string) $message );
 	}
 
 	/** Un error de Webuzo puede ser un texto o una lista; se junta en una línea sin HTML. */
@@ -225,14 +229,33 @@ class Digitalisimo_Hosting_Webuzo {
 	public function users() {
 		$r = $this->call( 'users' );
 		if ( 'ok' !== $r['kind'] ) return $r;
+		$users = self::parse_users( $r['data']['users'] );
+		// La lista real pagina (num_res, reslen = 50, cur_page desde 0; leído de una respuesta real del 2026-11-24): si
+		// hay más cuentas que las recibidas, se piden las páginas siguientes (page = 1, 2…). Cada página es la misma
+		// consulta cerrada. Si aun así faltan, se marca «partial»: un usuario o dominio repetido lo rechaza Webuzo y el
+		// pedido queda en espera, nunca se duplica.
+		$total = (int) ( $r['data']['num_res'] ?? 0 );
+		$per   = (int) ( $r['data']['reslen'] ?? 0 );
+		for ( $page = 1; $per > 0 && $total > count( $users ) && $page <= (int) ceil( $total / $per ) && $page < 100; $page++ ) {
+			$p = $this->call( 'users', array( 'page' => $page, 'reslen' => $per ) );
+			if ( 'ok' !== $p['kind'] ) return $p;
+			$before = count( $users );
+			$users += self::parse_users( $p['data']['users'] );
+			if ( count( $users ) === $before ) break;
+		}
+		$r['users'] = $users;
+		$r['partial'] = $total > count( $users );
+		return $r;
+	}
+
+	private static function parse_users( $rows ) {
 		$users = array();
-		foreach ( $r['data']['users'] as $name => $row ) {
+		foreach ( (array) $rows as $name => $row ) {
 			$row = (array) $row;
 			$user = strtolower( (string) ( $row['user'] ?? $name ) );
 			if ( '' !== $user ) $users[ $user ] = array( 'user' => $user, 'domain' => strtolower( (string) ( $row['domain'] ?? '' ) ), 'status' => (string) ( $row['status'] ?? '' ), 'plan' => (string) ( $row['plan'] ?? '' ) );
 		}
-		$r['users'] = $users;
-		return $r;
+		return $users;
 	}
 
 	public function create_user( $user, $domain, $password, $email, $plan ) {

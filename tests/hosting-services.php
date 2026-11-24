@@ -112,7 +112,7 @@ $GLOBALS['network_admin'] = true;
 $_POST = array( '_wpnonce' => 'n:digitalisimo_hosting_network_save', 'digitalisimo_hosting_network_save' => 1, 'hosting' => array( 'webuzo_api_key' => 'CLAVE-WEBUZO-OK' ) );
 ob_start(); Digitalisimo_Hosting::network_page(); ob_end_clean(); $_POST = array();
 $GLOBALS['network_admin'] = false;
-check( empty( $GLOBALS['site_options'][ Digitalisimo_Hosting_Webuzo::BLOCK ] ), 'La clave nueva de la red levanta la parada' );
+check( null === Digitalisimo_Hosting_Webuzo::from_values( $GLOBALS['site_options']['digitalisimo_hosting_options'] )->blocked(), 'La clave nueva de la red ya no está detenida (la rechazada se recuerda)' );
 $P::daily(); digi_run_queue();
 check( 'completed' === $o2->get_status() && 'completed' === $o3->get_status(), 'El sitio 2 retoma sus pedidos detenidos' );
 $html = digi_page();
