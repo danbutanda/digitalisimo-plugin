@@ -138,6 +138,8 @@ class Digi_Test_Item {
 	public function get_product_id() { return $this->product; } public function get_variation_id() { return $this->variation; }
 	public function get_quantity() { return $this->qty; } public function get_name() { return $this->name; }
 	public function get_meta( $k ) { return $this->meta[ $k ] ?? ''; }
+	public function add_meta_data( $k, $v, $unique = false ) { $this->meta[ $k ] = $v; }
+	public function save() { return true; }
 }
 class WC_Order {
 	public $id; public $status = 'pending'; public $items = array(); public $meta = array(); public $notes = array(); public $billing = array(); public $customer = 7; public $total = 0;
@@ -157,6 +159,7 @@ class WC_Order {
 	}
 	public function get_address( $t ) { return $this->billing; }
 	public function set_address( $a, $t ) { $this->billing = $a; }
+	public function get_item( $id ) { return $this->items[ $id - 1 ] ?? false; }
 	public function add_product( $p, $qty ) { $this->items[] = new Digi_Test_Item( $p->get_id(), $p->get_name(), $qty ); $this->total += $p->price; return count( $this->items ); }
 	public function calculate_totals() { return $this->total; }
 	public function needs_payment() { return in_array( $this->status, array( 'pending', 'failed' ), true ); }

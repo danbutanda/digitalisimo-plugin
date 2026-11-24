@@ -658,7 +658,8 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( is_wp_error( $order ) || ! $order ) return null;
 		foreach ( $products as $key => $product ) {
 			$item_id = $order->add_product( $product, 1 );
-			if ( 'domain_product' === $key && $item_id && function_exists( 'wc_add_order_item_meta' ) ) wc_add_order_item_meta( $item_id, 'Dominio', (string) self::svc( $id, 'domain' ) );
+			$item = 'domain_product' === $key && $item_id ? $order->get_item( $item_id ) : null;
+			if ( $item ) { $item->add_meta_data( 'Dominio', (string) self::svc( $id, 'domain' ), true ); $item->save(); }
 		}
 		if ( $orig ) $order->set_address( $orig->get_address( 'billing' ), 'billing' );
 		else $order->set_billing_email( (string) self::svc( $id, 'email' ) );

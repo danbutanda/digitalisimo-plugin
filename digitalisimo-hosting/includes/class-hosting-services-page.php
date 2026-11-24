@@ -22,6 +22,12 @@ class Digitalisimo_Hosting_Services_Page {
 		add_submenu_page( 'woocommerce', 'Servicios de hosting', 'Servicios de hosting', 'manage_woocommerce', self::SLUG, array( __CLASS__, 'render' ) );
 	}
 
+	/** La pantalla del pedido (la de HPOS si la tienda la usa). */
+	private static function order_url( $id ) {
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $id ) : null;
+		return $order && method_exists( $order, 'get_edit_order_url' ) ? $order->get_edit_order_url() : admin_url( 'post.php?post=' . (int) $id . '&action=edit' );
+	}
+
 	public static function nonce_action( $op, $id ) { return self::ACTION . '_' . $op . '_' . (int) $id; }
 
 	private static function status_label( $status ) {
@@ -72,7 +78,7 @@ class Digitalisimo_Hosting_Services_Page {
 			echo '<td>' . esc_html( '' !== $user ? $user : '—' ) . '</td>';
 			echo '<td>' . esc_html( $expires ? $P::date( $expires ) : '—' ) . '</td>';
 			echo '<td><strong>' . esc_html( self::status_label( $status ) ) . '</strong>' . ( '' !== $error ? '<br><span class="description">' . esc_html( $error ) . '</span>' : '' ) . '</td>';
-			echo '<td>' . ( $order_id ? '<a href="' . esc_url( admin_url( 'post.php?post=' . $order_id . '&action=edit' ) ) . '">#' . $order_id . '</a>' : '—' ) . ( $renewal ? '<br><span class="description">Renovación <a href="' . esc_url( admin_url( 'post.php?post=' . $renewal . '&action=edit' ) ) . '">#' . $renewal . '</a></span>' : '' ) . '</td>';
+			echo '<td>' . ( $order_id ? '<a href="' . esc_url( self::order_url( $order_id ) ) . '">#' . $order_id . '</a>' : '—' ) . ( $renewal ? '<br><span class="description">Renovación <a href="' . esc_url( self::order_url( $renewal ) ) . '">#' . $renewal . '</a></span>' : '' ) . '</td>';
 			echo '<td>';
 			if ( in_array( $status, array( 'pending', 'on-hold' ), true ) || '' !== $error ) self::button( 'retry', $id, 'Reintentar' );
 			if ( '' !== $user && 'active' === $status ) self::button( 'suspend', $id, 'Suspender', '¿Suspender la cuenta «' . $user . '» de ' . $P::svc( $id, 'domain' ) . '? El sitio y el correo del cliente dejarán de funcionar hasta reactivarla.' );
