@@ -110,6 +110,10 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 	return new WP_Error( 'digi_hp_offline', 'Sin red en el ensayo.' );
 }, 10, 3 );
 
+// La cola de Action Scheduler sólo corre con el paso «run» de la sonda: sin el corredor asíncrono (petición de vuelta
+// al cerrar) ni WP-Cron, que la procesarían a destiempo y harían el ensayo no determinista.
+add_filter( 'action_scheduler_allow_async_request_runner', '__return_false' );
+add_action( 'wp_loaded', static function () { if ( class_exists( 'ActionScheduler' ) ) remove_action( 'action_scheduler_run_queue', array( ActionScheduler::runner(), 'run' ) ); } );
 add_filter( 'pre_wp_mail', static function ( $null, $atts ) {
 	$mails = json_decode( (string) @file_get_contents( DIGI_HP_DIR . '/mails.json' ), true ) ?: array();
 	$mails[] = array( 'to' => is_array( $atts['to'] ) ? implode( ',', $atts['to'] ) : (string) $atts['to'], 'subject' => (string) $atts['subject'], 'body' => (string) $atts['message'] );
