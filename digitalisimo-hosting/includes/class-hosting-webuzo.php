@@ -141,7 +141,7 @@ class Digitalisimo_Hosting_Webuzo {
 	 * Las operaciones que cambian algo hacen antes, en la misma petición, la consulta de sólo lectura: ninguna ruta
 	 * (crear, suspender, reactivar, renovar, reintento manual) llama a Webuzo sin pasar por esa decisión.
 	 */
-	public function call( $act, array $post = array() ) {
+	public function call( $act, array $post = array(), array $query = array() ) {
 		if ( ! $this->configured() ) return array( 'kind' => 'config', 'data' => array(), 'message' => 'Faltan la URL, el usuario o la clave de la API de Webuzo en Digitalisimo → Hosting.' );
 		$blocked = $this->blocked();
 		if ( $blocked ) return array( 'kind' => 'blocked', 'data' => array(), 'message' => 'Aprovisionamiento detenido: Webuzo rechazó la clave de API (' . $blocked['msg'] . '). Guarda una clave nueva en Digitalisimo → Hosting.' );
@@ -150,7 +150,7 @@ class Digitalisimo_Hosting_Webuzo {
 			$pre = $this->users();
 			if ( 'ok' !== $pre['kind'] ) return $pre;
 		}
-		$url      = $this->url . '/index.php?api=json&act=' . rawurlencode( $act );
+		$url      = $this->url . '/index.php?api=json&act=' . rawurlencode( $act ) . ( $query ? '&' . http_build_query( $query ) : '' );
 		$response = wp_remote_post(
 			$url,
 			array(
@@ -230,14 +230,15 @@ class Digitalisimo_Hosting_Webuzo {
 		$r = $this->call( 'users' );
 		if ( 'ok' !== $r['kind'] ) return $r;
 		$users = self::parse_users( $r['data']['users'] );
-		// La lista real pagina (num_res, reslen = 50, cur_page desde 0; leído de una respuesta real del 2026-11-24): si
-		// hay más cuentas que las recibidas, se piden las páginas siguientes (page = 1, 2…). Cada página es la misma
-		// consulta cerrada. Si aun así faltan, se marca «partial»: un usuario o dominio repetido lo rechaza Webuzo y el
-		// pedido queda en espera, nunca se duplica.
+		// La lista real pagina (prueba real autorizada del 2026-11-24, webuzo-real/): trae num_res (total), reslen (50 por
+		// página) y cur_page (desplazamiento). La página siguiente se pide con `page` EN LA URL, empezando en 1 (page=2 da
+		// las cuentas 50…99); `page` en el cuerpo del POST se ignora. Cada página es la misma consulta cerrada. Si aun así
+		// faltan cuentas, se marca «partial»: un usuario o dominio repetido lo rechaza Webuzo y el pedido queda en espera,
+		// nunca se duplica.
 		$total = (int) ( $r['data']['num_res'] ?? 0 );
 		$per   = (int) ( $r['data']['reslen'] ?? 0 );
-		for ( $page = 1; $per > 0 && $total > count( $users ) && $page <= (int) ceil( $total / $per ) && $page < 100; $page++ ) {
-			$p = $this->call( 'users', array( 'page' => $page, 'reslen' => $per ) );
+		for ( $page = 2; $per > 0 && $total > count( $users ) && $page <= (int) ceil( $total / $per ) && $page < 100; $page++ ) {
+			$p = $this->call( 'users', array(), array( 'page' => $page ) );
 			if ( 'ok' !== $p['kind'] ) return $p;
 			$before = count( $users );
 			$users += self::parse_users( $p['data']['users'] );

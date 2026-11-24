@@ -152,10 +152,20 @@ $GLOBALS['webuzo']['users']['pagina'] = array( 'user' => 'pagina', 'domain' => '
 add_filter( 'pre_http_request', function ( $pre, $args, $url ) {
 	if ( false !== $pre || 0 !== strpos( $url, 'https://webuzo.test:2005/' ) || false === strpos( $url, 'act=users' ) || isset( $args['body']['suspend'] ) || isset( $args['body']['unsuspend'] ) ) return $pre;
 	$GLOBALS['webuzo']['calls'][] = array( 'act' => 'users', 'fields' => array_diff_key( $args['body'], array( 'apikey' => 1 ) ), 'url' => $url );
-	$all = $GLOBALS['webuzo']['users']; $page = (int) ( $args['body']['page'] ?? 0 );
-	return digi_json( array( 'title' => 'Webuzo - Panel de administrador', 'users' => array_slice( $all, $page * 50, 50, true ), 'num_res' => count( $all ), 'reslen' => 50, 'cur_page' => $page ) );
+	// Como el servidor real: `page` sólo cuenta en la URL (desde 1); en el cuerpo del POST se ignora; cur_page = desplazamiento.
+	parse_str( (string) parse_url( $url, PHP_URL_QUERY ), $q );
+	$all = $GLOBALS['webuzo']['users']; $offset = max( 0, ( (int) ( $q['page'] ?? 1 ) - 1 ) * 50 );
+	return digi_json( array( 'title' => 'Webuzo - Panel de administrador', 'users' => array_slice( $all, $offset, 50, true ), 'resellers' => array(), 'num_res' => count( $all ), 'reslen' => 50, 'cur_page' => $offset ) );
 }, 5, 3 );
 $o = buy( 'pagina.com', 14693, 0 ); pay( $o );
-check( 'pagina2' === acct( 'pagina.com' ) && 2 === digi_webuzo_count( 'users' ) - 0, 'La lista paginada se lee completa: el usuario «pagina» (página 2) ya existe y se usa «pagina2»' );
+check( 'pagina2' === acct( 'pagina.com' ) && 2 === digi_webuzo_count( 'users' ) && false !== strpos( $GLOBALS['webuzo']['calls'][1]['url'], 'act=users&page=2' ), 'La lista paginada se lee completa (page=2 en la URL, como el servidor real): el usuario «pagina» ya existe y se usa «pagina2»' );
+
+// Formas reales de respuesta (prueba real autorizada del 2026-11-24): errores como objeto con código y mensajes en español.
+foreach ( array( array( 'pass_mismatch' => 'Las contraseñas ingresadas no coinciden.' ), array( 'inv_pri_domain' => 'Dominio inválido' ), array( 'no_user' => 'No existe tal usuario <b>zzdgtest</b>' ) ) as $err ) {
+	$c = $W::classify( digi_json( array( 'title' => 'Webuzo - Panel de administrador', 'error' => $err ) ) );
+	check( 'api' === $c['kind'] && false === strpos( $c['message'], '<b>' ), 'Respuesta real: «' . key( $err ) . '» es error de la operación (no de clave), sin HTML' );
+}
+$c = $W::classify( digi_json( array( 'title' => 'Webuzo', 'done' => array( 'msg' => 'Usuario suspendido con éxito' ), 'users' => array(), 'num_res' => 40, 'reslen' => 50, 'cur_page' => 0 ) ) );
+check( 'ok' === $c['kind'] && 'msg: Usuario suspendido con éxito' === $c['message'], 'Respuesta real: «done» en español cuenta como hecho' );
 
 echo "Hosting, tercera revisión: {$GLOBALS['checks']} comprobaciones correctas.\n";
