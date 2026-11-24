@@ -238,6 +238,7 @@ jobs:
           php tests/same-site-guard.php
           php tests/tools-cache-salt.php
           php tests/tools-rest-cache.php
+          php tests/tools-plugin-health.php
           php tests/admin-notices.php
           php tests/seo-legacy-import.php
           php tests/migration-admin-load.php
