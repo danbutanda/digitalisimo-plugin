@@ -67,7 +67,16 @@ final class Pages {
 		}
 		$meta = get_post_meta( $post_id, self::META, true );
 		$blog = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
-		if ( ! is_array( $meta ) || (int) ( $meta['blog'] ?? 0 ) !== $blog ) {
+		$kit  = is_array( $meta ) && (int) ( $meta['blog'] ?? 0 ) === $blog;
+		/**
+		 * Otro borrador que se puede regenerar aunque no lleve la marca del kit (las páginas creadas antes de que el kit
+		 * la guardara, o las que creó el Asistente IA de IA Tools para esta persona). Sólo se consulta para un borrador
+		 * de este sitio; publicar, programar o una página ajena nunca pasan (lo de abajo se comprueba igual).
+		 */
+		if ( ! $kit && ! is_array( $meta ) && 'draft' === ( $post->post_status ?? '' ) && function_exists( 'apply_filters' ) ) {
+			$kit = true === apply_filters( 'digitalisimo_sales_regenerable', false, $post_id );
+		}
+		if ( ! $kit ) {
 			return new \WP_Error( 'digitalisimo_sales_post_id', sprintf( 'La página %d no es un borrador del kit de ventas de este sitio: create-page sólo regenera los borradores que creó; quita post_id para crear una nueva.', $post_id ), array( 'status' => 400 ) );
 		}
 		if ( 'draft' !== ( $post->post_status ?? '' ) ) {
@@ -105,6 +114,17 @@ final class Pages {
 					'post_status' => 'draft',
 				)
 			);
+			// Un borrador que se aceptó por el filtro queda ya como del kit: la próxima vez se regenera sin él.
+			if ( ! is_array( get_post_meta( $post_id, self::META, true ) ) ) {
+				update_post_meta(
+					$post_id,
+					self::META,
+					array(
+						'blog'     => function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1,
+						'template' => $template,
+					)
+				);
+			}
 		} else {
 			$post_id = wp_insert_post(
 				array(

@@ -212,7 +212,10 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
 - **Regenerar en el mismo borrador (`post_id`).** Cada borrador del kit lleva la meta `_digitalisimo_sales_kit` (sitio
   de la red y plantilla). Con `post_id`, `create-page` arma de nuevo y guarda en ESE borrador (mismo ID, sigue en
   borrador), sólo si lo creó el kit en este sitio, el usuario puede editarlo (`edit_post`) y está en borrador; una
-  página publicada, programada, privada, en revisión, de otro sitio o que no creó el kit da error y no se toca. El
+  página publicada, programada, privada, en revisión, de otro sitio o que no creó el kit da error y no se toca. Un
+  borrador de este sitio sin la marca (creado antes de que el kit la guardara, o por el Asistente IA de IA Tools para
+  esa persona) se acepta sólo si el filtro `digitalisimo_sales_regenerable` lo dice, y al rehacerse queda marcado
+  (caso plomerito 2, 2026-11-24: «no aceptó rehacer el borrador 1040, aunque lo creó ella misma»). El
   núcleo marca la página como cambiada por el MCP. Los encabezados sueltos de la descripción («Beneficios»,
   «Características:», «Detalles:», un `<h3>`) no se copian como beneficio ni como párrafo.
 - **Terminada (`finish`, por defecto).** `Finisher` termina cualquier página del kit: `[Marca]` y `[año]` con los datos
@@ -271,7 +274,15 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
 - **`whatsapp`:** sólo dígitos (8 a 15, con la clave del país); cambia el número de todos los botones
   (`https://wa.me/<dígitos>`). Sin él, el que el sitio ya publica; si no hay, terminada, el botón va a contacto o se
   quita (con `finish: false`, queda el de muestra y se informa).
-- **`close_date`** («AAAA-MM-DD HH:MM» en la hora del sitio), en las plantillas con contador o con textos de cierre
+- **La hora de la tienda** (`Site::sales_timezone()`, filtro `digitalisimo_sales_timezone`): `close_date` y `offer.ends`
+  van en la hora que dice el dueño, la de la tienda: la zona del sitio si WordPress tiene una ciudad elegida; si sólo
+  tiene UTC o un desfase, la del país de la tienda de WooCommerce (México: `America/Mexico_City`; los países con varias
+  zonas, la principal de `COUNTRY_ZONES`; uno sin ella, la del sitio). El contador guarda ese instante en la zona del
+  sitio (el widget lee su fecha con `wp_timezone()`), así «fin de mes» cierra a la medianoche de la tienda y no a las
+  17:59 de Torreón (caso plomerito 2: el sitio estaba en UTC). Sin una zona con nombre, la página dice la hora sola,
+  nunca «(hora UTC)». La foto única del producto en «Conócelo» no conserva el pie de muestra («Foto de la persona detrás
+  de la marca»), ni a la vista ni guardado.
+- **`close_date`** («AAAA-MM-DD HH:MM» en la hora de la tienda), en las plantillas con contador o con textos de cierre
   (01, 02 y 05; `close_date: true` en `list-templates`): una fecha válida, futura y a menos de dos años; llena los
   contadores y los placeholders de cierre. Los de cierre no se llenan con `replacements`. **Sin `close_date`** se
   quitan los bloques de urgencia del manifiesto (las barras de cierre de la 01 y la 02 y el contador del carrito), como

@@ -73,6 +73,9 @@ namespace {
 	}
 	function add_filter() {
 	}
+	function apply_filters( $hook, $value, ...$args ) {
+		return isset( $GLOBALS['sp']['filters'][ $hook ] ) ? call_user_func( $GLOBALS['sp']['filters'][ $hook ], $value, ...$args ) : $value;
+	}
 	function remove_filter() {
 	}
 	function current_user_can( $cap, $id = 0 ) {
@@ -799,13 +802,16 @@ namespace {
 	check( false !== strpos( $envios( array( $gratis, $pickup ) ), 'Sí, el envío es gratis.' ) && false === strpos( $envios( array( $gratis ) ), 'se calcula al pagar' ), 'R5: envío gratis, dicho (sin «el costo se calcula al pagar»)' );
 	check( false !== strpos( $envios( array( $flat ) ), 'Opciones de envío: Envío estándar. El costo se calcula al pagar.' ), 'R5: envío con costo' );
 	check( false === strpos( $envios( array( $flat ), array( 'virtual' => true ) ), '¿Hacen envíos?' ), 'R5: un producto virtual no habla de envíos' );
-	// 6. La hora del cierre, en la zona real del sitio.
-	foreach ( array( 'UTC' => '(hora UTC)', 'America/Tijuana' => '(hora de Tijuana)' ) as $zona => $texto ) {
-		sp_reset();
-		$GLOBALS['sp']['tz'] = $zona;
-		list( $out, $all )   = $run( $promo );
-		check( substr_count( $all, $texto ) >= 3 && false === strpos( $all, 'centro de México' ) && $fin . ' 23:59' === $out['close_date'], "R6 $zona: la barra, la oferta y la pregunta dicen $texto, nunca «centro de México»" );
-	}
+	// 6. La hora del cierre, en la zona real del sitio (sin una zona con nombre, la hora va sola: «hora UTC» no le dice
+	//    nada a un cliente; caso plomerito 2).
+	sp_reset();
+	$GLOBALS['sp']['tz'] = 'America/Tijuana';
+	list( $out, $all )   = $run( $promo );
+	check( substr_count( $all, '(hora de Tijuana)' ) >= 3 && false === strpos( $all, 'centro de México' ) && $fin . ' 23:59' === $out['close_date'], 'R6 America/Tijuana: la barra, la oferta y la pregunta dicen (hora de Tijuana), nunca «centro de México»' );
+	sp_reset();
+	$GLOBALS['sp']['tz'] = 'UTC';
+	list( $out, $all )   = $run( $promo );
+	check( false === strpos( $all, 'UTC' ) && false === strpos( $all, 'centro de México' ) && false !== strpos( $all, 'a las 23:59' ) && $fin . ' 23:59' === $out['close_date'], 'R6 UTC sin país de la tienda: la hora del cierre va sola, sin «hora UTC» ni «centro de México»: ' . implode( ' | ', array_filter( explode( "\n", $all ), static function ( $l ) { return false !== strpos( $l, 'UTC' ) || false !== strpos( $l, 'México' ) || false !== strpos( $l, '23:59' ); } ) ) );
 	// 8. Reseñas: sin respuestas de la tienda y sólo de 4 o 5 estrellas.
 	sp_reset();
 	$GLOBALS['sp']['reviews'] = array(
@@ -843,7 +849,11 @@ namespace {
 			list( $out, $all ) = $run( array( 'template' => 'gracias-registro', 'title' => 'Gracias', 'replacements' => $evento, 'finish' => $terminar ) );
 			check( false !== strpos( $all, '5 de diciembre a las 19:00 (centro de México)' ) && false === strpos( $all, $etiqueta ), "S1 $zona, 04 $modo: la hora del evento sigue «(centro de México)»" );
 			list( $out, $all ) = $run( array( 'template' => 'venta-corta', 'title' => 'Venta', 'close_date' => $fin . ' 23:59', 'finish' => $terminar ) );
-			check( false !== strpos( $all, '23:59 (' . $etiqueta . ')' ) && false === strpos( $all, 'de cierre] (hora del centro' ), "S1 $zona, 02 $modo: el cierre dice ($etiqueta)" );
+			if ( 'UTC' === $zona ) {
+				check( false !== strpos( $all, '23:59' ) && false === strpos( $all, 'hora UTC' ) && false === strpos( $all, 'de cierre] (hora del centro' ), "S1 $zona, 02 $modo: el cierre dice la hora sola, sin «hora UTC»" );
+			} else {
+				check( false !== strpos( $all, '23:59 (' . $etiqueta . ')' ) && false === strpos( $all, 'de cierre] (hora del centro' ), "S1 $zona, 02 $modo: el cierre dice ($etiqueta)" );
+			}
 		}
 	}
 	// S2. Envío gratis con condiciones: se dice con su condición; nunca «el envío es gratis» a secas.
@@ -939,6 +949,54 @@ namespace {
 	$sueltos                  = array_values( array_diff( $sueltos, array( 'Características' ) ) ); // El título propio de las características.
 	check( ! $sueltos, 'T2: ningún encabezado suelto de la descripción en la página: ' . json_encode( $sueltos, JSON_UNESCAPED_UNICODE ) );
 	check( false !== strpos( $all, 'Agua alcalina' ) && false !== strpos( $all, 'Acero inoxidable' ) && false !== strpos( $all, 'Agua purificada directo de tu tarja.' ), 'T2: los beneficios y los párrafos reales sí se copian' );
+
+	// ================================================================ 5e. Caso plomerito 2 (2026-11-24)
+	// U1. Sitio en UTC y tienda en México: «fin de mes» es la medianoche de la tienda (centro de México), la página lo dice
+	//     así y el contador guarda ese instante en la zona del sitio (el widget lee su fecha con wp_timezone()).
+	$due_of = static function ( array $els ): array {
+		return array_values( array_map( static function ( $w ) { return $w['settings']['due_date'] ?? ''; }, array_filter( sp_widgets( $els ), static function ( $w ) { return 'countdown' === $w['widgetType']; } ) ) );
+	};
+	sp_reset();
+	$GLOBALS['sp']['tz']                                    = 'UTC';
+	$GLOBALS['sp']['options']['woocommerce_default_country'] = 'MX:COA';
+	check( 'America/Mexico_City' === Site::sales_timezone()->getName() && 'America/Mexico_City' === Site::read()['timezone'], 'U1: con el sitio en UTC, la hora de la tienda es la de su país (México: centro)' );
+	list( $out, $all ) = $run( $promo );
+	$utc               = ( new DateTimeImmutable( $fin . ' 23:59', new DateTimeZone( 'America/Mexico_City' ) ) )->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i' );
+	check( substr_count( $all, '(hora del centro de México)' ) >= 2 && false === strpos( $all, 'UTC' ) && $fin . ' 23:59' === $out['close_date'], 'U1: la página dice «(hora del centro de México)» y nunca «UTC»' );
+	check( array( $utc ) === $due_of( $created[0][1] ), "U1: el contador cierra a las 23:59 de México ($utc en la hora del sitio): " . json_encode( $due_of( $created[0][1] ) ) );
+	// Con el sitio en una ciudad, manda la del sitio, y el contador no se mueve.
+	sp_reset();
+	$GLOBALS['sp']['tz']                                    = 'America/Tijuana';
+	$GLOBALS['sp']['options']['woocommerce_default_country'] = 'MX:COA';
+	list( $out, $all ) = $run( $promo );
+	check( 'America/Tijuana' === Site::sales_timezone()->getName() && array( $fin . ' 23:59' ) === $due_of( $created[0][1] ), 'U1: con una ciudad elegida en el sitio, manda la del sitio' );
+	// Un país con una sola zona la toma; uno con varias y sin la principal anotada, se queda la del sitio.
+	sp_reset();
+	$GLOBALS['sp']['tz']                                    = 'UTC';
+	$GLOBALS['sp']['options']['woocommerce_default_country'] = 'GT';
+	check( 'America/Guatemala' === Site::sales_timezone()->getName(), 'U1: Guatemala, su única zona' );
+	$GLOBALS['sp']['options']['woocommerce_default_country'] = 'RU';
+	check( 'UTC' === Site::sales_timezone()->getName(), 'U1: un país con varias zonas y sin la principal anotada: la del sitio' );
+	// U2. «Foto de la persona detrás de la marca»: con una sola foto del producto no queda ni a la vista ni guardada.
+	sp_reset();
+	$GLOBALS['sp']['product'] = new Sp_Product( array( 'image' => 501, 'gallery' => array() ) );
+	list( $out, $all )        = $run( $promo );
+	$fotos                    = array_values( array_filter( sp_widgets( $created[0][1] ), static function ( $w ) { return 'image' === $w['widgetType'] && false !== strpos( (string) ( $w['settings']['image']['url'] ?? '' ), 'purificador-1.jpg' ); } ) );
+	check( is_array( $out ) && false === stripos( $all, 'persona detrás' ) && false === stripos( $all, 'detrás de la marca' ), 'U2: ningún texto de muestra de «quién está detrás» en la landing de producto' );
+	check( $fotos && ! array_filter( $fotos, static function ( $w ) { return isset( $w['settings']['caption'] ) || 'custom' === ( $w['settings']['caption_source'] ?? '' ); } ), 'U2: la foto del producto sin pie de muestra' );
+	// U3. Un borrador sin la marca del kit (creado antes de que existiera, o por el Asistente IA) se puede regenerar si
+	//     el filtro lo acepta; queda marcado; uno publicado nunca, aunque el filtro diga que sí.
+	sp_reset();
+	$viejo = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'Oferta de fin de mes' ) );
+	check_error( Executor::run( 'create-page', array( 'post_id' => $viejo, 'template' => 'venta-corta', 'title' => 'No' ) ), 'digitalisimo_sales_post_id', 'U3: sin la marca y sin el filtro, no se toca' );
+	$GLOBALS['sp']['filters']['digitalisimo_sales_regenerable'] = static function ( $ok, $id ) use ( $viejo ) {
+		return $ok || $viejo === (int) $id;
+	};
+	$r = Executor::run( 'create-page', $promo + array( 'post_id' => $viejo ) );
+	check( is_array( $r ) && true === $r['regenerated'] && $viejo === $r['id'] && is_array( $GLOBALS['sp']['postmeta'][ $viejo ]['_digitalisimo_sales_kit'] ?? null ), 'U3: con el filtro, el borrador viejo se rehace (mismo ID) y queda con la marca del kit' );
+	$GLOBALS['sp']['posts'][ $viejo ]['post_status'] = 'publish';
+	unset( $GLOBALS['sp']['postmeta'][ $viejo ]['_digitalisimo_sales_kit'] );
+	check_error( Executor::run( 'create-page', array( 'post_id' => $viejo, 'template' => 'venta-corta', 'title' => 'No' ) ), 'digitalisimo_sales_post_id', 'U3: una página publicada nunca, aunque el filtro diga que sí' );
 
 	// ================================================================ 6. Guía y descripciones
 	$guide = Catalog::guide();
