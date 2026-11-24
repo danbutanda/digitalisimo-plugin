@@ -54,7 +54,7 @@ foreach ( array( 'Registrant', 'Tech', 'Admin', 'AuxBilling' ) as $t ) {
 check( 'mitienda.com' === $reg['DomainName'] && 1 === (int) $reg['Years'] && ! isset( $reg['RegistrantOrganizationName'] ), 'Registro de un año del dominio del pedido, sin campos vacíos' );
 $dns = $GLOBALS['nc']['calls'][4]['fields'];
 check( 'mitienda' === $dns['SLD'] && 'com' === $dns['TLD'] && 'ns1.digitalisimo.website,ns2.digitalisimo.website' === $dns['Nameservers'], 'El dominio apunta a ns1 y ns2.digitalisimo.website (namecheap.domains.dns.setCustom)' );
-check( 'CLAVE-NAMECHEAP' === $GLOBALS['nc']['calls'][0]['key'] && 'https://api.namecheap.com/xml.response' === $GLOBALS['http'][2]['url'], 'Namecheap recibe la clave en el cuerpo del POST' );
+check( 'CLAVE-NAMECHEAP' === $GLOBALS['nc']['calls'][0]['key'] && in_array( 'https://api.namecheap.com/xml.response', array_column( $GLOBALS['http'], 'url' ), true ) && ! preg_grep( '/CLAVE-NAMECHEAP/', array_column( $GLOBALS['http'], 'url' ) ), 'Namecheap recibe la clave en el cuerpo del POST, nunca en la URL' );
 $customer = digi_mails_to( 'ana@cliente.test' );
 check( 1 === count( $customer ) && 'Tus accesos de hosting para mitienda.com' === $customer[0]['subject'], 'El cliente recibe el correo «Accesos de hosting»' );
 check( false !== strpos( $customer[0]['body'], $password ) && false !== strpos( $customer[0]['body'], 'https://webuzo.test:2003/' ) && false !== strpos( $customer[0]['body'], '<code>mitienda</code>' ) && false !== strpos( $customer[0]['body'], 'ns1.digitalisimo.website' ), 'El correo trae la contraseña, el panel en el puerto 2003, el usuario y los nameservers' );
@@ -110,7 +110,7 @@ digi_run_queue();
 check( 5 === count( $GLOBALS['webuzo']['calls'] ) && ! $GLOBALS['queue'], 'Red caída: cinco intentos en total y ninguno más' );
 check( 'on-hold' === $order->get_status() && false !== strpos( digi_notes( $order ), 'Se agotaron los reintentos automáticos' ), 'Agotados los reintentos, el pedido queda en espera con su nota' );
 check( 1 === count( digi_mails_to( 'admin@tienda.test' ) ), 'El administrador recibe un aviso' );
-check( ! $GLOBALS['nc']['calls'], 'Sin cuenta de hosting no se registra el dominio' );
+check( 1 === digi_nc_count( 'namecheap.domains.create' ), 'Primero el dominio: se registra una sola vez aunque Webuzo falle en cada reintento' );
 
 // ── 4. Clave de Webuzo rechazada ────────────────────────────────────────────────────────────────────────────
 digi_reset_store( array( 'webuzo_api_key' => 'CLAVE-VIEJA' ) );
@@ -123,13 +123,13 @@ $admin = digi_mails_to( 'admin@tienda.test' );
 check( 1 === count( $admin ) && false !== strpos( $admin[0]['subject'], 'Webuzo rechazó la clave' ) && false === strpos( $admin[0]['body'], 'CLAVE-VIEJA' ), 'El administrador recibe un solo aviso, sin la clave' );
 $block = get_option( Digitalisimo_Hosting_Webuzo::BLOCK );
 check( is_array( $block ) && 1 === count( $block ) && false !== strpos( json_encode( $block ), '1 attempt(s) left' ) && false === strpos( json_encode( $block ), 'CLAVE-VIEJA' ), 'El interruptor global guarda el motivo y una huella, nunca la clave' );
-check( ! $GLOBALS['nc']['calls'], 'Con la clave rechazada tampoco se registra el dominio' );
+check( 1 === digi_nc_count( 'namecheap.domains.create' ), 'El dominio pagado se registra (va antes) y la cuenta espera la clave nueva' );
 // Otro pedido pagado, una suspensión manual y la revisión diaria: ninguno llama a Webuzo.
 $second = digi_buy( 'otropedido.com' );
 $second->update_status( 'processing' );
 digi_run_queue();
 $svc_first = (int) $order->get_meta( '_digitalisimo_service' );
-$P::svc_set( $svc_first, array( 'webuzo_user' => 'alguien', 'status' => 'active' ) );
+$P::svc_set( $svc_first, array( 'webuzo_user' => 'alguien', 'status' => 'active', 'suspend_reason' => 'manual' ) );
 $P::run_suspend( $svc_first );
 $P::daily();
 check( 1 === count( $GLOBALS['webuzo']['calls'] ), 'Mientras dure la parada, ningún pedido, suspensión ni revisión diaria llama a Webuzo' );
@@ -232,9 +232,9 @@ digi_reset_store();
 $GLOBALS['webuzo']['timeout'] = 1;
 $order = digi_buy( 'reembolso.com' );
 $order->update_status( 'processing' ); digi_run_queue( true, 1 );
-$order->status = 'refunded'; $calls = count( $GLOBALS['webuzo']['calls'] );
+$order->status = 'refunded'; $calls = count( $GLOBALS['webuzo']['calls'] ); $nc_calls = count( $GLOBALS['nc']['calls'] );
 digi_run_queue();
-check( $calls === count( $GLOBALS['webuzo']['calls'] ) && ! $GLOBALS['nc']['calls'] && false !== strpos( digi_notes( $order ), 'no se aprovisiona ni se renueva nada' ), 'Un pedido reembolsado con un reintento en cola no crea cuenta ni registra dominio' );
+check( $calls === count( $GLOBALS['webuzo']['calls'] ) && $nc_calls === count( $GLOBALS['nc']['calls'] ) && false !== strpos( digi_notes( $order ), 'no se aprovisiona ni se renueva nada' ), 'Un pedido reembolsado con un reintento en cola no crea cuenta ni registra dominio' );
 // Venta automática apagada después de encolar: la tarea no llama a nadie.
 digi_reset_store();
 $order = digi_buy( 'apagada.com' );

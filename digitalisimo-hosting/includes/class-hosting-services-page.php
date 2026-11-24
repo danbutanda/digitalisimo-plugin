@@ -76,7 +76,8 @@ class Digitalisimo_Hosting_Services_Page {
 			echo '<td>' . esc_html( (string) $P::svc( $id, 'domain' ) ) . '</td>';
 			echo '<td>' . esc_html( (string) $P::svc( $id, 'plan' ) ) . '</td>';
 			echo '<td>' . esc_html( '' !== $user ? $user : '—' ) . '</td>';
-			echo '<td>' . esc_html( $expires ? $P::date( $expires ) : '—' ) . '</td>';
+			$reprieve = (int) $P::svc( $id, 'reprieve_until' );
+			echo '<td>' . esc_html( $expires ? $P::date( $expires ) : '—' ) . ( $reprieve > time() ? '<br><span class="description">' . esc_html( 'Prórroga (reactivado a mano) hasta el ' . $P::date( $reprieve ) ) . '</span>' : '' ) . '</td>';
 			echo '<td><strong>' . esc_html( self::status_label( $status ) ) . '</strong>' . ( '' !== $error ? '<br><span class="description">' . esc_html( $error ) . '</span>' : '' ) . '</td>';
 			echo '<td>' . ( $order_id ? '<a href="' . esc_url( self::order_url( $order_id ) ) . '">#' . $order_id . '</a>' : '—' ) . ( $renewal ? '<br><span class="description">Renovación <a href="' . esc_url( self::order_url( $renewal ) ) . '">#' . $renewal . '</a></span>' : '' ) . '</td>';
 			echo '<td>';

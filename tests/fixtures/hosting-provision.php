@@ -246,6 +246,11 @@ class Fake_Item {
 class Fake_Order {
 	public $id; public $status = 'pending'; public $items = array(); public $meta = array(); public $notes = array(); public $billing = array(); public $customer = 7; public $created_via = 'checkout'; public $total = 0;
 	public function get_id() { return $this->id; }
+	/** Pasarela en línea: el pago queda fechado al pasar a un estado pagado (como WC_Order::maybe_set_date_paid()). */
+	public function get_payment_method() { return 'stripe'; }
+	public function get_date_paid() { return $this->is_paid() ? new DateTime( '@' . time() ) : null; }
+	public function get_date_created() { return new DateTime( '@' . time() ); }
+	public function delete_meta_data( $k ) { unset( $this->meta[ $k ] ); }
 	public function get_status() { return $this->status; }
 	public function update_status( $s, $note = '' ) { $old = $this->status; $this->status = $s; if ( $note ) $this->notes[] = $note; $this->save(); if ( $old !== $s ) do_action( 'woocommerce_order_status_' . $s, $this->id, $this ); return true; }
 	public function get_items() { return $this->items; }
@@ -312,7 +317,7 @@ foreach ( array( 14693 => 'digitalisimo_starter', 14694 => 'digitalisimo_digital
 /** Ajustes de la tienda con la venta automática encendida (servidor y claves simulados). */
 function hosting_settings( array $extra = array() ) {
 	update_option( 'digitalisimo_hosting_options', $extra + array(
-		'enabled' => 1, 'provision_enabled' => 1, 'api_user' => 'digitalisimo', 'username' => 'digitalisimo', 'api_key' => $GLOBALS['namecheap']->key, 'client_ip' => '203.0.113.10',
+		'enabled' => 1, 'provision_enabled' => 1, 'provision_since' => 1, 'api_user' => 'digitalisimo', 'username' => 'digitalisimo', 'api_key' => $GLOBALS['namecheap']->key, 'client_ip' => '203.0.113.10',
 		'domain_products' => ".com|201\n.mx|202\n.org|203", 'webuzo_url' => 'https://webuzo.test:2005', 'webuzo_api_user' => 'root', 'webuzo_api_key' => $GLOBALS['webuzo']->key, 'grace_days' => 7,
 	), false );
 }

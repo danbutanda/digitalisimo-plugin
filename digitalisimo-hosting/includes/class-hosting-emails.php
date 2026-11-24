@@ -29,7 +29,8 @@ if ( class_exists( 'WC_Email' ) && ! class_exists( 'Digitalisimo_Hosting_Email_A
 			if ( ! $order || ! $this->is_enabled() ) return false;
 			$this->object    = $order;
 			$this->data      = $data;
-			$this->recipient = $order->get_billing_email();
+			// «Reenviar accesos» pasa el correo con el que se contrató el servicio; si no, el de facturación del pedido.
+			$this->recipient = '' !== (string) ( $data['to'] ?? '' ) ? (string) $data['to'] : $order->get_billing_email();
 			$this->placeholders['{domain}'] = (string) ( $data['domain'] ?? '' );
 			if ( ! $this->get_recipient() ) return false;
 			if ( method_exists( $this, 'setup_locale' ) ) $this->setup_locale();

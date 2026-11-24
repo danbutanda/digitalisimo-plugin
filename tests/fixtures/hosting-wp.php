@@ -143,6 +143,12 @@ class Digi_Test_Item {
 }
 class WC_Order {
 	public $id; public $status = 'pending'; public $items = array(); public $meta = array(); public $notes = array(); public $billing = array(); public $customer = 7; public $total = 0;
+	/** Pasarela en línea por defecto (paga y fecha el pago al pasar a «procesando»); 'cod', 'bacs', 'cheque' o '' son fuera de línea. */
+	public $method = 'stripe'; public $date_paid = 0; public $created = 0;
+	public function get_payment_method() { return $this->method; }
+	public function get_date_paid() { return $this->date_paid ? new DateTime( '@' . $this->date_paid ) : null; }
+	public function get_date_created() { return new DateTime( '@' . ( $this->created ?: time() ) ); }
+	public function delete_meta_data( $k ) { unset( $this->meta[ $k ] ); }
 	public function get_id() { return $this->id; }
 	public function get_status() { return $this->status; }
 	public function get_items() { return $this->items; }
@@ -150,7 +156,9 @@ class WC_Order {
 	public function update_meta_data( $k, $v ) { $this->meta[ $k ] = $v; }
 	public function save() { $GLOBALS['saved'][ $this->id ] = json_encode( array( $this->status, $this->meta ) ); return $this->id; }
 	public function add_order_note( $n, $customer = 0 ) { $this->notes[] = $n; return count( $this->notes ); }
-	public function update_status( $s, $note = '' ) { $old = $this->status; $this->status = $s; if ( $note ) $this->add_order_note( $note ); $this->save(); if ( $old !== $s ) do_action( 'woocommerce_order_status_' . $s, $this->id, $this ); return true; }
+	public function update_status( $s, $note = '' ) { $old = $this->status; $this->status = $s;
+		// Como WC_Order::maybe_set_date_paid(): una pasarela en línea fecha el pago al pasar a un estado pagado.
+		if ( ! $this->date_paid && in_array( $s, array( 'processing', 'completed' ), true ) && ! in_array( $this->method, array( 'cod', 'bacs', 'cheque', '' ), true ) ) $this->date_paid = time(); if ( $note ) $this->add_order_note( $note ); $this->save(); if ( $old !== $s ) do_action( 'woocommerce_order_status_' . $s, $this->id, $this ); return true; }
 	public function get_customer_id() { return $this->customer; }
 	public function __call( $name, $args ) {
 		if ( preg_match( '/^get_billing_(\w+)$/', $name, $m ) ) return $this->billing[ $m[1] ] ?? '';
@@ -169,7 +177,7 @@ class WC_Order {
 }
 $GLOBALS['orders'] = array(); $GLOBALS['next_order'] = 500;
 function wc_get_order( $id ) { return $GLOBALS['orders'][ (int) $id ] ?? false; }
-function wc_create_order( $a = array() ) { $o = new WC_Order(); $o->id = ++$GLOBALS['next_order']; $o->customer = (int) ( $a['customer_id'] ?? 0 ); $GLOBALS['orders'][ $o->id ] = $o; return $o; }
+function wc_create_order( $a = array() ) { $o = new WC_Order(); $o->id = ++$GLOBALS['next_order']; $o->customer = (int) ( $a['customer_id'] ?? 0 ); $o->created = time(); $GLOBALS['orders'][ $o->id ] = $o; return $o; }
 function wc_add_order_item_meta( $item_id, $k, $v ) { foreach ( $GLOBALS['orders'] as $o ) { if ( isset( $o->items[ $item_id - 1 ] ) && $o->id === $GLOBALS['next_order'] ) $o->items[ $item_id - 1 ]->meta[ $k ] = $v; } return true; }
 /** Un pedido del cliente, como lo deja el checkout. */
 function digi_order( array $items, array $billing = array() ) {
@@ -334,8 +342,9 @@ function digi_store_settings( array $extra = array() ) {
 		'enabled' => 1, 'provision_enabled' => 1, 'api_user' => 'nc-api', 'username' => 'nc-user', 'api_key' => 'CLAVE-NAMECHEAP', 'client_ip' => '203.0.113.5',
 		'domain_products' => ".com|20\n.mx|21", 'hosting_product_ids' => '', 'hosting_category_ids' => '63',
 		'webuzo_url' => 'https://webuzo.test:2005', 'webuzo_api_user' => 'root', 'webuzo_api_key' => 'CLAVE-WEBUZO-OK', 'grace_days' => 7,
-		'nameservers' => 'ns1.digitalisimo.website, ns2.digitalisimo.website',
+		'nameservers' => 'ns1.digitalisimo.website, ns2.digitalisimo.website', 'provision_since' => 1,
 	) );
+	update_option( 'woocommerce_calc_taxes', 'yes' ); update_option( 'woocommerce_currency', 'MXN' );
 }
 
 define( 'DIGITALISIMO_HOSTING_URL', 'https://tienda.test/wp-content/plugins/digitalisimo-hosting/' );

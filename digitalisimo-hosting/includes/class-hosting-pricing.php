@@ -47,8 +47,10 @@ class Digitalisimo_Hosting_Pricing {
 		return array(
 			'cushion'    => $pct( 'pricing_cushion', 3 ),
 			'margin'     => $pct( 'pricing_margin', 25 ),
-			'fee'        => $pct( 'pricing_fee', 3.6 ),
-			'vat'        => $pct( 'pricing_vat', 16 ),
+			// Tope de la comisión: 30 % (más que eso es un error de captura, no una pasarela).
+			'fee'        => min( 0.3, $pct( 'pricing_fee', 3.6 ) ),
+			// Sin impuestos en WooCommerce, el cliente no paga IVA encima: la pasarela cobra sobre el precio tal cual.
+			'vat'        => 'no' === get_option( 'woocommerce_calc_taxes', 'yes' ) ? 0.0 : $pct( 'pricing_vat', 16 ),
 			'min_margin' => $pct( 'pricing_min_margin', 10 ),
 			'rounding'   => isset( self::ROUNDING[ (string) ( $o['pricing_rounding'] ?? '' ) ] ) ? (string) $o['pricing_rounding'] : '10',
 		);
@@ -68,13 +70,27 @@ class Digitalisimo_Hosting_Pricing {
 	public static function sell_price( $base_usd, $fx, array $p ) {
 		$cost  = $base_usd * $fx * ( 1 + $p['cushion'] );
 		$floor = $cost * ( 1 + $p['margin'] );
-		$den   = 1 - $p['fee'] * ( 1 + $p['vat'] );
-		$raw   = $den > 0.05 ? $floor / $den : $floor * 2;
+		$den   = max( 0.5, 1 - $p['fee'] * ( 1 + $p['vat'] ) );
+		$raw   = $floor / $den;
 		$price = max( self::round_up( $raw, $p['rounding'] ), (int) ceil( $floor ) );
 		return array( 'cost' => round( $cost, 2 ), 'floor' => round( $floor, 2 ), 'raw' => round( $raw, 2 ), 'price' => $price );
 	}
 
 	// ── Tipo de cambio ──────────────────────────────────────────────────────────────────────────────────────────
+
+	/** La moneda de la tienda. */
+	public static function currency() { return strtoupper( function_exists( 'get_woocommerce_currency' ) ? (string) get_woocommerce_currency() : (string) get_option( 'woocommerce_currency', 'MXN' ) ); }
+
+	/**
+	 * Lo que vale un dólar en la moneda de la tienda: MXN con el FIX (o el respaldo), USD es 1; otra moneda no se puede
+	 * comprobar (error: no se fija precio ni se registra a ciegas).
+	 */
+	public static function store_fx() {
+		$cur = self::currency();
+		if ( 'USD' === $cur ) return array( 'kind' => 'ok', 'rate' => 1.0, 'source' => 'tienda en USD' );
+		if ( 'MXN' !== $cur ) return array( 'kind' => 'config', 'message' => 'La tienda cobra en ' . $cur . ' y el costo de Namecheap sólo se puede convertir a MXN o USD.' );
+		return self::fx();
+	}
 
 	/** FIX de Banxico y, si falla, Frankfurter: array( kind ok, rate, source ) o el error de las dos. */
 	public static function fx() {
@@ -145,7 +161,7 @@ class Digitalisimo_Hosting_Pricing {
 				$costs[ $ext ][ $action ] = (float) $r['value'];
 			}
 		}
-		$fx = self::fx();
+		$fx = self::store_fx();
 		if ( 'ok' !== $fx['kind'] ) return self::failed( $fx['message'] );
 		$p = self::params();
 		$rows = array();
@@ -171,6 +187,7 @@ class Digitalisimo_Hosting_Pricing {
 
 	/** El tipo de cambio para comprobar un pedido: el del historial de los últimos 3 días o uno nuevo. */
 	private static function current_fx() {
+		if ( 'MXN' !== self::currency() ) return self::store_fx();
 		foreach ( array_reverse( self::history() ) as $e ) {
 			if ( 'ok' === ( $e['status'] ?? '' ) && time() - (int) $e['t'] < 3 * DAY_IN_SECONDS ) return array( 'kind' => 'ok', 'rate' => (float) $e['fx'], 'source' => (string) $e['fx_source'] );
 			break;
@@ -185,7 +202,7 @@ class Digitalisimo_Hosting_Pricing {
 	public static function guard( $charged, $cost_usd, $label ) {
 		// Siempre, aunque los precios sean manuales: un precio mal puesto o un cupón del 100 % no deben registrar con pérdida.
 		$fx = self::current_fx();
-		if ( 'ok' !== $fx['kind'] ) return array( 'kind' => 'transient', 'message' => 'No se pudo comprobar el costo de ' . $label . ': ' . $fx['message'] );
+		if ( 'ok' !== $fx['kind'] ) return array( 'kind' => 'config' === $fx['kind'] ? 'config' : 'transient', 'message' => 'No se pudo comprobar el costo de ' . $label . ': ' . $fx['message'] );
 		$p    = self::params();
 		$cost = $cost_usd * $fx['rate'];
 		$net  = (float) $charged * ( 1 - $p['fee'] * ( 1 + $p['vat'] ) );
