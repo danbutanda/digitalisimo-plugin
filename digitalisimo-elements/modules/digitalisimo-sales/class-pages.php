@@ -51,32 +51,88 @@ final class Pages {
 		return $elements;
 	}
 
+	/** Meta propia de las páginas que crea el kit: ['blog' => ID del sitio, 'template' => id de la plantilla]. */
+	const META = '_digitalisimo_sales_kit';
+
 	/**
-	 * @return array|\WP_Error `id`, `status`, `edit_url` y `preview_url`.
+	 * ¿Se puede regenerar esta página? Sólo un borrador que creó el kit (su meta propia), en este sitio de la red,
+	 * editable por el usuario; nunca una página publicada, programada, privada o pendiente de revisión.
+	 *
+	 * @return true|\WP_Error
 	 */
-	public static function create( string $title, array $elements ) {
+	public static function regenerable( int $post_id ) {
+		$post = $post_id > 0 && function_exists( 'get_post' ) ? get_post( $post_id ) : null;
+		if ( ! $post || 'page' !== ( $post->post_type ?? '' ) ) {
+			return new \WP_Error( 'digitalisimo_sales_post_id', sprintf( 'post_id %d no es una página de este sitio.', $post_id ), array( 'status' => 404 ) );
+		}
+		$meta = get_post_meta( $post_id, self::META, true );
+		$blog = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
+		if ( ! is_array( $meta ) || (int) ( $meta['blog'] ?? 0 ) !== $blog ) {
+			return new \WP_Error( 'digitalisimo_sales_post_id', sprintf( 'La página %d no es un borrador del kit de ventas de este sitio: create-page sólo regenera los borradores que creó; quita post_id para crear una nueva.', $post_id ), array( 'status' => 400 ) );
+		}
+		if ( 'draft' !== ( $post->post_status ?? '' ) ) {
+			return new \WP_Error( 'digitalisimo_sales_post_id', sprintf( 'La página %d está %s, no en borrador: create-page nunca toca una página publicada, programada, privada o en revisión; quita post_id para crear un borrador nuevo.', $post_id, (string) $post->post_status ), array( 'status' => 400 ) );
+		}
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return new \WP_Error( 'digitalisimo_sales_forbidden', sprintf( 'Tu usuario no puede editar la página %d.', $post_id ), array( 'status' => 403 ) );
+		}
+		return true;
+	}
+
+	/**
+	 * Crea el borrador o, con `$post_id`, lo regenera en el mismo borrador del kit (`regenerable()`): mismo ID, nuevo
+	 * título y elementos, sigue en borrador.
+	 *
+	 * @return array|\WP_Error `id`, `status`, `edit_url`, `preview_url` y `regenerated`.
+	 */
+	public static function create( string $title, array $elements, int $post_id = 0, string $template = '' ) {
 		if ( ! post_type_exists( 'page' ) || ! post_type_supports( 'page', 'elementor' ) ) {
 			return new \WP_Error( 'digitalisimo_sales_post_type', 'Las páginas de este sitio no se editan con el constructor (Configuración del constructor → tipos de contenido).', array( 'status' => 400 ) );
 		}
 		if ( ! class_exists( '\Elementor\Plugin' ) || ! class_exists( '\Elementor\User' ) || ! \Elementor\User::is_current_user_can_edit_post_type( 'page' ) ) {
 			return new \WP_Error( 'digitalisimo_sales_forbidden', 'Tu usuario no puede editar páginas con el constructor.', array( 'status' => 403 ) );
 		}
-		$post_id = wp_insert_post(
-			array(
-				'post_title'   => $title,
-				'post_status'  => 'draft',
-				'post_type'    => 'page',
-				'post_content' => '',
-			),
-			true
-		);
-		if ( is_wp_error( $post_id ) ) {
-			return $post_id;
+		$regenerate = $post_id > 0;
+		if ( $regenerate ) {
+			$ok = self::regenerable( $post_id );
+			if ( true !== $ok ) {
+				return $ok;
+			}
+			wp_update_post(
+				array(
+					'ID'          => $post_id,
+					'post_title'  => $title,
+					'post_status' => 'draft',
+				)
+			);
+		} else {
+			$post_id = wp_insert_post(
+				array(
+					'post_title'   => $title,
+					'post_status'  => 'draft',
+					'post_type'    => 'page',
+					'post_content' => '',
+				),
+				true
+			);
+			if ( is_wp_error( $post_id ) ) {
+				return $post_id;
+			}
+			update_post_meta(
+				(int) $post_id,
+				self::META,
+				array(
+					'blog'     => function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1,
+					'template' => $template,
+				)
+			);
 		}
 		$post_id  = (int) $post_id;
 		$document = \Elementor\Plugin::$instance->documents->get( $post_id, false );
 		if ( ! $document ) {
-			wp_delete_post( $post_id, true );
+			if ( ! $regenerate ) {
+				wp_delete_post( $post_id, true );
+			}
 			return new \WP_Error( 'digitalisimo_sales_document', 'El constructor no pudo abrir la página nueva.', array( 'status' => 500 ) );
 		}
 		$document->set_is_built_with_elementor( true );
@@ -101,6 +157,9 @@ final class Pages {
 			remove_filter( 'elementor/document/save/data', array( self::class, 'without_types' ), 11 );
 		}
 		if ( ! $saved ) {
+			if ( $regenerate ) {
+				return new \WP_Error( 'digitalisimo_sales_save', 'El constructor no pudo guardar la página; el borrador se queda como estaba.', array( 'status' => 500 ) );
+			}
 			wp_delete_post( $post_id, true );
 			return new \WP_Error( 'digitalisimo_sales_save', 'El constructor no pudo guardar la página; no se creó nada.', array( 'status' => 500 ) );
 		}
@@ -119,6 +178,7 @@ final class Pages {
 			'status'      => (string) get_post_status( $post_id ),
 			'edit_url'    => $document ? (string) $document->get_edit_url() : '',
 			'preview_url' => $document ? (string) remove_query_arg( 'preview_nonce', $document->get_wp_preview_url() ) : (string) get_preview_post_link( $post_id ),
+			'regenerated' => $regenerate,
 		);
 	}
 }

@@ -209,6 +209,12 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
   «garantía: ninguna»/«-»; no «envío sin costo y garantía de 12 meses»); variaciones empatadas, la de ID menor;
   WhatsApp sin páginas con contraseña, y una plantilla guardada sin condiciones de visualización pesa menos que la
   cabecera o el pie en uso; un enlace que se pone en el editor quita su botón, no el bloque.
+- **Regenerar en el mismo borrador (`post_id`).** Cada borrador del kit lleva la meta `_digitalisimo_sales_kit` (sitio
+  de la red y plantilla). Con `post_id`, `create-page` arma de nuevo y guarda en ESE borrador (mismo ID, sigue en
+  borrador), sólo si lo creó el kit en este sitio, el usuario puede editarlo (`edit_post`) y está en borrador; una
+  página publicada, programada, privada, en revisión, de otro sitio o que no creó el kit da error y no se toca. El
+  núcleo marca la página como cambiada por el MCP. Los encabezados sueltos de la descripción («Beneficios»,
+  «Características:», «Detalles:», un `<h3>`) no se copian como beneficio ni como párrafo.
 - **Terminada (`finish`, por defecto).** `Finisher` termina cualquier página del kit: `[Marca]` y `[año]` con los datos
   del sitio; las rutas del kit (`/aviso-de-privacidad/`, `/terminos-y-condiciones/`, `/politica-de-reembolso/`,
   `/carrito/`, `/pago/`…) a la página real que el sitio declara o tiene con esa dirección (`Site::read()`), y si no la

@@ -329,6 +329,9 @@ final class Product {
 		$out = array();
 		foreach ( $items as $item ) {
 			$item = rtrim( $item, ' .;' );
+			if ( self::is_heading( $item, true ) ) {
+				continue;
+			}
 			if ( '' !== $item && strlen( $item ) <= 300 && ! in_array( mb_strtolower_safe( $item ), array_map( __NAMESPACE__ . '\\mb_strtolower_safe', $out ), true ) ) {
 				$out[] = $item;
 			}
@@ -336,14 +339,43 @@ final class Product {
 		return $out;
 	}
 
-	/** Los párrafos de un texto que no son listas, en texto plano. */
+	/**
+	 * ¿Un renglón es un encabezado suelto de la descripción («Beneficios», «Características:», «Detalles del producto»)?
+	 * Corto (hasta cinco palabras), sin punto final ni verbo conjugado común, o terminado en dos puntos. Un encabezado no
+	 * es un beneficio ni un párrafo: no se copia.
+	 */
+	public static function is_heading( string $text, bool $item = false ): bool {
+		$text = trim( $text );
+		if ( '' === $text ) {
+			return true;
+		}
+		if ( preg_match( '/:\s*$/u', $text ) && count( preg_split( '/\s+/u', $text ) ) <= 6 ) {
+			return true;
+		}
+		$words = preg_split( '/\s+/u', rtrim( $text, '.!?' ) );
+		if ( count( $words ) > 4 || preg_match( '/[.!?…]$/u', $text ) || preg_match( '/[0-9]/', $text ) ) {
+			return false;
+		}
+		// Un verbo frecuente en una frase corta la hace contenido («Filtra el agua», «Incluye cartucho»), no un título.
+		if ( preg_match( '/\b(es|son|tiene|tienen|incluye|incluyen|filtra|elimina|ahorra|protege|funciona|sirve|mide|pesa|trae|viene|permite|ofrece|cuenta|garantiza|reduce|mejora|eleva|evita|dura)\b/iu', $text ) && count( $words ) > 1 ) {
+			return false;
+		}
+		if ( preg_match( '/^(beneficios?|caracter[ií]sticas?|ventajas?|especificaciones?( t[eé]cnicas)?|detalles?( del producto)?|descripci[oó]n|incluye|contenido( de la caja)?|qu[eé] incluye|modo de uso|instrucciones|ficha t[eé]cnica|informaci[oó]n( adicional)?|medidas|dimensiones|materiales?|garant[ií]a|notas?|importante|ideal para|usos?)(\s+(principales|clave|del producto))?$/iu', rtrim( $text, '.!?' ) ) ) {
+			return true;
+		}
+		// En un párrafo (no en una lista: «Acero inoxidable» es una característica), un título corto sin artículos.
+		return ! $item && count( $words ) <= 3 && ! preg_match( '/[,;]/', $text ) && 1 === preg_match( '/^\p{Lu}/u', $text ) && ! preg_match( '/\b(el|la|los|las|un|una|de|del|con|sin|para|por|y)\b/iu', $text );
+	}
+
+	/** Los párrafos de un texto que no son listas ni encabezados sueltos, en texto plano. */
 	public static function paragraphs( string $html ): array {
 		$html = (string) preg_replace( '#<(ul|ol)[^>]*>.*?</\1>#is', "\n", $html );
+		$html = (string) preg_replace( '#<h[1-6][^>]*>.*?</h[1-6]>#is', "\n", $html ); // Los encabezados no son párrafos.
 		$html = (string) preg_replace( '#<br\s*/?>|</p>|</div>|</h[1-6]>#i', "\n", $html );
 		$out  = array();
 		foreach ( preg_split( '/\n\s*\n|\n/', $html ) as $part ) {
 			$text = self::plain( $part );
-			if ( '' !== $text && ! preg_match( '/^(?:[-*•·▪✓✔►➤]|\d+[.)])\s/u', $text ) ) {
+			if ( '' !== $text && ! preg_match( '/^(?:[-*•·▪✓✔►➤]|\d+[.)])\s/u', $text ) && ! self::is_heading( $text ) ) {
 				$out[] = $text;
 			}
 		}

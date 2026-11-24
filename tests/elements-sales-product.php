@@ -75,8 +75,75 @@ namespace {
 	}
 	function remove_filter() {
 	}
-	function current_user_can( $cap ) {
+	function current_user_can( $cap, $id = 0 ) {
+		if ( 'edit_post' === $cap ) {
+			return ! in_array( (int) $id, $GLOBALS['sp']['not_mine'] ?? array(), true );
+		}
 		return 'edit_pages' === $cap;
+	}
+	// El guardado de Pages (create y regenerar), con un documento del constructor mínimo.
+	function post_type_exists( $type ) {
+		return 'page' === $type;
+	}
+	function post_type_supports( $type, $feature ) {
+		return true;
+	}
+	function get_current_blog_id() {
+		return $GLOBALS['sp']['blog'] ?? 1;
+	}
+	function get_post( $id ) {
+		$p = $GLOBALS['sp']['posts'][ (int) $id ] ?? null;
+		return $p ? (object) ( $p + array( 'ID' => (int) $id ) ) : null;
+	}
+	function wp_insert_post( $data, $wp_error = false ) {
+		$id                            = 2000 + count( $GLOBALS['sp']['posts'] ?? array() );
+		$GLOBALS['sp']['posts'][ $id ] = array( 'post_type' => $data['post_type'], 'post_status' => $data['post_status'], 'post_title' => $data['post_title'] );
+		$GLOBALS['sp']['inserted'][]   = $id;
+		return $id;
+	}
+	function wp_update_post( $data ) {
+		foreach ( $data as $k => $v ) {
+			if ( 'ID' !== $k ) {
+				$GLOBALS['sp']['posts'][ (int) $data['ID'] ][ $k ] = $v;
+			}
+		}
+	}
+	function wp_delete_post( $id, $force = false ) {
+		unset( $GLOBALS['sp']['posts'][ (int) $id ] );
+	}
+	function update_post_meta( $id, $key, $value ) {
+		$GLOBALS['sp']['postmeta'][ (int) $id ][ $key ] = $value;
+	}
+	function remove_query_arg( $key, $url ) {
+		return $url;
+	}
+	function get_preview_post_link( $id ) {
+		return 'https://tienda.test/?page_id=' . $id . '&preview=true';
+	}
+	class Sp_Document {
+		public $id;
+		public function __construct( $id ) {
+			$this->id = $id;
+		}
+		public function set_is_built_with_elementor( $on ) {
+		}
+		public function update_settings( $settings ) {
+		}
+		public function save( $data ) {
+			$GLOBALS['sp']['saved'][ $this->id ] = $data['elements'];
+			return true;
+		}
+		public function get_edit_url() {
+			return 'https://tienda.test/wp-admin/post.php?post=' . $this->id . '&action=elementor';
+		}
+		public function get_wp_preview_url() {
+			return 'https://tienda.test/?page_id=' . $this->id . '&preview=true';
+		}
+	}
+	class Sp_Documents {
+		public function get( $id, $cache = true ) {
+			return new Sp_Document( $id );
+		}
 	}
 	function sanitize_text_field( $value ) {
 		$value = preg_replace( '#<(script|style)[^>]*?>.*?</\1>#si', '', (string) $value );
@@ -119,10 +186,13 @@ namespace {
 		return $GLOBALS['sp']['attachments'][ (int) $id ] ?? false;
 	}
 	function get_post_meta( $id, $key, $single = false ) {
+		if ( isset( $GLOBALS['sp']['postmeta'][ (int) $id ][ $key ] ) ) {
+			return $GLOBALS['sp']['postmeta'][ (int) $id ][ $key ];
+		}
 		return '_wp_attachment_image_alt' === $key ? 'Foto ' . $id : '';
 	}
 	function get_post_status( $id ) {
-		return $GLOBALS['sp']['pages'][ (int) $id ]['status'] ?? false;
+		return $GLOBALS['sp']['posts'][ (int) $id ]['post_status'] ?? ( $GLOBALS['sp']['pages'][ (int) $id ]['status'] ?? false );
 	}
 	function get_permalink( $id ) {
 		if ( 252 === (int) $id ) {
@@ -411,6 +481,7 @@ namespace {
 		}
 		$plugin                      = new stdClass();
 		$plugin->experiments         = new Sp_Experiments();
+		$plugin->documents           = new Sp_Documents();
 		\Elementor\Plugin::$instance = $plugin;
 	}
 	$GLOBALS['wpdb'] = new Sp_Wpdb();
@@ -824,6 +895,50 @@ namespace {
 	$GLOBALS['sp']['meta_rows'][]  = array( 'ID' => 70, 'post_type' => 'elementor_library', 'post_title' => 'Pie viejo', 'meta_key' => '_elementor_data', 'meta_value' => '[{"url":"https:\/\/wa.me\/5213330000000"}]', 'conditions' => null );
 	$GLOBALS['sp']['meta_rows'][]  = array( 'ID' => 71, 'post_type' => 'elementor_library', 'post_title' => 'Borrador de pie', 'meta_key' => '_elementor_data', 'meta_value' => '[{"url":"https:\/\/wa.me\/5213330000000"}]', 'conditions' => serialize( array() ) );
 	check( '5218711112222' === Site::read()['whatsapp'], 'S5: dos plantillas guardadas sin uso pesan menos que el pie en uso' );
+
+	// ================================================================ 5d. Regenerar en el mismo borrador y encabezados sueltos
+	// T1. post_id regenera el MISMO borrador del kit (Pages de verdad, sin $create de prueba).
+	sp_reset();
+	$primera = Executor::run( 'create-page', $promo );
+	check( is_array( $primera ) && false === $primera['regenerated'] && 'draft' === $GLOBALS['sp']['posts'][ $primera['id'] ]['post_status'] && array( 'blog' => 1, 'template' => 'venta-corta' ) === $GLOBALS['sp']['postmeta'][ $primera['id'] ]['_digitalisimo_sales_kit'], 'T1: el borrador nuevo lleva la marca del kit (sitio y plantilla)' );
+	$antes   = count( $GLOBALS['sp']['inserted'] );
+	$segunda = Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'Otra vuelta' ) );
+	check( is_array( $segunda ) && true === $segunda['regenerated'] && $primera['id'] === $segunda['id'] && $antes === count( $GLOBALS['sp']['inserted'] ) && 'Otra vuelta' === $GLOBALS['sp']['posts'][ $primera['id'] ]['post_title'] && 'draft' === $GLOBALS['sp']['posts'][ $primera['id'] ]['post_status'], 'T1: con post_id se regenera el mismo borrador (mismo ID, sin crear otro, sigue en borrador)' );
+	check( false === strpos( json_encode( $GLOBALS['sp']['saved'][ $primera['id'] ] ), 'Purificador' ), 'T1: el borrador regenerado lleva los elementos nuevos' );
+	$ajena = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'Borrador de otra persona' ) );
+	foreach (
+		array(
+			'una página que no creó el kit'    => array( $ajena, null ),
+			'una página publicada del kit'     => array( $primera['id'], 'publish' ),
+			'una página programada del kit'    => array( $primera['id'], 'future' ),
+			'una página privada del kit'       => array( $primera['id'], 'private' ),
+			'una página en revisión del kit'   => array( $primera['id'], 'pending' ),
+			'una página que no existe'         => array( 99999, null ),
+		) as $caso => $c
+	) {
+		if ( null !== $c[1] ) {
+			$GLOBALS['sp']['posts'][ $c[0] ]['post_status'] = $c[1];
+		}
+		$saved = json_encode( $GLOBALS['sp']['saved'] ?? array() );
+		$r     = Executor::run( 'create-page', array( 'post_id' => $c[0], 'template' => 'venta-corta', 'title' => 'No' ) );
+		check( $r instanceof WP_Error && in_array( $r->get_error_code(), array( 'digitalisimo_sales_post_id' ), true ) && $saved === json_encode( $GLOBALS['sp']['saved'] ?? array() ), "T1: $caso no se toca ({$r->get_error_code()}: " . ( $r instanceof WP_Error ? $r->get_error_message() : '' ) . ')' );
+		$GLOBALS['sp']['posts'][ $primera['id'] ]['post_status'] = 'draft';
+	}
+	$GLOBALS['sp']['blog'] = 2;
+	check_error( Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'No' ) ), 'digitalisimo_sales_post_id', 'T1: un borrador del kit de otro sitio de la red no se toca' );
+	$GLOBALS['sp']['blog']     = 1;
+	$GLOBALS['sp']['not_mine'] = array( $primera['id'] );
+	check_error( Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'No' ) ), 'digitalisimo_sales_forbidden', 'T1: un borrador del kit que el usuario no puede editar no se toca' );
+	check( isset( \Digitalisimo\Elements\Sales\Mcp\Tools::input_schema( 'create-page' )['properties']['post_id'] ), 'T1: create-page admite post_id' );
+	// T2. Encabezados sueltos de la descripción («Beneficios», «Características», «Detalles:») no son beneficios ni párrafos.
+	sp_reset();
+	$GLOBALS['sp']['product'] = new Sp_Product( array( 'short' => '<h3>Beneficios</h3><p>Agua purificada directo de tu tarja.</p>', 'description' => '<p><strong>Beneficios</strong></p><ul><li>Características:</li><li>Agua alcalina</li><li>Sin garrafones</li></ul><p>Detalles:</p><p>Características</p><ul><li>Acero inoxidable</li></ul><p>Incluye garantía de 1 año.</p>' ) );
+	list( $out, $all )        = $run( $promo );
+	$textos                   = array_column( array_filter( sp_strings( $created[0][1] ), static function ( $s ) { return '_title' !== $s[1]; } ), 2 );
+	$sueltos                  = array_filter( $textos, static function ( $t ) { return (bool) preg_match( '/(^|>)\s*(Beneficios|Características:?|Detalles:)\s*(<|$)/u', $t ) && false === strpos( $t, 'Características: ' ); } );
+	$sueltos                  = array_values( array_diff( $sueltos, array( 'Características' ) ) ); // El título propio de las características.
+	check( ! $sueltos, 'T2: ningún encabezado suelto de la descripción en la página: ' . json_encode( $sueltos, JSON_UNESCAPED_UNICODE ) );
+	check( false !== strpos( $all, 'Agua alcalina' ) && false !== strpos( $all, 'Acero inoxidable' ) && false !== strpos( $all, 'Agua purificada directo de tu tarja.' ), 'T2: los beneficios y los párrafos reales sí se copian' );
 
 	// ================================================================ 6. Guía y descripciones
 	$guide = Catalog::guide();

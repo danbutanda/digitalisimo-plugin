@@ -123,13 +123,13 @@ async function main() {
   check(SALES.every((n) => ours.some((t) => t.name === n)) && ours.length === 3, 'las tres herramientas del kit en tools/list', ours.map((t) => t.name).join(','));
   for (const t of ours) {
     const schema = t.inputSchema || {};
-    check(schema.additionalProperties === false && !JSON.stringify(schema).includes('"post_id"'), `${t.name}: entrada cerrada, sin post_id`, JSON.stringify(schema).slice(0, 300));
+    check(schema.additionalProperties === false && (t.name === 'digitalisimo-sales-create-page') === JSON.stringify(schema).includes('"post_id"'), `${t.name}: entrada cerrada, post_id sólo en create-page`, JSON.stringify(schema).slice(0, 300));
     const ro = t.name !== 'digitalisimo-sales-create-page';
     check(t.annotations?.readOnlyHint === ro && t.annotations?.destructiveHint === false, `${t.name}: anotaciones (sólo lectura ${ro}, no destructiva)`, JSON.stringify(t.annotations));
     check(!/\bElementor\b/.test(`${t.title} ${t.description}`), `${t.name}: sin el nombre del constructor original`);
   }
   const cp = ours.find((t) => t.name === 'digitalisimo-sales-create-page');
-  check(!(cp?.inputSchema?.required || []).length && Object.keys(cp?.inputSchema?.properties || {}).join(',') === 'template,title,replacements,omit_blocks,whatsapp,close_date,product_id,offer,finish', 'create-page: plantilla, título, reemplazos, bloques, WhatsApp, fecha de cierre, producto, oferta y terminar (template y title los exige la ejecución)', JSON.stringify(cp?.inputSchema?.properties && Object.keys(cp.inputSchema.properties)));
+  check(!(cp?.inputSchema?.required || []).length && Object.keys(cp?.inputSchema?.properties || {}).join(',') === 'template,title,replacements,omit_blocks,whatsapp,close_date,product_id,offer,post_id,finish', 'create-page: plantilla, título, reemplazos, bloques, WhatsApp, fecha de cierre, producto, oferta y terminar (template y title los exige la ejecución)', JSON.stringify(cp?.inputSchema?.properties && Object.keys(cp.inputSchema.properties)));
 
   // Con el código anterior (sin el kit) S1–S6 fallan con una excepción; Chrome y el aviso de importación se prueban igual.
   let r;

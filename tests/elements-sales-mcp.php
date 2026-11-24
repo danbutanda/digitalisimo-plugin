@@ -286,6 +286,9 @@ namespace {
 		$GLOBALS['sk']['status'][ $id ] = $data['post_status'];
 		return $id;
 	}
+	function update_post_meta( $id, $key, $value ) {
+		$GLOBALS['sk']['meta'][ (int) $id ][ $key ] = $value;
+	}
 	function wp_delete_post( $id, $force = false ) {
 		$GLOBALS['sk']['deleted'][] = array( $id, $force );
 		unset( $GLOBALS['sk']['status'][ $id ] );
@@ -475,7 +478,7 @@ namespace {
 		check( 'digitalisimo-sales/' . $tool === Tools::id( $tool ) && $tool === Tools::tool_of( Tools::id( $tool ) ), "$tool: id digitalisimo-sales/<verbo>" );
 		check( 'digitalisimo-sales' === $d['category'], "$tool: categoría propia" );
 		check( false === $d['input_schema']['additionalProperties'] && 'object' === $d['input_schema']['type'], "$tool: entrada cerrada" );
-		check( false === strpos( json_encode( $d['input_schema'] ), 'post_id' ), "$tool: sin post_id" );
+		check( ( 'create-page' === $tool ) === ( false !== strpos( json_encode( $d['input_schema'] ), 'post_id' ) ), "$tool: post_id sólo en create-page (regenerar un borrador del kit)" );
 		check( false === $d['meta']['show_in_rest'] && array( 'public' => false, 'type' => 'tool' ) === $d['meta']['mcp'], "$tool: sólo en el servidor de Elements" );
 		check( false === $d['meta']['annotations']['destructive'], "$tool: no destructiva" );
 		check( ( 'create-page' !== $tool ) === $d['meta']['annotations']['readonly'] && ( 'create-page' !== $tool ) === $d['meta']['annotations']['idempotent'], "$tool: sólo create-page escribe" );
@@ -486,7 +489,7 @@ namespace {
 	check( '' === Tools::tool_of( 'digitalisimo-woo/products' ), 'otro prefijo no es herramienta' );
 	$cp = Tools::input_schema( 'create-page' );
 	check( ! isset( $cp['required'] ), 'create-page: template y title los exige la ejecución (con product_id, template sobra y title es opcional)' );
-	check( array( 'template', 'title', 'replacements', 'omit_blocks', 'whatsapp', 'close_date', 'product_id', 'offer', 'finish' ) === array_keys( $cp['properties'] ), 'create-page: plantilla, título, reemplazos, bloques que se quitan, WhatsApp, fecha de cierre, producto, oferta y terminar, nada más' );
+	check( array( 'template', 'title', 'replacements', 'omit_blocks', 'whatsapp', 'close_date', 'product_id', 'offer', 'post_id', 'finish' ) === array_keys( $cp['properties'] ), 'create-page: plantilla, título, reemplazos, bloques que se quitan, WhatsApp, fecha de cierre, producto, oferta, borrador a regenerar y terminar, nada más' );
 	check( false === $cp['properties']['offer']['additionalProperties'] && array( 'price', 'regular_price', 'ends', 'label' ) === array_keys( $cp['properties']['offer']['properties'] ), 'create-page: offer cerrada (price, regular_price, ends, label)' );
 	check( preg_match( '/nunca se reordena/', Tools::DESCRIPTIONS['create-page'] ) && preg_match( '/nunca reordenar/', Tools::DESCRIPTIONS['list-templates'] ) && preg_match( '/no cambiar el orden/', Tools::DESCRIPTIONS['guide'] ), 'las descripciones dicen que un bloque se quita pero el orden no se cambia' );
 	check( $ids8 === $cp['properties']['template']['enum'], 'template: las ocho plantillas' );

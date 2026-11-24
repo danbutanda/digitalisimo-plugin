@@ -36,8 +36,8 @@ final class Executor {
 	 * @param string        $tool   Herramienta.
 	 * @param mixed         $input  Entrada del cliente.
 	 * @param callable|null $create Para las pruebas: `function( $title, $elements )` en lugar de `Pages::create()`.
-	 * @param array         $deps   Para las pruebas: `site` (en lugar de `Site::read()`) y `product` (`function( $id )`
-	 *                              en lugar de `Product::read()`).
+	 * @param array         $deps   Para las pruebas: `site` (en lugar de `Site::read()`), `product` (`function( $id )`
+	 *                              en lugar de `Product::read()`) y `regenerable` (en lugar de `Pages::regenerable()`).
 	 * @return array|\WP_Error
 	 */
 	public static function run( string $tool, $input, $create = null, array $deps = array() ) {
@@ -157,6 +157,18 @@ final class Executor {
 
 	private static function create_page( array $input, callable $create, array $deps ) {
 		$finish     = ! array_key_exists( 'finish', $input ) || ! empty( $input['finish'] );
+		$regenerate = $input['post_id'] ?? 0;
+		if ( ! is_int( $regenerate ) && ! ( is_string( $regenerate ) && ctype_digit( $regenerate ) ) || (int) $regenerate < 0 ) {
+			return self::invalid( 'post_id debe ser el ID (número) de un borrador que creó el kit.' );
+		}
+		$regenerate = (int) $regenerate;
+		if ( $regenerate > 0 ) {
+			// Antes de armar nada: sólo un borrador del kit de este sitio, editable y sin publicar.
+			$ok = isset( $deps['regenerable'] ) && is_callable( $deps['regenerable'] ) ? call_user_func( $deps['regenerable'], $regenerate ) : Pages::regenerable( $regenerate );
+			if ( true !== $ok ) {
+				return $ok;
+			}
+		}
 		$product_id = $input['product_id'] ?? null;
 		if ( null !== $product_id && ( ! is_int( $product_id ) && ! ( is_string( $product_id ) && ctype_digit( $product_id ) ) || (int) $product_id <= 0 ) ) {
 			return self::invalid( 'product_id debe ser el ID (número) de un producto de la tienda.' );
@@ -246,7 +258,7 @@ final class Executor {
 		if ( is_wp_error( $built ) ) {
 			return $built;
 		}
-		$page = call_user_func( $create, $title, $built['elements'] );
+		$page = call_user_func( $create, $title, $built['elements'], $regenerate, $id );
 		if ( is_wp_error( $page ) ) {
 			return $page;
 		}
@@ -343,6 +355,7 @@ final class Executor {
 			'title'            => $title,
 			'edit_url'         => (string) $page['edit_url'],
 			'preview_url'      => (string) $page['preview_url'],
+			'regenerated'      => ! empty( $page['regenerated'] ),
 			'finished'         => $finish,
 			'filled'           => $built['filled'],
 			'filled_keys'      => $built['filled_keys'],
