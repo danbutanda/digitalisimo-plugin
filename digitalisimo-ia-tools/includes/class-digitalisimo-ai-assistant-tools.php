@@ -37,6 +37,8 @@ final class Digitalisimo_AI_Assistant_Tools {
 	const WRITE_ACTIONS   = array( 'create', 'update' );
 	const WRITE_TOOLS     = array( 'digitalisimo-woo/products', 'digitalisimo-woo/catalog' );
 	const WRITE_RESOURCES = array( '', 'product', 'variation', 'category', 'tag', 'brand', 'attribute', 'attribute_term', 'shipping_class' );
+	/** En `data`, lo que hace destructiva una escritura del catálogo: metadatos, descargas o publicar/privatizar. */
+	const WRITE_RISKY     = array( 'meta_data', 'downloads', 'download_limit', 'download_expiry' );
 	/** Profundidad máxima que se revisa de una entrada; más honda, pasa por la tarjeta. */
 	const REVIEW_DEPTH    = 32;
 	const READ_ACTIONS = array( 'list', 'get', 'read', 'search', 'find', 'count', 'view', 'show', 'retrieve', 'describe', 'schema', 'status' );
@@ -182,7 +184,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 		$action = is_array( $input ) && isset( $input['action'] ) && is_string( $input['action'] ) ? strtolower( $input['action'] ) : '';
 		if ( 'read' !== $kind && $trusted && '' !== $action && in_array( $action, self::READ_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) ) {
 			$kind = 'read';
-		} elseif ( 'destructive' === $kind && in_array( (string) $entry['name'], self::WRITE_TOOLS, true ) && false === ( $entry['annotations']['readonly'] ?? null ) && in_array( $action, self::WRITE_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) && in_array( is_array( $input ) && is_string( $input['resource'] ?? null ) ? strtolower( $input['resource'] ) : ( isset( $input['resource'] ) ? '?' : '' ), self::WRITE_RESOURCES, true ) ) {
+		} elseif ( 'destructive' === $kind && in_array( (string) $entry['name'], self::WRITE_TOOLS, true ) && false === ( $entry['annotations']['readonly'] ?? null ) && in_array( $action, self::WRITE_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) && in_array( is_array( $input ) && is_string( $input['resource'] ?? null ) ? strtolower( $input['resource'] ) : ( isset( $input['resource'] ) ? '?' : '' ), self::WRITE_RESOURCES, true ) && ! self::risky_catalog_data( $input ) ) {
 			$kind = 'write';
 		}
 		$kind = apply_filters( 'digitalisimo_ai_assistant_tool_kind', $kind, $entry['name'], $input );
@@ -238,29 +240,65 @@ final class Digitalisimo_AI_Assistant_Tools {
 	}
 
 	/**
-	 * ¿Esta entrada debe pasar por la tarjeta aunque sea un borrador? Sí si algún texto cambia al pasar por
+	 * ¿Esta entrada debe pasar por la tarjeta aunque sea un borrador? Sí si algún texto cambia de verdad al pasar por
 	 * wp_kses_post() (HTML que el editor de una entrada no admitiría: script, iframe, meta, base, style, atributos on…,
-	 * protocolos como javascript: escritos con entidades o tabuladores…), si es más honda que REVIEW_DEPTH o si no se
-	 * puede comprobar. No intenta reconocer el código: compara la entrada con su versión filtrada.
+	 * protocolos como javascript: aunque vengan con entidades o tabuladores), si un valor suelto es un enlace
+	 * javascript:, vbscript: o data: (decodificado y sin espacios), si un CSS trae @import, expression( o cierra </style>, si es más honda que REVIEW_DEPTH o
+	 * si no se puede comprobar. No intenta reconocer el código: compara la entrada con su versión filtrada, las dos
+	 * normalizadas (entidades decodificadas, `<br/>`, comillas, espacios y mayúsculas), para que lo que kses sólo
+	 * reescribe (`&` → `&amp;`, `<br/>` → `<br />`) no cuente. El XML de Elementor que sólo trae etiquetas `e-*` con
+	 * `configuration-id` (build-composition) no es HTML de la página y no se compara.
 	 */
 	public static function needs_review( $input, $depth = 0 ) {
 		if ( $depth > self::REVIEW_DEPTH ) {
 			return true;
 		}
 		if ( is_string( $input ) ) {
-			if ( ! function_exists( 'wp_kses_post' ) ) {
-				return true;
-			}
-			return wp_kses_post( $input ) !== $input;
+			return self::string_needs_review( $input );
 		}
 		if ( is_array( $input ) ) {
 			foreach ( $input as $key => $value ) {
-				if ( ( is_string( $key ) && self::needs_review( $key, $depth + 1 ) ) || self::needs_review( $value, $depth + 1 ) ) {
+				if ( ( is_string( $key ) && self::string_needs_review( $key ) ) || self::needs_review( $value, $depth + 1 ) ) {
 					return true;
 				}
 			}
 		}
 		return false;
+	}
+
+	/** El criterio de needs_review() para un texto. */
+	public static function string_needs_review( $text ) {
+		$text = (string) $text;
+		if ( '' === trim( $text ) ) {
+			return false;
+		}
+		if ( ! function_exists( 'wp_kses_post' ) ) {
+			return true;
+		}
+		// XML de composición de Elementor: sólo etiquetas e-* con configuration-id (sin texto ni otros atributos).
+		if ( '' === trim( (string) preg_replace( '#<\s*/?\s*e-[a-z0-9-]+(\s+configuration-id\s*=\s*("[A-Za-z0-9_.:-]*"|\'[A-Za-z0-9_.:-]*\'))?\s*/?\s*>#i', '', $text ) ) ) {
+			return false;
+		}
+		$plain = self::normalize_markup( $text );
+		// Un enlace suelto (un valor de «destination», «url», «href»…) con un protocolo que ejecuta: decodificado y sin
+		// espacios ni caracteres de control (java&#115;cript:, java<TAB>script:, javascript&colon;…).
+		if ( preg_match( '/^(javascript|vbscript|livescript|mocha|data):/', (string) preg_replace( '/[\x00-\x20]+/', '', $plain ) ) ) {
+			return true;
+		}
+		// CSS que carga o ejecuta algo, o que se sale de su <style>.
+		if ( preg_match( '#@import|expression\s*\(|</\s*style|behavior\s*:|-moz-binding#', $plain ) ) {
+			return true;
+		}
+		return self::normalize_markup( wp_kses_post( $text ) ) !== $plain;
+	}
+
+	/** Texto comparable: entidades decodificadas, minúsculas, `<br/>` como `<br>`, comillas dobles y espacios simples. */
+	private static function normalize_markup( $text ) {
+		$text = html_entity_decode( (string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$text = function_exists( 'mb_strtolower' ) ? mb_strtolower( $text, 'UTF-8' ) : strtolower( $text );
+		$text = (string) preg_replace( '#\s*/\s*>#', '>', $text );
+		$text = (string) preg_replace( "#=\s*'([^']*)'#", '="$1"', $text );
+		return trim( (string) preg_replace( '/\s+/u', ' ', $text ) );
 	}
 
 	/** El ID del documento que devolvió una creación (`id`, `post_id` o `page_id`, en la raíz o en `page`), o 0. */
@@ -276,6 +314,18 @@ final class Digitalisimo_AI_Assistant_Tools {
 			}
 		}
 		return 0;
+	}
+
+	/** ¿La escritura del catálogo trae metadatos, descargas o un estado que publica o privatiza? */
+	private static function risky_catalog_data( $input ) {
+		$data = is_array( $input ) && is_array( $input['data'] ?? null ) ? $input['data'] : array();
+		foreach ( self::WRITE_RISKY as $key ) {
+			if ( array_key_exists( $key, $data ) ) {
+				return true;
+			}
+		}
+		$status = strtolower( (string) ( is_scalar( $data['status'] ?? null ) ? $data['status'] : '' ) );
+		return '' !== $status && 'draft' !== $status && 'pending' !== $status;
 	}
 
 	/** ¿Su espacio de nombres es de confianza para leer sin confirmar? */
@@ -593,8 +643,13 @@ final class Digitalisimo_AI_Assistant_Tools {
 		if ( preg_match( '#<\s*/?\s*[a-z!]#i', $text ) ) {
 			$st['html'] = true;
 		}
-		if ( preg_match( '#<\s*(script|iframe|object|embed)|\bon[a-z]+\s*=|javascript:#i', $text ) ) {
+		// Código: el mismo criterio que decide si un borrador pasa por la tarjeta (needs_review()).
+		if ( self::string_needs_review( $text ) && ! preg_match( '/^[^<:@]*$/', $text ) ) {
 			$st['code'] = true;
+		}
+		// Importes que llegan como texto ("7500", "7,500.00").
+		if ( preg_match( '/(price|amount|total|refund|cost|precio|importe|monto)/i', (string) $key ) && preg_match( '/^\s*\$?\s*-?\d[\d,]*(\.\d+)?\s*$/', $text ) ) {
+			$st['amounts'][] = $key . ' = ' . trim( $text );
 		}
 		$st['emails'] += (int) preg_match_all( '/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i', $text );
 		if ( in_array( strtolower( $key ), array( 'status', 'post_status' ), true ) ) {

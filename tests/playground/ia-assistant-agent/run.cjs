@@ -141,7 +141,7 @@ const MESSAGES = [
       check('R2', (state.made || []).some((p) => p.whatsapp.includes('5218711234567')), 'la landing lleva el WhatsApp del sitio', JSON.stringify((state.made || []).map((p) => p.whatsapp)));
       check('T1', transcript.every((t) => !t.error), 'ninguna petición falló', JSON.stringify(transcript.map((t) => t.error).filter(Boolean)));
       const review = state.review || {};
-      check('D3', Object.keys(review).filter((k) => k.startsWith('evade-')).length === 6 && Object.entries(review).every(([k, v]) => v === k.startsWith('evade-')), 'con el wp_kses_post() real, las 6 evasiones van a la tarjeta y el texto o HTML normal no', JSON.stringify(review));
+      check('D3', Object.keys(review).filter((k) => k.startsWith('evade-')).length === 7 && Object.entries(review).every(([k, v]) => v === k.startsWith('evade-')), 'con el wp_kses_post() real, las 7 evasiones van a la tarjeta y el texto, el HTML normal y una composición real de build-composition no', JSON.stringify(review));
     } else {
       // Evaluación de la conversación real.
       const landing = (state.made || [])[0];

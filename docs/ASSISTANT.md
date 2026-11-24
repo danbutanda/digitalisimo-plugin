@@ -130,14 +130,15 @@ permiso), y antes se comprueba `check_permissions()` con esa entrada: sin permis
 | Clase | Regla | Qué pasa |
 |---|---|---|
 | `read` | `annotations.readonly` es `true` estricto, sin `destructive` true, y la Ability es de un espacio de nombres de confianza (`digitalisimo-`, `elementor/`, `core/`, `mcp-adapter/` o el filtro `digitalisimo_ai_assistant_trusted_prefixes`) | se ejecuta solo |
-| `draft` | (tras leer contenido del sitio, si la persona tiene `unfiltered_html` y algún texto de la entrada cambia al pasar por `wp_kses_post()` —script, iframe, meta, base, style, atributos on…, protocolos como `javascript:` aunque vengan con entidades o tabuladores— o la entrada es más honda de 32 niveles, pasa por la tarjeta: no se intenta reconocer el código, se compara con su versión filtrada) crea contenido NUEVO en borrador (`DRAFT_CREATORS`: `digitalisimo-sales/create-page`, `elementor/create-page`; sin `post_id` y sin un estado distinto de `draft`) o edita por `post_id` un borrador que creó ESTA conversación y sigue en borrador (`DRAFT_EDITORS`: `elementor/build-composition`, `elementor/manage-elements`, `elementor/update-page-settings`; sin claves de estado, visibilidad o contraseña en la entrada, y con `edit_post`). Listas explícitas, filtros `digitalisimo_ai_assistant_draft_creators` y `…_draft_editors` | se ejecuta solo (no toca nada publicado) y queda en la bitácora como `draft` |
+| `draft` | (tras leer contenido del sitio, si la persona tiene `unfiltered_html` y algún texto de la entrada cambia de verdad al pasar por `wp_kses_post()` —script, iframe, meta, base, style, atributos on…, protocolos como `javascript:` aunque vengan con entidades o tabuladores—, un valor suelto es un enlace `javascript:`/`vbscript:`/`data:` (decodificado y sin espacios), un CSS trae `@import`, `expression(` o `</style>`, o la entrada es más honda de 32 niveles, pasa por la tarjeta. No se intenta reconocer el código: se compara cada texto con su versión filtrada, las dos normalizadas —entidades decodificadas, `<br/>`, comillas, espacios y mayúsculas— para que lo que kses sólo reescribe, como `&` → `&amp;`, no cuente; el `xml_structure` de build-composition que sólo trae etiquetas `e-*` con `configuration-id` no es HTML de la página y no se compara. La tarjeta marca «Código» con el mismo criterio) crea contenido NUEVO en borrador (`DRAFT_CREATORS`: `digitalisimo-sales/create-page`, `elementor/create-page`; sin `post_id` y sin un estado distinto de `draft`) o edita por `post_id` un borrador que creó ESTA conversación y sigue en borrador (`DRAFT_EDITORS`: `elementor/build-composition`, `elementor/manage-elements`, `elementor/update-page-settings`; sin claves de estado, visibilidad o contraseña en la entrada, y con `edit_post`). Listas explícitas, filtros `digitalisimo_ai_assistant_draft_creators` y `…_draft_editors` | se ejecuta solo (no toca nada publicado) y queda en la bitácora como `draft` |
 | `write` | `annotations.destructive` es `false`, o una lectura de un plugin ajeno | tarjeta con qué hará y con qué datos; botón «Confirmar» o «Cancelar» |
 | `destructive` | cualquier otro caso (`readonly` que no es un `true` estricto, contradicciones, sin anotaciones, como el MCP) | tarjeta con una casilla «Entiendo…» que enciende «Sí, hacerlo»; el servidor exige `explicit` (`true`, `1` o `"true"`). Sólo si la Ability lo declara (`meta.digitalisimo.dry_run` true y `dry_run` booleano en su esquema) la tarjeta trae una simulación, que queda en la bitácora como `simulation` |
 
 Una herramienta con `action` en su esquema (las de tienda) cuenta como lectura cuando la acción pedida es de
 `READ_ACTIONS` (`list`, `get`, `read`, `search`…) y está en su `enum`. Sólo en el catálogo de la tienda de
 DIGITALÍSIMO (`digitalisimo-woo/products` y `digitalisimo-woo/catalog`, que anotan como destructiva toda escritura),
-`create` y `update` de productos, variaciones, categorías, etiquetas, marcas, atributos y clases de envío son `write`;
+`create` y `update` de productos, variaciones, categorías, etiquetas, marcas, atributos y clases de envío son `write`
+(salvo si `data` trae `meta_data`, `downloads` o un estado distinto de borrador o pendiente: destructivos);
 pedidos, notas al cliente, reembolsos, clientes, cupones, ajustes, envíos, impuestos y reseñas siguen destructivos,
 como cualquier otra herramienta.
 
@@ -158,7 +159,8 @@ afinar la clase.
   desplazamiento, y «Confirmar» sólo se enciende cuando los datos caben enteros o se desplazaron hasta el final. Los
   caracteres invisibles o de dirección (U+202E y similares) y las series de 8 espacios o más se muestran como marcas
   (`⟨U+202E⟩`, `⟨900 espacios⟩`). Encima va un resumen de lo arriesgado: secretos ocultos, invisibles, enlaces a otros
-  dominios, HTML o código (`<script>`, `on…=`), correos, estados e importes. Avisa cuando en lo que se manda a la IA hay
+  dominios, HTML o código (el mismo criterio que decide si un borrador pasa por la tarjeta), correos, estados e importes
+(también los que llegan como texto, «"7500"»). Avisa cuando en lo que se manda a la IA hay
   contenido leído del sitio (de cualquier turno) y cuando la acción no se declara idempotente.
 - **Dos patrones de secretos.** El amplio (`SECRET_KEYS`, como el `Secrets` del MCP de Woo: contraseñas, `secret`,
   cualquier `token`, `signature`, `hmac`, `salt`, `*_key`…, con excepciones públicas como `meta_key`, `max_tokens` o

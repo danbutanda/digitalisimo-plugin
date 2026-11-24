@@ -39,6 +39,7 @@ wp_register_ability( 'demo/delete-note', array( 'label' => 'Borrar la nota', 'ca
 // (destructivas por post_id) y publish-document.
 wp_register_ability( 'elementor/create-page', array( 'label' => 'Crear página', 'category' => 'elementor', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'title' => array( 'type' => 'string' ), 'status' => array( 'type' => 'string' ) ) ), 'permission_callback' => $can_edit, 'execute_callback' => function ( $in ) { $id = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => $in['title'] ?? 'Sin título', 'post_name' => 'borrador-' . count( $GLOBALS['posts'] ) ) ); $GLOBALS['ran'][] = array( 'create', $id ); return array( 'id' => $id, 'status' => 'draft' ); }, 'meta' => $public( false, false ) ) );
 wp_register_ability( 'elementor/build-composition', array( 'label' => 'Construir composición', 'category' => 'elementor', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'xml' => array( 'type' => 'string' ), 'settings' => array( 'type' => 'object' ) ) ), 'permission_callback' => $can_edit, 'execute_callback' => function ( $in ) { $GLOBALS['ran'][] = array( 'build', $in['post_id'] ?? 0 ); return array( 'post_id' => $in['post_id'] ?? 0, 'ok' => true ); }, 'meta' => $public( false, true ) ) );
+wp_register_ability( 'elementor/manage-elements', array( 'label' => 'Editar elementos', 'category' => 'elementor', 'input_schema' => array( 'type' => 'object', 'required' => array( 'post_id', 'operations' ), 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'operations' => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'properties' => array( 'action' => array( 'type' => 'string', 'enum' => array( 'update', 'delete', 'move', 'duplicate' ) ), 'element_id' => array( 'type' => 'string' ), 'settings' => array( 'type' => 'object' ), 'style' => array( 'type' => 'string' ) ) ) ) ) ), 'permission_callback' => $can_edit, 'execute_callback' => function ( $in ) { $GLOBALS['ran'][] = array( 'manage', $in['post_id'] ?? 0 ); return array( 'status' => 'ok', 'post_id' => $in['post_id'] ?? 0 ); }, 'meta' => $public( false, true ) ) );
 wp_register_ability( 'elementor/publish-document', array( 'label' => 'Publicar', 'category' => 'elementor', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'post_id' => array( 'type' => 'integer' ) ) ), 'permission_callback' => $can_edit, 'execute_callback' => function ( $in ) { $GLOBALS['ran'][] = array( 'publish', $in['post_id'] ?? 0 ); return array( 'status' => 'publish' ); }, 'meta' => $public( false, true ) ) );
 Digitalisimo_AI_Assistant_Ability::register();
 
@@ -113,6 +114,9 @@ foreach ( array( array( 'digitalisimo-woo/products', null, 'write' ), array( 'di
 		if ( null !== $case[1] ) $in['resource'] = $case[1];
 		check( $case[2] === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => $case[0] ) ), $in ), "G9: {$case[0]} " . json_encode( $in ) . " es {$case[2]}" );
 	}
+}
+foreach ( array( array( array( 'sale_price' => '7500' ), 'write' ), array( array( 'status' => 'draft', 'name' => 'X' ), 'write' ), array( array( 'meta_data' => array( array( 'key' => '_x', 'value' => 1 ) ) ), 'destructive' ), array( array( 'downloads' => array( array( 'file' => 'https://x.test/a.zip' ) ) ), 'destructive' ), array( array( 'status' => 'publish' ), 'destructive' ), array( array( 'status' => 'private' ), 'destructive' ) ) as $case ) {
+	check( $case[1] === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'product_id' => 13, 'data' => $case[0] ) ), 'G10: productos update con ' . json_encode( $case[0] ) . ' es ' . $case[1] );
 }
 check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-woo/customers' ) ), array( 'action' => 'update' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'resource' => 'customer' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'elementor/manage-component' ) ), array( 'action' => 'update' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-sales/x' ) ), array( 'action' => 'update' ) ), 'G8: sólo la tienda de DIGITALÍSIMO baja a escritura; clientes, usuarios y cualquier otra herramienta (elementor/manage-component update) siguen destructivas' );
 check( 'read' === Digitalisimo_AI_Assistant_Tools::kind( array( 'name' => 'woocommerce/products-query', 'annotations' => array( 'readonly' => true, 'destructive' => false ), 'schema' => array() ), array() ), 'G7: leer productos con las Abilities del núcleo de WooCommerce no pide confirmación' );
@@ -294,6 +298,46 @@ foreach ( $evasions as $evasion ) {
 	check( 1 === count( $of( $ev, 'confirm' ) ) && $n === count( $GLOBALS['ran'] ), 'D7: y el Asistente no la ejecuta sin tarjeta: ' . $evasion );
 	$events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cd, 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'deny' ) ) ) );
 }
+// D8 Con los esquemas REALES: un borrador normal tras una lectura NO pide tarjeta (el XML de Elementor sólo trae
+// etiquetas e-* con configuration-id; kses reescribe & y <br/> sin cambiar nada); un java&#115;cript: sí.
+$composition = array(
+	'post_id'        => $created,
+	'xml_structure'  => '<e-flexbox configuration-id="hero"><e-heading configuration-id="title"></e-heading><e-paragraph configuration-id="p1"></e-paragraph><e-button configuration-id="btn"></e-button></e-flexbox>',
+	'element_config' => array( 'title' => array( 'title' => 'Oferta & Black Friday' ), 'p1' => array( 'paragraph' => 'Antes <s>$10,000</s><br/>hoy <strong>$7,500</strong>' ), 'btn' => array( 'text' => '¡Lo quiero!', 'link' => array( 'destination' => 'https://wa.me/5218711234567?text=Hola%20quiero%20el%20purificador' ) ) ),
+	'style'          => array( 'hero' => 'padding:40px 20px; &:hover{color:#fff} @media(--mobile){padding:20px}' ),
+);
+$operations = array( 'post_id' => $created, 'operations' => array( array( 'action' => 'update', 'element_id' => 'abc123', 'settings' => array( 'title' => "Precio: 'especial' & más", 'link' => array( 'destination' => 'tel:+528711234567' ) ), 'style' => 'color:red' ) ) );
+$GLOBALS['users'][1]['caps'][] = 'unfiltered_html';
+foreach ( array( array( 'elementor-build-composition', $composition, 'build-composition' ), array( 'elementor-manage-elements', $operations, 'manage-elements' ) ) as $case ) {
+	check( ! Digitalisimo_AI_Assistant_Tools::needs_review( $case[1] ), 'D8: ' . $case[2] . ' normal no necesita revisión' );
+	$n = count( $GLOBALS['ran'] );
+	$GLOBALS['script'] = array( array( 'calls' => array( $call( $case[0], $case[1] ) ) ) );
+	$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'arma la portada', 'conversation' => $cd ) ) ) );
+	check( ! $of( $ev, 'confirm' ) && $n + 1 === count( $GLOBALS['ran'] ), 'D8: tras una lectura, ' . $case[2] . ' con el esquema real sobre el borrador propio corre sin tarjeta' );
+}
+$bad = array(
+	'enlace java&#115;cript: en element_config' => array_replace_recursive( $composition, array( 'element_config' => array( 'btn' => array( 'link' => array( 'destination' => 'java&#115;cript:alert(1)' ) ) ) ) ),
+	'<a href="java&#115;cript:"> en un párrafo' => array_replace_recursive( $composition, array( 'element_config' => array( 'p1' => array( 'paragraph' => 'Hola <a href="java&#115;cript:alert(1)">aquí</a>' ) ) ) ),
+	'@import en el estilo'                      => array_replace_recursive( $composition, array( 'style' => array( 'hero' => '@import url(//x.test/a.css);' ) ) ),
+	'XML con un atributo onload'                => array_replace( $composition, array( 'xml_structure' => '<e-flexbox configuration-id="hero" onload="alert(1)"></e-flexbox>' ) ),
+	'javascript&colon; en manage-elements'       => array( 'post_id' => $created, 'operations' => array( array( 'action' => 'update', 'element_id' => 'abc123', 'settings' => array( 'link' => array( 'destination' => "java\tscript&colon;alert(1)" ) ) ) ) ),
+);
+foreach ( $bad as $what => $input ) {
+	check( Digitalisimo_AI_Assistant_Tools::needs_review( $input ), 'D8: va a la tarjeta: ' . $what );
+	$n = count( $GLOBALS['ran'] );
+	$GLOBALS['script'] = array( array( 'calls' => array( $call( isset( $input['operations'] ) ? 'elementor-manage-elements' : 'elementor-build-composition', $input ) ) ) );
+	$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'arma la portada', 'conversation' => $cd ) ) ) );
+	check( 1 === count( $of( $ev, 'confirm' ) ) && $n === count( $GLOBALS['ran'] ), 'D8: y el Asistente no lo ejecuta sin tarjeta: ' . $what );
+	$events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cd, 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'deny' ) ) ) );
+}
+array_pop( $GLOBALS['users'][1]['caps'] );
+// D9 La tarjeta marca «Código» con el mismo criterio y ve los importes que llegan como texto.
+list( , , $risks ) = Digitalisimo_AI_Assistant_Tools::card( $bad['enlace java&#115;cript: en element_config'] );
+check( false !== strpos( implode( ' | ', $risks ), 'Código o eventos' ), 'D9: la tarjeta avisa de código en un enlace java&#115;cript: ' . implode( ' | ', $risks ) );
+list( , , $risks ) = Digitalisimo_AI_Assistant_Tools::card( $composition );
+check( false === strpos( implode( ' | ', $risks ), 'Código o eventos' ), 'D9: y no en una composición normal: ' . implode( ' | ', $risks ) );
+list( , , $risks ) = Digitalisimo_AI_Assistant_Tools::card( array( 'action' => 'update', 'product_id' => 13, 'data' => array( 'sale_price' => '7500', 'regular_price' => '10,000.00' ) ) );
+check( false !== strpos( implode( ' | ', $risks ), 'sale_price = 7500' ) && false !== strpos( implode( ' | ', $risks ), 'regular_price = 10,000.00' ), 'D9: los importes que llegan como texto ("7500") salen en el resumen: ' . implode( ' | ', $risks ) );
 $deep = 'texto'; for ( $i = 0; $i < 40; $i++ ) $deep = array( 'a' => $deep );
 check( Digitalisimo_AI_Assistant_Tools::needs_review( array( 'post_id' => 1, 'settings' => $deep ) ), 'D7: una entrada más honda que el límite que se revisa va a la tarjeta' );
 check( ! Digitalisimo_AI_Assistant_Tools::needs_review( array( 'post_id' => 1, 'title' => 'Oferta', 'n' => 3, 'ok' => true ) ), 'D7: texto y números normales no' );

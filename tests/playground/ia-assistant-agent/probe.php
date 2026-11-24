@@ -276,7 +276,7 @@ add_action(
 				// needs_review() con el wp_kses_post() real de WordPress: las evasiones van a la tarjeta, el texto normal no.
 				'review'  => array_map(
 					static function ( $html ) {
-						return Digitalisimo_AI_Assistant_Tools::needs_review( array( 'post_id' => 1, 'settings' => array( 'html' => $html ) ) );
+						return Digitalisimo_AI_Assistant_Tools::needs_review( is_array( $html ) ? $html : array( 'post_id' => 1, 'settings' => array( 'html' => $html ) ) );
 					},
 					array(
 						'evade-entity'  => '<a href="java&#115;cript:alert(1)">x</a>',
@@ -287,6 +287,9 @@ add_action(
 						'evade-style'   => '<style>@import url(//x.test/a.css)</style>',
 						'plain-text'    => 'Oferta de fin de mes',
 						'plain-html'    => '<p>Hasta el <strong>30 de noviembre</strong></p>',
+						// Una composición real de build-composition (XML e-* con configuration-id, & y <br/>): no.
+						'plain-composition' => array( 'post_id' => 1, 'xml_structure' => '<e-flexbox configuration-id="hero"><e-heading configuration-id="title"></e-heading><e-paragraph configuration-id="p1"></e-paragraph></e-flexbox>', 'element_config' => array( 'title' => array( 'title' => 'Oferta & Black Friday' ), 'p1' => array( 'paragraph' => 'Antes <s>$10,000</s><br/>hoy <strong>$7,500</strong>' ), 'btn' => array( 'link' => array( 'destination' => 'https://wa.me/5218711234567' ) ) ), 'style' => array( 'hero' => 'padding:40px 20px; &:hover{color:#fff}' ) ),
+						'evade-destination' => array( 'post_id' => 1, 'xml_structure' => '<e-button configuration-id="btn"></e-button>', 'element_config' => array( 'btn' => array( 'link' => array( 'destination' => 'java&#115;cript:alert(1)' ) ) ) ),
 					)
 				),
 			),

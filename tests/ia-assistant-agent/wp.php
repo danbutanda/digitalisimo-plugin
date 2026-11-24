@@ -145,7 +145,7 @@ function is_post_type_viewable( $o ) { return is_object( $o ) && in_array( $o->n
 // iframe…) y los atributos peligrosos, y los protocolos que no sean http(s), mailto o tel aunque vengan con entidades
 // o espacios; lo admitido queda tal cual. En el Playground se comprueba con el wp_kses_post() real.
 function wp_kses_post( $html ) {
-	$allowed = array( 'a', 'p', 'strong', 'em', 'b', 'i', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'img', 'span', 'div', 'br', 'blockquote', 'figure', 'figcaption' );
+	$allowed = array( 'a', 'p', 'strong', 'em', 'b', 'i', 'u', 's', 'del', 'strike', 'small', 'sub', 'sup', 'code', 'mark', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'img', 'span', 'div', 'br', 'hr', 'blockquote', 'figure', 'figcaption', 'table', 'thead', 'tbody', 'tr', 'td', 'th' );
 	return preg_replace_callback(
 		'#<(/?)([a-z][a-z0-9-]*)([^>]*)>#i',
 		function ( $m ) use ( $allowed ) {
@@ -163,9 +163,11 @@ function wp_kses_post( $html ) {
 					return '<' . $m[1] . $m[2] . '>';
 				}
 			}
-			return $m[0];
+			// Como kses: una etiqueta que se cierra sola sale como «<br />».
+			return preg_match( '#\s*/\s*>$#', $m[0] ) ? preg_replace( '#\s*/\s*>$#', ' />', $m[0] ) : $m[0];
 		},
-		(string) $html
+		// Como kses: un & suelto pasa a &amp;.
+		(string) preg_replace( '/&(?![a-z0-9#]+;)/i', '&amp;', (string) $html )
 	);
 }
 function wp_has_ability( $n ) { return isset( $GLOBALS['abilities'][ $n ] ); }
