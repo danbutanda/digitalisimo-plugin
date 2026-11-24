@@ -50,12 +50,13 @@
 	];
 	const STORE = 'digitalisimo-assistant-appearance';
 	const DEFAULT_LOOK = { variant: 'classic', mode: 'light', scheme: 'digitalisimo' };
-	const VERBS = { read: 'Consultó', draft: 'Borrador', write: 'Cambio', destructive: 'Acción destructiva', unknown: 'Herramienta' };
-	const STATES = { ok: 'hecho', error: 'error', denied: 'sin permiso', cancelled: 'cancelado', unknown: 'resultado desconocido' };
-		const SUGGESTIONS = [
-		[ 'Lista las últimas entradas y páginas del sitio', 'Ver el contenido reciente' ],
-		[ 'Revisa el SEO de mi página de inicio', 'Revisar el SEO' ],
-		[ 'Crea el borrador de una página de venta', 'Crear un borrador' ],
+	// En palabras de quien usa el sitio (caso plomerito 2: «arroja información técnica que el usuario nunca va a entender»).
+	const VERBS = { read: 'Consulté', draft: 'Borrador', write: 'Cambio', destructive: 'Cambio importante', unknown: 'Paso' };
+	const STATES = { ok: 'listo', error: 'no se pudo', denied: 'sin permiso', cancelled: 'cancelado', unknown: 'por revisar', skipped: 'no se hizo' };
+	const SUGGESTIONS = [
+		[ 'Créame una landing con una oferta de uno de mis productos', 'Crear una landing de oferta' ],
+		[ 'Revisa cómo me encuentran en Google y dime qué mejorar', 'Mejorar cómo me encuentran en Google' ],
+		[ '¿Cómo van mis ventas y pedidos de esta semana?', 'Ver mis ventas' ],
 	];
 
 	/* La apariencia es de quien mira, en este navegador: si el almacenamiento falla, la pantalla funciona igual. */
@@ -102,8 +103,72 @@
 		}
 		return date.toLocaleDateString( 'es-MX', options );
 	};
+	// Sólo se enlaza lo del propio sitio (vista previa, editor): lo demás se queda como texto.
+	const siteHosts = ( () => {
+		const out = [];
+		[ ( config.site || {} ).home, config.pageUrl, window.location.href ].forEach( ( u ) => {
+			try {
+				if ( u ) {
+					out.push( new window.URL( u, window.location.href ).host );
+				}
+			} catch ( e ) {
+				// Una dirección mal formada no aporta un host.
+			}
+		} );
+		return out;
+	} )();
+	const safeUrl = ( raw ) => {
+		try {
+			const url = new window.URL( String( raw ), window.location.href );
+			return ( 'https:' === url.protocol || 'http:' === url.protocol ) && siteHosts.indexOf( url.host ) >= 0 ? url.toString() : '';
+		} catch ( e ) {
+			return '';
+		}
+	};
 	let serial = 0;
 	const note = ( text, tone ) => ( { id: 'local-' + Date.now() + '-' + ( serial++ ), role: 'system', tone: tone || 'info', text: String( text ) } );
+
+	/**
+	 * El texto del Asistente en trozos: texto, negritas («**así**») y enlaces. «[Ver la landing](URL)» es un enlace con
+	 * ese texto y una URL suelta del sitio, «Abrir»; sólo direcciones http(s) del propio sitio (las demás quedan como
+	 * texto). Puro: la prueba lo usa sin navegador.
+	 */
+	function richParts( value ) {
+		const text = String( value || '' );
+		const out = [];
+		const plain = ( chunk ) => {
+			String( chunk ).split( /\*\*([^*\n]{1,200})\*\*/ ).forEach( ( part, i ) => {
+				if ( part ) {
+					out.push( i % 2 ? { bold: part } : { text: part } );
+				}
+			} );
+		};
+		const re = /\[([^\]\n]{1,100})\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"')\]]+)/g;
+		let last = 0;
+		let m;
+		while ( ( m = re.exec( text ) ) ) {
+			plain( text.slice( last, m.index ) );
+			const href = safeUrl( m[ 2 ] || m[ 3 ] );
+			if ( href ) {
+				out.push( { href, label: m[ 1 ] || 'Abrir' } );
+			} else {
+				plain( m[ 1 ] || m[ 3 ] );
+			}
+			last = re.lastIndex;
+		}
+		plain( text.slice( last ) );
+		return out;
+	}
+
+	/** richParts() con nodos de React, nunca HTML. */
+	function RichText( props ) {
+		return h( Fragment, null, richParts( props.text ).map( ( part, i ) => {
+			if ( part.href ) {
+				return h( 'a', { key: i, className: 'dga-inline-link', href: part.href, target: '_blank', rel: 'noopener noreferrer' }, part.label );
+			}
+			return part.bold ? h( 'strong', { key: i }, part.bold ) : part.text;
+		} ) );
+	}
 
 	function Icon( props ) {
 		return h( 'svg', { className: 'dga-icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' }, h( 'path', { d: ICONS[ props.name ] || '' } ) );
@@ -146,7 +211,7 @@
 	function AiSwitcher( props ) {
 		const [ open, setOpen ] = useState( false );
 		const current = props.providers.find( ( p ) => p.key === props.value ) || null;
-		const name = current ? aiNameOf( current ) : 'Auto';
+		const name = current ? aiNameOf( current ) : 'IA automática';
 		const item = ( key, title, hint, active, disabled, select ) => h( 'button', {
 			key,
 			type: 'button',
@@ -164,9 +229,9 @@
 			label: 'IA: ' + name,
 			open,
 			setOpen,
-			trigger: h( Fragment, null, h( Icon, { name: current ? 'cpu' : 'magic' } ), h( 'span', { className: 'dga-trigger-label' }, h( 'strong', null, name ), current ? null : h( 'small', null, 'IA Tools elige la IA' ) ) ),
+			trigger: h( Fragment, null, h( Icon, { name: current ? 'cpu' : 'magic' } ), h( 'span', { className: 'dga-trigger-label' }, h( 'strong', null, name ), current ? null : h( 'small', null, 'la mejor disponible' ) ) ),
 		},
-		item( 'auto', 'Auto', 'IA Tools elige la IA', ! current, false, () => props.onChange( null ) ),
+		item( 'auto', 'Automática', 'La mejor disponible', ! current, false, () => props.onChange( null ) ),
 		props.providers.map( ( p ) => item( p.key, aiNameOf( p ), 'unavailable' === p.status ? 'No disponible' : '', !! current && current.key === p.key, 'unavailable' === p.status, () => props.onChange( p.key ) ) ) );
 	}
 
@@ -182,17 +247,18 @@
 		const categories = catalog ? catalog.categories : [];
 		const on = ( id ) => ! props.selected || props.selected.indexOf( id ) >= 0;
 		const active = categories.filter( ( c ) => on( c.id ) ).reduce( ( n, c ) => n + c.count, 0 );
+		const total = catalog ? catalog.tools.length : 0;
 		return h( Dropdown, {
 			className: 'dga-tools',
-			label: 'Herramientas del MCP',
+			label: 'Qué puede usar el Asistente',
 			open,
 			setOpen,
 			role: 'group',
-			trigger: h( Fragment, null, h( Icon, { name: 'tools' } ), h( 'span', { className: 'dga-trigger-label' }, h( 'strong', null, 'Herramientas' ), h( 'small', null, catalog ? active + ' de ' + catalog.tools.length : 'del MCP' ) ) ),
+			trigger: h( Fragment, null, h( Icon, { name: 'tools' } ), h( 'span', { className: 'dga-trigger-label' }, h( 'strong', null, 'Funciones' ), h( 'small', null, ! catalog || active === total ? 'todas' : active + ' de ' + total ) ) ),
 		},
-		h( 'p', { className: 'dga-menu-note' }, 'Las mismas que el MCP de este sitio. Consultar se hace solo; cambiar pide tu confirmación.' ),
+		h( 'p', { className: 'dga-menu-note' }, 'Lo que el Asistente puede usar en tu sitio. Consultar lo hace solo; antes de cambiar algo publicado te pide confirmación. Apaga lo que no quieras que use.' ),
 		! catalog ? h( 'p', { className: 'dga-menu-note', role: 'status' }, 'Cargando…' ) : null,
-		catalog && ! categories.length ? h( 'p', { className: 'dga-menu-note' }, 'El MCP de este sitio no ofrece herramientas.' ) : null,
+		catalog && ! categories.length ? h( 'p', { className: 'dga-menu-note' }, 'Este sitio todavía no tiene funciones para el Asistente.' ) : null,
 		categories.map( ( c ) => h( 'label', { key: c.id, className: 'dga-menu-check' },
 			h( 'input', { type: 'checkbox', checked: on( c.id ), onChange: () => props.onToggle( c.id ), 'data-category': c.id } ),
 			h( 'span', null, c.label ),
@@ -204,7 +270,7 @@
 				setOpen( false );
 				props.onOpenLog();
 			},
-		}, h( 'strong', null, 'Ver la bitácora' ), h( 'small', null, 'Cada llamada: quién, qué, con qué datos y cómo terminó' ) ) : null );
+		}, h( 'strong', null, 'Ver la bitácora' ), h( 'small', null, 'Todo lo que hizo el Asistente, quién lo pidió y cómo terminó' ) ) : null );
 	}
 
 	function Dialog( props ) {
@@ -291,16 +357,17 @@
 		if ( 'running' === action.state ) {
 			return h( 'div', { className: 'dga-confirm is-destructive', role: 'alert', 'data-action': action.id, 'data-state': 'running' },
 				h( 'h3', null, h( Icon, { name: 'alert' } ), 'En curso o cortada' ),
-				h( 'p', null, h( 'strong', null, action.label ), ' empezó a ejecutarse: o sigue en curso o se cortó. No se puede confirmar otra vez; revisa en el sitio si se hizo antes de pedirlo de nuevo.' ),
+				h( 'p', null, h( 'strong', null, action.label ), ' empezó y no sabemos si terminó. No se puede confirmar otra vez: revisa en tu sitio si se hizo antes de pedirlo de nuevo.' ),
 				props.onRefresh ? h( 'div', { className: 'dga-actions' }, h( 'button', { type: 'button', className: 'dga-button dga-refresh', onClick: props.onRefresh }, 'Actualizar' ) ) : null );
 		}
 		const risks = Array.isArray( action.risks ) ? action.risks : [];
 		return h( 'div', { className: 'dga-confirm' + ( destructive ? ' is-destructive' : '' ), role: 'group', 'aria-label': 'Confirmación: ' + action.label, 'data-action': action.id, 'data-kind': action.kind },
-			h( 'h3', null, h( Icon, { name: destructive ? 'alert' : 'check' } ), destructive ? 'Acción destructiva: confirma explícitamente' : 'Confirma este cambio' ),
-			h( 'p', null, h( 'strong', null, action.label ), action.description ? ' — ' + action.description : '' ),
-			action.after_read ? h( 'p', { className: 'dga-warn' }, 'Esta propuesta llega después de leer contenido del sitio: revisa que sea exactamente lo que pediste.' ) : null,
+			h( 'h3', null, h( Icon, { name: destructive ? 'alert' : 'check' } ), destructive ? 'Este cambio no tiene vuelta atrás: confírmalo' : 'Confirma este cambio' ),
+			h( 'p', null, h( 'strong', null, action.label ) ),
+			action.after_read ? h( 'p', { className: 'dga-warn' }, 'Revisa que sea exactamente lo que pediste antes de confirmar.' ) : null,
 			risks.length ? h( 'ul', { className: 'dga-warn dga-risks', 'aria-label': 'Lo arriesgado de esta acción' }, risks.map( ( r, i ) => h( 'li', { key: i }, r ) ) ) : null,
 			action.idempotent ? null : h( 'p', { className: 'dga-warn' }, 'Si falla, puede haberse aplicado igual: no la repitas sin revisar.' ),
+			h( 'p', { className: 'dga-hint' }, 'Datos exactos que se usarán:' ),
 			h( 'pre', { className: 'dga-input' + ( full ? ' is-full' : '' ), ref: box, onScroll: check, 'aria-label': 'Datos completos de la acción', tabIndex: 0 }, action.input ),
 			seen ? null : h( 'p', { className: 'dga-hint' }, 'Desplázate hasta el final de los datos para poder confirmar.' ),
 			full ? null : h( 'button', { type: 'button', className: 'dga-button dga-see-all', onClick: () => setFull( true ) }, 'Agrandar los datos (' + String( action.input ).length + ' caracteres)' ),
@@ -320,10 +387,88 @@
 			m.detail ? h( 'pre', { 'aria-label': 'Resultado' }, m.detail ) : null );
 	}
 
-	/** ChatThread: burbujas, llamadas a herramientas, confirmaciones y el indicador de espera. */
+	/**
+	 * Lo que se revisó, en palabras de quien usa el sitio: «Revisé tu tienda y tus páginas (19)» o «Preparé el borrador
+	 * y revisé tu tienda (5)».
+	 */
+	const AREAS = [
+		[ /^(digitalisimo-woo|woocommerce)\//, 'tu tienda' ],
+		[ /^(elementor|digitalisimo-sales|core)\/|^digitalisimo-ia\/read-page-text$/, 'tus páginas' ],
+		[ /^digitalisimo-ia\/site-contact$/, 'tus datos de contacto' ],
+		[ /seo/, 'cómo te encuentra Google' ],
+	];
+	const areaOf = ( m ) => {
+		const found = AREAS.find( ( a ) => a[ 0 ].test( String( m.ability || '' ) ) );
+		return found ? found[ 1 ] : 'tu sitio';
+	};
+	function workTitle( list ) {
+		const tools = list.filter( ( m ) => 'tool' === m.role );
+		const reads = tools.filter( ( m ) => 'read' === m.kind );
+		const areas = [];
+		reads.forEach( ( m ) => {
+			if ( areas.indexOf( areaOf( m ) ) < 0 ) {
+				areas.push( areaOf( m ) );
+			}
+		} );
+		const seen = areas.length > 1 ? areas.slice( 0, -1 ).join( ', ' ) + ' y ' + areas[ areas.length - 1 ] : areas[ 0 ] || 'tu sitio';
+		const drafted = tools.some( ( m ) => 'draft' === m.kind && 'ok' === m.status );
+		let head = 'Lo que hice';
+		if ( drafted ) {
+			head = reads.length ? 'Preparé el borrador y revisé ' + seen : 'Preparé el borrador';
+		} else if ( reads.length ) {
+			head = 'Revisé ' + seen;
+		}
+		return head + ' (' + tools.length + ')';
+	}
+
+	/** El trabajo de un turno (consultas, borradores y notas de avance), plegado en una sola línea. */
+	function WorkGroup( props ) {
+		const list = props.items;
+		const failed = list.some( ( m ) => 'tool' === m.role && [ 'error', 'denied', 'unknown' ].indexOf( m.status ) >= 0 );
+		return h( 'details', { className: 'dga-work', 'data-count': String( list.filter( ( m ) => 'tool' === m.role ).length ) },
+			h( 'summary', null, h( Icon, { name: 'check' } ), h( 'span', null, workTitle( list ) ), failed ? h( 'span', { className: 'dga-tool-state', 'data-status': 'unknown' }, 'algo no salió' ) : null ),
+			h( 'div', { className: 'dga-work-list' }, list.map( ( m ) => ( 'tool' === m.role
+				? h( ToolChip, { key: m.id, message: m } )
+				: h( 'p', { key: m.id, className: 'dga-work-note' }, h( RichText, { text: m.text } ) ) ) ) ) );
+	}
+
+	/** Agrupa los mensajes: cada tramo de herramientas (con el texto de avance que las acompaña) va en un WorkGroup. */
+	function groupMessages( messages ) {
+		const ahead = new Array( messages.length ).fill( false );
+		let tool = false;
+		for ( let i = messages.length - 1; i >= 0; i-- ) {
+			if ( 'me' === messages[ i ].role ) {
+				tool = false;
+			} else if ( 'tool' === messages[ i ].role ) {
+				tool = true;
+			}
+			ahead[ i ] = tool;
+		}
+		const out = [];
+		messages.forEach( ( m, i ) => {
+			const work = 'tool' === m.role || ( 'assistant' === m.role && m.work && ahead[ i ] && i + 1 < messages.length );
+			if ( ! work ) {
+				out.push( { key: m.id, message: m } );
+				return;
+			}
+			const last = out[ out.length - 1 ];
+			if ( last && last.work ) {
+				last.work.push( m );
+			} else {
+				out.push( { key: 'w-' + m.id, work: [ m ] } );
+			}
+		} );
+		return out;
+	}
+
+	/** ChatThread: burbujas, el trabajo plegado, confirmaciones y el indicador de espera. */
 	function Thread( props ) {
 		return h( 'div', { className: 'dga-thread', role: 'log', 'aria-live': 'polite', 'aria-label': 'Conversación' },
-			props.messages.map( ( m ) => {
+			groupMessages( props.messages ).map( ( item ) => {
+				if ( item.work ) {
+					return h( WorkGroup, { key: item.key, items: item.work } );
+				}
+				const m = item.message;
 				if ( 'system' === m.role ) {
 					return h( 'div', { key: m.id, className: 'dga-system' + ( 'error' === m.tone ? ' is-error' : '' ), role: 'error' === m.tone ? 'alert' : undefined }, m.text );
 				}
@@ -335,7 +480,7 @@
 					me ? null : h( 'span', { className: 'dga-avatar', 'aria-hidden': 'true' }, 'IA' ),
 					h( 'div', { className: 'dga-message-column' },
 						me ? null : h( 'span', { className: 'dga-author' }, 'Asistente' ),
-						h( 'div', { className: 'dga-bubble' }, m.text ),
+						h( 'div', { className: 'dga-bubble' }, me ? m.text : h( RichText, { text: m.text } ) ),
 						m.time ? h( 'span', { className: 'dga-meta' }, timeOf( m.time ) ) : null ) );
 			} ),
 			props.pending.map( ( a ) => h( ConfirmCard, { key: a.id, action: a, busy: props.busy, onDecide: props.onDecide, onRefresh: props.onRefresh } ) ),
@@ -424,7 +569,7 @@
 		return h( 'div', { className: 'dga-welcome' },
 			h( 'span', { className: 'dga-welcome-icon' }, h( Icon, { name: 'sparkle' } ) ),
 			h( 'h2', null, '¿En qué te ayudo hoy?' ),
-			h( 'p', null, 'Pide algo sobre este sitio. Uso las mismas herramientas que su MCP: consulto directo y te pido confirmación antes de cambiar algo. Con /ayuda usas una herramienta directo, sin IA.' ),
+			h( 'p', null, 'Pídeme lo que necesites de tu sitio. Primero lo preparo en borrador para que lo veas; nada se publica ni cambia sin que tú lo confirmes.' ),
 			h( 'div', { className: 'dga-suggestions' }, SUGGESTIONS.map( ( s ) => h( 'button', { key: s[ 1 ], type: 'button', className: 'dga-suggestion', onClick: () => props.onSuggestion( s[ 0 ] ) }, h( Icon, { name: 'sparkle' } ), s[ 1 ] ) ) ) );
 	}
 
@@ -707,9 +852,14 @@
 				h( 'div', { className: 'dga-composer-area' },
 					h( 'div', { className: 'dga-column' },
 						h( Composer, { value: draft, onChange: setDraft, onSubmit: send, disabled: busy || ( noAi && ! isShortcut( draft ) ), placeholder: noAi ? 'Sin IA configurada: usa /ayuda para los atajos' : 'Escribe una instrucción…', max: ( config.limits && config.limits.message ) || 4000, hint: fromLink ? 'Este mensaje vino en un enlace: revísalo antes de enviarlo.' : ( pending.some( ( a ) => 'running' !== a.state ) ? 'Hay una acción esperando tu confirmación.' : null ) } ),
-						h( 'p', { className: 'dga-footnote' }, 'El asistente puede equivocarse: revisa la información importante. Cada acción queda en la bitácora. Lo que consulta (también datos de clientes y pedidos) se envía al proveedor de IA.' ) ) ) ),
+						h( 'p', { className: 'dga-footnote' }, 'El Asistente puede equivocarse: revisa lo importante antes de publicar. Lo que consulta de tu sitio (también datos de clientes y pedidos) se envía a la IA que te responde.' ) ) ) ),
 			'appearance' === dialog ? h( Appearance, { look, setLook, onClose: () => setDialog( '' ) } ) : null,
 			'log' === dialog ? h( LogDialog, { onClose: () => setDialog( '' ) } ) : null );
+	}
+
+	// Para la prueba sin navegador (tests/ia-assistant-mostrar-ui.mjs): las piezas puras, sólo si la prueba las pide.
+	if ( 'function' === typeof window.digitalisimoAssistantExpose ) {
+		window.digitalisimoAssistantExpose( { groupMessages, workTitle, richParts, VERBS, STATES, SUGGESTIONS } );
 	}
 
 	const app = h( App );
