@@ -125,8 +125,17 @@ async function main() {
     for (const [ancho, alto] of [[1280, 800], [390, 844]]) {
       await page.setViewport({ width: ancho, height: alto });
       const res = await page.goto(d.preview_url, { waitUntil: 'networkidle0', timeout: 600_000 });
-      await new Promise((ok) => setTimeout(ok, 1500));
       check(res && res.status() === 200, `${ancho} px: la vista previa responde 200`, res && res.status());
+      // Recorre la página (las imágenes de abajo cargan al acercarse) y espera a que cada imagen esté pintada: el
+      // servidor de Playground atiende de una en una y la captura no debe salir con huecos en blanco.
+      await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 400) { window.scrollTo(0, y); await new Promise((ok) => setTimeout(ok, 150)); } window.scrollTo(0, 0); });
+      await page.waitForFunction(() => [...document.images].filter((i) => !i.classList.contains('emoji')).every((i) => i.complete && i.naturalWidth > 0), { timeout: 180_000 }).catch(() => {});
+      await new Promise((ok) => setTimeout(ok, 1500));
+      const pintadas = await page.evaluate((id) => {
+        const root = document.querySelector(`[data-elementor-id="${id}"]`) || document.body;
+        return [...root.querySelectorAll('img')].filter((i) => /purificador/.test(i.currentSrc || i.src)).map((i) => ({ src: (i.currentSrc || i.src).split('/').pop(), ok: i.complete && i.naturalWidth > 0 }));
+      }, d.id);
+      check(pintadas.length >= 3 && pintadas.every((i) => i.ok), `${ancho} px: las imágenes del producto cargan y se pintan (${pintadas.length})`, JSON.stringify(pintadas));
       await page.screenshot({ path: join(dir, 'capturas', `landing-producto-${ancho}.png`), fullPage: true });
       await page.screenshot({ path: join(dir, 'capturas', `landing-producto-${ancho}-primera-pantalla.png`) });
       const info = await page.evaluate((id) => {
