@@ -97,6 +97,8 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! $items['hosting'] && ! $items['domains'] ) return;
 		$state = self::state( $order );
 		if ( ! empty( $state['done'] ) ) return;
+		// La marca de pago: sin ella ninguna tarea llama a Webuzo ni a Namecheap por este pedido.
+		if ( empty( $state['paid'] ) ) { $state['paid'] = time(); self::save_state( $order, $state ); }
 		self::enqueue( self::HOOK_PROVISION, $order->get_id() );
 		self::ensure_daily();
 	}
@@ -293,7 +295,7 @@ class Digitalisimo_Hosting_Provisioning {
 			'order' => $order->get_id(), 'customer' => (int) $order->get_customer_id(), 'email' => (string) $order->get_billing_email(),
 			'name' => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ), 'domain' => $domain,
 			'plan' => $hosting ? $hosting['plan'] : '', 'hosting_product' => $hosting ? ( $hosting['variation'] ?: $hosting['product'] ) : 0,
-			'domain_product' => $dom ? $dom['product'] : 0, 'status' => 'pending', 'expires' => 0,
+			'domain_product' => $dom ? $dom['product'] : 0, 'status' => 'pending', 'expires' => 0, 'created' => time(),
 		) );
 		$order->update_meta_data( self::META_SERVICE, $id );
 		$order->save();
@@ -306,7 +308,7 @@ class Digitalisimo_Hosting_Provisioning {
 		$order = wc_get_order( $order_id );
 		if ( ! $order || $order->get_meta( self::META_RENEWAL ) ) return;
 		$state = self::state( $order );
-		if ( ! empty( $state['done'] ) ) return;
+		if ( ! empty( $state['done'] ) || ! self::may_run( $order, $state ) ) return;
 		try {
 			$items  = self::items( $order );
 			$domain = '';
@@ -327,6 +329,20 @@ class Digitalisimo_Hosting_Provisioning {
 		} catch ( Throwable $e ) {
 			self::fail( $order, $state, array( 'kind' => 'api', 'message' => 'Error interno: ' . $e->getMessage() ), self::HOOK_PROVISION, $order->get_id(), (int) $order->get_meta( self::META_SERVICE ) );
 		}
+	}
+
+	/**
+	 * ¿Puede una tarea gastar en este pedido? Sólo con la venta automática encendida, pagado (marca de `paid()`) y vivo:
+	 * un pedido cancelado, reembolsado o fallido después de pagarse no crea cuentas ni registra dominios aunque quede un
+	 * reintento en cola, se levante la parada de Webuzo o alguien pulse «Reintentar».
+	 */
+	private static function may_run( $order, array $state ) {
+		if ( ! self::on() || empty( $state['paid'] ) ) return false;
+		if ( in_array( $order->get_status(), array( 'cancelled', 'refunded', 'failed', 'trash', 'pending', 'checkout-draft' ), true ) ) {
+			if ( empty( $state['dead_noted'] ) ) { $state['dead_noted'] = 1; $order->update_meta_data( $order->get_meta( self::META_RENEWAL ) ? self::META_RENEW : self::META_STATE, $state ); $order->add_order_note( 'DIGITALÍSIMO Hosting: el pedido está «' . $order->get_status() . '»; no se aprovisiona ni se renueva nada.' ); $order->save(); }
+			return false;
+		}
+		return true;
 	}
 
 	/** Lo que no se puede resolver solo: varios planes o dominios, cantidades, dominio inválido o de otra extensión. */
@@ -417,8 +433,13 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( empty( $state['domain']['registered'] ) ) {
 			$info = $nc->info( $domain );
 			if ( 'ok' !== $info['kind'] ) return self::stop( self::nc_kind( $info ), $info['message'] );
+			if ( $info['ours'] && empty( $state['domain']['create_sent'] ) ) {
+				// Ya estaba en la cuenta y este pedido nunca pidió registrarlo: es de otro cliente (o de la casa). Adoptarlo
+				// cambiaría sus nameservers y le daría su web y su correo al comprador.
+				return self::stop( 'data', 'El dominio ' . $domain . ' ya está en la cuenta de Namecheap y no lo registró este pedido: no se tocó (ni sus nameservers). Revísalo a mano.' );
+			}
 			if ( $info['ours'] ) {
-				$state['domain'] = array( 'registered' => time(), 'existed' => 1 );
+				$state['domain'] = array( 'registered' => time(), 'existed' => 1, 'create_sent' => $state['domain']['create_sent'] );
 				self::save_state( $order, $state );
 				$order->add_order_note( 'DIGITALÍSIMO Hosting: el dominio ' . $domain . ' ya estaba en la cuenta de Namecheap; no se registró otra vez.' );
 			} else {
@@ -431,9 +452,12 @@ class Digitalisimo_Hosting_Provisioning {
 				$balance = $nc->balance();
 				if ( 'ok' !== $balance['kind'] ) return self::stop( self::nc_kind( $balance ), $balance['message'] );
 				if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en Namecheap para registrar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );
+				// Antes de pedirlo: si la respuesta se pierde, el reintento sabrá que este pedido lo registró.
+				$state['domain'] = array( 'create_sent' => time() );
+				self::save_state( $order, $state );
 				$r = $nc->create( $domain, $contact, 1 );
 				if ( 'ok' !== $r['kind'] ) return self::stop( self::nc_kind( $r ), $r['message'] );
-				$state['domain'] = array( 'registered' => time(), 'id' => $r['domain_id'] );
+				$state['domain'] = array( 'registered' => time(), 'id' => $r['domain_id'], 'create_sent' => $state['domain']['create_sent'] );
 				self::save_state( $order, $state );
 				$order->add_order_note( 'DIGITALÍSIMO Hosting: dominio ' . $domain . ' registrado en Namecheap a nombre de ' . trim( $contact['FirstName'] . ' ' . $contact['LastName'] ) . ' (ID ' . $r['domain_id'] . ', cargo ' . $r['charged'] . ' USD).' );
 			}
@@ -466,6 +490,7 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! empty( $state['hosting']['pass'] ) ) { self::svc_set( $service, array( 'pass' => $state['hosting']['pass'] ) ); unset( $state['hosting']['pass'] ); }
 		$state['email'] = $sent;
 		self::save_state( $order, $state );
+		if ( 'sent' !== $sent ) self::alert_admin( 'accesos sin enviar (pedido #' . $order->get_id() . ')', 'El servicio ' . $domain . ' quedó listo pero el correo de accesos no salió (' . ( 'disabled' === $sent ? 'está desactivado en WooCommerce → Ajustes → Correos' : 'falló el envío' ) . '). Usa «Reenviar accesos» en WooCommerce → Servicios de hosting.' );
 		$order->add_order_note( 'sent' === $sent ? 'DIGITALÍSIMO Hosting: correo de accesos enviado a ' . $order->get_billing_email() . '.' : ( 'disabled' === $sent ? 'DIGITALÍSIMO Hosting: el correo «Accesos de hosting» está desactivado en WooCommerce → Ajustes → Correos; entrega los accesos a mano (WooCommerce → Servicios de hosting → Reenviar accesos).' : 'DIGITALÍSIMO Hosting: no se pudo enviar el correo de accesos; usa «Reenviar accesos» en WooCommerce → Servicios de hosting.' ) );
 		return null;
 	}
@@ -601,8 +626,28 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( $w && ! Digitalisimo_Hosting_Webuzo::from_settings()->blocked() ) self::on_unblocked();
 		$grace = (int) ( Digitalisimo_Hosting::settings()['grace_days'] ?? 7 );
 		foreach ( self::services() as $id ) {
-			try { self::check_service( $id, $now, $grace ); } catch ( Throwable $e ) { self::svc_log( $id, 'Error en la revisión diaria: ' . $e->getMessage() ); }
+			try { self::watchdog( $id ); self::check_service( $id, $now, $grace ); } catch ( Throwable $e ) { self::svc_log( $id, 'Error en la revisión diaria: ' . $e->getMessage() ); }
 		}
+	}
+
+	/**
+	 * Un aprovisionamiento que quedó «pendiente» sin tarea en cola (PHP lo cortó por tiempo o memoria a media llamada):
+	 * se vuelve a encolar (cada paso consulta antes de crear, no duplica) y se avisa al administrador.
+	 */
+	private static function watchdog( $id ) {
+		if ( 'pending' !== self::svc( $id, 'status' ) || time() - (int) self::svc( $id, 'created' ) < HOUR_IN_SECONDS ) return;
+		$order_id = (int) self::svc( $id, 'order' );
+		if ( function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( self::HOOK_PROVISION, array( $order_id ), self::GROUP ) ) return;
+		$order = wc_get_order( $order_id );
+		if ( ! $order ) return;
+		$state = self::state( $order );
+		if ( ! empty( $state['done'] ) || ! empty( $state['watchdog'] ) && time() - (int) $state['watchdog'] < DAY_IN_SECONDS ) return;
+		$state['watchdog'] = time(); self::save_state( $order, $state );
+		$order->add_order_note( 'DIGITALÍSIMO Hosting: el aprovisionamiento quedó a medias sin tarea en cola; se retoma (no duplica: cada paso consulta antes de crear).' );
+		self::alert_admin( 'pedido #' . $order_id . ' retomado', 'El aprovisionamiento del pedido #' . $order_id . ' (' . self::svc( $id, 'domain' ) . ') quedó a medias, probablemente cortado por tiempo o memoria. Se volvió a encolar.' . "
+
+" . self::order_link( $order ) );
+		self::enqueue( self::HOOK_PROVISION, $order_id );
 	}
 
 	public static function check_service( $id, $now, $grace ) {
@@ -626,7 +671,7 @@ class Digitalisimo_Hosting_Provisioning {
 			$renewal->add_order_note( 'DIGITALÍSIMO Hosting: aviso de vencimiento (' . $type . ' días) ' . ( $ok ? 'enviado' : 'no enviado (correo desactivado o falló)' ) . ' a ' . self::svc( $id, 'email' ) . '.' );
 		}
 		if ( 'active' === $status && $now > $expires + $grace * DAY_IN_SECONDS ) {
-			if ( self::svc( $id, 'webuzo_user' ) ) { self::svc_set( $id, array( 'suspend_reason' => 'auto' ) ); self::enqueue( self::HOOK_SUSPEND, $id ); }
+			if ( self::svc( $id, 'webuzo_user' ) ) { self::svc_set( $id, array( 'suspend_reason' => 'auto', 'suspend_for' => $expires ) ); self::enqueue( self::HOOK_SUSPEND, $id ); }
 			else { self::svc_set( $id, array( 'status' => 'expired' ) ); self::svc_log( $id, 'Vencido sin pago (dominio sin hosting).' ); }
 		}
 	}
@@ -661,7 +706,7 @@ class Digitalisimo_Hosting_Provisioning {
 			$item = 'domain_product' === $key && $item_id ? $order->get_item( $item_id ) : null;
 			if ( $item ) { $item->add_meta_data( 'Dominio', (string) self::svc( $id, 'domain' ), true ); $item->save(); }
 		}
-		if ( $orig ) $order->set_address( $orig->get_address( 'billing' ), 'billing' );
+		if ( $orig ) foreach ( (array) $orig->get_address( 'billing' ) as $key => $value ) { if ( is_callable( array( $order, 'set_billing_' . $key ) ) ) $order->{'set_billing_' . $key}( $value ); }
 		else $order->set_billing_email( (string) self::svc( $id, 'email' ) );
 		$order->update_meta_data( self::META_RENEWAL, $id );
 		$order->calculate_totals();
@@ -678,10 +723,12 @@ class Digitalisimo_Hosting_Provisioning {
 		$id = (int) $order->get_meta( self::META_RENEWAL );
 		if ( ! $id || ! self::is_service( $id ) ) return;
 		$state = (array) $order->get_meta( self::META_RENEW );
-		if ( ! empty( $state['done'] ) ) return;
+		if ( ! empty( $state['done'] ) || ! self::may_run( $order, $state ) ) return;
 		try {
 			$stop = self::renew_domain( $order, $state, $id );
-			if ( ! $stop && 'suspended' === self::svc( $id, 'status' ) && self::svc( $id, 'webuzo_user' ) && empty( $state['unsuspended'] ) ) {
+			$manual = 'manual' === self::svc( $id, 'suspend_reason' );
+			if ( ! $stop && $manual && 'suspended' === self::svc( $id, 'status' ) && empty( $state['manual_noted'] ) ) { $state['manual_noted'] = 1; $order->add_order_note( 'DIGITALÍSIMO Hosting: la cuenta está suspendida a mano; el pago no la reactiva (usa «Reactivar» en Servicios de hosting).' ); }
+			if ( ! $stop && ! $manual && 'suspended' === self::svc( $id, 'status' ) && self::svc( $id, 'webuzo_user' ) && empty( $state['unsuspended'] ) ) {
 				$r = Digitalisimo_Hosting_Webuzo::from_settings()->unsuspend( (string) self::svc( $id, 'webuzo_user' ) );
 				if ( 'ok' !== $r['kind'] ) $stop = self::stop( $r['kind'], 'Webuzo (reactivar ' . self::svc( $id, 'webuzo_user' ) . '): ' . $r['message'] );
 				else { $state['unsuspended'] = time(); $order->update_meta_data( self::META_RENEW, $state ); $order->save(); self::svc_set( $id, array( 'status' => 'active' ) ); $order->add_order_note( 'DIGITALÍSIMO Hosting: cuenta «' . self::svc( $id, 'webuzo_user' ) . '» reactivada en Webuzo.' ); }
@@ -691,7 +738,7 @@ class Digitalisimo_Hosting_Provisioning {
 				$old = (int) self::svc( $id, 'expires' );
 				$new = strtotime( '+1 year', $old ? $old : time() );
 				$state['extended'] = $new;
-				self::svc_set( $id, array( 'expires' => $new, 'status' => 'active', 'renewal_order' => 0, 'notices' => array(), 'error' => '', 'suspend_reason' => '' ) );
+				self::svc_set( $id, $manual ? array( 'expires' => $new, 'renewal_order' => 0, 'notices' => array(), 'error' => '' ) : array( 'expires' => $new, 'status' => 'active', 'renewal_order' => 0, 'notices' => array(), 'error' => '', 'suspend_reason' => '' ) );
 				self::svc_log( $id, 'Renovado con el pedido #' . $order->get_id() . ' hasta el ' . self::date( $new ) . '.' );
 			}
 			$state['done'] = time(); unset( $state['attempts'], $state['blocked_noted'] );
@@ -727,7 +774,8 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( 'ok' !== $price['kind'] ) return self::stop( self::nc_kind( $price ), $price['message'] );
 		$item = null;
 		foreach ( $order->get_items() as $row ) if ( (int) $row->get_product_id() === (int) self::svc( $id, 'domain_product' ) ) { $item = $row; break; }
-		$guard = $item ? self::price_guard( $item, $price['value'], 'renovar ' . $domain ) : null;
+		if ( ! $item ) return self::stop( 'data', 'El pedido de renovación no trae la línea del dominio ' . $domain . ': no se renovó (se cobraría sin cobrarle al cliente).' );
+		$guard = self::price_guard( $item, $price['value'], 'renovar ' . $domain );
 		if ( $guard ) return $guard;
 		$balance = $nc->balance();
 		if ( 'ok' !== $balance['kind'] ) return self::stop( self::nc_kind( $balance ), $balance['message'] );
@@ -749,6 +797,9 @@ class Digitalisimo_Hosting_Provisioning {
 		$user = (string) self::svc( $id, 'webuzo_user' );
 		$status = (string) self::svc( $id, 'status' );
 		if ( '' === $user || ( $suspend && 'suspended' === $status ) || ( ! $suspend && 'suspended' !== $status ) ) return;
+		// Una suspensión automática que esperaba (reintento o clave nueva) se revisa otra vez: si el cliente ya pagó o el
+		// servicio ya no está vencido más allá de la gracia, no se suspende.
+		if ( $suspend && 'auto' === self::svc( $id, 'suspend_reason' ) && ! self::overdue( $id ) ) { self::svc_set( $id, array( 'suspend_reason' => '', 'toggle_attempts' => 0 ) ); self::svc_log( $id, 'Suspensión cancelada: ya no está vencido sin pago.' ); return; }
 		$api = Digitalisimo_Hosting_Webuzo::from_settings();
 		$r = $suspend ? $api->suspend( $user ) : $api->unsuspend( $user );
 		$hook = $suspend ? self::HOOK_SUSPEND : self::HOOK_UNSUSPEND;
@@ -769,6 +820,14 @@ class Digitalisimo_Hosting_Provisioning {
 		$renewal = wc_get_order( (int) self::svc( $id, 'renewal_order' ) );
 		if ( $renewal ) $renewal->add_order_note( 'DIGITALÍSIMO Hosting: cuenta «' . $user . '» ' . ( $suspend ? 'suspendida' : 'reactivada' ) . ' en Webuzo.' );
 		if ( $suspend && $auto && $renewal && ! in_array( $renewal->get_status(), array( 'processing', 'completed' ), true ) ) self::send_renewal( $renewal, $id, 'suspended' );
+	}
+
+	/** ¿Sigue vencido sin pago, como cuando la revisión diaria decidió suspender (mismo vencimiento, renovación sin pagar)? */
+	private static function overdue( $id ) {
+		if ( (int) self::svc( $id, 'suspend_for' ) !== (int) self::svc( $id, 'expires' ) ) return false;
+		$renewal = wc_get_order( (int) self::svc( $id, 'renewal_order' ) );
+		if ( $renewal ) { $s = (array) $renewal->get_meta( self::META_RENEW ); if ( ! empty( $s['paid'] ) || in_array( $renewal->get_status(), array( 'processing', 'completed' ), true ) ) return false; }
+		return true;
 	}
 
 	/** Reenvía el correo de accesos con la contraseña inicial guardada (cifrada) en el servicio. */

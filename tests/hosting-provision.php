@@ -220,4 +220,62 @@ foreach ( array( 'Incorrect Username or Password', '2 attempt(s) left', 'You hav
 check( '+52.3312345678' === $P::phone( '+52 33 1234 5678', 'MX' ) && '+52.3312345678' === $P::phone( '(33) 1234-5678', 'MX' ) && '+1.5551234567' === $P::phone( '555-123-4567', 'US' ), 'Teléfonos al formato de Namecheap' );
 check( 'mitienda' === $P::username( 'mitienda.com', array() ) && 'mitienda2' === $P::username( 'mitienda.com', array( 'mitienda' => 1 ) ) && 'u123abc' === $P::username( '123abc.mx', array() ) && 'pruebamitien' === $P::username( 'mitienda.com', array(), 'prueba' ), 'Usuarios derivados del dominio (prefijo, colisiones, empiezan con letra)' );
 
+// ── 8. Hallazgos de la revisión adversarial ────────────────────────────────────────────────────────────────
+// Un dominio que ya está en la cuenta y no registró este pedido (de otro cliente) no se adopta ni se le cambian los DNS.
+digi_reset_store();
+$GLOBALS['nc']['domains']['ajeno.com'] = strtotime( '+200 days' );
+$order = digi_buy( 'ajeno.com', 0 );
+$order->update_status( 'processing' ); digi_run_queue();
+check( 0 === digi_nc_count( 'namecheap.domains.dns.setCustom' ) && 0 === digi_nc_count( 'namecheap.domains.create' ) && 'on-hold' === $order->get_status() && false !== strpos( digi_notes( $order ), 'ya está en la cuenta de Namecheap y no lo registró este pedido' ), 'Un dominio ajeno que ya está en la cuenta no se adopta ni se le tocan los nameservers' );
+// Pedido reembolsado con un reintento en cola: no se gasta nada.
+digi_reset_store();
+$GLOBALS['webuzo']['timeout'] = 1;
+$order = digi_buy( 'reembolso.com' );
+$order->update_status( 'processing' ); digi_run_queue( true, 1 );
+$order->status = 'refunded'; $calls = count( $GLOBALS['webuzo']['calls'] );
+digi_run_queue();
+check( $calls === count( $GLOBALS['webuzo']['calls'] ) && ! $GLOBALS['nc']['calls'] && false !== strpos( digi_notes( $order ), 'no se aprovisiona ni se renueva nada' ), 'Un pedido reembolsado con un reintento en cola no crea cuenta ni registra dominio' );
+// Venta automática apagada después de encolar: la tarea no llama a nadie.
+digi_reset_store();
+$order = digi_buy( 'apagada.com' );
+$order->update_status( 'processing' );
+digi_store_settings( array( 'provision_enabled' => 0 ) );
+digi_run_queue();
+check( ! $GLOBALS['webuzo']['calls'] && ! $GLOBALS['nc']['calls'], 'Apagar la venta automática detiene también lo que ya estaba en cola' );
+// Un pedido que nunca se pagó (sin la marca de pago) no se aprovisiona aunque alguien encole la tarea.
+digi_reset_store();
+$order = digi_buy( 'sinpagar.com' );
+$P::enqueue( $P::HOOK_PROVISION, $order->get_id() ); digi_run_queue();
+check( ! $GLOBALS['webuzo']['calls'], 'Un pedido sin pagar no se aprovisiona aunque se encole' );
+// Webuzo contesta sin «done» al crear: no cuenta como creada.
+digi_reset_store();
+$GLOBALS['webuzo']['mode'] = 'nodone';
+$order = digi_buy( 'sindone.com' );
+$order->update_status( 'processing' ); digi_run_queue();
+check( 'on-hold' === $order->get_status() && false !== strpos( digi_notes( $order ), 'sin «done»' ) && ! digi_mails_to( 'ana@cliente.test' ) && ! get_option( Digitalisimo_Hosting_Webuzo::BLOCK ), 'Sin la confirmación «done» la cuenta no se da por creada ni se mandan accesos (y no es error de clave)' );
+// Un error de Webuzo que repite la contraseña: se tapa antes de recortar el mensaje.
+digi_reset_store();
+$GLOBALS['webuzo']['mode'] = 'echo';
+$order = digi_buy( 'eco.com' );
+$order->update_status( 'processing' ); digi_run_queue();
+$sent = $GLOBALS['webuzo']['calls'][1]['fields']['user_passwd'] ?? '§§§§§§§§';
+check( false === strpos( digi_notes( $order ), substr( $sent, 0, 6 ) ) && false === strpos( json_encode( $GLOBALS['mails'] ), substr( $sent, 0, 6 ) ), 'Una contraseña repetida por Webuzo en su error no llega (ni recortada) a notas ni correos' );
+// Precios manuales: un dominio cobrado a 0 (cupón del 100 %) no se registra con pérdida.
+digi_reset_store();
+$order = digi_order( array( new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'gratis.com' ), 0 ) ) );
+$order->update_status( 'processing' ); digi_run_queue();
+check( 0 === digi_nc_count( 'namecheap.domains.create' ) && 'on-hold' === $order->get_status() && false !== strpos( digi_notes( $order ), 'El costo real de registrar gratis.com subió' ), 'Con precios manuales, un dominio cobrado por debajo del costo no se registra' );
+// La misma clave rechazada, escrita otra vez, no levanta la parada; con «Ya corregí la causa» sí. La de otro servidor no se toca.
+digi_reset_store( array( 'webuzo_api_key' => 'CLAVE-VIEJA' ) );
+$order = digi_buy( 'misma.com' ); $order->update_status( 'processing' ); digi_run_queue();
+$block = get_option( Digitalisimo_Hosting_Webuzo::BLOCK ); $block['otroserver1'] = array( 't' => 1, 'msg' => 'otro', 'key' => 'x' ); update_option( Digitalisimo_Hosting_Webuzo::BLOCK, $block );
+$_POST = array( '_wpnonce' => 'n:digitalisimo_hosting_save', 'digitalisimo_hosting_save' => 1, 'hosting' => array( 'webuzo_api_key' => 'CLAVE-VIEJA' ) );
+ob_start(); Digitalisimo_Hosting::page(); ob_end_clean(); $_POST = array();
+check( 2 === count( get_option( Digitalisimo_Hosting_Webuzo::BLOCK ) ) && ! $GLOBALS['queue'], 'Volver a escribir la misma clave rechazada no levanta la parada' );
+ob_start(); Digitalisimo_Hosting::page(); $page = ob_get_clean();
+check( false !== strpos( $page, 'name="hosting[webuzo_unblock]"' ), 'La pantalla ofrece «Ya corregí la causa» mientras dure la parada' );
+$_POST = array( '_wpnonce' => 'n:digitalisimo_hosting_save', 'digitalisimo_hosting_save' => 1, 'hosting' => array( 'webuzo_unblock' => 1 ) );
+ob_start(); Digitalisimo_Hosting::page(); ob_end_clean(); $_POST = array();
+check( array( 'otroserver1' ) === array_keys( get_option( Digitalisimo_Hosting_Webuzo::BLOCK ) ) && 1 === count( $GLOBALS['queue'] ), '«Ya corregí la causa» levanta sólo la parada de este servidor y retoma lo detenido' );
+
 echo "Hosting, venta automática: {$GLOBALS['checks']} comprobaciones correctas.\n";

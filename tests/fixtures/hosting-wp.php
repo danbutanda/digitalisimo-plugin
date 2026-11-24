@@ -257,6 +257,8 @@ add_filter(
 			if ( 'users' === $act && isset( $body['suspend'] ) ) { if ( ! isset( $w['users'][ $body['suspend'] ] ) ) return digi_json( array( 'error' => array( 'User not found' ) ) ); $w['users'][ $body['suspend'] ]['status'] = 'suspended'; return digi_json( array( 'done' => array( 'msg' => 'User suspended successfully' ) ) ); }
 			if ( 'users' === $act && isset( $body['unsuspend'] ) ) { $w['users'][ $body['unsuspend'] ]['status'] = ''; return digi_json( array( 'done' => array( 'msg' => 'User unsuspended successfully' ) ) ); }
 			if ( 'users' === $act ) return digi_json( array( 'users' => $w['users'] ) );
+			if ( 'add_user' === $act && 'nodone' === $w['mode'] ) return digi_json( array( 'title' => 'Webuzo' ) );
+			if ( 'add_user' === $act && 'echo' === $w['mode'] ) return digi_json( array( 'error' => array( str_repeat( 'x', 280 ) . ' The password ' . $body['user_passwd'] . ' is too weak.' ) ) );
 			if ( 'add_user' === $act && ! empty( $body['create_user'] ) ) {
 				if ( isset( $w['users'][ $body['user'] ] ) ) return digi_json( array( 'error' => array( 'The username already exists' ) ) );
 				if ( $body['user_passwd'] !== $body['cnf_user_passwd'] ) return digi_json( array( 'error' => array( 'Passwords do not match' ) ) );

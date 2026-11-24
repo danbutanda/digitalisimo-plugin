@@ -61,6 +61,25 @@ foreach ( array( 'YourAdditonalCost', 'YourAdditionalCost', 'AdditionalCost' ) a
 }
 unset( $GLOBALS['nc']['extra_attr'] );
 
+// Un precio de otra extensión en la misma respuesta no se toma, y un precio 0 es un error.
+add_filter( 'pre_http_request', function ( $pre, $args, $url ) {
+	if ( empty( $GLOBALS['multi_price'] ) || 0 !== strpos( $url, 'https://api.namecheap.com' ) || 'namecheap.users.getPricing' !== ( $args['body']['Command'] ?? '' ) ) return $pre;
+	$zero = 'zero' === $GLOBALS['multi_price'];
+	return digi_xml( '<UserGetPricingResult><ProductType Name="domains"><ProductCategory Name="register"><Product Name="xyz"><Price Duration="1" DurationType="YEAR" YourPrice="0.99" YourAdditonalCost="0" Currency="USD" /></Product><Product Name="' . $args['body']['ProductName'] . '"><Price Duration="1" DurationType="YEAR" YourPrice="' . ( $zero ? '0' : '12.5' ) . '" YourAdditonalCost="0" Currency="USD" /></Product></ProductCategory></ProductType></UserGetPricingResult>' );
+}, 5, 3 );
+$GLOBALS['multi_price'] = 'multi';
+$r = Digitalisimo_Hosting_Namecheap::from_settings()->price( 'com', 'REGISTER' );
+check( 'ok' === $r['kind'] && 12.5 === $r['value'], 'Con varios productos en la respuesta se toma el de la extensión pedida' );
+$GLOBALS['multi_price'] = 'zero';
+check( 'api' === Digitalisimo_Hosting_Namecheap::from_settings()->price( 'com', 'REGISTER' )['kind'], 'Un precio 0 es un error (no deja productos en $0)' );
+$GLOBALS['multi_price'] = '';
+// Una tienda con precios capturados CON IVA recibe el precio con IVA.
+update_option( 'woocommerce_prices_include_tax', 'yes' ); update_option( 'woocommerce_calc_taxes', 'yes' );
+digi_pricing(); $e = $PR::run();
+check( '1710' === wc_get_product( 21 )->get_regular_price() && ! empty( $e['rows'][1]['with_vat'] ), 'Con precios que incluyen IVA, el .mx se publica a 1710 (1470 × 1.16 hacia arriba)' );
+update_option( 'woocommerce_prices_include_tax', 'no' ); update_option( 'woocommerce_calc_taxes', 'no' );
+digi_pricing(); $PR::run();
+
 // ── 4. Fallas ───────────────────────────────────────────────────────────────────────────────────────────────
 $before = array( wc_get_product( 20 )->get_regular_price(), wc_get_product( 21 )->get_regular_price() );
 $GLOBALS['mails'] = array();

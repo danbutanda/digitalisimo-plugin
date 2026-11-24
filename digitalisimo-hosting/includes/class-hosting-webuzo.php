@@ -48,7 +48,7 @@ class Digitalisimo_Hosting_Webuzo {
 	public function configured() { return (bool) preg_match( '#^https://#i', $this->url ) && '' !== $this->user && '' !== $this->key; }
 
 	/** Identificador del servidor (URL y usuario), sin la clave. */
-	public function server() { return substr( md5( strtolower( $this->url ) . '|' . $this->user ), 0, 12 ); }
+	public function server() { return substr( md5( strtolower( $this->url ) . '|' . strtolower( $this->user ) ), 0, 12 ); }
 
 	/** Huella de la clave (no reversible): una clave distinta de la rechazada levanta la parada sola. */
 	private function fingerprint() { return substr( hash_hmac( 'sha256', $this->key, function_exists( 'wp_salt' ) ? wp_salt( 'auth' ) : 'digitalisimo' ), 0, 16 ); }
@@ -74,12 +74,24 @@ class Digitalisimo_Hosting_Webuzo {
 		return null;
 	}
 
-	/** Levanta todas las paradas (el administrador escribió una clave nueva) y avisa para volver a encolar lo detenido. */
-	public static function unblock() {
-		$had = (bool) array_filter( (array) get_site_option( self::BLOCK, array() ) );
-		if ( $had ) delete_site_option( self::BLOCK );
-		if ( function_exists( 'do_action' ) ) do_action( 'digitalisimo_hosting_webuzo_unblocked', $had );
+	/**
+	 * El administrador escribió una clave para este servidor: se levanta su parada sólo si la clave es otra (la misma
+	 * clave rechazada sigue detenida, salvo $force: «ya corregí la IP autorizada, reintentar con la misma clave»). Las
+	 * paradas de otros servidores no se tocan. Avisa para volver a encolar lo detenido.
+	 */
+	public function unblock_mine( $force = false ) {
+		$all = (array) get_site_option( self::BLOCK, array() );
+		$row = $all[ $this->server() ] ?? null;
+		if ( ! is_array( $row ) ) return false;
+		if ( ! $force && hash_equals( (string) ( $row['key'] ?? '' ), $this->fingerprint() ) ) return false;
+		unset( $all[ $this->server() ] );
+		if ( $all ) update_site_option( self::BLOCK, $all ); else delete_site_option( self::BLOCK );
+		if ( function_exists( 'do_action' ) ) do_action( 'digitalisimo_hosting_webuzo_unblocked', true );
+		return true;
 	}
+
+	/** Compatibilidad: levanta la parada del servidor de los ajustes de este sitio si su clave ya es otra. */
+	public static function unblock() { return self::from_settings()->unblock_mine(); }
 
 	private function block( $message ) {
 		$all = (array) get_site_option( self::BLOCK, array() );
@@ -93,7 +105,7 @@ class Digitalisimo_Hosting_Webuzo {
 	public static function settings_banner( $network = false ) {
 		$row = self::any_block();
 		if ( ! $row ) return;
-		echo '<div class="notice notice-error inline"><p><strong>Aprovisionamiento detenido:</strong> Webuzo rechazó la clave de API el ' . esc_html( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i', (int) $row['t'] ) : gmdate( 'Y-m-d H:i', (int) $row['t'] ) ) . ' (' . esc_html( (string) $row['msg'] ) . '). No se hará ninguna llamada a Webuzo hasta que escribas y guardes una clave nueva aquí' . ( $network ? '' : ' (o en la red, si este sitio la hereda)' ) . '. Antes, revisa en Webuzo que la clave exista y que la IP de este servidor esté autorizada.</p></div>';
+		echo '<div class="notice notice-error inline"><p><strong>Aprovisionamiento detenido:</strong> Webuzo rechazó la clave de API el ' . esc_html( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i', (int) $row['t'] ) : gmdate( 'Y-m-d H:i', (int) $row['t'] ) ) . ' (' . esc_html( (string) $row['msg'] ) . '). No se hará ninguna llamada a Webuzo hasta que escribas y guardes una clave nueva aquí' . ( $network ? '' : ' (o en la red, si este sitio la hereda)' ) . '. Antes, revisa en Webuzo que la clave exista y que la IP de este servidor esté autorizada.</p><p><label><input type="checkbox" name="hosting[webuzo_unblock]" value="1"> Ya corregí la causa (por ejemplo, autoricé la IP): reintentar con la misma clave al guardar</label></p></div>';
 	}
 
 	/**
@@ -118,7 +130,12 @@ class Digitalisimo_Hosting_Webuzo {
 				'body'        => array( 'apiuser' => $this->user, 'apikey' => $this->key ) + $post,
 			)
 		);
+		self::$redact = array_filter( array( $this->key, (string) ( $post['user_passwd'] ?? '' ) ), 'strlen' );
 		$result = self::classify( $response );
+		self::$redact = array();
+		// Crear, suspender y reactivar sólo cuentan como hechos con la confirmación «done» de la documentación.
+		if ( 'ok' === $result['kind'] && 'users' !== $act && ! isset( $result['data']['done'] ) ) $result = array( 'kind' => 'api', 'data' => $result['data'], 'message' => 'Webuzo no confirmó la operación (sin «done»)' );
+		if ( 'ok' === $result['kind'] && 'users' === $act && ( isset( $post['suspend'] ) || isset( $post['unsuspend'] ) ) && ! isset( $result['data']['done'] ) ) $result = array( 'kind' => 'api', 'data' => $result['data'], 'message' => 'Webuzo no confirmó la operación (sin «done»)' );
 		if ( 'auth' === $result['kind'] ) $this->block( $result['message'] );
 		return $result;
 	}
@@ -158,7 +175,14 @@ class Digitalisimo_Hosting_Webuzo {
 		return self::clean( (string) $value );
 	}
 
-	private static function clean( $text ) { return substr( trim( preg_replace( '/\s+/', ' ', strip_tags( (string) $text ) ) ), 0, 300 ); }
+	/** Secretos de la llamada en curso (la clave y la contraseña): se tapan antes de recortar cualquier mensaje. */
+	private static $redact = array();
+
+	private static function clean( $text ) {
+		$text = (string) $text;
+		foreach ( self::$redact as $secret ) $text = str_replace( $secret, '••••', $text );
+		return substr( trim( preg_replace( '/\s+/', ' ', strip_tags( $text ) ) ), 0, 300 );
+	}
 
 	/** Cuentas del servidor: usuario => array( 'user', 'domain', 'status', … ). */
 	public function users() {

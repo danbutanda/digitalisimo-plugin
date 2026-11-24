@@ -329,8 +329,12 @@ class Digitalisimo_Hosting {
 			elseif ( ! empty( $in[ $key . '_remove' ] ) ) $o[ $key ] = '';
 		}
 		if ( $network ) update_site_option( self::OPTION, $o ); else update_option( self::OPTION, $o, false );
-		// Una clave de Webuzo escrita a mano levanta la parada por «clave rechazada» (y vuelve a encolar lo detenido).
-		if ( $webuzo_key && class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) Digitalisimo_Hosting_Webuzo::unblock();
+		// Una clave de Webuzo NUEVA levanta la parada de su servidor por «clave rechazada» (y vuelve a encolar lo detenido);
+		// la misma clave sólo con «Ya corregí la causa» (p. ej. la IP autorizada). Las paradas de otros servidores no se tocan.
+		if ( ( $webuzo_key || ! empty( $in['webuzo_unblock'] ) ) && class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) {
+			$s = $network ? wp_parse_args( $o, self::defaults() ) : self::all();
+			( new Digitalisimo_Hosting_Webuzo( $s['webuzo_url'], $s['webuzo_api_user'], $s['webuzo_api_key'], ! empty( $s['webuzo_insecure'] ) ) )->unblock_mine( ! empty( $in['webuzo_unblock'] ) );
+		}
 		if ( ! $network && ! empty( $o['provision_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) Digitalisimo_Hosting_Provisioning::ensure_daily();
 		if ( ! $network && ! empty( $o['pricing_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Pricing' ) ) Digitalisimo_Hosting_Pricing::ensure_schedule();
 	}

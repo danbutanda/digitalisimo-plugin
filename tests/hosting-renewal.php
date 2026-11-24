@@ -131,4 +131,51 @@ check( ! $GLOBALS['queue'] && 'active' === $P::svc( $s5, 'status' ), 'Con 15 dí
 $P::daily( $exp5 + 16 * DAY_IN_SECONDS );
 check( 1 === count( $GLOBALS['queue'] ), 'A los 16 días sí' );
 
+// ── 7. Hallazgos de la revisión adversarial ────────────────────────────────────────────────────────────────
+update_option( 'digitalisimo_hosting_options', array( 'grace_days' => 7 ) + get_option( 'digitalisimo_hosting_options' ) );
+$GLOBALS['nc']['balance'] = 200; $GLOBALS['queue'] = array();
+// La suspensión falla por red; el cliente paga antes del reintento: no se suspende.
+list( , $s6 ) = digi_provisioned( 'pagatarde.com' );
+$exp6 = (int) $P::svc( $s6, 'expires' );
+$P::daily( $exp6 - 29 * DAY_IN_SECONDS );
+$r6 = wc_get_order( (int) $P::svc( $s6, 'renewal_order' ) );
+$GLOBALS['webuzo']['timeout'] = 1;
+// Lo que decide la revisión diaria pasada la gracia (sólo para este servicio).
+$P::svc_set( $s6, array( 'suspend_reason' => 'auto', 'suspend_for' => $exp6 ) ); $GLOBALS['queue'] = array();
+$P::enqueue( $P::HOOK_SUSPEND, $s6 ); digi_run_queue( true, 1 );
+check( 'active' === $P::svc( $s6, 'status' ) && 1 === count( $GLOBALS['queue'] ), 'La suspensión que falló por red queda con su reintento' );
+$suspends = digi_webuzo_count( 'users', 'suspend', 'pagatarde' );
+$r6->update_status( 'processing' ); digi_run_queue();
+check( $suspends === digi_webuzo_count( 'users', 'suspend', 'pagatarde' ) && 'active' === $P::svc( $s6, 'status' ) && '' === $GLOBALS['webuzo']['users']['pagatarde']['status'], 'El cliente pagó antes del reintento: la suspensión pendiente se cancela' );
+// Suspendida a mano (p. ej. por abuso): el pago la renueva pero no la reactiva.
+list( , $s7 ) = digi_provisioned( 'abuso.com' );
+$exp7 = (int) $P::svc( $s7, 'expires' );
+$P::daily( $exp7 - 29 * DAY_IN_SECONDS );
+$r7 = wc_get_order( (int) $P::svc( $s7, 'renewal_order' ) );
+$P::svc_set( $s7, array( 'suspend_reason' => 'manual' ) ); $P::run_suspend( $s7 );
+check( 'suspended' === $P::svc( $s7, 'status' ), 'Suspensión manual' );
+$r7->update_status( 'processing' ); digi_run_queue();
+check( 0 === digi_webuzo_count( 'users', 'unsuspend', 'abuso' ) && 'suspended' === $P::svc( $s7, 'status' ) && false !== strpos( implode( "\n", $r7->notes ), 'suspendida a mano; el pago no la reactiva' ) && (int) $P::svc( $s7, 'expires' ) > $exp7, 'Pagar no reactiva una cuenta suspendida a mano (sí la renueva)' );
+// Un pedido de renovación sin la línea del dominio no renueva el dominio.
+list( , $s8 ) = digi_provisioned( 'sinlinea.com' );
+$P::daily( (int) $P::svc( $s8, 'expires' ) - 29 * DAY_IN_SECONDS );
+$r8 = wc_get_order( (int) $P::svc( $s8, 'renewal_order' ) );
+array_pop( $r8->items );
+$renews = digi_nc_count( 'namecheap.domains.renew' );
+$r8->update_status( 'processing' ); digi_run_queue();
+check( $renews === digi_nc_count( 'namecheap.domains.renew' ) && false !== strpos( implode( "\n", $r8->notes ), 'no trae la línea del dominio' ), 'Sin la línea del dominio en la renovación, no se renueva' );
+// Una tarea cortada a la mitad (sin nada en cola, servicio pendiente hace más de una hora): la revisión diaria la retoma y avisa.
+$o9 = digi_order( array( new Digi_Test_Item( 14693, 'Web Hosting' ), new Digi_Test_Item( 20, 'Dominio', 1, array( 'Dominio' => 'cortado.com' ) ) ) );
+$o9->update_status( 'processing' ); $GLOBALS['queue'] = array(); // PHP la mató antes de terminar
+$GLOBALS['webuzo']['timeout'] = 1; $P::run_provision( $o9->get_id() ); $GLOBALS['queue'] = array();
+$s9 = (int) $o9->get_meta( '_digitalisimo_service' );
+$P::svc_set( $s9, array( 'created' => time() - 2 * HOUR_IN_SECONDS ) );
+$GLOBALS['mails'] = array();
+$P::daily();
+check( 1 === count( $GLOBALS['queue'] ) && 'digitalisimo_hosting_provision' === $GLOBALS['queue'][0]['hook'] && 1 === count( digi_mails_to( 'admin@tienda.test' ) ), 'Un aprovisionamiento a medias sin tarea en cola se retoma y se avisa' );
+digi_run_queue();
+check( 'completed' === $o9->get_status() && 1 === digi_webuzo_count( 'add_user', 'domain', 'cortado.com' ), 'Y termina sin duplicar' );
+$P::daily();
+check( ! $GLOBALS['queue'], 'Uno entregado no se vuelve a retomar' );
+
 echo "Hosting, renovación: {$GLOBALS['checks']} comprobaciones correctas.\n";

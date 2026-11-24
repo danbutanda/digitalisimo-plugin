@@ -156,6 +156,8 @@ class Digitalisimo_Hosting_Pricing {
 			$product = function_exists( 'wc_get_product' ) ? wc_get_product( $pid ) : null;
 			if ( ! $product ) { $row['skipped'] = 'El producto #' . $pid . ' no existe.'; $rows[] = $row; continue; }
 			$row['old'] = (string) $product->get_regular_price();
+			// Una tienda que captura los precios con IVA incluido recibe el precio con IVA (el margen se cumple igual).
+			if ( 'yes' === get_option( 'woocommerce_prices_include_tax' ) && 'yes' === get_option( 'woocommerce_calc_taxes' ) ) { $calc['price'] = self::round_up( $calc['price'] * ( 1 + $p['vat'] ), $p['rounding'] ); $row['price'] = $calc['price']; $row['with_vat'] = 1; }
 			$product->set_regular_price( (string) $calc['price'] );
 			// Una oferta por debajo del nuevo precio vendería con pérdida: se quita.
 			if ( '' !== (string) $product->get_sale_price() && (float) $product->get_sale_price() < $calc['price'] ) { $product->set_sale_price( '' ); $row['sale_removed'] = 1; }
@@ -177,12 +179,11 @@ class Digitalisimo_Hosting_Pricing {
 	}
 
 	/**
-	 * ¿Lo cobrado (sin IVA) cubre el costo real de hoy más el margen mínimo, tras la comisión de la pasarela? null si sí
-	 * (o si los precios automáticos están apagados); si no, el motivo para dejar el pedido en espera.
+	 * ¿Lo cobrado (sin IVA) cubre el costo real de hoy más el margen mínimo, tras la comisión de la pasarela? null si sí;
+	 * si no, el motivo para dejar el pedido en espera. Corre siempre, con precios automáticos o manuales.
 	 */
 	public static function guard( $charged, $cost_usd, $label ) {
-		$o = Digitalisimo_Hosting::settings();
-		if ( empty( $o['pricing_enabled'] ) ) return null;
+		// Siempre, aunque los precios sean manuales: un precio mal puesto o un cupón del 100 % no deben registrar con pérdida.
 		$fx = self::current_fx();
 		if ( 'ok' !== $fx['kind'] ) return array( 'kind' => 'transient', 'message' => 'No se pudo comprobar el costo de ' . $label . ': ' . $fx['message'] );
 		$p    = self::params();

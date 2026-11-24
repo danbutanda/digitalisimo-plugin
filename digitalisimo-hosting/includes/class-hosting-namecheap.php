@@ -86,7 +86,9 @@ class Digitalisimo_Hosting_Namecheap {
 		$r = $this->call( 'namecheap.users.getPricing', array( 'ProductType' => 'DOMAIN', 'ActionName' => $action, 'ProductName' => ltrim( strtolower( $tld ), '.' ) ) );
 		if ( 'ok' !== $r['kind'] ) return $r;
 		$best = null;
-		foreach ( $r['xml']->xpath( '//*[local-name()="Price"]' ) ?: array() as $price ) {
+		$name = ltrim( strtolower( $tld ), '.' );
+		// Sólo los precios del producto pedido (si Namecheap devolviera varios, nunca el de otra extensión).
+		foreach ( $r['xml']->xpath( '//*[local-name()="Product"][translate(@Name,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz")="' . preg_replace( '/[^a-z0-9.-]/', '', $name ) . '"]/*[local-name()="Price"]' ) ?: array() as $price ) {
 			if ( '1' !== (string) $price['Duration'] || 'YEAR' !== strtoupper( (string) $price['DurationType'] ) ) continue;
 			$your = '' !== (string) $price['YourPrice'] ? (float) $price['YourPrice'] : (float) $price['Price'];
 			// El cargo ICANN de la cuenta: Namecheap lo llama «YourAdditonalCost» (sic); se aceptan las otras formas.
@@ -95,7 +97,7 @@ class Digitalisimo_Hosting_Namecheap {
 			$best = $your + (float) $extra;
 			break;
 		}
-		if ( null === $best ) return array( 'kind' => 'api', 'message' => 'Namecheap no informó el precio de ' . $action . ' para .' . ltrim( $tld, '.' ) . '.' ) + $r;
+		if ( null === $best || $best <= 0 ) return array( 'kind' => 'api', 'message' => 'Namecheap no informó el precio de ' . $action . ' para .' . ltrim( $tld, '.' ) . '.' ) + $r;
 		$r['value'] = $best;
 		return $r;
 	}
