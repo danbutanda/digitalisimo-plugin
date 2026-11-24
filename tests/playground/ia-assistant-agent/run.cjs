@@ -143,6 +143,11 @@ const MESSAGES = [
         check('E6', landing.broken.length === 0, 'ningún enlace a páginas que no existen', landing.broken.join(', '));
       }
       check('E7', fromFour.every((r) => r.purificador && r.precio && r.fin_de_mes), 'el modelo nunca perdió lo que dijo la persona');
+      if (pending.length) {
+        const t5 = transcript[4];
+        check('E8', t5 && t5.events.some((e) => e.type === 'tool' && e.message.status === 'ok' && pending.some((a) => a.ability === e.message.ability)), '«sí hazlo» ejecutó lo que quedó pendiente (' + pending.map((a) => `${a.label} [${a.kind}]`).join(', ') + ')', JSON.stringify({ product: state.product, said: t5 && t5.events.filter((e) => e.type === 'message').map((e) => e.message.text) }));
+        check('E9', state.product.sale === '7500', 'el producto quedó con el precio de oferta 7,500 en la tienda', JSON.stringify(state.product));
+      }
       fs.writeFileSync(`${dir}/evaluacion.json`, JSON.stringify({ results, landing: landing ? { id: landing.id, title: landing.title, whatsapp: landing.whatsapp, placeholders: landing.placeholders, broken: landing.broken } : null, requests: requests.length, seconds: transcript.reduce((n, t) => n + t.seconds, 0) }, null, 1));
       if (landing) {
         try {

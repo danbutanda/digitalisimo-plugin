@@ -25,6 +25,13 @@ final class Digitalisimo_AI_Assistant_Tools {
 	const LOG          = 'digitalisimo_ai_assistant_log';
 	const LOG_MAX      = 500;
 	const DATA_MAX     = 12000;
+	/**
+	 * Acciones que cambian sin destruir: en una herramienta de confianza con `action` en su esquema (las de tienda anotan
+	 * como destructiva toda escritura), crear o actualizar es `write` (confirmación con la tarjeta o un «sí» escrito);
+	 * borrar, lotes, reembolsos y pasarelas de pago siguen siendo destructivos.
+	 */
+	const WRITE_ACTIONS = array( 'create', 'update' );
+	const MONEY         = '/refund|reembolso|gateway|payment|pasarela/i';
 	const READ_ACTIONS = array( 'list', 'get', 'read', 'search', 'find', 'count', 'view', 'show', 'retrieve', 'describe', 'schema', 'status' );
 	/** Amplio: lo que viaja al proveedor, al historial, al detalle y a la bitácora (como `Secrets` del MCP de Woo). */
 	const SECRET_KEYS  = '/((^|[_-])pass(word|wd|phrase)?($|[_-])|password|passwd|secret|token|signature|hmac|salt|bearer|cookie|authorization|credentials?|private[_-]?key|api[_-]?key|apikey|(^|[_-])auth($|[_-])|^nonce$|[_-]key$|^key$)/i';
@@ -168,6 +175,8 @@ final class Digitalisimo_AI_Assistant_Tools {
 		$action = is_array( $input ) && isset( $input['action'] ) && is_string( $input['action'] ) ? strtolower( $input['action'] ) : '';
 		if ( 'read' !== $kind && $trusted && '' !== $action && in_array( $action, self::READ_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) ) {
 			$kind = 'read';
+		} elseif ( 'destructive' === $kind && $trusted && false === ( $entry['annotations']['readonly'] ?? null ) && in_array( $action, self::WRITE_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) && ! preg_match( self::MONEY, (string) ( $entry['name'] ?? '' ) . ' ' . ( is_array( $input ) && is_scalar( $input['resource'] ?? null ) ? (string) $input['resource'] : '' ) ) ) {
+			$kind = 'write';
 		}
 		$kind = apply_filters( 'digitalisimo_ai_assistant_tool_kind', $kind, $entry['name'], $input );
 		return in_array( $kind, array( 'read', 'write', 'destructive' ), true ) ? $kind : 'destructive';
