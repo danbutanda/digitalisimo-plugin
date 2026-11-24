@@ -1,12 +1,13 @@
 <?php
 /**
- * Schema de la organización o del negocio local sin datos inventados (auditoría SEO del 2026-11-24, punto A2), sin
- * WordPress:
+ * Schema de la organización o del negocio local sin datos inventados (auditoría SEO del 2026-11-24, punto A2), y avisos
+ * de las plantillas de título (A3), sin WordPress:
  *   1. sin nada configurado no hay horario ni logo (nada de 24×7 ni logo de demo por omisión);
  *   2. el nombre (WebSite, organización, negocio) sale sin emoji;
  *   3. lo que falta (dirección, horario, teléfono) no se publica y se avisa; el horario 24 horas los 7 días se avisa;
  *   4. sameAs lleva las redes y el Perfil de Google Business configurados; sin perfiles, o sin Google Business con SEO
- *      local, se avisa.
+ *      local, se avisa;
+ *   5. el texto fijo de una plantilla de títulos («%title% 🤖 …») se avisa sin cambiar la plantilla.
  * Datos inventados.
  */
 require_once __DIR__ . '/fixtures/php74.php';
@@ -105,5 +106,14 @@ $GLOBALS['settings']['seo_social_profiles'] = array();
 $GLOBALS['settings']['seo_knowledge_urls'] = "https://maps.google.com/?cid=123\nhttps://facebook.com/plomeria.ejemplo";
 check( 'https://maps.google.com/?cid=123' === Digitalisimo_Integrations_Social_Profiles::values()['google_business'], 'Un enlace de maps.google.com se reconoce como Google Business.' );
 
+// 5. Texto fijo en las plantillas de título.
+$GLOBALS['settings']['seo_title_page'] = '%title% 🤖 Asegura tu Éxito Hoy';
+$GLOBALS['settings']['seo_title_post'] = '%title% %sep% %sitename%';
+$GLOBALS['settings']['seo_type_templates'] = array( 'product' => array( 'title' => '%title% | Envío Gratis Hoy' ) );
+check( false !== strpos( message( 'template_literal' ), '«🤖 Asegura tu Éxito Hoy»' ) && false !== strpos( message( 'template_literal' ), 'páginas' ), 'Se avisa el texto fijo de la plantilla de páginas: ' . message( 'template_literal' ) );
+check( 2 === count( array_keys( codes(), 'template_literal', true ) ), 'Y el de la plantilla de productos; la de entradas (%title% %sep% %sitename%) no.' );
+check( '' === $B::template_literal( '%focuskw% %sep% %excerpt%' ) && '' === $B::template_literal( '%title% | %date(Y)%' ), 'Variables y separadores no son texto fijo.' );
+check( '%title% 🤖 Asegura tu Éxito Hoy' === $GLOBALS['settings']['seo_title_page'], 'La plantilla del sitio no se cambia.' );
+
 if ( $fails ) { fwrite( STDERR, "{$fails} falla(s).\n" ); exit( 1 ); }
-echo "SEO: schema sin datos inventados (nombre sin emoji, sin campos vacíos, sameAs) y sus avisos.\n";
+echo "SEO: schema sin datos inventados (nombre sin emoji, sin campos vacíos, sameAs) y avisos de marca y de plantillas.\n";

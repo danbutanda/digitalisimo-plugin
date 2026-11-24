@@ -15,7 +15,8 @@ defined( 'ABSPATH' ) || exit;
  * - Mientras no hay comprobación, se publica lo configurado (como antes): un sitio sin imágenes de marca no cambia.
  * - Los avisos (`warnings()`) salen en el Escritorio y en las pantallas DIGITALÍSIMO, y en la ability
  *   `digitalisimo-seo/get-site-status` del MCP. Incluyen lo del schema que no se publica o que conviene confirmar (A2:
- *   nombre con emoji, datos del negocio que faltan, horario 24×7, perfiles para sameAs).
+ *   nombre con emoji, datos del negocio que faltan, horario 24×7, perfiles para sameAs) y el texto fijo de las
+ *   plantillas de título y descripción (A3), que configuró el sitio y por eso no se cambia solo.
  */
 class Digitalisimo_Integrations_Brand_Check {
 	const OPTION   = 'digitalisimo_seo_brand_check';
@@ -246,7 +247,7 @@ class Digitalisimo_Integrations_Brand_Check {
 			if ( ! self::same_site( self::host( $url ), $home ) ) $out[] = array( 'code' => $kind . '_offsite', 'message' => $label . ' está en otro dominio (' . self::host( $url ) . '). Si ese dominio deja de responder, se pierde: súbela a la biblioteca de este sitio.' );
 			if ( 'logo' === $kind && is_array( $row ) && ! empty( $row['width'] ) && ( $row['width'] < self::MIN_LOGO || $row['height'] < self::MIN_LOGO ) ) $out[] = array( 'code' => 'logo_small', 'message' => 'El logo del schema mide ' . (int) $row['width'] . '×' . (int) $row['height'] . ' px; Google pide al menos ' . self::MIN_LOGO . '×' . self::MIN_LOGO . '.' );
 		}
-		return array_merge( $out, self::identity_warnings(), self::local_warnings() );
+		return array_merge( $out, self::identity_warnings(), self::local_warnings(), self::template_warnings() );
 	}
 
 	/** Nombre del sitio y de la organización con emoji (A2) y perfiles para sameAs. */
@@ -286,6 +287,41 @@ class Digitalisimo_Integrations_Brand_Check {
 			if ( 'always' !== $row['state'] && ! $all_day ) return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Plantillas de título y descripción con texto fijo (A3): «%title% 🤖 Asegura tu Éxito Hoy» añade el mismo relleno a
+	 * cada página. Lo configuró el sitio, así que no se cambia: se avisa. La portada queda fuera (su título es uno solo).
+	 */
+	private static function template_warnings() {
+		$labels = array( 'post' => 'entradas', 'page' => 'páginas', 'archive' => 'archivos', 'taxonomy' => 'categorías y etiquetas', 'author' => 'autores' );
+		$found  = array();
+		foreach ( array( 'title' => 'títulos', 'description' => 'descripciones' ) as $field => $what ) {
+			foreach ( $labels as $key => $label ) {
+				$literal = self::template_literal( self::o( 'seo_' . $field . '_' . $key ) );
+				if ( '' !== $literal ) $found[ $what . '|' . $literal ][] = $label;
+			}
+			foreach ( array( 'seo_type_templates' => array( $field, 'archive_' . $field ), 'seo_tax_templates' => array( $field ) ) as $option => $fields ) {
+				$rows = self::o( $option, array() );
+				foreach ( is_array( $rows ) ? $rows : array() as $name => $row ) foreach ( $fields as $f ) {
+					$literal = self::template_literal( is_array( $row ) ? ( $row[ $f ] ?? '' ) : '' );
+					if ( '' !== $literal ) $found[ $what . '|' . $literal ][] = sanitize_key( (string) $name );
+				}
+			}
+		}
+		$out = array();
+		foreach ( $found as $key => $where ) {
+			list( $what, $literal ) = explode( '|', $key, 2 );
+			$out[] = array( 'code' => 'template_literal', 'message' => 'La plantilla de ' . $what . ' de ' . implode( ', ', array_unique( $where ) ) . ' añade «' . $literal . '» a cada una. Si no es a propósito, déjala en SEO → Títulos como «%title% %sep% %sitename%» (títulos) o «%excerpt%» (descripciones): Google reescribe los títulos con relleno.' );
+		}
+		return $out;
+	}
+
+	/** Texto fijo de una plantilla: lo que queda sin variables ni separadores. */
+	public static function template_literal( $template ) {
+		$text = (string) preg_replace( '/%[a-z_]+(?:\([^)%]*\))?%/i', ' ', (string) $template );
+		$text = (string) preg_replace( '/(?<!\S)[|\-–—·•\/»«~*⋆:](?!\S)/u', ' ', $text );
+		return trim( (string) preg_replace( '/\s+/u', ' ', $text ) );
 	}
 
 	/** Aviso en el Escritorio y en las pantallas DIGITALÍSIMO, para quien administra el sitio. */
