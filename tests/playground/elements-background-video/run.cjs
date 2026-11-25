@@ -100,14 +100,37 @@ const DESKTOP = { width: 1280, height: 900 };
       const frame = await (await admin.waitForSelector('#elementor-preview-iframe', { timeout: 300000 })).contentFrame();
       await frame.waitForSelector('.e-con', { timeout: 300000 });
       await wait(1500);
-      await admin.evaluate(() => {
-        const container = elementor.getPreviewContainer().children[0];
-        $e.run('panel/editor/open', { model: container.model, view: container.view });
-        $e.route('panel/editor/style');
-        const page = elementor.getPanelView().getCurrentPageView();
-        if (page && page.activateSection) { page.activateSection('section_background'); page.render(); }
+      // Abre el contenedor en el panel: primero como el editor (seleccionar), y si no, con un clic en su parte vacía.
+      await admin.evaluate(() => { try { $e.run('document/elements/select', { container: elementor.getPreviewContainer().children[0] }); } catch (e) { /* clic abajo */ } });
+      if (!(await admin.waitForSelector('.elementor-tab-control-style', { timeout: 15000 }).catch(() => null))) {
+        const box = await (await frame.$('.e-con')).boundingBox();
+        await admin.mouse.click(box.x + box.width / 2, box.y + box.height - 15);
+        await admin.waitForSelector('.elementor-tab-control-style', { timeout: 60000 });
+      }
+      // Pestaña «Estilo» y sección «Fondo», como lo hace el propio editor ($e.route + activateSection), y si no, con clics.
+      const opened = await admin.evaluate(() => {
+        try {
+          $e.route('panel/editor/style');
+          const view = elementor.getPanelView().getCurrentPageView();
+          view.activateSection('section_background');
+          view._renderChildren();
+          return true;
+        } catch (e) { return String(e); }
       });
+      await wait(1000);
+      if (!(await admin.$('.elementor-control-background_background'))) {
+        await admin.click('.elementor-tab-control-style').catch(() => {});
+        await wait(1000);
+        await admin.click('.elementor-control-section_background').catch(() => {});
+        await wait(1000);
+      }
+      if (!(await admin.$('.elementor-control-background_background'))) {
+        const sections = await admin.evaluate(() => [...document.querySelectorAll('#elementor-panel .elementor-control-type-section')].map((n) => n.className.replace(/\s+/g, ' ')).join(' | '));
+        await admin.screenshot({ path: `${dir}/editor-${slug}.png` }).catch(() => {});
+        throw new Error(`no se abrió el fondo del contenedor en el panel (route: ${opened}; secciones: ${sections})`);
+      }
       await admin.waitForFunction(() => { const b = document.querySelector('.digitalisimo-bg-video-weight'); return b && b.textContent.length > 0; }, { timeout: 60000 }).catch(() => {});
+      await admin.screenshot({ path: `${dir}/editor-${slug}.png` }).catch(() => {});
       return admin.evaluate(() => { const b = document.querySelector('.digitalisimo-bg-video-weight'); return b ? b.textContent : null; });
     };
     let text = await editor('si');
