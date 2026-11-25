@@ -24,8 +24,9 @@ defined( 'ABSPATH' ) || exit;
  * Es barato y nunca corre en la portada: una consulta y un `get_included_files()` sólo en el Escritorio, Plugins y las
  * pantallas Digitalisimo de quien gestiona plugins, en «Salud del sitio», en la función del MCP y, en segundo plano, en
  * la comprobación de actualizaciones de plugins del cron de WordPress (`wp_update_plugins`, dos veces al día: no agrega
- * ningún evento). Lo que ve el cron se guarda sólo si hay un problema (`digitalisimo_tools_plugin_health`,
- * sin carga automática) y el Escritorio lo dice durante tres días aunque ya se haya arreglado solo.
+ * ningún evento). Lo que ve el cron se guarda sólo si se repite en otra petición (observe(): la primera vista deja
+ * una huella transitoria y pide otra comprobación en 2 minutos) en `digitalisimo_tools_plugin_health`, sin carga
+ * automática, y el Escritorio lo dice durante tres días aunque ya se haya arreglado solo.
  *
  * En el MCP: la Ability `digitalisimo-tools/plugin-health` (sólo lectura, `activate_plugins`), pública para MCP y, con
  * el MCP de DIGITALÍSIMO Elements, en `/wp-json/elementor/mcp` (`digitalisimo-tools-plugin-health`). Dice también si la
@@ -39,6 +40,12 @@ final class Plugin_Health {
 	/** Cómo se nombra, a quien no administra la red, un archivo de toda la red. */
 	const HIDDEN_MU      = 'un mu-plugin de la red';
 	const HIDDEN_NETWORK = 'código de la red';
+	/** Primera vista de un problema, aún sin confirmar (transitorio): `{key, at, tries}`. */
+	const PENDING = 'digitalisimo_tools_plugin_health_pending';
+	/** Evento suelto que vuelve a comprobar en otra petición (sólo cuando hay algo que confirmar). */
+	const CONFIRM = 'digitalisimo_tools_plugin_health_confirm';
+	/** Segundos mínimos entre la primera vista y la confirmación. */
+	const CONFIRM_AFTER = 60;
 	/** Cuánto se recuerda en el Escritorio un problema visto en segundo plano que ya no está. */
 	const RECENT = 259200;
 
@@ -47,6 +54,7 @@ final class Plugin_Health {
 		add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
 		add_filter( 'site_status_tests', array( __CLASS__, 'tests' ) );
 		add_action( 'wp_update_plugins', array( __CLASS__, 'background' ), 99 );
+		add_action( self::CONFIRM, array( __CLASS__, 'background' ) );
 		add_action( 'wp_abilities_api_categories_init', array( __CLASS__, 'register_category' ) );
 		add_action( 'wp_abilities_api_init', array( __CLASS__, 'register_ability' ) );
 		add_filter( 'elementor/mcp/server/tools', array( __CLASS__, 'server_tools' ) );
@@ -74,7 +82,8 @@ final class Plugin_Health {
 		$stored    = array_key_exists( 'stored', $sources ) ? (array) $sources['stored'] : self::stored( $network );
 		$visible   = array_key_exists( 'visible', $sources ) ? (array) $sources['visible'] : self::visible( $network );
 		$ext       = array_key_exists( 'ext', $sources ) ? (bool) $sources['ext'] : ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() );
-		$cached    = array_key_exists( 'cached', $sources ) ? (array) $sources['cached'] : self::cached( $network, $ext );
+		// La lista sin filtros de esta misma petición (la misma foto que `visible`): sin carrera con otra petición.
+		$cached    = array_key_exists( 'cached', $sources ) ? (array) $sources['cached'] : self::cached( $network, false );
 		$included  = array_key_exists( 'included', $sources ) ? (array) $sources['included'] : array_flip( get_included_files() );
 		$markers   = self::markers();
 		$problems  = array();
@@ -85,12 +94,14 @@ final class Plugin_Health {
 			$path = rtrim( WP_PLUGIN_DIR, '/\\' ) . '/' . $file;
 			if ( ! in_array( $file, $visible, true ) ) {
 				if ( in_array( $file, $cached, true ) ) {
+					// Misma foto con y sin filtros: lo quitó un filtro.
 					$problems[] = self::problem( $file, 'filtered', 'Está activo en la base de datos, pero un filtro lo quita de la lista de plugins activos en esta petición' . self::filters_text() . '. Si lo hace a propósito un plugin que organiza qué se carga en cada pantalla, cierra este aviso.' );
-				} elseif ( $ext ) {
+				} elseif ( $ext && ! in_array( $file, array_key_exists( 'persistent', $sources ) ? (array) $sources['persistent'] : self::cached( $network, true ), true ) ) {
+					// La base lo tiene, esta petición no y la caché persistente, leída otra vez ahora, tampoco: no es que otra
+					// petición lo acabe de activar.
 					$problems[] = self::problem( $file, 'cache', 'Está activo en la base de datos, pero la caché de objetos da una lista de plugins activos vieja o de otro sitio: WordPress no lo carga mientras la caché diga eso.' );
 				}
-				// Sin caché persistente, la lista de esta petición salió de la base al arrancar: si no lo trae, otra petición
-				// lo acaba de activar (no es un problema).
+				// Si no, otra petición lo acaba de activar (la foto de esta es de antes): no es un problema.
 				continue;
 			}
 			if ( ( function_exists( 'validate_file' ) && 0 !== validate_file( $file ) ) || '.php' !== substr( $file, -4 ) || ! is_file( $path ) ) {
@@ -130,16 +141,15 @@ final class Plugin_Health {
 	}
 
 	/**
-	 * La lista de la caché, sin filtros: `alloptions` (o la clave suelta) y la de la red. Con caché de objetos persistente
-	 * se vuelve a leer de ella y no de la copia de esta petición (si otra petición acaba de activar el plugin, no es un
-	 * problema); sin ella, la copia de esta petición, que salió de la base al arrancar.
+	 * La lista sin filtros: `alloptions` (o la clave suelta) y la de la red. `$force`: leída otra vez de la caché de
+	 * objetos persistente; si no, la copia de esta petición (la misma foto que vio WordPress al arrancar).
 	 */
-	private static function cached( $network, $ext ) {
-		$all  = $ext ? wp_cache_get( 'alloptions', 'options', true ) : wp_load_alloptions();
-		$site = is_array( $all ) && array_key_exists( 'active_plugins', $all ) ? $all['active_plugins'] : wp_cache_get( 'active_plugins', 'options', $ext );
+	private static function cached( $network, $force ) {
+		$all  = $force ? wp_cache_get( 'alloptions', 'options', true ) : wp_load_alloptions();
+		$site = is_array( $all ) && array_key_exists( 'active_plugins', $all ) ? $all['active_plugins'] : wp_cache_get( 'active_plugins', 'options', $force );
 		$out  = false === $site ? array() : array_values( (array) maybe_unserialize( $site ) );
 		if ( $network ) {
-			$wide = wp_cache_get( (int) get_current_network_id() . ':active_sitewide_plugins', 'site-options', $ext );
+			$wide = wp_cache_get( (int) get_current_network_id() . ':active_sitewide_plugins', 'site-options', $force );
 			if ( false !== $wide ) $out = array_merge( $out, array_keys( (array) maybe_unserialize( $wide ) ) );
 		}
 		return array_values( array_map( 'strval', $out ) );
@@ -250,16 +260,44 @@ final class Plugin_Health {
 		return $seen;
 	}
 
-	/** Guarda lo visto en segundo plano sólo si hay un problema (ninguna escritura en un sitio sano). */
-	private static function remember( array $problems, $context ) {
-		if ( ! $problems ) return;
-		update_option( self::OPTION, array( 'at' => time(), 'context' => (string) $context, 'problems' => $problems ), false );
+	/** Huella de una lista de problemas: plugin y motivo, en orden. */
+	public static function key( array $problems ) {
+		$out = array();
+		foreach ( $problems as $p ) $out[] = $p['plugin'] . ':' . $p['reason'];
+		sort( $out );
+		return md5( implode( '|', $out ) );
 	}
 
-	/** `wp_update_plugins` (cron de WordPress, dos veces al día): la misma comprobación, en una petición sin escritorio. */
+	/**
+	 * Lo visto en una petición se confirma en otra (revisión del 24-nov: activar un plugin mientras corre la comprobación
+	 * no debe quedar como problema). La primera vez sólo se anota la huella (transitorio) y se pide otra comprobación en
+	 * unos 2 minutos (`CONFIRM`, un evento suelto, sólo si hay algo); si la siguiente ve lo mismo y ya pasó un minuto, se
+	 * guarda en `OPTION`. Lo que aparece una sola vez no se guarda. Como mucho tres reintentos si cambia cada vez.
+	 */
+	public static function observe( array $problems, $context ) {
+		$pending = get_transient( self::PENDING );
+		if ( ! $problems ) {
+			if ( false !== $pending ) delete_transient( self::PENDING );
+			return 'clear';
+		}
+		$key = self::key( $problems );
+		if ( is_array( $pending ) && $key === ( $pending['key'] ?? '' ) && time() - (int) ( $pending['at'] ?? 0 ) >= self::CONFIRM_AFTER ) {
+			update_option( self::OPTION, array( 'at' => time(), 'first' => (int) $pending['at'], 'context' => (string) $context, 'problems' => $problems ), false );
+			delete_transient( self::PENDING );
+			return 'confirmed';
+		}
+		if ( is_array( $pending ) && $key === ( $pending['key'] ?? '' ) ) return 'pending';
+		$tries = is_array( $pending ) ? (int) ( $pending['tries'] ?? 0 ) + 1 : 0;
+		if ( $tries > 3 ) return 'unstable';
+		set_transient( self::PENDING, array( 'key' => $key, 'at' => time(), 'tries' => $tries ), DAY_IN_SECONDS );
+		if ( ! wp_next_scheduled( self::CONFIRM ) ) wp_schedule_single_event( time() + 120, self::CONFIRM );
+		return 'pending';
+	}
+
+	/** `wp_update_plugins` (cron de WordPress, dos veces al día) y `CONFIRM`: la comprobación en una petición sin escritorio. */
 	public static function background() {
 		if ( ! function_exists( 'wp_doing_cron' ) || ! wp_doing_cron() ) return;
-		self::remember( self::check(), 'cron' );
+		self::observe( self::check(), 'cron' );
 	}
 
 	private static function cap() {
@@ -276,12 +314,26 @@ final class Plugin_Health {
 
 	/** Estado para el aviso y «Salud del sitio»: '' (bien), 'now' (ahora) o 'recent' (lo vio el segundo plano). */
 	public static function status() {
-		$now = self::check();
-		if ( $now ) return array( 'state' => 'now', 'problems' => $now, 'message' => 'Hay plugins activos que no cargaron en esta petición. ' . implode( ' ', self::text( $now ) ) );
+		$all  = self::check();
+		$now  = $all;
 		$seen = self::last_seen();
+		// «cache» puede ser una carrera (otra petición escribía la lista): en el Escritorio sólo cuenta confirmada en otra
+		// petición; si no, se pide la confirmación y no se dice nada todavía.
+		$confirmed = array();
+		foreach ( (array) ( $seen['problems'] ?? array() ) as $p ) $confirmed[ $p['plugin'] . ':' . $p['reason'] ] = true;
+		$unconfirmed = array();
+		foreach ( $now as $i => $p ) {
+			if ( 'cache' === $p['reason'] && ! isset( $confirmed[ $p['plugin'] . ':cache' ] ) ) {
+				$unconfirmed[] = $p;
+				unset( $now[ $i ] );
+			}
+		}
+		$now = array_values( $now );
+		if ( $unconfirmed ) self::observe( $all, 'admin' );
+		if ( $now ) return array( 'state' => 'now', 'problems' => $now, 'message' => 'Hay plugins activos que no cargaron en esta petición. ' . implode( ' ', self::text( $now ) ) );
 		if ( $seen ) {
 			$when = function_exists( 'wp_date' ) ? wp_date( 'j/m/Y H:i', (int) $seen['at'] ) : gmdate( 'Y-m-d H:i', (int) $seen['at'] );
-			$where = 'una tarea de fondo de WordPress (cron)';
+			$where = 'cron' === ( $seen['context'] ?? '' ) ? 'una tarea de fondo de WordPress (cron)' : 'el escritorio';
 			return array( 'state' => 'recent', 'problems' => (array) $seen['problems'], 'message' => 'El ' . $when . ', en ' . $where . ', había plugins activos que no cargaron; ahora sí cargan. ' . implode( ' ', self::text( (array) $seen['problems'] ) ) . ' Si vuelve a pasar, revisa la caché de objetos y los mu-plugins del servidor.' );
 		}
 		return array( 'state' => '', 'problems' => array(), 'message' => '' );

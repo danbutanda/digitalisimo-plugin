@@ -55,6 +55,12 @@ function get_user_meta( $u, $k, $s = false ) { return ''; }
 function wp_create_nonce( $a ) { return 'abc123'; }
 function admin_url( $p = '', $s = '' ) { return '/wp-admin/' . $p; }
 function wp_json_encode( $v ) { return json_encode( $v ); }
+define( 'DAY_IN_SECONDS', 86400 );
+function get_transient( $k ) { return $GLOBALS['ph']['transients'][ $k ] ?? false; }
+function set_transient( $k, $v, $e = 0 ) { $GLOBALS['ph']['transients'][ $k ] = $v; return true; }
+function delete_transient( $k ) { unset( $GLOBALS['ph']['transients'][ $k ] ); return true; }
+function wp_next_scheduled( $h ) { return $GLOBALS['ph']['events'][ $h ] ?? false; }
+function wp_schedule_single_event( $t, $h ) { $GLOBALS['ph']['events'][ $h ] = $t; return true; }
 class PH_WPDB {
 	public $options = 'wp_options'; public $sitemeta = 'wp_sitemeta';
 	function prepare( $q, ...$a ) { return array( $q, $a ); }
@@ -96,8 +102,12 @@ ph_check( 'WooCommerce' === ( $r[0]['name'] ?? '' ), 'se nombra el plugin por su
 unset( $GLOBALS['wp_filter'] );
 
 // Caché de objetos vieja o de otro sitio (persistente): cache. Sin caché persistente: otra petición lo acaba de activar.
-$r = H::check( array( 'stored' => $all, 'visible' => array( 'ok/ok.php' ), 'cached' => array( 'ok/ok.php' ), 'ext' => true, 'included' => $inc ) );
+$r = H::check( array( 'stored' => $all, 'visible' => array( 'ok/ok.php' ), 'cached' => array( 'ok/ok.php' ), 'persistent' => array( 'ok/ok.php' ), 'ext' => true, 'included' => $inc ) );
 ph_check( array( 'woocommerce/woocommerce.php' => 'cache' ) === $reasons( $r ), 'la caché persistente da otra lista: cache ' . json_encode( $r ) );
+// Carrera (revisión del 24-nov): otra petición lo activó después de que ésta arrancara; la caché persistente, leída de
+// nuevo, ya lo trae. No es un problema, ni «cache» ni «un filtro lo quita».
+$r = H::check( array( 'stored' => $all, 'visible' => array( 'ok/ok.php' ), 'cached' => array( 'ok/ok.php' ), 'persistent' => $all, 'ext' => true, 'included' => $inc ) );
+ph_check( array() === $r, 'activado por otra petición mientras ésta corría: no es un problema ' . json_encode( $r ) );
 $r = H::check( array( 'stored' => $all, 'visible' => array( 'ok/ok.php' ), 'cached' => array( 'ok/ok.php' ), 'ext' => false, 'included' => $inc ) );
 ph_check( array() === $r, 'sin caché persistente, una activación en otra petición no es un problema' );
 
@@ -166,10 +176,31 @@ $GLOBALS['ph']['cron'] = true;
 $GLOBALS['ph']['db'] = $GLOBALS['ph']['options']['active_plugins'] = array( 'ok/ok.php' );
 H::background();
 ph_check( 0 === $GLOBALS['ph']['writes'], 'un sitio sano no escribe nada en el cron' );
+// Lo que aparece una sola vez no se guarda: sólo la huella (transitorio) y otra comprobación en 2 minutos.
 $GLOBALS['ph']['db'] = $GLOBALS['ph']['options']['active_plugins'] = array( 'ok/ok.php', 'tarde/tarde.php' );
 H::background();
+ph_check( 0 === $GLOBALS['ph']['writes'] && ! isset( $GLOBALS['ph']['options'][ H::OPTION ] ) && is_array( $GLOBALS['ph']['transients'][ H::PENDING ] ?? null ) && isset( $GLOBALS['ph']['events'][ H::CONFIRM ] ), 'la primera vista sólo anota la huella y pide confirmar en otra petición' );
+ph_check( isset( $GLOBALS['ph']['hooks'][ H::CONFIRM ] ), 'el evento de confirmación vuelve a comprobar' );
+$GLOBALS['ph']['db'] = $GLOBALS['ph']['options']['active_plugins'] = array( 'ok/ok.php' );
+H::background();
+ph_check( 0 === $GLOBALS['ph']['writes'] && ! isset( $GLOBALS['ph']['transients'][ H::PENDING ] ), 'si en la siguiente ya no está, no se guarda nada y se olvida la huella' );
+// Se repite: se guarda (a partir de un minuto después de la primera vista).
+unset( $GLOBALS['ph']['events'] );
+$GLOBALS['ph']['db'] = $GLOBALS['ph']['options']['active_plugins'] = array( 'ok/ok.php', 'tarde/tarde.php' );
+H::background();
+H::background();
+ph_check( 0 === $GLOBALS['ph']['writes'], 'dos vistas en el mismo minuto no confirman' );
+$GLOBALS['ph']['transients'][ H::PENDING ]['at'] -= 120;
+H::background();
 $seen = $GLOBALS['ph']['options'][ H::OPTION ] ?? array();
-ph_check( 1 === $GLOBALS['ph']['writes'] && 'cron' === ( $seen['context'] ?? '' ) && 'tarde/tarde.php' === ( $seen['problems'][0]['plugin'] ?? '' ), 'el cron recuerda el problema: ' . json_encode( $seen ) );
+ph_check( 1 === $GLOBALS['ph']['writes'] && 'cron' === ( $seen['context'] ?? '' ) && 'tarde/tarde.php' === ( $seen['problems'][0]['plugin'] ?? '' ) && ! isset( $GLOBALS['ph']['transients'][ H::PENDING ] ), 'confirmado en otra petición, el cron lo guarda: ' . json_encode( $seen ) );
+// Cambia cada vez: como mucho tres reintentos.
+unset( $GLOBALS['ph']['transients'][ H::PENDING ] );
+$ret = array();
+foreach ( array( 'a', 'b', 'c', 'd', 'e' ) as $n ) $ret[] = H::observe( array( array( 'plugin' => "$n/$n.php", 'name' => $n, 'reason' => 'missing', 'detail' => '' ) ), 'cron' );
+ph_check( array( 'pending', 'pending', 'pending', 'pending', 'unstable' ) === $ret, 'si cambia cada vez, deja de reintentar: ' . json_encode( $ret ) );
+unset( $GLOBALS['ph']['transients'][ H::PENDING ] );
+$GLOBALS['ph']['cron'] = false;
 
 // Aviso: ahora (error) y lo que vio el cron (advertencia, tres días).
 $s = H::status();
@@ -190,6 +221,22 @@ ph_check( '' === H::status()['state'], 'pasados tres días, ya no se dice' );
 $GLOBALS['ph']['cap'] = false;
 ob_start(); H::notice(); ph_check( '' === ob_get_clean(), 'sin activate_plugins no hay aviso' );
 $GLOBALS['ph']['cap'] = true;
+
+// «cache» en el Escritorio: sólo confirmada en otra petición.
+$saved = $GLOBALS['ph']['options'];
+unset( $GLOBALS['ph']['options'][ H::OPTION ], $GLOBALS['ph']['transients'][ H::PENDING ] );
+$GLOBALS['ph']['ext'] = true;
+$GLOBALS['ph']['db'] = array( 'ok/ok.php', 'tarde/tarde.php' );
+$GLOBALS['ph']['options']['active_plugins'] = array( 'ok/ok.php' );
+$GLOBALS['ph']['cache'] = array( 'active_plugins' => serialize( array( 'ok/ok.php' ) ) );
+$s = H::status();
+ph_check( '' === $s['state'] && is_array( $GLOBALS['ph']['transients'][ H::PENDING ] ?? null ), '«cache» sin confirmar: no se dice todavía y se pide confirmarla: ' . json_encode( $s ) );
+$GLOBALS['ph']['options'][ H::OPTION ] = array( 'at' => time(), 'context' => 'cron', 'problems' => array( array( 'plugin' => 'tarde/tarde.php', 'name' => 'Tarde', 'reason' => 'cache', 'detail' => 'x' ) ) );
+$s = H::status();
+ph_check( 'now' === $s['state'] && 'cache' === ( $s['problems'][0]['reason'] ?? '' ), '«cache» confirmada y todavía presente: se dice ahora: ' . json_encode( $s ) );
+$GLOBALS['ph']['ext'] = false;
+$GLOBALS['ph']['options'] = $saved;
+unset( $GLOBALS['ph']['transients'][ H::PENDING ] );
 
 // Sólo un filtro (puede ser un organizador de carga a propósito): advertencia, no error.
 $GLOBALS['ph']['options'] = array();
