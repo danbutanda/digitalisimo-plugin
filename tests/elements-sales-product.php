@@ -944,6 +944,11 @@ namespace {
 	check( is_array( $tercera ) && empty( $GLOBALS['sp']['settings_calls'][ $primera['id'] ] ) && false === $tercera['check']['site_header_footer'], 'T1b: al rehacer sin pedirla, se queda la plantilla de página que ya tenía (el lienzo), y check lo dice · ' . json_encode( $GLOBALS['sp']['settings_calls'] ) );
 	$cuarta = Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'Cuarta', 'blank_page' => false ) );
 	check( array( array( 'template' => 'elementor_header_footer' ) ) === ( $GLOBALS['sp']['settings_calls'][ $primera['id'] ] ?? null ) && true === $cuarta['check']['site_header_footer'], 'T1b: si la persona la pide con la cabecera y el pie, se cambia' );
+	// T1c · La «Plantilla predeterminada» del tema elegida a mano (default) también se conserva al rehacer (detalle 4).
+	$GLOBALS['sp']['postmeta'][ $primera['id'] ]['_wp_page_template'] = 'default';
+	$GLOBALS['sp']['settings_calls']                                   = array();
+	$quinta = Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'Quinta' ) );
+	check( is_array( $quinta ) && empty( $GLOBALS['sp']['settings_calls'][ $primera['id'] ] ) && 'default' === $GLOBALS['sp']['postmeta'][ $primera['id'] ]['_wp_page_template'] && true === $quinta['check']['site_header_footer'], 'T1c: la «Plantilla predeterminada» elegida a mano se queda al rehacer (y lleva la cabecera y el pie del tema) · ' . json_encode( $GLOBALS['sp']['settings_calls'] ) );
 	unset( $GLOBALS['sp']['postmeta'][ $primera['id'] ]['_wp_page_template'] );
 	$ajena = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'Borrador de otra persona' ) );
 	foreach (

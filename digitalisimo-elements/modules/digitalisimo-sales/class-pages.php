@@ -51,10 +51,12 @@ final class Pages {
 		return $elements;
 	}
 
-	/** La plantilla de página que tiene una página (`_wp_page_template`), o ''. */
+	/**
+	 * La plantilla de página que tiene una página (`_wp_page_template`), o '' si nunca se eligió. «default» (la
+	 * «Plantilla predeterminada» del tema, que el dueño puede elegir a mano) cuenta como elegida.
+	 */
 	public static function template_of( int $post_id ): string {
-		$tpl = $post_id > 0 && function_exists( 'get_post_meta' ) ? (string) get_post_meta( $post_id, '_wp_page_template', true ) : '';
-		return 'default' === $tpl ? '' : $tpl;
+		return $post_id > 0 && function_exists( 'get_post_meta' ) ? (string) get_post_meta( $post_id, '_wp_page_template', true ) : '';
 	}
 
 	/** Meta propia de las páginas que crea el kit: ['blog' => ID del sitio, 'template' => id de la plantilla]. */

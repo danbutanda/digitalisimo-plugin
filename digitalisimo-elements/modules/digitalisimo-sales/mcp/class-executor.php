@@ -494,7 +494,8 @@ final class Executor {
 			return 'elementor_header_footer';
 		}
 		$current = isset( $deps['template_of'] ) && is_callable( $deps['template_of'] ) ? (string) call_user_func( $deps['template_of'], $regenerate ) : Pages::template_of( $regenerate );
-		return '' !== $current && 'default' !== $current ? $current : 'elementor_header_footer';
+		// También «default» (la «Plantilla predeterminada» del tema, elegida a mano): se respeta.
+		return '' !== $current ? $current : 'elementor_header_footer';
 	}
 
 	/**
