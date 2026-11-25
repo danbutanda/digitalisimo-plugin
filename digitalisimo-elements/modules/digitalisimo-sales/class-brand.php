@@ -253,12 +253,32 @@ final class Brand {
 
 	/** El color que más se ve en el logo del sitio (sin blancos, negros ni grises), o ''. Sólo con GD. */
 	public static function logo_color(): string {
-		if ( ! function_exists( 'imagecreatefromstring' ) || ! function_exists( 'get_theme_mod' ) || ! function_exists( 'get_attached_file' ) ) {
+		if ( ! function_exists( 'get_theme_mod' ) || ! function_exists( 'get_attached_file' ) ) {
 			return '';
 		}
 		$id   = (int) get_theme_mod( 'custom_logo' );
 		$file = $id > 0 ? (string) get_attached_file( $id ) : '';
-		if ( '' === $file || ! is_readable( $file ) || filesize( $file ) > 4 * 1024 * 1024 ) {
+		if ( '' === $file || ! is_readable( $file ) ) {
+			return '';
+		}
+		// El análisis se guarda por la URL del logo y su fecha de modificación: se hace una vez por logo, no en cada
+		// página que se crea o se lee.
+		$url    = function_exists( 'wp_get_attachment_url' ) ? (string) wp_get_attachment_url( $id ) : $file;
+		$key    = 'digi_sales_logo_' . md5( $url . '|' . (string) @filemtime( $file ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		$cached = function_exists( 'get_transient' ) ? get_transient( $key ) : false;
+		if ( is_string( $cached ) && ( 'none' === $cached || preg_match( '/^#[0-9A-F]{6}$/', $cached ) ) ) {
+			return 'none' === $cached ? '' : $cached;
+		}
+		$color = self::analyze_logo( $file );
+		if ( function_exists( 'set_transient' ) ) {
+			set_transient( $key, '' !== $color ? $color : 'none', 30 * 86400 );
+		}
+		return $color;
+	}
+
+	/** El color con tono que más se ve en una imagen (GD), o ''. */
+	public static function analyze_logo( string $file ): string {
+		if ( ! function_exists( 'imagecreatefromstring' ) || ! is_readable( $file ) || filesize( $file ) > 4 * 1024 * 1024 ) {
 			return '';
 		}
 		$size = function_exists( 'getimagesize' ) ? @getimagesize( $file ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
@@ -286,8 +306,12 @@ final class Brand {
 				}
 			}
 		}
-		imagedestroy( $small );
-		imagedestroy( $im );
+		if ( PHP_VERSION_ID < 80000 ) {
+			imagedestroy( $small ); // Desde PHP 8 la libera el recolector (y en 8.5 avisa de obsoleta).
+		}
+		if ( PHP_VERSION_ID < 80000 ) {
+			imagedestroy( $im ); // Desde PHP 8 la libera el recolector (y en 8.5 avisa de obsoleta).
+		}
 		if ( ! $count ) {
 			return '';
 		}

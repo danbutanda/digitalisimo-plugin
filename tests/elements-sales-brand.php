@@ -101,6 +101,22 @@ namespace {
 	function get_post_meta( $id, $key, $single = false ) {
 		return $GLOBALS['sb_meta'][ (int) $id ][ $key ] ?? '';
 	}
+	function get_theme_mod( $name ) {
+		return 'custom_logo' === $name && isset( $GLOBALS['sb_logo'] ) ? 900 : false;
+	}
+	function get_attached_file( $id ) {
+		return 900 === (int) $id ? (string) $GLOBALS['sb_logo'] : '';
+	}
+	function wp_get_attachment_url( $id ) {
+		return 'https://ferre.test/wp-content/uploads/logo.png';
+	}
+	function get_transient( $key ) {
+		return $GLOBALS['sb_transients'][ $key ] ?? false;
+	}
+	function set_transient( $key, $value, $ttl = 0 ) {
+		$GLOBALS['sb_transients'][ $key ] = $value;
+		return true;
+	}
 	function url_to_postid( $url ) {
 		return false !== strpos( (string) $url, 'devoluciones' ) ? 70 : 0;
 	}
@@ -451,6 +467,32 @@ namespace {
 	$line = Store::refund_line( 'https://ferre.test/devoluciones/' );
 	check( 'Tienes 30 días para devolver tu compra.' === $line, 'R7 la primera frase visible de la política hecha con el constructor · ' . $line );
 	$GLOBALS['sb_meta'] = array();
+
+	// R8 · El análisis del logo se guarda por su URL y su fecha de modificación (medio 7): una vez por logo.
+	$logo = sys_get_temp_dir() . '/sb-logo-' . getmypid() . '.png';
+	if ( function_exists( 'imagecreatetruecolor' ) ) {
+		$im = imagecreatetruecolor( 40, 40 );
+		imagefill( $im, 0, 0, imagecolorallocate( $im, 200, 30, 40 ) );
+		imagepng( $im, $logo );
+		if ( PHP_VERSION_ID < 80000 ) {
+			imagedestroy( $im ); // Desde PHP 8 la libera el recolector (y en 8.5 avisa de obsoleta).
+		}
+	} else {
+		file_put_contents( $logo, 'x' );
+	}
+	$GLOBALS['sb_transients'] = array();
+	$GLOBALS['sb_logo']       = $logo;
+	$first = Brand::logo_color();
+	check( 1 === count( $GLOBALS['sb_transients'] ) && 0 === strpos( (string) key( $GLOBALS['sb_transients'] ), 'digi_sales_logo_' ), 'R8 el análisis del logo queda guardado · ' . json_encode( $GLOBALS['sb_transients'] ) );
+	check( ! function_exists( 'imagecreatetruecolor' ) || Brand::vivid( $first ), 'R8 el color del logo (con GD) · ' . $first );
+	$k = (string) key( $GLOBALS['sb_transients'] );
+	$GLOBALS['sb_transients'][ $k ] = '#123ABC';
+	check( '#123ABC' === Brand::logo_color(), 'R8 la segunda vez sale de lo guardado, sin volver a abrir la imagen' );
+	touch( $logo, time() + 120 );
+	clearstatcache();
+	Brand::logo_color();
+	check( 2 === count( $GLOBALS['sb_transients'] ), 'R8 si el logo cambia (otra fecha de modificación), se vuelve a analizar' );
+	@unlink( $logo );
 
 	// R6 · El aviso del precio no dice «precio normal» de algo que puede estar rebajado.
 	check( (bool) preg_grep( '/todavía no aplica este descuento/', $page['warnings'] ), 'R6 el aviso del precio de la tienda' );
