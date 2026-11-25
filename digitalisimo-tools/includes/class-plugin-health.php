@@ -82,7 +82,7 @@ final class Plugin_Health {
 			$path = rtrim( WP_PLUGIN_DIR, '/\\' ) . '/' . $file;
 			if ( ! in_array( $file, $visible, true ) ) {
 				if ( in_array( $file, $cached, true ) ) {
-					$problems[] = self::problem( $file, 'filtered', 'Está activo en la base de datos, pero un filtro lo quita de la lista de plugins activos en esta petición' . self::filters_text() . '.' );
+					$problems[] = self::problem( $file, 'filtered', 'Está activo en la base de datos, pero un filtro lo quita de la lista de plugins activos en esta petición' . self::filters_text() . '. Si lo hace a propósito un plugin que organiza qué se carga en cada pantalla, cierra este aviso.' );
 				} elseif ( $ext ) {
 					$problems[] = self::problem( $file, 'cache', 'Está activo en la base de datos, pero la caché de objetos da una lista de plugins activos vieja o de otro sitio: WordPress no lo carga mientras la caché diga eso.' );
 				}
@@ -262,7 +262,17 @@ final class Plugin_Health {
 		if ( '' === $status['state'] ) return;
 		$hash = array( $status['state'] );
 		foreach ( $status['problems'] as $p ) $hash[] = $p['plugin'] . ':' . $p['reason'];
-		\Digitalisimo_Notices::show( \Digitalisimo_Notices::site( 'tools-plugin-health' ), 'now' === $status['state'] ? 'error' : 'warning', '<p><strong>DIGITALÍSIMO:</strong> ' . esc_html( $status['message'] ) . '</p>', array( 'hash' => $hash, 'cap' => self::cap() ) );
+		\Digitalisimo_Notices::show( \Digitalisimo_Notices::site( 'tools-plugin-health' ), self::serious( $status ) ? 'error' : 'warning', '<p><strong>DIGITALÍSIMO:</strong> ' . esc_html( $status['message'] ) . '</p>', array( 'hash' => $hash, 'cap' => self::cap() ) );
+	}
+
+	/**
+	 * ¿Error o advertencia? Un plugin que sólo falta porque un filtro lo quita puede ser a propósito (un organizador de
+	 * carga como Perfmatters o Plugin Organizer): advertencia, que se cierra por 7 días. Lo demás, error.
+	 */
+	private static function serious( array $status ) {
+		if ( 'now' !== $status['state'] ) return false;
+		foreach ( $status['problems'] as $p ) if ( 'filtered' !== $p['reason'] ) return true;
+		return false;
 	}
 
 	public static function tests( $tests ) {
@@ -282,7 +292,7 @@ final class Plugin_Health {
 		);
 		if ( 'now' === $status['state'] ) {
 			$result['label']  = 'Hay plugins activos que no cargaron';
-			$result['status'] = 'critical';
+			$result['status'] = self::serious( $status ) ? 'critical' : 'recommended';
 		} elseif ( 'recent' === $status['state'] ) {
 			$result['label']  = 'Hace poco hubo plugins activos que no cargaron';
 			$result['status'] = 'recommended';

@@ -169,6 +169,19 @@ $GLOBALS['ph']['cap'] = false;
 ob_start(); H::notice(); ph_check( '' === ob_get_clean(), 'sin activate_plugins no hay aviso' );
 $GLOBALS['ph']['cap'] = true;
 
+// Sólo un filtro (puede ser un organizador de carga a propósito): advertencia, no error.
+$GLOBALS['ph']['options'] = array();
+$GLOBALS['ph']['db'] = array( 'ok/ok.php', 'tarde/tarde.php' );
+$GLOBALS['ph']['options']['active_plugins'] = array( 'ok/ok.php' );
+$GLOBALS['ph']['cache'] = array( 'active_plugins' => serialize( array( 'ok/ok.php', 'tarde/tarde.php' ) ) );
+$s = H::status();
+ph_check( 'now' === $s['state'] && 'filtered' === ( $s['problems'][0]['reason'] ?? '' ), 'sólo un filtro: filtered ' . json_encode( $s ) );
+ob_start(); H::notice(); $html = ob_get_clean();
+ph_check( false !== strpos( $html, 'notice-warning' ) && false === strpos( $html, 'notice-error' ), 'sólo un filtro: advertencia, no error: ' . $html );
+ph_check( 'recommended' === H::health()['status'], 'sólo un filtro: «Salud del sitio» recommended' );
+$GLOBALS['ph']['cache'] = array( 'active_plugins' => serialize( array( 'ok/ok.php' ) ) );
+$GLOBALS['ph']['db'] = $GLOBALS['ph']['options']['active_plugins'] = array( 'ok/ok.php' );
+
 // «Salud del sitio».
 $t = H::tests( array() );
 ph_check( isset( $t['direct']['digitalisimo_plugin_health'] ), 'prueba directa en «Salud del sitio»' );
