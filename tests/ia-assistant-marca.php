@@ -62,9 +62,27 @@ namespace {
 	/* ---------------- K2: las herramientas que exigen el editor atómico ---------------- */
 	$GLOBALS['options']['digitalisimo_ai_options'] = array( 'providers' => array( 'anthropic' => array( 'enabled' => 1, 'key' => KEY_ANTHROPIC, 'url' => '' ) ) );
 	$meta = array( 'annotations' => array( 'readonly' => false, 'destructive' => false ), 'mcp' => array( 'public' => true, 'type' => 'tool' ) );
-	foreach ( array( 'elementor/manage-elements', 'elementor/build-composition', 'elementor/manage-global-variable', 'elementor/create-page', 'digitalisimo-sales/create-page' ) as $name ) {
+	foreach ( array( 'elementor/manage-elements', 'elementor/build-composition', 'elementor/manage-global-variable', 'elementor/create-page' ) as $name ) {
 		wp_register_ability( $name, array( 'label' => $name, 'category' => strtok( $name, '/' ), 'input_schema' => array( 'type' => 'object', 'properties' => array() ), 'permission_callback' => '__return_true', 'execute_callback' => function () { return array(); }, 'meta' => $meta ) );
 	}
+	// El kit: crea el borrador o lo rehace con post_id (como el real, con su check).
+	$GLOBALS['kit_runs'] = array();
+	wp_register_ability(
+		'digitalisimo-sales/create-page',
+		array(
+			'label'               => 'Kit de ventas: crear una página en borrador',
+			'category'            => 'digitalisimo-sales',
+			'input_schema'        => array( 'type' => 'object', 'properties' => array( 'store_offer' => array( 'type' => 'object' ), 'title' => array( 'type' => 'string' ), 'post_id' => array( 'type' => 'integer' ) ) ),
+			'permission_callback' => function () { return current_user_can( 'edit_posts' ); },
+			'execute_callback'    => function ( $in ) {
+				$GLOBALS['kit_runs'][] = $in;
+				$id = isset( $in['post_id'] ) ? (int) $in['post_id'] : wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'Oferta', 'post_author' => get_current_user_id() ) );
+				$GLOBALS['last_page'] = $id;
+				return array( 'ok' => true, 'id' => $id, 'status' => 'draft', 'regenerated' => isset( $in['post_id'] ), 'preview_url' => 'https://sitio.test/?page_id=' . $id . '&preview=true', 'edit_url' => 'https://sitio.test/wp-admin/post.php?post=' . $id . '&action=elementor', 'check' => array( 'ok' => false ) );
+			},
+			'meta'                => $meta,
+		)
+	);
 	\Elementor\Modules\Mcp\Utils\Mcp_V4_Gate::$atomic = false;
 	$off = Digitalisimo_AI_Assistant_Tools::catalog();
 	check( ! isset( $off['elementor/manage-elements'] ) && ! isset( $off['elementor/build-composition'] ) && ! isset( $off['elementor/manage-global-variable'] ), 'K2: con el editor atómico apagado, no se ofrecen las herramientas que lo exigen · ' . implode( ', ', array_keys( $off ) ) );
@@ -116,6 +134,53 @@ namespace {
 	$new  = $page( array( array( 'id' => 'd', 'elType' => 'container', 'settings' => array( 'background_background' => 'classic', '__globals__' => array( 'background_color' => 'globals/colors?id=primary' ) ), 'elements' => array( $heading( '#FFFFFF' ), $heading( '', 'accent' ) ) ) ), 'elementor_header_footer' );
 	$read = Digitalisimo_AI_Site_Reader::read_text( array( 'id' => $new ) );
 	check( true === $read['look']['matches_site'] && in_array( '#2546C8', $read['look']['colors'], true ) && in_array( '#F5CE3E', $read['look']['colors'], true ) && true === $read['look']['site_header_footer'], 'K3: una landing con los globales del kit del sitio y su cabecera y pie coincide · ' . wp_json_encode( $read['look'] ) );
+
+	/* ---------------- K4: como mucho una corrección por turno ---------------- */
+	// El modelo (simulado) ve check.ok en falso y quiere rehacer una y otra vez: sólo se hace la primera corrección.
+	add_filter( 'digitalisimo_ai_assistant_limits', function () { return array( 'per_minute' => 0, 'per_day' => 0, 'concurrent' => 1 ); } );
+	Digitalisimo_AI_Assistant::init();
+	$n    = 0;
+	$call = function ( $name, array $input ) use ( &$n ) { return array( 'id' => 'toolu_k' . ( ++$n ), 'name' => $name, 'input' => $input ); };
+	$GLOBALS['script'] = array(
+		array( 'calls' => array( $call( 'digitalisimo-sales-create-page', array( 'store_offer' => array( 'percent' => 40 ) ) ) ) ),
+		array( 'calls' => array( $call( 'digitalisimo-sales-create-page', array( 'store_offer' => array( 'percent' => 40 ), 'post_id' => 0 ) ) ) ),
+		array( 'calls' => array( $call( 'digitalisimo-sales-create-page', array( 'store_offer' => array( 'percent' => 40 ), 'post_id' => 0 ) ) ) ),
+		array( 'calls' => array( $call( 'digitalisimo-sales-create-page', array( 'store_offer' => array( 'percent' => 40 ), 'post_id' => 0 ) ) ) ),
+		'Listo: [Ver la landing](https://sitio.test/?page_id=1&preview=true).',
+	);
+	$GLOBALS['model_calls'] = array();
+	add_filter(
+		'digitalisimo_ai_assistant_pre_model',
+		function ( $pre, $request ) {
+			$GLOBALS['model_calls'][] = $request;
+			$next = $GLOBALS['script'] ? array_shift( $GLOBALS['script'] ) : 'Listo.';
+			// Rehacer el borrador que creó (su id real).
+			if ( is_array( $next ) && isset( $next['calls'][0]['input']['post_id'] ) && $GLOBALS['kit_runs'] ) {
+				$next['calls'][0]['input']['post_id'] = (int) ( $GLOBALS['last_page'] ?? 0 );
+			}
+			return $next;
+		},
+		10,
+		2
+	);
+	$req      = new WP_REST_Request( array( 'message' => 'créame una landing de oferta navideña con todos los productos al 40 %' ), array( 'X-Digitalisimo-Assistant' => wp_create_nonce( Digitalisimo_AI_Assistant::NONCE ) ) );
+	$response = Digitalisimo_AI_Assistant::rest_message( $req );
+	check( $response instanceof WP_REST_Response, 'K4: la ruta responde' );
+	$tools = array_values( array_filter( $response->data['events'], function ( $e ) { return 'tool' === $e['type']; } ) );
+	$runs  = count( $GLOBALS['kit_runs'] );
+	$skip  = array_values( array_filter( $tools, function ( $t ) { return 'skipped' === $t['message']['status']; } ) );
+	check( 2 === $runs && count( $skip ) >= 1, "K4: se crea la landing y se corrige UNA vez; los demás intentos del mismo turno no se hacen ($runs corridas del kit, " . count( $skip ) . ' retenidas)' );
+	$last = null;
+	foreach ( array_reverse( $GLOBALS['model_calls'] ) as $request ) {
+		foreach ( array_reverse( $request['messages'] ) as $m ) {
+			if ( 'tool' === $m['role'] ) {
+				$last = json_decode( $m['content'], true );
+				break 2;
+			}
+		}
+	}
+	check( is_array( $last ) && false !== strpos( (string) ( $last['error'] ?? '' ), 'ya creaste la landing y la corregiste una vez' ), 'K4: el modelo sabe por qué y que debe entregarla como está · ' . json_encode( $last, JSON_UNESCAPED_UNICODE ) );
+	check( false !== strpos( Digitalisimo_AI_Assistant::system_prompt(), 'Como mucho una corrección por turno' ), 'K4: las instrucciones lo dicen' );
 
 	echo "Asistente IA con la identidad del sitio: $checks comprobaciones correctas.\n";
 }
