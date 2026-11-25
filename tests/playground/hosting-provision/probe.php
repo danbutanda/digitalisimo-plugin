@@ -77,12 +77,16 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 				break;
 			case 'namecheap.domains.getInfo':
 				$d = $body['DomainName'];
-				$res = isset( $f['domains'][ $d ] ) ? digi_hp_xml( '<DomainGetInfoResult Status="Ok" DomainName="' . esc_attr( $d ) . '"><DomainDetails><ExpiredDate>' . gmdate( 'm/d/Y', $f['domains'][ $d ] ) . '</ExpiredDate></DomainDetails></DomainGetInfoResult>' ) : digi_hp_xml( '<Error Number="2019166">Domain not found</Error>', false );
+				$res = isset( $f['domains'][ $d ] ) ? digi_hp_xml( '<DomainGetInfoResult Status="Ok" DomainName="' . esc_attr( $d ) . '"><DomainDetails><CreatedDate>' . gmdate( 'm/d/Y', $f['created'][ $d ] ?? 0 ) . '</CreatedDate><ExpiredDate>' . gmdate( 'm/d/Y', $f['domains'][ $d ] ) . '</ExpiredDate></DomainDetails></DomainGetInfoResult>' ) : digi_hp_xml( '<Error Number="2019166">Domain not found</Error>', false );
+				break;
+			case 'namecheap.domains.check':
+				$d = $body['DomainList'];
+				$res = digi_hp_xml( '<DomainCheckResult Domain="' . esc_attr( $d ) . '" Available="' . ( isset( $f['domains'][ $d ] ) ? 'false' : 'true' ) . '" IsPremiumName="false" />' );
 				break;
 			case 'namecheap.domains.create':
 				$d = $body['DomainName']; $c = $cost( $tld( $d ), 'REGISTER' );
 				if ( $f['balance'] < $c ) { $res = digi_hp_xml( '<Error Number="2528166">Insufficient funds</Error>', false ); break; }
-				$f['balance'] -= $c; $f['domains'][ $d ] = strtotime( '+1 year' );
+				$f['balance'] -= $c; $f['domains'][ $d ] = strtotime( '+1 year' ); $f['created'][ $d ] = time();
 				$res = digi_hp_xml( '<DomainCreateResult Domain="' . esc_attr( $d ) . '" Registered="true" ChargedAmount="' . number_format( $c, 2, '.', '' ) . '" DomainID="' . ( 7000 + count( $f['domains'] ) ) . '" OrderID="1" TransactionID="1" WhoisguardEnable="false" NonRealTimeDomain="false" />' );
 				break;
 			case 'namecheap.domains.dns.setCustom':

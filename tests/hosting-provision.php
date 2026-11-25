@@ -46,13 +46,13 @@ $password = $f['user_passwd'];
 check( 18 === strlen( $password ) && $password === $f['cnf_user_passwd'] && preg_match( '/[a-z]/', $password ) && preg_match( '/[A-Z]/', $password ) && preg_match( '/\d/', $password ) && preg_match( '/[^A-Za-z0-9]/', $password ), 'La contraseña es fuerte (18 caracteres de cuatro clases) y se confirma' );
 check( 'root' === $f['apiuser'] && false === strpos( $create[0]['url'], 'CLAVE' ) && 'https://webuzo.test:2005/index.php?api=json&act=add_user' === $create[0]['url'], 'apiuser/apikey viajan en el cuerpo del POST, nunca en la URL' );
 check( array( 'users', 'add_user' ) === array_column( $GLOBALS['webuzo']['calls'], 'act' ), 'Antes de crear se consulta la lista de cuentas (idempotencia)' );
-check( array( 'namecheap.domains.getInfo', 'namecheap.users.getPricing', 'namecheap.users.getBalances', 'namecheap.domains.create', 'namecheap.domains.dns.setCustom' ) === array_column( $GLOBALS['nc']['calls'], 'cmd' ), 'Namecheap: ¿ya es nuestro?, precio, saldo, registro y nameservers, en ese orden' );
-$reg = $GLOBALS['nc']['calls'][3]['fields'];
+check( array( 'namecheap.domains.getInfo', 'namecheap.users.getPricing', 'namecheap.domains.check', 'namecheap.users.getBalances', 'namecheap.domains.create', 'namecheap.domains.dns.setCustom' ) === array_column( $GLOBALS['nc']['calls'], 'cmd' ), 'Namecheap: ¿ya es nuestro?, precio, disponible y no premium, saldo, registro y nameservers, en ese orden' );
+$reg = $GLOBALS['nc']['calls'][4]['fields'];
 foreach ( array( 'Registrant', 'Tech', 'Admin', 'AuxBilling' ) as $t ) {
 	check( 'Ana' === $reg[ $t . 'FirstName' ] && 'López' === $reg[ $t . 'LastName' ] && 'Av. Juárez 100' === $reg[ $t . 'Address1' ] && 'Guadalajara' === $reg[ $t . 'City' ] && 'Jalisco' === $reg[ $t . 'StateProvince' ] && '44100' === $reg[ $t . 'PostalCode' ] && 'MX' === $reg[ $t . 'Country' ] && '+52.3312345678' === $reg[ $t . 'Phone' ] && 'ana@cliente.test' === $reg[ $t . 'EmailAddress' ], "Contacto $t con los datos de facturación del cliente (estado por su nombre y teléfono +52.)" );
 }
 check( 'mitienda.com' === $reg['DomainName'] && 1 === (int) $reg['Years'] && ! isset( $reg['RegistrantOrganizationName'] ), 'Registro de un año del dominio del pedido, sin campos vacíos' );
-$dns = $GLOBALS['nc']['calls'][4]['fields'];
+$dns = $GLOBALS['nc']['calls'][5]['fields'];
 check( 'mitienda' === $dns['SLD'] && 'com' === $dns['TLD'] && 'ns1.digitalisimo.website,ns2.digitalisimo.website' === $dns['Nameservers'], 'El dominio apunta a ns1 y ns2.digitalisimo.website (namecheap.domains.dns.setCustom)' );
 check( 'CLAVE-NAMECHEAP' === $GLOBALS['nc']['calls'][0]['key'] && in_array( 'https://api.namecheap.com/xml.response', array_column( $GLOBALS['http'], 'url' ), true ) && ! preg_grep( '/CLAVE-NAMECHEAP/', array_column( $GLOBALS['http'], 'url' ) ), 'Namecheap recibe la clave en el cuerpo del POST, nunca en la URL' );
 $customer = digi_mails_to( 'ana@cliente.test' );
@@ -95,7 +95,7 @@ $GLOBALS['nc']['timeout']['namecheap.domains.create'] = 1;
 $order = digi_buy( 'registrado.mx', 14693, 21 );
 $order->update_status( 'processing' );
 digi_run_queue( true, 1 );
-$GLOBALS['nc']['domains']['registrado.mx'] = strtotime( '+1 year' ); // sí llegó a Namecheap
+$GLOBALS['nc']['domains']['registrado.mx'] = strtotime( '+1 year' ); $GLOBALS['nc']['created']['registrado.mx'] = time(); // sí llegó a Namecheap (creado hoy)
 digi_run_queue();
 check( 1 === digi_nc_count( 'namecheap.domains.create' ) && 'completed' === $order->get_status() && false !== strpos( digi_notes( $order ), 'ya estaba en la cuenta de Namecheap; no se registró otra vez' ), 'Un registro que llegó sin respuesta no se repite' );
 check( 1 === digi_webuzo_count( 'add_user' ), 'Y la cuenta de Webuzo del primer intento no se duplica' );

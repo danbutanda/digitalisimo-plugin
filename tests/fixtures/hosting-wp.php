@@ -32,7 +32,7 @@ function do_action( $hook, ...$args ) {
 	ksort( $GLOBALS['hooks'][ $hook ] );
 	foreach ( $GLOBALS['hooks'][ $hook ] as $cbs ) foreach ( $cbs as $cb ) call_user_func_array( $cb[0], array_slice( $args, 0, max( 1, $cb[1] ) ) );
 }
-function add_shortcode() {} function register_rest_route() {} function register_post_type() {}
+function add_shortcode() {} function register_rest_route() {} function register_post_type( $t = '', $a = array() ) { $GLOBALS['registered_cpt'] = $a; }
 
 // ── Opciones (sitio y red) ──────────────────────────────────────────────────────────────────────────────────
 $GLOBALS['multisite'] = false; $GLOBALS['blog'] = 1; $GLOBALS['blogs'] = array( 1 => array() ); $GLOBALS['site_options'] = array();
@@ -323,13 +323,16 @@ add_filter(
 				case 'namecheap.domains.getInfo':
 					$d = $body['DomainName'];
 					if ( ! isset( $n['domains'][ $d ] ) ) return digi_xml( '<Error Number="2019166">Domain not found</Error>', false );
-					return digi_xml( '<DomainGetInfoResult Status="Ok" DomainName="' . $d . '"><DomainDetails><CreatedDate>01/01/2026</CreatedDate><ExpiredDate>' . gmdate( 'm/d/Y', $n['domains'][ $d ] ) . '</ExpiredDate></DomainDetails></DomainGetInfoResult>' );
+					return digi_xml( '<DomainGetInfoResult Status="Ok" DomainName="' . $d . '"><DomainDetails><CreatedDate>' . gmdate( 'm/d/Y', $n['created'][ $d ] ?? gmmktime( 0, 0, 0, 1, 1, 2026 ) ) . '</CreatedDate><ExpiredDate>' . gmdate( 'm/d/Y', $n['domains'][ $d ] ) . '</ExpiredDate></DomainDetails></DomainGetInfoResult>' );
+				case 'namecheap.domains.check':
+					$d = $body['DomainList'];
+					return digi_xml( '<DomainCheckResult Domain="' . $d . '" Available="' . ( isset( $n['domains'][ $d ] ) || in_array( $d, $n['taken'] ?? array(), true ) ? 'false' : 'true' ) . '" IsPremiumName="' . ( in_array( $d, $n['premium'] ?? array(), true ) ? 'true' : 'false' ) . '" PremiumRegistrationPrice="0" />' );
 				case 'namecheap.domains.create':
 					$d = $body['DomainName'];
 					if ( isset( $n['domains'][ $d ] ) ) return digi_xml( '<Error Number="2030280">Domain is not available</Error>', false );
 					$cost = array_sum( digi_nc_price( substr( $d, strpos( $d, '.' ) + 1 ), 'REGISTER' ) );
 					if ( $n['balance'] < $cost ) return digi_xml( '<Error Number="2528166">Insufficient funds</Error>', false );
-					$n['balance'] -= $cost; $n['domains'][ $d ] = strtotime( '+1 year' );
+					$n['balance'] -= $cost; $n['domains'][ $d ] = strtotime( '+1 year' ); $n['created'][ $d ] = time();
 					return digi_xml( '<DomainCreateResult Domain="' . $d . '" Registered="true" ChargedAmount="' . number_format( $cost, 2 ) . '" DomainID="9' . count( $n['domains'] ) . '" OrderID="1" TransactionID="1" WhoisguardEnable="false" NonRealTimeDomain="false" />' );
 				case 'namecheap.domains.dns.setCustom':
 					$n['dns'][ $body['SLD'] . '.' . $body['TLD'] ] = $body['Nameservers'];
@@ -360,6 +363,8 @@ function digi_store_settings( array $extra = array() ) {
 		'domain_products' => ".com|20\n.mx|21", 'hosting_product_ids' => '', 'hosting_category_ids' => '63',
 		'webuzo_url' => 'https://webuzo.test:2005', 'webuzo_api_user' => 'root', 'webuzo_api_key' => 'CLAVE-WEBUZO-OK', 'grace_days' => 7,
 		'nameservers' => 'ns1.digitalisimo.website, ns2.digitalisimo.website', 'provision_since' => 1,
+		// Las pruebas anteriores al 2026-11-25 suponen hosting con dominio propio sin revisión manual (por omisión es 0).
+		'own_domain_auto' => 1,
 	) );
 	update_option( 'woocommerce_calc_taxes', 'yes' ); update_option( 'woocommerce_currency', 'MXN' );
 }

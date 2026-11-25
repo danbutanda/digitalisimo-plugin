@@ -158,7 +158,11 @@ class Fake_Namecheap {
 		if ( 'namecheap.domains.getInfo' === $cmd ) {
 			$d = $body['DomainName'];
 			if ( ! isset( $this->domains[ $d ] ) ) return self::xml( '', '<Error Number="2019166">Domain not found</Error>' );
-			return self::xml( '<DomainGetInfoResult Status="Ok" DomainName="' . $d . '"><DomainDetails><CreatedDate>01/01/2026</CreatedDate><ExpiredDate>' . gmdate( 'm/d/Y', $this->domains[ $d ]['expires'] ) . '</ExpiredDate></DomainDetails></DomainGetInfoResult>' );
+			return self::xml( '<DomainGetInfoResult Status="Ok" DomainName="' . $d . '"><DomainDetails><CreatedDate>' . gmdate( 'm/d/Y', $this->domains[ $d ]['created'] ?? gmmktime( 0, 0, 0, 1, 1, 2026 ) ) . '</CreatedDate><ExpiredDate>' . gmdate( 'm/d/Y', $this->domains[ $d ]['expires'] ) . '</ExpiredDate></DomainDetails></DomainGetInfoResult>' );
+		}
+		if ( 'namecheap.domains.check' === $cmd ) {
+			$d = $body['DomainList'];
+			return self::xml( '<DomainCheckResult Domain="' . $d . '" Available="' . ( isset( $this->domains[ $d ] ) ? 'false' : 'true' ) . '" IsPremiumName="false"/>' );
 		}
 		if ( 'namecheap.domains.create' === $cmd ) {
 			$d = $body['DomainName'];
@@ -166,7 +170,7 @@ class Fake_Namecheap {
 			$cost = $this->prices['REGISTER'] + 0.20;
 			if ( $this->balance < $cost ) return self::xml( '', '<Error Number="2528166">Order creation failed: insufficient funds</Error>' );
 			$this->balance -= $cost;
-			$this->domains[ $d ] = array( 'expires' => strtotime( '+1 year' ), 'ns' => array(), 'contact' => $body );
+			$this->domains[ $d ] = array( 'expires' => strtotime( '+1 year' ), 'created' => time(), 'ns' => array(), 'contact' => $body );
 			if ( 'timeout-after-create' === $this->mode ) { $this->mode = 'ok'; return new WP_Error( 'http_request_failed', 'cURL error 28: timed out' ); }
 			return self::xml( '<DomainCreateResult Domain="' . $d . '" Registered="true" ChargedAmount="' . $cost . '" DomainID="9001" OrderID="1" TransactionID="2" WhoisguardEnable="false" NonRealTimeDomain="false"/>' );
 		}
@@ -319,7 +323,7 @@ foreach ( array( 14693 => 'digitalisimo_starter', 14694 => 'digitalisimo_digital
 /** Ajustes de la tienda con la venta automática encendida (servidor y claves simulados). */
 function hosting_settings( array $extra = array() ) {
 	update_option( 'digitalisimo_hosting_options', $extra + array(
-		'enabled' => 1, 'provision_enabled' => 1, 'provision_since' => 1, 'api_user' => 'digitalisimo', 'username' => 'digitalisimo', 'api_key' => $GLOBALS['namecheap']->key, 'client_ip' => '203.0.113.10',
+		'enabled' => 1, 'provision_enabled' => 1, 'provision_since' => 1, 'own_domain_auto' => 1, 'api_user' => 'digitalisimo', 'username' => 'digitalisimo', 'api_key' => $GLOBALS['namecheap']->key, 'client_ip' => '203.0.113.10',
 		'domain_products' => ".com|201\n.mx|202\n.org|203", 'webuzo_url' => 'https://webuzo.test:2005', 'webuzo_api_user' => 'root', 'webuzo_api_key' => $GLOBALS['webuzo']->key, 'grace_days' => 7,
 	), false );
 }
