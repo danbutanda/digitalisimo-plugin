@@ -41,19 +41,26 @@
 		return sizes[url];
 	}
 
-	/** Lo que dice el aviso, o '' si no hay nada que decir. Exportado para las pruebas. */
+	/**
+	 * Lo que dice el aviso, o '' si no hay nada que decir. El peso, sólo si pasa del umbral; la falta de imagen de
+	 * respaldo, siempre (sin ella el celular no muestra nada y «Nunca en el celular» no quita el vídeo). Exportado para
+	 * las pruebas.
+	 */
 	function message(settings, bytes, mode) {
-		if (!settings || settings.background_background !== 'video' || !(bytes > max)) {
+		if (!settings || settings.background_background !== 'video' || !settings.background_video_link) {
 			return '';
 		}
-		var mobile = mode === 'always' || (mode !== 'never' && settings.background_play_on_mobile === 'yes');
-		var fallback = settings.background_video_fallback && settings.background_video_fallback.url;
-		var text = 'Este vídeo de fondo pesa ' + mb(bytes) + ', más que el límite del sitio (' + mb(max) + '): hace lenta la página. Comprímelo (720p, 8 a 10 segundos, sin audio).';
-		text += mobile ? ' También se descarga en el celular: apaga «Reproducir en móvil» para que el celular muestre la imagen de respaldo.' : ' En el celular no se descarga.';
-		if (!fallback) {
-			text += ' Falta la «Imagen de respaldo»: es lo que se ve mientras carga y en el celular.';
+		var fallback = !!(settings.background_video_fallback && settings.background_video_fallback.url);
+		var mobile = mode === 'always' || (settings.background_play_on_mobile === 'yes' && !(mode === 'never' && fallback));
+		var parts = [];
+		if (bytes > max) {
+			parts.push('Este vídeo de fondo pesa ' + mb(bytes) + ', más que el límite del sitio (' + mb(max) + '): hace lenta la página. Comprímelo (720p, 8 a 10 segundos, sin audio).');
+			parts.push(mobile ? 'También se descarga en el celular: apaga «Reproducir en móvil» para que el celular muestre la imagen de respaldo.' : 'En el celular no se descarga.');
 		}
-		return text;
+		if (!fallback) {
+			parts.push('Falta la «Imagen de respaldo»: es lo que se ve mientras carga el vídeo y en el celular cuando no se reproduce.');
+		}
+		return parts.join(' ');
 	}
 
 	function paint() {
@@ -71,7 +78,8 @@
 			});
 		};
 		if (!url) {
-			write('');
+			// Sin medir (otro origen o sin vídeo): sólo lo que no depende del peso.
+			write(message(settings, 0, config.mobile));
 			return;
 		}
 		size(url).then(function (bytes) {

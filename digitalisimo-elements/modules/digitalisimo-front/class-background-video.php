@@ -16,7 +16,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * 1. **Ajuste del sitio** «Vídeos de fondo en el celular» (pantalla «Rendimiento», por sitio y por red): `element`
  *    (predeterminado: lo decide cada elemento con «Reproducir en móvil», como siempre: no cambia nada en ningún sitio),
- *    `never` (nunca en el celular, aunque el elemento lo pida: sin `src` ni descarga, con su imagen de respaldo) y
+ *    `never` (nunca en el celular, aunque el elemento lo pida: sin `src` ni descarga, con su imagen de respaldo; un
+ *    vídeo sin imagen de respaldo no se quita, porque el elemento quedaría vacío) y
  *    `always` (también en el celular, aunque el elemento no lo pida). Se aplica en el front (nunca en el editor ni en su
  *    vista previa) antes de que el elemento calcule su marcado, con `set_settings( 'background_play_on_mobile' )`, así
  *    que la clase `elementor-hidden-mobile` y los `data-settings` que lee el manejador salen ya con lo decidido. Cambiarlo
@@ -35,7 +36,7 @@ final class Background_Video {
 	const FIELDS         = array( 'mobile', 'max_mb' );
 	const MODES          = array(
 		'element' => 'Lo decide cada elemento («Reproducir en móvil»)',
-		'never'   => 'Nunca en el celular: se muestra la imagen de respaldo',
+		'never'   => 'Nunca en el celular si tiene imagen de respaldo: se muestra la imagen',
 		'always'  => 'También en el celular, en todos los elementos',
 	);
 	const DEFAULTS       = array(
@@ -83,6 +84,10 @@ final class Background_Video {
 			return;
 		}
 		$want = 'always' === $mode ? 'yes' : '';
+		if ( '' === $want && ! self::has_fallback( $element ) ) {
+			// Sin imagen de respaldo, apagar el vídeo dejaría el elemento vacío en el celular: decide el elemento.
+			return;
+		}
 		if ( (string) self::setting( $element, 'background_play_on_mobile' ) === $want ) {
 			return;
 		}
@@ -112,6 +117,12 @@ final class Background_Video {
 	private static function setting( $element, string $key ) {
 		$value = method_exists( $element, 'get_settings_for_display' ) ? $element->get_settings_for_display( $key ) : $element->get_settings( $key );
 		return is_scalar( $value ) ? $value : '';
+	}
+
+	/** ¿Tiene «Imagen de respaldo» (`background_video_fallback`), el póster que se ve cuando el vídeo no se reproduce? */
+	public static function has_fallback( $element ): bool {
+		$value = method_exists( $element, 'get_settings_for_display' ) ? $element->get_settings_for_display( 'background_video_fallback' ) : $element->get_settings( 'background_video_fallback' );
+		return is_array( $value ) && isset( $value['url'] ) && is_string( $value['url'] ) && '' !== trim( $value['url'] );
 	}
 
 	private static function is_embed( string $link ): bool {
@@ -319,7 +330,7 @@ final class Background_Video {
 			echo '<option value="' . esc_attr( $mode ) . '"' . ( $mode === $values['mobile'] ? ' selected="selected"' : '' ) . '>' . esc_html( $label ) . '</option>';
 		}
 		echo '</select>';
-		echo '<p class="description">' . esc_html( '«Nunca en el celular» quita el vídeo en el punto de corte del celular aunque el elemento tenga «Reproducir en móvil»: no se descarga. Pon una «Imagen de respaldo» en cada vídeo de fondo para que el celular muestre algo.' ) . '</p>';
+		echo '<p class="description">' . esc_html( '«Nunca en el celular» quita el vídeo en el punto de corte del celular aunque el elemento tenga «Reproducir en móvil», y no se descarga; un vídeo sin «Imagen de respaldo» no se quita, para que el elemento no quede vacío. El editor avisa de cada vídeo de fondo sin imagen de respaldo.' ) . '</p>';
 		self::origin_row( 'mobile', $inherit_ui, $network, $id );
 		echo '</td></tr>';
 		$id = 'digitalisimo-front-background-video-max-mb';

@@ -41,19 +41,25 @@ function setup({ mobile = 'element', maxBytes = 2097152, bytes = 3 * 1048576, ok
   return { window, actions, listeners, boxes, fetches, flush, model };
 }
 
-const VIDEO = { background_background: 'video', background_video_link: '/wp-content/uploads/fondo.mp4', background_play_on_mobile: 'yes', background_video_fallback: { url: '' } };
+const VIDEO = { background_background: 'video', background_video_link: 'https://sitio.test/wp-content/uploads/fondo.mp4', background_play_on_mobile: 'yes', background_video_fallback: { url: '' } };
+const WITH_FALLBACK = { ...VIDEO, background_video_fallback: { url: 'https://sitio.test/wp-content/uploads/respaldo.jpg' } };
 
 // Texto del aviso.
 {
   const { window } = setup();
   const message = window.digitalisimoBackgroundVideoMessage;
-  assert.equal(message(VIDEO, 2 * 1048576, 'element'), '', 'Igual al límite: sin aviso.');
+  assert.equal(message(WITH_FALLBACK, 2 * 1048576, 'element'), '', 'Igual al límite y con respaldo: sin aviso.');
+  const only = message(VIDEO, 0, 'element');
+  assert.match(only, /Falta la «Imagen de respaldo»/, 'Sin respaldo se avisa aunque no se conozca el peso.');
+  assert.doesNotMatch(only, /pesa/, 'Sin peso conocido no se habla del peso.');
+  assert.match(message(VIDEO, 1048576, 'element'), /Falta la «Imagen de respaldo»/, 'Sin respaldo se avisa aunque pese poco.');
+  assert.match(message(VIDEO, 3e6, 'never'), /También se descarga en el celular/, 'Política «nunca» sin respaldo: el vídeo no se quita y se descarga.');
   const text = message(VIDEO, 8.1 * 1048576, 'element');
   assert.match(text, /pesa 8,1 MB, más que el límite del sitio \(2 MB\)/, 'Dice el peso y el límite.');
   assert.match(text, /También se descarga en el celular/, 'Con «Reproducir en móvil»: se descarga en el celular.');
   assert.match(text, /Falta la «Imagen de respaldo»/, 'Sin respaldo: lo dice.');
   assert.match(message({ ...VIDEO, background_play_on_mobile: '' }, 3e6, 'element'), /En el celular no se descarga/, 'Sin «Reproducir en móvil»: no se descarga.');
-  assert.match(message(VIDEO, 3e6, 'never'), /En el celular no se descarga/, 'Política «nunca»: no se descarga aunque el elemento lo pida.');
+  assert.match(message(WITH_FALLBACK, 3e6, 'never'), /En el celular no se descarga/, 'Política «nunca» con respaldo: no se descarga aunque el elemento lo pida.');
   assert.match(message({ ...VIDEO, background_play_on_mobile: '' }, 3e6, 'always'), /También se descarga/, 'Política «siempre»: se descarga.');
   assert.doesNotMatch(message({ ...VIDEO, background_video_fallback: { url: 'x.jpg' } }, 3e6, 'element'), /Falta/, 'Con respaldo: no lo pide.');
   assert.equal(message({ ...VIDEO, background_background: 'classic' }, 9e9, 'element'), '', 'Sin fondo de vídeo: sin aviso.');
@@ -80,20 +86,26 @@ const VIDEO = { background_background: 'video', background_video_link: '/wp-cont
 }
 {
   const t = setup();
-  t.actions['panel/open_editor/section'](null, t.model({ ...VIDEO, background_video_link: 'https://cdn.otro.test/fondo.mp4' }));
+  t.actions['panel/open_editor/section'](null, t.model({ ...WITH_FALLBACK, background_video_link: 'https://cdn.otro.test/fondo.mp4' }));
   await t.flush();
   assert.equal(t.fetches.length, 0, 'Un vídeo de otro origen no se pide.');
-  assert.equal(t.boxes[0].textContent, '', 'Ni se avisa.');
+  assert.equal(t.boxes[0].textContent, '', 'Ni se avisa de su peso.');
+}
+{
+  const t = setup();
+  t.actions['panel/open_editor/section'](null, t.model({ ...VIDEO, background_video_link: 'https://cdn.otro.test/fondo.mp4' }));
+  await t.flush();
+  assert.match(t.boxes[0].textContent, /Falta la «Imagen de respaldo»/, 'Pero sí de la falta de imagen de respaldo.');
 }
 {
   const t = setup({ bytes: 1048576 });
-  t.actions['panel/open_editor/container'](null, t.model(VIDEO));
+  t.actions['panel/open_editor/container'](null, t.model(WITH_FALLBACK));
   await t.flush();
-  assert.equal(t.boxes[0].textContent, '', 'Bajo el límite: sin aviso.');
+  assert.equal(t.boxes[0].textContent, '', 'Bajo el límite y con respaldo: sin aviso.');
 }
 {
   const t = setup({ maxBytes: 10 * 1048576, bytes: 8 * 1048576 });
-  t.actions['panel/open_editor/container'](null, t.model(VIDEO));
+  t.actions['panel/open_editor/container'](null, t.model(WITH_FALLBACK));
   await t.flush();
   assert.equal(t.boxes[0].textContent, '', 'El umbral es el del sitio (10 MB): 8 MB no avisa.');
 }

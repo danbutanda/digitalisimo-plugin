@@ -144,8 +144,12 @@ namespace {
 			$this->controls[ $id ] = $args;
 		}
 	}
-	function bv_video( string $mobile = 'yes', string $link = 'https://sitio.test/wp-content/uploads/fondo.mp4', string $name = 'container' ): BV_Element {
-		return new BV_Element( $name, array( 'background_background' => 'video', 'background_video_link' => $link, 'background_play_on_mobile' => $mobile ) );
+	function bv_video( string $mobile = 'yes', string $link = 'https://sitio.test/wp-content/uploads/fondo.mp4', string $name = 'container', bool $fallback = true ): BV_Element {
+		$settings = array( 'background_background' => 'video', 'background_video_link' => $link, 'background_play_on_mobile' => $mobile );
+		if ( $fallback ) {
+			$settings['background_video_fallback'] = array( 'id' => 5, 'url' => 'https://sitio.test/wp-content/uploads/respaldo.jpg' );
+		}
+		return new BV_Element( $name, $settings );
 	}
 	function bv_reset( array $site = array(), array $network = array(), bool $multisite = false ): void {
 		$GLOBALS['bv']['options']      = $site ? array( 'digitalisimo_elements_background_video' => $site ) : array();
@@ -207,6 +211,10 @@ namespace {
 		$el = bv_video( '' );
 		$cls::before_render( $el );
 		check( '' === $el->settings['background_play_on_mobile'] && 0 === $el->resets, 'never: uno que ya no lo pide no se toca' );
+		$el = bv_video( 'yes', 'https://sitio.test/wp-content/uploads/fondo.mp4', 'container', false );
+		$cls::before_render( $el );
+		check( 'yes' === $el->settings['background_play_on_mobile'] && 0 === $el->resets, 'never: sin imagen de respaldo no se apaga (el elemento quedaría vacío en el celular)' );
+		check( false === $cls::has_fallback( $el ) && true === $cls::has_fallback( bv_video() ), 'has_fallback: sólo con la URL de la imagen de respaldo' );
 		$el = bv_video( 'yes', '', 'section' );
 		$cls::before_render( $el );
 		check( 'yes' === $el->settings['background_play_on_mobile'], 'never: sin vídeo no se toca' );
