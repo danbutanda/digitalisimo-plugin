@@ -141,8 +141,9 @@ final class Store {
 		}
 		$top = $total > self::ALL_UP_TO;
 		if ( $top ) {
-			// Los más vendidos de verdad: `total_sales` (wc_get_products no entiende orderby «popularity»).
-			$ids = self::best_sellers( $ids, self::TOP * 2 );
+			// Los más vendidos de verdad, en una sola consulta ordenada por `total_sales` (wc_get_products no entiende
+			// orderby «popularity»).
+			$ids = self::best_sellers( $term ? (string) $term->slug : '', self::TOP * 2 );
 			$top = (bool) $ids['sold'];
 			$ids = $ids['ids'];
 		} else {
@@ -184,23 +185,53 @@ final class Store {
 	}
 
 	/**
-	 * De unos productos, los más vendidos (`total_sales`, de más a menos; empates por el más reciente). `sold` es false
-	 * si ninguno se ha vendido: entonces no se dice «los más vendidos».
+	 * Los más vendidos de la tienda (o de una categoría): UNA consulta ordenada por `total_sales`, sin los ocultos del
+	 * catálogo (ni los agotados si la tienda los oculta). `sold` es false si ninguno se ha vendido: entonces no se dice
+	 * «los más vendidos».
 	 */
-	private static function best_sellers( array $ids, int $limit ): array {
-		$sales = array();
-		foreach ( $ids as $id ) {
-			$sales[ (int) $id ] = (int) get_post_meta( (int) $id, 'total_sales', true );
+	public static function best_sellers( string $category, int $limit ): array {
+		$hidden = array( 'exclude-from-catalog' );
+		if ( function_exists( 'get_option' ) && 'yes' === get_option( 'woocommerce_hide_out_of_stock_items' ) ) {
+			$hidden[] = 'outofstock';
 		}
-		uksort(
-			$sales,
-			static function ( $a, $b ) use ( $sales ) {
-				return $sales[ $b ] <=> $sales[ $a ] ?: $b <=> $a;
-			}
+		$tax = array(
+			array(
+				'taxonomy' => 'product_visibility',
+				'field'    => 'name',
+				'terms'    => $hidden,
+				'operator' => 'NOT IN',
+			),
+		);
+		if ( '' !== $category ) {
+			$tax[] = array(
+				'taxonomy' => 'product_cat',
+				'field'    => 'slug',
+				'terms'    => array( $category ),
+			);
+		}
+		$ids = array_map(
+			'intval',
+			(array) get_posts(
+				array(
+					'post_type'        => 'product',
+					'post_status'      => 'publish',
+					'has_password'     => false,
+					'posts_per_page'   => $limit,
+					'fields'           => 'ids',
+					'meta_key'         => 'total_sales', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+					'orderby'          => array(
+						'meta_value_num' => 'DESC',
+						'date'           => 'DESC',
+					),
+					'tax_query'        => $tax, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+					'no_found_rows'    => true,
+					'suppress_filters' => false,
+				)
+			)
 		);
 		return array(
-			'ids'  => array_slice( array_keys( $sales ), 0, $limit ),
-			'sold' => max( $sales ) > 0,
+			'ids'  => $ids,
+			'sold' => $ids && (int) get_post_meta( $ids[0], 'total_sales', true ) > 0,
 		);
 	}
 

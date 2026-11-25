@@ -101,6 +101,16 @@ namespace {
 	function get_post_meta( $id, $key, $single = false ) {
 		return $GLOBALS['sb_meta'][ (int) $id ][ $key ] ?? '';
 	}
+	// La consulta de los más vendidos: se anota y se contesta como WP_Query (ordenado por total_sales).
+	function get_posts( $args ) {
+		$GLOBALS['sb_queries'][] = $args;
+		$sales = array();
+		foreach ( (array) ( $GLOBALS['sb_meta'] ?? array() ) as $id => $m ) {
+			$sales[ $id ] = (int) ( $m['total_sales'] ?? 0 );
+		}
+		arsort( $sales );
+		return array_slice( array_keys( $sales ), 0, (int) $args['posts_per_page'] );
+	}
 
 	$base = dirname( __DIR__ ) . '/digitalisimo-elements/modules/digitalisimo-sales';
 	foreach ( array( 'class-catalog.php', 'class-placeholders.php', 'class-builder.php', 'class-site.php', 'class-finisher.php', 'class-product.php', 'class-brand.php', 'class-store.php', 'class-pages.php', 'mcp/class-tools.php', 'mcp/class-executor.php' ) as $file ) {
@@ -418,16 +428,17 @@ namespace {
 	$nada = Brand::resolve( $kit_factory, array() );
 	$out  = Executor::run( 'create-page', array( 'store_offer' => array( 'percent' => 40 ) ), $create, array( 'brand' => $nada ) + $deps );
 	check( false === $out['look']['matches_site'] && false === $out['look']['site_identity'] && true === $out['check']['ok'] && preg_grep( '/No digas que usa los colores del sitio/', $out['review'] ), 'R4 sin colores de marca en el sitio no se afirma que coinciden · ' . json_encode( $out['look'] ) );
-	// R5 · Los más vendidos son los de más ventas (total_sales), y sin ventas no se dice.
-	$best = new ReflectionMethod( Store::class, 'best_sellers' );
-	if ( PHP_VERSION_ID < 80100 ) {
-		$best->setAccessible( true );
-	}
-	$GLOBALS['sb_meta'] = array( 10 => array( 'total_sales' => '3' ), 11 => array( 'total_sales' => '40' ), 12 => array( 'total_sales' => '0' ), 13 => array( 'total_sales' => '7' ) );
-	$r = $best->invoke( null, array( 10, 11, 12, 13 ), 3 );
+	// R5 · Los más vendidos son los de más ventas: UNA consulta ordenada por total_sales (medio 5), y sin ventas no se
+	// dice «los más vendidos».
+	$GLOBALS['sb_queries'] = array();
+	$GLOBALS['sb_meta']    = array( 10 => array( 'total_sales' => '3' ), 11 => array( 'total_sales' => '40' ), 12 => array( 'total_sales' => '0' ), 13 => array( 'total_sales' => '7' ) );
+	$r = Store::best_sellers( 'bombas', 3 );
+	$q = $GLOBALS['sb_queries'];
+	check( 1 === count( $q ) && 'total_sales' === $q[0]['meta_key'] && 'DESC' === ( $q[0]['orderby']['meta_value_num'] ?? '' ) && 3 === $q[0]['posts_per_page'] && 'product' === $q[0]['post_type'], 'R5 una sola consulta ordenada por total_sales · ' . json_encode( $q ) );
+	check( 'NOT IN' === $q[0]['tax_query'][0]['operator'] && in_array( 'exclude-from-catalog', $q[0]['tax_query'][0]['terms'], true ) && array( 'bombas' ) === $q[0]['tax_query'][1]['terms'], 'R5 sin los ocultos del catálogo y sólo de la categoría' );
 	check( array( 11, 13, 10 ) === $r['ids'] && true === $r['sold'], 'R5 los más vendidos por sus ventas · ' . json_encode( $r ) );
 	$GLOBALS['sb_meta'] = array();
-	check( false === $best->invoke( null, array( 10, 11 ), 3 )['sold'], 'R5 sin ventas no son «los más vendidos»' );
+	check( false === Store::best_sellers( '', 3 )['sold'], 'R5 sin ventas no son «los más vendidos»' );
 	// R6 · El aviso del precio no dice «precio normal» de algo que puede estar rebajado.
 	check( (bool) preg_grep( '/todavía no aplica este descuento/', $page['warnings'] ), 'R6 el aviso del precio de la tienda' );
 
