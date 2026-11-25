@@ -147,11 +147,12 @@ try {
   check(renewal && r.order.status === 'pending' && r.order.renewal_of === svc && r.order.items.length === 2, 'A 29 días se crea el pedido de renovación pendiente de pago con el plan y el dominio', JSON.stringify(r.order));
   const reminder = r.mails.filter((m) => m.to === 'ana@cliente.test' && m.subject === 'Tu hosting vence en 30 días: mitienda.com');
   check(reminder.length === 1 && reminder[0].body.includes('order-pay') && reminder[0].body.includes(String(renewal)), 'El cliente recibe el aviso con el enlace de pago de WooCommerce de su pedido de renovación', `${reminder.length} · ${(reminder[0]?.body || '').replace(/\s+/g, ' ').slice(0, 400)}`);
-  await probe('daily', { svc, offset: 8 }); await probe('run');
+  // La suspensión se confirma con la lista de cuentas en una tarea programada (+60 s): se corre también lo programado.
+  await probe('daily', { svc, offset: 8 }); await probe('run', { all: 1 });
   s = await probe('state', { svc });
   check(s.service.status === 'suspended' && s.users.mitienda.status === 'suspended', 'Pasados los 7 días de gracia sin pago, la cuenta se suspende en Webuzo', JSON.stringify(s.service));
   const expires = Number(s.service.expires);
-  await probe('pay', { id: renewal }); await probe('run');
+  await probe('pay', { id: renewal }); await probe('run', { all: 1 });
   s = await probe('state', { id: renewal });
   check(calls(s, 'namecheap', 'namecheap.domains.renew').length === 1 && s.users.mitienda.status === '' && s.order.status === 'completed', 'Al pagar: dominio renovado en Namecheap, cuenta reactivada y pedido completado', notes(s));
   const after = await probe('state', { svc });

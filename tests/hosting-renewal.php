@@ -58,7 +58,7 @@ check( count( $GLOBALS['webuzo']['calls'] ) + count( $GLOBALS['nc']['calls'] ) =
 $P::daily( $expires + 8 * DAY_IN_SECONDS );
 check( 1 === count( $GLOBALS['queue'] ) && 'digitalisimo_hosting_suspend' === $GLOBALS['queue'][0]['hook'], 'Pasada la gracia se encola la suspensión' );
 digi_run_queue();
-check( 1 === digi_webuzo_count( 'users', 'suspend', 'renueva' ) && '1' === (string) end( $GLOBALS['webuzo']['calls'] )['fields']['skip'], 'Webuzo recibe act=users con suspend=<usuario> y skip=1 (https://webuzo.com/docs/api/suspend-user/)' );
+check( 1 === digi_webuzo_count( 'users', 'suspend', 'renueva' ) && ! array_key_exists( 'skip', array_values( array_filter( $GLOBALS['webuzo']['calls'], function ( $c ) { return isset( $c['fields']['suspend'] ); } ) )[0]['fields'] ), 'Webuzo recibe act=users con suspend=<usuario> SIN skip (con skip=1 el Webuzo real contesta éxito sin suspender)' );
 check( 'suspended' === $P::svc( $s, 'status' ) && 'suspended' === $GLOBALS['webuzo']['users']['renueva']['status'], 'El servicio y la cuenta quedan suspendidos' );
 $mail = digi_mails_to( 'ana@cliente.test' );
 check( 3 === count( $mail ) && 'Tu hosting está suspendido: renueva.com' === $mail[2]['subject'] && false !== strpos( $mail[2]['body'], 'Pagar la renovación' ), 'El cliente recibe el aviso de suspensión con el enlace de pago' );
@@ -156,7 +156,7 @@ list( , $s7 ) = digi_provisioned( 'abuso.com' );
 $exp7 = (int) $P::svc( $s7, 'expires' );
 $P::daily( $exp7 - 29 * DAY_IN_SECONDS );
 $r7 = wc_get_order( (int) $P::svc( $s7, 'renewal_order' ) );
-$P::svc_set( $s7, array( 'suspend_reason' => 'manual' ) ); $P::run_suspend( $s7 );
+$P::svc_set( $s7, array( 'suspend_reason' => 'manual' ) ); $P::run_suspend( $s7 ); digi_run_queue(); // la confirmación con la lista de cuentas
 check( 'suspended' === $P::svc( $s7, 'status' ), 'Suspensión manual' );
 $r7->update_status( 'processing' ); digi_run_queue();
 check( 0 === digi_webuzo_count( 'users', 'unsuspend', 'abuso' ) && 'suspended' === $P::svc( $s7, 'status' ) && false !== strpos( implode( "\n", $r7->notes ), 'suspendida a mano; el pago no la reactiva' ) && (int) $P::svc( $s7, 'expires' ) > $exp7, 'Pagar no reactiva una cuenta suspendida a mano (sí la renueva)' );

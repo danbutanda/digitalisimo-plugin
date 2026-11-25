@@ -107,7 +107,7 @@ class Digitalisimo_Hosting_Services_Page {
 		$done = $op;
 		if ( 'retry' === $op ) $done = $P::retry( $id ) ? 'retry' : 'nothing';
 		elseif ( 'suspend' === $op ) { $P::svc_set( $id, array( 'suspend_reason' => 'manual' ) ); $P::enqueue( $P::HOOK_SUSPEND, $id ); }
-		elseif ( 'unsuspend' === $op ) $P::enqueue( $P::HOOK_UNSUSPEND, $id );
+		elseif ( 'unsuspend' === $op ) { $P::svc_set( $id, array( 'unsuspend_reason' => 'manual' ) ); $P::enqueue( $P::HOOK_UNSUSPEND, $id ); }
 		else $P::enqueue( $P::HOOK_RESEND, $id );
 		$P::svc_log( $id, 'Acción manual «' . $op . '» de ' . ( function_exists( 'wp_get_current_user' ) ? wp_get_current_user()->user_login : 'un administrador' ) . '.' );
 		wp_safe_redirect( admin_url( 'admin.php?page=' . self::SLUG . '&done=' . $done ) );

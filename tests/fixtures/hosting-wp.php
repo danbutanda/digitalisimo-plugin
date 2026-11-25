@@ -266,19 +266,32 @@ add_filter(
 			if ( 'html' === $w['mode'] ) return array( 'response' => array( 'code' => 200 ), 'body' => '<html><body>Login</body></html>', 'headers' => array() );
 			if ( 'auth' === $w['mode'] || ( $body['apikey'] ?? '' ) !== $w['key'] ) return digi_json( array( 'error' => array( 'Incorrect Username or Password. 1 attempt(s) left' ) ) );
 			$act = $q['act'] ?? '';
-			if ( 'users' === $act && isset( $body['suspend'] ) ) { if ( ! isset( $w['users'][ $body['suspend'] ] ) ) return digi_json( array( 'error' => array( 'User not found' ) ) ); $w['users'][ $body['suspend'] ]['status'] = 'suspended'; return digi_json( array( 'done' => array( 'msg' => 'User suspended successfully' ) ) ); }
-			if ( 'users' === $act && isset( $body['unsuspend'] ) ) { $w['users'][ $body['unsuspend'] ]['status'] = ''; return digi_json( array( 'done' => array( 'msg' => 'User unsuspended successfully' ) ) ); }
-			if ( 'users' === $act ) return digi_json( array( 'users' => $w['users'] ) );
+			// Como el Webuzo real (prueba autorizada del 2026-11-24): con skip=1 contesta éxito SIN cambiar nada; sin skip el
+			// cambio se ve en la lista (en el modo 'lento', una consulta después; en 'ignora', nunca). Errores como objeto
+			// por código y textos en español, todo con HTTP 200.
+			foreach ( array( 'suspend' => 'suspended', 'unsuspend' => '' ) as $op => $to ) {
+				if ( 'users' !== $act || ! isset( $body[ $op ] ) ) continue;
+				if ( ! isset( $w['users'][ $body[ $op ] ] ) ) return digi_json( array( 'error' => array( 'no_user' => 'No existe tal usuario' ), 'users' => null ) );
+				if ( empty( $body['skip'] ) && 'ignora' !== $w['mode'] ) { if ( 'lento' === $w['mode'] ) $w['later'][ $body[ $op ] ] = $to; else $w['users'][ $body[ $op ] ]['status'] = $to; }
+				return digi_json( array( 'done' => array( 'msg' => 'suspend' === $op ? 'Usuario suspendido con éxito' : 'Usuario reactivado con éxito' ), 'users' => $w['users'], 'num_res' => count( $w['users'] ), 'reslen' => 50, 'cur_page' => 0 ) );
+			}
+			if ( 'users' === $act ) {
+				$list = digi_json( array( 'title' => 'Webuzo - Panel de administrador', 'users' => $w['users'], 'resellers' => array(), 'num_res' => count( $w['users'] ), 'reslen' => 50, 'cur_page' => 0 ) );
+				foreach ( (array) ( $w['later'] ?? array() ) as $u => $to ) $w['users'][ $u ]['status'] = $to;
+				$w['later'] = array();
+				return $list;
+			}
 			if ( 'add_user' === $act && 'nodone' === $w['mode'] ) return digi_json( array( 'title' => 'Webuzo' ) );
 			if ( 'add_user' === $act && 'echo' === $w['mode'] ) return digi_json( array( 'error' => array( str_repeat( 'x', 280 ) . ' The password ' . $body['user_passwd'] . ' is too weak.' ) ) );
 			if ( 'add_user' === $act && ! empty( $body['create_user'] ) ) {
-				if ( isset( $w['users'][ $body['user'] ] ) ) return digi_json( array( 'error' => array( 'The username already exists' ) ) );
-				if ( $body['user_passwd'] !== $body['cnf_user_passwd'] ) return digi_json( array( 'error' => array( 'Passwords do not match' ) ) );
+				if ( isset( $w['users'][ $body['user'] ] ) ) return digi_json( array( 'error' => array( 'user_exists' => 'El usuario ya existe' ), 'plans' => array() ) );
+				if ( $body['user_passwd'] !== $body['cnf_user_passwd'] ) return digi_json( array( 'error' => array( 'pass_mismatch' => 'Las contraseñas ingresadas no coinciden.' ), 'plans' => array() ) );
 				$w['users'][ $body['user'] ] = array( 'user' => $body['user'], 'domain' => $body['domain'], 'email' => $body['email'], 'plan' => $body['plan'], 'status' => '', 'pass' => $body['user_passwd'] );
 				if ( 'lost_create' === $w['mode'] ) { $w['mode'] = ''; return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' ); }
-				return digi_json( array( 'done' => array( 'msg' => 'The User has been saved successfully' ) ) );
+				// Como el real: done trae la contraseña EN CLARO en data.user_passwd.
+				return digi_json( array( 'title' => 'Webuzo', 'plans' => array(), 'done' => array( 'msg' => 'El usuario se guardó con éxito', 'data' => array( 'domain' => $body['domain'], 'user' => $body['user'], 'user_passwd' => $body['user_passwd'], 'email' => $body['email'], 'plan' => $body['plan'] ), 'user' => array( 'domain' => $body['domain'], 'user' => $body['user'], 'plan' => $body['plan'] ) ) ) );
 			}
-			return digi_json( array( 'error' => array( 'Unknown act' ) ) );
+			return digi_json( array( 'error' => array( 'act' => 'Acción desconocida' ) ) );
 		}
 		if ( 0 === strpos( $url, 'https://www.banxico.org.mx/SieAPIRest/service/v1/series/SF43718/datos/oportuno' ) ) {
 			$f = &$GLOBALS['fx'];

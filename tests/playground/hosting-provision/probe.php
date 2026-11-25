@@ -47,8 +47,9 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 		$fields = $body; unset( $fields['apikey'], $fields['user_passwd'], $fields['cnf_user_passwd'] );
 		$f['calls'][] = array( 'api' => 'webuzo', 'act' => $act, 'fields' => $fields, 'key_in_url' => false !== strpos( $url, (string) ( $body['apikey'] ?? '§' ) ) );
 		if ( 'auth' === $f['webuzo'] || ( $body['apikey'] ?? '' ) !== ( $secrets['webuzo'] ?? '' ) ) { $f['bad_keys']++; digi_hp_save( $f ); return digi_hp_json( array( 'error' => array( 'Incorrect Username or Password. 1 attempt(s) left' ) ) ); }
-		if ( 'users' === $act && isset( $body['suspend'] ) ) { $f['users'][ $body['suspend'] ]['status'] = 'suspended'; digi_hp_save( $f ); return digi_hp_json( array( 'done' => array( 'msg' => 'User suspended successfully' ) ) ); }
-		if ( 'users' === $act && isset( $body['unsuspend'] ) ) { $f['users'][ $body['unsuspend'] ]['status'] = ''; digi_hp_save( $f ); return digi_hp_json( array( 'done' => array( 'msg' => 'User unsuspended successfully' ) ) ); }
+		// Como el Webuzo real (prueba autorizada del 2026-11-24): con skip=1 contesta éxito sin cambiar nada.
+		if ( 'users' === $act && isset( $body['suspend'] ) ) { if ( empty( $body['skip'] ) ) $f['users'][ $body['suspend'] ]['status'] = 'suspended'; digi_hp_save( $f ); return digi_hp_json( array( 'done' => array( 'msg' => 'Usuario suspendido con éxito' ), 'users' => $f['users'], 'num_res' => count( $f['users'] ), 'reslen' => 50, 'cur_page' => 0 ) ); }
+		if ( 'users' === $act && isset( $body['unsuspend'] ) ) { if ( empty( $body['skip'] ) ) $f['users'][ $body['unsuspend'] ]['status'] = ''; digi_hp_save( $f ); return digi_hp_json( array( 'done' => array( 'msg' => 'Usuario reactivado con éxito' ), 'users' => $f['users'], 'num_res' => count( $f['users'] ), 'reslen' => 50, 'cur_page' => 0 ) ); }
 		if ( 'users' === $act ) { digi_hp_save( $f ); return digi_hp_json( array( 'users' => $f['users'] ) ); }
 		if ( 'add_user' === $act ) {
 			if ( isset( $f['users'][ $body['user'] ] ) ) { digi_hp_save( $f ); return digi_hp_json( array( 'error' => array( 'The username already exists' ) ) ); }

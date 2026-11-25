@@ -28,6 +28,7 @@ class Digitalisimo_Hosting_Provisioning {
 	const HOOK_SUSPEND   = 'digitalisimo_hosting_suspend';
 	const HOOK_UNSUSPEND = 'digitalisimo_hosting_unsuspend';
 	const HOOK_RESEND    = 'digitalisimo_hosting_resend';
+	const HOOK_VERIFY    = 'digitalisimo_hosting_verify';
 	const HOOK_DAILY     = 'digitalisimo_hosting_daily';
 	const CPT            = 'digi_hosting_service';
 	const META_STATE     = '_digitalisimo_provision';
@@ -57,6 +58,7 @@ class Digitalisimo_Hosting_Provisioning {
 		add_action( self::HOOK_SUSPEND, array( __CLASS__, 'run_suspend' ) );
 		add_action( self::HOOK_UNSUSPEND, array( __CLASS__, 'run_unsuspend' ) );
 		add_action( self::HOOK_RESEND, array( __CLASS__, 'run_resend' ) );
+		add_action( self::HOOK_VERIFY, array( __CLASS__, 'run_verify' ) );
 		add_action( self::HOOK_DAILY, array( __CLASS__, 'daily' ) );
 		add_filter( 'woocommerce_email_classes', array( __CLASS__, 'emails' ) );
 		add_action( 'digitalisimo_hosting_webuzo_blocked', array( __CLASS__, 'on_blocked' ) );
@@ -828,6 +830,9 @@ class Digitalisimo_Hosting_Provisioning {
 			$ok = self::send_renewal( $renewal, $id, $type );
 			$renewal->add_order_note( 'DIGITALÍSIMO Hosting: aviso de vencimiento (' . $type . ' días) ' . ( $ok ? 'enviado' : 'no enviado (correo desactivado o falló)' ) . ' a ' . self::svc( $id, 'email' ) . '.' );
 		}
+		// Una suspensión o reactivación pedida y aún sin confirmar: no se pide otra.
+		$pt = self::svc( $id, 'pending_toggle' );
+		if ( is_array( $pt ) && ! empty( $pt['op'] ) ) return;
 		// Reactivado a mano por el administrador: se respeta su prórroga (visible en Servicios de hosting).
 		if ( (int) self::svc( $id, 'reprieve_until' ) > $now ) return;
 		if ( 'active' === $status && $now > $expires + $grace * DAY_IN_SECONDS ) {
@@ -892,10 +897,12 @@ class Digitalisimo_Hosting_Provisioning {
 			$stop = null;
 			$manual = 'manual' === self::svc( $id, 'suspend_reason' );
 			if ( ! $stop && $manual && 'suspended' === self::svc( $id, 'status' ) && empty( $state['manual_noted'] ) ) { $state['manual_noted'] = 1; $order->add_order_note( 'DIGITALÍSIMO Hosting: la cuenta está suspendida a mano; el pago no la reactiva (usa «Reactivar» en Servicios de hosting).' ); }
-			if ( ! $stop && ! $manual && 'suspended' === self::svc( $id, 'status' ) && self::svc( $id, 'webuzo_user' ) && empty( $state['unsuspended'] ) ) {
-				$r = Digitalisimo_Hosting_Webuzo::from_settings()->unsuspend( (string) self::svc( $id, 'webuzo_user' ) );
-				if ( 'ok' !== $r['kind'] ) $stop = self::stop( $r['kind'], 'Webuzo (reactivar ' . self::svc( $id, 'webuzo_user' ) . '): ' . $r['message'] );
-				else { $state['unsuspended'] = time(); $order->update_meta_data( self::META_RENEW, $state ); $order->save(); self::svc_set( $id, array( 'status' => 'active' ) ); $order->add_order_note( 'DIGITALÍSIMO Hosting: cuenta «' . self::svc( $id, 'webuzo_user' ) . '» reactivada en Webuzo.' ); }
+			if ( ! $manual && 'suspended' === self::svc( $id, 'status' ) && self::svc( $id, 'webuzo_user' ) && empty( $state['unsuspended'] ) ) {
+				// La reactivación va en su propia tarea: se pide sin skip y se confirma con la lista de cuentas.
+				$state['unsuspended'] = time(); $order->update_meta_data( self::META_RENEW, $state ); $order->save();
+				self::svc_set( $id, array( 'unsuspend_reason' => 'paid', 'last_renewal_order' => $order->get_id() ) );
+				self::enqueue( self::HOOK_UNSUSPEND, $id );
+				$order->add_order_note( 'DIGITALÍSIMO Hosting: se pidió reactivar la cuenta «' . self::svc( $id, 'webuzo_user' ) . '» en Webuzo (se confirma con la lista de cuentas).' );
 			}
 			if ( $stop ) { self::fail( $order, $state, $stop, self::HOOK_RENEW, $order->get_id(), $id ); return; }
 			if ( empty( $state['extended'] ) ) {
@@ -904,7 +911,7 @@ class Digitalisimo_Hosting_Provisioning {
 				$state['extended'] = $new;
 				$order->update_meta_data( self::META_RENEW, $state ); $order->save();
 				self::cancel_suspension( $id, 'renovado con el pedido #' . $order->get_id() );
-				self::svc_set( $id, $manual ? array( 'expires' => $new, 'renewal_order' => 0, 'notices' => array(), 'error' => '', 'reprieve_until' => 0 ) : array( 'expires' => $new, 'status' => 'active', 'renewal_order' => 0, 'notices' => array(), 'error' => '', 'suspend_reason' => '', 'suspend_for' => 0, 'reprieve_until' => 0 ) );
+				self::svc_set( $id, $manual ? array( 'expires' => $new, 'renewal_order' => 0, 'notices' => array(), 'error' => '', 'reprieve_until' => 0 ) : array( 'expires' => $new, 'status' => 'suspended' === self::svc( $id, 'status' ) && self::svc( $id, 'webuzo_user' ) ? 'suspended' : 'active', 'renewal_order' => 0, 'last_renewal_order' => $order->get_id(), 'notices' => array(), 'error' => '', 'suspend_reason' => '', 'suspend_for' => 0, 'reprieve_until' => 0 ) );
 				self::svc_log( $id, 'Renovado con el pedido #' . $order->get_id() . ' hasta el ' . self::date( $new ) . '.' );
 			}
 			if ( $dstop ) {
@@ -970,8 +977,6 @@ class Digitalisimo_Hosting_Provisioning {
 		$user = (string) self::svc( $id, 'webuzo_user' );
 		$status = (string) self::svc( $id, 'status' );
 		if ( '' === $user || ( $suspend && 'suspended' === $status ) || ( ! $suspend && 'suspended' !== $status ) ) return;
-		// Una suspensión automática que esperaba (reintento o clave nueva) se revisa otra vez: si el cliente ya pagó o el
-		// servicio ya no está vencido más allá de la gracia, no se suspende.
 		// Al ejecutarse (venga de la revisión diaria, de un reintento o de levantar una parada) se vuelve a comprobar que
 		// sigue vencido y sin pagar; sólo la suspensión que el administrador pidió a mano no depende del pago.
 		if ( $suspend && 'manual' !== self::svc( $id, 'suspend_reason' ) && ! self::overdue( $id ) ) { self::svc_set( $id, array( 'suspend_reason' => '', 'suspend_for' => 0, 'toggle_attempts' => 0 ) ); self::svc_log( $id, 'Suspensión cancelada: ya no está vencido sin pago.' ); return; }
@@ -989,19 +994,73 @@ class Digitalisimo_Hosting_Provisioning {
 			self::alert_admin( ( $suspend ? 'no se suspendió ' : 'no se reactivó ' ) . self::svc( $id, 'domain' ), $text );
 			return;
 		}
+		// Webuzo aceptó la orden («done»), pero eso no prueba nada (prueba real: con skip=1 contestaba éxito sin cambiar el
+		// estado, y sin skip el cambio tarda ~45 s). Se confirma con la lista de cuentas en una tarea aparte.
+		$pt = self::svc( $id, 'pending_toggle' ); $pt = is_array( $pt ) && ( $pt['op'] ?? '' ) === ( $suspend ? 'suspend' : 'unsuspend' ) ? $pt : array( 'sends' => 0 );
+		self::svc_set( $id, array( 'pending_toggle' => array( 'op' => $suspend ? 'suspend' : 'unsuspend', 'sends' => (int) $pt['sends'] + 1, 'checks' => 0, 't' => time() ), 'error' => '', 'toggle_attempts' => 0 ) );
+		self::svc_log( $id, 'Webuzo aceptó ' . ( $suspend ? 'suspender' : 'reactivar' ) . ' «' . $user . '»; se confirma con la lista de cuentas.' );
+		self::enqueue( self::HOOK_VERIFY, $id, self::VERIFY_DELAYS[0], true );
+	}
+
+	/** Esperas para confirmar una suspensión o reactivación (segundos) y cuántas veces se reenvía si no cambió. */
+	const VERIFY_DELAYS = array( 60, 120, 300, 600 );
+	const MAX_SENDS     = 3;
+
+	/**
+	 * Confirma con `act=users` (la consulta de sólo lectura, cerrada) que la suspensión o reactivación pedida se aplicó:
+	 * `status` = "suspended" o "". Si aún no, se vuelve a mirar más tarde; si tras las esperas no cambió, es una falla
+	 * reintentable: se reenvía la orden (hasta 3 veces) y después se avisa al administrador.
+	 */
+	public static function run_verify( $id ) {
+		if ( ! self::is_service( $id ) ) return;
+		$pt = self::svc( $id, 'pending_toggle' );
+		if ( ! is_array( $pt ) || empty( $pt['op'] ) ) return;
+		$suspend = 'suspend' === $pt['op'];
+		$user = (string) self::svc( $id, 'webuzo_user' );
+		$now = Digitalisimo_Hosting_Webuzo::from_settings()->status_of( $user, $r );
+		$checks = (int) ( $pt['checks'] ?? 0 ) + 1;
+		if ( null === $now ) {
+			if ( 'blocked' === $r['kind'] || 'auth' === $r['kind'] ) { self::wait( self::HOOK_VERIFY, $id ); return; }
+			if ( 'ok' === $r['kind'] ) { self::svc_set( $id, array( 'pending_toggle' => array(), 'error' => 'La cuenta «' . $user . '» no aparece en Webuzo.' ) ); self::alert_admin( 'cuenta no encontrada en Webuzo', 'La cuenta «' . $user . '» de ' . self::svc( $id, 'domain' ) . ' no aparece en la lista de Webuzo.' ); return; }
+			if ( $checks < count( self::VERIFY_DELAYS ) ) { $pt['checks'] = $checks; self::svc_set( $id, array( 'pending_toggle' => $pt ) ); self::enqueue( self::HOOK_VERIFY, $id, self::VERIFY_DELAYS[ $checks ], true ); }
+			return;
+		}
+		if ( $suspend === ( 'suspended' === $now ) ) { self::svc_set( $id, array( 'pending_toggle' => array() ) ); self::confirmed( $id, $suspend ); return; }
+		if ( $checks < count( self::VERIFY_DELAYS ) ) { $pt['checks'] = $checks; self::svc_set( $id, array( 'pending_toggle' => $pt ) ); self::enqueue( self::HOOK_VERIFY, $id, self::VERIFY_DELAYS[ $checks ], true ); return; }
+		$text = 'Webuzo aceptó ' . ( $suspend ? 'suspender' : 'reactivar' ) . ' «' . $user . '» pero la cuenta sigue ' . ( 'suspended' === $now ? 'suspendida' : 'activa' ) . '.';
+		if ( (int) $pt['sends'] < self::MAX_SENDS ) {
+			$pt['checks'] = 0; self::svc_set( $id, array( 'pending_toggle' => $pt, 'error' => $text ) );
+			self::svc_log( $id, $text . ' Se reenvía la orden (' . ( (int) $pt['sends'] + 1 ) . ' de ' . self::MAX_SENDS . ').' );
+			self::enqueue( $suspend ? self::HOOK_SUSPEND : self::HOOK_UNSUSPEND, $id, self::VERIFY_DELAYS[0], true );
+			return;
+		}
+		self::svc_set( $id, array( 'pending_toggle' => array(), 'error' => $text ) ); self::svc_log( $id, $text . ' Se dejó de insistir.' );
+		self::alert_admin( ( $suspend ? 'no se suspendió ' : 'no se reactivó ' ) . self::svc( $id, 'domain' ), $text . ' Se envió ' . self::MAX_SENDS . ' veces; revísalo en Webuzo.' );
+	}
+
+	/** Lo que pasa cuando Webuzo ya muestra la cuenta suspendida o activa. */
+	private static function confirmed( $id, $suspend ) {
+		$user = (string) self::svc( $id, 'webuzo_user' );
 		$auto = 'auto' === self::svc( $id, 'suspend_reason' );
+		$manual_unsuspend = 'manual' === self::svc( $id, 'unsuspend_reason' );
 		self::svc_set( $id, array( 'status' => $suspend ? 'suspended' : 'active', 'error' => '', 'toggle_attempts' => 0, 'suspended_at' => $suspend ? time() : 0 ) );
 		if ( ! $suspend ) {
-			// Reactivación manual: prórroga de los días de gracia (mínimo 7) contados desde hoy (una sola gracia, no el doble);
-			// la revisión diaria no vuelve a suspender antes. Se ve en Servicios de hosting.
-			$grace = max( 7, (int) ( Digitalisimo_Hosting::settings()['grace_days'] ?? 7 ) );
-			$until = time() + $grace * DAY_IN_SECONDS;
-			self::svc_set( $id, array( 'suspend_reason' => '', 'suspend_for' => 0, 'reprieve_until' => $until ) );
+			$fields = array( 'suspend_reason' => '', 'suspend_for' => 0, 'unsuspend_reason' => '' );
+			// Reactivación manual del administrador: prórroga de los días de gracia (mínimo 7) desde hoy (una sola gracia);
+			// la revisión diaria no vuelve a suspender antes. Se ve en Servicios de hosting. Pagar no da prórroga.
+			if ( $manual_unsuspend ) $fields['reprieve_until'] = time() + max( 7, (int) ( Digitalisimo_Hosting::settings()['grace_days'] ?? 7 ) ) * DAY_IN_SECONDS;
+			self::svc_set( $id, $fields );
 		}
-		self::svc_log( $id, $suspend ? ( $auto ? 'Suspendido por falta de pago.' : 'Suspendido a mano.' ) : 'Reactivado a mano; prórroga hasta el ' . self::date( (int) self::svc( $id, 'reprieve_until' ) ) . '.' );
-		$renewal = wc_get_order( (int) self::svc( $id, 'renewal_order' ) );
+		self::svc_log( $id, $suspend ? ( $auto ? 'Suspendido por falta de pago (confirmado en Webuzo).' : 'Suspendido a mano (confirmado en Webuzo).' ) : ( $manual_unsuspend ? 'Reactivado a mano (confirmado en Webuzo); prórroga hasta el ' . self::date( (int) self::svc( $id, 'reprieve_until' ) ) . '.' : 'Reactivado (confirmado en Webuzo).' ) );
+		$renewal = wc_get_order( (int) ( self::svc( $id, 'renewal_order' ) ?: self::svc( $id, 'last_renewal_order' ) ) );
 		if ( $renewal ) $renewal->add_order_note( 'DIGITALÍSIMO Hosting: cuenta «' . $user . '» ' . ( $suspend ? 'suspendida' : 'reactivada' ) . ' en Webuzo.' );
-		if ( $suspend && $auto && $renewal && ! in_array( $renewal->get_status(), array( 'processing', 'completed' ), true ) ) self::send_renewal( $renewal, $id, 'suspended' );
+		if ( $suspend && 'manual' !== self::svc( $id, 'suspend_reason' ) && ! self::overdue( $id ) ) {
+			// Pagó mientras la orden de suspender viajaba: se reactiva enseguida.
+			self::svc_set( $id, array( 'unsuspend_reason' => 'paid' ) ); self::svc_log( $id, 'Ya pagó: se reactiva.' );
+			self::enqueue( self::HOOK_UNSUSPEND, $id );
+			return;
+		}
+		if ( $suspend && $auto && $renewal && ! self::renewal_confirmed( $renewal ) ) self::send_renewal( $renewal, $id, 'suspended' );
 	}
 
 	/**

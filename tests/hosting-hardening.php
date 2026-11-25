@@ -149,7 +149,7 @@ $o = digi_buy( 'promete.com' ); $s = digi_pay_run( $o );
 $P::svc_set( $s, array( 'expires' => time() - 10 * DAY_IN_SECONDS ) );
 $P::daily(); digi_run_queue();
 check( 'suspended' === $P::svc( $s, 'status' ), 'Suspendido tras la gracia' );
-$P::enqueue( $P::HOOK_UNSUSPEND, $s ); digi_run_queue();
+$P::svc_set( $s, array( 'unsuspend_reason' => 'manual' ) ); $P::enqueue( $P::HOOK_UNSUSPEND, $s ); digi_run_queue(); // como «Reactivar» de la pantalla
 $P::daily( time() + DAY_IN_SECONDS ); digi_run_queue();
 check( 'active' === $P::svc( $s, 'status' ), 'Reactivado a mano: la revisión del día siguiente no lo vuelve a suspender' );
 check( abs( (int) $P::svc( $s, 'reprieve_until' ) - ( time() + 7 * DAY_IN_SECONDS ) ) < 60, 'La prórroga es una sola gracia desde hoy (no el doble)' );

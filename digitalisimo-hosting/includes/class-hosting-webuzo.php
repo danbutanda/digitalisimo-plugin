@@ -11,8 +11,12 @@ defined( 'ABSPATH' ) || exit;
  *    `user_passwd`, `cnf_user_passwd`, `email` y `plan`; el éxito trae `done` («The User has been saved successfully»).
  *  - Listar cuentas: https://webuzo.com/docs/api/list-users/ — `act=users`; `users` es un objeto por usuario con
  *    `user`, `domain`, `email`, `plan` y `status`.
- *  - Suspender: https://webuzo.com/docs/api/suspend-user/ — `act=users` con `suspend=<usuario>` y `skip=1`.
- *  - Reactivar: https://webuzo.com/docs/api/unsuspend-user/ — `act=users` con `unsuspend=<usuario>` y `skip=1`.
+ *  - Suspender: https://webuzo.com/docs/api/suspend-user/ — `act=users` con `suspend=<usuario>`.
+ *  - Reactivar: https://webuzo.com/docs/api/unsuspend-user/ — `act=users` con `unsuspend=<usuario>`.
+ *    La documentación pide además `skip=1`, pero en la prueba real autorizada del 2026-11-24 (webuzo-real/) ese Webuzo
+ *    contestó «Usuario suspendido con éxito» / «Usuario reactivado con éxito» SIN cambiar nada; sin `skip`, la cuenta
+ *    quedó suspendida en unos 45 s. Por eso no se manda `skip` y el cambio se confirma después con `act=users`
+ *    (`status` = "suspended" o ""), nunca sólo por el «done».
  *  - Mensajes de bloqueo por intentos: https://webuzo.com/docs/api/brute-force/ («Incorrect Username or Password»,
  *    «attempt(s) left», «You have exceeded maximum login retries», «Your IP has been blacklisted»).
  *
@@ -171,6 +175,8 @@ class Digitalisimo_Hosting_Webuzo {
 			// Crear, suspender y reactivar sólo cuentan como hechos con la confirmación «done» de la documentación.
 			$result = array( 'kind' => 'api', 'data' => $result['data'], 'message' => 'Webuzo no confirmó la operación (sin «done»)' );
 		}
+		// add_user devuelve la contraseña EN CLARO en done.data.user_passwd (prueba real): no sale de aquí, ni en $result.
+		if ( 'add_user' === $op ) $result['data'] = isset( $result['data']['done'] ) ? array( 'done' => array( 'msg' => $result['message'] ) ) : ( isset( $result['data']['error'] ) ? array( 'error' => $result['data']['error'] ) : array() );
 		if ( 'auth' === $result['kind'] ) $this->block( $result['message'] );
 		if ( 'list' === $op && 'ok' === $result['kind'] ) $this->verified = true;
 		return $result;
@@ -192,7 +198,9 @@ class Digitalisimo_Hosting_Webuzo {
 			$message = self::flatten( $json['error'] );
 			return array( 'kind' => self::is_auth_message( $message ) ? 'auth' : 'api', 'data' => $json, 'message' => $message );
 		}
-		return array( 'kind' => 'ok', 'data' => $json, 'message' => isset( $json['done'] ) ? self::flatten( $json['done'] ) : '' );
+		// `done` es un objeto ({msg: …}, en add_user también data y user): el mensaje es done['msg'].
+		$done = $json['done'] ?? null;
+		return array( 'kind' => 'ok', 'data' => $json, 'message' => is_array( $done ) && isset( $done['msg'] ) ? self::clean( (string) $done['msg'] ) : ( null !== $done ? self::flatten( $done ) : '' ) );
 	}
 
 	/**
@@ -272,6 +280,15 @@ class Digitalisimo_Hosting_Webuzo {
 		$list = $this->users();
 		if ( 'ok' !== $list['kind'] ) return $list;
 		if ( ! isset( $list['users'][ strtolower( (string) $user ) ] ) ) return array( 'kind' => 'api', 'data' => array(), 'message' => 'La cuenta «' . $user . '» no existe en Webuzo' );
-		return $this->call( 'users', array( $op => $user, 'skip' => 1 ) );
+		// Sin `skip` (ver arriba): con skip=1 este Webuzo responde éxito sin hacer nada.
+		return $this->call( 'users', array( $op => $user ) );
+	}
+
+	/** El estado actual de una cuenta («suspended» o ""), o null si no está o la lista no respondió (con $r el resultado). */
+	public function status_of( $user, &$r = null ) {
+		$r = $this->users();
+		if ( 'ok' !== $r['kind'] ) return null;
+		$u = $r['users'][ strtolower( (string) $user ) ] ?? null;
+		return $u ? (string) $u['status'] : null;
 	}
 }

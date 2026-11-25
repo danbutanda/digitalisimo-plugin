@@ -117,7 +117,7 @@ check( ! $W::is_auth_message( 'La contraseña debe tener al menos 20 caracteres'
 // S10: reactivar a mano una suspensión manual a mitad del año: la prórroga no pasa del vencimiento + gracia.
 reset_all();
 $o = buy( 'abuso.com' ); $s = pay( $o ); $exp = (int) $P::svc( $s, 'expires' );
-$P::svc_set( $s, array( 'suspend_reason' => 'manual' ) ); $P::run_suspend( $s ); $P::run_unsuspend( $s );
+$P::svc_set( $s, array( 'suspend_reason' => 'manual' ) ); $P::run_suspend( $s ); digi_run_queue(); $P::svc_set( $s, array( 'unsuspend_reason' => 'manual' ) ); $P::run_unsuspend( $s ); digi_run_queue();
 $P::daily( $exp - 29 * DAY_IN_SECONDS ); $P::daily( $exp + 8 * DAY_IN_SECONDS ); digi_run_queue();
 check( (int) $P::svc( $s, 'reprieve_until' ) < $exp && 'suspended' === $P::svc( $s, 'status' ), 'S10 sin gracia doble: a los 8 días del vencimiento sin pago se suspende' );
 
@@ -166,6 +166,6 @@ foreach ( array( array( 'pass_mismatch' => 'Las contraseñas ingresadas no coinc
 	check( 'api' === $c['kind'] && false === strpos( $c['message'], '<b>' ), 'Respuesta real: «' . key( $err ) . '» es error de la operación (no de clave), sin HTML' );
 }
 $c = $W::classify( digi_json( array( 'title' => 'Webuzo', 'done' => array( 'msg' => 'Usuario suspendido con éxito' ), 'users' => array(), 'num_res' => 40, 'reslen' => 50, 'cur_page' => 0 ) ) );
-check( 'ok' === $c['kind'] && 'msg: Usuario suspendido con éxito' === $c['message'], 'Respuesta real: «done» en español cuenta como hecho' );
+check( 'ok' === $c['kind'] && 'Usuario suspendido con éxito' === $c['message'], 'Respuesta real: el mensaje es done[\'msg\']' );
 
 echo "Hosting, tercera revisión: {$GLOBALS['checks']} comprobaciones correctas.\n";
