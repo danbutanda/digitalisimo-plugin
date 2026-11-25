@@ -194,7 +194,9 @@ final class Executor {
 		}
 		$env  = array(
 			'site_host' => (string) wp_parse_url( home_url(), PHP_URL_HOST ),
-			'timezone'  => wp_timezone(),
+			// Las fechas del dueño (ends, close_date) van en la hora de la tienda; el contador se guarda en la del sitio.
+			'timezone'      => Site::sales_timezone(),
+			'site_timezone' => wp_timezone(),
 			'now'       => time(),
 		);
 		$site = isset( $deps['site'] ) && is_array( $deps['site'] ) ? $deps['site'] : Site::read();

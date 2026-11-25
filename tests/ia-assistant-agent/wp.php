@@ -137,7 +137,8 @@ function url_to_postid( $url ) { foreach ( $GLOBALS['posts'] as $p ) if ( isset(
 function sanitize_title( $t ) { return strtolower( preg_replace( '/[^a-z0-9]+/i', '-', trim( (string) $t ) ) ); }
 function is_email( $e ) { return (bool) filter_var( $e, FILTER_VALIDATE_EMAIL ); }
 function wp_date( $f, $ts = null ) { return gmdate( $f, null === $ts ? time() : $ts ); }
-function wp_timezone_string() { return 'America/Mexico_City'; }
+function wp_timezone_string() { return $GLOBALS['tz'] ?? 'America/Mexico_City'; }
+function wp_timezone() { return new DateTimeZone( wp_timezone_string() ); }
 function remove_accents( $t ) { return strtr( (string) $t, array( 'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'ñ' => 'n', 'Ñ' => 'N', 'ü' => 'u' ) ); }
 function get_post_type_object( $t ) { return in_array( $t, array( 'post', 'page', 'product', 'attachment', 'elementor_library', 'shop_coupon', 'feedback', 'flamingo_inbound' ), true ) ? (object) array( 'name' => $t ) : null; }
 function is_post_type_viewable( $o ) { return is_object( $o ) && in_array( $o->name, array( 'post', 'page', 'product', 'attachment' ), true ); }

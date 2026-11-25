@@ -284,3 +284,13 @@
   .dga-side, .dga-icon-button, .dga-composer, .dga-thread-area { transition: none; scroll-behavior: auto; }
   .dga-spinner { animation-duration: 2s; }
 }
+
+/* El trabajo de un turno plegado en una línea (caso plomerito 2: 19 líneas «Consultó: …» abrumaban). */
+.dga-root .dga-work { align-self: flex-start; max-inline-size: min(85%, 48rem); margin-inline-start: 2.5rem; border: 1px solid var(--ds-border-default); border-radius: var(--ds-radius-md); background: var(--ds-surface-raised); font-size: var(--font-size-xs); }
+.dga-root .dga-work > summary { display: flex; align-items: center; gap: var(--ds-space-2); padding: var(--ds-space-2) var(--ds-space-3); color: var(--ds-text-secondary); cursor: pointer; list-style: none; }
+.dga-root .dga-work > summary::-webkit-details-marker { display: none; }
+.dga-root .dga-work-list { display: flex; flex-direction: column; gap: var(--ds-space-2); padding: var(--ds-space-2) var(--ds-space-3); border-block-start: 1px solid var(--ds-border-default); }
+.dga-root .dga-work-list .dga-tool { max-inline-size: 100%; margin-inline-start: 0; }
+.dga-root .dga-work-note { margin: 0; color: var(--ds-text-secondary); white-space: pre-wrap; }
+.dga-root .dga-tool-state[data-status="unknown"] { background: var(--ds-color-warning-subtle); color: var(--ds-color-warning); }
+.dga-root .dga-inline-link { color: inherit; font-weight: var(--font-weight-semibold); text-decoration: underline; }

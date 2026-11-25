@@ -255,7 +255,10 @@ final class Builder {
 			'[hora de cierre]' => $close->format( 'H:i' ),
 		) : array();
 		// La fecha de los contadores: la plantilla trae una ya pasada (el widget no admite un placeholder).
-		$due = $close ? $close->format( 'Y-m-d H:i' ) : null;
+		// El widget del contador lee su fecha en la zona del sitio (wp_timezone()): el cierre, que es en la hora de la
+		// tienda, se pasa a esa zona.
+		$site_tz = isset( $env['site_timezone'] ) && $env['site_timezone'] instanceof \DateTimeZone ? $env['site_timezone'] : null;
+		$due     = $close ? ( $site_tz ? $close->setTimezone( $site_tz ) : $close )->format( 'Y-m-d H:i' ) : null;
 		$resolver = static function ( string $field ) use ( &$plan, &$filled, &$here, &$where, &$price_error, $price_ok, $close_ph ) {
 			return static function ( $key ) use ( &$plan, &$filled, &$here, &$where, &$price_error, $price_ok, $close_ph, $field ) {
 				if ( isset( $close_ph[ $key ] ) ) {
@@ -300,7 +303,10 @@ final class Builder {
 			$content,
 			static function ( $owner, $path, $value, $id = '' ) use ( $resolver, $whatsapp, $due, $gone, $block_of, &$here, &$where, $tz_label ) {
 				if ( '' !== $tz_label && 'hora del centro de México' !== $tz_label && false !== strpos( $value, ' de cierre]' ) ) {
-					$value = str_replace( array( '(hora del centro de México)', '(centro de México)' ), '(' . $tz_label . ')', $value );
+					// «hora UTC» no le dice nada a un cliente: sin una zona con nombre, la hora va sola.
+					$value = 0 === strpos( $tz_label, 'hora UTC' )
+						? str_replace( array( ' (hora del centro de México)', ' (centro de México)', '(hora del centro de México)', '(centro de México)' ), '', $value )
+						: str_replace( array( '(hora del centro de México)', '(centro de México)' ), '(' . $tz_label . ')', $value );
 				}
 				$here  = isset( $gone[ $id ] );
 				$where = $block_of[ $id ] ?? '';
@@ -569,14 +575,14 @@ final class Builder {
 		return '';
 	}
 
-	/** `close_date` («AAAA-MM-DD HH:MM», hora del sitio): una fecha válida, futura y a menos de dos años. */
+	/** `close_date` («AAAA-MM-DD HH:MM», hora de la tienda): una fecha válida, futura y a menos de dos años. */
 	private static function close_date( $value, array $env ) {
 		$tz  = isset( $env['timezone'] ) && $env['timezone'] instanceof \DateTimeZone ? $env['timezone'] : new \DateTimeZone( 'UTC' );
 		$now = isset( $env['now'] ) ? (int) $env['now'] : time();
 		$raw = is_string( $value ) ? trim( $value ) : '';
 		$at  = preg_match( '/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$/', $raw ) ? \DateTimeImmutable::createFromFormat( '!Y-m-d H:i', $raw, $tz ) : false;
 		if ( ! $at || $at->format( 'Y-m-d H:i' ) !== $raw ) {
-			return self::error( 'digitalisimo_sales_close_date', 'close_date: «AAAA-MM-DD HH:MM» en la hora del sitio (p. ej. 2026-12-15 23:59).' );
+			return self::error( 'digitalisimo_sales_close_date', 'close_date: «AAAA-MM-DD HH:MM» en la hora de la tienda (p. ej. 2026-12-15 23:59).' );
 		}
 		if ( $at->getTimestamp() <= $now ) {
 			return self::error( 'digitalisimo_sales_close_date', 'close_date ya pasó: la urgencia sólo con un cierre real y futuro.' );
