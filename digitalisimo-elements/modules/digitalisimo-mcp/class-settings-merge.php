@@ -178,7 +178,9 @@ final class Settings_Merge {
 		}
 		$slug = null;
 		if ( array_key_exists( self::SLUG, $changes ) ) {
-			$slug = is_string( $changes[ self::SLUG ] ) && function_exists( 'sanitize_title' ) ? sanitize_title( $changes[ self::SLUG ] ) : '';
+			// Un slug numérico (2026) llega como número en el JSON: vale igual que su texto.
+			$raw  = $changes[ self::SLUG ];
+			$slug = ( is_string( $raw ) || is_int( $raw ) ) && function_exists( 'sanitize_title' ) ? sanitize_title( (string) $raw ) : '';
 			if ( '' === $slug ) {
 				return new \WP_Error( 'invalid_post_name', 'post_name must be a non-empty slug (letters, numbers and hyphens).', array( 'status' => 400 ) );
 			}
@@ -209,14 +211,16 @@ final class Settings_Merge {
 		if ( ! self::succeeded( $result ) ) {
 			return $result;
 		}
+		$slug_error = null;
 		if ( null !== $slug ) {
 			// Sólo el slug. `page_template` en null, como la REST de WordPress: `wp_update_post()` no revalida ni reescribe la
 			// plantilla (una que el tema ya no ofrece daría `invalid_page_template`).
 			$updated = wp_update_post( array( 'ID' => $id, 'post_name' => $slug, 'page_template' => null ), true );
-			if ( is_wp_error( $updated ) ) {
-				return $updated;
+			if ( is_wp_error( $updated ) || ! $updated ) {
+				$slug_error = is_wp_error( $updated ) ? $updated : null;
+			} else {
+				$result['post_name'] = (string) get_post_field( 'post_name', $id, 'raw' );
 			}
-			$result['post_name'] = (string) get_post_field( 'post_name', $id, 'raw' );
 		}
 		$after = self::undo_kses( $id, $before, self::stored( $id ), $changes );
 		// Las copias de metas propias que no vinieron se dejan de guardar sin perder nada: no se informan.
@@ -225,6 +229,21 @@ final class Settings_Merge {
 		$result['changed_keys'] = $changed;
 		$result['removed_keys'] = $removed;
 		$result['post_fields']  = array_values( array_intersect( self::POST_FIELDS, array_map( 'strval', array_keys( $changes ) ) ) );
+		if ( null !== $slug && ! isset( $result['post_name'] ) ) {
+			// Los ajustes ya se guardaron: se dice claro qué pasó y qué no, con lo que sí cambió.
+			$why = $slug_error && method_exists( $slug_error, 'get_error_message' ) ? (string) $slug_error->get_error_message() : 'WordPress no lo aceptó';
+			return new \WP_Error(
+				'post_name_not_changed',
+				'Ajustes guardados; el slug no se pudo cambiar: ' . ( '' !== $why ? $why : 'WordPress no lo aceptó' ),
+				array(
+					'status'         => 500,
+					'settings_saved' => true,
+					'changed_keys'   => $result['changed_keys'],
+					'removed_keys'   => $result['removed_keys'],
+					'post_name'      => (string) get_post_field( 'post_name', $id, 'raw' ),
+				)
+			);
+		}
 		return $result;
 	}
 

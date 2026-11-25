@@ -225,6 +225,9 @@ namespace {
 		public function get_error_code() {
 			return $this->code;
 		}
+		public function get_error_message() {
+			return $this->message;
+		}
 	}
 	class WP_Http {
 		const BAD_REQUEST           = 400;
@@ -497,6 +500,9 @@ namespace {
 	/** `wp_update_post()`: anota lo recibido y aplica el slug a la entrada. */
 	function wp_update_post( $postarr, $wp_error = false ) {
 		$GLOBALS['ms']['updates'][] = $postarr;
+		if ( ! empty( $GLOBALS['ms']['slug_fail'] ) ) {
+			return new WP_Error( 'db_update_error', 'No se pudo actualizar la entrada en la base de datos.' );
+		}
 		if ( isset( $postarr['post_name'] ) ) {
 			$GLOBALS['ms']['slugs'][ (int) $postarr['ID'] ] = $postarr['post_name'];
 		}
@@ -648,6 +654,17 @@ namespace {
 	$GLOBALS['ms']['meta'][ PAGE ]['_elementor_page_settings']['post_name'] = 'basura-de-antes';
 	$r = ms_run( 'elementor/update-page-settings', array( 'post_id' => PAGE, 'settings' => array( 'hide_title' => 'yes' ) ) );
 	check( is_array( $r ) && ! array_key_exists( 'post_name', (array) ms_meta( PAGE ) ) && empty( $GLOBALS['ms']['updates'] ), 'N3: un post_name guardado antes como ajuste se limpia y no se aplica a la entrada' );
+
+	// N4: un slug numérico (llega como número en el JSON) vale (revisión del 2026-11-25).
+	ms_reset();
+	$r = ms_run( 'elementor/update-page-settings', array( 'post_id' => PAGE, 'settings' => array( 'post_name' => 2026 ) ) );
+	check( is_array( $r ) && '2026' === ( $r['post_name'] ?? '' ) && '2026' === ( $GLOBALS['ms']['slugs'][ PAGE ] ?? '' ), 'N4: un slug numérico (2026) se acepta' );
+	// N5: si el slug no se puede cambiar pero los ajustes ya se guardaron, el error lo dice claro.
+	ms_reset();
+	$GLOBALS['ms']['slug_fail'] = true;
+	$r = ms_run( 'elementor/update-page-settings', array( 'post_id' => PAGE, 'settings' => array( 'post_name' => 'nuevo', 'hide_title' => 'yes' ) ) );
+	check( is_wp_error( $r ) && 'post_name_not_changed' === $r->get_error_code() && 0 === strpos( $r->get_error_message(), 'Ajustes guardados; el slug no se pudo cambiar: No se pudo actualizar' ), 'N5: «Ajustes guardados; el slug no se pudo cambiar: …» con el motivo' );
+	check( 'yes' === ( ms_meta( PAGE )['hide_title'] ?? '' ), 'N5: y los ajustes sí quedaron guardados' );
 
 	// P2: borrar la última clave borra la meta (el núcleo no guarda ajustes vacíos).
 	ms_reset();
