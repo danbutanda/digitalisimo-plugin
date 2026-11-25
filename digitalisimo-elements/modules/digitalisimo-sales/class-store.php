@@ -439,13 +439,31 @@ final class Store {
 		if ( ! $post ) {
 			return '';
 		}
-		$text = self::plain( (string) $post->post_content );
-		if ( '' === $text && function_exists( 'get_post_meta' ) ) {
-			// Una página del constructor: sólo su texto visible (títulos, textos, preguntas), nunca el JSON guardado.
+		// Sólo los párrafos: el título de la política («Devoluciones») no se pega a la primera frase.
+		$paras = Product::paragraphs( (string) $post->post_content );
+		if ( ! $paras && function_exists( 'get_post_meta' ) ) {
+			// Una página del constructor: los párrafos de sus textos (nunca el JSON guardado ni sus títulos).
 			$data = json_decode( (string) get_post_meta( $id, '_elementor_data', true ), true );
-			$text = is_array( $data ) ? trim( implode( ' ', array_filter( self::texts( $data ) ) ) ) : '';
+			foreach ( is_array( $data ) ? self::editor_html( $data ) : array() as $html ) {
+				$paras = array_merge( $paras, Product::paragraphs( $html ) );
+			}
 		}
-		return Product::first_sentence( $text );
+		return $paras ? Product::first_sentence( $paras[0] ) : '';
+	}
+
+	/** El HTML de los textos (widgets de texto) de unos elementos, en orden. */
+	private static function editor_html( array $elements, int $depth = 0 ): array {
+		$out = array();
+		foreach ( $elements as $el ) {
+			if ( ! is_array( $el ) || $depth > 40 ) {
+				continue;
+			}
+			if ( 'text-editor' === ( $el['widgetType'] ?? '' ) && is_string( $el['settings']['editor'] ?? null ) ) {
+				$out[] = $el['settings']['editor'];
+			}
+			$out = array_merge( $out, self::editor_html( (array) ( $el['elements'] ?? array() ), $depth + 1 ) );
+		}
+		return $out;
 	}
 
 	/* ------------------------------------------------------------------ */

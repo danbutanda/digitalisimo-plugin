@@ -511,6 +511,14 @@ namespace {
 	check( 2 === count( $GLOBALS['sb_transients'] ), 'R8 si el logo cambia (otra fecha de modificación), se vuelve a analizar' );
 	@unlink( $logo );
 
+	// R9 · El título de la política no se pega a la frase (detalle 3): ni en el constructor ni en el editor de bloques.
+	$GLOBALS['sb_posts'] = array( 70 => (object) array( 'ID' => 70, 'post_content' => '' ) );
+	$GLOBALS['sb_meta']  = array( 70 => array( '_elementor_data' => json_encode( array( array( 'id' => 'a1b2c3d', 'elType' => 'container', 'settings' => array(), 'elements' => array( array( 'id' => 'b1', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Devoluciones' ), 'elements' => array() ), array( 'id' => 'b2', 'elType' => 'widget', 'widgetType' => 'text-editor', 'settings' => array( 'editor' => '<p>Tienes 30 días para devolver tu compra. Escríbenos.</p>' ), 'elements' => array() ) ) ) ) ) ) );
+	check( 'Tienes 30 días para devolver tu compra.' === Store::refund_line( 'https://ferre.test/devoluciones/' ), 'R9 con el constructor: sólo el párrafo, sin el título «Devoluciones» pegado · ' . Store::refund_line( 'https://ferre.test/devoluciones/' ) );
+	$GLOBALS['sb_meta']  = array();
+	$GLOBALS['sb_posts'] = array( 70 => (object) array( 'ID' => 70, 'post_content' => "<h2>Política de devoluciones</h2>\n<p>Tienes 30 días para devolver tu compra sin uso.</p>" ) );
+	check( 'Tienes 30 días para devolver tu compra sin uso.' === Store::refund_line( 'https://ferre.test/devoluciones/' ), 'R9 con bloques: sólo el párrafo, sin el título pegado · ' . Store::refund_line( 'https://ferre.test/devoluciones/' ) );
+
 	// R6 · El aviso del precio no dice «precio normal» de algo que puede estar rebajado.
 	check( (bool) preg_grep( '/todavía no aplica este descuento/', $page['warnings'] ), 'R6 el aviso del precio de la tienda' );
 
