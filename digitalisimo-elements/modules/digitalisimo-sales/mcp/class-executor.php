@@ -450,7 +450,10 @@ final class Executor {
 			'main_button_cart'   => $cart,
 			'course_texts'       => Store::course_texts( $elements ),
 			// Sin identidad en el sitio (ni kit propio, ni colores en su cabecera, pie o logo) no hay nada que corregir.
-			'ok'                 => ( $look['matches_site'] || ! $look['site_identity'] ) && ! $look['digitalisimo'] && $header && ! $cart && ! Store::course_texts( $elements ),
+			'contrast_ok'        => ! $look['contrast'],
+			// Sin identidad en el sitio (ni kit propio, ni colores en su cabecera, pie o logo) no hay colores que corregir;
+			// el contraste se exige siempre.
+			'ok'                 => ( $look['matches_site'] || ! $look['site_identity'] ) && ! $look['digitalisimo'] && ! $look['contrast'] && $header && ! $cart && ! Store::course_texts( $elements ),
 		);
 	}
 

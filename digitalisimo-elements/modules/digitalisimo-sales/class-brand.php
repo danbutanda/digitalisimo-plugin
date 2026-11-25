@@ -311,6 +311,7 @@ final class Brand {
 					'button' => 0,
 					'text'   => 0,
 					'light'  => 0,
+					'solid'  => 0,
 					'all'    => 0,
 				);
 			}
@@ -322,6 +323,10 @@ final class Brand {
 				$score[ $hex ]['text'] += $weight;
 			} elseif ( 'bg' === $kind && self::luminance( $hex ) > 0.8 && self::WHITE !== $hex ) {
 				$score[ $hex ]['light'] += $weight;
+			}
+			if ( ! self::vivid( $hex ) && ( 'bg' === $kind || 'button' === $kind ) && self::luminance( $hex ) < 0.6 ) {
+				// Un fondo o un botón fuerte sin tono (negro, gris oscuro): también es la marca de un sitio monocromo.
+				$score[ $hex ]['solid'] += $weight * ( 'bg' === $kind ? 3 : 1 );
 			}
 		}
 		$best = static function ( string $role, ?callable $ok = null ) use ( $score ): string {
@@ -344,6 +349,16 @@ final class Brand {
 		) : '';
 		$text    = $best( 'text' );
 		$light   = $best( 'light' );
+		if ( '' === $primary ) {
+			// Sin colores con tono: la marca de un sitio en negro y gris es su fondo fuerte (cabecera, pie).
+			$primary = $best( 'solid' );
+			$accent  = '' !== $primary ? $best(
+				'solid',
+				static function ( $hex ) use ( $primary ) {
+					return self::distance( $hex, $primary ) >= 60;
+				}
+			) : '';
+		}
 		$source  = '' !== $primary ? 'diseño' : '';
 
 		// Sin colores de marca en lo que se ve: el kit (si no es de fábrica) o el logo.
@@ -353,6 +368,13 @@ final class Brand {
 		if ( '' === $primary && ! $factory_colors ) {
 			foreach ( array( 'primary', 'accent', 'secondary' ) as $id ) {
 				if ( self::vivid( $by_kit( $id ) ) ) {
+					$primary = $by_kit( $id );
+					break;
+				}
+			}
+			// Un kit propio sin tonos (negro y gris) también es la identidad del sitio: su primario, si no es casi blanco.
+			foreach ( '' === $primary ? array( 'primary', 'secondary', 'accent', 'text' ) : array() as $id ) {
+				if ( '' !== $by_kit( $id ) && self::luminance( $by_kit( $id ) ) < 0.85 ) {
 					$primary = $by_kit( $id );
 					break;
 				}
@@ -367,6 +389,14 @@ final class Brand {
 			foreach ( array( 'accent', 'secondary', 'primary' ) as $id ) {
 				$hex = $by_kit( $id );
 				if ( self::vivid( $hex ) && self::hue_distance( $hex, $primary ) >= 35 ) {
+					$accent = $hex;
+					break;
+				}
+			}
+			// Un kit sin tonos: el acento es el color del kit que más se distingue del primario.
+			foreach ( '' === $accent && ! self::vivid( $primary ) ? array( 'accent', 'secondary', 'text' ) : array() as $id ) {
+				$hex = $by_kit( $id );
+				if ( '' !== $hex && self::distance( $hex, $primary ) >= 60 && self::luminance( $hex ) < 0.85 ) {
 					$accent = $hex;
 					break;
 				}
@@ -559,7 +589,125 @@ final class Brand {
 
 	/** Cambia en los elementos de una página los colores y las tipografías por los del sitio (`resolve()`). */
 	public static function apply( array $elements, array $brand ): array {
-		return self::apply_list( $elements, $brand, self::WHITE, 0 );
+		$elements = self::apply_list( $elements, $brand, self::WHITE, 0 );
+		$issues   = array();
+		return self::contrast_pass( $elements, $brand, self::WHITE, true, $issues, 0 );
+	}
+
+	/** Contraste mínimo WCAG AA: 4.5 en texto normal; 3 en botones, cifras, iconos y títulos grandes. */
+	const AA_TEXT  = 4.5;
+	const AA_LARGE = 3.0;
+
+	/**
+	 * El último paso, siempre (no sólo con colores de marca): cada texto contra el fondo sobre el que de verdad se pinta
+	 * (el de su botón, su caja del contador, su pregunta o su sección). Si no llega al mínimo de WCAG AA, con `$fix` se
+	 * cambia por blanco o negro (el que dé más contraste); sin él, sólo se anota en `$issues`.
+	 */
+	public static function contrast_pass( array $elements, array $brand, string $bg, bool $fix, array &$issues, int $depth ): array {
+		foreach ( $elements as $i => $el ) {
+			if ( ! is_array( $el ) || $depth > 40 ) {
+				continue;
+			}
+			$s       = is_array( $el['settings'] ?? null ) ? $el['settings'] : array();
+			$globals = is_array( $s['__globals__'] ?? null ) ? $s['__globals__'] : array();
+			$widget  = (string) ( $el['widgetType'] ?? '' );
+			$here    = $bg;
+			if ( 'widget' !== ( $el['elType'] ?? '' ) && in_array( (string) ( $s['background_background'] ?? '' ), array( 'classic', 'gradient' ), true ) ) {
+				$own = self::color_value( $s, $globals, 'background_color', $brand );
+				if ( '' !== $own ) {
+					$here = $own;
+				}
+			}
+			$pairs = self::text_pairs( $widget, $s, $globals, $brand, $here );
+			foreach ( $pairs as $pair ) {
+				list( $key, $against, $min ) = $pair;
+				$color = self::color_value( $s, $globals, $key, $brand );
+				if ( '' === $color || '' === $against ) {
+					continue;
+				}
+				if ( self::contrast( $color, $against ) + 1e-9 < $min ) {
+					$issues[] = sprintf( '%s.%s %s sobre %s (%.2f < %.1f)', '' !== $widget ? $widget : (string) ( $el['elType'] ?? '' ), $key, $color, $against, self::contrast( $color, $against ), $min );
+					if ( $fix ) {
+						unset( $globals[ $key ] );
+						$s[ $key ] = self::best_bw( $against );
+					}
+				}
+			}
+			// El resalte de un título (`selector span{color:…}`) contra la sección.
+			if ( 'heading' === $widget && is_string( $s['custom_css'] ?? null ) && preg_match( '/span\{color:(#[0-9A-Fa-f]{6})/', $s['custom_css'], $m ) ) {
+				$min = self::large_heading( $s ) ? self::AA_LARGE : self::AA_TEXT;
+				if ( self::contrast( strtoupper( $m[1] ), $here ) + 1e-9 < $min ) {
+					$issues[] = sprintf( 'heading.resalte %s sobre %s', strtoupper( $m[1] ), $here );
+					if ( $fix ) {
+						$s['custom_css'] = str_replace( $m[1], self::best_bw( $here ), $s['custom_css'] );
+					}
+				}
+			}
+			if ( $fix ) {
+				if ( $globals ) {
+					$s['__globals__'] = $globals;
+				} else {
+					unset( $s['__globals__'] );
+				}
+				$el['settings'] = $s;
+			}
+			if ( isset( $el['elements'] ) && is_array( $el['elements'] ) ) {
+				$el['elements'] = self::contrast_pass( $el['elements'], $brand, $here, $fix, $issues, $depth + 1 );
+			}
+			$elements[ $i ] = $el;
+		}
+		return $elements;
+	}
+
+	/** Los textos de un widget: [clave del color, fondo contra el que se lee, contraste mínimo]. */
+	private static function text_pairs( string $widget, array $s, array $globals, array $brand, string $here ): array {
+		$bg_of = static function ( string $key ) use ( $s, $globals, $brand, $here ): string {
+			$hex = self::color_value( $s, $globals, $key, $brand );
+			return '' !== $hex ? $hex : $here;
+		};
+		switch ( $widget ) {
+			case 'heading':
+				return array( array( 'title_color', $here, self::large_heading( $s ) ? self::AA_LARGE : self::AA_TEXT ) );
+			case 'text-editor':
+				return array( array( 'text_color', $here, self::AA_TEXT ), array( 'link_color', $here, self::AA_TEXT ) );
+			case 'button':
+				return array( array( 'button_text_color', $bg_of( 'background_color' ), self::AA_LARGE ) );
+			case 'countdown':
+				$box = $bg_of( 'box_background_color' );
+				return array( array( 'digits_color', $box, self::AA_LARGE ), array( 'label_color', $box, self::AA_TEXT ) );
+			case 'accordion':
+			case 'toggle':
+				$title = $bg_of( 'title_background' );
+				return array( array( 'title_color', $title, self::AA_TEXT ), array( 'tab_active_color', $title, self::AA_TEXT ), array( 'content_color', $bg_of( 'content_background_color' ), self::AA_TEXT ) );
+			case 'icon-box':
+			case 'image-box':
+				return array( array( 'title_color', $here, self::AA_TEXT ), array( 'description_color', $here, self::AA_TEXT ), array( 'primary_color', $here, self::AA_LARGE ) );
+			case 'icon-list':
+				return array( array( 'text_color', $here, self::AA_TEXT ), array( 'icon_color', $here, self::AA_LARGE ) );
+		}
+		$out = array();
+		foreach ( array_unique( array_merge( array_keys( $s ), array_keys( $globals ) ) ) as $key ) {
+			$key = (string) $key;
+			if ( preg_match( self::COLOR_KEY, $key ) && ! preg_match( '/background|border|divider|separator|shadow|overlay|hover|line|_b$/', $key ) ) {
+				$out[] = array( $key, $here, self::AA_TEXT );
+			}
+		}
+		return $out;
+	}
+
+	/** ¿Un título grande (WCAG: 24 px o más, o 18.66 px en negritas; h1 a h3 sin tamaño)? */
+	private static function large_heading( array $s ): bool {
+		$size   = (float) ( $s['typography_font_size']['size'] ?? 0 );
+		$weight = (int) ( $s['typography_font_weight'] ?? 400 );
+		if ( $size > 0 ) {
+			return $size >= 24 || ( $size >= 18.66 && $weight >= 700 );
+		}
+		return in_array( (string) ( $s['header_size'] ?? 'h2' ), array( 'h1', 'h2', 'h3' ), true );
+	}
+
+	/** Blanco o negro: el que más contraste dé sobre ese fondo. */
+	public static function best_bw( string $bg ): string {
+		return self::contrast( self::WHITE, $bg ) >= self::contrast( '#000000', $bg ) ? self::WHITE : '#000000';
 	}
 
 	private static function apply_list( array $elements, array $brand, string $bg, int $depth ): array {
@@ -674,10 +822,6 @@ final class Brand {
 			} else {
 				return array( $settings, $globals, self::hex( $value ) );
 			}
-		}
-		if ( 'bg' === $kind && 'primary' === $role && self::contrast( $brand['colors']['primary']['color'], self::WHITE ) < 3 ) {
-			// Un fondo fuerte con texto claro encima: si la marca es clara, el texto oscuro del sitio como fondo.
-			$role = 'text';
 		}
 		if ( 'fg' === $kind && 'text' !== $role ) {
 			$hex = $brand['colors'][ $role ]['color'];
@@ -832,30 +976,51 @@ final class Brand {
 			$kit['colors'][ $id ] = array( 'color' => self::hex( (string) $hex ) );
 		}
 		self::look_walk( $elements, $kit, $colors, $fonts, 0 );
+		$contrast = array();
+		self::contrast_pass( $elements, $brand + array( 'kit_colors' => $kit['colors'] ), self::WHITE, false, $contrast, 0 );
 		$colors = array_values( array_unique( $colors ) );
 		$fonts  = array_values( array_unique( $fonts ) );
-		$bad    = array();
+		// Los colores DEL SITIO: los papeles de su marca, los de su kit y los que se ven en su cabecera, pie y portada. Un
+		// color de la paleta DIGITALÍSIMO sólo es ajeno si el sitio no lo usa (digitalisimo.lat y .mx sí la usan).
+		$site = array();
+		foreach ( (array) ( $brand['colors'] ?? array() ) as $c ) {
+			$site[] = (string) $c['color'];
+		}
+		foreach ( (array) ( $brand['kit_colors'] ?? array() ) as $c ) {
+			$site[] = (string) ( is_array( $c ) ? ( $c['color'] ?? '' ) : $c );
+		}
+		foreach ( $kit['colors'] as $c ) {
+			$site[] = (string) $c['color'];
+		}
+		foreach ( (array) ( $brand['seen'] ?? array() ) as $hex ) {
+			$site[] = (string) $hex;
+		}
+		$site = array_values( array_unique( array_filter( $site ) ) );
+		$bad  = array();
 		foreach ( $colors as $hex ) {
-			if ( isset( self::DIGITALISIMO[ $hex ] ) ) {
+			if ( isset( self::DIGITALISIMO[ $hex ] ) && ! self::near_any( $hex, $site ) ) {
 				$bad[] = $hex;
 			}
 		}
+		// La marca aparece si su primario o su acento está en la página (en un texto, un fondo, un borde o un icono).
 		$used = array();
 		foreach ( (array) ( $brand['colors'] ?? array() ) as $role => $c ) {
-			if ( in_array( $c['color'], $colors, true ) ) {
+			if ( self::near_any( (string) $c['color'], $colors ) ) {
 				$used[] = $role;
 			}
 		}
-		$want  = array_filter( array( (string) ( $brand['fonts']['heading'] ?? '' ), (string) ( $brand['fonts']['body'] ?? '' ) ) );
+		$want     = array_filter( array( (string) ( $brand['fonts']['heading'] ?? '' ), (string) ( $brand['fonts']['body'] ?? '' ) ) );
 		$fonts_ok = ! $want || ! array_diff( $fonts, $want );
+		$identity = 'ninguna' !== ( $brand['source'] ?? '' );
 		return array(
-			'colors'       => $colors,
-			'fonts'        => $fonts,
-			'digitalisimo' => $bad,
-			'brand_used'   => $used,
-			'fonts_ok'     => $fonts_ok,
-			'site_identity' => 'ninguna' !== ( $brand['source'] ?? '' ),
-			'matches_site' => ! $bad && in_array( 'primary', $used, true ) && $fonts_ok && 'ninguna' !== ( $brand['source'] ?? '' ),
+			'colors'        => $colors,
+			'fonts'         => $fonts,
+			'digitalisimo'  => $bad,
+			'brand_used'    => $used,
+			'fonts_ok'      => $fonts_ok,
+			'contrast'      => array_values( array_unique( $contrast ) ),
+			'site_identity' => $identity,
+			'matches_site'  => ! $bad && (bool) array_intersect( array( 'primary', 'accent' ), $used ) && $fonts_ok && $identity,
 		);
 	}
 
@@ -1050,6 +1215,16 @@ final class Brand {
 		list( $r1, $g1, $b1 ) = self::rgb( $a );
 		list( $r2, $g2, $b2 ) = self::rgb( $b );
 		return sqrt( ( $r1 - $r2 ) ** 2 + ( $g1 - $g2 ) ** 2 + ( $b1 - $b2 ) ** 2 );
+	}
+
+	/** ¿Está ese color (casi igual) en la lista? */
+	public static function near_any( string $hex, array $list, float $tolerance = 8.0 ): bool {
+		foreach ( $list as $other ) {
+			if ( self::distance( $hex, (string) $other ) < $tolerance ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static function is_whiteish( string $value ): bool {

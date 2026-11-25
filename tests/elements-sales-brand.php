@@ -402,5 +402,94 @@ namespace {
 	// R6 · El aviso del precio no dice «precio normal» de algo que puede estar rebajado.
 	check( (bool) preg_grep( '/todavía no aplica este descuento/', $page['warnings'] ), 'R6 el aviso del precio de la tienda' );
 
+	// ── C · Contraste WCAG AA en todas las paletas (bloqueo 1 de la revisión) ───────────────────────────────────────
+	// Un recorrido propio de la prueba (no el de Brand): cada texto contra el fondo donde se pinta. Botones, cifras,
+	// iconos y títulos grandes: 3; el resto: 4.5.
+	$kitset = static function ( array $colors ) {
+		$sys = array();
+		foreach ( $colors as $id => $hex ) {
+			$sys[] = array( '_id' => $id, 'title' => $id, 'color' => $hex );
+		}
+		return Brand::kit_from_settings( array( 'system_colors' => $sys ) );
+	};
+	$eff = static function ( array $s, string $key, array $kit ): string {
+		$g = $s['__globals__'][ $key ] ?? '';
+		return '' !== $g ? Brand::resolve_global( $g, $kit ) : Brand::hex( (string) ( $s[ $key ] ?? '' ) );
+	};
+	$audit = static function ( array $els, string $bg, array $kit, array &$bad ) use ( &$audit, $eff ) {
+		foreach ( $els as $e ) {
+			$s    = (array) ( $e['settings'] ?? array() );
+			$here = $bg;
+			if ( 'widget' !== $e['elType'] && in_array( $s['background_background'] ?? '', array( 'classic', 'gradient' ), true ) && '' !== $eff( $s, 'background_color', $kit ) ) {
+				$here = $eff( $s, 'background_color', $kit );
+			}
+			$w     = (string) ( $e['widgetType'] ?? '' );
+			$large = static function () use ( $s ) {
+				$size = (float) ( $s['typography_font_size']['size'] ?? 0 );
+				return $size >= 24 || ( $size >= 18.66 && (int) ( $s['typography_font_weight'] ?? 400 ) >= 700 ) || ( ! $size && in_array( $s['header_size'] ?? 'h2', array( 'h1', 'h2', 'h3' ), true ) );
+			};
+			$pairs = array();
+			if ( 'button' === $w ) {
+				$pairs[] = array( 'button_text_color', $eff( $s, 'background_color', $kit ) ?: $here, 3 );
+			} elseif ( 'countdown' === $w ) {
+				$box     = $eff( $s, 'box_background_color', $kit ) ?: $here;
+				$pairs[] = array( 'digits_color', $box, 3 );
+				$pairs[] = array( 'label_color', $box, 4.5 );
+			} elseif ( 'heading' === $w ) {
+				$pairs[] = array( 'title_color', $here, $large() ? 3 : 4.5 );
+			} elseif ( 'accordion' === $w ) {
+				$pairs[] = array( 'title_color', $eff( $s, 'title_background', $kit ) ?: $here, 4.5 );
+				$pairs[] = array( 'content_color', $eff( $s, 'content_background_color', $kit ) ?: $here, 4.5 );
+			} elseif ( in_array( $w, array( 'text-editor', 'icon-list' ), true ) ) {
+				$pairs[] = array( 'text_color', $here, 4.5 );
+			} elseif ( 'icon-box' === $w ) {
+				$pairs[] = array( 'title_color', $here, 4.5 );
+				$pairs[] = array( 'description_color', $here, 4.5 );
+				$pairs[] = array( 'primary_color', $here, 3 );
+			}
+			foreach ( $pairs as $p ) {
+				$c = $eff( $s, $p[0], $kit );
+				if ( '' !== $c && '' !== $p[1] && Brand::contrast( $c, $p[1] ) + 1e-9 < $p[2] ) {
+					$bad[] = sprintf( '%s.%s %s sobre %s = %.2f', $w, $p[0], $c, $p[1], Brand::contrast( $c, $p[1] ) );
+				}
+			}
+			$audit( (array) ( $e['elements'] ?? array() ), $here, $kit, $bad );
+		}
+	};
+	$palettes = array(
+		'fábrica'           => array( $kitset( Brand::FACTORY_COLORS ), false ),
+		'negro y gris'      => array( $kitset( array( 'primary' => '#000000', 'secondary' => '#333333', 'text' => '#555555', 'accent' => '#111111' ) ), true ),
+		'pastel'            => array( $kitset( array( 'primary' => '#A8E6CF', 'secondary' => '#DCEDC1', 'text' => '#BBBBBB', 'accent' => '#FFD3B6' ) ), true ),
+		'DIGITALÍSIMO'      => array( $kitset( array( 'primary' => '#1592DA', 'secondary' => '#0F141A', 'text' => '#4E5863', 'accent' => '#00A86B' ) ), true ),
+		'morado y naranja'  => array( $kitset( array( 'primary' => '#7B2CBF', 'secondary' => '#5A5A5A', 'text' => '#2B2B2B', 'accent' => '#FF8C1A' ) ), true ),
+		'azul y amarillo'   => array( $kitset( array( 'primary' => '#2546C8', 'secondary' => '#54595F', 'text' => '#333333', 'accent' => '#F5CE3E' ) ), true ),
+		'amarillo claro'    => array( $kitset( array( 'primary' => '#FFD700', 'secondary' => '#FFE680', 'text' => '#AAAAAA', 'accent' => '#FFF3B0' ) ), true ),
+	);
+	$store_page = Store::page( $offer, $catalog, $site, $env + array( 'variant' => 'containers' ) );
+	foreach ( $palettes as $name => $case ) {
+		$brand = Brand::resolve( $case[0], array() );
+		check( $case[1] === ( 'ninguna' !== $brand['source'] ), "C0 $name: " . ( $case[1] ? 'el sitio tiene identidad (no «ninguna»)' : 'sin identidad' ) . " · {$brand['source']}" );
+		$kitc = $brand['kit_colors'];
+		foreach ( array( 'tienda' => $store_page['elements'], 'venta corta' => Catalog::load( 'venta-corta', 'containers' )['content'], 'captación (secciones)' => Catalog::load( 'captacion', 'sections' )['content'] ) as $what => $els ) {
+			$done = Brand::apply( $els, $brand );
+			$bad  = array();
+			$audit( $done, '#FFFFFF', $kitc, $bad );
+			check( ! $bad, "C1 $name/$what: todo texto pasa WCAG AA · " . implode( ' | ', array_slice( array_unique( $bad ), 0, 5 ) ) );
+			$look = Brand::look( $done, $brand, array_map( function ( $c ) { return $c['color']; }, $kitc ) );
+			check( ! $look['contrast'], "C2 $name/$what: look no ve problemas de contraste · " . implode( ' | ', array_slice( $look['contrast'], 0, 3 ) ) );
+			check( ! $case[1] || $look['matches_site'], "C3 $name/$what: look reconoce los colores del sitio (también la paleta DIGITALÍSIMO cuando es la del sitio, y el pastel aunque no alcance contraste en el texto) · " . json_encode( array( $look['digitalisimo'], $look['brand_used'] ) ) );
+		}
+	}
+	// C4 · Un botón con el texto del color de su fondo: look lo ve y check.ok no puede ser verdadero.
+	$broken = array( array( 'id' => 'x1', 'elType' => 'widget', 'widgetType' => 'button', 'settings' => array( 'text' => 'Ver', 'background_color' => '#222222', 'button_text_color' => '#222222' ), 'elements' => array() ) );
+	$look   = Brand::look( $broken, $fac, array() );
+	check( (bool) $look['contrast'], 'C4 look ve el botón ilegible' );
+	$out = Executor::run( 'create-page', array( 'store_offer' => array( 'percent' => 40 ) ), function ( $t, $e, $p, $tpl, $l = 'site' ) use ( $create, $broken ) { return $create( $t, $broken, $p, $tpl, $l ); }, $deps );
+	check( true === $out['check']['contrast_ok'] && true === $out['check']['ok'], 'C4 lo que se guardó pasó por el contraste (check mide lo guardado)' );
+	// C5 · El negro y gris no es «sin colores propios».
+	$mono_kit = Brand::resolve( $palettes['negro y gris'][0], array() );
+	$out      = Executor::run( 'create-page', array( 'store_offer' => array( 'percent' => 40 ) ), $create, array( 'brand' => $mono_kit ) + $deps );
+	check( 'kit' === $mono_kit['source'] && ! preg_grep( '/no tiene colores de marca propios/', $out['review'] ) && true === $out['look']['site_identity'] && true === $out['check']['ok'], 'C5 un sitio en negro y gris tiene identidad: no se le dice que no tiene colores propios · ' . json_encode( $out['check'] ) );
+
 	echo "elements-sales-brand: {$GLOBALS['sb_count']} comprobaciones, todas bien.\n";
 }

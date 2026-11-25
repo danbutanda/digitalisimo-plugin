@@ -751,7 +751,7 @@ final class Store_Layout {
 		$neutral = array(
 			'white' => '#FFFFFF',
 			'light' => '#F5F5F5',
-			'muted' => '#8A8A8A',
+			'muted' => '#6B6B6B',
 			'line'  => '#E6E6E6',
 		);
 		if ( isset( $neutral[ $role ] ) ) {
