@@ -39,7 +39,7 @@ class Digitalisimo_Integrations_Settings { public static function get( $key, $fa
 class Digitalisimo_Integrations_SEO_Resolver {
 	public static function option( $key, $default = null ) { return Digitalisimo_Integrations_Settings::get( $key, $default ); }
 	public static function post( $id, $key, $default = '' ) { return $default; }
-	public static function foreign_seo() { return ''; }
+	public static function foreign_seo() { return $GLOBALS['foreign'] ?? ''; }
 }
 class Digitalisimo_Notices {
 	public static function site( $id ) { return $id . '-s1'; }
@@ -216,6 +216,18 @@ check( 1 === count( $GLOBALS['notices'] ) && 'seo-brand-s1' === $GLOBALS['notice
 $GLOBALS['screen'] = (object) array( 'id' => 'edit-post' ); $GLOBALS['notices'] = array();
 $B::notice();
 check( array() === $GLOBALS['notices'], 'Fuera del Escritorio y de las pantallas DIGITALÍSIMO no sale.' );
+
+// Con otro plugin SEO activo (Rank Math, Yoast…) no se comprueba nada ni se avisa: la salida no es nuestra.
+$GLOBALS['foreign'] = 'Rank Math'; $GLOBALS['http'] = array(); $GLOBALS['cron'] = array(); $GLOBALS['notices'] = array();
+$GLOBALS['screen'] = (object) array( 'id' => 'dashboard' );
+$GLOBALS['settings']['seo_default_image'] = 'https://media.otra-imagen.invalid/social.png';
+check( false === $B::refresh() && array() === $GLOBALS['cron'], 'Con otro plugin SEO no se programa la comprobación.' );
+$B::run();
+check( array() === $GLOBALS['http'], 'Con otro plugin SEO el cron no hace peticiones.' );
+check( array() === $B::warnings(), 'Con otro plugin SEO no hay avisos de marca (tampoco en el MCP).' );
+$B::notice();
+check( array() === $GLOBALS['notices'], 'Con otro plugin SEO no sale el aviso del Escritorio.' );
+$GLOBALS['foreign'] = '';
 
 // El MCP: la ability de estado del sitio devuelve los mismos avisos.
 $abilities = (string) file_get_contents( __DIR__ . '/../digitalisimo-seo/includes/class-seo-abilities.php' );

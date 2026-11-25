@@ -141,6 +141,8 @@ class Digitalisimo_Integrations_Brand_Check {
 	 * última tiene más de dos días. Barato: lee opciones, no hace peticiones.
 	 */
 	public static function refresh() {
+		// Con otro plugin SEO activo no publicamos estas señales: no hay nada que comprobar.
+		if ( Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return false;
 		$urls  = self::configured();
 		$state = self::state();
 		$stale = (int) ( $state['at'] ?? 0 ) < time() - 2 * DAY_IN_SECONDS;
@@ -153,6 +155,7 @@ class Digitalisimo_Integrations_Brand_Check {
 
 	/** Comprueba cada imagen, elige las de reserva y guarda el resultado. Corre en el cron. */
 	public static function run( $mode = '' ) {
+		if ( Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return self::state();
 		$urls     = self::configured();
 		$previous = self::state();
 		$home     = self::host( home_url( '/' ) );
@@ -285,6 +288,8 @@ class Digitalisimo_Integrations_Brand_Check {
 	 * ajustes. Lo usan el aviso del escritorio y el MCP.
 	 */
 	public static function warnings() {
+		// Con otro plugin SEO activo la salida es suya: no se avisa de lo que no publicamos.
+		if ( Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return array();
 		$out   = array();
 		$state = self::state();
 		$home  = self::host( home_url( '/' ) );
