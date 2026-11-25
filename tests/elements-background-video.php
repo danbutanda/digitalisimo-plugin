@@ -125,8 +125,14 @@ namespace {
 		public function get_name() {
 			return $this->name;
 		}
+		/** @var array Lo que resuelven las etiquetas dinámicas (`__dynamic__`), clave => valor. */
+		public $dynamic = array();
 		public function get_settings( $key = null ) {
 			return null === $key ? $this->settings : ( $this->settings[ $key ] ?? null );
+		}
+		public function get_settings_for_display( $key = null ) {
+			$all = array_merge( $this->settings, $this->dynamic );
+			return null === $key ? $all : ( $all[ $key ] ?? null );
 		}
 		public function set_settings( $key, $value = null ) {
 			$this->settings[ $key ] = $value;
@@ -223,6 +229,15 @@ namespace {
 		$cls::before_render( $el );
 		$GLOBALS['bv']['admin'] = false;
 		check( 'yes' === $el->settings['background_play_on_mobile'], 'never: fuera del front (administración) no cambia' );
+		// El enlace del vídeo con una etiqueta dinámica (vacío en lo guardado): se resuelve antes de decidir.
+		$el          = bv_video( 'yes', '' );
+		$el->dynamic = array( 'background_video_link' => 'https://sitio.test/wp-content/uploads/dinamico.mp4' );
+		$cls::before_render( $el );
+		check( '' === $el->settings['background_play_on_mobile'], 'never: un enlace de vídeo con etiqueta dinámica se resuelve antes de aplicar la política' );
+		$el          = bv_video( 'yes', 'https://sitio.test/fondo.mp4' );
+		$el->dynamic = array( 'background_video_link' => 'https://www.youtube.com/watch?v=abc' );
+		$cls::before_render( $el );
+		check( 'yes' === $el->settings['background_play_on_mobile'], 'never: y si resuelve a YouTube no se toca' );
 		bv_reset( array( 'mobile' => 'always' ) );
 		$el = bv_video( '' );
 		$cls::before_render( $el );

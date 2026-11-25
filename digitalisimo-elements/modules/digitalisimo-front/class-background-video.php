@@ -104,9 +104,13 @@ final class Background_Video {
 		return 'video' === self::setting( $element, 'background_background' ) && '' !== $link && ! self::is_embed( $link );
 	}
 
-	/** Lo guardado en el elemento (sin valores por defecto ni etiquetas dinámicas: basta para decidir). */
+	/**
+	 * El valor que pintará el elemento: con las etiquetas dinámicas resueltas (un enlace de vídeo que viene de un campo
+	 * personalizado o de la biblioteca), como lo verá el manejador. Tras `set_settings()`, `reset_render_state()` hace
+	 * que se vuelva a calcular con lo cambiado.
+	 */
 	private static function setting( $element, string $key ) {
-		$value = $element->get_settings( $key );
+		$value = method_exists( $element, 'get_settings_for_display' ) ? $element->get_settings_for_display( $key ) : $element->get_settings( $key );
 		return is_scalar( $value ) ? $value : '';
 	}
 
