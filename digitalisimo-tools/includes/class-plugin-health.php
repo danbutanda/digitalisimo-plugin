@@ -95,7 +95,7 @@ final class Plugin_Health {
 			if ( ! in_array( $file, $visible, true ) ) {
 				if ( in_array( $file, $cached, true ) ) {
 					// Misma foto con y sin filtros: lo quitó un filtro.
-					$problems[] = self::problem( $file, 'filtered', 'Está activo en la base de datos, pero un filtro lo quita de la lista de plugins activos en esta petición' . self::filters_text() . '. Si lo hace a propósito un plugin que organiza qué se carga en cada pantalla, cierra este aviso.' );
+					$problems[] = self::problem( $file, 'filtered', 'Está activo en la base de datos, pero un filtro lo quita de la lista de plugins activos en esta petición' . self::filters_text() . '.' );
 				} elseif ( $ext && ! in_array( $file, array_key_exists( 'persistent', $sources ) ? (array) $sources['persistent'] : self::cached( $network, true ), true ) ) {
 					// La base lo tiene, esta petición no y la caché persistente, leída otra vez ahora, tampoco: no es que otra
 					// petición lo acabe de activar.
@@ -116,7 +116,59 @@ final class Plugin_Health {
 			$marker = self::marker_problem( $file, $markers );
 			if ( '' !== $marker ) $problems[] = self::problem( $file, 'marker', $marker );
 		}
+		return self::classify( $problems, array_key_exists( 'organizer', $sources ) ? (string) $sources['organizer'] : self::organizer( $stored ) );
+	}
+
+	/**
+	 * Lo que se excluye a propósito (revisión del 24-nov) queda como nota (`intentional`), sin aviso ni guardado:
+	 *  - `filtered`: un filtro lo quita de la misma foto de la petición, así que es código que decide (la carrera con
+	 *    otra petición ya no cae aquí): un organizador de carga o el mismo filtro de forma estable;
+	 *  - `not_loaded` con un organizador de carga conocido presente: deciden al arrancar y luego devuelven la lista.
+	 */
+	private static function classify( array $problems, $organizer ) {
+		foreach ( $problems as $i => $p ) {
+			$intentional = 'filtered' === $p['reason'] || ( 'not_loaded' === $p['reason'] && '' !== $organizer );
+			$problems[ $i ]['intentional'] = $intentional;
+			if ( $intentional && '' !== $organizer ) $problems[ $i ]['detail'] .= ' Lo decide ' . $organizer . ', que organiza qué plugins se cargan en cada pantalla.';
+		}
 		return $problems;
+	}
+
+	/** Lo que hay que decir (sin lo que se excluye a propósito). */
+	public static function serious_only( array $problems ) {
+		return array_values( array_filter( $problems, static function ( $p ) { return empty( $p['intentional'] ); } ) );
+	}
+
+	/**
+	 * Organizadores de carga conocidos (quitan plugins a propósito en el escritorio o el cron), por un trozo de la ruta
+	 * de su código o de su carpeta: Freesoul Deactivate Plugins, Plugin Organizer, Asset CleanUp, Perfmatters y Plugin
+	 * Load Filter. Filtro `digitalisimo_tools_plugin_health_organizers` (trozo en minúsculas => nombre).
+	 */
+	public static function organizers() {
+		return (array) apply_filters( 'digitalisimo_tools_plugin_health_organizers', array(
+			'freesoul-deactivate-plugins' => 'Freesoul Deactivate Plugins',
+			'eos-deactivate-plugins'      => 'Freesoul Deactivate Plugins',
+			'plugin-organizer'            => 'Plugin Organizer',
+			'pluginorganizermu'           => 'Plugin Organizer',
+			'wp-asset-clean-up'           => 'Asset CleanUp',
+			'wpacu'                       => 'Asset CleanUp',
+			'perfmatters'                 => 'Perfmatters',
+			'plugin-load-filter'          => 'Plugin Load Filter',
+		) );
+	}
+
+	/** El organizador presente: por el código enganchado a los filtros de la lista o por un plugin activo; '' si ninguno. */
+	public static function organizer( array $active = array() ) {
+		$hay = array_map( 'strval', $active );
+		foreach ( self::callbacks() as $item ) {
+			$ref = self::reflect( $item[1] );
+			if ( $ref && '' !== (string) $ref->getFileName() ) $hay[] = (string) $ref->getFileName();
+		}
+		$hay = strtolower( str_replace( '\\', '/', implode( "\n", $hay ) ) );
+		foreach ( self::organizers() as $fragment => $name ) {
+			if ( '' !== (string) $fragment && false !== strpos( $hay, strtolower( (string) $fragment ) ) ) return (string) $name;
+		}
+		return '';
 	}
 
 	/** Lo que la base de datos dice que está activo (sin caché ni filtros). */
@@ -163,28 +215,40 @@ final class Plugin_Health {
 
 	/** Las funciones enganchadas a los filtros de la lista de plugins activos, descritas por su archivo y línea. */
 	public static function filters() {
+		$out = array();
+		foreach ( self::callbacks() as $item ) $out[] = $item[0] . ': ' . self::describe( $item[1] );
+		return array_values( array_unique( $out ) );
+	}
+
+	/** Las funciones enganchadas a los filtros de la lista de plugins activos: `[gancho, función]`. */
+	private static function callbacks() {
 		global $wp_filter;
 		$out = array();
 		foreach ( array( 'pre_option_active_plugins', 'option_active_plugins', 'pre_site_option_active_sitewide_plugins', 'site_option_active_sitewide_plugins' ) as $hook ) {
 			if ( empty( $wp_filter[ $hook ] ) || ! is_object( $wp_filter[ $hook ] ) || empty( $wp_filter[ $hook ]->callbacks ) ) continue;
 			foreach ( (array) $wp_filter[ $hook ]->callbacks as $callbacks ) {
-				foreach ( (array) $callbacks as $callback ) $out[] = $hook . ': ' . self::describe( $callback['function'] ?? null );
+				foreach ( (array) $callbacks as $callback ) $out[] = array( $hook, $callback['function'] ?? null );
 			}
 		}
-		return array_values( array_unique( $out ) );
+		return $out;
+	}
+
+	private static function reflect( $callback ) {
+		try {
+			if ( is_string( $callback ) && false === strpos( $callback, '::' ) ) return new \ReflectionFunction( $callback );
+			if ( is_string( $callback ) ) return new \ReflectionMethod( $callback );
+			if ( is_array( $callback ) && 2 === count( $callback ) ) return new \ReflectionMethod( is_object( $callback[0] ) ? get_class( $callback[0] ) : (string) $callback[0], (string) $callback[1] );
+			if ( $callback instanceof \Closure ) return new \ReflectionFunction( $callback );
+			if ( is_object( $callback ) && method_exists( $callback, '__invoke' ) ) return new \ReflectionMethod( $callback, '__invoke' );
+		} catch ( \ReflectionException $e ) {
+			return null;
+		}
+		return null;
 	}
 
 	private static function describe( $callback ) {
-		try {
-			if ( is_string( $callback ) && false === strpos( $callback, '::' ) ) $ref = new \ReflectionFunction( $callback );
-			elseif ( is_string( $callback ) ) $ref = new \ReflectionMethod( $callback );
-			elseif ( is_array( $callback ) && 2 === count( $callback ) ) $ref = new \ReflectionMethod( is_object( $callback[0] ) ? get_class( $callback[0] ) : (string) $callback[0], (string) $callback[1] );
-			elseif ( $callback instanceof \Closure ) $ref = new \ReflectionFunction( $callback );
-			elseif ( is_object( $callback ) && method_exists( $callback, '__invoke' ) ) $ref = new \ReflectionMethod( $callback, '__invoke' );
-			else return 'función desconocida';
-		} catch ( \ReflectionException $e ) {
-			return 'función desconocida';
-		}
+		$ref = self::reflect( $callback );
+		if ( ! $ref ) return 'función desconocida';
 		$file = (string) $ref->getFileName();
 		if ( '' === $file ) return $ref->getName();
 		$where = self::where( $file );
@@ -297,7 +361,7 @@ final class Plugin_Health {
 	/** `wp_update_plugins` (cron de WordPress, dos veces al día) y `CONFIRM`: la comprobación en una petición sin escritorio. */
 	public static function background() {
 		if ( ! function_exists( 'wp_doing_cron' ) || ! wp_doing_cron() ) return;
-		self::observe( self::check(), 'cron' );
+		self::observe( self::serious_only( self::check() ), 'cron' );
 	}
 
 	private static function cap() {
@@ -314,8 +378,10 @@ final class Plugin_Health {
 
 	/** Estado para el aviso y «Salud del sitio»: '' (bien), 'now' (ahora) o 'recent' (lo vio el segundo plano). */
 	public static function status() {
-		$all  = self::check();
+		$raw  = self::check();
+		$all  = self::serious_only( $raw );
 		$now  = $all;
+		$info = array_values( array_filter( $raw, static function ( $p ) { return ! empty( $p['intentional'] ); } ) );
 		$seen = self::last_seen();
 		// «cache» puede ser una carrera (otra petición escribía la lista): en el Escritorio sólo cuenta confirmada en otra
 		// petición; si no, se pide la confirmación y no se dice nada todavía.
@@ -330,32 +396,25 @@ final class Plugin_Health {
 		}
 		$now = array_values( $now );
 		if ( $unconfirmed ) self::observe( $all, 'admin' );
-		if ( $now ) return array( 'state' => 'now', 'problems' => $now, 'message' => 'Hay plugins activos que no cargaron en esta petición. ' . implode( ' ', self::text( $now ) ) );
+		if ( $now ) return array( 'state' => 'now', 'problems' => $now, 'info' => $info, 'message' => 'Hay plugins activos que no cargaron en esta petición. ' . implode( ' ', self::text( $now ) ) );
 		if ( $seen ) {
 			$when = function_exists( 'wp_date' ) ? wp_date( 'j/m/Y H:i', (int) $seen['at'] ) : gmdate( 'Y-m-d H:i', (int) $seen['at'] );
 			$where = 'cron' === ( $seen['context'] ?? '' ) ? 'una tarea de fondo de WordPress (cron)' : 'el escritorio';
-			return array( 'state' => 'recent', 'problems' => (array) $seen['problems'], 'message' => 'El ' . $when . ', en ' . $where . ', había plugins activos que no cargaron; ahora sí cargan. ' . implode( ' ', self::text( (array) $seen['problems'] ) ) . ' Si vuelve a pasar, revisa la caché de objetos y los mu-plugins del servidor.' );
+			// Cada detalle dice su causa (archivo que faltaba, caché vieja, lista al arrancar, marca): sin culpar de antemano
+			// a la caché de objetos ni a los mu-plugins.
+			return array( 'state' => 'recent', 'problems' => (array) $seen['problems'], 'info' => $info, 'message' => 'El ' . $when . ', en ' . $where . ', había plugins activos que no cargaron; ahora sí cargan. Lo que se vio entonces: ' . implode( ' ', self::text( (array) $seen['problems'] ) ) );
 		}
-		return array( 'state' => '', 'problems' => array(), 'message' => '' );
+		if ( $info ) return array( 'state' => 'info', 'problems' => array(), 'info' => $info, 'message' => 'Algunos plugins activos no cargan en esta petición a propósito: ' . implode( ' ', self::text( $info ) ) );
+		return array( 'state' => '', 'problems' => array(), 'info' => array(), 'message' => '' );
 	}
 
 	public static function notice() {
 		if ( ! self::screen_wanted() || ! class_exists( '\\Digitalisimo_Notices' ) ) return;
 		$status = self::status();
-		if ( '' === $status['state'] ) return;
+		if ( ! in_array( $status['state'], array( 'now', 'recent' ), true ) ) return; // Lo que se excluye a propósito: sólo «Salud del sitio».
 		$hash = array( $status['state'] );
 		foreach ( $status['problems'] as $p ) $hash[] = $p['plugin'] . ':' . $p['reason'];
-		\Digitalisimo_Notices::show( \Digitalisimo_Notices::site( 'tools-plugin-health' ), self::serious( $status ) ? 'error' : 'warning', '<p><strong>DIGITALÍSIMO:</strong> ' . esc_html( $status['message'] ) . '</p>', array( 'hash' => $hash, 'cap' => self::cap() ) );
-	}
-
-	/**
-	 * ¿Error o advertencia? Un plugin que sólo falta porque un filtro lo quita puede ser a propósito (un organizador de
-	 * carga como Perfmatters o Plugin Organizer): advertencia, que se cierra por 7 días. Lo demás, error.
-	 */
-	private static function serious( array $status ) {
-		if ( 'now' !== $status['state'] ) return false;
-		foreach ( $status['problems'] as $p ) if ( 'filtered' !== $p['reason'] ) return true;
-		return false;
+		\Digitalisimo_Notices::show( \Digitalisimo_Notices::site( 'tools-plugin-health' ), 'now' === $status['state'] ? 'error' : 'warning', '<p><strong>DIGITALÍSIMO:</strong> ' . esc_html( $status['message'] ) . '</p>', array( 'hash' => $hash, 'cap' => self::cap() ) );
 	}
 
 	public static function tests( $tests ) {
@@ -375,12 +434,16 @@ final class Plugin_Health {
 		);
 		if ( 'now' === $status['state'] ) {
 			$result['label']  = 'Hay plugins activos que no cargaron';
-			$result['status'] = self::serious( $status ) ? 'critical' : 'recommended';
+			$result['status'] = 'critical';
 		} elseif ( 'recent' === $status['state'] ) {
 			$result['label']  = 'Hace poco hubo plugins activos que no cargaron';
 			$result['status'] = 'recommended';
+		} elseif ( 'info' === $status['state'] ) {
+			// Sólo una nota: un organizador de carga o un filtro estable deciden a propósito (sin «recomendado» fijo).
+			$result['label'] = 'Los plugins activos cargan; algunos se excluyen a propósito en esta pantalla';
 		}
 		if ( '' !== $status['state'] ) $result['description'] = '<p>' . esc_html( $status['message'] ) . '</p>';
+		if ( 'info' !== $status['state'] && ! empty( $status['info'] ) ) $result['description'] .= '<p>' . esc_html( 'Además, a propósito: ' . implode( ' ', self::text( $status['info'] ) ) ) . '</p>';
 		return $result;
 	}
 
@@ -395,10 +458,10 @@ final class Plugin_Health {
 	}
 
 	public static function definition() {
-		$problem = array( 'type' => 'object', 'properties' => array( 'plugin' => array( 'type' => 'string' ), 'name' => array( 'type' => 'string' ), 'reason' => array( 'type' => 'string', 'enum' => array( 'filtered', 'cache', 'missing', 'not_loaded', 'marker' ) ), 'detail' => array( 'type' => 'string' ) ) );
+		$problem = array( 'type' => 'object', 'properties' => array( 'plugin' => array( 'type' => 'string' ), 'name' => array( 'type' => 'string' ), 'reason' => array( 'type' => 'string', 'enum' => array( 'filtered', 'cache', 'missing', 'not_loaded', 'marker' ) ), 'detail' => array( 'type' => 'string' ), 'intentional' => array( 'type' => 'boolean', 'description' => 'Excluido a propósito (un organizador de carga o un filtro estable): sólo una nota.' ) ) );
 		return array(
 			'label'               => 'Salud de los plugins',
-			'description'         => 'Comprueba que cada plugin activo en la base de datos cargó de verdad en esta petición (WooCommerce con su tipo product y sus rutas wc/v3, Elementor arrancado) y dice por qué falta uno: un filtro, la caché de objetos, el archivo que no existe o que no se incluyó. Úsala cuando las herramientas o rutas de un plugin activo no aparecen. Incluye lo último que vio el cron y si la API pública puede salir de una caché de página (LiteSpeed). No cambia nada.',
+			'description'         => 'Comprueba que cada plugin activo en la base de datos cargó de verdad en esta petición (WooCommerce con su tipo product y sus rutas wc/v3, Elementor arrancado) y dice por qué falta uno: un filtro, la caché de objetos, el archivo que no existe o que no se incluyó (intentional: lo excluye a propósito un organizador de carga o un filtro estable; ok cuenta sólo lo demás). Úsala cuando las herramientas o rutas de un plugin activo no aparecen. Incluye lo último que vio el cron y si la API pública puede salir de una caché de página (LiteSpeed). No cambia nada.',
 			'category'            => self::CATEGORY,
 			'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 			'output_schema'       => array(
@@ -430,7 +493,7 @@ final class Plugin_Health {
 		$problems = self::check();
 		$seen     = self::last_seen();
 		return array(
-			'ok'         => ! $problems,
+			'ok'         => ! self::serious_only( $problems ),
 			'site'       => home_url( '/' ),
 			'problems'   => $problems,
 			'background' => $seen ? array( 'at' => gmdate( 'c', (int) $seen['at'] ), 'context' => (string) $seen['context'], 'problems' => (array) $seen['problems'] ) : (object) array(),

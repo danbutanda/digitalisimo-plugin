@@ -214,6 +214,7 @@ $GLOBALS['ph']['screen'] = 'plugins';
 $GLOBALS['ph']['db'] = $GLOBALS['ph']['options']['active_plugins'] = array( 'ok/ok.php' );
 $s = H::status();
 ph_check( 'recent' === $s['state'] && false !== strpos( $s['message'], 'cron' ), 'ya arreglado: dice lo que vio el cron: ' . json_encode( $s ) );
+ph_check( false === strpos( $s['message'], 'mu-plugins del servidor' ) && false !== strpos( $s['message'], 'no lo cargó' ), '«recent» dice la causa de cada uno, sin culpar de antemano a la caché ni a los mu-plugins: ' . $s['message'] );
 ob_start(); H::notice(); $html = ob_get_clean();
 ph_check( false !== strpos( $html, 'notice-warning' ), 'lo que vio el cron sale como advertencia' );
 $GLOBALS['ph']['options'][ H::OPTION ]['at'] = time() - H::RECENT - 10;
@@ -238,18 +239,40 @@ $GLOBALS['ph']['ext'] = false;
 $GLOBALS['ph']['options'] = $saved;
 unset( $GLOBALS['ph']['transients'][ H::PENDING ] );
 
-// Sólo un filtro (puede ser un organizador de carga a propósito): advertencia, no error.
+// Sólo un filtro (revisión del 24-nov): es código que decide a propósito (un organizador o un filtro estable): sin
+// aviso, sólo una nota en «Salud del sitio», sin «recomendado» fijo, y nada que guardar en el cron.
 $GLOBALS['ph']['options'] = array();
 $GLOBALS['ph']['db'] = array( 'ok/ok.php', 'tarde/tarde.php' );
 $GLOBALS['ph']['options']['active_plugins'] = array( 'ok/ok.php' );
 $GLOBALS['ph']['cache'] = array( 'active_plugins' => serialize( array( 'ok/ok.php', 'tarde/tarde.php' ) ) );
 $s = H::status();
-ph_check( 'now' === $s['state'] && 'filtered' === ( $s['problems'][0]['reason'] ?? '' ), 'sólo un filtro: filtered ' . json_encode( $s ) );
+ph_check( 'info' === $s['state'] && 'filtered' === ( $s['info'][0]['reason'] ?? '' ) && true === ( $s['info'][0]['intentional'] ?? null ), 'sólo un filtro: nota, no problema: ' . json_encode( $s ) );
 ob_start(); H::notice(); $html = ob_get_clean();
-ph_check( false !== strpos( $html, 'notice-warning' ) && false === strpos( $html, 'notice-error' ), 'sólo un filtro: advertencia, no error: ' . $html );
-ph_check( 'recommended' === H::health()['status'], 'sólo un filtro: «Salud del sitio» recommended' );
+ph_check( '' === $html, 'sólo un filtro: ningún aviso en el Escritorio: ' . $html );
+$h = H::health();
+ph_check( 'good' === $h['status'] && false !== strpos( $h['description'], 'a propósito' ), 'sólo un filtro: «Salud del sitio» good con una nota: ' . json_encode( $h ) );
+$GLOBALS['ph']['cron'] = true;
+H::background();
+ph_check( ! isset( $GLOBALS['ph']['transients'][ H::PENDING ] ) && ! isset( $GLOBALS['ph']['options'][ H::OPTION ] ), 'sólo un filtro: el cron no anota ni guarda nada' );
+$GLOBALS['ph']['cron'] = false;
+ph_check( true === H::execute( array() )['ok'], 'sólo un filtro: la función del MCP dice ok (y lo lista como intentional)' );
 $GLOBALS['ph']['cache'] = array( 'active_plugins' => serialize( array( 'ok/ok.php' ) ) );
 $GLOBALS['ph']['db'] = $GLOBALS['ph']['options']['active_plugins'] = array( 'ok/ok.php' );
+
+// Organizadores de carga conocidos: por un plugin activo o por el código del filtro.
+ph_check( 'Perfmatters' === H::organizer( array( 'ok/ok.php', 'perfmatters/perfmatters.php' ) ), 'Perfmatters activo es un organizador' );
+ph_check( '' === H::organizer( array( 'ok/ok.php' ) ), 'sin organizador' );
+file_put_contents( WPMU_PLUGIN_DIR . '/wpacu-plugins-filter.php', "<?php\nreturn function ( \$l ) { return \$l; };\n" );
+$GLOBALS['wp_filter']['option_active_plugins'] = (object) array( 'callbacks' => array( 1 => array( 'w' => array( 'function' => require WPMU_PLUGIN_DIR . '/wpacu-plugins-filter.php' ) ) ) );
+ph_check( 'Asset CleanUp' === H::organizer( array() ), 'el mu-plugin de Asset CleanUp en el filtro de la lista es un organizador' );
+unset( $GLOBALS['wp_filter'] );
+// Con un organizador, «no se incluyó» (decide al arrancar y luego devuelve la lista) es una nota; sin él, un error.
+$r = H::check( array( 'stored' => array( 'ok/ok.php', 'tarde/tarde.php' ), 'visible' => array( 'ok/ok.php', 'tarde/tarde.php' ), 'cached' => array(), 'included' => $inc, 'organizer' => 'Freesoul Deactivate Plugins' ) );
+ph_check( 'not_loaded' === ( $r[0]['reason'] ?? '' ) && true === $r[0]['intentional'] && false !== strpos( $r[0]['detail'], 'Freesoul' ) && array() === H::serious_only( $r ), 'con un organizador, not_loaded es una nota que lo nombra: ' . json_encode( $r ) );
+$r = H::check( array( 'stored' => array( 'ok/ok.php', 'tarde/tarde.php' ), 'visible' => array( 'ok/ok.php', 'tarde/tarde.php' ), 'cached' => array(), 'included' => $inc, 'organizer' => '' ) );
+ph_check( false === ( $r[0]['intentional'] ?? null ) && 1 === count( H::serious_only( $r ) ), 'sin organizador, not_loaded es un problema' );
+$r = H::check( array( 'stored' => array( 'ok/ok.php', 'borrado/borrado.php' ), 'visible' => array( 'ok/ok.php', 'borrado/borrado.php' ), 'cached' => array(), 'included' => $inc, 'organizer' => 'Perfmatters' ) );
+ph_check( false === ( $r[0]['intentional'] ?? null ), 'un organizador no tapa un archivo que no existe' );
 
 // «Salud del sitio».
 $t = H::tests( array() );
