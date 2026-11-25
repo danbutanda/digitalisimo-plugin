@@ -51,6 +51,8 @@ class Digitalisimo_Hosting {
 			// Venta automática (apagada hasta que el administrador la enciende): al pagarse un pedido crea la cuenta en
 			// Webuzo, registra el dominio en Namecheap y envía los accesos; después avisa, renueva y suspende.
 			'provision_enabled'     => 0,
+			// Hosting con dominio propio (sin comprar el dominio aquí): por omisión, revisión manual antes de crear la cuenta.
+			'own_domain_auto'       => 0,
 			'webuzo_url'            => '',
 			'webuzo_api_user'       => 'root',
 			'webuzo_api_key'        => '',
@@ -119,6 +121,9 @@ class Digitalisimo_Hosting {
 		$o = wp_parse_args( self::local(), self::defaults() );
 		if ( self::inherits() ) { $n = self::network(); foreach ( self::NETWORK_KEYS as $key ) $o[ $key ] = (string) ( $n[ $key ] ?? '' ); }
 		foreach ( self::CONSTANTS as $key => $constant ) if ( defined( $constant ) ) $o[ $key ] = (string) constant( $constant );
+		// Una clave de wp-config.php nunca viaja a una URL editable en pantalla: sin la URL también en wp-config.php,
+		// Webuzo queda sin configurar.
+		if ( defined( self::CONSTANTS['webuzo_api_key'] ) && ! defined( self::CONSTANTS['webuzo_url'] ) ) $o['webuzo_url'] = '';
 		return $o;
 	}
 	/** Los ajustes que usa este sitio (con la herencia de la red y las constantes de wp-config.php ya aplicadas). */
@@ -238,7 +243,8 @@ class Digitalisimo_Hosting {
 		if ( class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) Digitalisimo_Hosting_Webuzo::settings_banner( $network, $o );
 		if ( $inherits ) echo '<p class="description">Usa el servidor Webuzo y los nameservers de la red.</p>';
 		else {
-			self::field( 'webuzo_url', 'URL del panel de administración de Webuzo', $o, 'text', 'Por ejemplo https://servidor.ejemplo.com:2005 (el puerto 2005 es el de administración; los clientes entran por el 2003).' );
+			if ( defined( self::CONSTANTS['webuzo_api_key'] ) && ! defined( self::CONSTANTS['webuzo_url'] ) ) echo '<p><strong>URL del panel de administración de Webuzo</strong><br><span class="description">La clave está en wp-config.php: define también <code>DIGITALISIMO_WEBUZO_URL</code> allí. Mientras tanto Webuzo queda sin configurar (la clave nunca se manda a una URL editable aquí).</span></p>';
+			else self::field( 'webuzo_url', 'URL del panel de administración de Webuzo', $o, 'text', 'Por ejemplo https://servidor.ejemplo.com:2005 (el puerto 2005 es el de administración; los clientes entran por el 2003).' );
 			self::field( 'webuzo_api_user', 'Usuario de la API de Webuzo', $o, 'text', 'El usuario dueño de la clave de API (normalmente root).' );
 			self::field( 'webuzo_api_key', 'Clave de la API de Webuzo', $o, 'password', 'Webuzo → Ajustes → API Keys. Si Webuzo la rechaza, el aprovisionamiento se detiene sin reintentar hasta que guardes una nueva: Webuzo bloquea la IP tras varios intentos fallidos.' );
 			self::check( 'webuzo_insecure', 'No verificar el certificado del panel (sólo si usa un certificado autofirmado)', $o );
@@ -247,6 +253,7 @@ class Digitalisimo_Hosting {
 		if ( ! $network ) {
 			echo '<h2>Venta automática</h2>';
 			self::check( 'provision_enabled', 'Crear la cuenta, registrar el dominio y enviar los accesos al pagarse un pedido', $o );
+			self::check( 'own_domain_auto', 'Hosting con dominio propio: crear la cuenta de inmediato, sin revisión manual (nadie verifica que el dominio sea del cliente)', $o );
 			echo '<p class="description"><strong>Pago confirmado:</strong> sólo se aprovisiona cuando la pasarela dejó el cobro confirmado (fecha de pago y número de transacción). Con transferencia, cheque, contra entrega o cualquier pasarela que no deje número de transacción, marca el pedido «completado» al cobrar. Un desarrollador puede ajustar las listas con los filtros <code>digitalisimo_hosting_offline_methods</code> y <code>digitalisimo_hosting_trusted_methods</code>. Los pedidos anteriores al encendido no se aprovisionan solos.</p>';
 			echo '<p class="description">Los planes se reconocen por el paquete de Webuzo del producto (campo personalizado <code>_digitalisimo_webuzo_plan</code>) o por los IDs y categorías de hosting de abajo. La lista de servicios está en WooCommerce → Servicios de hosting.</p>';
 			self::field( 'webuzo_user_prefix', 'Prefijo de los usuarios de Webuzo', $o, 'text', 'Opcional, sólo letras y números (por ejemplo «prueba» para un ensayo).' );
@@ -315,12 +322,12 @@ class Digitalisimo_Hosting {
 		foreach ( $text as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = sanitize_text_field( $in[ $key ] );
 		// Las mismas reglas en el sitio y en la red: la URL del panel sólo https con host, los nameservers sólo nombres
 		// de host válidos (vacío = los de DIGITALÍSIMO).
-		if ( array_key_exists( 'webuzo_url', $in ) ) $o['webuzo_url'] = self::webuzo_url( $in['webuzo_url'] );
+		if ( array_key_exists( 'webuzo_url', $in ) && ! defined( self::CONSTANTS['webuzo_api_key'] ) ) $o['webuzo_url'] = self::webuzo_url( $in['webuzo_url'] );
 		if ( array_key_exists( 'nameservers', $in ) ) $o['nameservers'] = self::nameservers( $in['nameservers'] );
 		if ( array_key_exists( 'webuzo_insecure', $in ) ) $o['webuzo_insecure'] = empty( $in['webuzo_insecure'] ) ? 0 : 1;
 		if ( ! $network ) {
 			foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = sanitize_textarea_field( $in[ $key ] );
-			foreach ( array( 'enabled', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'provision_enabled' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
+			foreach ( array( 'enabled', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'provision_enabled', 'own_domain_auto' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
 			if ( array_key_exists( 'webuzo_user_prefix', $in ) ) $o['webuzo_user_prefix'] = substr( preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $in['webuzo_user_prefix'] ) ), 0, 6 );
 			if ( array_key_exists( 'grace_days', $in ) ) $o['grace_days'] = min( 90, absint( $in['grace_days'] ) );
 			if ( array_key_exists( 'pricing_enabled', $in ) ) $o['pricing_enabled'] = empty( $in['pricing_enabled'] ) ? 0 : 1;
@@ -342,11 +349,16 @@ class Digitalisimo_Hosting {
 		// detenido). La misma clave sólo con «Ya corregí la causa».
 		if ( class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) {
 			$new_webuzo = $network ? (string) ( $o['webuzo_api_key'] ?? '' ) : (string) ( self::all()['webuzo_api_key'] ?? '' );
-			if ( ! empty( $in['webuzo_unblock'] ) ) { Digitalisimo_Hosting_Webuzo::forget( $new_webuzo ); Digitalisimo_Hosting_Webuzo::resume(); }
+			// En una red la parada es de toda la red: sólo el superadministrador puede reintentar con la misma clave.
+			if ( ! empty( $in['webuzo_unblock'] ) && ( ! is_multisite() || current_user_can( 'manage_network_options' ) ) ) { Digitalisimo_Hosting_Webuzo::forget( $new_webuzo ); Digitalisimo_Hosting_Webuzo::resume(); }
 			// La parada de la clave reemplazada NO se olvida: si alguien vuelve a poner esa clave, sigue detenida.
 			elseif ( $webuzo_key && '' !== $new_webuzo && ! hash_equals( $old_webuzo, $new_webuzo ) ) Digitalisimo_Hosting_Webuzo::resume();
 		}
-		if ( ! $network && ! empty( $o['provision_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) Digitalisimo_Hosting_Provisioning::ensure_daily();
+		if ( ! $network && ! empty( $o['provision_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) {
+			Digitalisimo_Hosting_Provisioning::ensure_daily();
+			// Al reencenderla: las renovaciones cobradas que quedaron pendientes se encolan (las altas anteriores, no).
+			if ( ! $was_on ) Digitalisimo_Hosting_Provisioning::sweep_renewals();
+		}
 		if ( ! $network && ! empty( $o['pricing_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Pricing' ) ) Digitalisimo_Hosting_Pricing::ensure_schedule();
 	}
 	/** URL del panel de administración de Webuzo: sólo https con host (y puerto); cualquier otra cosa se descarta. */
@@ -354,6 +366,8 @@ class Digitalisimo_Hosting {
 		$url = trim( sanitize_text_field( (string) $raw ) );
 		if ( '' === $url ) return '';
 		if ( ! preg_match( '#^https://([a-z0-9.-]+|\[[0-9a-f:]+\])(:\d{1,5})?/?$#i', $url ) ) return '';
+		// Ni loopback, ni link-local, ni red privada (salvo DIGITALISIMO_WEBUZO_ALLOW_PRIVATE): ahí se manda la clave root.
+		if ( class_exists( 'Digitalisimo_Hosting_Webuzo' ) && ! Digitalisimo_Hosting_Webuzo::safe_url( $url ) ) return '';
 		return rtrim( $url, '/' );
 	}
 	/** Nameservers separados por comas: sólo nombres de host; vacío = los de DIGITALÍSIMO. */
