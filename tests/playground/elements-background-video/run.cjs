@@ -1,13 +1,12 @@
 // Vídeos de fondo de DIGITALÍSIMO Elements en Chrome real (tests/playground/elements-background-video.sh). Auditoría de
-// digitalisimo.lat (2026-11-24): la cabecera bajaba un MP4 de 8,1 MB también en el celular. Con un MP4 de 3 MB:
-//   D  predeterminado («lo decide cada elemento»): en el celular (390 px), el vídeo sin «Reproducir en móvil» no se pide
-//      (sin src, contenedor oculto y la imagen de respaldo de fondo) y en escritorio sí; con «Reproducir en móvil»
-//      encendido se respeta y se pide;
-//   N  «Nunca en el celular»: el que lo pide tampoco se descarga en el celular (sin src ni petición), con su respaldo; en
-//      escritorio sigue;
-//   A  «También en el celular»: el que no lo pedía se descarga en el celular;
-//   E  editor: al abrir el fondo del contenedor, el aviso dice que pesa 3 MB, más que el límite de 2 MB, si se descarga
-//      en el celular y si falta la imagen de respaldo.
+// digitalisimo.lat (2026-11-24): la cabecera bajaba un MP4 de 8,1 MB también en el celular. Con MP4 de 3 MB y de 1 MB:
+//   U  «automático» (predeterminado): en el celular (390 px) no se pide (sin src, contenedor oculto, imagen de respaldo de
+//      fondo) el vídeo sin «Reproducir en móvil» ni el de 3 MB que lo pide pero tiene imagen de respaldo (el caso de
+//      digitalisimo.lat); sí el de 1 MB que lo pide y el de 3 MB sin imagen; en escritorio, todos;
+//   D  «lo decide cada elemento»: se respeta «Reproducir en móvil»;
+//   N  «nunca en el celular»: tampoco el ligero que lo pide, con su respaldo; el que no tiene imagen sigue; escritorio igual;
+//   A  «también en el celular»: el que no lo pedía se descarga en el celular;
+//   E  editor: el peso (3 MB > 2 MB), si se descarga en el celular y la falta de imagen de respaldo, también en uno ligero.
 // Uso: node run.cjs <puerto> <host> <dir>
 const puppeteer = require('puppeteer-core');
 const fs = require('fs');
@@ -65,35 +64,51 @@ const DESKTOP = { width: 1280, height: 900 };
     const quiet = (s) => s.requests === 0 && s.src === '' && s.display === 'none';
     const fallback = (s) => /respaldo-del-ensayo\.png/.test(s.poster);
 
-    // D: predeterminado.
-    let p = await policy('element');
-    ok(p.fix === true && p.mobile === 'element', 'D0: la política del sitio está en «lo decide cada elemento»', JSON.stringify(p));
+    const loads = (s) => s.requests > 0 && s.src !== '';
+
+    // U: automático (predeterminado, sin guardar nada): fuera del celular sólo el vídeo pesado con imagen de respaldo.
+    let p = await policy('auto');
+    ok(p.fix === true && p.mobile === 'auto', 'U0: la política del sitio está en «automático»', JSON.stringify(p));
     let s = await visit('no', MOBILE);
-    ok(s.mode === 'mobile', 'D0: Chrome a 390 px está en el punto de corte del celular', JSON.stringify(s));
-    ok(quiet(s), 'D1: celular, sin «Reproducir en móvil»: no se pide el MP4 (sin src, contenedor oculto)', JSON.stringify(s));
-    ok(fallback(s), 'D2: y se ve la imagen de respaldo de fondo', JSON.stringify(s));
+    ok(s.mode === 'mobile', 'U0: Chrome a 390 px está en el punto de corte del celular', JSON.stringify(s));
+    ok(quiet(s) && fallback(s), 'U1: celular, sin «Reproducir en móvil»: no se pide el MP4 y se ve la imagen de respaldo', JSON.stringify(s));
     s = await visit('no', DESKTOP);
-    ok(s.requests > 0 && s.src !== '', 'D3: escritorio: el vídeo se pide y se reproduce', JSON.stringify(s));
+    ok(loads(s), 'U2: escritorio: el vídeo se pide y se reproduce', JSON.stringify(s));
     s = await visit('si', MOBILE);
-    ok(s.requests > 0 && s.src !== '', 'D4: celular, con «Reproducir en móvil» encendido en el elemento: se respeta y se pide', JSON.stringify(s));
+    ok(quiet(s) && fallback(s), 'U3: celular, 3 MB con «Reproducir en móvil» e imagen de respaldo: no se descarga y se ve la imagen (el caso de digitalisimo.lat)', JSON.stringify(s));
+    s = await visit('si', DESKTOP);
+    ok(loads(s), 'U4: y en escritorio sí', JSON.stringify(s));
+    s = await visit('si-ligero', MOBILE);
+    ok(loads(s), 'U5: celular, 1 MB (bajo el límite) con «Reproducir en móvil»: se respeta y se pide', JSON.stringify(s));
+    s = await visit('si-sin-respaldo', MOBILE);
+    ok(loads(s), 'U6: celular, 3 MB con «Reproducir en móvil» sin imagen de respaldo: se respeta (no queda vacío)', JSON.stringify(s));
+
+    // D: lo decide cada elemento (como antes de esta versión).
+    p = await policy('element');
+    ok(p.fix === true && p.mobile === 'element', 'D0: la política del sitio está en «lo decide cada elemento»', JSON.stringify(p));
+    s = await visit('si', MOBILE);
+    ok(loads(s), 'D1: celular, con «Reproducir en móvil» encendido en el elemento: se respeta y se pide', JSON.stringify(s));
+    s = await visit('no', MOBILE);
+    ok(quiet(s), 'D2: celular, sin «Reproducir en móvil»: no se pide', JSON.stringify(s));
 
     // N: nunca en el celular.
     p = await policy('never');
     ok(p.fix === true && p.mobile === 'never', 'N0: la política del sitio está en «nunca en el celular»', JSON.stringify(p));
-    s = await visit('si', MOBILE);
-    ok(quiet(s), 'N1: celular, aunque el elemento lo pida: no se pide el MP4 (sin src ni descarga, contenedor oculto)', JSON.stringify(s));
-    ok(fallback(s), 'N2: y se ve su imagen de respaldo', JSON.stringify(s));
+    s = await visit('si-ligero', MOBILE);
+    ok(quiet(s) && fallback(s), 'N1: celular, aunque el elemento lo pida y pese poco: no se pide el MP4 y se ve su imagen de respaldo', JSON.stringify(s));
+    s = await visit('si-sin-respaldo', MOBILE);
+    ok(loads(s), 'N2: pero uno sin imagen de respaldo no se quita (no queda vacío)', JSON.stringify(s));
     s = await visit('si', DESKTOP);
-    ok(s.requests > 0 && s.src !== '', 'N3: escritorio: el vídeo sigue', JSON.stringify(s));
+    ok(loads(s), 'N3: escritorio: el vídeo sigue', JSON.stringify(s));
 
     // A: también en el celular.
     p = await policy('always');
     ok(p.fix === true && p.mobile === 'always', 'A0: la política del sitio está en «también en el celular»', JSON.stringify(p));
     s = await visit('no', MOBILE);
-    ok(s.requests > 0 && s.src !== '' && !s.hiddenClass, 'A1: celular, aunque el elemento no lo pida: se pide y se reproduce', JSON.stringify(s));
+    ok(loads(s) && !s.hiddenClass, 'A1: celular, aunque el elemento no lo pida: se pide y se reproduce', JSON.stringify(s));
 
-    // E: aviso de peso en el editor.
-    await policy('element');
+    // E: aviso de peso en el editor, con la política predeterminada.
+    await policy('auto');
     const editor = async (slug) => {
       await admin.goto(`${base}/wp-admin/post.php?post=${ready.pages[slug]}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 300000 });
       await admin.waitForSelector('#elementor-panel', { timeout: 300000 });
@@ -140,9 +155,11 @@ const DESKTOP = { width: 1280, height: 900 };
     };
     let text = await editor('si');
     ok(typeof text === 'string' && /pesa 3 MB/.test(text) && /límite del sitio \(2 MB\)/.test(text), 'E1: el editor avisa que el vídeo pesa 3 MB, más que el límite de 2 MB', text);
-    ok(/También se descarga en el celular/.test(text || ''), 'E2: y que se descarga en el celular (tiene «Reproducir en móvil»)', text);
-    text = await editor('sin-respaldo');
-    ok(/En el celular no se descarga/.test(text || '') && /Falta la «Imagen de respaldo»/.test(text || ''), 'E3: sin «Reproducir en móvil» y sin respaldo: no se descarga en el celular y falta la imagen', text);
+    ok(/En el celular no se descarga: el sitio lo quita del celular/.test(text || '') && !/Falta/.test(text || ''), 'E2: y que el sitio lo quita del celular (automático, con imagen de respaldo)', text);
+    text = await editor('si-sin-respaldo');
+    ok(/pesa 3 MB/.test(text || '') && /También se descarga en el celular/.test(text || '') && /Falta la «Imagen de respaldo»/.test(text || ''), 'E3: sin imagen de respaldo: se descarga en el celular y falta la imagen', text);
+    text = await editor('ligero-sin-respaldo');
+    ok(/Falta la «Imagen de respaldo»/.test(text || '') && !/pesa/.test(text || ''), 'E4: uno ligero sin imagen de respaldo: avisa de la imagen aunque no pase del peso', text);
     ok(errors.length === 0, 'sin errores de JavaScript en las páginas', errors.join(' | '));
   } catch (e) {
     ok(false, 'el ensayo terminó con una excepción', e.stack || String(e));

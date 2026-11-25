@@ -63,6 +63,11 @@ const WITH_FALLBACK = { ...VIDEO, background_video_fallback: { url: 'https://sit
   assert.match(message({ ...VIDEO, background_play_on_mobile: '' }, 3e6, 'always'), /También se descarga/, 'Política «siempre»: se descarga.');
   assert.doesNotMatch(message({ ...VIDEO, background_video_fallback: { url: 'x.jpg' } }, 3e6, 'element'), /Falta/, 'Con respaldo: no lo pide.');
   assert.equal(message({ ...VIDEO, background_background: 'classic' }, 9e9, 'element'), '', 'Sin fondo de vídeo: sin aviso.');
+  assert.match(message(WITH_FALLBACK, 3e6, 'auto'), /En el celular no se descarga: el sitio lo quita del celular/, 'Automático: pesado con respaldo no va al celular.');
+  assert.equal(message(WITH_FALLBACK, 1e6, 'auto'), '', 'Automático: ligero con respaldo, sin aviso.');
+  const auto = message(VIDEO, 3e6, 'auto');
+  assert.match(auto, /También se descarga en el celular/, 'Automático: pesado sin respaldo lo decide el elemento (se descarga).');
+  assert.match(auto, /Falta la «Imagen de respaldo»/, 'Y pide la imagen de respaldo.');
 }
 
 // Enganches, petición del tamaño y escritura en el control.

@@ -149,22 +149,34 @@ apagado por defecto) apagado en el punto de corte `mobile`: entonces el contened
 `modules/digitalisimo-front/class-background-video.php` añade, sin tocar `elementor/`:
 
 - **«Vídeos de fondo en el celular»** (pantalla «Rendimiento», por sitio y por red, con «Heredar de la red» por campo):
-  `element` (predeterminado: lo decide cada elemento, como siempre; no cambia nada en ningún sitio), `never` (nunca en
-  el celular, aunque el elemento lo pida) y `always` (también en el celular). Se aplica en el front con
+  - `auto` (predeterminado). **Decisión** (pedido del dueño, «por omisión, no reproducirlos en celular, imagen de
+    póster», y revisión del 2026-11-25): en el celular no se reproduce ni se descarga un vídeo que pasa del umbral
+    («Avisar en el editor si el vídeo pesa más de», 2 MB) **con peso conocido** (archivo de `uploads` o adjunto con su
+    tamaño; una vez por petición y una hora en la caché de objetos) **si tiene imagen de respaldo**. En cualquier otro
+    caso (ligero, peso desconocido o sin imagen) decide el elemento con «Reproducir en móvil». Así digitalisimo.lat deja
+    de bajar 8,1 MB en el celular sin tocar nada, y nunca queda un elemento vacío. Cambia la salida en sitios con
+    vídeos pesados con «Reproducir en móvil» e imagen de respaldo: es lo pedido.
+  - `element`: lo decide cada elemento, como antes de esta versión.
+  - `never`: nunca en el celular, aunque el elemento lo pida, salvo un vídeo sin imagen de respaldo (quedaría vacío).
+  - `always`: también en el celular.
+
+  Se aplica en el front con
   `elementor/frontend/before_render` (prioridad mínima) y `set_settings( 'background_play_on_mobile' )` más
   `reset_render_state()`, antes de que el elemento calcule su clase `elementor-hidden-mobile` y los `data-settings` del
   manejador: en el celular el vídeo no lleva `src` ni se descarga. Nunca en el editor, su vista previa ni fuera del
   front. Cambiar la política en el sitio vacía los archivos generados y la caché de elementos.
 - **Aviso de peso en el editor**: un control informativo (`RAW_HTML`, no guarda nada, sólo con «Vídeo») en el fondo de
   contenedores y secciones, donde `assets/background-video-weight.js` escribe, si el vídeo es del mismo origen y su
-  `HEAD` pasa del umbral del sitio («Avisar en el editor si el vídeo pesa más de», 2 MB por defecto), el peso, si se
-  descarga en el celular y si falta la imagen de respaldo.
+  `HEAD` pasa del umbral del sitio («Avisar en el editor si el vídeo pesa más de», 2 MB por defecto), el peso y si se
+  descarga en el celular con la política del sitio; y, pese lo que pese (también si no se puede medir), si falta la
+  imagen de respaldo. Sólo mide direcciones absolutas http(s) del mismo origen que terminan en `.mp4`, `.webm`, `.ogg`
+  o `.mov`, medio segundo después de la última tecla, y una vez por dirección.
 
 Pruebas: `tests/elements-background-video.php`, `tests/elements-background-video-weight.mjs` y, en Chrome,
 `tests/playground/elements-background-video.sh` (peticiones al MP4 a 390 px y a 1 280 px con cada política, y el aviso
 del editor).
 
-**Límites.** «Celular» es el punto de corte `mobile` del sitio: un teléfono en horizontal que pase de ese ancho lo
+**Límites.** Con `auto`, un vídeo de otro servidor (CDN) cuyo peso no se conoce se deja al elemento. «Celular» es el punto de corte `mobile` del sitio: un teléfono en horizontal que pase de ese ancho lo
 descarga como una tableta. Sin «Imagen de respaldo», el celular sólo muestra el color de fondo (el aviso lo dice). El
 aviso sólo mide vídeos del propio sitio. Un cambio de la política de red no vacía la caché de elementos de cada sitio:
 rige al caducar (24 h por defecto) o al vaciarla. El Slider de dispositivos (MP4 como diapositiva, con controles) no es

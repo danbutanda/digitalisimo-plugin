@@ -5,7 +5,8 @@
  * opciones (sitio y red), ganchos y elementos del constructor.
  * - Ajustes: predeterminados (`element`, 2 MB), validación (modo de la lista, MB entre 0,1 y 1024, coma decimal), un
  *   valor inválido conserva el guardado, resolución sitio → red → predeterminado con «Heredar de la red» por campo.
- * - Front: con `element` ningún elemento cambia; con `never` el «Reproducir en móvil» de un fondo de vídeo alojado se
+ * - Front: con `auto` (predeterminado) sólo se apaga en el celular un vídeo pesado de peso conocido con imagen de
+ *   respaldo (`uploads` o adjunto, sin salir de `uploads`, medido una vez); con `element` ningún elemento cambia; con `never` el «Reproducir en móvil» de un fondo de vídeo alojado se
  *   apaga (y se olvidan los ajustes ya calculados) y con `always` se enciende; YouTube, otros elementos, el editor y las
  *   peticiones que no son del front no cambian.
  * - Editor: el control informativo (no guarda nada, sólo con «Vídeo») y la configuración del script con el umbral.
@@ -111,6 +112,19 @@ namespace {
 	function wp_add_inline_script( $handle, $code, $position = 'after' ) {
 		$GLOBALS['bv']['inline'][ $handle ] = $code;
 	}
+	function wp_get_upload_dir() {
+		return $GLOBALS['bv']['uploads'] ?? array( 'basedir' => '/no/existe', 'baseurl' => 'https://sitio.test/wp-content/uploads' );
+	}
+	function attachment_url_to_postid( $url ) {
+		$GLOBALS['bv']['lookups'] = ( $GLOBALS['bv']['lookups'] ?? 0 ) + 1;
+		return $GLOBALS['bv']['attachments'][ $url ] ?? 0;
+	}
+	function wp_get_attachment_metadata( $id ) {
+		return 9 === (int) $id ? array( 'filesize' => 500000 ) : false;
+	}
+	function get_attached_file( $id ) {
+		return '';
+	}
 
 	/** Un contenedor, sección o widget con los métodos de `Controls_Stack` que importan. */
 	class BV_Element {
@@ -175,7 +189,7 @@ namespace {
 	if ( $fixed ) {
 		// Ajustes.
 		bv_reset();
-		check( 'element' === $cls::get( 'mobile' ) && 2.0 === $cls::get( 'max_mb' ), 'predeterminados: lo decide cada elemento y 2 MB' );
+		check( 'auto' === $cls::get( 'mobile' ) && 2.0 === $cls::get( 'max_mb' ), 'predeterminados: automático y 2 MB' );
 		check( 'never' === $cls::clean( 'mobile', 'never' ) && null === $cls::clean( 'mobile', 'nunca' ) && null === $cls::clean( 'mobile', array() ), 'el modo sólo acepta los de la lista' );
 		check( 1.5 === $cls::clean( 'max_mb', '1,5' ) && 8.0 === $cls::clean( 'max_mb', 8 ) && null === $cls::clean( 'max_mb', '0' ) && null === $cls::clean( 'max_mb', '2000' ) && null === $cls::clean( 'max_mb', 'mucho' ), 'los MB: coma decimal, entre 0,1 y 1024' );
 		$cls::save_site( array( 'mobile' => 'never', 'max_mb' => '3' ) );
@@ -189,7 +203,7 @@ namespace {
 		bv_reset( array( 'mobile' => 'always', 'max_mb' => 5, 'own' => array( 'mobile' ) ), array( 'mobile' => 'never', 'max_mb' => 1 ), true );
 		check( 'always' === $cls::get( 'mobile' ) && 1.0 === $cls::get( 'max_mb' ) && 'site' === $cls::origin( 'mobile' ), 'red: «Heredar de la red» por campo' );
 		bv_reset( array(), array(), true );
-		check( 'element' === $cls::get( 'mobile' ) && 'default' === $cls::origin( 'mobile' ), 'red sin valores: el predeterminado' );
+		check( 'auto' === $cls::get( 'mobile' ) && 'default' === $cls::origin( 'mobile' ), 'red sin valores: el predeterminado' );
 		$GLOBALS['bv']['multisite'] = true;
 		$saved = $cls::sanitize( array( 'mobile' => 'never', 'max_mb' => '2', 'inherit' => array( 'mobile' => '0', 'max_mb' => '1' ) ) );
 		check( array( 'mobile' ) === $saved['own'], 'envío del sitio en una red: own son los campos sin «Heredar de la red»' );
@@ -200,10 +214,49 @@ namespace {
 		$cls::init();
 		$cls::init();
 		check( 1 === count( $GLOBALS['bv']['hooks']['elementor/frontend/before_render'] ?? array() ) && PHP_INT_MIN === $GLOBALS['bv']['hooks']['elementor/frontend/before_render'][0][1], 'init() idempotente; before_render antes que nadie' );
-		bv_reset();
+		bv_reset( array( 'mobile' => 'element' ) );
 		$el = bv_video( 'yes' );
 		$cls::before_render( $el );
 		check( 'yes' === $el->settings['background_play_on_mobile'] && 0 === $el->resets, 'element: el «Reproducir en móvil» del elemento se respeta' );
+
+		// auto (predeterminado): sólo el vídeo de peso conocido por encima del umbral y con imagen de respaldo.
+		$dir = sys_get_temp_dir() . '/digi-bv-' . getmypid();
+		@mkdir( $dir . '/2026/11', 0777, true );
+		file_put_contents( $dir . '/2026/11/pesado.mp4', str_repeat( 'x', 200000 ) );
+		file_put_contents( $dir . '/2026/11/ligero.mp4', str_repeat( 'x', 50000 ) );
+		$GLOBALS['bv']['uploads']     = array( 'basedir' => $dir, 'baseurl' => 'https://sitio.test/wp-content/uploads' );
+		$GLOBALS['bv']['attachments'] = array( 'https://cdn.test/medios/externo.mp4' => 9 );
+		$GLOBALS['bv']['lookups']     = 0;
+		$up = 'https://sitio.test/wp-content/uploads/2026/11/';
+		bv_reset( array( 'max_mb' => 0.1 ) );
+		check( 'auto' === $cls::get( 'mobile' ), 'auto es lo que rige sin guardar nada' );
+		$el = bv_video( 'yes', $up . 'pesado.mp4' );
+		$cls::before_render( $el );
+		check( '' === $el->settings['background_play_on_mobile'] && 1 === $el->resets, 'auto: un vídeo pesado (200 KB > 0,1 MB) con imagen de respaldo no va al celular' );
+		$el = bv_video( 'yes', 'http://sitio.test/wp-content/uploads/2026/11/pesado.mp4?v=2' );
+		$cls::before_render( $el );
+		check( '' === $el->settings['background_play_on_mobile'], 'auto: también con otro esquema y parámetros en la dirección' );
+		$el = bv_video( 'yes', $up . 'ligero.mp4' );
+		$cls::before_render( $el );
+		check( 'yes' === $el->settings['background_play_on_mobile'] && 0 === $el->resets, 'auto: uno ligero (50 KB) decide el elemento' );
+		$el = bv_video( 'yes', $up . 'pesado.mp4', 'container', false );
+		$cls::before_render( $el );
+		check( 'yes' === $el->settings['background_play_on_mobile'], 'auto: uno pesado sin imagen de respaldo decide el elemento' );
+		$el = bv_video( '', $up . 'pesado.mp4' );
+		$cls::before_render( $el );
+		check( '' === $el->settings['background_play_on_mobile'] && 0 === $el->resets, 'auto: uno que no lo pide no se toca' );
+		$el = bv_video( 'yes', 'https://otro.test/fondo.mp4' );
+		$cls::before_render( $el );
+		check( 'yes' === $el->settings['background_play_on_mobile'], 'auto: de peso desconocido (otro sitio, no es un adjunto) decide el elemento' );
+		$el = bv_video( 'yes', 'https://cdn.test/medios/externo.mp4' );
+		$cls::before_render( $el );
+		check( '' === $el->settings['background_play_on_mobile'], 'auto: un adjunto con su peso en los metadatos (500 KB) cuenta como conocido' );
+		check( null === $cls::video_bytes( $up . '../../../secreto.mp4' ) && null === $cls::video_bytes( $up . 'no-existe.mp4' ), 'video_bytes: nada fuera de uploads ni archivos que no existen' );
+		$before = $GLOBALS['bv']['lookups'];
+		$cls::video_bytes( 'https://cdn.test/medios/externo.mp4' );
+		check( $before === $GLOBALS['bv']['lookups'], 'video_bytes: cada dirección se mide una vez por petición' );
+		@unlink( $dir . '/2026/11/pesado.mp4' );
+		@unlink( $dir . '/2026/11/ligero.mp4' );
 		bv_reset( array( 'mobile' => 'never' ) );
 		$el = bv_video( 'yes' );
 		$cls::before_render( $el );
@@ -260,7 +313,7 @@ namespace {
 		bv_reset( array( 'max_mb' => 2.5 ) );
 		$cls::enqueue_editor();
 		$config = $cls::editor_config();
-		check( 2621440 === $config['maxBytes'] && 'element' === $config['mobile'], 'el script del editor recibe el umbral en bytes y la política' );
+		check( 2621440 === $config['maxBytes'] && 'auto' === $config['mobile'], 'el script del editor recibe el umbral en bytes y la política' );
 		check( false !== strpos( $GLOBALS['bv']['scripts'][ $cls::HANDLE ] ?? '', 'assets/background-video-weight.js' ) && false !== strpos( $GLOBALS['bv']['inline'][ $cls::HANDLE ] ?? '', '"maxBytes":2621440' ), 'el script y su configuración se encolan en el editor' );
 
 		// Pantalla.
@@ -268,7 +321,7 @@ namespace {
 		ob_start();
 		$cls::render_fields( false );
 		$site_html = ob_get_clean();
-		check( false !== strpos( $site_html, 'name="digitalisimo_elements_background_video[mobile]"' ) && false !== strpos( $site_html, 'name="digitalisimo_elements_background_video[max_mb]"' ) && false !== strpos( $site_html, 'value="element" selected="selected"' ), 'sitio: el desplegable y los MB, con el predeterminado elegido' );
+		check( false !== strpos( $site_html, 'name="digitalisimo_elements_background_video[mobile]"' ) && false !== strpos( $site_html, 'name="digitalisimo_elements_background_video[max_mb]"' ) && false !== strpos( $site_html, 'value="auto" selected="selected"' ), 'sitio: el desplegable y los MB, con el predeterminado (automático) elegido' );
 		check( false === strpos( $site_html, 'Heredar de la red' ), 'sitio único: sin «Heredar de la red»' );
 		bv_reset( array(), array(), true );
 		ob_start();

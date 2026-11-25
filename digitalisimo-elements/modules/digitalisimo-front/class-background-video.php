@@ -14,8 +14,13 @@ defined( 'ABSPATH' ) || exit;
  * del vídeo lleva `elementor-hidden-mobile` y se ve la «Imagen de respaldo» (`background_video_fallback`, el fondo del
  * elemento). Es decir: sin `src`, sin descarga y con el póster. Lo que faltaba:
  *
- * 1. **Ajuste del sitio** «Vídeos de fondo en el celular» (pantalla «Rendimiento», por sitio y por red): `element`
- *    (predeterminado: lo decide cada elemento con «Reproducir en móvil», como siempre: no cambia nada en ningún sitio),
+ * 1. **Ajuste del sitio** «Vídeos de fondo en el celular» (pantalla «Rendimiento», por sitio y por red): `auto`
+ *    (predeterminado, pedido del dueño: «por omisión, no reproducirlos en celular, imagen de póster»): en el celular no
+ *    se reproduce ni se descarga un vídeo que pasa del umbral (2 MB, con su peso conocido: el archivo está en `uploads`
+ *    o es un adjunto) si tiene imagen de respaldo; en cualquier otro caso (pesa poco, no se sabe cuánto pesa o no
+ *    tiene imagen de respaldo) decide el elemento con «Reproducir en móvil». Así un sitio sin vídeos de fondo, o con
+ *    vídeos ligeros o sin póster, no cambia, y uno como digitalisimo.lat deja de bajar 8,1 MB en el celular sin que nadie
+ *    toque nada. `element` (lo decide cada elemento, como antes de esta versión),
  *    `never` (nunca en el celular, aunque el elemento lo pida: sin `src` ni descarga, con su imagen de respaldo; un
  *    vídeo sin imagen de respaldo no se quita, porque el elemento quedaría vacío) y
  *    `always` (también en el celular, aunque el elemento no lo pida). Se aplica en el front (nunca en el editor ni en su
@@ -35,12 +40,13 @@ final class Background_Video {
 	const NETWORK_OPTION = 'digitalisimo_elements_background_video_defaults';
 	const FIELDS         = array( 'mobile', 'max_mb' );
 	const MODES          = array(
+		'auto'    => 'Automático: sin los vídeos pesados que tienen imagen de respaldo',
 		'element' => 'Lo decide cada elemento («Reproducir en móvil»)',
 		'never'   => 'Nunca en el celular si tiene imagen de respaldo: se muestra la imagen',
 		'always'  => 'También en el celular, en todos los elementos',
 	);
 	const DEFAULTS       = array(
-		'mobile' => 'element',
+		'mobile' => 'auto',
 		'max_mb' => 2.0,
 	);
 	const MIN_MB         = 0.1;
@@ -53,6 +59,9 @@ final class Background_Video {
 
 	/** @var array|null Valores resueltos de esta petición. */
 	private static $values = null;
+
+	/** @var array<string, int|null> Peso de cada vídeo ya medido en esta petición. */
+	private static $bytes = array();
 
 	public static function init(): void {
 		if ( self::$initialized || ! function_exists( 'add_action' ) ) {
@@ -69,18 +78,23 @@ final class Background_Video {
 	public static function reset(): void {
 		self::$initialized = false;
 		self::$values      = null;
+		self::$bytes       = array();
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
 	// Front.
 
 	/**
-	 * `elementor/frontend/before_render`, primero que nadie: con `never` o `always`, el vídeo de fondo alojado de un
-	 * contenedor o sección sigue la política del sitio en el celular. Con `element` (el predeterminado) no hace nada.
+	 * `elementor/frontend/before_render`, primero que nadie: el vídeo de fondo alojado de un contenedor o sección sigue
+	 * la política del sitio en el celular. Con `element` no hace nada; con `auto` sólo apaga «Reproducir en móvil» de un
+	 * vídeo pesado (peso conocido) con imagen de respaldo.
 	 */
 	public static function before_render( $element ): void {
 		$mode = self::get( 'mobile' );
 		if ( 'element' === $mode || ! self::targets( $element ) || ! Lazy_Videos::front() || Lazy_Videos::editing() ) {
+			return;
+		}
+		if ( 'auto' === $mode && ! self::heavy_on_mobile( $element ) ) {
 			return;
 		}
 		$want = 'always' === $mode ? 'yes' : '';
@@ -117,6 +131,78 @@ final class Background_Video {
 	private static function setting( $element, string $key ) {
 		$value = method_exists( $element, 'get_settings_for_display' ) ? $element->get_settings_for_display( $key ) : $element->get_settings( $key );
 		return is_scalar( $value ) ? $value : '';
+	}
+
+	/** `auto`: ¿se reproduciría en el celular un vídeo de peso conocido por encima del umbral, con imagen de respaldo? */
+	private static function heavy_on_mobile( $element ): bool {
+		if ( 'yes' !== (string) self::setting( $element, 'background_play_on_mobile' ) || ! self::has_fallback( $element ) ) {
+			return false;
+		}
+		$bytes = self::video_bytes( (string) self::setting( $element, 'background_video_link' ) );
+		return null !== $bytes && $bytes > (int) round( (float) self::get( 'max_mb' ) * 1048576 );
+	}
+
+	/**
+	 * Peso de un vídeo del sitio, o `null` si no se sabe. Primero el archivo en `uploads` (sin consultas), después el
+	 * adjunto (`filesize` de sus metadatos o del archivo). Una vez por petición, y una hora en la caché de objetos.
+	 */
+	public static function video_bytes( string $url ): ?int {
+		$url = trim( $url );
+		if ( '' === $url ) {
+			return null;
+		}
+		if ( array_key_exists( $url, self::$bytes ) ) {
+			return self::$bytes[ $url ];
+		}
+		$key    = 'v1:' . md5( $url );
+		$cached = function_exists( 'wp_cache_get' ) ? wp_cache_get( $key, 'digitalisimo_bg_video' ) : false;
+		if ( is_array( $cached ) && array_key_exists( 'bytes', $cached ) ) {
+			self::$bytes[ $url ] = null === $cached['bytes'] ? null : (int) $cached['bytes'];
+			return self::$bytes[ $url ];
+		}
+		$bytes = self::upload_bytes( $url );
+		if ( null === $bytes && function_exists( 'attachment_url_to_postid' ) ) {
+			$id = (int) attachment_url_to_postid( $url );
+			if ( $id > 0 ) {
+				$meta = function_exists( 'wp_get_attachment_metadata' ) ? wp_get_attachment_metadata( $id ) : array();
+				if ( is_array( $meta ) && ! empty( $meta['filesize'] ) ) {
+					$bytes = (int) $meta['filesize'];
+				} elseif ( function_exists( 'get_attached_file' ) ) {
+					$file  = (string) get_attached_file( $id );
+					$bytes = '' !== $file && is_file( $file ) ? (int) filesize( $file ) : null;
+				}
+			}
+		}
+		self::$bytes[ $url ] = $bytes;
+		if ( function_exists( 'wp_cache_set' ) ) {
+			wp_cache_set( $key, array( 'bytes' => $bytes ), 'digitalisimo_bg_video', 3600 );
+		}
+		return $bytes;
+	}
+
+	/** El tamaño del archivo si la dirección es de `uploads` de este sitio (sin `..`), o `null`. */
+	private static function upload_bytes( string $url ): ?int {
+		if ( ! function_exists( 'wp_get_upload_dir' ) ) {
+			return null;
+		}
+		$uploads = wp_get_upload_dir();
+		if ( empty( $uploads['baseurl'] ) || empty( $uploads['basedir'] ) ) {
+			return null;
+		}
+		$strip = static function ( string $u ): string {
+			return (string) preg_replace( '#^https?:#i', '', $u );
+		};
+		$path = (string) strtok( $url, '?#' );
+		$base = rtrim( $strip( (string) $uploads['baseurl'] ), '/' ) . '/';
+		if ( 0 !== strpos( $strip( $path ), $base ) ) {
+			return null;
+		}
+		$relative = rawurldecode( substr( $strip( $path ), strlen( $base ) ) );
+		if ( '' === $relative || false !== strpos( $relative, '..' ) || false !== strpos( $relative, "\0" ) ) {
+			return null;
+		}
+		$file = rtrim( (string) $uploads['basedir'], '/' ) . '/' . $relative;
+		return is_file( $file ) ? (int) filesize( $file ) : null;
 	}
 
 	/** ¿Tiene «Imagen de respaldo» (`background_video_fallback`), el póster que se ve cuando el vídeo no se reproduce? */
@@ -330,13 +416,14 @@ final class Background_Video {
 			echo '<option value="' . esc_attr( $mode ) . '"' . ( $mode === $values['mobile'] ? ' selected="selected"' : '' ) . '>' . esc_html( $label ) . '</option>';
 		}
 		echo '</select>';
+		echo '<p class="description">' . esc_html( '«Automático» (recomendado) quita en el celular los vídeos que pesan más del límite de abajo y tienen imagen de respaldo: no se descargan y se ve la imagen. Los ligeros, los que no tienen imagen y los de peso desconocido hacen lo que diga su «Reproducir en móvil».' ) . '</p>';
 		echo '<p class="description">' . esc_html( '«Nunca en el celular» quita el vídeo en el punto de corte del celular aunque el elemento tenga «Reproducir en móvil», y no se descarga; un vídeo sin «Imagen de respaldo» no se quita, para que el elemento no quede vacío. El editor avisa de cada vídeo de fondo sin imagen de respaldo.' ) . '</p>';
 		self::origin_row( 'mobile', $inherit_ui, $network, $id );
 		echo '</td></tr>';
 		$id = 'digitalisimo-front-background-video-max-mb';
 		echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( 'Avisar en el editor si el vídeo pesa más de (MB)' ) . '</label></th><td>';
 		echo '<input type="number" id="' . esc_attr( $id ) . '" name="' . esc_attr( $name . '[max_mb]' ) . '" value="' . esc_attr( (string) $values['max_mb'] ) . '" min="' . esc_attr( (string) self::MIN_MB ) . '" max="' . esc_attr( (string) self::MAX_MB ) . '" step="0.1" class="small-text">';
-		echo '<p class="description">' . esc_html( 'Al elegir un vídeo de fondo alojado en el sitio, el editor muestra su peso y avisa si pasa de este límite. Sólo avisa: no cambia el vídeo.' ) . '</p>';
+		echo '<p class="description">' . esc_html( 'Al elegir un vídeo de fondo alojado en el sitio, el editor muestra su peso y avisa si pasa de este límite. Con «Automático», es también el peso a partir del cual el celular no lo descarga.' ) . '</p>';
 		self::origin_row( 'max_mb', $inherit_ui, $network, $id );
 		echo '</td></tr>';
 		echo '</tbody></table>';

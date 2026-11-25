@@ -51,11 +51,14 @@
 			return '';
 		}
 		var fallback = !!(settings.background_video_fallback && settings.background_video_fallback.url);
-		var mobile = mode === 'always' || (settings.background_play_on_mobile === 'yes' && !(mode === 'never' && fallback));
+		// Como Background_Video::before_render(): «auto» quita del celular el vídeo pesado con respaldo; «never», todo
+		// vídeo con respaldo; «always» lo pone en todos.
+		var removed = fallback && (mode === 'never' || (mode === 'auto' && bytes > max));
+		var mobile = mode === 'always' || (settings.background_play_on_mobile === 'yes' && !removed);
 		var parts = [];
 		if (bytes > max) {
 			parts.push('Este vídeo de fondo pesa ' + mb(bytes) + ', más que el límite del sitio (' + mb(max) + '): hace lenta la página. Comprímelo (720p, 8 a 10 segundos, sin audio).');
-			parts.push(mobile ? 'También se descarga en el celular: apaga «Reproducir en móvil» para que el celular muestre la imagen de respaldo.' : 'En el celular no se descarga.');
+			parts.push(mobile ? 'También se descarga en el celular: apaga «Reproducir en móvil» para que el celular muestre la imagen de respaldo.' : 'En el celular no se descarga' + (removed && settings.background_play_on_mobile === 'yes' ? ': el sitio lo quita del celular y muestra la imagen de respaldo.' : '.'));
 		}
 		if (!fallback) {
 			parts.push('Falta la «Imagen de respaldo»: es lo que se ve mientras carga el vídeo y en el celular cuando no se reproduce.');
