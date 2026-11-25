@@ -276,7 +276,7 @@ final class Product {
 				$raw .= ' 23:59';
 			}
 			if ( ! preg_match( '/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$/', $raw ) ) {
-				return self::error( 'digitalisimo_sales_offer', 'offer.ends: «AAAA-MM-DD HH:MM» (o «AAAA-MM-DD», hasta las 23:59) en la hora del sitio.' );
+				return self::error( 'digitalisimo_sales_offer', 'offer.ends: «AAAA-MM-DD HH:MM» (o «AAAA-MM-DD», hasta las 23:59) en la hora de la tienda.' );
 			}
 			$ends                   = $raw;
 			$sources['fin de la oferta'] = 'la oferta que se pidió';
@@ -597,8 +597,10 @@ final class Product {
 					return null;
 				}
 				if ( 1 === count( $images ) ) {
+					// Sin el pie de muestra («Foto de la persona detrás de la marca»): ni a la vista ni guardado.
 					$el['settings']['image']          = self::image( $images[0], $name );
-					$el['settings']['caption_source'] = '';
+					$el['settings']['caption_source'] = 'none';
+					unset( $el['settings']['caption'], $el['settings']['caption_text_color'], $el['settings']['caption_typography_typography'], $el['settings']['caption_typography_font_size'] );
 					return $el;
 				}
 				// La galería entera: un carrusel de imágenes, una a la vez, con puntos.
@@ -800,12 +802,14 @@ final class Product {
 			return $el;
 		};
 		$ends = $offer['ends'];
-		$hour = Site::timezone_label( (string) ( $site['timezone'] ?? '' ) ); // La zona real del sitio, la de close_date.
+		$hour = Site::timezone_label( (string) ( $site['timezone'] ?? '' ) ); // La hora de la tienda, la de close_date.
 		$edits[ self::W['offer_close'] ] = static function ( $el ) use ( $ends, $hour ) {
 			if ( '' === $ends ) {
 				return null;
 			}
-			$el['settings']['editor'] = '<p style="text-align:center">⏰ Este precio termina el [día de cierre] de [mes de cierre] a las [hora de cierre] (' . $hour . ').</p>';
+			// «hora UTC» no le dice nada a un cliente: sin una zona con nombre, la hora va sola.
+			$zone                     = 0 === strpos( $hour, 'hora UTC' ) ? '' : ' (' . $hour . ')';
+			$el['settings']['editor'] = '<p style="text-align:center">⏰ Este precio termina el [día de cierre] de [mes de cierre] a las [hora de cierre]' . $zone . '.</p>';
 			return $el;
 		};
 		$plainify = static function ( $items ): array {
@@ -916,7 +920,7 @@ final class Product {
 			}
 		}
 		if ( '' !== $ends ) {
-			$tabs[] = array( '¿Hasta cuándo es este precio?', 'Hasta el [día de cierre] de [mes de cierre] a las [hora de cierre] (' . $hour . ').' );
+			$tabs[] = array( '¿Hasta cuándo es este precio?', 'Hasta el [día de cierre] de [mes de cierre] a las [hora de cierre]' . ( 0 === strpos( $hour, 'hora UTC' ) ? '' : ' (' . $hour . ')' ) . '.' );
 		}
 		$tabs[] = array( '¿Y si tengo otra duda?', 'Escríbenos por WhatsApp.' );
 		// Los textos son del kit (con los placeholders de cierre, que llena Builder) y los nombres de la tienda, sin corchetes.

@@ -190,12 +190,24 @@ final class Digitalisimo_AI_Site_Reader {
 				continue;
 			}
 			if ( is_array( $node['settings'] ?? null ) ) {
-				self::settings( $node['settings'], $lines, $links, '', 0 );
+				self::settings( self::visible_settings( $node['settings'] ), $lines, $links, '', 0 );
 			}
 			if ( ! empty( $node['elements'] ) ) {
 				self::walk( $node['elements'], $lines, $links, $depth + 1 );
 			}
 		}
+	}
+
+	/**
+	 * Sin lo que el widget guarda pero no se ve: el pie de una imagen sólo se pinta con `caption_source` «custom»
+	 * (caso plomerito 2: la landing guardaba «Foto de la persona detrás de la marca» sin mostrarlo y el Asistente lo
+	 * reportó como un recuadro a la vista).
+	 */
+	private static function visible_settings( array $settings ) {
+		if ( array_key_exists( 'caption', $settings ) && 'custom' !== ( $settings['caption_source'] ?? '' ) ) {
+			unset( $settings['caption'] );
+		}
+		return $settings;
 	}
 
 	private static function settings( $value, array &$lines, array &$links, $key, $depth ) {
