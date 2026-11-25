@@ -147,6 +147,16 @@ add_action(
 				update_post_meta( $id, '_wp_page_template', 'default' === $tpl ? 'default' : $tpl );
 				digi_pt_out( digi_pt_state( $id ) );
 				break;
+			case 'stale':
+				// Un autoguardado viejo: su plantilla vuelve a `default`, como uno creado antes del arreglo o cuando la
+				// entrada aún tenía otra (escrita en la revisión, sin pasar por la entrada).
+				$id       = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$autosave = wp_get_post_autosave( $id, $admin->ID );
+				if ( $autosave ) {
+					update_metadata( 'post', (int) $autosave->ID, '_wp_page_template', 'default' );
+				}
+				digi_pt_out( digi_pt_state( $id ) );
+				break;
 			case 'state':
 				digi_pt_out( digi_pt_state( isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 				break;

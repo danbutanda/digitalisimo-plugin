@@ -9,6 +9,7 @@
 //   T7  borrador con lienzo: build-composition, título por el MCP y publish-document
 //   T8  MCP update-page-settings con post_status publish y post_title
 //   T9  la página publicada sale con el lienzo (clase page-template-elementor_canvas)
+//   T10 un autoguardado con una copia vieja («default») de la plantilla no se la quita al publicar
 // Escribe <dir>/result.txt y <dir>/result.json; sale 1 si algo falla. Uso: node run.mjs <puerto> <host> <dir>
 import http from 'node:http';
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
@@ -182,6 +183,15 @@ async function main() {
   r = await mcp.call('update-page-settings', { post_id: p.id, settings: { post_status: 'publish', post_title: 'Título T8' } });
   s = await probe('state', `&id=${p.id}`);
   check('T8.1', !r.isError && s.template === CANVAS && s.title === 'Título T8', 'la plantilla sigue en el lienzo', brief(s));
+
+  log('== T10 autoguardado viejo con «default» y publish-document');
+  p = await probe('page', '&tpl=elementor_canvas');
+  r = await append(p.id, 'Pendiente T10');
+  s = await probe('stale', `&id=${p.id}`);
+  check('T10.0', !r.isError && s.autosave > 0 && s.auto_template === 'default' && s.template === CANVAS, 'hay un autoguardado pendiente con una copia vieja («default») de la plantilla', brief(s));
+  r = await mcp.call('publish-document', { post_id: p.id });
+  s = await probe('state', `&id=${p.id}`);
+  check('T10.1', !r.isError && s.data.includes('Pendiente T10') && s.template === CANVAS, 'publish-document publica el cambio pendiente y conserva el lienzo', brief(s));
 
   log('== T9 la página publicada sale con el lienzo');
   const front = await request('GET', `/?page_id=${t3}`);

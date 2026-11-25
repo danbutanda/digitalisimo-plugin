@@ -28,7 +28,11 @@ defined( 'ABSPATH' ) || exit;
  *    copiar a la entrada (`Revisions_Manager::restore_revision()`): si entre tanto la plantilla de la entrada cambió
  *    (`update-page-settings` con `template`, la REST con `template`, el editor de WordPress), publicar ponía la vieja.
  *    Ahora, cuando cambia la plantilla de una entrada, cada autoguardado suyo que tenía la anterior recibe la nueva; uno
- *    que ya tenía otra (un cambio pendiente del editor) la conserva.
+ *    que ya tenía otra (un cambio pendiente del editor) la conserva. Y como un autoguardado puede traer una copia vieja
+ *    (creado antes de este arreglo, o cuando la entrada aún tenía otra plantilla), `publish-document` no la toca: la
+ *    promoción copia los elementos y los ajustes, pero la entrada conserva su plantilla (regla del dueño: toda
+ *    actualización que no menciona la plantilla la conserva). Un cambio de plantilla pendiente en el autoguardado del
+ *    editor se publica con «Publicar» del editor o se pide con `update-page-settings` y `template`.
  *
  * Fuera de esos dos casos no hace nada: no lee ni escribe metas, no cambia ninguna plantilla pedida y no toca sitios
  * que no guardan revisiones ni autoguardados.
@@ -45,6 +49,10 @@ final class Page_Template {
 	/** @var int Entrada de la revisión cuya actualización confirmó la base (`clean_post_cache`); 0: ninguna. */
 	private static $revision_parent = 0;
 
+	/** @var int `publish-document` en curso (profundidad). */
+	private static $publishing = 0;
+
+	const PUBLISH = 'elementor/publish-document';
 
 	/** @var array<int, string> Plantilla anterior de cada entrada durante su escritura. */
 	private static $previous = array();
@@ -60,6 +68,7 @@ final class Page_Template {
 		add_action( 'edit_post', array( __CLASS__, 'post_updated' ), PHP_INT_MIN, 1 );
 		add_action( 'wp_insert_post', array( __CLASS__, 'post_updated' ), PHP_INT_MIN, 1 );
 		add_action( 'shutdown', array( __CLASS__, 'post_updated' ), PHP_INT_MIN, 0 );
+		add_filter( 'wp_register_ability_args', array( __CLASS__, 'wrap_ability' ), PHP_INT_MAX, 2 );
 		add_filter( 'update_post_metadata', array( __CLASS__, 'before_write' ), PHP_INT_MAX, 3 );
 		add_filter( 'add_post_metadata', array( __CLASS__, 'before_write' ), PHP_INT_MAX, 3 );
 		add_action( 'updated_post_meta', array( __CLASS__, 'written' ), 10, 4 );
@@ -102,6 +111,26 @@ final class Page_Template {
 	}
 
 	/**
+	 * `wp_register_ability_args`: durante `publish-document`, la plantilla de las entradas no cambia (la promoción del
+	 * autoguardado copiaría la suya, que puede ser vieja).
+	 */
+	public static function wrap_ability( $args, $name = '' ) {
+		if ( self::PUBLISH !== $name || ! is_array( $args ) || empty( $args['execute_callback'] ) || ! is_callable( $args['execute_callback'] ) ) {
+			return $args;
+		}
+		$inner                    = $args['execute_callback'];
+		$args['execute_callback'] = static function ( ...$params ) use ( $inner ) {
+			++self::$publishing;
+			try {
+				return call_user_func_array( $inner, $params );
+			} finally {
+				--self::$publishing;
+			}
+		};
+		return $args;
+	}
+
+	/**
 	 * `update_post_metadata` / `add_post_metadata`, con la última prioridad: mientras se guarda una revisión, su entrada
 	 * conserva la plantilla (la escritura se da por hecha sin cambiar nada). Si no, anota la plantilla anterior de la
 	 * entrada para que sus autoguardados la sigan.
@@ -117,6 +146,9 @@ final class Page_Template {
 			return true;
 		}
 		if ( $object_id > 0 && ! self::is_revision( $object_id ) ) {
+			if ( self::$publishing ) {
+				return true;
+			}
 			self::$previous[ $object_id ] = self::read( $object_id );
 		}
 		return $check;
@@ -149,6 +181,7 @@ final class Page_Template {
 		self::$initialized      = false;
 		self::$revision_parent  = 0;
 		self::$revision_pending = array();
+		self::$publishing       = 0;
 		self::$previous         = array();
 	}
 

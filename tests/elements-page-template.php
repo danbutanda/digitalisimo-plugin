@@ -17,9 +17,11 @@
  * - P3: lo de siempre sigue igual: actualizar la entrada con una plantilla válida la escribe, una inválida da `default`,
  *   escribir la meta de una revisión no la propaga ni la bloquea, y una actualización de revisión que no llega a
  *   `edit_post` no bloquea la siguiente escritura de su entrada.
+ * - P4: `publish-document` conserva la plantilla de la entrada aunque el autoguardado traiga una copia vieja; fuera de
+ *   esa herramienta, o si falla, todo sigue igual.
  * - P5: la marca de la revisión sólo vale desde que la base confirma su actualización (`clean_post_cache`), para una
  *   sola escritura, y se limpia en `wp_insert_post` y `shutdown`.
- * Falla con el código anterior (no existe `class-page-template.php`): P1 y P2; P5 falla con c58062f5.
+ * Falla con el código anterior (no existe `class-page-template.php`): P1, P2 y P4; P4 y P5 fallan con c58062f5.
  */
 
 namespace {
@@ -219,6 +221,36 @@ namespace {
 	unset( $GLOBALS['pt']['meta'][ PAGE ]['_wp_page_template'] );
 	update_post_meta( PAGE, '_wp_page_template', 'elementor_canvas' );
 	check( 'elementor_canvas' === tpl( PAGE ) && 'elementor_canvas' === tpl( AUTO ), 'P2.7: una entrada sin la meta (add_post_metadata) también la pasa a su autoguardado «default»' );
+
+	// P4: `publish-document` conserva la plantilla de la entrada aunque el autoguardado traiga una copia vieja
+	// (revisión del 2026-11-25: un autoguardado creado antes del arreglo devolvía `default` al publicar).
+	pt_reset( 'elementor_canvas', 'default' );
+	$publish = pt_ability( 'elementor/publish-document', static function () {
+		pt_restore( AUTO, PAGE );
+		return array( 'success' => true );
+	} );
+	$publish();
+	check( 'elementor_canvas' === tpl( PAGE ), 'P4.1: publish-document con un autoguardado viejo («default») deja el lienzo (antes: default)' );
+	pt_reset( 'elementor_canvas', 'default' );
+	pt_restore( AUTO, PAGE );
+	check( 'default' === tpl( PAGE ), 'P4.2: fuera de publish-document la copia se escribe como siempre (restaurar una revisión a mano)' );
+	pt_reset( 'default', 'default' );
+	$failing = pt_ability( 'elementor/publish-document', static function () {
+		throw new RuntimeException( 'falla' );
+	} );
+	try {
+		$failing();
+	} catch ( RuntimeException $e ) {
+		unset( $e );
+	}
+	update_post_meta( PAGE, '_wp_page_template', 'elementor_canvas' );
+	check( 'elementor_canvas' === tpl( PAGE ), 'P4.3: si publish-document falla, la protección se retira' );
+	$other = pt_ability( 'elementor/update-page-settings', static function () {
+		update_post_meta( PAGE, '_wp_page_template', 'elementor_header_footer' );
+		return array( 'success' => true );
+	} );
+	$other();
+	check( 'elementor_header_footer' === tpl( PAGE ), 'P4.4: otras herramientas sí cambian la plantilla que se pide' );
 
 	// P5: la marca de la revisión sólo vale para su bloque de la plantilla.
 	pt_reset();

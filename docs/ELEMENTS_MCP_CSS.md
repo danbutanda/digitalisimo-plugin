@@ -239,12 +239,18 @@ REST, **no** la tocaba (T1, T3, T4, T8). Lo que la quitaba:
 **Arreglo** (`modules/digitalisimo-mcp/class-page-template.php` y `class-settings-merge.php`, sin tocar `elementor/`),
 para todos los caminos, no sólo el MCP:
 
-- Mientras `wp_insert_post()` actualiza una revisión (`pre_post_update` con `post_type` `revision` hasta `edit_post`), la
-  escritura de `_wp_page_template` de su entrada se da por hecha sin cambiar nada (`update_post_metadata` y
-  `add_post_metadata` con la última prioridad). Cualquier otra actualización libera la protección, también si la de la
-  revisión se cortó antes de `edit_post`.
+- Mientras `wp_insert_post()` actualiza una revisión (desde que la base confirma la actualización, `clean_post_cache`
+  de esa revisión, hasta su bloque de la plantilla), la escritura de `_wp_page_template` de su entrada se da por hecha
+  sin cambiar nada (`update_post_metadata` y `add_post_metadata` con la última prioridad). Se descarta una sola
+  escritura, y la marca se limpia también en `edit_post`, `wp_insert_post`, la siguiente actualización y `shutdown`:
+  una actualización que termina antes (error de la base) no deja nada bloqueado.
 - Cuando cambia la plantilla de una entrada, cada autoguardado suyo que tenía la anterior recibe la nueva; uno con otra
   (un cambio pendiente del editor) la conserva. Vacío y `default` cuentan como lo mismo.
+- Durante `publish-document` la plantilla de la entrada no cambia: la promoción copia elementos y ajustes del
+  autoguardado, pero su plantilla puede ser una copia vieja (un autoguardado creado antes de este arreglo, o cuando la
+  entrada aún tenía otra: T10). Es la regla del dueño (lo que no menciona la plantilla la conserva). Consecuencia
+  declarada: un cambio de plantilla pendiente en el autoguardado del editor no lo publica `publish-document`; se publica
+  con «Publicar» del editor o se pide con `update-page-settings` y `template`.
 - `update-page-settings` aplica `post_name` a la entrada con `wp_update_post()` (con `page_template` en `null`, como la
   REST: no revalida ni reescribe la plantilla) tras el guardado del núcleo, lo saca de la meta (también el que se
   guardó antes por error), lo informa en `post_fields` y devuelve el slug final en `post_name`; uno vacío se rechaza
@@ -253,7 +259,8 @@ para todos los caminos, no sólo el MCP:
 
 Pruebas: `tests/elements-page-template.php` (sin WordPress, con el tramo de `wp_insert_post()` que toca la plantilla),
 los casos N1–N3 de `tests/elements-mcp-settings.php` y, de punta a punta, `tests/playground/elements-page-template.sh`
-(T1–T9: MCP, REST, autoguardado, publicación y la página pública con `page-template-elementor_canvas`).
+(T1–T10: MCP, REST, autoguardado, publicación, un autoguardado viejo y la página pública con
+`page-template-elementor_canvas`).
 
 ## Pruebas
 
