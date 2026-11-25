@@ -37,8 +37,12 @@ if ( false !== $seo::sitemap_provider( new stdClass(), 'taxonomies' ) ) throw ne
 $args = $seo::sitemap_query( array( 'post__not_in' => array( 6 ), 'meta_query' => array( array( 'key' => 'externo', 'value' => 'si' ) ) ), 'page' );
 foreach ( array( 6, 7, 8, 9, 30, 31, 32, 55 ) as $id ) if ( ! in_array( $id, $args['post__not_in'], true ) ) throw new RuntimeException( 'Falta excluir un contenido noindex o un ID configurado: ' . $id );
 if ( 'AND' !== $args['meta_query']['relation'] || 'externo' !== $args['meta_query'][0][0]['key'] ) throw new RuntimeException( 'Debe preservar filtros meta de otros plugins.' );
-$technical = end( $args['meta_query'] );
-if ( 'OR' !== ( $technical['relation'] ?? '' ) || 'digitalisimo_seo_auto_noindex' !== $technical[0]['key'] ) throw new RuntimeException( 'Las páginas técnicas y con shortcodes sin resolver deben salir del sitemap por omisión.' );
+// Shortcodes sin resolver: de fábrica sólo se avisa (el sitemap no cambia); con el ajuste encendido salen del sitemap.
+$last = $args['meta_query']; $last = end( $last ); if ( 'digitalisimo_seo_auto_noindex' === ( $last[0]['key'] ?? '' ) ) throw new RuntimeException( 'De fábrica, un shortcode sin resolver sólo se avisa: no saca nada del sitemap.' );
+$site_options[1]['seo_noindex_unresolved'] = 1; $inherit[1]['seo_noindex_unresolved'] = 0;
+$on = $seo::sitemap_query( array(), 'page' ); $technical = end( $on['meta_query'] );
+if ( 'OR' !== ( $technical['relation'] ?? '' ) || 'digitalisimo_seo_auto_noindex' !== $technical[0]['key'] ) throw new RuntimeException( 'Con el ajuste encendido, las páginas con shortcodes sin resolver salen del sitemap.' );
+unset( $site_options[1]['seo_noindex_unresolved'] );
 $blog_id = 2;
 $second = $seo::sitemap_posts( $types );
 if ( array_keys( $second ) !== array( 'post', 'page', 'product' ) ) throw new RuntimeException( 'Cada sitio debe usar sus propios tipos y conservar páginas.' );

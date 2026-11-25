@@ -240,6 +240,8 @@ return array(
 		array( 'a', 'switch_theme', 'request_rescan', 10, 1, '**' ),
 		array( 'a', 'upgrader_process_complete', 'request_rescan', 10, 1, '**' ),
 		array( 'a', 'admin_post_digitalisimo_seo_index_lock', 'handle_lock', 10, 1, '**' ),
+		array( 'a', 'admin_post_digitalisimo_seo_hygiene_confirm', 'handle_confirm', 10, 1, '**' ),
+		array( 'a', 'wp_footer', 'sample_front', 9999, 1, 'f*' ),
 	) ),
 	'Digitalisimo_Integrations_Verification' => array( 'hooks' => array(
 		array( 'a', 'wp_head', 'output', 2, 1, '**' ),
