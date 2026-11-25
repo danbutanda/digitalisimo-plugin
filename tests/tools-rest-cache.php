@@ -108,7 +108,7 @@ rc_check( array( array( 'litespeed_purge', array( 'REST' ) ) ) === $GLOBALS['rc'
 $GLOBALS['rc']['did'] = array();
 $GLOBALS['rc']['multi'] = true;
 Rest_Cache::changed( 'woocommerce/woocommerce.php', true );
-rc_check( 'litespeed_purge_all' === ( $GLOBALS['rc']['did'][0][0] ?? '' ), 'activado en toda la red, purga todo (cambia la API de todos los sitios)' );
+rc_check( array( array( 'litespeed_purge', array( '*' ) ) ) === $GLOBALS['rc']['did'], 'activado en toda la red, una purga «*» de la caché de página (nunca litespeed_purge_all, que vacía también CSS/JS, objetos, opcache y Cloudflare): ' . json_encode( $GLOBALS['rc']['did'] ) );
 $GLOBALS['rc']['did'] = array();
 Rest_Cache::changed( 'woocommerce/woocommerce.php', false );
 rc_check( 'litespeed_purge' === ( $GLOBALS['rc']['did'][0][0] ?? '' ), 'en una red, activado en un sitio, purga sólo la API de ese sitio' );

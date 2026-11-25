@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
  *    Cache, `litespeed_control_set_nocache`. Sólo la petición principal (GET o HEAD): no toca las internas ni las
  *    precargas del editor;
  *  - al activar o desactivar un plugin se purga lo que LiteSpeed Cache guardó de la API (su etiqueta `REST`; activado o
- *    desactivado en toda la red, todo, porque cambia la API de todos los sitios). Las demás respuestas de un plugin
+ *    desactivado en toda la red, «*», la caché de página de todos los sitios en una sola purga). Las demás respuestas de un plugin
  *    (sus rutas) siguen cacheándose como hasta ahora y se renuevan con esa purga.
  * Sin LiteSpeed Cache no se purga nada: las otras cachés de página no guardan la API salvo que se les pida.
  */
@@ -80,11 +80,10 @@ final class Rest_Cache {
 	/** `activated_plugin` / `deactivated_plugin`: la API cambió; lo que LiteSpeed Cache guardó de ella ya no vale. */
 	public static function changed( $plugin = '', $network_wide = false ) {
 		if ( ! function_exists( 'has_action' ) || ! has_action( 'litespeed_purge' ) ) return;
-		if ( $network_wide && function_exists( 'is_multisite' ) && is_multisite() ) {
-			do_action( 'litespeed_purge_all', self::REASON );
-			return;
-		}
-		do_action( 'litespeed_purge', 'REST' );
+		// En toda la red, «*»: LiteSpeed lo junta en una sola purga de la caché de página de todos los sitios (no
+		// `litespeed_purge_all`, que además borra el CSS/JS combinado, vacía la caché de objetos, reinicia opcache y
+		// purga Cloudflare, una vez por plugin).
+		do_action( 'litespeed_purge', $network_wide && function_exists( 'is_multisite' ) && is_multisite() ? '*' : 'REST' );
 	}
 
 	/**
