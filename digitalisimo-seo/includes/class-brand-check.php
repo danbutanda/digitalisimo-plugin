@@ -229,7 +229,7 @@ class Digitalisimo_Integrations_Brand_Check {
 	 * ------------------------------------------------------------------ */
 
 	/**
-	 * Lo que hay que revisar, como lista de array( code, message ). Sin peticiones: lee la última comprobación y los
+	 * Lo que hay que revisar, como lista de array( code, message[, level] ); level 'info' no sale en el Escritorio. Sin peticiones: lee la última comprobación y los
 	 * ajustes. Lo usan el aviso del escritorio y el MCP.
 	 */
 	public static function warnings() {
@@ -275,7 +275,9 @@ class Digitalisimo_Integrations_Brand_Check {
 		if ( '' === Digitalisimo_Integrations_Local_Business::phone() ) $missing[] = 'el teléfono';
 		if ( ! Digitalisimo_Integrations_Local_Business::schema_hours() ) $missing[] = 'el horario';
 		if ( $missing ) $out[] = array( 'code' => 'local_missing', 'message' => 'SEO local está activo pero falta ' . implode( ', ', $missing ) . ': no se publica' . ( count( $missing ) > 1 ? 'n' : '' ) . ' en el schema. Complétalo en SEO → Local con los datos reales del negocio.' );
-		if ( self::always_open() ) $out[] = array( 'code' => 'local_24x7', 'message' => 'El horario dice abierto las 24 horas los 7 días. Si no es real, cámbialo en SEO → Local: Google lo muestra tal cual en la ficha del negocio.' );
+		// 24×7 puede ser real (lo es en negocios de urgencias y en la propia agencia): se publica como se eligió y sólo se
+		// informa en el MCP, sin aviso en el Escritorio. Lo que no se hace es ponerlo por omisión.
+		if ( self::always_open() ) $out[] = array( 'code' => 'local_24x7', 'level' => 'info', 'message' => 'El horario dice abierto las 24 horas los 7 días y así se publica. Si no es real, cámbialo en SEO → Local: Google lo muestra tal cual en la ficha del negocio.' );
 		return $out;
 	}
 
@@ -333,7 +335,8 @@ class Digitalisimo_Integrations_Brand_Check {
 		if ( ! ( $screen && 'dashboard' === $screen->id ) && 0 !== strpos( $page, 'digitalisimo' ) ) return;
 		if ( Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return;
 		self::refresh();
-		$warnings = self::warnings();
+		// Lo informativo (p. ej. un horario 24×7 elegido a propósito) sólo va al MCP.
+		$warnings = array_values( array_filter( self::warnings(), function( $w ) { return 'info' !== ( $w['level'] ?? 'warning' ); } ) );
 		if ( ! $warnings ) return;
 		$items = '';
 		foreach ( $warnings as $warning ) $items .= '<li>' . esc_html( $warning['message'] ) . '</li>';

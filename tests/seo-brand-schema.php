@@ -4,7 +4,8 @@
  * de las plantillas de título (A3), sin WordPress:
  *   1. sin nada configurado no hay horario ni logo (nada de 24×7 ni logo de demo por omisión);
  *   2. el nombre (WebSite, organización, negocio) sale sin emoji;
- *   3. lo que falta (dirección, horario, teléfono) no se publica y se avisa; el horario 24 horas los 7 días se avisa;
+ *   3. lo que falta (dirección, horario, teléfono) no se publica y se avisa; un horario 24 horas los 7 días elegido a
+ *      propósito se publica (puede ser real) y sólo se informa en el MCP;
  *   4. sameAs lleva las redes y el Perfil de Google Business configurados; sin perfiles, o sin Google Business con SEO
  *      local, se avisa;
  *   5. el texto fijo de una plantilla de títulos («%title% 🤖 …») se avisa sin cambiar la plantilla.
@@ -85,7 +86,11 @@ $GLOBALS['settings']['seo_local_address'] = 'Calle Falsa 123';
 // Horario 24×7: se publica lo elegido, pero se avisa para confirmarlo.
 $always = array(); foreach ( array_keys( Digitalisimo_Integrations_Local_Business::days() ) as $day ) $always[ $day ] = array( 'state' => 'always' );
 $GLOBALS['settings']['seo_local_schedule'] = $always;
-check( in_array( 'local_24x7', codes(), true ) && ! in_array( 'local_missing', codes(), true ), 'Abierto 24 horas los 7 días se avisa.' );
+check( in_array( 'local_24x7', codes(), true ) && ! in_array( 'local_missing', codes(), true ), 'Abierto 24 horas los 7 días se informa (en el MCP).' );
+$hours = node( graph(), 'Plumber' )['openingHoursSpecification'] ?? array();
+check( 7 === count( $hours ) && '00:00' === $hours[0]['opens'] && '23:59' === $hours[0]['closes'], 'Un 24×7 elegido a propósito se publica (puede ser real): ' . json_encode( $hours ) );
+$info = array(); foreach ( $B::warnings() as $w ) if ( 'local_24x7' === $w['code'] ) $info = $w;
+check( 'info' === ( $info['level'] ?? '' ), 'El 24×7 es informativo: no sale en el aviso del Escritorio.' );
 $GLOBALS['settings']['seo_local_schedule'] = array();
 $GLOBALS['settings']['seo_local_hours'] = 'Mo-Su 00:00-23:59';
 check( in_array( 'local_24x7', codes(), true ), 'También el 24×7 del campo de texto anterior.' );
