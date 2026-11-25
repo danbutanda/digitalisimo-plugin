@@ -173,14 +173,17 @@ final class Executor {
 				return $ok;
 			}
 		}
-		$layout = ! empty( $input['blank_page'] ) ? 'blank' : 'site';
+		// La plantilla de página: la que se pidió (blank_page) o, al rehacer, la que ya tiene el borrador (la que el dueño
+		// eligió a mano se respeta); en uno nuevo, la cabecera y el pie del sitio.
+		$layout   = array_key_exists( 'blank_page', $input ) ? ( ! empty( $input['blank_page'] ) ? 'blank' : 'site' ) : '';
+		$template = self::page_template( $layout, $regenerate, $deps );
 		if ( isset( $input['store_offer'] ) ) {
 			foreach ( array( 'product_id', 'offer', 'template', 'replacements', 'omit_blocks', 'close_date' ) as $key ) {
 				if ( isset( $input[ $key ] ) ) {
 					return self::invalid( sprintf( 'store_offer (oferta de toda la tienda o de una categoría) va sin %s: la landing se arma sola con los productos reales.', $key ) );
 				}
 			}
-			return self::store_offer( $input, $create, $deps, $regenerate, $layout );
+			return self::store_offer( $input, $create, $deps, $regenerate, $layout, $template );
 		}
 		$product_id = $input['product_id'] ?? null;
 		if ( null !== $product_id && ( ! is_int( $product_id ) && ! ( is_string( $product_id ) && ctype_digit( $product_id ) ) || (int) $product_id <= 0 ) ) {
@@ -258,6 +261,10 @@ final class Executor {
 			$whatsapp        = (string) $site['whatsapp'];
 			$whatsapp_source = (string) $site['whatsapp_source'];
 		}
+		// Con la cabecera y el pie del sitio: sin el pie propio de la plantilla (no quedan dos pies) y, si la cabecera del
+		// sitio es fija, la barra de cierre deja de ser fija (no la tapa).
+		$docs = isset( $deps['docs'] ) && is_array( $deps['docs'] ) ? $deps['docs'] : Brand::design_docs();
+		$data = self::fit_to_site( $data, $meta, 'elementor_canvas' !== $template, Brand::sticky_header( $docs ) );
 		$built = Builder::build(
 			$data,
 			$meta,
@@ -277,6 +284,9 @@ final class Executor {
 		$brand             = self::brand( $deps );
 		$built['elements'] = Brand::apply( $built['elements'], $brand );
 		$page              = call_user_func( $create, $title, $built['elements'], $regenerate, $id, $layout );
+		if ( is_array( $page ) && ! isset( $page['layout'] ) ) {
+			$page['layout'] = $template;
+		}
 		if ( is_wp_error( $page ) ) {
 			return $page;
 		}
@@ -442,7 +452,8 @@ final class Executor {
 		self::buttons( $elements, $buttons );
 		$main    = '' !== $main_url ? $main_url : ( $buttons ? $buttons[0] : '' );
 		$cart    = '' !== $main && preg_match( '#/(carrito|cart)/?(\?|$)#i', (string) wp_parse_url( $main, PHP_URL_PATH ) . ( false !== strpos( $main, '?' ) ? '?' : '' ) ) && false === strpos( $main, 'add-to-cart=' );
-		$header  = 'blank' !== $layout && 'elementor_canvas' !== (string) ( $page['layout'] ?? 'elementor_header_footer' );
+		unset( $layout );
+		$header  = 'elementor_canvas' !== (string) ( $page['layout'] ?? 'elementor_header_footer' );
 		return array(
 			'look'               => $look,
 			'site_header_footer' => $header,
@@ -471,7 +482,54 @@ final class Executor {
 	}
 
 	/** La landing de una oferta de tienda: toda la tienda o una categoría (`Store`). */
-	private static function store_offer( array $input, callable $create, array $deps, int $regenerate, string $layout ) {
+	/**
+	 * La plantilla de página con la que queda: `blank` → el lienzo vacío; `site` → la cabecera y el pie del sitio; sin
+	 * pedirla, al rehacer, la que ya tiene el borrador (`Pages::template_of()`), y si no, la cabecera y el pie del sitio.
+	 */
+	private static function page_template( string $layout, int $regenerate, array $deps ): string {
+		if ( 'blank' === $layout ) {
+			return 'elementor_canvas';
+		}
+		if ( 'site' === $layout || $regenerate <= 0 ) {
+			return 'elementor_header_footer';
+		}
+		$current = isset( $deps['template_of'] ) && is_callable( $deps['template_of'] ) ? (string) call_user_func( $deps['template_of'], $regenerate ) : Pages::template_of( $regenerate );
+		return '' !== $current && 'default' !== $current ? $current : 'elementor_header_footer';
+	}
+
+	/**
+	 * Una plantilla del kit dentro del sitio: con la cabecera y el pie del sitio se quita el bloque `pie` propio (si no,
+	 * quedan dos pies) y, con una cabecera fija, la barra de cierre deja de ser fija (la taparía o la cabecera a ella).
+	 */
+	private static function fit_to_site( array $data, array $meta, bool $site_chrome, bool $sticky_header ): array {
+		$drop     = array();
+		$unsticky = array();
+		foreach ( (array) ( $meta['blocks'] ?? array() ) as $block ) {
+			if ( $site_chrome && 'pie' === ( $block['key'] ?? '' ) ) {
+				$drop = array_merge( $drop, (array) $block['sections'] );
+			}
+			if ( $site_chrome && $sticky_header && 'barra-de-cierre' === ( $block['key'] ?? '' ) ) {
+				$unsticky = array_merge( $unsticky, (array) $block['sections'] );
+			}
+		}
+		$out = array();
+		foreach ( (array) ( $data['content'] ?? array() ) as $el ) {
+			$id = (string) ( $el['id'] ?? '' );
+			if ( in_array( $id, $drop, true ) ) {
+				continue;
+			}
+			if ( in_array( $id, $unsticky, true ) && is_array( $el['settings'] ?? null ) ) {
+				foreach ( array( 'sticky', 'sticky_on', 'sticky_offset', 'sticky_anchor_link_offset' ) as $key ) {
+					unset( $el['settings'][ $key ] );
+				}
+			}
+			$out[] = $el;
+		}
+		$data['content'] = $out;
+		return $data;
+	}
+
+	private static function store_offer( array $input, callable $create, array $deps, int $regenerate, string $layout, string $template ) {
 		$env   = array(
 			'timezone'      => Site::sales_timezone(),
 			'site_timezone' => wp_timezone(),
@@ -505,6 +563,9 @@ final class Executor {
 		$page    = call_user_func( $create, $title, $elements, $regenerate, 'tienda', $layout );
 		if ( is_wp_error( $page ) ) {
 			return $page;
+		}
+		if ( ! isset( $page['layout'] ) ) {
+			$page['layout'] = $template;
 		}
 		$check  = self::check( $elements, $brand, $page, $layout, $landing['button_url'] );
 		$check['products'] = $landing['shown'];

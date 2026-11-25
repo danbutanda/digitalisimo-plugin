@@ -131,6 +131,7 @@ namespace {
 		public function set_is_built_with_elementor( $on ) {
 		}
 		public function update_settings( $settings ) {
+			$GLOBALS['sp']['settings_calls'][ $this->id ][] = $settings;
 		}
 		public function save( $data ) {
 			$GLOBALS['sp']['saved'][ $this->id ] = $data['elements'];
@@ -550,7 +551,10 @@ namespace {
 	// «De hoy a fin de mes»: el último día del mes de mañana, a las 23:59 (nunca en el pasado).
 	$tz       = new DateTimeZone( 'America/Mexico_City' );
 	$fin      = ( new DateTimeImmutable( 'tomorrow', $tz ) )->format( 'Y-m-t' );
+	// En el lienzo vacío (blank_page): la plantilla con su propio pie. Con la cabecera y el pie del sitio (lo normal), ese
+	// pie se quita: lo prueba tests/elements-sales-brand.php (G3).
 	$promo    = array(
+		'blank_page' => true,
 		'product_id' => 252,
 		'offer'      => array(
 			'price' => '7500',
@@ -920,6 +924,14 @@ namespace {
 	$segunda = Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'Otra vuelta' ) );
 	check( is_array( $segunda ) && true === $segunda['regenerated'] && $primera['id'] === $segunda['id'] && $antes === count( $GLOBALS['sp']['inserted'] ) && 'Otra vuelta' === $GLOBALS['sp']['posts'][ $primera['id'] ]['post_title'] && 'draft' === $GLOBALS['sp']['posts'][ $primera['id'] ]['post_status'], 'T1: con post_id se regenera el mismo borrador (mismo ID, sin crear otro, sigue en borrador)' );
 	check( false === strpos( json_encode( $GLOBALS['sp']['saved'][ $primera['id'] ] ), 'Purificador' ), 'T1: el borrador regenerado lleva los elementos nuevos' );
+	// T1b · Rehacer no cambia la plantilla de página que el dueño eligió (aquí, el lienzo vacío de un borrador viejo).
+	$GLOBALS['sp']['postmeta'][ $primera['id'] ]['_wp_page_template'] = 'elementor_canvas';
+	$GLOBALS['sp']['settings_calls']                                   = array();
+	$tercera = Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'Tercera' ) );
+	check( is_array( $tercera ) && empty( $GLOBALS['sp']['settings_calls'][ $primera['id'] ] ) && false === $tercera['check']['site_header_footer'], 'T1b: al rehacer sin pedirla, se queda la plantilla de página que ya tenía (el lienzo), y check lo dice · ' . json_encode( $GLOBALS['sp']['settings_calls'] ) );
+	$cuarta = Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'Cuarta', 'blank_page' => false ) );
+	check( array( array( 'template' => 'elementor_header_footer' ) ) === ( $GLOBALS['sp']['settings_calls'][ $primera['id'] ] ?? null ) && true === $cuarta['check']['site_header_footer'], 'T1b: si la persona la pide con la cabecera y el pie, se cambia' );
+	unset( $GLOBALS['sp']['postmeta'][ $primera['id'] ]['_wp_page_template'] );
 	$ajena = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'Borrador de otra persona' ) );
 	foreach (
 		array(

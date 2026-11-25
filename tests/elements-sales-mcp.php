@@ -1044,6 +1044,7 @@ namespace {
 			'title'        => '<b>Mi página</b>',
 			'replacements' => array( '[producto]' => 'Curso' ),
 			'whatsapp'     => '5218711234567',
+			'blank_page'   => true,
 		),
 		$fake
 	);

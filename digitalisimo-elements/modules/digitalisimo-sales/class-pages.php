@@ -51,6 +51,12 @@ final class Pages {
 		return $elements;
 	}
 
+	/** La plantilla de página que tiene una página (`_wp_page_template`), o ''. */
+	public static function template_of( int $post_id ): string {
+		$tpl = $post_id > 0 && function_exists( 'get_post_meta' ) ? (string) get_post_meta( $post_id, '_wp_page_template', true ) : '';
+		return 'default' === $tpl ? '' : $tpl;
+	}
+
 	/** Meta propia de las páginas que crea el kit: ['blog' => ID del sitio, 'template' => id de la plantilla]. */
 	const META = '_digitalisimo_sales_kit';
 
@@ -165,8 +171,10 @@ final class Pages {
 		}
 		$document->set_is_built_with_elementor( true );
 		// Con la cabecera y el pie del sitio, para que la landing se vea como parte del sitio (caso plomerito 3); el lienzo
-		// vacío sólo si se pide (`blank`).
-		$canvas = array( 'template' => 'blank' === $layout ? 'elementor_canvas' : 'elementor_header_footer' );
+		// vacío sólo si se pide (`blank`). Al rehacer sin pedir una (`''`), se queda la que ya tiene el borrador: la que el
+		// dueño eligió a mano no se cambia.
+		$keep   = $regenerate && '' === $layout && '' !== self::template_of( $post_id );
+		$canvas = array( 'template' => 'blank' === $layout ? 'elementor_canvas' : ( $keep ? self::template_of( $post_id ) : 'elementor_header_footer' ) );
 		$data   = array( 'elements' => $elements );
 		add_filter( 'elementor/document/save/data', array( self::class, 'with_types' ), 9 );
 		add_filter( 'elementor/document/save/data', array( self::class, 'without_types' ), 11 );
@@ -174,7 +182,10 @@ final class Pages {
 			// El lienzo va aparte, por los ajustes del documento: dentro de `save()`, el saneador del núcleo (para quien no
 			// tiene `manage_options`) recorre también los ajustes como si fueran elementos y deja un aviso de PHP
 			// (`includes/db.php`, `foreach` sobre una cadena) que ensuciaría la respuesta del MCP.
-			if ( method_exists( $document, 'update_settings' ) ) {
+			if ( $keep ) {
+				// Nada que cambiar: la plantilla de página se queda.
+				unset( $data['settings'] );
+			} elseif ( method_exists( $document, 'update_settings' ) ) {
 				$document->update_settings( $canvas );
 			} else {
 				$data['settings'] = $canvas;

@@ -327,7 +327,7 @@ namespace {
 	);
 	$out = Executor::run( 'create-page', array( 'store_offer' => array( 'percent' => 40, 'label' => 'Oferta navideña' ) ), $create, $deps );
 	check( is_array( $out ) && true === $out['ok'] && 'draft' === $out['status'], 'E1 crea el borrador con store_offer · ' . ( is_wp_error( $out ) ? $out->get_error_message() : '' ) );
-	check( 'site' === $saved['layout'] && true === $out['check']['site_header_footer'], 'E2 con la cabecera y el pie del sitio' );
+	check( '' === $saved['layout'] && true === $out['check']['site_header_footer'], 'E2 con la cabecera y el pie del sitio (lo normal en una página nueva)' );
 	check( true === $out['check']['ok'] && true === $out['look']['matches_site'] && ! $out['look']['digitalisimo'], 'E3 check y look confirman los colores y las fuentes del sitio · ' . json_encode( $out['check'] ) );
 	check( 'https://ferre.test/tienda/' === $out['check']['main_button'] && false === $out['check']['main_button_cart'], 'E4 el botón principal va a la tienda' );
 	check( 12 === $out['store_offer']['products_shown'] && 12 === $out['check']['products'], 'E5 informa los productos mostrados' );
@@ -343,7 +343,35 @@ namespace {
 	check( is_wp_error( $err ), 'E11 un porcentaje fuera de rango se rechaza' );
 	// Una plantilla del kit también sale con la identidad del sitio y con la cabecera y el pie.
 	$out = Executor::run( 'create-page', array( 'template' => 'captacion', 'title' => 'Prueba', 'finish' => false ), $create, $deps );
-	check( is_array( $out ) && ! palette_in( json_encode( $saved['elements'] ) ) && 'site' === $saved['layout'], 'E12 una plantilla del kit sale con los colores del sitio y su cabecera y pie' );
+	check( is_array( $out ) && ! palette_in( json_encode( $saved['elements'] ) ) && true === $out['check']['site_header_footer'], 'E12 una plantilla del kit sale con los colores del sitio y su cabecera y pie' );
+
+	// ── G3 · Dentro del sitio: un solo pie, la barra de cierre no tapa una cabecera fija (grave 3 de la revisión) ──────
+	$future = ( new DateTimeImmutable( '+20 days', new DateTimeZone( 'America/Mexico_City' ) ) )->format( 'Y-m-d' ) . ' 23:59';
+	$kit_pie = 'no forma parte de Meta Platforms';
+	$corta_in = array( 'template' => 'venta-corta', 'title' => 'Prueba', 'close_date' => $future );
+	$sticky_docs = $docs;
+	$sticky_docs['header'][0][0]['settings']['sticky'] = 'top';
+	foreach ( array( 'containers', 'sections' ) as $variant ) {
+		\Elementor\Plugin::$instance = (object) array( 'experiments' => new class( $variant ) {
+			private $v;
+			public function __construct( $v ) { $this->v = $v; }
+			public function is_feature_active( $f ) { return 'container' === $f && 'containers' === $this->v; }
+		} );
+		$out = Executor::run( 'create-page', $corta_in, $create, array( 'docs' => $docs ) + $deps );
+		$j   = json_encode( $saved['elements'], JSON_UNESCAPED_UNICODE );
+		check( is_array( $out ) && false === strpos( $j, $kit_pie ) && true === $out['check']['site_header_footer'], "G3a $variant: con la cabecera y el pie del sitio, sin el pie propio de la plantilla (un solo pie)" );
+		check( false !== strpos( $j, '"sticky":"top"' ), "G3b $variant: con una cabecera que no es fija, la barra de cierre sigue fija" );
+		$out = Executor::run( 'create-page', $corta_in, $create, array( 'docs' => $sticky_docs ) + $deps );
+		$j   = json_encode( $saved['elements'], JSON_UNESCAPED_UNICODE );
+		check( is_array( $out ) && false === strpos( $j, '"sticky"' ) && false !== strpos( $j, 'Esta oferta termina' ), "G3b $variant: con la cabecera del sitio fija, la barra de cierre sigue pero ya no es fija (no la tapa)" );
+		$out = Executor::run( 'create-page', $corta_in + array( 'blank_page' => true ), $create, array( 'docs' => $sticky_docs ) + $deps );
+		$j   = json_encode( $saved['elements'], JSON_UNESCAPED_UNICODE );
+		check( is_array( $out ) && false !== strpos( $j, $kit_pie ) && false !== strpos( $j, '"sticky":"top"' ) && false === $out['check']['site_header_footer'], "G3c $variant: en el lienzo vacío (pedido), el pie propio y la barra fija se quedan" );
+		// Rehacer un borrador hecho en el lienzo: se queda en el lienzo (con su pie) si no se pide otra cosa.
+		$out = Executor::run( 'create-page', $corta_in + array( 'post_id' => 55 ), function ( $t, $e, $p, $tpl, $l = '' ) use ( &$saved ) { $saved = array( 'elements' => $e, 'layout' => $l ); return array( 'id' => 55, 'status' => 'draft', 'edit_url' => '', 'preview_url' => '', 'regenerated' => true ); }, array( 'docs' => $docs, 'regenerable' => function () { return true; }, 'template_of' => function () { return 'elementor_canvas'; } ) + $deps );
+		check( is_array( $out ) && '' === $saved['layout'] && false === $out['check']['site_header_footer'] && false !== strpos( json_encode( $saved['elements'], JSON_UNESCAPED_UNICODE ), $kit_pie ), "G3d $variant: rehacer un borrador del lienzo no le cambia la plantilla de página ni le quita su pie" );
+	}
+	\Elementor\Plugin::$instance = null;
 
 	// ── R · Lo que encontró la revisión adversarial ─────────────────────────────────────────────────────────────
 	$find = static function ( array $els, string $type ) use ( &$find ): array {

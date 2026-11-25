@@ -220,6 +220,30 @@ final class Brand {
 		return $out;
 	}
 
+	/** ¿La cabecera en uso del sitio es fija (sticky del constructor)? */
+	public static function sticky_header( array $docs ): bool {
+		$walk = static function ( array $els, int $depth ) use ( &$walk ): bool {
+			foreach ( $els as $el ) {
+				if ( ! is_array( $el ) || $depth > 20 ) {
+					continue;
+				}
+				if ( '' !== (string) ( $el['settings']['sticky'] ?? '' ) || ( isset( $el['settings']['position'] ) && in_array( $el['settings']['position'], array( 'fixed' ), true ) ) || ( isset( $el['settings']['_position'] ) && 'fixed' === $el['settings']['_position'] ) ) {
+					return true;
+				}
+				if ( $walk( (array) ( $el['elements'] ?? array() ), $depth + 1 ) ) {
+					return true;
+				}
+			}
+			return false;
+		};
+		foreach ( (array) ( $docs['header'] ?? array() ) as $tree ) {
+			if ( $walk( (array) $tree, 0 ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Los elementos guardados de un documento del constructor, o []. */
 	private static function elements_of( int $id ): array {
 		$raw  = get_post_meta( $id, '_elementor_data', true );
