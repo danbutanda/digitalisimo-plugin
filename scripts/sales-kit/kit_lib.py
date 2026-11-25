@@ -468,7 +468,8 @@ def formulario(campos, boton_txt, redirigir, nombre="Registro", color_boton=JADE
 
 
 def plantilla(titulo_plantilla, secciones, lienzo=True):
-    ps = {"template": "elementor_canvas"} if lienzo else {}
+    # Con la cabecera y el pie del sitio (caso plomerito 3, 2026-11-25: la landing debe verse como parte del sitio).
+    ps = {"template": "elementor_header_footer"} if lienzo else {}
     return {"content": secciones, "page_settings": ps, "version": "0.4", "title": titulo_plantilla, "type": "page"}
 
 
@@ -590,3 +591,56 @@ def limpiar(elementos):
 
 def volcar(data):
     return json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+
+
+# ---------------------------------------------------------------- colores del sitio, no de DIGITALÍSIMO
+# Caso plomerito 3 (2026-11-25): «todo lo que crea lo hace con los colores de digitalisimo». Ninguna plantilla lleva fija
+# la paleta del Manual de identidad: cada color de marca apunta a un color global del kit del sitio (los del sistema de
+# Elementor: primary para fondos oscuros, títulos y etiquetas; text para el texto; accent para botones y resaltes), y
+# los neutros de la paleta pasan a grises sin tinte. Al crear la página, `Brand::apply()` de Elements cambia cada global
+# por el color del sitio que le corresponde (el del kit si es real o el que de verdad usan la cabecera, el pie y la
+# portada) y corrige el contraste.
+GLOBAL_DE = {
+    NOCHE: "primary", "#0B2A45": "primary", CARD_OSC: "primary", "#26313C": "primary",
+    AZUL: "primary", PROFUNDO: "primary", TX: "primary",
+    MUT: "text",
+    JADE: "accent", NEON: "accent",
+}
+NEUTRO_DE = {
+    NIEBLA: "#F7F7F7", BD: "#E6E6E6", TX_OSC: "#F2F2F2", MUT_OSC: "#BDBDBD", "#DCEBFA": "#F2F2F2",
+    "rgba(0, 168, 107, 0.30)": "rgba(0, 0, 0, 0.18)", "rgba(15, 20, 26, 0.10)": "rgba(0, 0, 0, 0.10)",
+}
+# Los colores de la paleta DIGITALÍSIMO que nunca deben quedar en una plantilla (kit_validar.py lo comprueba).
+PALETA_DIGITALISIMO = tuple(sorted(set(list(GLOBAL_DE) + list(NEUTRO_DE))))
+
+
+def _neutro(valor):
+    if isinstance(valor, str):
+        return NEUTRO_DE.get(valor, NEUTRO_DE.get(valor.upper(), valor))
+    if isinstance(valor, dict):
+        return {k: _neutro(v) for k, v in valor.items()}
+    if isinstance(valor, list):
+        return [_neutro(v) for v in valor]
+    return valor
+
+
+def a_globales(elementos):
+    """Cambia la paleta DIGITALÍSIMO por los colores globales del sitio (`__globals__`) y por neutros."""
+    for e in elementos:
+        s = e.get("settings")
+        if isinstance(s, dict):
+            for clave in list(s.keys()):
+                valor = s[clave]
+                if clave == "__globals__":
+                    continue
+                if isinstance(valor, str) and valor.upper() in GLOBAL_DE:
+                    s.setdefault("__globals__", {})[clave] = "globals/colors?id=" + GLOBAL_DE[valor.upper()]
+                    s[clave] = ""
+                elif clave == "custom_css" and isinstance(valor, str):
+                    for hexa, rol in GLOBAL_DE.items():
+                        valor = re.sub(re.escape(hexa), "var(--e-global-color-" + rol + ")", valor, flags=re.I)
+                    s[clave] = valor
+                else:
+                    s[clave] = _neutro(valor)
+        a_globales(e.get("elements", []))
+    return elementos
