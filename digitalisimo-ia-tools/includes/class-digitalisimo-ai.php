@@ -73,7 +73,7 @@ class Digitalisimo_AI {
 			'knowledge_enabled' => 0, 'knowledge_auto_index' => 1, 'knowledge_results' => 4, 'knowledge_embeddings_enabled' => 0, 'knowledge_embeddings_model' => 'text-embedding-3-small', 'knowledge_semantic_rerank' => 0,
 			'image_size' => '1536x1024', 'image_style' => 'natural', 'image_quality' => 'medium', 'mcp_featured_image_enabled' => 0, 'log_retention' => 30, 'assistant_rate_minute' => 10, 'assistant_daily_calls' => 300, 'assistant_concurrency' => 1,
 			'editorial_voice' => '', 'editorial_context' => '', 'editorial_cta' => '', 'editorial_method' => '',
-			'providers' => array(),
+			'providers' => array(), 'assistant_models' => array(),
 			'profiles' => array(
 				'chatbot' => array( 'provider' => 'auto', 'model' => '', 'fallback' => '' ),
 				'content' => array( 'provider' => 'auto', 'model' => '', 'fallback' => '' ),
@@ -118,7 +118,7 @@ class Digitalisimo_AI {
 		$inherits = ! $network && is_multisite() && ! empty( self::local_options()['inherit_network'] );
 		$o = $network ? wp_parse_args( (array) get_site_option( self::OPTION, array() ), self::defaults() ) : self::get();
 		$base = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-ai' ) : admin_url( 'admin.php?page=digitalisimo-ai' );
-		echo '<div class="wrap"><h1>' . ( $network ? 'DIGITALÍSIMO IA Tools · Red' : 'DIGITALÍSIMO IA Tools' ) . '</h1><p>Herramientas de IA compartidas para chatbot, contenido, SEO, ecommerce, conocimiento e imágenes. Generan bajo demanda y nunca publican ni modifican contenido automáticamente.</p>';
+		echo '<div class="wrap"><h1>' . ( $network ? 'DIGITALÍSIMO IA Tools · Red' : 'DIGITALÍSIMO IA Tools' ) . '</h1><hr class="wp-header-end"><p>Herramientas de IA compartidas para chatbot, contenido, SEO, ecommerce, conocimiento e imágenes. Generan bajo demanda y nunca publican ni modifican contenido automáticamente.</p>';
 		if ( $saved ) echo '<div class="notice notice-success is-dismissible"><p>' . ( $network ? 'Configuración de red guardada.' : 'Configuración guardada.' ) . '</p></div>';
 		if ( $network ) echo '<div class="notice notice-info inline"><p>Valores de red: los sitios que heredan la configuración de IA los usan al momento, sin copiar credenciales. Los sitios que la personalizan conservan la suya.</p></div>';
 		elseif ( is_multisite() ) echo '<div class="notice notice-info inline"><p><strong>Valor efectivo:</strong> ' . esc_html( self::origin() ) . '. Puedes elegir heredar los ajustes completos de la red o usar los de este sitio.</p></div>';
@@ -140,7 +140,7 @@ class Digitalisimo_AI {
 			self::check( 'chat_enabled', 'Activar DIGITALÍSIMO IA Tools', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento del sitio', $o ); self::check( 'mcp_featured_image_enabled', 'Permitir que Codex suba imágenes destacadas mediante MCP', $o );
 			echo '<p>Perfiles disponibles: chatbot, creación de contenido, SEO, ecommerce, automatizaciones e imágenes.</p>';
 		} elseif ( 'providers' === $tab ) self::providers( $o );
-		elseif ( 'profiles' === $tab ) self::profiles( $o );
+		elseif ( 'profiles' === $tab ) { self::profiles( $o ); self::assistant_model_fields( $o ); }
 		elseif ( 'writing' === $tab ) { echo '<h3>Redacción editorial</h3><p>Este método guía la creación interna, el publisher y los clientes MCP. SEO conserva las señales técnicas; IA Tools administra la voz, el CTA, el chat editorial y los borradores.</p>'; Digitalisimo_AI_Content_Playbook::fields( $network, $o ); }
 		elseif ( 'chat' === $tab ) { self::check( 'chat_enabled', 'Activar chatbot público', $o ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); echo '<p><code>[digitalisimo_chatbot]</code> añade el chat donde tú lo decidas. No registra prompts ni direcciones IP.</p>'; }
 		elseif ( 'knowledge' === $tab ) self::knowledge_fields( $o, $network );
@@ -167,9 +167,9 @@ class Digitalisimo_AI {
 		$count = class_exists( 'Digitalisimo_AI_Knowledge' ) ? Digitalisimo_AI_Knowledge::count() : 0;
 		echo '<p><strong>Estado:</strong> ' . esc_html( $count ) . ' contenidos públicos indexados.</p><p>Digitalisimo usa una recuperación contextual local (RAG): toma sólo contenido público, no guarda prompts ni conversaciones, y no entrena modelos externos ni modifica contenido.</p>';
 		echo '<p><a class="button button-secondary" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=digitalisimo_ai_knowledge_rebuild' ), 'digitalisimo_ai_knowledge_rebuild' ) ) . '">Reconstruir base de conocimiento</a></p>';
-		if ( isset( $_GET['rebuilt'] ) ) echo '<div class="notice notice-success inline"><p>Base de conocimiento reconstruida.</p></div>';
+		if ( isset( $_GET['rebuilt'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Base de conocimiento reconstruida.</p></div>';
 		echo '<p class="description">Al generar embeddings se enviará una representación del contenido público indexado a OpenAI. Es opcional, manual y puede generar coste; no equivale a entrenar un modelo. El reordenamiento semántico, si se activa, envía sólo la consulta a OpenAI y guarda su representación en caché durante una hora.</p><p><a class="button button-secondary" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=digitalisimo_ai_knowledge_embeddings' ), 'digitalisimo_ai_knowledge_embeddings' ) ) . '">Generar embeddings (máx. 20)</a></p>';
-		if ( isset( $_GET['embeddings'] ) ) { $result = (array) get_option( 'digitalisimo_ai_knowledge_embeddings_result', array() ); echo '<div class="notice ' . ( ! empty( $result['ok'] ) ? 'notice-success' : 'notice-warning' ) . ' inline"><p>' . esc_html( $result['message'] ?? '' ) . '</p></div>'; }
+		if ( isset( $_GET['embeddings'] ) ) { $result = (array) get_option( 'digitalisimo_ai_knowledge_embeddings_result', array() ); echo '<div class="notice ' . ( ! empty( $result['ok'] ) ? 'notice-success' : 'notice-warning' ) . ' is-dismissible"><p>' . esc_html( $result['message'] ?? '' ) . '</p></div>'; }
 		$sources = class_exists( 'Digitalisimo_AI_Knowledge' ) ? Digitalisimo_AI_Knowledge::sources() : array();
 		echo '<h2>Fuentes indexadas</h2><p class="description">Vista administrativa del índice local. No muestra el contenido completo ni lo envía a proveedores de IA.</p><table class="widefat striped"><thead><tr><th>Título</th><th>Tipo</th><th>Última modificación</th><th>URL</th></tr></thead><tbody>';
 		if ( ! $sources ) echo '<tr><td colspan="4">Aún no hay contenido indexado. Activa la base y usa Reconstruir.</td></tr>';
@@ -198,6 +198,26 @@ class Digitalisimo_AI {
 	}
 	private static function profiles( $o ) { foreach ( $o['profiles'] as $id => $p ) { echo '<p><strong>' . esc_html( ucfirst( $id ) ) . '</strong><br><label>Proveedor <select name="profiles[' . esc_attr( $id ) . '][provider]">'; if ( 'images' !== $id ) echo '<option value="auto" ' . selected( in_array( $p['provider'], array( 'auto', '' ), true ), true, false ) . '>Auto (lo que esté configurado en Proveedores)</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['provider'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label> <label>Modelo <input name="profiles[' . esc_attr( $id ) . '][model]" value="' . esc_attr( $p['model'] ) . '" placeholder="El recomendado"></label> <label>Alternativa <select name="profiles[' . esc_attr( $id ) . '][fallback]"><option value="">Sin alternativa</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['fallback'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label></p>'; } }
 
+	/**
+	 * «Modelo del Asistente IA», por proveedor (opción `assistant_models`): por defecto el más capaz con herramientas
+	 * (Digitalisimo_AI_Assistant_Model::ASSISTANT_MODELS; Anthropic: claude-opus-5-5), uno de la lista, el del perfil de
+	 * uso u otro escrito a mano. No cambia el modelo de las demás herramientas (DEFAULT_MODELS y los perfiles).
+	 */
+	public static function assistant_model_fields( $o ) {
+		if ( ! class_exists( 'Digitalisimo_AI_Assistant_Model' ) ) return;
+		$saved = is_array( $o['assistant_models'] ?? null ) ? $o['assistant_models'] : array();
+		echo '<h3 id="assistant-model">Modelo del Asistente IA</h3><p>El Asistente IA trabaja con herramientas en varios pasos (lee el sitio, crea y revisa páginas), así que por defecto usa el modelo más capaz de cada proveedor. <strong>Claude Opus 5.5 cuesta más que Claude Sonnet 5.5 (el doble por token)</strong>; si prefieres gastar menos, elige otro. Esto sólo cambia el Asistente: las demás herramientas siguen con sus perfiles de uso.</p>';
+		foreach ( Digitalisimo_AI_Assistant_Model::ASSISTANT_CHOICES as $id => $choices ) {
+			$value       = trim( (string) ( $saved[ $id ] ?? '' ) );
+			$custom      = '' !== $value && 'profile' !== $value && ! isset( $choices[ $value ] );
+			$recommended = Digitalisimo_AI_Assistant_Model::ASSISTANT_MODELS[ $id ] ?? '';
+			echo '<p><label><strong>' . esc_html( Digitalisimo_AI_Assistant_Model::NAMES[ $id ] ?? $id ) . '</strong> <select name="assistant_models[' . esc_attr( $id ) . ']">';
+			echo '<option value="" ' . selected( '' === $value, true, false ) . '>' . esc_html( 'Recomendado: ' . $recommended ) . '</option>';
+			foreach ( $choices as $model => $label ) echo '<option value="' . esc_attr( $model ) . '" ' . selected( $value, $model, false ) . '>' . esc_html( $label ) . '</option>';
+			echo '<option value="profile" ' . selected( 'profile' === $value, true, false ) . '>Igual que el perfil de uso</option><option value="custom" ' . selected( $custom, true, false ) . '>Otro modelo…</option></select></label> <label>Otro <input name="assistant_models_custom[' . esc_attr( $id ) . ']" value="' . esc_attr( $custom ? $value : '' ) . '" placeholder="ID del modelo"></label></p>';
+		}
+	}
+
 	private static function sanitize_values( $base ) {
 		$in = (array) wp_unslash( $_POST['ai'] ?? array() );
 		$o = array_merge( $base, array_map( 'sanitize_text_field', $in ) );
@@ -206,6 +226,16 @@ class Digitalisimo_AI {
 		foreach ( array( 'chat_enabled', 'inherit_network', 'knowledge_enabled', 'knowledge_auto_index', 'knowledge_embeddings_enabled', 'knowledge_semantic_rerank', 'mcp_featured_image_enabled' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
 		if ( isset( $in['image_quality'] ) ) $o['image_quality'] = in_array( $in['image_quality'], array( 'low', 'medium', 'high', 'xhigh', 'max' ), true ) ? $in['image_quality'] : 'medium';
 		if ( isset( $_POST['providers'] ) ) { $o['providers'] = $base['providers'] ?? array(); foreach ( (array) $_POST['providers'] as $id => $p ) { $id = sanitize_key( $id ); $o['providers'][ $id ]['enabled'] = ! empty( $p['enabled'] ); $o['providers'][ $id ]['url'] = esc_url_raw( $p['url'] ?? '' ); if ( ! empty( $p['remove'] ) ) $o['providers'][ $id ]['key'] = ''; elseif ( '' !== ( $new_key = self::unmask( $p['key'] ?? '' ) ) ) $o['providers'][ $id ]['key'] = $new_key; } }
+		if ( isset( $_POST['assistant_models'] ) && is_array( $_POST['assistant_models'] ) && class_exists( 'Digitalisimo_AI_Assistant_Model' ) ) {
+			$custom = is_array( $_POST['assistant_models_custom'] ?? null ) ? wp_unslash( $_POST['assistant_models_custom'] ) : array();
+			$o['assistant_models'] = array();
+			foreach ( Digitalisimo_AI_Assistant_Model::ASSISTANT_CHOICES as $id => $choices ) {
+				$value = sanitize_text_field( (string) wp_unslash( $_POST['assistant_models'][ $id ] ?? '' ) );
+				if ( 'custom' === $value ) $value = sanitize_text_field( (string) ( $custom[ $id ] ?? '' ) );
+				if ( '' !== $value && 'profile' !== $value && ! isset( $choices[ $value ] ) && ! preg_match( '/^[A-Za-z0-9][A-Za-z0-9._:\/-]{0,99}$/', $value ) ) $value = '';
+				if ( '' !== $value ) $o['assistant_models'][ $id ] = $value;
+			}
+		}
 		if ( isset( $_POST['profiles'] ) ) { $o['profiles'] = $base['profiles'] ?? self::defaults()['profiles']; foreach ( (array) wp_unslash( $_POST['profiles'] ) as $id => $p ) $o['profiles'][ sanitize_key( $id ) ] = array( 'provider' => ( sanitize_key( $p['provider'] ?? 'auto' ) ?: 'auto' ), 'model' => sanitize_text_field( $p['model'] ?? '' ), 'fallback' => sanitize_key( $p['fallback'] ?? '' ) ); }
 		return $o;
 	}

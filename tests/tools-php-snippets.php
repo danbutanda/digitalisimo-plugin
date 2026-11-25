@@ -309,6 +309,7 @@ namespace {
 	function wp_enqueue_code_editor( $args ) { return array( 'codemirror' => array( 'mode' => $args['type'] ) ); }
 	function get_blog_option( $blog, $name, $default = false ) { switch_to_blog( $blog ); $v = get_option( $name, $default ); restore_current_blog(); return $v; }
 
+	require __DIR__ . '/../digitalisimo-tools/includes/class-digitalisimo-notices.php';
 	require __DIR__ . '/../digitalisimo-tools/modules/site-options/class-hide-login.php';
 	require __DIR__ . '/../digitalisimo-tools/modules/site-options/class-site-options.php';
 	require __DIR__ . '/../digitalisimo-tools/modules/php-snippets/class-store.php';

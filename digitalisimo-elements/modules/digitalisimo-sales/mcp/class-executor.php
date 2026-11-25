@@ -5,6 +5,8 @@ use Digitalisimo\Elements\Sales\Builder;
 use Digitalisimo\Elements\Sales\Catalog;
 use Digitalisimo\Elements\Sales\Pages;
 use Digitalisimo\Elements\Sales\Placeholders;
+use Digitalisimo\Elements\Sales\Product;
+use Digitalisimo\Elements\Sales\Site;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -34,9 +36,11 @@ final class Executor {
 	 * @param string        $tool   Herramienta.
 	 * @param mixed         $input  Entrada del cliente.
 	 * @param callable|null $create Para las pruebas: `function( $title, $elements )` en lugar de `Pages::create()`.
+	 * @param array         $deps   Para las pruebas: `site` (en lugar de `Site::read()`), `product` (`function( $id )`
+	 *                              en lugar de `Product::read()`) y `regenerable` (en lugar de `Pages::regenerable()`).
 	 * @return array|\WP_Error
 	 */
-	public static function run( string $tool, $input, $create = null ) {
+	public static function run( string $tool, $input, $create = null, array $deps = array() ) {
 		$allowed = self::permission( $tool, $input );
 		if ( true !== $allowed ) {
 			return $allowed;
@@ -61,7 +65,7 @@ final class Executor {
 			case 'guide':
 				return self::guide( (string) ( $input['section'] ?? '' ) );
 			default:
-				return self::create_page( $input, is_callable( $create ) ? $create : array( Pages::class, 'create' ) );
+				return self::create_page( $input, is_callable( $create ) ? $create : array( Pages::class, 'create' ), $deps );
 		}
 	}
 
@@ -127,7 +131,7 @@ final class Executor {
 			'variant'   => Catalog::variant(),
 			'funnel'    => $manifest['funnel'] ?? '',
 			'templates' => $templates,
-			'rules'     => 'Las páginas se crean en borrador; nada se inventa (testimonios, cifras y fechas sólo reales); urgencia sólo con un cierre real; precios en MXN y sólo en los bloques con price: true (la oferta, el cierre que la repite, los caminos, «Cuánto vale para ti», el carrito y la oferta única): un valor con precio en otro bloque se rechaza; llamado a la acción por WhatsApp; enlaces del propio sitio; los bloques se pueden quitar, nunca reordenar, salvo los obligatorios (required: true): la promesa, la oferta, la garantía, las preguntas frecuentes, el bloque whatsapp, el pie y el formulario no se quitan; las pruebas sociales sí. Detalle: digitalisimo-sales/guide.',
+			'rules'     => 'Para la promo de un producto de la tienda usa create-page con product_id y offer: arma la landing con los datos reales del producto y del sitio, sin llenar placeholders. Las páginas se crean en borrador y terminadas (ningún placeholder a la vista); nada se inventa (testimonios, reseñas, cifras y fechas sólo reales: del usuario o del sitio); urgencia sólo con un cierre real; precios en MXN y sólo en los bloques con price: true (la oferta, el cierre que la repite, los caminos, «Cuánto vale para ti», el carrito y la oferta única): un valor con precio en otro bloque se rechaza; llamado a la acción por WhatsApp; enlaces del propio sitio; los bloques se pueden quitar, nunca reordenar, salvo los obligatorios (required: true): la promesa, la oferta, la garantía, las preguntas frecuentes, el bloque whatsapp, el pie y el formulario no se quitan; las pruebas sociales sí. Detalle: digitalisimo-sales/guide.',
 			'required'  => $manifest['required_kinds'] ?? array(),
 		);
 		if ( '' === $id ) {
@@ -151,69 +155,199 @@ final class Executor {
 		);
 	}
 
-	private static function create_page( array $input, callable $create ) {
-		$id      = (string) $input['template'];
+	private static function create_page( array $input, callable $create, array $deps ) {
+		$finish     = ! array_key_exists( 'finish', $input ) || ! empty( $input['finish'] );
+		$regenerate = $input['post_id'] ?? 0;
+		if ( ! is_int( $regenerate ) && ! ( is_string( $regenerate ) && ctype_digit( $regenerate ) ) || (int) $regenerate < 0 ) {
+			return self::invalid( 'post_id debe ser el ID (número) de un borrador que creó el kit.' );
+		}
+		$regenerate = (int) $regenerate;
+		if ( $regenerate > 0 ) {
+			// Antes de armar nada: sólo un borrador del kit de este sitio, editable y sin publicar.
+			$ok = isset( $deps['regenerable'] ) && is_callable( $deps['regenerable'] ) ? call_user_func( $deps['regenerable'], $regenerate ) : Pages::regenerable( $regenerate );
+			if ( true !== $ok ) {
+				return $ok;
+			}
+		}
+		$product_id = $input['product_id'] ?? null;
+		if ( null !== $product_id && ( ! is_int( $product_id ) && ! ( is_string( $product_id ) && ctype_digit( $product_id ) ) || (int) $product_id <= 0 ) ) {
+			return self::invalid( 'product_id debe ser el ID (número) de un producto de la tienda.' );
+		}
+		if ( null === $product_id && isset( $input['offer'] ) ) {
+			return self::invalid( 'offer va con product_id: es la oferta de un producto de la tienda.' );
+		}
+		if ( null !== $product_id && isset( $input['template'] ) && Product::TEMPLATE !== $input['template'] ) {
+			return self::invalid( sprintf( 'Con product_id la plantilla es %s (la landing de producto); quita template o usa %s.', Product::TEMPLATE, Product::TEMPLATE ) );
+		}
+		if ( null === $product_id && ( ! isset( $input['template'] ) || '' === $input['template'] ) ) {
+			return self::invalid( 'Falta template (o product_id, para la landing de un producto de la tienda).' );
+		}
+		if ( null !== $product_id && array_key_exists( 'finish', $input ) && empty( $input['finish'] ) ) {
+			return self::invalid( 'La landing de un producto siempre sale terminada (finish no se puede apagar con product_id).' );
+		}
+		$id      = null !== $product_id ? Product::TEMPLATE : (string) $input['template'];
 		$meta    = Catalog::meta( $id );
 		$variant = Catalog::variant();
 		$data    = $meta ? Catalog::load( $id, $variant ) : null;
 		if ( ! $data ) {
 			return new \WP_Error( 'digitalisimo_sales_template', sprintf( 'No se pudo leer la plantilla %s (%s).', $id, $variant ), array( 'status' => 500 ) );
 		}
-		$title = is_string( $input['title'] ) ? trim( sanitize_text_field( $input['title'] ) ) : '';
+		$env  = array(
+			'site_host' => (string) wp_parse_url( home_url(), PHP_URL_HOST ),
+			// Las fechas del dueño (ends, close_date) van en la hora de la tienda; el contador se guarda en la del sitio.
+			'timezone'      => Site::sales_timezone(),
+			'site_timezone' => wp_timezone(),
+			'now'       => time(),
+		);
+		$site = isset( $deps['site'] ) && is_array( $deps['site'] ) ? $deps['site'] : Site::read();
+
+		$replacements = $input['replacements'] ?? array();
+		$omit         = $input['omit_blocks'] ?? array();
+		$close_date   = $input['close_date'] ?? '';
+		$product      = null;
+		$landing      = null;
+		if ( null !== $product_id ) {
+			$product = isset( $deps['product'] ) && is_callable( $deps['product'] ) ? call_user_func( $deps['product'], (int) $product_id ) : Product::read( (int) $product_id );
+			if ( is_wp_error( $product ) ) {
+				return $product;
+			}
+			$offer = Product::offer( $product, $input['offer'] ?? null, $env );
+			if ( is_wp_error( $offer ) ) {
+				return $offer;
+			}
+			$landing = Product::page( $data, $product, $offer, $site );
+			if ( is_wp_error( $landing ) ) {
+				return $landing;
+			}
+			if ( ! is_array( $replacements ) || ! is_array( $omit ) ) {
+				return self::invalid( 'replacements debe ser un objeto y omit_blocks una lista.' );
+			}
+			$data         = $landing['template'];
+			$finish       = true;
+			$replacements = $replacements + $landing['replacements'];
+			$omit         = array_values( array_unique( array_merge( $omit, $landing['omit'] ) ) );
+			if ( '' === $close_date ) {
+				$close_date = $landing['close_date'];
+			}
+		}
+		$title = isset( $input['title'] ) && is_string( $input['title'] ) ? trim( sanitize_text_field( $input['title'] ) ) : '';
+		if ( '' === $title && $product ) {
+			$title = trim( ( '' !== $offer['label'] ? $offer['label'] . ': ' : '' ) . sanitize_text_field( $product['name'] ) );
+		}
 		if ( '' === $title ) {
-			return self::invalid( 'title debe ser un texto.' );
+			return self::invalid( isset( $input['title'] ) ? 'title debe ser un texto.' : 'Falta title.' );
+		}
+
+		// WhatsApp: el que se pidió o, si no, el que el sitio ya publica (enlaces wa.me de menús, cabecera, pie, páginas).
+		$whatsapp        = isset( $input['whatsapp'] ) ? $input['whatsapp'] : '';
+		$whatsapp_source = '' !== $whatsapp ? 'el número que se pidió' : '';
+		if ( '' === $whatsapp && '' !== (string) ( $site['whatsapp'] ?? '' ) ) {
+			$whatsapp        = (string) $site['whatsapp'];
+			$whatsapp_source = (string) $site['whatsapp_source'];
 		}
 		$built = Builder::build(
 			$data,
 			$meta,
 			array(
-				'replacements' => $input['replacements'] ?? array(),
-				'omit_blocks'  => $input['omit_blocks'] ?? array(),
-				'whatsapp'     => $input['whatsapp'] ?? '',
-				'close_date'   => $input['close_date'] ?? '',
+				'replacements' => $replacements,
+				'omit_blocks'  => $omit,
+				'whatsapp'     => $whatsapp,
+				'close_date'   => $close_date,
+				'finish'       => $finish,
 			),
-			array(
-				'site_host' => (string) wp_parse_url( home_url(), PHP_URL_HOST ),
-				'timezone'  => wp_timezone(),
-				'now'       => time(),
-			)
+			$env + array( 'site' => $site )
 		);
 		if ( is_wp_error( $built ) ) {
 			return $built;
 		}
-		$page = call_user_func( $create, $title, $built['elements'] );
+		$page = call_user_func( $create, $title, $built['elements'], $regenerate, $id );
 		if ( is_wp_error( $page ) ) {
 			return $page;
 		}
-		$links = array();
+		$fin     = (array) ( $built['finish'] ?? array() );
+		$missing = $finish ? (array) ( $fin['missing_pages'] ?? array() ) : null;
+		$links   = array();
 		foreach ( $meta['internal_links'] as $link ) {
-			if ( '/' === $link['path'][0] ) {
+			if ( '/' === $link['path'][0] && ( null === $missing || in_array( $link['path'], $missing, true ) ) ) {
 				$links[] = $link;
 			}
 		}
-		$review = array();
+		$filled_from = array();
+		if ( $landing ) {
+			$filled_from = $landing['filled'];
+		}
+		foreach ( (array) ( $fin['filled'] ?? array() ) as $item ) {
+			$filled_from[] = $item;
+		}
+		if ( '' !== $whatsapp && ! $built['whatsapp_pending'] ) {
+			$filled_from[] = array(
+				'field'  => 'whatsapp',
+				'source' => $whatsapp_source,
+			);
+		}
+		if ( 'site' === ( $fin['logo'] ?? null ) ) {
+			$filled_from[] = array(
+				'field'  => 'logo',
+				'source' => 'el logo del sitio',
+			);
+		}
+		$pending = $finish ? array_merge( $landing ? $landing['pending'] : array(), (array) ( $fin['pending'] ?? array() ) ) : $built['pending'];
+		$review  = array();
 		if ( $built['real_data'] ) {
 			$review[] = 'Comprueba que estos datos son reales y tienen permiso antes de publicar: ' . implode( ', ', $built['real_data'] ) . '.';
 		}
-		if ( $built['pending_count'] ) {
-			$review[] = sprintf( 'Quedan %d placeholders sin llenar (%d apariciones): llénalos o borra su bloque antes de publicar.', count( $built['pending'] ), $built['pending_count'] );
-		}
-		if ( $built['whatsapp_pending'] ) {
-			$review[] = 'Los botones de WhatsApp conservan el número de muestra: pasa whatsapp o cámbialo en el editor.';
+		if ( $finish ) {
+			$required = array_filter(
+				$pending,
+				static function ( $item ) {
+					return ! empty( $item['required'] );
+				}
+			);
+			if ( $required ) {
+				$review[] = sprintf( 'Faltan datos en bloques obligatorios (%s): no se inventaron; dalos o escríbelos en el editor antes de publicar.', implode( '; ', array_unique( array_map( static function ( $item ) { return $item['block'] . ': ' . $item['missing']; }, $required ) ) ) );
+			}
+			if ( $missing ) {
+				$review[] = 'El sitio no tiene estas páginas y sus enlaces se quitaron: ' . implode( ', ', $missing ) . '.';
+			}
+			if ( 'contact' === ( $fin['whatsapp'] ?? null ) ) {
+				$review[] = 'El sitio no publica un número de WhatsApp: el botón lleva a la página de contacto.';
+			} elseif ( 'removed' === ( $fin['whatsapp'] ?? null ) ) {
+				$review[] = 'El sitio no publica un número de WhatsApp ni tiene página de contacto: se quitó el botón; pasa whatsapp para ponerlo.';
+			}
+		} else {
+			if ( $built['pending_count'] ) {
+				$review[] = sprintf( 'Quedan %d placeholders sin llenar (%d apariciones): llénalos o borra su bloque antes de publicar.', count( $built['pending'] ), $built['pending_count'] );
+			}
+			if ( $built['whatsapp_pending'] ) {
+				$review[] = 'Los botones de WhatsApp conservan el número de muestra: pasa whatsapp o cámbialo en el editor.';
+			}
+			if ( $built['event_logo'] ) {
+				$review[] = 'La barra fija de cierre lleva la imagen de muestra del logo del evento: pon el logo del evento en el editor o borra esa imagen; si no, se ve en cada pantalla.';
+			}
 		}
 		if ( $built['removed_urgency'] ) {
-			$review[] = 'Sin fecha de cierre real se quitaron la barra de cierre o el contador; los textos que nombran el cierre quedan pendientes.';
+			$review[] = 'Sin fecha de cierre real se quitaron la barra de cierre o el contador; los textos que nombran el cierre ' . ( $finish ? 'se quitaron.' : 'quedan pendientes.' );
 		}
 		if ( $built['broken_anchors'] ) {
 			$review[] = 'Hay botones que llevan a un bloque que ya no está (#' . implode( ', #', $built['broken_anchors'] ) . '): cámbialos o bórralos en el editor.';
 		}
-		if ( $built['event_logo'] ) {
-			$review[] = 'La barra fija de cierre lleva la imagen de muestra del logo del evento: pon el logo del evento en el editor o borra esa imagen; si no, se ve en cada pantalla.';
-		}
 		if ( $built['social_pending'] ) {
 			$review[] = sprintf( 'Faltan los enlaces de las redes: %d iconos de redes llevan el enlace de muestra %s, que abre la misma página. Pon en el editor el de cada perfil del sitio (el icono → Enlace, y «Abrir en una nueva ventana» si lo quieres) o quita los que no uses; por aquí no entra ninguna URL de otro sitio.', $built['social_pending'], Builder::PROFILE_SAMPLE );
 		}
-		return array(
+		$candidates = (array) ( $site['whatsapp_candidates'] ?? array() );
+		if ( count( $candidates ) > 1 && '' === (string) ( $input['whatsapp'] ?? '' ) && ! $built['whatsapp_pending'] ) {
+			$list = array();
+			foreach ( array_slice( $candidates, 0, 4 ) as $candidate ) {
+				$list[] = sprintf( '%s (%s)', $candidate['whatsapp'], implode( ', ', array_slice( (array) $candidate['sources'], 0, 3 ) ) );
+			}
+			$review[] = sprintf( 'El sitio publica más de un número para el bloque whatsapp: %s. Se usó %s; si es otro, pásalo en whatsapp.', implode( '; ', $list ), $whatsapp );
+		}
+		if ( $landing ) {
+			foreach ( $landing['warnings'] as $warning ) {
+				$review[] = $warning;
+			}
+		}
+		$out = array(
 			'ok'               => true,
 			'tool'             => 'create-page',
 			'id'               => (int) $page['id'],
@@ -223,22 +357,45 @@ final class Executor {
 			'title'            => $title,
 			'edit_url'         => (string) $page['edit_url'],
 			'preview_url'      => (string) $page['preview_url'],
+			'regenerated'      => ! empty( $page['regenerated'] ),
+			'finished'         => $finish,
 			'filled'           => $built['filled'],
 			'filled_keys'      => $built['filled_keys'],
+			'filled_from'      => $filled_from,
 			'ignored'          => $built['ignored'],
-			'pending'          => $built['pending'],
-			'pending_count'    => $built['pending_count'],
+			'pending'          => array_values( $pending ),
+			'pending_count'    => $finish ? count( $pending ) : $built['pending_count'],
+			'placeholders_left' => $finish ? $built['pending'] : null,
 			'real_data'        => $built['real_data'],
+			'whatsapp'         => $built['whatsapp_pending'] ? '' : (string) $whatsapp,
+			'whatsapp_source'  => $built['whatsapp_pending'] ? '' : $whatsapp_source,
+			'whatsapp_candidates' => $candidates,
 			'whatsapp_pending' => $built['whatsapp_pending'],
 			'close_date'       => $built['close_date'],
 			'removed_urgency'  => $built['removed_urgency'],
 			'omitted_blocks'   => $built['omitted_blocks'],
+			'removed'          => $finish ? (array) ( $fin['removed'] ?? array() ) : array(),
+			'links'            => $finish ? (array) ( $fin['links'] ?? array() ) : array(),
 			'broken_anchors'   => $built['broken_anchors'],
 			'social_pending'   => $built['social_pending'],
 			'event_logo'       => $built['event_logo'],
 			'pages_to_create'  => $links,
 			'review'           => $review,
-			'llm_instructions' => 'La página quedó en BORRADOR. Muestra al usuario la vista previa (' . (string) $page['preview_url'] . ') y lo que falta revisar; publicarla le toca a una persona.',
+			'llm_instructions' => $finish
+				? 'La página quedó en BORRADOR y terminada (sin placeholders a la vista). Repórtalo corto: la vista previa (' . (string) $page['preview_url'] . ') y la edición, de dónde salieron los datos (filled_from) y, si hay, lo pendiente (pending) y lo de review. No digas que faltan datos que ya están en filled_from. Publicarla le toca a una persona.'
+				: 'La página quedó en BORRADOR. Muestra al usuario la vista previa (' . (string) $page['preview_url'] . ') y lo que falta revisar; publicarla le toca a una persona.',
 		);
+		if ( $product ) {
+			$out['product'] = array(
+				'id'      => (int) $product['id'],
+				'name'    => (string) $product['name'],
+				'price'   => Product::money( (float) $offer['price'] ),
+				'regular' => null !== $offer['regular'] ? Product::money( (float) $offer['regular'] ) : null,
+				'ends'    => '' !== $offer['ends'] ? $offer['ends'] : null,
+				'label'   => $offer['label'],
+				'buy_url' => $landing['buy_url'],
+			);
+		}
+		return $out;
 	}
 }

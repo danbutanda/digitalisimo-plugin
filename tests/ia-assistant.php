@@ -172,6 +172,8 @@ foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', '' ) as $part 
 $GLOBALS['options']['digitalisimo_ai_options'] = array(
 	'providers' => array( 'openai' => array( 'enabled' => 1, 'key' => KEY_OPENAI, 'url' => '' ), 'anthropic' => array( 'enabled' => 1, 'key' => KEY_ANTHROPIC, 'url' => '' ), 'google' => array( 'enabled' => 0, 'key' => 'AIzaNOPE' ) ),
 	'profiles'  => array( 'content' => array( 'provider' => 'openai', 'model' => 'gpt-test', 'fallback' => '' ), 'seo' => array( 'provider' => 'anthropic', 'model' => 'claude-test', 'fallback' => '' ), 'chatbot' => array( 'provider' => 'google', 'model' => 'gemini-test', 'fallback' => '' ), 'images' => array( 'provider' => 'openai', 'model' => 'gpt-image-1', 'fallback' => '' ) ),
+	// «Igual que el perfil de uso»: estas pruebas usan los modelos de los perfiles (el selector se prueba en ia-assistant-agent.php).
+	'assistant_models' => array( 'openai' => 'profile', 'anthropic' => 'profile', 'google' => 'profile' ),
 );
 
 // Las abilities de prueba (demo/) cuentan como de confianza; las de otro/ no. Sin límites salvo donde se prueban.
@@ -204,7 +206,7 @@ $no_key = function ( $value, $what ) { $json = json_encode( $value ); check( fal
 
 /* ---------------- R: ruta REST y permisos ---------------- */
 Digitalisimo_AI_Assistant::routes();
-check( count( $GLOBALS['routes'] ) === 8, 'Ocho rutas del Asistente' );
+check( count( $GLOBALS['routes'] ) === 9, 'Nueve rutas del Asistente (con la continuación de un turno largo)' );
 foreach ( $GLOBALS['routes'] as $route => $args ) check( is_array( $args['permission_callback'] ) && '__return_true' !== $args['permission_callback'], "$route tiene permiso propio" );
 $GLOBALS['user'] = 0;
 check( is_wp_error( Digitalisimo_AI_Assistant::permission( $req() ) ), 'Sin sesión no hay Asistente' );
@@ -391,16 +393,16 @@ check( 'demo/read-note' === end( $GLOBALS['executed'] )[0], 'Sin IA, los atajos 
 // Caso real (2026-11-22): sólo Anthropic activo con su clave y los perfiles de fábrica en OpenAI. El Asistente debe
 // ofrecer Claude con su modelo recomendado, no «No hay ninguna IA configurada».
 $GLOBALS['options']['digitalisimo_ai_options']['providers'] = array( 'openai' => array( 'enabled' => 0, 'key' => '' ), 'anthropic' => array( 'enabled' => 1, 'key' => KEY_ANTHROPIC, 'url' => '' ) );
-unset( $GLOBALS['options']['digitalisimo_ai_options']['profiles'] );
+unset( $GLOBALS['options']['digitalisimo_ai_options']['profiles'], $GLOBALS['options']['digitalisimo_ai_options']['assistant_models'] );
 $t = Digitalisimo_AI_Assistant_Model::targets();
-check( array( 'anthropic' ) === array_keys( $t ) && 'claude-sonnet-5-5' === $t['anthropic']['model'], 'Sólo Anthropic activo con perfiles en OpenAI: el Asistente ofrece Claude con su modelo recomendado' );
+check( array( 'anthropic' ) === array_keys( $t ) && 'claude-opus-5-5' === $t['anthropic']['model'], 'Sólo Anthropic activo con perfiles en OpenAI: el Asistente ofrece Claude con el modelo recomendado para el Asistente' );
 $target = Digitalisimo_AI_Assistant_Model::target( 'auto' );
 check( ! is_wp_error( $target ) && 'anthropic' === $target['provider'] && KEY_ANTHROPIC === $target['key'], 'En «Auto» usa Claude con su clave' );
 // Un perfil en «Auto» (el de fábrica) usa lo que esté configurado: con OpenAI y Anthropic activos, los dos.
 $GLOBALS['options']['digitalisimo_ai_options']['providers']['openai'] = array( 'enabled' => 1, 'key' => KEY_OPENAI, 'url' => '' );
 $GLOBALS['options']['digitalisimo_ai_options']['profiles'] = array( 'content' => array( 'provider' => 'auto', 'model' => '', 'fallback' => '' ) );
 $t = Digitalisimo_AI_Assistant_Model::targets();
-check( array( 'openai', 'anthropic' ) === array_keys( $t ) && 'gpt-4o-mini' === $t['openai']['model'] && 'claude-sonnet-5-5' === $t['anthropic']['model'], 'Un perfil en «Auto» ofrece todo lo configurado, cada uno con su modelo' );
+check( array( 'openai', 'anthropic' ) === array_keys( $t ) && 'gpt-4.1' === $t['openai']['model'] && 'claude-opus-5-5' === $t['anthropic']['model'], 'Un perfil en «Auto» ofrece todo lo configurado, cada uno con el modelo del Asistente' );
 $GLOBALS['options']['digitalisimo_ai_options'] = $saved;
 $rows = Digitalisimo_AI_Assistant_Tools::log_rows();
 check( 'Ana Admin' === $rows[0]['user_name'] && $rows[0]['time'] >= end( $rows )['time'], 'La bitácora se lee de la más reciente a la más antigua, con el nombre de cada usuario' );
@@ -442,8 +444,9 @@ $c = Digitalisimo_AI_Assistant_History::get( $all[0]['id'], 2 );
 for ( $i = 0; $i < Digitalisimo_AI_Assistant_History::MAX_MESSAGES + 10; $i++ ) $c['messages'][] = Digitalisimo_AI_Assistant_History::message( 'user', array( 'text' => str_repeat( 'x', 9000 ) ) );
 Digitalisimo_AI_Assistant_History::save( $c );
 $c = Digitalisimo_AI_Assistant_History::get( $all[0]['id'], 2 );
-check( Digitalisimo_AI_Assistant_History::MAX_MESSAGES === count( $c['messages'] ) && mb_strlen( $c['messages'][0]['text'] ) <= Digitalisimo_AI_Assistant_History::MAX_TEXT, 'Tope de mensajes por conversación y de texto por mensaje' );
-check( count( Digitalisimo_AI_Assistant_History::for_model( $c, array() ) ) <= Digitalisimo_AI_Assistant_History::MODEL_MESSAGES, 'Al modelo sólo viajan los últimos mensajes' );
+check( Digitalisimo_AI_Assistant_History::MAX_MESSAGES + 1 === count( $c['messages'] ) && 'summary' === $c['messages'][0]['role'] && mb_strlen( $c['messages'][1]['text'] ) <= Digitalisimo_AI_Assistant_History::MAX_TEXT && mb_strlen( $c['messages'][0]['text'] ) <= Digitalisimo_AI_Assistant_History::SUMMARY_MAX + 10, 'Tope de mensajes por conversación (lo más viejo pasa a un resumen) y de texto por mensaje' );
+$sent = Digitalisimo_AI_Assistant_History::for_model( $c, array(), array(), 60000 );
+check( strlen( json_encode( $sent ) ) <= 80000 && 0 === strpos( $sent[0]['text'], '[Resumen' ) && 'user' === end( $sent )['role'], 'Al modelo viaja lo que cabe en su contexto, y lo más viejo como resumen' );
 $r = Digitalisimo_AI_Assistant::rest_delete( new WP_REST_Request( array( 'id' => $all[0]['id'] ) ) );
 check( true === $r->data['deleted'] && null === get_post( $all[0]['id'] ), 'Borrar una conversación' );
 $r = Digitalisimo_AI_Assistant::rest_delete_all();
@@ -473,7 +476,7 @@ check( 'function' === $b['body']['tools'][0]['type'] && false !== strpos( $json,
 check( 'system' === $b['body']['messages'][0]['role'] && '{}' === $b['body']['messages'][2]['tool_calls'][0]['function']['arguments'] && 'tool' === $b['body']['messages'][3]['role'] && 'c2' === $b['body']['messages'][4]['tool_call_id'], 'OpenAI: llamadas con argumentos JSON y cada resultado con su tool_call_id' );
 $b = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'anthropic' ), 'SYS', $msgs, $tools );
 $m = $b['body']['messages'];
-check( KEY_ANTHROPIC === $b['headers']['x-api-key'] && 'SYS' === $b['body']['system'] && 8192 === $b['body']['max_tokens'], 'Anthropic: clave en cabecera, sistema y 8 192 tokens (una composición larga no llega cortada)' );
+check( KEY_ANTHROPIC === $b['headers']['x-api-key'] && 'SYS' === $b['body']['system'] && Digitalisimo_AI_Assistant_Model::MAX_TOKENS === $b['body']['max_tokens'] && 16384 === Digitalisimo_AI_Assistant_Model::MAX_TOKENS, 'Anthropic: clave en cabecera, sistema y 16 384 tokens (pensar y una composición larga no llegan cortados)' );
 check( 3 === count( $m ) && 'tool_use' === $m[1]['content'][1]['type'] && '{}' === json_encode( $m[1]['content'][1]['input'] ), 'Anthropic: tool_use con su entrada como objeto' );
 check( 'user' === $m[2]['role'] && 'tool_result' === $m[2]['content'][0]['type'] && 'tool_result' === $m[2]['content'][1]['type'] && 'text' === $m[2]['content'][2]['type'], 'Anthropic: los resultados primero y el texto después, en un solo turno de usuario' );
 $g = $GLOBALS['options']['digitalisimo_ai_options'];
@@ -499,7 +502,7 @@ $e = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::tar
 check( is_wp_error( $e ) && false !== strpos( $e->get_error_message(), 'ChatGPT' ) && false !== strpos( $e->get_error_message(), '401' ) && false === strpos( $e->get_error_message(), 'cuerpo-secreto' ) && false === strpos( $e->get_error_message(), KEY_OPENAI ), 'Un error del proveedor no repite su respuesta ni la clave' );
 $GLOBALS['http_reply'] = array( 'code' => 200, 'body' => json_encode( array( 'choices' => array( array( 'message' => array( 'content' => 'Hola' ) ) ) ) ) );
 $r = Digitalisimo_AI_Assistant_Model::chat( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'SYS', $msgs, $tools );
-check( 'Hola' === $r['text'] && array() === $r['calls'] && Digitalisimo_AI_Assistant_Model::TIMEOUT === end( $GLOBALS['http'] )['args']['timeout'] && 180 === Digitalisimo_AI_Assistant_Model::TIMEOUT, 'Una respuesta real del proveedor por HTTP' );
+check( 'Hola' === $r['text'] && array() === $r['calls'] && Digitalisimo_AI_Assistant_Model::TIMEOUT === end( $GLOBALS['http'] )['args']['timeout'] && 300 === Digitalisimo_AI_Assistant_Model::TIMEOUT, 'Una respuesta real del proveedor por HTTP' );
 $usage = get_option( Digitalisimo_AI::LOG_OPTION );
 check( 'assistant' === end( $usage )['profile'] && true === end( $usage )['success'] && false === strpos( json_encode( $usage ), KEY_OPENAI ), 'El uso queda en las métricas de IA Tools, sin la clave' );
 
@@ -632,7 +635,7 @@ add_filter( 'digitalisimo_ai_assistant_turn_budget', function () { return 0; } )
 $calls = count( $GLOBALS['model_calls'] );
 $GLOBALS['script'] = array( array( 'calls' => array( array( 'id' => 'v8', 'name' => 'demo-read-note', 'input' => array() ) ) ), 'No debería llegar.' );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'Lee', 'conversation' => $cv ) ) ) );
-check( $calls + 1 === count( $GLOBALS['model_calls'] ) && false !== strpos( $of( $ev, 'message' )[0]['message']['text'], 'tardó demasiado' ), 'M3: el turno tiene tope de tiempo' );
+check( $calls + 1 === count( $GLOBALS['model_calls'] ) && 1 === count( $of( $ev, 'continue' ) ), 'M3: el turno tiene tope de tiempo por tramo (y sigue en otra petición)' );
 remove_all_filters( 'digitalisimo_ai_assistant_turn_budget' ); $GLOBALS['script'] = array();
 add_filter( 'digitalisimo_ai_assistant_max_request', function () { return 10; } );
 $calls = count( $GLOBALS['model_calls'] );
@@ -725,7 +728,7 @@ $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' =
 check( false === $of( $ev, 'confirm' )[0]['action']['after_read'], 'R2-M2: sin nada leído en la ventana no hay aviso' );
 
 // R2-M3 La espera cubre 8 192 tokens, y un modelo con menos tope se reintenta con 4 096.
-check( 180 === Digitalisimo_AI_Assistant_Model::TIMEOUT && Digitalisimo_AI_Assistant_Model::MAX_TOKENS / 60 < Digitalisimo_AI_Assistant_Model::TIMEOUT, 'R2-M3: 8 192 tokens a 60 por segundo caben en la espera' );
+check( 300 === Digitalisimo_AI_Assistant_Model::TIMEOUT && Digitalisimo_AI_Assistant_Model::MAX_TOKENS / 60 < Digitalisimo_AI_Assistant_Model::TIMEOUT, 'R2-M3: 16 384 tokens a 60 por segundo caben en la espera' );
 remove_all_filters( 'digitalisimo_ai_assistant_pre_model' );
 $GLOBALS['http'] = array();
 $GLOBALS['http_replies'] = array( array( 'code' => 400, 'body' => '{"error":{"message":"max_tokens: 8192 > 4096, which is the maximum allowed"}}' ), array( 'code' => 200, 'body' => json_encode( array( 'content' => array( array( 'type' => 'text', 'text' => 'Hola' ) ), 'stop_reason' => 'end_turn' ) ) ) );

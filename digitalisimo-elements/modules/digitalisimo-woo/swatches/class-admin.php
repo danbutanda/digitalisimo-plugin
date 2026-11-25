@@ -301,7 +301,7 @@ final class Admin {
 		$message = get_transient( $key );
 		if ( is_string( $message ) && '' !== $message ) {
 			delete_transient( $key );
-			echo '<div class="notice notice-error"><p>' . esc_html( $message ) . '</p></div>';
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
 		}
 	}
 

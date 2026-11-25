@@ -173,7 +173,7 @@ final class Screen {
 			return;
 		}
 		list( $status, $running ) = self::full_status( false );
-		echo '<div class="wrap digi-migrate-wrap"><h1>' . esc_html( 'Migrar a DIGITALÍSIMO' ) . '</h1>';
+		echo '<div class="wrap digi-migrate-wrap"><h1>' . esc_html( 'Migrar a DIGITALÍSIMO' ) . '</h1><hr class="wp-header-end">';
 		echo '<p>' . esc_html( self::intro( false ) ) . '</p>';
 		if ( is_multisite() ) {
 			// Sin DIGITALÍSIMO Elements en este sitio no hay botón: la pantalla lo dice (antes sólo quedaba la frase de
@@ -192,7 +192,7 @@ final class Screen {
 			return;
 		}
 		list( $status, $running ) = self::full_status( true );
-		echo '<div class="wrap digi-migrate-wrap"><h1>' . esc_html( 'Migrar a DIGITALÍSIMO en la red' ) . '</h1>';
+		echo '<div class="wrap digi-migrate-wrap"><h1>' . esc_html( 'Migrar a DIGITALÍSIMO en la red' ) . '</h1><hr class="wp-header-end">';
 		echo '<p>' . esc_html( self::intro( true ) ) . '</p>';
 		echo self::control( true, $status, $running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en control() y en Full::render().
 		echo self::analysis_open( self::finished( true ), true ) . self::plan_html( true ) . self::analysis_close(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en analysis_open() y plan_html().

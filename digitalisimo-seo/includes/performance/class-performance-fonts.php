@@ -254,9 +254,9 @@ class Digitalisimo_Integrations_Performance_Fonts {
 			$modes  = array( 'off' => 'Apagado', 'auto' => 'Seguro', 'strict' => 'Estricto', 'manual' => 'Manual' );
 			if ( $network ) { echo '<h2>Todos los sitios</h2>'; $guard::render_network_recalculate(); }
 			echo '<h2>Fuentes de este sitio</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code>. Cada sitio detecta sus propias familias, estilos y pesos en el Kit y en el contenido publicado con el constructor, y genera su CSS sólo con las variantes autorizadas. Los originales no se modifican y los icon fonts nunca se filtran.</p>';
-			if ( isset( $_GET['font_guard_error'] ) ) echo '<div class="notice notice-error"><p>' . esc_html( wp_unslash( $_GET['font_guard_error'] ) ) . '</p></div>';
-			if ( isset( $_GET['font_guard_optimized'] ) ) echo '<div class="notice notice-success"><p>Modo seguro activado para este sitio. Reglas @font-face omitidas: ' . esc_html( absint( $_GET['font_guard_optimized'] ) ) . '.</p></div>';
-			if ( isset( $_GET['font_guard_recalculated'] ) ) echo '<div class="notice notice-success"><p>Fuentes recalculadas con el modo vigente. Reglas @font-face omitidas: ' . esc_html( absint( $_GET['font_guard_recalculated'] ) ) . '.</p></div>';
+			if ( isset( $_GET['font_guard_error'] ) ) echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( wp_unslash( $_GET['font_guard_error'] ) ) . '</p></div>';
+			if ( isset( $_GET['font_guard_optimized'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Modo seguro activado para este sitio. Reglas @font-face omitidas: ' . esc_html( absint( $_GET['font_guard_optimized'] ) ) . '.</p></div>';
+			if ( isset( $_GET['font_guard_recalculated'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Fuentes recalculadas con el modo vigente. Reglas @font-face omitidas: ' . esc_html( absint( $_GET['font_guard_recalculated'] ) ) . '.</p></div>';
 
 			echo '<form method="post" action="' . esc_url( $action ) . '" style="display:inline-block;margin-right:8px"><input type="hidden" name="action" value="digitalisimo_performance_optimize_fonts"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '"><input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
 			wp_nonce_field( 'digitalisimo_performance_optimize_fonts_' . $site_id );

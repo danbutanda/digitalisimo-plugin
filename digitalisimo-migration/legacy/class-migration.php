@@ -997,11 +997,11 @@ final class Migration {
 		Runner::load();
 		$state   = Runner::state();
 		$running = $state && empty( $state['done'] );
-		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO</h1>';
+		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO</h1><hr class="wp-header-end">';
 		echo '<p>' . esc_html( \Digitalisimo\Migration\Screen::intro( false ) ) . '</p>';
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- sólo muestra el resultado de la acción.
 		if ( isset( $_GET['done'] ) && 'acknowledge' === sanitize_key( wp_unslash( $_GET['done'] ) ) ) {
-			echo '<div class="notice notice-success"><p>' . esc_html( absint( $_GET['count'] ?? 0 ) ? 'Página dada por revisada: deja de listarse mientras su contenido no cambie.' : 'No se indicó ninguna página.' ) . '</p></div>';
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( absint( $_GET['count'] ?? 0 ) ? 'Página dada por revisada: deja de listarse mientras su contenido no cambie.' : 'No se indicó ninguna página.' ) . '</p></div>';
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		if ( is_multisite() ) {
@@ -1346,7 +1346,7 @@ final class Migration {
 		}
 		Runner::load();
 		$sites   = get_sites( array( 'number' => 500, 'fields' => 'ids' ) );
-		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO en la red</h1>';
+		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO en la red</h1><hr class="wp-header-end">';
 		echo '<p>' . esc_html( \Digitalisimo\Migration\Screen::intro( true ) ) . '</p>';
 		list( $status, $full_running ) = \Digitalisimo\Migration\Screen::full_status( true );
 		echo \Digitalisimo\Migration\Screen::control( true, $status, $full_running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Screen y Full.

@@ -175,10 +175,63 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
 | Herramienta | Entrada | Devuelve |
 | --- | --- | --- |
 | `list-templates` (lectura) | `template` (opcional) | Las ocho plantillas (para qué, cuándo, qué mide, secciones, widgets, contador, formulario, enlaces internos y bloques en orden, con los que no se quitan: `required` y `required_for`), el embudo, la tabla por caso, lo que no se quita (`required`) y la variante del sitio. Con `template`, además sus placeholders: texto exacto, apariciones y tipo (`texto`, `precio`, `dato_real`, `cierre` o `enlace`) |
-| `create-page` (escritura, no destructiva) | `template`, `title` (obligatorios), `replacements`, `omit_blocks`, `whatsapp`, `close_date` | El ID, `status: draft`, la variante, las URL de edición y de vista previa, lo llenado, lo ignorado, los placeholders pendientes, los datos reales que hay que comprobar, la urgencia quitada, los bloques quitados, las anclas que quedaron sin destino, los iconos de redes sin enlace (`social_pending`), las páginas del sitio que faltan y la revisión (`review`) |
+| `create-page` (escritura, no destructiva) | `template` y `title` (o `product_id` con `offer`: la landing de un producto de la tienda), `replacements`, `omit_blocks`, `whatsapp`, `close_date`, `finish` (por defecto, sí) | El ID, `status: draft`, la variante, las URL de edición y de vista previa, lo llenado, lo ignorado, los placeholders pendientes, los datos reales que hay que comprobar, la urgencia quitada, los bloques quitados, las anclas que quedaron sin destino, los iconos de redes sin enlace (`social_pending`), las páginas del sitio que faltan y la revisión (`review`); terminada: qué se llenó y de dónde (`filled_from`), lo que falta con su bloque y campo (`pending`), lo quitado (`removed`), los enlaces reales (`links`) y, con `product_id`, el producto, la oferta y el enlace de compra |
 | `guide` (lectura) | `section` (opcional: `reglas`, `plantillas`, `casos`, `orden`, `formulas`, `paginas`, `antes-de-publicar`) | La guía en Markdown, entera o una parte |
 
 ### `create-page`
+
+- **La landing de un producto de la tienda (`product_id`, 2026-11-23).** Caso real de plomerito: la promo de Black
+  Friday de un purificador ($10,000 a $7,500, «de hoy a fin de mes») salió como la plantilla, con 36 placeholders sin
+  llenar, el WhatsApp y el logo de muestra y enlaces a páginas que no existen. Con `product_id` y `offer` (`price`,
+  `regular_price`, `ends`, `label`), `Product` lee el producto (nombre, descripciones, imágenes, precios, atributos,
+  peso y medidas, reseñas aprobadas, fin de la rebaja, si se puede comprar) y arma la venta corta (02) como landing de
+  producto, por los IDs de sus widgets (iguales en las dos variantes; si la plantilla cambia, un error lo dice): la
+  portada con el nombre y la etiqueta, los beneficios (las listas de la descripción), «Conócelo» (la descripción y la
+  galería en un carrusel), características (atributos, peso, medidas) y «Además», las reseñas aprobadas (si no hay,
+  sin testimonios), la oferta con el precio normal tachado, el de oferta, el ahorro y el botón que agrega el producto
+  al carrito y lleva a pagar (o a la ficha, si tiene opciones o está agotado), el fin real con la barra fija y la
+  cuenta regresiva, la garantía que dice el producto (o la política de reembolso del sitio; si no hay, `pending`) y
+  preguntas frecuentes de compra, pago, envío y cierre con lo que la tienda tiene activo. Sin bloques de curso. Si la
+  tienda cobra otro precio que la landing, `review` lo dice (se pone el precio rebajado en el producto antes de
+  publicar); el producto no se toca.
+- **Revisión adversarial (2026-11-23).** El nombre del producto no pasa por la regla del precio (el mensaje de WhatsApp
+  se escribe directo: «Bomba 0.50 HP» no es un precio); los medios de pago se dicen «Formas de pago», sin «en línea»;
+  el WhatsApp del sitio cuenta cada origen una vez, busca la cabecera, el pie, el botón flotante y los menús en su
+  propia consulta (no los tapan las páginas recientes), toma Joinchat y Click to Chat sólo con su plugin activo y avisa
+  en `review` si hay más de un número (`whatsapp_candidates`); con variaciones, el tachado y el ahorro sólo son de la
+  misma variación («Desde» si los precios difieren); la pregunta de envíos sólo con métodos que llevan el producto (sin
+  recoger en tienda) y si el producto se envía, y dice «gratis» con envío gratis; la hora del cierre se nombra con la
+  zona real del sitio; sólo reseñas de 4 o 5 estrellas sin las respuestas de la tienda; un producto con contraseña se
+  rechaza; una oración que niega la garantía no es una garantía. Segunda revisión: la zona del sitio sólo se nombra en
+  los textos del cierre (los que llevan `[… de cierre]`; la hora de un evento de la 03 y la 04 la escribe el usuario y
+  se queda «del centro de México»); un envío gratis con mínimo o cupón se dice con su condición y cada método de cada
+  zona cuenta por separado; la negación de la garantía debe ir sobre la garantía («ningún tipo de garantía»,
+  «garantía: ninguna»/«-»; no «envío sin costo y garantía de 12 meses»); variaciones empatadas, la de ID menor;
+  WhatsApp sin páginas con contraseña, y una plantilla guardada sin condiciones de visualización pesa menos que la
+  cabecera o el pie en uso; un enlace que se pone en el editor quita su botón, no el bloque.
+- **Regenerar en el mismo borrador (`post_id`).** Cada borrador del kit lleva la meta `_digitalisimo_sales_kit` (sitio
+  de la red y plantilla). Con `post_id`, `create-page` arma de nuevo y guarda en ESE borrador (mismo ID, sigue en
+  borrador), sólo si lo creó el kit en este sitio, el usuario puede editarlo (`edit_post`) y está en borrador; una
+  página publicada, programada, privada, en revisión, de otro sitio o que no creó el kit da error y no se toca. Un
+  borrador de este sitio sin la marca (creado antes de que el kit la guardara, o por el Asistente IA de IA Tools para
+  esa persona) se acepta sólo si el filtro `digitalisimo_sales_regenerable` lo dice, y al rehacerse queda marcado. La marca guarda
+  además la huella (`hash`, md5 del `_elementor_data`) de lo que dejó el kit, para que el Asistente sepa si alguien lo
+  retocó a mano antes de rehacerlo
+  (caso plomerito 2, 2026-11-24: «no aceptó rehacer el borrador 1040, aunque lo creó ella misma»). El
+  núcleo marca la página como cambiada por el MCP. Los encabezados sueltos de la descripción («Beneficios»,
+  «Características:», «Detalles:», un `<h3>`) no se copian como beneficio ni como párrafo.
+- **Terminada (`finish`, por defecto).** `Finisher` termina cualquier página del kit: `[Marca]` y `[año]` con los datos
+  del sitio; las rutas del kit (`/aviso-de-privacidad/`, `/terminos-y-condiciones/`, `/politica-de-reembolso/`,
+  `/carrito/`, `/pago/`…) a la página real que el sitio declara o tiene con esa dirección (`Site::read()`), y si no la
+  tiene, sin el enlace (y sin el botón); las imágenes de muestra del logo (portada, barra, pie) con el logo del sitio,
+  y las demás imágenes de muestra fuera; sin WhatsApp, el botón a la página de contacto real (o fuera) y los textos sin
+  mandar a WhatsApp; un bloque opcional con un dato que falta, fuera entero; en uno obligatorio, fuera el elemento de la
+  lista o el widget, y lo que falta en `pending` con el bloque y el campo; los botones a un ancla que ya no está, fuera.
+  Ningún `[placeholder]` queda a la vista. `finish: false` deja la plantilla como antes, para llenarla a mano.
+- **WhatsApp del sitio.** Sin `whatsapp`, `Site::read()` busca el número que el sitio ya publica: los ajustes de los
+  botones de chat comunes, los menús, las plantillas del constructor (cabecera, pie, botón flotante) y las páginas
+  publicadas (enlaces `wa.me`, `api.whatsapp.com/send?phone=` y el número del botón flotante); gana el de más peso
+  (cabecera, pie y menús antes que una entrada). La respuesta dice de dónde salió.
 
 - **Borrador siempre.** `wp_insert_post()` con `draft` y el guardado normal del documento del constructor: el lienzo
   con `Document::update_settings()` y los elementos con `Document::save()` (el del editor: elementos, versión y el CSS
@@ -200,9 +253,10 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
   valor vacío se ignoran y se informan. Cada valor se sanea según su campo: texto plano (`sanitize_text_field()`) o
   HTML (`wp_kses_post()` en el editor de texto, el título, el contenido del acordeón y la lista con iconos); dentro de
   un enlace de WhatsApp, el mensaje se llena como texto y se codifica.
-- **Nada se inventa** (D-0023, D-0024): la herramienta no genera texto; un placeholder sin dato se queda y se informa.
-  Los de tipo `dato_real` que se llenan se devuelven en `real_data` para que una persona los compruebe. La descripción
-  le dice al modelo que sólo use datos del usuario.
+- **Nada se inventa** (D-0023, D-0024): la herramienta no inventa texto; usa los datos que dio el usuario o que están
+  en el sitio (tienda, páginas, ajustes), y lo que no tiene dato se quita (o, con `finish: false`, se queda y se
+  informa). Los de tipo `dato_real` que se llenan se devuelven en `real_data` para que una persona los compruebe. La
+  descripción le prohíbe al modelo inventar testimonios, reseñas, cifras de clientes o urgencia.
 - **Ni HTML con atributos ni enlaces:** un valor sólo lleva texto y `strong`, `em`, `b`, `i` y `br` sin atributos;
   ningún `<a>`, `<img>`, `<form>`, `<span style>`… (los enlaces sólo existen en la plantilla).
 - **Ninguna URL de otro sitio** en un valor, leída como la lee un navegador (entidades decodificadas, `\` como `/`, sin
@@ -220,8 +274,17 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
   bloque. En una lista se mira por aparición (la de un bloque quitado no cuenta). Una cifra suelta con separador de
   miles («1,250 alumnos») no cuenta como precio: puede ser un dato real de otro tipo.
 - **`whatsapp`:** sólo dígitos (8 a 15, con la clave del país); cambia el número de todos los botones
-  (`https://wa.me/<dígitos>`). Sin él, queda el de muestra y se informa.
-- **`close_date`** («AAAA-MM-DD HH:MM» en la hora del sitio), en las plantillas con contador o con textos de cierre
+  (`https://wa.me/<dígitos>`). Sin él, el que el sitio ya publica; si no hay, terminada, el botón va a contacto o se
+  quita (con `finish: false`, queda el de muestra y se informa).
+- **La hora de la tienda** (`Site::sales_timezone()`, filtro `digitalisimo_sales_timezone`): `close_date` y `offer.ends`
+  van en la hora que dice el dueño, la de la tienda: la zona del sitio si WordPress tiene una ciudad elegida; si sólo
+  tiene UTC o un desfase, la del país de la tienda de WooCommerce (México: `America/Mexico_City`; los países con varias
+  zonas, la principal de `COUNTRY_ZONES`; uno sin ella, la del sitio). El contador guarda ese instante en la zona del
+  sitio (el widget lee su fecha con `wp_timezone()`), así «fin de mes» cierra a la medianoche de la tienda y no a las
+  17:59 de Torreón (caso plomerito 2: el sitio estaba en UTC). Sin una zona con nombre, la página dice la hora sola,
+  nunca «(hora UTC)». La foto única del producto en «Conócelo» no conserva el pie de muestra («Foto de la persona detrás
+  de la marca»), ni a la vista ni guardado.
+- **`close_date`** («AAAA-MM-DD HH:MM» en la hora de la tienda), en las plantillas con contador o con textos de cierre
   (01, 02 y 05; `close_date: true` en `list-templates`): una fecha válida, futura y a menos de dos años; llena los
   contadores y los placeholders de cierre. Los de cierre no se llenan con `replacements`. **Sin `close_date`** se
   quitan los bloques de urgencia del manifiesto (las barras de cierre de la 01 y la 02 y el contador del carrito), como
@@ -286,6 +349,15 @@ con un JSON suelto, no hace nada. El editor del constructor ya pregunta antes de
   create-page (por bloque y por aparición), el formulario de la 03 y el último enlace a WhatsApp de cada plantilla, la
   barra de la 02, el aviso del logo de muestra, los perfiles en la misma pestaña y las marcas en todas las cadenas de
   texto del PHP del módulo (no sólo en las definiciones de las herramientas).
+- `tests/elements-sales-product.php` (en `validate.yml` y `release.yml`; PHP 7.4, 8.2 y 8.5): la landing del producto
+  del caso (nombre, descripción con lista, tres imágenes, $10,000 a $7,500 hasta fin de mes) en las dos variantes sin
+  ningún placeholder, con el nombre, los precios (sólo en la oferta), las imágenes, el botón al carrito, el WhatsApp
+  del pie del sitio, el logo y sólo enlaces a páginas que existen; sin WhatsApp en el sitio (a contacto o sin botón),
+  sin oferta (la rebaja de la tienda), con una reseña real, sin garantía (pendiente, sin inventarla), agotado, los
+  candados de la oferta, las ocho plantillas terminadas sin datos y `finish: false`.
+- `tests/playground/sales-product.sh` (manual, en la PC): Playground con la tienda (la versión fijada) y Elements, el
+  producto del caso, `create-page` con `product_id` por el MCP real, el HTML de la página sin corchetes de
+  placeholder y capturas en Chrome a 1 280 y 390 px.
 - `tests/playground/sales-kit.sh` (manual, en la PC): Playground con JSON-RPC real y Chrome (ver su cabecera); crea
   las ocho en las dos variantes como administrador y como editora y las pinta a 1 280 × 800 y 390 × 844 px, también
   las de una editora sin `unfiltered_html`; comprueba el color de cada resalte de título, que guardar como editora no
@@ -306,7 +378,10 @@ con un JSON suelto, no hace nada. El editor del constructor ya pregunta antes de
   otras empresas): queda como pregunta para el operador.
 - La portada se mide en Chrome con la barra de administración (la vista previa pide sesión): un visitante tiene más
   alto. Con textos reales muy largos, la portada puede dejar de caber: se revisa en la vista previa antes de publicar.
-- Las páginas a las que llevan los botones (`/carrito/`, `/pago/`…) no se crean solas; `create-page` dice cuáles faltan.
+- Las páginas a las que llevan los botones (`/carrito/`, `/pago/`…) no se crean solas: terminada, el enlace va a la
+  real o se quita, y `create-page` dice cuáles faltan.
+- La landing de producto no cambia el precio del producto: si la tienda cobra otro, lo avisa (`review`).
+- Los beneficios salen de las listas de la descripción del producto: sin listas, no hay bloque de beneficios.
 - `omit_blocks` quita bloques, no los recorta por dentro (p. ej. menos bonus): eso se hace en el editor.
 - El aviso de importación cubre la importación de la administración; la de WP-CLI (`wp elementor library import`)
   sigue como en el núcleo.

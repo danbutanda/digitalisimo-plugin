@@ -478,7 +478,7 @@ final class Theme_Updates {
 			$rows['Requisitos'] = sprintf( 'WordPress %1$s o superior: %2$s · PHP %3$s o superior: %4$s', $wp, is_wp_version_compatible( $wp ) ? 'se cumple' : 'no se cumple', $php, is_php_version_compatible( $php ) ? 'se cumple' : 'no se cumple' );
 		}
 		$rows['Actualización automática'] = 'No se actualiza solo: la actualización automática sólo se aplica si la activas en Temas.';
-		$html = '<div class="wrap digitalisimo-theme-details"><h1>Tema DIGITALÍSIMO</h1><table class="form-table" role="presentation"><tbody>';
+		$html = '<div class="wrap digitalisimo-theme-details"><h1>Tema DIGITALÍSIMO</h1><hr class="wp-header-end"><table class="form-table" role="presentation"><tbody>';
 		foreach ( $rows as $label => $value ) $html .= '<tr><th scope="row">' . esc_html( $label ) . '</th><td>' . esc_html( $value ) . '</td></tr>';
 		$html .= '</tbody></table>';
 		$html .= '<p><a href="' . esc_url( self::release_page( $release['url'] ?? '' ) ) . '" target="_blank" rel="noopener noreferrer">Ver la Release en GitHub</a></p></div>';

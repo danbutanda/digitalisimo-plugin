@@ -16,8 +16,23 @@ Un menú principal **Asistente IA** (`admin.php?page=digitalisimo-assistant`, ic
 quien tiene `edit_posts`. La pantalla es el tema mini del asistente de `@digitalisimo/ui` 0.9.5 portado a
 `wp.element`, el React que ya trae WordPress: historial por día con «Nueva conversación», búsqueda y borrar; el hilo con
 autodesplazamiento; el cuadro de escritura (Enter envía, Mayús+Enter salta de línea); la barra con el selector de IA
-(Auto o una IA por el nombre con que se la conoce, nunca un modelo) y el menú de herramientas del MCP por categoría; y la
-apariencia (Classic o Modern, claro, oscuro o como el sistema, y ocho paletas, DIGITALÍSIMO primero).
+(«IA automática», la mejor disponible, o una IA por el nombre con que se la conoce, nunca un modelo) y el menú
+«Funciones» (las herramientas del MCP por categoría, para apagar grupos); y la apariencia (Classic o Modern, claro,
+oscuro o como el sistema, y ocho paletas, DIGITALÍSIMO primero).
+
+**La pantalla no abruma** (caso plomerito 2, 2026-11-24: 19 líneas «Consultó: …», «Acción destructiva: Actualizar
+producto — resultado desconocido», URLs crudas con `?page_id=`): el trabajo de cada turno (consultas, borradores, lo que
+el servidor no dejó hacer y las notas de avance o el texto que acompaña a una llamada; `display()` lo marca con `work` y
+separa `notes`) va en UNA línea plegable en palabras llanas, «Revisé tus páginas y tu tienda (19)» o «Preparé el
+borrador y revisé tu tienda (3)», con el detalle sólo al abrirla; la respuesta queda a la vista. Los pasos y estados
+dicen «Consulté», «Borrador», «Cambio», «Cambio importante» y «listo», «no se pudo», «sin permiso», «cancelado», «por
+revisar», «no se hizo». El texto del Asistente pinta «[Ver la landing](URL)» como un enlace con ese texto, una URL suelta
+como «Abrir» y «**así**» en negritas, con nodos (nunca HTML) y sólo hacia el propio sitio (`config.site.home`, la
+pantalla y su host): una URL de otro sitio o `javascript:` queda como texto. La tarjeta dice «Confirma este cambio» o
+«Este cambio no tiene vuelta atrás: confírmalo», sin pegar la descripción técnica de la herramienta, y conserva los datos
+exactos que se usarán (con el mismo desplazamiento obligatorio). La bienvenida dice que primero se prepara en borrador
+para verlo, que nada se publica ni cambia en el sitio sin su confirmación y que, si un borrador tiene cambios suyos,
+pregunta antes de rehacerlo; sugiere una landing de oferta, mejorar en Google y ver las ventas.
 
 | Pieza de `@digitalisimo/ui` | En el plugin (`digitalisimo-ia-tools/assets/assistant/`) |
 |---|---|
@@ -51,13 +66,14 @@ La interfaz sólo habla con el servidor por `window.digitalisimoAssistantAdapter
 ```js
 {
   history: { list(), get( id ), remove( id ), clear() },
-  model:   { providers(), send( payload, onEvent ), confirm( payload, onEvent ) },
+  model:   { providers(), send( payload, onEvent ), confirm( payload, onEvent ), resume( payload, onEvent ) },
   tools:   { list(), log() },
 }
 ```
 
-Todo devuelve promesas. `send` y `confirm` entregan eventos a medida que llegan: `conversation` (`id`, `title`),
-`status` (`text`), `message` (`message`), `tool` (`message`), `confirm` (`action`) y `done` (`pending`). La
+Todo devuelve promesas. `send`, `confirm` y `resume` entregan eventos a medida que llegan: `conversation` (`id`,
+`title`), `status` (`text`), `message` (`message`), `tool` (`message`), `confirm` (`action`), `continue` (el turno
+sigue: la pantalla llama a `resume` sola; un adaptador sin `resume` simplemente no sigue) y `done` (`pending`). La
 implementación incluida (`assistant-adapters.js`) habla con la REST de abajo. Para usar `@digitalisimo/core-sdk`:
 
 1. Un script que defina `window.digitalisimoAssistantAdapters = { create( config ) { … } }` con el mismo contrato (el
@@ -72,8 +88,24 @@ paquete y se encola en lugar de `assistant.js`.
 ## El modelo
 
 - Las IA que se ofrecen salen de los **perfiles de uso** de IA Tools (todos menos `images`) cuyo proveedor está activo y
-  tiene clave; cada IA con el modelo de su perfil. **Auto** es el primer perfil disponible de `assistant` (si alguien lo
-  crea), `content`, `chatbot`, `seo`, `ecommerce` y `automation`. La persona elige la IA, nunca el modelo.
+  tiene clave, y de los proveedores activos con clave. **Auto** es el primer perfil disponible de `assistant` (si
+  alguien lo crea), `content`, `chatbot`, `seo`, `ecommerce` y `automation`. La persona elige la IA, nunca el modelo.
+- **El modelo del Asistente es propio** (IA Tools → Perfiles de uso → «Modelo del Asistente IA», opción
+  `assistant_models` por proveedor): por defecto el más capaz con herramientas (`ASSISTANT_MODELS`: Anthropic
+  `claude-opus-5-5`, OpenAI `gpt-4.1`, Google `gemini-2.5-pro`, xAI `grok-4`, DeepSeek `deepseek-chat`; filtro
+  `digitalisimo_ai_assistant_default_model`), uno de la lista, «Igual que el perfil de uso» u otro escrito a mano. La
+  pantalla avisa que Opus cuesta más que Sonnet (el doble por token). Decisión del propietario del 2026-11-23: «si gasta
+  tokens no hay problema». Las demás herramientas siguen con sus perfiles y `DEFAULT_MODELS`.
+- Anthropic: 16 384 tokens de salida (razonamiento adaptativo y una composición larga), 300 s de espera y la caché
+  automática de la API (`cache_control` en la petición; no con una URL compatible propia; filtro
+  `digitalisimo_ai_assistant_prompt_cache`): cada paso reenvía la conversación entera y sólo crece al final; por eso las
+  instrucciones llevan la fecha del sitio, no la hora. Con los modelos 5.5 (Opus, Sonnet, Haiku) y Fable/Mythos 5: esfuerzo
+  `high` (`output_config.effort`, filtro `digitalisimo_ai_assistant_effort`; Opus 5.5 trae `medium`), notas de avance
+  (`thinking.display: "updates"`, beta `thinking-display-updates-2026-08-18`) que la persona ve como texto, y los bloques
+  `thinking` del turno en curso se reenvían tal cual en los pasos siguientes (los de turnos anteriores no: quitar el
+  tramo inicial es válido), con `block_binding.prefix_mismatch_behavior: drop_block` (beta
+  `thinking-binding-controls-2026-08-01`) para que una compactación no rechace la petición. Si la API rechaza algo de
+  eso, se repite sin ello y, si aún rechaza un bloque reenviado, sin reenviarlos.
 - Llamadas a herramientas nativas de cada proveedor: OpenAI y compatibles (DeepSeek, xAI) con `tools`/`tool_calls`,
   Anthropic con `tool_use`/`tool_result` y Google con `functionDeclarations`/`functionCall` (esquemas reducidos al
   subconjunto que acepta Gemini; un objeto libre se pide como texto JSON y se decodifica; la firma de pensamiento se
@@ -89,7 +121,14 @@ paquete y se encola en lugar de `assistant.js`.
 
 ## Las herramientas son el MCP
 
-El catálogo es el mismo que ven Claude o ChatGPT por MCP:
+El catálogo es el mismo que ven Claude o ChatGPT por MCP (y IA Tools suma dos Abilities para leer el sitio como una
+persona: `digitalisimo-ia/read-page-text`, el texto legible de una página, entrada, producto o plantilla —widgets de
+Elementor clásicos y atómicos o bloques, sin HTML, con sus enlaces, teléfonos y WhatsApp— y `digitalisimo-ia/site-contact`,
+el WhatsApp, teléfonos, correos y dirección que el sitio ya publica —pie y cabecera de Elementor, portada, contacto,
+menús, widgets, WooCommerce, DIGITALÍSIMO SEO Local— y las páginas reales de privacidad, términos, reembolso, contacto y
+tienda; las dos de sólo lectura, con `edit_posts`, públicas para MCP y en el servidor de Elements; sólo leen tipos que
+se ven en el sitio —`is_post_type_viewable`— y plantillas de Elementor, nunca cupones, formularios recibidos ni otros
+tipos internos, y lo no público sólo con `edit_post`):
 
 1. con el MCP de DIGITALÍSIMO Elements activo (`elementor_mcp_enabled`), lo que su servidor `/wp-json/elementor/mcp`
    publica: su registro compartido (constructor, ventas, WooCommerce) más el filtro `elementor/mcp/server/tools`;
@@ -106,11 +145,22 @@ permiso), y antes se comprueba `check_permissions()` con esa entrada: sin permis
 | Clase | Regla | Qué pasa |
 |---|---|---|
 | `read` | `annotations.readonly` es `true` estricto, sin `destructive` true, y la Ability es de un espacio de nombres de confianza (`digitalisimo-`, `elementor/`, `core/`, `mcp-adapter/` o el filtro `digitalisimo_ai_assistant_trusted_prefixes`) | se ejecuta solo |
+| `draft` | (tras leer contenido del sitio, si la persona tiene `unfiltered_html` y algún texto de la entrada cambia de verdad al pasar por `wp_kses_post()` —script, iframe, meta, base, style, atributos on…, protocolos como `javascript:` aunque vengan con entidades o tabuladores—, un valor suelto es un enlace `javascript:`/`vbscript:`/`data:` (decodificado y sin espacios), un CSS trae `@import`, `expression(` o `</style>`, o la entrada es más honda de 32 niveles, pasa por la tarjeta. No se intenta reconocer el código: se compara cada texto con su versión filtrada, las dos normalizadas —entidades decodificadas, `<br/>`, comillas, espacios y mayúsculas— para que lo que kses sólo reescribe, como `&` → `&amp;`, no cuente; el `xml_structure` de build-composition que sólo trae etiquetas `e-*` con `configuration-id` no es HTML de la página y no se compara. La tarjeta marca «Código» con el mismo criterio) crea contenido NUEVO en borrador (`DRAFT_CREATORS`: `digitalisimo-sales/create-page`, `elementor/create-page`; sin un estado distinto de `draft`), lo rehace con `post_id` o lo edita por `post_id` (`DRAFT_EDITORS`: `elementor/build-composition`, `elementor/manage-elements`, `elementor/update-page-settings`; sin claves de estado, visibilidad o contraseña en la entrada) si es un borrador propio SIN TOCAR a mano (`Tools::draft_state()` «clean»: sigue en borrador, la persona tiene `edit_post`, lo creó ESTA conversación, el Asistente para esta persona —meta `_digitalisimo_ai_assistant_draft` con su ID— o el kit de ventas con esta persona como autora, y su `_elementor_data` es el que dejó la última generación o edición: la huella `_digitalisimo_ai_assistant_stamp` del Asistente o `hash` de la marca del kit). Si la persona lo retocó a mano después (o no hay huella con qué comprobarlo), rehacerlo o editarlo pide la tarjeta, con la nota «Este borrador tiene cambios tuyos: ¿lo rehago encima?» (al confirmarla, el filtro del kit lo acepta en ese momento). Con `post_id` en create-page (`regenerate_or_new()`, caso plomerito 2: «no aceptó rehacer el borrador 1040, aunque lo creó ella misma», y la revisión): una página publicada, programada, privada o en revisión, o un número que no es una página, NO crea nada (ni una copia escondida): queda «no se hizo» y el modelo dice en una frase llana que está publicada y que cambiarla en vivo necesita su visto bueno, y ofrece cambiarla con su confirmación (tarjeta) o una copia en borrador; un borrador ajeno (de otra persona o sin marca) se hace en una página NUEVA, sin tocarlo, y el modelo lo dice. El kit acepta rehacer un borrador del Asistente sin su marca con el filtro `digitalisimo_sales_regenerable` (sólo sin cambios a mano o recién confirmado). Listas explícitas, filtros `digitalisimo_ai_assistant_draft_creators` y `…_draft_editors` | se ejecuta solo (no toca nada publicado) y queda en la bitácora como `draft` |
 | `write` | `annotations.destructive` es `false`, o una lectura de un plugin ajeno | tarjeta con qué hará y con qué datos; botón «Confirmar» o «Cancelar» |
 | `destructive` | cualquier otro caso (`readonly` que no es un `true` estricto, contradicciones, sin anotaciones, como el MCP) | tarjeta con una casilla «Entiendo…» que enciende «Sí, hacerlo»; el servidor exige `explicit` (`true`, `1` o `"true"`). Sólo si la Ability lo declara (`meta.digitalisimo.dry_run` true y `dry_run` booleano en su esquema) la tarjeta trae una simulación, que queda en la bitácora como `simulation` |
 
 Una herramienta con `action` en su esquema (las de tienda) cuenta como lectura cuando la acción pedida es de
-`READ_ACTIONS` (`list`, `get`, `read`, `search`…) y está en su `enum`. `digitalisimo_ai_assistant_tool_kind` permite
+`READ_ACTIONS` (`list`, `get`, `read`, `search`…) y está en su `enum`. Sólo en el catálogo de la tienda de
+DIGITALÍSIMO (`digitalisimo-woo/products` y `digitalisimo-woo/catalog`, que anotan como destructiva toda escritura),
+`create` y `update` de productos, variaciones, categorías, etiquetas, marcas, atributos y clases de envío son `write`
+(salvo si `data` trae `meta_data`, `downloads` o un estado distinto de borrador o pendiente: destructivos);
+pedidos, notas al cliente, reembolsos, clientes, cupones, ajustes, envíos, impuestos y reseñas siguen destructivos,
+como cualquier otra herramienta.
+
+**Privacidad.** Las lecturas corren sin confirmar: si el Asistente consulta clientes o pedidos, sus datos personales
+(nombres, correos, direcciones, teléfonos) se envían al proveedor de IA elegido sin un clic. La pantalla lo dice al pie
+(«Lo que consulta (también datos de clientes y pedidos) se envía al proveedor de IA»); quien no quiera que eso pase
+apaga la categoría de tienda en la barra de herramientas del Asistente o el MCP de tienda. `digitalisimo_ai_assistant_tool_kind` permite
 afinar la clase.
 
 - **Lo nuevo nace en borrador**: si la Ability crea (`create`, `new`, `add`, `insert`, `duplicate`, `generate` en su
@@ -124,7 +174,8 @@ afinar la clase.
   desplazamiento, y «Confirmar» sólo se enciende cuando los datos caben enteros o se desplazaron hasta el final. Los
   caracteres invisibles o de dirección (U+202E y similares) y las series de 8 espacios o más se muestran como marcas
   (`⟨U+202E⟩`, `⟨900 espacios⟩`). Encima va un resumen de lo arriesgado: secretos ocultos, invisibles, enlaces a otros
-  dominios, HTML o código (`<script>`, `on…=`), correos, estados e importes. Avisa cuando en lo que se manda a la IA hay
+  dominios, HTML o código (el mismo criterio que decide si un borrador pasa por la tarjeta), correos, estados e importes
+(también los que llegan como texto, «"7500"»). Avisa cuando en lo que se manda a la IA hay
   contenido leído del sitio (de cualquier turno) y cuando la acción no se declara idempotente.
 - **Dos patrones de secretos.** El amplio (`SECRET_KEYS`, como el `Secrets` del MCP de Woo: contraseñas, `secret`,
   cualquier `token`, `signature`, `hmac`, `salt`, `*_key`…, con excepciones públicas como `meta_key`, `max_tokens` o
@@ -141,11 +192,37 @@ afinar la clase.
 - **Una escritura no idempotente que falla** (por ejemplo, un tiempo de espera contra una pasarela) queda como
   «resultado desconocido: puede haberse aplicado», y la IA recibe `puede_haberse_aplicado` para no repetirla sin
   preguntar.
-- Una confirmación caduca en una hora; un mensaje nuevo cancela lo pendiente (y el modelo recibe «cancelado»).
-- Hasta 8 pasos del modelo por turno y 16 llamadas por paso, 120 s por turno (`digitalisimo_ai_assistant_turn_budget`),
-  600 KB por petición (`digitalisimo_ai_assistant_max_request`), 128 herramientas por petición y 180 s por llamada al
-  proveedor (`digitalisimo_ai_assistant_timeout`), que cubre los 8 192 tokens de salida de Anthropic sin flujo; un
-  modelo con tope de 4 096 se reintenta una vez con su tope. Una respuesta vacía, una negativa o una respuesta cortada no dejan
+- **Lo que el servidor no deja hacer aunque el modelo lo pida** (caso plomerito 2: «sólo le pedí una landing y metió
+  muchas cosas como editar producto»; intentó dos veces poner el precio de oferta y repitió un cambio de resultado
+  desconocido), con resultado `skipped` («no se hizo»), sin tarjeta, en la bitácora y con el motivo para el modelo
+  (`turn_facts()` lee el turno en curso de la conversación guardada, así que vale también al continuar): repetir en el
+  mismo turno una herramienta que quedó con resultado desconocido (primero hay que leer el estado real y decirlo); y
+  proponer un cambio en vivo (tarjeta) en el mismo turno en que se preparó un borrador: lo pedido era el borrador y el
+  cambio se ofrece en una frase («¿Quieres que ponga el precio de oferta en la tienda?») y se propone cuando la persona
+  lo pida (filtro `digitalisimo_ai_assistant_hold_after_draft`; editar el propio borrador, aunque su código lo mande a
+  la tarjeta, no se retiene).
+- Un error que sale ANTES de ejecutar (`ability_invalid_input`, sin permiso, los de validación y permiso de la REST de
+  WordPress, o un 4xx del kit de ventas, que valida todo antes de tocar la página: «la página no es un borrador del
+  kit») queda como `error` con «No se aplicó nada» (`Tools::not_applied()`). Lo demás, ante la duda, queda como
+  desconocido: `ability_invalid_output` (la salida se valida DESPUÉS de ejecutar: la escritura ya ocurrió) y cualquier
+  otro 4xx (el manejador pudo escribir y después fallar). Lo desconocido se dice en llano: «No pude confirmar si se
+  hizo; revisa antes de repetir».
+- Una confirmación caduca en una hora. **Confirmar escribiendo** (`typed_confirmation()`): sólo con EXACTAMENTE una
+  acción pendiente, no destructiva, no propuesta tras leer contenido del sitio (`after_read`) y nada a medio ejecutar,
+  una afirmación clara (todas sus palabras de afirmación o relleno: «sí», «sí hazlo», «dale», «ok», «confirmo»; un verbo
+  con pronombre sólo si corresponde a la acción: «créala» confirma una creación, «publícala» no; «gracias», «perfecto»,
+  «correcto», «listo», «no», «pero», «cambia…» no confirman, ni «¿sí?» u «¿ok?» como pregunta) ejecuta la acción GUARDADA como el botón (mismo permiso,
+  caducidad, `running` antes de ejecutar y bitácora; nunca con argumentos nuevos del modelo) y después el modelo recibe
+  el resultado y el «sí». Con varias pendientes, tras leer o destructiva, un «sí» no hace nada: un aviso pide el botón
+  (y la casilla, si es destructiva) y lo pendiente sigue. Cualquier otro mensaje cancela lo pendiente (el modelo recibe
+  «cancelado»). En el caso real, el cambio de precio de la tienda queda en su tarjeta: el «sí hazlo» no lo aplica.
+- Hasta 40 pasos del modelo y 100 llamadas a herramientas por turno (filtros `digitalisimo_ai_assistant_max_steps` y
+  `…_max_calls`), contando sus continuaciones. Cada tramo dura hasta 150 s (`digitalisimo_ai_assistant_turn_budget`, y
+  menos si `max_execution_time` es menor): si se acaba con trabajo por hacer, la conversación guarda dónde iba
+  (`resume`) y emite `continue`; la pantalla pide `POST continue` sola (hasta 8 veces), sin que la persona escriba.
+  Por petición, el contexto del modelo más 600 KB (`digitalisimo_ai_assistant_max_request`), 128 herramientas y 300 s
+  por llamada al proveedor (`digitalisimo_ai_assistant_timeout`); un modelo con tope de 4 096 tokens se reintenta una
+  vez con su tope. Una respuesta vacía, una negativa o una respuesta cortada no dejan
   un turno vacío ni llamadas sin resultado: se avisa y no se ejecuta nada de ella.
 
 ### Límites por persona
@@ -188,9 +265,19 @@ exportarse, `delete_with_user`, con capacidades propias que ningún rol tiene y 
 superadministrador listan, leen ni cambian la de otra persona; al borrar o quitar a un usuario se borran sus
 conversaciones, también si su contenido se atribuye a otra persona), con autor = quien chatea y los mensajes en la meta `_digitalisimo_ai_chat`. No va en
 la meta del usuario porque WordPress la carga entera en cada pantalla del escritorio. Sin tablas nuevas. Límites: 50
-conversaciones por usuario (se borran las más antiguas), 160 mensajes por conversación y 8 000 caracteres por texto; al
-modelo viajan los últimos 40 mensajes o 60 000 caracteres, siempre desde un mensaje de la persona (el historial se recorta en el límite de un turno: nunca queda un resultado sin su
-llamada). Se borra una o todo
+conversaciones por usuario (se borran las más antiguas), 600 mensajes por conversación y 8 000 caracteres por texto.
+
+**Memoria** (caso plomerito del 2026-11-23: con 40 mensajes / 60 000 caracteres, un turno de 19 consultas empujó
+fuera el producto y el precio que la persona había dicho, y el Asistente volvió a preguntarlos): al modelo viaja la
+conversación COMPLETA, con los resultados de herramientas, mientras quepa en el contexto real del modelo
+(`context_chars()`: `CONTEXT_TOKENS` por familia de modelo × 3 caracteres × 0,7; Opus/Sonnet 5.x ≈ 2,1 millones de
+caracteres, GPT-4o mini ≈ 270 000; filtro `digitalisimo_ai_assistant_context_chars`). Sólo cerca de ese límite: primero
+se compactan los resultados de los turnos anteriores, del más viejo al más nuevo («[resultado anterior recortado: N
+caracteres]», el mismo sobre de dato, JSON válido; el turno en curso nunca), y si aun así no cabe, los turnos más viejos
+pasan a un resumen inicial con todo lo que dijeron la persona y el asistente. Siempre desde un mensaje de la persona y
+con cada llamada seguida de su resultado. Lo guardado se acota igual: los resultados más viejos se compactan cuando
+suman más de 3 MB (nunca los de los dos últimos turnos) y, pasados 600 mensajes, los turnos más viejos pasan a un
+mensaje `summary` (no se muestra; el modelo sí lo recibe). Se borra una o todo
 el historial propio desde el Asistente; la fecha de modificación se actualiza sin `wp_update_post`, para no disparar
 `save_post` en los demás plugins.
 
@@ -206,6 +293,7 @@ cabecera `X-Digitalisimo-Assistant`:
 | `POST conversations/<id>/delete`, `POST conversations/delete-all` | borrar (POST: algunos servidores bloquean DELETE) |
 | `POST message` | `message`, `conversation`, `provider` (`auto` o la clave), `categories`, `stream` |
 | `POST confirm` | `conversation`, `action`, `decision` (`approve`/`deny`), `explicit` |
+| `POST continue` | `conversation`: sigue un turno pausado por tiempo (sólo si la conversación lo dejó marcado, sin nada pendiente y hace menos de una hora) |
 | `GET log` | la bitácora (además, `manage_options`) |
 
 Con `stream`, la respuesta llega en flujo: `application/x-ndjson`, un evento por línea a medida que avanza cada paso
@@ -233,10 +321,60 @@ Fuera de su pantalla, el Asistente sólo registra el menú, el tipo interno (en 
   un proveedor simulado (leer, escribir, cancelar, destructivo, permisos del usuario, herramienta desconocida o
   apagada, pendientes cancelados o caducados, atajos), bitácora, `open-assistant`, historial y los formatos de los tres
   tipos de proveedor.
+- `tests/ia-assistant-agent.php` (PHP 7.4, 8.2 y 8.5): el caso plomerito con el modelo simulado: memoria tras 19
+  resultados grandes (y compactación sólo cerca del límite), «sí hazlo», borradores sin confirmar y lo que sigue
+  pidiéndola, límites y continuación, las dos Abilities de lectura, el selector de modelo y las instrucciones.
+- `tests/ia-assistant-mostrar.php` (PHP 7.4 y 8.2) y `tests/ia-assistant-mostrar-ui.mjs`: el caso plomerito 2 —
+  instrucciones, hora de la tienda, lo que el servidor retiene (cambio en vivo tras el borrador, repetir lo
+  desconocido), errores que no aplicaron, rehacer el borrador propio o crear uno nuevo, el filtro del kit, el pie de
+  foto que no se ve, y la pantalla (trabajo plegado, enlaces con texto sólo del sitio, sin jerga).
+- `tests/playground/ia-assistant-mostrar.sh`: con la API REAL, en una tienda inventada con el sitio en UTC, mide
+  «primero hacer y mostrar» (cero preguntas antes de crear, borrador en el primer turno, nada fuera de la landing, sin
+  palabras técnicas, respuestas cortas, landing sin bloques de muestra ni enlaces rotos y con el contador a la
+  medianoche de la tienda). Fuera de la CI; se corre varias veces seguidas.
+- `tests/playground/ia-assistant-agent.sh`: el caso de punta a punta en Playground con WooCommerce, Elements e IA Tools,
+  con el modelo simulado por la sonda; `tests/playground/ia-assistant-real.sh` lo mismo con la API real de Anthropic
+  (fuera de la CI: gasta tokens y necesita la clave).
 - `tests/ia-assistant-ui.mjs`: la interfaz sin dependencias ni HTML construido con cadenas, la hoja acotada y los
   adaptadores con un `fetch` simulado (flujo partido, respaldo JSON, errores y nonces).
 - `tests/playground/ia-assistant.sh`: Playground y Chrome en un sitio y en una red, con el MCP de Elements activo (ver
   `tests/playground/README.md`).
+
+## Cómo trabaja (instrucciones del sistema)
+
+Como Claude Code con el MCP del sitio, «intuitivo y fácil para el usuario» (caso plomerito 2, 2026-11-24: «es muy
+preguntón, arroja información técnica que el usuario nunca va a entender y toca cosas de más»; «el usuario promedio
+quiere primero ver y luego cambiar las cosas, no que le preguntemos mil cosas antes de que pueda verlo»):
+
+- **Primero hace y muestra.** Ante «créame una landing…», crea YA el borrador completo, en el mismo turno, con lo que
+  sabe y valores razonables, y busca él mismo producto, contacto, políticas, pagos y envíos. Para la promo de un
+  producto: busca el producto y llama a `digitalisimo-sales/create-page` con `product_id` y `offer`, que lee sola el
+  WhatsApp, las políticas, los pagos y los envíos (nada de estructura de página, schema, SEO ni informes para eso: el
+  caso hizo 19 consultas para un teléfono y unas políticas). Si el producto no existe, usa el más parecido; pregunta
+  antes sólo lo imposible de deducir, como mucho una pregunta corta. Un borrador no pide confirmación. Lo dicho antes
+  sigue valiendo; los datos del sitio cuentan como datos de la persona. Si ya hizo un borrador para lo mismo, lo rehace
+  o lo corrige (si tiene cambios de la persona, ella confirma); si tuvo que hacerlo en una página nueva, lo dice; una
+  página publicada no se copia a escondidas: ofrece cambiarla con su visto bueno o una copia en borrador. Lee una vez lo creado y corrige; nunca marcadores,
+  textos o fotos de muestra ni enlaces a páginas que no existen. Al final: una línea, los enlaces para verlo y editarlo
+  y una o dos frases con lo que conviene revisar.
+- **Sólo lo que se pidió.** Ni precio del producto, ni borrar borradores, ni ajustes, zona horaria, SEO o publicar por
+  su cuenta: si nota algo importante (la landing anuncia $7,500 y la tienda cobra $10,000), lo dice una vez y lo ofrece
+  como pregunta, sin llamar a la herramienta hasta que se lo pidan (y el servidor lo retiene, arriba). Nunca repite un
+  cambio de resultado desconocido: primero lee el estado real.
+- **Lenguaje de dueño de negocio.** Nunca IDs, nombres de herramientas, MCP, REST, API, schema, canonical, slug,
+  widget, placeholder, plantillas, rutas como `/politica-de-reembolso/`, zonas horarias ni URLs con `?page_id=`; los
+  enlaces van con texto («[Ver la landing](URL)», «[Editarla](URL)»). Respuestas de 2 a 6 líneas; «¿en qué me ayudas?»
+  en 4 o 5 líneas de cosas que el dueño entiende y un ejemplo.
+- **La hora de la tienda** (`store_timezone()`, la misma regla que `Site::sales_timezone()` del kit, que se usa si
+  Elements está activo): la zona del sitio si WordPress tiene una ciudad elegida; si sólo tiene UTC o un desfase, la
+  del país de la tienda de WooCommerce (México: `America/Mexico_City`; los países con varias zonas usan la principal
+  de `COUNTRY_ZONES`, y uno sin ella, la del sitio); sin país, la del sitio. Así «hasta fin de mes» cierra a la
+  medianoche que la persona quiso decir y no a las 17:59 de Torreón (el sitio del caso estaba en UTC). Las
+  instrucciones traen la fecha de hoy y el fin de mes en esa hora, listo para `ends` o `close_date` del kit, y, si la
+  zona del sitio es otra, ese mismo cierre en la hora del sitio (la de las fechas de WordPress y WooCommerce); piden no
+  mencionar la zona. Se eligió calcular la fecha correcta en vez de explicarle la zona a la persona.
+
+Sigue prohibido inventar testimonios, reseñas, nombres de clientes o cifras.
 
 ## Pendiente
 

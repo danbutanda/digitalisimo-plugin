@@ -34,4 +34,9 @@ $hooks['admin_notices'] = array();
 $elementor_loaded = false;
 pro_elements_plugin_load_plugin();
 $assert( in_array( 'pro_elements_plugin_fail_load', $hooks['admin_notices'], true ), 'Debe avisar si Elementor realmente no carga.' );
+// El aviso se puede cerrar (queja del propietario del 2026-11-22): el problema queda en «Salud del sitio».
+function esc_html( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES ); }
+$assert( in_array( 'digitalisimo_elements_health_tests', $hooks['site_status_tests'] ?? array(), true ), 'Si Elements no carga, lo dice «Salud del sitio».' );
+$health = digitalisimo_elements_health();
+$assert( 'critical' === $health['status'] && false !== strpos( $health['description'], 'elementor/' ) && isset( digitalisimo_elements_health_tests( array() )['direct']['digitalisimo_elements_loaded'] ), 'La prueba de «Salud del sitio» es crítica y dice qué falta.' );
 echo "DIGITALÍSIMO Elements: orden de carga Multisite correcto.\n";

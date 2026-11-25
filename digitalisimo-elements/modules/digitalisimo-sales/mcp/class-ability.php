@@ -15,7 +15,8 @@ defined( 'ABSPATH' ) || exit;
  *   núcleo);
  * - `check_permission()` propio, con un `true` estricto (el del núcleo convierte un `WP_Error` en true);
  * - `register()` propio: la definición de `Tools::definition()` tal cual (fuera de la REST de abilities y del servidor
- *   MCP genérico) y `execute_guarded()` del núcleo como ejecución (la entrada nunca lleva `post_id`).
+ *   MCP genérico) y `execute_guarded()` del núcleo como ejecución (con `post_id`, sólo en create-page al regenerar un borrador del kit, el núcleo marca
+ *   esa página como cambiada por el MCP).
  */
 final class Ability extends Core_Ability {
 	/** @var string */
