@@ -20,12 +20,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 D="$ROOT/tests/playground/ia-assistant-agent"
 MODE="${MODE:-simulado}"
+# SCENARIO=caso (por defecto: la conversación del caso plomerito de 1.0.72) o mostrar (ia-assistant-mostrar.sh: el caso
+# plomerito 2 en una tienda inventada, «primero hacer y mostrar»; sólo con MODE=real). Cada escenario trae su preparación
+# y su conductor.
+SCENARIO="${SCENARIO:-caso}"
+case "$SCENARIO" in caso) SETUP=setup.php; RUNNER=run.cjs ;; mostrar) SETUP=setup-mostrar.php; RUNNER=run-mostrar.cjs ;; *) echo "SCENARIO desconocido: $SCENARIO"; exit 2 ;; esac
 export OUT="${OUT:-/var/tmp/digi-ias}"
 export TMPDIR="${TMPDIR:-$OUT/tmp}"
 mkdir -p "$OUT" "$TMPDIR"
 . "$ROOT/tests/playground/playground-cleanup.sh"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
-case "$MODE" in simulado) PORT="${PORT:-9781}" ;; real) PORT="${PORT:-9782}" ;; *) echo "MODE desconocido: $MODE"; exit 2 ;; esac
+case "$MODE" in simulado) PORT="${PORT:-9781}" ;; real) [ "$SCENARIO" = mostrar ] && PORT="${PORT:-9783}" || PORT="${PORT:-9782}" ;; *) echo "MODE desconocido: $MODE"; exit 2 ;; esac
 case "$PORT" in 978[0-9]) ;; *) echo "ia-assistant-agent.sh usa el bloque 9780–9789: $PORT es de otro arnés"; exit 1 ;; esac
 ELEMENTS_DIR="${ELEMENTS_DIR:-$ROOT/digitalisimo-elements}"
 [ -f "$ELEMENTS_DIR/pro-elements.php" ] || { echo "ELEMENTS_DIR no contiene pro-elements.php: $ELEMENTS_DIR"; exit 1; }
@@ -35,6 +40,7 @@ if [ "$MODE" = real ] && [ -z "$PUPPETEER_PATH" ]; then
   npm install --silent --no-audit --no-fund --prefix "$TMPDIR/pptr" puppeteer-core@25.12.0 >/dev/null 2>&1 && PUPPETEER_PATH="$TMPDIR/pptr/node_modules"
 fi
 dir="$OUT/$MODE"
+[ "$SCENARIO" = caso ] || dir="$OUT/$SCENARIO-$MODE${RUN_LABEL:+-$RUN_LABEL}"
 SERVER=''
 stop_server() {
   [ -n "$SERVER" ] && kill "$SERVER" 2>/dev/null || true
@@ -59,7 +65,7 @@ if [ "$MODE" = real ]; then
 fi
 cat > "$dir/blueprint.json" <<JSON
 {"preferredVersions":{"php":"8.2","wp":"latest"},"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"WP_ENVIRONMENT_TYPE":"local"}},
-{"step":"runPHP","code":"<?php require '/digi-ias-src/setup.php';"}]}
+{"step":"runPHP","code":"<?php require '/digi-ias-src/$SETUP';"}]}
 JSON
 if fuser -n tcp "$PORT" >/dev/null 2>&1; then echo "El puerto $PORT está ocupado por otro proceso; usa PORT=…"; exit 1; fi
 host="127.0.0.1:$PORT"
@@ -87,7 +93,7 @@ if [ "$ready" != 1 ]; then
 fi
 echo "== $MODE: sitio listo en $(( $(date +%s) - begun )) s · $(cat "$dir/probe/ready.json") · WooCommerce $WOO_VERSION"
 status=0
-NODE_PATH="${PUPPETEER_PATH:-}" node "$D/run.cjs" "$PORT" "$host" "$dir" "$MODE" || status=1
+NODE_PATH="${PUPPETEER_PATH:-}" node "$D/$RUNNER" "$PORT" "$host" "$dir" "$MODE" || status=1
 if grep -qE 'PHP Fatal error|Uncaught' "$dir/server.log"; then echo "== errores de PHP en el servidor"; grep -E 'PHP Fatal error|Uncaught' "$dir/server.log" | head -5; status=1; fi
 if [ -s "$dir/probe/php-errors.log" ]; then echo "== avisos de PHP de IA Tools"; sort "$dir/probe/php-errors.log" | uniq -c | head -10; status=1; else echo "== ningún aviso de PHP de IA Tools"; fi
 # Ninguna clave en los resultados (la real empieza por sk-ant-).

@@ -131,6 +131,50 @@ final class Site {
 		return is_array( $conditions ) && (bool) array_filter( $conditions );
 	}
 
+	/** Zona principal de los países con más de una (la del país, no la primera en orden alfabético). */
+	const COUNTRY_ZONES = array(
+		'MX' => 'America/Mexico_City',
+		'US' => 'America/New_York',
+		'CA' => 'America/Toronto',
+		'BR' => 'America/Sao_Paulo',
+		'AR' => 'America/Argentina/Buenos_Aires',
+		'CL' => 'America/Santiago',
+		'EC' => 'America/Guayaquil',
+		'ES' => 'Europe/Madrid',
+		'CO' => 'America/Bogota',
+		'PE' => 'America/Lima',
+	);
+
+	/**
+	 * La hora de la tienda: la de las fechas que dice el dueño y la que leen sus clientes. Es la zona del sitio si
+	 * WordPress tiene una ciudad elegida; si sólo tiene UTC o un desfase (caso plomerito 2: un sitio en UTC hacía que «fin
+	 * de mes» cerrara a las 17:59 en Torreón y la landing dijera «hora UTC»), la del país de la tienda de WooCommerce
+	 * (México: America/Mexico_City); sin país, la del sitio. Filtro `digitalisimo_sales_timezone`.
+	 */
+	public static function sales_timezone(): \DateTimeZone {
+		$site = function_exists( 'wp_timezone_string' ) ? (string) wp_timezone_string() : 'UTC';
+		$zone = '';
+		if ( false !== strpos( $site, '/' ) && 0 !== strpos( $site, 'Etc/' ) ) {
+			$zone = $site;
+		} else {
+			$country = strtoupper( substr( function_exists( 'get_option' ) ? (string) get_option( 'woocommerce_default_country', '' ) : '', 0, 2 ) );
+			if ( isset( self::COUNTRY_ZONES[ $country ] ) ) {
+				$zone = self::COUNTRY_ZONES[ $country ];
+			} elseif ( preg_match( '/^[A-Z]{2}$/', $country ) ) {
+				$list = \DateTimeZone::listIdentifiers( \DateTimeZone::PER_COUNTRY, $country );
+				$zone = 1 === count( $list ) ? (string) $list[0] : '';
+			}
+		}
+		if ( function_exists( 'apply_filters' ) ) {
+			$zone = (string) apply_filters( 'digitalisimo_sales_timezone', $zone, $site );
+		}
+		try {
+			return new \DateTimeZone( '' !== $zone ? $zone : $site );
+		} catch ( \Exception $e ) {
+			return function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
+		}
+	}
+
 	/** Cómo se nombra la hora del sitio en un texto: «hora del centro de México», «hora de Tijuana», «hora UTC»… */
 	public static function timezone_label( string $tz ): string {
 		$names = array(
@@ -177,7 +221,7 @@ final class Site {
 			'links'           => array(),
 			'currency'        => function_exists( 'get_woocommerce_currency' ) ? (string) get_woocommerce_currency() : 'MXN',
 			'currency_symbol' => function_exists( 'get_woocommerce_currency_symbol' ) ? html_entity_decode( (string) get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ) : '$',
-			'timezone'        => function_exists( 'wp_timezone_string' ) ? (string) wp_timezone_string() : '',
+			'timezone'        => self::sales_timezone()->getName(),
 			'gateways'        => self::gateways(),
 			'shipping'        => self::shipping(),
 		);
