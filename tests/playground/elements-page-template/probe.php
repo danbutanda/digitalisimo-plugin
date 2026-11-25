@@ -43,8 +43,9 @@ add_filter(
 	3
 );
 /**
- * Quién escribe `_wp_page_template` (para explicar una falla): cada escritura queda en /digi-probe/template-writes.log
- * con la petición, el valor y la pila de llamadas, sin argumentos.
+ * Quién intenta escribir `_wp_page_template` (para explicar una falla): cada intento queda en
+ * /digi-probe/template-writes.log con la petición, el valor y la pila de llamadas, sin argumentos. Se anota con la
+ * prioridad 1, antes de `Page_Template`, así que también salen los intentos que ésta descarta (los de una revisión).
  */
 $digi_pt_template_log = static function ( $check, $object_id, $meta_key, $meta_value ) {
 	if ( '_wp_page_template' === $meta_key ) {
