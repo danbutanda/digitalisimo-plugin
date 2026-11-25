@@ -197,6 +197,18 @@ $B::run(); pasa_una_hora(); $state = $B::run();
 check( false === $state['urls'][ $GLOBALS['settings']['seo_logo'] ]['ok'] && $real === $B::url( 'logo' ), 'Un archivo borrado de la biblioteca cae al logo del tema.' );
 check( '' === $B::local_file( 'https://cliente-ejemplo.test/wp-content/uploads/../../wp-config.php' ), 'Una ruta con «..» no se lee del disco.' );
 
+// Demo con certeza (se quita) frente a un nombre que sólo lo sugiere (se avisa y se publica).
+foreach ( array( 'https://cliente-ejemplo.test/wp-content/uploads/2026/01/logo-marca-softaculous-demo.png', 'https://cliente-ejemplo.test/wp-content/uploads/woocommerce-placeholder.png', 'https://cliente-ejemplo.test/wp-content/uploads/placeholder.png', 'https://cliente-ejemplo.test/wp-content/uploads/logo-demo.png', 'https://cliente-ejemplo.test/wp-content/uploads/dummy-image.jpg', 'https://placehold.co/600x400.png', 'https://demo.tema-ejemplo.test/wp-content/uploads/logo.png' ) as $u ) check( $B::looks_demo( $u ), "Demo con certeza: {$u}" );
+foreach ( array( 'https://cliente-ejemplo.test/wp-content/uploads/sample-bakery-logo.png', 'https://cliente-ejemplo.test/wp-content/uploads/demo-day.jpg', 'https://cliente-ejemplo.test/wp-content/uploads/demostracion-ventas.png', 'https://democracia-ejemplo.test/logo.png' ) as $u ) check( ! $B::looks_demo( $u ), "Sin certeza de demo, no se quita: {$u}" );
+check( $B::maybe_demo( 'https://cliente-ejemplo.test/wp-content/uploads/sample-bakery-logo.png' ) && $B::maybe_demo( 'https://cliente-ejemplo.test/wp-content/uploads/demo-day.jpg' ) && ! $B::maybe_demo( 'https://cliente-ejemplo.test/wp-content/uploads/logo-oficial.png' ), 'Los nombres que sugieren una demo se marcan para avisar.' );
+png( WP_CONTENT_DIR . '/uploads/2026/01/sample-bakery-logo.png', 300, 300 );
+$sample = 'https://cliente-ejemplo.test/wp-content/uploads/2026/01/sample-bakery-logo.png';
+$GLOBALS['settings']['seo_logo'] = $sample;
+$B::run();
+check( $sample === $B::url( 'logo' ) && in_array( 'logo_maybe_demo', codes(), true ) && ! in_array( 'logo_demo', codes(), true ), '«sample-bakery-logo.png» se publica y sólo se avisa.' );
+$GLOBALS['settings']['seo_logo'] = 'https://cliente-ejemplo.test/wp-content/uploads/2026/01/borrado.png';
+$B::run(); pasa_una_hora(); $B::run();
+
 // 4. El aviso del escritorio: en el Escritorio, con la X (Digitalisimo_Notices) y por sitio.
 $GLOBALS['notices'] = array();
 $B::notice();

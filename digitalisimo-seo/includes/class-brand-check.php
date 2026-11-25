@@ -32,8 +32,15 @@ class Digitalisimo_Integrations_Brand_Check {
 	const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 	/** Google pide un logo de al menos 112×112 px. */
 	const MIN_LOGO = 112;
-	/** Nombres de archivo de logos e imágenes de demostración o de relleno. */
-	const DEMO = '/softaculous|placeholder|dummy|lorem[-_]?ipsum|(?:^|[-_.])(?:demo|sample)(?:[-_.]|$)/i';
+	/**
+	 * Archivos de demo o de relleno con certeza: los que dejan los instaladores y kits conocidos (Softaculous, el
+	 * marcador de WooCommerce, «logo-demo», «dummy-image», «lorem ipsum»). Sólo éstos se dejan de publicar.
+	 */
+	const DEMO = '/softaculous|woocommerce[-_]placeholder|^placeholder(?:[-_]\d+x\d+)?\.[a-z]+$|lorem[-_]?ipsum|dummy[-_]?(?:image|img|logo)|(?:^|[-_.])(?:logo[-_]demo|demo[-_]logo)(?:[-_.]|$)/i';
+	/** Servicios de imágenes de relleno y subdominios de demo («demo.tema.com»): también con certeza. */
+	const DEMO_HOSTS = '/(?:^|\.)(?:placehold\.co|placehold\.it|placeholder\.com|dummyimage\.com|picsum\.photos|loremflickr\.com)$|^(?:demos?\d*|demo-[a-z0-9-]+)\./i';
+	/** Nombres que sugieren una demo sin certeza («sample-bakery-logo.png», «demo-day.jpg»): sólo se avisa. */
+	const MAYBE_DEMO = '/(?:^|[-_.])(?:demo|sample|dummy|placeholder)(?:[-_.]|$)/i';
 
 	public static function init() {
 		add_action( self::HOOK, array( __CLASS__, 'run' ) );
@@ -54,10 +61,17 @@ class Digitalisimo_Integrations_Brand_Check {
 		return is_array( $state ) ? $state : array();
 	}
 
-	/** ¿El nombre del archivo es el de una demo o un relleno? */
+	/** ¿Es con certeza una imagen de demo o de relleno (por su archivo o por su dominio)? */
 	public static function looks_demo( $url ) {
 		$path = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
-		return '' !== $path && 1 === preg_match( self::DEMO, basename( $path ) );
+		$host = strtolower( (string) wp_parse_url( (string) $url, PHP_URL_HOST ) );
+		return ( '' !== $path && 1 === preg_match( self::DEMO, basename( $path ) ) ) || ( '' !== $host && 1 === preg_match( self::DEMO_HOSTS, $host ) );
+	}
+
+	/** ¿El nombre sugiere una demo, sin certeza? Sólo se avisa: la imagen se sigue publicando. */
+	public static function maybe_demo( $url ) {
+		$path = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
+		return ! self::looks_demo( $url ) && '' !== $path && 1 === preg_match( self::MAYBE_DEMO, basename( $path ) );
 	}
 
 	/** Una fila de la comprobación que no se puede publicar. */
@@ -285,6 +299,7 @@ class Digitalisimo_Integrations_Brand_Check {
 			elseif ( is_array( $row ) && false === ( $row['ok'] ?? null ) ) $out[] = array( 'code' => $kind . '_broken', 'message' => $label . ' no se puede usar: ' . $url . ' (' . ( $row['error'] ?: 'no responde' ) . ', dos veces seguidas). Súbela a la biblioteca de este sitio y elígela en SEO → Identidad.' . $instead );
 			elseif ( is_array( $row ) && ! empty( $row['pending'] ) ) $out[] = array( 'code' => $kind . '_pending', 'message' => $label . ' parece rota: ' . $url . ' (' . $row['error'] . '). Se sigue publicando y se vuelve a comprobar en una hora; si falla otra vez, se usa la de reserva.' );
 			elseif ( is_array( $row ) && 'unknown' === ( $row['verdict'] ?? '' ) ) $out[] = array( 'code' => $kind . '_unchecked', 'message' => $label . ': no pudimos comprobarla; puede estar bien (' . $url . ', ' . $row['error'] . '). Se sigue publicando.' );
+			if ( self::maybe_demo( $url ) ) $out[] = array( 'code' => $kind . '_maybe_demo', 'message' => $label . ' podría ser de una demo por su nombre (' . basename( (string) wp_parse_url( $url, PHP_URL_PATH ) ) . '). Se sigue publicando: si no es la de la marca, cámbiala en SEO → Identidad.' );
 			if ( ! self::same_site( self::host( $url ), $home ) ) $out[] = array( 'code' => $kind . '_offsite', 'message' => $label . ' está en otro dominio (' . self::host( $url ) . '). Si ese dominio deja de responder, se pierde: súbela a la biblioteca de este sitio.' );
 			if ( 'logo' === $kind && is_array( $row ) && ! empty( $row['width'] ) && ( $row['width'] < self::MIN_LOGO || $row['height'] < self::MIN_LOGO ) ) $out[] = array( 'code' => 'logo_small', 'message' => 'El logo del schema mide ' . (int) $row['width'] . '×' . (int) $row['height'] . ' px; Google pide al menos ' . self::MIN_LOGO . '×' . self::MIN_LOGO . '.' );
 		}
