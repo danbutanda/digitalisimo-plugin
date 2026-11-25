@@ -20,7 +20,8 @@ function digi_check( $ok, $what ) {
 }
 // El cron lo dispara el paso «cron», no una petición cualquiera.
 define( 'DISABLE_WP_CRON', true );
-const DEAD = 'https://media.marca-anterior.test/wp-content/uploads/2023/11/Imagotipo.webp';
+// .invalid nunca resuelve (RFC 2606): es el dominio que ya no existe.
+const DEAD = 'https://media.marca-anterior.invalid/wp-content/uploads/2023/11/Imagotipo.webp';
 if ( 'notice' === $step ) define( 'WP_ADMIN', true );
 
 if ( 'setup' === $step ) {
@@ -118,7 +119,13 @@ if ( 'cron' === $step ) {
 	$state = $B::state();
 	digi_check( in_array( DEAD, $GLOBALS['digi_http'], true ), 'El cron pide la imagen de otro dominio' );
 	digi_check( ! preg_grep( '/playground\.test/', $GLOBALS['digi_http'] ), 'Las imágenes de la biblioteca se comprueban en el disco: ' . implode( ', ', $GLOBALS['digi_http'] ) );
-	digi_check( false === ( $state['urls'][ DEAD ]['ok'] ?? null ), 'La imagen del dominio inexistente queda como rota' );
+	digi_check( 'gone' === ( $state['urls'][ DEAD ]['verdict'] ?? '' ) && null === ( $state['urls'][ DEAD ]['ok'] ?? 'x' ) && (bool) wp_next_scheduled( $B::HOOK, array( $B::RETRY ) ), 'La primera vez sólo queda pendiente y se reintenta en una hora: ' . wp_json_encode( $state['urls'][ DEAD ] ?? null ) );
+	// Pasa una hora y corre el reintento: el fallo se confirma.
+	$state['urls'][ DEAD ]['gone_since'] -= HOUR_IN_SECONDS;
+	update_option( $B::OPTION, $state, true );
+	do_action( $B::HOOK, $B::RETRY );
+	$state = $B::state();
+	digi_check( false === ( $state['urls'][ DEAD ]['ok'] ?? null ), 'Confirmado una hora después, la imagen del dominio inexistente queda como rota' );
 	digi_check( $probe['logo'] === ( $state['fallback_logo'] ?? '' ) && 400 === (int) ( $state['urls'][ $probe['logo'] ]['width'] ?? 0 ), 'La reserva es el logo del tema, comprobado en el disco' );
 	digi_check( (bool) wp_next_scheduled( $B::HOOK, array( $B::DAILY ) ), 'La comprobación se repite cada día' );
 	global $wpdb;
@@ -164,6 +171,25 @@ if ( 'notice' === $step ) {
 		$codes  = array_column( (array) ( $status['brand_warnings'] ?? array() ), 'code' );
 		digi_check( in_array( 'image_broken', $codes, true ) && in_array( 'logo_demo', $codes, true ) && in_array( 'template_literal', $codes, true ) && in_array( 'local_missing', $codes, true ), 'get-site-status del MCP lleva los avisos: ' . implode( ', ', $codes ) );
 	}
+	return;
+}
+
+if ( 'rankmath' === $step ) {
+	// Rank Math de verdad (instalado de wordpress.org por el blueprint): la salida es suya, así que no se comprueba ni se avisa.
+	digi_check( defined( 'RANK_MATH_VERSION' ) && 'Rank Math' === Digitalisimo_Integrations_SEO_Resolver::foreign_seo(), 'Rank Math está activo: ' . ( defined( 'RANK_MATH_VERSION' ) ? RANK_MATH_VERSION : 'no' ) );
+	file_put_contents( '/wordpress/wp-content/probe/rankmath-version.txt', defined( 'RANK_MATH_VERSION' ) ? RANK_MATH_VERSION : '' );
+	$before = $B::state();
+	digi_check( false === $B::refresh(), 'Con Rank Math no se programa la comprobación' );
+	do_action( $B::HOOK );
+	digi_check( array() === $GLOBALS['digi_http'] && $before === $B::state(), 'Con Rank Math el cron no hace peticiones ni cambia el resultado: ' . implode( ', ', $GLOBALS['digi_http'] ) );
+	digi_check( array() === $B::warnings(), 'Con Rank Math no hay avisos de marca' );
+	if ( class_exists( 'Digitalisimo_Integrations_SEO_Abilities' ) ) digi_check( array() === ( Digitalisimo_Integrations_SEO_Abilities::get_site_status()['brand_warnings'] ?? null ), 'get-site-status del MCP no devuelve avisos de marca con Rank Math' );
+	list( $head ) = digi_head( $probe['page'] );
+	digi_check( '' === trim( $head ), 'Con Rank Math DIGITALÍSIMO SEO no imprime su head (ni og:image ni schema): ' . substr( $head, 0, 200 ) );
+	require_once ABSPATH . 'wp-admin/includes/admin.php';
+	set_current_screen( 'dashboard' );
+	ob_start(); $B::notice(); $html = ob_get_clean();
+	digi_check( false === strpos( $html, 'seo-brand' ), 'Con Rank Math no sale el aviso de marca en el Escritorio' );
 	return;
 }
 

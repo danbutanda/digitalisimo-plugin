@@ -5,6 +5,7 @@
 #      peticiones; la comprobación corre en el cron y después og:image, twitter:image y el logo e image del schema usan
 #      el logo del tema; el aviso sale en el Escritorio y en get-site-status del MCP;
 #   A2 nombres sin emoji en el schema y og:site_name, sin teléfono ni horario inventados, sameAs con Google Business;
+#   Con Rank Math activo (instalado de wordpress.org): ni comprobación, ni peticiones, ni avisos, ni brand_warnings.
 #   A3 una plantilla «%focuskw% %sep% %excerpt%» no deja «|» y genera la descripción del contenido (≤ 155); el título
 #      y la descripción escritos a mano se respetan; el texto fijo de la plantilla de títulos se avisa.
 # Uso: bash tests/playground/seo-brand.sh   → $OUT/result.jsonl (por defecto /var/tmp/digi-seo-brand)
@@ -28,6 +29,11 @@ run_blueprint() { # $1 archivo, $2 multisite (1/0), resto: pasos «paso:blog»
     step="${item%%:*}"; blog="${item##*:}"
     [ $first = 1 ] || json="$json,"
     first=0
+    if [ "$step" = install-rankmath ]; then
+      # Rank Math de verdad, de wordpress.org (la versión instalada queda en $OUT/rankmath-version.txt).
+      json="$json{\"step\":\"installPlugin\",\"pluginData\":{\"resource\":\"wordpress.org/plugins\",\"slug\":\"seo-by-rank-math\"},\"options\":{\"activate\":true}}"
+      continue
+    fi
     json="$json{\"step\":\"runPHP\",\"code\":\"<?php putenv('DIGI_STEP=$step'); putenv('DIGI_BLOG=$blog'); require '/wordpress/wp-content/probe/probe.php';\"}"
   done
   echo "$json]}" > "$OUT/$file"
@@ -38,12 +44,15 @@ run_blueprint() { # $1 archivo, $2 multisite (1/0), resto: pasos «paso:blog»
 
 run_blueprint blueprint-single.json 0 setup:1 seed:1 before:1 cron:1 after:1 notice:1 manual:1 clean:1
 run_blueprint blueprint-network.json 1 setup:1 network-seed:1 seed:2 before:2 cron:2 after:2 notice:2
+# Con Rank Math activo de verdad: DIGITALÍSIMO SEO no comprueba ni avisa sobre una salida que no publica.
+run_blueprint blueprint-rankmath.json 0 setup:1 seed:1 install-rankmath:1 rankmath:1
+[ -s "$OUT/rankmath-version.txt" ] && echo "Rank Math $(cat "$OUT/rankmath-version.txt") (wordpress.org)"
 status=0
 fails=$(grep -c '"ok":false' "$OUT/result.jsonl" || true)
 total=$(wc -l < "$OUT/result.jsonl")
 grep '"ok":false' "$OUT/result.jsonl" || true
 if [ -s "$OUT/fatal.log" ]; then echo "Avisos o errores de PHP:"; cat "$OUT/fatal.log"; status=1; fi
 [ "$fails" = 0 ] || status=1
-[ "$total" -ge 40 ] || { echo "Muy pocas comprobaciones: $total"; status=1; }
+[ "$total" -ge 70 ] || { echo "Muy pocas comprobaciones: $total"; status=1; }
 echo "Comprobaciones: $total, fallidas: $fails · Duración: $(( $(date +%s) - STARTED )) s"
 exit $status
