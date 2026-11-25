@@ -210,18 +210,32 @@ final class Store {
 		if ( ! $p || ! is_object( $p ) || '' !== (string) get_post_field( 'post_password', $id ) ) {
 			return null;
 		}
-		$regular = Product::number( $p->get_regular_price() );
-		$from    = false;
-		if ( 'variable' === $p->get_type() && method_exists( $p, 'get_variation_regular_price' ) ) {
-			$min     = Product::number( $p->get_variation_regular_price( 'min' ) );
-			$max     = Product::number( $p->get_variation_regular_price( 'max' ) );
-			$regular = $min;
-			$from    = null !== $min && null !== $max && $max > $min;
+		// Los precios como los muestra la tienda (con o sin impuestos según sus ajustes: wc_get_price_to_display), el
+		// normal y el que cobra hoy (rebajado, si lo está).
+		$display = static function ( $amount ) use ( $p ) {
+			$amount = Product::number( $amount );
+			if ( null === $amount ) {
+				return null;
+			}
+			return function_exists( 'wc_get_price_to_display' ) ? (float) wc_get_price_to_display( $p, array( 'price' => $amount ) ) : $amount;
+		};
+		$from = false;
+		if ( 'variable' === $p->get_type() && method_exists( $p, 'get_variation_price' ) ) {
+			// El de la variación más barata, ya como se muestra (`true`).
+			$regular = Product::number( $p->get_variation_regular_price( 'min', true ) );
+			$current = Product::number( $p->get_variation_price( 'min', true ) );
+			$from    = Product::number( $p->get_variation_price( 'max', true ) ) > $current;
+		} else {
+			$regular = $display( $p->get_regular_price() );
+			$current = $display( $p->get_price() );
 		}
-		if ( null === $regular ) {
-			$regular = Product::number( $p->get_price() );
+		if ( null === $current || $current <= 0 ) {
+			$current = $regular;
 		}
-		if ( null === $regular || $regular <= 0 ) {
+		if ( null === $regular || $regular < $current ) {
+			$regular = $current;
+		}
+		if ( null === $current || $current <= 0 ) {
 			return null;
 		}
 		$image_id = (int) $p->get_image_id();
@@ -236,6 +250,8 @@ final class Store {
 				'alt' => '' !== $url && function_exists( 'get_post_meta' ) ? (string) get_post_meta( $image_id, '_wp_attachment_image_alt', true ) : '',
 			),
 			'regular' => $regular,
+			'current' => $current,
+			'on_sale' => $current < $regular - 0.004,
 			'from'    => $from,
 			'in_stock' => (bool) $p->is_in_stock(),
 		);
@@ -411,11 +427,11 @@ final class Store {
 	 */
 	public static function page( array $offer, array $catalog, array $site, array $env ): array {
 		$b        = new Store_Layout( (string) ( $env['variant'] ?? 'containers' ) );
-		$cur      = (string) ( $site['currency'] ?? 'MXN' );
-		$sym      = (string) ( $site['currency_symbol'] ?? '$' );
-		$money    = static function ( float $v ) use ( $sym, $cur ): string {
-			return $sym . Product::money( $v ) . ( '' !== $cur ? ' ' . $cur : '' );
+		// Como escribe los precios la tienda: sus decimales, separadores y símbolo, sin agregar el código de la moneda.
+		$money    = static function ( float $v ) use ( $site ): string {
+			return Site::price( $v, $site );
 		};
+		$decimals = max( 0, (int) ( $site['price']['decimals'] ?? 2 ) );
 		$pct      = rtrim( rtrim( number_format( (float) $offer['percent'], 2, '.', '' ), '0' ), '.' );
 		$scope    = 'category' === $catalog['scope'] ? 'en ' . $catalog['scope_name'] : 'en toda la tienda';
 		$label    = (string) $offer['label'];
@@ -458,15 +474,28 @@ final class Store {
 		$elements = array( $b->section( $hero, 'primary', 80, 'hero' ) );
 
 		// 2 · Los productos reales con su precio normal tachado y el de oferta.
-		$cards = array();
+		$cards    = array();
+		$on_sale  = array();
+		$mismatch = array();
 		foreach ( $catalog['products'] as $p ) {
-			$sale  = round( $p['regular'] * ( 1 - $offer['percent'] / 100 ), 2 );
+			// El descuento sobre lo que la tienda cobra HOY (si ya está rebajado, sobre su precio rebajado): lo tachado es
+			// ese precio, así que el «40 % menos» es verdad contra lo que la persona pagaría ahora.
+			$base  = (float) ( $p['current'] ?? $p['regular'] );
+			$sale  = round( $base * ( 1 - $offer['percent'] / 100 ), $decimals );
+			if ( ! empty( $p['on_sale'] ) ) {
+				$on_sale[] = $p['name'];
+			}
+			$mismatch[] = array(
+				'name'    => $p['name'],
+				'store'   => $money( $base ),
+				'landing' => $money( $sale ),
+			);
 			$card  = array();
 			if ( '' !== $p['image']['url'] ) {
 				$card[] = $b->image( $p['image'], $p['name'], $p['url'] );
 			}
 			$card[]  = $b->heading( self::e( $p['name'] ), 'h3', 'text', 17, 'center', 600, array(), $p['url'] );
-			$card[]  = $b->text( '<p><del>' . ( $p['from'] ? 'Desde ' : '' ) . self::e( $money( $p['regular'] ) ) . '</del></p>', 'muted', 'center', 15 );
+			$card[]  = $b->text( '<p><del>' . ( $p['from'] ? 'Desde ' : '' ) . self::e( $money( $base ) ) . '</del></p>', 'muted', 'center', 15 );
 			$card[]  = $b->heading( ( $p['from'] ? 'Desde ' : '' ) . self::e( $money( $sale ) ), 'p', 'primary', 24, 'center', 800 );
 			$card[]  = $b->button( 'Ver producto', $p['url'], 'center', 'sm' );
 			$cards[] = $card;
@@ -604,7 +633,18 @@ final class Store {
 		}
 		$elements[] = $b->section( $close, 'primary', 70, 'cierre' );
 
-		$warnings[] = sprintf( 'La tienda todavía no aplica este descuento: la landing anuncia %s %% menos sobre el precio normal de cada producto. Para que el carrito cobre lo mismo, pon ese precio rebajado en los productos de la tienda antes de publicar (un cupón de porcentaje se calcularía sobre el precio que ya tenga rebajado).', $pct );
+		// Qué productos no coinciden: la tienda cobra hoy otro precio que el que anuncia la landing (nunca se pide subir
+		// uno: el de la landing siempre es menor).
+		$list = array();
+		foreach ( array_slice( $mismatch, 0, 6 ) as $m ) {
+			$list[] = sprintf( '%s (la tienda cobra %s; la landing anuncia %s)', $m['name'], $m['store'], $m['landing'] );
+		}
+		if ( $mismatch ) {
+			$warnings[] = sprintf( 'La tienda todavía no aplica este descuento, así que estos productos se cobrarían distinto de lo que anuncia la landing: %s%s. Para que el carrito cobre lo mismo, pon esos precios rebajados en la tienda antes de publicar.', implode( '; ', $list ), count( $mismatch ) > 6 ? sprintf( ' y %d más', count( $mismatch ) - 6 ) : '' );
+		}
+		if ( $on_sale ) {
+			$warnings[] = sprintf( 'Ya estaban rebajados en la tienda: %s. El %s %% se calculó sobre su precio rebajado de hoy, que es el que aparece tachado.', implode( ', ', array_slice( $on_sale, 0, 6 ) ) . ( count( $on_sale ) > 6 ? sprintf( ' y %d más', count( $on_sale ) - 6 ) : '' ), $pct );
+		}
 		$title      = trim( ( '' !== $label ? $label . ': ' : '' ) . $pct . ' % de descuento ' . $scope );
 		return array(
 			'elements'   => $elements,
@@ -612,6 +652,7 @@ final class Store {
 			'button_url' => $url,
 			'filled'     => $filled,
 			'warnings'   => $warnings,
+			'mismatch'   => $mismatch,
 			'shown'      => count( $catalog['products'] ),
 		);
 	}

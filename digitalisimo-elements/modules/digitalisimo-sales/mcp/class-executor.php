@@ -538,13 +538,15 @@ final class Executor {
 				'note'           => (int) $catalog['total'] > $landing['shown'] && ! $catalog['top'] ? 'La tienda tiene más productos que los que caben: se muestran algunos y el botón lleva a todos.' : '',
 				'button_url'     => $landing['button_url'],
 				'ends'           => '' !== $offer['ends'] ? $offer['ends'] : null,
+				// Lo que la tienda cobra hoy y lo que anuncia la landing, producto por producto.
+				'not_matching'   => $landing['mismatch'],
 			),
 			'whatsapp'         => (string) ( $site['whatsapp'] ?? '' ),
 			'review'           => $review,
 			'brand'            => Brand::summary( $brand ),
 			'look'             => $check['look'],
 			'check'            => $check,
-			'llm_instructions' => 'La landing quedó en BORRADOR y terminada, con los colores, las tipografías, la cabecera y el pie del sitio (check y look lo miden; afirma sólo lo que confirman). Repórtalo corto, en lenguaje llano: el enlace para verla y el de editarla y, en una frase, lo de review (la tienda sigue cobrando el precio normal: ofrécelo como pregunta, no lo hagas). Para cambiarla, vuelve a llamar a create-page con post_id y store_offer (con headline o subtitle si piden otro texto). Publicarla le toca a una persona.',
+			'llm_instructions' => 'La landing quedó en BORRADOR y terminada, con los colores, las tipografías, la cabecera y el pie del sitio (check y look lo miden; afirma sólo lo que confirman). Repórtalo corto, en lenguaje llano: el enlace para verla y el de editarla y, en una frase, lo de review (la tienda todavía no cobra esos precios: ofrécelo como pregunta, no lo hagas). Para cambiarla, vuelve a llamar a create-page con post_id y store_offer (con headline o subtitle si piden otro texto). Publicarla le toca a una persona.',
 		);
 	}
 }

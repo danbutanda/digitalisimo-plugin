@@ -265,6 +265,7 @@ namespace {
 		'links'           => array( '/politica-de-reembolso/' => 'https://ferre.test/devoluciones/', '/carrito/' => 'https://ferre.test/carrito/' ),
 		'benefits'        => Store::benefits( $docs ),
 		'refund_line'     => 'Tienes 30 días para devolver tu producto.',
+		'price'           => array( 'decimals' => 2, 'decimal_sep' => '.', 'thousand_sep' => ',', 'format' => '%1$s%2$s', 'trim_zeros' => false ),
 	);
 	check( 4 === count( $site['benefits'] ) && 'Marcas de calidad' === $site['benefits'][0]['title'], 'S0 las garantías salen del pie del sitio · ' . json_encode( $site['benefits'] ) );
 	$env   = array( 'timezone' => new DateTimeZone( 'America/Mexico_City' ), 'site_timezone' => new DateTimeZone( 'UTC' ), 'now' => strtotime( '2026-11-25 12:00:00 UTC' ) );
@@ -276,7 +277,7 @@ namespace {
 		$json = json_encode( $els, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
 		$text = implode( ' | ', Store::texts( $els ) );
 		check( 12 === $page['shown'] && 12 === substr_count( $json, '"widgetType":"image"' ), "S2 $variant: los 12 productos con foto" );
-		check( false !== strpos( $json, '<del>$12,000 MXN</del>' ) && false !== strpos( $json, '$7,200 MXN' ), "S3 $variant: precio normal tachado y 40 % menos" );
+		check( false !== strpos( $json, '<del>$12,000.00</del>' ) && false !== strpos( $json, '$7,200.00' ) && false === strpos( $json, 'MXN' ), "S3 $variant: precio de la tienda tachado y 40 % menos, con el formato de la tienda (sin agregar «MXN»)" );
 		check( 'https://ferre.test/tienda/' === $page['button_url'] && false === strpos( $json, '/carrito/' ), "S4 $variant: el botón lleva a la tienda, nunca al carrito" );
 		check( ! Store::course_texts( $els ), "S5 $variant: ningún texto de cursos · " . implode( ',', Store::course_texts( $els ) ) );
 		check( false !== strpos( $text, 'Marcas de calidad' ) && false !== strpos( $text, '30 días de garantía' ), "S6 $variant: las garantías del pie" );
@@ -401,6 +402,23 @@ namespace {
 	check( false === $best->invoke( null, array( 10, 11 ), 3 )['sold'], 'R5 sin ventas no son «los más vendidos»' );
 	// R6 · El aviso del precio no dice «precio normal» de algo que puede estar rebajado.
 	check( (bool) preg_grep( '/todavía no aplica este descuento/', $page['warnings'] ), 'R6 el aviso del precio de la tienda' );
+
+	// ── P · El precio anunciado es lo que cobraría la tienda (grave 2 de la revisión) ─────────────────────────────
+	// P1 · El formato de la tienda: símbolo después, separadores de Europa, sin decimales en cero.
+	$eu = array( 'currency_symbol' => '€', 'price' => array( 'decimals' => 2, 'decimal_sep' => ',', 'thousand_sep' => '.', 'format' => '%2$s&nbsp;%1$s', 'trim_zeros' => true ) );
+	check( '1.234,50 €' === \Digitalisimo\Elements\Sales\Site::price( 1234.5, $eu ) && '7.200 €' === \Digitalisimo\Elements\Sales\Site::price( 7200.0, $eu ), 'P1 el precio con el formato de la tienda · ' . \Digitalisimo\Elements\Sales\Site::price( 1234.5, $eu ) );
+	check( '$199' === \Digitalisimo\Elements\Sales\Site::price( 199.0, array( 'currency_symbol' => '$', 'price' => array( 'decimals' => 0 ) ) ), 'P1 sin decimales si la tienda no los usa' );
+	// P2 · Un producto ya rebajado: el descuento sobre lo que cobra hoy, eso es lo tachado, y se dice.
+	$sale_cat = $catalog;
+	$sale_cat['products'] = array( array( 'current' => 700.0, 'on_sale' => true ) + $products[0], array( 'current' => 2000.0, 'on_sale' => false ) + $products[1] );
+	$sale_cat['products'][0]['regular'] = 1000.0;
+	$sp = Store::page( $offer, $sale_cat, $site, $env + array( 'variant' => 'containers' ) );
+	$sj = json_encode( $sp['elements'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+	check( false !== strpos( $sj, '<del>$700.00</del>' ) && false !== strpos( $sj, '$420.00' ) && false === strpos( $sj, '$600.00' ), 'P2 ya rebajado a 700: tacha 700 y anuncia 420 (40 % sobre lo que cobra hoy)' );
+	check( (bool) preg_grep( '/Ya estaban rebajados en la tienda: Bomba de agua 1\./u', $sp['warnings'] ), 'P2 se dice qué productos ya estaban rebajados' );
+	// P3 · Qué productos no coinciden, con lo que cobra la tienda y lo que anuncia la landing; nunca «subir».
+	check( (bool) preg_grep( '/Bomba de agua 1 \(la tienda cobra \$700\.00; la landing anuncia \$420\.00\); Bomba de agua 2 \(la tienda cobra \$2,000\.00; la landing anuncia \$1,200\.00\)/u', $sp['warnings'] ) && ! preg_grep( '/sub(e|ir)/iu', $sp['warnings'] ), 'P3 dice qué productos no coinciden · ' . json_encode( $sp['warnings'], JSON_UNESCAPED_UNICODE ) );
+	check( 2 === count( $sp['mismatch'] ) && '$420.00' === $sp['mismatch'][0]['landing'], 'P3 la lista va también en la respuesta' );
 
 	// ── C · Contraste WCAG AA en todas las paletas (bloqueo 1 de la revisión) ───────────────────────────────────────
 	// Un recorrido propio de la prueba (no el de Brand): cada texto contra el fondo donde se pinta. Botones, cifras,

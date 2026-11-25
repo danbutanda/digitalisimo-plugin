@@ -671,6 +671,11 @@ namespace {
 	check( true === $out['ok'] && $name === $out['title'] && null === $out['close_date'], 'sin offer: el precio rebajado de la tienda, sin etiqueta y sin cierre (' . json_encode( $out['close_date'] ) . ')' );
 	check( false !== strpos( $all, '<del>$10,000 MXN</del>' ) && false !== strpos( $all, '$8,000 MXN' ) && ! preg_grep( '/La tienda cobra hoy/', $out['review'] ), 'sin offer: el precio rebajado y el normal de la tienda; sin aviso de precio distinto' );
 	check( false !== strpos( $all, 'Funciona muy bien, el agua sabe mejor.' ) && false !== strpos( $all, 'Laura' ) && false !== strpos( $all, '★★★★★' ), 'una reseña aprobada real va en testimonios' );
+	// Una oferta más cara que lo que la tienda ya cobra (rebajado a 8,000): nunca se pide subir el precio de la tienda.
+	$created = array();
+	$out     = Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '9000' ) ), $fake );
+	check( ! preg_grep( '/pon el precio rebajado/', $out['review'] ) && (bool) preg_grep( '/ya cobra menos \(\$8,000 MXN\).*anuncia la landing \(\$9,000 MXN\).*no hace falta tocar la tienda/u', $out['review'] ), 'una oferta más cara que el precio rebajado de la tienda: no pide subirlo, pide revisar la cifra · ' . json_encode( $out['review'], JSON_UNESCAPED_UNICODE ) );
+	$out     = Executor::run( 'create-page', array( 'product_id' => 252 ), $fake );
 	check( false === strpos( $all, 'logo-plomeria.png' ) && ! array_filter( sp_widgets( $created[0][1] ), static function ( $w ) { return 'image' === $w['widgetType'] && empty( $w['settings']['image']['url'] ); } ), 'sin logo en el sitio: las imágenes de muestra del logo se quitan' );
 	check( ! array_filter( sp_widgets( $created[0][1] ), static function ( $w ) { return 'countdown' === $w['widgetType']; } ) && false === strpos( $all, 'termina el' ), 'sin fecha de fin real: sin contador ni textos de cierre' );
 	check( ! preg_grep( '/\[/', array_column( sp_strings( $created[0][1] ), 2 ) ), 'sin offer: tampoco quedan placeholders' );

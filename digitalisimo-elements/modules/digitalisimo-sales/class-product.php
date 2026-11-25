@@ -958,8 +958,11 @@ final class Product {
 		};
 
 		$template['content'] = self::apply( $template['content'], $edits );
-		if ( null !== $offer['store_price'] && abs( (float) $offer['store_price'] - $price ) >= 0.005 ) {
+		if ( null !== $offer['store_price'] && (float) $offer['store_price'] - $price >= 0.005 ) {
 			$warnings[] = sprintf( 'La tienda cobra hoy %s por este producto y la landing anuncia %s: pon el precio rebajado en el producto (con su fecha de fin) para que el carrito cobre lo mismo antes de publicar.', $fmt( (float) $offer['store_price'] ), $fmt( $price ) );
+		} elseif ( null !== $offer['store_price'] && $price - (float) $offer['store_price'] >= 0.005 ) {
+			// Nunca pedir subir un precio: la tienda ya cobra menos que lo que anuncia la landing.
+			$warnings[] = sprintf( 'La tienda ya cobra menos (%s) de lo que anuncia la landing (%s): revisa la cifra de la oferta; no hace falta tocar la tienda.', $fmt( (float) $offer['store_price'] ), $fmt( $price ) );
 		}
 		return array(
 			'template'     => $template,
