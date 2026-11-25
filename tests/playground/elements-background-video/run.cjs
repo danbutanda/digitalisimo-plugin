@@ -110,19 +110,24 @@ const DESKTOP = { width: 1280, height: 900 };
       // Pestaña «Estilo» y sección «Fondo», como lo hace el propio editor ($e.route + activateSection), y si no, con clics.
       const opened = await admin.evaluate(() => {
         try {
-          $e.route('panel/editor/style');
-          const view = elementor.getPanelView().getCurrentPageView();
-          view.activateSection('section_background');
-          view._renderChildren();
+          const c = elementor.getPreviewContainer().children[0];
+          $e.route('panel/editor/style', { model: c.model, view: c.view });
           return true;
         } catch (e) { return String(e); }
       });
       await wait(1000);
-      if (!(await admin.$('.elementor-control-background_background'))) {
-        await admin.click('.elementor-tab-control-style').catch(() => {});
-        await wait(1000);
-        await admin.click('.elementor-control-section_background').catch(() => {});
-        await wait(1000);
+      // Si no, clics nativos en la pestaña y en la sección (el panel ya está abierto en el contenedor).
+      for (let i = 0; i < 3 && !(await admin.$('.elementor-control-background_background')); i++) {
+        await admin.evaluate(() => {
+          const tab = document.querySelector('#elementor-panel .elementor-tab-control-style');
+          if (tab && !tab.classList.contains('elementor-active')) tab.click();
+        });
+        await wait(1200);
+        await admin.evaluate(() => {
+          const section = document.querySelector('#elementor-panel .elementor-control-section_background');
+          if (section && !section.classList.contains('e-open')) section.click();
+        });
+        await wait(1200);
       }
       if (!(await admin.$('.elementor-control-background_background'))) {
         const sections = await admin.evaluate(() => [...document.querySelectorAll('#elementor-panel .elementor-control-type-section')].map((n) => n.className.replace(/\s+/g, ' ')).join(' | '));
