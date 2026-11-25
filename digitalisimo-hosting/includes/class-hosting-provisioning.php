@@ -768,8 +768,10 @@ class Digitalisimo_Hosting_Provisioning {
 		$row = Digitalisimo_Hosting_Webuzo::from_settings()->blocked();
 		if ( ! $row ) return;
 		$html = '<p><strong>DIGITALÍSIMO Hosting detuvo el aprovisionamiento:</strong> Webuzo rechazó la clave de API (' . esc_html( (string) $row['msg'] ) . '). No se hará ninguna llamada a Webuzo hasta que guardes una clave nueva en <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-hosting' ) ) . '">Digitalisimo → Hosting</a>.</p>';
-		if ( class_exists( 'Digitalisimo_Notices' ) ) Digitalisimo_Notices::show( 'hosting-webuzo-block', 'error', $html, array( 'hash' => (string) $row['t'], 'cap' => 'manage_woocommerce' ) );
-		else echo '<div class="notice notice-error">' . $html . '</div>';
+		// Con la X de WordPress y el cierre recordado (ayudante de avisos de los siete plugins; id por sitio). Cerrado, un
+		// error vuelve al día siguiente mientras la parada siga.
+		if ( class_exists( 'Digitalisimo_Notices' ) ) Digitalisimo_Notices::show( Digitalisimo_Notices::site( 'hosting-webuzo-block' ), 'error', $html, array( 'hash' => (string) $row['t'], 'cap' => 'manage_woocommerce' ) );
+		else echo '<div class="notice notice-error is-dismissible">' . $html . '</div>';
 	}
 
 	// ── Renovación ──────────────────────────────────────────────────────────────────────────────────────────────
