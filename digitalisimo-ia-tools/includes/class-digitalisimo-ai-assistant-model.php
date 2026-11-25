@@ -5,9 +5,12 @@ defined( 'ABSPATH' ) || exit;
  * El modelo del Asistente IA (docs/ASSISTANT.md): la IA y la clave que ya configura IA Tools, con llamadas a
  * herramientas en el formato de cada proveedor (OpenAI y compatibles —DeepSeek, xAI—, Anthropic y Google).
  *
- * - Las IA que se ofrecen salen de los perfiles de uso (menos «images») cuyo proveedor está activo y tiene clave; el
- *   modelo es el del perfil, nunca uno que elija la persona. «Auto» es el primer perfil disponible en
- *   PROFILE_ORDER (el de contenido, salvo que exista uno llamado «assistant»).
+ * - Las IA que se ofrecen salen de los perfiles de uso (menos «images») cuyo proveedor está activo y tiene clave, y de
+ *   los proveedores activos con clave. «Auto» es el primer perfil disponible en PROFILE_ORDER (el de contenido, salvo
+ *   que exista uno llamado «assistant»). El MODELO del Asistente no es el del perfil: es el de «Modelo del Asistente
+ *   IA» en IA Tools → Perfiles de uso (opción `assistant_models`, por proveedor), y por defecto el más capaz con
+ *   herramientas (ASSISTANT_MODELS; Anthropic: claude-opus-5-5; decisión del propietario del 2026-11-23: «si gasta
+ *   tokens no hay problema»). «Igual que el perfil de uso» vuelve al modelo del perfil. Nunca lo elige quien chatea.
  * - La clave sólo viaja del servidor al proveedor: nada de esta clase la devuelve al navegador. De un error sólo se
  *   muestra el mensaje del proveedor (`error.message`), recortado y sin claves; con 401/403, ni eso.
  * - Si el proveedor rechaza la petición (400) por una herramienta, se quita esa herramienta y se repite (MAX_DROPS).
@@ -19,10 +22,37 @@ final class Digitalisimo_AI_Assistant_Model {
 	const NAMES         = array( 'openai' => 'OpenAI', 'anthropic' => 'Anthropic', 'google' => 'Google', 'xai' => 'xAI', 'deepseek' => 'DeepSeek' );
 	const AI_NAMES      = array( 'openai' => 'ChatGPT', 'anthropic' => 'Claude', 'google' => 'Gemini', 'xai' => 'Grok', 'deepseek' => 'DeepSeek' );
 	const OPENAI_URLS   = array( 'openai' => 'https://api.openai.com/v1/chat/completions', 'deepseek' => 'https://api.deepseek.com/v1/chat/completions', 'xai' => 'https://api.x.ai/v1/chat/completions' );
-	const MAX_TOKENS    = 8192;
+	/** Modelo por defecto del Asistente por proveedor: el más capaz con herramientas (el dueño lo puede cambiar). */
+	const ASSISTANT_MODELS = array( 'anthropic' => 'claude-opus-5-5', 'openai' => 'gpt-4.1', 'google' => 'gemini-2.5-pro', 'xai' => 'grok-4', 'deepseek' => 'deepseek-chat' );
+	/** Modelos que se sugieren en el selector (además de escribir otro). */
+	const ASSISTANT_CHOICES = array(
+		'anthropic' => array( 'claude-opus-5-5' => 'Claude Opus 5.5 · el más capaz (recomendado; cuesta el doble que Sonnet 5.5)', 'claude-sonnet-5-5' => 'Claude Sonnet 5.5 · más económico', 'claude-haiku-5-5' => 'Claude Haiku 5.5 · el más barato, menos capaz' ),
+		'openai'    => array( 'gpt-4.1' => 'GPT-4.1 · el más capaz con herramientas (recomendado)', 'gpt-4o-mini' => 'GPT-4o mini · más económico' ),
+		'google'    => array( 'gemini-2.5-pro' => 'Gemini 2.5 Pro · el más capaz (recomendado)', 'gemini-2.5-flash' => 'Gemini 2.5 Flash · más económico' ),
+		'xai'       => array( 'grok-4' => 'Grok 4 · el más capaz (recomendado)', 'grok-3-mini' => 'Grok 3 mini · más económico' ),
+		'deepseek'  => array( 'deepseek-chat' => 'DeepSeek Chat (recomendado)' ),
+	);
+	/**
+	 * Modelos de Anthropic que escriben sus notas entre llamadas a herramientas como bloques `thinking` (vacíos salvo
+	 * con `display: "updates"`, beta UPDATES_BETA): sin pedirlas, un turno que termina en una herramienta llega sin texto.
+	 */
+	const UPDATES_MODELS = '/^claude-(opus-5-5|sonnet-5-5|haiku-5-5|fable-5|mythos-5)/';
+	const UPDATES_BETA   = 'thinking-display-updates-2026-08-18';
+	/**
+	 * Los bloques thinking del turno en curso se reenvían tal cual (lo exige la API). Si el principio de la conversación
+	 * cambió (p. ej. se compactó un resultado viejo), con `prefix_mismatch_behavior: drop_block` (beta BINDING_BETA) la
+	 * API los descarta en vez de rechazar la petición.
+	 */
+	const BINDING_BETA   = 'thinking-binding-controls-2026-08-01';
+	/** Esfuerzo del Asistente con los modelos que lo admiten (Opus 5.5 trae `medium` por defecto). */
+	const EFFORT         = 'high';
+	/** Texto con el que la API marca una nota de avance cortada (no es para la persona). */
+	const UPDATES_CUT    = 'This part of the response was interrupted before it finished.';
+	/** Con razonamiento adaptativo, 16 384 tokens dejan sitio a pensar y a una composición larga. */
+	const MAX_TOKENS    = 16384;
 	const MIN_TOKENS    = 4096;
-	/** Sin flujo, 8 192 tokens de salida a 50-80 por segundo tardan hasta unos 160 s: la espera tiene que cubrirlos. */
-	const TIMEOUT       = 180;
+	/** Sin flujo, 16 384 tokens de salida a 60-80 por segundo tardan hasta unos 270 s: la espera tiene que cubrirlos. */
+	const TIMEOUT       = 300;
 	/** Herramientas que se pueden quitar, una por reintento, cuando el proveedor rechaza la petición por una de ellas. */
 	const MAX_DROPS     = 3;
 	/** Herramientas rechazadas por cada proveedor (transient de un día): `proveedor` => `nombre|md5 del esquema` => motivo. */
@@ -47,16 +77,37 @@ final class Digitalisimo_AI_Assistant_Model {
 			if ( ! isset( self::NAMES[ $id ] ) || '' === $model || isset( $out[ $id ] ) || empty( $providers[ $id ]['enabled'] ) || empty( $providers[ $id ]['key'] ) ) {
 				continue;
 			}
-			$out[ $id ] = array( 'provider' => $id, 'model' => $model, 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => (string) $profile );
+			$out[ $id ] = array( 'provider' => $id, 'model' => self::assistant_model( $id, $model, 'assistant' === $profile, $o ), 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => (string) $profile );
 		}
 		// Un proveedor activo con clave que ningún perfil eligió también está disponible, con su modelo recomendado
 		// (si no, activar sólo Anthropic dejaba el Asistente en «No hay ninguna IA configurada»).
 		foreach ( Digitalisimo_AI::usable_providers( $o ) as $id => $model ) {
 			if ( isset( self::NAMES[ $id ] ) && ! isset( $out[ $id ] ) ) {
-				$out[ $id ] = array( 'provider' => $id, 'model' => $model, 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => '' );
+				$out[ $id ] = array( 'provider' => $id, 'model' => self::assistant_model( $id, $model, false, $o ), 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => '' );
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * El modelo del Asistente para un proveedor: lo elegido en «Modelo del Asistente IA» (`assistant_models`); vacío,
+	 * el de un perfil llamado «assistant» si lo hay, y si no el recomendado (ASSISTANT_MODELS, filtro
+	 * `digitalisimo_ai_assistant_default_model`); «profile», el del perfil de uso (`$profile_model`).
+	 */
+	public static function assistant_model( $id, $profile_model, $assistant_profile = false, $o = null ) {
+		$o      = is_array( $o ) ? $o : Digitalisimo_AI::get();
+		$chosen = trim( (string) ( ( is_array( $o['assistant_models'] ?? null ) ? $o['assistant_models'] : array() )[ $id ] ?? '' ) );
+		if ( 'profile' === $chosen ) {
+			return (string) $profile_model;
+		}
+		if ( '' !== $chosen ) {
+			return $chosen;
+		}
+		if ( $assistant_profile && '' !== trim( (string) $profile_model ) ) {
+			return (string) $profile_model;
+		}
+		$recommended = (string) apply_filters( 'digitalisimo_ai_assistant_default_model', self::ASSISTANT_MODELS[ $id ] ?? '', $id );
+		return '' !== $recommended ? $recommended : (string) $profile_model;
 	}
 
 	/** La IA para una conversación (`auto` o la clave de un proveedor), con su clave y su URL: sólo para el servidor. */
@@ -109,6 +160,19 @@ final class Digitalisimo_AI_Assistant_Model {
 			$raw    = (string) wp_remote_retrieve_body( $response );
 			$reason = self::error_reason( $raw );
 			$index  = self::rejected_tool( $target['provider'], $reason . ' ' . $raw );
+			// Si la API no acepta las notas de avance (`display: "updates"` o su beta), se repite una vez sin ellas.
+			// Si la API no acepta lo propio de los modelos 5.x (notas de avance, esfuerzo, vínculo de los bloques thinking),
+			// se repite una vez sin eso; si aún rechaza un bloque thinking reenviado, una vez más sin reenviarlos.
+			if ( null === $index && 'anthropic' === $target['provider'] && preg_match( '/thinking|display|beta|block_binding|output_config|effort|signature/i', $raw ) ) {
+				if ( empty( $target['no_updates'] ) && ( ! empty( $request['body']['thinking'] ) || ! empty( $request['body']['output_config'] ) ) ) {
+					$target['no_updates'] = true;
+					continue;
+				}
+				if ( empty( $target['no_replay'] ) && false !== strpos( (string) wp_json_encode( $request['body']['messages'] ?? array() ), '"thinking"' ) ) {
+					$target['no_replay'] = true;
+					continue;
+				}
+			}
 			// Un modelo de Anthropic con tope de salida menor (4 096) rechaza 8 192: se repite una vez con su tope.
 			if ( null === $index && 'anthropic' === $target['provider'] && empty( $target['max_tokens'] ) && false !== stripos( $raw, 'max_tokens' ) ) {
 				$target['max_tokens'] = self::MIN_TOKENS;
@@ -244,14 +308,26 @@ final class Digitalisimo_AI_Assistant_Model {
 			return array( 'url' => $url ?: self::OPENAI_URLS[ $id ], 'headers' => array( 'Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $key ), 'body' => $body, 'tool_names' => $names );
 		}
 		if ( 'anthropic' === $id ) {
-			$body = array( 'model' => $target['model'], 'max_tokens' => (int) ( $target['max_tokens'] ?? self::MAX_TOKENS ), 'system' => $system, 'messages' => self::anthropic_messages( $messages ) );
+			$body = array( 'model' => $target['model'], 'max_tokens' => (int) ( $target['max_tokens'] ?? self::MAX_TOKENS ), 'system' => $system, 'messages' => self::anthropic_messages( $messages, empty( $target['no_replay'] ) ) );
+			// Caché automática de la API de Anthropic: cada paso de un turno reenvía la conversación entera (la memoria
+			// completa) y sólo crece al final, así que lo ya enviado se lee de la caché. No con una URL compatible propia.
+			if ( '' === $url && (bool) apply_filters( 'digitalisimo_ai_assistant_prompt_cache', true, $target ) ) {
+				$body['cache_control'] = array( 'type' => 'ephemeral' );
+			}
 			if ( $tools ) {
 				$body['tools'] = array();
 				foreach ( $tools as $tool ) {
 					$body['tools'][] = array( 'name' => $tool['name'], 'description' => $tool['description'], 'input_schema' => self::object_schema( $tool['schema'] ) );
 				}
 			}
-			return array( 'url' => $url ?: 'https://api.anthropic.com/v1/messages', 'headers' => array( 'Content-Type' => 'application/json', 'x-api-key' => $key, 'anthropic-version' => '2023-06-01' ), 'body' => $body, 'tool_names' => $names );
+			$headers = array( 'Content-Type' => 'application/json', 'x-api-key' => $key, 'anthropic-version' => '2023-06-01' );
+			// Las notas que el modelo escribe entre herramientas («Creo la landing…», «Verifico…») llegan como texto.
+			if ( empty( $target['no_updates'] ) && preg_match( self::UPDATES_MODELS, (string) $target['model'] ) && (bool) apply_filters( 'digitalisimo_ai_assistant_progress_updates', true, $target ) ) {
+				$body['thinking']          = array( 'type' => 'adaptive', 'display' => 'updates', 'block_binding' => array( 'prefix_mismatch_behavior' => 'drop_block' ) );
+				$body['output_config']     = array( 'effort' => (string) apply_filters( 'digitalisimo_ai_assistant_effort', self::EFFORT, $target ) );
+				$headers['anthropic-beta'] = self::UPDATES_BETA . ',' . self::BINDING_BETA;
+			}
+			return array( 'url' => $url ?: 'https://api.anthropic.com/v1/messages', 'headers' => $headers, 'body' => $body, 'tool_names' => $names );
 		}
 		if ( 'google' === $id ) {
 			$body = array( 'systemInstruction' => array( 'parts' => array( array( 'text' => $system ) ) ), 'contents' => self::google_messages( $messages ) );
@@ -279,6 +355,8 @@ final class Digitalisimo_AI_Assistant_Model {
 		$calls     = array();
 		$refusal   = '';
 		$truncated = false;
+		$notes     = '';
+		$thinking  = array();
 		if ( isset( self::OPENAI_URLS[ $provider ] ) ) {
 			$message   = (array) ( $data['choices'][0]['message'] ?? array() );
 			$text      = is_string( $message['content'] ?? null ) ? $message['content'] : '';
@@ -294,6 +372,14 @@ final class Digitalisimo_AI_Assistant_Model {
 			foreach ( (array) ( $data['content'] ?? array() ) as $block ) {
 				if ( 'text' === ( $block['type'] ?? '' ) ) {
 					$text .= (string) ( $block['text'] ?? '' );
+				} elseif ( in_array( $block['type'] ?? '', array( 'thinking', 'redacted_thinking' ), true ) ) {
+					// Se guarda tal cual para reenviarlo en los pasos siguientes del turno; con `display: "updates"`, el texto
+					// de un bloque thinking es una nota de avance que la persona ve (nunca vuelve al modelo como texto).
+					$thinking[] = $block;
+					$note       = trim( (string) ( $block['thinking'] ?? '' ) );
+					if ( 'thinking' === $block['type'] && '' !== $note && self::UPDATES_CUT !== $note ) {
+						$notes .= ( '' !== $notes ? "\n\n" : '' ) . $note;
+					}
 				} elseif ( 'tool_use' === ( $block['type'] ?? '' ) ) {
 					$calls[] = array( 'id' => (string) ( $block['id'] ?? '' ), 'name' => (string) ( $block['name'] ?? '' ), 'input' => is_array( $block['input'] ?? null ) ? $block['input'] : array() );
 				}
@@ -309,7 +395,7 @@ final class Digitalisimo_AI_Assistant_Model {
 				}
 			}
 		}
-		return self::normalize( array( 'text' => $text, 'calls' => $calls, 'refusal' => $refusal, 'truncated' => $truncated ) );
+		return self::normalize( array( 'text' => $text, 'calls' => $calls, 'refusal' => $refusal, 'truncated' => $truncated, 'notes' => $notes, 'thinking' => $thinking ) );
 	}
 
 	/** Respuesta (de un proveedor o de un simulador) con su forma garantizada e IDs de llamada válidos y únicos. */
@@ -334,7 +420,13 @@ final class Digitalisimo_AI_Assistant_Model {
 			$seen[ $id ] = true;
 			$calls[]     = array( 'id' => $id, 'name' => substr( (string) $call['name'], 0, 128 ), 'input' => is_array( $call['input'] ?? null ) ? $call['input'] : array(), 'sig' => substr( (string) ( $call['sig'] ?? '' ), 0, 8192 ) );
 		}
-		return array( 'text' => is_string( $reply['text'] ?? null ) ? $reply['text'] : '', 'calls' => $calls, 'refusal' => is_string( $reply['refusal'] ?? null ) ? $reply['refusal'] : '', 'truncated' => ! empty( $reply['truncated'] ) );
+		$thinking = array();
+		foreach ( (array) ( $reply['thinking'] ?? array() ) as $block ) {
+			if ( is_array( $block ) && in_array( $block['type'] ?? '', array( 'thinking', 'redacted_thinking' ), true ) ) {
+				$thinking[] = $block;
+			}
+		}
+		return array( 'text' => is_string( $reply['text'] ?? null ) ? $reply['text'] : '', 'calls' => $calls, 'refusal' => is_string( $reply['refusal'] ?? null ) ? $reply['refusal'] : '', 'truncated' => ! empty( $reply['truncated'] ), 'notes' => is_string( $reply['notes'] ?? null ) ? $reply['notes'] : '', 'thinking' => $thinking );
 	}
 
 	private static function openai_messages( $system, array $messages ) {
@@ -359,7 +451,7 @@ final class Digitalisimo_AI_Assistant_Model {
 	}
 
 	/** Anthropic: los resultados van en un mensaje del usuario y dos mensajes seguidos del mismo rol se unen. */
-	private static function anthropic_messages( array $messages ) {
+	private static function anthropic_messages( array $messages, $replay = true ) {
 		$out = array();
 		foreach ( $messages as $m ) {
 			$blocks = array();
@@ -368,6 +460,10 @@ final class Digitalisimo_AI_Assistant_Model {
 				$blocks[] = array( 'type' => 'text', 'text' => (string) $m['text'] );
 			} elseif ( 'assistant' === $m['role'] ) {
 				$role = 'assistant';
+				// Los bloques thinking del turno en curso (for_model sólo los deja ahí) van primero y sin cambios.
+				foreach ( $replay ? (array) ( $m['thinking'] ?? array() ) : array() as $block ) {
+					$blocks[] = $block;
+				}
 				if ( '' !== trim( (string) $m['text'] ) ) {
 					$blocks[] = array( 'type' => 'text', 'text' => (string) $m['text'] );
 				}

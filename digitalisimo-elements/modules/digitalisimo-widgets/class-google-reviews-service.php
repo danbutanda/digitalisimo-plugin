@@ -50,8 +50,8 @@ final class Google_Reviews_Service {
 		if ( ! current_user_can( $network ? 'manage_network_options' : 'manage_options' ) ) { wp_die( 'No tienes permisos para configurar esta clave.' ); }
 		$stored = self::configured_key( $network );
 		$inherited = ! $network && is_multisite() && '' === $stored && '' !== self::configured_key( true );
-		echo '<div class="wrap"><h1>Google Reviews · DIGITALÍSIMO Elements</h1><p>Configura una clave de Places API (New) restringida a tu servidor. La clave se usa sólo en el servidor y no se muestra en el HTML público.</p>';
-		if ( isset( $_GET['updated'] ) ) { echo '<div class="notice notice-success"><p>Configuración guardada.</p></div>'; }
+		echo '<div class="wrap"><h1>Google Reviews · DIGITALÍSIMO Elements</h1><hr class="wp-header-end"><p>Configura una clave de Places API (New) restringida a tu servidor. La clave se usa sólo en el servidor y no se muestra en el HTML público.</p>';
+		if ( isset( $_GET['updated'] ) ) { echo '<div class="notice notice-success is-dismissible"><p>Configuración guardada.</p></div>'; }
 		echo '<form action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" method="post">';
 		wp_nonce_field( 'digitalisimo_elements_google_reviews_save_' . ( $network ? 'network' : 'site' ) );
 		echo '<input type="hidden" name="action" value="digitalisimo_elements_google_reviews_save"><input type="hidden" name="scope" value="' . ( $network ? 'network' : 'site' ) . '">';

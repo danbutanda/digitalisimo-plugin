@@ -582,7 +582,7 @@ class Digitalisimo_Integrations_Settings {
 		$tabs = array( 'general' => 'General', 'seo' => 'Contenido', 'ai' => 'Proveedores IA', 'sitemap' => 'Avanzado: Sitemap', 'robots' => 'Robots', 'indexing' => 'Avanzado: Indexación' );
 		if ( ! isset( $tabs[ $tab ] ) ) $tab = 'general';
 
-		echo '<div class="wrap digitalisimo-admin-shell"><h1>' . esc_html__( 'Digitalisimo · SEO', 'digitalisimo-integrations' ) . '</h1>';
+		echo '<div class="wrap digitalisimo-admin-shell"><h1>' . esc_html__( 'Digitalisimo · SEO', 'digitalisimo-integrations' ) . '</h1><hr class="wp-header-end">';
 		echo '<h2 class="nav-tab-wrapper digitalisimo-tabs">';
 		foreach ( $tabs as $slug => $name ) echo '<a class="nav-tab ' . ( $tab === $slug ? 'nav-tab-active' : '' ) . '" data-tab="' . esc_attr( $slug ) . '" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-settings&tab=' . $slug ) ) . '">' . esc_html( $name ) . '</a>';
 		echo '</h2>';

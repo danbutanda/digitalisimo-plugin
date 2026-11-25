@@ -638,11 +638,11 @@ class Digitalisimo_Integrations_Redirections {
 		global $wpdb;
 		$errors = array( 'source' => 'El origen está vacío o no es válido (revisa la expresión regular).', 'code' => 'Código de respuesta no admitido.', 'target' => 'El destino debe ser una ruta del sitio o una URL http(s).', 'loop' => 'El destino es el mismo que el origen.', 'window' => 'La fecha de fin debe ser posterior a la de inicio.' );
 		$error  = sanitize_key( $_GET['redirect_error'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification
-		if ( isset( $errors[ $error ] ) ) echo '<div class="notice notice-error inline"><p>' . esc_html( $errors[ $error ] ) . '</p></div>';
+		if ( isset( $errors[ $error ] ) ) echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $errors[ $error ] ) . '</p></div>';
 		$csv = sanitize_key( $_GET['redirect_csv'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification
-		if ( 'invalid' === $csv ) echo '<div class="notice notice-error inline"><p>El archivo debe ser un CSV de hasta 2 MB.</p></div>';
-		if ( 'done' === $csv ) echo '<div class="notice notice-success inline"><p>' . esc_html( sprintf( 'CSV importado: %1$d añadidas, %2$d ya existían, %3$d no válidas.', absint( $_GET['added'] ?? 0 ), absint( $_GET['skipped'] ?? 0 ), absint( $_GET['invalid'] ?? 0 ) ) ) . '</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification
-		if ( isset( $_GET['redirect_saved'] ) ) echo '<div class="notice notice-success inline"><p>Redirección guardada.</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification
+		if ( 'invalid' === $csv ) echo '<div class="notice notice-error is-dismissible"><p>El archivo debe ser un CSV de hasta 2 MB.</p></div>';
+		if ( 'done' === $csv ) echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( 'CSV importado: %1$d añadidas, %2$d ya existían, %3$d no válidas.', absint( $_GET['added'] ?? 0 ), absint( $_GET['skipped'] ?? 0 ), absint( $_GET['invalid'] ?? 0 ) ) ) . '</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification
+		if ( isset( $_GET['redirect_saved'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Redirección guardada.</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification
 		$edit = sanitize_key( $_GET['edit'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification
 		$rule = ctype_digit( $edit ) ? self::get( (int) $edit ) : null;
 		$prefill = sanitize_text_field( wp_unslash( $_GET['source'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification

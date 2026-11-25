@@ -272,7 +272,7 @@ final class Interactions_State {
 	/** HTML del aviso: texto, lista de documentos con enlace y el formulario con su nonce. */
 	public static function notice_html( array $inventory ): string {
 		$total = max( count( $inventory['docs'] ), (int) $inventory['total'] );
-		$html  = '<div class="notice notice-warning digitalisimo-interactions-notice"><p><strong>' . esc_html__( 'Interacciones guardadas en pausa', 'pro-elements' ) . '</strong></p>';
+		$html  = '<p><strong>' . esc_html__( 'Interacciones guardadas en pausa', 'pro-elements' ) . '</strong></p>';
 		$html .= '<p>' . esc_html(
 			sprintf(
 				/* translators: %d: número de documentos. */
@@ -304,8 +304,12 @@ final class Interactions_State {
 		$html .= '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		$html .= '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '">';
 		$html .= wp_nonce_field( self::nonce_action(), '_wpnonce', true, false );
-		$html .= '<p><button type="submit" class="button button-primary">' . esc_html__( 'Reproducir las interacciones guardadas', 'pro-elements' ) . '</button></p></form></div>';
-		return $html;
+		$html .= '<p><button type="submit" class="button button-primary">' . esc_html__( 'Reproducir las interacciones guardadas', 'pro-elements' ) . '</button></p></form>';
+		// Con la X (queja del propietario del 2026-11-22: «no poder quitarlas»): cerrado, vuelve a los 7 días mientras
+		// sigan en pausa, o antes si cambian los documentos. En las pantallas de Elements sale siempre: el botón
+		// «Reproducir las interacciones guardadas» sólo está aquí y no puede quedar sin acceso (revisión del 2026-11-24).
+		$page = isset( $_GET['page'] ) && is_string( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si se recuerda el cierre.
+		return \Digitalisimo_Notices::html( 'elements-interactions-' . ( function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1 ), 'warning', $html, array( 'hash' => array( $total, $inventory['docs'] ), 'cap' => 'manage_options', 'class' => 'digitalisimo-interactions-notice', 'persist' => 0 !== strpos( $page, 'digitalisimo-elements' ) ) );
 	}
 
 	/** Nonce de la acción, por sitio. */

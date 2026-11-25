@@ -12,11 +12,29 @@ Lo que no se rompe nunca, ni al llenar una plantilla ni al pedírselo a un asist
 
 - **Se crea en borrador; publica una persona.** La herramienta `create-page` sólo crea borradores. Antes de publicar,
   alguien revisa la página completa con la lista «Antes de publicar».
-- **Nada se inventa.** Testimonios, nombres, cifras, casos, capturas, logos de clientes, credenciales y fechas sólo si
-  son reales y se tienen con permiso. Si no hay dato, el `[placeholder]` se queda y la persona decide: lo llena o
-  borra el bloque. Ninguna imagen generada se hace pasar por real.
-- **La urgencia, sólo si es cierta.** Fecha y hora de cierre reales (hora del centro de México) y su motivo, en la
-  barra de cierre y junto al precio. Sin una fecha de cierre real no hay contador: `create-page` quita la barra de
+- **Nada se inventa.** Se llena con datos que dio el usuario o que están en el sitio (la tienda, sus páginas y sus
+  ajustes): nombre, descripción, precios, imágenes, atributos, reseñas aprobadas, medios de pago, envíos, logo, el
+  número de contacto que el sitio ya publica. Nunca se inventan testimonios, reseñas, nombres, cifras de clientes,
+  casos, capturas, logos de clientes, credenciales, fechas ni urgencia: si no hay dato real (con permiso), no se pone.
+  Ninguna imagen generada se hace pasar por real.
+- **La página sale terminada.** `create-page` nunca deja `[placeholders]` a la vista: lo que no tiene dato se quita
+  (el elemento o, si el bloque es opcional, el bloque entero) y lo que falta en un bloque obligatorio se informa en
+  `pending`, con el bloque y el campo, para darlo o escribirlo en el editor. Las imágenes de muestra del logo llevan el
+  logo del sitio, o se quitan. Sólo si la persona quiere llenar la plantilla a mano, `finish: false` la deja con sus
+  placeholders.
+- **La promo de un producto de la tienda se arma con `product_id`.** Es el camino normal para una oferta (Black Friday,
+  Buen Fin, liquidación, fin de mes): `create-page` con `product_id` y `offer` (`price`, el precio de oferta;
+  `regular_price` sólo si no es el del producto; `ends`, el fin real; `label`, el nombre de la promoción) lee el
+  producto y el sitio y arma la landing de producto, sin mapear placeholders: el nombre, la descripción, los beneficios
+  (las listas de la descripción), las características (atributos, peso, medidas), las imágenes (destacada y galería),
+  las reseñas aprobadas si las hay, el precio normal tachado, el de oferta y el ahorro, el botón que agrega el producto
+  al carrito y lleva a pagar, la cuenta regresiva con el fin real, la garantía que dice el producto (o la política de
+  reembolso del sitio) y preguntas frecuentes con los medios de pago y envíos activos. Sin bloques de curso (módulos,
+  lecciones, bonus, meses sin intereses, la persona detrás). Si la tienda cobra otro precio que la landing, la
+  respuesta lo avisa: se pone el precio rebajado en el producto antes de publicar.
+- **La urgencia, sólo si es cierta.** Fecha y hora de cierre reales, en la hora del sitio (la de su zona horaria:
+  `create-page` la nombra en los textos del cierre, p. ej. «hora del centro de México» o «hora de Tijuana»), y su
+  motivo, en la barra de cierre y junto al precio. Sin una fecha de cierre real no hay contador: `create-page` quita la barra de
   cierre y el contador del carrito, y los textos que nombran el cierre quedan pendientes. Un contador que se reinicia es
   mentira.
 - **Se promete trabajo, no resultados.** Nada de promesas de ingresos ni de «libertad financiera»; el pie dice que los
@@ -32,10 +50,14 @@ Lo que no se rompe nunca, ni al llenar una plantilla ni al pedírselo a un asist
   antetítulo chico debajo y un botón. Lo demás va al scroll.
 - **En cada sección, el título corto va grande y la frase de venta chica, debajo.**
 - **El llamado a la acción es por WhatsApp** («Hablar por WhatsApp»), con el número del sitio en sólo dígitos, con la
-  clave del país (México: 52).
+  clave del país (México: 52). Si no se da, `create-page` usa el que el sitio ya publica (sus enlaces wa.me en menús,
+  cabecera, pie y páginas, o su botón de chat); si el sitio no tiene, el botón lleva a la página de contacto o se quita:
+  nunca queda el número de muestra.
 - **Los enlaces son del propio sitio.** Los botones llevan a rutas del sitio (`/carrito/`, `/pago/`,
-  `/gracias-registro/`, `/gracias-compra/`, `/acceso/` y los avisos legales); la página con esa dirección se crea
-  aparte. Videos, grupos y los perfiles de los iconos de redes (04 y 07) se pegan en el editor: ningún enlace a otro
+  `/gracias-registro/`, `/gracias-compra/`, `/acceso/` y los avisos legales). `create-page` los lleva a la página real
+  del sitio para eso (la de privacidad, la de términos y la de reembolso que declara el sitio, el carrito y el pago de
+  la tienda, o la página con esa dirección) y, si el sitio no la tiene, quita el enlace y lo informa: nunca lleva a
+  una dirección que no existe. Videos, grupos y los perfiles de los iconos de redes (04 y 07) se pegan en el editor: ningún enlace a otro
   sitio viaja en un texto. Los iconos de perfil llevan el logo de cada red y un enlace de muestra del sitio, que no
   abre otra pestaña, hasta que se pone el del perfil; el de WhatsApp lleva al número del sitio, como los botones.
 - **El orden de los bloques no se cambia.** Se puede quitar un bloque que no aplique (`omit_blocks`), nunca
@@ -83,6 +105,7 @@ basta una página corta).
 | Página sólo para anuncios | Copia de la 01 o la 02 | Su propio botón de pago, para saber qué ventas vinieron de los anuncios | — |
 | Después del cierre | La misma página, cambiada | El precio normal o una lista de espera para la próxima apertura | El contador y la oferta de lanzamiento |
 | Paquete de la tienda | 02 junto a la ficha del producto | El paquete (producto, accesorios, envío), un extra en el carrito, entrega y devoluciones | Temario y clase |
+| Promo de un producto de la tienda (Black Friday, Buen Fin, fin de mes) | `create-page` con `product_id` y `offer` (la 02 como landing de producto) | El producto real (fotos, beneficios, características), el precio normal tachado, el de oferta, el fin real con su cuenta regresiva y el botón que agrega al carrito | Temario, bonus, la persona detrás y testimonios que no sean reseñas reales |
 
 ## El orden de una página de venta
 
@@ -163,7 +186,7 @@ Se escriben con la voz de DIGITALÍSIMO, sin promesas de ingresos y con cifras q
 | El botón | «¡Sí, quiero [producto] ahora!», con un subtexto que recuerda lo que se lleva |
 | Los caminos | «A · [opción] (arriesgado)», «B · … (costoso)», «C · … (inteligente)» |
 | La garantía | «Garantía [nombre]: [N] días», cómo funciona y por qué la damos |
-| La urgencia | «Cierra el [día] a las [hora] (centro de México) porque [motivo]», sólo si es real |
+| La urgencia | «Cierra el [día] a las [hora] ([hora del sitio]) porque [motivo]», sólo si es real |
 | El cierre | «¿Qué esperas?» y tres o cuatro «¿Quieres…?» |
 
 ## Las páginas, una por una
@@ -177,6 +200,11 @@ Se escriben con la voz de DIGITALÍSIMO, sin promesas de ingresos y con cifras q
   doble confirmación, aquí va el enlace de descarga.
 - **01 Venta completa.** Los 26 bloques de «El orden de una página de venta», en ese orden (31 secciones), con la
   oferta en el ancla `#oferta` y las pruebas de la comunidad en `#historias`.
+- **Landing de producto (`product_id`).** La 02 llenada con el producto de la tienda: portada con el nombre y la
+  etiqueta de la promoción, «Lo que obtienes» (los beneficios de la descripción), «Conócelo» (la descripción y la
+  galería), características y «Además», reseñas aprobadas (si no hay, sin testimonios), la oferta con el precio
+  normal tachado, el de oferta, el ahorro y el botón al carrito, la garantía y las preguntas frecuentes de compra, pago
+  y envío. Con el fin real (`offer.ends`), la barra fija con la cuenta regresiva.
 - **02 Venta corta.** El mismo orden, con los bloques que no faltan nunca: la portada sin video, beneficios, quién está
   detrás, para quién es, qué incluye, testimonios, la oferta, la garantía y pocas preguntas. Aquí sí se repite el
   botón. Para un evento de venta con fecha de cierre real (`close_date`), lleva arriba la barra fija de cierre, como la
@@ -191,14 +219,16 @@ Se escriben con la voz de DIGITALÍSIMO, sin promesas de ingresos y con cifras q
 
 ## Antes de publicar
 
-- Todo lo que está entre `[corchetes]` se reemplazó o se borró su bloque (`create-page` dice cuáles quedan).
+- Ningún `[corchete]` a la vista (`create-page` termina la página; con `finish: false`, se reemplazan a mano o se borra
+  su bloque) y lo de `pending` resuelto.
 - WhatsApp con el número real; videos, grupo y los enlaces de los iconos de redes (los perfiles del sitio) pegados en
   el editor, y quitados los iconos de las redes que el sitio no usa.
 - La portada se ve entera en la primera pantalla, en celular y en escritorio; el logo del evento en la barra fija, si
   lo hay (si no, se quita la imagen de muestra).
 - Imágenes reales en cada hueco; ninguna generada que se haga pasar por real.
 - Testimonios, cifras y casos reales y con permiso; si no hay, se quita el bloque.
-- Contador sólo con una fecha de cierre real y el sitio en la zona horaria de la Ciudad de México.
+- Contador sólo con una fecha de cierre real, en la hora del sitio; revisa que la zona horaria del sitio sea la de la
+  venta (Ajustes → Generales), porque el contador y los textos del cierre usan esa.
 - Precios en pesos, con su valor tachado real y los meses sin intereses sólo si la pasarela los da; sólo los medios
   de pago que de verdad se aceptan.
 - Formularios: guardan cada envío, avisan al correo correcto y llevan a la página siguiente; se hace un envío de

@@ -7,8 +7,10 @@
  *   sin carga automática, apagadas.
  * - Inventario por el recorrido por lotes: disparadores y efectos que sólo reproduce PRO, en cadena JSON o arreglo y a
  *   cualquier profundidad; sin documentos, `clear`; `clear` y `ack` no vuelven a `pending`.
- * - Aviso persistente sólo en las pantallas de DIGITALÍSIMO, con `manage_options`, la lista con enlaces y el
- *   formulario de `admin-post.php` con nonce; la acción exige POST, capability y nonce.
+ * - Aviso sólo en las pantallas de DIGITALÍSIMO, con `manage_options`, la lista con enlaces y el formulario de
+ *   `admin-post.php` con nonce; la acción exige POST, capability y nonce. Con la X (queja del propietario del
+ *   2026-11-22, «no poder quitarlas»): cerrado no sale, vuelve a los 7 días si sigue en pausa o antes si cambian los
+ *   documentos (digitalisimo-notices.php).
  * - Movimiento reducido: script en línea `after` de `motion-js`, sólo con las interacciones encendidas y en el front.
  * - El derivado: una sola línea cambia (la condición de licencia por `Interactions_State::enabled()`), el resto del
  *   archivo es el de 4.3.0.168 byte a byte, y el constructor real registra los ganchos de PRO sólo con el estado
@@ -92,6 +94,11 @@ namespace {
 	function wp_safe_redirect( $url, $status = 302, $by = '' ) { throw new \LengthException( $status . ' ' . $url ); }
 	function wp_die( $message = '', $title = '', $args = array() ) { throw new \DomainException( (string) ( $args['response'] ?? 500 ) ); }
 
+	$GLOBALS['user_meta'] = array();
+	function get_current_user_id() { return 7; }
+	function get_user_meta( $user, $key, $single = false ) { return $GLOBALS['user_meta'][ $user ][ $key ] ?? ''; }
+	function update_user_meta( $user, $key, $value ) { $GLOBALS['user_meta'][ $user ][ $key ] = $value; return true; }
+	require $root . '/digitalisimo-notices.php';
 	require $root . '/modules/digitalisimo-f7b/actions/class-interactions-state.php';
 	use Digitalisimo\Elements\F7b\Actions\Interactions_State as State;
 
@@ -187,7 +194,7 @@ namespace {
 	check_ix( '' === $notice(), 'Fuera de las pantallas de DIGITALÍSIMO no hay aviso.' );
 	$_GET = array( 'page' => 'digitalisimo-elements-front' );
 	$html = $notice();
-	check_ix( false !== strpos( $html, 'class="notice notice-warning digitalisimo-interactions-notice"' ) && false !== strpos( $html, 'button button-primary' ), 'Aviso con los componentes de digitalisimo-ui (.wrap .notice y botones).' );
+	check_ix( false !== strpos( $html, 'class="notice notice-warning is-dismissible digitalisimo-interactions-notice"' ) && false !== strpos( $html, 'button button-primary' ), 'Aviso con los componentes de digitalisimo-ui (.wrap .notice y botones) y la X.' );
 	check_ix( false !== strpos( $html, '3 documentos tienen interacciones' ) && false !== strpos( $html, 'Reproducir las interacciones guardadas' ), 'Texto del aviso y del botón.' );
 	check_ix( false !== strpos( $html, '<a href="https://example.test/wp-admin/post.php?post=11&amp;action=elementor">Portada &lt;b&gt;</a>' ) && false !== strpos( $html, '>Documento 12</a>' ), 'Lista con enlace al editor de cada documento y los títulos escapados.' );
 	check_ix( false !== strpos( $html, '<form method="post" action="https://example.test/wp-admin/admin-post.php">' ) && false !== strpos( $html, 'name="action" value="' . State::ACTION . '"' ) && false !== strpos( $html, 'value="' . wp_create_nonce( State::nonce_action() ) . '"' ), 'Formulario a admin-post.php con su acción y nonce.' );
@@ -207,7 +214,21 @@ namespace {
 	$GLOBALS['options'][ State::OPTION ] = array( 'clear', true );
 	check_ix( '' === $notice(), 'Con clear no hay aviso.' );
 	$GLOBALS['options'][ State::OPTION ] = array( 'pending', true );
-	check_ix( false !== strpos( $notice(), 'notice-warning' ) && false === strpos( $notice(), 'is-dismissible' ), 'El aviso de pausa es persistente: no se descarta y vuelve en cada pantalla.' );
+	// En otra pantalla DIGITALÍSIMO el cierre se recuerda; en las de Elements, donde está su botón, sale siempre.
+	$_GET = array( 'page' => 'digitalisimo-seo' );
+	$html = $notice();
+	check_ix( false !== strpos( $html, 'notice-warning' ) && false !== strpos( $html, 'is-dismissible' ) && false !== strpos( $html, 'data-digitalisimo-notice="elements-interactions-3"' ), 'El aviso de pausa lleva la X y su id.' );
+	preg_match( '/data-digitalisimo-notice-hash="([0-9a-f]{12})"/', $html, $m );
+	\Digitalisimo_Notices::dismiss( 7, 'elements-interactions-3', $m[1] ?? '' );
+	check_ix( '' === $notice(), 'Cerrado con la X, ya no sale.' );
+	$_GET = array( 'page' => 'digitalisimo-elements-front' );
+	check_ix( false !== strpos( $notice(), 'Reproducir las interacciones guardadas' ), 'Cerrado, en las pantallas de Elements sigue a la vista con su botón (revisión del 2026-11-24).' );
+	$_GET = array( 'page' => 'digitalisimo-seo' );
+	$GLOBALS['user_meta'][7]['digitalisimo_notice_elements-interactions-3']['t'] = time() - 8 * 86400;
+	check_ix( '' !== $notice(), 'A los 7 días, si siguen en pausa, vuelve.' );
+	\Digitalisimo_Notices::dismiss( 7, 'elements-interactions-3', $m[1] ?? '' );
+	$GLOBALS['options'][ State::INVENTORY ][0]['docs'][] = 99;
+	check_ix( '' !== $notice(), 'Con otro documento en pausa, vuelve aunque se haya cerrado.' );
 
 	// Acción.
 	$nonce = wp_create_nonce( State::nonce_action() );

@@ -1,5 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
+// Avisos de administración con la X y el cierre recordado por usuario (copia idéntica en los siete plugins).
+require_once __DIR__ . '/class-digitalisimo-notices.php';
 
 /** Dominios, hosting y el flujo WooCommerce que antes pertenecía a Ecommerce. */
 class Digitalisimo_Hosting {
@@ -107,7 +109,8 @@ class Digitalisimo_Hosting {
 	 */
 	public static function store_notice() {
 		if ( ! is_multisite() || 'index.php' !== ( $GLOBALS['pagenow'] ?? '' ) || ! current_user_can( 'manage_options' ) || get_option( self::STORE_NOTICE ) || ! self::store_changed() ) return;
-		echo '<div class="notice notice-warning"><p><strong>DIGITALÍSIMO Hosting:</strong> este sitio ya no usa la configuración de tienda de la red (productos por extensión, IDs de productos y categorías, opciones del checkout); de la red sólo hereda la cuenta de Namecheap. <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-hosting' ) ) . '">Revisa la configuración de Hosting de este sitio</a>.</p></div>';
+		// Con la X: cerrado, vuelve a los 7 días mientras nadie abra Hosting (al abrirlo deja de salir).
+		Digitalisimo_Notices::show( 'hosting-store-' . ( function_exists( 'get_current_blog_id' ) ? get_current_blog_id() : 1 ), 'warning', '<p><strong>DIGITALÍSIMO Hosting:</strong> este sitio ya no usa la configuración de tienda de la red (productos por extensión, IDs de productos y categorías, opciones del checkout); de la red sólo hereda la cuenta de Namecheap. <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-hosting' ) ) . '">Revisa la configuración de Hosting de este sitio</a>.</p>', array( 'hash' => 'store', 'cap' => 'manage_options' ) );
 	}
 	/** ¿La red tiene una cuenta de Namecheap guardada? */
 	private static function network_account() { $n = self::network(); return '' !== (string) ( $n['api_user'] ?? '' ) || '' !== (string) ( $n['api_key'] ?? '' ); }
@@ -220,7 +223,7 @@ class Digitalisimo_Hosting {
 	private static function form( $network, $saved = false ) {
 		$o = $network ? wp_parse_args( self::network(), self::defaults() ) : self::all();
 		$inherits = ! $network && self::inherits();
-		echo '<div class="wrap"><h1>Digitalisimo · Hosting' . ( $network ? ' de red' : '' ) . '</h1><p>' . ( $network ? 'Cuenta de Namecheap que los sitios de la red pueden usar.' : 'Dominios, planes de hosting y compra con WooCommerce.' ) . '</p>';
+		echo '<div class="wrap"><h1>Digitalisimo · Hosting' . ( $network ? ' de red' : '' ) . '</h1><hr class="wp-header-end"><p>' . ( $network ? 'Cuenta de Namecheap que los sitios de la red pueden usar.' : 'Dominios, planes de hosting y compra con WooCommerce.' ) . '</p>';
 		if ( $saved ) echo '<div class="notice notice-success is-dismissible"><p>Configuración ' . ( $network ? 'de red ' : '' ) . 'guardada.</p></div>';
 		if ( $network ) echo '<p class="description">Un sitio la usa sólo si su administrador marca «Heredar de la red la cuenta de Namecheap» en su pantalla Hosting. Los productos, las categorías y el checkout de WooCommerce son de cada sitio y no se heredan.</p>';
 		elseif ( is_multisite() && ! $inherits && self::network_account() ) echo '<div class="notice notice-info inline"><p>La red tiene una cuenta de Namecheap configurada. Para usarla en este sitio, marca «Heredar de la red la cuenta de Namecheap» y guarda.</p></div>';

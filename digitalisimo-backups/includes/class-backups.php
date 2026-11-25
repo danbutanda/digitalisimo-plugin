@@ -2,6 +2,8 @@
 defined( 'ABSPATH' ) || exit;
 // Candado «mismo sitio» e invalidación de la caché sin vaciarla entera (copia idéntica en Migración y Tools).
 require_once __DIR__ . '/class-digitalisimo-same-site.php';
+// Avisos de administración con la X y el cierre recordado por usuario (copia idéntica en los siete plugins).
+require_once __DIR__ . '/class-digitalisimo-notices.php';
 require_once __DIR__ . '/class-backups-job-store.php';
 require_once __DIR__ . '/class-backups-jobs.php';
 require_once __DIR__ . '/class-backups-backup-job.php';
@@ -941,7 +943,7 @@ final class Digitalisimo_Backups {
 	private static function network_context() { if ( ! is_multisite() ) return false; if ( is_network_admin() || ! empty( $_REQUEST['digitalisimo_backups_network'] ) ) return true; $referer = wp_get_referer(); return $referer && false !== strpos( $referer, '/wp-admin/network/' ); }
 	private static function admin_url() { return self::network_context() ? network_admin_url( 'admin.php?page=digitalisimo-network-backups' ) : admin_url( 'admin.php?page=digitalisimo-backups' ); }
 	private static function context_args() { return self::network_context() ? array( 'digitalisimo_backups_network' => '1' ) : array(); }
-	public static function page() { if ( ! self::can_manage() ) { echo '<div class="wrap"><h1>Backups · Digitalisimo</h1><p>El respaldo completo de esta red requiere permisos de administración de red.</p></div>'; return; } self::render( false ); }
+	public static function page() { if ( ! self::can_manage() ) { echo '<div class="wrap"><h1>Backups · Digitalisimo</h1><hr class="wp-header-end"><p>El respaldo completo de esta red requiere permisos de administración de red.</p></div>'; return; } self::render( false ); }
 	public static function network_page() { if ( ! self::can_manage() ) return; self::render( true ); }
 	/** Secretos de los destinos: nunca vuelven al navegador y viven cifrados en Digitalisimo_Backups_Credentials. */
 	private static function secret_fields() { return Digitalisimo_Backups_Credentials::FIELDS; }
