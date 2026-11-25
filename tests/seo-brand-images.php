@@ -15,6 +15,7 @@ require_once __DIR__ . '/fixtures/php74.php';
 define( 'ABSPATH', __DIR__ );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'HOUR_IN_SECONDS', 3600 );
+define( 'MINUTE_IN_SECONDS', 60 );
 $tmp = sys_get_temp_dir() . '/digi-brand-' . getmypid();
 define( 'WP_CONTENT_DIR', $tmp . '/wp-content' );
 @mkdir( WP_CONTENT_DIR . '/uploads/2026/01', 0777, true );
@@ -216,6 +217,23 @@ check( 1 === count( $GLOBALS['notices'] ) && 'seo-brand-s1' === $GLOBALS['notice
 $GLOBALS['screen'] = (object) array( 'id' => 'edit-post' ); $GLOBALS['notices'] = array();
 $B::notice();
 check( array() === $GLOBALS['notices'], 'Fuera del Escritorio y de las pantallas DIGITALÍSIMO no sale.' );
+
+// Presupuesto del cron (unos 20 s): se corta, se guarda lo hecho y se sigue en otra vuelta, sin repetir lo comprobado.
+check( 5 === (int) ( $GLOBALS['http_args']['timeout'] ?? 0 ) && 20.0 === (float) $B::$budget, 'Cada petición espera 5 s como mucho y la vuelta tiene 20 s.' );
+$GLOBALS['options'] = array(); $GLOBALS['cron'] = array(); $GLOBALS['http'] = array();
+$GLOBALS['settings']['seo_default_image'] = $dead;
+$GLOBALS['settings']['seo_logo'] = $sample;
+$B::$budget = 0.0;
+$state = $B::run();
+check( 1 === count( $state['urls'] ) && isset( $state['urls'][ $dead ] ) && 1 === $state['partial'] && isset( $GLOBALS['cron'][ $B::HOOK . '["continue"]' ] ), 'Sin presupuesto se comprueba una sola imagen, se guarda y se sigue en otra vuelta.' );
+check( $state === $B::state(), 'El resultado parcial queda guardado.' );
+$state = $B::run( $B::CONTINUE_RUN );
+check( 2 === count( $state['urls'] ) && isset( $state['urls'][ $sample ] ) && 1 === count( preg_grep( '/^HEAD /', $GLOBALS['http'] ) ), 'La siguiente vuelta sigue con la que faltaba, sin repetir la primera.' );
+$state = $B::run( $B::CONTINUE_RUN );
+check( 3 === count( $state['urls'] ) && 0 === $state['partial'] && $real === $state['fallback_logo'], 'La tercera vuelta termina y elige la reserva.' );
+$B::$budget = 20.0;
+$state = $B::run();
+check( 3 === count( $state['urls'] ) && 0 === $state['partial'], 'Con presupuesto, una vuelta comprueba todas.' );
 
 // Con otro plugin SEO activo (Rank Math, Yoast…) no se comprueba nada ni se avisa: la salida no es nuestra.
 $GLOBALS['foreign'] = 'Rank Math'; $GLOBALS['http'] = array(); $GLOBALS['cron'] = array(); $GLOBALS['notices'] = array();

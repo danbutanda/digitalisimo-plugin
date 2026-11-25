@@ -26,6 +26,9 @@ class Digitalisimo_Integrations_Brand_Check {
 	const HOOK     = 'digitalisimo_seo_brand_check';
 	const DAILY    = 'daily';
 	const RETRY    = 'retry';
+	const CONTINUE_RUN = 'continue';
+	/** Presupuesto de una vuelta del cron, en segundos: lo que falte se comprueba en la siguiente (las pruebas lo bajan). */
+	public static $budget = 20.0;
 	/** Un fallo inequívoco deja de publicar la imagen sólo si se repite en otra comprobación al menos así de después. */
 	const CONFIRM_AFTER = 1800;
 	/** Navegador normal: un cortafuegos que bloquea agentes desconocidos daría un falso «roto». */
@@ -153,27 +156,51 @@ class Digitalisimo_Integrations_Brand_Check {
 		return (bool) wp_schedule_single_event( time() + 5, self::HOOK );
 	}
 
-	/** Comprueba cada imagen, elige las de reserva y guarda el resultado. Corre en el cron. */
+	/**
+	 * Comprueba las imágenes, elige las de reserva y guarda el resultado. Corre en el cron, con un presupuesto de
+	 * `$budget` segundos: primero las que nunca se comprobaron y luego las más antiguas; si se acaba, guarda lo hecho
+	 * (las demás conservan su resultado anterior) y sigue en otra vuelta un minuto después.
+	 */
 	public static function run( $mode = '' ) {
 		if ( Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return self::state();
+		$started  = microtime( true );
 		$urls     = self::configured();
 		$previous = self::state();
 		$home     = self::host( home_url( '/' ) );
-		$rows     = array();
-		$retry    = false;
-		foreach ( array_unique( array_filter( $urls ) ) as $url ) {
-			$row = self::confirm( self::probe( $url, $home ), $previous['urls'][ $url ] ?? null );
+		$all      = array_values( array_unique( array_filter( $urls ) ) );
+		// Una vuelta que sigue a otra cortada sólo comprueba lo que aún no se comprobó desde que empezó esa vuelta.
+		$continue = self::CONTINUE_RUN === $mode && ! empty( $previous['round'] );
+		$round    = $continue ? (int) $previous['round'] : time();
+		$pending  = $continue ? array_values( array_filter( $all, function( $url ) use ( $previous, $round ) { return (int) ( $previous['urls'][ $url ]['checked_at'] ?? 0 ) < $round; } ) ) : $all;
+		$order    = array_flip( $all );
+		usort( $pending, function( $a, $b ) use ( $previous, $order ) {
+			$at = (int) ( $previous['urls'][ $a ]['checked_at'] ?? 0 ); $bt = (int) ( $previous['urls'][ $b ]['checked_at'] ?? 0 );
+			return $at === $bt ? $order[ $a ] - $order[ $b ] : $at - $bt;
+		} );
+		$rows    = array();
+		$retry   = false;
+		$partial = false;
+		foreach ( $pending as $i => $url ) {
+			$left = (float) self::$budget - ( microtime( true ) - $started );
+			if ( $i > 0 && $left <= 0 ) { $partial = true; break; }
+			$row = self::confirm( self::probe( $url, $home, (int) max( 1, min( 5, ceil( $left ) ) ) ), $previous['urls'][ $url ] ?? null );
+			$row['checked_at'] = time();
 			if ( ! empty( $row['pending'] ) ) $retry = true;
 			$rows[ $url ] = $row;
 		}
+		// Lo que no cupo en esta vuelta conserva su resultado anterior.
+		foreach ( $all as $url ) if ( ! isset( $rows[ $url ] ) && isset( $previous['urls'][ $url ] ) ) $rows[ $url ] = $previous['urls'][ $url ];
 		$state = array(
 			'fp'             => self::fingerprint( $urls ),
 			'at'             => time(),
+			'round'          => $round,
+			'partial'        => $partial ? 1 : 0,
 			'urls'           => $rows,
 			'fallback_logo'  => self::first_good( array( $urls['site_logo'], $urls['site_icon'] ), $rows ),
 			'fallback_image' => self::first_good( array( $urls['logo'], $urls['site_logo'], $urls['site_icon'] ), $rows ),
 		);
 		update_option( self::OPTION, $state, true );
+		if ( $partial && ! wp_next_scheduled( self::HOOK, array( self::CONTINUE_RUN ) ) ) wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::HOOK, array( self::CONTINUE_RUN ) );
 		if ( $retry && ! wp_next_scheduled( self::HOOK, array( self::RETRY ) ) ) wp_schedule_single_event( time() + HOUR_IN_SECONDS, self::HOOK, array( self::RETRY ) );
 		if ( ( '' !== $urls['image'] || '' !== $urls['logo'] ) && ! wp_next_scheduled( self::HOOK, array( self::DAILY ) ) ) wp_schedule_single_event( time() + DAY_IN_SECONDS, self::HOOK, array( self::DAILY ) );
 		return $state;
@@ -230,7 +257,7 @@ class Digitalisimo_Integrations_Brand_Check {
 	}
 
 	/** Comprueba una imagen: en el disco si es de este sitio; si no, por HTTP (HEAD y, si no lo admite, un GET corto). */
-	public static function probe( $url, $home_host ) {
+	public static function probe( $url, $home_host, $timeout = 5 ) {
 		$host = self::host( $url );
 		$row  = array( 'ok' => null, 'code' => 0, 'error' => '', 'offsite' => ! self::same_site( $host, $home_host ), 'demo' => self::looks_demo( $url ), 'width' => 0, 'height' => 0 );
 		$file = $row['offsite'] ? '' : self::local_file( $url );
@@ -243,7 +270,7 @@ class Digitalisimo_Integrations_Brand_Check {
 			elseif ( ! preg_match( '/\.svg$/i', $file ) ) return self::verdict( $row, 'gone', 'el archivo no es una imagen' );
 			return self::verdict( $row, 'ok', '' );
 		}
-		$args = array( 'timeout' => 5, 'redirection' => 3, 'user-agent' => self::USER_AGENT );
+		$args = array( 'timeout' => max( 1, (int) $timeout ), 'redirection' => 3, 'user-agent' => self::USER_AGENT );
 		$res  = wp_safe_remote_head( $url, $args );
 		$code = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
 		if ( 200 !== $code ) {
