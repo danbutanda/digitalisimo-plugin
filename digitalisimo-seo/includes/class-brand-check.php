@@ -9,9 +9,12 @@ defined( 'ABSPATH' ) || exit;
  * - La comprobación HTTP nunca corre al pintar el front: va en el cron (`run()`), al guardar los ajustes o cuando el
  *   escritorio ve que cambiaron las imágenes (`refresh()`), y se repite cada día. Un archivo de la biblioteca de este
  *   sitio se comprueba en el disco, sin petición. El resultado queda en una opción con autoload y el front sólo lo lee.
- * - Una imagen que no responde 200 con un tipo de imagen, o un logo con nombre de demo, no se publica: se usa la de
- *   reserva ya comprobada (el logo del tema y luego el icono del sitio; para la imagen social, antes el logo SEO) y, si
- *   no hay ninguna buena, no se publica imagen. Una imagen en otro dominio que sí responde se publica, con aviso.
+ * - Sólo un fallo inequívoco (el dominio no existe, 404 o 410, no es una imagen, el archivo ya no está) que se repite
+ *   en dos comprobaciones separadas deja de publicar la imagen (revisión del 2026-11-25): se usa la de reserva ya
+ *   comprobada (el logo del tema y luego el icono del sitio; para la imagen social, antes el logo SEO) y, si no hay
+ *   ninguna buena, no se publica imagen. Lo dudoso (403 de un cortafuegos, 401, 429, 5xx, sin respuesta, peticiones
+ *   externas bloqueadas) nunca la quita: se publica y se avisa que no se pudo comprobar. Se pide con el agente de un
+ *   navegador. Un logo con nombre de demo no se publica. Una imagen en otro dominio que sí responde se publica, con aviso.
  * - Mientras no hay comprobación, se publica lo configurado (como antes): un sitio sin imágenes de marca no cambia.
  * - Los avisos (`warnings()`) salen en el Escritorio y en las pantallas DIGITALÍSIMO, y en la ability
  *   `digitalisimo-seo/get-site-status` del MCP. Incluyen lo del schema que no se publica o que conviene confirmar (A2:
@@ -23,6 +26,10 @@ class Digitalisimo_Integrations_Brand_Check {
 	const HOOK     = 'digitalisimo_seo_brand_check';
 	const DAILY    = 'daily';
 	const RETRY    = 'retry';
+	/** Un fallo inequívoco deja de publicar la imagen sólo si se repite en otra comprobación al menos así de después. */
+	const CONFIRM_AFTER = 1800;
+	/** Navegador normal: un cortafuegos que bloquea agentes desconocidos daría un falso «roto». */
+	const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 	/** Google pide un logo de al menos 112×112 px. */
 	const MIN_LOGO = 112;
 	/** Nombres de archivo de logos e imágenes de demostración o de relleno. */
@@ -138,10 +145,8 @@ class Digitalisimo_Integrations_Brand_Check {
 		$rows     = array();
 		$retry    = false;
 		foreach ( array_unique( array_filter( $urls ) ) as $url ) {
-			$row = self::probe( $url, $home );
-			// Un fallo de red (sin respuesta) de una imagen que funcionaba se confirma una hora después antes de cambiarla.
-			$before = $previous['urls'][ $url ] ?? null;
-			if ( 0 === $row['code'] && false === $row['ok'] && is_array( $before ) && true === ( $before['ok'] ?? null ) && self::RETRY !== $mode ) { $row['ok'] = true; $row['unconfirmed'] = 1; $retry = true; }
+			$row = self::confirm( self::probe( $url, $home ), $previous['urls'][ $url ] ?? null );
+			if ( ! empty( $row['pending'] ) ) $retry = true;
 			$rows[ $url ] = $row;
 		}
 		$state = array(
@@ -155,6 +160,22 @@ class Digitalisimo_Integrations_Brand_Check {
 		if ( $retry && ! wp_next_scheduled( self::HOOK, array( self::RETRY ) ) ) wp_schedule_single_event( time() + HOUR_IN_SECONDS, self::HOOK, array( self::RETRY ) );
 		if ( ( '' !== $urls['image'] || '' !== $urls['logo'] ) && ! wp_next_scheduled( self::HOOK, array( self::DAILY ) ) ) wp_schedule_single_event( time() + DAY_IN_SECONDS, self::HOOK, array( self::DAILY ) );
 		return $state;
+	}
+
+	/**
+	 * Sólo un fallo inequívoco (el dominio no existe, 404 o 410, o no es una imagen) deja de publicar la imagen, y sólo
+	 * si la comprobación anterior, de hace al menos media hora, dio lo mismo: la primera vez queda pendiente y se
+	 * reintenta en una hora. Lo dudoso (403, 401, 429, 5xx, sin respuesta, peticiones externas bloqueadas) nunca la
+	 * quita: se publica y se avisa que no se pudo comprobar.
+	 */
+	public static function confirm( array $row, $before ) {
+		if ( 'gone' !== ( $row['verdict'] ?? '' ) ) return $row;
+		$since = is_array( $before ) && 'gone' === ( $before['verdict'] ?? '' ) ? (int) ( $before['gone_since'] ?? 0 ) : 0;
+		$row['gone_since'] = $since ?: time();
+		if ( $since && $since <= time() - self::CONFIRM_AFTER ) return $row;
+		$row['ok'] = null;
+		$row['pending'] = 1;
+		return $row;
 	}
 
 	private static function first_good( array $candidates, array $rows ) {
@@ -197,15 +218,15 @@ class Digitalisimo_Integrations_Brand_Check {
 		$row  = array( 'ok' => null, 'code' => 0, 'error' => '', 'offsite' => ! self::same_site( $host, $home_host ), 'demo' => self::looks_demo( $url ), 'width' => 0, 'height' => 0 );
 		$file = $row['offsite'] ? '' : self::local_file( $url );
 		if ( '' !== $file ) {
-			$row['ok']   = is_file( $file ) && is_readable( $file ) && filesize( $file ) > 0;
-			$row['code'] = $row['ok'] ? 200 : 404;
-			if ( ! $row['ok'] ) { $row['error'] = 'el archivo no está en el servidor'; return $row; }
+			$exists      = is_file( $file ) && is_readable( $file ) && filesize( $file ) > 0;
+			$row['code'] = $exists ? 200 : 404;
+			if ( ! $exists ) return self::verdict( $row, 'gone', 'el archivo no está en el servidor' );
 			$size = function_exists( 'getimagesize' ) ? @getimagesize( $file ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- un archivo que no es imagen devuelve false.
 			if ( $size ) { $row['width'] = (int) $size[0]; $row['height'] = (int) $size[1]; }
-			elseif ( ! preg_match( '/\.svg$/i', $file ) ) { $row['ok'] = false; $row['error'] = 'el archivo no es una imagen'; }
-			return $row;
+			elseif ( ! preg_match( '/\.svg$/i', $file ) ) return self::verdict( $row, 'gone', 'el archivo no es una imagen' );
+			return self::verdict( $row, 'ok', '' );
 		}
-		$args = array( 'timeout' => 8, 'redirection' => 3, 'user-agent' => 'DIGITALISIMO-SEO brand check' );
+		$args = array( 'timeout' => 5, 'redirection' => 3, 'user-agent' => self::USER_AGENT );
 		$res  = wp_safe_remote_head( $url, $args );
 		$code = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
 		if ( 200 !== $code ) {
@@ -213,14 +234,31 @@ class Digitalisimo_Integrations_Brand_Check {
 			$code = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
 		}
 		$row['code'] = $code;
-		$row['ok']   = 200 === $code;
-		if ( is_wp_error( $res ) ) $row['error'] = $res->get_error_message();
-		elseif ( 200 !== $code ) $row['error'] = 'responde ' . $code;
-		else {
-			// Un dominio estacionado responde 200 con una página: eso no es una imagen.
-			$type = strtolower( (string) wp_remote_retrieve_header( $res, 'content-type' ) );
-			if ( '' !== $type && 0 !== strpos( $type, 'image/' ) ) { $row['ok'] = false; $row['error'] = 'no devuelve una imagen (' . $type . ')'; }
+		if ( is_wp_error( $res ) ) {
+			// Sin respuesta: sólo es inequívoco si el dominio no existe; un corte de red o WP_HTTP_BLOCK_EXTERNAL, no.
+			if ( '' !== $host && ! self::resolves( $host ) ) return self::verdict( $row, 'gone', 'el dominio ' . $host . ' no existe' );
+			return self::verdict( $row, 'unknown', $res->get_error_message() );
 		}
+		if ( in_array( $code, array( 404, 410 ), true ) ) return self::verdict( $row, 'gone', 'responde ' . $code );
+		if ( 200 !== $code ) return self::verdict( $row, 'unknown', 'responde ' . $code );
+		// Un dominio estacionado responde 200 con una página: eso no es una imagen.
+		$type = strtolower( (string) wp_remote_retrieve_header( $res, 'content-type' ) );
+		if ( '' !== $type && 0 !== strpos( $type, 'image/' ) ) return self::verdict( $row, 'gone', 'no devuelve una imagen (' . $type . ')' );
+		return self::verdict( $row, 'ok', '' );
+	}
+
+	/** ok (true), gone (false, si se confirma) o unknown (null: se publica). */
+	private static function verdict( array $row, $verdict, $error ) {
+		$row['verdict'] = $verdict;
+		$row['ok']      = 'ok' === $verdict ? true : ( 'gone' === $verdict ? false : null );
+		$row['error']   = (string) $error;
+		return $row;
+	}
+
+	/** ¿El nombre resuelve en DNS? Se pregunta sólo tras una petición sin respuesta. */
+	public static function resolves( $host ) {
+		if ( preg_match( '/^[0-9.]+$|:/', $host ) ) return true;
+		return function_exists( 'gethostbynamel' ) ? (bool) @gethostbynamel( $host ) : true; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- un nombre que no existe sólo devuelve false.
 		return $row;
 	}
 
@@ -244,7 +282,9 @@ class Digitalisimo_Integrations_Brand_Check {
 			$published = self::url( $kind );
 			$instead   = '' !== $published ? ' Mientras tanto se publica ' . $published . '.' : ' Mientras tanto no se publica ' . ( 'logo' === $kind ? 'logo' : 'imagen' ) . '.';
 			if ( self::looks_demo( $url ) ) $out[] = array( 'code' => $kind . '_demo', 'message' => $label . ' parece de una demo o de relleno (' . basename( (string) wp_parse_url( $url, PHP_URL_PATH ) ) . '): sube el de la marca en SEO → Identidad.' . $instead );
-			elseif ( is_array( $row ) && false === ( $row['ok'] ?? null ) ) $out[] = array( 'code' => $kind . '_broken', 'message' => $label . ' no se puede usar: ' . $url . ' ' . ( $row['error'] ?: 'no responde 200' ) . '. Súbela a la biblioteca de este sitio y elígela en SEO → Identidad.' . $instead );
+			elseif ( is_array( $row ) && false === ( $row['ok'] ?? null ) ) $out[] = array( 'code' => $kind . '_broken', 'message' => $label . ' no se puede usar: ' . $url . ' (' . ( $row['error'] ?: 'no responde' ) . ', dos veces seguidas). Súbela a la biblioteca de este sitio y elígela en SEO → Identidad.' . $instead );
+			elseif ( is_array( $row ) && ! empty( $row['pending'] ) ) $out[] = array( 'code' => $kind . '_pending', 'message' => $label . ' parece rota: ' . $url . ' (' . $row['error'] . '). Se sigue publicando y se vuelve a comprobar en una hora; si falla otra vez, se usa la de reserva.' );
+			elseif ( is_array( $row ) && 'unknown' === ( $row['verdict'] ?? '' ) ) $out[] = array( 'code' => $kind . '_unchecked', 'message' => $label . ': no pudimos comprobarla; puede estar bien (' . $url . ', ' . $row['error'] . '). Se sigue publicando.' );
 			if ( ! self::same_site( self::host( $url ), $home ) ) $out[] = array( 'code' => $kind . '_offsite', 'message' => $label . ' está en otro dominio (' . self::host( $url ) . '). Si ese dominio deja de responder, se pierde: súbela a la biblioteca de este sitio.' );
 			if ( 'logo' === $kind && is_array( $row ) && ! empty( $row['width'] ) && ( $row['width'] < self::MIN_LOGO || $row['height'] < self::MIN_LOGO ) ) $out[] = array( 'code' => 'logo_small', 'message' => 'El logo del schema mide ' . (int) $row['width'] . '×' . (int) $row['height'] . ' px; Google pide al menos ' . self::MIN_LOGO . '×' . self::MIN_LOGO . '.' );
 		}
