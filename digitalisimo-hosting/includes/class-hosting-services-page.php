@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 class Digitalisimo_Hosting_Services_Page {
 	const SLUG   = 'digitalisimo-hosting-services';
 	const ACTION = 'digitalisimo_hosting_service';
-	const OPS    = array( 'retry', 'suspend', 'unsuspend', 'resend', 'prices' );
+	const OPS    = array( 'retry', 'suspend', 'unsuspend', 'resend', 'prices', 'approve', 'cancel' );
 
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 60 );
@@ -31,7 +31,7 @@ class Digitalisimo_Hosting_Services_Page {
 	public static function nonce_action( $op, $id ) { return self::ACTION . '_' . $op . '_' . (int) $id; }
 
 	private static function status_label( $status ) {
-		$labels = array( 'pending' => 'Pendiente', 'active' => 'Activo', 'suspended' => 'Suspendido', 'on-hold' => 'En espera', 'expired' => 'Vencido' );
+		$labels = array( 'pending' => 'Pendiente', 'active' => 'Activo', 'suspended' => 'Suspendido', 'on-hold' => 'En espera', 'expired' => 'Vencido', 'cancelled' => 'Dado de baja' );
 		return $labels[ $status ] ?? $status;
 	}
 
@@ -47,7 +47,7 @@ class Digitalisimo_Hosting_Services_Page {
 		$P = 'Digitalisimo_Hosting_Provisioning';
 		echo '<div class="wrap digitalisimo-hosting-services"><h1>Servicios de hosting</h1><hr class="wp-header-end">';
 		$done = sanitize_key( (string) ( $_GET['done'] ?? '' ) );
-		$texts = array( 'prices' => 'Actualización de precios en cola.', 'retry' => 'Reintento en cola.', 'suspend' => 'Suspensión en cola.', 'unsuspend' => 'Reactivación en cola.', 'resend' => 'Reenvío de accesos en cola.', 'nothing' => 'No había nada a medias que reintentar.' );
+		$texts = array( 'approve' => 'Dominio aprobado; aprovisionamiento en cola.', 'cancel' => 'Servicio dado de baja (sin renovaciones ni suspensiones automáticas).', 'already' => 'Ya estaba suspendido: se conserva el motivo (si fue por falta de pago, al pagar se reactiva).', 'prices' => 'Actualización de precios en cola.', 'retry' => 'Reintento en cola.', 'suspend' => 'Suspensión en cola.', 'unsuspend' => 'Reactivación en cola.', 'resend' => 'Reenvío de accesos en cola.', 'nothing' => 'No había nada a medias que reintentar.' );
 		if ( isset( $texts[ $done ] ) ) echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $texts[ $done ] ) . ' Se procesa en segundo plano en unos instantes.</p></div>';
 		$o = Digitalisimo_Hosting::settings();
 		if ( empty( $o['provision_enabled'] ) ) echo '<div class="notice notice-info inline"><p>La venta automática está apagada. Enciéndela en <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-hosting' ) ) . '">Digitalisimo → Hosting</a>.</p></div>';
@@ -81,10 +81,13 @@ class Digitalisimo_Hosting_Services_Page {
 			echo '<td><strong>' . esc_html( self::status_label( $status ) ) . '</strong>' . ( '' !== $error ? '<br><span class="description">' . esc_html( $error ) . '</span>' : '' ) . '</td>';
 			echo '<td>' . ( $order_id ? '<a href="' . esc_url( self::order_url( $order_id ) ) . '">#' . $order_id . '</a>' : '—' ) . ( $renewal ? '<br><span class="description">Renovación <a href="' . esc_url( self::order_url( $renewal ) ) . '">#' . $renewal . '</a></span>' : '' ) . '</td>';
 			echo '<td>';
-			if ( in_array( $status, array( 'pending', 'on-hold' ), true ) || '' !== $error ) self::button( 'retry', $id, 'Reintentar' );
+			$renewal_pending = 'cancelled' !== $status && $P::renewal_pending( $id );
+			if ( 'cancelled' !== $status && ( in_array( $status, array( 'pending', 'on-hold' ), true ) || '' !== $error || $renewal_pending ) ) self::button( 'retry', $id, $renewal_pending ? 'Reintentar la renovación' : 'Reintentar' );
+			if ( $P::svc( $id, 'needs_review' ) && ! $P::svc( $id, 'domain_approved' ) ) self::button( 'approve', $id, 'Aprobar dominio', '¿El dominio ' . $P::svc( $id, 'domain' ) . ' es de este cliente? Al aprobarlo se crea su cuenta de hosting.' );
 			if ( '' !== $user && 'active' === $status ) self::button( 'suspend', $id, 'Suspender', '¿Suspender la cuenta «' . $user . '» de ' . $P::svc( $id, 'domain' ) . '? El sitio y el correo del cliente dejarán de funcionar hasta reactivarla.' );
 			if ( '' !== $user && 'suspended' === $status ) self::button( 'unsuspend', $id, 'Reactivar' );
-			if ( '' !== $user && $P::svc( $id, 'pass' ) ) self::button( 'resend', $id, 'Reenviar accesos' );
+			if ( '' !== $user && $P::svc( $id, 'pass' ) && 'cancelled' !== $status ) self::button( 'resend', $id, 'Reenviar accesos' );
+			if ( 'cancelled' !== $status ) self::button( 'cancel', $id, 'Dar de baja', '¿Dar de baja ' . $P::svc( $id, 'domain' ) . '? Deja de renovarse y de suspenderse solo. No borra nada en Webuzo ni en Namecheap.' );
 			echo '</td></tr>';
 		}
 		echo '</tbody></table>';
@@ -106,7 +109,11 @@ class Digitalisimo_Hosting_Services_Page {
 		if ( ! $P::is_service( $id ) ) wp_die( 'Servicio no encontrado.', 404 );
 		$done = $op;
 		if ( 'retry' === $op ) $done = $P::retry( $id ) ? 'retry' : 'nothing';
+		// Suspender a mano lo ya suspendido por falta de pago conserva ese motivo (al pagar, se reactiva).
+		elseif ( 'suspend' === $op && 'suspended' === $P::svc( $id, 'status' ) ) $done = 'already';
 		elseif ( 'suspend' === $op ) { $P::svc_set( $id, array( 'suspend_reason' => 'manual' ) ); $P::enqueue( $P::HOOK_SUSPEND, $id ); }
+		elseif ( 'approve' === $op ) { $P::svc_set( $id, array( 'domain_approved' => time(), 'needs_review' => 0 ) ); $P::retry( $id ); }
+		elseif ( 'cancel' === $op ) $P::cancel_service( $id );
 		elseif ( 'unsuspend' === $op ) { $P::svc_set( $id, array( 'unsuspend_reason' => 'manual' ) ); $P::enqueue( $P::HOOK_UNSUSPEND, $id ); }
 		else $P::enqueue( $P::HOOK_RESEND, $id );
 		$P::svc_log( $id, 'Acción manual «' . $op . '» de ' . ( function_exists( 'wp_get_current_user' ) ? wp_get_current_user()->user_login : 'un administrador' ) . '.' );
