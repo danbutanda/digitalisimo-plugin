@@ -1382,7 +1382,7 @@ switch ( $scenario ) {
 		file_put_contents( TMP . '/themes/hello-hijo/single.php', "<?php\nget_header();\necho 'mi entrada';\nget_footer();\n" );
 		Full::child_reader() || ( @mkdir( TMP . '/themes/digitalisimo-theme/inc', 0777, true ) );
 		require_once dirname( __DIR__ ) . '/digitalisimo-theme/inc/child.php';
-		$found = digitalisimo_theme_child_other_files( new WP_Theme( 'hello-hijo' ) );
+		$found = Full::child_other_files( new WP_Theme( 'hello-hijo' ) );
 		$order = array();
 		foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( TMP . '/themes/hello-hijo', FilesystemIterator::SKIP_DOTS ) ) as $f ) { $order[] = basename( $f->getPathname() ); }
 		check( (bool) $found, 'single.php se detecta aunque haya más de 2000 archivos antes que él.' );

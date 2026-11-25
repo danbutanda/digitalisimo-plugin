@@ -1517,10 +1517,10 @@ final class Full {
 		foreach ( (array) $plan['blockers'] as $blocker ) {
 			if ( 'functions.php' === ( $blocker['file'] ?? '' ) ) {
 				$php[] = $blocker;
-			} else {
-				$rest[] = $blocker;
 			}
 		}
+		// Lo que no es functions.php lo lee Migrar (child_other_files()), no el lector del tema instalado.
+		$rest = self::child_other_files( $child );
 		// Un fragmento activo en Tools sólo sustituye functions.php: lo demás (plantillas, theme.json) va aparte.
 		$blockers = $php ? digitalisimo_theme_child_blockers_text( $php ) : '';
 		$files    = $rest ? digitalisimo_theme_child_blockers_text( $rest ) : '';
@@ -1580,6 +1580,67 @@ final class Full {
 			// Hello, así que Hello no se borra.
 			'hello_paths' => $readable && 1 === preg_match( self::HELLO_PATHS, $code ),
 		);
+	}
+
+	/**
+	 * Revisión adversarial H2: los archivos del hijo que no son functions.php y pueden pintar algo (plantillas de página que
+	 * algún contenido usa, PHP con código, HTML, theme.json, plantillas de bloques), como digitalisimo_theme_child_other_files()
+	 * del tema, pero contando sólo esos archivos: imágenes, SVG y fuentes no agotan el tope de 2000. Si aun así se llega al
+	 * tope, lo que queda sin revisar cuenta como plantilla desconocida, así que el hijo se queda. Lo lee Migrar (no el tema
+	 * instalado) para no depender de su versión. Devuelve bloqueos { file, line, what }.
+	 */
+	public static function child_other_files( $child ) {
+		$dir      = untrailingslashit( (string) $child->get_stylesheet_directory() );
+		$blockers = array();
+		if ( ! is_dir( $dir ) ) {
+			return $blockers;
+		}
+		$templates = array();
+		if ( function_exists( 'digitalisimo_theme_child_page_templates' ) ) {
+			foreach ( digitalisimo_theme_child_page_templates( $child ) as $row ) {
+				$templates[ (string) $row['template'] ] = (int) $row['pages'];
+			}
+		}
+		try {
+			$files = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ), \RecursiveIteratorIterator::LEAVES_ONLY, \RecursiveIteratorIterator::CATCH_GET_CHILD );
+			$seen  = 0;
+			foreach ( $files as $file ) {
+				$rel = ltrim( str_replace( '\\', '/', substr( $file->getPathname(), strlen( $dir ) ) ), '/' );
+				$ext = strtolower( (string) $file->getExtension() );
+				if ( 'functions.php' === $rel || ! $file->isFile() ) {
+					continue;
+				}
+				$block = 'theme.json' === $rel || preg_match( '#^(templates|parts|block-templates|block-template-parts)/#', $rel );
+				if ( ! $block && ! in_array( $ext, array( 'php', 'phtml', 'inc', 'html', 'htm' ), true ) ) {
+					continue;
+				}
+				if ( ++$seen > 2000 || count( $blockers ) >= 20 ) {
+					$blockers[] = array( 'file' => '', 'line' => 0, 'what' => 'más archivos de plantilla de los que se revisan (quedan sin revisar)' );
+					break;
+				}
+				if ( $block ) {
+					$blockers[] = array( 'file' => $rel, 'line' => 0, 'what' => 'theme.json' === $rel ? 'estilos globales propios (theme.json)' : 'plantilla de bloques' );
+					continue;
+				}
+				if ( ! in_array( $ext, array( 'php', 'phtml', 'inc' ), true ) ) {
+					continue;
+				}
+				if ( isset( $templates[ $rel ] ) ) {
+					if ( $templates[ $rel ] > 0 ) {
+						$blockers[] = array( 'file' => $rel, 'line' => 0, 'what' => sprintf( 'plantilla de página que usan %d contenidos', $templates[ $rel ] ) );
+					}
+					continue;
+				}
+				$code = $file->isReadable() && $file->getSize() <= 1048576 ? (string) file_get_contents( $file->getPathname() ) : '<?php x();'; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+				if ( function_exists( 'digitalisimo_theme_child_php_is_empty' ) && digitalisimo_theme_child_php_is_empty( $code ) ) {
+					continue;
+				}
+				$blockers[] = array( 'file' => $rel, 'line' => 0, 'what' => preg_match( '#^(header|footer|index|single|page|archive|search|404|comments|sidebar|front-page|home)\.php$|^(template-parts|woocommerce)/#', $rel ) ? 'plantilla que sustituye la del tema' : 'archivo PHP propio' );
+			}
+		} catch ( \UnexpectedValueException $e ) {
+			$blockers[] = array( 'file' => '', 'line' => 0, 'what' => 'carpeta del hijo ilegible' );
+		}
+		return $blockers;
 	}
 
 	/** Activa en Tools el functions.php importado del hijo ($key) si su código es exactamente $hash. */
@@ -1905,7 +1966,7 @@ final class Full {
 	 */
 	private static function template_checks( array $state, $site_id ) {
 		$found = (array) self::on_site( $site_id, static function () {
-			if ( ! function_exists( 'digitalisimo_theme_child_page_templates' ) || ! function_exists( 'digitalisimo_theme_child_other_files' ) ) {
+			if ( ! function_exists( 'digitalisimo_theme_child_page_templates' ) ) {
 				return array( 'urls' => array(), 'unresolved' => array() );
 			}
 			$child  = wp_get_theme();
@@ -1953,7 +2014,7 @@ final class Full {
 			$everything = static function () use ( $latest, $term, $wc ) {
 				return array( $latest( 'post' ), $latest( 'page' ), $term( 'category' ), home_url( '/digitalisimo-migrar-comprobacion-404/' ), home_url( '/?s=a' ), $latest( 'product' ), $wc( 'shop' ) );
 			};
-			foreach ( digitalisimo_theme_child_other_files( $child ) as $blocker ) {
+			foreach ( self::child_other_files( $child ) as $blocker ) {
 				$file = (string) ( $blocker['file'] ?? '' );
 				if ( false !== strpos( (string) ( $blocker['what'] ?? '' ), 'plantilla de página' ) ) {
 					continue;
