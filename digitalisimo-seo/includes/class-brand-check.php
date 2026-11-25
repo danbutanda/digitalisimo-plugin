@@ -410,11 +410,29 @@ class Digitalisimo_Integrations_Brand_Check {
 		return $out;
 	}
 
-	/** Texto fijo de una plantilla: lo que queda sin variables ni separadores. */
+	/** Palabras de unión que no cuentan como texto fijo («%title% en %sitename%»). */
+	const JOINERS = array( 'de', 'del', 'en', 'y', 'e', 'o', 'u', 'a', 'al', 'la', 'el', 'los', 'las', 'para', 'con', 'por', 'desde', 'of', 'in', 'and', 'the', 'at', 'by', 'for', 'on' );
+
+	/**
+	 * Texto fijo de una plantilla: lo que queda sin variables, separadores, palabras de unión ni el nombre del sitio o de
+	 * la organización escrito a mano («%title% | Mi Marca» no es relleno). '' si no queda nada que avisar.
+	 */
 	public static function template_literal( $template ) {
 		$text = (string) preg_replace( '/%[a-z_]+(?:\([^)%]*\))?%/i', ' ', (string) $template );
-		$text = (string) preg_replace( '/(?<!\S)[|\-–—·•\/»«~*⋆:](?!\S)/u', ' ', $text );
-		return trim( (string) preg_replace( '/\s+/u', ' ', $text ) );
+		$names = array_filter( array_unique( array( (string) self::o( 'seo_site_name' ), (string) get_bloginfo( 'name' ), (string) self::o( 'seo_organization_name' ) ) ), 'strlen' );
+		$variants = array();
+		foreach ( $names as $name ) { $variants[] = trim( $name ); $variants[] = trim( self::plain_name( $name ) ); }
+		$variants = array_unique( array_filter( $variants, 'strlen' ) );
+		// El más largo primero: «Marca S.A.» antes que «Marca».
+		usort( $variants, function( $a, $b ) { return strlen( $b ) - strlen( $a ); } );
+		foreach ( $variants as $variant ) $text = str_ireplace( $variant, ' ', $text );
+		$clean = preg_replace( '/(?<!\S)[|\-–—·•\/»«~*⋆:,](?!\S)/u', ' ', $text );
+		$clean = null === $clean ? $text : preg_replace( '/\s+/u', ' ', $clean );
+		$clean = trim( (string) $clean );
+		if ( '' === $clean ) return '';
+		$lower = function_exists( 'mb_strtolower' ) ? mb_strtolower( $clean, 'UTF-8' ) : strtolower( $clean );
+		$words = array_filter( explode( ' ', $lower ), 'strlen' );
+		return array_diff( $words, self::JOINERS ) ? $clean : '';
 	}
 
 	/** Aviso en el Escritorio y en las pantallas DIGITALÍSIMO, para quien administra el sitio. */

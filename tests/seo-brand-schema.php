@@ -120,6 +120,10 @@ check( false !== strpos( message( 'template_literal' ), '«🤖 Asegura tu Éxit
 check( 2 === count( array_keys( codes(), 'template_literal', true ) ), 'Y el de la plantilla de productos; la de entradas (%title% %sep% %sitename%) no.' );
 check( '' === $B::template_literal( '%focuskw% %sep% %excerpt%' ) && '' === $B::template_literal( '%title% | %date(Y)%' ), 'Variables y separadores no son texto fijo.' );
 check( '%title% 🤖 Asegura tu Éxito Hoy' === $GLOBALS['settings']['seo_title_page'], 'La plantilla del sitio no se cambia.' );
+// Palabras de unión, separadores y el nombre del sitio escrito a mano no son relleno.
+$GLOBALS['settings']['seo_site_name'] = 'Plomería Ejemplo 🥇';
+foreach ( array( '%title% en %sitename%', '%title% de %category% y %sitename%', '%title% - %sitename%', '%title% | Plomería Ejemplo', '%title% | Plomería Ejemplo 🥇', '%title% | plomería ejemplo', '%title% · Plomería Ejemplo S.A. 🔧' ) as $tpl ) check( '' === $B::template_literal( $tpl ), "Sin texto fijo que avisar: {$tpl} → «" . $B::template_literal( $tpl ) . '»' );
+check( 'en Ciudad Ejemplo' === $B::template_literal( '%title% en Ciudad Ejemplo | Plomería Ejemplo' ), 'Lo que no es unión ni el nombre sí se avisa: «' . $B::template_literal( '%title% en Ciudad Ejemplo | Plomería Ejemplo' ) . '»' );
 
 if ( $fails ) { fwrite( STDERR, "{$fails} falla(s).\n" ); exit( 1 ); }
 echo "SEO: schema sin datos inventados (nombre sin emoji, sin campos vacíos, sameAs) y avisos de marca y de plantillas.\n";
