@@ -36,6 +36,9 @@ final class Plugin_Health {
 	const OPTION   = 'digitalisimo_tools_plugin_health';
 	const ABILITY  = 'digitalisimo-tools/plugin-health';
 	const CATEGORY = 'digitalisimo-tools';
+	/** Cómo se nombra, a quien no administra la red, un archivo de toda la red. */
+	const HIDDEN_MU      = 'un mu-plugin de la red';
+	const HIDDEN_NETWORK = 'código de la red';
 	/** Cuánto se recuerda en el Escritorio un problema visto en segundo plano que ya no está. */
 	const RECENT = 259200;
 
@@ -174,7 +177,9 @@ final class Plugin_Health {
 		}
 		$file = (string) $ref->getFileName();
 		if ( '' === $file ) return $ref->getName();
-		return self::where( $file ) . ':' . (int) $ref->getStartLine();
+		$where = self::where( $file );
+		// Oculto (otro archivo de la red): ni la línea, que lo identificaría.
+		return in_array( $where, array( self::HIDDEN_MU, self::HIDDEN_NETWORK ), true ) ? $where : $where . ':' . (int) $ref->getStartLine();
 	}
 
 	/**
@@ -200,7 +205,7 @@ final class Plugin_Health {
 		}
 		$network = function_exists( 'is_multisite' ) && is_multisite();
 		if ( $network && 'plugins' !== $kind && ! ( function_exists( 'current_user_can' ) && current_user_can( 'manage_network_plugins' ) ) ) {
-			return 'mu-plugins' === $kind ? 'un mu-plugin de la red' : 'código de la red';
+			return 'mu-plugins' === $kind ? self::HIDDEN_MU : self::HIDDEN_NETWORK;
 		}
 		return $rel;
 	}
