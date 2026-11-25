@@ -284,6 +284,7 @@ namespace {
 		preg_match_all( '/"id":"([0-9a-f]{7})"/', $json, $m );
 		check( count( $m[1] ) === count( array_unique( $m[1] ) ) && count( $m[1] ) > 40, "S11 $variant: IDs únicos de siete hexadecimales" );
 		check( 'Oferta navideña: 40 % de descuento en toda la tienda' === $page['title'], "S12 $variant: título" );
+		check( false !== strpos( $json, '"border_color":"#E6E6E6"' ) && false === strpos( $json, '"border_color":"' . GRAY . '"' ), "S17 $variant: los bordes claros de las tarjetas y las preguntas siguen claros (la corrección de contraste es sólo del texto)" );
 	}
 	// Muchos productos: los más vendidos y las categorías.
 	$many  = array( 'products' => array_slice( $products, 0, 8 ), 'categories' => array( array( 'name' => 'Bombas', 'url' => 'https://ferre.test/categoria/bombas/', 'image' => array( 'id' => 1, 'url' => 'https://ferre.test/b.png', 'alt' => '' ), 'count' => 30 ) ), 'total' => 80, 'scope' => 'all', 'scope_name' => '', 'url' => 'https://ferre.test/tienda/', 'top' => true );

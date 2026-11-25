@@ -647,7 +647,7 @@ final class Brand {
 					return array( $settings, $globals, $to );
 				}
 				$role = $to;
-			} elseif ( 'fg' === $kind && '' !== $value && self::is_whiteish( $value ) && self::luminance( $bg ) > 0.45 ) {
+			} elseif ( 'fg' === $kind && '' !== $value && ! preg_match( '/border|divider|separator|shadow|overlay|line/', $key ) && self::is_whiteish( $value ) && self::luminance( $bg ) > 0.45 ) {
 				// Texto claro de la plantilla sobre un fondo que en este sitio es claro: el texto del sitio.
 				$settings[ $key ] = $brand['colors']['text']['color'];
 				return array( $settings, $globals, $settings[ $key ] );

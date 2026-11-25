@@ -805,6 +805,7 @@ final class Store_Layout {
 			'typography_font_size'  => self::px( $size ),
 		);
 		$this->color( $s, 'text_color', $role );
+		$this->color( $s, 'link_color', 'white' === $role ? 'white' : 'primary' );
 		return $this->widget( 'text-editor', $s );
 	}
 
@@ -942,6 +943,8 @@ final class Store_Layout {
 			'icon_align'           => 'right',
 			'title_padding'        => self::box( 18, 22 ),
 			'content_padding'      => self::box( 4, 22, 20, 22 ),
+			// Los enlaces de las respuestas con el color de la marca, no el del tema.
+			'custom_css'           => 'selector .elementor-tab-content a{color:var(--e-global-color-primary);font-weight:600;}',
 		);
 		$this->color( $s, 'border_color', 'line' );
 		$this->color( $s, 'title_background', 'white' );
