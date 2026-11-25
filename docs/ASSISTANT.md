@@ -383,7 +383,8 @@ quiere primero ver y luego cambiar las cosas, no que le preguntemos mil cosas an
   la persona activar ni configurar nada. Tras crear revisa `check` y `look` (o `look` de `read-page-text`, que mide los
   colores y las tipografías que la página lleva de verdad contra los del sitio y si tiene cabecera y pie) y, si algo
   quedó mal, rehace su borrador en el mismo turno; nunca dice «desde aquí no puedo» de su propio borrador; afirma sólo
-  lo comprobado. Con el editor atómico apagado, el catálogo no ofrece las herramientas del constructor que lo exigen
+  lo comprobado; como mucho una corrección por turno (`held()`: create-page del kit corre a lo más dos veces por
+  turno; la tercera queda «no se hizo» y el modelo entrega la landing como está). Con el editor atómico apagado, el catálogo no ofrece las herramientas del constructor que lo exigen
   (`needs_atomic_editor()`, por `Mcp_V4_Gate` del núcleo): eran la razón de pedir que se activara. Pruebas:
   `tests/ia-assistant-marca.php` y, con la API real, `tests/playground/ia-assistant-marca.sh`.
 

@@ -209,6 +209,20 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
     WhatsApp), las formas de pago y envío activas, preguntas frecuentes con esos datos y la política de devoluciones,
     y el cierre con el botón a la tienda. Ningún texto de cursos (`Store::COURSE_TEXT`). No cambia precios: `review`
     avisa que la tienda sigue cobrando el precio normal.
+  - **Revisión (2026-11-25, segunda vuelta).** Todo texto pasa WCAG AA: un pase final (`Brand::contrast_pass()`),
+    siempre y no sólo con colores con tono, mide cada texto contra el fondo donde se pinta (su botón, la caja del
+    contador, la pregunta o la sección): 4.5 en texto normal y 3 en botones, cifras, iconos y títulos grandes; si no
+    llega, blanco o negro, el que dé más contraste. Un kit propio en negro y gris (o un fondo fuerte sin tono en la
+    cabecera) es la identidad del sitio. `look` compara contra los colores DEL SITIO: la paleta DIGITALÍSIMO es ajena
+    sólo si el sitio no la usa (digitalisimo.lat y .mx la usan); un primario pastel sigue como fondo con texto oscuro y
+    cuenta como marca; `look.contrast` y `check.contrast_ok`. Precios de la oferta de tienda: como los muestra la
+    tienda (`wc_get_price_to_display`), el descuento sobre lo que cobra hoy (si ya está rebajado, sobre ese precio, que
+    es el tachado), escritos como `wc_price()` (`Site::price()`, sin agregar «MXN») y `review` dice qué productos no
+    coinciden (`store_offer.not_matching`); la landing de producto nunca pide subir un precio. Dentro del sitio, la
+    página no lleva el pie propio de la plantilla y, si la cabecera del sitio es fija, la barra de cierre deja de ser
+    fija; rehacer un borrador sin `blank_page` conserva su plantilla de página. Los más vendidos salen de una consulta
+    por `total_sales`; la política de devoluciones se lee por su texto visible; el análisis del logo queda en un
+    transient por su URL y fecha.
   - **La respuesta comprueba.** `brand` (de dónde salió la identidad), `look` (colores y tipografías de la página, los
     del sitio, si coinciden, colores DIGITALÍSIMO hallados) y `check` (cabecera y pie, botón principal y si va al
     carrito, productos, textos de cursos). El Asistente afirma sólo lo que `check` confirma.
