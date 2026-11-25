@@ -13,19 +13,19 @@ defined( 'ABSPATH' ) || exit;
  * editar una entrada, por eso «volvió sola».
  *
  * Aquí, para cualquier caché de página:
- *  - las respuestas cuyo contenido depende de qué plugins están activos (el índice `/`, el índice de cada namespace,
- *    `/wp/v2/types`, `/wp/v2/taxonomies` y `/wp/v2/statuses`, con o sin su elemento, y el 404 `rest_no_route` de una
- *    ruta que todavía no existe) salen con las cabeceras sin caché de WordPress, `DONOTCACHEPAGE` y, con LiteSpeed
- *    Cache, `litespeed_control_set_nocache`. Sólo la petición principal (GET o HEAD): no toca las internas ni las
- *    precargas del editor;
- *  - al activar o desactivar un plugin se purga lo que LiteSpeed Cache guardó de la API (su etiqueta `REST`; activado o
- *    desactivado en toda la red, «*», la caché de página de todos los sitios en una sola purga). Las demás respuestas de un plugin
- *    (sus rutas) siguen cacheándose como hasta ahora y se renuevan con esa purga.
+ *  - el índice `/` y el índice de cada namespace (`/wc/v3`…), que listan qué plugins hay, salen con las cabeceras sin
+ *    caché de WordPress, `DONOTCACHEPAGE` y, con LiteSpeed Cache, `litespeed_control_set_nocache`. Sólo la petición
+ *    principal (GET o HEAD): no toca las internas ni las precargas del editor. Son pocas peticiones (clientes de la
+ *    API, el MCP), así que no cargan el servidor;
+ *  - al activar o desactivar un plugin se purga lo que LiteSpeed Cache guardó de la API (su etiqueta `REST`, que llevan
+ *    todas sus respuestas, también los 404; activado o desactivado en toda la red, «*», la caché de página de todos
+ *    los sitios en una sola purga).
+ * Decisión (revisión del 24-nov): el 404 `rest_no_route` y `/wp/v2/types|taxonomies|statuses` sí se guardan. Los bots
+ * piden mucho rutas que no existen y servirlas sin caché costaría PHP en cada una; como la purga de `REST` al activar o
+ * desactivar ya los renueva, no hace falta. Las rutas de cada plugin siguen igual.
  * Sin LiteSpeed Cache no se purga nada: las otras cachés de página no guardan la API salvo que se les pida.
  */
 final class Rest_Cache {
-	/** Rutas de WordPress cuyo contenido cambia con los plugins (tipos de contenido, taxonomías y estados). */
-	const CORE_DISCOVERY = '#^/wp/v2/(?:types|taxonomies|statuses)(?:/[^/]+)?$#D';
 	/** Motivo que ve LiteSpeed Cache en su registro de depuración. */
 	const REASON = 'DIGITALÍSIMO Tools: la API cambia al activar o desactivar plugins';
 
@@ -35,22 +35,20 @@ final class Rest_Cache {
 		add_action( 'deactivated_plugin', array( __CLASS__, 'changed' ), 10, 2 );
 	}
 
-	/** ¿El contenido de esta ruta depende de los plugins activos? */
+	/** ¿Es un índice de la API (el raíz o el de un namespace), que lista lo que registran los plugins activos? */
 	public static function discovery( $route, array $namespaces = array() ) {
 		$route = (string) $route;
 		if ( '/' === $route || '' === $route ) return true;
-		if ( preg_match( self::CORE_DISCOVERY, $route ) ) return true;
 		return in_array( trim( $route, '/' ), array_map( 'strval', $namespaces ), true );
 	}
 
-	/** `rest_post_dispatch` (999): sin caché para el descubrimiento de la API y para el 404 de una ruta que no existe. */
+	/** `rest_post_dispatch` (999): sin caché para los índices de la API (ver la decisión del 404 en la clase). */
 	public static function dispatch( $response, $server = null, $request = null ) {
 		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST || ! is_object( $response ) || ! method_exists( $response, 'header' ) || ! is_object( $request ) || ! method_exists( $request, 'get_route' ) ) return $response;
 		$method = method_exists( $request, 'get_method' ) ? strtoupper( (string) $request->get_method() ) : 'GET';
 		if ( ! in_array( $method, array( 'GET', 'HEAD' ), true ) || ! self::main( $request ) ) return $response;
-		$route      = (string) $request->get_route();
 		$namespaces = is_object( $server ) && method_exists( $server, 'get_namespaces' ) ? (array) $server->get_namespaces() : array();
-		if ( self::discovery( $route, $namespaces ) || self::no_route( $response ) ) self::no_cache( $response );
+		if ( self::discovery( (string) $request->get_route(), $namespaces ) ) self::no_cache( $response );
 		return $response;
 	}
 
@@ -60,12 +58,6 @@ final class Rest_Cache {
 		if ( ! isset( $vars['rest_route'] ) ) return false;
 		$main = rtrim( (string) $vars['rest_route'], '/\\' );
 		return ( '' === $main ? '/' : $main ) === (string) $request->get_route();
-	}
-
-	private static function no_route( $response ) {
-		if ( ! method_exists( $response, 'get_status' ) || 404 !== (int) $response->get_status() || ! method_exists( $response, 'get_data' ) ) return false;
-		$data = $response->get_data();
-		return is_array( $data ) && 'rest_no_route' === ( $data['code'] ?? '' );
 	}
 
 	private static function no_cache( $response ) {
@@ -97,7 +89,7 @@ final class Rest_Cache {
 			'page_cache'      => $litespeed ? 'litespeed' : '',
 			'caches_rest_api' => $litespeed ? ( null === $rest ? true : (bool) $rest ) : false,
 			'protected'       => true,
-			'note'            => $litespeed ? 'LiteSpeed Cache puede guardar la API pública; DIGITALÍSIMO Tools deja sin caché su índice, los tipos de contenido y las rutas que no existen, y purga lo guardado de la API al activar o desactivar un plugin.' : 'No hay una caché de página conocida que guarde la API pública.',
+			'note'            => $litespeed ? 'LiteSpeed Cache puede guardar la API pública; DIGITALÍSIMO Tools deja sin caché el índice y los índices de namespace, y purga lo guardado de la API al activar o desactivar un plugin.' : 'No hay una caché de página conocida que guarde la API pública.',
 		);
 	}
 }

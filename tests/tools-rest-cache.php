@@ -3,9 +3,10 @@
  * La API pública sin respuestas viejas en la caché de página (digitalisimo-tools/includes/class-rest-cache.php).
  *
  * Caso del 23-nov: tras activar WooCommerce, `/wp-json/` sin sesión seguía sin `wc` (y `/wp/v2/types` sin `product`)
- * porque LiteSpeed Cache guarda la API pública una semana y no la purga al activar un plugin. Comprueba que el índice,
- * los índices de namespace, los tipos/taxonomías/estados y el 404 `rest_no_route` salen sin caché sólo en la petición
- * principal GET/HEAD, que lo demás no cambia y que activar o desactivar un plugin purga la etiqueta REST de LiteSpeed.
+ * porque LiteSpeed Cache guarda la API pública una semana y no la purga al activar un plugin. Comprueba que el índice y
+ * los índices de namespace salen sin caché sólo en la petición principal GET/HEAD, que lo demás (también el 404
+ * `rest_no_route` y /wp/v2/types, que piden mucho los bots y renueva la purga) no cambia y que activar o desactivar un
+ * plugin purga la etiqueta REST de LiteSpeed.
  *
  * Uso: php tests/tools-rest-cache.php
  */
@@ -82,10 +83,6 @@ $cases = array(
 	array( '/wc/v3', '/wc/v3', 'el índice del namespace wc/v3' ),
 	array( '/wc/v3/', '/wc/v3', 'el índice del namespace con barra final' ),
 	array( '/wc/store/v1', '/wc/store/v1', 'un namespace con barra en el nombre' ),
-	array( '/wp/v2/types', '/wp/v2/types', '/wp/v2/types' ),
-	array( '/wp/v2/types/product', '/wp/v2/types/product', '/wp/v2/types/product' ),
-	array( '/wp/v2/taxonomies', '/wp/v2/taxonomies', '/wp/v2/taxonomies' ),
-	array( '/wp/v2/statuses', '/wp/v2/statuses', '/wp/v2/statuses' ),
 );
 foreach ( $cases as $c ) {
 	$r = rc_run( $c[0], $c[1] );
@@ -94,9 +91,11 @@ foreach ( $cases as $c ) {
 	rc_check( rc_nocache( $r ), $c[2] . ' (HEAD) sale sin caché' );
 }
 $r = rc_run( '/wc/v3/products', '/wc/v3/products', 'GET', new RC_Response( 404, array( 'code' => 'rest_no_route', 'data' => array( 'status' => 404 ) ) ) );
-rc_check( rc_nocache( $r ) && rc_ls(), 'el 404 rest_no_route (la ruta aún no existe) no se guarda' );
-$r = rc_run( '/wp/v2/typesx', '/wp/v2/typesx' );
-rc_check( ! rc_nocache( $r ), '/wp/v2/typesx no es descubrimiento' );
+rc_check( ! rc_nocache( $r ) && ! rc_ls(), 'el 404 rest_no_route se sigue guardando (lo piden mucho los bots; lo renueva la purga REST)' );
+foreach ( array( '/wp/v2/types', '/wp/v2/types/product', '/wp/v2/taxonomies', '/wp/v2/statuses', '/wp/v2/typesx' ) as $route ) {
+	$r = rc_run( $route, $route );
+	rc_check( ! rc_nocache( $r ) && ! rc_ls(), $route . ' se sigue guardando (lo renueva la purga REST)' );
+}
 
 // Purga al activar o desactivar un plugin.
 $GLOBALS['rc']['did'] = array();
@@ -117,5 +116,5 @@ $s = Rest_Cache::status();
 rc_check( '' === $s['page_cache'] && false === $s['caches_rest_api'], 'status() sin LiteSpeed Cache: ' . json_encode( $s ) );
 
 foreach ( $problems as $p ) echo "FALLA $p\n";
-echo $problems ? '' : "OK tools-rest-cache: índice, namespaces, tipos y 404 de ruta sin caché; purga REST de LiteSpeed al activar/desactivar\n";
+echo $problems ? '' : "OK tools-rest-cache: índice y namespaces sin caché, 404 y tipos con caché; purga REST de LiteSpeed al activar/desactivar\n";
 exit( $problems ? 1 : 0 );

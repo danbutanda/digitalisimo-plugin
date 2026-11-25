@@ -4,8 +4,8 @@
 #     cuyo archivo se borró y otro que no registra el tipo de contenido que declara su marca. En el Escritorio, la salud
 #     de plugins dice cada uno con su motivo (filtered, not_loaded, missing, marker), pinta el aviso de error con la X,
 #     «Salud del sitio» da critical y la función del MCP (Abilities API) lo devuelve y lo recuerda.
-#  2. Una petición REST sin sesión: /wp/v2/posts sale como siempre; el 404 de una ruta que no existe y el índice / salen
-#     sin caché (cabeceras de WordPress, DONOTCACHEPAGE, litespeed_control_set_nocache).
+#  2. Una petición REST sin sesión: /wp/v2/posts y el 404 de una ruta que no existe salen como siempre (los renueva la
+#     purga REST); el índice / sale sin caché (cabeceras de WordPress, DONOTCACHEPAGE, litespeed_control_set_nocache).
 #  3. Activar y desactivar un plugin pide a LiteSpeed Cache purgar la etiqueta REST.
 # Uso: bash tests/playground/tools-plugin-health.sh  (PHPV=8.2|7.4)  → sale 0 si todo cuadra.
 set -euo pipefail
@@ -40,8 +40,8 @@ if (null === $c["ability"]) echo "AVISO: este WordPress no trae la Abilities API
 elseif (!is_array($c["ability"]) || false !== ($c["ability"]["ok"] ?? null) || 4 !== count($c["ability"]["problems"] ?? array()) || "mcp" !== ($c["option"]["context"] ?? "")) $p[] = "1: función del MCP: " . json_encode($c["ability"]) . " " . json_encode($c["option"]);
 $cc = function ($h) { foreach ((array) $h as $k => $v) if ("cache-control" === strtolower($k)) return (string) $v; return ""; };
 if (false !== strpos($cc($r["posts"]["headers"]), "no-store") || $r["posts"]["donotcache"] || $r["posts"]["nocache"]) $p[] = "2: /wp/v2/posts sin tocar: " . json_encode($r["posts"]);
-if (404 !== $r["noroute"]["status"] || false === strpos($cc($r["noroute"]["headers"]), "no-store") || !$r["noroute"]["donotcache"] || !$r["noroute"]["nocache"]) $p[] = "2: 404 rest_no_route sin caché: " . json_encode($r["noroute"]);
-if (200 !== $r["index"]["status"] || false === strpos($cc($r["index"]["headers"]), "no-store")) $p[] = "2: el índice sin caché: " . json_encode($r["index"]);
+if (404 !== $r["noroute"]["status"] || false !== strpos($cc($r["noroute"]["headers"]), "no-store") || $r["noroute"]["donotcache"] || $r["noroute"]["nocache"]) $p[] = "2: el 404 rest_no_route se sigue guardando (lo renueva la purga REST): " . json_encode($r["noroute"]);
+if (200 !== $r["index"]["status"] || false === strpos($cc($r["index"]["headers"]), "no-store") || !$r["index"]["donotcache"] || !$r["index"]["nocache"]) $p[] = "2: el índice sin caché: " . json_encode($r["index"]);
 if (array("REST") !== $g["activate"] || array("REST", "REST") !== $g["all"]) $p[] = "3: purga REST al activar y desactivar: " . json_encode($g);
 foreach ($p as $x) echo "FALLA $x\n";
 echo $p ? "" : "OK tools-plugin-health (Playground PHP " . ($argv[2]) . "): filtered, not_loaded, missing y marker; aviso, Salud del sitio y MCP; API sin caché y purga REST\n";
