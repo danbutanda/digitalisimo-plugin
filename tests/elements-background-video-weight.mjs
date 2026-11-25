@@ -1,5 +1,6 @@
 // Aviso de peso de los vídeos de fondo en el editor (modules/digitalisimo-front/assets/background-video-weight.js,
-// Background_Video) en un entorno falso con `vm`: el texto del aviso (umbral del sitio, celular según la política y
+// Background_Video) en un entorno falso con `vm` (también: sólo direcciones absolutas de vídeo, 500 ms tras la última
+// tecla y una sola vez por dirección): el texto del aviso (umbral del sitio, celular según la política y
 // «Reproducir en móvil», imagen de respaldo), que sólo pide el tamaño (HEAD) de vídeos del mismo origen, una vez por
 // dirección, que escribe el aviso en el control informativo y lo borra al quitar el vídeo, y que se engancha al abrir
 // contenedores y secciones. El archivo compila, cabe en 6 KB y no nombra ninguna URL.
@@ -19,12 +20,14 @@ function setup({ mobile = 'element', maxBytes = 2097152, bytes = 3 * 1048576, ok
   const boxes = [{ textContent: '', className: 'digitalisimo-bg-video-weight' }];
   const listeners = {};
   const timers = [];
+  const delays = [];
   const window = {
     digitalisimoBackgroundVideo: { maxBytes, mobile },
     location: { href: 'https://sitio.test/wp-admin/post.php?post=1&action=elementor', origin: 'https://sitio.test' },
     URL,
     fetch(url, options) { fetches.push([url, options && options.method]); return Promise.resolve({ ok, headers: { get: () => String(bytes) } }); },
-    setTimeout(fn) { timers.push(fn); return timers.length; },
+    setTimeout(fn, ms) { timers.push(fn); delays.push(ms); return timers.length; },
+    clearTimeout(id) { if (id > 0 && timers[id - 1]) timers[id - 1] = () => {}; },
     elementor: {
       hooks: { addAction(name, fn) { actions[name] = fn; } },
       channels: { editor: { on(name, fn) { listeners[name] = fn; } } },
@@ -32,13 +35,13 @@ function setup({ mobile = 'element', maxBytes = 2097152, bytes = 3 * 1048576, ok
   };
   const document = { querySelectorAll: () => boxes };
   vm.runInNewContext(source, { window, document, Promise, Number, Math, Array, String });
-  const flush = async () => { while (timers.length) timers.shift()(); for (let i = 0; i < 5; i++) await Promise.resolve(); };
+  const flush = async () => { const run = timers.splice(0); run.forEach((fn) => fn()); for (let i = 0; i < 5; i++) await Promise.resolve(); };
   const model = (settings) => {
     const handlers = [];
     const s = { ...settings, toJSON() { return { ...this }; }, on(events, fn) { handlers.push(fn); }, off() {} };
     return { settings: s, handlers, get: () => s };
   };
-  return { window, actions, listeners, boxes, fetches, flush, model };
+  return { window, actions, listeners, boxes, fetches, flush, model, delays };
 }
 
 const VIDEO = { background_background: 'video', background_video_link: 'https://sitio.test/wp-content/uploads/fondo.mp4', background_play_on_mobile: 'yes', background_video_fallback: { url: '' } };
@@ -113,5 +116,33 @@ const WITH_FALLBACK = { ...VIDEO, background_video_fallback: { url: 'https://sit
   t.actions['panel/open_editor/container'](null, t.model(WITH_FALLBACK));
   await t.flush();
   assert.equal(t.boxes[0].textContent, '', 'El umbral es el del sitio (10 MB): 8 MB no avisa.');
+}
+// Mientras se escribe el enlace: sólo direcciones absolutas de vídeo, medio segundo después de la última tecla.
+{
+  const t = setup();
+  const m = t.model({ ...WITH_FALLBACK, background_video_link: '' });
+  t.actions['panel/open_editor/container'](null, m);
+  for (const typed of ['h', 'https:', 'https:/', 'https://sitio.test', 'https://sitio.test/wp-content/uploads/fondo.mp', 'https://sitio.test/wp-content/uploads/fondo.mp4']) {
+    m.settings.background_video_link = typed;
+    m.handlers[0]();
+  }
+  assert.ok(t.delays.every((ms) => ms === 500), `Cada cambio espera 500 ms (${t.delays.join(', ')}).`);
+  await t.flush();
+  assert.deepEqual(t.fetches, [['https://sitio.test/wp-content/uploads/fondo.mp4', 'HEAD']], 'Tras la última tecla, un solo HEAD, al vídeo completo.');
+  m.handlers[0]();
+  await t.flush();
+  assert.equal(t.fetches.length, 1, 'Una dirección ya medida no se vuelve a pedir.');
+}
+for (const link of ['https:', 'https:/', 'https://sitio.test/', 'https://sitio.test/contacto/', '/wp-content/uploads/fondo.mp4', 'https://sitio.test/wp-content/uploads/fondo.mp4.php', 'ftp://sitio.test/fondo.mp4']) {
+  const t = setup();
+  t.actions['panel/open_editor/container'](null, t.model({ ...WITH_FALLBACK, background_video_link: link }));
+  await t.flush();
+  assert.equal(t.fetches.length, 0, `«${link}» no se pide.`);
+}
+for (const link of ['https://sitio.test/wp-content/uploads/fondo.webm', 'https://sitio.test/wp-content/uploads/fondo.MOV?ver=2', 'https://sitio.test/wp-content/uploads/fondo.ogg#t=3']) {
+  const t = setup();
+  t.actions['panel/open_editor/container'](null, t.model({ ...WITH_FALLBACK, background_video_link: link }));
+  await t.flush();
+  assert.equal(t.fetches.length, 1, `«${link}» sí se pide.`);
 }
 console.log('background-video-weight.js: ok');

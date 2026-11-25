@@ -16,14 +16,18 @@
 		return (Math.round(bytes / 104857.6) / 10).toString().replace('.', ',') + ' MB';
 	}
 
-	/** La dirección absoluta del vídeo si es del mismo origen que el editor; si no, ''. */
+	/**
+	 * La dirección del vídeo si es absoluta (http o https), del mismo origen que el editor y de un archivo de vídeo
+	 * (.mp4, .webm, .ogg o .mov); si no, ''. Mientras se escribe, «https:» o «https:/» no se piden: apuntarían a la
+	 * propia página del editor o a la portada.
+	 */
 	function local(link) {
-		if (!link || typeof link !== 'string') {
+		if (!link || typeof link !== 'string' || !/^https?:\/\/[^\/?#]+\//i.test(link)) {
 			return '';
 		}
 		try {
-			var url = new window.URL(link, window.location.href);
-			return url.origin === window.location.origin ? url.href : '';
+			var url = new window.URL(link);
+			return url.origin === window.location.origin && /\.(mp4|webm|ogg|mov)$/i.test(url.pathname) ? url.href : '';
 		} catch (e) {
 			return '';
 		}
@@ -90,10 +94,12 @@
 		});
 	}
 
+	/** Medio segundo después del último cambio (cada tecla del campo del enlace es un cambio). */
 	function schedule() {
-		if (!timer) {
-			timer = window.setTimeout(paint, 0);
+		if (timer) {
+			window.clearTimeout(timer);
 		}
+		timer = window.setTimeout(paint, 500);
 	}
 
 	function watch(panel, model) {
