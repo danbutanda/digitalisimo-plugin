@@ -216,6 +216,12 @@ add_action(
 		if ( 'nonces' === $what ) {
 			wp_send_json( array( 'user' => get_current_user_id(), 'rest' => wp_create_nonce( 'wp_rest' ), 'assistant' => wp_create_nonce( Digitalisimo_AI_Assistant::NONCE ), 'model' => ( Digitalisimo_AI_Assistant_Model::target( 'auto' )['model'] ?? '' ) ) );
 		}
+		// Como el dueño: publica la landing (para el turno «a mi landing publicada…» del ensayo «mostrar»).
+		if ( 'publish' === $what ) {
+			$id = absint( $_GET['id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$ok = $id && 'page' === get_post_type( $id ) && ! is_wp_error( wp_update_post( array( 'ID' => $id, 'post_status' => 'publish' ) ) );
+			wp_send_json( array( 'published' => $ok, 'status' => get_post_status( $id ) ) );
+		}
 		if ( 'wipe' === $what ) {
 			$o = get_option( 'digitalisimo_ai_options', array() );
 			$o['providers']['anthropic']['key'] = '';
@@ -262,6 +268,10 @@ add_action(
 				'broken'       => array_values( array_unique( $broken ) ),
 				'links'        => array_slice( $content['links'], 0, 60 ),
 				'product'      => (bool) preg_match( '/purificador|rotoplas/i', $content['text'] ),
+				// La fecha que guarda el contador (en la zona del sitio) y si el borrador lo marcó el kit o el Asistente.
+				'due'          => preg_match_all( '/"due_date"\s*:\s*"([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2})/', $raw, $due ) ? array_values( array_unique( $due[1] ) ) : array(),
+				'kit'          => is_array( get_post_meta( $post->ID, '_digitalisimo_sales_kit', true ) ),
+				'assistant'    => (int) get_post_meta( $post->ID, '_digitalisimo_ai_assistant_draft', true ),
 				'price'        => (bool) preg_match( '/7[,.]?500/', $content['text'] ),
 			);
 		}
@@ -269,7 +279,10 @@ add_action(
 		wp_send_json(
 			array(
 				'made'    => $made,
-				'product' => array( 'id' => $product->get_id(), 'regular' => $product->get_regular_price(), 'sale' => $product->get_sale_price() ),
+				'product' => array( 'id' => $product->get_id(), 'regular' => $product->get_regular_price(), 'sale' => $product->get_sale_price(), 'modified' => (string) $product->get_date_modified() ),
+				'site_tz' => wp_timezone_string(),
+				// Todas las páginas nuevas (también las publicadas), con la huella de su contenido.
+				'pages'   => array_values( array_map( static function ( $p ) { return array( 'id' => (int) $p->ID, 'status' => (string) $p->post_status, 'title' => (string) $p->post_title, 'hash' => md5( (string) get_post_meta( $p->ID, '_elementor_data', true ) ) ); }, array_filter( get_posts( array( 'post_type' => 'page', 'post_status' => 'any', 'posts_per_page' => 50, 'suppress_filters' => true ) ), static function ( $p ) use ( $ready ) { return (int) $p->ID > (int) ( $ready['last_id'] ?? 0 ); } ) ) ),
 				'seen'    => get_option( 'digi_ias_seen', array() ),
 				'log'     => get_option( 'digitalisimo_ai_assistant_log', array() ),
 				'key_set' => '' !== (string) ( get_option( 'digitalisimo_ai_options', array() )['providers']['anthropic']['key'] ?? '' ),
