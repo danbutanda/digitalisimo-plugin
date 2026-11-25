@@ -563,6 +563,8 @@ jobs:
           node tests/elements-sales-kit.mjs
           php tests/elements-sales-mcp.php
           php tests/elements-sales-product.php
+          # La landing con la identidad del sitio y la oferta de tienda (caso plomerito 3).
+          php tests/elements-sales-brand.php
           php tests/elements-f7b-presentation.php
           node tests/elements-f7b-presentation.mjs
           node tests/elements-f7b-presentation-chrome.mjs

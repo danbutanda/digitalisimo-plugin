@@ -92,9 +92,11 @@ final class Pages {
 	 * Crea el borrador o, con `$post_id`, lo regenera en el mismo borrador del kit (`regenerable()`): mismo ID, nuevo
 	 * título y elementos, sigue en borrador.
 	 *
-	 * @return array|\WP_Error `id`, `status`, `edit_url`, `preview_url` y `regenerated`.
+	 * @param string $layout `site` (por defecto: la plantilla de página con la cabecera y el pie del sitio) o `blank` (el
+	 *                       lienzo vacío).
+	 * @return array|\WP_Error `id`, `status`, `edit_url`, `preview_url`, `regenerated` y `layout`.
 	 */
-	public static function create( string $title, array $elements, int $post_id = 0, string $template = '' ) {
+	public static function create( string $title, array $elements, int $post_id = 0, string $template = '', string $layout = 'site' ) {
 		if ( ! post_type_exists( 'page' ) || ! post_type_supports( 'page', 'elementor' ) ) {
 			return new \WP_Error( 'digitalisimo_sales_post_type', 'Las páginas de este sitio no se editan con el constructor (Configuración del constructor → tipos de contenido).', array( 'status' => 400 ) );
 		}
@@ -156,7 +158,9 @@ final class Pages {
 			return new \WP_Error( 'digitalisimo_sales_document', 'El constructor no pudo abrir la página nueva.', array( 'status' => 500 ) );
 		}
 		$document->set_is_built_with_elementor( true );
-		$canvas = array( 'template' => 'elementor_canvas' );
+		// Con la cabecera y el pie del sitio, para que la landing se vea como parte del sitio (caso plomerito 3); el lienzo
+		// vacío sólo si se pide (`blank`).
+		$canvas = array( 'template' => 'blank' === $layout ? 'elementor_canvas' : 'elementor_header_footer' );
 		$data   = array( 'elements' => $elements );
 		add_filter( 'elementor/document/save/data', array( self::class, 'with_types' ), 9 );
 		add_filter( 'elementor/document/save/data', array( self::class, 'without_types' ), 11 );
@@ -205,6 +209,7 @@ final class Pages {
 			'edit_url'    => $document ? (string) $document->get_edit_url() : '',
 			'preview_url' => $document ? (string) remove_query_arg( 'preview_nonce', $document->get_wp_preview_url() ) : (string) get_preview_post_link( $post_id ),
 			'regenerated' => $regenerate,
+			'layout'      => $canvas['template'],
 		);
 	}
 }
