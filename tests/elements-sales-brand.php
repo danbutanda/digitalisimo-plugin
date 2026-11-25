@@ -98,6 +98,10 @@ namespace {
 		return array( 'timezone_string' => 'America/Mexico_City' )[ $name ] ?? $default;
 	}
 
+	function get_post_meta( $id, $key, $single = false ) {
+		return $GLOBALS['sb_meta'][ (int) $id ][ $key ] ?? '';
+	}
+
 	$base = dirname( __DIR__ ) . '/digitalisimo-elements/modules/digitalisimo-sales';
 	foreach ( array( 'class-catalog.php', 'class-placeholders.php', 'class-builder.php', 'class-site.php', 'class-finisher.php', 'class-product.php', 'class-brand.php', 'class-store.php', 'class-pages.php', 'mcp/class-tools.php', 'mcp/class-executor.php' ) as $file ) {
 		check( is_file( "$base/$file" ), "falta $file (el kit no lee la identidad del sitio ni arma ofertas de tienda)" );
@@ -326,7 +330,7 @@ namespace {
 	check( true === $out['check']['ok'] && true === $out['look']['matches_site'] && ! $out['look']['digitalisimo'], 'E3 check y look confirman los colores y las fuentes del sitio · ' . json_encode( $out['check'] ) );
 	check( 'https://ferre.test/tienda/' === $out['check']['main_button'] && false === $out['check']['main_button_cart'], 'E4 el botón principal va a la tienda' );
 	check( 12 === $out['store_offer']['products_shown'] && 12 === $out['check']['products'], 'E5 informa los productos mostrados' );
-	check( (bool) preg_grep( '/sigue cobrando el precio normal/', $out['review'] ), 'E6 avisa que la tienda sigue cobrando el precio normal (no lo cambia)' );
+	check( (bool) preg_grep( '/todavía no aplica este descuento/', $out['review'] ), 'E6 avisa que la tienda todavía no aplica el descuento (no lo cambia)' );
 	check( 'Oferta navideña: 40 % de descuento en toda la tienda' === $saved['title'] && 'tienda' === $saved['template'], 'E7 título y marca de la página' );
 	$out = Executor::run( 'create-page', array( 'store_offer' => array( 'percent' => 40 ), 'blank_page' => true ), $create, $deps );
 	check( 'blank' === $saved['layout'] && false === $out['check']['site_header_footer'], 'E8 blank_page pide el lienzo vacío (sólo si la persona lo pide)' );
@@ -339,6 +343,64 @@ namespace {
 	// Una plantilla del kit también sale con la identidad del sitio y con la cabecera y el pie.
 	$out = Executor::run( 'create-page', array( 'template' => 'captacion', 'title' => 'Prueba', 'finish' => false ), $create, $deps );
 	check( is_array( $out ) && ! palette_in( json_encode( $saved['elements'] ) ) && 'site' === $saved['layout'], 'E12 una plantilla del kit sale con los colores del sitio y su cabecera y pie' );
+
+	// ── R · Lo que encontró la revisión adversarial ─────────────────────────────────────────────────────────────
+	$find = static function ( array $els, string $type ) use ( &$find ): array {
+		$out = array();
+		foreach ( $els as $el ) {
+			if ( $type === ( $el['widgetType'] ?? '' ) ) {
+				$out[] = $el;
+			}
+			$out = array_merge( $out, $find( (array) ( $el['elements'] ?? array() ), $type ) );
+		}
+		return $out;
+	};
+	// R1 · El contador de la portada se lee contra sus cajas, no contra la sección.
+	$page = Store::page( $offer, $catalog, $site, $env + array( 'variant' => 'containers' ) );
+	foreach ( array( 'real' => $real, 'fábrica' => $fac ) as $case => $brand ) {
+		$cd  = $find( Brand::apply( $page['elements'], $brand ), 'countdown' )[0];
+		$kit = array_map( function ( $c ) { return $c['color']; }, $brand['kit_colors'] );
+		$col = function ( $key ) use ( $cd, $kit ) {
+			$g = $cd['settings']['__globals__'][ $key ] ?? '';
+			return '' !== $g ? $kit[ Brand::global_id( $g, 'colors' ) ] : Brand::hex( (string) $cd['settings'][ $key ] );
+		};
+		$box = $col( 'box_background_color' );
+		check( Brand::contrast( $col( 'digits_color' ), $box ) >= 3 && Brand::contrast( $col( 'label_color' ), $box ) >= 3, "R1 $case: los números y las etiquetas del contador se leen en sus cajas · " . json_encode( array( $box, $col( 'digits_color' ), $col( 'label_color' ) ) ) );
+	}
+	// R2 · Una marca de un solo color: los botones no desaparecen en su sección.
+	$mono_docs = array( 'header' => array( array( array( 'id' => 'm1', 'elType' => 'container', 'settings' => array( 'background_background' => 'classic', 'background_color' => '#1E3A8A' ), 'elements' => array( array( 'id' => 'm2', 'elType' => 'widget', 'widgetType' => 'button', 'settings' => array( 'background_color' => '#1E3A8A' ), 'elements' => array() ) ) ) ) ) );
+	$mono      = Brand::resolve( $kit_factory, $mono_docs );
+	foreach ( $find( Brand::apply( $page['elements'], $mono ), 'button' ) as $btn ) {
+		$bgc = Brand::hex( (string) ( $btn['settings']['background_color'] ?? '' ) );
+		check( '' !== $bgc && Brand::contrast( $bgc, Brand::hex( (string) $btn['settings']['button_text_color'] ) ) >= 3, 'R2 un botón de una marca de un solo color se lee · ' . json_encode( $btn['settings'] ) );
+	}
+	$hero_btn = $find( Brand::apply( array( $page['elements'][0] ), $mono ), 'button' );
+	check( '#1E3A8A' !== Brand::hex( (string) end( $hero_btn )['settings']['background_color'] ), 'R2 el botón de la portada no es del mismo color que la portada' );
+	// R3 · Palabras de tienda no son textos de cursos.
+	$tools = $products;
+	$tools[0]['name'] = 'Módulo solar 100W';
+	$tools[1]['name'] = 'Curso de agua: filtro de 5 etapas';
+	$shop_site = $site;
+	$shop_site['benefits'][0]['title'] = 'Facturamos tu compra';
+	$p3 = Store::page( Store::offer( array( 'percent' => 40, 'headline' => 'Facturación incluida y transformación total de tu cocina' ), $env ), array( 'products' => $tools ) + $catalog, $shop_site, $env + array( 'variant' => 'containers' ) );
+	check( ! Store::course_texts( $p3['elements'] ), 'R3 «Módulo solar», «Facturamos tu compra» o «transformación» no son textos de cursos · ' . implode( ',', Store::course_texts( $p3['elements'] ) ) );
+	check( (bool) Store::course_texts( Catalog::load( 'venta-corta', 'containers' )['content'] ), 'R3 la venta corta (de cursos) sí los tiene' );
+	// R4 · Sin identidad en el sitio, look no dice que coincide y check no pide rehacer.
+	$nada = Brand::resolve( $kit_factory, array() );
+	$out  = Executor::run( 'create-page', array( 'store_offer' => array( 'percent' => 40 ) ), $create, array( 'brand' => $nada ) + $deps );
+	check( false === $out['look']['matches_site'] && false === $out['look']['site_identity'] && true === $out['check']['ok'] && preg_grep( '/No digas que usa los colores del sitio/', $out['review'] ), 'R4 sin colores de marca en el sitio no se afirma que coinciden · ' . json_encode( $out['look'] ) );
+	// R5 · Los más vendidos son los de más ventas (total_sales), y sin ventas no se dice.
+	$best = new ReflectionMethod( Store::class, 'best_sellers' );
+	if ( PHP_VERSION_ID < 80100 ) {
+		$best->setAccessible( true );
+	}
+	$GLOBALS['sb_meta'] = array( 10 => array( 'total_sales' => '3' ), 11 => array( 'total_sales' => '40' ), 12 => array( 'total_sales' => '0' ), 13 => array( 'total_sales' => '7' ) );
+	$r = $best->invoke( null, array( 10, 11, 12, 13 ), 3 );
+	check( array( 11, 13, 10 ) === $r['ids'] && true === $r['sold'], 'R5 los más vendidos por sus ventas · ' . json_encode( $r ) );
+	$GLOBALS['sb_meta'] = array();
+	check( false === $best->invoke( null, array( 10, 11 ), 3 )['sold'], 'R5 sin ventas no son «los más vendidos»' );
+	// R6 · El aviso del precio no dice «precio normal» de algo que puede estar rebajado.
+	check( (bool) preg_grep( '/todavía no aplica este descuento/', $page['warnings'] ), 'R6 el aviso del precio de la tienda' );
 
 	echo "elements-sales-brand: {$GLOBALS['sb_count']} comprobaciones, todas bien.\n";
 }

@@ -25,7 +25,7 @@ final class Store {
 	const MAX_CATS  = 8;
 
 	/** Textos de cursos e infoproductos que una landing de tienda nunca lleva. */
-	const COURSE_TEXT = '/lo que vas a lograr|\+?\s*todos los bonus|\bbonus\b|\bm[óo]dulos?\b|\bfactura|resultados e ingresos|resultados no son t[íi]picos|no t[íi]picos|resultados dependen|inscripci[óo]n|clase en vivo|\breto de\b|tu (programa|curso)\b|\bcurso\b|transformaci[óo]n/iu';
+	const COURSE_TEXT = '/lo que vas a lograr|todos los bonus|\bbonus\b|m[óo]dulos? (del|de tu) (curso|programa)|¿\s*(das|emites|me das|puedo pedir) factura|resultados e ingresos|resultados no son t[íi]picos|resultados dependen de cada persona|inscripci[óo]n|clase en vivo|\breto de \d+ d[íi]as|tu (programa|curso)\b|acceso de por vida/iu';
 
 	/** Iconos para las garantías que se arman con los datos de la tienda (no del pie). */
 	const ICONS = array(
@@ -141,10 +141,10 @@ final class Store {
 		}
 		$top = $total > self::ALL_UP_TO;
 		if ( $top ) {
-			$args['limit']   = self::TOP * 2;
-			$args['orderby'] = 'popularity';
-			$args['order']   = 'DESC';
-			$ids             = array_map( 'intval', (array) wc_get_products( $args ) );
+			// Los más vendidos de verdad: `total_sales` (wc_get_products no entiende orderby «popularity»).
+			$ids = self::best_sellers( $ids, self::TOP * 2 );
+			$top = (bool) $ids['sold'];
+			$ids = $ids['ids'];
 		} else {
 			$args['orderby'] = 'menu_order';
 			$args['order']   = 'ASC';
@@ -161,10 +161,10 @@ final class Store {
 		usort(
 			$products,
 			static function ( $a, $b ) {
-				return (int) ( '' === $a['image']['url'] ) <=> (int) ( '' === $b['image']['url'] );
+				return array( (int) ! $a['in_stock'], (int) ( '' === $a['image']['url'] ) ) <=> array( (int) ! $b['in_stock'], (int) ( '' === $b['image']['url'] ) );
 			}
 		);
-		$products = array_slice( $products, 0, $top ? self::TOP : self::ALL_UP_TO );
+		$products = array_slice( $products, 0, $total > self::ALL_UP_TO ? self::TOP : self::ALL_UP_TO );
 
 		$shop = function_exists( 'wc_get_page_permalink' ) ? (string) wc_get_page_permalink( 'shop' ) : '';
 		$shop_id = function_exists( 'wc_get_page_id' ) ? (int) wc_get_page_id( 'shop' ) : 0;
@@ -174,12 +174,33 @@ final class Store {
 		$url = $term && function_exists( 'get_term_link' ) ? get_term_link( $term ) : $shop;
 		return array(
 			'products'   => $products,
-			'categories' => $term ? array() : self::categories( $top ),
+			'categories' => $term ? array() : self::categories( $total > self::ALL_UP_TO ),
 			'total'      => $total,
 			'scope'      => $term ? 'category' : 'all',
 			'scope_name' => $term ? (string) $term->name : '',
 			'url'        => is_string( $url ) ? $url : $shop,
 			'top'        => $top,
+		);
+	}
+
+	/**
+	 * De unos productos, los más vendidos (`total_sales`, de más a menos; empates por el más reciente). `sold` es false
+	 * si ninguno se ha vendido: entonces no se dice «los más vendidos».
+	 */
+	private static function best_sellers( array $ids, int $limit ): array {
+		$sales = array();
+		foreach ( $ids as $id ) {
+			$sales[ (int) $id ] = (int) get_post_meta( (int) $id, 'total_sales', true );
+		}
+		uksort(
+			$sales,
+			static function ( $a, $b ) use ( $sales ) {
+				return $sales[ $b ] <=> $sales[ $a ] ?: $b <=> $a;
+			}
+		);
+		return array(
+			'ids'  => array_slice( array_keys( $sales ), 0, $limit ),
+			'sold' => max( $sales ) > 0,
 		);
 	}
 
@@ -216,6 +237,7 @@ final class Store {
 			),
 			'regular' => $regular,
 			'from'    => $from,
+			'in_stock' => (bool) $p->is_in_stock(),
 		);
 	}
 
@@ -244,7 +266,7 @@ final class Store {
 			)
 		) : array();
 		foreach ( is_array( $all ) ? $all : array() as $term ) {
-			if ( is_object( $term ) && ( self::fold( (string) $term->name ) === $want || 0 === strpos( self::fold( (string) $term->name ), $want ) ) ) {
+			if ( is_object( $term ) && self::fold( (string) $term->name ) === $want ) {
 				return $term;
 			}
 		}
@@ -309,17 +331,15 @@ final class Store {
 	}
 
 	/**
-	 * Las garantías y beneficios que el sitio ya publica: las cajas con icono (título y texto) del pie y la cabecera en uso
-	 * y de la portada. [['title', 'text', 'icon' => ['value', 'library']]], hasta cuatro.
+	 * Las garantías y beneficios que el sitio ya publica: las cajas con icono (título y texto) del pie y la cabecera en
+	 * uso. [['title', 'text', 'icon' => ['value', 'library']]], hasta cuatro.
 	 */
 	public static function benefits( array $docs ): array {
 		$out = array();
-		foreach ( array( 'footer', 'header', 'front' ) as $where ) {
+		// Sólo el pie y la cabecera: en la portada suele haber servicios o categorías, no garantías.
+		foreach ( array( 'footer', 'header' ) as $where ) {
 			foreach ( (array) ( $docs[ $where ] ?? array() ) as $tree ) {
 				self::boxes( (array) $tree, $out, 0 );
-			}
-			if ( count( $out ) >= 3 ) {
-				break;
 			}
 		}
 		return array_slice( array_values( $out ), 0, 4 );
@@ -584,7 +604,7 @@ final class Store {
 		}
 		$elements[] = $b->section( $close, 'primary', 70, 'cierre' );
 
-		$warnings[] = sprintf( 'La tienda sigue cobrando el precio normal: la landing anuncia %s %% de descuento. Para que el carrito cobre lo mismo, aplica el descuento en la tienda (por ejemplo, con un cupón o con el precio rebajado de cada producto) antes de publicar.', $pct );
+		$warnings[] = sprintf( 'La tienda todavía no aplica este descuento: la landing anuncia %s %% menos sobre el precio normal de cada producto. Para que el carrito cobre lo mismo, pon ese precio rebajado en los productos de la tienda antes de publicar (un cupón de porcentaje se calcularía sobre el precio que ya tenga rebajado).', $pct );
 		$title      = trim( ( '' !== $label ? $label . ': ' : '' ) . $pct . ' % de descuento ' . $scope );
 		return array(
 			'elements'   => $elements,

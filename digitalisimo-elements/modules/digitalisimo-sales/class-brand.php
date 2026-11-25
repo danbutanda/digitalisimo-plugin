@@ -68,9 +68,11 @@ final class Brand {
 	 * La identidad del sitio (ver `resolve()`). Sólo lee.
 	 */
 	public static function read(): array {
-		$kit  = self::kit();
-		$docs = self::design_docs();
-		return self::resolve( $kit, $docs, self::logo_color() );
+		$kit   = self::kit();
+		$docs  = self::design_docs();
+		$brand = self::resolve( $kit, $docs );
+		// El logo sólo si ni el diseño ni el kit dicen nada (decodificarlo cuesta memoria).
+		return 'ninguna' === $brand['source'] ? self::resolve( $kit, $docs, self::logo_color() ) : $brand;
 	}
 
 	/**
@@ -234,6 +236,10 @@ final class Brand {
 		$file = $id > 0 ? (string) get_attached_file( $id ) : '';
 		if ( '' === $file || ! is_readable( $file ) || filesize( $file ) > 4 * 1024 * 1024 ) {
 			return '';
+		}
+		$size = function_exists( 'getimagesize' ) ? @getimagesize( $file ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		if ( ! $size || (int) $size[0] * (int) $size[1] > 4000000 ) {
+			return ''; // Un logo enorme no se decodifica (unos 4 bytes por píxel en memoria).
 		}
 		$im = @imagecreatefromstring( (string) file_get_contents( $file ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		if ( ! $im ) {
@@ -582,11 +588,18 @@ final class Brand {
 			}
 		}
 		$here = '' !== $own_bg ? $own_bg : $bg;
+		// Las cajas del contador tienen su propio fondo: sus números y etiquetas se leen contra él, no contra la sección.
+		if ( 'countdown' === $widget && ( isset( $globals['box_background_color'] ) || isset( $settings['box_background_color'] ) ) ) {
+			list( $settings, $globals, $box ) = self::recolor( $settings, $globals, 'box_background_color', $brand, 'bg', $here );
+			if ( '' !== $box ) {
+				$here = $box;
+			}
+		}
 
 		// 2 · Los demás colores.
 		foreach ( $keys as $key ) {
 			$key = (string) $key;
-			if ( '__globals__' === $key || 'background_color' === $key || 'background_color_b' === $key ) {
+			if ( '__globals__' === $key || 'background_color' === $key || 'background_color_b' === $key || ( 'countdown' === $widget && 'box_background_color' === $key ) ) {
 				continue;
 			}
 			if ( preg_match( self::COLOR_KEY, $key ) ) {
@@ -599,7 +612,14 @@ final class Brand {
 		// El texto de un botón contra su fondo.
 		if ( 'button' === $widget ) {
 			$btn_bg = self::color_value( $settings, $globals, 'background_color', $brand );
-			if ( '' !== $btn_bg && self::vivid( $btn_bg ) ) {
+			if ( '' !== $btn_bg && self::distance( $btn_bg, '' !== $here ? $here : self::WHITE ) < 40 ) {
+				// Un botón del mismo color que su sección (una marca de un solo color) no se vería: se invierte.
+				$flip = self::on( '' !== $here ? $here : self::WHITE, $brand['colors']['text']['color'] );
+				unset( $globals['background_color'], $globals['button_text_color'] );
+				$settings['background_color']  = $flip;
+				$primary                       = $brand['colors']['primary']['color'];
+				$settings['button_text_color'] = self::contrast( $primary, $flip ) >= 3 ? $primary : self::on( $flip, $brand['colors']['text']['color'] );
+			} elseif ( '' !== $btn_bg && self::vivid( $btn_bg ) ) {
 				unset( $globals['button_text_color'] );
 				$settings['button_text_color'] = $btn_bg === $brand['colors']['accent']['color'] ? $brand['on_accent'] : self::on( $btn_bg, $brand['colors']['text']['color'] );
 			}
@@ -834,7 +854,8 @@ final class Brand {
 			'digitalisimo' => $bad,
 			'brand_used'   => $used,
 			'fonts_ok'     => $fonts_ok,
-			'matches_site' => ! $bad && in_array( 'primary', $used, true ) && $fonts_ok,
+			'site_identity' => 'ninguna' !== ( $brand['source'] ?? '' ),
+			'matches_site' => ! $bad && in_array( 'primary', $used, true ) && $fonts_ok && 'ninguna' !== ( $brand['source'] ?? '' ),
 		);
 	}
 

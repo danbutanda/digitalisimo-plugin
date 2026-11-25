@@ -116,8 +116,14 @@ final class Pages {
 					'post_status' => 'draft',
 				)
 			);
-			// Un borrador que se aceptó por el filtro queda ya como del kit: la próxima vez se regenera sin él.
-			if ( ! is_array( get_post_meta( $post_id, self::META, true ) ) ) {
+			// Un borrador que se aceptó por el filtro queda ya como del kit: la próxima vez se regenera sin él. Uno del kit
+			// rehecho con otra plantilla (p. ej. de producto a oferta de tienda) anota la nueva.
+			$mark = get_post_meta( $post_id, self::META, true );
+			if ( is_array( $mark ) && '' !== $template && ( $mark['template'] ?? '' ) !== $template ) {
+				$mark['template'] = $template;
+				update_post_meta( $post_id, self::META, $mark );
+			}
+			if ( ! is_array( $mark ) ) {
 				update_post_meta(
 					$post_id,
 					self::META,

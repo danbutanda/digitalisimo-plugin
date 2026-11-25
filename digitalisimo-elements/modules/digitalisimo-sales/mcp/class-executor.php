@@ -449,7 +449,8 @@ final class Executor {
 			'main_button'        => $main,
 			'main_button_cart'   => $cart,
 			'course_texts'       => Store::course_texts( $elements ),
-			'ok'                 => $look['matches_site'] && $header && ! $cart && ! Store::course_texts( $elements ),
+			// Sin identidad en el sitio (ni kit propio, ni colores en su cabecera, pie o logo) no hay nada que corregir.
+			'ok'                 => ( $look['matches_site'] || ! $look['site_identity'] ) && ! $look['digitalisimo'] && $header && ! $cart && ! Store::course_texts( $elements ),
 		);
 	}
 
@@ -505,7 +506,9 @@ final class Executor {
 		$check  = self::check( $elements, $brand, $page, $layout, $landing['button_url'] );
 		$check['products'] = $landing['shown'];
 		$review = $landing['warnings'];
-		if ( ! $check['look']['matches_site'] ) {
+		if ( ! $check['look']['site_identity'] ) {
+			$review[] = 'El sitio no tiene colores de marca propios (su kit tiene los de fábrica y su cabecera, su pie y su logo no los dicen): la página va en tonos neutros. No digas que usa los colores del sitio.';
+		} elseif ( ! $check['look']['matches_site'] ) {
 			$review[] = 'Los colores o las tipografías de la página no coinciden con los del sitio: revisa look.';
 		}
 		return array(
@@ -529,6 +532,7 @@ final class Executor {
 				'products_shown' => $landing['shown'],
 				'products_total' => (int) $catalog['total'],
 				'best_sellers'   => (bool) $catalog['top'],
+				'note'           => (int) $catalog['total'] > $landing['shown'] && ! $catalog['top'] ? 'La tienda tiene más productos que los que caben: se muestran algunos y el botón lleva a todos.' : '',
 				'button_url'     => $landing['button_url'],
 				'ends'           => '' !== $offer['ends'] ? $offer['ends'] : null,
 			),

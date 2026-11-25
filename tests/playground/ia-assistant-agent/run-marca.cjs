@@ -233,6 +233,8 @@ const money = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigi
         out.images = [...root.querySelectorAll('img')].filter((i) => i.naturalWidth > 0 && i.offsetWidth > 40).length;
         out.dels = [...root.querySelectorAll('del')].map((d) => d.textContent.trim());
         out.text = root.innerText;
+        // El contador (si hay): el color de sus números y el fondo de su caja.
+        out.countdown = [...root.querySelectorAll('.elementor-countdown-item')].map((it) => ({ box: getComputedStyle(it).backgroundColor, digits: getComputedStyle(it.querySelector('.elementor-countdown-digits') || it).color }));
         return out;
       }, landing.id);
       await page.screenshot({ path: `${dir}/landing.png`, fullPage: true });
@@ -271,6 +273,10 @@ const money = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigi
     const main = ordered[0];
     const shop = String(ready.shop).replace(/\/$/, '');
     check('B1', main && main.href.replace(/\/$/, '').startsWith(shop) && !m.buttons.some((b) => /\/(carrito|cart)\/?(\?|$)/.test(new URL(b.href).pathname + (new URL(b.href).search ? '?' : '')) && !/add-to-cart=/.test(b.href)), `el botón principal lleva a la tienda (${main ? main.href : 'sin botón'}) y ninguno al carrito`, JSON.stringify(m.buttons.slice(0, 6)));
+    const lum = (h) => rgbOf(h).map((c) => c / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)).reduce((a, c, i) => a + c * [0.2126, 0.7152, 0.0722][i], 0);
+    const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+    const unreadable = (m.countdown || []).filter((c) => hex(c.box) && hex(c.digits) && contrast(hex(c.box), hex(c.digits)) < 3);
+    check('K1', unreadable.length === 0, `el contador, si lo hay, se lee (${(m.countdown || []).length} cajas)`, JSON.stringify(unreadable));
     check('X2', !COURSE.test(m.text), 'tampoco en lo que se ve hay textos de cursos', (m.text.match(COURSE) || [''])[0]);
     // V · Lo que afirma.
     const claims = /(usa|lleva|con) (los |tus )?colores|tus colores|colores de tu (sitio|marca|kit)/i.test(reply);
