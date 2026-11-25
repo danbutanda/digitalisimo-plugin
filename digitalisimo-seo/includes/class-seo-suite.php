@@ -853,7 +853,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		$title       = self::replace( $own_title ?: self::template( $type, 'title' ), $vars );
 		$description = self::replace( $own_description ?: self::template( $type, 'description' ), $vars );
 		if ( '' === trim( $own_description ) && Digitalisimo_Integrations_SEO_Variables::same_text( $description, $vars['title'] ) ) $description = '';
-		$title       = $title ?: get_the_title( $id );
+		$title = $title ?: get_the_title( $id );
 		$description = $description ?: ( $excerpt ?: get_bloginfo( 'description' ) );
 		return array( 'id' => $id, 'title' => $title, 'description' => $description, 'canonical' => get_post_meta( $id, self::P . 'canonical', true ) ?: get_permalink( $id ) );
 	}
