@@ -110,6 +110,8 @@ class Digitalisimo_Hosting_Namecheap {
 		$res = $r['xml']->CommandResponse->DomainGetInfoResult ?? null;
 		$r['ours'] = (bool) $res;
 		$r['expires'] = 0;
+		$r['created'] = 0;
+		if ( $res && isset( $res->DomainDetails->CreatedDate ) && preg_match( '#^(\d{1,2})/(\d{1,2})/(\d{4})$#', (string) $res->DomainDetails->CreatedDate, $c ) ) $r['created'] = gmmktime( 0, 0, 0, (int) $c[1], (int) $c[2], (int) $c[3] );
 		if ( $res && isset( $res->DomainDetails->ExpiredDate ) ) {
 			$date = (string) $res->DomainDetails->ExpiredDate; // MM/DD/YYYY
 			$r['expires'] = preg_match( '#^(\d{1,2})/(\d{1,2})/(\d{4})$#', $date, $m ) ? gmmktime( 0, 0, 0, (int) $m[1], (int) $m[2], (int) $m[3] ) : 0;
@@ -117,10 +119,30 @@ class Digitalisimo_Hosting_Namecheap {
 		return $r;
 	}
 
+	/** ¿Disponible y premium? namecheap.domains.check (https://www.namecheap.com/support/api/methods/domains/check/). */
+	public function check( $domain ) {
+		$r = $this->call( 'namecheap.domains.check', array( 'DomainList' => $domain ) );
+		if ( 'ok' !== $r['kind'] ) return $r;
+		$res = $r['xml']->CommandResponse->DomainCheckResult ?? null;
+		if ( ! $res ) return array( 'kind' => 'api', 'message' => 'Namecheap no informó si ' . $domain . ' está disponible.' ) + $r;
+		$r['available'] = 'true' === strtolower( (string) $res['Available'] );
+		$r['premium'] = 'true' === strtolower( (string) $res['IsPremiumName'] );
+		return $r;
+	}
+
+	/**
+	 * Extensiones genéricas con privacidad de WHOIS gratuita en Namecheap (WhoisGuard / Withheld for Privacy); en las de
+	 * país (.mx, etc.) no se pide. Ampliable con el filtro digitalisimo_hosting_whoisguard_tlds.
+	 */
+	const WHOISGUARD_TLDS = array( 'com', 'net', 'org', 'info', 'biz', 'xyz', 'online', 'site', 'store', 'tech', 'lat', 'app', 'dev', 'shop', 'club' );
+
 	/** Registra el dominio a nombre del cliente ($contact: FirstName, LastName, Address1, …), sus cuatro contactos iguales. */
 	public function create( $domain, array $contact, $years = 1 ) {
 		$params = array( 'DomainName' => $domain, 'Years' => max( 1, (int) $years ) );
 		foreach ( array( 'Registrant', 'Tech', 'Admin', 'AuxBilling' ) as $type ) foreach ( $contact as $field => $value ) if ( '' !== (string) $value ) $params[ $type . $field ] = $value;
+		// Privacidad de WHOIS donde la extensión lo permite (los datos del cliente no quedan públicos).
+		$tld = strtolower( substr( $domain, strrpos( $domain, '.' ) + 1 ) );
+		if ( false === strpos( substr( $domain, strpos( $domain, '.' ) + 1 ), '.' ) && in_array( $tld, (array) apply_filters( 'digitalisimo_hosting_whoisguard_tlds', self::WHOISGUARD_TLDS ), true ) ) { $params['AddFreeWhoisguard'] = 'yes'; $params['WGEnabled'] = 'yes'; }
 		/** Atributos extendidos de extensiones que los exigen (https://www.namecheap.com/support/api/extended-attributes/). */
 		$params = (array) apply_filters( 'digitalisimo_hosting_namecheap_create_params', $params, $domain, $contact );
 		$r = $this->call( 'namecheap.domains.create', $params );
