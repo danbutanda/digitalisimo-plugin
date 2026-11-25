@@ -115,6 +115,8 @@ if ( is_link( WP_PLUGIN_DIR . '/enlace' ) ) {
 $GLOBALS['ph']['types'] = array( 'post' );
 $r = H::check( array( 'stored' => $all, 'visible' => $all, 'cached' => $all, 'included' => $inc ) );
 ph_check( array( 'woocommerce/woocommerce.php' => 'marker' ) === $reasons( $r ) && false !== strpos( $r[0]['detail'], '«product»' ), 'WooCommerce sin el tipo product: marker ' . json_encode( $r ) );
+$GLOBALS['ph']['did']['activate_woocommerce/woocommerce.php'] = 1;
+ph_check( array() === H::check( array( 'stored' => $all, 'visible' => $all, 'cached' => $all, 'included' => $inc ) ), 'WooCommerce activado en esta misma petición (tras init) aún no registra product: no es un problema' );
 $GLOBALS['ph']['did'] = array( 'plugins_loaded' => 1 );
 ph_check( array() === H::check( array( 'stored' => $all, 'visible' => $all, 'cached' => $all, 'included' => $inc ) ), 'antes de init no se mira el tipo de contenido' );
 $GLOBALS['ph']['did'] = array( 'plugins_loaded' => 1, 'init' => 1, 'rest_api_init' => 1 );

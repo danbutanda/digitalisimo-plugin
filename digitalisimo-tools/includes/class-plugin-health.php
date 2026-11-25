@@ -181,7 +181,8 @@ final class Plugin_Health {
 	}
 
 	private static function marker_problem( $file, array $markers ) {
-		if ( empty( $markers[ $file ] ) || ! is_array( $markers[ $file ] ) ) return '';
+		// Activado en esta misma petición (`activate_plugin()` lo incluye después de `init`): todavía no registró nada.
+		if ( empty( $markers[ $file ] ) || ! is_array( $markers[ $file ] ) || did_action( 'activate_' . $file ) ) return '';
 		$m = $markers[ $file ];
 		if ( ! empty( $m['action'] ) && ! did_action( (string) $m['action'] ) ) return 'Su archivo cargó, pero no llegó a arrancar (no disparó «' . $m['action'] . '»).';
 		if ( ! empty( $m['post_type'] ) && did_action( 'init' ) && function_exists( 'post_type_exists' ) && ! post_type_exists( (string) $m['post_type'] ) ) return 'Su archivo cargó, pero no registró el tipo de contenido «' . $m['post_type'] . '».';
