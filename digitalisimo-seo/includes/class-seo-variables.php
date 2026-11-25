@@ -58,22 +58,46 @@ class Digitalisimo_Integrations_SEO_Variables {
 	 * a una variable vacía: el texto escrito a mano (sin variables) sale tal cual.
 	 */
 	public static function replace( $template, array $context = array() ) {
-		$template = (string) $template;
-		if ( false === strpos( $template, '%' ) ) return trim( preg_replace( '/\s+/', ' ', $template ) );
+		$template = self::utf8( $template );
+		if ( false === strpos( $template, '%' ) ) return trim( self::re( '/\s+/u', ' ', $template ) );
 		$out = preg_replace_callback( '/%([a-z_]+)(?:\(([^)%]*)\))?%/i', function( $m ) use ( $context ) {
 			$name = strtolower( $m[1] );
 			$arg  = isset( $m[2] ) ? trim( $m[2] ) : '';
 			if ( '' !== $arg && ! in_array( $name, self::WITH_ARGS, true ) ) return self::EMPTY_SLOT;
-			$value = trim( wp_strip_all_tags( str_replace( self::EMPTY_SLOT, '', (string) self::value( $name, $arg, $context ) ) ) );
+			$value = trim( wp_strip_all_tags( str_replace( self::EMPTY_SLOT, '', self::utf8( self::value( $name, $arg, $context ) ) ) ) );
 			return '' === $value ? self::EMPTY_SLOT : $value;
 		}, $template );
-		return self::drop_empty_slots( (string) $out );
+		return self::drop_empty_slots( null === $out ? $template : (string) $out );
+	}
+
+	/**
+	 * UTF-8 válido. Con un byte inválido (un título pegado de otra codificación) las expresiones con /u devuelven null y
+	 * el título o la descripción quedaban vacíos (revisión del 2026-11-25): se quitan sólo los bytes inválidos.
+	 */
+	public static function utf8( $text ) {
+		$text = (string) $text;
+		if ( '' === $text || 1 === preg_match( '//u', $text ) ) return $text;
+		if ( function_exists( 'iconv' ) ) {
+			$clean = @iconv( 'UTF-8', 'UTF-8//IGNORE', $text ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- avisa del byte que quita.
+			if ( is_string( $clean ) && 1 === preg_match( '//u', $clean ) ) return $clean;
+		}
+		if ( function_exists( 'mb_convert_encoding' ) ) {
+			$clean = (string) mb_convert_encoding( $text, 'UTF-8', 'UTF-8' );
+			if ( 1 === preg_match( '//u', $clean ) ) return $clean;
+		}
+		return (string) preg_replace( '/[\x80-\xFF]/', '', $text );
+	}
+
+	/** preg_replace que, si falla (null), devuelve el texto como estaba en lugar de vaciarlo. */
+	public static function re( $pattern, $with, $subject ) {
+		$out = preg_replace( $pattern, $with, (string) $subject );
+		return null === $out ? (string) $subject : $out;
 	}
 
 	/** Quita las variables vacías y el separador que las acompañaba (al principio, al final o entre dos separadores). */
 	public static function drop_empty_slots( $text ) {
-		$text = (string) $text;
-		if ( false === strpos( $text, self::EMPTY_SLOT ) ) return trim( preg_replace( '/\s+/u', ' ', $text ) );
+		$text = self::utf8( $text );
+		if ( false === strpos( $text, self::EMPTY_SLOT ) ) return trim( self::re( '/\s+/u', ' ', $text ) );
 		// Los separadores elegibles en Identidad (|, -, –, ·) y los que importa Rank Math ya están en la lista.
 		$seps = self::SEPARATORS;
 		// Un separador es una palabra suelta: «Wi-Fi» o «24/7» no lo son.
@@ -87,11 +111,11 @@ class Digitalisimo_Integrations_SEO_Variables {
 		);
 		for ( $i = 0; $i < 5; $i++ ) {
 			$before = $text;
-			foreach ( $rules as $pattern => $with ) $text = (string) preg_replace( $pattern, $with, $text );
+			foreach ( $rules as $pattern => $with ) $text = self::re( $pattern, $with, $text );
 			if ( $before === $text ) break;
 		}
 		$text = str_replace( self::EMPTY_SLOT, '', $text );
-		return trim( preg_replace( '/\s+/u', ' ', $text ) );
+		return trim( self::re( '/\s+/u', ' ', $text ) );
 	}
 
 	/**
@@ -101,32 +125,32 @@ class Digitalisimo_Integrations_SEO_Variables {
 	 */
 	public static function summary( $post, $max = 155 ) {
 		if ( ! $post ) return '';
-		$html = (string) $post->post_content;
+		$html = self::utf8( $post->post_content );
 		if ( '' === trim( $html ) ) return '';
 		$html = (string) preg_replace( '#<(script|style|noscript|template|svg)\b[^>]*>.*?</\1>#is', ' ', $html );
 		$html = (string) preg_replace( '#<!--.*?-->#s', ' ', $html );
 		if ( function_exists( 'strip_shortcodes' ) ) $html = strip_shortcodes( $html );
 		$html = (string) preg_replace( '/\[\/?[a-z][a-z0-9_\-]*(?:\s[^\]]*)?\]/i', ' ', $html );
 		$html = (string) preg_replace( '/<[^>]+>/', ' ', $html );
-		$text = html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES, 'UTF-8' );
-		$text = trim( (string) preg_replace( '/\s+/u', ' ', $text ) );
+		$text = self::utf8( html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES, 'UTF-8' ) );
+		$text = trim( self::re( '/\s+/u', ' ', $text ) );
 		return self::cut( $text, $max );
 	}
 
 	/** Corta en la última palabra completa que cabe, con «…» si se cortó. */
 	public static function cut( $text, $max = 155 ) {
-		$text = trim( (string) $text );
+		$text = trim( self::utf8( $text ) );
 		$max  = max( 20, (int) $max );
 		if ( mb_strlen( $text, 'UTF-8' ) <= $max ) return $text;
 		$cut   = mb_substr( $text, 0, $max - 1, 'UTF-8' );
-		$words = (string) preg_replace( '/\s+\S*$/u', '', $cut );
+		$words = self::re( '/\s+\S*$/u', '', $cut );
 		if ( mb_strlen( $words, 'UTF-8' ) >= (int) ( $max * 0.6 ) ) $cut = $words;
-		return (string) preg_replace( '/[\s,;:|·\-–—\/]+$/u', '', $cut ) . '…';
+		return self::re( '/[\s,;:|·\-–—\/]+$/u', '', $cut ) . '…';
 	}
 
 	/** Dos textos dicen lo mismo (sin mayúsculas, entidades, etiquetas ni espacios de más). */
 	public static function same_text( $a, $b ) {
-		$norm = function( $s ) { return mb_strtolower( trim( (string) preg_replace( '/\s+/u', ' ', html_entity_decode( wp_strip_all_tags( (string) $s ), ENT_QUOTES, 'UTF-8' ) ) ), 'UTF-8' ); };
+		$norm = function( $s ) { return mb_strtolower( trim( self::re( '/\s+/u', ' ', self::utf8( html_entity_decode( wp_strip_all_tags( (string) $s ), ENT_QUOTES, 'UTF-8' ) ) ) ), 'UTF-8' ); };
 		return '' !== $norm( $a ) && $norm( $a ) === $norm( $b );
 	}
 

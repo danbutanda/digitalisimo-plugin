@@ -6,7 +6,8 @@
  *   2. el texto escrito a mano, sin variables, sale tal cual (también si empieza con «|»);
  *   3. sin descripción propia, una plantilla que queda vacía o que sólo repite el título se sustituye por un resumen
  *      del contenido de 155 caracteres o menos, sin shortcodes ni bloques pegados;
- *   4. el título escrito a mano no recibe el texto fijo de la plantilla.
+ *   4. el título escrito a mano no recibe el texto fijo de la plantilla;
+ *   5. con UTF-8 inválido el título y la descripción no quedan vacíos.
  * Dominios y textos inventados.
  */
 require_once __DIR__ . '/fixtures/php74.php';
@@ -61,6 +62,16 @@ foreach ( array( '-', '–', '·' ) as $choice ) {
 }
 $GLOBALS['settings']['seo_separator'] = '|';
 check( 'Cien % natural' === $V::replace( 'Cien % natural', array() ), 'Un % suelto no es una variable.' );
+
+// UTF-8 inválido (un byte de Latin-1 pegado en el título): las expresiones /u daban null y el título quedaba vacío.
+$bad = "Calentadores \xE9 Solares";
+$out = $V::replace( '%title% %sep% %excerpt%', array( 'title' => $bad, 'excerpt' => '' ) );
+check( 1 === preg_match( '//u', $out ) && 0 === strpos( $out, 'Calentadores' ) && false !== strpos( $out, 'Solares' ) && false === strpos( $out, '|' ), 'Un título con un byte inválido no queda vacío: «' . $out . '».' );
+$out = $V::replace( "Oferta \xE9 vigente", array() );
+check( 1 === preg_match( '//u', $out ) && 0 === strpos( $out, 'Oferta' ) && false !== strpos( $out, 'vigente' ), 'Lo escrito a mano con un byte inválido tampoco: «' . $out . '».' );
+$out = $V::summary( (object) array( 'post_content' => "<p>Texto con byte \xE9 roto y bastante contenido para el resumen.</p>" ) );
+check( 1 === preg_match( '//u', $out ) && 0 === strpos( $out, 'Texto con byte' ), 'El resumen del contenido con un byte inválido no queda vacío: «' . $out . '».' );
+check( 'abc' === @$V::re( '/(/u', 'x', 'abc' ), 'Si la expresión falla, re() devuelve el texto como estaba.' );
 
 // 2. Lo escrito a mano, sin variables, sale tal cual.
 check( '| Texto a mano' === $V::replace( '| Texto a mano', array() ), 'El texto escrito sin variables no se toca.' );

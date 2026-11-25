@@ -108,8 +108,11 @@ class Digitalisimo_Integrations_Brand_Check {
 	 */
 	public static function plain_name( $name ) {
 		$name  = (string) $name;
-		$plain = trim( (string) preg_replace( '/\s+/u', ' ', (string) preg_replace( self::EMOJI, '', $name ) ) );
-		$plain = trim( (string) preg_replace( '/^[\s|·•\-–—]+|[\s|·•\-–—]+$/u', '', $plain ) );
+		// Con UTF-8 inválido las expresiones /u devuelven null: el nombre se queda como estaba, nunca vacío.
+		$plain = preg_replace( self::EMOJI, '', $name );
+		$plain = null === $plain ? null : preg_replace( '/\s+/u', ' ', $plain );
+		$plain = null === $plain ? null : preg_replace( '/^[\s|·•\-–—]+|[\s|·•\-–—]+$/u', '', trim( $plain ) );
+		$plain = trim( (string) $plain );
 		return '' !== $plain ? $plain : $name;
 	}
 

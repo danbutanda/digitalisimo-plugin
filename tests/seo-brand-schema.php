@@ -63,6 +63,7 @@ check( false === strpos( $json, 'openingHours' ) && false === strpos( $json, '"l
 // 2. Nombres sin emoji.
 check( 'Plomería Ejemplo' === $B::plain_name( 'Plomería Ejemplo 🥇' ) && 'Marca ®' === $B::plain_name( 'Marca ® 🤖' ), 'plain_name quita emojis y conserva ®.' );
 check( '🥇' === $B::plain_name( '🥇' ), 'Un nombre que sólo es emoji no queda vacío.' );
+check( "Marca \xE9 Uno" === $B::plain_name( "Marca \xE9 Uno" ), 'Un nombre con UTF-8 inválido se queda como estaba, no vacío.' );
 check( 'Plomería Ejemplo' === node( $graph, 'WebSite' )['name'] && 'Plomería Ejemplo' === node( $graph, 'Organization' )['name'], 'WebSite y la organización salen sin emoji: ' . $json );
 check( in_array( 'name_emoji', codes(), true ) && false !== strpos( message( 'name_emoji' ), '%sitename%' ), 'Se avisa del nombre con emoji y de que en los títulos sí sale.' );
 $GLOBALS['settings']['seo_organization_name'] = 'Plomería Ejemplo S.A. 🔧';
