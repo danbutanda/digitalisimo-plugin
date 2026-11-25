@@ -61,7 +61,24 @@ class Digitalisimo_Hosting_Webuzo {
 		return new self( $o['webuzo_url'] ?? '', $o['webuzo_api_user'] ?? '', $o['webuzo_api_key'] ?? '', ! empty( $o['webuzo_insecure'] ) );
 	}
 
-	public function configured() { return (bool) preg_match( '#^https://#i', $this->url ) && '' !== $this->user && '' !== $this->key; }
+	public function configured() { return self::safe_url( $this->url ) && '' !== $this->user && '' !== $this->key; }
+
+	/**
+	 * ¿URL aceptable para mandarle la clave? Sólo https, con host (y puerto), sin usuario, ruta ni consulta, y un host que
+	 * no sea loopback, link-local ni de red privada (ni «localhost»), salvo la constante DIGITALISIMO_WEBUZO_ALLOW_PRIVATE.
+	 * Los nombres no se resuelven aquí: un nombre que apunte a una IP privada queda como riesgo documentado.
+	 */
+	public static function safe_url( $url ) {
+		if ( ! preg_match( '#^https://(\[[0-9a-f:.]+\]|[a-z0-9.-]+)(:\d{1,5})?/?$#i', (string) $url, $m ) ) return false;
+		$host = strtolower( trim( $m[1], '[]' ) );
+		if ( defined( 'DIGITALISIMO_WEBUZO_ALLOW_PRIVATE' ) && DIGITALISIMO_WEBUZO_ALLOW_PRIVATE ) return true;
+		if ( 'localhost' === $host || '.localhost' === substr( $host, -10 ) || '.local' === substr( $host, -6 ) || '.internal' === substr( $host, -9 ) ) return false;
+		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			if ( ! filter_var( $host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) return false;
+			if ( preg_match( '/^(127\.|169\.254\.|0\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.)/', $host ) || preg_match( '/^(::1?$|fe8|fe9|fea|feb|fc|fd)/i', $host ) ) return false;
+		}
+		return true;
+	}
 
 	/** Identificador del servidor (URL y usuario), sin la clave. Sólo informativo: la parada no depende de él. */
 	public function server() { return substr( md5( strtolower( $this->url ) . '|' . strtolower( $this->user ) ), 0, 12 ); }
@@ -130,7 +147,7 @@ class Digitalisimo_Hosting_Webuzo {
 	public static function settings_banner( $network = false, $o = null ) {
 		$row = is_array( $o ) ? self::from_values( $o )->blocked() : self::any_block();
 		if ( ! $row ) return;
-		echo '<div class="notice notice-error inline"><p><strong>Aprovisionamiento detenido:</strong> Webuzo rechazó la clave de API el ' . esc_html( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i', (int) $row['t'] ) : gmdate( 'Y-m-d H:i', (int) $row['t'] ) ) . ' (' . esc_html( (string) $row['msg'] ) . '). No se hará ninguna llamada a Webuzo con esta clave hasta que escribas y guardes una clave nueva aquí' . ( $network ? '' : ' (o en la red, si este sitio la hereda)' ) . '. Antes, revisa en Webuzo que la clave exista y que la IP de este servidor esté autorizada.</p><p><label><input type="checkbox" name="hosting[webuzo_unblock]" value="1"> Ya corregí la causa (por ejemplo, autoricé la IP): reintentar con la misma clave al guardar</label></p></div>';
+		echo '<div class="notice notice-error inline"><p><strong>Aprovisionamiento detenido:</strong> Webuzo rechazó la clave de API el ' . esc_html( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i', (int) $row['t'] ) : gmdate( 'Y-m-d H:i', (int) $row['t'] ) ) . ' (' . esc_html( (string) $row['msg'] ) . '). No se hará ninguna llamada a Webuzo con esta clave hasta que escribas y guardes una clave nueva aquí' . ( $network ? '' : ' (o en la red, si este sitio la hereda)' ) . '. Antes, revisa en Webuzo que la clave exista y que la IP de este servidor esté autorizada.</p>' . ( ! is_multisite() || current_user_can( 'manage_network_options' ) ? '<p><label><input type="checkbox" name="hosting[webuzo_unblock]" value="1"> Ya corregí la causa (por ejemplo, autoricé la IP): reintentar con la misma clave al guardar</label></p>' : '<p class="description">Sólo el superadministrador de la red puede reintentar con la misma clave.</p>' ) . '</div>';
 	}
 
 	/**
@@ -165,8 +182,14 @@ class Digitalisimo_Hosting_Webuzo {
 			)
 		);
 		self::$redact = array_filter( array( $this->key, (string) ( $post['user_passwd'] ?? '' ) ), 'strlen' );
+		// Lo que el pedido mismo pone en el mensaje (dominio, usuario) no cuenta al buscar textos de autenticación:
+		// «El dominio lista-negra.mx ya existe» no es un rechazo de clave.
+		self::$neutral = array_filter( array( (string) ( $post['domain'] ?? '' ), (string) ( $post['user'] ?? '' ), (string) ( $post['suspend'] ?? '' ), (string) ( $post['unsuspend'] ?? '' ) ), 'strlen' );
 		$result = self::classify( $response );
-		self::$redact = array();
+		self::$redact = array(); self::$neutral = array();
+		// La consulta de sólo lectura con esta MISMA clave acaba de responder bien: un error de una operación de escritura
+		// no puede ser la clave rechazada (es de la operación). Sólo 401/403 siguen contando como acceso denegado.
+		if ( 'auth' === $result['kind'] && 'list' !== $op && $this->verified && ! empty( $result['data'] ) ) $result['kind'] = 'api';
 		if ( 'list' === $op ) {
 			// Cerrada: un error de la consulta de sólo lectura es una clave rechazada, diga lo que diga.
 			if ( 'api' === $result['kind'] ) $result['kind'] = 'auth';
@@ -196,7 +219,9 @@ class Digitalisimo_Hosting_Webuzo {
 		}
 		if ( ! empty( $json['error'] ) ) {
 			$message = self::flatten( $json['error'] );
-			return array( 'kind' => self::is_auth_message( $message ) ? 'auth' : 'api', 'data' => $json, 'message' => $message );
+			$probe   = $message;
+			foreach ( self::$neutral as $n ) $probe = str_ireplace( $n, '', $probe );
+			return array( 'kind' => self::is_auth_message( $probe ) ? 'auth' : 'api', 'data' => $json, 'message' => $message );
 		}
 		// `done` es un objeto ({msg: …}, en add_user también data y user): el mensaje es done['msg'].
 		$done = $json['done'] ?? null;
@@ -226,6 +251,8 @@ class Digitalisimo_Hosting_Webuzo {
 
 	/** Secretos de la llamada en curso (la clave y la contraseña): se tapan antes de recortar cualquier mensaje. */
 	private static $redact = array();
+	/** Datos del propio pedido (dominio, usuario) que no cuentan al buscar textos de autenticación. */
+	private static $neutral = array();
 
 	private static function clean( $text ) {
 		$text = (string) $text;
@@ -272,23 +299,30 @@ class Digitalisimo_Hosting_Webuzo {
 	}
 
 	/** Suspender y reactivar: antes la consulta de sólo lectura, y la cuenta tiene que existir. */
-	public function suspend( $user ) { return $this->toggle( $user, 'suspend' ); }
+	public function suspend( $user, $domain = null ) { return $this->toggle( $user, 'suspend', $domain ); }
 
-	public function unsuspend( $user ) { return $this->toggle( $user, 'unsuspend' ); }
+	public function unsuspend( $user, $domain = null ) { return $this->toggle( $user, 'unsuspend', $domain ); }
 
-	private function toggle( $user, $op ) {
+	/**
+	 * Suspender o reactivar por nombre de usuario, sólo si la cuenta sigue siendo la del dominio del servicio: si se borró
+	 * y otro cliente heredó el nombre, no se toca nada (kind «mismatch»).
+	 */
+	private function toggle( $user, $op, $domain = null ) {
 		$list = $this->users();
 		if ( 'ok' !== $list['kind'] ) return $list;
-		if ( ! isset( $list['users'][ strtolower( (string) $user ) ] ) ) return array( 'kind' => 'api', 'data' => array(), 'message' => 'La cuenta «' . $user . '» no existe en Webuzo' );
+		$row = $list['users'][ strtolower( (string) $user ) ] ?? null;
+		if ( ! $row ) return array( 'kind' => 'api', 'data' => array(), 'message' => 'La cuenta «' . $user . '» no existe en Webuzo' );
+		if ( null !== $domain && strtolower( (string) $domain ) !== (string) $row['domain'] ) return array( 'kind' => 'mismatch', 'data' => array(), 'message' => 'La cuenta «' . $user . '» de Webuzo es hoy del dominio ' . $row['domain'] . ', no de ' . strtolower( (string) $domain ) . ': no se tocó' );
 		// Sin `skip` (ver arriba): con skip=1 este Webuzo responde éxito sin hacer nada.
 		return $this->call( 'users', array( $op => $user ) );
 	}
 
 	/** El estado actual de una cuenta («suspended» o ""), o null si no está o la lista no respondió (con $r el resultado). */
-	public function status_of( $user, &$r = null ) {
+	public function status_of( $user, &$r = null, $domain = null ) {
 		$r = $this->users();
 		if ( 'ok' !== $r['kind'] ) return null;
 		$u = $r['users'][ strtolower( (string) $user ) ] ?? null;
+		if ( $u && null !== $domain && strtolower( (string) $domain ) !== (string) $u['domain'] ) { $r['mismatch'] = $u['domain']; return null; }
 		return $u ? (string) $u['status'] : null;
 	}
 }
