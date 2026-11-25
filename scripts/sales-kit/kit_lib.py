@@ -607,7 +607,7 @@ GLOBAL_DE = {
     JADE: "accent", NEON: "accent",
 }
 NEUTRO_DE = {
-    NIEBLA: "#F7F7F7", BD: "#E6E6E6", TX_OSC: "#F2F2F2", MUT_OSC: "#BDBDBD", "#DCEBFA": "#F2F2F2",
+    NIEBLA: "#F4F4F4", BD: "#E6E6E6", TX_OSC: "#F2F2F2", MUT_OSC: "#BDBDBD", "#DCEBFA": "#F2F2F2",
     "rgba(0, 168, 107, 0.30)": "rgba(0, 0, 0, 0.18)", "rgba(15, 20, 26, 0.10)": "rgba(0, 0, 0, 0.10)",
 }
 # Los colores de la paleta DIGITALÍSIMO que nunca deben quedar en una plantilla (kit_validar.py lo comprueba).

@@ -824,7 +824,7 @@ final class Store_Layout {
 	private function color( array &$s, string $key, string $role ): void {
 		$neutral = array(
 			'white' => '#FFFFFF',
-			'light' => '#F5F5F5',
+			'light' => '#F4F4F4',
 			'muted' => '#6B6B6B',
 			'line'  => '#E6E6E6',
 		);

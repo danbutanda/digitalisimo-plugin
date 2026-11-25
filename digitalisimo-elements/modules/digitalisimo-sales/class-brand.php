@@ -46,7 +46,7 @@ final class Brand {
 		'#4E5863' => 'text',
 		'#00A86B' => 'accent',
 		'#00FF99' => 'accent',
-		'#F5F8FB' => '#F7F7F7',
+		'#F5F8FB' => '#F4F4F4',
 		'#E1E6EC' => '#E6E6E6',
 		'#E9EEF3' => '#F2F2F2',
 		'#9AA6B2' => '#BDBDBD',
@@ -459,7 +459,7 @@ final class Brand {
 		$primary = '' !== $primary ? $primary : self::DARK;
 		$accent  = '' !== $accent ? $accent : $primary;
 		$text    = '' !== $text ? $text : ( self::luminance( $primary ) < 0.08 ? $primary : '#333333' );
-		$light   = '' !== $light ? $light : '#F5F5F5';
+		$light   = '' !== $light ? $light : '#F4F4F4';
 
 		$colors = array();
 		foreach ( array(
@@ -818,6 +818,16 @@ final class Brand {
 			} elseif ( '' !== $btn_bg && self::vivid( $btn_bg ) ) {
 				unset( $globals['button_text_color'] );
 				$settings['button_text_color'] = $btn_bg === $brand['colors']['accent']['color'] ? $brand['on_accent'] : self::on( $btn_bg, $brand['colors']['text']['color'] );
+			}
+		}
+		// Los enlaces de un texto sin color propio: el de la marca (si no, el azul del navegador o el del tema).
+		if ( 'text-editor' === $widget && ! isset( $settings['link_color'] ) && ! isset( $globals['link_color'] ) ) {
+			$link = $brand['colors']['primary'];
+			if ( '' !== $link['global'] ) {
+				$globals['link_color']  = 'globals/colors?id=' . $link['global'];
+				$settings['link_color'] = '';
+			} else {
+				$settings['link_color'] = $link['color'];
 			}
 		}
 		// El resalte de un título (`selector span{color:…}`).

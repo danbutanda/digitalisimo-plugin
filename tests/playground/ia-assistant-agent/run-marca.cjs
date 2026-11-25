@@ -242,7 +242,7 @@ const digits = (n) => Number(n).toLocaleString('en-US', { maximumFractionDigits:
         const rgb = (v) => { const m = String(v).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/); return m && (m[4] === undefined || Number(m[4]) >= 0.6) ? [Number(m[1]), Number(m[2]), Number(m[3])] : null; };
         const L = (c) => c.map((x) => x / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0);
         const ratio = (a, b) => (Math.max(L(a), L(b)) + 0.05) / (Math.min(L(a), L(b)) + 0.05);
-        const bgOf = (el) => { for (let n = el; n; n = n.parentElement) { const c = rgb(getComputedStyle(n).backgroundColor); if (c) return c; } return [255, 255, 255]; };
+        const bgOf = (el) => { for (let n = el; n; n = n.parentElement) { const st = getComputedStyle(n); const c = rgb(st.backgroundColor) || (/gradient/.test(st.backgroundImage) ? rgb((st.backgroundImage.match(/rgba?\([^)]*\)/) || [''])[0]) : null); if (c) return c; } return [255, 255, 255]; };
         out.lowContrast = [];
         for (const node of root.querySelectorAll('*')) {
           const own = [...node.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim());

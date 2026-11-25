@@ -589,6 +589,24 @@ namespace {
 			check( ! $bad, "C1 $name/$what: todo texto pasa WCAG AA · " . implode( ' | ', array_slice( array_unique( $bad ), 0, 5 ) ) );
 			$look = Brand::look( $done, $brand, array_map( function ( $c ) { return $c['color']; }, $kitc ) );
 			check( ! $look['contrast'], "C2 $name/$what: look no ve problemas de contraste · " . implode( ' | ', array_slice( $look['contrast'], 0, 3 ) ) );
+			// C6 · Ningún color de la página queda casi igual a uno de la paleta DIGITALÍSIMO (salvo que sea del sitio): la
+			// prueba real vio #F7F7F7 a 4.6 de #F5F8FB.
+			$near = array();
+			foreach ( $look['colors'] as $hex ) {
+				foreach ( PALETTE as $pal ) {
+					$d = sqrt( array_sum( array_map( function ( $a, $b ) { return ( hexdec( $a ) - hexdec( $b ) ) ** 2; }, str_split( substr( $hex, 1 ), 2 ), str_split( substr( $pal, 1 ), 2 ) ) ) );
+					if ( $d < 7 && 'DIGITALÍSIMO' !== $name ) {
+						$near[] = "{$hex}≈{$pal}";
+					}
+				}
+			}
+			check( ! $near, "C6 $name/$what: ningún color casi igual a uno de la paleta DIGITALÍSIMO · " . implode( ', ', array_unique( $near ) ) );
+			// C7 · Los enlaces de los textos llevan color (el de la marca o, si no se lee, blanco o negro), nunca el del navegador.
+			foreach ( $find( $done, 'text-editor' ) as $te ) {
+				if ( false !== strpos( (string) ( $te['settings']['editor'] ?? '' ), '<a ' ) ) {
+					check( '' !== ( $te['settings']['link_color'] ?? '' ) || isset( $te['settings']['__globals__']['link_color'] ), "C7 $name/$what: un texto con enlaces tiene el color de sus enlaces" );
+				}
+			}
 			check( ! $case[1] || $look['matches_site'], "C3 $name/$what: look reconoce los colores del sitio (también la paleta DIGITALÍSIMO cuando es la del sitio, y el pastel aunque no alcance contraste en el texto) · " . json_encode( array( $look['digitalisimo'], $look['brand_used'] ) ) );
 		}
 	}
