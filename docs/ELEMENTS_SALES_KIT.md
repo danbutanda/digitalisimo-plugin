@@ -222,7 +222,10 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
     es el tachado), escritos como `wc_price()` (`Site::price()`, sin agregar «MXN») y `review` dice qué productos no
     coinciden (`store_offer.not_matching`); la landing de producto nunca pide subir un precio. Dentro del sitio, la
     página no lleva el pie propio de la plantilla y, si la cabecera del sitio es fija, la barra de cierre deja de ser
-    fija; rehacer un borrador sin `blank_page` conserva su plantilla de página. Los más vendidos salen de una consulta
+    fija; rehacer un borrador sin `blank_page` conserva su plantilla de página (también la «Plantilla predeterminada»
+    elegida a mano). La landing de un producto usa el mismo cálculo de precios (`wc_get_price_to_display`) y el mismo
+    formato (`Site::price()`, sin «MXN» añadido); si la tienda captura sin impuestos y los muestra con ellos, `review`
+    dice qué precio capturar. La frase de la política de devoluciones sale de sus párrafos, sin el título. Los más vendidos salen de una consulta
     por `total_sales`; la política de devoluciones se lee por su texto visible; el análisis del logo queda en un
     transient por su URL y fecha.
   - **La respuesta comprueba.** `brand` (de dónde salió la identidad), `look` (colores y tipografías de la página, los
