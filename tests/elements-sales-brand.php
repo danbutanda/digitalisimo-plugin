@@ -101,6 +101,12 @@ namespace {
 	function get_post_meta( $id, $key, $single = false ) {
 		return $GLOBALS['sb_meta'][ (int) $id ][ $key ] ?? '';
 	}
+	function url_to_postid( $url ) {
+		return false !== strpos( (string) $url, 'devoluciones' ) ? 70 : 0;
+	}
+	function get_post( $id ) {
+		return $GLOBALS['sb_posts'][ (int) $id ] ?? null;
+	}
 	// La consulta de los más vendidos: se anota y se contesta como WP_Query (ordenado por total_sales).
 	function get_posts( $args ) {
 		$GLOBALS['sb_queries'][] = $args;
@@ -439,6 +445,13 @@ namespace {
 	check( array( 11, 13, 10 ) === $r['ids'] && true === $r['sold'], 'R5 los más vendidos por sus ventas · ' . json_encode( $r ) );
 	$GLOBALS['sb_meta'] = array();
 	check( false === Store::best_sellers( '', 3 )['sold'], 'R5 sin ventas no son «los más vendidos»' );
+	// R7 · La política de devoluciones hecha con el constructor: su texto visible, nunca el JSON guardado (medio 6).
+	$GLOBALS['sb_posts'] = array( 70 => (object) array( 'ID' => 70, 'post_content' => '' ) );
+	$GLOBALS['sb_meta']  = array( 70 => array( '_elementor_data' => json_encode( array( array( 'id' => 'a1b2c3d', 'elType' => 'container', 'settings' => array( 'content_width' => 'boxed' ), 'elements' => array( array( 'id' => 'e5f6a7b', 'elType' => 'widget', 'widgetType' => 'text-editor', 'settings' => array( 'editor' => '<p>Tienes 30 días para devolver tu compra. Escríbenos.</p>' ), 'elements' => array() ) ) ) ) ) ) );
+	$line = Store::refund_line( 'https://ferre.test/devoluciones/' );
+	check( 'Tienes 30 días para devolver tu compra.' === $line, 'R7 la primera frase visible de la política hecha con el constructor · ' . $line );
+	$GLOBALS['sb_meta'] = array();
+
 	// R6 · El aviso del precio no dice «precio normal» de algo que puede estar rebajado.
 	check( (bool) preg_grep( '/todavía no aplica este descuento/', $page['warnings'] ), 'R6 el aviso del precio de la tienda' );
 

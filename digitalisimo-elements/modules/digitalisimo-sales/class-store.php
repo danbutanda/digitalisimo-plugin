@@ -441,7 +441,9 @@ final class Store {
 		}
 		$text = self::plain( (string) $post->post_content );
 		if ( '' === $text && function_exists( 'get_post_meta' ) ) {
-			$text = self::plain( (string) get_post_meta( $id, '_elementor_data', true ) );
+			// Una página del constructor: sólo su texto visible (títulos, textos, preguntas), nunca el JSON guardado.
+			$data = json_decode( (string) get_post_meta( $id, '_elementor_data', true ), true );
+			$text = is_array( $data ) ? trim( implode( ' ', array_filter( self::texts( $data ) ) ) ) : '';
 		}
 		return Product::first_sentence( $text );
 	}
