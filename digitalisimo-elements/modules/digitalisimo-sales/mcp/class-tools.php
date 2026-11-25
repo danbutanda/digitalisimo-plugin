@@ -225,7 +225,7 @@ final class Tools {
 					'blank_page'   => array(
 						'type'        => 'boolean',
 						'default'     => false,
-						'description' => 'Sólo si la persona pide una página sin la cabecera ni el pie del sitio. Por defecto la página lleva la cabecera y el pie del sitio.',
+						'description' => 'Sólo si la persona lo pide: true, una página sin la cabecera ni el pie del sitio; false, con ellos. Sin él, una página nueva lleva la cabecera y el pie del sitio (y no el pie propio de la plantilla), y al rehacer un borrador se queda la plantilla de página que ya tiene.',
 					),
 					'post_id'      => array(
 						'type'        => 'integer',

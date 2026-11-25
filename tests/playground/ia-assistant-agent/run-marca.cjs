@@ -63,7 +63,9 @@ function request(method, p, { headers = {}, body } = {}) {
 }
 const probe = async (what) => (await request('GET', `/?digi_ias=${what}&token=${token}`)).json;
 
-const MESSAGE = 'créame una landing de oferta navideña con todos los productos al 40 %';
+// El caso «producto» pide la landing de UN producto; los demás, la oferta de toda la tienda.
+const PRODUCT = ready.case === 'producto';
+const MESSAGE = PRODUCT ? 'créame una landing del taladro inalámbrico 20 V con 25 % de descuento hasta el 24 de diciembre' : 'créame una landing de oferta navideña con todos los productos al 40 %';
 
 function visible(events) {
   const msgs = events.filter((e) => e.type === 'message' || e.type === 'tool').map((e) => e.message);
@@ -103,7 +105,9 @@ const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const dist = (a, b) => { const x = rgbOf(a); const y = rgbOf(b); return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]); };
 const vivid = (h) => { const [r, g, b] = rgbOf(h).map((c) => c / 255); const max = Math.max(r, g, b); const min = Math.min(r, g, b); const l = (max + min) / 2; if (max === min) return false; const d = max - min; const s = l > 0.5 ? d / (2 - max - min) : d / (max + min); return s >= 0.35 && l >= 0.15 && l <= 0.85; };
 const near = (h, list, tol = 14) => list.some((x) => dist(h, x) < tol);
-const money = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
+// Como escribe los precios WooCommerce con sus ajustes de fábrica: dos decimales, coma de miles y el símbolo antes.
+const money = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const digits = (n) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
 (async () => {
   const transcript = [];
@@ -233,13 +237,47 @@ const money = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigi
         out.images = [...root.querySelectorAll('img')].filter((i) => i.naturalWidth > 0 && i.offsetWidth > 40).length;
         out.dels = [...root.querySelectorAll('del')].map((d) => d.textContent.trim());
         out.text = root.innerText;
+        // Contraste de lo que se ve: cada texto contra el primer fondo opaco de sus ancestros (WCAG AA: 4.5; 3 si es grande
+        // —24 px, o 18.66 px en negritas— o un botón).
+        const rgb = (v) => { const m = String(v).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/); return m && (m[4] === undefined || Number(m[4]) >= 0.6) ? [Number(m[1]), Number(m[2]), Number(m[3])] : null; };
+        const L = (c) => c.map((x) => x / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0);
+        const ratio = (a, b) => (Math.max(L(a), L(b)) + 0.05) / (Math.min(L(a), L(b)) + 0.05);
+        const bgOf = (el) => { for (let n = el; n; n = n.parentElement) { const c = rgb(getComputedStyle(n).backgroundColor); if (c) return c; } return [255, 255, 255]; };
+        out.lowContrast = [];
+        for (const node of root.querySelectorAll('*')) {
+          const own = [...node.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim());
+          if (!own || node.offsetWidth === 0) continue;
+          const cs = getComputedStyle(node);
+          const fg = rgb(cs.color);
+          if (!fg) continue;
+          const size = parseFloat(cs.fontSize);
+          const large = size >= 24 || (size >= 18.66 && Number(cs.fontWeight) >= 700) || !!node.closest('.elementor-button');
+          const r = ratio(fg, bgOf(node));
+          if (r + 1e-6 < (large ? 3 : 4.5)) out.lowContrast.push(`${node.textContent.trim().slice(0, 40)} · ${cs.color} sobre ${bgOf(node).join(',')} = ${r.toFixed(2)}`);
+        }
+        out.footers = document.querySelectorAll('[data-elementor-type="footer"]').length;
+        out.kitFooter = /no forma parte de Meta|Todos los derechos reservados/.test(root.innerText);
         // El contador (si hay): el color de sus números y el fondo de su caja.
         out.countdown = [...root.querySelectorAll('.elementor-countdown-item')].map((it) => ({ box: getComputedStyle(it).backgroundColor, digits: getComputedStyle(it.querySelector('.elementor-countdown-digits') || it).color }));
         return out;
       }, landing.id);
       await page.screenshot({ path: `${dir}/landing.png`, fullPage: true });
       await page.screenshot({ path: `${dir}/landing-arriba.png` });
-      log('capturas: landing.png y landing-arriba.png');
+      // La cabecera fija y lo que quede fijo de la landing (la barra de cierre), ya bajando por la página: no se tapan.
+      await page.evaluate(() => window.scrollTo(0, 1400));
+      await new Promise((r) => setTimeout(r, 900));
+      m.overlap = await page.evaluate((pid) => {
+        const head = document.querySelector('[data-elementor-type="header"]');
+        const root = document.querySelector(`[data-elementor-id="${pid}"]`);
+        if (!head || !root) return { checked: false };
+        const h = head.querySelector('.elementor-sticky--active') || head.firstElementChild || head;
+        const hr = h.getBoundingClientRect();
+        const fixed = [...root.querySelectorAll('*')].filter((n) => ['fixed', 'sticky'].includes(getComputedStyle(n).position) && n.offsetHeight > 0).map((n) => n.getBoundingClientRect()).filter((r) => r.top < window.innerHeight && r.bottom > 0);
+        const hits = fixed.filter((r) => r.top < hr.bottom - 1 && r.bottom > hr.top + 1 && hr.height > 0);
+        return { checked: true, header: [Math.round(hr.top), Math.round(hr.bottom)], headerFixed: !!head.querySelector('.elementor-sticky--active'), fixed: fixed.length, hits: hits.map((r) => [Math.round(r.top), Math.round(r.bottom)]) };
+      }, landing.id);
+      await page.screenshot({ path: `${dir}/landing-bajando.png` });
+      log('capturas: landing.png, landing-arriba.png y landing-bajando.png');
     } finally {
       await browser.close();
     }
@@ -253,16 +291,30 @@ const money = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigi
     const bad = colors.filter((c) => near(c, PALETTE, 6));
     const factory = colors.filter((c) => near(c, FACTORY, 6) && !near(c, site, 6));
     const foreign = colors.filter((c) => vivid(c) && !near(c, site));
-    check('C1', near(ready.brand.primary, colors, 10) && near(ready.brand.accent, colors, 10), `la landing lleva el morado y el naranja del sitio (${colors.filter(vivid).join(', ')})`, JSON.stringify(m.colors));
-    check('C2', bad.length === 0 && factory.length === 0, 'ningún color de la paleta DIGITALÍSIMO ni de fábrica del kit', JSON.stringify({ bad, factory, where: [...bad, ...factory].map((c) => Object.entries(m.colors).find(([k]) => hex(k) === c)) }));
+    // Si la paleta DIGITALÍSIMO ES la del sitio (como digitalisimo.lat), esos colores son del sitio.
+    const badSite = bad.filter((c) => !near(c, site, 6));
+    check('C1', near(ready.brand.primary, colors, 10) && near(ready.brand.accent, colors, 10), `la landing lleva los dos colores de la marca del sitio, ${ready.brand.primary} y ${ready.brand.accent} (${colors.filter((c) => vivid(c) || c === ready.brand.primary || c === ready.brand.accent).join(', ')})`, JSON.stringify(m.colors));
+    check('C2', badSite.length === 0 && factory.length === 0, ready.case === 'digitalisimo' ? 'la paleta DIGITALÍSIMO es la del sitio: ningún color ajeno ni de fábrica del kit' : 'ningún color de la paleta DIGITALÍSIMO ni de fábrica del kit', JSON.stringify({ badSite, factory, where: [...badSite, ...factory].map((c) => Object.entries(m.colors).find(([k]) => hex(k) === c)) }));
+    check('W3', (m.lowContrast || []).length === 0, `todo texto de la landing pasa WCAG AA en Chrome (${(m.lowContrast || []).length} fallas)`, (m.lowContrast || []).slice(0, 8).join(' | '));
+    check('H2', m.footers === 1 && !m.kitFooter, `un solo pie: el del sitio (${m.footers} pies del sitio; pie propio de la plantilla: ${m.kitFooter ? 'sí' : 'no'})`);
+    check('H3', m.overlap && m.overlap.checked && m.overlap.hits.length === 0, `la cabecera fija del sitio no queda tapada por nada fijo de la landing (${JSON.stringify(m.overlap)})`, JSON.stringify(m.overlap));
     check('C3', foreign.length === 0, 'todo color con tono de la landing es del sitio', JSON.stringify(foreign.map((c) => [c, Object.entries(m.colors).find(([k]) => hex(k) === c)?.[1]])));
     // F · Fuentes.
     const hf = Object.keys(m.headingFonts);
     const bf = Object.keys(m.bodyFonts);
     check('F1', hf.length > 0 && hf.every((f) => /Montserrat/i.test(f)), `los títulos en Montserrat (${hf.join(' | ')})`, JSON.stringify(m.headingFonts));
     check('F2', bf.length > 0 && Object.entries(m.bodyFonts).filter(([f]) => /Lato/i.test(f)).reduce((a, [, n]) => a + n, 0) >= 0.8 * Object.values(m.bodyFonts).reduce((a, n) => a + n, 0) && !bf.some((f) => /^\s*"?Roboto/i.test(f)), `el texto en Lato, nunca Roboto (${bf.join(' | ')})`, JSON.stringify(m.bodyFonts));
-    // G · Productos reales con su precio tachado y el 40 % menos.
     const prods = after.products.filter(Boolean);
+    if (PRODUCT) {
+      // G · La landing de UN producto: el taladro, su precio normal y el 25 % menos; el botón de compra.
+      const drill = prods.find((p) => /Taladro/.test(p.name));
+      const sale = Math.round(Number(drill.regular) * 0.75 * 100) / 100;
+      check('G1', m.text.includes(drill.name) && m.images >= 1, `la landing es del producto (${drill.name}) con su foto`, m.text.slice(0, 600));
+      check('G2', m.text.includes(digits(Number(drill.regular))) && m.text.includes(digits(sale)), `su precio normal (${digits(Number(drill.regular))}) y el de oferta 25 % menos (${digits(sale)})`, m.text.slice(0, 1500));
+      const buy = m.buttons.filter((b) => /add-to-cart=/.test(b.href) || b.href.replace(/\/$/, '') === String(drill.url).replace(/\/$/, ''));
+      check('B1', buy.length > 0 && !m.buttons.some((b) => /\/(carrito|cart)\/?$/.test(new URL(b.href).pathname) && !/add-to-cart=/.test(b.href)), `un botón agrega el producto o lleva a su ficha, ninguno al carrito vacío (${buy.map((b) => b.href).join(' ')})`, JSON.stringify(m.buttons.slice(0, 8)));
+    } else {
+    // G · Productos reales con su precio tachado y el 40 % menos.
     const inPage = prods.filter((p) => m.text.includes(p.name));
     const priced = inPage.filter((p) => { const r = Number(p.regular); const s = Math.round(r * 0.6 * 100) / 100; return m.dels.some((d) => d.includes(money(r))) && m.text.includes(money(s)); });
     check('G1', inPage.length >= 8 && m.images >= 8, `cuadrícula de productos reales con foto (${inPage.length} de ${prods.length} productos, ${m.images} fotos)`, m.text.slice(0, 1200));
@@ -273,6 +325,7 @@ const money = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigi
     const main = ordered[0];
     const shop = String(ready.shop).replace(/\/$/, '');
     check('B1', main && main.href.replace(/\/$/, '').startsWith(shop) && !m.buttons.some((b) => /\/(carrito|cart)\/?(\?|$)/.test(new URL(b.href).pathname + (new URL(b.href).search ? '?' : '')) && !/add-to-cart=/.test(b.href)), `el botón principal lleva a la tienda (${main ? main.href : 'sin botón'}) y ninguno al carrito`, JSON.stringify(m.buttons.slice(0, 6)));
+    }
     const lum = (h) => rgbOf(h).map((c) => c / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)).reduce((a, c, i) => a + c * [0.2126, 0.7152, 0.0722][i], 0);
     const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
     const unreadable = (m.countdown || []).filter((c) => hex(c.box) && hex(c.digits) && contrast(hex(c.box), hex(c.digits)) < 3);
@@ -280,7 +333,7 @@ const money = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigi
     check('X2', !COURSE.test(m.text), 'tampoco en lo que se ve hay textos de cursos', (m.text.match(COURSE) || [''])[0]);
     // V · Lo que afirma.
     const claims = /(usa|lleva|con) (los |tus )?colores|tus colores|colores de tu (sitio|marca|kit)/i.test(reply);
-    check('V1', !claims || (bad.length === 0 && near(ready.brand.primary, colors, 10)), `si dice que usa los colores del sitio, es verdad (${claims ? 'lo dice' : 'no lo dice'})`, reply);
+    check('V1', !claims || (badSite.length === 0 && near(ready.brand.primary, colors, 10)), `si dice que usa los colores del sitio, es verdad (${claims ? 'lo dice' : 'no lo dice'})`, reply);
 
     fs.writeFileSync(`${dir}/evaluacion.json`, JSON.stringify({ results, failures, seconds: t.seconds, tools: tools.map((x) => `${x.kind}:${x.ability}:${x.status}`), landing: { id: landing.id, title: landing.title }, visible: t.visible, colors, fonts: { headings: m.headingFonts, body: m.bodyFonts }, buttons: m.buttons }, null, 1));
   } catch (e) {

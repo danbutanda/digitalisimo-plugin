@@ -21,7 +21,8 @@ $dir = '/digi-ias';
 try {
 	$mode = trim( (string) @file_get_contents( $dir . '/mode.txt' ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 	$case = trim( (string) @file_get_contents( $dir . '/case.txt' ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-	$case = 'fabrica' === $case ? 'fabrica' : 'kit';
+	$case = in_array( $case, array( 'kit', 'fabrica', 'producto', 'negro', 'digitalisimo' ), true ) ? $case : 'kit';
+	// producto: el mismo sitio del caso kit, con la landing de un solo producto.
 	$key  = trim( (string) @file_get_contents( $dir . '/k' ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 	@unlink( $dir . '/k' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 	if ( 'real' !== $mode || strlen( $key ) < 20 ) {
@@ -65,10 +66,21 @@ try {
 		update_option( 'woocommerce_free_shipping_' . $free . '_settings', array( 'title' => 'Envío gratis', 'requires' => 'min_amount', 'min_amount' => '1500' ) );
 	}
 
-	// La marca inventada.
+	// La marca inventada (o, en «negro», una en negro y gris; en «digitalisimo», la paleta DIGITALÍSIMO como la de
+	// digitalisimo.lat: entonces esos colores SON los del sitio).
 	$purple = '#7B2CBF';
 	$orange = '#FF8C1A';
 	$ink    = '#2B2B2B';
+	if ( 'negro' === $case ) {
+		$purple = '#000000';
+		$orange = '#333333';
+		$ink    = '#1A1A1A';
+	} elseif ( 'digitalisimo' === $case ) {
+		$purple = '#1592DA';
+		$orange = '#00A86B';
+		$ink    = '#1F252C';
+	}
+	$kit_case = 'fabrica' === $case ? 'fabrica' : 'kit';
 
 	// El kit activo (lo crea aquí si el núcleo aún no lo hizo).
 	$kit = (int) get_option( 'elementor_active_kit' );
@@ -78,7 +90,7 @@ try {
 		update_post_meta( $kit, '_elementor_edit_mode', 'builder' );
 		update_option( 'elementor_active_kit', $kit );
 	}
-	$kit_settings = 'kit' === $case ? array(
+	$kit_settings = 'kit' === $kit_case ? array(
 		'system_colors'     => array(
 			array( '_id' => 'primary', 'title' => 'Morado', 'color' => $purple ),
 			array( '_id' => 'secondary', 'title' => 'Gris', 'color' => '#5A5A5A' ),
@@ -111,8 +123,8 @@ try {
 	delete_post_meta( $kit, '_elementor_css' );
 
 	// Un color: el global del kit (CASE=kit) o escrito a mano (CASE=fabrica).
-	$color = function ( array $s, $key, $hex, $global ) use ( $case ) {
-		if ( 'kit' === $case && '' !== $global ) {
+	$color = function ( array $s, $key, $hex, $global ) use ( $kit_case ) {
+		if ( 'kit' === $kit_case && '' !== $global ) {
 			$s['__globals__'][ $key ] = 'globals/colors?id=' . $global;
 			$s[ $key ]                = '';
 		} else {
@@ -120,8 +132,8 @@ try {
 		}
 		return $s;
 	};
-	$font = function ( array $s, $prefix, $family, $global ) use ( $case ) {
-		if ( 'kit' === $case ) {
+	$font = function ( array $s, $prefix, $family, $global ) use ( $kit_case ) {
+		if ( 'kit' === $kit_case ) {
 			$s['__globals__'][ $prefix . '_typography' ] = 'globals/typography?id=' . $global;
 		} else {
 			$s[ $prefix . '_typography' ]  = 'custom';
@@ -164,7 +176,8 @@ try {
 	update_post_meta( $header, '_elementor_conditions', array( 'include/general' ) );
 	$title  = $font( $color( array( 'title' => 'La Tuerca Morada', 'header_size' => 'h2', 'title_color' => '#FFFFFF', 'typography_font_size' => array( 'unit' => 'px', 'size' => 28, 'sizes' => array() ) ), 'title_color', '#FFFFFF', '' ), 'typography', 'Montserrat', 'primary' );
 	$button = $font( $color( $color( array( 'text' => 'Ver la tienda', 'link' => array( 'url' => get_permalink( $shop ) ), 'button_text_color' => $ink ), 'background_color', $orange, 'accent' ), 'button_text_color', $ink, 'text' ), 'typography', 'Lato', 'accent' );
-	$hdata  = array( $box( $color( array( 'background_background' => 'classic', 'flex_direction' => 'row', 'flex_justify_content' => 'space-between', 'flex_align_items' => 'center', 'padding' => array( 'unit' => 'px', 'top' => '18', 'right' => '24', 'bottom' => '18', 'left' => '24', 'isLinked' => false ) ), 'background_color', $purple, 'primary' ), array( $w( 'heading', $title ), $w( 'button', $button ) ) ) );
+	// La cabecera es FIJA (sticky del constructor), como en muchos sitios: la barra de cierre no debe taparla.
+	$hdata  = array( $box( $color( array( 'sticky' => 'top', 'sticky_on' => array( 'desktop', 'tablet', 'mobile' ), 'z_index' => 100, 'background_background' => 'classic', 'flex_direction' => 'row', 'flex_justify_content' => 'space-between', 'flex_align_items' => 'center', 'padding' => array( 'unit' => 'px', 'top' => '18', 'right' => '24', 'bottom' => '18', 'left' => '24', 'isLinked' => false ) ), 'background_color', $purple, 'primary' ), array( $w( 'heading', $title ), $w( 'button', $button ) ) ) );
 	update_post_meta( $header, '_elementor_data', wp_slash( wp_json_encode( $hdata ) ) );
 
 	// Pie: cuatro garantías con icono morado, el WhatsApp y las políticas.
@@ -268,6 +281,7 @@ try {
 				'product'   => (int) $products[0],
 				'products'  => $products,
 				'brand'     => array( 'primary' => $purple, 'accent' => $orange, 'text' => $ink, 'heading_font' => 'Montserrat', 'body_font' => 'Lato' ),
+				'catalog'   => array_map( static function ( $row ) { return array( 'name' => $row[0], 'price' => $row[1] ); }, $catalog ),
 				'kit'       => $kit,
 				'header'    => (int) $header,
 				'footer'    => (int) $footer,
