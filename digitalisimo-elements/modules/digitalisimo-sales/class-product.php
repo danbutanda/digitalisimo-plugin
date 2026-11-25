@@ -144,9 +144,20 @@ final class Product {
 		}
 		$sale_to = method_exists( $p, 'get_date_on_sale_to' ) ? $p->get_date_on_sale_to() : null;
 		$type    = (string) $p->get_type();
-		$regular = self::number( $p->get_regular_price() );
-		$sale    = self::number( $p->get_sale_price() );
-		$price   = self::number( $p->get_price() );
+		// Los precios como los muestra la tienda (wc_get_price_to_display: con o sin impuestos según sus ajustes), igual
+		// que en la oferta de tienda; `tax_ratio` dice cuánto cambia lo que se captura al mostrarlo (1 si nada).
+		$raw     = self::number( $p->get_regular_price() );
+		$display = static function ( $amount ) use ( $p ) {
+			$amount = self::number( $amount );
+			if ( null === $amount ) {
+				return null;
+			}
+			return function_exists( 'wc_get_price_to_display' ) ? (float) wc_get_price_to_display( $p, array( 'price' => $amount ) ) : $amount;
+		};
+		$regular = $display( $p->get_regular_price() );
+		$sale    = $display( $p->get_sale_price() );
+		$price   = $display( $p->get_price() );
+		$ratio   = null !== $raw && $raw > 0 && null !== $regular ? $regular / $raw : 1.0;
 		$from    = false;
 		if ( 'variable' === $type ) {
 			// El precio más bajo y, sólo si es de esa misma variación, su precio normal: nunca el normal de una variación con
@@ -165,6 +176,10 @@ final class Product {
 				}
 				$price   = $active[ $vid ];
 				$normal  = self::number( $prices['regular_price'][ $vid ] ?? null );
+				// get_variation_prices( true ) ya da los precios como se muestran; lo capturado, sin `true`.
+				$raw_all = method_exists( $p, 'get_variation_prices' ) ? (array) $p->get_variation_prices( false ) : array();
+				$raw_one = self::number( $raw_all['regular_price'][ $vid ] ?? null );
+				$ratio   = null !== $raw_one && $raw_one > 0 && null !== $normal ? $normal / $raw_one : 1.0;
 				$regular = $normal;
 				$sale    = null !== $normal && $normal > $price ? $price : null;
 				$from    = count( array_unique( array_map( 'strval', $active ) ) ) > 1;
@@ -180,6 +195,7 @@ final class Product {
 			'description'   => (string) $p->get_description(),
 			'permalink'     => function_exists( 'get_permalink' ) ? (string) get_permalink( $id ) : '',
 			'regular_price' => $regular,
+			'tax_ratio'     => abs( $ratio - 1 ) < 0.0005 ? 1.0 : round( $ratio, 6 ),
 			'sale_price'    => $sale,
 			'price'         => $price,
 			'price_from'    => $from,
@@ -463,10 +479,9 @@ final class Product {
 		$e        = static function ( string $text ): string {
 			return esc_html_safe( str_replace( array( '[', ']' ), array( '(', ')' ), $text ) );
 		};
-		$cur      = (string) ( $site['currency'] ?? 'MXN' );
-		$sym      = (string) ( $site['currency_symbol'] ?? '$' );
-		$fmt      = static function ( float $value ) use ( $cur, $sym ): string {
-			return $sym . self::money( $value ) . ( '' !== $cur ? ' ' . $cur : '' );
+		// Como escribe los precios la tienda (wc_price en texto: decimales, separadores y símbolo), sin agregar «MXN».
+		$fmt      = static function ( float $value ) use ( $site ): string {
+			return Site::price( $value, $site );
 		};
 		$filled   = array(
 			array(
@@ -958,8 +973,11 @@ final class Product {
 		};
 
 		$template['content'] = self::apply( $template['content'], $edits );
+		$ratio = (float) ( $product['tax_ratio'] ?? 1.0 );
 		if ( null !== $offer['store_price'] && (float) $offer['store_price'] - $price >= 0.005 ) {
-			$warnings[] = sprintf( 'La tienda cobra hoy %s por este producto y la landing anuncia %s: pon el precio rebajado en el producto (con su fecha de fin) para que el carrito cobre lo mismo antes de publicar.', $fmt( (float) $offer['store_price'] ), $fmt( $price ) );
+			// Si la tienda captura sin impuestos y los muestra con ellos, el precio que hay que capturar es otro.
+			$capture    = abs( $ratio - 1 ) >= 0.0005 ? sprintf( ' Tu tienda captura los precios sin impuestos y los muestra con ellos: para que el carrito cobre %s, captura %s como precio rebajado.', $fmt( $price ), $fmt( round( $price / $ratio, 2 ) ) ) : '';
+			$warnings[] = sprintf( 'La tienda cobra hoy %s por este producto y la landing anuncia %s: pon el precio rebajado en el producto (con su fecha de fin) para que el carrito cobre lo mismo antes de publicar.%s', $fmt( (float) $offer['store_price'] ), $fmt( $price ), $capture );
 		} elseif ( null !== $offer['store_price'] && $price - (float) $offer['store_price'] >= 0.005 ) {
 			// Nunca pedir subir un precio: la tienda ya cobra menos que lo que anuncia la landing.
 			$warnings[] = sprintf( 'La tienda ya cobra menos (%s) de lo que anuncia la landing (%s): revisa la cifra de la oferta; no hace falta tocar la tienda.', $fmt( (float) $offer['store_price'] ), $fmt( $price ) );
