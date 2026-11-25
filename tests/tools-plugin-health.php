@@ -11,8 +11,12 @@
  */
 error_reporting( E_ALL );
 $base = sys_get_temp_dir() . '/tph-' . getmypid();
+@mkdir( $base, 0777, true );
+$base = realpath( $base ); // Las rutas de los archivos incluidos salen resueltas.
 define( 'ABSPATH', $base . '/' );
 define( 'WP_PLUGIN_DIR', $base . '/wp-content/plugins' );
+define( 'WP_CONTENT_DIR', $base . '/wp-content' );
+define( 'WPMU_PLUGIN_DIR', $base . '/wp-content/mu-plugins' );
 foreach ( array( 'ok/ok.php' => 'Bien', 'woocommerce/woocommerce.php' => 'WooCommerce', 'tarde/tarde.php' => 'Tarde', 'elementor/elementor.php' => 'Elementor' ) as $f => $n ) {
 	@mkdir( dirname( WP_PLUGIN_DIR . '/' . $f ), 0777, true );
 	file_put_contents( WP_PLUGIN_DIR . '/' . $f, "<?php\n/**\n * Plugin Name: $n\n */\n" );
@@ -24,7 +28,7 @@ function did_action( $h ) { return $GLOBALS['ph']['did'][ $h ] ?? 0; }
 function add_action( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS['ph']['hooks'][ $h ] = $cb; }
 function add_filter( $h, $cb, $p = 10, $a = 1 ) { add_action( $h, $cb ); }
 function apply_filters( $h, $v ) { return $v; }
-function is_multisite() { return false; }
+function is_multisite() { return ! empty( $GLOBALS['ph']['multi'] ); }
 function is_network_admin() { return false; }
 function validate_file( $f ) { return false !== strpos( $f, '..' ) ? 1 : 0; }
 function get_option( $k, $d = false ) { return $GLOBALS['ph']['options'][ $k ] ?? $d; }
@@ -37,7 +41,7 @@ function wp_doing_cron() { return $GLOBALS['ph']['cron']; }
 function post_type_exists( $t ) { return in_array( $t, $GLOBALS['ph']['types'], true ); }
 function rest_get_server() { return new class { function get_namespaces() { return $GLOBALS['ph']['ns']; } }; }
 function get_plugin_data( $path ) { preg_match( '/Plugin Name:\s*(.+)/', (string) file_get_contents( $path ), $m ); return array( 'Name' => trim( $m[1] ?? '' ) ); }
-function current_user_can( $c ) { $GLOBALS['ph']['caps'][] = $c; return $GLOBALS['ph']['cap']; }
+function current_user_can( $c ) { $GLOBALS['ph']['caps'][] = $c; return 'manage_network_plugins' === $c ? ! empty( $GLOBALS['ph']['netcap'] ) : $GLOBALS['ph']['cap']; }
 function is_user_logged_in() { return true; }
 function get_current_screen() { return (object) array( 'id' => $GLOBALS['ph']['screen'] ); }
 function sanitize_key( $k ) { return strtolower( preg_replace( '/[^a-z0-9_\-]/i', '', $k ) ); }
@@ -131,6 +135,22 @@ ph_check( array( 'elementor/elementor.php' => 'marker' ) === $reasons( $r ), 'El
 $GLOBALS['ph']['did']['elementor/loaded'] = 1;
 ph_check( array() === H::check( array( 'stored' => $el, 'visible' => $el, 'cached' => $el, 'included' => array_flip( array( $p( 'elementor/elementor.php' ) ) ) ) ), 'Elementor arrancado está bien' );
 
+// Dónde está un filtro: sin rutas absolutas; en una red, los mu-plugins sólo los ve quien administra la red.
+@mkdir( WPMU_PLUGIN_DIR, 0777, true );
+file_put_contents( WPMU_PLUGIN_DIR . '/organiza.php', "<?php\nreturn function ( \$l ) {\n\treturn \$l;\n};\n" );
+$mu = require WPMU_PLUGIN_DIR . '/organiza.php';
+$GLOBALS['wp_filter']['option_active_plugins'] = (object) array( 'callbacks' => array( 10 => array( 'mu' => array( 'function' => $mu ) ) ) );
+ph_check( array( 'option_active_plugins: mu-plugins/organiza.php:2' ) === H::filters(), 'un mu-plugin se nombra relativo a su carpeta: ' . json_encode( H::filters() ) );
+ph_check( false === strpos( json_encode( H::filters() ), $base ), 'nunca la ruta absoluta del servidor' );
+ph_check( 'plugins/ok/ok.php' === H::where( WP_PLUGIN_DIR . '/ok/ok.php' ) && 'wp-content/object-cache.php' === H::where( WP_CONTENT_DIR . '/object-cache.php' ) && 'wp-config.php' === H::where( $base . '/wp-config.php' ), 'plugins, wp-content y fuera de wp-content: sólo la ruta relativa o el nombre' );
+$GLOBALS['ph']['multi'] = true;
+ph_check( array( 'option_active_plugins: un mu-plugin de la red' ) === H::filters(), 'en una red, un administrador de sitio no ve qué mu-plugin: ' . json_encode( H::filters() ) );
+ph_check( 'código de la red' === H::where( $base . '/wp-config.php' ) && 'plugins/ok/ok.php' === H::where( WP_PLUGIN_DIR . '/ok/ok.php' ), 'en una red, lo de fuera de plugins se oculta al administrador de sitio' );
+$GLOBALS['ph']['netcap'] = true;
+ph_check( array( 'option_active_plugins: mu-plugins/organiza.php:2' ) === H::filters(), 'quien tiene manage_network_plugins sí lo ve' );
+$GLOBALS['ph']['multi'] = $GLOBALS['ph']['netcap'] = false;
+unset( $GLOBALS['wp_filter'] );
+
 // Fuentes reales: la base (consulta directa), get_option, alloptions y get_included_files().
 require $p( 'ok/ok.php' );
 $GLOBALS['ph']['db'] = array( 'ok/ok.php', 'tarde/tarde.php' );
@@ -192,9 +212,10 @@ $GLOBALS['ph']['db'] = $GLOBALS['ph']['options']['active_plugins'] = array( 'ok/
 ph_check( 'critical' === H::health()['status'], 'con un plugin sin cargar: critical' );
 
 // MCP.
+$writes_before = $GLOBALS['ph']['writes'];
 $out = H::execute( array() );
 ph_check( false === $out['ok'] && 'tarde/tarde.php' === ( $out['problems'][0]['plugin'] ?? '' ) && isset( $out['rest_cache'] ), 'la función del MCP dice qué no cargó: ' . json_encode( $out ) );
-ph_check( 'mcp' === ( $GLOBALS['ph']['options'][ H::OPTION ]['context'] ?? '' ), 'lo visto por el MCP queda para el Escritorio' );
+ph_check( $writes_before === $GLOBALS['ph']['writes'], 'la función del MCP sólo lee: no escribe ninguna opción' );
 ph_check( H::permission() && in_array( 'activate_plugins', array_slice( $GLOBALS['ph']['caps'], -1 ), true ), 'la función del MCP pide activate_plugins' );
 $d = H::definition();
 ph_check( ! empty( $d['meta']['annotations']['readonly'] ) && ! empty( $d['meta']['mcp']['public'] ) && 'digitalisimo-tools' === $d['category'], 'función de sólo lectura, pública para MCP' );

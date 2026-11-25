@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
  * Es barato y nunca corre en la portada: una consulta y un `get_included_files()` sólo en el Escritorio, Plugins y las
  * pantallas Digitalisimo de quien gestiona plugins, en «Salud del sitio», en la función del MCP y, en segundo plano, en
  * la comprobación de actualizaciones de plugins del cron de WordPress (`wp_update_plugins`, dos veces al día: no agrega
- * ningún evento). Lo que ve el cron (o el MCP) se guarda sólo si hay un problema (`digitalisimo_tools_plugin_health`,
+ * ningún evento). Lo que ve el cron se guarda sólo si hay un problema (`digitalisimo_tools_plugin_health`,
  * sin carga automática) y el Escritorio lo dice durante tres días aunque ya se haya arreglado solo.
  *
  * En el MCP: la Ability `digitalisimo-tools/plugin-health` (sólo lectura, `activate_plugins`), pública para MCP y, con
@@ -32,7 +32,7 @@ defined( 'ABSPATH' ) || exit;
  * API pública puede salir de una caché de página (Rest_Cache::status()).
  */
 final class Plugin_Health {
-	/** Último problema visto en segundo plano (cron o MCP): `{at, context, problems}`, sin carga automática. */
+	/** Último problema visto en segundo plano (cron): `{at, context, problems}`, sin carga automática. */
 	const OPTION   = 'digitalisimo_tools_plugin_health';
 	const ABILITY  = 'digitalisimo-tools/plugin-health';
 	const CATEGORY = 'digitalisimo-tools';
@@ -174,10 +174,35 @@ final class Plugin_Health {
 		}
 		$file = (string) $ref->getFileName();
 		if ( '' === $file ) return $ref->getName();
-		$root = defined( 'ABSPATH' ) ? rtrim( str_replace( '\\', '/', ABSPATH ), '/' ) . '/' : '';
-		$file = str_replace( '\\', '/', $file );
-		if ( '' !== $root && 0 === strpos( $file, $root ) ) $file = substr( $file, strlen( $root ) );
-		return $file . ':' . (int) $ref->getStartLine();
+		return self::where( $file ) . ':' . (int) $ref->getStartLine();
+	}
+
+	/**
+	 * Dónde está un archivo, sin rutas absolutas del servidor: relativo a la carpeta de plugins, de mu-plugins o a
+	 * wp-content; si no, sólo su nombre. En una red, los mu-plugins y lo demás fuera de la carpeta de plugins son de toda
+	 * la red: sólo quien tiene `manage_network_plugins` ve cuál.
+	 */
+	public static function where( $file ) {
+		$norm  = static function ( $path ) { return rtrim( str_replace( '\\', '/', (string) $path ), '/' ); };
+		$file  = $norm( $file );
+		$bases = array();
+		if ( defined( 'WPMU_PLUGIN_DIR' ) ) $bases['mu-plugins'] = $norm( WPMU_PLUGIN_DIR );
+		if ( defined( 'WP_PLUGIN_DIR' ) ) $bases['plugins'] = $norm( WP_PLUGIN_DIR );
+		if ( defined( 'WP_CONTENT_DIR' ) ) $bases['wp-content'] = $norm( WP_CONTENT_DIR );
+		$kind = '';
+		$rel  = basename( $file );
+		foreach ( $bases as $label => $base ) {
+			if ( '' !== $base && 0 === strpos( $file, $base . '/' ) ) {
+				$kind = $label;
+				$rel  = $label . '/' . substr( $file, strlen( $base ) + 1 );
+				break;
+			}
+		}
+		$network = function_exists( 'is_multisite' ) && is_multisite();
+		if ( $network && 'plugins' !== $kind && ! ( function_exists( 'current_user_can' ) && current_user_can( 'manage_network_plugins' ) ) ) {
+			return 'mu-plugins' === $kind ? 'un mu-plugin de la red' : 'código de la red';
+		}
+		return $rel;
 	}
 
 	private static function marker_problem( $file, array $markers ) {
@@ -251,7 +276,7 @@ final class Plugin_Health {
 		$seen = self::last_seen();
 		if ( $seen ) {
 			$when = function_exists( 'wp_date' ) ? wp_date( 'j/m/Y H:i', (int) $seen['at'] ) : gmdate( 'Y-m-d H:i', (int) $seen['at'] );
-			$where = 'mcp' === $seen['context'] ? 'una petición del MCP' : 'una tarea de fondo de WordPress (cron)';
+			$where = 'una tarea de fondo de WordPress (cron)';
 			return array( 'state' => 'recent', 'problems' => (array) $seen['problems'], 'message' => 'El ' . $when . ', en ' . $where . ', había plugins activos que no cargaron; ahora sí cargan. ' . implode( ' ', self::text( (array) $seen['problems'] ) ) . ' Si vuelve a pasar, revisa la caché de objetos y los mu-plugins del servidor.' );
 		}
 		return array( 'state' => '', 'problems' => array(), 'message' => '' );
@@ -344,9 +369,9 @@ final class Plugin_Health {
 	}
 
 	public static function execute( $input = null ) {
+		// Sólo lee: lo que vea el MCP no se guarda (el cron confirma y guarda).
 		$problems = self::check();
-		self::remember( $problems, 'mcp' );
-		$seen = self::last_seen();
+		$seen     = self::last_seen();
 		return array(
 			'ok'         => ! $problems,
 			'site'       => home_url( '/' ),
