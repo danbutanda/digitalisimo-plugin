@@ -19,8 +19,10 @@ defined( 'ABSPATH' ) || exit;
  *    página publicada queda sin lienzo, aunque nadie lo pidió, y la REST lo enseña después (`template: ""`). Con una
  *    plantilla válida para la revisión, escribiría la de la revisión, que puede ser vieja. El núcleo de Elementor ya lo
  *    evita, pero sólo en el autoguardado del editor (`Page_Templates\Module::filter_update_meta()`, acción
- *    `save_builder`); aquí se evita en todos los caminos: mientras `wp_insert_post()` guarda una revisión, su entrada
- *    conserva `_wp_page_template`.
+ *    `save_builder`); aquí se evita en todos los caminos: mientras `wp_insert_post()` guarda una revisión (desde que la
+ *    base confirma la actualización, `clean_post_cache`, hasta su bloque de la plantilla), su entrada conserva
+ *    `_wp_page_template`. Se descarta una sola escritura, y la marca se limpia también en `edit_post`, `wp_insert_post`,
+ *    la siguiente actualización y `shutdown`: una actualización que termina antes no deja la marca puesta.
  * 2. Publicar desde un autoguardado deshace la plantilla pedida. El autoguardado de una publicada copia la plantilla
  *    de la entrada al crearse (`Document::get_autosave()` → `DB::copy_elementor_meta()`) y `publish-document` la vuelve a
  *    copiar a la entrada (`Revisions_Manager::restore_revision()`): si entre tanto la plantilla de la entrada cambió
@@ -37,8 +39,12 @@ final class Page_Template {
 	/** @var bool */
 	private static $initialized = false;
 
-	/** @var int Entrada de la revisión que `wp_insert_post()` está guardando (0: ninguna). */
+	/** @var int[] [ revisión, entrada ] que `wp_insert_post()` empezó a actualizar (`pre_post_update`), o vacío. */
+	private static $revision_pending = array();
+
+	/** @var int Entrada de la revisión cuya actualización confirmó la base (`clean_post_cache`); 0: ninguna. */
 	private static $revision_parent = 0;
+
 
 	/** @var array<int, string> Plantilla anterior de cada entrada durante su escritura. */
 	private static $previous = array();
@@ -50,7 +56,10 @@ final class Page_Template {
 		}
 		self::$initialized = true;
 		add_action( 'pre_post_update', array( __CLASS__, 'post_updating' ), PHP_INT_MIN, 2 );
+		add_action( 'clean_post_cache', array( __CLASS__, 'post_stored' ), PHP_INT_MIN, 1 );
 		add_action( 'edit_post', array( __CLASS__, 'post_updated' ), PHP_INT_MIN, 1 );
+		add_action( 'wp_insert_post', array( __CLASS__, 'post_updated' ), PHP_INT_MIN, 1 );
+		add_action( 'shutdown', array( __CLASS__, 'post_updated' ), PHP_INT_MIN, 0 );
 		add_filter( 'update_post_metadata', array( __CLASS__, 'before_write' ), PHP_INT_MAX, 3 );
 		add_filter( 'add_post_metadata', array( __CLASS__, 'before_write' ), PHP_INT_MAX, 3 );
 		add_action( 'updated_post_meta', array( __CLASS__, 'written' ), 10, 4 );
@@ -62,7 +71,7 @@ final class Page_Template {
 	 * es una revisión, su entrada queda protegida hasta `edit_post`. Cualquier otra actualización la libera.
 	 */
 	public static function post_updating( $post_id, $data = array() ): void {
-		self::$revision_parent = 0;
+		self::post_updated();
 		if ( ! is_array( $data ) || 'revision' !== ( $data['post_type'] ?? '' ) || ! function_exists( 'wp_is_post_revision' ) ) {
 			return;
 		}
@@ -70,12 +79,26 @@ final class Page_Template {
 		if ( $parent <= 0 && ! empty( $data['post_parent'] ) ) {
 			$parent = (int) $data['post_parent'];
 		}
-		self::$revision_parent = max( 0, $parent );
+		if ( $parent > 0 ) {
+			self::$revision_pending = array( (int) $post_id, $parent );
+		}
 	}
 
-	/** `edit_post` (justo después del bloque de la plantilla de `wp_insert_post()`): fin de la protección. */
+	/**
+	 * `clean_post_cache` de esa revisión: la base guardó la actualización (si falló, `wp_insert_post()` termina antes y
+	 * nunca llega aquí) y lo siguiente es el bloque de la plantilla: desde ahora, su entrada queda protegida.
+	 */
+	public static function post_stored( $post_id = 0 ): void {
+		if ( self::$revision_pending && (int) $post_id === self::$revision_pending[0] ) {
+			self::$revision_parent  = self::$revision_pending[1];
+			self::$revision_pending = array();
+		}
+	}
+
+	/** `edit_post`, `wp_insert_post` y `shutdown` (y el inicio de otra actualización): fin de la protección. */
 	public static function post_updated( $post_id = 0 ): void {
-		self::$revision_parent = 0;
+		self::$revision_parent  = 0;
+		self::$revision_pending = array();
 	}
 
 	/**
@@ -89,6 +112,8 @@ final class Page_Template {
 		}
 		$object_id = (int) $object_id;
 		if ( self::$revision_parent && $object_id === self::$revision_parent ) {
+			// La única escritura del bloque de la plantilla de esa revisión: se descarta y la marca se limpia.
+			self::post_updated();
 			return true;
 		}
 		if ( $object_id > 0 && ! self::is_revision( $object_id ) ) {
@@ -121,9 +146,10 @@ final class Page_Template {
 
 	/** Para las pruebas: vuelve al estado anterior a `init()`. */
 	public static function reset(): void {
-		self::$initialized     = false;
-		self::$revision_parent = 0;
-		self::$previous        = array();
+		self::$initialized      = false;
+		self::$revision_parent  = 0;
+		self::$revision_pending = array();
+		self::$previous         = array();
 	}
 
 	/** La plantilla guardada (de la base, sin filtros de lectura), con vacío y `default` como `default`. */

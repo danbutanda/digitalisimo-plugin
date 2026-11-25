@@ -17,7 +17,9 @@
  * - P3: lo de siempre sigue igual: actualizar la entrada con una plantilla válida la escribe, una inválida da `default`,
  *   escribir la meta de una revisión no la propaga ni la bloquea, y una actualización de revisión que no llega a
  *   `edit_post` no bloquea la siguiente escritura de su entrada.
- * Falla con el código anterior (no existe `class-page-template.php`): P1 y P2.
+ * - P5: la marca de la revisión sólo vale desde que la base confirma su actualización (`clean_post_cache`), para una
+ *   sola escritura, y se limpia en `wp_insert_post` y `shutdown`.
+ * Falla con el código anterior (no existe `class-page-template.php`): P1 y P2; P5 falla con c58062f5.
  */
 
 namespace {
@@ -127,6 +129,7 @@ namespace {
 		if ( $fail ) {
 			return 0;
 		}
+		do_action( 'clean_post_cache', $id, (object) array( 'ID' => $id ) );
 		if ( ! empty( $postarr['page_template'] ) ) {
 			$templates = 'revision' === $p['type'] ? ( $GLOBALS['pt']['revision_templates'] ?? array() ) : array( 'elementor_canvas' => 1, 'elementor_header_footer' => 1 );
 			if ( 'default' !== $postarr['page_template'] && ! isset( $templates[ $postarr['page_template'] ] ) ) {
@@ -136,7 +139,13 @@ namespace {
 			}
 		}
 		do_action( 'edit_post', $id, (object) array( 'ID' => $id ) );
+		do_action( 'wp_insert_post', $id, (object) array( 'ID' => $id ), true );
 		return $id;
+	}
+	/** Registro de la Abilities API: `wp_register_ability_args` y el `execute_callback` resultante. */
+	function pt_ability( string $name, callable $callback ): callable {
+		$args = apply_filters( 'wp_register_ability_args', array( 'execute_callback' => $callback ), $name );
+		return $args['execute_callback'];
 	}
 	/** `DB::copy_elementor_meta()` de una revisión a su entrada (promoción de `publish-document`). */
 	function pt_restore( int $from, int $to ) {
@@ -210,6 +219,30 @@ namespace {
 	unset( $GLOBALS['pt']['meta'][ PAGE ]['_wp_page_template'] );
 	update_post_meta( PAGE, '_wp_page_template', 'elementor_canvas' );
 	check( 'elementor_canvas' === tpl( PAGE ) && 'elementor_canvas' === tpl( AUTO ), 'P2.7: una entrada sin la meta (add_post_metadata) también la pasa a su autoguardado «default»' );
+
+	// P5: la marca de la revisión sólo vale para su bloque de la plantilla.
+	pt_reset();
+	do_action( 'pre_post_update', AUTO, array( 'post_type' => 'revision', 'post_parent' => PAGE ) );
+	update_post_meta( PAGE, '_wp_page_template', 'elementor_header_footer' );
+	check( 'elementor_header_footer' === tpl( PAGE ), 'P5.1: antes de que la base confirme la revisión (clean_post_cache), nada se bloquea' );
+	pt_reset();
+	do_action( 'pre_post_update', AUTO, array( 'post_type' => 'revision', 'post_parent' => PAGE ) );
+	do_action( 'clean_post_cache', AUTO, null );
+	update_post_meta( AUTO, '_wp_page_template', 'default' );
+	update_post_meta( PAGE, '_wp_page_template', 'elementor_header_footer' );
+	check( 'elementor_canvas' !== tpl( PAGE ) && 'elementor_header_footer' === tpl( PAGE ), 'P5.2: se descarta una sola escritura (la del bloque) y la siguiente pasa' );
+	pt_reset();
+	do_action( 'pre_post_update', AUTO, array( 'post_type' => 'revision', 'post_parent' => PAGE ) );
+	do_action( 'clean_post_cache', AUTO, null );
+	do_action( 'shutdown' );
+	update_post_meta( PAGE, '_wp_page_template', 'elementor_header_footer' );
+	check( 'elementor_header_footer' === tpl( PAGE ), 'P5.3: shutdown limpia una marca que quedó puesta' );
+	pt_reset();
+	do_action( 'pre_post_update', AUTO, array( 'post_type' => 'revision', 'post_parent' => PAGE ) );
+	do_action( 'clean_post_cache', AUTO, null );
+	do_action( 'wp_insert_post', AUTO, null, true );
+	update_post_meta( PAGE, '_wp_page_template', 'elementor_header_footer' );
+	check( 'elementor_header_footer' === tpl( PAGE ), 'P5.4: y wp_insert_post también' );
 
 	// P3: lo de siempre sigue igual.
 	pt_reset( 'default', 'default' );
