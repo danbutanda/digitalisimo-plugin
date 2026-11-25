@@ -321,7 +321,23 @@ namespace {
 		preg_match_all( '/"id":"([0-9a-f]{7})"/', $json, $m );
 		check( count( $m[1] ) === count( array_unique( $m[1] ) ) && count( $m[1] ) > 40, "S11 $variant: IDs únicos de siete hexadecimales" );
 		check( 'Oferta navideña: 40 % de descuento en toda la tienda' === $page['title'], "S12 $variant: título" );
-		check( false !== strpos( $json, '"border_color":"#E6E6E6"' ) && false === strpos( $json, '"border_color":"' . GRAY . '"' ), "S17 $variant: los bordes claros de las tarjetas y las preguntas siguen claros (la corrección de contraste es sólo del texto)" );
+		// Los bordes claros de las tarjetas y de las preguntas (no los botones, que pueden llevar un borde para distinguirse).
+		$light_edges = 0;
+		$dark_edges  = 0;
+		$edges = static function ( array $list ) use ( &$edges, &$light_edges, &$dark_edges ) {
+			foreach ( $list as $el ) {
+				if ( 'button' !== ( $el['widgetType'] ?? '' ) && isset( $el['settings']['border_color'] ) ) {
+					if ( '#E6E6E6' === $el['settings']['border_color'] ) {
+						++$light_edges;
+					} elseif ( GRAY === $el['settings']['border_color'] ) {
+						++$dark_edges;
+					}
+				}
+				$edges( (array) ( $el['elements'] ?? array() ) );
+			}
+		};
+		$edges( $els );
+		check( $light_edges > 0 && 0 === $dark_edges, "S17 $variant: los bordes claros de las tarjetas y las preguntas siguen claros (la corrección de contraste es sólo del texto) · $light_edges claros, $dark_edges oscuros" );
 	}
 	// Muchos productos: los más vendidos y las categorías.
 	$many  = array( 'products' => array_slice( $products, 0, 8 ), 'categories' => array( array( 'name' => 'Bombas', 'url' => 'https://ferre.test/categoria/bombas/', 'image' => array( 'id' => 1, 'url' => 'https://ferre.test/b.png', 'alt' => '' ), 'count' => 30 ) ), 'total' => 80, 'scope' => 'all', 'scope_name' => '', 'url' => 'https://ferre.test/tienda/', 'top' => true );
@@ -436,7 +452,8 @@ namespace {
 		check( '' !== $bgc && Brand::contrast( $bgc, Brand::hex( (string) $btn['settings']['button_text_color'] ) ) >= 3, 'R2 un botón de una marca de un solo color se lee · ' . json_encode( $btn['settings'] ) );
 	}
 	$hero_btn = $find( Brand::apply( array( $page['elements'][0] ), $mono ), 'button' );
-	check( '#1E3A8A' !== Brand::hex( (string) end( $hero_btn )['settings']['background_color'] ), 'R2 el botón de la portada no es del mismo color que la portada' );
+	$hb = end( $hero_btn )['settings'];
+	check( Brand::contrast( Brand::hex( (string) $hb['background_color'] ), '#1E3A8A' ) >= 3 || ( 'solid' === ( $hb['border_border'] ?? '' ) && Brand::contrast( Brand::hex( (string) $hb['border_color'] ), '#1E3A8A' ) >= 3 ), 'R2 el botón de la portada se distingue de la portada de su mismo color (fondo o borde con contraste ≥ 3) · ' . json_encode( $hb ) );
 	// R3 · Palabras de tienda no son textos de cursos.
 	$tools = $products;
 	$tools[0]['name'] = 'Módulo solar 100W';
@@ -542,7 +559,13 @@ namespace {
 			};
 			$pairs = array();
 			if ( 'button' === $w ) {
-				$pairs[] = array( 'button_text_color', $eff( $s, 'background_color', $kit ) ?: $here, 3 );
+				$pairs[] = array( 'button_text_color', $eff( $s, 'background_color', $kit ) ?: $here, 4.5 );
+				// El botón se distingue de su sección: su fondo o su borde con contraste ≥ 3.
+				$bb = $eff( $s, 'background_color', $kit );
+				$be = 'solid' === ( $s['border_border'] ?? '' ) ? $eff( $s, 'border_color', $kit ) : '';
+				if ( '' !== $bb && Brand::contrast( $bb, $here ) < 3 && ( '' === $be || Brand::contrast( $be, $here ) < 3 ) ) {
+					$bad[] = sprintf( 'button.fondo %s sobre %s = %.2f sin borde', $bb, $here, Brand::contrast( $bb, $here ) );
+				}
 			} elseif ( 'countdown' === $w ) {
 				$box     = $eff( $s, 'box_background_color', $kit ) ?: $here;
 				$pairs[] = array( 'digits_color', $box, 3 );
@@ -610,6 +633,17 @@ namespace {
 			check( ! $case[1] || $look['matches_site'], "C3 $name/$what: look reconoce los colores del sitio (también la paleta DIGITALÍSIMO cuando es la del sitio, y el pastel aunque no alcance contraste en el texto) · " . json_encode( array( $look['digitalisimo'], $look['brand_used'] ) ) );
 		}
 	}
+	// C8 · Detalles de la verificación: el texto sobre el acento con blanco o negro, el de más contraste (#00A86B:
+	// negro 6.8, no blanco 3.08), y el botón #333 sobre la portada negra con un borde que se distingue.
+	$dg      = Brand::resolve( $palettes['DIGITALÍSIMO'][0], array() );
+	$dg_btns = $find( Brand::apply( $store_page['elements'], $dg ), 'button' );
+	$green   = array_values( array_filter( $dg_btns, function ( $b ) use ( $dg ) { return isset( $b['settings']['__globals__']['background_color'] ) || '#00A86B' === Brand::hex( (string) ( $b['settings']['background_color'] ?? '' ) ); } ) );
+	check( $green && '#000000' === $green[0]['settings']['button_text_color'] && '#000000' === $dg['on_accent'], 'C8 sobre el verde #00A86B el texto es negro (6.8), no blanco (3.08) · ' . json_encode( $green ? $green[0]['settings'] : null ) );
+	$mono_brand = Brand::resolve( $palettes['negro y gris'][0], array() );
+	$mono_hero  = $find( Brand::apply( array( $store_page['elements'][0] ), $mono_brand ), 'button' );
+	$mh         = end( $mono_hero )['settings'];
+	check( '#333333' === $eff( $mh, 'background_color', $mono_brand['kit_colors'] ) && 'solid' === ( $mh['border_border'] ?? '' ) && Brand::contrast( Brand::hex( (string) $mh['border_color'] ), '#000000' ) >= 3, 'C8 el botón #333 sobre la portada negra lleva un borde que se distingue · ' . json_encode( $mh ) );
+
 	// C4 · Un botón con el texto del color de su fondo: look lo ve y check.ok no puede ser verdadero.
 	$broken = array( array( 'id' => 'x1', 'elType' => 'widget', 'widgetType' => 'button', 'settings' => array( 'text' => 'Ver', 'background_color' => '#222222', 'button_text_color' => '#222222' ), 'elements' => array() ) );
 	$look   = Brand::look( $broken, $fac, array() );

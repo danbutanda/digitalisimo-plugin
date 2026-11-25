@@ -211,8 +211,10 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
     avisa que la tienda sigue cobrando el precio normal.
   - **Revisión (2026-11-25, segunda vuelta).** Todo texto pasa WCAG AA: un pase final (`Brand::contrast_pass()`),
     siempre y no sólo con colores con tono, mide cada texto contra el fondo donde se pinta (su botón, la caja del
-    contador, la pregunta o la sección): 4.5 en texto normal y 3 en botones, cifras, iconos y títulos grandes; si no
-    llega, blanco o negro, el que dé más contraste. Un kit propio en negro y gris (o un fondo fuerte sin tono en la
+    contador, la pregunta o la sección): 4.5 en texto normal y en los botones (salen de 15 a 18 px: no son texto
+    grande); 3 en títulos grandes, cifras del contador e iconos; si no llega, blanco o negro, el que dé más contraste
+    (también el texto sobre el acento: en #00A86B, negro). Cada botón se distingue de su sección: si su fondo no llega a
+    3 frente a ella (un acento claro sobre blanco, #333 sobre una portada negra), lleva un borde que sí llega. Un kit propio en negro y gris (o un fondo fuerte sin tono en la
     cabecera) es la identidad del sitio. `look` compara contra los colores DEL SITIO: la paleta DIGITALÍSIMO es ajena
     sólo si el sitio no la usa (digitalisimo.lat y .mx la usan); un primario pastel sigue como fondo con texto oscuro y
     cuenta como marca; `look.contrast` y `check.contrast_ok`. Precios de la oferta de tienda: como los muestra la

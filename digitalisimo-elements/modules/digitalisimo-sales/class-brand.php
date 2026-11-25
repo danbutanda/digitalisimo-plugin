@@ -531,8 +531,9 @@ final class Brand {
 		}
 		return array(
 			'colors'      => $colors,
-			'on_primary'  => self::on( $primary, $text ),
-			'on_accent'   => '' !== $kit['button']['text'] && $kit['button']['background'] === $accent && self::contrast( $kit['button']['text'], $accent ) >= 3 ? $kit['button']['text'] : self::on( $accent, $text ),
+			'on_primary'  => self::best_bw( $primary ),
+			// El texto sobre el acento (los botones): el del kit si pasa 4.5; si no, blanco o negro, el de más contraste.
+			'on_accent'   => '' !== $kit['button']['text'] && $kit['button']['background'] === $accent && self::contrast( $kit['button']['text'], $accent ) >= self::AA_TEXT ? $kit['button']['text'] : self::best_bw( $accent ),
 			'fonts'       => array(
 				'heading' => $heading,
 				'body'    => $body,
@@ -681,6 +682,18 @@ final class Brand {
 					}
 				}
 			}
+			// Un botón se distingue de su sección (su fondo o su borde con contraste ≥ 3).
+			if ( 'button' === $widget ) {
+				$btn_bg = self::color_value( $s, $globals, 'background_color', $brand );
+				$edge   = 'solid' === ( $s['border_border'] ?? '' ) ? self::color_value( $s, $globals, 'border_color', $brand ) : '';
+				if ( '' !== $btn_bg && self::contrast( $btn_bg, $here ) + 1e-9 < self::AA_LARGE && ( '' === $edge || self::contrast( $edge, $here ) + 1e-9 < self::AA_LARGE ) ) {
+					$issues[] = sprintf( 'button.fondo %s sobre %s (%.2f < 3) sin borde que se distinga', $btn_bg, $here, self::contrast( $btn_bg, $here ) );
+					if ( $fix ) {
+						$s = self::button_edge( $s, $globals, $btn_bg, $here, $brand );
+						unset( $globals['border_color'] );
+					}
+				}
+			}
 			// El resalte de un título (`selector span{color:…}`) contra la sección.
 			if ( 'heading' === $widget && is_string( $s['custom_css'] ?? null ) && preg_match( '/span\{color:(#[0-9A-Fa-f]{6})/', $s['custom_css'], $m ) ) {
 				$min = self::large_heading( $s ) ? self::AA_LARGE : self::AA_TEXT;
@@ -719,7 +732,8 @@ final class Brand {
 			case 'text-editor':
 				return array( array( 'text_color', $here, self::AA_TEXT ), array( 'link_color', $here, self::AA_TEXT ) );
 			case 'button':
-				return array( array( 'button_text_color', $bg_of( 'background_color' ), self::AA_LARGE ) );
+				// 15 a 18 px en negritas: no es texto grande para WCAG; 4.5.
+				return array( array( 'button_text_color', $bg_of( 'background_color' ), self::AA_TEXT ) );
 			case 'countdown':
 				$box = $bg_of( 'box_background_color' );
 				return array( array( 'digits_color', $box, self::AA_LARGE ), array( 'label_color', $box, self::AA_TEXT ) );
@@ -751,6 +765,29 @@ final class Brand {
 			return $size >= 24 || ( $size >= 18.66 && $weight >= 700 );
 		}
 		return in_array( (string) ( $s['header_size'] ?? 'h2' ), array( 'h1', 'h2', 'h3' ), true );
+	}
+
+	/**
+	 * Un botón que no se distingue de su sección (contraste de su fondo < 3: un acento claro sobre blanco, #333 sobre
+	 * una portada negra, el mismo color que la sección) lleva un borde que sí se distingue: el color del texto del sitio
+	 * si alcanza 3 contra la sección; si no, blanco o negro.
+	 */
+	private static function button_edge( array $settings, array $globals, string $btn_bg, string $section, array $brand ): array {
+		if ( self::contrast( $btn_bg, $section ) + 1e-9 >= self::AA_LARGE ) {
+			return $settings;
+		}
+		$text                      = (string) ( $brand['colors']['text']['color'] ?? '' );
+		$settings['border_border'] = 'solid';
+		$settings['border_width']  = array(
+			'unit'     => 'px',
+			'top'      => '2',
+			'right'    => '2',
+			'bottom'   => '2',
+			'left'     => '2',
+			'isLinked' => true,
+		);
+		$settings['border_color']  = '' !== $text && self::contrast( $text, $section ) >= self::AA_LARGE ? $text : self::best_bw( $section );
+		return $settings;
 	}
 
 	/** Blanco o negro: el que más contraste dé sobre ese fondo. */
@@ -805,19 +842,14 @@ final class Brand {
 				$settings[ $key ] = self::neutral_deep( $settings[ $key ], $brand );
 			}
 		}
-		// El texto de un botón contra su fondo.
+		// Un botón: su texto contra su fondo (4.5: sale de 15 a 18 px, no es texto grande) y el botón contra su sección.
 		if ( 'button' === $widget ) {
 			$btn_bg = self::color_value( $settings, $globals, 'background_color', $brand );
-			if ( '' !== $btn_bg && self::distance( $btn_bg, '' !== $here ? $here : self::WHITE ) < 40 ) {
-				// Un botón del mismo color que su sección (una marca de un solo color) no se vería: se invierte.
-				$flip = self::on( '' !== $here ? $here : self::WHITE, $brand['colors']['text']['color'] );
-				unset( $globals['background_color'], $globals['button_text_color'] );
-				$settings['background_color']  = $flip;
-				$primary                       = $brand['colors']['primary']['color'];
-				$settings['button_text_color'] = self::contrast( $primary, $flip ) >= 3 ? $primary : self::on( $flip, $brand['colors']['text']['color'] );
-			} elseif ( '' !== $btn_bg && self::vivid( $btn_bg ) ) {
+			if ( '' !== $btn_bg ) {
 				unset( $globals['button_text_color'] );
-				$settings['button_text_color'] = $btn_bg === $brand['colors']['accent']['color'] ? $brand['on_accent'] : self::on( $btn_bg, $brand['colors']['text']['color'] );
+				$settings['button_text_color'] = $btn_bg === $brand['colors']['accent']['color'] ? $brand['on_accent'] : self::best_bw( $btn_bg );
+				$settings                      = self::button_edge( $settings, $globals, $btn_bg, '' !== $here ? $here : self::WHITE, $brand );
+				unset( $globals['border_color'] );
 			}
 		}
 		// Los enlaces de un texto sin color propio: el de la marca (si no, el azul del navegador o el del tema).

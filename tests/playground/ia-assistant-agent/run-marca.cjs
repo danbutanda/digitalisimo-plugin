@@ -237,8 +237,8 @@ const digits = (n) => Number(n).toLocaleString('en-US', { maximumFractionDigits:
         out.images = [...root.querySelectorAll('img')].filter((i) => i.naturalWidth > 0 && i.offsetWidth > 40).length;
         out.dels = [...root.querySelectorAll('del')].map((d) => d.textContent.trim());
         out.text = root.innerText;
-        // Contraste de lo que se ve: cada texto contra el primer fondo opaco de sus ancestros (WCAG AA: 4.5; 3 si es grande
-        // —24 px, o 18.66 px en negritas— o un botón).
+        // Contraste de lo que se ve: cada texto contra el primer fondo opaco de sus ancestros (WCAG AA: 4.5; 3 sólo si es
+        // grande —24 px, o 18.66 px en negritas—; los botones de 15 a 18 px, 4.5).
         const rgb = (v) => { const m = String(v).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/); return m && (m[4] === undefined || Number(m[4]) >= 0.6) ? [Number(m[1]), Number(m[2]), Number(m[3])] : null; };
         const L = (c) => c.map((x) => x / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0);
         const ratio = (a, b) => (Math.max(L(a), L(b)) + 0.05) / (Math.min(L(a), L(b)) + 0.05);
@@ -251,7 +251,7 @@ const digits = (n) => Number(n).toLocaleString('en-US', { maximumFractionDigits:
           const fg = rgb(cs.color);
           if (!fg) continue;
           const size = parseFloat(cs.fontSize);
-          const large = size >= 24 || (size >= 18.66 && Number(cs.fontWeight) >= 700) || !!node.closest('.elementor-button');
+          const large = size >= 24 || (size >= 18.66 && Number(cs.fontWeight) >= 700);
           const r = ratio(fg, bgOf(node));
           if (r + 1e-6 < (large ? 3 : 4.5)) out.lowContrast.push(`${node.textContent.trim().slice(0, 40)} · ${cs.color} sobre ${bgOf(node).join(',')} = ${r.toFixed(2)}`);
         }
