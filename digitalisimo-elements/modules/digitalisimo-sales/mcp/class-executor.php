@@ -1,12 +1,14 @@
 <?php
 namespace Digitalisimo\Elements\Sales\Mcp;
 
+use Digitalisimo\Elements\Sales\Brand;
 use Digitalisimo\Elements\Sales\Builder;
 use Digitalisimo\Elements\Sales\Catalog;
 use Digitalisimo\Elements\Sales\Pages;
 use Digitalisimo\Elements\Sales\Placeholders;
 use Digitalisimo\Elements\Sales\Product;
 use Digitalisimo\Elements\Sales\Site;
+use Digitalisimo\Elements\Sales\Store;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -37,7 +39,9 @@ final class Executor {
 	 * @param mixed         $input  Entrada del cliente.
 	 * @param callable|null $create Para las pruebas: `function( $title, $elements )` en lugar de `Pages::create()`.
 	 * @param array         $deps   Para las pruebas: `site` (en lugar de `Site::read()`), `product` (`function( $id )`
-	 *                              en lugar de `Product::read()`) y `regenerable` (en lugar de `Pages::regenerable()`).
+	 *                              en lugar de `Product::read()`), `regenerable` (en lugar de `Pages::regenerable()`),
+	 *                              `brand` (en lugar de `Brand::read()`), `catalog` (`function( $category )` en lugar de
+	 *                              `Store::catalog()`) y `docs` (en lugar de `Brand::design_docs()`).
 	 * @return array|\WP_Error
 	 */
 	public static function run( string $tool, $input, $create = null, array $deps = array() ) {
@@ -169,6 +173,18 @@ final class Executor {
 				return $ok;
 			}
 		}
+		// La plantilla de página: la que se pidió (blank_page) o, al rehacer, la que ya tiene el borrador (la que el dueño
+		// eligió a mano se respeta); en uno nuevo, la cabecera y el pie del sitio.
+		$layout   = array_key_exists( 'blank_page', $input ) ? ( ! empty( $input['blank_page'] ) ? 'blank' : 'site' ) : '';
+		$template = self::page_template( $layout, $regenerate, $deps );
+		if ( isset( $input['store_offer'] ) ) {
+			foreach ( array( 'product_id', 'offer', 'template', 'replacements', 'omit_blocks', 'close_date' ) as $key ) {
+				if ( isset( $input[ $key ] ) ) {
+					return self::invalid( sprintf( 'store_offer (oferta de toda la tienda o de una categoría) va sin %s: la landing se arma sola con los productos reales.', $key ) );
+				}
+			}
+			return self::store_offer( $input, $create, $deps, $regenerate, $layout, $template );
+		}
 		$product_id = $input['product_id'] ?? null;
 		if ( null !== $product_id && ( ! is_int( $product_id ) && ! ( is_string( $product_id ) && ctype_digit( $product_id ) ) || (int) $product_id <= 0 ) ) {
 			return self::invalid( 'product_id debe ser el ID (número) de un producto de la tienda.' );
@@ -245,6 +261,10 @@ final class Executor {
 			$whatsapp        = (string) $site['whatsapp'];
 			$whatsapp_source = (string) $site['whatsapp_source'];
 		}
+		// Con la cabecera y el pie del sitio: sin el pie propio de la plantilla (no quedan dos pies) y, si la cabecera del
+		// sitio es fija, la barra de cierre deja de ser fija (no la tapa).
+		$docs = isset( $deps['docs'] ) && is_array( $deps['docs'] ) ? $deps['docs'] : Brand::design_docs();
+		$data = self::fit_to_site( $data, $meta, 'elementor_canvas' !== $template, Brand::sticky_header( $docs ) );
 		$built = Builder::build(
 			$data,
 			$meta,
@@ -260,7 +280,13 @@ final class Executor {
 		if ( is_wp_error( $built ) ) {
 			return $built;
 		}
-		$page = call_user_func( $create, $title, $built['elements'], $regenerate, $id );
+		// Los colores, las tipografías y los botones del sitio, nunca los de DIGITALÍSIMO (caso plomerito 3).
+		$brand             = self::brand( $deps );
+		$built['elements'] = Brand::apply( $built['elements'], $brand );
+		$page              = call_user_func( $create, $title, $built['elements'], $regenerate, $id, $layout );
+		if ( is_array( $page ) && ! isset( $page['layout'] ) ) {
+			$page['layout'] = $template;
+		}
 		if ( is_wp_error( $page ) ) {
 			return $page;
 		}
@@ -347,6 +373,10 @@ final class Executor {
 				$review[] = $warning;
 			}
 		}
+		$check = self::check( $built['elements'], $brand, $page, $layout, $landing ? (string) $landing['buy_url'] : '' );
+		if ( ! $landing && $check['course_texts'] && function_exists( 'WC' ) ) {
+			$review[] = 'Esta plantilla es para cursos y programas: para una oferta de la tienda usa store_offer (toda la tienda o una categoría) o product_id (un producto), que arman la landing con los productos reales y sin textos de cursos.';
+		}
 		$out = array(
 			'ok'               => true,
 			'tool'             => 'create-page',
@@ -381,6 +411,9 @@ final class Executor {
 			'event_logo'       => $built['event_logo'],
 			'pages_to_create'  => $links,
 			'review'           => $review,
+			'brand'            => Brand::summary( $brand ),
+			'look'             => $check['look'],
+			'check'            => $check,
 			'llm_instructions' => $finish
 				? 'La página quedó en BORRADOR y terminada (sin placeholders a la vista). Repórtalo corto: la vista previa (' . (string) $page['preview_url'] . ') y la edición, de dónde salieron los datos (filled_from) y, si hay, lo pendiente (pending) y lo de review. No digas que faltan datos que ya están en filled_from. Publicarla le toca a una persona.'
 				: 'La página quedó en BORRADOR. Muestra al usuario la vista previa (' . (string) $page['preview_url'] . ') y lo que falta revisar; publicarla le toca a una persona.',
@@ -397,5 +430,185 @@ final class Executor {
 			);
 		}
 		return $out;
+	}
+
+	/** La identidad del sitio (`Brand::read()`, o la de las pruebas). */
+	private static function brand( array $deps ): array {
+		return isset( $deps['brand'] ) && is_array( $deps['brand'] ) ? $deps['brand'] : Brand::read();
+	}
+
+	/**
+	 * Lo que una persona vería, medido sobre lo que se guardó: colores y tipografías (`look`, con los globales del kit
+	 * resueltos), cabecera y pie del sitio, a dónde lleva el botón principal, cuántos productos y si queda algún texto de
+	 * cursos. El Asistente afirma algo («ya usa tus colores») sólo si esto lo confirma.
+	 */
+	private static function check( array $elements, array $brand, array $page, string $layout, string $main_url ): array {
+		$kit_colors = array();
+		foreach ( (array) ( $brand['kit_colors'] ?? array() ) as $id => $c ) {
+			$kit_colors[ $id ] = is_array( $c ) ? (string) ( $c['color'] ?? '' ) : (string) $c;
+		}
+		$look    = Brand::look( $elements, $brand, $kit_colors );
+		$buttons = array();
+		self::buttons( $elements, $buttons );
+		$main    = '' !== $main_url ? $main_url : ( $buttons ? $buttons[0] : '' );
+		$cart    = '' !== $main && preg_match( '#/(carrito|cart)/?(\?|$)#i', (string) wp_parse_url( $main, PHP_URL_PATH ) . ( false !== strpos( $main, '?' ) ? '?' : '' ) ) && false === strpos( $main, 'add-to-cart=' );
+		unset( $layout );
+		$header  = 'elementor_canvas' !== (string) ( $page['layout'] ?? 'elementor_header_footer' );
+		return array(
+			'look'               => $look,
+			'site_header_footer' => $header,
+			'main_button'        => $main,
+			'main_button_cart'   => $cart,
+			'course_texts'       => Store::course_texts( $elements ),
+			// Sin identidad en el sitio (ni kit propio, ni colores en su cabecera, pie o logo) no hay nada que corregir.
+			'contrast_ok'        => ! $look['contrast'],
+			// Sin identidad en el sitio (ni kit propio, ni colores en su cabecera, pie o logo) no hay colores que corregir;
+			// el contraste se exige siempre.
+			'ok'                 => ( $look['matches_site'] || ! $look['site_identity'] ) && ! $look['digitalisimo'] && ! $look['contrast'] && $header && ! $cart && ! Store::course_texts( $elements ),
+		);
+	}
+
+	/** Los destinos de los botones, en orden. */
+	private static function buttons( array $elements, array &$out ): void {
+		foreach ( $elements as $el ) {
+			if ( ! is_array( $el ) ) {
+				continue;
+			}
+			if ( 'button' === ( $el['widgetType'] ?? '' ) && is_string( $el['settings']['link']['url'] ?? null ) && '' !== $el['settings']['link']['url'] && '#' !== $el['settings']['link']['url'][0] ) {
+				$out[] = $el['settings']['link']['url'];
+			}
+			self::buttons( (array) ( $el['elements'] ?? array() ), $out );
+		}
+	}
+
+	/** La landing de una oferta de tienda: toda la tienda o una categoría (`Store`). */
+	/**
+	 * La plantilla de página con la que queda: `blank` → el lienzo vacío; `site` → la cabecera y el pie del sitio; sin
+	 * pedirla, al rehacer, la que ya tiene el borrador (`Pages::template_of()`), y si no, la cabecera y el pie del sitio.
+	 */
+	private static function page_template( string $layout, int $regenerate, array $deps ): string {
+		if ( 'blank' === $layout ) {
+			return 'elementor_canvas';
+		}
+		if ( 'site' === $layout || $regenerate <= 0 ) {
+			return 'elementor_header_footer';
+		}
+		$current = isset( $deps['template_of'] ) && is_callable( $deps['template_of'] ) ? (string) call_user_func( $deps['template_of'], $regenerate ) : Pages::template_of( $regenerate );
+		// También «default» (la «Plantilla predeterminada» del tema, elegida a mano): se respeta.
+		return '' !== $current ? $current : 'elementor_header_footer';
+	}
+
+	/**
+	 * Una plantilla del kit dentro del sitio: con la cabecera y el pie del sitio se quita el bloque `pie` propio (si no,
+	 * quedan dos pies) y, con una cabecera fija, la barra de cierre deja de ser fija (la taparía o la cabecera a ella).
+	 */
+	private static function fit_to_site( array $data, array $meta, bool $site_chrome, bool $sticky_header ): array {
+		$drop     = array();
+		$unsticky = array();
+		foreach ( (array) ( $meta['blocks'] ?? array() ) as $block ) {
+			if ( $site_chrome && 'pie' === ( $block['key'] ?? '' ) ) {
+				$drop = array_merge( $drop, (array) $block['sections'] );
+			}
+			if ( $site_chrome && $sticky_header && 'barra-de-cierre' === ( $block['key'] ?? '' ) ) {
+				$unsticky = array_merge( $unsticky, (array) $block['sections'] );
+			}
+		}
+		$out = array();
+		foreach ( (array) ( $data['content'] ?? array() ) as $el ) {
+			$id = (string) ( $el['id'] ?? '' );
+			if ( in_array( $id, $drop, true ) ) {
+				continue;
+			}
+			if ( in_array( $id, $unsticky, true ) && is_array( $el['settings'] ?? null ) ) {
+				foreach ( array( 'sticky', 'sticky_on', 'sticky_offset', 'sticky_anchor_link_offset' ) as $key ) {
+					unset( $el['settings'][ $key ] );
+				}
+			}
+			$out[] = $el;
+		}
+		$data['content'] = $out;
+		return $data;
+	}
+
+	private static function store_offer( array $input, callable $create, array $deps, int $regenerate, string $layout, string $template ) {
+		$env   = array(
+			'timezone'      => Site::sales_timezone(),
+			'site_timezone' => wp_timezone(),
+			'now'           => time(),
+			'variant'       => Catalog::variant(),
+		);
+		$offer = Store::offer( $input['store_offer'], $env );
+		if ( is_wp_error( $offer ) ) {
+			return $offer;
+		}
+		$catalog = isset( $deps['catalog'] ) && is_callable( $deps['catalog'] ) ? call_user_func( $deps['catalog'], $offer['category'] ) : Store::catalog( $offer['category'] );
+		if ( is_wp_error( $catalog ) ) {
+			return $catalog;
+		}
+		$site = isset( $deps['site'] ) && is_array( $deps['site'] ) ? $deps['site'] : Site::read();
+		if ( '' !== (string) ( $input['whatsapp'] ?? '' ) ) {
+			$site['whatsapp'] = (string) $input['whatsapp'];
+		}
+		$docs = isset( $deps['docs'] ) && is_array( $deps['docs'] ) ? $deps['docs'] : Brand::design_docs();
+		if ( ! isset( $site['benefits'] ) ) {
+			$site['benefits'] = Store::benefits( $docs );
+		}
+		if ( ! isset( $site['refund_line'] ) ) {
+			$site['refund_line'] = Store::refund_line( (string) ( $site['links']['/politica-de-reembolso/'] ?? '' ) );
+		}
+		$landing = Store::page( $offer, $catalog, $site, $env );
+		$brand    = self::brand( $deps );
+		$elements = Brand::apply( $landing['elements'], $brand );
+		$title   = isset( $input['title'] ) && is_string( $input['title'] ) ? trim( sanitize_text_field( $input['title'] ) ) : '';
+		$title   = '' !== $title ? $title : $landing['title'];
+		$page    = call_user_func( $create, $title, $elements, $regenerate, 'tienda', $layout );
+		if ( is_wp_error( $page ) ) {
+			return $page;
+		}
+		if ( ! isset( $page['layout'] ) ) {
+			$page['layout'] = $template;
+		}
+		$check  = self::check( $elements, $brand, $page, $layout, $landing['button_url'] );
+		$check['products'] = $landing['shown'];
+		$review = $landing['warnings'];
+		if ( ! $check['look']['site_identity'] ) {
+			$review[] = 'El sitio no tiene colores de marca propios (su kit tiene los de fábrica y su cabecera, su pie y su logo no los dicen): la página va en tonos neutros. No digas que usa los colores del sitio.';
+		} elseif ( ! $check['look']['matches_site'] ) {
+			$review[] = 'Los colores o las tipografías de la página no coinciden con los del sitio: revisa look.';
+		}
+		return array(
+			'ok'               => true,
+			'tool'             => 'create-page',
+			'id'               => (int) $page['id'],
+			'status'           => (string) $page['status'],
+			'template'         => 'tienda',
+			'variant'          => $env['variant'],
+			'title'            => $title,
+			'edit_url'         => (string) $page['edit_url'],
+			'preview_url'      => (string) $page['preview_url'],
+			'regenerated'      => ! empty( $page['regenerated'] ),
+			'finished'         => true,
+			'filled_from'      => $landing['filled'],
+			'pending'          => array(),
+			'pending_count'    => 0,
+			'store_offer'      => array(
+				'percent'        => $offer['percent'],
+				'scope'          => 'category' === $catalog['scope'] ? 'la categoría ' . $catalog['scope_name'] : 'toda la tienda',
+				'products_shown' => $landing['shown'],
+				'products_total' => (int) $catalog['total'],
+				'best_sellers'   => (bool) $catalog['top'],
+				'note'           => (int) $catalog['total'] > $landing['shown'] && ! $catalog['top'] ? 'La tienda tiene más productos que los que caben: se muestran algunos y el botón lleva a todos.' : '',
+				'button_url'     => $landing['button_url'],
+				'ends'           => '' !== $offer['ends'] ? $offer['ends'] : null,
+				// Lo que la tienda cobra hoy y lo que anuncia la landing, producto por producto.
+				'not_matching'   => $landing['mismatch'],
+			),
+			'whatsapp'         => (string) ( $site['whatsapp'] ?? '' ),
+			'review'           => $review,
+			'brand'            => Brand::summary( $brand ),
+			'look'             => $check['look'],
+			'check'            => $check,
+			'llm_instructions' => 'La landing quedó en BORRADOR y terminada, con los colores, las tipografías, la cabecera y el pie del sitio (check y look lo miden; afirma sólo lo que confirman). Repórtalo corto, en lenguaje llano: el enlace para verla y el de editarla y, en una frase, lo de review (la tienda todavía no cobra esos precios: ofrécelo como pregunta, no lo hagas). Para cambiarla, vuelve a llamar a create-page con post_id y store_offer (con headline o subtitle si piden otro texto). Publicarla le toca a una persona.',
+		);
 	}
 }

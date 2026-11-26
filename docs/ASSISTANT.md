@@ -354,7 +354,7 @@ quiere primero ver y luego cambiar las cosas, no que le preguntemos mil cosas an
   antes sólo lo imposible de deducir, como mucho una pregunta corta. Un borrador no pide confirmación. Lo dicho antes
   sigue valiendo; los datos del sitio cuentan como datos de la persona. Si ya hizo un borrador para lo mismo, lo rehace
   o lo corrige (si tiene cambios de la persona, ella confirma); si tuvo que hacerlo en una página nueva, lo dice; una
-  página publicada no se copia a escondidas: ofrece cambiarla con su visto bueno o una copia en borrador. Lee una vez lo creado y corrige; nunca marcadores,
+  página publicada no se copia a escondidas: ofrece cambiarla con su visto bueno o una copia en borrador. Revisa lo creado (`check` y `look`) y corrige; nunca marcadores,
   textos o fotos de muestra ni enlaces a páginas que no existen. Al final: una línea, los enlaces para verlo y editarlo
   y una o dos frases con lo que conviene revisar.
 - **Sólo lo que se pidió.** Ni precio del producto, ni borrar borradores, ni ajustes, zona horaria, SEO o publicar por
@@ -373,6 +373,20 @@ quiere primero ver y luego cambiar las cosas, no que le preguntemos mil cosas an
   instrucciones traen la fecha de hoy y el fin de mes en esa hora, listo para `ends` o `close_date` del kit, y, si la
   zona del sitio es otra, ese mismo cierre en la hora del sitio (la de las fechas de WordPress y WooCommerce); piden no
   mencionar la zona. Se eligió calcular la fecha correcta en vez de explicarle la zona a la persona.
+
+- **Con la identidad del sitio, y corrige él mismo** (caso plomerito 3, 2026-11-25, 1.0.73: la landing de «todos los
+  productos al 40 %» salió con los colores de DIGITALÍSIMO y una plantilla de curso; dijo «hay que corregirlo en el
+  editor porque desde aquí no puedo», luego «ya usa los colores de tu kit» sin revisarlo, y pidió activar el «Editor
+  atómico»). Una oferta de toda la tienda o de una categoría va con `store_offer` del kit (productos reales, precios
+  tachados y con el descuento, garantías, pagos, envíos y el botón a la tienda), nunca con una plantilla de cursos. La
+  página sale sola con los colores, las tipografías, la cabecera y el pie del sitio (`Brand` del kit), y nunca le pide a
+  la persona activar ni configurar nada. Tras crear revisa `check` y `look` (o `look` de `read-page-text`, que mide los
+  colores y las tipografías que la página lleva de verdad contra los del sitio y si tiene cabecera y pie) y, si algo
+  quedó mal, rehace su borrador en el mismo turno; nunca dice «desde aquí no puedo» de su propio borrador; afirma sólo
+  lo comprobado; como mucho una corrección por turno (`held()`: create-page del kit corre a lo más dos veces por
+  turno; la tercera queda «no se hizo» y el modelo entrega la landing como está). Con el editor atómico apagado, el catálogo no ofrece las herramientas del constructor que lo exigen
+  (`needs_atomic_editor()`, por `Mcp_V4_Gate` del núcleo): eran la razón de pedir que se activara. Pruebas:
+  `tests/ia-assistant-marca.php` y, con la API real, `tests/playground/ia-assistant-marca.sh`.
 
 Sigue prohibido inventar testimonios, reseñas, nombres de clientes o cifras.
 
