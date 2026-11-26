@@ -46,7 +46,9 @@ final class Digitalisimo_AI_Assistant_Cache {
 		foreach ( array( 'edited_term', 'created_term', 'delete_term', 'wp_update_nav_menu', 'switch_theme', 'elementor/core/files/clear_cache', 'wp_insert_comment', 'edit_comment', 'deleted_comment', 'transition_comment_status', 'woocommerce_attribute_added', 'woocommerce_attribute_updated', 'woocommerce_attribute_deleted', 'woocommerce_after_shipping_zone_object_save', 'woocommerce_delete_shipping_zone', 'woocommerce_shipping_zone_method_added', 'woocommerce_shipping_zone_method_deleted', 'woocommerce_shipping_zone_method_status_toggled', 'woocommerce_tax_rate_added', 'woocommerce_tax_rate_updated', 'woocommerce_tax_rate_deleted' ) as $hook ) {
 			add_action( $hook, array( __CLASS__, 'bump' ), 10, 0 );
 		}
+		// También cuando una opción se crea por primera vez (added_option), no sólo cuando cambia.
 		add_action( 'updated_option', array( __CLASS__, 'on_option' ), 10, 1 );
+		add_action( 'added_option', array( __CLASS__, 'on_option' ), 10, 1 );
 	}
 
 	/** ¿Esta herramienta se puede guardar unos minutos? */
@@ -90,7 +92,7 @@ final class Digitalisimo_AI_Assistant_Cache {
 	/** Ajustes que cambian lo que leen las herramientas guardadas (nunca los transitorios ni la propia generación). */
 	public static function on_option( $option ) {
 		$option = (string) $option;
-		if ( preg_match( '/^(blogname|blogdescription|home|siteurl|page_on_front|show_on_front|sidebars_widgets|widget_[a-z0-9_-]+|theme_mods_[a-z0-9_-]+|site_logo|site_icon|elementor_active_kit|elementor_[a-z_]*conditions|woocommerce_(currency|currency_pos|price_[a-z_]+|default_country|store_[a-z0-9_]+|[a-z0-9_]+_settings|calc_taxes|prices_include_tax|tax_[a-z0-9_]+|enable_coupons|[a-z_]+_page_id|ship_to_[a-z_]+|specific_ship_to_countries|allowed_countries|specific_allowed_countries|catalog_[a-z_]+|weight_unit|dimension_unit|manage_stock|hold_stock_minutes|notify_[a-z_]+|stock_[a-z_]+|hide_out_of_stock_items|enable_reviews|review_[a-z_]+|enable_review_[a-z_]+|enable_guest_checkout|enable_checkout_login_reminder|enable_signup_[a-z_]+|registration_[a-z_]+|enable_ajax_add_to_cart|cart_redirect_after_add|shop_page_display|category_archive_display|default_catalog_orderby|placeholder_image|downloads_[a-z_]+|coming_soon|store_pages_only)|digitalisimo_seo[a-z0-9_]*|digitalisimo_elements_[a-z0-9_]+)$/', $option ) ) {
+		if ( preg_match( '/^(blogname|blogdescription|home|siteurl|page_on_front|show_on_front|sidebars_widgets|widget_[a-z0-9_-]+|theme_mods_[a-z0-9_-]+|site_logo|site_icon|elementor_active_kit|elementor_[a-z_]*conditions|woocommerce_(email_[a-z0-9_]+|currency|currency_pos|price_[a-z_]+|default_country|store_[a-z0-9_]+|[a-z0-9_]+_settings|calc_taxes|prices_include_tax|tax_[a-z0-9_]+|enable_coupons|[a-z_]+_page_id|ship_to_[a-z_]+|specific_ship_to_countries|allowed_countries|specific_allowed_countries|catalog_[a-z_]+|weight_unit|dimension_unit|manage_stock|hold_stock_minutes|notify_[a-z_]+|stock_[a-z_]+|hide_out_of_stock_items|enable_reviews|review_[a-z_]+|enable_review_[a-z_]+|enable_guest_checkout|enable_checkout_login_reminder|enable_signup_[a-z_]+|registration_[a-z_]+|enable_ajax_add_to_cart|cart_redirect_after_add|shop_page_display|category_archive_display|default_catalog_orderby|placeholder_image|downloads_[a-z_]+|coming_soon|store_pages_only)|digitalisimo_seo[a-z0-9_]*|digitalisimo_elements_[a-z0-9_]+)$/', $option ) ) {
 			self::bump();
 		}
 	}

@@ -186,4 +186,17 @@ $GLOBALS['http_replies'] = array(
 $gen = Digitalisimo_AI_Assistant_Cache::generation();
 Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'créame una página de oferta', 'provider' => 'anthropic' ) ) );
 check( $gen !== Digitalisimo_AI_Assistant_Cache::generation(), 'K8: después de cada escritura del propio Asistente, la caché se invalida' );
+
+/* ---------------- K9: revisión de 3323d46f ---------------- */
+$gen = Digitalisimo_AI_Assistant_Cache::generation();
+do_action( 'added_option', 'woocommerce_enable_guest_checkout', 'yes' );
+check( $gen !== Digitalisimo_AI_Assistant_Cache::generation(), 'K9: una opción que se crea por primera vez (added_option) también invalida' );
+foreach ( array( 'woocommerce_email_from_name', 'woocommerce_email_from_address', 'woocommerce_email_footer_text' ) as $opt ) {
+	$gen = Digitalisimo_AI_Assistant_Cache::generation();
+	do_action( 'updated_option', $opt );
+	check( $gen !== Digitalisimo_AI_Assistant_Cache::generation(), "K9: {$opt} invalida" );
+}
+$gen = Digitalisimo_AI_Assistant_Cache::generation();
+do_action( 'added_option', '_transient_timeout_algo', 1 );
+check( $gen === Digitalisimo_AI_Assistant_Cache::generation(), 'K9: crear un transitorio no invalida' );
 echo "Caché del Asistente IA: $checks comprobaciones correctas.\n";
