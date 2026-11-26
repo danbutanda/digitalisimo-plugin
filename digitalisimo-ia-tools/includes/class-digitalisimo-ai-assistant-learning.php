@@ -259,16 +259,28 @@ final class Digitalisimo_AI_Assistant_Learning {
 				}
 			}
 		}
-		// Las fechas y horas («2026-12-24 23:59») no son teléfonos.
-		if ( preg_match_all( '/\+?\d[\d\s().-]{6,}\d/', preg_replace( '/\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?\b|\b\d{1,2}:\d{2}\b/', ' ', $raw ), $nums ) ) {
+		// Correos dictados («marta arroba gmail punto com»).
+		if ( preg_match( '/\b[\p{L}\d._-]+ arroba [\p{L}\d._-]+|\bpunto (com|mx|net|org|lat|es)\b/u', $t ) ) {
+			return true;
+		}
+		// RFC y CURP.
+		if ( preg_match( '/\b[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}\b|\b[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d\b/u', strtoupper( $raw ) ) ) {
+			return true;
+		}
+		// Teléfonos de 7 a 13 dígitos que no son del sitio (las fechas y horas, «2026-12-24 23:59», no son teléfonos).
+		if ( preg_match_all( '/\+?\d[\d\s().-]{5,}\d/', preg_replace( '/\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?\b|\b\d{1,2}:\d{2}\b/', ' ', $raw ), $nums ) ) {
 			foreach ( $nums[0] as $num ) {
 				$digits = preg_replace( '/\D+/', '', $num );
-				if ( strlen( $digits ) >= 8 && ! in_array( substr( $digits, -8 ), $own['phones'], true ) ) {
+				if ( strlen( $digits ) >= 7 && ! self::public_phone( $digits, $own['phones'] ) ) {
 					return true;
 				}
 			}
 		}
-		if ( preg_match( '/\b(calle|avenida|av|blvd|boulevard|bulevar|colonia|col|fraccionamiento|fracc|carretera)\s+[\p{L}\d]|\b(c\s?p|codigo postal)\s*\d{5}\b/u', $t ) ) {
+		// Direcciones: con palabra de calle o colonia, con código postal, o un nombre con número tras «en», «a»… («a
+		// Hidalgo 45»).
+		$street = (bool) preg_match( '/\b(calle|avenida|av|blvd|boulevard|bulevar|colonia|col|fraccionamiento|fracc|carretera)\s+[\p{L}\d]|\b(c\s?p|codigo postal)\s*\d{5}\b/u', $t );
+		$street = $street || (bool) preg_match( '/\b(en|a|hasta|hacia|domicilio|direcci[oó]n|vive en)\s+(?:la |el )?[A-ZÁÉÍÓÚÑ][\p{L}]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}]+)?\s+(?:#\s?)?\d{1,5}\b/u', $raw );
+		if ( $street ) {
 			$mine = false;
 			foreach ( $own['addresses'] as $address ) {
 				if ( '' !== $address && false !== strpos( $t, $address ) ) {
@@ -282,11 +294,31 @@ final class Digitalisimo_AI_Assistant_Learning {
 		if ( preg_match( '/\b(pidi[oó]|compró|pagó|abonó|encargó|ordenó|apartó|reservó|adeuda|qued[oó] a deber|le debe|nos debe|me debe|debe \$|devolvi[oó] (su|el|la))\b/iu', $raw ) ) {
 			return true;
 		}
+		// Deudas («todavía debe 500», «adeuda», «fiado»).
+		if ( preg_match( '/\b(adeuda|adeudan|deuda|deudas|fiado|fiada|fiados)\b|\b(todavia|aun|nos|me|le|les)\s+deben?\b|\bdeben?\s+\d/u', $t ) ) {
+			return true;
+		}
+		// Una persona: «señor», «doña», «don», «sra.»… con su nombre, o «cliente»/«clienta» con un nombre o un «fiel»,
+		// «frecuente», «consentida»…
+		if ( preg_match( '/\b(se[ñn]or|se[ñn]ora|se[ñn]orita|do[ñn]a|don|sr|sra|srita)\b\.?\s+\p{L}/iu', $raw ) || preg_match( '/\b(cliente|clienta)\s+([A-ZÁÉÍÓÚÑ]|(fiel|frecuente|preferente|vip|especial|consentid[oa]|favorit[oa]|de siempre)\b)/u', $raw ) ) {
+			return true;
+		}
 		$name = (bool) preg_match( '/\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/u', $raw );
 		if ( $name && preg_match( '/\b(cliente|clienta|clientes|clientas|comprador|compradora|compradores|deudor|deudora|deudores|deuda|debe|credito|abono|pedido|pedidos|orden|ordenes|factura|facturas|encargo|apartado)\b/u', $t ) ) {
 			return true;
 		}
 		return (bool) preg_match( '/#\s?\d{2,}|\b(pedido|orden|order|folio)\s+(no\.?|num\.?|numero|n\.?º)?\s*\d{2,}/iu', $raw );
+	}
+
+	/** ¿Es (por sus últimos 7 dígitos, sin lada ni clave de país) uno de los teléfonos que publica el sitio? */
+	private static function public_phone( $digits, array $phones ) {
+		$tail = substr( (string) $digits, -7 );
+		foreach ( $phones as $phone ) {
+			if ( substr( (string) $phone, -7 ) === $tail ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** @var array<int,array> Contacto público por sitio (una lectura por petición). */
@@ -307,8 +339,8 @@ final class Digitalisimo_AI_Assistant_Learning {
 				$contact = Digitalisimo_AI_Site_Reader::contact();
 				foreach ( array_merge( (array) $contact['whatsapp'], (array) $contact['phones'] ) as $row ) {
 					$digits = preg_replace( '/\D+/', '', (string) ( $row['number'] ?? '' ) );
-					if ( strlen( $digits ) >= 8 ) {
-						$out['phones'][] = substr( $digits, -8 );
+					if ( strlen( $digits ) >= 7 ) {
+						$out['phones'][] = $digits;
 					}
 				}
 				foreach ( (array) $contact['emails'] as $row ) {

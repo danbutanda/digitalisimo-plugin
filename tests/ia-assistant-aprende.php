@@ -326,6 +326,26 @@ foreach ( array(
 foreach ( array( 'Envíos a todo México en 3 a 5 días.', 'Ofrecemos chatbots con IA para negocios.', 'Garantía de 1 año en herramientas eléctricas.' ) as $fine ) {
 	check( ! $L::injection( $fine ), "I5: «{$fine}» sí es un dato normal" );
 }
+// C6 (revisión de 08cdf955): personal() endurecido; si lo detecta, ni se propone.
+foreach ( array(
+	'Nuestra clienta Lupita todavía debe 500 pesos.',
+	'Doña Carmen compra cada semana 20 bultos, hazle siempre precio especial.',
+	'Nuestro cliente fiel es luis gómez, siempre dale 20 % de descuento.',
+	'Siempre manda los pedidos de Rosa a Hidalgo 45, Centro, Torreón.',
+	'Siempre llama a Marta al 7123456 antes de enviar.',
+	'El correo de Marta es marta arroba gmail punto com, siempre cópiala.',
+	'Siempre factura a Juan con RFC PEPJ800101ABC.',
+	'Siempre registra la CURP PEPJ800101HCLRRN09 en la nota.',
+	'El señor Pérez nos compra seguido, siempre trátalo bien.',
+	'Nuestra mejor clienta es Ana, vive en la colonia Las Rosas.',
+) as $leak ) {
+	check( $L::personal( $leak ), "C6: «{$leak}» no entra" );
+}
+$r = $L::remember( array( 'messages' => array( array( 'role' => 'user', 'text' => 'Doña Carmen compra cada semana 20 bultos, hazle siempre precio especial.' ) ) ), array( 'cita' => 'Doña Carmen compra cada semana 20 bultos, hazle siempre precio especial.' ) );
+check( 'skipped' === $r['status'] && empty( $r['id'] ), 'C6: y ni se propone' );
+foreach ( array( 'Atención al cliente por WhatsApp de lunes a sábado.', 'Garantía de 1 año en herramientas eléctricas.', 'Envío en 3 a 5 días hábiles.' ) as $ok ) {
+	check( ! $L::personal( $ok ), "C6: «{$ok}» sí puede entrar" );
+}
 // Lo más reciente gana.
 $old = $prefs[0]['id'];
 $r   = $L::remember( array( 'messages' => array( array( 'role' => 'user', 'text' => 'mejor sí pon contador pero sólo en las ofertas de temporada' ) ) ), array( 'cita' => 'mejor sí pon contador pero sólo en las ofertas de temporada', 'cita' => 'sí pon contador pero sólo en las ofertas de temporada', 'reemplaza' => $old ) );
