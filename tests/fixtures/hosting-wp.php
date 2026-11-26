@@ -126,7 +126,25 @@ function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? (string) ( $r['
 $GLOBALS['posts'] = array(); $GLOBALS['postmeta'] = array(); $GLOBALS['next_id'] = 1000;
 function wp_insert_post( $a ) { $id = ++$GLOBALS['next_id']; $GLOBALS['posts'][ $id ] = (object) ( $a + array( 'ID' => $id, 'blog' => $GLOBALS['blog'] ) ); $GLOBALS['posts'][ $id ]->ID = $id; return $id; }
 function get_post( $id ) { $p = $GLOBALS['posts'][ (int) $id ] ?? null; return $p && $p->blog === $GLOBALS['blog'] ? $p : null; }
-function get_posts( $q ) { $out = array(); foreach ( $GLOBALS['posts'] as $id => $p ) if ( $p->post_type === $q['post_type'] && $p->blog === $GLOBALS['blog'] ) $out[] = $id; return $out; }
+function get_posts( $q ) {
+	// Productos (2026-11-26, productos por extensión): los de $GLOBALS['products'], publicados salvo $GLOBALS['product_status'], con meta_key/meta_value.
+	if ( 'product' === ( $q['post_type'] ?? '' ) ) {
+		$out = array();
+		foreach ( array_keys( $GLOBALS['products'] ) as $id ) {
+			if ( ( $q['post_status'] ?? 'publish' ) !== get_post_status( $id ) ) continue;
+			if ( isset( $q['meta_key'] ) && ! isset( $GLOBALS['postmeta'][ $id ][ $q['meta_key'] ] ) ) continue;
+			if ( isset( $q['meta_value'] ) && (string) ( $GLOBALS['postmeta'][ $id ][ $q['meta_key'] ] ?? '' ) !== (string) $q['meta_value'] ) continue;
+			$out[] = $id;
+		}
+		sort( $out );
+		return $out;
+	}
+	$out = array(); foreach ( $GLOBALS['posts'] as $id => $p ) if ( $p->post_type === $q['post_type'] && $p->blog === $GLOBALS['blog'] ) $out[] = $id; return $out;
+}
+function get_post_status( $id ) { return isset( $GLOBALS['products'][ (int) $id ] ) ? ( $GLOBALS['product_status'][ (int) $id ] ?? 'publish' ) : ( isset( $GLOBALS['posts'][ (int) $id ] ) ? 'publish' : false ); }
+function delete_post_meta( $id, $k ) { unset( $GLOBALS['postmeta'][ (int) $id ][ $k ], $GLOBALS['rt_meta'][ (int) $id ] ); return true; }
+function wc_get_product_id_by_sku( $sku ) { foreach ( $GLOBALS['products'] as $id => $p ) if ( '' !== (string) $p->sku && 0 === strcasecmp( (string) $p->sku, (string) $sku ) ) return $id; return 0; }
+function get_current_user_id() { return (int) ( $GLOBALS['user_id'] ?? 1 ); }
 function get_post_meta( $id, $k, $single = false ) {
 	$id = (int) $id;
 	if ( ! $GLOBALS['cache_sim'] ) return $GLOBALS['postmeta'][ $id ][ $k ] ?? '';
@@ -144,7 +162,8 @@ function has_term() { return false; }
 
 // ── WooCommerce ─────────────────────────────────────────────────────────────────────────────────────────────
 class Digi_Test_Product {
-	public $id; public $name; public $price; public $sale = ''; public $saves = 0;
+	public $id; public $name; public $price; public $sale = ''; public $saves = 0; public $sku = '';
+	public function get_sku() { return $this->sku; } public function get_price() { return (string) ( '' !== (string) $this->sale ? $this->sale : $this->price ); }
 	public function __construct( $id, $name, $price ) { $this->id = $id; $this->name = $name; $this->price = $price; }
 	public function get_id() { return $this->id; } public function get_name() { return $this->name; }
 	public function get_regular_price() { return (string) $this->price; } public function set_regular_price( $p ) { $this->price = $p; }
@@ -362,6 +381,10 @@ add_filter(
 				case 'namecheap.domains.dns.setCustom':
 					$n['dns'][ $body['SLD'] . '.' . $body['TLD'] ] = $body['Nameservers'];
 					return digi_xml( '<DomainDNSSetCustomResult Domain="' . $body['SLD'] . '.' . $body['TLD'] . '" Updated="true" />' );
+				case 'namecheap.domains.getTldList':
+					$out = '';
+					foreach ( array( 'com', 'net', 'org', 'mx', 'com.mx', 'lat' ) as $t ) $out .= '<Tld Name="' . $t . '" IsApiRegisterable="true" IsApiRenewable="true" IsApiTransferable="' . ( in_array( $t, $n['no_transfer'] ?? array(), true ) ? 'false' : 'true' ) . '" IsEppRequired="true" Type="GTLD">' . $t . '</Tld>';
+					return digi_xml( '<Tlds>' . $out . '</Tlds>' );
 				case 'namecheap.domains.renew':
 					$d = $body['DomainName'];
 					$cost = array_sum( digi_nc_price( substr( $d, strpos( $d, '.' ) + 1 ), 'RENEW' ) );
@@ -396,7 +419,7 @@ function digi_store_settings( array $extra = array() ) {
 
 define( 'DIGITALISIMO_HOSTING_URL', 'https://tienda.test/wp-content/plugins/digitalisimo-hosting/' );
 define( 'DIGITALISIMO_HOSTING_VERSION', '9.9.9' );
-foreach ( array( 'class-hosting', 'class-hosting-webuzo', 'class-hosting-namecheap', 'class-hosting-pricing', 'class-hosting-provisioning', 'class-hosting-services-page' ) as $digi_file ) require __DIR__ . '/../../digitalisimo-hosting/includes/' . $digi_file . '.php';
+foreach ( array( 'class-hosting', 'class-hosting-products', 'class-hosting-checkout', 'class-hosting-webuzo', 'class-hosting-namecheap', 'class-hosting-pricing', 'class-hosting-provisioning', 'class-hosting-services-page' ) as $digi_file ) require __DIR__ . '/../../digitalisimo-hosting/includes/' . $digi_file . '.php';
 Digitalisimo_Hosting_Provisioning::init();
 digi_product( 14693, 'Web Hosting Starter', 970, 'digitalisimo_starter' );
 digi_product( 14696, 'Web Hosting Pro', 5850, 'digitalisimo_pro' );
