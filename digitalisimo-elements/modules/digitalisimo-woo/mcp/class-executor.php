@@ -46,6 +46,10 @@ final class Executor {
 			}
 			return $error;
 		}
+		if ( ! empty( $plan['dry_run'] ) ) {
+			// Simular no escribe: corre también en «Sólo lectura» y dice si el modo dejaría hacerlo.
+			return self::simulate( $tool, $plan, $dispatch );
+		}
 		if ( 'write' === $plan['kind'] && ! Settings::can_write( $tool ) && ! self::assistant_writes( $tool, $plan ) ) {
 			Log::add( Log::entry( $plan, 'denied', 'read_mode', 403, $user ) );
 			return self::read_mode_error( $plan );
@@ -156,6 +160,34 @@ final class Executor {
 	}
 
 	/**
+	 * `dry_run: true`: lo que cambiaría (`Simulation::would()`, sólo lecturas) y si el modo de este sitio dejaría
+	 * hacerlo (`allowed`, con el motivo en `reason`). No escribe nada ni deja entrada en la bitácora de escrituras.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private static function simulate( string $tool, array $plan, $dispatch ) {
+		$would = Simulation::would( $tool, $plan, $dispatch );
+		if ( is_wp_error( $would ) ) {
+			return $would;
+		}
+		$allowed = Settings::can_write( $tool ) || self::assistant_writes( $tool, $plan );
+		$result  = array(
+			'ok'       => true,
+			'tool'     => $tool,
+			'action'   => $plan['action'],
+			'resource' => $plan['resource'],
+			'dry_run'  => true,
+			'allowed'  => $allowed,
+			'would'    => $would,
+			'notice'   => 'Simulación: no se cambió nada.' . ( $allowed ? '' : ' Este sitio no dejaría hacerlo (ver reason).' ),
+		);
+		if ( ! $allowed ) {
+			$result['reason'] = self::read_mode_error( $plan )->get_error_message();
+		}
+		return $result;
+	}
+
+	/**
 	 * Permiso de una herramienta (`permission_callback`): el mínimo de la herramienta y, con una entrada que el enrutador
 	 * entiende, la capacidad que la REST de WooCommerce exige para ese recurso y esa acción. Sin entrada (lista de
 	 * herramientas), sólo el mínimo. Una entrada que el enrutador rechaza pasa aquí y la rechaza `run()` con su motivo.
@@ -186,7 +218,8 @@ final class Executor {
 		if ( ! current_user_can( $cap ) ) {
 			return self::forbidden( $cap );
 		}
-		return 'write' === $plan['kind'] ? self::assistant_mode( $tool, $plan ) : true;
+		// Una simulación no escribe: basta la capacidad (el modo lo dice la respuesta, en `allowed`).
+		return 'write' === $plan['kind'] && empty( $plan['dry_run'] ) ? self::assistant_mode( $tool, $plan ) : true;
 	}
 
 	/**

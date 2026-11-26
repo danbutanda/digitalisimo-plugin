@@ -265,6 +265,8 @@ final class Tools {
 					'public' => false,
 					'type'   => 'tool',
 				),
+				// Admite `dry_run` (simulación sin escribir): el Asistente IA de IA Tools la muestra antes de confirmar.
+				'digitalisimo' => array( 'dry_run' => ! $readonly ),
 			),
 		);
 	}
@@ -332,6 +334,13 @@ final class Tools {
 				'type'        => 'boolean',
 				'default'     => false,
 				'description' => 'Sólo con delete (o un batch con delete): true borra para siempre, sin papelera. Úsalo sólo si el usuario lo pide.',
+			);
+		}
+		if ( 'reports' !== $tool ) {
+			$properties['dry_run'] = array(
+				'type'        => 'boolean',
+				'default'     => false,
+				'description' => 'Sólo con una acción que escribe: true simula y no cambia nada. Responde qué cambiaría (would: campo a campo con el valor actual y el nuevo, lo que se crearía o qué se borraría) y si este sitio dejaría hacerlo (allowed). Úsalo antes de un cambio grande o destructivo para mostrarlo al usuario.',
 			);
 		}
 		if ( 'orders' === $tool ) {

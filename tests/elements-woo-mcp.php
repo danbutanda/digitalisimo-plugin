@@ -1176,6 +1176,66 @@ namespace {
 		}
 	);
 
+	// B3: simulación (dry_run). Fallaba con fee02105 (dry_run no existía: el esquema cerrado lo rechazaba).
+	review_block(
+		'B3-dry_run',
+		static function () use ( $run, $assistant ) {
+			foreach ( Tools::tools() as $tool ) {
+				$def = Tools::definition( $tool, 'read' );
+				$has = isset( $def['input_schema']['properties']['dry_run'] ) && 'boolean' === $def['input_schema']['properties']['dry_run']['type'] && false === $def['input_schema']['properties']['dry_run']['default'];
+				review( 'B3-dry_run', 'reports' === $tool ? ! $has && false === $def['meta']['digitalisimo']['dry_run'] : $has && true === $def['meta']['digitalisimo']['dry_run'], "dry_run en el esquema y en meta.digitalisimo de las que escriben: $tool" );
+			}
+			wm_reset( array( 'caps' => array( 'edit_products', 'publish_products', 'delete_products', 'read_private_products', 'edit_others_products', 'list_users', 'delete_users', 'manage_woocommerce' ) ) );
+			$GLOBALS['wm_rest_responses']['GET /wc/v3/products/4'] = array( 200, array( 'id' => 4, 'name' => 'Mesa', 'regular_price' => '10', 'on_sale' => false, 'status' => 'publish', 'categories' => array( array( 'id' => 3, 'name' => 'A', 'slug' => 'a' ) ) ), array() );
+			$before = count( Log::entries() );
+			$result = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'dry_run' => true, 'data' => array( 'regular_price' => '12', 'name' => 'Mesa', 'on_sale' => 'no' ) ) );
+			review( 'B3-dry_run', is_array( $result ) && true === $result['dry_run'] && false === $result['allowed'] && false !== strpos( $result['reason'] ?? '', '«Sólo lectura»' ), 'Modo read: la simulación corre y dice que el sitio no dejaría hacerlo: ' . json_encode( $result ) );
+			review( 'B3-dry_run', is_array( $result ) && array( array( 'field' => 'regular_price', 'from' => '10', 'to' => '12' ) ) === $result['would']['changes'] && array( 'name', 'on_sale' ) === $result['would']['unchanged'], 'update: diferencia campo a campo con el valor actual: ' . json_encode( $result['would'] ?? null ) );
+			review( 'B3-dry_run', array( array( 'GET', '/wc/v3/products/4', array(), null ) ) === $GLOBALS['wm_rest'] && count( Log::entries() ) === $before, 'Simular sólo lee: ninguna escritura ni entrada en la bitácora.' );
+			$bad = $run( 'products', array( 'action' => 'list', 'dry_run' => true ) );
+			review( 'B3-dry_run', is_wp_error( $bad ) && 'digitalisimo_woo_mcp_dry_run' === $bad->get_error_code(), 'dry_run con list se rechaza.' );
+			$bad = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'dry_run' => 'yes', 'data' => array( 'name' => 'x' ) ) );
+			review( 'B3-dry_run', is_wp_error( $bad ), 'dry_run sólo admite booleanos.' );
+			$ok = $run( 'products', array( 'action' => 'list', 'dry_run' => false ) );
+			review( 'B3-dry_run', ! is_wp_error( $ok ), 'dry_run false (valor por defecto que rellenan algunos clientes) no estorba.' );
+
+			// delete: qué objeto y adónde va, sin datos personales.
+			$GLOBALS['wm_rest']    = array();
+			$result = $run( 'products', array( 'action' => 'delete', 'product_id' => 4, 'dry_run' => true ) );
+			review( 'B3-dry_run', is_array( $result ) && 'trash' === $result['would']['mode'] && 4 === $result['would']['delete']['id'] && 'Mesa' === $result['would']['delete']['name'] && ! isset( $result['would']['delete']['categories'] ), 'delete: el objeto (resumen) y la papelera.' );
+			$GLOBALS['wm_rest_responses']['GET /wc/v3/customers/9'] = array( 200, array( 'id' => 9, 'email' => 'ana@example.test', 'first_name' => 'Ana', 'username' => 'ana', 'role' => 'customer' ), array() );
+			$result = $run( 'customers', array( 'action' => 'delete', 'customer_id' => 9, 'force' => true, 'dry_run' => true ) );
+			review( 'B3-dry_run', is_array( $result ) && 'permanent' === $result['would']['mode'] && false === strpos( json_encode( $result ), 'ana' ) && false === strpos( json_encode( $result ), 'Ana' ), 'delete de un cliente: definitivo y sin datos personales: ' . json_encode( $result ) );
+			review( 'B3-dry_run', array() === array_filter( $GLOBALS['wm_rest'], static function ( $r ) { return 'GET' !== $r[0]; } ), 'Ninguna petición que no sea GET.' );
+
+			// create y batch.
+			$result = $run( 'products', array( 'action' => 'create', 'dry_run' => true, 'data' => array( 'name' => 'Nueva' ) ) );
+			review( 'B3-dry_run', is_array( $result ) && 'product' === $result['would']['create'] && array( 'name' => 'Nueva' ) === $result['would']['fields'] && false !== strpos( $result['would']['note'] ?? '', 'publicado' ), 'create: lo que se crearía y que sin status se publicaría.' );
+			$GLOBALS['wm_rest_responses']['GET /wc/v3/products/5'] = array( 200, array( 'id' => 5, 'regular_price' => '3' ), array() );
+			$GLOBALS['wm_rest'] = array();
+			$result = $run( 'products', array( 'action' => 'batch', 'force' => true, 'dry_run' => true, 'data' => array( 'create' => array( array( 'name' => 'C' ) ), 'update' => array( array( 'id' => 4, 'regular_price' => '10' ), array( 'id' => 5, 'regular_price' => '4' ) ), 'delete' => array( 8 ) ) ) );
+			review( 'B3-dry_run', is_array( $result ) && 1 === $result['would']['create'] && array( 8 ) === $result['would']['delete'] && 'permanent' === $result['would']['delete_mode'] && array( 'regular_price' ) === $result['would']['update'][0]['unchanged'] && '4' === $result['would']['update'][1]['changes'][0]['to'], 'batch: recuento y diferencia de cada update: ' . json_encode( $result['would'] ?? null ) );
+			review( 'B3-dry_run', 2 === count( $GLOBALS['wm_rest'] ) && 'GET' === $GLOBALS['wm_rest'][1][0], 'batch: un GET por update, nada más.' );
+
+			// Secretos: nunca salen en la simulación.
+			$gateway = array( 'id' => 'digi_test', 'enabled' => false, 'settings' => array( 'title' => array( 'id' => 'title', 'type' => 'text', 'value' => 'Pago' ), 'api_key' => array( 'id' => 'api_key', 'type' => 'password', 'value' => 'sk_live_SECRETO' ) ) );
+			$GLOBALS['wm_rest_responses']['GET /wc/v3/payment_gateways/digi_test'] = array( 200, $gateway, array() );
+			$result = $run( 'store-settings', array( 'action' => 'update', 'resource' => 'payment_gateway', 'gateway_id' => 'digi_test', 'dry_run' => true, 'data' => array( 'enabled' => true, 'settings' => array( 'api_key' => 'sk_live_NUEVA', 'title' => 'Pago' ) ) ) );
+			$text   = json_encode( $result );
+			review( 'B3-dry_run', is_array( $result ) && false === strpos( $text, 'SECRETO' ) && false === strpos( $text, 'NUEVA' ) && 2 === count( $result['would']['changes'] ) && ! empty( $result['would']['changes'][1]['masked'] ), 'Pasarela: la clave cambiaría, pero sale enmascarada: ' . $text );
+
+			// Con escritura permitida, allowed true; y el Asistente puede simular en «Sólo lectura» (su vista previa).
+			update_option( Settings::OPTION, array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array( 'products' ) ) );
+			$result = $run( 'products', array( 'action' => 'delete', 'product_id' => 4, 'dry_run' => true ) );
+			review( 'B3-dry_run', is_array( $result ) && true === $result['allowed'] && ! isset( $result['reason'] ), 'Escritura elegida: allowed true.' );
+			update_option( Settings::OPTION, array( 'mode' => 'read', 'own' => array( 'mode' ) ) );
+			$delete = array( 'action' => 'delete', 'product_id' => 4, 'dry_run' => true );
+			review( 'B3-dry_run', true === $assistant( 'digitalisimo-woo/products', 'destructive', static function () use ( $delete ) { return Executor::permission( 'products', $delete ); } ) && true === Executor::permission( 'products', $delete ), 'La simulación pasa el permiso con la capacidad (también en el contexto del Asistente).' );
+			$GLOBALS['wm']['caps'] = array( 'read' );
+			review( 'B3-dry_run', is_wp_error( Executor::permission( 'products', $delete ) ), 'Sin la capacidad de borrar, tampoco se simula.' );
+		}
+	);
+
 	if ( ! empty( $GLOBALS['wm_review'] ) ) {
 		$lines = array();
 		foreach ( $GLOBALS['wm_review'] as $label => $messages ) {

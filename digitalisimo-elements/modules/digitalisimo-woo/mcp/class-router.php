@@ -18,8 +18,8 @@ defined( 'ABSPATH' ) || exit;
  * (false salvo que el cliente pida true).
  *
  * Devuelve el plan: `tool`, `action`, `resource`, `method`, `route`, `query`, `body` (o null), `kind` (`read`/`write`),
- * `destructive`, `id` y `parent` (para la bitácora), `items` (elementos de un lote), `fields`, `secrets` y `local`
- * (`log` para la bitácora, sin REST).
+ * `destructive`, `id` y `parent` (para la bitácora), `items` (elementos de un lote), `fields`, `secrets`, `local`
+ * (`log` para la bitácora, sin REST) y `dry_run` (simular: sólo con una acción que escribe; ver `Simulation`).
  */
 final class Router {
 	/**
@@ -116,6 +116,13 @@ final class Router {
 		if ( is_wp_error( $api_refund ) ) {
 			return $api_refund;
 		}
+		$dry_run = self::flag( $input, 'dry_run' );
+		if ( is_wp_error( $dry_run ) ) {
+			return $dry_run;
+		}
+		if ( $dry_run && ! Tools::is_write( $tool, $action ) ) {
+			return self::error( 'digitalisimo_woo_mcp_dry_run', 'dry_run sólo se usa con una acción que escribe (create, update, delete o batch): list y get ya no cambian nada.' );
+		}
 		if ( $force && ! in_array( $action, array( 'delete', 'batch' ), true ) ) {
 			return self::error( 'digitalisimo_woo_mcp_force', 'force sólo se usa con delete o con un batch que borra.' );
 		}
@@ -144,6 +151,7 @@ final class Router {
 			'fields'      => $fields,
 			'secrets'     => isset( $def['secrets'] ) ? $def['secrets'] : '',
 			'local'       => '',
+			'dry_run'     => $dry_run,
 		);
 
 		if ( in_array( $action, array( 'list', 'get' ), true ) ) {
@@ -249,6 +257,7 @@ final class Router {
 			'fields'      => $fields,
 			'secrets'     => '',
 			'local'       => '',
+			'dry_run'     => false,
 		);
 		if ( 'log' === $action ) {
 			if ( array_key_exists( 'query', $input ) ) {
