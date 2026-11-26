@@ -41,13 +41,13 @@ código y mensaje). Con algún fallo, `ok` es false y `partial` true; si no se a
 
 | Herramienta (nombre MCP) | Recursos y acciones |
 | --- | --- |
-| `digitalisimo-woo/products` (`digitalisimo-woo-products`) | `product` y `variation` (con `product_id`): list, get, create, update, delete, batch |
-| `digitalisimo-woo/catalog` | `category`, `tag`, `brand`, `shipping_class` (`term_id`), `attribute` (`attribute_id`), `attribute_term` (`attribute_id` y `term_id`), `review` (`review_id`): list, get, create, update, delete |
+| `digitalisimo-woo/products` (`digitalisimo-woo-products`) | `product` y `variation` (con `product_id`): list, get, create, update, delete, batch; undo (`change_id`) |
+| `digitalisimo-woo/catalog` | `category`, `tag`, `brand`, `shipping_class` (`term_id`), `attribute` (`attribute_id`), `attribute_term` (`attribute_id` y `term_id`), `review` (`review_id`): list, get, create, update, delete; undo (`change_id`) |
 | `digitalisimo-woo/orders` | `order` (`order_id`): list, get, create, update, delete; `note`: list, get, create, delete; `refund`: list, get, create, delete |
 | `digitalisimo-woo/customers` | `customer` (`customer_id`): list, get, create, update, delete; `download`: list |
-| `digitalisimo-woo/coupons` | `coupon_id`: list, get, create, update, delete, batch |
+| `digitalisimo-woo/coupons` | `coupon_id`: list, get, create, update, delete, batch; undo (`change_id`) |
 | `digitalisimo-woo/store-settings` | `setting_group` (list), `setting` (`group_id`, `setting_id`: list, get, update, batch), `shipping_zone` (`zone_id`), `shipping_zone_location` (list y update, que reemplaza todas), `shipping_zone_method` (`zone_id`, `instance_id`), `shipping_method` (`method_id`: list, get), `tax_class` (`tax_class`: list, create, delete), `tax_rate` (`rate_id`, también batch), `payment_gateway` (`gateway_id`: list, get, update) |
-| `digitalisimo-woo/reports` | sólo lectura: list, sales, top_sellers, orders_totals, products_totals, customers_totals, coupons_totals, reviews_totals y `log` (la bitácora) |
+| `digitalisimo-woo/reports` | sólo lectura: list, sales, top_sellers, orders_totals, products_totals, customers_totals, coupons_totals, reviews_totals, `log` (la bitácora) y `changes` (el registro de cambios) |
 | `digitalisimo-woo/skydropx` (sólo con Skydropx) | lectura: status, audit_products, quote, shipments, get_shipment, label; escritura: update_products, set_tracking, resync (ver «Skydropx») |
 
 **Ejecución.** Cada acción es una petición interna (`rest_do_request()`) a la API REST v3 de WooCommerce (`/wc/v3/…`)
@@ -129,6 +129,9 @@ PDF sólo existe si la generó Skydropx.
 - **Apagado:** no se registra ninguna herramienta de tienda.
 - **Sólo lectura** (predeterminado): list, get y los informes. create, update, delete y batch devuelven un error que
   dice dónde se cambia el modo.
+- **Escritura sólo en lo elegido** (`custom`, opt-in desde la tanda B): lee todo y escribe sólo con las herramientas
+  marcadas en sus casillas (productos, catálogo, pedidos, clientes, cupones, ajustes, Skydropx); con las demás, como en
+  «Sólo lectura», con un error que dice qué falta marcar. Ver «Permiso por herramienta, simulación y deshacer».
 - **Lectura y escritura:** todo, con la bitácora.
 
 **El Asistente IA del escritorio** (IA Tools, caso plomerito 4 del 2026-11-26): «Sólo lectura» se pensó para los clientes
@@ -147,6 +150,68 @@ Paridad sitio/red como en «Rendimiento»: la red define el valor (sin «Heredar
 personaliza (con «Heredar de la red»). Opciones `digitalisimo_elements_woo_mcp` (sitio, sin carga automática; sólo se lee con el MCP del sitio activo) y
 `digitalisimo_elements_woo_mcp_defaults` (red). Sin WooCommerce (o con uno anterior a `Woo\Module::MIN_WC`) o con el
 MCP del sitio apagado, no hay herramientas de tienda.
+
+## Permiso por herramienta, simulación y deshacer (tanda B, 2026-11-26)
+
+Pedido de la auditoría de digitalisimo.lat (2026-11-24, tanda B, B3): que un cliente MCP externo pueda escribir en la
+tienda con un permiso propio por recurso en lugar de todo o nada, simular antes de escribir y deshacer donde se pueda.
+
+**Lo que ya existía antes** (v518): los tres modos `off`/`read`/`write` por sitio y por red; en «Sólo lectura», el
+Asistente IA del escritorio ya creaba o actualizaba productos, variaciones y catálogo con su tarjeta
+(`Executor::assistant_writes()`); la bitácora (`Log`) de cada escritura, sin valores; los secretos enmascarados; el
+permiso de WooCommerce por recurso y acción (capacidades) y el mínimo por herramienta. No había forma de dejar escribir
+sólo en una parte de la tienda, ni simulación, ni deshacer: crear productos desde un cliente externo en «Sólo lectura»
+obligaba a usar la REST de WooCommerce directamente.
+
+**Permiso por herramienta.** El modo `custom` («Escritura sólo en lo elegido») guarda, junto al modo, la lista
+`write_tools` (`Settings::WRITE_TOOLS`: `products`, `catalog`, `orders`, `customers`, `coupons`, `store-settings`,
+`skydropx`). `Settings::can_write( $tool )` es la única regla: la usan `Executor` (también para el Asistente),
+`Skydropx::run()`, las descripciones (`Tools::definition()` dice, herramienta por herramienta, si escribe) y la pantalla.
+La lista y el modo se heredan juntos (`own` = `mode`): la red guarda los dos, y un sitio que personaliza guarda los dos;
+volver a heredar conserva lo del sitio. Las casillas van en un grupo (`#digitalisimo-woo-mcp-tools`) que «Heredar de la
+red» deshabilita con `data-group` (el script de herencia de «Rendimiento» lo admite desde esta versión); un campo oculto
+`write_tools_sent` distingue «todas desmarcadas» de «grupo deshabilitado». Sin elegir `custom`, nada cambia.
+
+**Simulación (`dry_run`).** Toda herramienta que escribe admite `dry_run: true` (y lo declara en
+`meta.digitalisimo.dry_run`, que el Asistente de IA Tools usa para mostrar la simulación antes de confirmar algo
+destructivo). Valida la entrada y exige la misma capacidad que la escritura; corre también en «Sólo lectura» (sólo lee) y
+responde `allowed` (si este sitio dejaría hacerlo) con `reason` si no, y `would` (`Simulation`):
+- update: `changes` (campo, valor actual y nuevo, sólo de lo enviado) y `unchanged`; en un mapa `settings` baja un nivel.
+- create: los campos que se mandarían y lo que WooCommerce haría solo (publicar un producto sin `status`, devolver el
+  dinero con `api_refund`).
+- delete: el objeto (campos de identificación, sin datos personales) y si va a la papelera o se borra para siempre.
+- batch: recuento por lista y la diferencia de cada update (un GET por elemento, 100 como mucho).
+- undo: lo que se revertiría, o el conflicto.
+Nunca hace `POST`, `PUT` ni `DELETE`, ni deja entrada en la bitácora. Un secreto sale como la máscara también aquí.
+Skydropx no tiene simulación (sus acciones validan todo antes de escribir y responden qué hicieron): queda pendiente.
+
+**Registro de cambios y deshacer** (`Changes`). Cada escritura hecha deja una entrada en
+`digitalisimo_elements_woo_mcp_changes` (opción del sitio sin carga automática, últimas 50 de los últimos 30 días, 32 KB
+por entrada como mucho) y la respuesta lleva `change` con su `id`, `undo` y, si no se puede deshacer, `reason`. La
+bitácora sigue aparte y sin valores. Sólo se guardan valores de lo que se puede deshacer:
+- update de `product`, `variation`, `category`, `tag`, `brand`, `attribute`, `attribute_term`, `shipping_class` o
+  `coupon`: el valor de antes (una lectura previa, GET) y el de después de **las claves enviadas**;
+- create de lo mismo: el ID y la fecha de modificación;
+- delete a la papelera (sin `force`) de un producto o un cupón: el ID.
+Lo demás queda con `undo: false` y el motivo, sin valores: lotes, pedidos, notas, reembolsos, clientes y reseñas (datos
+personales o dinero), ajustes, envíos, impuestos y pasarelas (pueden llevar claves), borrados definitivos, cambios con
+`meta_data` (WooCommerce combina los metadatos) o con los correos de un cupón (`email_restrictions`, `used_by`).
+
+`undo` (en `products`, `catalog` y `coupons`, con `change_id`; `dry_run` también) es una escritura: sujeta al modo, a la
+capacidad de la acción inversa (editar para un update; borrar para un create o una papelera) y a la bitácora. Comprueba
+antes que nadie lo cambió:
+- update: cada clave debe seguir con el valor «después»; si no, no toca nada y dice qué campos cambiaron (409).
+- create: un producto o un cupón va a la papelera si no cambió desde que se creó; una variación (sin papelera) se borra
+  sólo en ese caso; una categoría, etiqueta, marca, clase de envío o término, sólo si `count` es 0; un atributo, sólo si
+  no tiene términos.
+- papelera: `wp_untrash_post()` con el estado que tenía (no el borrador que WordPress pone por defecto), si sigue en la
+  papelera y el usuario puede borrarlo (`delete_post`).
+Un cambio se deshace una vez; después la entrada queda marcada (`undone`) y sin valores. `reports` → `changes` lista el
+registro sin valores (qué campos cambió cada entrada y si se puede deshacer), con `manage_woocommerce` como la bitácora.
+
+**Qué configura el dueño.** Nada, si quiere seguir como estaba. Para que un cliente MCP externo cree o cambie productos
+sin abrir toda la tienda: «Rendimiento» → «WooCommerce en el MCP» → «Escritura sólo en lo elegido» y marcar «Productos y
+variaciones» (y lo que quiera).
 
 ## Guardas
 
@@ -185,7 +250,9 @@ MCP del sitio apagado, no hay herramientas de tienda.
 ## Pruebas
 
 - `tests/elements-woo-mcp.php` (en `validate.yml` y `release.yml`; PHP 7.4, 8.2 y 8.5): definiciones, tabla
-  acción → ruta sin inyección (fuzz), modos con herencia, guardas, secretos, bitácora, permisos y registro.
+  acción → ruta sin inyección (fuzz), modos con herencia, guardas, secretos, bitácora, permisos y registro; desde la
+  tanda B, `custom` con herencia y la pantalla como un navegador (B3-permisos), `dry_run` (B3-dry_run) y el registro con
+  deshacer, conflictos, retención y privacidad (B3-deshacer).
 - `tests/playground/woo-mcp.sh` (manual, en la PC): Playground con WooCommerce 11.2.1 fijado y JSON-RPC real contra
   `/wp-json/elementor/mcp`, en un sitio y en una red.
 - `tests/elements-woo-skydropx.php` (en `validate.yml` y `release.yml`; PHP 7.4, 8.2 y 8.5): registro sólo con Skydropx
