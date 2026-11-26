@@ -90,11 +90,12 @@ class Digitalisimo_Hosting_Provisioning {
 
 	/**
 	 * Lee otra vez de la base el servicio y los ajustes: otra petición pudo dar de baja el servicio o apagar la venta
-	 * mientras esta tarea corría. Con caché de objetos persistente ya llegan al día (la otra petición la actualizó); sin
-	 * ella, se descarta la copia de esta petición.
+	 * mientras esta tarea corría. Se descarta la copia de esta petición SIEMPRE: también con caché persistente (Redis,
+	 * Memcached, LSMCD), porque los drop-ins guardan una copia en memoria por petición que no ve lo que escribió otra.
+	 * Sólo estas claves (el servicio y las opciones), nunca toda la caché.
 	 */
 	private static function refresh( $service ) {
-		if ( ! function_exists( 'wp_cache_delete' ) || ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() ) ) return;
+		if ( ! function_exists( 'wp_cache_delete' ) ) return;
 		if ( $service ) wp_cache_delete( (int) $service, 'post_meta' );
 		foreach ( array( 'alloptions', 'notoptions', Digitalisimo_Hosting::OPTION ) as $key ) wp_cache_delete( $key, 'options' );
 	}
@@ -1140,6 +1141,9 @@ class Digitalisimo_Hosting_Provisioning {
 			}
 			if ( $stop ) { self::fail( $order, $state, $stop, self::HOOK_RENEW, $order->get_id(), $id ); return; }
 			if ( empty( $state['extended'] ) ) {
+				// Lo recién leído manda: un servicio dado de baja nunca vuelve a «activo» ni gana un año.
+				self::refresh( $id );
+				if ( 'cancelled' === self::svc( $id, 'status' ) ) { self::interrupted( $order, $state, 'cancelled', $id, true ); return; }
 				$old = (int) self::svc( $id, 'expires' );
 				$new = strtotime( '+1 year', $old ? $old : time() );
 				$state['extended'] = $new;

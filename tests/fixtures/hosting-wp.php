@@ -42,10 +42,22 @@ function is_network_admin() { return ! empty( $GLOBALS['network_admin'] ); }
 function get_current_blog_id() { return $GLOBALS['blog']; }
 function switch_blog( $id ) { $GLOBALS['blogs'][ $GLOBALS['blog'] ] = $GLOBALS['options']; $GLOBALS['blog'] = $id; $GLOBALS['options'] = $GLOBALS['blogs'][ $id ] ?? array(); }
 $GLOBALS['options'] = array( 'admin_email' => 'admin@tienda.test', 'blogname' => 'Tienda' );
-function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['options'] ) ? $GLOBALS['options'][ $k ] : $d; }
-function update_option( $k, $v, $a = null ) { $GLOBALS['options'][ $k ] = $v; return true; }
-function add_option( $k, $v = '', $x = '', $a = null ) { if ( array_key_exists( $k, $GLOBALS['options'] ) ) return false; $GLOBALS['options'][ $k ] = $v; return true; }
-function delete_option( $k ) { unset( $GLOBALS['options'][ $k ] ); return true; }
+// Caché de objetos (H-1, séptima revisión): con $GLOBALS['cache_sim'] cada petición guarda en memoria lo que leyó de
+// opciones y meta (como WordPress, y como los drop-ins de Redis, Memcached o LSMCD aun con caché persistente);
+// other_request() simula otra petición que escribe en la base sin tocar la memoria de ésta. Apagado, nada cambia.
+$GLOBALS['cache_sim'] = false; $GLOBALS['ext_cache'] = false; $GLOBALS['rt_opt'] = array(); $GLOBALS['rt_meta'] = array();
+function wp_using_ext_object_cache() { return (bool) $GLOBALS['ext_cache']; }
+function wp_cache_delete( $key, $group = '' ) { if ( 'post_meta' === $group ) unset( $GLOBALS['rt_meta'][ (int) $key ] ); if ( 'options' === $group ) { if ( 'alloptions' === $key ) $GLOBALS['rt_opt'] = array(); else unset( $GLOBALS['rt_opt'][ $key ] ); } return true; }
+function digi_cache_reset() { $GLOBALS['rt_opt'] = array(); $GLOBALS['rt_meta'] = array(); }
+function other_request( callable $cb ) { $m = $GLOBALS['rt_meta']; $o = $GLOBALS['rt_opt']; digi_cache_reset(); $cb(); $GLOBALS['rt_meta'] = $m; $GLOBALS['rt_opt'] = $o; }
+function get_option( $k, $d = false ) {
+	if ( ! $GLOBALS['cache_sim'] ) return array_key_exists( $k, $GLOBALS['options'] ) ? $GLOBALS['options'][ $k ] : $d;
+	if ( ! array_key_exists( $k, $GLOBALS['rt_opt'] ) ) { if ( ! array_key_exists( $k, $GLOBALS['options'] ) ) return $d; $GLOBALS['rt_opt'][ $k ] = $GLOBALS['options'][ $k ]; }
+	return $GLOBALS['rt_opt'][ $k ];
+}
+function update_option( $k, $v, $a = null ) { $GLOBALS['options'][ $k ] = $v; unset( $GLOBALS['rt_opt'][ $k ] ); return true; }
+function add_option( $k, $v = '', $x = '', $a = null ) { unset( $GLOBALS['rt_opt'][ $k ] ); if ( array_key_exists( $k, $GLOBALS['options'] ) ) return false; $GLOBALS['options'][ $k ] = $v; return true; }
+function delete_option( $k ) { unset( $GLOBALS['options'][ $k ], $GLOBALS['rt_opt'][ $k ] ); return true; }
 function wp_load_alloptions() { return $GLOBALS['options']; }
 function wp_set_option_autoload( $k, $a ) { return true; }
 function get_site_option( $k, $d = false ) { if ( ! $GLOBALS['multisite'] ) return get_option( $k, $d ); return array_key_exists( $k, $GLOBALS['site_options'] ) ? $GLOBALS['site_options'][ $k ] : $d; }
@@ -115,8 +127,13 @@ $GLOBALS['posts'] = array(); $GLOBALS['postmeta'] = array(); $GLOBALS['next_id']
 function wp_insert_post( $a ) { $id = ++$GLOBALS['next_id']; $GLOBALS['posts'][ $id ] = (object) ( $a + array( 'ID' => $id, 'blog' => $GLOBALS['blog'] ) ); $GLOBALS['posts'][ $id ]->ID = $id; return $id; }
 function get_post( $id ) { $p = $GLOBALS['posts'][ (int) $id ] ?? null; return $p && $p->blog === $GLOBALS['blog'] ? $p : null; }
 function get_posts( $q ) { $out = array(); foreach ( $GLOBALS['posts'] as $id => $p ) if ( $p->post_type === $q['post_type'] && $p->blog === $GLOBALS['blog'] ) $out[] = $id; return $out; }
-function get_post_meta( $id, $k, $single = false ) { return $GLOBALS['postmeta'][ (int) $id ][ $k ] ?? ''; }
-function update_post_meta( $id, $k, $v ) { $GLOBALS['postmeta'][ (int) $id ][ $k ] = $v; return true; }
+function get_post_meta( $id, $k, $single = false ) {
+	$id = (int) $id;
+	if ( ! $GLOBALS['cache_sim'] ) return $GLOBALS['postmeta'][ $id ][ $k ] ?? '';
+	if ( ! array_key_exists( $id, $GLOBALS['rt_meta'] ) ) $GLOBALS['rt_meta'][ $id ] = $GLOBALS['postmeta'][ $id ] ?? array();
+	return $GLOBALS['rt_meta'][ $id ][ $k ] ?? '';
+}
+function update_post_meta( $id, $k, $v ) { $GLOBALS['postmeta'][ (int) $id ][ $k ] = $v; unset( $GLOBALS['rt_meta'][ (int) $id ] ); return true; }
 function has_term() { return false; }
 
 // ── WooCommerce ─────────────────────────────────────────────────────────────────────────────────────────────
