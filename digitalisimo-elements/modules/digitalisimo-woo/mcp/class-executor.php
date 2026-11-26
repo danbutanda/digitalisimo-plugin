@@ -46,7 +46,7 @@ final class Executor {
 			}
 			return $error;
 		}
-		if ( 'write' === $plan['kind'] && 'write' !== $mode ) {
+		if ( 'write' === $plan['kind'] && 'write' !== $mode && ! self::assistant_writes( $tool ) ) {
 			Log::add( Log::entry( $plan, 'denied', 'read_mode', 403, $user ) );
 			return self::read_mode_error( $plan );
 		}
@@ -165,7 +165,11 @@ final class Executor {
 	 */
 	public static function permission( string $tool, $input = null ) {
 		if ( Tools::SKYDROPX === $tool ) {
-			return Skydropx_Tool::permission( $input );
+			$allowed = Skydropx_Tool::permission( $input );
+			if ( true === $allowed && is_array( $input ) && isset( $input['action'] ) && is_string( $input['action'] ) && Skydropx_Tool::is_write( $input['action'] ) ) {
+				return self::assistant_mode( $tool, array( 'action' => $input['action'], 'resource' => 'envíos de Skydropx' ) );
+			}
+			return $allowed;
 		}
 		$floor = Tools::floor( $tool );
 		if ( ! current_user_can( $floor ) ) {
@@ -179,7 +183,46 @@ final class Executor {
 			return true;
 		}
 		$cap = Tools::capability( $tool, $plan['resource'], $plan['action'] );
-		return current_user_can( $cap ) ? true : self::forbidden( $cap );
+		if ( ! current_user_can( $cap ) ) {
+			return self::forbidden( $cap );
+		}
+		return 'write' === $plan['kind'] ? self::assistant_mode( $tool, $plan ) : true;
+	}
+
+	/**
+	 * El Asistente IA del escritorio (IA Tools) pregunta el permiso ANTES de mostrar su tarjeta: en «Sólo lectura», lo
+	 * que el modo no le deja hacer ni a él se niega ya, con el ajuste y dónde se cambia (no «sin permiso» y tampoco
+	 * después de confirmar). Fuera del Asistente nada cambia: el modo lo sigue aplicando `run()`.
+	 *
+	 * @return true|\WP_Error
+	 */
+	private static function assistant_mode( string $tool, array $plan ) {
+		$context = self::assistant( $tool );
+		if ( null === $context || 'write' === Settings::mode() || self::assistant_writes( $tool ) ) {
+			return true;
+		}
+		return self::read_mode_error( $plan );
+	}
+
+	/** El contexto del Asistente si la llamada en curso a esta herramienta viene de él, o null. */
+	private static function assistant( string $tool ) {
+		$context = 'Digitalisimo_AI_Assistant_Context';
+		if ( ! class_exists( $context, false ) || ! method_exists( $context, 'allows' ) || ! method_exists( $context, 'current' ) ) {
+			return null;
+		}
+		return call_user_func( array( $context, 'allows' ), Tools::id( $tool ) ) ? call_user_func( array( $context, 'current' ) ) : null;
+	}
+
+	/**
+	 * ¿Puede el Asistente escribir aunque el modo sea «Sólo lectura»? Sólo lo que él mismo clasifica como cambio
+	 * sencillo (`write`, con su tarjeta de confirmación): crear o actualizar productos, variaciones y el catálogo, sin
+	 * metadatos, descargas ni publicar (caso plomerito 4, 2026-11-26). «Sólo lectura» se pensó para los clientes MCP
+	 * externos; en el escritorio cada cambio lo confirma la persona y queda en la bitácora. Lo destructivo (borrar,
+	 * lotes, pedidos, reembolsos, clientes, cupones, ajustes, envíos, Skydropx) sigue sujeto al modo.
+	 */
+	private static function assistant_writes( string $tool ): bool {
+		$context = self::assistant( $tool );
+		return null !== $context && 'write' === ( $context['kind'] ?? '' ) && in_array( $tool, array( 'products', 'catalog' ), true );
 	}
 
 	private static function forbidden( string $cap ): \WP_Error {
