@@ -546,7 +546,7 @@ class Digitalisimo_Hosting_Provisioning {
 			$state['done'] = time(); unset( $state['attempts'], $state['blocked_noted'] );
 			self::save_state( $order, $state );
 			$expires = strtotime( '+1 year', time() );
-			self::svc_set( $service, array( 'status' => 'active', 'expires' => $expires, 'error' => '', 'started' => time() ) );
+			self::svc_set( $service, array( 'expires' => $expires, 'error' => '', 'started' => time() ) );
 			self::svc_log( $service, 'Aprovisionado con el pedido #' . $order->get_id() . '.' );
 			if ( in_array( self::db_order_status( $order ), array( 'processing', 'on-hold' ), true ) ) $order->update_status( 'completed', 'DIGITALÍSIMO Hosting: servicio entregado; vence el ' . self::date( $expires ) . '.' );
 		} catch ( Throwable $e ) {
@@ -1197,14 +1197,20 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( $stop ) { self::fail( $order, $state, $stop, self::HOOK_RENEW, $order->get_id(), $id ); return; }
 			if ( empty( $state['extended'] ) ) {
 				// Lo recién leído manda: un servicio dado de baja nunca vuelve a «activo» ni gana un año.
+				// cancel_suspension() escribe en el servicio: va antes de la relectura, no entre ella y la escritura final.
+				self::cancel_suspension( $id, 'renovado con el pedido #' . $order->get_id() );
 				self::refresh( $id );
-				if ( 'cancelled' === self::svc( $id, 'status' ) ) { self::interrupted( $order, $state, 'cancelled', $id, true ); return; }
+				$cur = (string) self::svc( $id, 'status' );
+				if ( 'cancelled' === $cur ) { self::interrupted( $order, $state, 'cancelled', $id, true ); return; }
+				if ( in_array( self::db_order_status( $order ), self::DEAD, true ) ) { self::interrupted( $order, $state, 'dead', $id, true ); return; }
+				$to = $manual ? $cur : ( 'suspended' === $cur && self::svc( $id, 'webuzo_user' ) ? 'suspended' : 'active' );
+				// Condicional: sólo si el servicio sigue en el estado leído (una baja entre medias gana y no se extiende).
+				if ( ! self::set_status_if( $id, $cur, $to ) ) { self::interrupted( $order, $state, 'cancelled', $id, true ); return; }
 				$old = (int) self::svc( $id, 'expires' );
 				$new = strtotime( '+1 year', $old ? $old : time() );
 				$state['extended'] = $new;
 				$order->update_meta_data( self::META_RENEW, $state ); $order->save();
-				self::cancel_suspension( $id, 'renovado con el pedido #' . $order->get_id() );
-				self::svc_set( $id, $manual ? array( 'expires' => $new, 'renewal_order' => 0, 'notices' => array(), 'error' => '', 'reprieve_until' => 0 ) : array( 'expires' => $new, 'status' => 'suspended' === self::svc( $id, 'status' ) && self::svc( $id, 'webuzo_user' ) ? 'suspended' : 'active', 'renewal_order' => 0, 'last_renewal_order' => $order->get_id(), 'notices' => array(), 'error' => '', 'suspend_reason' => '', 'suspend_for' => 0, 'reprieve_until' => 0 ) );
+				self::svc_set( $id, $manual ? array( 'expires' => $new, 'renewal_order' => 0, 'notices' => array(), 'error' => '', 'reprieve_until' => 0 ) : array( 'expires' => $new, 'renewal_order' => 0, 'last_renewal_order' => $order->get_id(), 'notices' => array(), 'error' => '', 'suspend_reason' => '', 'suspend_for' => 0, 'reprieve_until' => 0 ) );
 				self::svc_log( $id, 'Renovado con el pedido #' . $order->get_id() . ' hasta el ' . self::date( $new ) . '.' );
 			}
 			if ( $dstop ) {
