@@ -224,6 +224,7 @@ final class Site {
 			'timezone'        => self::sales_timezone()->getName(),
 			'gateways'        => self::gateways(),
 			'shipping'        => self::shipping(),
+			'price'           => self::price_format(),
 		);
 		if ( '' === $site['currency'] ) {
 			$site['currency'] = 'MXN';
@@ -233,6 +234,39 @@ final class Site {
 		}
 		list( $site['whatsapp'], $site['whatsapp_source'], $site['whatsapp_candidates'] ) = self::pick_whatsapp( self::whatsapp_sources() );
 		return $site;
+	}
+
+	/**
+	 * Cómo escribe los precios la tienda (los ajustes de WooCommerce, como `wc_price()`): decimales, separadores, el
+	 * formato con el símbolo y si quita los ceros de los decimales.
+	 */
+	private static function price_format(): array {
+		return array(
+			'decimals'     => function_exists( 'wc_get_price_decimals' ) ? (int) wc_get_price_decimals() : 2,
+			'decimal_sep'  => function_exists( 'wc_get_price_decimal_separator' ) ? (string) wc_get_price_decimal_separator() : '.',
+			'thousand_sep' => function_exists( 'wc_get_price_thousand_separator' ) ? (string) wc_get_price_thousand_separator() : ',',
+			'format'       => function_exists( 'get_woocommerce_price_format' ) ? (string) get_woocommerce_price_format() : '%1$s%2$s',
+			'trim_zeros'   => function_exists( 'apply_filters' ) ? (bool) apply_filters( 'woocommerce_price_trim_zeros', false ) : false,
+		);
+	}
+
+	/**
+	 * Un precio escrito como lo escribe la tienda (`wc_price()` en texto plano): sus decimales y separadores, el símbolo
+	 * en su lugar y sin agregar el código de la moneda. Pura.
+	 */
+	public static function price( float $amount, array $site ): string {
+		$f        = (array) ( $site['price'] ?? array() );
+		$decimals = max( 0, (int) ( $f['decimals'] ?? 2 ) );
+		$number   = number_format( abs( $amount ), $decimals, (string) ( $f['decimal_sep'] ?? '.' ), (string) ( $f['thousand_sep'] ?? ',' ) );
+		if ( ! empty( $f['trim_zeros'] ) && $decimals > 0 ) {
+			$number = (string) preg_replace( '/' . preg_quote( (string) ( $f['decimal_sep'] ?? '.' ), '/' ) . '0++$/', '', $number );
+		}
+		$format = (string) ( $f['format'] ?? '%1$s%2$s' );
+		if ( false === strpos( $format, '%1$s' ) || false === strpos( $format, '%2$s' ) ) {
+			$format = '%1$s%2$s';
+		}
+		$text = sprintf( $format, (string) ( $site['currency_symbol'] ?? '$' ), $number );
+		return ( $amount < 0 ? '-' : '' ) . html_entity_decode( str_replace( '&nbsp;', ' ', $text ), ENT_QUOTES, 'UTF-8' );
 	}
 
 	/** El logo del sitio (el del tema o, si no hay, el icono del sitio): ['id' => int, 'url' => string] o null. */

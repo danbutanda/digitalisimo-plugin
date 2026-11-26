@@ -127,7 +127,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 		$out = array();
 		foreach ( self::mcp_names() as $name ) {
 			$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $name ) : null;
-			if ( ! is_object( $ability ) || 'tool' !== self::mcp_type( $ability ) ) {
+			if ( ! is_object( $ability ) || 'tool' !== self::mcp_type( $ability ) || self::needs_atomic_editor( $name ) ) {
 				continue;
 			}
 			$category = (string) $ability->get_category();
@@ -152,6 +152,24 @@ final class Digitalisimo_AI_Assistant_Tools {
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * ¿Es una herramienta del constructor que sólo funciona con el editor atómico encendido y el sitio lo tiene apagado?
+	 * Entonces no se le ofrece al modelo (caso plomerito 3, 2026-11-25): con ella a la vista, el Asistente acabó
+	 * pidiéndole al dueño que «active el Editor atómico» para leer los colores del kit. Los colores, tipografías,
+	 * cabecera y pie del sitio los pone el kit de ventas sin ese ajuste, y un borrador propio se corrige rehaciéndolo.
+	 */
+	public static function needs_atomic_editor( $name ) {
+		$gate = 'Elementor\\Modules\\Mcp\\Utils\\Mcp_V4_Gate';
+		if ( ! class_exists( $gate ) || ! method_exists( $gate, 'is_gated' ) || ! method_exists( $gate, 'is_atomic_editor_active' ) ) {
+			return false;
+		}
+		try {
+			return (bool) call_user_func( array( $gate, 'is_gated' ), (string) $name ) && ! call_user_func( array( $gate, 'is_atomic_editor_active' ) );
+		} catch ( \Throwable $e ) {
+			return false;
+		}
 	}
 
 	/** Nombre de herramienta para los proveedores (y el mismo que publica el MCP): `/` y lo no admitido pasan a `-`. */

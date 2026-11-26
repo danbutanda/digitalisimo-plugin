@@ -34,7 +34,7 @@ final class Digitalisimo_AI_Site_Reader {
 		return array(
 			self::READ_TEXT => array(
 				'label'               => 'Leer el texto de una página',
-				'description'         => 'Devuelve el texto legible de una entrada, página, producto o plantilla de este sitio, tal como lo lee una persona: el de los widgets de Elementor (títulos, textos, botones, listas, preguntas, testimonios) o el de los bloques del editor, sin HTML. Trae también sus enlaces (texto y destino) y los teléfonos y WhatsApp que aparecen. Busca por id, por url (de este sitio) o por slug. Úsala para saber qué dice una página antes de escribir sobre ella, o para verificar una página que acabas de crear. Sólo lee.',
+				'description'         => 'Devuelve el texto legible de una entrada, página, producto o plantilla de este sitio, tal como lo lee una persona, y en una página del constructor su look (los colores y las tipografías que lleva de verdad, los del sitio, si coinciden y si lleva la cabecera y el pie del sitio): el de los widgets de Elementor (títulos, textos, botones, listas, preguntas, testimonios) o el de los bloques del editor, sin HTML. Trae también sus enlaces (texto y destino) y los teléfonos y WhatsApp que aparecen. Busca por id, por url (de este sitio) o por slug. Úsala para saber qué dice una página antes de escribir sobre ella, o para verificar una página que acabas de crear. Sólo lee.',
 				'category'            => Digitalisimo_AI_Assistant_Ability::CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -113,6 +113,53 @@ final class Digitalisimo_AI_Site_Reader {
 			'links'     => array_slice( $content['links'], 0, 80 ),
 			'whatsapp'  => $phones['whatsapp'],
 			'phones'    => $phones['phones'],
+		) + self::look( $post, $content['source'] );
+	}
+
+	/**
+	 * Cómo se ve una página del constructor (caso plomerito 3, 2026-11-25: el Asistente dijo «ya usa los colores de tu
+	 * kit» sin haberlo revisado): `look` con los colores y las tipografías que lleva de verdad (los globales del kit
+	 * resueltos) comparados con los del sitio (`Brand` del kit de ventas de Elements), si lleva la cabecera y el pie del
+	 * sitio y a dónde llevan sus botones. Sólo lee; sin Elements, nada.
+	 */
+	private static function look( $post, $source ) {
+		$brand_class = 'Digitalisimo\\Elements\\Sales\\Brand';
+		if ( 'elementor' !== $source || ! class_exists( $brand_class ) ) {
+			return array();
+		}
+		$data = json_decode( (string) get_post_meta( $post->ID, '_elementor_data', true ), true );
+		if ( ! is_array( $data ) ) {
+			return array();
+		}
+		try {
+			$brand = call_user_func( array( $brand_class, 'read' ) );
+			$kit   = array();
+			foreach ( (array) ( $brand['kit_colors'] ?? array() ) as $id => $c ) {
+				$kit[ $id ] = is_array( $c ) ? (string) ( $c['color'] ?? '' ) : (string) $c;
+			}
+			$look = call_user_func( array( $brand_class, 'look' ), $data, $brand, $kit );
+		} catch ( \Throwable $e ) {
+			return array();
+		}
+		$template = (string) get_post_meta( $post->ID, '_wp_page_template', true );
+		$settings = get_post_meta( $post->ID, '_elementor_page_settings', true );
+		if ( '' === $template && is_array( $settings ) ) {
+			$template = (string) ( $settings['template'] ?? '' );
+		}
+		$site = array();
+		foreach ( (array) ( $brand['colors'] ?? array() ) as $role => $c ) {
+			$site[ $role ] = (string) ( $c['color'] ?? '' );
+		}
+		return array(
+			'look' => array(
+				'colors'             => array_slice( $look['colors'], 0, 20 ),
+				'fonts'              => $look['fonts'],
+				'site_colors'        => $site,
+				'site_fonts'         => (array) ( $brand['fonts'] ?? array() ),
+				'matches_site'       => (bool) $look['matches_site'],
+				'digitalisimo'       => $look['digitalisimo'],
+				'site_header_footer' => 'elementor_canvas' !== $template,
+			),
 		);
 	}
 

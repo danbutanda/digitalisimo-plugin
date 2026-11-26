@@ -180,6 +180,57 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
 
 ### `create-page`
 
+- **La identidad del sitio y la oferta de tienda (caso plomerito 3, 2026-11-25).** Con IA Tools 1.0.73 y Elements
+  4.3.0.197, «créame una landing de oferta navideña con todos los productos al 40 %» en un sitio azul rey y amarillo
+  salió gris oscuro y verde menta (la paleta DIGITALÍSIMO), sin la cabecera ni el pie del sitio, con la plantilla de un
+  curso («Lo que vas a lograr», «+ todos los bonus», la factura, el aviso de «resultados e ingresos»), sin productos y
+  con el botón al carrito vacío; el Asistente pidió activar el «Editor atómico» para leer los colores. Ahora:
+  - **Plantillas sin la paleta DIGITALÍSIMO.** El generador cambia cada color de marca del Manual de identidad por un
+    global del kit (`__globals__`: `primary` para fondos fuertes, títulos y etiquetas; `text` para el texto; `accent`
+    para botones y resaltes; el resalte de los títulos con `var(--e-global-color-…)` en su CSS propio) y los neutros por
+    grises sin tinte; `kit_validar.py` falla si queda un color de la paleta. Todas piden `elementor_header_footer`.
+  - **`Brand` (`class-brand.php`).** `read()` lee el kit activo (`elementor_active_kit`: `system_colors`,
+    `custom_colors`, `system_typography`, `custom_typography`, las fuentes del cuerpo y los títulos y los botones) sin
+    depender del editor atómico ni de ningún ajuste, y el diseño real: la cabecera y el pie en uso del constructor de
+    temas y la portada (`_elementor_data`, con los globales resueltos) y, si no hay nada más, el color del logo (GD).
+    `resolve()` decide `primary` (el color con tono que más pesa en fondos, iconos y títulos; la cabecera pesa más),
+    `accent` (el de los botones, de otro tono) y `text`; si el kit tiene los valores de fábrica (o sus colores no se
+    ven), manda el diseño. Cada papel apunta al global del kit que es ese color (la página sigue al kit) o va literal.
+    `apply()` cambia en la página los globales de las plantillas y cualquier color DIGITALÍSIMO que quedara, corrige el
+    contraste (texto claro sobre un fondo que en ese sitio es claro, el texto de los botones contra su fondo, un resalte
+    que no se leería) y pone las tipografías del sitio. `look()` mide lo que la página lleva de verdad.
+  - **Cabecera y pie del sitio.** `Pages::create()` guarda `elementor_header_footer`; `blank_page: true` (sólo si la
+    persona lo pide) deja el lienzo vacío.
+  - **`store_offer` (`class-store.php`).** Descuento en toda la tienda o en una categoría (`percent`, `category`,
+    `label`, `ends`, `headline`, `subtitle`; sin `template` ni `product_id`): la portada con la oferta y el botón a la
+    tienda o a la categoría, la cuadrícula de productos reales con foto, precio normal tachado y precio con el
+    descuento (hasta 12 todos; con más, los 8 más vendidos y las categorías con imagen), las garantías que el sitio
+    publica en su pie o su cabecera (cajas con icono; si no hay, las de sus datos reales: envío, pagos, devoluciones,
+    WhatsApp), las formas de pago y envío activas, preguntas frecuentes con esos datos y la política de devoluciones,
+    y el cierre con el botón a la tienda. Ningún texto de cursos (`Store::COURSE_TEXT`). No cambia precios: `review`
+    avisa que la tienda sigue cobrando el precio normal.
+  - **Revisión (2026-11-25, segunda vuelta).** Todo texto pasa WCAG AA: un pase final (`Brand::contrast_pass()`),
+    siempre y no sólo con colores con tono, mide cada texto contra el fondo donde se pinta (su botón, la caja del
+    contador, la pregunta o la sección): 4.5 en texto normal y en los botones (salen de 15 a 18 px: no son texto
+    grande); 3 en títulos grandes, cifras del contador e iconos; si no llega, blanco o negro, el que dé más contraste
+    (también el texto sobre el acento: en #00A86B, negro). Cada botón se distingue de su sección: si su fondo no llega a
+    3 frente a ella (un acento claro sobre blanco, #333 sobre una portada negra), lleva un borde que sí llega. Un kit propio en negro y gris (o un fondo fuerte sin tono en la
+    cabecera) es la identidad del sitio. `look` compara contra los colores DEL SITIO: la paleta DIGITALÍSIMO es ajena
+    sólo si el sitio no la usa (digitalisimo.lat y .mx la usan); un primario pastel sigue como fondo con texto oscuro y
+    cuenta como marca; `look.contrast` y `check.contrast_ok`. Precios de la oferta de tienda: como los muestra la
+    tienda (`wc_get_price_to_display`), el descuento sobre lo que cobra hoy (si ya está rebajado, sobre ese precio, que
+    es el tachado), escritos como `wc_price()` (`Site::price()`, sin agregar «MXN») y `review` dice qué productos no
+    coinciden (`store_offer.not_matching`); la landing de producto nunca pide subir un precio. Dentro del sitio, la
+    página no lleva el pie propio de la plantilla y, si la cabecera del sitio es fija, la barra de cierre deja de ser
+    fija; rehacer un borrador sin `blank_page` conserva su plantilla de página (también la «Plantilla predeterminada»
+    elegida a mano). La landing de un producto usa el mismo cálculo de precios (`wc_get_price_to_display`) y el mismo
+    formato (`Site::price()`, sin «MXN» añadido); si la tienda captura sin impuestos y los muestra con ellos, `review`
+    dice qué precio capturar. La frase de la política de devoluciones sale de sus párrafos, sin el título. Los más vendidos salen de una consulta
+    por `total_sales`; la política de devoluciones se lee por su texto visible; el análisis del logo queda en un
+    transient por su URL y fecha.
+  - **La respuesta comprueba.** `brand` (de dónde salió la identidad), `look` (colores y tipografías de la página, los
+    del sitio, si coinciden, colores DIGITALÍSIMO hallados) y `check` (cabecera y pie, botón principal y si va al
+    carrito, productos, textos de cursos). El Asistente afirma sólo lo que `check` confirma.
 - **La landing de un producto de la tienda (`product_id`, 2026-11-23).** Caso real de plomerito: la promo de Black
   Friday de un purificador ($10,000 a $7,500, «de hoy a fin de mes») salió como la plantilla, con 36 placeholders sin
   llenar, el WhatsApp y el logo de muestra y enlaces a páginas que no existen. Con `product_id` y `offer` (`price`,
@@ -324,6 +375,16 @@ con un JSON suelto, no hace nada. El editor del constructor ya pregunta antes de
 
 ## Pruebas
 
+- `tests/elements-sales-brand.php` (en `validate.yml` y `release.yml`; PHP 7.4 a 8.5): ninguna plantilla con la paleta
+  DIGITALÍSIMO y todas con la cabecera y el pie del sitio; `Brand::resolve()` con un kit real (globales del kit) y con
+  el kit de fábrica (colores y fuentes de la cabecera y el pie; el logo; un neutro si no hay nada); `apply()` sobre la
+  venta corta en las dos variantes (los colores y las fuentes del sitio, botones legibles); `Store::page()` (productos
+  con foto, precio tachado y 40 % menos, botón a la tienda, garantías del pie, pagos, envíos, preguntas, contador en la
+  hora de la tienda, sin textos de cursos, IDs únicos, categoría, más vendidos) y `create-page` con `store_offer` (y sus
+  errores). Falla con el código anterior.
+- `tests/playground/ia-assistant-marca.sh` (NO va en la CI: API real): el Asistente con una tienda inventada con su
+  propia marca (`CASE=kit` y `CASE=fabrica`); mide en la landing que se ve (Chrome) colores, fuentes, cabecera y pie,
+  productos, precios, botón, textos de cursos, preguntas, precios intactos, jerga y que no pida activar nada.
 - `tests/elements-sales-kit.mjs` (en `validate.yml` y `release.yml`; necesita `python3`): el generador con `--check`,
   el validador sobre las dos variantes, cuarenta y nueve plantillas y manifiestos rotos que el validador debe rechazar (marcas, también las de
   la lista ampliada y WhatsApp fuera del llamado a la acción, enlaces, video, IDs, widgets, paridad, filas, contador,

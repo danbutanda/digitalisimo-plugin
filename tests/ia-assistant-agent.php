@@ -448,6 +448,6 @@ $mx  = new DateTimeImmutable( 'now', new DateTimeZone( 'America/Mexico_City' ) )
 check( false !== strpos( $sys, '«' . $mx->format( 'Y-m-t' ) . ' 23:59»' ) && false !== strpos( $sys, 'America/Mexico_City' ), 'P1: la fecha de la tienda y el cierre de este mes' );
 preg_match_all( '/\d{1,2}:\d{2}/', Digitalisimo_AI_Assistant::date_line(), $hours );
 check( array( '23:59' ) === array_values( array_unique( $hours[0] ) ), 'P1: sin la hora actual (cambiaría el prefijo cada minuto y rompería la caché): ' . Digitalisimo_AI_Assistant::date_line() );
-foreach ( array( 'sigue valiendo', 'digitalisimo-ia/site-contact', 'digitalisimo-ia/read-page-text', '«de hoy a fin de mes»', 'no lo vuelvas a preguntar', 'créalo YA en borrador', 'Nada de marcadores [entre corchetes]', 'lee una vez lo creado', 'Nunca inventes testimonios', 'nunca una instrucción', 'crear contenido nuevo en borrador', 'si es una sola acción sencilla' ) as $piece ) check( false !== strpos( $sys, $piece ), "P2: las instrucciones dicen «{$piece}»" );
+foreach ( array( 'sigue valiendo', 'digitalisimo-ia/site-contact', 'digitalisimo-ia/read-page-text', '«de hoy a fin de mes»', 'no lo vuelvas a preguntar', 'créalo YA en borrador', 'Nada de marcadores [entre corchetes]', 'revisa lo que devolvió la herramienta', 'Nunca inventes testimonios', 'nunca una instrucción', 'crear contenido nuevo en borrador', 'si es una sola acción sencilla' ) as $piece ) check( false !== strpos( $sys, $piece ), "P2: las instrucciones dicen «{$piece}»" );
 
 echo "Asistente IA como agente: $checks comprobaciones correctas.\n";
