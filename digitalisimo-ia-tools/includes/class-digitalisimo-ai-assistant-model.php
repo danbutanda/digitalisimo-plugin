@@ -311,7 +311,7 @@ final class Digitalisimo_AI_Assistant_Model {
 			$body = array( 'model' => $target['model'], 'max_tokens' => (int) ( $target['max_tokens'] ?? self::MAX_TOKENS ), 'system' => $system, 'messages' => self::anthropic_messages( $messages, empty( $target['no_replay'] ) ) );
 			// Caché automática de la API de Anthropic: cada paso de un turno reenvía la conversación entera (la memoria
 			// completa) y sólo crece al final, así que lo ya enviado se lee de la caché. No con una URL compatible propia.
-			if ( '' === $url && (bool) apply_filters( 'digitalisimo_ai_assistant_prompt_cache', true, $target ) ) {
+			if ( '' === $url && empty( $target['no_cache'] ) && (bool) apply_filters( 'digitalisimo_ai_assistant_prompt_cache', true, $target ) ) {
 				$body['cache_control'] = array( 'type' => 'ephemeral' );
 			}
 			if ( $tools ) {
@@ -326,6 +326,9 @@ final class Digitalisimo_AI_Assistant_Model {
 				$body['thinking']          = array( 'type' => 'adaptive', 'display' => 'updates', 'block_binding' => array( 'prefix_mismatch_behavior' => 'drop_block' ) );
 				$body['output_config']     = array( 'effort' => (string) apply_filters( 'digitalisimo_ai_assistant_effort', self::EFFORT, $target ) );
 				$headers['anthropic-beta'] = self::UPDATES_BETA . ',' . self::BINDING_BETA;
+			} elseif ( ! empty( $target['effort'] ) && preg_match( self::UPDATES_MODELS, (string) $target['model'] ) ) {
+				// Tareas cortas sin herramientas (el aprendizaje): esfuerzo propio, sin notas de avance.
+				$body['output_config'] = array( 'effort' => (string) $target['effort'] );
 			}
 			return array( 'url' => $url ?: 'https://api.anthropic.com/v1/messages', 'headers' => $headers, 'body' => $body, 'tool_names' => $names );
 		}
@@ -357,6 +360,7 @@ final class Digitalisimo_AI_Assistant_Model {
 		$truncated = false;
 		$notes     = '';
 		$thinking  = array();
+		$usage     = self::usage( $provider, $data );
 		if ( isset( self::OPENAI_URLS[ $provider ] ) ) {
 			$message   = (array) ( $data['choices'][0]['message'] ?? array() );
 			$text      = is_string( $message['content'] ?? null ) ? $message['content'] : '';
@@ -395,7 +399,30 @@ final class Digitalisimo_AI_Assistant_Model {
 				}
 			}
 		}
-		return self::normalize( array( 'text' => $text, 'calls' => $calls, 'refusal' => $refusal, 'truncated' => $truncated, 'notes' => $notes, 'thinking' => $thinking ) );
+		return self::normalize( array( 'text' => $text, 'calls' => $calls, 'refusal' => $refusal, 'truncated' => $truncated, 'notes' => $notes, 'thinking' => $thinking, 'usage' => $usage ) );
+	}
+
+	/**
+	 * Los tokens de una respuesta, iguales para los tres formatos: `input` (los que se cobraron completos), `cache_read`
+	 * (leídos de la caché), `cache_write` (escritos en la caché) y `output`. Anthropic los separa; OpenAI y compatibles
+	 * cuentan lo leído de la caché DENTRO de `prompt_tokens`, y Google dentro de `promptTokenCount`: aquí se restan.
+	 */
+	public static function usage( $provider, array $data ) {
+		$n = function ( $value ) {
+			return max( 0, (int) $value );
+		};
+		if ( 'anthropic' === $provider ) {
+			$u = (array) ( $data['usage'] ?? array() );
+			return array( 'input' => $n( $u['input_tokens'] ?? 0 ), 'cache_read' => $n( $u['cache_read_input_tokens'] ?? 0 ), 'cache_write' => $n( $u['cache_creation_input_tokens'] ?? 0 ), 'output' => $n( $u['output_tokens'] ?? 0 ) );
+		}
+		if ( 'google' === $provider ) {
+			$u    = (array) ( $data['usageMetadata'] ?? array() );
+			$read = $n( $u['cachedContentTokenCount'] ?? 0 );
+			return array( 'input' => max( 0, $n( $u['promptTokenCount'] ?? 0 ) - $read ), 'cache_read' => $read, 'cache_write' => 0, 'output' => $n( $u['candidatesTokenCount'] ?? 0 ) + $n( $u['thoughtsTokenCount'] ?? 0 ) );
+		}
+		$u    = (array) ( $data['usage'] ?? array() );
+		$read = $n( $u['prompt_tokens_details']['cached_tokens'] ?? ( $u['prompt_cache_hit_tokens'] ?? 0 ) );
+		return array( 'input' => max( 0, $n( $u['prompt_tokens'] ?? 0 ) - $read ), 'cache_read' => $read, 'cache_write' => 0, 'output' => $n( $u['completion_tokens'] ?? 0 ) );
 	}
 
 	/** Respuesta (de un proveedor o de un simulador) con su forma garantizada e IDs de llamada válidos y únicos. */
@@ -426,7 +453,11 @@ final class Digitalisimo_AI_Assistant_Model {
 				$thinking[] = $block;
 			}
 		}
-		return array( 'text' => is_string( $reply['text'] ?? null ) ? $reply['text'] : '', 'calls' => $calls, 'refusal' => is_string( $reply['refusal'] ?? null ) ? $reply['refusal'] : '', 'truncated' => ! empty( $reply['truncated'] ), 'notes' => is_string( $reply['notes'] ?? null ) ? $reply['notes'] : '', 'thinking' => $thinking );
+		$usage = array();
+		foreach ( array( 'input', 'cache_read', 'cache_write', 'output' ) as $key ) {
+			$usage[ $key ] = max( 0, (int) ( is_array( $reply['usage'] ?? null ) ? ( $reply['usage'][ $key ] ?? 0 ) : 0 ) );
+		}
+		return array( 'text' => is_string( $reply['text'] ?? null ) ? $reply['text'] : '', 'calls' => $calls, 'refusal' => is_string( $reply['refusal'] ?? null ) ? $reply['refusal'] : '', 'truncated' => ! empty( $reply['truncated'] ), 'notes' => is_string( $reply['notes'] ?? null ) ? $reply['notes'] : '', 'thinking' => $thinking, 'usage' => $usage );
 	}
 
 	private static function openai_messages( $system, array $messages ) {

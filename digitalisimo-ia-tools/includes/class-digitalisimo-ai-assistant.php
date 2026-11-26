@@ -162,12 +162,15 @@ final class Digitalisimo_AI_Assistant {
 		$version = DIGITALISIMO_CHATBOT_VERSION;
 		wp_enqueue_style( 'digitalisimo-ai-assistant', $url . 'assistant.css', function_exists( 'digitalisimo_ui_dependency' ) ? digitalisimo_ui_dependency() : array(), $version );
 		wp_register_script( 'digitalisimo-ai-assistant-adapters', $url . 'assistant-adapters.js', array(), $version, true );
+		// El aprendizaje («Entrenar con mi sitio web», «Lo que sé de tu sitio»): piezas propias, con su hoja.
+		wp_enqueue_style( 'digitalisimo-ai-assistant-learning', $url . 'assistant-learning.css', array( 'digitalisimo-ai-assistant' ), $version );
+		wp_register_script( 'digitalisimo-ai-assistant-learning', $url . 'assistant-learning.js', array( 'wp-element' ), $version, true );
 		/**
 		 * Otro conjunto de adaptadores (historial, modelo, herramientas): el handle de un script que defina
 		 * `window.digitalisimoAssistantAdapters.create( config )` con el mismo contrato (p. ej. sobre @digitalisimo/core-sdk).
 		 */
 		$adapters = (string) apply_filters( 'digitalisimo_ai_assistant_adapters_handle', 'digitalisimo-ai-assistant-adapters' );
-		wp_enqueue_script( 'digitalisimo-ai-assistant', $url . 'assistant.js', array( 'wp-element', $adapters ), $version, true );
+		wp_enqueue_script( 'digitalisimo-ai-assistant', $url . 'assistant.js', array( 'wp-element', $adapters, 'digitalisimo-ai-assistant-learning' ), $version, true );
 		wp_add_inline_script( 'digitalisimo-ai-assistant', 'window.digitalisimoAssistantConfig = ' . wp_json_encode( self::config() ) . ';', 'before' );
 	}
 
@@ -194,6 +197,8 @@ final class Digitalisimo_AI_Assistant {
 			'providers'   => $providers,
 			'initial'     => array( 'newConversation' => $new, 'prompt' => $prompt, 'conversation' => $conversation ),
 			'canViewLog'  => $manage,
+			// «Lo que sé de tu sitio» y «Entrenar con mi sitio web»: sólo quien administra el sitio.
+			'learning'    => class_exists( 'Digitalisimo_AI_Assistant_Learning' ) && Digitalisimo_AI_Assistant_Learning::can(),
 			'settingsUrl' => $manage ? admin_url( 'admin.php?page=digitalisimo-ai&tab=providers' ) : '',
 			'limits'      => array( 'message' => self::MAX_MESSAGE ),
 		);
@@ -325,6 +330,10 @@ final class Digitalisimo_AI_Assistant {
 			$conv = $id ? Digitalisimo_AI_Assistant_History::get( $id, $user, true ) : Digitalisimo_AI_Assistant_History::create( $user, $text );
 			if ( ! $conv ) {
 				return $id ? self::missing() : new WP_Error( 'digitalisimo_assistant_history', 'No se pudo guardar la conversación.', array( 'status' => 500 ) );
+			}
+			if ( ! $id && class_exists( 'Digitalisimo_AI_Assistant_Learning' ) ) {
+				// Al empezar otra conversación, lo que la persona enseñó en las anteriores se repasa en segundo plano.
+				Digitalisimo_AI_Assistant_Learning::after_new_conversation( $user );
 			}
 			if ( ! $id ) {
 				// La conversación nueva también queda tomada mientras corre su primer turno.
@@ -690,6 +699,10 @@ final class Digitalisimo_AI_Assistant {
 	public static function turn( array &$conv, array $target, callable $emit, $resumed = false ) {
 		$catalog        = Digitalisimo_AI_Assistant_Tools::catalog( $conv['categories'] );
 		$tools          = Digitalisimo_AI_Assistant_Tools::definitions( $catalog );
+		if ( class_exists( 'Digitalisimo_AI_Assistant_Learning' ) && Digitalisimo_AI_Assistant_Learning::can() ) {
+			// «Recordar» (el aprendizaje): sólo quien administra el sitio le enseña al Asistente para el futuro.
+			$tools[] = Digitalisimo_AI_Assistant_Learning::tool_definition();
+		}
 		$state          = $resumed && is_array( $conv['resume'] ?? null ) ? $conv['resume'] : array();
 		$state          = array( 'steps' => (int) ( $state['steps'] ?? 0 ), 'calls' => (int) ( $state['calls'] ?? 0 ), 'count' => (int) ( $state['count'] ?? 0 ) );
 		$conv['resume'] = null;
@@ -744,6 +757,9 @@ final class Digitalisimo_AI_Assistant {
 			if ( ! $reply['truncated'] ) {
 				foreach ( array_slice( $reply['calls'], 0, max( 0, $room ) ) as $call ) {
 					$ability = Digitalisimo_AI_Assistant_Tools::ability_for( $catalog, $call['name'] );
+					if ( '' === $ability && class_exists( 'Digitalisimo_AI_Assistant_Learning' ) && Digitalisimo_AI_Assistant_Learning::TOOL === $call['name'] ) {
+						$ability = Digitalisimo_AI_Assistant_Learning::ABILITY;
+					}
 					$calls[] = array( 'id' => $call['id'], 'ability' => '' !== $ability ? $ability : sanitize_text_field( $call['name'] ), 'input' => $call['input'], 'sig' => $call['sig'] );
 				}
 			}
@@ -803,6 +819,10 @@ final class Digitalisimo_AI_Assistant {
 	private static function handle_calls( array &$conv, array $calls, array $catalog, callable $emit, $shortcut = false, &$read = false ) {
 		$pending = array();
 		foreach ( $calls as $call ) {
+			if ( class_exists( 'Digitalisimo_AI_Assistant_Learning' ) && Digitalisimo_AI_Assistant_Learning::ABILITY === $call['ability'] && ! $shortcut ) {
+				self::remember( $conv, $call, $emit );
+				continue;
+			}
 			$entry = $catalog[ $call['ability'] ] ?? null;
 			if ( ! $entry ) {
 				self::tool_result( $conv, $call, array( 'status' => 'error', 'error' => 'Esa herramienta no está en el MCP de este sitio (o está apagada en el Asistente).' ), 'unknown', $emit );
@@ -884,6 +904,19 @@ final class Digitalisimo_AI_Assistant {
 			$emit( array( 'type' => 'confirm', 'action' => self::action_view( $pair[0], $pair[1] ) ) );
 		}
 		return (bool) $pending;
+	}
+
+	/**
+	 * «Recordar» (Digitalisimo_AI_Assistant_Learning::remember()): no toca el sitio, sólo el aprendizaje; lo comprueba
+	 * el servidor (quien administra, la cita en sus propias palabras, nada de clientes) y se lo dice a la persona en una
+	 * línea, «Lo recordaré: …», sin depender de que el modelo lo repita.
+	 */
+	private static function remember( array &$conv, array $call, callable $emit ) {
+		$result = Digitalisimo_AI_Assistant_Learning::remember( $conv, $call['input'] );
+		self::tool_result( $conv, $call, $result, 'memory', $emit, 'Recordar lo que me enseñaste' );
+		if ( 'ok' === $result['status'] ) {
+			self::notice( $conv, $emit, 'Lo recordaré: ' . $result['text'], 'info' );
+		}
 	}
 
 	/**

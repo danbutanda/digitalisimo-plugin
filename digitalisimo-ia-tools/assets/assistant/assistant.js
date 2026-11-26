@@ -51,7 +51,7 @@
 	const STORE = 'digitalisimo-assistant-appearance';
 	const DEFAULT_LOOK = { variant: 'classic', mode: 'light', scheme: 'digitalisimo' };
 	// En palabras de quien usa el sitio (caso plomerito 2: «arroja información técnica que el usuario nunca va a entender»).
-	const VERBS = { read: 'Consulté', draft: 'Borrador', write: 'Cambio', destructive: 'Cambio importante', unknown: 'Paso' };
+	const VERBS = { read: 'Consulté', draft: 'Borrador', write: 'Cambio', destructive: 'Cambio importante', memory: 'Recordé', unknown: 'Paso' };
 	const STATES = { ok: 'listo', error: 'no se pudo', denied: 'sin permiso', cancelled: 'cancelado', unknown: 'por revisar', skipped: 'no se hizo' };
 	const SUGGESTIONS = [
 		[ 'Créame una landing con una oferta de uno de mis productos', 'Crear una landing de oferta' ],
@@ -566,12 +566,16 @@
 				props.conversations.length ? h( 'div', { className: 'dga-list-footer' }, h( 'button', { type: 'button', className: 'dga-link', onClick: props.onClear, disabled: props.busy }, 'Borrar todo el historial' ) ) : null ) );
 	}
 
+	// El aprendizaje («Entrenar con mi sitio web», «Lo que sé de tu sitio»): piezas propias de assistant-learning.js.
+	const LearnSlot = window.digitalisimoAssistantLearning && window.digitalisimoAssistantLearning.Slot ? window.digitalisimoAssistantLearning.Slot : () => null;
+
 	function Welcome( props ) {
 		return h( 'div', { className: 'dga-welcome' },
 			h( 'span', { className: 'dga-welcome-icon' }, h( Icon, { name: 'sparkle' } ) ),
 			h( 'h2', null, '¿En qué te ayudo hoy?' ),
 			h( 'p', null, 'Pídeme lo que necesites de tu sitio. Primero lo preparo en borrador para que lo veas. Nada se publica ni cambia en tu sitio sin que tú lo confirmes, y si un borrador tiene cambios tuyos, te pregunto antes de rehacerlo.' ),
-			h( 'div', { className: 'dga-suggestions' }, SUGGESTIONS.map( ( s ) => h( 'button', { key: s[ 1 ], type: 'button', className: 'dga-suggestion', onClick: () => props.onSuggestion( s[ 0 ] ) }, h( Icon, { name: 'sparkle' } ), s[ 1 ] ) ) ) );
+			h( 'div', { className: 'dga-suggestions' }, SUGGESTIONS.map( ( s ) => h( 'button', { key: s[ 1 ], type: 'button', className: 'dga-suggestion', onClick: () => props.onSuggestion( s[ 0 ] ) }, h( Icon, { name: 'sparkle' } ), s[ 1 ] ) ) ),
+			h( LearnSlot, { place: 'welcome' } ) );
 	}
 
 	/** AssistantApp: el armazón (historial, barra, hilo y redactor) y el estado de la conversación. */
@@ -844,7 +848,7 @@
 					h( 'div', { className: 'dga-toolbar' },
 						h( AiSwitcher, { providers, value: ai, onChange: setAi } ),
 						h( ToolsMenu, { catalog, selected: categories, onToggle: toggleCategory, onLoad: loadCatalog, canViewLog: !! config.canViewLog, onOpenLog: () => setDialog( 'log' ) } ) ),
-					h( 'div', { className: 'dga-trailing' }, h( 'button', { type: 'button', className: 'dga-icon-button is-outline dga-appearance', 'aria-label': 'Apariencia', onClick: () => setDialog( 'appearance' ) }, h( Icon, { name: 'palette' } ) ) ) ),
+					h( 'div', { className: 'dga-trailing' }, h( LearnSlot, { place: 'header' } ), h( 'button', { type: 'button', className: 'dga-icon-button is-outline dga-appearance', 'aria-label': 'Apariencia', onClick: () => setDialog( 'appearance' ) }, h( Icon, { name: 'palette' } ) ) ) ),
 				noAi ? h( 'div', { className: 'dga-notice-area' }, h( 'div', { className: 'dga-notice', role: 'alert' }, h( Icon, { name: 'alert' } ), h( 'span', null, 'No hay ninguna IA configurada en IA Tools.' ), config.settingsUrl ? h( 'a', { href: config.settingsUrl }, 'Configurar un proveedor' ) : h( 'span', null, 'Pide a quien administra el sitio que active un proveedor.' ) ) ) : null,
 				h( 'div', { className: 'dga-thread-area', ref: threadRef },
 					h( 'div', { className: 'dga-column' }, showThread
