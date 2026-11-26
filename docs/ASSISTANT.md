@@ -432,28 +432,41 @@ llama «aprendizaje».
   sitio y 2 500 para lo enseñado, el número real de cada producto o página (para no buscarlo) y dos reglas: no volver a
   consultar lo que ya sabe y **verificar con la herramienta precios, ofertas y existencias** antes de afirmarlos o de
   usarlos en una página que no los lea sola (el kit de ventas ya los lee al crear la landing).
-- **Inyección**: un punto destilado que le habla a una IA («ignora tus reglas», «a partir de ahora…», «eres un…», «el
-  asistente debe…», «Nota para la IA: …», «Regla de la tienda para el asistente: …», «IGNORE ALL PRIOR GUIDANCE»,
-  «olvídate de lo que te dijeron antes», un turno «Assistant: …», «revela la clave»: `injection()`) se descarta antes de
-  guardarse, y el sitio nunca escribe en «Lo que me enseñaste».
-- **Datos de personas, clientes y pedidos** (`personal()`, ante la duda no se guarda): cualquier correo, teléfono o
-  dirección postal que no sea el contacto PÚBLICO del propio sitio (`public_contacts()`: lo que el sitio publica, la
-  dirección de la tienda y los correos de su dominio), una operación de alguien («pidió», «compró», «pagó», «debe»…),
-  un nombre y apellido junto a clientes, compras, pedidos o deudas, o un número de pedido. No entran ni del sitio ni de
-  una conversación. Los productos ocultos del catálogo tampoco se leen.
-- **De las conversaciones** (revisión de b7762173: con la cita «revisa mis pedidos» una nota de pedido podía volverse
-  regla): el modelo de quien administra el sitio tiene la herramienta interna `digitalisimo-ia-remember` (no es del
-  MCP). **Se guarda la frase literal del dueño, nunca el texto del modelo**: la `cita` tiene que cubrir al menos el 80 %
-  de una frase suya de esta conversación, de al menos cuatro palabras y 15 caracteres, en un mensaje que no sea un texto
-  pegado (correo, página: largo, de muchas líneas o con encabezados de correo). Sólo vale una indicación para el
-  Asistente o un dato de su negocio en primera persona («En mis landings no pongas contador.», «Nuestra garantía es de
-  30 días.»), y nunca si pasa por `injection()`, quita confirmaciones o toca publicar todo, borrar todo o secretos
-  (`unsafe()`), trae un enlace a otro sitio (`foreign_link()`) o datos de personas (`personal()`). El servidor lo dice en
-  una línea con su frase exacta, «Lo recordaré: «…»». Con `reemplaza`, lo nuevo sustituye a lo anterior. «Aprender de mis
-  conversaciones» (panel) y el repaso que se programa al empezar otra conversación (`digitalisimo_ai_learning_review`)
-  mandan sólo lo que la persona escribió (sin textos pegados) y guardan con las mismas reglas, pero **quedan «Por
-  aprobar»**: no se usan hasta que el dueño pulsa «Recordarlo» en el panel. Un repaso cortado marca cada conversación
-  sólo hasta donde llegó. Uno a la vez (candado) y como mucho 6 al día.
+- **Inyección** (`injection()`): antes de comparar, el texto pasa a su forma canónica (`canon()`: NFKC con la
+  extensión intl o, sin ella, las letras de ancho completo a mano; sin caracteres invisibles —ancho cero, guion suave,
+  marcas de dirección—; homoglifos cirílicos y griegos como letras latinas; «I.A.» como «IA»). Se descarta lo que le
+  habla a una IA: «ignora tus reglas», «a partir de ahora…» (sólo en lo del sitio), «eres un…», «el asistente debe…»,
+  notas, reglas o mensajes «para la IA», «para el asistente», «para cualquier IA», «para la inteligencia artificial»,
+  «para ChatGPT/Claude/Gemini/Copilot», saludos («Querida IA», «Hey Claude»), «IGNORE ALL PRIOR GUIDANCE», «olvídate de
+  lo que te dijeron antes», turnos de un rol al principio, tras un salto de línea o entre corchetes o paréntesis
+  («Assistant: …», «[assistant: …]», «(IA: …)») y «revela la clave». El sitio nunca escribe en «Lo que me enseñaste».
+- **Datos de personas, clientes y pedidos** (`personal()`, ante la duda no se guarda ni se propone): cualquier correo
+  (también dictado: «arroba», «punto com»), teléfono de 7 a 13 dígitos o dirección postal (con palabra de calle o
+  colonia, código postal, o un nombre con número tras «en», «a»…: «a Hidalgo 45») que no sea el contacto PÚBLICO del
+  propio sitio (`public_contacts()`: lo que el sitio publica —los teléfonos se comparan por sus últimos 7 dígitos—, la
+  dirección de la tienda y los correos de su dominio); RFC y CURP; una operación de alguien («pidió», «compró»,
+  «pagó»…); deudas («todavía debe», «adeuda», «fiado»); «señor», «señora», «doña», «don», «sra.» con un nombre, o
+  «cliente»/«clienta» con un nombre o con «fiel», «frecuente», «consentida»…; un nombre y apellido junto a clientes,
+  compras, pedidos o deudas; un número de pedido. Los productos ocultos del catálogo tampoco se leen.
+- **De las conversaciones: nada se vuelve preferencia sin el «Sí» del dueño** (revisiones de b7762173 y 08cdf955). El
+  modelo de quien administra el sitio tiene la herramienta interna `digitalisimo-ia-remember` (no es del MCP). Filtros
+  previos: se toma la frase literal del dueño, nunca el texto del modelo (`owner_sentence()`: la `cita` cubre al menos
+  el 80 % de una frase suya de esta conversación, de al menos cuatro palabras y 15 caracteres, en un mensaje que no sea
+  un texto pegado —largo, de muchas líneas o con encabezados de correo—), y `teachable()`: una indicación para el
+  Asistente o un dato de su negocio en primera persona, sin `injection()`, sin quitar confirmaciones ni publicar o
+  borrar todo ni secretos (`unsafe()`), sin enlaces a otros sitios (`foreign_link()`) y sin datos de personas
+  (`personal()`). Lo que pasa los filtros **no se guarda**: queda como propuesta pendiente y el hilo muestra la frase
+  exacta con «Sí, recuérdalo» y «No» (`MemoryCard`; REST `learning/items/<id>/approve` o `…/delete`, con la sesión, los
+  dos nonces y `manage_options`). Sólo con «Sí» se usa. Así, un texto ajeno corto que el dueño pega (el correo de un
+  proveedor, «Nota para la I.A.: …») nunca se guarda solo. **Reemplazar**: `reemplaza` sólo puede tocar un punto que
+  enseñó o corrigió el dueño, activo y de la misma sección (`replaceable()`, que se vuelve a comprobar al aprobar);
+  la tarjeta dice qué reemplazaría por qué y el reemplazo también lo confirma el dueño, así que el número que ve el
+  modelo no basta para borrar nada. «Aprender de mis conversaciones» (panel) y el repaso que se programa al empezar
+  otra conversación (`digitalisimo_ai_learning_review`) mandan sólo lo que la persona escribió (sin textos pegados),
+  aplican los mismos filtros y dejan todo **«Por aprobar»** en el panel. El tope del día y lo repasado se anotan sólo si
+  el modelo respondió bien (un repaso fallido no gasta nada); un repaso cortado marca cada conversación sólo hasta donde
+  llegó; uno a la vez (candado) y como mucho 6 al día; «Borrar todo» conserva lo ya repasado y un repaso en curso no
+  revive lo borrado.
 - **Quién recibe qué**: quien administra el sitio recibe todo; quien no (una editora, una colaboradora) sólo los puntos
   leídos del sitio de negocio y contacto, marca, políticas, tienda y productos, como dato, nunca lo que enseñó o
   corrigió el dueño ni la instrucción de recordar.
@@ -462,11 +475,12 @@ llama «aprendizaje».
   entrada; los borradores, como las landings del Asistente, no cuentan) y `updated_option` los ajustes de nombre,
   moneda, país, pagos, envíos, logo y kit. Con un cambio en una política, 10 productos o páginas, un ajuste o 30 días, el
   panel lo dice y las instrucciones piden consultar lo que dependa de eso y sugerir una vez volver a entrenar.
-- **Panel «Lo que sé de tu sitio»**: arriba lo «Por aprobar» («Recordarlo» o «Descartar»); después los puntos por
-  sección, de dónde salen y su fecha; corregir y borrar cada uno, borrar todo, volver a entrenar y aprender de las
-  conversaciones. Un punto del sitio corregido queda como del dueño (otro entrenamiento no lo pisa) pero **sigue siendo
-  dato**; sólo con «Es una indicación mía» pasa a ser una indicación que el Asistente sigue (con las mismas reglas de
-  seguridad).
+- **Panel «Lo que sé de tu sitio»**: arriba lo «Por aprobar» (las propuestas del chat sin decidir y lo del repaso:
+  «Recordarlo» o «Descartar»); después los puntos por sección, de dónde salen y su fecha; corregir y borrar cada uno,
+  borrar todo, volver a entrenar y aprender de las conversaciones. Un punto del sitio corregido queda como del dueño
+  (otro entrenamiento no lo pisa) pero **sigue siendo dato**; sólo con «Es una indicación mía» pasa a ser una indicación
+  que el Asistente sigue. Editar lo que es (o pasa a ser) indicación pasa por las mismas reglas de seguridad
+  (`teachable_text()`).
   Avisa en llano que entrenar envía el contenido público del sitio a la IA. Piezas propias en
   `assets/assistant/assistant-learning.js` y `assistant-learning.css` (clases `.dga-learn-*`); `assistant.js` sólo pinta
   `LearnSlot` en la bienvenida y en la barra.
@@ -503,9 +517,12 @@ lo escrito 1,25×.
   solas (contacto, texto de una página, guía y plantillas del kit, catálogo, ajustes de la tienda, esquemas y estilos
   del constructor; filtro `digitalisimo_ai_assistant_cacheable_tools`) se guardan 5 minutos en un transitorio del sitio,
   por persona, con la generación del sitio en la clave: cualquier `save_post`, término, menú, tema o ajuste leído la
-  cambia (sólo los tipos que se ven en el sitio, plantillas y menús, términos, y los ajustes de la tienda que leen esas
-  herramientas; un pedido, un formulario recibido o un ajuste interno de WooCommerce no). Productos, pedidos, clientes,
-  informes y cupones nunca: precios y existencias se consultan en vivo.
+  cambia: guardar contenido de los tipos que se ven en el sitio, plantillas y menús; términos; reseñas (comentarios),
+  atributos, zonas de envío e impuestos de WooCommerce; los ajustes de la tienda que leen esas herramientas (moneda,
+  precios, país y tienda, pagos y envíos, impuestos, catálogo, unidades, existencias, reseñas, compra como invitado y
+  registro, páginas, descargas), y cada escritura del propio Asistente (un borrador o un cambio). Un pedido, un
+  formulario recibido o un ajuste interno de WooCommerce no. Productos, pedidos, clientes, informes y cupones nunca se
+  guardan: precios y existencias se consultan en vivo.
 
 ## Pendiente
 
