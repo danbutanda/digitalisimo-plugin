@@ -81,7 +81,8 @@ class Digitalisimo_Integrations_404_Monitor {
 		foreach ( preg_split( '/\r\n|\n/', (string) $text ) as $line ) {
 			$row = json_decode( $line, true );
 			if ( ! is_array( $row ) || ! isset( $row['u'] ) || '' === (string) $row['u'] ) continue;
-			$uri  = substr( (string) $row['u'], 0, 255 );
+			$uri  = self::clean_uri( $row['u'] );
+			if ( '' === $uri ) continue;
 			$key  = md5( $uri );
 			$time = (int) ( $row['t'] ?? 0 );
 			if ( ! isset( $out[ $key ] ) ) $out[ $key ] = array( 'uri' => $uri, 'hits' => 0, 'first' => $time, 'last' => $time, 'referer' => '', 'agent' => '' );
@@ -155,8 +156,22 @@ class Digitalisimo_Integrations_404_Monitor {
 	public static function sanitize_retention( $value ) { return min( 365, max( 1, absint( $value ) ) ); }
 
 	/** URI que se registra, o '' si no se registra. Pura: la usan la petición y la prueba. */
+	/**
+	 * URI limpia para guardarla (pura): sin bytes de control, espacios ni < > " ' ` \, y con los bytes que no son
+	 * UTF-8 válido codificados como %XX, cortada a 255. Lo mismo al anotar que al volcar.
+	 */
+	public static function clean_uri( $uri ) {
+		$uri = (string) $uri;
+		if ( ! preg_match( '//u', $uri ) ) $uri = preg_replace_callback( '/[\x80-\xFF]/', function( $m ) { return '%' . strtoupper( bin2hex( $m[0] ) ); }, $uri );
+		$uri = preg_replace( '/[\x00-\x20\x7F<>"\'`\\\\]/', '', $uri );
+		$uri = substr( $uri, 0, 255 );
+		// Un corte a la mitad de un carácter multibyte dejaría UTF-8 inválido.
+		while ( '' !== $uri && ! preg_match( '//u', $uri ) ) $uri = substr( $uri, 0, -1 );
+		return $uri;
+	}
+
 	public static function loggable( $request_uri, $exclusions, $ignore_query ) {
-		$uri = substr( preg_replace( '/[\x00-\x1F\x7F]/', '', (string) $request_uri ), 0, 255 );
+		$uri = self::clean_uri( $request_uri );
 		if ( $ignore_query ) $uri = explode( '?', $uri )[0];
 		if ( '' === $uri || false !== stripos( $uri, '/wp-admin' ) || false !== stripos( $uri, 'wp-login.php' ) ) return '';
 		foreach ( preg_split( '/\r\n|\r|\n/', (string) $exclusions ) as $line ) { $line = trim( $line ); if ( '' !== $line && false !== stripos( $uri, $line ) ) return ''; }
@@ -171,12 +186,48 @@ class Digitalisimo_Integrations_404_Monitor {
 		$file = self::buffer_file();
 		// Sin carpeta (aún no se abrió el escritorio) o con el búfer lleno, la visita no se anota: nunca va a la base.
 		if ( ! $file || ! is_dir( dirname( $file ) ) ) return;
-		$size = file_exists( $file ) ? (int) filesize( $file ) : 0;
-		if ( $size >= self::BUFFER_MAX ) return;
+		if ( file_exists( $file ) && (int) filesize( $file ) >= self::BUFFER_MAX ) return; // Lleno: ni siquiera se abre.
 		$referer = substr( esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ?? '' ) ), 0, 255 ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 		$agent   = substr( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ?? '' ) ), 0, 255 ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-		$line    = self::buffer_line( $uri, $referer, $agent, time() );
-		@file_put_contents( $file, ( 0 === $size ? "<?php exit; ?>\n" : '' ) . $line, FILE_APPEND | LOCK_EX ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		self::append( $file, self::buffer_line( $uri, $referer, $agent, time() ) );
+	}
+
+	/**
+	 * Añade una línea al búfer de forma atómica: con el archivo bloqueado (flock) se mide su tamaño, se escribe la
+	 * línea de guarda si está vacío y se descarta la visita si está lleno. Dos visitas a la vez no duplican la guarda
+	 * ni pasan del tope.
+	 */
+	public static function append( $file, $line ) {
+		$fh = @fopen( $file, 'c' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions
+		if ( ! $fh ) return false;
+		$ok = false;
+		if ( flock( $fh, LOCK_EX ) ) {
+			clearstatcache( true, $file );
+			$size = (int) ( fstat( $fh )['size'] ?? 0 );
+			if ( $size < self::BUFFER_MAX ) {
+				fseek( $fh, 0, SEEK_END );
+				$ok = false !== fwrite( $fh, ( 0 === $size ? "<?php exit; ?>\n" : '' ) . $line ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+				fflush( $fh );
+			}
+			flock( $fh, LOCK_UN );
+		}
+		fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		return $ok;
+	}
+
+	/**
+	 * Sugerencia con caché de 12 horas por URI. Calcula como mucho $budget nuevas por pantalla (cada una son hasta tres
+	 * consultas); el resto se calcula en las siguientes. Devuelve false si quedó pendiente.
+	 */
+	public static function suggest_cached( $uri, &$budget ) {
+		$key    = 'dgs404_' . md5( (string) $uri );
+		$cached = get_transient( $key );
+		if ( false !== $cached ) return is_array( $cached ) ? $cached : null;
+		if ( $budget <= 0 ) return false;
+		$budget--;
+		$found = self::suggest( $uri );
+		set_transient( $key, $found ? $found : 'none', 12 * HOUR_IN_SECONDS );
+		return $found;
 	}
 
 	/** Último tramo de una ruta, como slug (pura). '' en la portada. */
@@ -258,14 +309,18 @@ class Digitalisimo_Integrations_404_Monitor {
 		echo '<h2>URLs no encontradas <span class="count">(' . esc_html( number_format_i18n( $total ) ) . ')</span></h2>';
 		if ( ! $rows ) { echo '<p class="description">Todavía no hay 404 registrados.</p>'; return; }
 		echo '<p><a class="button" href="' . esc_url( self::action_url( 'clear' ) ) . '" onclick="return confirm(\'¿Vaciar todo el registro de este sitio?\')">Vaciar registro</a></p>';
+		$budget  = 10;
+		$pending = false;
 		echo '<table class="widefat striped"><thead><tr><th>URL</th><th>Visitas</th><th>Última vez</th><th>Procedencia</th><th>Destino sugerido</th><th>Acciones</th></tr></thead><tbody>';
 		foreach ( $rows as $row ) {
 			$source  = explode( '?', $row['uri'] )[0];
-			$suggest = self::suggest( $row['uri'] );
+			$suggest = self::suggest_cached( $row['uri'], $budget );
+			if ( false === $suggest ) { $pending = true; $suggest = null; }
 			$create  = admin_url( 'admin.php?page=digitalisimo-seo-redirections&edit=new&source=' . rawurlencode( $source ) . ( $suggest ? '&target=' . rawurlencode( $suggest['url'] ) : '' ) );
 			echo '<tr><td><code>' . esc_html( $row['uri'] ) . '</code></td><td>' . esc_html( number_format_i18n( (int) $row['hits'] ) ) . '</td><td>' . esc_html( get_date_from_gmt( $row['last_seen'], 'Y-m-d H:i' ) ) . '</td><td>' . ( $row['referer'] ? '<span class="description">' . esc_html( $row['referer'] ) . '</span>' : '—' ) . '</td><td>' . ( $suggest ? '<code>' . esc_html( $suggest['url'] ) . '</code><br><span class="description">' . esc_html( $suggest['why'] ) . '</span>' : '—' ) . '</td><td><a href="' . esc_url( $create ) . '">' . ( $suggest ? 'Crear 301 a la sugerencia' : 'Crear redirección' ) . '</a> · <a href="' . esc_url( self::action_url( 'delete', (int) $row['id'] ) ) . '">Borrar</a></td></tr>';
 		}
 		echo '</tbody></table>';
+		if ( $pending ) echo '<p class="description">Las sugerencias se calculan de 10 en 10 para no cargar el sitio: recarga la página para ver las que faltan.</p>';
 		$pages = (int) ceil( $total / self::PER_PAGE );
 		if ( $pages > 1 ) echo '<p class="tablenav-pages">' . paginate_links( array( 'base' => add_query_arg( 'paged', '%#%' ), 'format' => '', 'current' => $paged, 'total' => $pages ) ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput
 	}

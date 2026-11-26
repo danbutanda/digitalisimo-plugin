@@ -71,6 +71,20 @@ $GLOBALS['options']['seo_404_enabled'] = 0;
 $m::record();
 check( ! file_exists( $file ), 'Con el registro apagado no se anota nada.' );
 
+// La URL se limpia siempre antes de escribirla.
+check( '/a/b%E9c' === $m::clean_uri( "/a/\x01b\xE9c" ) && '/x' === $m::clean_uri( "/<x>\"'`" ) && '/caf%C3%A9/' === $m::clean_uri( '/caf%C3%A9/' ), 'Sin bytes de control, comillas ni < >, y lo que no es UTF-8 válido como %XX: ' . $m::clean_uri( "/a/\x01b\xE9c" ) );
+check( 255 >= strlen( $m::clean_uri( '/' . str_repeat( 'ñ', 200 ) ) ) && 1 === preg_match( '//u', $m::clean_uri( '/' . str_repeat( 'ñ', 200 ) ) ), 'El corte a 255 no deja un carácter partido.' );
+$uris = array_column( array_values( $m::aggregate( "<?php exit; ?>\n" . json_encode( array( 'u' => "/ok\x07<", 't' => 1 ) ) . "\n" . '{"u":"\\/ok%FF","t":2}' . "\n" ) ), 'uri' ); sort( $uris );
+check( array( '/ok', '/ok%FF' ) === $uris, 'El volcado vuelve a limpiar cada URL: ' . json_encode( $uris ) );
+
+// Escritura atómica: la guarda una sola vez y nunca por encima del tope.
+@unlink( $file );
+check( $m::append( $file, "a\n" ) && $m::append( $file, "b\n" ) && "<?php exit; ?>\na\nb\n" === file_get_contents( $file ), 'La línea de guarda se escribe una sola vez, dentro del bloqueo.' );
+file_put_contents( $file, str_repeat( 'x', $m::BUFFER_MAX ) );
+check( false === $m::append( $file, "c\n" ) && $m::BUFFER_MAX === filesize( $file ), 'Con el búfer lleno, append() no escribe.' );
+check( 1 === preg_match( '/flock\( \$fh, LOCK_EX \)/', file_get_contents( __DIR__ . '/../digitalisimo-seo/includes/class-404-monitor.php' ) ), 'El tamaño se mide con el archivo bloqueado.' );
+unlink( $file );
+
 // Último tramo para sugerir un destino.
 check( 'buen-fin' === $m::last_slug( '/buen-fin/' ) && 'hijo' === $m::last_slug( '/padre-viejo/hijo/?a=1' ) && 'pagina' === $m::last_slug( '/pagina.html' ) && '' === $m::last_slug( '/' ), 'El último tramo de la ruta es el slug que se busca.' );
 
