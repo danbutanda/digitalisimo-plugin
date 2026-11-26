@@ -19,6 +19,8 @@ function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $compon
 function add_action() {}
 function get_option( $key, $default = false ) { return $GLOBALS['wp_options'][ $key ] ?? $default; }
 function update_option( $key, $value, $autoload = null ) { $GLOBALS['wp_options'][ $key ] = $value; return true; }
+function delete_option( $key ) { unset( $GLOBALS['wp_options'][ $key ] ); return true; }
+function get_current_user_id() { return 7; }
 class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key, $default = null ) { return $GLOBALS['options'][ $key ] ?? $default; } }
 class Digitalisimo_Integrations_Settings { const OPTION = 'digitalisimo_integrations_options'; }
 require __DIR__ . '/../digitalisimo-seo/includes/class-redirections.php';
@@ -56,17 +58,23 @@ check( '/b/' === $follow( $r::build_index( array( $rule( 3, 'b', '', 'manual', 4
 check( 'https://otro.test/x' === $follow( $r::build_index( array( $rule( 3, 'b', 'https://otro.test/x', 'manual' ), $rule( 2, 'a', '/b/' ) ) ), '/b/', 'a' ), 'Un destino externo termina la cadena.' );
 check( '/b/' === $follow( $r::build_index( array() ), '/b/', 'a' ), 'Sin más reglas, el destino queda igual.' );
 
-// En la tabla: al mover B→C, las que llevaban a B pasan a C; la que sale de C (B→C→B) se desactiva.
+// En la tabla: al mover B→C, las reglas del vigilante que llevaban a B pasan a C con su query y su ancla; la que sale
+// de C (B→C→B) se desactiva. Las manuales, de CSV o importadas no se tocan: sólo se avisa.
+$row = function( $id, $from, $to, $origin ) { return array( 'id' => $id, 'sources' => json_encode( array( array( 'pattern' => $from, 'comparison' => 'exact', 'ignore' => '' ) ) ), 'url_to' => $to, 'origin' => $origin ); };
 $rows = array(
-	array( 'id' => 1, 'sources' => json_encode( array( array( 'pattern' => 'a', 'comparison' => 'exact', 'ignore' => '' ) ) ), 'url_to' => '/b/' ),
-	array( 'id' => 2, 'sources' => json_encode( array( array( 'pattern' => 'x', 'comparison' => 'exact', 'ignore' => '' ) ) ), 'url_to' => 'https://sitio.test/b' ),
-	array( 'id' => 3, 'sources' => json_encode( array( array( 'pattern' => 'c', 'comparison' => 'exact', 'ignore' => '' ) ) ), 'url_to' => '/b/' ),
-	array( 'id' => 4, 'sources' => json_encode( array( array( 'pattern' => 'y', 'comparison' => 'exact', 'ignore' => '' ) ) ), 'url_to' => '/b-otra/' ),
-	array( 'id' => 5, 'sources' => json_encode( array( array( 'pattern' => 'z', 'comparison' => 'exact', 'ignore' => '' ) ) ), 'url_to' => 'https://otro.test/b/' ),
+	$row( 1, 'a', '/b/', 'slug' ),
+	$row( 2, 'x', 'https://sitio.test/b?utm_source=correo#precios', 'slug' ),
+	$row( 3, 'c', '/b/', 'slug' ),
+	$row( 4, 'y', '/b-otra/', 'slug' ),
+	$row( 5, 'z', 'https://otro.test/b/', 'slug' ),
+	$row( 6, 'm', '/b/', 'manual' ),
+	$row( 7, 'v', '/b/?campana=1', 'csv' ),
+	$row( 8, 'w', '/b/', 'rankmath' ),
 );
 $plan = $r::retarget( $rows, 'b', 'c', '/c/', 'sitio.test' );
-check( array( 1 => '/c/', 2 => '/c/' ) === $plan['update'], 'Las reglas que llevaban a B pasan a C: ' . json_encode( $plan ) );
+check( array( 1 => '/c/', 2 => '/c/?utm_source=correo#precios' ) === $plan['update'], 'Las reglas del vigilante que llevaban a B pasan a C sin perder su query: ' . json_encode( $plan ) );
 check( array( 3 ) === $plan['deactivate'], 'La regla C→B se desactiva: con B→C sería un bucle.' );
+check( array( 6, 7, 8 ) === $plan['notice'], 'Las reglas manuales, de CSV e importadas no se modifican: sólo se avisa.' );
 
 // Rank Math: el vigilante sólo se importa encendido.
 require __DIR__ . '/../digitalisimo-seo/includes/class-rankmath-import.php';

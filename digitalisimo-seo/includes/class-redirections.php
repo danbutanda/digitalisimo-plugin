@@ -259,20 +259,25 @@ class Digitalisimo_Integrations_Redirections {
 	}
 
 	/**
-	 * Al mover un contenido de $from a $to, qué reglas activas hay que reapuntar: las que llevaban a $from van ahora a
-	 * $new_url (A→B y luego B→C deja A→C), salvo las que salen de $to, que harían un bucle y se desactivan.
+	 * Al mover un contenido de $from a $to, qué reglas activas que llevaban a $from hay que tocar. Sólo las que creó el
+	 * vigilante (origen «slug»): van ahora a $new_url conservando su query y su ancla (A→B y luego B→C deja A→C), salvo
+	 * las que salen de $to, que harían un bucle y se desactivan. Las manuales, de CSV, importadas o de un agente nunca
+	 * se modifican: sólo se avisa (`notice`); al servirlas, follow() ya evita la cadena.
 	 *
-	 * @param array $rows Filas con id, sources (JSON) y url_to.
-	 * @return array{update:array<int,string>,deactivate:int[]}
+	 * @param array $rows Filas con id, sources (JSON), url_to y origin.
+	 * @return array{update:array<int,string>,deactivate:int[],notice:int[]}
 	 */
 	public static function retarget( array $rows, $from, $to, $new_url, $home_host, $home_path = '/' ) {
-		$out = array( 'update' => array(), 'deactivate' => array() );
+		$out = array( 'update' => array(), 'deactivate' => array(), 'notice' => array() );
 		foreach ( $rows as $row ) {
 			if ( self::own_path( $row['url_to'] ?? '', $home_host, $home_path ) !== (string) $from ) continue;
-			$loops = false;
+			if ( 'slug' !== ( $row['origin'] ?? '' ) ) { $out['notice'][] = (int) $row['id']; continue; }
+			$query  = (string) parse_url( (string) $row['url_to'], PHP_URL_QUERY );
+			$anchor = (string) parse_url( (string) $row['url_to'], PHP_URL_FRAGMENT );
+			$loops  = false;
 			foreach ( (array) json_decode( (string) ( $row['sources'] ?? '' ), true ) as $source ) if ( is_array( $source ) && 'exact' === ( $source['comparison'] ?? '' ) && strtolower( trim( (string) $source['pattern'], '/' ) ) === strtolower( (string) $to ) ) $loops = true;
 			if ( $loops ) $out['deactivate'][] = (int) $row['id'];
-			else $out['update'][ (int) $row['id'] ] = (string) $new_url;
+			else $out['update'][ (int) $row['id'] ] = (string) $new_url . ( '' !== $query ? '?' . $query : '' ) . ( '' !== $anchor ? '#' . $anchor : '' );
 		}
 		return $out;
 	}
@@ -550,13 +555,22 @@ class Digitalisimo_Integrations_Redirections {
 		$slash = '' !== $to && '/' === substr( (string) $new, -1 ) ? '/' : '';
 		// La ruta nueva vuelve a estar viva: una regla que la redirigía crearía un bucle con la nueva.
 		foreach ( self::exact_rules( $to ) as $stale ) self::set_status( (int) $stale, 'inactive', false );
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT id, sources, url_to FROM ' . self::table() . " WHERE status = 'active' AND url_to LIKE %s", '%' . $wpdb->esc_like( $from ) . '%' ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT id, sources, url_to, origin FROM ' . self::table() . " WHERE status = 'active' AND url_to LIKE %s", '%' . $wpdb->esc_like( $from ) . '%' ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$plan = self::retarget( $rows, $from, $to, '/' . $to . $slash, (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ), $home_path );
 		foreach ( $plan['update'] as $id => $url ) $wpdb->update( self::table(), array( 'url_to' => $url, 'updated' => current_time( 'mysql', true ) ), array( 'id' => (int) $id ) );
 		foreach ( $plan['deactivate'] as $id ) self::set_status( (int) $id, 'inactive', false );
+		if ( $plan['notice'] ) self::review( $plan['notice'] );
 		if ( ! self::exact_rules( $from ) ) self::save( array( 'sources' => array( array( 'pattern' => $from, 'comparison' => 'exact' ) ), 'url_to' => '/' . $to . $slash, 'header_code' => 301, 'origin' => 'slug' ), 0, false );
 		if ( $refresh ) self::refresh_index();
 		return true;
+	}
+
+	/** Reglas que no son del vigilante y llevan a una dirección que cambió: se listan en Redirecciones para revisarlas. */
+	const REVIEW = 'digitalisimo_seo_redirect_review';
+	private static function review( array $add, array $remove = array() ) {
+		$ids = get_option( self::REVIEW, array() );
+		$ids = array_values( array_diff( array_unique( array_merge( is_array( $ids ) ? array_map( 'intval', $ids ) : array(), array_map( 'intval', $add ) ) ), array_map( 'intval', $remove ) ) );
+		update_option( self::REVIEW, array_slice( $ids, -200 ), false );
 	}
 
 	/** IDs de las reglas activas con este origen exacto. Lee la tabla: el índice puede no estar reconstruido aún. */
@@ -594,6 +608,7 @@ class Digitalisimo_Integrations_Redirections {
 		foreach ( array( 'starts', 'ends' ) as $key ) { $local = self::sanitize_datetime( wp_unslash( $_POST[ $key ] ?? '' ) ); $when[ $key ] = $local ? get_gmt_from_date( $local ) : ''; }
 		$result = self::save( array( 'sources' => $sources, 'url_to' => wp_unslash( $_POST['url_to'] ?? '' ), 'header_code' => absint( $_POST['header_code'] ?? 301 ), 'status' => sanitize_key( wp_unslash( $_POST['status'] ?? 'active' ) ), 'category' => wp_unslash( $_POST['category'] ?? '' ), 'starts' => $when['starts'], 'ends' => $when['ends'] ), $id );
 		if ( is_wp_error( $result ) ) { wp_safe_redirect( self::page_url( array( 'redirect_error' => $result->get_error_code(), 'edit' => $id ?: 'new' ) ) ); exit; }
+		if ( $id ) self::review( array(), array( $id ) );
 		wp_safe_redirect( self::page_url( array( 'redirect_saved' => 1 ) ) );
 		exit;
 	}
@@ -603,7 +618,7 @@ class Digitalisimo_Integrations_Redirections {
 		$task = sanitize_key( $_GET['task'] ?? '' );
 		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'digitalisimo_seo_redirect_' . $task . '_' . $id ) ) wp_die( 'No autorizado.' );
 		global $wpdb;
-		if ( 'delete' === $task ) { $wpdb->delete( self::table(), array( 'id' => $id ) ); self::refresh_index(); }
+		if ( 'delete' === $task ) { $wpdb->delete( self::table(), array( 'id' => $id ) ); self::refresh_index(); self::review( array(), array( $id ) ); }
 		elseif ( in_array( $task, array( 'activate', 'deactivate' ), true ) ) self::set_status( $id, 'activate' === $task ? 'active' : 'inactive' );
 		wp_safe_redirect( self::page_url( array( 'redirect_done' => $task ) ) );
 		exit;
@@ -762,6 +777,12 @@ class Digitalisimo_Integrations_Redirections {
 		$csv = sanitize_key( $_GET['redirect_csv'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification
 		if ( 'invalid' === $csv ) echo '<div class="notice notice-error is-dismissible"><p>El archivo debe ser un CSV de hasta 2 MB.</p></div>';
 		if ( 'done' === $csv ) echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( 'CSV importado: %1$d añadidas, %2$d ya existían, %3$d no válidas.', absint( $_GET['added'] ?? 0 ), absint( $_GET['skipped'] ?? 0 ), absint( $_GET['invalid'] ?? 0 ) ) ) . '</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification
+		$review = get_option( self::REVIEW, array() );
+		if ( is_array( $review ) && $review ) {
+			$links = array();
+			foreach ( array_slice( $review, 0, 20 ) as $rid ) $links[] = '<a href="' . esc_url( self::page_url( array( 'edit' => (int) $rid ) ) ) . '">#' . (int) $rid . '</a>';
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( '%d reglas escritas a mano, de CSV o importadas llevan a una dirección que después cambió de enlace. Ya se sirven directo a la nueva, sin cadena, pero conviene actualizar su destino:', count( $review ) ) ) . ' ' . implode( ' ', $links ) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput
+		}
 		$restored = (int) get_option( self::RESTORED, 0 );
 		if ( $restored > time() - 30 * DAY_IN_SECONDS ) echo '<div class="notice notice-info inline"><p>' . esc_html( sprintf( '«Redirigir al cambiar un enlace» se volvió a encender el %s: la importación de Rank Math lo había apagado porque Rank Math trae ese ajuste apagado de fábrica, y sin él una página renombrada responde 404. Puedes apagarlo arriba si de verdad no lo quieres.', get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $restored ), 'Y-m-d' ) ) ) . '</p></div>';
 		if ( isset( $_GET['redirect_saved'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Redirección guardada.</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification
