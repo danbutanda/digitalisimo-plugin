@@ -168,7 +168,16 @@ confirmar).
 capacidad del usuario; estado `denied`, «sin permiso»), `ajuste` (un ajuste apagado que el Asistente no salta: el error
 dice cuál y dónde se cambia; estado `blocked`, «apagado en ajustes»; códigos `SETTING_CODES` o `digitalisimo_setting` en
 los datos del error) y error real. A un administrador al que una herramienta se niega sin motivo (`false`) se le dice
-eso (`desconocido`), nunca que le falta un permiso. Prueba: `tests/ia-assistant-permisos.php` (falla con main v516).
+eso (`desconocido`), nunca que le falta un permiso. Si la negativa llega al ejecutar como `ability_invalid_permissions`
+(el núcleo borra el motivo), se vuelve a preguntar el permiso en el mismo contexto para dar el motivo real; y «No se
+aplicó nada» sólo se dice cuando `not_applied()` lo garantiza (si no, «No pude confirmar si se hizo»).
+
+Lo que la revisión del 2026-11-26 endureció: una redirección de SEO con patrón (regex, prefijo, sufijo o «contiene») o
+hacia otro dominio es `destructive` (`Tools::broad_redirection()`: casilla explícita, nunca un «sí» escrito), porque una
+sola tarjeta con `.*` hacia otro dominio redirigía el sitio entero; crear un producto o una variación sin `status` nace
+en borrador (la API v3 de WooCommerce 11.2.1 publica por omisión: `'default' => ProductStatus::PUBLISH`), y cambiar el
+estado de un producto existente (también a borrador) es `destructive`. Prueba: `tests/ia-assistant-permisos.php`
+(falla con main v516).
 
 | Clase | Regla | Qué pasa |
 |---|---|---|

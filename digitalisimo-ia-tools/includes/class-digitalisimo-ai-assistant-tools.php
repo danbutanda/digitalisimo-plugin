@@ -235,6 +235,9 @@ final class Digitalisimo_AI_Assistant_Tools {
 		} elseif ( 'destructive' === $kind && in_array( (string) $entry['name'], self::WRITE_TOOLS, true ) && false === ( $entry['annotations']['readonly'] ?? null ) && in_array( $action, self::WRITE_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) && in_array( is_array( $input ) && is_string( $input['resource'] ?? null ) ? strtolower( $input['resource'] ) : ( isset( $input['resource'] ) ? '?' : '' ), self::WRITE_RESOURCES, true ) && ! self::risky_catalog_data( $input ) ) {
 			$kind = 'write';
 		}
+		if ( 'write' === $kind && self::broad_redirection( (string) $entry['name'], $input ) ) {
+			$kind = 'destructive';
+		}
 		$kind = apply_filters( 'digitalisimo_ai_assistant_tool_kind', $kind, $entry['name'], $input );
 		return in_array( $kind, array( 'read', 'write', 'destructive' ), true ) ? $kind : 'destructive';
 	}
@@ -470,15 +473,46 @@ final class Digitalisimo_AI_Assistant_Tools {
 	}
 
 	/** ¿La escritura del catálogo trae metadatos, descargas o un estado que publica o privatiza? */
-	private static function risky_catalog_data( $input ) {
+	public static function risky_catalog_data( $input ) {
 		$data = is_array( $input ) && is_array( $input['data'] ?? null ) ? $input['data'] : array();
 		foreach ( self::WRITE_RISKY as $key ) {
 			if ( array_key_exists( $key, $data ) ) {
 				return true;
 			}
 		}
+		// Cambiar el estado de algo que ya existe (publicado → borrador o al revés) cambia lo que se ve en vivo.
+		if ( 'update' === strtolower( (string) ( is_scalar( $input['action'] ?? null ) ? $input['action'] : '' ) ) && ( array_key_exists( 'status', $data ) || array_key_exists( 'post_status', $data ) ) ) {
+			return true;
+		}
 		$status = strtolower( (string) ( is_scalar( $data['status'] ?? null ) ? $data['status'] : '' ) );
 		return '' !== $status && 'draft' !== $status && 'pending' !== $status;
+	}
+
+	/** La ability de SEO que crea redirecciones. */
+	const REDIRECTION = 'digitalisimo-seo/create-redirection';
+
+	/**
+	 * ¿Esta redirección puede llevarse más de una página o sacar a los visitantes del sitio? (revisión del 2026-11-26:
+	 * una sola tarjeta con «.*» en regex hacia otro dominio redirigía todo el sitio). Con un patrón (regex, prefijo,
+	 * sufijo o «contiene») o con un destino en otro dominio, es destructiva: casilla explícita y nunca un «sí» escrito.
+	 */
+	public static function broad_redirection( $name, $input ) {
+		if ( self::REDIRECTION !== $name ) {
+			return false;
+		}
+		$input      = is_array( $input ) ? $input : array();
+		$comparison = strtolower( (string) ( is_scalar( $input['comparison'] ?? null ) ? $input['comparison'] : 'exact' ) );
+		if ( '' !== $comparison && 'exact' !== $comparison ) {
+			return true;
+		}
+		$target = trim( (string) ( is_scalar( $input['target'] ?? null ) ? $input['target'] : '' ) );
+		if ( '' === $target || ( '/' === $target[0] && ( ! isset( $target[1] ) || '/' !== $target[1] ) ) ) {
+			return false; // Vacío (410/451) o una ruta del sitio.
+		}
+		$host = strtolower( (string) wp_parse_url( $target, PHP_URL_HOST ) );
+		$home = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
+		// Sin dominio legible, o con otro: ante la duda, destructiva.
+		return '' === $host || '' === $home || $host !== $home;
 	}
 
 	/** ¿Su espacio de nombres es de confianza para leer sin confirmar? */
@@ -514,6 +548,21 @@ final class Digitalisimo_AI_Assistant_Tools {
 			foreach ( $input['data']['create'] as $i => $item ) {
 				if ( is_array( $item ) ) {
 					$input['data']['create'][ $i ] = self::as_draft( $item, array() );
+				}
+			}
+		}
+		// En la tienda, la API v3 de WooCommerce publica lo que se crea sin `status` (su esquema dice
+		// `'default' => 'publish'` en productos y variaciones): sin estado, nace en borrador.
+		if ( 'digitalisimo-woo/products' === ( $entry['name'] ?? '' ) && in_array( strtolower( (string) ( $input['resource'] ?? '' ) ), array( '', 'product', 'variation' ), true ) ) {
+			if ( 'create' === $verb && ( ! isset( $input['data'] ) || is_array( $input['data'] ) ) && ! isset( $input['data']['status'] ) ) {
+				$input['data']           = isset( $input['data'] ) ? $input['data'] : array();
+				$input['data']['status'] = 'draft';
+			}
+			if ( 'batch' === $verb && isset( $input['data']['create'] ) && is_array( $input['data']['create'] ) ) {
+				foreach ( $input['data']['create'] as $i => $item ) {
+					if ( is_array( $item ) && ! isset( $item['status'] ) ) {
+						$input['data']['create'][ $i ]['status'] = 'draft';
+					}
 				}
 			}
 		}

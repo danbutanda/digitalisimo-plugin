@@ -176,4 +176,48 @@ check( null === Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/updat
 $GLOBALS['users'][1]['caps'] = $caps;
 check( true === Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/update-post-seo', 'write', function () use ( $update, $seo_input ) { return $update->check_permissions( $seo_input ); } ) && null === Digitalisimo_AI_Assistant_Context::current(), 'P5: en la petición del Asistente, para esa ability, pasa; y al terminar se cierra' );
 
+/* ---------------- P6: lo que la revisión encontró ---------------- */
+$GLOBALS['user'] = 1;
+// P6.1 Una redirección con patrón o hacia otro dominio es destructiva: casilla explícita y nunca un «sí» escrito.
+$redir = Digitalisimo_AI_Assistant_Tools::catalog()['digitalisimo-seo/create-redirection'];
+foreach ( array(
+	array( array( 'source' => '/vieja/', 'target' => '/nueva/' ), 'write' ),
+	array( array( 'source' => '/vieja/', 'target' => 'https://sitio.test/nueva/' ), 'write' ),
+	array( array( 'source' => '/vieja/', 'code' => 410 ), 'write' ),
+	array( array( 'source' => '.*', 'target' => 'https://otro.test/', 'comparison' => 'regex' ), 'destructive' ),
+	array( array( 'source' => '/blog', 'target' => '/', 'comparison' => 'start' ), 'destructive' ),
+	array( array( 'source' => 'x', 'target' => '/', 'comparison' => 'contains' ), 'destructive' ),
+	array( array( 'source' => '.html', 'target' => '/', 'comparison' => 'end' ), 'destructive' ),
+	array( array( 'source' => '/vieja/', 'target' => 'https://otro.test/' ), 'destructive' ),
+	array( array( 'source' => '/vieja/', 'target' => '//otro.test/x' ), 'destructive' ),
+	array( array( 'source' => '/vieja/', 'target' => 'otro.test/x' ), 'destructive' ),
+) as $case ) {
+	check( $case[1] === Digitalisimo_AI_Assistant_Tools::kind( $redir, $case[0] ), 'P6.1: redirección ' . json_encode( $case[0] ) . ' es ' . $case[1] );
+}
+$GLOBALS['executed'] = array();
+$say( array( $call( 'digitalisimo-seo-create-redirection', array( 'source' => '.*', 'target' => 'https://otro.test/', 'comparison' => 'regex' ) ) ) );
+$ev   = $events( $route( 'rest_message', $req( array( 'message' => 'redirige todo' ) ) ) );
+$c6   = $ev[0]['id'];
+$card = $of( $ev, 'confirm' );
+check( 1 === count( $card ) && 'destructive' === $card[0]['action']['kind'], 'P6.1: la redirección de todo el sitio a otro dominio pide la casilla de destructiva' );
+$ev = $events( $route( 'rest_message', $req( array( 'message' => 'sí', 'conversation' => $c6 ) ) ) );
+check( array() === $GLOBALS['executed'] && 1 === count( Digitalisimo_AI_Assistant_History::get( $c6, 1 )['pending'] ), 'P6.1: un «sí» escrito no la ejecuta' );
+$no = $route( 'rest_confirm', $req( array( 'conversation' => $c6, 'action' => $card[0]['action']['id'], 'decision' => 'approve' ) ) );
+check( is_wp_error( $no ) && 'digitalisimo_assistant_explicit' === $no->get_error_code() && array() === $GLOBALS['executed'], 'P6.1: ni el botón sin la casilla' );
+
+// P6.2 La API v3 de WooCommerce publica lo que se crea sin status (WooCommerce 11.2.1:
+// Version3/class-wc-rest-products-controller.php, 'status' => array( … 'default' => ProductStatus::PUBLISH )).
+$woo = array( 'name' => 'digitalisimo-woo/products', 'annotations' => array( 'readonly' => false, 'destructive' => true ), 'schema' => array( 'type' => 'object', 'properties' => array( 'action' => array( 'type' => 'string', 'enum' => array( 'list', 'get', 'create', 'update', 'delete', 'batch' ) ), 'resource' => array( 'type' => 'string' ), 'product_id' => array( 'type' => 'integer' ), 'data' => array( 'type' => 'object' ) ) ) );
+$in  = Digitalisimo_AI_Assistant_Tools::prepare_input( $woo, array( 'action' => 'create', 'data' => array( 'name' => 'Bomba' ) ) );
+check( 'draft' === $in['data']['status'] && 'write' === Digitalisimo_AI_Assistant_Tools::kind( $woo, $in ), 'P6.2: crear un producto sin estado nace en borrador (y sigue siendo un cambio sencillo)' );
+$in = Digitalisimo_AI_Assistant_Tools::prepare_input( $woo, array( 'action' => 'create', 'resource' => 'variation', 'product_id' => 3, 'data' => array( 'regular_price' => '10' ) ) );
+check( 'draft' === $in['data']['status'], 'P6.2: también una variación' );
+$in = Digitalisimo_AI_Assistant_Tools::prepare_input( $woo, array( 'action' => 'batch', 'data' => array( 'create' => array( array( 'name' => 'A' ), array( 'name' => 'B', 'status' => 'publish' ) ) ) ) );
+check( 'draft' === $in['data']['create'][0]['status'] && 'draft' === $in['data']['create'][1]['status'], 'P6.2: y cada producto de un lote' );
+$in = Digitalisimo_AI_Assistant_Tools::prepare_input( array_merge( $woo, array( 'name' => 'digitalisimo-woo/catalog' ) ), array( 'action' => 'create', 'resource' => 'category', 'data' => array( 'name' => 'Bombas' ) ) );
+check( ! isset( $in['data']['status'] ), 'P6.2: una categoría no tiene estado: no se le pone' );
+foreach ( array( 'draft', 'publish', 'pending', 'private' ) as $st ) {
+	check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'product_id' => 13, 'data' => array( 'status' => $st ) ) ), "P6.2: cambiar el estado de un producto existente a {$st} es destructivo" );
+}
+
 echo "Asistente y permisos internos: {$checks} comprobaciones.\n";
