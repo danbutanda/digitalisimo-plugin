@@ -18,7 +18,7 @@
  */
 require __DIR__ . '/ia-assistant-agent/wp.php';
 require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai.php';
-foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', '' ) as $part ) {
+foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', 'uploads', '' ) as $part ) {
 	require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant' . ( $part ? '-' . $part : '' ) . '.php';
 }
 // Lo mínimo de DIGITALÍSIMO SEO alrededor de sus abilities de escritura (las reales).

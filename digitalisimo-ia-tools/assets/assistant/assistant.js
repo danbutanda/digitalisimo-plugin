@@ -36,6 +36,9 @@
 		close: 'M6 6l12 12 M18 6L6 18',
 		alert: 'M12 3l10 18H2z M12 10v5 M12 18h.01',
 		sparkle: 'M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z',
+		clip: 'M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17a1.7 1.7 0 0 1-2.4-2.4L15 7',
+		file: 'M6 3h8l4 4v14H6z M14 3v4h4',
+		upload: 'M12 16V4 M7 9l5-5 5 5 M4 20h16',
 	};
 	const AI_NAMES = { openai: 'ChatGPT', anthropic: 'Claude', google: 'Gemini', xai: 'Grok', deepseek: 'DeepSeek' };
 	const SCHEMES = [
@@ -128,6 +131,55 @@
 	let serial = 0;
 	const note = ( text, tone ) => ( { id: 'local-' + Date.now() + '-' + ( serial++ ), role: 'system', tone: tone || 'info', text: String( text ) } );
 
+	/** «640 KB», «4.2 MB»: el peso como lo entiende cualquiera (el mismo cálculo que el servidor). Puro. */
+	function formatBytes( value ) {
+		const bytes = Math.max( 0, Number( value ) || 0 );
+		if ( bytes < 1024 ) {
+			return bytes + ' bytes';
+		}
+		if ( bytes < 1048576 ) {
+			return Math.max( 1, Math.round( bytes / 1024 ) ) + ' KB';
+		}
+		const mb = bytes / 1048576;
+		return ( mb >= 100 ? String( Math.round( mb ) ) : String( Math.round( mb * 10 ) / 10 ) ) + ' MB';
+	}
+
+	/**
+	 * Lo que se subió, en palabras llanas: «Subí 3 imágenes a tu biblioteca (de 4.2 MB a 640 KB en total).», por qué
+	 * alguna quedó sin comprimir y qué no se subió. `done`: lo que devolvió el servidor; `failed`: { name, message }. Puro.
+	 */
+	function uploadSummary( done, failed ) {
+		const lines = [];
+		const images = done.filter( ( f ) => 'image' === f.kind ).length;
+		const others = done.length - images;
+		if ( done.length ) {
+			const what = [];
+			if ( images ) {
+				what.push( images + ( 1 === images ? ' imagen' : ' imágenes' ) );
+			}
+			if ( others ) {
+				what.push( others + ( 1 === others ? ' archivo' : ' archivos' ) );
+			}
+			const before = done.reduce( ( n, f ) => n + ( Number( f.before ) || Number( f.bytes ) || 0 ), 0 );
+			const after = done.reduce( ( n, f ) => n + ( Number( f.bytes ) || 0 ), 0 );
+			const total = done.length > 1 ? ' en total' : '';
+			const weight = after < before ? '(de ' + formatBytes( before ) + ' a ' + formatBytes( after ) + total + ')' : '(' + formatBytes( after ) + total + ')';
+			lines.push( 'Subí ' + what.join( ' y ' ) + ' a tu biblioteca ' + weight + '.' );
+			const count = ( reason ) => done.filter( ( f ) => reason === f.reason ).length;
+			if ( count( 'tools' ) ) {
+				lines.push( ( 1 === count( 'tools' ) ? 'La imagen quedó' : 'Las imágenes quedaron' ) + ' sin comprimir: para eso hace falta activar DIGITALÍSIMO Tools en tu sitio.' );
+			}
+			if ( count( 'gif' ) ) {
+				lines.push( 1 === count( 'gif' ) ? 'El GIF animado quedó como estaba para no perder la animación.' : 'Los GIF animados quedaron como estaban para no perder la animación.' );
+			}
+			if ( count( 'error' ) ) {
+				lines.push( 1 === count( 'error' ) ? 'Una imagen no se pudo comprimir y quedó como estaba.' : count( 'error' ) + ' imágenes no se pudieron comprimir y quedaron como estaban.' );
+			}
+		}
+		failed.forEach( ( f ) => lines.push( 'No subí «' + f.name + '»: ' + f.message ) );
+		return lines.join( ' ' );
+	}
+
 	/**
 	 * El texto del Asistente en trozos: texto, negritas («**así**») y enlaces. «[Ver la landing](URL)» es un enlace con
 	 * ese texto y una URL suelta del sitio, «Abrir»; sólo direcciones http(s) del propio sitio (las demás quedan como
@@ -167,6 +219,21 @@
 				return h( 'a', { key: i, className: 'dga-inline-link', href: part.href, target: '_blank', rel: 'noopener noreferrer' }, part.label );
 			}
 			return part.bold ? h( 'strong', { key: i }, part.bold ) : part.text;
+		} ) );
+	}
+
+	/** Miniaturas de lo subido (sólo direcciones del propio sitio), con su nombre y su peso. */
+	function FileThumbs( props ) {
+		const files = Array.isArray( props.files ) ? props.files : [];
+		if ( ! files.length ) {
+			return null;
+		}
+		return h( 'ul', { className: 'dga-files', 'aria-label': 'Archivos subidos' }, files.map( ( f, i ) => {
+			const thumb = 'image' === f.kind ? safeUrl( f.thumb || f.url ) : '';
+			return h( 'li', { key: f.id || i, className: 'dga-file', 'data-kind': f.kind },
+				thumb ? h( 'img', { className: 'dga-file-thumb', src: thumb, alt: '', loading: 'lazy' } ) : h( 'span', { className: 'dga-file-thumb is-icon', 'aria-hidden': 'true' }, h( Icon, { name: 'file' } ) ),
+				h( 'span', { className: 'dga-file-name' }, String( f.name || '' ) ),
+				h( 'span', { className: 'dga-file-size' }, formatBytes( f.bytes ) ) );
 		} ) );
 	}
 
@@ -471,7 +538,7 @@
 				}
 				const m = item.message;
 				if ( 'system' === m.role ) {
-					return h( 'div', { key: m.id, className: 'dga-system' + ( 'error' === m.tone ? ' is-error' : '' ), role: 'error' === m.tone ? 'alert' : undefined }, m.text );
+					return h( 'div', { key: m.id, className: 'dga-system' + ( 'error' === m.tone ? ' is-error' : '' ), role: 'error' === m.tone ? 'alert' : undefined }, m.text, m.files ? h( FileThumbs, { files: m.files } ) : null );
 				}
 				if ( 'tool' === m.role ) {
 					return h( ToolChip, { key: m.id, message: m } );
@@ -481,7 +548,7 @@
 					me ? null : h( 'span', { className: 'dga-avatar', 'aria-hidden': 'true' }, 'IA' ),
 					h( 'div', { className: 'dga-message-column' },
 						me ? null : h( 'span', { className: 'dga-author' }, 'Asistente' ),
-						h( 'div', { className: 'dga-bubble' }, me ? m.text : h( RichText, { text: m.text } ) ),
+						h( 'div', { className: 'dga-bubble' }, me ? m.text : h( RichText, { text: m.text } ), me && m.files ? h( FileThumbs, { files: m.files } ) : null ),
 						m.time ? h( 'span', { className: 'dga-meta' }, timeOf( m.time ) ) : null ) );
 			} ),
 			props.pending.map( ( a ) => h( ConfirmCard, { key: a.id, action: a, busy: props.busy, onDecide: props.onDecide, onRefresh: props.onRefresh } ) ),
@@ -490,9 +557,25 @@
 				h( 'div', { className: 'dga-bubble' }, h( 'span', { className: 'dga-pending', role: 'status' }, h( 'span', { className: 'dga-spinner', 'aria-hidden': 'true' } ), props.status || 'Pensando…' ) ) ) : null );
 	}
 
-	/** ChatComposer: Enter envía, Mayús+Enter salta de línea y crece hasta seis líneas. */
+	/** Lo que espera ir con el próximo mensaje: subiendo, listo (con su miniatura) o con su motivo si no se subió. */
+	function Tray( props ) {
+		if ( ! props.items.length ) {
+			return null;
+		}
+		return h( 'ul', { className: 'dga-tray', 'aria-label': 'Archivos para tu mensaje' }, props.items.map( ( a ) => {
+			const thumb = a.item && 'image' === a.item.kind ? safeUrl( a.item.thumb || a.item.url ) : '';
+			return h( 'li', { key: a.key, className: 'dga-tray-item', 'data-status': a.status },
+				thumb ? h( 'img', { className: 'dga-file-thumb', src: thumb, alt: '' } ) : h( 'span', { className: 'dga-file-thumb is-icon', 'aria-hidden': 'true' }, 'uploading' === a.status ? h( 'span', { className: 'dga-spinner' } ) : h( Icon, { name: 'error' === a.status ? 'alert' : 'file' } ) ),
+				h( 'span', { className: 'dga-file-name' }, a.name ),
+				h( 'span', { className: 'dga-file-size' }, 'uploading' === a.status ? 'Subiendo…' : ( 'error' === a.status ? a.error : formatBytes( a.item ? a.item.bytes : a.size ) ) ),
+				'uploading' === a.status ? null : h( 'button', { type: 'button', className: 'dga-icon-button is-small dga-tray-remove', 'aria-label': 'Quitar «' + a.name + '» del mensaje', onClick: () => props.onRemove( a.key ) }, h( Icon, { name: 'close' } ) ) );
+		} ) );
+	}
+
+	/** ChatComposer: Enter envía, Mayús+Enter salta de línea y crece hasta seis líneas; el clip sube archivos. */
 	function Composer( props ) {
 		const ref = useRef( null );
+		const picker = useRef( null );
 		useEffect( () => {
 			const area = ref.current;
 			if ( ! area ) {
@@ -506,11 +589,12 @@
 			if ( event ) {
 				event.preventDefault();
 			}
-			if ( ! props.disabled && props.value.trim() ) {
+			if ( ! props.disabled && ( props.value.trim() || props.ready ) ) {
 				props.onSubmit();
 			}
 		};
 		return h( 'form', { className: 'dga-composer', onSubmit: submit },
+			h( Tray, { items: props.attachments || [], onRemove: props.onRemove } ),
 			h( 'label', { className: 'dga-visually-hidden', htmlFor: 'dga-input' }, props.placeholder ),
 			h( 'textarea', {
 				id: 'dga-input',
@@ -521,6 +605,13 @@
 				value: props.value,
 				placeholder: props.placeholder,
 				onChange: ( e ) => props.onChange( e.target.value ),
+				onPaste: ( e ) => {
+					const files = e.clipboardData && e.clipboardData.files;
+					if ( props.onFiles && files && files.length ) {
+						e.preventDefault();
+						props.onFiles( files );
+					}
+				},
 				onKeyDown: ( e ) => {
 					if ( 'Enter' === e.key && ! e.shiftKey && ! ( e.nativeEvent && e.nativeEvent.isComposing ) ) {
 						e.preventDefault();
@@ -529,8 +620,17 @@
 				},
 			} ),
 			h( 'div', { className: 'dga-composer-actions' },
-				h( 'div', { className: 'dga-composer-tools' }, props.hint || null ),
-				h( 'button', { type: 'submit', className: 'dga-send', 'aria-label': 'Enviar', disabled: props.disabled || ! props.value.trim() }, h( Icon, { name: 'send' } ) ) ) );
+				h( 'div', { className: 'dga-composer-tools' },
+					props.onFiles ? h( Fragment, null,
+						h( 'input', { ref: picker, type: 'file', multiple: true, className: 'dga-visually-hidden dga-file-input', tabIndex: -1, 'aria-hidden': 'true', onChange: ( e ) => {
+							if ( e.target.files && e.target.files.length ) {
+								props.onFiles( e.target.files );
+							}
+							e.target.value = '';
+						} } ),
+						h( 'button', { type: 'button', className: 'dga-icon-button dga-attach', 'aria-label': 'Subir archivos a tu biblioteca', title: 'Subir archivos (también puedes arrastrarlos aquí)', onClick: () => picker.current && picker.current.click() }, h( Icon, { name: 'clip' } ) ) ) : null,
+					props.hint ? h( 'span', { className: 'dga-composer-hint' }, props.hint ) : null ),
+				h( 'button', { type: 'submit', className: 'dga-send', 'aria-label': 'Enviar', disabled: props.disabled || ! ( props.value.trim() || props.ready ) }, h( Icon, { name: 'send' } ) ) ) );
 	}
 
 	/** AssistantHistory: «Nueva conversación», búsqueda y la lista por día, con borrar. */
@@ -594,6 +694,13 @@
 		const [ catalog, setCatalog ] = useState( null );
 		const [ categories, setCategories ] = useState( null );
 		const [ dialog, setDialog ] = useState( '' );
+		// Archivos para el próximo mensaje: { key, name, size, status: uploading | done | error, item, error }.
+		const [ attachments, setAttachments ] = useState( [] );
+		const [ dragging, setDragging ] = useState( false );
+		const dragDepth = useRef( 0 );
+		// Cuántos hay ya en la bandeja, al instante (dos soltadas seguidas no esperan a que se vuelva a pintar).
+		const trayCount = useRef( 0 );
+		trayCount.current = attachments.filter( ( a ) => 'error' !== a.status ).length;
 		const threadRef = useRef( null );
 		const activeRef = useRef( activeId );
 		// El servidor pausó un turno largo (evento «continue»): la pantalla lo sigue sola, sin que la persona escriba.
@@ -736,9 +843,11 @@
 		const prefilled = String( initial.prompt || '' ).trim();
 		const fromLink = '' !== prefilled && draft.trim() === prefilled;
 		const isShortcut = ( value ) => '/' === value.trim().charAt( 0 );
+		const uploading = attachments.some( ( a ) => 'uploading' === a.status );
+		const ready = attachments.filter( ( a ) => 'done' === a.status && a.item );
 		const send = () => {
 			const text = draft.trim();
-			if ( ! text || busy || ( ! providers.length && ! isShortcut( text ) ) ) {
+			if ( ( ! text && ! ready.length ) || busy || uploading || ( ! providers.length && ! isShortcut( text ) ) ) {
 				return;
 			}
 			if ( fromLink && isShortcut( text ) ) {
@@ -747,14 +856,18 @@
 			}
 			const before = pending;
 			const local = 'local-' + Date.now();
+			const kept = attachments;
+			const files = ready.map( ( a ) => a.item );
 			setDraft( '' );
 			setPending( [] );
-			setMessages( ( list ) => list.concat( [ { id: local, role: 'me', text, time: Math.floor( Date.now() / 1000 ) } ] ) );
-			// Ocupado o al límite (409/429): nada se envió; el texto vuelve al cuadro y lo pendiente sigue como estaba.
-			run( () => adapters.model.send( { conversation: activeRef.current || 0, message: text, provider: ai || 'auto', categories }, onEvent ), ( e ) => {
+			setAttachments( [] );
+			setMessages( ( list ) => list.concat( [ { id: local, role: 'me', text: text || 'Subí estos archivos a la biblioteca.', files: files.length ? files : undefined, time: Math.floor( Date.now() / 1000 ) } ] ) );
+			// Ocupado o al límite (409/429): nada se envió; el texto y los archivos vuelven al cuadro y lo pendiente sigue.
+			run( () => adapters.model.send( Object.assign( { conversation: activeRef.current || 0, message: text, provider: ai || 'auto', categories }, files.length ? { files: files.map( ( f ) => f.id ) } : {} ), onEvent ), ( e ) => {
 				if ( e && ( 409 === e.status || 429 === e.status ) ) {
 					setDraft( text );
 					setPending( before );
+					setAttachments( kept );
 					setMessages( ( list ) => list.filter( ( m ) => m.id !== local ) );
 				}
 			} );
@@ -772,6 +885,107 @@
 			} );
 		};
 
+		/**
+		 * Archivos soltados, pegados o elegidos con el clip: hasta maxFiles por mensaje, el tamaño del servidor revisado
+		 * antes de mandar nada, y uno por petición, en orden. Al terminar, el resumen llano con sus miniaturas.
+		 */
+		const upload = config.upload && adapters.media && 'function' === typeof adapters.media.upload ? config.upload : null;
+		const addFiles = ( list ) => {
+			const files = Array.prototype.slice.call( list || [] );
+			if ( ! files.length ) {
+				return;
+			}
+			if ( ! upload ) {
+				setMessages( ( m ) => m.concat( [ note( 'Tu usuario no puede subir archivos a la biblioteca. Pide a quien administra el sitio que te dé ese permiso.', 'error' ) ] ) );
+				return;
+			}
+			const max = Number( upload.maxFiles ) || 10;
+			const room = Math.max( 0, max - trayCount.current );
+			const take = files.slice( 0, room );
+			const left = files.length - take.length;
+			if ( left > 0 ) {
+				setMessages( ( m ) => m.concat( [ note( 'Puedes subir hasta ' + max + ' archivos por vez: ' + ( 1 === left ? 'dejé fuera 1.' : 'dejé fuera ' + left + '.' ), 'error' ) ] ) );
+			}
+			const limit = Number( upload.maxBytes ) || 0;
+			const entries = take.map( ( file ) => ( {
+				key: 'up-' + Date.now() + '-' + ( serial++ ),
+				name: String( file.name || 'archivo' ),
+				size: Number( file.size ) || 0,
+				file,
+				status: limit && file.size > limit ? 'error' : 'uploading',
+				error: limit && file.size > limit ? 'pesa ' + formatBytes( file.size ) + ' y tu servidor deja subir hasta ' + formatBytes( limit ) + ' por archivo.' : '',
+			} ) );
+			if ( ! entries.length ) {
+				return;
+			}
+			trayCount.current += entries.filter( ( a ) => 'error' !== a.status ).length;
+			setAttachments( ( current ) => current.concat( entries.map( ( a ) => Object.assign( {}, a, { file: undefined } ) ) ) );
+			const done = [];
+			const failed = entries.filter( ( a ) => 'error' === a.status ).map( ( a ) => ( { name: a.name, message: a.error } ) );
+			const patch = ( key, change ) => setAttachments( ( current ) => current.map( ( a ) => ( a.key === key ? Object.assign( {}, a, change ) : a ) ) );
+			entries.filter( ( a ) => 'uploading' === a.status ).reduce( ( chain, a ) => chain.then( () => adapters.media.upload( a.file ).then( ( data ) => {
+				const item = data && Array.isArray( data.files ) ? data.files[ 0 ] : null;
+				if ( item ) {
+					done.push( item );
+					patch( a.key, { status: 'done', item } );
+					return;
+				}
+				const why = data && Array.isArray( data.errors ) && data.errors[ 0 ] ? data.errors[ 0 ].message : 'no se pudo subir.';
+				failed.push( { name: a.name, message: why } );
+				patch( a.key, { status: 'error', error: why } );
+			}, ( e ) => {
+				const why = e && e.message ? e.message : 'no se pudo subir.';
+				failed.push( { name: a.name, message: why } );
+				patch( a.key, { status: 'error', error: why } );
+			} ) ), Promise.resolve() ).then( () => {
+				const summary = uploadSummary( done, failed );
+				if ( summary ) {
+					const shown = note( summary, done.length ? 'info' : 'error' );
+					shown.files = done.length ? done : undefined;
+					setMessages( ( m ) => m.concat( [ shown ] ) );
+				}
+			} );
+		};
+		const removeAttachment = ( key ) => setAttachments( ( current ) => current.filter( ( a ) => a.key !== key ) );
+		const hasFiles = ( event ) => {
+			const types = event.dataTransfer && event.dataTransfer.types;
+			return !! types && Array.prototype.indexOf.call( types, 'Files' ) >= 0;
+		};
+		const drop = upload ? {
+			onDragEnter: ( event ) => {
+				if ( hasFiles( event ) ) {
+					event.preventDefault();
+					dragDepth.current++;
+					setDragging( true );
+				}
+			},
+			onDragOver: ( event ) => {
+				if ( hasFiles( event ) ) {
+					event.preventDefault();
+					if ( event.dataTransfer ) {
+						event.dataTransfer.dropEffect = 'copy';
+					}
+				}
+			},
+			onDragLeave: ( event ) => {
+				if ( hasFiles( event ) ) {
+					dragDepth.current = Math.max( 0, dragDepth.current - 1 );
+					if ( ! dragDepth.current ) {
+						setDragging( false );
+					}
+				}
+			},
+			onDrop: ( event ) => {
+				if ( ! hasFiles( event ) ) {
+					return;
+				}
+				event.preventDefault();
+				dragDepth.current = 0;
+				setDragging( false );
+				addFiles( event.dataTransfer.files );
+			},
+		} : {};
+
 		const startNew = () => {
 			activeRef.current = 0;
 			setActiveId( 0 );
@@ -779,6 +993,7 @@
 			setPending( [] );
 			setTitle( '' );
 			setDraft( '' );
+			setAttachments( [] );
 			if ( ! wide ) {
 				setHistoryChoice( false );
 			}
@@ -829,14 +1044,16 @@
 		const noAi = ! providers.length;
 		const showThread = messages.length || pending.length || busy;
 
-		return h( 'div', { className: 'dga-root', 'data-history': historyState, 'data-theme': theme, 'data-interface-variant': look.variant, 'data-color-scheme': look.scheme },
+		// Se puede soltar en cualquier parte del Asistente (el chat, el cuadro de texto o el historial): nunca abre el archivo.
+		return h( 'div', Object.assign( { className: 'dga-root', 'data-history': historyState, 'data-theme': theme, 'data-interface-variant': look.variant, 'data-color-scheme': look.scheme }, drop ),
 			h( 'aside', { className: 'dga-side', id: 'dga-history', 'aria-label': 'Tus conversaciones' },
 				h( 'div', { className: 'dga-brand' },
 					site.logo ? h( 'img', { className: 'dga-logo', src: site.logo, alt: '' } ) : h( 'span', { className: 'dga-mark', 'aria-hidden': 'true' }, mark ),
 					h( 'span', { className: 'dga-brand-text' }, h( 'span', { className: 'dga-brand-name' }, 'Asistente IA' ), siteName ? h( 'span', { className: 'dga-brand-site' }, siteName ) : null ) ),
 				h( History, { conversations, activeId, busy, onSelect: choose, onNew: startNew, onDelete: remove, onClear: clear } ) ),
 			historyOpen && ! wide ? h( 'button', { type: 'button', className: 'dga-backdrop', 'aria-label': 'Ocultar el historial', onClick: () => setHistoryChoice( false ) } ) : null,
-			h( 'div', { className: 'dga-main' },
+			h( 'div', { className: 'dga-main' + ( dragging ? ' is-dropping' : '' ) },
+				dragging ? h( 'div', { className: 'dga-drop', 'aria-hidden': 'true' }, h( Icon, { name: 'upload' } ), h( 'strong', null, 'Suelta aquí tus archivos' ), h( 'span', null, 'Se suben a tu biblioteca y las imágenes se comprimen.' ) ) : null,
 				h( 'header', { className: 'dga-top' },
 					h( 'button', { type: 'button', className: 'dga-icon-button', 'aria-controls': 'dga-history', 'aria-expanded': historyOpen ? 'true' : 'false', 'aria-label': historyOpen ? 'Ocultar el historial' : 'Mostrar el historial', onClick: () => setHistoryChoice( ! historyOpen ) }, h( Icon, { name: 'sidebar' } ) ),
 					h( 'span', { className: 'dga-bar-mark', 'aria-hidden': 'true' }, mark ),
@@ -852,7 +1069,7 @@
 						: h( Welcome, { onSuggestion: setDraft } ) ) ),
 				h( 'div', { className: 'dga-composer-area' },
 					h( 'div', { className: 'dga-column' },
-						h( Composer, { value: draft, onChange: setDraft, onSubmit: send, disabled: busy || ( noAi && ! isShortcut( draft ) ), placeholder: noAi ? 'Sin IA configurada: usa /ayuda para los atajos' : 'Escribe una instrucción…', max: ( config.limits && config.limits.message ) || 4000, hint: fromLink ? 'Este mensaje vino en un enlace: revísalo antes de enviarlo.' : ( pending.some( ( a ) => 'running' !== a.state ) ? 'Hay una acción esperando tu confirmación.' : null ) } ),
+						h( Composer, { value: draft, onChange: setDraft, onSubmit: send, disabled: busy || ( noAi && ! isShortcut( draft ) ) || uploading, ready: ready.length > 0, attachments, onFiles: upload ? addFiles : null, onRemove: removeAttachment, placeholder: noAi ? 'Sin IA configurada: usa /ayuda para los atajos' : ( ready.length ? 'Dime qué hago con estos archivos…' : 'Escribe una instrucción…' ), max: ( config.limits && config.limits.message ) || 4000, hint: fromLink ? 'Este mensaje vino en un enlace: revísalo antes de enviarlo.' : ( pending.some( ( a ) => 'running' !== a.state ) ? 'Hay una acción esperando tu confirmación.' : ( uploading ? 'Subiendo archivos…' : null ) ) } ),
 						h( 'p', { className: 'dga-footnote' }, 'El Asistente puede equivocarse: revisa lo importante antes de publicar. Lo que consulta de tu sitio (también datos de clientes y pedidos) se envía a la IA que te responde.' ) ) ) ),
 			'appearance' === dialog ? h( Appearance, { look, setLook, onClose: () => setDialog( '' ) } ) : null,
 			'log' === dialog ? h( LogDialog, { onClose: () => setDialog( '' ) } ) : null );
@@ -860,7 +1077,7 @@
 
 	// Para la prueba sin navegador (tests/ia-assistant-mostrar-ui.mjs): las piezas puras, sólo si la prueba las pide.
 	if ( 'function' === typeof window.digitalisimoAssistantExpose ) {
-		window.digitalisimoAssistantExpose( { groupMessages, workTitle, richParts, VERBS, STATES, SUGGESTIONS } );
+		window.digitalisimoAssistantExpose( { groupMessages, workTitle, richParts, VERBS, STATES, SUGGESTIONS, formatBytes, uploadSummary } );
 	}
 
 	const app = h( App );
