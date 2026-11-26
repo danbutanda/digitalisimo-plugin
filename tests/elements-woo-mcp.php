@@ -719,6 +719,28 @@ namespace {
 	$result = $assistant( 'digitalisimo-woo/catalog', 'write', static function () use ( $run, $update ) { return $run( 'products', $update ); } );
 	check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_read_only' === $result->get_error_code() && array() === $GLOBALS['wm_rest'], 'El contexto de otra herramienta no abre ésta.' );
 	check( true === Executor::permission( 'products', $delete ) && 'digitalisimo_woo_mcp_read_only' === $run( 'products', $update )->get_error_code(), 'Fuera del Asistente (cliente MCP), el modo se aplica como antes: el permiso no cambia y run() rechaza.' );
+	// Executor no se fía sólo de la clase que dio el Asistente: aunque llegue como 'write', borrar, lotes, reseñas,
+	// metadatos, cambiar el estado o crear sin estado (la API v3 lo publicaría) siguen sujetos al modo.
+	$GLOBALS['wm']['caps'][] = 'edit_product_terms';
+	$GLOBALS['wm']['caps'][] = 'moderate_comments';
+	foreach ( array(
+		array( 'products', array( 'action' => 'delete', 'product_id' => 4 ) ),
+		array( 'products', array( 'action' => 'batch', 'data' => array( 'update' => array( array( 'id' => 4, 'sale_price' => '1' ) ) ) ) ),
+		array( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Sin estado' ) ) ),
+		array( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Publicado', 'status' => 'publish' ) ) ),
+		array( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'status' => 'draft' ) ) ),
+		array( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'meta_data' => array( array( 'key' => '_x', 'value' => 1 ) ) ) ) ),
+		array( 'catalog', array( 'action' => 'update', 'resource' => 'review', 'review_id' => 2, 'data' => array( 'status' => 'approved' ) ) ),
+	) as $case ) {
+		$GLOBALS['wm_rest'] = array();
+		$result             = $assistant( 'digitalisimo-woo/' . $case[0], 'write', static function () use ( $run, $case ) { return $run( $case[0], $case[1] ); } );
+		check( is_wp_error( $result ) && in_array( $result->get_error_code(), array( 'digitalisimo_woo_mcp_read_only', 'digitalisimo_woo_mcp_forbidden' ), true ) && array() === array_filter( $GLOBALS['wm_rest'], static function ( $r ) { return 'GET' !== $r[0]; } ), 'Asistente, modo read: aunque llegue como cambio sencillo, no se hace: ' . wp_json_encode( $case[1] ) . ' → ' . ( is_wp_error( $result ) ? $result->get_error_code() : wp_json_encode( $result ) ) );
+	}
+	$GLOBALS['wm_rest'] = array();
+	$result             = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run ) { return $run( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Borrador', 'status' => 'draft' ) ) ); } );
+	check( ! is_wp_error( $result ) && 'POST' === $GLOBALS['wm_rest'][0][0] && 'draft' === $GLOBALS['wm_rest'][0][3]['status'], 'Asistente, modo read: crear un producto en borrador sí.' );
+	array_pop( $GLOBALS['wm']['caps'] );
+	array_pop( $GLOBALS['wm']['caps'] );
 	$GLOBALS['wm_rest_responses']['GET /wc/v3/reports'] = array( 200, array( array( 'slug' => 'sales', 'description' => 'Ventas' ) ), array() );
 	$result = $run( 'reports', array( 'action' => 'list' ) );
 	check( ! is_wp_error( $result ) && 'sales' === $result['data'][0]['slug'] && ! isset( $result['page'] ), 'reports list (sin paginar) en modo read.' );

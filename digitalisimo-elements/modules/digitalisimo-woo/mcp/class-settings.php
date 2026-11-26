@@ -7,7 +7,9 @@ defined( 'ABSPATH' ) || exit;
  * «WooCommerce en el MCP»: el modo de las herramientas de tienda del servidor MCP, por sitio y por red.
  *
  * - `off`: no se registra ninguna herramienta de tienda.
- * - `read` (predeterminado): sólo lectura; create, update, delete y batch devuelven un error que dice dónde se cambia.
+ * - `read` (predeterminado): sólo lectura para los clientes MCP externos; create, update, delete y batch devuelven un
+ *   error que dice dónde se cambia. El Asistente IA del escritorio (IA Tools) sí crea o actualiza productos, variaciones
+ *   y catálogo con la confirmación de la persona en pantalla (`Executor::assistant_writes()`); lo demás, tampoco él.
  * - `write`: lectura y escritura, con la bitácora.
  *
  * Paridad sitio/red, los cuatro puntos de `AGENTS.md` como en `Front\Settings`:
@@ -33,7 +35,7 @@ final class Settings {
 		'write' => 'Lectura y escritura',
 	);
 
-	const HELP = 'Con el MCP de DIGITALÍSIMO Elements activo, ofrece a los asistentes conectados siete herramientas para la tienda WooCommerce de este sitio: productos y variaciones, catálogo, pedidos (notas y reembolsos), clientes, cupones, ajustes (envíos, impuestos y pasarelas) e informes; con el plugin de Skydropx activo, una octava para sus envíos (peso y medidas de los productos, cotización de prueba, rastreo y guías). Cada una actúa con los permisos del usuario que se conecta. En «Sólo lectura» pueden consultar pero no cambiar nada; en «Lectura y escritura» cada cambio queda en una bitácora sin datos personales. Las contraseñas y claves de pasarelas, envíos y ajustes salen enmascaradas (no los metadatos de productos, pedidos y clientes).';
+	const HELP = 'Con el MCP de DIGITALÍSIMO Elements activo, ofrece a los asistentes conectados siete herramientas para la tienda WooCommerce de este sitio: productos y variaciones, catálogo, pedidos (notas y reembolsos), clientes, cupones, ajustes (envíos, impuestos y pasarelas) e informes; con el plugin de Skydropx activo, una octava para sus envíos (peso y medidas de los productos, cotización de prueba, rastreo y guías). Cada una actúa con los permisos del usuario que se conecta. En «Sólo lectura» los asistentes conectados por MCP pueden consultar pero no cambiar nada; el Asistente IA de tu escritorio sí puede crear o cambiar productos y su catálogo, siempre con tu confirmación en pantalla (borrar, pedidos, clientes, cupones y ajustes, no). En «Lectura y escritura» pueden cambiar todo. Cada cambio queda en una bitácora sin datos personales. Las contraseñas y claves de pasarelas, envíos y ajustes salen enmascaradas (no los metadatos de productos, pedidos y clientes).';
 
 	/** Valores neutros. */
 	public static function defaults(): array {

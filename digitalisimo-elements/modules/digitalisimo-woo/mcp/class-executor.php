@@ -46,7 +46,7 @@ final class Executor {
 			}
 			return $error;
 		}
-		if ( 'write' === $plan['kind'] && 'write' !== $mode && ! self::assistant_writes( $tool ) ) {
+		if ( 'write' === $plan['kind'] && 'write' !== $mode && ! self::assistant_writes( $tool, $plan ) ) {
 			Log::add( Log::entry( $plan, 'denied', 'read_mode', 403, $user ) );
 			return self::read_mode_error( $plan );
 		}
@@ -198,7 +198,7 @@ final class Executor {
 	 */
 	private static function assistant_mode( string $tool, array $plan ) {
 		$context = self::assistant( $tool );
-		if ( null === $context || 'write' === Settings::mode() || self::assistant_writes( $tool ) ) {
+		if ( null === $context || 'write' === Settings::mode() || self::assistant_writes( $tool, $plan ) ) {
 			return true;
 		}
 		return self::read_mode_error( $plan );
@@ -220,9 +220,30 @@ final class Executor {
 	 * externos; en el escritorio cada cambio lo confirma la persona y queda en la bitácora. Lo destructivo (borrar,
 	 * lotes, pedidos, reembolsos, clientes, cupones, ajustes, envíos, Skydropx) sigue sujeto al modo.
 	 */
-	private static function assistant_writes( string $tool ): bool {
+	private static function assistant_writes( string $tool, array $plan = array() ): bool {
 		$context = self::assistant( $tool );
-		return null !== $context && 'write' === ( $context['kind'] ?? '' ) && in_array( $tool, array( 'products', 'catalog' ), true );
+		if ( null === $context || 'write' !== ( $context['kind'] ?? '' ) || ! in_array( $tool, array( 'products', 'catalog' ), true ) ) {
+			return false;
+		}
+		// Comprobado aquí también, sin fiarse sólo de la clase que dio el Asistente: create o update de un recurso del
+		// catálogo (nunca reseñas, lotes ni borrar), sin metadatos ni descargas, y sin cambiar el estado de lo que existe
+		// ni crear algo publicado.
+		$action   = (string) ( $plan['action'] ?? '' );
+		$resource = (string) ( $plan['resource'] ?? '' );
+		if ( ! in_array( $action, array( 'create', 'update' ), true ) || ! in_array( $resource, array( 'product', 'variation', 'category', 'tag', 'brand', 'attribute', 'attribute_term', 'shipping_class' ), true ) ) {
+			return false;
+		}
+		$body = is_array( $plan['body'] ?? null ) ? $plan['body'] : array();
+		foreach ( array( 'meta_data', 'downloads', 'download_limit', 'download_expiry' ) as $key ) {
+			if ( array_key_exists( $key, $body ) ) {
+				return false;
+			}
+		}
+		if ( array_key_exists( 'status', $body ) ) {
+			return 'create' === $action && in_array( $body['status'], array( 'draft', 'pending' ), true );
+		}
+		// Crear un producto o una variación sin estado lo publica (la API v3 de WooCommerce pone `publish`).
+		return ! ( 'create' === $action && in_array( $resource, array( 'product', 'variation' ), true ) );
 	}
 
 	private static function forbidden( string $cap ): \WP_Error {

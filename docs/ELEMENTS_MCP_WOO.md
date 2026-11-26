@@ -138,6 +138,10 @@ lo que el Asistente clasifica como cambio sencillo (`write`): crear o actualizar
 metadatos, descargas ni publicar. Lo destructivo (borrar, lotes, pedidos, reembolsos, clientes, cupones, ajustes, envíos,
 Skydropx) sigue sujeto al modo, y en el Asistente se niega ya en el permiso, antes de la tarjeta, con el mismo error que
 dice el ajuste y dónde se cambia. «Apagado» sigue sin herramientas. Fuera del Asistente nada cambia.
+`Executor::assistant_writes()` no se fía sólo de la clase que da el Asistente: lo comprueba por su cuenta (create o
+update de producto, variación o catálogo, nunca reseñas, lotes ni borrar; sin metadatos ni descargas; sin cambiar el
+estado de lo que existe; crear sólo en borrador o pendiente, porque la API v3 publica lo que llega sin estado). La ayuda
+de la pantalla y la descripción de `products` y `catalog` lo dicen.
 
 Paridad sitio/red como en «Rendimiento»: la red define el valor (sin «Heredar de la red») y cada sitio lo hereda o lo
 personaliza (con «Heredar de la red»). Opciones `digitalisimo_elements_woo_mcp` (sitio, sin carga automática; sólo se lee con el MCP del sitio activo) y
