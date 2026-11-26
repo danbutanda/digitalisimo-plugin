@@ -33,7 +33,8 @@ class Digi_Test_Cart {
 	public function add( $pid, array $data = array() ) { $key = md5( $pid . serialize( $data ) . count( $this->cart_contents ) ); $this->cart_contents[ $key ] = array( 'product_id' => $pid, 'quantity' => 1 ) + $data; return $key; }
 }
 WC()->cart = new Digi_Test_Cart();
-class Digi_Test_Store_Request { public $p; public function __construct( $p ) { $this->p = $p; } public function get_param( $k ) { return $this->p[ $k ] ?? null; } }
+/** Petición REST: $p en el cuerpo JSON; $q en la URL (get_param lee los dos, como WordPress). */
+class Digi_Test_Store_Request { public $p; public $q; public function __construct( $p, $q = array() ) { $this->p = $p; $this->q = $q; } public function get_param( $k ) { return $this->p[ $k ] ?? $this->q[ $k ] ?? null; } public function get_json_params() { return $this->p; } public function get_body_params() { return array(); } }
 function cart_reset() { WC()->cart = new Digi_Test_Cart(); $GLOBALS['notices'] = array(); $_POST = $_REQUEST = $_GET = array(); $_SERVER['REQUEST_METHOD'] = 'GET'; }
 function nc_checks() { return digi_nc_count( 'namecheap.domains.check' ); }
 /** Añadir al carrito como WooCommerce: validación y datos de la línea con la petición actual. */
@@ -135,6 +136,8 @@ $add = $C::store_api_data( array( 'id' => 50, 'quantity' => 1, 'cart_item_data' 
 check( $C::maybe_validate_add( true, 50, 1, 0, array(), $add['cart_item_data'] ), 'Store API: el cuerpo de cart/add-item lleva dominio y EPP y se valida' );
 $data = Digitalisimo_Hosting::cart_domain( $add['cart_item_data'], 50, 0 );
 check( 'ajeno.com' === $data['digitalisimo_domain'] && $EPP === $P::decrypt( $data['digitalisimo_epp'] ) && ! isset( $data['digitalisimo_epp_raw'] ), 'Store API: el EPP queda cifrado en la línea' );
+$q = $C::store_api_data( array( 'id' => 50, 'quantity' => 1, 'cart_item_data' => array() ), new Digi_Test_Store_Request( array( 'digitalisimo_domain' => 'ajeno.com' ), array( 'digitalisimo_epp' => $EPP ) ) );
+check( ! isset( $q['cart_item_data']['digitalisimo_epp_raw'] ) && ! isset( $q['cart_item_data']['digitalisimo_epp'] ), 'Store API: un EPP en la URL (?digitalisimo_epp=) se ignora' );
 $add = $C::store_api_data( array( 'id' => 14693, 'quantity' => 1, 'cart_item_data' => array() ), new Digi_Test_Store_Request( array( 'digitalisimo_domain_mode' => 'own', 'digitalisimo_domain' => 'miempresa.com' ) ) );
 check( 'own' === $add['cart_item_data']['digitalisimo_domain_mode'] && $C::maybe_validate_add( true, 14693, 1, 0, array(), $add['cart_item_data'] ), 'Store API: «Uno que ya tengo» en el cuerpo' );
 
@@ -149,6 +152,12 @@ check( is_array( $stored ) && false === strpos( serialize( $order->meta ), $EPP 
 $resp = (object) array( 'data' => array( 'id' => $order->id, 'meta_data' => array( (object) array( 'key' => '_digitalisimo_epp', 'value' => $stored ), (object) array( 'key' => '_otra', 'value' => 1 ) ) ) );
 $resp = $C::rest_strip( $resp );
 check( array( '_otra' ) === array_map( function ( $m ) { return $m->key; }, $resp->data['meta_data'] ), 'La REST de pedidos (y el MCP de la tienda) no devuelve el EPP, ni cifrado' );
+$v4 = $C::rest_strip( array( 'id' => 1, 'meta_data' => array( array( 'key' => '_digitalisimo_epp', 'value' => $stored ), array( 'key' => 'x', 'value' => 1 ) ) ) );
+check( array( 'x' ) === array_column( $v4['meta_data'], 'key' ), 'Tampoco la REST v4 de pedidos (respuesta en arreglo)' );
+$saved_hooks = $GLOBALS['hooks']; $GLOBALS['hooks'] = array();
+$C::init();
+check( isset( $GLOBALS['hooks']['woocommerce_add_to_cart_validation'][5] ) && isset( $GLOBALS['hooks']['woocommerce_cart_has_errors'][10] ) && isset( $GLOBALS['hooks']['woocommerce_rest_api_v4_orders_item_response'][99] ), 'Valida antes de «Reemplazar el plan»; el panel sale también en el checkout clásico con errores; filtro de la REST v4' );
+$GLOBALS['hooks'] = $saved_hooks;
 
 // ── 5. Panel «Tu dominio» ─────────────────────────────────────────────────────────────────────────────────────
 cart_reset();
@@ -186,6 +195,13 @@ $sid = (int) $o2->get_meta( '_digitalisimo_service' );
 check( preg_grep( '/transferencia de ajeno\.com por hacer a mano/', $o2->notes ) && ! digi_nc_count( 'namecheap.domains.create' ) && ! digi_nc_count( 'namecheap.domains.dns.setCustom' ), 'Aprobada, la transferencia queda anotada para hacerse a mano: no se registra ni se tocan sus DNS' );
 check( 1 === (int) $P::svc( $sid, 'transfer_pending' ) && array_filter( $GLOBALS['mails'], function ( $m ) { return false !== strpos( $m['subject'], 'Transferencia de dominio por hacer' ); } ), 'El servicio la marca pendiente y el administrador recibe el aviso' );
 check( false === strpos( serialize( array( $o->notes, $o2->notes, $GLOBALS['mails'], $GLOBALS['nc']['calls'], $GLOBALS['webuzo']['calls'] ) ), $EPP ), 'El EPP nunca aparece en notas, correos ni llamadas' );
+$client = array_values( array_filter( $GLOBALS['mails'], function ( $m ) { return 'ana@cliente.test' === $m['to']; } ) );
+check( $client && false !== strpos( $client[0]['body'], 'transferencia de dominio' ) && false === strpos( $client[0]['body'], 'Registramos tu dominio' ), 'El correo al cliente dice que la transferencia está en trámite, no que se registró' );
+check( 20 === (int) $P::svc( $sid, 'domain_product' ), 'El servicio se renueva con el producto de registro de su extensión' );
+// La transferencia llega a la cuenta: la revisión diaria la da por hecha y borra el EPP del pedido.
+$GLOBALS['nc']['domains']['ajeno.com'] = strtotime( '+300 days' );
+$P::check_service( $sid, time(), 7 );
+check( 0 === (int) $P::svc( $sid, 'transfer_pending' ) && 1 === (int) $P::svc( $sid, 'domain_registered' ) && '' === $o2->get_meta( '_digitalisimo_epp' ) && preg_grep( '/transferencia de ajeno\.com terminada/', $o2->notes ), 'Al llegar a la cuenta: transferencia terminada, se renueva con el dominio y el EPP se borra del pedido' );
 $o3 = digi_order( array( new Digi_Test_Item( 50, 'Transferencia', 1, array( 'Dominio' => 'ajeno.com' ) ), new Digi_Test_Item( 20, 'Dominio', 1, array( 'Dominio' => 'otro-nuevo.com' ) ) ) );
 $o3->update_status( 'processing' ); digi_run_queue();
 check( 'on-hold' === $o3->status && preg_grep( '/más de un dominio/', $o3->notes ), 'Una transferencia y un registro en el mismo pedido se entregan a mano' );

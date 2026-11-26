@@ -39,12 +39,12 @@ class Digitalisimo_Hosting_Namecheap {
 	 * transient: no llegó o Namecheap no pudo atender (se puede reintentar); auth: clave, usuario o IP rechazados (códigos
 	 * 1010xxx y 1011xxx); api: cualquier otro error de Namecheap (no se reintenta).
 	 */
-	public function call( $command, array $params = array() ) {
+	public function call( $command, array $params = array(), $timeout = 60 ) {
 		if ( ! $this->configured() ) return array( 'kind' => 'config', 'xml' => null, 'message' => 'Faltan los datos de la cuenta de Namecheap en Digitalisimo → Hosting.', 'number' => '' );
 		$response = wp_remote_post(
 			self::endpoint(),
 			array(
-				'timeout'     => 60,
+				'timeout'     => max( 5, (int) $timeout ),
 				'redirection' => 0,
 				'body'        => array( 'ApiUser' => $this->o['api_user'], 'ApiKey' => $this->o['api_key'], 'UserName' => $this->o['username'], 'ClientIp' => $this->o['client_ip'], 'Command' => $command ) + $params,
 			)
@@ -103,8 +103,8 @@ class Digitalisimo_Hosting_Namecheap {
 	}
 
 	/** ¿El dominio ya está en esta cuenta? kind ok + 'ours' (bool) + 'expires' (marca de tiempo o 0). */
-	public function info( $domain ) {
-		$r = $this->call( 'namecheap.domains.getInfo', array( 'DomainName' => $domain ) );
+	public function info( $domain, $timeout = 60 ) {
+		$r = $this->call( 'namecheap.domains.getInfo', array( 'DomainName' => $domain ), $timeout );
 		if ( 'api' === $r['kind'] && in_array( $r['number'], self::NOT_OURS, true ) ) return array( 'kind' => 'ok', 'ours' => false, 'expires' => 0 ) + $r;
 		if ( 'ok' !== $r['kind'] ) return $r;
 		$res = $r['xml']->CommandResponse->DomainGetInfoResult ?? null;
@@ -120,8 +120,8 @@ class Digitalisimo_Hosting_Namecheap {
 	}
 
 	/** ¿Disponible y premium? namecheap.domains.check (https://www.namecheap.com/support/api/methods/domains/check/). */
-	public function check( $domain ) {
-		$r = $this->call( 'namecheap.domains.check', array( 'DomainList' => $domain ) );
+	public function check( $domain, $timeout = 60 ) {
+		$r = $this->call( 'namecheap.domains.check', array( 'DomainList' => $domain ), $timeout );
 		if ( 'ok' !== $r['kind'] ) return $r;
 		$res = $r['xml']->CommandResponse->DomainCheckResult ?? null;
 		if ( ! $res ) return array( 'kind' => 'api', 'message' => 'Namecheap no informó si ' . $domain . ' está disponible.' ) + $r;
@@ -136,10 +136,10 @@ class Digitalisimo_Hosting_Namecheap {
 	 * kind ok + 'tlds' => array( 'com' => array( 'transfer' => bool, 'epp' => bool ) ). Se guarda un día (la lista casi
 	 * no cambia y la transferencia la consulta el carrito).
 	 */
-	public function tlds() {
+	public function tlds( $timeout = 60 ) {
 		$cached = function_exists( 'get_transient' ) ? get_transient( 'digitalisimo_hosting_nc_tlds' ) : false;
 		if ( is_array( $cached ) && $cached ) return array( 'kind' => 'ok', 'tlds' => $cached );
-		$r = $this->call( 'namecheap.domains.getTldList' );
+		$r = $this->call( 'namecheap.domains.getTldList', array(), $timeout );
 		if ( 'ok' !== $r['kind'] ) return $r;
 		$out = array();
 		foreach ( $r['xml']->xpath( '//*[local-name()="Tld"]' ) ?: array() as $tld ) {

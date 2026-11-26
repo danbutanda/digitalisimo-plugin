@@ -34,13 +34,17 @@ class Digitalisimo_Hosting_Checkout {
 
 	public static function init() {
 		add_filter( 'woocommerce_store_api_add_to_cart_data', array( __CLASS__, 'store_api_data' ), 10, 2 );
-		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'maybe_validate_add' ), 20, 6 );
+		// Antes que «Reemplazar el plan» (10): un plan rechazado no se lleva el que ya estaba en el carrito.
+		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'maybe_validate_add' ), 5, 6 );
 		add_action( 'woocommerce_before_add_to_cart_button', array( __CLASS__, 'maybe_product_fields' ) );
 		add_action( 'woocommerce_before_cart', array( __CLASS__, 'maybe_panel' ) );
 		add_action( 'woocommerce_before_checkout_form', array( __CLASS__, 'maybe_panel' ), 5 );
+		// El checkout clásico con errores del carrito pinta checkout/cart-errors.php y no el formulario: el panel va ahí.
+		add_action( 'woocommerce_cart_has_errors', array( __CLASS__, 'maybe_panel' ) );
 		add_filter( 'render_block', array( __CLASS__, 'block_panel' ), 10, 2 );
 		add_action( 'wp_loaded', array( __CLASS__, 'handle_panel' ), 30 );
 		add_filter( 'woocommerce_rest_prepare_shop_order_object', array( __CLASS__, 'rest_strip' ), 99, 1 );
+		add_filter( 'woocommerce_rest_api_v4_orders_item_response', array( __CLASS__, 'rest_strip' ), 99, 1 );
 		add_action( 'add_meta_boxes', array( __CLASS__, 'meta_box' ), 30, 2 );
 		add_action( 'admin_post_' . self::EPP_ACTION, array( __CLASS__, 'show_epp' ) );
 	}
@@ -94,13 +98,17 @@ class Digitalisimo_Hosting_Checkout {
 		return $data;
 	}
 
-	/** Store API (checkout de bloques): `digitalisimo_domain`, `digitalisimo_domain_mode` y `digitalisimo_epp` en el cuerpo. */
+	/**
+	 * Store API (checkout de bloques): `digitalisimo_domain`, `digitalisimo_domain_mode` y `digitalisimo_epp` en el cuerpo.
+	 * El EPP sólo del cuerpo (JSON o formulario), nunca de la URL.
+	 */
 	public static function store_api_data( $add, $request ) {
 		if ( ! self::on() || ! is_object( $request ) || ! method_exists( $request, 'get_param' ) ) return $add;
 		$data = is_array( $add['cart_item_data'] ?? null ) ? $add['cart_item_data'] : array();
 		$domain = $request->get_param( 'digitalisimo_domain' );
 		$mode = (string) $request->get_param( 'digitalisimo_domain_mode' );
-		$epp = $request->get_param( 'digitalisimo_epp' );
+		$body = array_merge( method_exists( $request, 'get_body_params' ) ? (array) $request->get_body_params() : array(), method_exists( $request, 'get_json_params' ) ? (array) $request->get_json_params() : array() );
+		$epp = $body['digitalisimo_epp'] ?? null;
 		if ( is_string( $domain ) && '' !== trim( $domain ) ) $data['digitalisimo_domain'] = self::clean_domain( $domain );
 		if ( in_array( $mode, array( 'new', 'own' ), true ) ) $data['digitalisimo_domain_mode'] = $mode;
 		if ( is_string( $epp ) && '' !== trim( $epp ) ) $data['digitalisimo_epp_raw'] = trim( $epp );
@@ -177,18 +185,25 @@ class Digitalisimo_Hosting_Checkout {
 
 	// ── Consultas a Namecheap (en caché unos minutos y con tope por visitante) ───────────────────────────────────
 
-	/** namecheap.domains.check: array( kind ok|error, available, premium, message ). */
-	private static function lookup( $domain ) {
+	/** Tiempo de espera de una consulta hecha mientras el visitante espera (el aprovisionamiento usa 60 s). */
+	const TIMEOUT = 15;
+
+	/**
+	 * namecheap.domains.check: array( kind ok|error|config, available, premium, message ), en caché unos minutos (y una
+	 * falla, un minuto: no se repite en cada vista mientras Namecheap no responde). $limit: tope por visitante del carrito
+	 * (el buscador público lleva el suyo en la ruta REST).
+	 */
+	public static function lookup( $domain, $limit = true ) {
 		if ( isset( self::$checked[ $domain ] ) ) return self::$checked[ $domain ];
 		$key = 'digitalisimo_hosting_chk_' . md5( $domain );
 		$cached = get_transient( $key );
 		if ( is_array( $cached ) ) return self::$checked[ $domain ] = $cached;
 		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
 		if ( ! $nc->configured() ) return self::$checked[ $domain ] = array( 'kind' => 'config' );
-		if ( ! Digitalisimo_Hosting::rate_limit( 'domain-check' ) ) return array( 'kind' => 'error', 'message' => 'Demasiadas consultas de dominios. Intenta de nuevo en un minuto.' );
-		$r = $nc->check( $domain );
+		if ( $limit && ! Digitalisimo_Hosting::rate_limit( 'domain-cart', 30 ) ) return array( 'kind' => 'error', 'message' => 'Demasiadas consultas de dominios. Intenta de nuevo en un minuto.' );
+		$r = $nc->check( $domain, self::TIMEOUT );
 		$out = 'ok' === $r['kind'] ? array( 'kind' => 'ok', 'available' => ! empty( $r['available'] ), 'premium' => ! empty( $r['premium'] ) ) : array( 'kind' => 'error', 'message' => 'No pudimos comprobar el dominio ' . $domain . ' en este momento. Intenta de nuevo en unos minutos.' );
-		if ( 'ok' === $out['kind'] ) set_transient( $key, $out, self::CHECK_TTL );
+		set_transient( $key, $out, 'ok' === $out['kind'] ? self::CHECK_TTL : MINUTE_IN_SECONDS );
 		return self::$checked[ $domain ] = $out;
 	}
 
@@ -220,15 +235,16 @@ class Digitalisimo_Hosting_Checkout {
 		if ( 'ok' !== $r['kind'] ) return $r['message'] ?? 'No pudimos comprobar el dominio ' . $domain . '.';
 		$error = '';
 		if ( $r['available'] ) $error = 'El dominio ' . $domain . ' no está registrado, así que no se puede transferir. Puedes registrarlo como dominio nuevo.';
+		$busy = 'No pudimos comprobar si ' . $domain . ' se puede transferir. Intenta de nuevo en unos minutos.';
 		if ( '' === $error ) {
-			$tlds = $nc->tlds();
-			if ( 'ok' !== $tlds['kind'] ) return 'No pudimos comprobar si ' . $domain . ' se puede transferir. Intenta de nuevo en unos minutos.';
+			$tlds = $nc->tlds( self::TIMEOUT );
+			if ( 'ok' !== $tlds['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
 			$tld = ltrim( self::ext_of( $domain ), '.' );
 			if ( empty( $tlds['tlds'][ $tld ]['transfer'] ) ) $error = 'Los dominios .' . $tld . ' no se pueden transferir aquí. Escríbenos y lo vemos contigo.';
 		}
 		if ( '' === $error ) {
-			$info = $nc->info( $domain );
-			if ( 'ok' !== $info['kind'] ) return 'No pudimos comprobar si ' . $domain . ' se puede transferir. Intenta de nuevo en unos minutos.';
+			$info = $nc->info( $domain, self::TIMEOUT );
+			if ( 'ok' !== $info['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
 			if ( ! empty( $info['ours'] ) ) $error = 'El dominio ' . $domain . ' ya está con nosotros: no hace falta transferirlo.';
 		}
 		set_transient( $key, $error, self::CHECK_TTL );
@@ -407,13 +423,17 @@ class Digitalisimo_Hosting_Checkout {
 		return is_array( $all ) && isset( $all[ $domain ] ) ? Digitalisimo_Hosting_Provisioning::decrypt( $all[ $domain ] ) : '';
 	}
 
-	/** La REST de pedidos de WooCommerce (y el MCP de la tienda, que la usa) nunca lleva el EPP, ni cifrado. */
+	/** La REST de pedidos de WooCommerce (v3, v4, y el MCP de la tienda, que la usa) nunca lleva el EPP, ni cifrado. */
 	public static function rest_strip( $response ) {
+		$strip = static function ( $meta ) {
+			return array_values( array_filter( (array) $meta, static function ( $m ) {
+				$key = is_object( $m ) ? ( $m->key ?? ( method_exists( $m, 'get_data' ) ? ( $m->get_data()['key'] ?? '' ) : '' ) ) : ( is_array( $m ) ? ( $m['key'] ?? '' ) : '' );
+				return Digitalisimo_Hosting_Checkout::META_EPP !== $key;
+			} ) );
+		};
+		if ( is_array( $response ) ) { if ( isset( $response['meta_data'] ) && is_array( $response['meta_data'] ) ) $response['meta_data'] = $strip( $response['meta_data'] ); return $response; }
 		if ( ! is_object( $response ) || ! isset( $response->data ) || ! is_array( $response->data ) || empty( $response->data['meta_data'] ) || ! is_array( $response->data['meta_data'] ) ) return $response;
-		$response->data['meta_data'] = array_values( array_filter( $response->data['meta_data'], static function ( $m ) {
-			$key = is_object( $m ) ? ( $m->key ?? ( method_exists( $m, 'get_data' ) ? ( $m->get_data()['key'] ?? '' ) : '' ) ) : ( is_array( $m ) ? ( $m['key'] ?? '' ) : '' );
-			return Digitalisimo_Hosting_Checkout::META_EPP !== $key;
-		} ) );
+		$response->data['meta_data'] = $strip( $response->data['meta_data'] );
 		return $response;
 	}
 
@@ -446,6 +466,8 @@ class Digitalisimo_Hosting_Checkout {
 		if ( function_exists( 'nocache_headers' ) ) nocache_headers();
 		header( 'X-Robots-Tag: noindex, nofollow' );
 		header( 'Referrer-Policy: no-referrer' );
+		// Queda constancia de quién lo vio (nota privada, sin el código).
+		if ( '' !== $code && method_exists( $order, 'add_order_note' ) ) { $user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null; $order->add_order_note( 'DIGITALÍSIMO Hosting: ' . ( $user && ! empty( $user->user_login ) ? $user->user_login : 'un administrador' ) . ' consultó el código EPP de ' . $domain . '.' ); }
 		if ( '' === $code ) wp_die( 'Este pedido no tiene un código EPP que se pueda leer para ' . esc_html( $domain ) . ' (si cambiaron las sales de WordPress, pide el código otra vez al cliente).', 'Código EPP', array( 'response' => 404 ) );
 		wp_die( '<p>Código de transferencia (EPP) de <strong>' . esc_html( $domain ) . '</strong>, pedido #' . (int) $order_id . ':</p><p><code style="font-size:1.4em;user-select:all">' . esc_html( $code ) . '</code></p><p>No lo copies en notas ni correos.</p>', 'Código EPP', array( 'response' => 200 ) );
 	}
