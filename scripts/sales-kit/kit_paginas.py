@@ -25,7 +25,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from kit_lib import *  # noqa: E402,F401,F403
-from kit_lib import a_contenedores, limpiar, reiniciar_ids, urgentes, urgente, volcar  # noqa: E402
+from kit_lib import a_contenedores, a_globales, limpiar, reiniciar_ids, urgentes, urgente, volcar  # noqa: E402
 
 OSC = dict(oscuro=True)
 
@@ -1153,8 +1153,12 @@ def generar():
         data = meta["fn"]()
         urg = urgentes(data["content"])
         limpiar(data["content"])
+        literal = volcar(data)
+        contenedores_ = a_contenedores(json.loads(literal))
+        a_globales(data["content"])
+        a_globales(contenedores_["content"])
         secciones = volcar(data)
-        contenedores = volcar(a_contenedores(json.loads(secciones)))
+        contenedores = volcar(contenedores_)
         archivos["sections/" + meta["archivo"]] = secciones
         archivos["containers/" + meta["archivo"]] = contenedores
         widgets = contar(data["content"])

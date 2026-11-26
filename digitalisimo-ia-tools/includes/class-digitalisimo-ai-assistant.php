@@ -42,6 +42,10 @@ final class Digitalisimo_AI_Assistant {
 	const MAX_RESUMES = 8;
 	/** Margen de la petición para instrucciones y herramientas, además de la conversación. */
 	const MAX_REQUEST = 600000;
+	/** La herramienta del kit de ventas que crea o rehace una landing. */
+	const KIT_PAGE = 'digitalisimo-sales/create-page';
+	/** Lo que el modelo lee cuando ya hizo la landing y su única corrección en este turno. */
+	const ONE_FIX_NOTE = 'No se rehízo: en este turno ya creaste la landing y la corregiste una vez. Entrégala como está ahora, con sus enlaces, y di en una frase llana lo que aún conviene ajustar; la persona decide si lo cambias en el siguiente mensaje.';
 	/** Palabras que afirman sin decir qué («sí», «hazlo», «dale»…). «gracias», «perfecto», «correcto» o «listo» no confirman nada. */
 	const AFFIRM_STRONG = array( 'si', 'ok', 'okay', 'okey', 'oki', 'vale', 'dale', 'hazlo', 'hagalo', 'hagale', 'adelante', 'confirmo', 'confirmado', 'confirmada', 'acuerdo', 'procede', 'ejecutalo', 'yes', 'sale', 'orale', 'simon', 'sip', 'aprobado', 'apruebo', 'autorizo', 'autorizado' );
 	/** Relleno que puede acompañar a una afirmación (sin «gracias», «bien» ni «todo»: «ok gracias» no es un sí). */
@@ -888,7 +892,7 @@ final class Digitalisimo_AI_Assistant {
 	 * continuar un turno pausado.
 	 */
 	public static function turn_facts( array $conv ) {
-		$facts = array( 'drafted' => false, 'unknown' => array() );
+		$facts = array( 'drafted' => false, 'unknown' => array(), 'kit_runs' => 0 );
 		for ( $i = count( $conv['messages'] ) - 1; $i >= 0; $i-- ) {
 			$m    = $conv['messages'][ $i ];
 			$role = (string) ( $m['role'] ?? '' );
@@ -900,6 +904,9 @@ final class Digitalisimo_AI_Assistant {
 			}
 			if ( 'draft' === ( $m['kind'] ?? '' ) && 'ok' === ( $m['status'] ?? '' ) ) {
 				$facts['drafted'] = true;
+				if ( self::KIT_PAGE === ( $m['ability'] ?? '' ) ) {
+					++$facts['kit_runs'];
+				}
 			}
 			if ( 'unknown' === ( $m['status'] ?? '' ) ) {
 				$facts['unknown'][ (string) ( $m['ability'] ?? '' ) ] = true;
@@ -922,6 +929,10 @@ final class Digitalisimo_AI_Assistant {
 	 */
 	private static function held( array $conv, array $entry, $draft ) {
 		$facts = self::turn_facts( $conv );
+		if ( $draft && self::KIT_PAGE === $entry['name'] && $facts['kit_runs'] >= 2 ) {
+			// Caso plomerito 3: crear y, como mucho, UNA corrección por turno; nunca un ciclo de rehacer el mismo borrador.
+			return self::ONE_FIX_NOTE;
+		}
 		if ( isset( $facts['unknown'][ $entry['name'] ] ) ) {
 			return 'No se repitió: esta misma acción quedó con resultado desconocido en este turno. Primero lee el estado real con una consulta; si ya se aplicó, díselo a la persona; si no, avísale en una frase y espera a que te diga qué hacer.';
 		}
@@ -1075,12 +1086,18 @@ final class Digitalisimo_AI_Assistant {
 			'Primero haces y muestras; después se ajusta:',
 			'- Cuando te piden crear algo (una landing, una página, una promoción), créalo YA en borrador, completo, en este mismo turno, con lo que sabes y valores razonables. Los datos los buscas tú en el sitio: producto, precio, fotos, contacto, políticas, pagos y envíos. Un borrador no se ve en el sitio ni cambia nada publicado: no pidas permiso ni confirmación para crearlo.',
 			'- Landing o promoción de un producto de la tienda: busca el producto con digitalisimo-woo/products (action list, search) y llama enseguida a digitalisimo-sales/create-page con product_id y offer (price; regular_price sólo si cambia; ends; label). Esa herramienta lee sola el WhatsApp, el teléfono, las políticas, los pagos, los envíos y el logo del sitio: no los consultes antes. Para esto no uses estructura de página, schema, SEO, ajustes, informes ni listados de entradas. Si para otra cosa necesitas el contacto o el texto de una página: digitalisimo-ia/site-contact y digitalisimo-ia/read-page-text.',
+			'- Oferta o descuento de TODA la tienda o de una categoría («todos los productos al 40 %», «30 % en bombas»): llama enseguida a digitalisimo-sales/create-page con store_offer (percent; category sólo si es una categoría; label con el nombre de la promoción; ends si dijo hasta cuándo). Esa landing lleva los productos reales con foto, precio normal tachado y precio con el descuento, las garantías, los pagos y los envíos del sitio y el botón a la tienda. Nunca armes la oferta de una tienda con una plantilla de cursos (template): nada de «Lo que vas a lograr», bonus, módulos, factura ni avisos de resultados e ingresos.',
+			'- La página sale sola con los colores, las tipografías, la cabecera y el pie DEL SITIO (los de su kit o, si son los de fábrica, los que usan su cabecera, su pie y su portada). No hace falta activar nada: nunca le pidas a la persona que active, prenda o configure algo (editor, experimento, ajuste) para leer sus colores ni para crear o corregir una página.',
+			'- El botón principal lleva a la tienda o a la categoría en una oferta general y al producto en la de un producto; nunca al carrito vacío.',
 			'- Si el producto que nombra no existe, usa el más parecido de la tienda y dilo en una frase al final; si no hay nada parecido, crea la página con lo que dijo la persona.',
 			'- Pregunta antes sólo si falta algo imposible de deducir sin lo cual no puedes hacer nada. Como mucho una pregunta corta. Nunca pidas listas de datos.',
 			'- Deduce: «de hoy a fin de mes» es hasta el fin de mes de arriba; «el número del sitio» es el WhatsApp o teléfono que publica el sitio; «está en políticas» son las páginas de políticas del sitio; «de 10000 a 7500» es precio normal 10,000 y de oferta 7,500. Todo lo que la persona dijo antes en esta conversación sigue valiendo: no lo vuelvas a preguntar.',
 			'- Si en esta conversación ya preparaste un borrador para lo mismo y te piden rehacerlo o cambiarlo, hazlo sobre ese mismo (create-page con su post_id, o edítalo). La herramienta te dice qué pasó y tú lo dices en una frase llana: si tuvo que hacerlo en una página nueva, dilo; si el borrador tiene cambios de la persona, ella confirma en pantalla si lo rehaces encima.',
 			'- Si lo que piden cambiar es una página ya publicada, no hagas copias a escondidas: dile en una frase llana que esa página está publicada y que cambiarla en vivo necesita su visto bueno, y ofrécele cambiarla directamente (ella lo confirma en pantalla) o hacer una copia en borrador para revisarla. Haz sólo lo que elija.',
-			'- Tras crear, lee una vez lo creado con read-page-text y corrige lo que haya quedado mal. Nada de marcadores [entre corchetes], textos o fotos de muestra ni enlaces a páginas que no existen: si no hay un dato real, ese bloque se quita.',
+			'- Tras crear, revisa lo que devolvió la herramienta: check y look dicen qué colores y tipografías lleva de verdad la página y si son los del sitio, si tiene la cabecera y el pie, cuántos productos, a dónde lleva el botón y si quedó algún texto de cursos (para una página ya creada, read-page-text trae su texto y su look). Si algo quedó mal, corrígelo tú en ese mismo turno, antes de contestar: rehaz tu borrador (create-page con su post_id y la entrada corregida). Nada de marcadores [entre corchetes], textos o fotos de muestra ni enlaces a páginas que no existen: si no hay un dato real, ese bloque se quita.',
+			'- Como mucho una corrección por turno: si después de corregirla aún falta algo, entrégala y dilo en una frase.',
+			'- Un borrador que tú creaste lo corriges tú. Nunca digas «hay que corregirlo en el editor» ni «desde aquí no puedo» sobre tu propio borrador: rehazlo con lo que pidió la persona.',
+			'- Afirma sólo lo que comprobaste. Di que la página usa los colores del sitio sólo si look.matches_site es verdadero; si te piden «usa los colores de mi kit», rehaz el borrador y confírmalo con look. Si no lo comprobaste, no lo digas.',
 			'- Al terminar contesta corto: una línea con lo que hiciste, los enlaces para verlo y editarlo y, al final, una o dos frases con lo que conviene revisar. Nada más.',
 			'',
 			'Sólo lo que se pidió:',
