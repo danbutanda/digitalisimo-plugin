@@ -20,7 +20,8 @@
 
   const key = (name) => { const n = String(name || '').toLowerCase(); const m = n.match(/\[([^\]]+)\]$/); return m ? m[1] : n; };
   const named = (el, configured, list) => !!(el && el.name && (el.name === configured || list.includes(key(el.name))));
-  const fields = (root) => Array.from(root.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]), select, textarea'));
+  // Los campos del bloque [digitalisimo_domain_search] son suyos, aunque esté dentro de otro formulario.
+  const fields = (root) => Array.from(root.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]), select, textarea')).filter((el) => !el.closest('.digitalisimo-domain-search'));
   const domainField = (root) => fields(root).find((el) => named(el, c.domainField, DOMAIN_NAMES));
   const extField = (root) => fields(root).find((el) => named(el, c.extensionField, EXT_NAMES));
   const matches = (el, sel) => { try { return !!sel && el.matches(sel); } catch (e) { return false; } };
@@ -35,7 +36,12 @@
   const resultFor = (form) => {
     const inside = form.querySelector(RESULT);
     if (inside) return inside;
-    for (let el = form.parentElement; el; el = el.parentElement) { const r = el.querySelector(RESULT); if (r) return r; }
+    // Hacia arriba, mientras no se llegue a una parte de la página con otro buscador (su resultado es suyo).
+    for (let el = form.parentElement; el && el !== document.documentElement; el = el.parentElement) {
+      if (Array.from(el.querySelectorAll('form')).some((f) => f !== form && isSearchForm(f))) break;
+      const r = el.querySelector(RESULT);
+      if (r) return r;
+    }
     const div = document.createElement('div');
     div.className = RESULT.slice(1);
     div.setAttribute('aria-live', 'polite');
