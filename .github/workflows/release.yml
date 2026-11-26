@@ -72,6 +72,7 @@ jobs:
           node tests/elements-popup-counter.mjs
           php tests/elements-front-settings.php
           php tests/elements-lazy-videos.php
+          php tests/elements-background-video.php
           php tests/elements-facades.php
           php tests/elements-convert.php
           php tests/elements-convert-foreign.php
@@ -158,6 +159,7 @@ jobs:
           php tests/elements-icons-svg.php
           node tests/elements-lazy-libs.mjs
           node tests/elements-lazy-videos.mjs
+          node tests/elements-background-video-weight.mjs
           php tests/elements-local-libs.php
           php tests/elements-front-cases.php
           php tests/elements-advanced-heading.php
@@ -558,6 +560,7 @@ jobs:
           php tests/elements-woo-skydropx.php
           php tests/elements-mcp-css.php
           php tests/elements-mcp-settings.php
+          php tests/elements-page-template.php
           php tests/elements-mcp-preview-site.php
           php tests/elements-kit-woo-refs.php
           php tests/elements-f7b-module.php

@@ -495,7 +495,7 @@ namespace {
 	check( 20 === $hooks['elementor/atomic-widgets/styles/transformers/register'][0][1], 'el transformador se registra con prioridad 20 (el del núcleo, en 10)' );
 	$counts = array_map( 'count', $GLOBALS['mc']['hooks'] );
 	\Digitalisimo\Elements\Mcp\Module::init();
-	check( $counts === array_map( 'count', $GLOBALS['mc']['hooks'] ) && 2 === count( $GLOBALS['mc']['hooks']['shutdown'] ) && 2 === count( $GLOBALS['mc']['hooks']['parse_request'] ), 'init() es idempotente (shutdown: Css_Sync y Preview_Link)' );
+	check( $counts === array_map( 'count', $GLOBALS['mc']['hooks'] ) && 3 === count( $GLOBALS['mc']['hooks']['shutdown'] ) && 2 === count( $GLOBALS['mc']['hooks']['parse_request'] ), 'init() es idempotente (shutdown: Css_Sync, Preview_Link y Page_Template)' );
 
 	// ---------------------------------------------------------------------------------------------------------------
 	// 2. Fuera de una herramienta del constructor no se anota nada (el editor y lo demás siguen como en el núcleo).
