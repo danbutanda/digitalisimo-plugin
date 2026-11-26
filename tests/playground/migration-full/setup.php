@@ -144,6 +144,10 @@ if ( 'rerun' === $scenario ) {
 		activate_plugin( 'digitalisimo-tools/digitalisimo-tools.php' );
 		file_put_contents( $probe . '/tools-old', '1' );
 	}
+	// Y su referencia de la portada de esa pasada (sin versión, de Migración 1.0.32): no debe compararse con ella (revisión
+	// adversarial NUEVA 3), o la portada de hoy, con otro contenido, haría volver atrás sin motivo.
+	update_option( 'digitalisimo_migration_full_baseline', array( 'started' => 1763604000, 'checks' => array( array( 1, home_url( '/' ) ) ) ), false );
+	update_option( 'digitalisimo_migration_full_snap_' . md5( '1763604000|1|' . home_url( '/' ) ), array( 'status' => 200, 'text' => 'Portada del 19 de noviembre con otro contenido completamente distinto al de hoy, de muchas palabras', 'words' => 18 ), false );
 	// La caché de objetos persistente (al final: esta petición no la usa).
 	@mkdir( '/digi-cache', 0777, true );
 	copy( $probe . '/object-cache-nosalt.php', WP_CONTENT_DIR . '/object-cache.php' );

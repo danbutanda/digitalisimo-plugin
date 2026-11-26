@@ -172,6 +172,7 @@ if (mode === 'rerun') {
 	// Caso real de digitalisimo.lat: un solo clic hizo una pasada nueva entera y el informe del 19-nov se sustituyó.
 	const site = Object.values(result.sites)[0] || {};
 	check(l.run === 'clicrerun', `El informe es el de este clic (${l.run}), no el del 19-nov.`);
+	check(!(l.notes || []).some((n) => /primera pasada de Migrar/.test(n)) && l.verified, 'No se compara con la portada del 19-nov (otra versión): se toma la de hoy y verifica: ' + JSON.stringify(l.notes));
 	check(l.backup && l.backup.ok && !/20261119/.test(l.backup.file || '') && result.history.includes(l.backup.file), `Respaldo nuevo, en el historial de Backups: ${l.backup && l.backup.file}`);
 	check(l.theme_installed_now && result.themes.includes('digitalisimo-theme'), 'El tema DIGITALÍSIMO se descargó e instaló desde la Release.');
 	if (result.tools_old) {
