@@ -57,6 +57,12 @@ check( '/c/' === $follow( $r::build_index( array( $rule( 3, 'b', '/c/', 'manual'
 check( '/b/' === $follow( $r::build_index( array( $rule( 3, 'b', '', 'manual', 410 ), $rule( 2, 'a', '/b/' ) ) ), '/b/', 'a' ), 'Un 410 termina la cadena.' );
 check( 'https://otro.test/x' === $follow( $r::build_index( array( $rule( 3, 'b', 'https://otro.test/x', 'manual' ), $rule( 2, 'a', '/b/' ) ) ), '/b/', 'a' ), 'Un destino externo termina la cadena.' );
 check( '/b/' === $follow( $r::build_index( array() ), '/b/', 'a' ), 'Sin más reglas, el destino queda igual.' );
+// La query y el ancla del destino intermedio se conservan si el siguiente salto no trae las suyas.
+$manual = $r::build_index( array( $rule( 3, 'b', '/c/' ), $rule( 2, 'm', '/b/?ref=promo', 'manual' ) ) );
+check( '/c/?ref=promo' === $follow( $manual, '/b/?ref=promo', 'm', function( $p ) { return 'c' === $p; } ), 'm → /b/?ref=promo y b → /c/ sirve /c/?ref=promo: ' . $follow( $manual, '/b/?ref=promo', 'm' ) );
+check( '/c/?ref=promo#precios' === $follow( $manual, '/b/?ref=promo#precios', 'm' ), 'También el ancla.' );
+check( '/c/?propia=1' === $follow( $r::build_index( array( $rule( 3, 'b', '/c/?propia=1' ) ) ), '/b/?ref=promo', 'm' ), 'Si el siguiente salto trae su query, manda la suya.' );
+check( '/c/#suya' === $r::carry( '/b/#mia', '/c/#suya' ) && '/c/?q=1' === $r::carry( '/b/?q=1', '/c/' ) && 'https://otro.test/x?q=1' === $r::carry( '/b/?q=1', 'https://otro.test/x' ), 'carry() sólo completa lo que falta.' );
 
 // En la tabla: al mover B→C, las reglas del vigilante que llevaban a B pasan a C con su query y su ancla; la que sale
 // de C (B→C→B) se desactiva. Las manuales, de CSV o importadas no se tocan: sólo se avisa.

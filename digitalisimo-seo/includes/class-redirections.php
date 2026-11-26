@@ -254,6 +254,7 @@ class Digitalisimo_Integrations_Redirections {
 	 * Sigue la cadena de reglas del propio sitio desde un destino: con A→B y B→C, A va directo a C (un solo salto
 	 * para buscadores y visitantes). Devuelve el destino final, o '' si la cadena vuelve a una ruta ya vista (A→B→A):
 	 * un bucle nunca se sirve. Una regla automática de cambio de enlace sólo cuenta si su ruta ya no existe ($alive).
+	 * La query y el ancla de un destino intermedio se conservan si el siguiente salto no trae las suyas.
 	 *
 	 * @param callable|null $alive Recibe una ruta relativa y dice si hoy responde con un contenido.
 	 */
@@ -269,9 +270,24 @@ class Digitalisimo_Integrations_Redirections {
 			if ( 'slug' === ( $next['rule']['o'] ?? '' ) && $alive && call_user_func( $alive, $path ) ) return $to;
 			$dest = self::destination( $next );
 			if ( '' === $dest ) return $to;
-			$to = $dest;
+			$to = self::carry( $to, $dest );
 		}
 		return $to;
+	}
+
+	/**
+	 * Destino del siguiente salto con la query y el ancla del intermedio cuando el siguiente no trae las suyas
+	 * (pura): m → /b/?ref=promo y b → /c/ sirven /c/?ref=promo.
+	 */
+	public static function carry( $from, $dest ) {
+		$query  = (string) parse_url( (string) $from, PHP_URL_QUERY );
+		$anchor = (string) parse_url( (string) $from, PHP_URL_FRAGMENT );
+		$parts  = explode( '#', (string) $dest, 2 );
+		$base   = $parts[0];
+		$own    = $parts[1] ?? '';
+		if ( '' !== $query && false === strpos( $base, '?' ) ) $base .= '?' . $query;
+		if ( '' === $own && '' !== $anchor ) $own = $anchor;
+		return $base . ( '' !== $own ? '#' . $own : '' );
 	}
 
 	/**
