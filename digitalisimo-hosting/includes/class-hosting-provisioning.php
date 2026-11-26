@@ -1230,7 +1230,9 @@ class Digitalisimo_Hosting_Provisioning {
 		$manual = 'manual' === self::svc( $id, 'suspend_reason' );
 		// Quién la suspendió: una marca «auto» sólo vale si el cliente de Webuzo vio la cuenta activa y mandó la orden
 		// (aunque la respuesta se pierda, pudo aplicarse). Es lo único que el pago reactiva solo.
-		if ( $suspend && ! empty( $r['sent'] ) && in_array( $r['kind'], array( 'ok', 'transient' ), true ) ) self::svc_set( $id, array( 'suspend_sent' => array( 't' => time(), 'reason' => $manual ? 'manual' : 'auto' ) ) );
+		// Se guarda el motivo que Webuzo mostraba justo antes (Webuzo conserva un motivo viejo al reactivar, p. ej.
+		// «Bandwidth Overuse» en una cuenta activa): sólo un motivo que cambió después delata otra suspensión.
+		if ( $suspend && ! empty( $r['sent'] ) && in_array( $r['kind'], array( 'ok', 'transient' ), true ) ) self::svc_set( $id, array( 'suspend_sent' => array( 't' => time(), 'reason' => $manual ? 'manual' : 'auto', 'seen' => (string) ( $r['seen_reason'] ?? '' ) ) ) );
 		if ( 'already' === $r['kind'] ) {
 			$pt = self::svc( $id, 'pending_toggle' );
 			$sent = self::svc( $id, 'suspend_sent' );
@@ -1395,9 +1397,12 @@ class Digitalisimo_Hosting_Provisioning {
 		self::svc_set( $id, array( 'reconcile_attempts' => 0, 'reconcile_pending' => 0, 'reconcile_alerted' => '' ) );
 		$sent = self::svc( $id, 'suspend_sent' );
 		$ours = is_array( $sent ) && 'auto' === ( $sent['reason'] ?? '' );
-		// Webuzo muestra un motivo de suspensión (el panel lo pide; Webuzo pone el suyo, p. ej. «Bandwidth Overuse»): el
-		// plugin nunca escribe uno, así que esa suspensión no es la suya aunque quede una marca vieja.
-		if ( 'suspended' === $now && '' !== (string) ( $r['row']['reason'] ?? '' ) ) $ours = false;
+		// El plugin nunca escribe un motivo de suspensión. Si el de Webuzo cambió desde que el plugin mandó la suya (Webuzo
+		// puso el suyo, p. ej. por ancho de banda), esa suspensión ya no es la del plugin. Un motivo que ya estaba antes
+		// (Webuzo lo conserva al reactivar) no cuenta. (En el panel se suspende con el motivo vacío: contra eso protege la
+		// consulta previa «already».)
+		$now_reason = (string) ( $r['row']['reason'] ?? '' );
+		if ( 'suspended' === $now && '' !== $now_reason && ( ! is_array( $sent ) || $now_reason !== (string) ( $sent['seen'] ?? '' ) ) ) $ours = false;
 		if ( 'suspended' === $now && ! self::overdue( $id ) && $ours ) {
 			// La suspendió el plugin por falta de pago (o la orden viajaba): pagada, se reactiva.
 			self::svc_set( $id, array( 'status' => 'suspended', 'unsuspend_reason' => 'paid' ) );

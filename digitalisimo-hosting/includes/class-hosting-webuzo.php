@@ -428,7 +428,7 @@ class Digitalisimo_Hosting_Webuzo {
 		// Sin `skip` (ver arriba): con skip=1 este Webuzo responde éxito sin hacer nada. «sent»: la orden salió después de
 		// ver la cuenta en el estado contrario (aunque la respuesta se pierda, pudo aplicarse).
 		$r = $this->call( 'users', array( $op => $user ) );
-		$r['sent'] = true;
+		$r['sent'] = true; $r['seen_reason'] = (string) ( $row['reason'] ?? '' );
 		return $r;
 	}
 
