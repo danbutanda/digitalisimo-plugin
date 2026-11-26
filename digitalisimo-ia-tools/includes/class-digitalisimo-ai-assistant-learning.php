@@ -223,17 +223,102 @@ final class Digitalisimo_AI_Assistant_Learning {
 	}
 
 	/**
-	 * ¿Trae datos de un cliente o de un pedido? (palabras de clientes o pedidos junto a un correo, un teléfono, un
-	 * número de pedido o una dirección). Esos datos nunca entran al aprendizaje.
+	 * ¿Trae datos de una persona, de un cliente o de un pedido? Ante la duda, sí (y no se guarda). Revisión de b7762173,
+	 * medio 3: antes pasaban nombres con correo, teléfono o dirección sin la palabra «cliente», «juan perez pidió
+	 * factura» o «Clientes frecuentes: Ana Torres…».
+	 * - cualquier correo, teléfono (8 dígitos o más) o dirección postal que no sea el contacto PÚBLICO del propio sitio
+	 *   (public_contacts(): lo que el sitio publica, la dirección de la tienda y los correos de su dominio);
+	 * - una operación de alguien («pidió», «compró», «pagó», «abonó», «encargó», «adeuda», «le debe»…);
+	 * - un nombre y apellido junto a clientes, compras, pagos, pedidos o deudas;
+	 * - un número de pedido o de orden.
 	 */
 	public static function personal( $text ) {
 		$raw = (string) $text;
 		$t   = self::normalize( $raw );
-		$who = (bool) preg_match( '/\b(cliente|clienta|clientes|comprador|compradora|pedido|pedidos|orden|ordenes|order|orders|customer|customers|factura de|envio de|domicilio de|direccion de)\b/u', $t );
-		$id  = (bool) preg_match( '/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i', $raw ) || (bool) preg_match( '/(\+?\d[\d\s().-]{8,}\d)/', $raw ) || (bool) preg_match( '/#\s?\d{2,}|\b(pedido|orden|order)\s+(no\.?|num\.?|numero)?\s*\d{2,}/iu', $raw ) || (bool) preg_match( '/\b(calle|avenida|av\.|col\.|colonia|cp|c\.p\.)\s+\S+/iu', $raw );
-		// Un nombre propio de persona después de «cliente»/«clienta»/«comprador».
-		$name = (bool) preg_match( '/\b(client[ea]s?|comprador[a]?|customer)\s+(?:se llama\s+|llamad[oa]\s+|de nombre\s+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/u', $raw );
-		return ( $who && $id ) || $name;
+		$own = self::public_contacts();
+		if ( preg_match_all( '/[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})/i', $raw, $mails ) ) {
+			foreach ( $mails[0] as $i => $mail ) {
+				$domain = strtolower( $mails[1][ $i ] );
+				$mine   = '' !== $own['host'] && ( $domain === $own['host'] || substr( $domain, -strlen( '.' . $own['host'] ) ) === '.' . $own['host'] );
+				if ( ! $mine && ! in_array( strtolower( $mail ), $own['emails'], true ) ) {
+					return true;
+				}
+			}
+		}
+		// Las fechas y horas («2026-12-24 23:59») no son teléfonos.
+		if ( preg_match_all( '/\+?\d[\d\s().-]{6,}\d/', preg_replace( '/\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?\b|\b\d{1,2}:\d{2}\b/', ' ', $raw ), $nums ) ) {
+			foreach ( $nums[0] as $num ) {
+				$digits = preg_replace( '/\D+/', '', $num );
+				if ( strlen( $digits ) >= 8 && ! in_array( substr( $digits, -8 ), $own['phones'], true ) ) {
+					return true;
+				}
+			}
+		}
+		if ( preg_match( '/\b(calle|avenida|av|blvd|boulevard|bulevar|colonia|col|fraccionamiento|fracc|carretera)\s+[\p{L}\d]|\b(c\s?p|codigo postal)\s*\d{5}\b/u', $t ) ) {
+			$mine = false;
+			foreach ( $own['addresses'] as $address ) {
+				if ( '' !== $address && false !== strpos( $t, $address ) ) {
+					$mine = true;
+				}
+			}
+			if ( ! $mine ) {
+				return true;
+			}
+		}
+		if ( preg_match( '/\b(pidi[oó]|compró|pagó|abonó|encargó|ordenó|apartó|reservó|adeuda|qued[oó] a deber|le debe|nos debe|me debe|debe \$|devolvi[oó] (su|el|la))\b/iu', $raw ) ) {
+			return true;
+		}
+		$name = (bool) preg_match( '/\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/u', $raw );
+		if ( $name && preg_match( '/\b(cliente|clienta|clientes|clientas|comprador|compradora|compradores|deudor|deudora|deudores|deuda|debe|credito|abono|pedido|pedidos|orden|ordenes|factura|facturas|encargo|apartado)\b/u', $t ) ) {
+			return true;
+		}
+		return (bool) preg_match( '/#\s?\d{2,}|\b(pedido|orden|order|folio)\s+(no\.?|num\.?|numero|n\.?º)?\s*\d{2,}/iu', $raw );
+	}
+
+	/** @var array<int,array> Contacto público por sitio (una lectura por petición). */
+	private static $contacts = array();
+
+	/**
+	 * El contacto PÚBLICO del propio sitio: los teléfonos y WhatsApp que publica (sus últimos 8 dígitos), sus correos, el
+	 * dominio del sitio y la dirección de la tienda (normalizada). Lo demás es de alguien más.
+	 */
+	public static function public_contacts() {
+		$blog = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
+		if ( isset( self::$contacts[ $blog ] ) ) {
+			return self::$contacts[ $blog ];
+		}
+		$out = array( 'phones' => array(), 'emails' => array(), 'host' => strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) ), 'addresses' => array() );
+		if ( class_exists( 'Digitalisimo_AI_Site_Reader' ) ) {
+			try {
+				$contact = Digitalisimo_AI_Site_Reader::contact();
+				foreach ( array_merge( (array) $contact['whatsapp'], (array) $contact['phones'] ) as $row ) {
+					$digits = preg_replace( '/\D+/', '', (string) ( $row['number'] ?? '' ) );
+					if ( strlen( $digits ) >= 8 ) {
+						$out['phones'][] = substr( $digits, -8 );
+					}
+				}
+				foreach ( (array) $contact['emails'] as $row ) {
+					$out['emails'][] = strtolower( (string) ( $row['email'] ?? '' ) );
+				}
+			} catch ( Throwable $e ) {
+				unset( $e ); // Sin poder leerlo, no hay contacto público: todo correo o teléfono queda fuera.
+			}
+		}
+		foreach ( array( 'woocommerce_store_address', 'woocommerce_store_address_2' ) as $option ) {
+			$value = self::normalize( (string) get_option( $option, '' ) );
+			if ( strlen( $value ) >= 6 ) {
+				$out['addresses'][] = $value;
+			}
+		}
+		if ( class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) && method_exists( 'Digitalisimo_Integrations_SEO_Resolver', 'option' ) ) {
+			$value = self::normalize( (string) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_local_address', '' ) );
+			if ( strlen( $value ) >= 6 ) {
+				$out['addresses'][] = $value;
+			}
+		}
+		$out['phones'] = array_values( array_unique( $out['phones'] ) );
+		self::$contacts[ $blog ] = $out;
+		return $out;
 	}
 
 	/* ------------------------------------------------------------------ */

@@ -259,6 +259,29 @@ $conv = array( 'messages' => array( array( 'role' => 'user', 'text' => 'el clien
 $r    = $L::remember( $conv, array( 'texto' => 'El cliente Juan Pérez del pedido 4521 vive en calle Robles 12', 'cita' => 'el cliente Juan Pérez del pedido 4521' ) );
 check( 'skipped' === $r['status'], 'C4: datos de un cliente o un pedido nunca entran (conversación)' );
 check( $L::personal( 'Laura Gómez compró el pedido #1234' ) && $L::personal( 'Cliente: ana@correo.test pidió factura' ) && ! $L::personal( 'Envío gratis a clientes en compras desde $1,500' ) && ! $L::personal( 'El WhatsApp de ventas es 844 000 0123' ), 'C4: la regla distingue datos de clientes de las políticas y del contacto del negocio' );
+// C5 (revisión de b7762173, medio 3): ante la duda, no se guarda.
+foreach ( array(
+	'Ana Torres, ana.torres@correo.test, 871 555 1234',
+	'juan perez pidió factura',
+	'Clientes frecuentes: Ana Torres y Luis Gómez.',
+	'Escríbele a Marta al 871 222 3344 para lo del encargo.',
+	'Entregar en Calle Robles 12, colonia Centro, C.P. 27000.',
+	'Laura Gómez debe $1,500 del apartado.',
+	'Contacto de ventas: luis@gmail.test',
+) as $leak ) {
+	check( $L::personal( $leak ), "C5: «{$leak}» no entra (datos de una persona)" );
+}
+foreach ( array(
+	'WhatsApp de ventas: 844 000 0123.',
+	'Envío gratis desde $1,500; entrega en 3 a 5 días hábiles.',
+	'Oferta navideña hasta el 2026-12-24 23:59.',
+	'Formas de pago: Transferencia Bancaria y Pago Contra Entrega.',
+	'Escríbenos a ventas@sitio.test para mayoreo.',
+) as $ok ) {
+	check( ! $L::personal( $ok ), "C5: «{$ok}» sí puede entrar (contacto público del sitio o datos de la tienda)" );
+}
+$r = $L::remember( array( 'messages' => array( array( 'role' => 'user', 'text' => 'Nuestro cliente más fiel es Ana Torres, siempre ponle descuento.' ) ) ), array( 'cita' => 'Nuestro cliente más fiel es Ana Torres, siempre ponle descuento.' ) );
+check( 'skipped' === $r['status'], 'C5: tampoco desde una conversación' );
 // Lo más reciente gana.
 $old = $prefs[0]['id'];
 $r   = $L::remember( array( 'messages' => array( array( 'role' => 'user', 'text' => 'mejor sí pon contador pero sólo en las ofertas de temporada' ) ) ), array( 'cita' => 'mejor sí pon contador pero sólo en las ofertas de temporada', 'cita' => 'sí pon contador pero sólo en las ofertas de temporada', 'reemplaza' => $old ) );
