@@ -24,13 +24,16 @@ MODE="${MODE:-simulado}"
 # plomerito 2 en una tienda inventada, «primero hacer y mostrar»; sólo con MODE=real). Cada escenario trae su preparación
 # y su conductor.
 SCENARIO="${SCENARIO:-caso}"
-case "$SCENARIO" in caso) SETUP=setup.php; RUNNER=run.cjs ;; mostrar) SETUP=setup-mostrar.php; RUNNER=run-mostrar.cjs ;; *) echo "SCENARIO desconocido: $SCENARIO"; exit 2 ;; esac
+# SCENARIO=marca (ia-assistant-marca.sh, caso plomerito 3): la landing con la marca del sitio, en una tienda inventada con
+# el tema DIGITALÍSIMO, cabecera y pie de Elements y 12 productos; CASE=kit (el kit con los colores de la marca) o
+# CASE=fabrica (el kit de fábrica y los colores reales sólo en la cabecera y el pie).
+case "$SCENARIO" in caso) SETUP=setup.php; RUNNER=run.cjs ;; mostrar) SETUP=setup-mostrar.php; RUNNER=run-mostrar.cjs ;; marca) SETUP=setup-marca.php; RUNNER=run-marca.cjs ;; *) echo "SCENARIO desconocido: $SCENARIO"; exit 2 ;; esac
 export OUT="${OUT:-/var/tmp/digi-ias}"
 export TMPDIR="${TMPDIR:-$OUT/tmp}"
 mkdir -p "$OUT" "$TMPDIR"
 . "$ROOT/tests/playground/playground-cleanup.sh"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
-case "$MODE" in simulado) PORT="${PORT:-9781}" ;; real) [ "$SCENARIO" = mostrar ] && PORT="${PORT:-9783}" || PORT="${PORT:-9782}" ;; *) echo "MODE desconocido: $MODE"; exit 2 ;; esac
+case "$MODE" in simulado) PORT="${PORT:-9781}" ;; real) case "$SCENARIO" in mostrar) PORT="${PORT:-9783}" ;; marca) PORT="${PORT:-9784}" ;; *) PORT="${PORT:-9782}" ;; esac ;; *) echo "MODE desconocido: $MODE"; exit 2 ;; esac
 case "$PORT" in 978[0-9]) ;; *) echo "ia-assistant-agent.sh usa el bloque 9780–9789: $PORT es de otro arnés"; exit 1 ;; esac
 ELEMENTS_DIR="${ELEMENTS_DIR:-$ROOT/digitalisimo-elements}"
 [ -f "$ELEMENTS_DIR/pro-elements.php" ] || { echo "ELEMENTS_DIR no contiene pro-elements.php: $ELEMENTS_DIR"; exit 1; }
@@ -40,7 +43,7 @@ if [ "$MODE" = real ] && [ -z "$PUPPETEER_PATH" ]; then
   npm install --silent --no-audit --no-fund --prefix "$TMPDIR/pptr" puppeteer-core@25.12.0 >/dev/null 2>&1 && PUPPETEER_PATH="$TMPDIR/pptr/node_modules"
 fi
 dir="$OUT/$MODE"
-[ "$SCENARIO" = caso ] || dir="$OUT/$SCENARIO-$MODE${RUN_LABEL:+-$RUN_LABEL}"
+[ "$SCENARIO" = caso ] || dir="$OUT/$SCENARIO-$MODE${CASE:+-$CASE}${RUN_LABEL:+-$RUN_LABEL}"
 SERVER=''
 stop_server() {
   [ -n "$SERVER" ] && kill "$SERVER" 2>/dev/null || true
@@ -58,6 +61,7 @@ rm -rf "$OUT/src" && mkdir -p "$OUT/src"
 cp -a "$ELEMENTS_DIR" "$OUT/src/digitalisimo-elements"
 rm -rf "$dir"; mkdir -p "$dir/probe"
 echo "$MODE" > "$dir/probe/mode.txt"
+echo "${CASE:-kit}" > "$dir/probe/case.txt"
 head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$dir/probe/token.txt"
 if [ "$MODE" = real ]; then
   [ -n "${KEY_FILE:-}" ] && [ -s "$KEY_FILE" ] || { echo "MODE=real necesita KEY_FILE con la clave de Anthropic"; exit 1; }
@@ -73,6 +77,7 @@ begun=$(date +%s)
 $CLI server --port="$PORT" --workers=1 --site-url="http://$host" --blueprint="$dir/blueprint.json" \
   --mount="$OUT/src/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" \
   --mount="$ROOT/digitalisimo-ia-tools:/wordpress/wp-content/plugins/digitalisimo.chatbot" \
+  --mount="$ROOT/digitalisimo-theme:/wordpress/wp-content/themes/digitalisimo-theme" \
   --mount="$D/probe.php:/wordpress/wp-content/mu-plugins/digi-ias-probe.php" \
   --mount="$D:/digi-ias-src" \
   --mount="$dir/probe:/digi-ias" \

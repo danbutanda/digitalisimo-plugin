@@ -489,7 +489,8 @@ namespace {
 	check( '' === Tools::tool_of( 'digitalisimo-woo/products' ), 'otro prefijo no es herramienta' );
 	$cp = Tools::input_schema( 'create-page' );
 	check( ! isset( $cp['required'] ), 'create-page: template y title los exige la ejecución (con product_id, template sobra y title es opcional)' );
-	check( array( 'template', 'title', 'replacements', 'omit_blocks', 'whatsapp', 'close_date', 'product_id', 'offer', 'post_id', 'finish' ) === array_keys( $cp['properties'] ), 'create-page: plantilla, título, reemplazos, bloques que se quitan, WhatsApp, fecha de cierre, producto, oferta, borrador a regenerar y terminar, nada más' );
+	check( array( 'template', 'title', 'replacements', 'omit_blocks', 'whatsapp', 'close_date', 'product_id', 'offer', 'store_offer', 'blank_page', 'post_id', 'finish' ) === array_keys( $cp['properties'] ), 'create-page: plantilla, título, reemplazos, bloques que se quitan, WhatsApp, fecha de cierre, producto, oferta, oferta de tienda, página sin cabecera ni pie, borrador a regenerar y terminar, nada más' );
+	check( false === $cp['properties']['store_offer']['additionalProperties'] && array( 'percent', 'category', 'label', 'ends', 'headline', 'subtitle' ) === array_keys( $cp['properties']['store_offer']['properties'] ), 'create-page: store_offer cerrada (percent, category, label, ends, headline, subtitle)' );
 	check( false === $cp['properties']['offer']['additionalProperties'] && array( 'price', 'regular_price', 'ends', 'label' ) === array_keys( $cp['properties']['offer']['properties'] ), 'create-page: offer cerrada (price, regular_price, ends, label)' );
 	check( preg_match( '/nunca se reordena/', Tools::DESCRIPTIONS['create-page'] ) && preg_match( '/nunca reordenar/', Tools::DESCRIPTIONS['list-templates'] ) && preg_match( '/no cambiar el orden/', Tools::DESCRIPTIONS['guide'] ), 'las descripciones dicen que un bloque se quita pero el orden no se cambia' );
 	check( $ids8 === $cp['properties']['template']['enum'], 'template: las ocho plantillas' );
@@ -1043,6 +1044,7 @@ namespace {
 			'title'        => '<b>Mi página</b>',
 			'replacements' => array( '[producto]' => 'Curso' ),
 			'whatsapp'     => '5218711234567',
+			'blank_page'   => true,
 		),
 		$fake
 	);
@@ -1065,7 +1067,7 @@ namespace {
 	sk_reset();
 	$p = Pages::create( 'Página', array( array( 'id' => 'abc1234' ) ) );
 	check( 'draft' === $GLOBALS['sk']['inserted'][0]['post_status'] && 'page' === $GLOBALS['sk']['inserted'][0]['post_type'], 'Pages: inserta un borrador' );
-	check( 1 === count( $GLOBALS['sk']['saves'] ) && array( 'template' => 'elementor_canvas' ) === ( $GLOBALS['sk']['doc_settings'][101] ?? null ) && array( array( 'id' => 'abc1234' ) ) === $GLOBALS['sk']['saves'][0][1]['elements'], 'Pages: guarda el lienzo (update_settings) y los elementos (Document::save)' );
+	check( 1 === count( $GLOBALS['sk']['saves'] ) && array( 'template' => 'elementor_header_footer' ) === ( $GLOBALS['sk']['doc_settings'][101] ?? null ) && array( array( 'id' => 'abc1234' ) ) === $GLOBALS['sk']['saves'][0][1]['elements'], 'Pages: guarda la plantilla con la cabecera y el pie del sitio (update_settings) y los elementos (Document::save)' );
 	check( \Elementor\Plugin::$instance->documents->docs[101]->built && 'draft' === $p['status'] && false === strpos( $p['preview_url'], 'preview_nonce' ) && false !== strpos( $p['edit_url'], 'action=elementor' ), 'Pages: marcada como del constructor, en borrador, con sus URL' );
 	$GLOBALS['sk']['save_publishes'] = true;
 	$p                               = Pages::create( 'Otra', array() );
@@ -1328,7 +1330,7 @@ namespace {
 						review( 'R3', sk_heading_sanitize( $title ) === $title, "$id/$variant: un título pierde algo al guardarlo una editora: $title" );
 						if ( false !== strpos( $title, '<span>' ) ) {
 							++$spans;
-							review( 'R3', 1 === preg_match( '/^selector span\{color:#[0-9A-Fa-f]{6};\}$/', $h['settings']['custom_css'] ?? '' ), "$id/$variant: el resalte de «{$title}» sin su color en custom_css" );
+							review( 'R3', 1 === preg_match( '/^selector span\{color:(#[0-9A-Fa-f]{6}|var\(--e-global-color-[a-z0-9_-]+\));\}$/', $h['settings']['custom_css'] ?? '' ), "$id/$variant: el resalte de «{$title}» sin su color en custom_css" );
 						}
 					}
 				}
@@ -1340,7 +1342,7 @@ namespace {
 			$els = $build( 'venta-corta', array( 'replacements' => array( '[precio]' => '1,997' ) ), 'containers' )['elements'];
 			Pages::create( 'De la editora', $els );
 			$saved = sk_find( $GLOBALS['sk']['filtered'][0]['elements'] ?? array(), static function ( $e ) { return 'heading' === ( $e['widgetType'] ?? '' ) && false !== strpos( $e['settings']['title'], '<span>' ); } );
-			review( 'R3', 2 === count( $saved ) && 'Hoy: <span>$1,997 MXN</span>' === $saved[1]['settings']['title'] && 'selector span{color:#00A86B;}' === $saved[1]['settings']['custom_css'], 'venta-corta guardada por una editora: «Hoy: <span>$1,997 MXN</span>» y su color en custom_css' );
+			review( 'R3', 2 === count( $saved ) && 'Hoy: <span>$1,997 MXN</span>' === $saved[1]['settings']['title'] && 'selector span{color:var(--e-global-color-accent);}' === $saved[1]['settings']['custom_css'], 'venta-corta guardada por una editora: «Hoy: <span>$1,997 MXN</span>» y su color en custom_css' );
 			$GLOBALS['sk']['containers'] = false;
 		}
 	);
@@ -1403,7 +1405,7 @@ namespace {
 				$p   = Pages::create( 'De la editora', $els );
 				review( 'R8', is_array( $p ) && 'draft' === $p['status'], "$variant: como editora se guarda sin avisos de PHP del núcleo: " . ( $p instanceof WP_Error ? ( $GLOBALS['sk']['save_error'] ?? $p->get_error_message() ) : '' ) );
 				$saved = $GLOBALS['sk']['saves'][0][1] ?? array();
-				review( 'R8', array( 'elements' ) === array_keys( $saved ) && array( 'template' => 'elementor_canvas' ) === ( $GLOBALS['sk']['doc_settings'][101] ?? null ), "$variant: el lienzo va por update_settings(), no por save()" );
+				review( 'R8', array( 'elements' ) === array_keys( $saved ) && array( 'template' => 'elementor_header_footer' ) === ( $GLOBALS['sk']['doc_settings'][101] ?? null ), "$variant: la plantilla de página va por update_settings(), no por save()" );
 				$after = $GLOBALS['sk']['filtered'][0] ?? array();
 				review( 'R8', isset( $after['elements'] ) && false === strpos( json_encode( $after['elements'] ), '"widgetType":""' ) && sk_widgets( $after['elements'] ) === sk_widgets( $els ), "$variant: el widgetType vacío de los contenedores no sale del filtro" );
 				review( 'R8', ! array_filter( $GLOBALS['sk']['hooks'], static function ( $h ) { return 'elementor/document/save/data' === $h[0] && 'sk_core_sanitizer' !== $h[1]; } ), "$variant: los filtros del guardado se quitan al terminar" );

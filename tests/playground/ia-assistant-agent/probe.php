@@ -222,6 +222,19 @@ add_action(
 			$ok = $id && 'page' === get_post_type( $id ) && ! is_wp_error( wp_update_post( array( 'ID' => $id, 'post_status' => 'publish' ) ) );
 			wp_send_json( array( 'published' => $ok, 'status' => get_post_status( $id ) ) );
 		}
+		// Ensayo «marca»: los precios de todos los productos (nada debe cambiar) y la plantilla y los datos de una página.
+		if ( 'products' === $what ) {
+			$out = array();
+			foreach ( (array) ( $ready['products'] ?? array() ) as $pid ) {
+				$p     = wc_get_product( (int) $pid );
+				$out[] = $p ? array( 'id' => $p->get_id(), 'name' => $p->get_name(), 'regular' => $p->get_regular_price(), 'sale' => $p->get_sale_price(), 'price' => $p->get_price(), 'modified' => (string) $p->get_date_modified(), 'url' => get_permalink( $p->get_id() ) ) : null;
+			}
+			wp_send_json( array( 'products' => $out, 'coupons' => count( get_posts( array( 'post_type' => 'shop_coupon', 'post_status' => 'any', 'posts_per_page' => 50 ) ) ) ) );
+		}
+		if ( 'landing' === $what ) {
+			$id = absint( $_GET['id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			wp_send_json( array( 'template' => (string) get_post_meta( $id, '_wp_page_template', true ), 'settings' => get_post_meta( $id, '_elementor_page_settings', true ), 'data' => (string) get_post_meta( $id, '_elementor_data', true ), 'kit_mark' => get_post_meta( $id, '_digitalisimo_sales_kit', true ) ) );
+		}
 		if ( 'wipe' === $what ) {
 			$o = get_option( 'digitalisimo_ai_options', array() );
 			$o['providers']['anthropic']['key'] = '';
