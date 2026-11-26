@@ -60,6 +60,12 @@ add_filter(
 			return array( 'text' => wp_json_encode( $GLOBALS['distill'], JSON_UNESCAPED_UNICODE ), 'usage' => array( 'input' => 9000, 'output' => 1200 ) );
 		}
 		if ( 0 === strpos( $request['system'], 'Lees lo que el dueño' ) ) {
+			if ( ! empty( $GLOBALS['review_fail'] ) ) {
+				return new WP_Error( 'digitalisimo_assistant_provider', 'Claude no respondió (HTTP 529).' );
+			}
+			if ( ! empty( $GLOBALS['clear_review'] ) ) {
+				Digitalisimo_AI_Assistant_Learning::rest_clear(); // «Borrar todo» mientras el modelo repasa.
+			}
 			return wp_json_encode( $GLOBALS['review'], JSON_UNESCAPED_UNICODE );
 		}
 		return $GLOBALS['script'] ? array_shift( $GLOBALS['script'] ) : 'Listo.';
@@ -458,6 +464,28 @@ foreach ( $L::get()['items'] as $i ) {
 $r = $L::remember( array( 'messages' => array( array( 'role' => 'user', 'text' => 'Nuestra garantía en pinturas es de 90 días.' ) ) ), array( 'cita' => 'Nuestra garantía en pinturas es de 90 días.', 'seccion' => 'politicas', 'reemplaza' => $keep['id'] ) );
 check( '' === $r['replaces'], 'B1-e: ni uno de otra sección' );
 $L::rest_delete( new WP_REST_Request( array( 'id' => $r['id'] ), array() ) );
+
+$site1_after_b1 = $GLOBALS['options'];
+/* ---------------- Bajos (revisión de 08cdf955): repasos fallidos y «Borrar todo» ---------------- */
+$GLOBALS['script'] = array( 'Anotado.' );
+Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'En mis páginas pon siempre el horario de atención al final.' ) ) );
+$GLOBALS['review'] = array( 'aprender' => array( array( 'seccion' => 'preferencias', 'cita' => 'En mis páginas pon siempre el horario de atención al final.' ) ) );
+$before = $L::get();
+$GLOBALS['review_fail'] = true;
+$fail = $L::review( 1, true );
+$GLOBALS['review_fail'] = false;
+$after = $L::get();
+check( is_wp_error( $fail ) && count( $before['reviews'] ) === count( $after['reviews'] ) && $before['reviewed'] === $after['reviewed'], 'Bajo: un repaso fallido no gasta el tope del día ni marca las conversaciones como repasadas' );
+$GLOBALS['clear_review'] = true;
+$L::review( 1, true );
+$GLOBALS['clear_review'] = false;
+check( ! $L::get()['items'], 'Bajo: «Borrar todo» durante un repaso: lo repasado no reaparece' );
+$reviewed = $L::get()['reviewed'];
+check( (bool) $reviewed, 'Bajo: «Borrar todo» conserva lo ya repasado' );
+$GLOBALS['model_calls'] = array();
+$L::review( 1, true );
+check( ! array_filter( $GLOBALS['model_calls'], function ( $c ) { return 0 === strpos( $c['system'], 'Lees lo que el dueño' ); } ), 'Bajo: tras «Borrar todo», el repaso automático no vuelve a pagar por lo mismo' );
+$GLOBALS['options'] = $site1_after_b1;
 
 /* ---------------- V: viejo ---------------- */
 check( '' === $L::stale(), 'V1: recién entrenado no está viejo' );

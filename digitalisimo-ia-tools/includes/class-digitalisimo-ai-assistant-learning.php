@@ -148,6 +148,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 			'reviews'    => array_values( array_map( 'intval', (array) ( $data['reviews'] ?? array() ) ) ),
 			'reviewed'   => is_array( $data['reviewed'] ?? null ) ? array_map( 'intval', $data['reviewed'] ) : array(),
 			'usage'      => is_array( $data['usage'] ?? null ) ? $data['usage'] : array(),
+			'cleared'    => (int) ( $data['cleared'] ?? 0 ),
 		);
 	}
 
@@ -600,7 +601,11 @@ final class Digitalisimo_AI_Assistant_Learning {
 	/* Entrenar con el sitio: recorrido por etapas.                          */
 	/* ------------------------------------------------------------------ */
 
-	public static function job() {
+	public static function job( $fresh = false ) {
+		if ( $fresh && function_exists( 'wp_cache_delete' ) ) {
+			// Bajo el candado: lo que esté en la caché de objetos podría ser anterior al último guardado de otra petición.
+			wp_cache_delete( self::JOB, 'options' );
+		}
 		$job = get_option( self::JOB, array() );
 		return is_array( $job ) ? $job : array();
 	}
@@ -676,7 +681,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 			return $job;
 		}
 		try {
-			$job   = self::job(); // Releído bajo el candado.
+			$job   = self::job( true ); // Releído bajo el candado, sin la caché de objetos.
 			$stage = (string) ( $job['stage'] ?? '' );
 			if ( 'running' !== ( $job['status'] ?? '' ) || ! in_array( $stage, self::STAGES, true ) ) {
 				return $job;
@@ -762,7 +767,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 			@set_time_limit( 300 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		}
 		$result = self::distill( $job, $token );
-		$now    = self::job();
+		$now    = self::job( true );
 		if ( ! self::owns( $now, $job['id'], $token ) ) {
 			return $now; // Se borró todo o empezó otro: no se escribe nada.
 		}
@@ -1021,7 +1026,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 			return $reply;
 		}
 		Digitalisimo_AI_Assistant_Tools::log_usage( $target, $reply['usage'] ?? array(), 0, 'Aprendizaje: entrenar con el sitio' );
-		if ( '' !== $token && ! self::owns( self::job(), (string) ( $job['id'] ?? '' ), $token ) ) {
+		if ( '' !== $token && ! self::owns( self::job( true ), (string) ( $job['id'] ?? '' ), $token ) ) {
 			return new WP_Error( 'digitalisimo_learning_cancelled', 'Se canceló el entrenamiento.' );
 		}
 		$json = self::json_of( (string) $reply['text'] );
@@ -1495,8 +1500,9 @@ final class Digitalisimo_AI_Assistant_Learning {
 		if ( is_wp_error( $target ) ) {
 			return $target;
 		}
-		$data['reviews'] = array_merge( $reviews, array( time() ) );
-		self::save( $data );
+		// Nada se anota antes de que el modelo responda bien: un repaso fallido no gasta el tope del día ni deja las
+		// conversaciones como repasadas (revisión de 08cdf955).
+		$begun    = time();
 		$existing = array();
 		foreach ( $data['items'] as $item ) {
 			if ( 'site' !== $item['source'] || in_array( $item['section'], array( 'politicas', 'negocio' ), true ) ) {
@@ -1512,7 +1518,9 @@ final class Digitalisimo_AI_Assistant_Learning {
 		$json  = self::json_of( (string) $reply['text'] );
 		$data  = self::get();
 		$added = array();
-		foreach ( (array) ( $json['aprender'] ?? array() ) as $point ) {
+		// Si mientras el modelo respondía se pulsó «Borrar todo», no se revive nada de lo borrado.
+		$cleared = (int) $data['cleared'] >= $begun;
+		foreach ( $cleared ? array() : (array) ( $json['aprender'] ?? array() ) as $point ) {
 			if ( ! is_array( $point ) ) {
 				continue;
 			}
@@ -1531,6 +1539,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 			}
 		}
 		$data['reviewed'] = array_slice( $seen + $data['reviewed'], 0, 100, true );
+		$data['reviews']  = array_merge( self::recent( $data['reviews'] ), array( time() ) );
 		self::save( $data );
 		return array( 'added' => array_values( array_unique( $added ) ), 'reviewed' => count( $seen ) );
 	}
@@ -1711,7 +1720,9 @@ final class Digitalisimo_AI_Assistant_Learning {
 	/** Borra todo lo aprendido (y el entrenamiento en curso). Los límites del día se conservan. */
 	public static function rest_clear() {
 		$data = self::get();
-		self::save( array( 'items' => array(), 'runs' => $data['runs'], 'reviews' => $data['reviews'] ) );
+		// Se conservan los topes del día y lo ya repasado (si no, el siguiente repaso automático volvería a pagar y a
+		// proponer lo mismo); `cleared` evita que un repaso o un destilado en curso revivan lo borrado.
+		self::save( array( 'items' => array(), 'runs' => $data['runs'], 'reviews' => $data['reviews'], 'reviewed' => $data['reviewed'], 'cleared' => time() ) );
 		delete_option( self::JOB );
 		delete_option( self::CHANGES );
 		return rest_ensure_response( self::view() );
