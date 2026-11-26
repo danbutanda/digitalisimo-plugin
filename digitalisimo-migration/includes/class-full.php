@@ -541,6 +541,9 @@ final class Full {
 		$state['done']     = true;
 		$state['pause']    = false;
 		$state['finished'] = time();
+		// Si ya dejó el sitio a medias (plugins retirados, contenido convertido), su referencia de la portada se guarda como
+		// la de cualquier pasada que no terminó en verde.
+		self::settle_baseline( $state );
 		unset( $state['snap'], $state['checks'], $state['drive'] );
 		if ( ! empty( $state['network'] ) ) {
 			update_site_option( self::NETWORK_LAST, $state );
@@ -785,18 +788,17 @@ final class Full {
 	public static function baseline( $network ) {
 		$baseline = self::stored( self::BASELINE, $network );
 		$last     = self::last( $network );
-		$version  = defined( 'DIGITALISIMO_MIGRATION_VERSION' ) ? DIGITALISIMO_MIGRATION_VERSION : '';
 		// Revisiones adversariales H6 y NUEVA 3: la referencia de la portada de antes de la primera pasada sólo protege la
 		// pasada siguiente a una que dejó el sitio a medias (contenido convertido, plugins retirados o el tema cambiado):
 		// ahí la portada de ahora ya puede estar migrada y daría por buena cualquier cosa. Deja de valer si una pasada
-		// posterior terminó verificada, si la pasada anterior no dejó el sitio alterado (volvió atrás bien o se detuvo antes
-		// de tocar nada) o si es de otra versión de Migración (como la del 19-nov de digitalisimo.lat): entonces se toma la
-		// del sitio de ahora. Si aun así no coincide, el informe ofrece empezar de nuevo desde el sitio de ahora (Full::ajax(),
+		// posterior terminó verificada o si la pasada anterior no dejó el sitio alterado (volvió atrás bien o se detuvo antes de
+		// tocar nada; también una de versiones anteriores, sin la marca `altered`, como la del 19-nov de digitalisimo.lat):
+		// entonces se toma la del sitio de ahora. Una actualización de Migración entre las dos pasadas no la descarta
+		// (revisión: «falla, actualizo y reintento» es justo el caso que protege). Si aun así no coincide, el informe ofrece empezar de nuevo desde el sitio de ahora (Full::ajax(),
 		// `fresh_baseline`), así que nunca bloquea para siempre.
 		$stale = is_array( $baseline ) && (
 			( $last && ! empty( $last['verified'] ) && (int) ( $last['started'] ?? 0 ) >= (int) ( $baseline['started'] ?? 0 ) )
 			|| empty( $baseline['altered'] )
-			|| (string) ( $baseline['version'] ?? '' ) !== (string) $version
 		);
 		if ( $stale ) {
 			$network ? delete_site_option( self::BASELINE ) : delete_option( self::BASELINE );
@@ -1871,7 +1873,10 @@ final class Full {
 	private static function own_child_php( array $state, $site_id ) {
 		$prev = (array) ( self::last( ! empty( $state['network'] ) )['theme'][ $site_id ] ?? array() );
 		$from = ! empty( $prev['child'] ) ? (string) ( $prev['from'] ?? '' ) : '';
-		$out  = self::on_site( $site_id, static function () use ( $state, $from ) {
+		// Revisión adversarial: sólo se activa si fue una pasada de Migrar la que cambió (o murió cambiando) este sitio desde
+		// el hijo. Un sitio que se pasó al tema propio a mano, con el PHP importado sin activar a propósito, sólo se informa.
+		$ours = '' !== $from && ( ! empty( $prev['switching'] ) || ! empty( $prev['switched'] ) );
+		$out  = self::on_site( $site_id, static function () use ( $state, $from, $ours ) {
 			$slug = $from;
 			if ( '' === $slug ) {
 				$record = (array) get_option( 'digitalisimo_theme_switch', array() );
@@ -1899,6 +1904,9 @@ final class Full {
 			}
 			$wrap     = function_exists( 'digitalisimo_theme_child_ctx' ) ? digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ), (string) $child->get_stylesheet(), digitalisimo_theme_child_ctx( $child ) ) : digitalisimo_theme_child_wrap_php( $code, (string) $child->get( 'Name' ) );
 			$hash     = '' !== $wrap ? hash( 'sha256', $wrap ) : hash( 'sha256', $code );
+			if ( ! $ours ) {
+				return array( 'slug' => $slug, 'name' => (string) $child->get( 'Name' ), 'got' => 'manual', 'hash' => $hash, 'blockers' => digitalisimo_theme_child_blockers_text( $php ), 'wrap' => '' !== $wrap, 'imported' => '' );
+			}
 			$imported = has_filter( 'digitalisimo_tools_php_import' ) ? (string) digitalisimo_theme_child_import_php( $child, array( 'risks' => array() ) + $plan ) : '';
 			if ( ! in_array( $imported, array( 'created', 'updated', 'unchanged' ), true ) ) {
 				$got = '' === $imported ? ( Replacements::is_active( self::TOOLS_FILE ) ? 'missing' : 'no_tools' ) : $imported;
@@ -1914,9 +1922,20 @@ final class Full {
 		if ( ! is_array( $out ) ) {
 			return $state;
 		}
+		if ( 'manual' === $out['got'] ) {
+			return self::note( $state, sprintf( 'El tema DIGITALÍSIMO ya está activo y el PHP del tema hijo «%s» (%s) no corre en DIGITALÍSIMO Tools. Migrar no lo activa porque el cambio de tema no lo hizo Migrar: si ese PHP hace falta, actívalo en DIGITALÍSIMO Tools → Código PHP.', $out['name'], $out['blockers'] ) );
+		}
 		if ( in_array( $out['got'], array( 'activated', 'active' ), true ) ) {
-			$state['theme'][ $site_id ]['snippet'] = (string) $out['hash'];
-			return self::note( $state, sprintf( 'El tema DIGITALÍSIMO ya estaba activo, pero el PHP del tema hijo «%s» no corría: Migrar activó «PHP del tema hijo %s» en DIGITALÍSIMO Tools → Código PHP.', $out['name'], $out['name'] ) );
+			// verify comprueba que siga activo y que la portada responda igual; si no, revert_themes() lo desactiva y el sitio
+			// queda como estaba (tema propio, fragmento sin activar).
+			$state['theme'][ $site_id ]['snippet']                = (string) $out['hash'];
+			$state['theme'][ $site_id ]['own_snippet']            = true;
+			$state['theme'][ $site_id ]['from']                   = (string) $out['slug'];
+			$state['theme'][ $site_id ]['child_name']             = (string) $out['name'];
+			$state['theme'][ $site_id ]['child_facts']['covered'] = true;
+			$state['theme'][ $site_id ]['child_facts']['wrap']    = ! empty( $out['wrap'] );
+			self::store( $state );
+			return self::note( $state, sprintf( 'El tema DIGITALÍSIMO ya estaba activo, pero el PHP del tema hijo «%s» no corría (una pasada anterior de Migrar murió durante el cambio): Migrar activó «PHP del tema hijo %s» en DIGITALÍSIMO Tools → Código PHP.', $out['name'], $out['name'] ) );
 		}
 		$facts = array( 'analyzed' => true, 'blockers' => $out['blockers'], 'tools' => 'no_tools' !== $out['got'], 'filter' => true, 'wrap' => $out['wrap'], 'imported' => in_array( $out['got'], array( 'skipped', 'conflict' ), true ) ? $out['got'] : $out['imported'], 'activate' => $out['got'] );
 		list( , $why ) = self::theme_safety( array( 'own' => false, 'hello' => true, 'child' => true, 'name' => $out['name'] ), array( 'builder' => true, 'conflict' => false, 'can' => true, 'child' => $facts ) );
@@ -2334,7 +2353,7 @@ final class Full {
 			// El functions.php del hijo que corre en Tools tiene que seguir activo después de esa primera petición: si el
 			// guardián de Tools lo pausó por un error (o alguien lo desactivó), sin él el PHP del hijo ya no corre.
 			foreach ( (array) $state['theme'] as $site_id => $row ) {
-				if ( empty( $row['switched'] ) || empty( $row['child_facts']['covered'] ) ) {
+				if ( ( empty( $row['switched'] ) && empty( $row['own_snippet'] ) ) || empty( $row['child_facts']['covered'] ) ) {
 					continue;
 				}
 				$still = self::on_site( (int) $site_id, static function () use ( $row ) {
@@ -2394,6 +2413,21 @@ final class Full {
 			return self::note( $state, 'El tema no se devolvió al anterior porque la caché de objetos estaba dando los datos de otro sitio: corrígela y vuelve a pulsar Migrar, que lo comprueba.' );
 		}
 		foreach ( (array) $state['theme'] as $site_id => $row ) {
+			if ( ! empty( $row['own_snippet'] ) && '' !== (string) ( $row['snippet'] ?? '' ) ) {
+				// El PHP del hijo que Migrar activó con el tema propio ya activo: si algo no responde igual, se desactiva y el
+				// sitio queda como estaba (tema propio, fragmento sin activar).
+				$off = self::on_site( (int) $site_id, static function () use ( $row ) {
+					if ( function_exists( 'wp_cache_delete' ) ) {
+						wp_cache_delete( 'alloptions', 'options' );
+					}
+					return has_filter( self::SNIPPET_DEACTIVATE ) ? apply_filters( self::SNIPPET_DEACTIVATE, false, self::snippet_key( (string) $row['from'] ), array( 'hash' => (string) $row['snippet'] ) ) : false;
+				} );
+				$state['theme'][ $site_id ]['snippet']     = '';
+				$state['theme'][ $site_id ]['snippet_off'] = true === $off ? 'off' : 'kept';
+				$name  = (string) ( $row['child_name'] ?? $row['name'] );
+				$state = self::note( $state, true === $off ? sprintf( 'Con «PHP del tema hijo %s» activo la portada no respondía igual: Migrar lo volvió a desactivar y el sitio quedó como estaba.', $name ) : sprintf( '«PHP del tema hijo %s» no se pudo volver a desactivar en DIGITALÍSIMO Tools (alguien lo cambió): revísalo ahí.', $name ) );
+				continue;
+			}
 			if ( ! self::was_switched( $row, $site_id ) ) {
 				continue;
 			}
@@ -3161,10 +3195,13 @@ final class Full {
 			foreach ( $bad as $row ) {
 				$pages[] = $row['url'] . ' (' . rtrim( (string) $row['reason'], '. ' ) . ')';
 			}
-			if ( ! empty( $state['snap_from'] ) && 'cli' !== $where ) {
+			$errors = (bool) array_filter( $bad, static function ( $row ) {
+				return 1 === preg_match( '/HTTP 5\d\d|error de PHP|critical error/i', (string) $row['reason'] );
+			} );
+			if ( ! empty( $state['snap_from'] ) && 'cli' !== $where && ! $errors ) {
 				// Revisión adversarial NUEVA 3: se comparó con el sitio de antes de una pasada que lo dejó a medias. Si lo distinto
 				// son cambios del dueño, puede empezar de nuevo desde el sitio de ahora, aquí mismo.
-				$attention[] = esc_html( sprintf( 'No responden igual que antes de la primera pasada de Migrar (%s), que dejó el sitio a medias: %s. Se volvió a como estaba%s y no se borró nada. Si lo distinto son cambios que hiciste tú después (textos, páginas), migra tomando el sitio de ahora como referencia; si no, ábrelas y revisa qué cambió.', gmdate( 'd/m/Y', (int) $state['snap_from'] ), implode( '; ', $pages ), $reverted ? ' (' . implode( ', ', $reverted ) . ')' : '' ) ) . ' <button type="button" class="button button-primary digi-migrate__fresh">' . esc_html( 'Migrar tomando el sitio de ahora como referencia' ) . '</button>';
+				$attention[] = esc_html( sprintf( 'No responden igual que antes de la primera pasada de Migrar (%s), que dejó el sitio a medias: %s. Se volvió a como estaba%s y no se borró nada. Si lo distinto son cambios que hiciste tú después (textos, páginas), migra tomando el sitio de ahora como referencia: lo que hizo la pasada anterior (lo convertido y lo desactivado) se da por bueno y, si todo responde igual, al terminar se borra lo reemplazado. Si no, ábrelas y revisa qué cambió.', gmdate( 'd/m/Y', (int) $state['snap_from'] ), implode( '; ', $pages ), $reverted ? ' (' . implode( ', ', $reverted ) . ')' : '' ) ) . ' <button type="button" class="button button-primary digi-migrate__fresh">' . esc_html( 'Migrar tomando el sitio de ahora como referencia' ) . '</button>';
 			} else {
 				$attention[] = esc_html( 'No responden igual después de migrar: ' . implode( '; ', $pages ) . '. Ábrelas y revisa qué cambió' . ( $reverted ? '; se volvió a ' . implode( ', ', $reverted ) : '' ) . '. No se borró nada. Cuando lo corrijas, vuelve a pulsar Migrar.' );
 			}
