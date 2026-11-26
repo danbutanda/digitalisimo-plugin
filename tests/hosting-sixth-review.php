@@ -165,7 +165,7 @@ check( 'ok' === $r['kind'] && true === $GLOBALS['seen_hook'], 'H-5 durante la ll
 check( empty( $GLOBALS['hooks']['http_api_curl'] ) && empty( $GLOBALS['hooks']['requests-fsockopen.remote_socket'] ), 'H-5 los ganchos son de un solo uso (se quitan al terminar)' );
 reset_all(); $GLOBALS['dns']['sin-dns.test'] = array(); setopt( 'webuzo_url', 'https://sin-dns.test:2005' ); $GLOBALS['http'] = array(); // (la resolución se guarda por petición: un nombre nuevo)
 $r = $W::from_settings()->users();
-check( 'config' === $r['kind'] && ! $GLOBALS['http'] && ! get_option( $W::BLOCK ), 'H-5 si el nombre no resuelve no se llama (la clave no sale) y no cuenta como clave rechazada' );
+check( 'transient' === $r['kind'] && ! $GLOBALS['http'] && ! get_option( $W::BLOCK ), 'H-5 si el nombre no resuelve no se llama (la clave no sale), no cuenta como clave rechazada y se reintenta como falla de red (séptima revisión)' );
 reset_all();
 add_filter( 'pre_http_request', function ( $pre ) { if ( ! empty( $GLOBALS['sin_curl'] ) ) do_action( 'requests-fsockopen.remote_socket' ); return $pre; }, 2, 1 );
 $GLOBALS['sin_curl'] = 1; $r = $W::from_settings()->users(); $GLOBALS['sin_curl'] = 0;
