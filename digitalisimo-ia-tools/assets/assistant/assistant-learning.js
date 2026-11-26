@@ -44,6 +44,7 @@
 			conversations: () => request( '/conversations', 'POST', {} ),
 			edit: ( id, text ) => request( '/items/' + encodeURIComponent( id ), 'POST', { text } ),
 			remove: ( id ) => request( '/items/' + encodeURIComponent( id ) + '/delete', 'POST', {} ),
+			approve: ( id ) => request( '/items/' + encodeURIComponent( id ) + '/approve', 'POST', {} ),
 			clear: () => request( '/clear', 'POST', {} ),
 		};
 	}
@@ -202,7 +203,10 @@
 							setEditing( false );
 						} }, 'Cancelar' ) ) )
 				: h( 'p', null, item.text, h( 'small', null, item.sourceLabel + ( item.date ? ' · ' + item.date : '' ) ) ),
-			editing ? null : h( 'div', { className: 'dga-learn-item-actions' },
+			! editing && item.pending ? h( 'div', { className: 'dga-learn-item-actions' },
+				h( 'button', { type: 'button', className: 'dga-button is-primary', onClick: () => act( api().approve( item.id ) ) }, 'Recordarlo' ),
+				h( 'button', { type: 'button', className: 'dga-link', onClick: () => act( api().remove( item.id ) ) }, 'Descartar' ) ) : null,
+			editing || item.pending ? null : h( 'div', { className: 'dga-learn-item-actions' },
 				h( 'button', { type: 'button', className: 'dga-link dga-learn-fix', onClick: () => setEditing( true ) }, 'Corregir' ),
 				h( 'button', { type: 'button', className: 'dga-link', onClick: () => {
 					if ( window.confirm( '¿Olvidar este punto?' ) ) {

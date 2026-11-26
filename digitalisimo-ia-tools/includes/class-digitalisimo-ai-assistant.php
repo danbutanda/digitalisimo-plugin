@@ -921,7 +921,7 @@ final class Digitalisimo_AI_Assistant {
 		$result = Digitalisimo_AI_Assistant_Learning::remember( $conv, $call['input'] );
 		self::tool_result( $conv, $call, $result, 'memory', $emit, 'Recordar lo que me enseñaste' );
 		if ( 'ok' === $result['status'] ) {
-			self::notice( $conv, $emit, 'Lo recordaré: ' . $result['text'], 'info' );
+			self::notice( $conv, $emit, 'Lo recordaré: «' . $result['text'] . '»', 'info' );
 		}
 	}
 
