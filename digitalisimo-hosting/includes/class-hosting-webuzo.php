@@ -84,26 +84,23 @@ class Digitalisimo_Hosting_Webuzo {
 	 * conecta a esa IP aunque el DNS cambie entre la validación y la conexión). La URL conserva el nombre, así que el SNI
 	 * y el certificado se comprueban igual. Null si la URL no es aceptable o el nombre no resuelve.
 	 */
-	public static function pin( $url ) {
-		if ( ! self::safe_url( $url ) || ! preg_match( '#^https://(\[[0-9a-f:.]+\]|[a-z0-9.-]+)(:\d{1,5})?/?$#i', (string) $url, $m ) ) return null;
+	public static function pin( $url, &$why = null ) {
+		$why = 'url';
+		if ( ! preg_match( '#^https://(\[[0-9a-f:.]+\]|[a-z0-9.-]+)(:\d{1,5})?/?$#i', (string) $url, $m ) ) return null;
 		$literal = '[' === $m[1][0];
 		$name = strtolower( $m[1] );
 		$host = strtolower( rtrim( trim( $m[1], '[]' ), '.' ) );
-		$ips = self::host_ips( $host );
-		if ( ! $ips ) return null;
 		$allow = defined( 'DIGITALISIMO_WEBUZO_ALLOW_PRIVATE' ) && DIGITALISIMO_WEBUZO_ALLOW_PRIVATE;
+		if ( ! $allow && ( '' === $host || 'localhost' === $host || preg_match( '/\.(localhost|local|internal|home\.arpa|lan)$/', $host ) ) ) return null;
+		// UNA resolución para todo (validar y fijar): si el DNS falla y luego responde, el resultado no se mezcla.
+		$ips = self::host_ips( $host );
+		if ( ! $ips ) { $why = 'dns'; return null; }
+		if ( ! $allow ) foreach ( $ips as $ip ) if ( ! self::public_ip( $ip ) ) { $why = 'private'; return null; }
 		usort( $ips, function ( $a, $b ) { return (int) ( false !== strpos( $a, ':' ) ) - (int) ( false !== strpos( $b, ':' ) ); } ); // IPv4 primero
-		foreach ( $ips as $ip ) {
-			if ( ! $allow && ! self::public_ip( $ip ) ) return null;
-			// Una IP escrita en la URL (o su forma numérica) ya es la IP: no hace falta fijarla.
-			$numeric = $literal || filter_var( $host, FILTER_VALIDATE_IP ) || null !== self::inet_aton( $host );
-			return array( 'host' => $name, 'port' => isset( $m[2] ) && '' !== $m[2] ? (int) substr( $m[2], 1 ) : 443, 'ip' => $ip, 'resolve' => ! $numeric );
-		}
-		return null;
-	}
-
-	private static function url_host( $url ) {
-		return preg_match( '#^https://(\[[0-9a-f:.]+\]|[a-z0-9.-]+)#i', (string) $url, $m ) ? strtolower( rtrim( trim( $m[1], '[]' ), '.' ) ) : '';
+		$why = '';
+		// Una IP escrita en la URL (o su forma numérica) ya es la IP: no hace falta fijarla.
+		$numeric = $literal || filter_var( $host, FILTER_VALIDATE_IP ) || null !== self::inet_aton( $host );
+		return array( 'host' => $name, 'port' => isset( $m[2] ) && '' !== $m[2] ? (int) substr( $m[2], 1 ) : 443, 'ip' => $ips[0], 'resolve' => ! $numeric );
 	}
 
 	/** La entrada de CURLOPT_RESOLVE («host:puerto:ip», IPv6 entre corchetes), o '' si la URL ya trae la IP. */
@@ -271,10 +268,11 @@ class Digitalisimo_Hosting_Webuzo {
 		}
 		$url = $this->url . '/index.php?api=json&act=' . rawurlencode( $act ) . ( $query ? '&' . http_build_query( $query ) : '' );
 		// La IP se fija aquí, resuelta una vez y validada; sin ella (o sin cURL para fijarla) la clave no sale.
-		$pin = self::pin( $this->url );
-		// configured() ya comprobó la URL: si ahora no hay IP es que el nombre no resolvió (falla del DNS, de red): se
-		// reintenta como cualquier falla de red. Una IP no pública sigue siendo configuración.
-		if ( ! $pin ) return self::safe_url( $this->url ) && ! self::host_ips( self::url_host( $this->url ) ) ? array( 'kind' => 'transient', 'data' => array(), 'message' => 'El nombre del panel de Webuzo no resuelve ahora (DNS): no se llamó (la clave no salió)' ) : array( 'kind' => 'config', 'data' => array(), 'message' => 'La URL de Webuzo no lleva a una IP pública aceptable: no se llamó (la clave no salió)' );
+		$pin = self::pin( $this->url, $why );
+		// Lo decide UNA resolución: sin respuesta del DNS es falla de red (se reintenta); sólo una IP no pública de verdad
+		// es error de configuración.
+		if ( ! $pin && 'dns' === $why ) return array( 'kind' => 'transient', 'data' => array(), 'message' => 'El nombre del panel de Webuzo no resuelve ahora (DNS): no se llamó (la clave no salió)' );
+		if ( ! $pin ) return array( 'kind' => 'config', 'data' => array(), 'message' => 'private' === $why ? 'La URL de Webuzo resuelve a una IP que no es pública: no se llamó (la clave no salió)' : 'La URL de Webuzo no es aceptable: no se llamó (la clave no salió)' );
 		$curl = static function ( $handle ) use ( $pin ) { if ( function_exists( 'curl_setopt_array' ) ) curl_setopt_array( $handle, self::curl_options( $pin ) ); };
 		$sock = static function () { throw new RuntimeException( 'digitalisimo-webuzo-sin-curl' ); };
 		add_action( 'http_api_curl', $curl, 10, 1 );
