@@ -698,6 +698,9 @@
 		const [ attachments, setAttachments ] = useState( [] );
 		const [ dragging, setDragging ] = useState( false );
 		const dragDepth = useRef( 0 );
+		// Cuántos hay ya en la bandeja, al instante (dos soltadas seguidas no esperan a que se vuelva a pintar).
+		const trayCount = useRef( 0 );
+		trayCount.current = attachments.filter( ( a ) => 'error' !== a.status ).length;
 		const threadRef = useRef( null );
 		const activeRef = useRef( activeId );
 		// El servidor pausó un turno largo (evento «continue»): la pantalla lo sigue sola, sin que la persona escriba.
@@ -897,7 +900,7 @@
 				return;
 			}
 			const max = Number( upload.maxFiles ) || 10;
-			const room = Math.max( 0, max - attachments.filter( ( a ) => 'error' !== a.status ).length );
+			const room = Math.max( 0, max - trayCount.current );
 			const take = files.slice( 0, room );
 			const left = files.length - take.length;
 			if ( left > 0 ) {
@@ -915,6 +918,7 @@
 			if ( ! entries.length ) {
 				return;
 			}
+			trayCount.current += entries.filter( ( a ) => 'error' !== a.status ).length;
 			setAttachments( ( current ) => current.concat( entries.map( ( a ) => Object.assign( {}, a, { file: undefined } ) ) ) );
 			const done = [];
 			const failed = entries.filter( ( a ) => 'error' === a.status ).map( ( a ) => ( { name: a.name, message: a.error } ) );

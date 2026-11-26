@@ -327,8 +327,10 @@ arrastrándolos y los agregue a la biblioteca».
   no acepte; 80 caracteres como mucho). La subida es la de siempre (`media_handle_upload()`): actúan los mismos filtros
   que en la Biblioteca (el SVG minimizado de Tools, el saneado de Elements).
 - **WebP: el conversor de DIGITALÍSIMO Tools.** JPG, PNG y GIF pasan por `Digitalisimo\Tools\Media_WebP::convert()`, el
-  mismo de «Optimizar medios» (WebP a calidad 75 con sus tamaños, el original se conserva en el disco, la insignia
-  «Optimizada · WebP» en la Biblioteca, un GIF animado a WebP animado o conservado). No hay ajuste que encender: basta
+  mismo de «Optimizar medios» (WebP a calidad 75 con sus tamaños, la insignia «Optimizada · WebP» en la Biblioteca, un
+  GIF animado a WebP animado o conservado). Como la subida es nueva y nadie la enlaza todavía, el JPG/PNG/GIF y sus
+  tamaños se borran tras convertir (sólo dentro de la carpeta de subidas): no quedan archivos públicos con su EXIF que
+  no se borren con el adjunto ni ocupen la cuota. El lote de Tools sí conserva los originales. No hay ajuste que encender: basta
   con que Tools esté activo en el sitio. Sin Tools, la imagen se sube como llegó y el resumen dice que hace falta
   activarlo. Un PDF u otro archivo permitido se sube sin convertir.
 - **Lo que sabe el modelo.** Un mensaje sólo cita archivos que ESTA persona subió por el Asistente (marca

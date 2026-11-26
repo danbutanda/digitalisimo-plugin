@@ -134,6 +134,12 @@ final class Digitalisimo_AI_Assistant_Uploads {
 				$out[] = $entry;
 			}
 		}
+		// Un campo anidado («files[a][b]») no es un archivo: sólo pasan los que tienen nombre y ruta de texto.
+		foreach ( $out as $i => $one ) {
+			if ( ! is_scalar( $one['name'] ?? null ) || ! is_scalar( $one['tmp_name'] ?? null ) || ! is_scalar( $one['error'] ?? 0 ) ) {
+				$out[ $i ] = array( 'name' => '', 'tmp_name' => '', 'error' => UPLOAD_ERR_NO_FILE, 'size' => 0 );
+			}
+		}
 		return $out;
 	}
 
@@ -212,7 +218,11 @@ final class Digitalisimo_AI_Assistant_Uploads {
 		$id = (int) $id;
 		update_post_meta( $id, self::META, (int) get_current_user_id() );
 		update_post_meta( $id, self::META_BEFORE, $size );
+		$previous  = self::files_of( $id );
 		$optimized = self::optimize( $id );
+		if ( '' === $optimized['reason'] && 'image/webp' === get_post_mime_type( $id ) ) {
+			self::drop_replaced( $previous, self::files_of( $id ) );
+		}
 		return self::item( $id, $optimized['reason'] );
 	}
 
@@ -239,6 +249,46 @@ final class Digitalisimo_AI_Assistant_Uploads {
 		return array( 'reason' => 'image/gif' === get_post_mime_type( $id ) ? 'gif' : 'error' );
 	}
 
+	/** Rutas del archivo de un adjunto, sus tamaños y su original sin escalar (`original_image`). */
+	public static function files_of( $id ) {
+		$main = (string) get_attached_file( $id );
+		if ( '' === $main ) {
+			return array();
+		}
+		$dir  = dirname( $main );
+		$meta = wp_get_attachment_metadata( $id );
+		$out  = array( $main );
+		foreach ( (array) ( is_array( $meta ) ? ( $meta['sizes'] ?? array() ) : array() ) as $size ) {
+			if ( ! empty( $size['file'] ) ) {
+				$out[] = $dir . '/' . wp_basename( (string) $size['file'] );
+			}
+		}
+		if ( is_array( $meta ) && ! empty( $meta['original_image'] ) ) {
+			$out[] = $dir . '/' . wp_basename( (string) $meta['original_image'] );
+		}
+		return array_values( array_unique( $out ) );
+	}
+
+	/**
+	 * Tras pasar a WebP una subida RECIÉN hecha, borra el JPG/PNG/GIF y sus tamaños: nadie los enlaza todavía, y si
+	 * quedaran serían archivos públicos (con su EXIF) que no se borran con el adjunto y ocupan la cuota. Sólo lo que
+	 * estaba en la carpeta de subidas y ya no usa el adjunto. Tools los conserva en su lote porque allí sí hay enlaces.
+	 */
+	public static function drop_replaced( array $before, array $after ) {
+		$uploads = wp_upload_dir( null, false );
+		$base    = isset( $uploads['basedir'] ) ? realpath( (string) $uploads['basedir'] ) : false;
+		if ( ! $base ) {
+			return;
+		}
+		$keep = array_map( 'wp_normalize_path', $after );
+		foreach ( $before as $file ) {
+			$real = realpath( $file );
+			if ( $real && is_file( $real ) && 0 === strpos( wp_normalize_path( $real ), trailingslashit( wp_normalize_path( $base ) ) ) && ! in_array( wp_normalize_path( $file ), $keep, true ) && 'webp' !== strtolower( pathinfo( $real, PATHINFO_EXTENSION ) ) ) {
+				wp_delete_file( $real );
+			}
+		}
+	}
+
 	/** En una red, la cuota del sitio (las mismas reglas que la subida de la REST de WordPress). */
 	public static function quota( $size ) {
 		if ( ! is_multisite() || get_site_option( 'upload_space_check_disabled' ) ) {
@@ -248,7 +298,7 @@ final class Digitalisimo_AI_Assistant_Uploads {
 			return new WP_Error( 'digitalisimo_assistant_upload_quota', 'ya no queda espacio para archivos en tu sitio.' );
 		}
 		$max_k = (int) get_site_option( 'fileupload_maxk', 1500 );
-		if ( $max_k > 0 && (int) $size > KB_IN_BYTES * $max_k ) {
+		if ( (int) $size > KB_IN_BYTES * $max_k ) {
 			return new WP_Error( 'digitalisimo_assistant_upload_size', 'pesa ' . self::bytes( $size ) . ' y tu sitio deja subir hasta ' . self::bytes( KB_IN_BYTES * $max_k ) . ' por archivo.' );
 		}
 		if ( ! function_exists( 'upload_is_user_over_quota' ) && is_file( ABSPATH . 'wp-admin/includes/ms.php' ) ) {

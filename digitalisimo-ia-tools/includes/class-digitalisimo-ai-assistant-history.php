@@ -443,7 +443,9 @@ final class Digitalisimo_AI_Assistant_History {
 			} elseif ( 'user' === $role ) {
 				// Los archivos que subió con ese mensaje van detrás, como un bloque de datos (nunca instrucciones).
 				$files      = ! empty( $m['files'] ) && is_array( $m['files'] ) && class_exists( 'Digitalisimo_AI_Assistant_Uploads' ) ? Digitalisimo_AI_Assistant_Uploads::model_block( $m['files'] ) : '';
-				$messages[] = array( 'role' => 'user', 'text' => (string) $m['text'] . ( '' !== $files ? "\n\n" . $files : '' ) );
+				// Lo que escribió la persona nunca pasa por el aviso de archivos subidos (sólo lo pone el servidor).
+				$said       = str_replace( '[Archivos que la persona subió', '(texto de la persona que imita el aviso de archivos subidos)', (string) $m['text'] );
+				$messages[] = array( 'role' => 'user', 'text' => $said . ( '' !== $files ? "\n\n" . $files : '' ) );
 			} elseif ( 'assistant' === $role ) {
 				$calls = array();
 				foreach ( (array) ( $m['calls'] ?? array() ) as $call ) {
