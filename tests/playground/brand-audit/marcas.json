@@ -138,9 +138,9 @@
     },
     {
       "nombres": ["WhatsApp"],
-      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/(class-product|class-finisher|class-site)\\.php$",
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/(class-product|class-finisher|class-site|class-store)\\.php$",
       "comprueba": "tests/elements-sales-mcp.php",
-      "frases": "Escríbenos por WhatsApp|no publica un número de WhatsApp|\\bwhatsapp\\b",
+      "frases": "Escríbenos por WhatsApp|Atención por WhatsApp|^fab fa-whatsapp$|no publica un número de WhatsApp|\\bwhatsapp\\b",
       "motivo": "La landing de producto y el terminado de las páginas del kit (2026-11-23): la pregunta frecuente y el pie «Escríbenos por WhatsApp» (el llamado a la acción del kit, que el terminado cambia a la página de contacto si el sitio no publica un número), y la búsqueda del número que el sitio ya publica (enlaces wa.me y la plataforma whatsapp del botón flotante).",
       "decision": "Excepción explícita del operador, 2026-11-13 (decisión 1), la misma de arriba, acotada a estos tres archivos y estas frases."
     },

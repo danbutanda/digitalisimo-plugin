@@ -131,6 +131,7 @@ namespace {
 		public function set_is_built_with_elementor( $on ) {
 		}
 		public function update_settings( $settings ) {
+			$GLOBALS['sp']['settings_calls'][ $this->id ][] = $settings;
 		}
 		public function save( $data ) {
 			$GLOBALS['sp']['saved'][ $this->id ] = $data['elements'];
@@ -237,6 +238,9 @@ namespace {
 	}
 	function get_comment_meta( $id, $key, $single ) {
 		return 'rating' === $key ? ( $GLOBALS['sp']['ratings'][ (int) $id ] ?? 5 ) : true;
+	}
+	function wc_get_price_to_display( $product, $args = array() ) {
+		return round( (float) ( $args['price'] ?? 0 ) * ( $GLOBALS['sp']['tax'] ?? 1.0 ), 2 );
 	}
 	function wc_get_product( $id ) {
 		return 252 === (int) $id ? $GLOBALS['sp']['product'] : ( 253 === (int) $id ? new Sp_Product( array( 'status' => 'draft' ) ) : false );
@@ -550,7 +554,10 @@ namespace {
 	// «De hoy a fin de mes»: el último día del mes de mañana, a las 23:59 (nunca en el pasado).
 	$tz       = new DateTimeZone( 'America/Mexico_City' );
 	$fin      = ( new DateTimeImmutable( 'tomorrow', $tz ) )->format( 'Y-m-t' );
+	// En el lienzo vacío (blank_page): la plantilla con su propio pie. Con la cabecera y el pie del sitio (lo normal), ese
+	// pie se quita: lo prueba tests/elements-sales-brand.php (G3).
 	$promo    = array(
+		'blank_page' => true,
 		'product_id' => 252,
 		'offer'      => array(
 			'price' => '7500',
@@ -596,7 +603,7 @@ namespace {
 		check( ! $left, "$variant: ningún [placeholder] en la página: " . json_encode( array_slice( array_values( $left ), 0, 3 ), JSON_UNESCAPED_UNICODE ) );
 		check( array() === $out['placeholders_left'], "$variant: la respuesta dice que no queda ningún placeholder" );
 		check( substr_count( $all, $name ) >= 3, "$variant: el nombre del producto (portada, «Conócelo», oferta)" );
-		check( false !== strpos( $all, '<del>$10,000 MXN</del>' ) && false !== strpos( $all, '$7,500 MXN' ) && false !== strpos( $all, 'Ahorras $2,500 MXN (25 %)' ), "$variant: precio normal tachado, precio de oferta y ahorro" );
+		check( false !== strpos( $all, '<del>$10,000.00</del>' ) && false !== strpos( $all, '$7,500.00' ) && false !== strpos( $all, 'Ahorras $2,500.00 (25 %)' ), "$variant: precio normal tachado, precio de oferta y ahorro" );
 		foreach ( $images as $image ) {
 			check( false !== strpos( $all, 'https://tienda.test/wp-content/uploads/' . $image ), "$variant: la imagen del producto $image" );
 		}
@@ -634,7 +641,7 @@ namespace {
 		$sources = array_column( $out['filled_from'], 'source', 'field' );
 		check( isset( $sources['nombre del producto'], $sources['imágenes'], $sources['beneficios'], $sources['garantía'], $sources['whatsapp'], $sources['logo'], $sources['precio de oferta'], $sources['precio normal'] ), "$variant: filled_from dice qué se llenó y de dónde: " . implode( ', ', array_keys( $sources ) ) );
 		check( array() === array_filter( $out['pending'], static function ( $p ) { return ! empty( $p['required'] ); } ), "$variant: nada obligatorio pendiente: " . json_encode( $out['pending'], JSON_UNESCAPED_UNICODE ) );
-		check( (bool) preg_grep( '/La tienda cobra hoy \$10,000 MXN.*anuncia \$7,500 MXN/u', $out['review'] ), "$variant: avisa que la tienda cobra otro precio que la landing" );
+		check( (bool) preg_grep( '/La tienda cobra hoy \$10,000.00.*anuncia \$7,500.00/u', $out['review'] ), "$variant: avisa que la tienda cobra otro precio que la landing" );
 		check( 'https://tienda.test/?page_id=1041&preview=true' === $out['preview_url'] && false !== strpos( $out['edit_url'], 'action=elementor' ) && false !== strpos( $out['llm_instructions'], 'filled_from' ), "$variant: enlaces de edición y vista previa, e instrucciones para reportarlo corto" );
 		check( 252 === $out['product']['id'] && '7,500' === $out['product']['price'] && '10,000' === $out['product']['regular'] && $checkout === $out['product']['buy_url'], "$variant: el resumen del producto y la oferta" );
 	}
@@ -669,8 +676,23 @@ namespace {
 	$out                      = Executor::run( 'create-page', array( 'product_id' => 252 ), $fake );
 	$all                      = sp_all( $created[0][1] );
 	check( true === $out['ok'] && $name === $out['title'] && null === $out['close_date'], 'sin offer: el precio rebajado de la tienda, sin etiqueta y sin cierre (' . json_encode( $out['close_date'] ) . ')' );
-	check( false !== strpos( $all, '<del>$10,000 MXN</del>' ) && false !== strpos( $all, '$8,000 MXN' ) && ! preg_grep( '/La tienda cobra hoy/', $out['review'] ), 'sin offer: el precio rebajado y el normal de la tienda; sin aviso de precio distinto' );
+	check( false !== strpos( $all, '<del>$10,000.00</del>' ) && false !== strpos( $all, '$8,000.00' ) && ! preg_grep( '/La tienda cobra hoy/', $out['review'] ), 'sin offer: el precio rebajado y el normal de la tienda; sin aviso de precio distinto' );
 	check( false !== strpos( $all, 'Funciona muy bien, el agua sabe mejor.' ) && false !== strpos( $all, 'Laura' ) && false !== strpos( $all, '★★★★★' ), 'una reseña aprobada real va en testimonios' );
+	// Detalle 2 de la verificación: la landing de producto con el formato de la tienda (sin «MXN» añadido) y, si la tienda
+	// captura sin IVA y muestra con IVA, el aviso dice qué precio capturar.
+	check( false === strpos( $all, 'MXN' ), 'sin «MXN» añadido a los precios: el formato de la tienda' );
+	$GLOBALS['sp']['tax'] = 1.16;
+	$created              = array();
+	$out                  = Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '6000' ) ), $fake );
+	$all_tax              = sp_all( $created[0][1] );
+	check( false !== strpos( $all_tax, '<del>$11,600.00</del>' ) && false !== strpos( $all_tax, '$6,000.00' ), 'con IVA en lo que se muestra: el normal tachado es el de la tienda con IVA (10,000 → 11,600)' );
+	check( (bool) preg_grep( '/La tienda cobra hoy \$9,280\.00.*anuncia \$6,000\.00.*captura los precios sin impuestos y los muestra con ellos: para que el carrito cobre \$6,000\.00, captura \$5,172\.41 como precio rebajado/u', $out['review'] ), 'el aviso dice qué precio capturar sin IVA para que el carrito cobre lo anunciado · ' . json_encode( $out['review'], JSON_UNESCAPED_UNICODE ) );
+	unset( $GLOBALS['sp']['tax'] );
+	// Una oferta más cara que lo que la tienda ya cobra (rebajado a 8,000): nunca se pide subir el precio de la tienda.
+	$created = array();
+	$out     = Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '9000' ) ), $fake );
+	check( ! preg_grep( '/pon el precio rebajado/', $out['review'] ) && (bool) preg_grep( '/ya cobra menos \(\$8,000.00\).*anuncia la landing \(\$9,000.00\).*no hace falta tocar la tienda/u', $out['review'] ), 'una oferta más cara que el precio rebajado de la tienda: no pide subirlo, pide revisar la cifra · ' . json_encode( $out['review'], JSON_UNESCAPED_UNICODE ) );
+	$out     = Executor::run( 'create-page', array( 'product_id' => 252 ), $fake );
 	check( false === strpos( $all, 'logo-plomeria.png' ) && ! array_filter( sp_widgets( $created[0][1] ), static function ( $w ) { return 'image' === $w['widgetType'] && empty( $w['settings']['image']['url'] ); } ), 'sin logo en el sitio: las imágenes de muestra del logo se quitan' );
 	check( ! array_filter( sp_widgets( $created[0][1] ), static function ( $w ) { return 'countdown' === $w['widgetType']; } ) && false === strpos( $all, 'termina el' ), 'sin fecha de fin real: sin contador ni textos de cierre' );
 	check( ! preg_grep( '/\[/', array_column( sp_strings( $created[0][1] ), 2 ) ), 'sin offer: tampoco quedan placeholders' );
@@ -693,7 +715,7 @@ namespace {
 	sp_reset();
 	$created = array();
 	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '12000' ) ), $fake ), 'digitalisimo_sales_offer', 'una oferta más cara que el precio normal' );
-	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '$7,500 MXN' ) ), $fake ), 'digitalisimo_sales_offer', 'un precio con moneda' );
+	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '$7,500.00' ) ), $fake ), 'digitalisimo_sales_offer', 'un precio con moneda' );
 	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '7500', 'ends' => 'fin de mes' ) ), $fake ), 'digitalisimo_sales_offer', 'una fecha que no es fecha' );
 	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'price' => '7500', 'ends' => '2020-01-31' ) ), $fake ), 'digitalisimo_sales_close_date', 'una fecha que ya pasó' );
 	check_error( Executor::run( 'create-page', array( 'product_id' => 252, 'offer' => array( 'label' => 'Visita https://otro.test' ) ), $fake ), 'digitalisimo_sales_offer', 'una etiqueta con un enlace' );
@@ -783,10 +805,10 @@ namespace {
 		)
 	);
 	list( $out, $all ) = $run( array( 'product_id' => 252 ) );
-	check( false !== strpos( $all, '<del>$7,500 MXN</del>' ) && false !== strpos( $all, 'Hoy, desde: <span>$7,000 MXN</span>' ) && false === strpos( $all, '$8,000' ) && false !== strpos( $all, 'Ahorras $500 MXN' ), 'R4: el tachado y el ahorro son de la misma variación (la más barata), con «desde»' );
+	check( false !== strpos( $all, '<del>$7,500.00</del>' ) && false !== strpos( $all, 'Hoy, desde: <span>$7,000.00</span>' ) && false === strpos( $all, '$8,000' ) && false !== strpos( $all, 'Ahorras $500.00' ), 'R4: el tachado y el ahorro son de la misma variación (la más barata), con «desde»' );
 	$GLOBALS['sp']['product'] = new Sp_Product( array( 'type' => 'variable', 'regular' => '', 'sale' => '', 'price' => '7000', 'variations' => array( 'price' => array( 11 => '9000', 12 => '7000' ), 'regular_price' => array( 11 => '9000', 12 => '7000' ), 'sale_price' => array( 11 => '', 12 => '' ) ) ) );
 	list( $out, $all ) = $run( array( 'product_id' => 252 ) );
-	check( false !== strpos( $all, 'Desde: <span>$7,000 MXN</span>' ) && false === strpos( $all, '<del>' ) && false === strpos( $all, 'Ahorras' ), 'R4: sin rebaja en esa variación, «Desde $X» sin tachado ni ahorro' );
+	check( false !== strpos( $all, 'Desde: <span>$7,000.00</span>' ) && false === strpos( $all, '<del>' ) && false === strpos( $all, 'Ahorras' ), 'R4: sin rebaja en esa variación, «Desde $X» sin tachado ni ahorro' );
 	// 5. Envíos: sólo métodos que llevan el producto, y sólo si el producto se envía; envío gratis, dicho.
 	$envios = static function ( array $methods, array $product = array() ) use ( $run, $promo ) {
 		sp_reset();
@@ -893,7 +915,7 @@ namespace {
 	sp_reset();
 	$GLOBALS['sp']['product'] = new Sp_Product( array( 'type' => 'variable', 'regular' => '', 'sale' => '', 'price' => '7000', 'variations' => array( 'price' => array( 12 => '7000', 11 => '7000' ), 'regular_price' => array( 12 => '7500', 11 => '7000' ), 'sale_price' => array( 12 => '7000', 11 => '' ) ) ) );
 	list( $out, $all )        = $run( array( 'product_id' => 252 ) );
-	check( false === strpos( $all, '<del>' ) && false !== strpos( $all, 'Precio: <span>$7,000 MXN</span>' ), 'S4: con dos variaciones al mismo precio gana la de ID menor (11, sin rebaja): sin tachado' );
+	check( false === strpos( $all, '<del>' ) && false !== strpos( $all, 'Precio: <span>$7,000.00</span>' ), 'S4: con dos variaciones al mismo precio gana la de ID menor (11, sin rebaja): sin tachado' );
 	// S5. WhatsApp: ni páginas con contraseña ni plantillas guardadas sin uso le ganan a la parte del sitio en uso.
 	sp_reset();
 	$GLOBALS['sp']['content_rows'] = array();
@@ -915,6 +937,19 @@ namespace {
 	$segunda = Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'Otra vuelta' ) );
 	check( is_array( $segunda ) && true === $segunda['regenerated'] && $primera['id'] === $segunda['id'] && $antes === count( $GLOBALS['sp']['inserted'] ) && 'Otra vuelta' === $GLOBALS['sp']['posts'][ $primera['id'] ]['post_title'] && 'draft' === $GLOBALS['sp']['posts'][ $primera['id'] ]['post_status'], 'T1: con post_id se regenera el mismo borrador (mismo ID, sin crear otro, sigue en borrador)' );
 	check( false === strpos( json_encode( $GLOBALS['sp']['saved'][ $primera['id'] ] ), 'Purificador' ), 'T1: el borrador regenerado lleva los elementos nuevos' );
+	// T1b · Rehacer no cambia la plantilla de página que el dueño eligió (aquí, el lienzo vacío de un borrador viejo).
+	$GLOBALS['sp']['postmeta'][ $primera['id'] ]['_wp_page_template'] = 'elementor_canvas';
+	$GLOBALS['sp']['settings_calls']                                   = array();
+	$tercera = Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'Tercera' ) );
+	check( is_array( $tercera ) && empty( $GLOBALS['sp']['settings_calls'][ $primera['id'] ] ) && false === $tercera['check']['site_header_footer'], 'T1b: al rehacer sin pedirla, se queda la plantilla de página que ya tenía (el lienzo), y check lo dice · ' . json_encode( $GLOBALS['sp']['settings_calls'] ) );
+	$cuarta = Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'Cuarta', 'blank_page' => false ) );
+	check( array( array( 'template' => 'elementor_header_footer' ) ) === ( $GLOBALS['sp']['settings_calls'][ $primera['id'] ] ?? null ) && true === $cuarta['check']['site_header_footer'], 'T1b: si la persona la pide con la cabecera y el pie, se cambia' );
+	// T1c · La «Plantilla predeterminada» del tema elegida a mano (default) también se conserva al rehacer (detalle 4).
+	$GLOBALS['sp']['postmeta'][ $primera['id'] ]['_wp_page_template'] = 'default';
+	$GLOBALS['sp']['settings_calls']                                   = array();
+	$quinta = Executor::run( 'create-page', array( 'post_id' => $primera['id'], 'template' => 'venta-corta', 'title' => 'Quinta' ) );
+	check( is_array( $quinta ) && empty( $GLOBALS['sp']['settings_calls'][ $primera['id'] ] ) && 'default' === $GLOBALS['sp']['postmeta'][ $primera['id'] ]['_wp_page_template'] && true === $quinta['check']['site_header_footer'], 'T1c: la «Plantilla predeterminada» elegida a mano se queda al rehacer (y lleva la cabecera y el pie del tema) · ' . json_encode( $GLOBALS['sp']['settings_calls'] ) );
+	unset( $GLOBALS['sp']['postmeta'][ $primera['id'] ]['_wp_page_template'] );
 	$ajena = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'Borrador de otra persona' ) );
 	foreach (
 		array(
