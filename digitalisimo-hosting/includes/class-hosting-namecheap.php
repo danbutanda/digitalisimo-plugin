@@ -131,6 +131,29 @@ class Digitalisimo_Hosting_Namecheap {
 	}
 
 	/**
+	 * Extensiones que Namecheap atiende por la API: namecheap.domains.getTldList
+	 * (https://www.namecheap.com/support/api/methods/domains/get-tld-list/), atributos IsApiTransferable e IsEppRequired.
+	 * kind ok + 'tlds' => array( 'com' => array( 'transfer' => bool, 'epp' => bool ) ). Se guarda un día (la lista casi
+	 * no cambia y la transferencia la consulta el carrito).
+	 */
+	public function tlds() {
+		$cached = function_exists( 'get_transient' ) ? get_transient( 'digitalisimo_hosting_nc_tlds' ) : false;
+		if ( is_array( $cached ) && $cached ) return array( 'kind' => 'ok', 'tlds' => $cached );
+		$r = $this->call( 'namecheap.domains.getTldList' );
+		if ( 'ok' !== $r['kind'] ) return $r;
+		$out = array();
+		foreach ( $r['xml']->xpath( '//*[local-name()="Tld"]' ) ?: array() as $tld ) {
+			$name = strtolower( trim( (string) $tld['Name'] ) );
+			if ( '' === $name ) continue;
+			$out[ $name ] = array( 'transfer' => 'true' === strtolower( (string) $tld['IsApiTransferable'] ), 'epp' => 'true' === strtolower( (string) $tld['IsEppRequired'] ) );
+		}
+		if ( ! $out ) return array( 'kind' => 'api', 'message' => 'Namecheap no devolvió la lista de extensiones.' ) + $r;
+		if ( function_exists( 'set_transient' ) ) set_transient( 'digitalisimo_hosting_nc_tlds', $out, DAY_IN_SECONDS );
+		$r['tlds'] = $out;
+		return $r;
+	}
+
+	/**
 	 * Extensiones genéricas con privacidad de WHOIS gratuita en Namecheap (WhoisGuard / Withheld for Privacy); en las de
 	 * país (.mx, etc.) no se pide. Ampliable con el filtro digitalisimo_hosting_whoisguard_tlds.
 	 */

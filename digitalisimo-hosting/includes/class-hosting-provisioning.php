@@ -274,7 +274,7 @@ class Digitalisimo_Hosting_Provisioning {
 	/** Los planes de hosting y los dominios del pedido. */
 	public static function items( $order ) {
 		$domain_ids = array_values( Digitalisimo_Hosting::domain_products() );
-		$out = array( 'hosting' => array(), 'domains' => array() );
+		$out = array( 'hosting' => array(), 'domains' => array(), 'transfers' => array() );
 		foreach ( $order->get_items() as $item ) {
 			if ( ! is_object( $item ) || ! method_exists( $item, 'get_product_id' ) ) continue;
 			$pid    = (int) $item->get_product_id();
@@ -282,6 +282,8 @@ class Digitalisimo_Hosting_Provisioning {
 			$domain = strtolower( trim( (string) $item->get_meta( 'Dominio' ) ) );
 			$row    = array( 'item' => $item, 'product' => $pid, 'variation' => $vid, 'domain' => $domain, 'qty' => (int) $item->get_quantity() );
 			if ( in_array( $pid, $domain_ids, true ) ) { $out['domains'][] = $row; continue; }
+			// Transferencia (2026-11-26): el dominio y su EPP los pidió el carrito; la transferencia se hace a mano.
+			if ( class_exists( 'Digitalisimo_Hosting_Products' ) && '' !== Digitalisimo_Hosting_Products::transfer_ext( $pid ) ) { $out['transfers'][] = $row; continue; }
 			$plan = self::plan_of( $vid, $pid );
 			if ( '' !== $plan || Digitalisimo_Hosting::is_hosting_product( $pid ) ) $out['hosting'][] = $row + array( 'plan' => $plan );
 		}
@@ -480,6 +482,7 @@ class Digitalisimo_Hosting_Provisioning {
 			$items  = self::items( $order );
 			$domain = '';
 			if ( $items['domains'] ) $domain = $items['domains'][0]['domain'];
+			elseif ( $items['transfers'] ) $domain = $items['transfers'][0]['domain'];
 			elseif ( $items['hosting'] ) $domain = $items['hosting'][0]['domain'];
 			$service = self::service_for( $order, $items, $domain );
 			$stop = self::check_order( $order, $items, $domain );
@@ -573,7 +576,7 @@ class Digitalisimo_Hosting_Provisioning {
 	}
 
 	/** Lo que nunca se hospeda como dominio propio: correo público, un sufijo sin etiqueta propia, nuestros dominios. */
-	private static function own_domain_rejected( $domain ) {
+	public static function own_domain_rejected( $domain ) {
 		if ( in_array( $domain, self::PUBLIC_MAIL, true ) || preg_match( '/^yahoo\./', $domain ) || preg_match( '/^(hotmail|outlook|live)\./', $domain ) ) return 'El dominio ' . $domain . ' es de un servicio de correo público: no se hospeda. Revísalo con el cliente.';
 		if ( in_array( $domain, self::SECOND_LEVEL, true ) ) return '«' . $domain . '» es un sufijo público, no un dominio: no se hospeda.';
 		$ours = array( 'digitalisimo.website' );
@@ -601,8 +604,9 @@ class Digitalisimo_Hosting_Provisioning {
 
 	/** Lo que no se puede resolver solo: varios planes o dominios, cantidades, dominio inválido o de otra extensión. */
 	private static function check_order( $order, array $items, $domain ) {
-		if ( count( $items['hosting'] ) > 1 || count( $items['domains'] ) > 1 ) return self::stop( 'data', 'El pedido tiene más de un plan o más de un dominio; la venta automática atiende uno de cada uno por pedido. Entrégalo a mano.' );
-		foreach ( array_merge( $items['hosting'], $items['domains'] ) as $row ) if ( $row['qty'] > 1 ) return self::stop( 'data', 'El pedido tiene una cantidad mayor que 1 de «' . $row['item']->get_name() . '»; la venta automática registra un año por pedido.' );
+		$transfers = $items['transfers'] ?? array();
+		if ( count( $items['hosting'] ) > 1 || count( $items['domains'] ) + count( $transfers ) > 1 ) return self::stop( 'data', 'El pedido tiene más de un plan o más de un dominio; la venta automática atiende uno de cada uno por pedido. Entrégalo a mano.' );
+		foreach ( array_merge( $items['hosting'], $items['domains'], $transfers ) as $row ) if ( $row['qty'] > 1 ) return self::stop( 'data', 'El pedido tiene una cantidad mayor que 1 de «' . $row['item']->get_name() . '»; la venta automática registra un año por pedido.' );
 		if ( '' === $domain ) return self::stop( 'data', 'El pedido no trae el dominio (dato «Dominio» del producto).' );
 		if ( ! self::valid_domain( $domain ) || ! self::split( $domain ) ) return self::stop( 'data', 'El dominio «' . $domain . '» no es válido.' );
 		if ( $items['domains'] ) {
@@ -678,6 +682,18 @@ class Digitalisimo_Hosting_Provisioning {
 	}
 
 	private static function step_domain( $order, array &$state, array $items, $domain, $service ) {
+		if ( ! empty( $items['transfers'] ) ) {
+			// La transferencia se pide a mano en Namecheap con el código EPP («Ver código EPP» en el pedido): el código nunca
+			// va a notas ni correos. Ya pasó la revisión de dueño (check_owner), como un dominio propio.
+			if ( empty( $state['transfer_noted'] ) ) {
+				$state['transfer_noted'] = 1; self::save_state( $order, $state );
+				self::svc_set( $service, array( 'transfer_pending' => 1 ) );
+				self::svc_log( $service, 'Transferencia de ' . $domain . ' por hacer a mano.' );
+				$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' por hacer a mano en Namecheap con el código EPP del cliente (botón «Ver código EPP» en este pedido; nunca lo copies en notas ni correos). Al terminar, apúntalo a ' . implode( ' y ', self::nameservers() ) . '.' );
+				self::alert_admin( 'Transferencia de dominio por hacer: ' . $domain, 'El pedido #' . $order->get_id() . ' pagó la transferencia de ' . $domain . '. Hazla en Namecheap con el código EPP («Ver código EPP» en el pedido): ' . self::order_link( $order ) );
+			}
+			return null;
+		}
 		if ( ! $items['domains'] ) {
 			if ( empty( $state['own_domain_noted'] ) ) {
 				$state['own_domain_noted'] = 1; self::save_state( $order, $state );
