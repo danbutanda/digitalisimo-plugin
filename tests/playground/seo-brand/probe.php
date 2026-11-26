@@ -119,7 +119,7 @@ if ( 'cron' === $step ) {
 	$state = $B::state();
 	digi_check( in_array( DEAD, $GLOBALS['digi_http'], true ), 'El cron pide la imagen de otro dominio' );
 	digi_check( ! preg_grep( '/playground\.test/', $GLOBALS['digi_http'] ), 'Las imágenes de la biblioteca se comprueban en el disco: ' . implode( ', ', $GLOBALS['digi_http'] ) );
-	digi_check( 'gone' === ( $state['urls'][ DEAD ]['verdict'] ?? '' ) && null === ( $state['urls'][ DEAD ]['ok'] ?? 'x' ) && (bool) wp_next_scheduled( $B::HOOK, array( $B::RETRY ) ), 'La primera vez sólo queda pendiente y se reintenta en una hora: ' . wp_json_encode( $state['urls'][ DEAD ] ?? null ) );
+	digi_check( 'gone' === ( $state['urls'][ DEAD ]['verdict'] ?? '' ) && array_key_exists( 'ok', (array) ( $state['urls'][ DEAD ] ?? array() ) ) && null === $state['urls'][ DEAD ]['ok'] && (bool) wp_next_scheduled( $B::HOOK, array( $B::RETRY ) ), 'La primera vez sólo queda pendiente y se reintenta en una hora: ' . wp_json_encode( $state['urls'][ DEAD ] ?? null ) );
 	// Pasa una hora y corre el reintento: el fallo se confirma.
 	$state['urls'][ DEAD ]['gone_since'] -= HOUR_IN_SECONDS;
 	update_option( $B::OPTION, $state, true );
