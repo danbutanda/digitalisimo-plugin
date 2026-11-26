@@ -402,7 +402,12 @@ final class Digitalisimo_AI_Assistant_History {
 			return $out + array( 'role' => 'tool', 'ability' => (string) ( $m['ability'] ?? '' ), 'label' => (string) ( $m['label'] ?? '' ), 'kind' => (string) ( $m['kind'] ?? '' ), 'status' => (string) ( $m['status'] ?? '' ), 'summary' => (string) ( $m['summary'] ?? '' ), 'detail' => (string) ( $m['detail'] ?? '' ) );
 		}
 		if ( 'notice' === $role ) {
-			return $out + array( 'role' => 'system', 'tone' => (string) ( $m['tone'] ?? 'info' ), 'text' => (string) ( $m['text'] ?? '' ) );
+			$out += array( 'role' => 'system', 'tone' => (string) ( $m['tone'] ?? 'info' ), 'text' => (string) ( $m['text'] ?? '' ) );
+			// Una propuesta de «recordar»: la pantalla pinta la frase con «Sí, recuérdalo» y «No» (assistant-learning.js).
+			if ( is_array( $m['memory'] ?? null ) ) {
+				$out['memory'] = array( 'id' => (string) ( $m['memory']['id'] ?? '' ), 'text' => (string) ( $m['memory']['text'] ?? '' ), 'replaces' => (string) ( $m['memory']['replaces'] ?? '' ) );
+			}
+			return $out;
 		}
 		return null;
 	}

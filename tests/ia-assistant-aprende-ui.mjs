@@ -32,6 +32,8 @@ ok(/window\.setTimeout\( next, 400 \)/.test(learn) && /'running' === view\.job\.
 ok(/h\( LearnSlot, \{ place: 'welcome' \} \)/.test(ui) && /h\( LearnSlot, \{ place: 'header' \} \)/.test(ui), 'La bienvenida y la barra traen el aprendizaje');
 ok(/'digitalisimo-ai-assistant-learning' \), \$version, true \)/.test(php) && /assistant-learning\.css/.test(php), 'Se carga antes que la interfaz, con su hoja');
 ok(/memory: 'Recordé'/.test(ui), '«Recordar» se dice en llano en el trabajo del turno');
+ok(/m\.memory && LearnMemory/.test(ui) && /'Sí, recuérdalo'/.test(learn) && /api\(\)\.approve\( memory\.id \)/.test(learn) && /api\(\)\.remove\( memory\.id \)/.test(learn), 'La propuesta de recordar se confirma en el hilo con «Sí, recuérdalo» o «No»');
+ok(/config\.learning \? h\( 'div', \{ className: 'dga-learn-actions' \}/.test(learn), 'Los botones sólo para quien administra el sitio');
 
 // 3. Hoja.
 const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');

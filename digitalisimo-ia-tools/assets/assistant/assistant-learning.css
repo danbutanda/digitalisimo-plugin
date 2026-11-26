@@ -32,3 +32,6 @@
 	.dga-root .dga-learn-open { padding-inline: var(--ds-space-2); font-size: var(--font-size-xs); }
 }
 .dga-root .dga-learn-check { display: flex; align-items: center; gap: var(--ds-space-2); font-size: var(--font-size-sm); }
+.dga-root .dga-learn-memory { display: grid; gap: var(--ds-space-2); margin-block: var(--ds-space-2); padding: var(--ds-space-3) var(--ds-space-4); border: 1px solid var(--ds-border-default); border-radius: var(--ds-radius-lg); background: var(--ds-surface-raised); }
+.dga-root .dga-learn-memory p { margin: 0; }
+.dga-root .dga-learn-quote { margin: 0; padding-inline-start: var(--ds-space-3); border-inline-start: 3px solid var(--ds-color-accent); color: var(--ds-text-primary); font-size: var(--font-size-sm); }

@@ -470,6 +470,9 @@
 					return h( WorkGroup, { key: item.key, items: item.work } );
 				}
 				const m = item.message;
+				if ( 'system' === m.role && m.memory && LearnMemory ) {
+					return h( LearnMemory, { key: m.id, memory: m.memory } );
+				}
 				if ( 'system' === m.role ) {
 					return h( 'div', { key: m.id, className: 'dga-system' + ( 'error' === m.tone ? ' is-error' : '' ), role: 'error' === m.tone ? 'alert' : undefined }, m.text );
 				}
@@ -568,6 +571,7 @@
 
 	// El aprendizaje («Entrenar con mi sitio web», «Lo que sé de tu sitio»): piezas propias de assistant-learning.js.
 	const LearnSlot = window.digitalisimoAssistantLearning && window.digitalisimoAssistantLearning.Slot ? window.digitalisimoAssistantLearning.Slot : () => null;
+	const LearnMemory = window.digitalisimoAssistantLearning && window.digitalisimoAssistantLearning.MemoryCard ? window.digitalisimoAssistantLearning.MemoryCard : null;
 
 	function Welcome( props ) {
 		return h( 'div', { className: 'dga-welcome' },

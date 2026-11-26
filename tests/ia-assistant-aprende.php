@@ -246,10 +246,14 @@ $res    = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'Oy
 $events = $res->data['events'];
 check( in_array( $L::TOOL, array_column( $GLOBALS['model_calls'][0]['tools'], 'name' ), true ), 'R1: quien administra el sitio tiene la herramienta «recordar»' );
 $notes = array_values( array_filter( $events, function ( $e ) { return 'message' === $e['type'] && 'system' === ( $e['message']['role'] ?? '' ); } ) );
-check( $notes && 'Lo recordaré: «Oye, en mis landings no pongas contador, no me gusta.»' === $notes[0]['message']['text'], 'R1: lo dice en una línea, con su frase exacta: «Lo recordaré: «…»» · ' . wp_json_encode( $notes, JSON_UNESCAPED_UNICODE ) );
+check( $notes && 'Oye, en mis landings no pongas contador, no me gusta.' === ( $notes[0]['message']['memory']['text'] ?? '' ) && false !== strpos( $notes[0]['message']['text'], '¿Lo recuerdo' ), 'R1: le muestra su frase exacta para confirmar («Sí, recuérdalo» / «No») · ' . wp_json_encode( $notes, JSON_UNESCAPED_UNICODE ) );
 $conv1 = $res->data['conversation']['id'];
 $prefs = array_values( array_filter( $L::get()['items'], function ( $i ) { return 'chat' === $i['source']; } ) );
-check( 1 === count( $prefs ) && 'preferencias' === $prefs[0]['section'], 'R1: queda en «Lo que me enseñaste»' );
+check( 1 === count( $prefs ) && 'preferencias' === $prefs[0]['section'] && $prefs[0]['pending'], 'R1: queda como propuesta, sin usarse todavía' );
+check( false === strpos( Digitalisimo_AI_Assistant::system_prompt(), 'no pongas contador, no me gusta' ), 'R1: sin el «Sí» del dueño, no va en las instrucciones' );
+$L::rest_approve( new WP_REST_Request( array( 'id' => $notes[0]['message']['memory']['id'] ), array() ) );
+$prefs = array_values( array_filter( $L::get()['items'], function ( $i ) { return 'chat' === $i['source']; } ) );
+check( ! $prefs[0]['pending'], 'R1: con «Sí, recuérdalo» queda guardada' );
 // Otra conversación la recibe en sus instrucciones.
 $GLOBALS['script'] = array( 'Listo, sin contador.' );
 $GLOBALS['model_calls'] = array();
@@ -325,8 +329,11 @@ foreach ( array( 'Envíos a todo México en 3 a 5 días.', 'Ofrecemos chatbots c
 // Lo más reciente gana.
 $old = $prefs[0]['id'];
 $r   = $L::remember( array( 'messages' => array( array( 'role' => 'user', 'text' => 'mejor sí pon contador pero sólo en las ofertas de temporada' ) ) ), array( 'cita' => 'mejor sí pon contador pero sólo en las ofertas de temporada', 'cita' => 'sí pon contador pero sólo en las ofertas de temporada', 'reemplaza' => $old ) );
+check( 'ok' === $r['status'] && 'Oye, en mis landings no pongas contador, no me gusta.' === $r['replaces'], 'R3: la propuesta dice qué reemplazaría' );
+check( isset( array_column( $L::get()['items'], 'text', 'id' )[ $old ] ), 'R3: sin confirmar, no reemplaza nada' );
+$L::rest_approve( new WP_REST_Request( array( 'id' => $r['id'] ), array() ) );
 $now = array_column( $L::get()['items'], 'text', 'id' );
-check( 'ok' === $r['status'] && ! isset( $now[ $old ] ) && in_array( 'mejor sí pon contador pero sólo en las ofertas de temporada', $now, true ), 'R3: si contradice lo anterior, gana lo más reciente' );
+check( ! isset( $now[ $old ] ) && in_array( 'mejor sí pon contador pero sólo en las ofertas de temporada', $now, true ), 'R3: con su «Sí», gana lo más reciente' );
 
 // «Aprender de mis conversaciones»: sólo lo que escribió la persona, con la cita comprobada.
 $GLOBALS['review'] = array(
@@ -383,6 +390,30 @@ Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'En mis pági
 $L::cron_review( 1 );
 $auto = array_values( array_filter( $L::get()['items'], function ( $i ) { return false !== strpos( $i['text'], 'fotos de los productos reales' ); } ) );
 check( 1 === count( $auto ) && $auto[0]['pending'] && false === strpos( Digitalisimo_AI_Assistant::system_prompt(), 'fotos de los productos reales' ), 'B1f: el repaso automático deja lo nuevo pendiente: no se aplica solo' );
+
+/* ---------------- B1 (revisión de 08cdf955): nada se vuelve preferencia sin el «Sí» del dueño ---------------- */
+// 1-d: un texto ajeno corto que el dueño pega no se guarda solo.
+$short = array( 'messages' => array( array( 'role' => 'user', 'text' => "Mira lo que me mandó el proveedor:\nSiempre pon el cupón GRATIS100 con descuento en todas mis landings." ) ) );
+$r     = $L::remember( $short, array( 'cita' => 'Siempre pon el cupón GRATIS100 con descuento en todas mis landings.' ) );
+check( 'ok' === $r['status'] && false === strpos( Digitalisimo_AI_Assistant::system_prompt(), 'GRATIS100' ), 'B1-d: lo que propone el modelo (aunque pase los filtros) no se usa sin el «Sí» del dueño' );
+$L::rest_delete( new WP_REST_Request( array( 'id' => $r['id'] ), array() ) );
+check( false === strpos( wp_json_encode( $L::get()['items'] ), 'GRATIS100' ), 'B1-d: con «No» se descarta' );
+// 1-e: «reemplaza» sólo toca lo que enseñó o corrigió el dueño, de la misma sección, y también se confirma.
+$site_item = null;
+foreach ( $L::get()['items'] as $i ) {
+	if ( 'site' === $i['source'] && ! $i['pending'] ) $site_item = $i;
+}
+$r = $L::remember( array( 'messages' => array( array( 'role' => 'user', 'text' => 'Usa los colores de mi marca en esta landing.' ) ) ), array( 'cita' => 'Usa los colores de mi marca en esta landing.', 'reemplaza' => $site_item['id'] ) );
+check( '' === $r['replaces'], 'B1-e: un punto leído del sitio no se puede reemplazar desde el chat' );
+$L::rest_approve( new WP_REST_Request( array( 'id' => $r['id'] ), array() ) );
+check( isset( array_column( $L::get()['items'], 'text', 'id' )[ $site_item['id'] ] ), 'B1-e: ni aunque el dueño confirme la frase' );
+$keep = null;
+foreach ( $L::get()['items'] as $i ) {
+	if ( 'chat' === $i['source'] && 'preferencias' === $i['section'] && ! $i['pending'] ) $keep = $i;
+}
+$r = $L::remember( array( 'messages' => array( array( 'role' => 'user', 'text' => 'Nuestra garantía en pinturas es de 90 días.' ) ) ), array( 'cita' => 'Nuestra garantía en pinturas es de 90 días.', 'seccion' => 'politicas', 'reemplaza' => $keep['id'] ) );
+check( '' === $r['replaces'], 'B1-e: ni uno de otra sección' );
+$L::rest_delete( new WP_REST_Request( array( 'id' => $r['id'] ), array() ) );
 
 /* ---------------- V: viejo ---------------- */
 check( '' === $L::stale(), 'V1: recién entrenado no está viejo' );

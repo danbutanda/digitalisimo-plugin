@@ -919,10 +919,16 @@ final class Digitalisimo_AI_Assistant {
 	 */
 	private static function remember( array &$conv, array $call, callable $emit ) {
 		$result = Digitalisimo_AI_Assistant_Learning::remember( $conv, $call['input'] );
-		self::tool_result( $conv, $call, $result, 'memory', $emit, 'Recordar lo que me enseñaste' );
-		if ( 'ok' === $result['status'] ) {
-			self::notice( $conv, $emit, 'Lo recordaré: «' . $result['text'] . '»', 'info' );
+		self::tool_result( $conv, $call, $result, 'memory', $emit, 'Proponer que recuerde lo que me enseñaste' );
+		if ( 'ok' !== $result['status'] || empty( $result['id'] ) ) {
+			return;
 		}
+		// Nada se vuelve preferencia sin que el dueño lo confirme: la frase exacta, con «Sí, recuérdalo» y «No».
+		$text               = '¿Lo recuerdo para tus próximas conversaciones? «' . $result['text'] . '»' . ( '' !== $result['replaces'] ? ' (en lugar de «' . $result['replaces'] . '»)' : '' );
+		$message            = Digitalisimo_AI_Assistant_History::message( 'notice', array( 'text' => $text, 'tone' => 'info', 'memory' => array( 'id' => $result['id'], 'text' => $result['text'], 'replaces' => $result['replaces'] ) ) );
+		$conv['messages'][] = $message;
+		Digitalisimo_AI_Assistant_History::save( $conv );
+		$emit( array( 'type' => 'message', 'message' => Digitalisimo_AI_Assistant_History::display( $message ) ) );
 	}
 
 	/**

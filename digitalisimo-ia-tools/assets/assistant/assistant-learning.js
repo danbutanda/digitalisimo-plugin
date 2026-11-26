@@ -275,6 +275,42 @@
 			s.open ? h( Panel ) : null );
 	}
 
+	/**
+	 * La propuesta de «recordar» en el hilo: la frase exacta del dueño (y la que reemplazaría) con «Sí, recuérdalo» y
+	 * «No». Sólo con «Sí» se guarda (REST con la sesión y los dos nonces; el servidor exige administrar el sitio).
+	 */
+	function MemoryCard( props ) {
+		const memory = props.memory || {};
+		const [ state, setState ] = useState( '' );
+		const [ error, setError ] = useState( '' );
+		const decide = ( yes ) => {
+			setError( '' );
+			setState( 'busy' );
+			( yes ? api().approve( memory.id ) : api().remove( memory.id ) ).then( ( view ) => {
+				set( { view } );
+				setState( yes ? 'saved' : 'no' );
+			}, ( e ) => {
+				setState( '' );
+				setError( e && 404 === e.status ? 'Esto ya se decidió antes.' : ( e && e.message ? e.message : 'No se pudo.' ) );
+			} );
+		};
+		let body;
+		if ( 'saved' === state ) {
+			body = h( 'p', { className: 'dga-learn-ok', role: 'status' }, 'Lo recordaré: «' + memory.text + '»' );
+		} else if ( 'no' === state ) {
+			body = h( 'p', { role: 'status' }, 'De acuerdo, no lo recordaré.' );
+		} else {
+			body = h( el.Fragment, null,
+				h( 'p', { className: 'dga-learn-lead' }, '¿Lo recuerdo para tus próximas conversaciones?' ),
+				h( 'blockquote', { className: 'dga-learn-quote' }, memory.text ),
+				memory.replaces ? h( 'p', { className: 'dga-learn-notice' }, 'En lugar de: «' + memory.replaces + '»' ) : null,
+				config.learning ? h( 'div', { className: 'dga-learn-actions' },
+					h( 'button', { type: 'button', className: 'dga-button is-primary', disabled: 'busy' === state, onClick: () => decide( true ) }, 'Sí, recuérdalo' ),
+					h( 'button', { type: 'button', className: 'dga-button', disabled: 'busy' === state, onClick: () => decide( false ) }, 'No' ) ) : null );
+		}
+		return h( 'div', { className: 'dga-learn-memory' }, body, error ? h( 'p', { className: 'dga-learn-error', role: 'alert' }, error ) : null );
+	}
+
 	function Slot( props ) {
 		if ( ! config.learning ) {
 			return null;
@@ -282,5 +318,5 @@
 		return 'header' === props.place ? h( HeaderButton ) : h( WelcomeCard );
 	}
 
-	window.digitalisimoAssistantLearning = { Slot, createLearningAdapter };
+	window.digitalisimoAssistantLearning = { Slot, MemoryCard, createLearningAdapter };
 }( window.wp, window, document ) );
