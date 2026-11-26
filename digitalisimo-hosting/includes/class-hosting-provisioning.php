@@ -628,7 +628,8 @@ class Digitalisimo_Hosting_Provisioning {
 				return self::stop( 'data', 'El dominio ' . $domain . ' ya está en la cuenta de Namecheap y no lo registró este pedido: no se tocó (ni sus nameservers). Revísalo a mano.' );
 			}
 			// Sólo se adopta si Namecheap lo da por creado después del primer intento de este pedido (mismo día o después).
-			if ( $info['ours'] && (int) ( $info['created'] ?? 0 ) < (int) gmmktime( 0, 0, 0, (int) gmdate( 'n', (int) $state['domain']['create_sent'] ), (int) gmdate( 'j', (int) $state['domain']['create_sent'] ), (int) gmdate( 'Y', (int) $state['domain']['create_sent'] ) ) ) {
+			// (Namecheap da la fecha en hora del Este de EE. UU.: se admite el día anterior en UTC.)
+			if ( $info['ours'] && (int) ( $info['created'] ?? 0 ) < (int) gmmktime( 0, 0, 0, (int) gmdate( 'n', (int) $state['domain']['create_sent'] ), (int) gmdate( 'j', (int) $state['domain']['create_sent'] ), (int) gmdate( 'Y', (int) $state['domain']['create_sent'] ) ) - DAY_IN_SECONDS ) {
 				return self::stop( 'data', 'El dominio ' . $domain . ' está en la cuenta de Namecheap pero se creó antes del intento de este pedido: no se adoptó ni se tocaron sus nameservers. Revísalo a mano.' );
 			}
 			if ( $info['ours'] ) {
