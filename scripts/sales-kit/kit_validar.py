@@ -11,6 +11,8 @@ Revisa en cada plantilla de `sections/` y `containers/`:
 - que cada widget exista en Elements (los `get_name()` de sus clases de widget);
 - que las dos variantes lleven los mismos widgets, en el mismo orden, con los mismos ajustes e identificadores;
 - los enlaces: sólo rutas y anclas del propio sitio, el WhatsApp de muestra y placeholders (ninguna URL de otro sitio);
+- los colores: ninguno de la paleta DIGITALÍSIMO (caso plomerito 3): los de marca apuntan a los globales del kit del
+  sitio (`__globals__` o `var(--e-global-color-…)`) y los neutros son grises sin tinte;
 - los títulos: sin atributos (el núcleo se los quita a quien no es administrador) y el color de su resalte (`<span>`)
   en el CSS propio del widget;
 - los textos prohibidos (relleno, rastros de las fuentes, el proveedor del núcleo) y los nombres de otras empresas,
@@ -129,12 +131,23 @@ def revisar_enlace(rel, campo, u):
     error(f"{rel}: enlace inesperado {u!r} en {campo}")
 
 
+# La paleta del Manual de identidad de DIGITALÍSIMO (scripts/sales-kit/kit_lib.py) y sus variantes de sombra.
+PALETA = ("#1592DA", "#0A6FCF", "#0F141A", "#F5F8FB", "#00A86B", "#00FF99", "#1F252C", "#4E5863", "#E1E6EC",
+          "#161D25", "#E9EEF3", "#9AA6B2", "#0B2A45", "#26313C", "#DCEBFA", "rgba(0, 168, 107", "rgba(0,168,107",
+          "rgba(15, 20, 26")
+
+
 def revisar(rel, d, variante):
     ids, rids, cuenta, orden = set(), set(), {}, []
     if not (d.get("version") == "0.4" and d.get("type") == "page" and d.get("title")):
         error(f"{rel}: formato inesperado (versión, tipo o título)")
-    if d.get("page_settings") != {"template": "elementor_canvas"}:
-        error(f"{rel}: la plantilla debe pedir el lienzo y nada más en sus ajustes de página")
+    if d.get("page_settings") != {"template": "elementor_header_footer"}:
+        error(f"{rel}: la plantilla debe pedir la cabecera y el pie del sitio y nada más en sus ajustes de página")
+    # Ningún color de la paleta DIGITALÍSIMO (caso plomerito 3, 2026-11-25): los de marca van a los globales del sitio.
+    crudo = json.dumps(d, ensure_ascii=False)
+    for color in PALETA:
+        if color.lower() in crudo.lower():
+            error(f"{rel}: lleva fijo el color {color} de la paleta DIGITALÍSIMO; usa un global del sitio")
 
     def repetidores(v):
         if isinstance(v, dict):
@@ -240,8 +253,9 @@ def revisar(rel, d, variante):
                     for tag in re.findall(r"<[a-z][a-z0-9]*\s[^>]*>", s.get("title", ""), re.I):
                         error(f"{rel}: título con atributos {tag!r} ({i}): el núcleo se los quita a quien no es "
                               "administrador; el color de un resalte va en custom_css (selector span{color:…})")
-                    if "<span>" in s.get("title", "") and not re.fullmatch(r"selector span\{color:#[0-9A-Fa-f]{6};\}",
-                                                                          s.get("custom_css", "")):
+                    if "<span>" in s.get("title", "") and not re.fullmatch(
+                            r"selector span\{color:(?:#[0-9A-Fa-f]{6}|var\(--e-global-color-[a-z0-9_-]+\));\}",
+                            s.get("custom_css", "")):
                         error(f"{rel}: título con <span> sin su color en el CSS propio del widget ({i})")
                 if w == "video" and s.get("youtube_url") != "[enlace del video]":
                     error(f"{rel}: video con un enlace que no es el placeholder: {s.get('youtube_url')!r}")
