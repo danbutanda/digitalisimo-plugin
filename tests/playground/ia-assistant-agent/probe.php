@@ -97,6 +97,8 @@ add_filter(
 			'fin_de_mes' => false !== strpos( $all, 'fin de mes' ),
 			'cache'      => isset( $body['cache_control'] ),
 			'tools'      => count( (array) ( $body['tools'] ?? array() ) ),
+			// Ensayo «subir»: el bloque de datos con los archivos que la persona subió llegó al modelo.
+			'files_block' => false !== strpos( implode( "\n", $read['users'] ), '[Archivos que la persona subió' ),
 		);
 		update_option( 'digi_ias_seen', $seen, false );
 		if ( 'real' === digi_ias_mode() ) {
@@ -234,6 +236,48 @@ add_action(
 		if ( 'landing' === $what ) {
 			$id = absint( $_GET['id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			wp_send_json( array( 'template' => (string) get_post_meta( $id, '_wp_page_template', true ), 'settings' => get_post_meta( $id, '_elementor_page_settings', true ), 'data' => (string) get_post_meta( $id, '_elementor_data', true ), 'kit_mark' => get_post_meta( $id, '_digitalisimo_sales_kit', true ) ) );
+		}
+		// Ensayo «subir»: los adjuntos nuevos (tipo, archivo, peso, marca del Asistente y de Tools) y los borradores
+		// nuevos con las imágenes que usan (_elementor_data, contenido o imagen destacada).
+		if ( 'media' === $what ) {
+			$after = (int) ( $ready['last_id'] ?? 0 );
+			$media = array();
+			foreach ( get_posts( array( 'post_type' => 'attachment', 'post_status' => 'inherit', 'posts_per_page' => 50, 'orderby' => 'ID', 'order' => 'ASC', 'suppress_filters' => true ) ) as $a ) {
+				if ( (int) $a->ID <= $after ) {
+					continue;
+				}
+				$file = (string) get_attached_file( $a->ID );
+				$meta = wp_get_attachment_metadata( $a->ID );
+				$media[] = array(
+					'id'        => (int) $a->ID,
+					'mime'      => (string) $a->post_mime_type,
+					'file'      => wp_basename( $file ),
+					'exists'    => is_file( $file ),
+					'head'      => is_file( $file ) ? bin2hex( (string) file_get_contents( $file, false, null, 0, 12 ) ) : '',
+					'bytes'     => is_file( $file ) ? (int) filesize( $file ) : 0,
+					'before'    => (int) get_post_meta( $a->ID, '_digitalisimo_assistant_upload_bytes', true ),
+					'uploader'  => (int) get_post_meta( $a->ID, '_digitalisimo_assistant_upload', true ),
+					'tools'     => (string) get_post_meta( $a->ID, '_digitalisimo_tools_webp', true ),
+					'url'       => (string) wp_get_attachment_url( $a->ID ),
+					'sizes'     => is_array( $meta ) ? array_values( array_map( static function ( $s ) { return (string) ( $s['file'] ?? '' ); }, (array) ( $meta['sizes'] ?? array() ) ) ) : array(),
+				);
+			}
+			$drafts = array();
+			foreach ( get_posts( array( 'post_type' => array( 'page', 'post' ), 'post_status' => 'any', 'posts_per_page' => 50, 'suppress_filters' => true ) ) as $p ) {
+				if ( (int) $p->ID <= $after ) {
+					continue;
+				}
+				$raw = (string) get_post_meta( $p->ID, '_elementor_data', true ) . ' ' . (string) $p->post_content;
+				$uses = array();
+				foreach ( $media as $m ) {
+					$base = preg_replace( '/\.webp$/', '', $m['file'] );
+					if ( (int) get_post_thumbnail_id( $p->ID ) === $m['id'] || preg_match( '/"id"\s*:\s*"?' . $m['id'] . '\b/', $raw ) || false !== strpos( str_replace( '\\/', '/', $raw ), $base ) ) {
+						$uses[] = $m['id'];
+					}
+				}
+				$drafts[] = array( 'id' => (int) $p->ID, 'type' => (string) $p->post_type, 'status' => (string) $p->post_status, 'title' => (string) $p->post_title, 'uses' => $uses, 'thumbnail' => (int) get_post_thumbnail_id( $p->ID ) );
+			}
+			wp_send_json( array( 'media' => $media, 'posts' => $drafts, 'seen' => get_option( 'digi_ias_seen', array() ), 'log' => array_slice( (array) get_option( 'digitalisimo_ai_assistant_log', array() ), -40 ) ) );
 		}
 		if ( 'wipe' === $what ) {
 			$o = get_option( 'digitalisimo_ai_options', array() );
