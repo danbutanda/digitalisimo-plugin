@@ -10,7 +10,7 @@ $site_options = array(
 );
 $network_options = array( 'sitemap_post_types' => "post\n", 'noindex_authors' => 1 );
 $inherit = array( 1 => array( 'sitemap_post_types' => 0 ), 2 => array( 'sitemap_post_types' => 0, 'noindex_authors' => 0 ) );
-function get_option( $key, $default = null ) { global $site_options, $inherit, $blog_id; if ( 'digitalisimo_integrations_options' === $key ) return $site_options[ $blog_id ] ?? array(); if ( 'digitalisimo_seo_network_inherit' === $key ) return $inherit[ $blog_id ] ?? array(); return $default; }
+function get_option( $key, $default = null ) { global $site_options, $inherit, $blog_id; if ( 'digitalisimo_integrations_options' === $key ) return $site_options[ $blog_id ] ?? array(); if ( 'digitalisimo_seo_network_inherit' === $key ) return $inherit[ $blog_id ] ?? array(); return $GLOBALS['extra_options'][ $key ] ?? $default; }
 function get_site_option( $key, $default = null ) { global $network_options; return 'digitalisimo_integrations_options' === $key ? $network_options : $default; }
 function is_multisite() { global $multisite; return $multisite; }
 function sanitize_key( $value ) { return strtolower( preg_replace( '/[^a-z0-9_-]/i', '', $value ) ); }
@@ -40,9 +40,12 @@ if ( 'AND' !== $args['meta_query']['relation'] || 'externo' !== $args['meta_quer
 // Shortcodes sin resolver: de fábrica sólo se avisa (el sitemap no cambia); con el ajuste encendido salen del sitemap.
 $last = $args['meta_query']; $last = end( $last ); if ( 'digitalisimo_seo_auto_noindex' === ( $last[0]['key'] ?? '' ) ) throw new RuntimeException( 'De fábrica, un shortcode sin resolver sólo se avisa: no saca nada del sitemap.' );
 $site_options[1]['seo_noindex_unresolved'] = 1; $inherit[1]['seo_noindex_unresolved'] = 0;
+$on = $seo::sitemap_query( array(), 'page' ); $last = end( $on['meta_query'] );
+if ( 'digitalisimo_seo_auto_noindex' === ( $last[0]['key'] ?? '' ) ) throw new RuntimeException( 'Mientras el repaso no termina y evalúa el tope, el sitemap no cambia.' );
+$GLOBALS['extra_options'] = array( 'digitalisimo_seo_hygiene_apply' => 1, 'digitalisimo_seo_hygiene_state' => array( 'done' => true, 'evaluated' => true, 'held' => false ) );
 $on = $seo::sitemap_query( array(), 'page' ); $technical = end( $on['meta_query'] );
 if ( 'OR' !== ( $technical['relation'] ?? '' ) || 'digitalisimo_seo_auto_noindex' !== $technical[0]['key'] ) throw new RuntimeException( 'Con el ajuste encendido, las páginas con shortcodes sin resolver salen del sitemap.' );
-unset( $site_options[1]['seo_noindex_unresolved'] );
+unset( $site_options[1]['seo_noindex_unresolved'] ); $GLOBALS['extra_options'] = array();
 $blog_id = 2;
 $second = $seo::sitemap_posts( $types );
 if ( array_keys( $second ) !== array( 'post', 'page', 'product' ) ) throw new RuntimeException( 'Cada sitio debe usar sus propios tipos y conservar páginas.' );

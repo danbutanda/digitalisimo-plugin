@@ -33,7 +33,10 @@ class Digitalisimo_Integrations_Index_Hygiene {
 	const FRONT   = 'digitalisimo_seo_shortcodes_front';
 	/** Reloj (con autoload): última muestra del front y último cambio de plugins o tema. */
 	const CLOCK   = 'digitalisimo_seo_shortcodes_clock';
-	/** Con autoload: 1 si lo detectado puede aplicarse (no superó el tope o el dueño lo confirmó). */
+	/**
+	 * Con autoload: 1 sólo cuando un repaso completo terminó y el tope ya se evaluó (no lo superó o el dueño confirmó la
+	 * lista). Vale 0 si no existe y vuelve a 0 al empezar cada repaso: mientras se revisa por lotes no se aplica nada.
+	 */
 	const APPLY   = 'digitalisimo_seo_hygiene_apply';
 	const STATE   = 'digitalisimo_seo_hygiene_state';
 	const CRON    = 'digitalisimo_seo_hygiene_scan';
@@ -157,16 +160,26 @@ class Digitalisimo_Integrations_Index_Hygiene {
 	/* Lectura en el front y en el sitemap.                                 */
 	/* ------------------------------------------------------------------ */
 
-	/** ¿Lleva noindex por la detección? Sólo con el ajuste encendido, bajo el tope y sin «Mantener indexable». */
+	/**
+	 * ¿Lleva noindex por la detección? Sólo con el ajuste encendido, sin «Mantener indexable» y con el repaso terminado y
+	 * el tope evaluado. El estado sólo se lee para un contenido marcado.
+	 */
 	public static function auto_noindex( $post_id ) {
 		if ( ! $post_id || ! self::applies() ) return false;
 		$reasons = get_post_meta( (int) $post_id, self::META, true );
-		return is_array( $reasons ) && $reasons && '1' !== get_post_meta( (int) $post_id, self::LOCK, true ) && (int) get_option( self::APPLY, 1 );
+		return is_array( $reasons ) && $reasons && '1' !== get_post_meta( (int) $post_id, self::LOCK, true ) && self::evaluated();
+	}
+
+	/** Repaso terminado, tope evaluado y bajo el tope (o confirmado). */
+	public static function evaluated() {
+		if ( 1 !== (int) get_option( self::APPLY, 0 ) ) return false;
+		$state = get_option( self::STATE, array() );
+		return is_array( $state ) && ! empty( $state['done'] ) && ! empty( $state['evaluated'] ) && empty( $state['held'] );
 	}
 
 	/** Cláusula meta_query del sitemap: fuera lo detectado, salvo lo indexable a propósito. Vacía si no se aplica. */
 	public static function sitemap_clause() {
-		if ( ! self::applies() || ! (int) get_option( self::APPLY, 1 ) ) return array();
+		if ( ! self::applies() || ! self::evaluated() ) return array();
 		return array( 'relation' => 'OR', array( 'key' => self::META, 'compare' => 'NOT EXISTS' ), array( 'key' => self::LOCK, 'value' => '1' ) );
 	}
 
@@ -273,7 +286,8 @@ class Digitalisimo_Integrations_Index_Hygiene {
 		update_option( self::CLOCK, $clock, true );
 		$state = get_option( self::STATE, array() );
 		$state = is_array( $state ) ? $state : array();
-		update_option( self::STATE, array_merge( $state, array( 'version' => self::VERSION, 'cursor' => 0, 'done' => false ) ), false );
+		update_option( self::STATE, array_merge( $state, array( 'version' => self::VERSION, 'cursor' => 0, 'done' => false, 'evaluated' => false ) ), false );
+		update_option( self::APPLY, 0, true ); // Mientras se repasa por lotes no se aplica nada.
 		if ( ! wp_next_scheduled( self::CRON ) ) wp_schedule_single_event( time() + 10 * MINUTE_IN_SECONDS, self::CRON );
 	}
 
@@ -324,8 +338,10 @@ class Digitalisimo_Integrations_Index_Hygiene {
 		$state   = get_option( self::STATE, array() );
 		$state   = is_array( $state ) ? $state : array();
 		$held    = self::over_cap( $flagged, $total ) && $flagged > (int) ( $state['confirmed'] ?? 0 );
-		update_option( self::STATE, array_merge( $state, array( 'flagged' => $flagged, 'total' => $total, 'held' => $held ) ), false );
-		update_option( self::APPLY, $held ? 0 : 1, true );
+		$done    = ! empty( $state['done'] );
+		// Con el repaso a medias el tope no se puede evaluar todavía: se cuenta, pero no se aplica.
+		update_option( self::STATE, array_merge( $state, array( 'flagged' => $flagged, 'total' => $total, 'held' => $held, 'evaluated' => $done ) ), false );
+		update_option( self::APPLY, $done && ! $held ? 1 : 0, true );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -368,7 +384,7 @@ class Digitalisimo_Integrations_Index_Hygiene {
 		}
 		$state = get_option( self::STATE, array() );
 		$state = is_array( $state ) ? $state : array();
-		if ( empty( $state['done'] ) ) echo '<p class="description">Revisando lo publicado en segundo plano; espera la primera visita al sitio y unos minutos.</p>';
+		if ( empty( $state['done'] ) ) echo '<p class="description">Revisando lo publicado en segundo plano; espera la primera visita al sitio y unos minutos. Hasta que termine no se aplica nada.</p>';
 		$rows = get_posts( array( 'post_type' => self::types(), 'post_status' => 'publish', 'posts_per_page' => 200, 'no_found_rows' => true, 'meta_key' => self::META, 'orderby' => 'title', 'order' => 'ASC' ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
 		if ( ! $rows ) { echo '<p class="description">Ninguna página publicada muestra un shortcode sin resolver.</p>'; return; }
 		$applies = self::applies();
@@ -380,7 +396,7 @@ class Digitalisimo_Integrations_Index_Hygiene {
 		foreach ( $rows as $post ) {
 			$locked  = '1' === get_post_meta( $post->ID, self::LOCK, true );
 			$reasons = (array) get_post_meta( $post->ID, self::META, true );
-			$status  = $locked ? '<span class="digitalisimo-effective-state is-active">Indexable por decisión del dueño</span>' : ( $applies && empty( $state['held'] ) ? '<span class="digitalisimo-effective-state is-inactive">noindex · fuera del sitemap</span>' : '<span class="digitalisimo-effective-state is-active">Indexable · sólo aviso</span>' );
+			$status  = $locked ? '<span class="digitalisimo-effective-state is-active">Indexable por decisión del dueño</span>' : ( $applies && self::evaluated() ? '<span class="digitalisimo-effective-state is-inactive">noindex · fuera del sitemap</span>' : '<span class="digitalisimo-effective-state is-active">Indexable · sólo aviso</span>' );
 			echo '<tr><td><a href="' . esc_url( get_permalink( $post ) ) . '">' . esc_html( get_the_title( $post ) ?: '(sin título)' ) . '</a><br><code>' . esc_html( (string) wp_parse_url( get_permalink( $post ), PHP_URL_PATH ) ) . '</code></td><td>' . esc_html( implode( ' · ', array_map( array( __CLASS__, 'label' ), $reasons ) ) ) . '</td><td>' . $status . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput
 			echo '<td><a href="' . esc_url( get_edit_post_link( $post->ID ) ?: '#' ) . '">Editar</a> · <a href="' . esc_url( self::lock_url( $post->ID, ! $locked ) ) . '">' . ( $locked ? 'Dejar que decida la detección' : 'Mantener indexable' ) . '</a></td></tr>';
 		}

@@ -26,6 +26,22 @@ function update_option( $key, $value, $autoload = null ) { $GLOBALS['wp_options'
 function wp_doing_ajax() { return false; }
 function wp_doing_cron() { return false; }
 function is_feed() { return false; }
+function get_post( $id ) { return $GLOBALS['posts'][ is_object( $id ) ? $id->ID : $id ] ?? null; }
+function get_post_types( $args = array() ) { return array( 'post' => 'post', 'page' => 'page', 'attachment' => 'attachment' ); }
+function update_post_meta( $id, $key, $value ) { $GLOBALS['meta'][ $id ][ $key ] = $value; return true; }
+function delete_post_meta( $id, $key ) { unset( $GLOBALS['meta'][ $id ][ $key ] ); return true; }
+function wp_next_scheduled( $hook ) { return false; }
+function wp_schedule_single_event( $time, $hook ) { return true; }
+/** Cuenta como la base: publicadas y marcadas. */
+class Digi_Fake_DB {
+	public $posts = 'wp_posts'; public $postmeta = 'wp_postmeta';
+	public function prepare( $sql, ...$args ) { return $sql; }
+	public function get_var( $sql ) {
+		if ( false === strpos( $sql, 'COUNT(DISTINCT' ) ) return count( $GLOBALS['posts'] );
+		return count( array_filter( array_keys( $GLOBALS['posts'] ), function( $id ) { return ! empty( $GLOBALS['meta'][ $id ][ 'digitalisimo_seo_auto_noindex' ] ); } ) );
+	}
+}
+$GLOBALS['wpdb'] = new Digi_Fake_DB();
 class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key, $default = null ) { return $GLOBALS['options'][ $key ] ?? $default; } }
 require __DIR__ . '/../digitalisimo-seo/includes/class-index-hygiene.php';
 function check( $condition, $message ) { if ( ! $condition ) throw new RuntimeException( $message ); }
@@ -80,12 +96,40 @@ check( ! $h::over_cap( 3, 100 ) && $h::over_cap( 21, 1000 ) && $h::over_cap( 11,
 $GLOBALS['meta'] = array( 10 => array( $h::META => array( 'shortcode:wpuf_account' ) ), 11 => array( $h::META => array( 'shortcode:wpuf_login' ), $h::LOCK => '1' ), 12 => array() );
 check( false === $h::auto_noindex( 10 ) && array() === $h::sitemap_clause(), 'De fábrica sólo avisa: ni noindex ni fuera del sitemap.' );
 $GLOBALS['options']['seo_noindex_unresolved'] = 1;
-check( true === $h::auto_noindex( 10 ), 'Encendido, lo detectado lleva noindex.' );
+check( false === $h::auto_noindex( 10 ), 'Encendido pero sin un repaso terminado y evaluado, todavía no se aplica.' );
+$GLOBALS['wp_options'][ $h::APPLY ] = 1;
+$GLOBALS['wp_options'][ $h::STATE ] = array( 'done' => true, 'evaluated' => true, 'held' => false );
+check( true === $h::auto_noindex( 10 ), 'Encendido y con el repaso evaluado, lo detectado lleva noindex.' );
 check( false === $h::auto_noindex( 11 ) && false === $h::auto_noindex( 12 ), 'Lo indexable a propósito y lo no detectado no cambian.' );
 $clause = $h::sitemap_clause();
 check( 'OR' === $clause['relation'] && $h::META === $clause[0]['key'] && 'NOT EXISTS' === $clause[0]['compare'] && $h::LOCK === $clause[1]['key'], 'El sitemap excluye lo detectado salvo lo indexable a propósito.' );
 $GLOBALS['wp_options'][ $h::APPLY ] = 0;
 check( false === $h::auto_noindex( 10 ) && array() === $h::sitemap_clause(), 'Por encima del tope no se aplica nada.' );
+
+// El tope protege también durante el repaso (revisión del 2026-11-26): sitio sano con el ajuste encendido y un
+// repaso anterior terminado; se desactiva un plugin presente en 300 de 400 páginas.
+$GLOBALS['wp_options'] = array( $h::APPLY => 1, $h::STATE => array( 'version' => $h::VERSION, 'done' => true, 'evaluated' => true, 'held' => false ) );
+$GLOBALS['meta'] = array(); $GLOBALS['posts'] = array();
+for ( $i = 1; $i <= 400; $i++ ) $GLOBALS['posts'][ $i ] = (object) array( 'ID' => $i, 'post_status' => 'publish', 'post_type' => 'page', 'post_content' => $i <= 300 ? '[mi_plugin_viejo]' : '<p>Normal</p>' );
+check( true === $h::evaluated(), 'Antes del cambio, el sitio aplica.' );
+$h::request_rescan(); // Se desactivó el plugin.
+check( 0 === get_option( $h::APPLY ) && false === $h::evaluated(), 'Al empezar el repaso se deja de aplicar.' );
+$known = array( 'gallery' ); $history = array( 'gallery', 'mi_plugin_viejo' );
+for ( $i = 1; $i <= 25; $i++ ) $h::scan_post( $i, $known, $history ); // Primer lote.
+$h::recount(); // Como tras un guardado a mitad del repaso.
+$applied = 0; for ( $i = 1; $i <= 25; $i++ ) if ( $h::auto_noindex( $i ) ) $applied++;
+check( 0 === $applied && 0 === get_option( $h::APPLY ), 'Tras el primer lote de 25, ninguna página lleva noindex: ' . $applied );
+for ( $i = 26; $i <= 400; $i++ ) $h::scan_post( $i, $known, $history );
+$state = get_option( $h::STATE ); $state['done'] = true; update_option( $h::STATE, $state ); // Termina el repaso.
+$h::recount();
+$state = get_option( $h::STATE );
+check( 300 === $state['flagged'] && ! empty( $state['held'] ) && false === $h::auto_noindex( 1 ), 'Al terminar, 300 de 400 superan el tope: se retiene: ' . json_encode( $state ) );
+$state['confirmed'] = 300; update_option( $h::STATE, $state ); $h::recount();
+check( true === $h::auto_noindex( 1 ) && false === $h::auto_noindex( 301 ), 'Confirmada la lista por el dueño, se aplica.' );
+$GLOBALS['wp_options'] = array( $h::APPLY => 1 );
+check( false === $h::auto_noindex( 1 ), 'Sin un repaso terminado y evaluado no se aplica, aunque la marca diga 1.' );
+$GLOBALS['wp_options'] = array();
+check( false === $h::auto_noindex( 1 ), 'Sin marca, no se aplica (vale 0 por omisión).' );
 
 // Nada en el front salvo la muestra: la detección engancha guardado, cron y escritorio.
 $h::init();
