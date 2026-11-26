@@ -140,7 +140,7 @@ final class Digitalisimo_AI_Assistant_Model {
 	 * @return array|WP_Error
 	 */
 	public static function chat( array $target, $system, array $messages, array $tools ) {
-		$pre = apply_filters( 'digitalisimo_ai_assistant_pre_model', null, array( 'provider' => $target['provider'], 'model' => $target['model'], 'system' => $system, 'messages' => $messages, 'tools' => $tools ) );
+		$pre = apply_filters( 'digitalisimo_ai_assistant_pre_model', null, array( 'provider' => $target['provider'], 'model' => $target['model'], 'system' => self::system_text( $system ), 'system_parts' => is_array( $system ) ? $system : array( 'fixed' => (string) $system ), 'messages' => $messages, 'tools' => $tools ) );
 		if ( null !== $pre ) {
 			return self::normalize( $pre );
 		}
@@ -274,6 +274,42 @@ final class Digitalisimo_AI_Assistant_Model {
 		return $tool['name'] . '|' . md5( (string) wp_json_encode( $tool['schema'] ?? null ) );
 	}
 
+	/** Las instrucciones como un solo texto (las partes de Digitalisimo_AI_Assistant::system_parts(), en su orden). */
+	public static function system_text( $system ) {
+		return is_array( $system ) ? implode( "\n\n", array_filter( array_map( 'strval', $system ), 'strlen' ) ) : (string) $system;
+	}
+
+	/**
+	 * Las instrucciones para Anthropic con sus puntos de caché (docs/ASSISTANT.md, «Caché»): el prefijo se ordena de lo
+	 * más estable a lo que más cambia —herramientas (en orden fijo, Tools::definitions()), la parte fija, el aprendizaje
+	 * del sitio y, al final, la parte variable (persona y fecha)— y lleva un punto de caché al final de la parte fija y
+	 * otro al final del aprendizaje. Con la caché automática de la conversación (`cache_control` del cuerpo) son tres de
+	 * los cuatro que admite la API. Sin caché (`$cache` false), un texto.
+	 *
+	 * @return string|array
+	 */
+	public static function anthropic_system( $system, $cache ) {
+		if ( ! is_array( $system ) ) {
+			return (string) $system;
+		}
+		if ( ! $cache ) {
+			return self::system_text( $system );
+		}
+		$blocks = array();
+		foreach ( array( 'fixed', 'learning', 'variable' ) as $part ) {
+			$text = (string) ( $system[ $part ] ?? '' );
+			if ( '' === $text ) {
+				continue;
+			}
+			$block = array( 'type' => 'text', 'text' => $text );
+			if ( 'variable' !== $part ) {
+				$block['cache_control'] = array( 'type' => 'ephemeral' );
+			}
+			$blocks[] = $block;
+		}
+		return $blocks;
+	}
+
 	/**
 	 * URL, cabeceras y cuerpo de la petición al proveedor (pura: la prueba la lee sin red), y `tool_names`: el nombre
 	 * de cada herramienta en el orden del cuerpo (los errores del proveedor la señalan por su posición).
@@ -298,7 +334,7 @@ final class Digitalisimo_AI_Assistant_Model {
 		$key = (string) ( $target['key'] ?? '' );
 		$url = (string) ( $target['url'] ?? '' );
 		if ( isset( self::OPENAI_URLS[ $id ] ) ) {
-			$body = array( 'model' => $target['model'], 'messages' => self::openai_messages( $system, $messages ) );
+			$body = array( 'model' => $target['model'], 'messages' => self::openai_messages( self::system_text( $system ), $messages ) );
 			if ( $tools ) {
 				$body['tools'] = array();
 				foreach ( $tools as $tool ) {
@@ -308,10 +344,13 @@ final class Digitalisimo_AI_Assistant_Model {
 			return array( 'url' => $url ?: self::OPENAI_URLS[ $id ], 'headers' => array( 'Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $key ), 'body' => $body, 'tool_names' => $names );
 		}
 		if ( 'anthropic' === $id ) {
-			$body = array( 'model' => $target['model'], 'max_tokens' => (int) ( $target['max_tokens'] ?? self::MAX_TOKENS ), 'system' => $system, 'messages' => self::anthropic_messages( $messages, empty( $target['no_replay'] ) ) );
-			// Caché automática de la API de Anthropic: cada paso de un turno reenvía la conversación entera (la memoria
-			// completa) y sólo crece al final, así que lo ya enviado se lee de la caché. No con una URL compatible propia.
-			if ( '' === $url && empty( $target['no_cache'] ) && (bool) apply_filters( 'digitalisimo_ai_assistant_prompt_cache', true, $target ) ) {
+			// Caché de la API de Anthropic: cada paso de un turno reenvía la conversación entera (la memoria completa) y
+			// sólo crece al final. La caché automática (`cache_control` del cuerpo) pone el punto en el último bloque, así
+			// que cada paso y cada turno leen lo ya enviado; las instrucciones llevan sus propios puntos (anthropic_system()).
+			// No con una URL compatible propia (puede no admitirlo).
+			$cache = '' === $url && empty( $target['no_cache'] ) && (bool) apply_filters( 'digitalisimo_ai_assistant_prompt_cache', true, $target );
+			$body  = array( 'model' => $target['model'], 'max_tokens' => (int) ( $target['max_tokens'] ?? self::MAX_TOKENS ), 'system' => self::anthropic_system( $system, $cache ), 'messages' => self::anthropic_messages( $messages, empty( $target['no_replay'] ) ) );
+			if ( $cache ) {
 				$body['cache_control'] = array( 'type' => 'ephemeral' );
 			}
 			if ( $tools ) {
@@ -333,7 +372,7 @@ final class Digitalisimo_AI_Assistant_Model {
 			return array( 'url' => $url ?: 'https://api.anthropic.com/v1/messages', 'headers' => $headers, 'body' => $body, 'tool_names' => $names );
 		}
 		if ( 'google' === $id ) {
-			$body = array( 'systemInstruction' => array( 'parts' => array( array( 'text' => $system ) ) ), 'contents' => self::google_messages( $messages ) );
+			$body = array( 'systemInstruction' => array( 'parts' => array( array( 'text' => self::system_text( $system ) ) ) ), 'contents' => self::google_messages( $messages ) );
 			if ( $tools ) {
 				$declarations = array();
 				foreach ( $tools as $tool ) {

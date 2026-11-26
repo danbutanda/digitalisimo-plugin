@@ -80,7 +80,8 @@ $old = Digitalisimo_AI_Assistant_Model::build( array( 'provider' => 'anthropic',
 check( ! isset( $old['body']['thinking'] ) && ! isset( $old['headers']['anthropic-beta'] ) && ! isset( $old['body']['output_config'] ), 'G6: a un modelo anterior no se le piden ni se fija el esfuerzo' );
 $p = Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'stop_reason' => 'tool_use', 'content' => array( array( 'type' => 'thinking', 'thinking' => '', 'signature' => 'x' ), array( 'type' => 'thinking', 'thinking' => 'Creo la landing en borrador con el producto.', 'signature' => 'y' ), array( 'type' => 'tool_use', 'id' => 'toolu_1', 'name' => 'demo-create-note', 'input' => array() ) ) ) );
 check( '' === $p['text'] && 'Creo la landing en borrador con el producto.' === $p['notes'] && 2 === count( $p['thinking'] ) && 'y' === $p['thinking'][1]['signature'] && 1 === count( $p['calls'] ), 'G6: la nota de avance es para la persona (notes) y los bloques thinking se guardan tal cual, sin pasar a texto' );
-// Reenvío: los bloques thinking del turno en curso van tal cual y primero; los de turnos anteriores, no.
+// Reenvío: los bloques thinking van tal cual y primero, también los de turnos anteriores (así la caché de la API no se
+// pierde al empezar cada turno; docs/ASSISTANT.md, «Caché»).
 $neutral = array(
 	array( 'role' => 'user', 'text' => 'uno' ),
 	array( 'role' => 'assistant', 'text' => 'Hecho.', 'calls' => array(), 'thinking' => array( array( 'type' => 'thinking', 'thinking' => '', 'signature' => 'VIEJA' ) ) ),
@@ -91,10 +92,10 @@ $neutral = array(
 $stored = array( 'messages' => array() );
 foreach ( $neutral as $m ) { $m['role'] = $m['role']; if ( 'assistant' === $m['role'] ) foreach ( $m['calls'] as $i => $c ) $m['calls'][ $i ]['ability'] = 'demo/create-note'; if ( 'tool' === $m['role'] ) $m['ability'] = 'demo/create-note'; $stored['messages'][] = $m; }
 $fm = Digitalisimo_AI_Assistant_History::for_model( $stored, Digitalisimo_AI_Assistant_Tools::catalog() );
-check( ! isset( $fm[1]['thinking'] ) && 'NUEVA' === $fm[3]['thinking'][0]['signature'], 'G6: al modelo van sólo los bloques thinking del turno en curso' );
+check( 'VIEJA' === $fm[1]['thinking'][0]['signature'] && 'NUEVA' === $fm[3]['thinking'][0]['signature'], 'G6: al modelo van los bloques thinking tal cual, también los del turno anterior' );
 $body = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'S', $fm, array() )['body'];
 $last_assistant = $body['messages'][3];
-check( 'assistant' === $last_assistant['role'] && 'thinking' === $last_assistant['content'][0]['type'] && 'NUEVA' === $last_assistant['content'][0]['signature'] && 'Nota' === $last_assistant['content'][0]['thinking'] && 'redacted_thinking' === $last_assistant['content'][1]['type'] && 'tool_use' === $last_assistant['content'][2]['type'] && false === strpos( json_encode( $body ), 'VIEJA' ), 'G6: Anthropic recibe esos bloques tal cual, antes del tool_use (y la nota nunca como texto)' );
+check( 'assistant' === $last_assistant['role'] && 'thinking' === $last_assistant['content'][0]['type'] && 'NUEVA' === $last_assistant['content'][0]['signature'] && 'Nota' === $last_assistant['content'][0]['thinking'] && 'redacted_thinking' === $last_assistant['content'][1]['type'] && 'tool_use' === $last_assistant['content'][2]['type'] && 'VIEJA' === $body['messages'][1]['content'][0]['signature'], 'G6: Anthropic recibe esos bloques tal cual, antes del tool_use (y la nota nunca como texto)' );
 check( '' === Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'content' => array( array( 'type' => 'thinking', 'thinking' => Digitalisimo_AI_Assistant_Model::UPDATES_CUT ) ) ) )['text'], 'G6: la marca de nota cortada no se muestra' );
 remove_all_filters( 'digitalisimo_ai_assistant_pre_model' );
 $GLOBALS['http'] = array();

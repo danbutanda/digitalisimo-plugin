@@ -97,7 +97,6 @@ final class Digitalisimo_AI_Assistant_Learning {
 		add_action( self::REVIEW_HOOK, array( __CLASS__, 'cron_review' ) );
 		add_action( 'transition_post_status', array( __CLASS__, 'on_transition' ), 10, 3 );
 		add_action( 'updated_option', array( __CLASS__, 'on_option' ), 10, 1 );
-		add_filter( 'digitalisimo_ai_assistant_context', array( __CLASS__, 'context' ) );
 	}
 
 	/** ¿Puede esta persona entrenar, ver o editar el aprendizaje (y enseñar en sus conversaciones)? */
@@ -235,7 +234,8 @@ final class Digitalisimo_AI_Assistant_Learning {
 	/* ------------------------------------------------------------------ */
 
 	/**
-	 * El aprendizaje como contexto del Asistente (filtro `digitalisimo_ai_assistant_context`): lo sabido del sitio como
+	 * El aprendizaje como contexto (para quien lo quiera añadir a otro texto; el Asistente lo pone en su propia parte de
+	 * las instrucciones, Digitalisimo_AI_Assistant::system_parts()): lo sabido del sitio como
 	 * DATO (con su fecha y si ya es viejo), las indicaciones del dueño y cómo usar todo eso. Vacío si no hay nada y la
 	 * persona no puede enseñar.
 	 */
@@ -511,6 +511,11 @@ final class Digitalisimo_AI_Assistant_Learning {
 					$job['data']['seo'] = self::read_seo();
 					break;
 				case 'distill':
+					// Una llamada al modelo que puede tardar: que un límite corto de PHP o cerrar la pestaña no la corten.
+					ignore_user_abort( true );
+					if ( function_exists( 'set_time_limit' ) ) {
+						@set_time_limit( 300 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+					}
 					$job['touched'] = time();
 					self::save_job( $job );
 					$result = self::distill( $job );
@@ -780,6 +785,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 		if ( is_wp_error( $reply ) ) {
 			return $reply;
 		}
+		Digitalisimo_AI_Assistant_Tools::log_usage( $target, $reply['usage'] ?? array(), 0, 'Aprendizaje: entrenar con el sitio' );
 		$json = self::json_of( (string) $reply['text'] );
 		if ( ! is_array( $json ) ) {
 			return new WP_Error( 'digitalisimo_learning_reply', $reply['truncated'] ? 'La IA no terminó el resumen; inténtalo de nuevo.' : 'La IA no devolvió el resumen como se esperaba; inténtalo de nuevo.' );
@@ -1112,6 +1118,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 		if ( is_wp_error( $reply ) ) {
 			return $reply;
 		}
+		Digitalisimo_AI_Assistant_Tools::log_usage( $target, $reply['usage'] ?? array(), 0, 'Aprendizaje: repasar conversaciones' );
 		$json  = self::json_of( (string) $reply['text'] );
 		$data  = self::get();
 		$added = array();
