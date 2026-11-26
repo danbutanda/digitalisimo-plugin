@@ -102,6 +102,10 @@ class Digitalisimo_Hosting_Webuzo {
 		return null;
 	}
 
+	private static function url_host( $url ) {
+		return preg_match( '#^https://(\[[0-9a-f:.]+\]|[a-z0-9.-]+)#i', (string) $url, $m ) ? strtolower( rtrim( trim( $m[1], '[]' ), '.' ) ) : '';
+	}
+
 	/** La entrada de CURLOPT_RESOLVE («host:puerto:ip», IPv6 entre corchetes), o '' si la URL ya trae la IP. */
 	public static function resolve_entry( array $pin ) {
 		if ( empty( $pin['resolve'] ) ) return '';
@@ -122,8 +126,10 @@ class Digitalisimo_Hosting_Webuzo {
 	private static $dns = array();
 
 	private static function host_ips( $host ) {
-		if ( ! array_key_exists( $host, self::$dns ) ) self::$dns[ $host ] = self::resolve( $host );
-		return self::$dns[ $host ];
+		if ( array_key_exists( $host, self::$dns ) ) return self::$dns[ $host ];
+		$ips = self::resolve( $host );
+		if ( $ips ) self::$dns[ $host ] = $ips; // un fallo del DNS no se guarda: el siguiente intento vuelve a preguntar
+		return $ips;
 	}
 
 	private static function resolve( $host ) {
@@ -266,7 +272,9 @@ class Digitalisimo_Hosting_Webuzo {
 		$url = $this->url . '/index.php?api=json&act=' . rawurlencode( $act ) . ( $query ? '&' . http_build_query( $query ) : '' );
 		// La IP se fija aquí, resuelta una vez y validada; sin ella (o sin cURL para fijarla) la clave no sale.
 		$pin = self::pin( $this->url );
-		if ( ! $pin ) return array( 'kind' => 'config', 'data' => array(), 'message' => 'La URL de Webuzo no resuelve hoy a una IP pública aceptable: no se llamó (la clave no salió)' );
+		// configured() ya comprobó la URL: si ahora no hay IP es que el nombre no resolvió (falla del DNS, de red): se
+		// reintenta como cualquier falla de red. Una IP no pública sigue siendo configuración.
+		if ( ! $pin ) return self::safe_url( $this->url ) && ! self::host_ips( self::url_host( $this->url ) ) ? array( 'kind' => 'transient', 'data' => array(), 'message' => 'El nombre del panel de Webuzo no resuelve ahora (DNS): no se llamó (la clave no salió)' ) : array( 'kind' => 'config', 'data' => array(), 'message' => 'La URL de Webuzo no lleva a una IP pública aceptable: no se llamó (la clave no salió)' );
 		$curl = static function ( $handle ) use ( $pin ) { if ( function_exists( 'curl_setopt_array' ) ) curl_setopt_array( $handle, self::curl_options( $pin ) ); };
 		$sock = static function () { throw new RuntimeException( 'digitalisimo-webuzo-sin-curl' ); };
 		add_action( 'http_api_curl', $curl, 10, 1 );
