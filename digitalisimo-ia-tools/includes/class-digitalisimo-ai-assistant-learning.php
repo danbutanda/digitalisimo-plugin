@@ -211,7 +211,8 @@ final class Digitalisimo_AI_Assistant_Learning {
 	 * un…», «el asistente debe…»). Lo que viene del SITIO y lo parece no se aprende: es contenido de terceros.
 	 */
 	public static function injection( $text, $owner = false ) {
-		$t = self::normalize( $text );
+		$text = self::canon( $text );
+		$t    = self::normalize( $text );
 		$patterns = array(
 			'/\b(ignora|ignore|ignoren|olvida|olviden|forget|disregard|desobedece|override|omite|salta)\b.{0,60}\b(regla|reglas|rule|rules|instruccion|instrucciones|instruction|instructions|indicacion|indicaciones|prompt|sistema|system|anterior|anteriores|previous|above|todo lo)\b/u',
 			// El dueño dice «a partir de ahora usa…» con toda naturalidad: sólo cuenta en lo que viene del sitio.
@@ -222,7 +223,10 @@ final class Digitalisimo_AI_Assistant_Learning {
 			'/\b(revela|muestra|imprime|reveal|print|show)\b.{0,40}\b(clave|claves|contrasena|password|api key|token|secreto|secret)\b/u',
 			// Revisión de b7762173, medio 4: notas y reglas «para la IA», «ignore all prior guidance», «olvídate de lo
 			// que te dijeron antes», «Assistant: …».
-			'/\b(nota|notas|mensaje|mensajes|aviso|avisos|regla|reglas|instruccion|instrucciones|indicacion|indicaciones|orden|ordenes|recordatorio|note|message|rule|rules|instruction|instructions)\b.{0,30}\b(para|a|al|to|for)\s+(la |el |los |las |tu |the |any |all )?(ia|ai|ias|asistente|asistentes|assistant|assistants|bot|bots|chatbot|chatbots|modelo|modelos|model|models|llm|llms|gpt|claude|gemini)\b/u',
+			'/\b(nota|notas|mensaje|mensajes|aviso|avisos|regla|reglas|instruccion|instrucciones|indicacion|indicaciones|orden|ordenes|recordatorio|note|message|rule|rules|instruction|instructions)\b.{0,30}\b(para|a|al|to|for)\s+(la |el |los |las |tu |the |any |all |cualquier |todas las |todos los |cada )?(ia|ai|ias|asistente|asistentes|assistant|assistants|bot|bots|chatbot|chatbots|modelo|modelos|model|models|llm|llms|gpt|chatgpt|claude|gemini|copilot|inteligencia artificial|inteligencias artificiales)\b/u',
+			// Revisión de 08cdf955: saludos a una IA («Querida IA», «Hey Claude», «Hola ChatGPT»).
+			'/\b(querid[oa]s?|estimad[oa]s?|hey|hola|oye|dear|hi|hello)\s+(ia|ai|ias|asistente|asistentes|assistant|chatgpt|gpt|claude|gemini|copilot|bot|chatbot|modelo|inteligencia artificial)\b/u',
+			'/\b(cualquier|toda|todo|any|every)\s+(ia|ai|asistente|assistant|chatbot|bot|modelo|model|llm|inteligencia artificial)\b.{0,40}\b(lea|lee|reads|read|vea|procese)\b/u',
 			'/\b(ignore|disregard|forget|override|bypass)\b.{0,40}\b(all|any|prior|previous|above|earlier|guidance|guidelines|directions)\b/u',
 			'/\b(olvidate|olvidense|olvida|olviden|descarta|descarten|deja de lado|haz caso omiso)\b.{0,60}\b(dijeron|dicho|dije|antes|anterior|anteriores|instruccion|instrucciones|indicacion|indicaciones|reglas|te pidieron|lo que sabes)\b/u',
 		);
@@ -231,9 +235,43 @@ final class Digitalisimo_AI_Assistant_Learning {
 				return true;
 			}
 		}
-		// Un texto que se presenta como turno de un rol («Assistant: …», «Sistema: …», «IA: …»), al principio o tras un
-		// salto de línea (sobre el texto sin normalizar: los dos puntos importan).
-		return (bool) preg_match( '/(^|\n|[.!?]\s)\s*(assistant|asistente|system|sistema|ai|ia|bot|chatbot|modelo|model|user|usuario|human|humano)\s*:/iu', (string) $text );
+		// Un texto que se presenta como turno de un rol («Assistant: …», «Sistema: …», «IA: …»), al principio, tras un
+		// salto de línea o dentro de corchetes o paréntesis («[assistant: …]», «(IA: …)»), sobre el texto canónico sin
+		// normalizar: los dos puntos importan.
+		return (bool) preg_match( '/(^|\n|[.!?]\s|[\[\(\{<])\s*(assistant|asistente|system|sistema|ai|ia|bot|chatbot|modelo|model|user|usuario|human|humano|chatgpt|claude|gemini)\s*:/iu', $text );
+	}
+
+	/** Homoglifos comunes (cirílicos y griegos que se ven como letras latinas). */
+	const HOMOGLYPHS = array(
+		'А' => 'A', 'В' => 'B', 'Е' => 'E', 'К' => 'K', 'М' => 'M', 'Н' => 'H', 'О' => 'O', 'Р' => 'P', 'С' => 'C', 'Т' => 'T', 'Х' => 'X', 'У' => 'Y', 'І' => 'I', 'Ј' => 'J', 'Ѕ' => 'S',
+		'а' => 'a', 'е' => 'e', 'о' => 'o', 'р' => 'p', 'с' => 'c', 'у' => 'y', 'х' => 'x', 'і' => 'i', 'ј' => 'j', 'ѕ' => 's', 'ԁ' => 'd', 'ɡ' => 'g', 'һ' => 'h', 'ӏ' => 'l',
+		'Α' => 'A', 'Β' => 'B', 'Ε' => 'E', 'Ζ' => 'Z', 'Η' => 'H', 'Ι' => 'I', 'Κ' => 'K', 'Μ' => 'M', 'Ν' => 'N', 'Ο' => 'O', 'Ρ' => 'P', 'Τ' => 'T', 'Υ' => 'Y', 'Χ' => 'X',
+		'α' => 'a', 'ο' => 'o', 'ρ' => 'p', 'ι' => 'i', 'κ' => 'k', 'ν' => 'v', 'τ' => 't', 'υ' => 'u',
+	);
+
+	/**
+	 * El texto en forma canónica antes de buscar inyecciones (revisión de 08cdf955): NFKC si está la extensión intl (si
+	 * no, las letras de ancho completo a mano), sin caracteres invisibles (ancho cero, guion suave, marcas de dirección),
+	 * con los homoglifos comunes como letras latinas y «I.A.» o «A.I.» como «IA» o «AI».
+	 */
+	public static function canon( $text ) {
+		$text = (string) $text;
+		if ( class_exists( 'Normalizer' ) ) {
+			$nfkc = Normalizer::normalize( $text, Normalizer::FORM_KC );
+			$text = is_string( $nfkc ) ? $nfkc : $text;
+		}
+		if ( function_exists( 'mb_chr' ) && function_exists( 'mb_ord' ) ) {
+			$text = (string) preg_replace_callback(
+				'/[\x{FF01}-\x{FF5E}]/u',
+				function ( $m ) {
+					return mb_chr( mb_ord( $m[0], 'UTF-8' ) - 0xFEE0, 'UTF-8' );
+				},
+				$text
+			);
+		}
+		$text = (string) preg_replace( '/[\x{00AD}\x{034F}\x{061C}\x{115F}\x{1160}\x{17B4}\x{17B5}\x{180E}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2064}\x{2066}-\x{206F}\x{3164}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFA0}]/u', '', $text );
+		$text = strtr( $text, self::HOMOGLYPHS );
+		return (string) preg_replace( array( '/\b([Ii])\s?\.\s?([Aa])\b\.?/u', '/\b([Aa])\s?\.\s?([Ii])\b\.?/u' ), array( '$1$2', '$1$2' ), $text );
 	}
 
 	/**
@@ -1618,12 +1656,14 @@ final class Digitalisimo_AI_Assistant_Learning {
 		// Sólo si el dueño lo marca de forma explícita, el punto pasa a ser una indicación suya; si no, un punto del sitio
 		// corregido sigue siendo dato (revisión de b7762173, medio 4).
 		$preference = rest_sanitize_boolean( $request->get_param( 'preference' ) );
-		if ( $preference && ( '' !== self::teachable_text( $text ) ) ) {
-			return new WP_Error( 'digitalisimo_learning_rule', 'Eso no puede ser una indicación para el Asistente: ' . self::teachable_text( $text ), array( 'status' => 400 ) );
-		}
-		$data = self::get();
+		$data       = self::get();
 		foreach ( $data['items'] as $i => $item ) {
 			if ( $item['id'] === $id ) {
+				// Lo que es (o pasa a ser) una indicación a seguir pasa por las reglas de seguridad, también al editarla.
+				$rule = $preference || 'preferencias' === $item['section'] || 'chat' === $item['source'];
+				if ( $rule && '' !== self::teachable_text( $text ) ) {
+					return new WP_Error( 'digitalisimo_learning_rule', 'Eso no puede ser una indicación para el Asistente: ' . self::teachable_text( $text ), array( 'status' => 400 ) );
+				}
 				// Lo que corrige el dueño es suyo: un nuevo entrenamiento no lo reemplaza.
 				$data['items'][ $i ] = array_merge( $item, array( 'text' => $text, 'source' => 'owner', 'at' => time(), 'pending' => false ), $preference ? array( 'section' => 'preferencias' ) : array() );
 				self::save( $data );
