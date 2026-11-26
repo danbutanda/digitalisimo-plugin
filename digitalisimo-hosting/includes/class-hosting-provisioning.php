@@ -251,14 +251,14 @@ class Digitalisimo_Hosting_Provisioning {
 			$rid = $order ? (int) $order->get_meta( self::META_RENEWAL ) : 0;
 			// La renovación de un servicio desplazado no se retomará al encender: se dice así y se avisa para reembolsar.
 			if ( $rid && self::is_service( $rid ) && ! self::owns_account( $rid ) && self::payment_confirmed( $order ) ) { self::superseded_paid( $order, $rid ); return; }
-			if ( $order && ( $order->get_meta( self::META_RENEWAL ) || self::items( $order )['hosting'] || self::items( $order )['domains'] ) ) self::note_once( $order, 'sale_off', 'la venta automática está apagada: este pedido no se aprovisiona ni se renueva solo. Al encenderla, las renovaciones cobradas se retoman y las altas quedan para revisar a mano.' );
+			if ( $order && ( $order->get_meta( self::META_RENEWAL ) || self::items( $order )['hosting'] || self::items( $order )['domains'] || self::items( $order )['transfers'] ) ) self::note_once( $order, 'sale_off', 'la venta automática está apagada: este pedido no se aprovisiona ni se renueva solo. Al encenderla, las renovaciones cobradas se retoman y las altas quedan para revisar a mano.' );
 			return;
 		}
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) return;
 		$renewal = (int) $order->get_meta( self::META_RENEWAL );
 		$offline = in_array( (string) $order->get_payment_method(), self::offline_methods(), true );
-		if ( $renewal || self::items( $order )['hosting'] || self::items( $order )['domains'] ) {
+		if ( $renewal || self::items( $order )['hosting'] || self::items( $order )['domains'] || self::items( $order )['transfers'] ) {
 			if ( ! self::payment_confirmed( $order ) ) {
 				self::note_once( $order, 'unpaid', $offline ? 'pago fuera de línea (' . ( $order->get_payment_method() ?: 'manual' ) . '): no se aprovisiona hasta que marques el pedido «completado» al confirmar el cobro.' : 'la pasarela no dejó el pago confirmado (sin fecha de pago o sin número de transacción); no se aprovisiona hasta que marques el pedido «completado» al confirmar el cobro.' );
 				return;
@@ -281,13 +281,13 @@ class Digitalisimo_Hosting_Provisioning {
 			return;
 		}
 		$items = self::items( $order );
-		if ( ! $items['hosting'] && ! $items['domains'] ) return;
+		if ( ! $items['hosting'] && ! $items['domains'] && ! $items['transfers'] ) return;
 		$state = self::state( $order );
 		if ( ! empty( $state['done'] ) ) return;
 		$created = $order->get_date_created();
 		if ( empty( $state['paid'] ) && $created && $created->getTimestamp() < self::since() ) {
 			// Anterior al encendido: no se aprovisiona solo, pero queda a la vista con su «Reintentar» y se avisa.
-			$domain = $items['domains'] ? $items['domains'][0]['domain'] : ( $items['hosting'] ? $items['hosting'][0]['domain'] : '' );
+			$domain = $items['domains'] ? $items['domains'][0]['domain'] : ( $items['transfers'] ? $items['transfers'][0]['domain'] : ( $items['hosting'] ? $items['hosting'][0]['domain'] : '' ) );
 			$service = self::service_for( $order, $items, $domain );
 			if ( $service ) self::svc_set( $service, array( 'status' => 'on-hold', 'error' => 'Pedido anterior al encendido de la venta automática: no se aprovisionó solo. Pulsa «Reintentar» para hacerlo.' ) );
 			if ( self::note_once( $order, 'before', 'el pedido es anterior al encendido de la venta automática; no se aprovisiona solo. Está en WooCommerce → Servicios de hosting con «Reintentar».' ) ) self::alert_admin( 'pedido #' . $order->get_id() . ' anterior al encendido', 'El pedido #' . $order->get_id() . ' (' . $domain . ') se pagó después de encender la venta automática pero es anterior a ese momento: no se aprovisionó solo. Si corresponde, pulsa «Reintentar» en WooCommerce → Servicios de hosting.' . "\n\n" . self::order_link( $order ) );

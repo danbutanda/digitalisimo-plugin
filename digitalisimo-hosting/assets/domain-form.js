@@ -7,7 +7,7 @@
  *   envía como un formulario de contacto.
  * - [digitalisimo_domain_search]: un bloque <div> (no un <form>: funciona también dentro de un formulario atómico).
  * Las extensiones son SIEMPRE las de «Productos por extensión» (window.digitalisimoHosting.products): una lista fija del
- * formulario (p. ej. con .org) se sustituye. Todo lo que viene del visitante o del servidor se pinta con textContent.
+ * formulario se sustituye. Todo lo que viene del visitante o del servidor se pinta con textContent.
  */
 (() => {
   const c = window.digitalisimoHosting || {};
