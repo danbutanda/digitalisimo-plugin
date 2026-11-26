@@ -133,7 +133,7 @@ $GLOBALS['user'] = 2;
 $run( 'digitalisimo-ia/site-contact' );
 check( 2 === count( array_keys( $GLOBALS['ran'], 'digitalisimo-ia/site-contact', true ) ), 'K6: otra persona no recibe lo guardado para otra (sus permisos pueden ser otros)' );
 $GLOBALS['user'] = 1;
-$pid = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Contacto' ) );
+$pid = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Contacto', 'post_author' => 1 ) );
 do_action( 'save_post', $pid, get_post( $pid ), true );
 $run( 'digitalisimo-ia/site-contact' );
 check( 3 === count( array_keys( $GLOBALS['ran'], 'digitalisimo-ia/site-contact', true ) ), 'K6: un cambio en el sitio la invalida' );
@@ -146,7 +146,7 @@ do_action( 'updated_option', 'woocommerce_currency' );
 $run( 'digitalisimo-ia/site-contact' );
 check( 4 === count( array_keys( $GLOBALS['ran'], 'digitalisimo-ia/site-contact', true ) ), 'K6: un ajuste de la tienda sí' );
 $conv = Digitalisimo_AI_Assistant_History::create( 1, 'x' );
-$hist = wp_insert_post( array( 'post_type' => 'digitalisimo_ai_chat', 'post_status' => 'private', 'post_title' => 'x' ) );
+$hist = wp_insert_post( array( 'post_type' => 'digitalisimo_ai_chat', 'post_status' => 'private', 'post_title' => 'x', 'post_author' => 1 ) );
 do_action( 'save_post', $hist, get_post( $hist ), true );
 $run( 'digitalisimo-ia/site-contact' );
 check( 4 === count( array_keys( $GLOBALS['ran'], 'digitalisimo-ia/site-contact', true ) ), 'K6: guardar una conversación del Asistente no la invalida' );
@@ -154,9 +154,9 @@ check( 4 === count( array_keys( $GLOBALS['ran'], 'digitalisimo-ia/site-contact',
 
 /* ---------------- K7: qué invalida la caché del sitio (revisión de b7762173) ---------------- */
 $gen   = Digitalisimo_AI_Assistant_Cache::generation();
-$order = wp_insert_post( array( 'post_type' => 'shop_order', 'post_status' => 'wc-processing', 'post_title' => 'Pedido' ) );
+$order = wp_insert_post( array( 'post_type' => 'shop_order', 'post_status' => 'wc-processing', 'post_title' => 'Pedido', 'post_author' => 1 ) );
 do_action( 'save_post', $order, get_post( $order ), true );
-$form = wp_insert_post( array( 'post_type' => 'feedback', 'post_status' => 'publish', 'post_title' => 'Formulario' ) );
+$form = wp_insert_post( array( 'post_type' => 'feedback', 'post_status' => 'publish', 'post_title' => 'Formulario', 'post_author' => 1 ) );
 do_action( 'save_post', $form, get_post( $form ), true );
 do_action( 'updated_option', 'woocommerce_task_list_tracked_completed_tasks' );
 check( $gen === Digitalisimo_AI_Assistant_Cache::generation(), 'K7: un pedido, un formulario recibido o un ajuste interno de WooCommerce no vacían la caché' );
