@@ -1376,12 +1376,19 @@ class Digitalisimo_Hosting_Provisioning {
 			}
 			// No se pudo leer la lista (intentos agotados, Webuzo sin configurar, otra falla): el cliente pagó y podría
 			// seguir suspendido. Queda el motivo en el servicio y se avisa; la revisión diaria lo vuelve a intentar.
-			$text = 'Pagado, pero no se pudo comprobar en Webuzo si la cuenta «' . $user . '» sigue suspendida: ' . $r['message'] . '.';
-			self::svc_set( $id, array( 'error' => $text, 'reconcile_attempts' => 0, 'reconcile_pending' => time() ) ); self::svc_log( $id, $text );
-			self::alert_admin( 'pagado y sin reactivar: ' . self::svc( $id, 'domain' ), $text . ' Revísalo en Webuzo; la revisión diaria lo volverá a intentar.' );
+			$missing = 'ok' === $r['kind'];
+			$why = $missing ? 'la cuenta ya no existe en Webuzo (¿se borró?)' : ( '' !== trim( (string) $r['message'] ) ? rtrim( (string) $r['message'], '. ' ) : 'Webuzo no respondió (' . $r['kind'] . ')' );
+			$text = 'Pagado, pero no se pudo comprobar en Webuzo si la cuenta «' . $user . '» sigue suspendida: ' . $why . '.';
+			// Una cuenta que ya no existe no se reintenta cada día; lo demás sí (la revisión diaria hace de red).
+			self::svc_set( $id, array( 'error' => $text, 'reconcile_attempts' => 0, 'reconcile_pending' => $missing ? 0 : time() ) );
+			// Un aviso por motivo, no uno cada día.
+			if ( self::svc( $id, 'reconcile_alerted' ) !== md5( $why ) ) {
+				self::svc_set( $id, array( 'reconcile_alerted' => md5( $why ) ) ); self::svc_log( $id, $text );
+				self::alert_admin( 'pagado y sin reactivar: ' . self::svc( $id, 'domain' ), $text . ( $missing ? ' Revísalo en Webuzo.' : ' Revísalo en Webuzo; la revisión diaria lo volverá a intentar.' ) );
+			}
 			return;
 		}
-		self::svc_set( $id, array( 'reconcile_attempts' => 0, 'reconcile_pending' => 0 ) );
+		self::svc_set( $id, array( 'reconcile_attempts' => 0, 'reconcile_pending' => 0, 'reconcile_alerted' => '' ) );
 		$sent = self::svc( $id, 'suspend_sent' );
 		$ours = is_array( $sent ) && 'auto' === ( $sent['reason'] ?? '' );
 		// Webuzo muestra un motivo de suspensión (el panel lo pide; Webuzo pone el suyo, p. ej. «Bandwidth Overuse»): el
@@ -1474,6 +1481,8 @@ class Digitalisimo_Hosting_Provisioning {
 	/** «Reintentar» de la pantalla de servicios: lo que esté a medias (aprovisionamiento o renovación pagada). */
 	public static function retry( $id ) {
 		if ( ! self::is_service( $id ) || 'cancelled' === self::svc( $id, 'status' ) ) return false;
+		// Con la venta apagada nada se encola (se perdería): queda anotado y se retoma al encenderla.
+		if ( ! self::on() ) { self::svc_set( $id, array( 'resume_provision' => time() ) ); return false; }
 		$order = wc_get_order( (int) self::svc( $id, 'order' ) );
 		$queued = false;
 		if ( $order ) {

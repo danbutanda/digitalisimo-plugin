@@ -47,8 +47,9 @@ class Digitalisimo_Hosting_Services_Page {
 		$P = 'Digitalisimo_Hosting_Provisioning';
 		echo '<div class="wrap digitalisimo-hosting-services"><h1>Servicios de hosting</h1><hr class="wp-header-end">';
 		$done = sanitize_key( (string) ( $_GET['done'] ?? '' ) );
-		$texts = array( 'off' => 'La venta automática está apagada: «Suspender» y «Reactivar» no hacen nada mientras lo esté (no se llamó a Webuzo ni se guardó nada). Enciéndela en Digitalisimo → Hosting o hazlo en Webuzo.', 'approve' => 'Dominio aprobado; aprovisionamiento en cola.', 'cancel' => 'Servicio dado de baja (sin renovaciones ni suspensiones automáticas).', 'already' => 'Ya estaba suspendido: se conserva el motivo (si fue por falta de pago, al pagar se reactiva).', 'prices' => 'Actualización de precios en cola.', 'retry' => 'Reintento en cola.', 'suspend' => 'Suspensión en cola.', 'unsuspend' => 'Reactivación en cola.', 'resend' => 'Reenvío de accesos en cola.', 'nothing' => 'No había nada a medias que reintentar.' );
-		if ( 'off' === $done ) echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html( $texts['off'] ) . '</p></div>';
+		$off = array( 'off' => 'La venta automática (o el módulo) está apagada: «Suspender» y «Reactivar» no hacen nada mientras lo esté (no se llamó a Webuzo ni se guardó nada). Enciéndela en Digitalisimo → Hosting o hazlo en Webuzo.', 'approve_off' => 'Dominio aprobado. La venta automática está apagada: no se crea nada ahora; se aprovisiona solo al encenderla.', 'retry_off' => 'La venta automática está apagada: no se reintenta nada ahora; queda anotado y se retoma solo al encenderla.' );
+		$texts = array( 'approve' => 'Dominio aprobado; aprovisionamiento en cola.', 'cancel' => 'Servicio dado de baja (sin renovaciones ni suspensiones automáticas).', 'already' => 'Ya estaba suspendido: se conserva el motivo (si fue por falta de pago, al pagar se reactiva).', 'prices' => 'Actualización de precios en cola.', 'retry' => 'Reintento en cola.', 'suspend' => 'Suspensión en cola.', 'unsuspend' => 'Reactivación en cola.', 'resend' => 'Reenvío de accesos en cola.', 'nothing' => 'No había nada a medias que reintentar.' );
+		if ( isset( $off[ $done ] ) ) echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html( $off[ $done ] ) . '</p></div>';
 		elseif ( isset( $texts[ $done ] ) ) echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $texts[ $done ] ) . ' Se procesa en segundo plano en unos instantes.</p></div>';
 		$o = Digitalisimo_Hosting::settings();
 		if ( empty( $o['provision_enabled'] ) ) echo '<div class="notice notice-info inline"><p>La venta automática está apagada. Enciéndela en <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-hosting' ) ) . '">Digitalisimo → Hosting</a>.</p></div>';
@@ -109,13 +110,14 @@ class Digitalisimo_Hosting_Services_Page {
 		}
 		if ( ! $P::is_service( $id ) ) wp_die( 'Servicio no encontrado.', 404 );
 		$done = $op;
-		if ( 'retry' === $op ) $done = $P::retry( $id ) ? 'retry' : 'nothing';
-		// Con la venta apagada, «Suspender» y «Reactivar» no hacen nada ni dejan nada guardado (se dice en llano).
-		elseif ( in_array( $op, array( 'suspend', 'unsuspend' ), true ) && empty( Digitalisimo_Hosting::settings()['provision_enabled'] ) ) $done = 'off';
+		$on = $P::sale_on(); // módulo y venta automática encendidos
+		if ( 'retry' === $op ) $done = $P::retry( $id ) ? 'retry' : ( $on ? 'nothing' : 'retry_off' );
+		// Con el módulo o la venta apagados, «Suspender» y «Reactivar» no hacen nada ni dejan nada guardado (se dice en llano).
+		elseif ( in_array( $op, array( 'suspend', 'unsuspend' ), true ) && ! $on ) $done = 'off';
 		// Suspender a mano lo ya suspendido por falta de pago conserva ese motivo (al pagar, se reactiva).
 		elseif ( 'suspend' === $op && 'suspended' === $P::svc( $id, 'status' ) ) $done = 'already';
 		elseif ( 'suspend' === $op ) { $P::svc_set( $id, array( 'suspend_reason' => 'manual' ) ); $P::enqueue( $P::HOOK_SUSPEND, $id ); }
-		elseif ( 'approve' === $op ) { $P::svc_set( $id, array( 'domain_approved' => time(), 'needs_review' => 0 ) ); $P::retry( $id ); }
+		elseif ( 'approve' === $op ) { $P::svc_set( $id, array( 'domain_approved' => time(), 'needs_review' => 0 ) ); $P::retry( $id ); if ( ! $on ) $done = 'approve_off'; }
 		elseif ( 'cancel' === $op ) $P::cancel_service( $id );
 		elseif ( 'unsuspend' === $op ) { $P::svc_set( $id, array( 'unsuspend_reason' => 'manual' ) ); $P::enqueue( $P::HOOK_UNSUSPEND, $id ); }
 		else $P::enqueue( $P::HOOK_RESEND, $id );
