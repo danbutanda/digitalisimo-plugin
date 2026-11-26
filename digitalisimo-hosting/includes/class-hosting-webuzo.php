@@ -64,20 +64,65 @@ class Digitalisimo_Hosting_Webuzo {
 	public function configured() { return self::safe_url( $this->url ) && '' !== $this->user && '' !== $this->key; }
 
 	/**
-	 * ¿URL aceptable para mandarle la clave? Sólo https, con host (y puerto), sin usuario, ruta ni consulta, y un host que
-	 * no sea loopback, link-local ni de red privada (ni «localhost»), salvo la constante DIGITALISIMO_WEBUZO_ALLOW_PRIVATE.
-	 * Los nombres no se resuelven aquí: un nombre que apunte a una IP privada queda como riesgo documentado.
+	 * ¿URL aceptable para mandarle la clave? Sólo https, con host (y puerto), sin usuario, ruta ni consulta, y que el host
+	 * no lleve a loopback, link-local, redes privadas, 0.0.0.0, CGNAT ni IPv4 dentro de IPv6 (mapeadas o 64:ff9b::),
+	 * salvo la constante DIGITALISIMO_WEBUZO_ALLOW_PRIVATE. Se compara contra la IP: las formas numéricas (127.1,
+	 * 2130706433, 0x7f000001, 0177.0.0.1, 0) se normalizan como lo haría el sistema y los nombres se resuelven (A y AAAA).
+	 * Un nombre que hoy no resuelve no se puede comprobar: se acepta (la llamada fallaría igual).
 	 */
 	public static function safe_url( $url ) {
 		if ( ! preg_match( '#^https://(\[[0-9a-f:.]+\]|[a-z0-9.-]+)(:\d{1,5})?/?$#i', (string) $url, $m ) ) return false;
-		$host = strtolower( trim( $m[1], '[]' ) );
+		$host = strtolower( rtrim( trim( $m[1], '[]' ), '.' ) );
 		if ( defined( 'DIGITALISIMO_WEBUZO_ALLOW_PRIVATE' ) && DIGITALISIMO_WEBUZO_ALLOW_PRIVATE ) return true;
-		if ( 'localhost' === $host || '.localhost' === substr( $host, -10 ) || '.local' === substr( $host, -6 ) || '.internal' === substr( $host, -9 ) ) return false;
-		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
-			if ( ! filter_var( $host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) return false;
-			if ( preg_match( '/^(127\.|169\.254\.|0\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.)/', $host ) || preg_match( '/^(::1?$|fe8|fe9|fea|feb|fc|fd)/i', $host ) ) return false;
-		}
+		if ( '' === $host || 'localhost' === $host || preg_match( '/\.(localhost|local|internal|home\.arpa|lan)$/', $host ) ) return false;
+		foreach ( self::host_ips( $host ) as $ip ) if ( ! self::public_ip( $ip ) ) return false;
 		return true;
+	}
+
+	private static function host_ips( $host ) {
+		if ( filter_var( $host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) return array( $host );
+		$v4 = self::inet_aton( $host );
+		if ( null !== $v4 ) return array( $v4 );
+		/** Para pruebas y redes con DNS propio: una lista de IP evita la resolución. */
+		$pre = apply_filters( 'digitalisimo_hosting_webuzo_host_ips', null, $host );
+		if ( is_array( $pre ) ) return $pre;
+		$ips = function_exists( 'gethostbynamel' ) ? (array) @gethostbynamel( $host ) : array();
+		if ( function_exists( 'dns_get_record' ) && defined( 'DNS_AAAA' ) ) foreach ( (array) @dns_get_record( $host, DNS_AAAA ) as $rec ) if ( ! empty( $rec['ipv6'] ) ) $ips[] = $rec['ipv6'];
+		return array_values( array_filter( $ips ) );
+	}
+
+	/** Forma numérica de IPv4 como inet_aton (1 a 4 partes, decimal, octal con 0 o hex con 0x), o null si no es numérica. */
+	private static function inet_aton( $host ) {
+		if ( ! preg_match( '/^(0x[0-9a-f]*|[0-9]+)(\.(0x[0-9a-f]*|[0-9]+)){0,3}$/i', $host ) ) return null;
+		$n = array();
+		foreach ( explode( '.', $host ) as $p ) {
+			if ( preg_match( '/^0x/i', $p ) ) $v = '' === substr( $p, 2 ) ? 0 : hexdec( substr( $p, 2 ) );
+			elseif ( strlen( $p ) > 1 && '0' === $p[0] ) { if ( ! preg_match( '/^[0-7]+$/', $p ) ) return '0.0.0.0'; $v = octdec( $p ); }
+			else $v = (float) $p;
+			$n[] = $v;
+		}
+		$max = array( 1 => array( 4294967295 ), 2 => array( 255, 16777215 ), 3 => array( 255, 255, 65535 ), 4 => array( 255, 255, 255, 255 ) );
+		foreach ( $n as $i => $v ) if ( $v > $max[ count( $n ) ][ $i ] ) return '0.0.0.0';
+		switch ( count( $n ) ) {
+			case 1: $l = $n[0]; break;
+			case 2: $l = $n[0] * 16777216 + $n[1]; break;
+			case 3: $l = $n[0] * 16777216 + $n[1] * 65536 + $n[2]; break;
+			default: $l = $n[0] * 16777216 + $n[1] * 65536 + $n[2] * 256 + $n[3];
+		}
+		return long2ip( (int) $l );
+	}
+
+	private static function public_ip( $ip ) {
+		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+			$b = @inet_pton( $ip );
+			if ( false === $b || 16 !== strlen( $b ) ) return false;
+			if ( substr( $b, 0, 12 ) === str_repeat( "\0", 10 ) . "\xff\xff" || substr( $b, 0, 12 ) === "\x00\x64\xff\x9b" . str_repeat( "\0", 8 ) ) return self::public_ip( inet_ntop( substr( $b, 12 ) ) );
+			if ( substr( $b, 0, 12 ) === str_repeat( "\0", 12 ) ) return false; // ::, ::1 y las compatibles con IPv4
+			if ( preg_match( '/^(fe[89ab]|f[cd])/i', bin2hex( substr( $b, 0, 2 ) ) ) ) return false; // link-local y únicas locales
+			return (bool) filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE );
+		}
+		if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) return false;
+		return ! preg_match( '/^(127\.|169\.254\.|0\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.)/', $ip );
 	}
 
 	/** Identificador del servidor (URL y usuario), sin la clave. Sólo informativo: la parada no depende de él. */

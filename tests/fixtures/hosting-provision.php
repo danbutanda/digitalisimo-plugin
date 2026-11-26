@@ -344,3 +344,4 @@ function hosting_leaks( $secret ) {
 	$haystack = serialize( array( $GLOBALS['wp_mails'], array_map( function ( $o ) { return array( $o->notes, $o->meta ); }, $GLOBALS['orders'] ), $GLOBALS['postmeta'], $GLOBALS['options'], $GLOBALS['site_options'], $GLOBALS['webuzo']->calls, $GLOBALS['namecheap']->calls, $GLOBALS['http'] ) );
 	return false !== strpos( $haystack, $secret );
 }
+add_filter( 'digitalisimo_hosting_webuzo_host_ips', static function () { return array(); } ); // sin DNS real en las pruebas (B3)

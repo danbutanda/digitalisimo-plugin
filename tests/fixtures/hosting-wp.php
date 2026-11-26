@@ -19,6 +19,7 @@ function check( $c, $m ) { if ( ! $c ) { echo "FALLA: $m\n"; exit( 1 ); } $GLOBA
 
 // ── Ganchos ─────────────────────────────────────────────────────────────────────────────────────────────────
 $GLOBALS['hooks'] = array();
+$GLOBALS['dns'] = array(); // nombre => IP que «resuelve» (B3); los demás nombres no resuelven, sin salir a la red
 function add_filter( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['hooks'][ $hook ][ $prio ][] = array( $cb, $args ); return true; }
 function add_action( $hook, $cb, $prio = 10, $args = 1 ) { return add_filter( $hook, $cb, $prio, $args ); }
 function apply_filters( $hook, $value, ...$rest ) {
@@ -378,3 +379,4 @@ digi_product( 14693, 'Web Hosting Starter', 970, 'digitalisimo_starter' );
 digi_product( 14696, 'Web Hosting Pro', 5850, 'digitalisimo_pro' );
 digi_product( 20, 'Dominio .com', 300 );
 digi_product( 21, 'Dominio .mx', 600 );
+add_filter( 'digitalisimo_hosting_webuzo_host_ips', static function ( $ips, $host ) { return (array) ( $GLOBALS['dns'][ $host ] ?? array() ); }, 10, 2 );
