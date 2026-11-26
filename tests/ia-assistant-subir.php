@@ -186,6 +186,8 @@ namespace {
 	}
 
 	check( function_exists( 'imagecreatetruecolor' ) && function_exists( 'imagewebp' ), 'PHP necesita GD con WebP para esta prueba' );
+	// Las herramientas traen Digitalisimo_AI_Assistant_Context, que permission() arma en cada petición del escritorio.
+	require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant-tools.php';
 	require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant.php';
 	require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant-history.php';
 	require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant-uploads.php';
