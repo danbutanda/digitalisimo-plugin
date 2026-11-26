@@ -146,8 +146,9 @@ permiso), y antes se comprueba `check_permissions()` con esa entrada: sin permis
 
 **Interruptores «sólo para el MCP externo»** (caso plomerito 4, 2026-11-26, IA Tools 1.0.74: a «revisa el sitio web y
 optimízalo en SEO» respondió «WordPress dice que tu usuario no tiene permiso…» a un administrador; lo apagado era
-«Permitir que cambien datos SEO», `seo_abilities_write`, 0 por omisión). Algunas abilities tienen un opt-in pensado para
-los clientes MCP externos. En el Asistente cada cambio ya lo confirma la persona en su tarjeta y queda en la bitácora,
+«Permitir que cambien datos SEO», `seo_abilities_write`, 0 por omisión; desde la tanda B de la auditoría SEO son cuatro
+partes con su interruptor y su registro: `seo_abilities_write_meta`, `_schema`, `_index` y `_redirects`). Algunas
+abilities tienen un opt-in pensado para los clientes MCP externos. En el Asistente cada cambio ya lo confirma la persona en su tarjeta y queda en la bitácora,
 así que esas abilities preguntan a `Digitalisimo_AI_Assistant_Context` (en `class-digitalisimo-ai-assistant-tools.php`)
 si la llamada viene del Asistente: `allows( 'nombre/exacto' )` sólo es verdad si la petición es una ruta REST del
 Asistente que pasó su permiso (sesión, capacidad y el nonce propio en la cabecera; con una contraseña de aplicación no se
