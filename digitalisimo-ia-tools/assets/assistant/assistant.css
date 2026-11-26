@@ -312,3 +312,92 @@
 .dga-tray-remove { grid-column: 3; grid-row: 1 / span 2; }
 .dga-attach { font-size: 1.1rem; }
 .dga-composer-hint { padding-inline-start: var(--ds-space-1); }
+
+/*
+ * ── El estilo de los demás plugins DIGITALÍSIMO (pedido del propietario del 2026-11-26: «al asistente dale el mismo
+ * estilo de los plugins en colores y todo para que se vea igual todo»). Lo mismo que pinta digitalisimo-ui en las
+ * pantallas ?page=digitalisimo*: la tarjeta de la pantalla (borde, radio y sombra del `.wrap`, con su brillo arriba a la
+ * derecha), el encabezado con la insignia «D», los botones principales con el degradado de la marca, los controles con
+ * su radio y su anillo de foco, las tarjetas y los detalles. Todo con los tokens --digi-* (y su respaldo); en modo oscuro
+ * los tokens --ds-* del Asistente siguen mandando en fondos, bordes y textos. Sólo visual: ni textos ni comportamiento.
+ */
+.dga-root {
+  --font-size-sm: .875rem;
+  --line-height-normal: 1.6;
+  --ds-radius-md: var(--digi-radius-control, 9px);
+  --ds-radius-lg: var(--digi-radius-card, 15px);
+  --ds-radius-xl: var(--digi-radius-shell, 22px);
+  --ds-shadow-floating: var(--digi-shadow-card, 0 7px 22px rgba(42,56,115,.06));
+  --ds-focus-ring: var(--digi-focus, #5365f5);
+  margin: 20px 28px 20px 40px;
+  block-size: calc(100vh - 72px);
+  block-size: calc(100dvh - 72px);
+  border: 1px solid var(--ds-border-default);
+  border-radius: var(--digi-radius-shell, 22px);
+  box-shadow: var(--digi-shadow-card, 0 7px 22px rgba(42,56,115,.06));
+}
+@media screen and (max-width: 782px) {
+  .dga-root { margin: 10px; block-size: calc(100vh - 66px); block-size: calc(100dvh - 66px); border-radius: var(--digi-radius-card, 15px); }
+}
+/* El brillo de la tarjeta (el `.wrap:before` de las demás pantallas) y la superficie blanca de la marca. */
+.dga-root[data-color-scheme="digitalisimo"] {
+  --ds-assistant-glow-2: color-mix(in srgb, var(--digi-violet, #8249ee) 14%, transparent);
+  --ds-assistant-mark: var(--digi-gradient-badge, linear-gradient(135deg, #245eff, #8249ee 55%, #f13b9b));
+  --ds-color-accent-subtle: var(--digi-tint, #eef2ff);
+}
+.dga-root[data-theme="dark"][data-color-scheme="digitalisimo"] { --ds-color-accent-subtle: color-mix(in srgb, var(--ds-color-accent) 22%, var(--ds-surface-app)); --ds-assistant-glow-2: color-mix(in srgb, var(--digi-violet, #8249ee) 22%, transparent); }
+.dga-root:not([data-theme="dark"]):not([data-interface-variant="modern"]) .dga-main { background: color-mix(in srgb, var(--ds-surface-raised) 72%, transparent); }
+.dga-root .dga-side, .dga-root .dga-top { border-color: var(--ds-border-default); }
+
+/* Encabezado: el título con la insignia «D», como el h1 de las demás pantallas. */
+.dga-root .dga-title { display: flex; align-items: center; gap: var(--ds-space-3); color: var(--ds-text-primary); font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); letter-spacing: -.4px; }
+.dga-root .dga-title::before { display: inline-flex; flex: none; align-items: center; justify-content: center; inline-size: 2.125rem; block-size: 2.125rem; border-radius: var(--digi-radius-control, 9px); background: var(--ds-assistant-mark); color: var(--ds-color-accent-contrast); content: "D"; font-size: 1.125rem; font-weight: 800; letter-spacing: 0; box-shadow: var(--digi-shadow-button, 0 8px 17px rgba(66,74,219,.23)); }
+.dga-root .dga-bar-mark { display: none !important; }
+.dga-root .dga-mark, .dga-root .dga-avatar, .dga-root .dga-welcome-icon { background: var(--ds-assistant-mark); color: var(--ds-color-accent-contrast); }
+.dga-root .dga-welcome-icon { box-shadow: var(--digi-shadow-button, 0 8px 17px rgba(66,74,219,.23)); }
+.dga-root .dga-brand-name { font-weight: var(--font-weight-bold); }
+.dga-root .dga-welcome h2 { font-size: var(--font-size-2xl); letter-spacing: -.5px; }
+.dga-root .dga-welcome p { font-size: var(--font-size-base); line-height: 1.65; }
+
+/* Botones: el principal con el degradado de la marca; los demás, blancos con borde, como `.button`. */
+.dga-root[data-color-scheme="digitalisimo"] .dga-send:not(:disabled), .dga-root[data-color-scheme="digitalisimo"] .dga-button.is-primary:not(:disabled) { background: var(--digi-gradient, linear-gradient(135deg, #245eff, #774af0 58%, #e13da9)); box-shadow: var(--digi-shadow-button, 0 8px 17px rgba(66,74,219,.23)); }
+.dga-root[data-color-scheme="digitalisimo"] .dga-send:hover:not(:disabled), .dga-root[data-color-scheme="digitalisimo"] .dga-button.is-primary:hover:not(:disabled) { background: var(--digi-gradient-hover, linear-gradient(135deg, #164ce4, #6635db 58%, #c72f91)); }
+.dga-root .dga-send, .dga-root .dga-button, .dga-root .dga-new { border-radius: var(--digi-radius-control, 9px); }
+.dga-root .dga-button:not(.is-primary):not(.is-danger), .dga-root .dga-new { border-color: var(--ds-border-default); background: var(--ds-surface-raised); color: var(--ds-text-primary); font-weight: var(--font-weight-semibold); }
+.dga-root .dga-button:not(.is-primary):not(.is-danger):hover:not(:disabled), .dga-root .dga-new:hover:not(:disabled) { border-color: var(--digi-focus, #5365f5); color: var(--ds-color-accent-text); }
+.dga-root .dga-new { box-shadow: var(--digi-shadow-card, 0 7px 22px rgba(42,56,115,.06)); }
+
+/* Sugerencias y opciones: como las pestañas (`.nav-tab`) de las demás pantallas. */
+.dga-root .dga-suggestion, .dga-root .dga-choice { border: 1px solid var(--ds-border-default); border-radius: var(--digi-radius-control, 9px); background: var(--ds-surface-subtle); color: var(--ds-text-secondary); font-weight: var(--font-weight-semibold); }
+.dga-root[data-color-scheme="digitalisimo"] .dga-suggestion:hover, .dga-root[data-color-scheme="digitalisimo"] .dga-choice[aria-pressed="true"] { border-color: transparent; background: var(--digi-gradient-tab, linear-gradient(135deg, #245eff, #7b4cf1 60%, #d93eba)); color: var(--ds-color-accent-contrast); box-shadow: var(--digi-shadow-button, 0 8px 17px rgba(66,74,219,.23)); }
+.dga-root .dga-suggestion .dga-icon { color: inherit; }
+
+/* Mensajes: el de la persona con el degradado; los enlaces del Asistente con el color de enlace de la marca. */
+.dga-root[data-color-scheme="digitalisimo"] .dga-message.is-me .dga-bubble { background: var(--digi-gradient, linear-gradient(135deg, #245eff, #774af0 58%, #e13da9)); color: var(--ds-color-accent-contrast); }
+.dga-root .dga-bubble { font-size: var(--font-size-sm); line-height: var(--line-height-normal); }
+.dga-root:not([data-theme="dark"]) .dga-message.is-assistant .dga-inline-link { color: var(--digi-link, #355cf5); }
+.dga-root .dga-message.is-assistant .dga-bubble { box-shadow: var(--digi-shadow-card, 0 7px 22px rgba(42,56,115,.06)); }
+.dga-root .dga-system { border: 1px solid var(--ds-border-default); }
+
+/* Tarjetas: confirmación, trabajo plegado, pasos, redactor, menús y diálogos, con el radio y la sombra de `.card`. */
+.dga-root .dga-confirm, .dga-root .dga-work, .dga-root .dga-tool, .dga-root .dga-composer, .dga-root .dga-menu, .dga-root .dga-dialog { border-color: var(--ds-border-default); border-radius: var(--digi-radius-card, 15px); box-shadow: var(--digi-shadow-card, 0 7px 22px rgba(42,56,115,.06)); }
+.dga-root .dga-confirm { border-inline-start: 4px solid var(--digi-focus, #5365f5); }
+.dga-root .dga-confirm.is-destructive { border-inline-start-color: var(--ds-color-danger); }
+.dga-root:not([data-theme="dark"]) .dga-work { background: linear-gradient(115deg, color-mix(in srgb, var(--digi-blue, #245eff) 4%, var(--ds-surface-raised)), color-mix(in srgb, var(--digi-pink, #f13b9b) 4%, var(--ds-surface-raised))); }
+.dga-root .dga-composer:focus-within { border-color: var(--digi-focus, #5365f5); box-shadow: var(--digi-focus-ring, 0 0 0 3px rgba(83,101,245,.15)), var(--digi-shadow-card, 0 7px 22px rgba(42,56,115,.06)); }
+.dga-root .dga-search input { border-radius: var(--digi-radius-control, 9px) !important; }
+.dga-root .dga-search input:focus { border-color: var(--digi-focus, #5365f5) !important; box-shadow: var(--digi-focus-ring, 0 0 0 3px rgba(83,101,245,.15)) !important; }
+.dga-root .dga-notice { border: 0; border-inline-start: 4px solid var(--digi-focus, #5365f5); border-radius: var(--digi-radius-control, 9px); box-shadow: var(--digi-shadow-card, 0 7px 22px rgba(42,56,115,.06)); }
+.dga-root .dga-row.is-active .dga-item strong { color: var(--ds-color-accent-text); font-weight: var(--font-weight-semibold); }
+.dga-root .dga-tray-item, .dga-root .dga-file { border-color: var(--ds-border-default); border-radius: var(--digi-radius-control, 9px); }
+/* Pantallas angostas: la barra superior cabe entera (antes se cortaba el botón de apariencia a 390 px). */
+@media (max-width: 37.5rem) {
+  .dga-root .dga-top { gap: var(--ds-space-1); padding: var(--ds-space-2) var(--ds-space-3); }
+  .dga-root .dga-toolbar, .dga-root .dga-trailing { gap: 0; }
+  .dga-root .dga-trigger { padding: 0 var(--ds-space-2); }
+  .dga-root .dga-trigger-label small { display: none; }
+  .dga-root .dga-title { min-inline-size: 1.75rem; font-size: var(--font-size-md); }
+  .dga-root .dga-title::before { inline-size: 1.75rem; block-size: 1.75rem; font-size: 1rem; }
+}
+/* Teléfonos (≤ 26rem): sin el título en la barra, para que IA, funciones y apariencia quepan enteros. */
+@media (max-width: 26rem) { .dga-root .dga-title { display: none; } .dga-root .dga-top { justify-content: space-between; } }

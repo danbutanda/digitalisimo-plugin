@@ -380,6 +380,12 @@ Fuera de su pantalla, el Asistente sólo registra el menú, el tipo interno (en 
   (fuera de la CI: gasta tokens y necesita la clave).
 - `tests/ia-assistant-ui.mjs`: la interfaz sin dependencias ni HTML construido con cadenas, la hoja acotada y los
   adaptadores con un `fetch` simulado (flujo partido, respaldo JSON, errores y nonces).
+- Estilo (pedido del propietario del 2026-11-26: «al asistente dale el mismo estilo de los plugins en colores y todo»):
+  la pantalla es una tarjeta como el `.wrap` de las demás pantallas DIGITALÍSIMO, con la insignia «D» en el encabezado,
+  el degradado de la marca en el botón principal y en los mensajes de la persona, y los radios, sombras y anillo de foco
+  de `digitalisimo-ui`, siempre con los tokens `--digi-*` (`tests/ia-assistant-ui.mjs`, E0–E7).
+  `tests/playground/ia-assistant-estilo.sh` (`PREFIX=antes|despues`) toma capturas del Asistente (ancho, bienvenida,
+  menú plegado y 390 px) junto a Tools y los ajustes de IA Tools; fuera de la CI.
 - `tests/playground/ia-assistant.sh`: Playground y Chrome en un sitio y en una red, con el MCP de Elements activo (ver
   `tests/playground/README.md`).
 
