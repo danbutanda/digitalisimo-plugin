@@ -344,4 +344,6 @@ function hosting_leaks( $secret ) {
 	$haystack = serialize( array( $GLOBALS['wp_mails'], array_map( function ( $o ) { return array( $o->notes, $o->meta ); }, $GLOBALS['orders'] ), $GLOBALS['postmeta'], $GLOBALS['options'], $GLOBALS['site_options'], $GLOBALS['webuzo']->calls, $GLOBALS['namecheap']->calls, $GLOBALS['http'] ) );
 	return false !== strpos( $haystack, $secret );
 }
-add_filter( 'digitalisimo_hosting_webuzo_host_ips', static function () { return array(); } ); // sin DNS real en las pruebas (B3)
+add_filter( 'digitalisimo_hosting_webuzo_host_ips', static function () { return array( '93.184.216.34' ); } ); // sin DNS real en las pruebas (B3, H-5)
+function remove_filter( $hook, $cb, $prio = 10 ) { if ( empty( $GLOBALS['hooks'][ $hook ][ $prio ] ) ) return false; $GLOBALS['hooks'][ $hook ][ $prio ] = array_values( array_filter( $GLOBALS['hooks'][ $hook ][ $prio ], function ( $h ) use ( $cb ) { return $h[0] !== $cb; } ) ); if ( ! $GLOBALS['hooks'][ $hook ][ $prio ] ) unset( $GLOBALS['hooks'][ $hook ][ $prio ] ); if ( empty( $GLOBALS['hooks'][ $hook ] ) ) unset( $GLOBALS['hooks'][ $hook ] ); return true; }
+function remove_action( $hook, $cb, $prio = 10 ) { return remove_filter( $hook, $cb, $prio ); }

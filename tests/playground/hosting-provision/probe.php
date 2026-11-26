@@ -118,8 +118,9 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 // La cola de Action Scheduler sólo corre con el paso «run» de la sonda: sin el corredor asíncrono (petición de vuelta
 // al cerrar) ni WP-Cron, que la procesarían a destiempo y harían el ensayo no determinista.
 add_filter( 'action_scheduler_allow_async_request_runner', '__return_false' );
-// webuzo.test no existe: el DNS falso de php-wasm le daría una IP privada y la URL se rechazaría.
-add_filter( 'digitalisimo_hosting_webuzo_host_ips', static function ( $ips, $host ) { return '.test' === substr( $host, -5 ) ? array() : $ips; }, 10, 2 );
+// webuzo.test no existe: el DNS falso de php-wasm le daría una IP privada; aquí «resuelve» a una pública de ejemplo
+// (nada sale del sitio: pre_http_request contesta antes del transporte).
+add_filter( 'digitalisimo_hosting_webuzo_host_ips', static function ( $ips, $host ) { return '.test' === substr( $host, -5 ) ? array( '93.184.216.34' ) : $ips; }, 10, 2 );
 add_action( 'wp_loaded', static function () { if ( class_exists( 'ActionScheduler' ) ) remove_action( 'action_scheduler_run_queue', array( ActionScheduler::runner(), 'run' ) ); } );
 add_filter( 'pre_wp_mail', static function ( $null, $atts ) {
 	$mails = json_decode( (string) @file_get_contents( DIGI_HP_DIR . '/mails.json' ), true ) ?: array();

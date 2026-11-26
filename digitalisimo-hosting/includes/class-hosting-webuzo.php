@@ -79,7 +79,54 @@ class Digitalisimo_Hosting_Webuzo {
 		return true;
 	}
 
+	/**
+	 * La IP a la que se fija una llamada (contra el «DNS rebinding»: el nombre se resuelve UNA vez, se valida y cURL
+	 * conecta a esa IP aunque el DNS cambie entre la validación y la conexión). La URL conserva el nombre, así que el SNI
+	 * y el certificado se comprueban igual. Null si la URL no es aceptable o el nombre no resuelve.
+	 */
+	public static function pin( $url ) {
+		if ( ! self::safe_url( $url ) || ! preg_match( '#^https://(\[[0-9a-f:.]+\]|[a-z0-9.-]+)(:\d{1,5})?/?$#i', (string) $url, $m ) ) return null;
+		$literal = '[' === $m[1][0];
+		$name = strtolower( $m[1] );
+		$host = strtolower( rtrim( trim( $m[1], '[]' ), '.' ) );
+		$ips = self::host_ips( $host );
+		if ( ! $ips ) return null;
+		$allow = defined( 'DIGITALISIMO_WEBUZO_ALLOW_PRIVATE' ) && DIGITALISIMO_WEBUZO_ALLOW_PRIVATE;
+		usort( $ips, function ( $a, $b ) { return (int) ( false !== strpos( $a, ':' ) ) - (int) ( false !== strpos( $b, ':' ) ); } ); // IPv4 primero
+		foreach ( $ips as $ip ) {
+			if ( ! $allow && ! self::public_ip( $ip ) ) return null;
+			// Una IP escrita en la URL (o su forma numérica) ya es la IP: no hace falta fijarla.
+			$numeric = $literal || filter_var( $host, FILTER_VALIDATE_IP ) || null !== self::inet_aton( $host );
+			return array( 'host' => $name, 'port' => isset( $m[2] ) && '' !== $m[2] ? (int) substr( $m[2], 1 ) : 443, 'ip' => $ip, 'resolve' => ! $numeric );
+		}
+		return null;
+	}
+
+	/** La entrada de CURLOPT_RESOLVE («host:puerto:ip», IPv6 entre corchetes), o '' si la URL ya trae la IP. */
+	public static function resolve_entry( array $pin ) {
+		if ( empty( $pin['resolve'] ) ) return '';
+		return $pin['host'] . ':' . $pin['port'] . ':' . ( false !== strpos( $pin['ip'], ':' ) ? '[' . $pin['ip'] . ']' : $pin['ip'] );
+	}
+
+	/** Opciones de cURL de la llamada fijada: sólo https (también en redirecciones) y la IP validada. */
+	public static function curl_options( array $pin ) {
+		$o = array();
+		if ( defined( 'CURLOPT_PROTOCOLS' ) && defined( 'CURLPROTO_HTTPS' ) ) $o[ CURLOPT_PROTOCOLS ] = CURLPROTO_HTTPS;
+		if ( defined( 'CURLOPT_REDIR_PROTOCOLS' ) && defined( 'CURLPROTO_HTTPS' ) ) $o[ CURLOPT_REDIR_PROTOCOLS ] = CURLPROTO_HTTPS;
+		$entry = self::resolve_entry( $pin );
+		if ( '' !== $entry && defined( 'CURLOPT_RESOLVE' ) ) $o[ CURLOPT_RESOLVE ] = array( $entry );
+		return $o;
+	}
+
+	/** Resoluciones de esta petición: un DNS lento se consulta una vez (validar la URL, fijar la IP de la llamada). */
+	private static $dns = array();
+
 	private static function host_ips( $host ) {
+		if ( ! array_key_exists( $host, self::$dns ) ) self::$dns[ $host ] = self::resolve( $host );
+		return self::$dns[ $host ];
+	}
+
+	private static function resolve( $host ) {
 		if ( filter_var( $host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) return array( $host );
 		$v4 = self::inet_aton( $host );
 		if ( null !== $v4 ) return array( $v4 );
@@ -216,16 +263,33 @@ class Digitalisimo_Hosting_Webuzo {
 			$pre = $this->users();
 			if ( 'ok' !== $pre['kind'] ) return $pre;
 		}
-		$url      = $this->url . '/index.php?api=json&act=' . rawurlencode( $act ) . ( $query ? '&' . http_build_query( $query ) : '' );
-		$response = wp_remote_post(
-			$url,
-			array(
-				'timeout'     => 45,
-				'redirection' => 0,
-				'sslverify'   => ! $this->insecure,
-				'body'        => array( 'apiuser' => $this->user, 'apikey' => $this->key ) + $post,
-			)
-		);
+		$url = $this->url . '/index.php?api=json&act=' . rawurlencode( $act ) . ( $query ? '&' . http_build_query( $query ) : '' );
+		// La IP se fija aquí, resuelta una vez y validada; sin ella (o sin cURL para fijarla) la clave no sale.
+		$pin = self::pin( $this->url );
+		if ( ! $pin ) return array( 'kind' => 'config', 'data' => array(), 'message' => 'La URL de Webuzo no resuelve hoy a una IP pública aceptable: no se llamó (la clave no salió)' );
+		$curl = static function ( $handle ) use ( $pin ) { if ( function_exists( 'curl_setopt_array' ) ) curl_setopt_array( $handle, self::curl_options( $pin ) ); };
+		$sock = static function () { throw new RuntimeException( 'digitalisimo-webuzo-sin-curl' ); };
+		add_action( 'http_api_curl', $curl, 10, 1 );
+		add_action( 'requests-fsockopen.remote_socket', $sock, 10, 0 ); // otro transporte que no es cURL: se corta antes de conectar
+		$nocurl = false;
+		try {
+			$response = wp_remote_post(
+				$url,
+				array(
+					'timeout'     => 45,
+					'redirection' => 0,
+					'sslverify'   => ! $this->insecure,
+					'body'        => array( 'apiuser' => $this->user, 'apikey' => $this->key ) + $post,
+				)
+			);
+		} catch ( RuntimeException $e ) {
+			if ( 'digitalisimo-webuzo-sin-curl' !== $e->getMessage() ) throw $e;
+			$nocurl = true;
+		} finally {
+			remove_action( 'http_api_curl', $curl, 10 );
+			remove_action( 'requests-fsockopen.remote_socket', $sock, 10 );
+		}
+		if ( $nocurl ) return array( 'kind' => 'config', 'data' => array(), 'message' => 'Este servidor no tiene cURL para fijar la IP de Webuzo: no se llamó (la clave no salió)' );
 		self::$redact = array_filter( array( $this->key, (string) ( $post['user_passwd'] ?? '' ) ), 'strlen' );
 		// Lo que el pedido mismo pone en el mensaje (dominio, usuario) no cuenta al buscar textos de autenticación:
 		// «El dominio lista-negra.mx ya existe» no es un rechazo de clave.

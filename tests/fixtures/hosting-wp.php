@@ -274,7 +274,7 @@ add_filter(
 			foreach ( array( 'suspend' => 'suspended', 'unsuspend' => '' ) as $op => $to ) {
 				if ( 'users' !== $act || ! isset( $body[ $op ] ) ) continue;
 				if ( ! isset( $w['users'][ $body[ $op ] ] ) ) return digi_json( array( 'error' => array( 'no_user' => 'No existe tal usuario' ), 'users' => null ) );
-				if ( empty( $body['skip'] ) && 'ignora' !== $w['mode'] ) { if ( 'lento' === $w['mode'] ) $w['later'][ $body[ $op ] ] = $to; else $w['users'][ $body[ $op ] ]['status'] = $to; }
+				if ( empty( $body['skip'] ) && 'ignora' !== $w['mode'] ) { if ( 'lento' === $w['mode'] ) $w['later'][ $body[ $op ] ] = $to; else { $w['users'][ $body[ $op ] ]['status'] = $to; if ( '' === $to ) unset( $w['users'][ $body[ $op ] ]['suspend_reason'] ); } }
 				return digi_json( array( 'done' => array( 'msg' => 'suspend' === $op ? 'Usuario suspendido con éxito' : 'Usuario reactivado con éxito' ), 'users' => $w['users'], 'num_res' => count( $w['users'] ), 'reslen' => 50, 'cur_page' => 0 ) );
 			}
 			if ( 'users' === $act ) {
@@ -379,4 +379,7 @@ digi_product( 14693, 'Web Hosting Starter', 970, 'digitalisimo_starter' );
 digi_product( 14696, 'Web Hosting Pro', 5850, 'digitalisimo_pro' );
 digi_product( 20, 'Dominio .com', 300 );
 digi_product( 21, 'Dominio .mx', 600 );
-add_filter( 'digitalisimo_hosting_webuzo_host_ips', static function ( $ips, $host ) { return (array) ( $GLOBALS['dns'][ $host ] ?? array() ); }, 10, 2 );
+// DNS simulado (B3, H-5): un nombre fuera de $GLOBALS['dns'] «resuelve» a una IP pública de ejemplo, sin salir a la red.
+add_filter( 'digitalisimo_hosting_webuzo_host_ips', static function ( $ips, $host ) { return array_key_exists( $host, $GLOBALS['dns'] ) ? (array) $GLOBALS['dns'][ $host ] : array( '93.184.216.34' ); }, 10, 2 );
+function remove_filter( $hook, $cb, $prio = 10 ) { if ( empty( $GLOBALS['hooks'][ $hook ][ $prio ] ) ) return false; $GLOBALS['hooks'][ $hook ][ $prio ] = array_values( array_filter( $GLOBALS['hooks'][ $hook ][ $prio ], function ( $h ) use ( $cb ) { return $h[0] !== $cb; } ) ); if ( ! $GLOBALS['hooks'][ $hook ][ $prio ] ) unset( $GLOBALS['hooks'][ $hook ][ $prio ] ); if ( empty( $GLOBALS['hooks'][ $hook ] ) ) unset( $GLOBALS['hooks'][ $hook ] ); return true; }
+function remove_action( $hook, $cb, $prio = 10 ) { return remove_filter( $hook, $cb, $prio ); }
