@@ -301,6 +301,9 @@ jobs:
           node tests/ia-assistant-mostrar-ui.mjs
           php tests/ia-assistant-subir.php
           node tests/ia-assistant-subir-ui.mjs
+          php tests/ia-assistant-aprende.php
+          node tests/ia-assistant-aprende-ui.mjs
+          php tests/ia-assistant-cache.php
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
           php tests/performance-cache.php

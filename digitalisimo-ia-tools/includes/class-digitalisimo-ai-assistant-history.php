@@ -402,7 +402,12 @@ final class Digitalisimo_AI_Assistant_History {
 			return $out + array( 'role' => 'tool', 'ability' => (string) ( $m['ability'] ?? '' ), 'label' => (string) ( $m['label'] ?? '' ), 'kind' => (string) ( $m['kind'] ?? '' ), 'status' => (string) ( $m['status'] ?? '' ), 'summary' => (string) ( $m['summary'] ?? '' ), 'detail' => (string) ( $m['detail'] ?? '' ) );
 		}
 		if ( 'notice' === $role ) {
-			return $out + array( 'role' => 'system', 'tone' => (string) ( $m['tone'] ?? 'info' ), 'text' => (string) ( $m['text'] ?? '' ) );
+			$out += array( 'role' => 'system', 'tone' => (string) ( $m['tone'] ?? 'info' ), 'text' => (string) ( $m['text'] ?? '' ) );
+			// Una propuesta de «recordar»: la pantalla pinta la frase con «Sí, recuérdalo» y «No» (assistant-learning.js).
+			if ( is_array( $m['memory'] ?? null ) ) {
+				$out['memory'] = array( 'id' => (string) ( $m['memory']['id'] ?? '' ), 'text' => (string) ( $m['memory']['text'] ?? '' ), 'replaces' => (string) ( $m['memory']['replaces'] ?? '' ) );
+			}
+			return $out;
 		}
 		return null;
 	}
@@ -522,16 +527,19 @@ final class Digitalisimo_AI_Assistant_History {
 			$summary[] = self::summarize( self::as_stored( array_slice( $messages, 0, $cut ) ) );
 			$messages  = array_slice( $messages, $cut );
 		}
-		// Bloques thinking: sólo los del turno en curso (después del último mensaje de la persona), tal cual; quitar
-		// todos los anteriores es válido para el control de historial de la API (se quita un tramo inicial).
+		// Bloques thinking: van tal cual, también los de turnos anteriores (docs/ASSISTANT.md, «Caché»). Quitarlos al
+		// empezar cada turno era válido, pero cambiaba el principio de la conversación y la caché de la API se perdía
+		// desde el turno anterior en adelante; los modelos que no pueden leer un bloque lo descartan solos y sin cobrarlo.
+		// Con el filtro `digitalisimo_ai_assistant_replay_thinking` en false, sólo los del turno en curso (como antes).
 		$current = self::turn_starts( $messages );
 		$current = $current ? end( $current ) : 0;
+		$replay  = (bool) apply_filters( 'digitalisimo_ai_assistant_replay_thinking', true, $target );
 		foreach ( $messages as $i => $m ) {
 			if ( 'assistant' === $m['role'] ) {
 				foreach ( $m['calls'] as $j => $call ) {
 					unset( $messages[ $i ]['calls'][ $j ]['ability'] );
 				}
-				if ( $i < $current || ! $messages[ $i ]['thinking'] ) {
+				if ( ( $i < $current && ! $replay ) || ! $messages[ $i ]['thinking'] ) {
 					unset( $messages[ $i ]['thinking'] );
 				}
 			}
