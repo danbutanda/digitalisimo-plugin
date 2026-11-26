@@ -1151,6 +1151,16 @@ PHP
 		check( 'denied' === Log::entries()[0]['result'] && 'read_mode' === Log::entries()[0]['code'] && $input['action'] === Log::entries()[0]['action'] && 'skydropx' === Log::entries()[0]['tool'], 'La escritura rechazada queda en la bitácora.' );
 	}
 	check( array() === $GLOBALS['sk_rest'] && 0 === $GLOBALS['sk_orders'][51]->saves && 0 === $GLOBALS['sk_orders'][50]->saves, 'Sólo lectura: nada llegó a WooCommerce.' );
+	// Tanda B (B3): «Escritura sólo en lo elegido». Sin Skydropx marcado, sus escrituras se rechazan como en sólo
+	// lectura, diciendo qué marcar; con Skydropx marcado, escribe. Fallaba con fee02105 (el modo custom no existía).
+	sk_reset( array( 'caps' => $manager, 'options' => array_merge( $GLOBALS['sk']['options'], array( Settings::OPTION => array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array( 'products' ) ) ) ) ) );
+	$sk_store();
+	$denied = $err( $run( array( 'action' => 'resync', 'order_id' => 50 ) ), 'digitalisimo_woo_mcp_read_only', 'Escritura elegida sin Skydropx: resync se rechaza.' );
+	check( false !== strpos( $denied->get_error_message(), 'Envíos con Skydropx' ) && 0 === $GLOBALS['sk_orders'][50]->saves, 'El error dice que falta marcar Skydropx, y nada se guarda.' );
+	check( false !== strpos( Skydropx_Tool::definition( 'custom' )['description'], 'no está elegido' ), 'La descripción lo dice.' );
+	sk_reset( array( 'caps' => $manager, 'options' => array_merge( $GLOBALS['sk']['options'], array( Settings::OPTION => array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array( 'skydropx' ) ) ) ) ) );
+	$sk_store();
+	$ok( $run( array( 'action' => 'resync', 'order_id' => 50 ) ), 'Escritura elegida con Skydropx: resync se hace.' );
 	$GLOBALS['sk']['caps'] = array( 'edit_posts' );
 	sk_reset( array( 'caps' => array( 'edit_posts' ), 'options' => array_merge( $GLOBALS['sk']['options'], $write ) ) );
 	$err( $run( array( 'action' => 'resync', 'order_id' => 50 ) ), 'digitalisimo_woo_mcp_forbidden', 'Sin permiso: rechazado por run() mismo.' );
