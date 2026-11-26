@@ -167,7 +167,7 @@ function wp_remote_retrieve_response_code( $r ) { return $r['code']; }
 function wp_remote_retrieve_body( $r ) { return $r['body']; }
 
 require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai.php';
-foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', '' ) as $part ) require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant' . ( $part ? '-' . $part : '' ) . '.php';
+foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', 'uploads', '' ) as $part ) require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant' . ( $part ? '-' . $part : '' ) . '.php';
 
 $GLOBALS['options']['digitalisimo_ai_options'] = array(
 	'providers' => array( 'openai' => array( 'enabled' => 1, 'key' => KEY_OPENAI, 'url' => '' ), 'anthropic' => array( 'enabled' => 1, 'key' => KEY_ANTHROPIC, 'url' => '' ), 'google' => array( 'enabled' => 0, 'key' => 'AIzaNOPE' ) ),

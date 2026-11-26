@@ -319,7 +319,9 @@ class Digitalisimo_Integrations_RankMath_Import {
 		if ( ! empty( $g['custom_webmaster_tags'] ) ) $notes[] = 'custom_webmaster';
 		$robots_txt = trim( (string) ( $g['robots_txt_content'] ?? '' ) );
 		if ( '' !== $robots_txt ) $notes[] = 'robots_txt';
-		if ( isset( $g['redirections_post_redirect'] ) ) $want['seo_redirect_slug_watch'] = self::on( $g['redirections_post_redirect'] ) ? 1 : 0;
+		// Rank Math trae «Auto Post Redirect» apagado de fábrica: copiar ese apagado dejaba sin 301 los cambios de enlace.
+		// Sólo se importa encendido; apagado se queda el vigilante propio, que viene encendido.
+		if ( self::on( $g['redirections_post_redirect'] ?? '' ) ) $want['seo_redirect_slug_watch'] = 1;
 		if ( in_array( (int) ( $g['redirections_header_code'] ?? 0 ), array( 301, 302, 307 ), true ) ) $want['seo_redirect_default_code'] = (int) $g['redirections_header_code'];
 		if ( 'custom' === ( $g['redirections_fallback'] ?? '' ) && ! empty( $g['redirections_custom_url'] ) ) $want['seo_redirect_fallback_url'] = (string) $g['redirections_custom_url'];
 		if ( 'homepage' === ( $g['redirections_fallback'] ?? '' ) ) $notes[] = 'fallback_home';

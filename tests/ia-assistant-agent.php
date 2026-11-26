@@ -18,7 +18,7 @@
  */
 require __DIR__ . '/ia-assistant-agent/wp.php';
 require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai.php';
-foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', '' ) as $part ) require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant' . ( $part ? '-' . $part : '' ) . '.php';
+foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', 'uploads', '' ) as $part ) require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant' . ( $part ? '-' . $part : '' ) . '.php';
 require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-site-reader.php';
 
 $GLOBALS['options']['digitalisimo_ai_options'] = array(
@@ -115,7 +115,7 @@ foreach ( array( array( 'digitalisimo-woo/products', null, 'write' ), array( 'di
 		check( $case[2] === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => $case[0] ) ), $in ), "G9: {$case[0]} " . json_encode( $in ) . " es {$case[2]}" );
 	}
 }
-foreach ( array( array( array( 'sale_price' => '7500' ), 'write' ), array( array( 'status' => 'draft', 'name' => 'X' ), 'write' ), array( array( 'meta_data' => array( array( 'key' => '_x', 'value' => 1 ) ) ), 'destructive' ), array( array( 'downloads' => array( array( 'file' => 'https://x.test/a.zip' ) ) ), 'destructive' ), array( array( 'status' => 'publish' ), 'destructive' ), array( array( 'status' => 'private' ), 'destructive' ) ) as $case ) {
+foreach ( array( array( array( 'sale_price' => '7500' ), 'write' ), array( array( 'name' => 'X' ), 'write' ), array( array( 'status' => 'draft', 'name' => 'X' ), 'destructive' ), array( array( 'meta_data' => array( array( 'key' => '_x', 'value' => 1 ) ) ), 'destructive' ), array( array( 'downloads' => array( array( 'file' => 'https://x.test/a.zip' ) ) ), 'destructive' ), array( array( 'status' => 'publish' ), 'destructive' ), array( array( 'status' => 'private' ), 'destructive' ) ) as $case ) {
 	check( $case[1] === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'product_id' => 13, 'data' => $case[0] ) ), 'G10: productos update con ' . json_encode( $case[0] ) . ' es ' . $case[1] );
 }
 check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-woo/customers' ) ), array( 'action' => 'update' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'resource' => 'customer' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'elementor/manage-component' ) ), array( 'action' => 'update' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-sales/x' ) ), array( 'action' => 'update' ) ), 'G8: sólo la tienda de DIGITALÍSIMO baja a escritura; clientes, usuarios y cualquier otra herramienta (elementor/manage-component update) siguen destructivas' );

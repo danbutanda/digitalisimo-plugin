@@ -65,6 +65,19 @@ const schemes = [...ui.slice(ui.indexOf('const SCHEMES = ['), ui.indexOf('];', u
 ok(schemes.length === 8 && schemes[0] === 'digitalisimo', `Ocho paletas, DIGITALÍSIMO primero: ${schemes}`);
 for (const scheme of schemes) ok(css.includes(`[data-color-scheme="${scheme}"]`), `La paleta ${scheme} existe en la hoja`);
 
+// 2b. El estilo de los demás plugins DIGITALÍSIMO (pedido del propietario del 2026-11-26: «al asistente dale el mismo
+// estilo de los plugins en colores y todo para que se vea igual todo»): los tokens de digitalisimo-ui, no otros.
+const brand = rules.slice(rules.indexOf('.dga-root {\n  --font-size-sm: .875rem;'));
+ok(brand.length > 2000, 'E0: la hoja trae la sección con el estilo de los demás plugins');
+ok(/border-radius: var\(--digi-radius-shell, 22px\)/.test(brand) && /box-shadow: var\(--digi-shadow-card, 0 7px 22px rgba\(42,56,115,\.06\)\)/.test(brand), 'E1: la pantalla es una tarjeta como el `.wrap` (radio y sombra de la marca)');
+ok(/\.dga-title::before \{[^}]*content: "D"/.test(brand) && /--ds-assistant-mark: var\(--digi-gradient-badge,/.test(brand), 'E2: el encabezado lleva la insignia «D» con el degradado de la marca');
+ok(/\.dga-send:not\(:disabled\)[^{]*\{ background: var\(--digi-gradient, /.test(brand) && /var\(--digi-gradient-hover, /.test(brand) && /var\(--digi-shadow-button, /.test(brand), 'E3: el botón principal con el degradado, su sombra y su estado al pasar');
+ok(/\.dga-message\.is-me \.dga-bubble \{ background: var\(--digi-gradient, /.test(brand), 'E4: el mensaje de la persona con el degradado de la marca');
+ok(/var\(--digi-gradient-tab, /.test(brand) && /var\(--digi-focus-ring, /.test(brand) && /var\(--digi-radius-control, 9px\)/.test(brand) && /var\(--digi-radius-card, 15px\)/.test(brand), 'E5: pestañas, anillo de foco y radios de controles y tarjetas de digitalisimo-ui');
+ok(/@media screen and \(max-width: 782px\) \{\s*\.dga-root \{ margin: 10px;/.test(brand), 'E6: en pantallas angostas la tarjeta ocupa el ancho con el margen de las demás pantallas');
+const withoutFallbacks = (css) => { let out = ''; let i = 0; for (;;) { const at = css.indexOf('var(--digi-', i); if (at < 0) return out + css.slice(i); out += css.slice(i, at); let depth = 0; let k = at; for (; k < css.length; k++) { if (css[k] === '(') depth++; else if (css[k] === ')' && --depth === 0) break; } out += 'TOKEN'; i = k + 1; } };
+ok(!/#[0-9a-f]{3,8}\b|rgba?\(/i.test(withoutFallbacks(brand)), 'E7: la sección no trae colores propios: sólo tokens (con el respaldo de cada uno)');
+
 // 3. Adaptadores con fetch simulado.
 const calls = [];
 const encoder = new TextEncoder();

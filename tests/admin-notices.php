@@ -269,6 +269,7 @@ an_check( 'seo-foreign' === $site( 'seo-foreign' ), 'Sin red, site() deja el id 
 foreach ( array(
 	'digitalisimo-seo/includes/class-media-repair.php'                => array( "site( 'seo-media-repair' )", "site( 'seo-media-missing' )" ),
 	'digitalisimo-seo/includes/class-seo-suite.php'                   => array( "site( 'seo-foreign' )" ),
+	'digitalisimo-seo/includes/class-brand-check.php'                 => array( "site( 'seo-brand' )" ),
 	'digitalisimo-tools/modules/php-snippets/class-admin.php'         => array( "site( 'tools-php-site' )" ),
 	'digitalisimo-elements/modules/digitalisimo-woo/class-module.php' => array( "site( 'elements-woo-version' )" ),
 	'digitalisimo-elements/digitalisimo-core.php'                     => array( "site( 'elements-external' )" ),

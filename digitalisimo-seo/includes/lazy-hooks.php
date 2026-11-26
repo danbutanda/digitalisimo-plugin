@@ -222,13 +222,27 @@ return array(
 		array( 'a', 'post_updated', 'watch_post', 10, 3, '**' ),
 		array( 'a', 'edit_terms', 'remember_term', 10, 2, '**' ),
 		array( 'a', 'edited_term', 'watch_term', 10, 3, '**' ),
+		array( 'a', 'update_option_digitalisimo_integrations_options', 'watch_toggle', 10, 2, '**' ),
 		array( 'a', 'wp', 'maybe_redirect', 11, 1, 'f*' ),
 	) ),
 	'Digitalisimo_Integrations_404_Monitor' => array( 'hooks' => array(
 		array( 'a', 'admin_init', 'maybe_install', 10, 1, '**' ),
 		array( 'a', 'digitalisimo_seo_404_cleanup', 'cleanup', 10, 1, '**' ),
+		array( 'a', 'digitalisimo_seo_404_flush', 'flush', 10, 1, '**' ),
 		array( 'a', 'admin_post_digitalisimo_seo_404_action', 'handle_action', 10, 1, '**' ),
 		array( 'a', 'template_redirect', 'record', 99, 1, 'f*' ),
+	) ),
+	'Digitalisimo_Integrations_Index_Hygiene' => array( 'hooks' => array(
+		array( 'a', 'save_post', 'on_save', 30, 2, '**' ),
+		array( 'a', 'digitalisimo_seo_hygiene_scan', 'run_batch', 10, 1, '**' ),
+		array( 'a', 'admin_init', 'maybe_start', 20, 1, '**' ),
+		array( 'a', 'activated_plugin', 'request_rescan', 10, 1, '**' ),
+		array( 'a', 'deactivated_plugin', 'request_rescan', 10, 1, '**' ),
+		array( 'a', 'switch_theme', 'request_rescan', 10, 1, '**' ),
+		array( 'a', 'upgrader_process_complete', 'request_rescan', 10, 1, '**' ),
+		array( 'a', 'admin_post_digitalisimo_seo_index_lock', 'handle_lock', 10, 1, '**' ),
+		array( 'a', 'admin_post_digitalisimo_seo_hygiene_confirm', 'handle_confirm', 10, 1, '**' ),
+		array( 'a', 'wp_footer', 'sample_front', 9999, 1, 'f*' ),
 	) ),
 	'Digitalisimo_Integrations_Verification' => array( 'hooks' => array(
 		array( 'a', 'wp_head', 'output', 2, 1, '**' ),
@@ -300,6 +314,12 @@ return array(
 	) ),
 	'Digitalisimo_Integrations_SEO_Abilities_Write' => array( 'requires' => 'wp_register_ability', 'hooks' => array(
 		array( 'a', 'wp_abilities_api_init', 'register', 10, 1, '**' ),
+	) ),
+	'Digitalisimo_Integrations_Brand_Check' => array( 'hooks' => array(
+		array( 'a', 'digitalisimo_seo_brand_check', 'run', 10, 1, '**' ),
+		array( 'a', 'update_option_digitalisimo_integrations_options', 'changed', 10, 1, '**' ),
+		array( 'a', 'add_option_digitalisimo_integrations_options', 'changed', 10, 1, '**' ),
+		array( 'a', 'admin_notices', 'notice', 10, 1, '**' ),
 	) ),
 	'Digitalisimo_Integrations_Robots' => array( 'hooks' => array(
 		array( 'f', 'robots_txt', 'append', 50, 2, '**' ),
