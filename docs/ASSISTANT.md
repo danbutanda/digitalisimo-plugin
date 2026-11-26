@@ -142,6 +142,34 @@ tokens; el modelo sólo recibe las encendidas y una llamada a una apagada no se 
 Cada llamada se ejecuta con `wp_get_ability()->execute()` como el usuario que chatea (la Ability vuelve a comprobar su
 permiso), y antes se comprueba `check_permissions()` con esa entrada: sin permiso no hay ni tarjeta ni simulación.
 
+**Interruptores «sólo para el MCP externo»** (caso plomerito 4, 2026-11-26, IA Tools 1.0.74: a «revisa el sitio web y
+optimízalo en SEO» respondió «WordPress dice que tu usuario no tiene permiso…» a un administrador; lo apagado era
+«Permitir que cambien datos SEO», `seo_abilities_write`, 0 por omisión). Algunas abilities tienen un opt-in pensado para
+los clientes MCP externos. En el Asistente cada cambio ya lo confirma la persona en su tarjeta y queda en la bitácora,
+así que esas abilities preguntan a `Digitalisimo_AI_Assistant_Context` (en `class-digitalisimo-ai-assistant-tools.php`)
+si la llamada viene del Asistente: `allows( 'nombre/exacto' )` sólo es verdad si la petición es una ruta REST del
+Asistente que pasó su permiso (sesión, capacidad y el nonce propio en la cabecera; con una contraseña de aplicación no se
+arma), el Asistente abrió el contexto con `with()` para ESA ability y ese usuario (al comprobar si puede proponerla y al
+ejecutar la acción confirmada en `resolve()`), y el usuario conserva la capacidad del Asistente. Ningún parámetro,
+cabecera ni entrada lo enciende, y una ability que llama a otra no la abre. La capacidad de cada ability se sigue
+comprobando igual. Una ability que sólo pasa dentro del contexto va SIEMPRE a la tarjeta (ni lectura ni borrador sin
+confirmar).
+
+| Compuerta | ¿Bloqueaba al Asistente? | Decisión |
+|---|---|---|
+| SEO `seo_abilities_write` (update-post-seo, revert-post-seo, create-redirection) | Sí: «sin permiso» antes de la tarjeta | El Asistente la salta con tarjeta, historial (`via` `assistant`) y deshacer; los clientes externos siguen igual |
+| Tienda «WooCommerce en el MCP» en «Sólo lectura» | Sí: tras confirmar, «resultado desconocido» | Salta sólo lo que el Asistente clasifica `write` (crear o actualizar productos, variaciones y catálogo sin metadatos, descargas ni publicar); lo destructivo (borrar, lotes, pedidos, reembolsos, clientes, cupones, ajustes, envíos, Skydropx) sigue en el modo y se niega ANTES de la tarjeta diciendo el ajuste y dónde |
+| Tienda «Apagado» | No ofrece herramientas | Igual: el administrador las apagó del todo |
+| MCP del sitio de Elements apagado (`elementor_mcp_enabled`) | El catálogo no trae constructor, kit ni tienda | Igual: el registro vive en el núcleo incluido (`elementor/`, no se edita) |
+| Editor atómico (`Mcp_V4_Gate`) | Las herramientas que lo exigen no se ofrecen | Igual: sin él esas herramientas producen contenido roto; no es un permiso |
+| Kit de ventas, IA Tools (site-reader, open-assistant), SEO de lectura | No tienen opt-in | Sin cambios |
+
+**Mensajes honestos.** `Tools::denial()` distingue tres casos y el modelo recibe `motivo`: `permiso` (falta la
+capacidad del usuario; estado `denied`, «sin permiso»), `ajuste` (un ajuste apagado que el Asistente no salta: el error
+dice cuál y dónde se cambia; estado `blocked`, «apagado en ajustes»; códigos `SETTING_CODES` o `digitalisimo_setting` en
+los datos del error) y error real. A un administrador al que una herramienta se niega sin motivo (`false`) se le dice
+eso (`desconocido`), nunca que le falta un permiso. Prueba: `tests/ia-assistant-permisos.php` (falla con main v516).
+
 | Clase | Regla | Qué pasa |
 |---|---|---|
 | `read` | `annotations.readonly` es `true` estricto, sin `destructive` true, y la Ability es de un espacio de nombres de confianza (`digitalisimo-`, `elementor/`, `core/`, `mcp-adapter/` o el filtro `digitalisimo_ai_assistant_trusted_prefixes`) | se ejecuta solo |

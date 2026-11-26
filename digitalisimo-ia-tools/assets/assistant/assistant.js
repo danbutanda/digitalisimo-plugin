@@ -52,7 +52,7 @@
 	const DEFAULT_LOOK = { variant: 'classic', mode: 'light', scheme: 'digitalisimo' };
 	// En palabras de quien usa el sitio (caso plomerito 2: «arroja información técnica que el usuario nunca va a entender»).
 	const VERBS = { read: 'Consulté', draft: 'Borrador', write: 'Cambio', destructive: 'Cambio importante', unknown: 'Paso' };
-	const STATES = { ok: 'listo', error: 'no se pudo', denied: 'sin permiso', cancelled: 'cancelado', unknown: 'por revisar', skipped: 'no se hizo' };
+	const STATES = { ok: 'listo', error: 'no se pudo', denied: 'sin permiso', blocked: 'apagado en ajustes', cancelled: 'cancelado', unknown: 'por revisar', skipped: 'no se hizo' };
 	const SUGGESTIONS = [
 		[ 'Créame una landing con una oferta de uno de mis productos', 'Crear una landing de oferta' ],
 		[ 'Revisa cómo me encuentran en Google y dime qué mejorar', 'Mejorar cómo me encuentran en Google' ],
@@ -425,7 +425,7 @@
 	/** El trabajo de un turno (consultas, borradores y notas de avance), plegado en una sola línea. */
 	function WorkGroup( props ) {
 		const list = props.items;
-		const failed = list.some( ( m ) => 'tool' === m.role && [ 'error', 'denied', 'unknown' ].indexOf( m.status ) >= 0 );
+		const failed = list.some( ( m ) => 'tool' === m.role && [ 'error', 'denied', 'blocked', 'unknown' ].indexOf( m.status ) >= 0 );
 		return h( 'details', { className: 'dga-work', 'data-count': String( list.filter( ( m ) => 'tool' === m.role ).length ) },
 			h( 'summary', null, h( Icon, { name: 'check' } ), h( 'span', null, workTitle( list ) ), failed ? h( 'span', { className: 'dga-tool-state', 'data-status': 'unknown' }, 'algo no salió' ) : null ),
 			h( 'div', { className: 'dga-work-list' }, list.map( ( m ) => ( 'tool' === m.role
