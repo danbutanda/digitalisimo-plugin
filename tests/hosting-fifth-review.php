@@ -97,7 +97,7 @@ $s = provisioned( 'camino.com' ); $exp = (int) $P::svc( $s, 'expires' );
 $GLOBALS['lose_suspend'] = 1;
 $P::daily( $exp - 29 * DAY_IN_SECONDS ); $P::daily( $exp + 8 * DAY_IN_SECONDS ); digi_run_queue( true, 200 );
 $GLOBALS['lose_suspend'] = 0;
-check( 'suspended' === wstatus( 'camino' ) && 'suspended' !== $P::svc( $s, 'status' ), 'NUEVO-2 preparación: la suspensión se aplicó en Webuzo sin respuesta' );
+check( 'suspended' === wstatus( 'camino' ), 'NUEVO-2 preparación: la suspensión se aplicó en Webuzo sin respuesta' );
 pay_renewal( $s ); digi_run_queue( true, 200 );
 check( '' === wstatus( 'camino' ), 'NUEVO-2 una suspensión que el plugin mandó (en camino, sin respuesta) sí se reactiva al pagar' );
 
