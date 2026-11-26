@@ -166,7 +166,13 @@ class Digitalisimo_Hosting_Webuzo {
 		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
 			$b = @inet_pton( $ip );
 			if ( false === $b || 16 !== strlen( $b ) ) return false;
-			if ( substr( $b, 0, 12 ) === str_repeat( "\0", 10 ) . "\xff\xff" || substr( $b, 0, 12 ) === "\x00\x64\xff\x9b" . str_repeat( "\0", 8 ) ) return self::public_ip( inet_ntop( substr( $b, 12 ) ) );
+			// IPv4 dentro de IPv6: mapeada (::ffff:0:0/96), SIIT (::ffff:0:0:0/96), NAT64 (64:ff9b::/96) y 6to4 (2002::/16,
+			// la IPv4 en los bytes 2 a 5): vale lo que valga la IPv4.
+			if ( substr( $b, 0, 12 ) === str_repeat( "\0", 10 ) . "\xff\xff" || substr( $b, 0, 12 ) === str_repeat( "\0", 8 ) . "\xff\xff\0\0" || substr( $b, 0, 12 ) === "\x00\x64\xff\x9b" . str_repeat( "\0", 8 ) ) return self::public_ip( inet_ntop( substr( $b, 12 ) ) );
+			if ( "\x20\x02" === substr( $b, 0, 2 ) ) return self::public_ip( inet_ntop( substr( $b, 2, 4 ) ) );
+			// NAT64 de uso local (64:ff9b:1::/48), Teredo (2001::/32), descarte (100::/64), sitio local (fec0::/10) y
+			// multidifusión (ff00::/8): nunca son el panel.
+			if ( "\x00\x64\xff\x9b\x00\x01" === substr( $b, 0, 6 ) || "\x20\x01\x00\x00" === substr( $b, 0, 4 ) || "\x01\x00" . str_repeat( "\0", 6 ) === substr( $b, 0, 8 ) || "\xff" === $b[0] || preg_match( '/^fe[c-f]/i', bin2hex( substr( $b, 0, 2 ) ) ) ) return false;
 			if ( substr( $b, 0, 12 ) === str_repeat( "\0", 12 ) ) return false; // ::, ::1 y las compatibles con IPv4
 			if ( preg_match( '/^(fe[89ab]|f[cd])/i', bin2hex( substr( $b, 0, 2 ) ) ) ) return false; // link-local y únicas locales
 			return (bool) filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE );
