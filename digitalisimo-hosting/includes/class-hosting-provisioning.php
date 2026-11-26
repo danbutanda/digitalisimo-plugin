@@ -916,7 +916,11 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( $w && ! Digitalisimo_Hosting_Webuzo::from_settings()->blocked() ) self::on_unblocked();
 		$grace = (int) ( Digitalisimo_Hosting::settings()['grace_days'] ?? 7 );
 		foreach ( self::services() as $id ) {
-			try { self::watchdog( $id ); self::renewal_watchdog( $id ); self::reconcile_net( $id ); self::check_service( $id, $now, $grace ); } catch ( Throwable $e ) { self::svc_log( $id, 'Error en la revisión diaria: ' . $e->getMessage() ); }
+			try {
+				self::watchdog( $id ); self::renewal_watchdog( $id ); self::reconcile_net( $id ); self::check_service( $id, $now, $grace );
+				// Lo anotado con la venta apagada se retoma aunque se haya encendido sin pasar por los ajustes.
+				if ( self::svc( $id, 'resume_provision' ) ) { self::svc_set( $id, array( 'resume_provision' => 0 ) ); self::retry( $id ); }
+			} catch ( Throwable $e ) { self::svc_log( $id, 'Error en la revisión diaria: ' . $e->getMessage() ); }
 		}
 	}
 

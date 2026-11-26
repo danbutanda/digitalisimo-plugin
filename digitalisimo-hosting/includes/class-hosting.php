@@ -324,7 +324,9 @@ class Digitalisimo_Hosting {
 		$in = (array) wp_unslash( $_POST['hosting'] ?? array() );
 		// La clave de Webuzo que usaba esta pantalla antes de guardar (la heredada o la de wp-config.php también cuentan).
 		$old_webuzo = $network ? (string) ( $o['webuzo_api_key'] ?? '' ) : (string) ( self::all()['webuzo_api_key'] ?? '' );
-		$was_on = ! $network && ! empty( $o['provision_enabled'] );
+		$was_sale = ! $network && ! empty( $o['provision_enabled'] );
+		// Encendida de verdad = módulo y venta (reencender el módulo con la venta ya marcada también retoma lo anotado).
+		$was_on = $was_sale && ( ! array_key_exists( 'enabled', $o ) || ! empty( $o['enabled'] ) );
 		// Con la clave en wp-config.php, URL, usuario y verificación del certificado no se aceptan desde el formulario.
 		if ( defined( self::CONSTANTS['webuzo_api_key'] ) ) unset( $in['webuzo_url'], $in['webuzo_api_user'], $in['webuzo_insecure'] );
 		$text = $network ? array( 'api_user', 'username', 'client_ip', 'webuzo_api_user' ) : array( 'api_user', 'username', 'client_ip', 'form_selector', 'domain_field', 'extension_field', 'webuzo_api_user' );
@@ -352,7 +354,7 @@ class Digitalisimo_Hosting {
 			elseif ( ! empty( $in[ $key . '_remove' ] ) ) $o[ $key ] = '';
 		}
 		// Al encender la venta automática se anota desde cuándo: los pedidos anteriores nunca se aprovisionan solos.
-		if ( ! $network && ! $was_on && ! empty( $o['provision_enabled'] ) ) $o['provision_since'] = time();
+		if ( ! $network && ! $was_sale && ! empty( $o['provision_enabled'] ) ) $o['provision_since'] = time();
 		if ( $network ) update_site_option( self::OPTION, $o ); else update_option( self::OPTION, $o, false );
 		// La parada por clave rechazada es de la CLAVE: una clave distinta guardada ya no está detenida (y se retoma lo
 		// detenido). La misma clave sólo con «Ya corregí la causa».
@@ -366,7 +368,7 @@ class Digitalisimo_Hosting {
 		if ( ! $network && ! empty( $o['provision_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) {
 			Digitalisimo_Hosting_Provisioning::ensure_daily();
 			// Al reencenderla: las renovaciones cobradas que quedaron pendientes se encolan (las altas anteriores, no).
-			if ( ! $was_on ) Digitalisimo_Hosting_Provisioning::sweep_renewals();
+			if ( ! $was_on && ( ! array_key_exists( 'enabled', $o ) || ! empty( $o['enabled'] ) ) ) Digitalisimo_Hosting_Provisioning::sweep_renewals();
 		}
 		if ( ! $network && ! empty( $o['pricing_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Pricing' ) ) Digitalisimo_Hosting_Pricing::ensure_schedule();
 	}
