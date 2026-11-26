@@ -104,7 +104,7 @@ function wp_safe_redirect( $u ) { $GLOBALS['redirect'] = $u; throw new Digi_Test
 function wp_next_scheduled( $hook, $args = array() ) { return $GLOBALS['cron'][ $hook ] ?? false; }
 function wp_schedule_event( $t, $r, $hook, $args = array() ) { $GLOBALS['cron'][ $hook ] = $t; return true; }
 function wp_schedule_single_event( $t, $hook, $args = array() ) { $GLOBALS['cron'][ $hook ] = $t; return true; }
-class WP_Error { public $code; public $message; public function __construct( $code = '', $message = '', $data = null ) { $this->code = $code; $this->message = $message; } public function get_error_message() { return $this->message; } }
+class WP_Error { public $code; public $message; public function __construct( $code = '', $message = '', $data = null ) { $this->code = $code; $this->message = $message; } public function get_error_message() { return $this->message; } public function get_error_code() { return $this->code; } }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 
 // ── Correo ──────────────────────────────────────────────────────────────────────────────────────────────────
