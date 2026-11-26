@@ -432,9 +432,8 @@ class Digitalisimo_Hosting {
 		$o = self::all();
 		$nc = new Digitalisimo_Hosting_Namecheap( $o );
 		if ( empty( $o['enabled'] ) || ! $nc->configured() ) return new WP_Error( 'not_configured', 'La consulta de dominios no está configurada.', array( 'status' => 503 ) );
-		$r = $nc->check( $domain );
-		if ( 'transient' === $r['kind'] ) return new WP_Error( 'namecheap_unavailable', 'No fue posible consultar el dominio. Intenta de nuevo en un momento.', array( 'status' => 503 ) );
-		if ( 'ok' !== $r['kind'] ) return new WP_Error( 'namecheap_response', 'No fue posible consultar el dominio.', array( 'status' => 502 ) );
+		$r = class_exists( 'Digitalisimo_Hosting_Checkout' ) ? Digitalisimo_Hosting_Checkout::lookup( $domain, false ) : $nc->check( $domain, 15 );
+		if ( 'ok' !== $r['kind'] ) return new WP_Error( 'namecheap_unavailable', 'No fue posible consultar el dominio. Intenta de nuevo en un momento.', array( 'status' => 503 ) );
 		$out = array( 'domain' => $domain, 'available' => ! empty( $r['available'] ), 'premium' => ! empty( $r['premium'] ) );
 		$split = class_exists( 'Digitalisimo_Hosting_Provisioning' ) ? Digitalisimo_Hosting_Provisioning::split( $domain ) : null;
 		$map = self::products();
@@ -561,13 +560,14 @@ class Digitalisimo_Hosting {
 	 * Lo que la herramienta MCP puede escribir: lo de la tienda de este sitio (pedido del propietario del 2026-11-26: el
 	 * agente que arma las landings configura Hosting sin el formulario).
 	 */
-	const MCP_WRITABLE = array( 'enabled', 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'form_selector', 'domain_field', 'extension_field', 'webuzo_user_prefix', 'grace_days', 'pricing_enabled', 'pricing_cushion', 'pricing_margin', 'pricing_fee', 'pricing_vat', 'pricing_min_margin', 'pricing_rounding' );
+	const MCP_WRITABLE = array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'form_selector', 'domain_field', 'extension_field', 'webuzo_user_prefix', 'pricing_enabled', 'pricing_cushion', 'pricing_margin', 'pricing_fee', 'pricing_vat', 'pricing_min_margin', 'pricing_rounding' );
 	/**
 	 * Lo que por MCP sólo se lee: la cuenta de Namecheap (y si se hereda de la red), el servidor y la clave de Webuzo, los
-	 * nameservers, el token de Banxico y las casillas que gastan dinero o crean cuentas solas (la venta automática y el
-	 * hosting con dominio propio sin revisión), que siguen apagadas hasta que una persona las enciende en el escritorio.
+	 * nameservers, el token de Banxico y lo que enciende, apaga o adelanta la venta automática (el módulo `enabled`, que
+	 * con la venta marcada la reanuda; la venta; el hosting con dominio propio sin revisión; los días de gracia antes de
+	 * suspender): eso lo cambia una persona en el escritorio.
 	 */
-	const MCP_READONLY = array( 'api_user', 'username', 'api_key', 'client_ip', 'inherit_network', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers', 'banxico_token', 'provision_enabled', 'own_domain_auto' );
+	const MCP_READONLY = array( 'api_user', 'username', 'api_key', 'client_ip', 'inherit_network', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers', 'banxico_token', 'enabled', 'provision_enabled', 'own_domain_auto', 'grace_days' );
 	const MCP_BOOL = array( 'enabled', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'pricing_enabled', 'webuzo_insecure', 'provision_enabled', 'own_domain_auto', 'inherit_network' );
 	/** La cuenta de Namecheap: por MCP sólo se dice si está puesta, nunca su valor. */
 	const NAMECHEAP_ACCOUNT = array( 'api_user', 'username', 'api_key', 'client_ip' );
@@ -587,8 +587,11 @@ class Digitalisimo_Hosting {
 	public static function mcp_settings() {
 		$o = self::all();
 		$settings = array();
+		$inherits = self::inherits();
 		foreach ( array_keys( self::defaults() ) as $key ) {
 			if ( in_array( $key, self::SECRET_KEYS, true ) || in_array( $key, self::NAMECHEAP_ACCOUNT, true ) ) continue;
+			// Con «Heredar», el servidor Webuzo y los nameservers son de la red: como en la pantalla, no se muestran.
+			if ( $inherits && in_array( $key, self::NETWORK_KEYS, true ) ) { $settings[ $key ] = null; continue; }
 			$settings[ $key ] = self::mcp_value( $key, $o[ $key ] ?? '' );
 		}
 		$set = array();
@@ -597,6 +600,7 @@ class Digitalisimo_Hosting {
 		foreach ( self::CONSTANTS as $key => $constant ) $constants[ $constant ] = defined( $constant );
 		return array(
 			'ok'              => true,
+			'inherited'       => $inherits ? array_values( array_diff( self::NETWORK_KEYS, self::NAMECHEAP_ACCOUNT, self::SECRET_KEYS ) ) : array(),
 			'scope'           => array(
 				'site'      => function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1,
 				'multisite' => is_multisite(),
@@ -606,7 +610,7 @@ class Digitalisimo_Hosting {
 			'secrets_set'     => $set,
 			'namecheap'       => array(
 				'configured' => $set['api_user'] && $set['username'] && $set['api_key'] && $set['client_ip'],
-				'source'     => self::inherits() ? 'network' : 'site',
+				'source'     => $inherits ? 'network' : 'site',
 			),
 			'wp_config'       => $constants,
 			'writable'        => self::MCP_WRITABLE,
