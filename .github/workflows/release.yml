@@ -335,6 +335,7 @@ jobs:
           php tests/hosting-wpconfig-lock.php
           php tests/hosting-sixth-review.php
           php tests/hosting-seventh-review.php
+          php tests/hosting-eighth-review.php
           php tests/backups-sftp.php
           php tests/backups-sftp-phpseclib.php
           php tests/backups-sftp-keys.php

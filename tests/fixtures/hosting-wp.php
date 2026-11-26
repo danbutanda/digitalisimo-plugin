@@ -133,7 +133,13 @@ function get_post_meta( $id, $k, $single = false ) {
 	if ( ! array_key_exists( $id, $GLOBALS['rt_meta'] ) ) $GLOBALS['rt_meta'][ $id ] = $GLOBALS['postmeta'][ $id ] ?? array();
 	return $GLOBALS['rt_meta'][ $id ][ $k ] ?? '';
 }
-function update_post_meta( $id, $k, $v ) { $GLOBALS['postmeta'][ (int) $id ][ $k ] = $v; unset( $GLOBALS['rt_meta'][ (int) $id ] ); return true; }
+// $GLOBALS['meta_trig'] = array( clave, callback ): al escribir esa meta, otra petición corre el callback (una vez).
+$GLOBALS['meta_trig'] = null;
+function update_post_meta( $id, $k, $v ) {
+	$GLOBALS['postmeta'][ (int) $id ][ $k ] = $v; unset( $GLOBALS['rt_meta'][ (int) $id ] );
+	$t = $GLOBALS['meta_trig']; if ( $t && $t[0] === $k ) { $GLOBALS['meta_trig'] = null; other_request( $t[1] ); }
+	return true;
+}
 function has_term() { return false; }
 
 // ── WooCommerce ─────────────────────────────────────────────────────────────────────────────────────────────

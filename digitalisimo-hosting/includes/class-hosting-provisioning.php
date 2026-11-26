@@ -104,11 +104,50 @@ class Digitalisimo_Hosting_Provisioning {
 	 * Justo antes de cada llamada que cobra o crea (registrar o renovar un dominio, crear una cuenta): ¿sigue encendida
 	 * la venta y vivo el servicio? Si no, no se llama.
 	 */
-	private static function may_spend( $service ) {
+	private static function may_spend( $service, $order = null ) {
 		self::refresh( $service );
 		if ( $service && 'cancelled' === self::svc( $service, 'status' ) ) return self::stop( 'cancelled', 'El servicio se dio de baja mientras corría la tarea' );
 		if ( ! self::on() ) return self::stop( 'off', 'La venta automática se apagó mientras corría la tarea' );
+		// El pedido, leído de la base: otra petición pudo reembolsarlo o cancelarlo.
+		if ( $order && in_array( self::db_order_status( $order ), self::DEAD, true ) ) return self::stop( 'dead', 'El pedido se reembolsó o canceló mientras corría la tarea' );
 		return null;
+	}
+
+	/** Estados de un pedido en los que ya no se gasta nada. */
+	const DEAD = array( 'refunded', 'cancelled', 'failed', 'trash' );
+
+	/**
+	 * El estado del pedido directo de la base (sin la copia de la petición ni la caché de pedidos): la tabla de
+	 * pedidos de WooCommerce (HPOS) o la de entradas. Sin $wpdb (pruebas), el del objeto.
+	 */
+	private static function db_order_status( $order ) {
+		global $wpdb;
+		$id = (int) $order->get_id();
+		if ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'get_var' ) ) {
+			$hpos = class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' ) && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+			$v = $hpos ? $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$wpdb->prefix}wc_orders WHERE id = %d", $id ) ) : $wpdb->get_var( $wpdb->prepare( "SELECT post_status FROM {$wpdb->posts} WHERE ID = %d", $id ) );
+			if ( is_string( $v ) && '' !== $v ) return 0 === strpos( $v, 'wc-' ) ? substr( $v, 3 ) : $v;
+		}
+		return (string) $order->get_status();
+	}
+
+	/**
+	 * Escribe el estado del servicio sólo si en la base sigue siendo $expected (otra petición pudo darlo de baja entre
+	 * la lectura y la escritura): un UPDATE condicional con $wpdb; sin él, una relectura inmediata.
+	 */
+	private static function set_status_if( $id, $expected, $new ) {
+		global $wpdb;
+		$id = (int) $id;
+		if ( isset( $wpdb ) && is_object( $wpdb ) && method_exists( $wpdb, 'query' ) ) {
+			if ( (string) $new === (string) $expected ) $ok = (string) $expected === (string) $wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key = %s ORDER BY meta_id DESC LIMIT 1", $id, '_dhs_status' ) );
+			else $ok = (bool) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->postmeta} SET meta_value = %s WHERE post_id = %d AND meta_key = %s AND meta_value = %s", $new, $id, '_dhs_status', $expected ) );
+			if ( function_exists( 'wp_cache_delete' ) ) wp_cache_delete( $id, 'post_meta' );
+			return $ok;
+		}
+		self::refresh( $id );
+		if ( (string) self::svc( $id, 'status' ) !== (string) $expected ) return false;
+		update_post_meta( $id, '_dhs_status', $new );
+		return true;
 	}
 
 	/**
@@ -125,15 +164,18 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( ! empty( $state['domain']['registered'] ) && empty( $state['domain']['existed'] ) ) $spent[] = 'el dominio ' . $domain . ' quedó registrado en Namecheap';
 			if ( 'done' === ( $state['hosting']['status'] ?? '' ) ) $spent[] = 'la cuenta «' . ( $state['hosting']['user'] ?? '' ) . '» quedó creada en Webuzo';
 		}
-		$cancelled = 'cancelled' === $kind;
-		$text = ( $cancelled ? 'El servicio se dio de baja' : 'La venta automática se apagó' ) . ' mientras corría la tarea: no se hizo nada más'
+		$cancelled = 'cancelled' === $kind || 'dead' === $kind; // la baja del servicio o el pedido reembolsado/cancelado
+		$why = 'cancelled' === $kind ? 'El servicio se dio de baja' : ( 'dead' === $kind ? 'El pedido pasó a «' . self::db_order_status( $order ) . '»' : 'La venta automática se apagó' );
+		$text = $why . ' mientras corría la tarea: no se hizo nada más'
 			. ( $spent ? ', pero ' . implode( ' y ', $spent ) . '.' : '.' )
-			. ( $cancelled ? ( $spent ? ' Reembolsa el pedido o cancela a mano lo creado.' : '' ) : ' Al encender la venta se retoma lo que falta.' );
+			. ( $cancelled ? ( $spent ? ' Reembolsa el pedido o cancela a mano lo creado.' : ( $is_renew && 'cancelled' === $kind ? ' Reembolsa la renovación pagada.' : '' ) ) : ' Al encender la venta se retoma lo que falta.' );
 		unset( $state['attempts'] );
 		$order->update_meta_data( $is_renew ? self::META_RENEW : self::META_STATE, $state ); $order->save();
 		if ( ! $cancelled && $service && ! $is_renew ) self::svc_set( $service, array( 'resume_provision' => time() ) );
 		if ( $service ) self::svc_log( $service, $text );
-		if ( self::note_once( $order, 'interrupted_' . $kind . ( $spent ? '_spent' : '' ), $text ) && $cancelled && $spent ) self::alert_admin( 'dado de baja con gasto: ' . $domain, $text . "\n\nPedido: " . self::order_link( $order ) );
+		// Aviso al administrador cuando hay algo que reembolsar o cancelar: lo gastado, o una renovación pagada de un
+		// servicio que se dio de baja a media tarea.
+		if ( self::note_once( $order, 'interrupted_' . $kind . ( $spent ? '_spent' : '' ), $text ) && $cancelled && ( $spent || ( $is_renew && 'cancelled' === $kind ) ) ) self::alert_admin( ( $spent ? ( 'dead' === $kind ? 'pedido reembolsado con gasto: ' : 'dado de baja con gasto: ' ) : 'renovación pagada de un servicio dado de baja: ' ) . $domain, $text . "\n\nPedido: " . self::order_link( $order ) );
 	}
 
 	public static function ensure_daily() {
@@ -206,6 +248,9 @@ class Digitalisimo_Hosting_Provisioning {
 			$o = Digitalisimo_Hosting::settings();
 			if ( empty( $o['enabled'] ) || ! function_exists( 'wc_get_order' ) ) return;
 			$order = wc_get_order( $order_id );
+			$rid = $order ? (int) $order->get_meta( self::META_RENEWAL ) : 0;
+			// La renovación de un servicio desplazado no se retomará al encender: se dice así y se avisa para reembolsar.
+			if ( $rid && self::is_service( $rid ) && ! self::owns_account( $rid ) && self::payment_confirmed( $order ) ) { self::superseded_paid( $order, $rid ); return; }
 			if ( $order && ( $order->get_meta( self::META_RENEWAL ) || self::items( $order )['hosting'] || self::items( $order )['domains'] ) ) self::note_once( $order, 'sale_off', 'la venta automática está apagada: este pedido no se aprovisiona ni se renueva solo. Al encenderla, las renovaciones cobradas se retoman y las altas quedan para revisar a mano.' );
 			return;
 		}
@@ -219,6 +264,7 @@ class Digitalisimo_Hosting_Provisioning {
 				return;
 			}
 		}
+		if ( $renewal && self::is_service( $renewal ) && ! self::owns_account( $renewal ) ) { self::superseded_paid( $order, $renewal ); return; }
 		if ( $renewal && 'cancelled' === self::svc( $renewal, 'status' ) ) {
 			// El servicio se dio de baja: la renovación pagada no renueva nada; hay que reembolsar.
 			if ( self::note_once( $order, 'cancelled', 'el servicio ' . self::svc( $renewal, 'domain' ) . ' está dado de baja: esta renovación pagada NO se aplica. Reembólsala.' ) ) self::alert_admin( 'renovación pagada de un servicio dado de baja', 'Se pagó la renovación #' . $order->get_id() . ' de ' . self::svc( $renewal, 'domain' ) . ', que está dado de baja: no se renovó nada. Reembólsala al cliente.' . "\n\n" . self::order_link( $order ) );
@@ -495,12 +541,17 @@ class Digitalisimo_Hosting_Provisioning {
 			// Dado de baja mientras corría la última llamada: no se escribe el estado; se avisa lo gastado.
 			self::refresh( $service );
 			if ( $service && 'cancelled' === self::svc( $service, 'status' ) ) { self::interrupted( $order, $state, 'cancelled', $service, false ); return; }
+			// Reembolsado o cancelado en otra petición: nunca se pasa a «completado».
+			if ( in_array( self::db_order_status( $order ), self::DEAD, true ) ) { self::interrupted( $order, $state, 'dead', $service, false ); return; }
+			// La escritura final es condicional: sólo si el servicio sigue en el estado leído (una baja entre medias gana).
+			$cur = (string) self::svc( $service, 'status' );
+			if ( 'cancelled' === $cur || ! self::set_status_if( $service, $cur, 'active' ) ) { self::interrupted( $order, $state, 'cancelled', $service, false ); return; }
 			$state['done'] = time(); unset( $state['attempts'], $state['blocked_noted'] );
 			self::save_state( $order, $state );
 			$expires = strtotime( '+1 year', time() );
-			self::svc_set( $service, array( 'status' => 'active', 'expires' => $expires, 'error' => '', 'started' => time() ) );
+			self::svc_set( $service, array( 'expires' => $expires, 'error' => '', 'started' => time() ) );
 			self::svc_log( $service, 'Aprovisionado con el pedido #' . $order->get_id() . '.' );
-			if ( in_array( $order->get_status(), array( 'processing', 'on-hold' ), true ) ) $order->update_status( 'completed', 'DIGITALÍSIMO Hosting: servicio entregado; vence el ' . self::date( $expires ) . '.' );
+			if ( in_array( self::db_order_status( $order ), array( 'processing', 'on-hold' ), true ) ) $order->update_status( 'completed', 'DIGITALÍSIMO Hosting: servicio entregado; vence el ' . self::date( $expires ) . '.' );
 		} catch ( Throwable $e ) {
 			self::fail( $order, $state, array( 'kind' => 'api', 'message' => 'Error interno: ' . $e->getMessage() ), self::HOOK_PROVISION, $order->get_id(), (int) $order->get_meta( self::META_SERVICE ) );
 		}
@@ -652,7 +703,7 @@ class Digitalisimo_Hosting_Provisioning {
 		// Otra vez el dueño, justo antes de crear (nada guardado de antes cuenta).
 		$owner = self::check_owner( $order, $state, $items, $domain, $service );
 		if ( $owner ) return $owner;
-		$halt = self::may_spend( $service );
+		$halt = self::may_spend( $service, $order );
 		if ( $halt ) return $halt;
 		$r = $api->create_user( $mine, $domain, $password, (string) $order->get_billing_email(), $plan );
 		$r['message'] = str_replace( $password, '••••', (string) $r['message'] );
@@ -738,7 +789,7 @@ class Digitalisimo_Hosting_Provisioning {
 				if ( 'ok' !== $balance['kind'] ) return self::stop( self::nc_kind( $balance ), $balance['message'] );
 				if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en Namecheap para registrar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );
 				// Justo antes de cobrar: ¿sigue vivo el servicio y encendida la venta? (otra petición pudo cambiarlo)
-				$halt = self::may_spend( $service );
+				$halt = self::may_spend( $service, $order );
 				if ( $halt ) return $halt;
 				// Antes de pedirlo: si la respuesta se pierde, el reintento sabrá que este pedido lo registró.
 				$state['domain'] = array( 'create_sent' => time() );
@@ -837,7 +888,7 @@ class Digitalisimo_Hosting_Provisioning {
 		// Baja o venta apagada a medio camino: el estado del servicio no se pisa (ni «en espera» ni reintentos).
 		if ( $service ) self::refresh( $service );
 		if ( $service && 'cancelled' === self::svc( $service, 'status' ) ) $kind = 'cancelled';
-		if ( 'cancelled' === $kind || 'off' === $kind ) { self::interrupted( $order, $state, $kind, $service, self::HOOK_RENEW === $hook ); return; }
+		if ( 'cancelled' === $kind || 'off' === $kind || 'dead' === $kind ) { self::interrupted( $order, $state, $kind, $service, self::HOOK_RENEW === $hook ); return; }
 		if ( 'owner' === $kind && $service ) self::svc_set( $service, array( 'owner_conflict' => 1 ) );
 		if ( 'review' === $kind && $service ) self::svc_set( $service, array( 'needs_review' => 1 ) );
 		$is_renew = self::HOOK_RENEW === $hook;
@@ -977,8 +1028,9 @@ class Digitalisimo_Hosting_Provisioning {
 	 */
 	public static function renewal_watchdog( $id ) {
 		if ( 'cancelled' === self::svc( $id, 'status' ) ) return false;
-		// El servicio viejo de un dominio recontratado no se renueva: nada que retomar (su pago ya se avisó para reembolsar).
-		if ( ! self::owns_account( $id ) ) return false;
+		// El servicio viejo de un dominio recontratado no se renueva: su renovación pagada se detiene y se avisa para
+		// reembolsar (una vez), en vez de retomarla.
+		if ( ! self::owns_account( $id ) ) { $r = self::renewal_pending( $id ); if ( $r ) self::superseded_paid( $r, $id ); return false; }
 		$r = self::renewal_pending( $id );
 		if ( ! $r ) return false;
 		if ( function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( self::HOOK_RENEW, array( $r->get_id() ), self::GROUP ) ) return false;
@@ -1137,15 +1189,7 @@ class Digitalisimo_Hosting_Provisioning {
 			return;
 		}
 		// La cuenta de Webuzo es hoy de un servicio más nuevo del mismo dominio (recontratado): éste no renueva nada.
-		if ( ! self::owns_account( $id ) ) {
-			$text = 'la cuenta de Webuzo de ' . self::svc( $id, 'domain' ) . ' es hoy de un servicio más nuevo: esta renovación pagada NO se aplica. Reembólsala y da de baja el servicio viejo.';
-			// Detenida (el vigilante no la vuelve a encolar) y un aviso por cada renovación pagada, aunque el del servicio
-			// ya hubiera salido.
-			$state['stopped'] = 'superseded'; $order->update_meta_data( self::META_RENEW, $state ); $order->save();
-			self::superseded( $id );
-			if ( self::note_once( $order, 'superseded', $text ) ) self::alert_admin( 'renovación pagada de un servicio viejo: ' . self::svc( $id, 'domain' ), ucfirst( $text ) . "\n\n" . self::order_link( $order ) );
-			return;
-		}
+		if ( ! self::owns_account( $id ) ) { self::superseded_paid( $order, $id ); return; }
 		$state = self::take_retry( $order, $state, self::META_RENEW );
 		try {
 			// El dominio y el hosting por separado: si el dominio no se puede renovar (saldo, costo, error de Namecheap), el
@@ -1169,14 +1213,20 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( $stop ) { self::fail( $order, $state, $stop, self::HOOK_RENEW, $order->get_id(), $id ); return; }
 			if ( empty( $state['extended'] ) ) {
 				// Lo recién leído manda: un servicio dado de baja nunca vuelve a «activo» ni gana un año.
+				// cancel_suspension() escribe en el servicio: va antes de la relectura, no entre ella y la escritura final.
+				self::cancel_suspension( $id, 'renovado con el pedido #' . $order->get_id() );
 				self::refresh( $id );
-				if ( 'cancelled' === self::svc( $id, 'status' ) ) { self::interrupted( $order, $state, 'cancelled', $id, true ); return; }
+				$cur = (string) self::svc( $id, 'status' );
+				if ( 'cancelled' === $cur ) { self::interrupted( $order, $state, 'cancelled', $id, true ); return; }
+				if ( in_array( self::db_order_status( $order ), self::DEAD, true ) ) { self::interrupted( $order, $state, 'dead', $id, true ); return; }
+				$to = $manual ? $cur : ( 'suspended' === $cur && self::svc( $id, 'webuzo_user' ) ? 'suspended' : 'active' );
+				// Condicional: sólo si el servicio sigue en el estado leído (una baja entre medias gana y no se extiende).
+				if ( ! self::set_status_if( $id, $cur, $to ) ) { self::interrupted( $order, $state, 'cancelled', $id, true ); return; }
 				$old = (int) self::svc( $id, 'expires' );
 				$new = strtotime( '+1 year', $old ? $old : time() );
 				$state['extended'] = $new;
 				$order->update_meta_data( self::META_RENEW, $state ); $order->save();
-				self::cancel_suspension( $id, 'renovado con el pedido #' . $order->get_id() );
-				self::svc_set( $id, $manual ? array( 'expires' => $new, 'renewal_order' => 0, 'notices' => array(), 'error' => '', 'reprieve_until' => 0 ) : array( 'expires' => $new, 'status' => 'suspended' === self::svc( $id, 'status' ) && self::svc( $id, 'webuzo_user' ) ? 'suspended' : 'active', 'renewal_order' => 0, 'last_renewal_order' => $order->get_id(), 'notices' => array(), 'error' => '', 'suspend_reason' => '', 'suspend_for' => 0, 'reprieve_until' => 0 ) );
+				self::svc_set( $id, $manual ? array( 'expires' => $new, 'renewal_order' => 0, 'notices' => array(), 'error' => '', 'reprieve_until' => 0 ) : array( 'expires' => $new, 'renewal_order' => 0, 'last_renewal_order' => $order->get_id(), 'notices' => array(), 'error' => '', 'suspend_reason' => '', 'suspend_for' => 0, 'reprieve_until' => 0 ) );
 				self::svc_log( $id, 'Renovado con el pedido #' . $order->get_id() . ' hasta el ' . self::date( $new ) . '.' );
 			}
 			if ( $dstop ) {
@@ -1190,7 +1240,7 @@ class Digitalisimo_Hosting_Provisioning {
 			$order->update_meta_data( self::META_RENEW, $state ); $order->save();
 			$email = self::email( 'Digitalisimo_Hosting_Email_Renewal' );
 			if ( $email && $email->is_enabled() ) $email->trigger( $order, array( 'type' => 'renewed', 'domain' => (string) self::svc( $id, 'domain' ), 'expires' => (int) $state['extended'], 'pay_url' => '', 'grace' => 0 ) );
-			if ( in_array( $order->get_status(), array( 'processing', 'on-hold' ), true ) ) $order->update_status( 'completed', 'DIGITALÍSIMO Hosting: renovado hasta el ' . self::date( (int) $state['extended'] ) . '.' );
+			if ( in_array( self::db_order_status( $order ), array( 'processing', 'on-hold' ), true ) ) $order->update_status( 'completed', 'DIGITALÍSIMO Hosting: renovado hasta el ' . self::date( (int) $state['extended'] ) . '.' );
 			else $order->add_order_note( 'DIGITALÍSIMO Hosting: renovado hasta el ' . self::date( (int) $state['extended'] ) . '.' );
 		} catch ( Throwable $e ) {
 			self::fail( $order, $state, array( 'kind' => 'api', 'message' => 'Error interno: ' . $e->getMessage() ), self::HOOK_RENEW, $order->get_id(), $id );
@@ -1225,7 +1275,7 @@ class Digitalisimo_Hosting_Provisioning {
 		$balance = $nc->balance();
 		if ( 'ok' !== $balance['kind'] ) return self::stop( self::nc_kind( $balance ), $balance['message'] );
 		if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en Namecheap para renovar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );
-		$halt = self::may_spend( $id );
+		$halt = self::may_spend( $id, $order );
 		if ( $halt ) return $halt;
 		$r = $nc->renew( $domain, 1 );
 		if ( 'ok' !== $r['kind'] ) return self::stop( self::nc_kind( $r ), $r['message'] );
@@ -1471,6 +1521,19 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( (int) self::svc( $sid, 'created' ) > $mine || ( (int) self::svc( $sid, 'created' ) === $mine && $sid > (int) $id ) ) return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Una renovación pagada de un servicio desplazado (la cuenta de Webuzo es de uno más nuevo del mismo dominio): no se
+	 * aplica, queda detenida (el vigilante no la vuelve a encolar) y se avisa para reembolsar, una vez por pedido, venga
+	 * del pago, de la tarea o del vigilante (también si se pagó con la venta apagada).
+	 */
+	private static function superseded_paid( $order, $id ) {
+		$text = 'la cuenta de Webuzo de ' . self::svc( $id, 'domain' ) . ' es hoy de un servicio más nuevo: esta renovación pagada NO se aplica. Reembólsala y da de baja el servicio viejo.';
+		$state = (array) $order->get_meta( self::META_RENEW );
+		if ( empty( $state['stopped'] ) ) { $state['stopped'] = 'superseded'; $order->update_meta_data( self::META_RENEW, $state ); $order->save(); }
+		self::superseded( $id );
+		if ( self::note_once( $order, 'superseded', $text ) ) self::alert_admin( 'renovación pagada de un servicio viejo: ' . self::svc( $id, 'domain' ), ucfirst( $text ) . "\n\n" . self::order_link( $order ) );
 	}
 
 	/** El servicio viejo de un dominio recontratado: sin avisos ni renovaciones; se pide darlo de baja (una vez). */
