@@ -1,0 +1,21 @@
+/* IA Tools · Uso de IA (docs/IA_USAGE.md). Sólo tokens de digitalisimo-ui, con su valor como respaldo. */
+.digitalisimo-ai-usage .digitalisimo-usage-period{display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:none;padding:12px 16px}
+.digitalisimo-ai-usage .digitalisimo-usage-period label{display:inline-flex;gap:6px;align-items:center}
+.digitalisimo-ai-usage .digitalisimo-usage-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}
+.digitalisimo-ai-usage .digitalisimo-usage-card{max-width:none;margin:0;padding:14px 16px}
+.digitalisimo-ai-usage .digitalisimo-usage-card h2{margin:0 0 6px;font-size:14px}
+.digitalisimo-ai-usage .digitalisimo-usage-amount{margin:0;font-size:24px;font-weight:700;color:var(--digi-ink,#17213a)}
+.digitalisimo-ai-usage .digitalisimo-usage-mxn{margin:2px 0 6px;color:var(--digi-text,#52617e)}
+.digitalisimo-ai-usage .digitalisimo-usage-budget{max-width:none}
+.digitalisimo-ai-usage .digitalisimo-usage-meter,.digitalisimo-ai-usage .digitalisimo-usage-share{display:inline-block;width:100%;height:10px;overflow:hidden;border-radius:var(--digi-radius-control,9px);background:var(--digi-tint,#eef2ff)}
+.digitalisimo-ai-usage .digitalisimo-usage-share{width:80px;height:8px;vertical-align:middle}
+.digitalisimo-ai-usage .digitalisimo-usage-meter span,.digitalisimo-ai-usage .digitalisimo-usage-share span{display:block;height:100%;background:var(--digi-blue,#245eff)}
+.digitalisimo-ai-usage .digitalisimo-usage-budget.is-warning .digitalisimo-usage-meter span{background:var(--digi-violet,#8249ee)}
+.digitalisimo-ai-usage .digitalisimo-usage-budget.is-over .digitalisimo-usage-meter span{background:var(--digi-pink,#f13b9b)}
+.digitalisimo-ai-usage .digitalisimo-usage-chart{display:flex;align-items:flex-end;gap:2px;height:160px;padding:8px;border:1px solid var(--digi-line,#dce4ff);border-radius:var(--digi-radius-card,15px);background:var(--digi-surface,#f6f8ff)}
+.digitalisimo-ai-usage .digitalisimo-usage-bar{flex:1 1 0;min-width:2px;background:var(--digi-blue,#245eff)}
+.digitalisimo-ai-usage .digitalisimo-usage-bar:hover{background:var(--digi-blue-dark,#164ce4)}
+.digitalisimo-ai-usage .digitalisimo-usage-prices{overflow-x:auto}
+.digitalisimo-ai-usage .digitalisimo-usage-prices input[type=number]{width:90px}
+.digitalisimo-ai-usage .digitalisimo-usage-source{min-width:180px}
+@media(max-width:782px){.digitalisimo-ai-usage .widefat{display:block;overflow-x:auto}}
