@@ -182,11 +182,11 @@ delete_option( $L::JOB );
 $site1 = $GLOBALS['options'];
 $GLOBALS['options'] = array( 'digitalisimo_ai_options' => $site1['digitalisimo_ai_options'] ); // Sitio 2 de la red: su propia tabla de opciones.
 $GLOBALS['blog']    = 2;
-check( ! $L::get()['items'] && false === strpos( Digitalisimo_AI_Assistant::system_prompt(), 'WhatsApp de ventas' ), 'S2: en otro sitio de la red, el Asistente no sabe nada de éste' );
+check( ! $L::get()['items'] && false === strpos( Digitalisimo_AI_Assistant::system_prompt(), 'WhatsApp de ventas: 844' ) && false === strpos( Digitalisimo_AI_Assistant::system_prompt(), 'Lo que ya sabes de este sitio' ), 'S2: en otro sitio de la red, el Asistente no sabe nada de éste' );
 check( ! $L::view()['trained'], 'S2: y su panel está vacío' );
 $GLOBALS['options'] = $site1;
 $GLOBALS['blog']    = 1;
-check( false !== strpos( Digitalisimo_AI_Assistant::system_prompt(), 'WhatsApp de ventas' ), 'S2: de vuelta en el sitio 1, lo sabe' );
+check( false !== strpos( Digitalisimo_AI_Assistant::system_prompt(), 'WhatsApp de ventas: 844' ), 'S2: de vuelta en el sitio 1, lo sabe' );
 
 /* ---------------- T: topes de tamaño ---------------- */
 $big = array( 'pages' => array(), 'products' => array( 'count' => 3000, 'min' => 10, 'max' => 99999, 'on_sale' => 0, 'out' => 0, 'top' => array() ) );
