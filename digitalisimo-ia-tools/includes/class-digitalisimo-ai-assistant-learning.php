@@ -315,10 +315,12 @@ final class Digitalisimo_AI_Assistant_Learning {
 				}
 			}
 		}
-		// Direcciones: con palabra de calle o colonia, con código postal, o un nombre con número tras «en», «a»… («a
-		// Hidalgo 45»).
+		// Direcciones: con palabra de calle o colonia, con código postal, o un nombre de calle seguido de su número tras
+		// «en», «a»… («a Hidalgo 45»). Nunca cuando el número lleva una unidad: «en Torreón 24 horas», «a Monterrey 2
+		// días hábiles», «en Color Blanco 19 L», «en Herramientas 20 V», «a Saltillo 3 veces por semana» son datos del
+		// sitio, no direcciones (revisión de 3323d46f).
 		$street = (bool) preg_match( '/\b(calle|avenida|av|blvd|boulevard|bulevar|colonia|col|fraccionamiento|fracc|carretera)\s+[\p{L}\d]|\b(c\s?p|codigo postal)\s*\d{5}\b/u', $t );
-		$street = $street || (bool) preg_match( '/\b(en|a|hasta|hacia|domicilio|direcci[oó]n|vive en)\s+(?:la |el )?[A-ZÁÉÍÓÚÑ][\p{L}]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}]+)?\s+(?:#\s?)?\d{1,5}\b/u', $raw );
+		$street = $street || (bool) preg_match( '/\b(en|a|hasta|hacia|domicilio|direcci[oó]n|vive en)\s+(?:la |el )?[A-ZÁÉÍÓÚÑ][\p{L}]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}]+)?\s+(?:#\s?)?\d{1,5}\b(?!\s*(?i:' . self::UNITS . ')(?![\p{L}\d]))(?![.,]\d)/u', $raw );
 		if ( $street ) {
 			$mine = false;
 			foreach ( $own['addresses'] as $address ) {
@@ -359,6 +361,9 @@ final class Digitalisimo_AI_Assistant_Learning {
 		}
 		return false;
 	}
+
+	/** Unidades que dicen que un número no es el de una calle («24 horas», «19 L», «20 V», «3 veces»…). */
+	const UNITS = 'horas?|hrs?|h|d[ií]as?|semanas?|meses|mes|a[ñn]os?|minutos?|min|segundos?|l|lt|lts|litros?|ml|v|volts?|w|watts?|kw|kg|kilos?|g|gr|gramos?|lb|libras?|oz|onzas?|cm|mm|m|mts?|metros?|km|pulgadas?|pulg|pies|piezas?|pzas?|pz|unidades|veces|x|%|por ciento|gb|mb|tb|mp|hp|cc|rpm|pesos|mxn|usd|d[oó]lares|productos?|art[ií]culos?|modelos?|colores|tallas?|personas';
 
 	/** @var array<int,array> Contacto público por sitio (una lectura por petición). */
 	private static $contacts = array();
