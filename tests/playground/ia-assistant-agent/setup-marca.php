@@ -279,8 +279,10 @@ try {
 		$order->set_billing_last_name( 'Gómez' );
 		$order->set_billing_email( 'laura@correo.test' );
 		$order->set_billing_phone( '8715551234' );
-		$order->calculate_totals();
-		$order->update_status( 'processing' );
+		// Sin calculate_totals(): en la preparación WooCommerce aún no carga sus países.
+		$order->set_total( '2890' );
+		$order->set_status( 'processing' );
+		$order->save();
 	}
 	$ai = array(
 		'providers'             => array( 'anthropic' => array( 'enabled' => 1, 'key' => $key, 'url' => '' ) ),
