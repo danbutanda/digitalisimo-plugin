@@ -1120,6 +1120,8 @@ class Digitalisimo_Hosting_Provisioning {
 		// Al ejecutarse (venga de la revisión diaria, de un reintento o de levantar una parada) se vuelve a comprobar que
 		// sigue vencido y sin pagar; sólo la suspensión que el administrador pidió a mano no depende del pago.
 		if ( $suspend && 'manual' !== self::svc( $id, 'suspend_reason' ) && ! self::overdue( $id ) ) { self::svc_set( $id, array( 'suspend_reason' => '', 'suspend_for' => 0, 'toggle_attempts' => 0 ) ); self::svc_log( $id, 'Suspensión cancelada: ya no está vencido sin pago.' ); return; }
+		// Un servicio viejo del mismo dominio no toca la cuenta de uno más nuevo (recontratación).
+		if ( ! self::owns_account( $id ) ) { self::mismatch( $id, 'La cuenta «' . $user . '» es hoy de un servicio más nuevo del mismo dominio' ); return; }
 		$api = Digitalisimo_Hosting_Webuzo::from_settings();
 		// Sólo si la cuenta sigue siendo la del dominio del servicio (el nombre de usuario se pudo heredar).
 		$r = $suspend ? $api->suspend( $user, (string) self::svc( $id, 'domain' ) ) : $api->unsuspend( $user, (string) self::svc( $id, 'domain' ) );
@@ -1255,6 +1257,21 @@ class Digitalisimo_Hosting_Provisioning {
 		} elseif ( 'suspended' !== $now && 'suspended' === self::svc( $id, 'status' ) && ! ( is_array( self::svc( $id, 'pending_toggle' ) ) && 'unsuspend' === ( self::svc( $id, 'pending_toggle' )['op'] ?? '' ) ) ) {
 			self::svc_set( $id, array( 'status' => 'active' ) ); self::svc_log( $id, 'Webuzo la muestra activa: se corrige el estado.' );
 		}
+	}
+
+	/**
+	 * ¿Es este servicio el dueño actual de su cuenta de Webuzo? Si se volvió a contratar el mismo dominio y la cuenta
+	 * (mismo usuario) es de un servicio más nuevo que no está dado de baja, el servicio viejo no la toca.
+	 */
+	public static function owns_account( $id ) {
+		$user = (string) self::svc( $id, 'webuzo_user' ); $domain = strtolower( (string) self::svc( $id, 'domain' ) );
+		$mine = (int) self::svc( $id, 'created' );
+		foreach ( self::services() as $sid ) {
+			if ( $sid === (int) $id || 'cancelled' === self::svc( $sid, 'status' ) ) continue;
+			if ( (string) self::svc( $sid, 'webuzo_user' ) !== $user || strtolower( (string) self::svc( $sid, 'domain' ) ) !== $domain ) continue;
+			if ( (int) self::svc( $sid, 'created' ) > $mine || ( (int) self::svc( $sid, 'created' ) === $mine && $sid > (int) $id ) ) return false;
+		}
+		return true;
 	}
 
 	private static function overdue_or_unpaid_is_false( $id ) { return ! self::overdue( $id ); }
