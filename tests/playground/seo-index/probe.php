@@ -57,6 +57,8 @@ if ( 'seed' === $step ) {
 	// Como digitalisimo.lat: importó de Rank Math (que trae «Auto Post Redirect» apagado) con el SEO de antes.
 	$options = (array) get_option( 'digitalisimo_integrations_options', array() );
 	$options['seo_redirect_slug_watch'] = 0;
+	// La importación de antes escribía sin pasar por los ajustes: no quedaba marca de quién lo apagó.
+	remove_all_actions( 'update_option_digitalisimo_integrations_options' );
 	update_option( 'digitalisimo_integrations_options', $options );
 	update_option( 'rank-math-options-general', array( 'redirections_post_redirect' => 'off' ) );
 	update_option( 'digitalisimo_seo_rankmath_job', array( 'phase' => 'done' ), false );
@@ -79,6 +81,14 @@ if ( 'migrate' === $step ) {
 	$options = (array) get_option( 'digitalisimo_integrations_options', array() );
 	digi_check( 1 === (int) $options['seo_redirect_slug_watch'] && get_option( Digitalisimo_Integrations_Redirections::RESTORED ), 'La migración vuelve a encender el vigilante que apagó la importación de Rank Math' );
 	digi_check( 3 === (int) get_option( Digitalisimo_Integrations_Redirections::DB_OPTION ), 'La tabla queda en la versión 3' );
+	// Si después el dueño lo apaga en los ajustes, queda anotado y una migración nunca lo vuelve a encender.
+	$options['seo_redirect_slug_watch'] = 0;
+	update_option( 'digitalisimo_integrations_options', $options );
+	$off = get_option( Digitalisimo_Integrations_Redirections::WATCH_OFF );
+	digi_check( 'owner' === ( $off['by'] ?? '' ) && false === Digitalisimo_Integrations_Redirections::restore_slug_watch(), 'Lo que apaga el dueño queda anotado y no se vuelve a encender' );
+	$options['seo_redirect_slug_watch'] = 1;
+	update_option( 'digitalisimo_integrations_options', $options );
+	digi_check( ! get_option( Digitalisimo_Integrations_Redirections::WATCH_OFF ), 'Encenderlo borra la marca' );
 	return;
 }
 
@@ -172,39 +182,86 @@ if ( 'monitor' === $step ) {
 
 if ( 'hygiene' === $step ) {
 	$digi_hyg = Digitalisimo_Integrations_Index_Hygiene::class;
-	$ids['cuenta']   = $digi_page( 'Cuenta', 'cuenta', 0, '<!-- wp:shortcode -->[wpuf_account]<!-- /wp:shortcode -->' );
-	$ids['ingresar'] = $digi_page( 'Ingresar', 'ingresar', 0, '[wpuf_login]' );
-	$ids['galeria']  = $digi_page( 'Galería', 'galeria', 0, '<p>Fotos</p>[gallery ids="1"]' );
-	$ids['nota']     = $digi_page( 'Nota', 'nota', 0, '<p>Ver [1] y <code>[ejemplo]</code></p>' );
+	$digi_hyg::request_rescan(); // Como al activar un plugin: nueva época del front.
+	sleep( 1 );
+	add_shortcode( 'mi_formulario', function() { return 'formulario'; } ); // Sólo registrado en esta petición del «front».
+	$digi_hyg::sample_front();
+	digi_check( in_array( 'mi_formulario', (array) get_option( $digi_hyg::HISTORY ), true ), 'La muestra del front anota los shortcodes registrados' );
+	$sane = array( array( 'id' => 'c1', 'elType' => 'container', 'elements' => array(
+		array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => 'text-editor', 'settings' => array( 'editor' => '<p>[Nota del editor] Precio en [MXN]. Lee [texto](https://ejemplo.test). [Ver video] [pdf]</p>', '__dynamic__' => array( 'editor' => '[elementor-tag id="a1" name="post-title" settings="%7B%7D"]' ) ) ),
+		array( 'id' => 'w2', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Contacto', '__dynamic__' => array( 'link' => '[elementor-tag id="b2" name="site-url" settings="%7B%7D"]' ) ) ),
+		array( 'id' => 'w3', 'elType' => 'widget', 'widgetType' => 'form', 'settings' => array( 'email_content' => '[all-fields] [field id="name"]', 'form_fields' => array( array( 'custom_id' => 'name', 'field_label' => 'Nombre' ) ) ) ),
+	) ) );
+	$broken = $sane; $broken[0]['elements'][] = array( 'id' => 'w4', 'elType' => 'widget', 'widgetType' => 'shortcode', 'settings' => array( 'shortcode' => '[tutor_student_registration_form]' ) );
+	$elementor = function( $title, $slug, $data ) { return (int) wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $title, 'post_name' => $slug, 'post_content' => '<p>Copia vieja: [wpuf_account]</p>', 'meta_input' => array( '_elementor_edit_mode' => 'builder', '_elementor_data' => wp_slash( wp_json_encode( $data ) ) ) ) ); };
+	for ( $i = 1; $i <= 40; $i++ ) $digi_page( 'Relleno ' . $i, 'relleno-' . $i, 0, '<p>Contenido normal.</p>' ); // Un sitio de tamaño real: el tope es el 10 %.
+	$ids['cuenta']    = $digi_page( 'Cuenta', 'cuenta', 0, '<!-- wp:shortcode -->[wpuf_account]<!-- /wp:shortcode -->' );
+	$ids['ingresar']  = $digi_page( 'Ingresar', 'ingresar', 0, '[wpuf_login]' );
+	$ids['galeria']   = $digi_page( 'Galería', 'galeria', 0, '<p>Fotos</p>[gallery ids="1"]' );
+	$ids['nota']      = $digi_page( 'Nota', 'nota', 0, '<p>[Nota del editor] Ver [1], [MXN], [texto](https://x.test) y <code>[ejemplo]</code></p><style>a[hidden]{display:none}</style>' );
+	$ids['formulario'] = $digi_page( 'Formulario', 'formulario', 0, '[mi_formulario]' );
+	$ids['el_sana']   = $elementor( 'Elementor sana', 'elementor-sana', $sane );
+	$ids['el_rota']   = $elementor( 'Elementor rota', 'elementor-rota', $broken );
 	$save_ids();
-	// Sin pasada de WP-Cron no se juzga ningún shortcode: guardar no marca nada todavía.
-	digi_check( '' === get_post_meta( $ids['cuenta'], $digi_hyg::META, true ), 'Antes de conocer los shortcodes registrados no se marca nada' );
-	$digi_hyg::maybe_start();
-	digi_check( (bool) wp_next_scheduled( $digi_hyg::CRON ), 'La primera revisión se programa en segundo plano' );
-	$digi_hyg::run_batch();
-	digi_check( array( 'shortcode:wpuf_account' ) === get_post_meta( $ids['cuenta'], $digi_hyg::META, true ), 'La pasada marca la página con un shortcode sin resolver: ' . json_encode( get_post_meta( $ids['cuenta'], $digi_hyg::META, true ) ) );
-	digi_check( '' === get_post_meta( $ids['galeria'], $digi_hyg::META, true ) && '' === get_post_meta( $ids['nota'], $digi_hyg::META, true ), 'Un shortcode registrado, una nota [1] o un ejemplo en <code> no marcan nada' );
-	// El dueño mantiene indexable /ingresar/.
 	update_post_meta( $ids['ingresar'], $digi_hyg::LOCK, '1' );
-	// Al guardar ya se juzga: un shortcode nuevo sin plugin marca la página; quitarlo la limpia.
-	wp_update_post( array( 'ID' => $ids['galeria'], 'post_content' => '<p>Fotos</p>[tutor_student_registration_form]' ) );
-	digi_check( array( 'shortcode:tutor_student_registration_form' ) === get_post_meta( $ids['galeria'], $digi_hyg::META, true ), 'Guardar con un shortcode sin resolver marca la página' );
+	$digi_meta = function( $key ) use ( $ids, $digi_hyg ) { return get_post_meta( $ids[ $key ], $digi_hyg::META, true ); };
+	digi_check( array( 'shortcode:wpuf_account' ) === $digi_meta( 'cuenta' ) && array( 'shortcode:wpuf_login' ) === $digi_meta( 'ingresar' ), 'Al guardar se marcan las páginas con shortcodes de un plugin desinstalado: ' . json_encode( array( $digi_meta( 'cuenta' ), $digi_meta( 'ingresar' ) ) ) );
+	digi_check( '' === $digi_meta( 'galeria' ) && '' === $digi_meta( 'nota' ) && '' === $digi_meta( 'formulario' ), 'Un shortcode registrado, texto con corchetes o CSS no marcan nada: ' . json_encode( array( $digi_meta( 'galeria' ), $digi_meta( 'nota' ), $digi_meta( 'formulario' ) ) ) );
+	digi_check( '' === $digi_meta( 'el_sana' ), 'Una página de Elementor con etiquetas dinámicas, formulario y texto con corchetes no se marca (ni por su copia vieja del editor): ' . json_encode( $digi_meta( 'el_sana' ) ) );
+	digi_check( array( 'shortcode:tutor_student_registration_form' ) === $digi_meta( 'el_rota' ), 'Un widget de shortcode de un plugin desinstalado sí: ' . json_encode( $digi_meta( 'el_rota' ) ) );
+	return;
+}
+
+if ( 'hygiene-scan' === $step ) {
+	// Se «desinstala» el plugin de [mi_formulario]: nueva época; el front ya no lo registra.
+	$digi_hyg = Digitalisimo_Integrations_Index_Hygiene::class;
+	$digi_hyg::request_rescan();
+	digi_check( 0 === $digi_hyg::run_batch() && '' === get_post_meta( $ids['formulario'], $digi_hyg::META, true ), 'Sin muestra del front posterior al cambio, WP-Cron espera y no decide' );
+	sleep( 1 );
+	$digi_hyg::sample_front();
+	for ( $i = 0; $i < 20 && $digi_hyg::run_batch() >= $digi_hyg::BATCH; $i++ );
+	digi_check( array( 'shortcode:mi_formulario' ) === get_post_meta( $ids['formulario'], $digi_hyg::META, true ), 'Un shortcode que estuvo registrado y ya no está se marca en la pasada' );
+	digi_check( '' === get_post_meta( $ids['el_sana'], $digi_hyg::META, true ) && '' === get_post_meta( $ids['nota'], $digi_hyg::META, true ), 'La pasada tampoco marca las páginas sanas' );
+	$state = get_option( $digi_hyg::STATE );
+	digi_check( ! empty( $state['done'] ) && 4 === (int) $state['flagged'] && empty( $state['held'] ), 'La pasada termina y cuenta 4 páginas: ' . json_encode( $state ) );
+	// Guardar con un shortcode nuevo sin plugin lo marca; corregirlo lo limpia.
+	wp_update_post( array( 'ID' => $ids['galeria'], 'post_content' => '<p>Fotos</p>[wpuf_dashboard]' ) );
+	digi_check( array( 'shortcode:wpuf_dashboard' ) === get_post_meta( $ids['galeria'], $digi_hyg::META, true ), 'Guardar con un shortcode sin resolver marca la página' );
 	wp_update_post( array( 'ID' => $ids['galeria'], 'post_content' => '<p>Fotos</p>' ) );
 	digi_check( '' === get_post_meta( $ids['galeria'], $digi_hyg::META, true ), 'Corregirla y guardarla la saca de la lista' );
-	ob_start(); $digi_hyg::render_report(); $html = ob_get_clean();
-	digi_check( false !== strpos( $html, '[wpuf_account]' ) && false !== strpos( $html, 'Indexable por decisión del dueño' ) && false !== strpos( $html, 'Mantener indexable' ), 'Indexación lista lo detectado y avisa de lo indexable a propósito' );
 	return;
 }
 
 if ( 'hygiene-front' === $step ) {
-	digi_check( digi_noindex( '/cuenta/' ), '/cuenta/ lleva noindex' );
-	digi_check( ! digi_noindex( '/ingresar/' ), '/ingresar/ queda indexable por decisión del dueño' );
-	digi_check( ! digi_noindex( '/galeria/' ) && ! digi_noindex( '/black-friday/' ), 'Las páginas normales siguen indexables' );
-	$xml = digi_sitemap();
-	digi_check( false === strpos( $xml, '/cuenta/' ) && false !== strpos( $xml, '/ingresar/' ) && false !== strpos( $xml, '/galeria/' ), 'El sitemap saca /cuenta/ y conserva /ingresar/ y /galeria/' );
-	// Apagado: todo como antes.
+	$digi_hyg = Digitalisimo_Integrations_Index_Hygiene::class;
+	ob_start(); $digi_hyg::render_report(); $html = ob_get_clean();
+	digi_check( false !== strpos( $html, '[wpuf_account]' ) && false !== strpos( $html, 'Sólo es un aviso' ) && false !== strpos( $html, 'Indexable por decisión del dueño' ), 'De fábrica, Indexación sólo avisa' );
+	digi_check( ! digi_noindex( '/cuenta/' ) && false !== strpos( digi_sitemap(), '/cuenta/' ), 'De fábrica /cuenta/ sigue indexable y en el sitemap' );
 	$options = (array) get_option( 'digitalisimo_integrations_options', array() );
-	$options['seo_noindex_technical'] = 0;
+	$options['seo_noindex_unresolved'] = 1;
+	update_option( 'digitalisimo_integrations_options', $options );
+	digi_check( digi_noindex( '/cuenta/' ) && digi_noindex( '/elementor-rota/' ), 'Con el ajuste encendido, /cuenta/ y /elementor-rota/ llevan noindex' );
+	digi_check( ! digi_noindex( '/ingresar/' ), '/ingresar/ queda indexable por decisión del dueño' );
+	digi_check( ! digi_noindex( '/elementor-sana/' ) && ! digi_noindex( '/nota/' ) && ! digi_noindex( '/black-friday/' ), 'Las páginas sanas siguen indexables' );
+	$xml = digi_sitemap();
+	digi_check( false === strpos( $xml, '/cuenta/' ) && false !== strpos( $xml, '/ingresar/' ) && false !== strpos( $xml, '/elementor-sana/' ), 'El sitemap saca /cuenta/ y conserva /ingresar/ y /elementor-sana/' );
+	return;
+}
+
+if ( 'hygiene-cap' === $step ) {
+	$digi_hyg = Digitalisimo_Integrations_Index_Hygiene::class;
+	for ( $i = 1; $i <= 20; $i++ ) $digi_page( 'Rota ' . $i, 'rota-' . $i, 0, '[wpuf_account]' );
+	$state = get_option( $digi_hyg::STATE );
+	digi_check( ! empty( $state['held'] ) && 0 === (int) get_option( $digi_hyg::APPLY ), 'Más de 20 páginas marcadas: se retiene: ' . json_encode( $state ) );
+	digi_check( ! digi_noindex( '/cuenta/' ) && false !== strpos( digi_sitemap(), '/cuenta/' ), 'Retenido, no se aplica nada aunque el ajuste esté encendido' );
+	ob_start(); $digi_hyg::render_report(); $html = ob_get_clean();
+	digi_check( false !== strpos( $html, 'Confirmar la lista' ), 'Indexación pide al dueño que confirme' );
+	$state['confirmed'] = (int) $state['flagged'];
+	update_option( $digi_hyg::STATE, $state, false );
+	$digi_hyg::recount();
+	digi_check( digi_noindex( '/cuenta/' ), 'Confirmada la lista, se aplica' );
+	$options = (array) get_option( 'digitalisimo_integrations_options', array() );
+	$options['seo_noindex_unresolved'] = 0;
 	update_option( 'digitalisimo_integrations_options', $options );
 	digi_check( ! digi_noindex( '/cuenta/' ) && false !== strpos( digi_sitemap(), '/cuenta/' ), 'Con el ajuste apagado nada cambia' );
 	return;

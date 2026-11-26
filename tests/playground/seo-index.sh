@@ -5,7 +5,8 @@
 #   - cambios de página padre (subpáginas y nietas), cadenas A→B→C en un salto, A→B→A sin bucle y un contenido nuevo
 #     que ocupa una dirección vieja;
 #   - el monitor de 404 anota sin tocar la base, vuelca agregado y sugiere destino;
-#   - páginas con shortcodes sin resolver fuera del sitemap y con noindex, respetando «Mantener indexable».
+#   - shortcodes sin resolver: sin falsos positivos (Elementor con etiquetas dinámicas, formularios, texto entre
+#     corchetes), sólo aviso de fábrica, noindex con el ajuste, «Mantener indexable» y el tope de seguridad.
 # Uso: bash tests/playground/seo-index.sh   → $OUT/result.jsonl (por defecto /var/tmp/digi-seo-index)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -20,7 +21,7 @@ cp "$ROOT/tests/playground/seo-index/probe.php" "$OUT/"
 
 steps='{"steps":['
 first=1
-for step in setup seed migrate rename parent chains front monitor hygiene hygiene-front; do
+for step in setup seed migrate rename parent chains front monitor hygiene hygiene-scan hygiene-front hygiene-cap; do
   [ $first = 1 ] || steps="$steps,"
   first=0
   steps="$steps{\"step\":\"runPHP\",\"code\":\"<?php putenv('DIGI_STEP=$step'); require '/wordpress/wp-content/probe/probe.php';\"}"
