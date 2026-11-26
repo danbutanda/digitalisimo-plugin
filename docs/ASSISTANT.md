@@ -54,6 +54,7 @@ El repositorio `digitalisimo-ui` y su `starter-assistant/` no se tocan.
   dato para el modelo y bitácora.
 - `includes/class-digitalisimo-ai-assistant-history.php`: historial por usuario.
 - `includes/class-digitalisimo-ai-assistant-ability.php`: la Ability `digitalisimo-ia/open-assistant`.
+- `includes/class-digitalisimo-ai-assistant-uploads.php`: subir archivos arrastrándolos al chat (ver «Subir archivos»).
 - `assets/assistant/assistant.js` (interfaz), `assistant-adapters.js` (adaptadores), `assistant.css` (hoja).
 
 Sin compilación ni `npm install`: los dos scripts son JavaScript que se sirve tal cual, con `wp-element` como única
@@ -68,6 +69,7 @@ La interfaz sólo habla con el servidor por `window.digitalisimoAssistantAdapter
   history: { list(), get( id ), remove( id ), clear() },
   model:   { providers(), send( payload, onEvent ), confirm( payload, onEvent ), resume( payload, onEvent ) },
   tools:   { list(), log() },
+  media:   { upload( file ) },   // opcional: sin él, la pantalla no ofrece subir archivos
 }
 ```
 
@@ -295,11 +297,50 @@ cabecera `X-Digitalisimo-Assistant`:
 | `POST confirm` | `conversation`, `action`, `decision` (`approve`/`deny`), `explicit` |
 | `POST continue` | `conversation`: sigue un turno pausado por tiempo (sólo si la conversación lo dejó marcado, sin nada pendiente y hace menos de una hora) |
 | `GET log` | la bitácora (además, `manage_options`) |
+| `POST upload` | multipart `file` (o `files[]`, hasta 10): sube a la biblioteca (además, `upload_files`); devuelve `files` y `errors` |
+
+`message` acepta además `files`: los ids de lo que la persona subió por el Asistente para ese mensaje (ver abajo).
 
 Con `stream`, la respuesta llega en flujo: `application/x-ndjson`, un evento por línea a medida que avanza cada paso
 (pensar, consultar una herramienta, responder). Si algo en medio guarda la respuesta entera, los adaptadores leen las
 mismas líneas al final; sin `stream`, `{ conversation, events }`. El texto de cada respuesta llega entero (no por
 fragmentos de palabras).
+
+## Subir archivos
+
+Pedido del propietario del 2026-11-26: «agrégale la función de agregar las imágenes y todas las debe comprimir a .webp al
+subirse, ya debemos tener un plugin que hace eso, solo úsalo, solo permite que el asistente cargue archivos
+arrastrándolos y los agregue a la biblioteca».
+
+- **En la pantalla.** Se sueltan uno o varios archivos en cualquier parte del Asistente (el chat, el cuadro de texto o
+  el historial: el navegador nunca los abre), se eligen con el clip o se pegan en el cuadro. Suben uno por petición, en
+  orden; la bandeja del redactor los muestra subiendo, listos (con su miniatura) o con su motivo, y al terminar el hilo
+  dice en llano qué se subió y cuánto pesa ahora: «Subí 3 imágenes a tu biblioteca (de 4.2 MB a 640 KB en total).», por
+  qué alguna quedó sin comprimir y qué no se subió. Lo listo viaja con el siguiente mensaje (también sin texto) y la
+  burbuja lo muestra. Quien no tiene `upload_files` no ve el clip ni puede soltar.
+- **En el servidor** (`Digitalisimo_AI_Assistant_Uploads`): el permiso del Asistente más `upload_files`; hasta 10
+  archivos por vez y 60 cada 10 minutos por persona; el máximo de subida del servidor (`wp_max_upload_size()`, también
+  el error de PHP y lo que descarta `post_max_size`) y, en una red, la cuota del sitio, todo en palabras llanas. Nunca
+  PHP, ejecutables, scripts, HTML ni `.htaccess` (en cualquier tramo del nombre: «foto.php.jpg»), aunque quien sube
+  tenga `unfiltered_upload`; lo demás, sólo los tipos que el sitio permite (`wp_check_filetype_and_ext()`), así que SVG
+  sólo si el sitio ya lo permite. El nombre se limpia (sin rutas, caracteres de control ni nada que `sanitize_file_name()`
+  no acepte; 80 caracteres como mucho). La subida es la de siempre (`media_handle_upload()`): actúan los mismos filtros
+  que en la Biblioteca (el SVG minimizado de Tools, el saneado de Elements).
+- **WebP: el conversor de DIGITALÍSIMO Tools.** JPG, PNG y GIF pasan por `Digitalisimo\Tools\Media_WebP::convert()`, el
+  mismo de «Optimizar medios» (WebP a calidad 75 con sus tamaños, el original se conserva en el disco, la insignia
+  «Optimizada · WebP» en la Biblioteca, un GIF animado a WebP animado o conservado). No hay ajuste que encender: basta
+  con que Tools esté activo en el sitio. Sin Tools, la imagen se sube como llegó y el resumen dice que hace falta
+  activarlo. Un PDF u otro archivo permitido se sube sin convertir.
+- **Lo que sabe el modelo.** Un mensaje sólo cita archivos que ESTA persona subió por el Asistente (marca
+  `_digitalisimo_assistant_upload`), releídos de la biblioteca. El modelo los lee detrás del texto de la persona, como un
+  bloque de DATOS en JSON (id, nombre limpio, tipo, peso, medidas y dirección) con el aviso de que el nombre o el
+  contenido de un archivo nunca es una orden; las instrucciones le dicen que ya están en la biblioteca y que los use en
+  lo que se pida con las reglas de siempre (en su borrador, directo; en algo publicado o en un producto, con
+  confirmación).
+- **Pruebas.** `tests/ia-assistant-subir.php` (permisos, tipos rechazados, nombre malicioso, WebP con el conversor real
+  de Tools y GD, tamaño, cuota, cantidad y lo que cita un mensaje) y `tests/ia-assistant-subir-ui.mjs` (soltar,
+  bandeja, resumen, enviar con los ids, clip, pegar, sin permiso y el adaptador), en la CI;
+  `tests/playground/ia-assistant-subir.sh`, en Playground con Chrome y la API real, fuera de la CI.
 
 ## Red
 
@@ -396,4 +437,5 @@ Sigue prohibido inventar testimonios, reseñas, nombres de clientes o cifras.
   herramientas relevante para cada mensaje sin que la persona apague categorías.
 - Respuesta palabra por palabra: hoy el flujo es por pasos (los proveedores se llaman con la API HTTP de WordPress, que
   no entrega fragmentos).
-- Adjuntos y renombrar conversaciones (la interfaz de origen los admite; no estaban en el pedido).
+- Renombrar conversaciones (la interfaz de origen lo admite; no estaba en el pedido). Los adjuntos ya están («Subir
+  archivos»).

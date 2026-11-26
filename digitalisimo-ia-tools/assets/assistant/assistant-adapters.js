@@ -7,6 +7,7 @@
  *     history: { list(), get( id ), remove( id ), clear() },
  *     model:   { providers(), send( payload, onEvent ), confirm( payload, onEvent ), resume( payload, onEvent ) },
  *     tools:   { list(), log() },
+ *     media:   { upload( file ) },   (opcional: sin él, la pantalla no ofrece subir archivos)
  *   }
  *
  * Todo devuelve promesas. `send`, `confirm` y `resume` entregan eventos ({ type: conversation | status | message |
@@ -37,22 +38,31 @@
 			return error;
 		}
 
+		function parse( response ) {
+			return response.json().catch( function () {
+				return null;
+			} ).then( function ( data ) {
+				if ( ! response.ok ) {
+					throw failure( response, data );
+				}
+				return data;
+			} );
+		}
+
 		function request( path, method, body ) {
 			var options = { method: method || 'GET', credentials: 'same-origin', headers: Object.assign( { Accept: 'application/json' }, headers ) };
 			if ( undefined !== body ) {
 				options.headers[ 'Content-Type' ] = 'application/json';
 				options.body = JSON.stringify( body );
 			}
-			return window.fetch( url( path ), options ).then( function ( response ) {
-				return response.json().catch( function () {
-					return null;
-				} ).then( function ( data ) {
-					if ( ! response.ok ) {
-						throw failure( response, data );
-					}
-					return data;
-				} );
-			} );
+			return window.fetch( url( path ), options ).then( parse );
+		}
+
+		/** Un archivo a la biblioteca (multipart; el navegador pone el Content-Type con su separador). */
+		function upload( file ) {
+			var form = new window.FormData();
+			form.append( 'file', file, file.name );
+			return window.fetch( url( 'upload' ), { method: 'POST', credentials: 'same-origin', headers: Object.assign( { Accept: 'application/json' }, headers ), body: form } ).then( parse );
 		}
 
 		function emitAll( data, onEvent ) {
@@ -163,6 +173,9 @@
 						return data && Array.isArray( data.rows ) ? data.rows : [];
 					} );
 				},
+			},
+			media: {
+				upload: upload,
 			},
 		};
 	}

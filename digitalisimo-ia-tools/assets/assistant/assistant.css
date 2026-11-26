@@ -294,3 +294,21 @@
 .dga-root .dga-work-note { margin: 0; color: var(--ds-text-secondary); white-space: pre-wrap; }
 .dga-root .dga-tool-state[data-status="unknown"] { background: var(--ds-color-warning-subtle); color: var(--ds-color-warning); }
 .dga-root .dga-inline-link { color: inherit; font-weight: var(--font-weight-semibold); text-decoration: underline; }
+
+/* Subir archivos: zona para soltar, bandeja del redactor y miniaturas (en el hilo y en la burbuja de quien escribe). */
+.dga-main.is-dropping { position: relative; }
+.dga-drop { position: absolute; z-index: var(--ds-z-overlay); inset: var(--ds-space-3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--ds-space-2); border: 2px dashed var(--ds-color-accent); border-radius: var(--ds-radius-xl); background: color-mix(in srgb, var(--ds-color-accent) 10%, var(--ds-surface-raised)); color: var(--ds-color-accent-text); font-size: var(--font-size-md); text-align: center; pointer-events: none; }
+.dga-drop .dga-icon { font-size: 2rem; }
+.dga-drop span { color: var(--ds-text-secondary); font-size: var(--font-size-sm); }
+.dga-tray, .dga-files { display: flex; flex-wrap: wrap; gap: var(--ds-space-2); margin: 0; padding: 0; list-style: none; }
+.dga-tray { padding: var(--ds-space-2) var(--ds-space-2) 0; }
+.dga-files { margin-block-start: var(--ds-space-2); justify-content: center; }
+.dga-message.is-me .dga-files { justify-content: flex-end; }
+.dga-tray-item, .dga-file { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: var(--ds-space-2); max-inline-size: 15rem; margin: 0; padding: var(--ds-space-1); border: 1px solid var(--ds-border-default); border-radius: var(--ds-radius-md); background: var(--ds-surface-raised); color: var(--ds-text-primary); font-size: var(--font-size-2xs); text-align: start; white-space: normal; }
+.dga-tray-item[data-status="error"] { border-color: color-mix(in srgb, var(--ds-color-danger) 45%, transparent); background: var(--ds-color-danger-subtle); }
+.dga-file-thumb { grid-row: 1 / span 2; display: grid; place-items: center; inline-size: 2.5rem; block-size: 2.5rem; border-radius: var(--ds-radius-sm); background: var(--ds-surface-subtle); color: var(--ds-text-secondary); object-fit: cover; font-size: 1.1rem; }
+.dga-file-name { overflow: hidden; font-weight: var(--font-weight-medium); text-overflow: ellipsis; white-space: nowrap; }
+.dga-file-size { grid-column: 2; color: var(--ds-text-secondary); overflow-wrap: anywhere; }
+.dga-tray-remove { grid-column: 3; grid-row: 1 / span 2; }
+.dga-attach { font-size: 1.1rem; }
+.dga-composer-hint { padding-inline-start: var(--ds-space-1); }
