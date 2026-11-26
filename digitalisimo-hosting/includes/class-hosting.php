@@ -124,6 +124,12 @@ class Digitalisimo_Hosting {
 		// Una clave de wp-config.php nunca viaja a una URL editable en pantalla: sin la URL también en wp-config.php,
 		// Webuzo queda sin configurar.
 		if ( defined( self::CONSTANTS['webuzo_api_key'] ) && ! defined( self::CONSTANTS['webuzo_url'] ) ) $o['webuzo_url'] = '';
+		// Con la clave en wp-config.php, el usuario de la API y «no verificar el certificado» tampoco se editan en pantalla:
+		// salen de sus constantes (DIGITALISIMO_WEBUZO_API_USER, DIGITALISIMO_WEBUZO_INSECURE) o quedan en root y verificado.
+		if ( defined( self::CONSTANTS['webuzo_api_key'] ) ) {
+			$o['webuzo_api_user'] = defined( self::CONSTANTS['webuzo_api_user'] ) ? (string) constant( self::CONSTANTS['webuzo_api_user'] ) : 'root';
+			$o['webuzo_insecure'] = defined( 'DIGITALISIMO_WEBUZO_INSECURE' ) && DIGITALISIMO_WEBUZO_INSECURE ? 1 : 0;
+		}
 		return $o;
 	}
 	/** Los ajustes que usa este sitio (con la herencia de la red y las constantes de wp-config.php ya aplicadas). */
@@ -245,9 +251,10 @@ class Digitalisimo_Hosting {
 		else {
 			if ( defined( self::CONSTANTS['webuzo_api_key'] ) && ! defined( self::CONSTANTS['webuzo_url'] ) ) echo '<p><strong>URL del panel de administración de Webuzo</strong><br><span class="description">La clave está en wp-config.php: define también <code>DIGITALISIMO_WEBUZO_URL</code> allí. Mientras tanto Webuzo queda sin configurar (la clave nunca se manda a una URL editable aquí).</span></p>';
 			else self::field( 'webuzo_url', 'URL del panel de administración de Webuzo', $o, 'text', 'Por ejemplo https://servidor.ejemplo.com:2005 (el puerto 2005 es el de administración; los clientes entran por el 2003).' );
-			self::field( 'webuzo_api_user', 'Usuario de la API de Webuzo', $o, 'text', 'El usuario dueño de la clave de API (normalmente root).' );
+			if ( defined( self::CONSTANTS['webuzo_api_key'] ) ) echo '<p class="description">Con la clave en wp-config.php, el usuario de la API (' . esc_html( $o['webuzo_api_user'] ) . ') y la verificación del certificado (' . ( empty( $o['webuzo_insecure'] ) ? 'activada' : 'desactivada' ) . ') también salen de wp-config.php (DIGITALISIMO_WEBUZO_API_USER, DIGITALISIMO_WEBUZO_INSECURE).</p>';
+			else self::field( 'webuzo_api_user', 'Usuario de la API de Webuzo', $o, 'text', 'El usuario dueño de la clave de API (normalmente root).' );
 			self::field( 'webuzo_api_key', 'Clave de la API de Webuzo', $o, 'password', 'Webuzo → Ajustes → API Keys. Si Webuzo la rechaza, el aprovisionamiento se detiene sin reintentar hasta que guardes una nueva: Webuzo bloquea la IP tras varios intentos fallidos.' );
-			self::check( 'webuzo_insecure', 'No verificar el certificado del panel (sólo si usa un certificado autofirmado)', $o );
+			if ( ! defined( self::CONSTANTS['webuzo_api_key'] ) ) self::check( 'webuzo_insecure', 'No verificar el certificado del panel (sólo si usa un certificado autofirmado)', $o );
 			self::field( 'nameservers', 'Nameservers de los dominios', $o, 'text', 'Separados por comas. Cada dominio registrado se apunta a ellos.' );
 		}
 		if ( ! $network ) {
@@ -318,6 +325,8 @@ class Digitalisimo_Hosting {
 		// La clave de Webuzo que usaba esta pantalla antes de guardar (la heredada o la de wp-config.php también cuentan).
 		$old_webuzo = $network ? (string) ( $o['webuzo_api_key'] ?? '' ) : (string) ( self::all()['webuzo_api_key'] ?? '' );
 		$was_on = ! $network && ! empty( $o['provision_enabled'] );
+		// Con la clave en wp-config.php, URL, usuario y verificación del certificado no se aceptan desde el formulario.
+		if ( defined( self::CONSTANTS['webuzo_api_key'] ) ) unset( $in['webuzo_url'], $in['webuzo_api_user'], $in['webuzo_insecure'] );
 		$text = $network ? array( 'api_user', 'username', 'client_ip', 'webuzo_api_user' ) : array( 'api_user', 'username', 'client_ip', 'form_selector', 'domain_field', 'extension_field', 'webuzo_api_user' );
 		foreach ( $text as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = sanitize_text_field( $in[ $key ] );
 		// Las mismas reglas en el sitio y en la red: la URL del panel sólo https con host, los nameservers sólo nombres
