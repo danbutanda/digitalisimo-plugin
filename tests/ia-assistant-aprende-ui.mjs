@@ -32,7 +32,9 @@ ok(/window\.setTimeout\( next, 400 \)/.test(learn) && /'running' === view\.job\.
 ok(/h\( LearnSlot, \{ place: 'welcome' \} \)/.test(ui) && /h\( LearnSlot, \{ place: 'header' \} \)/.test(ui), 'La bienvenida y la barra traen el aprendizaje');
 ok(/'digitalisimo-ai-assistant-learning' \), \$version, true \)/.test(php) && /assistant-learning\.css/.test(php), 'Se carga antes que la interfaz, con su hoja');
 ok(/memory: 'Recordé'/.test(ui), '«Recordar» se dice en llano en el trabajo del turno');
-ok(/m\.memory && LearnMemory/.test(ui) && /'Sí, recuérdalo'/.test(learn) && /api\(\)\.approve\( memory\.id \)/.test(learn) && /api\(\)\.remove\( memory\.id \)/.test(learn), 'La propuesta de recordar se confirma en el hilo con «Sí, recuérdalo» o «No»');
+ok(/m\.memory && LearnMemory/.test(ui) && /'Sí, recuérdalo'/.test(learn) && /api\(\)\.approve\( memory\.id \)/.test(learn) && /api\(\)\.discard\( memory\.id \)/.test(learn), 'La propuesta de recordar se confirma en el hilo con «Sí, recuérdalo» o «No»');
+ok(!/api\(\)\.remove\( memory\.id \)/.test(learn) && /act\( api\(\)\.discard\( item\.id \) \)/.test(learn), '«No» y «Descartar» usan la ruta que sólo descarta propuestas pendientes (nunca «Borrar»)');
+ok(/memoryState\( s\.view, memory\.id \)/.test(learn) && /'Recordado: «'/.test(learn) && /'Descartado: no lo recordaré\.'/.test(learn), 'Al recargar, la tarjeta muestra el estado real: «Recordado» o «Descartado»');
 ok(/config\.learning \? h\( 'div', \{ className: 'dga-learn-actions' \}/.test(learn), 'Los botones sólo para quien administra el sitio');
 
 // 3. Hoja.
@@ -67,6 +69,7 @@ await api.step(); ok(calls.at(-1).url.endsWith('/learning/step'), 'Siguiente pas
 await api.conversations(); ok(calls.at(-1).url.endsWith('/learning/conversations'), 'Aprender de mis conversaciones');
 await api.edit('a1b2', 'Nuevo texto'); ok(calls.at(-1).url.endsWith('/learning/items/a1b2') && JSON.parse(calls.at(-1).options.body).text === 'Nuevo texto', 'Corregir un punto');
 await api.remove('a1b2'); ok(calls.at(-1).url.endsWith('/learning/items/a1b2/delete') && calls.at(-1).options.method === 'POST', 'Borrar un punto (POST)');
+await api.discard('a1b2'); ok(calls.at(-1).url.endsWith('/learning/items/a1b2/discard') && calls.at(-1).options.method === 'POST', 'Descartar una propuesta (POST)');
 await api.clear(); ok(calls.at(-1).url.endsWith('/learning/clear'), 'Borrar todo');
 ok(calls.every((c) => c.options.headers['X-WP-Nonce'] === 'R1' && c.options.headers['X-Digitalisimo-Assistant'] === 'A1' && c.options.credentials === 'same-origin'), 'Toda petición lleva la sesión y los dos nonces');
 reply = () => ({ ok: false, status: 403, json: async () => ({ message: 'Lo que aprende el Asistente lo ve y lo cambia quien administra el sitio.' }) });

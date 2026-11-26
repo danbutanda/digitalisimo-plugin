@@ -45,6 +45,7 @@
 			edit: ( id, text, preference ) => request( '/items/' + encodeURIComponent( id ), 'POST', { text, preference: !! preference } ),
 			remove: ( id ) => request( '/items/' + encodeURIComponent( id ) + '/delete', 'POST', {} ),
 			approve: ( id ) => request( '/items/' + encodeURIComponent( id ) + '/approve', 'POST', {} ),
+			discard: ( id ) => request( '/items/' + encodeURIComponent( id ) + '/discard', 'POST', {} ),
 			clear: () => request( '/clear', 'POST', {} ),
 		};
 	}
@@ -207,7 +208,7 @@
 				: h( 'p', null, item.text, h( 'small', null, item.sourceLabel + ( item.date ? ' · ' + item.date : '' ) ) ),
 			! editing && item.pending ? h( 'div', { className: 'dga-learn-item-actions' },
 				h( 'button', { type: 'button', className: 'dga-button is-primary', onClick: () => act( api().approve( item.id ) ) }, 'Recordarlo' ),
-				h( 'button', { type: 'button', className: 'dga-link', onClick: () => act( api().remove( item.id ) ) }, 'Descartar' ) ) : null,
+				h( 'button', { type: 'button', className: 'dga-link', onClick: () => act( api().discard( item.id ) ) }, 'Descartar' ) ) : null,
 			editing || item.pending ? null : h( 'div', { className: 'dga-learn-item-actions' },
 				h( 'button', { type: 'button', className: 'dga-link dga-learn-fix', onClick: () => setEditing( true ) }, 'Corregir' ),
 				h( 'button', { type: 'button', className: 'dga-link', onClick: () => {
@@ -279,34 +280,59 @@
 	 * La propuesta de «recordar» en el hilo: la frase exacta del dueño (y la que reemplazaría) con «Sí, recuérdalo» y
 	 * «No». Sólo con «Sí» se guarda (REST con la sesión y los dos nonces; el servidor exige administrar el sitio).
 	 */
+	/** El estado real de una propuesta según lo guardado: pendiente, recordada o descartada (o '' sin datos aún). */
+	function memoryState( view, id ) {
+		if ( ! view || ! Array.isArray( view.sections ) ) {
+			return '';
+		}
+		for ( const section of view.sections ) {
+			for ( const item of section.items || [] ) {
+				if ( item.id === id ) {
+					return item.pending ? 'pending' : 'saved';
+				}
+			}
+		}
+		return 'no';
+	}
+
 	function MemoryCard( props ) {
 		const memory = props.memory || {};
+		const s = useStore();
 		const [ state, setState ] = useState( '' );
 		const [ error, setError ] = useState( '' );
+		useEffect( () => {
+			if ( config.learning && ! s.view ) {
+				load();
+			}
+		}, [] );
+		// Al recargar la conversación, la tarjeta dice lo que pasó de verdad («Recordado» o «Descartado»).
+		const real = memoryState( s.view, memory.id );
+		const shown = state || ( 'saved' === real || 'no' === real ? real : '' );
 		const decide = ( yes ) => {
 			setError( '' );
 			setState( 'busy' );
-			( yes ? api().approve( memory.id ) : api().remove( memory.id ) ).then( ( view ) => {
+			( yes ? api().approve( memory.id ) : api().discard( memory.id ) ).then( ( view ) => {
 				set( { view } );
 				setState( yes ? 'saved' : 'no' );
 			}, ( e ) => {
 				setState( '' );
 				setError( e && 404 === e.status ? 'Esto ya se decidió antes.' : ( e && e.message ? e.message : 'No se pudo.' ) );
+				load();
 			} );
 		};
 		let body;
-		if ( 'saved' === state ) {
-			body = h( 'p', { className: 'dga-learn-ok', role: 'status' }, 'Lo recordaré: «' + memory.text + '»' );
-		} else if ( 'no' === state ) {
-			body = h( 'p', { role: 'status' }, 'De acuerdo, no lo recordaré.' );
+		if ( 'saved' === shown ) {
+			body = h( 'p', { className: 'dga-learn-ok', role: 'status' }, 'Recordado: «' + memory.text + '»' );
+		} else if ( 'no' === shown ) {
+			body = h( 'p', { role: 'status' }, 'Descartado: no lo recordaré.' );
 		} else {
 			body = h( el.Fragment, null,
 				h( 'p', { className: 'dga-learn-lead' }, '¿Lo recuerdo para tus próximas conversaciones?' ),
 				h( 'blockquote', { className: 'dga-learn-quote' }, memory.text ),
 				memory.replaces ? h( 'p', { className: 'dga-learn-notice' }, 'En lugar de: «' + memory.replaces + '»' ) : null,
 				config.learning ? h( 'div', { className: 'dga-learn-actions' },
-					h( 'button', { type: 'button', className: 'dga-button is-primary', disabled: 'busy' === state, onClick: () => decide( true ) }, 'Sí, recuérdalo' ),
-					h( 'button', { type: 'button', className: 'dga-button', disabled: 'busy' === state, onClick: () => decide( false ) }, 'No' ) ) : null );
+					h( 'button', { type: 'button', className: 'dga-button is-primary', disabled: 'busy' === shown, onClick: () => decide( true ) }, 'Sí, recuérdalo' ),
+					h( 'button', { type: 'button', className: 'dga-button', disabled: 'busy' === shown, onClick: () => decide( false ) }, 'No' ) ) : null );
 		}
 		return h( 'div', { className: 'dga-learn-memory' }, body, error ? h( 'p', { className: 'dga-learn-error', role: 'alert' }, error ) : null );
 	}

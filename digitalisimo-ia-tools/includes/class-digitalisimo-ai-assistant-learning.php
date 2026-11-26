@@ -1579,6 +1579,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 		register_rest_route( $ns, $base . '/items/(?P<id>[a-z0-9]{1,16})', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_edit' ), 'permission_callback' => $can ) );
 		register_rest_route( $ns, $base . '/items/(?P<id>[a-z0-9]{1,16})/delete', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_delete' ), 'permission_callback' => $can ) );
 		register_rest_route( $ns, $base . '/items/(?P<id>[a-z0-9]{1,16})/approve', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_approve' ), 'permission_callback' => $can ) );
+		register_rest_route( $ns, $base . '/items/(?P<id>[a-z0-9]{1,16})/discard', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_discard' ), 'permission_callback' => $can ) );
 		register_rest_route( $ns, $base . '/clear', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_clear' ), 'permission_callback' => $can ) );
 	}
 
@@ -1700,6 +1701,23 @@ final class Digitalisimo_AI_Assistant_Learning {
 			}
 		}
 		return new WP_Error( 'digitalisimo_learning_missing', 'Ese punto ya no está por aprobar.', array( 'status' => 404 ) );
+	}
+
+	/**
+	 * «No» de la tarjeta (o «Descartar» en el panel): sólo actúa sobre una propuesta PENDIENTE. Con una tarjeta vieja,
+	 * una preferencia ya aprobada no se borra por aquí (revisión de 3323d46f); borrar algo guardado es «Borrar».
+	 */
+	public static function rest_discard( $request ) {
+		$id   = sanitize_key( (string) $request['id'] );
+		$data = self::get();
+		foreach ( $data['items'] as $i => $item ) {
+			if ( $item['id'] === $id && $item['pending'] ) {
+				unset( $data['items'][ $i ] );
+				self::save( $data );
+				return rest_ensure_response( self::view() );
+			}
+		}
+		return new WP_Error( 'digitalisimo_learning_missing', 'Eso ya no está por aprobar.', array( 'status' => 404 ) );
 	}
 
 	public static function rest_delete( $request ) {
