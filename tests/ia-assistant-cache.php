@@ -151,4 +151,18 @@ do_action( 'save_post', $hist, get_post( $hist ), true );
 $run( 'digitalisimo-ia/site-contact' );
 check( 4 === count( array_keys( $GLOBALS['ran'], 'digitalisimo-ia/site-contact', true ) ), 'K6: guardar una conversación del Asistente no la invalida' );
 
+
+/* ---------------- K7: qué invalida la caché del sitio (revisión de b7762173) ---------------- */
+$gen   = Digitalisimo_AI_Assistant_Cache::generation();
+$order = wp_insert_post( array( 'post_type' => 'shop_order', 'post_status' => 'wc-processing', 'post_title' => 'Pedido' ) );
+do_action( 'save_post', $order, get_post( $order ), true );
+$form = wp_insert_post( array( 'post_type' => 'feedback', 'post_status' => 'publish', 'post_title' => 'Formulario' ) );
+do_action( 'save_post', $form, get_post( $form ), true );
+do_action( 'updated_option', 'woocommerce_task_list_tracked_completed_tasks' );
+check( $gen === Digitalisimo_AI_Assistant_Cache::generation(), 'K7: un pedido, un formulario recibido o un ajuste interno de WooCommerce no vacían la caché' );
+do_action( 'edited_term', $hist, 5, 'product_cat' );
+check( $gen !== Digitalisimo_AI_Assistant_Cache::generation(), 'K7: editar un término sí, aunque su número coincida con el de una conversación' );
+$gen = Digitalisimo_AI_Assistant_Cache::generation();
+do_action( 'updated_option', 'woocommerce_bacs_settings' );
+check( $gen !== Digitalisimo_AI_Assistant_Cache::generation(), 'K7: los ajustes de pagos de WooCommerce sí' );
 echo "Caché del Asistente IA: $checks comprobaciones correctas.\n";

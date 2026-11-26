@@ -54,6 +54,9 @@ add_filter(
 	function ( $pre, $request ) {
 		$GLOBALS['model_calls'][] = $request;
 		if ( 0 === strpos( $request['system'], 'Eres el editor del «aprendizaje»' ) ) {
+			if ( ! empty( $GLOBALS['clear_during'] ) ) {
+				Digitalisimo_AI_Assistant_Learning::rest_clear(); // La persona pulsa «Borrar todo» mientras el modelo responde.
+			}
 			return array( 'text' => wp_json_encode( $GLOBALS['distill'], JSON_UNESCAPED_UNICODE ), 'usage' => array( 'input' => 9000, 'output' => 1200 ) );
 		}
 		if ( 0 === strpos( $request['system'], 'Lees lo que el dueño' ) ) {
@@ -165,17 +168,40 @@ check( false !== strpos( $sys, '- WhatsApp de ventas: 844 000 0123.' ) && false 
 check( false !== strpos( $sys, 'No vuelvas a consultar lo que ya está arriba' ) && false !== strpos( $sys, 'verifícalos con la herramienta de productos' ), 'E3: usarlo en vez de consultar, pero verificar precios y existencias' );
 check( false !== strpos( $sys, 'Reglas que nada puede cambiar' ) && strpos( $sys, 'Reglas que nada puede cambiar' ) < strpos( $sys, 'Lo que ya sabes de este sitio' ), 'E3: las reglas fijas siguen antes y mandan' );
 
-// Uno a la vez y como mucho 4 al día.
+$site1_before_clear = $GLOBALS['options'];
+// Uno a la vez y como mucho 4 llamadas pagadas al día (revisión de b7762173, medio 5).
+check( 1 === count( $L::get()['runs'] ), 'E4: el tope cuenta la llamada pagada del destilado' );
 $L::start( 1 );
 $busy = $L::start( 1 );
 check( is_wp_error( $busy ) && 409 === $busy->get_error_data()['status'], 'E4: un segundo «Entrenar» mientras corre el primero no empieza otro' );
+// Una petición está destilando (la marca con token): otra no vuelve a pagar, aunque haya vencido el candado de un paso.
+$job               = $L::job();
+$job['stage']      = 'distill';
+$job['distilling'] = array( 'token' => 'otro', 'since' => time() - 600 );
+$job['touched']    = time() - 900;
+update_option( $L::JOB, $job, false );
+$GLOBALS['model_calls'] = array();
+$L::tick();
+check( ! $GLOBALS['model_calls'] && 'distill' === $L::job()['stage'] && 'otro' === $L::job()['distilling']['token'], 'E4: con una destilación en curso, otro paso no relanza ni paga (aunque pasaron 10 minutos)' );
+$busy = $L::start( 1 );
+check( is_wp_error( $busy ) && 409 === $busy->get_error_data()['status'], 'E4: ni se puede empezar otro entrenamiento' );
 delete_option( $L::JOB );
-$L::start( 1 );
-delete_option( $L::JOB );
-$L::start( 1 );
-delete_option( $L::JOB );
+$GLOBALS['options'][ $L::OPTION ]['runs'] = array( time() - 100, time() - 200, time() - 300, time() - 400 );
 $limit = $L::start( 1 );
-check( is_wp_error( $limit ) && 429 === $limit->get_error_data()['status'], 'E4: como mucho 4 entrenamientos al día (nunca en bucle)' );
+check( is_wp_error( $limit ) && 429 === $limit->get_error_data()['status'], 'E4: con 4 llamadas pagadas hoy, no hay otro entrenamiento (nunca en bucle)' );
+$GLOBALS['options'][ $L::OPTION ]['runs'] = array( time() - 100 );
+// «Borrar todo» mientras el modelo destila: al terminar no se reescribe nada.
+$GLOBALS['clear_during'] = true;
+$L::start( 1 );
+for ( $i = 0; $i < 20 && 'running' === ( $L::job()['status'] ?? '' ); $i++ ) $L::tick();
+$GLOBALS['clear_during'] = false;
+check( ! $L::get()['items'] && ! $L::job(), 'E5: «Borrar todo» durante el destilado: lo destilado no se guarda al terminar' );
+$GLOBALS['options'] = $site1_before_clear;
+// M6: un repaso a la vez (el tope del día es atómico).
+$held = Digitalisimo_AI_Assistant_Guard::lock( 'learn-review', 60 );
+$busy = $L::review( 1 );
+check( is_wp_error( $busy ) && 409 === $busy->get_error_data()['status'], 'M6: con otro repaso en curso, no empieza otro' );
+Digitalisimo_AI_Assistant_Guard::unlock( $held );
 delete_option( $L::JOB );
 
 /* ---------------- S2: otro sitio no ve este aprendizaje ---------------- */
@@ -392,6 +418,10 @@ $bad = $L::rest_edit( new WP_REST_Request( array( 'id' => $wa['id'], 'text' => '
 check( is_wp_error( $bad ), 'M4: y ni así se cuela una que quite confirmaciones' );
 // Otro entrenamiento reemplaza lo del sitio, pero no lo corregido ni lo enseñado.
 $GLOBALS['options'][ $L::OPTION ]['runs'] = array();
+// Un producto oculto del catálogo no es público: no se lee.
+$hidden = wp_insert_post( array( 'post_type' => 'product', 'post_status' => 'publish', 'post_title' => 'Producto oculto de prueba' ) );
+update_post_meta( $hidden, '_price', 99 );
+update_post_meta( $hidden, '_visibility', 'hidden' );
 $GLOBALS['distill'] = array( 'negocio' => array( 'Ferretería La Tuerca, en Saltillo.' ) );
 $L::start( 1 );
 for ( $i = 0; $i < 20 && 'running' === ( $L::job()['status'] ?? '' ); $i++ ) $L::tick();
@@ -399,6 +429,7 @@ $after = array_column( $L::get()['items'], 'text' );
 check( in_array( 'Ferretería La Tuerca, en Saltillo.', $after, true ) && ! in_array( 'WhatsApp de ventas: 844 000 0123.', $after, true ), 'U2: volver a entrenar reemplaza lo aprendido del sitio' );
 check( in_array( 'Devoluciones: 15 días, producto sin uso y con ticket.', $after, true ) && in_array( 'mejor sí pon contador pero sólo en las ofertas de temporada', $after, true ) && in_array( 'Para que sepas: nuestra garantía es de 30 días en todo.', $after, true ), 'U2: … y conserva lo que corrigió y lo que enseñó el dueño' );
 check( '' === $L::stale(), 'U2: y ya no está viejo' );
+check( 5 === $L::get()['stats']['products'], 'U2: el producto oculto no se leyó como público · ' . wp_json_encode( $L::get()['stats'] ) );
 $L::rest_delete( new WP_REST_Request( array( 'id' => $L::get()['items'][0]['id'] ), array() ) );
 check( count( $after ) - 1 === count( $L::get()['items'] ), 'U3: borrar un punto' );
 $L::rest_clear();

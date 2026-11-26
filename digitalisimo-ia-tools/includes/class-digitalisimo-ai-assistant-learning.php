@@ -63,6 +63,12 @@ final class Digitalisimo_AI_Assistant_Learning {
 	const STALE_CHANGES = 10;
 	/** Un paso que lleva más que esto sin avanzar se considera cortado (otro puede seguir). */
 	const STEP_TTL = 180;
+	/**
+	 * Mientras una petición destila (una llamada al modelo que puede tardar varios minutos con reintentos), ninguna
+	 * otra lo relanza: la marca con token dura esto (revisión de b7762173, medio 5: el candado de 180 s vencía y se
+	 * pagaba un segundo destilado).
+	 */
+	const DISTILL_TTL = 1800;
 	const HOOK        = 'digitalisimo_ai_learning_tick';
 	const REVIEW_HOOK = 'digitalisimo_ai_learning_review';
 	const SECTIONS = array(
@@ -548,7 +554,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 	/** Empieza un entrenamiento (uno a la vez, como mucho MAX_TRAININGS al día). */
 	public static function start( $user_id ) {
 		$job = self::job();
-		if ( 'running' === ( $job['status'] ?? '' ) && time() - (int) ( $job['touched'] ?? 0 ) < self::STEP_TTL * 2 ) {
+		if ( 'running' === ( $job['status'] ?? '' ) && ( time() - (int) ( $job['touched'] ?? 0 ) < self::STEP_TTL * 2 || self::distilling( $job ) ) ) {
 			return new WP_Error( 'digitalisimo_learning_busy', 'Ya estoy aprendiendo tu sitio; espera a que termine.', array( 'status' => 409 ) );
 		}
 		$data = self::get();
@@ -560,8 +566,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 		if ( is_wp_error( $target ) ) {
 			return $target;
 		}
-		$data['runs'] = array_merge( $runs, array( time() ) );
-		self::save( $data );
+		// El tope cuenta las llamadas pagadas: se anota al destilar (distill_step()), no aquí.
 		$job = array( 'id' => self::new_id(), 'status' => 'running', 'user' => (int) $user_id, 'started' => time(), 'touched' => time(), 'stage' => 'identity', 'page' => 1, 'data' => array(), 'message' => self::STAGE_TEXT['identity'], 'error' => '', 'summary' => '' );
 		self::save_job( $job );
 		self::schedule();
@@ -626,26 +631,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 					$job['data']['seo'] = self::read_seo();
 					break;
 				case 'distill':
-					// Una llamada al modelo que puede tardar: que un límite corto de PHP o cerrar la pestaña no la corten.
-					ignore_user_abort( true );
-					if ( function_exists( 'set_time_limit' ) ) {
-						@set_time_limit( 300 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-					}
-					$job['touched'] = time();
-					self::save_job( $job );
-					$result = self::distill( $job );
-					if ( is_wp_error( $result ) ) {
-						$job['status'] = 'error';
-						$job['error']  = $result->get_error_message();
-					} else {
-						$job['status']  = 'done';
-						$job['summary'] = $result['summary'];
-						$job['data']    = array(); // Lo leído no se guarda: sólo el aprendizaje destilado.
-					}
-					$job['touched'] = time();
-					$job['message'] = 'done' === $job['status'] ? $job['summary'] : $job['error'];
-					self::save_job( $job );
-					return $job;
+					return self::distill_step( $job, $lock );
 			}
 			if ( $next ) {
 				$i            = array_search( $stage, self::STAGES, true );
@@ -665,6 +651,68 @@ final class Digitalisimo_AI_Assistant_Learning {
 		} finally {
 			Digitalisimo_AI_Assistant_Guard::unlock( $lock );
 		}
+	}
+
+	/** ¿Hay una petición destilando este trabajo ahora mismo? */
+	private static function distilling( array $job ) {
+		return ! empty( $job['distilling']['token'] ) && time() - (int) ( $job['distilling']['since'] ?? 0 ) < self::DISTILL_TTL;
+	}
+
+	/**
+	 * La etapa que paga: una sola a la vez (marca con token en el trabajo, que dura DISTILL_TTL), contada en el tope del
+	 * día ANTES de llamar (aunque falle), y sin escribir nada si mientras tanto se borró todo o empezó otro trabajo.
+	 */
+	private static function distill_step( array $job, &$lock ) {
+		if ( self::distilling( $job ) ) {
+			return $job; // Otra petición ya está destilando: nunca se paga dos veces.
+		}
+		$data = self::get();
+		$runs = self::recent( $data['runs'] );
+		if ( count( $runs ) >= (int) apply_filters( 'digitalisimo_ai_learning_max_trainings', self::MAX_TRAININGS ) ) {
+			$job['status']  = 'error';
+			$job['error']   = 'Hoy ya entrené con tu sitio varias veces. Podrás volver a hacerlo mañana.';
+			$job['message'] = $job['error'];
+			$job['data']    = array();
+			self::save_job( $job );
+			return $job;
+		}
+		$data['runs'] = array_merge( $runs, array( time() ) );
+		self::save( $data );
+		$token             = self::new_id();
+		$job['distilling'] = array( 'token' => $token, 'since' => time() );
+		$job['touched']    = time();
+		self::save_job( $job );
+		// Desde aquí la marca protege la etapa (el candado de un paso vence antes de lo que puede tardar el modelo).
+		Digitalisimo_AI_Assistant_Guard::unlock( $lock );
+		$lock = null;
+		// Una llamada al modelo que puede tardar: que un límite corto de PHP o cerrar la pestaña no la corten.
+		ignore_user_abort( true );
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 300 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		}
+		$result = self::distill( $job, $token );
+		$now    = self::job();
+		if ( ! self::owns( $now, $job['id'], $token ) ) {
+			return $now; // Se borró todo o empezó otro: no se escribe nada.
+		}
+		if ( is_wp_error( $result ) ) {
+			$now['status'] = 'error';
+			$now['error']  = $result->get_error_message();
+		} else {
+			$now['status']  = 'done';
+			$now['summary'] = $result['summary'];
+		}
+		$now['data']       = array(); // Lo leído no se guarda: sólo el aprendizaje destilado.
+		$now['distilling'] = null;
+		$now['touched']    = time();
+		$now['message']    = 'done' === $now['status'] ? $now['summary'] : $now['error'];
+		self::save_job( $now );
+		return $now;
+	}
+
+	/** ¿Sigue siendo ESE trabajo y esa destilación? (no se borró todo ni empezó otro mientras el modelo respondía). */
+	private static function owns( $job, $id, $token ) {
+		return is_array( $job ) && ( $job['id'] ?? '' ) === $id && ( $job['distilling']['token'] ?? '' ) === $token && 'running' === ( $job['status'] ?? '' );
 	}
 
 	/** Recorta un texto leído del sitio (para mandarlo a destilar). */
@@ -832,7 +880,8 @@ final class Digitalisimo_AI_Assistant_Learning {
 	private static function product( $id ) {
 		if ( function_exists( 'wc_get_product' ) ) {
 			$p = wc_get_product( $id );
-			if ( ! $p || ! is_object( $p ) ) {
+			// Sólo lo que se ve en la tienda: un producto oculto del catálogo no es público.
+			if ( ! $p || ! is_object( $p ) || ( method_exists( $p, 'is_visible' ) && ! $p->is_visible() ) || ( method_exists( $p, 'get_catalog_visibility' ) && 'hidden' === $p->get_catalog_visibility() ) ) {
 				return null;
 			}
 			$cats = array();
@@ -845,7 +894,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 			return array( 'id' => (int) $id, 'nombre' => (string) $p->get_name(), 'precio' => (float) $p->get_price(), 'normal' => (float) $p->get_regular_price(), 'oferta' => (bool) $p->is_on_sale(), 'existencia' => (string) $p->get_stock_status(), 'ventas' => (int) $p->get_total_sales(), 'destacado' => (bool) $p->is_featured(), 'categorias' => $cats, 'resumen' => self::cut( $p->get_short_description(), 160 ) );
 		}
 		$post = get_post( $id );
-		if ( ! $post ) {
+		if ( ! $post || '' !== (string) ( $post->post_password ?? '' ) || 'hidden' === (string) get_post_meta( $id, '_visibility', true ) ) {
 			return null;
 		}
 		$price   = (float) get_post_meta( $id, '_price', true );
@@ -888,7 +937,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 	 *
 	 * @return array|WP_Error `summary` y `usage`.
 	 */
-	public static function distill( array $job ) {
+	public static function distill( array $job, $token = '' ) {
 		$data   = (array) ( $job['data'] ?? array() );
 		$source = self::source( $data );
 		$target = Digitalisimo_AI_Assistant_Model::target( 'auto' );
@@ -901,6 +950,9 @@ final class Digitalisimo_AI_Assistant_Learning {
 			return $reply;
 		}
 		Digitalisimo_AI_Assistant_Tools::log_usage( $target, $reply['usage'] ?? array(), 0, 'Aprendizaje: entrenar con el sitio' );
+		if ( '' !== $token && ! self::owns( self::job(), (string) ( $job['id'] ?? '' ), $token ) ) {
+			return new WP_Error( 'digitalisimo_learning_cancelled', 'Se canceló el entrenamiento.' );
+		}
 		$json = self::json_of( (string) $reply['text'] );
 		if ( ! is_array( $json ) ) {
 			return new WP_Error( 'digitalisimo_learning_reply', $reply['truncated'] ? 'La IA no terminó el resumen; inténtalo de nuevo.' : 'La IA no devolvió el resumen como se esperaba; inténtalo de nuevo.' );
@@ -1271,6 +1323,19 @@ final class Digitalisimo_AI_Assistant_Learning {
 		if ( ! self::can( $user_id ) ) {
 			return new WP_Error( 'digitalisimo_learning_forbidden', 'Sólo quien administra el sitio puede enseñarle al Asistente.', array( 'status' => 403 ) );
 		}
+		// Un repaso a la vez en el sitio: contar y anotar el tope del día es atómico (revisión de b7762173, medio 6).
+		$lock = Digitalisimo_AI_Assistant_Guard::lock( 'learn-review', 900 );
+		if ( ! $lock ) {
+			return new WP_Error( 'digitalisimo_learning_busy', 'Ya estoy repasando tus conversaciones; espera a que termine.', array( 'status' => 409 ) );
+		}
+		try {
+			return self::review_locked( $user_id, $only_new );
+		} finally {
+			Digitalisimo_AI_Assistant_Guard::unlock( $lock );
+		}
+	}
+
+	private static function review_locked( $user_id, $only_new ) {
 		$data    = self::get();
 		$reviews = self::recent( $data['reviews'] );
 		if ( count( $reviews ) >= (int) apply_filters( 'digitalisimo_ai_learning_max_reviews', self::MAX_REVIEWS ) ) {

@@ -38,8 +38,12 @@ final class Digitalisimo_AI_Assistant_Cache {
 	const NEVER = array( 'digitalisimo-woo/products', 'digitalisimo-woo/orders', 'digitalisimo-woo/customers', 'digitalisimo-woo/reports', 'digitalisimo-woo/coupons' );
 
 	public static function init() {
-		foreach ( array( 'save_post', 'deleted_post', 'trashed_post', 'edited_term', 'created_term', 'delete_term', 'wp_update_nav_menu', 'switch_theme', 'elementor/core/files/clear_cache' ) as $hook ) {
+		foreach ( array( 'save_post', 'deleted_post', 'trashed_post' ) as $hook ) {
 			add_action( $hook, array( __CLASS__, 'on_change' ), 10, 1 );
+		}
+		// Términos, menús, tema y CSS del constructor: su primer argumento no es una entrada (es un término o un menú).
+		foreach ( array( 'edited_term', 'created_term', 'delete_term', 'wp_update_nav_menu', 'switch_theme', 'elementor/core/files/clear_cache' ) as $hook ) {
+			add_action( $hook, array( __CLASS__, 'bump' ), 10, 0 );
 		}
 		add_action( 'updated_option', array( __CLASS__, 'on_option' ), 10, 1 );
 	}
@@ -62,19 +66,30 @@ final class Digitalisimo_AI_Assistant_Cache {
 		update_option( self::GEN, substr( md5( uniqid( (string) wp_rand(), true ) ), 0, 10 ), false );
 	}
 
-	/** Un cambio de contenido (menos las revisiones, los autoguardados y las conversaciones del Asistente). */
+	/** Tipos que no se ven en el sitio pero sí cambian lo que leen las herramientas guardadas. */
+	const STRUCTURE_TYPES = array( 'elementor_library', 'nav_menu_item', 'wp_navigation', 'wp_template', 'wp_template_part', 'wp_global_styles', 'wp_block', 'product_variation' );
+
+	/**
+	 * Un cambio de contenido que se ve en el sitio (tipos públicos, plantillas, menús): sube la generación. Pedidos,
+	 * formularios recibidos, conversaciones del Asistente, revisiones y demás tipos internos no (revisión de b7762173:
+	 * cada pedido vaciaba la caché).
+	 */
 	public static function on_change( $id = 0 ) {
 		$post = is_numeric( $id ) && (int) $id > 0 && function_exists( 'get_post' ) ? get_post( (int) $id ) : null;
-		if ( $post && in_array( (string) ( $post->post_type ?? '' ), array( 'revision', 'digitalisimo_ai_chat', 'customize_changeset', 'oembed_cache' ), true ) ) {
+		if ( ! $post ) {
 			return;
 		}
-		self::bump();
+		$type = (string) ( $post->post_type ?? '' );
+		$object = function_exists( 'get_post_type_object' ) ? get_post_type_object( $type ) : null;
+		if ( in_array( $type, self::STRUCTURE_TYPES, true ) || ( $object && function_exists( 'is_post_type_viewable' ) && is_post_type_viewable( $object ) && 'attachment' !== $type ) ) {
+			self::bump();
+		}
 	}
 
 	/** Ajustes que cambian lo que leen las herramientas guardadas (nunca los transitorios ni la propia generación). */
 	public static function on_option( $option ) {
 		$option = (string) $option;
-		if ( preg_match( '/^(blogname|blogdescription|home|siteurl|page_on_front|show_on_front|sidebars_widgets|widget_[a-z0-9_-]+|theme_mods_[a-z0-9_-]+|site_logo|site_icon|elementor_active_kit|elementor_[a-z_]*conditions|woocommerce_(?!.*_transient)[a-z0-9_]+|digitalisimo_seo[a-z0-9_]*|digitalisimo_elements_[a-z0-9_]+)$/', $option ) ) {
+		if ( preg_match( '/^(blogname|blogdescription|home|siteurl|page_on_front|show_on_front|sidebars_widgets|widget_[a-z0-9_-]+|theme_mods_[a-z0-9_-]+|site_logo|site_icon|elementor_active_kit|elementor_[a-z_]*conditions|woocommerce_(currency|currency_pos|price_[a-z_]+|default_country|store_[a-z0-9_]+|[a-z0-9_]+_settings|calc_taxes|prices_include_tax|enable_coupons|[a-z_]+_page_id|ship_to_countries|specific_ship_to_countries|allowed_countries|specific_allowed_countries|catalog_columns|catalog_rows)|digitalisimo_seo[a-z0-9_]*|digitalisimo_elements_[a-z0-9_]+)$/', $option ) ) {
 			self::bump();
 		}
 	}
