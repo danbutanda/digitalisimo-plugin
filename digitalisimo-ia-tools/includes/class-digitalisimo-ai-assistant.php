@@ -1072,6 +1072,10 @@ final class Digitalisimo_AI_Assistant {
 			)
 		);
 		$conv['messages'][] = $message;
+		// Lo que el propio Asistente escribe (un borrador, un cambio confirmado) deja vieja la caché de lecturas del sitio.
+		if ( ! in_array( $kind, array( 'read', 'memory', 'unknown' ), true ) && in_array( (string) $result['status'], array( 'ok', 'unknown', 'error' ), true ) && class_exists( 'Digitalisimo_AI_Assistant_Cache' ) ) {
+			Digitalisimo_AI_Assistant_Cache::bump();
+		}
 		// Guardado y en la bitácora antes de avisar al navegador: si la conexión se corta al avisar, nada se pierde.
 		Digitalisimo_AI_Assistant_History::save( $conv );
 		Digitalisimo_AI_Assistant_Tools::log( array( 'user' => get_current_user_id(), 'ability' => $call['ability'], 'kind' => $kind, 'input' => Digitalisimo_AI_Assistant_Tools::summary( $call['input'] ?? array() ), 'result' => $result['status'], 'detail' => $result['error'] ?? '', 'conversation' => $conv['id'] ) );

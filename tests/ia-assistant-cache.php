@@ -165,4 +165,25 @@ check( $gen !== Digitalisimo_AI_Assistant_Cache::generation(), 'K7: editar un t�
 $gen = Digitalisimo_AI_Assistant_Cache::generation();
 do_action( 'updated_option', 'woocommerce_bacs_settings' );
 check( $gen !== Digitalisimo_AI_Assistant_Cache::generation(), 'K7: los ajustes de pagos de WooCommerce sí' );
+
+/* ---------------- K8: regresión de la revisión de 08cdf955 ---------------- */
+foreach ( array( 'woocommerce_weight_unit', 'woocommerce_manage_stock', 'woocommerce_enable_reviews', 'woocommerce_tax_display_shop', 'woocommerce_enable_guest_checkout', 'woocommerce_currency', 'woocommerce_flat_rate_3_settings' ) as $opt ) {
+	$gen = Digitalisimo_AI_Assistant_Cache::generation();
+	do_action( 'updated_option', $opt );
+	check( $gen !== Digitalisimo_AI_Assistant_Cache::generation(), "K8: cambiar {$opt} invalida la caché del sitio" );
+}
+foreach ( array( 'wp_insert_comment', 'transition_comment_status', 'woocommerce_attribute_updated', 'woocommerce_after_shipping_zone_object_save', 'woocommerce_tax_rate_updated' ) as $hook ) {
+	$gen = Digitalisimo_AI_Assistant_Cache::generation();
+	do_action( $hook, 1 );
+	check( $gen !== Digitalisimo_AI_Assistant_Cache::generation(), "K8: {$hook} (reseñas, atributos, zonas de envío, impuestos) invalida" );
+}
+// Después de una escritura del propio Asistente (un borrador), la caché ya no sirve lo de antes.
+wp_register_ability( 'elementor/create-page', array( 'label' => 'Crear página', 'category' => 'elementor', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'title' => array( 'type' => 'string' ) ) ), 'permission_callback' => function () { return current_user_can( 'edit_posts' ); }, 'execute_callback' => function () { return array( 'id' => 9, 'status' => 'draft' ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => false ), 'mcp' => array( 'public' => true, 'type' => 'tool' ) ) ) );
+$GLOBALS['http_replies'] = array(
+	array( 'code' => 200, 'body' => wp_json_encode( array( 'content' => array( array( 'type' => 'tool_use', 'id' => 'toolu_w1', 'name' => 'elementor-create-page', 'input' => array( 'title' => 'Oferta' ) ) ), 'stop_reason' => 'tool_use' ) ) ),
+	array( 'code' => 200, 'body' => wp_json_encode( array( 'content' => array( array( 'type' => 'text', 'text' => 'Listo.' ) ), 'stop_reason' => 'end_turn' ) ) ),
+);
+$gen = Digitalisimo_AI_Assistant_Cache::generation();
+Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'créame una página de oferta', 'provider' => 'anthropic' ) ) );
+check( $gen !== Digitalisimo_AI_Assistant_Cache::generation(), 'K8: después de cada escritura del propio Asistente, la caché se invalida' );
 echo "Caché del Asistente IA: $checks comprobaciones correctas.\n";
