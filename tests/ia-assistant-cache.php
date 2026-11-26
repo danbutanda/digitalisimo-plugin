@@ -20,7 +20,7 @@ require __DIR__ . '/ia-assistant-agent/wp.php';
 function user_can( $user, $cap ) { return isset( $GLOBALS['users'][ (int) $user ] ) && in_array( $cap, $GLOBALS['users'][ (int) $user ]['caps'], true ); }
 function delete_option( $k ) { unset( $GLOBALS['options'][ $k ] ); return true; }
 require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai.php';
-foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', '' ) as $part ) {
+foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', 'uploads', '' ) as $part ) {
 	require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant' . ( $part ? '-' . $part : '' ) . '.php';
 }
 require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant-learning.php';
