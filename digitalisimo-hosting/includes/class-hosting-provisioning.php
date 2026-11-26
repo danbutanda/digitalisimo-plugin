@@ -1034,6 +1034,8 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! $expires ) return;
 		$days = (int) floor( ( $expires - $now ) / DAY_IN_SECONDS );
 		if ( $days > 30 ) return;
+		// Recontratado el mismo dominio con una cuenta nueva: el servicio viejo no avisa, no cobra ni suspende.
+		if ( ! self::owns_account( $id ) ) { self::superseded( $id ); return; }
 		$renewal = self::renewal_order( $id );
 		if ( ! $renewal ) return;
 		// Pagada con cobro confirmado (aunque la renovación esté a medias, p. ej. sin saldo en Namecheap): ni avisos ni
@@ -1109,6 +1111,11 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! empty( $state['done'] ) || ! self::may_run( $order, $state ) ) return;
 		if ( 'cancelled' === self::svc( $id, 'status' ) ) {
 			if ( self::note_once( $order, 'cancelled', 'el servicio ' . self::svc( $id, 'domain' ) . ' está dado de baja: esta renovación NO se aplica. Reembólsala si se pagó.' ) ) self::alert_admin( 'renovación de un servicio dado de baja', 'La renovación #' . $order->get_id() . ' de ' . self::svc( $id, 'domain' ) . ' no se aplicó: el servicio está dado de baja. Reembólsala si se pagó.' . "\n\n" . self::order_link( $order ) );
+			return;
+		}
+		// La cuenta de Webuzo es hoy de un servicio más nuevo del mismo dominio (recontratado): éste no renueva nada.
+		if ( ! self::owns_account( $id ) ) {
+			if ( self::note_once( $order, 'superseded', 'la cuenta de Webuzo de ' . self::svc( $id, 'domain' ) . ' es hoy de un servicio más nuevo: esta renovación NO se aplica. Da de baja el servicio viejo y reembolsa si se pagó.' ) ) self::superseded( $id, 'La renovación #' . $order->get_id() . ' no se aplicó. Reembólsala si se pagó.' );
 			return;
 		}
 		$state = self::take_retry( $order, $state, self::META_RENEW );
@@ -1413,6 +1420,7 @@ class Digitalisimo_Hosting_Provisioning {
 	 */
 	public static function owns_account( $id ) {
 		$user = (string) self::svc( $id, 'webuzo_user' ); $domain = strtolower( (string) self::svc( $id, 'domain' ) );
+		if ( '' === $user ) return true; // sin cuenta de Webuzo (sólo dominio): nada que disputar
 		$mine = (int) self::svc( $id, 'created' );
 		foreach ( self::services() as $sid ) {
 			if ( $sid === (int) $id || 'cancelled' === self::svc( $sid, 'status' ) ) continue;
@@ -1420,6 +1428,14 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( (int) self::svc( $sid, 'created' ) > $mine || ( (int) self::svc( $sid, 'created' ) === $mine && $sid > (int) $id ) ) return false;
 		}
 		return true;
+	}
+
+	/** El servicio viejo de un dominio recontratado: sin avisos ni renovaciones; se pide darlo de baja (una vez). */
+	private static function superseded( $id, $extra = '' ) {
+		if ( self::svc( $id, 'superseded_noted' ) ) return;
+		$text = 'La cuenta «' . self::svc( $id, 'webuzo_user' ) . '» de Webuzo es hoy de un servicio más nuevo del mismo dominio (' . self::svc( $id, 'domain' ) . '): este servicio ya no manda avisos ni renueva el hosting. Dalo de baja en Servicios de hosting.' . ( '' !== $extra ? ' ' . $extra : '' );
+		self::svc_set( $id, array( 'superseded_noted' => time(), 'error' => $text ) ); self::svc_log( $id, $text );
+		self::alert_admin( 'servicio viejo de ' . self::svc( $id, 'domain' ) . ': darlo de baja', $text . "\n\nServicios: " . admin_url( 'admin.php?page=digitalisimo-hosting-services' ) );
 	}
 
 	private static function overdue_or_unpaid_is_false( $id ) { return ! self::overdue( $id ); }
