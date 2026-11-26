@@ -15,6 +15,8 @@ require_once __DIR__ . '/digitalisimo-ui/digitalisimo-ui.php';
 require_once __DIR__ . '/includes/class-digitalisimo-notices.php';
 require_once __DIR__ . '/includes/class-digitalisimo-core.php';
 require_once __DIR__ . '/includes/class-hosting.php';
+require_once __DIR__ . '/includes/class-hosting-products.php';
+require_once __DIR__ . '/includes/class-hosting-checkout.php';
 require_once __DIR__ . '/includes/class-hosting-webuzo.php';
 require_once __DIR__ . '/includes/class-hosting-namecheap.php';
 require_once __DIR__ . '/includes/class-hosting-pricing.php';
