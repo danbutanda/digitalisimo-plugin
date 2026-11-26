@@ -1574,7 +1574,8 @@ final class Runner {
 
 	/** Estado de la migración de red (null si nunca se lanzó). */
 	public static function network_state() {
-		$job = get_site_option( self::NETWORK_JOB, null );
+		// De la base, como la tarea de cada sitio (stored()).
+		$job = class_exists( '\\Digitalisimo\\Migration\\Full', false ) ? \Digitalisimo\Migration\Full::stored( self::NETWORK_JOB, true ) : get_site_option( self::NETWORK_JOB, null );
 		return is_array( $job ) ? $job : null;
 	}
 

@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_mismatch', 'theme_child_nowrap', 'theme_child_nowrap_paused', 'theme_switch_throw', 'theme_switch_crash', 'theme_revert_snippet_stuck', 'theme_revert_order', 'switch_hook_throws', 'switch_hook_dies', 'revert_alien_back', 'child_many_files', 'child_many_files_retire', 'child_template_types', 'child_template_unverifiable', 'theme_child_nowrap_refused', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_json', 'theme_child_retire_dir', 'theme_child_retire_official', 'theme_child_retire_network', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback', 'alien_cache', 'alien_cache_midway', 'plugin_update_reactivates', 'orphan_job', 'stale_cache', 'lost_click', 'done_job' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_mismatch', 'theme_child_nowrap', 'theme_child_nowrap_paused', 'theme_switch_throw', 'theme_switch_crash', 'theme_revert_snippet_stuck', 'theme_revert_order', 'switch_hook_throws', 'switch_hook_dies', 'revert_alien_back', 'child_many_files', 'child_many_files_retire', 'child_template_types', 'child_template_unverifiable', 'child_cap_unreviewed', 'revert_hook_throws_back', 'own_theme_child_php_off', 'child_home_author', 'baseline_owner_changes', 'template_checks_die', 'theme_child_nowrap_refused', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_json', 'theme_child_retire_dir', 'theme_child_retire_official', 'theme_child_retire_network', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback', 'alien_cache', 'alien_cache_midway', 'plugin_update_reactivates', 'orphan_job', 'stale_cache', 'lost_click', 'done_job' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -133,7 +133,10 @@ function wp_using_ext_object_cache() { return ! empty( $GLOBALS['t']['ext_cache'
 function wp_load_alloptions() { return $GLOBALS['t']['options'][ blog() ] ?? array(); }
 function home_url( $path = '' ) { return 'http://example.test' . ( 1 === blog() ? '' : '/dos' ) . $path; }
 function get_posts( $args ) { return array( 10 ); }
-function get_permalink( $id ) { return is_object( $id ) ? home_url( '/' . $id->post_name . '/' ) : home_url( '/sobre/' ); }
+function get_permalink( $id ) { return is_object( $id ) ? home_url( '/' . $id->post_name . '/' ) : home_url( $GLOBALS['t']['permalinks'][ (int) $id ] ?? '/sobre/' ); }
+/** Autores por slug (`authors`: slug => ID) para author-<nombre>.php. */
+function get_user_by( $field, $value ) { $id = 'id' === $field ? (int) $value : (int) ( $GLOBALS['t']['authors'][ $value ] ?? 0 ); return $id ? (object) array( 'ID' => $id ) : false; }
+function get_author_posts_url( $id ) { return home_url( '/autor/' . (int) $id . '/' ); }
 /** Páginas por ruta (`pages_by_path`: slug => post_name) para las plantillas page-<slug>.php del hijo. */
 function get_page_by_path( $path, $output = 'OBJECT', $type = 'page' ) { return isset( $GLOBALS['t']['pages_by_path'][ $path ] ) ? (object) array( 'ID' => 77, 'post_name' => $GLOBALS['t']['pages_by_path'][ $path ] ) : null; }
 function get_post_status( $post ) { return 'publish'; }
@@ -310,6 +313,12 @@ function switch_theme( $stylesheet ) {
 	}
 	update_option( 'stylesheet', $stylesheet );
 	update_option( 'template', $GLOBALS['t']['themes'][ $stylesheet ]['Template'] ?? $stylesheet );
+	// `throw_after_back`: al volver al hijo, un gancho de switch_theme lanza con el hijo ya escrito.
+	if ( 'digitalisimo-theme' !== $stylesheet && ! empty( $GLOBALS['t']['throw_after_back'] ) ) {
+		unset( $GLOBALS['t']['throw_after_back'] );
+		$GLOBALS['t']['log'][] = 'crash_after_back';
+		throw new RuntimeException( 'un gancho de switch_theme lanzó al volver' );
+	}
 	// `throw_in_switch`: como WordPress, el tema nuevo ya está escrito cuando corre un gancho de switch_theme que lanza
 	// (`dead_job`: lo que estaba guardado en ese instante, para emular que la petición murió ahí).
 	if ( 'digitalisimo-theme' === $stylesheet && ! empty( $GLOBALS['t']['throw_in_switch'] ) ) {
@@ -664,6 +673,14 @@ $page = '<html><head><title>T</title></head><body><header>Vivero Las Flores</hea
  */
 Front::$fetcher = static function ( $url ) use ( $page ) {
 	$GLOBALS['t']['fetched'][] = (string) $url;
+	// `die_in_template`: la petición muere (tiempo agotado) tomando la huella de la vista de page-contacto.php.
+	if ( ! empty( $GLOBALS['t']['die_in_template'] ) && false !== strpos( $url, 'contacto' ) ) {
+		unset( $GLOBALS['t']['die_in_template'] );
+		$GLOBALS['t']['dead_job']  = get_option( Full::JOB );
+		$GLOBALS['t']['dead_snip'] = ! empty( $GLOBALS['t']['snippet_on'] );
+		$GLOBALS['t']['log'][]     = 'died_in_template';
+		throw new RuntimeException( 'la petición murió (tiempo agotado) comparando plantillas' );
+	}
 	$blog  = false !== strpos( $url, '/dos' ) ? 2 : 1;
 	if ( ! empty( $GLOBALS['t']['fail_in_theme_stage'] ) && 'theme' === ( Full::load( false )['stage'] ?? '' ) ) {
 		return new WP_Error( 'x', 'sin respuesta' );
@@ -1434,6 +1451,143 @@ switch ( $scenario ) {
 		check( 'hello-hijo' === get_option( 'stylesheet' ) && ! logged( 'switch_theme' ) && false !== strpos( $why, 'single-portfolio.php' ) && false !== strpos( $why, 'woocommerce/emails/customer-note.php' ) && ! logged( 'delete_theme' ), 'Sin una vista fiable, el hijo se queda y el motivo nombra los archivos: ' . $why );
 		break;
 
+	case 'child_cap_unreviewed':
+		// Revisión adversarial NUEVA 1: 400 template-parts llenan el tope y esconden un correo de WooCommerce: lo no revisado
+		// cuenta como plantilla sin vista fiable, el hijo se queda y el motivo lo dice.
+		// H2/H5: más de 20 plantillas resolubles esconden un correo de WooCommerce (sin vista fiable).
+		child_theme( 'hello-hijo', 'Hello Hijo', OFFICIAL_CHILD );
+		@mkdir( TMP . '/themes/hello-hijo/template-parts', 0777, true );
+		for ( $i = 0; $i < 400; $i++ ) { file_put_contents( TMP . '/themes/hello-hijo/template-parts/p' . $i . '.php', "<?php\necho 'x';\n" ); }
+		@mkdir( TMP . '/themes/hello-hijo/woocommerce/emails', 0777, true );
+		file_put_contents( TMP . '/themes/hello-hijo/woocommerce/emails/customer-note.php', "<?php\necho 'nota';\n" );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
+		$GLOBALS['t']['carry']       = true;
+		child_not_copied( 'hello-hijo' );
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		$files = (string) ( $last['theme'][1]['child_facts']['files'] ?? '' );
+		check( ! ( 'digitalisimo-theme' === get_option( 'stylesheet' ) && false === strpos( $files, 'customer-note' ) ), 'Con un correo de WooCommerce oculto tras el tope, el tema no cambia.' );
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && false !== strpos( (string) ( $last['theme'][1]['reason'] ?? '' ), 'quedan sin revisar' ), 'Con plantillas sin revisar tras el tope, el hijo se queda y el motivo lo dice: ' . ( $last['theme'][1]['reason'] ?? '' ) );
+		break;
+
+	case 'revert_hook_throws_back':
+		// Revisión adversarial NUEVA 4: la vuelta atrás escribe el hijo y un gancho lanza: manda el tema activo de verdad.
+		// H3: la vuelta atrás escribe el hijo y un gancho lanza: el informe no debe decir que sigue el tema propio.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		$GLOBALS['t']['child_sheet']      = 'hello-hijo';
+		$GLOBALS['t']['carry']            = true;
+		$GLOBALS['t']['break']            = true;
+		$GLOBALS['t']['throw_after_back'] = true;
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		check( ! ( 'hello-hijo' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['switched'] ) ), 'Con el hijo activo, la fila no queda como cambiada ni el informe dice que sigue el tema DIGITALÍSIMO.' );
+		check( 'hello-hijo' === get_option( 'stylesheet' ) && ! empty( $last['theme'][1]['reverted'] ) && (bool) preg_grep( '/dio un error/', (array) $last['notes'] ), 'Vuelto al hijo y el informe lo dice, con el error del gancho: ' . json_encode( $last['notes'], JSON_UNESCAPED_UNICODE ) );
+		break;
+
+	case 'own_theme_child_php_off':
+		// Revisión adversarial (hueco de H1): una pasada murió en el cambio sin la condición y no se retomó; el clic siguiente
+		// encuentra el tema propio activo y el PHP del hijo sin activar: lo activa.
+		// H1: hijo sin condición; la petición muere dentro de switch_theme y la tarea no se retoma (bloqueada o perdida):
+		// el clic siguiente encuentra el tema propio activo.
+		child_theme( 'hello-hijo', 'Hello Hijo', "<?php\nnamespace Hijo;\nadd_action( 'wp_head', function () {\n\techo '<style>.x{color:red}</style>';\n} );\n" );
+		$GLOBALS['t']['child_sheet']     = 'hello-hijo';
+		$GLOBALS['t']['carry']           = true;
+		$GLOBALS['t']['throw_in_switch'] = true;
+		tools_auto();
+		drive();
+		$dead = $GLOBALS['t']['dead_job'] ?? null;
+		update_option( 'stylesheet', 'digitalisimo-theme' );
+		update_option( 'template', 'digitalisimo-theme' );
+		$GLOBALS['t']['snippet_on'] = $GLOBALS['t']['dead_snip'];
+		// Como blocked(): la tarea termina tal como estaba guardada, sin volver atrás.
+		$dead['done'] = true; $dead['failed'] = 'theme'; $dead['blocked'] = true;
+		update_option( Full::LAST, $dead );
+		delete_option( Full::JOB );
+		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) + 1;
+		$state = request( true, 'clic2' );
+		for ( $i = 0; $i < 80 && empty( $state['done'] ); $i++ ) { $state = request( false, 'clic2' ); }
+		$last = Full::last( false );
+		check( ! ( 'digitalisimo-theme' === get_option( 'stylesheet' ) && empty( $GLOBALS['t']['snippet_on'] ) ), 'Tras una pasada que murió en el cambio y no se retomó, el clic siguiente no deja el tema propio sin el PHP del hijo.' );
+		check( ! empty( $GLOBALS['t']['snippet_on'] ) && (bool) preg_grep( '/Migrar activó «PHP del tema hijo Hello Hijo»/', (array) $last['notes'] ), 'Lo activa y lo dice: ' . json_encode( $last['notes'], JSON_UNESCAPED_UNICODE ) );
+		break;
+
+	case 'child_home_author':
+		// Revisión adversarial (sospechas): home.php con portada estática compara la página de entradas; author-<nombre>.php
+		// compara a ese autor.
+		child_theme( 'hello-hijo', 'Hello Hijo', OFFICIAL_CHILD );
+		file_put_contents( TMP . '/themes/hello-hijo/home.php', "<?php\nget_header();\necho 'blog';\nget_footer();\n" );
+		file_put_contents( TMP . '/themes/hello-hijo/author-ana.php', "<?php\nget_header();\necho 'ana';\nget_footer();\n" );
+		update_option( 'show_on_front', 'page' );
+		update_option( 'page_for_posts', 55 );
+		$GLOBALS['t']['permalinks'][55] = '/blog/';
+		$GLOBALS['t']['authors']        = array( 'ana' => 7 );
+		$GLOBALS['t']['child_sheet']    = 'hello-hijo';
+		$GLOBALS['t']['carry']          = true;
+		child_not_copied( 'hello-hijo' );
+		tools_auto();
+		drive();
+		$last = Full::last( false );
+		check( (bool) preg_grep( '#/blog/$#', (array) $GLOBALS['t']['fetched'] ) && (bool) preg_grep( '#/autor/7/$#', (array) $GLOBALS['t']['fetched'] ) && 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! empty( $last['verified'] ), 'home.php compara la página de entradas y author-ana.php a Ana: ' . json_encode( array_values( array_unique( $GLOBALS['t']['fetched'] ) ) ) );
+		break;
+
+	case 'baseline_owner_changes':
+		// Revisión adversarial NUEVA 3: una pasada falla y deja el sitio a medias; después el dueño cambia el texto de la
+		// portada. La pasada siguiente compara con la referencia, no coincide y el informe ofrece empezar desde el sitio de
+		// ahora; con eso, la siguiente termina en verde (nunca queda bloqueado).
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo';
+		$GLOBALS['t']['carry']       = true;
+		$GLOBALS['t']['break']       = true;
+		tools_auto();
+		drive();
+		check( empty( Full::last( false )['verified'] ) && Full::baseline( false ), 'Primera pasada a medias: queda la referencia.' );
+		$GLOBALS['t']['break']   = false;
+		$GLOBALS['t']['changed'] = true;
+		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) + 1;
+		$state = request( true, 'clic2' );
+		for ( $i = 0; $i < 80 && empty( $state['done'] ); $i++ ) { $state = request( false, 'clic2' ); }
+		$l2   = Full::last( false );
+		$html = Full::render( false, $l2 );
+		check( empty( $l2['verified'] ) && false !== strpos( $html, 'digi-migrate__fresh' ) && false !== strpos( $html, 'Migrar tomando el sitio de ahora como referencia' ), 'No coincide con la de antes: el informe ofrece empezar desde el sitio de ahora.' );
+		Full::drop_baseline( false ); // Lo que hace el botón (Full::ajax() con fresh_baseline).
+		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) + 1;
+		$state = request( true, 'clic3' );
+		for ( $i = 0; $i < 80 && empty( $state['done'] ); $i++ ) { $state = request( false, 'clic3' ); }
+		check( ! empty( Full::last( false )['verified'] ) && 'digitalisimo-theme' === get_option( 'stylesheet' ), 'Desde el sitio de ahora, termina en verde: ' . ( Full::last( false )['error'] ?? '' ) );
+		break;
+
+	case 'template_checks_die':
+		// Revisión adversarial NUEVA 2: la petición muere tomando las huellas de las plantillas; la vuelta siguiente las toma
+		// antes de cambiar el tema.
+		// H5/H10: la petición muere (max_execution_time) mientras template_checks toma las huellas de las plantillas.
+		child_theme( 'hello-hijo', 'Hello Hijo', PHP_CHILD );
+		file_put_contents( TMP . '/themes/hello-hijo/page-contacto.php', "<?php\nget_header();\necho 'contacto';\nget_footer();\n" );
+		$GLOBALS['t']['pages_by_path']   = array( 'contacto' => 'contacto' );
+		$GLOBALS['t']['child_sheet']     = 'hello-hijo';
+		$GLOBALS['t']['carry']           = true;
+		$GLOBALS['t']['die_in_template'] = true;
+		child_not_copied( 'hello-hijo' );
+		tools_auto();
+		drive();
+		$dead = $GLOBALS['t']['dead_job'] ?? null;
+		if ( ! is_array( $dead ) ) { check( false, 'sin dead_job' ); break; }
+		update_option( 'stylesheet', 'hello-hijo' );
+		update_option( 'template', 'hello-elementor' );
+		$GLOBALS['t']['snippet_on'] = $GLOBALS['t']['dead_snip'];
+		update_option( Full::JOB, $dead );
+		delete_option( Full::LAST );
+		$GLOBALS['t']['fetched'] = array();
+		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) + 1;
+		$state = request();
+		for ( $i = 0; $i < 80 && empty( $state['done'] ); $i++ ) { $state = request(); }
+		$last = Full::last( false );
+		$cmp  = (bool) preg_grep( '#/contacto/#', (array) $GLOBALS['t']['fetched'] );
+		check( ! ( 'digitalisimo-theme' === get_option( 'stylesheet' ) && ! $cmp ), 'Tras morir en template_checks, el tema no cambia sin comparar la vista de page-contacto.php.' );
+		check( 'digitalisimo-theme' === get_option( 'stylesheet' ) && $cmp && ! empty( $last['verified'] ), 'Tras morir en las huellas, las toma y termina verificada: ' . json_encode( $last['verified'] ?? null ) );
+		break;
+
 	case 'theme_child_nowrap_refused':
 		// Lo mismo, pero Tools no lo activa (el servidor cierra la edición de código): el sitio vuelve al hijo en esa misma
 		// petición y el motivo lo dice.
@@ -2191,9 +2345,16 @@ switch ( $scenario ) {
 		delete_option( Full::JOB );
 		// Revisión adversarial H6: la referencia de la portada se conserva entre versiones y días («falla, actualizo y
 		// reintento»); sólo deja de valer cuando una pasada posterior terminó verificada.
+		// Revisión adversarial NUEVA 3: la del 19-nov de digitalisimo.lat (de una versión anterior) no se usa; una de esta
+		// versión de una pasada que dejó el sitio a medias sí, hasta una pasada verificada; una que no lo dejó alterado, no.
 		update_option( Full::BASELINE, array( 'started' => 1763604000, 'checks' => array( array( 1, 'http://example.test/' ) ) ) );
 		update_option( Full::LAST, array( 'started' => 1763604000, 'verified' => false, 'run' => 'm19nov' ) );
-		check( null !== Full::baseline( false ), 'Tras una pasada sin verificar, la referencia vieja (otra versión, otro día) sigue valiendo.' );
+		check( null === Full::baseline( false ) && false === get_option( Full::BASELINE ), 'La referencia del 19-nov (otra versión) se descarta: se toma la del sitio de ahora.' );
+		update_option( Full::BASELINE, array( 'started' => 1763604000, 'version' => DIGITALISIMO_MIGRATION_VERSION, 'altered' => true, 'checks' => array( array( 1, 'http://example.test/' ) ) ) );
+		check( null !== Full::baseline( false ), 'De esta versión y de una pasada que dejó el sitio a medias: vale (también otro día).' );
+		update_option( Full::BASELINE, array( 'started' => 1763604000, 'version' => DIGITALISIMO_MIGRATION_VERSION, 'altered' => false, 'checks' => array( array( 1, 'http://example.test/' ) ) ) );
+		check( null === Full::baseline( false ), 'De una pasada que no alteró el sitio: no.' );
+		update_option( Full::BASELINE, array( 'started' => 1763604000, 'version' => DIGITALISIMO_MIGRATION_VERSION, 'altered' => true, 'checks' => array( array( 1, 'http://example.test/' ) ) ) );
 		update_option( Full::LAST, array( 'started' => 1763690000, 'verified' => true, 'run' => 'm20nov' ) );
 		check( null === Full::baseline( false ) && false === get_option( Full::BASELINE ), 'Tras una pasada posterior verificada, se retira.' );
 		break;
