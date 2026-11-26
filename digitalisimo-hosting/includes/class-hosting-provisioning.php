@@ -168,6 +168,11 @@ class Digitalisimo_Hosting_Provisioning {
 				return;
 			}
 		}
+		if ( $renewal && 'cancelled' === self::svc( $renewal, 'status' ) ) {
+			// El servicio se dio de baja: la renovación pagada no renueva nada; hay que reembolsar.
+			if ( self::note_once( $order, 'cancelled', 'el servicio ' . self::svc( $renewal, 'domain' ) . ' está dado de baja: esta renovación pagada NO se aplica. Reembólsala.' ) ) self::alert_admin( 'renovación pagada de un servicio dado de baja', 'Se pagó la renovación #' . $order->get_id() . ' de ' . self::svc( $renewal, 'domain' ) . ', que está dado de baja: no se renovó nada. Reembólsala al cliente.' . "\n\n" . self::order_link( $order ) );
+			return;
+		}
 		if ( $renewal ) {
 			$state = (array) $order->get_meta( self::META_RENEW );
 			if ( empty( $state['done'] ) ) {
@@ -417,6 +422,8 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! $order || $order->get_meta( self::META_RENEWAL ) ) return;
 		$state = self::state( $order );
 		if ( ! empty( $state['done'] ) || ! self::may_run( $order, $state ) ) return;
+		$sid = (int) $order->get_meta( self::META_SERVICE );
+		if ( $sid && 'cancelled' === self::svc( $sid, 'status' ) ) { self::note_once( $order, 'cancelled', 'el servicio está dado de baja: no se aprovisiona.' ); return; }
 		$state = self::take_retry( $order, $state, self::META_STATE );
 		try {
 			$items  = self::items( $order );
@@ -918,6 +925,10 @@ class Digitalisimo_Hosting_Provisioning {
 	public static function cancel_service( $id ) {
 		if ( ! self::is_service( $id ) ) return false;
 		foreach ( array( self::HOOK_SUSPEND, self::HOOK_UNSUSPEND, self::HOOK_VERIFY, self::HOOK_RECONCILE ) as $hook ) if ( function_exists( 'as_unschedule_all_actions' ) ) as_unschedule_all_actions( $hook, array( (int) $id ), self::GROUP );
+		// Lo que ya estaba en marcha también se descarta: el alta (si no se entregó) y la renovación en cola o en espera.
+		foreach ( array( self::HOOK_PROVISION => (int) self::svc( $id, 'order' ), self::HOOK_RENEW => (int) self::svc( $id, 'renewal_order' ) ) as $hook => $oid ) if ( $oid && function_exists( 'as_unschedule_all_actions' ) ) as_unschedule_all_actions( $hook, array( $oid ), self::GROUP );
+		$w = get_option( self::WAITING, array() );
+		if ( is_array( $w ) ) { foreach ( array( self::HOOK_SUSPEND, self::HOOK_UNSUSPEND, self::HOOK_VERIFY, self::HOOK_RECONCILE ) as $hook ) unset( $w[ $hook . ':' . (int) $id ] ); unset( $w[ self::HOOK_PROVISION . ':' . (int) self::svc( $id, 'order' ) ], $w[ self::HOOK_RENEW . ':' . (int) self::svc( $id, 'renewal_order' ) ] ); update_option( self::WAITING, $w, false ); }
 		self::svc_set( $id, array( 'status' => 'cancelled', 'pending_toggle' => array(), 'suspend_reason' => '', 'suspend_for' => 0, 'error' => '', 'cancelled_at' => time() ) );
 		self::svc_log( $id, 'Dado de baja: sin renovaciones ni suspensiones automáticas.' );
 		$r = wc_get_order( (int) self::svc( $id, 'renewal_order' ) );
@@ -1012,6 +1023,10 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! $id || ! self::is_service( $id ) ) return;
 		$state = (array) $order->get_meta( self::META_RENEW );
 		if ( ! empty( $state['done'] ) || ! self::may_run( $order, $state ) ) return;
+		if ( 'cancelled' === self::svc( $id, 'status' ) ) {
+			if ( self::note_once( $order, 'cancelled', 'el servicio ' . self::svc( $id, 'domain' ) . ' está dado de baja: esta renovación NO se aplica. Reembólsala si se pagó.' ) ) self::alert_admin( 'renovación de un servicio dado de baja', 'La renovación #' . $order->get_id() . ' de ' . self::svc( $id, 'domain' ) . ' no se aplicó: el servicio está dado de baja. Reembólsala si se pagó.' . "\n\n" . self::order_link( $order ) );
+			return;
+		}
 		$state = self::take_retry( $order, $state, self::META_RENEW );
 		try {
 			// El dominio y el hosting por separado: si el dominio no se puede renovar (saldo, costo, error de Namecheap), el
@@ -1277,7 +1292,7 @@ class Digitalisimo_Hosting_Provisioning {
 
 	/** «Reintentar» de la pantalla de servicios: lo que esté a medias (aprovisionamiento o renovación pagada). */
 	public static function retry( $id ) {
-		if ( ! self::is_service( $id ) ) return false;
+		if ( ! self::is_service( $id ) || 'cancelled' === self::svc( $id, 'status' ) ) return false;
 		$order = wc_get_order( (int) self::svc( $id, 'order' ) );
 		$queued = false;
 		if ( $order ) {

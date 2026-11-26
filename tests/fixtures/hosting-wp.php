@@ -218,6 +218,7 @@ function as_enqueue_async_action( $hook, $args = array(), $group = '' ) { $GLOBA
 function as_schedule_single_action( $t, $hook, $args = array(), $group = '' ) { $GLOBALS['queue'][] = array( 'hook' => $hook, 'args' => $args, 'at' => $t, 'group' => $group ); return count( $GLOBALS['queue'] ); }
 function as_schedule_recurring_action( $t, $interval, $hook, $args = array(), $group = '' ) { $GLOBALS['recurring'][ $hook ] = array( $t, $interval, $group ); return 1; }
 function as_has_scheduled_action( $hook, $args = null, $group = '' ) { foreach ( $GLOBALS['queue'] as $a ) if ( $a['hook'] === $hook && ( null === $args || $a['args'] === $args ) ) return true; return isset( $GLOBALS['recurring'][ $hook ] ); }
+function as_unschedule_all_actions( $hook, $args = array(), $group = '' ) { $GLOBALS['queue'] = array_values( array_filter( $GLOBALS['queue'], function ( $a ) use ( $hook, $args ) { return ! ( $a['hook'] === $hook && ( ! $args || $a['args'] === $args ) ); } ) ); }
 /** Corre lo encolado (también lo programado a futuro si $all); devuelve cuántas tareas corrió. */
 function digi_run_queue( $all = true, $max = 50 ) {
 	$n = 0;
