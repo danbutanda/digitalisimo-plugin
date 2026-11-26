@@ -387,9 +387,13 @@ final class Settings_Page {
 		echo '</form>';
 	}
 
-	/** «Heredar de la red» deshabilita el interruptor que hereda (sin JavaScript, el valor heredado se ignora igual). */
+	/**
+	 * «Heredar de la red» deshabilita el interruptor que hereda (sin JavaScript, el valor heredado se ignora igual). Un
+	 * campo agrupado lleva además `data-group` (un selector, como en SEO): se deshabilita también ese grupo, p. ej. las
+	 * casillas de «WooCommerce en el MCP», que heredan junto con su desplegable.
+	 */
 	private static function inherit_script(): void {
-		$script = 'document.querySelectorAll(".digitalisimo-front-inherit").forEach(function(b){var f=document.getElementById(b.getAttribute("data-field"));if(!f){return;}var s=function(){f.disabled=b.checked;};b.addEventListener("change",s);s();});';
+		$script = 'document.querySelectorAll(".digitalisimo-front-inherit").forEach(function(b){var f=document.getElementById(b.getAttribute("data-field"));if(!f){return;}var g=b.getAttribute("data-group");var e=g?document.querySelector(g):null;var s=function(){f.disabled=b.checked;if(e){e.disabled=b.checked;}};b.addEventListener("change",s);s();});';
 		if ( function_exists( 'wp_print_inline_script_tag' ) ) {
 			wp_print_inline_script_tag( $script );
 		} else {

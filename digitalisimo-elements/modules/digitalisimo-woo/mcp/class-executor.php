@@ -46,7 +46,7 @@ final class Executor {
 			}
 			return $error;
 		}
-		if ( 'write' === $plan['kind'] && 'write' !== $mode && ! self::assistant_writes( $tool, $plan ) ) {
+		if ( 'write' === $plan['kind'] && ! Settings::can_write( $tool ) && ! self::assistant_writes( $tool, $plan ) ) {
 			Log::add( Log::entry( $plan, 'denied', 'read_mode', 403, $user ) );
 			return self::read_mode_error( $plan );
 		}
@@ -198,7 +198,7 @@ final class Executor {
 	 */
 	private static function assistant_mode( string $tool, array $plan ) {
 		$context = self::assistant( $tool );
-		if ( null === $context || 'write' === Settings::mode() || self::assistant_writes( $tool, $plan ) ) {
+		if ( null === $context || Settings::can_write( $tool ) || self::assistant_writes( $tool, $plan ) ) {
 			return true;
 		}
 		return self::read_mode_error( $plan );
@@ -305,13 +305,30 @@ final class Executor {
 		return array( $plan, $kept, $nothing );
 	}
 
-	/** Error de «sólo lectura» que dice dónde se cambia el modo. */
+	/**
+	 * Error de «no se puede escribir» que dice el ajuste y dónde se cambia: en «Sólo lectura», el modo; en «Escritura
+	 * sólo en lo elegido», que esta herramienta no está marcada. El código es el mismo en los dos casos.
+	 */
 	public static function read_mode_error( array $plan ): \WP_Error {
 		$where = function_exists( 'admin_url' ) ? admin_url( 'admin.php?page=' . Settings_Section::FRONT_PAGE . '#' . Settings_Section::ANCHOR ) : '';
+		$tool  = isset( $plan['tool'] ) && is_string( $plan['tool'] ) ? $plan['tool'] : '';
+		if ( 'custom' === Settings::mode() && isset( Settings::WRITE_TOOLS[ $tool ] ) ) {
+			return new \WP_Error(
+				'digitalisimo_woo_mcp_read_only',
+				sprintf(
+					'Este sitio tiene «WooCommerce en el MCP» en «Escritura sólo en lo elegido» y «%s» no está elegido: %s en «%s» no se hizo. Un administrador lo marca en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, sección «WooCommerce en el MCP»%s; en una red, si el sitio hereda el modo, también en esa pantalla de la administración de la red.',
+					Settings::WRITE_TOOLS[ $tool ],
+					$plan['action'],
+					$plan['resource'],
+					'' !== $where ? ' (' . $where . ')' : ''
+				),
+				array( 'status' => 403 )
+			);
+		}
 		return new \WP_Error(
 			'digitalisimo_woo_mcp_read_only',
 			sprintf(
-				'Este sitio tiene «WooCommerce en el MCP» en «Sólo lectura»: %s en «%s» no se hizo. Un administrador lo cambia a «Lectura y escritura» en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, sección «WooCommerce en el MCP»%s; en una red, si el sitio hereda el modo, también en esa pantalla de la administración de la red.',
+				'Este sitio tiene «WooCommerce en el MCP» en «Sólo lectura»: %s en «%s» no se hizo. Un administrador lo cambia a «Lectura y escritura» (o a «Escritura sólo en lo elegido») en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, sección «WooCommerce en el MCP»%s; en una red, si el sitio hereda el modo, también en esa pantalla de la administración de la red.',
 				$plan['action'],
 				$plan['resource'],
 				'' !== $where ? ' (' . $where . ')' : ''

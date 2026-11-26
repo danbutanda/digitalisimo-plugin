@@ -230,14 +230,21 @@ final class Tools {
 	 * Definición de una herramienta: `label`, `description`, `category`, `input_schema`, `output_schema` y `meta`
 	 * (`annotations`, `show_in_rest` y `mcp`). `$mode` (`read` o `write`) sólo cambia la última frase de la descripción.
 	 */
-	public static function definition( string $tool, string $mode = 'read' ): array {
+	public static function definition( string $tool, string $mode = 'read', $write_tools = null ): array {
+		// «Escritura sólo en lo elegido»: la herramienta marcada se describe como en escritura; la otra, con su motivo.
+		if ( 'custom' === $mode ) {
+			$write_tools = is_array( $write_tools ) ? $write_tools : Settings::write_tools();
+			$mode        = in_array( $tool, $write_tools, true ) ? 'write' : 'custom';
+		}
 		if ( self::SKYDROPX === $tool ) {
 			return Skydropx_Tool::definition( $mode );
 		}
 		$readonly = self::is_readonly_tool( $tool );
-		$tail     = $readonly ? '' : ( 'write' === $mode
+		$tail     = $readonly ? '' : ( 'custom' === $mode
+			? ' En este sitio esta herramienta sólo lee («WooCommerce en el MCP»: escritura sólo en lo elegido, y ésta no está elegida): create, update, delete y batch devuelven un error que explica dónde se marca.'
+			: ( 'write' === $mode
 			? ' Este sitio permite escribir («WooCommerce en el MCP»: lectura y escritura); toda escritura queda en la bitácora sin datos personales.'
-			: ' Este sitio sólo permite leer («WooCommerce en el MCP»: sólo lectura): create, update, delete y batch devuelven un error que explica dónde se cambia el modo.' . ( in_array( $tool, array( 'products', 'catalog' ), true ) ? ' Excepción: desde el Asistente IA del escritorio, create y update de productos, variaciones y catálogo sí se hacen, con la confirmación de la persona.' : '' ) );
+			: ' Este sitio sólo permite leer («WooCommerce en el MCP»: sólo lectura): create, update, delete y batch devuelven un error que explica dónde se cambia el modo.' . ( in_array( $tool, array( 'products', 'catalog' ), true ) ? ' Excepción: desde el Asistente IA del escritorio, create y update de productos, variaciones y catálogo sí se hacen, con la confirmación de la persona.' : '' ) ) );
 		return array(
 			'label'         => self::LABELS[ $tool ],
 			'description'   => self::DESCRIPTIONS[ $tool ] . $tail,

@@ -146,7 +146,9 @@ final class Skydropx_Tool {
 	public static function definition( string $mode = 'read' ): array {
 		$tail = 'write' === $mode
 			? ' Este sitio permite escribir («WooCommerce en el MCP»: lectura y escritura); toda escritura queda en la bitácora sin datos personales.'
-			: ' Este sitio sólo permite leer («WooCommerce en el MCP»: sólo lectura): update_products, set_tracking y resync devuelven un error que explica dónde se cambia el modo.';
+			: ( 'custom' === $mode
+				? ' En este sitio esta herramienta sólo lee («WooCommerce en el MCP»: escritura sólo en lo elegido, y Skydropx no está elegido): update_products, set_tracking y resync devuelven un error que explica dónde se marca.'
+				: ' Este sitio sólo permite leer («WooCommerce en el MCP»: sólo lectura): update_products, set_tracking y resync devuelven un error que explica dónde se cambia el modo.' );
 		return array(
 			'label'         => 'Tienda: envíos con Skydropx',
 			'description'   => self::DESCRIPTION . $tail,

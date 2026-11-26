@@ -616,7 +616,7 @@ namespace {
 	check( 'write' === Settings::mode() && Settings::inherits_network() && 'off' === Settings::stored()['mode'], 'Volver a heredar (desplegable deshabilitado, sin modo): rige la red y lo del sitio se conserva.' );
 	Settings::save_network( array( 'mode' => 'off' ) );
 	check( 'off' === Settings::mode(), 'La red apaga a los sitios que heredan.' );
-	check( array( 'mode' => 'read' ) === Settings::defaults() && array( 'off', 'read', 'write' ) === Settings::MODES, 'Tres modos; predeterminado sólo lectura.' );
+	check( array( 'mode' => 'read' ) === Settings::defaults() && array( 'off', 'read', 'custom', 'write' ) === Settings::MODES, 'Cuatro modos («Escritura sólo en lo elegido» es opt-in); predeterminado sólo lectura.' );
 
 	// La sección de la pantalla: «Heredar de la red» sólo en el sitio de una red.
 	wm_reset( array( 'multisite' => true ) );
@@ -1107,6 +1107,72 @@ namespace {
 			$GLOBALS['wm_reads'] = array();
 			Mcp::boot();
 			review( 'R6', in_array( Settings::OPTION, $GLOBALS['wm_reads'], true ) && 7 === count( Mcp::abilities() ), 'Con el MCP activo sí lo lee y registra las siete.' );
+		}
+	);
+
+	// =================================================================================================================
+	// 10. Tanda B (auditoría de digitalisimo.lat, 2026-11-24), B3: permiso por herramienta. Fallaba con fee02105.
+	review_block(
+		'B3-permisos',
+		static function () use ( $run, $wm_send ) {
+			// Sin elegir nada, todo sigue igual: «Sólo lectura» y ninguna herramienta escribe.
+			wm_reset();
+			review( 'B3-permisos', 'read' === Settings::mode() && array() === Settings::write_tools() && ! Settings::can_write( 'products' ), 'Predeterminado: sólo lectura, sin herramientas elegidas.' );
+			foreach ( array( 'write' => true, 'read' => false, 'off' => false ) as $mode => $all ) {
+				update_option( Settings::OPTION, array( 'mode' => $mode, 'own' => array( 'mode' ), 'write_tools' => array( 'coupons' ) ) );
+				foreach ( array_keys( Settings::WRITE_TOOLS ) as $tool ) {
+					review( 'B3-permisos', $all === Settings::can_write( $tool ), "Modo $mode: la lista no cuenta ($tool)." );
+				}
+			}
+			// «Escritura sólo en lo elegido»: escriben productos y cupones; pedidos no.
+			update_option( Settings::OPTION, Settings::sanitize( array( 'mode' => 'custom', 'write_tools_sent' => '1', 'write_tools' => array( 'coupons', 'products', 'nada', 'products' ) ) ) );
+			review( 'B3-permisos', 'custom' === Settings::mode() && array( 'products', 'coupons' ) === Settings::write_tools(), 'custom guarda la lista válida, sin repetir y en orden: ' . json_encode( Settings::write_tools() ) );
+			review( 'B3-permisos', Settings::can_write( 'products' ) && Settings::can_write( 'coupons' ) && ! Settings::can_write( 'orders' ) && ! Settings::can_write( 'skydropx' ) && ! Settings::can_write( 'reports' ), 'can_write: sólo las elegidas.' );
+			$GLOBALS['wm']['caps'] = array( 'edit_products', 'publish_products', 'edit_shop_orders', 'publish_shop_orders', 'read_private_shop_orders', 'edit_shop_coupons', 'publish_shop_coupons' );
+			$GLOBALS['wm_rest']    = array();
+			$ok = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'regular_price' => '9' ) ) );
+			review( 'B3-permisos', ! is_wp_error( $ok ) && in_array( array( 'PUT', '/wc/v3/products/4', array(), array( 'regular_price' => '9' ) ), $GLOBALS['wm_rest'], true ), 'custom: productos elegidos escriben.' );
+			$GLOBALS['wm_rest'] = array();
+			$no = $run( 'orders', array( 'action' => 'update', 'order_id' => 3, 'data' => array( 'status' => 'completed' ) ) );
+			review( 'B3-permisos', is_wp_error( $no ) && 'digitalisimo_woo_mcp_read_only' === $no->get_error_code() && array() === $GLOBALS['wm_rest'], 'custom: pedidos no elegidos no escriben y no llaman a WooCommerce.' );
+			review( 'B3-permisos', is_wp_error( $no ) && false !== strpos( $no->get_error_message(), 'Escritura sólo en lo elegido' ) && false !== strpos( $no->get_error_message(), 'Pedidos' ), 'El error dice el ajuste y qué falta marcar: ' . ( is_wp_error( $no ) ? $no->get_error_message() : '' ) );
+			review( 'B3-permisos', 'denied' === Log::entries()[0]['result'] && 'read_mode' === Log::entries()[0]['code'], 'El rechazo queda en la bitácora.' );
+			$list = $run( 'orders', array( 'action' => 'list' ) );
+			review( 'B3-permisos', ! is_wp_error( $list ), 'custom: lo no elegido se sigue leyendo.' );
+			// Descripciones por herramienta.
+			review( 'B3-permisos', false !== strpos( Tools::definition( 'orders', 'custom' )['description'], 'no está elegida' ) && false !== strpos( Tools::definition( 'products', 'custom' )['description'], 'permite escribir' ), 'La descripción dice, herramienta por herramienta, si escribe.' );
+			// Una lista que no viaja (grupo deshabilitado) conserva la guardada; una que viaja vacía, vacía.
+			update_option( Settings::OPTION, Settings::sanitize( array( 'mode' => 'custom' ) ) );
+			review( 'B3-permisos', array( 'products', 'coupons' ) === Settings::write_tools(), 'Sin la lista en el envío, se conserva.' );
+			update_option( Settings::OPTION, Settings::sanitize( array( 'mode' => 'custom', 'write_tools_sent' => '1' ) ) );
+			review( 'B3-permisos', array() === Settings::write_tools() && ! Settings::can_write( 'products' ), 'Todas desmarcadas: ninguna escribe.' );
+
+			// Red: el modo y la lista se heredan juntos; el sitio que personaliza manda con la suya.
+			wm_reset( array( 'multisite' => true ) );
+			Settings::save_network( array( 'mode' => 'custom', 'write_tools_sent' => '1', 'write_tools' => array( 'catalog' ) ) );
+			review( 'B3-permisos', array( 'mode' => 'custom', 'write_tools' => array( 'catalog' ) ) === get_site_option( Settings::NETWORK_OPTION ) && Settings::can_write( 'catalog' ) && ! Settings::can_write( 'products' ), 'Red en custom: el sitio que hereda escribe sólo el catálogo.' );
+			Settings::save_network( array( 'mode' => 'custom' ) );
+			review( 'B3-permisos', array( 'catalog' ) === Settings::write_tools(), 'La red sin la lista en el envío conserva la suya.' );
+			update_option( Settings::OPTION, Settings::sanitize( array( 'mode' => 'custom', 'inherit' => array( 'mode' => '0' ), 'write_tools_sent' => '1', 'write_tools' => array( 'products' ) ) ) );
+			review( 'B3-permisos', Settings::can_write( 'products' ) && ! Settings::can_write( 'catalog' ), 'El sitio que personaliza usa su lista, no la de la red.' );
+			update_option( Settings::OPTION, Settings::sanitize( array( 'inherit' => array( 'mode' => '1' ) ) ) );
+			review( 'B3-permisos', Settings::can_write( 'catalog' ) && ! Settings::can_write( 'products' ) && array( 'products' ) === Settings::stored()['write_tools'], 'Volver a heredar: rige la lista de la red y la del sitio se conserva.' );
+
+			// La pantalla, como un navegador: casillas en el sitio y en la red, con el grupo en «Heredar de la red».
+			wm_reset( array( 'multisite' => true, 'caps' => array( 'manage_network_options', 'manage_options' ) ) );
+			ob_start();
+			Settings_Section::render( false );
+			$html = (string) ob_get_clean();
+			review( 'B3-permisos', false !== strpos( $html, 'data-group="#digitalisimo-woo-mcp-tools"' ) && false !== strpos( $html, 'id="digitalisimo-woo-mcp-tools"' ) && 7 === substr_count( $html, '[write_tools][]' ) && false !== strpos( $html, 'value="custom"' ), 'Sitio de la red: siete casillas en un grupo que «Heredar de la red» deshabilita.' );
+			$sent = $wm_send( true, array( Settings::NETWORK_OPTION . '[mode]' => 'custom', Settings::NETWORK_OPTION . '[write_tools][]' => array( 'orders', 'coupons' ) ) );
+			review( 'B3-permisos', 'network-saved' === $sent['notice'] && array( 'orders', 'coupons' ) === Settings::network_values()['write_tools'] && Settings::can_write( 'orders' ), 'Navegador · red: guarda el modo y las casillas: ' . json_encode( get_site_option( Settings::NETWORK_OPTION ) ) );
+			$sent = $wm_send( false, array(), array( 'disabled' => array( Settings::OPTION . '[mode]', Settings::OPTION . '[write_tools][]', Settings::OPTION . '[write_tools_sent]' ) ) );
+			review( 'B3-permisos', 'saved' === $sent['notice'] && Settings::inherits_network() && Settings::can_write( 'coupons' ), 'Navegador · sitio heredando (grupo deshabilitado): sigue la red.' );
+			$sent = $wm_send( false, array( Settings::OPTION . '[inherit][mode]' => false, Settings::OPTION . '[mode]' => 'custom', Settings::OPTION . '[write_tools][]' => array( 'products' ) ) );
+			review( 'B3-permisos', 'saved' === $sent['notice'] && ! Settings::inherits_network() && Settings::can_write( 'products' ) && ! Settings::can_write( 'orders' ), 'Navegador · sitio: personaliza con su propia casilla: ' . json_encode( get_option( Settings::OPTION ) ) );
+			$sent = $wm_send( false, array( Settings::OPTION . '[write_tools][]' => array() ) );
+			review( 'B3-permisos', 'saved' === $sent['notice'] && array() === Settings::write_tools(), 'Navegador · desmarcar todas guarda la lista vacía.' );
+			$_POST = array();
 		}
 	);
 
