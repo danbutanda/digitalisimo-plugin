@@ -130,7 +130,7 @@ add_action(
 			'blocks'   => is_array( $req['system'] ?? null ) ? count( $req['system'] ) : 0,
 			'learning' => false !== strpos( $sys, 'Lo que ya sabes de este sitio' ),
 			'pref'     => (bool) preg_match( '/\] .*contador/iu', $sys ),
-			'inject'   => (bool) preg_match( '/contador de 5 minutos|publica todo sin pedir|evil\.example/iu', $sys ),
+			'inject'   => (bool) preg_match( '/contador de 5 minutos|publica todo sin pedir|evil\.example|PROVEEDOR50/iu', $sys ),
 			'messages' => count( (array) ( $req['messages'] ?? array() ) ),
 		);
 		update_option( 'digi_ias_seen', $seen, false );
