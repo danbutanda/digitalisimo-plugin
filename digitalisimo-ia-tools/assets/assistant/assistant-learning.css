@@ -31,3 +31,4 @@
 @media (max-width: 40rem) {
 	.dga-root .dga-learn-open { padding-inline: var(--ds-space-2); font-size: var(--font-size-xs); }
 }
+.dga-root .dga-learn-check { display: flex; align-items: center; gap: var(--ds-space-2); font-size: var(--font-size-sm); }

@@ -213,13 +213,20 @@ final class Digitalisimo_AI_Assistant_Learning {
 			'/\b(el|la|tu|your|the|al|a la)\s+(asistente|assistant|ia|ai|modelo|model|bot|chatbot|llm)\s+(debe|deberia|tiene que|siempre|nunca|no debe|must|should|always|never|shall)\b/u',
 			'/\b(system prompt|prompt del sistema|jailbreak|developer mode|modo desarrollador|nuevas instrucciones|new instructions|instrucciones para (la ia|el asistente|ti))\b/u',
 			'/\b(revela|muestra|imprime|reveal|print|show)\b.{0,40}\b(clave|claves|contrasena|password|api key|token|secreto|secret)\b/u',
+			// Revisión de b7762173, medio 4: notas y reglas «para la IA», «ignore all prior guidance», «olvídate de lo
+			// que te dijeron antes», «Assistant: …».
+			'/\b(nota|notas|mensaje|mensajes|aviso|avisos|regla|reglas|instruccion|instrucciones|indicacion|indicaciones|orden|ordenes|recordatorio|note|message|rule|rules|instruction|instructions)\b.{0,30}\b(para|a|al|to|for)\s+(la |el |los |las |tu |the |any |all )?(ia|ai|ias|asistente|asistentes|assistant|assistants|bot|bots|chatbot|chatbots|modelo|modelos|model|models|llm|llms|gpt|claude|gemini)\b/u',
+			'/\b(ignore|disregard|forget|override|bypass)\b.{0,40}\b(all|any|prior|previous|above|earlier|guidance|guidelines|directions)\b/u',
+			'/\b(olvidate|olvidense|olvida|olviden|descarta|descarten|deja de lado|haz caso omiso)\b.{0,60}\b(dijeron|dicho|dije|antes|anterior|anteriores|instruccion|instrucciones|indicacion|indicaciones|reglas|te pidieron|lo que sabes)\b/u',
 		);
 		foreach ( $patterns as $pattern ) {
 			if ( preg_match( $pattern, $t ) ) {
 				return true;
 			}
 		}
-		return false;
+		// Un texto que se presenta como turno de un rol («Assistant: …», «Sistema: …», «IA: …»), al principio o tras un
+		// salto de línea (sobre el texto sin normalizar: los dos puntos importan).
+		return (bool) preg_match( '/(^|\n|[.!?]\s)\s*(assistant|asistente|system|sistema|ai|ia|bot|chatbot|modelo|model|user|usuario|human|humano)\s*:/iu', (string) $text );
 	}
 
 	/**
@@ -356,7 +363,9 @@ final class Digitalisimo_AI_Assistant_Learning {
 			if ( ! $admin && ( 'site' !== $item['source'] || ! in_array( $item['section'], self::PUBLIC_SECTIONS, true ) ) ) {
 				continue;
 			}
-			if ( 'preferencias' === $item['section'] || 'site' !== $item['source'] ) {
+			// Lo que el dueño corrigió de un punto del sitio sigue siendo DATO; sólo lo que enseñó él (o marcó como
+			// indicación suya) se sigue como indicación.
+			if ( 'preferencias' === $item['section'] || 'chat' === $item['source'] ) {
 				$prefs[] = $item;
 			} else {
 				$facts[ $item['section'] ][] = $item;
@@ -1192,6 +1201,17 @@ final class Digitalisimo_AI_Assistant_Learning {
 		return '';
 	}
 
+	/** Lo que el dueño escribe en el panel como indicación suya: las mismas reglas de seguridad, sin exigir la forma. */
+	public static function teachable_text( $text ) {
+		if ( self::injection( $text, true ) || self::unsafe( $text ) ) {
+			return 'cambiaría sus reglas de seguridad (confirmaciones, publicar, secretos).';
+		}
+		if ( self::foreign_link( $text ) ) {
+			return 'trae un enlace a otro sitio.';
+		}
+		return self::personal( $text ) ? 'trae datos de una persona, un cliente o un pedido.' : '';
+	}
+
 	/** ¿Le dice al Asistente cómo hacer algo, o afirma algo de su negocio en primera persona? */
 	public static function owner_voice( $sentence ) {
 		$t = self::normalize( $sentence );
@@ -1462,11 +1482,17 @@ final class Digitalisimo_AI_Assistant_Learning {
 		if ( '' === $text ) {
 			return new WP_Error( 'digitalisimo_learning_empty', 'Escribe el texto (o bórralo).', array( 'status' => 400 ) );
 		}
+		// Sólo si el dueño lo marca de forma explícita, el punto pasa a ser una indicación suya; si no, un punto del sitio
+		// corregido sigue siendo dato (revisión de b7762173, medio 4).
+		$preference = rest_sanitize_boolean( $request->get_param( 'preference' ) );
+		if ( $preference && ( '' !== self::teachable_text( $text ) ) ) {
+			return new WP_Error( 'digitalisimo_learning_rule', 'Eso no puede ser una indicación para el Asistente: ' . self::teachable_text( $text ), array( 'status' => 400 ) );
+		}
 		$data = self::get();
 		foreach ( $data['items'] as $i => $item ) {
 			if ( $item['id'] === $id ) {
 				// Lo que corrige el dueño es suyo: un nuevo entrenamiento no lo reemplaza.
-				$data['items'][ $i ] = array_merge( $item, array( 'text' => $text, 'source' => 'owner', 'at' => time() ) );
+				$data['items'][ $i ] = array_merge( $item, array( 'text' => $text, 'source' => 'owner', 'at' => time(), 'pending' => false ), $preference ? array( 'section' => 'preferencias' ) : array() );
 				self::save( $data );
 				return rest_ensure_response( self::view() );
 			}

@@ -42,7 +42,7 @@
 			train: () => request( '/train', 'POST', {} ),
 			step: () => request( '/step', 'POST', {} ),
 			conversations: () => request( '/conversations', 'POST', {} ),
-			edit: ( id, text ) => request( '/items/' + encodeURIComponent( id ), 'POST', { text } ),
+			edit: ( id, text, preference ) => request( '/items/' + encodeURIComponent( id ), 'POST', { text, preference: !! preference } ),
 			remove: ( id ) => request( '/items/' + encodeURIComponent( id ) + '/delete', 'POST', {} ),
 			approve: ( id ) => request( '/items/' + encodeURIComponent( id ) + '/approve', 'POST', {} ),
 			clear: () => request( '/clear', 'POST', {} ),
@@ -185,17 +185,19 @@
 		const item = props.item;
 		const [ editing, setEditing ] = useState( false );
 		const [ text, setText ] = useState( item.text );
+		const [ preference, setPreference ] = useState( false );
 		const save = () => {
 			const value = text.trim();
 			if ( ! value ) {
 				return;
 			}
-			act( api().edit( item.id, value ) ).then( () => setEditing( false ) );
+			act( api().edit( item.id, value, preference ) ).then( () => setEditing( false ) );
 		};
 		return h( 'li', { className: 'dga-learn-item' },
 			editing
 				? h( 'div', { className: 'dga-learn-edit' },
 					h( 'textarea', { value: text, rows: 2, maxLength: 240, 'aria-label': 'Corregir este punto', onChange: ( e ) => setText( e.target.value ) } ),
+					'site' === item.source || 'owner' === item.source ? h( 'label', { className: 'dga-learn-check' }, h( 'input', { type: 'checkbox', checked: preference, onChange: ( e ) => setPreference( e.target.checked ) } ), ' Es una indicación mía: el Asistente debe seguirla' ) : null,
 					h( 'div', { className: 'dga-learn-actions' },
 						h( 'button', { type: 'button', className: 'dga-button is-primary', onClick: save }, 'Guardar' ),
 						h( 'button', { type: 'button', className: 'dga-button', onClick: () => {
