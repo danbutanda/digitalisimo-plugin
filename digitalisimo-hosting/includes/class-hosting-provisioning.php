@@ -150,7 +150,14 @@ class Digitalisimo_Hosting_Provisioning {
 
 	/** Pedido pagado: encola el aprovisionamiento o, si es un pedido de renovación, la renovación. */
 	public static function paid( $order_id ) {
-		if ( ! self::on() ) return;
+		if ( ! self::on() ) {
+			// Venta apagada: nada se aprovisiona; el pedido lo dice (al encenderla, «Reintentar» en Servicios de hosting).
+			$o = Digitalisimo_Hosting::settings();
+			if ( empty( $o['enabled'] ) || ! function_exists( 'wc_get_order' ) ) return;
+			$order = wc_get_order( $order_id );
+			if ( $order && ( $order->get_meta( self::META_RENEWAL ) || self::items( $order )['hosting'] || self::items( $order )['domains'] ) ) self::note_once( $order, 'sale_off', 'la venta automática está apagada: este pedido no se aprovisiona ni se renueva solo. Al encenderla, las renovaciones cobradas se retoman y las altas quedan para revisar a mano.' );
+			return;
+		}
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) return;
 		$renewal = (int) $order->get_meta( self::META_RENEWAL );
