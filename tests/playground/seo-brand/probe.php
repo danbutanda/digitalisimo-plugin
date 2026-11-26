@@ -39,7 +39,7 @@ wp_set_current_user( 1 );
 $GLOBALS['digi_http'] = array();
 add_filter( 'pre_http_request', function( $pre, $args, $url ) {
 	$GLOBALS['digi_http'][] = $url;
-	if ( false !== strpos( $url, 'marca-anterior.test' ) ) return new WP_Error( 'http_request_failed', 'cURL error 6: Could not resolve host: media.marca-anterior.test' );
+	if ( false !== strpos( $url, 'marca-anterior.invalid' ) ) return new WP_Error( 'http_request_failed', 'cURL error 6: Could not resolve host: media.marca-anterior.invalid' );
 	return $pre;
 }, 10, 3 );
 $B = 'Digitalisimo_Integrations_Brand_Check';
@@ -164,7 +164,7 @@ if ( 'notice' === $step ) {
 	set_current_screen( 'dashboard' );
 	ob_start(); do_action( 'admin_notices' ); $html = ob_get_clean();
 	digi_check( false !== strpos( $html, 'data-digitalisimo-notice="seo-brand' ) && false !== strpos( $html, 'is-dismissible' ), 'El aviso de marca sale en el Escritorio, con la X' );
-	foreach ( array( 'marca-anterior.test', 'softaculous', 'Garantizado Hoy', 'el teléfono', 'el horario', 'emoji' ) as $needle ) digi_check( false !== strpos( $html, esc_html( $needle ) ), 'El aviso menciona «' . $needle . '»' );
+	foreach ( array( 'marca-anterior.invalid', 'softaculous', 'Garantizado Hoy', 'el teléfono', 'el horario', 'emoji' ) as $needle ) digi_check( false !== strpos( $html, esc_html( $needle ) ), 'El aviso menciona «' . $needle . '»' );
 	digi_check( array() === $GLOBALS['digi_http'], 'El aviso no hace peticiones HTTP' );
 	if ( class_exists( 'Digitalisimo_Integrations_SEO_Abilities' ) ) {
 		$status = Digitalisimo_Integrations_SEO_Abilities::get_site_status();
