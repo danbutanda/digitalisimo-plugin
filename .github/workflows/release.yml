@@ -293,6 +293,7 @@ jobs:
           node tests/ia-assistant-ui.mjs
           php tests/ia-assistant-mostrar.php
           php tests/ia-assistant-marca.php
+          php tests/ia-usage.php
           node tests/ia-assistant-mostrar-ui.mjs
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
