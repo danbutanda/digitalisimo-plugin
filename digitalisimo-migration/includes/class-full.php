@@ -1872,10 +1872,11 @@ final class Full {
 	 */
 	private static function own_child_php( array $state, $site_id ) {
 		$prev = (array) ( self::last( ! empty( $state['network'] ) )['theme'][ $site_id ] ?? array() );
-		$from = ! empty( $prev['child'] ) ? (string) ( $prev['from'] ?? '' ) : '';
+		// También la fila de una pasada anterior que ya activó aquí ese PHP (`own_snippet`, su `from` es el hijo).
+		$from = ! empty( $prev['child'] ) || ! empty( $prev['own_snippet'] ) ? (string) ( $prev['from'] ?? '' ) : '';
 		// Revisión adversarial: sólo se activa si fue una pasada de Migrar la que cambió (o murió cambiando) este sitio desde
 		// el hijo. Un sitio que se pasó al tema propio a mano, con el PHP importado sin activar a propósito, sólo se informa.
-		$ours = '' !== $from && ( ! empty( $prev['switching'] ) || ! empty( $prev['switched'] ) );
+		$ours = '' !== $from && ( ! empty( $prev['switching'] ) || ! empty( $prev['switched'] ) || ! empty( $prev['own_snippet'] ) );
 		$out  = self::on_site( $site_id, static function () use ( $state, $from, $ours ) {
 			$slug = $from;
 			if ( '' === $slug ) {
@@ -2424,8 +2425,16 @@ final class Full {
 				} );
 				$state['theme'][ $site_id ]['snippet']     = '';
 				$state['theme'][ $site_id ]['snippet_off'] = true === $off ? 'off' : 'kept';
+				// La causa real de la vuelta atrás (la primera comprobación que falló), sin atribuirla a ese PHP.
 				$name  = (string) ( $row['child_name'] ?? $row['name'] );
-				$state = self::note( $state, true === $off ? sprintf( 'Con «PHP del tema hijo %s» activo la portada no respondía igual: Migrar lo volvió a desactivar y el sitio quedó como estaba.', $name ) : sprintf( '«PHP del tema hijo %s» no se pudo volver a desactivar en DIGITALÍSIMO Tools (alguien lo cambió): revísalo ahí.', $name ) );
+				$cause = 'no responde igual';
+				foreach ( (array) ( $state['verify'] ?? array() ) as $check ) {
+					if ( false === ( $check['ok'] ?? null ) ) {
+						$cause = (string) ( $check['url'] ?? '' ) . ': ' . rtrim( (string) ( $check['reason'] ?? 'no responde igual' ), '. ' );
+						break;
+					}
+				}
+				$state = self::note( $state, true === $off ? sprintf( 'Algo no respondió igual en esta pasada (%s), así que Migrar volvió a desactivar «PHP del tema hijo %s», que había activado en ella, y el sitio quedó como estaba.', $cause, $name ) : sprintf( '«PHP del tema hijo %s» no se pudo volver a desactivar en DIGITALÍSIMO Tools (alguien lo cambió): revísalo ahí.', $name ) );
 				continue;
 			}
 			if ( ! self::was_switched( $row, $site_id ) ) {

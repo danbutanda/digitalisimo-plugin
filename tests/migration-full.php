@@ -9,7 +9,7 @@
  * petición que empieza con él activo, como en un sitio real.
  */
 if ( '' === (string) ( $argv[1] ?? '' ) ) {
-	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_mismatch', 'theme_child_nowrap', 'theme_child_nowrap_paused', 'theme_switch_throw', 'theme_switch_crash', 'theme_revert_snippet_stuck', 'theme_revert_order', 'switch_hook_throws', 'switch_hook_dies', 'revert_alien_back', 'child_many_files', 'child_many_files_retire', 'child_template_types', 'child_template_unverifiable', 'child_cap_unreviewed', 'revert_hook_throws_back', 'own_theme_child_php_off', 'child_home_author', 'baseline_owner_changes', 'template_checks_die', 'baseline_after_update', 'own_child_php_manual', 'own_child_php_breaks', 'blocked_leaves_baseline', 'theme_child_nowrap_refused', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_json', 'theme_child_retire_dir', 'theme_child_retire_official', 'theme_child_retire_network', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback', 'alien_cache', 'alien_cache_midway', 'plugin_update_reactivates', 'orphan_job', 'stale_cache', 'lost_click', 'done_job' );
+	$scenarios = array( 'unit', 'network', 'cli_network', 'cli_disallow', 'dependents', 'yoast_gaps', 'updraft_remote', 'updraft_unseen', 'cleanup_crash', 'maintenance', 'cached', 'rerun', 'backup_gone', 'uninstall_file', 'verify_crash', 'slow_boot', 'old_wp', 'happy', 'backup_history', 'backup_fails', 'install_fails', 'import_fails', 'theme_child', 'theme_child_tools', 'theme_child_covered', 'theme_child_ok', 'theme_child_old', 'theme_child_old_fails', 'theme_old_current', 'theme_child_files', 'theme_child_files_only', 'theme_child_risky', 'theme_child_network', 'theme_child_skipped', 'theme_child_mismatch', 'theme_child_nowrap', 'theme_child_nowrap_paused', 'theme_switch_throw', 'theme_switch_crash', 'theme_revert_snippet_stuck', 'theme_revert_order', 'switch_hook_throws', 'switch_hook_dies', 'revert_alien_back', 'child_many_files', 'child_many_files_retire', 'child_template_types', 'child_template_unverifiable', 'child_cap_unreviewed', 'revert_hook_throws_back', 'own_theme_child_php_off', 'child_home_author', 'baseline_owner_changes', 'template_checks_die', 'baseline_after_update', 'own_child_php_manual', 'own_child_php_breaks', 'own_snippet_unrelated_fail', 'blocked_leaves_baseline', 'theme_child_nowrap_refused', 'theme_child_paused', 'theme_child_auto', 'theme_child_auto_paths', 'theme_child_auto_revert', 'theme_child_auto_refused', 'theme_child_auto_network', 'theme_child_retire', 'theme_child_retire_kept', 'theme_child_retire_refs', 'theme_child_retire_json', 'theme_child_retire_dir', 'theme_child_retire_official', 'theme_child_retire_network', 'theme_child_hello_paths', 'theme_child_retire_broken', 'theme_child_retire_resume', 'theme_update_resume', 'theme_update_own_site', 'theme_rest_broken', 'theme_child_recheck', 'theme_warm_fatal', 'theme_warm_fatal_before', 'theme_pre_unreadable', 'theme_other', 'verify_fails', 'verify_styles', 'pending_content', 'resume', 'double_click', 'cli', 'no_loopback', 'alien_cache', 'alien_cache_midway', 'plugin_update_reactivates', 'orphan_job', 'stale_cache', 'lost_click', 'done_job' );
 	$failed    = 0;
 	foreach ( $scenarios as $scenario ) {
 		$out = array();
@@ -1665,7 +1665,7 @@ switch ( $scenario ) {
 		for ( $i = 0; $i < 80 && empty( $state['done'] ); $i++ ) { $state = request( false, 'clic2' ); }
 		$last = Full::last( false );
 		$last = Full::last( false );
-		check( logged( 'snippet_activate' ) && empty( $GLOBALS['t']['snippet_on'] ) && empty( $last['verified'] ) && (bool) preg_grep( '/lo volvió a desactivar/', (array) $last['notes'] ) && 'digitalisimo-theme' === get_option( 'stylesheet' ), 'Lo activó, la portada no respondía y lo desactivó: ' . json_encode( $last['notes'], JSON_UNESCAPED_UNICODE ) );
+		check( logged( 'snippet_activate' ) && empty( $GLOBALS['t']['snippet_on'] ) && empty( $last['verified'] ) && (bool) preg_grep( '/volvió a desactivar «PHP del tema hijo Hello Hijo»/', (array) $last['notes'] ) && 'digitalisimo-theme' === get_option( 'stylesheet' ), 'Lo activó, la portada no respondía y lo desactivó: ' . json_encode( $last['notes'], JSON_UNESCAPED_UNICODE ) );
 		break;
 
 	case 'blocked_leaves_baseline':
@@ -1675,6 +1675,33 @@ switch ( $scenario ) {
 		$m->invoke( null, array( 'stage' => 'import', 'started' => 1000, 'retired' => array( 'rank-math' ), 'checks' => array( array( 1, 'http://example.test/' ) ), 'theme' => array() ) + Full::fresh( false, 'b1' ), 'la caché da otro sitio' );
 		$b = get_option( Full::BASELINE );
 		check( is_array( $b ) && ! empty( $b['altered'] ) && Full::baseline( false ), 'Tras retirar plugins y quedar bloqueada, queda la referencia: ' . json_encode( $b ) );
+		break;
+
+	case 'own_snippet_unrelated_fail':
+		// Revisión adversarial (cierre): el PHP del hijo que Migrar activó con el tema propio ya activo se apaga porque otra
+		// página no responde igual; tras el botón, la pasada siguiente reconoce esa fila como suya y lo vuelve a activar.
+		// Hueco H1 con verify que falla por otra cosa: ¿el PHP del hijo que corría por Migrar vuelve a apagarse?
+		child_theme( 'hello-hijo', 'Hello Hijo', "<?php\nnamespace Hijo;\nadd_action( 'wp_head', function () {\n\techo '<style>.x{color:red}</style>';\n} );\n" );
+		$GLOBALS['t']['child_sheet'] = 'hello-hijo'; $GLOBALS['t']['carry'] = true; $GLOBALS['t']['throw_in_switch'] = true;
+		tools_auto(); drive();
+		$dead = $GLOBALS['t']['dead_job'] ?? null;
+		update_option( 'stylesheet', 'digitalisimo-theme' ); update_option( 'template', 'digitalisimo-theme' );
+		$GLOBALS['t']['snippet_on'] = $GLOBALS['t']['dead_snip'];
+		$dead['done'] = true; $dead['failed'] = 'theme'; $dead['blocked'] = true;
+		update_option( Full::LAST, $dead ); delete_option( Full::JOB );
+		$GLOBALS['t']['changed'] = true; // Otra página no responde igual (nada que ver con el PHP del hijo).
+		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) + 1;
+		$state = request( true, 'clic2' );
+		for ( $i = 0; $i < 80 && empty( $state['done'] ); $i++ ) { $state = request( false, 'clic2' ); }
+		$l = Full::last( false );
+		$html = Full::render( false, $l );
+		check( empty( $l['verified'] ) && ! (bool) preg_grep( '/Con «PHP del tema hijo/', (array) $l['notes'] ) && (bool) preg_grep( '/Algo no respondió igual en esta pasada \(/', (array) $l['notes'] ), 'La nota da la causa real y no culpa al PHP del hijo: ' . json_encode( $l['notes'], JSON_UNESCAPED_UNICODE ) );
+		Full::drop_baseline( false ); // El dueño pulsa «Migrar tomando el sitio de ahora como referencia».
+		$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) + 1;
+		$state = request( true, 'clic3' );
+		for ( $i = 0; $i < 80 && empty( $state['done'] ); $i++ ) { $state = request( false, 'clic3' ); }
+		$l = Full::last( false );
+		check( ! ( 'digitalisimo-theme' === get_option( 'stylesheet' ) && empty( $GLOBALS['t']['snippet_on'] ) ), 'Tras el botón, el tema propio no queda sin el PHP del hijo.' );
 		break;
 
 	case 'theme_child_nowrap_refused':
