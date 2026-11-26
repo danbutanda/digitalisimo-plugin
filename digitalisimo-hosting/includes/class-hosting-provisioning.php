@@ -206,6 +206,9 @@ class Digitalisimo_Hosting_Provisioning {
 			$o = Digitalisimo_Hosting::settings();
 			if ( empty( $o['enabled'] ) || ! function_exists( 'wc_get_order' ) ) return;
 			$order = wc_get_order( $order_id );
+			$rid = $order ? (int) $order->get_meta( self::META_RENEWAL ) : 0;
+			// La renovación de un servicio desplazado no se retomará al encender: se dice así y se avisa para reembolsar.
+			if ( $rid && self::is_service( $rid ) && ! self::owns_account( $rid ) && self::payment_confirmed( $order ) ) { self::superseded_paid( $order, $rid ); return; }
 			if ( $order && ( $order->get_meta( self::META_RENEWAL ) || self::items( $order )['hosting'] || self::items( $order )['domains'] ) ) self::note_once( $order, 'sale_off', 'la venta automática está apagada: este pedido no se aprovisiona ni se renueva solo. Al encenderla, las renovaciones cobradas se retoman y las altas quedan para revisar a mano.' );
 			return;
 		}
@@ -219,6 +222,7 @@ class Digitalisimo_Hosting_Provisioning {
 				return;
 			}
 		}
+		if ( $renewal && self::is_service( $renewal ) && ! self::owns_account( $renewal ) ) { self::superseded_paid( $order, $renewal ); return; }
 		if ( $renewal && 'cancelled' === self::svc( $renewal, 'status' ) ) {
 			// El servicio se dio de baja: la renovación pagada no renueva nada; hay que reembolsar.
 			if ( self::note_once( $order, 'cancelled', 'el servicio ' . self::svc( $renewal, 'domain' ) . ' está dado de baja: esta renovación pagada NO se aplica. Reembólsala.' ) ) self::alert_admin( 'renovación pagada de un servicio dado de baja', 'Se pagó la renovación #' . $order->get_id() . ' de ' . self::svc( $renewal, 'domain' ) . ', que está dado de baja: no se renovó nada. Reembólsala al cliente.' . "\n\n" . self::order_link( $order ) );
@@ -961,8 +965,9 @@ class Digitalisimo_Hosting_Provisioning {
 	 */
 	public static function renewal_watchdog( $id ) {
 		if ( 'cancelled' === self::svc( $id, 'status' ) ) return false;
-		// El servicio viejo de un dominio recontratado no se renueva: nada que retomar (su pago ya se avisó para reembolsar).
-		if ( ! self::owns_account( $id ) ) return false;
+		// El servicio viejo de un dominio recontratado no se renueva: su renovación pagada se detiene y se avisa para
+		// reembolsar (una vez), en vez de retomarla.
+		if ( ! self::owns_account( $id ) ) { $r = self::renewal_pending( $id ); if ( $r ) self::superseded_paid( $r, $id ); return false; }
 		$r = self::renewal_pending( $id );
 		if ( ! $r ) return false;
 		if ( function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( self::HOOK_RENEW, array( $r->get_id() ), self::GROUP ) ) return false;
@@ -1121,15 +1126,7 @@ class Digitalisimo_Hosting_Provisioning {
 			return;
 		}
 		// La cuenta de Webuzo es hoy de un servicio más nuevo del mismo dominio (recontratado): éste no renueva nada.
-		if ( ! self::owns_account( $id ) ) {
-			$text = 'la cuenta de Webuzo de ' . self::svc( $id, 'domain' ) . ' es hoy de un servicio más nuevo: esta renovación pagada NO se aplica. Reembólsala y da de baja el servicio viejo.';
-			// Detenida (el vigilante no la vuelve a encolar) y un aviso por cada renovación pagada, aunque el del servicio
-			// ya hubiera salido.
-			$state['stopped'] = 'superseded'; $order->update_meta_data( self::META_RENEW, $state ); $order->save();
-			self::superseded( $id );
-			if ( self::note_once( $order, 'superseded', $text ) ) self::alert_admin( 'renovación pagada de un servicio viejo: ' . self::svc( $id, 'domain' ), ucfirst( $text ) . "\n\n" . self::order_link( $order ) );
-			return;
-		}
+		if ( ! self::owns_account( $id ) ) { self::superseded_paid( $order, $id ); return; }
 		$state = self::take_retry( $order, $state, self::META_RENEW );
 		try {
 			// El dominio y el hosting por separado: si el dominio no se puede renovar (saldo, costo, error de Namecheap), el
@@ -1455,6 +1452,19 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( (int) self::svc( $sid, 'created' ) > $mine || ( (int) self::svc( $sid, 'created' ) === $mine && $sid > (int) $id ) ) return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Una renovación pagada de un servicio desplazado (la cuenta de Webuzo es de uno más nuevo del mismo dominio): no se
+	 * aplica, queda detenida (el vigilante no la vuelve a encolar) y se avisa para reembolsar, una vez por pedido, venga
+	 * del pago, de la tarea o del vigilante (también si se pagó con la venta apagada).
+	 */
+	private static function superseded_paid( $order, $id ) {
+		$text = 'la cuenta de Webuzo de ' . self::svc( $id, 'domain' ) . ' es hoy de un servicio más nuevo: esta renovación pagada NO se aplica. Reembólsala y da de baja el servicio viejo.';
+		$state = (array) $order->get_meta( self::META_RENEW );
+		if ( empty( $state['stopped'] ) ) { $state['stopped'] = 'superseded'; $order->update_meta_data( self::META_RENEW, $state ); $order->save(); }
+		self::superseded( $id );
+		if ( self::note_once( $order, 'superseded', $text ) ) self::alert_admin( 'renovación pagada de un servicio viejo: ' . self::svc( $id, 'domain' ), ucfirst( $text ) . "\n\n" . self::order_link( $order ) );
 	}
 
 	/** El servicio viejo de un dominio recontratado: sin avisos ni renovaciones; se pide darlo de baja (una vez). */
