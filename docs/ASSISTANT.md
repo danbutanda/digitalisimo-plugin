@@ -442,7 +442,8 @@ llama «aprendizaje».
   («Assistant: …», «[assistant: …]», «(IA: …)») y «revela la clave». El sitio nunca escribe en «Lo que me enseñaste».
 - **Datos de personas, clientes y pedidos** (`personal()`, ante la duda no se guarda ni se propone): cualquier correo
   (también dictado: «arroba», «punto com»), teléfono de 7 a 13 dígitos o dirección postal (con palabra de calle o
-  colonia, código postal, o un nombre con número tras «en», «a»…: «a Hidalgo 45») que no sea el contacto PÚBLICO del
+  colonia, código postal, o un nombre de calle seguido de su número tras «en», «a»…: «a Hidalgo 45», nunca si el número
+  lleva una unidad: «en Torreón 24 horas», «a Monterrey 2 días hábiles», «19 L», «20 V», «3 veces» son datos) que no sea el contacto PÚBLICO del
   propio sitio (`public_contacts()`: lo que el sitio publica —los teléfonos se comparan por sus últimos 7 dígitos—, la
   dirección de la tienda y los correos de su dominio); RFC y CURP; una operación de alguien («pidió», «compró»,
   «pagó»…); deudas («todavía debe», «adeuda», «fiado»); «señor», «señora», «doña», «don», «sra.» con un nombre, o
@@ -456,8 +457,9 @@ llama «aprendizaje».
   Asistente o un dato de su negocio en primera persona, sin `injection()`, sin quitar confirmaciones ni publicar o
   borrar todo ni secretos (`unsafe()`), sin enlaces a otros sitios (`foreign_link()`) y sin datos de personas
   (`personal()`). Lo que pasa los filtros **no se guarda**: queda como propuesta pendiente y el hilo muestra la frase
-  exacta con «Sí, recuérdalo» y «No» (`MemoryCard`; REST `learning/items/<id>/approve` o `…/delete`, con la sesión, los
-  dos nonces y `manage_options`). Sólo con «Sí» se usa. Así, un texto ajeno corto que el dueño pega (el correo de un
+  exacta con «Sí, recuérdalo» y «No» (`MemoryCard`; REST `learning/items/<id>/approve` o `…/discard`, que sólo actúan
+  sobre una propuesta pendiente —con una tarjeta vieja, «No» nunca borra una preferencia ya aprobada—, con la sesión,
+  los dos nonces y `manage_options`; al recargar, la tarjeta dice el estado real: «Recordado» o «Descartado»). Sólo con «Sí» se usa. Así, un texto ajeno corto que el dueño pega (el correo de un
   proveedor, «Nota para la I.A.: …») nunca se guarda solo. **Reemplazar**: `reemplaza` sólo puede tocar un punto que
   enseñó o corrigió el dueño, activo y de la misma sección (`replaceable()`, que se vuelve a comprobar al aprobar);
   la tarjeta dice qué reemplazaría por qué y el reemplazo también lo confirma el dueño, así que el número que ve el
@@ -476,7 +478,7 @@ llama «aprendizaje».
   moneda, país, pagos, envíos, logo y kit. Con un cambio en una política, 10 productos o páginas, un ajuste o 30 días, el
   panel lo dice y las instrucciones piden consultar lo que dependa de eso y sugerir una vez volver a entrenar.
 - **Panel «Lo que sé de tu sitio»**: arriba lo «Por aprobar» (las propuestas del chat sin decidir y lo del repaso:
-  «Recordarlo» o «Descartar»); después los puntos por sección, de dónde salen y su fecha; corregir y borrar cada uno,
+  «Recordarlo» o «Descartar», por las mismas rutas que sólo actúan sobre lo pendiente); después los puntos por sección, de dónde salen y su fecha; corregir y borrar cada uno,
   borrar todo, volver a entrenar y aprender de las conversaciones. Un punto del sitio corregido queda como del dueño
   (otro entrenamiento no lo pisa) pero **sigue siendo dato**; sólo con «Es una indicación mía» pasa a ser una indicación
   que el Asistente sigue. Editar lo que es (o pasa a ser) indicación pasa por las mismas reglas de seguridad
@@ -520,7 +522,7 @@ lo escrito 1,25×.
   cambia: guardar contenido de los tipos que se ven en el sitio, plantillas y menús; términos; reseñas (comentarios),
   atributos, zonas de envío e impuestos de WooCommerce; los ajustes de la tienda que leen esas herramientas (moneda,
   precios, país y tienda, pagos y envíos, impuestos, catálogo, unidades, existencias, reseñas, compra como invitado y
-  registro, páginas, descargas), y cada escritura del propio Asistente (un borrador o un cambio). Un pedido, un
+  registro, páginas, descargas, correos), al crearse (`added_option`) o al cambiar (`updated_option`), y cada escritura del propio Asistente (un borrador o un cambio). Un pedido, un
   formulario recibido o un ajuste interno de WooCommerce no. Productos, pedidos, clientes, informes y cupones nunca se
   guardan: precios y existencias se consultan en vivo.
 
