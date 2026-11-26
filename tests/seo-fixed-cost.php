@@ -26,7 +26,7 @@ const DIGI_LAZY = array(
 	'Digitalisimo_Integrations_Performance_Tracking', 'Digitalisimo_Integrations_Performance_Cache', 'Digitalisimo_Integrations_Performance_Console',
 	'Digitalisimo_Integrations_Asset_Diagnostics', 'Digitalisimo_Integrations_Performance_Measurements', 'Digitalisimo_Integrations_Schema_Graph',
 	'Digitalisimo_Integrations_Schema_Audit', 'Digitalisimo_Integrations_Sitemap', 'Digitalisimo_Integrations_Redirections',
-	'Digitalisimo_Integrations_404_Monitor', 'Digitalisimo_Integrations_Verification', 'Digitalisimo_Integrations_RankMath_Import',
+	'Digitalisimo_Integrations_404_Monitor', 'Digitalisimo_Integrations_Index_Hygiene', 'Digitalisimo_Integrations_Verification', 'Digitalisimo_Integrations_RankMath_Import',
 	'Digitalisimo_Integrations_Links', 'Digitalisimo_Integrations_Content_Analysis', 'Digitalisimo_Integrations_SEO_Bulk',
 	'Digitalisimo_Integrations_SEO_Feed', 'Digitalisimo_Integrations_Video', 'Digitalisimo_Integrations_URL_Bases',
 	'Digitalisimo_Integrations_Product_Identifiers', 'Digitalisimo_Integrations_SEO_Abilities', 'Digitalisimo_Integrations_SEO_Abilities_Write',

@@ -474,9 +474,12 @@ jobs:
           php tests/tools-bridge-manifest.php
           php tests/performance-form-ui.php
           php tests/sitemap.php
+          php tests/seo-index-hygiene.php
           php tests/sitemap-routes.php
           php tests/seo-sitemap-images.php
           php tests/seo-redirections.php
+          php tests/seo-redirect-chains.php
+          php tests/seo-404-buffer.php
           php tests/seo-rankmath-import.php
           php tests/seo-breadcrumbs.php
           php tests/seo-links.php
