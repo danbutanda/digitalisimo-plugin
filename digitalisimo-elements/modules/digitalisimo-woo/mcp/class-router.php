@@ -54,6 +54,13 @@ final class Router {
 			return self::report( $action, $input, $fields );
 		}
 
+		if ( 'undo' === $action ) {
+			return self::undo( $tool, $input );
+		}
+		if ( array_key_exists( 'change_id', $input ) ) {
+			return self::error( 'digitalisimo_woo_mcp_change_id', 'change_id sólo se usa con undo.' );
+		}
+
 		$resource = $config['resources'][0];
 		if ( array_key_exists( 'resource', $input ) ) {
 			if ( ! is_string( $input['resource'] ) || ! in_array( $input['resource'], $config['resources'], true ) ) {
@@ -234,6 +241,55 @@ final class Router {
 		return $plan;
 	}
 
+	/**
+	 * Deshacer: sólo `change_id` (y `dry_run`); un parámetro con su valor por defecto (lo rellenan algunos clientes) se
+	 * ignora y otro se rechaza. El recurso, el objeto y la ruta los pone `Executor` desde el registro de cambios: aquí
+	 * nada viene del cliente salvo el ID validado.
+	 */
+	private static function undo( string $tool, array $input ) {
+		$defaults = array(
+			'force'    => false,
+			'page'     => 1,
+			'per_page' => Tools::PER_PAGE_DEFAULT,
+		);
+		foreach ( $input as $key => $value ) {
+			$key = (string) $key;
+			if ( in_array( $key, array( 'action', 'change_id', 'dry_run' ), true ) || ( array_key_exists( $key, $defaults ) && $defaults[ $key ] === $value ) ) {
+				continue;
+			}
+			if ( 'resource' === $key && isset( Tools::TOOLS[ $tool ]['resources'][0] ) && Tools::TOOLS[ $tool ]['resources'][0] === $value ) {
+				continue;
+			}
+			return self::error( 'digitalisimo_woo_mcp_input', sprintf( '%s no se usa con undo: sólo change_id (y dry_run).', $key ) );
+		}
+		if ( ! isset( $input['change_id'] ) || ! is_string( $input['change_id'] ) || 1 !== preg_match( Changes::ID_PATTERN, $input['change_id'] ) ) {
+			return self::error( 'digitalisimo_woo_mcp_change_id', 'undo necesita change_id: el id de 16 caracteres del cambio (campo change de la respuesta, o reports → changes).' );
+		}
+		$dry_run = self::flag( $input, 'dry_run' );
+		if ( is_wp_error( $dry_run ) ) {
+			return $dry_run;
+		}
+		return array(
+			'tool'        => $tool,
+			'action'      => 'undo',
+			'resource'    => '',
+			'method'      => '',
+			'route'       => '',
+			'query'       => array(),
+			'body'        => null,
+			'kind'        => 'write',
+			'destructive' => true,
+			'id'          => null,
+			'parent'      => null,
+			'items'       => 0,
+			'fields'      => array(),
+			'secrets'     => '',
+			'local'       => 'undo',
+			'dry_run'     => $dry_run,
+			'change_id'   => $input['change_id'],
+		);
+	}
+
 	/** Informes: ruta fija por acción; la bitácora no llama a WooCommerce. */
 	private static function report( string $action, array $input, array $fields ) {
 		foreach ( array( 'data', 'reassign', 'resource' ) as $key ) {
@@ -259,15 +315,15 @@ final class Router {
 			'local'       => '',
 			'dry_run'     => false,
 		);
-		if ( 'log' === $action ) {
+		if ( 'log' === $action || 'changes' === $action ) {
 			if ( array_key_exists( 'query', $input ) ) {
-				return self::error( 'digitalisimo_woo_mcp_query', 'log no admite query: usa page y per_page.' );
+				return self::error( 'digitalisimo_woo_mcp_query', $action . ' no admite query: usa page y per_page.' );
 			}
 			$paging = self::paging( $input );
 			if ( is_wp_error( $paging ) ) {
 				return $paging;
 			}
-			$plan['local'] = 'log';
+			$plan['local'] = $action;
 			$plan['query'] = $paging;
 			return $plan;
 		}

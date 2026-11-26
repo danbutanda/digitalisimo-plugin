@@ -43,13 +43,13 @@ final class Tools {
 	const TOOLS = array(
 		'products'       => array(
 			'resources' => array( 'product', 'variation' ),
-			'actions'   => array( 'list', 'get', 'create', 'update', 'delete', 'batch' ),
+			'actions'   => array( 'list', 'get', 'create', 'update', 'delete', 'batch', 'undo' ),
 			'ids'       => array( 'product_id', 'variation_id' ),
 			'floor'     => 'edit_products',
 		),
 		'catalog'        => array(
 			'resources' => array( 'category', 'tag', 'brand', 'attribute', 'attribute_term', 'shipping_class', 'review' ),
-			'actions'   => array( 'list', 'get', 'create', 'update', 'delete' ),
+			'actions'   => array( 'list', 'get', 'create', 'update', 'delete', 'undo' ),
 			'ids'       => array( 'term_id', 'attribute_id', 'review_id' ),
 			'floor'     => 'edit_products',
 		),
@@ -67,7 +67,7 @@ final class Tools {
 		),
 		'coupons'        => array(
 			'resources' => array( 'coupon' ),
-			'actions'   => array( 'list', 'get', 'create', 'update', 'delete', 'batch' ),
+			'actions'   => array( 'list', 'get', 'create', 'update', 'delete', 'batch', 'undo' ),
 			'ids'       => array( 'coupon_id' ),
 			'floor'     => 'edit_shop_coupons',
 		),
@@ -79,7 +79,7 @@ final class Tools {
 		),
 		'reports'        => array(
 			'resources' => array(),
-			'actions'   => array( 'list', 'sales', 'top_sellers', 'orders_totals', 'products_totals', 'customers_totals', 'coupons_totals', 'reviews_totals', 'log' ),
+			'actions'   => array( 'list', 'sales', 'top_sellers', 'orders_totals', 'products_totals', 'customers_totals', 'coupons_totals', 'reviews_totals', 'log', 'changes' ),
 			'ids'       => array(),
 			'floor'     => 'view_woocommerce_reports',
 		),
@@ -151,6 +151,7 @@ final class Tools {
 		'coupons_totals'   => 'reports/coupons/totals',
 		'reviews_totals'   => 'reports/reviews/totals',
 		'log'              => '',
+		'changes'          => '',
 	);
 
 	/** Etiquetas (título de la herramienta en el cliente). */
@@ -281,7 +282,7 @@ final class Tools {
 			'action' => array(
 				'type'        => 'string',
 				'enum'        => $config['actions'],
-				'description' => 'reports' === $tool ? 'Informe que se pide.' : 'Qué hacer: list y get leen; create, update, delete y batch escriben.',
+				'description' => 'reports' === $tool ? 'Informe que se pide (log: la bitácora; changes: el registro de cambios y cuáles se pueden deshacer).' : 'Qué hacer: list y get leen; create, update, delete y batch escriben' . ( in_array( 'undo', $config['actions'], true ) ? '; undo deshace un cambio anterior (change_id, del campo change de la respuesta o de reports → changes)' : '' ) . '.',
 			),
 		);
 		if ( $config['resources'] && count( $config['resources'] ) > 1 ) {
@@ -334,6 +335,13 @@ final class Tools {
 				'type'        => 'boolean',
 				'default'     => false,
 				'description' => 'Sólo con delete (o un batch con delete): true borra para siempre, sin papelera. Úsalo sólo si el usuario lo pide.',
+			);
+		}
+		if ( in_array( 'undo', $config['actions'], true ) ) {
+			$properties['change_id'] = array(
+				'type'        => 'string',
+				'pattern'     => '^[a-f0-9]{16}$',
+				'description' => 'Sólo con undo: el cambio que se deshace (el id de change en la respuesta de la escritura, o de reports → changes). Sólo se deshace si nadie lo modificó después; con dry_run dice qué revertiría.',
 			);
 		}
 		if ( 'reports' !== $tool ) {
@@ -413,7 +421,7 @@ final class Tools {
 	 */
 	public static function capability( string $tool, string $resource, string $action ): string {
 		if ( 'reports' === $tool ) {
-			return 'log' === $action ? 'manage_woocommerce' : 'view_woocommerce_reports';
+			return in_array( $action, array( 'log', 'changes' ), true ) ? 'manage_woocommerce' : 'view_woocommerce_reports';
 		}
 		if ( ! isset( self::RESOURCES[ $resource ] ) ) {
 			return 'do_not_allow';

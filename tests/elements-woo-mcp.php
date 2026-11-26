@@ -274,6 +274,30 @@ namespace {
 	function wp_json_encode( $value ) {
 		return json_encode( $value );
 	}
+	function remove_filter( $hook, $callback, $priority = 10 ) {
+		foreach ( $GLOBALS['wm']['hooks'][ $hook ] ?? array() as $i => $cb ) {
+			if ( $cb === $callback ) {
+				unset( $GLOBALS['wm']['hooks'][ $hook ][ $i ] );
+			}
+		}
+		return true;
+	}
+	/** Entradas de WordPress en memoria (sólo para sacar de la papelera al deshacer). */
+	function get_post( $id ) {
+		return $GLOBALS['wm_posts'][ $id ] ?? null;
+	}
+	function wp_untrash_post( $id ) {
+		$post = $GLOBALS['wm_posts'][ $id ] ?? null;
+		if ( ! $post || 'trash' !== $post->post_status ) {
+			return false;
+		}
+		$status = 'draft';
+		foreach ( $GLOBALS['wm']['hooks']['wp_untrash_post_status'] ?? array() as $cb ) {
+			$status = call_user_func( $cb, $status, $id, $post->previous );
+		}
+		$post->post_status = $status;
+		return $post;
+	}
 	/** La petición interna a WooCommerce (`Executor::rest()`): se anota y responde `$GLOBALS['wm_rest_responses']`. */
 	class WP_REST_Request {
 		public $method;
@@ -351,6 +375,7 @@ namespace {
 	use Digitalisimo\Elements\Woo\Mcp\Executor;
 	use Digitalisimo\Elements\Woo\Mcp\Secrets;
 	use Digitalisimo\Elements\Woo\Mcp\Log;
+	use Digitalisimo\Elements\Woo\Mcp\Changes;
 	use Digitalisimo\Elements\Woo\Mcp\Settings;
 	use Digitalisimo\Elements\Woo\Mcp\Settings_Section;
 	use Digitalisimo\Elements\Woo\Mcp\Module as Mcp;
@@ -704,7 +729,8 @@ namespace {
 	$update             = array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'sale_price' => '7500' ) );
 	check( true === $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $update ) { return Executor::permission( 'products', $update ); } ), 'Asistente, modo read: un cambio sencillo de producto pasa el permiso (va a su tarjeta).' );
 	$result = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run, $update ) { return $run( 'products', $update ); } );
-	check( ! is_wp_error( $result ) && array( array( 'PUT', '/wc/v3/products/4', array(), array( 'sale_price' => '7500' ) ) ) === $GLOBALS['wm_rest'], 'Asistente, modo read: confirmado, el precio de oferta se guarda: ' . wp_json_encode( is_wp_error( $result ) ? $result->get_error_message() : $GLOBALS['wm_rest'] ) );
+	// Desde la tanda B se lee el producto antes (GET) para poder deshacer el cambio; la escritura es la misma.
+	check( ! is_wp_error( $result ) && array( array( 'PUT', '/wc/v3/products/4', array(), array( 'sale_price' => '7500' ) ) ) === array_values( array_filter( $GLOBALS['wm_rest'], static function ( $r ) { return 'GET' !== $r[0]; } ) ), 'Asistente, modo read: confirmado, el precio de oferta se guarda: ' . wp_json_encode( is_wp_error( $result ) ? $result->get_error_message() : $GLOBALS['wm_rest'] ) );
 	check( 'ok' === Log::entries()[0]['result'] && 'update' === Log::entries()[0]['action'], 'Asistente: el cambio queda en la bitácora de la tienda.' );
 	$GLOBALS['wm']['caps'][] = 'edit_product_terms';
 	$result = $assistant( 'digitalisimo-woo/catalog', 'write', static function () use ( $run ) { return $run( 'catalog', array( 'action' => 'create', 'resource' => 'category', 'data' => array( 'name' => 'Bombas' ) ) ); } );
@@ -936,7 +962,8 @@ namespace {
 	$GLOBALS['wm']['caps'] = $roles['shop_manager'];
 	$GLOBALS['wm_rest']    = array();
 	call_user_func( $args['execute_callback'], array( 'action' => 'update', 'product_id' => 5, 'data' => array( 'stock_quantity' => 3, 'id' => 9 ) ) );
-	check( array( array( 'PUT', '/wc/v3/products/5', array(), array( 'stock_quantity' => 3 ) ) ) === $GLOBALS['wm_rest'], 'Por rest_do_request(): PUT con el cuerpo JSON sin el id de la ruta.' );
+	// Desde la tanda B, antes se lee el producto (GET, para poder deshacer el cambio).
+	check( array( array( 'GET', '/wc/v3/products/5', array(), null ), array( 'PUT', '/wc/v3/products/5', array(), array( 'stock_quantity' => 3 ) ) ) === $GLOBALS['wm_rest'], 'Por rest_do_request(): lectura previa y PUT con el cuerpo JSON sin el id de la ruta.' );
 
 	// Modo off: nada; sin la Abilities API, nada; sin registro del núcleo, respaldo por filtro.
 	$registry->abilities = array();
@@ -1233,6 +1260,132 @@ namespace {
 			review( 'B3-dry_run', true === $assistant( 'digitalisimo-woo/products', 'destructive', static function () use ( $delete ) { return Executor::permission( 'products', $delete ); } ) && true === Executor::permission( 'products', $delete ), 'La simulación pasa el permiso con la capacidad (también en el contexto del Asistente).' );
 			$GLOBALS['wm']['caps'] = array( 'read' );
 			review( 'B3-dry_run', is_wp_error( Executor::permission( 'products', $delete ) ), 'Sin la capacidad de borrar, tampoco se simula.' );
+		}
+	);
+
+	// B3: registro de cambios y deshacer. Fallaba con fee02105 (no había change en la respuesta ni acción undo).
+	review_block(
+		'B3-deshacer',
+		static function () use ( $run ) {
+			$caps = array( 'edit_products', 'publish_products', 'delete_products', 'read_private_products', 'edit_others_products', 'edit_product_terms', 'delete_product_terms', 'manage_product_terms', 'edit_shop_coupons', 'publish_shop_coupons', 'delete_shop_coupons', 'edit_shop_orders', 'list_users', 'create_customers', 'manage_woocommerce', 'view_woocommerce_reports', 'delete_post' );
+			wm_reset( array( 'caps' => $caps, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'write', 'own' => array( 'mode' ) ) ) ) );
+			$GLOBALS['wm_posts'] = array();
+			$R = &$GLOBALS['wm_rest_responses'];
+
+			// update de un producto: antes y después de las claves enviadas; deshacer lo devuelve.
+			$R['GET /wc/v3/products/4'] = array( 200, array( 'id' => 4, 'name' => 'Mesa', 'regular_price' => '10', 'description' => 'Larga' ), array() );
+			$R['PUT /wc/v3/products/4'] = array( 200, array( 'id' => 4, 'name' => 'Mesa', 'regular_price' => '12', 'description' => 'Larga' ), array() );
+			$result = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'regular_price' => '12' ) ) );
+			$id     = $result['change']['id'] ?? '';
+			review( 'B3-deshacer', is_array( $result ) && true === $result['change']['undo'] && 1 === preg_match( '/^[a-f0-9]{16}$/', $id ), 'update de producto: la respuesta trae change con su id y undo true: ' . json_encode( $result['change'] ?? null ) );
+			$entry = Changes::get( $id );
+			review( 'B3-deshacer', is_array( $entry ) && array( 'regular_price' => '10' ) === $entry['before'] && array( 'regular_price' => '12' ) === $entry['after'], 'Se guardan sólo las claves enviadas, antes y después.' );
+			review( 'B3-deshacer', false === $GLOBALS['wm']['autoload'][ Changes::OPTION ], 'El registro de cambios es una opción sin carga automática.' );
+			// En «Sólo lectura» no se deshace (es una escritura); simularlo sí.
+			update_option( Settings::OPTION, array( 'mode' => 'read', 'own' => array( 'mode' ) ) );
+			$R['GET /wc/v3/products/4'] = $R['PUT /wc/v3/products/4'];
+			$GLOBALS['wm_rest']         = array();
+			$denied = $run( 'products', array( 'action' => 'undo', 'change_id' => $id ) );
+			review( 'B3-deshacer', is_wp_error( $denied ) && 'digitalisimo_woo_mcp_read_only' === $denied->get_error_code() && array() === $GLOBALS['wm_rest'], 'Modo read: deshacer se rechaza como una escritura.' );
+			$dry = $run( 'products', array( 'action' => 'undo', 'change_id' => $id, 'dry_run' => true ) );
+			review( 'B3-deshacer', is_array( $dry ) && false === $dry['allowed'] && array( array( 'field' => 'regular_price', 'from' => '12', 'to' => '10' ) ) === $dry['would']['revert'] && array( 'GET' ) === array_column( $GLOBALS['wm_rest'], 0 ), 'Simular deshacer: qué revertiría, sin escribir: ' . json_encode( $dry ) );
+			update_option( Settings::OPTION, array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array( 'products', 'catalog', 'coupons' ) ) );
+			$GLOBALS['wm_rest'] = array();
+			$undo = $run( 'products', array( 'action' => 'undo', 'change_id' => $id ) );
+			review( 'B3-deshacer', is_array( $undo ) && true === $undo['ok'] && in_array( array( 'PUT', '/wc/v3/products/4', array(), array( 'regular_price' => '10' ) ), $GLOBALS['wm_rest'], true ), 'Deshacer: vuelve a poner el valor de antes: ' . json_encode( is_wp_error( $undo ) ? $undo->get_error_message() : $GLOBALS['wm_rest'] ) );
+			review( 'B3-deshacer', 'undo' === Log::entries()[0]['action'] && 'ok' === Log::entries()[0]['result'] && 4 === Log::entries()[0]['id'] && ! empty( Changes::get( $id )['undone'] ) && ! isset( Changes::get( $id )['before'] ), 'Queda en la bitácora y el cambio se marca deshecho (sin guardar ya sus valores).' );
+			$again = $run( 'products', array( 'action' => 'undo', 'change_id' => $id ) );
+			review( 'B3-deshacer', is_wp_error( $again ) && 'digitalisimo_woo_mcp_undo_done' === $again->get_error_code(), 'No se deshace dos veces.' );
+
+			// Conflicto: alguien cambió el precio después; no se pisa.
+			$R['GET /wc/v3/products/4'] = array( 200, array( 'id' => 4, 'regular_price' => '10' ), array() );
+			$result                     = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'regular_price' => '12' ) ) );
+			$R['GET /wc/v3/products/4'] = array( 200, array( 'id' => 4, 'regular_price' => '15' ), array() );
+			$GLOBALS['wm_rest']         = array();
+			$conflict = $run( 'products', array( 'action' => 'undo', 'change_id' => $result['change']['id'] ) );
+			review( 'B3-deshacer', is_wp_error( $conflict ) && 'digitalisimo_woo_mcp_undo_conflict' === $conflict->get_error_code() && false !== strpos( $conflict->get_error_message(), 'regular_price' ) && array( 'GET' ) === array_column( $GLOBALS['wm_rest'], 0 ), 'Cambiado después: no se deshace y dice qué campo.' );
+
+			// create de un producto: deshacer lo manda a la papelera, sólo si no cambió desde entonces.
+			$R['POST /wc/v3/products'] = array( 201, array( 'id' => 30, 'name' => 'Nuevo', 'status' => 'draft', 'date_modified_gmt' => '2026-11-26T10:00:00' ), array() );
+			$created = $run( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Nuevo', 'status' => 'draft' ) ) );
+			$R['GET /wc/v3/products/30'] = array( 200, $R['POST /wc/v3/products'][1], array() );
+			$GLOBALS['wm_rest'] = array();
+			$undo = $run( 'products', array( 'action' => 'undo', 'change_id' => $created['change']['id'] ) );
+			review( 'B3-deshacer', is_array( $undo ) && array( 'DELETE', '/wc/v3/products/30', array(), null ) === end( $GLOBALS['wm_rest'] ) && 'trash' === $undo['undone']['mode'], 'Deshacer un create: el producto va a la papelera.' );
+			// Una categoría creada: sólo si nadie la usa, y entonces se borra.
+			$R['POST /wc/v3/products/categories'] = array( 201, array( 'id' => 9, 'name' => 'Bombas', 'count' => 0 ), array() );
+			$cat = $run( 'catalog', array( 'action' => 'create', 'resource' => 'category', 'data' => array( 'name' => 'Bombas' ) ) );
+			$R['GET /wc/v3/products/categories/9'] = array( 200, array( 'id' => 9, 'count' => 2 ), array() );
+			$busy = $run( 'catalog', array( 'action' => 'undo', 'change_id' => $cat['change']['id'] ) );
+			review( 'B3-deshacer', is_wp_error( $busy ) && 'digitalisimo_woo_mcp_undo_conflict' === $busy->get_error_code(), 'Una categoría con productos no se borra al deshacer.' );
+			$R['GET /wc/v3/products/categories/9'] = array( 200, array( 'id' => 9, 'count' => 0 ), array() );
+			$GLOBALS['wm_rest'] = array();
+			$undo = $run( 'catalog', array( 'action' => 'undo', 'change_id' => $cat['change']['id'] ) );
+			review( 'B3-deshacer', is_array( $undo ) && array( 'DELETE', '/wc/v3/products/categories/9', array( 'force' => true ), null ) === end( $GLOBALS['wm_rest'] ), 'Sin productos, deshacer la borra.' );
+			$wrong = $run( 'products', array( 'action' => 'undo', 'change_id' => $cat['change']['id'] ) );
+			review( 'B3-deshacer', is_wp_error( $wrong ) && 'digitalisimo_woo_mcp_undo_unknown' === $wrong->get_error_code(), 'Un cambio de otra herramienta no se deshace desde ésta.' );
+
+			// Papelera: deshacer saca el cupón con su estado anterior.
+			$GLOBALS['wm_posts'][15] = (object) array( 'ID' => 15, 'post_type' => 'shop_coupon', 'post_status' => 'trash', 'post_title' => 'VERANO', 'previous' => 'publish' );
+			$trashed = $run( 'coupons', array( 'action' => 'delete', 'coupon_id' => 15 ) );
+			review( 'B3-deshacer', is_array( $trashed ) && true === $trashed['change']['undo'], 'delete a la papelera de un cupón: se puede deshacer.' );
+			$undo = $run( 'coupons', array( 'action' => 'undo', 'change_id' => $trashed['change']['id'] ) );
+			review( 'B3-deshacer', is_array( $undo ) && 'publish' === $GLOBALS['wm_posts'][15]->post_status && array() === ( $GLOBALS['wm']['hooks']['wp_untrash_post_status'] ?? array() ), 'Deshacer: sale de la papelera publicado, como estaba, y el filtro se retira: ' . json_encode( is_wp_error( $undo ) ? $undo->get_error_message() : $undo ) );
+
+			// Lo que no se deshace queda registrado con el motivo y sin valores.
+			$GLOBALS['wm']['caps'][] = 'publish_shop_orders';
+			$GLOBALS['wm_rest_responses']['POST /wc/v3/customers'] = array( 201, array( 'id' => 44, 'email' => 'ana@example.test' ), array() );
+			update_option( Settings::OPTION, array( 'mode' => 'write', 'own' => array( 'mode' ) ) );
+			$cases = array(
+				array( 'customers', array( 'action' => 'create', 'data' => array( 'email' => 'ana@example.test', 'first_name' => 'Ana' ) ) ),
+				array( 'orders', array( 'action' => 'update', 'order_id' => 3, 'data' => array( 'status' => 'completed' ) ) ),
+				array( 'coupons', array( 'action' => 'update', 'coupon_id' => 15, 'data' => array( 'email_restrictions' => array( 'ana@example.test' ) ) ) ),
+				array( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'meta_data' => array( array( 'key' => 'x', 'value' => 'y' ) ) ) ) ),
+				array( 'products', array( 'action' => 'delete', 'product_id' => 4, 'force' => true ) ),
+				array( 'products', array( 'action' => 'batch', 'data' => array( 'update' => array( array( 'id' => 4, 'name' => 'B' ) ) ) ) ),
+				array( 'store-settings', array( 'action' => 'update', 'resource' => 'setting', 'group_id' => 'general', 'setting_id' => 'woocommerce_currency', 'data' => array( 'value' => 'USD' ) ) ),
+			);
+			foreach ( $cases as $case ) {
+				$result = $run( $case[0], $case[1] );
+				review( 'B3-deshacer', is_array( $result ) && false === $result['change']['undo'] && '' !== ( $result['change']['reason'] ?? '' ), 'Sin deshacer, con su motivo: ' . json_encode( $case[1] ) . ' → ' . json_encode( is_wp_error( $result ) ? $result->get_error_message() : ( $result['change'] ?? null ) ) );
+			}
+			$stored = json_encode( get_option( Changes::OPTION ) );
+			review( 'B3-deshacer', false === strpos( $stored, 'ana@' ) && false === strpos( $stored, 'Ana' ) && false === strpos( $stored, 'completed' ), 'El registro no guarda datos personales ni valores de lo que no se deshace.' );
+			$R['PUT /wc/v3/products/4'] = array( 200, array( 'id' => 4, 'description' => str_repeat( 'x', 40000 ) ), array() );
+			$big = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'description' => str_repeat( 'x', 40000 ) ) ) );
+			review( 'B3-deshacer', is_array( $big ) && false === $big['change']['undo'] && false !== strpos( $big['change']['reason'], '32 KB' ), 'Un cambio demasiado grande no guarda valores.' );
+
+			// reports → changes: sin valores, con qué campos y si se puede deshacer.
+			$list = $run( 'reports', array( 'action' => 'changes', 'per_page' => 50 ) );
+			review( 'B3-deshacer', is_array( $list ) && count( $list['data'] ) === $list['total'] && ! isset( $list['data'][0]['before'] ) && false === strpos( json_encode( $list ), 'xxxx' ), 'reports changes: el registro sin valores: ' . substr( json_encode( $list ), 0, 600 ) );
+			$GLOBALS['wm']['caps'] = array( 'view_woocommerce_reports' );
+			review( 'B3-deshacer', is_wp_error( $run( 'reports', array( 'action' => 'changes' ) ) ), 'El registro exige administrar WooCommerce, como la bitácora.' );
+
+			// Entrada: change_id sólo con undo; undo sólo con change_id; permiso de la acción inversa.
+			$GLOBALS['wm']['caps'] = $caps;
+			$bad = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'change_id' => str_repeat( 'a', 16 ), 'data' => array( 'name' => 'x' ) ) );
+			review( 'B3-deshacer', is_wp_error( $bad ) && 'digitalisimo_woo_mcp_change_id' === $bad->get_error_code(), 'change_id fuera de undo se rechaza.' );
+			$bad = $run( 'products', array( 'action' => 'undo', 'change_id' => $id, 'product_id' => 4 ) );
+			review( 'B3-deshacer', is_wp_error( $bad ) && 'digitalisimo_woo_mcp_input' === $bad->get_error_code(), 'undo no admite otros parámetros.' );
+			$bad = $run( 'products', array( 'action' => 'undo', 'change_id' => '../../x' ) );
+			review( 'B3-deshacer', is_wp_error( $bad ) && 'digitalisimo_woo_mcp_change_id' === $bad->get_error_code(), 'change_id validado.' );
+			review( 'B3-deshacer', in_array( 'undo', Tools::definition( 'products' )['input_schema']['properties']['action']['enum'], true ) && ! in_array( 'undo', Tools::definition( 'orders' )['input_schema']['properties']['action']['enum'], true ) && isset( Tools::definition( 'coupons' )['input_schema']['properties']['change_id'] ), 'undo sólo en productos, catálogo y cupones.' );
+			$R['POST /wc/v3/products'] = array( 201, array( 'id' => 31, 'date_modified_gmt' => 'b' ), array() );
+			$created = $run( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Otro', 'status' => 'draft' ) ) );
+			$GLOBALS['wm']['caps'] = array_values( array_diff( $caps, array( 'delete_products' ) ) );
+			$denied = Executor::permission( 'products', array( 'action' => 'undo', 'change_id' => $created['change']['id'] ) );
+			review( 'B3-deshacer', is_wp_error( $denied ) && false !== strpos( $denied->get_error_message(), 'delete_products' ), 'Deshacer un create exige poder borrar.' );
+
+			// Retención: 50 entradas como mucho y nada de más de 30 días.
+			$GLOBALS['wm']['caps'] = $caps;
+			$old = Changes::entries();
+			$old[] = array( 'id' => str_repeat( 'b', 16 ), 'time' => '2020-01-01T00:00:00Z', 'tool' => 'products' );
+			update_option( Changes::OPTION, $old );
+			review( 'B3-deshacer', null === Changes::get( str_repeat( 'b', 16 ) ), 'Lo de más de 30 días ya no cuenta.' );
+			for ( $i = 0; $i < 60; $i++ ) {
+				Changes::add( array( 'id' => sprintf( '%016x', $i ), 'time' => gmdate( 'Y-m-d\TH:i:s\Z' ), 'tool' => 'products' ) );
+			}
+			review( 'B3-deshacer', Changes::MAX === count( get_option( Changes::OPTION ) ), 'Últimas 50.' );
 		}
 	);
 

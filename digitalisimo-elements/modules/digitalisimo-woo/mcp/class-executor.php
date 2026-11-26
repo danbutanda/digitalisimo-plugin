@@ -32,6 +32,13 @@ final class Executor {
 		}
 		$user = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
 		$mode = Settings::mode();
+		if ( 'undo' === $plan['local'] ) {
+			// El recurso, el objeto y la acción inversa salen del registro de cambios, no del cliente.
+			$plan = self::undo_plan( $tool, $plan );
+			if ( is_wp_error( $plan ) ) {
+				return $plan;
+			}
+		}
 
 		if ( 'off' === $mode ) {
 			// Apagado no registra las herramientas; si una llega a ejecutarse (el modo cambió a mitad), no hace nada.
@@ -55,6 +62,19 @@ final class Executor {
 			return self::read_mode_error( $plan );
 		}
 
+		if ( 'undo' === $plan['local'] ) {
+			return self::undo( $tool, $plan, $dispatch, $user );
+		}
+		if ( 'changes' === $plan['local'] ) {
+			return array_merge(
+				array(
+					'ok'     => true,
+					'tool'   => $tool,
+					'action' => 'changes',
+				),
+				Changes::page( (int) $plan['query']['page'], (int) $plan['query']['per_page'] )
+			);
+		}
 		if ( 'log' === $plan['local'] ) {
 			$page = Log::page( (int) $plan['query']['page'], (int) $plan['query']['per_page'] );
 			return array_merge(
@@ -89,6 +109,13 @@ final class Executor {
 			}
 		}
 
+		// Para poder deshacer un update: cómo estaba antes (sólo lo que se puede deshacer; ver `Changes`).
+		$before = null;
+		if ( 'write' === $plan['kind'] && Changes::wants_before( $plan ) ) {
+			list( $read_status, $read ) = call_user_func( $dispatch, 'GET', $plan['route'], array(), null );
+			$before                     = $read_status < 400 && is_array( $read ) ? $read : null;
+		}
+
 		list( $status, $data, $headers ) = call_user_func( $dispatch, $plan['method'], $plan['route'], $plan['query'], $plan['body'] );
 		if ( $status >= 400 ) {
 			$error = self::woo_error( (int) $status, $data );
@@ -111,9 +138,11 @@ final class Executor {
 				);
 			}
 		}
+		$change = null;
 		if ( 'write' === $plan['kind'] ) {
 			$failed = $batch && $batch['failed'] > 0;
 			Log::add( Log::entry( $plan, $failed ? 'partial' : 'ok', $failed ? $batch['errors'][0]['code'] : '', (int) $status, $user ) );
+			$change = Changes::record( $plan, $user, $before, $data );
 		}
 
 		if ( 'store-settings' === $tool ) {
@@ -156,7 +185,52 @@ final class Executor {
 		if ( $kept ) {
 			$result['notice'] = sprintf( 'Se conservaron %d claves guardadas: venían vacías o enmascaradas.', $kept );
 		}
+		if ( $change ) {
+			// Registro de cambios: su id (para undo) y si se puede deshacer, o por qué no.
+			$result['change'] = $change;
+		}
 		return $result;
+	}
+
+	/**
+	 * El plan de un undo con lo que dice el registro de cambios: recurso, objeto, padre y la acción inversa
+	 * (`undo_as`: update para un update, delete para un create o una papelera), que decide la capacidad.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private static function undo_plan( string $tool, array $plan ) {
+		$entry = Changes::get( (string) $plan['change_id'] );
+		if ( null === $entry || $tool !== $entry['tool'] ) {
+			return new \WP_Error( 'digitalisimo_woo_mcp_undo_unknown', 'No hay un cambio con ese change_id en esta herramienta (el registro guarda los últimos ' . Changes::MAX . ' de ' . Changes::DAYS . ' días; ver reports → changes).', array( 'status' => 404 ) );
+		}
+		$plan['resource'] = (string) $entry['resource'];
+		$plan['id']       = is_int( $entry['item'] ) ? $entry['item'] : null;
+		$plan['parent']   = is_int( $entry['parent'] ) ? $entry['parent'] : null;
+		$plan['undo_as']  = 'update' === $entry['action'] ? 'update' : 'delete';
+		$plan['entry']    = $entry;
+		return $plan;
+	}
+
+	/** Deshace un cambio del registro (o lo simula con dry_run), con la bitácora. */
+	private static function undo( string $tool, array $plan, $dispatch, int $user ) {
+		$done = Changes::undo( $plan['entry'], $dispatch, false );
+		if ( is_wp_error( $done ) ) {
+			$data = $done->get_error_data();
+			Log::add( Log::entry( $plan, 'error', $done->get_error_code(), is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 500, $user ) );
+			return $done;
+		}
+		Changes::mark_undone( (string) $plan['change_id'], $user );
+		Log::add( Log::entry( $plan, 'ok', '', (int) $done['status'], $user ) );
+		return array(
+			'ok'        => true,
+			'tool'      => $tool,
+			'action'    => 'undo',
+			'resource'  => $plan['resource'],
+			'change_id' => $plan['change_id'],
+			'status'    => (int) $done['status'],
+			'undone'    => $done['would'],
+			'data'      => self::pick_fields( $done['data'], $plan['fields'], false ),
+		);
 	}
 
 	/**
@@ -166,7 +240,12 @@ final class Executor {
 	 * @return array|\WP_Error
 	 */
 	private static function simulate( string $tool, array $plan, $dispatch ) {
-		$would = Simulation::would( $tool, $plan, $dispatch );
+		if ( 'undo' === $plan['local'] ) {
+			$undo  = Changes::undo( $plan['entry'], $dispatch, true );
+			$would = is_wp_error( $undo ) ? $undo : $undo['would'];
+		} else {
+			$would = Simulation::would( $tool, $plan, $dispatch );
+		}
 		if ( is_wp_error( $would ) ) {
 			return $would;
 		}
@@ -214,7 +293,14 @@ final class Executor {
 		if ( is_wp_error( $plan ) ) {
 			return true;
 		}
-		$cap = Tools::capability( $tool, $plan['resource'], $plan['action'] );
+		if ( 'undo' === $plan['local'] ) {
+			// La capacidad de la acción inversa sobre el recurso del cambio; un change_id desconocido lo rechaza run().
+			$plan = self::undo_plan( $tool, $plan );
+			if ( is_wp_error( $plan ) ) {
+				return true;
+			}
+		}
+		$cap = Tools::capability( $tool, $plan['resource'], isset( $plan['undo_as'] ) ? $plan['undo_as'] : $plan['action'] );
 		if ( ! current_user_can( $cap ) ) {
 			return self::forbidden( $cap );
 		}
