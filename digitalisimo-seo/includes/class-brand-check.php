@@ -283,7 +283,9 @@ class Digitalisimo_Integrations_Brand_Check {
 		$row['code'] = $code;
 		if ( is_wp_error( $res ) ) {
 			// Sin respuesta: sólo es inequívoco si el dominio no existe; un corte de red o WP_HTTP_BLOCK_EXTERNAL, no.
-			if ( '' !== $host && ! self::resolves( $host ) ) return self::verdict( $row, 'gone', 'el dominio ' . $host . ' no existe' );
+			// cURL lo dice («Could not resolve host», error 6) o lo comprueba el DNS; algunos entornos no consultan el DNS desde PHP.
+			$message = $res->get_error_message();
+			if ( '' !== $host && ( preg_match( '/cURL error 6\b|could not resolve host|name or service not known|nodename nor servname|getaddrinfo/i', $message ) || ! self::resolves( $host ) ) ) return self::verdict( $row, 'gone', 'el dominio ' . $host . ' no existe' );
 			return self::verdict( $row, 'unknown', $res->get_error_message() );
 		}
 		if ( in_array( $code, array( 404, 410 ), true ) ) return self::verdict( $row, 'gone', 'responde ' . $code );

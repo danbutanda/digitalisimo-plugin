@@ -178,6 +178,12 @@ $GLOBALS['settings']['seo_default_image'] = $blocked;
 $GLOBALS['remote'][ $blocked ] = new WP_Error( 'http_request_blocked', 'User has blocked requests through HTTP.' );
 $B::run(); pasa_una_hora(); $B::run();
 check( $blocked === $B::url( 'image' ) && in_array( 'image_unchecked', codes(), true ), 'Con WP_HTTP_BLOCK_EXTERNAL o un corte de red la imagen se sigue publicando.' );
+$GLOBALS['remote'][ $blocked ] = new WP_Error( 'http_request_failed', 'cURL error 6: Could not resolve host: 127.0.0.1' );
+$state = $B::run();
+check( 'gone' === $state['urls'][ $blocked ]['verdict'], 'Si cURL dice que el nombre no resuelve, es inequívoco aunque PHP no consulte el DNS.' );
+$GLOBALS['remote'][ $blocked ] = new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out after 5000 milliseconds' );
+$state = $B::run();
+check( 'unknown' === $state['urls'][ $blocked ]['verdict'] && $blocked === $B::url( 'image' ), 'Un tiempo agotado es dudoso: la imagen se sigue publicando.' );
 
 // 3. Otro dominio que sí responde una imagen (un CDN): se publica, con aviso.
 $GLOBALS['settings']['seo_default_image'] = $cdn;
