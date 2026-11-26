@@ -398,7 +398,7 @@ class Digitalisimo_Hosting_Webuzo {
 		foreach ( (array) $rows as $name => $row ) {
 			$row = (array) $row;
 			$user = strtolower( (string) ( $row['user'] ?? $name ) );
-			if ( '' !== $user ) $users[ $user ] = array( 'user' => $user, 'domain' => strtolower( (string) ( $row['domain'] ?? '' ) ), 'status' => (string) ( $row['status'] ?? '' ), 'plan' => (string) ( $row['plan'] ?? '' ) );
+			if ( '' !== $user ) $users[ $user ] = array( 'user' => $user, 'domain' => strtolower( (string) ( $row['domain'] ?? '' ) ), 'status' => (string) ( $row['status'] ?? '' ), 'plan' => (string) ( $row['plan'] ?? '' ), 'reason' => trim( (string) ( $row['suspend_reason'] ?? '' ) ) );
 		}
 		return $users;
 	}
@@ -422,8 +422,14 @@ class Digitalisimo_Hosting_Webuzo {
 		$row = $list['users'][ strtolower( (string) $user ) ] ?? null;
 		if ( ! $row ) return array( 'kind' => 'api', 'data' => array(), 'message' => 'La cuenta «' . $user . '» no existe en Webuzo' );
 		if ( null !== $domain && strtolower( (string) $domain ) !== (string) $row['domain'] ) return array( 'kind' => 'mismatch', 'data' => array(), 'message' => 'La cuenta «' . $user . '» de Webuzo es hoy del dominio ' . $row['domain'] . ', no de ' . strtolower( (string) $domain ) . ': no se tocó' );
-		// Sin `skip` (ver arriba): con skip=1 este Webuzo responde éxito sin hacer nada.
-		return $this->call( 'users', array( $op => $user ) );
+		// Ya está como se pide (p. ej. suspendida a mano en el panel): no se manda nada. Así el plugin nunca da por suya
+		// una suspensión que no hizo (Webuzo contesta «done» aunque ya estuviera suspendida).
+		if ( ( 'suspend' === $op ) === ( 'suspended' === (string) $row['status'] ) ) return array( 'kind' => 'already', 'data' => array(), 'message' => 'La cuenta «' . $user . '» ya estaba ' . ( 'suspend' === $op ? 'suspendida' : 'activa' ) . ' en Webuzo: no se mandó nada' );
+		// Sin `skip` (ver arriba): con skip=1 este Webuzo responde éxito sin hacer nada. «sent»: la orden salió después de
+		// ver la cuenta en el estado contrario (aunque la respuesta se pierda, pudo aplicarse).
+		$r = $this->call( 'users', array( $op => $user ) );
+		$r['sent'] = true;
+		return $r;
 	}
 
 	/** El estado actual de una cuenta («suspended» o ""), o null si no está o la lista no respondió (con $r el resultado). */
@@ -432,6 +438,7 @@ class Digitalisimo_Hosting_Webuzo {
 		if ( 'ok' !== $r['kind'] ) return null;
 		$u = $r['users'][ strtolower( (string) $user ) ] ?? null;
 		if ( $u && null !== $domain && strtolower( (string) $domain ) !== (string) $u['domain'] ) { $r['mismatch'] = $u['domain']; return null; }
+		if ( $u ) $r['row'] = $u; // con «reason»: el motivo de suspensión que escribió el panel (el plugin no pone ninguno)
 		return $u ? (string) $u['status'] : null;
 	}
 }

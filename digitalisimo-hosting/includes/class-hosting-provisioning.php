@@ -929,8 +929,10 @@ class Digitalisimo_Hosting_Provisioning {
 	private static function reconcile_net( $id ) {
 		if ( 'cancelled' === self::svc( $id, 'status' ) || 'manual' === self::svc( $id, 'suspend_reason' ) || ! self::svc( $id, 'webuzo_user' ) ) return;
 		$sent = self::svc( $id, 'suspend_sent' );
-		$paid_but_suspended = 'suspended' === self::svc( $id, 'status' ) && is_array( $sent ) && 'auto' === ( $sent['reason'] ?? '' ) && ! self::overdue( $id ) && (int) self::svc( $id, 'expires' ) > time();
-		if ( ! $paid_but_suspended && ! self::svc( $id, 'reconcile_pending' ) ) return;
+		$ours = 'suspended' === self::svc( $id, 'status' ) && is_array( $sent ) && 'auto' === ( $sent['reason'] ?? '' );
+		// También se mira cada día una suspensión nuestra aún sin pagar: si alguien la reactivó en el panel de Webuzo, la
+		// marca «auto» deja de valer (una suspensión posterior en el panel ya no sería nuestra).
+		if ( ! $ours && ! self::svc( $id, 'reconcile_pending' ) ) return;
 		if ( time() - (int) self::svc( $id, 'reconcile_net_t' ) < DAY_IN_SECONDS - HOUR_IN_SECONDS ) return;
 		self::svc_set( $id, array( 'reconcile_net_t' => time() ) );
 		self::enqueue( self::HOOK_RECONCILE, $id );
@@ -1138,14 +1140,29 @@ class Digitalisimo_Hosting_Provisioning {
 		// Un servicio viejo del mismo dominio no toca la cuenta de uno más nuevo (recontratación).
 		if ( ! self::owns_account( $id ) ) { self::mismatch( $id, 'La cuenta «' . $user . '» es hoy de un servicio más nuevo del mismo dominio' ); return; }
 		$api = Digitalisimo_Hosting_Webuzo::from_settings();
-		// Quién la manda suspender, anotado ANTES de enviar (la orden puede aplicarse aunque se pierda la respuesta): sólo
-		// una suspensión del plugin por falta de pago, o en camino, se reactiva sola al pagar.
-		if ( $suspend ) self::svc_set( $id, array( 'suspend_sent' => array( 't' => time(), 'reason' => 'manual' === self::svc( $id, 'suspend_reason' ) ? 'manual' : 'auto' ) ) );
 		// Sólo si la cuenta sigue siendo la del dominio del servicio (el nombre de usuario se pudo heredar).
 		$r = $suspend ? $api->suspend( $user, (string) self::svc( $id, 'domain' ) ) : $api->unsuspend( $user, (string) self::svc( $id, 'domain' ) );
 		$hook = $suspend ? self::HOOK_SUSPEND : self::HOOK_UNSUSPEND;
-		// Sin respuesta (transient) la orden pudo aplicarse: la marca se queda. Si no llegó a salir o Webuzo la rechazó, no.
-		if ( $suspend && ! in_array( $r['kind'], array( 'ok', 'transient' ), true ) ) self::svc_set( $id, array( 'suspend_sent' => array() ) );
+		$manual = 'manual' === self::svc( $id, 'suspend_reason' );
+		// Quién la suspendió: una marca «auto» sólo vale si el cliente de Webuzo vio la cuenta activa y mandó la orden
+		// (aunque la respuesta se pierda, pudo aplicarse). Es lo único que el pago reactiva solo.
+		if ( $suspend && ! empty( $r['sent'] ) && in_array( $r['kind'], array( 'ok', 'transient' ), true ) ) self::svc_set( $id, array( 'suspend_sent' => array( 't' => time(), 'reason' => $manual ? 'manual' : 'auto' ) ) );
+		if ( 'already' === $r['kind'] ) {
+			$pt = self::svc( $id, 'pending_toggle' );
+			$sent = self::svc( $id, 'suspend_sent' );
+			// Una orden nuestra anterior ya se aplicó (se reenviaba porque aún no se veía, o se perdió su respuesta después
+			// de salir): es la nuestra. Sólo cuenta una marca de esta tanda, aún sin confirmar.
+			$ours = $suspend && is_array( $sent ) && in_array( $sent['reason'] ?? '', array( 'auto', 'manual' ), true ) && empty( $sent['confirmed'] ) && time() - (int) ( $sent['t'] ?? 0 ) < 2 * DAY_IN_SECONDS;
+			if ( $ours || ( ! $suspend && is_array( $pt ) && 'unsuspend' === ( $pt['op'] ?? '' ) ) ) { self::svc_set( $id, array( 'pending_toggle' => array() ) ); self::confirmed( $id, $suspend ); return; }
+			if ( ! $suspend ) { self::svc_log( $id, $r['message'] . '.' ); self::confirmed( $id, false ); return; }
+			// Ya estaba suspendida y no por el plugin (p. ej. a mano en el panel, por abuso): queda suspendida, con la marca
+			// «foreign», y el pago nunca la reactiva sola.
+			$text = 'La cuenta «' . $user . '» ya estaba suspendida en Webuzo y no la suspendió el plugin: no se mandó nada y el pago no la reactivará sola.';
+			self::svc_set( $id, array( 'status' => 'suspended', 'suspended_at' => time(), 'pending_toggle' => array(), 'toggle_attempts' => 0, 'suspend_sent' => array( 't' => time(), 'reason' => 'foreign' ), 'error' => $manual ? '' : $text ) );
+			self::svc_log( $id, $text );
+			if ( ! $manual && ! self::svc( $id, 'foreign_suspend_noted' ) ) { self::svc_set( $id, array( 'foreign_suspend_noted' => time() ) ); self::alert_admin( 'suspendida fuera del plugin: ' . self::svc( $id, 'domain' ), $text . ' Si corresponde reactivarla, usa «Reactivar» en WooCommerce → Servicios de hosting.' ); }
+			return;
+		}
 		if ( 'mismatch' === $r['kind'] ) { self::mismatch( $id, $r['message'] ); return; }
 		if ( 'ok' !== $r['kind'] ) {
 			$text = 'Webuzo (' . ( $suspend ? 'suspender' : 'reactivar' ) . ' ' . $user . '): ' . $r['message'];
@@ -1214,6 +1231,7 @@ class Digitalisimo_Hosting_Provisioning {
 		$manual_unsuspend = 'manual' === self::svc( $id, 'unsuspend_reason' );
 		self::svc_set( $id, array( 'status' => $suspend ? 'suspended' : 'active', 'error' => '', 'toggle_attempts' => 0, 'suspended_at' => $suspend ? time() : 0 ) );
 		if ( ! $suspend ) self::svc_set( $id, array( 'suspend_sent' => array(), 'foreign_suspend_noted' => 0 ) );
+		else { $sent = self::svc( $id, 'suspend_sent' ); if ( is_array( $sent ) && $sent ) { $sent['confirmed'] = time(); self::svc_set( $id, array( 'suspend_sent' => $sent ) ); } }
 		if ( ! $suspend ) {
 			$fields = array( 'suspend_reason' => '', 'suspend_for' => 0, 'unsuspend_reason' => '' );
 			// Reactivación manual del administrador: prórroga de los días de gracia (mínimo 7) desde hoy (una sola gracia);
@@ -1286,6 +1304,9 @@ class Digitalisimo_Hosting_Provisioning {
 		self::svc_set( $id, array( 'reconcile_attempts' => 0, 'reconcile_pending' => 0 ) );
 		$sent = self::svc( $id, 'suspend_sent' );
 		$ours = is_array( $sent ) && 'auto' === ( $sent['reason'] ?? '' );
+		// Webuzo muestra un motivo de suspensión (el panel lo pide; Webuzo pone el suyo, p. ej. «Bandwidth Overuse»): el
+		// plugin nunca escribe uno, así que esa suspensión no es la suya aunque quede una marca vieja.
+		if ( 'suspended' === $now && '' !== (string) ( $r['row']['reason'] ?? '' ) ) $ours = false;
 		if ( 'suspended' === $now && ! self::overdue( $id ) && $ours ) {
 			// La suspendió el plugin por falta de pago (o la orden viajaba): pagada, se reactiva.
 			self::svc_set( $id, array( 'status' => 'suspended', 'unsuspend_reason' => 'paid' ) );
@@ -1294,12 +1315,22 @@ class Digitalisimo_Hosting_Provisioning {
 		} elseif ( 'suspended' === $now && ! $ours ) {
 			// Suspendida en Webuzo por otra vía (p. ej. el administrador, por abuso): no se toca.
 			if ( 'suspended' !== self::svc( $id, 'status' ) || ! self::svc( $id, 'foreign_suspend_noted' ) ) {
-				$text = 'La cuenta «' . $user . '» está suspendida en Webuzo, pero no la suspendió el plugin (quizá a mano, en el panel): no se reactiva sola.';
-				self::svc_set( $id, array( 'status' => 'suspended', 'error' => $text, 'foreign_suspend_noted' => time() ) ); self::svc_log( $id, $text );
+				$why = (string) ( $r['row']['reason'] ?? '' );
+				$text = 'La cuenta «' . $user . '» está suspendida en Webuzo, pero no la suspendió el plugin (' . ( '' !== $why ? 'motivo en Webuzo: «' . $why . '»' : 'quizá a mano, en el panel' ) . '): no se reactiva sola.';
+				self::svc_set( $id, array( 'status' => 'suspended', 'error' => $text, 'foreign_suspend_noted' => time(), 'suspend_sent' => array( 't' => time(), 'reason' => 'foreign' ) ) ); self::svc_log( $id, $text );
 				self::alert_admin( 'suspendida fuera del plugin: ' . self::svc( $id, 'domain' ), $text . ' Si corresponde, usa «Reactivar» en WooCommerce → Servicios de hosting.' );
 			}
 		} elseif ( 'suspended' !== $now && 'suspended' === self::svc( $id, 'status' ) && ! ( is_array( self::svc( $id, 'pending_toggle' ) ) && 'unsuspend' === ( self::svc( $id, 'pending_toggle' )['op'] ?? '' ) ) ) {
-			self::svc_set( $id, array( 'status' => 'active', 'suspend_sent' => array() ) ); self::svc_log( $id, 'Webuzo la muestra activa: se corrige el estado.' );
+			$fields = array( 'status' => 'active', 'suspend_sent' => array(), 'suspended_at' => 0 );
+			$text = 'Webuzo la muestra activa: se corrige el estado.';
+			if ( self::overdue( $id ) ) {
+				// Reactivada en el panel de Webuzo sin pagar: cuenta como una reactivación manual (misma prórroga), así la
+				// revisión diaria no la vuelve a suspender enseguida, y la marca «auto» deja de valer.
+				$fields['reprieve_until'] = time() + max( 7, (int) ( Digitalisimo_Hosting::settings()['grace_days'] ?? 7 ) ) * DAY_IN_SECONDS;
+				$fields['suspend_reason'] = ''; $fields['suspend_for'] = 0;
+				$text = 'La cuenta se reactivó fuera del plugin (en el panel de Webuzo) sin pago: se trata como reactivación manual, con prórroga hasta el ' . self::date( $fields['reprieve_until'] ) . '.';
+			}
+			self::svc_set( $id, $fields ); self::svc_log( $id, $text );
 		}
 	}
 
