@@ -738,7 +738,11 @@ class Digitalisimo_Hosting_Provisioning {
 			// va a notas ni correos. Ya pasó la revisión de dueño (check_owner), como un dominio propio.
 			if ( empty( $state['transfer_noted'] ) ) {
 				$state['transfer_noted'] = 1; self::save_state( $order, $state );
-				self::svc_set( $service, array( 'transfer_pending' => 1 ) );
+				// El dominio transferido se renueva con el producto de registro de su extensión (su precio de renovación);
+				// Namecheap lo renueva sólo cuando la transferencia terminó (transfer_settled()).
+				$split = self::split( $domain ); $map = Digitalisimo_Hosting::domain_products();
+				$reg = $split && isset( $map[ $split[2] ] ) ? (int) $map[ $split[2] ] : 0;
+				self::svc_set( $service, array( 'transfer_pending' => 1 ) + ( $reg ? array( 'domain_product' => $reg ) : array() ) );
 				self::svc_log( $service, 'Transferencia de ' . $domain . ' por hacer a mano.' );
 				$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' por hacer a mano en Namecheap con el código EPP del cliente (botón «Ver código EPP» en este pedido; nunca lo copies en notas ni correos). Al terminar, apúntalo a ' . implode( ' y ', self::nameservers() ) . '.' );
 				self::alert_admin( 'Transferencia de dominio por hacer: ' . $domain, 'El pedido #' . $order->get_id() . ' pagó la transferencia de ' . $domain . '. Hazla en Namecheap con el código EPP («Ver código EPP» en el pedido): ' . self::order_link( $order ) );
@@ -846,6 +850,7 @@ class Digitalisimo_Hosting_Provisioning {
 			'domain'      => $domain,
 			'has_hosting' => (bool) $items['hosting'],
 			'has_domain'  => (bool) $items['domains'],
+			'has_transfer' => ! empty( $items['transfers'] ),
 			'user'        => (string) ( $state['hosting']['user'] ?? '' ),
 			'password'    => $items['hosting'] ? self::hosting_password( $order, $state ) : '',
 			'panel_url'   => $items['hosting'] ? $api->panel_url() : '',
@@ -1098,6 +1103,7 @@ class Digitalisimo_Hosting_Provisioning {
 	public static function check_service( $id, $now, $grace ) {
 		$status = (string) self::svc( $id, 'status' );
 		if ( ! in_array( $status, array( 'active', 'suspended' ), true ) ) return;
+		if ( self::svc( $id, 'transfer_pending' ) ) self::transfer_settled( $id );
 		// Una suspensión o reactivación pedida y aún sin confirmar: no se pide otra.
 		$pt = self::svc( $id, 'pending_toggle' );
 		if ( is_array( $pt ) && ! empty( $pt['op'] ) ) {
@@ -1248,10 +1254,34 @@ class Digitalisimo_Hosting_Provisioning {
 	}
 
 	/**
+	 * ¿Terminó la transferencia hecha a mano? Cuando el dominio ya está en la cuenta de Namecheap (sólo lectura,
+	 * getInfo), el servicio lo da por registrado (se renueva con él), deja de estar pendiente y el código EPP se borra
+	 * del pedido. Lo revisa la revisión diaria y la renovación.
+	 */
+	public static function transfer_settled( $id ) {
+		if ( ! self::svc( $id, 'transfer_pending' ) || self::svc( $id, 'domain_registered' ) ) return false;
+		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		if ( ! $nc->configured() ) return false;
+		$domain = (string) self::svc( $id, 'domain' );
+		$info = $nc->info( $domain );
+		if ( 'ok' !== $info['kind'] || empty( $info['ours'] ) ) return false;
+		self::svc_set( $id, array( 'transfer_pending' => 0, 'domain_registered' => 1 ) );
+		self::svc_log( $id, 'Transferencia de ' . $domain . ' terminada: el dominio ya está en la cuenta de Namecheap.' );
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( (int) self::svc( $id, 'order' ) ) : null;
+		if ( $order ) {
+			if ( class_exists( 'Digitalisimo_Hosting_Checkout' ) ) $order->delete_meta_data( Digitalisimo_Hosting_Checkout::META_EPP );
+			$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' terminada (ya está en la cuenta de Namecheap); el código EPP se borró del pedido.' );
+			$order->save();
+		}
+		return true;
+	}
+
+	/**
 	 * Renueva el dominio en Namecheap una sola vez: antes de la primera llamada se anota su vencimiento; si un intento
 	 * anterior llegó (el vencimiento ya es posterior), no se vuelve a cobrar.
 	 */
 	private static function renew_domain( $order, array &$state, $id ) {
+		self::transfer_settled( $id );
 		if ( ! self::svc( $id, 'domain_registered' ) || ! empty( $state['domain'] ) ) return null;
 		$domain = (string) self::svc( $id, 'domain' );
 		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
