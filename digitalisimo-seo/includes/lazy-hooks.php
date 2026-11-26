@@ -222,6 +222,7 @@ return array(
 		array( 'a', 'post_updated', 'watch_post', 10, 3, '**' ),
 		array( 'a', 'edit_terms', 'remember_term', 10, 2, '**' ),
 		array( 'a', 'edited_term', 'watch_term', 10, 3, '**' ),
+		array( 'a', 'update_option_digitalisimo_integrations_options', 'watch_toggle', 10, 2, '**' ),
 		array( 'a', 'wp', 'maybe_redirect', 11, 1, 'f*' ),
 	) ),
 	'Digitalisimo_Integrations_404_Monitor' => array( 'hooks' => array(

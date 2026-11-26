@@ -20,6 +20,8 @@ class Digitalisimo_Integrations_Redirections {
 	const MAX_DESCENDANTS = 300;
 	/** Marca de que la migración volvió a encender el vigilante que la importación de Rank Math había apagado. */
 	const RESTORED   = 'digitalisimo_seo_slug_watch_restored';
+	/** Quién apagó el vigilante y cuándo: {by: owner, user, time}. Lo que el dueño apagó nunca se vuelve a encender. */
+	const WATCH_OFF  = 'digitalisimo_seo_slug_watch_off';
 	const DB_OPTION  = 'digitalisimo_seo_redirections_db';
 	const FLAG       = 'digitalisimo_seo_redirect_on';
 	const INDEX      = 'digitalisimo_seo_redirect_index';
@@ -49,6 +51,7 @@ class Digitalisimo_Integrations_Redirections {
 		add_action( 'post_updated', array( __CLASS__, 'watch_post' ), 10, 3 );
 		add_action( 'edit_terms', array( __CLASS__, 'remember_term' ), 10, 2 );
 		add_action( 'edited_term', array( __CLASS__, 'watch_term' ), 10, 3 );
+		add_action( 'update_option_digitalisimo_integrations_options', array( __CLASS__, 'watch_toggle' ), 10, 2 );
 		if ( ! is_admin() ) add_action( 'wp', array( __CLASS__, 'maybe_redirect' ), 11 );
 	}
 
@@ -94,6 +97,8 @@ class Digitalisimo_Integrations_Redirections {
 	 * Un sitio que nunca importó, o que lo apagó con Rank Math encendido, no cambia.
 	 */
 	public static function restore_slug_watch() {
+		$off = get_option( self::WATCH_OFF, array() );
+		if ( is_array( $off ) && 'owner' === ( $off['by'] ?? '' ) ) return false; // Lo apagó el dueño a propósito.
 		$site = get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
 		if ( ! is_array( $site ) || ! array_key_exists( 'seo_redirect_slug_watch', $site ) || (int) $site['seo_redirect_slug_watch'] ) return false;
 		if ( ! get_option( 'digitalisimo_seo_rankmath_job' ) ) return false;
@@ -219,6 +224,17 @@ class Digitalisimo_Integrations_Redirections {
 			if ( '' !== $to && ! preg_match( '#^(https?:)?/#i', $to ) ) $to = '/' . $to;
 		}
 		return $to;
+	}
+
+	/**
+	 * Anota quién apaga «Redirigir al cambiar un enlace» al guardar los ajustes del sitio (la importación de Rank Math
+	 * ya no lo apaga): así la migración nunca vuelve a encender lo que el dueño apagó. Encenderlo borra la marca.
+	 */
+	public static function watch_toggle( $old, $new ) {
+		$was = (int) ( is_array( $old ) && array_key_exists( 'seo_redirect_slug_watch', $old ) ? $old['seo_redirect_slug_watch'] : 1 );
+		$now = (int) ( is_array( $new ) && array_key_exists( 'seo_redirect_slug_watch', $new ) ? $new['seo_redirect_slug_watch'] : 1 );
+		if ( $was && ! $now ) update_option( self::WATCH_OFF, array( 'by' => 'owner', 'user' => (int) get_current_user_id(), 'time' => time() ), false );
+		elseif ( ! $was && $now ) delete_option( self::WATCH_OFF );
 	}
 
 	/**

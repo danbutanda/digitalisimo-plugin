@@ -88,6 +88,16 @@ $GLOBALS['wp_options'] = array( 'digitalisimo_integrations_options' => array( 's
 check( false === $r::restore_slug_watch() && 0 === $GLOBALS['wp_options']['digitalisimo_integrations_options']['seo_redirect_slug_watch'], 'Un sitio que nunca importó y lo apagó, lo conserva apagado.' );
 $GLOBALS['wp_options'] = array( 'digitalisimo_integrations_options' => array( 'seo_redirect_slug_watch' => 0 ), 'digitalisimo_seo_rankmath_job' => array( 'phase' => 'done' ), 'rank-math-options-general' => array( 'redirections_post_redirect' => 'on' ) );
 check( false === $r::restore_slug_watch(), 'Si Rank Math lo tenía encendido, el apagado no vino de la importación.' );
+// El dueño lo apagó a propósito: nunca se vuelve a encender, aunque el sitio haya importado de Rank Math.
+$GLOBALS['wp_options'] = array( 'digitalisimo_integrations_options' => array( 'seo_redirect_slug_watch' => 1 ), 'digitalisimo_seo_rankmath_job' => array( 'phase' => 'done' ), 'rank-math-options-general' => array( 'redirections_post_redirect' => 'off' ) );
+$r::watch_toggle( array( 'seo_redirect_slug_watch' => 1 ), array( 'seo_redirect_slug_watch' => 0 ) );
+check( 'owner' === ( $GLOBALS['wp_options'][ $r::WATCH_OFF ]['by'] ?? '' ) && 7 === $GLOBALS['wp_options'][ $r::WATCH_OFF ]['user'], 'Al apagarlo en los ajustes se anota quién lo apagó.' );
+$GLOBALS['wp_options']['digitalisimo_integrations_options']['seo_redirect_slug_watch'] = 0;
+check( false === $r::restore_slug_watch() && 0 === $GLOBALS['wp_options']['digitalisimo_integrations_options']['seo_redirect_slug_watch'], 'Lo que el dueño apagó no se vuelve a encender.' );
+$r::watch_toggle( array( 'seo_redirect_slug_watch' => 0 ), array( 'seo_redirect_slug_watch' => 1 ) );
+check( ! isset( $GLOBALS['wp_options'][ $r::WATCH_OFF ] ), 'Encenderlo borra la marca.' );
+$r::watch_toggle( array( 'otra' => 1 ), array( 'otra' => 2 ) );
+check( ! isset( $GLOBALS['wp_options'][ $r::WATCH_OFF ] ), 'Guardar otros ajustes no anota nada.' );
 $GLOBALS['wp_options'] = array( 'digitalisimo_integrations_options' => array( 'otra' => 'x' ), 'digitalisimo_seo_rankmath_job' => array( 'phase' => 'done' ) );
 check( false === $r::restore_slug_watch() && ! isset( $GLOBALS['wp_options']['digitalisimo_integrations_options']['seo_redirect_slug_watch'] ), 'Sin valor guardado (usa el predeterminado, encendido) no se escribe nada.' );
 
