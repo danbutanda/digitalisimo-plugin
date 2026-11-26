@@ -853,7 +853,7 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( $w && ! Digitalisimo_Hosting_Webuzo::from_settings()->blocked() ) self::on_unblocked();
 		$grace = (int) ( Digitalisimo_Hosting::settings()['grace_days'] ?? 7 );
 		foreach ( self::services() as $id ) {
-			try { self::watchdog( $id ); self::renewal_watchdog( $id ); self::check_service( $id, $now, $grace ); } catch ( Throwable $e ) { self::svc_log( $id, 'Error en la revisión diaria: ' . $e->getMessage() ); }
+			try { self::watchdog( $id ); self::renewal_watchdog( $id ); self::reconcile_net( $id ); self::check_service( $id, $now, $grace ); } catch ( Throwable $e ) { self::svc_log( $id, 'Error en la revisión diaria: ' . $e->getMessage() ); }
 		}
 	}
 
@@ -913,12 +913,27 @@ class Digitalisimo_Hosting_Provisioning {
 		return true;
 	}
 
-	/** Al reencender la venta: las renovaciones cobradas pendientes se encolan (las altas anteriores al encendido no). */
+	/** Al reencender la venta: las renovaciones cobradas pendientes se encolan (las altas anteriores, no). */
 	public static function sweep_renewals() {
 		if ( ! self::on() ) return 0;
 		$n = 0;
-		foreach ( self::services() as $id ) if ( self::renewal_watchdog( $id ) ) $n++;
+		foreach ( self::services() as $id ) { if ( self::renewal_watchdog( $id ) ) $n++; self::reconcile_net( $id ); }
 		return $n;
+	}
+
+	/**
+	 * Red de la reconciliación (revisión diaria y reencendido): un servicio suspendido por el plugin por falta de pago que
+	 * ya no está vencido sin pago (pagó), o una reconciliación que quedó pendiente, se vuelve a reconciliar con la lista
+	 * real de Webuzo. Una vez al día como mucho por servicio.
+	 */
+	private static function reconcile_net( $id ) {
+		if ( 'cancelled' === self::svc( $id, 'status' ) || 'manual' === self::svc( $id, 'suspend_reason' ) || ! self::svc( $id, 'webuzo_user' ) ) return;
+		$sent = self::svc( $id, 'suspend_sent' );
+		$paid_but_suspended = 'suspended' === self::svc( $id, 'status' ) && is_array( $sent ) && 'auto' === ( $sent['reason'] ?? '' ) && ! self::overdue( $id ) && (int) self::svc( $id, 'expires' ) > time();
+		if ( ! $paid_but_suspended && ! self::svc( $id, 'reconcile_pending' ) ) return;
+		if ( time() - (int) self::svc( $id, 'reconcile_net_t' ) < DAY_IN_SECONDS - HOUR_IN_SECONDS ) return;
+		self::svc_set( $id, array( 'reconcile_net_t' => time() ) );
+		self::enqueue( self::HOOK_RECONCILE, $id );
 	}
 
 	/** Baja del servicio (pantalla de servicios): ni renovaciones, ni avisos, ni suspensiones. No toca Webuzo ni Namecheap. */
@@ -1123,9 +1138,14 @@ class Digitalisimo_Hosting_Provisioning {
 		// Un servicio viejo del mismo dominio no toca la cuenta de uno más nuevo (recontratación).
 		if ( ! self::owns_account( $id ) ) { self::mismatch( $id, 'La cuenta «' . $user . '» es hoy de un servicio más nuevo del mismo dominio' ); return; }
 		$api = Digitalisimo_Hosting_Webuzo::from_settings();
+		// Quién la manda suspender, anotado ANTES de enviar (la orden puede aplicarse aunque se pierda la respuesta): sólo
+		// una suspensión del plugin por falta de pago, o en camino, se reactiva sola al pagar.
+		if ( $suspend ) self::svc_set( $id, array( 'suspend_sent' => array( 't' => time(), 'reason' => 'manual' === self::svc( $id, 'suspend_reason' ) ? 'manual' : 'auto' ) ) );
 		// Sólo si la cuenta sigue siendo la del dominio del servicio (el nombre de usuario se pudo heredar).
 		$r = $suspend ? $api->suspend( $user, (string) self::svc( $id, 'domain' ) ) : $api->unsuspend( $user, (string) self::svc( $id, 'domain' ) );
 		$hook = $suspend ? self::HOOK_SUSPEND : self::HOOK_UNSUSPEND;
+		// Sin respuesta (transient) la orden pudo aplicarse: la marca se queda. Si no llegó a salir o Webuzo la rechazó, no.
+		if ( $suspend && ! in_array( $r['kind'], array( 'ok', 'transient' ), true ) ) self::svc_set( $id, array( 'suspend_sent' => array() ) );
 		if ( 'mismatch' === $r['kind'] ) { self::mismatch( $id, $r['message'] ); return; }
 		if ( 'ok' !== $r['kind'] ) {
 			$text = 'Webuzo (' . ( $suspend ? 'suspender' : 'reactivar' ) . ' ' . $user . '): ' . $r['message'];
@@ -1193,6 +1213,7 @@ class Digitalisimo_Hosting_Provisioning {
 		$auto = 'auto' === self::svc( $id, 'suspend_reason' );
 		$manual_unsuspend = 'manual' === self::svc( $id, 'unsuspend_reason' );
 		self::svc_set( $id, array( 'status' => $suspend ? 'suspended' : 'active', 'error' => '', 'toggle_attempts' => 0, 'suspended_at' => $suspend ? time() : 0 ) );
+		if ( ! $suspend ) self::svc_set( $id, array( 'suspend_sent' => array(), 'foreign_suspend_noted' => 0 ) );
 		if ( ! $suspend ) {
 			$fields = array( 'suspend_reason' => '', 'suspend_for' => 0, 'unsuspend_reason' => '' );
 			// Reactivación manual del administrador: prórroga de los días de gracia (mínimo 7) desde hoy (una sola gracia);
@@ -1239,23 +1260,46 @@ class Digitalisimo_Hosting_Provisioning {
 	 * activa, p. ej. porque la orden de suspender viajaba), se reactiva; si está activa, se corrige el estado guardado.
 	 */
 	public static function run_reconcile( $id ) {
-		if ( ! self::on() || ! self::is_service( $id ) || 'cancelled' === self::svc( $id, 'status' ) ) return;
+		if ( ! self::is_service( $id ) || 'cancelled' === self::svc( $id, 'status' ) ) return;
+		// Con la venta apagada la tarea no se pierde: queda anotada y se retoma al reencenderla (o en la revisión diaria).
+		if ( ! self::on() ) { self::svc_set( $id, array( 'reconcile_pending' => time() ) ); return; }
 		$user = (string) self::svc( $id, 'webuzo_user' );
-		if ( '' === $user || 'manual' === self::svc( $id, 'suspend_reason' ) ) return;
-		$now = Digitalisimo_Hosting_Webuzo::from_settings()->status_of( $user, $r, (string) self::svc( $id, 'domain' ) );
+		if ( '' === $user || 'manual' === self::svc( $id, 'suspend_reason' ) ) { self::svc_set( $id, array( 'reconcile_pending' => 0 ) ); return; }
+		if ( ! self::owns_account( $id ) ) { self::svc_set( $id, array( 'reconcile_pending' => 0 ) ); return; }
+		$api = Digitalisimo_Hosting_Webuzo::from_settings();
+		$now = $api->configured() ? $api->status_of( $user, $r, (string) self::svc( $id, 'domain' ) ) : null;
+		if ( ! $api->configured() ) $r = array( 'kind' => 'config', 'message' => 'Webuzo no está configurado (falta la URL, el usuario o la clave)' );
 		if ( null === $now ) {
-			if ( ! empty( $r['mismatch'] ) ) { self::mismatch( $id, 'La cuenta «' . $user . '» de Webuzo es hoy del dominio ' . $r['mismatch'] . ', no de ' . self::svc( $id, 'domain' ) ); return; }
-			if ( 'blocked' === $r['kind'] || 'auth' === $r['kind'] ) { self::wait( self::HOOK_RECONCILE, $id ); return; }
-			if ( 'transient' === $r['kind'] ) { $n = (int) self::svc( $id, 'reconcile_attempts' ) + 1; self::svc_set( $id, array( 'reconcile_attempts' => $n ) ); if ( $n < self::MAX_ATTEMPTS ) self::enqueue( self::HOOK_RECONCILE, $id, self::BACKOFF[ min( $n - 1, count( self::BACKOFF ) - 1 ) ], true ); }
+			if ( ! empty( $r['mismatch'] ) ) { self::svc_set( $id, array( 'reconcile_pending' => 0 ) ); self::mismatch( $id, 'La cuenta «' . $user . '» de Webuzo es hoy del dominio ' . $r['mismatch'] . ', no de ' . self::svc( $id, 'domain' ) ); return; }
+			if ( 'blocked' === $r['kind'] || 'auth' === $r['kind'] ) { self::svc_set( $id, array( 'reconcile_pending' => time() ) ); self::wait( self::HOOK_RECONCILE, $id ); return; }
+			if ( 'transient' === $r['kind'] ) {
+				$n = (int) self::svc( $id, 'reconcile_attempts' ) + 1; self::svc_set( $id, array( 'reconcile_attempts' => $n, 'reconcile_pending' => time() ) );
+				if ( $n < self::MAX_ATTEMPTS ) { self::enqueue( self::HOOK_RECONCILE, $id, self::BACKOFF[ min( $n - 1, count( self::BACKOFF ) - 1 ) ], true ); return; }
+			}
+			// No se pudo leer la lista (intentos agotados, Webuzo sin configurar, otra falla): el cliente pagó y podría
+			// seguir suspendido. Queda el motivo en el servicio y se avisa; la revisión diaria lo vuelve a intentar.
+			$text = 'Pagado, pero no se pudo comprobar en Webuzo si la cuenta «' . $user . '» sigue suspendida: ' . $r['message'] . '.';
+			self::svc_set( $id, array( 'error' => $text, 'reconcile_attempts' => 0, 'reconcile_pending' => time() ) ); self::svc_log( $id, $text );
+			self::alert_admin( 'pagado y sin reactivar: ' . self::svc( $id, 'domain' ), $text . ' Revísalo en Webuzo; la revisión diaria lo volverá a intentar.' );
 			return;
 		}
-		self::svc_set( $id, array( 'reconcile_attempts' => 0 ) );
-		if ( 'suspended' === $now && self::overdue_or_unpaid_is_false( $id ) ) {
+		self::svc_set( $id, array( 'reconcile_attempts' => 0, 'reconcile_pending' => 0 ) );
+		$sent = self::svc( $id, 'suspend_sent' );
+		$ours = is_array( $sent ) && 'auto' === ( $sent['reason'] ?? '' );
+		if ( 'suspended' === $now && ! self::overdue( $id ) && $ours ) {
+			// La suspendió el plugin por falta de pago (o la orden viajaba): pagada, se reactiva.
 			self::svc_set( $id, array( 'status' => 'suspended', 'unsuspend_reason' => 'paid' ) );
-			self::svc_log( $id, 'Pagado y suspendido en Webuzo: se reactiva.' );
+			self::svc_log( $id, 'Pagado y suspendido en Webuzo por falta de pago: se reactiva.' );
 			self::toggle( $id, false );
+		} elseif ( 'suspended' === $now && ! $ours ) {
+			// Suspendida en Webuzo por otra vía (p. ej. el administrador, por abuso): no se toca.
+			if ( 'suspended' !== self::svc( $id, 'status' ) || ! self::svc( $id, 'foreign_suspend_noted' ) ) {
+				$text = 'La cuenta «' . $user . '» está suspendida en Webuzo, pero no la suspendió el plugin (quizá a mano, en el panel): no se reactiva sola.';
+				self::svc_set( $id, array( 'status' => 'suspended', 'error' => $text, 'foreign_suspend_noted' => time() ) ); self::svc_log( $id, $text );
+				self::alert_admin( 'suspendida fuera del plugin: ' . self::svc( $id, 'domain' ), $text . ' Si corresponde, usa «Reactivar» en WooCommerce → Servicios de hosting.' );
+			}
 		} elseif ( 'suspended' !== $now && 'suspended' === self::svc( $id, 'status' ) && ! ( is_array( self::svc( $id, 'pending_toggle' ) ) && 'unsuspend' === ( self::svc( $id, 'pending_toggle' )['op'] ?? '' ) ) ) {
-			self::svc_set( $id, array( 'status' => 'active' ) ); self::svc_log( $id, 'Webuzo la muestra activa: se corrige el estado.' );
+			self::svc_set( $id, array( 'status' => 'active', 'suspend_sent' => array() ) ); self::svc_log( $id, 'Webuzo la muestra activa: se corrige el estado.' );
 		}
 	}
 
