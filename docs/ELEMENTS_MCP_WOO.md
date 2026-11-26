@@ -131,6 +131,18 @@ PDF sólo existe si la generó Skydropx.
   dice dónde se cambia el modo.
 - **Lectura y escritura:** todo, con la bitácora.
 
+**El Asistente IA del escritorio** (IA Tools, caso plomerito 4 del 2026-11-26): «Sólo lectura» se pensó para los clientes
+MCP externos. En el Asistente cada cambio lo confirma la persona en su tarjeta, así que, dentro de su contexto
+(`Digitalisimo_AI_Assistant_Context`, que un cliente REST o MCP no puede abrir), `Executor` deja pasar en «Sólo lectura»
+lo que el Asistente clasifica como cambio sencillo (`write`): crear o actualizar productos, variaciones y catálogo sin
+metadatos, descargas ni publicar. Lo destructivo (borrar, lotes, pedidos, reembolsos, clientes, cupones, ajustes, envíos,
+Skydropx) sigue sujeto al modo, y en el Asistente se niega ya en el permiso, antes de la tarjeta, con el mismo error que
+dice el ajuste y dónde se cambia. «Apagado» sigue sin herramientas. Fuera del Asistente nada cambia.
+`Executor::assistant_writes()` no se fía sólo de la clase que da el Asistente: lo comprueba por su cuenta (create o
+update de producto, variación o catálogo, nunca reseñas, lotes ni borrar; sin metadatos ni descargas; sin cambiar el
+estado de lo que existe; crear sólo en borrador o pendiente, porque la API v3 publica lo que llega sin estado). La ayuda
+de la pantalla y la descripción de `products` y `catalog` lo dicen.
+
 Paridad sitio/red como en «Rendimiento»: la red define el valor (sin «Heredar de la red») y cada sitio lo hereda o lo
 personaliza (con «Heredar de la red»). Opciones `digitalisimo_elements_woo_mcp` (sitio, sin carga automática; sólo se lee con el MCP del sitio activo) y
 `digitalisimo_elements_woo_mcp_defaults` (red). Sin WooCommerce (o con uno anterior a `Woo\Module::MIN_WC`) o con el
