@@ -220,4 +220,29 @@ foreach ( array( 'draft', 'publish', 'pending', 'private' ) as $st ) {
 	check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'product_id' => 13, 'data' => array( 'status' => $st ) ) ), "P6.2: cambiar el estado de un producto existente a {$st} es destructivo" );
 }
 
+// P6.5/6 Lo que se niega AL EJECUTAR: el motivo real y «no se aplicó» sólo si es seguro.
+$GLOBALS['flip'] = null;
+wp_register_ability( 'demo/ajuste', array( 'label' => 'Demo', 'category' => 'demo', 'input_schema' => array( 'type' => 'object', 'properties' => array() ), 'permission_callback' => function () { return null === $GLOBALS['flip'] ? true : $GLOBALS['flip']; }, 'execute_callback' => function () { return isset( $GLOBALS['exec_error'] ) ? $GLOBALS['exec_error'] : array(); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => false ), 'mcp' => array( 'public' => true, 'type' => 'tool' ) ) ) );
+$demo = Digitalisimo_AI_Assistant_Tools::catalog()['demo/ajuste'];
+// El núcleo cambia la negativa por ability_invalid_permissions sin motivo: se vuelve a preguntar.
+$GLOBALS['flip'] = new WP_Error( 'x_apagado', 'Está apagado «X» (Ajustes → X).', array( 'status' => 403, 'digitalisimo_setting' => 'x' ) );
+$r = Digitalisimo_AI_Assistant_Tools::run( $demo, array(), 'write' );
+check( 'blocked' === $r['status'] && 'setting' === $r['reason'] && false !== strpos( $r['error'], '«X»' ) && false === strpos( $r['error'], 'permiso' ), 'P6.6: un ajuste que llega como ability_invalid_permissions se dice como ajuste: ' . json_encode( $r, JSON_UNESCAPED_UNICODE ) );
+$GLOBALS['flip'] = false;
+$r = Digitalisimo_AI_Assistant_Tools::run( $demo, array(), 'write' );
+check( 'unknown' === $r['reason'] && false === strpos( $r['error'], 'no tiene el permiso' ), 'P6.6: a un administrador, una negativa sin motivo no es «te falta un permiso»' );
+$GLOBALS['user'] = 2;
+$r = Digitalisimo_AI_Assistant_Tools::run( $demo, array(), 'write' );
+check( 'capability' === $r['reason'] && Digitalisimo_AI_Assistant_Tools::CAPABILITY_NOTE === $r['error'], 'P6.6: a quien no administra, que le falta el permiso' );
+$GLOBALS['user'] = 1;
+$GLOBALS['flip'] = null;
+// Un ajuste que la herramienta dice DESPUÉS de empezar (no es de los que se comprueban antes): no se sabe si se aplicó.
+$GLOBALS['exec_error'] = new WP_Error( 'x_tarde', 'Se apagó «X» a medias.', array( 'status' => 500, 'digitalisimo_setting' => 'x' ) );
+$r = Digitalisimo_AI_Assistant_Tools::run( $demo, array(), 'write' );
+check( empty( $r['not_applied'] ) && false === strpos( $r['error'], 'No se aplicó nada' ) && false !== strpos( $r['error'], 'No pude confirmar si se hizo' ), 'P6.5: «No se aplicó nada» sólo si es seguro: ' . json_encode( $r, JSON_UNESCAPED_UNICODE ) );
+$GLOBALS['exec_error'] = new WP_Error( 'digitalisimo_woo_mcp_read_only', 'Sólo lectura.', array( 'status' => 403 ) );
+$r = Digitalisimo_AI_Assistant_Tools::run( $demo, array(), 'write' );
+check( ! empty( $r['not_applied'] ) && false !== strpos( $r['error'], 'No se aplicó nada' ), 'P6.5: y sí lo dice cuando el error es de antes de ejecutar' );
+unset( $GLOBALS['exec_error'] );
+
 echo "Asistente y permisos internos: {$checks} comprobaciones.\n";

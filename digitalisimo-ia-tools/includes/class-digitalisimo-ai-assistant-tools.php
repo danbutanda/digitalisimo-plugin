@@ -80,6 +80,8 @@ final class Digitalisimo_AI_Assistant_Tools {
 	const SETTING_CODES  = array( 'digitalisimo_woo_mcp_read_only', 'digitalisimo_woo_mcp_off', 'elementor_v4_required' );
 	/** Lo que se le dice a quien no tiene la capacidad (la herramienta respondió `false`, sin motivo). */
 	const CAPABILITY_NOTE = 'Tu usuario de WordPress no tiene el permiso que pide esta acción (por ejemplo, editar ese contenido o administrar el sitio). No se aplicó nada.';
+	/** Cuando la negativa llegó al ejecutar y la herramienta no garantiza que no hizo nada. */
+	const UNCONFIRMED_NOTE = 'No pude confirmar si se hizo; revisa antes de repetir.';
 	/** Lo mismo para un administrador: no es un permiso que le falte, y no se le dice que lo es. */
 	const UNKNOWN_DENIAL  = 'La herramienta no dejó hacer esta acción y no dijo por qué. Tu usuario es administrador, así que no es un permiso que te falte: puede ser un ajuste del plugin de esa herramienta. No se aplicó nada.';
 	/**
@@ -632,23 +634,32 @@ final class Digitalisimo_AI_Assistant_Tools {
 	 * @param mixed $permission Lo que devolvió permission().
 	 * @return array Resultado de herramienta: `status` (blocked, denied o error), `reason` y `error`.
 	 */
-	public static function denial( $permission ) {
+	public static function denial( $permission, $not_applied = true ) {
+		$tail = $not_applied ? 'No se aplicó nada.' : self::UNCONFIRMED_NOTE;
+		$fix  = function ( $text ) use ( $tail ) {
+			return $tail === self::UNCONFIRMED_NOTE ? str_replace( 'No se aplicó nada.', $tail, $text ) : $text;
+		};
 		if ( is_wp_error( $permission ) ) {
-			$text   = rtrim( self::clip( self::scrub( wp_strip_all_tags( (string) $permission->get_error_message() ) ), 400 ), '. ' ) . '. No se aplicó nada.';
+			$text   = rtrim( self::clip( self::scrub( wp_strip_all_tags( (string) $permission->get_error_message() ) ), 400 ), '. ' ) . '. ' . $tail;
 			$reason = self::reason( $permission );
+			$code   = (string) $permission->get_error_code();
 			if ( 'setting' === $reason ) {
 				return array( 'status' => 'blocked', 'reason' => 'setting', 'error' => $text );
 			}
+			// La negativa genérica del núcleo no dice por qué: a un administrador no se le dice que le falta un permiso.
+			if ( 'ability_invalid_permissions' === $code && current_user_can( 'manage_options' ) ) {
+				return array( 'status' => 'denied', 'reason' => 'unknown', 'error' => $fix( self::UNKNOWN_DENIAL ) );
+			}
 			if ( 'capability' === $reason ) {
 				// «Sin permiso.» del núcleo no dice nada: el mensaje llano; uno propio («WooCommerce exige…») se conserva.
-				return array( 'status' => 'denied', 'reason' => 'capability', 'error' => in_array( $permission->get_error_code(), self::DENIED_CODES, true ) ? self::CAPABILITY_NOTE : $text );
+				return array( 'status' => 'denied', 'reason' => 'capability', 'error' => in_array( $code, self::DENIED_CODES, true ) ? $fix( self::CAPABILITY_NOTE ) : $text );
 			}
 			return array( 'status' => 'error', 'error' => $text );
 		}
 		if ( current_user_can( 'manage_options' ) ) {
-			return array( 'status' => 'denied', 'reason' => 'unknown', 'error' => self::UNKNOWN_DENIAL );
+			return array( 'status' => 'denied', 'reason' => 'unknown', 'error' => $fix( self::UNKNOWN_DENIAL ) );
 		}
-		return array( 'status' => 'denied', 'reason' => 'capability', 'error' => self::CAPABILITY_NOTE );
+		return array( 'status' => 'denied', 'reason' => 'capability', 'error' => $fix( self::CAPABILITY_NOTE ) );
 	}
 
 	/** `setting`, `capability` o '' para un error. */
@@ -699,8 +710,17 @@ final class Digitalisimo_AI_Assistant_Tools {
 		}
 		if ( is_wp_error( $result ) ) {
 			// Sin la capacidad o con un ajuste apagado, con su motivo y su mensaje llano (denial()); lo demás, error.
-			$out = '' !== self::reason( $result ) ? self::denial( $result ) : array( 'status' => 'error', 'error' => self::clip( self::scrub( wp_strip_all_tags( (string) $result->get_error_message() ) ), 400 ) );
-			if ( self::not_applied( $result ) ) {
+			// El núcleo (WP_Ability::execute()) cambia la negativa de una ability por `ability_invalid_permissions`, sin
+			// su motivo: se vuelve a preguntar el permiso (en el mismo contexto) para no decir «tu usuario no tiene
+			// permiso» cuando lo que lo impide es un ajuste.
+			$why = $result;
+			if ( 'ability_invalid_permissions' === $result->get_error_code() ) {
+				$again = self::permission( $entry, $input, $kind );
+				$why   = true === $again ? $result : $again;
+			}
+			$applied = self::not_applied( $result );
+			$out     = ( is_wp_error( $why ) && '' !== self::reason( $why ) ) || ! is_wp_error( $why ) ? self::denial( $why, $applied ) : array( 'status' => 'error', 'error' => self::clip( self::scrub( wp_strip_all_tags( (string) $result->get_error_message() ) ), 400 ) );
+			if ( $applied ) {
 				$out['not_applied'] = true;
 			}
 			return $out;
