@@ -73,6 +73,8 @@ final class Digitalisimo_Backups_Site_Extract {
 		'seo_ai_llms_manual', 'seo_ai_llms_urls', 'seo_ai_indexnow_enabled', 'seo_ai_indexnow_auto', 'seo_ai_referrals_enabled', 'seo_ai_referral_retention', 'seo_hide_login_slug', 'seo_social_profiles',
 		'seo_local_phone_cc', 'seo_local_schedule', 'content_editorial_voice', 'content_editorial_context', 'content_editorial_cta', 'content_editorial_method', 'default_cluster_pillar', 'default_content_location',
 	);
+	/** Las partes del permiso de escritura de SEO, que heredan como el interruptor único `seo_abilities_write`. */
+	const SEO_ABILITY_PARTS = array( 'seo_abilities_write_meta', 'seo_abilities_write_schema', 'seo_abilities_write_index', 'seo_abilities_write_redirects' );
 	const SEO_ACCOUNT = array(
 		'openai_api_key', 'ai_providers', 'namecheap_api_user', 'namecheap_username', 'namecheap_api_key', 'ipinfo_tokens', 'seo_ai_indexnow_key', 'seo_verify_google',
 		'seo_verify_bing', 'seo_verify_yandex', 'seo_verify_baidu', 'seo_verify_pinterest', 'seo_verify_norton', 'seo_verify_custom', 'perf_gt_id', 'perf_ga4_id',
@@ -486,6 +488,10 @@ final class Digitalisimo_Backups_Site_Extract {
 				if ( in_array( $key, self::SEO_SITE_ONLY, true ) ) continue;
 				$map = in_array( $key, self::SEO_MODULE_KEYS, true ) ? $module : $inherit;
 				if ( array_key_exists( $key, $map ) && empty( $map[ $key ] ) ) continue;
+				// Las cuatro partes del permiso de escritura de SEO nacieron del interruptor único: un sitio que aún no eligió nada
+				// para una parte hereda como heredaba `seo_abilities_write` (igual que Tools con TOOLS_LEGACY_KEYS). Si no lo
+				// heredaba, la parte se queda como la del sitio y SEO la lee de su interruptor único.
+				if ( in_array( $key, self::SEO_ABILITY_PARTS, true ) && ! array_key_exists( $key, $map ) && array_key_exists( 'seo_abilities_write', $map ) && empty( $map['seo_abilities_write'] ) ) continue;
 				if ( in_array( $key, self::SEO_ACCOUNT, true ) ) {
 					// De la cuenta de la red: sin pedirlo queda vacía (también el vacío de la red manda sobre un valor viejo del sitio).
 					if ( ! $secrets && $filled( $value ) ) {

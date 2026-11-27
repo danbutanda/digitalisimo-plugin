@@ -376,6 +376,7 @@ jobs:
           php tests/backups-migrate-restore.php
           php tests/backups-migrate-kept.php
           php tests/backups-site-extract.php
+          php tests/backups-extract-seo-parts.php
           php tests/backups-network-to-single.php
           php tests/backups-destinations.php
           php tests/backups-destinations-protocols.php
