@@ -9,8 +9,14 @@
     var slides = Array.prototype.slice.call(list.children);
     var previous = root.querySelector('[data-digi-carousel-prev]');
     var next = root.querySelector('[data-digi-carousel-next]');
-    if (!previous && !next) return;
+    // Opcionales, por atributo del carrusel (Slider de dispositivos): puntos y arrastre con el ratón. Con ellos, el
+    // carrusel se desplaza sólo dentro de su pista, sin mover la página.
+    var dots = root.dataset.digiCarouselDots !== undefined ? Array.prototype.slice.call(root.querySelectorAll('[data-digi-carousel-dot]')) : [];
+    var drag = root.dataset.digiCarouselDrag !== undefined && !!window.PointerEvent;
+    if (!previous && !next && !dots.length && !drag) return;
     var index = 0;
+    function rtl() { return document.documentElement.dir === 'rtl' || getComputedStyle(track).direction === 'rtl'; }
+    function behavior() { return matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'; }
     function visible() {
       var value = parseInt(getComputedStyle(root).getPropertyValue('--digi-carousel-visible'), 10);
       return Math.max(1, Math.min(slides.length, isFinite(value) ? value : 1));
@@ -20,14 +26,54 @@
       index = Math.max(0, Math.min(index, end));
       if (previous) { previous.disabled = index === 0; previous.setAttribute('aria-disabled', previous.disabled ? 'true' : 'false'); }
       if (next) { next.disabled = index === end; next.setAttribute('aria-disabled', next.disabled ? 'true' : 'false'); }
+      dots.forEach(function (dot, dotIndex) { dot.setAttribute('aria-current', dotIndex === index ? 'true' : 'false'); });
     }
-    function move(step) {
-      index = Math.max(0, Math.min(slides.length - visible(), index + step));
-      slides[index].scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest', inline: 'start' });
+    function show(target) {
+      index = Math.max(0, Math.min(slides.length - visible(), target));
+      if ((dots.length || drag) && track.scrollTo) {
+        var box = track.getBoundingClientRect(), rect = slides[index].getBoundingClientRect();
+        track.scrollTo({ left: track.scrollLeft + (rtl() ? rect.right - box.right : rect.left - box.left), behavior: behavior() });
+      } else {
+        slides[index].scrollIntoView({ behavior: behavior(), block: 'nearest', inline: 'start' });
+      }
       sync();
     }
+    function move(step) { show(index + step); }
     if (previous) previous.addEventListener('click', function () { move(-1); });
     if (next) next.addEventListener('click', function () { move(1); });
+    dots.forEach(function (dot) { dot.addEventListener('click', function () { show(parseInt(dot.getAttribute('data-digi-carousel-dot'), 10) || 0); }); });
+    if (drag) {
+      // Arrastre con el ratón (el dedo y el panel táctil ya desplazan la pista de forma nativa).
+      var start = null, moved = false, from = 0;
+      track.addEventListener('pointerdown', function (event) {
+        if (event.pointerType !== 'mouse' || event.button !== 0 || (event.target.closest && event.target.closest('video, iframe, button'))) return;
+        start = { x: event.clientX, left: track.scrollLeft, id: event.pointerId };
+        moved = false;
+        from = index;
+      });
+      track.addEventListener('pointermove', function (event) {
+        if (!start) return;
+        var dx = event.clientX - start.x;
+        if (!moved && Math.abs(dx) < 6) return;
+        if (!moved) { moved = true; root.classList.add('digi-carousel--dragging'); try { track.setPointerCapture(start.id); } catch (error) { /* sin captura, sigue */ } }
+        track.scrollLeft = start.left - dx;
+        event.preventDefault();
+      });
+      var end = function (event) {
+        if (!start) return;
+        var dx = event.clientX - start.x, width = slides[0].getBoundingClientRect().width || 1;
+        start = null;
+        if (!moved) return;
+        root.classList.remove('digi-carousel--dragging');
+        var forward = rtl() ? dx > 0 : dx < 0;
+        show(Math.abs(dx) > width * 0.15 ? from + (forward ? 1 : -1) : from);
+      };
+      track.addEventListener('pointerup', end);
+      track.addEventListener('pointercancel', end);
+      // Tras arrastrar, el clic no abre el enlace de la captura; la imagen no se arrastra como archivo.
+      track.addEventListener('click', function (event) { if (moved) { event.preventDefault(); event.stopPropagation(); moved = false; } }, true);
+      track.addEventListener('dragstart', function (event) { event.preventDefault(); });
+    }
     var frame = 0;
     track.addEventListener('scroll', function () {
       if (frame) return;

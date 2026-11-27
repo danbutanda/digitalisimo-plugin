@@ -107,10 +107,15 @@ namespace {
 	$creative = Translator::translate( 'bdt-creative-button', array( 'button_style' => 'aura', 'alignment' => 'right' ) );
 	check_adapter( 'glow' === $creative['effect'] && 'right' === $creative['align'] && 'Read More' === $creative['text'], 'Creative Button usa el efecto propio más parecido.' );
 	$device = Translator::translate( 'bdt-device-slider', array( 'device_type' => 'macbookpro', 'slides' => array( array( 'title' => 'A', 'background' => 'image', 'image' => array( 'url' => 'x.png' ), 'title_link' => array( 'url' => 'https://a.test/' ) ), array( 'title' => 'B' ) ) ) );
-	check_adapter( 'desktop' === $device['device_type'] && 'https://a.test/' === $device['slides'][0]['link']['url'] && ! isset( $device['slides'][1]['image'] ), 'Device Slider traduce marco y enlace; la imagen sólo queda en diapositivas de imagen.' );
+	check_adapter( 'laptop' === $device['device_type'] && 'https://a.test/' === $device['slides'][0]['link']['url'] && ! isset( $device['slides'][1]['image'] ), 'Device Slider traduce marco y enlace; la imagen sólo queda en diapositivas de imagen.' );
 	check_adapter( 'color' === $device['slides'][1]['background'] && '#14ABF4' === $device['slides'][1]['color'] && ! isset( $device['slides'][0]['color'] ), 'Device Slider conserva las diapositivas de color con el color por defecto de Element Pack.' );
 	$media = Translator::translate( 'bdt-device-slider', array( 'slides' => array( array( 'background' => 'video', 'video_link' => 'https://v.test/a.mp4' ), array( 'background' => 'youtube', 'youtube_link' => 'https://youtu.be/abcdefghijk' ), array( 'background' => 'youtube' ) ) ) );
 	check_adapter( 'https://v.test/a.mp4' === $media['slides'][0]['video']['url'] && 'https://youtu.be/abcdefghijk' === $media['slides'][1]['youtube_url'] && ! isset( $media['slides'][0]['video_link'], $media['slides'][1]['youtube_link'] ), 'Device Slider conserva vídeos MP4 y de YouTube.' );
+	// Rotación, color del aparato y navegación de Element Pack pasan a los ajustes propios; sin ellos no se escribe nada.
+	$turned = Translator::translate( 'bdt-device-slider', array( 'device_type' => 'iphonex', 'rotation_state' => 'yes', 'device_color_1' => '#C0C0C0', 'navigation' => 'arrows_dots' ) );
+	check_adapter( 'mobile' === $turned['device_type'] && 'landscape' === $turned['orientation'] && '#C0C0C0' === $turned['frame_color'] && 'arrows_dots' === $turned['navigation'], 'Device Slider conserva la rotación horizontal, el color del aparato y flechas con puntos.' );
+	$plain = Translator::translate( 'bdt-device-slider', array( 'device_type' => 'imac', 'rotation_state' => 'yes', 'navigation' => 'dots' ) );
+	check_adapter( 'desktop' === $plain['device_type'] && ! isset( $plain['orientation'], $plain['frame_color'] ) && 'dots' === $plain['navigation'] && 'arrows' === Translator::translate( 'bdt-device-slider', array( 'navigation' => 'otro' ) )['navigation'], 'El iMac es el monitor (sin rotación), los puntos se conservan y un valor desconocido usa flechas.' );
 	// El vídeo de ejemplo del plugin anterior no se escribe: sin enlace guardado, la diapositiva queda sin vídeo.
 	check_adapter( '' === $media['slides'][2]['youtube_url'], 'Device Slider no escribe el vídeo de ejemplo del plugin anterior.' );
 	$comparison = Translator::translate( 'bdt-comparison-list', array() );
