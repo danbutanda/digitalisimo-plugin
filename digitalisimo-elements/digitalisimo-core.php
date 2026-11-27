@@ -17,8 +17,16 @@ final class Digitalisimo_Elements_Core {
 	const EXTERNAL     = 'elementor/elementor.php';
 	const EXTERNAL_PRO = 'elementor-pro/elementor-pro.php';
 
+	/**
+	 * Carpeta del núcleo. En el repositorio es `elementor/` (copia de wordpress.org, con su huella); el paquete puede
+	 * publicarla con un nombre neutro, `motor/` (D-9 de docs/MARCA_PROPIA.md), para que ninguna URL lleve el nombre.
+	 */
 	public static function dir() {
-		return __DIR__ . '/elementor/';
+		static $dir = null;
+		if ( null === $dir ) {
+			$dir = is_readable( __DIR__ . '/motor/elementor.php' ) ? __DIR__ . '/motor/' : __DIR__ . '/elementor/';
+		}
+		return $dir;
 	}
 
 	/** Versión de Elementor incluida, leída del manifiesto que deja el script de sincronización. */
@@ -339,7 +347,8 @@ final class Digitalisimo_Elements_Core {
 
 	/** Ruta relativa de un script del núcleo como la ve Elementor (sin «elementor/»), para encontrar su JSON de idioma. */
 	public static function script_relative_path( $relative, $src ) {
-		return 0 === strpos( (string) $relative, 'elementor/' ) && false !== strpos( (string) $src, '/' . basename( __DIR__ ) . '/elementor/' ) ? substr( $relative, 10 ) : $relative;
+		$folder = basename( rtrim( self::dir(), '/' ) );
+		return 0 === strpos( (string) $relative, $folder . '/' ) && false !== strpos( (string) $src, '/' . basename( __DIR__ ) . '/' . $folder . '/' ) ? substr( $relative, strlen( $folder ) + 1 ) : $relative;
 	}
 
 	public static function script_translation_file( $file, $handle, $domain ) {

@@ -44,7 +44,8 @@ const engine = walk(engineAssets).filter((f) => {
 const ours = [...walk(join(EL, 'assets')), ...walk(join(EL, 'modules')).filter((f) => f.includes('/assets/'))]
   .filter((f) => !f.includes('/css/templates/') && isAsset(f) && !EDITOR.test(relative(EL, f)) && !f.includes('/assets/digitalisimo/') && /elementor/i.test(readFileSync(f, 'utf8')));
 
-rmSync(OUT, { recursive: true, force: true });
+// Sólo lo que escribe el espejo: `reglas.json` (si la salida es `marca/`) se queda.
+for (const d of ['motor', 'assets', 'modules', 'espejo.json']) rmSync(join(OUT, d), { recursive: true, force: true });
 const summary = { motor: { archivos: 0, bytes: 0, gzip: 0, antes: 0, despues: 0 }, propio: { archivos: 0, bytes: 0, gzip: 0, antes: 0, despues: 0 }, quedan: [] };
 
 // Ruta en el paquete del original (para los url() relativos): el motor con su carpeta del ZIP.
