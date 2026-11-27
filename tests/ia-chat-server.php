@@ -112,7 +112,7 @@ require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-mcp-art
 require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-ai-article-chat.php';
 
 $GLOBALS['options']['digitalisimo_ai_options'] = array(
-	'chat_enabled' => 1, 'knowledge_enabled' => 1, 'mcp_featured_image_enabled' => 1,
+	'chat_enabled' => 1, 'knowledge_enabled' => 1,
 	'providers' => array( 'openai' => array( 'enabled' => true, 'key' => 'sk-prueba-secreta', 'url' => '' ) ),
 );
 $post = function( $id, $title, $content, $password = '', $status = 'publish' ) { return new WP_Post( array( 'ID' => $id, 'post_title' => $title, 'post_content' => $content, 'post_password' => $password, 'post_status' => $status, 'post_type' => 'post' ) ); };

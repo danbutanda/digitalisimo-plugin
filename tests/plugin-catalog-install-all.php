@@ -5,6 +5,8 @@
  * Cada paso instala un solo plugin (cada petición con su propio tiempo de ejecución) y pasa al siguiente con el mismo
  * nonce; Elements va antes que Migración; un paquete que falla no detiene a los demás y se informa al final; la cadena
  * siempre termina; sin permiso no se instala nada; el botón sólo aparece si falta algo y para quien puede instalar.
+ * DIGITALÍSIMO Hosting es privado de DIGITALÍSIMO (pedido del dueño del 2026-11-27): se instala a mano, así que ningún
+ * catálogo lo muestra ni lo instala, aunque el índice de la Release lo siga trayendo para su propio actualizador.
  */
 $root = sys_get_temp_dir() . '/digi-install-all-' . getmypid();
 @mkdir( $root . '/wp-admin/includes', 0777, true );
@@ -90,8 +92,10 @@ function check( $ok, $message ) { global $failures; if ( ! $ok ) { $failures++; 
 function invoke( $class, $method, ...$args ) { $m = new ReflectionMethod( $class, $method ); if ( PHP_VERSION_ID < 80100 ) $m->setAccessible( true ); return $m->invoke( null, ...$args ); }
 $tools_files = array(); foreach ( invoke( 'Digitalisimo\\Tools\\Plugin_Catalog', 'catalog' ) as $slug => $plugin ) $tools_files[ $slug ] = $plugin['file'];
 $seo_files = array(); foreach ( invoke( 'Digitalisimo_Plugin_Catalog', 'plugins' ) as $slug => $plugin ) $seo_files[ $slug ] = $plugin[1];
-$GLOBALS['files'] = $tools_files;
+// Hosting no está en los catálogos; su archivo se conoce aquí sólo para simular un sitio que ya lo tiene a mano o un paquete instalado.
+$GLOBALS['files'] = $tools_files + array( 'digitalisimo-hosting' => 'digitalisimo-hosting/digitalisimo-hosting.php' );
 check( $tools_files == $seo_files, 'Los dos catálogos deben ofrecer los mismos plugins con los mismos archivos.' );
+check( ! isset( $tools_files['digitalisimo-hosting'] ) && ! isset( $seo_files['digitalisimo-hosting'] ), 'Hosting es privado: ni el catálogo de Tools ni el de SEO lo ofrecen.' );
 
 function reset_site( $installed ) {
 	exec( 'rm -rf ' . escapeshellarg( WP_PLUGIN_DIR ) ); mkdir( WP_PLUGIN_DIR, 0777, true );
@@ -127,19 +131,28 @@ foreach ( $classes as $label => $class ) {
 	$class::init();
 	check( in_array( 'admin_post_' . $action, $GLOBALS['actions'], true ), "$label: init() debe registrar admin_post_$action." );
 
-	// 1. Con Tools y SEO instalados faltan cinco: el botón lo dice y la cadena los instala en el orden del catálogo, uno por paso.
+	// 0. Hosting es privado: la tabla no lo muestra aunque el índice lo traiga, ni cuando falta ni cuando ya está instalado a mano.
 	reset_site( array( 'digitalisimo-tools', 'digitalisimo-seo' ) );
 	$html = render_page( $class );
-	check( false !== strpos( $html, 'Instalar todos (5)' ), "$label: el botón debe decir «Instalar todos (5)»." );
+	check( false === strpos( $html, 'DIGITALÍSIMO Hosting' ) && false === strpos( $html, 'digitalisimo-hosting' ), "$label: la tabla no muestra Hosting." );
+	reset_site( array( 'digitalisimo-tools', 'digitalisimo-seo', 'digitalisimo-hosting' ) );
+	$html = render_page( $class );
+	check( false === strpos( $html, 'DIGITALÍSIMO Hosting' ) && false === strpos( $html, 'digitalisimo-hosting' ), "$label: con Hosting instalado a mano, la tabla tampoco lo muestra." );
+
+	// 1. Con Tools y SEO instalados faltan cuatro (Hosting no cuenta): el botón lo dice y la cadena los instala en el orden del catálogo, uno por paso.
+	reset_site( array( 'digitalisimo-tools', 'digitalisimo-seo' ) );
+	$html = render_page( $class );
+	check( false !== strpos( $html, 'Instalar todos (4)' ), "$label: el botón debe decir «Instalar todos (4)»." );
 	$start = button_url( $html ); $start_query = query_of( $start );
 	check( false !== strpos( $start, 'admin-post.php' ) && $action === ( $start_query['action'] ?? '' ) && wp_create_nonce( $action ) === ( $start_query['_wpnonce'] ?? '' ) && 'site' === ( $start_query['digitalisimo_context'] ?? '' ), "$label: el botón debe llevar a admin-post con su acción, su nonce y el contexto." );
 	$final = run_chain( $class, $start, $steps );
 	$expected = array_values( array_diff( array_keys( $tools_files ), array( 'digitalisimo-tools', 'digitalisimo-seo' ) ) );
 	$order = array_keys( $label === 'Digitalisimo_Plugin_Catalog' ? $seo_files : $tools_files );
 	$expected_order = array_values( array_intersect( $order, $expected ) );
-	check( $GLOBALS['installs'] === $expected_order, "$label: debe instalar los cinco que faltan en el orden del catálogo, uno por paso: " . implode( ',', $GLOBALS['installs'] ) );
+	check( $GLOBALS['installs'] === $expected_order, "$label: debe instalar los cuatro que faltan en el orden del catálogo, uno por paso: " . implode( ',', $GLOBALS['installs'] ) );
+	check( ! in_array( 'digitalisimo-hosting', $GLOBALS['installs'], true ) && ! file_exists( WP_PLUGIN_DIR . '/' . $GLOBALS['files']['digitalisimo-hosting'] ), "$label: «Instalar todos» no instala Hosting aunque el índice lo traiga." );
 	check( array_search( 'digitalisimo-elements', $GLOBALS['installs'], true ) < array_search( 'digitalisimo-migration', $GLOBALS['installs'], true ), "$label: Elements antes que Migración." );
-	check( 6 === $steps, "$label: cinco pasos que instalan y uno que cierra (fueron $steps)." );
+	check( 5 === $steps, "$label: cuatro pasos que instalan y uno que cierra (fueron $steps)." );
 	check( count( $GLOBALS['referers'] ) === $steps && array( $action ) === array_values( array_unique( $GLOBALS['referers'] ) ), "$label: cada paso comprueba el nonce de «Instalar todos»." );
 	$final_query = query_of( $final );
 	check( 0 === strpos( $final, 'https://example.test/wp-admin/admin.php?' ) && 'digitalisimo-plugins' === ( $final_query['page'] ?? '' ) && 'done' === ( $final_query['digitalisimo_install_all'] ?? '' ), "$label: al terminar vuelve al catálogo con el resumen ($final)." );
@@ -148,11 +161,11 @@ foreach ( $classes as $label => $class ) {
 	check( '' === button_url( $html ), "$label: sin plugins por instalar no hay botón." );
 
 	// 2. Un paquete que falla no detiene a los demás, se intenta una sola vez y se informa.
-	reset_site( array( 'digitalisimo-tools' ) ); $GLOBALS['fail'] = array( 'digitalisimo-hosting' );
+	reset_site( array( 'digitalisimo-tools' ) ); $GLOBALS['fail'] = array( 'digitalisimo-ia-tools' );
 	$final = run_chain( $class, button_url( render_page( $class ) ), $steps );
-	check( 6 === count( $GLOBALS['installs'] ) && 1 === count( array_keys( $GLOBALS['installs'], 'digitalisimo-hosting', true ) ), "$label: con Hosting fallando intenta los seis que faltan, Hosting una sola vez: " . implode( ',', $GLOBALS['installs'] ) );
+	check( 5 === count( $GLOBALS['installs'] ) && 1 === count( array_keys( $GLOBALS['installs'], 'digitalisimo-ia-tools', true ) ), "$label: con IA Tools fallando intenta los cinco que faltan, IA Tools una sola vez: " . implode( ',', $GLOBALS['installs'] ) );
 	$html = render_page( $class, query_of( $final ) );
-	check( false !== strpos( $html, 'notice-error' ) && false !== strpos( $html, 'No se pudo instalar: DIGITALÍSIMO Hosting' ) && false !== strpos( $html, 'notice-success' ), "$label: el resumen separa lo instalado de lo que falló." );
+	check( false !== strpos( $html, 'notice-error' ) && false !== strpos( $html, 'No se pudo instalar: DIGITALÍSIMO IA Tools' ) && false !== strpos( $html, 'notice-success' ), "$label: el resumen separa lo instalado de lo que falló." );
 	check( false !== strpos( $html, 'Instalar el plugin que falta' ), "$label: con uno solo pendiente el botón lo dice en singular." );
 	// 2b. Un enlace armado a mano (sin el nonce de la corrida) no muestra un resumen falso.
 	$forged = query_of( $final ); unset( $forged['_wpnonce'] ); $html = render_page( $class, $forged );
@@ -187,8 +200,25 @@ foreach ( $classes as $label => $class ) {
 	try { $class::install_all(); } catch ( Died $e ) { $died = true; } catch ( Redirected $e ) {}
 	check( $died && array() === $GLOBALS['installs'], "$label: sin nonce válido no se instala nada." );
 
+	// 4b. Una petición armada a mano con slug=digitalisimo-hosting (nonce válido para ese slug) no lo instala: «no disponible».
+	$single = defined( $class . '::INSTALL_ACTION' ) ? constant( $class . '::INSTALL_ACTION' ) : constant( $class . '::ACTION' );
+	reset_site( array( 'digitalisimo-tools', 'digitalisimo-seo' ) ); $_GET = array( 'action' => $single, 'slug' => 'digitalisimo-hosting', 'digitalisimo_context' => 'site', '_wpnonce' => wp_create_nonce( $single . '_digitalisimo-hosting' ) ); $died = '';
+	try { $class::install(); } catch ( Died $e ) { $died = $e->getMessage(); } catch ( Redirected $e ) {}
+	check( preg_match( '/no (está )?disponible/u', $died ) && array() === $GLOBALS['installs'] && ! file_exists( WP_PLUGIN_DIR . '/' . $GLOBALS['files']['digitalisimo-hosting'] ), "$label: install con slug=digitalisimo-hosting responde «no disponible» y no instala nada ($died)." );
+	// La misma petición con un plugin del catálogo sí instala: la prueba de arriba no pasa por un nonce mal armado.
+	reset_site( array( 'digitalisimo-tools', 'digitalisimo-seo' ) ); $_GET = array( 'action' => $single, 'slug' => 'digitalisimo-backups', 'digitalisimo_context' => 'site', '_wpnonce' => wp_create_nonce( $single . '_digitalisimo-backups' ) );
+	try { $class::install(); } catch ( Died $e ) {} catch ( Redirected $e ) {}
+	check( array( 'digitalisimo-backups' ) === $GLOBALS['installs'], "$label: install con un plugin del catálogo sí lo instala." );
+	if ( defined( $class . '::UPDATE_ACTION' ) ) {
+		// «Actualizar plugin» del catálogo de SEO tampoco toca Hosting: lo actualiza su propio actualizador.
+		$update = constant( $class . '::UPDATE_ACTION' );
+		reset_site( array( 'digitalisimo-tools', 'digitalisimo-seo', 'digitalisimo-hosting' ) ); $_GET = array( 'action' => $update, 'slug' => 'digitalisimo-hosting', 'digitalisimo_context' => 'site', '_wpnonce' => wp_create_nonce( $update . '_digitalisimo-hosting' ) ); $died = '';
+		try { $class::update(); } catch ( Died $e ) { $died = $e->getMessage(); } catch ( Redirected $e ) {}
+		check( preg_match( '/no (está )?disponible/u', $died ) && array() === $GLOBALS['installs'], "$label: update con slug=digitalisimo-hosting responde «no disponible» ($died)." );
+	}
+
 	// 5. «tried» sólo acepta slugs del catálogo, sin repetir, y con todos intentados la cadena cierra sin instalar.
-	reset_site( array() ); $all = query_of( $start ); $all['tried'] = implode( ',', array_keys( $tools_files ) ) . ',digitalisimo-ajeno,<script>,digitalisimo-seo'; $_GET = $all; $final = '';
+	reset_site( array() ); $all = query_of( $start ); $all['tried'] = implode( ',', array_keys( $tools_files ) ) . ',digitalisimo-ajeno,<script>,digitalisimo-seo,digitalisimo-hosting'; $_GET = $all; $final = '';
 	try { $class::install_all(); } catch ( Redirected $e ) { $final = $e->getMessage(); }
 	check( array() === $GLOBALS['installs'] && implode( ',', array_keys( $tools_files ) ) === ( query_of( $final )['tried'] ?? '' ), "$label: con todo intentado cierra sin instalar y el resumen sólo lleva slugs del catálogo." );
 

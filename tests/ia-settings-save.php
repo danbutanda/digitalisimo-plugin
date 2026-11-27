@@ -93,13 +93,18 @@ check( '45' === (string) ( site_o()['log_retention'] ?? '' ), 'La pestaña Avanz
 submit_form( 'writing', array( 'ai[editorial_method]' => "Regla uno\nRegla dos" ) );
 check( "Regla uno\nRegla dos" === ( site_o()['editorial_method'] ?? '' ), 'Redacción conserva las líneas de sus textareas' );
 check( array() === network_o(), 'Un sitio individual nunca escribe opciones de red' );
+// 3b. «Permitir que Codex suba imágenes destacadas mediante MCP» se retiró (el MCP trae acceso total, 2026-11-27): no se
+// pinta, y guardar borra el valor viejo aunque llegue en el envío.
+check( false === strpos( render( 'general' ), 'mcp_featured_image_enabled' ), 'General ya no pinta el interruptor de imágenes por MCP' );
+submit_form( 'general', array( 'ai[mcp_featured_image_enabled]' => '0' ) );
+check( ! array_key_exists( 'mcp_featured_image_enabled', site_o() ), 'Guardar borra el interruptor viejo de imágenes por MCP' );
 
 /** Las mismas comprobaciones en cada superficie: cada pestaña guarda lo escrito donde corresponde. */
 function every_tab_saves( $mode, $read, $other ) {
 	mode( $mode );
 	$before_other = $other();
-	submit_form( 'general', array( 'ai[mcp_featured_image_enabled]' => '1' ) );
-	check( 1 === ( $read()['mcp_featured_image_enabled'] ?? null ), "$mode: General guarda" );
+	submit_form( 'general', array( 'ai[knowledge_enabled]' => '1' ) );
+	check( 1 === ( $read()['knowledge_enabled'] ?? null ), "$mode: General guarda" );
 	submit_form( 'providers', array( 'providers[openai][key]' => "sk-$mode", 'providers[openai][enabled]' => '1', 'providers[openai][url]' => "https://$mode.test/v1" ) );
 	check( "sk-$mode" === ( $read()['providers']['openai']['key'] ?? null ) && ! empty( $read()['providers']['openai']['enabled'] ) && "https://$mode.test/v1" === ( $read()['providers']['openai']['url'] ?? null ), "$mode: Proveedores guarda clave, activación y URL" );
 	list( $after ) = submit_form( 'providers', array() );
@@ -145,7 +150,7 @@ foreach ( IA_TABS as $tab ) {
 check( false !== strpos( render( 'providers' ), 'Guardada · escribe una nueva' ), 'Heredando, Proveedores muestra que la red tiene su clave' );
 submit_form( 'general', array( 'ai[inherit_network]' => '' ) );
 check( 0 === ( site_o()['inherit_network'] ?? null ) && $network_before === network_o(), 'Desmarcar la herencia la guarda en el sitio y no toca la red' );
-check( 1 === ( site_o()['mcp_featured_image_enabled'] ?? null ) && 'Voz network' === substr( (string) ( site_o()['editorial_voice'] ?? '' ), 0, 11 ), 'Dejar de heredar conserva lo que se veía (los valores de la red)' );
+check( 1 === ( site_o()['knowledge_enabled'] ?? null ) && 'Voz network' === substr( (string) ( site_o()['editorial_voice'] ?? '' ), 0, 11 ), 'Dejar de heredar conserva lo que se veía (los valores de la red)' );
 check( '' === ( site_o()['providers']['openai']['key'] ?? '' ) && false !== strpos( render( 'providers' ), 'Escribe la clave de este sitio' ), 'Dejar de heredar nunca copia las claves de la red: el sitio pide la suya' );
 list( $after ) = submit_form( 'providers', array( 'providers[anthropic][key]' => 'sk-propia', 'providers[anthropic][enabled]' => '1' ) );
 check( 'sk-propia' === ( site_o()['providers']['anthropic']['key'] ?? null ) && false === strpos( $after, 'hereda la configuración de IA de la red' ), 'Ya personalizado, Proveedores guarda la clave propia del sitio' );

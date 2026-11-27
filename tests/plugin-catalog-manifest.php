@@ -59,15 +59,18 @@ function api( $plugins ) {
 }
 $slugs = array( 'digitalisimo-seo' => '1.0.224', 'digitalisimo-ia-tools' => '1.0.54', 'digitalisimo-hosting' => '1.0.25', 'digitalisimo-backups' => '1.0.52', 'digitalisimo-tools' => '1.0.28', 'digitalisimo-elements' => '4.3.0.142', 'digitalisimo-migration' => '1.0.8' );
 $api_versions = array_map( function ( $version ) { return $version . '.9'; }, $slugs );
-// Los dos catálogos ofrecen los siete plugins del índice, también DIGITALÍSIMO Migración (pedido del propietario del
-// 2026-11-13: «no veo el plugin de migración»), con su archivo real en los sitios.
+// Los dos catálogos ofrecen los plugins del índice, también DIGITALÍSIMO Migración (pedido del propietario del
+// 2026-11-13: «no veo el plugin de migración»), con su archivo real en los sitios. DIGITALÍSIMO Hosting no: es privado
+// de DIGITALÍSIMO y se instala a mano (2026-11-27), pero el índice lo sigue trayendo porque su actualizador lo lee.
 function catalog_entries( $class, $method ) { $m = new ReflectionMethod( $class, $method ); if ( PHP_VERSION_ID < 80100 ) { $m->setAccessible( true ); } return $m->invoke( null ); }
 $tools_catalog = catalog_entries( 'Digitalisimo\\Tools\\Plugin_Catalog', 'catalog' );
 $seo_catalog = catalog_entries( 'Digitalisimo_Plugin_Catalog', 'plugins' );
 check_catalog( 'digitalisimo-migration/digitalisimo-migration.php' === ( $tools_catalog['digitalisimo-migration']['file'] ?? '' ), 'El catálogo de Tools debe ofrecer DIGITALÍSIMO Migración.' );
 check_catalog( 'digitalisimo-migration/digitalisimo-migration.php' === ( $seo_catalog['digitalisimo-migration'][1] ?? '' ), 'El catálogo de SEO debe ofrecer DIGITALÍSIMO Migración.' );
-check_catalog( array_keys( $slugs ) == array_intersect( array_keys( $slugs ), array_keys( $tools_catalog ) ) && 7 === count( $tools_catalog ), 'El catálogo de Tools debe listar los siete plugins del índice.' );
-check_catalog( array_keys( $slugs ) == array_intersect( array_keys( $slugs ), array_keys( $seo_catalog ) ) && 7 === count( $seo_catalog ), 'El catálogo de SEO debe listar los siete plugins del índice.' );
+$offered = array_values( array_diff( array_keys( $slugs ), array( 'digitalisimo-hosting' ) ) );
+check_catalog( $offered == array_values( array_intersect( array_keys( $slugs ), array_keys( $tools_catalog ) ) ) && 6 === count( $tools_catalog ), 'El catálogo de Tools debe listar los seis plugins públicos del índice.' );
+check_catalog( $offered == array_values( array_intersect( array_keys( $slugs ), array_keys( $seo_catalog ) ) ) && 6 === count( $seo_catalog ), 'El catálogo de SEO debe listar los seis plugins públicos del índice.' );
+check_catalog( ! isset( $tools_catalog['digitalisimo-hosting'] ) && ! isset( $seo_catalog['digitalisimo-hosting'] ), 'Hosting es privado: ningún catálogo lo ofrece.' );
 $catalogs = array(
 	'Digitalisimo_Plugin_Catalog' => array( Digitalisimo_Plugin_Catalog::CACHE_KEY, Digitalisimo_Plugin_Catalog::LAST_KNOWN ),
 	'Digitalisimo\\Tools\\Plugin_Catalog' => array( \Digitalisimo\Tools\Plugin_Catalog::CACHE, \Digitalisimo\Tools\Plugin_Catalog::LAST_KNOWN ),
@@ -81,6 +84,7 @@ foreach ( $catalogs as $class => list( $cache_key, $last_known ) ) {
 	check_catalog( count( $index ) === count( $slugs ) && ! isset( $index['digitalisimo-theme'] ), $label . ': el índice debe contener los siete plugins, sin el tema de «themes».' );
 	foreach ( $slugs as $slug => $version ) check_catalog( ( $index[ $slug ]['version'] ?? '' ) === $version && ( $index[ $slug ]['package'] ?? '' ) === download_url( $slug, $version ), $label . ': ' . $slug . ' debe salir del índice de la Release.' );
 	check_catalog( 1 === count( $calls ) && false !== strpos( $calls[0], '/releases/latest/download/digitalisimo-plugins.json' ) && 0 === api_calls(), $label . ': sin consultar la API de GitHub.' );
+	check_catalog( $slugs['digitalisimo-hosting'] === ( $cache['digitalisimo_plugins_manifest']['plugins']['digitalisimo-hosting']['version'] ?? '' ), $label . ': el índice compartido conserva Hosting para su actualizador.' );
 	check_catalog( ( $site_options[ $last_known ] ?? array() ) === $index, $label . ': debe recordar el último índice encontrado.' );
 	// 2. La caché propia y el índice compartido evitan nuevas descargas.
 	check_catalog( releases( $class ) === $index && 1 === count( $calls ), $label . ': la caché propia evita descargas.' );

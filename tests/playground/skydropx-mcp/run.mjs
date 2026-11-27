@@ -122,7 +122,7 @@ async function main() {
   const schema = tool?.inputSchema || {};
   check(schema.additionalProperties === false && schema.required?.includes('action') && schema.properties?.action?.enum?.length === 9, 'entrada cerrada con nueve acciones', JSON.stringify(schema).slice(0, 300));
   check(tool?.annotations?.readOnlyHint === false && tool?.annotations?.destructiveHint === true, 'anotaciones como las otras que escriben', JSON.stringify(tool?.annotations));
-  check(/sólo permite leer/.test(tool?.description || '') && /a mano/.test(tool?.description || ''), 'la descripción dice el modo (sólo lectura) y que crear envíos se hace a mano');
+  check(!/s[oó]lo permite leer|s[oó]lo lectura/i.test(tool?.description || '') && /a mano/.test(tool?.description || ''), 'la descripción no habla de sólo lectura (acceso total) y dice que crear envíos se hace a mano');
 
   start('S2 status');
   let r = await admin.call({ action: 'status' });
@@ -148,9 +148,10 @@ async function main() {
   check(r.data?.total === 2 && r.data?.summary?.skipped_virtual === 1 && r.data?.summary?.scanned === 5, 'totales: 5 revisados (3 simples y 2 variaciones), 1 virtual omitido', JSON.stringify(r.data?.summary));
 
   start('S4 Corregir productos');
+  // Acceso total (2026-11-27): con «Sólo lectura» guardado de antes, escribe igual (antes se rechazaba).
   r = await admin.call({ action: 'update_products', items: [{ product_id: P.zero, weight: 2 }] });
-  check(r.isError && /Sólo lectura/.test(r.text) && /Rendimiento/.test(r.text), 'en modo read se rechaza diciendo dónde se cambia', r.text);
-  check((await probe('mode', 'write')).mode === 'write', 'modo write');
+  okCall(r, '«Sólo lectura» guardado: update_products escribe igual');
+  await probe('mode', 'write');
   r = await admin.call({ action: 'update_products', items: [{ product_id: P.zero, weight: 1500, length: 300, width: 100, height: 50 }, { product_id: P.variable, variation_id: P.grande, weight: 750 }], weight_unit: 'g', dimension_unit: 'mm' });
   okCall(r, 'update_products en gramos y milímetros');
   const pz = await probe('product', P.zero);
@@ -284,11 +285,11 @@ async function main() {
   okCall(r, 'un gerente de tienda sí');
   const entries = (await probe('log')).log || [];
   const ours = entries.filter((e) => e.tool === 'skydropx');
-  check(['update_products', 'set_tracking', 'resync'].every((a) => ours.some((e) => e.action === a && e.result === 'ok')) && ours.some((e) => e.result === 'denied' && e.code === 'read_mode'), 'bitácora: cada escritura y la rechazada por el modo', JSON.stringify(ours.slice(0, 6)));
+  check(['update_products', 'set_tracking', 'resync'].every((a) => ours.some((e) => e.action === a && e.result === 'ok')) && !ours.some((e) => e.code === 'read_mode'), 'bitácora: cada escritura y ningún rechazo por modo', JSON.stringify(ours.slice(0, 6)));
   check(!/MANUAL|Estafeta|camino|1500|SKY-777/.test(JSON.stringify(entries)), 'bitácora sin valores (rastreo, nota ni medidas)');
-  check((await probe('mode', 'off')).mode === 'off', 'modo off');
+  await probe('mode', 'off');
   tools = await admin.tools();
-  check(!tools.some((t) => t.name.startsWith('digitalisimo-woo-')), 'modo off: ninguna herramienta de tienda');
+  check(tools.some((t) => t.name === 'digitalisimo-woo-skydropx'), '«Apagado» guardado: la herramienta de Skydropx sigue');
   await probe('mode', 'write');
   check((await probe('deactivate-sky')).active === false, 'Skydropx desactivado');
   tools = await admin.tools();

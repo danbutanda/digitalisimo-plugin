@@ -47,10 +47,10 @@ final class Plugin_Catalog {
 		self::ensure_parent( 'digitalisimo-network', 'manage_network_options' );
 		add_submenu_page( 'digitalisimo-network', 'Plugins · Digitalisimo', 'Plugins', 'manage_network_plugins', 'digitalisimo-plugins', array( __CLASS__, 'page' ) );
 	}
+	/** Plugins que se ofrecen para instalar. DIGITALÍSIMO Hosting no está: es privado de DIGITALÍSIMO, se instala a mano y se actualiza con su propio actualizador (sigue en el índice de la Release). */
 	private static function catalog() { return array(
 		'digitalisimo-seo' => array( 'name' => 'DIGITALÍSIMO SEO', 'file' => 'digitalisimo-seo/digitalisimo-integrations.php', 'description' => 'SEO técnico, schema, contenido y SEO AI.' ),
 		'digitalisimo-ia-tools' => array( 'name' => 'DIGITALÍSIMO IA Tools', 'file' => 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'description' => 'Chatbot, proveedores IA, RAG y generación de imágenes.' ),
-		'digitalisimo-hosting' => array( 'name' => 'DIGITALÍSIMO Hosting', 'file' => 'digitalisimo-hosting/digitalisimo-hosting.php', 'description' => 'Dominios, Namecheap, WooCommerce y hosting.' ),
 		'digitalisimo-backups' => array( 'name' => 'DIGITALÍSIMO Backups', 'file' => 'digitalisimo-backups/digitalisimo-backups.php', 'description' => 'Respaldos de sitio y red.' ),
 		'digitalisimo-tools' => array( 'name' => 'DIGITALÍSIMO Tools', 'file' => 'digitalisimo-tools/digitalisimo-tools.php', 'description' => 'Herramientas internas, plantillas de red, WebP, ajustes del sitio y código PHP propio.' ),
 		'digitalisimo-elements' => array( 'name' => 'DIGITALÍSIMO Elements', 'file' => 'digitalisimo-elements/pro-elements.php', 'description' => 'Constructor visual completo: editor, funciones avanzadas, kits, plantillas y widgets propios.' ),
