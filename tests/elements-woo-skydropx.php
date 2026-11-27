@@ -1077,10 +1077,10 @@ PHP
 	check( 'skydropx' === Tools::tool_of( 'digitalisimo-woo/skydropx' ), 'Su ID es de la herramienta.' );
 	$ability = $registry->abilities['digitalisimo-woo/skydropx'];
 	check( false === $ability->is_exposed_via_proxy(), 'Fuera del proxy del editor, como las demás.' );
-	foreach ( array( 'read', 'write' ) as $mode ) {
-		$def = Tools::definition( 'skydropx', $mode );
+	foreach ( array( 'única' ) as $mode ) {
+		$def = Tools::definition( 'skydropx' );
 		check( 'digitalisimo-woo' === $def['category'] && '' !== $def['label'] && strlen( $def['description'] ) > 400, "Definición con categoría, etiqueta y descripción ($mode)." );
-		check( false !== strpos( $def['description'], 'write' === $mode ? 'permite escribir' : 'sólo permite leer' ), "La descripción dice el modo ($mode)." );
+		check( ! preg_match( '/s[oó]lo permite leer|s[oó]lo lectura|WooCommerce en el MCP|no está elegido/iu', $def['description'] ) && false !== strpos( $def['description'], 'exige el permiso de WooCommerce' ), 'Sin modos: la descripción no habla de sólo lectura (acceso total, 2026-11-27).' );
 		check( false !== strpos( $def['description'], 'a mano' ), 'La descripción dice que crear y pagar envíos se hace a mano.' );
 		check( false === $def['meta']['show_in_rest'] && false === $def['meta']['mcp']['public'], 'Sólo en el servidor MCP de Elements.' );
 		check( false === $def['meta']['annotations']['readonly'] && true === $def['meta']['annotations']['destructive'] && false === $def['meta']['annotations']['idempotent'], 'Anotaciones como las otras que escriben.' );
@@ -1133,34 +1133,22 @@ PHP
 	check( true === $ability->check_permission(), 'check_permission() del núcleo: un gerente sí.' );
 
 	// =================================================================================================================
-	// Modos y bitácora.
-	sk_reset( array( 'caps' => $manager, 'options' => array_merge( $GLOBALS['sk']['options'], array( Settings::OPTION => array( 'mode' => 'off', 'own' => array( 'mode' ) ) ) ) ) );
-	$sk_store();
-	$err( $run( array( 'action' => 'status' ) ), 'digitalisimo_woo_mcp_off', 'Modo off: nada.' );
-	check( 0 === count( $boot()->abilities ), 'Modo off: ninguna herramienta registrada.' );
-	sk_reset( array( 'caps' => $manager ) );
-	$sk_store();
-	$ok( $run( array( 'action' => 'status' ) ), 'Sólo lectura: status.' );
+	// Acceso total y bitácora (2026-11-27). Lo guardado de los modos viejos («Apagado», «Sólo lectura», «Sólo lo
+	// elegido» sin Skydropx) ya no limita: la herramienta existe y escribe con la capacidad. Fallaba con el código
+	// anterior (digitalisimo_woo_mcp_off y digitalisimo_woo_mcp_read_only).
 	foreach ( array(
-		array( 'action' => 'update_products', 'items' => array( array( 'product_id' => 11, 'weight' => 1 ) ) ),
-		array( 'action' => 'set_tracking', 'order_id' => 51, 'tracking' => array( 'number' => 'A1', 'company' => 'DHL', 'url' => 'https://r.test/A1' ) ),
-		array( 'action' => 'resync', 'order_id' => 50 ),
-	) as $input ) {
-		$denied = $err( $run( $input ), 'digitalisimo_woo_mcp_read_only', 'Sólo lectura: ' . $input['action'] . ' se rechaza diciendo dónde se cambia.' );
-		check( false !== strpos( $denied->get_error_message(), 'Rendimiento' ), 'El error dice dónde se cambia el modo.' );
-		check( 'denied' === Log::entries()[0]['result'] && 'read_mode' === Log::entries()[0]['code'] && $input['action'] === Log::entries()[0]['action'] && 'skydropx' === Log::entries()[0]['tool'], 'La escritura rechazada queda en la bitácora.' );
+		'«Apagado»'                   => array( 'mode' => 'off', 'own' => array( 'mode' ) ),
+		'«Sólo lectura»'              => array( 'mode' => 'read', 'own' => array( 'mode' ) ),
+		'«Sólo lo elegido» sin ella'  => array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array( 'products' ) ),
+	) as $case => $legacy ) {
+		sk_reset( array( 'caps' => $manager, 'options' => array_merge( $GLOBALS['sk']['options'], array( Settings::OPTION => $legacy ) ) ) );
+		$sk_store();
+		$ok( $run( array( 'action' => 'status' ) ), "$case guardado: status." );
+		check( 8 === count( $boot()->abilities ), "$case guardado: la herramienta de Skydropx se registra." );
+		$ok( $run( array( 'action' => 'resync', 'order_id' => 50 ) ), "$case guardado: resync se hace." );
+		check( 1 === $GLOBALS['sk_orders'][50]->saves, "$case guardado: el pedido se guardó." );
+		check( 'ok' === Log::entries()[0]['result'] && 'resync' === Log::entries()[0]['action'] && 'skydropx' === Log::entries()[0]['tool'], "$case guardado: la escritura queda en la bitácora." );
 	}
-	check( array() === $GLOBALS['sk_rest'] && 0 === $GLOBALS['sk_orders'][51]->saves && 0 === $GLOBALS['sk_orders'][50]->saves, 'Sólo lectura: nada llegó a WooCommerce.' );
-	// Tanda B (B3): «Escritura sólo en lo elegido». Sin Skydropx marcado, sus escrituras se rechazan como en sólo
-	// lectura, diciendo qué marcar; con Skydropx marcado, escribe. Fallaba con fee02105 (el modo custom no existía).
-	sk_reset( array( 'caps' => $manager, 'options' => array_merge( $GLOBALS['sk']['options'], array( Settings::OPTION => array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array( 'products' ) ) ) ) ) );
-	$sk_store();
-	$denied = $err( $run( array( 'action' => 'resync', 'order_id' => 50 ) ), 'digitalisimo_woo_mcp_read_only', 'Escritura elegida sin Skydropx: resync se rechaza.' );
-	check( false !== strpos( $denied->get_error_message(), 'Envíos con Skydropx' ) && 0 === $GLOBALS['sk_orders'][50]->saves, 'El error dice que falta marcar Skydropx, y nada se guarda.' );
-	check( false !== strpos( Skydropx_Tool::definition( 'custom' )['description'], 'no está elegido' ), 'La descripción lo dice.' );
-	sk_reset( array( 'caps' => $manager, 'options' => array_merge( $GLOBALS['sk']['options'], array( Settings::OPTION => array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array( 'skydropx' ) ) ) ) ) );
-	$sk_store();
-	$ok( $run( array( 'action' => 'resync', 'order_id' => 50 ) ), 'Escritura elegida con Skydropx: resync se hace.' );
 	$GLOBALS['sk']['caps'] = array( 'edit_posts' );
 	sk_reset( array( 'caps' => array( 'edit_posts' ), 'options' => array_merge( $GLOBALS['sk']['options'], $write ) ) );
 	$err( $run( array( 'action' => 'resync', 'order_id' => 50 ) ), 'digitalisimo_woo_mcp_forbidden', 'Sin permiso: rechazado por run() mismo.' );
@@ -1617,7 +1605,7 @@ PHP
 	$exit = $open( array( 'caps' => $manager, 'user' => 3, 'options' => array( 'elementor_mcp_enabled' => false ) ), 50, $valid );
 	check( $exit && 'die' === $exit->kind && 404 === $exit->getCode(), 'handle_label: con el MCP del sitio apagado no hace nada (M1).' );
 	$exit = $open( array( 'caps' => $manager, 'user' => 3, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'off', 'own' => array( 'mode' ) ) ) ), 50, $valid );
-	check( $exit && 'die' === $exit->kind && 404 === $exit->getCode(), 'handle_label: con «WooCommerce en el MCP» apagado tampoco.' );
+	check( $exit && 'redirect' === $exit->kind && $plugin === $exit->value, 'handle_label: «Apagado» guardado ya no cuenta (sin modos, 2026-11-27): redirige como siempre.' );
 	$exit = $open( array( 'caps' => array( 'read' ) ), 50, $valid );
 	check( $exit && 'die' === $exit->kind && 403 === $exit->getCode(), 'handle_label: sin permiso sobre pedidos, 403.' );
 	$exit = $open( array( 'caps' => array( 'read_private_shop_orders' ), 'user' => 3 ), 50, $valid );

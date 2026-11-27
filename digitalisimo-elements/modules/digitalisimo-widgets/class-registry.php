@@ -247,6 +247,13 @@ final class Widget_Registry {
 	/** Hojas por variante: cada instancia declara sólo la suya (ver docs/ELEMENTS_FRONT_OBJECTIVE.md). */
 	const VARIANT_STYLES = array(
 		'digitalisimo-logos-grid'               => 'assets/css/logos-grid.css',
+		'digitalisimo-device-slider-nav'        => 'assets/css/device-slider-nav.css',
+		'digitalisimo-device-slider-arrows'     => 'assets/css/device-slider-arrows.css',
+		'digitalisimo-device-slider-mobile'     => 'assets/css/device-slider-mobile.css',
+		'digitalisimo-device-slider-tablet'     => 'assets/css/device-slider-tablet.css',
+		'digitalisimo-device-slider-laptop'     => 'assets/css/device-slider-laptop.css',
+		'digitalisimo-device-slider-desktop'    => 'assets/css/device-slider-desktop.css',
+		'digitalisimo-device-slider-browser'    => 'assets/css/device-slider-browser.css',
 		'digitalisimo-icon-nav-bar'             => 'assets/css/icon-nav-bar.css',
 		'digitalisimo-advanced-button-effects'  => 'assets/css/advanced-button-effects.css',
 		'digitalisimo-animated-link-carpo'      => 'assets/css/animated-link/carpo.css',
@@ -334,7 +341,7 @@ final class Widget_Registry {
 		if ( ! wp_script_is( 'digitalisimo-google-reviews', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-google-reviews', plugins_url( 'assets/js/google-reviews.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
-		foreach ( array( 'image-compare', 'business-hours', 'marquee', 'table', 'video-player' ) as $script ) {
+		foreach ( array( 'image-compare', 'business-hours', 'marquee', 'table', 'video-player', 'device-slider' ) as $script ) {
 			if ( ! wp_script_is( 'digitalisimo-' . $script, 'registered' ) ) {
 				wp_register_script( 'digitalisimo-' . $script, plugins_url( 'assets/js/' . $script . '.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 			}

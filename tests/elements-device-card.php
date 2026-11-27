@@ -24,7 +24,7 @@ namespace Elementor {
 		}
 	}
 	class Repeater { private $controls = array(); public function add_control( $name, $args ) { $this->controls[ $name ] = $args; } public function get_controls() { return $this->controls; } }
-	class Controls_Manager { const SELECT = 'select'; const GALLERY = 'gallery'; const MEDIA = 'media'; const TEXT = 'text'; const TEXTAREA = 'textarea'; const URL = 'url'; const REPEATER = 'repeater'; const SLIDER = 'slider'; const COLOR = 'color'; const ICONS = 'icons'; const DIMENSIONS = 'dimensions'; const TAB_STYLE = 'style'; }
+	class Controls_Manager { const SELECT = 'select'; const GALLERY = 'gallery'; const MEDIA = 'media'; const TEXT = 'text'; const TEXTAREA = 'textarea'; const URL = 'url'; const REPEATER = 'repeater'; const SLIDER = 'slider'; const COLOR = 'color'; const SWITCHER = 'switcher'; const CHOOSE = 'choose'; const ICONS = 'icons'; const DIMENSIONS = 'dimensions'; const TAB_STYLE = 'style'; }
 	class Icons_Manager { public static function render_icon( $icon, $attrs ) { echo '<i aria-hidden="true"></i>'; } }
 }
 namespace {
@@ -43,7 +43,7 @@ namespace {
 	$slider = new \Digitalisimo\Elements\Device_Slider_Widget();
 	$card = new \Digitalisimo\Elements\Fancy_Card_Widget();
 	foreach ( array( $slider, $card ) as $widget ) { (digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget ); }
-	check_device( array( 'digitalisimo-carousel-engine' ) === $slider->get_script_depends() && array() === $card->get_script_depends(), 'Sólo el slider debe usar el motor compartido.' );
+	check_device( array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider' ) === $slider->get_script_depends() && array() === $card->get_script_depends(), 'Sólo el slider debe usar el motor compartido (y su script del tinte de la barra de estado).' );
 	$slider->settings = array( 'device_type' => 'mobile', 'gallery_images' => array( array( 'id' => 10, 'url' => 'https://site.test/captura.webp' ) ), 'slides' => array( array( 'image' => array( 'url' => 'https://site.test/otra.webp' ), 'title' => 'Otra', 'link' => array( 'url' => 'https://site.test/otra', 'is_external' => true, 'nofollow' => true ) ) ) );
 	ob_start(); (digi_test_accessible( new \ReflectionMethod( $slider, 'render' ) ))->invoke( $slider ); $html = ob_get_clean();
 	check_device( str_contains( $html, 'digi-device-slider--mobile' ) && 2 === substr_count( $html, '<li class="digi-carousel__slide ' ) && str_contains( $html, 'srcset=' ) && str_contains( $html, 'alt="Captura móvil"' ), 'El slider debe mostrar dos capturas y conservar ALT/srcset.' );

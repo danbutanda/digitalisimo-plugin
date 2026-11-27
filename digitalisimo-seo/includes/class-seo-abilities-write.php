@@ -4,15 +4,11 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Abilities de escritura para agentes de IA (RM15 de docs/SEO_RANKMATH_OBJECTIVE.md).
  *
- * Para los clientes MCP externos, el permiso va por partes (tanda B de la auditoría SEO, B5): títulos y descripciones,
- * schema y datos de marca, sitemap e indexación, y redirecciones, cada una con su interruptor (opt-in, con paridad) y su
- * registro de cambios (`LOG`). Antes era un solo interruptor, `seo_abilities_write`: mientras un sitio o la red no
- * guarden las partes, cada parte vale lo que valía ese interruptor (`part_enabled()`), y `Settings::migrate_ability_parts()`
- * lo copia a las cuatro la primera vez que se abre el escritorio, para que el formulario muestre lo que rige.
- * El Asistente IA del escritorio (IA Tools) no necesita los interruptores: cada cambio suyo lo confirma la persona en
- * pantalla y queda en su bitácora, así que, dentro de su contexto (`Digitalisimo_AI_Assistant_Context`, que no se puede
- * abrir desde una petición REST o MCP externa), basta la capacidad del usuario (caso plomerito 4, 2026-11-26). Los
- * interruptores gobiernan a los clientes MCP externos. Cada ability exige el permiso de WordPress del objeto
+ * Sin interruptores (decisión del dueño del 2026-11-27: el MCP trae acceso total de lectura y escritura). Los de antes
+ * (`seo_abilities_write` y sus cuatro partes de la tanda B) ya no se leen y `Settings::forget_ability_switches()` los
+ * borra. Lo mismo para un cliente MCP que para el Asistente IA del escritorio: decide la capacidad del usuario.
+ * El registro de cambios (`LOG`) se agrupa por parte (títulos y descripciones, schema, indexación, redirecciones).
+ * Cada ability exige el permiso de WordPress del objeto
  * (`edit_post` del contenido; `manage_options` para redirecciones), sanea igual que el editor y deja rastro: cada cambio
  * de un contenido guarda los valores anteriores en su historial (los 20 últimos), y `revert-post-seo` deshace el último.
  * Nunca publican, borran ni cambian el texto, el estado o el enlace de un contenido.
@@ -22,9 +18,7 @@ class Digitalisimo_Integrations_SEO_Abilities_Write {
 	const KEEP    = 20;
 	/** Campo de la ability => tipo de saneado. */
 	const FIELDS  = array( 'title' => 'template', 'description' => 'template_long', 'keywords' => 'keywords', 'canonical' => 'url', 'noindex' => 'flag', 'nofollow' => 'flag', 'social_title' => 'template', 'social_description' => 'template_long', 'breadcrumb_title' => 'text', 'schema_type' => 'schema_type' );
-	/** El interruptor único de antes: sólo cuenta para las partes que el sitio o la red aún no guardaron. */
-	const LEGACY = 'seo_abilities_write';
-	/** Parte del permiso => array( opción, nombre visible ). */
+	/** Parte del registro => array( interruptor retirado, nombre visible ). */
 	const PARTS = array(
 		'meta'      => array( 'seo_abilities_write_meta', 'Títulos y descripciones' ),
 		'schema'    => array( 'seo_abilities_write_schema', 'Schema y datos de marca' ),
@@ -44,53 +38,11 @@ class Digitalisimo_Integrations_SEO_Abilities_Write {
 		add_action( 'wp_abilities_api_init', array( __CLASS__, 'register' ) );
 	}
 
-	/** ¿Alguna parte abierta para los clientes MCP externos? */
-	public static function enabled() {
-		foreach ( array_keys( self::PARTS ) as $part ) if ( self::part_enabled( $part ) ) return true;
-		return false;
-	}
-
-	/** Opciones de las cuatro partes. */
-	public static function part_keys() { return array_values( array_map( function( $p ) { return $p[0]; }, self::PARTS ) ); }
-
-	/**
-	 * ¿Está abierta esta parte para los clientes MCP externos? Con la herencia de siempre (sitio → red). Una parte que el
-	 * sitio (y, si la hereda, la red) aún no guardó vale lo que valía el interruptor único: así, quien lo tenía encendido
-	 * conserva las cuatro encendidas y quien lo tenía apagado, las cuatro apagadas, aunque nadie haya abierto el escritorio
-	 * desde la actualización (un cliente MCP llega por REST).
-	 */
-	public static function part_enabled( $part ) {
-		if ( ! isset( self::PARTS[ $part ] ) ) return false;
-		$key = self::PARTS[ $part ][0];
-		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
-			$network = (array) get_site_option( Digitalisimo_Integrations_Settings::OPTION, array() );
-			$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
-			// Un sitio que aún no eligió nada para la parte hereda (o no) como heredaba el interruptor único.
-			$inherits = array_key_exists( $key, $inherit ) ? ! empty( $inherit[ $key ] ) : ( ! array_key_exists( self::LEGACY, $inherit ) || ! empty( $inherit[ self::LEGACY ] ) );
-			if ( $inherits && array_key_exists( $key, $network ) ) return ! empty( $network[ $key ] );
-			if ( $inherits && array_key_exists( self::LEGACY, $network ) ) return ! empty( $network[ self::LEGACY ] );
-		}
-		$site = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
-		if ( array_key_exists( $key, $site ) ) return ! empty( $site[ $key ] );
-		return (bool) Digitalisimo_Integrations_SEO_Resolver::option( self::LEGACY, 0 );
-	}
-
 	/** Parte de cada campo enviado (sin post_id). */
 	public static function parts_of( array $fields ) {
 		$parts = array();
 		foreach ( $fields as $field ) if ( isset( self::FIELD_PART[ $field ] ) ) $parts[ self::FIELD_PART[ $field ] ] = true;
 		return array_keys( $parts );
-	}
-
-	/** Partes cerradas para esta llamada. Para el Asistente del escritorio (su contexto abierto para $ability) ninguna. */
-	public static function closed_parts( array $parts, $ability ) {
-		if ( '' !== self::assistant( array( $ability ) ) ) return array();
-		return array_values( array_filter( $parts, function( $part ) { return ! self::part_enabled( $part ); } ) );
-	}
-
-	private static function closed_error( array $closed ) {
-		$names = array_map( function( $part ) { return '«' . self::PARTS[ $part ][1] . '»'; }, $closed );
-		return new WP_Error( 'digitalisimo_seo_part_closed', 'Este sitio no permite a los clientes MCP cambiar ' . implode( ' ni ', $names ) . '. Se enciende en Digitalisimo → SEO → Indexación → Agentes de IA. No se cambió nada.', array( 'status' => 403, 'parts' => $closed ) );
 	}
 
 	/** Nombre => array( etiqueta, descripción, entrada, ejecutor, permiso, anotaciones ). */
@@ -102,7 +54,7 @@ class Digitalisimo_Integrations_SEO_Abilities_Write {
 		$props['keywords']['description']    = 'Keywords separadas por comas; la primera es la principal.';
 		$props['schema_type']                = array( 'type' => 'string', 'enum' => self::SCHEMA_TYPES, 'description' => 'Tipo de schema del contenido; cadena vacía vuelve al automático.' );
 		return array(
-			'update-post-seo'    => array( 'Cambiar los metadatos SEO de un contenido', 'Cambia sólo los campos enviados (título SEO, descripción, keywords, canonical, noindex, nofollow, datos sociales, título de miga, tipo de schema). Cada campo pide su parte del permiso del sitio (títulos y descripciones; schema; sitemap e indexación): si una está cerrada no se cambia nada. Guarda los valores anteriores en el historial del contenido para poder deshacerlo. No cambia el texto, el estado ni el enlace del contenido.', array( 'type' => 'object', 'required' => array( 'post_id' ), 'properties' => $props, 'additionalProperties' => false ), array( __CLASS__, 'update_post_seo' ), array( __CLASS__, 'can_edit' ), array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
+			'update-post-seo'    => array( 'Cambiar los metadatos SEO de un contenido', 'Cambia sólo los campos enviados (título SEO, descripción, keywords, canonical, noindex, nofollow, datos sociales, título de miga, tipo de schema). Exige poder editar ese contenido. Guarda los valores anteriores en el historial del contenido para poder deshacerlo. No cambia el texto, el estado ni el enlace del contenido.', array( 'type' => 'object', 'required' => array( 'post_id' ), 'properties' => $props, 'additionalProperties' => false ), array( __CLASS__, 'update_post_seo' ), array( __CLASS__, 'can_edit' ), array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 			'revert-post-seo'    => array( 'Deshacer el último cambio SEO de un contenido', 'Restaura los valores anteriores al último cambio registrado en el historial del contenido (hecho por una ability).', array( 'type' => 'object', 'required' => array( 'post_id' ), 'properties' => array( 'post_id' => $props['post_id'] ), 'additionalProperties' => false ), array( __CLASS__, 'revert_post_seo' ), array( __CLASS__, 'can_edit' ), array( 'readonly' => false, 'destructive' => false, 'idempotent' => false ) ),
 			'create-redirection' => array( 'Crear una redirección', 'Crea una redirección del sitio (301 por defecto). Si ya existe una con el mismo origen exacto, devuelve esa sin crear otra. Rechaza bucles y expresiones regulares inválidas.', array( 'type' => 'object', 'required' => array( 'source' ), 'properties' => array( 'source' => array( 'type' => 'string', 'maxLength' => 500, 'description' => 'Ruta de origen, como /pagina-anterior/.' ), 'target' => array( 'type' => 'string', 'maxLength' => 2000, 'description' => 'Ruta del sitio o URL http(s). Vacío sólo con 410 o 451.' ), 'code' => array( 'type' => 'integer', 'enum' => array( 301, 302, 307, 410, 451 ) ), 'comparison' => array( 'type' => 'string', 'enum' => array( 'exact', 'start', 'end', 'contains', 'regex' ) ) ), 'additionalProperties' => false ), array( __CLASS__, 'create_redirection' ), array( __CLASS__, 'can_manage' ), array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 		);
@@ -123,18 +75,9 @@ class Digitalisimo_Integrations_SEO_Abilities_Write {
 		}
 	}
 
-	/**
-	 * Cambiar o deshacer metadatos: alguna de sus partes abierta (o el Asistente) y editar ese contenido. Cada campo
-	 * enviado se comprueba después contra su parte: si una está cerrada, no se cambia nada.
-	 */
-	public static function can_edit( $input = array() ) { return self::open( array( 'meta', 'schema', 'index' ), array( 'update-post-seo', 'revert-post-seo' ) ) && Digitalisimo_Integrations_SEO_Abilities::can_edit( $input ); }
-	public static function can_manage() { return self::open( array( 'redirects' ), array( 'create-redirection' ) ) && current_user_can( 'manage_options' ); }
-
-	/** Una de las partes encendida o, sin ellas, una de estas abilities llamada desde el Asistente IA del escritorio. */
-	private static function open( array $parts, array $names ) {
-		foreach ( $parts as $part ) if ( self::part_enabled( $part ) ) return true;
-		return '' !== self::assistant( $names );
-	}
+	/** Cambiar o deshacer metadatos: poder editar ese contenido. Crear redirecciones: administrar el sitio. */
+	public static function can_edit( $input = array() ) { return Digitalisimo_Integrations_SEO_Abilities::can_edit( $input ); }
+	public static function can_manage() { return current_user_can( 'manage_options' ); }
 
 	/** La ability de `$names` que está ejecutando el Asistente IA del escritorio ahora ('' si ninguna). */
 	public static function assistant( array $names = array( 'update-post-seo', 'revert-post-seo', 'create-redirection' ) ) {
@@ -186,9 +129,6 @@ class Digitalisimo_Integrations_SEO_Abilities_Write {
 	public static function update_post_seo( $input ) {
 		$post = self::post( $input );
 		if ( ! $post ) return new WP_Error( 'digitalisimo_seo_not_found', 'No hay un contenido con SEO con ese ID.' );
-		// Cada campo enviado pide su parte: con una cerrada no se cambia nada (ni lo de las partes abiertas).
-		$closed = self::closed_parts( self::parts_of( array_keys( array_intersect_key( (array) $input, self::FIELDS ) ) ), 'update-post-seo' );
-		if ( $closed ) return self::closed_error( $closed );
 		$current = array();
 		foreach ( array_keys( self::FIELDS ) as $field ) $current[ $field ] = (string) get_post_meta( $post->ID, 'digitalisimo_seo_' . $field, true );
 		$changes = self::changes( $current, (array) $input );
@@ -211,8 +151,6 @@ class Digitalisimo_Integrations_SEO_Abilities_Write {
 		if ( ! is_array( $history ) || ! $history ) return new WP_Error( 'digitalisimo_seo_no_history', 'Este contenido no tiene cambios que deshacer.' );
 		$last   = end( $history );
 		$before = array_intersect_key( (array) ( $last['before'] ?? array() ), self::FIELDS );
-		$closed = self::closed_parts( self::parts_of( array_keys( $before ) ), 'revert-post-seo' );
-		if ( $closed ) return self::closed_error( $closed );
 		array_pop( $history );
 		$changes = array();
 		foreach ( $before as $field => $value ) {
@@ -253,13 +191,13 @@ class Digitalisimo_Integrations_SEO_Abilities_Write {
 		return array_slice( array_values( array_filter( $log, function( $row ) use ( $part ) { return is_array( $row ) && ( $row['part'] ?? '' ) === $part; } ) ), 0, (int) $limit );
 	}
 
-	/** Registro bajo los interruptores (sólo en el sitio: los cambios son de cada sitio). */
+	/** Registro en «Agentes de IA» (sólo en el sitio: los cambios son de cada sitio). */
 	public static function render_log() {
 		if ( ! current_user_can( 'manage_options' ) ) return;
 		echo '<tr><th scope="row">Registro de cambios</th><td><p class="description">Lo último que cambiaron las abilities de escritura en este sitio, por parte: quién, desde dónde (el Asistente del escritorio o un cliente MCP externo) y qué había antes.</p>';
 		foreach ( self::PARTS as $part => $def ) {
 			$rows = self::log_entries( $part );
-			echo '<h4 style="margin:12px 0 4px">' . esc_html( $def[1] ) . ' · ' . ( self::part_enabled( $part ) ? 'abierta a clientes MCP' : 'cerrada a clientes MCP' ) . '</h4>';
+			echo '<h4 style="margin:12px 0 4px">' . esc_html( $def[1] ) . '</h4>';
 			if ( ! $rows ) { echo '<p class="description">Sin cambios registrados.</p>'; continue; }
 			echo '<table class="widefat striped"><thead><tr><th>Fecha</th><th>Quién</th><th>Vía</th><th>Sobre</th><th>Cambio</th></tr></thead><tbody>';
 			foreach ( $rows as $row ) {

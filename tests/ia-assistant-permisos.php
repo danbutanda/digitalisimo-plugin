@@ -7,13 +7,15 @@
  * para clientes MCP externos. Sin WordPress, con el modelo simulado y las abilities REALES de escritura de SEO:
  *   P1  con `seo_abilities_write` apagado, el Asistente propone el cambio con su tarjeta, lo guarda al confirmar
  *       (botón o «sí») y queda en el historial del contenido (via assistant) y en la bitácora; deshacer también;
- *   P2  un cliente MCP o REST externo sigue bloqueado (y con el interruptor encendido sigue funcionando como antes);
+ *   P2  (desde el 2026-11-27, acceso total sin interruptores) un cliente MCP o REST externo con la capacidad también
+ *       escribe aunque el sitio tuviera el interruptor viejo apagado (via ability); antes quedaba bloqueado;
  *   P3  sin la capacidad sigue bloqueado, sin tarjeta, y el mensaje dice que falta el permiso del usuario; a un
  *       administrador nunca se le dice que le falta un permiso cuando la herramienta no dio el motivo;
- *   P4  un ajuste apagado que el Asistente no salta (la tienda en «Sólo lectura» para lo destructivo) se dice como
- *       ajuste, con su nombre y dónde se cambia, sin tarjeta;
+ *   P4  un ajuste apagado que el Asistente no salta (de una herramienta cualquiera; la tienda ya no tiene modos) se
+ *       dice como ajuste, con su nombre y dónde se cambia, sin tarjeta;
  *   P5  el contexto no se puede falsificar: sin el nonce del Asistente, con una contraseña de aplicación, para otra
- *       ability, para otro usuario o con parámetros en la entrada, no se abre; y se cierra al terminar.
+ *       ability, para otro usuario o con parámetros en la entrada, no se abre; y se cierra al terminar (con una ability
+ *       de prueba que sólo deja pasar dentro del contexto: SEO ya no lo necesita).
  * Falla con el código de main v516 (IA Tools 1.0.74). Uso: php tests/ia-assistant-permisos.php
  */
 require __DIR__ . '/ia-assistant-agent/wp.php';
@@ -70,7 +72,7 @@ $seo_input = array( 'post_id' => $home, 'title' => 'Plomero en Torreón 24 h %se
 
 /* ---------------- P1: el caso, con el interruptor apagado ---------------- */
 $GLOBALS['user'] = 1; // Ana Admin.
-check( true !== Digitalisimo_AI_Assistant_Tools::allowed( Digitalisimo_AI_Assistant_Tools::catalog()['digitalisimo-seo/update-post-seo'], $seo_input ), 'P1: fuera del Asistente, con el interruptor apagado, ni un administrador puede (como hasta ahora)' );
+check( true === Digitalisimo_AI_Assistant_Tools::allowed( Digitalisimo_AI_Assistant_Tools::catalog()['digitalisimo-seo/update-post-seo'], $seo_input ), 'P1: con el interruptor viejo apagado, un administrador puede (acceso total, 2026-11-27)' );
 $say( array( $call( 'digitalisimo-seo-update-post-seo', $seo_input ) ), 'Te propongo este título y esta descripción para Google.' );
 $ev   = $events( $route( 'rest_message', $req( array( 'message' => 'revisa el sitio web y optimízalo en SEO' ) ) ) );
 $cid  = $ev[0]['id'];
@@ -96,19 +98,13 @@ $GLOBALS['script'] = array( 'Listo, quedó como antes.' );
 $ev = $events( $route( 'rest_confirm', $req( array( 'conversation' => $cid, 'action' => $card[0]['action']['id'], 'decision' => 'approve' ) ) ) );
 check( 'ok' === ( $of( $ev, 'tool' )[0]['message']['status'] ?? '' ) && '' === get_post_meta( $home, 'digitalisimo_seo_title', true ) && 'Descripción vieja' === get_post_meta( $home, 'digitalisimo_seo_description', true ), 'P1: al confirmar, deshace el cambio (lo anterior vuelve)' );
 
-/* ---------------- P2: un cliente MCP o REST externo sigue bloqueado ---------------- */
-$new_request(); // Otra petición: /wp-json/mcp/… o /wp-json/wp-abilities/v1/…/run, con la sesión o la contraseña de admin.
+/* ---------------- P2: un cliente MCP o REST externo también escribe (acceso total) ---------------- */
+$new_request(); // Otra petición: /wp-json/elementor/mcp, con la contraseña de aplicación de un administrador.
 $update = wp_get_ability( 'digitalisimo-seo/update-post-seo' );
-$r      = $update->execute( $seo_input );
-check( is_wp_error( $r ) && '' === get_post_meta( $home, 'digitalisimo_seo_title', true ), 'P2: un cliente externo no escribe con el interruptor apagado' );
-check( true !== $update->check_permissions( $seo_input ) && true !== wp_get_ability( 'digitalisimo-seo/create-redirection' )->check_permissions( array( 'source' => '/a/' ) ), 'P2: ni su comprobación de permiso pasa (MCP tools/call y REST run la hacen antes)' );
-$opened = Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/update-post-seo', 'write', function () use ( $update, $seo_input ) { return $update->execute( $seo_input ); } );
-check( is_wp_error( $opened ) && '' === get_post_meta( $home, 'digitalisimo_seo_title', true ), 'P2: fuera de una petición del Asistente, with() no abre nada' );
-$GLOBALS['seo']['seo_abilities_write'] = 1;
+check( true === $update->check_permissions( $seo_input ) && true === wp_get_ability( 'digitalisimo-seo/create-redirection' )->check_permissions( array( 'source' => '/a/' ) ), 'P2: su comprobación de permiso pasa con el interruptor viejo apagado (antes no)' );
 $external = $update->execute( $seo_input );
 $history  = get_post_meta( $home, Digitalisimo_Integrations_SEO_Abilities_Write::HISTORY, true );
-check( is_array( $external ) && 'ability' === end( $history )['via'], 'P2: con el interruptor encendido, el cliente externo escribe como antes (via ability)' );
-$GLOBALS['seo']['seo_abilities_write'] = 0;
+check( is_array( $external ) && $seo_input['title'] === get_post_meta( $home, 'digitalisimo_seo_title', true ) && 'ability' === end( $history )['via'], 'P2: el cliente externo escribe (via ability), sin encender nada' );
 delete_post_meta( $home, 'digitalisimo_seo_title' );
 
 /* ---------------- P3: sin la capacidad sigue bloqueado y lo dice ---------------- */
@@ -130,16 +126,16 @@ check( 'denied' === $tool[0]['message']['status'] && Digitalisimo_AI_Assistant_T
 check( 'desconocido' === ( $sent_result()['motivo'] ?? '' ), 'P3: con el motivo «desconocido» para el modelo' );
 
 /* ---------------- P4: un ajuste que el Asistente no salta ---------------- */
-$read_only = 'Este sitio tiene «WooCommerce en el MCP» en «Sólo lectura»: delete en «order» no se hizo. Un administrador lo cambia a «Lectura y escritura» en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, sección «WooCommerce en el MCP».';
+$read_only = 'Este sitio tiene «Demo de pedidos» apagado: delete en «order» no se hizo. Un administrador lo enciende en Ajustes → Demo.';
 wp_register_ability( 'digitalisimo-woo/orders', array( 'label' => 'Tienda: pedidos', 'category' => 'digitalisimo-woo', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'action' => array( 'type' => 'string', 'enum' => array( 'list', 'delete' ) ), 'id' => array( 'type' => 'integer' ) ) ), 'permission_callback' => function ( $in ) use ( $read_only ) {
-	// Como Executor::permission() de la tienda: en el contexto del Asistente, lo destructivo en «Sólo lectura» se niega ya.
-	return Digitalisimo_AI_Assistant_Context::allows( 'digitalisimo-woo/orders' ) && 'delete' === ( $in['action'] ?? '' ) ? new WP_Error( 'digitalisimo_woo_mcp_read_only', $read_only, array( 'status' => 403 ) ) : true;
+	// Una herramienta con un ajuste propio que el Asistente no salta (la tienda ya no tiene modos desde el 2026-11-27).
+	return Digitalisimo_AI_Assistant_Context::allows( 'digitalisimo-woo/orders' ) && 'delete' === ( $in['action'] ?? '' ) ? new WP_Error( 'digitalisimo_demo_off', $read_only, array( 'status' => 403, 'digitalisimo_setting' => 'demo' ) ) : true;
 }, 'execute_callback' => function () { $GLOBALS['woo_ran'] = true; return array(); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => true ), 'mcp' => array( 'public' => true, 'type' => 'tool' ) ) ) );
 $say( array( $call( 'digitalisimo-woo-orders', array( 'action' => 'delete', 'id' => 9 ) ) ) );
 $ev   = $events( $route( 'rest_message', $req( array( 'message' => 'borra el pedido 9' ) ) ) );
 $tool = $of( $ev, 'tool' );
 check( ! $of( $ev, 'confirm' ) && empty( $GLOBALS['woo_ran'] ) && 'blocked' === $tool[0]['message']['status'], 'P4: un ajuste que no se salta: sin tarjeta, sin ejecutar, como «apagado en ajustes»' );
-check( false !== strpos( $tool[0]['message']['detail'], '«WooCommerce en el MCP» en «Sólo lectura»' ) && false !== strpos( $tool[0]['message']['detail'], 'pantalla «Rendimiento»' ) && false !== strpos( $tool[0]['message']['detail'], 'No se aplicó nada' ) && false === strpos( $tool[0]['message']['detail'], 'permiso' ), 'P4: dice cuál ajuste y dónde se cambia, no «sin permiso»: ' . $tool[0]['message']['detail'] );
+check( false !== strpos( $tool[0]['message']['detail'], '«Demo de pedidos» apagado' ) && false !== strpos( $tool[0]['message']['detail'], 'Ajustes → Demo' ) && false !== strpos( $tool[0]['message']['detail'], 'No se aplicó nada' ) && false === strpos( $tool[0]['message']['detail'], 'permiso' ), 'P4: dice cuál ajuste y dónde se cambia, no «sin permiso»: ' . $tool[0]['message']['detail'] );
 check( 'ajuste' === ( $sent_result()['motivo'] ?? '' ), 'P4: el modelo recibe el motivo «ajuste»' );
 // Un error propio marcado como ajuste (digitalisimo_setting) cuenta igual; un error cualquiera, como error.
 check( 'setting' === Digitalisimo_AI_Assistant_Tools::denial( new WP_Error( 'x_off', 'Apagado en X.', array( 'status' => 403, 'digitalisimo_setting' => 'x' ) ) )['reason'] && 'error' === Digitalisimo_AI_Assistant_Tools::denial( new WP_Error( 'ability_invalid_input', 'Falta post_id.' ) )['status'], 'P4: tres casos: capacidad, ajuste o error' );
@@ -148,13 +144,16 @@ check( false !== strpos( $sys, '«ajuste», qué ajuste está apagado y dónde s
 
 /* ---------------- P5: el contexto no se puede falsificar ---------------- */
 $GLOBALS['user'] = 1;
+// Una ability que sólo deja pasar dentro del contexto del Asistente (como hacía SEO con su interruptor apagado).
+wp_register_ability( 'digitalisimo-seo/solo-asistente', array( 'label' => 'Sólo desde el Asistente', 'category' => 'digitalisimo-seo', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'title' => array( 'type' => 'string' ), 'description' => array( 'type' => 'string' ) ), 'additionalProperties' => true ), 'permission_callback' => function () { return Digitalisimo_AI_Assistant_Context::allows( 'digitalisimo-seo/solo-asistente' ) && current_user_can( 'manage_options' ); }, 'execute_callback' => function ( $in ) { update_post_meta( $in['post_id'], 'digitalisimo_seo_title', $in['title'] ); return array( 'ok' => true ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => false ), 'mcp' => array( 'public' => true, 'type' => 'tool' ) ) ) );
+$update = wp_get_ability( 'digitalisimo-seo/solo-asistente' );
 // Sin el nonce del Asistente (una cabecera inventada), la ruta no pasa ni se arma el contexto.
 $new_request();
 $bad = Digitalisimo_AI_Assistant::permission( $req( array( 'message' => 'x' ), 'nonce-falso' ) );
-check( is_wp_error( $bad ) && is_wp_error( Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/update-post-seo', 'write', function () use ( $update, $seo_input ) { return $update->execute( $seo_input ); } ) ), 'P5: con un nonce falso no se abre' );
+check( is_wp_error( $bad ) && is_wp_error( Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/solo-asistente', 'write', function () use ( $update, $seo_input ) { return $update->execute( $seo_input ); } ) ), 'P5: con un nonce falso no se abre' );
 // Con una contraseña de aplicación (un cliente REST o MCP), aunque traiga un nonce válido, tampoco.
 $GLOBALS['app_password'] = 'uuid-de-la-contraseña';
-$say( array( $call( 'digitalisimo-seo-update-post-seo', $seo_input ) ) );
+$say( array( $call( 'digitalisimo-seo-solo-asistente', $seo_input ) ) );
 $ev = $events( $route( 'rest_message', $req( array( 'message' => 'optimiza el SEO' ) ) ) );
 check( ! $of( $ev, 'confirm' ) && 'denied' === $of( $ev, 'tool' )[0]['message']['status'] && '' === get_post_meta( $home, 'digitalisimo_seo_title', true ), 'P5: con una contraseña de aplicación el Asistente no abre el contexto' );
 unset( $GLOBALS['app_password'] );
@@ -165,16 +164,16 @@ check( is_wp_error( $update->execute( $seo_input + array( 'assistant' => true, '
 Digitalisimo_AI_Assistant::permission( $req() );
 $inside = Digitalisimo_AI_Assistant_Context::with( 'mcp-adapter/execute-ability', 'write', function () use ( $update, $seo_input ) { return $update->check_permissions( $seo_input ); } );
 check( true !== $inside, 'P5: abierto para otra ability (p. ej. mcp-adapter/execute-ability), no deja pasar la de SEO' );
-$inside = Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/update-post-seo', 'write', function () use ( $update, $seo_input ) { $GLOBALS['user'] = 2; $r = Digitalisimo_AI_Assistant_Context::current(); $GLOBALS['user'] = 1; return $r; } );
+$inside = Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/solo-asistente', 'write', function () use ( $update, $seo_input ) { $GLOBALS['user'] = 2; $r = Digitalisimo_AI_Assistant_Context::current(); $GLOBALS['user'] = 1; return $r; } );
 check( null === $inside, 'P5: abierto para un usuario, no vale para otro' );
 $GLOBALS['user'] = 2;
-check( null === Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/update-post-seo', 'write', function () { return Digitalisimo_AI_Assistant_Context::current(); } ), 'P5: armado por un usuario, otro no lo abre' );
+check( null === Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/solo-asistente', 'write', function () { return Digitalisimo_AI_Assistant_Context::current(); } ), 'P5: armado por un usuario, otro no lo abre' );
 $GLOBALS['user'] = 1;
 $caps = $GLOBALS['users'][1]['caps'];
 $GLOBALS['users'][1]['caps'] = array( 'read' );
-check( null === Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/update-post-seo', 'write', function () { return Digitalisimo_AI_Assistant_Context::current(); } ), 'P5: sin la capacidad del Asistente, no se abre' );
+check( null === Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/solo-asistente', 'write', function () { return Digitalisimo_AI_Assistant_Context::current(); } ), 'P5: sin la capacidad del Asistente, no se abre' );
 $GLOBALS['users'][1]['caps'] = $caps;
-check( true === Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/update-post-seo', 'write', function () use ( $update, $seo_input ) { return $update->check_permissions( $seo_input ); } ) && null === Digitalisimo_AI_Assistant_Context::current(), 'P5: en la petición del Asistente, para esa ability, pasa; y al terminar se cierra' );
+check( true === Digitalisimo_AI_Assistant_Context::with( 'digitalisimo-seo/solo-asistente', 'write', function () use ( $update, $seo_input ) { return $update->check_permissions( $seo_input ); } ) && null === Digitalisimo_AI_Assistant_Context::current(), 'P5: en la petición del Asistente, para esa ability, pasa; y al terminar se cierra' );
 
 /* ---------------- P6: lo que la revisión encontró ---------------- */
 $GLOBALS['user'] = 1;

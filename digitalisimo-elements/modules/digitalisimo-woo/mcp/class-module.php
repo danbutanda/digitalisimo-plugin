@@ -6,8 +6,8 @@ use Digitalisimo\Elements\Woo\Module as Woo_Module;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * WooCommerce en el servidor MCP de DIGITALÍSIMO Elements (`POST /wp-json/elementor/mcp`, apagado por defecto con la
- * opción del núcleo `elementor_mcp_enabled`): siete herramientas `digitalisimo-woo/<recurso>` sobre la API REST v3 de
+ * WooCommerce en el servidor MCP de DIGITALÍSIMO Elements (`POST /wp-json/elementor/mcp`, siempre activo: la opción del
+ * núcleo `elementor_mcp_enabled` la fija `Digitalisimo\Elements\Mcp\Access`): siete herramientas `digitalisimo-woo/<recurso>` sobre la API REST v3 de
  * WooCommerce. Submódulo de `Woo\Module` (lista `BOOT`): sólo arranca con WooCommerce ≥ `MIN_WC`.
  *
  * Registro, sin editar nada del núcleo incluido (como `modules/mcp/module.php`):
@@ -17,11 +17,9 @@ defined( 'ABSPATH' ) || exit;
  * - sin ese registro pero con el contrato de abilities, `wp_register_ability()` en `wp_abilities_api_init` (si el MCP
  *   está activo) y el filtro `elementor/mcp/server/tools`;
  * - sin contrato de abilities o sin la Abilities API de WordPress (6.9), nada.
- * Con el modo `off` («WooCommerce en el MCP») no se registra ninguna herramienta ni la categoría. Las abilities propias
- * de WooCommerce (`woocommerce/…`) y su servidor experimental no se tocan ni se exponen aquí.
- *
- * Cada sitio de una red decide en sus propias peticiones (su modo, su MCP, su tienda): nada tiene alcance de red salvo
- * el modo heredado.
+ * Sin modos (decisión del dueño del 2026-11-27): con WooCommerce y el MCP del sitio, las herramientas siempre están y
+ * leen y escriben según las capacidades de cada usuario. Las abilities propias de WooCommerce (`woocommerce/…`) y su
+ * servidor experimental no se tocan ni se exponen aquí.
  */
 final class Module {
 	const CORE_ABILITY = 'Elementor\\Modules\\Mcp\\Abilities\\Abstract_Ability';
@@ -62,16 +60,12 @@ final class Module {
 	}
 
 	/**
-	 * En `elementor/init`: el registro del núcleo ya existe y aún no se volcó al servidor (`init` 5). Primero lo que no
-	 * cuesta nada (la Abilities API, el contrato del núcleo y su opción `elementor_mcp_enabled`, que el núcleo ya leyó en
-	 * esta petición); sólo con el MCP del sitio activo se lee el modo, una opción sin carga automática (y, en una red,
-	 * la de red): con el MCP apagado, ninguna petición la consulta.
+	 * En `elementor/init`: el registro del núcleo ya existe y aún no se volcó al servidor (`init` 5). Sólo lo que no
+	 * cuesta nada: la Abilities API, el contrato del núcleo y su opción `elementor_mcp_enabled` (siempre activa: ver
+	 * `Digitalisimo\Elements\Mcp\Access`). Ninguna otra opción.
 	 */
 	public static function boot(): void {
 		if ( ! function_exists( 'wp_register_ability' ) || ! class_exists( self::CORE_ABILITY ) || ! self::mcp_enabled() ) {
-			return;
-		}
-		if ( 'off' === Settings::mode() ) {
 			return;
 		}
 		self::$abilities = array();

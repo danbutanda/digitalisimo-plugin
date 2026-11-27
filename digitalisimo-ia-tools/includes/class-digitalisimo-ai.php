@@ -71,7 +71,7 @@ class Digitalisimo_AI {
 		return array(
 			'inherit_network' => 0, 'chat_enabled' => 0, 'chat_profile' => 'chatbot', 'context_posts' => 5,
 			'knowledge_enabled' => 0, 'knowledge_auto_index' => 1, 'knowledge_results' => 4, 'knowledge_embeddings_enabled' => 0, 'knowledge_embeddings_model' => 'text-embedding-3-small', 'knowledge_semantic_rerank' => 0,
-			'image_size' => '1536x1024', 'image_style' => 'natural', 'image_quality' => 'medium', 'mcp_featured_image_enabled' => 0, 'log_retention' => 30, 'assistant_rate_minute' => 10, 'assistant_daily_calls' => 300, 'assistant_concurrency' => 1,
+			'image_size' => '1536x1024', 'image_style' => 'natural', 'image_quality' => 'medium', 'log_retention' => 30, 'assistant_rate_minute' => 10, 'assistant_daily_calls' => 300, 'assistant_concurrency' => 1,
 			'editorial_voice' => '', 'editorial_context' => '', 'editorial_cta' => '', 'editorial_method' => '',
 			'providers' => array(), 'assistant_models' => array(),
 			'profiles' => array(
@@ -137,7 +137,7 @@ class Digitalisimo_AI {
 	/** Campos de cada pestaña, los mismos en el sitio y en la red; sólo lo que pertenece a un sitio queda fuera de la red. */
 	private static function tab_fields( $tab, $o, $network ) {
 		if ( 'general' === $tab ) {
-			self::check( 'chat_enabled', 'Activar DIGITALÍSIMO IA Tools', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento del sitio', $o ); self::check( 'mcp_featured_image_enabled', 'Permitir que Codex suba imágenes destacadas mediante MCP', $o );
+			self::check( 'chat_enabled', 'Activar DIGITALÍSIMO IA Tools', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento del sitio', $o );
 			echo '<p>Perfiles disponibles: chatbot, creación de contenido, SEO, ecommerce, automatizaciones e imágenes.</p>';
 		} elseif ( 'providers' === $tab ) self::providers( $o );
 		elseif ( 'profiles' === $tab ) { self::profiles( $o ); self::assistant_model_fields( $o ); }
@@ -223,7 +223,9 @@ class Digitalisimo_AI {
 		$o = array_merge( $base, array_map( 'sanitize_text_field', $in ) );
 		// La redacción editorial son textareas: sanitize_text_field() juntaba sus líneas en una sola.
 		foreach ( array( 'editorial_voice', 'editorial_context', 'editorial_cta', 'editorial_method' ) as $key ) if ( isset( $in[ $key ] ) ) $o[ $key ] = sanitize_textarea_field( $in[ $key ] );
-		foreach ( array( 'chat_enabled', 'inherit_network', 'knowledge_enabled', 'knowledge_auto_index', 'knowledge_embeddings_enabled', 'knowledge_semantic_rerank', 'mcp_featured_image_enabled' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
+		foreach ( array( 'chat_enabled', 'inherit_network', 'knowledge_enabled', 'knowledge_auto_index', 'knowledge_embeddings_enabled', 'knowledge_semantic_rerank' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
+		// El interruptor «Permitir que Codex suba imágenes destacadas mediante MCP» se retiró (acceso total del MCP, 2026-11-27): no se guarda.
+		unset( $o['mcp_featured_image_enabled'] );
 		if ( isset( $in['image_quality'] ) ) $o['image_quality'] = in_array( $in['image_quality'], array( 'low', 'medium', 'high', 'xhigh', 'max' ), true ) ? $in['image_quality'] : 'medium';
 		if ( isset( $_POST['providers'] ) ) { $o['providers'] = $base['providers'] ?? array(); foreach ( (array) $_POST['providers'] as $id => $p ) { $id = sanitize_key( $id ); $o['providers'][ $id ]['enabled'] = ! empty( $p['enabled'] ); $o['providers'][ $id ]['url'] = esc_url_raw( $p['url'] ?? '' ); if ( ! empty( $p['remove'] ) ) $o['providers'][ $id ]['key'] = ''; elseif ( '' !== ( $new_key = self::unmask( $p['key'] ?? '' ) ) ) $o['providers'][ $id ]['key'] = $new_key; } }
 		if ( isset( $_POST['assistant_models'] ) && is_array( $_POST['assistant_models'] ) && class_exists( 'Digitalisimo_AI_Assistant_Model' ) ) {
@@ -261,7 +263,18 @@ class Digitalisimo_AI {
 		register_rest_route( 'digitalisimo-ai/v1', '/knowledge/sources', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'knowledge_sources_api' ), 'permission_callback' => function() { return current_user_can( 'edit_posts' ); } ) );
 	}
 
+	/**
+	 * Texto de la IA con el perfil de uso. Abre el contexto del registro de uso (Digitalisimo_AI_Usage) con el perfil
+	 * como función, para que cada llamada al proveedor quede atribuida (y el cambio a otro proveedor, como reintento).
+	 */
 	public static function complete( $profile, $prompt, $context = '' ) {
+		$usage  = class_exists( 'Digitalisimo_AI_Usage' ) ? Digitalisimo_AI_Usage::begin( $profile ) : 0;
+		$answer = self::complete_with( $profile, $prompt, $context );
+		if ( $usage ) Digitalisimo_AI_Usage::end( $usage );
+		return $answer;
+	}
+
+	private static function complete_with( $profile, $prompt, $context = '' ) {
 		$o = self::get(); $profile_data = $o['profiles'][ $profile ] ?? null; if ( ! $profile_data ) return new WP_Error( 'profile', 'Perfil no configurado' );
 		$order = self::provider_order( $profile_data, $o ); $last_error = 'Ningún proveedor activo pudo responder.';
 		foreach ( $order as $id => $model ) {
@@ -295,7 +308,7 @@ class Digitalisimo_AI {
 	 * saltos de línea; el navegador la pinta con nodos de texto.
 	 */
 	public static function plain_text( $text ) { $text = wp_strip_all_tags( str_replace( array( "\r\n", "\r" ), "\n", (string) $text ) ); return trim( (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text ) ); }
-	public static function complete_api( $request ) { $profile = sanitize_key( $request->get_param( 'profile' ) ?: 'content' ); $prompt = sanitize_textarea_field( $request->get_param( 'prompt' ) ); if ( ! $prompt ) return new WP_Error( 'prompt', 'Escribe una instrucción.', array( 'status' => 400 ) ); $context = class_exists( 'Digitalisimo_AI_Knowledge' ) ? Digitalisimo_AI_Knowledge::context( $prompt, (int) self::get( 'knowledge_results' ) ?: 4 ) : ''; $answer = self::complete( $profile, $prompt, $context ); return is_wp_error( $answer ) ? $answer : rest_ensure_response( array( 'answer' => $answer ) ); }
+	public static function complete_api( $request ) { $profile = sanitize_key( $request->get_param( 'profile' ) ?: 'content' ); $prompt = sanitize_textarea_field( $request->get_param( 'prompt' ) ); if ( ! $prompt ) return new WP_Error( 'prompt', 'Escribe una instrucción.', array( 'status' => 400 ) ); $context = class_exists( 'Digitalisimo_AI_Knowledge' ) ? Digitalisimo_AI_Knowledge::context( $prompt, (int) self::get( 'knowledge_results' ) ?: 4 ) : ''; $usage = class_exists( 'Digitalisimo_AI_Usage' ) ? Digitalisimo_AI_Usage::begin( 'editorial' ) : 0; $answer = self::complete( $profile, $prompt, $context ); if ( $usage ) Digitalisimo_AI_Usage::end( $usage ); return is_wp_error( $answer ) ? $answer : rest_ensure_response( array( 'answer' => $answer ) ); }
 	public static function knowledge_search_api( $request ) { if ( ! class_exists( 'Digitalisimo_AI_Knowledge' ) ) return new WP_Error( 'knowledge', 'Base de conocimiento no disponible.', array( 'status' => 404 ) ); return rest_ensure_response( Digitalisimo_AI_Knowledge::search( $request->get_param( 'q' ), (int) self::get( 'knowledge_results' ) ?: 4 ) ); }
 	public static function knowledge_sources_api() { return rest_ensure_response( class_exists( 'Digitalisimo_AI_Knowledge' ) ? Digitalisimo_AI_Knowledge::sources() : array() ); }
 

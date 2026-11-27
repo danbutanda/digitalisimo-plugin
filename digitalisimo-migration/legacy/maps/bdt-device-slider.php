@@ -1,7 +1,9 @@
 <?php
 /**
  * Element Pack Pro 9.9.1 `bdt-device-slider` → `digitalisimo-device-slider`.
- * Los marcos de Element Pack pasan al tipo de dispositivo propio; cada diapositiva conserva su contenido
+ * Los marcos de Element Pack pasan al tipo de dispositivo propio (las MacBook, a la laptop; el iMac, al monitor; los
+ * navegadores, a la ventana de navegador); la rotación horizontal de celular y tableta, a la orientación; su «Color 1»,
+ * al color propio del marco, y la navegación conserva flechas, puntos o ambos. Cada diapositiva conserva su contenido
  * (imagen, color, vídeo MP4 o YouTube) con los valores por defecto de Element Pack.
  */
 defined( 'ABSPATH' ) || exit;
@@ -17,9 +19,9 @@ return array(
 	),
 	'defaults'  => array( 'device_type' => 'desktop', 'show_title' => 'yes', 'navigation' => 'arrows' ),
 	'values'    => array(
-		'device_type' => array( 'chrome' => 'browser', 'chrome-dark' => 'browser', 'edge' => 'browser', 'edge-dark' => 'browser', 'firefox' => 'browser', 'safari' => 'browser', 'desktop' => 'desktop', 'imac' => 'desktop', 'macbookpro' => 'desktop', 'macbookair' => 'desktop', 'iphonex' => 'mobile', 'mobile' => 'mobile', 'tablet' => 'tablet', 'custom' => 'mobile' ),
+		'device_type' => array( 'chrome' => 'browser', 'chrome-dark' => 'browser', 'edge' => 'browser', 'edge-dark' => 'browser', 'firefox' => 'browser', 'safari' => 'browser', 'desktop' => 'desktop', 'imac' => 'desktop', 'macbookpro' => 'laptop', 'macbookair' => 'laptop', 'iphonex' => 'mobile', 'mobile' => 'mobile', 'tablet' => 'tablet', 'custom' => 'mobile' ),
 		'navigation'  => static function ( $value ) {
-			return 'none' === $value ? 'none' : 'arrows';
+			return in_array( $value, array( 'none', 'dots', 'arrows_dots' ), true ) ? $value : 'arrows';
 		},
 	),
 	'repeaters' => array(
@@ -30,6 +32,15 @@ return array(
 		),
 	),
 	'filter'    => static function ( array $out ) {
+		// Element Pack pintaba celular y tableta en vertical salvo con «Horizontal Rotation State».
+		if ( 'yes' === ( $out['rotation_state'] ?? '' ) && in_array( $out['device_type'] ?? '', array( 'mobile', 'tablet' ), true ) ) {
+			$out['orientation'] = 'landscape';
+		} elseif ( 'tablet' === ( $out['device_type'] ?? '' ) ) {
+			$out['orientation'] = 'portrait';
+		}
+		if ( ! empty( $out['device_color_1'] ) && empty( $out['frame_color'] ) ) {
+			$out['frame_color'] = $out['device_color_1'];
+		}
 		foreach ( $out['slides'] as $index => $slide ) {
 			$kind                = in_array( $slide['background'] ?? 'color', array( 'image', 'color', 'video', 'youtube' ), true ) ? ( $slide['background'] ?? 'color' ) : 'color';
 			$slide['background'] = $kind;

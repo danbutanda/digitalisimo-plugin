@@ -62,6 +62,12 @@ ok(items.length === 3 && parts.workTitle(items[1].work) === 'Preparé el borrado
 // Un mensaje con llamadas al que ya no le sigue ninguna herramienta (p. ej. el que deja una tarjeta) queda a la vista.
 items = parts.groupMessages([{ id: 'u3', role: 'me', text: 'pon el precio' }, { id: 'a4', role: 'assistant', text: 'Pongo $7,500 en la tienda.', work: true }]);
 ok(items.length === 2 && items[1].message && items[1].message.id === 'a4', 'U1: el texto que acompaña a una tarjeta pendiente no se pliega');
+// Caso plomerito 4 (corrida real): el turno se detiene en una tarjeta y una consulta quedó después del texto: el texto es
+// la respuesta y se ve.
+items = parts.groupMessages([{ id: 'u5', role: 'me', text: 'revisa skydropx' }, tool(50, 'digitalisimo-woo/skydropx'), { id: 'a5', role: 'assistant', text: '3 productos no tienen peso. Le pongo el peso a la bomba:', work: true }, tool(51, 'digitalisimo-woo/skydropx', 'destructive', 'blocked')]);
+ok(items.some((x) => x.message && x.message.id === 'a5'), 'U1: el texto que acompaña a la tarjeta con la que termina el turno queda a la vista aunque le siga un paso');
+items = parts.groupMessages([{ id: 'u6', role: 'me', text: 'revisa skydropx' }, tool(60, 'digitalisimo-woo/skydropx'), { id: 'a6', role: 'assistant', text: 'Skydropx no está vinculada. 3 productos no tienen peso; se lo pongo a la bomba.', work: true }, tool(61, 'digitalisimo-woo/skydropx', 'destructive', 'blocked'), { id: 'a7', role: 'assistant', text: 'Lo hago por la ficha del producto:', work: true }]);
+ok(items.some((x) => x.message && x.message.id === 'a6') && items.some((x) => x.message && x.message.id === 'a7'), 'U1: si el turno termina sin respuesta final (se detuvo en una tarjeta), lo que escribió junto a sus pasos queda a la vista');
 // Turnos distintos no se juntan.
 items = parts.groupMessages([...caso, { id: 'u4', role: 'me', text: 'otra' }, tool(40, 'digitalisimo-ia/site-contact')]);
 ok(items.filter((x) => x.work).length === 2 && parts.workTitle(items[items.length - 1].work) === 'Revisé tus datos de contacto (1)', 'U1: cada turno tiene su grupo');
@@ -89,6 +95,6 @@ ok(/Primero lo preparo en borrador para que lo veas\. Nada se publica ni cambia 
 ok(/action\.note \? h\( 'p', \{ className: 'dga-warn dga-note' \}, action\.note \)/.test(ui), 'U3: la tarjeta muestra su nota («Este borrador tiene cambios tuyos: ¿lo rehago encima?»)');
 ok(parts.SUGGESTIONS.some((s) => /landing/i.test(s[0])) && parts.SUGGESTIONS.some((s) => /Google/.test(s[0])) && parts.SUGGESTIONS.some((s) => /ventas/.test(s[0])), 'U3: las sugerencias son las del dueño (landing, Google, ventas)');
 ok(/'Automática', 'La mejor disponible'/.test(ui) && /'Funciones'/.test(ui), 'U3: el selector de IA y el de funciones en palabras llanas');
-ok(/'Este cambio no tiene vuelta atrás: confírmalo'/.test(ui) && !/action\.description \?/.test(ui), 'U3: la tarjeta no dice «Acción destructiva» ni pega la descripción técnica de la herramienta');
+ok(!/'Este cambio no tiene vuelta atrás: confírmalo'/.test(ui) && !/action\.description \?/.test(ui) && /'Sí, hazlo'/.test(ui), 'U3: la tarjeta no dice «Acción destructiva» ni «no tiene vuelta atrás» ni pega la descripción técnica de la herramienta (caso plomerito 4)');
 
 console.log(`Asistente IA, pantalla que no abruma: ${checks} comprobaciones correctas.`);

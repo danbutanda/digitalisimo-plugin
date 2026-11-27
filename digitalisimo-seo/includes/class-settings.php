@@ -185,12 +185,6 @@ class Digitalisimo_Integrations_Settings {
 			'seo_strip_product_base'      => 0,
 			'seo_strip_product_cat_base'  => 0,
 			'seo_strip_category_base'     => 0,
-			'seo_abilities_write'         => 0,
-			// B5: el permiso de escritura por partes (Digitalisimo_Integrations_SEO_Abilities_Write::PARTS).
-			'seo_abilities_write_meta'      => 0,
-			'seo_abilities_write_schema'    => 0,
-			'seo_abilities_write_index'     => 0,
-			'seo_abilities_write_redirects' => 0,
 			'seo_avatar_alt'              => 0,
 			'seo_rss_before'              => '',
 			'seo_rss_after'               => '',
@@ -251,7 +245,7 @@ class Digitalisimo_Integrations_Settings {
 		add_action( 'admin_init', array( __CLASS__, 'migrate_template_defaults' ), 1 );
 		add_action( 'admin_init', array( __CLASS__, 'ensure_autoload' ), 2 );
 		add_action( 'admin_init', array( __CLASS__, 'clean_network_secrets' ), 3 );
-		add_action( 'admin_init', array( __CLASS__, 'migrate_ability_parts' ), 1 );
+		add_action( 'admin_init', array( __CLASS__, 'forget_ability_switches' ), 1 );
 	}
 
 	/**
@@ -273,29 +267,26 @@ class Digitalisimo_Integrations_Settings {
 		if ( is_multisite() && is_network_admin() && ! get_site_option( self::TEMPLATE_DEFAULTS_MIGRATION ) ) { $network = (array) get_site_option( self::OPTION, array() ); foreach ( $keys as $key ) if ( ! array_key_exists( $key, $network ) || '' === trim( (string) $network[ $key ] ) ) $network[ $key ] = $defaults[ $key ]; update_site_option( self::OPTION, $network ); update_site_option( self::TEMPLATE_DEFAULTS_MIGRATION, 1 ); }
 	}
 
+	/** Interruptores retirados de la escritura SEO por MCP (el único de antes y sus cuatro partes de la tanda B). */
+	public static function legacy_ability_keys() { return array( 'seo_abilities_write', 'seo_abilities_write_meta', 'seo_abilities_write_schema', 'seo_abilities_write_index', 'seo_abilities_write_redirects' ); }
+
 	/**
-	 * B5 de la auditoría SEO: el interruptor único de las abilities de escritura (`seo_abilities_write`) se partió en
-	 * cuatro. Donde ese interruptor está guardado y las partes no, se copian una vez, en el sitio, en su herencia de la red
-	 * y en la red: quien lo tenía encendido queda con las cuatro encendidas. Así el formulario muestra lo que rige y
-	 * guardarlo no apaga nada por sorpresa. (Hasta que corre, `part_enabled()` ya lee el interruptor único.)
+	 * Decisión del dueño del 2026-11-27: el MCP trae acceso total, sin interruptores. Las abilities de escritura ya no
+	 * leen `seo_abilities_write` ni sus cuatro partes; aquí se borran, una vez y sin tocar nada más, del sitio, de su mapa
+	 * de herencia y de la red. Idempotente: sin esas claves no escribe nada.
 	 */
-	public static function migrate_ability_parts() {
-		// Un envío del formulario ya trae lo que se pintó después de la migración: no se mezcla con él.
-		if ( self::is_form_submission() ) return;
-		$legacy = 'seo_abilities_write';
-		$parts  = array( 'seo_abilities_write_meta', 'seo_abilities_write_schema', 'seo_abilities_write_index', 'seo_abilities_write_redirects' );
-		$copy   = function( array $values, $as_flag ) use ( $legacy, $parts ) {
-			if ( ! array_key_exists( $legacy, $values ) ) return null;
-			$changed = false;
-			foreach ( $parts as $key ) if ( ! array_key_exists( $key, $values ) ) { $values[ $key ] = $as_flag ? ( empty( $values[ $legacy ] ) ? 0 : 1 ) : $values[ $legacy ]; $changed = true; }
-			return $changed ? $values : null;
+	public static function forget_ability_switches() {
+		$keys  = self::legacy_ability_keys();
+		$strip = function( $values ) use ( $keys ) {
+			if ( ! is_array( $values ) || ! array_intersect( $keys, array_keys( $values ) ) ) return null;
+			return array_diff_key( $values, array_flip( $keys ) );
 		};
-		$site = $copy( (array) get_option( self::OPTION, array() ), true );
+		$site = $strip( get_option( self::OPTION, array() ) );
 		if ( null !== $site ) update_option( self::OPTION, $site );
 		if ( ! is_multisite() ) return;
-		$inherit = $copy( (array) get_option( 'digitalisimo_seo_network_inherit', array() ), false );
+		$inherit = $strip( get_option( 'digitalisimo_seo_network_inherit', array() ) );
 		if ( null !== $inherit ) update_option( 'digitalisimo_seo_network_inherit', $inherit );
-		$network = $copy( (array) get_site_option( self::OPTION, array() ), true );
+		$network = $strip( get_site_option( self::OPTION, array() ) );
 		if ( null !== $network ) update_site_option( self::OPTION, $network );
 	}
 
@@ -337,7 +328,7 @@ class Digitalisimo_Integrations_Settings {
 		if ( ! self::is_form_submission() ) return $input;
 		$current = (array) get_option( self::OPTION, array() );
 		$output  = $current;
-		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'seo_noindex_unresolved', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_schema_unify', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'seo_redirect_enabled', 'seo_redirect_slug_watch', 'seo_404_enabled', 'seo_404_ignore_query', 'seo_noindex_paginated', 'seo_noindex_password', 'seo_disable_author_archives', 'seo_disable_date_archives', 'seo_breadcrumbs_show_home', 'seo_breadcrumbs_hide_current', 'seo_breadcrumbs_taxonomy', 'seo_breadcrumbs_blog_page', 'seo_sitemap_news_enabled', 'seo_sitemap_video_enabled', 'seo_links_counter', 'seo_links_check', 'seo_noindex_hidden_products', 'seo_wc_remove_generator', 'seo_strip_product_base', 'seo_strip_product_cat_base', 'seo_strip_category_base', 'seo_abilities_write', 'seo_abilities_write_meta', 'seo_abilities_write_schema', 'seo_abilities_write_index', 'seo_abilities_write_redirects', 'seo_avatar_alt', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
+		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'seo_noindex_unresolved', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_schema_unify', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'seo_redirect_enabled', 'seo_redirect_slug_watch', 'seo_404_enabled', 'seo_404_ignore_query', 'seo_noindex_paginated', 'seo_noindex_password', 'seo_disable_author_archives', 'seo_disable_date_archives', 'seo_breadcrumbs_show_home', 'seo_breadcrumbs_hide_current', 'seo_breadcrumbs_taxonomy', 'seo_breadcrumbs_blog_page', 'seo_sitemap_news_enabled', 'seo_sitemap_video_enabled', 'seo_links_counter', 'seo_links_check', 'seo_noindex_hidden_products', 'seo_wc_remove_generator', 'seo_strip_product_base', 'seo_strip_product_cat_base', 'seo_strip_category_base', 'seo_avatar_alt', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = empty( $input[ $key ] ) ? 0 : 1;
 		}
 		// Cada pestaña envía solo sus propios campos: un campo ausente conserva su valor,

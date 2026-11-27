@@ -4,10 +4,13 @@ namespace Digitalisimo\Elements\Woo\Mcp;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Ejecuta una herramienta de tienda: enrutador, modo, permiso (también aquí, no sólo en `WP_Ability`), secretos, una
+ * Ejecuta una herramienta de tienda: enrutador, permiso (también aquí, no sólo en `WP_Ability`), secretos, una
  * petición interna a la API REST v3 de WooCommerce (`rest_do_request()`, como el usuario autenticado del MCP:
  * WooCommerce valida, comprueba permisos objeto a objeto y dispara sus ganchos; con HPOS también) y la bitácora de las
  * escrituras.
+ *
+ * Sin modos ni interruptores (decisión del dueño del 2026-11-27): toda herramienta lee y escribe; lo que puede hacer
+ * cada usuario lo deciden sus capacidades de WooCommerce, aquí y en la REST de WooCommerce, objeto a objeto.
  *
  * Nada de SQL propio ni de clases internas de WooCommerce; sin telemetría. Un error de WooCommerce vuelve como
  * `WP_Error` con su código y su mensaje, sin sus datos (pueden repetir lo enviado).
@@ -31,7 +34,6 @@ final class Executor {
 			return $plan;
 		}
 		$user = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
-		$mode = Settings::mode();
 		if ( 'undo' === $plan['local'] ) {
 			// El recurso, el objeto y la acción inversa salen del registro de cambios, no del cliente.
 			$plan = self::undo_plan( $tool, $plan );
@@ -40,10 +42,6 @@ final class Executor {
 			}
 		}
 
-		if ( 'off' === $mode ) {
-			// Apagado no registra las herramientas; si una llega a ejecutarse (el modo cambió a mitad), no hace nada.
-			return new \WP_Error( 'digitalisimo_woo_mcp_off', 'Las herramientas de tienda están apagadas en este sitio («WooCommerce en el MCP»: apagado).', array( 'status' => 403 ) );
-		}
 		// El permiso, también aquí: no depende de que quien llama haya pasado por WP_Ability::check_permissions().
 		$allowed = self::permission( $tool, $input );
 		if ( true !== $allowed ) {
@@ -54,12 +52,8 @@ final class Executor {
 			return $error;
 		}
 		if ( ! empty( $plan['dry_run'] ) ) {
-			// Simular no escribe: corre también en «Sólo lectura» y dice si el modo dejaría hacerlo.
+			// Simular no escribe: dice qué cambiaría.
 			return self::simulate( $tool, $plan, $dispatch );
-		}
-		if ( 'write' === $plan['kind'] && ! Settings::can_write( $tool ) && ! self::assistant_writes( $tool, $plan ) ) {
-			Log::add( Log::entry( $plan, 'denied', 'read_mode', 403, $user ) );
-			return self::read_mode_error( $plan );
 		}
 
 		if ( 'undo' === $plan['local'] ) {
@@ -143,12 +137,6 @@ final class Executor {
 			$failed = $batch && $batch['failed'] > 0;
 			Log::add( Log::entry( $plan, $failed ? 'partial' : 'ok', $failed ? $batch['errors'][0]['code'] : '', (int) $status, $user ) );
 			$change = Changes::record( $plan, $user, $before, $data );
-			if ( ! empty( $change['undo'] ) && ! Settings::can_write( $tool ) ) {
-				// Sólo pudo escribir por la excepción del Asistente en «Sólo lectura»; deshacer (que puede borrar) no
-				// entra en ella: no se promete. El cambio queda registrado y lo deshace quien tenga escritura.
-				$change['undo']   = false;
-				$change['reason'] = 'En «Sólo lectura» el Asistente no deshace: el cambio queda en el registro y lo puede deshacer un administrador con la escritura de esta herramienta permitida («WooCommerce en el MCP» en «Rendimiento»).';
-			}
 		}
 
 		if ( 'store-settings' === $tool ) {
@@ -240,8 +228,8 @@ final class Executor {
 	}
 
 	/**
-	 * `dry_run: true`: lo que cambiaría (`Simulation::would()`, sólo lecturas) y si el modo de este sitio dejaría
-	 * hacerlo (`allowed`, con el motivo en `reason`). No escribe nada ni deja entrada en la bitácora de escrituras.
+	 * `dry_run: true`: lo que cambiaría (`Simulation::would()`, que sólo consulta). `allowed` es siempre true: sin modos, lo
+	 * que decide es la capacidad, que ya se comprobó. No escribe nada ni deja entrada en la bitácora de escrituras.
 	 *
 	 * @return array|\WP_Error
 	 */
@@ -269,21 +257,16 @@ final class Executor {
 		if ( is_wp_error( $would ) ) {
 			return $would;
 		}
-		$allowed = Settings::can_write( $tool ) || self::assistant_writes( $tool, $plan );
-		$result  = array(
+		return array(
 			'ok'       => true,
 			'tool'     => $tool,
 			'action'   => $plan['action'],
 			'resource' => $plan['resource'],
 			'dry_run'  => true,
-			'allowed'  => $allowed,
+			'allowed'  => true,
 			'would'    => $would,
-			'notice'   => 'Simulación: no se cambió nada.' . ( $allowed ? '' : ' Este sitio no dejaría hacerlo (ver reason).' ),
+			'notice'   => 'Simulación: no se cambió nada.',
 		);
-		if ( ! $allowed ) {
-			$result['reason'] = self::read_mode_error( $plan )->get_error_message();
-		}
-		return $result;
 	}
 
 	/**
@@ -296,11 +279,7 @@ final class Executor {
 	 */
 	public static function permission( string $tool, $input = null ) {
 		if ( Tools::SKYDROPX === $tool ) {
-			$allowed = Skydropx_Tool::permission( $input );
-			if ( true === $allowed && is_array( $input ) && isset( $input['action'] ) && is_string( $input['action'] ) && Skydropx_Tool::is_write( $input['action'] ) ) {
-				return self::assistant_mode( $tool, array( 'action' => $input['action'], 'resource' => 'envíos de Skydropx' ) );
-			}
-			return $allowed;
+			return Skydropx_Tool::permission( $input );
 		}
 		$floor = Tools::floor( $tool );
 		if ( ! current_user_can( $floor ) ) {
@@ -324,65 +303,7 @@ final class Executor {
 		if ( ! current_user_can( $cap ) ) {
 			return self::forbidden( $cap );
 		}
-		// Una simulación no escribe: basta la capacidad (el modo lo dice la respuesta, en `allowed`).
-		return 'write' === $plan['kind'] && empty( $plan['dry_run'] ) ? self::assistant_mode( $tool, $plan ) : true;
-	}
-
-	/**
-	 * El Asistente IA del escritorio (IA Tools) pregunta el permiso ANTES de mostrar su tarjeta: en «Sólo lectura», lo
-	 * que el modo no le deja hacer ni a él se niega ya, con el ajuste y dónde se cambia (no «sin permiso» y tampoco
-	 * después de confirmar). Fuera del Asistente nada cambia: el modo lo sigue aplicando `run()`.
-	 *
-	 * @return true|\WP_Error
-	 */
-	private static function assistant_mode( string $tool, array $plan ) {
-		$context = self::assistant( $tool );
-		if ( null === $context || Settings::can_write( $tool ) || self::assistant_writes( $tool, $plan ) ) {
-			return true;
-		}
-		return self::read_mode_error( $plan );
-	}
-
-	/** El contexto del Asistente si la llamada en curso a esta herramienta viene de él, o null. */
-	private static function assistant( string $tool ) {
-		$context = 'Digitalisimo_AI_Assistant_Context';
-		if ( ! class_exists( $context, false ) || ! method_exists( $context, 'allows' ) || ! method_exists( $context, 'current' ) ) {
-			return null;
-		}
-		return call_user_func( array( $context, 'allows' ), Tools::id( $tool ) ) ? call_user_func( array( $context, 'current' ) ) : null;
-	}
-
-	/**
-	 * ¿Puede el Asistente escribir aunque el modo sea «Sólo lectura»? Sólo lo que él mismo clasifica como cambio
-	 * sencillo (`write`, con su tarjeta de confirmación): crear o actualizar productos, variaciones y el catálogo, sin
-	 * metadatos, descargas ni publicar (caso plomerito 4, 2026-11-26). «Sólo lectura» se pensó para los clientes MCP
-	 * externos; en el escritorio cada cambio lo confirma la persona y queda en la bitácora. Lo destructivo (borrar,
-	 * lotes, pedidos, reembolsos, clientes, cupones, ajustes, envíos, Skydropx) sigue sujeto al modo.
-	 */
-	private static function assistant_writes( string $tool, array $plan = array() ): bool {
-		$context = self::assistant( $tool );
-		if ( null === $context || 'write' !== ( $context['kind'] ?? '' ) || ! in_array( $tool, array( 'products', 'catalog' ), true ) ) {
-			return false;
-		}
-		// Comprobado aquí también, sin fiarse sólo de la clase que dio el Asistente: create o update de un recurso del
-		// catálogo (nunca reseñas, lotes ni borrar), sin metadatos ni descargas, y sin cambiar el estado de lo que existe
-		// ni crear algo publicado.
-		$action   = (string) ( $plan['action'] ?? '' );
-		$resource = (string) ( $plan['resource'] ?? '' );
-		if ( ! in_array( $action, array( 'create', 'update' ), true ) || ! in_array( $resource, array( 'product', 'variation', 'category', 'tag', 'brand', 'attribute', 'attribute_term', 'shipping_class' ), true ) ) {
-			return false;
-		}
-		$body = is_array( $plan['body'] ?? null ) ? $plan['body'] : array();
-		foreach ( array( 'meta_data', 'downloads', 'download_limit', 'download_expiry' ) as $key ) {
-			if ( array_key_exists( $key, $body ) ) {
-				return false;
-			}
-		}
-		if ( array_key_exists( 'status', $body ) ) {
-			return 'create' === $action && in_array( $body['status'], array( 'draft', 'pending' ), true );
-		}
-		// Crear un producto o una variación sin estado lo publica (la API v3 de WooCommerce pone `publish`).
-		return ! ( 'create' === $action && in_array( $resource, array( 'product', 'variation' ), true ) );
+		return true;
 	}
 
 	private static function forbidden( string $cap ): \WP_Error {
@@ -442,38 +363,6 @@ final class Executor {
 			|| ( 'option-batch' === $kind && empty( $body['update'] ) )
 			|| ( 'map' === $kind && ! $body );
 		return array( $plan, $kept, $nothing );
-	}
-
-	/**
-	 * Error de «no se puede escribir» que dice el ajuste y dónde se cambia: en «Sólo lectura», el modo; en «Escritura
-	 * sólo en lo elegido», que esta herramienta no está marcada. El código es el mismo en los dos casos.
-	 */
-	public static function read_mode_error( array $plan ): \WP_Error {
-		$where = function_exists( 'admin_url' ) ? admin_url( 'admin.php?page=' . Settings_Section::FRONT_PAGE . '#' . Settings_Section::ANCHOR ) : '';
-		$tool  = isset( $plan['tool'] ) && is_string( $plan['tool'] ) ? $plan['tool'] : '';
-		if ( 'custom' === Settings::mode() && isset( Settings::WRITE_TOOLS[ $tool ] ) ) {
-			return new \WP_Error(
-				'digitalisimo_woo_mcp_read_only',
-				sprintf(
-					'Este sitio tiene «WooCommerce en el MCP» en «Escritura sólo en lo elegido» y «%s» no está elegido: %s en «%s» no se hizo. Un administrador lo marca en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, sección «WooCommerce en el MCP»%s; en una red, si el sitio hereda el modo, también en esa pantalla de la administración de la red.',
-					Settings::WRITE_TOOLS[ $tool ],
-					$plan['action'],
-					$plan['resource'],
-					'' !== $where ? ' (' . $where . ')' : ''
-				),
-				array( 'status' => 403 )
-			);
-		}
-		return new \WP_Error(
-			'digitalisimo_woo_mcp_read_only',
-			sprintf(
-				'Este sitio tiene «WooCommerce en el MCP» en «Sólo lectura»: %s en «%s» no se hizo. Un administrador lo cambia a «Lectura y escritura» (o a «Escritura sólo en lo elegido») en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, sección «WooCommerce en el MCP»%s; en una red, si el sitio hereda el modo, también en esa pantalla de la administración de la red.',
-				$plan['action'],
-				$plan['resource'],
-				'' !== $where ? ' (' . $where . ')' : ''
-			),
-			array( 'status' => 403 )
-		);
 	}
 
 	/** Error de WooCommerce con su código y su mensaje. */

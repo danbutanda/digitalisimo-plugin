@@ -1,5 +1,5 @@
 <?php
-/** RM15: las abilities de escritura son opt-in, con permisos, saneado del editor e historial para deshacer. */
+/** RM15: las abilities de escritura, con permisos (sin interruptores desde el 2026-11-27), saneado del editor e historial para deshacer. */
 define( 'ABSPATH', __DIR__ );
 function add_action() {} function add_filter() {}
 function sanitize_text_field( $v ) { return trim( preg_replace( '/[\r\n\t ]+/', ' ', strip_tags( (string) $v ) ) ); }
@@ -7,6 +7,7 @@ function sanitize_textarea_field( $v ) { return trim( strip_tags( (string) $v ) 
 function esc_url_raw( $v, $p = null ) { return preg_match( '#^https?://#i', (string) $v ) ? (string) $v : ''; }
 require __DIR__ . '/../digitalisimo-seo/includes/class-settings.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-abilities-write.php';
+require __DIR__ . '/../digitalisimo-seo/includes/class-seo-abilities.php';
 function check( $condition, $message ) { if ( ! $condition ) throw new RuntimeException( $message ); }
 $w    = Digitalisimo_Integrations_SEO_Abilities_Write::class;
 $defs = $w::definitions();
@@ -14,7 +15,7 @@ check( array( 'update-post-seo', 'revert-post-seo', 'create-redirection' ) === a
 foreach ( $defs as $name => $d ) {
 	check( false === $d[5]['readonly'] && false === $d[5]['destructive'], "Anotadas como escritura no destructiva: $name" );
 	check( false === $d[2]['additionalProperties'], "Entrada cerrada: $name" );
-	check( in_array( $d[4][1], array( 'can_edit', 'can_manage' ), true ), "Permiso propio (opt-in + capacidad): $name" );
+	check( in_array( $d[4][1], array( 'can_edit', 'can_manage' ), true ), "Permiso propio (la capacidad): $name" );
 }
 check( 'can_manage' === $defs['create-redirection'][4][1], 'Las redirecciones exigen administrar el sitio.' );
 check( ! isset( $defs['update-post-seo'][2]['properties']['content'], $defs['update-post-seo'][2]['properties']['status'], $defs['update-post-seo'][2]['properties']['slug'] ), 'Nunca el texto, el estado ni el enlace del contenido.' );
@@ -23,4 +24,7 @@ check( array( 'Viejo', '%title% %sep% %date(Y)%' ) === $changes['title'] && arra
 check( array( '', '1' ) === $changes['noindex'] && ! isset( $changes['nofollow'] ) && ! isset( $changes['canonical'] ) && ! isset( $changes['otro'] ), 'Sólo cambia lo que cambia; una URL peligrosa queda vacía y no cuenta.' );
 check( array( '', 'uno,dos,tres' ) === $changes['keywords'], 'Keywords únicas, como mucho cinco.' );
 check( array() === $w::changes( array( 'title' => 'Igual' ), array( 'title' => 'Igual' ) ), 'Repetir el mismo valor no registra nada (idempotente).' );
-echo "Abilities de escritura: opt-in, permisos, saneado del editor e historial.\n";
+// En el servidor MCP del sitio (el que enseña «Mostrar el prompt para vincular»): lectura y escritura, sin interruptores.
+$tools = Digitalisimo_Integrations_SEO_Abilities::server_tools( array( 'elementor/otra' ) );
+check( 12 === count( $tools ) && 'elementor/otra' === $tools[0] && in_array( 'digitalisimo-seo/update-post-seo', $tools, true ) && in_array( 'digitalisimo-seo/create-redirection', $tools, true ) && in_array( 'digitalisimo-seo/get-post-seo', $tools, true ), 'Las once abilities de SEO en el servidor MCP del sitio: ' . json_encode( $tools ) );
+echo "Abilities de escritura: permisos, saneado del editor e historial.\n";

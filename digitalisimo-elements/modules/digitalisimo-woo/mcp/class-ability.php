@@ -35,7 +35,7 @@ final class Ability extends Core_Ability {
 	}
 
 	protected function get_definition(): Core_Definition {
-		$definition = Tools::definition( $this->tool, Settings::mode() );
+		$definition = Tools::definition( $this->tool );
 		$tool       = $this->tool;
 		return new Core_Definition(
 			$definition['label'],
@@ -70,7 +70,7 @@ final class Ability extends Core_Ability {
 		if ( ! function_exists( 'wp_register_ability' ) ) {
 			return;
 		}
-		$definition = Tools::definition( $this->tool, Settings::mode() );
+		$definition = Tools::definition( $this->tool );
 		$tool       = $this->tool;
 		wp_register_ability(
 			$this->get_id(),

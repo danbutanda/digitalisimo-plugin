@@ -1,0 +1,10 @@
+/* Slider de dispositivos: ventana de navegador (16:10) y su barra. */
+.digi-device-slider--browser{--digi-ds-address:rgba(255,255,255,.14)}
+.digi-device-slider--browser:is(.digi-device-slider--frame-silver,.digi-device-slider--frame-white){--digi-ds-address:rgba(0,0,0,.08)}
+.digi-device-slider--browser{--sw:16;--sh:10;--b:0;--bt:.05;--bb:0;--r:.014;--rs:.014;--band:0}
+.digi-device-slider--browser .digi-device-slider__frame{background-image:none}
+.digi-device-slider--browser .digi-device-slider__frame::before{content:none}
+.digi-device-slider--browser .digi-device-slider__screen{border-top-left-radius:0;border-top-right-radius:0;clip-path:none}
+.digi-device-slider__bar{position:absolute;z-index:1;top:0;right:0;left:0;height:calc(var(--bt)/var(--fh)*100%);display:flex;align-items:center;gap:2.5%;padding-inline:1.8%;pointer-events:none}
+.digi-device-slider__bar::before{content:"";flex:none;height:28%;aspect-ratio:3.9/1;background:radial-gradient(closest-side,#ff5f57 88%,transparent 100%) 0 50%/33.33% 100% no-repeat,radial-gradient(closest-side,#febc2e 88%,transparent 100%) 50% 50%/33.33% 100% no-repeat,radial-gradient(closest-side,#28c840 88%,transparent 100%) 100% 50%/33.33% 100% no-repeat}
+.digi-device-slider__bar::after{content:"";flex:0 1 54%;height:52%;margin-inline:auto;border-radius:999px;background:var(--digi-ds-address)}
