@@ -65,12 +65,23 @@ function last_list() { $calls = array_values( array_filter( $GLOBALS['nc']['call
 function search( $q ) { return Digitalisimo_Hosting_Finder::search( $q ); }
 function new_ip() { $_SERVER['REMOTE_ADDR'] = '198.51.100.' . ( ++$GLOBALS['ip'] ); }
 $GLOBALS['ip'] = 1; new_ip();
-/** Agregar por la Store API como WooCommerce: valida (puede lanzar RouteException) y guarda la línea con lo del cuerpo. */
+/**
+ * Agregar por la Store API como WooCommerce 11.2 (CartAddItem + CartController::add_to_cart): la ruta arma el arreglo con
+ * woocommerce_store_api_add_to_cart_data; el controlador pasa cart_item_data por woocommerce_add_cart_item_data, corre
+ * woocommerce_add_to_cart_validation (con cart_item_data como sexto argumento) y después la acción
+ * woocommerce_store_api_validate_add_to_cart con el producto y ESE ARREGLO (no la petición REST). Puede lanzar
+ * RouteException; si no, guarda la línea.
+ */
 function store_add( $pid, array $body ) {
 	$req = new Digi_Test_Request( $body + array( 'id' => $pid, 'quantity' => 1 ) );
-	Digitalisimo_Hosting_Checkout::store_api_validate( new Digi_Test_Store_Product( $pid ), $req );
-	$add = Digitalisimo_Hosting_Checkout::store_api_data( array( 'id' => $pid, 'quantity' => 1, 'cart_item_data' => array() ), $req );
-	return WC()->cart->add( $pid, Digitalisimo_Hosting::cart_domain( $add['cart_item_data'], $pid, 0 ) );
+	$add = Digitalisimo_Hosting_Checkout::store_api_data( array( 'id' => $pid, 'quantity' => $body['quantity'] ?? 1, 'variation' => array(), 'cart_item_data' => array() ), $req );
+	$add['cart_item_data'] = Digitalisimo_Hosting::cart_domain( $add['cart_item_data'], $pid, 0 );
+	$GLOBALS['notices'] = array();
+	if ( ! Digitalisimo_Hosting_Checkout::maybe_validate_add( true, $pid, $add['quantity'], 0, array(), $add['cart_item_data'] ) ) throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException( 'woocommerce_rest_add_to_cart_error', $GLOBALS['notices'][0][1] ?? 'no', 400 );
+	Digitalisimo_Hosting_Checkout::store_api_validate( new Digi_Test_Store_Product( $pid ), $add );
+	$key = WC()->cart->add( $pid, $add['cart_item_data'] );
+	WC()->cart->cart_contents[ $key ]['quantity'] = $add['quantity'];
+	return $key;
 }
 function store_error( $pid, array $body ) {
 	try { store_add( $pid, $body ); } catch ( \Automattic\WooCommerce\StoreApi\Exceptions\RouteException $e ) { return $e->getMessage(); }
@@ -117,7 +128,7 @@ update_option( 'digitalisimo_hosting_options', array( 'finder_order' => '.com, .
 
 // ── F3. Ocupado: mejor alternativa libre y transferencia ──────────────────────────────────────────────────────
 $r = search( 'ocupado' );
-check( 'ocupado.mx' === $r['main']['domain'] && 'ocupado.com' === $r['instead_of'], 'F3 .com ocupado: el principal pasa a la mejor libre en el orden (.mx)' );
+check( 'ocupado.mx' === $r['main']['domain'] && 'ocupado.com' === $r['instead_of'] && 'taken' === $r['reason'], 'F3 .com ocupado: el principal pasa a la mejor libre en el orden (.mx), con el motivo «ocupado»' );
 check( 'taken' === $r['taken']['status'] && 50 === $r['taken']['transfer']['product_id'] && '$250' === $r['taken']['transfer']['price_text'], 'F3 «¿Es tuyo? Transfiérelo» con el producto de transferencia de esa extensión' );
 $net = array_values( array_filter( $r['rows'], function ( $x ) { return 'ocupado.net' === $x['domain']; } ) )[0];
 check( 'taken' === $net['status'] && isset( $net['transfer'] ), 'F3 cada fila ocupada también ofrece la transferencia' );
@@ -134,6 +145,9 @@ check( 'todo.com' === $r['main']['domain'] && 'taken' === $r['main']['status'] &
 $r = search( 'lujo' );
 $com = array_values( array_filter( $r['rows'], function ( $x ) { return 'lujo.com' === $x['domain']; } ) )[0];
 check( 'lujo.mx' === $r['main']['domain'] && 'lujo.com' === $r['instead_of'] && 'premium' === $com['status'], 'F4 premium: no se vende; el principal pasa a una libre' );
+check( 'premium' === $r['reason'] && null === $r['taken'] && ! isset( $com['transfer'] ), 'F4 el motivo es «premium» (nunca «ocupado») y no se ofrece transferirlo' );
+$fjs = file_get_contents( __DIR__ . '/../digitalisimo-hosting/assets/finder.js' );
+check( false !== strpos( $fjs, "premium: 'es premium (precio especial) y no se vende aquí.'" ) && false !== strpos( $fjs, "unknown: 'no se pudo consultar ahora.'" ) && false !== strpos( $fjs, 'WHY[d.reason]' ), 'F4 el script dice el motivo real (ocupado, premium o sin consultar)' );
 check( false === strpos( json_encode( $r ), '2500' ), 'F4 el precio premium de Namecheap no sale en la respuesta' );
 
 // ── F5. nombre.ext ────────────────────────────────────────────────────────────────────────────────────────────
@@ -211,6 +225,12 @@ check( false !== strpos( store_error( 20, array( 'digitalisimo_domain' => 'lujo.
 check( false !== strpos( store_error( 20, array( 'digitalisimo_domain' => 'otro.mx' ) ), 'no es .com' ), 'F12 un .mx no entra con el producto .com' );
 check( '' !== store_error( 20, array( 'digitalisimo_domain' => 'mal nombre.com' ) ), 'F12 un nombre inválido no entra' );
 check( false !== strpos( store_error( 20, array( 'digitalisimo_domain' => 'dosanios.com', 'quantity' => 2 ) ), 'una sola vez' ), 'F12 un dominio no entra con cantidad 2' );
+$kq = WC()->cart->add( 22, array( 'digitalisimo_domain' => 'cantidad.net' ) ); WC()->cart->cart_contents[ $kq ]['quantity'] = 3;
+check( preg_grep( '/Cada dominio se compra por un año: deja la cantidad de cantidad\.net en 1/', $C::cart_errors() ), 'F12 un dominio con cantidad 3 en el carrito no se paga (la venta automática se detendría)' );
+unset( WC()->cart->cart_contents[ $kq ] );
+$noname = array( 'id' => 20, 'quantity' => 1, 'variation' => array(), 'cart_item_data' => array() );
+try { $C::store_api_validate( new Digi_Test_Store_Product( 20 ), $noname ); $thrown = ''; } catch ( \Automattic\WooCommerce\StoreApi\Exceptions\RouteException $e ) { $thrown = $e->error_code; }
+check( 'digitalisimo_hosting_domain' === $thrown, 'F12 la acción recibe el ARREGLO de WooCommerce (id, quantity, cart_item_data) y aun así frena un dominio sin nombre' );
 $k4 = store_add( 22, array( 'digitalisimo_domain' => 'barato.net', 'price' => 1, 'prices' => array( 'price' => 1 ) ) );
 check( ! preg_grep( '/price/', array_keys( WC()->cart->cart_contents[ $k4 ] ) ), 'F12 un precio enviado por el navegador no llega a la línea (el precio es el del producto)' );
 $tf = file_get_contents( __DIR__ . '/../digitalisimo-hosting/assets/finder.js' );
@@ -236,7 +256,8 @@ $GLOBALS['user_id'] = 1; unset( $GLOBALS['caps'] );
 $GLOBALS['assets'] = array();
 ob_start(); $F::empty_cart(); $empty = ob_get_clean();
 check( false !== strpos( $empty, 'data-digitalisimo-finder' ) && isset( $GLOBALS['assets']['script'][ $F::HANDLE ] ), 'F15 carrito vacío (clásico): el buscador, con su script' );
-check( false !== strpos( $F::empty_cart_block( '<div class="wp-block-woocommerce-empty-cart-block">Vacío</div>', array( 'blockName' => 'woocommerce/empty-cart-block' ) ), 'data-digitalisimo-finder' ), 'F15 carrito vacío (bloques): el buscador dentro del bloque' );
+$blk = $F::empty_cart_block( '<div class="wp-block-woocommerce-empty-cart-block">Vacío</div>', array( 'blockName' => 'woocommerce/empty-cart-block' ) );
+check( 0 === strpos( $blk, '<div class="wp-block-woocommerce-empty-cart-block">Vacío<div class="digitalisimo-finder-empty-cart">' ) && '</div></div>' === substr( $blk, -12 ) && false !== strpos( $blk, 'data-digitalisimo-finder' ), 'F15 carrito vacío (bloques): el buscador DENTRO del bloque «carrito vacío» (fuera se vería con el carrito lleno)' );
 check( '<p>x</p>' === $F::empty_cart_block( '<p>x</p>', array( 'blockName' => 'woocommerce/cart' ) ), 'F15 los demás bloques no cambian' );
 $F::footer_config();
 $inline = implode( '', $GLOBALS['assets']['inline'][ $F::HANDLE ] ?? array() );
@@ -304,6 +325,43 @@ unset( $GLOBALS['nc']['unsupported'] );
 $GLOBALS['nc']['timeout']['namecheap.domains.check'] = 1;
 $x = search( 'caido' );
 check( is_wp_error( $x ) && 'digitalisimo_finder_unavailable' === $x->code && false === strpos( $x->message, 'cURL' ) && false !== strpos( $x->message, 'Intenta de nuevo' ), 'F19 Namecheap sin responder: aviso amable, sin detalles técnicos' );
+
+unset( $GLOBALS['nc']['timeout']['namecheap.domains.check'] );
+
+// ── F20. Tope del sitio a Namecheap (la cuota de la API es de la cuenta) ──────────────────────────────────────
+$GLOBALS['now_offset'] = 7200; // ventanas nuevas
+add_filter( 'digitalisimo_hosting_finder_global', function () { return array( 'minute' => 2, 'hour' => 400 ); } );
+$before = nc_checks();
+$a = search( 'tope-uno' ); $b = search( 'tope-dos' ); $c3 = search( 'tope-tres' );
+check( is_array( $a ) && is_array( $b ) && is_wp_error( $c3 ) && 'digitalisimo_finder_busy' === $c3->code && $before + 2 === nc_checks(), 'F20 con el tope del sitio lleno no se consulta a Namecheap: «muchas búsquedas, intenta en un minuto»' );
+check( is_array( search( 'tope-uno' ) ), 'F20 lo que ya está en la caché sigue saliendo con el tope lleno' );
+$GLOBALS['now_offset'] = 7200 + 61;
+check( is_array( search( 'tope-tres' ) ), 'F20 al minuto siguiente vuelve a consultar' );
+$GLOBALS['hooks']['digitalisimo_hosting_finder_global'] = array();
+// IPv6: el límite por visitante cuenta el /64 entero.
+$_SERVER['REMOTE_ADDR'] = '2001:db8:1:2::10';
+for ( $i = 0; $i < $F::RATE; $i++ ) $F::rest( new Digi_Test_Request( array( 'q' => 'seis' ) ) );
+$_SERVER['REMOTE_ADDR'] = '2001:db8:1:2:ffff::99';
+$x = $F::rest( new Digi_Test_Request( array( 'q' => 'seis' ) ) );
+check( is_wp_error( $x ) && 'digitalisimo_finder_rate' === $x->code, 'F20 IPv6: otra dirección del mismo /64 comparte el límite por visitante' );
+$_SERVER['REMOTE_ADDR'] = '2001:db8:1:3::10';
+check( ! is_wp_error( $F::rest( new Digi_Test_Request( array( 'q' => 'seis' ) ) ) ), 'F20 IPv6: otro /64 no' );
+new_ip();
+
+// ── F21. Namecheap rechaza el lote entero ─────────────────────────────────────────────────────────────────────
+$GLOBALS['nc']['batch_reject'] = array( '.net' );
+$before = nc_checks();
+$r = search( 'lote' );
+$byd = array_column( array_merge( array( $r['main'] ), $r['rows'] ), 'status', 'domain' );
+check( 'available' === $byd['lote.com'] && 'available' === $byd['lote.mx'] && 'unknown' === $byd['lote.net'] && $before + 4 === nc_checks(), 'F21 si Namecheap rechaza el lote por una extensión, se consultan una por una y las demás salen · ' . json_encode( $byd ) );
+unset( $GLOBALS['nc']['batch_reject'] );
+
+// ── F22. Sólo productos que se pueden comprar ─────────────────────────────────────────────────────────────────
+$GLOBALS['product_status'][22] = 'private';
+$r = search( 'privado' );
+$net = array_values( array_filter( $r['rows'], function ( $x ) { return 'privado.net' === $x['domain']; } ) );
+check( ! $net || ( 0 === $net[0]['product_id'] && ! isset( $net[0]['price_text'] ) ), 'F22 un producto de dominio privado no muestra precio ni botón' );
+unset( $GLOBALS['product_status'][22] );
 
 echo "Hosting, buscador de dominios: {$GLOBALS['checks']} comprobaciones correctas.\n";
 }

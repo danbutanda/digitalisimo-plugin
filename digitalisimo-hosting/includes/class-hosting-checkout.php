@@ -159,15 +159,19 @@ class Digitalisimo_Hosting_Checkout {
 	 * premium; la transferencia, registrada y transferible). El precio es siempre el del producto de WooCommerce.
 	 */
 	public static function store_api_validate( $product, $request ) {
-		if ( ! self::on() || ! is_object( $product ) || ! method_exists( $product, 'get_id' ) || ! is_object( $request ) || ! method_exists( $request, 'get_param' ) ) return;
+		if ( ! self::on() || ! is_object( $product ) || ! method_exists( $product, 'get_id' ) ) return;
+		// WooCommerce (CartController::validate_add_to_cart) manda un arreglo: id, quantity, variation y cart_item_data, éste
+		// ya pasado por woocommerce_add_cart_item_data (nombre limpio, EPP cifrado). Se acepta también una petición REST.
+		if ( is_array( $request ) ) { $data = is_array( $request['cart_item_data'] ?? null ) ? $request['cart_item_data'] : array(); $qty = (float) ( $request['quantity'] ?? 1 ); }
+		elseif ( is_object( $request ) && method_exists( $request, 'get_param' ) ) { $data = self::store_api_data( array( 'cart_item_data' => array() ), $request )['cart_item_data']; $qty = (float) ( $request->get_param( 'quantity' ) ?? 1 ); }
+		else return;
 		$pid = method_exists( $product, 'get_parent_id' ) && $product->get_parent_id() ? (int) $product->get_parent_id() : (int) $product->get_id();
 		$kind = self::kind( $pid );
 		if ( '' === $kind ) return;
-		$data = self::store_api_data( array( 'cart_item_data' => array() ), $request )['cart_item_data'];
-		$domain = (string) ( $data['digitalisimo_domain'] ?? '' );
+		$domain = self::clean_domain( $data['digitalisimo_domain'] ?? '' );
 		$error = '';
 		if ( 'hosting' !== $kind && '' === $domain ) $error = 'register' === $kind ? 'Busca primero el nombre de tu dominio: un dominio sólo se agrega con su nombre.' : 'Escribe el dominio que quieres transferir.';
-		elseif ( 'hosting' !== $kind && (int) $request->get_param( 'quantity' ) > 1 ) $error = 'Cada dominio se agrega una sola vez (un año).';
+		elseif ( 'hosting' !== $kind && $qty > 1 ) $error = 'Cada dominio se agrega una sola vez (un año).';
 		elseif ( 'hosting' !== $kind && self::in_cart( $domain ) ) $error = 'El dominio ' . $domain . ' ya está en tu carrito.';
 		else $error = self::line_error( $pid, $data, false );
 		if ( '' === $error ) return;
@@ -370,6 +374,8 @@ class Digitalisimo_Hosting_Checkout {
 			$domains++;
 			$e = self::line_error( $line['product'], $line['data'], true );
 			if ( '' !== $e ) $errors[] = $e;
+			// Un dominio es un año por línea: con más, la venta automática se detiene y el cobro queda por devolver.
+			if ( (float) ( $line['data']['quantity'] ?? 1 ) > 1 ) $errors[] = 'Cada dominio se compra por un año: deja la cantidad de ' . ( '' !== (string) ( $line['data']['digitalisimo_domain'] ?? '' ) ? $line['data']['digitalisimo_domain'] : '«' . $line['name'] . '»' ) . ' en 1.';
 		}
 		$o = Digitalisimo_Hosting::settings();
 		if ( $hosting_need && ! $domains && ( ! empty( $o['ask_domain'] ) || ! empty( $o['require_domain_hosting'] ) ) ) $errors[] = 'Elige el dominio de tu plan antes de pagar: «Dominio nuevo» (búscalo y agrégalo) o «Uno que ya tengo» (escribe su nombre exacto).';

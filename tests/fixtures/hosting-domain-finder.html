@@ -28,7 +28,7 @@
     const want = typed && prices[typed] ? typed : '.com';
     let main = rows.find((r) => r.ext === want); let instead = '';
     if (main.status !== 'available') { instead = main.domain; main = rows.find((r) => r.status === 'available'); }
-    return [200, { query: label, notice: typed && !prices[typed] ? `Aquí no vendemos dominios ${typed}.` : '', main, instead_of: instead, taken: instead ? rows.find((r) => r.domain === instead) : null, rows: rows.filter((r) => r.domain !== main.domain), alternatives: rows.filter((r) => r.status === 'available' && r.domain !== main.domain).map((r) => r.domain), together, partial: false }];
+    return [200, { query: label, notice: typed && !prices[typed] ? `Aquí no vendemos dominios ${typed}.` : '', main, instead_of: instead, reason: instead ? 'taken' : '', taken: instead ? rows.find((r) => r.domain === instead) : null, rows: rows.filter((r) => r.domain !== main.domain), alternatives: rows.filter((r) => r.status === 'available' && r.domain !== main.domain).map((r) => r.domain), together, partial: false }];
   };
   const names = { 20: 'Dominio .com', 21: 'Dominio .mx', 22: 'Dominio .net', 50: 'Transferencia de dominio', 14693: 'Web Hosting Starter', 14700: 'Correo profesional' };
   const unit = { 20: 30900, 21: 60000, 22: 28000, 50: 25000, 14693: 97000, 14700: 45000 };

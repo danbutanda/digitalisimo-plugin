@@ -84,9 +84,10 @@ try {
   // Ocupado: transferencia y libres; y lo ya agregado sale como «Agregado ✓».
   await page.$eval('#dhf-1', (i) => { i.value = 'ocupado'; });
   await page.click('.digitalisimo-finder__submit');
-  await waitText('.digitalisimo-finder__status', 'ocupado.com no está disponible');
+  await waitText('.digitalisimo-finder__status', 'ocupado.com está ocupado. ocupado.mx sí está disponible');
   ok((await text('.digitalisimo-finder__instead')).includes('ocupado.com está ocupado') && (await text('.digitalisimo-finder__main-domain')) === 'ocupado.mx', 'Ocupado: el principal pasa a la mejor libre');
   ok((await text('.digitalisimo-finder__results > .digitalisimo-finder__transfer')).includes('¿ocupado.com es tuyo? Transfiérelo'), '«¿Es tuyo? Transfiérelo» junto al principal');
+  ok((await page.$$('.digitalisimo-finder__transfer')).length === 1, 'La transferencia del ocupado sale una sola vez (no se repite en su fila)');
   await press('.digitalisimo-finder__results > .digitalisimo-finder__transfer .digitalisimo-finder__add');
   await waitText('.digitalisimo-finder-cartbar__count', '4 artículos');
   ok((await text('.digitalisimo-finder-cartbar__items')).includes('Transferencia de dominio: ocupado.com') && (await text('.digitalisimo-finder-cartbar__note')).includes('código de transferencia'), 'La transferencia entra con su nombre y la barra avisa que se pedirá el código');

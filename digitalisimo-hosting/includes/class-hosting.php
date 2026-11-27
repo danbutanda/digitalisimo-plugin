@@ -212,6 +212,9 @@ class Digitalisimo_Hosting {
 	/** Contador efímero por visitante; no se guarda la IP ni se escribe en logs. */
 	public static function rate_limit( $scope, $limit = 20 ) {
 		$ip = (string) ( $_SERVER['REMOTE_ADDR'] ?? '' );
+		// IPv6: una conexión recibe un /64 entero; se cuenta por /64 para que cambiar de dirección no reinicie el tope.
+		$bin = false !== strpos( $ip, ':' ) && function_exists( 'inet_pton' ) ? @inet_pton( $ip ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		if ( is_string( $bin ) && 16 === strlen( $bin ) ) $ip = bin2hex( substr( $bin, 0, 8 ) ) . '::/64';
 		$key = 'digitalisimo_hosting_rate_' . md5( wp_salt( 'nonce' ) . '|' . sanitize_key( $scope ) . '|' . $ip );
 		// Con la cuenta de la red, el límite es de toda la red (una cuenta, un tope), no de cada sitio.
 		$shared = self::inherits();

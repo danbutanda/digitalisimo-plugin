@@ -92,11 +92,14 @@
     const inCart = cart.items.map((i) => `${i.id}|${domainOf(i)}`);
     document.querySelectorAll(`${ROOT} [data-add-product]`).forEach((b) => {
       if (inCart.includes(`${b.dataset.addProduct}|${b.dataset.addDomain || ''}`)) setAdded(b);
+      else if (b.dataset.added) unsetAdded(b); // ya no está (por ejemplo, otro plan reemplazó a éste)
     });
   }
-  const setAdded = (b) => { b.textContent = 'Agregado ✓'; b.setAttribute('aria-disabled', 'true'); b.classList.add('is-added'); b.dataset.added = '1'; };
+  const setAdded = (b) => { if (!b.dataset.label) b.dataset.label = b.textContent; b.textContent = 'Agregado ✓'; b.setAttribute('aria-disabled', 'true'); b.classList.add('is-added'); b.dataset.added = '1'; };
+  const unsetAdded = (b) => { b.textContent = b.dataset.label || 'Agregar'; b.removeAttribute('aria-disabled'); b.classList.remove('is-added'); delete b.dataset.added; };
 
   // ── Resultados ──────────────────────────────────────────────────────────────────────────────────────────────
+  const WHY = { taken: 'está ocupado.', premium: 'es premium (precio especial) y no se vende aquí.', unknown: 'no se pudo consultar ahora.' };
   const STATE = { available: 'Disponible', taken: 'Ocupado', premium: 'Premium: precio especial, no se vende aquí', unknown: 'No pudimos consultarlo' };
   const shown = (r) => (r.display ? `${r.display} (${r.domain})` : r.domain);
   function addButton(label, productId, domain, aria) {
@@ -122,14 +125,14 @@
     box.appendChild(addButton('Transferirlo', r.transfer.product_id, r.domain, `Transferir ${r.domain}`));
     return box;
   }
-  function renderRow(r) {
+  function renderRow(r, skipTransfer) {
     const li = el('li', `digitalisimo-finder__row is-${r.status}`);
     li.appendChild(el('span', 'digitalisimo-finder__domain', shown(r)));
     li.appendChild(el('span', 'digitalisimo-finder__state', STATE[r.status] || STATE.unknown));
     if (r.status === 'available') li.appendChild(priceLine(r, false));
     if (r.requirement) li.appendChild(el('span', 'digitalisimo-finder__req', r.requirement));
     if (r.status === 'available' && r.product_id) li.appendChild(addButton('Agregar', r.product_id, r.domain, `Agregar ${r.domain} al carrito`));
-    const t = r.status === 'taken' ? transferBox(r) : null;
+    const t = r.status === 'taken' && !skipTransfer ? transferBox(r) : null;
     if (t) li.appendChild(t);
     return li;
   }
@@ -140,7 +143,7 @@
     if (d.notice) out.appendChild(el('p', 'digitalisimo-finder__notice', d.notice));
     const m = d.main;
     const main = el('div', `digitalisimo-finder__main is-${m.status}`);
-    if (d.instead_of) main.appendChild(el('p', 'digitalisimo-finder__instead', `${d.instead_of} está ocupado. Te sugerimos:`));
+    if (d.instead_of) main.appendChild(el('p', 'digitalisimo-finder__instead', `${d.instead_of} ${WHY[d.reason] || WHY.unknown} Te sugerimos:`));
     main.appendChild(el('p', 'digitalisimo-finder__main-domain', shown(m)));
     main.appendChild(el('p', 'digitalisimo-finder__state', m.status === 'available' ? '¡Está disponible!' : (STATE[m.status] || STATE.unknown)));
     if (m.status === 'available') main.appendChild(priceLine(m, true));
@@ -157,7 +160,8 @@
     if (Array.isArray(d.rows) && d.rows.length) {
       out.appendChild(el('h3', 'digitalisimo-finder__list-title', 'Otras extensiones'));
       const ul = el('ul', 'digitalisimo-finder__list');
-      d.rows.forEach((r) => ul.appendChild(renderRow(r)));
+      // El ocupado que se sustituyó ya ofrece su transferencia junto al principal: en su fila no se repite.
+      d.rows.forEach((r) => ul.appendChild(renderRow(r, !!taken && r.domain === taken.domain)));
       out.appendChild(ul);
     }
     if (d.partial) out.appendChild(el('p', 'digitalisimo-finder__notice', 'Algunas extensiones no se pudieron consultar. Intenta de nuevo en un minuto.'));
@@ -202,7 +206,7 @@
       if (!r.ok || !d || !d.main) { status.textContent = plain((d && d.message) || 'No pudimos buscar en este momento. Intenta de nuevo.'); out.textContent = ''; return; }
       render(root, d);
       const m = d.main;
-      status.textContent = d.instead_of ? `${d.instead_of} no está disponible; ${m.domain} sí lo está.` : (m.status === 'available' ? `${m.domain} está disponible.` : `${m.domain} no está disponible.`);
+      status.textContent = d.instead_of ? `${d.instead_of} ${WHY[d.reason] || WHY.unknown} ${m.domain} sí está disponible.` : (m.status === 'available' ? `${m.domain} está disponible.` : `${m.domain} no está disponible.`);
     } catch (e) {
       status.textContent = 'No pudimos buscar en este momento. Revisa tu conexión e intenta de nuevo.';
     } finally {
@@ -251,7 +255,14 @@
     // Con artículos en el carrito (cookie de WooCommerce), la barra aparece desde el principio.
     if (/(^|;\s*)woocommerce_items_in_cart=1/.test(document.cookie)) loadCart();
     // ?dominio= (sin JavaScript el formulario recarga con lo escrito; también sirve como enlace compartible).
-    roots.forEach((root) => { const i = root.querySelector('input[name="dominio"]'); if (i && i.value.trim()) search(root, i.value); });
+    let linked = '';
+    try { linked = new URL(window.location.href).searchParams.get('dominio') || ''; } catch (e) { linked = ''; }
+    roots.forEach((root) => {
+      const i = root.querySelector('input[name="dominio"]');
+      if (!i) return;
+      if (!i.value.trim() && linked) i.value = linked.slice(0, 253); // el elemento atómico no lo rellena en el servidor
+      if (i.value.trim()) search(root, i.value);
+    });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
