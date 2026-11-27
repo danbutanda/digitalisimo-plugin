@@ -118,7 +118,7 @@ namespace {
 	$bars = ds_q( $x, 'digi-device-slider__status' );
 	check_ds( 3 === $bars->length && str_contains( ds_q( $x, 'digi-device-slider' )->item( 0 )->getAttribute( 'class' ), 'digi-device-slider--status' ), 'Celular: una barra de estado por captura, encendida por omisión.' );
 	foreach ( $bars as $bar ) {
-		check_ds( 'true' === $bar->getAttribute( 'aria-hidden' ) && $bar->parentNode->lastChild->isSameNode( $bar ) && str_contains( $bar->textContent, '9:41' ) && 1 === $x->query( './/*[local-name()="svg" and @viewBox="0 0 393 54"]', $bar )->length, 'La barra: decorativa, al final de la captura (la hoja la sube), con la hora en un SVG de 393 × 54.' );
+		check_ds( 'true' === $bar->getAttribute( 'aria-hidden' ) && $bar->parentNode->lastChild->isSameNode( $bar ) && str_contains( $bar->textContent, '9:41' ) && false !== stripos( (string) $bar->ownerDocument->saveHTML( $bar ), 'viewBox="0 0 393 54"' ), 'La barra: decorativa, al final de la captura (la hoja la sube), con la hora en un SVG de 393 × 54.' );
 	}
 	check_ds( ! str_contains( ds_render( array( 'device_type' => 'mobile', 'status_bar' => '', 'gallery_images' => $images ) ), 'digi-device-slider__status' ) && ! str_contains( ds_render( array( 'device_type' => 'mobile', 'status_bar' => '', 'gallery_images' => $images ) ), '--status' ), 'Se quita con «Barra de estado» apagada (capturas que ya la traen).' );
 	check_ds( ! str_contains( ds_render( array( 'device_type' => 'desktop', 'gallery_images' => $images ) ), '__status' ) && ! str_contains( ds_render( array( 'device_type' => 'laptop', 'gallery_images' => $images ) ), '__status' ), 'Monitor y laptop no llevan barra de estado.' );

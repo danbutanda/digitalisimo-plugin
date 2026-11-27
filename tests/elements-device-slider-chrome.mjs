@@ -132,15 +132,18 @@ try {
   const edgePixels = async (m) => {
     const s = m.screen, inset = 3, skip = Math.ceil(m.radius) + 4;
     const shot = await page.screenshot({ encoding: 'base64', clip: { x: s.left, y: s.top, width: s.width, height: s.height } });
-    return page.evaluate(async (src, w, h, inset, skip, island) => {
+    // La isla y la barra de estado (su color se comprueba aparte) no cuentan.
+    const rel = (z) => (z ? { left: z.left - s.left, right: z.right - s.left, top: z.top - s.top, bottom: z.bottom - s.top } : null);
+    return page.evaluate(async (src, w, h, inset, skip, island, bar) => {
       const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'data:image/png;base64,' + src; });
       const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
       const sx = img.width / w, sy = img.height / h, out = [];
-      const at = (x, y) => { if (island && x >= island.left - 2 && x <= island.right + 2 && y >= island.top - 2 && y <= island.bottom + 2) return; const d = g.getImageData(Math.round(x * sx), Math.round(y * sy), 1, 1).data; out.push([d[0], d[1], d[2]]); };
+      const zones = [island, bar].filter(Boolean);
+      const at = (x, y) => { if (zones.some((z) => x >= z.left - 2 && x <= z.right + 2 && y >= z.top - 2 && y <= z.bottom + 2)) return; const d = g.getImageData(Math.round(x * sx), Math.round(y * sy), 1, 1).data; out.push([d[0], d[1], d[2]]); };
       for (let x = skip; x <= w - skip; x += 4) { at(x, inset); at(x, h - 1 - inset); }
       for (let y = skip; y <= h - skip; y += 4) { at(inset, y); at(w - 1 - inset, y); }
       return out;
-    }, shot, s.width, s.height, inset, skip, m.island ? { left: m.island.left - s.left, right: m.island.right - s.left, top: m.island.top - s.top, bottom: m.island.bottom - s.top } : null);
+    }, shot, s.width, s.height, inset, skip, rel(m.island), rel(m.status));
   };
   const lum = (rgb) => { const [r, g, b] = rgb.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
   const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
