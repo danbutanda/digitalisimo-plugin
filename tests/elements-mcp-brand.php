@@ -153,7 +153,9 @@ namespace {
 	function get_option( $k, $d = false ) {
 		return $GLOBALS['options'][ $k ] ?? $d;
 	}
+	$GLOBALS['writes'] = array();
 	function update_option( $k, $v, $a = null ) {
+		$GLOBALS['writes'][]      = $k;
 		$GLOBALS['options'][ $k ] = $v;
 		return true;
 	}
@@ -318,6 +320,12 @@ namespace {
 
 	use Digitalisimo\Elements\Marca\Map;
 	use Digitalisimo\Elements\Mcp\Brand_Server;
+	/** Map::set_active() si existe (con el código anterior a la revisión no existe: las comprobaciones fallan solas). */
+	function mp_set_active( $v ) {
+		if ( method_exists( '\\Digitalisimo\\Elements\\Marca\\Map', 'set_active' ) ) {
+			\Digitalisimo\Elements\Marca\Map::set_active( $v );
+		}
+	}
 	use Digitalisimo\Elements\Mcp\Legacy_Route;
 	use Elementor\MCP\Composer\Mcp\Registry;
 
@@ -497,6 +505,12 @@ namespace {
 	$old_res = json_encode( ( new \WP\MCP\Handlers\Resources\ResourcesHandler( $legacy ) )->list_resources()->toArray(), JSON_UNESCAPED_SLASHES );
 	check( false !== strpos( $old_res, 'elementor://global-variables' ), 'B3 el servidor viejo conserva elementor://' );
 	$GLOBALS['options'] = array();
+	// I-1 de la revisión: con la marca propia apagada (lo de fábrica), quien usa la ruta vieja recibe las instrucciones
+	// de siempre, sin aviso de retiro (esta versión no retira nada).
+	mp_set_active( false );
+	$plain = ( new \WP\MCP\Handlers\Initialize\InitializeHandler( $legacy ) )->handle( '2025-06-18' )->toArray();
+	check( false === strpos( (string) ( $plain['instructions'] ?? '' ), 'se retira' ) && false === strpos( (string) ( $plain['instructions'] ?? '' ), 'digitalisimo/mcp' ), 'B3 (I-1) con la marca apagada, initialize del viejo sin aviso de retiro', $plain['instructions'] ?? '' );
+	mp_set_active( true );
 	$old_init           = ( new \WP\MCP\Handlers\Initialize\InitializeHandler( $legacy ) )->handle( '2025-06-18' )->toArray();
 	check( false !== strpos( (string) ( $old_init['instructions'] ?? '' ), 'aquí las herramientas siguen con sus nombres de siempre' ), 'B3 la nota no manda pedir herramientas digitalisimo-* en la ruta vieja' );
 	check( false !== strpos( (string) ( $old_init['instructions'] ?? '' ), 'digitalisimo/mcp' ) && false !== strpos( (string) $old_init['instructions'], '2027-01-31' ), 'B3 initialize del viejo avisa la ruta nueva y la fecha de retiro', $old_init['instructions'] ?? '' );
@@ -507,11 +521,24 @@ namespace {
 	check( 1 === ( $state['tools']['elementor-create-page'] ?? 0 ) && 1 === ( $state['tools']['initialize'] ?? 0 ) && gmdate( 'Y-m-d' ) === $state['last'], 'B3 el uso del viejo queda contado (herramienta, initialize y fecha)', $state );
 	( new \WP\MCP\Handlers\Resources\ResourcesHandler( $legacy ) )->read_resource( array( 'uri' => 'elementor://global-variables' ) );
 	check( 1 === ( Legacy_Route::state()['tools']['resources-read'] ?? 0 ), 'B3 leer un recurso por la ruta vieja también cuenta como uso' );
-	check( array( 'last', 'tools', 'extended' ) === array_keys( $GLOBALS['options'][ Legacy_Route::OPTION ] ), 'B3 la cuenta no guarda usuarios, IP ni argumentos', $GLOBALS['options'][ Legacy_Route::OPTION ] );
+	check( array( 'last', 'tools', 'extended', 'today' ) === array_keys( $GLOBALS['options'][ Legacy_Route::OPTION ] ), 'B3 la cuenta no guarda usuarios, IP ni argumentos', $GLOBALS['options'][ Legacy_Route::OPTION ] );
+	// I-1: una sola escritura por herramienta y por día, no una por llamada.
+	$GLOBALS['writes'] = array();
+	for ( $i = 0; $i < 5; $i++ ) {
+		( new \WP\MCP\Handlers\Tools\ToolsHandler( $legacy ) )->call_tool( array( 'name' => 'elementor-create-page', 'arguments' => array( 'title' => 'x' ) ) );
+		( new \WP\MCP\Handlers\Initialize\InitializeHandler( $legacy ) )->handle( '2025-06-18' );
+	}
+	check( array() === $GLOBALS['writes'] && 1 === Legacy_Route::state()['tools']['elementor-create-page'], 'B3 (I-1) llamar otra vez el mismo día no escribe en la base', $GLOBALS['writes'] );
+	Legacy_Route::touch( 'elementor-create-page', time() + DAY_IN_SECONDS );
+	Legacy_Route::touch( 'elementor-create-page', time() + DAY_IN_SECONDS );
+	check( 1 === count( $GLOBALS['writes'] ) && 2 === Legacy_Route::state()['tools']['elementor-create-page'] && gmdate( 'Y-m-d', time() + DAY_IN_SECONDS ) === Legacy_Route::state()['last'], 'B3 (I-1) al día siguiente cuenta un día más, con una sola escritura', Legacy_Route::state() );
+	$GLOBALS['options'][ Legacy_Route::OPTION ]['last'] = gmdate( 'Y-m-d' );
+	$GLOBALS['options'][ Legacy_Route::OPTION ]['today'] = array( 'elementor-create-page', 'initialize', 'resources-read' );
 	( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'digitalisimo-list-posts', 'arguments' => array() ) );
 	check( ! isset( Legacy_Route::state()['tools']['digitalisimo-list-posts'] ), 'B3 una llamada por la ruta nueva no cuenta como uso del alias' );
 
 	// B4 -----------------------------------------------------------------------------------------------------------------
+	mp_set_active( true );
 	$GLOBALS['calls'] = array();
 	$call             = ( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool(
 		array(
@@ -542,6 +569,12 @@ namespace {
 	foreach ( array( '"post_type":"digitalisimo_library"', 'action=digitalisimo', 'page=digitalisimo-motor-settings', '_dg_edit_mode', '_digitalisimo_sales_kit', 'digitalisimo-get-page-structure', 'digitalisimo-list-posts', 'DIGITALÍSIMO Elements', 'digitalisimo_query', 'mi-banner.jpg' ) as $needle ) {
 		check( false !== strpos( $txt, $needle ), "B4 la respuesta lleva «{$needle}»" );
 	}
+	// I-2 de la revisión: con la marca apagada, los enlaces que devuelve el MCP nuevo llevan los nombres de siempre (con
+	// el Elementor original activo, `action=digitalisimo` no abriría nada).
+	mp_set_active( false );
+	$plain = flat( ( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'digitalisimo-create-page', 'arguments' => array( 'title' => 'x' ) ) )->toArray() );
+	check( false !== strpos( $plain, 'post.php?post=7&action=elementor' ) && false !== strpos( $plain, 'page=elementor-settings' ) && false === strpos( $plain, 'action=digitalisimo' ), 'B4 (I-2) con la marca apagada, enlaces con los nombres de siempre', $plain );
+	mp_set_active( true );
 	$GLOBALS['calls'] = array();
 	( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'digitalisimo-create-page', 'arguments' => array( 'post_type' => 'elementor_library' ) ) );
 	check( 'elementor_library' === ( $GLOBALS['calls'][0][1]['post_type'] ?? '' ), 'B4 el nombre viejo también vale en la entrada' );
@@ -607,6 +640,32 @@ namespace {
 	$cred = new WP_REST_Response( array( 'success' => true, 'data' => array( 'serverUrl' => rest_url( 'elementor/mcp/' ), 'serverName' => 'mi-sitio-elementor', 'username' => 'admin' ) ) );
 	$cred = Brand_Server::credentials( $cred, null, new WP_REST_Request( '/elementor-mcp-composer/v1/mcp-credentials' ) )->get_data();
 	check( 'http://ensayo.test/wp-json/digitalisimo/mcp/' === $cred['data']['serverUrl'] && 'mi-sitio-digitalisimo' === $cred['data']['serverName'], 'B8 la pantalla «MCP» entrega la dirección y el nombre propios', $cred );
+
+	// M-4 de la revisión: si el motor trae `elementor/X` y ya hay una propia que se llama `digitalisimo-X`, nunca salen
+	// dos herramientas con el mismo nombre (la propia conserva el suyo y la del motor el original), en cualquier orden.
+	$registry->register_tools( array( 'elementor/sales-create-page' ) );
+	foreach ( array( false, true ) as $reverse ) {
+		$fake = new class( $reverse ) {
+			public $names = array();
+			private $reverse;
+			public function __construct( $reverse ) {
+				$this->reverse = $reverse;
+			}
+			public function get_server( $id ) {
+				return null;
+			}
+			public function create_server( $id, $ns, $route, $name, $desc, $version, $transports, $errors, $obs, $tools ) {
+				foreach ( $this->reverse ? array_reverse( $tools ) : $tools as $ability ) {
+					$this->names[] = apply_filters( 'mcp_adapter_tool_name', str_replace( '/', '-', $ability ), new WP_Ability( $ability, array() ) );
+				}
+				return $this;
+			}
+		};
+		Brand_Server::$collisions = array();
+		Brand_Server::register( $fake );
+		$dupes = array_diff_assoc( $fake->names, array_unique( $fake->names ) );
+		check( array() === $dupes && in_array( 'digitalisimo-sales-create-page', $fake->names, true ) && in_array( 'elementor-sales-create-page', $fake->names, true ), 'B2 (M-4) sin nombres repetidos aunque el motor traiga uno que choca con uno propio' . ( $reverse ? ' (en orden inverso)' : '' ), $fake->names );
+	}
 
 	// B1 (interruptor) -----------------------------------------------------------------------------------------------------
 	\Elementor\MCP\Composer\Admin\McpSettingsController::$enabled = false;

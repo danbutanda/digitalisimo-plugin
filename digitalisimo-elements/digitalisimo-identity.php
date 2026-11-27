@@ -166,18 +166,32 @@ final class Digitalisimo_Elements_Identity {
 		return in_array( $domain, self::DOMAINS, true ) ? self::brand( $translation ) : $translation;
 	}
 
-	/** En el escritorio (también el editor, que es `post.php`). */
+	/**
+	 * En el escritorio (también el editor, que es `post.php`). No en `admin-ajax.php` ni en `admin-post.php`, que no
+	 * pintan scripts: ahí `wp_scripts()` armaría todo el registro de scripts de WordPress en cada petición (heartbeat,
+	 * formularios, carrito). Si el registro aún no existe, se espera a `wp_default_scripts` en vez de crearlo.
+	 */
 	public static function attach_script_filters() {
-		if ( function_exists( 'wp_scripts' ) ) {
-			self::script_filters( wp_scripts() );
+		if ( ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) || 'admin-post.php' === ( $GLOBALS['pagenow'] ?? '' ) ) {
+			return;
 		}
+		self::attach_lazy();
 	}
 
 	/** En el front, sólo con la barra de administración o dentro de la vista previa del editor. */
 	public static function attach_front_script_filters() {
 		$preview = isset( $_GET['elementor-preview'] ) || ( function_exists( 'is_preview' ) && is_preview() ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si se adjunta un filtro de textos.
-		if ( ( $preview || ( function_exists( 'is_admin_bar_showing' ) && is_admin_bar_showing() ) ) && function_exists( 'wp_scripts' ) ) {
+		if ( $preview || ( function_exists( 'is_admin_bar_showing' ) && is_admin_bar_showing() ) ) {
+			self::attach_lazy();
+		}
+	}
+
+	/** El filtro en el registro de scripts: ya, si existe; si no, cuando WordPress lo arme. */
+	private static function attach_lazy() {
+		if ( did_action( 'wp_default_scripts' ) && function_exists( 'wp_scripts' ) ) {
 			self::script_filters( wp_scripts() );
+		} else {
+			add_action( 'wp_default_scripts', array( __CLASS__, 'script_filters' ), 20 );
 		}
 	}
 

@@ -7,9 +7,11 @@ defined( 'ABSPATH' ) || exit;
  * La ruta vieja del MCP (`/wp-json/elementor/mcp`, nombres `elementor-*`) mientras dure el alias (D-7 de
  * docs/MARCA_PROPIA.md):
  * - no aparece en el índice REST (`/wp-json/`), aunque sigue funcionando para quien ya la usa;
- * - su `initialize` agrega una nota con la ruta nueva y la fecha de retiro (`Brand_Server::initialize()`);
+ * - su `initialize` agrega una nota con la ruta nueva y la fecha de retiro (`Brand_Server::initialize()`), sólo con la
+ *   marca propia en vigor o con el retiro habilitado (`announce()`): apagada, nada cambia para quien la usa;
  * - cada uso queda contado en la opción `digitalisimo_elements_mcp_legacy` (sin carga automática): el día del último uso
- *   y cuántas veces se llamó cada herramienta. Sin usuarios, IP ni argumentos;
+ *   y en cuántos días se usó cada herramienta. Sin usuarios, IP ni argumentos. Se escribe a lo sumo una vez por
+ *   herramienta y por día (`today`), no en cada llamada;
  * - su retiro: el 2027-01-31 si lleva 14 días sin uso; si en esa fecha se sigue usando, se prorroga 30 días una vez
  *   (queda anotado y «Rendimiento» lo avisa). Retirar es quitar sus rutas de `rest_endpoints` (el servidor del núcleo no
  *   se toca), y sólo lo hace la versión que lo habilita (`retire_enabled()`, versión D de la fase 4): esta versión
@@ -87,7 +89,18 @@ final class Legacy_Route {
 		return (bool) apply_filters( 'digitalisimo_elements_mcp_legacy_retire', false );
 	}
 
-	/** @return array{last:string,tools:array<string,int>,extended:string} */
+	/**
+	 * ¿Se avisa el retiro a quien usa la ruta vieja? Sólo con la marca propia en vigor (entonces la ruta nueva es la
+	 * que el sitio muestra) o con el retiro habilitado (`retire_enabled()`).
+	 */
+	public static function announce(): bool {
+		if ( self::retire_enabled() ) {
+			return true;
+		}
+		return class_exists( \Digitalisimo\Elements\Marca\Map::class ) && \Digitalisimo\Elements\Marca\Map::active();
+	}
+
+	/** @return array{last:string,tools:array<string,int>,extended:string,today:string[]} */
 	public static function state(): array {
 		$raw = function_exists( 'get_option' ) ? get_option( self::OPTION, array() ) : array();
 		$raw = is_array( $raw ) ? $raw : array();
@@ -95,23 +108,37 @@ final class Legacy_Route {
 			'last'     => is_string( $raw['last'] ?? null ) ? $raw['last'] : '',
 			'tools'    => is_array( $raw['tools'] ?? null ) ? array_map( 'intval', $raw['tools'] ) : array(),
 			'extended' => is_string( $raw['extended'] ?? null ) ? $raw['extended'] : '',
+			'today'    => is_array( $raw['today'] ?? null ) ? array_values( array_filter( $raw['today'], 'is_string' ) ) : array(),
 		);
 	}
 
-	/** Anota un uso de hoy (una herramienta o `initialize`). */
+	/**
+	 * Anota un uso de hoy (una herramienta o `initialize`): el día del último uso y, por herramienta, en cuántos días se
+	 * usó. Si hoy ya está anotada, no escribe nada (sin una escritura en la base por cada llamada ni conteos que se
+	 * pisen entre llamadas simultáneas).
+	 */
 	public static function touch( string $what, ?int $now = null ): void {
 		if ( ! function_exists( 'update_option' ) ) {
 			return;
 		}
-		$state         = self::state();
-		$state['last'] = gmdate( 'Y-m-d', $now ?? time() );
-		$what          = substr( preg_replace( '/[^a-z0-9_-]/i', '', $what ), 0, 64 );
+		$day   = gmdate( 'Y-m-d', $now ?? time() );
+		$what  = substr( (string) preg_replace( '/[^a-z0-9_-]/i', '', $what ), 0, 64 );
+		$state = self::state();
+		if ( $day === $state['last'] && ( '' === $what || in_array( $what, $state['today'], true ) ) ) {
+			return;
+		}
+		if ( $day !== $state['last'] ) {
+			$state['today'] = array();
+		}
+		$state['last'] = $day;
 		if ( '' !== $what ) {
+			$state['today'][]        = $what;
 			$state['tools'][ $what ] = ( $state['tools'][ $what ] ?? 0 ) + 1;
 			if ( count( $state['tools'] ) > 100 ) {
 				arsort( $state['tools'] );
 				$state['tools'] = array_slice( $state['tools'], 0, 100, true );
 			}
+			$state['today'] = array_slice( array_values( array_intersect( $state['today'], array_keys( $state['tools'] ) ) ), 0, 100 );
 		}
 		update_option( self::OPTION, $state, false );
 	}

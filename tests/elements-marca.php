@@ -78,8 +78,19 @@ namespace {
 	function is_admin() {
 		return $GLOBALS['is_admin'];
 	}
+	$GLOBALS['option_reads'] = array();
+	$GLOBALS['alloptions']   = null;
+	$GLOBALS['doing_ajax']   = false;
 	function get_option( $k, $d = false ) {
+		$GLOBALS['option_reads'][ $k ] = ( $GLOBALS['option_reads'][ $k ] ?? 0 ) + 1;
 		return array_key_exists( $k, $GLOBALS['options'] ) ? $GLOBALS['options'][ $k ] : $d;
+	}
+	/** Opciones con carga automática (null: el doble no las simula y Toggle pregunta a get_option). */
+	function wp_load_alloptions() {
+		return $GLOBALS['alloptions'];
+	}
+	function wp_doing_ajax() {
+		return $GLOBALS['doing_ajax'];
 	}
 	function update_option( $k, $v, $a = null ) {
 		$GLOBALS['options'][ $k ] = $v;
@@ -200,13 +211,23 @@ namespace {
 	require $el . '/modules/digitalisimo-mcp/class-brand-server.php';
 	require $el . '/modules/digitalisimo-mcp/class-legacy-route.php';
 
+	use Digitalisimo\Elements\Marca\Exports;
 	use Digitalisimo\Elements\Marca\Addons;
 	use Digitalisimo\Elements\Marca\Admin_Urls;
 	use Digitalisimo\Elements\Marca\Map;
 	use Digitalisimo\Elements\Marca\Toggle;
 
+	/** Map::set_active() si existe (con el código anterior a la revisión no existe: las comprobaciones fallan solas). */
+	function mp_set_active( $v ) {
+		if ( method_exists( '\\Digitalisimo\\Elements\\Marca\\Map', 'set_active' ) ) {
+			\Digitalisimo\Elements\Marca\Map::set_active( $v );
+		}
+	}
+
 	// M1 -----------------------------------------------------------------------------------------------------------------
 	Map::set_tools( array( 'create-page', 'list-posts', 'get-page-structure' ) );
+	// Con la marca propia en vigor (los alias de URL sólo entonces; abajo, apagada).
+	mp_set_active( true );
 	$out = Map::out( 'Tipo elementor_library y elementor_library_type=popup; meta _elementor_data; ver elementor://global-variables y elementor/list-posts o elementor-create-page. Editar: post.php?post=3&action=elementor · admin.php?page=elementor-tools. Elementor Pro.' );
 	check( 'Tipo digitalisimo_library y digitalisimo_library_type=popup; meta _dg_data; ver digitalisimo://global-variables y digitalisimo-list-posts o digitalisimo-create-page. Editar: post.php?post=3&action=digitalisimo · admin.php?page=digitalisimo-motor-tools. DIGITALÍSIMO Elements.' === $out, 'M1 la salida renombra los identificadores y el nombre', $out );
 	$keep = 'https://ensayo.test/wp-content/uploads/2026/11/elementor-banner.jpg /wp-content/plugins/digitalisimo-elements/elementor/assets/x.css uploads/elementor/css/post-3.css .elementor-widget-heading elementor-heading-title digitalisimo_query _digitalisimo_actions elementor/frontend/init action=elementor_ajax';
@@ -217,6 +238,49 @@ namespace {
 	check( 'digitalisimo_query _digitalisimo_actions digitalisimo-sales-create-page' === Map::in( 'digitalisimo_query _digitalisimo_actions digitalisimo-sales-create-page' ), 'M1 la entrada nunca toca nombres propios' );
 	$data = Map::data_out( array( 'message' => 'Hecho con Elementor', 'title' => 'Elementor para principiantes', 'post_type' => 'elementor_library', '_elementor_edit_mode' => 'builder' ) );
 	check( array( 'message' => 'Hecho con DIGITALÍSIMO Elements', 'title' => 'Elementor para principiantes', 'post_type' => 'digitalisimo_library', '_dg_edit_mode' => 'builder' ) === $data, 'M1 en los datos, la marca sólo en los textos del motor', $data );
+	// I-2 de la revisión: apagada, los enlaces llevan los nombres de siempre (con el Elementor original activo, nadie
+	// traduciría el alias de vuelta y `action=digitalisimo` abriría post.php con una acción desconocida).
+	mp_set_active( false );
+	$off = Map::out( 'Editar: https://ensayo.test/wp-admin/post.php?post=5&action=elementor · admin.php?page=elementor-tools' );
+	check( 'Editar: https://ensayo.test/wp-admin/post.php?post=5&action=elementor · admin.php?page=elementor-tools' === $off, 'M1 (I-2) con la marca apagada, los enlaces salen con los nombres de siempre', $off );
+	mp_set_active( null );
+	$GLOBALS['options'] = array();
+	Toggle::reset();
+	check( false !== strpos( Map::out( 'post.php?post=5&action=elementor' ), 'action=elementor' ), 'M1 (I-2) sin decirlo la prueba, decide el interruptor (apagado de fábrica)' );
+	update_option( Toggle::OPTION, array( 'mode' => 'on' ) );
+	Toggle::reset();
+	check( false !== strpos( Map::out( 'post.php?post=5&action=elementor' ), 'action=digitalisimo' ), 'M1 (I-2) encendido, con alias' );
+	Digitalisimo_Elements_Core::$bundled = false;
+	Toggle::reset();
+	check( false !== strpos( Map::out( 'post.php?post=5&action=elementor' ), 'action=elementor' ), 'M1 (I-2) con el Elementor original activo, nunca el alias' );
+	Digitalisimo_Elements_Core::$bundled = true;
+	$GLOBALS['options'] = array();
+	Toggle::reset();
+	// M-2 de la revisión: `_dg_` es un prefijo común de terceros; sólo las metas del motor cambian de nombre.
+	$s8 = Map::in( 'precio _dg_precio y _dg_data, _dg_global_classes y _dg_global_' );
+	check( 'precio _dg_precio y _elementor_data, _elementor_global_classes y _dg_global_' === $s8, 'M1 (M-2) la entrada sólo devuelve al motor sus metas: _dg_precio de otro plugin queda igual', $s8 );
+	check( '_elementor_precio _dg_page_settings' === Map::out( '_elementor_precio _elementor_page_settings' ), 'M1 (M-2) y una _elementor_<x> que no es del motor no sale renombrada (no habría cómo devolverla)' );
+	$wxr = Exports::wxr_import( array( 'post_type' => 'digitalisimo_library', 'postmeta' => array( array( 'key' => '_dg_precio', 'value' => '9' ), array( 'key' => '_dg_edit_mode', 'value' => 'builder' ) ) ) );
+	check( 'elementor_library' === $wxr['post_type'] && '_dg_precio' === $wxr['postmeta'][0]['key'] && '_elementor_edit_mode' === $wxr['postmeta'][1]['key'], 'M1 (M-2) el importador WXR no convierte una meta ajena _dg_* en una del motor', $wxr );
+	$xml = Exports::wxr( '<wp:postmeta><wp:meta_key><![CDATA[_elementor_precio]]></wp:meta_key></wp:postmeta><wp:postmeta><wp:meta_key><![CDATA[_elementor_data]]></wp:meta_key></wp:postmeta>' );
+	check( false !== strpos( $xml, '_elementor_precio' ) && false !== strpos( $xml, '_dg_data' ), 'M1 (M-2) el WXR exportado sólo renombra las metas del motor', $xml );
+	// Toda meta `_elementor_*` escrita en el PHP del núcleo, de PRO y de los módulos está en Map::METAS (AGENTS.md).
+	$missing = array();
+	$it      = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $el, FilesystemIterator::SKIP_DOTS ) );
+	foreach ( $it as $f ) {
+		if ( '.php' !== substr( (string) $f, -4 ) || false !== strpos( (string) $f, '/vendor/' ) ) {
+			continue;
+		}
+		if ( preg_match_all( '/[\'"]_elementor_([a-z0-9_]+)[\'"]/', (string) file_get_contents( (string) $f ), $mm ) ) {
+			foreach ( $mm[1] as $name ) {
+				// Un prefijo (termina en `_`) está en la lista tal cual; un nombre, por engine_meta().
+				if ( ! defined( Map::class . '::METAS' ) || ! ( in_array( $name, Map::METAS, true ) || Map::engine_meta( $name ) ) ) {
+					$missing[ $name ] = true;
+				}
+			}
+		}
+	}
+	check( array() === $missing, 'M1 (M-2) Map::METAS cubre las metas _elementor_* del código (súmalas si una versión nueva del núcleo trae otra)', array_keys( $missing ) );
 
 	// M2 -----------------------------------------------------------------------------------------------------------------
 	@mkdir( WP_PLUGIN_DIR . '/addon-x', 0777, true );
@@ -233,7 +297,23 @@ namespace {
 	Toggle::reset();
 	check( 'off' === Toggle::values()['mode'] && 'default' === Toggle::values()['origin'] && ! Toggle::active(), 'M2 apagada por defecto' );
 	check( 'off' === Toggle::status( true )['state'] && array() === Toggle::status()['addons'], 'M2 sin complementos ajenos: los propios, WooCommerce y el Elementor original no cuentan', Toggle::status() );
+	// M-3 de la revisión: un sitio que nunca guardó la opción no le pregunta a la base en cada petición (no está entre
+	// las opciones con carga automática), y sin el núcleo incluido ni se mira.
+	$GLOBALS['alloptions']   = array( 'siteurl' => 'http://ensayo.test' );
+	$GLOBALS['option_reads'] = array();
+	Toggle::reset();
+	check( ! Toggle::active() && 'default' === Toggle::values()['origin'] && 0 === ( $GLOBALS['option_reads'][ Toggle::OPTION ] ?? 0 ), 'M2 (M-3) sin la opción guardada, ninguna lectura de la opción', $GLOBALS['option_reads'] );
+	Digitalisimo_Elements_Core::$bundled = false;
+	$GLOBALS['alloptions']               = null;
+	$GLOBALS['option_reads']             = array();
+	Toggle::reset();
+	check( ! Toggle::active() && 0 === ( $GLOBALS['option_reads'][ Toggle::OPTION ] ?? 0 ), 'M2 (M-3) con el Elementor original activo, tampoco', $GLOBALS['option_reads'] );
+	Digitalisimo_Elements_Core::$bundled = true;
 	update_option( Toggle::OPTION, array( 'mode' => 'on', 'force' => false ) );
+	$GLOBALS['alloptions'] = array( Toggle::OPTION => $GLOBALS['options'][ Toggle::OPTION ] );
+	Toggle::reset();
+	check( Toggle::active() && 'site' === Toggle::values()['origin'], 'M2 (M-3) guardada con carga automática, se lee' );
+	$GLOBALS['alloptions'] = null;
 	Toggle::reset();
 	check( Toggle::active() && 'site' === Toggle::values()['origin'], 'M2 encendida en el sitio' );
 	Digitalisimo_Elements_Core::$bundled = false;
@@ -304,6 +384,11 @@ namespace {
 	$u = 'http://ensayo.test/wp-admin/edit.php?post_type=elementor_library&elementor_library_type=popup#x';
 	check( 'http://ensayo.test/wp-admin/edit.php?post_type=digitalisimo_library&digitalisimo_library_type=popup#x' === Admin_Urls::url_out( $u ), 'M4 url_out con alias', Admin_Urls::url_out( $u ) );
 	check( 'post.php?post=3&action=digitalisimo' === Admin_Urls::url_out( 'post.php?post=3&action=elementor' ) && 'admin.php?page=digitalisimo-motor-app#/site-editor' === Admin_Urls::url_out( 'admin.php?page=elementor-app#/site-editor' ), 'M4 url_out del editor y de la App' );
+	// M-1 de la revisión: el wp-admin de OTRO dominio no tiene nuestros alias.
+	foreach ( array( 'https://otro.test/wp-admin/post.php?post=1&action=elementor', '//otro.test/wp-admin/admin.php?page=elementor', 'http://ensayo.test:8080/wp-admin/admin.php?page=elementor' ) as $other ) {
+		check( $other === Admin_Urls::url_out( $other ), 'M4 (M-1) url_out no toca el escritorio de otro dominio: ' . $other, Admin_Urls::url_out( $other ) );
+	}
+	check( 'http://ENSAYO.test/wp-admin/admin.php?page=digitalisimo-motor' === Admin_Urls::url_out( 'http://ENSAYO.test/wp-admin/admin.php?page=elementor' ), 'M4 (M-1) el propio, sin importar mayúsculas' );
 	foreach ( array( 'http://ensayo.test/elementor-tips/', 'http://ensayo.test/wp-content/uploads/elementor/css/post-1.css', 'http://ensayo.test/?elementor_library=cabecera' ) as $front ) {
 		check( $front === Admin_Urls::url_out( $front ), 'M4 url_out no toca el front: ' . $front );
 	}
@@ -374,7 +459,20 @@ JS;
 	$GLOBALS['admin_bar'] = false;
 	$id::attach_front_script_filters();
 	check( array() === $scripts->inline, 'M5 un visitante del front no recibe el filtro de textos (sin «Elementor» en su página)' );
-	$GLOBALS['admin_bar'] = true;
+	// I-3 de la revisión: en admin-ajax y admin-post no se arma el registro de scripts (no pintan nada); y si aún no
+	// existe, se espera a `wp_default_scripts` en vez de crearlo.
+	$GLOBALS['doing_ajax'] = true;
+	$GLOBALS['wp_filter']  = array();
+	$id::attach_script_filters();
+	$GLOBALS['doing_ajax'] = false;
+	$GLOBALS['pagenow']    = 'admin-post.php';
+	$id::attach_script_filters();
+	check( array() === $scripts->inline && empty( $GLOBALS['wp_filter']['wp_default_scripts'] ), 'M5 (I-3) en admin-ajax y admin-post, nada (ni wp_scripts() ni el gancho)', $scripts->inline );
+	$GLOBALS['pagenow'] = 'index.php';
+	$id::attach_script_filters();
+	check( array() === $scripts->inline && ! empty( $GLOBALS['wp_filter']['wp_default_scripts'] ), 'M5 (I-3) en el escritorio, sin registro de scripts todavía, se engancha a wp_default_scripts sin crearlo' );
+	$GLOBALS['done']['wp_default_scripts'] = 1;
+	$GLOBALS['admin_bar']                  = true;
 	$id::attach_front_script_filters();
 	$id::attach_script_filters();
 	check( array( 'wp-i18n' ) === $scripts->inline, 'M5 con la barra de administración o en el escritorio sí (una sola vez)', $scripts->inline );

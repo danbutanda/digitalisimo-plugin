@@ -36,9 +36,29 @@ final class Toggle {
 		return self::clean( is_array( $raw ) ? $raw : array() );
 	}
 
+	/**
+	 * La opción del sitio, o null si no existe. Se guarda con carga automática (`Settings_Section`): si no está entre
+	 * las opciones cargadas, no existe, y no se pregunta a la base (sin una consulta en cada petición de los sitios que
+	 * nunca la guardaron).
+	 *
+	 * @return mixed
+	 */
+	private static function site_raw() {
+		if ( ! function_exists( 'get_option' ) ) {
+			return null;
+		}
+		if ( function_exists( 'wp_load_alloptions' ) ) {
+			$all = wp_load_alloptions();
+			if ( is_array( $all ) && ! array_key_exists( self::OPTION, $all ) ) {
+				return null;
+			}
+		}
+		return get_option( self::OPTION, null );
+	}
+
 	/** @return array{mode:string,force:bool,inherit:bool} valores guardados en el sitio. */
 	public static function site_values(): array {
-		$raw = function_exists( 'get_option' ) ? get_option( self::OPTION, null ) : null;
+		$raw = self::site_raw();
 		$has = is_array( $raw );
 		$out = self::clean( $has ? $raw : array() );
 		// En una red, un sitio sin valor propio hereda; con valor propio, sólo si lo pidió.
@@ -52,7 +72,7 @@ final class Toggle {
 			return self::$memo;
 		}
 		$site = self::site_values();
-		if ( ! $site['inherit'] && is_array( function_exists( 'get_option' ) ? get_option( self::OPTION, null ) : null ) ) {
+		if ( ! $site['inherit'] && is_array( self::site_raw() ) ) {
 			return self::$memo = array( 'mode' => $site['mode'], 'force' => $site['force'], 'origin' => 'site' );
 		}
 		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
@@ -101,7 +121,8 @@ final class Toggle {
 		if ( null !== self::$active ) {
 			return self::$active;
 		}
-		if ( 'on' !== self::values()['mode'] || ! self::bundled() ) {
+		// Primero lo que no lee la base: sin el núcleo incluido no hay marca propia.
+		if ( ! self::bundled() || 'on' !== self::values()['mode'] ) {
 			return false;
 		}
 		/**

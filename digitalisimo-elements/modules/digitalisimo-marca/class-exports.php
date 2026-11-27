@@ -125,7 +125,13 @@ final class Exports {
 			},
 			$xml
 		);
-		$xml = (string) preg_replace( '#(<wp:meta_key><!\[CDATA\[)_elementor_#', '$1' . Map::META_OUT, $xml );
+		$xml = (string) preg_replace_callback(
+			'#(<wp:meta_key><!\[CDATA\[)_elementor_([a-z0-9_]+)#',
+			static function ( $m ) {
+				return Map::engine_meta( $m[2] ) ? $m[1] . Map::META_OUT . $m[2] : $m[0];
+			},
+			$xml
+		);
 		return (string) preg_replace_callback(
 			'#(<wp:meta_key><!\[CDATA\[_wp_page_template\]\]></wp:meta_key>\s*<wp:meta_value><!\[CDATA\[)(elementor_[a-z_]+)#',
 			static function ( $m ) {
@@ -143,6 +149,8 @@ final class Exports {
 		if ( isset( $post['post_type'] ) && is_string( $post['post_type'] ) ) {
 			$post['post_type'] = Map::in( $post['post_type'] );
 		}
+		// Map::in() sólo devuelve al motor lo que la salida produce: los tipos y taxonomías registrados del motor y sus
+		// metas (Map::METAS). Una meta ajena `_dg_<x>` entra igual, con la marca encendida o apagada.
 		foreach ( array( 'terms', 'postmeta' ) as $list ) {
 			if ( empty( $post[ $list ] ) || ! is_array( $post[ $list ] ) ) {
 				continue;

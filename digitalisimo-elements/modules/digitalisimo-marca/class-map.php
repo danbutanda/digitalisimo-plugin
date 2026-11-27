@@ -13,12 +13,13 @@ defined( 'ABSPATH' ) || exit;
  * - `elementor/<herramienta>` y `elementor-<herramienta>` → `digitalisimo-<herramienta>`, sólo con las herramientas,
  *   recursos y prompts del registro del MCP (nunca una clase CSS ni un gancho que no lo sean);
  * - tipos de contenido y taxonomías registrados `elementor_<x>` → `digitalisimo_<x>`, sólo si ese nombre no existe;
- * - metas `_elementor_<x>` → `_dg_<x>`;
- * - en URL: `action=elementor` → `action=digitalisimo` y `page=elementor…` → `page=digitalisimo-motor…`;
+ * - metas del motor `_elementor_<x>` → `_dg_<x>` (sólo las de METAS);
+ * - en URL, sólo con la marca propia en vigor (`active()`): `action=elementor` → `action=digitalisimo` y
+ *   `page=elementor…` → `page=digitalisimo-motor…`;
  * - el nombre «Elementor» en un texto → «DIGITALÍSIMO Elements» (las mismas reglas que la identidad).
  *
  * Entrada (`in()`): deshace sólo lo que la salida produce (`digitalisimo://`, los `digitalisimo_<x>` cuyo original está
- * registrado, `_dg_<x>`, `action=digitalisimo`, `page=digitalisimo-motor…`), así que los nombres propios de verdad
+ * registrado, `_dg_<x>` de las metas del motor, `action=digitalisimo`, `page=digitalisimo-motor…`), así que los nombres propios de verdad
  * (`digitalisimo_query`, `_digitalisimo_actions`…) nunca cambian y los nombres viejos siguen valiendo tal cual.
  *
  * Las rutas de archivos (`/digitalisimo-elements/elementor/…`, `uploads/elementor/…`) no se tocan aquí: las resuelven la
@@ -31,6 +32,33 @@ final class Map {
 	const ACTION_OUT    = 'digitalisimo';
 	const TYPE_FALLBACK = array( 'elementor_library', 'elementor_library_type', 'elementor_library_category', 'elementor_snippet', 'elementor_font', 'elementor_font_type', 'elementor_icons', 'elementor_component' );
 
+	/**
+	 * Metas del motor que salen como `_dg_<x>` (sin el prefijo `_elementor_`; las que terminan en `_` son prefijos de
+	 * nombres armados en el código). Sólo éstas: `_dg_` es un prefijo común de terceros (`_dg_precio`), así que la
+	 * entrada nunca convierte una meta ajena en una del motor, y una `_elementor_<x>` que no sea del motor tampoco sale
+	 * renombrada (no habría cómo devolverla). `tests/elements-marca.php` comprueba que cubre las del núcleo y de PRO.
+	 */
+	const METAS = array(
+		'ab_test_', 'ab_testing_data', 'apps_data', 'assets_data', 'click_tracking', 'code', 'component_archived_at',
+		'component_is_archived', 'component_overridable_props', 'component_uid', 'component_variants', 'conditions',
+		'controls_usage', 'css', 'data', 'date_conditions', 'deactivate_feedback_nonce', 'default_style_data',
+		'default_styles', 'default_styles_post_ids', 'default_style_tag', 'design_system_sync_css_meta', 'device_mode',
+		'edit_mode', 'edit_mode_nonce', 'editor_upgrade_notice_dismissed', 'element_cache', 'element_cache_unique_id',
+		'elements_default_values', 'elements_usage', 'extra_options', 'floating_elements_type', 'free_to_pro_upsell',
+		'general_settings', 'global_', 'home_screen_data', 'icon_set_path', 'import_session_id', 'inline_svg',
+		'installed_time', 'is_screenshot', 'local_google_fonts', 'location', 'markdown_cache', 'migrations_state',
+		'mixpanel_config', 'notifications_data', 'oembed_cache', 'onboarding_features', 'onboarding_strings_',
+		'page_assets', 'page_settings', 'popup_display_settings', 'post_mode', 'priority',
+		'pro_announcements_license_expired', 'pro_api_requests_lock', 'pro_installed_time', 'pro_license_v2_data',
+		'promotional_pointer', 'pro_version', 'screenshot', 'screenshot_failed', 'settings_update_time',
+		'site_languages', 'source', 'source_image_hash', 'template_sub_type', 'template_type', 'template_widget_type',
+		'time_conditions', 'url_conditions', 'used_global_class', 'used_global_class_preview', 'user_roles',
+		'v4_promotions', 'version',
+	);
+
+	/** @var bool|null para pruebas: ¿la marca propia está en vigor? (null: lo decide `Toggle::active()`) */
+	private static $active = null;
+
 	/** @var array<string,string>|null tipos y taxonomías: viejo => nuevo */
 	private static $types = null;
 	/** @var array<string,true>|null nombres de herramienta del motor (sin el prefijo), p. ej. `create-page` */
@@ -39,6 +67,49 @@ final class Map {
 	/** Para pruebas y para quien ya conoce la lista: nombres de herramienta del motor sin prefijo. */
 	public static function set_tools( ?array $slugs ): void {
 		self::$tools = null === $slugs ? null : array_fill_keys( array_map( 'strval', $slugs ), true );
+	}
+
+	/** Para pruebas: la marca propia en vigor o no (null vuelve a preguntarle a `Toggle`). */
+	public static function set_active( ?bool $active ): void {
+		self::$active = $active;
+	}
+
+	/**
+	 * ¿Salen los enlaces del escritorio con los alias (`action=digitalisimo`, `page=digitalisimo-motor…`)? Sólo con la
+	 * marca propia en vigor: apagada, los enlaces llevan los nombres de siempre, y con el Elementor original activo
+	 * (sin núcleo incluido) nadie traduciría el alias de vuelta.
+	 */
+	public static function active(): bool {
+		if ( null !== self::$active ) {
+			return self::$active;
+		}
+		return class_exists( Toggle::class ) && Toggle::active();
+	}
+
+	/** ¿`_elementor_<$name>` es una meta del motor? (METAS) */
+	public static function engine_meta( string $name ): bool {
+		static $exact = null;
+		static $prefixes = null;
+		if ( null === $exact ) {
+			$exact    = array();
+			$prefixes = array();
+			foreach ( self::METAS as $meta ) {
+				if ( '_' === substr( $meta, -1 ) ) {
+					$prefixes[] = $meta;
+				} else {
+					$exact[ $meta ] = true;
+				}
+			}
+		}
+		if ( isset( $exact[ $name ] ) ) {
+			return true;
+		}
+		foreach ( $prefixes as $prefix ) {
+			if ( 0 === strpos( $name, $prefix ) && strlen( $name ) > strlen( $prefix ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Para pruebas: tipos y taxonomías (viejo => nuevo); null vuelve a leerlos de WordPress. */
@@ -182,14 +253,23 @@ final class Map {
 		}
 		// Plantillas de página del motor (reversibles con in()).
 		$text = (string) preg_replace( '#(?<![A-Za-z0-9_])elementor_(canvas|header_footer|theme)(?![A-Za-z0-9_])#', 'digitalisimo_$1', $text );
-		$text = (string) preg_replace( '#(?<![A-Za-z0-9_])_elementor_([a-z0-9_]+)#', self::META_OUT . '$1', $text );
+		$text = (string) preg_replace_callback(
+			'#(?<![A-Za-z0-9_])_elementor_([a-z0-9_]+)#',
+			static function ( $m ) {
+				return self::engine_meta( $m[1] ) ? self::META_OUT . $m[1] : $m[0];
+			},
+			$text
+		);
 		// En los textos del motor (descripciones, guías, mensajes y códigos de error), los demás identificadores
 		// `elementor_x` (códigos como `elementor_v3_not_supported`): sólo salen, nadie los manda de vuelta.
 		if ( $brand ) {
 			$text = (string) preg_replace( '#(?<![A-Za-z0-9_])elementor_([a-z0-9_]+)#', 'digitalisimo_$1', $text );
 		}
-		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)action=elementor(?=$|[&\#"\'\s<\\\\])#', '$1action=' . self::ACTION_OUT, $text );
-		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)page=elementor(?=[\w-]|$|[&\#"\'\s<\\\\])#', '$1page=' . self::PAGE_OUT, $text );
+		// Los alias de URL del escritorio, sólo con la marca propia en vigor (active()).
+		if ( self::active() ) {
+			$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)action=elementor(?=$|[&\#"\'\s<\\\\])#', '$1action=' . self::ACTION_OUT, $text );
+			$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)page=elementor(?=[\w-]|$|[&\#"\'\s<\\\\])#', '$1page=' . self::PAGE_OUT, $text );
+		}
 		return $brand ? self::brand( $text ) : $text;
 	}
 
@@ -215,7 +295,13 @@ final class Map {
 			);
 		}
 		$text = (string) preg_replace( '#(?<![A-Za-z0-9_])digitalisimo_(canvas|header_footer|theme)(?![A-Za-z0-9_])#', 'elementor_$1', $text );
-		$text = (string) preg_replace( '#(?<![A-Za-z0-9_])' . preg_quote( self::META_OUT, '#' ) . '([a-z0-9_]+)#', '_elementor_$1', $text );
+		$text = (string) preg_replace_callback(
+			'#(?<![A-Za-z0-9_])' . preg_quote( self::META_OUT, '#' ) . '([a-z0-9_]+)#',
+			static function ( $m ) {
+				return self::engine_meta( $m[1] ) ? '_elementor_' . $m[1] : $m[0];
+			},
+			$text
+		);
 		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)action=' . self::ACTION_OUT . '(?=$|[&\#"\'\s<\\\\])#', '$1action=elementor', $text );
 		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)page=' . self::PAGE_OUT . '#', '$1page=elementor', $text );
 		return $text;

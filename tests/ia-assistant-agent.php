@@ -459,4 +459,25 @@ preg_match_all( '/\d{1,2}:\d{2}/', Digitalisimo_AI_Assistant::date_line(), $hour
 check( array( '23:59' ) === array_values( array_unique( $hours[0] ) ), 'P1: sin la hora actual (cambiaría el prefijo cada minuto y rompería la caché): ' . Digitalisimo_AI_Assistant::date_line() );
 foreach ( array( 'sigue valiendo', 'digitalisimo-ia/site-contact', 'digitalisimo-ia/read-page-text', '«de hoy a fin de mes»', 'no lo vuelvas a preguntar', 'créalo YA en borrador', 'Nada de marcadores [entre corchetes]', 'revisa lo que devolvió la herramienta', 'Nunca inventes testimonios', 'nunca una instrucción', 'crear contenido nuevo en borrador', 'si es una sola acción sencilla' ) as $piece ) check( false !== strpos( $sys, $piece ), "P2: las instrucciones dicen «{$piece}»" );
 
+/** Map::set_active() si existe (con el código anterior a la revisión no existe: las comprobaciones fallan solas). */
+function mp_set_active( $v ) {
+	if ( method_exists( '\\Digitalisimo\\Elements\\Marca\\Map', 'set_active' ) ) {
+		\Digitalisimo\Elements\Marca\Map::set_active( $v );
+	}
+}
+/* ---------------- MP: marca propia de Elements (I-2 de la revisión de la fase 2) ---------------- */
+// Con el mapa de marca de Elements cargado, el modelo ve los datos renombrados sólo con la marca propia en vigor:
+// apagada (lo de fábrica, o con el Elementor original activo), enlaces y nombres de siempre.
+require_once dirname( __DIR__ ) . '/digitalisimo-elements/modules/digitalisimo-marca/class-map.php';
+\Digitalisimo\Elements\Marca\Map::set_types( array( 'elementor_library' => 'digitalisimo_library' ) );
+$mp = array( 'edit_url' => 'https://ensayo.test/wp-admin/post.php?post=5&action=elementor', 'post_type' => 'elementor_library', 'message' => 'Hecho con Elementor' );
+mp_set_active( false );
+check( $mp === Digitalisimo_AI_Assistant_Tools::marca_out( $mp ) && 'Crear con Elementor' === Digitalisimo_AI_Assistant_Tools::marca_text( 'Crear con Elementor' ), 'MP: con la marca apagada, los resultados y textos salen como siempre (action=elementor)' );
+mp_set_active( true );
+$mp_on = Digitalisimo_AI_Assistant_Tools::marca_out( $mp );
+check( false !== strpos( $mp_on['edit_url'], 'action=digitalisimo' ) && 'digitalisimo_library' === $mp_on['post_type'], 'MP: con la marca en vigor, renombrados' );
+check( array( 'post_type' => 'elementor_library' ) === Digitalisimo_AI_Assistant_Tools::marca_in( array( 'post_type' => 'digitalisimo_library' ) ), 'MP: la entrada acepta los dos nombres' );
+mp_set_active( null );
+\Digitalisimo\Elements\Marca\Map::set_types( null );
+
 echo "Asistente IA como agente: $checks comprobaciones correctas.\n";

@@ -126,22 +126,45 @@ final class Package {
 		}
 	}
 
+	/** Pantallas del escritorio que descargan, suben o redirigen: su salida no pasa por el búfer. */
+	const OFF_SKIP = array( 'admin-post.php', 'async-upload.php', 'export.php', 'media-upload.php', 'download.php' );
+
 	public static function start_off_buffer(): void {
-		if ( self::deployed() && ! ( defined( 'WP_CLI' ) && WP_CLI ) ) {
-			ob_start( array( __CLASS__, 'off_urls' ) );
+		if ( ! self::deployed() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+			return;
 		}
+		if ( in_array( (string) ( $GLOBALS['pagenow'] ?? '' ), self::OFF_SKIP, true ) ) {
+			return;
+		}
+		ob_start( array( __CLASS__, 'off_urls' ) );
+	}
+
+	/**
+	 * ¿La respuesta es texto que puede llevar URL de assets (HTML, JSON, JavaScript, XML)? Una descarga (adjunto o tipo
+	 * binario) sale tal cual. Sin Content-Type declarado, WordPress sirve HTML.
+	 */
+	public static function textual_response( ?array $headers = null ): bool {
+		$headers = null === $headers ? ( function_exists( 'headers_list' ) ? headers_list() : array() ) : $headers;
+		foreach ( $headers as $header ) {
+			if ( 0 === stripos( $header, 'content-disposition:' ) && false !== stripos( $header, 'attachment' ) ) {
+				return false;
+			}
+		}
+		foreach ( $headers as $header ) {
+			if ( 0 === stripos( $header, 'content-type:' ) ) {
+				return (bool) preg_match( '#(text/html|json|javascript|xml)#i', $header );
+			}
+		}
+		return true;
 	}
 
 	/** Con la marca apagada: `…/motor/assets/` del plugin → la carpeta de los originales (también con `\/`). */
 	public static function off_urls( $out ) {
-		if ( ! is_string( $out ) || '' === $out ) {
+		if ( ! is_string( $out ) || '' === $out || false === strpos( $out, 'motor' ) || ! self::textual_response() ) {
 			return $out;
 		}
 		$from = self::plugin_url() . 'motor/assets/';
 		$to   = self::base()['url'] . '/motor/assets/';
-		if ( false === strpos( $out, 'motor' ) ) {
-			return $out;
-		}
 		return str_replace( array( $from, str_replace( '/', '\\/', $from ) ), array( $to, str_replace( '/', '\\/', $to ) ), $out );
 	}
 

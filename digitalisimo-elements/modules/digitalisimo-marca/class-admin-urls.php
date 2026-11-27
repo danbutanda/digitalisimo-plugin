@@ -135,10 +135,17 @@ final class Admin_Urls {
 		return $url;
 	}
 
-	/** Una URL del escritorio con los nombres viejos → con alias. Las de otros sitios o del front, igual. */
+	/** Una URL del escritorio con los nombres viejos → con alias. Las de otros dominios o del front, igual. */
 	public static function url_out( string $url ): string {
 		if ( false === stripos( $url, 'elementor' ) ) {
 			return $url;
+		}
+		// Una URL absoluta de otro dominio (otro sitio con su propio wp-admin) sale igual: sus alias no existen aquí.
+		$host = preg_match( '#^(?:[a-z][a-z0-9+.-]*:)?//([^/?\#]+)#i', $url, $m ) ? strtolower( (string) preg_replace( '/^[^@]*@/', '', $m[1] ) ) : '';
+		if ( '' !== $host ) {
+			if ( $host !== self::own_host() ) {
+				return $url;
+			}
 		}
 		$parts = explode( '#', $url, 2 );
 		$base  = $parts[0];
@@ -168,6 +175,18 @@ final class Admin_Urls {
 			$base
 		);
 		return $base . ( isset( $parts[1] ) ? '#' . $parts[1] : '' );
+	}
+
+	/** `host[:puerto]` del escritorio de este sitio ('' si no se sabe: entonces ninguna URL absoluta cambia). */
+	private static function own_host(): string {
+		if ( ! function_exists( 'admin_url' ) ) {
+			return '';
+		}
+		$parts = parse_url( (string) admin_url() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- también sin WordPress (pruebas).
+		if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
+			return '';
+		}
+		return strtolower( $parts['host'] ) . ( isset( $parts['port'] ) ? ':' . $parts['port'] : '' );
 	}
 
 	public static function redirect( $location ) {

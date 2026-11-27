@@ -168,6 +168,19 @@ $u = 'https://ensayo.test/wp-content/plugins/digitalisimo-elements/';
 check( 'https://ensayo.test/wp-content/uploads/digitalisimo-elements/base-9.9.9/motor/assets/lib/eicons/css/elementor-icons.min.css?ver=5' === Package::map_url( $u . 'motor/assets/lib/eicons/css/elementor-icons.min.css?ver=5' ), 'K3 una URL del núcleo apunta a los originales desplegados' );
 check( 'https://ensayo.test/wp-content/uploads/digitalisimo-elements/base-9.9.9/p/assets/css/widget-x.min.css' === Package::map_url( $u . 'assets/css/widget-x.min.css' ) && $u . 'assets/js/ok.js' === Package::map_url( $u . 'assets/js/ok.js' ) && $u . 'motor/includes/x.php' === Package::map_url( $u . 'motor/includes/x.php' ), 'K3 lo cambiado de PRO también; lo que no cambió y el PHP, igual' );
 
+// I-7 de la revisión: el búfer de la marca apagada no envuelve descargas, subidas ni admin-post.
+$level = ob_get_level();
+foreach ( array( 'admin-post.php', 'async-upload.php', 'export.php' ) as $screen ) {
+	$GLOBALS['pagenow'] = $screen;
+	Package::start_off_buffer();
+}
+check( $level === ob_get_level(), 'K3 (I-7) sin búfer en admin-post, async-upload ni export' );
+$GLOBALS['pagenow'] = 'index.php';
+Package::start_off_buffer();
+check( $level + 1 === ob_get_level(), 'K3 (I-7) en las demás pantallas, sí' );
+ob_end_clean();
+check( ! Package::textual_response( array( 'Content-Type: application/octet-stream' ) ) && ! Package::textual_response( array( 'Content-Type: application/json', 'Content-Disposition: attachment; filename=dg-1.json' ) ) && Package::textual_response( array( 'Content-Type: application/json; charset=UTF-8' ) ) && Package::textual_response( array( 'Content-Type: text/html; charset=UTF-8' ) ) && Package::textual_response( array() ), 'K3 (I-7) sólo se reescriben respuestas de texto (HTML, JSON, JS, XML), nunca un adjunto ni un binario' );
+
 // K4 -------------------------------------------------------------------------------------------------------------------
 Package::reset( null, 'on' );
 check( $u . 'motor/assets/lib/eicons/css/dg-icons.min.css?ver=5' === Package::map_url( $u . 'motor/assets/lib/eicons/css/elementor-icons.min.css?ver=5' ) && $u . 'motor/assets/css/frontend.min.css' === Package::map_url( $u . 'elementor/assets/css/frontend.min.css' ), 'K4 con la marca encendida, el nombre publicado' );

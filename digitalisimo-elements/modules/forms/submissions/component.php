@@ -87,14 +87,14 @@ class Component extends Module_Base {
 		<?php
 	}
 
-	/**
-	 * Enqueue admin scripts
-	 */
 	/** Carpeta del núcleo incluido en el paquete (`elementor/` o, con la marca propia, `motor/`). */
 	private static function core_folder() {
 		return class_exists( '\\Digitalisimo_Elements_Core', false ) ? basename( rtrim( \Digitalisimo_Elements_Core::dir(), '/' ) ) : 'elementor';
 	}
 
+	/**
+	 * Enqueue admin scripts
+	 */
 	private function enqueue_scripts() {
 		wp_register_style(
 			'select2',

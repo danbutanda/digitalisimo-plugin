@@ -126,6 +126,14 @@ final class Brand_Server {
 		}
 		self::$building = true;
 		self::$names    = array();
+		// Las herramientas propias conservan su nombre, que ya es el de la marca (`digitalisimo-sales/x` →
+		// `digitalisimo-sales-x`): se reservan antes, así una del motor que daría el mismo nombre se queda con el suyo,
+		// llegue antes o después (nunca dos herramientas con el mismo nombre).
+		foreach ( $tools as $ability_name ) {
+			if ( is_string( $ability_name ) && 0 !== strpos( $ability_name, 'elementor/' ) ) {
+				self::$names[ str_replace( '/', '-', trim( $ability_name ) ) ] = $ability_name;
+			}
+		}
 		try {
 			$result = $adapter->create_server(
 				self::ID,
@@ -204,7 +212,7 @@ final class Brand_Server {
 		);
 	}
 
-	/** Si el nombre con marca ya lo usa otra ability, se conserva el original (y queda anotado). */
+	/** Si el nombre con marca ya lo usa (o lo tiene reservado) otra ability, se conserva el original (y queda anotado). */
 	private static function unique( string $branded, string $original, $ability ): string {
 		$owner = is_object( $ability ) && method_exists( $ability, 'get_name' ) ? (string) $ability->get_name() : $original;
 		if ( isset( self::$names[ $branded ] ) && self::$names[ $branded ] !== $owner ) {
@@ -312,7 +320,7 @@ final class Brand_Server {
 		return self::is_ours( $server ) ? Map::data_out( $result ) : $result;
 	}
 
-	/** `initialize`: en el nuestro, la descripción propia con marca; en el del núcleo, la nota del retiro (D-7). */
+	/** `initialize`: en el nuestro, la descripción propia con marca; en el del núcleo, la nota del retiro (D-7) si aplica. */
 	public static function initialize( $result, $server = null ) {
 		if ( ! is_object( $result ) || ! method_exists( $result, 'toArray' ) ) {
 			return $result;
@@ -324,6 +332,11 @@ final class Brand_Server {
 			return $result;
 		}
 		Legacy_Route::touch( 'initialize' );
+		// La nota del retiro sólo cuando aplica: con la marca propia en vigor o con el retiro habilitado. Apagada, el
+		// cliente que usa la ruta vieja recibe las instrucciones de siempre.
+		if ( ! Legacy_Route::announce() ) {
+			return $result;
+		}
 		try {
 			$data                 = $result->toArray();
 			$data['instructions'] = trim( (string) ( $data['instructions'] ?? '' ) . "\n\n" . Legacy_Route::notice() );

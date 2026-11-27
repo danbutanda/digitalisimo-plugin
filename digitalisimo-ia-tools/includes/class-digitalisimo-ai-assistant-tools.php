@@ -9,10 +9,11 @@ defined( 'ABSPATH' ) || exit;
  *   compartido y el filtro `elementor/mcp/server/tools`) más las Abilities públicas para MCP (`meta.mcp.public`, de
  *   tipo herramienta) que publica el servidor genérico del adaptador. Sin el MCP de Elements activo, sólo las públicas.
  * - Marca propia (docs/MARCA_PROPIA.md de Elements): el modelo ve las herramientas con los nombres del MCP con nombre
- *   propio (`elementor/create-page` → `digitalisimo-create-page`), y con DIGITALÍSIMO Elements cargado las
- *   descripciones, las entradas y las respuestas pasan por su mapa de marca (`Digitalisimo\Elements\Marca\Map`): al
- *   modelo le llega `digitalisimo_library`, `action=digitalisimo` o `_dg_*`, y lo que pide se traduce a los nombres
- *   internos antes de ejecutar. Un nombre viejo (`elementor-create-page`, de una conversación anterior) sigue valiendo.
+ *   propio (`elementor/create-page` → `digitalisimo-create-page`). Con la marca propia de DIGITALÍSIMO Elements EN
+ *   VIGOR, las descripciones y las respuestas pasan por su mapa de marca (`Digitalisimo\Elements\Marca\Map`): al
+ *   modelo le llega `digitalisimo_library`, `action=digitalisimo` o `_dg_*`; apagada, salen como siempre. Lo que pide
+ *   el modelo se traduce siempre a los nombres internos antes de ejecutar (acepta los dos). Un nombre viejo
+ *   (`elementor-create-page`, de una conversación anterior) sigue valiendo.
  * - Clase de cada llamada: `read` si la ability se anota de sólo lectura; `write` si se anota como no destructiva;
  *   `destructive` en cualquier otro caso (sin anotación también, como en el MCP). Las herramientas con `action` que
  *   conoce el Asistente (tienda, Skydropx, Hosting) tienen su tabla acción por acción (ACTION_KINDS); otra con `action`
@@ -251,9 +252,18 @@ final class Digitalisimo_AI_Assistant_Tools {
 		return class_exists( '\\Digitalisimo\\Elements\\Marca\\Map' );
 	}
 
+	/**
+	 * ¿Está en vigor la marca propia del sitio? Sólo entonces lo que ve el modelo sale renombrado: apagada (o con el
+	 * Elementor original activo), los textos, los datos y los enlaces llevan los nombres de siempre, que son los que
+	 * funcionan en ese sitio.
+	 */
+	private static function marca_on(): bool {
+		return self::marca() && method_exists( '\\Digitalisimo\\Elements\\Marca\\Map', 'active' ) && \Digitalisimo\Elements\Marca\Map::active();
+	}
+
 	/** Texto fijo de una herramienta (etiqueta, descripción, esquema) con la marca propia. */
 	public static function marca_text( $value ) {
-		return self::marca() ? \Digitalisimo\Elements\Marca\Map::out_deep( $value ) : $value;
+		return self::marca_on() ? \Digitalisimo\Elements\Marca\Map::out_deep( $value ) : $value;
 	}
 
 	/** Lo que pide el modelo, con los nombres internos (acepta los dos). */
@@ -263,7 +273,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 
 	/** Lo que devuelve una herramienta, con los identificadores renombrados (el contenido del cliente no cambia). */
 	public static function marca_out( $value ) {
-		return self::marca() ? \Digitalisimo\Elements\Marca\Map::data_out( $value ) : $value;
+		return self::marca_on() ? \Digitalisimo\Elements\Marca\Map::data_out( $value ) : $value;
 	}
 
 	/**
