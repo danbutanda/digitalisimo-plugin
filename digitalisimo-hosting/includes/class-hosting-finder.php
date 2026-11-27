@@ -6,8 +6,8 @@ defined( 'ABSPATH' ) || exit;
  * del cerebro, tomado de cómo vende Namecheap).
  *
  * - **Una búsqueda, todas las extensiones:** el visitante escribe sólo el nombre (o nombre.ext) y se consultan a la vez
- *   todas las extensiones que tienen producto de dominio (resueltas por «Productos por extensión», `_digitalisimo_tld` o
- *   SKU: Digitalisimo_Hosting_Products, nunca IDs fijos), cada una con el registrador de su extensión: en UNA llamada a
+ *   todas las extensiones que tienen producto de dominio (los productos o variaciones marcados como «Dominio» en su
+ *   editor: Digitalisimo_Hosting_Products, nunca IDs fijos), cada una con el registrador de su extensión: en UNA llamada a
  *   namecheap.domains.check (Digitalisimo_Hosting_Namecheap::check_many()) y, las que van con Dynadot, de una en una
  *   (Digitalisimo_Hosting_Dynadot::check_many(); una cuenta Regular busca un dominio por comando). Cada resultado se guarda unos minutos con la misma clave que usa el
  *   carrito (Digitalisimo_Hosting_Checkout::cached()/remember()): agregar lo buscado no vuelve a consultar.
@@ -42,8 +42,8 @@ class Digitalisimo_Hosting_Finder {
 	/** Una etiqueta de dominio: letras, números y guiones, sin guion al principio ni al final, hasta 63. */
 	const LABEL = '/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/';
 	/** Las populares primero (sólo cuentan las que tienen producto; las demás siguen en el orden de la lista). */
-	const DEFAULT_ORDER = '.com, .mx, .com.mx, .net, .lat';
-	const DEFAULT_REQUIREMENTS = ".mx|Requisito: el titular debe dar sus datos reales y completos (persona o empresa).\n.com.mx|Requisito: el titular debe dar sus datos reales y completos (persona o empresa).";
+	const DEFAULT_ORDER = array( '.com', '.mx', '.com.mx', '.net', '.lat' );
+	const DEFAULT_REQUIREMENTS = array( '.mx' => 'Requisito: el titular debe dar sus datos reales y completos (persona o empresa).', '.com.mx' => 'Requisito: el titular debe dar sus datos reales y completos (persona o empresa).' );
 
 	public static function init() {
 		add_shortcode( 'digitalisimo_buscador_dominios', array( __CLASS__, 'shortcode' ) );
@@ -110,7 +110,8 @@ class Digitalisimo_Hosting_Finder {
 	public static function ordered() {
 		$map = Digitalisimo_Hosting::domain_products();
 		$order = array();
-		foreach ( preg_split( '/[\s,;|]+/', (string) ( Digitalisimo_Hosting::settings()['finder_order'] ?? self::DEFAULT_ORDER ) ) as $e ) {
+		$pref = Digitalisimo_Hosting::settings()['finder_order'] ?? self::DEFAULT_ORDER;
+		foreach ( is_array( $pref ) ? $pref : self::DEFAULT_ORDER as $e ) {
 			$e = Digitalisimo_Hosting_Products::normalize( $e );
 			if ( '' !== $e && isset( $map[ $e ] ) && ! in_array( $e, $order, true ) ) $order[] = $e;
 		}
@@ -118,14 +119,11 @@ class Digitalisimo_Hosting_Finder {
 		return $order;
 	}
 
-	/** Extensión => aviso de requisitos («.mx|Requisito: …», una por línea). */
+	/** Extensión => aviso de requisitos (una fila por extensión en los ajustes). */
 	public static function requirements() {
+		$raw = Digitalisimo_Hosting::settings()['finder_requirements'] ?? self::DEFAULT_REQUIREMENTS;
 		$out = array();
-		foreach ( preg_split( '/\r\n|\r|\n/', (string) ( Digitalisimo_Hosting::settings()['finder_requirements'] ?? self::DEFAULT_REQUIREMENTS ) ) as $line ) {
-			$parts = array_map( 'trim', explode( '|', $line, 2 ) );
-			$e = Digitalisimo_Hosting_Products::normalize( $parts[0] );
-			if ( '' !== $e && '' !== ( $parts[1] ?? '' ) ) $out[ $e ] = sanitize_text_field( $parts[1] );
-		}
+		foreach ( is_array( $raw ) ? $raw : array() as $e => $text ) { $e = Digitalisimo_Hosting_Products::normalize( $e ); if ( '' !== $e && is_scalar( $text ) && '' !== trim( (string) $text ) ) $out[ $e ] = sanitize_text_field( (string) $text ); }
 		return $out;
 	}
 
@@ -152,22 +150,40 @@ class Digitalisimo_Hosting_Finder {
 		return array( 'price' => $now, 'price_text' => self::money( $now ), 'renewal' => max( $now, $renew ), 'renewal_text' => self::money( max( $now, $renew ) ) );
 	}
 
-	/** «Se compran juntos»: los planes elegidos (o los de hosting), hasta 4, sólo productos simples publicados con precio. */
+	/**
+	 * El plan que se agrega de un producto de hosting: el mismo si es simple; si es variable, su variación anual (o la
+	 * primera que se venda). 0 si no hay.
+	 */
+	private static function sellable_plan( $id ) {
+		$p = function_exists( 'wc_get_product' ) ? wc_get_product( (int) $id ) : null;
+		if ( ! $p ) return 0;
+		if ( ! method_exists( $p, 'is_type' ) || ! $p->is_type( 'variable' ) ) return (int) $id;
+		$best = 0;
+		foreach ( Digitalisimo_Hosting_Products::catalog()['hosting'] as $h ) {
+			if ( (int) $h['parent'] !== (int) $id ) continue;
+			if ( 12 === (int) $h['period'] ) return (int) $h['id'];
+			if ( ! $best ) $best = (int) $h['id'];
+		}
+		return $best;
+	}
+
+	/**
+	 * «Se compran juntos»: los planes elegidos en los ajustes o, si no hay, los productos marcados como «Hosting»; hasta 4,
+	 * publicados y con precio (de un producto variable, su variación anual).
+	 */
 	public static function together() {
 		$o = Digitalisimo_Hosting::settings();
-		$raw = trim( (string) ( $o['finder_upsell_ids'] ?? '' ) );
-		if ( '' === $raw ) $raw = (string) ( $o['hosting_product_ids'] ?? '' );
-		$ids = array_values( array_unique( array_filter( array_map( 'absint', preg_split( '/[\s,]+/', $raw ) ) ) ) );
-		if ( ! $ids && '' !== trim( (string) ( $o['hosting_category_ids'] ?? '' ) ) && function_exists( 'get_posts' ) ) {
-			$cats = array_filter( array_map( 'absint', preg_split( '/[\s,]+/', (string) $o['hosting_category_ids'] ) ) );
-			if ( $cats ) $ids = array_map( 'intval', (array) get_posts( array( 'post_type' => 'product', 'post_status' => 'publish', 'numberposts' => 4, 'fields' => 'ids', 'orderby' => 'menu_order', 'order' => 'ASC', 'no_found_rows' => true, 'tax_query' => array( array( 'taxonomy' => 'product_cat', 'field' => 'term_id', 'terms' => $cats ) ) ) ) );
-		}
-		$out = array();
-		foreach ( $ids as $id ) {
+		$ids = array_values( array_filter( array_map( 'intval', is_array( $o['finder_upsell'] ?? null ) ? $o['finder_upsell'] : array() ) ) );
+		if ( ! $ids ) foreach ( Digitalisimo_Hosting_Products::catalog()['hosting'] as $h ) { $k = $h['parent'] ? (int) $h['parent'] : (int) $h['id']; if ( ! in_array( $k, $ids, true ) ) $ids[] = $k; }
+		$out = array(); $seen = array();
+		foreach ( $ids as $pick ) {
 			if ( count( $out ) >= 4 ) break;
+			$id = self::sellable_plan( $pick );
+			if ( ! $id || isset( $seen[ $id ] ) ) continue;
+			$seen[ $id ] = true;
 			$p = function_exists( 'wc_get_product' ) ? wc_get_product( $id ) : null;
 			if ( ! $p || ( function_exists( 'get_post_status' ) && 'publish' !== get_post_status( $id ) ) ) continue;
-			if ( method_exists( $p, 'is_type' ) && ! $p->is_type( 'simple' ) ) continue;
+			if ( method_exists( $p, 'is_type' ) && ! $p->is_type( 'simple' ) && ! $p->is_type( 'variation' ) ) continue;
 			$prices = self::prices( $id );
 			if ( ! $prices ) continue;
 			$desc = method_exists( $p, 'get_short_description' ) ? trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $p->get_short_description() ) ) ) : '';
@@ -337,7 +353,7 @@ class Digitalisimo_Hosting_Finder {
 		if ( 'busy' === $av['kind'] && ! $av['results'] ) return new WP_Error( 'digitalisimo_finder_busy', 'Hay muchas búsquedas en este momento. Intenta de nuevo en un minuto.', array( 'status' => 429 ) );
 		if ( 'ok' !== $av['kind'] && ! $av['results'] ) return new WP_Error( 'digitalisimo_finder_unavailable', 'No pudimos consultar los dominios en este momento. Intenta de nuevo en un minuto.', array( 'status' => 503 ) );
 		$req = self::requirements();
-		$transfers = Digitalisimo_Hosting_Products::report( (string) Digitalisimo_Hosting::settings()['domain_products'] )['transfer'];
+		$transfers = Digitalisimo_Hosting_Products::transfers();
 		$row_for = function ( $d, $e ) use ( $av, $p, $map, $prices, $req, $transfers ) {
 			$res = $av['results'][ $d ] ?? null;
 			$status = ! $res ? 'unknown' : ( ! $res['available'] ? 'taken' : ( $res['premium'] ? 'premium' : 'available' ) );

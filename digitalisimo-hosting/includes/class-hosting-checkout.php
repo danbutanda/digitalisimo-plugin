@@ -66,14 +66,8 @@ class Digitalisimo_Hosting_Checkout {
 
 	// ── Qué es cada producto ────────────────────────────────────────────────────────────────────────────────────
 
-	/** register (dominio nuevo), transfer, hosting (plan de hosting o correo) o ''. */
-	public static function kind( $product_id ) {
-		$product_id = (int) $product_id;
-		if ( '' !== Digitalisimo_Hosting_Products::transfer_ext( $product_id ) ) return 'transfer';
-		if ( '' !== Digitalisimo_Hosting_Products::register_ext( $product_id ) ) return 'register';
-		if ( Digitalisimo_Hosting::is_hosting_product( $product_id ) || '' !== trim( (string) get_post_meta( $product_id, '_digitalisimo_webuzo_plan', true ) ) ) return 'hosting';
-		return '';
-	}
+	/** register (dominio nuevo), transfer, hosting (plan de hosting o correo) o '': lo marcado en el producto o la variación. */
+	public static function kind( $product_id ) { return Digitalisimo_Hosting_Products::kind( (int) $product_id ); }
 
 	/** Nombre de dominio tal como se registra: minúsculas, sin protocolo, ruta, «www.» ni punto final. */
 	public static function clean_domain( $raw ) {
@@ -165,7 +159,8 @@ class Digitalisimo_Hosting_Checkout {
 		if ( is_array( $request ) ) { $data = is_array( $request['cart_item_data'] ?? null ) ? $request['cart_item_data'] : array(); $qty = (float) ( $request['quantity'] ?? 1 ); }
 		elseif ( is_object( $request ) && method_exists( $request, 'get_param' ) ) { $data = self::store_api_data( array( 'cart_item_data' => array() ), $request )['cart_item_data']; $qty = (float) ( $request->get_param( 'quantity' ) ?? 1 ); }
 		else return;
-		$pid = method_exists( $product, 'get_parent_id' ) && $product->get_parent_id() ? (int) $product->get_parent_id() : (int) $product->get_id();
+		// La variación misma (lo suyo manda y hereda lo demás del producto).
+		$pid = (int) $product->get_id();
 		$kind = self::kind( $pid );
 		if ( '' === $kind ) return;
 		$domain = self::clean_domain( $data['digitalisimo_domain'] ?? '' );
@@ -189,7 +184,7 @@ class Digitalisimo_Hosting_Checkout {
 	public static function maybe_validate_add( $passed, $product_id, $quantity = 1, $variation_id = 0, $variation = array(), $cart_item_data = array() ) {
 		if ( ! $passed || ! self::on() ) return $passed;
 		$data = is_array( $cart_item_data ) && $cart_item_data ? $cart_item_data + self::request_data() : self::request_data();
-		$error = self::line_error( (int) $product_id, $data, false );
+		$error = self::line_error( (int) $variation_id ? (int) $variation_id : (int) $product_id, $data, false );
 		if ( '' === $error ) return $passed;
 		wc_add_notice( $error, 'error' );
 		return false;
@@ -352,7 +347,7 @@ class Digitalisimo_Hosting_Checkout {
 		$out = array();
 		if ( ! function_exists( 'WC' ) || ! isset( WC()->cart ) || ! WC()->cart ) return $out;
 		foreach ( WC()->cart->get_cart() as $key => $item ) {
-			$pid = (int) ( $item['product_id'] ?? 0 );
+			$pid = Digitalisimo_Hosting_Products::item_id( $item );
 			$kind = self::kind( $pid );
 			if ( '' === $kind ) continue;
 			$out[ $key ] = array( 'kind' => $kind, 'product' => $pid, 'data' => $item, 'name' => self::product_name( $pid ) );
@@ -529,7 +524,7 @@ class Digitalisimo_Hosting_Checkout {
 			$row = is_array( $row ) ? $row : array();
 			if ( ! isset( WC()->cart->cart_contents[ $key ] ) ) continue;
 			$item = WC()->cart->cart_contents[ $key ];
-			$pid = (int) ( $item['product_id'] ?? 0 );
+			$pid = Digitalisimo_Hosting_Products::item_id( $item );
 			$kind = self::kind( $pid );
 			$domain = self::clean_domain( $row['domain'] ?? '' );
 			if ( 'hosting' === $kind ) {

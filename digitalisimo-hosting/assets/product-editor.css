@@ -1,0 +1,10 @@
+/* DIGITALÍSIMO Hosting en el editor de producto. */
+.dh-box { margin: 0; padding: 0 0 8px; border: 0; }
+.dh-legend { padding: 9px 12px 0; font-weight: 600; }
+.dh-section[hidden] { display: none; }
+.dh-notice { margin: 0 12px 8px 162px; padding: 6px 10px; border-left: 4px solid #dba617; background: #fcf9e8; }
+.dh-error { margin: 0 12px 8px 162px; padding: 6px 10px; border-left: 4px solid #d63638; background: #fcf0f1; }
+.dh-help { display: block; margin: -6px 12px 8px 162px; }
+.digitalisimo-hosting-variation .dh-notice, .digitalisimo-hosting-variation .dh-error, .digitalisimo-hosting-variation .dh-help { margin-left: 0; }
+.digitalisimo-hosting-variation .dh-field label { display: block; }
+@media (max-width: 782px) { .dh-notice, .dh-error, .dh-help { margin-left: 12px; } }

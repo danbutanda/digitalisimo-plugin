@@ -48,9 +48,9 @@ function add_to_cart( $pid, array $request = array(), $post = false ) {
 function errors() { return Digitalisimo_Hosting_Checkout::cart_errors(); }
 
 digi_servers_reset();
-digi_store_settings( array( 'domain_products' => ".com|20\n.mx|21" ) );
+digi_store_settings();
 digi_product( 50, 'Transferencia de dominio', 250 );
-update_post_meta( 50, '_digitalisimo_domain_kind', 'transfer' ); update_post_meta( 50, '_digitalisimo_tld', '*' );
+digi_domain( 50, '*', 'transfer' );
 Digitalisimo_Hosting_Products::flush();
 $GLOBALS['nc']['domains']['nuestro.com'] = strtotime( '+200 days' );
 $GLOBALS['nc']['taken'] = array( 'ocupado.com', 'miempresa.com', 'ajeno.com', 'ajeno.mx' );
@@ -269,12 +269,11 @@ check( false === strpos( $w, '<form' ) && false !== strpos( $w, 'type="button"' 
 preg_match_all( '/<option value="([^"]+)"/', $w, $m );
 check( array( '.com', '.mx' ) === $m[1], 'El shortcode ofrece sólo las extensiones configuradas' );
 check( array( '.com' => 20, '.mx' => 21 ) === (array) $GLOBALS['localized']['digitalisimoHosting']['products'], 'El formulario de Elements recibe las extensiones configuradas' );
-update_option( 'digitalisimo_hosting_options', array( 'domain_products' => ".com|\n.net|\n.mx|" ) + get_option( 'digitalisimo_hosting_options' ) );
-foreach ( array( 20 => 'dominio-com', 21 => 'dominio-mx' ) as $id => $sku ) $GLOBALS['products'][ $id ]->sku = $sku;
-digi_product( 22, 'Dominio .net', 280 ); $GLOBALS['products'][22]->sku = 'dominio-net';
-Digitalisimo_Hosting_Products::flush();
+// Un producto nuevo marcado como Dominio .net en su editor aparece solo (sin IDs en los ajustes); un SKU sin marca, no.
+digi_product( 22, 'Dominio .net', 280 ); digi_domain( 22, '.net' );
+digi_product( 23, 'Dominio .org', 280 ); $GLOBALS['products'][23]->sku = 'dominio-org';
 preg_match_all( '/<option value="([^"]+)"/', Digitalisimo_Hosting::search_widget(), $m );
-check( array( '.com', '.net', '.mx' ) === $m[1], 'Con la lista de fábrica sin IDs, el buscador ofrece .com, .net y .mx (resueltos por SKU), nunca .org' );
+check( array( '.com', '.mx', '.net' ) === $m[1], 'El buscador ofrece las extensiones de los productos marcados (.com, .mx y .net), nunca la de un SKU sin marcar: ' . json_encode( $m[1] ) );
 $r = Digitalisimo_Hosting::check_domain( new Digi_Test_Store_Request( array( 'domain' => 'libre.net' ) ) );
 check( is_array( $r ) && true === $r['available'] && 22 === $r['product_id'] && '280' === $r['price'] && '$' === $r['currency'], 'La consulta pública devuelve disponibilidad, producto y precio en una respuesta' );
 $last = end( $GLOBALS['nc']['calls'] );

@@ -26,7 +26,11 @@ function update_option( $key, $value, $autoload = null ) { $GLOBALS['options'][ 
 function wp_load_alloptions() { $out = array(); foreach ( $GLOBALS['options'] as $k => $v ) if ( true === ( $GLOBALS['autoload'][ $k ] ?? null ) ) $out[ $k ] = $v; return $out; }
 function wp_set_option_autoload( $key, $autoload ) { $GLOBALS['set_autoload'][] = array( $key, $autoload ); $GLOBALS['autoload'][ $key ] = (bool) $autoload; return true; }
 function fail( $message ) { $GLOBALS['failures'][] = $message; fwrite( STDERR, "FALLA: $message\n" ); }
+// Lo que es cada producto se marca en su editor (2026-11-27): 8 y 9 son planes de hosting.
+$GLOBALS['postmeta'] = array( 8 => array( '_digitalisimo_hosting_type' => 'hosting', '_digitalisimo_webuzo_plan' => 'a' ), 9 => array( '_digitalisimo_hosting_type' => 'hosting', '_digitalisimo_webuzo_plan' => 'b' ) );
+function get_post_meta( $id, $k, $single = false ) { return $GLOBALS['postmeta'][ (int) $id ][ $k ] ?? ''; }
 require __DIR__ . '/../digitalisimo-hosting/includes/class-hosting.php';
+require __DIR__ . '/../digitalisimo-hosting/includes/class-hosting-products.php';
 $flag = 'digitalisimo_hosting_ecommerce_migrated';
 
 // Instalación que ya migró, con la marca sin autoload: se pasa a autoload una vez.
@@ -63,7 +67,7 @@ if ( array( 'billing' => array( 'x' => 1 ) ) !== $fields ) fail( 'Sin «simplifi
 foreach ( array( 'woocommerce_check_cart_items' => 'maybe_validate_cart', 'woocommerce_add_to_cart_validation' => 'maybe_replace_hosting', 'woocommerce_checkout_fields' => 'maybe_checkout_fields', 'woocommerce_add_cart_item_data' => 'maybe_cart_domain' ) as $hook => $method ) {
 	if ( array( 'Digitalisimo_Hosting', $method ) !== ( $GLOBALS['hooks'][ $hook ] ?? null ) ) fail( "El gancho $hook debe ser el método con nombre Digitalisimo_Hosting::$method." );
 }
-$GLOBALS['options']['digitalisimo_hosting_options'] = array( 'enabled' => 1, 'require_domain_hosting' => 1, 'replace_hosting' => 1, 'simplify_checkout' => 1, 'hosting_product_ids' => '8, 9', 'domain_products' => ".mx|44" );
+$GLOBALS['options']['digitalisimo_hosting_options'] = array( 'enabled' => 1, 'require_domain_hosting' => 1, 'replace_hosting' => 1, 'simplify_checkout' => 1 );
 $GLOBALS['notices'] = array();
 call_user_func( $GLOBALS['hooks']['woocommerce_check_cart_items'] );
 if ( 1 !== count( $GLOBALS['notices'] ) ) fail( '«Exigir dominio y hosting»: un plan sin dominio debe avisar en el carrito.' );

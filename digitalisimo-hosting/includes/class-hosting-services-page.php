@@ -76,12 +76,13 @@ class Digitalisimo_Hosting_Services_Page {
 			echo '<tr data-service="' . (int) $id . '">';
 			echo '<td>' . esc_html( (string) $P::svc( $id, 'name' ) ) . '<br><span class="description">' . esc_html( (string) $P::svc( $id, 'email' ) ) . '</span></td>';
 			echo '<td>' . esc_html( (string) $P::svc( $id, 'domain' ) ) . '</td>';
-			echo '<td>' . esc_html( (string) $P::svc( $id, 'plan' ) ) . '</td>';
+			echo '<td>' . esc_html( (string) $P::svc( $id, 'plan' ) ) . ( $P::has_hosting( $id ) ? '<br><span class="description">' . esc_html( 'Cobro ' . strtolower( Digitalisimo_Hosting_Products::period_label( $P::service_period( $id ) ) ) ) . '</span>' : '' ) . '</td>';
 			echo '<td>' . esc_html( '' !== $user ? $user : '—' ) . '</td>';
 			$reprieve = (int) $P::svc( $id, 'reprieve_until' );
-			echo '<td>' . esc_html( $expires ? $P::date( $expires ) : '—' ) . ( $reprieve > time() ? '<br><span class="description">' . esc_html( 'Prórroga (reactivado a mano) hasta el ' . $P::date( $reprieve ) ) . '</span>' : '' ) . '</td>';
+			$dd = $P::domain_due( $id );
+			echo '<td>' . esc_html( $expires ? $P::date( $expires ) : '—' ) . ( $dd && $P::has_hosting( $id ) && abs( $dd - $expires ) >= 2 * DAY_IN_SECONDS ? '<br><span class="description">' . esc_html( 'Dominio: ' . $P::date( $dd ) ) . '</span>' : '' ) . ( $reprieve > time() ? '<br><span class="description">' . esc_html( 'Prórroga (reactivado a mano) hasta el ' . $P::date( $reprieve ) ) . '</span>' : '' ) . '</td>';
 			echo '<td><strong>' . esc_html( self::status_label( $status ) ) . '</strong>' . ( '' !== $error ? '<br><span class="description">' . esc_html( $error ) . '</span>' : '' ) . ( $P::svc( $id, 'transfer_pending' ) ? '<br><span class="description">Transferencia de dominio pendiente: hazla en ' . esc_html( class_exists( 'Digitalisimo_Hosting_Registrars' ) ? Digitalisimo_Hosting_Registrars::label( Digitalisimo_Hosting_Registrars::of_service( $id ) ) : 'Namecheap' ) . ' con el código EPP del pedido («Ver código EPP»). Se marca sola al llegar a la cuenta.</span>' : '' ) . '</td>';
-			echo '<td>' . ( $order_id ? '<a href="' . esc_url( self::order_url( $order_id ) ) . '">#' . $order_id . '</a>' : '—' ) . ( $renewal ? '<br><span class="description">Renovación <a href="' . esc_url( self::order_url( $renewal ) ) . '">#' . $renewal . '</a></span>' : '' ) . '</td>';
+			echo '<td>' . ( $order_id ? '<a href="' . esc_url( self::order_url( $order_id ) ) . '">#' . $order_id . '</a>' : '—' ) . ( $renewal ? '<br><span class="description">Renovación <a href="' . esc_url( self::order_url( $renewal ) ) . '">#' . $renewal . '</a></span>' : '' ) . ( (int) $P::svc( $id, 'domain_renewal_order' ) ? '<br><span class="description">Renovación del dominio <a href="' . esc_url( self::order_url( (int) $P::svc( $id, 'domain_renewal_order' ) ) ) . '">#' . (int) $P::svc( $id, 'domain_renewal_order' ) . '</a></span>' : '' ) . '</td>';
 			echo '<td>';
 			$renewal_pending = 'cancelled' !== $status && $P::renewal_pending( $id );
 			if ( 'cancelled' !== $status && ( in_array( $status, array( 'pending', 'on-hold' ), true ) || '' !== $error || $renewal_pending ) ) self::button( 'retry', $id, $renewal_pending ? 'Reintentar la renovación' : 'Reintentar' );

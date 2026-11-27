@@ -89,12 +89,11 @@ function store_error( $pid, array $body ) {
 }
 
 digi_servers_reset();
-digi_store_settings( array( 'domain_products' => ".com|20\n.mx|21\n.net|22", 'hosting_product_ids' => '14693, 14696', 'finder_order' => '.com, .mx, .net' ) );
-digi_product( 22, 'Dominio .net', 280 );
+digi_store_settings( array( 'finder_order' => array( '.com', '.mx', '.net' ) ) );
+digi_product( 22, 'Dominio .net', 280 ); digi_domain( 22, '.net' );
 $GLOBALS['products'][20]->price = 509; $GLOBALS['products'][20]->sale = 309; // primer año 309, renueva a 509
 digi_product( 50, 'Transferencia de dominio', 250 );
-update_post_meta( 50, '_digitalisimo_domain_kind', 'transfer' ); update_post_meta( 50, '_digitalisimo_tld', '*' );
-Digitalisimo_Hosting_Products::flush();
+digi_domain( 50, '*', 'transfer' );
 $GLOBALS['nc']['taken'] = array( 'ocupado.com', 'ocupado.net' );
 $GLOBALS['nc']['premium'] = array( 'lujo.com' );
 
@@ -121,10 +120,10 @@ check( '$309' === $r['main']['price_text'] && '$509' === $r['main']['renewal_tex
 check( array( 'minegocio.mx', 'minegocio.net' ) === array_column( $r['rows'], 'domain' ) && '$600' === $r['rows'][0]['price_text'] && '$280' === $r['rows'][1]['price_text'], 'F2 debajo, una fila por extensión con su precio' );
 check( false !== strpos( $r['rows'][0]['requirement'], 'titular' ) && '' === $r['main']['requirement'], 'F2 .mx con su aviso de requisitos; .com sin aviso' );
 check( array( 14693, 14696 ) === array_column( $r['together'], 'id' ) && '$970' === $r['together'][0]['price_text'], 'F2 «se compran juntos»: los planes de hosting con su precio' );
-update_option( 'digitalisimo_hosting_options', array( 'finder_order' => '.net, .mx' ) + get_option( 'digitalisimo_hosting_options' ) );
+update_option( 'digitalisimo_hosting_options', array( 'finder_order' => array( '.net', '.mx' ) ) + get_option( 'digitalisimo_hosting_options' ) );
 $r2 = search( 'otronegocio' );
 check( array( 'otronegocio.net', 'otronegocio.mx', 'otronegocio.com', 'miotronegocio.com', 'otronegociomx.com' ) === last_list() && 'otronegocio.com' === $r2['main']['domain'] && array( 'otronegocio.net', 'otronegocio.mx' ) === array_column( $r2['rows'], 'domain' ), 'F2 el orden se configura (populares primero); .com sigue siendo el principal' );
-update_option( 'digitalisimo_hosting_options', array( 'finder_order' => '.com, .mx, .net' ) + get_option( 'digitalisimo_hosting_options' ) );
+update_option( 'digitalisimo_hosting_options', array( 'finder_order' => array( '.com', '.mx', '.net' ) ) + get_option( 'digitalisimo_hosting_options' ) );
 
 // ── F3. Ocupado: mejor alternativa libre y transferencia ──────────────────────────────────────────────────────
 $r = search( 'ocupado' );
@@ -155,14 +154,13 @@ $r = search( 'algo.net' );
 check( 'algo.net' === $r['main']['domain'] && 22 === $r['main']['product_id'] && ! in_array( 'algo.net', array_column( $r['rows'], 'domain' ), true ) && 2 === count( $r['rows'] ), 'F5 nombre.ext: la escrita es la principal y las demás van debajo' );
 
 // ── F6. Extensión sin producto ────────────────────────────────────────────────────────────────────────────────
-update_option( 'digitalisimo_hosting_options', array( 'domain_products' => ".com|20\n.mx|21\n.net|22\n.org|" ) + get_option( 'digitalisimo_hosting_options' ) );
-Digitalisimo_Hosting_Products::flush();
+// .org con un SKU de dominio pero sin marcar como «Dominio»: no se vende.
+digi_product( 23, 'Dominio .org sin marcar', 300 ); $GLOBALS['products'][23]->sku = 'dominio-org';
 $r = search( 'sinorg' );
 check( ! preg_grep( '/\.org$/', last_list() ) && ! preg_grep( '/\.org$/', array_column( $r['rows'], 'domain' ) ), 'F6 .org sin producto: no se consulta ni aparece' );
 $r = search( 'sinorg2.org' );
 check( ! preg_grep( '/\.org$/', last_list() ) && 'sinorg2.com' === $r['main']['domain'] && false !== strpos( $r['notice'], 'no vendemos dominios .org' ), 'F6 escrita sin producto (sinorg2.org): aviso, el principal es .com y .org no se consulta' );
-update_option( 'digitalisimo_hosting_options', array( 'domain_products' => ".com|20\n.mx|21\n.net|22" ) + get_option( 'digitalisimo_hosting_options' ) );
-Digitalisimo_Hosting_Products::flush();
+unset( $GLOBALS['products'][23] ); Digitalisimo_Hosting_Products::flush();
 
 // ── F7. Caché corta (compartida con el carrito) ───────────────────────────────────────────────────────────────
 $before = nc_checks();
@@ -191,16 +189,12 @@ check( true === $F::permission( new Digi_Test_Request( array( 'q' => 'x', 'nonce
 check( is_wp_error( $F::permission( new Digi_Test_Request( array( 'q' => 'x' ), array( 'x-digitalisimo-finder' => '1', 'origin' => 'https://otro-sitio.test' ) ) ) ), 'F9 la cabecera desde otro sitio, no' );
 
 // ── F10. Tope de extensiones por consulta ─────────────────────────────────────────────────────────────────────
-$lines = ".com|20\n.mx|21\n.net|22";
-foreach ( array( 'lat', 'org', 'info', 'biz', 'xyz', 'online', 'site', 'store', 'tech', 'app', 'dev', 'shop', 'club', 'io' ) as $i => $t ) { digi_product( 100 + $i, 'Dominio .' . $t, 400 ); $lines .= "\n." . $t . '|' . ( 100 + $i ); }
-update_option( 'digitalisimo_hosting_options', array( 'domain_products' => $lines ) + get_option( 'digitalisimo_hosting_options' ) );
-Digitalisimo_Hosting_Products::flush();
+foreach ( array( 'lat', 'org', 'info', 'biz', 'xyz', 'online', 'site', 'store', 'tech', 'app', 'dev', 'shop', 'club', 'io' ) as $i => $t ) { digi_product( 100 + $i, 'Dominio .' . $t, 400 ); digi_domain( 100 + $i, '.' . $t ); }
 $r = search( 'muchas' );
 check( $F::MAX_EXTS + 2 === count( last_list() ) && $F::MAX_EXTS === 1 + count( $r['rows'] ), 'F10 17 extensiones con producto: se consultan ' . $F::MAX_EXTS . ' (' . count( last_list() ) . ')' );
 $r = search( 'muchas2.io' );
 check( in_array( 'muchas2.io', last_list(), true ) && 'muchas2.io' === $r['main']['domain'] && $F::MAX_EXTS + 2 === count( last_list() ), 'F10 la escrita entra aunque quede después del tope' );
-update_option( 'digitalisimo_hosting_options', array( 'domain_products' => ".com|20\n.mx|21\n.net|22" ) + get_option( 'digitalisimo_hosting_options' ) );
-Digitalisimo_Hosting_Products::flush();
+foreach ( range( 100, 113 ) as $id ) update_post_meta( $id, '_digitalisimo_hosting_type', 'none' );
 
 // ── F11. Nada de la cuenta de Namecheap ───────────────────────────────────────────────────────────────────────
 $json = json_encode( $F::rest( new Digi_Test_Request( array( 'q' => 'cuenta' ) ) ) );
@@ -311,9 +305,10 @@ if ( is_dir( $core . '/vendor_prefixed/twig/twig/twig/src' ) ) {
 }
 
 // ── F18. Ajustes ──────────────────────────────────────────────────────────────────────────────────────────────
-$saved = Digitalisimo_Hosting::mcp_update( array( 'finder_order' => '.mx, .com', 'finder_upsell_ids' => '14696, abc, 14696, 0', 'finder_requirements' => ".mx|Requisito: datos reales" ) );
+$saved = Digitalisimo_Hosting::mcp_update( array( 'finder_order' => array( '.mx', '.com' ), 'finder_upsell' => array( 14696, 14696 ), 'finder_requirements' => array( '.mx' => 'Requisito: datos reales' ) ) );
 $o = get_option( 'digitalisimo_hosting_options' );
-check( ! is_wp_error( $saved ) && '14696' === $o['finder_upsell_ids'] && '.mx, .com' === $o['finder_order'], 'F18 orden, avisos y «se compran juntos» se guardan limpios (también por MCP) · ' . json_encode( is_wp_error( $saved ) ? $saved->message : $o['finder_upsell_ids'] ) );
+check( ! is_wp_error( $saved ) && array( 14696 ) === $o['finder_upsell'] && array( '.mx', '.com' ) === $o['finder_order'] && 'Requisito: datos reales' === $o['finder_requirements']['.mx'], 'F18 orden, avisos y «se compran juntos» se guardan limpios (también por MCP) · ' . json_encode( is_wp_error( $saved ) ? $saved->message : $o['finder_upsell'] ) );
+check( is_wp_error( Digitalisimo_Hosting::mcp_update( array( 'finder_order' => '.mx, .com' ) ) ) && is_wp_error( Digitalisimo_Hosting::mcp_update( array( 'finder_upsell' => array( 20 ) ) ) ), 'F18 por MCP no se acepta el texto viejo ni un producto que no es de hosting' );
 $r = search( 'ajustes' );
 check( 'ajustes.com' === $r['main']['domain'] && 'ajustes.mx' === $r['rows'][0]['domain'] && 'Requisito: datos reales' === $r['rows'][0]['requirement'] && array( 14696 ) === array_column( $r['together'], 'id' ), 'F18 el buscador usa el orden, el aviso y los planes elegidos' );
 
@@ -381,9 +376,8 @@ $r = search( 'sinprecio' );
 check( ! preg_grep( '/\.net$/', last_list() ) && ! preg_grep( '/\.net$/', array_column( $r['rows'], 'domain' ) ), 'F22 un producto sin precio no aparece ni se consulta' );
 $GLOBALS['products'][22]->price = 280;
 $saved22 = $GLOBALS['products'][22]; unset( $GLOBALS['products'][22] ); Digitalisimo_Hosting_Products::flush();
-$rep = Digitalisimo_Hosting_Products::report( (string) get_option( 'digitalisimo_hosting_options' )['domain_products'] );
 $r = search( 'borrado' );
-check( ! isset( $rep['resolved']['.net'] ) && in_array( '.net', $rep['unresolved'], true ) && ! preg_grep( '/\.net$/', last_list() ), 'F22 un ID de «Productos por extensión» cuyo producto se borró ya no resuelve la extensión' );
+check( ! isset( Digitalisimo_Hosting_Products::map()['.net'] ) && ! preg_grep( '/\.net$/', last_list() ), 'F22 un producto de dominio borrado ya no vende su extensión' );
 $GLOBALS['products'][22] = $saved22; Digitalisimo_Hosting_Products::flush();
 
 // ── F23. Todo ocupado: variantes del nombre en el mismo lote ──────────────────────────────────────────────────

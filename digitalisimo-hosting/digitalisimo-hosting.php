@@ -16,6 +16,9 @@ require_once __DIR__ . '/includes/class-digitalisimo-notices.php';
 require_once __DIR__ . '/includes/class-digitalisimo-core.php';
 require_once __DIR__ . '/includes/class-hosting.php';
 require_once __DIR__ . '/includes/class-hosting-products.php';
+// Las listas de los desplegables (extensiones de los registradores, paquetes de Webuzo) y el editor de producto.
+require_once __DIR__ . '/includes/class-hosting-lists.php';
+require_once __DIR__ . '/includes/class-hosting-product-editor.php';
 require_once __DIR__ . '/includes/class-hosting-checkout.php';
 require_once __DIR__ . '/includes/class-hosting-webuzo.php';
 require_once __DIR__ . '/includes/class-hosting-namecheap.php';

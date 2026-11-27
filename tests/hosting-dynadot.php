@@ -38,7 +38,7 @@ function store( array $extra = array() ) {
 	digi_servers_reset(); dd_reset();
 	$GLOBALS['mails'] = array(); $GLOBALS['queue'] = array(); $GLOBALS['transients'] = array();
 	delete_option( Digitalisimo_Hosting_Webuzo::BLOCK ); delete_option( Digitalisimo_Hosting_Provisioning::WAITING );
-	digi_store_settings( $extra + array( 'dynadot_api_key' => DD_KEY, 'registrar_by_tld' => '.mx|dynadot', 'domain_products' => ".com|20\n.mx|21" ) );
+	digi_store_settings( $extra + array( 'dynadot_api_key' => DD_KEY, 'registrar_by_tld' => array( '.mx' => 'dynadot' ) ) );
 	Digitalisimo_Hosting_Products::flush();
 }
 function buy( $domain, $product = 21, $hosting = 14693 ) {
@@ -165,12 +165,12 @@ check( 'transient' === $m['kind'] && array() === $m['results'], 'D1 check_many s
 $GLOBALS['dd']['mode'] = '';
 
 // ── D2. Registrador por extensión ──────────────────────────────────────────────────────────────────────────────
-store( array( 'registrar_by_tld' => '' ) );
+store( array( 'registrar_by_tld' => array() ) );
 check( 'namecheap' === $R::default_id() && 'namecheap' === $R::id_for_ext( '.mx' ) && 'namecheap' === $R::id_for_domain( 'algo.com.mx' ), 'D2 de fábrica todo va con Namecheap' );
-store( array( 'registrar_by_tld' => ".MX | dynadot\n.com.mx|dynadot\nbasura\n.net|godaddy" ) );
+store( array( 'registrar_by_tld' => array( '.mx' => 'dynadot', '.com.mx' => 'dynadot' ) ) );
 check( 'dynadot' === $R::id_for_ext( 'mx' ) && 'namecheap' === $R::id_for_ext( '.com' ) && 'dynadot' === $R::id_for_domain( 'negocio.com.mx' ) && 'dynadot' === $R::id_for_domain( 'negocio.mx' ), 'D2 .mx y .com.mx con Dynadot; .com con el predeterminado' );
 check( array( 'basura', '.net|godaddy' ) === $R::parse( ".mx|dynadot\nbasura\n.net|godaddy" )['errors'] && ".mx|dynadot\n.com.mx|dynadot" === $R::normalize( ".MX | dynadot\n.com.mx|dynadot\nbasura\n.net|godaddy" ), 'D2 las líneas que no se entienden se señalan y no se guardan' );
-store( array( 'registrar' => 'dynadot', 'registrar_by_tld' => '.com|namecheap' ) );
+store( array( 'registrar' => 'dynadot', 'registrar_by_tld' => array( '.com' => 'namecheap' ) ) );
 check( 'dynadot' === $R::id_for_ext( '.mx' ) && 'namecheap' === $R::id_for_ext( '.com' ), 'D2 predeterminado Dynadot con .com de vuelta en Namecheap' );
 store();
 $GLOBALS['nc']['taken'] = array( 'ocupado.com' );
@@ -218,7 +218,7 @@ $GLOBALS['dd']['calls'] = array();
 buy( 'segunda.mx' );
 check( 0 === dd_count( 'add_ns' ) && 1 === dd_count( 'set_ns' ), 'D3 los nameservers que ya están en la cuenta no se vuelven a agregar' );
 // La renovación va con Dynadot aunque .mx ya vaya con Namecheap.
-$o2 = get_option( 'digitalisimo_hosting_options' ); $o2['registrar_by_tld'] = ''; update_option( 'digitalisimo_hosting_options', $o2 );
+$o2 = get_option( 'digitalisimo_hosting_options' ); $o2['registrar_by_tld'] = array(); update_option( 'digitalisimo_hosting_options', $o2 );
 $GLOBALS['dd']['calls'] = array(); $GLOBALS['nc']['calls'] = array();
 $expires = (int) $P::svc( $s, 'expires' );
 $P::daily( $expires - 29 * DAY_IN_SECONDS );
@@ -286,12 +286,12 @@ check( false === strpos( wp_json_encode( $res ), DD_KEY ), 'D5 la respuesta del 
 foreach ( $GLOBALS['http'] as $h ) if ( 0 === strpos( $h['url'], 'https://api.dynadot.com/' ) ) check( 0 === strpos( $h['url'], 'https://api.dynadot.com/api3.json?key=' ) && 0 === ( $h['args']['redirection'] ?? -1 ), 'D5 la clave sólo viaja a api.dynadot.com por HTTPS y sin redirecciones' );
 ob_start(); $H::page(); $html = ob_get_clean();
 check( false === strpos( $html, DD_KEY ) && preg_match( '#name="hosting\[dynadot_api_key\]" value="' . preg_quote( esc_attr( Digitalisimo_Hosting::MASK ), '#' ) . '"#', $html ), 'D5 la pantalla muestra la clave enmascarada, nunca la clave' );
-check( false !== strpos( $html, 'name="hosting[registrar]"' ) && false !== strpos( $html, 'name="hosting[registrar_by_tld]"' ) && false !== strpos( $html, 'Probar conexión con Dynadot' ), 'D5 la pantalla tiene el registrador predeterminado, el de cada extensión y «Probar conexión»' );
+check( false !== strpos( $html, 'name="hosting[registrar]"' ) && false !== strpos( $html, 'name="hosting[registrar_by_tld][.mx]"' ) && false !== strpos( $html, 'name="hosting[registrar_by_tld][.com]"' ) && false === strpos( $html, '<textarea' ) && false !== strpos( $html, 'Probar conexión con Dynadot' ), 'D5 la pantalla tiene el registrador predeterminado, el de cada extensión y «Probar conexión»' );
 // Guardar el formulario con la máscara conserva la clave; «Quitar la clave» la borra.
-$_POST = array( '_wpnonce' => 'n:digitalisimo_hosting_save', 'digitalisimo_hosting_save' => 1, 'hosting' => array( 'dynadot_api_key' => Digitalisimo_Hosting::MASK, 'registrar' => 'godaddy', 'registrar_by_tld' => ".mx|dynadot\nbasura" ) );
+$_POST = array( '_wpnonce' => 'n:digitalisimo_hosting_save', 'digitalisimo_hosting_save' => 1, 'hosting' => array( 'dynadot_api_key' => Digitalisimo_Hosting::MASK, 'registrar' => 'godaddy', 'registrar_by_tld' => array( '.mx' => 'dynadot', '.com' => '', 'no válida' => 'dynadot', '.net' => 'godaddy' ) ) );
 ob_start(); $H::page(); ob_end_clean();
 $saved = get_option( 'digitalisimo_hosting_options' );
-check( DD_KEY === $saved['dynadot_api_key'] && ! isset( $saved['registrar'] ) && 'namecheap' === $H::settings()['registrar'] && '.mx|dynadot' === $saved['registrar_by_tld'], 'D5 formulario: la máscara conserva la clave; un registrador desconocido y una línea rota no se guardan' );
+check( DD_KEY === $saved['dynadot_api_key'] && ! isset( $saved['registrar'] ) && 'namecheap' === $H::settings()['registrar'] && array( '.mx' => 'dynadot' ) === $saved['registrar_by_tld'], 'D5 formulario: la máscara conserva la clave; un registrador desconocido y una línea rota no se guardan' );
 $_POST = array( '_wpnonce' => 'n:digitalisimo_hosting_save', 'digitalisimo_hosting_save' => 1, 'hosting' => array( 'dynadot_api_key' => '', 'dynadot_api_key_remove' => 1 ) );
 ob_start(); $H::page(); ob_end_clean();
 check( '' === get_option( 'digitalisimo_hosting_options' )['dynadot_api_key'], 'D5 «Quitar la clave» la borra' );
@@ -329,12 +329,12 @@ check( 0 === $H::test_result( 'dynadot' )['ok'] && 0 === dd_count(), 'D6 sin cla
 // ── D7. Herramienta MCP de ajustes ────────────────────────────────────────────────────────────────────────────
 store();
 $g = $H::mcp_settings();
-check( 'namecheap' === $g['settings']['registrar'] && '.mx|dynadot' === $g['settings']['registrar_by_tld'] && in_array( 'registrar', $g['writable'], true ) && in_array( 'registrar_by_tld', $g['writable'], true ) && in_array( 'dynadot_api_key', $g['read_only'], true ), 'D7 get: registrador predeterminado y por extensión (escribibles); la clave de Dynadot, de sólo lectura' );
+check( 'namecheap' === $g['settings']['registrar'] && 'dynadot' === $g['settings']['registrar_by_tld']->{'.mx'} && false === strpos( json_encode( $g ), '|' ) && in_array( 'registrar', $g['writable'], true ) && in_array( 'registrar_by_tld', $g['writable'], true ) && in_array( 'dynadot_api_key', $g['read_only'], true ), 'D7 get: registrador predeterminado y por extensión (escribibles); la clave de Dynadot, de sólo lectura' );
 check( 'dynadot' === $g['registrars']['effective']->{'.mx'} && 'namecheap' === $g['registrars']['effective']->{'.com'} && true === $g['registrars']['configured']['dynadot'] && array( 'namecheap', 'dynadot' ) === $g['registrars']['available'], 'D7 get: qué registrador atiende cada extensión que se vende y cuáles tienen cuenta' );
-$u = $H::mcp_update( array( 'registrar' => 'dynadot', 'registrar_by_tld' => ".com|namecheap\n.mx|dynadot" ) );
+$u = $H::mcp_update( array( 'registrar' => 'dynadot', 'registrar_by_tld' => array( '.com' => 'namecheap', '.mx' => 'dynadot' ) ) );
 check( ! is_wp_error( $u ) && array( 'registrar', 'registrar_by_tld' ) === $u['changed'] && 'dynadot' === get_option( 'digitalisimo_hosting_options' )['registrar'] && 'namecheap' === $R::id_for_ext( '.com' ), 'D7 update cambia el predeterminado y el de cada extensión' );
 $snap = serialize( get_option( 'digitalisimo_hosting_options' ) );
-foreach ( array( array( 'registrar' => 'godaddy' ), array( 'registrar' => array( 'dynadot' ) ), array( 'registrar_by_tld' => ".mx|dynadot\n.net|godaddy" ), array( 'registrar_by_tld' => array() ), array( 'dynadot_api_key' => 'ROBADA' ), array( 'registrar' => 'dynadot', 'dynadot_api_key' => 'ROBADA' ) ) as $bad ) {
+foreach ( array( array( 'registrar' => 'godaddy' ), array( 'registrar' => array( 'dynadot' ) ), array( 'registrar_by_tld' => ".mx|dynadot" ), array( 'registrar_by_tld' => array( '.net' => 'godaddy' ) ), array( 'registrar_by_tld' => array( 'no válida' => 'dynadot' ) ), array( 'dynadot_api_key' => 'ROBADA' ), array( 'registrar' => 'dynadot', 'dynadot_api_key' => 'ROBADA' ) ) as $bad ) {
 	$e = $H::mcp_update( $bad );
 	check( is_wp_error( $e ) && serialize( get_option( 'digitalisimo_hosting_options' ) ) === $snap, 'D7 no se guarda nada con ' . json_encode( $bad ) . ' · ' . ( is_wp_error( $e ) ? $e->code : 'sin error' ) );
 }

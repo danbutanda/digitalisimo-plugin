@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  * se reintenta; auth (clave o IP rechazadas) se trata como configuración; lo demás deja el pedido en espera con aviso.
  *
  * Qué registrador atiende cada dominio (Digitalisimo_Hosting_Registrars): el «Registrador predeterminado» de los ajustes
- * de Hosting y, opcional, uno distinto por extensión («Registrador por extensión»: `.mx|dynadot`). Un dominio ya
+ * de Hosting y, opcional, uno distinto por extensión («Registrador por extensión»: una fila por extensión). Un dominio ya
  * registrado o en transferencia se queda con el registrador que lo tiene (meta `registrar` del servicio y del estado del
  * pedido): cambiar los ajustes nunca manda su renovación a otra cuenta. Un servicio anterior a esta versión es de
  * Namecheap (el único registrador que existía).
@@ -83,8 +83,8 @@ class Digitalisimo_Hosting_Registrars {
 	}
 
 	/**
-	 * «Registrador por extensión»: una línea por extensión, `.mx|dynadot`. Devuelve array( map => ext => id, errors => líneas
-	 * que no se entienden ). Una extensión repetida: manda la última.
+	 * El formato viejo de «Registrador por extensión» (`.mx|dynadot`, una línea por extensión), sólo para la migración.
+	 * Devuelve array( map => ext => id, errors => líneas que no se entienden ). Una extensión repetida: manda la última.
 	 */
 	public static function parse( $raw ) {
 		$map = array(); $errors = array();
@@ -107,10 +107,15 @@ class Digitalisimo_Hosting_Registrars {
 		return implode( "\n", $lines );
 	}
 
-	/** Extensión => registrador que la atiende cuando no es el predeterminado. */
+	/**
+	 * Extensión => registrador que la atiende cuando no es el predeterminado (una fila por extensión en los ajustes). El
+	 * texto viejo `.mx|dynadot` lo convirtió la migración; ya no se lee.
+	 */
 	public static function overrides( $o = null ) {
 		$o = null === $o ? Digitalisimo_Hosting::settings() : (array) $o;
-		return self::parse( (string) ( $o['registrar_by_tld'] ?? '' ) )['map'];
+		$map = array();
+		foreach ( is_array( $o['registrar_by_tld'] ?? null ) ? $o['registrar_by_tld'] : array() as $ext => $id ) { $ext = self::ext( $ext ); if ( '' !== $ext && self::valid( (string) $id ) ) $map[ $ext ] = (string) $id; }
+		return $map;
 	}
 
 	/** El registrador de una extensión («.mx», «mx», «.com.mx»). */
