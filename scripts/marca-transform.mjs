@@ -177,8 +177,27 @@ export function transformStr(s, rules) {
   // del sitio). Un medio `https://…/elementor-banner.jpg` sigue igual. Las rutas relativas (`/elementor/v1/…`) siguen
   // las reglas de siempre: el JS arma con ellas las rutas REST que el servidor acepta con los dos nombres.
   if (isAbsUrl(s)) return urlStr(s, rules);
-  if (parts.length === 1) return transformPlain(s, rules);
-  return parts.map((x) => (x.vendor ? x.text : transformPlain(x.text, rules))).join('');
+  if (parts.length === 1) return transformFields(s, rules);
+  return parts.map((x) => (x.vendor ? x.text : transformFields(x.text, rules))).join('');
+}
+
+/**
+ * Nombres de campos de formulario que lee el servidor (`name="elementor_cpt_support[]"`, opciones de «Ajustes del
+ * constructor»): no cambian en el HTML (B-5 de la revisión F2: `options.php` guardaría `null` en la opción) y tampoco en
+ * los selectores del JS que los buscan. La misma expresión que `Transform::FIELD` en PHP.
+ */
+export const FIELD_RE = /\bname=\\?["']?_?elementor_[a-z0-9_]*/gi;
+
+function transformFields(s, rules) {
+  if (!FIELD_RE.test(s)) return transformPlain(s, rules);
+  FIELD_RE.lastIndex = 0;
+  let out = '';
+  let last = 0;
+  for (const m of s.matchAll(FIELD_RE)) {
+    out += transformPlain(s.slice(last, m.index), rules) + m[0];
+    last = m.index + m[0].length;
+  }
+  return out + transformPlain(s.slice(last), rules);
 }
 
 /** Host del proveedor (los de `digitalisimo-vendor-free.php`): `elementor.com`, `go.elementor.com`, `x.elementor.red`… */

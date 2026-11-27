@@ -138,13 +138,33 @@ final class Transform {
 			return self::url_str( $s );
 		}
 		if ( 1 === count( $parts ) ) {
-			return self::plain( $s );
+			return self::fields( $s );
 		}
 		$out = '';
 		foreach ( $parts as $part ) {
-			$out .= $part[1] ? $part[0] : self::plain( $part[0] );
+			$out .= $part[1] ? $part[0] : self::fields( $part[0] );
 		}
 		return $out;
+	}
+
+	/**
+	 * Nombres de campos que lee el servidor (`name="elementor_cpt_support[]"`, opciones de «Ajustes del constructor»): no
+	 * cambian (B-5 de la revisión F2: `options.php` guardaría `null` en cada opción con otro nombre), tampoco en los
+	 * selectores del JS que los buscan. La misma expresión que FIELD_RE de scripts/marca-transform.mjs.
+	 */
+	const FIELD = '/\bname=\\\\?["\']?_?elementor_[a-z0-9_]*/i';
+
+	private static function fields( string $s ): string {
+		if ( false === stripos( $s, 'name=' ) || ! preg_match_all( self::FIELD, $s, $m, PREG_OFFSET_CAPTURE ) ) {
+			return self::plain( $s );
+		}
+		$out  = '';
+		$last = 0;
+		foreach ( $m[0] as $hit ) {
+			$out .= self::plain( substr( $s, $last, $hit[1] - $last ) ) . $hit[0];
+			$last = $hit[1] + strlen( $hit[0] );
+		}
+		return $out . self::plain( (string) substr( $s, $last ) );
 	}
 
 	/** Hosts del proveedor en una URL o sueltos, con su ruta: la misma expresión que VENDOR_RE de scripts/marca-transform.mjs. */
@@ -749,8 +769,10 @@ final class Transform {
 					} elseif ( 0 === strpos( $lname, 'on' ) ) {
 						// Atributos de evento: JS (`CustomEvent( 'elementor/open-variables-manager' )`).
 						$inner = self::lex( $inner );
-					} elseif ( in_array( $lname, array( 'class', 'id', 'for', 'aria-controls', 'aria-labelledby', 'aria-describedby' ), true ) || ( 'name' === $lname && preg_match( '/^elementor[-_]/i', $inner ) ) ) {
+					} elseif ( in_array( $lname, array( 'class', 'id', 'for', 'aria-controls', 'aria-labelledby', 'aria-describedby' ), true ) || ( 'name' === $lname && preg_match( '/^elementor-/i', $inner ) ) ) {
 						// También `name="elementor-choose-{{ data.name }}"` de las plantillas del editor (el JS busca `dg-choose-…`).
+						// Un `name="elementor_x"` (con guion bajo) es un campo que relee el servidor (opciones de «Ajustes del
+						// constructor» en options.php): no cambia (B-5 de la revisión F2).
 						$inner = (string) preg_replace( '/elementor/i', self::P, $inner );
 					} elseif ( in_array( $lname, array( 'href', 'src' ), true ) ) {
 						$inner = self::url( $inner );

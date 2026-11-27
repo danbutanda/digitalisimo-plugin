@@ -38,16 +38,26 @@ final class Admin_Urls {
 
 	/**
 	 * `?action=digitalisimo_<x>` → `elementor_<x>` cuando el motor atiende `admin_action_elementor_<x>` (por ejemplo
-	 * `elementor_new_post`) y no hay una acción propia con ese nombre. Corre al final de `admin_init`, con todas las
-	 * acciones ya registradas y antes de que admin.php las despache.
+	 * `elementor_new_post`), o en admin-post.php `admin_post_elementor_<x>`, y no hay una acción propia con ese nombre.
+	 * Corre al final de `admin_init`, con todas las acciones ya registradas y antes de que admin.php o admin-post.php las
+	 * despachen.
 	 */
 	public static function admin_action(): void {
 		$action = isset( $_REQUEST['action'] ) && is_string( $_REQUEST['action'] ) ? $_REQUEST['action'] : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput -- sólo se traduce el nombre; la acción verifica su nonce.
-		if ( 0 !== strpos( $action, 'digitalisimo_' ) || has_action( 'admin_action_' . $action ) ) {
+		// admin.php despacha `admin_action_<x>` y admin-post.php `admin_post_<x>` (y `admin_post_nopriv_<x>`): la capa del
+		// escritorio cambia el valor de `<input name="action">` en los formularios de los dos.
+		$prefixes = 'admin-post.php' === self::screen() ? array( 'admin_post_', 'admin_post_nopriv_' ) : array( 'admin_action_' );
+		if ( 0 !== strpos( $action, 'digitalisimo_' ) ) {
 			return;
 		}
 		$original = 'elementor_' . substr( $action, 13 );
-		if ( ! has_action( 'admin_action_' . $original ) ) {
+		$ours     = false;
+		$theirs   = false;
+		foreach ( $prefixes as $prefix ) {
+			$ours   = $ours || has_action( $prefix . $action );
+			$theirs = $theirs || has_action( $prefix . $original );
+		}
+		if ( $ours || ! $theirs ) {
 			return;
 		}
 		foreach ( array( '_GET', '_POST', '_REQUEST' ) as $global ) {

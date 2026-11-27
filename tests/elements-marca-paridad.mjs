@@ -102,7 +102,8 @@ echo json_encode( $out, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 
 // 4) Lo que da el JS: nada de «elementor» fuera de las URL y hosts del proveedor, ningún host `dg.com` (B-4) y las
 // clases como en el CSS.
-const noVendor = (t) => splitVendor(t).filter((x) => !x.vendor).map((x) => x.text).join(' ');
+// Fuera de lo que se conserva a propósito: URL y hosts del proveedor, y nombres de campos que relee el servidor (B-5).
+const noVendor = (t) => splitVendor(t).filter((x) => !x.vendor).map((x) => x.text).join(' ').replace(T.FIELD_RE || /$^/, ' ');
 for (const s of strings) {
   if (/^(?:https?:)?(?:\\?\/){2}/i.test(s) && !splitVendor(s).some((x) => x.vendor)) continue; // URL de otro sitio: igual que en PHP
   const out = transformStr(s, rules);

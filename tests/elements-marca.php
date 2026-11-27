@@ -75,6 +75,9 @@ namespace {
 	function did_action( $t ) {
 		return $GLOBALS['done'][ $t ] ?? 0;
 	}
+	function has_action( $t ) {
+		return ! empty( $GLOBALS['wp_filter'][ $t ] );
+	}
 	function is_admin() {
 		return $GLOBALS['is_admin'];
 	}
@@ -438,6 +441,20 @@ JS;
 	check( is_array( $res ) && array( 'post_type', 'digitalisimo_library' ) === $res['hidden'], 'M4 los formularios GET envían el alias', $res );
 	@unlink( $tmp . '/urls.js' );
 	@unlink( $tmp . '/harness.js' );
+
+	// B-5: el valor de `<input name="action">` con alias también en admin-post.php (admin_post_elementor_<x>).
+	add_action( 'admin_post_elementor_ensayo', 'hook_addon_widgets' );
+	$GLOBALS['pagenow'] = 'admin-post.php';
+	$_GET               = array();
+	$_POST              = array( 'action' => 'digitalisimo_ensayo' );
+	$_REQUEST           = $_POST;
+	Admin_Urls::admin_action();
+	check( 'elementor_ensayo' === $_POST['action'] && 'elementor_ensayo' === $_REQUEST['action'], 'M4 (B-5) action=digitalisimo_<x> llega a admin_post_elementor_<x>' );
+	$_POST    = array( 'action' => 'digitalisimo_otra' );
+	$_REQUEST = $_POST;
+	Admin_Urls::admin_action();
+	check( 'digitalisimo_otra' === $_POST['action'], 'M4 (B-5) sin acción del motor con ese nombre, no se toca' );
+	$GLOBALS['pagenow'] = 'index.php';
 
 	// M5 -----------------------------------------------------------------------------------------------------------------
 	$id = 'Digitalisimo_Elements_Identity';

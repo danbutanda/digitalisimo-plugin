@@ -238,6 +238,34 @@ namespace {
 	check( 'digitalisimo_elements_global_weight_scan' === Front_Layer::ajax_args( array( 'action' => 'digitalisimo_elements_global_weight_scan' ) )['action'] && 'digitalisimo_x' === Front_Layer::ajax_args( array( 'action' => 'digitalisimo_x' ) )['action'], 'F5 las acciones propias no se tocan' );
 	Transform::set_rules( null );
 
+	// B-5 de la revisión: «Ajustes del constructor» por la capa del escritorio y guardado como options.php (cada opción
+	// de la lista blanca toma lo enviado con SU nombre, o null): ninguna se pierde.
+	$form = '<form method="post" action="options.php"><input type="hidden" name="option_page" value="elementor"><input type="hidden" name="_elementor_settings_update_time" value="1">'
+		. '<input type="checkbox" name="elementor_cpt_support[]" value="post" checked><input type="checkbox" name="elementor_cpt_support[]" value="page" checked>'
+		. '<select name="elementor_css_print_method"><option value="external" selected>x</option></select><input type="checkbox" name="elementor_unfiltered_files_upload" value="1" checked>'
+		. '<input type="checkbox" name="elementor_exclude_user_roles[]" value="editor" checked><div class="elementor-settings-form-page" id="elementor-settings-tab-general"></div></form>';
+	$out  = Transform::html( $form );
+	preg_match_all( '/<(?:input|select)\b[^>]*>/', $out, $tags );
+	$post = array();
+	foreach ( $tags[0] as $tag ) {
+		if ( ! preg_match( '/\bname="([^"\[]+)(\[\])?"/', $tag, $f ) ) {
+			continue;
+		}
+		$v = preg_match( '/\bvalue="([^"]*)"/', $tag, $vm ) ? $vm[1] : 'x';
+		if ( ! empty( $f[2] ) ) {
+			$post[ $f[1] ][] = $v;
+		} else {
+			$post[ $f[1] ] = $v;
+		}
+	}
+	$saved = array();
+	foreach ( array( 'elementor_cpt_support', 'elementor_css_print_method', 'elementor_unfiltered_files_upload', 'elementor_exclude_user_roles' ) as $option ) {
+		$saved[ $option ] = isset( $post[ $option ] ) ? $post[ $option ] : null; // Lo que hace options.php.
+	}
+	check( ! in_array( null, $saved, true ) && 'elementor' === ( $post['option_page'] ?? '' ) && isset( $post['_elementor_settings_update_time'] ), 'B-5 guardar «Ajustes del constructor» con la capa no deja ninguna opción en null', array( $saved, $out ) );
+	check( false !== strpos( $out, 'class="dg-settings-form-page"' ) && false !== strpos( $out, 'id="dg-settings-tab-general"' ), 'B-5 las clases e id del formulario sí cambian' );
+	check( 'input[name="elementor_exclude_user_roles[]"]' === Transform::str( 'input[name="elementor_exclude_user_roles[]"]' ), 'B-5 el selector del JS que busca el campo tampoco cambia (como el JS del paquete)' );
+
 	exec( 'rm -rf ' . escapeshellarg( $tmp ) );
 	echo "\n$GLOBALS[fails] fallos de $GLOBALS[checks] comprobaciones\n";
 	exit( $GLOBALS['fails'] ? 1 : 0 );
