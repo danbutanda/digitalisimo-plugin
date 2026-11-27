@@ -137,13 +137,28 @@ check( $k && empty( WC()->cart->cart_contents[ $k ]['digitalisimo_epp'] ) && pre
 cart_reset();
 check( false === add_to_cart( 50, array( 'digitalisimo_domain' => 'ajeno.com', 'digitalisimo_epp' => 'a b' ), true ) && false !== strpos( $GLOBALS['notices'][0][1], 'no es válido' ), 'Un EPP con espacios o muy corto no entra' );
 check( false === add_to_cart( 50, array( 'digitalisimo_domain' => 'libre-del-todo.com', 'digitalisimo_epp' => $EPP ), true ) && false !== strpos( $GLOBALS['notices'][0][1], 'no está registrado' ), 'Un dominio libre no se transfiere (se registra)' );
-check( false === add_to_cart( 50, array( 'digitalisimo_domain' => 'nuestro.com', 'digitalisimo_epp' => $EPP ), true ) && false !== strpos( $GLOBALS['notices'][0][1], 'ya está con nosotros' ), 'Un dominio que ya está en nuestra cuenta no se transfiere' );
+check( false === add_to_cart( 50, array( 'digitalisimo_domain' => 'nuestro.com', 'digitalisimo_epp' => $EPP ), true ) && false !== strpos( $GLOBALS['notices'][0][1], 'no se puede transferir aquí' ) && false === strpos( $GLOBALS['notices'][0][1], 'nosotros' ), 'Un dominio que ya está en nuestra cuenta no se transfiere, con un texto que no lo revela' );
 $GLOBALS['nc']['no_transfer'] = array( 'mx' );
 check( false === add_to_cart( 50, array( 'digitalisimo_domain' => 'ajeno.mx', 'digitalisimo_epp' => $EPP ), true ) && false !== strpos( $GLOBALS['notices'][0][1], 'no se pueden transferir' ), 'Una extensión que Namecheap no transfiere por la API no entra' );
 check( digi_nc_count( 'namecheap.domains.getTldList' ) >= 1, 'La extensión transferible se consulta con namecheap.domains.getTldList' );
 cart_reset();
 add_to_cart( 50 );
 check( preg_grep( '/dominio que quieres transferir/', errors() ), 'Sin dominio no se paga la transferencia' );
+// «*» sólo vale para las extensiones configuradas (con producto de registro, con el que se renueva).
+$GLOBALS['nc']['taken'][] = 'ajeno.lat';
+cart_reset();
+check( false === add_to_cart( 50, array( 'digitalisimo_domain' => 'ajeno.lat', 'digitalisimo_epp' => $EPP ), true ) && false !== strpos( $GLOBALS['notices'][0][1], 'no se transfieren aquí' ), 'Transferencia «*» de una extensión sin producto de registro (.lat): no se vende' );
+// Freno de pérdida con el costo de transferencia de Namecheap.
+$GLOBALS['nc']['taken'][] = 'caro.com';
+$GLOBALS['nc']['price']['com'] = array( 'REGISTER' => 9.99, 'RENEW' => 9.99, 'TRANSFER' => 50, 'extra' => 0 );
+cart_reset();
+check( false === add_to_cart( 50, array( 'digitalisimo_domain' => 'caro.com', 'digitalisimo_epp' => $EPP ), true ) && false !== strpos( $GLOBALS['notices'][0][1], 'a este precio' ) && false === strpos( $GLOBALS['notices'][0][1], 'USD' ), 'Transferencia cuyo costo en Namecheap no deja el margen mínimo: no se vende (sin mostrar costos al visitante)' );
+check( preg_grep( '/TRANSFER/', array_map( function ( $c ) { return $c['fields']['ActionName'] ?? ''; }, $GLOBALS['nc']['calls'] ) ), 'Se consulta el costo de TRANSFER en Namecheap' );
+$GLOBALS['nc']['taken'][] = 'caro2.com';
+$GLOBALS['nc']['price']['com'] = array( 'REGISTER' => 60, 'RENEW' => 9.99, 'extra' => 0 );
+cart_reset();
+check( false === add_to_cart( 50, array( 'digitalisimo_domain' => 'caro2.com', 'digitalisimo_epp' => $EPP ), true ) && false !== strpos( $GLOBALS['notices'][0][1], 'a este precio' ), 'Sin costo de transferencia, se usa el de registro' );
+unset( $GLOBALS['nc']['price']['com'] );
 
 // ── 4. Store API ──────────────────────────────────────────────────────────────────────────────────────────────
 cart_reset();
@@ -220,6 +235,14 @@ check( 0 === (int) $P::svc( $sid, 'transfer_pending' ) && 1 === (int) $P::svc( $
 $o3 = digi_order( array( new Digi_Test_Item( 50, 'Transferencia', 1, array( 'Dominio' => 'ajeno.com' ) ), new Digi_Test_Item( 20, 'Dominio', 1, array( 'Dominio' => 'otro-nuevo.com' ) ) ) );
 $o3->update_status( 'processing' ); digi_run_queue();
 check( 'on-hold' === $o3->status && preg_grep( '/más de un dominio/', $o3->notes ), 'Una transferencia y un registro en el mismo pedido se entregan a mano' );
+$GLOBALS['nc']['price']['com'] = array( 'REGISTER' => 9.99, 'RENEW' => 9.99, 'TRANSFER' => 50, 'extra' => 0 );
+$o4 = digi_order( array( new Digi_Test_Item( 50, 'Transferencia de dominio', 1, array( 'Dominio' => 'ajeno.com' ) ) ) );
+$o4->update_status( 'processing' ); digi_run_queue();
+check( 'on-hold' === $o4->status && preg_grep( '/costo real de transferir ajeno\.com/', $o4->notes ) && ! preg_grep( '/por hacer a mano/', $o4->notes ), 'Aprovisionamiento: una transferencia cobrada por debajo de su costo queda en espera (freno de pérdida)' );
+unset( $GLOBALS['nc']['price']['com'] );
+$o5 = digi_order( array( new Digi_Test_Item( 50, 'Transferencia de dominio', 1, array( 'Dominio' => 'ajeno.lat' ) ) ) );
+$o5->update_status( 'processing' ); digi_run_queue();
+check( 'on-hold' === $o5->status && preg_grep( '/No hay producto de registro de \.lat/', $o5->notes ), 'Aprovisionamiento: sin producto de registro para renovar, la transferencia no se tramita' );
 
 // ── 7. El buscador ────────────────────────────────────────────────────────────────────────────────────────────
 $w = Digitalisimo_Hosting::legacy_shortcode();

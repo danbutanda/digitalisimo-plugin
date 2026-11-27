@@ -168,10 +168,12 @@ class Digitalisimo_Hosting_Checkout {
 			if ( ! self::registrable( $domain ) ) return '«' . $domain . '» no es un dominio válido. Escríbelo completo, por ejemplo minegocio.com.';
 			$ext = Digitalisimo_Hosting_Products::transfer_ext( $product_id );
 			if ( '*' !== $ext && self::ext_of( $domain ) !== $ext ) return 'El dominio ' . $domain . ' no es ' . $ext . ': «' . $name . '» transfiere dominios ' . $ext . '.';
+			// «*» = cualquiera de las configuradas: sólo una extensión con producto de registro, que es con el que se renueva.
+			if ( ! isset( Digitalisimo_Hosting::domain_products()[ self::ext_of( $domain ) ] ) ) return 'Los dominios ' . self::ext_of( $domain ) . ' no se transfieren aquí. Escríbenos y lo vemos contigo.';
 			$has_epp = ! empty( $data['digitalisimo_epp'] ) || ! empty( $data['digitalisimo_epp_raw'] );
 			if ( isset( $data['digitalisimo_epp_raw'] ) && ! preg_match( self::EPP_PATTERN, (string) $data['digitalisimo_epp_raw'] ) ) return 'El código de transferencia (EPP) no es válido: copia el código completo que te dio tu registrador actual (de 6 a 64 caracteres, sin espacios).';
 			if ( $final && ! $has_epp ) return 'Escribe el código de transferencia (EPP) de ' . $domain . '. Te lo da tu registrador actual al desbloquear el dominio.';
-			return self::transfer_error( $domain );
+			return self::transfer_error( $domain, $product_id );
 		}
 		// Con «Dominio nuevo» el campo de «Uno que ya tengo» se ignora: el dominio llega con su propio producto.
 		if ( 'hosting' === $kind && 'new' !== ( $data['digitalisimo_domain_mode'] ?? '' ) && ( '' !== $domain || 'own' === ( $data['digitalisimo_domain_mode'] ?? '' ) ) ) {
@@ -227,9 +229,13 @@ class Digitalisimo_Hosting_Checkout {
 		return '';
 	}
 
-	/** Transferencia: registrado, extensión transferible por la API y no está ya en nuestra cuenta. */
-	private static function transfer_error( $domain ) {
-		$key = 'digitalisimo_hosting_trf_' . md5( $domain );
+	/**
+	 * Transferencia: registrado, extensión transferible por la API, no está ya en nuestra cuenta y lo que cuesta el
+	 * producto deja el margen mínimo sobre el costo de transferencia de Namecheap (o el de registro si Namecheap no da el
+	 * de transferencia): el mismo freno de pérdida que el registro (Digitalisimo_Hosting_Pricing::guard()).
+	 */
+	private static function transfer_error( $domain, $product_id = 0 ) {
+		$key = 'digitalisimo_hosting_trf_' . md5( $domain . '|' . (int) $product_id );
 		$cached = get_transient( $key );
 		if ( is_string( $cached ) ) return $cached;
 		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
@@ -248,7 +254,20 @@ class Digitalisimo_Hosting_Checkout {
 		if ( '' === $error ) {
 			$info = $nc->info( $domain, self::TIMEOUT );
 			if ( 'ok' !== $info['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
-			if ( ! empty( $info['ours'] ) ) $error = 'El dominio ' . $domain . ' ya está con nosotros: no hace falta transferirlo.';
+			// Texto neutro: no se dice a nadie qué dominios están en nuestra cuenta.
+			if ( ! empty( $info['ours'] ) ) $error = 'El dominio ' . $domain . ' no se puede transferir aquí. Escríbenos y lo vemos contigo.';
+		}
+		if ( '' === $error && class_exists( 'Digitalisimo_Hosting_Pricing' ) ) {
+			$tld = ltrim( self::ext_of( $domain ), '.' );
+			$cost = $nc->price( $tld, 'TRANSFER', self::TIMEOUT );
+			if ( 'ok' !== $cost['kind'] ) $cost = $nc->price( $tld, 'REGISTER', self::TIMEOUT );
+			if ( 'ok' !== $cost['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
+			$product = function_exists( 'wc_get_product' ) ? wc_get_product( (int) $product_id ) : null;
+			$charged = ! $product ? 0.0 : ( function_exists( 'wc_get_price_excluding_tax' ) ? (float) wc_get_price_excluding_tax( $product ) : (float) $product->get_price() );
+			$guard = Digitalisimo_Hosting_Pricing::guard( $charged, (float) $cost['value'], 'transferir ' . $domain, function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : null );
+			if ( $guard && 'price' !== $guard['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
+			// El detalle (costos y margen) es para el administrador; al visitante, un texto neutro.
+			if ( $guard ) $error = 'Por ahora no podemos transferir ' . $domain . ' a este precio. Escríbenos y lo vemos contigo.';
 		}
 		set_transient( $key, $error, self::CHECK_TTL );
 		return $error;

@@ -734,6 +734,20 @@ class Digitalisimo_Hosting_Provisioning {
 
 	private static function step_domain( $order, array &$state, array $items, $domain, $service ) {
 		if ( ! empty( $items['transfers'] ) ) {
+			// Antes de dar la transferencia por buena: producto de registro para renovarla y el mismo freno de pérdida que el
+			// registro, con el costo de transferencia de Namecheap (o el de registro si no lo da).
+			if ( empty( $state['transfer_guarded'] ) ) {
+				$split = self::split( $domain ); $map = Digitalisimo_Hosting::domain_products();
+				if ( ! $split || ! isset( $map[ $split[2] ] ) ) return self::stop( 'data', 'No hay producto de registro de ' . ( $split ? $split[2] : $domain ) . ' con el que renovar el dominio transferido: no se tramita la transferencia de ' . $domain . '. Revísalo a mano.' );
+				$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+				if ( ! $nc->configured() ) return self::stop( 'config', 'Faltan los datos de la cuenta de Namecheap en Digitalisimo → Hosting.' );
+				$cost = $nc->price( $split[1], 'TRANSFER' );
+				if ( 'ok' !== $cost['kind'] ) $cost = $nc->price( $split[1], 'REGISTER' );
+				if ( 'ok' !== $cost['kind'] ) return self::stop( self::nc_kind( $cost ), $cost['message'] );
+				$guard = self::price_guard( $items['transfers'][0]['item'], $cost['value'], 'transferir ' . $domain, $order );
+				if ( $guard ) return $guard;
+				$state['transfer_guarded'] = time(); self::save_state( $order, $state );
+			}
 			// La transferencia se pide a mano en Namecheap con el código EPP («Ver código EPP» en el pedido): el código nunca
 			// va a notas ni correos. Ya pasó la revisión de dueño (check_owner), como un dominio propio.
 			if ( empty( $state['transfer_noted'] ) ) {

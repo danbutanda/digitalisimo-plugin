@@ -289,7 +289,7 @@ function digi_servers_reset() {
 /** Precio de Namecheap: un número (registro = renovación, cargo ICANN 0.18) o array( REGISTER, RENEW, extra ). */
 function digi_nc_price( $tld, $action ) {
 	$p = $GLOBALS['nc']['price'][ $tld ] ?? 9.99;
-	if ( is_array( $p ) ) return array( (float) $p[ $action ], (float) ( $p['extra'] ?? 0 ) );
+	if ( is_array( $p ) ) return array( (float) ( $p[ $action ] ?? 0 ), (float) ( $p['extra'] ?? 0 ) );
 	return array( (float) $p, 0.18 );
 }
 digi_servers_reset();

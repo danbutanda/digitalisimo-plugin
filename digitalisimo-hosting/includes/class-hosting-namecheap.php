@@ -82,8 +82,8 @@ class Digitalisimo_Hosting_Namecheap {
 	}
 
 	/** Lo que cobra Namecheap por un año de la extensión (YourPrice más el cargo ICANN, en USD). */
-	public function price( $tld, $action = 'REGISTER' ) {
-		$r = $this->call( 'namecheap.users.getPricing', array( 'ProductType' => 'DOMAIN', 'ActionName' => $action, 'ProductName' => ltrim( strtolower( $tld ), '.' ) ) );
+	public function price( $tld, $action = 'REGISTER', $timeout = 60 ) {
+		$r = $this->call( 'namecheap.users.getPricing', array( 'ProductType' => 'DOMAIN', 'ActionName' => $action, 'ProductName' => ltrim( strtolower( $tld ), '.' ) ), $timeout );
 		if ( 'ok' !== $r['kind'] ) return $r;
 		$best = null;
 		$name = ltrim( strtolower( $tld ), '.' );
