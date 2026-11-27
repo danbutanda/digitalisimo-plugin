@@ -88,3 +88,17 @@ En la fase 1 el interruptor gobierna sólo lo visible de la fase 1: los enlaces 
 ## Auditoría de cero rastro
 
 `tests/brand-zero-trace.mjs` (sin Playground: el paquete, los nombres de archivos que se pueden pedir por URL, el espejo y el MCP por PHP) y `tests/playground/brand-zero-trace.sh` (Playground con la marca propia encendida: front, escritorio, editor, MCP nuevo con lista de herramientas, recursos y respuestas, `/wp-json/` y URL directas) cuentan las apariciones de «elementor» por capa y fallan si encuentran una fuera de `excepciones_internas` de `reglas.json`. Mientras la fase 2 no esté hecha, fallan en el front, en los archivos del paquete y en el ZIP: el conteo dice cuánto falta.
+
+## Fase 2: paquete transformado (opción A de DECISIONES)
+
+Con `MARCA_PAQUETE=1`, `scripts/build-packages.sh` transforma una copia ya verificada con `scripts/marca-empaquetar.mjs`. La opción está apagada hasta la Fase 3.
+- `elementor/` pasa a `motor/`.
+- Lo no PHP con «elementor» se publica transformado y renombrado (`elementor` → `dg` en cada tramo de la ruta).
+- Los originales van a `marca/originales.php`, que empieza con `<?php exit;`, así que no se sirven.
+- El paquete lleva `marca/indice.php`, `marca/reglas.php` y `marca/arbol.php`, con la huella del árbol transformado.
+
+En el sitio (`modules/digitalisimo-marca/class-package.php`):
+- **Marca apagada o bloqueada:** los originales se despliegan una vez por versión en `uploads/digitalisimo-elements/base-<versión>/` y las URL del núcleo y de lo cambiado apuntan ahí.
+- **Marca encendida:** las URL salen con el nombre publicado y los originales desplegados se borran.
+
+Con el paquete transformado, la marca propia no se enciende hasta que se valide la capa del escritorio y del editor (D-12). Se puede probar con el filtro `digitalisimo_elements_marca_editor_ready`. Lo que el servidor lee para pintar (separadores, twig, guías del MCP, kit de ventas) se deja tal cual y la auditoría lo cuenta aparte.
