@@ -77,11 +77,14 @@ try {
   start('Compra pagada');
   const order1 = await buy(P.com, 'mitienda.com', P.starter);
   let s = await probe('state', { id: order1 });
-  check(s.order.status === 'on-hold' && !s.calls.length, 'Pagado con cheque, el pedido queda en espera y no se aprovisiona nada todavía', s.order.status);
+  // Desde 2026-11-26 el carrito comprueba la disponibilidad (namecheap.domains.check) antes de pagar: es la única llamada.
+  const spend = (list) => (list || []).filter((c) => !(c.api === 'namecheap' && c.cmd === 'namecheap.domains.check'));
+  check(s.order.status === 'on-hold' && !spend(s.calls).length, 'Pagado con cheque, el pedido queda en espera y no se aprovisiona nada todavía', s.order.status);
+  check(calls(s, 'namecheap', 'namecheap.domains.check').some((c) => c.fields.DomainList === 'mitienda.com'), 'El carrito comprobó en Namecheap que el dominio estaba libre antes de pagar');
   check(s.order.items.some((i) => i.domain === 'mitienda.com' && i.product === P.com), 'El dominio del carrito queda en el pedido (dato «Dominio»)', JSON.stringify(s.order.items));
   await probe('pay', { id: order1 });
   s = await probe('state', { id: order1 });
-  check(!s.calls.length, 'Marcarlo pagado no llama a ninguna API en esa petición (va a la cola)');
+  check(!spend(s.calls).length, 'Marcarlo pagado no llama a ninguna API en esa petición (va a la cola)');
   const run1 = await probe('run');
   check(run1.ran >= 1, 'Action Scheduler corre el aprovisionamiento', JSON.stringify(run1));
   s = await probe('state', { id: order1 });
