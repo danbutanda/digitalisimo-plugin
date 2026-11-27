@@ -197,11 +197,11 @@ final class Digitalisimo_AI_Usage_Admin {
 		echo '<p class="digitalisimo-usage-kicker">' . esc_html( $title ) . ' <span>(del ' . esc_html( self::date_text( $days['month'] ) ) . ' a hoy)</span></p>';
 		echo '<p class="digitalisimo-usage-big">' . esc_html( self::plain_usd( $month['cost_usd'] ) ) . '</p>';
 		if ( '' !== $mxn ) {
-			echo '<p class="digitalisimo-usage-big-mxn">unos ' . esc_html( $mxn ) . '</p>';
+			echo '<p class="digitalisimo-usage-big-mxn">' . esc_html( self::about( $mxn ) ) . '</p>';
 		}
-		$line = 'Hoy: <strong>' . esc_html( self::plain_usd( $today['cost_usd'] ) ) . '</strong>' . ( '' !== self::plain_mxn( $today['cost_usd'] ) ? ' (unos ' . esc_html( self::plain_mxn( $today['cost_usd'] ) ) . ')' : '' );
+		$line = 'Hoy: <strong>' . esc_html( self::plain_usd( $today['cost_usd'] ) ) . '</strong>' . ( '' !== self::plain_mxn( $today['cost_usd'] ) ? ' (' . esc_html( self::about( self::plain_mxn( $today['cost_usd'] ) ) ) . ')' : '' );
 		if ( is_array( $previous ) ) {
-			$line .= ' · El mes pasado: <strong>' . esc_html( self::plain_usd( $previous['cost_usd'] ) ) . '</strong>' . ( '' !== self::plain_mxn( $previous['cost_usd'] ) ? ' (unos ' . esc_html( self::plain_mxn( $previous['cost_usd'] ) ) . ')' : '' );
+			$line .= ' · El mes pasado: <strong>' . esc_html( self::plain_usd( $previous['cost_usd'] ) ) . '</strong>' . ( '' !== self::plain_mxn( $previous['cost_usd'] ) ? ' (' . esc_html( self::about( self::plain_mxn( $previous['cost_usd'] ) ) ) . ')' : '' );
 		}
 		echo '<p class="digitalisimo-usage-line">' . $line . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- partes escapadas arriba.
 		echo '<p class="description">' . ( $month['calls'] ? esc_html( self::num( $month['calls'] ) ) . ' consultas a la IA este mes' . ( $month['errors'] ? ' (' . esc_html( self::num( $month['errors'] ) ) . ' fallaron; las que fallan casi no cuestan)' : '' ) . '.' : 'Todavía no se ha usado la IA este mes.' ) . '</p>';
@@ -217,6 +217,11 @@ final class Digitalisimo_AI_Usage_Admin {
 	public static function plain_usd( $value ) {
 		$value = (float) $value;
 		return $value > 0 && $value < 0.005 ? 'menos de US$ 0.01' : 'US$ ' . number_format( $value, 2 );
+	}
+
+	/** «unos MX$ 12.30» (los pesos son aproximados), o «menos de MX$ 0.01» tal cual. */
+	private static function about( $mxn ) {
+		return 0 === strpos( $mxn, 'menos de' ) ? $mxn : 'unos ' . $mxn;
 	}
 
 	/** Lo mismo en pesos, o '' si el sitio no tiene tipo de cambio. */
@@ -446,7 +451,13 @@ final class Digitalisimo_AI_Usage_Admin {
 				return (float) ( $sites[ $b ]['range']['cost_usd'] ?? 0 ) <=> (float) ( $sites[ $a ]['range']['cost_usd'] ?? 0 );
 			}
 		);
-		echo '<table class="widefat striped digitalisimo-usage-sites"><thead><tr><th>Sitio</th><th>' . esc_html( $label ) . '</th>' . ( $pesos ? '<th>En pesos</th>' : '' ) . '<th>Este mes</th><th>Hoy</th><th>Tope del mes</th><th></th></tr></thead><tbody>';
+		$cols = array_diff( array( 'month' => 'Este mes', 'today' => 'Hoy' ), array( $label ) ); // Sin repetir el periodo elegido.
+		$keys = array_keys( $cols );
+		echo '<table class="widefat striped digitalisimo-usage-sites"><thead><tr><th>Sitio</th><th>' . esc_html( $label ) . '</th>' . ( $pesos ? '<th>En pesos</th>' : '' );
+		foreach ( $cols as $col ) {
+			echo '<th>' . esc_html( $col ) . '</th>';
+		}
+		echo '<th>Tope del mes</th><th></th></tr></thead><tbody>';
 		foreach ( $order as $blog_id ) {
 			$site  = $sites[ $blog_id ] ?? null;
 			$cap   = self::site_budget( $blog_id, $network );
@@ -455,9 +466,16 @@ final class Digitalisimo_AI_Usage_Admin {
 			$range = $site ? $site['range']['cost_usd'] : 0.0;
 			echo '<tr><td><strong>' . esc_html( self::site_name( $blog_id ) ) . '</strong>' . ( $site && $site['range']['unpriced'] ? '<br><span class="description">y ' . esc_html( self::num( $site['range']['unpriced'] ) ) . ' consultas sin precio</span>' : '' ) . '</td>';
 			echo '<td class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $range ) ) . '</td>' . ( $pesos ? '<td class="digitalisimo-usage-money">' . esc_html( self::plain_mxn( $range ) ) . '</td>' : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en la línea.
-			echo '<td class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $month ) ) . '</td><td class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $site ? $site['today']['cost_usd'] : 0 ) ) . '</td><td>' . esc_html( $note ) . '</td><td><a href="' . esc_url( get_admin_url( $blog_id, 'admin.php?page=' . self::PAGE . '&from=' . rawurlencode( $from ) . '&to=' . rawurlencode( $to ) ) ) . '">Ver en qué gastó</a></td></tr>';
+			foreach ( $keys as $key ) {
+				echo '<td class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $site ? $site[ $key ]['cost_usd'] : 0 ) ) . '</td>';
+			}
+			echo '<td>' . esc_html( $note ) . '</td><td><a href="' . esc_url( get_admin_url( $blog_id, 'admin.php?page=' . self::PAGE . '&from=' . rawurlencode( $from ) . '&to=' . rawurlencode( $to ) ) ) . '">Ver en qué gastó</a></td></tr>';
 		}
-		echo '</tbody><tfoot><tr><th>Toda la red</th><th class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $total['range']['cost_usd'] ) ) . '</th>' . ( $pesos ? '<th class="digitalisimo-usage-money">' . esc_html( self::plain_mxn( $total['range']['cost_usd'] ) ) . '</th>' : '' ) . '<th class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $total['month']['cost_usd'] ) ) . '</th><th class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $total['today']['cost_usd'] ) ) . '</th><th></th><th></th></tr></tfoot></table>';
+		echo '</tbody><tfoot><tr><th>Toda la red</th><th class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $total['range']['cost_usd'] ) ) . '</th>' . ( $pesos ? '<th class="digitalisimo-usage-money">' . esc_html( self::plain_mxn( $total['range']['cost_usd'] ) ) . '</th>' : '' );
+		foreach ( $keys as $key ) {
+			echo '<th class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $total[ $key ]['cost_usd'] ) ) . '</th>';
+		}
+		echo '<th></th><th></th></tr></tfoot></table>';
 		self::features( '¿En qué se gastó en toda la red? · ' . $label, Digitalisimo_AI_Usage_Store::network_breakdown( $ids, 'feature', $from, $to ), $total['range'] );
 		echo '<details class="digitalisimo-usage-detail"><summary>Detalle técnico: modelos, tokens y CSV</summary>';
 		echo '<h2>Por sitio</h2><table class="widefat striped"><thead><tr><th>Sitio</th><th>Hoy</th><th>7 días</th><th>Este mes</th><th>Rango</th><th>Llamadas (rango)</th><th>Tokens (rango)</th></tr></thead><tbody>';

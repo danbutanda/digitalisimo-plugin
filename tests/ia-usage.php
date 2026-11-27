@@ -441,6 +441,7 @@ $json = json_encode( $out );
 check( isset( $out['periods']['today'], $out['periods']['week'], $out['periods']['month'], $out['periods']['range'], $out['by_feature'], $out['by_model'], $out['budget'] ) && 'Chatbot público' === array_column( $out['by_feature'], 'label', 'feature' )['chatbot'], 'P: la Ability da totales por periodo, función y modelo' );
 foreach ( array( KEY_ANTHROPIC, KEY_OPENAI, KEY_GOOGLE, SECRET_PROMPT, SECRET_ANSWER ) as $secret ) check( false === strpos( $json, $secret ), 'P: la Ability no devuelve claves ni contenido' );
 check( in_array( 'digitalisimo-ia/usage', Digitalisimo_AI_Usage::server_tools( array() ), true ) || ! function_exists( 'wp_register_ability' ), 'P: la Ability se ofrece al MCP de Elements cuando existe la Abilities API' );
+check( false === strpos( $out['resumen'], 'MX$ 0.00' ) && false === strpos( $out['resumen'], 'unos menos' ), 'P: el resumen no dice «MX$ 0.00» ni «unos menos de»' );
 check( false !== strpos( $out['resumen'], 'Este mes' ) && false !== strpos( $out['resumen'], 'US$' ) && false !== strpos( $out['resumen'], 'MX$' ) && false !== strpos( $out['resumen'], 'Asistente IA US$' ), 'P: la Ability trae el gasto en una frase (para contestarle al dueño desde el MCP)' );
 ob_start(); Digitalisimo_AI_Usage_Admin::page(); $html = ob_get_clean();
 check( false !== strpos( $html, 'Uso de IA' ) && false !== strpos( $html, 'Por función' ) && false !== strpos( $html, 'Llamadas más caras' ) && false !== strpos( $html, 'MX$' ) && false !== strpos( $html, 'digitalisimo-usage-chart' ) && false === strpos( $html, KEY_ANTHROPIC ), 'P: la pantalla pinta totales, gráfica, desgloses y MXN, sin claves' );
@@ -448,7 +449,7 @@ check( false !== strpos( $html, 'Uso de IA' ) && false !== strpos( $html, 'Por f
 $tech = strpos( $html, 'Detalle técnico' );
 check( false !== strpos( $html, 'Gastado este mes' ) && false !== strpos( $html, 'Hoy: <strong>' ) && false !== strpos( $html, '¿En qué se gastó? · Este mes' ) && false !== strpos( $html, 'El chat del escritorio que te ayuda' ) && false !== strpos( $html, 'Aprendizaje del sitio' ) && false !== strpos( $html, 'Imágenes' ), 'P: la pantalla dice lo gastado y en qué, en palabras' );
 check( false !== $tech && strpos( $html, 'Caché leída' ) > $tech && strpos( $html, 'Por modelo' ) > $tech && strpos( $html, 'Gastado este mes' ) < $tech && false === strpos( substr( $html, 0, $tech ), 'tokens</th>' ), 'P: tokens y modelos sólo en «Detalle técnico»' );
-check( false !== strpos( $html, 'dólar a 18.50, el que escribiste en Ajustes' ), 'P: la pantalla dice de dónde salen los pesos' );
+check( false !== strpos( $html, 'dólar a 18.50, el que escribiste en Ajustes' ) && false === strpos( $html, 'unos menos' ), 'P: la pantalla dice de dónde salen los pesos (sin «unos menos de»)' );
 // Tipo de cambio: sin uno escrito, el último de Hosting (Banxico) de hasta 90 días; si no, sólo dólares.
 update_option( Digitalisimo_AI_Usage::SETTINGS, array() );
 check( 0.0 === Digitalisimo_AI_Usage::mxn_rate(), 'P: sin tipo de cambio, sólo dólares' );
@@ -559,6 +560,7 @@ $GLOBALS['network_admin'] = true; $_GET = array( 'from' => '2027-01-05', 'to' =>
 ob_start(); Digitalisimo_AI_Usage_Admin::network_page(); $nhtml = ob_get_clean();
 check( false !== strpos( $nhtml, 'US$ 3.00' ) && false !== strpos( $nhtml, 'Sitio 2' ) && false !== strpos( $nhtml, 'Toda la red por modelo' ), 'I: la red muestra el total de cada sitio y de toda la red' );
 $sites_at = strpos( $nhtml, '¿Cuánto gastó cada sitio?' );
+check( 1 === substr_count( substr( $nhtml, $sites_at, strpos( $nhtml, '</tr></thead>', $sites_at ) - $sites_at ), '<th>Hoy</th>' ), 'I: con el periodo «Hoy», la tabla por sitio no repite la columna Hoy' );
 check( false !== $sites_at && strpos( $nhtml, 'Sitio 2 · sitio2.test', $sites_at ) < strpos( $nhtml, 'Sitio 1 · sitio1.test', $sites_at ) && false !== strpos( $nhtml, '¿En qué se gastó en toda la red?' ) && false !== strpos( $nhtml, 'Creación de contenido' ), 'I: la red dice cuánto gastó cada sitio (de mayor a menor) y en qué' );
 $csv = Digitalisimo_AI_Usage_Admin::csv_rows( 'network', 'sites', '2027-01-05', '2027-01-05' );
 check( 3 === count( $csv ) && near( (float) $csv[1][6], 1.0 ) && near( (float) $csv[2][6], 2.0 ), 'I: CSV por sitio de la red' );

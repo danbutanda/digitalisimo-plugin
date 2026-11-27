@@ -753,9 +753,11 @@ final class Digitalisimo_AI_Usage {
 	public static function plain_summary( array $summary ) {
 		$rate  = (float) ( $summary['mxn_rate'] ?? 0 );
 		$money = function ( $usd ) use ( $rate ) {
-			$usd  = (float) $usd;
-			$text = $usd > 0 && $usd < 0.005 ? 'menos de US$ 0.01' : 'US$ ' . number_format( $usd, 2 );
-			return $text . ( $rate > 0 ? ' (unos MX$ ' . number_format( $usd * $rate, 2 ) . ')' : '' );
+			$usd = (float) $usd;
+			if ( $usd > 0 && $usd < 0.005 ) {
+				return 'menos de US$ 0.01';
+			}
+			return 'US$ ' . number_format( $usd, 2 ) . ( $rate > 0 && $usd * $rate >= 0.005 ? ' (unos MX$ ' . number_format( $usd * $rate, 2 ) . ')' : '' );
 		};
 		$p     = $summary['periods'];
 		$text  = 'Este mes (desde el ' . self::long_date( $p['month']['from'] ) . ') la IA de este sitio lleva ' . $money( $p['month']['cost_usd'] ) . ' en ' . number_format( (int) $p['month']['calls'] ) . ' consultas; hoy, ' . $money( $p['today']['cost_usd'] ) . '.';
@@ -780,7 +782,7 @@ final class Digitalisimo_AI_Usage {
 		if ( ! empty( $summary['budget']['enabled'] ) ) {
 			$text .= ' Tope del mes: ' . $money( $summary['budget']['cap_usd'] ) . ' (' . number_format( (float) $summary['budget']['percent'], 1 ) . ' % usado' . ( ! empty( $summary['budget']['paused'] ) ? ', funciones de IA en pausa' : '' ) . ').';
 		}
-		$text .= $rate > 0 ? ' Pesos al tipo de cambio ' . number_format( $rate, 4 ) . ', ' . $summary['mxn_source'] . '.' : ' Montos en dólares (el sitio no tiene tipo de cambio).';
+		$text .= $rate > 0 ? ' Pesos aproximados: dólar a ' . number_format( $rate, 2 ) . ', ' . $summary['mxn_source'] . '.' : ' Montos en dólares (el sitio no tiene tipo de cambio).';
 		return $text . ' Cifras estimadas con los precios publicados de cada proveedor.';
 	}
 
