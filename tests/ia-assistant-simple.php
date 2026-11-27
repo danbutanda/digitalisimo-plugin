@@ -36,6 +36,9 @@ $GLOBALS['options']['digitalisimo_ai_options'] = array(
 add_filter( 'digitalisimo_ai_assistant_limits', function () { return array( 'per_minute' => 0, 'per_day' => 0, 'concurrent' => 1 ); } );
 Digitalisimo_AI_Assistant::init();
 $T = 'Digitalisimo_AI_Assistant_Tools';
+// Con el código anterior (sin tabla ni tarjeta llana) la prueba falla en sus comprobaciones, no con un error de PHP.
+$kinds = function ( $name ) use ( $T ) { return method_exists( $T, 'action_kinds' ) ? $T::action_kinds( $name ) : null; };
+$build = function ( array $e, $in, $kind = 'destructive', $sim = null ) { return class_exists( 'Digitalisimo_AI_Assistant_Card' ) ? Digitalisimo_AI_Assistant_Card::build( $e, $in, $kind, $sim ) : array( 'text' => '', 'undo' => false, 'final' => '', 'ack' => false, 'ack_label' => '', 'warnings' => array(), 'details' => array() ); };
 
 /** Una entrada del catálogo con la forma de Tools::catalog(), desde una definición. */
 $entry = function ( $name, array $def ) {
@@ -67,10 +70,10 @@ foreach ( Hosting::TOOLS as $tool ) {
 $total = 0;
 foreach ( $with_actions as $name => list( $e, $writes ) ) {
 	$enum  = $e['schema']['properties']['action']['enum'];
-	$table = $T::action_kinds( $name );
+	$table = $kinds( $name );
 	check( is_array( $table ), "S1: {$name} tiene su tabla de acciones en el Asistente" );
-	check( array() === array_diff( $enum, array_keys( $table ) ), "S1: ninguna acción de {$name} queda sin clasificar en el Asistente: " . implode( ', ', array_diff( $enum, array_keys( $table ) ) ) );
-	check( array() === array_diff( array_keys( $table ), $enum ), "S1: la tabla de {$name} no inventa acciones: " . implode( ', ', array_diff( array_keys( $table ), $enum ) ) );
+	check( is_array( $table ) && array() === array_diff( $enum, array_keys( $table ) ), "S1: ninguna acción de {$name} queda sin clasificar en el Asistente: " . implode( ', ', array_diff( $enum, array_keys( (array) $table ) ) ) );
+	check( array() === array_diff( array_keys( (array) $table ), $enum ), "S1: la tabla de {$name} no inventa acciones: " . implode( ', ', array_diff( array_keys( (array) $table ), $enum ) ) );
 	foreach ( $enum as $action ) {
 		$kind = $T::kind( $e, array( 'action' => $action, 'per_page' => 50 ) );
 		if ( $writes( $action ) ) {
@@ -98,7 +101,7 @@ $reports_extra = $with_actions['digitalisimo-woo/reports'][0];
 $reports_extra['schema']['properties']['action']['enum'][] = 'purge_log';
 check( 'destructive' === $T::kind( $reports_extra, array( 'action' => 'purge_log' ) ), 'S1: una acción nueva que la tabla no conoce, aun en una herramienta de sólo lectura, pasa por la tarjeta' );
 // Fuera de los espacios de confianza, la tabla no se aplica (un plugin ajeno con el mismo nombre no gana lecturas).
-check( null === $T::action_kinds( 'otro/skydropx' ), 'S1: sin tabla para herramientas ajenas' );
+check( method_exists( $T, 'action_kinds' ) && null === $T::action_kinds( 'otro/skydropx' ), 'S1: sin tabla para herramientas ajenas' );
 
 // Las herramientas sin `action`: su anotación manda (leída de la definición real).
 foreach ( Sales::TOOLS as $tool ) {
@@ -134,6 +137,7 @@ $call   = function ( $name, array $input = array() ) { static $n = 0; return arr
 $GLOBALS['script'] = array(); $GLOBALS['model_calls'] = array(); $GLOBALS['ran'] = array();
 add_filter( 'digitalisimo_ai_assistant_pre_model', function ( $pre, $request ) { $GLOBALS['model_calls'][] = $request; return $GLOBALS['script'] ? array_shift( $GLOBALS['script'] ) : 'Listo.'; } );
 $can = function () { return current_user_can( 'edit_posts' ); };
+$real = function () { return array_values( array_filter( $GLOBALS['ran'], function ( $r ) { return empty( $r[1]['dry_run'] ); } ) ); };
 $register = function ( $name, array $def ) use ( $can ) {
 	$def['meta']['mcp'] = array( 'public' => true, 'type' => 'tool' );
 	wp_register_ability( $name, array( 'label' => $def['label'], 'category' => $def['category'], 'input_schema' => $def['input_schema'], 'permission_callback' => $can, 'execute_callback' => function ( $in ) use ( $name ) { $GLOBALS['ran'][] = array( $name, $in ); return array( 'ok' => true, 'action' => $in['action'] ?? '', 'data' => array( 'items' => array( array( 'name' => 'Bomba sin peso', 'missing' => array( 'weight' ) ) ), 'total' => 3 ) ); }, 'meta' => $def['meta'] ) );
@@ -146,47 +150,47 @@ $GLOBALS['script'] = array(
 	'Revisé Skydropx y tu carrito. 3 productos no tienen peso, así que Skydropx no puede cotizar su envío. ¿Les pongo el peso?',
 );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'revisa si el plugin skydropx esta funcionando bien y mi carrito funciona bien' ) ) ) );
-check( ! $of( $ev, 'confirm' ) && 4 === count( $GLOBALS['ran'] ), 'S1: el caso de punta a punta: las cuatro revisiones corren solas, sin ninguna tarjeta: ' . json_encode( array_map( function ( $e ) { return $e['type'] . ':' . ( $e['message']['kind'] ?? '' ) . ':' . ( $e['message']['status'] ?? '' ); }, $ev ) ) );
+check( ! $of( $ev, 'confirm' ) && 4 === count( $real() ) && 4 === count( $GLOBALS['ran'] ), 'S1: el caso de punta a punta: las cuatro revisiones corren solas, sin ninguna tarjeta: ' . json_encode( array_map( function ( $e ) { return $e['type'] . ':' . ( $e['message']['kind'] ?? '' ) . ':' . ( $e['message']['status'] ?? '' ); }, $ev ) ) );
 check( 4 === count( array_filter( $of( $ev, 'tool' ), function ( $t ) { return 'read' === $t['message']['kind'] && 'ok' === $t['message']['status']; } ) ), 'S1: y quedan como «Consulté…», listas' );
 
 /* ---------------- S2: la tarjeta en llano ---------------- */
 $GLOBALS['posts'][501] = new WP_Post( array( 'ID' => 501, 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Sample Page' ) );
 $GLOBALS['posts'][252] = new WP_Post( array( 'ID' => 252, 'post_type' => 'product', 'post_status' => 'publish', 'post_title' => 'Purificador AguaClara' ) );
 $seo_w  = array( 'name' => 'digitalisimo-seo/update-post-seo', 'label' => 'Cambiar los metadatos SEO de un contenido', 'schema' => array(), 'annotations' => array( 'readonly' => false, 'destructive' => false ) );
-$card   = Digitalisimo_AI_Assistant_Card::build( $seo_w, array( 'post_id' => 501, 'noindex' => true ), 'write' );
+$card   = $build( $seo_w, array( 'post_id' => 501, 'noindex' => true ), 'write' );
 check( 'Voy a ocultar de Google la página «Sample Page».' === $card['text'] && $card['undo'] && ! $card['ack'] && '' === $card['final'], 'S2: «Voy a ocultar de Google la página "Sample Page"», que se puede deshacer y sin casilla: ' . json_encode( $card, JSON_UNESCAPED_UNICODE ) );
-$card = Digitalisimo_AI_Assistant_Card::build( $seo_w, array( 'post_id' => 501, 'title' => 'Ferretería en Torreón', 'description' => 'Plomería y ferretería en Torreón con envío a todo México.' ), 'write' );
+$card = $build( $seo_w, array( 'post_id' => 501, 'title' => 'Ferretería en Torreón', 'description' => 'Plomería y ferretería en Torreón con envío a todo México.' ), 'write' );
 check( false !== strpos( $card['text'], 'el título que muestra Google a «Ferretería en Torreón»' ) && false !== strpos( $card['text'], 'la descripción que muestra Google a «Plomería' ), 'S2: título y descripción para Google, con sus textos: ' . $card['text'] );
-$card = Digitalisimo_AI_Assistant_Card::build( $products, array( 'action' => 'update', 'product_id' => 252, 'data' => array( 'sale_price' => '7500' ) ), 'write', array( 'ok' => true, 'dry_run' => true, 'would' => array( 'changes' => array( array( 'field' => 'sale_price', 'from' => '8000', 'to' => '7500' ) ) ) ) );
+$card = $build( $products, array( 'action' => 'update', 'product_id' => 252, 'data' => array( 'sale_price' => '7500' ) ), 'write', array( 'ok' => true, 'dry_run' => true, 'would' => array( 'changes' => array( array( 'field' => 'sale_price', 'from' => '8000', 'to' => '7500' ) ) ) ) );
 check( 'Voy a cambiar en el producto «Purificador AguaClara» el precio de oferta de $8,000 a $7,500.' === $card['text'] && ! $card['ack'], 'S2: el precio, con el de antes que dio la simulación: ' . $card['text'] );
 $items = array();
 for ( $i = 1; $i <= 12; $i++ ) $items[] = array( 'product_id' => $i, 'weight' => 2 );
-$card = Digitalisimo_AI_Assistant_Card::build( $sky, array( 'action' => 'update_products', 'items' => $items ), 'destructive' );
+$card = $build( $sky, array( 'action' => 'update_products', 'items' => $items ), 'destructive' );
 check( 'Voy a poner el peso a 12 productos para que Skydropx pueda cotizar su envío.' === $card['text'] && ! $card['ack'] && ! $card['undo'], 'S2: el peso de 12 productos para Skydropx, sin casilla y sin prometer deshacer: ' . $card['text'] );
-$card = Digitalisimo_AI_Assistant_Card::build( $products, array( 'action' => 'delete', 'product_id' => 252, 'force' => true ), 'destructive' );
+$card = $build( $products, array( 'action' => 'delete', 'product_id' => 252, 'force' => true ), 'destructive' );
 check( 'Voy a borrar el producto «Purificador AguaClara».' === $card['text'] && $card['ack'] && false !== strpos( $card['final'], 'para siempre' ), 'S2: borrar lleva la casilla y lo dice en una frase simple: ' . json_encode( $card, JSON_UNESCAPED_UNICODE ) );
 $orders = $entry( 'digitalisimo-woo/orders', Woo::definition( 'orders', 'read' ) );
-$card   = Digitalisimo_AI_Assistant_Card::build( $orders, array( 'action' => 'create', 'resource' => 'refund', 'order_id' => 1201, 'data' => array( 'amount' => '350' ), 'api_refund' => true ), 'destructive' );
+$card   = $build( $orders, array( 'action' => 'create', 'resource' => 'refund', 'order_id' => 1201, 'data' => array( 'amount' => '350' ), 'api_refund' => true ), 'destructive' );
 check( false !== strpos( $card['text'], 'reembolso de $350 en el pedido 1201' ) && $card['ack'] && false !== strpos( $card['final'], 'devuelve el dinero' ), 'S2: devolver dinero lleva la casilla: ' . json_encode( $card, JSON_UNESCAPED_UNICODE ) );
-$card = Digitalisimo_AI_Assistant_Card::build( $orders, array( 'action' => 'update', 'order_id' => 1201, 'data' => array( 'status' => 'completed' ) ), 'destructive' );
+$card = $build( $orders, array( 'action' => 'update', 'order_id' => 1201, 'data' => array( 'status' => 'completed' ) ), 'destructive' );
 check( 'Voy a marcar el pedido 1201 como «Completado».' === $card['text'] && ! $card['ack'] && false !== strpos( $card['final'], 'correo' ), 'S2: un pedido completado avisa del correo al cliente, sin casilla: ' . json_encode( $card, JSON_UNESCAPED_UNICODE ) );
 $settings = $entry( 'digitalisimo-woo/store-settings', Woo::definition( 'store-settings', 'read' ) );
-$card     = Digitalisimo_AI_Assistant_Card::build( $settings, array( 'action' => 'update', 'resource' => 'payment_gateway', 'gateway_id' => 'bacs', 'data' => array( 'enabled' => true ) ), 'destructive' );
+$card     = $build( $settings, array( 'action' => 'update', 'resource' => 'payment_gateway', 'gateway_id' => 'bacs', 'data' => array( 'enabled' => true ) ), 'destructive' );
 check( 'Voy a activar la forma de pago «Transferencia bancaria» en tu tienda.' === $card['text'] && ! $card['ack'], 'S2: activar una forma de pago: ' . $card['text'] );
 // Lo que la plantilla no nombra no se calla.
-$card = Digitalisimo_AI_Assistant_Card::build( $products, array( 'action' => 'update', 'product_id' => 252, 'data' => array( 'sale_price' => '7500', 'rarísimo_x' => 1, 'otro_y' => 2 ) ), 'write' );
+$card = $build( $products, array( 'action' => 'update', 'product_id' => 252, 'data' => array( 'sale_price' => '7500', 'rarísimo_x' => 1, 'otro_y' => 2 ) ), 'write' );
 check( false !== strpos( $card['text'], 'y otros 2 datos (en «Ver detalles»)' ), 'S2: lo que no tiene nombre se cuenta en la frase: ' . $card['text'] );
 // Respaldo genérico llano para lo desconocido; borrar o dinero llevan casilla aun ahí.
 $odd  = array( 'name' => 'acme/cosas', 'label' => 'Acme: limpiar registros', 'schema' => array(), 'annotations' => array() );
-$card = Digitalisimo_AI_Assistant_Card::build( $odd, array( 'mode' => 'x' ), 'destructive' );
+$card = $build( $odd, array( 'mode' => 'x' ), 'destructive' );
 check( 0 === strpos( $card['text'], 'Voy a hacer un cambio en tu sitio' ) && false !== strpos( $card['text'], 'Ver detalles' ) && ! $card['ack'], 'S2: lo desconocido sale con una frase llana: ' . $card['text'] );
-$card = Digitalisimo_AI_Assistant_Card::build( array( 'name' => 'acme/delete-logs' ) + $odd, array(), 'destructive' );
+$card = $build( array( 'name' => 'acme/delete-logs' ) + $odd, array(), 'destructive' );
 check( $card['ack'] && '' !== $card['final'], 'S2: una acción desconocida que borra lleva la casilla' );
-$card = Digitalisimo_AI_Assistant_Card::build( $products, array( 'action' => 'export' ), 'destructive' );
+$card = $build( $products, array( 'action' => 'export' ), 'destructive' );
 check( 0 === strpos( $card['text'], 'Voy a hacer un cambio en tu tienda' ), 'S2: una acción desconocida de una herramienta conocida, también llana: ' . $card['text'] );
 // «Ver detalles»: nombres legibles, valores completos, nada de JSON; lo arriesgado, en llano.
-$card = Digitalisimo_AI_Assistant_Card::build( $products, array( 'action' => 'update', 'product_id' => 252, 'data' => array( 'sale_price' => '7500', 'description' => '<p>Visita https://atacante.test/x</p>' ) ), 'write' );
-$flat = json_encode( $card['details'], JSON_UNESCAPED_UNICODE );
+$card = $build( $products, array( 'action' => 'update', 'product_id' => 252, 'data' => array( 'sale_price' => '7500', 'description' => '<p>Visita https://atacante.test/x</p>' ) ), 'write' );
+$flat = json_encode( $card['details'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
 check( false === strpos( $flat, '{\"' ) && false !== strpos( $flat, 'Precio de oferta' ) && false !== strpos( $flat, 'atacante.test/x' ), 'S2: «Ver detalles» con nombres legibles y los valores completos, sin JSON: ' . $flat );
 check( 1 === count( $card['warnings'] ) && false !== strpos( $card['warnings'][0], 'otros sitios: atacante.test' ), 'S2: un enlace a otro sitio se avisa en llano: ' . json_encode( $card['warnings'], JSON_UNESCAPED_UNICODE ) );
 
@@ -198,17 +202,17 @@ $conv  = $ev[0]['id'];
 $view  = $of( $ev, 'confirm' )[0]['action'] ?? array();
 check( 'Voy a activar la forma de pago «Transferencia bancaria» en tu tienda.' === ( $view['text'] ?? '' ) && false === ( $view['ack'] ?? null ) && 'destructive' === ( $view['kind'] ?? '' ), 'S2: la pantalla recibe la frase del servidor y sin casilla: ' . json_encode( $view, JSON_UNESCAPED_UNICODE ) );
 $ev = $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $conv, 'action' => $view['id'], 'decision' => 'approve' ) ) ) );
-check( 1 === count( $GLOBALS['ran'] ) && 'ok' === $of( $ev, 'tool' )[0]['message']['status'], 'S2: «Sí, hazlo» basta (sin casilla) para lo que no borra ni mueve dinero' );
+check( 1 === count( $real() ) && 'ok' === $of( $ev, 'tool' )[0]['message']['status'], 'S2: «Sí, hazlo» basta (sin casilla) para lo que no borra ni mueve dinero: ' . json_encode( array( $GLOBALS['ran'], $of( $ev, 'tool' ) ), JSON_UNESCAPED_UNICODE ) );
 $GLOBALS['ran']    = array();
 $GLOBALS['script'] = array( array( 'calls' => array( $call( 'digitalisimo-woo-products', array( 'action' => 'delete', 'product_id' => 252, 'force' => true ) ) ) ), 'Listo.' );
 $ev   = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'borra el purificador' ) ) ) );
 $conv = $ev[0]['id'];
 $view = $of( $ev, 'confirm' )[0]['action'] ?? array();
 $no   = Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $conv, 'action' => $view['id'], 'decision' => 'approve' ) ) );
-check( true === ( $view['ack'] ?? null ) && is_wp_error( $no ) && 'digitalisimo_assistant_explicit' === $no->get_error_code() && array() === $GLOBALS['ran'], 'S2: borrar exige la casilla también en el servidor' );
+check( true === ( $view['ack'] ?? null ) && is_wp_error( $no ) && 'digitalisimo_assistant_explicit' === $no->get_error_code() && array() === $real(), 'S2: borrar exige la casilla también en el servidor' );
 check( false === strpos( $no->get_error_message(), 'destructiva' ), 'S2: y lo dice en llano: ' . $no->get_error_message() );
 $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $conv, 'action' => $view['id'], 'decision' => 'approve', 'explicit' => true ) ) ) );
-check( 1 === count( $GLOBALS['ran'] ), 'S2: con la casilla, se hace' );
+check( 1 === count( $real() ), 'S2: con la casilla, se hace' );
 
 /* ---------------- S3: las instrucciones ---------------- */
 $sys = Digitalisimo_AI_Assistant::system_prompt();
@@ -240,7 +244,7 @@ foreach ( array( 'update-post-seo' => array( 'post_id' => 501, 'noindex' => true
 foreach ( array( 'elementor/publish-document', 'elementor/update-page-settings', 'elementor/build-composition', 'elementor/manage-elements', 'elementor/create-preview-link', 'elementor/manage-classes', 'elementor/manage-component', 'elementor/create-page', 'digitalisimo-sales/create-page', 'acme/raro' ) as $n ) $matrix[] = array( array( 'name' => $n, 'label' => 'Algo', 'schema' => array(), 'annotations' => array() ), array( 'post_id' => 501, 'operations' => array( array( 'action' => 'delete' ), array( 'action' => 'update' ) ), 'settings' => array( 'post_status' => 'publish' ) ) );
 $said = array();
 foreach ( $matrix as list( $e, $in ) ) {
-	$card = Digitalisimo_AI_Assistant_Card::build( $e, $in, 'destructive' );
+	$card = $build( $e, $in, 'destructive' );
 	$text = implode( ' | ', array_merge( array( $card['text'], $card['final'], $card['ack_label'] ), $card['warnings'] ) );
 	$said[] = $text;
 	check( ! preg_match( $bad, $text, $m ), 'S5: la tarjeta de ' . $e['name'] . ' · ' . ( $in['action'] ?? '' ) . ' no dice «' . ( $m[0] ?? '' ) . '»: ' . $text );
@@ -255,10 +259,12 @@ preg_match_all( "/'((?:[^'\\\\\n]|\\\\.)*)'/", $code, $strings );
 $visible = array_filter( $strings[1], function ( $s ) { return preg_match( '/\s/u', $s ) && ! preg_match( '/^(dga-|is-|application\/|text\/|[a-z-]+ [a-z-]+$)/', $s ) && ! preg_match( '/^[a-z0-9_.\-\s,:#()%]+$/', $s ); } );
 check( count( $visible ) >= 40, 'S5: se revisaron ' . count( $visible ) . ' textos de la pantalla' );
 foreach ( $visible as $s ) check( ! preg_match( $bad, $s, $m ), 'S5: la pantalla no dice «' . ( $m[0] ?? '' ) . '»: ' . $s );
-foreach ( array( 'Datos exactos que se usarán', 'Agrandar los datos', 'puede haberse aplicado igual', 'no tiene vuelta atrás: confírmalo', 'Entiendo que puede no tener vuelta atrás', 'Desplázate hasta el final de los datos', 'Revisa que sea exactamente lo que pediste' ) as $gone ) check( false === strpos( $ui, $gone ), "S5: la tarjeta ya no dice «{$gone}»" );
+foreach ( array( 'Datos exactos que se usarán', 'Agrandar los datos', 'puede haberse aplicado igual', 'no tiene vuelta atrás: confírmalo', 'Entiendo que puede no tener vuelta atrás', 'Desplázate hasta el final de los datos', 'Revisa que sea exactamente lo que pediste' ) as $gone ) check( false === strpos( $code, $gone ), "S5: la tarjeta ya no dice «{$gone}»" );
 foreach ( array( "'Sí, hazlo'", "'No'", "'Ver detalles'", "'Puedes deshacerlo después.'" ) as $piece ) check( false !== strpos( $ui, $piece ), "S5: la tarjeta trae {$piece}" );
 // c) Los textos fijos de la clase de la tarjeta.
-$src = (string) file_get_contents( dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant-card.php' );
+$card_file = dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant-card.php';
+check( is_file( $card_file ), 'S5: las plantillas de la tarjeta viven en el servidor' );
+$src = is_file( $card_file ) ? (string) file_get_contents( $card_file ) : '';
 $src = preg_replace( array( '#/\*.*?\*/#s', '#^\s*//.*$#m' ), '', $src );
 preg_match_all( "/'((?:[^'\\\\\n]|\\\\.)*)'/", $src, $lits );
 foreach ( array_filter( $lits[1], function ( $s ) { return preg_match( '/^(Voy|Sí|Se |Al |Va |Lleva|Tu |Tiene|Borra|Manda|Sólo|Lo |Puedes)/u', $s ); } ) as $s ) check( ! preg_match( $bad, $s, $m ), 'S5: la plantilla no dice «' . ( $m[0] ?? '' ) . '»: ' . $s );

@@ -438,12 +438,12 @@
 				h( 'dl', null, details.map( ( row, i ) => h( Fragment, { key: i }, h( 'dt', null, String( row[ 0 ] ) ), h( 'dd', null, String( row[ 1 ] ) ) ) ) ) ) : null );
 	}
 
-	/** Un paso del trabajo: qué se hizo y cómo salió, en llano (los datos de entrada quedan en la bitácora, no aquí). */
+	/** Un paso del trabajo: qué se hizo y cómo salió, en llano (los datos de entrada y de salida quedan en la bitácora; aquí sólo el motivo si algo no salió). */
 	function ToolChip( props ) {
 		const m = props.message;
 		return h( 'details', { className: 'dga-tool', 'data-status': m.status, 'data-kind': m.kind, 'data-ability': m.ability },
 			h( 'summary', null, h( Icon, { name: 'tools' } ), h( 'span', null, ( VERBS[ m.kind ] || 'Paso' ) + ': ' + ( m.label || 'una función de tu sitio' ) ), h( 'span', { className: 'dga-tool-state' }, STATES[ m.status ] || m.status ) ),
-			m.detail ? h( 'p', { className: 'dga-tool-detail' }, m.detail ) : null );
+			m.detail && 'ok' !== m.status ? h( 'p', { className: 'dga-tool-detail' }, m.detail ) : null );
 	}
 
 	/**

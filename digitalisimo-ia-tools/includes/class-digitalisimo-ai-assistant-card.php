@@ -86,8 +86,8 @@ final class Digitalisimo_AI_Assistant_Card {
 		// SEO.
 		'keywords'            => 'las palabras clave',
 		'canonical'           => 'la dirección principal',
-		'noindex'             => 'si sale en Google',
-		'nofollow'            => 'si Google sigue sus enlaces',
+		'noindex'             => 'si se oculta de Google',
+		'nofollow'            => 'si Google no sigue sus enlaces',
 		'social_title'        => 'el título al compartir en redes',
 		'social_description'  => 'la descripción al compartir en redes',
 		'breadcrumb_title'    => 'su nombre en la ruta de navegación',
@@ -116,6 +116,22 @@ final class Digitalisimo_AI_Assistant_Card {
 		'items'        => 'Productos',
 		'tracking'     => 'Rastreo',
 		'operations'   => 'Partes',
+	);
+
+	/** Qué hace cada acción, para «Ver detalles». */
+	const ACTION_NAMES = array(
+		'list'            => 'consultar',
+		'get'             => 'ver',
+		'create'          => 'crear',
+		'update'          => 'cambiar',
+		'delete'          => 'borrar',
+		'batch'           => 'varios a la vez',
+		'undo'            => 'deshacer',
+		'update_products' => 'poner peso y medidas',
+		'set_tracking'    => 'anotar el rastreo',
+		'resync'          => 'volver a mandar el pedido',
+		'mark'            => 'marcar',
+		'unmark'          => 'quitar la marca',
 	);
 
 	/** Estados de un pedido, como los ve el dueño. */
@@ -172,7 +188,7 @@ final class Digitalisimo_AI_Assistant_Card {
 		if ( '' === $text ) {
 			return '';
 		}
-		if ( ! preg_match( '/[.!?…»”)]$/u', $text ) ) {
+		if ( ! preg_match( '/[.!?…]$/u', $text ) ) {
 			$text .= '.';
 		}
 		return $text;
@@ -517,7 +533,7 @@ final class Digitalisimo_AI_Assistant_Card {
 		}
 		$other = count( array_diff( array_keys( $input ), $known ) );
 		return array(
-			'text' => 'Voy a ' . self::join( $parts ) . ( $other ? ' y ' . self::count_words( $other, 'otro dato', 'otros datos', '' ) . ' (en «Ver detalles»)' : '' ),
+			'text' => 'Voy a ' . self::join( $parts ) . ( $other ? ' y ' . self::others( $other ) . ' (en «Ver detalles»)' : '' ),
 			'undo' => true,
 		);
 	}
@@ -681,7 +697,7 @@ final class Digitalisimo_AI_Assistant_Card {
 		if ( ! $parts ) {
 			return $other ? self::count_words( $other, 'dato', 'datos' ) . ' (en «Ver detalles»)' : 'unos datos (en «Ver detalles»)';
 		}
-		return self::join( $parts ) . ( $other ? ' y ' . self::count_words( $other, 'otro dato', 'otros datos', '' ) . ' (en «Ver detalles»)' : '' );
+		return self::join( $parts ) . ( $other ? ' y ' . self::others( $other ) . ' (en «Ver detalles»)' : '' );
 	}
 
 	private static function change( $key, $value, $before ) {
@@ -840,6 +856,9 @@ final class Digitalisimo_AI_Assistant_Card {
 			}
 			return;
 		}
+		if ( 'Qué hace' === $path && is_string( $value ) && isset( self::ACTION_NAMES[ strtolower( $value ) ] ) ) {
+			$value = self::ACTION_NAMES[ strtolower( $value ) ] . ' (' . $value . ')';
+		}
 		$rows[] = array( '' !== $path ? $path : 'Dato', self::plain( $value ) );
 	}
 
@@ -969,6 +988,11 @@ final class Digitalisimo_AI_Assistant_Card {
 	private static function count_words( $n, $one, $many, $article = 'un' ) {
 		$n = (int) $n;
 		return 1 === $n ? ltrim( $article . ' ' . $one ) : $n . ' ' . $many;
+	}
+
+	/** «otro dato» u «otros 2 datos». */
+	private static function others( $n ) {
+		return 1 === (int) $n ? 'otro dato' : 'otros ' . (int) $n . ' datos';
 	}
 
 	private static function join( array $parts ) {
