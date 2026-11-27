@@ -195,12 +195,15 @@ bitácora sigue aparte y sin valores. Sólo se guardan valores de lo que se pued
 - delete a la papelera (sin `force`) de un producto o un cupón: el ID.
 Lo demás queda con `undo: false` y el motivo, sin valores: lotes, pedidos, notas, reembolsos, clientes y reseñas (datos
 personales o dinero), ajustes, envíos, impuestos y pasarelas (pueden llevar claves), borrados definitivos, cambios con
-`meta_data` (WooCommerce combina los metadatos) o con los correos de un cupón (`email_restrictions`, `used_by`).
+`meta_data` (WooCommerce combina los metadatos) o con los correos de un cupón (`email_restrictions`, `used_by`), y
+updates de un producto o una variación que tocan `type`, `attributes` o `default_attributes` (de ellos dependen sus
+variaciones: volver atrás no las quitaría ni las devolvería).
 
 `undo` (en `products`, `catalog` y `coupons`, con `change_id`; `dry_run` también) es una escritura: sujeta al modo, a la
 capacidad de la acción inversa (editar para un update; borrar para un create o una papelera) y a la bitácora. Comprueba
 antes que nadie lo cambió:
-- update: cada clave debe seguir con el valor «después»; si no, no toca nada y dice qué campos cambiaron (409).
+- update: cada clave debe seguir con el valor «después»; si no, no toca nada y dice qué campos cambiaron (409). En un
+  producto, además, no debe tener variaciones creadas después del cambio (se guardan las que tenía).
 - create: un producto o un cupón va a la papelera si no cambió desde que se creó; una variación (sin papelera) se borra
   sólo en ese caso; una categoría, etiqueta, marca, clase de envío o término, sólo si ningún producto ni variación lo
   usa en ningún estado (`get_objects_in_term()`: el `count` de la REST sólo cuenta los publicados, comprobado en

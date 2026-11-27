@@ -1443,6 +1443,41 @@ namespace {
 		}
 	);
 
+	// Revisión de la tanda B (coordinador, 2026-11-26): deshacer un update no bloqueaba type, attributes ni default_attributes, ni miraba las
+	// variaciones creadas después. Fallaba con 3120eed2.
+	review_block(
+		'B3-rev-forma',
+		static function () use ( $run, $assistant ) {
+			$caps = array( 'edit_products', 'publish_products', 'delete_products', 'read_private_products', 'edit_others_products', 'edit_product_terms', 'delete_product_terms', 'manage_product_terms', 'manage_woocommerce' );
+			wm_reset( array( 'caps' => $caps, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'write', 'own' => array( 'mode' ) ) ) ) );
+			$R = &$GLOBALS['wm_rest_responses'];
+			$R = array();
+			$GLOBALS['wm_rest'] = array();
+			$R['GET /wc/v3/products/6'] = array( 200, array( 'id' => 6, 'type' => 'simple', 'regular_price' => '10', 'variations' => array( 11 ) ), array() );
+			foreach ( array( array( 'type' => 'variable' ), array( 'attributes' => array( array( 'name' => 'Color', 'options' => array( 'Rojo' ) ) ) ), array( 'default_attributes' => array() ) ) as $body ) {
+				$R['PUT /wc/v3/products/6'] = array( 200, array_merge( $R['GET /wc/v3/products/6'][1], $body ), array() );
+				$result = $run( 'products', array( 'action' => 'update', 'product_id' => 6, 'data' => $body ) );
+				review( 'B3-rev-forma', is_array( $result ) && false === $result['change']['undo'] && false !== strpos( $result['change']['reason'], key( $body ) ), 'Un update de ' . key( $body ) . ' no se promete deshacible y dice por qué.' );
+			}
+			$R['PUT /wc/v3/products/6/variations/11'] = array( 200, array( 'id' => 11, 'attributes' => array() ), array() );
+			$R['GET /wc/v3/products/6/variations/11'] = array( 200, array( 'id' => 11, 'attributes' => array( array( 'name' => 'Color' ) ) ), array() );
+			$result = $run( 'products', array( 'action' => 'update', 'resource' => 'variation', 'product_id' => 6, 'variation_id' => 11, 'data' => array( 'attributes' => array() ) ) );
+			review( 'B3-rev-forma', is_array( $result ) && false === $result['change']['undo'], 'Tampoco los atributos de una variación.' );
+			$R['PUT /wc/v3/products/6'] = array( 200, array( 'id' => 6, 'type' => 'simple', 'regular_price' => '12', 'variations' => array( 11 ) ), array() );
+			$result = $run( 'products', array( 'action' => 'update', 'product_id' => 6, 'data' => array( 'regular_price' => '12' ) ) );
+			review( 'B3-rev-forma', is_array( $result ) && true === $result['change']['undo'] && array( 11 ) === ( Changes::get( $result['change']['id'] )['variations'] ?? null ), 'Un update de precio sí, y guarda las variaciones que tenía.' );
+			$R['GET /wc/v3/products/6'] = array( 200, array( 'id' => 6, 'type' => 'simple', 'regular_price' => '12', 'variations' => array( 11, 12 ) ), array() );
+			$dry = $run( 'products', array( 'action' => 'undo', 'change_id' => $result['change']['id'], 'dry_run' => true ) );
+			review( 'B3-rev-forma', is_array( $dry ) && false === $dry['allowed'] && false !== strpos( (string) ( $dry['reason'] ?? '' ), 'variaciones creadas después' ) && false !== strpos( (string) $dry['reason'], '12' ), 'Con una variación creada después, la simulación dice que no se desharía: ' . json_encode( $dry, JSON_UNESCAPED_UNICODE ) );
+			$GLOBALS['wm_rest'] = array();
+			$undo = $run( 'products', array( 'action' => 'undo', 'change_id' => $result['change']['id'] ) );
+			review( 'B3-rev-forma', is_wp_error( $undo ) && 'digitalisimo_woo_mcp_undo_conflict' === $undo->get_error_code() && ! in_array( 'PUT', array_column( $GLOBALS['wm_rest'], 0 ), true ), 'Y deshacer no escribe.' );
+			$R['GET /wc/v3/products/6'] = array( 200, array( 'id' => 6, 'type' => 'simple', 'regular_price' => '12', 'variations' => array( 11 ) ), array() );
+			$undo = $run( 'products', array( 'action' => 'undo', 'change_id' => $result['change']['id'] ) );
+			review( 'B3-rev-forma', is_array( $undo ) && true === $undo['ok'], 'Con las mismas variaciones se deshace.' );
+		}
+	);
+
 	if ( ! empty( $GLOBALS['wm_review'] ) ) {
 		$lines = array();
 		foreach ( $GLOBALS['wm_review'] as $label => $messages ) {

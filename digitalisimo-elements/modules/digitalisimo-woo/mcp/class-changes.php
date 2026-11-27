@@ -20,6 +20,8 @@ defined( 'ABSPATH' ) || exit;
  *   tiene hijos (`term_in_use()`); un atributo, sólo si no tiene términos.
  * - **delete a la papelera** de un producto o un cupón: deshacer lo saca de la papelera con `wp_untrash_post()` y su
  *   estado anterior.
+ * Un update de un producto o una variación que toca `type`, `attributes` o `default_attributes` no se deshace (sus
+ * variaciones dependen de eso), y el de un producto tampoco si después se le crearon variaciones.
  * Todo lo demás queda registrado (quién, qué, cuándo) con `undo: false` y el motivo: lotes, pedidos, notas,
  * reembolsos, clientes y reseñas (datos personales), ajustes, envíos, impuestos y pasarelas (claves), borrados
  * definitivos, metadatos y correos de un cupón.
@@ -83,7 +85,24 @@ final class Changes {
 				return $reason;
 			}
 		}
+		if ( in_array( $resource, array( 'product', 'variation' ), true ) ) {
+			foreach ( self::SHAPE_KEYS as $key ) {
+				if ( array_key_exists( $key, $body ) ) {
+					return 'Cambia el tipo o los atributos del producto (' . $key . '): volver atrás no quitaría ni devolvería sus variaciones, así que no se deshace.';
+				}
+			}
+		}
 		return '';
+	}
+
+	/** Claves que cambian la forma de un producto (tipo y atributos, de los que dependen sus variaciones). */
+	const SHAPE_KEYS = array( 'type', 'attributes', 'default_attributes' );
+
+	/** IDs enteros de las variaciones de un producto leído de la REST (`variations`), ordenados. */
+	public static function variation_ids( $object ): array {
+		$ids = is_array( $object ) && isset( $object['variations'] ) && is_array( $object['variations'] ) ? array_values( array_filter( array_map( 'intval', $object['variations'] ) ) ) : array();
+		sort( $ids );
+		return $ids;
 	}
 
 	/**
@@ -123,6 +142,10 @@ final class Changes {
 					$entry['reason'] = 'No se pudo leer cómo estaba antes: no se puede deshacer.';
 				} else {
 					$keys            = array_keys( is_array( $plan['body'] ) ? $plan['body'] : array() );
+					if ( 'product' === $plan['resource'] ) {
+						// Las variaciones que tenía: si después se crean otras, deshacer ya no es seguro.
+						$entry['variations'] = self::variation_ids( $before );
+					}
 					$entry['before'] = array();
 					$entry['after']  = array();
 					foreach ( $keys as $key ) {
@@ -137,13 +160,13 @@ final class Changes {
 		if ( '' === $entry['reason'] ) {
 			$entry['undo'] = true;
 			if ( strlen( (string) wp_json_encode( $entry ) ) > self::MAX_BYTES ) {
-				unset( $entry['before'], $entry['after'] );
+				unset( $entry['before'], $entry['after'], $entry['variations'] );
 				$entry['undo']   = false;
 				$entry['reason'] = 'El cambio es demasiado grande para guardarlo (más de 32 KB): no se puede deshacer.';
 			}
 		}
 		if ( ! $entry['undo'] ) {
-			unset( $entry['before'], $entry['after'], $entry['stamp'] );
+			unset( $entry['before'], $entry['after'], $entry['stamp'], $entry['variations'] );
 		}
 		self::add( $entry );
 		$out = array(
@@ -218,7 +241,7 @@ final class Changes {
 					'time' => gmdate( 'Y-m-d\TH:i:s\Z' ),
 					'user' => max( 0, $user ),
 				);
-				unset( $entries[ $i ]['before'], $entries[ $i ]['after'], $entries[ $i ]['stamp'] );
+				unset( $entries[ $i ]['before'], $entries[ $i ]['after'], $entries[ $i ]['stamp'], $entries[ $i ]['variations'] );
 			}
 		}
 		self::save( $entries );
@@ -308,6 +331,12 @@ final class Changes {
 			}
 			if ( $conflicts ) {
 				return self::error( 'digitalisimo_woo_mcp_undo_conflict', 'No se deshizo para no pisar cambios posteriores: desde ese cambio se modificó ' . implode( ', ', $conflicts ) . '.', 409, array( 'conflicts' => $conflicts ) );
+			}
+			if ( 'product' === $entry['resource'] ) {
+				$new = array_values( array_diff( self::variation_ids( $current ), array_map( 'intval', (array) ( $entry['variations'] ?? array() ) ) ) );
+				if ( $new ) {
+					return self::error( 'digitalisimo_woo_mcp_undo_conflict', 'No se deshizo: el producto tiene variaciones creadas después de ese cambio (' . implode( ', ', $new ) . '); volver atrás podría dejarlas sin sentido.', 409, array( 'conflicts' => array( 'variations' ) ) );
+				}
 			}
 			$would = array( 'revert' => $revert );
 			if ( $dry ) {
