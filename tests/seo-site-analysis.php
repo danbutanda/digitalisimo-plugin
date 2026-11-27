@@ -79,6 +79,8 @@ check( array( '%seo_title%' ) === $A::unresolved_in( '%title% %sep% %seo_title% 
 check( array( '%sitename%' ) === $A::unresolved_in( 'Bienvenido a %sitename%', false ), 'En un texto sin plantilla cualquier %x% se vería tal cual.' );
 check( array() === $A::unresolved_in( 'Hasta 50% de descuento y 100 % garantizado', false ), 'Un porcentaje no es una variable.' );
 check( array() === $A::unresolved_in( 'Archivo de %s', false ), 'El %s de los formatos de las migas no es una variable.' );
+check( $A::token_error( '[descripcion_sitio]' ) && $A::token_error( '%seo_title%' ) && $A::token_error( '[rank_math_breadcrumb]' ) && $A::token_error( '[contact-form-7]' ), 'Con «_», variables y plugins conocidos: error.' );
+check( false === $A::token_error( '[black-friday]' ) && true === $A::token_error( '[black-friday]', array( 'black-friday' ) ), '«[black-friday]» puede ser texto: aviso, salvo que haya sido un shortcode registrado en el sitio.' );
 
 /* B2 ---------------------------------------------------------------- */
 $base = 'Diseñamos páginas web profesionales para empresas que quieren vender más en internet. Cada sitio es rápido, seguro y fácil de administrar, con hosting incluido, certificado SSL, correo corporativo y soporte técnico por WhatsApp. Trabajamos con WordPress y DIGITALÍSIMO Elements para que puedas cambiar textos, fotos y precios sin depender de nadie. Antes de empezar revisamos tu competencia, tus palabras clave y lo que buscan tus clientes; después armamos la estructura, escribimos los textos y optimizamos cada página para Google. Entregamos el sitio con capacitación, manual en video y un mes de ajustes sin costo. También conectamos tu tienda en línea, tus formularios y tus redes sociales, medimos las visitas con analítica y te enviamos un reporte mensual con lo que funcionó y lo que conviene mejorar. ';
@@ -129,6 +131,8 @@ check( 1 === count( $r ) && 'date' === $r[0][0], '/black-friday/: anuncia un pla
 check( array() === $A::stale_reasons( $bf, $sigs[10], array(), gmmktime( 0, 0, 0, 11, 10, 2026 ), $now ), 'Si la página no se tocó desde el plazo, no se puede decir que quedó vieja.' );
 check( array() === $A::stale_reasons( $bf, $sigs[10], array(), $modified, $now, true ), 'Una descripción recién escrita no está vieja.' );
 check( array() === $A::stale_reasons( 'La agencia se fundó el 3 de marzo de 2015 en Torreón.', $sigs[10], array(), $modified, $now ), 'Una fecha sin plazo no dice nada.' );
+check( array() === $A::stale_reasons( 'Abierto hasta las 6 pm. Fundada el 17 de noviembre de 2015.', $sigs[10], array(), $modified, $now ), '«Hasta» sin una fecha detrás no es un plazo.' );
+check( 1 === count( $A::stale_reasons( 'Precios especiales hasta el martes 17 de noviembre.', $sigs[10], array(), $modified, $now ) ), '«Hasta el martes 17 de noviembre» sí.' );
 check( array() === $A::stale_reasons( 'Oferta válida hasta el 30 de noviembre.', $sigs[10], array(), $modified, $now ), 'Un plazo que aún no llega, tampoco.' );
 check( 1 === count( $A::stale_reasons( 'Oferta valid until November 20, 2026.', $sigs[10], array(), $modified, $now ) ), 'También en inglés.' );
 check( array() === $A::dates_in( 'Promoción hasta julio 2027', $now ), '«julio 2027» no es «julio 20».' );

@@ -252,6 +252,35 @@ class Digitalisimo_Integrations_Site_Analysis {
 		return array_values( array_unique( $out ) );
 	}
 
+	/**
+	 * ¿Error (rojo) o sólo aviso? (pura). Error: toda variable %x%, y los shortcodes con «_» en el nombre, de un plugin
+	 * conocido o que alguna vez estuvieron registrados en el sitio. Con sólo «-» («[black-friday]») puede ser texto entre
+	 * corchetes escrito a propósito: aviso.
+	 */
+	public static function token_error( $token, array $history = array() ) {
+		$token = (string) $token;
+		if ( '%' === substr( $token, 0, 1 ) ) return true;
+		$tag = trim( $token, '[]' );
+		return false !== strpos( $tag, '_' ) || in_array( $tag, $history, true ) || ( class_exists( 'Digitalisimo_Integrations_Index_Hygiene' ) && Digitalisimo_Integrations_Index_Hygiene::known_plugin_tag( $tag ) );
+	}
+
+	/** Las marcas sin resolver de un resultado, separadas en errores y avisos: lista de array( dónde, campo, marca, ¿error? ). */
+	public static function b1_rows( array $r ) {
+		$history = (array) get_option( 'digitalisimo_seo_shortcodes_seen', array() );
+		$rows    = array();
+		foreach ( (array) ( $r['b1_site'] ?? array() ) as $row ) $rows[] = array( 'site', $row[0], $row[1], self::token_error( $row[1], $history ) );
+		foreach ( (array) ( $r['b1_posts'] ?? array() ) as $id => $issues ) foreach ( (array) $issues as $issue ) $rows[] = array( (int) $id, $issue[1], $issue[2], self::token_error( $issue[2], $history ) );
+		foreach ( (array) ( $r['b1_terms'] ?? array() ) as $row ) $rows[] = array( 'term:' . (int) $row[0] . ':' . $row[1], $row[2], $row[3], self::token_error( $row[3], $history ) );
+		return $rows;
+	}
+
+	/** Cuántas marcas son error y cuántas aviso (sin las del contenido, que cuenta A5). */
+	public static function b1_counts( array $r ) {
+		$errors = 0; $warnings = 0;
+		foreach ( self::b1_rows( $r ) as $row ) { if ( $row[3] ) $errors++; else $warnings++; }
+		return array( $errors, $warnings );
+	}
+
 	/* ------------------------------------------------------------------ */
 	/* C1: descripción para redes desactualizada (puras).                   */
 	/* ------------------------------------------------------------------ */
@@ -260,7 +289,9 @@ class Digitalisimo_Integrations_Site_Analysis {
 		'january' => 1, 'february' => 2, 'march' => 3, 'april' => 4, 'may' => 5, 'june' => 6, 'july' => 7, 'august' => 8, 'september' => 9, 'october' => 10, 'november' => 11, 'december' => 12 );
 
 	/** Palabras de plazo: una fecha junto a ellas caduca. */
-	const DEADLINE = '/(?<![\p{L}\p{N}])(?:termina|terminan|termin[oó]|hasta|vence|vencen|vigente|v[aá]lid[oa]s?|[uú]ltimo d[ií]a|cierra|cierran|finaliza|finalizan|acaba|acaban|ends?|until|expires?|valid|deadline|last day|through)(?![\p{L}\p{N}])/u';
+	const DEADLINE = '/(?<![\p{L}\p{N}])(?:termina|terminan|termin[oó]|vence|vencen|cierra|cierran|finaliza|finalizan|acaba|acaban|[uú]ltimo d[ií]a|ends?|expires?|deadline|last day)(?![\p{L}\p{N}])/u';
+	/** «Hasta», «until» o «through» sólo son plazo seguidos de una fecha («hasta las 6 pm» no lo es). */
+	const UNTIL_DATE = '/(?<![\p{L}\p{N}])(?:hasta|until|through)\s+(?:el\s+|the\s+)?(?:\p{L}+\s+)?(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|january|february|march|april|may|june|july|august|september|october|november|december)|(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?!\d))/u';
 
 	/**
 	 * Fechas que menciona un texto («17 de noviembre», «17 de noviembre de 2026», «November 17, 2026») como marcas de
@@ -310,7 +341,8 @@ class Digitalisimo_Integrations_Site_Analysis {
 		}
 		// Un plazo («termina», «hasta», «vence»…) con una fecha que ya pasó, y la página se editó después: lo más probable es
 		// que se actualizara sin ella. Una fecha sin plazo («se fundó el 3 de marzo») no dice nada.
-		if ( preg_match( self::DEADLINE, function_exists( 'mb_strtolower' ) ? mb_strtolower( (string) $desc, 'UTF-8' ) : strtolower( (string) $desc ) ) ) {
+		$lower = function_exists( 'mb_strtolower' ) ? mb_strtolower( (string) $desc, 'UTF-8' ) : strtolower( (string) $desc );
+		if ( preg_match( self::DEADLINE, $lower ) || preg_match( self::UNTIL_DATE, $lower ) ) {
 			foreach ( self::dates_in( $desc, $now ) as $date ) {
 				if ( $date[0] < (int) $now && (int) $modified > $date[0] ) { $out[] = array( 'date', 'anuncia un plazo («' . $date[1] . '») que ya pasó, y la página se actualizó después' ); break; }
 			}
@@ -771,19 +803,20 @@ class Digitalisimo_Integrations_Site_Analysis {
 		$canon   = self::canonical_issues();
 		$broken  = array_filter( $canon, function( $c ) { return 'gone' === $c['kind']; } );
 		$content = count( self::content_issues() );
-		$b1     = count( (array) ( $r['b1_site'] ?? array() ) ) + count( (array) ( $r['b1_posts'] ?? array() ) ) + count( (array) ( $r['b1_terms'] ?? array() ) );
+		list( $b1, $b1_warn ) = self::b1_counts( $r );
 		$state  = self::state();
 		return array(
 			'analyzed_at'       => (int) ( $r['at'] ?? 0 ),
 			'running'           => empty( $state['done'] ) && ! empty( $state['version'] ),
 			'errors'            => array(
-				'unresolved_settings' => array_map( function( $row ) { return $row[0] . ': ' . $row[1]; }, (array) ( $r['b1_site'] ?? array() ) ),
-				'unresolved_posts'    => count( (array) ( $r['b1_posts'] ?? array() ) ),
-				'unresolved_terms'    => count( (array) ( $r['b1_terms'] ?? array() ) ),
+				'unresolved_settings' => array_values( array_map( function( $row ) { return $row[1] . ': ' . $row[2]; }, array_filter( self::b1_rows( $r ), function( $row ) { return 'site' === $row[0] && $row[3]; } ) ) ),
+				'unresolved_posts'    => count( array_unique( array_map( function( $row ) { return $row[0]; }, array_filter( self::b1_rows( $r ), function( $row ) { return is_int( $row[0] ) && $row[3]; } ) ) ) ),
+				'unresolved_terms'    => count( array_filter( self::b1_rows( $r ), function( $row ) { return 0 === strpos( (string) $row[0], 'term:' ) && $row[3]; } ) ),
 				'unresolved_content'  => $content,
 				'canonical_broken'    => array_values( array_map( function( $id, $c ) { return array( 'post_id' => $id, 'url' => get_permalink( $id ), 'canonical' => $c['url'], 'detail' => $c['error'] ?: 'responde ' . $c['code'] ); }, array_keys( $broken ), $broken ) ),
 			),
 			'warnings'          => array(
+				'bracket_text'      => $b1_warn,
 				'cannibalization'   => array_map( function( $g ) { return array( 'inform_only' => ! empty( $g['inform'] ), 'keyword' => $g['keyword'], 'similarity' => (int) round( $g['max'] * 100 ), 'keep' => get_permalink( $g['keeper'] ), 'urls' => array_map( 'get_permalink', $g['ids'] ) ); }, array_slice( (array) ( $r['clusters'] ?? array() ), 0, 20 ) ),
 				'same_keyword'      => count( (array) ( $r['same_kw'] ?? array() ) ),
 				'canonical_offsite' => count( array_filter( $canon, function( $c ) { return in_array( $c['kind'], array( 'offsite', 'redirect', 'pending' ), true ); } ) ),
@@ -817,7 +850,7 @@ class Digitalisimo_Integrations_Site_Analysis {
 		$canon  = self::canonical_issues();
 		$broken = count( array_filter( $canon, function( $c ) { return 'gone' === $c['kind']; } ) );
 		$other  = count( $canon ) - $broken - count( array_filter( $canon, function( $c ) { return 'unchecked' === $c['kind']; } ) );
-		$b1     = count( (array) ( $r['b1_site'] ?? array() ) ) + count( (array) ( $r['b1_posts'] ?? array() ) ) + count( (array) ( $r['b1_terms'] ?? array() ) ) + count( self::content_issues() );
+		$b1     = self::b1_counts( $r )[0] + count( self::content_issues() );
 		$kinds  = array_filter( array(
 			'b1'       => $b1 ? sprintf( 'Shortcodes o variables sin resolver que se ven publicados: %d (títulos, descripciones, migas o contenido).', $b1 ) : '',
 			'canon'    => $broken ? sprintf( 'Canonical hacia una URL que no responde: %d.', $broken ) : '',
@@ -870,15 +903,20 @@ class Digitalisimo_Integrations_Site_Analysis {
 
 	private static function render_unresolved( array $r ) {
 		$content = self::content_issues();
-		$total   = count( (array) $r['b1_site'] ) + count( (array) $r['b1_posts'] ) + count( (array) $r['b1_terms'] ) + count( $content );
-		echo '<h3>Shortcodes y variables sin resolver (' . (int) $total . ')</h3>';
-		if ( ! $total ) { echo '<p>' . self::badge( 'OK', 'SIN ERRORES' ) . ' Ningún título, descripción, miga ni contenido muestra un shortcode o una variable sin resolver.</p>'; return; } // phpcs:ignore WordPress.Security.EscapeOutput
-		echo '<p>' . self::badge( 'ERROR', 'ERROR' ) . ' Se publican tal cual: los visitantes y Google ven el código en lugar del texto. Corrígelo donde dice cada fila.</p>'; // phpcs:ignore WordPress.Security.EscapeOutput
-		echo '<table class="widefat striped"><thead><tr><th>Dónde</th><th>Campo</th><th>Sin resolver</th></tr></thead><tbody>';
-		foreach ( (array) $r['b1_site'] as $row ) echo '<tr><td>Ajustes del sitio</td><td>' . esc_html( $row[0] ) . '</td><td><code>' . esc_html( $row[1] ) . '</code></td></tr>';
-		foreach ( (array) $r['b1_posts'] as $id => $issues ) foreach ( (array) $issues as $issue ) echo '<tr><td>' . self::link( (int) $id ) . '</td><td>' . esc_html( $issue[1] ) . '</td><td><code>' . esc_html( $issue[2] ) . '</code></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
-		foreach ( (array) $r['b1_terms'] as $row ) { $term = get_term( (int) $row[0], $row[1] ); $name = $term && ! is_wp_error( $term ) ? $term->name : '#' . (int) $row[0]; echo '<tr><td><a href="' . esc_url( (string) get_edit_term_link( (int) $row[0], $row[1] ) ) . '">' . esc_html( $name ) . '</a> (' . esc_html( $row[1] ) . ')</td><td>' . esc_html( $row[2] ) . '</td><td><code>' . esc_html( $row[3] ) . '</code></td></tr>'; }
-		foreach ( $content as $id ) echo '<tr><td>' . self::link( (int) $id ) . '</td><td>Contenido</td><td><code>' . esc_html( class_exists( 'Digitalisimo_Integrations_Index_Hygiene' ) ? Digitalisimo_Integrations_Index_Hygiene::editor_note( get_post( $id ) ) : '' ) . '</code></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
+		$rows    = self::b1_rows( $r );
+		$errors  = count( array_filter( $rows, function( $row ) { return $row[3]; } ) ) + count( $content );
+		echo '<h3>Shortcodes y variables sin resolver (' . (int) ( count( $rows ) + count( $content ) ) . ')</h3>';
+		if ( ! $rows && ! $content ) { echo '<p>' . self::badge( 'OK', 'SIN ERRORES' ) . ' Ningún título, descripción, miga ni contenido muestra un shortcode o una variable sin resolver.</p>'; return; } // phpcs:ignore WordPress.Security.EscapeOutput
+		if ( $errors ) echo '<p>' . self::badge( 'ERROR', 'ERROR' ) . ' Se publican tal cual: los visitantes y Google ven el código en lugar del texto. Corrígelo donde dice cada fila.</p>'; // phpcs:ignore WordPress.Security.EscapeOutput
+		if ( count( $rows ) + count( $content ) > $errors ) echo '<p>' . self::badge( 'AVISO', 'AVISO' ) . ' Las marcadas como aviso tienen forma de shortcode pero pueden ser texto entre corchetes escrito a propósito: revísalas.</p>'; // phpcs:ignore WordPress.Security.EscapeOutput
+		echo '<table class="widefat striped"><thead><tr><th>Dónde</th><th>Campo</th><th>Sin resolver</th><th>Estado</th></tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			if ( 'site' === $row[0] ) $where = 'Ajustes del sitio';
+			elseif ( is_int( $row[0] ) ) $where = self::link( $row[0] );
+			else { list( , $tid, $tax ) = explode( ':', $row[0], 3 ); $term = get_term( (int) $tid, $tax ); $where = '<a href="' . esc_url( (string) get_edit_term_link( (int) $tid, $tax ) ) . '">' . esc_html( $term && ! is_wp_error( $term ) ? $term->name : '#' . (int) $tid ) . '</a> (' . esc_html( $tax ) . ')'; }
+			echo '<tr><td>' . $where . '</td><td>' . esc_html( $row[1] ) . '</td><td><code>' . esc_html( $row[2] ) . '</code></td><td>' . ( $row[3] ? self::badge( 'ERROR', 'Error' ) : self::badge( 'AVISO', 'Aviso' ) ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
+		}
+		foreach ( $content as $id ) echo '<tr><td>' . self::link( (int) $id ) . '</td><td>Contenido</td><td><code>' . esc_html( class_exists( 'Digitalisimo_Integrations_Index_Hygiene' ) ? Digitalisimo_Integrations_Index_Hygiene::editor_note( get_post( $id ) ) : '' ) . '</code></td><td>' . self::badge( 'ERROR', 'Error' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
 		echo '</tbody></table><p class="description">Los del contenido son los mismos que lista SEO → Indexación (shortcodes de plugins que ya no están). En títulos y descripciones nunca se ejecutan shortcodes; las variables válidas están en SEO → Títulos.</p>';
 	}
 
