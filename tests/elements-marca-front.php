@@ -130,6 +130,10 @@ namespace {
 	// La configuración del editor (`var X = {json}`): el nombre y los datos con las reglas, el contenido igual.
 	$cfg = Transform::js( 'var ElementorConfig = {"ajax":{"action":"elementor_ajax"},"document":{"elements":[{"settings":{"title":"Elementor"}}],"urls":{"preview":"https:\/\/ensayo.test\/?p=1&elementor-preview=1"}},"selectors":{"{{WRAPPER}} .elementor-heading-title":"color: {{VALUE}}"}};' );
 	check( 0 === strpos( $cfg, 'var DigitalisimoConfig = ' ) && false !== strpos( $cfg, '"digitalisimo_ajax"' ) && false !== strpos( $cfg, '"title":"Elementor"' ) && false !== strpos( $cfg, 'dg-preview=1' ) && false !== strpos( $cfg, '{{WRAPPER}} .dg-heading-title' ), 'F1 configuración del editor como datos: nombre, acción, vista previa y selectores; el contenido igual', $cfg );
+	// Una página de varios MB (el editor): nunca sale vacía por un límite de PCRE, y se transforma igual.
+	$big = '<html><body class="elementor-x"><script>var ElementorConfig = {"a":"' . str_repeat( 'x elementor-y ', 250000 ) . '"};</script><div class="elementor-z">t</div></body></html>';
+	$bout = Transform::html( $big );
+	check( strlen( $bout ) > 1000000 && 0 === Transform::count( $bout ) && false !== strpos( $bout, '<div class="dg-z">t</div>' ) && false !== strpos( $bout, 'var DigitalisimoConfig = ' ), 'F1 una página de más de 3 MB se transforma entera (sin vaciarse por PCRE)', strlen( $bout ) );
 	// Lo que el paquete enmascara (separadores, twig) se trata como la palabra en las clases.
 	check( '<path class="dg-shape-fill" d="M0">' === Transform::tag( '<path class="&#101;lementor-shape-fill" d="M0">' ), 'F1 la clase enmascarada con entidad se transforma', Transform::tag( '<path class="&#101;lementor-shape-fill" d="M0">' ) );
 	$twig = Transform::json_out( array( 'elementor/macros' => "{% import ('elemen' ~ 'tor/macros') as m %}<div class=\"{{ ('elemen' ~ 'tor-element') }}\">" ) );

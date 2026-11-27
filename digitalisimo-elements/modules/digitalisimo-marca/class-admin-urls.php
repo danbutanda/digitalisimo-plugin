@@ -33,6 +33,28 @@ final class Admin_Urls {
 		add_action( 'admin_print_footer_scripts', array( __CLASS__, 'print_script' ), 99 );
 		add_action( 'elementor/editor/footer', array( __CLASS__, 'print_script' ), 99 );
 		add_action( 'elementor/app/init', array( __CLASS__, 'app_script' ) );
+		add_action( 'admin_init', array( __CLASS__, 'admin_action' ), PHP_INT_MAX );
+	}
+
+	/**
+	 * `?action=digitalisimo_<x>` → `elementor_<x>` cuando el motor atiende `admin_action_elementor_<x>` (por ejemplo
+	 * `elementor_new_post`) y no hay una acción propia con ese nombre. Corre al final de `admin_init`, con todas las
+	 * acciones ya registradas y antes de que admin.php las despache.
+	 */
+	public static function admin_action(): void {
+		$action = isset( $_REQUEST['action'] ) && is_string( $_REQUEST['action'] ) ? $_REQUEST['action'] : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput -- sólo se traduce el nombre; la acción verifica su nonce.
+		if ( 0 !== strpos( $action, 'digitalisimo_' ) || has_action( 'admin_action_' . $action ) ) {
+			return;
+		}
+		$original = 'elementor_' . substr( $action, 13 );
+		if ( ! has_action( 'admin_action_' . $original ) ) {
+			return;
+		}
+		foreach ( array( '_GET', '_POST', '_REQUEST' ) as $global ) {
+			if ( isset( $GLOBALS[ $global ]['action'] ) && $action === $GLOBALS[ $global ]['action'] ) {
+				$GLOBALS[ $global ]['action'] = $original; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			}
+		}
 	}
 
 	/** ¿La petición es de una pantalla que puede llevar alias? */
@@ -135,6 +157,8 @@ final class Admin_Urls {
 					$value = Map::PAGE_OUT . substr( $value, 9 );
 				} elseif ( 'action' === $m[2] && 'elementor' === $value && $is_post ) {
 					$value = Map::ACTION_OUT;
+				} elseif ( 'action' === $m[2] && 0 === strpos( $value, 'elementor_' ) ) {
+					$value = 'digitalisimo_' . substr( $value, 10 );
 				} elseif ( isset( $types[ $value ] ) ) {
 					$value = $types[ $value ];
 				}

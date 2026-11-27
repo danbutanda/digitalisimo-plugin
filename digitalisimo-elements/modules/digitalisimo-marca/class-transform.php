@@ -493,44 +493,81 @@ final class Transform {
 
 	/** El HTML de una página o de un fragmento. */
 	public static function html( string $html ): string {
-		if ( false === stripos( $html, 'elementor' ) ) {
+		if ( false === stripos( $html, 'elementor' ) && ! preg_match( '/&#(?:101|69|x65|x45);lementor/i', $html ) ) {
 			return $html;
 		}
-		$html = (string) preg_replace_callback(
-			'#(<style\b[^>]*>)(.*?)(</style>)#is',
-			static function ( $m ) {
-				return self::tag( $m[1] ) . self::css( $m[2] ) . $m[3];
-			},
-			$html
-		);
-		$html = (string) preg_replace_callback(
-			'#(<script\b[^>]*>)(.*?)(</script>)#is',
-			static function ( $m ) {
-				// Nuestro script de alias (Admin_Urls) busca los nombres viejos para reescribirlos: sale tal cual.
-				if ( false !== strpos( $m[1], 'id="digitalisimo-marca-urls"' ) ) {
-					return $m[0];
+		// Recorrido con stripos, sin expresiones sobre el documento entero: la página del editor pesa varios MB y una
+		// expresión `(.*?)` sobre ella pasa el límite de retroceso de PCRE (preg_* devuelve null: página vacía).
+		$out = '';
+		$pos = 0;
+		while ( null !== ( $block = self::next_block( $html, $pos ) ) ) {
+			list( $start, $name ) = $block;
+			$gt    = strpos( $html, '>', $start );
+			$close = false === $gt ? false : stripos( $html, '</' . $name, $gt + 1 );
+			$end   = false === $close ? false : strpos( $html, '>', $close );
+			if ( false === $end ) {
+				break;
+			}
+			$open  = substr( $html, $start, $gt + 1 - $start );
+			$body  = substr( $html, $gt + 1, $close - $gt - 1 );
+			$shut  = substr( $html, $close, $end + 1 - $close );
+			$out  .= self::tags( substr( $html, $pos, $start - $pos ) );
+			$out  .= 'style' === $name ? self::tag( $open ) . self::css( $body ) . $shut : self::script( $open, $body, $shut );
+			$pos   = $end + 1;
+		}
+		return $out . self::tags( substr( $html, $pos ) );
+	}
+
+	/** El próximo `<script` o `<style` (como etiqueta) desde `$pos`: [posición, nombre] o null. */
+	private static function next_block( string $html, int $pos ): ?array {
+		$best = null;
+		foreach ( array( 'script', 'style' ) as $name ) {
+			$at = $pos;
+			while ( false !== ( $i = stripos( $html, '<' . $name, $at ) ) ) {
+				$c = substr( $html, $i + strlen( $name ) + 1, 1 );
+				if ( '>' === $c || ( '' !== $c && ctype_space( $c ) ) ) {
+					if ( null === $best || $i < $best[0] ) {
+						$best = array( $i, $name );
+					}
+					break;
 				}
-				$open = self::tag( $m[1] );
-				// Sólo JS y la configuración en JSON; nunca un `src`, el schema (`ld+json`, texto del contenido) ni plantillas.
-				$type = preg_match( '#\btype\s*=\s*["\']([^"\']+)["\']#i', $m[1], $t ) ? strtolower( $t[1] ) : 'text/javascript';
-				// Plantillas del editor (`<script type="text/template">`): son HTML.
-				if ( in_array( $type, array( 'text/template', 'text/html', 'text/x-template' ), true ) ) {
-					return $open . self::html( self::template_code( $m[2] ) ) . $m[3];
-				}
-				if ( preg_match( '/\bsrc\s*=/i', $m[1] ) || ! in_array( $type, array( 'text/javascript', 'module', 'application/javascript', 'application/json' ), true ) ) {
-					return $open . $m[2] . $m[3];
-				}
-				return $open . self::js( $m[2] ) . $m[3];
-			},
-			$html
-		);
-		return (string) preg_replace_callback(
-			'#<(?!/|script\b|style\b)([a-zA-Z][a-zA-Z0-9-]*)(\s[^<>]*?)?(/?)>#s',
+				$at = $i + 1;
+			}
+		}
+		return $best;
+	}
+
+	/** Un `<script>`: JS en línea, configuración, plantillas del editor; nunca `src`, schema ni nuestro script de alias. */
+	private static function script( string $open, string $body, string $shut ): string {
+		// Nuestro script de alias (Admin_Urls) busca los nombres viejos para reescribirlos: sale tal cual.
+		if ( false !== strpos( $open, 'id="digitalisimo-marca-urls"' ) ) {
+			return $open . $body . $shut;
+		}
+		$tag  = self::tag( $open );
+		$type = preg_match( '#\btype\s*=\s*["\']([^"\']+)["\']#i', $open, $t ) ? strtolower( $t[1] ) : 'text/javascript';
+		// Plantillas del editor (`<script type="text/template">`): son HTML.
+		if ( in_array( $type, array( 'text/template', 'text/html', 'text/x-template' ), true ) ) {
+			return $tag . self::html( self::template_code( $body ) ) . $shut;
+		}
+		if ( preg_match( '/\bsrc\s*=/i', $open ) || ! in_array( $type, array( 'text/javascript', 'module', 'application/javascript', 'application/json' ), true ) ) {
+			return $tag . $body . $shut;
+		}
+		return $tag . self::js( $body ) . $shut;
+	}
+
+	/** Las etiquetas de apertura de un tramo de HTML sin `<script>` ni `<style>`. */
+	private static function tags( string $html ): string {
+		if ( false === stripos( $html, 'elementor' ) && false === strpos( $html, 'lementor' ) ) {
+			return $html;
+		}
+		$out = preg_replace_callback(
+			'#<(?!/)([a-zA-Z][a-zA-Z0-9-]*)(\s[^<>]*)?(/?)>#',
 			static function ( $m ) {
 				return self::tag( $m[0] );
 			},
 			$html
 		);
+		return null === $out ? $html : $out;
 	}
 
 	/**
