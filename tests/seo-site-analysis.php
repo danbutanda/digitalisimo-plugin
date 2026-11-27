@@ -43,6 +43,7 @@ function wp_schedule_single_event( $t, $h, $a = array() ) { $GLOBALS['scheduled'
 function wp_clear_scheduled_hook( $h ) { return 0; }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function sanitize_text_field( $v ) { return trim( strip_tags( (string) $v ) ); }
+function current_user_can() { return true; }
 class WP_Error { public $code; public $message; public function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; } public function get_error_message() { return $this->message; } public function get_error_code() { return $this->code; } }
 /** La tabla de redirecciones en memoria. */
 class Digi_Fake_DB {
@@ -123,9 +124,20 @@ check( array() === $A::stale_reasons( $bf, $sigs[10], array(), $modified, $now, 
 check( array() === $A::stale_reasons( 'La agencia se fundó el 3 de marzo de 2015 en Torreón.', $sigs[10], array(), $modified, $now ), 'Una fecha sin plazo no dice nada.' );
 check( array() === $A::stale_reasons( 'Oferta válida hasta el 30 de noviembre.', $sigs[10], array(), $modified, $now ), 'Un plazo que aún no llega, tampoco.' );
 check( 1 === count( $A::stale_reasons( 'Oferta valid until November 20, 2026.', $sigs[10], array(), $modified, $now ) ), 'También en inglés.' );
+check( array() === $A::dates_in( 'Promoción hasta julio 2027', $now ), '«julio 2027» no es «julio 20».' );
+$december = gmmktime( 12, 0, 0, 12, 20, 2026 );
+check( array() === $A::stale_reasons( 'Precio vigente hasta el 6 de enero.', $sigs[10], array(), $december - DAY_IN_SECONDS, $december ), 'Sin año, «6 de enero» escrito en diciembre es el del año que viene.' );
 $changed = $A::stale_reasons( 'Diseño web en todo México.', $sigs[13], $sigs[10], $modified, $now );
 check( 1 === count( $changed ) && 'changed' === $changed[0][0], 'La página cambió mucho desde que se escribió la descripción.' );
 check( array() === $A::stale_reasons( 'Diseño web en todo México.', $sigs[11], $sigs[10], $modified, $now ), 'Un cambio pequeño no.' );
+
+/* El repaso semanal no se reinicia mientras espera reunir su resultado --- */
+$GLOBALS['opt'][ $A::STATE ] = array( 'version' => $A::VERSION, 'done' => true, 'dirty' => 1, 'started' => time() - 30 * DAY_IN_SECONDS, 'finished' => 0, 'cursor' => 0 );
+$A::maybe_start();
+check( ! empty( $GLOBALS['opt'][ $A::STATE ]['done'] ) && 1 === $GLOBALS['opt'][ $A::STATE ]['dirty'], 'Terminado y sin reunir: no vuelve a empezar (antes se reiniciaba con cada carga del escritorio).' );
+$GLOBALS['opt'][ $A::STATE ]['dirty'] = 0;
+$A::maybe_start();
+check( empty( $GLOBALS['opt'][ $A::STATE ]['done'] ), 'Reunido y de hace más de una semana: empieza otro.' );
 
 /* B3 y B2: plan, tope, respaldo y deshacer --------------------------- */
 $GLOBALS['posts'] = array();
@@ -159,6 +171,8 @@ check( 1 === count( $log ) && $batch === $log[0]['id'] && '' === $log[0]['items'
 check( array( 21, 22 ) === $C::retired_ids(), 'El análisis deja de contar las redirigidas.' );
 $again = $C::plan( '410', array( 21 ) );
 check( array() === $again['items'] && 'Ya tiene una regla de redirección' === $again['skipped'][0][1], 'Una página que ya redirige no recibe otra regla.' );
+check( 1 === $log[0]['items'][22]['done'], 'Cada página queda anotada en el respaldo al aplicarse.' );
+check( is_wp_error( $C::plan( '301', array( 20 ), '/paginas-web-torreon/' ) ), 'Un 301 hacia una página que ya redirige (bucle A→B→A) se rechaza.' );
 check( true === $C::undo( $batch ) && array() === $GLOBALS['wpdb']->rows && '' === get_post_meta( 21, 'digitalisimo_seo_noindex' ), 'Deshacer borra sus reglas y repone el noindex de antes.' );
 check( false === $C::undo( $batch ) && array() === $C::retired_ids(), 'Un lote se deshace una sola vez.' );
 
@@ -169,5 +183,13 @@ check( 410 === $rule['header_code'] && '' === $rule['url_to'], '410 sin destino.
 $GLOBALS['wpdb']->rows[ $rule['id'] ]['origin'] = 'manual';
 $C::undo( $batch );
 check( 1 === count( $GLOBALS['wpdb']->rows ), 'Deshacer sólo borra reglas que sigan siendo de la limpieza.' );
+$GLOBALS['wpdb']->rows = array();
+
+// Dos lotes sobre la misma página, deshechos en el orden de su aplicación: queda como antes de los dos.
+$page( 26, 'relleno', 'Relleno', 'publish', 'post' );
+$first  = $C::apply( $C::plan( 'noindex', array( 26 ) ) );
+$second = $C::apply( $C::plan( '410', array( 26 ) ) );
+$C::undo( $first ); $C::undo( $second );
+check( '' === get_post_meta( 26, 'digitalisimo_seo_noindex' ) && array() === $GLOBALS['wpdb']->rows, 'Lotes que se pisan, deshechos en cualquier orden: la página vuelve a estar como antes.' );
 
 echo "Análisis del sitio: shortcodes y variables, canibalización, huérfanas, canonical y descripciones viejas.\n";

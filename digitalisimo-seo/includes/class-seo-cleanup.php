@@ -91,8 +91,11 @@ class Digitalisimo_Integrations_SEO_Cleanup {
 			if ( '' === $path ) return new WP_Error( 'target', 'Nunca a la portada: Google trata esa redirección como una página que no existe (soft 404). Elige la página que sustituye a éstas.' );
 			$id = (int) url_to_postid( $url );
 		}
-		if ( ! $id || 'publish' !== get_post_status( $id ) ) return new WP_Error( 'target', 'El destino debe ser una página publicada de este sitio.' );
+		$post = $id ? get_post( $id ) : null;
+		if ( ! $post || 'publish' !== $post->post_status || ! in_array( $post->post_type, Digitalisimo_Integrations_Site_Analysis::types(), true ) ) return new WP_Error( 'target', 'El destino debe ser una página publicada de este sitio.' );
 		if ( (int) get_option( 'page_on_front' ) === $id ) return new WP_Error( 'target', 'Nunca a la portada: Google trata esa redirección como una página que no existe (soft 404). Elige la página que sustituye a éstas.' );
+		// Un destino que ya redirige (por una limpieza anterior o por una regla a mano) cerraría un bucle A→B→A.
+		if ( self::existing_rule( self::path( $id ) ) ) return new WP_Error( 'target', 'El destino ya redirige a otra dirección: elige la página que de verdad se queda.' );
 		return array( 'id' => $id, 'url' => (string) get_permalink( $id ) );
 	}
 
@@ -156,20 +159,32 @@ class Digitalisimo_Integrations_SEO_Cleanup {
 		foreach ( $batch['items'] as $id => $item ) {
 			if ( 'noindex' !== $plan['kind'] ) {
 				$rule = Digitalisimo_Integrations_Redirections::save( array( 'sources' => array( array( 'pattern' => $item['path'], 'comparison' => 'exact' ) ), 'url_to' => '301' === $plan['kind'] ? $plan['target']['url'] : '', 'header_code' => (int) $plan['kind'], 'origin' => 'cleanup', 'category' => 'Limpieza SEO' ), 0, false );
-				if ( is_wp_error( $rule ) ) { $batch['items'][ $id ]['error'] = $rule->get_error_message(); continue; }
+				if ( is_wp_error( $rule ) ) { $batch['items'][ $id ]['error'] = $rule->get_error_message(); self::store( $batch ); continue; }
 				$batch['items'][ $id ]['rule'] = (int) $rule;
 			}
+			$batch['items'][ $id ]['done'] = 1;
+			// El respaldo se actualiza en cada página: si PHP se corta a mitad, «Deshacer» conoce cada regla ya creada.
+			self::store( $batch );
 			update_post_meta( $id, 'digitalisimo_seo_noindex', '1' );
 		}
 		if ( 'noindex' !== $plan['kind'] ) Digitalisimo_Integrations_Redirections::refresh_index();
-		$log = self::log_entries();
-		foreach ( $log as $i => $row ) if ( ( $row['id'] ?? '' ) === $batch['id'] ) $log[ $i ] = $batch;
-		self::save_log( $log );
 		self::analysis_changed();
 		return $batch['id'];
 	}
 
-	/** Deshace un lote: borra sólo las reglas que creó y repone la marca noindex que tenía cada página. */
+	/** Guarda (o reemplaza) un lote en el respaldo. */
+	private static function store( array $batch ) {
+		$log = self::log_entries();
+		foreach ( $log as $i => $row ) if ( ( $row['id'] ?? '' ) === $batch['id'] ) { $log[ $i ] = $batch; self::save_log( $log ); return; }
+		$log[] = $batch;
+		self::save_log( $log );
+	}
+
+	/**
+	 * Deshace un lote: borra sólo las reglas que creó (y que siguen siendo de la limpieza) y repone la marca noindex que
+	 * tenía cada página, pero sólo si sigue como la dejó el lote: con dos lotes sobre la misma página, deshacerlos en
+	 * cualquier orden la deja como estaba antes de los dos.
+	 */
 	public static function undo( $batch_id ) {
 		global $wpdb;
 		$log = self::log_entries();
@@ -181,6 +196,7 @@ class Digitalisimo_Integrations_SEO_Cleanup {
 					$row = Digitalisimo_Integrations_Redirections::get( (int) $item['rule'] );
 					if ( $row && 'cleanup' === ( $row['origin'] ?? '' ) ) { $wpdb->delete( Digitalisimo_Integrations_Redirections::table(), array( 'id' => (int) $item['rule'] ) ); $rules = true; }
 				}
+				if ( '1' !== (string) get_post_meta( (int) $id, 'digitalisimo_seo_noindex', true ) ) continue; // Otro lote o el dueño ya la cambió.
 				if ( '' === (string) $item['noindex'] ) delete_post_meta( (int) $id, 'digitalisimo_seo_noindex' );
 				else update_post_meta( (int) $id, 'digitalisimo_seo_noindex', (string) $item['noindex'] );
 			}
@@ -263,10 +279,10 @@ class Digitalisimo_Integrations_SEO_Cleanup {
 		if ( isset( $_GET['cleanup_error'] ) ) {
 			$message = get_transient( self::PLAN . 'msg_' . get_current_user_id() );
 			delete_transient( self::PLAN . 'msg_' . get_current_user_id() );
-			if ( is_string( $message ) && '' !== $message ) echo '<div class="notice notice-error inline"><p>' . esc_html( $message ) . '</p></div>';
+			if ( is_string( $message ) && '' !== $message ) echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
 		}
-		if ( isset( $_GET['cleanup_done'] ) ) echo '<div class="notice notice-success inline"><p>' . esc_html( sprintf( 'Listo: se aplicó a %d páginas. El respaldo quedó en «Cambios aplicados», abajo, por si quieres deshacerlo.', absint( $_GET['cleanup_done'] ) ) ) . '</p></div>';
-		if ( isset( $_GET['cleanup_undone'] ) ) echo '<div class="notice notice-success inline"><p>Deshecho: las páginas quedaron como estaban.</p></div>';
+		if ( isset( $_GET['cleanup_done'] ) ) echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( 'Listo: se aplicó a %d páginas. El respaldo quedó en «Cambios aplicados», abajo, por si quieres deshacerlo.', absint( $_GET['cleanup_done'] ) ) ) . '</p></div>';
+		if ( isset( $_GET['cleanup_undone'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Deshecho: las páginas quedaron como estaban.</p></div>';
 		// phpcs:enable
 	}
 
