@@ -290,9 +290,12 @@ namespace {
 	$_POST                 = array();
 	$_SERVER['REQUEST_URI'] = '/wp-admin/edit.php?post_type=digitalisimo_library&digitalisimo_library_type=popup';
 	Admin_Urls::translate_request();
+	$pro = (string) file_get_contents( $el . '/pro-elements.php' );
+	check( false !== strpos( $pro, 'Admin_Urls::translate_request()' ) && strpos( $pro, 'Admin_Urls::translate_request()' ) > strpos( $pro, 'Digitalisimo_Elements_Core::load();' ) && strpos( $pro, 'Admin_Urls::translate_request()' ) < strpos( $pro, "add_action( 'plugins_loaded'" ), 'M4 la traducción corre al cargar Elements, antes de plugins_loaded (las guardas de widgets y la App del núcleo deciden ahí con la URL vieja)' );
 	check( 'elementor_library' === $_GET['post_type'] && 'popup' === ( $_REQUEST['elementor_library_type'] ?? '' ) && '/wp-admin/edit.php?post_type=elementor_library&elementor_library_type=popup' === $_SERVER['REQUEST_URI'], 'M4 la petición se traduce antes de que WordPress la lea ($_GET, $_REQUEST, REQUEST_URI)', array( $_GET, $_SERVER['REQUEST_URI'] ) );
 	Digitalisimo_Elements_Core::$bundled = false;
 	$_GET                                = array( 'post_type' => 'digitalisimo_library' );
+	Admin_Urls::$translated              = false;
 	Admin_Urls::translate_request();
 	check( 'digitalisimo_library' === $_GET['post_type'], 'M4 con el Elementor original activo no se traduce nada' );
 	Digitalisimo_Elements_Core::$bundled = true;
@@ -334,9 +337,11 @@ global.history = { state: null, pushState(s, t, u) { href = new URL(u, href).hre
 global.document = { readyState: 'complete', documentElement: root, addEventListener() {} };
 global.window = global; global.addEventListener = () => {};
 eval(code);
-const first = href;
-history.pushState(null, '', 'post.php?post=9&action=elementor');
-console.log(JSON.stringify({ first, pushed: href, links: links.map((l) => l.attrs.href), hidden: [hidden.name, hidden.value] }));
+global.setTimeout(() => {
+  const first = href;
+  history.pushState(null, '', 'post.php?post=9&action=elementor');
+  console.log(JSON.stringify({ first, pushed: href, links: links.map((l) => l.attrs.href), hidden: [hidden.name, hidden.value] }));
+}, 20);
 JS;
 	file_put_contents( $tmp . '/harness.js', $harness );
 	$res = json_decode( (string) shell_exec( 'node ' . escapeshellarg( $tmp . '/harness.js' ) . ' ' . escapeshellarg( $tmp . '/urls.js' ) . ' 2>&1' ), true );

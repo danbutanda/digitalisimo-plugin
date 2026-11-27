@@ -43,6 +43,11 @@ final class Brand_Server {
 	public static $collisions = array();
 
 	public static function init(): void {
+		static $done = false;
+		if ( $done ) {
+			return;
+		}
+		$done = true;
 		add_action( 'mcp_adapter_init', array( __CLASS__, 'register' ), 20 );
 		add_filter( 'mcp_adapter_tool_name', array( __CLASS__, 'tool_name' ), 20, 2 );
 		add_filter( 'mcp_adapter_resource_uri', array( __CLASS__, 'resource_uri' ), 20, 2 );
@@ -109,6 +114,9 @@ final class Brand_Server {
 		if ( method_exists( $adapter, 'get_server' ) && $adapter->get_server( self::ID ) ) {
 			return;
 		}
+		if ( ! self::requested() ) {
+			return;
+		}
 		$registry  = call_user_func( array( self::REGISTRY, 'instance' ) );
 		$tools     = (array) $registry->get_tools();
 		$resources = self::resources_supported() ? (array) $registry->get_resources() : array();
@@ -140,6 +148,26 @@ final class Brand_Server {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( "[DIGITALÍSIMO MCP] No se registró el servidor: " . $result->get_error_message() );
 		}
+	}
+
+	/**
+	 * ¿Hace falta construir el servidor en esta petición? El adaptador arma sus servidores en cada `rest_api_init`; éste
+	 * sólo se arma cuando se pide su ruta (o cuando no se sabe cuál es: WP-CLI, una petición REST interna), para no
+	 * duplicar el trabajo en cada llamada a la API de los visitantes (Store API, formularios).
+	 */
+	public static function requested(): bool {
+		$route = '';
+		if ( isset( $GLOBALS['wp'] ) && is_object( $GLOBALS['wp'] ) && isset( $GLOBALS['wp']->query_vars['rest_route'] ) ) {
+			$route = (string) $GLOBALS['wp']->query_vars['rest_route'];
+		}
+		if ( '' === $route ) {
+			$uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sólo se busca la ruta.
+			if ( '' === $uri || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+				return true;
+			}
+			$route = rawurldecode( $uri );
+		}
+		return false !== strpos( $route, '/' . self::NS . '/' . self::ROUTE );
 	}
 
 	/** Los recursos con `mcp.uri` necesitan el adaptador 0.5.0 o posterior, como en el servidor del núcleo. */
@@ -206,10 +234,13 @@ final class Brand_Server {
 				continue;
 			}
 			try {
-				// Como arreglos (los objetos vacíos del esquema salen como `{}` en toArray() y fromArray() pide arreglos).
+				$data = $dto->toArray();
+				// Sin nada que renombrar, el DTO sale tal cual (idéntico al del servidor del núcleo).
+				if ( false === stripos( (string) wp_json_encode( $data ), 'elementor' ) ) {
+					continue;
+				}
 				$class       = get_class( $dto );
-				$data        = json_decode( (string) wp_json_encode( $dto->toArray() ), true );
-				$out[ $key ] = is_array( $data ) ? $class::fromArray( Map::out_deep( $data ) ) : $dto;
+				$out[ $key ] = $class::fromArray( Map::out_deep( self::arrays( $data ) ) );
 			} catch ( \Throwable $e ) {
 				$out[ $key ] = $dto;
 			}
@@ -217,12 +248,40 @@ final class Brand_Server {
 		return $out;
 	}
 
+	/**
+	 * Objetos como arreglos (fromArray() pide arreglos), salvo los valores de `default`, `const` y `examples`, que son
+	 * datos del esquema: un `default` de objeto vacío sigue siendo `{}` y no `[]`.
+	 *
+	 * @param mixed $value
+	 * @return mixed
+	 */
+	private static function arrays( $value, string $key = '' ) {
+		if ( in_array( $key, array( 'default', 'const', 'examples' ), true ) ) {
+			return $value;
+		}
+		if ( $value instanceof \stdClass ) {
+			$value = get_object_vars( $value );
+		}
+		if ( is_array( $value ) ) {
+			foreach ( $value as $k => $v ) {
+				$value[ $k ] = self::arrays( $v, (string) $k );
+			}
+		}
+		return $value;
+	}
+
 	public static function pre_tool_call( $args, $tool_name = '', $tool = null, $server = null ) {
 		return self::is_ours( $server ) && is_array( $args ) ? Map::in_deep( $args ) : $args;
 	}
 
 	public static function tool_call_result( $result, $args = array(), $tool_name = '', $tool = null, $server = null ) {
-		return self::is_ours( $server ) ? Map::data_out( $result ) : $result;
+		return self::is_ours( $server ) ? Map::data_out( $result, 0, '', self::engine( $tool ) ) : $result;
+	}
+
+	/** ¿La herramienta es del motor (`elementor/…`)? Sólo sus textos fijos cambian de nombre; las propias devuelven datos. */
+	private static function engine( $tool ): bool {
+		$meta = is_object( $tool ) && method_exists( $tool, 'get_adapter_meta' ) ? (array) $tool->get_adapter_meta() : array();
+		return 0 === strpos( (string) ( $meta['ability'] ?? '' ), 'elementor/' );
 	}
 
 	public static function pre_resource_read( $params, $uri = '', $resource = null, $server = null ) {
@@ -234,7 +293,7 @@ final class Brand_Server {
 			return $contents;
 		}
 		// Las guías del motor (texto fijo) salen con la marca; los recursos con datos del sitio, sólo con identificadores.
-		$contents = in_array( Map::in( (string) $uri ), self::GUIDES, true ) ? Map::out_deep( $contents ) : Map::data_out( $contents );
+		$contents = in_array( Map::in( (string) $uri ), self::GUIDES, true ) ? Map::out_deep( $contents ) : Map::data_out( $contents, 0, '', self::engine( $resource ) );
 		// El URI del contenido es el que pidió el cliente (con marca), aunque la ability devuelva el suyo.
 		if ( is_array( $contents ) && is_string( $uri ) && '' !== $uri ) {
 			if ( isset( $contents['uri'] ) && is_string( $contents['uri'] ) ) {

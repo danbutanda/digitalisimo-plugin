@@ -28,6 +28,12 @@ Digitalisimo_Elements_Admin_Load::init();
 // Núcleo de Elementor incluido: se carga antes que todo lo demás y sólo si el plugin Elementor no está activo.
 require_once __DIR__ . '/digitalisimo-core.php';
 Digitalisimo_Elements_Core::load();
+// Alias de URL del escritorio y del editor (marca propia, D-3): se traducen ya, antes de que el núcleo, sus guardas de
+// widgets (`Unknown_Guard`, `Inert`) o su App lean `action` y `page` de la petición.
+require_once __DIR__ . '/modules/digitalisimo-marca/class-map.php';
+require_once __DIR__ . '/modules/digitalisimo-marca/class-toggle.php';
+require_once __DIR__ . '/modules/digitalisimo-marca/class-admin-urls.php';
+\Digitalisimo\Elements\Marca\Admin_Urls::translate_request();
 register_activation_hook( __FILE__, array( 'Digitalisimo_Elements_Core', 'activate' ) );
 // La lista de opciones que se piden juntas es una caché: se borra al desactivar.
 register_deactivation_hook( __FILE__, array( 'Digitalisimo_Elements_Admin_Load', 'deactivate' ) );

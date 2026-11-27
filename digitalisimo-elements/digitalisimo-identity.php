@@ -44,7 +44,8 @@ final class Digitalisimo_Elements_Identity {
 		add_filter( 'ngettext_with_context', array( __CLASS__, 'ngettext_with_context' ), 20, 6 );
 		// El filtro de wp.i18n sólo donde hace falta: escritorio, editor y su vista previa, y la barra de administración.
 		// Un visitante del front no lo recibe (docs/MARCA_PROPIA.md: cero rastro en lo que sale).
-		add_action( 'admin_init', array( __CLASS__, 'attach_script_filters' ), 1 );
+		// Antes que todo `admin_init`: la App del constructor se pinta en `admin_init` (prioridad 0) y termina ahí.
+		add_action( 'admin_init', array( __CLASS__, 'attach_script_filters' ), PHP_INT_MIN );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'attach_front_script_filters' ), 0 );
 		foreach ( array( 'admin_enqueue_scripts', 'elementor/editor/after_enqueue_styles', 'elementor/app/init' ) as $hook ) {
 			add_action( $hook, array( __CLASS__, 'enqueue_style' ) );

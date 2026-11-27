@@ -109,7 +109,8 @@ final class Map {
 				return strlen( $b ) - strlen( $a );
 			}
 		);
-		if ( did_action( 'init' ) ) {
+		// Los tipos de todos los plugins están registrados después de `init`: antes no se memoriza.
+		if ( did_action( 'wp_loaded' ) ) {
 			self::$types = $map;
 		}
 		return $map;
@@ -151,7 +152,7 @@ final class Map {
 				$text
 			);
 		}
-		$text = (string) preg_replace( '#(?<![A-Za-z0-9])_elementor_([a-z0-9_]+)#', self::META_OUT . '$1', $text );
+		$text = (string) preg_replace( '#(?<![A-Za-z0-9_])_elementor_([a-z0-9_]+)#', self::META_OUT . '$1', $text );
 		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)action=elementor(?=$|[&\#"\'\s<\\\\])#', '$1action=' . self::ACTION_OUT, $text );
 		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)page=elementor(?=[\w-]|$|[&\#"\'\s<\\\\])#', '$1page=' . self::PAGE_OUT, $text );
 		return $brand ? self::brand( $text ) : $text;
@@ -179,8 +180,8 @@ final class Map {
 			);
 		}
 		$text = (string) preg_replace( '#(?<![A-Za-z0-9_])' . preg_quote( self::META_OUT, '#' ) . '([a-z0-9_]+)#', '_elementor_$1', $text );
-		$text = (string) preg_replace( '#([?&]|&amp;)action=' . self::ACTION_OUT . '(?=$|[&\#"\'\s<])#', '$1action=elementor', $text );
-		$text = (string) preg_replace( '#([?&]|&amp;)page=' . self::PAGE_OUT . '#', '$1page=elementor', $text );
+		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)action=' . self::ACTION_OUT . '(?=$|[&\#"\'\s<\\\\])#', '$1action=elementor', $text );
+		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)page=' . self::PAGE_OUT . '#', '$1page=elementor', $text );
 		return $text;
 	}
 
@@ -209,25 +210,26 @@ final class Map {
 	/**
 	 * Para DATOS (respuestas de herramientas y recursos): los identificadores siempre (son reversibles con in()), pero
 	 * el nombre «Elementor» sólo en los textos que escribe el motor (`message`, `error`, `hint`, `instructions`… y los
-	 * mensajes de WP_Error). El contenido del cliente (títulos, textos, ajustes) nunca cambia de palabras: un agente que
+	 * mensajes de WP_Error), y sólo si la herramienta es del motor (`$engine`): las de la tienda, el kit o Hosting
+	 * devuelven notas de pedidos y mensajes de formularios del cliente, que nunca cambian de palabras. El contenido del cliente (títulos, textos, ajustes) nunca cambia de palabras: un agente que
 	 * lee «Elementor» en un artículo y lo vuelve a guardar lo guarda igual.
 	 *
 	 * @param mixed $value
 	 * @return mixed
 	 */
-	public static function data_out( $value, int $depth = 0, string $key = '' ) {
+	public static function data_out( $value, int $depth = 0, string $key = '', bool $engine = true ) {
 		if ( $depth > 64 ) {
 			return $value;
 		}
 		if ( is_string( $value ) ) {
-			return self::out( $value, '' !== $key && self::engine_text_key( $key ) );
+			return self::out( $value, $engine && '' !== $key && self::engine_text_key( $key ) );
 		}
 		if ( is_array( $value ) || $value instanceof \stdClass ) {
 			$is_obj = $value instanceof \stdClass;
 			$out    = $is_obj ? new \stdClass() : array();
 			foreach ( ( $is_obj ? get_object_vars( $value ) : $value ) as $k => $v ) {
 				$nk  = is_string( $k ) ? self::ids( $k ) : $k;
-				$sub = self::data_out( $v, $depth + 1, is_string( $k ) ? $k : $key );
+				$sub = self::data_out( $v, $depth + 1, is_string( $k ) ? $k : $key, $engine );
 				if ( $is_obj ) {
 					$out->{ $nk } = $sub;
 				} else {
@@ -237,14 +239,14 @@ final class Map {
 			return $out;
 		}
 		if ( class_exists( 'WP_Error', false ) && $value instanceof \WP_Error ) {
-			return self::deep( $value, array( __CLASS__, 'out' ), $depth );
+			return self::deep( $value, $engine ? array( __CLASS__, 'out' ) : array( __CLASS__, 'ids' ), $depth );
 		}
 		return $value;
 	}
 
 	/** ¿Esta clave lleva un texto que escribe el motor (no el cliente)? */
 	public static function engine_text_key( string $key ): bool {
-		return (bool) preg_match( '/^(message|messages|error|errors|warning|warnings|notice|notes?|hints?|instructions|llm_instructions|guidance|next_steps?|tip|tips|reason|explanation)$/i', $key );
+		return (bool) preg_match( '/^(message|messages|error|errors|warning|warnings|hints?|instructions|llm_instructions|guidance|next_steps?|tip|tips|explanation)$/i', $key );
 	}
 
 	/**

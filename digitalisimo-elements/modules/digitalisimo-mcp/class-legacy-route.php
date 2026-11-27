@@ -10,9 +10,10 @@ defined( 'ABSPATH' ) || exit;
  * - su `initialize` agrega una nota con la ruta nueva y la fecha de retiro (`Brand_Server::initialize()`);
  * - cada uso queda contado en la opción `digitalisimo_elements_mcp_legacy` (sin carga automática): el día del último uso
  *   y cuántas veces se llamó cada herramienta. Sin usuarios, IP ni argumentos;
- * - se retira sola el 2027-01-31 si lleva 14 días sin uso. Si en esa fecha se sigue usando, se prorroga 30 días una
- *   vez (queda anotado y «Rendimiento» lo avisa) y al terminar la prórroga se retira. Retirar es quitar sus rutas de
- *   `rest_endpoints`: el servidor del núcleo no se toca y una versión nueva puede volver a ofrecerla.
+ * - su retiro: el 2027-01-31 si lleva 14 días sin uso; si en esa fecha se sigue usando, se prorroga 30 días una vez
+ *   (queda anotado y «Rendimiento» lo avisa). Retirar es quitar sus rutas de `rest_endpoints` (el servidor del núcleo no
+ *   se toca), y sólo lo hace la versión que lo habilita (`retire_enabled()`, versión D de la fase 4): esta versión
+ *   calcula y avisa las fechas, pero nunca deja sin MCP a un cliente que no cambió la dirección.
  */
 final class Legacy_Route {
 	const OPTION    = 'digitalisimo_elements_mcp_legacy';
@@ -23,7 +24,14 @@ final class Legacy_Route {
 	const EXTENSION = 30;
 
 	public static function init(): void {
+		static $done = false;
+		if ( $done ) {
+			return;
+		}
+		$done = true;
 		add_filter( 'mcp_adapter_pre_tool_call', array( __CLASS__, 'count_tool' ), 2, 4 );
+		add_filter( 'mcp_adapter_pre_resource_read', array( __CLASS__, 'count_resource' ), 2, 4 );
+		add_filter( 'mcp_adapter_pre_prompt_get', array( __CLASS__, 'count_prompt' ), 2, 4 );
 		add_filter( 'rest_index', array( __CLASS__, 'hide_from_index' ), 20 );
 		add_filter( 'rest_endpoints', array( __CLASS__, 'retire' ), 20 );
 	}
@@ -37,6 +45,29 @@ final class Legacy_Route {
 			self::touch( is_string( $tool_name ) ? $tool_name : '' );
 		}
 		return $args;
+	}
+
+	public static function count_resource( $params, $uri = '', $resource = null, $server = null ) {
+		if ( self::is_legacy( $server ) ) {
+			self::touch( 'resources-read' );
+		}
+		return $params;
+	}
+
+	public static function count_prompt( $args, $name = '', $prompt = null, $server = null ) {
+		if ( self::is_legacy( $server ) ) {
+			self::touch( 'prompts-get' );
+		}
+		return $args;
+	}
+
+	/**
+	 * ¿Esta versión puede retirar la ruta? No: el retiro llega en su propia versión (fase 4, versión D de
+	 * docs/MARCA_PROPIA.md), que cambia este valor. Hasta entonces la fecha y la prórroga sólo se calculan y se avisan en
+	 * «Rendimiento» y en el `initialize` de la ruta vieja. Filtro `digitalisimo_elements_mcp_legacy_retire`.
+	 */
+	public static function retire_enabled(): bool {
+		return (bool) apply_filters( 'digitalisimo_elements_mcp_legacy_retire', false );
 	}
 
 	/** @return array{last:string,tools:array<string,int>,extended:string} */
@@ -112,7 +143,7 @@ final class Legacy_Route {
 	/** Nota para los clientes que siguen en la ruta vieja. */
 	public static function notice( ?int $now = null ): string {
 		return sprintf(
-			'Esta dirección (/wp-json/elementor/mcp) es un alias que se retira el %1$s. Usa %2$s: las herramientas se llaman digitalisimo-* y los recursos digitalisimo://.',
+			'Esta dirección (/wp-json/elementor/mcp) es un alias que se retira el %1$s; aquí las herramientas siguen con sus nombres de siempre. Cambia la dirección a %2$s: allí las mismas herramientas se llaman digitalisimo-* y los recursos digitalisimo://.',
 			self::until( $now ),
 			Brand_Server::url()
 		);
@@ -153,7 +184,7 @@ final class Legacy_Route {
 
 	/** Retirada: sin las rutas `/elementor/mcp` (el servidor del núcleo no se toca). */
 	public static function retire( $endpoints ) {
-		if ( ! is_array( $endpoints ) || ! self::retired() ) {
+		if ( ! is_array( $endpoints ) || ! self::retire_enabled() || ! self::retired() ) {
 			return $endpoints;
 		}
 		foreach ( array_keys( $endpoints ) as $route ) {

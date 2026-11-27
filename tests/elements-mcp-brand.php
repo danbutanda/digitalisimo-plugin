@@ -337,6 +337,7 @@ namespace {
 					'post_type' => array( 'type' => 'string', 'enum' => array( 'page', 'elementor_library' ) ),
 					'meta'      => array( 'type' => 'object' ),
 					'uri'       => array( 'type' => 'string' ),
+					'extra'     => array( 'type' => 'object', 'default' => (object) array() ),
 				),
 			),
 			'meta'         => array( 'annotations' => array( 'readonly' => false, 'destructive' => false ) ),
@@ -405,7 +406,7 @@ namespace {
 			'label'       => 'Crear página de venta',
 			'description' => 'Crea un borrador del kit de ventas.',
 			'execute'     => static function ( $input ) {
-				return array( 'meta' => array( '_digitalisimo_sales_kit' => 1 ) );
+				return array( 'meta' => array( '_digitalisimo_sales_kit' => 1 ), 'message' => 'Nota del cliente: diseñé esto con Elementor', 'post_type' => 'elementor_library' );
 			},
 		)
 	);
@@ -471,6 +472,10 @@ namespace {
 	sort( $names );
 	check( array( 'digitalisimo-create-page', 'digitalisimo-get-page-structure', 'digitalisimo-list-posts', 'digitalisimo-sales-create-page', 'digitalisimo-woo-products' ) === $names, 'B2 herramientas digitalisimo-* (propias sin cambio)', $names );
 	check( false === stripos( $json, 'elementor' ), 'B2 tools/list sin «elementor» en nombres, títulos, descripciones ni esquemas', $json );
+	$legacy_json = json_encode( ( new \WP\MCP\Handlers\Tools\ToolsHandler( $legacy ) )->list_tools()->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+	preg_match( '/"extra":\{[^}]*\}\}?/', $json, $mine );
+	preg_match( '/"extra":\{[^}]*\}\}?/', $legacy_json, $theirs );
+	check( ! empty( $mine[0] ) && ( $mine[0] ?? '' ) === ( $theirs[0] ?? '' ), 'B2 un default de objeto vacío sale igual que en el servidor del núcleo', ( $mine[0] ?? '' ) . ' / ' . ( $theirs[0] ?? '' ) );
 	check( false !== strpos( $json, 'digitalisimo_library' ) && false !== strpos( $json, 'digitalisimo-list-posts' ) && false !== strpos( $json, 'digitalisimo://widgets/schema/{type}' ) && false !== strpos( $json, '_dg_data' ) && false !== strpos( $json, 'DIGITALÍSIMO Elements' ), 'B2 la descripción y el esquema con los nombres nuevos', $json );
 	$res_handler = new \WP\MCP\Handlers\Resources\ResourcesHandler( $ours );
 	$rlist       = json_encode( $res_handler->list_resources()->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
@@ -493,12 +498,15 @@ namespace {
 	check( false !== strpos( $old_res, 'elementor://global-variables' ), 'B3 el servidor viejo conserva elementor://' );
 	$GLOBALS['options'] = array();
 	$old_init           = ( new \WP\MCP\Handlers\Initialize\InitializeHandler( $legacy ) )->handle( '2025-06-18' )->toArray();
+	check( false !== strpos( (string) ( $old_init['instructions'] ?? '' ), 'aquí las herramientas siguen con sus nombres de siempre' ), 'B3 la nota no manda pedir herramientas digitalisimo-* en la ruta vieja' );
 	check( false !== strpos( (string) ( $old_init['instructions'] ?? '' ), 'digitalisimo/mcp' ) && false !== strpos( (string) $old_init['instructions'], '2027-01-31' ), 'B3 initialize del viejo avisa la ruta nueva y la fecha de retiro', $old_init['instructions'] ?? '' );
 	$r = ( new \WP\MCP\Handlers\Tools\ToolsHandler( $legacy ) )->call_tool( array( 'name' => 'elementor-create-page', 'arguments' => array( 'title' => 'x' ) ) );
 	$r = json_encode( $r->toArray(), JSON_UNESCAPED_SLASHES );
 	check( false !== strpos( $r, 'action=elementor' ) && false !== strpos( $r, '_elementor_edit_mode' ), 'B3 la respuesta del viejo no cambia', $r );
 	$state = Legacy_Route::state();
 	check( 1 === ( $state['tools']['elementor-create-page'] ?? 0 ) && 1 === ( $state['tools']['initialize'] ?? 0 ) && gmdate( 'Y-m-d' ) === $state['last'], 'B3 el uso del viejo queda contado (herramienta, initialize y fecha)', $state );
+	( new \WP\MCP\Handlers\Resources\ResourcesHandler( $legacy ) )->read_resource( array( 'uri' => 'elementor://global-variables' ) );
+	check( 1 === ( Legacy_Route::state()['tools']['resources-read'] ?? 0 ), 'B3 leer un recurso por la ruta vieja también cuenta como uso' );
 	check( array( 'last', 'tools', 'extended' ) === array_keys( $GLOBALS['options'][ Legacy_Route::OPTION ] ), 'B3 la cuenta no guarda usuarios, IP ni argumentos', $GLOBALS['options'][ Legacy_Route::OPTION ] );
 	( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'digitalisimo-list-posts', 'arguments' => array() ) );
 	check( ! isset( Legacy_Route::state()['tools']['digitalisimo-list-posts'] ), 'B3 una llamada por la ruta nueva no cuenta como uso del alias' );
@@ -541,6 +549,9 @@ namespace {
 	check( false === stripos( $err, 'elementor' ) && false !== strpos( $err, 'digitalisimo_library' ), 'B4 un error sale renombrado', $err );
 	$missing = ( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'elementor-create-page', 'arguments' => array() ) );
 	check( false !== strpos( json_encode( $missing->toArray() ), 'not found' ) || false !== stripos( json_encode( $missing->toArray() ), 'error' ), 'B4 en la ruta nueva no se publican los nombres viejos' );
+
+	$sales = flat( ( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'digitalisimo-sales-create-page', 'arguments' => array() ) )->toArray() );
+	check( false !== strpos( $sales, 'diseñé esto con Elementor' ) && false !== strpos( $sales, 'digitalisimo_library' ), 'B4 en una herramienta propia, el texto no cambia de nombre (sólo los identificadores)', $sales );
 
 	// B5 -----------------------------------------------------------------------------------------------------------------
 	$read = ( new \WP\MCP\Handlers\Resources\ResourcesHandler( $ours ) )->read_resource( array( 'uri' => 'digitalisimo://global-variables' ) );
@@ -585,6 +596,12 @@ namespace {
 	$endpoints = array( '/elementor/mcp' => array(), '/elementor/v1/x' => array(), '/digitalisimo/mcp' => array() );
 	$GLOBALS['options'] = array();
 	check( 3 === count( Legacy_Route::retire( $endpoints ) ), 'B7 antes de la fecha, rest_endpoints no cambia' );
+	check( ! Legacy_Route::retire_enabled(), 'B7 esta versión no retira la ruta vieja (sólo calcula y avisa la fecha; el retiro llega en su propia versión)' );
+	add_filter( 'digitalisimo_elements_mcp_legacy_retire', '__return_true_' );
+	function __return_true_() {
+		return true;
+	}
+	check( Legacy_Route::retire_enabled() && 3 === count( Legacy_Route::retire( $endpoints ) ), 'B7 habilitado, antes de la fecha sigue' );
 
 	// B8 -----------------------------------------------------------------------------------------------------------------
 	$cred = new WP_REST_Response( array( 'success' => true, 'data' => array( 'serverUrl' => rest_url( 'elementor/mcp/' ), 'serverName' => 'mi-sitio-elementor', 'username' => 'admin' ) ) );

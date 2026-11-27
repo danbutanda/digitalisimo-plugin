@@ -6,9 +6,10 @@ defined( 'ABSPATH' ) || exit;
 /**
  * URL del escritorio y del editor con nombre propio (D-3 de docs/MARCA_PROPIA.md).
  *
- * Siempre que corre el núcleo incluido, las URL nuevas funcionan igual que las viejas: antes de que WordPress resuelva
- * la pantalla (`admin.php` lee `page` después de cargar los plugins), la petición se traduce a la vieja en `$_GET`,
- * `$_POST`, `$_REQUEST` y `REQUEST_URI`:
+ * Siempre que corre el núcleo incluido, las URL nuevas funcionan igual que las viejas: al cargar el archivo principal de
+ * Elements, justo después del núcleo y antes de que él, sus guardas de widgets (`Unknown_Guard`, `Inert`), su App o
+ * WordPress (`admin.php` lee `page` después de cargar los plugins) miren la petición, se traduce a la vieja en `$_GET`,
+ * `$_POST`, `$_REQUEST` y `REQUEST_URI` (el modo seguro del núcleo, un mu-plugin, decide antes y sólo ve la vieja):
  * - `post.php?…&action=digitalisimo` → `action=elementor` (el editor);
  * - `page=digitalisimo-motor…` → `page=elementor…` (todas las pantallas del constructor);
  * - `digitalisimo_<x>` en claves y valores → `elementor_<x>` para los tipos y taxonomías registrados (`Map::types()`):
@@ -26,7 +27,8 @@ final class Admin_Urls {
 		if ( ! function_exists( 'is_admin' ) || ! is_admin() ) {
 			return;
 		}
-		add_action( 'init', array( __CLASS__, 'translate_request' ), 0 );
+		// Por si el archivo principal no la llamó (pruebas, cargas parciales): es idempotente.
+		add_action( 'plugins_loaded', array( __CLASS__, 'translate_request' ), 0 );
 		add_filter( 'wp_redirect', array( __CLASS__, 'redirect' ), 99 );
 		add_action( 'admin_print_footer_scripts', array( __CLASS__, 'print_script' ), 99 );
 		add_action( 'elementor/editor/footer', array( __CLASS__, 'print_script' ), 99 );
@@ -40,10 +42,14 @@ final class Admin_Urls {
 	}
 
 	/** Traduce los alias de la petición a los nombres viejos (siempre, con el núcleo incluido). */
+	/** @var bool ¿Ya se tradujo esta petición? */
+	public static $translated = false;
+
 	public static function translate_request(): void {
-		if ( ! Toggle::bundled() ) {
+		if ( self::$translated || ! function_exists( 'is_admin' ) || ! is_admin() || ! Toggle::bundled() ) {
 			return;
 		}
+		self::$translated = true;
 		$screen = self::screen();
 		if ( ! in_array( $screen, self::PAGES, true ) ) {
 			return;
@@ -118,7 +124,7 @@ final class Admin_Urls {
 		$types = Map::types();
 		$is_post = '' !== $path && 'post.php' === basename( $path );
 		$base    = (string) preg_replace_callback(
-			'#([?&]|&amp;)([^=&\#]+)=([^&\#]*)#',
+			'#([?&]|&amp;)((?!amp;)[^=&\#]+)=([^&\#]*)#',
 			static function ( $m ) use ( $types, $is_post ) {
 				$key   = $types[ $m[2] ] ?? $m[2];
 				$value = $m[3];
@@ -162,9 +168,10 @@ final class Admin_Urls {
 			. 'var a=n.getAttribute("action");if(a){var o2=out(a);if(o2!==a){n.setAttribute("action",o2);}}if((n.getAttribute("method")||"get").toLowerCase()!=="get"){return;}'
 			. '[].slice.call(n.querySelectorAll("input[type=hidden][name]")).forEach(function(i){var k=i.name,v=i.value;if(T[k]){i.name=T[k];}if(k==="page"&&v.indexOf("elementor")===0){i.value=P+v.slice(9);}else if(T[v]){i.value=T[v];}});});}'
 			. '["pushState","replaceState"].forEach(function(m){var f=history[m];history[m]=function(s,t,u){return f.call(this,s,t,u===undefined||u===null?u:out(String(u)));};});'
-			. 'var here=out(location.href);if(here!==location.href){history.replaceState(history.state,"",here);}'
-			. 'function all(){fix(document.documentElement);}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",all);}else{all();}'
-			. 'if(window.MutationObserver){new MutationObserver(function(l){l.forEach(function(r){if(r.type==="attributes"){fix(r.target);}else{r.addedNodes.forEach(fix);}});}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:["href","action"]});}'
+			// Después de `load`: los scripts del núcleo ya leyeron la dirección y marcaron el menú con los nombres viejos.
+			. 'function all(){var here=out(location.href);if(here!==location.href){history.replaceState(history.state,"",here);}fix(document.documentElement);'
+			. 'if(window.MutationObserver){new MutationObserver(function(l){l.forEach(function(r){if(r.type==="attributes"){fix(r.target);}else{r.addedNodes.forEach(fix);}});}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:["href","action"]});}}'
+			. 'if(document.readyState==="complete"){setTimeout(all,0);}else{window.addEventListener("load",function(){setTimeout(all,0);});}'
 			. 'window.addEventListener("hashchange",function(){var h=out(location.href);if(h!==location.href){history.replaceState(history.state,"",h);}});'
 			. '})(' . $data . ');';
 	}
