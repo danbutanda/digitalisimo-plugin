@@ -303,6 +303,9 @@ class Digitalisimo_Hosting_Provisioning {
 		}
 		// La marca de pago: sin ella ninguna tarea llama a Webuzo ni a Namecheap por este pedido.
 		if ( empty( $state['paid'] ) ) { $state['paid'] = time(); self::save_state( $order, $state ); }
+		// Detenido (saldo, datos…) y el administrador lo vuelve a marcar pagado: cuenta como «Reintentar» (una tarea sin
+		// esa marca ya no repite un alta detenida; segunda revisión, N2).
+		if ( ! empty( $state['stopped'] ) ) { $order->update_meta_data( '_digitalisimo_retry', time() ); $order->save(); }
 		self::enqueue( self::HOOK_PROVISION, $order->get_id() );
 		self::ensure_daily();
 	}

@@ -152,6 +152,15 @@ $o = digi_order( array( new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Domin
 $o->update_status( 'processing' );
 for ( $i = 0; $i < 12 && $GLOBALS['queue']; $i++ ) digi_run_queue( true, 5 );
 check( 1 === count( admin_mails() ) && false !== strpos( admin_mails()[0]['body'], 'red2.mx' ) && ! $GLOBALS['queue'] && 10 === digi_nc_count( 'namecheap.domains.create' ), 'N2 Namecheap caído para los dos dominios: cinco intentos de cada uno y UN aviso que nombra a los dos · ' . count( admin_mails() ) . ' avisos, ' . digi_nc_count( 'namecheap.domains.create' ) . ' intentos' );
+// El alta detenida (faltan datos) no se repite con una tarea que sólo venía por los demás dominios (ni repite su aviso);
+// marcar el pedido pagado otra vez, sí (cuenta como «Reintentar»).
+store();
+$o = digi_order( array( new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'sintel.com' ) ) ), array( 'email' => 'ana@sintel.com', 'phone' => '' ) );
+$o->update_status( 'processing' ); digi_run_queue( true, 200 );
+$P::enqueue( $P::HOOK_PROVISION, $o->get_id() ); digi_run_queue( true, 200 );
+check( 'on-hold' === $o->get_status() && 1 === count( admin_mails() ) && ! isset( $GLOBALS['nc']['domains']['sintel.com'] ), 'N2 una tarea suelta no repite el alta detenida ni su aviso · ' . count( admin_mails() ) . ' avisos' );
+$o->billing['phone'] = '33 1234 5678'; $o->update_status( 'completed' ); digi_run_queue( true, 200 );
+check( isset( $GLOBALS['nc']['domains']['sintel.com'] ), 'N2 corregidos los datos, marcar el pedido pagado otra vez lo retoma (como «Reintentar»)' );
 // La revisión diaria retoma un dominio más cuya tarea se perdió.
 store();
 nc_down_for( array( 'perdido.mx' ) );
