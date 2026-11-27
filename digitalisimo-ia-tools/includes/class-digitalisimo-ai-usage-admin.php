@@ -199,9 +199,9 @@ final class Digitalisimo_AI_Usage_Admin {
 		if ( '' !== $mxn ) {
 			echo '<p class="digitalisimo-usage-big-mxn">' . esc_html( self::about( $mxn ) ) . '</p>';
 		}
-		$line = 'Hoy: <strong>' . esc_html( self::plain_usd( $today['cost_usd'] ) ) . '</strong>' . ( '' !== self::plain_mxn( $today['cost_usd'] ) ? ' (' . esc_html( self::about( self::plain_mxn( $today['cost_usd'] ) ) ) . ')' : '' );
+		$line = 'Hoy: <strong>' . esc_html( self::plain_usd( $today['cost_usd'] ) ) . '</strong>' . ( (float) $today['cost_usd'] > 0 && '' !== self::plain_mxn( $today['cost_usd'] ) ? ' (' . esc_html( self::about( self::plain_mxn( $today['cost_usd'] ) ) ) . ')' : '' );
 		if ( is_array( $previous ) ) {
-			$line .= ' · El mes pasado: <strong>' . esc_html( self::plain_usd( $previous['cost_usd'] ) ) . '</strong>' . ( '' !== self::plain_mxn( $previous['cost_usd'] ) ? ' (' . esc_html( self::about( self::plain_mxn( $previous['cost_usd'] ) ) ) . ')' : '' );
+			$line .= ' · El mes pasado: <strong>' . esc_html( self::plain_usd( $previous['cost_usd'] ) ) . '</strong>' . ( (float) $previous['cost_usd'] > 0 && '' !== self::plain_mxn( $previous['cost_usd'] ) ? ' (' . esc_html( self::about( self::plain_mxn( $previous['cost_usd'] ) ) ) . ')' : '' );
 		}
 		echo '<p class="digitalisimo-usage-line">' . $line . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- partes escapadas arriba.
 		echo '<p class="description">' . ( $month['calls'] ? esc_html( self::num( $month['calls'] ) ) . ' consultas a la IA este mes' . ( $month['errors'] ? ' (' . esc_html( self::num( $month['errors'] ) ) . ' fallaron; las que fallan casi no cuestan)' : '' ) . '.' : 'Todavía no se ha usado la IA este mes.' ) . '</p>';
@@ -221,7 +221,7 @@ final class Digitalisimo_AI_Usage_Admin {
 
 	/** «unos MX$ 12.30» (los pesos son aproximados), o «menos de MX$ 0.01» tal cual. */
 	private static function about( $mxn ) {
-		return 0 === strpos( $mxn, 'menos de' ) ? $mxn : 'unos ' . $mxn;
+		return 0 === strpos( $mxn, 'menos de' ) || 'MX$ 0.00' === $mxn ? $mxn : 'unos ' . $mxn;
 	}
 
 	/** Lo mismo en pesos, o '' si el sitio no tiene tipo de cambio. */
