@@ -47,6 +47,17 @@ class Digitalisimo_Hosting_Checkout {
 		add_filter( 'woocommerce_rest_api_v4_orders_item_response', array( __CLASS__, 'rest_strip' ), 99, 1 );
 		add_action( 'add_meta_boxes', array( __CLASS__, 'meta_box' ), 30, 2 );
 		add_action( 'admin_post_' . self::EPP_ACTION, array( __CLASS__, 'show_epp' ) );
+		// Un pedido cancelado, reembolsado o fallido ya no necesita el código: se borra.
+		foreach ( array( 'cancelled', 'refunded', 'failed' ) as $status ) add_action( 'woocommerce_order_status_' . $status, array( __CLASS__, 'purge_epp' ), 5 );
+	}
+
+	/** Borra el EPP guardado de un pedido. */
+	public static function purge_epp( $order_id ) {
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : null;
+		if ( ! $order || ! $order->get_meta( self::META_EPP ) ) return;
+		$order->delete_meta_data( self::META_EPP );
+		$order->add_order_note( 'DIGITALÍSIMO Hosting: el pedido está «' . $order->get_status() . '»; el código EPP se borró.' );
+		$order->save();
 	}
 
 	private static function on() { $o = Digitalisimo_Hosting::settings(); return ! empty( $o['enabled'] ); }

@@ -603,7 +603,7 @@ class Digitalisimo_Hosting_Provisioning {
 			// Hosting con dominio propio, que nadie verificó que sea del comprador.
 			$reject = self::own_domain_rejected( $domain );
 			if ( $reject ) return self::stop( 'data', $reject );
-			if ( empty( Digitalisimo_Hosting::settings()['own_domain_auto'] ) && ! self::svc( $service, 'domain_approved' ) ) return self::stop( 'review', 'Hosting con dominio propio (' . $domain . '): por omisión se revisa a mano antes de crear la cuenta. Si el dominio es del cliente, pulsa «Aprobar dominio» en WooCommerce → Servicios de hosting.' );
+			if ( empty( Digitalisimo_Hosting::settings()['own_domain_auto'] ) && ! self::svc( $service, 'domain_approved' ) ) return self::stop( 'review', ! empty( $items['transfers'] ) ? 'Transferencia de ' . $domain . ( $items['hosting'] ? ' con hosting' : '' ) . ': por omisión se revisa a mano antes de tramitarla' . ( $items['hosting'] ? ' y de crear la cuenta' : '' ) . '. Si el dominio es del cliente, pulsa «Aprobar dominio» en WooCommerce → Servicios de hosting.' : 'Hosting con dominio propio (' . $domain . '): por omisión se revisa a mano antes de crear la cuenta. Si el dominio es del cliente, pulsa «Aprobar dominio» en WooCommerce → Servicios de hosting.' );
 			// ¿Está en nuestra cuenta de Namecheap (lo vendimos nosotros)?
 			$nc = Digitalisimo_Hosting_Namecheap::from_settings();
 			if ( $nc->configured() ) {
@@ -736,6 +736,13 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! empty( $items['transfers'] ) ) {
 			// Antes de dar la transferencia por buena: producto de registro para renovarla y el mismo freno de pérdida que el
 			// registro, con el costo de transferencia de Namecheap (o el de registro si no lo da).
+			// Un reintento con otro dominio (la línea se corrigió a mano): el EPP de cualquier otro dominio se borra.
+			$epp = $order->get_meta( '_digitalisimo_epp' );
+			if ( is_array( $epp ) && array_diff( array_keys( $epp ), array( $domain ) ) ) {
+				$keep = array_intersect_key( $epp, array( $domain => 1 ) );
+				if ( $keep ) $order->update_meta_data( '_digitalisimo_epp', $keep ); else $order->delete_meta_data( '_digitalisimo_epp' );
+				$order->save();
+			}
 			if ( empty( $state['transfer_guarded'] ) ) {
 				$split = self::split( $domain ); $map = Digitalisimo_Hosting::domain_products();
 				if ( ! $split || ! isset( $map[ $split[2] ] ) ) return self::stop( 'data', 'No hay producto de registro de ' . ( $split ? $split[2] : $domain ) . ' con el que renovar el dominio transferido: no se tramita la transferencia de ' . $domain . '. Revísalo a mano.' );
@@ -1173,6 +1180,15 @@ class Digitalisimo_Hosting_Provisioning {
 		foreach ( array( 'hosting_product', 'domain_product' ) as $key ) {
 			$pid = (int) self::svc( $id, $key );
 			if ( ! $pid ) continue;
+			// Una transferencia que nunca llegó a la cuenta: no se cobra la renovación de un dominio que no podemos renovar.
+			if ( 'domain_product' === $key && self::svc( $id, 'transfer_pending' ) ) {
+				if ( (int) self::svc( $id, 'transfer_renew_alert' ) !== (int) self::svc( $id, 'expires' ) ) {
+					self::svc_set( $id, array( 'transfer_renew_alert' => (int) self::svc( $id, 'expires' ) ) );
+					self::svc_log( $id, 'Renovación sin el dominio: la transferencia de ' . self::svc( $id, 'domain' ) . ' no ha terminado.' );
+					self::alert_admin( 'transferencia sin terminar al renovar', 'El servicio ' . self::svc( $id, 'domain' ) . ' vence pronto y la transferencia de su dominio no ha llegado a la cuenta de Namecheap: la renovación no cobra el dominio. Termina la transferencia o renuévalo a mano.' );
+				}
+				continue;
+			}
 			$product = wc_get_product( $pid );
 			if ( ! $product ) { self::svc_log( $id, 'No se creó el pedido de renovación: el producto #' . $pid . ' ya no existe.' ); self::alert_admin( 'renovación sin producto', 'El servicio ' . self::svc( $id, 'domain' ) . ' vence pronto y su producto #' . $pid . ' ya no existe: crea su pedido de renovación a mano.' ); return null; }
 			$products[ $key ] = $product;

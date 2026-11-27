@@ -215,7 +215,7 @@ $o = digi_order( array( new Digi_Test_Item( 50, 'Transferencia de dominio', 1, a
 $o->update_meta_data( '_digitalisimo_epp', array( 'ajeno.com' => $P::encrypt( $EPP ) ) );
 $o->update_status( 'processing' );
 digi_run_queue();
-check( 'on-hold' === $o->status && preg_grep( '/revisa a mano/', $o->notes ) && ! digi_nc_count( 'namecheap.domains.create' ), 'Transferencia: la misma revisión de dueño que un dominio propio (revisión manual por omisión)' );
+check( 'on-hold' === $o->status && preg_grep( '/Transferencia de ajeno\.com: por omisión se revisa a mano antes de tramitarla/', $o->notes ) && ! preg_grep( '/Hosting con dominio propio/', $o->notes ) && ! digi_nc_count( 'namecheap.domains.create' ), 'Transferencia: la misma revisión de dueño que un dominio propio, con su propio texto' );
 update_option( 'digitalisimo_hosting_options', array( 'own_domain_auto' => 1 ) + get_option( 'digitalisimo_hosting_options' ) );
 $o2 = digi_order( array( new Digi_Test_Item( 50, 'Transferencia de dominio', 1, array( 'Dominio' => 'ajeno.com' ) ) ) );
 $o2->update_meta_data( '_digitalisimo_epp', array( 'ajeno.com' => $P::encrypt( $EPP ) ) );
@@ -228,6 +228,12 @@ check( false === strpos( serialize( array( $o->notes, $o2->notes, $GLOBALS['mail
 $client = array_values( array_filter( $GLOBALS['mails'], function ( $m ) { return 'ana@cliente.test' === $m['to']; } ) );
 check( $client && false !== strpos( $client[0]['body'], 'transferencia de dominio' ) && false === strpos( $client[0]['body'], 'Registramos tu dominio' ), 'El correo al cliente dice que la transferencia está en trámite, no que se registró' );
 check( 20 === (int) $P::svc( $sid, 'domain_product' ), 'El servicio se renueva con el producto de registro de su extensión' );
+// B2: una renovación con la transferencia sin terminar no cobra el dominio y avisa.
+$GLOBALS['mails'] = array();
+$P::svc_set( $sid, array( 'hosting_product' => 14693 ) );
+$ren = $P::renewal_order( $sid );
+check( $ren && array( 14693 ) === array_map( function ( $i ) { return $i->get_product_id(); }, $ren->items ) && array_filter( $GLOBALS['mails'], function ( $m ) { return false !== strpos( $m['subject'], 'transferencia sin terminar' ); } ), 'Renovación con la transferencia sin terminar: no cobra el dominio y avisa al administrador' );
+$P::svc_set( $sid, array( 'hosting_product' => 0, 'renewal_order' => 0 ) );
 // La transferencia llega a la cuenta: la revisión diaria la da por hecha y borra el EPP del pedido.
 $GLOBALS['nc']['domains']['ajeno.com'] = strtotime( '+300 days' );
 $P::check_service( $sid, time(), 7 );
@@ -243,6 +249,19 @@ unset( $GLOBALS['nc']['price']['com'] );
 $o5 = digi_order( array( new Digi_Test_Item( 50, 'Transferencia de dominio', 1, array( 'Dominio' => 'ajeno.lat' ) ) ) );
 $o5->update_status( 'processing' ); digi_run_queue();
 check( 'on-hold' === $o5->status && preg_grep( '/No hay producto de registro de \.lat/', $o5->notes ), 'Aprovisionamiento: sin producto de registro para renovar, la transferencia no se tramita' );
+
+// ── B7: el EPP se borra al cancelar o reembolsar, y al reintentar con otro dominio ──────────────────────────────
+$o6 = digi_order( array( new Digi_Test_Item( 50, 'Transferencia', 1, array( 'Dominio' => 'ajeno.com' ) ) ) );
+$o6->update_meta_data( '_digitalisimo_epp', array( 'ajeno.com' => $P::encrypt( $EPP ) ) );
+$C::purge_epp( $o6->id );
+check( '' === $o6->get_meta( '_digitalisimo_epp' ) && preg_grep( '/código EPP se borró/', $o6->notes ), 'Cancelado o reembolsado: el EPP se borra del pedido' );
+$hooks_before = $GLOBALS['hooks']; $GLOBALS['hooks'] = array(); $C::init();
+check( isset( $GLOBALS['hooks']['woocommerce_order_status_cancelled'][5], $GLOBALS['hooks']['woocommerce_order_status_refunded'][5], $GLOBALS['hooks']['woocommerce_order_status_failed'][5] ), 'Se borra al pasar a cancelado, reembolsado o fallido' );
+$GLOBALS['hooks'] = $hooks_before;
+$o7 = digi_order( array( new Digi_Test_Item( 50, 'Transferencia', 1, array( 'Dominio' => 'ajeno.com' ) ) ) );
+$o7->update_meta_data( '_digitalisimo_epp', array( 'viejo-error.com' => $P::encrypt( 'OTRO-EPP-123' ), 'ajeno.com' => $P::encrypt( $EPP ) ) );
+$o7->update_status( 'processing' ); digi_run_queue();
+check( array( 'ajeno.com' ) === array_keys( (array) $o7->get_meta( '_digitalisimo_epp' ) ), 'Al reintentar con otro dominio, el EPP del dominio anterior se borra' );
 
 // ── 7. El buscador ────────────────────────────────────────────────────────────────────────────────────────────
 $w = Digitalisimo_Hosting::legacy_shortcode();
