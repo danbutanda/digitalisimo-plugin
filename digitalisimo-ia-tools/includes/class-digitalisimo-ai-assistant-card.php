@@ -541,7 +541,8 @@ final class Digitalisimo_AI_Assistant_Card {
 
 	private static function create_page( array $input ) {
 		if ( isset( $input['post_id'] ) && is_numeric( $input['post_id'] ) ) {
-			return array( 'text' => 'Voy a rehacer tu borrador ' . self::page( $input['post_id'] ) . ' encima de los cambios que le hiciste' );
+			$title = self::title( $input['post_id'] );
+			return array( 'text' => 'Voy a rehacer tu borrador' . ( '' !== $title ? ' «' . self::clip( $title, 80 ) . '»' : '' ) . ' encima de los cambios que le hiciste' );
 		}
 		$title = trim( (string) ( $input['title'] ?? '' ) );
 		return array( 'text' => 'Voy a crear la página ' . ( '' !== $title ? '«' . self::clip( $title, 80 ) . '» ' : '' ) . 'en borrador: no se verá en tu sitio hasta que la publiques' );
