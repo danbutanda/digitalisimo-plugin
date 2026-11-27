@@ -256,7 +256,7 @@ final class Transform {
 			}
 			// Plantillas (Twig de los componentes atómicos, Underscore): su código y su HTML.
 			if ( preg_match( '/\{[{%]|<#/', $value ) ) {
-				$value = self::html( self::template_code( $value ) );
+				$value = self::template_html( $value );
 				// Un selector de control (`{{WRAPPER}} .elementor-x`) no es HTML: sus clases por las reglas.
 				return false !== stripos( $value, 'elementor' ) && false === strpos( $value, '<' ) ? self::str( $value ) : $value;
 			}
@@ -562,7 +562,7 @@ final class Transform {
 		$type = preg_match( '#\btype\s*=\s*["\']([^"\']+)["\']#i', $open, $t ) ? strtolower( $t[1] ) : 'text/javascript';
 		// Plantillas del editor (`<script type="text/template">`): son HTML.
 		if ( in_array( $type, array( 'text/template', 'text/html', 'text/x-template' ), true ) ) {
-			return $tag . self::html( self::template_code( $body ) ) . $shut;
+			return $tag . self::template_html( $body ) . $shut;
 		}
 		if ( preg_match( '/\bsrc\s*=/i', $open ) || ! in_array( $type, array( 'text/javascript', 'module', 'application/javascript', 'application/json' ), true ) ) {
 			return $tag . $body . $shut;
@@ -602,6 +602,32 @@ final class Transform {
 		);
 		$text = (string) preg_replace( '/\(\'([^\']*?[Ee]lemen)\' ~ \'(tor[^\']*)\'\)/', "'$1$2'", $text );
 		return Map::unmask( $text );
+	}
+
+	/**
+	 * Una plantilla del editor: su código por el léxico y su HTML por la capa. Los bloques `<# … #>` se apartan antes,
+	 * porque pueden ir dentro de una etiqueta (`<input id="elementor-x" <# if ( a ) { #>checked<# } #>>`) y la
+	 * etiqueta no se reconocería.
+	 */
+	public static function template_html( string $tpl ): string {
+		$tpl   = self::template_code( $tpl );
+		$saved = array();
+		$tpl   = (string) preg_replace_callback(
+			'/<#.*?#>/s',
+			static function ( $m ) use ( &$saved ) {
+				$saved[] = $m[0];
+				return "\x02" . ( count( $saved ) - 1 ) . "\x02";
+			},
+			$tpl
+		);
+		$tpl = self::html( $tpl );
+		return (string) preg_replace_callback(
+			'/\x02(\d+)\x02/',
+			static function ( $m ) use ( $saved ) {
+				return $saved[ (int) $m[1] ];
+			},
+			$tpl
+		);
 	}
 
 	/** El código de una plantilla de Underscore o de Twig (`<# … #>`, `{% … %}`, `{{ … }}`) por el analizador léxico. */

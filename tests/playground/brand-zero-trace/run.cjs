@@ -183,6 +183,7 @@ async function mcp() {
       await page.screenshot({ path: `${dir}/editor-${tag}.png` }).catch(() => {});
       errs.unshift('estado: ' + JSON.stringify(state));
       fs.writeFileSync(`${dir}/editor-${tag}.json`, JSON.stringify({ state, errs, failed }, null, 1));
+      console.log(`DIAGNÓSTICO ${tag}: ${JSON.stringify({ state, errs: errs.slice(1, 12), failed: failed.slice(0, 12) })}`);
     }
     check(`E1-${tag}`, ready, `el editor abre (${tag})`, errs.concat(failed).join(' | '));
     let saved = 'sin abrir';

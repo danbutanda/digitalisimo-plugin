@@ -231,6 +231,24 @@ final class Editor_Layer {
 	}
 
 	/** Espacios REST del motor y su forma transformada (`elementor/v1` → `digitalisimo/v1`). @return array<string,string> */
+	/**
+	 * Formas en que el JS transformado puede pedir un espacio: entero (`'elementor/v1'` → `digitalisimo/v1`) o armado
+	 * por partes (`'elementor'` + `'/v1'` → `dg/v1`).
+	 *
+	 * @return array<string,string> forma pedida => espacio del motor
+	 */
+	public static function namespace_forms( array $namespaces ): array {
+		$forms = array();
+		foreach ( $namespaces as $ns => $whole ) {
+			$forms[ $whole ] = $ns;
+			$segs            = explode( '/', $ns );
+			$first           = Transform::str( array_shift( $segs ) );
+			$forms[ implode( '/', array_merge( array( $first ), $segs ) ) ] = $ns;
+		}
+		unset( $forms[''] );
+		return $forms;
+	}
+
 	public static function namespaces( $server ): array {
 		$out = array();
 		if ( is_object( $server ) && method_exists( $server, 'get_namespaces' ) ) {
@@ -245,18 +263,19 @@ final class Editor_Layer {
 
 	/** La ruta transformada → la del motor (o la misma si no es una forma transformada). */
 	public static function route_in( string $route, array $namespaces ): string {
+		$forms = self::namespace_forms( $namespaces );
 		// Las más largas primero: `digitalisimo-pro/v1` antes que `digitalisimo`.
-		uasort(
-			$namespaces,
+		uksort(
+			$forms,
 			static function ( $a, $b ) {
-				return strlen( $b ) - strlen( $a );
+				return strlen( (string) $b ) - strlen( (string) $a );
 			}
 		);
-		foreach ( $namespaces as $ns => $out ) {
-			if ( $out === $ns ) {
+		foreach ( $forms as $form => $ns ) {
+			if ( (string) $form === $ns ) {
 				continue;
 			}
-			$prefix = '/' . $out;
+			$prefix = '/' . $form;
 			if ( $route === $prefix || 0 === strpos( $route, $prefix . '/' ) ) {
 				return '/' . $ns . substr( $route, strlen( $prefix ) );
 			}
@@ -294,7 +313,7 @@ final class Editor_Layer {
 				$request->set_param( 'template', Exports::template_in( $request->get_param( 'template' ) ) );
 			}
 		}
-		if ( false === strpos( $route, 'digitalisimo' ) || self::route_exists( $server, $route ) ) {
+		if ( ( false === strpos( $route, 'digitalisimo' ) && 0 !== strpos( $route, '/' . Transform::P . '/' ) && 0 !== strpos( $route, '/' . Transform::P . '-' ) ) || self::route_exists( $server, $route ) ) {
 			return $result;
 		}
 		$original = self::route_in( $route, self::namespaces( $server ) );

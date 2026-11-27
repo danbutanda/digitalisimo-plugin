@@ -76,7 +76,7 @@ namespace {
 		echo "FALLA no existe class-front-layer.php (código anterior)\n";
 		exit( 1 );
 	}
-	foreach ( array( 'class-map.php', 'class-addons.php', 'class-toggle.php', 'class-transform.php', 'class-front-layer.php' ) as $f ) {
+	foreach ( array( 'class-map.php', 'class-addons.php', 'class-toggle.php', 'class-transform.php', 'class-front-layer.php', 'class-exports.php', 'class-editor-layer.php' ) as $f ) {
 		require $el . '/' . $f;
 	}
 	use Digitalisimo\Elements\Marca\Front_Layer;
@@ -130,6 +130,12 @@ namespace {
 	// La configuración del editor (`var X = {json}`): el nombre y los datos con las reglas, el contenido igual.
 	$cfg = Transform::js( 'var ElementorConfig = {"ajax":{"action":"elementor_ajax"},"document":{"elements":[{"settings":{"title":"Elementor"}}],"urls":{"preview":"https:\/\/ensayo.test\/?p=1&elementor-preview=1"}},"selectors":{"{{WRAPPER}} .elementor-heading-title":"color: {{VALUE}}"}};' );
 	check( 0 === strpos( $cfg, 'var DigitalisimoConfig = ' ) && false !== strpos( $cfg, '"digitalisimo_ajax"' ) && false !== strpos( $cfg, '"title":"Elementor"' ) && false !== strpos( $cfg, 'dg-preview=1' ) && false !== strpos( $cfg, '{{WRAPPER}} .dg-heading-title' ), 'F1 configuración del editor como datos: nombre, acción, vista previa y selectores; el contenido igual', $cfg );
+	// El editor transformado pide los espacios REST enteros (`digitalisimo/v1`) o armados por partes (`dg/v1`).
+	$ns = array( 'elementor/v1' => Transform::str( 'elementor/v1' ), 'elementor-pro/v1' => Transform::str( 'elementor-pro/v1' ) );
+	check( '/elementor/v1/globals' === \Digitalisimo\Elements\Marca\Editor_Layer::route_in( '/dg/v1/globals', $ns ) && '/elementor/v1/globals' === \Digitalisimo\Elements\Marca\Editor_Layer::route_in( '/digitalisimo/v1/globals', $ns ) && '/elementor-pro/v1/x' === \Digitalisimo\Elements\Marca\Editor_Layer::route_in( '/dg-pro/v1/x', $ns ), 'F1 rutas del editor: enteras y por partes' );
+	// Una etiqueta de plantilla con un bloque `<# … #>` dentro.
+	$tpl2 = Transform::template_html( '<input id="elementor-control-top-{{{ data._cid }}}" <# if ( elementor.x ) { #>checked<# } #>>' );
+	check( '<input id="dg-control-top-{{{ data._cid }}}" <# if ( digitalisimo.x ) { #>checked<# } #>>' === $tpl2, 'F1 plantilla con bloque dentro de la etiqueta', $tpl2 );
 	// Una página de varios MB (el editor): nunca sale vacía por un límite de PCRE, y se transforma igual.
 	$big = '<html><body class="elementor-x"><script>var ElementorConfig = {"a":"' . str_repeat( 'x elementor-y ', 250000 ) . '"};</script><div class="elementor-z">t</div></body></html>';
 	$bout = Transform::html( $big );
