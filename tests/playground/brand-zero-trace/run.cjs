@@ -166,7 +166,12 @@ async function mcp() {
     page.on('pageerror', onErr);
     page.on('console', onCon);
     const failed = [];
-    const onResp = (r) => { if (r.status() >= 400 && r.url().startsWith(base) && !/favicon/.test(r.url())) failed.push(`${r.status()} ${r.url().replace(base, '')}`); };
+    const onResp = async (r) => {
+      if (r.status() < 400 || !r.url().startsWith(base) || /favicon/.test(r.url())) return;
+      const req = r.request();
+      const body = await r.text().catch(() => '');
+      failed.push(`${r.status()} ${req.method()} ${r.url().replace(base, '')} ${String(req.postData() || '').slice(0, 200)} → ${body.slice(0, 300)}`);
+    };
     page.on('response', onResp);
     await page.goto(`${base}/wp-admin/post.php?post=${id}&action=elementor`, { waitUntil: 'networkidle2', timeout: 240000 }).catch(() => null);
     const ready = await page.waitForFunction(() => { const E = window.digitalisimo || window.elementor; try { return !!(E && window.$e && E.documents && E.documents.getCurrent() && E.getContainer && E.getPreviewView && E.getPreviewView()); } catch (e) { return false; } }, { timeout: 180000 }).then(() => true).catch(() => false);
@@ -198,7 +203,8 @@ async function mcp() {
       }, cmd, text).catch((e) => String(e));
       await new Promise((r) => setTimeout(r, 3000));
     }
-    check(`E2-${tag}`, saved === 'ok', `editar y guardar con ${cmd} (${tag})`, saved + ' · ' + errs.concat(failed).join(' | '));
+    if (saved !== 'ok') console.log(`DIAGNÓSTICO guardar ${tag}: ${JSON.stringify({ saved, failed: failed.slice(0, 8), errs: errs.slice(0, 6) })}`);
+    check(`E2-${tag}`, saved === 'ok', `editar y guardar con ${cmd} (${tag})`, saved + ' · ' + failed.concat(errs).join(' | '));
     const m = await meta(id);
     const data = String(m.data || '');
     check(`E3-${tag}`, data.includes(text) && /gu(\\u00ed|í)a de Elementor/.test(data), `lo editado quedó guardado y el contenido del cliente igual (${tag})`, data.slice(0, 600));
