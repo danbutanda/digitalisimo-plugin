@@ -560,14 +560,15 @@ class Digitalisimo_Hosting {
 	 * Lo que la herramienta MCP puede escribir: lo de la tienda de este sitio (pedido del propietario del 2026-11-26: el
 	 * agente que arma las landings configura Hosting sin el formulario).
 	 */
-	const MCP_WRITABLE = array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'form_selector', 'domain_field', 'extension_field', 'webuzo_user_prefix', 'pricing_enabled', 'pricing_cushion', 'pricing_margin', 'pricing_fee', 'pricing_vat', 'pricing_min_margin', 'pricing_rounding' );
+	const MCP_WRITABLE = array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'form_selector', 'domain_field', 'extension_field', 'webuzo_user_prefix', 'pricing_enabled', 'pricing_rounding' );
 	/**
 	 * Lo que por MCP sólo se lee: la cuenta de Namecheap (y si se hereda de la red), el servidor y la clave de Webuzo, los
 	 * nameservers, el token de Banxico y lo que enciende, apaga o adelanta la venta automática (el módulo `enabled`, que
 	 * con la venta marcada la reanuda; la venta; el hosting con dominio propio sin revisión; los días de gracia antes de
-	 * suspender): eso lo cambia una persona en el escritorio.
+	 * suspender) y los porcentajes de la fórmula de precios (colchón, margen, comisión, IVA y margen mínimo), que son el
+	 * freno contra vender con pérdida: eso lo cambia una persona en el escritorio.
 	 */
-	const MCP_READONLY = array( 'api_user', 'username', 'api_key', 'client_ip', 'inherit_network', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers', 'banxico_token', 'enabled', 'provision_enabled', 'own_domain_auto', 'grace_days' );
+	const MCP_READONLY = array( 'api_user', 'username', 'api_key', 'client_ip', 'inherit_network', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers', 'banxico_token', 'enabled', 'provision_enabled', 'own_domain_auto', 'grace_days', 'pricing_cushion', 'pricing_margin', 'pricing_fee', 'pricing_vat', 'pricing_min_margin' );
 	const MCP_BOOL = array( 'enabled', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'pricing_enabled', 'webuzo_insecure', 'provision_enabled', 'own_domain_auto', 'inherit_network' );
 	/** La cuenta de Namecheap: por MCP sólo se dice si está puesta, nunca su valor. */
 	const NAMECHEAP_ACCOUNT = array( 'api_user', 'username', 'api_key', 'client_ip' );

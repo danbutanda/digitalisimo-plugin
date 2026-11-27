@@ -41,13 +41,13 @@ check( isset( $g['domain_products']['resolved']['.com'] ) && 20 === $g['domain_p
 
 // ── 3. update combina ─────────────────────────────────────────────────────────────────────────────────────────
 $before = opt();
-$r = $H::mcp_update( array( 'domain_products' => ".com|20\n.net|\n.mx|21", 'ask_domain' => false, 'pricing_margin' => '500', 'pricing_fee' => '3,5', 'form_selector' => '<b>.mi-form</b>' ) );
+$r = $H::mcp_update( array( 'domain_products' => ".com|20\n.net|\n.mx|21", 'ask_domain' => false, 'webuzo_user_prefix' => 'Prueba-1234567', 'pricing_rounding' => 'end9', 'form_selector' => '<b>.mi-form</b>' ) );
 check( is_array( $r ) && true === $r['ok'], 'update devuelve el resultado' );
 $after = opt();
 foreach ( array( 'api_key', 'api_user', 'username', 'client_ip', 'webuzo_api_key', 'webuzo_url', 'banxico_token', 'hosting_category_ids', 'provision_enabled', 'own_domain_auto', 'nameservers', 'provision_since' ) as $k ) check( $before[ $k ] === $after[ $k ], "update no toca «{$k}», que no llegó" );
 check( ".com|20\n.net|\n.mx|21" === $after['domain_products'] && 0 === $after['ask_domain'], 'update guarda lo que llegó' );
-check( 90.0 === $after['pricing_margin'] && 3.5 === $after['pricing_fee'] && '.mi-form' === $after['form_selector'], 'update valida como el formulario (porcentaje hasta 90, coma decimal, texto saneado)' );
-check( 90.0 === $r['adjusted']->pricing_margin && '.mi-form' === $r['adjusted']->form_selector && ! isset( $r['adjusted']->domain_products ), 'adjusted dice lo que la validación guardó distinto de lo enviado' );
+check( 'prueba' === $after['webuzo_user_prefix'] && 'end9' === $after['pricing_rounding'] && '.mi-form' === $after['form_selector'], 'update valida como el formulario (prefijo saneado y recortado, redondeo, texto saneado)' );
+check( 'prueba' === $r['adjusted']->webuzo_user_prefix && '.mi-form' === $r['adjusted']->form_selector && ! isset( $r['adjusted']->domain_products ), 'adjusted dice lo que la validación guardó distinto de lo enviado' );
 check( in_array( 'domain_products', $r['changed'], true ) && in_array( 'ask_domain', $r['changed'], true ) && ".com|20\n.net|\n.mx|21" === $r['settings']['domain_products'], 'changed y settings reflejan el valor resultante' );
 $r2 = $H::mcp_update( array( 'simplify_checkout' => 'yes' ) );
 check( 1 === opt()['simplify_checkout'] && ".com|20\n.net|\n.mx|21" === opt()['domain_products'] && 0 === opt()['ask_domain'], 'Un segundo update sólo cambia su clave: nada de lo anterior se pierde' );
@@ -55,13 +55,13 @@ check( 1 === opt()['simplify_checkout'] && ".com|20\n.net|\n.mx|21" === opt()['d
 // Misma validación que el formulario: lo mismo enviado por la pantalla se guarda igual.
 $mcp_saved = opt();
 $GLOBALS['options']['digitalisimo_hosting_options'] = $before;
-$_POST = array( '_wpnonce' => 'n:digitalisimo_hosting_save', 'digitalisimo_hosting_save' => 1, 'hosting' => array( 'domain_products' => ".com|20\n.net|\n.mx|21", 'ask_domain' => '0', 'pricing_margin' => '500', 'pricing_fee' => '3,5', 'form_selector' => '<b>.mi-form</b>' ) );
+$_POST = array( '_wpnonce' => 'n:digitalisimo_hosting_save', 'digitalisimo_hosting_save' => 1, 'hosting' => array( 'domain_products' => ".com|20\n.net|\n.mx|21", 'ask_domain' => '0', 'webuzo_user_prefix' => 'Prueba-1234567', 'pricing_rounding' => 'end9', 'form_selector' => '<b>.mi-form</b>' ) );
 ob_start(); $H::page(); ob_end_clean(); $_POST = array();
-foreach ( array( 'domain_products', 'ask_domain', 'pricing_margin', 'pricing_fee', 'form_selector' ) as $k ) check( opt()[ $k ] === $mcp_saved[ $k ], "El formulario y el MCP guardan igual «{$k}»" );
+foreach ( array( 'domain_products', 'ask_domain', 'webuzo_user_prefix', 'pricing_rounding', 'form_selector' ) as $k ) check( opt()[ $k ] === $mcp_saved[ $k ], "El formulario y el MCP guardan igual «{$k}»" );
 
 // ── 4. Sólo lectura, desconocidas y tipos ─────────────────────────────────────────────────────────────────────
 $snap = serialize( opt() );
-foreach ( array( array( 'api_key' => 'OTRA' ), array( 'client_ip' => '1.2.3.4' ), array( 'webuzo_url' => 'https://evil.test:2005' ), array( 'webuzo_api_key' => 'X' ), array( 'nameservers' => 'ns1.evil.test' ), array( 'provision_enabled' => true ), array( 'own_domain_auto' => 1 ), array( 'enabled' => true ), array( 'grace_days' => 0 ), array( 'inherit_network' => 1 ), array( 'banxico_token' => 'T' ) ) as $bad ) {
+foreach ( array( array( 'api_key' => 'OTRA' ), array( 'client_ip' => '1.2.3.4' ), array( 'webuzo_url' => 'https://evil.test:2005' ), array( 'webuzo_api_key' => 'X' ), array( 'nameservers' => 'ns1.evil.test' ), array( 'provision_enabled' => true ), array( 'own_domain_auto' => 1 ), array( 'enabled' => true ), array( 'grace_days' => 0 ), array( 'pricing_fee' => 0 ), array( 'pricing_vat' => 0 ), array( 'pricing_min_margin' => 0 ), array( 'pricing_margin' => 0 ), array( 'pricing_cushion' => 0 ), array( 'inherit_network' => 1 ), array( 'banxico_token' => 'T' ) ) as $bad ) {
 	$e = $H::mcp_update( $bad + array( 'replace_hosting' => true ) );
 	check( is_wp_error( $e ) && 'digitalisimo_hosting_read_only' === $e->code && serialize( opt() ) === $snap, 'Por MCP no se escribe «' . key( $bad ) . '» y no se guarda nada del lote' );
 }
@@ -69,8 +69,6 @@ $e = $H::mcp_update( array( 'domain_productos' => '.com|1' ) );
 check( is_wp_error( $e ) && 'digitalisimo_hosting_unknown_key' === $e->code && serialize( opt() ) === $snap, 'Una clave desconocida no guarda nada' );
 $e = $H::mcp_update( array( 'simplify_checkout' => 'quizá', 'domain_products' => '.com|5' ) );
 check( is_wp_error( $e ) && serialize( opt() ) === $snap, 'Un booleano inválido no guarda nada' );
-$e = $H::mcp_update( array( 'pricing_margin' => 'mucho' ) );
-check( is_wp_error( $e ) && serialize( opt() ) === $snap, 'Un número inválido no guarda nada' );
 $e = $H::mcp_update( array( 'pricing_rounding' => '7' ) );
 check( is_wp_error( $e ) && serialize( opt() ) === $snap, 'Un redondeo fuera de la lista no guarda nada' );
 $e = $H::mcp_update( array( 'domain_products' => array( '.com' => 1 ) ) );
