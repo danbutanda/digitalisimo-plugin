@@ -21,7 +21,7 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 	/** Colores del marco; negro por defecto. */
 	const FRAMES = array( 'black' => 'Negro', 'silver' => 'Plata', 'white' => 'Blanco' );
 
-	/** Navegación (los mismos valores que guardaba Element Pack). */
+	/** Navegación (los mismos valores que guardaban los widgets migrados). */
 	const NAVIGATION = array( 'arrows' => 'Flechas a los lados', 'dots' => 'Puntos debajo', 'arrows_dots' => 'Flechas y puntos', 'none' => 'Desactivada' );
 
 	/** Flecha (trazo de 24 × 24) de los botones; la de «siguiente» es la misma reflejada. */
