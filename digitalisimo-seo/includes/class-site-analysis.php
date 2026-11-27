@@ -252,14 +252,20 @@ class Digitalisimo_Integrations_Site_Analysis {
 		$months = implode( '|', array_keys( self::MONTHS ) );
 		$out    = array();
 		$year   = (int) gmdate( 'Y', (int) $now );
-		if ( preg_match_all( '/\b(\d{1,2})\s+de\s+(' . $months . ')(?:\s+(?:de|del)\s+(\d{4}))?/u', $text, $m, PREG_SET_ORDER ) ) {
-			foreach ( $m as $hit ) $out[] = array( (int) $hit[1], self::MONTHS[ $hit[2] ], isset( $hit[3] ) && '' !== $hit[3] ? (int) $hit[3] : $year, trim( $hit[0] ) );
+		if ( preg_match_all( '/(?<!\d)(\d{1,2})\s+de\s+(' . $months . ')(?:\s+(?:de|del)\s+(\d{4}))?/u', $text, $m, PREG_SET_ORDER ) ) {
+			foreach ( $m as $hit ) $out[] = array( (int) $hit[1], self::MONTHS[ $hit[2] ], isset( $hit[3] ) && '' !== $hit[3] ? (int) $hit[3] : $year, trim( $hit[0] ), isset( $hit[3] ) && '' !== $hit[3] );
 		}
-		if ( preg_match_all( '/\b(' . $months . ')\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?/u', $text, $m, PREG_SET_ORDER ) ) {
-			foreach ( $m as $hit ) $out[] = array( (int) $hit[2], self::MONTHS[ $hit[1] ], isset( $hit[3] ) && '' !== $hit[3] ? (int) $hit[3] : $year, trim( $hit[0] ) );
+		if ( preg_match_all( '/\b(' . $months . ')\s+(\d{1,2})(?!\d)(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?/u', $text, $m, PREG_SET_ORDER ) ) {
+			foreach ( $m as $hit ) $out[] = array( (int) $hit[2], self::MONTHS[ $hit[1] ], isset( $hit[3] ) && '' !== $hit[3] ? (int) $hit[3] : $year, trim( $hit[0] ), isset( $hit[3] ) && '' !== $hit[3] );
 		}
 		$dates = array();
-		foreach ( $out as $d ) if ( $d[0] >= 1 && $d[0] <= 31 && checkdate( $d[1], $d[0], $d[2] ) ) $dates[] = array( gmmktime( 23, 59, 59, $d[1], $d[0], $d[2] ), $d[3] );
+		foreach ( $out as $d ) {
+			if ( $d[0] < 1 || $d[0] > 31 || ! checkdate( $d[1], $d[0], $d[2] ) ) continue;
+			$ts = gmmktime( 23, 59, 59, $d[1], $d[0], $d[2] );
+			// Sin año, una fecha de hace más de medio año es la del año que viene («vigente hasta el 6 de enero», en diciembre).
+			if ( ! $d[4] && $ts < (int) $now - 180 * DAY_IN_SECONDS && checkdate( $d[1], $d[0], $d[2] + 1 ) ) $ts = gmmktime( 23, 59, 59, $d[1], $d[0], $d[2] + 1 );
+			$dates[] = array( $ts, $d[3] );
+		}
 		return $dates;
 	}
 
@@ -339,8 +345,10 @@ class Digitalisimo_Integrations_Site_Analysis {
 	public static function maybe_start() {
 		if ( ! self::active() || ! current_user_can( 'manage_options' ) ) return;
 		$state = self::state();
-		$stale = (int) ( $state['finished'] ?? 0 ) < time() - WEEK_IN_SECONDS;
-		if ( (int) ( $state['version'] ?? 0 ) >= self::VERSION && ( empty( $state['done'] ) || ! $stale ) ) {
+		// Vencido sólo un repaso terminado Y reunido (sin «dirty»): uno que acaba de terminar y espera su finalize() no
+		// se reinicia, o con el escritorio abierto (el heartbeat) se repasaría todo una y otra vez sin resultado.
+		$stale = ! empty( $state['done'] ) && empty( $state['dirty'] ) && (int) ( $state['started'] ?? 0 ) < time() - WEEK_IN_SECONDS;
+		if ( (int) ( $state['version'] ?? 0 ) >= self::VERSION && ! $stale ) {
 			if ( ( empty( $state['done'] ) || ! empty( $state['dirty'] ) ) && ! wp_next_scheduled( self::CRON ) ) wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::CRON );
 			return;
 		}
@@ -459,6 +467,9 @@ class Digitalisimo_Integrations_Site_Analysis {
 				if ( $target && 'publish' === get_post_status( $target ) ) $row['cok'] = 1;
 			}
 		}
+		// Fuera de Google (noindex) o con canonical hacia otra página del sitio: duplicado a propósito, no compite.
+		if ( '1' === (string) get_post_meta( $post->ID, $P . 'noindex', true ) || false !== strpos( (string) get_post_meta( $post->ID, $P . 'robots', true ), 'noindex' ) ) $row['n'] = 1;
+		elseif ( ! empty( $row['cok'] ) ) $row['n'] = 1;
 		$keyword = trim( explode( ',', (string) get_post_meta( $post->ID, $P . 'keywords', true ) )[0] );
 		if ( '' !== $keyword ) $row['k'] = $keyword;
 		if ( $row != $prev ) update_post_meta( $post->ID, self::META, $row ); // phpcs:ignore Universal.Operators.StrictComparisons -- mismo contenido.
@@ -517,7 +528,9 @@ class Digitalisimo_Integrations_Site_Analysis {
 			if ( self::host( $url ) === self::host( $home ) ) { $id = (int) url_to_postid( $url ); if ( $id ) $ids[] = $id; }
 		}
 		$templates = get_posts( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'posts_per_page' => 200, 'no_found_rows' => true, 'suppress_filters' => true ) );
+		$started = microtime( true );
 		foreach ( $templates as $template ) {
+			if ( microtime( true ) - $started > self::$budget ) break;
 			$html = (string) $template->post_content;
 			$data = get_post_meta( $template->ID, '_elementor_data', true );
 			if ( is_string( $data ) ) $html .= ' ' . str_replace( '\\/', '/', $data );
@@ -541,7 +554,7 @@ class Digitalisimo_Integrations_Site_Analysis {
 
 		// B2: pares candidatos, comprobados con el Jaccard exacto mientras alcance el tiempo.
 		$sigs = array();
-		foreach ( $data as $id => $meta ) { $sig = self::unpack( $meta['s'] ?? '' ); if ( count( $sig ) === self::HASHES ) $sigs[ $id ] = $sig; }
+		foreach ( $data as $id => $meta ) { if ( ! empty( $meta['n'] ) ) continue; $sig = self::unpack( $meta['s'] ?? '' ); if ( count( $sig ) === self::HASHES ) $sigs[ $id ] = $sig; }
 		$pairs    = array_slice( self::candidates( $sigs ), 0, self::MAX_PAIRS, true );
 		$accepted = array();
 		$cache    = array();
@@ -567,7 +580,7 @@ class Digitalisimo_Integrations_Site_Analysis {
 		$grouped = array();
 		foreach ( $groups as $group ) foreach ( $group['ids'] as $id ) $grouped[ $id ] = true;
 		$by_kw = array();
-		foreach ( $data as $id => $meta ) if ( ! empty( $meta['k'] ) ) $by_kw[ trim( implode( ' ', self::words( $meta['k'] ) ) ) ][] = $id;
+		foreach ( $data as $id => $meta ) if ( ! empty( $meta['k'] ) && empty( $meta['n'] ) ) $by_kw[ trim( implode( ' ', self::words( $meta['k'] ) ) ) ][] = $id;
 		$same_kw = array();
 		foreach ( $by_kw as $kw => $ids ) if ( '' !== $kw && count( $ids ) > 1 && count( array_diff_key( array_flip( $ids ), $grouped ) ) > 0 ) $same_kw[] = array( 'keyword' => $kw, 'ids' => array_slice( $ids, 0, 20 ) );
 
@@ -610,10 +623,10 @@ class Digitalisimo_Integrations_Site_Analysis {
 		$args = array( 'timeout' => 5, 'redirection' => 0, 'user-agent' => 'Mozilla/5.0 (compatible; DIGITALISIMO SEO canonical check; ' . home_url( '/' ) . ')' );
 		$res  = wp_safe_remote_head( $url, $args );
 		$code = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
-		// Un servidor que no admite HEAD responde 403, 405 o 501, o corta: se repite con un GET corto. Un dominio que no
-		// existe no se reintenta.
+		// Un servidor que no admite HEAD responde 403, 404, 405, 410 o 501, o corta: se repite con un GET corto (un 404 sólo
+		// cuenta si también lo da el GET). Un dominio que no existe no se reintenta.
 		$dns  = is_wp_error( $res ) && 'gone' === self::verdict( 0, $res->get_error_message() );
-		if ( ! $dns && ( is_wp_error( $res ) || in_array( $code, array( 403, 405, 501 ), true ) ) ) {
+		if ( ! $dns && ( is_wp_error( $res ) || in_array( $code, array( 403, 404, 405, 410, 501 ), true ) ) ) {
 			$res  = wp_safe_remote_get( $url, $args + array( 'limit_response_size' => 4096 ) );
 			$code = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
 		}
@@ -723,17 +736,23 @@ class Digitalisimo_Integrations_Site_Analysis {
 		if ( 'digitalisimo-seo-audit' === $page ) return; // La propia pantalla ya lo muestra entero.
 		$r = self::results();
 		if ( empty( $r['at'] ) ) return;
-		$s     = self::summary( false );
-		$items = array();
-		$b1    = count( $s['errors']['unresolved_settings'] ) + $s['errors']['unresolved_posts'] + $s['errors']['unresolved_terms'] + $s['errors']['unresolved_content'];
-		if ( $b1 ) $items[] = sprintf( 'Shortcodes o variables sin resolver que se ven publicados: %d (títulos, descripciones, migas o contenido).', $b1 );
-		if ( $s['errors']['canonical_broken'] ) $items[] = sprintf( 'Canonical hacia una URL que no responde: %d.', count( $s['errors']['canonical_broken'] ) );
-		if ( $s['warnings']['cannibalization'] ) $items[] = sprintf( 'Grupos de páginas casi iguales que compiten por la misma búsqueda: %d.', count( $s['warnings']['cannibalization'] ) );
-		if ( $s['warnings']['canonical_offsite'] ) $items[] = sprintf( 'Canonical hacia otro dominio o que redirige: %d.', $s['warnings']['canonical_offsite'] );
-		if ( $s['warnings']['stale_social_description'] ) $items[] = sprintf( 'Descripciones para redes que parecen desactualizadas: %d.', count( $s['warnings']['stale_social_description'] ) );
-		if ( ! $items ) return;
-		$type = ( $b1 || $s['errors']['canonical_broken'] ) ? 'error' : 'warning';
-		$html = '<p><strong>' . esc_html( 'DIGITALÍSIMO SEO: el análisis del sitio encontró cosas por corregir' ) . '</strong></p><ul style="list-style:disc;padding-left:1.5em"><li>' . implode( '</li><li>', array_map( 'esc_html', $items ) ) . '</li></ul><p><a href="' . esc_url( self::url() ) . '">' . esc_html( 'Abrir SEO → Auditoría → Análisis del sitio' ) . '</a></p>';
+		// Barato: cuenta lo ya reunido, sin armar direcciones. La huella son los TIPOS de problema, no los números: un
+		// aviso cerrado no vuelve porque cambie una cifra (regla de Digitalisimo_Notices).
+		$canon  = self::canonical_issues();
+		$broken = count( array_filter( $canon, function( $c ) { return 'gone' === $c['kind']; } ) );
+		$other  = count( $canon ) - $broken - count( array_filter( $canon, function( $c ) { return 'unchecked' === $c['kind']; } ) );
+		$b1     = count( (array) ( $r['b1_site'] ?? array() ) ) + count( (array) ( $r['b1_posts'] ?? array() ) ) + count( (array) ( $r['b1_terms'] ?? array() ) ) + count( self::content_issues() );
+		$kinds  = array_filter( array(
+			'b1'       => $b1 ? sprintf( 'Shortcodes o variables sin resolver que se ven publicados: %d (títulos, descripciones, migas o contenido).', $b1 ) : '',
+			'canon'    => $broken ? sprintf( 'Canonical hacia una URL que no responde: %d.', $broken ) : '',
+			'cluster'  => ! empty( $r['clusters'] ) ? sprintf( 'Grupos de páginas casi iguales que compiten por la misma búsqueda: %d.', count( (array) $r['clusters'] ) ) : '',
+			'offsite'  => $other ? sprintf( 'Canonical hacia otro dominio o que redirige: %d.', $other ) : '',
+			'stale'    => ! empty( $r['stale'] ) ? sprintf( 'Descripciones para redes que parecen desactualizadas: %d.', count( (array) $r['stale'] ) ) : '',
+		) );
+		if ( ! $kinds ) return;
+		$type = ( $b1 || $broken ) ? 'error' : 'warning';
+		$html = '<p><strong>' . esc_html( 'DIGITALÍSIMO SEO: el análisis del sitio encontró cosas por corregir' ) . '</strong></p><ul style="list-style:disc;padding-left:1.5em"><li>' . implode( '</li><li>', array_map( 'esc_html', $kinds ) ) . '</li></ul><p><a href="' . esc_url( self::url() ) . '">' . esc_html( 'Abrir SEO → Auditoría → Análisis del sitio' ) . '</a></p>';
+		$items = array_keys( $kinds );
 		Digitalisimo_Notices::show( Digitalisimo_Notices::site( 'seo-site-analysis' ), $type, $html, array( 'hash' => $items, 'cap' => 'manage_options' ) );
 	}
 

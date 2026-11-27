@@ -67,6 +67,9 @@ if ( 'seed' === $step ) {
 	$ids['a']     = $page( 'Páginas web', 'paginas-web', '<p>' . $base . ' Atendemos a todo México.</p>' );
 	$ids['b']     = $page( 'Páginas web Torreón', 'paginas-web-torreon', '<p>' . $base . ' Atendemos en Torreón, Coahuila.</p>' );
 	$ids['c']     = $page( 'Diseño de páginas web en Torreón', 'diseno-de-paginas-web-en-torreon', '<p>Diseño de páginas web en Torreón. ' . $base . '</p>' );
+	// Una copia que el dueño ya sacó de Google: duplicado a propósito, no compite.
+	$ids['d']     = $page( 'Páginas web (copia para anuncios)', 'paginas-web-anuncios', '<p>' . $base . ' Atendemos a todo México.</p>' );
+	update_post_meta( $ids['d'], 'digitalisimo_seo_noindex', '1' );
 	$ids['host']  = $page( 'Web hosting IA', 'web-hosting-ia', '<p>' . $text( 'hosting administrado' ) . '</p><p><a href="' . home_url( '/paginas-web/' ) . '">Páginas web</a></p>' );
 	$ids['cont']  = $page( 'Contacto', 'contacto', '<p>' . $text( 'contacto directo' ) . '</p>' );
 	$ids['que']   = $page( '¿Qué es una página web?', 'que-es-una-pagina-web', '<p>' . $text( 'definición de sitio' ) . '</p>' );
