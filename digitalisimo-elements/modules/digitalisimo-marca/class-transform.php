@@ -576,7 +576,7 @@ final class Transform {
 			return $html;
 		}
 		$out = preg_replace_callback(
-			'#<(?!/)([a-zA-Z][a-zA-Z0-9-]*)(\s[^<>]*)?(/?)>#',
+			'#<(?!/)([a-zA-Z][a-zA-Z0-9-]*|\{\{\{?\s*[\w.]+\s*\}?\}\})(\s[^<>]*)?(/?)>#',
 			static function ( $m ) {
 				return self::tag( $m[0] );
 			},
@@ -690,7 +690,13 @@ final class Transform {
 				} elseif ( '' !== $value && false !== stripos( $value, 'elementor' ) ) {
 					$q     = $value[0];
 					$inner = substr( $value, 1, -1 );
-					if ( in_array( $lname, array( 'class', 'id', 'for', 'aria-controls', 'aria-labelledby', 'aria-describedby' ), true ) || ( 'name' === $lname && preg_match( '/^elementor[-_]/i', $inner ) ) ) {
+					if ( 'style' === $lname ) {
+						// Estilos en línea (`--elementor-visual-choice-columns`, clases en selectores): como el CSS.
+						$inner = self::css( $inner );
+					} elseif ( 0 === strpos( $lname, 'on' ) ) {
+						// Atributos de evento: JS (`CustomEvent( 'elementor/open-variables-manager' )`).
+						$inner = self::lex( $inner );
+					} elseif ( in_array( $lname, array( 'class', 'id', 'for', 'aria-controls', 'aria-labelledby', 'aria-describedby' ), true ) || ( 'name' === $lname && preg_match( '/^elementor[-_]/i', $inner ) ) ) {
 						// También `name="elementor-choose-{{ data.name }}"` de las plantillas del editor (el JS busca `dg-choose-…`).
 						$inner = (string) preg_replace( '/elementor/i', self::P, $inner );
 					} elseif ( in_array( $lname, array( 'href', 'src' ), true ) ) {

@@ -136,6 +136,9 @@ namespace {
 	// Una etiqueta de plantilla con un bloque `<# … #>` dentro.
 	$tpl2 = Transform::template_html( '<input id="elementor-control-top-{{{ data._cid }}}" <# if ( elementor.x ) { #>checked<# } #>>' );
 	check( '<input id="dg-control-top-{{{ data._cid }}}" <# if ( digitalisimo.x ) { #>checked<# } #>>' === $tpl2, 'F1 plantilla con bloque dentro de la etiqueta', $tpl2 );
+	// Estilos en línea, atributos de evento y etiquetas con nombre dinámico en las plantillas del editor.
+	$tpl3 = Transform::template_html( '<div class="elementor-x" style="--elementor-cols: {{ data.n }}" onclick="window.dispatchEvent( new CustomEvent( \'elementor/open-x\' ) )"></div><{{{ titleSizeTag }}} class="elementor-icon-box-title">' );
+	check( '<div class="dg-x" style="--dg-cols: {{ data.n }}" onclick="window.dispatchEvent( new CustomEvent( \'digitalisimo/open-x\' ) )"></div><{{{ titleSizeTag }}} class="dg-icon-box-title">' === $tpl3, 'F1 style, on* y etiquetas dinámicas de las plantillas', $tpl3 );
 	// Una página de varios MB (el editor): nunca sale vacía por un límite de PCRE, y se transforma igual.
 	$big = '<html><body class="elementor-x"><script>var ElementorConfig = {"a":"' . str_repeat( 'x elementor-y ', 250000 ) . '"};</script><div class="elementor-z">t</div></body></html>';
 	$bout = Transform::html( $big );
