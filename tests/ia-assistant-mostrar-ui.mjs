@@ -89,6 +89,6 @@ ok(/Primero lo preparo en borrador para que lo veas\. Nada se publica ni cambia 
 ok(/action\.note \? h\( 'p', \{ className: 'dga-warn dga-note' \}, action\.note \)/.test(ui), 'U3: la tarjeta muestra su nota («Este borrador tiene cambios tuyos: ¿lo rehago encima?»)');
 ok(parts.SUGGESTIONS.some((s) => /landing/i.test(s[0])) && parts.SUGGESTIONS.some((s) => /Google/.test(s[0])) && parts.SUGGESTIONS.some((s) => /ventas/.test(s[0])), 'U3: las sugerencias son las del dueño (landing, Google, ventas)');
 ok(/'Automática', 'La mejor disponible'/.test(ui) && /'Funciones'/.test(ui), 'U3: el selector de IA y el de funciones en palabras llanas');
-ok(/'Este cambio no tiene vuelta atrás: confírmalo'/.test(ui) && !/action\.description \?/.test(ui), 'U3: la tarjeta no dice «Acción destructiva» ni pega la descripción técnica de la herramienta');
+ok(!/'Este cambio no tiene vuelta atrás: confírmalo'/.test(ui) && !/action\.description \?/.test(ui) && /'Sí, hazlo'/.test(ui), 'U3: la tarjeta no dice «Acción destructiva» ni «no tiene vuelta atrás» ni pega la descripción técnica de la herramienta (caso plomerito 4)');
 
 console.log(`Asistente IA, pantalla que no abruma: ${checks} comprobaciones correctas.`);

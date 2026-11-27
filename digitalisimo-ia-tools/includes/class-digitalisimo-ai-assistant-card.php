@@ -552,7 +552,14 @@ final class Digitalisimo_AI_Assistant_Card {
 			'contains' => 'todas las direcciones que contienen ',
 			'regex'    => 'las direcciones que cumplen el patrón ',
 		);
-		return array( 'text' => 'Voy a hacer que quien entre a ' . ( $head[ $mode ] ?? '' ) . $from . ' llegue a ' . $to );
+		$out = array( 'text' => 'Voy a hacer que quien entre a ' . ( $head[ $mode ] ?? '' ) . $from . ' llegue a ' . $to );
+		if ( Digitalisimo_AI_Assistant_Tools::broad_redirection( 'digitalisimo-seo/create-redirection', $input ) ) {
+			// Muchas páginas, o a otro sitio: lo que se le pierde a tu sitio es como borrarlo; se confirma con la casilla.
+			$out['final']     = 'Tus visitantes dejarían de ver esas páginas de tu sitio.';
+			$out['ack']       = true;
+			$out['ack_label'] = 'Sí, entiendo que mis visitantes se van a esa otra dirección.';
+		}
+		return $out;
 	}
 
 	private static function create_page( array $input ) {
