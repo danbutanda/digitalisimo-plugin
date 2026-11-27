@@ -1352,7 +1352,7 @@ class Digitalisimo_Hosting_Provisioning {
 			$products[ $key ] = $product;
 		}
 		if ( ! $products ) return null;
-		$parts = array( 'hosting' => isset( $products['hosting_product'] ) || ( $hosting && ! isset( $products['domain_product'] ) ), 'domain' => isset( $products['domain_product'] ), 'period' => $period );
+		$parts = array( 'hosting' => $hosting, 'domain' => isset( $products['domain_product'] ), 'period' => $period );
 		$label = ( $hosting ? 'hosting ' . strtolower( Digitalisimo_Hosting_Products::period_label( $period ) ) : '' ) . ( $parts['domain'] ? ( $hosting ? ' y ' : '' ) . 'dominio por un año' : '' ) . ' (vence el ' . self::date( $expires ) . ')';
 		$order = self::new_renewal( $id, $products, $parts, $label );
 		if ( ! $order ) return null;
