@@ -319,6 +319,26 @@ namespace {
 	$GLOBALS['alloptions'] = null;
 	Toggle::reset();
 	check( Toggle::active() && 'site' === Toggle::values()['origin'], 'M2 encendida en el sitio' );
+	// I-4 de la revisión: antes de `init` y sin la lista de complementos en caché (sus ganchos aún no existen), apagada;
+	// forzada o con la lista en caché, encendida. Y con el paquete, la respuesta es la que decidió el paquete.
+	$GLOBALS['transients'] = array();
+	unset( $GLOBALS['done']['init'] );
+	Toggle::reset();
+	check( ! Toggle::active(), 'M2 (I-4) antes de init sin la lista de complementos en caché: apagada (no se adivina)' );
+	$GLOBALS['done']['init'] = 1;
+	\Digitalisimo\Elements\Marca\Addons::detect( true );
+	unset( $GLOBALS['done']['init'] );
+	Toggle::reset();
+	check( Toggle::active(), 'M2 (I-4) con la lista en caché, sí' );
+	$GLOBALS['done']['init'] = 1;
+	\Digitalisimo\Elements\Marca\Package::reset( null, 'on', true );
+	Toggle::reset();
+	check( ! Toggle::active(), 'M2 (I-4) con el paquete en su respaldo (faltan los originales), la marca no está en vigor' );
+	\Digitalisimo\Elements\Marca\Package::reset( null, 'off' );
+	Toggle::reset();
+	check( ! Toggle::active(), 'M2 (I-4) con el paquete decidido «off», Toggle responde lo mismo aunque la opción diga «on»' );
+	\Digitalisimo\Elements\Marca\Package::reset();
+	Toggle::reset();
 	Digitalisimo_Elements_Core::$bundled = false;
 	Toggle::reset();
 	check( ! Toggle::active() && 'unavailable' === Toggle::status()['state'], 'M2 no disponible con el Elementor original (sin núcleo incluido)' );
@@ -392,6 +412,7 @@ namespace {
 		check( $other === Admin_Urls::url_out( $other ), 'M4 (M-1) url_out no toca el escritorio de otro dominio: ' . $other, Admin_Urls::url_out( $other ) );
 	}
 	check( 'http://ENSAYO.test/wp-admin/admin.php?page=digitalisimo-motor' === Admin_Urls::url_out( 'http://ENSAYO.test/wp-admin/admin.php?page=elementor' ), 'M4 (M-1) el propio, sin importar mayúsculas' );
+	check( 'post.php?post=7&#038;action=digitalisimo' === Admin_Urls::url_out( 'post.php?post=7&#038;action=elementor' ), 'M4 (M-5) un & escapado (&#038;) no es un ancla: el enlace sale con su alias', Admin_Urls::url_out( 'post.php?post=7&#038;action=elementor' ) );
 	foreach ( array( 'http://ensayo.test/elementor-tips/', 'http://ensayo.test/wp-content/uploads/elementor/css/post-1.css', 'http://ensayo.test/?elementor_library=cabecera' ) as $front ) {
 		check( $front === Admin_Urls::url_out( $front ), 'M4 url_out no toca el front: ' . $front );
 	}

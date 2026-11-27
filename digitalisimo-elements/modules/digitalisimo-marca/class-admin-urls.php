@@ -157,6 +157,9 @@ final class Admin_Urls {
 				return $url;
 			}
 		}
+		// `&#038;` (el `&` escapado de esc_url) antes de buscar el ancla: su `#` no lo es (M-5 de la revisión F2).
+		$ent   = preg_match( '/&#0?38;/', $url ) ? '&#038;' : '';
+		$url   = '' !== $ent ? str_replace( array( '&#038;', '&#38;' ), '&amp;', $url ) : $url;
 		$parts = explode( '#', $url, 2 );
 		$base  = $parts[0];
 		$path  = (string) strtok( $base, '?' );
@@ -165,7 +168,6 @@ final class Admin_Urls {
 		}
 		$types = Map::types();
 		$is_post = '' !== $path && 'post.php' === basename( $path );
-		$base    = str_replace( '&#038;', '&amp;', $base );
 		$base    = (string) preg_replace_callback(
 			'#([?&]|&amp;)((?!amp;)[^=&\#]+)=([^&\#]*)#',
 			static function ( $m ) use ( $types, $is_post ) {
@@ -184,7 +186,8 @@ final class Admin_Urls {
 			},
 			$base
 		);
-		return $base . ( isset( $parts[1] ) ? '#' . $parts[1] : '' );
+		$out = $base . ( isset( $parts[1] ) ? '#' . $parts[1] : '' );
+		return '' !== $ent ? str_replace( '&amp;', $ent, $out ) : $out;
 	}
 
 	/** `host[:puerto]` del escritorio de este sitio ('' si no se sabe: entonces ninguna URL absoluta cambia). */

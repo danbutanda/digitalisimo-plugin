@@ -131,6 +131,22 @@ function switch_to_blog( $id ) {
 function restore_current_blog() {
 	$GLOBALS['blog'] = 1;
 }
+function update_option( $k, $v, $a = null ) {
+	$GLOBALS['options'][ $k ] = $v;
+	return true;
+}
+function delete_option( $k ) {
+	unset( $GLOBALS['options'][ $k ] );
+	return true;
+}
+$GLOBALS['scheduled'] = array();
+function wp_next_scheduled( $h ) {
+	return $GLOBALS['scheduled'][ $h ] ?? false;
+}
+function wp_schedule_single_event( $t, $h ) {
+	$GLOBALS['scheduled'][ $h ] = $t;
+	return true;
+}
 function content_url( $p = '' ) {
 	return 'https://ensayo.test/wp-content/' . $p;
 }
@@ -145,7 +161,7 @@ final class Digitalisimo_Elements_Core {
 		return true;
 	}
 }
-foreach ( array( 'class-map.php', 'class-addons.php', 'class-toggle.php', 'class-transform.php', 'class-package.php' ) as $f ) {
+foreach ( array( 'class-map.php', 'class-addons.php', 'class-toggle.php', 'class-transform.php', 'class-package.php', 'class-front-layer.php' ) as $f ) {
 	require $pl . '/modules/digitalisimo-marca/' . $f;
 }
 use Digitalisimo\Elements\Marca\Package;
@@ -168,6 +184,7 @@ $u = 'https://ensayo.test/wp-content/plugins/digitalisimo-elements/';
 check( 'https://ensayo.test/wp-content/uploads/digitalisimo-elements/base-9.9.9/motor/assets/lib/eicons/css/elementor-icons.min.css?ver=5' === Package::map_url( $u . 'motor/assets/lib/eicons/css/elementor-icons.min.css?ver=5' ), 'K3 una URL del núcleo apunta a los originales desplegados' );
 check( 'https://ensayo.test/wp-content/uploads/digitalisimo-elements/base-9.9.9/p/assets/css/widget-x.min.css' === Package::map_url( $u . 'assets/css/widget-x.min.css' ) && $u . 'assets/js/ok.js' === Package::map_url( $u . 'assets/js/ok.js' ) && $u . 'motor/includes/x.php' === Package::map_url( $u . 'motor/includes/x.php' ), 'K3 lo cambiado de PRO también; lo que no cambió y el PHP, igual' );
 
+check( '<svg><path class="elementor-shape-fill"/></svg>' === Package::off_urls( '<svg><path class="&#101;lementor-shape-fill"/></svg>' ), 'K3 (M-6) con la marca apagada, el HTML sale sin la palabra enmascarada (como el paquete de siempre)' );
 // I-7 de la revisión: el búfer de la marca apagada no envuelve descargas, subidas ni admin-post.
 $level = ob_get_level();
 foreach ( array( 'admin-post.php', 'async-upload.php', 'export.php' ) as $screen ) {
@@ -189,6 +206,7 @@ check( '<link href="https://ensayo.test/wp-content/plugins/digitalisimo-elements
 
 // K6: con el paquete transformado, la marca no se enciende hasta que la capa del editor esté validada (filtro).
 $GLOBALS['options']['digitalisimo_elements_marca'] = array( 'mode' => 'on', 'force' => true );
+Package::reset();
 \Digitalisimo\Elements\Marca\Toggle::reset();
 check( 'unavailable' === \Digitalisimo\Elements\Marca\Toggle::status()['state'] && ! \Digitalisimo\Elements\Marca\Toggle::active(), 'K6 encendida pero sin la capa del editor validada: no disponible (los originales siguen)' );
 $GLOBALS['filters']['digitalisimo_elements_marca_editor_ready'] = true;
@@ -201,7 +219,11 @@ check( true === Package::tree_ok(), 'K5 la huella del árbol coincide tras empaq
 file_put_contents( $pl . '/assets/js/ok.js', 'console.log(2);' );
 check( false === Package::tree_ok(), 'K5 un archivo cambiado después se detecta' );
 Package::remove_originals();
-check( ! is_dir( $base ), 'K5 al encender la marca en un sitio individual, los originales desplegados se borran' );
+check( is_dir( $base ) && is_file( $base . '/.retirar' ) && ! empty( $GLOBALS['scheduled'][ Package::CLEANUP_HOOK ] ), 'K5 (I-6) al encender la marca, los originales no se borran enseguida: quedan para retirar (páginas en caché)' );
+Package::cleanup( time() + 3600 );
+check( is_dir( $base ), 'K5 (I-6) antes de un día siguen' );
+Package::cleanup( time() + Package::RETIRE_AFTER );
+check( ! is_dir( $base ), 'K5 al día siguiente se borran' );
 
 // K7: en una red la carpeta de originales es una para todos los sitios: se borra sólo si todos quedan encendidos.
 $GLOBALS['multisite'] = true;
@@ -209,9 +231,14 @@ $GLOBALS['blogs']     = array(
 	1 => array( \Digitalisimo\Elements\Marca\Toggle::OPTION => array( 'mode' => 'on' ) ),
 	2 => array( \Digitalisimo\Elements\Marca\Toggle::OPTION => array( 'mode' => 'off' ) ),
 );
-check( Package::deploy() && false === Package::remove_originals() && is_dir( $base ), 'K7 en una red con un sitio apagado, los originales se quedan' );
+check( Package::deploy() && false === Package::remove_originals() && ! is_file( $base . '/.retirar' ), 'K7 en una red con un sitio apagado, los originales se quedan' );
 $GLOBALS['blogs'][2][ \Digitalisimo\Elements\Marca\Toggle::OPTION ] = array( 'mode' => 'on' );
-check( true === Package::remove_originals() && ! is_dir( $base ), 'K7 con todos los sitios encendidos, se borran' );
+$GLOBALS['filters']['digitalisimo_elements_marca_editor_ready'] = false;
+check( false === Package::remove_originals() && ! is_file( $base . '/.retirar' ), 'K7 (I-5) con todos en «on» pero la marca no disponible (paquete sin el editor validado), se quedan' );
+$GLOBALS['filters']['digitalisimo_elements_marca_editor_ready'] = true;
+check( true === Package::remove_originals() && is_file( $base . '/.retirar' ), 'K7 con todos los sitios en vigor, quedan para retirar' );
+Package::cleanup( time() + Package::RETIRE_AFTER );
+check( ! is_dir( $base ), 'K7 y se borran al día siguiente' );
 $GLOBALS['multisite'] = false;
 
 // K8: lo que el servidor lee, publicado original y enmascarado; la licencia entera en .php; la fuente corregida.
@@ -227,6 +254,75 @@ check( ! is_file( $pl . '/motor/license.txt' ) && "<?php exit; ?>\nElementor es 
 $ttf = (string) file_get_contents( $pl . '/motor/assets/lib/eicons/fonts/eicons.ttf' );
 check( false === stripos( $ttf, 'elementor' ) && strlen( $ttf ) === filesize( $repo . '/digitalisimo-elements/elementor/assets/lib/eicons/fonts/eicons.ttf' ), 'K8 la fuente sin la palabra en los nombres de glifos y del mismo tamaño' );
 
-exec( 'rm -rf ' . escapeshellarg( $tmp ) );
+// K9: revisión F2 (B-1, B-2, B-3). Marca apagada, sin originales desplegados.
+$GLOBALS['options'] = array();
+$GLOBALS['filters'] = array();
+\Digitalisimo\Elements\Marca\Toggle::reset();
+$up = dirname( $base );
+// B-1: otra petición tiene el cerrojo (está desplegando): ésta espera unos segundos y, si no terminó, NO sirve el HTML
+// original con los assets transformados: corre con las copias transformadas y la capa (coherentes), sin caché.
+Package::reset( null, 'off' );
+@mkdir( $base . '.lock', 0755, true );
+$t0 = microtime( true );
+Package::resolve();
+$waited = microtime( true ) - $t0;
+$css    = Package::map_url( $u . 'motor/assets/lib/eicons/css/elementor-icons.min.css' );
+check( Package::fallback() && 'on' === Package::mode() && $u . 'motor/assets/lib/eicons/css/dg-icons.min.css' === $css && is_file( $pl . '/motor/assets/lib/eicons/css/dg-icons.min.css' ), 'K9 (B-1) con el cerrojo de otra petición: copias transformadas que existen, nunca el original renombrado (404) ni el HTML original', $css );
+check( \Digitalisimo\Elements\Marca\Front_Layer::on() && ! \Digitalisimo\Elements\Marca\Toggle::active(), 'K9 (B-1/I-4) en ese respaldo la capa del front corre (HTML coherente con los assets), pero la marca no cuenta como en vigor' );
+check( $waited >= 2.5 && $waited < 6, 'K9 (B-1) espera a la otra petición unos segundos antes del respaldo', round( $waited, 2 ) );
+// Si la otra termina mientras ésta espera, usa los originales.
+Package::reset( null, 'off' );
+$bg = 'sleep 1; mkdir -p ' . escapeshellarg( $base ) . ' && echo 9.9.9 > ' . escapeshellarg( $base . '/.listo' );
+exec( '(' . $bg . ') > /dev/null 2>&1 &' );
+Package::resolve();
+check( ! Package::fallback() && 'off' === Package::mode() && Package::deployed(), 'K9 (B-1) si la otra petición termina mientras espera, usa los originales desplegados' );
+Package::rmdir( $base );
+@rmdir( $base . '.lock' );
+// B-2: cerrojo abandonado (> 10 min): se toma y se despliega; los temporales huérfanos se borran.
+@mkdir( $base . '.lock', 0755, true );
+touch( $base . '.lock', time() - 700 );
+@mkdir( $up . '/base-9.9.9.tmp-99999/motor', 0755, true );
+Package::reset( null, 'off' );
+check( Package::deploy() && Package::deployed() && ! is_dir( $base . '.lock' ) && ! is_dir( $up . '/base-9.9.9.tmp-99999' ), 'K9 (B-2) un cerrojo abandonado se toma y el temporal huérfano se borra' );
+Package::rmdir( $base );
+// B-2: original dañado: falla en el primer error, sin restos, anotado con espera creciente y sin reintentar enseguida.
+$orig  = $pl . '/marca/originales.php';
+$bak   = file_get_contents( $orig );
+$lines = explode( "\n", $bak, 3 );
+$entries = json_decode( $lines[1], true );
+foreach ( $entries as $i => $e ) {
+	$entries[ $i ][4] = str_repeat( '0', 64 );
+}
+file_put_contents( $orig, $lines[0] . "\n" . json_encode( $entries ) . "\n" . $lines[2] );
+Package::reset( null, 'off' );
+$ok = Package::deploy();
+$f  = Package::failure();
+check( ! $ok && 1 === $f['fails'] && false !== strpos( $f['error'], 'original dañado' ) && array() === glob( $up . '/base-*.tmp-*' ) && ! is_dir( $base ), 'K9 (B-2) un original dañado: falla, queda anotado con el motivo y sin restos', $f );
+Package::reset( null, 'off' );
+Package::resolve();
+check( Package::fallback() && 1 === Package::failure()['fails'] && Package::in_backoff(), 'K9 (B-2) la petición siguiente no reintenta (espera) y sirve el respaldo coherente' );
+check( 300 === Package::backoff( 1 ) && 600 === Package::backoff( 2 ) && 21600 === Package::backoff( 12 ) && ! Package::in_backoff( time() + 301 ), 'K9 (B-2) espera creciente de 5 min hasta 6 h' );
+file_put_contents( $orig, $bak );
+// B-2: sin permiso de escritura en uploads: anotado, sin tormenta de reintentos.
+delete_option( Package::FAIL_OPTION );
+@mkdir( $up, 0755, true );
+chmod( $up, 0555 );
+Package::reset( null, 'off' );
+$ok = Package::deploy();
+check( ! $ok && false !== strpos( Package::failure()['error'], 'escribir' ), 'K9 (B-2) sin permiso de escritura queda anotado', Package::failure() );
+chmod( $up, 0755 );
+delete_option( Package::FAIL_OPTION );
+// B-3: al actualizar corre el código viejo; se despliega la versión NUEVA del disco y la vieja queda para retirar.
+Package::reset( null, 'off' );
+check( Package::deploy() && is_dir( $up . '/base-9.9.9' ), 'K9 (B-3) la versión en uso desplegada' );
+file_put_contents( $pl . '/pro-elements.php', "<?php\n/**\n * Plugin Name: DIGITALÍSIMO Elements\n * Version: 9.9.10\n */\n" );
+Package::after_update( null, array( 'type' => 'plugin', 'action' => 'update', 'plugins' => array( 'otro/otro.php' ) ) );
+check( ! is_dir( $up . '/base-9.9.10' ), 'K9 (B-3) la actualización de otro plugin no despliega nada' );
+Package::after_update( null, array( 'type' => 'plugin', 'action' => 'update', 'plugins' => array( 'digitalisimo-elements/pro-elements.php' ) ) );
+check( is_file( $up . '/base-9.9.10/.listo' ) && '9.9.10' === trim( (string) file_get_contents( $up . '/base-9.9.10/.listo' ) ) && is_file( $up . '/base-9.9.9/.retirar' ), 'K9 (B-3) se despliega la versión nueva (leída del disco) y la anterior queda para retirar' );
+Package::cleanup( time() + Package::RETIRE_AFTER );
+check( ! is_dir( $up . '/base-9.9.9' ) && is_dir( $up . '/base-9.9.10' ), 'K9 (B-3) un día después la anterior se borra; la nueva queda' );
+
+exec( 'chmod -R u+w ' . escapeshellarg( $tmp ) . '; rm -rf ' . escapeshellarg( $tmp ) );
 echo "\n$GLOBALS[fails] fallos de $GLOBALS[checks] comprobaciones\n";
 exit( $GLOBALS['fails'] ? 1 : 0 );

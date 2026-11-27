@@ -778,8 +778,9 @@ final class Transform {
 						$inner = self::url( $inner );
 						// Enlaces del escritorio y del editor (también la barra de administración del front): con los alias (D-3).
 						if ( 'href' === $lname && false !== stripos( $inner, 'elementor' ) && class_exists( Admin_Urls::class ) ) {
-							$inner = Admin_Urls::url_out( str_replace( '&amp;', '&', $inner ) );
-							$inner = str_replace( '&', '&amp;', str_replace( '&amp;', '&', $inner ) );
+							// Un solo escape al final (M-5): `&#038;` y `&amp;` de entrada son el mismo `&`.
+							$inner = Admin_Urls::url_out( str_replace( array( '&#038;', '&#38;', '&amp;' ), '&', $inner ) );
+							$inner = str_replace( '&', '&amp;', str_replace( array( '&#038;', '&amp;' ), '&', $inner ) );
 						}
 					} elseif ( 'action' === $lname && class_exists( Admin_Urls::class ) ) {
 						$inner = Admin_Urls::url_out( $inner );

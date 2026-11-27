@@ -76,7 +76,7 @@ namespace {
 		echo "FALLA no existe class-front-layer.php (código anterior)\n";
 		exit( 1 );
 	}
-	foreach ( array( 'class-map.php', 'class-addons.php', 'class-toggle.php', 'class-transform.php', 'class-front-layer.php', 'class-exports.php', 'class-editor-layer.php' ) as $f ) {
+	foreach ( array( 'class-map.php', 'class-addons.php', 'class-toggle.php', 'class-transform.php', 'class-front-layer.php', 'class-exports.php', 'class-editor-layer.php', 'class-admin-urls.php' ) as $f ) {
 		require $el . '/' . $f;
 	}
 	use Digitalisimo\Elements\Marca\Front_Layer;
@@ -264,6 +264,9 @@ namespace {
 	}
 	check( ! in_array( null, $saved, true ) && 'elementor' === ( $post['option_page'] ?? '' ) && isset( $post['_elementor_settings_update_time'] ), 'B-5 guardar «Ajustes del constructor» con la capa no deja ninguna opción en null', array( $saved, $out ) );
 	check( false !== strpos( $out, 'class="dg-settings-form-page"' ) && false !== strpos( $out, 'id="dg-settings-tab-general"' ), 'B-5 las clases e id del formulario sí cambian' );
+	// M-5: el enlace del widget de resumen del escritorio (`&#038;` de esc_url) sale con su alias y sin escaparse dos veces.
+	$h8 = Transform::html( '<a href="post.php?post=7&#038;action=elementor">e</a>' );
+	check( '<a href="post.php?post=7&amp;action=digitalisimo">e</a>' === $h8, 'M-5 &#038; no se escapa dos veces y el enlace lleva su alias', $h8 );
 	check( 'input[name="elementor_exclude_user_roles[]"]' === Transform::str( 'input[name="elementor_exclude_user_roles[]"]' ), 'B-5 el selector del JS que busca el campo tampoco cambia (como el JS del paquete)' );
 
 	exec( 'rm -rf ' . escapeshellarg( $tmp ) );

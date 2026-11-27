@@ -153,6 +153,7 @@ final class Settings_Section {
 		update_site_option( Toggle::NETWORK_OPTION, array( 'mode' => $values['mode'], 'force' => $values['force'] ) );
 		Toggle::reset();
 		// Encendida en la red: si con eso todos los sitios quedan encendidos, los originales compartidos se borran.
+		// Sólo si la marca queda en vigor en todos (network_all_on() mira el estado de cada sitio, I-5).
 		if ( 'on' === $values['mode'] && class_exists( Package::class ) && Package::transformed() ) {
 			Package::remove_originals();
 		}

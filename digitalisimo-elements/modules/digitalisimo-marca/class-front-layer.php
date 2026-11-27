@@ -58,6 +58,11 @@ final class Front_Layer {
 
 	/** ¿Corre la capa en esta petición? */
 	public static function on(): bool {
+		// Con el paquete transformado manda su modo (decidido al cargar Elements, I-4): también en su respaldo, cuando
+		// faltan los originales y la página sale con las copias transformadas (B-1).
+		if ( class_exists( Package::class ) && Package::transformed() ) {
+			return 'on' === Package::mode();
+		}
 		return Toggle::active() && self::mirror_ready();
 	}
 

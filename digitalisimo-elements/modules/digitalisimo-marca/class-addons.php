@@ -69,6 +69,20 @@ final class Addons {
 		return $out;
 	}
 
+	/**
+	 * La lista en caché si sigue valiendo (mismos plugins y tema), o null. Antes de `init` es lo único fiable: los ganchos
+	 * de los plugins que cargan después todavía no existen.
+	 *
+	 * @return array<int,array{file:string,name:string,why:string}>|null
+	 */
+	public static function cached(): ?array {
+		if ( ! function_exists( 'get_transient' ) ) {
+			return null;
+		}
+		$cached = get_transient( self::CACHE );
+		return is_array( $cached ) && ( $cached['key'] ?? '' ) === self::fingerprint() && is_array( $cached['list'] ?? null ) ? $cached['list'] : null;
+	}
+
 	/** @return string[] plugins activos en el sitio y en la red (archivo relativo a plugins/). */
 	public static function active_plugins(): array {
 		$active = function_exists( 'get_option' ) ? (array) get_option( 'active_plugins', array() ) : array();

@@ -121,8 +121,19 @@ final class Toggle {
 		if ( null !== self::$active ) {
 			return self::$active;
 		}
+		// Con el paquete transformado, la respuesta es la que decidió el paquete al cargar Elements (I-4): las URL, la capa
+		// del front, la del editor y los alias nunca discrepan en una misma petición. Su modo de respaldo (faltan los
+		// originales) no es la marca en vigor.
+		if ( class_exists( Package::class, false ) && Package::decided() && '' !== Package::mode() ) {
+			return 'on' === Package::mode() && ! Package::fallback();
+		}
 		// Primero lo que no lee la base: sin el núcleo incluido no hay marca propia.
 		if ( ! self::bundled() || 'on' !== self::values()['mode'] ) {
+			return false;
+		}
+		// Antes de `init`, sin la lista de complementos en caché no se sabe si hay alguno (sus ganchos aún no existen): se
+		// decide «apagada», salvo que el administrador la haya forzado (I-4).
+		if ( function_exists( 'did_action' ) && ! did_action( 'init' ) && ! self::values()['force'] && null === Addons::cached() ) {
 			return false;
 		}
 		/**
