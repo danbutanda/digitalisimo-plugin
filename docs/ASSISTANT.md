@@ -231,7 +231,7 @@ afinar la clase.
   Skydropx, Hosting, SEO, redirecciones, el kit de ventas y el constructor) y un respaldo genérico llano; nunca lo
   escribe el modelo, así que no puede decir algo distinto de lo que hará. Lo que la plantilla no nombra se cuenta en la
   frase («y otros 2 datos (en «Ver detalles»)»). «Puedes deshacerlo después.» sólo cuando es verdad (SEO con su
-  historial; productos, catálogo y cupones con el registro de cambios de la tienda y su escritura permitida); lo que de
+  historial; productos, catálogo y cupones con el registro de cambios de la tienda; si la tienda aún tiene modos de escritura, sólo con la de esa herramienta permitida); lo que de
   verdad no tiene vuelta atrás (borrar, un correo al cliente, devolver dinero) se dice en una frase simple; la casilla,
   sólo en lo que borra, mueve dinero o redirige muchas páginas o a otro sitio, y se guarda con la acción para exigirla
   al confirmar. Lo arriesgado de los datos sale en llano (enlaces a otros sitios, código, letras invisibles, claves).
