@@ -4,8 +4,8 @@ namespace Digitalisimo\Elements\Hosting\Mcp;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * DIGITALÍSIMO Hosting en el servidor MCP de DIGITALÍSIMO Elements (`POST /wp-json/elementor/mcp`, apagado por defecto
- * con la opción del núcleo `elementor_mcp_enabled`): `digitalisimo-hosting/settings` y `digitalisimo-hosting/domain-product`,
+ * DIGITALÍSIMO Hosting en el servidor MCP de DIGITALÍSIMO Elements (`POST /wp-json/elementor/mcp`, siempre activo
+ * desde el 2026-11-27: `Digitalisimo\Elements\Mcp\Access` fija la opción del núcleo `elementor_mcp_enabled`): `digitalisimo-hosting/settings` y `digitalisimo-hosting/domain-product`,
  * en su categoría `digitalisimo-hosting`. Sólo con el plugin DIGITALÍSIMO Hosting cargado y con su API
  * (`Tools::hosting_ready()`); sin él, nada. Registro sin editar el núcleo incluido, como las herramientas de tienda y del
  * kit de ventas (registro de abilities del núcleo o, sin él, `wp_register_ability()` y `elementor/mcp/server/tools`).
