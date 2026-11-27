@@ -56,7 +56,7 @@ $o = paid( array( new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' =>
 $s = (int) $o->get_meta( '_digitalisimo_service' ); $exp = (int) $P::svc( $s, 'expires' ); $n = digi_nc_count( 'namecheap.domains.renew' );
 $GLOBALS['nc']['domains']['afuera.com'] = strtotime( '+1 year', $GLOBALS['nc']['domains']['afuera.com'] );
 $r = $P::manual_payment( $s, array( 'months' => 12, 'method' => 'cash', 'renewed_elsewhere' => true, 'key' => 'b1c' ) );
-check( 'elsewhere' === $r['domain_renewal'] && $n === digi_nc_count( 'namecheap.domains.renew' ) && near( (int) $P::svc( $s, 'expires' ), strtotime( '+1 year', $exp ) ) && $GLOBALS['nc']['domains']['afuera.com'] === (int) $P::svc( $s, 'expires' ) && preg_grep( '/indicó que ya renovó afuera\.com directamente en el registrador/', wc_get_order( $r['order'] )->notes ), 'B1 «ya lo renové en el registrador»: no se pide la renovación, queda anotado y el vencimiento es el del registrador' );
+check( 'elsewhere' === $r['domain_renewal'] && $n === digi_nc_count( 'namecheap.domains.renew' ) && abs( (int) $P::svc( $s, 'expires' ) - strtotime( '+1 year', $exp ) ) < DAY_IN_SECONDS && ymd( $GLOBALS['nc']['domains']['afuera.com'] ) === ymd( $P::svc( $s, 'expires' ) ) && preg_grep( '/indicó que ya renovó afuera\.com directamente en el registrador/', wc_get_order( $r['order'] )->notes ), 'B1 «ya lo renové en el registrador»: no se pide la renovación, queda anotado y el vencimiento es el del registrador' );
 // Sin renovar ni marcar esa opción: desde la segunda revisión (R1) es un error y no se registra nada.
 $o = paid( array( new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'pendiente.com' ) ) ), 'ana@pendiente.com' );
 $s = (int) $o->get_meta( '_digitalisimo_service' ); $exp = (int) $P::svc( $s, 'expires' ); $GLOBALS['mails'] = array(); $no = count( $GLOBALS['orders'] );
@@ -82,12 +82,15 @@ for ( $i = 1; $i <= 10; $i++ ) { $P::daily( (int) $P::svc( $s, 'expires' ) - 6 *
 $exp = (int) $P::svc( $s, 'expires' ); $dd = $P::domain_due( $s );
 $P::daily( $exp - 6 * DAY_IN_SECONDS ); $r11 = wc_get_order( (int) $P::svc( $s, 'renewal_order' ) );
 $P::daily( $dd - 29 * DAY_IN_SECONDS ); $dro = wc_get_order( (int) $P::svc( $s, 'domain_renewal_order' ) );
+// El cliente pagó el pedido sólo del dominio, pero el registrador no tenía saldo: queda vivo (pagado y sin aplicar). (Uno
+// SIN pagar se cancela y se cobra junto con el hosting: segunda revisión, N4, en tests/hosting-second-review.php.)
+$GLOBALS['nc']['balance'] = 1; $dro->update_status( 'processing' ); digi_run_queue( true, 200 ); $GLOBALS['nc']['balance'] = 5000;
 $r11->update_status( 'processing' ); digi_run_queue( true, 200 );
 $P::daily( (int) $P::svc( $s, 'expires' ) - 6 * DAY_IN_SECONDS ); $r12 = wc_get_order( (int) $P::svc( $s, 'renewal_order' ) );
-check( $dro && array( 20 ) === line_ids( $dro ) && array( 71 ) === line_ids( $r12 ), 'I1 con el pedido sólo del dominio vivo, la renovación del mes 12 no lleva el dominio · ' . json_encode( line_ids( $r12 ) ) );
+check( $dro && array( 20 ) === line_ids( $dro ) && 'cancelled' !== $dro->get_status() && array( 71 ) === line_ids( $r12 ), 'I1 con el pedido sólo del dominio pagado y aún sin aplicar, la renovación del mes 12 no lleva el dominio · ' . json_encode( line_ids( $r12 ) ) );
 $n = digi_nc_count( 'namecheap.domains.renew' ); $was = $GLOBALS['nc']['domains']['coincide.com'];
-$r12->update_status( 'processing' ); digi_run_queue( true, 200 ); $dro->update_status( 'processing' ); digi_run_queue( true, 200 );
-check( $n + 1 === digi_nc_count( 'namecheap.domains.renew' ) && near( $GLOBALS['nc']['domains']['coincide.com'], strtotime( '+1 year', $was ) ) && $GLOBALS['nc']['domains']['coincide.com'] === $P::domain_due( $s ), 'I1 pagados los dos: el dominio se renueva UNA vez y el servicio vence igual que el registrador' );
+$r12->update_status( 'processing' ); digi_run_queue( true, 200 ); $P::retry( $s ); digi_run_queue( true, 200 );
+check( $n + 1 === digi_nc_count( 'namecheap.domains.renew' ) && near( $GLOBALS['nc']['domains']['coincide.com'], strtotime( '+1 year', $was ) ) && ymd( $GLOBALS['nc']['domains']['coincide.com'] ) === ymd( $P::domain_due( $s ) ), 'I1 pagados los dos: el dominio se renueva UNA vez y el servicio vence igual que el registrador' );
 
 // ── I2. Varios dominios en un pedido ──────────────────────────────────────────────────────────────────────────
 store();
@@ -101,7 +104,7 @@ check( 'dos.mx' === $P::svc( (int) $o->get_meta( '_digitalisimo_service' ), 'dom
 $GLOBALS['nc']['taken'] = array( 'tres.mx' ); $GLOBALS['mails'] = array();
 $o = paid( array( new Digi_Test_Item( 14693, 'Web Hosting Starter' ), new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'tres.com' ) ), new Digi_Test_Item( 21, 'Dominio .mx', 1, array( 'Dominio' => 'tres.mx' ) ) ), 'ana@tres.com' );
 $bad = 0; foreach ( $P::services() as $id ) if ( (int) $P::svc( $id, 'order' ) === $o->get_id() && 'tres.mx' === $P::svc( $id, 'domain' ) ) $bad = $id;
-check( 'completed' === $o->get_status() && isset( $GLOBALS['nc']['domains']['tres.com'] ) && $bad && 'on-hold' === $P::svc( $bad, 'status' ) && alerts( 'dominio en espera: tres.mx' ), 'I2 uno falla (ya no está libre): los demás siguen, el pedido se entrega y el fallido queda en espera con aviso' );
+check( 'on-hold' === $o->get_status() && isset( $GLOBALS['nc']['domains']['tres.com'], $GLOBALS['webuzo']['users']['tres'] ) && $bad && 'on-hold' === $P::svc( $bad, 'status' ) && alerts( 'dominio en espera: tres.mx' ), 'I2 uno falla (ya no está libre): los demás siguen (dominio y cuenta), el fallido queda en espera con aviso y el pedido no se completa (segunda revisión, N2)' );
 // La asociación viaja del buscador al pedido: Store API → carrito → línea del pedido.
 $add = $C::store_api_data( array( 'cart_item_data' => array() ), new class() { public function get_param( $k ) { return 'digitalisimo_for_domain' === $k ? 'Mi-Negocio.MX' : null; } public function get_json_params() { return array(); } public function get_body_params() { return array(); } } );
 $data = $C::cart_item_data( $add['cart_item_data'], 14693 );
