@@ -448,6 +448,20 @@ final class Transform {
 			$to[]   = str_replace( '/', '\/', $to[ $i ] );
 		}
 		$text = str_replace( $from, $to, $text );
+		// CSS y JS de PRO y de los módulos con copia en el espejo (`marca/assets/…`, `marca/modules/…`).
+		$text = (string) preg_replace_callback(
+			'#(/plugins(?:\\\\)?/digitalisimo-elements(?:\\\\)?/)((?:assets|modules)(?:\\\\)?/[\w./\\\\-]+?\.(?:css|js))(?=[?"\'\s)]|$)#',
+			static function ( $m ) {
+				$rel  = str_replace( '\\/', '/', $m[2] );
+				$copy = preg_replace( '/elementor/i', self::P, $rel );
+				if ( ! class_exists( Front_Layer::class ) || ! is_readable( Front_Layer::mirror_dir() . '/' . $copy ) ) {
+					return $m[0];
+				}
+				$sep = false !== strpos( $m[1], '\\' ) ? '\\/' : '/';
+				return $m[1] . 'marca' . $sep . str_replace( '/', $sep, $copy );
+			},
+			$text
+		);
 		// Archivos del espejo con «elementor» en el nombre (eicons: elementor-icons.css → dg-icons.css).
 		return (string) preg_replace_callback(
 			'#(/plugins/digitalisimo-elements/marca/motor/[\w./\\\\-]*?)elementor([\w.-]*\.(?:css|js))#i',
@@ -485,7 +499,7 @@ final class Transform {
 			return (string) preg_replace( '/elementor-action/', self::P . '-action', $url, 1 );
 		}
 		$packaged = class_exists( Package::class ) && Package::transformed() && preg_match( '#/plugins/digitalisimo-elements/[^?\#]*elementor#i', $url );
-		if ( ! $packaged && ! preg_match( '#/plugins/digitalisimo-elements/(elementor|motor)/assets/|/uploads/elementor/(css|google-fonts)/#', $url ) ) {
+		if ( ! $packaged && ! preg_match( '#/plugins/digitalisimo-elements/((elementor|motor)/assets|assets|modules)/|/uploads/elementor/(css|google-fonts)/#', $url ) ) {
 			return $url;
 		}
 		return self::paths( $url );
