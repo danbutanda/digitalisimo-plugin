@@ -7,6 +7,8 @@
  * sale de la máquina: sin filtro que conteste, `wp_remote_post()` devuelve un error.
  */
 error_reporting( E_ALL );
+// Como WordPress (wp-settings.php): PHP siempre en UTC; las fechas locales las da wp_date().
+date_default_timezone_set( 'UTC' );
 require_once __DIR__ . '/php74.php';
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'DAY_IN_SECONDS', 86400 );

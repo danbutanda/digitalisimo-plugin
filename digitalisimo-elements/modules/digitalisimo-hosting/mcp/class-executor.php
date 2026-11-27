@@ -57,6 +57,24 @@ final class Executor {
 			if ( 'log' === $action ) {
 				return self::log_page( (int) ( $input['page'] ?? 1 ), (int) ( $input['per_page'] ?? 20 ) );
 			}
+			if ( 'manual-payment' === $action ) {
+				$service = isset( $input['service'] ) ? (int) $input['service'] : 0;
+				$result  = \Digitalisimo_Hosting_Provisioning::manual_payment(
+					$service,
+					array(
+						'months'       => (int) ( $input['months'] ?? 0 ),
+						'method'       => isset( $input['method'] ) && is_string( $input['method'] ) ? $input['method'] : '',
+						'amount'       => $input['amount'] ?? '',
+						'note'         => isset( $input['note'] ) && is_string( $input['note'] ) ? $input['note'] : '',
+						'renew_domain' => ! empty( $input['renew_domain'] ),
+						'key'          => isset( $input['request_id'] ) && is_string( $input['request_id'] ) ? $input['request_id'] : '',
+					)
+				);
+				// Medio, periodo y monto como nombres (la bitácora no guarda textos libres ni datos personales).
+				$keys = is_wp_error( $result ) ? array( 'manual_payment' ) : array( 'manual_payment', 'method_' . $result['method'], 'months_' . (int) $result['months'], null === $result['amount'] ? 'amount_none' : 'amount_' . str_replace( '.', '_', number_format( (float) $result['amount'], 2, '.', '' ) ), 'domain_' . $result['domain_renewal'] );
+				self::log( $tool, $action, $keys, $service, is_wp_error( $result ) ? 'error' : ( ! empty( $result['duplicate'] ) ? 'duplicate' : 'ok' ), is_wp_error( $result ) ? $result->get_error_code() : '' );
+				return $result;
+			}
 			$data   = $input['data'] ?? null;
 			$result = \Digitalisimo_Hosting::mcp_update( is_object( $data ) ? (array) $data : $data );
 			if ( is_wp_error( $result ) ) {
@@ -102,7 +120,7 @@ final class Executor {
 			'action'  => $action,
 			'keys'    => array_slice( $clean, 0, 40 ),
 			'product' => max( 0, $product ),
-			'result'  => in_array( $result, array( 'ok', 'error', 'denied' ), true ) ? $result : 'error',
+			'result'  => in_array( $result, array( 'ok', 'error', 'denied', 'duplicate' ), true ) ? $result : 'error',
 			'code'    => substr( (string) preg_replace( '/[^a-z0-9_]/', '', strtolower( $code ) ), 0, 80 ),
 		);
 		$entries = get_option( self::LOG, array() );

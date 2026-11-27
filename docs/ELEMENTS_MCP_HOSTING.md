@@ -12,7 +12,7 @@ registran como las de tienda y del kit de ventas (registro de abilities del núc
 
 | Herramienta | Permiso | Acciones |
 | --- | --- | --- |
-| `digitalisimo-hosting-settings` | `manage_options` | `get`, `update`, `log` |
+| `digitalisimo-hosting-settings` | `manage_options` | `get`, `update`, `log`, `manual-payment` |
 | `digitalisimo-hosting-domain-product` | `manage_woocommerce` o `manage_options` | `list`, `mark`, `unmark` |
 
 - **get** devuelve todos los ajustes que usa el sitio, sin ningún secreto: de las claves (`api_key`, `webuzo_api_key`,
@@ -39,6 +39,10 @@ registran como las de tienda y del kit de ventas (registro de abilities del núc
 - **mark** marca el producto como Dominio (`_digitalisimo_hosting_type` = `domain`, `_digitalisimo_tld` y
   `_digitalisimo_domain_kind` = `register` o `transfer`), con la extensión validada contra la lista de los registradores;
   **unmark** lo deja en «Ninguno».
+- **manual-payment** registra un pago recibido por otro lado (`service`, `months`, `method` cash|transfer|deposit|other,
+  `amount`, `note`, `renew_domain`, `request_id`) con `Digitalisimo_Hosting_Provisioning::manual_payment()`: el mismo que
+  el botón «Registrar pago manual» de Servicios de hosting (idempotente, con candado por servicio). La bitácora anota medio,
+  periodo y monto como nombres de claves.
 - **Bitácora** `digitalisimo_elements_hosting_mcp_log` (opción del sitio, sin carga automática, 200 entradas): fecha
   UTC, ID del usuario, herramienta, acción, los nombres de las claves cambiadas o el ID del producto, resultado y código.
   Nunca valores ni datos personales; también lo denegado.

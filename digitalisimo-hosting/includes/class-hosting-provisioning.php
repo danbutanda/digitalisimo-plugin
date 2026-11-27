@@ -1552,6 +1552,164 @@ class Digitalisimo_Hosting_Provisioning {
 		return null;
 	}
 
+	// ── Pago manual (pedido del propietario del 2026-11-27: «permite pago manual solo en admin para si me pagan por otro
+	// lado o en persona, yo habilitarles el año y no se les suspenda») ──────────────────────────────────────────────
+
+	/** Medios de un pago registrado a mano. */
+	const MANUAL_METHODS = array( 'cash' => 'Efectivo', 'transfer' => 'Transferencia', 'deposit' => 'Depósito', 'other' => 'Otro' );
+	/** Bitácora de pagos manuales del sitio (las últimas 200): quién, cuándo, servicio, medio, periodo, monto y pedido. */
+	const MANUAL_LOG = 'digitalisimo_hosting_manual_payments';
+
+	/** ¿Puede registrar pagos manuales? Sólo quien administra la tienda o el sitio (nunca un cliente). */
+	public static function can_manual_payment() { return function_exists( 'current_user_can' ) && ( current_user_can( 'manage_woocommerce' ) || current_user_can( 'manage_options' ) ); }
+
+	/**
+	 * Lo que muestra el formulario: el periodo de fábrica, si conviene renovar el dominio (vence dentro del periodo
+	 * pagado), su costo en el registrador que lo tiene y si el saldo alcanza (una consulta de sólo lectura).
+	 */
+	public static function manual_preview( $id, $months = 0 ) {
+		$hosting = self::has_hosting( $id );
+		$months = Digitalisimo_Hosting_Products::period_months( $months ) ? (int) $months : ( $hosting ? self::service_period( $id ) : 12 );
+		$expires = (int) self::svc( $id, 'expires' );
+		$new = self::add_months( $expires ? $expires : time(), $months );
+		$dd = self::domain_due( $id );
+		$out = array( 'months' => $months, 'from' => $expires, 'to' => $new, 'domain_due' => $dd, 'renew_domain' => false, 'cost' => null, 'balance' => null, 'registrar' => '', 'warning' => '' );
+		if ( ! $dd || ! self::svc( $id, 'domain_registered' ) ) return $out;
+		$out['renew_domain'] = $dd <= $new;
+		$reg = Digitalisimo_Hosting_Registrars::make( Digitalisimo_Hosting_Registrars::of_service( $id ) );
+		$out['registrar'] = $reg->label();
+		if ( ! $reg->configured() ) { $out['warning'] = 'Falta la cuenta de ' . $reg->label() . ': el dominio no se podrá renovar desde aquí.'; return $out; }
+		$split = self::split( (string) self::svc( $id, 'domain' ) );
+		$price = $reg->price( $split ? $split[1] : '', 'RENEW', 15 );
+		$bal = $reg->balance( 15 );
+		if ( 'ok' === $price['kind'] ) $out['cost'] = (float) $price['value'];
+		if ( 'ok' === $bal['kind'] ) $out['balance'] = (float) $bal['value'];
+		if ( null !== $out['cost'] && null !== $out['balance'] && $out['balance'] + 0.005 < $out['cost'] ) $out['warning'] = 'El saldo de ' . $reg->label() . ' (' . number_format( $out['balance'], 2, '.', ',' ) . ' USD) no alcanza para renovar el dominio (' . number_format( $out['cost'], 2, '.', ',' ) . ' USD): recárgalo antes o el dominio quedará pendiente.';
+		elseif ( null === $out['cost'] || null === $out['balance'] ) $out['warning'] = 'No pudimos consultar el costo o el saldo en ' . $reg->label() . ' ahora.';
+		return $out;
+	}
+
+	/**
+	 * Registra un pago hecho por otro lado (efectivo, transferencia, depósito…): marca pagado el pedido de renovación
+	 * pendiente o crea uno ya pagado, extiende el vencimiento el periodo pagado, cancela los avisos y la suspensión de ese
+	 * periodo, reactiva lo suspendido por falta de pago y, si se pide, renueva el dominio en su registrador (con las mismas
+	 * guardas: nunca dos veces, con aviso si falla). Idempotente: la misma clave ($a['key']; por MCP, los mismos datos en
+	 * 10 minutos) no extiende dos veces. $a: months, method, amount, note, renew_domain, key.
+	 *
+	 * @return array|WP_Error
+	 */
+	public static function manual_payment( $id, array $a ) {
+		if ( ! self::can_manual_payment() ) return new WP_Error( 'digitalisimo_hosting_forbidden', 'Registrar un pago manual exige administrar la tienda (manage_woocommerce) o el sitio (manage_options).', array( 'status' => 403 ) );
+		$id = (int) $id;
+		if ( ! self::is_service( $id ) ) return new WP_Error( 'digitalisimo_hosting_service', 'No existe ese servicio.', array( 'status' => 404 ) );
+		if ( 'cancelled' === self::svc( $id, 'status' ) ) return new WP_Error( 'digitalisimo_hosting_service', 'El servicio está dado de baja: no se registra un pago.', array( 'status' => 400 ) );
+		$hosting = self::has_hosting( $id );
+		$months = (int) ( $a['months'] ?? 0 );
+		if ( $months && ! Digitalisimo_Hosting_Products::period_months( $months ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'El periodo debe ser 1, 3, 6, 12, 24 o 36 meses.', array( 'status' => 400 ) );
+		if ( ! $months ) $months = $hosting ? self::service_period( $id ) : 12;
+		$method = (string) ( $a['method'] ?? '' );
+		if ( ! isset( self::MANUAL_METHODS[ $method ] ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'El medio debe ser efectivo (cash), transferencia (transfer), depósito (deposit) u otro (other).', array( 'status' => 400 ) );
+		$raw_amount = is_scalar( $a['amount'] ?? null ) ? trim( str_replace( ',', '.', (string) $a['amount'] ) ) : '';
+		if ( '' !== $raw_amount && ( ! is_numeric( $raw_amount ) || (float) $raw_amount < 0 ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'El monto debe ser un número (o quedar vacío).', array( 'status' => 400 ) );
+		$amount = '' === $raw_amount ? null : round( (float) $raw_amount, 2 );
+		$note = substr( sanitize_text_field( (string) ( $a['note'] ?? '' ) ), 0, 300 );
+		$renew_domain = ! empty( $a['renew_domain'] ) && (int) self::svc( $id, 'domain_product' ) && self::svc( $id, 'domain_registered' );
+		// Idempotencia: la clave del formulario o, sin ella, los mismos datos en 10 minutos.
+		$key = '' !== (string) ( $a['key'] ?? '' ) ? 'k:' . substr( preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $a['key'] ), 0, 64 ) : 'h:' . md5( wp_json_encode( array( $id, $months, $method, $amount, $note, $renew_domain ) ) );
+		$seen = self::svc( $id, 'manual_keys' ); $seen = is_array( $seen ) ? $seen : array();
+		$prev = $seen[ $key ] ?? null;
+		if ( $prev && ( 'k:' === substr( $key, 0, 2 ) || time() - (int) ( $prev['t'] ?? 0 ) < 10 * MINUTE_IN_SECONDS ) ) return array( 'ok' => true, 'duplicate' => true, 'message' => 'Este pago ya se había registrado (no se extendió otra vez).' ) + (array) ( $prev['result'] ?? array() );
+		// Un candado por servicio: dos envíos a la vez no extienden dos veces.
+		$lock = 'digitalisimo_hosting_manual_lock_' . $id;
+		if ( ! add_option( $lock, time(), '', false ) ) {
+			if ( time() - (int) get_option( $lock ) < 2 * MINUTE_IN_SECONDS ) return new WP_Error( 'digitalisimo_hosting_busy', 'Ya se está registrando un pago de este servicio: espera unos segundos.', array( 'status' => 409 ) );
+			update_option( $lock, time(), false );
+		}
+		try {
+			$user = function_exists( 'wp_get_current_user' ) && wp_get_current_user() ? (string) wp_get_current_user()->user_login : '';
+			$user = '' !== $user ? $user : 'un administrador';
+			// El pedido: la renovación pendiente sin pagar, o uno nuevo ya pagado.
+			$order = null;
+			$existing = wc_get_order( (int) self::svc( $id, 'renewal_order' ) );
+			if ( $existing && in_array( $existing->get_status(), array( 'pending', 'on-hold', 'failed' ), true ) && ! self::renewal_confirmed( $existing ) ) $order = $existing;
+			$label = ( $hosting ? 'hosting ' . strtolower( Digitalisimo_Hosting_Products::period_label( $months ) ) : 'dominio por ' . ( 12 === $months ? 'un año' : $months . ' meses' ) ) . ( $renew_domain && $hosting ? ' y dominio por un año' : '' );
+			if ( ! $order ) {
+				$products = array();
+				$hp = $hosting ? (int) self::svc( $id, 'hosting_product' ) : 0;
+				if ( $hp && wc_get_product( $hp ) ) $products['hosting_product'] = wc_get_product( $hp );
+				if ( ( $renew_domain || ! $hosting ) && wc_get_product( (int) self::svc( $id, 'domain_product' ) ) ) $products['domain_product'] = wc_get_product( (int) self::svc( $id, 'domain_product' ) );
+				$order = self::new_renewal( $id, $products, array( 'hosting' => $hosting, 'domain' => $renew_domain || ! $hosting, 'period' => $months ), $label . ' (pago manual)' );
+				if ( ! $order ) return new WP_Error( 'digitalisimo_hosting_order', 'No se pudo crear el pedido del pago.', array( 'status' => 500 ) );
+			} elseif ( $renew_domain && ! self::order_has( $order, (int) self::svc( $id, 'domain_product' ) ) ) {
+				$item_id = $order->add_product( wc_get_product( (int) self::svc( $id, 'domain_product' ) ), 1 );
+				$item = $item_id ? $order->get_item( $item_id ) : null;
+				if ( $item ) { $item->add_meta_data( 'Dominio', (string) self::svc( $id, 'domain' ), true ); $item->save(); }
+				$order->calculate_totals();
+			}
+			$order->update_meta_data( self::META_PARTS, array( 'hosting' => $hosting, 'domain' => $renew_domain || ! $hosting, 'period' => $months ) );
+			$entry = array( 't' => time(), 'user' => $user, 'service' => $id, 'domain' => (string) self::svc( $id, 'domain' ), 'method' => $method, 'months' => $months, 'amount' => $amount, 'note' => $note, 'order' => (int) $order->get_id() );
+			// La extensión (el periodo pagado desde el vencimiento actual) y lo que deja de correr.
+			$old = (int) self::svc( $id, 'expires' );
+			$new = self::add_months( $old ? $old : time(), $months );
+			$cur = (string) self::svc( $id, 'status' );
+			$manual_susp = 'manual' === self::svc( $id, 'suspend_reason' );
+			self::cancel_suspension( $id, 'pago manual registrado por ' . $user );
+			$state = (array) $order->get_meta( self::META_RENEW );
+			$state = array_merge( $state, array( 'paid' => time(), 'manual' => $entry, 'extended' => $new, 'unsuspended' => time() ) );
+			$order->update_meta_data( self::META_RENEW, $state ); $order->save();
+			$set = array( 'expires' => $new, 'renewal_order' => 0, 'last_renewal_order' => $order->get_id(), 'notices' => array(), 'error' => '', 'reprieve_until' => 0, 'manual_paid_until' => $new );
+			if ( ! $hosting ) $set += array( 'domain_expires' => $new, 'domain_lapsed' => 0 );
+			if ( ! $manual_susp ) $set += array( 'suspend_reason' => '', 'suspend_for' => 0 );
+			self::svc_set( $id, $set );
+			if ( 'expired' === $cur || ( 'suspended' === $cur && ! self::svc( $id, 'webuzo_user' ) ) ) self::set_status_if( $id, $cur, 'active' );
+			// Suspendido por falta de pago: la reconciliación con la lista real de Webuzo lo reactiva (como al pagar).
+			if ( 'suspended' === $cur && self::svc( $id, 'webuzo_user' ) && ! $manual_susp ) self::enqueue( self::HOOK_RECONCILE, $id );
+			// El dominio con su registrador (las mismas guardas que la renovación: nunca dos veces; aviso si falla).
+			$domain_result = 'skipped';
+			if ( $renew_domain ) {
+				$dstop = self::renew_domain( $order, $state, $id );
+				if ( $dstop ) {
+					$domain_result = 'failed';
+					self::svc_set( $id, array( 'domain_pending_order' => $order->get_id() ) );
+					$order->add_order_note( 'DIGITALÍSIMO Hosting: el pago manual quedó registrado, pero el dominio no se renovó: ' . $dstop['message'] );
+					self::alert_admin( 'dominio sin renovar tras un pago manual: ' . self::svc( $id, 'domain' ), 'Registraste el pago manual del pedido #' . $order->get_id() . ', pero el dominio ' . self::svc( $id, 'domain' ) . ' no se renovó: ' . $dstop['message'] . "\n\n" . self::order_link( $order ) );
+				} else {
+					$domain_result = 'renewed';
+					$od = self::domain_due( $id );
+					if ( $hosting ) self::svc_set( $id, array( 'domain_expires' => (int) strtotime( '+1 year', $od ? $od : time() ), 'domain_lapsed' => 0, 'domain_pending_order' => 0 ) );
+					$dro = wc_get_order( (int) self::svc( $id, 'domain_renewal_order' ) );
+					if ( $dro && $dro->get_id() !== $order->get_id() && $dro->needs_payment() ) { $dro->update_status( 'cancelled', 'DIGITALÍSIMO Hosting: cubierto por el pago manual del pedido #' . $order->get_id() . '.' ); }
+					self::svc_set( $id, array( 'domain_renewal_order' => 0, 'domain_notices' => array() ) );
+				}
+			}
+			$state = (array) $order->get_meta( self::META_RENEW );
+			if ( 'failed' !== $domain_result ) $state['done'] = time();
+			$order->update_meta_data( self::META_RENEW, $state );
+			$order->update_meta_data( '_digitalisimo_manual_payment', $entry );
+			if ( method_exists( $order, 'set_payment_method' ) ) $order->set_payment_method( 'digitalisimo_manual' );
+			if ( method_exists( $order, 'set_payment_method_title' ) ) $order->set_payment_method_title( 'Pago manual: ' . strtolower( self::MANUAL_METHODS[ $method ] ) );
+			$order->save();
+			$text = 'Pago manual registrado por ' . $user . ': ' . strtolower( self::MANUAL_METHODS[ $method ] ) . ', ' . $label . ( null !== $amount ? ', monto ' . number_format( $amount, 2, '.', ',' ) : '' ) . ( '' !== $note ? ' (' . $note . ')' : '' ) . '; vence el ' . self::date( $new ) . ( $manual_susp ? '. La cuenta sigue suspendida a mano: usa «Reactivar» si corresponde' : '' ) . '.';
+			$order->update_status( 'completed', 'DIGITALÍSIMO Hosting: ' . $text );
+			self::svc_log( $id, $text . ' Pedido #' . $order->get_id() . '.' );
+			$log = get_option( self::MANUAL_LOG, array() ); $log = is_array( $log ) ? $log : array();
+			array_unshift( $log, $entry + array( 'from' => $old, 'to' => $new, 'domain_renewal' => $domain_result ) );
+			update_option( self::MANUAL_LOG, array_slice( $log, 0, 200 ), false );
+			$result = array( 'ok' => true, 'duplicate' => false, 'service' => $id, 'order' => (int) $order->get_id(), 'from' => self::date( $old ), 'expires' => self::date( $new ), 'months' => $months, 'method' => $method, 'amount' => $amount, 'domain_renewal' => $domain_result, 'message' => $text );
+			$seen[ $key ] = array( 't' => time(), 'result' => $result );
+			if ( count( $seen ) > 50 ) $seen = array_slice( $seen, -50, null, true );
+			self::svc_set( $id, array( 'manual_keys' => $seen ) );
+			/**
+			 * Gancho para la suscripción automática (Mercado Pago, en otra rama): un pago manual mueve el vencimiento; quien
+			 * cobre solo debe mover también la fecha del siguiente cobro.
+			 */
+			if ( function_exists( 'do_action' ) ) do_action( 'digitalisimo_hosting_manual_payment', $id, $result + array( 'expires_ts' => $new, 'from_ts' => $old, 'user' => $user ) );
+			return $result;
+		} finally {
+			delete_option( $lock );
+		}
+	}
+
 	// ── Suspender, reactivar, reenviar ──────────────────────────────────────────────────────────────────────────
 
 	public static function run_suspend( $id ) { self::toggle( $id, true ); }
