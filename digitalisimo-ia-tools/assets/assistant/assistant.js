@@ -504,15 +504,16 @@
 			}
 			ahead[ i ] = tool;
 		}
-		// ¿Hay otro mensaje del Asistente después, en el mismo turno? Si no, el texto que acompaña a las llamadas es la
-		// respuesta (el turno se detuvo en una tarjeta o se cortó) y queda a la vista, no plegado.
+		// ¿Hay una respuesta final (un mensaje del Asistente sin llamadas) después, en el mismo turno? Si no, el turno se
+		// detuvo en una tarjeta o se cortó: lo que el Asistente escribió junto a sus llamadas es la respuesta y queda a la
+		// vista, no plegado (corridas reales del caso plomerito 4: el informe de Skydropx quedaba escondido).
 		const later = new Array( messages.length ).fill( false );
 		let said = false;
 		for ( let i = messages.length - 1; i >= 0; i-- ) {
 			later[ i ] = said;
 			if ( 'me' === messages[ i ].role ) {
 				said = false;
-			} else if ( 'assistant' === messages[ i ].role ) {
+			} else if ( 'assistant' === messages[ i ].role && ! messages[ i ].work ) {
 				said = true;
 			}
 		}
