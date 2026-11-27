@@ -233,13 +233,17 @@ try {
     ok((await page.evaluate(() => window.__nav)) === 0, 'Soltar tras arrastrar no abre el enlace de la captura.');
     await page.mouse.click(cx, cy);
     ok((await page.evaluate(() => window.__nav)) === 1, 'Un clic sin arrastrar sí abre el enlace.');
-    // Deslizamiento táctil (gesto sintético de Chrome) hacia la derecha: captura anterior.
-    const client = await page.target().createCDPSession();
-    const before = m.current;
-    await client.send('Input.synthesizeScrollGesture', { x: Math.round(cx), y: Math.round(cy), xDistance: Math.round(m.slideW * 0.8), yDistance: 0, gestureSourceType: 'touch', speed: 1200 });
+    // Deslizamiento táctil (gesto sintético de Chrome) desde la captura del medio: hacia un lado y de vuelta.
+    await page.click('.digi-device-slider__dot[data-digi-carousel-dot="1"]');
     await settle();
-    m = await measure();
-    ok(m.current === before - 1 && Math.abs(m.scroll - m.current * m.slideW) <= 1, `Deslizar con el dedo vuelve a la captura ${before} (${m.scroll} px).`);
+    const client = await page.target().createCDPSession();
+    const swipe = async (dx) => { await client.send('Input.synthesizeScrollGesture', { x: Math.round(cx), y: Math.round(cy), xDistance: dx, yDistance: 0, gestureSourceType: 'touch', speed: 800, preventFling: true }); await settle(); return measure(); };
+    const w = Math.round(m.slideW * 0.7);
+    m = await swipe(-w);
+    const moved = m.current;
+    ok(moved !== 1 && Math.abs(m.scroll - m.current * m.slideW) <= 1, `Deslizar con el dedo cambia de captura (de la 2 a la ${moved + 1}, ${m.scroll} px) y queda alineada.`);
+    m = await swipe(w);
+    ok(m.current === 1 && Math.abs(m.scroll - m.slideW) <= 1, `Deslizar al otro lado vuelve a la captura 2 (${m.scroll} px).`);
     // Foco visible con el teclado: pista › «anterior» › «siguiente» › primer punto.
     await page.focus('[data-digi-carousel-track]');
     const focused = async () => page.evaluate(() => { const b = document.activeElement, cs = getComputedStyle(b); return { cls: b.className, label: b.getAttribute('aria-label'), style: cs.outlineStyle, width: parseFloat(cs.outlineWidth), visible: b.matches(':focus-visible') }; });
