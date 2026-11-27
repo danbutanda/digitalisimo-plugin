@@ -63,7 +63,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 		'digitalisimo-woo/store-settings'    => array( 'list' => 'read', 'get' => 'read', 'create' => 'destructive', 'update' => 'destructive', 'delete' => 'destructive', 'batch' => 'destructive' ),
 		'digitalisimo-woo/reports'           => array( 'list' => 'read', 'sales' => 'read', 'top_sellers' => 'read', 'orders_totals' => 'read', 'products_totals' => 'read', 'customers_totals' => 'read', 'coupons_totals' => 'read', 'reviews_totals' => 'read', 'log' => 'read', 'changes' => 'read' ),
 		'digitalisimo-woo/skydropx'          => array( 'status' => 'read', 'audit_products' => 'read', 'quote' => 'read', 'shipments' => 'read', 'get_shipment' => 'read', 'label' => 'read', 'update_products' => 'destructive', 'set_tracking' => 'destructive', 'resync' => 'destructive' ),
-		'digitalisimo-hosting/settings'      => array( 'get' => 'read', 'log' => 'read', 'update' => 'destructive' ),
+		'digitalisimo-hosting/settings'      => array( 'get' => 'read', 'log' => 'read', 'update' => 'destructive', 'manual-payment' => 'destructive' ),
 		'digitalisimo-hosting/domain-product' => array( 'list' => 'read', 'mark' => 'destructive', 'unmark' => 'destructive' ),
 	);
 	/** Amplio: lo que viaja al proveedor, al historial, al detalle y a la bitácora (como `Secrets` del MCP de Woo). */

@@ -293,6 +293,14 @@ final class Digitalisimo_AI_Assistant_Card {
 			case 'digitalisimo-woo/skydropx':
 				return self::skydropx( $action, $input );
 			case 'digitalisimo-hosting/settings':
+				if ( 'manual-payment' === $action ) {
+					$months = (int) ( $input['months'] ?? 0 );
+					$period = array( 1 => 'un mes', 3 => 'tres meses', 6 => 'seis meses', 12 => 'un año', 24 => 'dos años', 36 => 'tres años' );
+					$text   = 'Voy a registrar un pago que recibiste por otro lado y extender el servicio ' . ( isset( $period[ $months ] ) ? $period[ $months ] : 'el periodo que tiene contratado' );
+					if ( ! empty( $input['renewed_elsewhere'] ) ) $text .= ', tomando el dominio como ya renovado por ti (lo compruebo antes)';
+					elseif ( ! array_key_exists( 'renew_domain', $input ) || ! empty( $input['renew_domain'] ) ) $text .= ' y, si el dominio vence en ese tiempo, renovarlo con su registrador (eso usa el saldo de tu cuenta)';
+					return array( 'text' => $text, 'final' => 'El servicio se reactiva y se cancelan los avisos y la suspensión de ese periodo.', 'ack' => true, 'ack_label' => 'Sí, ya recibí ese pago.' );
+				}
 				return 'update' === $action ? array( 'text' => 'Voy a cambiar ' . self::count_words( is_array( $input['data'] ?? null ) ? count( $input['data'] ) : 0, 'ajuste', 'ajustes' ) . ' de la venta de dominios y hosting de tu sitio' . ( is_array( $input['data'] ?? null ) && $input['data'] ? ': ' . self::join( array_map( array( __CLASS__, 'quoted_key' ), array_slice( array_keys( $input['data'] ), 0, 8 ) ) ) . ( count( $input['data'] ) > 8 ? ' y más (en «Ver detalles»)' : '' ) : '' ) ) : null;
 			case 'digitalisimo-hosting/domain-product':
 				return self::domain_product( $action, $input );
