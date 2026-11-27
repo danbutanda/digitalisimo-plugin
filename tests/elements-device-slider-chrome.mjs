@@ -35,7 +35,8 @@ const SHOTS = process.env.DS_SHOTS || '';
 const BEFORE = process.env.DS_BEFORE || '';
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
-const CSS = read('digitalisimo-elements/assets/css/carousel-engine.css') + read('digitalisimo-elements/assets/css/device-slider.css');
+// Todas las hojas por variante, en el orden en que las declara el widget (base, puntos, flechas, dispositivos).
+const CSS = ['carousel-engine', 'device-slider', 'device-slider-nav', 'device-slider-arrows', 'device-slider-mobile', 'device-slider-tablet', 'device-slider-laptop', 'device-slider-desktop', 'device-slider-browser'].map((f) => read(`digitalisimo-elements/assets/css/${f}.css`)).join('\n');
 const JS = read('digitalisimo-elements/assets/js/carousel-engine.js');
 
 // HTML del widget (o de la versión anterior, con DS_WIDGET_DIR) para cada juego de ajustes.

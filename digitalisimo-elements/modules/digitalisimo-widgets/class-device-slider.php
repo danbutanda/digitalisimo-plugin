@@ -32,10 +32,26 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 	public function get_icon() { return 'eicon-slider-device'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'dispositivo', 'capturas', 'slider', 'móvil', 'celular', 'tableta', 'laptop' ); }
-	/** La hoja de la fachada sólo se añade con una diapositiva de YouTube. */
+	/** Hoja de cada dispositivo (hojas por variante, ≤ 4 KB cada una: docs/ELEMENTS_FRONT_OBJECTIVE.md, criterio 7). */
+	const DEVICE_STYLES = array( 'mobile' => 'digitalisimo-device-slider-mobile', 'tablet' => 'digitalisimo-device-slider-tablet', 'laptop' => 'digitalisimo-device-slider-laptop', 'desktop' => 'digitalisimo-device-slider-desktop', 'browser' => 'digitalisimo-device-slider-browser' );
+
+	/**
+	 * Cada instancia declara sólo lo que pinta: la base (marco, pantalla y capturas), `-nav` con más de una captura
+	 * (fila de puntos y arrastre), `-arrows` con flechas, la hoja de su dispositivo y, con YouTube, la de la fachada.
+	 * El tipo (panel y editor) declara todas. El orden importa: base, nav, flechas y dispositivo.
+	 */
 	public function get_style_depends() {
-		$facade = method_exists( $this, 'is_type_instance' ) && ! $this->is_type_instance() && method_exists( $this, 'get_settings_for_display' ) ? self::facade_depends( (array) $this->get_settings_for_display() ) : array();
-		return array_merge( array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider' ), $facade );
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings_for_display' ) ) {
+			return array_merge( array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider', 'digitalisimo-device-slider-nav', 'digitalisimo-device-slider-arrows' ), array_values( self::DEVICE_STYLES ) );
+		}
+		$s     = (array) $this->get_settings_for_display();
+		$count = count( self::items( $s ) );
+		$o     = self::options( $s, $count );
+		$out   = array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider' );
+		if ( $count > 1 ) { $out[] = 'digitalisimo-device-slider-nav'; }
+		if ( $o['arrows'] ) { $out[] = 'digitalisimo-device-slider-arrows'; }
+		$out[] = self::DEVICE_STYLES[ $o['type'] ];
+		return array_merge( $out, self::facade_depends( $s ) );
 	}
 	/**
 	 * El motor mueve flechas y puntos y arrastra con el ratón: con una sola captura no se carga. Con la navegación

@@ -15,6 +15,7 @@ namespace Elementor {
 			public $settings = array(); public $controls = array(); public $sections = array(); private $attributes = array();
 			public function get_settings_for_display() { return $this->settings; }
 			public function get_settings() { return $this->settings; }
+			public function is_type_instance() { return false; }
 			public function start_controls_section( $name, $args ) { $this->sections[ $name ] = $args; }
 			public function end_controls_section() {}
 			public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }

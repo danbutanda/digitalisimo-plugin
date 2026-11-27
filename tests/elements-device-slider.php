@@ -139,6 +139,12 @@ namespace {
 		check_ds( str_starts_with( (string) current( $w->controls[ $name ]['selectors'] ), $var . ':' ), $name . ' escribe ' . $var . ' (mismo nombre que el control de Element Pack: el valor guardado se aplica).' );
 	}
 
+	// --- Hojas que declara cada instancia --------------------------------------------------------------------------------
+	$styles = function ( array $settings ) { $w = ds_widget(); $w->settings = $settings; return $w->get_style_depends(); };
+	check_ds( array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider', 'digitalisimo-device-slider-nav', 'digitalisimo-device-slider-arrows', 'digitalisimo-device-slider-desktop' ) === $styles( array( 'gallery_images' => $images ) ), 'Monitor con flechas: base, puntos, flechas y monitor, en ese orden.' );
+	check_ds( array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider', 'digitalisimo-device-slider-nav', 'digitalisimo-device-slider-mobile' ) === $styles( array( 'device_type' => 'mobile', 'navigation' => 'dots', 'gallery_images' => $images ) ), 'Celular con puntos: sin la hoja de flechas.' );
+	check_ds( array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider', 'digitalisimo-device-slider-laptop' ) === $styles( array( 'device_type' => 'laptop', 'gallery_images' => array( $images[0] ) ) ), 'Una sola captura en la laptop: base y laptop.' );
+
 	// --- Editor: mismas piezas y clases --------------------------------------------------------------------------------------
 	ob_start(); ( digi_test_accessible( new \ReflectionMethod( $w, 'content_template' ) ) )->invoke( $w ); $editor = ob_get_clean();
 	foreach ( array( 'digi-device-slider__device', 'digi-device-slider__frame', 'digi-device-slider__screen', 'digi-device-slider__island', 'digi-device-slider__camera', 'digi-device-slider__bar', 'digi-device-slider__base', 'digi-device-slider__stand', 'digi-device-slider__arrow--prev', 'digi-device-slider__dot', 'data-digi-carousel-dots', 'data-digi-carousel-drag', 'digi-device-slider--frame-', 'digi-device-slider--landscape', 'aria-label="Captura anterior"', "'laptop'" ) as $needle ) {
@@ -146,7 +152,13 @@ namespace {
 	}
 
 	// --- Hoja de estilos -----------------------------------------------------------------------------------------------------
-	$css = (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/device-slider.css' );
+	// Hojas por variante: base, puntos, flechas y una por dispositivo, cada una de 4 KB o menos.
+	$css = '';
+	foreach ( array( '', '-nav', '-arrows', '-mobile', '-tablet', '-laptop', '-desktop', '-browser' ) as $part ) {
+		$file = __DIR__ . '/../digitalisimo-elements/assets/css/device-slider' . $part . '.css';
+		check_ds( is_file( $file ) && filesize( $file ) <= 4096, 'device-slider' . $part . '.css existe y pesa 4 KB o menos (' . ( is_file( $file ) ? filesize( $file ) : 0 ) . ' B).' );
+		$css .= (string) file_get_contents( $file );
+	}
 	check_ds( (bool) preg_match( '/img\.digi-device-slider__image\{[^}]*object-fit:cover/', $css ) && ! str_contains( $css, 'object-fit:contain' ), 'La captura llena la pantalla (cover), sin contain.' );
 	check_ds( ! str_contains( $css, 'digi-carousel__controls' ) && ! preg_match( '/__screen[^{]*__arrow/', $css ), 'Ninguna regla pone las flechas dentro de la pantalla.' );
 	check_ds( str_contains( $css, 'scrollbar-width:none' ) && str_contains( $css, 'prefers-reduced-motion:reduce' ) && str_contains( $css, ':focus-visible' ), 'Sin barra de desplazamiento, con movimiento reducido y foco visible.' );

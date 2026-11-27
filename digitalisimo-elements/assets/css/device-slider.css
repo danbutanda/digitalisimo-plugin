@@ -1,186 +1,22 @@
-/*
- * Slider de dispositivos: marcos propios dibujados con CSS (celular con isla, tableta, laptop, monitor y ventana de
- * navegador). Cada dispositivo se describe con sus proporciones reales, en fracciones del ancho del dispositivo:
- *   --fw ancho del marco · --sw/--sh proporción de la pantalla · --b, --bt, --bb bisel lateral, superior e inferior ·
- *   --r radio del marco · --rs radio de la pantalla · --band canto de color · --below lo que queda debajo del marco
- *   (base de la laptop, pie del monitor).
- * Con eso los radios en % se calculan para que las esquinas sean circulares, la pantalla recorta la captura sin franjas
- * y las flechas se colocan fuera de la pantalla sin medir nada con JavaScript.
- */
-.digi-device-slider{
-	--fw:1;--sw:16;--sh:10;--b:.02;--bt:.02;--bb:.02;--r:.02;--rs:.004;--band:.005;--below:0;
-	--digi-ds-frame:#2b2c30;--digi-ds-bezel:#0a0a0c;--digi-ds-address:rgba(255,255,255,.14);
-	--digi-ds-arrow:3rem;--digi-ds-gap:.875rem;--digi-ds-arrow-bg:#111827;--digi-ds-focus:#2563eb;
-	--digi-ds-frame-hi:color-mix(in srgb,var(--digi-ds-frame) 76%,#fff);
-	--digi-ds-frame-lo:color-mix(in srgb,var(--digi-ds-frame) 78%,#000);
-	--fh:calc((var(--fw) - 2*var(--b))*var(--sh)/var(--sw) + var(--bt) + var(--bb));
-	--scw:calc(var(--fw) - 2*var(--b));
-	--sch:calc((var(--fw) - 2*var(--b))*var(--sh)/var(--sw));
-	box-sizing:content-box;max-width:none;margin-inline:auto;padding:0
-}
+/* Slider de dispositivos: marco, pantalla y capturas (geometría en class-device-slider.php). */
+.digi-device-slider{--fw:1;--below:0;--digi-ds-frame:#2b2c30;--digi-ds-bezel:#0a0a0c;--digi-ds-address:rgba(255,255,255,.14);--digi-ds-arrow:3rem;--digi-ds-gap:.875rem;--digi-ds-arrow-bg:#111827;--digi-ds-focus:#2563eb;--digi-ds-frame-hi:color-mix(in srgb,var(--digi-ds-frame) 76%,#fff);--digi-ds-frame-lo:color-mix(in srgb,var(--digi-ds-frame) 78%,#000);--fh:calc((var(--fw) - 2*var(--b))*var(--sh)/var(--sw) + var(--bt) + var(--bb));--scw:calc(var(--fw) - 2*var(--b));--sch:calc((var(--fw) - 2*var(--b))*var(--sh)/var(--sw));box-sizing:content-box;max-width:none;margin-inline:auto;padding:0}
 .digi-device-slider *,.digi-device-slider *::before,.digi-device-slider *::after{box-sizing:border-box}
 .digi-device-slider--frame-silver{--digi-ds-frame:#c9ccd1;--digi-ds-address:rgba(0,0,0,.08)}
 .digi-device-slider--frame-white{--digi-ds-frame:#eef0f3;--digi-ds-address:rgba(0,0,0,.07)}
-
-/* Proporciones reales. Celular: pantalla 19,5:9 (iPhone 15), bisel fino y esquinas de 16 % del ancho. */
-.digi-device-slider--mobile{--sw:9;--sh:19.5;--b:.045;--bt:.045;--bb:.045;--r:.16;--rs:.115;--band:.016}
-.digi-device-slider--mobile.digi-device-slider--landscape{--sw:19.5;--sh:9;--b:.021827;--bt:.021827;--bb:.021827;--r:.077607;--rs:.05578;--band:.007761}
-/* Tableta: pantalla 1640 × 2360 (iPad Air). */
-.digi-device-slider--tablet{--sw:1640;--sh:2360;--b:.05;--bt:.05;--bb:.05;--r:.075;--rs:.025;--band:.012}
-.digi-device-slider--tablet.digi-device-slider--landscape{--sw:2360;--sh:1640;--b:.035839;--bt:.035839;--bb:.035839;--r:.053759;--rs:.01792;--band:.008601}
-/* Laptop: tapa al 86 % del ancho, pantalla 16:10 y base debajo. */
-.digi-device-slider--laptop{--fw:.86;--sw:16;--sh:10;--b:.016;--bt:.024;--bb:.026;--r:.024;--rs:.006;--band:.004;--below:.03}
-/* Monitor: pantalla 16:9, barbilla y pie. */
-.digi-device-slider--desktop{--sw:16;--sh:9;--b:.016;--bt:.016;--bb:.07;--r:.018;--rs:.004;--band:.004;--below:.115}
-/* Ventana de navegador: barra superior y pantalla 16:10. */
-.digi-device-slider--browser{--sw:16;--sh:10;--b:0;--bt:.05;--bb:0;--r:.014;--rs:.014;--band:0}
-
-/* Ancho por defecto (sin especificidad: el ajuste «Ancho máximo» siempre gana). */
-.digi-device-slider:where(.digi-device-slider--mobile){max-width:340px}
-.digi-device-slider:where(.digi-device-slider--mobile.digi-device-slider--landscape){max-width:720px}
-.digi-device-slider:where(.digi-device-slider--tablet){max-width:560px}
-.digi-device-slider:where(.digi-device-slider--tablet.digi-device-slider--landscape){max-width:760px}
-
 .digi-device-slider .digi-carousel{--digi-carousel-visible:1;--digi-carousel-gap:0px;position:relative;margin:0;padding:0;background:none}
 .digi-device-slider__device{position:relative}
-
-/* Marco: color del dispositivo, brillo suave y sombra. El bisel negro es una capa (::before) dentro del canto. */
-.digi-device-slider__frame{
-	position:relative;width:calc(var(--fw)*100%);margin-inline:auto;
-	padding:calc(var(--bt)*100%) calc(var(--b)*100%) calc(var(--bb)*100%);
-	border-radius:calc(var(--r)/var(--fw)*100%)/calc(var(--r)/var(--fh)*100%);
-	background-color:var(--digi-ds-frame);
-	background-image:linear-gradient(135deg,rgba(255,255,255,.28),rgba(255,255,255,0) 32%,rgba(255,255,255,0) 68%,rgba(0,0,0,.18));
-	box-shadow:0 0 0 1px rgba(0,0,0,.22),0 1.5rem 3rem -1.25rem rgba(15,23,42,.5)
-}
-.digi-device-slider__frame::before{
-	content:"";position:absolute;z-index:0;pointer-events:none;
-	top:calc(var(--band)/var(--fh)*100%);right:calc(var(--band)/var(--fw)*100%);
-	bottom:calc(var(--bezel-bottom,var(--band))/var(--fh)*100%);left:calc(var(--band)/var(--fw)*100%);
-	border-radius:calc((var(--r) - var(--band))/(var(--fw) - 2*var(--band))*100%)/calc((var(--r) - var(--band))/(var(--fh) - var(--band) - var(--bezel-bottom,var(--band)))*100%);
-	background:var(--digi-ds-bezel)
-}
-.digi-device-slider--laptop .digi-device-slider__frame{border-bottom-left-radius:.6% 1%;border-bottom-right-radius:.6% 1%}
-.digi-device-slider--laptop .digi-device-slider__frame::before{border-bottom-left-radius:.4% .8%;border-bottom-right-radius:.4% .8%}
-.digi-device-slider--desktop{--bezel-bottom:calc(var(--bb) - var(--b) + var(--band))}
-.digi-device-slider--desktop .digi-device-slider__frame::before{border-bottom-left-radius:0;border-bottom-right-radius:0}
-.digi-device-slider--browser .digi-device-slider__frame{background-image:none}
-.digi-device-slider--browser .digi-device-slider__frame::before{content:none}
-
-/* Pantalla: recorta la captura a su radio; sin franjas ni barra de desplazamiento. */
-.digi-device-slider__screen{
-	position:relative;z-index:1;width:100%;aspect-ratio:var(--sw)/var(--sh);overflow:hidden;isolation:isolate;background:#000;
-	border-radius:calc(var(--rs)/var(--scw)*100%)/calc(var(--rs)/var(--sch)*100%);
-	clip-path:inset(0 round calc(var(--rs)/var(--scw)*100%)/calc(var(--rs)/var(--sch)*100%))
-}
-.digi-device-slider--browser .digi-device-slider__screen{border-top-left-radius:0;border-top-right-radius:0;clip-path:none}
-.digi-device-slider .digi-device-slider__screen .digi-carousel__viewport{
-	position:absolute;inset:0;margin:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;overscroll-behavior-x:contain
-}
+.digi-device-slider__frame{position:relative;width:calc(var(--fw)*100%);margin-inline:auto;padding:calc(var(--bt)*100%) calc(var(--b)*100%) calc(var(--bb)*100%);border-radius:calc(var(--r)/var(--fw)*100%)/calc(var(--r)/var(--fh)*100%);background-color:var(--digi-ds-frame);background-image:linear-gradient(135deg,rgba(255,255,255,.28),rgba(255,255,255,0) 32%,rgba(255,255,255,0) 68%,rgba(0,0,0,.18));box-shadow:0 0 0 1px rgba(0,0,0,.22),0 1.5rem 3rem -1.25rem rgba(15,23,42,.5)}
+.digi-device-slider__frame::before{content:"";position:absolute;z-index:0;pointer-events:none;top:calc(var(--band)/var(--fh)*100%);right:calc(var(--band)/var(--fw)*100%);bottom:calc(var(--bezel-bottom,var(--band))/var(--fh)*100%);left:calc(var(--band)/var(--fw)*100%);border-radius:calc((var(--r) - var(--band))/(var(--fw) - 2*var(--band))*100%)/calc((var(--r) - var(--band))/(var(--fh) - var(--band) - var(--bezel-bottom,var(--band)))*100%);background:var(--digi-ds-bezel)}
+.digi-device-slider__screen{position:relative;z-index:1;width:100%;aspect-ratio:var(--sw)/var(--sh);overflow:hidden;isolation:isolate;background:#000;border-radius:calc(var(--rs)/var(--scw)*100%)/calc(var(--rs)/var(--sch)*100%);clip-path:inset(0 round calc(var(--rs)/var(--scw)*100%)/calc(var(--rs)/var(--sch)*100%))}
+.digi-device-slider .digi-device-slider__screen .digi-carousel__viewport{position:absolute;inset:0;margin:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;overscroll-behavior-x:contain}
 .digi-device-slider .digi-carousel__viewport::-webkit-scrollbar{display:none}
 .digi-device-slider .digi-carousel__viewport:focus-visible{outline:3px solid var(--digi-ds-focus);outline-offset:-3px}
 .digi-device-slider .digi-carousel__slides{height:100%}
 .digi-device-slider .digi-device-slider__slide{position:relative;height:100%;overflow:hidden;background:#000}
 .digi-device-slider__slide>a{display:block;height:100%}
-.digi-device-slider img.digi-device-slider__image{
-	display:block;width:100%;height:100%;max-width:none;max-height:none;margin:0;object-fit:cover;object-position:50% 0;
-	border:0;border-radius:0;box-shadow:none;-webkit-user-drag:none;user-select:none
-}
+.digi-device-slider img.digi-device-slider__image{display:block;width:100%;height:100%;max-width:none;max-height:none;margin:0;object-fit:cover;object-position:50% 0;border:0;border-radius:0;box-shadow:none;-webkit-user-drag:none;user-select:none}
 .digi-device-slider--fit-center img.digi-device-slider__image{object-position:50% 50%}
 .digi-device-slider__color{display:block;width:100%;height:100%;background-color:#14abf4}
 .digi-device-slider .digi-device-slider__video{display:block;width:100%;height:100%;max-width:none;margin:0;border:0;object-fit:cover;background:#000}
 .digi-device-slider__title{position:absolute;z-index:1;inset:auto 0 0;padding:.5rem .75rem;background:rgba(0,0,0,.72);color:#fff;line-height:1.3}
 a.digi-device-slider__title{color:#fff;text-decoration:underline}
-.digi-device-slider .digi-carousel[data-digi-carousel-drag][data-digi-carousel-ready] .digi-carousel__viewport{cursor:grab}
-.digi-device-slider .digi-carousel.digi-carousel--dragging .digi-carousel__viewport{cursor:grabbing;scroll-snap-type:none;scroll-behavior:auto;user-select:none}
-
-/* Isla de la cámara del celular (encima de la captura, como en un teléfono real). */
-.digi-device-slider__island{
-	position:absolute;z-index:2;top:calc(var(--sw)/var(--sh)*2.8%);left:50%;width:30%;aspect-ratio:126/37;transform:translateX(-50%);
-	border-radius:999px;background:#050506;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);pointer-events:none
-}
-.digi-device-slider__island::after{content:"";position:absolute;top:50%;right:11%;height:46%;aspect-ratio:1;transform:translateY(-50%);border-radius:50%;background:radial-gradient(circle at 35% 35%,#3b4a6b 0 20%,#0c0f16 62%)}
-.digi-device-slider--landscape .digi-device-slider__island{top:50%;left:calc(var(--sh)/var(--sw)*2.8%);width:auto;height:30%;aspect-ratio:37/126;transform:translateY(-50%)}
-.digi-device-slider--landscape .digi-device-slider__island::after{top:auto;right:auto;bottom:11%;left:50%;width:46%;height:auto;transform:translateX(-50%)}
-
-/* Cámara frontal de la tableta y de la laptop, centrada en el bisel superior (o el izquierdo en horizontal). */
-.digi-device-slider__camera{position:absolute;z-index:1;top:0;right:0;left:0;height:calc(var(--bt)/var(--fh)*100%);display:grid;place-items:center;pointer-events:none}
-.digi-device-slider__camera::before{content:"";height:28%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 35%,#44506a 0 18%,#10131a 58%)}
-.digi-device-slider--landscape .digi-device-slider__camera{right:auto;bottom:0;width:calc(var(--b)/var(--fw)*100%);height:auto}
-.digi-device-slider--landscape .digi-device-slider__camera::before{width:28%;height:auto}
-
-/* Barra de la ventana de navegador: tres puntos y la barra de direcciones. */
-.digi-device-slider__bar{position:absolute;z-index:1;top:0;right:0;left:0;height:calc(var(--bt)/var(--fh)*100%);display:flex;align-items:center;gap:2.5%;padding-inline:1.8%;pointer-events:none}
-.digi-device-slider__bar::before{content:"";flex:none;height:28%;aspect-ratio:3.9/1;background:radial-gradient(closest-side,#ff5f57 88%,transparent 100%) 0 50%/33.33% 100% no-repeat,radial-gradient(closest-side,#febc2e 88%,transparent 100%) 50% 50%/33.33% 100% no-repeat,radial-gradient(closest-side,#28c840 88%,transparent 100%) 100% 50%/33.33% 100% no-repeat}
-.digi-device-slider__bar::after{content:"";flex:0 1 54%;height:52%;margin-inline:auto;border-radius:999px;background:var(--digi-ds-address)}
-
-/* Botones laterales del celular y de la tableta. */
-.digi-device-slider--keys .digi-device-slider__device::before,.digi-device-slider--keys .digi-device-slider__device::after{content:"";position:absolute;z-index:0;pointer-events:none;background:var(--digi-ds-buttons,var(--digi-ds-frame-lo))}
-.digi-device-slider--mobile.digi-device-slider--keys .digi-device-slider__device::before{left:-1.1%;top:16%;width:1.1%;height:26%;border-radius:3px 0 0 3px;background:linear-gradient(to bottom,var(--digi-ds-buttons,var(--digi-ds-frame-lo)) 0 15.4%,transparent 15.4% 28.8%,var(--digi-ds-buttons,var(--digi-ds-frame-lo)) 28.8% 57.7%,transparent 57.7% 65.4%,var(--digi-ds-buttons,var(--digi-ds-frame-lo)) 65.4% 94.2%,transparent 94.2%)}
-.digi-device-slider--mobile.digi-device-slider--keys .digi-device-slider__device::after{right:-1.1%;top:27%;width:1.1%;height:11%;border-radius:0 3px 3px 0}
-.digi-device-slider--mobile.digi-device-slider--landscape.digi-device-slider--keys .digi-device-slider__device::before{top:auto;bottom:-1.1%;left:16%;width:26%;height:1.1%;border-radius:0 0 3px 3px;background:linear-gradient(to right,var(--digi-ds-buttons,var(--digi-ds-frame-lo)) 0 15.4%,transparent 15.4% 28.8%,var(--digi-ds-buttons,var(--digi-ds-frame-lo)) 28.8% 57.7%,transparent 57.7% 65.4%,var(--digi-ds-buttons,var(--digi-ds-frame-lo)) 65.4% 94.2%,transparent 94.2%)}
-.digi-device-slider--mobile.digi-device-slider--landscape.digi-device-slider--keys .digi-device-slider__device::after{top:-1.1%;right:auto;left:27%;width:11%;height:1.1%;border-radius:3px 3px 0 0}
-.digi-device-slider--tablet.digi-device-slider--keys .digi-device-slider__device::before{right:-.8%;top:8%;width:.8%;height:12%;border-radius:0 3px 3px 0;background:linear-gradient(to bottom,var(--digi-ds-buttons,var(--digi-ds-frame-lo)) 0 44%,transparent 44% 56%,var(--digi-ds-buttons,var(--digi-ds-frame-lo)) 56%)}
-.digi-device-slider--tablet.digi-device-slider--keys .digi-device-slider__device::after{top:-.6%;right:9%;width:10%;height:.6%;border-radius:3px 3px 0 0}
-.digi-device-slider--tablet.digi-device-slider--landscape.digi-device-slider--keys .digi-device-slider__device::before{top:-.8%;right:auto;left:8%;width:12%;height:.8%;border-radius:3px 3px 0 0;background:linear-gradient(to right,var(--digi-ds-buttons,var(--digi-ds-frame-lo)) 0 44%,transparent 44% 56%,var(--digi-ds-buttons,var(--digi-ds-frame-lo)) 56%)}
-.digi-device-slider--tablet.digi-device-slider--landscape.digi-device-slider--keys .digi-device-slider__device::after{top:9%;right:auto;left:-.57%;width:.57%;height:10%;border-radius:3px 0 0 3px}
-
-/* Base de la laptop y pie del monitor. */
-.digi-device-slider__base{position:relative;display:block;width:100%;aspect-ratio:100/3;border-radius:.4% .4% 7% 7%/12% 12% 100% 100%;background:linear-gradient(to bottom,var(--digi-ds-frame-hi) 0,var(--digi-ds-frame) 34%,var(--digi-ds-frame-lo));box-shadow:0 1rem 1.5rem -1rem rgba(15,23,42,.45)}
-.digi-device-slider__base::before{content:"";position:absolute;top:0;left:50%;width:13%;height:42%;transform:translateX(-50%);border-radius:0 0 40% 40%/0 0 100% 100%;background:var(--digi-ds-frame-lo)}
-.digi-device-slider__stand{position:relative;display:block;width:24%;aspect-ratio:24/11.5;margin-inline:auto}
-.digi-device-slider__stand::before{content:"";position:absolute;top:0;right:22%;bottom:10%;left:22%;background:linear-gradient(to right,var(--digi-ds-frame-lo),var(--digi-ds-frame) 25% 75%,var(--digi-ds-frame-lo));clip-path:polygon(6% 0,94% 0,100% 100%,0 100%)}
-.digi-device-slider__stand::after{content:"";position:absolute;right:0;bottom:0;left:0;height:14%;border-radius:40% 40% 3px 3px/100% 100% 3px 3px;background:linear-gradient(var(--digi-ds-frame-hi),var(--digi-ds-frame));box-shadow:0 .6rem 1rem -.6rem rgba(15,23,42,.45)}
-
-/* Flechas: fuera del dispositivo, a los lados y centradas en vertical. El espacio lateral se suma al ancho del
-   dispositivo (content-box), así «Ancho máximo» sigue siendo el ancho del aparato. */
-.digi-device-slider--arrows{padding-inline:calc(var(--digi-ds-arrow) + var(--digi-ds-gap))}
-.digi-device-slider button.digi-device-slider__arrow{
-	position:absolute;z-index:3;top:50%;transform:translateY(-50%);
-	display:inline-grid;place-items:center;width:var(--digi-ds-arrow);height:var(--digi-ds-arrow);min-width:0;min-height:0;
-	margin:0;padding:0;border:0;border-radius:50%;
-	background:var(--digi-ds-arrow-bg);color:#fff;
-	box-shadow:0 0 0 2px rgba(255,255,255,.85),0 .5rem 1.25rem -.375rem rgba(15,23,42,.55);
-	cursor:pointer;font:inherit;line-height:1;text-decoration:none;opacity:1;
-	transition:transform .2s ease,background-color .2s ease,opacity .2s ease,box-shadow .2s ease
-}
-@supports (color:lch(from red l c h)){
-	/* El icono y el aro se vuelven blancos o negros según la luminosidad del color elegido para el botón. */
-	.digi-device-slider button.digi-device-slider__arrow{color:lch(from var(--digi-ds-arrow-bg) calc((62 - l)*1000) 0 0);box-shadow:0 0 0 2px lch(from var(--digi-ds-arrow-bg) calc((62 - l)*1000) 0 0/.85),0 .5rem 1.25rem -.375rem rgba(15,23,42,.55)}
-	.digi-device-slider button.digi-device-slider__arrow:hover:not([disabled]){color:lch(from var(--digi-ds-arrow-bg-hover,var(--digi-ds-arrow-bg)) calc((62 - l)*1000) 0 0)}
-}
-.digi-device-slider button.digi-device-slider__arrow--prev{inset-inline-end:calc(100% + var(--digi-ds-gap))}
-.digi-device-slider button.digi-device-slider__arrow--next{inset-inline-start:calc(100% + var(--digi-ds-gap))}
-.digi-device-slider button.digi-device-slider__arrow:hover:not([disabled]){background:var(--digi-ds-arrow-bg-hover,var(--digi-ds-arrow-bg));transform:translateY(-50%) scale(1.07)}
-.digi-device-slider button.digi-device-slider__arrow:focus:not(:hover){background:var(--digi-ds-arrow-bg)}
-.digi-device-slider button.digi-device-slider__arrow:focus-visible{outline:3px solid var(--digi-ds-focus);outline-offset:3px}
-.digi-device-slider button.digi-device-slider__arrow[disabled]{opacity:.35;cursor:default}
-.digi-device-slider__chevron{display:block;width:46%;height:46%;pointer-events:none;filter:drop-shadow(0 0 1px rgba(0,0,0,.75))}
-@supports (color:lch(from red l c h)){.digi-device-slider__chevron{filter:none}}
-.digi-device-slider__arrow--next .digi-device-slider__chevron,[dir="rtl"] .digi-device-slider__arrow--prev .digi-device-slider__chevron{transform:scaleX(-1)}
-[dir="rtl"] .digi-device-slider__arrow--next .digi-device-slider__chevron{transform:none}
-
-/* Puntos debajo del dispositivo (24 × 24 px de objetivo, WCAG 2.5.8). */
-.digi-device-slider__nav{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.125rem;margin-top:var(--digi-ds-gap);min-height:1.5rem}
-.digi-device-slider--arrows:not(.digi-device-slider--dots) .digi-device-slider__nav{display:none}
-.digi-device-slider button.digi-device-slider__dot{display:inline-grid;place-items:center;width:1.5rem;height:1.5rem;min-width:0;min-height:0;margin:0;padding:0;border:0;border-radius:999px;background:transparent;box-shadow:none;cursor:pointer}
-.digi-device-slider button.digi-device-slider__dot::before{content:"";width:.5rem;height:.5rem;border-radius:999px;background:rgba(17,24,39,.58);box-shadow:0 0 0 1.5px rgba(255,255,255,.8);transition:width .2s ease,background-color .2s ease}
-.digi-device-slider button.digi-device-slider__dot[aria-current="true"]::before{width:1.25rem;background:var(--digi-ds-arrow-bg)}
-.digi-device-slider button.digi-device-slider__dot:hover,.digi-device-slider button.digi-device-slider__dot:focus{background:transparent;box-shadow:none;color:inherit}
-.digi-device-slider button.digi-device-slider__dot:hover::before{background:var(--digi-ds-arrow-bg-hover,var(--digi-ds-arrow-bg))}
-.digi-device-slider button.digi-device-slider__dot:focus-visible{outline:3px solid var(--digi-ds-focus);outline-offset:1px}
-
-/* Pantallas estrechas: las flechas pasan debajo del dispositivo, a los lados de los puntos. */
-@media (max-width:600px){
-	.digi-device-slider--arrows{padding-inline:0}
-	.digi-device-slider--arrows .digi-device-slider__nav,.digi-device-slider--arrows:not(.digi-device-slider--dots) .digi-device-slider__nav{display:flex;min-height:var(--digi-ds-arrow);padding-inline:calc(var(--digi-ds-arrow) + .5rem)}
-	.digi-device-slider button.digi-device-slider__arrow{top:calc(100% + var(--below)/var(--fh)*100% + var(--digi-ds-gap) + var(--digi-ds-arrow)/2)}
-	/* En el borde del dispositivo, no del marco (la tapa de la laptop es más angosta), como el relleno de los puntos. */
-	.digi-device-slider button.digi-device-slider__arrow--prev{inset-inline-start:calc((var(--fw) - 1)/var(--fw)*50%);inset-inline-end:auto}
-	.digi-device-slider button.digi-device-slider__arrow--next{inset-inline-start:auto;inset-inline-end:calc((var(--fw) - 1)/var(--fw)*50%)}
-}
-
-@media (prefers-reduced-motion:reduce){
-	.digi-device-slider button.digi-device-slider__arrow,.digi-device-slider button.digi-device-slider__dot::before{transition:none}
-	.digi-device-slider button.digi-device-slider__arrow:hover:not([disabled]){transform:translateY(-50%)}
-}

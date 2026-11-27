@@ -1,0 +1,15 @@
+/* Slider de dispositivos: tableta (1640 × 2360), cámara y botones. */
+.digi-device-slider--keys .digi-device-slider__device{--ds-btn:var(--digi-ds-buttons,var(--digi-ds-frame-lo))}
+.digi-device-slider--tablet{--sw:1640;--sh:2360;--b:.05;--bt:.05;--bb:.05;--r:.075;--rs:.025;--band:.012}
+.digi-device-slider--tablet.digi-device-slider--landscape{--sw:2360;--sh:1640;--b:.035839;--bt:.035839;--bb:.035839;--r:.053759;--rs:.01792;--band:.008601}
+.digi-device-slider:where(.digi-device-slider--tablet){max-width:560px}
+.digi-device-slider:where(.digi-device-slider--tablet.digi-device-slider--landscape){max-width:760px}
+.digi-device-slider__camera{position:absolute;z-index:1;top:0;right:0;left:0;height:calc(var(--bt)/var(--fh)*100%);display:grid;place-items:center;pointer-events:none}
+.digi-device-slider__camera::before{content:"";height:28%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 35%,#44506a 0 18%,#10131a 58%)}
+.digi-device-slider--landscape .digi-device-slider__camera{right:auto;bottom:0;width:calc(var(--b)/var(--fw)*100%);height:auto}
+.digi-device-slider--landscape .digi-device-slider__camera::before{width:28%;height:auto}
+.digi-device-slider--keys .digi-device-slider__device::before,.digi-device-slider--keys .digi-device-slider__device::after{content:"";position:absolute;z-index:0;pointer-events:none;background:var(--ds-btn)}
+.digi-device-slider--tablet.digi-device-slider--keys .digi-device-slider__device::before{right:-.8%;top:8%;width:.8%;height:12%;border-radius:0 3px 3px 0;background:linear-gradient(to bottom,var(--ds-btn) 0 44%,transparent 44% 56%,var(--ds-btn) 56%)}
+.digi-device-slider--tablet.digi-device-slider--keys .digi-device-slider__device::after{top:-.6%;right:9%;width:10%;height:.6%;border-radius:3px 3px 0 0}
+.digi-device-slider--tablet.digi-device-slider--landscape.digi-device-slider--keys .digi-device-slider__device::before{top:-.8%;right:auto;left:8%;width:12%;height:.8%;border-radius:3px 3px 0 0;background:linear-gradient(to right,var(--ds-btn) 0 44%,transparent 44% 56%,var(--ds-btn) 56%)}
+.digi-device-slider--tablet.digi-device-slider--landscape.digi-device-slider--keys .digi-device-slider__device::after{top:9%;right:auto;left:-.57%;width:.57%;height:10%;border-radius:3px 0 0 3px}
