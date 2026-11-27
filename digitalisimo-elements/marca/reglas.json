@@ -221,13 +221,14 @@
 			"elementor_woocommerce_checkout_login_user"
 		],
 		"alias": {
-			"elementor_pro_forms_send_form": "digitalisimo_form_send",
-			"elementor_pro_atomic_forms_send_form": "digitalisimo_atomic_form_send",
 			"elementor_menu_cart_fragments": "digitalisimo_menu_cart_fragments",
+			"elementor_pro_atomic_forms_send_form": "digitalisimo_pro_atomic_forms_send_form",
+			"elementor_pro_forms_send_form": "digitalisimo_pro_forms_send_form",
 			"elementor_send_clicks": "digitalisimo_send_clicks",
-			"elementor_woocommerce_checkout_login_user": "digitalisimo_checkout_login_user",
-			"elementor_wc_logout": "digitalisimo_wc_logout"
-		}
+			"elementor_wc_logout": "digitalisimo_wc_logout",
+			"elementor_woocommerce_checkout_login_user": "digitalisimo_woocommerce_checkout_login_user"
+		},
+		"nota": "Regla general: admin-ajax.php?action=digitalisimo_<x> atiende elementor_<x> sólo para estas acciones (Front_Layer::ajax_args); el espejo y la capa del front ya piden el nombre nuevo."
 	},
 	"fragmentos": {
 		"descripcion": "Lista cerrada de respuestas AJAX y REST del front que devuelven HTML (fase 0). La capa de la fase 2 les aplica las mismas reglas; una respuesta nueva que devuelva HTML entra aquí o el front mezcla nombres.",
