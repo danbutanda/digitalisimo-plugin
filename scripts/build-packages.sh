@@ -110,7 +110,18 @@ build_package() {
     fi
     echo 'BUNDLED CORE CHECK: PASS' >&2
   fi
-  if [[ "$folder" == "$directory" ]]; then
+  if [[ "$directory" == 'digitalisimo-elements' && "${MARCA_PAQUETE:-0}" == 1 ]]; then
+    # Marca propia (docs/MARCA_PROPIA.md, opción A): tras verificar la huella del núcleo original, una copia se
+    # transforma (motor/, copias renombradas y transformadas, originales en marca/originales.php, huella del árbol
+    # transformado). Apagado por defecto hasta que la Fase 3 la valide; el ZIP de siempre no cambia.
+    local stage
+    stage="$(mktemp -d)"
+    cp -a "$root_dir/$directory" "$stage/$folder"
+    rm -rf "$stage/$folder/bdthemes-element-pack"
+    node "$root_dir/scripts/marca-empaquetar.mjs" "$stage/$folder" >&2 || { rm -rf "$stage"; echo 'BUILD ABORTED: marca-empaquetar falló' >&2; return 1; }
+    ( cd "$stage" && zip -FSrq "$archive" "$folder" -x "${exclude[@]}" )
+    rm -rf "$stage"
+  elif [[ "$folder" == "$directory" ]]; then
     ( cd "$root_dir" && zip -FSrq "$archive" "$directory" -x "${exclude[@]}" )
   else
     local stage
