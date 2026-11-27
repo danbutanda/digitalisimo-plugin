@@ -33,6 +33,8 @@ Digitalisimo_Elements_Core::load();
 require_once __DIR__ . '/modules/digitalisimo-marca/class-map.php';
 require_once __DIR__ . '/modules/digitalisimo-marca/class-toggle.php';
 require_once __DIR__ . '/modules/digitalisimo-marca/class-admin-urls.php';
+require_once __DIR__ . '/modules/digitalisimo-marca/class-transform.php';
+require_once __DIR__ . '/modules/digitalisimo-marca/class-front-layer.php';
 \Digitalisimo\Elements\Marca\Admin_Urls::translate_request();
 register_activation_hook( __FILE__, array( 'Digitalisimo_Elements_Core', 'activate' ) );
 // La lista de opciones que se piden juntas es una caché: se borra al desactivar.

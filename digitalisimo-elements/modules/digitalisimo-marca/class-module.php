@@ -9,6 +9,8 @@ require_once __DIR__ . '/class-toggle.php';
 require_once __DIR__ . '/class-admin-urls.php';
 require_once __DIR__ . '/class-rest-index.php';
 require_once __DIR__ . '/class-settings-section.php';
+require_once __DIR__ . '/class-transform.php';
+require_once __DIR__ . '/class-front-layer.php';
 
 /**
  * Marca propia (docs/MARCA_PROPIA.md): cero rastro de «elementor» en lo que sale, sin editar `elementor/`.
@@ -23,5 +25,6 @@ final class Module {
 		Admin_Urls::init();
 		Rest_Index::init();
 		Settings_Section::init();
+		Front_Layer::init();
 	}
 }

@@ -348,7 +348,7 @@ class Module extends Module_Base {
 			$this->get_all_fragments( $id, $all_fragments );
 		}
 
-		wp_send_json( [ 'fragments' => $all_fragments ] );
+		wp_send_json( [ 'fragments' => apply_filters( 'digitalisimo_elements_marca_html', $all_fragments ) ] );
 	}
 
 	/**

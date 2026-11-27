@@ -21,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
  * enlaces, los formularios GET con sus campos ocultos y lo que el editor o sus apps añaden después (MutationObserver).
  */
 final class Admin_Urls {
-	const PAGES = array( 'admin.php', 'edit.php', 'post.php', 'post-new.php', 'edit-tags.php', 'term.php', 'upload.php', 'options-general.php', 'admin-post.php', 'tools.php', 'index.php' );
+	const PAGES = array( 'admin-ajax.php', 'admin.php', 'edit.php', 'post.php', 'post-new.php', 'edit-tags.php', 'term.php', 'upload.php', 'options-general.php', 'admin-post.php', 'tools.php', 'index.php' );
 
 	public static function init(): void {
 		if ( ! function_exists( 'is_admin' ) || ! is_admin() ) {
@@ -60,6 +60,9 @@ final class Admin_Urls {
 				continue;
 			}
 			$new = self::translate_args( $GLOBALS[ $global ], $screen );
+			if ( 'admin-ajax.php' === $screen && class_exists( Front_Layer::class ) ) {
+				$new = Front_Layer::ajax_args( $new );
+			}
 			if ( $new !== $GLOBALS[ $global ] ) {
 				$GLOBALS[ $global ] = $new; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- traducción de alias antes de que WordPress lea la petición.
 				$changed            = true;

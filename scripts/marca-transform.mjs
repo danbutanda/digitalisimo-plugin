@@ -19,6 +19,9 @@ function idMap(rules) {
 /** CSS: clases, atributos, keyframes, variables e ids; sin comentarios ni sourcemaps. */
 export function transformCss(css, rules) {
   const p = rules.prefijo || 'dg';
+  // Los url() se apartan (el espejo los reescribe después hacia los binarios originales).
+  const urls = [];
+  css = css.replace(/url\(\s*(['"]?)([^'")]*)\1\s*\)/gi, (m) => { urls.push(m); return `\u0001${urls.length - 1}\u0001`; });
   return css
     .replace(/\/\*[\s\S]*?\*\//g, (c) => (/elementor/i.test(c) || /sourceMappingURL/.test(c) ? '' : c))
     .replace(/data-elementor-/g, `data-${p}-`)
@@ -26,7 +29,8 @@ export function transformCss(css, rules) {
     .replace(/(^|[^\w-])elementor(?=[\w-]|[^\w-]|$)/g, (m, pre) => `${pre}${p}`)
     .replace(/(^|[^\w])e-elementor-/g, `$1e-${p}-`)
     // Lo que queda dentro de un nombre de clase (`eicon-elementor`, `social-icon-elementor`): el HTML cambia igual.
-    .replace(/elementor/gi, p);
+    .replace(/elementor/gi, p)
+    .replace(/\u0001(\d+)\u0001/g, (m, i) => urls[Number(i)]);
 }
 
 /** Nombre de archivo en el espejo: `elementor-icons.min.css` → `dg-icons.min.css` (la capa cambia la URL igual). */

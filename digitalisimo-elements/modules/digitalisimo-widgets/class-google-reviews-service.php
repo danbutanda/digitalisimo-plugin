@@ -149,6 +149,6 @@ final class Google_Reviews_Service {
 		$data = self::fetch( $place_id, get_locale() );
 		$markup = self::review_markup( $data, $limit );
 		if ( '' === $markup ) { wp_send_json_error( array( 'message' => 'No hay reseñas disponibles en este momento.' ), 502 ); }
-		wp_send_json_success( array( 'html' => $markup ) );
+		wp_send_json_success( array( 'html' => apply_filters( 'digitalisimo_elements_marca_html', $markup ) ) );
 	}
 }
