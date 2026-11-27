@@ -1073,9 +1073,9 @@ namespace {
 				wm_reset( array( 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => $mode, 'own' => array( 'mode' ), 'write_tools' => array( 'coupons' ) ) ) ) );
 				$GLOBALS['wm']['caps'] = array( 'edit_products', 'publish_products', 'edit_shop_orders', 'publish_shop_orders', 'read_private_shop_orders', 'edit_shop_coupons', 'publish_shop_coupons' );
 				$ok = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'regular_price' => '9' ) ) );
-				review( 'B3-permisos', ! is_wp_error( $ok ) && in_array( array( 'PUT', '/wc/v3/products/4', array(), array( 'regular_price' => '9' ) ), $GLOBALS['wm_rest'], true ), "«$mode» guardado: productos escriben." );
+				review( 'B3-permisos', ! is_wp_error( $ok ) && in_array( array( 'PUT', '/wc/v3/products/4', array(), array( 'regular_price' => '9' ) ), $GLOBALS['wm_rest'], true ), "«{$mode}» guardado: productos escriben." );
 				$order = $run( 'orders', array( 'action' => 'update', 'order_id' => 3, 'data' => array( 'status' => 'completed' ) ) );
-				review( 'B3-permisos', ! is_wp_error( $order ) && in_array( array( 'PUT', '/wc/v3/orders/3', array(), array( 'status' => 'completed' ) ), $GLOBALS['wm_rest'], true ), "«$mode» guardado: pedidos escriben: " . ( is_wp_error( $order ) ? $order->get_error_code() : '' ) );
+				review( 'B3-permisos', ! is_wp_error( $order ) && in_array( array( 'PUT', '/wc/v3/orders/3', array(), array( 'status' => 'completed' ) ), $GLOBALS['wm_rest'], true ), "«{$mode}» guardado: pedidos escriben: " . ( is_wp_error( $order ) ? $order->get_error_code() : '' ) );
 			}
 			wm_reset( array( 'multisite' => true, 'site' => array( Settings::NETWORK_OPTION => array( 'mode' => 'custom', 'write_tools' => array( 'catalog' ) ) ) ) );
 			$GLOBALS['wm']['caps'] = array( 'edit_shop_coupons', 'publish_shop_coupons', 'read_private_shop_coupons' );
@@ -1100,7 +1100,7 @@ namespace {
 			$GLOBALS['wm_rest_responses']['GET /wc/v3/products/4'] = array( 200, array( 'id' => 4, 'name' => 'Mesa', 'regular_price' => '10', 'on_sale' => false, 'status' => 'publish', 'categories' => array( array( 'id' => 3, 'name' => 'A', 'slug' => 'a' ) ) ), array() );
 			$before = count( Log::entries() );
 			$result = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'dry_run' => true, 'data' => array( 'regular_price' => '12', 'name' => 'Mesa', 'on_sale' => 'no' ) ) );
-			review( 'B3-dry_run', is_array( $result ) && true === $result['dry_run'] && false === $result['allowed'] && false !== strpos( $result['reason'] ?? '', '«Sólo lectura»' ), 'Modo read: la simulación corre y dice que el sitio no dejaría hacerlo: ' . json_encode( $result ) );
+			review( 'B3-dry_run', is_array( $result ) && true === $result['dry_run'] && true === $result['allowed'] && ! isset( $result['reason'] ), 'Sin modos: la simulación corre y dice que se puede (decide la capacidad): ' . json_encode( $result ) );
 			review( 'B3-dry_run', is_array( $result ) && array( array( 'field' => 'regular_price', 'from' => '10', 'to' => '12' ) ) === $result['would']['changes'] && array( 'name', 'on_sale' ) === $result['would']['unchanged'], 'update: diferencia campo a campo con el valor actual: ' . json_encode( $result['would'] ?? null ) );
 			review( 'B3-dry_run', array( array( 'GET', '/wc/v3/products/4', array(), null ) ) === $GLOBALS['wm_rest'] && count( Log::entries() ) === $before, 'Simular sólo lee: ninguna escritura ni entrada en la bitácora.' );
 			$bad = $run( 'products', array( 'action' => 'list', 'dry_run' => true ) );

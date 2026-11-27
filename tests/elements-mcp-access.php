@@ -114,6 +114,8 @@ namespace {
 
 	// ------------------------------------------------------------------------------------------------- A3
 	t_reset( array( 'caps' => array( 'manage_options' ) ) );
+	$A::reset();
+	$A::init();
 	check( true === $A::show_prompt(), 'A3: el prompt se muestra por defecto.' );
 	ob_start();
 	$A::render( false );

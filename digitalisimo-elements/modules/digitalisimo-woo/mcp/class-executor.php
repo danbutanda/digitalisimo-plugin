@@ -228,7 +228,7 @@ final class Executor {
 	}
 
 	/**
-	 * `dry_run: true`: lo que cambiaría (`Simulation::would()`, sólo lecturas). `allowed` es siempre true: sin modos, lo
+	 * `dry_run: true`: lo que cambiaría (`Simulation::would()`, que sólo consulta). `allowed` es siempre true: sin modos, lo
 	 * que decide es la capacidad, que ya se comprobó. No escribe nada ni deja entrada en la bitácora de escrituras.
 	 *
 	 * @return array|\WP_Error
