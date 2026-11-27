@@ -42,7 +42,8 @@ export TMPDIR="${TMPDIR:-$OUT/tmp}"
 mkdir -p "$OUT" "$TMPDIR"
 . "$ROOT/tests/playground/playground-cleanup.sh"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
-case "$MODE" in simulado) PORT="${PORT:-9781}" ;; real) case "$SCENARIO" in mostrar) PORT="${PORT:-9783}" ;; marca) PORT="${PORT:-9784}" ;; subir) PORT="${PORT:-9785}" ;; aprende) PORT="${PORT:-9787}" ;; simple) PORT="${PORT:-9788}" ;; *) PORT="${PORT:-9782}" ;; esac ;; *) echo "MODE desconocido: $MODE"; exit 2 ;; esac
+case "$MODE" in simulado) PORT="${PORT:-9781}" ;; medir) PORT="${PORT:-9789}" ;; real) case "$SCENARIO" in mostrar) PORT="${PORT:-9783}" ;; marca) PORT="${PORT:-9784}" ;; subir) PORT="${PORT:-9785}" ;; aprende) PORT="${PORT:-9787}" ;; simple) PORT="${PORT:-9788}" ;; *) PORT="${PORT:-9782}" ;; esac ;; *) echo "MODE desconocido: $MODE"; exit 2 ;; esac
+[ "$MODE" != medir ] || [ "$SCENARIO" = simple ] || { echo "MODE=medir sólo con SCENARIO=simple"; exit 2; }
 case "$PORT" in 978[0-9]) ;; *) echo "ia-assistant-agent.sh usa el bloque 9780–9789: $PORT es de otro arnés"; exit 1 ;; esac
 ELEMENTS_DIR="${ELEMENTS_DIR:-$ROOT/digitalisimo-elements}"
 [ -f "$ELEMENTS_DIR/pro-elements.php" ] || { echo "ELEMENTS_DIR no contiene pro-elements.php: $ELEMENTS_DIR"; exit 1; }
@@ -91,12 +92,19 @@ rm -rf "$dir"; mkdir -p "$dir/probe"
 echo "$MODE" > "$dir/probe/mode.txt"
 echo "${CASE:-kit}" > "$dir/probe/case.txt"
 head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$dir/probe/token.txt"
+# DUMP=1: cada petición a la API queda entera en probe/bodies/ (para medir el contexto; MODE=medir lo hace siempre).
+[ "${DUMP:-0}" = 1 ] && : > "$dir/probe/dump"
 if [ "$MODE" = real ]; then
   [ -n "${KEY_FILE:-}" ] && [ -s "$KEY_FILE" ] || { echo "MODE=real necesita KEY_FILE con la clave de Anthropic"; exit 1; }
   ( umask 077; cp "$KEY_FILE" "$dir/probe/k" )
 fi
+# ASSISTANT_MODEL / ASSISTANT_EFFORT: el modelo fijo del Asistente para este ensayo, por las constantes de wp-config que usa
+# DIGITALÍSIMO (Digitalisimo_AI_Assistant_Model::fixed()); vacíos, el de fábrica.
+consts='"WP_ENVIRONMENT_TYPE":"local"'
+case "${ASSISTANT_MODEL:-}" in "") ;; *[!A-Za-z0-9._-]*) echo "ASSISTANT_MODEL no válido"; exit 2 ;; *) consts="$consts,\"DIGITALISIMO_AI_ASSISTANT_MODEL\":\"$ASSISTANT_MODEL\"" ;; esac
+case "${ASSISTANT_EFFORT:-}" in "") ;; low|medium|high|xhigh|max) consts="$consts,\"DIGITALISIMO_AI_ASSISTANT_EFFORT\":\"$ASSISTANT_EFFORT\"" ;; *) echo "ASSISTANT_EFFORT no válido"; exit 2 ;; esac
 cat > "$dir/blueprint.json" <<JSON
-{"preferredVersions":{"php":"8.2","wp":"latest"},"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"WP_ENVIRONMENT_TYPE":"local"}},
+{"preferredVersions":{"php":"8.2","wp":"latest"},"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{$consts}},
 {"step":"runPHP","code":"<?php require '/digi-ias-src/$SETUP';"}]}
 JSON
 if fuser -n tcp "$PORT" >/dev/null 2>&1; then echo "El puerto $PORT está ocupado por otro proceso; usa PORT=…"; exit 1; fi

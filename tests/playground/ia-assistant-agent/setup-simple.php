@@ -20,8 +20,11 @@ try {
 	$mode = trim( (string) @file_get_contents( $dir . '/mode.txt' ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 	$key  = trim( (string) @file_get_contents( $dir . '/k' ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 	@unlink( $dir . '/k' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-	if ( 'real' !== $mode || strlen( $key ) < 20 ) {
-		throw new RuntimeException( 'El ensayo «simple» sólo corre con la API real y su clave.' );
+	// MODE=medir (ia-assistant-medir.sh): sin clave ni API; la sonda guarda cada petición y contesta sola.
+	if ( 'medir' === $mode ) {
+		$key = 'sk-medir-sin-clave-real-0000000000';
+	} elseif ( 'real' !== $mode || strlen( $key ) < 20 ) {
+		throw new RuntimeException( 'El ensayo «simple» sólo corre con la API real y su clave (o con MODE=medir).' );
 	}
 	file_put_contents( WPMU_PLUGIN_DIR . '/digi-ias-no-autoupdate.php', "<?php\nadd_filter( 'automatic_updater_disabled', '__return_true', PHP_INT_MAX );\nadd_filter( 'auto_update_plugin', '__return_false', PHP_INT_MAX );\n" );
 	update_option( 'timezone_string', 'America/Monterrey' );

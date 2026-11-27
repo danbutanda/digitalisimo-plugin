@@ -69,7 +69,7 @@ $plain = $M::build( $target, 'SYS', array( array( 'role' => 'user', 'text' => 'h
 check( 'SYS' === $plain['body']['system'], 'K2: unas instrucciones de un solo texto siguen igual' );
 
 /* ---------------- K3: sin caché donde no aplica ---------------- */
-$o = $M::build( $M::target( 'openai' ), $parts, array( array( 'role' => 'user', 'text' => 'hola' ) ), $one );
+$o = $M::build( array( 'provider' => 'openai', 'model' => 'gpt-4.1', 'key' => KEY_OPENAI, 'url' => '' ), $parts, array( array( 'role' => 'user', 'text' => 'hola' ) ), $one );
 check( false === strpos( wp_json_encode( $o['body'] ), 'cache_control' ) && 'system' === $o['body']['messages'][0]['role'] && false !== strpos( $o['body']['messages'][0]['content'], 'Ferretería en Saltillo.' ), 'K3: OpenAI no recibe cache_control (su caché es automática) y sí todas las instrucciones' );
 $g = $M::build( array( 'provider' => 'google', 'model' => 'gemini-2.5-pro', 'key' => 'k', 'url' => '' ), $parts, array( array( 'role' => 'user', 'text' => 'hola' ) ), $one );
 check( false === strpos( wp_json_encode( $g['body'] ), 'cache_control' ) && is_string( $g['body']['systemInstruction']['parts'][0]['text'] ), 'K3: Google tampoco' );

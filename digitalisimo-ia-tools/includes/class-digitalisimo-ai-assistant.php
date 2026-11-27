@@ -5,8 +5,9 @@ require_once __DIR__ . '/class-digitalisimo-ai-assistant-card.php';
 
 /**
  * El Asistente IA nativo de WordPress (docs/ASSISTANT.md): la interfaz del chat asistente de `@digitalisimo/ui`
- * portada a `wp.element`, con su menú principal «Asistente IA», el proveedor y la clave de IA Tools y, como
- * herramientas, las mismas Abilities que expone el MCP del sitio.
+ * portada a `wp.element`, con su menú principal «Asistente IA», el modelo fijo de DIGITALÍSIMO
+ * (Digitalisimo_AI_Assistant_Model::fixed(), con la clave de IA Tools) y, como herramientas, las mismas Abilities que
+ * expone el MCP del sitio.
  *
  * - Menú y pantalla para quien tiene `edit_posts`; nada se carga fuera de esa pantalla. En una red, sólo en el
  *   escritorio de cada sitio: las Abilities actúan sobre un sitio y una tarea iniciada en un sitio sólo toca ese sitio.
@@ -177,13 +178,13 @@ final class Digitalisimo_AI_Assistant {
 		wp_add_inline_script( 'digitalisimo-ai-assistant', 'window.digitalisimoAssistantConfig = ' . wp_json_encode( self::config() ) . ';', 'before' );
 	}
 
-	/** Lo que la interfaz necesita al abrirse. Sin claves, URLs de proveedores ni modelos. */
+	/**
+	 * Lo que la interfaz necesita al abrirse. Sin claves, URLs de proveedores ni modelos. `providers` sólo dice si el
+	 * Asistente tiene su IA (la de DIGITALÍSIMO, fija: Digitalisimo_AI_Assistant_Model::fixed()); no hay nada que elegir.
+	 */
 	public static function config() {
 		$user      = wp_get_current_user();
-		$providers = array();
-		foreach ( Digitalisimo_AI_Assistant_Model::targets() as $key => $target ) {
-			$providers[] = array( 'key' => $key, 'name' => $target['name'], 'aiName' => $target['ai_name'], 'status' => 'available' );
-		}
+		$providers = Digitalisimo_AI_Assistant_Model::targets() ? array( array( 'key' => 'digitalisimo', 'name' => 'DIGITALÍSIMO', 'aiName' => 'IA de DIGITALÍSIMO', 'status' => 'available' ) ) : array();
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- sólo prellenan la pantalla: nada se envía solo.
 		$prompt       = isset( $_GET['prompt'] ) ? Digitalisimo_AI_Assistant_Tools::clip( trim( sanitize_textarea_field( wp_unslash( $_GET['prompt'] ) ) ), self::MAX_PREFILL ) : '';
 		$conversation = isset( $_GET['conversation'] ) ? absint( $_GET['conversation'] ) : 0;
@@ -321,9 +322,9 @@ final class Digitalisimo_AI_Assistant {
 		if ( '' === $text ) {
 			return new WP_Error( 'digitalisimo_assistant_empty', 'Escribe un mensaje.', array( 'status' => 400 ) );
 		}
-		$choice   = sanitize_key( (string) ( $request->get_param( 'provider' ) ?: 'auto' ) );
+		// La IA no se elige: un `provider` que mande el navegador (o un cliente de la REST) se ignora.
 		$shortcut = self::shortcut( $text );
-		$target   = $shortcut ? array() : Digitalisimo_AI_Assistant_Model::target( $choice );
+		$target   = $shortcut ? array() : Digitalisimo_AI_Assistant_Model::target();
 		if ( is_wp_error( $target ) ) {
 			return $target;
 		}
@@ -354,7 +355,7 @@ final class Digitalisimo_AI_Assistant {
 					$locks[] = $lock;
 				}
 			}
-			$conv['provider']   = $choice ?: 'auto';
+			$conv['provider']   = 'auto';
 			$conv['categories'] = self::categories( $request->get_param( 'categories' ) );
 			return self::respond(
 				$request,
@@ -436,7 +437,7 @@ final class Digitalisimo_AI_Assistant {
 					$action         = self::resolve( $conv, $index, $approve, $emit );
 					// Un atajo (/herramienta) no pasa por el modelo, tampoco después de confirmarlo.
 					if ( ! $conv['pending'] && empty( $action['shortcut'] ) ) {
-						$target = Digitalisimo_AI_Assistant_Model::target( $conv['provider'] );
+						$target = Digitalisimo_AI_Assistant_Model::target();
 						if ( is_wp_error( $target ) ) {
 							self::notice( $conv, $emit, $target->get_error_message(), 'error' );
 							return;
@@ -627,7 +628,7 @@ final class Digitalisimo_AI_Assistant {
 			if ( ! is_array( $conv['resume'] ) || $conv['pending'] || (int) ( $conv['resume']['time'] ?? 0 ) < time() - self::PENDING_TTL ) {
 				return new WP_Error( 'digitalisimo_assistant_continue', 'No hay ningún turno que continuar en esta conversación.', array( 'status' => 409 ) );
 			}
-			$target = Digitalisimo_AI_Assistant_Model::target( $conv['provider'] );
+			$target = Digitalisimo_AI_Assistant_Model::target();
 			if ( is_wp_error( $target ) ) {
 				return $target;
 			}
