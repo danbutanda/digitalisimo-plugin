@@ -73,11 +73,11 @@ final class Tools {
 			'input_schema'  => self::input_schema( $tool ),
 			'output_schema' => array( 'type' => 'object' ),
 			'meta'          => array(
-				// update y mark cambian ajustes (combinan, no borran nada más); unmark quita una marca.
+				// update, mark y unmark cambian ajustes de la tienda: el cliente debe pedir confirmación.
 				'annotations'  => array(
 					'readonly'    => false,
-					'destructive' => false,
-					'idempotent'  => true,
+					'destructive' => true,
+					'idempotent'  => false,
 				),
 				'show_in_rest' => false,
 				'mcp'          => array(

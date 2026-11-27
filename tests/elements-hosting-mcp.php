@@ -83,6 +83,7 @@ namespace {
 		$schema = Tools::input_schema( $t );
 		check( false === $schema['additionalProperties'] && ! isset( $schema['properties']['post_id'] ) && array( 'action' ) === $schema['required'], "Esquema cerrado de $t, sin post_id" );
 		check( false === Tools::definition( $t )['meta']['show_in_rest'], "$t no sale en la REST de abilities" );
+		check( true === Tools::definition( $t )['meta']['annotations']['destructive'] && false === Tools::definition( $t )['meta']['annotations']['idempotent'], "$t se anuncia como escritura que pide confirmación (destructive, no idempotente)" );
 	}
 	$GLOBALS['hooks']['wp_abilities_api_categories_init'][10][0][0]();
 	check( 'Hosting y dominios' === $GLOBALS['ab']['categories']['digitalisimo-hosting']['label'], 'Categoría propia' );
