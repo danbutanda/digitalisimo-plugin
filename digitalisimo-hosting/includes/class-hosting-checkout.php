@@ -380,7 +380,83 @@ class Digitalisimo_Hosting_Checkout {
 		$o = Digitalisimo_Hosting::settings();
 		if ( $hosting_need && ! $domains && ( ! empty( $o['ask_domain'] ) || ! empty( $o['require_domain_hosting'] ) ) ) $errors[] = 'Elige el dominio de tu plan antes de pagar: «Dominio nuevo» (búscalo y agrégalo) o «Uno que ya tengo» (escribe su nombre exacto).';
 		if ( ! empty( $o['require_domain_hosting'] ) && $domains && ! $hosting ) $errors[] = 'Agrega un plan de hosting para continuar: los dominios se venden junto con un plan.';
+		// Sólo con lo demás en orden: ¿alcanza el saldo del registrador para lo que se va a cobrar?
+		if ( ! $errors ) { $funds = self::funds_error( $lines ); if ( '' !== $funds ) $errors[] = $funds; }
 		return array_values( array_unique( $errors ) );
+	}
+
+	// ── Saldo del registrador (antes de cobrar un dominio que después no se podría registrar) ─────────────────────
+
+	/**
+	 * Saldo (USD) del registrador que atiende esta extensión: array( kind ok, value, registrar ) o kind error|config. Es el
+	 * punto único para otro registrador: el filtro digitalisimo_hosting_registrar_balance ($pre, $ext) puede devolver su
+	 * propio arreglo. Namecheap por omisión, en caché 5 minutos (una falla, 1 minuto).
+	 */
+	public static function registrar_balance( $ext ) {
+		$pre = apply_filters( 'digitalisimo_hosting_registrar_balance', null, (string) $ext );
+		if ( is_array( $pre ) ) return $pre + array( 'registrar' => 'otro' );
+		$key = 'digitalisimo_hosting_nc_balance';
+		$c = get_transient( $key );
+		if ( is_array( $c ) ) return $c;
+		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		if ( ! $nc->configured() ) return array( 'kind' => 'config', 'registrar' => 'namecheap' );
+		$r = $nc->balance( self::TIMEOUT );
+		$out = 'ok' === $r['kind'] ? array( 'kind' => 'ok', 'value' => (float) $r['value'], 'registrar' => 'namecheap' ) : array( 'kind' => 'error', 'registrar' => 'namecheap' );
+		set_transient( $key, $out, 'ok' === $out['kind'] ? 5 * MINUTE_IN_SECONDS : MINUTE_IN_SECONDS );
+		return $out;
+	}
+
+	/**
+	 * Lo que cobra el registrador por un año (USD) al registrar (REGISTER) o transferir (TRANSFER, o el registro si no lo
+	 * informa): array( kind ok, value ) o kind error. Filtro digitalisimo_hosting_registrar_cost ($pre, $ext, $action).
+	 * Namecheap por omisión, en caché una hora.
+	 */
+	public static function registrar_cost( $ext, $action ) {
+		$pre = apply_filters( 'digitalisimo_hosting_registrar_cost', null, (string) $ext, (string) $action );
+		if ( is_array( $pre ) ) return $pre;
+		$key = 'digitalisimo_hosting_nc_cost_' . md5( $ext . '|' . $action );
+		$c = get_transient( $key );
+		if ( is_array( $c ) ) return $c;
+		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		if ( ! $nc->configured() ) return array( 'kind' => 'config' );
+		$tld = ltrim( (string) $ext, '.' );
+		$r = $nc->price( $tld, $action, self::TIMEOUT );
+		if ( 'ok' !== $r['kind'] && 'TRANSFER' === $action ) $r = $nc->price( $tld, 'REGISTER', self::TIMEOUT );
+		$out = 'ok' === $r['kind'] ? array( 'kind' => 'ok', 'value' => (float) $r['value'] ) : array( 'kind' => 'error' );
+		set_transient( $key, $out, 'ok' === $out['kind'] ? HOUR_IN_SECONDS : MINUTE_IN_SECONDS );
+		return $out;
+	}
+
+	/**
+	 * '' o el aviso para el comprador cuando el saldo del registrador no alcanza el costo de los dominios del carrito (por
+	 * registrador). Sin saldo o sin costo que consultar no se frena: el aprovisionamiento deja el pedido en espera y avisa,
+	 * como siempre. Al frenar, avisa al dueño (una vez cada 6 horas por registrador).
+	 */
+	private static function funds_error( array $lines ) {
+		$need = array(); $have = array(); $names = array();
+		foreach ( $lines as $line ) {
+			if ( 'hosting' === $line['kind'] ) continue;
+			$domain = (string) ( $line['data']['digitalisimo_domain'] ?? '' );
+			$ext = self::ext_of( $domain );
+			if ( '' === $domain || '' === $ext ) continue;
+			$cost = self::registrar_cost( $ext, 'transfer' === $line['kind'] ? 'TRANSFER' : 'REGISTER' );
+			$bal = self::registrar_balance( $ext );
+			if ( 'ok' !== $cost['kind'] || 'ok' !== $bal['kind'] ) return '';
+			$reg = (string) $bal['registrar'];
+			$need[ $reg ] = ( $need[ $reg ] ?? 0 ) + (float) $cost['value'];
+			$have[ $reg ] = (float) $bal['value'];
+			$names[ $reg ][] = $domain;
+		}
+		foreach ( $need as $reg => $sum ) {
+			if ( $have[ $reg ] + 0.005 >= $sum ) continue;
+			$flag = 'digitalisimo_hosting_funds_alert_' . md5( $reg );
+			if ( ! get_transient( $flag ) && class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) {
+				set_transient( $flag, 1, 6 * HOUR_IN_SECONDS );
+				Digitalisimo_Hosting_Provisioning::alert_admin( 'saldo del registrador insuficiente', sprintf( "Un cliente intentó pagar %s y el saldo de %s (%s USD) no alcanza su costo (%s USD).\n\nMientras no recargues la cuenta, el carrito no deja pagar esos dominios (el cliente ve un aviso para escribirte).", implode( ', ', $names[ $reg ] ), 'namecheap' === $reg ? 'Namecheap' : $reg, number_format( $have[ $reg ], 2, '.', '' ), number_format( $sum, 2, '.', '' ) ) );
+			}
+			return 'Por ahora no podemos completar en línea la compra de ' . implode( ', ', $names[ $reg ] ) . '. Escríbenos y lo resolvemos contigo.';
+		}
+		return '';
 	}
 
 	public static function validate_cart() {
