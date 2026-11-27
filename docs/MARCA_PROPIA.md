@@ -101,7 +101,9 @@ En el sitio (`modules/digitalisimo-marca/class-package.php`):
 - **Marca apagada o bloqueada:** los originales se despliegan una vez por versión en `uploads/digitalisimo-elements/base-<versión>/` y las URL del núcleo y de lo cambiado apuntan ahí.
 - **Marca encendida:** las URL salen con el nombre publicado y los originales desplegados se borran.
 
-Con el paquete transformado, la marca propia no se enciende hasta que se valide la capa del escritorio y del editor (D-12). Se puede probar con el filtro `digitalisimo_elements_marca_editor_ready`.
+Con el paquete transformado, la marca propia no se enciende hasta que se valide la capa del escritorio y del editor (D-12). Se puede probar con el filtro `digitalisimo_elements_marca_editor_ready`. El 2026-11-27 pasó en Playground el recorrido del editor con la marca encendida y el paquete transformado (abrir, editar, guardar, publicar un borrador con su plantilla, contenido del cliente intacto, sin errores de consola) y el mismo recorrido con la marca apagada; sigue apagada de fábrica hasta la Fase 3.
+
+Con la marca apagada, el núcleo calcula `ELEMENTOR_URL` al incluirse (antes de que el paquete filtre `plugins_url`): la salida del front, del escritorio y de AJAX cambia `…/motor/assets/` por la carpeta de los originales desplegados (`Package::off_urls()`), así los trozos de webpack y las librerías que arma su configuración también salen de los originales.
 
 ### Una sola transformación para el JS, el HTML y los datos
 
