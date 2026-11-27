@@ -14,6 +14,7 @@ return array(
 		array( 'a', 'admin_init', 'migrate_template_defaults', 1, 1, '**' ),
 		array( 'a', 'admin_init', 'ensure_autoload', 2, 1, '**' ),
 		array( 'a', 'admin_init', 'clean_network_secrets', 3, 1, '**' ),
+		array( 'a', 'admin_init', 'migrate_ability_parts', 1, 1, '**' ),
 	) ),
 	'Digitalisimo_Integrations_Performance_Manager' => array( 'hooks' => array(
 		array( 'a', 'wp_print_styles', 'clean_styles', 20, 1, '**' ),
@@ -320,6 +321,19 @@ return array(
 		array( 'a', 'update_option_digitalisimo_integrations_options', 'changed', 10, 1, '**' ),
 		array( 'a', 'add_option_digitalisimo_integrations_options', 'changed', 10, 1, '**' ),
 		array( 'a', 'admin_notices', 'notice', 10, 1, '**' ),
+	) ),
+	'Digitalisimo_Integrations_Site_Analysis' => array( 'hooks' => array(
+		array( 'a', 'digitalisimo_seo_analysis_batch', 'run_batch', 10, 1, '**' ),
+		array( 'a', 'digitalisimo_seo_canonical_batch', 'run_canonical', 10, 1, '**' ),
+		array( 'a', 'admin_init', 'maybe_start', 30, 1, '**' ),
+		array( 'a', 'save_post', 'on_save', 40, 2, '**' ),
+		array( 'a', 'admin_notices', 'notice', 10, 1, '**' ),
+		array( 'a', 'admin_post_digitalisimo_seo_analysis_rescan', 'handle_rescan', 10, 1, '**' ),
+	) ),
+	'Digitalisimo_Integrations_SEO_Cleanup' => array( 'hooks' => array(
+		array( 'a', 'admin_post_digitalisimo_seo_cleanup_preview', 'handle_preview', 10, 1, '**' ),
+		array( 'a', 'admin_post_digitalisimo_seo_cleanup_apply', 'handle_apply', 10, 1, '**' ),
+		array( 'a', 'admin_post_digitalisimo_seo_cleanup_undo', 'handle_undo', 10, 1, '**' ),
 	) ),
 	'Digitalisimo_Integrations_Robots' => array( 'hooks' => array(
 		array( 'f', 'robots_txt', 'append', 50, 2, '**' ),

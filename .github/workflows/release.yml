@@ -301,6 +301,9 @@ jobs:
           node tests/ia-assistant-mostrar-ui.mjs
           php tests/ia-assistant-subir.php
           node tests/ia-assistant-subir-ui.mjs
+          php tests/ia-assistant-aprende.php
+          node tests/ia-assistant-aprende-ui.mjs
+          php tests/ia-assistant-cache.php
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
           php tests/performance-cache.php
@@ -331,6 +334,23 @@ jobs:
           php tests/hosting-migration.php
           php tests/hosting-admin-perf.php
           php tests/hosting-settings-save.php
+          php tests/hosting-provision.php
+          php tests/hosting-renewal.php
+          php tests/hosting-services.php
+          php tests/hosting-services-screen.php
+          php tests/hosting-pricing.php
+          php tests/hosting-hardening.php
+          php tests/hosting-third-review.php
+          php tests/hosting-webuzo-real.php
+          php tests/hosting-final-review.php
+          php tests/hosting-wpconfig-key.php
+          php tests/hosting-fifth-review.php
+          php tests/hosting-wpconfig-lock.php
+          php tests/hosting-sixth-review.php
+          php tests/hosting-seventh-review.php
+          php tests/hosting-eighth-review.php
+          php tests/hosting-mcp-settings.php
+          php tests/hosting-domain-checkout.php
           php tests/backups-sftp.php
           php tests/backups-sftp-phpseclib.php
           php tests/backups-sftp-keys.php
@@ -397,6 +417,7 @@ jobs:
           php tests/backups-migrate-restore.php
           php tests/backups-migrate-kept.php
           php tests/backups-site-extract.php
+          php tests/backups-extract-seo-parts.php
           php tests/backups-network-to-single.php
           php tests/backups-destinations.php
           php tests/backups-destinations-protocols.php
@@ -478,6 +499,7 @@ jobs:
           php tests/performance-form-ui.php
           php tests/sitemap.php
           php tests/seo-index-hygiene.php
+          php tests/seo-site-analysis.php
           php tests/sitemap-routes.php
           php tests/seo-sitemap-images.php
           php tests/seo-redirections.php
@@ -490,6 +512,7 @@ jobs:
           php tests/seo-bulk.php
           php tests/seo-abilities.php
           php tests/seo-abilities-write.php
+          php tests/seo-abilities-parts.php
           php tests/seo-schema-templates.php
           php tests/seo-feed.php
           php tests/seo-template-sanitize.php
@@ -583,6 +606,7 @@ jobs:
           # Kit de ventas: plantillas generadas y validadas en las dos variantes, y sus herramientas del MCP.
           node tests/elements-sales-kit.mjs
           php tests/elements-sales-mcp.php
+          php tests/elements-hosting-mcp.php
           php tests/elements-sales-product.php
           # La landing con la identidad del sitio y la oferta de tienda (caso plomerito 3).
           php tests/elements-sales-brand.php
@@ -614,6 +638,7 @@ jobs:
           node tests/elements-tooltip-chrome.mjs
           php tests/elements-badge.php
           node tests/elements-badge-chrome.mjs
+          node tests/hosting-domain-search-chrome.mjs
           php tests/elements-shortcode-guard.php
           php tests/elements-text-relief.php
           node tests/elements-text-relief-chrome.mjs

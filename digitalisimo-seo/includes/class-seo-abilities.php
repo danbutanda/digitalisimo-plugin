@@ -163,6 +163,8 @@ class Digitalisimo_Integrations_SEO_Abilities {
 			'log_404'       => (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_404_enabled', 0 ),
 			// Imágenes y datos de marca por revisar (Brand_Check): lo mismo que avisa el escritorio.
 			'brand_warnings' => Digitalisimo_Integrations_Brand_Check::warnings(),
+			// Análisis del sitio (tandas B y C): errores (shortcodes y variables sin resolver, canonical roto) y avisos.
+			'site_analysis' => Digitalisimo_Integrations_Site_Analysis::summary(),
 			'rankmath'      => $job ? array( 'status' => $job['status'] ?? '', 'done' => $job['done'] ?? array(), 'notes' => array_map( function( $n ) { return (int) ( $n['count'] ?? 0 ); }, (array) ( $job['notes'] ?? array() ) ) ) : null,
 		);
 	}

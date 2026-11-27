@@ -26,6 +26,8 @@ defined( 'ABSPATH' ) || exit;
 final class Digitalisimo_AI_Assistant_Tools {
 	const LOG          = 'digitalisimo_ai_assistant_log';
 	const LOG_MAX      = 500;
+	/** Las llamadas al modelo con sus tokens (log_usage()): la misma bitácora, en su propia lista. */
+	const USAGE_LOG    = 'digitalisimo_ai_assistant_usage_log';
 	const DATA_MAX     = 12000;
 	/**
 	 * Acciones que cambian sin destruir: SÓLO en el catálogo de la tienda de DIGITALÍSIMO (WRITE_TOOLS: productos,
@@ -202,9 +204,19 @@ final class Digitalisimo_AI_Assistant_Tools {
 		return '';
 	}
 
-	/** Definiciones para el modelo: `name`, `description` y `schema`. */
+	/**
+	 * Definiciones para el modelo: `name`, `description` y `schema`, ordenadas por nombre. Las herramientas son lo
+	 * primero de cada petición: en un orden fijo (y no en el que cada plugin registró sus Abilities en esta carga), el
+	 * prefijo es el mismo byte a byte y la caché de la API lo reutiliza (docs/ASSISTANT.md, «Caché»).
+	 */
 	public static function definitions( array $catalog ) {
 		$out = array();
+		uasort(
+			$catalog,
+			function ( $a, $b ) {
+				return strcmp( (string) $a['tool'], (string) $b['tool'] );
+			}
+		);
 		// Los proveedores admiten hasta 128 herramientas por petición (OpenAI); las que sobran no se ofrecen.
 		foreach ( array_slice( $catalog, 0, self::MAX_TOOLS, true ) as $entry ) {
 			$description = '' !== $entry['description'] ? $entry['description'] : $entry['label'];
@@ -992,7 +1004,8 @@ final class Digitalisimo_AI_Assistant_Tools {
 
 	/** Una fila de bitácora: usuario, ability, clase, entrada resumida sin secretos, resultado, detalle y fecha (UTC). */
 	public static function log( array $row ) {
-		$rows   = get_option( self::LOG, array() );
+		$row_in = $row;
+		$rows   = isset( $row['usage'] ) ? array() : get_option( self::LOG, array() );
 		$rows   = is_array( $rows ) ? $rows : array();
 		$row    = array(
 			'time'         => gmdate( 'Y-m-d H:i:s' ),
@@ -1004,6 +1017,16 @@ final class Digitalisimo_AI_Assistant_Tools {
 			'detail'       => self::clip( self::scrub( sanitize_text_field( (string) ( $row['detail'] ?? '' ) ) ), 200 ),
 			'conversation' => (int) ( $row['conversation'] ?? 0 ),
 		);
+		$usage = $row_in['usage'] ?? null;
+		if ( is_array( $usage ) ) {
+			// Los tokens de una llamada al modelo (log_usage()), en su propia lista: las filas de herramientas no se pierden.
+			$row['usage'] = array_map( 'absint', array_intersect_key( $usage, array_flip( array( 'input', 'cache_read', 'cache_write', 'output' ) ) ) );
+			$option       = self::USAGE_LOG;
+			$rows         = get_option( $option, array() );
+			$rows         = is_array( $rows ) ? $rows : array();
+		} else {
+			$option = self::LOG;
+		}
 		$days   = max( 1, absint( Digitalisimo_AI::get( 'log_retention' ) ?: 30 ) );
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
 		$rows[] = $row;
@@ -1015,15 +1038,46 @@ final class Digitalisimo_AI_Assistant_Tools {
 				}
 			)
 		);
-		update_option( self::LOG, array_slice( $rows, - self::LOG_MAX ), false );
+		update_option( $option, array_slice( $rows, - self::LOG_MAX ), false );
 		do_action( 'digitalisimo_ai_assistant_logged', $row );
 		return $row;
+	}
+
+	/**
+	 * Una llamada al modelo en la bitácora, con sus tokens: los cobrados completos, los leídos de la caché (a una
+	 * fracción del precio), los escritos en ella y los de salida. Así se mide si la caché funciona de verdad.
+	 */
+	public static function log_usage( array $target, $usage, $conversation = 0, $what = '' ) {
+		$usage = is_array( $usage ) ? $usage : array();
+		$u     = array();
+		foreach ( array( 'input', 'cache_read', 'cache_write', 'output' ) as $key ) {
+			$u[ $key ] = max( 0, (int) ( $usage[ $key ] ?? 0 ) );
+		}
+		$total = $u['input'] + $u['cache_read'] + $u['cache_write'];
+		$share = $total > 0 ? (int) round( 100 * $u['cache_read'] / $total ) : 0;
+		return self::log(
+			array(
+				'user'         => get_current_user_id(),
+				'ability'      => ( '' !== $what ? $what : 'Llamada a la IA' ) . ' · ' . (string) ( $target['model'] ?? '' ),
+				'kind'         => 'model',
+				'input'        => '',
+				'result'       => 'ok',
+				'detail'       => sprintf( 'entrada %d · caché leída %d (%d %%) · caché escrita %d · salida %d', $u['input'], $u['cache_read'], $share, $u['cache_write'], $u['output'] ),
+				'conversation' => (int) $conversation,
+				'usage'        => $u,
+			)
+		);
 	}
 
 	/** La bitácora, de la más reciente a la más antigua, con el nombre visible de cada usuario. */
 	public static function log_rows( $limit = 200 ) {
 		$rows  = get_option( self::LOG, array() );
-		$rows  = array_reverse( is_array( $rows ) ? $rows : array() );
+		$usage = get_option( self::USAGE_LOG, array() );
+		$rows  = array_merge( is_array( $rows ) ? $rows : array(), is_array( $usage ) ? $usage : array() );
+		// Estable: a la misma hora, el orden en que se anotaron.
+		$order = array_keys( $rows );
+		array_multisort( array_map( 'strval', array_column( $rows, 'time' ) ), SORT_ASC, $order, SORT_ASC, $rows );
+		$rows  = array_reverse( $rows );
 		$names = array();
 		$out   = array();
 		foreach ( array_slice( $rows, 0, max( 1, (int) $limit ) ) as $row ) {
@@ -1052,8 +1106,9 @@ final class Digitalisimo_AI_Assistant_Tools {
  * terminó en «WordPress dice que tu usuario no tiene permiso» para un administrador; lo que estaba apagado era
  * «Permitir que cambien datos SEO», un interruptor pensado para los clientes MCP externos).
  *
- * Algunas abilities tienen un interruptor de «sólo para el MCP externo» (SEO: `seo_abilities_write`; tienda: «WooCommerce
- * en el MCP» en sólo lectura). En el Asistente del escritorio cada cambio ya lo confirma la persona en pantalla y queda en
+ * Algunas abilities tienen un interruptor de «sólo para el MCP externo» (SEO: desde la tanda B de su auditoría, cuatro
+ * partes con su registro, `seo_abilities_write_meta`, `_schema`, `_index` y `_redirects`, que heredan del interruptor
+ * único `seo_abilities_write` mientras no se guardan; tienda: «WooCommerce en el MCP» en sólo lectura). En el Asistente del escritorio cada cambio ya lo confirma la persona en pantalla y queda en
  * la bitácora, así que esas abilities pueden preguntar aquí si la llamada viene del Asistente:
  *
  *     class_exists( 'Digitalisimo_AI_Assistant_Context', false ) && Digitalisimo_AI_Assistant_Context::allows( 'mi/ability' )

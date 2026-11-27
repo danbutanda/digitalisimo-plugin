@@ -67,11 +67,14 @@ final class Digitalisimo_Backups_Site_Extract {
 		'seo_breadcrumbs_home_label', 'seo_breadcrumbs_prefix', 'seo_breadcrumbs_hide_current', 'seo_breadcrumbs_taxonomy', 'seo_breadcrumbs_blog_page', 'seo_breadcrumbs_archive_format', 'seo_breadcrumbs_search_format', 'seo_breadcrumbs_404_label',
 		'seo_type_templates', 'seo_tax_templates', 'seo_schema_type_defaults', 'seo_schema_templates', 'seo_product_brand', 'seo_product_brand_name', 'seo_product_condition', 'seo_sitemap_news_enabled',
 		'seo_links_counter', 'seo_links_check', 'seo_noindex_hidden_products', 'seo_wc_remove_generator', 'seo_strip_product_base', 'seo_strip_product_cat_base', 'seo_strip_category_base', 'seo_abilities_write',
+		'seo_abilities_write_meta', 'seo_abilities_write_schema', 'seo_abilities_write_index', 'seo_abilities_write_redirects',
 		'seo_avatar_alt', 'seo_rss_before', 'seo_rss_after', 'seo_sitemap_news_types', 'seo_sitemap_news_name', 'seo_sitemap_video_enabled', 'seo_sitemap_news_exclude_terms', 'seo_ai_enabled',
 		'seo_ai_search_default', 'seo_ai_training_default', 'seo_ai_google_extended_policy', 'seo_ai_crawler_rules', 'seo_ai_crawler_preset', 'seo_ai_crawlers', 'seo_ai_llms_enabled', 'seo_ai_llms_mode',
 		'seo_ai_llms_manual', 'seo_ai_llms_urls', 'seo_ai_indexnow_enabled', 'seo_ai_indexnow_auto', 'seo_ai_referrals_enabled', 'seo_ai_referral_retention', 'seo_hide_login_slug', 'seo_social_profiles',
 		'seo_local_phone_cc', 'seo_local_schedule', 'content_editorial_voice', 'content_editorial_context', 'content_editorial_cta', 'content_editorial_method', 'default_cluster_pillar', 'default_content_location',
 	);
+	/** Las partes del permiso de escritura de SEO, que heredan como el interruptor único `seo_abilities_write`. */
+	const SEO_ABILITY_PARTS = array( 'seo_abilities_write_meta', 'seo_abilities_write_schema', 'seo_abilities_write_index', 'seo_abilities_write_redirects' );
 	const SEO_ACCOUNT = array(
 		'openai_api_key', 'ai_providers', 'namecheap_api_user', 'namecheap_username', 'namecheap_api_key', 'ipinfo_tokens', 'seo_ai_indexnow_key', 'seo_verify_google',
 		'seo_verify_bing', 'seo_verify_yandex', 'seo_verify_baidu', 'seo_verify_pinterest', 'seo_verify_norton', 'seo_verify_custom', 'perf_gt_id', 'perf_ga4_id',
@@ -485,6 +488,10 @@ final class Digitalisimo_Backups_Site_Extract {
 				if ( in_array( $key, self::SEO_SITE_ONLY, true ) ) continue;
 				$map = in_array( $key, self::SEO_MODULE_KEYS, true ) ? $module : $inherit;
 				if ( array_key_exists( $key, $map ) && empty( $map[ $key ] ) ) continue;
+				// Las cuatro partes del permiso de escritura de SEO nacieron del interruptor único: un sitio que aún no eligió nada
+				// para una parte hereda como heredaba `seo_abilities_write` (igual que Tools con TOOLS_LEGACY_KEYS). Si no lo
+				// heredaba, la parte se queda como la del sitio y SEO la lee de su interruptor único.
+				if ( in_array( $key, self::SEO_ABILITY_PARTS, true ) && ! array_key_exists( $key, $map ) && array_key_exists( 'seo_abilities_write', $map ) && empty( $map['seo_abilities_write'] ) ) continue;
 				if ( in_array( $key, self::SEO_ACCOUNT, true ) ) {
 					// De la cuenta de la red: sin pedirlo queda vacía (también el vacío de la red manda sobre un valor viejo del sitio).
 					if ( ! $secrets && $filled( $value ) ) {

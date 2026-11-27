@@ -27,6 +27,10 @@ class Digitalisimo_Hosting {
 		add_shortcode( 'digitalisimo_domain_search', array( __CLASS__, 'legacy_shortcode' ) );
 		add_action( 'init', array( __CLASS__, 'cart_compatibility' ), 20 );
 		add_action( 'admin_notices', array( __CLASS__, 'store_notice' ) );
+		// Venta automática: cuentas de Webuzo, registro en Namecheap, accesos por correo, renovación y suspensión.
+		if ( class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) Digitalisimo_Hosting_Provisioning::init();
+		// Productos por extensión resueltos solos (SKU o marca) y el aviso cuando el buscador quedaría sin productos.
+		if ( class_exists( 'Digitalisimo_Hosting_Products' ) ) Digitalisimo_Hosting_Products::init();
 	}
 
 	private static function defaults() {
@@ -37,17 +41,55 @@ class Digitalisimo_Hosting {
 			'username'              => '',
 			'api_key'               => '',
 			'client_ip'             => '',
-			'domain_products'       => ".com|\n.mx|\n.org|",
+			// Extensiones de fábrica (pedido del propietario del 2026-11-26: .com, .net y .mx; nunca .org). Una línea sin ID
+			// se resuelve sola con el producto de dominio marcado con esa extensión (Digitalisimo_Hosting_Products).
+			'domain_products'       => ".com|\n.net|\n.mx|",
 			'hosting_product_ids'   => '',
 			'hosting_category_ids'  => '',
 			'require_domain_hosting'=> 0,
+			// Al comprar hosting o correo, antes de pagar: «Dominio nuevo» o «uno que ya tengo» (con su nombre exacto).
+			'ask_domain'            => 1,
 			'replace_hosting'       => 0,
 			'simplify_checkout'     => 0,
 			'form_selector'         => '.elementor-form',
 			'domain_field'          => 'form_fields[dominio]',
 			'extension_field'       => 'form_fields[extension]',
+			// Venta automática (apagada hasta que el administrador la enciende): al pagarse un pedido crea la cuenta en
+			// Webuzo, registra el dominio en Namecheap y envía los accesos; después avisa, renueva y suspende.
+			'provision_enabled'     => 0,
+			// Hosting con dominio propio (sin comprar el dominio aquí): por omisión, revisión manual antes de crear la cuenta.
+			'own_domain_auto'       => 0,
+			'webuzo_url'            => '',
+			'webuzo_api_user'       => 'root',
+			'webuzo_api_key'        => '',
+			'webuzo_insecure'       => 0,
+			'nameservers'           => self::DEFAULT_NAMESERVERS,
+			'webuzo_user_prefix'    => '',
+			'grace_days'            => 7,
+			// Precios de dominios en tiempo real (agregado del propietario del 2026-11-24): apagado hasta encenderlo.
+			'pricing_enabled'       => 0,
+			'banxico_token'         => '',
+			'pricing_cushion'       => 3,
+			'pricing_margin'        => 25,
+			'pricing_fee'           => 3.6,
+			'pricing_vat'           => 16,
+			'pricing_min_margin'    => 10,
+			'pricing_rounding'      => '10',
 		);
 	}
+	/** La lista de fábrica hasta 1.0.35 (sin espacios): guardada así, sin IDs, vale como la de fábrica de hoy. */
+	const LEGACY_DEFAULT_PRODUCTS = '.com|.mx|.org|';
+	/** Los nameservers de DIGITALÍSIMO a los que apunta cada dominio registrado (pedido del propietario del 2026-11-23). */
+	const DEFAULT_NAMESERVERS = 'ns1.digitalisimo.website, ns2.digitalisimo.website';
+	/**
+	 * Credenciales de Webuzo que pueden vivir en wp-config.php en lugar de la base de datos: con la constante definida,
+	 * manda ella y la pantalla no pinta el campo.
+	 */
+	const CONSTANTS = array( 'webuzo_url' => 'DIGITALISIMO_WEBUZO_URL', 'webuzo_api_user' => 'DIGITALISIMO_WEBUZO_API_USER', 'webuzo_api_key' => 'DIGITALISIMO_WEBUZO_API_KEY' );
+	/** Claves secretas: el campo lleva la máscara, nunca la clave, y «Quitar la clave» la borra. */
+	const SECRET_KEYS = array( 'api_key', 'webuzo_api_key', 'banxico_token' );
+	/** Porcentajes de la fórmula de precios de dominios (0 a 90, con decimales). */
+	const PERCENT_KEYS = array( 'pricing_cushion', 'pricing_margin', 'pricing_fee', 'pricing_vat', 'pricing_min_margin' );
 
 	private static function local() { return (array) get_option( self::OPTION, array() ); }
 	private static function network() { return (array) get_site_option( self::OPTION, array() ); }
@@ -56,7 +98,7 @@ class Digitalisimo_Hosting {
 	 * IDs de productos y categorías de WooCommerce, casillas que cambian el carrito y el checkout, el formulario) es
 	 * siempre del sitio, también con «Heredar» (revisión del 2026-11-22: los IDs de otra tienda no sirven en ésta).
 	 */
-	const NETWORK_KEYS = array( 'api_user', 'username', 'api_key', 'client_ip' );
+	const NETWORK_KEYS = array( 'api_user', 'username', 'api_key', 'client_ip', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers', 'banxico_token' );
 	/** ¿Este sitio usa la cuenta de Namecheap de la red? Sólo si su administrador marcó «Heredar» (opcional). */
 	private static function inherits() { return is_multisite() && ! empty( self::local()['inherit_network'] ); }
 	/** Aviso único: el sitio heredaba la red y ya no hereda su tienda (lo marca la visita a la pantalla Hosting). */
@@ -86,8 +128,26 @@ class Digitalisimo_Hosting {
 	private static function all() {
 		$o = wp_parse_args( self::local(), self::defaults() );
 		if ( self::inherits() ) { $n = self::network(); foreach ( self::NETWORK_KEYS as $key ) $o[ $key ] = (string) ( $n[ $key ] ?? '' ); }
+		foreach ( self::CONSTANTS as $key => $constant ) if ( defined( $constant ) ) $o[ $key ] = (string) constant( $constant );
+		// La lista de fábrica anterior (.com, .mx y .org sin IDs) guardada tal cual por el formulario es la de fábrica de hoy.
+		if ( self::LEGACY_DEFAULT_PRODUCTS === trim( preg_replace( '/\s+/', '', (string) $o['domain_products'] ) ) ) $o['domain_products'] = self::defaults()['domain_products'];
+		// Una clave de wp-config.php nunca viaja a una URL editable en pantalla: sin la URL también en wp-config.php,
+		// Webuzo queda sin configurar.
+		if ( defined( self::CONSTANTS['webuzo_api_key'] ) && ! defined( self::CONSTANTS['webuzo_url'] ) ) $o['webuzo_url'] = '';
+		// Con la clave en wp-config.php, el usuario de la API y «no verificar el certificado» tampoco se editan en pantalla:
+		// salen de sus constantes (DIGITALISIMO_WEBUZO_API_USER, DIGITALISIMO_WEBUZO_INSECURE) o quedan en root y verificado.
+		if ( defined( self::CONSTANTS['webuzo_api_key'] ) ) {
+			$o['webuzo_api_user'] = defined( self::CONSTANTS['webuzo_api_user'] ) ? (string) constant( self::CONSTANTS['webuzo_api_user'] ) : 'root';
+			$o['webuzo_insecure'] = defined( 'DIGITALISIMO_WEBUZO_INSECURE' ) && DIGITALISIMO_WEBUZO_INSECURE ? 1 : 0;
+		}
 		return $o;
 	}
+	/** Los ajustes que usa este sitio (con la herencia de la red y las constantes de wp-config.php ya aplicadas). */
+	public static function settings() { return self::all(); }
+	/** Extensión => ID del producto de WooCommerce que la vende (lo que el propietario liga en «Productos por extensión»). */
+	public static function domain_products() { return self::products(); }
+	/** ¿El producto es un plan de hosting según los IDs o las categorías de los ajustes? */
+	public static function is_hosting_product( $product_id ) { return self::is_hosting( (int) $product_id ); }
 
 	/**
 	 * Copia una sola vez los valores de Ecommerce. No borra las opciones antiguas:
@@ -143,7 +203,7 @@ class Digitalisimo_Hosting {
 	}
 
 	/** Contador efímero por visitante; no se guarda la IP ni se escribe en logs. */
-	private static function rate_limit( $scope, $limit = 20 ) {
+	public static function rate_limit( $scope, $limit = 20 ) {
 		$ip = (string) ( $_SERVER['REMOTE_ADDR'] ?? '' );
 		$key = 'digitalisimo_hosting_rate_' . md5( wp_salt( 'nonce' ) . '|' . sanitize_key( $scope ) . '|' . $ip );
 		// Con la cuenta de la red, el límite es de toda la red (una cuenta, un tope), no de cada sitio.
@@ -154,9 +214,16 @@ class Digitalisimo_Hosting {
 		return true;
 	}
 
+	/**
+	 * Extensión => ID del producto que la vende: la línea de «Productos por extensión» con su ID y, si la lista está vacía
+	 * o una línea no trae ID, el producto de dominio marcado con esa extensión (meta `_digitalisimo_tld`) o con el SKU
+	 * convenido (Digitalisimo_Hosting_Products::resolve()).
+	 */
 	private static function products() {
+		$raw = (string) self::all()['domain_products'];
+		if ( class_exists( 'Digitalisimo_Hosting_Products' ) ) return Digitalisimo_Hosting_Products::map( $raw );
 		$out = array();
-		foreach ( preg_split( '/\r\n|\r|\n/', (string) self::all()['domain_products'] ) as $line ) {
+		foreach ( preg_split( '/\r\n|\r|\n/', $raw ) as $line ) {
 			$parts = array_map( 'trim', explode( '|', $line, 2 ) );
 			if ( 2 === count( $parts ) && $parts[0] && absint( $parts[1] ) ) $out[ strtolower( $parts[0] ) ] = absint( $parts[1] );
 		}
@@ -195,10 +262,44 @@ class Digitalisimo_Hosting {
 		if ( ! $network && is_multisite() ) echo '<p><label><input type="hidden" name="hosting[inherit_network]" value="0"><input type="checkbox" name="hosting[inherit_network]" value="1" ' . checked( $inherits, true, false ) . '> <strong>Heredar de la red la cuenta de Namecheap</strong></label><br><span class="description">' . ( $inherits ? 'Este sitio consulta dominios con la cuenta de la red. Al desmarcarla vuelve a usar la suya, que se conserva.' : 'Los productos, las categorías y el checkout son siempre de este sitio.' ) . '</span></p>';
 		if ( $inherits ) echo '<p class="description">Usa la cuenta de Namecheap de la red.</p>';
 		else { self::field( 'api_user', 'Usuario API Namecheap', $o ); self::field( 'username', 'Usuario Namecheap', $o ); self::field( 'api_key', 'Clave API Namecheap', $o, 'password' ); self::field( 'client_ip', 'IP autorizada por Namecheap', $o ); }
+		echo '<h2>Webuzo (cuentas de hosting)</h2>';
+		if ( class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) Digitalisimo_Hosting_Webuzo::settings_banner( $network, $o );
+		if ( $inherits ) echo '<p class="description">Usa el servidor Webuzo y los nameservers de la red.</p>';
+		else {
+			if ( defined( self::CONSTANTS['webuzo_api_key'] ) && ! defined( self::CONSTANTS['webuzo_url'] ) ) echo '<p><strong>URL del panel de administración de Webuzo</strong><br><span class="description">La clave está en wp-config.php: define también <code>DIGITALISIMO_WEBUZO_URL</code> allí. Mientras tanto Webuzo queda sin configurar (la clave nunca se manda a una URL editable aquí).</span></p>';
+			else self::field( 'webuzo_url', 'URL del panel de administración de Webuzo', $o, 'text', 'Por ejemplo https://servidor.ejemplo.com:2005 (el puerto 2005 es el de administración; los clientes entran por el 2003).' );
+			if ( defined( self::CONSTANTS['webuzo_api_key'] ) ) echo '<p class="description">Con la clave en wp-config.php, el usuario de la API (' . esc_html( $o['webuzo_api_user'] ) . ') y la verificación del certificado (' . ( empty( $o['webuzo_insecure'] ) ? 'activada' : 'desactivada' ) . ') también salen de wp-config.php (DIGITALISIMO_WEBUZO_API_USER, DIGITALISIMO_WEBUZO_INSECURE).</p>';
+			else self::field( 'webuzo_api_user', 'Usuario de la API de Webuzo', $o, 'text', 'El usuario dueño de la clave de API (normalmente root).' );
+			self::field( 'webuzo_api_key', 'Clave de la API de Webuzo', $o, 'password', 'Webuzo → Ajustes → API Keys. Si Webuzo la rechaza, el aprovisionamiento se detiene sin reintentar hasta que guardes una nueva: Webuzo bloquea la IP tras varios intentos fallidos.' );
+			if ( ! defined( self::CONSTANTS['webuzo_api_key'] ) ) self::check( 'webuzo_insecure', 'No verificar el certificado del panel (sólo si usa un certificado autofirmado)', $o );
+			self::field( 'nameservers', 'Nameservers de los dominios', $o, 'text', 'Separados por comas. Cada dominio registrado se apunta a ellos.' );
+		}
 		if ( ! $network ) {
-			self::area( 'domain_products', 'Productos por extensión', $o, 'Una línea por extensión: .com|123' );
+			echo '<h2>Venta automática</h2>';
+			self::check( 'provision_enabled', 'Crear la cuenta, registrar el dominio y enviar los accesos al pagarse un pedido', $o );
+			self::check( 'own_domain_auto', 'Hosting con dominio propio: crear la cuenta de inmediato, sin revisión manual (nadie verifica que el dominio sea del cliente)', $o );
+			echo '<p class="description"><strong>Pago confirmado:</strong> sólo se aprovisiona cuando la pasarela dejó el cobro confirmado (fecha de pago y número de transacción). Con transferencia, cheque, contra entrega o cualquier pasarela que no deje número de transacción, marca el pedido «completado» al cobrar. Un desarrollador puede ajustar las listas con los filtros <code>digitalisimo_hosting_offline_methods</code> y <code>digitalisimo_hosting_trusted_methods</code>. Los pedidos anteriores al encendido no se aprovisionan solos.</p>';
+			echo '<p class="description">Los planes se reconocen por el paquete de Webuzo del producto (campo personalizado <code>_digitalisimo_webuzo_plan</code>) o por los IDs y categorías de hosting de abajo. La lista de servicios está en WooCommerce → Servicios de hosting.</p>';
+			self::field( 'webuzo_user_prefix', 'Prefijo de los usuarios de Webuzo', $o, 'text', 'Opcional, sólo letras y números (por ejemplo «prueba» para un ensayo).' );
+			self::field( 'grace_days', 'Días de gracia antes de suspender', $o, 'number', 'Días después del vencimiento sin pago antes de suspender la cuenta en Webuzo.' );
+			echo '<h2>Precios de dominios</h2>';
+			self::check( 'pricing_enabled', 'Actualizar a diario el precio de cada producto de dominio con el costo de Namecheap y el tipo de cambio', $o );
+			echo '<p class="description">Precio sin IVA = costo × (1 + colchón) × (1 + margen) ÷ (1 − comisión × (1 + IVA)), con el costo mayor entre registro y renovación. La pasarela cobra su comisión sobre el total con IVA; así el margen se cumple después de pagarla. Si una consulta falla, no se cambia ningún precio y se te avisa. Historial en WooCommerce → Servicios de hosting.</p>';
+			foreach ( array( 'pricing_cushion' => 'Colchón sobre el tipo de cambio (%)', 'pricing_margin' => 'Margen (%)', 'pricing_fee' => 'Comisión de la pasarela (%)', 'pricing_vat' => 'IVA sobre el que cobra la pasarela (%)', 'pricing_min_margin' => 'Margen mínimo al registrar o renovar (%)' ) as $key => $label ) self::field( $key, $label, $o, 'percent', 'pricing_min_margin' === $key ? 'Si al registrar o renovar un dominio pagado su costo real ya no deja este margen, el pedido queda en espera en lugar de registrarse con pérdida.' : '' );
+			$rounding = class_exists( 'Digitalisimo_Hosting_Pricing' ) ? Digitalisimo_Hosting_Pricing::ROUNDING : array( '10' => 'Múltiplo de 10' );
+			echo '<p><label><strong>Redondeo hacia arriba</strong><br><select name="hosting[pricing_rounding]">';
+			foreach ( $rounding as $value => $label ) echo '<option value="' . esc_attr( $value ) . '"' . ( (string) $value === (string) ( $o['pricing_rounding'] ?? '10' ) ? ' selected' : '' ) . '>' . esc_html( $label ) . '</option>';
+			echo '</select></label></p>';
+		}
+		if ( ! $inherits ) {
+			if ( $network ) echo '<h2>Tipo de cambio</h2>';
+			self::field( 'banxico_token', 'Token de consulta del SIE de Banxico', $o, 'password', 'Para el tipo de cambio FIX (serie SF43718). Se pide gratis en banxico.org.mx (SIE API → token). Sin él se usa Frankfurter como respaldo.' );
+		}
+		if ( ! $network ) {
+			self::area( 'domain_products', 'Productos por extensión', $o, 'Una línea por extensión: .com|123. Sin ID (.com|) se usa el producto de dominio con el SKU dominio-com (dominio-net, dominio-mx…) o el marcado con esa extensión por la herramienta MCP digitalisimo-hosting-domain-product. El producto de transferencia lleva el SKU transferencia-dominio o se marca con esa herramienta (kind transfer).' );
+			if ( class_exists( 'Digitalisimo_Hosting_Products' ) ) Digitalisimo_Hosting_Products::settings_summary( (string) $o['domain_products'] );
 			echo '<h2>Compra de hosting</h2>';
-			self::area( 'hosting_product_ids', 'IDs de productos de hosting', $o, 'IDs separados por comas.' ); self::area( 'hosting_category_ids', 'IDs de categorías de hosting', $o, 'IDs separados por comas.' ); self::check( 'require_domain_hosting', 'Exigir dominio y hosting juntos', $o ); self::check( 'replace_hosting', 'Reemplazar el plan de hosting al elegir otro', $o ); self::check( 'simplify_checkout', 'Simplificar checkout', $o );
+			self::area( 'hosting_product_ids', 'IDs de productos de hosting', $o, 'IDs separados por comas.' ); self::area( 'hosting_category_ids', 'IDs de categorías de hosting', $o, 'IDs separados por comas.' ); self::check( 'ask_domain', 'Al comprar hosting o correo, pedir antes de pagar «Dominio nuevo» o «uno que ya tengo» (con su nombre)', $o ); self::check( 'require_domain_hosting', 'Exigir dominio y hosting juntos (un dominio que ya tiene el cliente cuenta como dominio)', $o ); self::check( 'replace_hosting', 'Reemplazar el plan de hosting al elegir otro', $o ); self::check( 'simplify_checkout', 'Simplificar checkout', $o );
 			echo '<h2>Formulario de DIGITALÍSIMO Elements</h2>';
 			self::field( 'form_selector', 'Selector CSS del formulario', $o ); self::field( 'domain_field', 'Campo dominio', $o ); self::field( 'extension_field', 'Campo extensión', $o );
 			echo '<p>Usa <code>[resultado_dominio]</code> en el widget Formulario de DIGITALÍSIMO Elements. El shortcode anterior <code>[digitalisimo_domain_search]</code> se conserva para páginas existentes.</p>';
@@ -208,11 +309,17 @@ class Digitalisimo_Hosting {
 	}
 
 	/** El campo de la clave: la máscara y «Guardada» con una guardada (nunca la clave), seleccionado entero al enfocarlo. */
-	private static function field( $key, $label, $o, $type = 'text' ) {
+	private static function field( $key, $label, $o, $type = 'text', $help = '' ) {
+		if ( isset( self::CONSTANTS[ $key ] ) && defined( self::CONSTANTS[ $key ] ) ) {
+			echo '<p><strong>' . esc_html( $label ) . '</strong><br><span class="description">Definida en wp-config.php (<code>' . esc_html( self::CONSTANTS[ $key ] ) . '</code>).</span></p>';
+			return;
+		}
 		$secret = 'password' === $type; $saved = $secret && '' !== (string) ( $o[ $key ] ?? '' );
 		$value = $secret ? ( $saved ? self::MASK : '' ) : ( $o[ $key ] ?? '' );
-		echo '<p><label><strong>' . esc_html( $label ) . '</strong><br><input class="regular-text" type="' . esc_attr( $type ) . '" name="hosting[' . esc_attr( $key ) . ']" value="' . esc_attr( $value ) . '"' . ( $secret ? ' autocomplete="new-password" onfocus="this.select()"' : '' ) . '></label>';
+		$number = 'number' === $type || 'percent' === $type;
+		echo '<p><label><strong>' . esc_html( $label ) . '</strong><br><input class="' . ( $number ? 'small-text' : 'regular-text' ) . '" type="' . ( $number ? 'number' : esc_attr( $type ) ) . '" name="hosting[' . esc_attr( $key ) . ']" value="' . esc_attr( $value ) . '"' . ( $secret ? ' autocomplete="new-password" onfocus="this.select()"' : '' ) . ( $number ? ' min="0" max="90" step="' . ( 'percent' === $type ? '0.01' : '1' ) . '"' : '' ) . '></label>';
 		if ( $saved ) echo ' <span class="description">Guardada · escribe una nueva sólo si quieres reemplazarla</span> <label><input type="checkbox" name="hosting[' . esc_attr( $key ) . '_remove]" value="1"> Quitar la clave</label>';
+		if ( '' !== $help ) echo '<br><span class="description">' . esc_html( $help ) . '</span>';
 		echo '</p>';
 	}
 	private static function area( $key, $label, $o, $help = '' ) { echo '<p><label><strong>' . esc_html( $label ) . '</strong><br><textarea class="large-text code" rows="3" name="hosting[' . esc_attr( $key ) . ']">' . esc_textarea( $o[ $key ] ?? '' ) . '</textarea></label><br><span class="description">' . esc_html( $help ) . '</span></p>'; }
@@ -230,22 +337,81 @@ class Digitalisimo_Hosting {
 	 * hereda, lo de la tienda en la red) conserva su valor. La red sólo guarda su cuenta de Namecheap; un sitio nunca
 	 * copia la de la red.
 	 */
-	private static function save( $network ) {
+	private static function save( $network ) { self::store( $network, (array) wp_unslash( $_POST['hosting'] ?? array() ) ); }
+
+	/**
+	 * Valida y guarda lo recibido (el formulario o la herramienta MCP de ajustes, con las mismas reglas) sobre lo guardado:
+	 * sólo cambian las claves que llegan. Devuelve la opción guardada.
+	 */
+	private static function store( $network, array $in ) {
 		$o = $network ? self::network() : self::local();
-		$in = (array) wp_unslash( $_POST['hosting'] ?? array() );
-		$text = $network ? array( 'api_user', 'username', 'client_ip' ) : array( 'api_user', 'username', 'client_ip', 'form_selector', 'domain_field', 'extension_field' );
+		// La clave de Webuzo que usaba esta pantalla antes de guardar (la heredada o la de wp-config.php también cuentan).
+		$old_webuzo = $network ? (string) ( $o['webuzo_api_key'] ?? '' ) : (string) ( self::all()['webuzo_api_key'] ?? '' );
+		$was_sale = ! $network && ! empty( $o['provision_enabled'] );
+		// Encendida de verdad = módulo y venta (reencender el módulo con la venta ya marcada también retoma lo anotado).
+		$was_on = $was_sale && ( ! array_key_exists( 'enabled', $o ) || ! empty( $o['enabled'] ) );
+		// Con la clave en wp-config.php, URL, usuario y verificación del certificado no se aceptan desde el formulario.
+		if ( defined( self::CONSTANTS['webuzo_api_key'] ) ) unset( $in['webuzo_url'], $in['webuzo_api_user'], $in['webuzo_insecure'] );
+		$text = $network ? array( 'api_user', 'username', 'client_ip', 'webuzo_api_user' ) : array( 'api_user', 'username', 'client_ip', 'form_selector', 'domain_field', 'extension_field', 'webuzo_api_user' );
 		foreach ( $text as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = sanitize_text_field( $in[ $key ] );
+		// Las mismas reglas en el sitio y en la red: la URL del panel sólo https con host, los nameservers sólo nombres
+		// de host válidos (vacío = los de DIGITALÍSIMO).
+		if ( array_key_exists( 'webuzo_url', $in ) && ! defined( self::CONSTANTS['webuzo_api_key'] ) ) $o['webuzo_url'] = self::webuzo_url( $in['webuzo_url'] );
+		if ( array_key_exists( 'nameservers', $in ) ) $o['nameservers'] = self::nameservers( $in['nameservers'] );
+		if ( array_key_exists( 'webuzo_insecure', $in ) ) $o['webuzo_insecure'] = empty( $in['webuzo_insecure'] ) ? 0 : 1;
 		if ( ! $network ) {
 			foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = sanitize_textarea_field( $in[ $key ] );
-			foreach ( array( 'enabled', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
-			$o['inherit_network'] = is_multisite() && ! empty( $in['inherit_network'] ) ? 1 : 0;
+			foreach ( array( 'enabled', 'require_domain_hosting', 'ask_domain', 'replace_hosting', 'simplify_checkout', 'provision_enabled', 'own_domain_auto' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
+			if ( array_key_exists( 'webuzo_user_prefix', $in ) ) $o['webuzo_user_prefix'] = substr( preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $in['webuzo_user_prefix'] ) ), 0, 6 );
+			if ( array_key_exists( 'grace_days', $in ) ) $o['grace_days'] = min( 90, absint( $in['grace_days'] ) );
+			if ( array_key_exists( 'pricing_enabled', $in ) ) $o['pricing_enabled'] = empty( $in['pricing_enabled'] ) ? 0 : 1;
+			foreach ( self::PERCENT_KEYS as $key ) if ( array_key_exists( $key, $in ) && is_numeric( str_replace( ',', '.', (string) $in[ $key ] ) ) ) $o[ $key ] = round( max( 0, min( 90, (float) str_replace( ',', '.', (string) $in[ $key ] ) ) ), 2 );
+			if ( array_key_exists( 'pricing_rounding', $in ) && in_array( (string) $in['pricing_rounding'], array( '10', '9', 'end9', 'none' ), true ) ) $o['pricing_rounding'] = (string) $in['pricing_rounding'];
+			// El formulario del sitio siempre la envía en una red; quien no la envía (la herramienta MCP) no la cambia.
+			if ( ! is_multisite() || array_key_exists( 'inherit_network', $in ) ) $o['inherit_network'] = is_multisite() && ! empty( $in['inherit_network'] ) ? 1 : 0;
 		}
-		if ( array_key_exists( 'api_key', $in ) ) {
-			$typed = self::unmask( $in['api_key'] );
-			if ( '' !== $typed ) $o['api_key'] = $typed;
-			elseif ( ! empty( $in['api_key_remove'] ) ) $o['api_key'] = '';
+		$webuzo_key = false;
+		foreach ( self::SECRET_KEYS as $key ) {
+			if ( ! array_key_exists( $key, $in ) ) continue;
+			$typed = self::unmask( $in[ $key ] );
+			if ( '' !== $typed ) { $o[ $key ] = $typed; $webuzo_key = $webuzo_key || 'webuzo_api_key' === $key; }
+			elseif ( ! empty( $in[ $key . '_remove' ] ) ) $o[ $key ] = '';
 		}
+		// Al encender la venta automática se anota desde cuándo: los pedidos anteriores nunca se aprovisionan solos.
+		if ( ! $network && ! $was_sale && ! empty( $o['provision_enabled'] ) ) $o['provision_since'] = time();
 		if ( $network ) update_site_option( self::OPTION, $o ); else update_option( self::OPTION, $o, false );
+		// La parada por clave rechazada es de la CLAVE: una clave distinta guardada ya no está detenida (y se retoma lo
+		// detenido). La misma clave sólo con «Ya corregí la causa».
+		if ( class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) {
+			$new_webuzo = $network ? (string) ( $o['webuzo_api_key'] ?? '' ) : (string) ( self::all()['webuzo_api_key'] ?? '' );
+			// En una red la parada es de toda la red: sólo el superadministrador puede reintentar con la misma clave.
+			if ( ! empty( $in['webuzo_unblock'] ) && ( ! is_multisite() || current_user_can( 'manage_network_options' ) ) ) { Digitalisimo_Hosting_Webuzo::forget( $new_webuzo ); Digitalisimo_Hosting_Webuzo::resume(); }
+			// La parada de la clave reemplazada NO se olvida: si alguien vuelve a poner esa clave, sigue detenida.
+			elseif ( $webuzo_key && '' !== $new_webuzo && ! hash_equals( $old_webuzo, $new_webuzo ) ) Digitalisimo_Hosting_Webuzo::resume();
+		}
+		if ( ! $network && ! empty( $o['provision_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) {
+			Digitalisimo_Hosting_Provisioning::ensure_daily();
+			// Al reencenderla: las renovaciones cobradas que quedaron pendientes se encolan (las altas anteriores, no).
+			if ( ! $was_on && ( ! array_key_exists( 'enabled', $o ) || ! empty( $o['enabled'] ) ) ) Digitalisimo_Hosting_Provisioning::sweep_renewals();
+		}
+		if ( ! $network && ! empty( $o['pricing_enabled'] ) && class_exists( 'Digitalisimo_Hosting_Pricing' ) ) Digitalisimo_Hosting_Pricing::ensure_schedule();
+		if ( ! $network && class_exists( 'Digitalisimo_Hosting_Products' ) ) Digitalisimo_Hosting_Products::flush();
+		return $o;
+	}
+	/** URL del panel de administración de Webuzo: sólo https con host (y puerto); cualquier otra cosa se descarta. */
+	private static function webuzo_url( $raw ) {
+		$url = trim( sanitize_text_field( (string) $raw ) );
+		if ( '' === $url ) return '';
+		if ( ! preg_match( '#^https://([a-z0-9.-]+|\[[0-9a-f:]+\])(:\d{1,5})?/?$#i', $url ) ) return '';
+		// Ni loopback, ni link-local, ni red privada (salvo DIGITALISIMO_WEBUZO_ALLOW_PRIVATE): ahí se manda la clave root.
+		if ( class_exists( 'Digitalisimo_Hosting_Webuzo' ) && ! Digitalisimo_Hosting_Webuzo::safe_url( $url ) ) return '';
+		return rtrim( $url, '/' );
+	}
+	/** Nameservers separados por comas: sólo nombres de host; vacío = los de DIGITALÍSIMO. */
+	private static function nameservers( $raw ) {
+		$out = array();
+		foreach ( preg_split( '/[\s,]+/', strtolower( (string) $raw ) ) as $ns ) if ( preg_match( '/^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/', $ns ) ) $out[] = $ns;
+		return $out ? implode( ', ', array_slice( array_unique( $out ), 0, 5 ) ) : self::DEFAULT_NAMESERVERS;
 	}
 
 	public static function routes() {
@@ -255,17 +421,29 @@ class Digitalisimo_Hosting {
 		}
 	}
 
+	/**
+	 * ¿Está libre? Por el cliente de Namecheap (la clave en el cuerpo de un POST, nunca en la URL) y, si su extensión
+	 * se vende aquí, con su producto y su precio en la misma respuesta.
+	 */
 	public static function check_domain( $request ) {
-		$domain = strtolower( sanitize_text_field( $request->get_param( 'domain' ) ) );
-		if ( ! preg_match( '/^[a-z0-9-]+\.[a-z]{2,20}$/', $domain ) ) return new WP_Error( 'invalid_domain', 'Dominio no válido.', array( 'status' => 400 ) );
+		$domain = strtolower( sanitize_text_field( (string) $request->get_param( 'domain' ) ) );
+		if ( ! preg_match( '/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]{2,20}){1,2}$/', $domain ) ) return new WP_Error( 'invalid_domain', 'Dominio no válido.', array( 'status' => 400 ) );
 		if ( ! self::rate_limit( 'domain-check' ) ) return new WP_Error( 'rate_limit', 'Demasiadas consultas. Intenta de nuevo en un minuto.', array( 'status' => 429 ) );
 		$o = self::all();
-		if ( empty( $o['enabled'] ) || ! $o['api_key'] || ! $o['api_user'] || ! $o['username'] || ! $o['client_ip'] ) return new WP_Error( 'not_configured', 'La consulta de dominios no está configurada.', array( 'status' => 503 ) );
-		$response = wp_remote_get( add_query_arg( array( 'ApiUser' => $o['api_user'], 'ApiKey' => $o['api_key'], 'UserName' => $o['username'], 'ClientIp' => $o['client_ip'], 'Command' => 'namecheap.domains.check', 'DomainList' => $domain ), 'https://api.namecheap.com/xml.response' ), array( 'timeout' => 15 ) );
-		if ( is_wp_error( $response ) ) return $response;
-		$xml = simplexml_load_string( wp_remote_retrieve_body( $response ) );
-		if ( ! $xml || ! isset( $xml->CommandResponse->DomainCheckResult ) ) return new WP_Error( 'namecheap_response', 'Respuesta inválida de Namecheap.', array( 'status' => 502 ) );
-		return rest_ensure_response( array( 'available' => 'true' === strtolower( (string) $xml->CommandResponse->DomainCheckResult['Available'] ) ) );
+		$nc = new Digitalisimo_Hosting_Namecheap( $o );
+		if ( empty( $o['enabled'] ) || ! $nc->configured() ) return new WP_Error( 'not_configured', 'La consulta de dominios no está configurada.', array( 'status' => 503 ) );
+		$r = class_exists( 'Digitalisimo_Hosting_Checkout' ) ? Digitalisimo_Hosting_Checkout::lookup( $domain, false ) : $nc->check( $domain, 15 );
+		if ( 'ok' !== $r['kind'] ) return new WP_Error( 'namecheap_unavailable', 'No fue posible consultar el dominio. Intenta de nuevo en un momento.', array( 'status' => 503 ) );
+		$out = array( 'domain' => $domain, 'available' => ! empty( $r['available'] ), 'premium' => ! empty( $r['premium'] ) );
+		$split = class_exists( 'Digitalisimo_Hosting_Provisioning' ) ? Digitalisimo_Hosting_Provisioning::split( $domain ) : null;
+		$map = self::products();
+		$id = $split && isset( $map[ $split[2] ] ) ? (int) $map[ $split[2] ] : 0;
+		if ( $id && function_exists( 'wc_get_product' ) && ( $product = wc_get_product( $id ) ) ) {
+			$out['product_id'] = $id;
+			$out['price'] = function_exists( 'wc_get_price_to_display' ) ? (string) wc_get_price_to_display( $product ) : (string) $product->get_price();
+			$out['currency'] = function_exists( 'get_woocommerce_currency_symbol' ) ? html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ) : '$';
+		}
+		return rest_ensure_response( $out );
 	}
 
 	public static function price( $request ) {
@@ -277,25 +455,42 @@ class Digitalisimo_Hosting {
 
 	public static function assets() {
 		if ( is_admin() || empty( self::all()['enabled'] ) ) return;
+		self::enqueue_search();
+	}
+
+	/**
+	 * Un solo script para el formulario de Elements (clásico y del editor atómico), [digitalisimo_domain_search] y el
+	 * panel del carrito, con las extensiones de «Productos por extensión» (nunca una lista fija). Se puede llamar desde
+	 * un shortcode que se pinta ya dentro del contenido (el script va al pie).
+	 */
+	public static function enqueue_search() {
+		static $done = false;
+		if ( $done || ! function_exists( 'wp_enqueue_script' ) ) return;
+		$done = true;
 		$o = self::all();
 		wp_enqueue_style( 'digitalisimo-hosting-form', DIGITALISIMO_HOSTING_URL . 'assets/domain-search.css', array(), DIGITALISIMO_HOSTING_VERSION );
 		wp_enqueue_script( 'digitalisimo-hosting-form', DIGITALISIMO_HOSTING_URL . 'assets/domain-form.js', array(), DIGITALISIMO_HOSTING_VERSION, true );
-		wp_localize_script( 'digitalisimo-hosting-form', 'digitalisimoHosting', array( 'endpoint' => rest_url( 'digitalisimo-hosting/v1/' ), 'selector' => $o['form_selector'], 'domainField' => $o['domain_field'], 'extensionField' => $o['extension_field'], 'products' => self::products(), 'cart' => function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : home_url( '/cart/' ) ) );
+		wp_localize_script( 'digitalisimo-hosting-form', 'digitalisimoHosting', array( 'endpoint' => rest_url( 'digitalisimo-hosting/v1/' ), 'selector' => $o['form_selector'], 'domainField' => $o['domain_field'], 'extensionField' => $o['extension_field'], 'products' => (object) self::products(), 'cart' => function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : home_url( '/cart/' ) ) );
 	}
 
-	private static function legacy_assets() {
-		wp_enqueue_style( 'digitalisimo-domain-search', DIGITALISIMO_HOSTING_URL . 'assets/domain-search.css', array(), DIGITALISIMO_HOSTING_VERSION );
-		wp_enqueue_script( 'digitalisimo-domain-search', DIGITALISIMO_HOSTING_URL . 'assets/domain-search.js', array(), DIGITALISIMO_HOSTING_VERSION, true );
-		wp_localize_script( 'digitalisimo-domain-search', 'digitalisimoDomainSearch', array( 'endpoint' => rest_url( 'digitalisimo/v1/' ) ) );
-	}
+	public static function result_shortcode() { if ( ! empty( self::all()['enabled'] ) ) self::enqueue_search(); return '<div class="digitalisimo-hosting-result" aria-live="polite"></div>'; }
 
-	public static function result_shortcode() { return '<div class="digitalisimo-hosting-result" aria-live="polite"></div>'; }
+	/**
+	 * [digitalisimo_domain_search]: un bloque <div> (no un <form>), así funciona en cualquier página, también dentro de un
+	 * formulario del editor atómico, donde un <form> anidado se perdería. Las extensiones son las configuradas.
+	 */
 	public static function legacy_shortcode() {
 		if ( ! function_exists( 'wc_get_product' ) || empty( self::all()['enabled'] ) ) return '';
-		self::legacy_assets();
+		return self::search_widget();
+	}
+
+	/** El buscador (shortcode y panel «Tu dominio» del carrito). */
+	public static function search_widget() {
+		self::enqueue_search();
 		$options = '';
 		foreach ( self::products() as $extension => $id ) $options .= '<option value="' . esc_attr( $extension ) . '" data-product-id="' . esc_attr( $id ) . '">' . esc_html( $extension ) . '</option>';
-		return '<form class="digitalisimo-domain-search"><label>Dominio <input required name="domain" pattern="[A-Za-z0-9-]+" autocomplete="off"></label><label>Extensión <select required name="extension">' . $options . '</select></label><button type="submit">Verificar dominio</button><div class="digitalisimo-domain-result" aria-live="polite"></div></form>';
+		if ( '' === $options ) return '<div class="digitalisimo-domain-search is-empty"><p>Por ahora no hay dominios a la venta.</p></div>';
+		return '<div class="digitalisimo-domain-search" role="search"><label>Dominio <input type="text" name="domain" placeholder="minegocio" autocomplete="off" spellcheck="false" autocapitalize="none"></label><label>Extensión <select name="extension">' . $options . '</select></label><button type="button" class="digitalisimo-domain-search-button">Verificar dominio</button><div class="digitalisimo-domain-result" aria-live="polite"></div></div>';
 	}
 
 	/**
@@ -312,6 +507,8 @@ class Digitalisimo_Hosting {
 		add_action( 'woocommerce_check_cart_items', array( __CLASS__, 'maybe_validate_cart' ) );
 		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'maybe_replace_hosting' ), 10, 3 );
 		add_filter( 'woocommerce_checkout_fields', array( __CLASS__, 'maybe_checkout_fields' ) );
+		// El dominio antes de pagar: nuevo, uno que ya tengo o transferencia con su EPP.
+		if ( class_exists( 'Digitalisimo_Hosting_Checkout' ) ) Digitalisimo_Hosting_Checkout::init();
 	}
 	/** Hosting activado y, si se pide, también la opción concreta (se lee al dispararse el gancho). */
 	private static function on( $key = '' ) { $all = self::all(); return ! empty( $all['enabled'] ) && ( '' === $key || ! empty( $all[ $key ] ) ); }
@@ -319,16 +516,158 @@ class Digitalisimo_Hosting {
 	public static function maybe_cart_item_data( $data, $item ) { return self::on() ? self::cart_item_data( $data, $item ) : $data; }
 	public static function maybe_order_item_domain( $item, $cart_item_key, $values, $order ) { if ( self::on() ) self::order_item_domain( $item, $cart_item_key, $values, $order ); }
 	public static function maybe_ai_context( $context, $profile, $request = null ) { return self::on() ? self::ai_context( $context, $profile ) : $context; }
-	public static function maybe_validate_cart() { if ( self::on( 'require_domain_hosting' ) ) self::validate_cart(); }
+	public static function maybe_validate_cart() { if ( ! self::on() ) return; if ( class_exists( 'Digitalisimo_Hosting_Checkout' ) ) Digitalisimo_Hosting_Checkout::validate_cart(); elseif ( self::on( 'require_domain_hosting' ) ) self::validate_cart(); }
 	public static function maybe_replace_hosting( $passed, $product_id, $quantity ) { return self::on( 'replace_hosting' ) ? self::replace_hosting( $passed, $product_id, $quantity ) : $passed; }
 	public static function maybe_checkout_fields( $fields ) { return self::on( 'simplify_checkout' ) ? self::checkout_fields( $fields ) : $fields; }
-	public static function cart_domain( $data, $product_id, $variation_id ) { $domain = $_REQUEST['digitalisimo_domain'] ?? $_REQUEST['domain_name'] ?? ''; if ( $domain ) $data['digitalisimo_domain'] = sanitize_text_field( wp_unslash( $domain ) ); return $data; }
-	public static function cart_item_data( $data, $item ) { if ( ! empty( $item['digitalisimo_domain'] ) ) $data[] = array( 'name' => 'Dominio', 'value' => $item['digitalisimo_domain'] ); return $data; }
-	public static function order_item_domain( $item, $cart_item_key, $values, $order ) { if ( ! empty( $values['digitalisimo_domain'] ) ) $item->add_meta_data( 'Dominio', $values['digitalisimo_domain'], true ); }
+	public static function cart_domain( $data, $product_id, $variation_id ) {
+		if ( class_exists( 'Digitalisimo_Hosting_Checkout' ) ) return Digitalisimo_Hosting_Checkout::cart_item_data( $data, $product_id );
+		$domain = $_REQUEST['digitalisimo_domain'] ?? $_REQUEST['domain_name'] ?? ''; if ( $domain ) $data['digitalisimo_domain'] = sanitize_text_field( wp_unslash( $domain ) ); return $data;
+	}
+	public static function cart_item_data( $data, $item ) {
+		if ( empty( $item['digitalisimo_domain'] ) ) return $data;
+		$kind = class_exists( 'Digitalisimo_Hosting_Checkout' ) ? Digitalisimo_Hosting_Checkout::kind( (int) ( $item['product_id'] ?? 0 ) ) : '';
+		$data[] = array( 'name' => 'hosting' === $kind ? 'Dominio (ya lo tengo)' : ( 'transfer' === $kind ? 'Dominio a transferir' : 'Dominio' ), 'value' => $item['digitalisimo_domain'] );
+		return $data;
+	}
+	public static function order_item_domain( $item, $cart_item_key, $values, $order ) {
+		if ( ! empty( $values['digitalisimo_domain'] ) ) $item->add_meta_data( 'Dominio', $values['digitalisimo_domain'], true );
+		if ( class_exists( 'Digitalisimo_Hosting_Checkout' ) ) Digitalisimo_Hosting_Checkout::order_item( $item, $values, $order );
+	}
 	public static function ai_context( $context, $profile ) { if ( 'chatbot' !== $profile || ! class_exists( 'WooCommerce' ) ) return $context; $products = wc_get_products( array( 'status' => 'publish', 'limit' => 8, 'return' => 'objects' ) ); foreach ( $products as $product ) $context .= "\n- " . $product->get_name() . ': ' . wp_strip_all_tags( $product->get_short_description() ) . ' ' . $product->get_price_html(); return $context; }
 	private static function ids( $key ) { return array_filter( array_map( 'absint', preg_split( '/\s*,\s*/', (string) self::all()[ $key ] ) ) ); }
 	private static function is_hosting( $product_id ) { $products = self::ids( 'hosting_product_ids' ); $categories = self::ids( 'hosting_category_ids' ); return in_array( $product_id, $products, true ) || ( $categories && has_term( $categories, 'product_cat', $product_id ) ); }
 	public static function validate_cart() { $has_hosting = false; $has_domain = false; $domain_ids = array_values( self::products() ); foreach ( WC()->cart->get_cart() as $item ) { $id = $item['product_id']; $has_hosting = $has_hosting || self::is_hosting( $id ); $has_domain = $has_domain || in_array( $id, $domain_ids, true ); } if ( $has_hosting xor $has_domain ) wc_add_notice( 'Agrega un dominio y un plan de hosting para continuar.', 'error' ); }
 	public static function replace_hosting( $passed, $product_id, $quantity ) { if ( ! self::is_hosting( $product_id ) ) return $passed; foreach ( WC()->cart->get_cart() as $key => $item ) if ( self::is_hosting( $item['product_id'] ) ) WC()->cart->remove_cart_item( $key ); return $passed; }
-	public static function checkout_fields( $fields ) { $fields['billing'] = array( 'billing_first_name' => array( 'label' => 'Nombre', 'required' => true, 'class' => array( 'form-row-wide' ) ), 'billing_phone' => array( 'label' => 'Teléfono', 'required' => true, 'class' => array( 'form-row-wide' ) ), 'billing_email' => array( 'label' => 'Correo electrónico', 'required' => true, 'class' => array( 'form-row-wide' ) ) ); unset( $fields['shipping'], $fields['order'] ); return $fields; }
+	public static function checkout_fields( $fields ) {
+		// Un dominio se registra a nombre del cliente y Namecheap exige su dirección completa: con un dominio en el
+		// carrito, «simplificar» conserva los campos de dirección (como los pinta WooCommerce, obligatorios).
+		$keep = array();
+		// Sólo con la venta automática encendida (es la que registra a nombre del cliente): instalar no cambia el pago.
+		if ( ! empty( self::all()['provision_enabled'] ) && self::cart_has_domain() ) foreach ( array( 'billing_last_name', 'billing_country', 'billing_address_1', 'billing_city', 'billing_state', 'billing_postcode' ) as $key ) if ( isset( $fields['billing'][ $key ] ) ) $keep[ $key ] = array( 'required' => true ) + $fields['billing'][ $key ];
+		$fields = self::simple_checkout_fields( $fields );
+		$fields['billing'] += $keep;
+		return $fields;
+	}
+	private static function cart_has_domain() {
+		if ( ! function_exists( 'WC' ) || ! isset( WC()->cart ) || ! WC()->cart ) return false;
+		$domain_ids = array_values( self::products() );
+		foreach ( WC()->cart->get_cart() as $item ) if ( in_array( (int) ( $item['product_id'] ?? 0 ), $domain_ids, true ) ) return true;
+		return false;
+	}
+	// ── Herramienta MCP de ajustes (DIGITALÍSIMO Elements: digitalisimo-hosting-settings) ───────────────────────────────
+
+	/**
+	 * Lo que la herramienta MCP puede escribir: lo de la tienda de este sitio (pedido del propietario del 2026-11-26: el
+	 * agente que arma las landings configura Hosting sin el formulario).
+	 */
+	const MCP_WRITABLE = array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'form_selector', 'domain_field', 'extension_field', 'webuzo_user_prefix', 'pricing_enabled', 'pricing_rounding' );
+	/**
+	 * Lo que por MCP sólo se lee: la cuenta de Namecheap (y si se hereda de la red), el servidor y la clave de Webuzo, los
+	 * nameservers, el token de Banxico y lo que enciende, apaga o adelanta la venta automática (el módulo `enabled`, que
+	 * con la venta marcada la reanuda; la venta; el hosting con dominio propio sin revisión; los días de gracia antes de
+	 * suspender) y los porcentajes de la fórmula de precios (colchón, margen, comisión, IVA y margen mínimo), que son el
+	 * freno contra vender con pérdida: eso lo cambia una persona en el escritorio.
+	 */
+	const MCP_READONLY = array( 'api_user', 'username', 'api_key', 'client_ip', 'inherit_network', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers', 'banxico_token', 'enabled', 'provision_enabled', 'own_domain_auto', 'grace_days', 'pricing_cushion', 'pricing_margin', 'pricing_fee', 'pricing_vat', 'pricing_min_margin' );
+	const MCP_BOOL = array( 'enabled', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'pricing_enabled', 'webuzo_insecure', 'provision_enabled', 'own_domain_auto', 'inherit_network' );
+	/** La cuenta de Namecheap: por MCP sólo se dice si está puesta, nunca su valor. */
+	const NAMECHEAP_ACCOUNT = array( 'api_user', 'username', 'api_key', 'client_ip' );
+
+	/** Valor de una clave para la respuesta MCP, con su tipo. */
+	private static function mcp_value( $key, $value ) {
+		if ( in_array( $key, self::MCP_BOOL, true ) ) return ! empty( $value );
+		if ( in_array( $key, self::PERCENT_KEYS, true ) ) return (float) $value;
+		if ( 'grace_days' === $key ) return (int) $value;
+		return (string) $value;
+	}
+
+	/**
+	 * Todos los ajustes que usa este sitio (con la herencia de la red y las constantes de wp-config.php aplicadas), sin
+	 * ningún secreto: de las claves y de la cuenta de Namecheap sólo se dice si están puestas.
+	 */
+	public static function mcp_settings() {
+		$o = self::all();
+		$settings = array();
+		$inherits = self::inherits();
+		foreach ( array_keys( self::defaults() ) as $key ) {
+			if ( in_array( $key, self::SECRET_KEYS, true ) || in_array( $key, self::NAMECHEAP_ACCOUNT, true ) ) continue;
+			// Con «Heredar», el servidor Webuzo y los nameservers son de la red: como en la pantalla, no se muestran.
+			if ( $inherits && in_array( $key, self::NETWORK_KEYS, true ) ) { $settings[ $key ] = null; continue; }
+			$settings[ $key ] = self::mcp_value( $key, $o[ $key ] ?? '' );
+		}
+		$set = array();
+		foreach ( array_unique( array_merge( self::NAMECHEAP_ACCOUNT, self::SECRET_KEYS ) ) as $key ) $set[ $key ] = '' !== (string) ( $o[ $key ] ?? '' );
+		$constants = array();
+		foreach ( self::CONSTANTS as $key => $constant ) $constants[ $constant ] = defined( $constant );
+		return array(
+			'ok'              => true,
+			'inherited'       => $inherits ? array_values( array_diff( self::NETWORK_KEYS, self::NAMECHEAP_ACCOUNT, self::SECRET_KEYS ) ) : array(),
+			'scope'           => array(
+				'site'      => function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1,
+				'multisite' => is_multisite(),
+				'writes'    => 'Sólo la opción de este sitio (digitalisimo_hosting_options); nunca la de la red.',
+			),
+			'settings'        => $settings,
+			'secrets_set'     => $set,
+			'namecheap'       => array(
+				'configured' => $set['api_user'] && $set['username'] && $set['api_key'] && $set['client_ip'],
+				'source'     => $inherits ? 'network' : 'site',
+			),
+			'wp_config'       => $constants,
+			'writable'        => self::MCP_WRITABLE,
+			'read_only'       => self::MCP_READONLY,
+			'domain_products' => class_exists( 'Digitalisimo_Hosting_Products' ) ? Digitalisimo_Hosting_Products::report( (string) $o['domain_products'] ) : null,
+		);
+	}
+
+	/**
+	 * Combina $data con lo guardado en ESTE sitio (nunca en la red) y nunca reemplaza lo que no llega: misma validación que
+	 * el formulario. Una clave desconocida, de sólo lectura o con un tipo que no corresponde detiene todo sin guardar
+	 * nada. Devuelve el resultado guardado para comprobarlo.
+	 *
+	 * @return array|WP_Error
+	 */
+	public static function mcp_update( $data ) {
+		if ( ! current_user_can( 'manage_options' ) ) return new WP_Error( 'digitalisimo_hosting_forbidden', 'Configurar DIGITALÍSIMO Hosting exige la capacidad «manage_options».', array( 'status' => 403 ) );
+		if ( ! is_array( $data ) || ! $data ) return new WP_Error( 'digitalisimo_hosting_invalid', 'data debe ser un objeto con las claves que cambian (por ejemplo {"domain_products": ".com|123"}).', array( 'status' => 400 ) );
+		$known = array_keys( self::defaults() );
+		$unknown = array_values( array_diff( array_keys( $data ), $known ) );
+		if ( $unknown ) return new WP_Error( 'digitalisimo_hosting_unknown_key', 'Claves desconocidas: ' . implode( ', ', $unknown ) . '. Las que se pueden escribir: ' . implode( ', ', self::MCP_WRITABLE ) . '.', array( 'status' => 400 ) );
+		$readonly = array_values( array_intersect( array_keys( $data ), self::MCP_READONLY ) );
+		if ( $readonly ) return new WP_Error( 'digitalisimo_hosting_read_only', 'Por MCP no se pueden escribir: ' . implode( ', ', $readonly ) . ' (la cuenta de Namecheap, el servidor y las claves de Webuzo y Banxico, los nameservers y la venta automática se cambian en Digitalisimo → Hosting). No se guardó nada.', array( 'status' => 403 ) );
+		$in = array();
+		foreach ( $data as $key => $value ) {
+			if ( in_array( $key, self::MCP_BOOL, true ) ) {
+				$v = is_string( $value ) ? strtolower( trim( $value ) ) : $value;
+				if ( true === $v || 1 === $v || '1' === $v || 'true' === $v || 'yes' === $v ) $in[ $key ] = 1;
+				elseif ( false === $v || 0 === $v || '0' === $v || 'false' === $v || 'no' === $v || '' === $v ) $in[ $key ] = 0;
+				else return new WP_Error( 'digitalisimo_hosting_invalid_value', $key . ' debe ser true o false. No se guardó nada.', array( 'status' => 400 ) );
+				continue;
+			}
+			if ( in_array( $key, self::PERCENT_KEYS, true ) || 'grace_days' === $key ) {
+				if ( ! is_numeric( is_string( $value ) ? str_replace( ',', '.', $value ) : $value ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', $key . ' debe ser un número. No se guardó nada.', array( 'status' => 400 ) );
+				$in[ $key ] = is_string( $value ) ? str_replace( ',', '.', $value ) : $value;
+				continue;
+			}
+			if ( 'pricing_rounding' === $key && ! in_array( (string) $value, array( '10', '9', 'end9', 'none' ), true ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'pricing_rounding admite «10», «9», «end9» o «none». No se guardó nada.', array( 'status' => 400 ) );
+			if ( ! is_scalar( $value ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', $key . ' debe ser texto. No se guardó nada.', array( 'status' => 400 ) );
+			$in[ $key ] = (string) $value;
+		}
+		$before = self::local();
+		$saved = self::store( false, $in );
+		$changed = array(); $adjusted = array();
+		foreach ( array_keys( $in ) as $key ) {
+			$was = array_key_exists( $key, $before ) ? $before[ $key ] : null;
+			$now = $saved[ $key ] ?? null;
+			if ( (string) $was !== (string) $now || null === $was ) $changed[] = $key;
+			$sent = in_array( $key, self::MCP_BOOL, true ) ? (int) $in[ $key ] : $in[ $key ];
+			if ( in_array( $key, self::PERCENT_KEYS, true ) || 'grace_days' === $key ? (float) $sent !== (float) $now : preg_replace( '/\r\n?/', "\n", trim( (string) $sent ) ) !== preg_replace( '/\r\n?/', "\n", trim( (string) $now ) ) ) $adjusted[ $key ] = self::mcp_value( $key, $now );
+		}
+		$out = self::mcp_settings();
+		$out['changed'] = $changed;
+		$out['adjusted'] = (object) $adjusted;
+		return $out;
+	}
+
+	private static function simple_checkout_fields( $fields ) { $fields['billing'] = array( 'billing_first_name' => array( 'label' => 'Nombre', 'required' => true, 'class' => array( 'form-row-wide' ) ), 'billing_phone' => array( 'label' => 'Teléfono', 'required' => true, 'class' => array( 'form-row-wide' ) ), 'billing_email' => array( 'label' => 'Correo electrónico', 'required' => true, 'class' => array( 'form-row-wide' ) ) ); unset( $fields['shipping'], $fields['order'] ); return $fields; }
 }
