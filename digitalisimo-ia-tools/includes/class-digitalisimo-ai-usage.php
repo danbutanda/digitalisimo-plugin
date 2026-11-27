@@ -432,10 +432,47 @@ final class Digitalisimo_AI_Usage {
 		return $out;
 	}
 
-	/** Pesos por dólar: el filtro `digitalisimo_ai_usage_mxn_rate` (p. ej. Banxico desde otro módulo) o el configurado. */
+	/** Pesos por dólar (0 = sin tipo de cambio: sólo dólares). Ver mxn_info(). */
 	public static function mxn_rate() {
-		$rate = (float) apply_filters( 'digitalisimo_ai_usage_mxn_rate', (float) self::settings( 'mxn_rate' ) );
-		return $rate > 0 ? $rate : 0.0;
+		return self::mxn_info()['rate'];
+	}
+
+	/**
+	 * Tipo de cambio y de dónde salió: el que escribió el administrador en Ajustes y, si no hay, el último que guardó
+	 * DIGITALÍSIMO Hosting al actualizar los precios de dominios (FIX de Banxico o su respaldo) en este sitio o en el
+	 * principal de la red, de hasta 90 días. Nunca consulta nada por la red. Al final, el filtro
+	 * `digitalisimo_ai_usage_mxn_rate` puede darlo otro módulo. `rate` 0 = sólo dólares.
+	 *
+	 * @return array{rate: float, source: string, date: string}
+	 */
+	public static function mxn_info() {
+		$blog = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
+		$info = array( 'rate' => (float) self::settings( 'mxn_rate' ), 'source' => 'settings', 'date' => '' );
+		if ( $info['rate'] <= 0 ) {
+			$info = array( 'rate' => 0.0, 'source' => '', 'date' => '' );
+			$sets = array( get_option( 'digitalisimo_hosting_price_history', array() ) );
+			if ( is_multisite() && function_exists( 'get_main_site_id' ) && function_exists( 'get_blog_option' ) && (int) get_main_site_id() !== $blog ) {
+				$sets[] = get_blog_option( (int) get_main_site_id(), 'digitalisimo_hosting_price_history', array() );
+			}
+			foreach ( $sets as $history ) {
+				foreach ( array_reverse( is_array( $history ) ? $history : array() ) as $entry ) {
+					$rate = is_array( $entry ) ? (float) ( $entry['fx'] ?? 0 ) : 0.0;
+					if ( 'ok' === ( $entry['status'] ?? '' ) && $rate >= 5 && $rate <= 100 && time() - (int) ( $entry['t'] ?? 0 ) < 90 * 86400 ) {
+						$info = array( 'rate' => $rate, 'source' => sanitize_text_field( (string) ( $entry['fx_source'] ?? '' ) ), 'date' => gmdate( 'Y-m-d', (int) $entry['t'] ) );
+						break 2;
+					}
+				}
+			}
+			if ( $info['rate'] > 0 ) {
+				$info['source'] = 'hosting' . ( '' !== $info['source'] ? ': ' . $info['source'] : '' );
+			}
+		}
+		$rate = (float) apply_filters( 'digitalisimo_ai_usage_mxn_rate', $info['rate'] );
+		if ( $rate !== $info['rate'] ) {
+			$info = array( 'rate' => $rate, 'source' => 'filter', 'date' => '' );
+		}
+		$info['rate'] = $rate > 0 ? $rate : 0.0;
+		return $info;
 	}
 
 	/* ---------------- Presupuesto ---------------- */
@@ -566,7 +603,8 @@ final class Digitalisimo_AI_Usage {
 		if ( $from > $to ) {
 			list( $from, $to ) = array( $to, $from );
 		}
-		$rate  = self::mxn_rate();
+		$fx    = self::mxn_info();
+		$rate  = $fx['rate'];
 		$money = function ( array $t ) use ( $rate ) {
 			$t['cost_mxn'] = $rate > 0 ? round( $t['cost_usd'] * $rate, 4 ) : null;
 			return $t;
@@ -584,6 +622,7 @@ final class Digitalisimo_AI_Usage {
 			'blog_id'    => function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1,
 			'currency'   => 'USD',
 			'mxn_rate'   => $rate > 0 ? $rate : null,
+			'mxn_source' => $rate > 0 ? self::fx_text( $fx ) : '',
 			'periods'    => array(
 				'today' => $money( Digitalisimo_AI_Usage_Store::totals( $days['today'], $days['today'] ) ) + array( 'from' => $days['today'], 'to' => $days['today'] ),
 				'week'  => $money( Digitalisimo_AI_Usage_Store::totals( $days['week'], $days['today'] ) ) + array( 'from' => $days['week'], 'to' => $days['today'] ),
@@ -595,6 +634,18 @@ final class Digitalisimo_AI_Usage {
 			'unpriced'   => Digitalisimo_AI_Usage_Store::unpriced_models( $from, $to ),
 			'budget'     => array( 'enabled' => $budget['enabled'], 'cap_usd' => $budget['cap'], 'spent_usd' => $budget['spent'], 'percent' => $budget['percent'], 'action' => $budget['action'], 'paused' => $budget['paused'] ),
 		);
+	}
+
+	/** De dónde salió el tipo de cambio, en palabras: «el que escribiste en Ajustes», «Banxico FIX 26/11/2026 (Hosting)»… */
+	public static function fx_text( array $fx ) {
+		if ( 'settings' === $fx['source'] ) {
+			return 'el que escribiste en Ajustes';
+		}
+		if ( 'filter' === $fx['source'] ) {
+			return 'el que da otro módulo del sitio';
+		}
+		$from = trim( (string) preg_replace( '/^hosting:?\s*/', '', (string) $fx['source'] ) );
+		return ( '' !== $from ? $from : 'el último que guardó' ) . ' (de DIGITALÍSIMO Hosting' . ( '' !== $fx['date'] ? ', ' . $fx['date'] : '' ) . ')';
 	}
 
 	public static function feature_label( $feature ) {
@@ -621,7 +672,7 @@ final class Digitalisimo_AI_Usage {
 		$total = array( 'type' => 'object' );
 		return array(
 			'label'               => 'Uso y gasto de IA del sitio',
-			'description'         => 'Devuelve el gasto estimado de IA de este sitio (USD y MXN): totales de hoy, de los últimos 7 días, del mes y de un rango, con su desglose por función y por modelo, las llamadas de modelos sin precio y el estado del presupuesto. Sólo lectura: nunca devuelve claves, prompts ni respuestas.',
+			'description'         => 'Cuánto lleva gastado este sitio en IA (USD y, si el sitio tiene tipo de cambio, MXN), con un resumen en palabras (`resumen`): totales de hoy, de los últimos 7 días, del mes y de un rango, con su desglose por función y por modelo, las llamadas de modelos sin precio y el estado del presupuesto. Sólo lectura: nunca devuelve claves, prompts ni respuestas.',
 			'category'            => 'digitalisimo-ia',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -639,6 +690,8 @@ final class Digitalisimo_AI_Usage {
 					'blog_id'    => array( 'type' => 'integer' ),
 					'currency'   => array( 'type' => 'string' ),
 					'mxn_rate'   => array( 'type' => array( 'number', 'null' ) ),
+					'mxn_source' => array( 'type' => 'string' ),
+					'resumen'    => array( 'type' => 'string', 'description' => 'El gasto en una frase, para contestarle al dueño.' ),
 					'periods'    => array( 'type' => 'object', 'properties' => array( 'today' => $total, 'week' => $total, 'month' => $total, 'range' => $total ) ),
 					'by_feature' => array( 'type' => 'array' ),
 					'by_model'   => array( 'type' => 'array' ),
@@ -670,7 +723,38 @@ final class Digitalisimo_AI_Usage {
 				}
 			}
 		}
+		$summary['resumen'] = self::plain_summary( $summary );
 		return $summary;
+	}
+
+	/**
+	 * El gasto en una frase para el dueño (lo que contesta la IA desde el MCP): el mes, hoy y en qué se fue el rango.
+	 * Sólo cifras y nombres de funciones.
+	 */
+	public static function plain_summary( array $summary ) {
+		$rate  = (float) ( $summary['mxn_rate'] ?? 0 );
+		$money = function ( $usd ) use ( $rate ) {
+			$usd  = (float) $usd;
+			$text = $usd > 0 && $usd < 0.005 ? 'menos de US$ 0.01' : 'US$ ' . number_format( $usd, 2 );
+			return $text . ( $rate > 0 ? ' (unos MX$ ' . number_format( $usd * $rate, 2 ) . ')' : '' );
+		};
+		$p     = $summary['periods'];
+		$text  = 'Este mes (desde el ' . $p['month']['from'] . ') la IA de este sitio lleva ' . $money( $p['month']['cost_usd'] ) . ' en ' . number_format( (int) $p['month']['calls'] ) . ' consultas; hoy, ' . $money( $p['today']['cost_usd'] ) . '.';
+		$parts = array();
+		foreach ( array_slice( (array) $summary['by_feature'], 0, 6 ) as $row ) {
+			$parts[] = self::feature_label( $row['feature'] ?? '' ) . ' ' . $money( $row['cost_usd'] );
+		}
+		if ( $parts ) {
+			$text .= ' Del ' . $p['range']['from'] . ' al ' . $p['range']['to'] . ' se fue en: ' . implode( '; ', $parts ) . '.';
+		}
+		if ( ! empty( $summary['unpriced'] ) ) {
+			$text .= ' Hay llamadas de modelos sin precio registrado: el total real es algo mayor.';
+		}
+		if ( ! empty( $summary['budget']['enabled'] ) ) {
+			$text .= ' Tope del mes: ' . $money( $summary['budget']['cap_usd'] ) . ' (' . number_format( (float) $summary['budget']['percent'], 1 ) . ' % usado' . ( ! empty( $summary['budget']['paused'] ) ? ', funciones de IA en pausa' : '' ) . ').';
+		}
+		$text .= $rate > 0 ? ' Pesos al tipo de cambio ' . number_format( $rate, 4 ) . ', ' . $summary['mxn_source'] . '.' : ' Montos en dólares (el sitio no tiene tipo de cambio).';
+		return $text . ' Cifras estimadas con los precios publicados de cada proveedor.';
 	}
 
 	/** El servidor MCP de DIGITALÍSIMO Elements la ofrece junto a las suyas. */

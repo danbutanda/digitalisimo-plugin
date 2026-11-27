@@ -4,10 +4,12 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Pantalla «Uso de IA» (docs/IA_USAGE.md): Digitalisimo → Uso de IA en cada sitio y en la red.
  *
- * - Sitio: totales de hoy, 7 días, el mes y un rango (USD y MXN), desglose por día (gráfica), función, modelo y
- *   usuario, las llamadas más caras, CSV, y los ajustes (presupuesto, tipo de cambio, retención, precios).
- * - Red: el total de cada sitio y de toda la red, el desglose de la red por función y modelo, CSV por sitio y los mismos
- *   ajustes como valores de red. Cada sitio sólo ve lo suyo: sus consultas usan las tablas de su prefijo.
+ * - Sitio, en lenguaje llano: lo gastado en el mes y hoy (USD y, con tipo de cambio, MXN), el mes pasado, el tope,
+ *   «¿En qué se gastó?» por función y el gasto por día. En «Detalle técnico»: tokens por función, modelo y usuario, las
+ *   llamadas más caras y el CSV. Los ajustes (presupuesto, tipo de cambio, retención, precios) en su desplegable.
+ * - Red: lo gastado en toda la red, cuánto gastó cada sitio y en qué se fue; en «Detalle técnico», por modelo, tokens y
+ *   CSV por sitio; los mismos ajustes como valores de red. Cada sitio sólo ve lo suyo: sus consultas usan las tablas de
+ *   su prefijo.
  * - Paridad: un solo dibujante de los ajustes (`settings_fields()`) y una sola validación
  *   (Digitalisimo_AI_Usage::sanitize_settings()) para las dos superficies. En una red, el presupuesto, los precios y
  *   la retención de un sitio los define el superadministrador (el administrador del sitio los ve sin poder cambiarlos);
@@ -18,7 +20,7 @@ final class Digitalisimo_AI_Usage_Admin {
 	const NETWORK_PAGE = 'digitalisimo-network-ai-usage';
 	const SAVE         = 'digitalisimo_ai_usage_save';
 	const CSV          = 'digitalisimo_ai_usage_csv';
-	const DISMISS      = 'digitalisimo_ai_usage_dismiss';
+	const NOTICE       = 'ia-usage-budget';
 	const PRICES_VER   = 'digitalisimo_ai_usage_prices_ver';
 	const REPRICED     = 'digitalisimo_ai_usage_repriced';
 
@@ -27,7 +29,6 @@ final class Digitalisimo_AI_Usage_Admin {
 		add_action( 'network_admin_menu', array( __CLASS__, 'network_menu' ), 20 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_post_' . self::CSV, array( __CLASS__, 'csv' ) );
-		add_action( 'admin_post_' . self::DISMISS, array( __CLASS__, 'dismiss' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
 	}
 
@@ -97,6 +98,11 @@ final class Digitalisimo_AI_Usage_Admin {
 
 	/* ---------------- Pantalla del sitio ---------------- */
 
+	/**
+	 * Lo que ve el dueño contesta «¿cuánto he gastado?»: el mes y hoy en dólares (y en pesos si hay tipo de cambio), en
+	 * qué se fue (por función, en palabras) y el gasto por día. Los tokens, los modelos, las personas, las llamadas más
+	 * caras y el CSV quedan en «Detalle técnico»; los ajustes, en su propio desplegable.
+	 */
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -105,61 +111,197 @@ final class Digitalisimo_AI_Usage_Admin {
 		self::maybe_reprice();
 		list( $from, $to ) = self::range();
 		$summary = Digitalisimo_AI_Usage::summary( $from, $to );
+		$last    = self::last_month();
 		$base    = admin_url( 'admin.php?page=' . self::PAGE );
+		$label   = self::period_label( $from, $to );
 		echo '<div class="wrap digitalisimo-ai-usage"><h1>Uso de IA</h1><hr class="wp-header-end">';
-		echo '<p>Cuánto gasta este sitio en los proveedores de IA, con el costo estimado de cada llamada de IA Tools (chatbot, asistentes editoriales, Asistente IA, automatizaciones, imágenes y base de conocimiento). Se guardan fecha, función, usuario, modelo y tokens; nunca el texto de la conversación, las claves ni datos del visitante.</p>';
 		if ( $saved ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $saved ) . '</p></div>';
 		}
-		self::period_form( $base, $from, $to );
-		self::cards( $summary );
-		self::budget_bar( $summary['budget'] );
+		echo '<p class="digitalisimo-usage-lead">Cuánto te está costando la IA de este sitio con los proveedores (OpenAI, Anthropic, Google…): el chatbot, el Asistente IA, la creación de contenido, las imágenes y lo demás. Son cifras estimadas con los precios que publica cada proveedor.</p>';
+		self::hero(
+			'Gastado este mes',
+			$summary['periods']['month'],
+			$summary['periods']['today'],
+			Digitalisimo_AI_Usage_Store::totals( $last[0], $last[1] ),
+			$summary['budget']
+		);
 		self::unpriced_notice( $summary['unpriced'] );
-		self::rate_notice();
+		self::period_form( $base, $from, $to );
+		self::features( '¿En qué se gastó? · ' . $label, $summary['by_feature'], $summary['periods']['range'] );
 		self::day_chart( Digitalisimo_AI_Usage_Store::breakdown( 'day', $from, $to, 400 ) );
+		echo '<details class="digitalisimo-usage-detail"><summary>Detalle técnico: tokens, modelos, personas y cada llamada</summary>';
+		echo '<p class="description">Los proveedores cobran por «tokens», los pedazos de texto que la IA lee y escribe. Aquí está ese detalle de ' . esc_html( self::lower( $label ) ) . ', las llamadas más caras y la descarga en CSV.</p>';
 		self::table( 'Por función', 'feature', $summary['by_feature'], $summary['periods']['range']['cost_usd'] );
 		self::table( 'Por modelo', 'model', $summary['by_model'], $summary['periods']['range']['cost_usd'] );
 		self::table( 'Por usuario', 'user_id', Digitalisimo_AI_Usage_Store::breakdown( 'user_id', $from, $to ), $summary['periods']['range']['cost_usd'] );
 		self::top_calls( Digitalisimo_AI_Usage_Store::top( $from, $to, 20 ) );
 		self::csv_links( 'site', $from, $to );
-		self::settings_form( false );
+		echo '</details>';
+		self::settings_form( false, (bool) $saved );
 		echo '</div>';
+	}
+
+	/** El mes pasado: primer y último día (hora del sitio). */
+	public static function last_month() {
+		$days = Digitalisimo_AI_Usage::days();
+		$end  = gmdate( 'Y-m-d', strtotime( $days['month'] . ' 00:00:00 UTC' ) - 86400 );
+		return array( substr( $end, 0, 8 ) . '01', $end );
+	}
+
+	/** «26 de noviembre» (con el año si no es el de hoy). */
+	public static function date_text( $day ) {
+		$months = array( 1 => 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre' );
+		$parts  = explode( '-', (string) $day );
+		if ( 3 !== count( $parts ) ) {
+			return (string) $day;
+		}
+		return (int) $parts[2] . ' de ' . $months[ (int) $parts[1] ] . ( substr( Digitalisimo_AI_Usage::today(), 0, 4 ) !== $parts[0] ? ' de ' . $parts[0] : '' );
+	}
+
+	/** Nombre del periodo elegido: «Este mes», «Hoy», «Últimos 7 días», «El mes pasado» o «Del … al …». */
+	public static function period_label( $from, $to ) {
+		$days = Digitalisimo_AI_Usage::days();
+		$last = self::last_month();
+		if ( $to === $days['today'] && $from === $days['month'] ) {
+			return 'Este mes';
+		}
+		if ( $to === $days['today'] && $from === $days['today'] ) {
+			return 'Hoy';
+		}
+		if ( $to === $days['today'] && $from === $days['week'] ) {
+			return 'Últimos 7 días';
+		}
+		if ( array( $from, $to ) === $last ) {
+			return 'El mes pasado';
+		}
+		return $from === $to ? 'El ' . self::date_text( $from ) : 'Del ' . self::date_text( $from ) . ' al ' . self::date_text( $to );
+	}
+
+	private static function lower( $label ) {
+		return function_exists( 'mb_strtolower' ) ? mb_strtolower( $label, 'UTF-8' ) : strtolower( $label );
+	}
+
+	/**
+	 * La tarjeta principal: lo gastado en el mes (grande), hoy y el mes pasado, el tope si lo hay y de dónde salen los
+	 * pesos. `$previous` y `$budget` null = sin «mes pasado» ni tope (la red).
+	 */
+	private static function hero( $title, array $month, array $today, $previous, $budget ) {
+		$days = Digitalisimo_AI_Usage::days();
+		$mxn  = self::plain_mxn( $month['cost_usd'] );
+		echo '<div class="card digitalisimo-usage-hero"><div class="digitalisimo-usage-hero-main">';
+		echo '<p class="digitalisimo-usage-kicker">' . esc_html( $title ) . ' <span>(del ' . esc_html( self::date_text( $days['month'] ) ) . ' a hoy)</span></p>';
+		echo '<p class="digitalisimo-usage-big">' . esc_html( self::plain_usd( $month['cost_usd'] ) ) . '</p>';
+		if ( '' !== $mxn ) {
+			echo '<p class="digitalisimo-usage-big-mxn">unos ' . esc_html( $mxn ) . '</p>';
+		}
+		$line = 'Hoy: <strong>' . esc_html( self::plain_usd( $today['cost_usd'] ) ) . '</strong>' . ( '' !== self::plain_mxn( $today['cost_usd'] ) ? ' (unos ' . esc_html( self::plain_mxn( $today['cost_usd'] ) ) . ')' : '' );
+		if ( is_array( $previous ) ) {
+			$line .= ' · El mes pasado: <strong>' . esc_html( self::plain_usd( $previous['cost_usd'] ) ) . '</strong>' . ( '' !== self::plain_mxn( $previous['cost_usd'] ) ? ' (unos ' . esc_html( self::plain_mxn( $previous['cost_usd'] ) ) . ')' : '' );
+		}
+		echo '<p class="digitalisimo-usage-line">' . $line . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- partes escapadas arriba.
+		echo '<p class="description">' . ( $month['calls'] ? esc_html( self::num( $month['calls'] ) ) . ' consultas a la IA este mes' . ( $month['errors'] ? ' (' . esc_html( self::num( $month['errors'] ) ) . ' fallaron; las que fallan casi no cuestan)' : '' ) . '.' : 'Todavía no se ha usado la IA este mes.' ) . '</p>';
+		echo '</div><div class="digitalisimo-usage-hero-side">';
+		if ( is_array( $budget ) ) {
+			self::budget_bar( $budget );
+		}
+		self::rate_line();
+		echo '</div></div>';
+	}
+
+	/** Monto para el dueño: dos decimales; lo que no llega a un centavo, «menos de US$ 0.01». */
+	public static function plain_usd( $value ) {
+		$value = (float) $value;
+		return $value > 0 && $value < 0.005 ? 'menos de US$ 0.01' : 'US$ ' . number_format( $value, 2 );
+	}
+
+	/** Lo mismo en pesos, o '' si el sitio no tiene tipo de cambio. */
+	public static function plain_mxn( $value ) {
+		$rate = Digitalisimo_AI_Usage::mxn_rate();
+		if ( $rate <= 0 || null === $value ) {
+			return '';
+		}
+		$mxn = (float) $value * $rate;
+		return $mxn > 0 && $mxn < 0.005 ? 'menos de MX$ 0.01' : 'MX$ ' . number_format( $mxn, 2 );
+	}
+
+	private static function rate_line() {
+		$fx = Digitalisimo_AI_Usage::mxn_info();
+		if ( $fx['rate'] > 0 ) {
+			echo '<p class="description digitalisimo-usage-rate">Los pesos son aproximados: dólar a ' . esc_html( number_format( $fx['rate'], 2 ) ) . ', ' . esc_html( Digitalisimo_AI_Usage::fx_text( $fx ) ) . '.</p>';
+			return;
+		}
+		echo '<p class="description digitalisimo-usage-rate">Los montos están en dólares, que es como cobran los proveedores. Para verlos también en pesos, escribe el tipo de cambio en Ajustes (abajo) o activa el de Banxico en DIGITALÍSIMO Hosting.</p>';
 	}
 
 	private static function period_form( $base, $from, $to ) {
 		$days  = Digitalisimo_AI_Usage::days();
+		$last  = self::last_month();
 		$query = wp_parse_url( $base, PHP_URL_QUERY );
 		parse_str( (string) $query, $hidden );
-		echo '<form method="get" class="digitalisimo-usage-period card">';
+		echo '<form method="get" class="digitalisimo-usage-period"><span class="digitalisimo-usage-period-label">Ver:</span> ';
+		foreach ( array( 'Este mes' => array( $days['month'], $days['today'] ), 'Hoy' => array( $days['today'], $days['today'] ), 'Últimos 7 días' => array( $days['week'], $days['today'] ), 'El mes pasado' => $last ) as $label => $span ) {
+			$current = $span[0] === $from && $span[1] === $to;
+			echo '<a class="button' . ( $current ? ' button-primary' : '' ) . '"' . ( $current ? ' aria-current="true"' : '' ) . ' href="' . esc_url( add_query_arg( array( 'from' => $span[0], 'to' => $span[1] ), $base ) ) . '">' . esc_html( $label ) . '</a> ';
+		}
 		foreach ( $hidden as $key => $value ) {
 			echo '<input type="hidden" name="' . esc_attr( $key ) . '" value="' . esc_attr( $value ) . '">';
 		}
-		echo '<strong>Rango</strong> <label>Desde <input type="date" name="from" value="' . esc_attr( $from ) . '"></label> <label>Hasta <input type="date" name="to" value="' . esc_attr( $to ) . '"></label> <button class="button button-primary">Ver</button> ';
-		foreach ( array( 'Hoy' => array( $days['today'], $days['today'] ), 'Últimos 7 días' => array( $days['week'], $days['today'] ), 'Este mes' => array( $days['month'], $days['today'] ) ) as $label => $span ) {
-			echo '<a class="button" href="' . esc_url( add_query_arg( array( 'from' => $span[0], 'to' => $span[1] ), $base ) ) . '">' . esc_html( $label ) . '</a> ';
-		}
+		echo '<span class="digitalisimo-usage-dates"><label>Desde <input type="date" name="from" value="' . esc_attr( $from ) . '"></label> <label>hasta <input type="date" name="to" value="' . esc_attr( $to ) . '"></label> <button class="button">Ver esas fechas</button></span>';
 		echo '</form>';
 	}
 
-	private static function cards( array $summary ) {
-		$names = array( 'today' => 'Hoy', 'week' => 'Últimos 7 días', 'month' => 'Este mes', 'range' => 'Rango elegido' );
-		echo '<div class="digitalisimo-usage-cards">';
-		foreach ( $names as $key => $label ) {
-			$t = $summary['periods'][ $key ];
-			echo '<div class="card digitalisimo-usage-card"><h2>' . esc_html( $label ) . '</h2><p class="digitalisimo-usage-amount">' . esc_html( self::usd( $t['cost_usd'] ) ) . '</p><p class="digitalisimo-usage-mxn">' . esc_html( self::mxn( $t['cost_usd'] ) ) . '</p><p class="description">' . esc_html( self::num( $t['calls'] ) ) . ' llamadas · ' . esc_html( self::num( $t['tokens'] ) ) . ' tokens' . ( $t['errors'] ? ' · ' . esc_html( self::num( $t['errors'] ) ) . ' con error' : '' ) . ( $t['unpriced'] ? ' · ' . esc_html( self::num( $t['unpriced'] ) ) . ' sin precio' : '' ) . '</p><p class="description">' . esc_html( $t['from'] === $t['to'] ? $t['from'] : $t['from'] . ' → ' . $t['to'] ) . '</p></div>';
+	/** Para qué sirve cada función, dicho para el dueño del sitio. */
+	const HELP = array(
+		'assistant'  => 'El chat del escritorio que te ayuda con el sitio, la tienda y las páginas.',
+		'chatbot'    => 'Lo que el chat de tu página les contesta a tus visitantes.',
+		'editorial'  => 'Las sugerencias de la IA al escribir una entrada o una página.',
+		'content'    => 'Artículos y borradores que escribe la IA.',
+		'seo'        => 'Las ideas y revisiones de DIGITALÍSIMO SEO.',
+		'ecommerce'  => 'Textos de productos y de la tienda.',
+		'automation' => 'Tareas automáticas que usan la IA.',
+		'learning'   => 'Cuando el Asistente estudia tu sitio («Entrenar con mi sitio web») o repasa lo que le enseñaste.',
+		'images'     => 'Imágenes creadas con IA.',
+		'knowledge'  => 'Preparar y buscar en los documentos que le diste al chatbot.',
+		'other'      => 'Otras llamadas hechas con las claves de IA Tools.',
+	);
+
+	/**
+	 * «¿En qué se gastó?»: una fila por función, en palabras, con su gasto, su parte del total y cuántas consultas
+	 * fueron. Filas con `feature` (sitio) o `key` (red).
+	 */
+	private static function features( $title, array $rows, array $total ) {
+		echo '<h2>' . esc_html( $title ) . '</h2>';
+		if ( ! $rows ) {
+			echo '<p>No se usó la IA en estas fechas.</p>';
+			return;
 		}
-		echo '</div>';
+		$pesos = Digitalisimo_AI_Usage::mxn_rate() > 0;
+		$sum   = (float) $total['cost_usd'];
+		echo '<table class="widefat striped digitalisimo-usage-features"><thead><tr><th>En qué</th><th>Gasto</th>' . ( $pesos ? '<th>En pesos</th>' : '' ) . '<th>Parte del total</th><th>Consultas a la IA</th></tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			$feature = (string) ( $row['feature'] ?? ( $row['key'] ?? '' ) );
+			$share   = $sum > 0 ? (float) $row['cost_usd'] / $sum * 100 : 0;
+			$help    = self::HELP[ $feature ] ?? '';
+			echo '<tr><td><strong>' . esc_html( Digitalisimo_AI_Usage::feature_label( $feature ) ) . '</strong>' . ( '' !== $help ? '<br><span class="description">' . esc_html( $help ) . '</span>' : '' ) . '</td>';
+			echo '<td class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $row['cost_usd'] ) ) . ( ! empty( $row['unpriced'] ) ? '<br><span class="description">y ' . esc_html( self::num( $row['unpriced'] ) ) . ' sin precio</span>' : '' ) . '</td>';
+			echo $pesos ? '<td class="digitalisimo-usage-money">' . esc_html( self::plain_mxn( $row['cost_usd'] ) ) . '</td>' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en la línea.
+			echo '<td><span class="digitalisimo-usage-share"><span style="width:' . esc_attr( number_format( min( 100, $share ), 1, '.', '' ) ) . '%"></span></span> ' . esc_html( number_format( $share, 0 ) ) . ' %</td>';
+			echo '<td>' . esc_html( self::num( $row['calls'] ) ) . '</td></tr>';
+		}
+		echo '</tbody><tfoot><tr><th>Total</th><th class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $sum ) ) . '</th>' . ( $pesos ? '<th class="digitalisimo-usage-money">' . esc_html( self::plain_mxn( $sum ) ) . '</th>' : '' ) . '<th></th><th>' . esc_html( self::num( $total['calls'] ) ) . '</th></tr></tfoot></table>';
+		echo '<p class="description">Una pregunta al Asistente IA puede ser varias consultas: la IA consulta el sitio y vuelve a preguntar antes de contestar.</p>';
 	}
 
 	private static function budget_bar( array $budget ) {
 		if ( empty( $budget['enabled'] ) ) {
-			echo '<p class="description">Sin presupuesto mensual: actívalo abajo, en Ajustes, para recibir avisos al 80 % y al 100 %.</p>';
+			echo '<p class="description">Sin tope mensual. Si quieres que te avise al llegar al 80 % y al 100 % de una cantidad (o que pause la IA), ponlo en Ajustes (abajo).</p>';
 			return;
 		}
 		$percent = min( 100, (float) $budget['percent'] );
 		$state   = $budget['percent'] >= 100 ? 'is-over' : ( $budget['percent'] >= 80 ? 'is-warning' : 'is-ok' );
-		echo '<div class="card digitalisimo-usage-budget ' . esc_attr( $state ) . '"><h2>Presupuesto del mes</h2><p><strong>' . esc_html( self::usd( $budget['spent_usd'] ) ) . '</strong> de ' . esc_html( self::usd( $budget['cap_usd'] ) ) . ' (' . esc_html( number_format( (float) $budget['percent'], 1 ) ) . ' %) · al llegar al 100 %: ' . esc_html( 'pause' === $budget['action'] ? 'pausar las funciones de IA' : 'sólo avisar' ) . '</p>';
-		echo '<div class="digitalisimo-usage-meter" role="img" aria-label="' . esc_attr( number_format( (float) $budget['percent'], 1 ) . ' % del presupuesto' ) . '"><span style="width:' . esc_attr( number_format( $percent, 1, '.', '' ) ) . '%"></span></div>';
+		echo '<div class="digitalisimo-usage-budget ' . esc_attr( $state ) . '"><p><strong>Tope del mes: ' . esc_html( self::plain_usd( $budget['cap_usd'] ) ) . '</strong> · llevas el ' . esc_html( number_format( (float) $budget['percent'], 1 ) ) . ' %. Al llegarle: ' . esc_html( 'pause' === $budget['action'] ? 'se pausan las funciones de IA' : 'sólo te avisa' ) . '.</p>';
+		echo '<div class="digitalisimo-usage-meter" role="img" aria-label="' . esc_attr( number_format( (float) $budget['percent'], 1 ) . ' % del tope' ) . '"><span style="width:' . esc_attr( number_format( $percent, 1, '.', '' ) ) . '%"></span></div>';
 		if ( ! empty( $budget['paused'] ) ) {
 			echo '<p><strong>' . esc_html( Digitalisimo_AI_Usage::pause_message() ) . '</strong></p>';
 		}
@@ -175,34 +317,29 @@ final class Digitalisimo_AI_Usage_Admin {
 			list( $provider, $model ) = array_pad( explode( '|', (string) $key, 2 ), 2, '' );
 			$list[] = ( '' !== $model ? $model : 'modelo desconocido' ) . ' (' . $provider . ', ' . self::num( $calls ) . ' llamadas)';
 		}
-		echo '<div class="notice notice-warning inline"><p><strong>Hay llamadas sin precio:</strong> ' . esc_html( implode( '; ', $list ) ) . '. Se registraron con sus tokens pero sin costo, así que los totales en dinero se quedan cortos. Agrega el precio de ese modelo en Ajustes → Precios y se calculará su costo.</p></div>';
-	}
-
-	private static function rate_notice() {
-		if ( Digitalisimo_AI_Usage::mxn_rate() <= 0 ) {
-			echo '<div class="notice notice-info inline"><p>Escribe el tipo de cambio (pesos por dólar) en Ajustes para ver los montos en MXN.</p></div>';
-		}
+		echo '<div class="notice notice-warning inline"><p><strong>Hay llamadas sin precio:</strong> usaron un modelo cuyo precio no conocemos (' . esc_html( implode( '; ', $list ) ) . '), así que el total real es algo mayor. Escribe su precio en Ajustes → Precios (abajo) y se sumará.</p></div>';
 	}
 
 	private static function day_chart( array $rows ) {
-		echo '<h2>Por día</h2>';
+		echo '<h2>Gasto por día</h2>';
 		if ( ! $rows ) {
-			echo '<p>Sin llamadas en el rango.</p>';
+			echo '<p>Sin consultas a la IA en estas fechas.</p>';
 			return;
 		}
 		$max = 0.0;
 		foreach ( $rows as $row ) {
 			$max = max( $max, (float) $row['cost_usd'] );
 		}
-		echo '<div class="digitalisimo-usage-chart" role="img" aria-label="Costo por día">';
+		echo '<div class="digitalisimo-usage-chart" role="img" aria-label="Gasto por día">';
 		foreach ( $rows as $row ) {
 			$height = $max > 0 ? max( 1, round( (float) $row['cost_usd'] / $max * 100, 1 ) ) : 1;
-			$title  = $row['day'] . ': ' . self::usd( $row['cost_usd'] ) . ' · ' . self::num( $row['calls'] ) . ' llamadas';
+			$title  = self::date_text( $row['day'] ) . ': ' . self::plain_usd( $row['cost_usd'] ) . ' · ' . self::num( $row['calls'] ) . ' consultas';
 			echo '<span class="digitalisimo-usage-bar" style="height:' . esc_attr( number_format( $height, 1, '.', '' ) ) . '%" title="' . esc_attr( $title ) . '"></span>';
 		}
-		echo '</div><details><summary>Ver como tabla</summary><table class="widefat striped"><thead><tr><th>Día</th><th>Llamadas</th><th>Tokens</th><th>USD</th><th>MXN</th></tr></thead><tbody>';
+		$pesos = Digitalisimo_AI_Usage::mxn_rate() > 0;
+		echo '</div><details><summary>Ver como tabla</summary><table class="widefat striped"><thead><tr><th>Día</th><th>Gasto</th>' . ( $pesos ? '<th>En pesos</th>' : '' ) . '<th>Consultas</th><th>Tokens</th></tr></thead><tbody>';
 		foreach ( $rows as $row ) {
-			echo '<tr><td>' . esc_html( $row['day'] ) . '</td><td>' . esc_html( self::num( $row['calls'] ) ) . '</td><td>' . esc_html( self::num( $row['tokens'] ) ) . '</td><td>' . esc_html( self::usd( $row['cost_usd'] ) ) . '</td><td>' . esc_html( self::mxn( $row['cost_usd'] ) ) . '</td></tr>';
+			echo '<tr><td>' . esc_html( self::date_text( $row['day'] ) ) . '</td><td>' . esc_html( self::usd( $row['cost_usd'] ) ) . '</td>' . ( $pesos ? '<td>' . esc_html( self::mxn( $row['cost_usd'] ) ) . '</td>' : '' ) . '<td>' . esc_html( self::num( $row['calls'] ) ) . '</td><td>' . esc_html( self::num( $row['tokens'] ) ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en la línea.
 		}
 		echo '</tbody></table></details>';
 	}
@@ -261,6 +398,10 @@ final class Digitalisimo_AI_Usage_Admin {
 
 	/* ---------------- Pantalla de la red ---------------- */
 
+	/**
+	 * Toda la red: lo gastado en el mes y hoy, cuánto gastó cada sitio (de mayor a menor en el periodo elegido) y en
+	 * qué se fue, en palabras. Modelos, tokens y CSV en «Detalle técnico»; los ajustes de la red, en su desplegable.
+	 */
 	public static function network_page() {
 		if ( ! is_multisite() || ! current_user_can( 'manage_network_options' ) || ! is_super_admin() ) {
 			return;
@@ -271,39 +412,55 @@ final class Digitalisimo_AI_Usage_Admin {
 		$ids   = self::site_ids();
 		$sites = Digitalisimo_AI_Usage_Store::network_sites( $ids, $days );
 		$base  = network_admin_url( 'admin.php?page=' . self::NETWORK_PAGE );
+		$label = self::period_label( $from, $to );
 		echo '<div class="wrap digitalisimo-ai-usage"><h1>Uso de IA · Red</h1><hr class="wp-header-end">';
-		echo '<p>Gasto estimado de IA de cada sitio de la red y de toda la red. Cada sitio ve sólo lo suyo en su propio escritorio; aquí se suman las tablas de cada uno, sin mezclarlas.</p>';
 		if ( $saved ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $saved ) . '</p></div>';
 		}
-		self::period_form( $base, $from, $to );
+		echo '<p class="digitalisimo-usage-lead">Cuánto está costando la IA en cada sitio de la red y en toda la red, con los precios que publica cada proveedor. Cada sitio ve sólo lo suyo en su propio escritorio (Digitalisimo → Uso de IA).</p>';
 		$total = array();
 		foreach ( array( 'today', 'week', 'month', 'range' ) as $period ) {
-			$total[ $period ] = array( 'cost_usd' => 0.0, 'calls' => 0, 'tokens' => 0, 'unpriced' => 0 );
+			$total[ $period ] = array( 'cost_usd' => 0.0, 'calls' => 0, 'tokens' => 0, 'unpriced' => 0, 'errors' => 0 );
 			foreach ( $sites as $site ) {
 				foreach ( array( 'cost_usd', 'calls', 'tokens', 'unpriced' ) as $key ) {
 					$total[ $period ][ $key ] += $site[ $period ][ $key ];
 				}
 			}
 		}
-		echo '<div class="digitalisimo-usage-cards">';
-		foreach ( array( 'today' => 'Hoy', 'week' => 'Últimos 7 días', 'month' => 'Este mes', 'range' => 'Rango elegido' ) as $period => $label ) {
-			echo '<div class="card digitalisimo-usage-card"><h2>' . esc_html( $label ) . ' · toda la red</h2><p class="digitalisimo-usage-amount">' . esc_html( self::usd( $total[ $period ]['cost_usd'] ) ) . '</p><p class="digitalisimo-usage-mxn">' . esc_html( self::mxn( $total[ $period ]['cost_usd'] ) ) . '</p><p class="description">' . esc_html( self::num( $total[ $period ]['calls'] ) ) . ' llamadas · ' . esc_html( self::num( $total[ $period ]['tokens'] ) ) . ' tokens' . ( $total[ $period ]['unpriced'] ? ' · ' . esc_html( self::num( $total[ $period ]['unpriced'] ) ) . ' sin precio' : '' ) . '</p></div>';
-		}
-		echo '</div>';
-		self::rate_notice();
-		echo '<h2>Por sitio</h2><table class="widefat striped"><thead><tr><th>Sitio</th><th>Hoy</th><th>7 días</th><th>Este mes</th><th>Rango</th><th>Llamadas (rango)</th><th>Presupuesto</th><th></th></tr></thead><tbody>';
+		self::hero( 'Gastado este mes en toda la red', $total['month'], $total['today'], null, null );
+		self::period_form( $base, $from, $to );
+		echo '<h2>¿Cuánto gastó cada sitio? · ' . esc_html( $label ) . '</h2>';
+		$pesos   = Digitalisimo_AI_Usage::mxn_rate() > 0;
 		$network = Digitalisimo_AI_Usage::network();
-		foreach ( $ids as $blog_id ) {
+		$order   = $ids;
+		usort(
+			$order,
+			function ( $a, $b ) use ( $sites ) {
+				return (float) ( $sites[ $b ]['range']['cost_usd'] ?? 0 ) <=> (float) ( $sites[ $a ]['range']['cost_usd'] ?? 0 );
+			}
+		);
+		echo '<table class="widefat striped digitalisimo-usage-sites"><thead><tr><th>Sitio</th><th>' . esc_html( $label ) . '</th>' . ( $pesos ? '<th>En pesos</th>' : '' ) . '<th>Este mes</th><th>Hoy</th><th>Tope del mes</th><th></th></tr></thead><tbody>';
+		foreach ( $order as $blog_id ) {
 			$site  = $sites[ $blog_id ] ?? null;
 			$cap   = self::site_budget( $blog_id, $network );
 			$month = $site ? $site['month']['cost_usd'] : 0.0;
-			$note  = $cap ? self::usd( $cap ) . ' (' . number_format( $month / $cap * 100, 1 ) . ' %)' : 'Sin tope';
+			$note  = $cap ? self::plain_usd( $cap ) . ' (lleva el ' . number_format( $month / $cap * 100, 1 ) . ' %)' : 'Sin tope';
+			$range = $site ? $site['range']['cost_usd'] : 0.0;
+			echo '<tr><td><strong>' . esc_html( self::site_name( $blog_id ) ) . '</strong>' . ( $site && $site['range']['unpriced'] ? '<br><span class="description">y ' . esc_html( self::num( $site['range']['unpriced'] ) ) . ' consultas sin precio</span>' : '' ) . '</td>';
+			echo '<td class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $range ) ) . '</td>' . ( $pesos ? '<td class="digitalisimo-usage-money">' . esc_html( self::plain_mxn( $range ) ) . '</td>' : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en la línea.
+			echo '<td class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $month ) ) . '</td><td class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $site ? $site['today']['cost_usd'] : 0 ) ) . '</td><td>' . esc_html( $note ) . '</td><td><a href="' . esc_url( get_admin_url( $blog_id, 'admin.php?page=' . self::PAGE . '&from=' . rawurlencode( $from ) . '&to=' . rawurlencode( $to ) ) ) . '">Ver en qué gastó</a></td></tr>';
+		}
+		echo '</tbody><tfoot><tr><th>Toda la red</th><th class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $total['range']['cost_usd'] ) ) . '</th>' . ( $pesos ? '<th class="digitalisimo-usage-money">' . esc_html( self::plain_mxn( $total['range']['cost_usd'] ) ) . '</th>' : '' ) . '<th class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $total['month']['cost_usd'] ) ) . '</th><th class="digitalisimo-usage-money">' . esc_html( self::plain_usd( $total['today']['cost_usd'] ) ) . '</th><th></th><th></th></tr></tfoot></table>';
+		self::features( '¿En qué se gastó en toda la red? · ' . $label, Digitalisimo_AI_Usage_Store::network_breakdown( $ids, 'feature', $from, $to ), $total['range'] );
+		echo '<details class="digitalisimo-usage-detail"><summary>Detalle técnico: modelos, tokens y CSV</summary>';
+		echo '<h2>Por sitio</h2><table class="widefat striped"><thead><tr><th>Sitio</th><th>Hoy</th><th>7 días</th><th>Este mes</th><th>Rango</th><th>Llamadas (rango)</th><th>Tokens (rango)</th></tr></thead><tbody>';
+		foreach ( $order as $blog_id ) {
+			$site = $sites[ $blog_id ] ?? null;
 			echo '<tr><td>' . esc_html( self::site_name( $blog_id ) ) . '</td>';
 			foreach ( array( 'today', 'week', 'month', 'range' ) as $period ) {
 				echo '<td>' . esc_html( $site ? self::usd( $site[ $period ]['cost_usd'] ) : '—' ) . ( $site && $site[ $period ]['unpriced'] ? ' <span class="description">+ ' . esc_html( self::num( $site[ $period ]['unpriced'] ) ) . ' sin precio</span>' : '' ) . '</td>';
 			}
-			echo '<td>' . esc_html( $site ? self::num( $site['range']['calls'] ) : '0' ) . '</td><td>' . esc_html( $note ) . '</td><td><a href="' . esc_url( get_admin_url( $blog_id, 'admin.php?page=' . self::PAGE . '&from=' . rawurlencode( $from ) . '&to=' . rawurlencode( $to ) ) ) . '">Detalle del sitio</a></td></tr>';
+			echo '<td>' . esc_html( $site ? self::num( $site['range']['calls'] ) : '0' ) . '</td><td>' . esc_html( $site ? self::num( $site['range']['tokens'] ) : '0' ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 		foreach ( array( 'feature' => 'Toda la red por función', 'model' => 'Toda la red por modelo' ) as $by => $title ) {
@@ -321,7 +478,8 @@ final class Digitalisimo_AI_Usage_Admin {
 			echo '</tbody></table>';
 		}
 		self::csv_links( 'network', $from, $to );
-		self::settings_form( true );
+		echo '</details>';
+		self::settings_form( true, (bool) $saved );
 		echo '</div>';
 	}
 
@@ -345,11 +503,11 @@ final class Digitalisimo_AI_Usage_Admin {
 
 	/* ---------------- Ajustes (los mismos campos en el sitio y en la red) ---------------- */
 
-	private static function settings_form( $network ) {
+	private static function settings_form( $network, $open = false ) {
 		$editable = self::can_edit( $network );
 		$inherits = ! $network && Digitalisimo_AI_Usage::inherits();
 		$o        = $network ? Digitalisimo_AI_Usage::network() : Digitalisimo_AI_Usage::settings();
-		echo '<h2 id="ajustes">Ajustes</h2><form method="post" class="digitalisimo-usage-settings">';
+		echo '<details id="ajustes" class="digitalisimo-usage-settings-box"' . ( $open ? ' open' : '' ) . '><summary>Ajustes' . ( $network ? ' de la red' : '' ) . ': tope mensual, tipo de cambio y precios</summary><form method="post" class="digitalisimo-usage-settings">';
 		wp_nonce_field( self::SAVE );
 		if ( ! $editable ) {
 			echo '<div class="notice notice-info inline"><p>En esta red, el presupuesto, los precios y la retención de cada sitio los define el superadministrador. Aquí se ven los valores vigentes.</p></div>';
@@ -363,7 +521,7 @@ final class Digitalisimo_AI_Usage_Admin {
 		if ( $editable ) {
 			submit_button( $network ? 'Guardar ajustes de uso de la red' : 'Guardar ajustes de uso', 'primary', self::SAVE );
 		}
-		echo '</form>';
+		echo '</form></details>';
 	}
 
 	/** Campos de ajustes: los mismos en el sitio y en la red (paridad). */
@@ -374,7 +532,7 @@ final class Digitalisimo_AI_Usage_Admin {
 		echo '<tr><th scope="row"><label for="digitalisimo-usage-action">Al llegar al 100 %</label></th><td><select id="digitalisimo-usage-action" name="usage[budget_action]"><option value="notify" ' . selected( $o['budget_action'], 'notify', false ) . '>Sólo avisar</option><option value="pause" ' . selected( $o['budget_action'], 'pause', false ) . '>Pausar las funciones de IA hasta el próximo mes</option></select></td></tr>';
 		echo '<tr><th scope="row"><label for="digitalisimo-usage-email">Correo del aviso</label></th><td><input id="digitalisimo-usage-email" type="email" name="usage[budget_email]" value="' . esc_attr( (string) $o['budget_email'] ) . '" placeholder="El del administrador del sitio"></td></tr>';
 		echo '</tbody></table><h3>Moneda y registro</h3><table class="form-table" role="presentation"><tbody>';
-		echo '<tr><th scope="row"><label for="digitalisimo-usage-rate">Tipo de cambio (MXN por USD)</label></th><td><input id="digitalisimo-usage-rate" type="number" min="0" step="0.0001" name="usage[mxn_rate]" value="' . esc_attr( $o['mxn_rate'] ? (string) $o['mxn_rate'] : '' ) . '" placeholder="Ej. 18.50"><p class="description">Para mostrar los montos en pesos. Otro módulo puede darlo con el filtro <code>digitalisimo_ai_usage_mxn_rate</code>.</p></td></tr>';
+		echo '<tr><th scope="row"><label for="digitalisimo-usage-rate">Tipo de cambio (MXN por USD)</label></th><td><input id="digitalisimo-usage-rate" type="number" min="0" step="0.0001" name="usage[mxn_rate]" value="' . esc_attr( $o['mxn_rate'] ? (string) $o['mxn_rate'] : '' ) . '" placeholder="Ej. 18.50"><p class="description">Para ver los montos también en pesos. Vacío, se usa el último de Banxico que guardó DIGITALÍSIMO Hosting (si lo tienes); sin ninguno, sólo dólares.</p></td></tr>';
 		echo '<tr><th scope="row"><label for="digitalisimo-usage-retention">Conservar el detalle (días)</label></th><td><input id="digitalisimo-usage-retention" type="number" min="7" max="3650" name="usage[retention_days]" value="' . esc_attr( (string) $o['retention_days'] ) . '"><p class="description">Cada llamada se guarda este tiempo; el resumen por día se conserva siempre.</p></td></tr>';
 		echo '<tr><th scope="row">Al desinstalar</th><td><label><input type="hidden" name="usage[purge_on_uninstall]" value="0"><input type="checkbox" name="usage[purge_on_uninstall]" value="1" ' . checked( ! empty( $o['purge_on_uninstall'] ), true, false ) . '> Borrar el registro de uso al desinstalar IA Tools</label><p class="description">Desmarcado, el historial se conserva si se borra y se vuelve a instalar el plugin.</p></td></tr>';
 		echo '</tbody></table>';
@@ -569,6 +727,16 @@ final class Digitalisimo_AI_Usage_Admin {
 
 	/* ---------------- Aviso del presupuesto en el escritorio ---------------- */
 
+	/** Id del aviso del presupuesto (lleva el sitio en una red: cerrarlo en un sitio no lo oculta en otro). */
+	public static function notice_id() {
+		return class_exists( 'Digitalisimo_Notices' ) ? Digitalisimo_Notices::site( self::NOTICE ) : self::NOTICE;
+	}
+
+	/**
+	 * Aviso al 80 % y al 100 % del tope, por el ayudante común de avisos (la X de WordPress; queja del propietario del
+	 * 2026-11-22): cerrado, no vuelve en el mes mientras siga en el mismo nivel; al pasar al 100 % o en el mes
+	 * siguiente, sí.
+	 */
 	public static function notice() {
 		if ( ! current_user_can( 'manage_options' ) || ( function_exists( 'is_network_admin' ) && is_network_admin() ) ) {
 			return;
@@ -581,33 +749,15 @@ final class Digitalisimo_AI_Usage_Admin {
 		if ( ! $budget['level'] ) {
 			return;
 		}
-		$key = self::dismiss_key();
-		if ( get_user_meta( get_current_user_id(), $key, true ) === substr( Digitalisimo_AI_Usage::today(), 0, 7 ) . ':' . $budget['level'] ) {
+		$text = 100 === $budget['level']
+			? ( $budget['paused'] ? Digitalisimo_AI_Usage::pause_message() : sprintf( 'este mes ya se gastó todo el tope de IA (%s de %s). Las funciones siguen activas porque el tope está en «sólo avisar».', self::plain_usd( $budget['spent'] ), self::plain_usd( $budget['cap'] ) ) )
+			: sprintf( 'este mes ya se usó el %s %% del tope de IA (%s de %s).', number_format( $budget['percent'], 1 ), self::plain_usd( $budget['spent'] ), self::plain_usd( $budget['cap'] ) );
+		$html = '<p><strong>Uso de IA:</strong> ' . esc_html( $text ) . ' <a href="' . esc_url( admin_url( 'admin.php?page=' . self::PAGE ) ) . '">Ver cuánto se ha gastado</a></p>';
+		$type = 100 === $budget['level'] ? 'error' : 'warning';
+		if ( class_exists( 'Digitalisimo_Notices' ) ) {
+			Digitalisimo_Notices::show( self::notice_id(), $type, $html, array( 'hash' => array( substr( Digitalisimo_AI_Usage::today(), 0, 7 ), $budget['level'], $budget['paused'] ), 'snooze' => 0, 'cap' => 'manage_options' ) );
 			return;
 		}
-		$text = 100 === $budget['level']
-			? ( $budget['paused'] ? Digitalisimo_AI_Usage::pause_message() : sprintf( 'IA: se alcanzó el presupuesto mensual (%s de %s). Las funciones siguen activas porque el presupuesto está en «sólo avisar».', self::usd( $budget['spent'] ), self::usd( $budget['cap'] ) ) )
-			: sprintf( 'IA: este mes ya se usó el %s %% del presupuesto (%s de %s).', number_format( $budget['percent'], 1 ), self::usd( $budget['spent'] ), self::usd( $budget['cap'] ) );
-		$dismiss = wp_nonce_url( add_query_arg( array( 'action' => self::DISMISS, 'level' => $budget['level'] ), admin_url( 'admin-post.php' ) ), self::DISMISS );
-		echo '<div class="notice ' . ( 100 === $budget['level'] ? 'notice-error' : 'notice-warning' ) . '"><p>' . esc_html( $text ) . ' <a href="' . esc_url( admin_url( 'admin.php?page=' . self::PAGE ) ) . '">Ver el uso de IA</a> · <a href="' . esc_url( $dismiss ) . '">Ocultar este aviso</a></p></div>';
-	}
-
-	private static function dismiss_key() {
-		return 'digitalisimo_ai_usage_dismissed_' . ( function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1 );
-	}
-
-	/** Oculta para quien lo pide el aviso de ese nivel (80 o 100) durante el mes en curso, en este sitio. */
-	public static function dismiss_notice( $level ) {
-		update_user_meta( get_current_user_id(), self::dismiss_key(), substr( Digitalisimo_AI_Usage::today(), 0, 7 ) . ':' . ( 100 === (int) $level ? 100 : 80 ) );
-	}
-
-	public static function dismiss() {
-		check_admin_referer( self::DISMISS );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( 'Sin permiso.', 403 );
-		}
-		self::dismiss_notice( isset( $_GET['level'] ) && '100' === $_GET['level'] ? 100 : 80 );
-		wp_safe_redirect( wp_get_referer() ? wp_get_referer() : admin_url() );
-		exit;
+		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.
 	}
 }

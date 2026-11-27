@@ -24,7 +24,7 @@ function digitalisimo_ai_usage_uninstall_site( array $network ) {
 	foreach ( array( 'digitalisimo_ai_usage_settings', 'digitalisimo_ai_usage_prices', 'digitalisimo_ai_usage_alerts', 'digitalisimo_ai_usage_db', 'digitalisimo_ai_usage_repriced' ) as $option ) {
 		delete_option( $option );
 	}
-	delete_metadata( 'user', 0, 'digitalisimo_ai_usage_dismissed_' . get_current_blog_id(), '', true );
+	delete_metadata( 'user', 0, 'digitalisimo_notice_ia-usage-budget' . ( is_multisite() ? '-s' . get_current_blog_id() : '' ), '', true ); // Cierre del aviso del tope (Digitalisimo_Notices).
 }
 
 $digitalisimo_ai_usage_network = is_multisite() ? get_site_option( 'digitalisimo_ai_usage_settings', array() ) : array();

@@ -122,6 +122,7 @@ function network_admin_url( $p = '' ) { return 'https://red.test/wp-admin/networ
 function get_admin_url( $b, $p = '' ) { return 'https://sitio' . $b . '.test/wp-admin/' . $p; }
 function rest_url( $p = '' ) { return 'https://sitio.test/wp-json/' . $p; }
 function add_query_arg( $args, $url ) { return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . http_build_query( $args ); }
+function wp_create_nonce( $a ) { return 'n:' . md5( (string) $a ); }
 function wp_nonce_url( $u, $a ) { return $u . '&_wpnonce=n:' . $a; }
 function wp_nonce_field( $a ) { echo '<input type="hidden" name="_wpnonce" value="n:' . $a . '">'; }
 function check_admin_referer( $a ) { $n = $_POST['_wpnonce'] ?? ( $_GET['_wpnonce'] ?? '' ); if ( 'n:' . $a !== $n ) throw new Died( 'nonce' ); return true; }
@@ -215,6 +216,7 @@ function dbDelta( $queries ) { global $wpdb; foreach ( (array) $queries as $q ) 
 $GLOBALS['wpdb'] = new Fake_WPDB();
 global $wpdb;
 
+require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-notices.php';
 require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-ai.php';
 require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-ai-knowledge.php';
 require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-ai-images.php';
@@ -308,7 +310,7 @@ check( near( $new[0]['cost_usd'], 0 ), 'F: un error sin uso no cuesta' );
 
 // Asistente IA: el modelo real con su ciclo (400 por una herramienta → se quita y se repite).
 $GLOBALS['user'] = 1;
-class Digitalisimo_AI_Assistant_Tools { public static function clip( $t, $n ) { return substr( (string) $t, 0, $n ); } public static function scrub( $t ) { return $t; } public static function log( $e ) {} }
+class Digitalisimo_AI_Assistant_Tools { public static function clip( $t, $n ) { return substr( (string) $t, 0, $n ); } public static function scrub( $t ) { return $t; } public static function log( $e ) {} public static function log_usage( array $target, $usage, $conversation = 0, $what = '' ) { $GLOBALS['assistant_usage_log'][] = $what; } }
 $target = array( 'provider' => 'anthropic', 'model' => 'claude-opus-5-5', 'key' => KEY_ANTHROPIC, 'url' => '', 'name' => 'Anthropic', 'ai_name' => 'Claude', 'profile' => '' );
 $tools  = array( array( 'name' => 'leer', 'description' => 'Lee', 'schema' => array( 'type' => 'object' ) ), array( 'name' => 'mala', 'description' => 'Mal', 'schema' => array( 'type' => 'object' ) ) );
 $before = count( rows() );
@@ -329,6 +331,26 @@ reply( 'api.anthropic.com', 200, anthropic_reply( 700, 70, 0, 0, 'claude-opus-5-
 Digitalisimo_AI_Assistant_Model::chat( $target, 'SYS', array( array( 'role' => 'user', 'text' => 'aprende' ) ), array() );
 Digitalisimo_AI_Usage::end( $mark );
 check( 'learning' === last_row()['feature'], 'F: el aprendizaje del sitio queda con su propia función' );
+// «Entrenar con mi sitio web» de verdad (v520): distill() abre su contexto aunque el Asistente haya abierto el suyo.
+require_once __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant-learning.php';
+$before = count( rows() );
+reply( 'api.anthropic.com', 200, anthropic_reply( 3000, 400, 0, 0, 'claude-opus-5-5' ) );
+$r = Digitalisimo_AI_Assistant_Learning::distill( array( 'id' => '', 'data' => array() ) );
+$new = array_slice( rows(), $before );
+check( 1 === count( $new ) && 'learning' === $new[0]['feature'] && 3000 === (int) $new[0]['input_tokens'] && ! $new[0]['is_retry'], 'F: «Entrenar con mi sitio web» (distill) queda como Aprendizaje' );
+reply( 'api.anthropic.com', 200, anthropic_reply( 100, 10, 0, 0, 'claude-opus-5-5' ) );
+Digitalisimo_AI_Assistant_Model::chat( $target, 'SYS', array( array( 'role' => 'user', 'text' => 'hola' ) ), array() );
+check( 'assistant' === last_row()['feature'], 'F: tras el aprendizaje, el Asistente vuelve a contar como Asistente' );
+// Cada llamada al modelo fuera del chat del Asistente (su contexto es el de cada paso) abre y cierra el suyo.
+foreach ( glob( __DIR__ . '/../digitalisimo-ia-tools/includes/*.php' ) as $file ) {
+	if ( 'class-digitalisimo-ai-assistant.php' === basename( $file ) ) continue;
+	$src = (string) file_get_contents( $file );
+	$at  = 0;
+	while ( false !== ( $at = strpos( $src, 'Digitalisimo_AI_Assistant_Model::chat(', $at + 1 ) ) ) {
+		$line = substr_count( substr( $src, 0, $at ), "\n" ) + 1;
+		check( false !== strpos( substr( $src, max( 0, $at - 200 ), 200 ), 'Digitalisimo_AI_Usage::begin(' ) && false !== strpos( substr( $src, $at, 400 ), 'Digitalisimo_AI_Usage::end(' ), 'F: ' . basename( $file ) . ":{$line} llama al modelo dentro de begin()/end() del registro de uso" );
+	}
+}
 
 // Imágenes: la función real (el proveedor rechaza: no hace falta la biblioteca de medios).
 $before = count( rows() );
@@ -419,8 +441,30 @@ $json = json_encode( $out );
 check( isset( $out['periods']['today'], $out['periods']['week'], $out['periods']['month'], $out['periods']['range'], $out['by_feature'], $out['by_model'], $out['budget'] ) && 'Chatbot público' === array_column( $out['by_feature'], 'label', 'feature' )['chatbot'], 'P: la Ability da totales por periodo, función y modelo' );
 foreach ( array( KEY_ANTHROPIC, KEY_OPENAI, KEY_GOOGLE, SECRET_PROMPT, SECRET_ANSWER ) as $secret ) check( false === strpos( $json, $secret ), 'P: la Ability no devuelve claves ni contenido' );
 check( in_array( 'digitalisimo-ia/usage', Digitalisimo_AI_Usage::server_tools( array() ), true ) || ! function_exists( 'wp_register_ability' ), 'P: la Ability se ofrece al MCP de Elements cuando existe la Abilities API' );
+check( false !== strpos( $out['resumen'], 'Este mes' ) && false !== strpos( $out['resumen'], 'US$' ) && false !== strpos( $out['resumen'], 'MX$' ) && false !== strpos( $out['resumen'], 'Asistente IA US$' ), 'P: la Ability trae el gasto en una frase (para contestarle al dueño desde el MCP)' );
 ob_start(); Digitalisimo_AI_Usage_Admin::page(); $html = ob_get_clean();
 check( false !== strpos( $html, 'Uso de IA' ) && false !== strpos( $html, 'Por función' ) && false !== strpos( $html, 'Llamadas más caras' ) && false !== strpos( $html, 'MX$' ) && false !== strpos( $html, 'digitalisimo-usage-chart' ) && false === strpos( $html, KEY_ANTHROPIC ), 'P: la pantalla pinta totales, gráfica, desgloses y MXN, sin claves' );
+// Lo que ve el dueño: el mes y hoy en dinero, en qué se fue (en palabras) y lo técnico (tokens, modelos) aparte.
+$tech = strpos( $html, 'Detalle técnico' );
+check( false !== strpos( $html, 'Gastado este mes' ) && false !== strpos( $html, 'Hoy: <strong>' ) && false !== strpos( $html, '¿En qué se gastó? · Este mes' ) && false !== strpos( $html, 'El chat del escritorio que te ayuda' ) && false !== strpos( $html, 'Aprendizaje del sitio' ) && false !== strpos( $html, 'Imágenes' ), 'P: la pantalla dice lo gastado y en qué, en palabras' );
+check( false !== $tech && strpos( $html, 'Caché leída' ) > $tech && strpos( $html, 'Por modelo' ) > $tech && strpos( $html, 'Gastado este mes' ) < $tech && false === strpos( substr( $html, 0, $tech ), 'tokens</th>' ), 'P: tokens y modelos sólo en «Detalle técnico»' );
+check( false !== strpos( $html, 'dólar a 18.50, el que escribiste en Ajustes' ), 'P: la pantalla dice de dónde salen los pesos' );
+// Tipo de cambio: sin uno escrito, el último de Hosting (Banxico) de hasta 90 días; si no, sólo dólares.
+update_option( Digitalisimo_AI_Usage::SETTINGS, array() );
+check( 0.0 === Digitalisimo_AI_Usage::mxn_rate(), 'P: sin tipo de cambio, sólo dólares' );
+ob_start(); Digitalisimo_AI_Usage_Admin::page(); $html = ob_get_clean();
+check( false === strpos( $html, 'MX$' ) && false === strpos( $html, 'En pesos' ) && false !== strpos( $html, 'Los montos están en dólares' ), 'P: sin tipo de cambio la pantalla queda en dólares y dice cómo ver pesos' );
+update_option( 'digitalisimo_hosting_price_history', array( array( 't' => time() - 5 * 86400, 'status' => 'ok', 'fx' => 17.9, 'fx_source' => 'Frankfurter 2026-11-01' ), array( 't' => time() - 86400, 'status' => 'ok', 'fx' => 18.25, 'fx_source' => 'Banxico FIX 26/11/2026' ), array( 't' => time(), 'status' => 'error', 'fx' => 99 ) ) );
+$fx = Digitalisimo_AI_Usage::mxn_info();
+check( 18.25 === $fx['rate'] && false !== strpos( Digitalisimo_AI_Usage::fx_text( $fx ), 'Banxico FIX 26/11/2026 (de DIGITALÍSIMO Hosting' ), 'P: sin tipo de cambio escrito, el último FIX de Banxico que guardó Hosting' );
+ob_start(); Digitalisimo_AI_Usage_Admin::page(); $html = ob_get_clean();
+check( false !== strpos( $html, 'MX$' ) && false !== strpos( $html, 'Banxico FIX 26/11/2026' ), 'P: con el de Hosting la pantalla da pesos y su fuente' );
+update_option( 'digitalisimo_hosting_price_history', array( array( 't' => time() - 100 * 86400, 'status' => 'ok', 'fx' => 18.25, 'fx_source' => 'Banxico' ), array( 't' => time(), 'status' => 'ok', 'fx' => 1.0, 'fx_source' => 'tienda en USD' ) ) );
+check( 0.0 === Digitalisimo_AI_Usage::mxn_rate(), 'P: un tipo de cambio de Hosting viejo (más de 90 días) o de una tienda en dólares no se usa' );
+update_option( 'digitalisimo_hosting_price_history', array( array( 't' => time(), 'status' => 'ok', 'fx' => 18.25, 'fx_source' => 'Banxico' ) ) );
+update_option( Digitalisimo_AI_Usage::SETTINGS, array( 'mxn_rate' => 18.5 ) );
+check( 18.5 === Digitalisimo_AI_Usage::mxn_rate(), 'P: el tipo de cambio escrito en Ajustes manda sobre el de Hosting' );
+delete_option( 'digitalisimo_hosting_price_history' );
 
 /* ================= A · ajustes, precios y retención ================= */
 // Un modelo sin precio se registra igual y la pantalla avisa; al agregar su precio se calcula.
@@ -465,15 +509,15 @@ check( 1 === count( $GLOBALS['mail'] ) && 'dueno@ejemplo.test' === $GLOBALS['mai
 Digitalisimo_AI_Usage::send_alerts();
 check( 1 === count( $GLOBALS['mail'] ), 'B: el aviso del 80 % se manda una sola vez al mes' );
 ob_start(); Digitalisimo_AI_Usage_Admin::notice(); $n = ob_get_clean();
-check( false !== strpos( $n, 'notice-warning' ) && false !== strpos( $n, 'Ocultar este aviso' ), 'B: aviso del 80 % en el escritorio, descartable' );
-Digitalisimo_AI_Usage_Admin::dismiss_notice( 80 );
-ob_start(); Digitalisimo_AI_Usage_Admin::notice(); check( '' === ob_get_clean(), 'B: el aviso descartado no vuelve en el mes' );
+check( false !== strpos( $n, 'notice notice-warning is-dismissible' ) && false !== strpos( $n, 'data-digitalisimo-notice="ia-usage-budget"' ) && false !== strpos( $n, 'Ver cuánto se ha gastado' ), 'B: aviso del 80 % en el escritorio, con la X del ayudante común' );
+check( preg_match( '/data-digitalisimo-notice-hash="([0-9a-f]+)"/', $n, $m ) && Digitalisimo_Notices::dismiss( 1, Digitalisimo_AI_Usage_Admin::notice_id(), $m[1] ), 'B: el aviso del 80 % se cierra con la X' );
+ob_start(); Digitalisimo_AI_Usage_Admin::notice(); check( '' === ob_get_clean(), 'B: el aviso cerrado no vuelve en el mes' );
 reply( 'api.anthropic.com', 200, anthropic_reply( 2000, 0, 0, 0, 'claude-sonnet-5-5' ) ); // 0.012 USD > 100 %.
 $r = Digitalisimo_AI::complete( 'content', 'x' );
 check( is_string( $r ) && 100 === Digitalisimo_AI_Usage::budget()['level'] && false === Digitalisimo_AI_Usage::paused(), 'B: al 100 % con «sólo avisar» las funciones siguen' );
 Digitalisimo_AI_Usage::send_alerts();
 check( 2 === count( $GLOBALS['mail'] ) && false !== strpos( $GLOBALS['mail'][1][1], '100' ), 'B: llega el correo del 100 %' );
-ob_start(); Digitalisimo_AI_Usage_Admin::notice(); check( false !== strpos( ob_get_clean(), 'notice-error' ), 'B: el aviso del 100 % aparece aunque se ocultara el del 80 %' );
+ob_start(); Digitalisimo_AI_Usage_Admin::notice(); check( false !== strpos( ob_get_clean(), 'notice notice-error is-dismissible' ), 'B: el aviso del 100 % aparece aunque se cerrara el del 80 %' );
 update_option( Digitalisimo_AI_Usage::SETTINGS, array_merge( get_option( Digitalisimo_AI_Usage::SETTINGS ), array( 'budget_action' => 'pause' ) ) );
 $calls = count( $GLOBALS['http_log'] ); $before = count( rows() );
 $r = Digitalisimo_AI::complete( 'content', 'x' );
@@ -509,6 +553,8 @@ check( near( $net[1]['range']['cost_usd'], 1.0 ) && near( $net[2]['range']['cost
 $GLOBALS['network_admin'] = true; $_GET = array( 'from' => '2027-01-05', 'to' => '2027-01-05' );
 ob_start(); Digitalisimo_AI_Usage_Admin::network_page(); $nhtml = ob_get_clean();
 check( false !== strpos( $nhtml, 'US$ 3.00' ) && false !== strpos( $nhtml, 'Sitio 2' ) && false !== strpos( $nhtml, 'Toda la red por modelo' ), 'I: la red muestra el total de cada sitio y de toda la red' );
+$sites_at = strpos( $nhtml, '¿Cuánto gastó cada sitio?' );
+check( false !== $sites_at && strpos( $nhtml, 'Sitio 2 · sitio2.test', $sites_at ) < strpos( $nhtml, 'Sitio 1 · sitio1.test', $sites_at ) && false !== strpos( $nhtml, '¿En qué se gastó en toda la red?' ) && false !== strpos( $nhtml, 'Creación de contenido' ), 'I: la red dice cuánto gastó cada sitio (de mayor a menor) y en qué' );
 $csv = Digitalisimo_AI_Usage_Admin::csv_rows( 'network', 'sites', '2027-01-05', '2027-01-05' );
 check( 3 === count( $csv ) && near( (float) $csv[1][6], 1.0 ) && near( (float) $csv[2][6], 2.0 ), 'I: CSV por sitio de la red' );
 // Permisos de red: el administrador de un sitio no ve la red ni descarga su CSV.

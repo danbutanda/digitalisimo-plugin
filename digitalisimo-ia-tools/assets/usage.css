@@ -1,21 +1,30 @@
 /* IA Tools · Uso de IA (docs/IA_USAGE.md). Sólo tokens de digitalisimo-ui, con su valor como respaldo. */
-.digitalisimo-ai-usage .digitalisimo-usage-period{display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:none;padding:12px 16px}
-.digitalisimo-ai-usage .digitalisimo-usage-period label{display:inline-flex;gap:6px;align-items:center}
-.digitalisimo-ai-usage .digitalisimo-usage-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}
-.digitalisimo-ai-usage .digitalisimo-usage-card{max-width:none;margin:0;padding:14px 16px}
-.digitalisimo-ai-usage .digitalisimo-usage-card h2{margin:0 0 6px;font-size:14px}
-.digitalisimo-ai-usage .digitalisimo-usage-amount{margin:0;font-size:24px;font-weight:700;color:var(--digi-ink,#17213a)}
-.digitalisimo-ai-usage .digitalisimo-usage-mxn{margin:2px 0 6px;color:var(--digi-text,#52617e)}
-.digitalisimo-ai-usage .digitalisimo-usage-budget{max-width:none}
+.digitalisimo-ai-usage .digitalisimo-usage-lead{max-width:860px;font-size:15px}
+.digitalisimo-ai-usage .digitalisimo-usage-hero{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;justify-content:space-between;max-width:none;margin:18px 0;padding:22px 26px;border:1px solid var(--digi-line,#dce4ff);border-radius:var(--digi-radius-card,15px);box-shadow:var(--digi-shadow-card,0 7px 22px rgba(42,56,115,.06))}
+.digitalisimo-ai-usage .digitalisimo-usage-hero-main{flex:1 1 320px;min-width:0}
+.digitalisimo-ai-usage .digitalisimo-usage-hero-side{flex:1 1 280px;max-width:460px;min-width:0}
+.digitalisimo-ai-usage .digitalisimo-usage-kicker{margin:0;font-size:15px;font-weight:600;color:var(--digi-ink,#17213a)}
+.digitalisimo-ai-usage .digitalisimo-usage-kicker span{font-weight:400;color:var(--digi-text,#52617e)}
+.digitalisimo-ai-usage .digitalisimo-usage-big{margin:4px 0 0;font-size:40px;line-height:1.15;font-weight:800;letter-spacing:-1px;background:var(--digi-gradient,linear-gradient(135deg,#245eff,#774af0 58%,#e13da9));-webkit-background-clip:text;background-clip:text;color:transparent}
+.digitalisimo-ai-usage .digitalisimo-usage-big-mxn{margin:0 0 8px;font-size:18px;font-weight:600;color:var(--digi-ink,#17213a)}
+.digitalisimo-ai-usage .digitalisimo-usage-line{margin:6px 0 2px}
+.digitalisimo-ai-usage .digitalisimo-usage-period{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 4px}
+.digitalisimo-ai-usage .digitalisimo-usage-period-label{font-weight:600;color:var(--digi-ink,#17213a)}
+.digitalisimo-ai-usage .digitalisimo-usage-dates{display:inline-flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}
+.digitalisimo-ai-usage .digitalisimo-usage-dates label{display:inline-flex;gap:6px;align-items:center}
+.digitalisimo-ai-usage .digitalisimo-usage-features td,.digitalisimo-ai-usage .digitalisimo-usage-sites td{vertical-align:middle}
+.digitalisimo-ai-usage .digitalisimo-usage-money{white-space:nowrap;font-weight:600}
 .digitalisimo-ai-usage .digitalisimo-usage-meter,.digitalisimo-ai-usage .digitalisimo-usage-share{display:inline-block;width:100%;height:10px;overflow:hidden;border-radius:var(--digi-radius-control,9px);background:var(--digi-tint,#eef2ff)}
-.digitalisimo-ai-usage .digitalisimo-usage-share{width:80px;height:8px;vertical-align:middle}
+.digitalisimo-ai-usage .digitalisimo-usage-share{width:90px;height:8px;vertical-align:middle}
 .digitalisimo-ai-usage .digitalisimo-usage-meter span,.digitalisimo-ai-usage .digitalisimo-usage-share span{display:block;height:100%;background:var(--digi-blue,#245eff)}
 .digitalisimo-ai-usage .digitalisimo-usage-budget.is-warning .digitalisimo-usage-meter span{background:var(--digi-violet,#8249ee)}
 .digitalisimo-ai-usage .digitalisimo-usage-budget.is-over .digitalisimo-usage-meter span{background:var(--digi-pink,#f13b9b)}
 .digitalisimo-ai-usage .digitalisimo-usage-chart{display:flex;align-items:flex-end;gap:2px;height:160px;padding:8px;border:1px solid var(--digi-line,#dce4ff);border-radius:var(--digi-radius-card,15px);background:var(--digi-surface,#f6f8ff)}
 .digitalisimo-ai-usage .digitalisimo-usage-bar{flex:1 1 0;min-width:2px;background:var(--digi-blue,#245eff)}
 .digitalisimo-ai-usage .digitalisimo-usage-bar:hover{background:var(--digi-blue-dark,#164ce4)}
+.digitalisimo-ai-usage .digitalisimo-usage-detail,.digitalisimo-ai-usage .digitalisimo-usage-settings-box{margin:22px 0 0;padding:12px 16px;border:1px solid var(--digi-line,#dce4ff);border-radius:var(--digi-radius-card,15px);background:#fff}
+.digitalisimo-ai-usage .digitalisimo-usage-detail>summary,.digitalisimo-ai-usage .digitalisimo-usage-settings-box>summary{cursor:pointer;font-size:15px;font-weight:600;color:var(--digi-ink,#17213a)}
 .digitalisimo-ai-usage .digitalisimo-usage-prices{overflow-x:auto}
 .digitalisimo-ai-usage .digitalisimo-usage-prices input[type=number]{width:90px}
 .digitalisimo-ai-usage .digitalisimo-usage-source{min-width:180px}
-@media(max-width:782px){.digitalisimo-ai-usage .widefat{display:block;overflow-x:auto}}
+@media(max-width:782px){.digitalisimo-ai-usage .widefat{display:block;overflow-x:auto}.digitalisimo-ai-usage .digitalisimo-usage-big{font-size:32px}.digitalisimo-ai-usage .digitalisimo-usage-dates{margin-left:0}}
