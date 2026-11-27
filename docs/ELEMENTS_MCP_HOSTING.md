@@ -41,9 +41,11 @@ registran como las de tienda y del kit de ventas (registro de abilities del núc
   **unmark** lo deja en «Ninguno».
 - **manual-payment** (`manage_woocommerce` o `manage_options`) registra un pago recibido por otro lado (`service`,
   `months`, `method` cash|transfer|deposit|other, `amount`, `note`, `renew_domain` —sin decirlo, un servicio que es sólo
-  el dominio se renueva—, `renewed_elsewhere`, `request_id`) con `Digitalisimo_Hosting_Provisioning::manual_payment()`: el mismo que
-  el botón «Registrar pago manual» de Servicios de hosting (idempotente, con candado por servicio). La bitácora anota medio,
-  periodo y monto como nombres de claves.
+  el dominio se renueva; en ése, `false` sin `renewed_elsewhere` es un error y no registra nada—, `renewed_elsewhere`
+  —se comprueba en el registrador, sólo lectura, que avanzó los años pagados, y se guarda su vencimiento—, `request_id`)
+  con `Digitalisimo_Hosting_Provisioning::manual_payment()`: el mismo que el botón «Registrar pago manual» de Servicios
+  de hosting (idempotente, con candado por servicio). Un dominio cuya transferencia no ha llegado no se renueva ni se da
+  por renovado. La bitácora anota medio, periodo y monto como nombres de claves.
 - **Bitácora** `digitalisimo_elements_hosting_mcp_log` (opción del sitio, sin carga automática, 200 entradas): fecha
   UTC, ID del usuario, herramienta, acción, los nombres de las claves cambiadas o el ID del producto, resultado y código.
   Nunca valores ni datos personales; también lo denegado.
