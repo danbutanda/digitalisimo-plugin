@@ -126,8 +126,36 @@ final class Map {
 		return 0 === stripos( $uri, 'elementor://' ) ? 'digitalisimo://' . substr( $uri, 12 ) : $uri;
 	}
 
+	/**
+	 * Lo que el paquete transformado enmascara en los archivos que el servidor lee (scripts/marca-empaquetar.mjs: un
+	 * separador invisible U+200D dentro de la palabra en las guías del MCP) vuelve a su forma, para que los nombres de
+	 * herramientas de las guías sigan sirviendo y el mapa los encuentre.
+	 */
+	public static function unmask( string $text ): string {
+		return false === strpos( $text, "\u{200D}" ) ? $text : (string) preg_replace( '/(e)(lemen)\x{200D}(tor)/iu', '$1$2$3', $text );
+	}
+
+	/** unmask() en profundidad (respuestas del MCP viejo y del proxy del editor). */
+	public static function unmask_deep( $value, int $depth = 0 ) {
+		if ( is_string( $value ) ) {
+			return self::unmask( $value );
+		}
+		if ( $depth > 64 || ( ! is_array( $value ) && ! $value instanceof \stdClass ) ) {
+			return $value;
+		}
+		foreach ( $value as $k => $v ) {
+			if ( is_array( $value ) ) {
+				$value[ $k ] = self::unmask_deep( $v, $depth + 1 );
+			} else {
+				$value->{ $k } = self::unmask_deep( $v, $depth + 1 );
+			}
+		}
+		return $value;
+	}
+
 	/** Texto de salida (ver la cabecera). */
 	public static function out( string $text, bool $brand = true ): string {
+		$text = self::unmask( $text );
 		if ( false === stripos( $text, 'elementor' ) ) {
 			return $text;
 		}

@@ -24,7 +24,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync, renameSync, mkdirSy
 import { join, relative, dirname, posix } from 'node:path';
 import { createHash } from 'node:crypto';
 import { deflateRawSync } from 'node:zlib';
-import { loadRules, transformCss, transformJs } from './marca-transform.mjs';
+import { loadRules, transformCss, transformJs, transformStr } from './marca-transform.mjs';
 
 const dir = process.argv[2];
 if (!dir || !existsSync(join(dir, 'pro-elements.php'))) { console.error('uso: node scripts/marca-empaquetar.mjs <copia>/digitalisimo-elements'); process.exit(2); }
@@ -42,10 +42,46 @@ rmSync(join(dir, 'marca/modules'), { recursive: true, force: true });
 const walk = (d, out = []) => { for (const n of readdirSync(d)) { const p = join(d, n); statSync(p).isDirectory() ? walk(p, out) : out.push(p); } return out; };
 const php = (data) => `<?php\n// Generado por scripts/marca-empaquetar.mjs.\nreturn json_decode( base64_decode( '${Buffer.from(JSON.stringify(data)).toString('base64')}' ), true );\n`;
 
+// Lo que el servidor LEE por su ruta para pintar (no se puede renombrar ni transformar: con la marca apagada tiene que
+// dar lo de siempre). Se publica con el contenido ORIGINAL, pero la palabra va enmascarada con una forma equivalente que
+// el lector decodifica igual (`mask()`): así sirve con la marca encendida y apagada y pedido por URL no dice «elementor».
 const SERVER_READ = [
   /^motor\/assets\/shapes\/.*\.svg$/, /\.twig$/, /^motor\/modules\/mcp\/static-resources\//,
-  /^modules\/digitalisimo-sales\/(templates|data)\//, /^license\.txt$/, /^LICENSE/, /^COPYING$/,
+  /^modules\/digitalisimo-sales\/(templates|data)\//,
 ];
+// Licencias: el texto se conserva entero (la GPL pide no quitar los avisos), pero en un .php que pedido por URL no
+// devuelve nada.
+const LICENSE = /(^|\/)(license\.txt|LICENSE(\.txt|\.md)?|COPYING)$/i;
+const ZWJ = '\u200d';
+/** El contenido original con la palabra enmascarada según el tipo de archivo (ver SERVER_READ). */
+function mask(rel, text) {
+  const ent = (t) => t.replace(/elementor/gi, (m) => `&#${m.charCodeAt(0)};${m.slice(1)}`);
+  if (/\.json$/.test(rel)) return text.replace(/elementor/gi, (m) => `\\u${m.charCodeAt(0).toString(16).padStart(4, '0')}${m.slice(1)}`);
+  if (/\.(svg|html?|xml)$/.test(rel)) return ent(text);
+  if (/\.twig$/.test(rel)) {
+    // En el código de Twig, las cadenas se parten (`('elemen' ~ 'tor…')`, Twig y Twing las unen igual); los comentarios
+    // con la palabra se quitan; en el HTML, la entidad.
+    return text.replace(/(\{[{%#])([\s\S]*?)([}%#]\})|([^{]+|\{)/g, (m, open, code, close, raw) => {
+      if (raw !== undefined) return ent(raw);
+      if (open === '{#') return /elementor/i.test(code) ? '' : m;
+      return open + code.replace(/'([^'\\]*)'|"([^"\\]*)"/g, (q, a, b) => {
+        const v = a ?? b;
+        if (!/elementor/i.test(v)) return q;
+        const i = v.search(/elementor/i) + 6;
+        return `('${v.slice(0, i)}' ~ '${v.slice(i)}')`;
+      }) + close;
+    });
+  }
+  // Markdown y texto que lee el MCP: un separador invisible dentro de la palabra (el MCP lo quita al responder).
+  return text.replace(/(e)(lementor)/gi, (m, a, b) => `${m.slice(0, 6)}${ZWJ}${m.slice(6)}`);
+}
+/** JSON con las mismas reglas que el JS transformado (claves y valores), para que coincidan (traducciones, datos). */
+function jsonStr(text) {
+  let data;
+  try { data = JSON.parse(text); } catch { return null; }
+  const walk = (v) => (typeof v === 'string' ? transformStr(v, rules) : Array.isArray(v) ? v.map(walk) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [transformStr(k, rules), walk(x)])) : v);
+  return JSON.stringify(walk(data));
+}
 const DROP = /\.(md|map|po|pot|mo|lock|scss)$|^motor\/readme\.txt$|^readme\.txt$/;
 const TEXT = /\.(css|js|mjs|cjs|json|svg|html?|xml|txt)$/;
 const rename = (rel) => rel.split('/').map((seg, i) => (i === 0 && seg === 'motor' ? seg : seg.replace(/elementor/gi, (m) => (m[0] === 'E' ? 'Dg' : P)))).join('/');
@@ -65,7 +101,20 @@ for (const file of walk(dir).sort()) {
   const named = /elementor/i.test(rel.replace(/^motor\//, ''));
   const content = /elementor/i.test(buf.toString('latin1'));
   if (!named && !content) continue;
-  if (SERVER_READ.some((r) => r.test(rel))) { report.servidor_lee.push(rel); continue; }
+  if (SERVER_READ.some((r) => r.test(rel))) {
+    const masked = mask(rel, buf.toString('utf8'));
+    writeFileSync(file, masked);
+    report.servidor_lee.push(rel);
+    if (/elementor/i.test(masked)) report.quedan.push(rel);
+    continue;
+  }
+  if (LICENSE.test(rel)) {
+    rmSync(file);
+    writeFileSync(`${file}.php`, `<?php exit; ?>\n${buf.toString('utf8')}`);
+    index[rel] = `${rel}.php`;
+    report.licencias = (report.licencias || 0) + 1;
+    continue;
+  }
   archive.push([rel, buf]);
   if (DROP.test(rel)) { rmSync(file); index[rel] = null; report.sin_publicar++; continue; }
   let out = buf;
@@ -73,6 +122,7 @@ for (const file of walk(dir).sort()) {
     let text = buf.toString('utf8');
     if (/\.css$/.test(rel)) text = relUrl(transformCss(text, rules));
     else if (/\.(js|mjs|cjs)$/.test(rel)) text = transformJs(text, rules);
+    else if (/\.json$/.test(rel) && jsonStr(text) !== null) text = jsonStr(text);
     else text = text.replace(/elementor/gi, (m) => (m[0] === 'E' ? 'DIGITALÍSIMO' : P));
     out = Buffer.from(text);
     report.transformados++;

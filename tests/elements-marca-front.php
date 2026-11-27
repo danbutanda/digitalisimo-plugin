@@ -122,8 +122,18 @@ namespace {
 			return json_encode( $v );
 		}
 	}
-	$ajax = json_decode( Front_Layer::ajax_buffer( json_encode( array( 'success' => true, 'data' => array( 'render' => '<div class="elementor-widget">Elementor</div>', 'id' => 'elementor_library' ) ) ) ), true );
-	check( '<div class="dg-widget">Elementor</div>' === $ajax['data']['render'] && 'elementor_library' === $ajax['data']['id'], 'F1 AJAX del editor: el HTML de la respuesta JSON, sin tocar datos', $ajax );
+	$ajax = json_decode( Front_Layer::ajax_buffer( json_encode( array( 'success' => true, 'data' => array( 'render' => '<div class="elementor-widget">Elementor</div>', 'id' => 'elementor_library', 'elements' => array( array( 'settings' => array( 'title' => 'Guía de Elementor', 'css' => '.elementor-x{}' ) ) ) ) ) ) ), true );
+	// Con el paquete transformado el JS del editor pide los nombres nuevos (D-12): los identificadores salen como los pide
+	// (`digitalisimo_library`), el texto del HTML y el contenido de los elementos, igual.
+	check( '<div class="dg-widget">Elementor</div>' === $ajax['data']['render'] && 'digitalisimo_library' === $ajax['data']['id'], 'F1 AJAX del editor: el HTML y los identificadores como los pide el JS transformado', $ajax );
+	check( array( array( 'settings' => array( 'title' => 'Guía de Elementor', 'css' => '.elementor-x{}' ) ) ) === $ajax['data']['elements'], 'F1 AJAX del editor: el contenido de los elementos no cambia', $ajax );
+	// La configuración del editor (`var X = {json}`): el nombre y los datos con las reglas, el contenido igual.
+	$cfg = Transform::js( 'var ElementorConfig = {"ajax":{"action":"elementor_ajax"},"document":{"elements":[{"settings":{"title":"Elementor"}}],"urls":{"preview":"https:\/\/ensayo.test\/?p=1&elementor-preview=1"}},"selectors":{"{{WRAPPER}} .elementor-heading-title":"color: {{VALUE}}"}};' );
+	check( 0 === strpos( $cfg, 'var DigitalisimoConfig = ' ) && false !== strpos( $cfg, '"digitalisimo_ajax"' ) && false !== strpos( $cfg, '"title":"Elementor"' ) && false !== strpos( $cfg, 'dg-preview=1' ) && false !== strpos( $cfg, '{{WRAPPER}} .dg-heading-title' ), 'F1 configuración del editor como datos: nombre, acción, vista previa y selectores; el contenido igual', $cfg );
+	// Lo que el paquete enmascara (separadores, twig) se trata como la palabra en las clases.
+	check( '<path class="dg-shape-fill" d="M0">' === Transform::tag( '<path class="&#101;lementor-shape-fill" d="M0">' ), 'F1 la clase enmascarada con entidad se transforma', Transform::tag( '<path class="&#101;lementor-shape-fill" d="M0">' ) );
+	$twig = Transform::json_out( array( 'elementor/macros' => "{% import ('elemen' ~ 'tor/macros') as m %}<div class=\"{{ ('elemen' ~ 'tor-element') }}\">" ) );
+	check( array( 'digitalisimo/macros' => "{% import 'digitalisimo/macros' as m %}<div class=\"{{ 'dg-element' }}\">" ) === $twig, 'F1 Twig enmascarado en la configuración: nombres y clases como el JS', $twig );
 
 	// F3 / F2 ----------------------------------------------------------------------------------------------------------
 	@mkdir( $tmp . '/marca/motor/js', 0777, true );

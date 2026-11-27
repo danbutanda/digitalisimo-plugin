@@ -184,7 +184,7 @@ final class Transform {
 		if ( preg_match( '/^(\s*(?:\/\*.*?\*\/\s*)?var\s+)([A-Za-z_$][\w$]*)(\s*=\s*)(\{.*\}|\[.*\])(\s*;?\s*(?:\/\*.*?\*\/\s*)?)$/s', $js, $m ) ) {
 			$data = json_decode( $m[4], true );
 			if ( null !== $data ) {
-				$json = wp_json_encode( self::json_out( $data ) );
+				$json = self::json( self::json_out( $data ) );
 				if ( is_string( $json ) ) {
 					return $m[1] . self::ident( $m[2] ) . $m[3] . $json . $m[5];
 				}
@@ -193,14 +193,25 @@ final class Transform {
 		return self::lex( self::paths( $js ) );
 	}
 
+	/** JSON como lo imprime WordPress (con `json_encode` si WordPress no está cargado, en las pruebas). */
+	private static function json( $data ) {
+		return function_exists( 'wp_json_encode' ) ? wp_json_encode( $data ) : json_encode( $data ); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- sin WordPress (pruebas).
+	}
+
 	/** Datos que salen hacia el JS (configuración, respuestas de AJAX y de la API). */
 	public static function json_out( $value, string $key = '', int $depth = 0 ) {
 		if ( $depth > 64 ) {
 			return $value;
 		}
 		if ( is_string( $value ) ) {
-			if ( false === stripos( $value, 'elementor' ) ) {
+			if ( false === stripos( $value, 'elementor' ) && false === strpos( $value, 'lemen' ) ) {
 				return $value;
+			}
+			// Plantillas (Twig de los componentes atómicos, Underscore): su código y su HTML.
+			if ( preg_match( '/\{[{%]|<#/', $value ) ) {
+				$value = self::html( self::template_code( $value ) );
+				// Un selector de control (`{{WRAPPER}} .elementor-x`) no es HTML: sus clases por las reglas.
+				return false !== stripos( $value, 'elementor' ) && false === strpos( $value, '<' ) ? self::str( $value ) : $value;
 			}
 			if ( false !== strpos( $value, '<' ) && preg_match( '/<[a-z!\/]/i', $value ) ) {
 				return self::html( $value );
@@ -472,13 +483,33 @@ final class Transform {
 		);
 	}
 
-	/** El código de una plantilla de Underscore (`<# … #>`, `{{ … }}`, `{{{ … }}}`) por el analizador léxico. */
+	/**
+	 * Las formas con que el paquete enmascara la palabra en lo que el servidor lee (scripts/marca-empaquetar.mjs):
+	 * `&#101;lementor` (HTML, SVG), `('elemen' ~ 'tor…')` (Twig) y el separador invisible (guías del MCP).
+	 */
+	public static function unmask( string $text ): string {
+		if ( false === strpos( $text, 'lemen' ) ) {
+			return $text;
+		}
+		$text = (string) preg_replace_callback(
+			'/&#(101|69|x65|x45);(?=lementor)/i',
+			static function ( $m ) {
+				return in_array( strtolower( $m[1] ), array( '101', 'x65' ), true ) ? 'e' : 'E';
+			},
+			$text
+		);
+		$text = (string) preg_replace( '/\(\'([^\']*?[Ee]lemen)\' ~ \'(tor[^\']*)\'\)/', "'$1$2'", $text );
+		return Map::unmask( $text );
+	}
+
+	/** El código de una plantilla de Underscore o de Twig (`<# … #>`, `{% … %}`, `{{ … }}`) por el analizador léxico. */
 	public static function template_code( string $tpl ): string {
+		$tpl = self::unmask( $tpl );
 		if ( false === stripos( $tpl, 'elementor' ) ) {
 			return $tpl;
 		}
 		return (string) preg_replace_callback(
-			'/(<#)(.*?)(#>)|(\{\{\{?)(.*?)(\}?\}\})/s',
+			'/(<#|\{%)(.*?)(#>|%\})|(\{\{\{?)(.*?)(\}?\}\})/s',
 			static function ( $m ) {
 				return '' !== $m[1] ? $m[1] . self::lex( $m[2] ) . $m[3] : $m[4] . self::lex( $m[5] ) . $m[6];
 			},
@@ -489,7 +520,21 @@ final class Transform {
 	/** Una etiqueta de apertura con sus atributos. */
 	public static function tag( string $tag ): string {
 		if ( false === stripos( $tag, 'elementor' ) ) {
-			return $tag;
+			// Lo que el paquete enmascara con una entidad (`&#101;lementor`, separadores y plantillas): en las clases e ids
+			// se trata como la palabra.
+			if ( ! preg_match( '/&#(?:101|69|x65|x45);lementor/i', $tag ) ) {
+				return $tag;
+			}
+			$tag = (string) preg_replace_callback(
+				'#(\s(?:class|id|for|aria-controls|aria-labelledby|aria-describedby)\s*=\s*)("[^"]*"|\'[^\']*\')#i',
+				static function ( $m ) {
+					return $m[1] . self::unmask( $m[2] );
+				},
+				$tag
+			);
+			if ( false === stripos( $tag, 'elementor' ) ) {
+				return $tag;
+			}
 		}
 		$is_action = (bool) preg_match( '/\bname\s*=\s*["\']action["\']/i', $tag ) && (bool) preg_match( '/^<input\b/i', $tag );
 		return (string) preg_replace_callback(

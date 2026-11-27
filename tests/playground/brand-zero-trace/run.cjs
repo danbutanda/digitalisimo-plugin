@@ -51,13 +51,18 @@ async function mcp() {
   const auth = `Basic ${Buffer.from(`admin:${secret()}`).toString('base64')}`;
   let session = '';
   let id = 0;
+  let route = '';
   const post = async (payload) => {
     const headers = { Authorization: auth, Accept: 'application/json, text/event-stream', 'MCP-Protocol-Version': '2025-06-18' };
     if (session) headers['Mcp-Session-Id'] = session;
-    return request('POST', `/?rest_route=${encodeURIComponent('/digitalisimo/mcp')}`, { headers, body: payload });
+    return request('POST', `/?rest_route=${encodeURIComponent(route)}`, { headers, body: payload });
   };
-  const init = await post({ jsonrpc: '2.0', id: ++id, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'digi-zt', version: '1' } } });
-  check('M1', init.status === 200 && init.json?.result, 'el MCP con nombre propio responde en /wp-json/digitalisimo/mcp', `${init.status} ${init.text.slice(0, 300)}`);
+  const hello = { jsonrpc: '2.0', id: ++id, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'digi-zt', version: '1' } } };
+  route = '/digitalisimo/mcp';
+  let init = await post(hello);
+  // Sin el MCP con nombre propio (el «antes»), la capa se mide en la ruta vieja.
+  if (init.status === 404) { route = '/elementor/mcp'; init = await post(hello); console.log('MCP: sin ruta nueva, se mide /elementor/mcp'); }
+  check('M1', init.status === 200 && init.json?.result && route === '/digitalisimo/mcp', 'el MCP con nombre propio responde en /wp-json/digitalisimo/mcp', `${route} ${init.status} ${init.text.slice(0, 300)}`);
   session = init.headers['mcp-session-id'] || '';
   await post({ jsonrpc: '2.0', method: 'notifications/initialized' });
   add('mcp', count(init.text), 'initialize: ' + snippets(init.text));
@@ -69,10 +74,10 @@ async function mcp() {
   add('mcp', count(res.text), 'resources/list: ' + snippets(res.text));
   const uri = (res.json?.result?.resources || []).map((r) => r.uri).find((u) => /best-practices/.test(u)) || (res.json?.result?.resources || [])[0]?.uri;
   if (uri) { const r = await post({ jsonrpc: '2.0', id: ++id, method: 'resources/read', params: { uri } }); add('mcp', count(r.text), `resources/read ${uri}: ` + snippets(r.text)); }
-  const list = names.find((n) => n === 'digitalisimo-list-posts');
+  const list = names.find((n) => n === 'digitalisimo-list-posts' || n === 'elementor-list-posts');
   if (list) { const r = await post({ jsonrpc: '2.0', id: ++id, method: 'tools/call', params: { name: list, arguments: {} } }); add('mcp', count(media(r.text).replace(/guía de Elementor/g, '')), 'tools/call list-posts: ' + snippets(r.text)); }
   const old = await request('POST', `/?rest_route=${encodeURIComponent('/elementor/mcp')}`, { headers: { Authorization: auth, Accept: 'application/json, text/event-stream', 'MCP-Protocol-Version': '2025-06-18' }, body: { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'digi-zt', version: '1' } } } });
-  check('M3', old.status === 200 && /digitalisimo\/mcp/.test(old.text), 'la ruta vieja sigue (alias) y avisa la nueva', `${old.status} ${old.text.slice(0, 200)}`);
+  check('M3', old.status === 200 && /digitalisimo\\?\/mcp/.test(old.text), 'la ruta vieja sigue (alias) y avisa la nueva', `${old.status} ${old.text.slice(0, 200)}`);
 }
 
 (async () => {
@@ -88,7 +93,9 @@ async function mcp() {
     add('urls_directas', n, `${f} (${r.status}, ${n})`);
   }
 
-  const browser = await puppeteer.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--lang=es-MX'] });
+  // Chrome con un perfil en /tmp: con el TMPDIR largo de pc-run.sh su socket no cabe («Socket path too long»).
+  const profile = fs.mkdtempSync('/tmp/dzt-');
+  const browser = await puppeteer.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: 'new', userDataDir: profile, env: { ...process.env, TMPDIR: '/tmp' }, args: ['--no-sandbox', '--lang=es-MX'] });
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -108,7 +115,8 @@ async function mcp() {
   // Lightbox: abre con el HTML y el JS transformados, y su trozo sale del espejo (si hay espejo).
   const link = await page.$('a[data-dg-open-lightbox], a[data-elementor-open-lightbox]');
   if (link) {
-    await link.click();
+    // Desde la página: el carrusel deja el enlace fuera de la vista y Puppeteer no lo considera clicable.
+    await page.evaluate(() => { const a = document.querySelector('a[data-dg-open-lightbox], a[data-elementor-open-lightbox]'); if (a) a.click(); });
     await new Promise((r) => setTimeout(r, 3000));
     const open = await page.evaluate(() => !!document.querySelector('.dialog-lightbox-widget:not([style*="display: none"]), [id^="dg-lightbox"], [id^="elementor-lightbox"]'));
     check('F1', open, 'el lightbox del carrusel abre', errors.join(' | '));
@@ -130,7 +138,7 @@ async function mcp() {
     ['escritorio', '/wp-admin/admin.php?page=elementor-settings'],
     ['editor', `/wp-admin/post.php?post=${setup.page}&action=elementor`],
   ];
-  for (const [layer, p] of screens) {
+  for (const [layer, p] of screens) try {
     const r = await page.goto(base + p, { waitUntil: layer === 'editor' ? 'networkidle2' : 'networkidle0', timeout: 240000 }).catch((e) => null);
     if (layer === 'editor') await new Promise((res) => setTimeout(res, 8000));
     const url = page.url();
@@ -140,7 +148,7 @@ async function mcp() {
     add(`${layer}_url`, count(url) + hrefs.length, `${p} → ${url}${hrefs.length ? ' · ' + hrefs.slice(0, 3).join(' ') : ''}`);
     add(`${layer}_texto`, count(media(text).replace(/guía de Elementor/g, '')), `${p}: ` + snippets(text));
     add(`${layer}_html`, count(html), `${p} (${count(html)})`);
-  }
+  } catch (e) { check(`P-${p}`, false, `la pantalla ${p} se recorrió`, e.message); }
   // Editor: abrir, editar, guardar y publicar. Con la marca encendida y el paquete transformado (PAQUETE=1) es la
   // validación de la D-12; en las otras variantes, la línea de base. El contenido del cliente («guía de Elementor») tiene
   // que quedar igual en la base de datos y la plantilla de página (`elementor_canvas`) también.
@@ -181,13 +189,15 @@ async function mcp() {
     page.off('response', onResp);
     return m;
   }
-  await editor(setup.page, 'document/save/update', 'Comprar ahora', 'editar');
-  const draft = await editor(setup.draft, 'document/save/publish', 'Publicado', 'publicar');
+  const safe = async (f, tag) => { try { return await f(); } catch (e) { check(`E0-${tag}`, false, `el recorrido del editor (${tag}) terminó`, e.message); return {}; } };
+  await safe(() => editor(setup.page, 'document/save/update', 'Comprar ahora', 'editar'), 'editar');
+  const draft = await safe(() => editor(setup.draft, 'document/save/publish', 'Publicado', 'publicar'), 'publicar');
   check('E6', draft.status === 'publish' && draft.template === 'elementor_canvas', 'el borrador quedó publicado con su plantilla de página', JSON.stringify({ status: draft.status, template: draft.template }));
   const front = await request('GET', `/?page_id=${setup.page}`);
   check('E7', front.status === 200 && front.text.includes('Comprar ahora'), 'el front muestra lo editado');
 
   await browser.close();
+  fs.rmSync(profile, { recursive: true, force: true });
   const result = { capas, checks, failures: checks.filter((c) => !c.ok).length };
   fs.writeFileSync(`${dir}/result.json`, JSON.stringify(result, null, 1));
   for (const [k, v] of Object.entries(capas)) console.log(`${v.n ? 'CUENTA' : 'cero  '} · ${k}: ${v.n}${v.ejemplos.length ? ' · ' + v.ejemplos.slice(0, 3).join(' · ') : ''}`);

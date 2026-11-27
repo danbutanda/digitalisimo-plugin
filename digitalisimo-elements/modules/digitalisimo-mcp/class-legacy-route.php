@@ -34,6 +34,23 @@ final class Legacy_Route {
 		add_filter( 'mcp_adapter_pre_prompt_get', array( __CLASS__, 'count_prompt' ), 2, 4 );
 		add_filter( 'rest_index', array( __CLASS__, 'hide_from_index' ), 20 );
 		add_filter( 'rest_endpoints', array( __CLASS__, 'retire' ), 20 );
+		add_filter( 'rest_post_dispatch', array( __CLASS__, 'unmask' ), 1, 3 );
+	}
+
+	/**
+	 * Con el paquete transformado, las guías del motor llegan enmascaradas (un separador invisible dentro de la palabra,
+	 * scripts/marca-empaquetar.mjs): en la ruta vieja y en el proxy del editor vuelven a su forma, así los nombres de
+	 * herramientas que citan siguen sirviendo. Sin paquete transformado no hay nada que hacer.
+	 */
+	public static function unmask( $response, $server = null, $request = null ) {
+		if ( ! is_object( $request ) || ! method_exists( $request, 'get_route' ) || ! is_object( $response ) || ! method_exists( $response, 'get_data' ) ) {
+			return $response;
+		}
+		if ( ! preg_match( '#^/elementor/(mcp|v1/mcp-proxy)(/|$)#', (string) $request->get_route() ) ) {
+			return $response;
+		}
+		$response->set_data( \Digitalisimo\Elements\Marca\Map::unmask_deep( $response->get_data() ) );
+		return $response;
 	}
 
 	public static function is_legacy( $server ): bool {
