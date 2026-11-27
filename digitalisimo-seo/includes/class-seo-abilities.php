@@ -4,7 +4,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Abilities de SEO para agentes de IA (RM15 de docs/SEO_RANKMATH_OBJECTIVE.md).
  *
- * Sólo lectura: ninguna ability cambia contenido ni ajustes. Cada una comprueba permisos por objeto
+ * Lectura (las de escritura están en `Digitalisimo_Integrations_SEO_Abilities_Write`): ninguna de éstas cambia nada. Cada una comprueba permisos por objeto
  * (`edit_post` del contenido o `manage_options` para lo del sitio) y nunca devuelve secretos ni
  * códigos de verificación. Sin la Abilities API de WordPress (6.9) no se registra nada.
  */
@@ -15,6 +15,19 @@ class Digitalisimo_Integrations_SEO_Abilities {
 		if ( ! function_exists( 'wp_register_ability' ) ) return;
 		add_action( 'wp_abilities_api_categories_init', array( __CLASS__, 'register_category' ) );
 		add_action( 'wp_abilities_api_init', array( __CLASS__, 'register' ) );
+		add_filter( 'elementor/mcp/server/tools', array( __CLASS__, 'server_tools' ) );
+	}
+
+	/**
+	 * `elementor/mcp/server/tools`: las abilities de SEO (lectura y escritura) también en el servidor MCP del sitio
+	 * (`/wp-json/elementor/mcp`, el de DIGITALÍSIMO Elements), el que enseña «Mostrar el prompt para vincular»: acceso
+	 * total sin interruptores (decisión del 2026-11-27). Cada una sigue comprobando los permisos del usuario.
+	 */
+	public static function server_tools( $tools ) {
+		$tools = is_array( $tools ) ? $tools : array();
+		foreach ( array_keys( self::definitions() ) as $name ) $tools[] = self::CATEGORY . '/' . $name;
+		if ( class_exists( 'Digitalisimo_Integrations_SEO_Abilities_Write' ) ) foreach ( array_keys( Digitalisimo_Integrations_SEO_Abilities_Write::definitions() ) as $name ) $tools[] = self::CATEGORY . '/' . $name;
+		return array_values( array_unique( $tools ) );
 	}
 
 	public static function register_category() {

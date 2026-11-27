@@ -110,7 +110,7 @@ namespace {
 	$e = Executor::run( 'settings', array( 'action' => 'get' ) );
 	check( $e instanceof WP_Error, 'Sin manage_options tampoco se leen los ajustes' );
 	$GLOBALS['caps'] = array( 'edit_posts' );
-	check( false === $product_tool->check_permission() && Executor::run( 'domain-product', array( 'action' => 'mark', 'product_id' => 20, 'tld' => '.com' ) ) instanceof WP_Error && '' === get_post_meta( 20, '_digitalisimo_tld', true ), 'Sin manage_woocommerce ni manage_options no se marca nada' );
+	check( false === $product_tool->check_permission() && Executor::run( 'domain-product', array( 'action' => 'mark', 'product_id' => 14693, 'tld' => '.com' ) ) instanceof WP_Error && '' === get_post_meta( 14693, '_digitalisimo_tld', true ), 'Sin manage_woocommerce ni manage_options no se marca nada' );
 	unset( $GLOBALS['caps'] );
 
 	// ── get / update ──────────────────────────────────────────────────────────────────────────────────────────
@@ -119,14 +119,16 @@ namespace {
 	foreach ( array( 'CLAVE-NAMECHEAP', 'CLAVE-WEBUZO-OK', 'TOKEN-BANXICO-SECRETO', 'nc-api', '203.0.113.5' ) as $s ) check( false === strpos( $json, $s ), "get no devuelve «{$s}»" );
 	check( true === $g['secrets_set']['api_key'] && in_array( 'digitalisimo-hosting/settings', $GLOBALS['ab']['guarded'], true ), 'get dice qué secretos están puestos (pasa por execute_guarded)' );
 	$before = opt();
-	$r = Executor::run( 'settings', array( 'action' => 'update', 'data' => array( 'domain_products' => ".com|20\n.net|\n.mx|21", 'hosting_category_ids' => '63, 64' ) ) );
+	$r = Executor::run( 'settings', array( 'action' => 'update', 'data' => (object) array( 'registrar_by_tld' => (object) array( '.mx' => 'dynadot' ), 'finder_order' => array( '.mx', '.com' ) ) ) );
 	$after = opt();
-	check( is_array( $r ) && ".com|20\n.net|\n.mx|21" === $after['domain_products'] && '63, 64' === $after['hosting_category_ids'], 'update guarda lo enviado' );
+	check( is_array( $r ) && array( '.mx' => 'dynadot' ) === $after['registrar_by_tld'] && array( '.mx', '.com' ) === $after['finder_order'], 'update guarda lo enviado (listas por extensión, sin «|»)' . ( is_wp_error( $r ) ? ' · ' . $r->code : '' ) );
 	foreach ( array( 'api_key', 'webuzo_api_key', 'banxico_token', 'provision_enabled', 'nameservers', 'grace_days' ) as $k ) check( $before[ $k ] === $after[ $k ], "update combina: «{$k}» sigue igual" );
-	check( ".com|20\n.net|\n.mx|21" === $r['settings']['domain_products'] && in_array( 'domain_products', $r['changed'], true ), 'update devuelve el valor resultante' );
+	check( 'dynadot' === $r['settings']['registrar_by_tld']->{'.mx'} && in_array( 'registrar_by_tld', $r['changed'], true ) && false === strpos( wp_json_encode( $r ), '|' ), 'update devuelve el valor resultante, sin «|»' );
 	$entry = log_entries()[0];
-	check( 'ok' === $entry['result'] && array( 'domain_products', 'hosting_category_ids' ) === $entry['keys'] && 1 === $entry['user'] && 'settings' === $entry['tool'], 'La bitácora anota usuario, acción y los nombres de las claves' );
-	check( false === strpos( serialize( log_entries() ), '.com|20' ) && false === strpos( serialize( log_entries() ), '63, 64' ), 'La bitácora nunca guarda valores' );
+	check( 'ok' === $entry['result'] && array( 'registrar_by_tld', 'finder_order' ) === $entry['keys'] && 1 === $entry['user'] && 'settings' === $entry['tool'], 'La bitácora anota usuario, acción y los nombres de las claves' );
+	check( false === strpos( serialize( log_entries() ), 'dynadot' ) && false === strpos( serialize( log_entries() ), '.mx' ), 'La bitácora nunca guarda valores' );
+	$e = Executor::run( 'settings', array( 'action' => 'update', 'data' => array( 'domain_products' => '.com|20' ) ) );
+	check( $e instanceof WP_Error && 'digitalisimo_hosting_removed_key' === $e->code, '«domain_products» (IDs con «|») ya no existe por MCP' );
 	$snap = serialize( opt() );
 	$e = Executor::run( 'settings', array( 'action' => 'update', 'data' => array( 'api_key' => 'ROBADA', 'client_ip' => '1.1.1.1' ) ) );
 	check( $e instanceof WP_Error && 'digitalisimo_hosting_read_only' === $e->code && serialize( opt() ) === $snap && false === strpos( serialize( log_entries() ), 'ROBADA' ), 'La cuenta de Namecheap no se escribe por MCP (ni queda la clave en la bitácora)' );
@@ -136,7 +138,7 @@ namespace {
 	check( Executor::run( 'settings', array( 'action' => 'borrar' ) ) instanceof WP_Error, 'Una acción fuera de la lista se rechaza' );
 
 	// ── Multisitio ────────────────────────────────────────────────────────────────────────────────────────────
-	$GLOBALS['multisite'] = true; $GLOBALS['site_options'] = array( 'digitalisimo_hosting_options' => array( 'domain_products' => '.com|999', 'api_key' => 'CLAVE-RED' ) );
+	$GLOBALS['multisite'] = true; $GLOBALS['site_options'] = array( 'digitalisimo_hosting_options' => array( 'registrar_by_tld' => array( '.com' => 'dynadot' ), 'api_key' => 'CLAVE-RED' ) );
 	$net = serialize( $GLOBALS['site_options'] );
 	$r = Executor::run( 'settings', array( 'action' => 'update', 'data' => array( 'simplify_checkout' => true ) ) );
 	check( is_array( $r ) && 1 === opt()['simplify_checkout'] && serialize( $GLOBALS['site_options'] ) === $net, 'En una red: escribe el sitio, nunca la red' );
@@ -146,13 +148,14 @@ namespace {
 	$GLOBALS['caps'] = array( 'manage_woocommerce' );
 	digi_product( 33, 'Dominio .net', 280 );
 	$r = Executor::run( 'domain-product', array( 'action' => 'mark', 'product_id' => 33, 'tld' => '.net' ) );
-	check( is_array( $r ) && '.net' === get_post_meta( 33, '_digitalisimo_tld', true ) && 33 === $r['domain_products']['resolved']['.net']['product_id'], 'mark: la línea .net sin ID queda resuelta con el producto marcado' );
+	$net = is_array( $r ) ? array_values( array_filter( $r['domains'], function ( $d ) { return '.net' === $d['tld']; } ) ) : array();
+	check( is_array( $r ) && '.net' === get_post_meta( 33, '_digitalisimo_tld', true ) && $net && 33 === $net[0]['product_id'] && 'domain' === $r['product']['type'], 'mark: el producto queda como Dominio .net y se detecta' );
 	check( 33 === log_entries()[0]['product'] && 'mark' === log_entries()[0]['action'], 'La bitácora anota el producto marcado' );
 	digi_product( 34, 'Transferencia', 250 );
 	$r = Executor::run( 'domain-product', array( 'action' => 'mark', 'product_id' => 34, 'kind' => 'transfer' ) );
 	check( is_array( $r ) && '*' === Digitalisimo_Hosting_Products::transfer_ext( 34 ), 'mark de transferencia sin extensión = cualquiera' );
 	$r = Executor::run( 'domain-product', array( 'action' => 'list' ) );
-	check( 2 === count( $r['marked'] ), 'list: los productos marcados' );
+	check( 4 === count( $r['domains'] ) && isset( $r['hosting_products'] ) && false === strpos( wp_json_encode( $r ), '|' ), 'list: los dominios detectados (.com, .mx, .net y la transferencia) y los planes, sin «|»' );
 	Executor::run( 'domain-product', array( 'action' => 'unmark', 'product_id' => 34 ) );
 	check( '' === Digitalisimo_Hosting_Products::transfer_ext( 34 ), 'unmark quita la marca' );
 	check( Executor::run( 'domain-product', array( 'action' => 'mark', 'product_id' => 33 ) ) instanceof WP_Error, 'mark de registro sin tld se rechaza' );

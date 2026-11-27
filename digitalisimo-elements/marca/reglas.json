@@ -354,15 +354,15 @@
 		}
 	],
 	"derivado": {
-		"huella": "2f39c079d0c0d3960f595e4069aef7a7521a9f58b5eeb3dc22b08fa182befc99",
+		"huella": "9e71bd261e0cdbb5ce60ec7011c4de0117366f4bd1bf640a20acc37096ac433a",
 		"motor": "4.3.5",
 		"archivos_del_front": {
 			"motor": 269,
-			"pro": 362,
+			"pro": 370,
 			"propio": 178
 		},
-		"archivos_con_elementor": 499,
-		"apariciones": 40151,
+		"archivos_con_elementor": 500,
+		"apariciones": 40157,
 		"clases_distintas": 1493
 	}
 }

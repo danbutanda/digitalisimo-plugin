@@ -9,9 +9,13 @@
 //      de la URL) y sin EPP rechazada, dominio ocupado rechazado
 //   A  página del editor atómico con el formulario e-form, [resultado_dominio] y [digitalisimo_domain_search]: el HTML y,
 //      con Chrome, la consulta real desde el navegador
+//   B  el buscador estilo registrador ([digitalisimo_buscador_dominios]): su REST consulta todo en UNA llamada; el carrito
+//      vacío de bloques lo lleva dentro de su bloque y, con Chrome, agregar desde ahí actualiza el carrito real sin barra
+//      fija encima; con artículos no se pinta
 // Escribe <dir>/result.txt y result.json; sale 1 si algo falla. Uso: node run.mjs <puerto> <host> <dir>
 import http from 'node:http';
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
 const [port, host, dir] = process.argv.slice(2);
@@ -107,11 +111,17 @@ try {
   const S = secrets();
   const leaked = [S.namecheap, S.webuzo, S.banxico, S.nc_user, '203.0.113.5'].filter((v) => r.text.includes(v));
   check(!r.isError && !leaked.length && r.data.secrets_set?.api_key === true && r.data.namecheap?.configured === true, 'get: todos los ajustes, sin ningún secreto (sólo si están puestos)', leaked.length ? `fuga: ${leaked.length}` : r.text.slice(0, 300));
-  check(r.data.settings?.domain_products === '.com|\n.net|\n.mx|' && !r.text.includes('.org|'), 'get: la lista de fábrica vieja (con .org) vale como .com, .net y .mx', r.data.settings?.domain_products);
-  r = await admin.call('digitalisimo-hosting-settings', { action: 'update', data: { ask_domain: true, require_domain_hosting: true, domain_products: '.com|\n.net|\n.mx|' } });
-  let opt = await probe('option');
-  check(!r.isError && opt.same_account && opt.domain_products === '.com|\n.net|\n.mx|' && String(opt.ask_domain) === '1' && opt.hosting_category_ids && String(opt.provision_enabled) === '0', 'update combina: guarda lo enviado y la cuenta, las claves y lo demás siguen igual', JSON.stringify(opt) + r.text.slice(0, 200));
+  const doms = Object.fromEntries((r.data.domains || []).map((d) => [d.tld + '/' + d.kind, d.product_id]));
+  check(doms['.com/register'] === P.com && doms['.net/register'] === P.net && doms['.mx/register'] === P.mx && !doms['.org/register'] && !r.text.includes('|') && r.data.settings?.domain_products === undefined, 'get: la tienda vieja (lista de fábrica con .org y SKU) quedó migrada: .com, .net y .mx detectados, sin «|» ni IDs en los ajustes', JSON.stringify(r.data.domains));
+  check((r.data.hosting_products || []).some((h) => h.product_id === P.plan && h.plan === 'digitalisimo_starter' && h.period === 'Anual'), 'get: el plan (antes por la categoría de hosting) quedó detectado como hosting anual', JSON.stringify(r.data.hosting_products));
+  let opt = await probe('option', { plan: P.plan });
+  check(opt.migrated?.settings && opt.migrated?.products && !opt.legacy_left.length && opt.plan_kind === 'hosting', 'La migración corrió una vez al actualizar: sin claves viejas en los ajustes', JSON.stringify(opt));
+  r = await admin.call('digitalisimo-hosting-settings', { action: 'update', data: { ask_domain: true, require_domain_hosting: true, registrar_by_tld: { '.mx': 'namecheap' } } });
+  opt = await probe('option');
+  check(!r.isError && opt.same_account && opt.registrar_by_tld?.['.mx'] === 'namecheap' && String(opt.ask_domain) === '1' && String(opt.provision_enabled) === '0', 'update combina: guarda lo enviado y la cuenta, las claves y lo demás siguen igual', JSON.stringify(opt) + r.text.slice(0, 200));
   check(Array.isArray(r.data.changed) && r.data.changed.includes('require_domain_hosting') && r.data.settings?.require_domain_hosting === true, 'update devuelve el valor resultante', r.text.slice(0, 300));
+  r = await admin.call('digitalisimo-hosting-settings', { action: 'update', data: { domain_products: '.com|1' } });
+  check(r.isError && r.text.includes('Ya no existe'), 'update: «domain_products» (IDs con «|») ya no existe y lo explica', r.text.slice(0, 200));
   r = await admin.call('digitalisimo-hosting-settings', { action: 'update', data: { api_key: 'ROBADA-123456', replace_hosting: true } });
   opt = await probe('option');
   check(r.isError && opt.same_account && !r.text.includes('ROBADA'), 'La cuenta de Namecheap no se escribe por MCP y no se guarda nada del lote', r.text.slice(0, 300));
@@ -131,7 +141,17 @@ try {
 
   start('Productos por extensión');
   opt = await probe('option');
-  check(JSON.stringify(opt.resolved) === JSON.stringify({ '.com': P.com, '.net': P.net, '.mx': P.mx }), 'Sin IDs: .com, .net y .mx resueltos por su SKU; el producto .org no se vende', JSON.stringify(opt.resolved));
+  check(JSON.stringify(opt.resolved) === JSON.stringify({ '.com': P.com, '.net': P.net, '.mx': P.mx }), 'Sin IDs: .com, .net y .mx (marcados por la migración desde su SKU); el producto .org no se vende', JSON.stringify(opt.resolved));
+
+  start('Editor de producto (WooCommerce de verdad)');
+  const ed = await probe('editor');
+  check(/<a href="#digitalisimo_hosting_data"[^>]*><span>DIGITALÍSIMO Hosting<\/span><\/a>/.test(ed.box) && ed.box.includes('id="digitalisimo_hosting_data"') && /<select id="dh-p\d+-tld" name="digitalisimo_hosting\[tld\]"/.test(ed.box) && !/name="digitalisimo_hosting\[tld\]"[^>]*type="text"/.test(ed.box), 'La caja «Datos del producto» tiene la pestaña «DIGITALÍSIMO Hosting» con la extensión en un desplegable', ed.box.slice(0, 200));
+  check(ed.box.includes('<option value=".lat">.lat</option>') && ed.box.includes('<option value=".com">.com</option>') && ed.box.includes('type="search"'), 'El desplegable trae las extensiones de los registradores, con buscador', '');
+  check(ed.variation.includes('esta variación es…') && ed.variation.includes('name="digitalisimo_hosting_var[0][type]"') && ed.variation.includes('<option value="1">Mensual</option>'), 'Cada variación tiene su bloque con el periodo de cobro', ed.variation.slice(0, 200));
+  check(ed.map['.lat'] === ed.ids.lat && ed.kind_lat === 'register', 'Guardado por WooCommerce: el producto simple queda como Dominio .lat y se detecta', JSON.stringify(ed.map));
+  const per = Object.values(ed.periods).map((p) => p.join(':')).sort();
+  check(JSON.stringify(per) === JSON.stringify(['digitalisimo_starter:1', 'digitalisimo_starter:12', 'digitalisimo_starter:36']), 'Guardado por WooCommerce: el plan variable es Hosting y cada variación tiene su periodo (mensual, anual y trianual)', JSON.stringify(ed.periods) + JSON.stringify(ed.errors));
+  check(!/<textarea[^>]*name="hosting\[/.test(ed.settings) && !ed.settings.includes('hosting[domain_products]') && ed.settings.includes('name="hosting[registrar_by_tld][.lat]"') && ed.settings.includes('data-dh-order'), 'Los ajustes de Hosting: sin campos de IDs ni «|»; una fila por extensión detectada (también .lat) y el orden ordenable', '');
 
   start('Compras como invitada (Store API)');
   let b = await buy([{ id: P.com, query: { domain_name: 'nuevonegocio.com' } }, { id: P.plan }]);
@@ -182,7 +202,9 @@ try {
 
   // Con Chrome: la consulta real desde el navegador en la página atómica.
   const chrome = process.env.CHROME_PATH || '/usr/bin/google-chrome';
-  const pptrDir = process.env.PUPPETEER_PATH ? process.env.PUPPETEER_PATH.replace(/\/$/, '') + '/puppeteer-core' : '/home/digitalisimo/.npm/_npx/0f94ee7615faf582/node_modules/puppeteer-core';
+  const npx = `${homedir()}/.npm/_npx`;
+  const found = existsSync(npx) ? readdirSync(npx).map((d) => `${npx}/${d}/node_modules/puppeteer-core`).find((d) => existsSync(d + '/package.json')) : '';
+  const pptrDir = process.env.PUPPETEER_PATH ? process.env.PUPPETEER_PATH.replace(/\/$/, '') + '/puppeteer-core' : found || '';
   const entry = ['/lib/puppeteer/puppeteer-core.js', '/lib/esm/puppeteer/puppeteer-core.js'].map((f) => pptrDir + f).find((f) => existsSync(f));
   if (!existsSync(chrome) || !entry) log(`AVISO: sin Chrome o puppeteer-core se salta la parte del navegador (${chrome}, ${pptrDir})`);
   else {
@@ -208,6 +230,50 @@ try {
       await tab.waitForFunction(() => /no está disponible/.test(document.querySelector('.digitalisimo-domain-search .digitalisimo-domain-result')?.textContent || ''), { timeout: 180000 });
       check(true, 'Chrome: [digitalisimo_domain_search] consulta en la página atómica');
       check(!errors.length, `Chrome: sin errores de JavaScript${errors.length ? ': ' + errors.join(' | ') : ''}`);
+    } finally { await browser.close(); }
+  }
+
+  start('Buscador estilo registrador y carrito de bloques');
+  const fp = await probe('finder_page');
+  check(fp.block_cart, 'La página del carrito usa el bloque de carrito de WooCommerce', JSON.stringify(fp));
+  const fhtml = (await request('GET', `/?page_id=${fp.id}`)).text;
+  const fconf = JSON.parse((fhtml.match(/window\.digitalisimoFinder=(\{.*?\});/) || [])[1] || '{}');
+  check(fhtml.includes('data-digitalisimo-finder') && /finder\.js/.test(fhtml) && fconf.nonce && fconf.store, '[digitalisimo_buscador_dominios] pinta el buscador con su script y su configuración', JSON.stringify(fconf).slice(0, 200));
+  const before = (await probe('calls')).calls.length;
+  const fr = await request('POST', '/?rest_route=/digitalisimo-hosting/v1/finder', { headers: { 'X-Digitalisimo-Finder': '1' }, body: { q: 'buscadorreal', nonce: fconf.nonce } });
+  const fcalls = (await probe('calls')).calls.slice(before).filter((c) => c.cmd === 'namecheap.domains.check');
+  check(fr.status === 200 && fr.json?.main?.domain === 'buscadorreal.com' && fr.json.rows.length >= 2 && fcalls.length === 1 && fcalls[0].fields.DomainList.split(',').length >= 3, 'La REST del buscador consulta todas las extensiones en UNA llamada a Namecheap', message(fr) + JSON.stringify(fcalls.map((c) => c.fields.DomainList)));
+  const emptyCart = (await request('GET', `/?page_id=${fp.cart}`)).text;
+  writeFileSync(`${dir}/cart-empty.html`, emptyCart);
+  check(/wp-block-woocommerce-empty-cart-block[\s\S]*digitalisimo-finder-empty-cart/.test(emptyCart), 'Carrito vacío (bloques): el buscador va dentro del bloque «carrito vacío»');
+  // Con artículos (en el navegador, con su sesión), WooCommerce pinta igual el bloque vacío: el buscador ya no va.
+  if (existsSync(chrome) && entry) {
+    const { default: puppeteer } = await import(pathToFileURL(entry).href);
+    const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--disable-gpu', `--host-resolver-rules=MAP ${host.split(':')[0]} 127.0.0.1`] });
+    try {
+      const tab = await browser.newPage();
+      await tab.setViewport({ width: 375, height: 800, isMobile: true });
+      tab.setDefaultTimeout(180000); tab.setDefaultNavigationTimeout(180000);
+      const errors = []; tab.on('pageerror', (e) => errors.push(e.message));
+      await tab.goto(`http://${host}/?page_id=${fp.cart}`, { waitUntil: 'load' });
+      await tab.waitForSelector('.wp-block-woocommerce-empty-cart-block .digitalisimo-finder input[name="dominio"]', { visible: true });
+      check(true, 'Chrome: el carrito vacío de bloques muestra el buscador');
+      await tab.type('.digitalisimo-finder input[name="dominio"]', 'desdecarrito');
+      await tab.click('.digitalisimo-finder__submit');
+      await tab.waitForSelector('.digitalisimo-finder__main .digitalisimo-finder__add');
+      await tab.click('.digitalisimo-finder__main .digitalisimo-finder__add');
+      // Al agregar, el carrito de bloques se vuelve a pintar (el bloque «vacío», con el buscador, desaparece): se espera
+      // el carrito lleno con el dominio o un aviso del buscador.
+      await tab.waitForFunction(() => /desdecarrito\.com/.test(document.querySelector('.wp-block-woocommerce-filled-cart-block')?.textContent || '') || /No se pudo|Busca primero|Intenta/.test(document.querySelector('.digitalisimo-finder__status')?.textContent || ''), { timeout: 180000 }).catch(() => {});
+      const filled = await tab.evaluate(() => /desdecarrito\.com/.test(document.querySelector('.wp-block-woocommerce-filled-cart-block')?.textContent || ''));
+      const said = await tab.evaluate(() => document.querySelector('.digitalisimo-finder__status')?.textContent || '(sin buscador en pantalla)');
+      writeFileSync(`${dir}/cart-after-add.html`, await tab.content());
+      check(filled, 'Chrome: al agregar desde el carrito vacío, el carrito de bloques se actualiza solo (evento wc-blocks_added_to_cart) y muestra el dominio', said);
+      check(!(await tab.$('.digitalisimo-finder-cartbar:not([hidden])')), 'Chrome: en la página del carrito no aparece la barra fija encima del carrito real');
+      await tab.goto(`http://${host}/?page_id=${fp.cart}`, { waitUntil: 'load' });
+      await tab.waitForFunction(() => /desdecarrito\.com/.test(document.querySelector('.wp-block-woocommerce-filled-cart-block')?.textContent || ''));
+      check(!(await tab.$('.digitalisimo-finder-empty-cart')) && !(await tab.$('.digitalisimo-finder-cartbar:not([hidden])')), 'Chrome: con artículos, el carrito no trae el buscador ni la barra');
+      check(!errors.length, `Chrome: sin errores de JavaScript en el carrito${errors.length ? ': ' + errors.join(' | ') : ''}`);
     } finally { await browser.close(); }
   }
 } catch (e) {

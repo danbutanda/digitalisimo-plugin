@@ -162,7 +162,7 @@ final class Tools {
 		'customers'      => 'Tienda: clientes y sus descargas',
 		'coupons'        => 'Tienda: cupones',
 		'store-settings' => 'Tienda: ajustes, envíos, impuestos y pasarelas de pago',
-		'reports'        => 'Tienda: informes y bitácora (sólo lectura)',
+		'reports'        => 'Tienda: informes y bitácora',
 	);
 
 	/** Qué hace cada herramienta, para el modelo. */
@@ -173,7 +173,7 @@ final class Tools {
 		'customers'      => 'Administra los clientes de la tienda WooCommerce de este sitio. resource: "customer" (por defecto, con customer_id) o "download" (descargas de un cliente: sólo list, con customer_id). Acciones: list (filtros en query: search, email, role, orderby…), get, create (data: email, first_name, last_name, username, password, billing, shipping), update y delete (los usuarios no tienen papelera: exige force:true; reassign pasa sus contenidos a otro usuario). Las respuestas llevan datos personales del cliente: úsalos sólo para la tarea pedida.',
 		'coupons'        => 'Administra los cupones de la tienda WooCommerce de este sitio (coupon_id). Acciones: list (filtros en query: search, code…), get, create (data: code, discount_type percent, fixed_cart o fixed_product, amount, individual_use, product_ids, usage_limit, date_expires, free_shipping…), update, delete (a la papelera; force:true lo borra para siempre) y batch (data {"create","update","delete"}, 100 elementos como mucho; WooCommerce borra en lote sin papelera, así que un lote con delete exige force:true).',
 		'store-settings' => 'Ajustes de la tienda WooCommerce de este sitio. resource: "setting_group" (list: grupos de ajustes), "setting" (opciones de un grupo, group_id: list, get y update con setting_id y data {"value":…}; batch con data {"update":[{"id","value"}]}), "shipping_zone" (zone_id: list, get, create, update, delete con force:true), "shipping_zone_location" (ubicaciones de una zona: list y update con data {"locations":[{"code":"MX","type":"country"}]}, que las reemplaza todas), "shipping_zone_method" (métodos de una zona: zone_id e instance_id; create con data {"method_id":"flat_rate"}; update con data {"enabled", "settings":{…}}; delete con force:true), "shipping_method" (métodos de envío disponibles: list y get con method_id), "tax_class" (clases de impuesto: list, create, delete con tax_class y force:true), "tax_rate" (tasas de impuesto, rate_id: list, get, create, update, delete con force:true, batch) y "payment_gateway" (pasarelas de pago, gateway_id: list, get y update con data {"enabled", "title", "description", "settings":{…}}). Estas listas devuelven todo en una sola respuesta, salvo las tasas de impuesto (paginadas). Los campos de tipo contraseña y los que se nombran como clave, contraseña, token, secreto, firma o sal salen enmascarados ("masked": true), nunca su valor. Se pueden escribir enviando el valor nuevo; un valor vacío o la máscara conservan el guardado.',
-		'reports'        => 'Informes de la tienda WooCommerce de este sitio, sólo lectura. Acciones: list (informes disponibles), sales (ventas; query: period week, month, last_month o year, o date_min y date_max AAAA-MM-DD), top_sellers (más vendidos, mismos filtros), orders_totals, products_totals, customers_totals, coupons_totals y reviews_totals (totales por estado o tipo) y log (bitácora de las escrituras hechas con estas herramientas en este sitio: fecha, usuario, herramienta, acción, recurso, ID y resultado, sin datos personales ni valores; paginada con page y per_page; exige administrar WooCommerce).',
+		'reports'        => 'Informes de la tienda WooCommerce de este sitio (sólo consulta). Acciones: list (informes disponibles), sales (ventas; query: period week, month, last_month o year, o date_min y date_max AAAA-MM-DD), top_sellers (más vendidos, mismos filtros), orders_totals, products_totals, customers_totals, coupons_totals y reviews_totals (totales por estado o tipo) y log (bitácora de las escrituras hechas con estas herramientas en este sitio: fecha, usuario, herramienta, acción, recurso, ID y resultado, sin datos personales ni valores; paginada con page y per_page; exige administrar WooCommerce).',
 	);
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -229,23 +229,15 @@ final class Tools {
 
 	/**
 	 * Definición de una herramienta: `label`, `description`, `category`, `input_schema`, `output_schema` y `meta`
-	 * (`annotations`, `show_in_rest` y `mcp`). `$mode` (`read` o `write`) sólo cambia la última frase de la descripción.
+	 * (`annotations`, `show_in_rest` y `mcp`). Todas leen y escriben (decisión del dueño del 2026-11-27: el MCP trae
+	 * acceso total, sin modos); lo que cada usuario puede hacer lo deciden sus capacidades de WordPress y WooCommerce.
 	 */
-	public static function definition( string $tool, string $mode = 'read', $write_tools = null ): array {
-		// «Escritura sólo en lo elegido»: la herramienta marcada se describe como en escritura; la otra, con su motivo.
-		if ( 'custom' === $mode ) {
-			$write_tools = is_array( $write_tools ) ? $write_tools : Settings::write_tools();
-			$mode        = in_array( $tool, $write_tools, true ) ? 'write' : 'custom';
-		}
+	public static function definition( string $tool ): array {
 		if ( self::SKYDROPX === $tool ) {
-			return Skydropx_Tool::definition( $mode );
+			return Skydropx_Tool::definition();
 		}
 		$readonly = self::is_readonly_tool( $tool );
-		$tail     = $readonly ? '' : ( 'custom' === $mode
-			? ' En este sitio esta herramienta sólo lee («WooCommerce en el MCP»: escritura sólo en lo elegido, y ésta no está elegida): create, update, delete y batch devuelven un error que explica dónde se marca.'
-			: ( 'write' === $mode
-			? ' Este sitio permite escribir («WooCommerce en el MCP»: lectura y escritura); toda escritura queda en la bitácora sin datos personales.'
-			: ' Este sitio sólo permite leer («WooCommerce en el MCP»: sólo lectura): create, update, delete y batch devuelven un error que explica dónde se cambia el modo.' . ( in_array( $tool, array( 'products', 'catalog' ), true ) ? ' Excepción: desde el Asistente IA del escritorio, create y update de productos, variaciones y catálogo sí se hacen, con la confirmación de la persona.' : '' ) ) );
+		$tail     = $readonly ? '' : ' Cada escritura queda en la bitácora sin datos personales y exige el permiso de WooCommerce del usuario conectado para ese recurso.';
 		return array(
 			'label'         => self::LABELS[ $tool ],
 			'description'   => self::DESCRIPTIONS[ $tool ] . $tail,

@@ -7,6 +7,8 @@
  * sale de la máquina: sin filtro que conteste, `wp_remote_post()` devuelve un error.
  */
 error_reporting( E_ALL );
+// Como WordPress (wp-settings.php): PHP siempre en UTC; las fechas locales las da wp_date().
+date_default_timezone_set( 'UTC' );
 require_once __DIR__ . '/php74.php';
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'DAY_IN_SECONDS', 86400 );
@@ -55,7 +57,7 @@ function get_option( $k, $d = false ) {
 	if ( ! array_key_exists( $k, $GLOBALS['rt_opt'] ) ) { if ( ! array_key_exists( $k, $GLOBALS['options'] ) ) return $d; $GLOBALS['rt_opt'][ $k ] = $GLOBALS['options'][ $k ]; }
 	return $GLOBALS['rt_opt'][ $k ];
 }
-function update_option( $k, $v, $a = null ) { $GLOBALS['options'][ $k ] = $v; unset( $GLOBALS['rt_opt'][ $k ] ); return true; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['options'][ $k ] = $v; $GLOBALS['options_autoload'][ $k ] = $a; unset( $GLOBALS['rt_opt'][ $k ] ); return true; }
 function add_option( $k, $v = '', $x = '', $a = null ) { unset( $GLOBALS['rt_opt'][ $k ] ); if ( array_key_exists( $k, $GLOBALS['options'] ) ) return false; $GLOBALS['options'][ $k ] = $v; return true; }
 function delete_option( $k ) { unset( $GLOBALS['options'][ $k ], $GLOBALS['rt_opt'][ $k ] ); return true; }
 function wp_load_alloptions() { return $GLOBALS['options']; }
@@ -63,7 +65,12 @@ function wp_set_option_autoload( $k, $a ) { return true; }
 function get_site_option( $k, $d = false ) { if ( ! $GLOBALS['multisite'] ) return get_option( $k, $d ); return array_key_exists( $k, $GLOBALS['site_options'] ) ? $GLOBALS['site_options'][ $k ] : $d; }
 function update_site_option( $k, $v ) { if ( ! $GLOBALS['multisite'] ) return update_option( $k, $v ); $GLOBALS['site_options'][ $k ] = $v; return true; }
 function delete_site_option( $k ) { if ( ! $GLOBALS['multisite'] ) return delete_option( $k ); unset( $GLOBALS['site_options'][ $k ] ); return true; }
-function get_transient( $k ) { return false; } function set_transient() { return true; } function get_site_transient( $k ) { return false; } function set_site_transient() { return true; }
+// Transitorios: sin guardar nada (como siempre en estas pruebas) salvo con $GLOBALS['real_transients'] (el buscador de
+// dominios prueba su caché y su límite por visitante); $GLOBALS['now_offset'] adelanta el reloj para que venzan.
+function get_transient( $k ) { if ( empty( $GLOBALS['real_transients'] ) || ! isset( $GLOBALS['transients'][ $k ] ) ) return false; list( $v, $exp ) = $GLOBALS['transients'][ $k ]; if ( $exp && $exp <= time() + (int) ( $GLOBALS['now_offset'] ?? 0 ) ) { unset( $GLOBALS['transients'][ $k ] ); return false; } return $v; }
+function set_transient( $k = '', $v = null, $ttl = 0 ) { if ( ! empty( $GLOBALS['real_transients'] ) ) $GLOBALS['transients'][ $k ] = array( $v, $ttl ? time() + (int) ( $GLOBALS['now_offset'] ?? 0 ) + (int) $ttl : 0 ); return true; }
+function delete_transient( $k ) { unset( $GLOBALS['transients'][ $k ] ); return true; }
+function get_site_transient( $k ) { return get_transient( 'site:' . $k ); } function set_site_transient( $k = '', $v = null, $ttl = 0 ) { return set_transient( 'site:' . $k, $v, $ttl ); }
 function get_bloginfo( $k = '' ) { return get_option( 'blogname', 'Tienda' ); }
 
 // ── Utilidades de WordPress ─────────────────────────────────────────────────────────────────────────────────
@@ -128,10 +135,13 @@ function wp_insert_post( $a ) { $id = ++$GLOBALS['next_id']; $GLOBALS['posts'][ 
 function get_post( $id ) { $p = $GLOBALS['posts'][ (int) $id ] ?? null; return $p && $p->blog === $GLOBALS['blog'] ? $p : null; }
 function get_posts( $q ) {
 	// Productos (2026-11-26, productos por extensión): los de $GLOBALS['products'], publicados salvo $GLOBALS['product_status'], con meta_key/meta_value.
-	if ( 'product' === ( $q['post_type'] ?? '' ) ) {
+	// Variaciones (2026-11-27): los productos con parent > 0 son 'product_variation'; tax_query por $GLOBALS['product_cats'].
+	if ( in_array( $q['post_type'] ?? '', array( 'product', 'product_variation' ), true ) ) {
 		$out = array();
 		foreach ( array_keys( $GLOBALS['products'] ) as $id ) {
-			if ( ( $q['post_status'] ?? 'publish' ) !== get_post_status( $id ) ) continue;
+			if ( ( 'product_variation' === $q['post_type'] ) !== ( $GLOBALS['products'][ $id ]->parent > 0 ) ) continue;
+			if ( 'any' !== ( $q['post_status'] ?? 'publish' ) && ( $q['post_status'] ?? 'publish' ) !== get_post_status( $id ) ) continue;
+			if ( isset( $q['tax_query'][0]['terms'] ) && ! array_intersect( (array) $q['tax_query'][0]['terms'], (array) ( $GLOBALS['product_cats'][ $id ] ?? array() ) ) ) continue;
 			if ( isset( $q['meta_key'] ) && ! isset( $GLOBALS['postmeta'][ $id ][ $q['meta_key'] ] ) ) continue;
 			if ( isset( $q['meta_value'] ) && (string) ( $GLOBALS['postmeta'][ $id ][ $q['meta_key'] ] ?? '' ) !== (string) $q['meta_value'] ) continue;
 			$out[] = $id;
@@ -142,7 +152,7 @@ function get_posts( $q ) {
 	$out = array(); foreach ( $GLOBALS['posts'] as $id => $p ) if ( $p->post_type === $q['post_type'] && $p->blog === $GLOBALS['blog'] ) $out[] = $id; return $out;
 }
 function get_post_status( $id ) { return isset( $GLOBALS['products'][ (int) $id ] ) ? ( $GLOBALS['product_status'][ (int) $id ] ?? 'publish' ) : ( isset( $GLOBALS['posts'][ (int) $id ] ) ? 'publish' : false ); }
-function delete_post_meta( $id, $k ) { unset( $GLOBALS['postmeta'][ (int) $id ][ $k ], $GLOBALS['rt_meta'][ (int) $id ] ); return true; }
+function delete_post_meta( $id, $k ) { unset( $GLOBALS['postmeta'][ (int) $id ][ $k ], $GLOBALS['rt_meta'][ (int) $id ] ); if ( class_exists( 'Digitalisimo_Hosting_Products', false ) ) Digitalisimo_Hosting_Products::meta_changed( 0, $id, $k ); return true; }
 function wc_get_product_id_by_sku( $sku ) { foreach ( $GLOBALS['products'] as $id => $p ) if ( '' !== (string) $p->sku && 0 === strcasecmp( (string) $p->sku, (string) $sku ) ) return $id; return 0; }
 function get_current_user_id() { return (int) ( $GLOBALS['user_id'] ?? 1 ); }
 function get_post_meta( $id, $k, $single = false ) {
@@ -155,6 +165,8 @@ function get_post_meta( $id, $k, $single = false ) {
 $GLOBALS['meta_trig'] = null;
 function update_post_meta( $id, $k, $v ) {
 	$GLOBALS['postmeta'][ (int) $id ][ $k ] = $v; unset( $GLOBALS['rt_meta'][ (int) $id ] );
+	// Como added/updated_post_meta en WordPress: el catálogo de productos detectados se recalcula.
+	if ( class_exists( 'Digitalisimo_Hosting_Products', false ) ) Digitalisimo_Hosting_Products::meta_changed( 0, $id, $k );
 	$t = $GLOBALS['meta_trig']; if ( $t && $t[0] === $k ) { $GLOBALS['meta_trig'] = null; other_request( $t[1] ); }
 	return true;
 }
@@ -163,6 +175,12 @@ function has_term() { return false; }
 // ── WooCommerce ─────────────────────────────────────────────────────────────────────────────────────────────
 class Digi_Test_Product {
 	public $id; public $name; public $price; public $sale = ''; public $saves = 0; public $sku = '';
+	/** Producto variable (2026-11-27): type simple|variable|variation, parent y children. */
+	public $type = 'simple'; public $parent = 0; public $children = array();
+	public function is_type( $t ) { return in_array( $this->type, (array) $t, true ); }
+	public function get_type() { return $this->type; }
+	public function get_parent_id() { return $this->parent; }
+	public function get_children() { return $this->children; }
 	public function get_sku() { return $this->sku; } public function get_price() { return (string) ( '' !== (string) $this->sale ? $this->sale : $this->price ); }
 	public function __construct( $id, $name, $price ) { $this->id = $id; $this->name = $name; $this->price = $price; }
 	public function get_id() { return $this->id; } public function get_name() { return $this->name; }
@@ -171,12 +189,33 @@ class Digi_Test_Product {
 	public function save() { $this->saves++; return $this->id; }
 }
 $GLOBALS['products'] = array();
-function digi_product( $id, $name, $price, $plan = '' ) { $GLOBALS['products'][ $id ] = new Digi_Test_Product( $id, $name, $price ); if ( $plan ) update_post_meta( $id, '_digitalisimo_webuzo_plan', $plan ); }
+/** Un producto simple; con $plan, un plan de hosting anual marcado como en el editor (tipo, paquete y periodo). */
+function digi_product( $id, $name, $price, $plan = '' ) {
+	$GLOBALS['products'][ $id ] = new Digi_Test_Product( $id, $name, $price );
+	if ( $plan ) { update_post_meta( $id, '_digitalisimo_hosting_type', 'hosting' ); update_post_meta( $id, '_digitalisimo_webuzo_plan', $plan ); update_post_meta( $id, '_digitalisimo_hosting_period', 12 ); }
+	if ( class_exists( 'Digitalisimo_Hosting_Products', false ) ) Digitalisimo_Hosting_Products::flush();
+}
+/** Marca un producto como Dominio de una extensión (registro o transferencia), como en el editor. */
+function digi_domain( $id, $ext, $action = 'register' ) { update_post_meta( $id, '_digitalisimo_hosting_type', 'domain' ); update_post_meta( $id, '_digitalisimo_tld', $ext ); update_post_meta( $id, '_digitalisimo_domain_kind', $action ); }
+/** Un producto variable con sus variaciones: $vars = array( id => array( nombre, precio, meta propia ) ). */
+function digi_variable( $id, $name, array $vars, array $meta = array() ) {
+	$GLOBALS['products'][ $id ] = new Digi_Test_Product( $id, $name, '' );
+	$GLOBALS['products'][ $id ]->type = 'variable';
+	foreach ( $meta as $k => $v ) update_post_meta( $id, $k, $v );
+	foreach ( $vars as $vid => $v ) {
+		$GLOBALS['products'][ $vid ] = new Digi_Test_Product( $vid, $name . ' - ' . $v[0], $v[1] );
+		$GLOBALS['products'][ $vid ]->type = 'variation'; $GLOBALS['products'][ $vid ]->parent = $id;
+		$GLOBALS['products'][ $id ]->children[] = $vid;
+		foreach ( (array) ( $v[2] ?? array() ) as $k => $val ) update_post_meta( $vid, $k, $val );
+	}
+	if ( class_exists( 'Digitalisimo_Hosting_Products', false ) ) Digitalisimo_Hosting_Products::flush();
+}
 function wc_get_product( $id ) { return $GLOBALS['products'][ (int) $id ] ?? null; }
 class Digi_Test_Item {
 	public $product; public $variation = 0; public $qty = 1; public $meta = array(); public $name;
 	public $total;
-	public function __construct( $pid, $name, $qty = 1, $meta = array(), $total = null ) { $this->product = $pid; $this->name = $name; $this->qty = $qty; $this->meta = $meta; $p = $GLOBALS['products'][ $pid ] ?? null; $this->total = null !== $total ? $total : ( $p ? (float) $p->price * $qty : 0 ); }
+	/** Con una variación ($pid de una variación), el producto es su padre y la variación queda aparte, como en WooCommerce. */
+	public function __construct( $pid, $name, $qty = 1, $meta = array(), $total = null ) { $p = $GLOBALS['products'][ $pid ] ?? null; if ( $p && $p->parent ) { $this->variation = $pid; $pid = $p->parent; } $this->product = $pid; $this->name = $name; $this->qty = $qty; $this->meta = $meta; $this->total = null !== $total ? $total : ( $p ? (float) $p->price * $qty : 0 ); }
 	public function get_total() { return $this->total; }
 	public function get_product_id() { return $this->product; } public function get_variation_id() { return $this->variation; }
 	public function get_quantity() { return $this->qty; } public function get_name() { return $this->name; }
@@ -215,7 +254,12 @@ class WC_Order {
 	public function get_address( $t ) { return $this->billing; }
 	public function set_address( $a, $t ) { $this->billing = $a; }
 	public function get_item( $id ) { return $this->items[ $id - 1 ] ?? false; }
-	public function add_product( $p, $qty ) { $this->items[] = new Digi_Test_Item( $p->get_id(), $p->get_name(), $qty ); $this->total += $p->price; return count( $this->items ); }
+	public function add_product( $p, $qty ) { $this->items[] = new Digi_Test_Item( $p->get_id(), $p->get_name(), $qty ); $this->total += (float) $p->get_price(); end( $this->items ); return key( $this->items ) + 1; }
+	/** Como WC_Order::remove_item(): quita la línea (la clave de get_items()) y su importe del total. */
+	public function remove_item( $key ) { if ( ! isset( $this->items[ $key ] ) ) return false; $this->total -= (float) $this->items[ $key ]->get_total(); unset( $this->items[ $key ] ); return true; }
+	public function set_payment_method( $m ) { $this->method = (string) $m; }
+	public function set_payment_method_title( $t ) { $this->method_title = (string) $t; }
+	public $method_title = '';
 	public function calculate_totals() { return $this->total; }
 	public function needs_payment() { return in_array( $this->status, array( 'pending', 'failed' ), true ); }
 	public function is_paid() { return in_array( $this->status, array( 'processing', 'completed' ), true ); }
@@ -319,6 +363,8 @@ add_filter(
 				if ( empty( $body['skip'] ) && 'ignora' !== $w['mode'] ) { if ( 'lento' === $w['mode'] ) $w['later'][ $body[ $op ] ] = $to; else { $w['users'][ $body[ $op ] ]['status'] = $to; if ( '' === $to ) unset( $w['users'][ $body[ $op ] ]['suspend_reason'] ); } }
 				return digi_json( array( 'done' => array( 'msg' => 'suspend' === $op ? 'Usuario suspendido con éxito' : 'Usuario reactivado con éxito' ), 'users' => $w['users'], 'num_res' => count( $w['users'] ), 'reslen' => 50, 'cur_page' => 0 ) );
 			}
+			// Paquetes del servidor (act=plans, de sólo lectura): objeto por paquete con su nombre.
+			if ( 'plans' === $act ) return digi_json( array( 'plans' => $w['plans'] ?? array( 'digitalisimo_starter' => array( 'plan_name' => 'Starter' ), 'digitalisimo_pro' => array( 'plan_name' => 'Pro' ) ) ) );
 			if ( 'users' === $act ) {
 				$list = digi_json( array( 'title' => 'Webuzo - Panel de administrador', 'users' => $w['users'], 'resellers' => array(), 'num_res' => count( $w['users'] ), 'reslen' => 50, 'cur_page' => 0 ) );
 				foreach ( (array) ( $w['later'] ?? array() ) as $u => $to ) $w['users'][ $u ]['status'] = $to;
@@ -369,8 +415,17 @@ add_filter(
 					if ( ! isset( $n['domains'][ $d ] ) ) return digi_xml( '<Error Number="2019166">Domain not found</Error>', false );
 					return digi_xml( '<DomainGetInfoResult Status="Ok" DomainName="' . $d . '"><DomainDetails><CreatedDate>' . gmdate( 'm/d/Y', $n['created'][ $d ] ?? gmmktime( 0, 0, 0, 1, 1, 2026 ) ) . '</CreatedDate><ExpiredDate>' . gmdate( 'm/d/Y', $n['domains'][ $d ] ) . '</ExpiredDate></DomainDetails></DomainGetInfoResult>' );
 				case 'namecheap.domains.check':
-					$d = $body['DomainList'];
-					return digi_xml( '<DomainCheckResult Domain="' . $d . '" Available="' . ( isset( $n['domains'][ $d ] ) || in_array( $d, $n['taken'] ?? array(), true ) ? 'false' : 'true' ) . '" IsPremiumName="' . ( in_array( $d, $n['premium'] ?? array(), true ) ? 'true' : 'false' ) . '" PremiumRegistrationPrice="0" />' );
+					// DomainList admite varios separados por comas: un DomainCheckResult por dominio (con ErrorNo si la
+					// extensión está en $n['unsupported']).
+					$xml = '';
+					// Con $n['batch_reject'], Namecheap rechaza el comando entero si trae alguna de esas extensiones.
+					$list = explode( ',', $body['DomainList'] );
+					foreach ( $list as $d ) if ( in_array( substr( $d, strpos( $d, '.' ) ), $n['batch_reject'] ?? array(), true ) ) return digi_xml( '<Error Number="2030280">TLD is not supported in API</Error>', false );
+					foreach ( $list as $d ) {
+						if ( in_array( substr( $d, strpos( $d, '.' ) ), $n['unsupported'] ?? array(), true ) ) { $xml .= '<DomainCheckResult Domain="' . $d . '" Available="false" ErrorNo="2" Description="TLD not supported" IsPremiumName="false" />'; continue; }
+						$xml .= '<DomainCheckResult Domain="' . $d . '" Available="' . ( isset( $n['domains'][ $d ] ) || in_array( $d, $n['taken'] ?? array(), true ) ? 'false' : 'true' ) . '" IsPremiumName="' . ( in_array( $d, $n['premium'] ?? array(), true ) ? 'true' : 'false' ) . '" PremiumRegistrationPrice="' . ( in_array( $d, $n['premium'] ?? array(), true ) ? '2500.00' : '0' ) . '" EapFee="' . ( in_array( $d, $n['eap'] ?? array(), true ) ? '1250.00' : '0' ) . '" />';
+					}
+					return digi_xml( $xml );
 				case 'namecheap.domains.create':
 					$d = $body['DomainName'];
 					if ( isset( $n['domains'][ $d ] ) ) return digi_xml( '<Error Number="2030280">Domain is not available</Error>', false );
@@ -387,8 +442,9 @@ add_filter(
 					return digi_xml( '<Tlds>' . $out . '</Tlds>' );
 				case 'namecheap.domains.renew':
 					$d = $body['DomainName'];
-					$cost = array_sum( digi_nc_price( substr( $d, strpos( $d, '.' ) + 1 ), 'RENEW' ) );
-					$n['balance'] -= $cost; $n['domains'][ $d ] = strtotime( '+1 year', $n['domains'][ $d ] );
+					$years = max( 1, (int) ( $body['Years'] ?? 1 ) );
+					$cost = $years * array_sum( digi_nc_price( substr( $d, strpos( $d, '.' ) + 1 ), 'RENEW' ) );
+					$n['balance'] -= $cost; $n['domains'][ $d ] = strtotime( '+' . $years . ' year', $n['domains'][ $d ] );
 					return digi_xml( '<DomainRenewResult DomainName="' . $d . '" DomainID="1" Renew="true" OrderID="2" TransactionID="2" ChargedAmount="' . number_format( $cost, 2 ) . '" />' );
 			}
 			return digi_xml( '<Error Number="1010000">Unknown command</Error>', false );
@@ -408,23 +464,31 @@ function digi_store_settings( array $extra = array() ) {
 	update_option( 'digitalisimo_hosting_ecommerce_migrated', 1 );
 	update_option( 'digitalisimo_hosting_options', $extra + array(
 		'enabled' => 1, 'provision_enabled' => 1, 'api_user' => 'nc-api', 'username' => 'nc-user', 'api_key' => 'CLAVE-NAMECHEAP', 'client_ip' => '203.0.113.5',
-		'domain_products' => ".com|20\n.mx|21", 'hosting_product_ids' => '', 'hosting_category_ids' => '63',
 		'webuzo_url' => 'https://webuzo.test:2005', 'webuzo_api_user' => 'root', 'webuzo_api_key' => 'CLAVE-WEBUZO-OK', 'grace_days' => 7,
 		'nameservers' => 'ns1.digitalisimo.website, ns2.digitalisimo.website', 'provision_since' => 1,
 		// Las pruebas anteriores al 2026-11-25 suponen hosting con dominio propio sin revisión manual (por omisión es 0).
 		'own_domain_auto' => 1,
 	) );
 	update_option( 'woocommerce_calc_taxes', 'yes' ); update_option( 'woocommerce_currency', 'MXN' );
+	// Los productos de dominio de la tienda de prueba, marcados como en el editor (las pruebas que borran toda la meta los
+	// recuperan aquí; uno que la prueba ya marcó distinto se respeta).
+	foreach ( array( 20 => '.com', 21 => '.mx' ) as $pid => $ext ) if ( isset( $GLOBALS['products'][ $pid ] ) && '' === (string) get_post_meta( $pid, '_digitalisimo_hosting_type', true ) && '' === (string) get_post_meta( $pid, '_digitalisimo_tld', true ) ) digi_domain( $pid, $ext );
+	// La configuración ya está en la forma nueva (sin IDs ni «|»): la migración no tiene nada que hacer.
+	update_option( 'digitalisimo_hosting_products_migrated', array( 'settings' => 1, 'products' => 1 ) );
+	if ( class_exists( 'Digitalisimo_Hosting_Products', false ) ) Digitalisimo_Hosting_Products::flush();
+	if ( class_exists( 'Digitalisimo_Hosting_Lists', false ) ) Digitalisimo_Hosting_Lists::flush();
 }
 
 define( 'DIGITALISIMO_HOSTING_URL', 'https://tienda.test/wp-content/plugins/digitalisimo-hosting/' );
 define( 'DIGITALISIMO_HOSTING_VERSION', '9.9.9' );
-foreach ( array( 'class-hosting', 'class-hosting-products', 'class-hosting-checkout', 'class-hosting-webuzo', 'class-hosting-namecheap', 'class-hosting-pricing', 'class-hosting-provisioning', 'class-hosting-services-page' ) as $digi_file ) require __DIR__ . '/../../digitalisimo-hosting/includes/' . $digi_file . '.php';
+foreach ( array( 'class-hosting', 'class-hosting-products', 'class-hosting-lists', 'class-hosting-product-editor', 'class-hosting-checkout', 'class-hosting-webuzo', 'class-hosting-namecheap', 'class-hosting-pricing', 'class-hosting-provisioning', 'class-hosting-services-page', 'class-hosting-finder' ) as $digi_file ) { $digi_path = __DIR__ . '/../../digitalisimo-hosting/includes/' . $digi_file . '.php'; if ( is_file( $digi_path ) ) require $digi_path; } // un archivo que no existe (código anterior, para la evidencia) no detiene el arnés
 Digitalisimo_Hosting_Provisioning::init();
 digi_product( 14693, 'Web Hosting Starter', 970, 'digitalisimo_starter' );
 digi_product( 14696, 'Web Hosting Pro', 5850, 'digitalisimo_pro' );
 digi_product( 20, 'Dominio .com', 300 );
 digi_product( 21, 'Dominio .mx', 600 );
+// Los productos de dominio, marcados como en el editor (pestaña «DIGITALÍSIMO Hosting»): sin IDs en los ajustes.
+digi_domain( 20, '.com' ); digi_domain( 21, '.mx' );
 // DNS simulado (B3, H-5): un nombre fuera de $GLOBALS['dns'] «resuelve» a una IP pública de ejemplo, sin salir a la red.
 add_filter( 'digitalisimo_hosting_webuzo_host_ips', static function ( $ips, $host ) { return array_key_exists( $host, $GLOBALS['dns'] ) ? (array) $GLOBALS['dns'][ $host ] : array( '93.184.216.34' ); }, 10, 2 );
 function remove_filter( $hook, $cb, $prio = 10 ) { if ( empty( $GLOBALS['hooks'][ $hook ][ $prio ] ) ) return false; $GLOBALS['hooks'][ $hook ][ $prio ] = array_values( array_filter( $GLOBALS['hooks'][ $hook ][ $prio ], function ( $h ) use ( $cb ) { return $h[0] !== $cb; } ) ); if ( ! $GLOBALS['hooks'][ $hook ][ $prio ] ) unset( $GLOBALS['hooks'][ $hook ][ $prio ] ); if ( empty( $GLOBALS['hooks'][ $hook ] ) ) unset( $GLOBALS['hooks'][ $hook ] ); return true; }

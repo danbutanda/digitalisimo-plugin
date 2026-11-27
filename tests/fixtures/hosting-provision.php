@@ -208,7 +208,12 @@ add_filter( 'pre_http_request', function ( $pre, $args, $url ) {
 $GLOBALS['posts'] = array(); $GLOBALS['postmeta'] = array(); $GLOBALS['next_id'] = 1000;
 function wp_insert_post( $a ) { $id = ++$GLOBALS['next_id']; $GLOBALS['posts'][ $id ] = (object) array( 'ID' => $id, 'post_type' => $a['post_type'], 'post_title' => $a['post_title'] ?? '', 'post_status' => $a['post_status'] ?? 'publish' ); return $id; }
 function get_post( $id ) { return $GLOBALS['posts'][ (int) $id ] ?? null; }
-function get_posts( $a ) { $out = array(); foreach ( $GLOBALS['posts'] as $id => $p ) if ( $p->post_type === $a['post_type'] ) $out[] = $id; return $out; }
+function get_posts( $a ) {
+	// Productos (2026-11-27): los de $GLOBALS['products'] con la meta pedida (no hay variaciones en esta tienda).
+	if ( 'product' === $a['post_type'] ) { $out = array(); foreach ( array_keys( $GLOBALS['products'] ) as $id ) if ( ! isset( $a['meta_key'] ) || isset( $GLOBALS['postmeta'][ $id ][ $a['meta_key'] ] ) ) $out[] = $id; sort( $out ); return $out; }
+	if ( 'product_variation' === $a['post_type'] ) return array();
+	$out = array(); foreach ( $GLOBALS['posts'] as $id => $p ) if ( $p->post_type === $a['post_type'] ) $out[] = $id; return $out;
+}
 function get_post_meta( $id, $k, $single = true ) { return $GLOBALS['postmeta'][ (int) $id ][ $k ] ?? ''; }
 function update_post_meta( $id, $k, $v ) { $GLOBALS['postmeta'][ (int) $id ][ $k ] = $v; return true; }
 
@@ -306,6 +311,7 @@ function WC() { static $wc = null; if ( ! $wc ) $wc = new class { public $countr
 $GLOBALS['wc_mails'] = array();
 
 require __DIR__ . '/../../digitalisimo-hosting/includes/class-hosting.php';
+require __DIR__ . '/../../digitalisimo-hosting/includes/class-hosting-products.php';
 require __DIR__ . '/../../digitalisimo-hosting/includes/class-hosting-webuzo.php';
 require __DIR__ . '/../../digitalisimo-hosting/includes/class-hosting-namecheap.php';
 require __DIR__ . '/../../digitalisimo-hosting/includes/class-hosting-provisioning.php';
@@ -318,13 +324,15 @@ $GLOBALS['products'] = array(
 	14695 => new Fake_Product( 14695, 'Web Hosting Growth', 3500 ), 14696 => new Fake_Product( 14696, 'Web Hosting Pro', 5850 ),
 	201 => new Fake_Product( 201, 'Dominio .com', 350 ), 202 => new Fake_Product( 202, 'Dominio .mx', 690 ), 203 => new Fake_Product( 203, 'Dominio .org', 420 ),
 );
-foreach ( array( 14693 => 'digitalisimo_starter', 14694 => 'digitalisimo_digital', 14695 => 'digitalisimo_growth', 14696 => 'digitalisimo_pro' ) as $pid => $plan ) update_post_meta( $pid, '_digitalisimo_webuzo_plan', $plan );
+foreach ( array( 14693 => 'digitalisimo_starter', 14694 => 'digitalisimo_digital', 14695 => 'digitalisimo_growth', 14696 => 'digitalisimo_pro' ) as $pid => $plan ) { update_post_meta( $pid, '_digitalisimo_hosting_type', 'hosting' ); update_post_meta( $pid, '_digitalisimo_webuzo_plan', $plan ); update_post_meta( $pid, '_digitalisimo_hosting_period', 12 ); }
+// Los productos de dominio, marcados como en el editor (sin «Productos por extensión»).
+foreach ( array( 201 => '.com', 202 => '.mx', 203 => '.org' ) as $pid => $ext ) { update_post_meta( $pid, '_digitalisimo_hosting_type', 'domain' ); update_post_meta( $pid, '_digitalisimo_tld', $ext ); update_post_meta( $pid, '_digitalisimo_domain_kind', 'register' ); }
 
 /** Ajustes de la tienda con la venta automática encendida (servidor y claves simulados). */
 function hosting_settings( array $extra = array() ) {
 	update_option( 'digitalisimo_hosting_options', $extra + array(
 		'enabled' => 1, 'provision_enabled' => 1, 'provision_since' => 1, 'own_domain_auto' => 1, 'api_user' => 'digitalisimo', 'username' => 'digitalisimo', 'api_key' => $GLOBALS['namecheap']->key, 'client_ip' => '203.0.113.10',
-		'domain_products' => ".com|201\n.mx|202\n.org|203", 'webuzo_url' => 'https://webuzo.test:2005', 'webuzo_api_user' => 'root', 'webuzo_api_key' => $GLOBALS['webuzo']->key, 'grace_days' => 7,
+		'webuzo_url' => 'https://webuzo.test:2005', 'webuzo_api_user' => 'root', 'webuzo_api_key' => $GLOBALS['webuzo']->key, 'grace_days' => 7,
 	), false );
 }
 

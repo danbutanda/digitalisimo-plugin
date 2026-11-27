@@ -165,6 +165,8 @@ add_action( 'init', static function () {
 				'nameservers' => 'ns1.digitalisimo.website, ns2.digitalisimo.website', 'grace_days' => 7,
 				'pricing_enabled' => 1, 'banxico_token' => 'BX-' . wp_generate_password( 24, false ), 'pricing_cushion' => 3, 'pricing_margin' => 25, 'pricing_fee' => 3.6, 'pricing_vat' => 16, 'pricing_min_margin' => 10, 'pricing_rounding' => '10',
 			), false );
+			// La configuración vieja (IDs y «|») como la dejaba la versión anterior: la migración la pasa a los productos.
+			if ( class_exists( 'Digitalisimo_Hosting_Products' ) && defined( 'Digitalisimo_Hosting_Products::MIGRATED' ) ) { delete_option( Digitalisimo_Hosting_Products::MIGRATED ); Digitalisimo_Hosting_Products::flush(); Digitalisimo_Hosting_Products::migrate(); }
 			$o = get_option( 'digitalisimo_hosting_options' );
 			file_put_contents( DIGI_HP_DIR . '/secrets.json', wp_json_encode( array( 'webuzo' => $o['webuzo_api_key'], 'namecheap' => $o['api_key'], 'banxico' => $o['banxico_token'] ) ) );
 			$out += array( 'products' => $ids, 'category' => $cat, 'woocommerce' => WC()->version, 'gateways' => array_keys( WC()->payment_gateways()->get_available_payment_gateways() ) );

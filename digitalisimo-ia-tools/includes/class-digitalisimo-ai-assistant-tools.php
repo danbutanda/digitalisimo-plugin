@@ -14,8 +14,9 @@ defined( 'ABSPATH' ) || exit;
  *   modelo le llega `digitalisimo_library`, `action=digitalisimo` o `_dg_*`, y lo que pide se traduce a los nombres
  *   internos antes de ejecutar. Un nombre viejo (`elementor-create-page`, de una conversación anterior) sigue valiendo.
  * - Clase de cada llamada: `read` si la ability se anota de sólo lectura; `write` si se anota como no destructiva;
- *   `destructive` en cualquier otro caso (sin anotación también, como en el MCP). Una herramienta con `action` en su
- *   esquema (las de tienda) cuenta como lectura cuando la acción pedida es una de READ_ACTIONS.
+ *   `destructive` en cualquier otro caso (sin anotación también, como en el MCP). Las herramientas con `action` que
+ *   conoce el Asistente (tienda, Skydropx, Hosting) tienen su tabla acción por acción (ACTION_KINDS); otra con `action`
+ *   en su esquema cuenta como lectura cuando la acción pedida es una de READ_ACTIONS.
  * - Borradores sin confirmar (pedido del propietario del 2026-11-23, «no hace las cosas como aquí»): crear contenido
  *   NUEVO en borrador (DRAFT_CREATORS) y editar un borrador que se creó en esta misma conversación (DRAFT_EDITORS, con
  *   su `post_id` entre los borradores anotados y todavía en borrador) no afectan nada publicado, así que corren sin
@@ -49,6 +50,27 @@ final class Digitalisimo_AI_Assistant_Tools {
 	/** Profundidad máxima que se revisa de una entrada; más honda, pasa por la tarjeta. */
 	const REVIEW_DEPTH    = 32;
 	const READ_ACTIONS = array( 'list', 'get', 'read', 'search', 'find', 'count', 'view', 'show', 'retrieve', 'describe', 'schema', 'status' );
+	/**
+	 * Clase de CADA acción de las herramientas con `action` que conoce el Asistente (caso plomerito 4 del 2026-11-27:
+	 * `digitalisimo-woo/skydropx` con `audit_products`, que sólo lee, salió como «Este cambio no tiene vuelta atrás»
+	 * porque la clase se deducía de READ_ACTIONS, una lista genérica de verbos, y la herramienta se anota destructiva
+	 * entera). Aquí cada acción está nombrada: `read` corre sin tarjeta; `write` y `destructive` pasan por la tarjeta
+	 * (`write` de productos y catálogo, además, sólo si es un cambio sencillo: ver kind()). Una acción que no está en la
+	 * tabla de su herramienta se trata como cambio (tarjeta), nunca como lectura. tests/ia-assistant-simple.php recorre
+	 * el `enum` real de cada herramienta y lo compara con esta tabla y con lo que la propia herramienta dice que escribe.
+	 */
+	const ACTION_KINDS = array(
+		'digitalisimo-woo/products'          => array( 'list' => 'read', 'get' => 'read', 'create' => 'write', 'update' => 'write', 'delete' => 'destructive', 'batch' => 'destructive', 'undo' => 'destructive' ),
+		'digitalisimo-woo/catalog'           => array( 'list' => 'read', 'get' => 'read', 'create' => 'write', 'update' => 'write', 'delete' => 'destructive', 'undo' => 'destructive' ),
+		'digitalisimo-woo/orders'            => array( 'list' => 'read', 'get' => 'read', 'create' => 'destructive', 'update' => 'destructive', 'delete' => 'destructive' ),
+		'digitalisimo-woo/customers'         => array( 'list' => 'read', 'get' => 'read', 'create' => 'destructive', 'update' => 'destructive', 'delete' => 'destructive' ),
+		'digitalisimo-woo/coupons'           => array( 'list' => 'read', 'get' => 'read', 'create' => 'destructive', 'update' => 'destructive', 'delete' => 'destructive', 'batch' => 'destructive', 'undo' => 'destructive' ),
+		'digitalisimo-woo/store-settings'    => array( 'list' => 'read', 'get' => 'read', 'create' => 'destructive', 'update' => 'destructive', 'delete' => 'destructive', 'batch' => 'destructive' ),
+		'digitalisimo-woo/reports'           => array( 'list' => 'read', 'sales' => 'read', 'top_sellers' => 'read', 'orders_totals' => 'read', 'products_totals' => 'read', 'customers_totals' => 'read', 'coupons_totals' => 'read', 'reviews_totals' => 'read', 'log' => 'read', 'changes' => 'read' ),
+		'digitalisimo-woo/skydropx'          => array( 'status' => 'read', 'audit_products' => 'read', 'quote' => 'read', 'shipments' => 'read', 'get_shipment' => 'read', 'label' => 'read', 'update_products' => 'destructive', 'set_tracking' => 'destructive', 'resync' => 'destructive' ),
+		'digitalisimo-hosting/settings'      => array( 'get' => 'read', 'log' => 'read', 'update' => 'destructive', 'manual-payment' => 'destructive' ),
+		'digitalisimo-hosting/domain-product' => array( 'list' => 'read', 'mark' => 'destructive', 'unmark' => 'destructive' ),
+	);
 	/** Amplio: lo que viaja al proveedor, al historial, al detalle y a la bitácora (como `Secrets` del MCP de Woo). */
 	const SECRET_KEYS  = '/((^|[_-])pass(word|wd|phrase)?($|[_-])|password|passwd|secret|token|signature|hmac|salt|bearer|cookie|authorization|credentials?|private[_-]?key|api[_-]?key|apikey|(^|[_-])auth($|[_-])|^nonce$|[_-]key$|^key$)/i';
 	/** Excepciones públicas del patrón amplio. */
@@ -284,9 +306,18 @@ final class Digitalisimo_AI_Assistant_Tools {
 			$kind = 'destructive';
 		}
 		$action = is_array( $input ) && isset( $input['action'] ) && is_string( $input['action'] ) ? strtolower( $input['action'] ) : '';
-		if ( 'read' !== $kind && $trusted && '' !== $action && in_array( $action, self::READ_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) ) {
+		$table  = $trusted ? self::action_kinds( (string) $entry['name'] ) : null;
+		if ( null !== $table ) {
+			// Herramienta conocida: manda la tabla, acción por acción. Lo que no está en ella (o sin acción) es un cambio
+			// con tarjeta; un create/update de productos o catálogo es `write` sólo si es un cambio sencillo.
+			$listed = '' !== $action && isset( $table[ $action ] ) && self::enum_has( $entry['schema'], 'action', $action );
+			$kind   = $listed && 'read' === $table[ $action ] ? 'read' : 'destructive';
+			if ( $listed && 'write' === $table[ $action ] && self::simple_catalog_write( $entry, $input, $action ) ) {
+				$kind = 'write';
+			}
+		} elseif ( 'read' !== $kind && $trusted && '' !== $action && in_array( $action, self::READ_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) ) {
 			$kind = 'read';
-		} elseif ( 'destructive' === $kind && in_array( (string) $entry['name'], self::WRITE_TOOLS, true ) && false === ( $entry['annotations']['readonly'] ?? null ) && in_array( $action, self::WRITE_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) && in_array( is_array( $input ) && is_string( $input['resource'] ?? null ) ? strtolower( $input['resource'] ) : ( isset( $input['resource'] ) ? '?' : '' ), self::WRITE_RESOURCES, true ) && ! self::risky_catalog_data( $input ) ) {
+		} elseif ( 'destructive' === $kind && self::simple_catalog_write( $entry, $input, $action ) ) {
 			$kind = 'write';
 		}
 		if ( 'write' === $kind && self::broad_redirection( (string) $entry['name'], $input ) ) {
@@ -294,6 +325,30 @@ final class Digitalisimo_AI_Assistant_Tools {
 		}
 		$kind = apply_filters( 'digitalisimo_ai_assistant_tool_kind', $kind, $entry['name'], $input );
 		return in_array( $kind, array( 'read', 'write', 'destructive' ), true ) ? $kind : 'destructive';
+	}
+
+	/**
+	 * La tabla de acciones de una herramienta conocida (ACTION_KINDS, ampliable con el filtro
+	 * `digitalisimo_ai_assistant_action_kinds`), o null si la herramienta no tiene tabla.
+	 *
+	 * @return array<string,string>|null
+	 */
+	public static function action_kinds( $name ) {
+		$all   = (array) apply_filters( 'digitalisimo_ai_assistant_action_kinds', self::ACTION_KINDS );
+		$table = $all[ (string) $name ] ?? null;
+		return is_array( $table ) && $table ? array_change_key_case( $table, CASE_LOWER ) : null;
+	}
+
+	/**
+	 * ¿Es un cambio sencillo del catálogo de la tienda (crear o cambiar un producto, una variación o un término, sin
+	 * metadatos, descargas ni publicar)? Sólo en WRITE_TOOLS, con la acción en su esquema.
+	 */
+	private static function simple_catalog_write( array $entry, $input, $action ) {
+		if ( ! in_array( (string) $entry['name'], self::WRITE_TOOLS, true ) || false !== ( $entry['annotations']['readonly'] ?? null ) || ! in_array( $action, self::WRITE_ACTIONS, true ) || ! self::enum_has( $entry['schema'], 'action', $action ) ) {
+			return false;
+		}
+		$resource = is_array( $input ) && is_string( $input['resource'] ?? null ) ? strtolower( $input['resource'] ) : ( isset( $input['resource'] ) ? '?' : '' );
+		return in_array( $resource, self::WRITE_RESOURCES, true ) && ! self::risky_catalog_data( $input );
 	}
 
 	/**
@@ -812,11 +867,12 @@ final class Digitalisimo_AI_Assistant_Tools {
 	}
 
 	/**
-	 * Simulación de una acción destructiva antes de confirmarla: sólo si la Ability la declara
+	 * Simulación de un cambio antes de confirmarlo: sólo si la Ability la declara
 	 * (`meta.digitalisimo.dry_run` true, con `dry_run` booleano en su esquema) y el usuario puede hacerla. Siempre queda
 	 * en la bitácora como `simulation`.
 	 */
-	public static function simulate( array $entry, $input, $conversation = 0 ) {
+	public static function simulate( array $entry, $input, $conversation = 0, &$raw = null ) {
+		$raw = null;
 		if ( empty( $entry['dry_run'] ) || ! is_array( $input ) ) {
 			return null;
 		}
@@ -826,7 +882,11 @@ final class Digitalisimo_AI_Assistant_Tools {
 		}
 		$result = self::run( $entry, $input );
 		self::log( array( 'user' => get_current_user_id(), 'ability' => $entry['name'], 'kind' => 'simulation', 'input' => self::summary( $input ), 'result' => $result['status'], 'detail' => $result['error'] ?? '', 'conversation' => (int) $conversation ) );
-		return 'ok' === $result['status'] ? self::preview( $result['data'] ) : null;
+		if ( 'ok' !== $result['status'] ) {
+			return null;
+		}
+		$raw = is_array( $result['data'] ?? null ) ? $result['data'] : null;
+		return self::preview( $result['data'] );
 	}
 
 	/**
@@ -932,7 +992,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 	 * @return array{0:string,1:int,2:string[]} el JSON con sangrías ('' si no se puede mostrar), lo oculto y los riesgos.
 	 */
 	public static function card( $input ) {
-		$st    = array( 'hidden' => 0, 'invisible' => 0, 'hosts' => array(), 'html' => false, 'code' => false, 'emails' => 0, 'status' => array(), 'amounts' => array() );
+		$st    = self::card_state();
 		$shown = self::card_walk( $input, $st, 0, '' );
 		$json  = wp_json_encode( $shown, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT );
 		if ( ! is_string( $json ) || '' === $json ) {
@@ -965,6 +1025,23 @@ final class Digitalisimo_AI_Assistant_Tools {
 		return array( $json, $st['hidden'], $risks );
 	}
 
+	private static function card_state() {
+		return array( 'hidden' => 0, 'invisible' => 0, 'hosts' => array(), 'html' => false, 'code' => false, 'emails' => 0, 'status' => array(), 'amounts' => array() );
+	}
+
+	/** Lo que se vio al revisar la entrada para la tarjeta (secretos, invisibles, otros dominios, código…). */
+	public static function card_stats( $input ) {
+		$st = self::card_state();
+		self::card_walk( $input, $st, 0, '' );
+		return $st;
+	}
+
+	/** La entrada como la ve la persona en «Ver detalles»: completa, con lo secreto oculto y lo invisible marcado. */
+	public static function card_values( $input ) {
+		$st = self::card_state();
+		return self::card_walk( $input, $st, 0, '' );
+	}
+
 	private static function card_walk( $value, array &$st, $depth, $key ) {
 		if ( is_array( $value ) ) {
 			if ( $depth > 32 ) {
@@ -990,6 +1067,12 @@ final class Digitalisimo_AI_Assistant_Tools {
 			$st['amounts'][] = $key . ' = ' . $value;
 		}
 		return $value;
+	}
+
+	/** Un texto con lo invisible y las series de espacios marcadas (para la frase de la tarjeta). */
+	public static function visible_text( $text ) {
+		$st = self::card_state();
+		return self::visible( (string) $text, $st );
 	}
 
 	/** Invisibles y de dirección como ⟨U+XXXX⟩; series de 8 espacios o más como ⟨N espacios⟩. */

@@ -28,17 +28,17 @@ for (const [name, source] of [['assistant.js', ui], ['assistant-adapters.js', ad
 }
 ok(/wp\.element/.test(ui) && /createRoot/.test(ui) && /el\.render\(/.test(ui), 'La interfaz usa wp.element (createRoot y render para WordPress anteriores)');
 ok(/window\.digitalisimoAssistantAdapters\.create\(\s*config\s*\)/.test(ui) && !/fetch\(/.test(ui), 'La interfaz sólo habla con el servidor por los adaptadores');
-for (const piece of ['Nueva conversación', 'Buscar en el historial', 'La mejor disponible', 'Apariencia', 'Classic', 'Modern', 'Oscuro', 'Confirmar', 'Sí, hacerlo', 'Entiendo que puede no tener vuelta atrás', 'Ver la bitácora', 'Borrar todo el historial', 'scrollTop = area.scrollHeight']) ok(ui.includes(piece), `La interfaz trae «${piece}»`);
-ok(/disabled: props\.busy \|\| ! seen \|\| \( destructive && ! ack \)/.test(ui), 'El botón de una acción destructiva sigue apagado hasta marcar la casilla');
+for (const piece of ['Nueva conversación', 'Buscar en el historial', 'La mejor disponible', 'Apariencia', 'Classic', 'Modern', 'Oscuro', 'Sí, hazlo', 'Ver detalles', 'Puedes deshacerlo después.', 'Ver la bitácora', 'Borrar todo el historial', 'scrollTop = area.scrollHeight']) ok(ui.includes(piece), `La interfaz trae «${piece}»`);
+ok(/disabled: props\.busy \|\| \( needsAck && ! ack \)/.test(ui) && /const needsAck = !! action\.ack;/.test(ui), 'El botón de lo que borra o mueve dinero sigue apagado hasta marcar la casilla (la decide el servidor)');
 // Revisión adversarial.
-ok(/el\.scrollTop \+ el\.clientHeight >= el\.scrollHeight - 4/.test(ui) && /onScroll: check/.test(ui) && /useEffect\( check, \[ full, action\.input \] \)/.test(ui) && !/action\.input\.slice|substring\(/.test(ui), 'A2: «Confirmar» se enciende sólo si los datos completos caben o se desplazaron hasta el final');
-ok(/risks\.map\(/.test(ui) && /action\.idempotent \? null/.test(ui), 'A2/R2-B11: la tarjeta trae el resumen de riesgos y avisa si no es idempotente');
+ok(/h\( 'details', \{ className: 'dga-details', open: !! action\.after_read \}/.test(ui) && /h\( 'summary', null, 'Ver detalles' \)/.test(ui) && !/action\.input\b/.test(ui) && !/action\.input\.slice|substring\(/.test(ui), 'A2 (caso plomerito 4): los datos completos van plegados en «Ver detalles», con nombres legibles del servidor y sin JSON');
+ok(/warnings\.map\(/.test(ui) && /action\.final \?/.test(ui) && /action\.undo \?/.test(ui), 'A2/R2-B11: la tarjeta trae lo arriesgado en llano, lo que no tiene vuelta atrás y si se puede deshacer');
 ok(/404 === e\.status \|\| 409 === e\.status \|\| 429 === e\.status \) \) \{\s*open\( activeRef\.current \)/.test(ui) && /setDraft\( text \);\s*setPending\( before \)/.test(ui), 'R2-B4: tras 404/409/429 se relee la conversación (sin tarjeta zombi) y un envío rechazado devuelve el texto');
-ok(/risks\.length \?/.test(ui) && /action\.after_read \?/.test(ui), 'A2: la tarjeta avisa de lo oculto (en sus riesgos) y de que llega tras leer contenido del sitio');
-ok(/'running' === action\.state/.test(ui) && /En curso o cortada/.test(ui) && /dga-refresh/.test(ui) && /unknown: 'por revisar'/.test(ui), 'A1/R2-B4: una acción en curso o cortada no se puede confirmar, se puede actualizar y su resultado queda «por revisar»');
+ok(/warnings\.length \?/.test(ui) && /action\.text \|\|/.test(ui), 'A2: la tarjeta dice lo que hará con la frase del servidor y avisa de lo arriesgado');
+ok(/'running' === action\.state/.test(ui) && /Este cambio empezó y no sé si terminó\./.test(ui) && /dga-refresh/.test(ui) && /unknown: 'por revisar'/.test(ui), 'A1/R2-B4: una acción en curso o cortada no se puede confirmar, se puede actualizar y su resultado queda «por revisar»');
 ok(/! providers\.length && ! isShortcut\( text \)/.test(ui) && /busy \|\| \( noAi && ! isShortcut\( draft \) \)/.test(ui), 'B3: sin IA configurada se pueden enviar atajos /herramienta');
 ok(/fromLink && isShortcut\( text \)/.test(ui) && /vino en un enlace/.test(ui), 'B5: lo que llega en un enlace sólo se precarga, avisado, y un atajo precargado hay que editarlo');
-ok(css.includes('.dga-confirm pre.is-full') && /max-block-size: 14rem; margin: 0; padding: var\(--ds-space-2\) var\(--ds-space-3\); overflow: auto/.test(css), 'A2: los datos van en un área con desplazamiento');
+ok(/\.dga-confirm \.dga-details dl \{[^}]*max-block-size: 18rem;[^}]*overflow: auto/.test(css), 'A2: «Ver detalles» va en un área con desplazamiento');
 
 // 2. Hoja.
 const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');

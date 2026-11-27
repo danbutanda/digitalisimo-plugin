@@ -4,8 +4,8 @@ namespace Digitalisimo\Elements\Sales\Mcp;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * El kit de ventas en el servidor MCP de DIGITALÍSIMO Elements (`POST /wp-json/elementor/mcp`, apagado por defecto con
- * la opción del núcleo `elementor_mcp_enabled`): `digitalisimo-sales/list-templates`, `create-page` y `guide`, en su
+ * El kit de ventas en el servidor MCP de DIGITALÍSIMO Elements (`POST /wp-json/elementor/mcp`, siempre activo desde el
+ * 2026-11-27: `Digitalisimo\Elements\Mcp\Access` fija la opción del núcleo `elementor_mcp_enabled`): `digitalisimo-sales/list-templates`, `create-page` y `guide`, en su
  * categoría `digitalisimo-sales`. Registro sin editar nada del núcleo incluido, como las herramientas de tienda:
  * - con el registro de abilities del núcleo (`Ability_Registry`), cada herramienta se añade a él en `elementor/init`;
  *   el núcleo las vuelca al servidor en `init` 5 y las registra en `wp_abilities_api_init` sólo con el MCP activo;

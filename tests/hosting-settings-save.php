@@ -103,14 +103,14 @@ function hosting_effective() { $m = new ReflectionMethod( 'Digitalisimo_Hosting'
 function hosting_check_domain() { $GLOBALS['remote'] = array(); $r = Digitalisimo_Hosting::check_domain( new Hosting_Request() ); return is_wp_error( $r ) ? $r->code : ( $r['available'] ? 'available' : 'taken' ); }
 
 // 1. Sitio individual.
-list( $before, $after ) = hosting_submit( false, array( 'hosting[api_user]' => 'api-sitio', 'hosting[username]' => 'cuenta-sitio', 'hosting[api_key]' => 'CLAVE-SITIO-123', 'hosting[client_ip]' => '203.0.113.7', 'hosting[domain_products]' => ".com|10\r\n.mx|11", 'hosting[simplify_checkout]' => '1' ) );
+list( $before, $after ) = hosting_submit( false, array( 'hosting[api_user]' => 'api-sitio', 'hosting[username]' => 'cuenta-sitio', 'hosting[api_key]' => 'CLAVE-SITIO-123', 'hosting[client_ip]' => '203.0.113.7', 'hosting[form_selector]' => '.mi-form', 'hosting[simplify_checkout]' => '1' ) );
 $o = get_option( 'digitalisimo_hosting_options' );
 check( 'api-sitio' === $o['api_user'] && 'CLAVE-SITIO-123' === $o['api_key'] && 1 === $o['simplify_checkout'], 'Sitio individual: guarda lo escrito y la casilla' );
 check( false === strpos( $before, 'hosting[inherit_network]' ), 'Sitio individual: sin la casilla «Heredar»' );
 check( false !== strpos( $after, 'Configuración guardada.' ) && false === strpos( $after, 'CLAVE-SITIO-123' ), 'Sitio individual: «guardada» y la clave no vuelve a la página' );
 check( false !== strpos( $after, 'Guardada · escribe una nueva' ), 'Sitio individual: la clave se ve «Guardada»' );
 hosting_submit( false, array() );
-check( 'CLAVE-SITIO-123' === get_option( 'digitalisimo_hosting_options' )['api_key'] && ".com|10\n.mx|11" === str_replace( "\r", '', get_option( 'digitalisimo_hosting_options' )['domain_products'] ), 'Sitio individual: guardar otra vez con el campo vacío no borra la clave ni los productos' );
+check( 'CLAVE-SITIO-123' === get_option( 'digitalisimo_hosting_options' )['api_key'] && '.mi-form' === get_option( 'digitalisimo_hosting_options' )['form_selector'], 'Sitio individual: guardar otra vez con el campo vacío no borra la clave ni lo de la tienda' );
 check( 'available' === hosting_check_domain(), 'Sitio individual: la consulta de dominios funciona' );
 check( false === strpos( implode( ' ', $GLOBALS['remote_url'] ), 'ApiKey' ) && false !== strpos( $GLOBALS['remote'][0], 'Command=namecheap.domains.check' ), 'La clave de Namecheap viaja en el cuerpo del POST, nunca en la URL' );
 // La máscara (pedido del propietario: «deben salir los *****»): el campo lleva •••• y no la clave; enviarla la conserva,
@@ -144,28 +144,28 @@ check( 'CLAVE-RED-456' === $GLOBALS['site_options']['digitalisimo_hosting_option
 ob_start(); Digitalisimo_Hosting::network_page(); $html = ob_get_clean();
 check( preg_match( '#name="hosting\[api_key\]" value="••••••••••••"#u', $html ) && false === strpos( $html, 'CLAVE-RED-456' ) && false !== strpos( $html, 'api_key_remove' ), 'Red: la clave se ve como ••••, no se imprime y se puede quitar' );
 // Datos de tienda que quedaron en la red (opciones de red de Ecommerce migradas): nadie los hereda.
-$GLOBALS['site_options']['digitalisimo_hosting_options'] += array( 'domain_products' => '.com|999', 'hosting_product_ids' => '777', 'simplify_checkout' => 1, 'replace_hosting' => 1 );
+$GLOBALS['site_options']['digitalisimo_hosting_options'] += array( 'form_selector' => '.red-form', 'domain_field' => 'campo-red', 'simplify_checkout' => 1, 'replace_hosting' => 1 );
 
 // 3. Un sitio de la red que nunca guardó Hosting no hereda nada; la pantalla le dice cómo usar la cuenta de la red.
 $GLOBALS['network_admin'] = false;
 $e = hosting_effective();
-check( '' === $e['api_user'] && '' === $e['api_key'] && ".com|\n.net|\n.mx|" === $e['domain_products'] && '' === $e['hosting_product_ids'] && 0 === $e['simplify_checkout'], 'Un sitio que nunca guardó Hosting no hereda nada de la red' );
+check( '' === $e['api_user'] && '' === $e['api_key'] && '.elementor-form' === $e['form_selector'] && 'form_fields[dominio]' === $e['domain_field'] && 0 === $e['simplify_checkout'], 'Un sitio que nunca guardó Hosting no hereda nada de la red' );
 check( 'not_configured' === hosting_check_domain() && ! $GLOBALS['remote'], 'Un sitio que nunca guardó Hosting no consulta con la cuenta de la red' );
 ob_start(); Digitalisimo_Hosting::page(); $html = ob_get_clean();
 check( ! preg_match( '#name="hosting\[inherit_network\]" value="1" checked#', $html ) && false !== strpos( $html, 'La red tiene una cuenta de Namecheap configurada' ), 'Su casilla «Heredar» sale sin marcar y la pantalla dice que la red tiene una cuenta y cómo usarla' );
 check( false === strpos( $html, 'api-red' ) && false === strpos( $html, '198.51.100.4' ), 'La pantalla del sitio no muestra los datos de la cuenta de la red' );
 
 // 4. El sitio guarda lo suyo (tienda y cuenta propia) y después hereda la cuenta de la red.
-hosting_submit( false, array( 'hosting[api_user]' => 'api-propio', 'hosting[username]' => 'cuenta-propia', 'hosting[api_key]' => 'CLAVE-PROPIA-789', 'hosting[client_ip]' => '192.0.2.9', 'hosting[domain_products]' => '.mx|5', 'hosting[hosting_product_ids]' => '42', 'hosting[simplify_checkout]' => '1' ) );
+hosting_submit( false, array( 'hosting[api_user]' => 'api-propio', 'hosting[username]' => 'cuenta-propia', 'hosting[api_key]' => 'CLAVE-PROPIA-789', 'hosting[client_ip]' => '192.0.2.9', 'hosting[form_selector]' => '.sitio', 'hosting[domain_field]' => 'campo-sitio', 'hosting[simplify_checkout]' => '1' ) );
 check( 'CLAVE-PROPIA-789' === hosting_effective()['api_key'] && 'available' === hosting_check_domain() && false !== strpos( $GLOBALS['remote'][0], 'ApiKey=CLAVE-PROPIA-789' ), 'Con valores propios, el sitio usa los suyos' );
 list( , $after ) = hosting_submit( false, array( 'hosting[inherit_network]' => '1' ) );
 $e = hosting_effective(); $o = get_option( 'digitalisimo_hosting_options' );
 check( 'api-red' === $e['api_user'] && 'CLAVE-RED-456' === $e['api_key'] && '198.51.100.4' === $e['client_ip'], 'Con «Heredar», el sitio usa la cuenta de Namecheap de la red' );
-check( '.mx|5' === $e['domain_products'] && '42' === $e['hosting_product_ids'] && 1 === $e['simplify_checkout'] && 0 === $e['replace_hosting'], 'Con «Heredar», productos, categorías y checkout siguen siendo los del sitio' );
+check( '.sitio' === $e['form_selector'] && 'campo-sitio' === $e['domain_field'] && 1 === $e['simplify_checkout'] && 0 === $e['replace_hosting'], 'Con «Heredar», productos, categorías y checkout siguen siendo los del sitio' );
 check( 'CLAVE-PROPIA-789' === $o['api_key'] && 'api-propio' === $o['api_user'], 'Con «Heredar», la cuenta propia del sitio se conserva' );
 check( false === strpos( $after, 'api-red' ) && false === strpos( $after, 'hosting[api_user]' ) && false !== strpos( $after, 'Usa la cuenta de Namecheap de la red' ), 'Con «Heredar», la pantalla no muestra ni deja editar la cuenta de la red' );
-hosting_submit( false, array( 'hosting[domain_products]' => '.mx|6' ) );
-check( '.mx|6' === hosting_effective()['domain_products'] && 'CLAVE-PROPIA-789' === get_option( 'digitalisimo_hosting_options' )['api_key'], 'Con «Heredar», guardar la tienda funciona y no toca la cuenta propia' );
+hosting_submit( false, array( 'hosting[form_selector]' => '.sitio6' ) );
+check( '.sitio6' === hosting_effective()['form_selector'] && 'CLAVE-PROPIA-789' === get_option( 'digitalisimo_hosting_options' )['api_key'], 'Con «Heredar», guardar la tienda funciona y no toca la cuenta propia' );
 $GLOBALS['transients'] = array(); $GLOBALS['site_transients'] = array();
 check( 'available' === hosting_check_domain() && false !== strpos( $GLOBALS['remote'][0], 'ApiKey=CLAVE-RED-456' ), 'Con «Heredar», consulta dominios con la clave de la red' );
 check( 1 === count( $GLOBALS['site_transients'] ) && ! $GLOBALS['transients'], 'Con la cuenta de la red, el límite de consultas se cuenta para toda la red' );
@@ -188,7 +188,7 @@ check( '' === hosting_effective()['api_key'] && false === strpos( serialize( $GL
 // 6. Un sitio que heredaba la red entera (antes de esta versión) ve el aviso en el escritorio hasta abrir Hosting.
 function hosting_notice() { ob_start(); Digitalisimo_Hosting::store_notice(); return ob_get_clean(); }
 $GLOBALS['pagenow'] = 'index.php';
-$GLOBALS['options'] = array( 'digitalisimo_hosting_options' => array( 'inherit_network' => 1, 'domain_products' => '.com|1' ) );
+$GLOBALS['options'] = array( 'digitalisimo_hosting_options' => array( 'inherit_network' => 1, 'form_selector' => '.otra' ) );
 $html = hosting_notice();
 check( false !== strpos( $html, 'ya no usa la configuración de tienda de la red' ) && false !== strpos( $html, 'href="https://sitio.test/wp-admin/admin.php?page=digitalisimo-hosting"' ), 'Un sitio que heredaba la tienda de la red ve el aviso con el enlace a revisarla' );
 $GLOBALS['pagenow'] = 'edit.php';
@@ -196,7 +196,7 @@ check( '' === hosting_notice(), 'El aviso sólo sale en el escritorio' );
 $GLOBALS['pagenow'] = 'index.php';
 ob_start(); Digitalisimo_Hosting::page(); ob_end_clean();
 check( '' === hosting_notice(), 'Abrir la pantalla Hosting retira el aviso' );
-$GLOBALS['options'] = array( 'digitalisimo_hosting_options' => array( 'inherit_network' => 0, 'domain_products' => '.com|1' ) );
+$GLOBALS['options'] = array( 'digitalisimo_hosting_options' => array( 'inherit_network' => 0, 'form_selector' => '.otra' ) );
 check( '' === hosting_notice(), 'Un sitio que no heredaba no ve el aviso' );
 $GLOBALS['options'] = array( 'digitalisimo_hosting_options' => array( 'inherit_network' => 1 ) + $GLOBALS['site_options']['digitalisimo_hosting_options'] );
 check( '' === hosting_notice(), 'Un sitio cuya tienda es igual a la de la red no ve el aviso' );

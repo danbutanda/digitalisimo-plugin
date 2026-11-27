@@ -12,6 +12,8 @@ require_once __DIR__ . '/class-motion-hint.php';
 require_once dirname( __DIR__ ) . '/digitalisimo-marca/class-map.php';
 require_once __DIR__ . '/class-brand-server.php';
 require_once __DIR__ . '/class-legacy-route.php';
+require_once __DIR__ . '/class-access.php';
+require_once __DIR__ . '/class-write-log.php';
 
 /**
  * El MCP del constructor (núcleo incluido) con el CSS al día: cada escritura de una herramienta `elementor/…` deja
@@ -22,6 +24,10 @@ require_once __DIR__ . '/class-legacy-route.php';
  * dice qué usar (`Motion_Hint`). El mismo MCP se ofrece con nombre propio en `/wp-json/digitalisimo/mcp` (`Brand_Server`,
  * herramientas `digitalisimo-*`) y la ruta vieja queda como alias hasta su retiro (`Legacy_Route`, docs/MARCA_PROPIA.md).
  * Nada de `elementor/` se edita. Detalle en `docs/ELEMENTS_MCP_CSS.md`.
+ *
+ * Además, acceso total sin interruptores (decisión del dueño del 2026-11-27): el servidor siempre activo, la migración
+ * que borra los ajustes viejos y «Mostrar el prompt para vincular» (`Access`), y la bitácora única de escrituras con
+ * su herramienta de lectura (`Write_Log`).
  */
 final class Module {
 	public static function init(): void {
@@ -33,5 +39,7 @@ final class Module {
 		Motion_Hint::init();
 		Brand_Server::init();
 		Legacy_Route::init();
+		Access::init();
+		Write_Log::init();
 	}
 }

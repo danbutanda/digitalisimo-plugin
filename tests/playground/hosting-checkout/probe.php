@@ -25,6 +25,9 @@ set_error_handler( static function ( $severity, $message, $file ) {
 	return false;
 } );
 add_filter( 'pre_wp_mail', '__return_true' );
+// PHP.wasm no resuelve nombres (dns_get_record siempre vacío y con aviso): el Webuzo inventado «resuelve» a una IP pública
+// de ejemplo y la llamada la corta pre_http_request (sin red), como un Webuzo que no responde.
+add_filter( 'digitalisimo_hosting_webuzo_host_ips', static function ( $ips, $host ) { return 'webuzo.test' === $host ? array( '93.184.216.34' ) : $ips; }, 10, 2 );
 add_filter( 'wp_is_application_passwords_available', '__return_true' );
 
 function digi_hc_secrets() { return json_decode( (string) @file_get_contents( DIGI_HC_DIR . '/secrets.json' ), true ) ?: array(); }
@@ -46,11 +49,15 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 	$taken = array( 'ocupado.com', 'miempresa.com', 'ajeno.com', 'ajeno.mx', 'ajeno.lat', 'ajeno.net' );
 	switch ( $cmd ) {
 		case 'namecheap.domains.check':
-			$d = (string) $body['DomainList'];
-			return digi_hc_xml( '<DomainCheckResult Domain="' . esc_attr( $d ) . '" Available="' . ( in_array( $d, $taken, true ) ? 'false' : 'true' ) . '" IsPremiumName="false" />' );
+			// Varios dominios separados por comas (el buscador estilo registrador los consulta en lote).
+			$xml = '';
+			foreach ( explode( ',', (string) $body['DomainList'] ) as $d ) $xml .= '<DomainCheckResult Domain="' . esc_attr( $d ) . '" Available="' . ( in_array( $d, $taken, true ) ? 'false' : 'true' ) . '" IsPremiumName="false" EapFee="0" />';
+			return digi_hc_xml( $xml );
+		case 'namecheap.users.getBalances':
+			return digi_hc_xml( '<UserGetBalancesResult Currency="USD" AvailableBalance="500.00" AccountBalance="500.00" />' );
 		case 'namecheap.domains.getTldList':
 			$out = '';
-			foreach ( array( 'com', 'net', 'org', 'mx' ) as $t ) $out .= '<Tld Name="' . $t . '" IsApiRegisterable="true" IsApiTransferable="' . ( 'mx' === $t ? 'false' : 'true' ) . '" IsEppRequired="true">' . $t . '</Tld>';
+			foreach ( array( 'com', 'net', 'org', 'mx', 'lat' ) as $t ) $out .= '<Tld Name="' . $t . '" IsApiRegisterable="true" IsApiTransferable="' . ( 'mx' === $t ? 'false' : 'true' ) . '" IsEppRequired="true">' . $t . '</Tld>';
 			return digi_hc_xml( '<Tlds>' . $out . '</Tlds>' );
 		case 'namecheap.users.getPricing':
 			// .com cuesta 9.99 USD en todo; «caro» se simula con .net: 60 USD por transferir.
@@ -92,6 +99,11 @@ add_action( 'init', static function () {
 			// Lo que dejó la pantalla de ajustes: la cuenta y las claves (no se tocan por MCP); la lista de fábrica vieja con .org.
 			update_option( 'digitalisimo_hosting_options', array( 'enabled' => 1, 'inherit_network' => 0, 'api_user' => $secrets['nc_user'], 'username' => $secrets['nc_user'], 'api_key' => $secrets['namecheap'], 'client_ip' => '203.0.113.5', 'webuzo_url' => 'https://webuzo.test:2005', 'webuzo_api_user' => 'root', 'webuzo_api_key' => $secrets['webuzo'], 'banxico_token' => $secrets['banxico'], 'domain_products' => ".com|\n.mx|\n.org|", 'hosting_category_ids' => (string) $cat, 'provision_enabled' => 0 ), false );
 			update_option( 'digitalisimo_hosting_ecommerce_migrated', 1 );
+			// Una tienda que viene de la versión anterior (con «Productos por extensión» y los IDs de hosting): la migración
+			// corre como al actualizar el plugin y deja los productos marcados.
+			delete_option( Digitalisimo_Hosting_Products::MIGRATED );
+			Digitalisimo_Hosting_Products::flush();
+			Digitalisimo_Hosting_Products::migrate();
 			require_once ABSPATH . 'wp-admin/includes/user.php';
 			$reader = get_user_by( 'login', 'lectora' );
 			$reader_id = $reader ? $reader->ID : wp_insert_user( array( 'user_login' => 'lectora', 'user_pass' => wp_generate_password( 24 ), 'user_email' => 'lectora@tienda.test', 'role' => 'shop_manager' ) );
@@ -104,7 +116,54 @@ add_action( 'init', static function () {
 			digi_hc_out( array( 'products' => $ids, 'woocommerce' => WC()->version, 'gateways' => array_keys( WC()->payment_gateways()->get_available_payment_gateways() ) ) );
 		case 'option':
 			$o = get_option( 'digitalisimo_hosting_options' ); $s = digi_hc_secrets();
-			digi_hc_out( array( 'same_account' => $o['api_key'] === $s['namecheap'] && $o['api_user'] === $s['nc_user'] && '203.0.113.5' === $o['client_ip'] && $o['webuzo_api_key'] === $s['webuzo'] && $o['banxico_token'] === $s['banxico'] && 'https://webuzo.test:2005' === $o['webuzo_url'], 'domain_products' => $o['domain_products'], 'ask_domain' => $o['ask_domain'] ?? null, 'provision_enabled' => $o['provision_enabled'], 'hosting_category_ids' => $o['hosting_category_ids'], 'resolved' => Digitalisimo_Hosting::domain_products() ) );
+			digi_hc_out( array( 'same_account' => $o['api_key'] === $s['namecheap'] && $o['api_user'] === $s['nc_user'] && '203.0.113.5' === $o['client_ip'] && $o['webuzo_api_key'] === $s['webuzo'] && $o['banxico_token'] === $s['banxico'] && 'https://webuzo.test:2005' === $o['webuzo_url'], 'legacy_left' => array_values( array_intersect( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'finder_upsell_ids' ), array_keys( $o ) ) ), 'migrated' => get_option( Digitalisimo_Hosting_Products::MIGRATED ), 'registrar_by_tld' => $o['registrar_by_tld'] ?? null, 'ask_domain' => $o['ask_domain'] ?? null, 'provision_enabled' => $o['provision_enabled'], 'resolved' => Digitalisimo_Hosting::domain_products(), 'plan_kind' => Digitalisimo_Hosting_Checkout::kind( (int) ( $_GET['plan'] ?? 0 ) ) ) );
+		case 'editor':
+			// El editor de producto con WooCommerce de verdad: la caja «Datos del producto» (pestañas y paneles), el bloque de
+			// una variación y el guardado por los ganchos de WooCommerce (WC_Meta_Box_Product_Data::save y save_variations).
+			require_once ABSPATH . 'wp-admin/includes/template.php';
+			require_once WC_ABSPATH . 'includes/admin/wc-admin-functions.php';
+			require_once WC_ABSPATH . 'includes/admin/wc-meta-box-functions.php';
+			// Como en el escritorio (la sonda corre en una petición pública): los ganchos del editor de Hosting.
+			if ( ! has_filter( 'woocommerce_product_data_tabs', array( 'Digitalisimo_Hosting_Product_Editor', 'tab' ) ) ) Digitalisimo_Hosting_Product_Editor::init();
+			require_once WC_ABSPATH . 'includes/admin/meta-boxes/class-wc-meta-box-product-data.php';
+			if ( ! class_exists( 'WC_Admin_Meta_Boxes' ) ) require_once WC_ABSPATH . 'includes/admin/class-wc-admin-meta-boxes.php';
+			$ids = json_decode( (string) get_option( 'digi_hc_editor_ids', '' ), true );
+			if ( ! $ids ) {
+				$attr = new WC_Product_Attribute(); $attr->set_name( 'Periodo' ); $attr->set_options( array( 'Mensual', 'Anual', 'Trianual' ) ); $attr->set_visible( true ); $attr->set_variation( true );
+				$v = new WC_Product_Variable(); $v->set_name( 'Plan Nube' ); $v->set_status( 'publish' ); $v->set_attributes( array( $attr ) ); $parent = $v->save();
+				$vars = array();
+				foreach ( array( 'Mensual' => 150, 'Anual' => 1500, 'Trianual' => 3900 ) as $period => $price ) { $x = new WC_Product_Variation(); $x->set_parent_id( $parent ); $x->set_attributes( array( 'periodo' => $period ) ); $x->set_regular_price( (string) $price ); $x->set_status( 'publish' ); $x->set_virtual( true ); $vars[ $period ] = $x->save(); }
+				$d = new WC_Product_Simple(); $d->set_name( 'Dominio .lat' ); $d->set_status( 'publish' ); $d->set_virtual( true ); $d->set_regular_price( '190' ); $lat = $d->save();
+				$ids = array( 'parent' => $parent, 'vars' => $vars, 'lat' => $lat );
+				update_option( 'digi_hc_editor_ids', wp_json_encode( $ids ), false );
+			}
+			$GLOBALS['post'] = get_post( $ids['lat'] ); $GLOBALS['thepostid'] = $ids['lat']; $GLOBALS['product_object'] = wc_get_product( $ids['lat'] );
+			ob_start(); WC_Meta_Box_Product_Data::output( get_post( $ids['lat'] ) ); $box = ob_get_clean();
+			ob_start(); do_action( 'woocommerce_product_after_variable_attributes', 0, array(), get_post( $ids['vars']['Mensual'] ) ); $var = ob_get_clean();
+			// Guardar como el formulario del editor: Dominio .lat (registro) y, en el plan, Hosting con su paquete.
+			$_POST = array( 'product-type' => 'simple', '_regular_price' => '190', '_visibility' => 'visible', 'digitalisimo_hosting' => array( 'type' => 'domain', 'tld' => '.lat', 'action' => 'register' ) );
+			WC_Meta_Box_Product_Data::save( $ids['lat'], get_post( $ids['lat'] ) );
+			$_POST = array( 'product-type' => 'variable', 'digitalisimo_hosting' => array( 'type' => 'hosting', 'plan' => 'digitalisimo_starter', 'period' => '12' ) );
+			WC_Meta_Box_Product_Data::save( $ids['parent'], get_post( $ids['parent'] ) );
+			$post = array( 'variable_post_id' => array(), 'digitalisimo_hosting_var' => array() );
+			$i = 0;
+			foreach ( array( 'Mensual' => 1, 'Anual' => 12, 'Trianual' => 36 ) as $period => $months ) {
+				$vid = $ids['vars'][ $period ];
+				$post['variable_post_id'][ $i ] = $vid; $post['variable_regular_price'][ $i ] = (string) wc_get_product( $vid )->get_regular_price(); $post['variable_menu_order'][ $i ] = $i; $post['variable_enabled'][ $i ] = 'on'; $post['attribute_periodo'][ $i ] = $period;
+				$post['digitalisimo_hosting_var'][ $i ] = array( 'type' => 'inherit', 'plan' => '', 'period' => (string) $months );
+				$i++;
+			}
+			$_POST = $post + array( 'product-type' => 'variable' );
+			WC_Meta_Box_Product_Data::save_variations( $ids['parent'], get_post( $ids['parent'] ) );
+			$_POST = array();
+			Digitalisimo_Hosting_Products::flush();
+			$cat = Digitalisimo_Hosting_Products::catalog();
+			$periods = array(); foreach ( $cat['hosting'] as $h ) if ( (int) $h['parent'] === (int) $ids['parent'] ) $periods[ $h['id'] ] = array( $h['plan'], $h['period'] );
+			$map = Digitalisimo_Hosting::domain_products(); $kind_lat = Digitalisimo_Hosting_Checkout::kind( $ids['lat'] );
+			$settings = ( static function () { ob_start(); Digitalisimo_Hosting::page(); return ob_get_clean(); } )();
+			// El resto del ensayo vende .com, .net y .mx: el .lat de prueba vuelve a «Ninguno».
+			update_post_meta( $ids['lat'], Digitalisimo_Hosting_Products::META_TYPE, 'none' ); Digitalisimo_Hosting_Products::flush();
+			digi_hc_out( array( 'ids' => $ids, 'box' => $box, 'variation' => $var, 'map' => $map, 'periods' => $periods, 'kind_lat' => $kind_lat, 'errors' => class_exists( 'WC_Admin_Meta_Boxes' ) ? WC_Admin_Meta_Boxes::$meta_box_errors : array(), 'settings' => $settings ) );
 		case 'state':
 			$order = wc_get_order( absint( $_GET['id'] ?? 0 ) );
 			if ( ! $order ) digi_hc_out( array( 'error' => 'pedido' ), 404 );
@@ -142,6 +201,20 @@ add_action( 'init', static function () {
 			}
 			$exp = \Elementor\Plugin::$instance->experiments;
 			digi_hc_out( array( 'id' => $id, 'atomic' => $exp->is_feature_active( 'e_atomic_elements' ), 'atomic_form' => $exp->is_feature_active( 'e_pro_atomic_form' ) ) );
+		case 'finder_page':
+			// Una página con el buscador estilo registrador y el carrito de WooCommerce (de bloques en una instalación nueva).
+			$id = (int) get_option( 'digi_hc_finder_page' );
+			if ( ! $id || ! get_post( $id ) ) {
+				$id = (int) wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Busca tu dominio', 'post_content' => '[digitalisimo_buscador_dominios]' ) );
+				update_option( 'digi_hc_finder_page', $id, false );
+			}
+			$cart = (int) wc_get_page_id( 'cart' );
+			$content = (string) get_post_field( 'post_content', $cart );
+			// Una instalación vieja de WooCommerce pudo dejar el shortcode: el ensayo usa el carrito de bloques.
+			if ( false === strpos( $content, 'wp:woocommerce/cart' ) ) {
+				wp_update_post( array( 'ID' => $cart, 'post_content' => '<!-- wp:woocommerce/cart /-->' ) );
+			}
+			digi_hc_out( array( 'id' => $id, 'cart' => $cart, 'cart_url' => get_permalink( $cart ), 'block_cart' => has_block( 'woocommerce/cart', $cart ) ) );
 		case 'calls':
 			digi_hc_out( array( 'calls' => get_option( 'digi_hc_calls', array() ) ) );
 	}

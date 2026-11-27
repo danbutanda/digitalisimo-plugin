@@ -1,0 +1,20 @@
+{#- Buscador de dominios atómico (class-atomic-domain-finder.php): el mismo marcado que Digitalisimo_Hosting_Finder::html(). -#}
+{% import 'elementor/macros' as m %}
+{%- set fid = 'dhf-' ~ id -%}
+{%- set title = settings.title | default('') | trim -%}
+{%- set placeholder = settings.placeholder | default('') | trim -%}
+{%- set button = settings.button | default('') | trim -%}
+{%- set classes = settings.classes | default([]) | merge(['digitalisimo-finder']) -%}
+<div class="{{ classes | join(' ') | e }}" data-digitalisimo-finder data-interaction-id="{{ interaction_id }}"
+	{{- m.render_custom_attributes(settings) }}>
+<form class="digitalisimo-finder__form" role="search" method="get" action="">
+<label class="digitalisimo-finder__label" for="{{ fid | e }}">{{ (title is not empty ? title : 'Busca tu dominio') | e }}</label>
+<div class="digitalisimo-finder__bar">
+<input id="{{ fid | e }}" class="digitalisimo-finder__input" type="search" name="dominio" value="" placeholder="{{ (placeholder is not empty ? placeholder : 'minegocio') | e }}" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="253" required aria-describedby="{{ fid | e }}-hint">
+<button class="digitalisimo-finder__submit" type="submit">{{ (button is not empty ? button : 'Buscar') | e }}</button>
+</div>
+<p class="digitalisimo-finder__hint" id="{{ fid | e }}-hint">Escribe sólo el nombre (minegocio) o el nombre con su extensión (minegocio.mx).</p>
+</form>
+<div class="digitalisimo-finder__status" role="status" aria-live="polite"></div>
+<div class="digitalisimo-finder__results" aria-busy="false"></div>
+</div>

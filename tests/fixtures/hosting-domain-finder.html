@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buscador de dominios estilo registrador (prueba)</title>
+<link rel="stylesheet" href="../../digitalisimo-hosting/assets/finder.css">
+<!-- Los colores de fábrica de un kit nuevo (acento verde claro y texto gris): los que daban ~2:1 con texto blanco fijo. -->
+<style>:root{--e-global-color-accent:#61CE70;--e-global-color-primary:#6EC1E4;--e-global-color-text:#7A7A7A}body{margin:0;padding:16px;font:16px/1.4 sans-serif;color:var(--e-global-color-text)}</style>
+<script>
+  // ?iva=1: la tienda muestra los precios con IVA; ?carrito=1: es la página del carrito de bloques (vacío).
+  const q = new URLSearchParams(location.search);
+  // Lo que pone Digitalisimo_Hosting_Finder::footer_config() delante del script.
+  window.digitalisimoFinder = { endpoint: 'https://tienda.test/wp-json/digitalisimo-hosting/v1/finder', nonce: 'n-finder', store: 'https://tienda.test/wp-json/wc/store/v1/', storeNonce: 'viejo', checkout: 'https://tienda.test/pagar/', cart: 'https://tienda.test/carrito/', taxIncluded: q.get('iva') === '1' };
+  // El servidor simulado: el buscador (como Digitalisimo_Hosting_Finder::search()) y la Store API con su carrito.
+  window.log = []; window.cart = []; window.navigations = 0; window.events = [];
+  document.addEventListener('wc-blocks_added_to_cart', () => window.events.push('wc-blocks_added_to_cart'));
+  const prices = { '.com': ['$309', '$509', 20], '.mx': ['$600', '$1,499', 21], '.net': ['$280', '$280', 22] };
+  const together = [{ id: 14693, name: 'Web Hosting Starter', price_text: '$970', description: 'Para tu primer sitio.' }, { id: 14700, name: 'Correo profesional', price_text: '$450', description: 'Cinco buzones con tu dominio.' }];
+  const row = (label, ext, status) => {
+    const [p, r, id] = prices[ext];
+    const d = { domain: label + ext, display: '', ext, status, product_id: id, requirement: ext === '.mx' ? 'Requisito: el titular debe dar sus datos reales y completos (persona o empresa).' : '', price_text: p, renewal_text: r };
+    if (status === 'taken') d.transfer = { product_id: 50, price_text: '$250' };
+    return d;
+  };
+  const finder = (q) => {
+    const label = q.replace(/\..*$/, '').toLowerCase();
+    const typed = q.includes('.') ? q.slice(q.indexOf('.')) : '';
+    if (!/^[a-z0-9-]+$/.test(label)) return [400, { code: 'digitalisimo_finder_invalid', message: 'Usa sólo letras, números y guiones, sin espacios ni símbolos.' }];
+    // «ocupado»: .com ocupado; «todo»: todo ocupado (con variantes libres); «raro»: .com sin consultar y nada libre.
+    const st = (e) => (label === 'todo' ? 'taken' : label === 'raro' ? 'unknown' : label === 'ocupado' && e === '.com' ? 'taken' : 'available');
+    const rows = ['.com', '.mx', '.net'].map((e) => row(label, e, st(e)));
+    const want = typed && prices[typed] ? typed : '.com';
+    let main = rows.find((r) => r.ext === want); let instead = ''; let reason = '';
+    const free = rows.find((r) => r.status === 'available');
+    if (main.status !== 'available' && free) { instead = main.domain; reason = main.status; main = free; }
+    const suggestions = main.status !== 'available' && label === 'todo' ? [row('mitodo', '.com', 'available'), row('todomx', '.com', 'available')] : [];
+    return [200, { query: label, notice: typed && !prices[typed] ? `Aquí no vendemos dominios ${typed}.` : '', main, instead_of: instead, reason, taken: reason === 'taken' ? rows.find((r) => r.domain === instead) : null, rows: rows.filter((r) => r.domain !== main.domain), suggestions, alternatives: [], together, partial: false }];
+  };
+  const names = { 20: 'Dominio .com', 21: 'Dominio .mx', 22: 'Dominio .net', 50: 'Transferencia de dominio', 14693: 'Web Hosting Starter', 14700: 'Correo profesional' };
+  const unit = { 20: 30900, 21: 60000, 22: 28000, 50: 25000, 14693: 97000, 14700: 45000 };
+  const tax = window.digitalisimoFinder.taxIncluded ? 0.16 : 0;
+  const storeCart = () => {
+    const items = window.cart.reduce((s, i) => s + unit[i.id], 0);
+    return { items: window.cart.map((i) => ({ id: i.id, name: names[i.id], quantity: 1, item_data: i.domain ? [{ name: i.id === 50 ? 'Dominio a transferir' : 'Dominio', value: i.domain }] : [] })), totals: { total_items: String(items), total_items_tax: String(Math.round(items * tax)), currency_minor_unit: 2, currency_prefix: '$', currency_suffix: '' } };
+  };
+  const res = (status, body, headers = {}) => ({ ok: status >= 200 && status < 300, status, headers: { get: (k) => headers[k] || null }, json: async () => body });
+  window.fetch = async (url, opts = {}) => {
+    const u = String(url); const body = opts.body ? JSON.parse(opts.body) : null;
+    window.log.push({ url: u, method: opts.method || 'GET', body, headers: opts.headers || {} });
+    // «lento» tarda: la búsqueda siguiente llega antes y la vieja se descarta.
+    await new Promise((r) => setTimeout(r, body && body.q === 'lento' ? 600 : 20));
+    if (u.endsWith('/digitalisimo-hosting/v1/finder')) { const [s, d] = finder(body.q); return res(s, d); }
+    if (u.endsWith('/wc/store/v1/cart')) return res(200, storeCart(), { Nonce: 'fresco' });
+    if (u.endsWith('/wc/store/v1/cart/add-item')) {
+      if ((opts.headers || {}).Nonce !== 'fresco') return res(403, { code: 'woocommerce_rest_invalid_nonce', message: 'Nonce is invalid.' });
+      if ([20, 21, 22, 50].includes(body.id) && !body.digitalisimo_domain) return res(400, { code: 'digitalisimo_hosting_domain', message: 'Busca primero el nombre de tu dominio: un dominio sólo se agrega con su nombre.' });
+      if (window.cart.some((i) => i.domain && i.domain === body.digitalisimo_domain)) return res(400, { code: 'digitalisimo_hosting_domain', message: `El dominio ${body.digitalisimo_domain} ya está en tu carrito.` });
+      window.cart.push({ id: body.id, domain: body.digitalisimo_domain || '' });
+      return res(201, storeCart(), { Nonce: 'fresco' });
+    }
+    return res(404, { code: 'rest_no_route', message: 'No route' });
+  };
+  window.addEventListener('beforeunload', () => { window.navigations++; });
+</script>
+</head>
+<body>
+<h1>Dominios</h1>
+<div id="wrap">
+<!-- Lo que pinta [digitalisimo_buscador_dominios] (Digitalisimo_Hosting_Finder::html()). -->
+<div class="digitalisimo-finder" data-digitalisimo-finder id="finder"><form class="digitalisimo-finder__form" role="search" method="get" action=""><label class="digitalisimo-finder__label" for="dhf-1">Busca tu dominio</label><div class="digitalisimo-finder__bar"><input id="dhf-1" class="digitalisimo-finder__input" type="search" name="dominio" value="" placeholder="minegocio" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="253" required aria-describedby="dhf-1-hint"><button class="digitalisimo-finder__submit" type="submit">Buscar</button></div><p class="digitalisimo-finder__hint" id="dhf-1-hint">Escribe sólo el nombre (minegocio) o el nombre con su extensión (minegocio.mx).</p></form><div class="digitalisimo-finder__status" role="status" aria-live="polite"></div><div class="digitalisimo-finder__results" aria-busy="false"></div></div>
+</div>
+<p style="height:40px">Contenido de la página.</p>
+<script>if (q.get('carrito') === '1') document.getElementById('wrap').className = 'wp-block-woocommerce-cart';</script>
+<script src="../../digitalisimo-hosting/assets/finder.js"></script>
+</body>
+</html>

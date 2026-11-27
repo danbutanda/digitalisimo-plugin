@@ -1,0 +1,71 @@
+/* Buscador de dominios de DIGITALÍSIMO Hosting. Colores y letra del kit del sitio, con un respaldo neutro; móvil primero.
+   Sin color-mix: el gris de respaldo (#595959) da 7:1 sobre blanco; el script ajusta texto y grises a 4.5:1 con el kit real. */
+.digitalisimo-finder{--dhf-accent:var(--e-global-color-accent,var(--e-global-color-primary,#1f2937));--dhf-on-accent:#fff;--dhf-text:var(--e-global-color-text,currentColor);--dhf-muted:#595959;--dhf-line:rgba(127,127,127,.35);--dhf-ok:#1a7f37;--dhf-no:#b42318;font-family:var(--e-global-typography-text-font-family,inherit);color:var(--dhf-text);max-width:100%;box-sizing:border-box}
+.digitalisimo-finder *,.digitalisimo-finder *::before,.digitalisimo-finder *::after{box-sizing:border-box}
+.digitalisimo-finder__form{margin:0}
+.digitalisimo-finder__label{display:block;font-family:var(--e-global-typography-primary-font-family,inherit);font-weight:600;font-size:1.125rem;margin:0 0 .5rem}
+.digitalisimo-finder__bar{display:flex;flex-direction:column;gap:.5rem}
+.digitalisimo-finder__input{width:100%;min-height:48px;padding:.75rem 1rem;font:inherit;font-size:1rem;border:1px solid var(--dhf-line);border-radius:6px;background:transparent;color:inherit}
+.digitalisimo-finder__input:focus-visible,.digitalisimo-finder button:focus-visible,.digitalisimo-finder-cartbar a:focus-visible{outline:3px solid var(--dhf-accent);outline-offset:2px}
+.digitalisimo-finder__submit,.digitalisimo-finder__add{min-height:44px;padding:.625rem 1.25rem;font:inherit;font-weight:600;border:0;border-radius:6px;background:var(--dhf-accent);color:var(--dhf-on-accent);cursor:pointer}
+.digitalisimo-finder__submit:disabled{opacity:.7;cursor:progress}
+.digitalisimo-finder__add.is-added{background:transparent;color:var(--dhf-ok);box-shadow:inset 0 0 0 2px currentColor;cursor:default}
+.digitalisimo-finder__hint{margin:.5rem 0 0;font-size:.875rem;color:var(--dhf-muted)}
+.digitalisimo-finder__status{margin:.75rem 0 0;font-size:.9375rem}
+.digitalisimo-finder__status:empty{display:none}
+.digitalisimo-finder__results{margin-top:1rem}
+.digitalisimo-finder__results:empty{display:none}
+.digitalisimo-finder__notice{margin:0 0 .75rem;padding:.75rem 1rem;border-radius:6px;border:1px solid var(--dhf-line)}
+.digitalisimo-finder__main{display:grid;gap:.375rem;padding:1.25rem;border:2px solid var(--dhf-line);border-radius:10px}
+.digitalisimo-finder__main.is-available{border-color:var(--dhf-ok)}
+.digitalisimo-finder__main p{margin:0}
+.digitalisimo-finder__instead{color:var(--dhf-muted);font-size:.9375rem}
+.digitalisimo-finder__main-domain{font-family:var(--e-global-typography-primary-font-family,inherit);font-size:clamp(1.375rem,5vw,2rem);font-weight:700;overflow-wrap:anywhere}
+.digitalisimo-finder__state{font-weight:600}
+.is-available>.digitalisimo-finder__state{color:var(--dhf-ok)}
+.is-taken>.digitalisimo-finder__state,.is-premium>.digitalisimo-finder__state{color:var(--dhf-no)}
+.digitalisimo-finder__price{margin:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .5rem}
+.digitalisimo-finder__main .digitalisimo-finder__first{font-size:1.5rem}
+.digitalisimo-finder__renewal{color:var(--dhf-muted);font-size:.875rem;flex-basis:100%}
+.digitalisimo-finder__req{display:block;font-size:.8125rem;color:var(--dhf-muted)}
+.digitalisimo-finder__transfer{margin:.75rem 0 0;padding:1rem;border:1px dashed var(--dhf-line);border-radius:8px;display:grid;gap:.5rem}
+.digitalisimo-finder__transfer p{margin:0}
+.digitalisimo-finder__alts{margin:.75rem 0 0;color:var(--dhf-muted)}
+.digitalisimo-finder__list-title{font-size:1rem;margin:1.25rem 0 .5rem}
+.digitalisimo-finder__list,.digitalisimo-finder__together-list{list-style:none;margin:0;padding:0}
+.digitalisimo-finder__row{display:grid;grid-template-columns:1fr auto;gap:.25rem .75rem;align-items:center;padding:.875rem 0;border-top:1px solid var(--dhf-line)}
+.digitalisimo-finder__row>.digitalisimo-finder__domain{font-weight:600;overflow-wrap:anywhere}
+.digitalisimo-finder__row>.digitalisimo-finder__state{grid-column:2;grid-row:1;font-size:.875rem;text-align:end}
+.digitalisimo-finder__row>.digitalisimo-finder__price,.digitalisimo-finder__row>.digitalisimo-finder__req,.digitalisimo-finder__row>.digitalisimo-finder__transfer{grid-column:1/-1}
+.digitalisimo-finder__row>.digitalisimo-finder__add{grid-column:1/-1;width:100%}
+.digitalisimo-finder__together{margin:.75rem 0 0;padding:1rem;border-radius:8px;border:1px solid var(--dhf-line);grid-column:1/-1}
+.digitalisimo-finder__together-title{margin:0 0 .5rem;font-weight:700}
+.digitalisimo-finder__together-item{display:grid;gap:.25rem;padding:.625rem 0;border-top:1px solid var(--dhf-line)}
+.digitalisimo-finder__together-name{font-weight:600}
+.digitalisimo-finder__together-desc{font-size:.875rem;color:var(--dhf-muted)}
+.digitalisimo-finder-cartbar{--dhf-on-accent:#fff;--dhf-accent:var(--e-global-color-accent,var(--e-global-color-primary,#1f2937));position:fixed;left:0;right:0;bottom:0;z-index:9990;display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.75rem 1rem calc(.75rem + env(safe-area-inset-bottom,0px));background:var(--e-global-color-background,#fff);color:var(--e-global-color-text,#111);box-shadow:0 -4px 16px rgba(0,0,0,.15);font-family:var(--e-global-typography-text-font-family,inherit)}
+.digitalisimo-finder-cartbar[hidden]{display:none}
+.digitalisimo-finder-cartbar p{margin:0}
+.digitalisimo-finder-cartbar__info{min-width:0}
+.digitalisimo-finder-cartbar__count{font-weight:700}
+.digitalisimo-finder-cartbar__items{display:none;list-style:none;margin:0;padding:0;font-size:.875rem}
+.digitalisimo-finder-cartbar__item{overflow-wrap:anywhere}
+.digitalisimo-finder-cartbar__tax,.digitalisimo-finder-cartbar__note{font-size:.8125rem;color:var(--dhf-muted,#595959)}
+.digitalisimo-finder-cartbar__pay{flex:none;display:inline-flex;align-items:center;min-height:44px;padding:.625rem 1.5rem;border-radius:6px;background:var(--dhf-accent);color:var(--dhf-on-accent,#fff);font-weight:700;text-decoration:none}
+body.digitalisimo-finder-has-bar{padding-bottom:6.5rem}
+html:has(body.digitalisimo-finder-has-bar){scroll-padding-bottom:7rem}
+.digitalisimo-finder-empty-cart{margin:2rem 0}
+@media (min-width:600px){
+.digitalisimo-finder__bar{flex-direction:row}
+.digitalisimo-finder__input{flex:1}
+.digitalisimo-finder__row{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.2fr) auto}
+.digitalisimo-finder__row>.digitalisimo-finder__state{grid-column:auto;grid-row:auto;text-align:start}
+.digitalisimo-finder__row>.digitalisimo-finder__price{grid-column:auto}
+.digitalisimo-finder__row>.digitalisimo-finder__add{grid-column:auto;width:auto}
+.digitalisimo-finder__renewal{flex-basis:auto}
+.digitalisimo-finder__together-item{grid-template-columns:1fr auto auto;align-items:center}
+.digitalisimo-finder__together-desc{grid-column:1}
+.digitalisimo-finder-cartbar{padding-inline:max(1rem,calc((100vw - 1140px)/2))}
+.digitalisimo-finder-cartbar__items{display:block}
+}
+@media (prefers-reduced-motion:no-preference){.digitalisimo-finder__add,.digitalisimo-finder__submit{transition:opacity .15s}}

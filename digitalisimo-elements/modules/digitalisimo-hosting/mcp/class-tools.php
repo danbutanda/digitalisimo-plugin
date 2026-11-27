@@ -23,11 +23,11 @@ final class Tools {
 	const TOOLS = array( 'settings', 'domain-product' );
 
 	const ACTIONS = array(
-		'settings'       => array( 'get', 'update', 'log' ),
+		'settings'       => array( 'get', 'update', 'log', 'manual-payment' ),
 		'domain-product' => array( 'list', 'mark', 'unmark' ),
 	);
 
-	const WRITE_ACTIONS = array( 'update', 'mark', 'unmark' );
+	const WRITE_ACTIONS = array( 'update', 'mark', 'unmark', 'manual-payment' );
 
 	const LABELS = array(
 		'settings'       => 'Hosting: ajustes del sitio',
@@ -35,13 +35,13 @@ final class Tools {
 	);
 
 	const DESCRIPTIONS = array(
-		'settings'       => 'Ajustes de DIGITALÍSIMO Hosting de ESTE sitio (Digitalisimo → Hosting): dominios, productos por extensión, compra de hosting en WooCommerce y el buscador de dominios. action get: devuelve todos los ajustes (settings), qué secretos están puestos (secrets_set: nunca su valor), si la cuenta de Namecheap está configurada, qué se puede escribir (writable) y qué no (read_only), y domain_products (qué producto de WooCommerce vende cada extensión, de dónde salió —config, meta o sku— y qué extensiones no tienen producto: con ellas el buscador no las ofrece). action update: data {"clave": valor} sólo con las claves que cambian; se COMBINA con lo guardado (lo que no envías no cambia), con la misma validación del formulario, sólo en este sitio (nunca en la red); devuelve los ajustes resultantes, changed (claves que cambiaron) y adjusted (las que la validación guardó distinto de lo enviado, con su valor final). Claves que se pueden escribir: domain_products (una línea por extensión: ".com|123\n.net|\n.mx|456"; sin ID se usa el producto marcado con esa extensión o con el SKU dominio-com), hosting_product_ids y hosting_category_ids (IDs separados por comas), ask_domain (pedir «Dominio nuevo / uno que ya tengo» antes de pagar), require_domain_hosting, replace_hosting, simplify_checkout, form_selector, domain_field, extension_field, webuzo_user_prefix, pricing_enabled y pricing_rounding ("10" | "9" | "end9" | "none"). La cuenta de Namecheap, el servidor y la clave de Webuzo, los nameservers, el token de Banxico, el interruptor del módulo (enabled), la venta automática (provision_enabled, own_domain_auto), los días de gracia (grace_days) y los porcentajes de la fórmula de precios (pricing_cushion, pricing_margin, pricing_fee, pricing_vat, pricing_min_margin: el freno contra vender con pérdida) sólo se leen: una persona las cambia en el escritorio. Una clave desconocida o de sólo lectura detiene todo sin guardar nada. action log: bitácora de escrituras de estas herramientas (fecha, usuario, acción, claves cambiadas, resultado; nunca valores).',
-		'domain-product' => 'Marca qué producto de WooCommerce vende cada extensión de dominio en DIGITALÍSIMO Hosting, para que el buscador y el carrito lo encuentren aunque «Productos por extensión» no traiga su ID. action list: los productos marcados y la resolución actual. action mark: product_id y tld (".com", ".net", ".mx", ".com.mx"…); kind "register" (registro, por defecto) o "transfer" (producto de transferencia: el carrito pide el dominio y su código EPP; tld "*" o vacío = cualquier extensión). action unmark: quita la marca de product_id. Una línea de «Productos por extensión» con ID manda sobre la marca. Devuelve el producto con su marca y la resolución resultante.',
+		'settings'       => 'Ajustes de DIGITALÍSIMO Hosting de ESTE sitio (Digitalisimo → Hosting): dominios, compra de hosting en WooCommerce y el buscador de dominios. Sin IDs ni «|»: los productos de dominio y de hosting se DETECTAN de lo marcado en el editor de cada producto (pestaña «DIGITALÍSIMO Hosting») o con la herramienta digitalisimo-hosting-domain-product. action get: devuelve todos los ajustes (settings), qué secretos están puestos (secrets_set: nunca su valor), si las cuentas de Namecheap y Dynadot están configuradas (namecheap.configured, dynadot.configured), registrars (el registrador predeterminado, el de cada extensión que se vende y cuáles tienen cuenta), qué se puede escribir (writable) y qué no (read_only), domains (lo detectado: tld, kind register|transfer, product_id, name, price; el dominio siempre es anual), hosting_products (product_id, name, plan de Webuzo, period: Mensual, Trimestral, Semestral, Anual, Bianual o Trianual), duplicates (misma extensión y acción en dos productos: se usa el primero; avisa al dueño), incomplete y tld_list (de dónde sale la lista de extensiones válidas). action update: data {"clave": valor} sólo con las claves que cambian; se COMBINA con lo guardado (lo que no envías no cambia), con la misma validación del formulario, sólo en este sitio (nunca en la red); devuelve los ajustes resultantes, changed y adjusted. Claves que se pueden escribir: ask_domain (pedir «Dominio nuevo / uno que ya tengo» antes de pagar), require_domain_hosting, replace_hosting, simplify_checkout, form_selector, domain_field, extension_field, webuzo_user_prefix, pricing_enabled, pricing_rounding ("10" | "9" | "end9" | "none"), registrar (predeterminado: "namecheap" | "dynadot"), registrar_by_tld (objeto por extensión: {".mx": "dynadot"}; se combina por extensión y "default" la regresa al predeterminado) y los del buscador: finder_order (lista: [".com", ".mx", ".com.mx"], las populares primero), finder_requirements (objeto por extensión: {".mx": "Requisito: …"}; "" quita el aviso) y finder_upsell (lista de product_id de hosting_products para «Se compran juntos»; [] = todos los planes). Las extensiones se validan contra la lista de los registradores. Ya no existen domain_products, hosting_product_ids, hosting_category_ids ni finder_upsell_ids: enviarlas da un error que explica qué usar. Las cuentas de Namecheap y Dynadot (la clave de Dynadot nunca se lee ni se escribe por aquí), el servidor y la clave de Webuzo, los nameservers, el token de Banxico, el interruptor del módulo (enabled), la venta automática (provision_enabled, own_domain_auto), los días de gracia (grace_days) y los porcentajes de la fórmula de precios (pricing_cushion, pricing_margin, pricing_fee, pricing_vat, pricing_min_margin: el freno contra vender con pérdida) sólo se leen: una persona las cambia en el escritorio. Una clave desconocida, retirada o de sólo lectura detiene todo sin guardar nada. action log: bitácora de escrituras de estas herramientas (fecha, usuario, acción, claves cambiadas, resultado; nunca valores). action manual-payment (manage_woocommerce o manage_options; escribe): registra un pago recibido por otro lado (efectivo, transferencia, depósito) de un servicio de hosting: service (el ID del servicio), months (1, 3, 6, 12, 24 o 36; de fábrica, el periodo del servicio), method ("cash" | "transfer" | "deposit" | "other"), amount (opcional, informativo), note (opcional), renew_domain (renovar el dominio en su registrador; sin decirlo, un servicio que es sólo el dominio se renueva, y ése sólo admite 12, 24 o 36 meses; en él, renew_domain false sin renewed_elsewhere es un error y no registra nada), renewed_elsewhere (ya lo renovaste tú en el registrador: se comprueba allá, sólo lectura, que vence en la fecha pagada y se guarda ese vencimiento; si no alcanza, error y nada registrado; un dominio cuya transferencia no ha llegado no se renueva ni se da por renovado) y request_id (opcional: la misma clave no se registra dos veces; sin ella, los mismos datos en 10 minutos tampoco). Marca pagada la renovación pendiente o crea un pedido ya pagado, extiende el vencimiento el periodo, cancela los avisos y la suspensión y reactiva lo suspendido por falta de pago; devuelve el pedido, el vencimiento anterior y el nuevo y si el dominio se renovó.',
+		'domain-product' => 'Marca un producto de WooCommerce como Dominio de una extensión en DIGITALÍSIMO Hosting (lo mismo que elegir «Dominio» en la pestaña «DIGITALÍSIMO Hosting» de su editor): el buscador, el carrito y la venta automática lo detectan solos, sin IDs en los ajustes. El dominio siempre es anual. action list: lo detectado (domains, hosting_products, duplicates, incomplete). action mark: product_id y tld (".com", ".net", ".mx", ".com.mx"…; se valida contra la lista de los registradores); kind "register" (registro, por defecto) o "transfer" (el carrito pide el dominio y su código EPP; tld "*" o vacío = cualquier extensión). Dos productos con la misma extensión y acción: se usa el primero y queda en duplicates. action unmark: deja el producto en «Ninguno». Devuelve el producto (type, tld, kind, billing) y lo detectado.',
 	);
 
 	/** ¿Está DIGITALÍSIMO Hosting cargado con la API que usan estas herramientas? */
 	public static function hosting_ready(): bool {
-		return class_exists( 'Digitalisimo_Hosting', false ) && method_exists( 'Digitalisimo_Hosting', 'mcp_settings' ) && method_exists( 'Digitalisimo_Hosting', 'mcp_update' ) && class_exists( 'Digitalisimo_Hosting_Products', false ) && method_exists( 'Digitalisimo_Hosting_Products', 'mark' );
+		return class_exists( 'Digitalisimo_Hosting', false ) && method_exists( 'Digitalisimo_Hosting', 'mcp_settings' ) && class_exists( 'Digitalisimo_Hosting_Provisioning', false ) && method_exists( 'Digitalisimo_Hosting_Provisioning', 'manual_payment' ) && method_exists( 'Digitalisimo_Hosting', 'mcp_update' ) && class_exists( 'Digitalisimo_Hosting_Products', false ) && method_exists( 'Digitalisimo_Hosting_Products', 'mark' );
 	}
 
 	public static function id( string $tool ): string {
@@ -60,8 +60,12 @@ final class Tools {
 		return in_array( $action, self::WRITE_ACTIONS, true );
 	}
 
-	/** Capacidades: basta una de la lista. */
-	public static function capabilities( string $tool ): array {
+	/**
+	 * Capacidades: basta una de la lista. Los ajustes, manage_options; registrar un pago manual (acción de la misma
+	 * herramienta), también quien administra la tienda (manage_woocommerce), como el botón de Servicios de hosting.
+	 */
+	public static function capabilities( string $tool, string $action = '' ): array {
+		if ( 'settings' === $tool && 'manual-payment' === $action ) return array( 'manage_woocommerce', 'manage_options' );
 		return 'settings' === $tool ? array( 'manage_options' ) : array( 'manage_woocommerce', 'manage_options' );
 	}
 
@@ -93,7 +97,7 @@ final class Tools {
 			'action' => array(
 				'type'        => 'string',
 				'enum'        => self::ACTIONS[ $tool ],
-				'description' => 'settings' === $tool ? 'get lee, update combina data con lo guardado, log lee la bitácora.' : 'list lee, mark marca product_id con tld, unmark le quita la marca.',
+				'description' => 'settings' === $tool ? 'get lee, update combina data con lo guardado, log lee la bitácora, manual-payment registra un pago manual de un servicio.' : 'list lee, mark marca product_id con tld, unmark le quita la marca.',
 			),
 		);
 		if ( 'settings' === $tool ) {
@@ -103,6 +107,15 @@ final class Tools {
 			);
 			$properties['page']     = array( 'type' => 'integer', 'minimum' => 1, 'description' => 'Sólo en log.' );
 			$properties['per_page'] = array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'description' => 'Sólo en log (20 por defecto).' );
+			// manual-payment: un pago recibido por otro lado.
+			$properties['service']      = array( 'type' => 'integer', 'minimum' => 1, 'description' => 'Sólo en manual-payment: el servicio de hosting.' );
+			$properties['months']       = array( 'type' => 'integer', 'enum' => array( 1, 3, 6, 12, 24, 36 ), 'description' => 'Sólo en manual-payment: meses pagados (de fábrica, el periodo del servicio).' );
+			$properties['method']       = array( 'type' => 'string', 'enum' => array( 'cash', 'transfer', 'deposit', 'other' ), 'description' => 'Sólo en manual-payment: el medio del pago.' );
+			$properties['amount']       = array( 'type' => array( 'number', 'string' ), 'description' => 'Sólo en manual-payment: monto (opcional, informativo).' );
+			$properties['note']         = array( 'type' => 'string', 'maxLength' => 300, 'description' => 'Sólo en manual-payment: nota (opcional).' );
+			$properties['renew_domain'] = array( 'type' => 'boolean', 'description' => 'Sólo en manual-payment: renovar el dominio en su registrador (sin decirlo, un servicio que es sólo el dominio se renueva; en ése, false sin renewed_elsewhere es un error).' );
+			$properties['renewed_elsewhere'] = array( 'type' => 'boolean', 'description' => 'Sólo en manual-payment: el dominio ya lo renovó el administrador directamente en el registrador (se comprueba allá que alcanza la fecha pagada; queda anotado y no se pide).' );
+			$properties['request_id']   = array( 'type' => 'string', 'maxLength' => 64, 'description' => 'Sólo en manual-payment: una clave por pago; repetida, no se registra dos veces.' );
 		} else {
 			$properties['product_id'] = array( 'type' => 'integer', 'minimum' => 1, 'description' => 'ID del producto de WooCommerce (mark y unmark).' );
 			$properties['tld']        = array( 'type' => 'string', 'maxLength' => 64, 'description' => 'Extensión con su punto: ".com", ".mx", ".com.mx"; en una transferencia "*" = cualquiera (mark).' );

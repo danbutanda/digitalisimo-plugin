@@ -1,0 +1,23 @@
+/* Slider de dispositivos: celular (pantalla 19,5:9), isla, barra de estado y botones. */
+.digi-device-slider--mobile{--ds-status:6.4%}
+.digi-device-slider--status .digi-device-slider__status{order:-1;flex:none;display:block;height:var(--ds-status);background:var(--ds-top,#f4f5f7);color:#111}
+.digi-device-slider--status .digi-device-slider__status svg{display:block;width:100%;height:100%}
+.digi-device-slider__slide--dark .digi-device-slider__status,.digi-device-slider .digi-device-slider__status--dark{color:#fff}
+.digi-device-slider .digi-device-slider__status--dark{background:#000}
+.digi-device-slider--mobile.digi-device-slider--landscape.digi-device-slider--status .digi-device-slider__slide{flex-direction:row}
+.digi-device-slider--mobile.digi-device-slider--landscape .digi-device-slider__status{width:6.6%;height:auto}
+.digi-device-slider--mobile.digi-device-slider--landscape.digi-device-slider--status img.digi-device-slider__image{flex:1 1 0;min-width:0;align-self:flex-start}
+.digi-device-slider--keys .digi-device-slider__device{--ds-btn:var(--digi-ds-buttons,var(--digi-ds-frame-lo))}
+.digi-device-slider--mobile{--sw:9;--sh:19.5;--b:.045;--bt:.045;--bb:.045;--r:.16;--rs:.115;--band:.016}
+.digi-device-slider--mobile.digi-device-slider--landscape{--sw:19.5;--sh:9;--b:.021827;--bt:.021827;--bb:.021827;--r:.077607;--rs:.05578;--band:.007761}
+.digi-device-slider:where(.digi-device-slider--mobile){max-width:340px}
+.digi-device-slider:where(.digi-device-slider--mobile.digi-device-slider--landscape){max-width:720px}
+.digi-device-slider__island{position:absolute;z-index:2;top:calc(var(--sw)/var(--sh)*2.8%);left:50%;width:30%;aspect-ratio:126/37;transform:translateX(-50%);border-radius:999px;background:#050506;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);pointer-events:none}
+.digi-device-slider__island::after{content:"";position:absolute;top:50%;right:11%;height:46%;aspect-ratio:1;transform:translateY(-50%);border-radius:50%;background:radial-gradient(circle at 35% 35%,#3b4a6b 0 20%,#0c0f16 62%)}
+.digi-device-slider--landscape .digi-device-slider__island{top:50%;left:calc(var(--sh)/var(--sw)*2.8%);width:auto;height:30%;aspect-ratio:37/126;transform:translateY(-50%)}
+.digi-device-slider--landscape .digi-device-slider__island::after{top:auto;right:auto;bottom:11%;left:50%;width:46%;height:auto;transform:translateX(-50%)}
+.digi-device-slider--keys .digi-device-slider__device::before,.digi-device-slider--keys .digi-device-slider__device::after{content:"";position:absolute;z-index:0;pointer-events:none;background:var(--ds-btn)}
+.digi-device-slider--mobile.digi-device-slider--keys .digi-device-slider__device::before{left:-1.1%;top:16%;width:1.1%;height:26%;border-radius:3px 0 0 3px;background:linear-gradient(to bottom,var(--ds-btn) 0 15.4%,transparent 15.4% 28.8%,var(--ds-btn) 28.8% 57.7%,transparent 57.7% 65.4%,var(--ds-btn) 65.4% 94.2%,transparent 94.2%)}
+.digi-device-slider--mobile.digi-device-slider--keys .digi-device-slider__device::after{right:-1.1%;top:27%;width:1.1%;height:11%;border-radius:0 3px 3px 0}
+.digi-device-slider--mobile.digi-device-slider--landscape.digi-device-slider--keys .digi-device-slider__device::before{top:auto;bottom:-1.1%;left:16%;width:26%;height:1.1%;border-radius:0 0 3px 3px;background:linear-gradient(to right,var(--ds-btn) 0 15.4%,transparent 15.4% 28.8%,var(--ds-btn) 28.8% 57.7%,transparent 57.7% 65.4%,var(--ds-btn) 65.4% 94.2%,transparent 94.2%)}
+.digi-device-slider--mobile.digi-device-slider--landscape.digi-device-slider--keys .digi-device-slider__device::after{top:-1.1%;right:auto;left:27%;width:11%;height:1.1%;border-radius:3px 3px 0 0}

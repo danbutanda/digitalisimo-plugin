@@ -214,16 +214,43 @@ add_action(
 				} else {
 					update_option( 'digitalisimo_elements_woo_mcp', array( 'mode' => $arg, 'own' => array( 'mode' ) ), false );
 				}
-				digi_wm_out( array( 'mode' => \Digitalisimo\Elements\Woo\Mcp\Settings::mode(), 'origin' => \Digitalisimo\Elements\Woo\Mcp\Settings::origin() ) );
+				// Desde el 2026-11-27 el modo no existe: se guarda como lo dejaba la versión anterior y no debe limitar nada.
+				digi_wm_out( array( 'stored' => get_option( 'digitalisimo_elements_woo_mcp' ) ) );
 				break;
 			case 'custom':
 				// Tanda B (B3): «Escritura sólo en lo elegido» con las herramientas de la lista (separadas por comas).
 				update_option( 'digitalisimo_elements_woo_mcp', array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array_values( array_filter( explode( ',', $arg ) ) ) ), false );
-				digi_wm_out( array( 'mode' => \Digitalisimo\Elements\Woo\Mcp\Settings::mode(), 'write_tools' => \Digitalisimo\Elements\Woo\Mcp\Settings::write_tools() ) );
+				digi_wm_out( array( 'stored' => get_option( 'digitalisimo_elements_woo_mcp' ) ) );
 				break;
 			case 'netmode':
 				update_site_option( 'digitalisimo_elements_woo_mcp_defaults', array( 'mode' => $arg ) );
 				digi_wm_out( array( 'network' => get_site_option( 'digitalisimo_elements_woo_mcp_defaults' ) ) );
+				break;
+			case 'legacy':
+				// Un sitio como antes de actualizar: «Sólo lectura» guardado (y en la red) y sin la marca de la migración.
+				update_option( 'digitalisimo_elements_woo_mcp', array( 'mode' => 'read', 'own' => array( 'mode' ) ), false );
+				if ( is_multisite() ) {
+					update_site_option( 'digitalisimo_elements_woo_mcp_defaults', array( 'mode' => 'read' ) );
+				}
+				delete_option( 'digitalisimo_elements_mcp_access' );
+				digi_wm_out( array( 'legacy' => true ) );
+				break;
+			case 'legacy-state':
+				digi_wm_out(
+					array(
+						'site'    => get_option( 'digitalisimo_elements_woo_mcp', null ),
+						'network' => is_multisite() ? get_site_option( 'digitalisimo_elements_woo_mcp_defaults', null ) : null,
+						'mark'    => get_option( 'digitalisimo_elements_mcp_access', null ),
+					)
+				);
+				break;
+			case 'core-off':
+				// El conmutador del núcleo guardado en apagado: el MCP sigue activo.
+				update_option( 'elementor_mcp_enabled', false );
+				digi_wm_out( array( 'enabled' => (bool) get_option( 'elementor_mcp_enabled' ) ) );
+				break;
+			case 'wlog':
+				digi_wm_out( array( 'log' => get_option( 'digitalisimo_mcp_write_log', array() ) ) );
 				break;
 			case 'secret':
 				$settings = get_option( 'woocommerce_digi_wm_test_settings', array() );

@@ -128,25 +128,37 @@ async function single() {
     check(t.annotations?.readOnlyHint === readonly && t.annotations?.destructiveHint === !readonly, `${t.name}: anotaciones (readOnly ${readonly})`, JSON.stringify(t.annotations));
     check(!/\bElementor\b/.test(`${t.title} ${t.description}`), `${t.name}: sin el nombre del constructor original`);
   }
-  check(/sólo permite leer/.test(ours.find((t) => t.name === 'digitalisimo-woo-products')?.description || ''), 'la descripción dice que el sitio sólo permite leer');
+  check(ours.every((t) => !/s[oó]lo lectura|s[oó]lo permite leer|WooCommerce en el MCP/i.test(t.description || '')), 'acceso total: ninguna descripción habla de sólo lectura');
+  check(tools.some((t) => t.name === 'digitalisimo-mcp-write-log' && t.annotations?.readOnlyHint === true), 'la bitácora única del MCP es una herramienta de lectura del servidor', tools.map((t) => t.name).join(','));
   const abilities = (await probe('abilities')).abilities || [];
   check(abilities.includes('digitalisimo-woo/products'), `abilities registradas: ${abilities.filter((a) => a.startsWith('digitalisimo-woo/')).length} propias y ${abilities.filter((a) => a.startsWith('woocommerce/')).length} de WooCommerce (éstas no se exponen)`);
 
-  start('S2 Modo read: lee, no escribe');
+  start('S2 Sitio que venía en «Sólo lectura»: tras actualizar, acceso total sin tocar nada');
+  await probe('legacy');
+  let st = await probe('legacy-state');
+  check(Number(st.mark) === 1 && st.site === null, 'la primera petición tras actualizar migra: borra «Sólo lectura» y deja la marca', JSON.stringify(st));
+  await probe('mode', 'read');
   let r = await admin.call('products', { action: 'list', per_page: 5 });
-  okCall(r, 'products list en modo read');
-  r = await admin.call('products', { action: 'create', data: { name: 'No debe existir', type: 'simple', regular_price: '1' } });
-  check(r.isError && /Sólo lectura/.test(r.text) && /Rendimiento/.test(r.text) && /page=digitalisimo-elements-front#digitalisimo-woo-mcp/.test(r.text), 'create rechazado con un error que dice dónde se cambia el modo', r.text);
+  okCall(r, 'products list');
+  r = await admin.call('products', { action: 'create', data: { name: 'Creado por MCP', type: 'simple', status: 'draft', regular_price: '1' } });
+  okCall(r, '«Sólo lectura» guardado (sin migrar aún): create funciona (antes: rechazado)');
+  const legacyId = r.data?.data?.id;
+  r = await admin.call('products', { action: 'update', product_id: legacyId, data: { regular_price: '2' } });
+  okCall(r, 'y update también');
+  check(!/S[oó]lo lectura|Rendimiento/.test(r.text), 'ninguna respuesta dice «sólo lectura» ni manda al escritorio');
   r = await admin.call('reports', { action: 'sales', query: { period: 'month' } });
-  okCall(r, 'reports sales en modo read');
+  okCall(r, 'reports sales');
 
-  start('S3 Modo off');
-  check((await probe('mode', 'off')).mode === 'off', 'modo off guardado');
+  start('S3 Sin autenticación, núcleo «apagado» y «Apagado» guardado');
+  const anon = await request('POST', `/?rest_route=${encodeURIComponent('/elementor/mcp')}`, { headers: { Accept: 'application/json, text/event-stream' }, body: { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'anon', version: '1' } } } });
+  check(anon.status === 401, `sin autenticación, el servidor MCP responde 401 (HTTP ${anon.status})`, anon.text.slice(0, 200));
+  const bad = await request('POST', `/?rest_route=${encodeURIComponent('/elementor/mcp')}`, { headers: { Authorization: `Basic ${Buffer.from('admin:contraseña-falsa').toString('base64')}`, Accept: 'application/json, text/event-stream' }, body: { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} } });
+  check(bad.status === 401, `con una contraseña de aplicación falsa, 401 (HTTP ${bad.status})`, bad.text.slice(0, 200));
+  check((await probe('core-off')).enabled === true, 'el conmutador del núcleo guardado en apagado no apaga el MCP');
+  await probe('mode', 'off');
   tools = await admin.tools();
-  check(!tools.some((t) => t.name.startsWith('digitalisimo-woo-')) && tools.length > 0, 'modo off: ninguna herramienta de tienda (las del constructor siguen)', tools.map((t) => t.name).join(','));
-  check((await probe('mode', 'write')).mode === 'write', 'modo write guardado');
-  tools = await admin.tools();
-  check(tools.filter((t) => t.name.startsWith('digitalisimo-woo-')).length === 7 && /permite escribir/.test(tools.find((t) => t.name === 'digitalisimo-woo-orders')?.description || ''), 'modo write: las 7, y la descripción lo dice');
+  check(tools.filter((t) => t.name.startsWith('digitalisimo-woo-')).length === 7, '«Apagado» guardado: las 7 herramientas siguen (antes: ninguna)', tools.map((t) => t.name).join(','));
+  await probe('mode', 'write');
 
   start('S4 Catálogo: categoría, atributo y términos');
   r = await admin.call('catalog', { action: 'create', resource: 'category', data: { name: 'Ropa MCP' } });
@@ -322,7 +334,14 @@ async function single() {
   for (const needle of ['clara', 'Clara', 'Prueba MCP', 'Puebla', 'Mérida', '2220000000', 'Nota desde', 'Guadalajara', 'Camiseta', fresh, key, tok, '10.00', 'example.test']) {
     check(!raw.includes(needle), `la bitácora no lleva «${needle.startsWith('sk_') || needle.startsWith('tok_') ? 'la clave' : needle}»`);
   }
-  check(/"result":"denied"/.test(raw) && /"code":"read_mode"/.test(raw), 'la escritura rechazada en modo read quedó como «denied»');
+  check(!/"code":"read_mode"/.test(raw), 'ningún rechazo por modo en la bitácora de la tienda');
+  const wl = await admin.rpc('tools/call', { name: 'digitalisimo-mcp-write-log', arguments: { ability: 'digitalisimo-woo/', per_page: 200 } });
+  const wtext = (wl.json?.result?.content || []).map((c) => c.text || '').join('\n');
+  check(!wl.json?.result?.isError && /digitalisimo-woo\\?\/products/.test(wtext) && /"result":"ok"/.test(wtext), 'la bitácora única del MCP lista las escrituras de la tienda', wtext.slice(0, 300));
+  const wraw = JSON.stringify((await probe('wlog')).log);
+  for (const needle of [fresh, key, tok, 'Clara', 'Mérida', 'Creado por MCP']) {
+    check(!wraw.includes(needle), `la bitácora única no lleva «${needle.startsWith('sk_') || needle.startsWith('tok_') ? 'la clave' : needle}»`);
+  }
   check(raw.includes(`"result":"partial","code":"${partialCode}"`) && /"result":"error","code":"woocommerce_rest_/.test(raw), `el lote parcial quedó como «partial» (${partialCode}) y el fallido como «error», con su código real`);
   const auto = (await probe('option', 'autoload')).autoload || [];
   check(auto.length >= 2 && auto.every((row) => ['no', 'off', 'auto-off'].includes(row.autoload)), 'bitácora y modo sin carga automática', JSON.stringify(auto));
@@ -347,20 +366,20 @@ async function single() {
   // Tanda B (B3, 2026-11-26): escritura sólo en lo elegido, simulación y deshacer, con WooCommerce real.
   start('S15 Escritura elegida, dry_run y deshacer');
   const custom = await probe('custom', 'products,catalog,coupons');
-  check(custom.mode === 'custom' && custom.write_tools.join() === 'products,catalog,coupons', 'modo custom guardado con su lista', JSON.stringify(custom));
+  check(custom.stored?.mode === 'custom', '«sólo lo elegido» guardado como antes', JSON.stringify(custom));
   tools = await admin.tools();
   const desc = (n) => tools.find((t) => t.name === `digitalisimo-woo-${n}`)?.description || '';
-  check(/permite escribir/.test(desc('products')) && /no está elegida/.test(desc('orders')), 'la descripción dice qué herramienta escribe');
+  check(!/no está elegida/.test(desc('orders')) && /bitácora/.test(desc('orders')), 'sin modos: la descripción no habla de herramientas elegidas');
   check(tools.find((t) => t.name === 'digitalisimo-woo-products')?.inputSchema?.properties?.dry_run?.type === 'boolean', 'dry_run en el esquema que ve el cliente');
   r = await admin.call('products', { action: 'create', data: { name: 'Deshacer MCP', type: 'simple', status: 'draft', regular_price: '100' } });
-  okCall(r, 'custom: productos elegidos crean');
+  okCall(r, '«sólo lo elegido» guardado: productos crean');
   const undoId = r.data?.data?.id;
   check(r.data?.change?.undo === true && /^[a-f0-9]{16}$/.test(r.data?.change?.id || ''), 'la respuesta trae change con undo', JSON.stringify(r.data?.change));
   const createChange = r.data?.change?.id;
   r = await admin.call('orders', { action: 'create', data: { status: 'pending' } });
-  check(r.isError && /Escritura sólo en lo elegido/.test(r.text), 'custom: pedidos no elegidos no escriben, y el error lo dice', r.text);
+  okCall(r, '«sólo lo elegido» guardado: pedidos no elegidos también escriben (acceso total)');
   r = await admin.call('orders', { action: 'create', dry_run: true, data: { status: 'pending' } });
-  check(!r.isError && r.data?.dry_run === true && r.data?.allowed === false, 'simular un pedido sí, con allowed false', r.text.slice(0, 300));
+  check(!r.isError && r.data?.dry_run === true && r.data?.allowed === true, 'simular un pedido, con allowed true', r.text.slice(0, 300));
   r = await admin.call('products', { action: 'update', product_id: undoId, dry_run: true, data: { regular_price: '120', name: 'Deshacer MCP' } });
   check(!r.isError && r.data?.allowed === true && r.data?.would?.changes?.[0]?.field === 'regular_price' && r.data?.would?.changes?.[0]?.from === '100' && (r.data?.would?.unchanged || []).includes('name'), 'dry_run: diferencia con el producto real', r.text.slice(0, 400));
   r = await admin.call('products', { action: 'get', product_id: undoId, fields: ['regular_price'] });
@@ -421,10 +440,10 @@ async function single() {
   check(auto2.some((o) => o.option_name === 'digitalisimo_elements_woo_mcp_changes') && auto2.every((o) => ['no', 'off', 'auto-off'].includes(o.autoload)), 'el registro de cambios sin carga automática', JSON.stringify(auto2));
   await probe('mode', 'write');
 
-  start('S14 De vuelta a read');
+  start('S14 «Sólo lectura» guardado otra vez');
   await probe('mode', 'read');
-  r = await gerente.call('coupons', { action: 'create', data: { code: 'no-debe', amount: '1' } });
-  check(r.isError && /Sólo lectura/.test(r.text), 'modo read: el gerente tampoco escribe', r.text);
+  r = await gerente.call('coupons', { action: 'create', data: { code: 'si-escribe', amount: '1' } });
+  okCall(r, 'el gerente crea un cupón (antes: rechazado por el modo)');
 }
 
 // =====================================================================================================================
@@ -447,30 +466,32 @@ async function multisite() {
   const three = new Client('admin', 'tres/', 3);
   for (const c of [one, two, three]) await c.init();
   const count = async (c) => (await c.tools()).filter((t) => t.name.startsWith('digitalisimo-woo-')).length;
-  check(await count(one) === 7 && await count(two) === 7, 'sitios con tienda: 7 herramientas (modo heredado: read)');
+  check(await count(one) === 7 && await count(two) === 7, 'sitios con tienda: 7 herramientas');
   check(await count(three) === 0 && (await three.tools()).length > 0, 'sitio sin WooCommerce: ninguna herramienta de tienda');
 
-  start('M1 Herencia del modo');
-  await probe('netmode', 'write');
+  start('M1 Red que venía en «Sólo lectura»: cada sitio migra y escribe');
+  await probe('legacy');
+  await probe('legacy', '', 'dos/');
+  let st = await probe('legacy-state', '', 'dos/');
+  check(Number(st.mark) === 1 && st.site === null && st.network === null, 'el sitio 2 migra en su primera petición: borra su modo y el de la red', JSON.stringify(st));
+  st = await probe('legacy-state');
+  check(Number(st.mark) === 1 && st.site === null, 'el sitio 1 migra con su propia marca', JSON.stringify(st));
+  await probe('netmode', 'read');
   await probe('mode', 'inherit', 'dos/');
-  const mode1 = await probe('mode', 'read');
-  check(mode1.mode === 'read' && mode1.origin === 'site', 'el sitio 1 personaliza «read» aunque la red diga write');
-  let r = await two.call('products', { action: 'create', data: { name: 'Sólo en el sitio dos', type: 'simple', regular_price: '2' } });
-  okCall(r, 'el sitio 2 hereda write de la red y crea un producto');
-  r = await one.call('products', { action: 'create', data: { name: 'No debe existir', type: 'simple', regular_price: '2' } });
-  check(r.isError && /Sólo lectura/.test(r.text) && /red/.test(r.text), 'el sitio 1 (read propio) rechaza la escritura', r.text);
+  await probe('mode', 'read');
+  let r = await two.call('products', { action: 'create', data: { name: 'Sólo en el sitio dos', type: 'simple', status: 'draft', regular_price: '2' } });
+  okCall(r, 'el sitio 2 (heredaba «Sólo lectura» de la red) crea un producto');
+  r = await one.call('products', { action: 'create', data: { name: 'Del sitio uno', type: 'simple', status: 'draft', regular_price: '2' } });
+  okCall(r, 'el sitio 1 («Sólo lectura» propio) también');
   r = await one.call('products', { action: 'list', query: { search: 'Sólo en el sitio dos' } });
   check(!r.isError && r.data.data.length === 0, 'cada sitio expone su propia tienda: el producto del 2 no está en el 1', r.text.slice(0, 300));
   const gerente2 = new Client('gerente', 'dos/', 2);
   await gerente2.init();
   okCall(await gerente2.call('orders', { action: 'list' }), 'el gerente del sitio 2 usa su tienda');
 
-  start('M2 La red apaga');
+  start('M2 «Apagado» guardado en la red ya no apaga');
   await probe('netmode', 'off');
-  check(await count(two) === 0, 'red en off: el sitio 2 (hereda) no ofrece herramientas de tienda');
-  check(await count(one) === 7, 'el sitio 1 (read propio) las conserva');
-  await probe('mode', 'inherit');
-  check(await count(one) === 0, 'el sitio 1 vuelve a heredar: off');
+  check(await count(two) === 7 && await count(one) === 7, 'red en «Apagado» guardado: las 7 herramientas siguen en los dos sitios');
 }
 
 try {

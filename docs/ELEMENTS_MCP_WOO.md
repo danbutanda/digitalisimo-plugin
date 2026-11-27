@@ -1,16 +1,28 @@
 # WooCommerce en el MCP de DIGITALÍSIMO Elements
 
-DIGITALÍSIMO Elements trae el servidor MCP del constructor (núcleo incluido): `POST /wp-json/digitalisimo/mcp` (alias viejo `/wp-json/elementor/mcp` hasta el 2027-01-31, `docs/MARCA_PROPIA.md`), apagado
-por defecto en cada sitio. Con WooCommerce activo, ese mismo servidor ofrece siete herramientas para administrar la
+> **Acceso total, sin interruptores (decisión del dueño del 2026-11-27, Elements 4.3.0.203).** El servidor MCP
+> está siempre activo (`Digitalisimo\Elements\Mcp\Access` fija `elementor_mcp_enabled` en 1) y todas sus herramientas
+> leen y escriben. Se retiraron los modos de «WooCommerce en el MCP» (apagado, sólo lectura, escritura sólo en lo
+> elegido, lectura y escritura) con su herencia de red, y la excepción del Asistente en «Sólo lectura»: decide sólo la
+> capacidad de WordPress y WooCommerce del usuario conectado. Al actualizar, `Access::migrate()` borra en cada sitio (y
+> en la red) las opciones `digitalisimo_elements_woo_mcp` y `digitalisimo_elements_woo_mcp_defaults`; ningún código las
+> lee. La única opción es «Mostrar el prompt para vincular» («Rendimiento» → «MCP de este sitio»: dirección del
+> servidor, configuración de Claude Code y Claude Desktop y dónde pegarla; ocultarla no apaga nada). Cada escritura de
+> cualquier herramienta (constructor, tienda, SEO, Hosting, Tools, IA Tools, también por el proxy del editor) queda en
+> la bitácora única `digitalisimo_mcp_write_log` (`Write_Log`: quién, vía, herramienta, acción, objeto sólo con IDs,
+> resultado; anotada antes de ejecutar; 2000 entradas y 90 días), que se consulta con la herramienta de lectura
+> `digitalisimo-mcp-write-log` (`manage_options`). Se conservan `dry_run`, `undo`, las anotaciones, las capacidades,
+> el enmascarado de secretos y la bitácora propia de la tienda. Lo que sigue sobre modos es historia.
+
+DIGITALÍSIMO Elements trae el servidor MCP del constructor (núcleo incluido): `POST /wp-json/digitalisimo/mcp` (alias viejo `/wp-json/elementor/mcp` hasta el 2027-01-31, `docs/MARCA_PROPIA.md`),
+siempre activo desde el 2026-11-27. Con WooCommerce activo, ese mismo servidor ofrece siete herramientas para administrar la
 tienda del sitio y, con el plugin de Skydropx activo, una octava para sus envíos (sección «Skydropx»). El código vive en `digitalisimo-elements/modules/digitalisimo-woo/mcp/` y nunca se edita nada dentro
 de `digitalisimo-elements/elementor/`.
 
 ## Cómo conectarse
 
-1. **Activar el MCP del sitio** en la pantalla «MCP» del menú de DIGITALÍSIMO Elements (guarda la opción
-   `elementor_mcp_enabled` del sitio; viene apagada).
-2. **Elegir el modo** «WooCommerce en el MCP» en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, sección
-   «WooCommerce en el MCP» (ver «Modos»). Por defecto, sólo lectura.
+1. Nada que activar: el MCP del sitio viene activo con lectura y escritura.
+2. Copiar el bloque de «Rendimiento» → «MCP de este sitio» → «Mostrar el prompt para vincular».
 3. **Crear una contraseña de aplicación** para el usuario que usará el asistente (Usuarios → Perfil → «Contraseñas de
    aplicación»). Las herramientas actúan con los permisos de ese usuario: un administrador o un gerente de tienda.
    WordPress sólo ofrece contraseñas de aplicación con HTTPS (o en un entorno `local`).
@@ -122,9 +134,9 @@ mucho 5 000 productos y variaciones (lo dice con `truncated`). Las tarifas son l
 ese carrito de prueba (sin cupones). Una guía registrada a mano se ve como «Guía generada» en la caja del plugin, pero su
 PDF sólo existe si la generó Skydropx.
 
-## Modos
+## Modos (retirados el 2026-11-27)
 
-«WooCommerce en el MCP», en la pantalla «Rendimiento» (sitio y red), sección propia con su formulario:
+Historia: «WooCommerce en el MCP», en la pantalla «Rendimiento» (sitio y red), sección propia con su formulario:
 
 - **Apagado:** no se registra ninguna herramienta de tienda.
 - **Sólo lectura** (predeterminado): list, get y los informes. create, update, delete y batch devuelven un error que

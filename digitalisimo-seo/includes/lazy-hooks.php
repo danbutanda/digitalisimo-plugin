@@ -14,7 +14,7 @@ return array(
 		array( 'a', 'admin_init', 'migrate_template_defaults', 1, 1, '**' ),
 		array( 'a', 'admin_init', 'ensure_autoload', 2, 1, '**' ),
 		array( 'a', 'admin_init', 'clean_network_secrets', 3, 1, '**' ),
-		array( 'a', 'admin_init', 'migrate_ability_parts', 1, 1, '**' ),
+		array( 'a', 'admin_init', 'forget_ability_switches', 1, 1, '**' ),
 	) ),
 	'Digitalisimo_Integrations_Performance_Manager' => array( 'hooks' => array(
 		array( 'a', 'wp_print_styles', 'clean_styles', 20, 1, '**' ),
@@ -312,6 +312,7 @@ return array(
 	'Digitalisimo_Integrations_SEO_Abilities' => array( 'requires' => 'wp_register_ability', 'hooks' => array(
 		array( 'a', 'wp_abilities_api_categories_init', 'register_category', 10, 1, '**' ),
 		array( 'a', 'wp_abilities_api_init', 'register', 10, 1, '**' ),
+		array( 'f', 'elementor/mcp/server/tools', 'server_tools', 10, 1, '**' ),
 	) ),
 	'Digitalisimo_Integrations_SEO_Abilities_Write' => array( 'requires' => 'wp_register_ability', 'hooks' => array(
 		array( 'a', 'wp_abilities_api_init', 'register', 10, 1, '**' ),

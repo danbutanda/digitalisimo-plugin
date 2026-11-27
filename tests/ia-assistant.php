@@ -808,7 +808,9 @@ $GLOBALS['script'] = array( array( 'calls' => array( array( 'id' => 'w5', 'name'
 $ev   = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'Cobra 50', 'conversation' => $cw ) ) ) );
 $card = $of( $ev, 'confirm' )[0]['action'];
 check( false === $card['idempotent'], 'R2-B11: la tarjeta sabe que no es idempotente' );
-$ev   = $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cw, 'action' => $card['id'], 'decision' => 'approve' ) ) ) );
+// Cobrar mueve dinero: la tarjeta llana (caso plomerito 4) pide la casilla también aquí.
+check( true === $card['ack'], 'R2-B11: cobrar lleva la casilla' );
+$ev   = $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cw, 'action' => $card['id'], 'decision' => 'approve', 'explicit' => true ) ) ) );
 $tool = $of( $ev, 'tool' )[0]['message'];
 $sent = json_decode( end( end( $GLOBALS['model_calls'] )['messages'] )['content'], true );
 check( 1 === $GLOBALS['charged'] && 'unknown' === $tool['status'] && false !== strpos( $tool['detail'], 'puede haberse aplicado' ) && true === $sent['puede_haberse_aplicado'], 'R2-B11: falló pero puede haberse aplicado: resultado desconocido, también para el modelo' );

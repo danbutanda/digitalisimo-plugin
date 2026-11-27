@@ -311,11 +311,14 @@ class Digitalisimo_Hosting_Webuzo {
 		// La consulta de sólo lectura con esta MISMA clave acaba de responder bien: un error de una operación de escritura
 		// no puede ser la clave rechazada (es de la operación). Sólo 401/403 siguen contando como acceso denegado.
 		if ( 'auth' === $result['kind'] && 'list' !== $op && $this->verified && ! empty( $result['data'] ) ) $result['kind'] = 'api';
+		// La lista de paquetes es de sólo lectura y va siempre después de la consulta de cuentas con esta misma clave: un
+		// error suyo (también 401/403, p. ej. una clave sin permiso para ver paquetes) nunca detiene la venta.
+		if ( 'plans' === $op && 'auth' === $result['kind'] ) $result['kind'] = 'api';
 		if ( 'list' === $op ) {
 			// Cerrada: un error de la consulta de sólo lectura es una clave rechazada, diga lo que diga.
 			if ( 'api' === $result['kind'] ) $result['kind'] = 'auth';
 			if ( 'ok' === $result['kind'] && ( ! isset( $result['data']['users'] ) || ! is_array( $result['data']['users'] ) ) ) $result = array( 'kind' => 'auth', 'data' => array(), 'message' => 'La lista de cuentas de Webuzo no trae «users»; se trata como clave rechazada para no gastar intentos' );
-		} elseif ( 'ok' === $result['kind'] && ! isset( $result['data']['done'] ) ) {
+		} elseif ( 'ok' === $result['kind'] && 'plans' !== $op && ! isset( $result['data']['done'] ) ) {
 			// Crear, suspender y reactivar sólo cuentan como hechos con la confirmación «done» de la documentación.
 			$result = array( 'kind' => 'api', 'data' => $result['data'], 'message' => 'Webuzo no confirmó la operación (sin «done»)' );
 		}
@@ -413,6 +416,31 @@ class Digitalisimo_Hosting_Webuzo {
 			if ( '' !== $user ) $users[ $user ] = array( 'user' => $user, 'domain' => strtolower( (string) ( $row['domain'] ?? '' ) ), 'status' => (string) ( $row['status'] ?? '' ), 'plan' => (string) ( $row['plan'] ?? '' ), 'reason' => trim( (string) ( $row['suspend_reason'] ?? '' ) ) );
 		}
 		return $users;
+	}
+
+	/**
+	 * Los paquetes del servidor (act=plans, de sólo lectura; https://webuzo.com/docs/api/list-plans/): array( kind,
+	 * plans => paquete => nombre ). Va después de la consulta de cuentas (la que decide si la clave sirve) y suma los
+	 * paquetes que usan las cuentas que ya existen, por si la lista de paquetes no responde.
+	 */
+	public function plans() {
+		$list = $this->users();
+		if ( 'ok' !== $list['kind'] ) return $list;
+		$out = array();
+		$r = $this->call( 'plans' );
+		if ( 'ok' === $r['kind'] ) {
+			foreach ( (array) ( $r['data']['plans'] ?? array() ) as $key => $row ) {
+				$row = is_array( $row ) ? $row : array( 'plan_name' => (string) $row );
+				$slug = is_string( $key ) && ! is_numeric( $key ) ? $key : (string) ( $row['plan'] ?? $row['slug'] ?? $row['plan_name'] ?? '' );
+				$slug = trim( $slug );
+				if ( ! preg_match( '/^[A-Za-z0-9_.-]{1,64}$/', $slug ) ) continue;
+				$name = trim( self::clean( (string) ( $row['plan_name'] ?? $row['name'] ?? $slug ) ) );
+				$out[ $slug ] = '' !== $name && $name !== $slug ? $name . ' (' . $slug . ')' : $slug;
+			}
+		}
+		foreach ( (array) ( $list['users'] ?? array() ) as $u ) { $p = trim( (string) ( $u['plan'] ?? '' ) ); if ( preg_match( '/^[A-Za-z0-9_.-]{1,64}$/', $p ) && ! isset( $out[ $p ] ) ) $out[ $p ] = $p; }
+		ksort( $out );
+		return array( 'kind' => $out ? 'ok' : ( 'ok' === $r['kind'] ? 'api' : $r['kind'] ), 'plans' => $out, 'message' => $out ? '' : ( 'ok' === $r['kind'] ? 'Webuzo no devolvió paquetes.' : $r['message'] ) );
 	}
 
 	public function create_user( $user, $domain, $password, $email, $plan ) {

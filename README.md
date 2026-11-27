@@ -11,7 +11,7 @@ hereda o personaliza.
 | --- | --- |
 | **DIGITALÍSIMO SEO** | Señales SEO públicas (title, description, canonical, robots, sitemap, schema), keywords y clusters, SEO local, social, SEO AI (robots.txt, llms.txt, IndexNow), rendimiento, auditorías e importación desde Yoast y Rank Math. |
 | **DIGITALÍSIMO IA Tools** | Proveedores de IA, chatbot, base de conocimiento (RAG), asistentes editoriales, borradores con chat de artículo e imágenes. |
-| **DIGITALÍSIMO Hosting** | Dominios, Namecheap, formularios y flujo de compra de dominio y hosting en WooCommerce. |
+| **DIGITALÍSIMO Hosting** | Dominios, Namecheap, formularios y flujo de compra de dominio y hosting en WooCommerce. Privado de DIGITALÍSIMO: no se ofrece en «Plugins · Digitalisimo»; se instala a mano y se actualiza con su propio actualizador. |
 | **DIGITALÍSIMO Backups** | Respaldos completos del sitio o de la red hacia almacenamiento local, SFTP, Google Drive u OneDrive, y su restauración. |
 | **DIGITALÍSIMO Tools** | Plantillas de red del constructor, WebP, ajustes del sitio (acceso privado, adjuntos, desplazamiento móvil) y editor de fragmentos PHP. |
 | **DIGITALÍSIMO Elements** | Constructor visual completo: núcleo de Elementor incluido, funciones avanzadas y widgets propios. |

@@ -34,6 +34,8 @@ class Digitalisimo_Hosting_Checkout {
 
 	public static function init() {
 		add_filter( 'woocommerce_store_api_add_to_cart_data', array( __CLASS__, 'store_api_data' ), 10, 2 );
+		// El buscador agrega por la Store API: se valida en el servidor antes de agregar (nunca un dominio sin nombre).
+		add_action( 'woocommerce_store_api_validate_add_to_cart', array( __CLASS__, 'store_api_validate' ), 10, 2 );
 		// Antes que «Reemplazar el plan» (10): un plan rechazado no se lleva el que ya estaba en el carrito.
 		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'maybe_validate_add' ), 5, 6 );
 		add_action( 'woocommerce_before_add_to_cart_button', array( __CLASS__, 'maybe_product_fields' ) );
@@ -64,14 +66,8 @@ class Digitalisimo_Hosting_Checkout {
 
 	// ── Qué es cada producto ────────────────────────────────────────────────────────────────────────────────────
 
-	/** register (dominio nuevo), transfer, hosting (plan de hosting o correo) o ''. */
-	public static function kind( $product_id ) {
-		$product_id = (int) $product_id;
-		if ( '' !== Digitalisimo_Hosting_Products::transfer_ext( $product_id ) ) return 'transfer';
-		if ( '' !== Digitalisimo_Hosting_Products::register_ext( $product_id ) ) return 'register';
-		if ( Digitalisimo_Hosting::is_hosting_product( $product_id ) || '' !== trim( (string) get_post_meta( $product_id, '_digitalisimo_webuzo_plan', true ) ) ) return 'hosting';
-		return '';
-	}
+	/** register (dominio nuevo), transfer, hosting (plan de hosting o correo) o '': lo marcado en el producto o la variación. */
+	public static function kind( $product_id ) { return Digitalisimo_Hosting_Products::kind( (int) $product_id ); }
 
 	/** Nombre de dominio tal como se registra: minúsculas, sin protocolo, ruta, «www.» ni punto final. */
 	public static function clean_domain( $raw ) {
@@ -123,6 +119,9 @@ class Digitalisimo_Hosting_Checkout {
 		if ( is_string( $domain ) && '' !== trim( $domain ) ) $data['digitalisimo_domain'] = self::clean_domain( $domain );
 		if ( in_array( $mode, array( 'new', 'own' ), true ) ) $data['digitalisimo_domain_mode'] = $mode;
 		if ( is_string( $epp ) && '' !== trim( $epp ) ) $data['digitalisimo_epp_raw'] = trim( $epp );
+		// El plan agregado desde la fila de un dominio («Se compran juntos»): la venta automática lo pone en ese dominio.
+		$for = $request->get_param( 'digitalisimo_for_domain' );
+		if ( is_string( $for ) && '' !== trim( $for ) ) $data['digitalisimo_for_domain'] = self::clean_domain( $for );
 		$add['cart_item_data'] = $data;
 		return $add;
 	}
@@ -142,18 +141,54 @@ class Digitalisimo_Hosting_Checkout {
 				if ( '' !== $enc ) $data['digitalisimo_epp'] = $enc;
 			}
 		}
-		// «Uno que ya tengo» sólo tiene sentido en un plan; en un dominio el nombre es el que se registra o transfiere.
-		if ( 'hosting' !== self::kind( $product_id ) ) unset( $data['digitalisimo_domain_mode'] );
+		// «Uno que ya tengo» y el dominio asociado sólo tienen sentido en un plan; en un dominio el nombre es el que se
+		// registra o transfiere.
+		if ( 'hosting' !== self::kind( $product_id ) ) unset( $data['digitalisimo_domain_mode'], $data['digitalisimo_for_domain'] );
 		// Con «Dominio nuevo», lo escrito en el campo de «Uno que ya tengo» no cuenta (el navegador pudo enviarlo igual).
 		elseif ( 'new' === ( $data['digitalisimo_domain_mode'] ?? '' ) ) unset( $data['digitalisimo_domain'], $data['digitalisimo_domain_mode'] );
 		elseif ( empty( $data['digitalisimo_domain'] ) && 'own' === ( $data['digitalisimo_domain_mode'] ?? '' ) ) unset( $data['digitalisimo_domain_mode'] );
 		return $data;
 	}
 
+	/**
+	 * Store API (`cart/add-item`, el buscador de dominios y el carrito de bloques): se valida en el servidor ANTES de
+	 * agregar, con lo que trae el cuerpo. Un dominio nunca entra sin su nombre (ni uno ya agregado, ni más de un año por
+	 * línea); el nombre se limpia y se comprueba como en el carrito (válido, de la extensión del producto, libre y no
+	 * premium; la transferencia, registrada y transferible). El precio es siempre el del producto de WooCommerce.
+	 */
+	public static function store_api_validate( $product, $request ) {
+		if ( ! self::on() || ! is_object( $product ) || ! method_exists( $product, 'get_id' ) ) return;
+		// WooCommerce (CartController::validate_add_to_cart) manda un arreglo: id, quantity, variation y cart_item_data, éste
+		// ya pasado por woocommerce_add_cart_item_data (nombre limpio, EPP cifrado). Se acepta también una petición REST.
+		if ( is_array( $request ) ) { $data = is_array( $request['cart_item_data'] ?? null ) ? $request['cart_item_data'] : array(); $qty = (float) ( $request['quantity'] ?? 1 ); }
+		elseif ( is_object( $request ) && method_exists( $request, 'get_param' ) ) { $data = self::store_api_data( array( 'cart_item_data' => array() ), $request )['cart_item_data']; $qty = (float) ( $request->get_param( 'quantity' ) ?? 1 ); }
+		else return;
+		// La variación misma (lo suyo manda y hereda lo demás del producto).
+		$pid = (int) $product->get_id();
+		$kind = self::kind( $pid );
+		if ( '' === $kind ) return;
+		$domain = self::clean_domain( $data['digitalisimo_domain'] ?? '' );
+		$error = '';
+		if ( 'hosting' !== $kind && '' === $domain ) $error = 'register' === $kind ? 'Busca primero el nombre de tu dominio: un dominio sólo se agrega con su nombre.' : 'Escribe el dominio que quieres transferir.';
+		elseif ( 'hosting' !== $kind && $qty > 1 ) $error = 'Cada dominio se agrega una sola vez (un año).';
+		elseif ( 'hosting' !== $kind && self::in_cart( $domain ) ) $error = 'El dominio ' . $domain . ' ya está en tu carrito.';
+		else $error = self::line_error( $pid, $data, false );
+		if ( '' === $error ) return;
+		$class = '\\Automattic\\WooCommerce\\StoreApi\\Exceptions\\RouteException';
+		if ( class_exists( $class ) ) throw new $class( 'digitalisimo_hosting_domain', $error, 400 );
+		throw new Exception( $error );
+	}
+
+	/** ¿Ya hay una línea de dominio (registro o transferencia) con ese nombre en el carrito? */
+	private static function in_cart( $domain ) {
+		foreach ( self::lines() as $line ) if ( 'hosting' !== $line['kind'] && $domain === (string) ( $line['data']['digitalisimo_domain'] ?? '' ) ) return true;
+		return false;
+	}
+
 	public static function maybe_validate_add( $passed, $product_id, $quantity = 1, $variation_id = 0, $variation = array(), $cart_item_data = array() ) {
 		if ( ! $passed || ! self::on() ) return $passed;
 		$data = is_array( $cart_item_data ) && $cart_item_data ? $cart_item_data + self::request_data() : self::request_data();
-		$error = self::line_error( (int) $product_id, $data, false );
+		$error = self::line_error( (int) $variation_id ? (int) $variation_id : (int) $product_id, $data, false );
 		if ( '' === $error ) return $passed;
 		wc_add_notice( $error, 'error' );
 		return false;
@@ -214,13 +249,34 @@ class Digitalisimo_Hosting_Checkout {
 		$key = 'digitalisimo_hosting_chk_' . md5( $domain );
 		$cached = get_transient( $key );
 		if ( is_array( $cached ) ) return self::$checked[ $domain ] = $cached;
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		// El registrador de la extensión del dominio (el predeterminado o el de «Registrador por extensión»).
+		$nc = Digitalisimo_Hosting_Registrars::for_domain( $domain );
 		if ( ! $nc->configured() ) return self::$checked[ $domain ] = array( 'kind' => 'config' );
 		if ( $limit && ! Digitalisimo_Hosting::rate_limit( 'domain-cart', 30 ) ) return array( 'kind' => 'error', 'message' => 'Demasiadas consultas de dominios. Intenta de nuevo en un minuto.' );
 		$r = $nc->check( $domain, self::TIMEOUT );
 		$out = 'ok' === $r['kind'] ? array( 'kind' => 'ok', 'available' => ! empty( $r['available'] ), 'premium' => ! empty( $r['premium'] ) ) : array( 'kind' => 'error', 'message' => 'No pudimos comprobar el dominio ' . $domain . ' en este momento. Intenta de nuevo en unos minutos.' );
 		set_transient( $key, $out, 'ok' === $out['kind'] ? self::CHECK_TTL : MINUTE_IN_SECONDS );
 		return self::$checked[ $domain ] = $out;
+	}
+
+	/**
+	 * Lo que ya se sabe de un dominio sin consultar a Namecheap (esta petición o la caché de unos minutos), sólo si la
+	 * consulta salió bien; null si no. El buscador y el carrito comparten la caché: agregar lo que se acaba de buscar no
+	 * vuelve a consultar.
+	 */
+	public static function cached( $domain ) {
+		$domain = (string) $domain;
+		if ( isset( self::$checked[ $domain ] ) ) return 'ok' === ( self::$checked[ $domain ]['kind'] ?? '' ) ? self::$checked[ $domain ] : null;
+		$cached = get_transient( 'digitalisimo_hosting_chk_' . md5( $domain ) );
+		if ( is_array( $cached ) && 'ok' === ( $cached['kind'] ?? '' ) ) return self::$checked[ $domain ] = $cached;
+		return null;
+	}
+
+	/** Guarda el resultado de una consulta hecha en lote (el buscador) con la misma clave y duración que lookup(). */
+	public static function remember( $domain, $available, $premium ) {
+		$out = array( 'kind' => 'ok', 'available' => (bool) $available, 'premium' => (bool) $premium );
+		set_transient( 'digitalisimo_hosting_chk_' . md5( (string) $domain ), $out, self::CHECK_TTL );
+		return self::$checked[ (string) $domain ] = $out;
 	}
 
 	/** Registro: disponible y no premium. Sin cuenta de Namecheap no se consulta (lo comprueba el aprovisionamiento). */
@@ -249,7 +305,8 @@ class Digitalisimo_Hosting_Checkout {
 		$key = 'digitalisimo_hosting_trf_' . md5( $domain . '|' . (int) $product_id );
 		$cached = get_transient( $key );
 		if ( is_string( $cached ) ) return $cached;
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		// El registrador que recibiría el dominio: el de su extensión.
+		$nc = Digitalisimo_Hosting_Registrars::for_domain( $domain );
 		if ( ! $nc->configured() ) return 'Las transferencias de dominio no están disponibles en este momento: falta configurar la consulta de dominios.';
 		$r = self::lookup( $domain );
 		if ( 'ok' !== $r['kind'] ) return $r['message'] ?? 'No pudimos comprobar el dominio ' . $domain . '.';
@@ -263,10 +320,15 @@ class Digitalisimo_Hosting_Checkout {
 			if ( empty( $tlds['tlds'][ $tld ]['transfer'] ) ) $error = 'Los dominios .' . $tld . ' no se pueden transferir aquí. Escríbenos y lo vemos contigo.';
 		}
 		if ( '' === $error ) {
-			$info = $nc->info( $domain, self::TIMEOUT );
-			if ( 'ok' !== $info['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
-			// Texto neutro: no se dice a nadie qué dominios están en nuestra cuenta.
-			if ( ! empty( $info['ours'] ) ) $error = 'El dominio ' . $domain . ' no se puede transferir aquí. Escríbenos y lo vemos contigo.';
+			// En cualquiera de nuestras cuentas de registrador (la de la extensión primero). Una respuesta que no se entiende
+			// de un registrador que NO atiende esta extensión no frena la transferencia; la del que la atiende, sí.
+			foreach ( array( $nc->id() => $nc ) + Digitalisimo_Hosting_Registrars::configured_all() as $acc ) {
+				$info = $acc->info( $domain, self::TIMEOUT );
+				if ( 'ok' !== $info['kind'] && $acc->id() !== $nc->id() ) continue;
+				if ( 'ok' !== $info['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
+				// Texto neutro: no se dice a nadie qué dominios están en nuestra cuenta.
+				if ( ! empty( $info['ours'] ) ) { $error = 'El dominio ' . $domain . ' no se puede transferir aquí. Escríbenos y lo vemos contigo.'; break; }
+			}
 		}
 		if ( '' === $error && class_exists( 'Digitalisimo_Hosting_Pricing' ) ) {
 			$tld = ltrim( self::ext_of( $domain ), '.' );
@@ -275,7 +337,7 @@ class Digitalisimo_Hosting_Checkout {
 			if ( 'ok' !== $cost['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
 			$product = function_exists( 'wc_get_product' ) ? wc_get_product( (int) $product_id ) : null;
 			$charged = ! $product ? 0.0 : ( function_exists( 'wc_get_price_excluding_tax' ) ? (float) wc_get_price_excluding_tax( $product ) : (float) $product->get_price() );
-			$guard = Digitalisimo_Hosting_Pricing::guard( $charged, (float) $cost['value'], 'transferir ' . $domain, function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : null );
+			$guard = Digitalisimo_Hosting_Pricing::guard( $charged, (float) $cost['value'], 'transferir ' . $domain, function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : null, $nc->label() );
 			if ( $guard && 'price' !== $guard['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
 			// El detalle (costos y margen) es para el administrador; al visitante, un texto neutro.
 			if ( $guard ) $error = 'Por ahora no podemos transferir ' . $domain . ' a este precio. Escríbenos y lo vemos contigo.';
@@ -291,7 +353,7 @@ class Digitalisimo_Hosting_Checkout {
 		$out = array();
 		if ( ! function_exists( 'WC' ) || ! isset( WC()->cart ) || ! WC()->cart ) return $out;
 		foreach ( WC()->cart->get_cart() as $key => $item ) {
-			$pid = (int) ( $item['product_id'] ?? 0 );
+			$pid = Digitalisimo_Hosting_Products::item_id( $item );
 			$kind = self::kind( $pid );
 			if ( '' === $kind ) continue;
 			$out[ $key ] = array( 'kind' => $kind, 'product' => $pid, 'data' => $item, 'name' => self::product_name( $pid ) );
@@ -318,11 +380,88 @@ class Digitalisimo_Hosting_Checkout {
 			$domains++;
 			$e = self::line_error( $line['product'], $line['data'], true );
 			if ( '' !== $e ) $errors[] = $e;
+			// Un dominio es un año por línea: con más, la venta automática se detiene y el cobro queda por devolver.
+			if ( (float) ( $line['data']['quantity'] ?? 1 ) > 1 ) $errors[] = 'Cada dominio se compra por un año: deja la cantidad de ' . ( '' !== (string) ( $line['data']['digitalisimo_domain'] ?? '' ) ? $line['data']['digitalisimo_domain'] : '«' . $line['name'] . '»' ) . ' en 1.';
 		}
 		$o = Digitalisimo_Hosting::settings();
 		if ( $hosting_need && ! $domains && ( ! empty( $o['ask_domain'] ) || ! empty( $o['require_domain_hosting'] ) ) ) $errors[] = 'Elige el dominio de tu plan antes de pagar: «Dominio nuevo» (búscalo y agrégalo) o «Uno que ya tengo» (escribe su nombre exacto).';
 		if ( ! empty( $o['require_domain_hosting'] ) && $domains && ! $hosting ) $errors[] = 'Agrega un plan de hosting para continuar: los dominios se venden junto con un plan.';
+		// Sólo con lo demás en orden: ¿alcanza el saldo del registrador para lo que se va a cobrar?
+		if ( ! $errors ) { $funds = self::funds_error( $lines ); if ( '' !== $funds ) $errors[] = $funds; }
 		return array_values( array_unique( $errors ) );
+	}
+
+	// ── Saldo del registrador (antes de cobrar un dominio que después no se podría registrar) ─────────────────────
+
+	/**
+	 * Saldo (USD) del registrador que atiende esta extensión (Digitalisimo_Hosting_Registrars: el predeterminado o el de
+	 * «Registrador por extensión»): array( kind ok, value, registrar ) o kind error|config. Con Dynadot, un saldo cero
+	 * llega como 0 (Digitalisimo_Hosting_Dynadot::balance()), así que frena. En caché 5 minutos por registrador (una
+	 * falla, 1 minuto).
+	 */
+	public static function registrar_balance( $ext ) {
+		$rid = Digitalisimo_Hosting_Registrars::id_for_ext( $ext );
+		$key = 'namecheap' === $rid ? 'digitalisimo_hosting_nc_balance' : 'digitalisimo_hosting_' . $rid . '_balance';
+		$c = get_transient( $key );
+		if ( is_array( $c ) ) return $c;
+		$r = Digitalisimo_Hosting_Registrars::make( $rid );
+		if ( ! $r->configured() ) return array( 'kind' => 'config', 'registrar' => $rid );
+		$b = $r->balance( self::TIMEOUT );
+		$out = 'ok' === $b['kind'] ? array( 'kind' => 'ok', 'value' => (float) $b['value'], 'registrar' => $rid ) : array( 'kind' => 'error', 'registrar' => $rid );
+		set_transient( $key, $out, 'ok' === $out['kind'] ? 5 * MINUTE_IN_SECONDS : MINUTE_IN_SECONDS );
+		return $out;
+	}
+
+	/**
+	 * Lo que cobra el registrador de la extensión por un año (USD) al registrar (REGISTER) o transferir (TRANSFER, o el
+	 * registro si no lo informa): array( kind ok, value ) o kind error. Namecheap: users.getPricing; Dynadot: tld_price
+	 * (el mismo registro que da su búsqueda). En caché una hora.
+	 */
+	public static function registrar_cost( $ext, $action ) {
+		$rid = Digitalisimo_Hosting_Registrars::id_for_ext( $ext );
+		$key = 'digitalisimo_hosting_' . ( 'namecheap' === $rid ? 'nc' : $rid ) . '_cost_' . md5( $ext . '|' . $action );
+		$c = get_transient( $key );
+		if ( is_array( $c ) ) return $c;
+		$reg = Digitalisimo_Hosting_Registrars::make( $rid );
+		if ( ! $reg->configured() ) return array( 'kind' => 'config' );
+		$tld = ltrim( (string) $ext, '.' );
+		$r = $reg->price( $tld, $action, self::TIMEOUT );
+		if ( 'ok' !== $r['kind'] && 'TRANSFER' === $action ) $r = $reg->price( $tld, 'REGISTER', self::TIMEOUT );
+		$out = 'ok' === $r['kind'] ? array( 'kind' => 'ok', 'value' => (float) $r['value'] ) : array( 'kind' => 'error' );
+		set_transient( $key, $out, 'ok' === $out['kind'] ? HOUR_IN_SECONDS : MINUTE_IN_SECONDS );
+		return $out;
+	}
+
+	/**
+	 * '' o el aviso para el comprador cuando el saldo del registrador no alcanza el costo de los dominios del carrito (por
+	 * registrador). Sin saldo o sin costo que consultar no se frena: el aprovisionamiento deja el pedido en espera y avisa,
+	 * como siempre. Al frenar, avisa al dueño (una vez cada 6 horas por registrador).
+	 */
+	private static function funds_error( array $lines ) {
+		$need = array(); $have = array(); $names = array();
+		foreach ( $lines as $line ) {
+			if ( 'hosting' === $line['kind'] ) continue;
+			$domain = (string) ( $line['data']['digitalisimo_domain'] ?? '' );
+			$ext = self::ext_of( $domain );
+			if ( '' === $domain || '' === $ext ) continue;
+			$cost = self::registrar_cost( $ext, 'transfer' === $line['kind'] ? 'TRANSFER' : 'REGISTER' );
+			$bal = self::registrar_balance( $ext );
+			if ( 'ok' !== $cost['kind'] || 'ok' !== $bal['kind'] ) return '';
+			$reg = (string) $bal['registrar'];
+			$need[ $reg ] = ( $need[ $reg ] ?? 0 ) + (float) $cost['value'];
+			$have[ $reg ] = (float) $bal['value'];
+			$names[ $reg ][] = $domain;
+		}
+		foreach ( $need as $reg => $sum ) {
+			if ( $have[ $reg ] + 0.005 >= $sum ) continue;
+			$flag = 'digitalisimo_hosting_funds_alert_' . md5( $reg );
+			if ( ! get_transient( $flag ) && class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) {
+				set_transient( $flag, 1, 6 * HOUR_IN_SECONDS );
+				Digitalisimo_Hosting_Provisioning::alert_admin( 'saldo del registrador insuficiente', sprintf( "Un cliente intentó pagar %s y el saldo de %s (%s USD) no alcanza su costo (%s USD).\n\nMientras no recargues la cuenta, el carrito no deja pagar esos dominios (el cliente ve un aviso para escribirte).", implode( ', ', $names[ $reg ] ), Digitalisimo_Hosting_Registrars::label( $reg ), number_format( $have[ $reg ], 2, '.', '' ), number_format( $sum, 2, '.', '' ) ) );
+			}
+			return 'Por ahora no podemos completar en línea la compra de ' . implode( ', ', $names[ $reg ] ) . '. Escríbenos y lo resolvemos contigo.';
+		}
+		return '';
 	}
 
 	public static function validate_cart() {
@@ -391,7 +530,7 @@ class Digitalisimo_Hosting_Checkout {
 			$row = is_array( $row ) ? $row : array();
 			if ( ! isset( WC()->cart->cart_contents[ $key ] ) ) continue;
 			$item = WC()->cart->cart_contents[ $key ];
-			$pid = (int) ( $item['product_id'] ?? 0 );
+			$pid = Digitalisimo_Hosting_Products::item_id( $item );
 			$kind = self::kind( $pid );
 			$domain = self::clean_domain( $row['domain'] ?? '' );
 			if ( 'hosting' === $kind ) {
@@ -444,6 +583,7 @@ class Digitalisimo_Hosting_Checkout {
 
 	/** `woocommerce_checkout_create_order_line_item`: el EPP cifrado va al pedido (nunca a la línea). */
 	public static function order_item( $item, $values, $order ) {
+		if ( ! empty( $values['digitalisimo_for_domain'] ) && is_object( $item ) && method_exists( $item, 'add_meta_data' ) ) $item->add_meta_data( '_digitalisimo_for_domain', (string) $values['digitalisimo_for_domain'], true );
 		if ( empty( $values['digitalisimo_epp'] ) || empty( $values['digitalisimo_domain'] ) || ! is_object( $order ) ) return;
 		$all = $order->get_meta( self::META_EPP );
 		$all = is_array( $all ) ? $all : array();
@@ -482,10 +622,13 @@ class Digitalisimo_Hosting_Checkout {
 
 	public static function meta_box_html( $post, $box ) {
 		$order = $box['args']['order'];
-		echo '<p>El código EPP se guarda cifrado y no sale en notas, correos ni en la API. Úsalo para pedir la transferencia en Namecheap.</p>';
+		echo '<p>El código EPP se guarda cifrado y no sale en notas, correos ni en la API. Úsalo para pedir la transferencia en el registrador que se indica junto a cada dominio.</p>';
+		// El registrador anotado por el aprovisionamiento al tramitarla; si aún no corre, el de la extensión.
+		$noted = class_exists( 'Digitalisimo_Hosting_Provisioning' ) ? (string) ( Digitalisimo_Hosting_Provisioning::state( $order )['transfer_registrar'] ?? '' ) : '';
 		foreach ( array_keys( (array) $order->get_meta( self::META_EPP ) ) as $domain ) {
+			$rid = Digitalisimo_Hosting_Registrars::valid( $noted ) ? $noted : Digitalisimo_Hosting_Registrars::id_for_domain( $domain );
 			$url = wp_nonce_url( admin_url( 'admin-post.php?action=' . self::EPP_ACTION . '&order=' . (int) $order->get_id() . '&domain=' . rawurlencode( $domain ) ), self::EPP_ACTION . '|' . (int) $order->get_id() . '|' . $domain );
-			echo '<p><strong>' . esc_html( $domain ) . '</strong><br><a class="button" target="_blank" rel="noopener" href="' . esc_url( $url ) . '">Ver código EPP</a></p>';
+			echo '<p><strong>' . esc_html( $domain ) . '</strong> · en ' . esc_html( Digitalisimo_Hosting_Registrars::label( $rid ) ) . '<br><a class="button" target="_blank" rel="noopener" href="' . esc_url( $url ) . '">Ver código EPP</a></p>';
 		}
 	}
 

@@ -59,10 +59,10 @@ final class Digitalisimo_Plugin_Catalog {
 		usort( $submenu[ $parent ], function( $left, $right ) { return strcasecmp( wp_strip_all_tags( $left[0] ), wp_strip_all_tags( $right[0] ) ); } );
 	}
 
+	/** Plugins que se ofrecen para instalar. DIGITALÍSIMO Hosting no está: es privado de DIGITALÍSIMO, se instala a mano y se actualiza con su propio actualizador (sigue en el índice de la Release). */
 	private static function plugins() {
 		return array(
 			'digitalisimo-backups' => array( 'DIGITALÍSIMO Backups', 'digitalisimo-backups/digitalisimo-backups.php', 'Respaldos de sitio y red.' ),
-			'digitalisimo-hosting' => array( 'DIGITALÍSIMO Hosting', 'digitalisimo-hosting/digitalisimo-hosting.php', 'Dominios, Namecheap, WooCommerce y hosting.' ),
 			'digitalisimo-ia-tools' => array( 'DIGITALÍSIMO IA Tools', 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'Chatbot, proveedores IA, RAG y generación de imágenes.' ),
 			'digitalisimo-seo' => array( 'DIGITALÍSIMO SEO', 'digitalisimo-seo/digitalisimo-integrations.php', 'SEO técnico, schema, contenido y SEO AI.' ),
 			'digitalisimo-tools' => array( 'DIGITALÍSIMO Tools', 'digitalisimo-tools/digitalisimo-tools.php', 'Herramientas internas, plantillas de red, WebP y ajustes del sitio.' ),

@@ -192,6 +192,8 @@ jobs:
           php tests/elements-comparison-switcher.php
           php tests/elements-gallery-creative.php
           php tests/elements-device-card.php
+          php tests/elements-device-slider.php
+          node tests/elements-device-slider-chrome.mjs
           php tests/elements-icon-navigation.php
           php tests/elements-backdrop-filter.php
           php tests/elements-fancy-icons.php
@@ -298,6 +300,8 @@ jobs:
           php tests/ia-assistant-mostrar.php
           php tests/ia-assistant-marca.php
           php tests/ia-assistant-permisos.php
+          php tests/ia-assistant-simple.php
+          php tests/ia-usage.php
           node tests/ia-assistant-mostrar-ui.mjs
           php tests/ia-assistant-subir.php
           node tests/ia-assistant-subir-ui.mjs
@@ -351,6 +355,15 @@ jobs:
           php tests/hosting-eighth-review.php
           php tests/hosting-mcp-settings.php
           php tests/hosting-domain-checkout.php
+          php tests/hosting-domain-finder.php
+          php tests/hosting-dynadot.php
+          php tests/hosting-namecheap-getinfo.php
+          php tests/hosting-periods.php
+          php tests/hosting-product-types.php
+          php tests/hosting-products-migration.php
+          php tests/hosting-manual-payment.php
+          php tests/hosting-review-fixes.php
+          php tests/hosting-second-review.php
           php tests/backups-sftp.php
           php tests/backups-sftp-phpseclib.php
           php tests/backups-sftp-keys.php
@@ -591,6 +604,7 @@ jobs:
           node tests/elements-woo-static.mjs
           php tests/elements-woo-kit-page-sync.php
           php tests/elements-woo-mcp.php
+          php tests/elements-mcp-access.php
           php tests/elements-woo-skydropx.php
           php tests/elements-mcp-css.php
           php tests/elements-mcp-settings.php
@@ -647,6 +661,7 @@ jobs:
           php tests/elements-badge.php
           node tests/elements-badge-chrome.mjs
           node tests/hosting-domain-search-chrome.mjs
+          node tests/hosting-domain-finder-chrome.mjs
           php tests/elements-shortcode-guard.php
           php tests/elements-text-relief.php
           node tests/elements-text-relief-chrome.mjs

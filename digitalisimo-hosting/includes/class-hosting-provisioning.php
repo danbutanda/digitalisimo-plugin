@@ -7,7 +7,7 @@ defined( 'ABSPATH' ) || exit;
  * Al pagarse un pedido (pasa a «procesando» o «completado») se encola en Action Scheduler y, en segundo plano:
  *  1. crea la cuenta en Webuzo con el paquete del producto (`_digitalisimo_webuzo_plan`), el dominio del pedido, un
  *     usuario derivado del dominio y una contraseña fuerte;
- *  2. registra el dominio en Namecheap a nombre del cliente (datos de facturación), tras comprobar que el saldo alcanza,
+ *  2. registra el dominio en el registrador de su extensión (Namecheap o Dynadot) a nombre del cliente (datos de facturación), tras comprobar que el saldo alcanza,
  *     y lo apunta a los nameservers propios;
  *  3. envía al cliente el correo «Accesos de hosting» (WooCommerce → Ajustes → Correos) y deja una nota privada en el
  *     pedido, sin la contraseña.
@@ -17,9 +17,11 @@ defined( 'ABSPATH' ) || exit;
  * faltan o un error de la API dejan el pedido «en espera» con su nota y un correo al administrador.
  *
  * Cada servicio (dominio + plan) queda como una entrada privada `digi_hosting_service` con su vencimiento. A diario:
- * aviso al cliente 30 y 7 días antes con un pedido de renovación que paga con el enlace de pago de WooCommerce;
- * suspensión en Webuzo a los N días de gracia sin pago; al pagarse, renovación del dominio en Namecheap (con la misma
- * validación de saldo), reactivación y un año más.
+ * aviso al cliente antes de vencer (30 y 7 días; en un plan mensual 7 y 3, en uno trimestral 15 y 7) con un pedido de
+ * renovación que paga con el enlace de pago de WooCommerce; suspensión en Webuzo a los N días de gracia sin pago (como
+ * mucho 5 en el mensual y 15 en el trimestral); al pagarse, reactivación y otro periodo del plan (un mes, tres, seis, un
+ * año, dos o tres). El dominio es siempre anual: si vence en otra fecha que el hosting, tiene su propio pedido de
+ * renovación (renovación en el registrador con la misma validación de saldo y un año más).
  */
 class Digitalisimo_Hosting_Provisioning {
 	const GROUP          = 'digitalisimo-hosting';
@@ -36,6 +38,10 @@ class Digitalisimo_Hosting_Provisioning {
 	const META_SERVICE   = '_digitalisimo_service';
 	const META_RENEWAL   = '_digitalisimo_renewal_of';
 	const META_RENEW     = '_digitalisimo_renew';
+	/** El vencimiento del dominio que cubre un pedido de renovación (el que tenía el servicio al crearlo). */
+	const META_DOMAIN_FOR = '_digitalisimo_domain_for';
+	/** Qué renueva un pedido de renovación: array( hosting => bool, domain => bool, period => meses del hosting ). */
+	const META_PARTS     = '_digitalisimo_renew_parts';
 	/** Lo detenido por una clave rechazada de Webuzo: se vuelve a encolar al guardar una clave nueva. */
 	const WAITING        = 'digitalisimo_hosting_waiting';
 	const MAX_ATTEMPTS   = 5;
@@ -49,6 +55,7 @@ class Digitalisimo_Hosting_Provisioning {
 
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'register' ) );
+		add_action( 'init', array( __CLASS__, 'migrate_domain_expires' ), 30 );
 		add_action( 'before_woocommerce_init', array( __CLASS__, 'declare_compat' ) );
 		add_action( 'woocommerce_order_status_processing', array( __CLASS__, 'paid' ), 20 );
 		add_action( 'woocommerce_order_status_completed', array( __CLASS__, 'paid' ), 20 );
@@ -159,9 +166,9 @@ class Digitalisimo_Hosting_Provisioning {
 		$domain = $service ? (string) self::svc( $service, 'domain' ) : '';
 		$spent = array();
 		if ( $is_renew ) {
-			if ( ! empty( $state['domain'] ) ) $spent[] = 'el dominio ' . $domain . ' ya se renovó en Namecheap';
+			if ( ! empty( $state['domain'] ) ) $spent[] = 'el dominio ' . $domain . ' ya se renovó en ' . Digitalisimo_Hosting_Registrars::label( $service ? Digitalisimo_Hosting_Registrars::of_service( $service ) : '' );
 		} else {
-			if ( ! empty( $state['domain']['registered'] ) && empty( $state['domain']['existed'] ) ) $spent[] = 'el dominio ' . $domain . ' quedó registrado en Namecheap';
+			if ( ! empty( $state['domain']['registered'] ) && empty( $state['domain']['existed'] ) ) $spent[] = 'el dominio ' . $domain . ' quedó registrado en ' . Digitalisimo_Hosting_Registrars::label( (string) ( $state['domain']['registrar'] ?? '' ) );
 			if ( 'done' === ( $state['hosting']['status'] ?? '' ) ) $spent[] = 'la cuenta «' . ( $state['hosting']['user'] ?? '' ) . '» quedó creada en Webuzo';
 		}
 		$cancelled = 'cancelled' === $kind || 'dead' === $kind; // la baja del servicio o el pedido reembolsado/cancelado
@@ -274,6 +281,9 @@ class Digitalisimo_Hosting_Provisioning {
 			$state = (array) $order->get_meta( self::META_RENEW );
 			if ( empty( $state['done'] ) ) {
 				if ( empty( $state['paid'] ) ) { $state['paid'] = time(); $order->update_meta_data( self::META_RENEW, $state ); $order->save(); }
+				// Un pago manual cuyo dominio quedó detenido (saldo, datos) espera «Reintentar»: completar su pedido no lo
+				// renueva solo (segunda revisión, R1).
+				if ( ! empty( $state['manual'] ) && ! empty( $state['stopped'] ) ) return;
 				// Pagada la renovación, ninguna suspensión pendiente (reintento o en espera de clave) puede ejecutarse.
 				self::cancel_suspension( $renewal, 'renovación #' . $order->get_id() . ' pagada' );
 				self::enqueue( self::HOOK_RENEW, $order->get_id() );
@@ -295,6 +305,9 @@ class Digitalisimo_Hosting_Provisioning {
 		}
 		// La marca de pago: sin ella ninguna tarea llama a Webuzo ni a Namecheap por este pedido.
 		if ( empty( $state['paid'] ) ) { $state['paid'] = time(); self::save_state( $order, $state ); }
+		// Detenido (saldo, datos…) y el administrador lo vuelve a marcar pagado: cuenta como «Reintentar» (una tarea sin
+		// esa marca ya no repite un alta detenida; segunda revisión, N2).
+		if ( ! empty( $state['stopped'] ) ) { $order->update_meta_data( '_digitalisimo_retry', time() ); $order->save(); }
 		self::enqueue( self::HOOK_PROVISION, $order->get_id() );
 		self::ensure_daily();
 	}
@@ -315,32 +328,304 @@ class Digitalisimo_Hosting_Provisioning {
 	// ── Lectura del pedido ──────────────────────────────────────────────────────────────────────────────────────
 
 	public static function state( $order ) { $s = $order->get_meta( self::META_STATE ); return is_array( $s ) ? $s : array(); }
-	private static function save_state( $order, array $state ) { $order->update_meta_data( self::META_STATE, $state ); $order->save(); }
+	private static function save_state( $order, array $state ) { $order->update_meta_data( self::$state_meta, $state ); $order->save(); }
+	/** Dónde guarda save_state(): el estado del pedido o, mientras se atiende un dominio más del pedido, el suyo. */
+	private static $state_meta = self::META_STATE;
 
-	/** Los planes de hosting y los dominios del pedido. */
+	/**
+	 * Los planes de hosting y los dominios del pedido, según lo marcado en cada producto o variación (la variación manda):
+	 * cada fila con su ID vendido (`id`), el paquete de Webuzo y el periodo de cobro del plan.
+	 */
 	public static function items( $order ) {
-		$domain_ids = array_values( Digitalisimo_Hosting::domain_products() );
 		$out = array( 'hosting' => array(), 'domains' => array(), 'transfers' => array() );
+		$Pr = 'Digitalisimo_Hosting_Products';
 		foreach ( $order->get_items() as $item ) {
 			if ( ! is_object( $item ) || ! method_exists( $item, 'get_product_id' ) ) continue;
 			$pid    = (int) $item->get_product_id();
 			$vid    = (int) $item->get_variation_id();
+			$sid    = $vid ? $vid : $pid;
 			$domain = strtolower( trim( (string) $item->get_meta( 'Dominio' ) ) );
-			$row    = array( 'item' => $item, 'product' => $pid, 'variation' => $vid, 'domain' => $domain, 'qty' => (int) $item->get_quantity() );
-			if ( in_array( $pid, $domain_ids, true ) ) { $out['domains'][] = $row; continue; }
+			$row    = array( 'item' => $item, 'product' => $pid, 'variation' => $vid, 'id' => $sid, 'domain' => $domain, 'qty' => (int) $item->get_quantity() );
+			$kind   = class_exists( $Pr ) ? $Pr::kind( $sid ) : '';
+			if ( 'register' === $kind ) { $out['domains'][] = $row; continue; }
 			// Transferencia (2026-11-26): el dominio y su EPP los pidió el carrito; la transferencia se hace a mano.
-			if ( class_exists( 'Digitalisimo_Hosting_Products' ) && '' !== Digitalisimo_Hosting_Products::transfer_ext( $pid ) ) { $out['transfers'][] = $row; continue; }
-			$plan = self::plan_of( $vid, $pid );
-			if ( '' !== $plan || Digitalisimo_Hosting::is_hosting_product( $pid ) ) $out['hosting'][] = $row + array( 'plan' => $plan );
+			if ( 'transfer' === $kind ) { $out['transfers'][] = $row; continue; }
+			if ( 'hosting' === $kind ) $out['hosting'][] = $row + array( 'plan' => $Pr::plan( $sid ), 'period' => $Pr::period( $sid ), 'for' => strtolower( trim( (string) $item->get_meta( '_digitalisimo_for_domain' ) ) ) );
 		}
 		return $out;
 	}
 
-	/** El paquete de Webuzo del producto (o de su producto padre). */
-	private static function plan_of( $vid, $pid ) {
-		$plan = $vid ? (string) get_post_meta( $vid, '_digitalisimo_webuzo_plan', true ) : '';
-		if ( '' === $plan ) $plan = (string) get_post_meta( $pid, '_digitalisimo_webuzo_plan', true );
-		return trim( $plan );
+	/**
+	 * Un pedido con varios dominios (el buscador deja agregar dos dominios y un plan): array( principal, demás, nota ). El
+	 * principal es el plan con el dominio con el que se agregó (el buscador lo guarda en el artículo) o, sin esa
+	 * asociación, con el primer dominio del pedido (queda anotado). Los demás dominios se registran o transfieren cada uno
+	 * con su propio servicio (provision_extras()).
+	 */
+	public static function split_main( array $items ) {
+		$doms = array();
+		foreach ( $items['domains'] as $r ) $doms[] = $r + array( 'kind' => 'register' );
+		foreach ( $items['transfers'] as $r ) $doms[] = $r + array( 'kind' => 'transfer' );
+		if ( count( $doms ) < 2 ) return array( $items, array(), '' );
+		$pick = 0; $note = '';
+		$for = $items['hosting'] ? (string) ( $items['hosting'][0]['for'] ?? '' ) : '';
+		$found = false;
+		if ( '' !== $for ) foreach ( $doms as $i => $r ) if ( $r['domain'] === $for ) { $pick = $i; $found = true; break; }
+		if ( $items['hosting'] && ! $found ) $note = 'el plan no traía con qué dominio se agregó: se usa el primero del pedido, ' . $doms[0]['domain'] . '.';
+		$main = $items; $main['domains'] = array(); $main['transfers'] = array();
+		$main[ 'register' === $doms[ $pick ]['kind'] ? 'domains' : 'transfers' ][] = $doms[ $pick ];
+		unset( $doms[ $pick ] );
+		return array( $main, array_values( $doms ), $note );
+	}
+
+	/** Dónde guarda su estado (en el pedido) un dominio más de un pedido con varios. */
+	private static function extra_key( array $row ) { return '_digitalisimo_provision_x_' . substr( md5( $row['kind'] . ':' . (int) $row['id'] . ':' . $row['domain'] ), 0, 12 ); }
+
+	/** ¿Es el servicio de un dominio más de un pedido con varios (no el del plan)? */
+	public static function is_extra( $id ) { return (bool) self::svc( $id, 'extra' ); }
+
+	/**
+	 * Los demás dominios del pedido con su estado: dominio => array( row, state, service ). Con $pending, sólo los que no
+	 * terminaron (ni se dieron de baja).
+	 */
+	public static function extras_state( $order, $pending = false ) {
+		$out = array();
+		foreach ( self::split_main( self::items( $order ) )[1] as $row ) {
+			$st = $order->get_meta( self::extra_key( $row ) ); $st = is_array( $st ) ? $st : array();
+			$sid = (int) ( $st['service'] ?? 0 );
+			if ( $pending && ( ! empty( $st['done'] ) || ( $sid && 'cancelled' === self::svc( $sid, 'status' ) ) ) ) continue;
+			$out[ (string) $row['domain'] ] = array( 'row' => $row, 'state' => $st, 'service' => $sid );
+		}
+		return $out;
+	}
+
+	/**
+	 * Los demás dominios de un pedido con varios: cada uno con su registrador, su propio servicio de dominio, la misma
+	 * revisión de dueño y las mismas guardas e idempotencia del registro (step_domain()). Uno que falla queda en espera
+	 * sin detener a los demás ni al plan, con la misma salida que el dominio del plan (segunda revisión, N2):
+	 *  - «Reintentar» y «Aprobar dominio» de su servicio lo retoman ($retry_mark: la marca de «Reintentar» del pedido
+	 *    limpia sus intentos y su parada);
+	 *  - una revisión manual marca `needs_review` (sale «Aprobar dominio») y un dominio de otro cliente `owner_conflict`;
+	 *  - la red se reintenta con la espera creciente; agotados los intentos, o por otra causa, queda detenido (`stopped`) con
+	 *    aviso al dueño, hasta «Reintentar»;
+	 *  - nada se encola aquí: devuelve array( retry => segundos hasta el siguiente intento o 0, alerts => avisos por mandar )
+	 *    y quien llama encola UNA tarea y manda UN aviso (antes eran dos tareas y un aviso por cada una).
+	 */
+	private static function provision_extras( $order, array $extras, $retry_mark = false ) {
+		$retry = 0; $alerts = array();
+		foreach ( $extras as $row ) {
+			$mk = self::extra_key( $row );
+			$st = $order->get_meta( $mk ); $st = is_array( $st ) ? $st : array();
+			if ( ! empty( $st['done'] ) ) continue;
+			if ( $retry_mark ) unset( $st['attempts'], $st['stopped'], $st['watchdog'] );
+			$domain = (string) $row['domain'];
+			$sid = (int) ( $st['service'] ?? 0 );
+			if ( ! $sid || ! self::is_service( $sid ) ) {
+				$sid = (int) wp_insert_post( array( 'post_type' => self::CPT, 'post_status' => 'publish', 'post_title' => '' !== $domain ? $domain : 'Pedido #' . $order->get_id() ) );
+				if ( ! $sid ) continue;
+				self::svc_set( $sid, array( 'order' => $order->get_id(), 'customer' => (int) $order->get_customer_id(), 'email' => (string) $order->get_billing_email(), 'name' => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ), 'domain' => $domain, 'plan' => '', 'hosting_product' => 0, 'period' => 12, 'domain_product' => 'register' === $row['kind'] ? (int) $row['id'] : 0, 'status' => 'pending', 'expires' => 0, 'created' => time(), 'extra' => 1, 'extra_of' => (int) $order->get_meta( self::META_SERVICE ) ) );
+				$st['service'] = $sid;
+				$order->update_meta_data( $mk, $st ); $order->save();
+			}
+			if ( 'cancelled' === self::svc( $sid, 'status' ) ) continue;
+			// Detenido (saldo, datos, revisión, dueño, reintentos agotados): espera «Reintentar» o «Aprobar dominio».
+			if ( ! empty( $st['stopped'] ) ) { $order->update_meta_data( $mk, $st ); $order->save(); continue; }
+			$one = array( 'hosting' => array(), 'domains' => 'register' === $row['kind'] ? array( $row ) : array(), 'transfers' => 'transfer' === $row['kind'] ? array( $row ) : array() );
+			$stop = null;
+			$split = self::split( $domain );
+			if ( $row['qty'] > 1 ) $stop = self::stop( 'data', 'El pedido tiene una cantidad mayor que 1 de «' . $row['item']->get_name() . '»; se registra un año por dominio.' );
+			elseif ( '' === $domain ) $stop = self::stop( 'data', 'Una línea de dominio del pedido no trae el nombre («' . $row['item']->get_name() . '»).' );
+			elseif ( ! self::valid_domain( $domain ) || ! $split ) $stop = self::stop( 'data', 'El dominio «' . $domain . '» no es válido.' );
+			elseif ( 'register' === $row['kind'] && Digitalisimo_Hosting_Products::register_ext( $row['id'] ) !== $split[2] ) $stop = self::stop( 'data', 'El dominio «' . $domain . '» no corresponde al producto de dominio pagado; no se registró.' );
+			if ( ! $stop ) $stop = self::check_owner( $order, $st, $one, $domain, $sid );
+			if ( ! $stop ) {
+				self::$state_meta = $mk;
+				try { $stop = self::step_domain( $order, $st, $one, $domain, $sid ); } finally { self::$state_meta = self::META_STATE; }
+			}
+			if ( $stop && in_array( $stop['kind'], array( 'cancelled', 'off', 'dead' ), true ) ) {
+				// Baja, venta apagada o pedido reembolsado a media tarea: no cuenta como intento; con la venta apagada se retoma
+				// al encenderla (como el dominio del plan).
+				self::svc_set( $sid, array( 'error' => (string) $stop['message'] ) + ( 'off' === $stop['kind'] ? array( 'resume_provision' => time() ) : array() ) );
+			} elseif ( $stop ) {
+				$message = (string) $stop['message'];
+				$wait = 0;
+				if ( 'transient' === $stop['kind'] ) {
+					$st['attempts'] = (int) ( $st['attempts'] ?? 0 ) + 1;
+					if ( $st['attempts'] < self::MAX_ATTEMPTS ) $wait = self::BACKOFF[ min( $st['attempts'] - 1, count( self::BACKOFF ) - 1 ) ];
+					else $message .= '. Se agotaron los reintentos automáticos';
+				}
+				$st['error'] = $message;
+				$flags = array( 'status' => 'on-hold', 'error' => $message );
+				if ( 'owner' === $stop['kind'] ) $flags['owner_conflict'] = 1;
+				if ( 'review' === $stop['kind'] ) $flags['needs_review'] = 1;
+				self::svc_set( $sid, $flags );
+				if ( $wait ) {
+					$retry = $retry ? min( $retry, $wait ) : $wait;
+					self::note_once( $order, 'extra_' . md5( $mk . '|' . $message ), 'el dominio ' . $domain . ' quedó en espera (los demás siguen): ' . $message . '. Reintento automático ' . $st['attempts'] . ' de ' . ( self::MAX_ATTEMPTS - 1 ) . '.' );
+				} else {
+					$st['stopped'] = 'transient' === $stop['kind'] ? 'transient' : $stop['kind'];
+					unset( $st['attempts'] );
+					self::svc_log( $sid, $message );
+					$action = 'review' === $stop['kind'] ? 'Si el dominio es del cliente, pulsa «Aprobar dominio»' : 'Pulsa «Reintentar» en su servicio cuando lo resuelvas';
+					if ( self::note_once( $order, 'extra_' . md5( $mk . '|' . $message ), 'el dominio ' . $domain . ' quedó en espera (los demás siguen): ' . $message . '. ' . $action . ' en WooCommerce → Servicios de hosting.' ) ) $alerts[] = $domain . ': ' . $message . '. ' . $action . '.';
+				}
+			} else {
+				$st['done'] = time(); unset( $st['error'], $st['attempts'], $st['stopped'] );
+				$now = time();
+				self::svc_set( $sid, array( 'status' => 'active', 'error' => '', 'needs_review' => 0, 'started' => $now, 'expires' => (int) strtotime( '+1 year', $now ), 'domain_expires' => (int) strtotime( '+1 year', $now ) ) );
+				self::svc_log( $sid, 'Aprovisionado con el pedido #' . $order->get_id() . ' (uno de varios dominios del pedido).' );
+			}
+			$order->update_meta_data( $mk, $st ); $order->save();
+		}
+		return array( 'retry' => $retry, 'alerts' => $alerts );
+	}
+
+	/** La pasada por los demás dominios con el plan ya entregado (o detenido): una tarea de reintento, un aviso y el cierre. */
+	private static function run_extras( $order, array $extras, $mark ) {
+		if ( ! $extras ) return;
+		$x = self::provision_extras( $order, $extras, $mark );
+		if ( $x['retry'] ) self::enqueue( self::HOOK_PROVISION, $order->get_id(), $x['retry'], true );
+		self::extras_alert( $order, $x['alerts'] );
+		self::maybe_complete( $order );
+	}
+
+	/** Un solo aviso al dueño por los dominios más del pedido que quedaron detenidos en esta pasada. */
+	private static function extras_alert( $order, array $alerts ) {
+		if ( ! $alerts ) return;
+		self::alert_admin( ( 1 === count( $alerts ) ? 'dominio en espera: ' . strtok( $alerts[0], ':' ) : count( $alerts ) . ' dominios en espera (pedido #' . $order->get_id() . ')' ), 'El pedido #' . $order->get_id() . ' trae varios dominios; quedaron en espera:' . "\n\n- " . implode( "\n- ", $alerts ) . "\n\nLos demás siguieron. El pedido no se completa hasta que terminen.\n\n" . self::order_link( $order ) . "\nServicios: " . admin_url( 'admin.php?page=digitalisimo-hosting-services' ) );
+	}
+
+	/**
+	 * Con el plan (o el primer dominio) entregado: el pedido pasa a «completado» sólo cuando no queda ningún dominio más
+	 * pendiente. Si alguno quedó detenido, el pedido queda «en espera» con la lista (N2).
+	 */
+	private static function maybe_complete( $order, $note = '' ) {
+		$state = self::state( $order );
+		if ( empty( $state['done'] ) ) {
+			// El servicio del plan se dio de baja: no se completa solo (puede tocar reembolsar), pero se dice cuando los demás
+			// dominios terminaron.
+			$sid = (int) $order->get_meta( self::META_SERVICE );
+			if ( $sid && 'cancelled' === self::svc( $sid, 'status' ) && self::extras_state( $order ) && ! self::extras_state( $order, true ) ) self::note_once( $order, 'extras_done_main_cancelled', 'los demás dominios del pedido quedaron listos; el servicio del plan está dado de baja: revisa si corresponde reembolsar y completa el pedido a mano.' );
+			return;
+		}
+		$status = self::db_order_status( $order );
+		if ( ! in_array( $status, array( 'processing', 'on-hold' ), true ) ) return;
+		$pending = self::extras_state( $order, true );
+		if ( ! $pending ) {
+			$sid = (int) $order->get_meta( self::META_SERVICE );
+			$exp = $sid ? (int) self::svc( $sid, 'expires' ) : 0;
+			$order->update_status( 'completed', 'DIGITALÍSIMO Hosting: ' . ( '' !== $note ? $note : 'servicio entregado' . ( $exp ? '; vence el ' . self::date( $exp ) : '' ) ) . '.' );
+			return;
+		}
+		$stopped = array_filter( $pending, function ( $x ) { return ! empty( $x['state']['stopped'] ); } );
+		$list = implode( ', ', array_keys( $pending ) );
+		if ( $stopped && 'on-hold' !== $status ) $order->update_status( 'on-hold', 'DIGITALÍSIMO Hosting: ' . ( '' !== $note ? $note . '; ' : '' ) . 'el pedido no se completa hasta que terminen los demás dominios (' . $list . '). Revísalos en WooCommerce → Servicios de hosting.' );
+		else self::note_once( $order, 'extras_wait_' . md5( $list ), ( '' !== $note ? $note . '; ' : '' ) . 'el pedido se completa cuando terminen los demás dominios (' . $list . ').' );
+	}
+
+	// ── Periodos de cobro (pedido del propietario del 2026-11-27: mensual, trimestral, semestral, anual, bianual, trianual) ──
+
+	/**
+	 * $ts más $months meses. Un múltiplo de 12 son años exactos (como siempre); los demás conservan el día del mes y, si
+	 * el mes siguiente es más corto, se quedan en su último día (31 de enero + 1 mes = 28 o 29 de febrero, no 3 de marzo).
+	 */
+	public static function add_months( $ts, $months ) {
+		$ts = (int) $ts; $months = max( 1, (int) $months );
+		if ( 0 === $months % 12 ) return (int) strtotime( '+' . ( $months / 12 ) . ' year', $ts );
+		$y = (int) gmdate( 'Y', $ts ); $m = (int) gmdate( 'n', $ts ); $d = (int) gmdate( 'j', $ts );
+		$total = $m - 1 + $months;
+		$ny = $y + intdiv( $total, 12 ); $nm = $total % 12 + 1;
+		$last = (int) gmdate( 't', gmmktime( 0, 0, 0, $nm, 1, $ny ) );
+		return gmmktime( (int) gmdate( 'G', $ts ), (int) gmdate( 'i', $ts ), (int) gmdate( 's', $ts ), $nm, min( $d, $last ), $ny );
+	}
+
+	/** $ts menos $months meses (lo inverso de add_months()). */
+	public static function sub_months( $ts, $months ) {
+		$ts = (int) $ts; $months = max( 1, (int) $months );
+		if ( 0 === $months % 12 ) return (int) strtotime( '-' . ( $months / 12 ) . ' year', $ts );
+		$total = (int) gmdate( 'Y', $ts ) * 12 + (int) gmdate( 'n', $ts ) - 1 - $months;
+		$ny = intdiv( $total, 12 ); $nm = $total % 12 + 1;
+		$last = (int) gmdate( 't', gmmktime( 0, 0, 0, $nm, 1, $ny ) );
+		return gmmktime( (int) gmdate( 'G', $ts ), (int) gmdate( 'i', $ts ), (int) gmdate( 's', $ts ), $nm, min( (int) gmdate( 'j', $ts ), $last ), $ny );
+	}
+
+	/** Días de los dos avisos antes de vencer, según el periodo: mensual 7 y 3; trimestral 15 y 7; los demás 30 y 7. */
+	public static function notice_days( $months ) {
+		$months = (int) $months;
+		if ( 1 === $months ) return array( 7, 3 );
+		if ( 3 === $months ) return array( 15, 7 );
+		return array( 30, 7 );
+	}
+
+	/** Días de gracia del periodo: los del ajuste, como mucho 5 en el mensual y 15 en el trimestral. */
+	public static function grace_for( $months, $grace ) {
+		$grace = max( 0, (int) $grace );
+		if ( 1 === (int) $months ) return min( $grace, 5 );
+		if ( 3 === (int) $months ) return min( $grace, 15 );
+		return $grace;
+	}
+
+	/** Periodo de cobro del hosting del servicio (meses; 12 en los servicios de antes). */
+	public static function service_period( $id ) { $m = (int) self::svc( $id, 'period' ); return isset( Digitalisimo_Hosting_Products::PERIODS[ $m ] ) ? $m : 12; }
+
+	/** ¿El servicio tiene cuenta de hosting (o plan)? */
+	public static function has_hosting( $id ) { return (int) self::svc( $id, 'hosting_product' ) > 0 || '' !== (string) self::svc( $id, 'plan' ) || '' !== (string) self::svc( $id, 'webuzo_user' ); }
+
+	/** Vencimiento del dominio del servicio (anual; en los servicios de antes, el mismo del hosting). 0 sin dominio. */
+	public static function domain_due( $id ) {
+		if ( ! (int) self::svc( $id, 'domain_product' ) ) return 0;
+		$d = (int) self::svc( $id, 'domain_expires' );
+		return $d ? $d : (int) self::svc( $id, 'expires' );
+	}
+
+	/**
+	 * Un servicio de antes de esta versión no tiene `domain_expires`: su dominio vencía con el hosting y domain_due() lo
+	 * lee de `expires`. Antes de mover `expires` (y en la migración) se fija ese vencimiento en `domain_expires`, para que
+	 * domain_due() nunca lea un `expires` ya movido y sume otro año (segunda revisión, N1). true si lo escribió.
+	 */
+	public static function fill_domain_expires( $id ) {
+		if ( ! (int) self::svc( $id, 'domain_product' ) || (int) self::svc( $id, 'domain_expires' ) ) return false;
+		$exp = (int) self::svc( $id, 'expires' );
+		if ( ! $exp ) return false;
+		// Una renovación que la versión anterior dejó a medias (hosting ya extendido, dominio sin renovar): `expires` ya se
+		// movió; el dominio vence donde estaba, `extended` menos el periodo pagado (tercera verificación, sonda 20).
+		if ( function_exists( 'wc_get_order' ) ) {
+			foreach ( array_unique( array_filter( array( (int) self::svc( $id, 'domain_pending_order' ), (int) self::svc( $id, 'renewal_order' ) ) ) ) as $rid ) {
+				$r = wc_get_order( $rid );
+				$from = $r ? self::legacy_domain_from( $r, (array) $r->get_meta( self::META_RENEW ), $id ) : 0;
+				if ( $from ) { $exp = $from; break; }
+			}
+		}
+		self::svc_set( $id, array( 'domain_expires' => $exp ) );
+		return true;
+	}
+
+	/**
+	 * El vencimiento del dominio antes de una renovación que quedó a medias sin `domain_from` (la dejó así la versión
+	 * anterior: hosting extendido, dominio detenido): `extended` menos el periodo pagado. 0 si no es ese caso.
+	 */
+	private static function legacy_domain_from( $order, array $state, $id ) {
+		if ( ! empty( $state['domain_from'] ) || empty( $state['extended'] ) || ! empty( $state['domain_extended'] ) || ! empty( $state['done'] ) ) return 0;
+		$parts = self::order_parts( $order, $id );
+		if ( empty( $parts['domain'] ) ) return 0;
+		$months = self::has_hosting( $id ) ? (int) $parts['period'] : 12 * max( 1, intdiv( (int) $parts['period'], 12 ) );
+		return self::sub_months( (int) $state['extended'], $months );
+	}
+
+	/** Marca de la migración que rellena `domain_expires` en los servicios con dominio de antes de esta versión. */
+	const DOMAIN_EXPIRES_MIGRATED = 'digitalisimo_hosting_domain_expires_migrated';
+
+	/**
+	 * Migración idempotente (una vez por sitio, en `init`): cada servicio con dominio y sin `domain_expires` recibe el
+	 * vencimiento con el que se cobró hasta hoy (`expires`). Corrida otra vez no cambia nada; la revisión diaria rellena
+	 * también uno que haya quedado sin la marca. Devuelve cuántos rellenó.
+	 */
+	public static function migrate_domain_expires() {
+		if ( get_option( self::DOMAIN_EXPIRES_MIGRATED ) ) return 0;
+		$n = 0;
+		foreach ( self::services() as $id ) if ( self::fill_domain_expires( $id ) ) $n++;
+		// Con carga automática, como LEGACY_MIGRATED: se lee en cada `init` y así no cuesta una consulta por petición.
+		update_option( self::DOMAIN_EXPIRES_MIGRATED, time(), true );
+		return $n;
 	}
 
 	public static function valid_domain( $domain ) { return (bool) preg_match( '/^(?=.{4,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/', (string) $domain ); }
@@ -506,8 +791,8 @@ class Digitalisimo_Hosting_Provisioning {
 		self::svc_set( $id, array(
 			'order' => $order->get_id(), 'customer' => (int) $order->get_customer_id(), 'email' => (string) $order->get_billing_email(),
 			'name' => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ), 'domain' => $domain,
-			'plan' => $hosting ? $hosting['plan'] : '', 'hosting_product' => $hosting ? ( $hosting['variation'] ?: $hosting['product'] ) : 0,
-			'domain_product' => $dom ? $dom['product'] : 0, 'status' => 'pending', 'expires' => 0, 'created' => time(),
+			'plan' => $hosting ? $hosting['plan'] : '', 'hosting_product' => $hosting ? $hosting['id'] : 0, 'period' => $hosting ? (int) $hosting['period'] : 12,
+			'domain_product' => $dom ? $dom['id'] : 0, 'status' => 'pending', 'expires' => 0, 'created' => time(),
 		) );
 		$order->update_meta_data( self::META_SERVICE, $id );
 		$order->save();
@@ -520,12 +805,30 @@ class Digitalisimo_Hosting_Provisioning {
 		$order = wc_get_order( $order_id );
 		if ( ! $order || $order->get_meta( self::META_RENEWAL ) ) return;
 		$state = self::state( $order );
-		if ( ! empty( $state['done'] ) || ! self::may_run( $order, $state ) ) return;
+		if ( ! self::may_run( $order, $state ) ) return;
+		// «Reintentar» (de cualquier servicio del pedido) deja esta marca: también limpia los intentos de los demás dominios.
+		$mark = (bool) $order->get_meta( '_digitalisimo_retry' );
+		// El plan y su dominio ya se entregaron: sólo quedan (si los hay) los demás dominios del pedido.
+		if ( ! empty( $state['done'] ) ) {
+			if ( $mark ) { $order->delete_meta_data( '_digitalisimo_retry' ); $order->save(); }
+			self::run_extras( $order, self::split_main( self::items( $order ) )[1], $mark );
+			return;
+		}
 		$sid = (int) $order->get_meta( self::META_SERVICE );
-		if ( $sid && 'cancelled' === self::svc( $sid, 'status' ) ) { self::note_once( $order, 'cancelled', 'el servicio está dado de baja: no se aprovisiona.' ); return; }
+		if ( $sid && 'cancelled' === self::svc( $sid, 'status' ) ) {
+			// El servicio del plan se dio de baja: el plan no se aprovisiona, pero los demás dominios del pedido siguen.
+			self::note_once( $order, 'cancelled', 'el servicio está dado de baja: no se aprovisiona.' );
+			if ( $mark ) { $order->delete_meta_data( '_digitalisimo_retry' ); $order->save(); }
+			self::run_extras( $order, self::split_main( self::items( $order ) )[1], $mark );
+			return;
+		}
 		$state = self::take_retry( $order, $state, self::META_STATE );
+		// El plan detenido por algo que no es la red (saldo, datos, revisión, dueño) espera «Reintentar»: una tarea que
+		// corre sólo por los demás dominios no lo vuelve a intentar (ni repite su aviso).
+		if ( ! $mark && ! empty( $state['stopped'] ) ) { self::run_extras( $order, self::split_main( self::items( $order ) )[1], false ); return; }
 		try {
-			$items  = self::items( $order );
+			list( $items, $extras, $assoc ) = self::split_main( self::items( $order ) );
+			if ( '' !== $assoc ) self::note_once( $order, 'assoc', $assoc );
 			$domain = '';
 			if ( $items['domains'] ) $domain = $items['domains'][0]['domain'];
 			elseif ( $items['transfers'] ) $domain = $items['transfers'][0]['domain'];
@@ -536,8 +839,23 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( ! $stop ) $stop = self::check_owner( $order, $state, $items, $domain, $service );
 			if ( ! $stop ) $stop = self::step_domain( $order, $state, $items, $domain, $service );
 			if ( ! $stop ) $stop = self::step_hosting( $order, $state, $items, $domain, $service );
+			// Los demás dominios del pedido, cada uno por su lado (uno que falla no detiene a los otros ni al plan), antes del
+			// correo de accesos: el correo dice cómo quedó cada uno.
+			$x = 'owner' !== ( $stop['kind'] ?? '' ) ? self::provision_extras( $order, $extras, $mark ) : array( 'retry' => 0, 'alerts' => array() );
 			if ( ! $stop ) $stop = self::step_email( $order, $state, $items, $domain, $service );
-			if ( $stop ) { self::fail( $order, $state, $stop, self::HOOK_PROVISION, $order->get_id(), $service ); return; }
+			if ( $stop ) {
+				// UNA tarea de reintento: la del plan si la red falló y le quedan intentos; si no, la de los demás dominios.
+				$main_retry = 'transient' === $stop['kind'] && (int) ( $state['attempts'] ?? 0 ) + 1 < self::MAX_ATTEMPTS;
+				if ( $x['retry'] && ! $main_retry ) self::enqueue( self::HOOK_PROVISION, $order->get_id(), $x['retry'], true );
+				// UN aviso: el del pedido en espera lleva también los dominios detenidos (si el plan no avisa, van aparte).
+				$alerting = ! $main_retry && ! in_array( $stop['kind'], array( 'blocked', 'auth', 'cancelled', 'off', 'dead' ), true );
+				if ( $alerting && $x['alerts'] ) $stop['also'] = "\n\nTambién quedaron en espera otros dominios del pedido:\n- " . implode( "\n- ", $x['alerts'] );
+				elseif ( $x['alerts'] ) self::extras_alert( $order, $x['alerts'] );
+				self::fail( $order, $state, $stop, self::HOOK_PROVISION, $order->get_id(), $service );
+				return;
+			}
+			if ( $x['retry'] ) self::enqueue( self::HOOK_PROVISION, $order->get_id(), $x['retry'], true );
+			self::extras_alert( $order, $x['alerts'] );
 			// Dado de baja mientras corría la última llamada: no se escribe el estado; se avisa lo gastado.
 			self::refresh( $service );
 			if ( $service && 'cancelled' === self::svc( $service, 'status' ) ) { self::interrupted( $order, $state, 'cancelled', $service, false ); return; }
@@ -548,10 +866,18 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( 'cancelled' === $cur || ! self::set_status_if( $service, $cur, 'active' ) ) { self::interrupted( $order, $state, 'cancelled', $service, false ); return; }
 			$state['done'] = time(); unset( $state['attempts'], $state['blocked_noted'] );
 			self::save_state( $order, $state );
-			$expires = strtotime( '+1 year', time() );
-			self::svc_set( $service, array( 'expires' => $expires, 'error' => '', 'started' => time() ) );
+			// El hosting vence según su periodo (mensual = un mes); el dominio, siempre a un año. Sin hosting, el servicio vence
+			// con el dominio.
+			$now = time();
+			$period = $items['hosting'] ? (int) $items['hosting'][0]['period'] : 12;
+			$domain_exp = (int) strtotime( '+1 year', $now );
+			$expires = $items['hosting'] ? self::add_months( $now, $period ) : $domain_exp;
+			$set = array( 'expires' => $expires, 'period' => $items['hosting'] ? $period : 12, 'error' => '', 'started' => $now );
+			if ( $items['domains'] || $items['transfers'] ) $set['domain_expires'] = $domain_exp;
+			self::svc_set( $service, $set );
 			self::svc_log( $service, 'Aprovisionado con el pedido #' . $order->get_id() . '.' );
-			if ( in_array( self::db_order_status( $order ), array( 'processing', 'on-hold' ), true ) ) $order->update_status( 'completed', 'DIGITALÍSIMO Hosting: servicio entregado; vence el ' . self::date( $expires ) . '.' );
+			// «Completado» sólo sin dominios más pendientes (N2).
+			self::maybe_complete( $order, 'servicio entregado; vence el ' . self::date( $expires ) );
 		} catch ( Throwable $e ) {
 			self::fail( $order, $state, array( 'kind' => 'api', 'message' => 'Error interno: ' . $e->getMessage() ), self::HOOK_PROVISION, $order->get_id(), (int) $order->get_meta( self::META_SERVICE ) );
 		}
@@ -604,12 +930,17 @@ class Digitalisimo_Hosting_Provisioning {
 			$reject = self::own_domain_rejected( $domain );
 			if ( $reject ) return self::stop( 'data', $reject );
 			if ( empty( Digitalisimo_Hosting::settings()['own_domain_auto'] ) && ! self::svc( $service, 'domain_approved' ) ) return self::stop( 'review', ! empty( $items['transfers'] ) ? 'Transferencia de ' . $domain . ( $items['hosting'] ? ' con hosting' : '' ) . ': por omisión se revisa a mano antes de tramitarla' . ( $items['hosting'] ? ' y de crear la cuenta' : '' ) . '. Si el dominio es del cliente, pulsa «Aprobar dominio» en WooCommerce → Servicios de hosting.' : 'Hosting con dominio propio (' . $domain . '): por omisión se revisa a mano antes de crear la cuenta. Si el dominio es del cliente, pulsa «Aprobar dominio» en WooCommerce → Servicios de hosting.' );
-			// ¿Está en nuestra cuenta de Namecheap (lo vendimos nosotros)?
-			$nc = Digitalisimo_Hosting_Namecheap::from_settings();
-			if ( $nc->configured() ) {
+			// ¿Está en alguna de nuestras cuentas de registrador (lo vendimos nosotros)? Primero el registrador de su extensión y
+			// después las demás cuentas puestas. Una respuesta que no se entiende de un registrador que NO atiende esta
+			// extensión no frena (lo anota); la del que la atiende sigue frenando (el lado seguro).
+			$assigned = Digitalisimo_Hosting_Registrars::id_for_domain( $domain );
+			$accounts = Digitalisimo_Hosting_Registrars::configured_all();
+			if ( isset( $accounts[ $assigned ] ) ) $accounts = array( $assigned => $accounts[ $assigned ] ) + $accounts;
+			foreach ( $accounts as $rid => $nc ) {
 				$info = $nc->info( $domain );
+				if ( 'ok' !== $info['kind'] && $rid !== $assigned ) { self::note_once( $order, 'owner_skip_' . $rid, 'no se pudo confirmar en ' . $nc->label() . ' si ' . $domain . ' está en esa cuenta (' . $info['message'] . '); ' . $nc->label() . ' no atiende esa extensión, así que no frena.' ); continue; }
 				if ( 'ok' !== $info['kind'] ) return self::stop( self::nc_kind( $info ), $info['message'] );
-				if ( $info['ours'] && ! $known ) return self::stop( 'owner', 'El dominio ' . $domain . ' está en nuestra cuenta de Namecheap y no consta como de este cliente: no se creó la cuenta. Revísalo a mano.' );
+				if ( $info['ours'] && ! $known ) return self::stop( 'owner', 'El dominio ' . $domain . ' está en nuestra cuenta de ' . $nc->label() . ' y no consta como de este cliente: no se creó la cuenta. Revísalo a mano.' );
 			}
 		}
 		return null;
@@ -656,15 +987,15 @@ class Digitalisimo_Hosting_Provisioning {
 	/** Lo que no se puede resolver solo: varios planes o dominios, cantidades, dominio inválido o de otra extensión. */
 	private static function check_order( $order, array $items, $domain ) {
 		$transfers = $items['transfers'] ?? array();
-		if ( count( $items['hosting'] ) > 1 || count( $items['domains'] ) + count( $transfers ) > 1 ) return self::stop( 'data', 'El pedido tiene más de un plan o más de un dominio; la venta automática atiende uno de cada uno por pedido. Entrégalo a mano.' );
+		// Varios dominios sí (cada uno con su servicio: provision_extras()); varios planes, no.
+		if ( count( $items['hosting'] ) > 1 ) return self::stop( 'data', 'El pedido tiene más de un plan de hosting; la venta automática atiende un plan por pedido. Entrégalo a mano.' );
 		foreach ( array_merge( $items['hosting'], $items['domains'], $transfers ) as $row ) if ( $row['qty'] > 1 ) return self::stop( 'data', 'El pedido tiene una cantidad mayor que 1 de «' . $row['item']->get_name() . '»; la venta automática registra un año por pedido.' );
 		if ( '' === $domain ) return self::stop( 'data', 'El pedido no trae el dominio (dato «Dominio» del producto).' );
 		if ( ! self::valid_domain( $domain ) || ! self::split( $domain ) ) return self::stop( 'data', 'El dominio «' . $domain . '» no es válido.' );
 		if ( $items['domains'] ) {
 			// El producto pagado debe ser el de la extensión del dominio: nadie registra un .io pagando el precio de un .com.
-			$split = self::split( $domain ); $map = Digitalisimo_Hosting::domain_products();
-			$expected = (int) ( $map[ $split[2] ] ?? 0 );
-			if ( ! $expected || $expected !== (int) $items['domains'][0]['product'] ) return self::stop( 'data', 'El dominio «' . $domain . '» no corresponde al producto de dominio pagado; no se registró.' );
+			$split = self::split( $domain );
+			if ( Digitalisimo_Hosting_Products::register_ext( $items['domains'][0]['id'] ) !== $split[2] ) return self::stop( 'data', 'El dominio «' . $domain . '» no corresponde al producto de dominio pagado; no se registró.' );
 		}
 		return null;
 	}
@@ -672,7 +1003,7 @@ class Digitalisimo_Hosting_Provisioning {
 	private static function step_hosting( $order, array &$state, array $items, $domain, $service ) {
 		if ( ! $items['hosting'] || 'done' === ( $state['hosting']['status'] ?? '' ) ) return null;
 		$plan = $items['hosting'][0]['plan'];
-		if ( ! preg_match( '/^[A-Za-z0-9_.-]{1,64}$/', $plan ) ) return self::stop( 'data', 'El producto «' . $items['hosting'][0]['item']->get_name() . '» no tiene el paquete de Webuzo (campo _digitalisimo_webuzo_plan).' );
+		if ( ! preg_match( '/^[A-Za-z0-9_.-]{1,64}$/', $plan ) ) return self::stop( 'data', 'El producto «' . $items['hosting'][0]['item']->get_name() . '» no tiene el paquete de Webuzo: elígelo en su editor, pestaña «DIGITALÍSIMO Hosting».' );
 		$api = Digitalisimo_Hosting_Webuzo::from_settings();
 		$list = $api->users();
 		if ( 'ok' !== $list['kind'] ) return self::stop( $list['kind'], 'Webuzo (lista de cuentas): ' . $list['message'] );
@@ -736,22 +1067,29 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! empty( $items['transfers'] ) ) {
 			// Antes de dar la transferencia por buena: producto de registro para renovarla y el mismo freno de pérdida que el
 			// registro, con el costo de transferencia de Namecheap (o el de registro si no lo da).
-			// Un reintento con otro dominio (la línea se corrigió a mano): el EPP de cualquier otro dominio se borra.
+			// Un reintento con otro dominio (la línea se corrigió a mano): se borra sólo el EPP de un dominio que ya no está en
+			// las transferencias del pedido; el de las demás transferencias del mismo pedido se conserva (segunda revisión, N3).
 			$epp = $order->get_meta( '_digitalisimo_epp' );
-			if ( is_array( $epp ) && array_diff( array_keys( $epp ), array( $domain ) ) ) {
-				$keep = array_intersect_key( $epp, array( $domain => 1 ) );
-				if ( $keep ) $order->update_meta_data( '_digitalisimo_epp', $keep ); else $order->delete_meta_data( '_digitalisimo_epp' );
-				$order->save();
+			if ( is_array( $epp ) ) {
+				$lines = array();
+				foreach ( self::items( $order )['transfers'] as $tr ) $lines[ (string) $tr['domain'] ] = 1;
+				$keep = array_intersect_key( $epp, $lines );
+				if ( count( $keep ) !== count( $epp ) ) {
+					if ( $keep ) $order->update_meta_data( '_digitalisimo_epp', $keep ); else $order->delete_meta_data( '_digitalisimo_epp' );
+					$order->save();
+				}
 			}
 			if ( empty( $state['transfer_guarded'] ) ) {
 				$split = self::split( $domain ); $map = Digitalisimo_Hosting::domain_products();
 				if ( ! $split || ! isset( $map[ $split[2] ] ) ) return self::stop( 'data', 'No hay producto de registro de ' . ( $split ? $split[2] : $domain ) . ' con el que renovar el dominio transferido: no se tramita la transferencia de ' . $domain . '. Revísalo a mano.' );
-				$nc = Digitalisimo_Hosting_Namecheap::from_settings();
-				if ( ! $nc->configured() ) return self::stop( 'config', 'Faltan los datos de la cuenta de Namecheap en Digitalisimo → Hosting.' );
+				// El registrador que recibirá el dominio: el de su extensión (queda anotado en el servicio).
+				$nc = Digitalisimo_Hosting_Registrars::make( (string) ( $state['transfer_registrar'] ?? Digitalisimo_Hosting_Registrars::id_for_ext( $split[2] ) ) );
+				if ( ! $nc->configured() ) return self::stop( 'config', 'Faltan los datos de la cuenta de ' . $nc->label() . ' en Digitalisimo → Hosting.' );
+				$state['transfer_registrar'] = $nc->id();
 				$cost = $nc->price( $split[1], 'TRANSFER' );
 				if ( 'ok' !== $cost['kind'] ) $cost = $nc->price( $split[1], 'REGISTER' );
 				if ( 'ok' !== $cost['kind'] ) return self::stop( self::nc_kind( $cost ), $cost['message'] );
-				$guard = self::price_guard( $items['transfers'][0]['item'], $cost['value'], 'transferir ' . $domain, $order );
+				$guard = self::price_guard( $items['transfers'][0]['item'], $cost['value'], 'transferir ' . $domain, $order, $nc->label() );
 				if ( $guard ) return $guard;
 				$state['transfer_guarded'] = time(); self::save_state( $order, $state );
 			}
@@ -763,10 +1101,12 @@ class Digitalisimo_Hosting_Provisioning {
 				// Namecheap lo renueva sólo cuando la transferencia terminó (transfer_settled()).
 				$split = self::split( $domain ); $map = Digitalisimo_Hosting::domain_products();
 				$reg = $split && isset( $map[ $split[2] ] ) ? (int) $map[ $split[2] ] : 0;
-				self::svc_set( $service, array( 'transfer_pending' => 1 ) + ( $reg ? array( 'domain_product' => $reg ) : array() ) );
+				$rid = Digitalisimo_Hosting_Registrars::valid( (string) ( $state['transfer_registrar'] ?? '' ) ) ? (string) $state['transfer_registrar'] : Digitalisimo_Hosting_Registrars::id_for_domain( $domain );
+				$rlabel = Digitalisimo_Hosting_Registrars::label( $rid );
+				self::svc_set( $service, array( 'transfer_pending' => 1, 'registrar' => $rid ) + ( $reg ? array( 'domain_product' => $reg ) : array() ) );
 				self::svc_log( $service, 'Transferencia de ' . $domain . ' por hacer a mano.' );
-				$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' por hacer a mano en Namecheap con el código EPP del cliente (botón «Ver código EPP» en este pedido; nunca lo copies en notas ni correos). Al terminar, apúntalo a ' . implode( ' y ', self::nameservers() ) . '.' );
-				self::alert_admin( 'Transferencia de dominio por hacer: ' . $domain, 'El pedido #' . $order->get_id() . ' pagó la transferencia de ' . $domain . '. Hazla en Namecheap con el código EPP («Ver código EPP» en el pedido): ' . self::order_link( $order ) );
+				$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' por hacer a mano en ' . $rlabel . ' con el código EPP del cliente (botón «Ver código EPP» en este pedido; nunca lo copies en notas ni correos). Al terminar, apúntalo a ' . implode( ' y ', self::nameservers() ) . '.' );
+				self::alert_admin( 'Transferencia de dominio por hacer: ' . $domain, 'El pedido #' . $order->get_id() . ' pagó la transferencia de ' . $domain . '. Hazla en ' . $rlabel . ' con el código EPP («Ver código EPP» en el pedido): ' . self::order_link( $order ) );
 			}
 			return null;
 		}
@@ -778,8 +1118,13 @@ class Digitalisimo_Hosting_Provisioning {
 			return null;
 		}
 		if ( 'done' === ( $state['domain']['status'] ?? '' ) ) return null;
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
-		if ( ! $nc->configured() ) return self::stop( 'config', 'Faltan los datos de la cuenta de Namecheap en Digitalisimo → Hosting.' );
+		// El registrador del dominio: el que anotó un intento anterior de este pedido (aunque los ajustes cambien después; un
+		// intento de antes de esta versión era de Namecheap) o el de su extensión.
+		$rid = (string) ( $state['domain']['registrar'] ?? '' );
+		if ( ! Digitalisimo_Hosting_Registrars::valid( $rid ) ) $rid = ! empty( $state['domain']['create_sent'] ) || ! empty( $state['domain']['registered'] ) ? Digitalisimo_Hosting_Registrars::DEFAULT_ID : Digitalisimo_Hosting_Registrars::id_for_domain( $domain );
+		$nc = Digitalisimo_Hosting_Registrars::make( $rid );
+		$rl = $nc->label();
+		if ( ! $nc->configured() ) return self::stop( 'config', 'Faltan los datos de la cuenta de ' . $rl . ' en Digitalisimo → Hosting.' );
 		list( $sld, $tld ) = self::split( $domain );
 		if ( empty( $state['domain']['registered'] ) ) {
 			$info = $nc->info( $domain );
@@ -787,37 +1132,37 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( $info['ours'] && empty( $state['domain']['create_sent'] ) ) {
 				// Ya estaba en la cuenta y este pedido nunca pidió registrarlo: es de otro cliente (o de la casa). Adoptarlo
 				// cambiaría sus nameservers y le daría su web y su correo al comprador.
-				return self::stop( 'data', 'El dominio ' . $domain . ' ya está en la cuenta de Namecheap y no lo registró este pedido: no se tocó (ni sus nameservers). Revísalo a mano.' );
+				return self::stop( 'data', 'El dominio ' . $domain . ' ya está en la cuenta de ' . $rl . ' y no lo registró este pedido: no se tocó (ni sus nameservers). Revísalo a mano.' );
 			}
 			// Sólo se adopta si Namecheap lo da por creado después del primer intento de este pedido (mismo día o después).
 			// (Namecheap da la fecha en hora del Este de EE. UU.: se admite el día anterior en UTC.)
 			if ( $info['ours'] && (int) ( $info['created'] ?? 0 ) < (int) gmmktime( 0, 0, 0, (int) gmdate( 'n', (int) $state['domain']['create_sent'] ), (int) gmdate( 'j', (int) $state['domain']['create_sent'] ), (int) gmdate( 'Y', (int) $state['domain']['create_sent'] ) ) - DAY_IN_SECONDS ) {
-				return self::stop( 'data', 'El dominio ' . $domain . ' está en la cuenta de Namecheap pero se creó antes del intento de este pedido: no se adoptó ni se tocaron sus nameservers. Revísalo a mano.' );
+				return self::stop( 'data', 'El dominio ' . $domain . ' está en la cuenta de ' . $rl . ' pero se creó antes del intento de este pedido: no se adoptó ni se tocaron sus nameservers. Revísalo a mano.' );
 			}
 			if ( $info['ours'] ) {
-				$state['domain'] = array( 'registered' => time(), 'existed' => 1, 'create_sent' => $state['domain']['create_sent'] );
+				$state['domain'] = array( 'registered' => time(), 'existed' => 1, 'create_sent' => $state['domain']['create_sent'], 'registrar' => $rid );
 				self::save_state( $order, $state );
-				$order->add_order_note( 'DIGITALÍSIMO Hosting: el dominio ' . $domain . ' ya estaba en la cuenta de Namecheap; no se registró otra vez.' );
+				$order->add_order_note( 'DIGITALÍSIMO Hosting: el dominio ' . $domain . ' ya estaba en la cuenta de ' . $rl . '; no se registró otra vez.' );
 			} else {
 				list( $contact, $missing ) = self::contact( $order );
 				if ( $missing ) return self::stop( 'data', 'Faltan datos del titular del dominio en la facturación del pedido (' . implode( ', ', $missing ) . '). Complétalos en el pedido y reintenta.' );
 				$price = $nc->price( $tld, 'REGISTER' );
 				if ( 'ok' !== $price['kind'] ) return self::stop( self::nc_kind( $price ), $price['message'] );
-				$guard = self::price_guard( $items['domains'][0]['item'], $price['value'], 'registrar ' . $domain, $order );
+				$guard = self::price_guard( $items['domains'][0]['item'], $price['value'], 'registrar ' . $domain, $order, $rl );
 				if ( $guard ) return $guard;
 				// Disponible y no premium (un premium cuesta otra cosa y exige IsPremiumDomain: no se registra a ciegas).
 				$check = $nc->check( $domain );
 				if ( 'ok' !== $check['kind'] ) return self::stop( self::nc_kind( $check ), $check['message'] );
-				if ( ! $check['available'] ) return self::stop( 'data', 'El dominio ' . $domain . ' ya no está disponible en Namecheap: no se registró.' );
-				if ( $check['premium'] ) return self::stop( 'price', 'El dominio ' . $domain . ' es premium en Namecheap (precio especial): no se registra solo. Revísalo a mano.' );
+				if ( ! $check['available'] ) return self::stop( 'data', 'El dominio ' . $domain . ' ya no está disponible en ' . $rl . ': no se registró.' );
+				if ( $check['premium'] ) return self::stop( 'price', 'El dominio ' . $domain . ' es premium en ' . $rl . ' (precio especial): no se registra solo. Revísalo a mano.' );
 				$balance = $nc->balance();
 				if ( 'ok' !== $balance['kind'] ) return self::stop( self::nc_kind( $balance ), $balance['message'] );
-				if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en Namecheap para registrar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );
+				if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en ' . $rl . ' para registrar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );
 				// Justo antes de cobrar: ¿sigue vivo el servicio y encendida la venta? (otra petición pudo cambiarlo)
 				$halt = self::may_spend( $service, $order );
 				if ( $halt ) return $halt;
 				// Antes de pedirlo: si la respuesta se pierde, el reintento sabrá que este pedido lo registró.
-				$state['domain'] = array( 'create_sent' => time() );
+				$state['domain'] = array( 'create_sent' => time(), 'registrar' => $rid );
 				self::save_state( $order, $state );
 				$r = $nc->create( $domain, $contact, 1 );
 				if ( 'ok' !== $r['kind'] ) {
@@ -826,9 +1171,14 @@ class Digitalisimo_Hosting_Provisioning {
 					if ( 'transient' !== $r['kind'] ) { unset( $state['domain']['create_sent'] ); self::save_state( $order, $state ); }
 					return self::stop( self::nc_kind( $r ), $r['message'] );
 				}
-				$state['domain'] = array( 'registered' => time(), 'id' => $r['domain_id'], 'create_sent' => $state['domain']['create_sent'] );
+				$state['domain'] = array( 'registered' => time(), 'id' => $r['domain_id'], 'create_sent' => $state['domain']['create_sent'], 'registrar' => $rid );
 				self::save_state( $order, $state );
-				$order->add_order_note( 'DIGITALÍSIMO Hosting: dominio ' . $domain . ' registrado en Namecheap a nombre de ' . trim( $contact['FirstName'] . ' ' . $contact['LastName'] ) . ' (ID ' . $r['domain_id'] . ', cargo ' . $r['charged'] . ' USD).' );
+				self::svc_set( $service, array( 'registrar' => $rid ) );
+				// Dynadot no informa ID ni cargo: se dice lo que el registrador dio.
+				$detail = array();
+				if ( '' !== (string) $r['domain_id'] ) $detail[] = 'ID ' . $r['domain_id'];
+				if ( '' !== (string) $r['charged'] ) $detail[] = 'cargo ' . $r['charged'] . ' USD';
+				$order->add_order_note( 'DIGITALÍSIMO Hosting: dominio ' . $domain . ' registrado en ' . $rl . ' a nombre de ' . trim( $contact['FirstName'] . ' ' . $contact['LastName'] ) . ( $detail ? ' (' . implode( ', ', $detail ) . ')' : '' ) . '.' );
 			}
 		}
 		$ns = self::nameservers();
@@ -836,20 +1186,21 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( 'ok' !== $r['kind'] ) return self::stop( self::nc_kind( $r ), $r['message'] );
 		$state['domain']['status'] = 'done'; $state['domain']['dns'] = $ns;
 		self::save_state( $order, $state );
-		self::svc_set( $service, array( 'domain_registered' => 1 ) );
+		// El servicio recuerda su registrador: la renovación y las revisiones van siempre a esa cuenta.
+		self::svc_set( $service, array( 'domain_registered' => 1, 'registrar' => $rid ) );
 		$order->add_order_note( 'DIGITALÍSIMO Hosting: ' . $domain . ' apunta a ' . implode( ' y ', $ns ) . '.' );
 		return null;
 	}
 
 	/** Lo cobrado por el dominio (sin IVA, tras descuentos) contra su costo real de hoy (Digitalisimo_Hosting_Pricing::guard). */
-	private static function price_guard( $item, $cost_usd, $label, $order = null ) {
+	private static function price_guard( $item, $cost_usd, $label, $order = null, $registrar = 'Namecheap' ) {
 		if ( ! class_exists( 'Digitalisimo_Hosting_Pricing' ) ) return null;
 		$charged = method_exists( $item, 'get_total' ) ? (float) $item->get_total() : 0.0;
 		$currency = $order && is_callable( array( $order, 'get_currency' ) ) ? (string) $order->get_currency() : null;
-		return Digitalisimo_Hosting_Pricing::guard( $charged, $cost_usd, $label, $currency );
+		return Digitalisimo_Hosting_Pricing::guard( $charged, $cost_usd, $label, $currency, $registrar );
 	}
 
-	/** Un error de clave de Namecheap no detiene Webuzo: se trata como configuración (sin reintentar). */
+	/** Un error de clave del registrador (Namecheap o Dynadot) no detiene Webuzo: se trata como configuración (sin reintentar). */
 	private static function nc_kind( array $r ) { return 'auth' === $r['kind'] ? 'config' : $r['kind']; }
 
 	private static function step_email( $order, array &$state, array $items, $domain, $service ) {
@@ -876,7 +1227,24 @@ class Digitalisimo_Hosting_Provisioning {
 			'password'    => $items['hosting'] ? self::hosting_password( $order, $state ) : '',
 			'panel_url'   => $items['hosting'] ? $api->panel_url() : '',
 			'nameservers' => self::nameservers(),
+			'extras'      => self::extras_summary( $order ),
 		);
+	}
+
+	/**
+	 * Cómo quedó cada uno de los demás dominios del pedido, para el correo de accesos: dominio => texto para el cliente
+	 * (registrado, transferencia en trámite o en revisión). Nunca el motivo interno (saldo, errores de la API).
+	 */
+	public static function extras_summary( $order ) {
+		$out = array();
+		foreach ( self::extras_state( $order ) as $domain => $x ) {
+			$sid = (int) $x['service'];
+			if ( $sid && 'cancelled' === self::svc( $sid, 'status' ) ) continue;
+			if ( empty( $x['state']['done'] ) ) $out[ $domain ] = 'en trámite: lo estamos revisando y te avisamos por correo si necesitamos algo';
+			elseif ( 'transfer' === $x['row']['kind'] ) $out[ $domain ] = 'transferencia en trámite (puede tardar hasta 7 días); al llegar lo apuntamos a nuestros nameservers';
+			else $out[ $domain ] = 'registrado y apuntado a nuestros nameservers';
+		}
+		return $out;
 	}
 
 	/** Envía el correo «Accesos de hosting»: sent, disabled o failed. */
@@ -946,7 +1314,7 @@ class Digitalisimo_Hosting_Provisioning {
 		$note = 'DIGITALÍSIMO Hosting: ' . $message;
 		if ( 'on-hold' !== $order->get_status() ) $order->update_status( 'on-hold', $note );
 		else $order->add_order_note( $note );
-		if ( 'blocked' !== $kind && 'auth' !== $kind ) self::alert_admin( 'pedido #' . $order->get_id() . ' en espera', $message . "\n\nPedido: " . self::order_link( $order ) . "\nServicios: " . admin_url( 'admin.php?page=digitalisimo-hosting-services' ) );
+		if ( 'blocked' !== $kind && 'auth' !== $kind ) self::alert_admin( 'pedido #' . $order->get_id() . ' en espera', $message . (string) ( $stop['also'] ?? '' ) . "\n\nPedido: " . self::order_link( $order ) . "\nServicios: " . admin_url( 'admin.php?page=digitalisimo-hosting-services' ) );
 	}
 
 	private static function wait( $hook, $id ) {
@@ -1010,7 +1378,8 @@ class Digitalisimo_Hosting_Provisioning {
 		$grace = (int) ( Digitalisimo_Hosting::settings()['grace_days'] ?? 7 );
 		foreach ( self::services() as $id ) {
 			try {
-				self::watchdog( $id ); self::renewal_watchdog( $id ); self::reconcile_net( $id ); self::check_service( $id, $now, $grace );
+				self::fill_domain_expires( $id );
+				self::watchdog( $id ); self::extra_watchdog( $id ); self::renewal_watchdog( $id ); self::reconcile_net( $id ); self::check_service( $id, $now, $grace );
 				// Lo anotado con la venta apagada se retoma aunque se haya encendido sin pasar por los ajustes.
 				if ( self::svc( $id, 'resume_provision' ) ) { self::svc_set( $id, array( 'resume_provision' => 0 ) ); self::retry( $id ); }
 			} catch ( Throwable $e ) { self::svc_log( $id, 'Error en la revisión diaria: ' . $e->getMessage() ); }
@@ -1037,9 +1406,34 @@ class Digitalisimo_Hosting_Provisioning {
 		self::enqueue( self::HOOK_PROVISION, $order_id );
 	}
 
+	/**
+	 * Un dominio más de un pedido (N2) que quedó a medias sin tarea en cola (se perdió, o PHP la cortó) y que no está
+	 * detenido: se vuelve a encolar (una vez al día como mucho; cada paso consulta antes de registrar, no duplica) y se
+	 * avisa. Lo detenido (saldo, datos, revisión, reintentos agotados) espera «Reintentar» o «Aprobar dominio».
+	 */
+	private static function extra_watchdog( $id ) {
+		if ( ! self::is_extra( $id ) || ! in_array( (string) self::svc( $id, 'status' ), array( 'pending', 'on-hold' ), true ) ) return;
+		if ( time() - (int) self::svc( $id, 'created' ) < HOUR_IN_SECONDS ) return;
+		$order_id = (int) self::svc( $id, 'order' );
+		if ( function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( self::HOOK_PROVISION, array( $order_id ), self::GROUP ) ) return;
+		$order = wc_get_order( $order_id );
+		if ( ! $order || empty( self::state( $order )['paid'] ) || in_array( $order->get_status(), self::DEAD, true ) ) return;
+		foreach ( self::extras_state( $order, true ) as $domain => $x ) {
+			if ( (int) $x['service'] !== (int) $id ) continue;
+			$st = $x['state'];
+			if ( ! empty( $st['stopped'] ) || ( ! empty( $st['watchdog'] ) && time() - (int) $st['watchdog'] < DAY_IN_SECONDS ) ) return;
+			$st['watchdog'] = time();
+			$order->update_meta_data( self::extra_key( $x['row'] ), $st ); $order->save();
+			$order->add_order_note( 'DIGITALÍSIMO Hosting: el dominio ' . $domain . ' quedó a medias sin tarea en cola; se retoma (no duplica: cada paso consulta antes de registrar).' );
+			self::alert_admin( 'dominio ' . $domain . ' retomado', 'El dominio ' . $domain . ' del pedido #' . $order_id . ' quedó a medias sin tarea en cola (se perdió o se cortó). Se volvió a encolar.' . "\n\n" . self::order_link( $order ) );
+			self::enqueue( self::HOOK_PROVISION, $order_id );
+			return;
+		}
+	}
+
 	/** La renovación pagada (cobro confirmado) y no terminada del servicio, o null. */
 	public static function renewal_pending( $id ) {
-		foreach ( array_unique( array_filter( array( (int) self::svc( $id, 'renewal_order' ), (int) self::svc( $id, 'domain_pending_order' ) ) ) ) as $rid ) {
+		foreach ( array_unique( array_filter( array( (int) self::svc( $id, 'renewal_order' ), (int) self::svc( $id, 'domain_renewal_order' ), (int) self::svc( $id, 'domain_pending_order' ) ) ) ) as $rid ) {
 			$r = wc_get_order( $rid );
 			if ( ! $r || in_array( $r->get_status(), array( 'cancelled', 'refunded', 'failed', 'trash' ), true ) ) continue;
 			$s = (array) $r->get_meta( self::META_RENEW );
@@ -1111,13 +1505,15 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! self::is_service( $id ) ) return false;
 		foreach ( array( self::HOOK_SUSPEND, self::HOOK_UNSUSPEND, self::HOOK_VERIFY, self::HOOK_RECONCILE ) as $hook ) if ( function_exists( 'as_unschedule_all_actions' ) ) as_unschedule_all_actions( $hook, array( (int) $id ), self::GROUP );
 		// Lo que ya estaba en marcha también se descarta: el alta (si no se entregó) y la renovación en cola o en espera.
-		foreach ( array( self::HOOK_PROVISION => (int) self::svc( $id, 'order' ), self::HOOK_RENEW => (int) self::svc( $id, 'renewal_order' ) ) as $hook => $oid ) if ( $oid && function_exists( 'as_unschedule_all_actions' ) ) as_unschedule_all_actions( $hook, array( $oid ), self::GROUP );
+		// El servicio de un dominio más del pedido no desencola el alta del pedido (es la de los demás dominios y del plan).
+		foreach ( array( array( self::HOOK_PROVISION, self::is_extra( $id ) ? 0 : (int) self::svc( $id, 'order' ) ), array( self::HOOK_RENEW, (int) self::svc( $id, 'renewal_order' ) ), array( self::HOOK_RENEW, (int) self::svc( $id, 'domain_renewal_order' ) ) ) as $ho ) if ( $ho[1] && function_exists( 'as_unschedule_all_actions' ) ) as_unschedule_all_actions( $ho[0], array( $ho[1] ), self::GROUP );
 		$w = get_option( self::WAITING, array() );
-		if ( is_array( $w ) ) { foreach ( array( self::HOOK_SUSPEND, self::HOOK_UNSUSPEND, self::HOOK_VERIFY, self::HOOK_RECONCILE ) as $hook ) unset( $w[ $hook . ':' . (int) $id ] ); unset( $w[ self::HOOK_PROVISION . ':' . (int) self::svc( $id, 'order' ) ], $w[ self::HOOK_RENEW . ':' . (int) self::svc( $id, 'renewal_order' ) ] ); update_option( self::WAITING, $w, false ); }
+		if ( is_array( $w ) ) { foreach ( array( self::HOOK_SUSPEND, self::HOOK_UNSUSPEND, self::HOOK_VERIFY, self::HOOK_RECONCILE ) as $hook ) unset( $w[ $hook . ':' . (int) $id ] ); unset( $w[ self::HOOK_PROVISION . ':' . ( self::is_extra( $id ) ? 0 : (int) self::svc( $id, 'order' ) ) ], $w[ self::HOOK_RENEW . ':' . (int) self::svc( $id, 'renewal_order' ) ], $w[ self::HOOK_RENEW . ':' . (int) self::svc( $id, 'domain_renewal_order' ) ] ); update_option( self::WAITING, $w, false ); }
 		self::svc_set( $id, array( 'status' => 'cancelled', 'pending_toggle' => array(), 'suspend_reason' => '', 'suspend_for' => 0, 'error' => '', 'cancelled_at' => time() ) );
 		self::svc_log( $id, 'Dado de baja: sin renovaciones ni suspensiones automáticas.' );
-		$r = wc_get_order( (int) self::svc( $id, 'renewal_order' ) );
-		if ( $r ) $r->add_order_note( 'DIGITALÍSIMO Hosting: el servicio se dio de baja; esta renovación ya no aplica.' );
+		// Un dominio más del pedido dado de baja ya no detiene el pedido: se revisa si queda algo pendiente para completarlo.
+		if ( self::is_extra( $id ) && self::on() ) { $o = wc_get_order( (int) self::svc( $id, 'order' ) ); if ( $o ) self::maybe_complete( $o ); }
+		foreach ( array( 'renewal_order', 'domain_renewal_order' ) as $slot ) { $r = wc_get_order( (int) self::svc( $id, $slot ) ); if ( $r ) $r->add_order_note( 'DIGITALÍSIMO Hosting: el servicio se dio de baja; esta renovación ya no aplica.' ); }
 		return true;
 	}
 
@@ -1134,11 +1530,25 @@ class Digitalisimo_Hosting_Provisioning {
 		}
 		$expires = (int) self::svc( $id, 'expires' );
 		if ( ! $expires ) return;
-		$days = (int) floor( ( $expires - $now ) / DAY_IN_SECONDS );
-		if ( $days > 30 ) return;
+		$hosting = self::has_hosting( $id );
+		$period = $hosting ? self::service_period( $id ) : 12;
+		list( $first, $second ) = self::notice_days( $period );
+		// El dominio va por su lado cuando vence en otra fecha que el hosting (hosting mensual, trianual…) o cuando ya tiene
+		// su propio pedido vivo (aunque las fechas hayan llegado a coincidir: el cliente pagó tarde un mes).
+		$dd = self::domain_due( $id );
+		$coincide = $dd && abs( $dd - $expires ) < 2 * DAY_IN_SECONDS;
+		$apart = $hosting && $dd && ! self::svc( $id, 'transfer_pending' ) && ( ! $coincide || self::live_order( (int) self::svc( $id, 'domain_renewal_order' ) ) );
+		$host_soon = $expires - $now <= $first * DAY_IN_SECONDS;
+		$dom_soon = $apart && $dd - $now <= 30 * DAY_IN_SECONDS;
+		if ( ! $host_soon && ! $dom_soon ) return;
 		// Recontratado el mismo dominio con una cuenta nueva: el servicio viejo no avisa, no cobra ni suspende.
 		if ( ! self::owns_account( $id ) ) { self::superseded( $id ); return; }
-		$renewal = self::renewal_order( $id );
+		// Primero el pedido del hosting: si el dominio vence el mismo día y su pedido propio sigue sin pagar, lo absorbe (se
+		// cancela y los dos se cobran juntos; segunda revisión, N4). Después, el dominio que sigue aparte.
+		$renewal = $host_soon ? self::renewal_order( $id ) : null;
+		if ( $dom_soon && ( ! $coincide || self::live_order( (int) self::svc( $id, 'domain_renewal_order' ) ) ) ) self::check_domain( $id, $now, $grace, $dd );
+		if ( ! $host_soon ) return;
+		$days = (int) floor( ( $expires - $now ) / DAY_IN_SECONDS );
 		if ( ! $renewal ) return;
 		// Pagada con cobro confirmado (aunque la renovación esté a medias, p. ej. sin saldo en Namecheap): ni avisos ni
 		// suspensión. En «procesando» SIN cobro confirmado (contra entrega) no frena nada y se avisa al administrador.
@@ -1148,52 +1558,81 @@ class Digitalisimo_Hosting_Provisioning {
 		}
 		$sent = self::svc( $id, 'notices' ); $sent = is_array( $sent ) && (int) ( $sent['cycle'] ?? 0 ) === $expires ? $sent : array( 'cycle' => $expires, 'sent' => array() );
 		$type = '';
-		if ( $days > 7 && ! in_array( '30', $sent['sent'], true ) ) $type = '30';
-		elseif ( $days <= 7 && $days >= 0 && ! in_array( '7', $sent['sent'], true ) ) $type = '7';
+		if ( $days > $second && ! in_array( (string) $first, $sent['sent'], true ) ) $type = (string) $first;
+		elseif ( $days <= $second && $days >= 0 && ! in_array( (string) $second, $sent['sent'], true ) ) $type = (string) $second;
 		if ( $type ) {
 			$sent['sent'][] = $type; self::svc_set( $id, array( 'notices' => $sent ) );
 			$ok = self::send_renewal( $renewal, $id, $type );
 			$renewal->add_order_note( 'DIGITALÍSIMO Hosting: aviso de vencimiento (' . $type . ' días) ' . ( $ok ? 'enviado' : 'no enviado (correo desactivado o falló)' ) . ' a ' . self::svc( $id, 'email' ) . '.' );
 		}
+		// El dominio va en este pedido (vence el mismo día) y no se pagó: al pasar la gracia se avisa al dueño, como cuando
+		// tiene su propio pedido (el aviso del dominio no se pierde al cobrarlo junto con el hosting; N4).
+		if ( $hosting && $coincide && $now > $dd + $grace * DAY_IN_SECONDS && (int) self::svc( $id, 'domain_lapsed' ) !== $dd && ! empty( self::order_parts( $renewal, $id )['domain'] ) ) {
+			self::svc_set( $id, array( 'domain_lapsed' => $dd ) );
+			self::svc_log( $id, 'El dominio ' . self::svc( $id, 'domain' ) . ' venció el ' . self::date( $dd ) . ' sin pagar su renovación (va con el hosting en el pedido #' . $renewal->get_id() . ').' );
+			self::alert_admin( 'dominio sin renovar: ' . self::svc( $id, 'domain' ), 'El dominio ' . self::svc( $id, 'domain' ) . ' venció el ' . self::date( $dd ) . ' y su renovación (junto con el hosting, pedido #' . $renewal->get_id() . ') no se pagó.' . "\n\n" . self::order_link( $renewal ) );
+		}
 		// Reactivado a mano por el administrador: se respeta su prórroga (visible en Servicios de hosting).
 		if ( (int) self::svc( $id, 'reprieve_until' ) > $now ) return;
-		if ( 'active' === $status && $now > $expires + $grace * DAY_IN_SECONDS ) {
+		if ( 'active' === $status && $now > $expires + ( $hosting ? self::grace_for( $period, $grace ) : $grace ) * DAY_IN_SECONDS ) {
 			if ( self::svc( $id, 'webuzo_user' ) ) { self::svc_set( $id, array( 'suspend_reason' => 'auto', 'suspend_for' => $expires ) ); self::enqueue( self::HOOK_SUSPEND, $id ); }
 			else { self::svc_set( $id, array( 'status' => 'expired' ) ); self::svc_log( $id, 'Vencido sin pago (dominio sin hosting).' ); }
 		}
 	}
 
-	private static function send_renewal( $order, $id, $type ) {
-		$email = self::email( 'Digitalisimo_Hosting_Email_Renewal' );
-		if ( ! $email || ! $email->is_enabled() ) return false;
-		return (bool) $email->trigger( $order, array( 'type' => $type, 'domain' => (string) self::svc( $id, 'domain' ), 'expires' => (int) self::svc( $id, 'expires' ), 'pay_url' => $order->needs_payment() ? $order->get_checkout_payment_url() : '', 'grace' => (int) ( Digitalisimo_Hosting::settings()['grace_days'] ?? 7 ) ) );
+	/**
+	 * El dominio de un servicio con hosting que vence en otra fecha (siempre anual): su pedido de renovación, sus avisos a
+	 * 30 y 7 días y, si no se paga, el aviso al administrador (el hosting pagado no se suspende por el dominio).
+	 */
+	private static function check_domain( $id, $now, $grace, $due ) {
+		$r = self::domain_renewal_order( $id );
+		if ( ! $r || self::renewal_confirmed( $r ) ) return;
+		$days = (int) floor( ( $due - $now ) / DAY_IN_SECONDS );
+		$sent = self::svc( $id, 'domain_notices' ); $sent = is_array( $sent ) && (int) ( $sent['cycle'] ?? 0 ) === $due ? $sent : array( 'cycle' => $due, 'sent' => array() );
+		$type = '';
+		if ( $days > 7 && ! in_array( '30', $sent['sent'], true ) ) $type = '30';
+		elseif ( $days <= 7 && $days >= 0 && ! in_array( '7', $sent['sent'], true ) ) $type = '7';
+		if ( $type ) {
+			$sent['sent'][] = $type; self::svc_set( $id, array( 'domain_notices' => $sent ) );
+			$ok = self::send_renewal( $r, $id, $type, 'domain', $due );
+			$r->add_order_note( 'DIGITALÍSIMO Hosting: aviso de vencimiento del dominio (' . $type . ' días) ' . ( $ok ? 'enviado' : 'no enviado (correo desactivado o falló)' ) . ' a ' . self::svc( $id, 'email' ) . '.' );
+		}
+		if ( $now > $due + $grace * DAY_IN_SECONDS && (int) self::svc( $id, 'domain_lapsed' ) !== $due ) {
+			self::svc_set( $id, array( 'domain_lapsed' => $due ) );
+			self::svc_log( $id, 'El dominio ' . self::svc( $id, 'domain' ) . ' venció el ' . self::date( $due ) . ' sin pagar su renovación.' );
+			self::alert_admin( 'dominio sin renovar: ' . self::svc( $id, 'domain' ), 'El dominio ' . self::svc( $id, 'domain' ) . ' venció el ' . self::date( $due ) . ' y su renovación #' . $r->get_id() . ' no se pagó. El hosting sigue activo mientras esté pagado.' . "\n\n" . self::order_link( $r ) );
+		}
 	}
 
-	/** El pedido de renovación pendiente del servicio (lo crea con los productos y precios vigentes). */
-	public static function renewal_order( $id ) {
-		$existing = (int) self::svc( $id, 'renewal_order' );
-		if ( $existing ) {
-			$o = wc_get_order( $existing );
-			if ( $o && ! in_array( $o->get_status(), array( 'cancelled', 'failed', 'refunded', 'trash' ), true ) ) return $o;
-		}
-		$products = array();
-		foreach ( array( 'hosting_product', 'domain_product' ) as $key ) {
-			$pid = (int) self::svc( $id, $key );
-			if ( ! $pid ) continue;
-			// Una transferencia que nunca llegó a la cuenta: no se cobra la renovación de un dominio que no podemos renovar.
-			if ( 'domain_product' === $key && self::svc( $id, 'transfer_pending' ) ) {
-				if ( (int) self::svc( $id, 'transfer_renew_alert' ) !== (int) self::svc( $id, 'expires' ) ) {
-					self::svc_set( $id, array( 'transfer_renew_alert' => (int) self::svc( $id, 'expires' ) ) );
-					self::svc_log( $id, 'Renovación sin el dominio: la transferencia de ' . self::svc( $id, 'domain' ) . ' no ha terminado.' );
-					self::alert_admin( 'transferencia sin terminar al renovar', 'El servicio ' . self::svc( $id, 'domain' ) . ' vence pronto y la transferencia de su dominio no ha llegado a la cuenta de Namecheap: la renovación no cobra el dominio. Termina la transferencia o renuévalo a mano.' );
-				}
-				continue;
-			}
-			$product = wc_get_product( $pid );
-			if ( ! $product ) { self::svc_log( $id, 'No se creó el pedido de renovación: el producto #' . $pid . ' ya no existe.' ); self::alert_admin( 'renovación sin producto', 'El servicio ' . self::svc( $id, 'domain' ) . ' vence pronto y su producto #' . $pid . ' ya no existe: crea su pedido de renovación a mano.' ); return null; }
-			$products[ $key ] = $product;
-		}
-		if ( ! $products ) return null;
+	/** $what: hosting (el plan, con su periodo) o domain (el dominio, un año). */
+	private static function send_renewal( $order, $id, $type, $what = 'hosting', $expires = 0 ) {
+		$email = self::email( 'Digitalisimo_Hosting_Email_Renewal' );
+		if ( ! $email || ! $email->is_enabled() ) return false;
+		$hosting = 'domain' !== $what && self::has_hosting( $id );
+		$grace = (int) ( Digitalisimo_Hosting::settings()['grace_days'] ?? 7 );
+		return (bool) $email->trigger( $order, array( 'type' => $type, 'what' => $hosting ? 'hosting' : 'domain', 'with_domain' => $hosting && ! empty( self::order_parts( $order, $id )['domain'] ), 'period' => $hosting ? Digitalisimo_Hosting_Products::period_label( self::service_period( $id ) ) : '', 'domain' => (string) self::svc( $id, 'domain' ), 'expires' => $expires ? (int) $expires : (int) self::svc( $id, 'expires' ), 'pay_url' => $order->needs_payment() ? $order->get_checkout_payment_url() : '', 'grace' => $hosting ? self::grace_for( self::service_period( $id ), $grace ) : ( 'domain' === $what ? 0 : $grace ) ) );
+	}
+
+	/** ¿El pedido trae la línea del producto (o variación) $pid? */
+	private static function order_has( $order, $pid ) {
+		foreach ( $order->get_items() as $row ) if ( (int) $pid && ( Digitalisimo_Hosting_Products::item_id( $row ) === (int) $pid || (int) $row->get_product_id() === (int) $pid ) ) return true;
+		return false;
+	}
+
+	/**
+	 * Qué renueva el pedido: lo anotado al crearlo o, en un pedido de antes de esta versión, el hosting (con el periodo de
+	 * la variación que trae, nunca un año fijo) y el dominio si trae su línea.
+	 */
+	public static function order_parts( $order, $id ) {
+		$p = $order->get_meta( self::META_PARTS );
+		if ( is_array( $p ) && isset( $p['hosting'] ) ) return array( 'hosting' => ! empty( $p['hosting'] ), 'domain' => ! empty( $p['domain'] ), 'period' => Digitalisimo_Hosting_Products::period_months( $p['period'] ?? 12 ) ? (int) $p['period'] : 12 );
+		$period = 12;
+		foreach ( $order->get_items() as $row ) { $iid = Digitalisimo_Hosting_Products::item_id( $row ); if ( 'hosting' === Digitalisimo_Hosting_Products::kind( $iid ) ) { $period = Digitalisimo_Hosting_Products::period( $iid ); break; } }
+		return array( 'hosting' => self::has_hosting( $id ), 'domain' => self::order_has( $order, (int) self::svc( $id, 'domain_product' ) ), 'period' => $period );
+	}
+
+	/** Un pedido de renovación con los productos y precios vigentes (la variación del mismo periodo, con su precio). */
+	private static function new_renewal( $id, array $products, array $parts, $label ) {
 		$orig  = wc_get_order( (int) self::svc( $id, 'order' ) );
 		$order = wc_create_order( array( 'customer_id' => (int) self::svc( $id, 'customer' ), 'created_via' => 'digitalisimo-hosting' ) );
 		if ( is_wp_error( $order ) || ! $order ) return null;
@@ -1205,12 +1644,163 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( $orig ) foreach ( (array) $orig->get_address( 'billing' ) as $key => $value ) { if ( is_callable( array( $order, 'set_billing_' . $key ) ) ) $order->{'set_billing_' . $key}( $value ); }
 		else $order->set_billing_email( (string) self::svc( $id, 'email' ) );
 		$order->update_meta_data( self::META_RENEWAL, $id );
+		$order->update_meta_data( self::META_PARTS, $parts );
+		// El vencimiento del dominio que paga este pedido: si otro pedido ya lo renovó, éste no lo renueva otra vez.
+		$order->update_meta_data( self::META_DOMAIN_FOR, self::domain_due( $id ) );
 		$order->calculate_totals();
 		$order->save();
-		$order->add_order_note( 'DIGITALÍSIMO Hosting: renovación anual de ' . self::svc( $id, 'domain' ) . ' (vence el ' . self::date( (int) self::svc( $id, 'expires' ) ) . ').' );
+		$order->add_order_note( 'DIGITALÍSIMO Hosting: renovación de ' . self::svc( $id, 'domain' ) . ': ' . $label . '.' );
+		return $order;
+	}
+
+	/** El producto del servicio, o null con el aviso (ya no existe). */
+	private static function renewal_product( $id, $pid ) {
+		$product = wc_get_product( (int) $pid );
+		if ( ! $product ) { self::svc_log( $id, 'No se creó el pedido de renovación: el producto #' . (int) $pid . ' ya no existe.' ); self::alert_admin( 'renovación sin producto', 'El servicio ' . self::svc( $id, 'domain' ) . ' vence pronto y su producto #' . (int) $pid . ' ya no existe: crea su pedido de renovación a mano.' ); }
+		return $product ? $product : null;
+	}
+
+	/**
+	 * El pedido de renovación pendiente del hosting del servicio (lo crea con los productos y precios vigentes): el plan
+	 * con su periodo y, si el dominio vence en la misma fecha (o el servicio es sólo el dominio), también el dominio.
+	 */
+	public static function renewal_order( $id ) {
+		$existing = (int) self::svc( $id, 'renewal_order' );
+		if ( $existing ) {
+			$o = wc_get_order( $existing );
+			if ( $o && ! in_array( $o->get_status(), array( 'cancelled', 'failed', 'refunded', 'trash' ), true ) ) return $o;
+		}
+		$hosting = self::has_hosting( $id );
+		$expires = (int) self::svc( $id, 'expires' );
+		$dd = self::domain_due( $id );
+		// El dominio entra con el hosting sólo si vence en la misma fecha (si no, tiene su propio pedido). Nunca se cobra dos
+		// veces: un pedido vivo sólo del dominio que ya se pagó se respeta (éste no lo lleva); uno SIN pagar (pendiente o
+		// fallido) se cancela y el dominio se cobra aquí, junto con el hosting (segunda revisión, N4).
+		$same = ! $hosting || ( $dd && abs( $dd - $expires ) < 2 * DAY_IN_SECONDS );
+		$solo = self::live_order( (int) self::svc( $id, 'domain_renewal_order' ) );
+		$absorb = $hosting && $same && $solo && ! self::renewal_confirmed( $solo ) && in_array( $solo->get_status(), array( 'pending', 'failed' ), true );
+		$with_domain = $same && ( ! $solo || $absorb );
+		$products = array();
+		$period = $hosting ? self::service_period( $id ) : 12;
+		foreach ( array( 'hosting_product', 'domain_product' ) as $key ) {
+			$pid = (int) self::svc( $id, $key );
+			if ( ! $pid || ( 'domain_product' === $key && ! $with_domain ) ) continue;
+			// Una transferencia que nunca llegó a la cuenta: no se cobra la renovación de un dominio que no podemos renovar.
+			if ( 'domain_product' === $key && self::svc( $id, 'transfer_pending' ) ) {
+				if ( (int) self::svc( $id, 'transfer_renew_alert' ) !== (int) self::svc( $id, 'expires' ) ) {
+					self::svc_set( $id, array( 'transfer_renew_alert' => (int) self::svc( $id, 'expires' ) ) );
+					self::svc_log( $id, 'Renovación sin el dominio: la transferencia de ' . self::svc( $id, 'domain' ) . ' no ha terminado.' );
+					self::alert_admin( 'transferencia sin terminar al renovar', 'El servicio ' . self::svc( $id, 'domain' ) . ' vence pronto y la transferencia de su dominio no ha llegado a la cuenta de ' . Digitalisimo_Hosting_Registrars::label( Digitalisimo_Hosting_Registrars::of_service( $id ) ) . ': la renovación no cobra el dominio. Termina la transferencia o renuévalo a mano.' );
+				}
+				continue;
+			}
+			$product = self::renewal_product( $id, $pid );
+			if ( ! $product ) return null;
+			// El periodo que se cobra es el de la variación de hoy (su precio corresponde a ese periodo).
+			if ( 'hosting_product' === $key && 'hosting' === Digitalisimo_Hosting_Products::kind( $pid ) ) $period = Digitalisimo_Hosting_Products::period( $pid );
+			$products[ $key ] = $product;
+		}
+		if ( ! $products ) return null;
+		$parts = array( 'hosting' => $hosting, 'domain' => isset( $products['domain_product'] ), 'period' => $period );
+		$label = ( $hosting ? 'hosting ' . strtolower( Digitalisimo_Hosting_Products::period_label( $period ) ) : '' ) . ( $parts['domain'] ? ( $hosting ? ' y ' : '' ) . 'dominio por un año' : '' ) . ' (vence el ' . self::date( $expires ) . ')';
+		$order = self::new_renewal( $id, $products, $parts, $label );
+		if ( ! $order ) return null;
 		self::svc_set( $id, array( 'renewal_order' => $order->get_id() ) );
 		self::svc_log( $id, 'Pedido de renovación #' . $order->get_id() . ' creado.' );
+		if ( $absorb && $parts['domain'] ) {
+			$solo->update_status( 'cancelled', 'DIGITALÍSIMO Hosting: el dominio ' . self::svc( $id, 'domain' ) . ' vence el mismo día que el hosting: se cobra junto con él en la renovación #' . $order->get_id() . '. Este pedido ya no aplica.' );
+			self::svc_set( $id, array( 'domain_renewal_order' => 0 ) );
+			$order->add_order_note( 'DIGITALÍSIMO Hosting: incluye el dominio, que tenía su propio pedido #' . $solo->get_id() . ' sin pagar (se canceló).' );
+			self::svc_log( $id, 'El pedido del dominio #' . $solo->get_id() . ' (sin pagar) se canceló: el dominio va en la renovación #' . $order->get_id() . '.' );
+		}
 		return $order;
+	}
+
+	/** Un pedido de renovación que sigue vivo: sin pagar o pagado y aún sin aplicar. null si no. */
+	private static function live_order( $oid ) {
+		$o = $oid ? wc_get_order( (int) $oid ) : null;
+		if ( ! $o || in_array( $o->get_status(), array( 'cancelled', 'failed', 'refunded', 'trash' ), true ) ) return null;
+		$s = (array) $o->get_meta( self::META_RENEW );
+		return 'completed' === $o->get_status() && ! empty( $s['done'] ) ? null : $o;
+	}
+
+	/**
+	 * Renovado el dominio con $paid: el otro pedido de renovación que también lo cobraba y sigue sin pagar ya no aplica (el
+	 * pedido sólo del dominio se cancela; del combinado se quita la línea del dominio).
+	 */
+	private static function drop_other_domain_order( $id, $paid ) {
+		foreach ( array( 'renewal_order', 'domain_renewal_order' ) as $slot ) {
+			$o = wc_get_order( (int) self::svc( $id, $slot ) );
+			if ( ! $o || $o->get_id() === $paid->get_id() || ! in_array( $o->get_status(), array( 'pending', 'failed', 'on-hold' ), true ) || self::renewal_confirmed( $o ) ) continue;
+			$parts = self::order_parts( $o, $id );
+			if ( empty( $parts['domain'] ) ) continue;
+			if ( empty( $parts['hosting'] ) ) {
+				$o->update_status( 'cancelled', 'DIGITALÍSIMO Hosting: el dominio ' . self::svc( $id, 'domain' ) . ' ya se renovó con el pedido #' . $paid->get_id() . '; esta renovación no aplica.' );
+				self::svc_set( $id, array( $slot => 0 ) );
+				continue;
+			}
+			foreach ( $o->get_items() as $item_id => $row ) {
+				if ( Digitalisimo_Hosting_Products::item_id( $row ) !== (int) self::svc( $id, 'domain_product' ) || ! method_exists( $o, 'remove_item' ) ) continue;
+				$o->remove_item( $item_id );
+				$o->update_meta_data( self::META_PARTS, array( 'domain' => false ) + $parts );
+				$o->calculate_totals(); $o->save();
+				$o->add_order_note( 'DIGITALÍSIMO Hosting: se quitó el dominio de esta renovación: ya se renovó con el pedido #' . $paid->get_id() . '.' );
+			}
+		}
+	}
+
+	/** El pedido de renovación del dominio cuando vence en otra fecha que el hosting (sólo el dominio, un año). */
+	public static function domain_renewal_order( $id ) {
+		$existing = (int) self::svc( $id, 'domain_renewal_order' );
+		if ( $existing ) {
+			$o = wc_get_order( $existing );
+			if ( $o && ! in_array( $o->get_status(), array( 'cancelled', 'failed', 'refunded', 'trash' ), true ) ) return $o;
+		}
+		// Un pedido combinado vivo que ya cobra el dominio: no se crea otro.
+		$combined = self::live_order( (int) self::svc( $id, 'renewal_order' ) );
+		if ( $combined && ! empty( self::order_parts( $combined, $id )['domain'] ) ) return null;
+		$product = self::renewal_product( $id, (int) self::svc( $id, 'domain_product' ) );
+		if ( ! $product ) return null;
+		$order = self::new_renewal( $id, array( 'domain_product' => $product ), array( 'hosting' => false, 'domain' => true, 'period' => 12 ), 'dominio por un año (vence el ' . self::date( self::domain_due( $id ) ) . ')' );
+		if ( ! $order ) return null;
+		self::svc_set( $id, array( 'domain_renewal_order' => $order->get_id() ) );
+		self::svc_log( $id, 'Pedido de renovación del dominio #' . $order->get_id() . ' creado.' );
+		return $order;
+	}
+
+	/** Una renovación sólo del dominio (vence en otra fecha que el hosting): un año más, sin tocar el hosting. */
+	private static function run_renew_domain( $order, array $state, $id ) {
+		try {
+			$dstop = self::renew_domain( $order, $state, $id, 1, empty( $state['manual'] ) );
+			self::refresh( $id );
+			$halt = 'cancelled' === self::svc( $id, 'status' ) ? 'cancelled' : ( self::on() ? '' : 'off' );
+			if ( $halt ) { self::interrupted( $order, $state, $halt, $id, true ); return; }
+			if ( in_array( self::db_order_status( $order ), self::DEAD, true ) ) { self::interrupted( $order, $state, 'dead', $id, true ); return; }
+			if ( $dstop ) {
+				self::svc_set( $id, array( 'domain_pending_order' => $order->get_id() ) );
+				self::fail( $order, $state, $dstop, self::HOOK_RENEW, $order->get_id(), $id );
+				return;
+			}
+			// Sólo con la renovación confirmada por el registrador se mueve el vencimiento del dominio.
+			if ( empty( $state['extended'] ) ) {
+				$od = self::domain_due( $id );
+				$nd = (int) strtotime( '+1 year', $od ? $od : time() );
+				$state['extended'] = $nd;
+				$order->update_meta_data( self::META_RENEW, $state ); $order->save();
+				self::svc_set( $id, array( 'domain_expires' => $nd, 'domain_renewal_order' => 0, 'domain_notices' => array(), 'domain_lapsed' => 0 ) );
+				self::svc_log( $id, 'Dominio renovado con el pedido #' . $order->get_id() . ' hasta el ' . self::date( $nd ) . '.' );
+			}
+			self::drop_other_domain_order( $id, $order );
+			self::svc_set( $id, array( 'domain_pending_order' => 0 ) );
+			$state['done'] = time(); unset( $state['attempts'], $state['blocked_noted'] );
+			$order->update_meta_data( self::META_RENEW, $state ); $order->save();
+			$email = self::email( 'Digitalisimo_Hosting_Email_Renewal' );
+			if ( $email && $email->is_enabled() ) $email->trigger( $order, array( 'type' => 'renewed', 'what' => 'domain', 'domain' => (string) self::svc( $id, 'domain' ), 'expires' => (int) $state['extended'], 'pay_url' => '', 'grace' => 0 ) );
+			if ( in_array( self::db_order_status( $order ), array( 'processing', 'on-hold' ), true ) ) $order->update_status( 'completed', 'DIGITALÍSIMO Hosting: dominio renovado hasta el ' . self::date( (int) $state['extended'] ) . '.' );
+			else $order->add_order_note( 'DIGITALÍSIMO Hosting: dominio renovado hasta el ' . self::date( (int) $state['extended'] ) . '.' );
+		} catch ( Throwable $e ) {
+			self::fail( $order, $state, array( 'kind' => 'api', 'message' => 'Error interno: ' . $e->getMessage() ), self::HOOK_RENEW, $order->get_id(), $id );
+		}
 	}
 
 	public static function run_renew( $order_id ) {
@@ -1227,10 +1817,17 @@ class Digitalisimo_Hosting_Provisioning {
 		// La cuenta de Webuzo es hoy de un servicio más nuevo del mismo dominio (recontratado): éste no renueva nada.
 		if ( ! self::owns_account( $id ) ) { self::superseded_paid( $order, $id ); return; }
 		$state = self::take_retry( $order, $state, self::META_RENEW );
+		$parts = self::order_parts( $order, $id );
+		// Sólo el dominio de un servicio con hosting (vencen en fechas distintas): su propio camino, sin tocar el hosting.
+		if ( empty( $parts['hosting'] ) && self::has_hosting( $id ) ) { self::run_renew_domain( $order, $state, $id ); return; }
 		try {
 			// El dominio y el hosting por separado: si el dominio no se puede renovar (saldo, costo, error de Namecheap), el
-			// cliente que pagó igual recupera su hosting y su año; sólo el dominio queda en espera con aviso.
-			$dstop = self::renew_domain( $order, $state, $id );
+			// cliente que pagó igual recupera su hosting y su periodo; sólo el dominio queda en espera con aviso.
+			$hosting = self::has_hosting( $id );
+			// Sin hosting, el servicio es el dominio: se renuevan los años pagados (12, 24 o 36 meses).
+			$years = $hosting ? 1 : max( 1, intdiv( (int) $parts['period'], 12 ) );
+			// Un pago manual lo decidió el dueño (cobró por otro lado): sin el freno de pérdida contra el precio del pedido.
+			$dstop = ! empty( $parts['domain'] ) ? self::renew_domain( $order, $state, $id, $years, empty( $state['manual'] ) ) : null;
 			// Baja o venta apagada mientras corría: no se extiende ni se reactiva nada (lo ya cobrado se avisa).
 			self::refresh( $id );
 			$halt = 'cancelled' === self::svc( $id, 'status' ) ? 'cancelled' : ( self::on() ? '' : 'off' );
@@ -1247,6 +1844,12 @@ class Digitalisimo_Hosting_Provisioning {
 				if ( time() - (int) self::svc( $id, 'suspend_in_flight' ) < DAY_IN_SECONDS ) { self::enqueue( self::HOOK_RECONCILE, $id, 600, true ); self::svc_set( $id, array( 'suspend_in_flight' => 0 ) ); }
 			}
 			if ( $stop ) { self::fail( $order, $state, $stop, self::HOOK_RENEW, $order->get_id(), $id ); return; }
+			// Un servicio que es sólo el dominio vence con el dominio: sin la renovación confirmada no se mueve nada.
+			if ( ! $hosting && $dstop ) {
+				self::svc_set( $id, array( 'domain_pending_order' => $order->get_id() ) );
+				self::fail( $order, $state, $dstop, self::HOOK_RENEW, $order->get_id(), $id );
+				return;
+			}
 			if ( empty( $state['extended'] ) ) {
 				// Lo recién leído manda: un servicio dado de baja nunca vuelve a «activo» ni gana un año.
 				// cancel_suspension() escribe en el servicio: va antes de la relectura, no entre ella y la escritura final.
@@ -1259,12 +1862,33 @@ class Digitalisimo_Hosting_Provisioning {
 				// Condicional: sólo si el servicio sigue en el estado leído (una baja entre medias gana y no se extiende).
 				if ( ! self::set_status_if( $id, $cur, $to ) ) { self::interrupted( $order, $state, 'cancelled', $id, true ); return; }
 				$old = (int) self::svc( $id, 'expires' );
-				$new = strtotime( '+1 year', $old ? $old : time() );
+				// El vencimiento del dominio se lee ANTES de mover `expires` (un servicio de antes lo lee de ahí): queda fijo en
+				// el servicio y en el pedido, también para un reintento posterior del dominio (segunda revisión, N1).
+				self::fill_domain_expires( $id );
+				$state['domain_from'] = self::domain_due( $id );
+				// El hosting suma su periodo (el de la variación que se pagó: un mes, tres, seis, uno, dos o tres años); sin
+				// hosting, el servicio es el dominio y suma un año.
+				$period = $hosting ? (int) $parts['period'] : 12 * $years;
+				$new = self::add_months( $old ? $old : time(), $period );
+				$extra = $hosting ? array( 'period' => $period ) : array();
+				// Sin hosting, el vencimiento ES el del dominio (ya renovado: $dstop es null aquí).
+				if ( ! $hosting && ! empty( $parts['domain'] ) ) { $extra += array( 'domain_expires' => $new, 'domain_lapsed' => 0 ); $state['domain_extended'] = $new; }
 				$state['extended'] = $new;
 				$order->update_meta_data( self::META_RENEW, $state ); $order->save();
-				self::svc_set( $id, $manual ? array( 'expires' => $new, 'renewal_order' => 0, 'notices' => array(), 'error' => '', 'reprieve_until' => 0 ) : array( 'expires' => $new, 'renewal_order' => 0, 'last_renewal_order' => $order->get_id(), 'notices' => array(), 'error' => '', 'suspend_reason' => '', 'suspend_for' => 0, 'reprieve_until' => 0 ) );
+				self::svc_set( $id, $extra + ( $manual ? array( 'expires' => $new, 'renewal_order' => 0, 'notices' => array(), 'error' => '', 'reprieve_until' => 0 ) : array( 'expires' => $new, 'renewal_order' => 0, 'last_renewal_order' => $order->get_id(), 'notices' => array(), 'error' => '', 'suspend_reason' => '', 'suspend_for' => 0, 'reprieve_until' => 0 ) ) );
 				self::svc_log( $id, 'Renovado con el pedido #' . $order->get_id() . ' hasta el ' . self::date( $new ) . '.' );
 			}
+			// El dominio de un servicio con hosting: su vencimiento sólo se mueve cuando el registrador confirmó la renovación
+			// (también en un reintento posterior), y la otra renovación del dominio que siga sin pagar ya no aplica.
+			if ( ! $dstop && ! empty( $parts['domain'] ) && $hosting && empty( $state['domain_extended'] ) ) {
+				// Sin `domain_from` y con el hosting ya extendido (renovación de la versión anterior): `extended` menos el periodo.
+				$legacy = self::legacy_domain_from( $order, $state, $id );
+				$od = ! empty( $state['domain_from'] ) ? (int) $state['domain_from'] : ( $legacy ? $legacy : self::domain_due( $id ) );
+				$state['domain_extended'] = (int) strtotime( '+1 year', $od ? $od : time() );
+				$order->update_meta_data( self::META_RENEW, $state ); $order->save();
+				self::svc_set( $id, array( 'domain_expires' => $state['domain_extended'], 'domain_lapsed' => 0 ) );
+			}
+			if ( ! $dstop && ! empty( $parts['domain'] ) ) self::drop_other_domain_order( $id, $order );
 			if ( $dstop ) {
 				self::svc_set( $id, array( 'domain_pending_order' => $order->get_id() ) );
 				if ( empty( $state['domain_pending_noted'] ) ) { $state['domain_pending_noted'] = 1; $order->add_order_note( 'DIGITALÍSIMO Hosting: hosting renovado hasta el ' . self::date( (int) $state['extended'] ) . ( ! empty( $state['unsuspended'] ) ? ' y reactivado' : '' ) . '; la renovación del dominio queda pendiente.' ); }
@@ -1290,34 +1914,69 @@ class Digitalisimo_Hosting_Provisioning {
 	 */
 	public static function transfer_settled( $id ) {
 		if ( ! self::svc( $id, 'transfer_pending' ) || self::svc( $id, 'domain_registered' ) ) return false;
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		$nc = Digitalisimo_Hosting_Registrars::make( Digitalisimo_Hosting_Registrars::of_service( $id ) );
 		if ( ! $nc->configured() ) return false;
 		$domain = (string) self::svc( $id, 'domain' );
 		$info = $nc->info( $domain );
 		if ( 'ok' !== $info['kind'] || empty( $info['ours'] ) ) return false;
-		self::svc_set( $id, array( 'transfer_pending' => 0, 'domain_registered' => 1 ) );
-		self::svc_log( $id, 'Transferencia de ' . $domain . ' terminada: el dominio ya está en la cuenta de Namecheap.' );
+		$set = array( 'transfer_pending' => 0, 'domain_registered' => 1, 'registrar' => $nc->id() );
+		// El vencimiento real del registrador manda (una transferencia llega con los días que le quedaban): la renovación y
+		// los avisos salen de esa fecha. Un servicio que es sólo el dominio vence con él.
+		$real = (int) ( $info['expires'] ?? 0 );
+		if ( $real > 0 ) {
+			$set += array( 'domain_expires' => $real, 'domain_lapsed' => 0, 'domain_notices' => array() );
+			if ( ! self::has_hosting( $id ) ) $set += array( 'expires' => $real, 'notices' => array() );
+		}
+		self::svc_set( $id, $set );
+		self::svc_log( $id, 'Transferencia de ' . $domain . ' terminada: el dominio ya está en la cuenta de ' . $nc->label() . ( $real > 0 ? ' y vence el ' . self::date( $real ) : '' ) . '.' );
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( (int) self::svc( $id, 'order' ) ) : null;
 		if ( $order ) {
-			if ( class_exists( 'Digitalisimo_Hosting_Checkout' ) ) $order->delete_meta_data( Digitalisimo_Hosting_Checkout::META_EPP );
-			$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' terminada (ya está en la cuenta de Namecheap); el código EPP se borró del pedido.' );
+			// Sólo el código de ESTE dominio: el de otra transferencia del mismo pedido sigue haciendo falta (N3).
+			$key = class_exists( 'Digitalisimo_Hosting_Checkout' ) ? Digitalisimo_Hosting_Checkout::META_EPP : '_digitalisimo_epp';
+			$epp = $order->get_meta( $key );
+			if ( is_array( $epp ) ) { unset( $epp[ $domain ] ); if ( $epp ) $order->update_meta_data( $key, $epp ); else $order->delete_meta_data( $key ); }
+			elseif ( $epp ) $order->delete_meta_data( $key );
+			$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' terminada (ya está en la cuenta de ' . $nc->label() . '); el código EPP se borró del pedido.' );
 			$order->save();
 		}
 		return true;
 	}
 
 	/**
-	 * Renueva el dominio en Namecheap una sola vez: antes de la primera llamada se anota su vencimiento; si un intento
-	 * anterior llegó (el vencimiento ya es posterior), no se vuelve a cobrar.
+	 * Renueva el dominio en su registrador una sola vez ($years años): antes de la primera llamada se anota su vencimiento;
+	 * si un intento anterior llegó (el vencimiento ya es posterior), no se vuelve a cobrar. Un candado por servicio evita
+	 * que dos pedidos (o dos tareas) lo renueven a la vez; sin el vencimiento del registrador no se renueva (no se sabría si
+	 * un intento anterior llegó). $guard: el freno de pérdida contra lo cobrado (el pago manual lo decide el dueño).
 	 */
-	private static function renew_domain( $order, array &$state, $id ) {
+	private static function renew_domain( $order, array &$state, $id, $years = 1, $guard = true ) {
 		self::transfer_settled( $id );
 		if ( ! self::svc( $id, 'domain_registered' ) || ! empty( $state['domain'] ) ) return null;
+		// Ese año del dominio ya lo renovó otro pedido (p. ej. el pedido sólo del dominio que se canceló al cobrarse junto con
+		// el hosting y que igual llegó pagado): no se renueva otra vez; se detiene y se avisa para reembolsarlo.
+		$for = (int) $order->get_meta( self::META_DOMAIN_FOR );
+		$due = self::domain_due( $id );
+		if ( $for && $due - $for >= 2 * DAY_IN_SECONDS ) return self::stop( 'data', 'El dominio ' . self::svc( $id, 'domain' ) . ' ya se renovó con otro pedido (vencía el ' . self::date( $for ) . '; ahora vence el ' . self::date( $due ) . '): este pago del dominio no se aplicó, para no renovarlo dos veces. Reembolsa la parte del dominio de este pedido' );
+		$lock = 'digitalisimo_hosting_domain_renew_lock_' . (int) $id;
+		if ( ! add_option( $lock, time(), '', false ) ) {
+			if ( time() - (int) get_option( $lock ) < 10 * MINUTE_IN_SECONDS ) return self::stop( 'transient', 'Otra renovación del dominio ' . self::svc( $id, 'domain' ) . ' está en curso; se reintenta después.' );
+			update_option( $lock, time(), false );
+		}
+		try {
+			return self::renew_domain_locked( $order, $state, $id, max( 1, (int) $years ), $guard );
+		} finally {
+			delete_option( $lock );
+		}
+	}
+
+	private static function renew_domain_locked( $order, array &$state, $id, $years, $guard ) {
 		$domain = (string) self::svc( $id, 'domain' );
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		// Siempre con el registrador que tiene el dominio (el del servicio), aunque hoy su extensión vaya con otro.
+		$nc = Digitalisimo_Hosting_Registrars::make( Digitalisimo_Hosting_Registrars::of_service( $id ) );
+		$rl = $nc->label();
 		$info = $nc->info( $domain );
 		if ( 'ok' !== $info['kind'] ) return self::stop( self::nc_kind( $info ), $info['message'] );
-		if ( ! $info['ours'] ) return self::stop( 'api', 'El dominio ' . $domain . ' ya no está en la cuenta de Namecheap; no se renovó.' );
+		if ( ! $info['ours'] ) return self::stop( 'api', 'El dominio ' . $domain . ' ya no está en la cuenta de ' . $rl . '; no se renovó.' );
+		if ( (int) $info['expires'] <= 0 ) return self::stop( 'data', $rl . ' no informó cuándo vence ' . $domain . ': no se renovó, para no cobrarlo dos veces si un intento anterior ya llegó. Revísalo en ' . $rl . ' y renuévalo a mano o pulsa «Reintentar».' );
 		if ( ! isset( $state['domain_before'] ) ) { $state['domain_before'] = (int) $info['expires']; $order->update_meta_data( self::META_RENEW, $state ); $order->save(); }
 		elseif ( (int) $info['expires'] > (int) $state['domain_before'] ) {
 			$state['domain'] = time(); $order->update_meta_data( self::META_RENEW, $state ); $order->save();
@@ -1328,20 +1987,294 @@ class Digitalisimo_Hosting_Provisioning {
 		$price = $nc->price( $split ? $split[1] : '', 'RENEW' );
 		if ( 'ok' !== $price['kind'] ) return self::stop( self::nc_kind( $price ), $price['message'] );
 		$item = null;
-		foreach ( $order->get_items() as $row ) if ( (int) $row->get_product_id() === (int) self::svc( $id, 'domain_product' ) ) { $item = $row; break; }
+		foreach ( $order->get_items() as $row ) if ( Digitalisimo_Hosting_Products::item_id( $row ) === (int) self::svc( $id, 'domain_product' ) || (int) $row->get_product_id() === (int) self::svc( $id, 'domain_product' ) ) { $item = $row; break; }
 		if ( ! $item ) return self::stop( 'data', 'El pedido de renovación no trae la línea del dominio ' . $domain . ': no se renovó (se cobraría sin cobrarle al cliente).' );
-		$guard = self::price_guard( $item, $price['value'], 'renovar ' . $domain, $order );
-		if ( $guard ) return $guard;
+		$cost = (float) $price['value'] * $years;
+		if ( $guard ) { $g = self::price_guard( $item, $cost, 'renovar ' . $domain, $order, $rl ); if ( $g ) return $g; }
 		$balance = $nc->balance();
 		if ( 'ok' !== $balance['kind'] ) return self::stop( self::nc_kind( $balance ), $balance['message'] );
-		if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en Namecheap para renovar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );
+		if ( $balance['value'] < $cost ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en ' . $rl . ' para renovar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $cost, 2, '.', '' ) ) );
 		$halt = self::may_spend( $id, $order );
 		if ( $halt ) return $halt;
-		$r = $nc->renew( $domain, 1 );
+		$r = $nc->renew( $domain, $years );
 		if ( 'ok' !== $r['kind'] ) return self::stop( self::nc_kind( $r ), $r['message'] );
-		$state['domain'] = time(); $order->update_meta_data( self::META_RENEW, $state ); $order->save();
-		$order->add_order_note( 'DIGITALÍSIMO Hosting: dominio ' . $domain . ' renovado en Namecheap un año (cargo ' . $r['charged'] . ' USD).' );
+		$state['domain'] = time(); $state['domain_years'] = $years; $order->update_meta_data( self::META_RENEW, $state ); $order->save();
+		$order->add_order_note( 'DIGITALÍSIMO Hosting: dominio ' . $domain . ' renovado en ' . $rl . ' ' . ( 1 === $years ? 'un año' : $years . ' años' ) . ( '' !== (string) $r['charged'] ? ' (cargo ' . $r['charged'] . ' USD)' : '' ) . '.' );
 		return null;
+	}
+
+	// ── Pago manual (pedido del propietario del 2026-11-27: «permite pago manual solo en admin para si me pagan por otro
+	// lado o en persona, yo habilitarles el año y no se les suspenda») ──────────────────────────────────────────────
+
+	/** Medios de un pago registrado a mano. */
+	const MANUAL_METHODS = array( 'cash' => 'Efectivo', 'transfer' => 'Transferencia', 'deposit' => 'Depósito', 'other' => 'Otro' );
+	/** Bitácora de pagos manuales del sitio (las últimas 200): quién, cuándo, servicio, medio, periodo, monto y pedido. */
+	const MANUAL_LOG = 'digitalisimo_hosting_manual_payments';
+
+	/** ¿Puede registrar pagos manuales? Sólo quien administra la tienda o el sitio (nunca un cliente). */
+	public static function can_manual_payment() { return function_exists( 'current_user_can' ) && ( current_user_can( 'manage_woocommerce' ) || current_user_can( 'manage_options' ) ); }
+
+	/**
+	 * Lo que muestra el formulario: el periodo de fábrica, si conviene renovar el dominio (vence dentro del periodo
+	 * pagado), su costo en el registrador que lo tiene y si el saldo alcanza (una consulta de sólo lectura).
+	 */
+	public static function manual_preview( $id, $months = 0 ) {
+		$hosting = self::has_hosting( $id );
+		$months = Digitalisimo_Hosting_Products::period_months( $months ) && ( $hosting || 0 === (int) $months % 12 ) ? (int) $months : ( $hosting ? self::service_period( $id ) : 12 );
+		$expires = (int) self::svc( $id, 'expires' );
+		$new = self::add_months( $expires ? $expires : time(), $months );
+		$dd = self::domain_due( $id );
+		$out = array( 'months' => $months, 'from' => $expires, 'to' => $new, 'domain_due' => $dd, 'renew_domain' => false, 'cost' => null, 'balance' => null, 'registrar' => '', 'warning' => '' );
+		if ( ! $dd || ! self::svc( $id, 'domain_registered' ) ) return $out;
+		// Sólo el dominio: siempre se renueva con el pago; con hosting, si vence dentro del periodo pagado.
+		$out['renew_domain'] = ! $hosting || $dd <= $new;
+		$reg = Digitalisimo_Hosting_Registrars::make( Digitalisimo_Hosting_Registrars::of_service( $id ) );
+		$out['registrar'] = $reg->label();
+		if ( ! $reg->configured() ) { $out['warning'] = 'Falta la cuenta de ' . $reg->label() . ': el dominio no se podrá renovar desde aquí.'; return $out; }
+		$split = self::split( (string) self::svc( $id, 'domain' ) );
+		$price = $reg->price( $split ? $split[1] : '', 'RENEW', 15 );
+		$bal = $reg->balance( 15 );
+		if ( 'ok' === $price['kind'] ) $out['cost'] = (float) $price['value'] * ( $hosting ? 1 : intdiv( $months, 12 ) );
+		if ( 'ok' === $bal['kind'] ) $out['balance'] = (float) $bal['value'];
+		if ( null !== $out['cost'] && null !== $out['balance'] && $out['balance'] + 0.005 < $out['cost'] ) $out['warning'] = 'El saldo de ' . $reg->label() . ' (' . number_format( $out['balance'], 2, '.', ',' ) . ' USD) no alcanza para renovar el dominio (' . number_format( $out['cost'], 2, '.', ',' ) . ' USD): recárgalo antes o el dominio quedará pendiente.';
+		elseif ( null === $out['cost'] || null === $out['balance'] ) $out['warning'] = 'No pudimos consultar el costo o el saldo en ' . $reg->label() . ' ahora.';
+		return $out;
+	}
+
+	/**
+	 * Registra un pago hecho por otro lado (efectivo, transferencia, depósito…): marca pagado el pedido de renovación
+	 * pendiente o crea uno ya pagado, extiende el vencimiento el periodo pagado, cancela los avisos y la suspensión de ese
+	 * periodo, reactiva lo suspendido por falta de pago y, si se pide, renueva el dominio en su registrador (con las mismas
+	 * guardas: nunca dos veces, con aviso si falla). $a: months, method, amount, note, renew_domain, renewed_elsewhere, key.
+	 *
+	 * Un servicio que es SÓLO el dominio se paga por años (12, 24 o 36 meses) y su vencimiento es el del registrador: el
+	 * dominio se renueva por omisión (también por MCP) esos años, y el vencimiento sólo se mueve cuando el registrador lo
+	 * confirma o cuando el administrador marca «ya lo renové en el registrador» (queda anotado). Sin una cosa ni la otra, el
+	 * dominio queda pendiente con aviso (nunca en silencio) y «Reintentar» lo renueva.
+	 *
+	 * Idempotente: la misma clave ($a['key']; sin clave, los mismos datos en 10 minutos) no extiende dos veces; la clave se
+	 * anota «en curso» con el candado puesto y antes de extender, así un corte a media tarea tampoco extiende dos veces.
+	 *
+	 * @return array|WP_Error
+	 */
+	public static function manual_payment( $id, array $a ) {
+		if ( ! self::can_manual_payment() ) return new WP_Error( 'digitalisimo_hosting_forbidden', 'Registrar un pago manual exige administrar la tienda (manage_woocommerce) o el sitio (manage_options).', array( 'status' => 403 ) );
+		$id = (int) $id;
+		if ( ! self::is_service( $id ) ) return new WP_Error( 'digitalisimo_hosting_service', 'No existe ese servicio.', array( 'status' => 404 ) );
+		if ( 'cancelled' === self::svc( $id, 'status' ) ) return new WP_Error( 'digitalisimo_hosting_service', 'El servicio está dado de baja: no se registra un pago.', array( 'status' => 400 ) );
+		$hosting = self::has_hosting( $id );
+		$months = (int) ( $a['months'] ?? 0 );
+		if ( $months && ! Digitalisimo_Hosting_Products::period_months( $months ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'El periodo debe ser 1, 3, 6, 12, 24 o 36 meses.', array( 'status' => 400 ) );
+		if ( ! $months ) $months = $hosting ? self::service_period( $id ) : 12;
+		if ( ! $hosting && 0 !== $months % 12 ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'Este servicio es sólo el dominio: se paga por años (12, 24 o 36 meses), que es como lo renueva el registrador.', array( 'status' => 400 ) );
+		$method = (string) ( $a['method'] ?? '' );
+		if ( ! isset( self::MANUAL_METHODS[ $method ] ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'El medio debe ser efectivo (cash), transferencia (transfer), depósito (deposit) u otro (other).', array( 'status' => 400 ) );
+		$raw_amount = is_scalar( $a['amount'] ?? null ) ? trim( str_replace( ',', '.', (string) $a['amount'] ) ) : '';
+		if ( '' !== $raw_amount && ( ! is_numeric( $raw_amount ) || (float) $raw_amount < 0 ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'El monto debe ser un número (o quedar vacío).', array( 'status' => 400 ) );
+		$amount = '' === $raw_amount ? null : round( (float) $raw_amount, 2 );
+		$note = substr( sanitize_text_field( (string) ( $a['note'] ?? '' ) ), 0, 300 );
+		$domain = (string) self::svc( $id, 'domain' );
+		$dp_id = (int) self::svc( $id, 'domain_product' );
+		$registered = $dp_id && self::svc( $id, 'domain_registered' );
+		$want_elsewhere = ! empty( $a['renewed_elsewhere'] );
+		$want_renew = array_key_exists( 'renew_domain', $a ) && null !== $a['renew_domain'] ? (bool) $a['renew_domain'] : null;
+		$rl = Digitalisimo_Hosting_Registrars::label( Digitalisimo_Hosting_Registrars::of_service( $id ) );
+		// Un dominio que aún no llegó a nuestra cuenta (transferencia sin terminar) no se renueva ni se da por renovado: un
+		// servicio que es sólo ese dominio no tiene nada que extender (segunda revisión, menor).
+		if ( $dp_id && ! $registered && ( ! $hosting || $want_elsewhere || $want_renew ) ) return new WP_Error( 'digitalisimo_hosting_domain_pending', 'El dominio ' . $domain . ' aún no está en la cuenta de ' . $rl . ' (la transferencia no ha terminado): no se puede renovar ni dar por renovado. ' . ( $hosting ? 'Registra el pago del hosting sin la opción del dominio.' : 'Registra el pago cuando la transferencia llegue.' ) . ' No se registró nada.', array( 'status' => 400 ) );
+		// Sólo el dominio: UNA de las dos opciones, renovarlo aquí (lo de fábrica, también por MCP sin decir nada) o «ya lo
+		// renové yo». Sin ninguna no se registra nada: completar el pedido lo renovaría solo (segunda revisión, R1).
+		if ( ! $hosting && $want_elsewhere && true === $want_renew ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'Elige una sola opción para el dominio: renovarlo con su registrador o «ya lo renové yo en el registrador». No se registró nada.', array( 'status' => 400 ) );
+		if ( ! $hosting && ! $want_elsewhere && false === $want_renew ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'Este servicio es sólo el dominio: elige «Renovar el dominio con su registrador» o «Ya lo renové yo en el registrador» (renewed_elsewhere). No se registró nada.', array( 'status' => 400 ) );
+		$elsewhere = $registered && $want_elsewhere;
+		// Sólo el dominio: se renueva por omisión (salvo que lo haya renovado él en el registrador).
+		$renew_domain = $registered && ! $elsewhere && ( null !== $want_renew ? $want_renew : ! $hosting );
+		$years = $hosting ? 1 : intdiv( $months, 12 );
+		// Idempotencia: la clave del formulario o, sin ella, los mismos datos en 10 minutos.
+		$key = '' !== (string) ( $a['key'] ?? '' ) ? 'k:' . substr( preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $a['key'] ), 0, 64 ) : 'h:' . md5( wp_json_encode( array( $id, $months, $method, $amount, $note, $renew_domain, $elsewhere ) ) );
+		$dup = self::manual_duplicate( $id, $key );
+		if ( $dup ) return $dup;
+		// Un candado por servicio: dos envíos a la vez no extienden dos veces.
+		$lock = 'digitalisimo_hosting_manual_lock_' . $id;
+		if ( ! add_option( $lock, time(), '', false ) ) {
+			if ( time() - (int) get_option( $lock ) < 2 * MINUTE_IN_SECONDS ) return new WP_Error( 'digitalisimo_hosting_busy', 'Ya se está registrando un pago de este servicio: espera unos segundos.', array( 'status' => 409 ) );
+			update_option( $lock, time(), false );
+		}
+		try {
+			// Con el candado puesto: se relee (otra petición pudo registrarlo) y la clave queda «en curso» ANTES de extender.
+			self::refresh( $id );
+			$dup = self::manual_duplicate( $id, $key );
+			if ( $dup ) return $dup;
+			// El vencimiento del dominio se lee ANTES de mover `expires` (un servicio de antes lo lee de ahí; N1).
+			self::fill_domain_expires( $id );
+			$old = (int) self::svc( $id, 'expires' );
+			$od_before = self::domain_due( $id );
+			// «Ya lo renové yo»: se comprueba en el registrador (sólo lectura) que alcanza la fecha pagada, antes de escribir
+			// nada; el vencimiento que se guarda es el del registrador (N5).
+			$registrar_due = 0;
+			if ( $elsewhere ) {
+				$registrar_due = self::registrar_due( $id, $years, $od_before ? $od_before : ( $old ? $old : time() ) );
+				if ( is_wp_error( $registrar_due ) ) return $registrar_due;
+			}
+			$seen = self::svc( $id, 'manual_keys' ); $seen = is_array( $seen ) ? $seen : array();
+			$seen[ $key ] = array( 't' => time(), 'state' => 'running' );
+			if ( count( $seen ) > 50 ) $seen = array_slice( $seen, -50, null, true );
+			self::svc_set( $id, array( 'manual_keys' => $seen ) );
+			$user = function_exists( 'wp_get_current_user' ) && wp_get_current_user() ? (string) wp_get_current_user()->user_login : '';
+			$user = '' !== $user ? $user : 'un administrador';
+			// El pedido: la renovación pendiente sin pagar, o uno nuevo ya pagado.
+			$order = null;
+			$existing = wc_get_order( (int) self::svc( $id, 'renewal_order' ) );
+			if ( $existing && in_array( $existing->get_status(), array( 'pending', 'on-hold', 'failed' ), true ) && ! self::renewal_confirmed( $existing ) ) $order = $existing;
+			$domain_part = $renew_domain || $elsewhere || ! $hosting;
+			$label = ( $hosting ? 'hosting ' . strtolower( Digitalisimo_Hosting_Products::period_label( $months ) ) : 'dominio por ' . ( 1 === $years ? 'un año' : $years . ' años' ) ) . ( $hosting && ( $renew_domain || $elsewhere ) ? ' y dominio por un año' : '' );
+			$dp = (int) self::svc( $id, 'domain_product' );
+			if ( ! $order ) {
+				$products = array();
+				$hp = $hosting ? (int) self::svc( $id, 'hosting_product' ) : 0;
+				if ( $hp && wc_get_product( $hp ) ) $products['hosting_product'] = wc_get_product( $hp );
+				if ( $domain_part && $dp && wc_get_product( $dp ) ) $products['domain_product'] = wc_get_product( $dp );
+				$order = self::new_renewal( $id, $products, array( 'hosting' => $hosting, 'domain' => $domain_part, 'period' => $months ), $label . ' (pago manual)' );
+				if ( ! $order ) return new WP_Error( 'digitalisimo_hosting_order', 'No se pudo crear el pedido del pago.', array( 'status' => 500 ) );
+			} elseif ( $domain_part && $dp && ! self::order_has( $order, $dp ) ) {
+				$item_id = $order->add_product( wc_get_product( $dp ), 1 );
+				$item = $item_id ? $order->get_item( $item_id ) : null;
+				if ( $item ) { $item->add_meta_data( 'Dominio', (string) self::svc( $id, 'domain' ), true ); $item->save(); }
+				$order->calculate_totals();
+			}
+			$order->update_meta_data( self::META_PARTS, array( 'hosting' => $hosting, 'domain' => $domain_part, 'period' => $months ) );
+			$entry = array( 't' => time(), 'user' => $user, 'service' => $id, 'domain' => (string) self::svc( $id, 'domain' ), 'method' => $method, 'months' => $months, 'amount' => $amount, 'note' => $note, 'order' => (int) $order->get_id() );
+			$cur = (string) self::svc( $id, 'status' );
+			$manual_susp = 'manual' === self::svc( $id, 'suspend_reason' );
+			$state = (array) $order->get_meta( self::META_RENEW );
+			$state = array_merge( $state, array( 'paid' => time(), 'manual' => $entry, 'unsuspended' => time() ) );
+			$order->update_meta_data( self::META_RENEW, $state ); $order->save();
+			// El dominio con su registrador (las mismas guardas que la renovación: nunca dos veces; aviso si falla).
+			$domain_result = $registered ? 'skipped' : 'none';
+			$dstop = null;
+			if ( $renew_domain ) {
+				$dstop = self::renew_domain( $order, $state, $id, $years, false );
+				$domain_result = $dstop ? 'failed' : 'renewed';
+			} elseif ( $elsewhere ) {
+				$domain_result = 'elsewhere';
+				$order->add_order_note( 'DIGITALÍSIMO Hosting: ' . $user . ' indicó que ya renovó ' . self::svc( $id, 'domain' ) . ' directamente en el registrador (' . ( 1 === $years ? 'un año' : $years . ' años' ) . '); se comprobó en ' . $rl . ': vence el ' . self::date( $registrar_due ) . '. No se pidió la renovación.' );
+			}
+			$domain_ok = in_array( $domain_result, array( 'renewed', 'elsewhere' ), true );
+			// La extensión: el hosting, siempre; un servicio que es sólo el dominio, sólo con el dominio confirmado.
+			$new = $old;
+			if ( $hosting || $domain_ok ) {
+				// Sólo el dominio y renovado por el administrador: vence lo que dice el registrador (comprobado arriba).
+				$new = ! $hosting && 'elsewhere' === $domain_result ? (int) $registrar_due : self::add_months( $old ? $old : time(), $months );
+				self::cancel_suspension( $id, 'pago manual registrado por ' . $user );
+				$set = array( 'expires' => $new, 'renewal_order' => 0, 'last_renewal_order' => $order->get_id(), 'notices' => array(), 'error' => '', 'reprieve_until' => 0, 'manual_paid_until' => $new );
+				if ( ! $manual_susp ) $set += array( 'suspend_reason' => '', 'suspend_for' => 0 );
+				if ( ! $hosting ) $set += array( 'domain_expires' => $new, 'domain_lapsed' => 0, 'domain_pending_order' => 0 );
+				self::svc_set( $id, $set );
+				$state['extended'] = $new;
+				if ( 'expired' === $cur || ( 'suspended' === $cur && ! self::svc( $id, 'webuzo_user' ) ) ) self::set_status_if( $id, $cur, 'active' );
+				// Suspendido por falta de pago: la reconciliación con la lista real de Webuzo lo reactiva (como al pagar).
+				if ( 'suspended' === $cur && self::svc( $id, 'webuzo_user' ) && ! $manual_susp ) self::enqueue( self::HOOK_RECONCILE, $id );
+			}
+			if ( $hosting && $domain_ok ) {
+				// Con el vencimiento leído antes de mover `expires` (N1); renovado por el administrador, el del registrador (N5).
+				$state['domain_extended'] = 'elsewhere' === $domain_result ? (int) $registrar_due : (int) strtotime( '+1 year', $od_before ? $od_before : time() );
+				self::svc_set( $id, array( 'domain_expires' => $state['domain_extended'], 'domain_lapsed' => 0, 'domain_pending_order' => 0 ) );
+			}
+			if ( $domain_ok ) { self::drop_other_domain_order( $id, $order ); self::svc_set( $id, array( 'domain_renewal_order' => 0, 'domain_notices' => array() ) ); }
+			// El dominio sin renovar (falló): pendiente, con aviso. (Sólo el dominio sin pedir la renovación ni marcar «ya lo
+			// renové» ya no llega aquí: se rechaza arriba.)
+			$pending_domain = 'failed' === $domain_result;
+			if ( $pending_domain ) {
+				$why = $dstop ? $dstop['message'] : 'no se pidió la renovación ni se indicó que ya la hiciste en el registrador';
+				// Detenido por algo que no es la red (saldo, datos): espera «Reintentar»; completar el pedido no lo vuelve a
+				// intentar solo (paid()). Sin respuesta (red), sí se reintenta solo.
+				if ( $dstop && 'transient' !== $dstop['kind'] ) $state['stopped'] = $dstop['kind'];
+				self::svc_set( $id, array( 'domain_pending_order' => $order->get_id() ) );
+				$order->add_order_note( 'DIGITALÍSIMO Hosting: el pago manual quedó registrado, pero el dominio ' . self::svc( $id, 'domain' ) . ' NO se renovó: ' . $why . '. Queda pendiente: «Reintentar» en Servicios de hosting lo renueva.' );
+				self::alert_admin( 'dominio sin renovar tras un pago manual: ' . self::svc( $id, 'domain' ), 'Registraste el pago manual del pedido #' . $order->get_id() . ', pero el dominio ' . self::svc( $id, 'domain' ) . ' no se renovó: ' . $why . ( $hosting ? '' : '. Como el servicio es sólo el dominio, su vencimiento no cambió' ) . ".\n\nPulsa «Reintentar» en WooCommerce → Servicios de hosting cuando lo resuelvas.\n\n" . self::order_link( $order ) );
+			}
+			if ( ! $pending_domain ) $state['done'] = time();
+			$order->update_meta_data( self::META_RENEW, $state );
+			$order->update_meta_data( '_digitalisimo_manual_payment', $entry );
+			if ( method_exists( $order, 'set_payment_method' ) ) $order->set_payment_method( 'digitalisimo_manual' );
+			if ( method_exists( $order, 'set_payment_method_title' ) ) $order->set_payment_method_title( 'Pago manual: ' . strtolower( self::MANUAL_METHODS[ $method ] ) );
+			$order->save();
+			$text = 'Pago manual registrado por ' . $user . ': ' . strtolower( self::MANUAL_METHODS[ $method ] ) . ', ' . $label . ( null !== $amount ? ', monto ' . number_format( $amount, 2, '.', ',' ) : '' ) . ( '' !== $note ? ' (' . $note . ')' : '' ) . ( $new !== $old ? '; vence el ' . self::date( $new ) : '; el vencimiento no cambió hasta renovar el dominio' ) . ( 'elsewhere' === $domain_result ? '; dominio renovado por el administrador en el registrador' : '' ) . ( $manual_susp ? '. La cuenta sigue suspendida a mano: usa «Reactivar» si corresponde' : '' ) . '.';
+			$log = get_option( self::MANUAL_LOG, array() ); $log = is_array( $log ) ? $log : array();
+			array_unshift( $log, $entry + array( 'from' => $old, 'to' => $new, 'domain_renewal' => $domain_result ) );
+			update_option( self::MANUAL_LOG, array_slice( $log, 0, 200 ), false );
+			self::svc_log( $id, $text . ' Pedido #' . $order->get_id() . '.' );
+			$result = array( 'ok' => true, 'duplicate' => false, 'service' => $id, 'order' => (int) $order->get_id(), 'from' => self::date( $old ), 'expires' => self::date( $new ), 'months' => $months, 'method' => $method, 'amount' => $amount, 'domain_renewal' => $domain_result, 'message' => $text );
+			$seen = self::svc( $id, 'manual_keys' ); $seen = is_array( $seen ) ? $seen : array();
+			$seen[ $key ] = array( 't' => time(), 'state' => 'done', 'result' => $result );
+			self::svc_set( $id, array( 'manual_keys' => $seen ) );
+			// Al final: un error de otro plugin al completar el pedido ya no deshace nada de lo anterior.
+			$order->update_status( 'completed', 'DIGITALÍSIMO Hosting: ' . $text );
+			/**
+			 * Gancho para la suscripción automática (Mercado Pago, en otra rama): un pago manual mueve el vencimiento; quien
+			 * cobre solo debe mover también la fecha del siguiente cobro.
+			 */
+			if ( function_exists( 'do_action' ) ) do_action( 'digitalisimo_hosting_manual_payment', $id, $result + array( 'expires_ts' => $new, 'from_ts' => $old, 'user' => $user ) );
+			return $result;
+		} finally {
+			delete_option( $lock );
+		}
+	}
+
+	/**
+	 * «Ya lo renové yo en el registrador» se comprueba (consulta de sólo lectura): el registrador debe haber avanzado los
+	 * $years años pagados respecto de SU fecha anterior, no de la del servicio (pueden diferir unos días: el dominio se
+	 * registró antes de entregarse el pedido, o llegó por transferencia). Esa fecha anterior es la del registrador que
+	 * queda más cerca de $base (el vencimiento del dominio según el servicio) restando años enteros, que es como renuevan
+	 * los registradores. Devuelve el vencimiento del registrador o un WP_Error que dice qué falta; nada se escribe
+	 * (segunda revisión, N5; tercera verificación, sonda 22).
+	 */
+	private static function registrar_due( $id, $years, $base ) {
+		$domain = (string) self::svc( $id, 'domain' );
+		$nc = Digitalisimo_Hosting_Registrars::make( Digitalisimo_Hosting_Registrars::of_service( $id ) );
+		$rl = $nc->label();
+		$fail = function ( $why ) { return new WP_Error( 'digitalisimo_hosting_domain_not_renewed', $why . ' No se registró nada.', array( 'status' => 400 ) ); };
+		if ( ! $nc->configured() ) return $fail( 'Falta la cuenta de ' . $rl . ': no se puede comprobar que ' . $domain . ' ya está renovado.' );
+		$info = $nc->info( $domain, 15 );
+		if ( 'ok' !== $info['kind'] ) return $fail( 'No se pudo comprobar en ' . $rl . ' que ' . $domain . ' ya está renovado (' . rtrim( (string) $info['message'], '. ' ) . '). Inténtalo de nuevo en unos minutos.' );
+		if ( empty( $info['ours'] ) ) return $fail( 'El dominio ' . $domain . ' no está en la cuenta de ' . $rl . ': no se puede dar por renovado.' );
+		$due = (int) ( $info['expires'] ?? 0 );
+		if ( $due <= 0 ) return $fail( $rl . ' no informó cuándo vence ' . $domain . ': no se puede comprobar la renovación.' );
+		$years = max( 1, (int) $years );
+		$advanced = self::registrar_years( $due, (int) $base );
+		if ( $advanced < $years ) {
+			$before = (int) strtotime( '-' . max( 0, $advanced ) . ' year', $due );
+			return $fail( 'En ' . $rl . ' el dominio ' . $domain . ' vence el ' . self::date( $due ) . ': respecto de su vencimiento anterior en el registrador (' . self::date( $before ) . ') avanzó ' . max( 0, $advanced ) . ( 1 === max( 0, $advanced ) ? ' año' : ' años' ) . ' y se pagan ' . $years . '. La renovación en el registrador no alcanza: renuévalo allá o elige «Renovar el dominio con su registrador».' );
+		}
+		return $due;
+	}
+
+	/** Cuántos años enteros avanzó el registrador ($due) desde su fecha más cercana a $base (puede ser 0 o negativo). */
+	private static function registrar_years( $due, $base ) {
+		$best = 0; $gap = abs( $due - $base );
+		for ( $k = -3; $k <= 12; $k++ ) {
+			$prev = (int) strtotime( ( $k >= 0 ? '-' : '+' ) . abs( $k ) . ' year', $due );
+			if ( abs( $prev - $base ) < $gap ) { $gap = abs( $prev - $base ); $best = $k; }
+		}
+		return $best;
+	}
+
+	/** El vencimiento del dominio hoy en su registrador (sólo lectura), para mostrarlo en el formulario; 0 si no se pudo. */
+	public static function registrar_now( $id ) {
+		if ( ! self::svc( $id, 'domain_registered' ) ) return 0;
+		$nc = Digitalisimo_Hosting_Registrars::make( Digitalisimo_Hosting_Registrars::of_service( $id ) );
+		if ( ! $nc->configured() ) return 0;
+		$info = $nc->info( (string) self::svc( $id, 'domain' ), 15 );
+		return 'ok' === $info['kind'] && ! empty( $info['ours'] ) ? (int) ( $info['expires'] ?? 0 ) : 0;
+	}
+
+	/** El resultado de un pago ya registrado (o a medias) con esa clave, o null. */
+	private static function manual_duplicate( $id, $key ) {
+		$seen = self::svc( $id, 'manual_keys' ); $seen = is_array( $seen ) ? $seen : array();
+		$prev = $seen[ $key ] ?? null;
+		if ( ! $prev || ( 'k:' !== substr( $key, 0, 2 ) && time() - (int) ( $prev['t'] ?? 0 ) >= 10 * MINUTE_IN_SECONDS ) ) return null;
+		if ( 'running' === ( $prev['state'] ?? '' ) ) return array( 'ok' => true, 'duplicate' => true, 'service' => (int) $id, 'expires' => self::date( (int) self::svc( $id, 'expires' ) ), 'message' => 'Este pago ya se empezó a registrar y quedó a medias (otra petición o un error): no se extendió otra vez. Revisa el servicio y su pedido.' );
+		return array( 'ok' => true, 'duplicate' => true, 'message' => 'Este pago ya se había registrado (no se extendió otra vez).' ) + (array) ( $prev['result'] ?? array() );
 	}
 
 	// ── Suspender, reactivar, reenviar ──────────────────────────────────────────────────────────────────────────
@@ -1624,7 +2557,7 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! self::is_service( $id ) ) return;
 		$order = wc_get_order( (int) self::svc( $id, 'order' ) );
 		if ( ! $order ) return;
-		$items = self::items( $order );
+		$items = self::split_main( self::items( $order ) )[0];
 		$state = self::state( $order );
 		$state['hosting']['pass'] = (string) self::svc( $id, 'pass' );
 		$data = self::access_data( $order, $state, $items, (string) self::svc( $id, 'domain' ) );
@@ -1646,15 +2579,17 @@ class Digitalisimo_Hosting_Provisioning {
 		$queued = false;
 		if ( $order ) {
 			$state = self::state( $order );
-			if ( empty( $state['done'] ) ) {
+			// El alta a medias, o un dominio más del pedido sin terminar (sea éste su servicio o el del plan; N2).
+			if ( empty( $state['done'] ) || self::extras_state( $order, true ) ) {
 				// Sólo una marca: la tarea limpia los reintentos sobre el estado que lea en ese momento.
 				if ( empty( $state['paid'] ) && self::payment_confirmed( $order ) ) { $state['paid'] = time(); self::save_state( $order, $state ); }
 				$order->update_meta_data( '_digitalisimo_retry', time() ); $order->save();
 				self::enqueue( self::HOOK_PROVISION, $order->get_id() ); $queued = true;
 			}
 		}
-		$renewal = wc_get_order( (int) ( self::svc( $id, 'renewal_order' ) ?: self::svc( $id, 'domain_pending_order' ) ) );
-		if ( $renewal ) {
+		foreach ( array_unique( array_filter( array( (int) self::svc( $id, 'renewal_order' ), (int) self::svc( $id, 'domain_renewal_order' ), (int) self::svc( $id, 'domain_pending_order' ) ) ) ) as $rid ) {
+			$renewal = wc_get_order( $rid );
+			if ( ! $renewal ) continue;
 			$s = (array) $renewal->get_meta( self::META_RENEW );
 			if ( empty( $s['done'] ) && self::renewal_confirmed( $renewal ) ) {
 				if ( empty( $s['paid'] ) ) { $s['paid'] = time(); $renewal->update_meta_data( self::META_RENEW, $s ); }
