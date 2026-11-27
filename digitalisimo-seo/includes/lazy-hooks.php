@@ -322,6 +322,19 @@ return array(
 		array( 'a', 'add_option_digitalisimo_integrations_options', 'changed', 10, 1, '**' ),
 		array( 'a', 'admin_notices', 'notice', 10, 1, '**' ),
 	) ),
+	'Digitalisimo_Integrations_Site_Analysis' => array( 'hooks' => array(
+		array( 'a', 'digitalisimo_seo_analysis_batch', 'run_batch', 10, 1, '**' ),
+		array( 'a', 'digitalisimo_seo_canonical_batch', 'run_canonical', 10, 1, '**' ),
+		array( 'a', 'admin_init', 'maybe_start', 30, 1, '**' ),
+		array( 'a', 'save_post', 'on_save', 40, 2, '**' ),
+		array( 'a', 'admin_notices', 'notice', 10, 1, '**' ),
+		array( 'a', 'admin_post_digitalisimo_seo_analysis_rescan', 'handle_rescan', 10, 1, '**' ),
+	) ),
+	'Digitalisimo_Integrations_SEO_Cleanup' => array( 'hooks' => array(
+		array( 'a', 'admin_post_digitalisimo_seo_cleanup_preview', 'handle_preview', 10, 1, '**' ),
+		array( 'a', 'admin_post_digitalisimo_seo_cleanup_apply', 'handle_apply', 10, 1, '**' ),
+		array( 'a', 'admin_post_digitalisimo_seo_cleanup_undo', 'handle_undo', 10, 1, '**' ),
+	) ),
 	'Digitalisimo_Integrations_Robots' => array( 'hooks' => array(
 		array( 'f', 'robots_txt', 'append', 50, 2, '**' ),
 	) ),

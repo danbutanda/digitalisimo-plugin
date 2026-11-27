@@ -17,7 +17,7 @@ class Digitalisimo_Integrations_SEO_Audit_Hub {
 
 	/** Auditorías disponibles; cada una se muestra sola en su propia vista. */
 	private static function sections() {
-		$sections = array( 'schema' => 'Schema', 'front' => 'SEO Front', 'links' => 'Enlaces internos', 'llms' => 'llms.txt', 'quality' => 'Rendimiento y calidad', 'files' => 'Archivos públicos' );
+		$sections = array( 'schema' => 'Schema', 'front' => 'SEO Front', 'site' => 'Análisis del sitio', 'links' => 'Enlaces internos', 'llms' => 'llms.txt', 'quality' => 'Rendimiento y calidad', 'files' => 'Archivos públicos' );
 		if ( class_exists( 'Digitalisimo_AI' ) ) $sections['ai'] = 'SEO AI';
 		return $sections;
 	}
@@ -47,7 +47,7 @@ class Digitalisimo_Integrations_SEO_Audit_Hub {
 
 	public static function render() {
 		$sections = self::sections(); $current = self::current( $sections );
-		echo '<h2>Auditoría</h2><p>Elige una auditoría; cada una se muestra por separado. Sólo informan: ninguna modifica contenido ni configuración.</p><ul class="subsubsub digitalisimo-audit-nav" style="float:none;margin:0 0 12px">';
+		echo '<h2>Auditoría</h2><p>Elige una auditoría; cada una se muestra por separado. Sólo informan: ninguna modifica contenido ni configuración por su cuenta (las acciones del análisis del sitio piden confirmación y guardan respaldo).</p><ul class="subsubsub digitalisimo-audit-nav" style="float:none;margin:0 0 12px">';
 		$items = array();
 		foreach ( $sections as $id => $label ) $items[] = '<li><a href="' . esc_url( self::url( $id ) ) . '"' . ( $id === $current ? ' class="current" aria-current="page"' : '' ) . '>' . esc_html( $label ) . '</a>';
 		echo implode( ' | </li>', $items ) . '</li></ul><hr id="digitalisimo-audit-' . esc_attr( $current ) . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- enlaces escapados arriba.
@@ -58,6 +58,9 @@ class Digitalisimo_Integrations_SEO_Audit_Hub {
 				break;
 			case 'links':
 				Digitalisimo_Integrations_Links::render_audit();
+				break;
+			case 'site':
+				Digitalisimo_Integrations_Site_Analysis::render();
 				break;
 			case 'llms':
 				if ( Digitalisimo_Integrations_LLMS::status()['enabled'] ) Digitalisimo_Integrations_LLMS::render_status( false );
