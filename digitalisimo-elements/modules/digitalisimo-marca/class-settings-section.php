@@ -99,9 +99,9 @@ final class Settings_Section {
 			$legacy = Legacy_Route::state();
 			$until  = Legacy_Route::until();
 			if ( '' !== $legacy['last'] ) {
-				echo '<p class="description digitalisimo-marca-legacy">' . esc_html( 'La dirección vieja (/wp-json/elementor/mcp) se usó por última vez el ' . $legacy['last'] . ' y funciona hasta el ' . $until . ( '' !== $legacy['extended'] ? ' (prorrogada porque se seguía usando)' : '' ) . '. Cambia la dirección en tus clientes MCP.' ) . '</p>';
+				echo '<p class="description digitalisimo-marca-legacy">' . esc_html( 'La dirección anterior del MCP se usó por última vez el ' . $legacy['last'] . ' y funciona hasta el ' . $until . ( '' !== $legacy['extended'] ? ' (prorrogada porque se seguía usando)' : '' ) . '. Cambia la dirección en tus clientes MCP.' ) . '</p>';
 			} else {
-				echo '<p class="description">' . esc_html( 'La dirección vieja (/wp-json/elementor/mcp) funciona hasta el ' . $until . ' y no se ha usado desde que se cuenta.' ) . '</p>';
+				echo '<p class="description">' . esc_html( 'La dirección anterior del MCP funciona hasta el ' . $until . ' y no se ha usado desde que se cuenta.' ) . '</p>';
 			}
 		}
 		echo '</td></tr>';

@@ -40,7 +40,16 @@ rmSync(join(dir, 'marca/assets'), { recursive: true, force: true });
 rmSync(join(dir, 'marca/modules'), { recursive: true, force: true });
 
 const walk = (d, out = []) => { for (const n of readdirSync(d)) { const p = join(d, n); statSync(p).isDirectory() ? walk(p, out) : out.push(p); } return out; };
-const php = (data) => `<?php\n// Generado por scripts/marca-empaquetar.mjs.\nreturn json_decode( base64_decode( '${Buffer.from(JSON.stringify(data)).toString('base64')}' ), true );\n`;
+// Datos como arreglo PHP literal: opcache lo guarda ya armado (sin decodificar nada en cada petición).
+const phpValue = (v) => {
+  if (v === null || v === undefined) return 'null';
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : JSON.stringify(v);
+  if (typeof v === 'string') return `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+  if (Array.isArray(v)) return `array(${v.map(phpValue).join(',')})`;
+  return `array(${Object.entries(v).map(([k, x]) => `${phpValue(k)}=>${phpValue(x)}`).join(',')})`;
+};
+const php = (data) => `<?php\n// Generado por scripts/marca-empaquetar.mjs.\nreturn ${phpValue(data)};\n`;
 
 // Lo que el servidor LEE por su ruta para pintar (no se puede renombrar ni transformar: con la marca apagada tiene que
 // dar lo de siempre). Se publica con el contenido ORIGINAL, pero la palabra va enmascarada con una forma equivalente que
@@ -139,6 +148,15 @@ for (const file of walk(join(dir, 'motor'))) {
 const report = { transformados: 0, renombrados: 0, sin_publicar: 0, sin_minificar: unminified, servidor_lee: [], quedan: [] };
 for (const file of walk(dir).sort()) {
   const rel = relative(dir, file).split('\\').join('/');
+  // Idiomas del núcleo (`elementor-es_MX.l10n.php`): PHP, el contenido no se sirve, pero el nombre se puede pedir por
+  // URL (D-8). Se renombran (`dg-es_MX.l10n.php`) y el sitio los encuentra con el nombre nuevo (Package).
+  if (/^motor\/languages\/elementor[^/]*\.l10n\.php$/.test(rel)) {
+    const dest = rename(rel);
+    renameSync(file, join(dir, dest));
+    index[rel] = dest;
+    report.idiomas_php = (report.idiomas_php || 0) + 1;
+    continue;
+  }
   if (rel.endsWith('.php') || rel.startsWith('marca/')) continue;
   const buf = readFileSync(file);
   const named = /elementor/i.test(rel.replace(/^motor\//, ''));

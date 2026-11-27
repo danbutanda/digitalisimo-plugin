@@ -46,8 +46,9 @@ final class Package {
 
 	/** Para pruebas. */
 	public static function reset( ?array $index = null, ?string $mode = null ): void {
-		self::$index = $index;
-		self::$mode  = $mode;
+		self::$index   = $index;
+		self::$mode    = $mode;
+		self::$entries = null;
 	}
 
 	/** Nombre publicado de una ruta relativa al plugin (`elementor` → `dg` en cada tramo; `elementor/` → `motor/`). */
@@ -107,6 +108,9 @@ final class Package {
 		add_filter( 'style_loader_src', array( __CLASS__, 'asset_src' ), 1 );
 		add_filter( 'script_loader_src', array( __CLASS__, 'asset_src' ), 1 );
 		add_filter( 'load_script_translation_file', array( __CLASS__, 'translation_file' ), 20, 3 );
+		add_filter( 'pre_load_script_translations', array( __CLASS__, 'original_translations' ), 10, 4 );
+		add_filter( 'lang_dir_for_domain', array( __CLASS__, 'lang_dir' ), 20, 3 );
+		add_filter( 'load_translation_file', array( __CLASS__, 'php_translation_file' ), 10, 2 );
 		add_action( 'upgrader_process_complete', array( __CLASS__, 'after_update' ), 20, 2 );
 		// El JS transformado abre la vista previa del editor con `dg-preview` (D-12): se traduce antes de que el núcleo
 		// mire la petición.
@@ -173,24 +177,75 @@ final class Package {
 		return is_readable( $own ) ? $own : $file;
 	}
 
-	/** Lee un original del archivo de datos. */
+	/**
+	 * Idiomas del núcleo en el paquete: `elementor-<idioma>.l10n.php` se publica como `dg-<idioma>.l10n.php` (D-8). La
+	 * carpeta del núcleo vale para el dominio `elementor` si trae ese idioma con el nombre nuevo (el cargador del núcleo
+	 * sólo busca el viejo).
+	 */
+	public static function lang_dir( $path, $domain = '', $locale = '' ) {
+		if ( 'elementor' !== $domain || ! is_string( $locale ) || '' === $locale ) {
+			return $path;
+		}
+		$own = self::plugin_dir() . '/motor/languages/';
+		if ( ( $path && glob( rtrim( (string) $path, '/' ) . '/elementor-' . $locale . '.*' ) ) || ! is_readable( $own . self::rename( 'elementor-' . $locale . '.l10n.php' ) ) ) {
+			return $path;
+		}
+		return $own;
+	}
+
+	/** `load_translation_file`: el `.l10n.php` del núcleo con su nombre publicado. */
+	public static function php_translation_file( $file, $domain = '' ) {
+		if ( ! is_string( $file ) || false === stripos( basename( $file ), 'elementor' ) || is_readable( $file ) ) {
+			return $file;
+		}
+		$renamed = dirname( $file ) . '/' . self::rename( basename( $file ) );
+		return is_readable( $renamed ) ? $renamed : $file;
+	}
+
+	/**
+	 * Marca apagada: las traducciones de los scripts del núcleo salen del original (sus claves son las cadenas del JS
+	 * original; la copia publicada las trae transformadas, como el JS transformado).
+	 */
+	public static function original_translations( $translations, $file = '', $handle = '', $domain = '' ) {
+		if ( null !== $translations || 'off' !== self::mode() || ! is_string( $file ) || false === strpos( str_replace( '\\', '/', $file ), '/languages/' ) ) {
+			return $translations;
+		}
+		$name = basename( $file );
+		foreach ( self::index() as $original => $published ) {
+			if ( is_string( $published ) && 0 === strpos( $original, 'motor/languages/' ) && ( basename( $published ) === $name || basename( $original ) === $name ) ) {
+				$data = self::original( $original );
+				return null !== $data ? $data : $translations;
+			}
+		}
+		return $translations;
+	}
+
+	/** @var array|null entradas del archivo de originales (ruta => [desplazamiento, largo, tamaño, sha256]) */
+	private static $entries = null;
+	/** @var int */
+	private static $entries_start = 0;
+
+	/** Lee un original del archivo de datos (el índice del archivo se lee una vez por petición). */
 	public static function original( string $rel ): ?string {
 		$archive = self::plugin_dir() . '/marca/originales.php';
 		$h       = @fopen( $archive, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions
 		if ( ! $h ) {
 			return null;
 		}
-		fgets( $h );
-		$entries = json_decode( (string) fgets( $h ), true );
-		$start   = ftell( $h );
-		$out     = null;
-		foreach ( (array) $entries as $e ) {
-			if ( $rel === $e[0] ) {
-				fseek( $h, $start + (int) $e[1] );
-				$data = gzinflate( (string) fread( $h, (int) $e[2] ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions
-				$out  = false !== $data && hash( 'sha256', $data ) === $e[4] ? $data : null;
-				break;
+		if ( null === self::$entries ) {
+			fgets( $h );
+			self::$entries = array();
+			foreach ( (array) json_decode( (string) fgets( $h ), true ) as $e ) {
+				self::$entries[ $e[0] ] = $e;
 			}
+			self::$entries_start = (int) ftell( $h );
+		}
+		$out = null;
+		if ( isset( self::$entries[ $rel ] ) ) {
+			$e = self::$entries[ $rel ];
+			fseek( $h, self::$entries_start + (int) $e[1] );
+			$data = gzinflate( (string) fread( $h, (int) $e[2] ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+			$out  = false !== $data && hash( 'sha256', $data ) === $e[4] ? $data : null;
 		}
 		fclose( $h ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 		return $out;

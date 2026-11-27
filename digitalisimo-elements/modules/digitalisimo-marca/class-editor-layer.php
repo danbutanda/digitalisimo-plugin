@@ -41,6 +41,77 @@ final class Editor_Layer {
 		add_filter( 'rest_pre_dispatch', array( __CLASS__, 'rest_request' ), 4, 3 );
 		add_filter( 'rest_post_dispatch', array( __CLASS__, 'rest_response' ), 60, 3 );
 		add_filter( 'heartbeat_received', array( __CLASS__, 'heartbeat' ), PHP_INT_MIN, 2 );
+		add_filter( 'rest_index', array( __CLASS__, 'rest_index' ), 30 );
+	}
+
+	/** Todas las cadenas y claves por las reglas (esquemas de la API: no hay contenido del cliente). */
+	public static function schema_out( $value, int $depth = 0 ) {
+		if ( is_string( $value ) ) {
+			return Transform::str( $value );
+		}
+		if ( ! is_array( $value ) || $depth > 32 ) {
+			return $value;
+		}
+		$out = array();
+		foreach ( $value as $k => $v ) {
+			$out[ is_string( $k ) ? Transform::str( $k ) : $k ] = self::schema_out( $v, $depth + 1 );
+		}
+		return $out;
+	}
+
+	/** El índice `/wp-json/`: los esquemas de las rutas que quedan (metas registradas del motor) con los nombres nuevos. */
+	public static function rest_index( $response ) {
+		if ( ! self::on() || ! is_object( $response ) || ! method_exists( $response, 'get_data' ) ) {
+			return $response;
+		}
+		$data = $response->get_data();
+		if ( is_array( $data ) && isset( $data['routes'] ) ) {
+			$data['routes'] = self::schema_out( $data['routes'] );
+			$response->set_data( $data );
+		}
+		return $response;
+	}
+
+	/** Una meta `_digitalisimo_<x>` (o `_dg_<x>`) que entra → `_elementor_<x>` si el motor la registró para la API. */
+	public static function meta_key_in( string $key ): string {
+		foreach ( array( '_digitalisimo_', Map::META_OUT ) as $prefix ) {
+			if ( 0 === strpos( $key, $prefix ) ) {
+				$original = '_elementor_' . substr( $key, strlen( $prefix ) );
+				return self::meta_registered( $original ) ? $original : $key;
+			}
+		}
+		return $key;
+	}
+
+	private static function meta_registered( string $key ): bool {
+		if ( ! function_exists( 'get_registered_meta_keys' ) ) {
+			return false;
+		}
+		$types = function_exists( 'get_post_types' ) ? array_merge( array( '' ), array_keys( (array) get_post_types( array( 'show_in_rest' => true ) ) ) ) : array( '' );
+		foreach ( $types as $type ) {
+			if ( isset( get_registered_meta_keys( 'post', (string) $type )[ $key ] ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Una entrada o salida de `wp/v2` con `meta` y `template` (las metas del motor y sus plantillas de página). */
+	private static function post_out( $item ) {
+		if ( ! is_array( $item ) ) {
+			return $item;
+		}
+		if ( isset( $item['meta'] ) && is_array( $item['meta'] ) ) {
+			$meta = array();
+			foreach ( $item['meta'] as $k => $v ) {
+				$meta[ is_string( $k ) ? Transform::str( $k ) : $k ] = $v;
+			}
+			$item['meta'] = $meta;
+		}
+		if ( isset( $item['template'] ) ) {
+			$item['template'] = Exports::template_out( $item['template'] );
+		}
+		return $item;
 	}
 
 	/** ¿Habla el JS con los nombres nuevos en esta petición? */
@@ -209,6 +280,20 @@ final class Editor_Layer {
 			return $result;
 		}
 		$route = (string) $request->get_route();
+		// wp/v2: las metas del motor y la plantilla de página con los nombres nuevos (los dos valen).
+		if ( 0 === strpos( $route, '/wp/v2/' ) && method_exists( $request, 'get_param' ) ) {
+			$meta = $request->get_param( 'meta' );
+			if ( is_array( $meta ) ) {
+				$in = array();
+				foreach ( $meta as $k => $v ) {
+					$in[ is_string( $k ) ? self::meta_key_in( $k ) : $k ] = $v;
+				}
+				$request->set_param( 'meta', $in );
+			}
+			if ( is_string( $request->get_param( 'template' ) ) ) {
+				$request->set_param( 'template', Exports::template_in( $request->get_param( 'template' ) ) );
+			}
+		}
 		if ( false === strpos( $route, 'digitalisimo' ) || self::route_exists( $server, $route ) ) {
 			return $result;
 		}
@@ -249,10 +334,20 @@ final class Editor_Layer {
 			return $response;
 		}
 		$route = (string) $request->get_route();
-		if ( ! preg_match( '#^/elementor[^/]*/|^/wp/v2/elementor_#', $route ) || preg_match( '#^/elementor/mcp(/|$)#', $route ) ) {
+		if ( preg_match( '#^/elementor/mcp(/|$)#', $route ) ) {
 			return $response;
 		}
-		$response->set_data( Transform::json_out( $response->get_data() ) );
+		// OPTIONS: el esquema de la ruta.
+		if ( method_exists( $request, 'get_method' ) && 'OPTIONS' === $request->get_method() ) {
+			$response->set_data( self::schema_out( $response->get_data() ) );
+			return $response;
+		}
+		if ( preg_match( '#^/elementor[^/]*/|^/wp/v2/elementor_#', $route ) ) {
+			$response->set_data( Transform::json_out( $response->get_data() ) );
+		} elseif ( 0 === strpos( $route, '/wp/v2/' ) ) {
+			$data = $response->get_data();
+			$response->set_data( is_array( $data ) && isset( $data[0] ) ? array_map( array( __CLASS__, 'post_out' ), $data ) : self::post_out( $data ) );
+		}
 		return $response;
 	}
 

@@ -180,7 +180,14 @@ final class Map {
 				$text
 			);
 		}
+		// Plantillas de página del motor (reversibles con in()).
+		$text = (string) preg_replace( '#(?<![A-Za-z0-9_])elementor_(canvas|header_footer|theme)(?![A-Za-z0-9_])#', 'digitalisimo_$1', $text );
 		$text = (string) preg_replace( '#(?<![A-Za-z0-9_])_elementor_([a-z0-9_]+)#', self::META_OUT . '$1', $text );
+		// En los textos del motor (descripciones, guías, mensajes y códigos de error), los demás identificadores
+		// `elementor_x` (códigos como `elementor_v3_not_supported`): sólo salen, nadie los manda de vuelta.
+		if ( $brand ) {
+			$text = (string) preg_replace( '#(?<![A-Za-z0-9_])elementor_([a-z0-9_]+)#', 'digitalisimo_$1', $text );
+		}
 		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)action=elementor(?=$|[&\#"\'\s<\\\\])#', '$1action=' . self::ACTION_OUT, $text );
 		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)page=elementor(?=[\w-]|$|[&\#"\'\s<\\\\])#', '$1page=' . self::PAGE_OUT, $text );
 		return $brand ? self::brand( $text ) : $text;
@@ -207,6 +214,7 @@ final class Map {
 				$text
 			);
 		}
+		$text = (string) preg_replace( '#(?<![A-Za-z0-9_])digitalisimo_(canvas|header_footer|theme)(?![A-Za-z0-9_])#', 'elementor_$1', $text );
 		$text = (string) preg_replace( '#(?<![A-Za-z0-9_])' . preg_quote( self::META_OUT, '#' ) . '([a-z0-9_]+)#', '_elementor_$1', $text );
 		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)action=' . self::ACTION_OUT . '(?=$|[&\#"\'\s<\\\\])#', '$1action=elementor', $text );
 		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)page=' . self::PAGE_OUT . '#', '$1page=elementor', $text );
@@ -250,6 +258,10 @@ final class Map {
 			return $value;
 		}
 		if ( is_string( $value ) ) {
+			// Un código de error del motor (`code: elementor_v3_not_supported`) sale como el de sus descripciones.
+			if ( $engine && 'code' === $key && preg_match( '/^elementor_[a-z0-9_]+$/', $value ) ) {
+				return self::out( $value, true );
+			}
 			return self::out( $value, $engine && '' !== $key && self::engine_text_key( $key ) );
 		}
 		if ( is_array( $value ) || $value instanceof \stdClass ) {

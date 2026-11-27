@@ -109,7 +109,7 @@ async function mcp() {
   for (const p of ['/', `/?page_id=${setup.page}`]) {
     const r = await page.goto(base + p, { waitUntil: 'networkidle0', timeout: 180000 });
     const html = await r.text();
-    add('front_html', count(media(html)), `${p}: ` + snippets(media(html)));
+    add('front_html', count(media(html).replace(/guía de Elementor/g, '')), `${p}: ` + snippets(media(html).replace(/guía de Elementor/g, '')));
     check('F0', html.includes(setup.image), `la imagen de prueba conserva su URL en ${p}`);
   }
   // Lightbox: abre con el HTML y el JS transformados, y su trozo sale del espejo (si hay espejo).
@@ -147,7 +147,7 @@ async function mcp() {
     const html = await page.content();
     add(`${layer}_url`, count(url) + hrefs.length, `${p} → ${url}${hrefs.length ? ' · ' + hrefs.slice(0, 3).join(' ') : ''}`);
     add(`${layer}_texto`, count(media(text).replace(/guía de Elementor/g, '')), `${p}: ` + snippets(text));
-    add(`${layer}_html`, count(html), `${p} (${count(html)})`);
+    add(`${layer}_html`, count(html), `${p} (${count(html)}): ${snippets(html, 6)}`);
   } catch (e) { check(`P-${p}`, false, `la pantalla ${p} se recorrió`, e.message); }
   // Editor: abrir, editar, guardar y publicar. Con la marca encendida y el paquete transformado (PAQUETE=1) es la
   // validación de la D-12; en las otras variantes, la línea de base. El contenido del cliente («guía de Elementor») tiene
@@ -165,6 +165,19 @@ async function mcp() {
     page.on('response', onResp);
     await page.goto(`${base}/wp-admin/post.php?post=${id}&action=elementor`, { waitUntil: 'networkidle2', timeout: 240000 }).catch(() => null);
     const ready = await page.waitForFunction(() => { const E = window.digitalisimo || window.elementor; try { return !!(E && window.$e && E.documents && E.documents.getCurrent() && E.getContainer && E.getPreviewView && E.getPreviewView()); } catch (e) { return false; } }, { timeout: 180000 }).then(() => true).catch(() => false);
+    if (!ready) {
+      // Diagnóstico: en qué se quedó el editor.
+      const state = await page.evaluate(() => {
+        const E = window.digitalisimo || window.elementor;
+        const frame = document.querySelector('iframe#dg-preview-iframe, iframe#elementor-preview-iframe, iframe');
+        let inner = '';
+        try { inner = frame && frame.contentDocument ? frame.contentDocument.location.href + ' · ' + (frame.contentDocument.body ? frame.contentDocument.body.className : '') : ''; } catch (e) { inner = String(e); }
+        return { url: location.href, E: typeof E, e: typeof window.$e, loaded: E ? !!E.loaded : null, cfg: typeof (window.DigitalisimoConfig || window.ElementorConfig), frame: frame ? frame.getAttribute('src') : '', inner, loading: !!document.querySelector('#dg-loading, #elementor-loading'), body: document.body ? document.body.className : '' };
+      }).catch((e) => ({ error: String(e) }));
+      fs.writeFileSync(`${dir}/editor-${tag}.html`, await page.content().catch(() => ''));
+      await page.screenshot({ path: `${dir}/editor-${tag}.png` }).catch(() => {});
+      errs.push('estado: ' + JSON.stringify(state));
+    }
     check(`E1-${tag}`, ready, `el editor abre (${tag})`, errs.concat(failed).join(' | '));
     let saved = 'sin abrir';
     if (ready) {

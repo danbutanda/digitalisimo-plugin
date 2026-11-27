@@ -181,16 +181,62 @@ final class Transform {
 		if ( false === stripos( $js, 'elementor' ) ) {
 			return $js;
 		}
-		if ( preg_match( '/^(\s*(?:\/\*.*?\*\/\s*)?var\s+)([A-Za-z_$][\w$]*)(\s*=\s*)(\{.*\}|\[.*\])(\s*;?\s*(?:\/\*.*?\*\/\s*)?)$/s', $js, $m ) ) {
-			$data = json_decode( $m[4], true );
-			if ( null !== $data ) {
+		// Cada `var X = {…};` cuyo valor es JSON (la configuración): como datos. Lo demás, por el léxico.
+		$out = '';
+		$pos = 0;
+		while ( preg_match( '/\bvar\s+([A-Za-z_$][\w$]*)\s*=\s*(?=[\{\[])/', $js, $m, PREG_OFFSET_CAPTURE, $pos ) ) {
+			$start = (int) $m[0][1];
+			$from  = $start + strlen( $m[0][0] );
+			$end   = self::json_end( $js, $from );
+			if ( $end < 0 ) {
+				break;
+			}
+			$data = json_decode( substr( $js, $from, $end - $from ), true );
+			if ( null === $data ) {
+				$out .= self::lex( self::paths( substr( $js, $pos, $end - $pos ) ) );
+			} else {
 				$json = self::json( self::json_out( $data ) );
-				if ( is_string( $json ) ) {
-					return $m[1] . self::ident( $m[2] ) . $m[3] . $json . $m[5];
+				$out .= self::lex( self::paths( substr( $js, $pos, $start - $pos ) ) ) . 'var ' . self::ident( $m[1][0] ) . ' = ' . ( is_string( $json ) ? $json : substr( $js, $from, $end - $from ) );
+			}
+			$pos = $end;
+		}
+		return $out . self::lex( self::paths( substr( $js, $pos ) ) );
+	}
+
+	/** Fin (posición tras el cierre) del valor JSON que empieza en `$from` (`{` o `[`), o -1. Salta las cadenas. */
+	public static function json_end( string $s, int $from ): int {
+		$n     = strlen( $s );
+		$depth = 0;
+		$i     = $from;
+		while ( $i < $n ) {
+			$i += strcspn( $s, '"{}[]', $i );
+			if ( $i >= $n ) {
+				return -1;
+			}
+			$c = $s[ $i ];
+			if ( '"' === $c ) {
+				++$i;
+				while ( $i < $n ) {
+					$i += strcspn( $s, '"\\', $i );
+					if ( $i >= $n ) {
+						return -1;
+					}
+					if ( '\\' === $s[ $i ] ) {
+						$i += 2;
+						continue;
+					}
+					break;
 				}
+				++$i;
+				continue;
+			}
+			$depth += ( '{' === $c || '[' === $c ) ? 1 : -1;
+			++$i;
+			if ( 0 === $depth ) {
+				return $i;
 			}
 		}
-		return self::lex( self::paths( $js ) );
+		return -1;
 	}
 
 	/** JSON como lo imprime WordPress (con `json_encode` si WordPress no está cargado, en las pruebas). */
@@ -460,6 +506,10 @@ final class Transform {
 		$html = (string) preg_replace_callback(
 			'#(<script\b[^>]*>)(.*?)(</script>)#is',
 			static function ( $m ) {
+				// Nuestro script de alias (Admin_Urls) busca los nombres viejos para reescribirlos: sale tal cual.
+				if ( false !== strpos( $m[1], 'id="digitalisimo-marca-urls"' ) ) {
+					return $m[0];
+				}
 				$open = self::tag( $m[1] );
 				// Sólo JS y la configuración en JSON; nunca un `src`, el schema (`ld+json`, texto del contenido) ni plantillas.
 				$type = preg_match( '#\btype\s*=\s*["\']([^"\']+)["\']#i', $m[1], $t ) ? strtolower( $t[1] ) : 'text/javascript';
@@ -553,6 +603,13 @@ final class Transform {
 						$inner = (string) preg_replace( '/elementor/i', self::P, $inner );
 					} elseif ( in_array( $lname, array( 'href', 'src' ), true ) ) {
 						$inner = self::url( $inner );
+						// Enlaces del escritorio y del editor (también la barra de administración del front): con los alias (D-3).
+						if ( 'href' === $lname && false !== stripos( $inner, 'elementor' ) && class_exists( Admin_Urls::class ) ) {
+							$inner = Admin_Urls::url_out( str_replace( '&amp;', '&', $inner ) );
+							$inner = str_replace( '&', '&amp;', str_replace( '&amp;', '&', $inner ) );
+						}
+					} elseif ( 'action' === $lname && class_exists( Admin_Urls::class ) ) {
+						$inner = Admin_Urls::url_out( $inner );
 					} elseif ( 'value' === $lname && $is_action && preg_match( '/^elementor_[a-z0-9_]+$/', $inner ) ) {
 						$inner = 'digitalisimo_' . substr( $inner, 10 );
 					} elseif ( 0 === strpos( $lname, 'data-' ) ) {
