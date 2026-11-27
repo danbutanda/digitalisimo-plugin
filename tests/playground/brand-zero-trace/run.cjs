@@ -170,7 +170,7 @@ async function mcp() {
       if (r.status() < 400 || !r.url().startsWith(base) || /favicon/.test(r.url())) return;
       const req = r.request();
       const body = await r.text().catch(() => '');
-      failed.push(`${r.status()} ${req.method()} ${r.url().replace(base, '')} ${String(req.postData() || '').slice(0, 200)} → ${body.slice(0, 300)}`);
+      failed.push(`${r.status()} ${req.method()} ${r.url().replace(base, '')} ${String(req.postData() || '').replace(/actions=[^&]*/, 'actions=…')} → ${body.slice(0, 300)}`);
     };
     page.on('response', onResp);
     await page.goto(`${base}/wp-admin/post.php?post=${id}&action=elementor`, { waitUntil: 'networkidle2', timeout: 240000 }).catch(() => null);
@@ -203,7 +203,17 @@ async function mcp() {
       }, cmd, text).catch((e) => String(e));
       await new Promise((r) => setTimeout(r, 3000));
     }
-    if (saved !== 'ok') console.log(`DIAGNÓSTICO guardar ${tag}: ${JSON.stringify({ saved, failed: failed.slice(0, 8), errs: errs.slice(0, 6) })}`);
+    if (saved !== 'ok') {
+      const nonce = await page.evaluate(async () => {
+        const C = window.digitalisimoCommon || window.elementorCommon;
+        const n = C && C.ajax ? C.ajax.getSettings('nonce') : null;
+        const cfg = (window.digitalisimoCommonConfig || window.elementorCommonConfig || {}).ajax || null;
+        const body = new URLSearchParams({ action: 'digi_zt_nonce', n: n || '' });
+        const r = await fetch(cfg && cfg.url ? cfg.url : '/wp-admin/admin-ajax.php', { method: 'POST', body, credentials: 'same-origin' }).then((x) => x.text()).catch((e) => String(e));
+        return { n, cfg, servidor: r };
+      }).catch((e) => String(e));
+      console.log(`DIAGNÓSTICO guardar ${tag}: ${JSON.stringify({ saved, nonce, failed: failed.slice(0, 3).map((f) => f.slice(0, 120) + ' … ' + (f.match(/_nonce=[^&\s]*/) || [''])[0]), errs: errs.slice(0, 3) })}`);
+    }
     check(`E2-${tag}`, saved === 'ok', `editar y guardar con ${cmd} (${tag})`, saved + ' · ' + failed.concat(errs).join(' | '));
     const m = await meta(id);
     const data = String(m.data || '');

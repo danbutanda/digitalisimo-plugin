@@ -52,3 +52,11 @@ add_action(
 		);
 	}
 );
+// Diagnóstico del nonce del AJAX del editor (run.cjs): qué recibe el servidor y qué nonce espera para esta sesión.
+add_action(
+	'wp_ajax_digi_zt_nonce',
+	static function () {
+		$n = isset( $_POST['n'] ) ? (string) wp_unslash( $_POST['n'] ) : '';
+		wp_send_json( array( 'user' => get_current_user_id(), 'recibido' => $n, 'valido' => wp_verify_nonce( $n, 'elementor_ajax' ), 'esperado' => wp_create_nonce( 'elementor_ajax' ) ) );
+	}
+);
