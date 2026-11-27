@@ -1,6 +1,8 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/class-digitalisimo-ai-assistant-card.php';
+
 /**
  * El Asistente IA nativo de WordPress (docs/ASSISTANT.md): la interfaz del chat asistente de `@digitalisimo/ui`
  * portada a `wp.element`, con su menú principal «Asistente IA», el proveedor y la clave de IA Tools y, como
@@ -423,8 +425,8 @@ final class Digitalisimo_AI_Assistant {
 			if ( 'running' === ( $action['state'] ?? '' ) ) {
 				return new WP_Error( 'digitalisimo_assistant_running', 'Esa acción ya se ejecutó o se estaba ejecutando: revisa el resultado en el sitio antes de repetirla.', array( 'status' => 409 ) );
 			}
-			if ( $approve && 'destructive' === $action['kind'] && ! self::explicit( $request->get_param( 'explicit' ) ) ) {
-				return new WP_Error( 'digitalisimo_assistant_explicit', 'Es una acción destructiva: marca la casilla de confirmación explícita.', array( 'status' => 400 ) );
+			if ( $approve && self::needs_ack( $action ) && ! self::explicit( $request->get_param( 'explicit' ) ) ) {
+				return new WP_Error( 'digitalisimo_assistant_explicit', 'Para este cambio marca primero la casilla de la tarjeta.', array( 'status' => 400 ) );
 			}
 			return self::respond(
 				$request,
@@ -464,7 +466,7 @@ final class Digitalisimo_AI_Assistant {
 		} elseif ( ! $approve ) {
 			$result = array( 'status' => 'cancelled', 'error' => 'La persona canceló la acción; no se hizo nada.' );
 		} elseif ( ! $entry ) {
-			$result = array( 'status' => 'error', 'error' => 'Esa herramienta ya no está disponible en el MCP de este sitio.' );
+			$result = array( 'status' => 'error', 'error' => 'Esa función ya no está disponible en tu sitio; no se hizo nada.' );
 		} elseif ( true !== ( $allowed = Digitalisimo_AI_Assistant_Tools::permission( $entry, $action['call']['input'], $action['kind'] ) ) ) { // phpcs:ignore WordPress.CodeAnalysis.AssignmentInCondition
 			$result = Digitalisimo_AI_Assistant_Tools::denial( $allowed );
 		} else {
@@ -541,13 +543,21 @@ final class Digitalisimo_AI_Assistant {
 				return null; // «publícala» con una creación pendiente: es otra instrucción.
 			}
 		}
-		if ( 'destructive' === $action['kind'] ) {
-			return 'Este cambio no tiene vuelta atrás: se confirma con el botón «Sí, hacerlo» y la casilla de la tarjeta.';
-		}
-		if ( ! empty( $action['after_read'] ) ) {
-			return 'Revisa sus datos en la tarjeta antes de confirmar.';
+		if ( 'destructive' === $action['kind'] || ! empty( $action['after_read'] ) ) {
+			return self::needs_ack( $action ) ? 'Para este cambio marca la casilla de la tarjeta y pulsa «Sí, hazlo».' : 'Para este cambio pulsa «Sí, hazlo» en la tarjeta.';
 		}
 		return true;
+	}
+
+	/**
+	 * ¿Pide la casilla extra? Sólo lo que borra o mueve dinero (lo decide la tarjeta del servidor, guardada con la
+	 * acción). Una acción guardada antes de la tarjeta llana (sin `card`) sigue como antes: la pide si es destructiva.
+	 */
+	public static function needs_ack( array $action ) {
+		if ( isset( $action['card'] ) && is_array( $action['card'] ) && array_key_exists( 'ack', $action['card'] ) ) {
+			return (bool) $action['card']['ack'];
+		}
+		return 'destructive' === ( $action['kind'] ?? '' );
 	}
 
 	/** Las palabras de un mensaje, sin acentos ni signos. */
@@ -840,7 +850,7 @@ final class Digitalisimo_AI_Assistant {
 			}
 			$entry = $catalog[ $call['ability'] ] ?? null;
 			if ( ! $entry ) {
-				self::tool_result( $conv, $call, array( 'status' => 'error', 'error' => 'Esa herramienta no está en el MCP de este sitio (o está apagada en el Asistente).' ), 'unknown', $emit );
+				self::tool_result( $conv, $call, array( 'status' => 'error', 'error' => 'Esa función no está disponible en tu sitio (o está apagada en el Asistente); no se hizo nada.' ), 'unknown', $emit );
 				continue;
 			}
 			$call['input'] = Digitalisimo_AI_Assistant_Tools::prepare_input( $entry, $call['input'] );
@@ -913,9 +923,12 @@ final class Digitalisimo_AI_Assistant {
 				$action['edited'] = true;
 				$action['note']   = 'Este borrador tiene cambios tuyos: ¿lo rehago encima?';
 			}
-			if ( 'destructive' === $kind ) {
-				$action['simulation'] = Digitalisimo_AI_Assistant_Tools::simulate( $entry, $call['input'], $conv['id'] );
-			}
+			// La simulación (si la herramienta la declara) dice el valor de antes; la tarjeta la usa en su frase y en «Ver
+			// detalles». La frase, el «puedes deshacerlo», lo que no tiene vuelta atrás y la casilla los arma el servidor
+			// (Digitalisimo_AI_Assistant_Card), nunca el modelo, y se guardan con la acción: al confirmar se exige lo mismo.
+			$raw                  = null;
+			$action['simulation'] = Digitalisimo_AI_Assistant_Tools::simulate( $entry, $call['input'], $conv['id'], $raw );
+			$action['card']       = Digitalisimo_AI_Assistant_Card::build( $entry, $call['input'], $kind, $raw );
 			$pending[] = array( $action, $entry );
 		}
 		$conv['pending'] = array_map(
@@ -1116,7 +1129,17 @@ final class Digitalisimo_AI_Assistant {
 	 */
 	public static function action_view( array $action, $entry ) {
 		list( $input, $hidden, $risks ) = Digitalisimo_AI_Assistant_Tools::card( $action['call']['input'] );
+		// La frase llana del servidor (guardada al proponerla; una acción guardada antes se arma ahora con lo mismo).
+		$card = isset( $action['card'] ) && is_array( $action['card'] ) ? $action['card'] : ( $entry ? Digitalisimo_AI_Assistant_Card::build( $entry, $action['call']['input'], (string) $action['kind'] ) : array() );
+		$card = array_merge( array( 'text' => 'Voy a hacer un cambio en tu sitio. Lo que lleva está en «Ver detalles».', 'undo' => false, 'final' => '', 'ack' => 'destructive' === (string) $action['kind'], 'ack_label' => 'Sí, entiendo y quiero hacerlo.', 'warnings' => array(), 'details' => array() ), $card );
 		return array(
+			'text'        => (string) $card['text'],
+			'undo'        => (bool) $card['undo'],
+			'final'       => (string) $card['final'],
+			'ack'         => (bool) $card['ack'],
+			'ack_label'   => (string) $card['ack_label'],
+			'warnings'    => array_values( array_map( 'strval', (array) $card['warnings'] ) ),
+			'details'     => array_values( (array) $card['details'] ),
 			'id'          => (string) $action['id'],
 			'ability'     => (string) $action['call']['ability'],
 			'label'       => (string) ( $action['label'] ?? $action['call']['ability'] ),

@@ -403,56 +403,47 @@
 	}
 
 	/**
-	 * Lo que el modelo quiere cambiar: qué y con exactamente qué datos, completos y con los invisibles marcados, más un
-	 * resumen de lo arriesgado. «Confirmar» se enciende sólo cuando los datos caben enteros o se desplazaron hasta el
-	 * final. Lo destructivo pide además una casilla explícita. Una acción en curso (o cortada) no se puede confirmar.
+	 * Lo que el Asistente quiere cambiar, dicho en palabras del dueño (caso plomerito 4: la tarjeta mostraba JSON crudo,
+	 * «Agrandar los datos» y una casilla de «no tiene vuelta atrás» para una simple revisión). La frase, el «Puedes
+	 * deshacerlo después», lo que no tiene vuelta atrás y la casilla los arma el servidor a partir de lo que se hará;
+	 * la casilla sólo aparece en lo que borra o mueve dinero. Los datos completos, con nombres legibles y sin JSON, van
+	 * plegados en «Ver detalles» para el soporte. Una acción en curso (o cortada) no se puede confirmar.
 	 */
 	function ConfirmCard( props ) {
 		const action = props.action;
 		const [ ack, setAck ] = useState( false );
-		const [ seen, setSeen ] = useState( false );
-		const [ full, setFull ] = useState( false );
-		const box = useRef( null );
-		const destructive = 'destructive' === action.kind;
-		const check = () => {
-			const el = box.current;
-			if ( el && el.scrollTop + el.clientHeight >= el.scrollHeight - 4 ) {
-				setSeen( true );
-			}
-		};
-		useEffect( check, [ full, action.input ] );
+		const needsAck = !! action.ack;
+		const text = action.text || 'Voy a hacer un cambio en tu sitio. Lo que lleva está en «Ver detalles».';
 		if ( 'running' === action.state ) {
 			return h( 'div', { className: 'dga-confirm is-destructive', role: 'alert', 'data-action': action.id, 'data-state': 'running' },
-				h( 'h3', null, h( Icon, { name: 'alert' } ), 'En curso o cortada' ),
-				h( 'p', null, h( 'strong', null, action.label ), ' empezó y no sabemos si terminó. No se puede confirmar otra vez: revisa en tu sitio si se hizo antes de pedirlo de nuevo.' ),
+				h( 'p', { className: 'dga-card-text' }, h( Icon, { name: 'alert' } ), 'Este cambio empezó y no sé si terminó.' ),
+				h( 'p', null, text.replace( /^Voy a /, 'Era para ' ) ),
+				h( 'p', null, 'Revisa en tu sitio si se hizo antes de pedirlo otra vez.' ),
 				props.onRefresh ? h( 'div', { className: 'dga-actions' }, h( 'button', { type: 'button', className: 'dga-button dga-refresh', onClick: props.onRefresh }, 'Actualizar' ) ) : null );
 		}
-		const risks = Array.isArray( action.risks ) ? action.risks : [];
-		return h( 'div', { className: 'dga-confirm' + ( destructive ? ' is-destructive' : '' ), role: 'group', 'aria-label': 'Confirmación: ' + action.label, 'data-action': action.id, 'data-kind': action.kind },
-			h( 'h3', null, h( Icon, { name: destructive ? 'alert' : 'check' } ), destructive ? 'Este cambio no tiene vuelta atrás: confírmalo' : 'Confirma este cambio' ),
-			h( 'p', null, h( 'strong', null, action.label ) ),
+		const warnings = Array.isArray( action.warnings ) ? action.warnings : [];
+		const details = Array.isArray( action.details ) ? action.details : [];
+		return h( 'div', { className: 'dga-confirm' + ( needsAck ? ' is-destructive' : '' ), role: 'group', 'aria-label': text, 'data-action': action.id, 'data-kind': action.kind },
+			h( 'p', { className: 'dga-card-text' }, h( Icon, { name: needsAck ? 'alert' : 'check' } ), h( 'span', null, text ) ),
 			action.note ? h( 'p', { className: 'dga-warn dga-note' }, action.note ) : null,
-			action.after_read ? h( 'p', { className: 'dga-warn' }, 'Revisa que sea exactamente lo que pediste antes de confirmar.' ) : null,
-			risks.length ? h( 'ul', { className: 'dga-warn dga-risks', 'aria-label': 'Lo arriesgado de esta acción' }, risks.map( ( r, i ) => h( 'li', { key: i }, r ) ) ) : null,
-			action.idempotent ? null : h( 'p', { className: 'dga-warn' }, 'Si falla, puede haberse aplicado igual: no la repitas sin revisar.' ),
-			h( 'p', { className: 'dga-hint' }, 'Datos exactos que se usarán:' ),
-			h( 'pre', { className: 'dga-input' + ( full ? ' is-full' : '' ), ref: box, onScroll: check, 'aria-label': 'Datos completos de la acción', tabIndex: 0 }, action.input ),
-			seen ? null : h( 'p', { className: 'dga-hint' }, 'Desplázate hasta el final de los datos para poder confirmar.' ),
-			full ? null : h( 'button', { type: 'button', className: 'dga-button dga-see-all', onClick: () => setFull( true ) }, 'Agrandar los datos (' + String( action.input ).length + ' caracteres)' ),
-			action.simulation ? h( Fragment, null, h( 'p', null, 'Simulación (no cambió nada):' ), h( 'pre', null, action.simulation ) ) : null,
-			destructive ? h( 'label', null, h( 'input', { type: 'checkbox', className: 'dga-ack', checked: ack, onChange: ( e ) => setAck( e.target.checked ) } ), 'Entiendo que puede no tener vuelta atrás y quiero hacerlo.' ) : null,
+			warnings.length ? h( 'ul', { className: 'dga-warn dga-risks', 'aria-label': 'Ojo' }, warnings.map( ( r, i ) => h( 'li', { key: i }, r ) ) ) : null,
+			action.undo ? h( 'p', { className: 'dga-hint dga-undo' }, 'Puedes deshacerlo después.' ) : null,
+			action.final ? h( 'p', { className: 'dga-warn dga-final' }, action.final ) : null,
+			needsAck ? h( 'label', { className: 'dga-ack-label' }, h( 'input', { type: 'checkbox', className: 'dga-ack', checked: ack, onChange: ( e ) => setAck( e.target.checked ) } ), action.ack_label || 'Sí, entiendo y quiero hacerlo.' ) : null,
 			h( 'div', { className: 'dga-actions' },
-				h( 'button', { type: 'button', className: 'dga-button ' + ( destructive ? 'is-danger' : 'is-primary' ), 'data-decision': 'approve', disabled: props.busy || ! seen || ( destructive && ! ack ), onClick: () => props.onDecide( action, 'approve', ack ) }, h( Icon, { name: 'check' } ), destructive ? 'Sí, hacerlo' : 'Confirmar' ),
-				h( 'button', { type: 'button', className: 'dga-button', 'data-decision': 'deny', disabled: props.busy, onClick: () => props.onDecide( action, 'deny', false ) }, h( Icon, { name: 'close' } ), 'Cancelar' ) ) );
+				h( 'button', { type: 'button', className: 'dga-button ' + ( needsAck ? 'is-danger' : 'is-primary' ), 'data-decision': 'approve', disabled: props.busy || ( needsAck && ! ack ), onClick: () => props.onDecide( action, 'approve', ack ) }, h( Icon, { name: 'check' } ), 'Sí, hazlo' ),
+				h( 'button', { type: 'button', className: 'dga-button', 'data-decision': 'deny', disabled: props.busy, onClick: () => props.onDecide( action, 'deny', false ) }, h( Icon, { name: 'close' } ), 'No' ) ),
+			details.length ? h( 'details', { className: 'dga-details' },
+				h( 'summary', null, 'Ver detalles' ),
+				h( 'dl', null, details.map( ( row, i ) => h( Fragment, { key: i }, h( 'dt', null, String( row[ 0 ] ) ), h( 'dd', null, String( row[ 1 ] ) ) ) ) ) ) : null );
 	}
 
+	/** Un paso del trabajo: qué se hizo y cómo salió, en llano (los datos de entrada quedan en la bitácora, no aquí). */
 	function ToolChip( props ) {
 		const m = props.message;
-		const shown = m.summary && '[]' !== m.summary && '{}' !== m.summary;
 		return h( 'details', { className: 'dga-tool', 'data-status': m.status, 'data-kind': m.kind, 'data-ability': m.ability },
-			h( 'summary', null, h( Icon, { name: 'tools' } ), h( 'span', null, ( VERBS[ m.kind ] || 'Herramienta' ) + ': ' + ( m.label || m.ability ) ), h( 'span', { className: 'dga-tool-state' }, STATES[ m.status ] || m.status ) ),
-			shown ? h( 'pre', { 'aria-label': 'Entrada' }, m.summary ) : null,
-			m.detail ? h( 'pre', { 'aria-label': 'Resultado' }, m.detail ) : null );
+			h( 'summary', null, h( Icon, { name: 'tools' } ), h( 'span', null, ( VERBS[ m.kind ] || 'Paso' ) + ': ' + ( m.label || 'una función de tu sitio' ) ), h( 'span', { className: 'dga-tool-state' }, STATES[ m.status ] || m.status ) ),
+			m.detail ? h( 'p', { className: 'dga-tool-detail' }, m.detail ) : null );
 	}
 
 	/**
