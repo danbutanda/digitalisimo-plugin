@@ -31,16 +31,18 @@ SCENARIO="${SCENARIO:-caso}"
 # SCENARIO=subir (ia-assistant-subir.sh): soltar dos JPG y un PNG en el Asistente desde Chrome, que lleguen a la biblioteca
 # en WebP con el conversor de DIGITALÍSIMO Tools (se monta y se activa sólo en este escenario) y que Claude use uno en un
 # borrador. Sólo con MODE=real.
+# SCENARIO=simple (ia-assistant-simple.sh, casos plomerito 2, 3 y 4): sin tecnicismos, en una ferretería inventada con
+# DIGITALÍSIMO SEO y Skydropx 2.1.5 real (reference/skydropx.2.1.5.zip, comprobado con su sha256). Sólo con MODE=real.
 # SCENARIO=aprende (ia-assistant-aprende.sh): el aprendizaje y la caché con la API real, en la tienda de «marca» con sus
 # políticas y una página con texto de inyección (CASE=aprende).
 EXTRA_MOUNTS=()
-case "$SCENARIO" in caso) SETUP=setup.php; RUNNER=run.cjs ;; mostrar) SETUP=setup-mostrar.php; RUNNER=run-mostrar.cjs ;; marca) SETUP=setup-marca.php; RUNNER=run-marca.cjs ;; subir) SETUP=setup-subir.php; RUNNER=run-subir.cjs; EXTRA_MOUNTS=(--mount="$ROOT/digitalisimo-tools:/wordpress/wp-content/plugins/digitalisimo-tools") ;; aprende) SETUP=setup-marca.php; RUNNER=run-aprende.cjs; CASE=aprende ;; *) echo "SCENARIO desconocido: $SCENARIO"; exit 2 ;; esac
+case "$SCENARIO" in caso) SETUP=setup.php; RUNNER=run.cjs ;; mostrar) SETUP=setup-mostrar.php; RUNNER=run-mostrar.cjs ;; marca) SETUP=setup-marca.php; RUNNER=run-marca.cjs ;; subir) SETUP=setup-subir.php; RUNNER=run-subir.cjs; EXTRA_MOUNTS=(--mount="$ROOT/digitalisimo-tools:/wordpress/wp-content/plugins/digitalisimo-tools") ;; aprende) SETUP=setup-marca.php; RUNNER=run-aprende.cjs; CASE=aprende ;; simple) SETUP=setup-simple.php; RUNNER=run-simple.cjs; EXTRA_MOUNTS=(--mount="$ROOT/digitalisimo-seo:/wordpress/wp-content/plugins/digitalisimo-seo") ;; *) echo "SCENARIO desconocido: $SCENARIO"; exit 2 ;; esac
 export OUT="${OUT:-/var/tmp/digi-ias}"
 export TMPDIR="${TMPDIR:-$OUT/tmp}"
 mkdir -p "$OUT" "$TMPDIR"
 . "$ROOT/tests/playground/playground-cleanup.sh"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
-case "$MODE" in simulado) PORT="${PORT:-9781}" ;; real) case "$SCENARIO" in mostrar) PORT="${PORT:-9783}" ;; marca) PORT="${PORT:-9784}" ;; subir) PORT="${PORT:-9785}" ;; aprende) PORT="${PORT:-9787}" ;; *) PORT="${PORT:-9782}" ;; esac ;; *) echo "MODE desconocido: $MODE"; exit 2 ;; esac
+case "$MODE" in simulado) PORT="${PORT:-9781}" ;; real) case "$SCENARIO" in mostrar) PORT="${PORT:-9783}" ;; marca) PORT="${PORT:-9784}" ;; subir) PORT="${PORT:-9785}" ;; aprende) PORT="${PORT:-9787}" ;; simple) PORT="${PORT:-9788}" ;; *) PORT="${PORT:-9782}" ;; esac ;; *) echo "MODE desconocido: $MODE"; exit 2 ;; esac
 case "$PORT" in 978[0-9]) ;; *) echo "ia-assistant-agent.sh usa el bloque 9780–9789: $PORT es de otro arnés"; exit 1 ;; esac
 ELEMENTS_DIR="${ELEMENTS_DIR:-$ROOT/digitalisimo-elements}"
 [ -f "$ELEMENTS_DIR/pro-elements.php" ] || { echo "ELEMENTS_DIR no contiene pro-elements.php: $ELEMENTS_DIR"; exit 1; }
@@ -58,7 +60,7 @@ stop_server() {
   SERVER=''
 }
 # La clave y el token nunca quedan en los resultados; WooCommerce extraído y la copia de Elements tampoco.
-scrub() { rm -f "$dir/probe/k" "$dir/probe/token.txt"; rm -rf "$OUT/src" "$OUT/woocommerce"; }
+scrub() { rm -f "$dir/probe/k" "$dir/probe/token.txt"; rm -rf "$OUT/src" "$OUT/woocommerce" "$OUT/skydropx"; }
 trap 'stop_server; scrub; playground_cleanup' EXIT
 trap 'exit 130' INT TERM
 
@@ -70,6 +72,18 @@ if [ "$SCENARIO" != subir ]; then
   WOO_MOUNT=("$(woo_mount)")
 else
   WOO_VERSION='(no se usa)'
+fi
+if [ "$SCENARIO" = simple ]; then
+  # Skydropx 2.1.5 real, la copia oficial anotada (como skydropx-mcp.sh).
+  sky_zip="${SKYDROPX_ZIP:-$ROOT/reference/skydropx.2.1.5.zip}"
+  if [ ! -f "$sky_zip" ]; then
+    main_root="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    [ -n "$main_root" ] && sky_zip="$(dirname "$main_root")/reference/skydropx.2.1.5.zip"
+  fi
+  [ -f "$sky_zip" ] || { echo "Falta reference/skydropx.2.1.5.zip (o SKYDROPX_ZIP)"; exit 1; }
+  [ "$(sha256sum "$sky_zip" | cut -c1-64)" = be61b6e4d996bb324cda3bbf67056443bd6b89f7b1c2faf5e2c8f3b57de29163 ] || { echo "skydropx.2.1.5.zip no es la copia oficial anotada"; exit 1; }
+  rm -rf "$OUT/skydropx" && mkdir -p "$OUT/skydropx" && unzip -q "$sky_zip" -d "$OUT/skydropx"
+  EXTRA_MOUNTS+=(--mount="$OUT/skydropx/skydropx:/wordpress/wp-content/plugins/skydropx")
 fi
 rm -rf "$OUT/src" && mkdir -p "$OUT/src"
 cp -a "$ELEMENTS_DIR" "$OUT/src/digitalisimo-elements"
