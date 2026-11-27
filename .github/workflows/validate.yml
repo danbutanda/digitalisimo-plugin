@@ -171,6 +171,8 @@ jobs:
           php tests/elements-comparison-switcher.php
           php tests/elements-gallery-creative.php
           php tests/elements-device-card.php
+          php tests/elements-device-slider.php
+          node tests/elements-device-slider-chrome.mjs
           php tests/elements-icon-navigation.php
           php tests/elements-backdrop-filter.php
           php tests/elements-fancy-icons.php
