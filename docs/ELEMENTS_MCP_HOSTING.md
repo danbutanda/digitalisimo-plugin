@@ -17,42 +17,59 @@ registran como las de tienda y del kit de ventas (registro de abilities del núc
 
 - **get** devuelve todos los ajustes que usa el sitio, sin ningún secreto: de las claves (`api_key`, `webuzo_api_key`,
   `banxico_token`) y de la cuenta de Namecheap sólo si están puestas (`secrets_set`, `namecheap.configured`). Con
-  «Heredar», el servidor Webuzo y los nameservers de la red no se muestran (`inherited`), como en la pantalla. Trae la
-  resolución de «Productos por extensión» (`domain_products`). Registradores (Hosting con Dynadot, 2026-11-27):
-  `registrar` (predeterminado, `namecheap` o `dynadot`) y `registrar_by_tld` (`.mx|dynadot`, una línea por extensión)
-  en `settings`; `dynadot.configured` y `secrets_set.dynadot_api_key` dicen si la clave de Dynadot está puesta, nunca
+  «Heredar», el servidor Webuzo y los nameservers de la red no se muestran (`inherited`), como en la pantalla. Trae lo
+  detectado (2026-11-27, sin IDs ni «|»): `domains` (extensión, registro o transferencia, producto y precio),
+  `hosting_products` (paquete de Webuzo y periodo), `duplicates` e `incomplete`. Registradores: `registrar`
+  (predeterminado, `namecheap` o `dynadot`) y `registrar_by_tld` (objeto por extensión: `{".mx": "dynadot"}`) en
+  `settings`; `dynadot.configured` y `secrets_set.dynadot_api_key` dicen si la clave de Dynadot está puesta, nunca
   su valor; `registrars` trae el predeterminado, el de cada extensión que se vende (`effective`) y cuáles tienen cuenta.
 - **update** combina con lo guardado: lo que no llega no cambia (la misma lección que `update-page-settings` antes de
   Elements 4.3.0.195). Valida con el mismo `Digitalisimo_Hosting::store()` que el formulario, escribe sólo la opción del
   sitio (nunca la de red) y devuelve el resultado, `changed` y `adjusted` (lo que la validación guardó distinto).
-  `registrar` y `registrar_by_tld` se escriben: un registrador desconocido o una línea que no se entiende detiene todo.
+  `registrar` y `registrar_by_tld` se escriben: un registrador desconocido o una extensión que los registradores no
+  venden detiene todo. Las listas del buscador son `finder_order` (lista), `finder_requirements` (objeto por extensión)
+  y `finder_upsell` (lista de `product_id` de los planes detectados). `domain_products`, `hosting_product_ids`,
+  `hosting_category_ids` y `finder_upsell_ids` ya no existen: enviarlas da `digitalisimo_hosting_removed_key`.
   Sólo lectura (`MCP_READONLY`): la cuenta de Namecheap, la clave de Dynadot y «Heredar», el servidor, el usuario y la clave de Webuzo, los
   nameservers, el token de Banxico, el interruptor del módulo (`enabled`), la venta automática (`provision_enabled`,
   `own_domain_auto`), los días de gracia y los porcentajes de la fórmula de precios (colchón, margen, comisión, IVA y
   margen mínimo: el freno contra vender con pérdida). Una clave desconocida, de sólo lectura o con otro tipo detiene
   todo sin guardar nada. Las dos herramientas se anuncian como escrituras destructivas y no idempotentes, para que el
   cliente pida confirmación.
-- **mark** pone `_digitalisimo_tld` (y `_digitalisimo_domain_kind` = `transfer` en el producto de transferencia).
+- **mark** marca el producto como Dominio (`_digitalisimo_hosting_type` = `domain`, `_digitalisimo_tld` y
+  `_digitalisimo_domain_kind` = `register` o `transfer`), con la extensión validada contra la lista de los registradores;
+  **unmark** lo deja en «Ninguno».
 - **Bitácora** `digitalisimo_elements_hosting_mcp_log` (opción del sitio, sin carga automática, 200 entradas): fecha
   UTC, ID del usuario, herramienta, acción, los nombres de las claves cambiadas o el ID del producto, resultado y código.
   Nunca valores ni datos personales; también lo denegado.
 
-## Productos por extensión (`includes/class-hosting-products.php`)
+## Productos de dominio y de hosting (`includes/class-hosting-products.php`, `class-hosting-product-editor.php`)
 
-Valor de fábrica `.com|`, `.net|` y `.mx|` (sin .org; la lista vieja `.com|.mx|.org|` sin IDs guardada por el formulario
-vale como la de hoy). Una línea con ID manda; sin ID (o con la lista vacía) se usa el producto publicado marcado con su
-extensión por la herramienta MCP o, si no hay, el del SKU `dominio-com` (también `dominio.com`, `domain-com`,
-`domain.com`). El producto de transferencia se marca con la herramienta (`kind` `transfer`, extensión o `*`) o lleva el SKU
-`transferencia-dominio`. Las metas `_digitalisimo_tld` y `_digitalisimo_domain_kind` empiezan con «_»: WordPress no las
-muestra en «Campos personalizados», así que la ayuda sólo nombra el SKU y la herramienta. La resolución vive en un
-transitorio que se invalida al guardar Hosting y al cambiar un producto, su SKU o su marca. Si la lista no resuelve
-ningún producto, o le falta alguna extensión, el Escritorio, Plugins, la lista de productos y la pantalla Hosting lo
-avisan con la X (`Digitalisimo_Notices`), sólo en un sitio que vende dominios o hosting (algún ID en la lista, planes
-configurados o productos de dominio).
+Desde el 2026-11-27 no hay IDs en los ajustes. Cada producto (simple o variable) y cada variación lleva en su editor la
+pestaña «DIGITALÍSIMO Hosting»: Ninguno, Dominio u Hosting (en una variación, también «Igual que el producto»).
+
+- **Dominio**: la extensión de un desplegable con buscador (`Digitalisimo_Hosting_Lists::tlds()`: la lista de los
+  registradores con cuenta —`namecheap.domains.getTldList` y `tld_price` de Dynadot—, guardada un día; sin conexión, la
+  guardada o una base de extensiones comunes, con aviso; nunca texto libre) y «Registro» o «Transferencia» (`*` =
+  cualquier extensión, sólo en transferencia). Siempre anual.
+- **Hosting**: el paquete de Webuzo (`act=plans` después de la consulta de cuentas de sólo lectura, guardado un día; sin
+  conexión, los paquetes que ya usan los productos) y el periodo de cobro (`_digitalisimo_hosting_period`: 1, 3, 6, 12,
+  24 o 36 meses).
+
+Lo detectado (`Digitalisimo_Hosting_Products::catalog()`, en un transitorio que se invalida al guardar un producto o una
+marca) reemplaza a «Productos por extensión»: los ajustes lo muestran como lista, con los repetidos (misma extensión y
+acción en dos productos: se usa el de menor ID) y las extensiones sin precio del registrador. El Escritorio, Plugins, los
+productos y la pantalla Hosting avisan con la X de los repetidos o de un sitio que vende hosting sin dominios.
+
+**Migración** (`Digitalisimo_Hosting_Products::migrate()`, en `init`, una vez por sitio): las líneas `.com|ID`, la marca
+vieja, el SKU `dominio-com` y el de transferencia, los IDs y categorías de hosting y los productos con paquete pasan a
+marcas de los productos (el hosting de antes queda anual); `registrar_by_tld`, `finder_requirements` y `finder_order`
+pasan a filas por extensión y `finder_upsell_ids` a `finder_upsell`. Lo viejo se copia tal cual en
+`digitalisimo_hosting_legacy_settings` y sale de los ajustes. Nunca toca un producto que ya tiene tipo.
 
 ## El dominio antes de pagar (`includes/class-hosting-checkout.php`)
 
-- **Plan de hosting o correo** (IDs o categorías de hosting, o `_digitalisimo_webuzo_plan`): con `ask_domain` (encendido
+- **Plan de hosting o correo** (producto o variación marcado como «Hosting»): con `ask_domain` (encendido
   de fábrica) no se paga sin «Dominio nuevo» (un producto de dominio en el carrito) o «Uno que ya tengo» (el nombre
   exacto, que queda en la línea del plan como «Dominio»). «Exigir dominio y hosting juntos» cuenta el dominio propio.
   Con «Dominio nuevo», el campo de «Uno que ya tengo» se desactiva en el navegador y el servidor lo ignora. Con
