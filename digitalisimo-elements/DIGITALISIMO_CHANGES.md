@@ -1,6 +1,6 @@
 # DIGITALÍSIMO Elements 4.3.0.191
 
-- @NEXT_ELEMENTS@ (el MCP con acceso total por defecto, sin interruptores; decisión del dueño del 2026-11-27: «el MCP debe venir por naturaleza con acceso total de lectura y escritura»):
+- 4.3.0.203 (el MCP con acceso total por defecto, sin interruptores; decisión del dueño del 2026-11-27: «el MCP debe venir por naturaleza con acceso total de lectura y escritura»):
   1. **Siempre activo**: `modules/digitalisimo-mcp/class-access.php` fija `elementor_mcp_enabled` en 1 (`pre_option_`); el conmutador de la página MCP del núcleo responde «activo» sin escribir.
   2. **Sin modos en la tienda**: se retiran «Apagado», «Sólo lectura», «Escritura sólo en lo elegido» y su herencia de red (`Mcp\Settings_Section` borrada; `Mcp\Settings` sólo nombra las opciones viejas), la excepción del Asistente y el error `digitalisimo_woo_mcp_read_only`. Deciden las capacidades de WooCommerce; `dry_run` (siempre `allowed: true`), `undo`, anotaciones, secretos enmascarados y la bitácora de la tienda siguen.
   3. **Migración**: `Access::migrate()` borra en cada sitio, en su primera petición, `digitalisimo_elements_woo_mcp` y, en una red, `digitalisimo_elements_woo_mcp_defaults`; idempotente con la marca `digitalisimo_elements_mcp_access`.

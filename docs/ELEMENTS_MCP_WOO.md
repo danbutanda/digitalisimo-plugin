@@ -1,6 +1,6 @@
 # WooCommerce en el MCP de DIGITALÍSIMO Elements
 
-> **Acceso total, sin interruptores (decisión del dueño del 2026-11-27, Elements @NEXT_ELEMENTS@).** El servidor MCP
+> **Acceso total, sin interruptores (decisión del dueño del 2026-11-27, Elements 4.3.0.203).** El servidor MCP
 > está siempre activo (`Digitalisimo\Elements\Mcp\Access` fija `elementor_mcp_enabled` en 1) y todas sus herramientas
 > leen y escriben. Se retiraron los modos de «WooCommerce en el MCP» (apagado, sólo lectura, escritura sólo en lo
 > elegido, lectura y escritura) con su herencia de red, y la excepción del Asistente en «Sólo lectura»: decide sólo la
