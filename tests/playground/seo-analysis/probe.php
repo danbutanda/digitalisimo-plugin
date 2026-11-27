@@ -38,6 +38,9 @@ add_filter( 'pre_http_request', function( $pre, $args, $url ) {
 	if ( false !== strpos( $url, 'digital.digitalisimo.invalid' ) ) return new WP_Error( 'http_request_failed', 'cURL error 6: Could not resolve host: digital.digitalisimo.invalid' );
 	return $pre;
 }, 10, 3 );
+// El PHP de Playground resuelve cualquier nombre a una dirección 172.29.x de su red simulada: el dominio inventado no es
+// interno (en un servidor de verdad no resuelve), y la dirección de metadatos sí lo sigue siendo.
+add_filter( 'digitalisimo_seo_internal_host', function( $internal, $host ) { return '.invalid' === substr( $host, -8 ) ? false : $internal; }, 10, 2 );
 $A = 'Digitalisimo_Integrations_Site_Analysis';
 $C = 'Digitalisimo_Integrations_SEO_Cleanup';
 $ids_file = $dir . '/ids.json';
@@ -172,6 +175,7 @@ if ( 'canonical' === $step ) {
 	$issue = $A::canonical_issues()[ $ids['que'] ] ?? array();
 	digi_check( 'pending' === ( $issue['kind'] ?? '' ), 'B4: la primera vez queda pendiente de confirmar' );
 	digi_check( array() === $A::summary()['errors']['canonical_broken'], 'B4: aún no cuenta como error' );
+	digi_check( 'unknown' === $A::probe( 'http://169.254.169.254/latest/meta-data/' )['verdict'] && 1 === count( $GLOBALS['digi_http'] ), 'B4: un canonical a la dirección de metadatos de la nube no se pide' );
 	return;
 }
 

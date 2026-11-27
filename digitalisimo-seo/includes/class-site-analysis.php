@@ -321,6 +321,48 @@ class Digitalisimo_Integrations_Site_Analysis {
 	}
 
 	/**
+	 * ¿Es una dirección interna? (pura). Además de lo que ya rechaza `wp_safe_remote_*` (127/8, 10/8, 172.16/12,
+	 * 192.168/16, 0/8): enlace local 169.254/16 (metadatos de la nube), CGNAT 100.64/10, multidifusión y reservadas, y en
+	 * IPv6 ::1, ::, fc00::/7, fe80::/10 y las IPv4 mapeadas. Lo que no es una IP válida cuenta como interno.
+	 */
+	public static function internal_ip( $ip ) {
+		$ip = trim( (string) $ip, '[] ' );
+		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+			$n = ip2long( $ip );
+			foreach ( array( '0.0.0.0/8', '10.0.0.0/8', '100.64.0.0/10', '127.0.0.0/8', '169.254.0.0/16', '172.16.0.0/12', '192.0.0.0/24', '192.168.0.0/16', '198.18.0.0/15', '224.0.0.0/3' ) as $cidr ) {
+				list( $net, $bits ) = explode( '/', $cidr );
+				$mask = ( 0xFFFFFFFF << ( 32 - (int) $bits ) ) & 0xFFFFFFFF;
+				if ( ( $n & $mask ) === ( ip2long( $net ) & $mask ) ) return true;
+			}
+			return false;
+		}
+		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+			$bin = inet_pton( $ip );
+			if ( false === $bin ) return true;
+			if ( str_repeat( "\0", 10 ) . "\xff\xff" === substr( $bin, 0, 12 ) ) return self::internal_ip( inet_ntop( substr( $bin, 12 ) ) );
+			if ( str_repeat( "\0", 15 ) === substr( $bin, 0, 15 ) ) return true; // :: y ::1.
+			$first = ord( $bin[0] );
+			return 0xfc === ( $first & 0xfe ) || ( 0xfe === $first && 0x80 === ( ord( $bin[1] ) & 0xc0 ) );
+		}
+		return true;
+	}
+
+	/** ¿El host resuelve a alguna dirección interna (IPv4 o IPv6)? Un nombre que no resuelve no es interno. */
+	public static function internal_host( $host ) {
+		$host = strtolower( trim( (string) $host, '[] ' ) );
+		return (bool) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_seo_internal_host', self::resolves_internal( $host ), $host ) : self::resolves_internal( $host ) );
+	}
+
+	private static function resolves_internal( $host ) {
+		if ( '' === $host || 'localhost' === $host || '.localhost' === substr( $host, -10 ) ) return true;
+		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) return self::internal_ip( $host );
+		$ips = function_exists( 'gethostbynamel' ) ? (array) @gethostbynamel( $host ) : array(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- un nombre que no existe sólo devuelve false.
+		if ( function_exists( 'dns_get_record' ) ) { $aaaa = @dns_get_record( $host, DNS_AAAA ); foreach ( is_array( $aaaa ) ? $aaaa : array() as $rec ) if ( ! empty( $rec['ipv6'] ) ) $ips[] = $rec['ipv6']; } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		foreach ( array_filter( $ips ) as $ip ) if ( self::internal_ip( $ip ) ) return true;
+		return false;
+	}
+
+	/**
 	 * Veredicto de una comprobación (pura): ok, gone (el dominio no existe, 404 o 410), redirect (3xx: el canonical
 	 * debe ser la URL final) o unknown (403, 5xx, sin respuesta: no se puede afirmar nada).
 	 */
@@ -630,6 +672,8 @@ class Digitalisimo_Integrations_Site_Analysis {
 
 	/** Una petición: HEAD y, si no lo admite, un GET corto; sin seguir redirecciones; con la protección SSRF de WordPress. */
 	public static function probe( $url ) {
+		// Nunca hacia la red interna (metadatos de la nube, CGNAT, IPv6 local), aunque el dominio sea del sitio.
+		if ( self::internal_host( (string) wp_parse_url( $url, PHP_URL_HOST ) ) ) return array( 'code' => 0, 'error' => 'Apunta a una dirección interna: no se comprueba.', 'verdict' => 'unknown', 'location' => '' );
 		$args = array( 'timeout' => 5, 'redirection' => 0, 'user-agent' => 'Mozilla/5.0 (compatible; DIGITALISIMO SEO canonical check; ' . home_url( '/' ) . ')' );
 		$res  = wp_safe_remote_head( $url, $args );
 		$code = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );

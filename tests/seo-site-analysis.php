@@ -109,6 +109,10 @@ check( true === $A::offsite( 'https://digital.digitalisimo.org/paginas-web/', 'h
 check( false === $A::offsite( 'https://cdn.cliente.test/x/', 'https://www.cliente.test/' ) && false === $A::offsite( 'https://cliente.test/y/', 'https://cliente.test/' ), 'Un subdominio o el mismo sitio no cuentan.' );
 check( 'gone' === $A::verdict( 0, 'cURL error 6: Could not resolve host: digital.digitalisimo.org' ) && 'gone' === $A::verdict( 0, 'timeout', false ), 'Dominio inexistente: no responde.' );
 check( 'gone' === $A::verdict( 404 ) && 'gone' === $A::verdict( 410 ) && 'redirect' === $A::verdict( 301 ) && 'ok' === $A::verdict( 200 ), '404/410 roto, 3xx redirige, 200 bien.' );
+foreach ( array( '169.254.169.254', '100.64.0.1', '127.0.0.1', '10.1.2.3', '192.168.1.25', '::1', '::', 'fe80::1', 'fd00::5', '::ffff:169.254.169.254', 'no-es-ip' ) as $ip ) check( $A::internal_ip( $ip ), "Dirección interna: $ip" );
+foreach ( array( '8.8.8.8', '100.128.0.1', '2606:4700::1111' ) as $ip ) check( ! $A::internal_ip( $ip ), "Dirección pública: $ip" );
+check( $A::internal_host( '169.254.169.254' ) && $A::internal_host( '[fe80::1]' ) && $A::internal_host( 'localhost' ), 'Un canonical a la red interna no se pide.' );
+check( 'Apunta a una dirección interna: no se comprueba.' === $A::probe( 'http://169.254.169.254/latest/meta-data/' )['error'], 'La comprobación la rechaza antes de pedir nada.' );
 check( 'unknown' === $A::verdict( 403 ) && 'unknown' === $A::verdict( 503 ) && 'unknown' === $A::verdict( 0, 'Operation timed out' ) && 'unknown' === $A::verdict( 0, 'A valid URL was not provided.' ), 'Lo dudoso (cortafuegos, caída, red, SSRF bloqueado) no se afirma.' );
 
 /* C1 ---------------------------------------------------------------- */
