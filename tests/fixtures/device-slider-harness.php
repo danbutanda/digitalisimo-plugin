@@ -3,7 +3,7 @@
  * Arnés del Slider de dispositivos sin WordPress ni Elementor: imitaciones mínimas de `Widget_Base`, `Repeater`,
  * `Controls_Manager` y de las funciones de WordPress que usa el widget, y `ds_widget()` / `ds_render()`.
  * Lo usan tests/elements-device-slider.php (marcado) y tests/elements-device-slider-chrome.mjs (que pide el HTML real
- * del widget con `php tests/fixtures/device-slider-harness.php '<ajustes JSON>'`).
+ * del widget con `php tests/fixtures/device-slider-harness.php` y la lista de ajustes en JSON por la entrada estándar).
  * DS_WIDGET_DIR cambia la carpeta de la que se carga el widget (para pintar una versión anterior en las capturas).
  */
 namespace {
@@ -70,7 +70,7 @@ namespace {
 
 	// Desde la línea de órdenes: imprime el HTML de cada juego de ajustes de la lista JSON, separados por \f.
 	if ( PHP_SAPI === 'cli' && isset( $argv[0] ) && realpath( $argv[0] ) === realpath( __FILE__ ) ) {
-		$list = json_decode( (string) ( $argv[1] ?? '[]' ), true );
+		$list = json_decode( (string) ( $argv[1] ?? stream_get_contents( STDIN ) ), true );
 		$out  = array();
 		foreach ( is_array( $list ) ? $list : array() as $settings ) { $out[] = ds_render( (array) $settings, true ); }
 		echo implode( "\f", $out );
