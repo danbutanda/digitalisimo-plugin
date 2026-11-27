@@ -11,4 +11,9 @@
 div.digi-marquee>button.digi-marquee__toggle{flex:none;min-width:44px;min-height:44px;margin-inline-start:.25rem;padding:1px 6px;background:none;border:0;border-radius:0;box-shadow:none;color:inherit;font:inherit;font-size:.85em;cursor:pointer}
 .digi-marquee__toggle:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 @keyframes digi-marquee{to{transform:translateX(-50%)}}
-@media (prefers-reduced-motion:reduce){.digi-marquee__track{animation:none}.digi-marquee__viewport{overflow-x:auto}.digi-marquee__list[aria-hidden="true"],.digi-marquee__toggle{display:none}}
+/* Opcionales (marquesina atómica, class-atomic-marquee.php): sólo con su clase o su elemento; la clásica no los usa. */
+.digi-marquee__separator{padding-inline-start:var(--digi-marquee-gap);color:var(--digi-marquee-accent,currentColor)}
+.digi-marquee--accent-last .digi-marquee__item:last-child .digi-marquee__text{color:var(--digi-marquee-accent,currentColor)}
+.digi-marquee--fade .digi-marquee__viewport{-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+@media (max-width:767px){.digi-marquee--mobile-duration .digi-marquee__track{animation-duration:var(--digi-marquee-duration-mobile,var(--digi-marquee-duration))}}
+@media (prefers-reduced-motion:reduce){.digi-marquee__track{animation:none}.digi-marquee--fade .digi-marquee__viewport{-webkit-mask-image:none;mask-image:none}.digi-marquee__viewport{overflow-x:auto}.digi-marquee__list[aria-hidden="true"],.digi-marquee__toggle{display:none}}

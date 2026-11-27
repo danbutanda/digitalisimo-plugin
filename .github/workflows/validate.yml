@@ -549,6 +549,8 @@ jobs:
           php tests/elements-mcp-css.php
           php tests/elements-mcp-settings.php
           php tests/elements-page-template.php
+          # Marquesina atómica para el MCP y aviso cuando un estilo trae movimiento (C1, auditoría de digitalisimo.lat).
+          php tests/elements-atomic-marquee.php
           php tests/elements-mcp-preview-site.php
           php tests/elements-kit-woo-refs.php
           php tests/elements-f7b-module.php

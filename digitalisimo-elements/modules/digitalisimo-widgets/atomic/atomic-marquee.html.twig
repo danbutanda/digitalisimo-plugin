@@ -1,0 +1,36 @@
+{#- Marquesina atómica (class-atomic-marquee.php): el mismo marcado que la clásica, para su hoja y su script. -#}
+{% import 'elementor/macros' as m %}
+{%- set direction = settings.direction == 'right' ? 'right' : 'left' -%}
+{%- set duration = max(5, min(300, (settings.duration | default(30)) * 1)) -%}
+{%- set mobile = settings['duration-mobile'] is defined and settings['duration-mobile'] is not empty ? max(5, min(300, settings['duration-mobile'] * 1)) : 0 -%}
+{%- set gap = settings.gap is defined and settings.gap is not same as(null) and settings.gap is not same as('') ? max(0, min(200, settings.gap * 1)) : -1 -%}
+{%- set accent = settings.accent is defined and settings.accent is not empty and settings.accent matches '/^(#[0-9A-Fa-f]{3,8}|(rgb|rgba|hsl|hsla)\\([0-9.,%\\s\\/]+\\)|var\\(--[A-Za-z0-9_-]+\\))$/' ? settings.accent : '' -%}
+{%- set separator = settings.separator | default('') | trim -%}
+{%- set label = settings.label | default('') | trim -%}
+{%- set items = [] -%}
+{%- for line in (settings.items | default('')) | split("\n") -%}
+	{%- if line | trim is not empty -%}{%- set items = items | merge([line | trim]) -%}{%- endif -%}
+{%- endfor -%}
+{%- set classes = settings.classes | default([]) | merge(['digi-marquee', 'digi-marquee--' ~ direction]) -%}
+{%- if settings['pause-on-hover'] is not same as(false) -%}{%- set classes = classes | merge(['digi-marquee--hover-pause']) -%}{%- endif -%}
+{%- if settings['fade-edges'] -%}{%- set classes = classes | merge(['digi-marquee--fade']) -%}{%- endif -%}
+{%- if accent and settings['accent-last'] -%}{%- set classes = classes | merge(['digi-marquee--accent-last']) -%}{%- endif -%}
+{%- if mobile -%}{%- set classes = classes | merge(['digi-marquee--mobile-duration']) -%}{%- endif -%}
+{%- set style = '--digi-marquee-duration:' ~ duration ~ 's' -%}
+{%- if mobile -%}{%- set style = style ~ ';--digi-marquee-duration-mobile:' ~ mobile ~ 's' -%}{%- endif -%}
+{%- if gap >= 0 -%}{%- set style = style ~ ';--digi-marquee-gap:' ~ gap ~ 'px' -%}{%- endif -%}
+{%- if accent -%}{%- set style = style ~ ';--digi-marquee-accent:' ~ accent -%}{%- endif -%}
+<div class="{{ classes | join(' ') | e }}" style="{{ style | e }}" role="region" aria-label="{{ (label is not empty ? label : 'Marquesina') | e }}" data-digi-marquee data-interaction-id="{{ interaction_id }}"
+	{{- m.render_custom_attributes(settings) }}>
+{%- if label is not empty %}<span class="digi-marquee__label">{{ label | e }}</span>{% endif -%}
+<div class="digi-marquee__viewport"><div class="digi-marquee__track">
+{%- for copy in [0, 1] -%}
+<ul class="digi-marquee__list"{% if copy %} aria-hidden="true" inert{% endif %}>
+{%- for item in items -%}
+<li class="digi-marquee__item"><span class="digi-marquee__text">{{ item | e }}</span>{% if separator is not empty %}<span class="digi-marquee__separator" aria-hidden="true">{{ separator | e }}</span>{% endif %}</li>
+{%- endfor -%}
+</ul>
+{%- endfor -%}
+</div></div>
+<button type="button" class="digi-marquee__toggle" aria-pressed="false" data-digi-marquee-toggle><span class="digi-marquee__toggle-text">Pausar</span></button>
+</div>

@@ -262,6 +262,34 @@ los casos N1–N3 de `tests/elements-mcp-settings.php` y, de punta a punta, `tes
 (T1–T10: MCP, REST, autoguardado, publicación, un autoguardado viejo y la página pública con
 `page-template-elementor_canvas`).
 
+## Movimiento: marquesina atómica (`e-digitalisimo-marquee`) y aviso (`Motion_Hint`)
+
+Auditoría de digitalisimo.lat (2026-11-24, C1): la franja de clientes de la landing necesitaba texto que se desplaza.
+Los estilos atómicos no guardan `animation` (el núcleo la manda a `custom_css` y la quita al pintar sin licencia de
+PRO) y no hay forma de declarar `@keyframes` en un elemento; el servidor MCP sólo acepta widgets atómicos (y una lista
+fija de v3), así que la marquesina clásica `digitalisimo-marquee` no se podía usar. Se metió `@keyframes` en el CSS
+propio de la página.
+
+- **Decisión: un widget, no animaciones libres en los estilos.** Devolver `custom_css` a los estilos atómicos activaría
+  CSS que hoy se guarda y no se pinta en sitios que no lo pidieron, y aun así no daría `@keyframes` ni un botón de
+  pausa. La marquesina atómica (`modules/digitalisimo-widgets/atomic/`) es un widget nuevo: no cambia ninguno existente
+  y sólo se registra con los elementos atómicos activos (`Widget_Registry::atomic_widgets()`).
+- **El widget.** `items` (un elemento por renglón), `label`, `separator` (decorativo, `aria-hidden`), `accent` (color
+  validado al guardar y al pintar: hex, `rgb()`/`hsl()` con números o `var(--…)`), `accent-last`, `duration` (5–300 s),
+  `duration-mobile`, `direction`, `gap`, `pause-on-hover` (sí por defecto) y `fade-edges`. Pinta el marcado de la
+  clásica con su hoja y su script (`assets/css/marquee.css`, `assets/js/marquee.js`): región con nombre, la copia de la
+  lista con `aria-hidden` e `inert`, botón «Pausar» (WCAG 2.2.2), pausa al enfocar, y con `prefers-reduced-motion` no se
+  mueve (sin copia, sin botón, sin desvanecido y con desplazamiento a mano). Lo nuevo de la hoja sólo actúa con sus
+  clases (`digi-marquee--fade`, `--accent-last`, `--mobile-duration`, `digi-marquee__separator`). El texto y el fondo
+  se estilan con el CSS normal del elemento (sus clases locales van en la raíz).
+- **El aviso.** `modules/digitalisimo-mcp/class-motion-hint.php` envuelve `build-composition`, `manage-elements`,
+  `manage-classes`, `manage-default-styles` y `manage-component`: si un aviso de la respuesta cita `animation`,
+  `animation-*` o `@keyframes` descartados, añade al final de `warnings` (o en `hints`) qué usar en su lugar. No cambia
+  qué se guarda.
+- **Pruebas.** `tests/elements-atomic-marquee.php` (plantilla Twig con el Twig del núcleo, hoja, registro y aviso;
+  validate y release) y el caso M de `tests/playground/elements-tanda-b.sh` (MCP real, front y Chrome con «reducir
+  movimiento» y el botón).
+
 ## Pruebas
 
 - `tests/elements-mcp-css.php` (en `validate.yml` y `release.yml`; PHP 7.4, 8.2 y 8.5): ámbito de las herramientas

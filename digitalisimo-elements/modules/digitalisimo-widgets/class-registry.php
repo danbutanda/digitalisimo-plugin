@@ -375,5 +375,32 @@ final class Widget_Registry {
 			require_once __DIR__ . '/' . $widget['file'];
 			$manager->register( new $widget['class']() );
 		}
+		self::atomic_widgets( $manager );
+	}
+
+	/**
+	 * Widgets atómicos propios (editor v4 y servidor MCP, que sólo acepta widgets atómicos): hoy la marquesina
+	 * (`e-digitalisimo-marquee`, caso digitalisimo.lat 2026-11-24). Sólo con el núcleo atómico cargado y los elementos
+	 * atómicos activos en el sitio; si no, no se carga ningún archivo y nada cambia.
+	 */
+	public static function atomic_widgets( $manager ): bool {
+		if ( ! class_exists( '\\Elementor\\Modules\\AtomicWidgets\\Elements\\Base\\Atomic_Widget_Base' ) || ! self::atomic_active() ) {
+			return false;
+		}
+		if ( method_exists( $manager, 'get_widget_types' ) && $manager->get_widget_types( 'e-digitalisimo-marquee' ) ) {
+			return false;
+		}
+		require_once __DIR__ . '/atomic/class-atomic-marquee.php';
+		$manager->register( new Atomic_Marquee() );
+		return true;
+	}
+
+	/** ¿Están activos los elementos atómicos (`e_atomic_elements`) en este sitio? */
+	private static function atomic_active(): bool {
+		$plugin = class_exists( '\\Elementor\\Plugin' ) ? \Elementor\Plugin::$instance : null;
+		if ( ! is_object( $plugin ) || ! isset( $plugin->experiments ) || ! is_object( $plugin->experiments ) || ! method_exists( $plugin->experiments, 'is_feature_active' ) ) {
+			return false;
+		}
+		return (bool) $plugin->experiments->is_feature_active( 'e_atomic_elements' );
 	}
 }
