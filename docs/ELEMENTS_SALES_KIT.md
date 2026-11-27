@@ -1,7 +1,7 @@
 # Kit de ventas de DIGITALÍSIMO Elements
 
 DIGITALÍSIMO Elements trae el kit de ventas de DIGITALÍSIMO: ocho plantillas de página para un embudo de venta, su guía
-de venta y tres herramientas del servidor MCP del núcleo incluido (`POST /wp-json/elementor/mcp`, apagado por defecto
+de venta y tres herramientas del servidor MCP del núcleo incluido (`POST /wp-json/digitalisimo/mcp`, con el alias viejo `/wp-json/elementor/mcp` hasta su retiro, apagado por defecto
 en cada sitio) para que un asistente cree páginas **en borrador** con ellas. Encargo del operador (2026-11-13, vía la
 sesión del cerebro): «Transfórmalo a plantilla digitalisimo-elements para que nuestro MCP pueda generarlas». Después
 (2026-11-13, también vía el cerebro) llegaron la v4 del kit y cinco decisiones del operador: WhatsApp es excepción de

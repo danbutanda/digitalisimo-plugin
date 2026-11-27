@@ -1,6 +1,6 @@
 # WooCommerce en el MCP de DIGITALÍSIMO Elements
 
-DIGITALÍSIMO Elements trae el servidor MCP del constructor (núcleo incluido): `POST /wp-json/elementor/mcp`, apagado
+DIGITALÍSIMO Elements trae el servidor MCP del constructor (núcleo incluido): `POST /wp-json/digitalisimo/mcp` (alias viejo `/wp-json/elementor/mcp` hasta el 2027-01-31, `docs/MARCA_PROPIA.md`), apagado
 por defecto en cada sitio. Con WooCommerce activo, ese mismo servidor ofrece siete herramientas para administrar la
 tienda del sitio y, con el plugin de Skydropx activo, una octava para sus envíos (sección «Skydropx»). El código vive en `digitalisimo-elements/modules/digitalisimo-woo/mcp/` y nunca se edita nada dentro
 de `digitalisimo-elements/elementor/`.
@@ -14,11 +14,11 @@ de `digitalisimo-elements/elementor/`.
 3. **Crear una contraseña de aplicación** para el usuario que usará el asistente (Usuarios → Perfil → «Contraseñas de
    aplicación»). Las herramientas actúan con los permisos de ese usuario: un administrador o un gerente de tienda.
    WordPress sólo ofrece contraseñas de aplicación con HTTPS (o en un entorno `local`).
-4. **Configurar el cliente MCP** con transporte HTTP hacia `https://<sitio>/wp-json/elementor/mcp` y la cabecera
+4. **Configurar el cliente MCP** con transporte HTTP hacia `https://<sitio>/wp-json/digitalisimo/mcp` y la cabecera
    `Authorization: Basic base64(usuario:contraseña de aplicación)`. El cliente hace `initialize`, guarda la cabecera
    `Mcp-Session-Id` que devuelve y la envía en `tools/list` y `tools/call`.
 
-En una red, cada sitio expone su propia tienda en su propio `/<sitio>/wp-json/elementor/mcp`; nada tiene alcance de red
+En una red, cada sitio expone su propia tienda en su propio `/<sitio>/wp-json/digitalisimo/mcp`; nada tiene alcance de red
 salvo el modo, que la red define y cada sitio hereda o personaliza.
 
 ## Herramientas

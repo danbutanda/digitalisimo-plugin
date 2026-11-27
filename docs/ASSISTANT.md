@@ -135,7 +135,7 @@ tienda; las dos de sólo lectura, con `edit_posts`, públicas para MCP y en el s
 se ven en el sitio —`is_post_type_viewable`— y plantillas de Elementor, nunca cupones, formularios recibidos ni otros
 tipos internos, y lo no público sólo con `edit_post`):
 
-1. con el MCP de DIGITALÍSIMO Elements activo (`elementor_mcp_enabled`), lo que su servidor `/wp-json/elementor/mcp`
+1. con el MCP de DIGITALÍSIMO Elements activo (`elementor_mcp_enabled`), lo que su servidor `/wp-json/digitalisimo/mcp` (antes `/wp-json/elementor/mcp`; las herramientas del constructor se llaman `digitalisimo-*` también en el Asistente)
    publica: su registro compartido (constructor, ventas, WooCommerce) más el filtro `elementor/mcp/server/tools`;
 2. más las Abilities públicas para MCP (`meta.mcp.public`, de tipo herramienta) que el servidor genérico del adaptador
    (`/wp-json/mcp/mcp-adapter-default-server`) descubre: SEO, IA Tools y las de cualquier otro plugin.
@@ -298,7 +298,7 @@ del Asistente en ese sitio. Con `new_conversation` abre una conversación nueva;
 cuadro, sin enviarlo (abrir un enlace nunca hace nada por la persona; la dirección pierde el mensaje al cargarse, la
 pantalla avisa que vino en un enlace y admite hasta 1 500 caracteres). Se
 publica como las demás: pública para el servidor genérico del adaptador y, con el MCP de Elements activo, en
-`/wp-json/elementor/mcp` como `digitalisimo-ia-open-assistant`. Desde Claude o ChatGPT: «abre el asistente de mi sitio
+`/wp-json/digitalisimo/mcp` como `digitalisimo-ia-open-assistant`. Desde Claude o ChatGPT: «abre el asistente de mi sitio
 con el mensaje …».
 
 ## Historial
