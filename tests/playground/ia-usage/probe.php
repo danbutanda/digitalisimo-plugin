@@ -188,7 +188,7 @@ switch ( $digi_step ) {
 		update_option( 'digitalisimo_hosting_price_history', array( array( 't' => time() - 3600, 'status' => 'ok', 'fx' => 18.3412, 'fx_source' => 'Banxico FIX ' . gmdate( 'd/m/Y' ) ) ), false );
 		$_GET = array( 'page' => 'digitalisimo-ai-usage' );
 		ob_start(); Digitalisimo_AI_Usage_Admin::page(); $html = ob_get_clean();
-		$note( false !== strpos( $html, 'Llamadas más caras' ) && false !== strpos( $html, 'Asistente IA' ) && false !== strpos( $html, 'Aprendizaje del sitio' ) && false !== strpos( $html, 'MX$' ) && false !== strpos( $html, 'Banxico FIX' ) && false === strpos( $html, $key ), 'la pantalla «Uso de IA» se pinta con los datos, en pesos con el tipo de cambio de Hosting y sin la clave' );
+		$note( false !== strpos( $html, 'Llamadas más caras' ) && false !== strpos( $html, 'Asistente IA' ) && false !== strpos( $html, 'Aprendizaje del sitio' ) && false !== strpos( $html, 'MX$' ) && false !== strpos( $html, 'el FIX de Banxico que guardó DIGITALÍSIMO Hosting' ) && false === strpos( $html, $key ), 'la pantalla «Uso de IA» se pinta con los datos, en pesos con el tipo de cambio de Hosting y sin la clave' );
 		file_put_contents( $digi_dir . '/pantalla-sitio.html', $html );
 		$_GET = array( 'page' => 'digitalisimo-network-ai-usage' );
 		ob_start(); Digitalisimo_AI_Usage_Admin::network_page(); $nhtml = ob_get_clean();

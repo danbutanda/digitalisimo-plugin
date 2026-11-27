@@ -66,12 +66,19 @@ final class Digitalisimo_AI_Usage_Admin {
 	}
 
 	public static function mxn( $value ) {
-		$rate = Digitalisimo_AI_Usage::mxn_rate();
+		$rate = self::rate();
 		if ( null === $value || $rate <= 0 ) {
 			return '—';
 		}
 		$mxn = (float) $value * $rate;
 		return 'MX$ ' . number_format( $mxn, abs( $mxn ) > 0 && abs( $mxn ) < 1 ? 4 : 2 );
+	}
+
+	/** Tipo de cambio leído una vez al pintar una pantalla (null fuera de ella). */
+	private static $rate = null;
+
+	private static function rate() {
+		return null !== self::$rate ? self::$rate : Digitalisimo_AI_Usage::mxn_rate();
 	}
 
 	private static function num( $n ) {
@@ -111,6 +118,7 @@ final class Digitalisimo_AI_Usage_Admin {
 		self::maybe_reprice();
 		list( $from, $to ) = self::range();
 		$summary = Digitalisimo_AI_Usage::summary( $from, $to );
+		self::$rate = (float) $summary['mxn_rate'];
 		$last    = self::last_month();
 		$base    = admin_url( 'admin.php?page=' . self::PAGE );
 		$label   = self::period_label( $from, $to );
@@ -140,6 +148,7 @@ final class Digitalisimo_AI_Usage_Admin {
 		echo '</details>';
 		self::settings_form( false, (bool) $saved );
 		echo '</div>';
+		self::$rate = null;
 	}
 
 	/** El mes pasado: primer y último día (hora del sitio). */
@@ -151,12 +160,7 @@ final class Digitalisimo_AI_Usage_Admin {
 
 	/** «26 de noviembre» (con el año si no es el de hoy). */
 	public static function date_text( $day ) {
-		$months = array( 1 => 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre' );
-		$parts  = explode( '-', (string) $day );
-		if ( 3 !== count( $parts ) ) {
-			return (string) $day;
-		}
-		return (int) $parts[2] . ' de ' . $months[ (int) $parts[1] ] . ( substr( Digitalisimo_AI_Usage::today(), 0, 4 ) !== $parts[0] ? ' de ' . $parts[0] : '' );
+		return Digitalisimo_AI_Usage::long_date( $day );
 	}
 
 	/** Nombre del periodo elegido: «Este mes», «Hoy», «Últimos 7 días», «El mes pasado» o «Del … al …». */
@@ -217,7 +221,7 @@ final class Digitalisimo_AI_Usage_Admin {
 
 	/** Lo mismo en pesos, o '' si el sitio no tiene tipo de cambio. */
 	public static function plain_mxn( $value ) {
-		$rate = Digitalisimo_AI_Usage::mxn_rate();
+		$rate = self::rate();
 		if ( $rate <= 0 || null === $value ) {
 			return '';
 		}
@@ -231,7 +235,7 @@ final class Digitalisimo_AI_Usage_Admin {
 			echo '<p class="description digitalisimo-usage-rate">Los pesos son aproximados: dólar a ' . esc_html( number_format( $fx['rate'], 2 ) ) . ', ' . esc_html( Digitalisimo_AI_Usage::fx_text( $fx ) ) . '.</p>';
 			return;
 		}
-		echo '<p class="description digitalisimo-usage-rate">Los montos están en dólares, que es como cobran los proveedores. Para verlos también en pesos, escribe el tipo de cambio en Ajustes (abajo) o activa el de Banxico en DIGITALÍSIMO Hosting.</p>';
+		echo '<p class="description digitalisimo-usage-rate">Los montos están en dólares, que es como cobran los proveedores. Para verlos también en pesos, escribe el tipo de cambio en Ajustes (abajo).</p>';
 	}
 
 	private static function period_form( $base, $from, $to ) {
@@ -240,8 +244,10 @@ final class Digitalisimo_AI_Usage_Admin {
 		$query = wp_parse_url( $base, PHP_URL_QUERY );
 		parse_str( (string) $query, $hidden );
 		echo '<form method="get" class="digitalisimo-usage-period"><span class="digitalisimo-usage-period-label">Ver:</span> ';
+		$marked = false;
 		foreach ( array( 'Este mes' => array( $days['month'], $days['today'] ), 'Hoy' => array( $days['today'], $days['today'] ), 'Últimos 7 días' => array( $days['week'], $days['today'] ), 'El mes pasado' => $last ) as $label => $span ) {
-			$current = $span[0] === $from && $span[1] === $to;
+			$current = ! $marked && $span[0] === $from && $span[1] === $to; // El día 1, «Este mes» y «Hoy» son lo mismo: se marca uno.
+			$marked  = $marked || $current;
 			echo '<a class="button' . ( $current ? ' button-primary' : '' ) . '"' . ( $current ? ' aria-current="true"' : '' ) . ' href="' . esc_url( add_query_arg( array( 'from' => $span[0], 'to' => $span[1] ), $base ) ) . '">' . esc_html( $label ) . '</a> ';
 		}
 		foreach ( $hidden as $key => $value ) {
@@ -276,7 +282,7 @@ final class Digitalisimo_AI_Usage_Admin {
 			echo '<p>No se usó la IA en estas fechas.</p>';
 			return;
 		}
-		$pesos = Digitalisimo_AI_Usage::mxn_rate() > 0;
+		$pesos = self::rate() > 0;
 		$sum   = (float) $total['cost_usd'];
 		echo '<table class="widefat striped digitalisimo-usage-features"><thead><tr><th>En qué</th><th>Gasto</th>' . ( $pesos ? '<th>En pesos</th>' : '' ) . '<th>Parte del total</th><th>Consultas a la IA</th></tr></thead><tbody>';
 		foreach ( $rows as $row ) {
@@ -336,7 +342,7 @@ final class Digitalisimo_AI_Usage_Admin {
 			$title  = self::date_text( $row['day'] ) . ': ' . self::plain_usd( $row['cost_usd'] ) . ' · ' . self::num( $row['calls'] ) . ' consultas';
 			echo '<span class="digitalisimo-usage-bar" style="height:' . esc_attr( number_format( $height, 1, '.', '' ) ) . '%" title="' . esc_attr( $title ) . '"></span>';
 		}
-		$pesos = Digitalisimo_AI_Usage::mxn_rate() > 0;
+		$pesos = self::rate() > 0;
 		echo '</div><details><summary>Ver como tabla</summary><table class="widefat striped"><thead><tr><th>Día</th><th>Gasto</th>' . ( $pesos ? '<th>En pesos</th>' : '' ) . '<th>Consultas</th><th>Tokens</th></tr></thead><tbody>';
 		foreach ( $rows as $row ) {
 			echo '<tr><td>' . esc_html( self::date_text( $row['day'] ) ) . '</td><td>' . esc_html( self::usd( $row['cost_usd'] ) ) . '</td>' . ( $pesos ? '<td>' . esc_html( self::mxn( $row['cost_usd'] ) ) . '</td>' : '' ) . '<td>' . esc_html( self::num( $row['calls'] ) ) . '</td><td>' . esc_html( self::num( $row['tokens'] ) ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en la línea.
@@ -413,6 +419,7 @@ final class Digitalisimo_AI_Usage_Admin {
 		$sites = Digitalisimo_AI_Usage_Store::network_sites( $ids, $days );
 		$base  = network_admin_url( 'admin.php?page=' . self::NETWORK_PAGE );
 		$label = self::period_label( $from, $to );
+		self::$rate = Digitalisimo_AI_Usage::mxn_rate();
 		echo '<div class="wrap digitalisimo-ai-usage"><h1>Uso de IA · Red</h1><hr class="wp-header-end">';
 		if ( $saved ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $saved ) . '</p></div>';
@@ -430,7 +437,7 @@ final class Digitalisimo_AI_Usage_Admin {
 		self::hero( 'Gastado este mes en toda la red', $total['month'], $total['today'], null, null );
 		self::period_form( $base, $from, $to );
 		echo '<h2>¿Cuánto gastó cada sitio? · ' . esc_html( $label ) . '</h2>';
-		$pesos   = Digitalisimo_AI_Usage::mxn_rate() > 0;
+		$pesos   = self::rate() > 0;
 		$network = Digitalisimo_AI_Usage::network();
 		$order   = $ids;
 		usort(
@@ -481,6 +488,7 @@ final class Digitalisimo_AI_Usage_Admin {
 		echo '</details>';
 		self::settings_form( true, (bool) $saved );
 		echo '</div>';
+		self::$rate = null;
 	}
 
 	private static function site_ids() {
@@ -532,7 +540,7 @@ final class Digitalisimo_AI_Usage_Admin {
 		echo '<tr><th scope="row"><label for="digitalisimo-usage-action">Al llegar al 100 %</label></th><td><select id="digitalisimo-usage-action" name="usage[budget_action]"><option value="notify" ' . selected( $o['budget_action'], 'notify', false ) . '>Sólo avisar</option><option value="pause" ' . selected( $o['budget_action'], 'pause', false ) . '>Pausar las funciones de IA hasta el próximo mes</option></select></td></tr>';
 		echo '<tr><th scope="row"><label for="digitalisimo-usage-email">Correo del aviso</label></th><td><input id="digitalisimo-usage-email" type="email" name="usage[budget_email]" value="' . esc_attr( (string) $o['budget_email'] ) . '" placeholder="El del administrador del sitio"></td></tr>';
 		echo '</tbody></table><h3>Moneda y registro</h3><table class="form-table" role="presentation"><tbody>';
-		echo '<tr><th scope="row"><label for="digitalisimo-usage-rate">Tipo de cambio (MXN por USD)</label></th><td><input id="digitalisimo-usage-rate" type="number" min="0" step="0.0001" name="usage[mxn_rate]" value="' . esc_attr( $o['mxn_rate'] ? (string) $o['mxn_rate'] : '' ) . '" placeholder="Ej. 18.50"><p class="description">Para ver los montos también en pesos. Vacío, se usa el último de Banxico que guardó DIGITALÍSIMO Hosting (si lo tienes); sin ninguno, sólo dólares.</p></td></tr>';
+		echo '<tr><th scope="row"><label for="digitalisimo-usage-rate">Tipo de cambio (MXN por USD)</label></th><td><input id="digitalisimo-usage-rate" type="number" min="0" step="0.0001" name="usage[mxn_rate]" value="' . esc_attr( $o['mxn_rate'] ? (string) $o['mxn_rate'] : '' ) . '" placeholder="Ej. 18.50"><p class="description">Para ver los montos también en pesos. Vacío, se usa el último que guardó DIGITALÍSIMO Hosting al actualizar los precios de dominios (el FIX de Banxico), si lo hay; si no, sólo dólares.</p></td></tr>';
 		echo '<tr><th scope="row"><label for="digitalisimo-usage-retention">Conservar el detalle (días)</label></th><td><input id="digitalisimo-usage-retention" type="number" min="7" max="3650" name="usage[retention_days]" value="' . esc_attr( (string) $o['retention_days'] ) . '"><p class="description">Cada llamada se guarda este tiempo; el resumen por día se conserva siempre.</p></td></tr>';
 		echo '<tr><th scope="row">Al desinstalar</th><td><label><input type="hidden" name="usage[purge_on_uninstall]" value="0"><input type="checkbox" name="usage[purge_on_uninstall]" value="1" ' . checked( ! empty( $o['purge_on_uninstall'] ), true, false ) . '> Borrar el registro de uso al desinstalar IA Tools</label><p class="description">Desmarcado, el historial se conserva si se borra y se vuelve a instalar el plugin.</p></td></tr>';
 		echo '</tbody></table>';
@@ -734,8 +742,8 @@ final class Digitalisimo_AI_Usage_Admin {
 
 	/**
 	 * Aviso al 80 % y al 100 % del tope, por el ayudante común de avisos (la X de WordPress; queja del propietario del
-	 * 2026-11-22): cerrado, no vuelve en el mes mientras siga en el mismo nivel; al pasar al 100 % o en el mes
-	 * siguiente, sí.
+	 * 2026-11-22): cerrado, no vuelve en el mes mientras siga igual (nivel, tope y qué pasa al llegarle); al pasar al
+	 * 100 %, al cambiar el tope o en el mes siguiente, sí. Con la IA en pausa vuelve al día siguiente, como un error.
 	 */
 	public static function notice() {
 		if ( ! current_user_can( 'manage_options' ) || ( function_exists( 'is_network_admin' ) && is_network_admin() ) ) {
@@ -755,7 +763,7 @@ final class Digitalisimo_AI_Usage_Admin {
 		$html = '<p><strong>Uso de IA:</strong> ' . esc_html( $text ) . ' <a href="' . esc_url( admin_url( 'admin.php?page=' . self::PAGE ) ) . '">Ver cuánto se ha gastado</a></p>';
 		$type = 100 === $budget['level'] ? 'error' : 'warning';
 		if ( class_exists( 'Digitalisimo_Notices' ) ) {
-			Digitalisimo_Notices::show( self::notice_id(), $type, $html, array( 'hash' => array( substr( Digitalisimo_AI_Usage::today(), 0, 7 ), $budget['level'], $budget['paused'] ), 'snooze' => 0, 'cap' => 'manage_options' ) );
+			Digitalisimo_Notices::show( self::notice_id(), $type, $html, array( 'hash' => array( substr( Digitalisimo_AI_Usage::today(), 0, 7 ), $budget['level'], $budget['paused'], $budget['cap'], $budget['action'] ), 'snooze' => $budget['paused'] ? DAY_IN_SECONDS : 0, 'cap' => 'manage_options' ) );
 			return;
 		}
 		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.

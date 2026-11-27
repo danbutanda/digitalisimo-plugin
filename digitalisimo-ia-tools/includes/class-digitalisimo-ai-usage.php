@@ -50,6 +50,8 @@ final class Digitalisimo_AI_Usage {
 	private static $ambient = null;
 	/** Gasto del mes ya consultado en esta petición, por sitio y mes: [ 'sitio|mes' => USD ]. */
 	private static $spend = array();
+	/** Historial de Hosting del sitio principal, leído una vez por petición (mxn_info() en un subsitio). */
+	private static $main_fx = array();
 
 	public static function init() {
 		add_action( 'http_api_debug', array( __CLASS__, 'capture' ), 10, 5 );
@@ -438,41 +440,57 @@ final class Digitalisimo_AI_Usage {
 	}
 
 	/**
-	 * Tipo de cambio y de dónde salió: el que escribió el administrador en Ajustes y, si no hay, el último que guardó
-	 * DIGITALÍSIMO Hosting al actualizar los precios de dominios (FIX de Banxico o su respaldo) en este sitio o en el
-	 * principal de la red, de hasta 90 días. Nunca consulta nada por la red. Al final, el filtro
-	 * `digitalisimo_ai_usage_mxn_rate` puede darlo otro módulo. `rate` 0 = sólo dólares.
+	 * Tipo de cambio y de dónde salió: el escrito en los ajustes de uso (los del sitio o, si hereda o en la
+	 * administración de la red, los de la red) y, si no hay, el último que guardó DIGITALÍSIMO Hosting al actualizar los
+	 * precios de dominios (FIX de Banxico o su respaldo) en este sitio o en el principal de la red, de hasta 90 días.
+	 * Nunca consulta nada por la red. Al final, el filtro `digitalisimo_ai_usage_mxn_rate` puede darlo otro módulo.
 	 *
-	 * @return array{rate: float, source: string, date: string}
+	 * @return array{rate: float, source: string, kind: string, date: string} `rate` 0 = sólo dólares; `source`:
+	 *         settings, network, hosting o filter; `kind`: banxico u other (sólo de Hosting); `date`: día local.
 	 */
 	public static function mxn_info() {
-		$blog = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
-		$info = array( 'rate' => (float) self::settings( 'mxn_rate' ), 'source' => 'settings', 'date' => '' );
+		$blog    = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
+		$network = is_multisite() && ( ( function_exists( 'is_network_admin' ) && is_network_admin() ) || self::inherits() );
+		$set     = $network && function_exists( 'is_network_admin' ) && is_network_admin() ? self::network() : self::settings();
+		$info    = array( 'rate' => (float) ( $set['mxn_rate'] ?? 0 ), 'source' => $network ? 'network' : 'settings', 'kind' => '', 'date' => '' );
 		if ( $info['rate'] <= 0 ) {
-			$info = array( 'rate' => 0.0, 'source' => '', 'date' => '' );
+			$info = array( 'rate' => 0.0, 'source' => '', 'kind' => '', 'date' => '' );
+			$main = is_multisite() && function_exists( 'get_main_site_id' ) ? (int) get_main_site_id() : $blog;
 			$sets = array( get_option( 'digitalisimo_hosting_price_history', array() ) );
-			if ( is_multisite() && function_exists( 'get_main_site_id' ) && function_exists( 'get_blog_option' ) && (int) get_main_site_id() !== $blog ) {
-				$sets[] = get_blog_option( (int) get_main_site_id(), 'digitalisimo_hosting_price_history', array() );
+			if ( $main !== $blog && function_exists( 'get_blog_option' ) ) {
+				if ( ! isset( self::$main_fx[ $main ] ) ) {
+					self::$main_fx[ $main ] = get_blog_option( $main, 'digitalisimo_hosting_price_history', array() ); // Una vez por petición.
+				}
+				$sets[] = self::$main_fx[ $main ];
 			}
 			foreach ( $sets as $history ) {
 				foreach ( array_reverse( is_array( $history ) ? $history : array() ) as $entry ) {
 					$rate = is_array( $entry ) ? (float) ( $entry['fx'] ?? 0 ) : 0.0;
-					if ( 'ok' === ( $entry['status'] ?? '' ) && $rate >= 5 && $rate <= 100 && time() - (int) ( $entry['t'] ?? 0 ) < 90 * 86400 ) {
-						$info = array( 'rate' => $rate, 'source' => sanitize_text_field( (string) ( $entry['fx_source'] ?? '' ) ), 'date' => gmdate( 'Y-m-d', (int) $entry['t'] ) );
+					$when = is_array( $entry ) ? (int) ( $entry['t'] ?? 0 ) : 0;
+					if ( 'ok' === ( $entry['status'] ?? '' ) && $rate >= 5 && $rate <= 100 && time() - $when < 90 * 86400 ) {
+						$kind = 0 === stripos( (string) ( $entry['fx_source'] ?? '' ), 'Banxico' ) ? 'banxico' : 'other';
+						$info = array( 'rate' => $rate, 'source' => 'hosting', 'kind' => $kind, 'date' => function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d', $when ) : gmdate( 'Y-m-d', $when ) );
 						break 2;
 					}
 				}
 			}
-			if ( $info['rate'] > 0 ) {
-				$info['source'] = 'hosting' . ( '' !== $info['source'] ? ': ' . $info['source'] : '' );
-			}
 		}
 		$rate = (float) apply_filters( 'digitalisimo_ai_usage_mxn_rate', $info['rate'] );
 		if ( $rate !== $info['rate'] ) {
-			$info = array( 'rate' => $rate, 'source' => 'filter', 'date' => '' );
+			$info = array( 'rate' => $rate, 'source' => 'filter', 'kind' => '', 'date' => '' );
 		}
 		$info['rate'] = $rate > 0 ? $rate : 0.0;
 		return $info;
+	}
+
+	/** Un día (AAAA-MM-DD) en palabras: «26 de noviembre», con el año si no es el de hoy. */
+	public static function long_date( $day ) {
+		$months = array( 1 => 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre' );
+		$parts  = explode( '-', (string) $day );
+		if ( 3 !== count( $parts ) || ! isset( $months[ (int) $parts[1] ] ) ) {
+			return (string) $day;
+		}
+		return (int) $parts[2] . ' de ' . $months[ (int) $parts[1] ] . ( substr( self::today(), 0, 4 ) !== $parts[0] ? ' de ' . $parts[0] : '' );
 	}
 
 	/* ---------------- Presupuesto ---------------- */
@@ -636,16 +654,17 @@ final class Digitalisimo_AI_Usage {
 		);
 	}
 
-	/** De dónde salió el tipo de cambio, en palabras: «el que escribiste en Ajustes», «Banxico FIX 26/11/2026 (Hosting)»… */
+	/** De dónde salió el tipo de cambio, en palabras para el dueño. */
 	public static function fx_text( array $fx ) {
-		if ( 'settings' === $fx['source'] ) {
-			return 'el que escribiste en Ajustes';
+		switch ( $fx['source'] ) {
+			case 'settings':
+				return 'el que escribiste en Ajustes';
+			case 'network':
+				return 'el de los ajustes de la red';
+			case 'filter':
+				return 'el que da otro módulo del sitio';
 		}
-		if ( 'filter' === $fx['source'] ) {
-			return 'el que da otro módulo del sitio';
-		}
-		$from = trim( (string) preg_replace( '/^hosting:?\s*/', '', (string) $fx['source'] ) );
-		return ( '' !== $from ? $from : 'el último que guardó' ) . ' (de DIGITALÍSIMO Hosting' . ( '' !== $fx['date'] ? ', ' . $fx['date'] : '' ) . ')';
+		return ( 'banxico' === $fx['kind'] ? 'el FIX de Banxico' : 'el tipo de cambio de referencia' ) . ' que guardó DIGITALÍSIMO Hosting' . ( '' !== $fx['date'] ? ' el ' . self::long_date( $fx['date'] ) : '' );
 	}
 
 	public static function feature_label( $feature ) {
@@ -739,13 +758,21 @@ final class Digitalisimo_AI_Usage {
 			return $text . ( $rate > 0 ? ' (unos MX$ ' . number_format( $usd * $rate, 2 ) . ')' : '' );
 		};
 		$p     = $summary['periods'];
-		$text  = 'Este mes (desde el ' . $p['month']['from'] . ') la IA de este sitio lleva ' . $money( $p['month']['cost_usd'] ) . ' en ' . number_format( (int) $p['month']['calls'] ) . ' consultas; hoy, ' . $money( $p['today']['cost_usd'] ) . '.';
+		$text  = 'Este mes (desde el ' . self::long_date( $p['month']['from'] ) . ') la IA de este sitio lleva ' . $money( $p['month']['cost_usd'] ) . ' en ' . number_format( (int) $p['month']['calls'] ) . ' consultas; hoy, ' . $money( $p['today']['cost_usd'] ) . '.';
 		$parts = array();
-		foreach ( array_slice( (array) $summary['by_feature'], 0, 6 ) as $row ) {
+		$rows  = array_values(
+			array_filter(
+				(array) $summary['by_feature'],
+				function ( $row ) {
+					return (float) $row['cost_usd'] > 0 || ! empty( $row['unpriced'] );
+				}
+			)
+		);
+		foreach ( array_slice( $rows, 0, 6 ) as $row ) {
 			$parts[] = self::feature_label( $row['feature'] ?? '' ) . ' ' . $money( $row['cost_usd'] );
 		}
 		if ( $parts ) {
-			$text .= ' Del ' . $p['range']['from'] . ' al ' . $p['range']['to'] . ' se fue en: ' . implode( '; ', $parts ) . '.';
+			$text .= ' Del ' . self::long_date( $p['range']['from'] ) . ' al ' . self::long_date( $p['range']['to'] ) . ' se fue en: ' . implode( '; ', $parts ) . ( count( $rows ) > 6 ? '; y otras ' . ( count( $rows ) - 6 ) . ' funciones con menos gasto' : '' ) . '.';
 		}
 		if ( ! empty( $summary['unpriced'] ) ) {
 			$text .= ' Hay llamadas de modelos sin precio registrado: el total real es algo mayor.';

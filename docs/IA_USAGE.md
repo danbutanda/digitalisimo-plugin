@@ -77,7 +77,7 @@ En la red (Red → Digitalisimo → Uso de IA, superadministrador): lo gastado e
 
 Los ajustes (presupuesto, tipo de cambio, retención, borrar al desinstalar y precios) son los mismos campos en las dos superficies (`settings_fields()`) con una sola validación (`sanitize_settings()`); «Heredar los ajustes de uso de la red» existe sólo en el sitio y un sitio que nunca guardó hereda. En una red los cambia sólo el superadministrador: el administrador de un sitio los ve sin poder cambiarlos (el tope de red lo define el superadministrador).
 
-Tipo de cambio (`Digitalisimo_AI_Usage::mxn_info()`), sin consultar nada por la red: el escrito en Ajustes; si no hay, el último que guardó DIGITALÍSIMO Hosting al actualizar precios de dominios (`digitalisimo_hosting_price_history`: FIX de Banxico o su respaldo Frankfurter) en el sitio o en el principal de la red, de hasta 90 días y entre 5 y 100 pesos (una tienda en dólares guarda 1 y no cuenta); al final, el filtro `digitalisimo_ai_usage_mxn_rate`. Sin ninguno, sólo dólares, y la pantalla dice cómo ver pesos.
+Tipo de cambio (`Digitalisimo_AI_Usage::mxn_info()`), sin consultar nada por la red: el escrito en Ajustes (el de la red si el sitio hereda, y en la pantalla de la red); si no hay, el último que guardó DIGITALÍSIMO Hosting al actualizar precios de dominios (`digitalisimo_hosting_price_history`: FIX de Banxico o su respaldo Frankfurter) en el sitio o en el principal de la red, de hasta 90 días y entre 5 y 100 pesos (una tienda en dólares guarda 1 y no cuenta); al final, el filtro `digitalisimo_ai_usage_mxn_rate`. Sin ninguno, sólo dólares, y la pantalla dice cómo ver pesos.
 
 ## Presupuesto
 
