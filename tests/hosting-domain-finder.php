@@ -115,7 +115,7 @@ check( 'minegocio' === $F::parse( 'minegocio.com.mx' )['label'] && '.com.mx' ===
 $before = nc_checks();
 $r = search( 'minegocio' );
 check( is_array( $r ) && $before + 1 === nc_checks(), 'F2 UNA sola llamada a namecheap.domains.check para todas las extensiones' );
-check( array( 'minegocio.com', 'minegocio.mx', 'minegocio.net' ) === last_list(), 'F2 DomainList lleva las tres extensiones con producto, en el orden configurado · ' . implode( ',', last_list() ) );
+check( array( 'minegocio.com', 'minegocio.mx', 'minegocio.net', 'minegocioonline.com', 'minegociomx.com' ) === last_list(), 'F2 DomainList lleva las tres extensiones con producto, en el orden configurado, y dos variantes del nombre para sugerir si todo está ocupado · ' . implode( ',', last_list() ) );
 check( 'minegocio.com' === $r['main']['domain'] && 'available' === $r['main']['status'] && 20 === $r['main']['product_id'], 'F2 sin extensión escrita, el principal es .com' );
 check( '$309' === $r['main']['price_text'] && '$509' === $r['main']['renewal_text'], 'F2 primer año y renovación del producto de WooCommerce (309 / 509) · ' . $r['main']['price_text'] . ' / ' . $r['main']['renewal_text'] );
 check( array( 'minegocio.mx', 'minegocio.net' ) === array_column( $r['rows'], 'domain' ) && '$600' === $r['rows'][0]['price_text'] && '$280' === $r['rows'][1]['price_text'], 'F2 debajo, una fila por extensión con su precio' );
@@ -123,7 +123,7 @@ check( false !== strpos( $r['rows'][0]['requirement'], 'titular' ) && '' === $r[
 check( array( 14693, 14696 ) === array_column( $r['together'], 'id' ) && '$970' === $r['together'][0]['price_text'], 'F2 «se compran juntos»: los planes de hosting con su precio' );
 update_option( 'digitalisimo_hosting_options', array( 'finder_order' => '.net, .mx' ) + get_option( 'digitalisimo_hosting_options' ) );
 $r2 = search( 'otronegocio' );
-check( array( 'otronegocio.net', 'otronegocio.mx', 'otronegocio.com' ) === last_list() && 'otronegocio.com' === $r2['main']['domain'] && array( 'otronegocio.net', 'otronegocio.mx' ) === array_column( $r2['rows'], 'domain' ), 'F2 el orden se configura (populares primero); .com sigue siendo el principal' );
+check( array( 'otronegocio.net', 'otronegocio.mx', 'otronegocio.com', 'miotronegocio.com', 'otronegociomx.com' ) === last_list() && 'otronegocio.com' === $r2['main']['domain'] && array( 'otronegocio.net', 'otronegocio.mx' ) === array_column( $r2['rows'], 'domain' ), 'F2 el orden se configura (populares primero); .com sigue siendo el principal' );
 update_option( 'digitalisimo_hosting_options', array( 'finder_order' => '.com, .mx, .net' ) + get_option( 'digitalisimo_hosting_options' ) );
 
 // ── F3. Ocupado: mejor alternativa libre y transferencia ──────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ check( ! isset( $r['taken']['transfer'] ), 'F3 sin producto de transferencia de 
 update_post_meta( 50, '_digitalisimo_tld', '*' ); Digitalisimo_Hosting_Products::flush();
 $GLOBALS['nc']['taken'] = array( 'todo.com', 'todo.mx', 'todo.net' );
 $r = search( 'todo' );
-check( 'todo.com' === $r['main']['domain'] && 'taken' === $r['main']['status'] && '' === $r['instead_of'] && isset( $r['main']['transfer'] ) && array() === $r['alternatives'], 'F3 todo ocupado: el principal es el ocupado, con su transferencia y sin libres' );
+check( 'todo.com' === $r['main']['domain'] && 'taken' === $r['main']['status'] && '' === $r['instead_of'] && isset( $r['main']['transfer'] ) && array( 'mitodo.com', 'todomx.com' ) === $r['alternatives'] && array( 'mitodo.com', 'todomx.com' ) === array_column( $r['suggestions'], 'domain' ), 'F3 todo ocupado: el principal es el ocupado, con su transferencia, y las libres son variantes del nombre' );
 
 // ── F4. Premium ───────────────────────────────────────────────────────────────────────────────────────────────
 $r = search( 'lujo' );
@@ -196,9 +196,9 @@ foreach ( array( 'lat', 'org', 'info', 'biz', 'xyz', 'online', 'site', 'store', 
 update_option( 'digitalisimo_hosting_options', array( 'domain_products' => $lines ) + get_option( 'digitalisimo_hosting_options' ) );
 Digitalisimo_Hosting_Products::flush();
 $r = search( 'muchas' );
-check( $F::MAX_EXTS === count( last_list() ) && $F::MAX_EXTS === 1 + count( $r['rows'] ), 'F10 17 extensiones con producto: se consultan ' . $F::MAX_EXTS . ' (' . count( last_list() ) . ')' );
+check( $F::MAX_EXTS + 2 === count( last_list() ) && $F::MAX_EXTS === 1 + count( $r['rows'] ), 'F10 17 extensiones con producto: se consultan ' . $F::MAX_EXTS . ' (' . count( last_list() ) . ')' );
 $r = search( 'muchas2.io' );
-check( in_array( 'muchas2.io', last_list(), true ) && 'muchas2.io' === $r['main']['domain'] && $F::MAX_EXTS === count( last_list() ), 'F10 la escrita entra aunque quede después del tope' );
+check( in_array( 'muchas2.io', last_list(), true ) && 'muchas2.io' === $r['main']['domain'] && $F::MAX_EXTS + 2 === count( last_list() ), 'F10 la escrita entra aunque quede después del tope' );
 update_option( 'digitalisimo_hosting_options', array( 'domain_products' => ".com|20\n.mx|21\n.net|22" ) + get_option( 'digitalisimo_hosting_options' ) );
 Digitalisimo_Hosting_Products::flush();
 
@@ -256,6 +256,7 @@ $GLOBALS['user_id'] = 1; unset( $GLOBALS['caps'] );
 $GLOBALS['assets'] = array();
 ob_start(); $F::empty_cart(); $empty = ob_get_clean();
 check( false !== strpos( $empty, 'data-digitalisimo-finder' ) && isset( $GLOBALS['assets']['script'][ $F::HANDLE ] ), 'F15 carrito vacío (clásico): el buscador, con su script' );
+WC()->cart = new Digi_Test_Cart();
 $blk = $F::empty_cart_block( '<div class="wp-block-woocommerce-empty-cart-block">Vacío</div>', array( 'blockName' => 'woocommerce/empty-cart-block' ) );
 check( 0 === strpos( $blk, '<div class="wp-block-woocommerce-empty-cart-block">Vacío<div class="digitalisimo-finder-empty-cart">' ) && '</div></div>' === substr( $blk, -12 ) && false !== strpos( $blk, 'data-digitalisimo-finder' ), 'F15 carrito vacío (bloques): el buscador DENTRO del bloque «carrito vacío» (fuera se vería con el carrito lleno)' );
 check( '<p>x</p>' === $F::empty_cart_block( '<p>x</p>', array( 'blockName' => 'woocommerce/cart' ) ), 'F15 los demás bloques no cambian' );
@@ -275,7 +276,7 @@ $html = $F::shortcode( array( 'titulo' => 'Tu dominio <b>ya</b>', 'boton' => 'Bu
 unset( $_GET['dominio'] );
 preg_match( '/<input id="([^"]+)"/', $html, $id );
 check( $id && false !== strpos( $html, '<label class="digitalisimo-finder__label" for="' . $id[1] . '">' ) && false !== strpos( $html, 'aria-describedby="' . $id[1] . '-hint"' ), 'F16 el campo tiene su etiqueta visible y su ayuda' );
-check( false !== strpos( $html, 'role="search"' ) && false !== strpos( $html, 'type="search"' ) && false !== strpos( $html, 'role="status" aria-live="polite"' ) && false !== strpos( $html, 'class="digitalisimo-finder__results" aria-live="polite" aria-busy="false"' ), 'F16 búsqueda con role=search; avisos y resultados con aria-live' );
+check( false !== strpos( $html, 'role="search"' ) && false !== strpos( $html, 'type="search"' ) && false !== strpos( $html, 'role="status" aria-live="polite"' ) && false !== strpos( $html, '<div class="digitalisimo-finder__results" aria-busy="false">' ) && 1 === substr_count( $html, 'aria-live' ), 'F16 búsqueda con role=search; sólo el aviso (role=status) es región viva, los resultados no' );
 check( false !== strpos( $html, 'Tu dominio &lt;b&gt;ya&lt;/b&gt;' ) && false !== strpos( $html, '>Buscar ahora<' ) && false === strpos( $html, '"><b>' ), 'F16 los textos y ?dominio= salen escapados' );
 $css = file_get_contents( __DIR__ . '/../digitalisimo-hosting/assets/finder.css' );
 foreach ( array( 'html' => $html, 'js' => $tf, 'css' => preg_replace( '/--e-global-[a-z-]+/', '', $css ) ) as $what => $src ) check( false === stripos( $src, 'elementor' ), 'F16 sin «elementor» en el ' . $what . ' que ve el visitante' );
@@ -353,15 +354,108 @@ $GLOBALS['nc']['batch_reject'] = array( '.net' );
 $before = nc_checks();
 $r = search( 'lote' );
 $byd = array_column( array_merge( array( $r['main'] ), $r['rows'] ), 'status', 'domain' );
-check( 'available' === $byd['lote.com'] && 'available' === $byd['lote.mx'] && 'unknown' === $byd['lote.net'] && $before + 4 === nc_checks(), 'F21 si Namecheap rechaza el lote por una extensión, se consultan una por una y las demás salen · ' . json_encode( $byd ) );
+check( 'available' === $byd['lote.com'] && 'available' === $byd['lote.mx'] && 'unknown' === $byd['lote.net'] && $before + 6 === nc_checks(), 'F21 si Namecheap rechaza el lote por una extensión, se consultan una por una (las 3 extensiones y las 2 variantes) y las demás salen · ' . json_encode( $byd ) );
+check( isset( $F::bad_exts()['.net'] ) && 1 === count( $F::bad_exts() ), 'F21 la extensión que rompe el lote queda anotada' );
+$before = nc_checks();
+$r = search( 'lote2' );
+$byd = array_column( array_merge( array( $r['main'] ), $r['rows'] ), 'status', 'domain' );
+check( $before + 1 === nc_checks() && ! preg_grep( '/\.net$/', last_list() ) && 'unknown' === $byd['lote2.net'] && 'available' === $byd['lote2.com'], 'F21 la búsqueda siguiente la saca del lote: una sola consulta, sin reintentos uno por uno' );
+// El respaldo uno por uno tiene tiempo total: sin tiempo, no se hace (y no pasa de max_execution_time).
+$GLOBALS['nc']['batch_reject'] = array( '.mx' );
+add_filter( 'digitalisimo_hosting_finder_fallback_seconds', function () { return 0; } );
+$before = nc_checks();
+$x = search( 'sintiempo' );
+check( $before + 1 === nc_checks() && is_wp_error( $x ), 'F21 sin tiempo para el respaldo no se consulta una por una (aviso amable, sin colgar la página)' );
+$GLOBALS['hooks']['digitalisimo_hosting_finder_fallback_seconds'] = array();
 unset( $GLOBALS['nc']['batch_reject'] );
+delete_transient( $F::BAD_EXTS );
 
 // ── F22. Sólo productos que se pueden comprar ─────────────────────────────────────────────────────────────────
 $GLOBALS['product_status'][22] = 'private';
 $r = search( 'privado' );
 $net = array_values( array_filter( $r['rows'], function ( $x ) { return 'privado.net' === $x['domain']; } ) );
-check( ! $net || ( 0 === $net[0]['product_id'] && ! isset( $net[0]['price_text'] ) ), 'F22 un producto de dominio privado no muestra precio ni botón' );
+check( ! $net && ! preg_grep( '/\.net$/', last_list() ), 'F22 un producto de dominio privado no aparece ni se consulta' );
 unset( $GLOBALS['product_status'][22] );
+$GLOBALS['products'][22]->price = '';
+$r = search( 'sinprecio' );
+check( ! preg_grep( '/\.net$/', last_list() ) && ! preg_grep( '/\.net$/', array_column( $r['rows'], 'domain' ) ), 'F22 un producto sin precio no aparece ni se consulta' );
+$GLOBALS['products'][22]->price = 280;
+$saved22 = $GLOBALS['products'][22]; unset( $GLOBALS['products'][22] ); Digitalisimo_Hosting_Products::flush();
+$rep = Digitalisimo_Hosting_Products::report( (string) get_option( 'digitalisimo_hosting_options' )['domain_products'] );
+$r = search( 'borrado' );
+check( ! isset( $rep['resolved']['.net'] ) && in_array( '.net', $rep['unresolved'], true ) && ! preg_grep( '/\.net$/', last_list() ), 'F22 un ID de «Productos por extensión» cuyo producto se borró ya no resuelve la extensión' );
+$GLOBALS['products'][22] = $saved22; Digitalisimo_Hosting_Products::flush();
+
+// ── F23. Todo ocupado: variantes del nombre en el mismo lote ──────────────────────────────────────────────────
+$GLOBALS['nc']['taken'] = array( 'lleno.com', 'lleno.mx', 'lleno.net', 'llenomx.com' );
+$before = nc_checks();
+$r = search( 'lleno' );
+check( $before + 1 === nc_checks() && 'taken' === $r['main']['status'] && array( 'milleno.com' ) === array_column( $r['suggestions'], 'domain' ) && 'available' === $r['suggestions'][0]['status'] && 20 === $r['suggestions'][0]['product_id'] && '$309' === $r['suggestions'][0]['price_text'], 'F23 todo ocupado: sugiere las variantes libres del nombre (sólo las libres, con producto y precio), sin otra consulta · ' . json_encode( array_column( $r['suggestions'], 'domain' ) ) );
+check( array() === search( 'minegocio' )['suggestions'], 'F23 con algo libre no hay sugerencias' );
+
+// ── F24. Acceso anticipado (EapFee) = precio especial ─────────────────────────────────────────────────────────
+$GLOBALS['nc']['eap'] = array( 'anticipado.com' );
+$r = search( 'anticipado' );
+$com = array_values( array_filter( $r['rows'], function ( $x ) { return 'anticipado.com' === $x['domain']; } ) );
+check( 'anticipado.mx' === $r['main']['domain'] && 'premium' === $r['reason'] && $com && 'premium' === $com[0]['status'], 'F24 un dominio con EapFee mayor que 0 no se vende (como premium)' );
+check( false !== strpos( store_error( 20, array( 'digitalisimo_domain' => 'anticipado.com' ) ), 'premium' ), 'F24 tampoco entra al carrito' );
+$one = Digitalisimo_Hosting_Namecheap::from_settings()->check( 'anticipado.com' );
+check( 'ok' === $one['kind'] && true === $one['premium'], 'F24 check() de un solo dominio también lo trata como precio especial' );
+unset( $GLOBALS['nc']['eap'] );
+
+// ── F25. Saldo del registrador antes de cobrar ────────────────────────────────────────────────────────────────
+$GLOBALS['nc']['balance'] = 0.02; $GLOBALS['mails'] = array();
+delete_transient( 'digitalisimo_hosting_nc_balance' );
+WC()->cart = new Digi_Test_Cart();
+$ks = store_add( 20, array( 'digitalisimo_domain' => 'tiendaluz.com' ) );
+$errs = $C::cart_errors();
+check( preg_grep( '/Por ahora no podemos completar en línea la compra de tiendaluz\.com\. Escríbenos/', $errs ) && ! preg_grep( '/saldo|USD|Namecheap/i', $errs ), 'F25 sin saldo en el registrador, el carrito no deja pagar el dominio, con un texto llano (sin hablar de saldo) · ' . json_encode( $errs ) );
+$owner = array_values( array_filter( $GLOBALS['mails'], function ( $m ) { return false !== strpos( $m['subject'], 'saldo del registrador' ); } ) );
+check( 1 === count( $owner ) && false !== strpos( $owner[0]['body'], '0.02 USD' ) && false !== strpos( $owner[0]['body'], 'tiendaluz.com' ), 'F25 el dueño recibe el aviso con el saldo y el costo' );
+$C::cart_errors();
+check( 1 === count( array_filter( $GLOBALS['mails'], function ( $m ) { return false !== strpos( $m['subject'], 'saldo del registrador' ); } ) ), 'F25 el aviso al dueño no se repite en cada vista del carrito' );
+$calls = digi_nc_count( 'namecheap.users.getBalances' ); $C::cart_errors();
+check( $calls === digi_nc_count( 'namecheap.users.getBalances' ), 'F25 el saldo se guarda unos minutos (no se consulta en cada vista)' );
+$GLOBALS['nc']['balance'] = 50.0; delete_transient( 'digitalisimo_hosting_nc_balance' );
+check( array() === $C::cart_errors(), 'F25 con saldo suficiente se paga' );
+$GLOBALS['nc']['balance'] = 15.0; delete_transient( 'digitalisimo_hosting_nc_balance' );
+store_add( 21, array( 'digitalisimo_domain' => 'tiendaluz.mx' ) );
+check( preg_grep( '/tiendaluz\.com, tiendaluz\.mx/', $C::cart_errors() ), 'F25 se suma el costo de todos los dominios del carrito del mismo registrador (11.46 + 25.18 > 15)' );
+delete_transient( 'digitalisimo_hosting_nc_balance' ); $GLOBALS['nc']['timeout']['namecheap.users.getBalances'] = 1;
+check( array() === $C::cart_errors(), 'F25 si no se puede consultar el saldo no se frena (el aprovisionamiento deja el pedido en espera y avisa)' );
+unset( $GLOBALS['nc']['timeout']['namecheap.users.getBalances'] );
+add_filter( 'digitalisimo_hosting_registrar_balance', function ( $pre, $ext ) { return '.mx' === $ext ? array( 'kind' => 'ok', 'value' => 0.5, 'registrar' => 'otro-registrador' ) : $pre; }, 10, 2 );
+delete_transient( 'digitalisimo_hosting_nc_balance' ); $GLOBALS['nc']['balance'] = 50.0;
+check( preg_grep( '/compra de tiendaluz\.mx\./', $C::cart_errors() ) && ! preg_grep( '/tiendaluz\.com/', $C::cart_errors() ), 'F25 punto único por extensión: otro registrador para .mx se engancha con un filtro y se mide aparte' );
+$GLOBALS['hooks']['digitalisimo_hosting_registrar_balance'] = array();
+WC()->cart = new Digi_Test_Cart();
+
+// ── F26. Topes: por hora y por visitante, y la mitad del cupo del sitio sin nonce ─────────────────────────────
+$GLOBALS['now_offset'] = 20000;
+$_SERVER['REMOTE_ADDR'] = '203.0.113.77';
+add_filter( 'digitalisimo_hosting_finder_rate', function () { return 1000; } );
+$codes = array();
+for ( $i = 0; $i < $F::RATE_HOUR + 1; $i++ ) { $x = $F::rest( new Digi_Test_Request( array( 'q' => 'porhora' ) ) ); $codes[] = is_wp_error( $x ) ? $x->code : 'ok'; }
+check( $F::RATE_HOUR === count( array_keys( $codes, 'ok', true ) ) && 'digitalisimo_finder_rate' === end( $codes ), 'F26 un visitante hace como mucho ' . $F::RATE_HOUR . ' búsquedas por hora aunque no pase del tope por minuto' );
+$GLOBALS['hooks']['digitalisimo_hosting_finder_rate'] = array();
+new_ip();
+$GLOBALS['now_offset'] = 40000;
+add_filter( 'digitalisimo_hosting_finder_global', function () { return array( 'minute' => 4, 'hour' => 400 ); } );
+$res = array();
+foreach ( array( 'sinnonce1', 'sinnonce2', 'sinnonce3' ) as $i => $q ) { new_ip(); $x = $F::rest( new Digi_Test_Request( array( 'q' => $q ), array( 'x-digitalisimo-finder' => '1' ) ) ); $res[] = is_wp_error( $x ) ? $x->code : 'ok'; }
+new_ip();
+$withnonce = $F::rest( new Digi_Test_Request( array( 'q' => 'connonce1', 'nonce' => 'n:' . $F::NONCE ) ) );
+check( array( 'ok', 'ok', 'digitalisimo_finder_busy' ) === $res && ! is_wp_error( $withnonce ), 'F26 sin nonce sólo se usa la mitad del cupo del sitio; quien trae el nonce sigue buscando · ' . json_encode( $res ) );
+$GLOBALS['hooks']['digitalisimo_hosting_finder_global'] = array();
+check( $F::same_origin( 'https://www.tienda.test' ) && $F::same_origin( 'https://tienda.test' ) && ! $F::same_origin( 'https://tienda.test.otro.com' ) && ! $F::same_origin( 'https://wwwtienda.test' ), 'F26 el mismo sitio con y sin www. cuenta como el mismo origen; otro no' );
+
+// ── F27. Carrito de bloques con artículos: sin buscador en el bloque «vacío» ──────────────────────────────────
+WC()->cart = new Digi_Test_Cart();
+WC()->cart->add( 14693 );
+$blk = '<div class="wp-block-woocommerce-empty-cart-block">Vacío</div>';
+check( $blk === $F::empty_cart_block( $blk, array( 'blockName' => 'woocommerce/empty-cart-block' ) ), 'F27 con artículos en el carrito, el bloque «carrito vacío» (que WooCommerce pinta igual) no lleva el buscador' );
+WC()->cart = new Digi_Test_Cart();
+check( false !== strpos( $F::empty_cart_block( $blk, array( 'blockName' => 'woocommerce/empty-cart-block' ) ), 'data-digitalisimo-finder' ), 'F27 vacío de verdad, sí' );
 
 echo "Hosting, buscador de dominios: {$GLOBALS['checks']} comprobaciones correctas.\n";
 }

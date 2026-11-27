@@ -96,6 +96,8 @@ class Digitalisimo_Hosting_Products {
 		$resolved = array(); $unresolved = array();
 		foreach ( $lines as $ext => $id ) {
 			$source = 'config';
+			// Un ID que ya no existe (producto borrado) no vende nada: se busca como si la línea no lo trajera.
+			if ( $id && function_exists( 'wc_get_product' ) && ! wc_get_product( (int) $id ) ) $id = 0;
 			if ( ! $id ) list( $id, $source ) = self::find( $ext );
 			if ( $id ) $resolved[ $ext ] = array( 'product_id' => (int) $id, 'source' => $source, 'name' => self::name( $id ) );
 			else $unresolved[] = $ext;
