@@ -111,11 +111,17 @@ try {
   const S = secrets();
   const leaked = [S.namecheap, S.webuzo, S.banxico, S.nc_user, '203.0.113.5'].filter((v) => r.text.includes(v));
   check(!r.isError && !leaked.length && r.data.secrets_set?.api_key === true && r.data.namecheap?.configured === true, 'get: todos los ajustes, sin ningún secreto (sólo si están puestos)', leaked.length ? `fuga: ${leaked.length}` : r.text.slice(0, 300));
-  check(r.data.settings?.domain_products === '.com|\n.net|\n.mx|' && !r.text.includes('.org|'), 'get: la lista de fábrica vieja (con .org) vale como .com, .net y .mx', r.data.settings?.domain_products);
-  r = await admin.call('digitalisimo-hosting-settings', { action: 'update', data: { ask_domain: true, require_domain_hosting: true, domain_products: '.com|\n.net|\n.mx|' } });
-  let opt = await probe('option');
-  check(!r.isError && opt.same_account && opt.domain_products === '.com|\n.net|\n.mx|' && String(opt.ask_domain) === '1' && opt.hosting_category_ids && String(opt.provision_enabled) === '0', 'update combina: guarda lo enviado y la cuenta, las claves y lo demás siguen igual', JSON.stringify(opt) + r.text.slice(0, 200));
+  const doms = Object.fromEntries((r.data.domains || []).map((d) => [d.tld + '/' + d.kind, d.product_id]));
+  check(doms['.com/register'] === P.com && doms['.net/register'] === P.net && doms['.mx/register'] === P.mx && !doms['.org/register'] && !r.text.includes('|') && r.data.settings?.domain_products === undefined, 'get: la tienda vieja (lista de fábrica con .org y SKU) quedó migrada: .com, .net y .mx detectados, sin «|» ni IDs en los ajustes', JSON.stringify(r.data.domains));
+  check((r.data.hosting_products || []).some((h) => h.product_id === P.plan && h.plan === 'digitalisimo_starter' && h.period === 'Anual'), 'get: el plan (antes por la categoría de hosting) quedó detectado como hosting anual', JSON.stringify(r.data.hosting_products));
+  let opt = await probe('option', { plan: P.plan });
+  check(opt.migrated?.settings && opt.migrated?.products && !opt.legacy_left.length && opt.plan_kind === 'hosting', 'La migración corrió una vez al actualizar: sin claves viejas en los ajustes', JSON.stringify(opt));
+  r = await admin.call('digitalisimo-hosting-settings', { action: 'update', data: { ask_domain: true, require_domain_hosting: true, registrar_by_tld: { '.mx': 'namecheap' } } });
+  opt = await probe('option');
+  check(!r.isError && opt.same_account && opt.registrar_by_tld?.['.mx'] === 'namecheap' && String(opt.ask_domain) === '1' && String(opt.provision_enabled) === '0', 'update combina: guarda lo enviado y la cuenta, las claves y lo demás siguen igual', JSON.stringify(opt) + r.text.slice(0, 200));
   check(Array.isArray(r.data.changed) && r.data.changed.includes('require_domain_hosting') && r.data.settings?.require_domain_hosting === true, 'update devuelve el valor resultante', r.text.slice(0, 300));
+  r = await admin.call('digitalisimo-hosting-settings', { action: 'update', data: { domain_products: '.com|1' } });
+  check(r.isError && r.text.includes('Ya no existe'), 'update: «domain_products» (IDs con «|») ya no existe y lo explica', r.text.slice(0, 200));
   r = await admin.call('digitalisimo-hosting-settings', { action: 'update', data: { api_key: 'ROBADA-123456', replace_hosting: true } });
   opt = await probe('option');
   check(r.isError && opt.same_account && !r.text.includes('ROBADA'), 'La cuenta de Namecheap no se escribe por MCP y no se guarda nada del lote', r.text.slice(0, 300));
@@ -135,7 +141,17 @@ try {
 
   start('Productos por extensión');
   opt = await probe('option');
-  check(JSON.stringify(opt.resolved) === JSON.stringify({ '.com': P.com, '.net': P.net, '.mx': P.mx }), 'Sin IDs: .com, .net y .mx resueltos por su SKU; el producto .org no se vende', JSON.stringify(opt.resolved));
+  check(JSON.stringify(opt.resolved) === JSON.stringify({ '.com': P.com, '.net': P.net, '.mx': P.mx }), 'Sin IDs: .com, .net y .mx (marcados por la migración desde su SKU); el producto .org no se vende', JSON.stringify(opt.resolved));
+
+  start('Editor de producto (WooCommerce de verdad)');
+  const ed = await probe('editor');
+  check(/<a href="#digitalisimo_hosting_data"[^>]*><span>DIGITALÍSIMO Hosting<\/span><\/a>/.test(ed.box) && ed.box.includes('id="digitalisimo_hosting_data"') && /<select id="dh-p\d+-tld" name="digitalisimo_hosting\[tld\]"/.test(ed.box) && !/name="digitalisimo_hosting\[tld\]"[^>]*type="text"/.test(ed.box), 'La caja «Datos del producto» tiene la pestaña «DIGITALÍSIMO Hosting» con la extensión en un desplegable', ed.box.slice(0, 200));
+  check(ed.box.includes('<option value=".lat">.lat</option>') && ed.box.includes('<option value=".com">.com</option>') && ed.box.includes('type="search"'), 'El desplegable trae las extensiones de los registradores, con buscador', '');
+  check(ed.variation.includes('esta variación es…') && ed.variation.includes('name="digitalisimo_hosting_var[0][type]"') && ed.variation.includes('<option value="1">Mensual</option>'), 'Cada variación tiene su bloque con el periodo de cobro', ed.variation.slice(0, 200));
+  check(ed.map['.lat'] === ed.ids.lat && ed.kind_lat === 'register', 'Guardado por WooCommerce: el producto simple queda como Dominio .lat y se detecta', JSON.stringify(ed.map));
+  const per = Object.values(ed.periods).map((p) => p.join(':')).sort();
+  check(JSON.stringify(per) === JSON.stringify(['digitalisimo_starter:1', 'digitalisimo_starter:12', 'digitalisimo_starter:36']), 'Guardado por WooCommerce: el plan variable es Hosting y cada variación tiene su periodo (mensual, anual y trianual)', JSON.stringify(ed.periods) + JSON.stringify(ed.errors));
+  check(!/<textarea[^>]*name="hosting\[/.test(ed.settings) && !ed.settings.includes('hosting[domain_products]') && ed.settings.includes('name="hosting[registrar_by_tld][.lat]"') && ed.settings.includes('data-dh-order'), 'Los ajustes de Hosting: sin campos de IDs ni «|»; una fila por extensión detectada (también .lat) y el orden ordenable', '');
 
   start('Compras como invitada (Store API)');
   let b = await buy([{ id: P.com, query: { domain_name: 'nuevonegocio.com' } }, { id: P.plan }]);
