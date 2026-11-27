@@ -238,7 +238,15 @@ try {
     await settle();
     const client = await page.target().createCDPSession();
     await client.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
-    const swipe = async (dx) => { await client.send('Input.synthesizeScrollGesture', { x: Math.round(cx), y: Math.round(cy), xDistance: dx, yDistance: 0, gestureSourceType: 'touch', speed: 800, preventFling: true }); await settle(); return measure(); };
+    // El dedo se mueve dx px en 12 pasos (dx < 0: hacia la izquierda, pasa a la siguiente).
+    const swipe = async (dx) => {
+      const at = (x) => [{ x: Math.round(x), y: Math.round(cy), id: 1 }];
+      await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(cx) });
+      for (let i = 1; i <= 12; i++) { await client.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(cx + (dx * i) / 12) }); await new Promise((res) => setTimeout(res, 16)); }
+      await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await settle();
+      return measure();
+    };
     const w = Math.round(m.slideW * 0.7);
     m = await swipe(-w);
     const moved = m.current;
