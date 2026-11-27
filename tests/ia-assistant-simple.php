@@ -15,7 +15,7 @@
  *   S3  las instrucciones: hacer en vez de mandar a hacer, una sola pregunta, revisar Skydropx y el carrito en llano;
  *   S5  ninguna palabra técnica (slug, meta, schema, noindex, canonical, plugin, API, JSON, ID, endpoint, MCP ni nombres
  *       de herramientas) en los textos de la pantalla ni en las frases de las tarjetas.
- * Falla con el código de 1.0.76 (46785b5b). Uso: php tests/ia-assistant-simple.php
+ * Falla con el código de 1.0.77 (46785b5b). Uso: php tests/ia-assistant-simple.php
  */
 require __DIR__ . '/ia-assistant-agent/wp.php';
 require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai.php';
