@@ -34,6 +34,8 @@ class Digitalisimo_Hosting_Checkout {
 
 	public static function init() {
 		add_filter( 'woocommerce_store_api_add_to_cart_data', array( __CLASS__, 'store_api_data' ), 10, 2 );
+		// El buscador agrega por la Store API: se valida en el servidor antes de agregar (nunca un dominio sin nombre).
+		add_action( 'woocommerce_store_api_validate_add_to_cart', array( __CLASS__, 'store_api_validate' ), 10, 2 );
 		// Antes que «Reemplazar el plan» (10): un plan rechazado no se lleva el que ya estaba en el carrito.
 		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'maybe_validate_add' ), 5, 6 );
 		add_action( 'woocommerce_before_add_to_cart_button', array( __CLASS__, 'maybe_product_fields' ) );
@@ -150,6 +152,36 @@ class Digitalisimo_Hosting_Checkout {
 		return $data;
 	}
 
+	/**
+	 * Store API (`cart/add-item`, el buscador de dominios y el carrito de bloques): se valida en el servidor ANTES de
+	 * agregar, con lo que trae el cuerpo. Un dominio nunca entra sin su nombre (ni uno ya agregado, ni más de un año por
+	 * línea); el nombre se limpia y se comprueba como en el carrito (válido, de la extensión del producto, libre y no
+	 * premium; la transferencia, registrada y transferible). El precio es siempre el del producto de WooCommerce.
+	 */
+	public static function store_api_validate( $product, $request ) {
+		if ( ! self::on() || ! is_object( $product ) || ! method_exists( $product, 'get_id' ) || ! is_object( $request ) || ! method_exists( $request, 'get_param' ) ) return;
+		$pid = method_exists( $product, 'get_parent_id' ) && $product->get_parent_id() ? (int) $product->get_parent_id() : (int) $product->get_id();
+		$kind = self::kind( $pid );
+		if ( '' === $kind ) return;
+		$data = self::store_api_data( array( 'cart_item_data' => array() ), $request )['cart_item_data'];
+		$domain = (string) ( $data['digitalisimo_domain'] ?? '' );
+		$error = '';
+		if ( 'hosting' !== $kind && '' === $domain ) $error = 'register' === $kind ? 'Busca primero el nombre de tu dominio: un dominio sólo se agrega con su nombre.' : 'Escribe el dominio que quieres transferir.';
+		elseif ( 'hosting' !== $kind && (int) $request->get_param( 'quantity' ) > 1 ) $error = 'Cada dominio se agrega una sola vez (un año).';
+		elseif ( 'hosting' !== $kind && self::in_cart( $domain ) ) $error = 'El dominio ' . $domain . ' ya está en tu carrito.';
+		else $error = self::line_error( $pid, $data, false );
+		if ( '' === $error ) return;
+		$class = '\\Automattic\\WooCommerce\\StoreApi\\Exceptions\\RouteException';
+		if ( class_exists( $class ) ) throw new $class( 'digitalisimo_hosting_domain', $error, 400 );
+		throw new Exception( $error );
+	}
+
+	/** ¿Ya hay una línea de dominio (registro o transferencia) con ese nombre en el carrito? */
+	private static function in_cart( $domain ) {
+		foreach ( self::lines() as $line ) if ( 'hosting' !== $line['kind'] && $domain === (string) ( $line['data']['digitalisimo_domain'] ?? '' ) ) return true;
+		return false;
+	}
+
 	public static function maybe_validate_add( $passed, $product_id, $quantity = 1, $variation_id = 0, $variation = array(), $cart_item_data = array() ) {
 		if ( ! $passed || ! self::on() ) return $passed;
 		$data = is_array( $cart_item_data ) && $cart_item_data ? $cart_item_data + self::request_data() : self::request_data();
@@ -221,6 +253,26 @@ class Digitalisimo_Hosting_Checkout {
 		$out = 'ok' === $r['kind'] ? array( 'kind' => 'ok', 'available' => ! empty( $r['available'] ), 'premium' => ! empty( $r['premium'] ) ) : array( 'kind' => 'error', 'message' => 'No pudimos comprobar el dominio ' . $domain . ' en este momento. Intenta de nuevo en unos minutos.' );
 		set_transient( $key, $out, 'ok' === $out['kind'] ? self::CHECK_TTL : MINUTE_IN_SECONDS );
 		return self::$checked[ $domain ] = $out;
+	}
+
+	/**
+	 * Lo que ya se sabe de un dominio sin consultar a Namecheap (esta petición o la caché de unos minutos), sólo si la
+	 * consulta salió bien; null si no. El buscador y el carrito comparten la caché: agregar lo que se acaba de buscar no
+	 * vuelve a consultar.
+	 */
+	public static function cached( $domain ) {
+		$domain = (string) $domain;
+		if ( isset( self::$checked[ $domain ] ) ) return 'ok' === ( self::$checked[ $domain ]['kind'] ?? '' ) ? self::$checked[ $domain ] : null;
+		$cached = get_transient( 'digitalisimo_hosting_chk_' . md5( $domain ) );
+		if ( is_array( $cached ) && 'ok' === ( $cached['kind'] ?? '' ) ) return self::$checked[ $domain ] = $cached;
+		return null;
+	}
+
+	/** Guarda el resultado de una consulta hecha en lote (el buscador) con la misma clave y duración que lookup(). */
+	public static function remember( $domain, $available, $premium ) {
+		$out = array( 'kind' => 'ok', 'available' => (bool) $available, 'premium' => (bool) $premium );
+		set_transient( 'digitalisimo_hosting_chk_' . md5( (string) $domain ), $out, self::CHECK_TTL );
+		return self::$checked[ (string) $domain ] = $out;
 	}
 
 	/** Registro: disponible y no premium. Sin cuenta de Namecheap no se consulta (lo comprueba el aprovisionamiento). */

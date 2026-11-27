@@ -31,6 +31,8 @@ class Digitalisimo_Hosting {
 		if ( class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) Digitalisimo_Hosting_Provisioning::init();
 		// Productos por extensión resueltos solos (SKU o marca) y el aviso cuando el buscador quedaría sin productos.
 		if ( class_exists( 'Digitalisimo_Hosting_Products' ) ) Digitalisimo_Hosting_Products::init();
+		// Buscador de dominios estilo registrador: shortcode, elemento atómico, carrito vacío y su ruta pública.
+		if ( class_exists( 'Digitalisimo_Hosting_Finder' ) ) Digitalisimo_Hosting_Finder::init();
 	}
 
 	private static function defaults() {
@@ -75,6 +77,11 @@ class Digitalisimo_Hosting {
 			'pricing_vat'           => 16,
 			'pricing_min_margin'    => 10,
 			'pricing_rounding'      => '10',
+			// Buscador de dominios (pedido del propietario del 2026-11-26): orden de las extensiones (las populares primero),
+			// avisos de requisitos por extensión y los planes de «se compran juntos» (vacío = los de hosting).
+			'finder_order'          => class_exists( 'Digitalisimo_Hosting_Finder' ) ? Digitalisimo_Hosting_Finder::DEFAULT_ORDER : '.com, .mx, .com.mx, .net, .lat',
+			'finder_requirements'   => class_exists( 'Digitalisimo_Hosting_Finder' ) ? Digitalisimo_Hosting_Finder::DEFAULT_REQUIREMENTS : '',
+			'finder_upsell_ids'     => '',
 		);
 	}
 	/** La lista de fábrica hasta 1.0.35 (sin espacios): guardada así, sin IDs, vale como la de fábrica de hoy. */
@@ -300,6 +307,11 @@ class Digitalisimo_Hosting {
 			if ( class_exists( 'Digitalisimo_Hosting_Products' ) ) Digitalisimo_Hosting_Products::settings_summary( (string) $o['domain_products'] );
 			echo '<h2>Compra de hosting</h2>';
 			self::area( 'hosting_product_ids', 'IDs de productos de hosting', $o, 'IDs separados por comas.' ); self::area( 'hosting_category_ids', 'IDs de categorías de hosting', $o, 'IDs separados por comas.' ); self::check( 'ask_domain', 'Al comprar hosting o correo, pedir antes de pagar «Dominio nuevo» o «uno que ya tengo» (con su nombre)', $o ); self::check( 'require_domain_hosting', 'Exigir dominio y hosting juntos (un dominio que ya tiene el cliente cuenta como dominio)', $o ); self::check( 'replace_hosting', 'Reemplazar el plan de hosting al elegir otro', $o ); self::check( 'simplify_checkout', 'Simplificar checkout', $o );
+			echo '<h2>Buscador de dominios</h2>';
+			echo '<p class="description">Ponlo con el shortcode <code>[digitalisimo_buscador_dominios]</code> o con el elemento «Buscador de dominios» del editor. Busca a la vez todas las extensiones con producto y agrega al carrito sin salir de la página. El carrito vacío también lo muestra.</p>';
+			self::area( 'finder_order', 'Orden de las extensiones', $o, 'Las primeras salen arriba (las más populares primero), por ejemplo: .com, .mx, .com.mx, .net. Las que tienen producto y no estén aquí salen después. Sólo aparecen las que tienen producto de dominio.' );
+			self::area( 'finder_requirements', 'Avisos de requisitos por extensión', $o, 'Una línea por extensión: .mx|Requisito: el titular debe dar sus datos reales y completos. Se muestra junto a esa extensión.' );
+			self::field( 'finder_upsell_ids', '«Se compran juntos»: IDs de los planes', $o, 'text', 'IDs de productos separados por comas (planes de hosting y correo). Vacío: los IDs de productos de hosting de abajo. Se muestran hasta 4 al agregar un dominio.' );
 			echo '<h2>Formulario de DIGITALÍSIMO Elements</h2>';
 			self::field( 'form_selector', 'Selector CSS del formulario', $o ); self::field( 'domain_field', 'Campo dominio', $o ); self::field( 'extension_field', 'Campo extensión', $o );
 			echo '<p>Usa <code>[resultado_dominio]</code> en el widget Formulario de DIGITALÍSIMO Elements. El shortcode anterior <code>[digitalisimo_domain_search]</code> se conserva para páginas existentes.</p>';
@@ -360,7 +372,8 @@ class Digitalisimo_Hosting {
 		if ( array_key_exists( 'nameservers', $in ) ) $o['nameservers'] = self::nameservers( $in['nameservers'] );
 		if ( array_key_exists( 'webuzo_insecure', $in ) ) $o['webuzo_insecure'] = empty( $in['webuzo_insecure'] ) ? 0 : 1;
 		if ( ! $network ) {
-			foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = sanitize_textarea_field( $in[ $key ] );
+			foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'finder_order', 'finder_requirements' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = sanitize_textarea_field( $in[ $key ] );
+			if ( array_key_exists( 'finder_upsell_ids', $in ) ) $o['finder_upsell_ids'] = implode( ', ', array_values( array_unique( array_filter( array_map( 'absint', preg_split( '/[\s,]+/', (string) $in['finder_upsell_ids'] ) ) ) ) ) );
 			foreach ( array( 'enabled', 'require_domain_hosting', 'ask_domain', 'replace_hosting', 'simplify_checkout', 'provision_enabled', 'own_domain_auto' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
 			if ( array_key_exists( 'webuzo_user_prefix', $in ) ) $o['webuzo_user_prefix'] = substr( preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $in['webuzo_user_prefix'] ) ), 0, 6 );
 			if ( array_key_exists( 'grace_days', $in ) ) $o['grace_days'] = min( 90, absint( $in['grace_days'] ) );
@@ -560,7 +573,7 @@ class Digitalisimo_Hosting {
 	 * Lo que la herramienta MCP puede escribir: lo de la tienda de este sitio (pedido del propietario del 2026-11-26: el
 	 * agente que arma las landings configura Hosting sin el formulario).
 	 */
-	const MCP_WRITABLE = array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'form_selector', 'domain_field', 'extension_field', 'webuzo_user_prefix', 'pricing_enabled', 'pricing_rounding' );
+	const MCP_WRITABLE = array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'form_selector', 'domain_field', 'extension_field', 'webuzo_user_prefix', 'pricing_enabled', 'pricing_rounding', 'finder_order', 'finder_requirements', 'finder_upsell_ids' );
 	/**
 	 * Lo que por MCP sólo se lee: la cuenta de Namecheap (y si se hereda de la red), el servidor y la clave de Webuzo, los
 	 * nameservers, el token de Banxico y lo que enciende, apaga o adelanta la venta automática (el módulo `enabled`, que

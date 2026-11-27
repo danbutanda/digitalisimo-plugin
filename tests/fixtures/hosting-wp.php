@@ -63,7 +63,12 @@ function wp_set_option_autoload( $k, $a ) { return true; }
 function get_site_option( $k, $d = false ) { if ( ! $GLOBALS['multisite'] ) return get_option( $k, $d ); return array_key_exists( $k, $GLOBALS['site_options'] ) ? $GLOBALS['site_options'][ $k ] : $d; }
 function update_site_option( $k, $v ) { if ( ! $GLOBALS['multisite'] ) return update_option( $k, $v ); $GLOBALS['site_options'][ $k ] = $v; return true; }
 function delete_site_option( $k ) { if ( ! $GLOBALS['multisite'] ) return delete_option( $k ); unset( $GLOBALS['site_options'][ $k ] ); return true; }
-function get_transient( $k ) { return false; } function set_transient() { return true; } function get_site_transient( $k ) { return false; } function set_site_transient() { return true; }
+// Transitorios: sin guardar nada (como siempre en estas pruebas) salvo con $GLOBALS['real_transients'] (el buscador de
+// dominios prueba su caché y su límite por visitante); $GLOBALS['now_offset'] adelanta el reloj para que venzan.
+function get_transient( $k ) { if ( empty( $GLOBALS['real_transients'] ) || ! isset( $GLOBALS['transients'][ $k ] ) ) return false; list( $v, $exp ) = $GLOBALS['transients'][ $k ]; if ( $exp && $exp <= time() + (int) ( $GLOBALS['now_offset'] ?? 0 ) ) { unset( $GLOBALS['transients'][ $k ] ); return false; } return $v; }
+function set_transient( $k = '', $v = null, $ttl = 0 ) { if ( ! empty( $GLOBALS['real_transients'] ) ) $GLOBALS['transients'][ $k ] = array( $v, $ttl ? time() + (int) ( $GLOBALS['now_offset'] ?? 0 ) + (int) $ttl : 0 ); return true; }
+function delete_transient( $k ) { unset( $GLOBALS['transients'][ $k ] ); return true; }
+function get_site_transient( $k ) { return get_transient( 'site:' . $k ); } function set_site_transient( $k = '', $v = null, $ttl = 0 ) { return set_transient( 'site:' . $k, $v, $ttl ); }
 function get_bloginfo( $k = '' ) { return get_option( 'blogname', 'Tienda' ); }
 
 // ── Utilidades de WordPress ─────────────────────────────────────────────────────────────────────────────────
@@ -369,8 +374,14 @@ add_filter(
 					if ( ! isset( $n['domains'][ $d ] ) ) return digi_xml( '<Error Number="2019166">Domain not found</Error>', false );
 					return digi_xml( '<DomainGetInfoResult Status="Ok" DomainName="' . $d . '"><DomainDetails><CreatedDate>' . gmdate( 'm/d/Y', $n['created'][ $d ] ?? gmmktime( 0, 0, 0, 1, 1, 2026 ) ) . '</CreatedDate><ExpiredDate>' . gmdate( 'm/d/Y', $n['domains'][ $d ] ) . '</ExpiredDate></DomainDetails></DomainGetInfoResult>' );
 				case 'namecheap.domains.check':
-					$d = $body['DomainList'];
-					return digi_xml( '<DomainCheckResult Domain="' . $d . '" Available="' . ( isset( $n['domains'][ $d ] ) || in_array( $d, $n['taken'] ?? array(), true ) ? 'false' : 'true' ) . '" IsPremiumName="' . ( in_array( $d, $n['premium'] ?? array(), true ) ? 'true' : 'false' ) . '" PremiumRegistrationPrice="0" />' );
+					// DomainList admite varios separados por comas: un DomainCheckResult por dominio (con ErrorNo si la
+					// extensión está en $n['unsupported']).
+					$xml = '';
+					foreach ( explode( ',', $body['DomainList'] ) as $d ) {
+						if ( in_array( substr( $d, strpos( $d, '.' ) ), $n['unsupported'] ?? array(), true ) ) { $xml .= '<DomainCheckResult Domain="' . $d . '" Available="false" ErrorNo="2" Description="TLD not supported" IsPremiumName="false" />'; continue; }
+						$xml .= '<DomainCheckResult Domain="' . $d . '" Available="' . ( isset( $n['domains'][ $d ] ) || in_array( $d, $n['taken'] ?? array(), true ) ? 'false' : 'true' ) . '" IsPremiumName="' . ( in_array( $d, $n['premium'] ?? array(), true ) ? 'true' : 'false' ) . '" PremiumRegistrationPrice="' . ( in_array( $d, $n['premium'] ?? array(), true ) ? '2500.00' : '0' ) . '" EapFee="0" />';
+					}
+					return digi_xml( $xml );
 				case 'namecheap.domains.create':
 					$d = $body['DomainName'];
 					if ( isset( $n['domains'][ $d ] ) ) return digi_xml( '<Error Number="2030280">Domain is not available</Error>', false );
@@ -419,7 +430,7 @@ function digi_store_settings( array $extra = array() ) {
 
 define( 'DIGITALISIMO_HOSTING_URL', 'https://tienda.test/wp-content/plugins/digitalisimo-hosting/' );
 define( 'DIGITALISIMO_HOSTING_VERSION', '9.9.9' );
-foreach ( array( 'class-hosting', 'class-hosting-products', 'class-hosting-checkout', 'class-hosting-webuzo', 'class-hosting-namecheap', 'class-hosting-pricing', 'class-hosting-provisioning', 'class-hosting-services-page' ) as $digi_file ) require __DIR__ . '/../../digitalisimo-hosting/includes/' . $digi_file . '.php';
+foreach ( array( 'class-hosting', 'class-hosting-products', 'class-hosting-checkout', 'class-hosting-webuzo', 'class-hosting-namecheap', 'class-hosting-pricing', 'class-hosting-provisioning', 'class-hosting-services-page', 'class-hosting-finder' ) as $digi_file ) require __DIR__ . '/../../digitalisimo-hosting/includes/' . $digi_file . '.php';
 Digitalisimo_Hosting_Provisioning::init();
 digi_product( 14693, 'Web Hosting Starter', 970, 'digitalisimo_starter' );
 digi_product( 14696, 'Web Hosting Pro', 5850, 'digitalisimo_pro' );

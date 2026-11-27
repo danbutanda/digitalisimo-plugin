@@ -131,6 +131,27 @@ class Digitalisimo_Hosting_Namecheap {
 	}
 
 	/**
+	 * Varios dominios en UNA consulta (el buscador estilo registrador): namecheap.domains.check admite una lista separada
+	 * por comas en DomainList (https://www.namecheap.com/support/api/methods/domains/check/). kind ok + 'results' =>
+	 * array( dominio => array( available, premium ) ). Un dominio que Namecheap no devuelve, o devuelve con ErrorNo (una
+	 * extensión que no atiende), no aparece en 'results'. Nunca se devuelve nada más de la respuesta de Namecheap.
+	 */
+	public function check_many( array $domains, $timeout = 15 ) {
+		$domains = array_values( array_unique( array_filter( array_map( 'strtolower', array_map( 'strval', $domains ) ) ) ) );
+		if ( ! $domains ) return array( 'kind' => 'ok', 'results' => array() );
+		$r = $this->call( 'namecheap.domains.check', array( 'DomainList' => implode( ',', $domains ) ), $timeout );
+		if ( 'ok' !== $r['kind'] ) return array( 'kind' => $r['kind'], 'message' => $r['message'] );
+		$out = array();
+		foreach ( $r['xml']->xpath( '//*[local-name()="DomainCheckResult"]' ) ?: array() as $res ) {
+			$d = strtolower( trim( (string) $res['Domain'] ) );
+			$error = trim( (string) $res['ErrorNo'] );
+			if ( ! in_array( $d, $domains, true ) || ( '' !== $error && '0' !== $error ) ) continue;
+			$out[ $d ] = array( 'available' => 'true' === strtolower( (string) $res['Available'] ), 'premium' => 'true' === strtolower( (string) $res['IsPremiumName'] ) );
+		}
+		return array( 'kind' => 'ok', 'results' => $out );
+	}
+
+	/**
 	 * Extensiones que Namecheap atiende por la API: namecheap.domains.getTldList
 	 * (https://www.namecheap.com/support/api/methods/domains/get-tld-list/), atributos IsApiTransferable e IsEppRequired.
 	 * kind ok + 'tlds' => array( 'com' => array( 'transfer' => bool, 'epp' => bool ) ). Se guarda un día (la lista casi

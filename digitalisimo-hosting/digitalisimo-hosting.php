@@ -22,5 +22,6 @@ require_once __DIR__ . '/includes/class-hosting-namecheap.php';
 require_once __DIR__ . '/includes/class-hosting-pricing.php';
 require_once __DIR__ . '/includes/class-hosting-provisioning.php';
 require_once __DIR__ . '/includes/class-hosting-services-page.php';
+require_once __DIR__ . '/includes/class-hosting-finder.php';
 require_once __DIR__ . '/includes/class-digitalisimo-updater.php';
 add_action( 'plugins_loaded', function() { Digitalisimo_Core::boot( 'hosting', 'Hosting', array( 'Digitalisimo_Hosting', 'page' ), array( 'Digitalisimo_Hosting', 'network_page' ) ); Digitalisimo_Updater::register( DIGITALISIMO_HOSTING_FILE, DIGITALISIMO_HOSTING_VERSION, 'digitalisimo-hosting' ); Digitalisimo_Hosting::init(); } );
