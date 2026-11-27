@@ -260,7 +260,12 @@ foreach ( array(
 	'«ocultar de Google» (no «noindex»)',
 	'plugin, schema, canonical, slug, meta',
 	'JSON, endpoint',
+	'el turno se detiene en la tarjeta',
 ) as $piece ) check( false !== strpos( $sys, $piece ), "S3: las instrucciones dicen «{$piece}»" );
+
+// El texto que acompaña a la tarjeta con la que se detiene el turno es la respuesta (no se pliega).
+$shown = Digitalisimo_AI_Assistant_History::display( array( 'id' => 'z', 'role' => 'assistant', 'text' => '3 productos no tienen peso.', 'calls' => array( array( 'id' => 't' ) ), 'card' => true ) );
+check( false === $shown['work'], 'S3: el informe que acompaña a la tarjeta se ve, no se pliega' );
 
 /* ---------------- S5: sin palabras técnicas ---------------- */
 $bad = '/\b(slug|meta|metadatos|schema|noindex|nofollow|canonical|plugins?|API|JSON|IDs?|endpoints?|MCP|REST|per_page|audit_products|dry_run|payload|digitalisimo-[a-z]+\/[a-z-]+|elementor\/[a-z-]+)\b/u';

@@ -62,6 +62,10 @@ ok(items.length === 3 && parts.workTitle(items[1].work) === 'Preparé el borrado
 // Un mensaje con llamadas al que ya no le sigue ninguna herramienta (p. ej. el que deja una tarjeta) queda a la vista.
 items = parts.groupMessages([{ id: 'u3', role: 'me', text: 'pon el precio' }, { id: 'a4', role: 'assistant', text: 'Pongo $7,500 en la tienda.', work: true }]);
 ok(items.length === 2 && items[1].message && items[1].message.id === 'a4', 'U1: el texto que acompaña a una tarjeta pendiente no se pliega');
+// Caso plomerito 4 (corrida real): el turno se detiene en una tarjeta y una consulta quedó después del texto: el texto es
+// la respuesta y se ve.
+items = parts.groupMessages([{ id: 'u5', role: 'me', text: 'revisa skydropx' }, tool(50, 'digitalisimo-woo/skydropx'), { id: 'a5', role: 'assistant', text: '3 productos no tienen peso. Le pongo el peso a la bomba:', work: true }, tool(51, 'digitalisimo-woo/skydropx', 'destructive', 'blocked')]);
+ok(items.some((x) => x.message && x.message.id === 'a5'), 'U1: el texto que acompaña a la tarjeta con la que termina el turno queda a la vista aunque le siga un paso');
 // Turnos distintos no se juntan.
 items = parts.groupMessages([...caso, { id: 'u4', role: 'me', text: 'otra' }, tool(40, 'digitalisimo-ia/site-contact')]);
 ok(items.filter((x) => x.work).length === 2 && parts.workTitle(items[items.length - 1].work) === 'Revisé tus datos de contacto (1)', 'U1: cada turno tiene su grupo');

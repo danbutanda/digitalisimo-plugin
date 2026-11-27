@@ -98,17 +98,10 @@ const diyAny = (text) => sentences(text).filter((s) => DIY.test(s));
 const questions = (text) => (withoutLinks(text).match(/\?/g) || []).length;
 const ASK_NEXT = /¿\s*(seguimos|contin[úu]o|contin[úu]amos|quieres que (siga|contin[úu]e|lo haga)|lo hago|te parece si sigo)\b/i;
 
-// Lo que la persona ve: los mensajes del Asistente que la pantalla NO pliega (la regla de groupMessages()).
+// Lo que la persona ve: los mensajes del Asistente que la pantalla NO pliega (groupMessages() de assistant.js).
 function visible(events) {
   const msgs = events.filter((e) => e.type === 'message' || e.type === 'tool').map((e) => e.message);
-  const out = [];
-  msgs.forEach((m, i) => {
-    if (m.role !== 'assistant') return;
-    const toolAfter = msgs.slice(i + 1).some((x) => x.role === 'tool');
-    if (m.work && toolAfter) return;
-    out.push(m.text);
-  });
-  return out;
+  return screen.groupMessages(msgs).filter((it) => it.message && it.message.role === 'assistant').map((it) => it.message.text);
 }
 
 const CONVERSATIONS = [
@@ -208,8 +201,10 @@ const CONVERSATIONS = [
     // K1 · Skydropx y el carrito, en llano.
     const a2 = transcript.find((t) => t.label === 'A2');
     const skyReads = a2.tools.filter((m) => m.ability === 'digitalisimo-woo/skydropx');
-    check('K1', skyReads.length > 0 && skyReads.every((m) => m.kind === 'read') && a2.cards.filter((a) => isRead(a.ability, cardInput(a))).length === 0, `Skydropx se revisó sólo con lecturas y sin tarjetas (${skyReads.map((m) => `${m.kind}:${m.status}`).join(', ')})`, JSON.stringify(a2.tools.map((m) => `${m.kind}:${m.ability}:${m.status}:${m.summary}`)));
+    const skyAudit = skyReads.filter((m) => /"action":"(status|audit_products|quote)"/.test(m.summary || ''));
+    check('K1', skyAudit.length > 0 && skyAudit.every((m) => m.kind === 'read') && a2.cards.filter((a) => isRead(a.ability, cardInput(a))).length === 0, `las revisiones de Skydropx corrieron como lecturas, sin tarjeta (${skyReads.map((m) => `${m.kind}:${m.status}`).join(', ')})`, JSON.stringify(a2.tools.map((m) => `${m.kind}:${m.ability}:${m.status}:${m.summary}`)));
     const a2text = a2.visible.join('\n');
+    check('K0', a2text.trim().length > 0, 'el informe de Skydropx y el carrito se ve (no queda escondido detrás de una tarjeta)', JSON.stringify(a2.events.filter((e) => e.type === 'message').map((e) => e.message)));
     check('K2', /\bpeso/i.test(a2text) && /(3|tres) productos/i.test(a2text), 'dice que hay productos sin peso (y cuántos)', a2text);
     check('K3', /carrito|pago|transferencia|contra entrega/i.test(a2text), 'dice cómo está el carrito o los pagos', a2text);
 

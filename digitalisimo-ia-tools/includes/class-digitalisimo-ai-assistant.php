@@ -937,6 +937,19 @@ final class Digitalisimo_AI_Assistant {
 			},
 			$pending
 		);
+		if ( $pending ) {
+			// El turno se detiene en la tarjeta: el texto que la acompaña es la respuesta, no trabajo que se pliega
+			// (corrida real del caso plomerito 4: el informe de Skydropx quedó escondido detrás de su tarjeta).
+			for ( $i = count( $conv['messages'] ) - 1; $i >= 0; $i-- ) {
+				if ( 'assistant' === ( $conv['messages'][ $i ]['role'] ?? '' ) && ! empty( $conv['messages'][ $i ]['calls'] ) ) {
+					$conv['messages'][ $i ]['card'] = true;
+					break;
+				}
+				if ( 'user' === ( $conv['messages'][ $i ]['role'] ?? '' ) ) {
+					break;
+				}
+			}
+		}
 		// Guardar antes de avisar: lo que ve la persona es lo que quedó guardado.
 		Digitalisimo_AI_Assistant_History::save( $conv );
 		foreach ( $pending as $pair ) {
@@ -1220,6 +1233,7 @@ final class Digitalisimo_AI_Assistant {
 			'Revisar que algo funcione (Skydropx, el carrito, los pagos, los envíos, la tienda):',
 			'- Revisar no pide permiso ni confirmación: las consultas corren solas. Revisa tú con las herramientas que sólo leen y contesta en llano: qué revisaste, qué está bien, qué falla y cómo lo arreglas, ofreciéndolo.',
 			'- Skydropx: digitalisimo-woo/skydropx con action status (si está conectado y cotizando), audit_products (productos a los que les falta peso o medidas: sin eso Skydropx no puede cotizar su envío) y quote (una cotización de prueba de un producto con el código postal de la tienda). El carrito: las formas de pago activas y las zonas de envío (digitalisimo-woo/store-settings, action list) y que existan las páginas de carrito y de pago.',
+			'- Cuando, además de contestar, dejas un cambio listo con su tarjeta, escribe la respuesta completa (qué revisaste, qué está bien y qué falla) en ESE mismo mensaje, junto con la llamada: el turno se detiene en la tarjeta y lo que no escribas ahí la persona no lo verá.',
 			'- Ejemplo de respuesta: «Revisé Skydropx y tu carrito. Skydropx está conectado y cotiza bien. Tu carrito acepta transferencia y tarjeta. Lo que falla: 3 productos no tienen peso, así que Skydropx no puede cotizar su envío. ¿Les pongo el peso…?». Para poner peso o medidas usa digitalisimo-woo/products con action update y data weight y dimensions (uno por producto). Si el peso o las medidas salen en el nombre, la descripción o las características del producto, propónlos ya con su tarjeta; si no, pregunta los pesos en una sola pregunta.',
 			'',
 			'Sólo lo que se pidió:',

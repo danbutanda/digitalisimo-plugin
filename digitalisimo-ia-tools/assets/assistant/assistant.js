@@ -504,9 +504,21 @@
 			}
 			ahead[ i ] = tool;
 		}
+		// ¿Hay otro mensaje del Asistente después, en el mismo turno? Si no, el texto que acompaña a las llamadas es la
+		// respuesta (el turno se detuvo en una tarjeta o se cortó) y queda a la vista, no plegado.
+		const later = new Array( messages.length ).fill( false );
+		let said = false;
+		for ( let i = messages.length - 1; i >= 0; i-- ) {
+			later[ i ] = said;
+			if ( 'me' === messages[ i ].role ) {
+				said = false;
+			} else if ( 'assistant' === messages[ i ].role ) {
+				said = true;
+			}
+		}
 		const out = [];
 		messages.forEach( ( m, i ) => {
-			const work = 'tool' === m.role || ( 'assistant' === m.role && m.work && ahead[ i ] && i + 1 < messages.length );
+			const work = 'tool' === m.role || ( 'assistant' === m.role && m.work && ahead[ i ] && later[ i ] && i + 1 < messages.length );
 			if ( ! work ) {
 				out.push( { key: m.id, message: m } );
 				return;
