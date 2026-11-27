@@ -1463,6 +1463,9 @@ namespace {
 			$R['GET /wc/v3/products/6/variations/11'] = array( 200, array( 'id' => 11, 'attributes' => array( array( 'name' => 'Color' ) ) ), array() );
 			$result = $run( 'products', array( 'action' => 'update', 'resource' => 'variation', 'product_id' => 6, 'variation_id' => 11, 'data' => array( 'attributes' => array() ) ) );
 			review( 'B3-rev-forma', is_array( $result ) && false === $result['change']['undo'], 'Tampoco los atributos de una variación.' );
+			$R['POST /wc/v3/products'] = array( 201, array( 'id' => 60, 'type' => 'variable', 'status' => 'draft', 'date_modified_gmt' => '2026-11-26T10:00:00' ), array() );
+			$created = $run( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Con tipo', 'type' => 'variable', 'status' => 'draft', 'attributes' => array( array( 'name' => 'Color' ) ) ) ) );
+			review( 'B3-rev-forma', is_array( $created ) && true === $created['change']['undo'], 'Crear con tipo y atributos sí se deshace (va a la papelera): sólo se bloquea al cambiarlos.' );
 			$R['PUT /wc/v3/products/6'] = array( 200, array( 'id' => 6, 'type' => 'simple', 'regular_price' => '12', 'variations' => array( 11 ) ), array() );
 			$result = $run( 'products', array( 'action' => 'update', 'product_id' => 6, 'data' => array( 'regular_price' => '12' ) ) );
 			review( 'B3-rev-forma', is_array( $result ) && true === $result['change']['undo'] && array( 11 ) === ( Changes::get( $result['change']['id'] )['variations'] ?? null ), 'Un update de precio sí, y guarda las variaciones que tenía.' );

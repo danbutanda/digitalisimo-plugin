@@ -85,7 +85,8 @@ final class Changes {
 				return $reason;
 			}
 		}
-		if ( in_array( $resource, array( 'product', 'variation' ), true ) ) {
+		if ( 'update' === $action && in_array( $resource, array( 'product', 'variation' ), true ) ) {
+			// Sólo al cambiar: crear con su tipo y sus atributos se deshace mandándolo a la papelera.
 			foreach ( self::SHAPE_KEYS as $key ) {
 				if ( array_key_exists( $key, $body ) ) {
 					return 'Cambia el tipo o los atributos del producto (' . $key . '): volver atrás no quitaría ni devolvería sus variaciones, así que no se deshace.';
