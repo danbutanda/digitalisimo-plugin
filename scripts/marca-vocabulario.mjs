@@ -14,7 +14,7 @@
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { createHash } from 'node:crypto';
-import { loadRules, lexJs, transformStr } from './marca-transform.mjs';
+import { loadRules, lexJs, transformStr, transformIdent } from './marca-transform.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const EL = join(ROOT, 'digitalisimo-elements');
@@ -33,6 +33,11 @@ for (const f of files.sort()) {
   if (!/elementor/i.test(src)) continue;
   hash.update(relative(EL, f) + '\0' + src);
   lexJs(src, (type, text) => {
+    // Claves que el JS manda como identificadores (`{elementor_post_lock: …}` en el heartbeat): también llegan al servidor.
+    if (type === 'id' && /^_?elementor_[a-z0-9_]+$/.test(text)) {
+      const to = transformIdent(text, rules);
+      if (to !== text) vocab.set(to, vocab.has(to) && vocab.get(to) !== text ? [].concat(vocab.get(to), text) : text);
+    }
     if ((type === 'str' || type === 'tpl') && text.length <= 120 && IDENT.test(text) && /elementor/i.test(text)) {
       const to = transformStr(text, rules);
       if (to !== text) vocab.set(to, vocab.has(to) && vocab.get(to) !== text ? [].concat(vocab.get(to), text) : text);
