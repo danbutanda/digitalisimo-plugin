@@ -119,6 +119,9 @@ class Digitalisimo_Hosting_Checkout {
 		if ( is_string( $domain ) && '' !== trim( $domain ) ) $data['digitalisimo_domain'] = self::clean_domain( $domain );
 		if ( in_array( $mode, array( 'new', 'own' ), true ) ) $data['digitalisimo_domain_mode'] = $mode;
 		if ( is_string( $epp ) && '' !== trim( $epp ) ) $data['digitalisimo_epp_raw'] = trim( $epp );
+		// El plan agregado desde la fila de un dominio («Se compran juntos»): la venta automática lo pone en ese dominio.
+		$for = $request->get_param( 'digitalisimo_for_domain' );
+		if ( is_string( $for ) && '' !== trim( $for ) ) $data['digitalisimo_for_domain'] = self::clean_domain( $for );
 		$add['cart_item_data'] = $data;
 		return $add;
 	}
@@ -138,8 +141,9 @@ class Digitalisimo_Hosting_Checkout {
 				if ( '' !== $enc ) $data['digitalisimo_epp'] = $enc;
 			}
 		}
-		// «Uno que ya tengo» sólo tiene sentido en un plan; en un dominio el nombre es el que se registra o transfiere.
-		if ( 'hosting' !== self::kind( $product_id ) ) unset( $data['digitalisimo_domain_mode'] );
+		// «Uno que ya tengo» y el dominio asociado sólo tienen sentido en un plan; en un dominio el nombre es el que se
+		// registra o transfiere.
+		if ( 'hosting' !== self::kind( $product_id ) ) unset( $data['digitalisimo_domain_mode'], $data['digitalisimo_for_domain'] );
 		// Con «Dominio nuevo», lo escrito en el campo de «Uno que ya tengo» no cuenta (el navegador pudo enviarlo igual).
 		elseif ( 'new' === ( $data['digitalisimo_domain_mode'] ?? '' ) ) unset( $data['digitalisimo_domain'], $data['digitalisimo_domain_mode'] );
 		elseif ( empty( $data['digitalisimo_domain'] ) && 'own' === ( $data['digitalisimo_domain_mode'] ?? '' ) ) unset( $data['digitalisimo_domain_mode'] );
@@ -316,9 +320,11 @@ class Digitalisimo_Hosting_Checkout {
 			if ( empty( $tlds['tlds'][ $tld ]['transfer'] ) ) $error = 'Los dominios .' . $tld . ' no se pueden transferir aquí. Escríbenos y lo vemos contigo.';
 		}
 		if ( '' === $error ) {
-			// En cualquiera de nuestras cuentas de registrador (la de la extensión primero).
+			// En cualquiera de nuestras cuentas de registrador (la de la extensión primero). Una respuesta que no se entiende
+			// de un registrador que NO atiende esta extensión no frena la transferencia; la del que la atiende, sí.
 			foreach ( array( $nc->id() => $nc ) + Digitalisimo_Hosting_Registrars::configured_all() as $acc ) {
 				$info = $acc->info( $domain, self::TIMEOUT );
+				if ( 'ok' !== $info['kind'] && $acc->id() !== $nc->id() ) continue;
 				if ( 'ok' !== $info['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
 				// Texto neutro: no se dice a nadie qué dominios están en nuestra cuenta.
 				if ( ! empty( $info['ours'] ) ) { $error = 'El dominio ' . $domain . ' no se puede transferir aquí. Escríbenos y lo vemos contigo.'; break; }
@@ -577,6 +583,7 @@ class Digitalisimo_Hosting_Checkout {
 
 	/** `woocommerce_checkout_create_order_line_item`: el EPP cifrado va al pedido (nunca a la línea). */
 	public static function order_item( $item, $values, $order ) {
+		if ( ! empty( $values['digitalisimo_for_domain'] ) && is_object( $item ) && method_exists( $item, 'add_meta_data' ) ) $item->add_meta_data( '_digitalisimo_for_domain', (string) $values['digitalisimo_for_domain'], true );
 		if ( empty( $values['digitalisimo_epp'] ) || empty( $values['digitalisimo_domain'] ) || ! is_object( $order ) ) return;
 		$all = $order->get_meta( self::META_EPP );
 		$all = is_array( $all ) ? $all : array();

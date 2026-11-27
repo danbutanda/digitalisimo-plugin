@@ -114,7 +114,7 @@ add_filter(
 				$dom = strtolower( (string) ( $params['domain'] ?? '' ) );
 				if ( ! isset( $d['domains'][ $dom ] ) ) return dd_error( $cmd, 'domain not found' );
 				$d['balance'] -= $d['prices'][ substr( $dom, strpos( $dom, '.' ) + 1 ) ][1] ?? 9.99;
-				$d['domains'][ $dom ] = strtotime( '+1 year', $d['domains'][ $dom ] );
+				$d['domains'][ $dom ] = strtotime( '+' . max( 1, (int) ( $params['duration'] ?? 1 ) ) . ' year', $d['domains'][ $dom ] );
 				return dd_response( $cmd, array( 'ResponseCode' => '0', 'Status' => 'success', 'DomainName' => $dom, 'Expiration' => (string) ( $d['domains'][ $dom ] * 1000 ) ) );
 		}
 		return dd_error( $cmd, 'unknown command' );

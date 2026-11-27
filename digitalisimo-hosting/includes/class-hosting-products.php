@@ -35,8 +35,12 @@ class Digitalisimo_Hosting_Products {
 	/** Extensiones que vendía la configuración de fábrica (líneas sin ID). */
 	const LEGACY_DEFAULTS = array( '.com', '.net', '.mx' );
 
-	/** @var array|null Catálogo de esta petición. */
-	private static $memo = null;
+	/** @var array Catálogo de esta petición, por sitio (en una red, switch_to_blog() cambia de tienda). */
+	private static $memo = array();
+	/** Marca de la migración en un plan que quedó «Anual» sin que el dueño lo eligiera (se quita al guardarlo en el editor). */
+	const META_PERIOD_MIGRATED = '_digitalisimo_period_migrated';
+
+	private static function site() { return function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1; }
 
 	public static function init() {
 		// Un producto, su SKU o su marca cambian: el catálogo guardado ya no vale.
@@ -52,7 +56,7 @@ class Digitalisimo_Hosting_Products {
 	}
 
 	public static function flush() {
-		self::$memo = null;
+		self::$memo = array();
 		if ( function_exists( 'delete_transient' ) ) delete_transient( self::CACHE );
 	}
 
@@ -106,9 +110,12 @@ class Digitalisimo_Hosting_Products {
 		$parent = self::parent_of( $id );
 		$base = $parent ? self::config( $parent ) : null;
 		$type = $own['type'];
-		// Sin tipo propio: las marcas que ya usaba Hosting (extensión o paquete) y, si no hay, lo del producto.
+		// Sin tipo propio («Igual que el producto»): manda el tipo que el producto eligió en su editor; si el producto nunca
+		// lo eligió, las marcas que ya usaba Hosting (extensión o paquete) y, si no hay, lo que resulte del producto.
 		if ( '' === $type ) {
-			if ( '' !== $own['tld'] || 'transfer' === $own['kind'] ) $type = 'domain';
+			$parent_type = $parent ? self::own( $parent )['type'] : '';
+			if ( '' !== $parent_type ) $type = $parent_type;
+			elseif ( '' !== $own['tld'] || 'transfer' === $own['kind'] ) $type = 'domain';
 			elseif ( '' !== $own['plan'] ) $type = 'hosting';
 			else $type = $base && '' !== $base['type'] ? $base['type'] : 'none';
 		}
@@ -189,9 +196,9 @@ class Digitalisimo_Hosting_Products {
 	 * Con varios productos de la misma extensión y acción manda el de menor ID (y se avisa).
 	 */
 	public static function catalog() {
-		if ( null !== self::$memo ) return self::$memo;
+		if ( isset( self::$memo[ self::site() ] ) ) return self::$memo[ self::site() ];
 		$cached = function_exists( 'get_transient' ) ? get_transient( self::CACHE ) : false;
-		if ( is_array( $cached ) && isset( $cached['map'], $cached['domains'], $cached['hosting'] ) ) return self::$memo = $cached;
+		if ( is_array( $cached ) && isset( $cached['map'], $cached['domains'], $cached['hosting'] ) ) return self::$memo[ self::site() ] = $cached;
 		$candidates = array();
 		foreach ( self::marked_ids() as $id ) {
 			$p = self::product( $id );
@@ -222,7 +229,7 @@ class Digitalisimo_Hosting_Products {
 			$out['duplicates'][] = array( 'tld' => $tld, 'action' => $action, 'ids' => $ids, 'names' => array_map( array( __CLASS__, 'name' ), $ids ) );
 		}
 		if ( function_exists( 'set_transient' ) ) set_transient( self::CACHE, $out, DAY_IN_SECONDS );
-		return self::$memo = $out;
+		return self::$memo[ self::site() ] = $out;
 	}
 
 	/** Extensión => ID del producto que registra esa extensión (lo que antes era «Productos por extensión»). */
@@ -351,9 +358,25 @@ class Digitalisimo_Hosting_Products {
 		foreach ( $c['incomplete'] as $i ) echo '<div class="notice notice-warning inline"><p>' . esc_html( '«' . $i['name'] . '» está marcado, pero le falta ' . $i['missing'] . '.' ) . '</p></div>';
 	}
 
+	/** Los planes que la migración dejó «Anual» y nadie ha guardado todavía en su editor (producto o variación). */
+	public static function migrated_periods() {
+		if ( ! function_exists( 'get_posts' ) ) return array();
+		$ids = array();
+		foreach ( array( 'product', 'product_variation' ) as $type ) foreach ( (array) get_posts( array( 'post_type' => $type, 'post_status' => 'publish', 'numberposts' => 200, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'ASC', 'no_found_rows' => true, 'suppress_filters' => true, 'meta_key' => self::META_PERIOD_MIGRATED ) ) as $id ) if ( 'hosting' === self::kind( (int) $id ) ) $ids[] = (int) $id;
+		sort( $ids );
+		return array_values( array_unique( $ids ) );
+	}
+
 	/** «Compra de hosting»: los planes detectados (sin IDs): nombre con enlace, paquete de Webuzo y periodo. */
 	public static function hosting_table() {
 		$c = self::catalog();
+		$review = self::migrated_periods();
+		if ( $review ) {
+			$links = array();
+			foreach ( $review as $id ) $links[] = self::edit_link( $id );
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- edit_link() escapa.
+			echo '<div class="notice notice-warning inline"><p><strong>Revisa el periodo de cobro de estos planes.</strong> Al actualizar quedaron como «Anual», que es como se cobraban. Si alguno se vende por mes, trimestre, semestre o varios años, ábrelo y elige su periodo en la pestaña «DIGITALÍSIMO Hosting» (en un producto variable, una variación por periodo). El aviso se quita al guardar cada uno: ' . implode( ', ', $links ) . '.</p></div>';
+		}
 		echo '<p class="description">Los planes de hosting y correo se detectan solos: en el editor de producto, pestaña «DIGITALÍSIMO Hosting», elige «Hosting», el paquete de Webuzo y el periodo de cobro (en un producto variable, una variación por periodo).</p>';
 		if ( ! $c['hosting'] ) { echo '<div class="notice notice-warning inline"><p>Todavía no hay productos de hosting marcados.</p></div>'; return; }
 		echo '<table class="widefat striped" style="max-width:820px"><thead><tr><th scope="col">Plan</th><th scope="col">Paquete de Webuzo</th><th scope="col">Cobro</th></tr></thead><tbody>';
@@ -454,9 +477,9 @@ class Digitalisimo_Hosting_Products {
 		if ( array_key_exists( 'registrar_by_tld', $o ) && ! is_array( $o['registrar_by_tld'] ) ) $o['registrar_by_tld'] = class_exists( 'Digitalisimo_Hosting_Registrars' ) ? Digitalisimo_Hosting_Registrars::parse( (string) $o['registrar_by_tld'] )['map'] : array();
 		if ( array_key_exists( 'finder_requirements', $o ) && ! is_array( $o['finder_requirements'] ) ) $o['finder_requirements'] = self::legacy_requirements( $o['finder_requirements'] );
 		if ( array_key_exists( 'finder_order', $o ) && ! is_array( $o['finder_order'] ) ) $o['finder_order'] = self::legacy_order( $o['finder_order'] );
-		if ( array_key_exists( 'finder_upsell_ids', $o ) ) { if ( ! isset( $o['finder_upsell'] ) ) $o['finder_upsell'] = self::legacy_ids( $o['finder_upsell_ids'] ); unset( $o['finder_upsell_ids'] ); }
-		// Lo que pasa a los productos: queda en la copia (la lee migrate_products) y sale de los ajustes.
-		foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids' ) as $key ) unset( $o[ $key ] );
+		if ( array_key_exists( 'finder_upsell_ids', $o ) && ! isset( $o['finder_upsell'] ) ) $o['finder_upsell'] = self::legacy_ids( $o['finder_upsell_ids'] );
+		// Lo que pasa a los productos queda en la copia (la lee migrate_products) y TAMBIÉN en los ajustes, tal cual: el código
+		// nuevo no lo lee y así volver a una versión anterior no pierde nada.
 		if ( $backup ) { $backup['_at'] = $backup['_at'] ?? time(); update_option( self::BACKUP, $backup, false ); }
 		if ( $o !== $before ) update_option( Digitalisimo_Hosting::OPTION, $o, false );
 	}
@@ -474,8 +497,8 @@ class Digitalisimo_Hosting_Products {
 	private static function set_hosting( $id ) {
 		if ( ! $id || self::typed( $id ) ) return;
 		update_post_meta( $id, self::META_TYPE, 'hosting' );
-		// El hosting de antes se cobraba y renovaba por año.
-		if ( ! self::own( $id )['period'] ) update_post_meta( $id, self::META_PERIOD, 12 );
+		// El hosting de antes se cobraba y renovaba por año; queda marcado para que el dueño revise el periodo.
+		if ( ! self::own( $id )['period'] ) { update_post_meta( $id, self::META_PERIOD, 12 ); update_post_meta( $id, self::META_PERIOD_MIGRATED, 1 ); }
 	}
 
 	/** Producto por SKU, publicado. */

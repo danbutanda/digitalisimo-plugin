@@ -120,7 +120,8 @@ class Digitalisimo_Hosting_Services_Page {
 		echo '<input type="hidden" name="key" value="' . esc_attr( function_exists( 'wp_generate_uuid4' ) ? str_replace( '-', '', wp_generate_uuid4() ) : md5( uniqid( '', true ) ) ) . '">';
 		wp_nonce_field( self::nonce_action( 'manual_payment', $id ), '_wpnonce', false );
 		echo '<p><label for="' . esc_attr( $fid ) . '-months"><strong>Periodo pagado</strong></label><br><select id="' . esc_attr( $fid ) . '-months" name="months">';
-		foreach ( Digitalisimo_Hosting_Products::PERIODS as $m => $label ) echo '<option value="' . (int) $m . '"' . ( (int) $m === (int) $pv['months'] ? ' selected' : '' ) . '>' . esc_html( $label . ' (' . ( 12 === $m ? 'un año' : ( $m % 12 ? $m . ( 1 === $m ? ' mes' : ' meses' ) : ( $m / 12 ) . ' años' ) ) . ')' ) . '</option>';
+		// Un servicio que es sólo el dominio se paga por años (es como lo renueva el registrador).
+		foreach ( Digitalisimo_Hosting_Products::PERIODS as $m => $label ) if ( $P::has_hosting( $id ) || 0 === $m % 12 ) echo '<option value="' . (int) $m . '"' . ( (int) $m === (int) $pv['months'] ? ' selected' : '' ) . '>' . esc_html( $label . ' (' . ( 12 === $m ? 'un año' : ( $m % 12 ? $m . ( 1 === $m ? ' mes' : ' meses' ) : ( $m / 12 ) . ' años' ) ) . ')' ) . '</option>';
 		echo '</select></p>';
 		echo '<p><label for="' . esc_attr( $fid ) . '-method"><strong>Medio</strong></label><br><select id="' . esc_attr( $fid ) . '-method" name="method">';
 		foreach ( $P::MANUAL_METHODS as $k => $label ) echo '<option value="' . esc_attr( $k ) . '">' . esc_html( $label ) . '</option>';
@@ -129,6 +130,8 @@ class Digitalisimo_Hosting_Services_Page {
 		echo '<p><label for="' . esc_attr( $fid ) . '-note"><strong>Nota</strong> (opcional)</label><br><input type="text" id="' . esc_attr( $fid ) . '-note" name="note" class="regular-text" maxlength="300"></p>';
 		if ( $pv['domain_due'] && $P::svc( $id, 'domain_registered' ) ) {
 			echo '<p><label><input type="checkbox" name="renew_domain" value="1"' . ( $pv['renew_domain'] ? ' checked' : '' ) . '> <strong>Renovar también el dominio con su registrador</strong></label><br><span class="description">' . esc_html( 'El dominio vence el ' . $P::date( $pv['domain_due'] ) . '. ' . ( null !== $pv['cost'] ? 'Costo en ' . $pv['registrar'] . ': ' . number_format( $pv['cost'], 2, '.', ',' ) . ' USD' . ( null !== $pv['balance'] ? ' (saldo ' . number_format( $pv['balance'], 2, '.', ',' ) . ' USD).' : '.' ) : '' ) ) . '</span></p>';
+			echo '<p><label><input type="checkbox" name="renewed_elsewhere" value="1"> Ya lo renové yo en el registrador (no pedir la renovación; queda anotado)</label></p>';
+			if ( ! $P::has_hosting( $id ) ) echo '<p class="description">Este servicio es sólo el dominio: su vencimiento cambia cuando el registrador confirma la renovación (o si marcas que ya la hiciste). Si no se renueva, queda pendiente con aviso.</p>';
 			if ( '' !== $pv['warning'] ) echo '<div class="notice notice-warning inline"><p>' . esc_html( $pv['warning'] ) . '</p></div>';
 		}
 		echo '<p><button type="submit" class="button button-primary">Registrar el pago</button> <a class="button" href="' . esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ) . '">Cancelar</a></p></form></div>';
@@ -149,7 +152,7 @@ class Digitalisimo_Hosting_Services_Page {
 		}
 		if ( ! $P::is_service( $id ) ) wp_die( 'Servicio no encontrado.', 404 );
 		if ( 'manual_payment' === $op ) {
-			$r = $P::manual_payment( $id, array( 'months' => absint( $_POST['months'] ?? 0 ), 'method' => sanitize_key( (string) ( $_POST['method'] ?? '' ) ), 'amount' => sanitize_text_field( wp_unslash( (string) ( $_POST['amount'] ?? '' ) ) ), 'note' => sanitize_text_field( wp_unslash( (string) ( $_POST['note'] ?? '' ) ) ), 'renew_domain' => ! empty( $_POST['renew_domain'] ), 'key' => sanitize_key( (string) ( $_POST['key'] ?? '' ) ) ) );
+			$r = $P::manual_payment( $id, array( 'months' => absint( $_POST['months'] ?? 0 ), 'method' => sanitize_key( (string) ( $_POST['method'] ?? '' ) ), 'amount' => sanitize_text_field( wp_unslash( (string) ( $_POST['amount'] ?? '' ) ) ), 'note' => sanitize_text_field( wp_unslash( (string) ( $_POST['note'] ?? '' ) ) ), 'renew_domain' => ! empty( $_POST['renew_domain'] ), 'renewed_elsewhere' => ! empty( $_POST['renewed_elsewhere'] ), 'key' => sanitize_key( (string) ( $_POST['key'] ?? '' ) ) ) );
 			if ( function_exists( 'set_transient' ) && function_exists( 'get_current_user_id' ) ) set_transient( 'digitalisimo_hosting_manual_msg_' . (int) get_current_user_id(), is_wp_error( $r ) ? array( 'error', $r->get_error_message() ) : array( 'success', $r['message'] ), 5 * MINUTE_IN_SECONDS );
 			wp_safe_redirect( admin_url( 'admin.php?page=' . self::SLUG . '&done=manual' ) );
 			exit;

@@ -131,9 +131,11 @@ namespace {
 	use Digitalisimo\Elements\Hosting\Mcp\Executor;
 	use Digitalisimo\Elements\Hosting\Mcp\Tools;
 	check( in_array( 'manual-payment', Tools::ACTIONS['settings'], true ) && Tools::is_write( 'manual-payment' ) && true === Tools::definition( 'settings' )['meta']['annotations']['destructive'] && array( 'manage_options' ) === Tools::capabilities( 'settings' ), 'MCP: la acción «manual-payment» es de la herramienta de ajustes (sólo administradores) y está anotada como escritura' );
-	$GLOBALS['caps'] = array( 'manage_woocommerce' );
+	$GLOBALS['caps'] = array( 'edit_posts' );
 	$e = Executor::run( 'settings', array( 'action' => 'manual-payment', 'service' => $s, 'method' => 'cash', 'months' => 12 ) );
-	check( $e instanceof WP_Error && 'denied' === get_option( Executor::LOG )[0]['result'], 'MCP: sin manage_options se rechaza y queda en la bitácora' );
+	check( $e instanceof WP_Error && 'denied' === get_option( Executor::LOG )[0]['result'], 'MCP: sin manage_woocommerce ni manage_options se rechaza y queda en la bitácora' );
+	$GLOBALS['caps'] = array( 'manage_woocommerce' );
+	check( true === Executor::permission( 'settings', array( 'action' => 'manual-payment' ) ) && true !== Executor::permission( 'settings', array( 'action' => 'update' ) ), 'MCP: quien administra la tienda (manage_woocommerce) registra pagos manuales, pero no cambia los ajustes' );
 	unset( $GLOBALS['caps'] );
 	$before = (int) $P::svc( $s, 'expires' );
 	$r = Executor::run( 'settings', array( 'action' => 'manual-payment', 'service' => $s, 'method' => 'deposit', 'months' => 3, 'amount' => 450, 'request_id' => 'mcp-1' ) );

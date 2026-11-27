@@ -134,7 +134,7 @@ check( 'ok' === $b['kind'] && 300.0 === $b['value'], 'D1 saldo: BalanceList en U
 $GLOBALS['dd']['balance_currency'] = 'EUR';
 check( 'api' === $dyn->balance()['kind'], 'D1 sin saldo en USD no se adivina: error' );
 unset( $GLOBALS['dd']['balance_currency'] );
-$n = dd_count( 'tld_price' );
+delete_transient( 'digitalisimo_hosting_dd_prices' ); $n = dd_count( 'tld_price' );
 $p = $dyn->price( 'mx', 'REGISTER' ); $q = $dyn->price( '.mx', 'RENEW' ); $t = $dyn->price( 'mx', 'TRANSFER' );
 check( 20.0 === $p['value'] && 25.0 === $q['value'] && 25.0 === $t['value'] && $n + 1 === dd_count( 'tld_price' ), 'D1 tld_price en USD: registro, renovación y transferencia, una sola consulta (se guarda unas horas)' );
 check( 'api' === $dyn->price( 'org', 'REGISTER' )['kind'], 'D1 una extensión que Dynadot no lista: error, sin precio inventado' );

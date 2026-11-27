@@ -437,8 +437,9 @@ add_filter(
 					return digi_xml( '<Tlds>' . $out . '</Tlds>' );
 				case 'namecheap.domains.renew':
 					$d = $body['DomainName'];
-					$cost = array_sum( digi_nc_price( substr( $d, strpos( $d, '.' ) + 1 ), 'RENEW' ) );
-					$n['balance'] -= $cost; $n['domains'][ $d ] = strtotime( '+1 year', $n['domains'][ $d ] );
+					$years = max( 1, (int) ( $body['Years'] ?? 1 ) );
+					$cost = $years * array_sum( digi_nc_price( substr( $d, strpos( $d, '.' ) + 1 ), 'RENEW' ) );
+					$n['balance'] -= $cost; $n['domains'][ $d ] = strtotime( '+' . $years . ' year', $n['domains'][ $d ] );
 					return digi_xml( '<DomainRenewResult DomainName="' . $d . '" DomainID="1" Renew="true" OrderID="2" TransactionID="2" ChargedAmount="' . number_format( $cost, 2 ) . '" />' );
 			}
 			return digi_xml( '<Error Number="1010000">Unknown command</Error>', false );

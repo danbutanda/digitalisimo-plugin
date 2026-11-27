@@ -221,7 +221,8 @@
     markAdded();
   }
   /** «Se compran juntos»: debajo de la fila que se acaba de agregar (uno solo por buscador). */
-  function together(root, after) {
+  // «Se compran juntos» de la fila de un dominio: el plan queda asociado a ese dominio (la venta automática lo usa).
+  function together(root, after, forDomain) {
     const items = root._together || [];
     const old = root.querySelector('.digitalisimo-finder__together');
     if (old) old.remove();
@@ -236,7 +237,9 @@
       li.appendChild(el('span', 'digitalisimo-finder__together-name', p.name));
       if (p.description) li.appendChild(el('span', 'digitalisimo-finder__together-desc', p.description));
       li.appendChild(el('span', 'digitalisimo-finder__together-price', p.price_text));
-      li.appendChild(addButton('Agregar', p.id, '', `Agregar ${p.name} al carrito`, p.name));
+      const add = addButton('Agregar', p.id, '', `Agregar ${p.name} al carrito`, p.name);
+      if (forDomain) add.dataset.forDomain = forDomain;
+      li.appendChild(add);
       ul.appendChild(li);
     });
     box.appendChild(ul);
@@ -294,13 +297,14 @@
     b.setAttribute('aria-busy', 'true');
     const body = { id: Number(b.dataset.addProduct), quantity: 1 };
     if (b.dataset.addDomain) body.digitalisimo_domain = b.dataset.addDomain;
+    if (b.dataset.forDomain) body.digitalisimo_for_domain = b.dataset.forDomain;
     try {
       cart = await addItem(body);
       setAdded(b);
       status.textContent = b.dataset.addDomain ? `${b.dataset.addDomain} se agregó a tu carrito.` : 'Se agregó a tu carrito.';
       announceAdded();
       renderBar();
-      if (b.dataset.addDomain) together(root, b.closest('.digitalisimo-finder__row, .digitalisimo-finder__main, .digitalisimo-finder__transfer') || b);
+      if (b.dataset.addDomain) together(root, b.closest('.digitalisimo-finder__row, .digitalisimo-finder__main, .digitalisimo-finder__transfer') || b, b.dataset.addDomain);
       else markAdded();
       // Carrito clásico vacío: se recarga para mostrar el carrito real (el de bloques se actualiza solo con el evento).
       if (onCartPage() && !document.querySelector('.wp-block-woocommerce-cart')) window.location.reload();

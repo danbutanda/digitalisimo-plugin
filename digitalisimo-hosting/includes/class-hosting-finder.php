@@ -211,6 +211,34 @@ class Digitalisimo_Hosting_Finder {
 		set_transient( self::BAD_EXTS, $bad, 6 * HOUR_IN_SECONDS );
 	}
 
+	/** Nombres distintos seguidos que fallan en una extensión antes de apartarla (sin decir que la extensión no se atiende). */
+	const BAD_STREAK = 3;
+	const FAILS = 'digitalisimo_hosting_finder_ext_fails';
+
+	/** ¿El registrador dice que no atiende la extensión (y no sólo que ese nombre falló)? */
+	public static function tld_unsupported( $text ) { return (bool) preg_match( '/\b(tld|extension)\b.{0,40}(not\s+supported|unsupported|not\s+available|not\s+offered|invalid)|not\s+supported\s+(tld|extension)|unsupported\s+(tld|extension)|2030280/i', (string) $text ); }
+
+	/**
+	 * Un nombre que el registrador no pudo consultar: sólo ese nombre sale «no se pudo consultar». La extensión se aparta
+	 * (6 horas) sólo si el error dice que no se atiende, o tras BAD_STREAK nombres distintos fallidos seguidos.
+	 */
+	private static function name_failed( $domain, $text ) {
+		$ext = substr( $domain, strpos( $domain, '.' ) );
+		if ( self::tld_unsupported( $text ) ) { self::mark_bad( $ext ); return; }
+		$f = get_transient( self::FAILS ); $f = is_array( $f ) ? $f : array();
+		$names = array_values( array_unique( array_merge( (array) ( $f[ $ext ] ?? array() ), array( $domain ) ) ) );
+		$f[ $ext ] = array_slice( $names, -self::BAD_STREAK );
+		if ( count( $names ) >= self::BAD_STREAK ) { self::mark_bad( $ext ); unset( $f[ $ext ] ); }
+		set_transient( self::FAILS, $f, HOUR_IN_SECONDS );
+	}
+
+	/** Un nombre de la extensión respondió bien: la racha de fallos se reinicia. */
+	private static function name_ok( $domain ) {
+		$f = get_transient( self::FAILS );
+		$ext = substr( $domain, strpos( $domain, '.' ) );
+		if ( is_array( $f ) && isset( $f[ $ext ] ) ) { unset( $f[ $ext ] ); set_transient( self::FAILS, $f, HOUR_IN_SECONDS ); }
+	}
+
 	/**
 	 * array( kind ok|error|busy, results => dominio => array( available, premium ) ). $trusted: la búsqueda trae el nonce
 	 * válido del buscador (puede usar todo el cupo del sitio; sin él, sólo la mitad).
@@ -262,8 +290,8 @@ class Digitalisimo_Hosting_Finder {
 				if ( $left < 1 ) { $r['kind'] = 'error'; break; }
 				if ( ! self::global_slot( $trusted ) ) { $r['kind'] = 'busy'; break; }
 				$one = $nc->check_many( array( $d ), (int) max( 1, min( Digitalisimo_Hosting_Checkout::TIMEOUT, floor( $left ) ) ) );
-				if ( 'ok' === $one['kind'] ) $r['results'] += $one['results'];
-				elseif ( 'api' === $one['kind'] ) self::mark_bad( substr( $d, strpos( $d, '.' ) ) );
+				if ( 'ok' === $one['kind'] ) { $r['results'] += $one['results']; if ( isset( $one['results'][ $d ] ) ) self::name_ok( $d ); elseif ( isset( $one['errors'][ $d ] ) ) self::name_failed( $d, $one['errors'][ $d ] ); }
+				elseif ( 'api' === $one['kind'] ) self::name_failed( $d, $one['message'] . ' ' . ( $one['number'] ?? '' ) );
 				else { $r['kind'] = 'error'; break; }
 			}
 		}
@@ -284,7 +312,8 @@ class Digitalisimo_Hosting_Finder {
 			$one = $nc->check_many( array( $d ), (int) max( 1, floor( $left ) ) );
 			$out['results'] += (array) ( $one['results'] ?? array() );
 			if ( 'ok' !== $one['kind'] ) { $out['kind'] = 'error'; break; }
-			if ( ! isset( $one['results'][ $d ] ) ) self::mark_bad( substr( $d, strpos( $d, '.' ) ) );
+			if ( isset( $one['results'][ $d ] ) ) self::name_ok( $d );
+			else self::name_failed( $d, (string) ( $one['errors'][ $d ] ?? '' ) );
 		}
 		return $out;
 	}

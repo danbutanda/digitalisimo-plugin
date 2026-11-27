@@ -158,15 +158,17 @@ class Digitalisimo_Hosting_Namecheap implements Digitalisimo_Hosting_Registrar {
 		$domains = array_values( array_unique( array_filter( array_map( 'strtolower', array_map( 'strval', $domains ) ) ) ) );
 		if ( ! $domains ) return array( 'kind' => 'ok', 'results' => array() );
 		$r = $this->call( 'namecheap.domains.check', array( 'DomainList' => implode( ',', $domains ) ), $timeout );
-		if ( 'ok' !== $r['kind'] ) return array( 'kind' => $r['kind'], 'message' => $r['message'] );
-		$out = array();
+		if ( 'ok' !== $r['kind'] ) return array( 'kind' => $r['kind'], 'message' => $r['message'], 'number' => $r['number'] ?? '' );
+		$out = array(); $errs = array();
 		foreach ( $r['xml']->xpath( '//*[local-name()="DomainCheckResult"]' ) ?: array() as $res ) {
 			$d = strtolower( trim( (string) $res['Domain'] ) );
 			$error = trim( (string) $res['ErrorNo'] );
-			if ( ! in_array( $d, $domains, true ) || ( '' !== $error && '0' !== $error ) ) continue;
+			if ( ! in_array( $d, $domains, true ) ) continue;
+			// Un error de un solo nombre: ese nombre queda sin consultar (con su texto, para saber si es la extensión).
+			if ( '' !== $error && '0' !== $error ) { $errs[ $d ] = self::clean( (string) $res['Description'] ) . ' (' . $error . ')'; continue; }
 			$out[ $d ] = array( 'available' => 'true' === strtolower( (string) $res['Available'] ), 'premium' => self::special( $res ) );
 		}
-		return array( 'kind' => 'ok', 'results' => $out );
+		return array( 'kind' => 'ok', 'results' => $out, 'errors' => $errs );
 	}
 
 	/**

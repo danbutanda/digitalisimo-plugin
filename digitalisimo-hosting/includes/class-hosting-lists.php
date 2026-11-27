@@ -26,6 +26,9 @@ class Digitalisimo_Hosting_Lists {
 
 	public static function flush() { self::$memo = array(); }
 
+	/** La llave del memo de esta petición: por sitio (en una red, switch_to_blog() cambia de tienda). */
+	private static function k( $what ) { return $what . ':' . ( function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1 ); }
+
 	private static function stored( $key ) { $v = get_option( $key, array() ); return is_array( $v ) ? $v : array(); }
 
 	/** Ordena: las populares primero y luego por orden alfabético. */
@@ -44,7 +47,7 @@ class Digitalisimo_Hosting_Lists {
 	 * llano o '' , at => cuándo se trajo ). $refresh: false = no consultar nunca (sólo lo guardado o la base).
 	 */
 	public static function tlds( $refresh = true ) {
-		if ( isset( self::$memo['tlds'] ) ) return self::$memo['tlds'];
+		if ( isset( self::$memo[ self::k( 'tlds' ) ] ) ) return self::$memo[ self::k( 'tlds' ) ];
 		$s = self::stored( self::TLDS );
 		$fresh = ! empty( $s['list'] ) && time() - (int) ( $s['at'] ?? 0 ) < self::TTL;
 		$accounts = class_exists( 'Digitalisimo_Hosting_Registrars' ) ? Digitalisimo_Hosting_Registrars::configured_all() : array();
@@ -68,7 +71,7 @@ class Digitalisimo_Hosting_Lists {
 		elseif ( ! empty( $s['list'] ) ) $out = array( 'list' => $s['list'], 'source' => 'cache', 'notice' => 'No pudimos consultar a los registradores ahora. Se muestra la lista guardada el ' . self::date( (int) $s['at'] ) . '.', 'at' => (int) $s['at'] );
 		else $out = array( 'list' => self::BASE_TLDS, 'source' => 'base', 'notice' => $accounts ? 'No pudimos consultar a los registradores ahora. Se muestran las extensiones más comunes; la lista completa aparece cuando respondan.' : 'Todavía no hay cuenta de registrador en Digitalisimo → Hosting. Se muestran las extensiones más comunes.', 'at' => 0 );
 		if ( 'failed' === $error && 'registrar' !== $out['source'] && '' === $out['notice'] ) $out['notice'] = 'No pudimos consultar a los registradores ahora.';
-		return self::$memo['tlds'] = $out;
+		return self::$memo[ self::k( 'tlds' ) ] = $out;
 	}
 
 	/** ¿La extensión está en la lista (la de los registradores, la guardada o la base)? */
@@ -84,7 +87,7 @@ class Digitalisimo_Hosting_Lists {
 	 * La base son los paquetes que ya usan los productos y las cuentas que se vieron. Nunca un campo libre.
 	 */
 	public static function plans( $refresh = true ) {
-		if ( isset( self::$memo['plans'] ) ) return self::$memo['plans'];
+		if ( isset( self::$memo[ self::k( 'plans' ) ] ) ) return self::$memo[ self::k( 'plans' ) ];
 		$s = self::stored( self::PLANS );
 		$fresh = ! empty( $s['list'] ) && time() - (int) ( $s['at'] ?? 0 ) < self::TTL;
 		$api = class_exists( 'Digitalisimo_Hosting_Webuzo' ) ? Digitalisimo_Hosting_Webuzo::from_settings() : null;
@@ -100,7 +103,7 @@ class Digitalisimo_Hosting_Lists {
 		if ( $fresh ) $out = array( 'list' => (array) $s['list'] + $used, 'source' => 'webuzo', 'notice' => '' );
 		elseif ( ! empty( $s['list'] ) ) $out = array( 'list' => (array) $s['list'] + $used, 'source' => 'cache', 'notice' => 'No pudimos consultar a Webuzo ahora. Se muestran los paquetes guardados el ' . self::date( (int) $s['at'] ) . '.' );
 		else $out = array( 'list' => $used, 'source' => 'base', 'notice' => $ready ? 'No pudimos consultar a Webuzo ahora. Se muestran sólo los paquetes que ya usan tus productos; vuelve a abrir esta pantalla en un rato.' : 'Todavía no hay conexión con Webuzo en Digitalisimo → Hosting (URL y clave). Se muestran sólo los paquetes que ya usan tus productos.' );
-		return self::$memo['plans'] = $out;
+		return self::$memo[ self::k( 'plans' ) ] = $out;
 	}
 
 	private static function date( $ts ) { return class_exists( 'Digitalisimo_Hosting_Provisioning' ) ? Digitalisimo_Hosting_Provisioning::date( $ts ) : gmdate( 'Y-m-d', $ts ); }

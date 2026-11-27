@@ -39,8 +39,9 @@ registran como las de tienda y del kit de ventas (registro de abilities del núc
 - **mark** marca el producto como Dominio (`_digitalisimo_hosting_type` = `domain`, `_digitalisimo_tld` y
   `_digitalisimo_domain_kind` = `register` o `transfer`), con la extensión validada contra la lista de los registradores;
   **unmark** lo deja en «Ninguno».
-- **manual-payment** registra un pago recibido por otro lado (`service`, `months`, `method` cash|transfer|deposit|other,
-  `amount`, `note`, `renew_domain`, `request_id`) con `Digitalisimo_Hosting_Provisioning::manual_payment()`: el mismo que
+- **manual-payment** (`manage_woocommerce` o `manage_options`) registra un pago recibido por otro lado (`service`,
+  `months`, `method` cash|transfer|deposit|other, `amount`, `note`, `renew_domain` —sin decirlo, un servicio que es sólo
+  el dominio se renueva—, `renewed_elsewhere`, `request_id`) con `Digitalisimo_Hosting_Provisioning::manual_payment()`: el mismo que
   el botón «Registrar pago manual» de Servicios de hosting (idempotente, con candado por servicio). La bitácora anota medio,
   periodo y monto como nombres de claves.
 - **Bitácora** `digitalisimo_elements_hosting_mcp_log` (opción del sitio, sin carga automática, 200 entradas): fecha

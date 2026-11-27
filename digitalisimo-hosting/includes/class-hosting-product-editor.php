@@ -148,7 +148,18 @@ class Digitalisimo_Hosting_Product_Editor {
 		if ( ! in_array( $type, $allowed, true ) ) return array( 'El tipo «' . sanitize_text_field( $type ) . '» no existe: elige Ninguno, Dominio u Hosting.' );
 		$own = $P::own( $id );
 		if ( 'inherit' === $type ) delete_post_meta( $id, $P::META_TYPE ); else update_post_meta( $id, $P::META_TYPE, $type );
-		if ( 'domain' === $type || ( 'inherit' === $type && $is_variation ) ) {
+		// «Igual que el producto»: sólo cuenta la sección del tipo del producto; las marcas sueltas de la otra se limpian
+		// (una extensión que quedó elegida no convierte en dominio la variación de un plan).
+		$section = $type;
+		if ( 'inherit' === $type ) {
+			$parent = $P::parent_of( $id );
+			$section = $parent ? $P::config( $parent )['type'] : '';
+			if ( 'domain' !== $section ) { delete_post_meta( $id, $P::META_TLD ); delete_post_meta( $id, $P::META_KIND ); }
+			if ( 'hosting' !== $section ) { delete_post_meta( $id, $P::META_PLAN ); delete_post_meta( $id, $P::META_PERIOD ); }
+		}
+		// Guardado en el editor: el periodo ya lo eligió el dueño (se quita el aviso de la migración).
+		if ( 'hosting' === $type || 'hosting' === $section ) delete_post_meta( $id, $P::META_PERIOD_MIGRATED );
+		if ( 'domain' === $section ) {
 			$action = (string) ( $in['action'] ?? '' );
 			if ( in_array( $action, array( 'register', 'transfer' ), true ) ) update_post_meta( $id, $P::META_KIND, $action );
 			elseif ( '' === $action && $is_variation ) delete_post_meta( $id, $P::META_KIND );
@@ -165,7 +176,7 @@ class Digitalisimo_Hosting_Product_Editor {
 				else $errors[] = 'La extensión «' . sanitize_text_field( $raw ) . '» no está en la lista de los registradores: elígela del desplegable.';
 			}
 		}
-		if ( 'hosting' === $type || ( 'inherit' === $type && $is_variation ) ) {
+		if ( 'hosting' === $section ) {
 			$plan = trim( (string) ( $in['plan'] ?? '' ) );
 			$plans = class_exists( 'Digitalisimo_Hosting_Lists' ) ? Digitalisimo_Hosting_Lists::plans()['list'] : array();
 			if ( '' === $plan ) { if ( $is_variation ) delete_post_meta( $id, $P::META_PLAN ); elseif ( 'hosting' === $type && '' === $own['plan'] ) $errors[] = 'Elige el paquete de Webuzo: sin él no se puede crear la cuenta al pagarse.'; }

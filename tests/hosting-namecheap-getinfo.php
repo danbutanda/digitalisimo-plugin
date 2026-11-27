@@ -47,8 +47,6 @@ digi_product( 23, 'Dominio .com.mx', 600 );
 foreach ( array( 20 => '.com', 21 => '.mx', 22 => '.net', 23 => '.com.mx' ) as $pid => $ext ) { update_post_meta( $pid, '_digitalisimo_hosting_type', 'domain' ); update_post_meta( $pid, '_digitalisimo_tld', $ext ); }
 digi_product( 50, 'Transferencia de dominio', 400 );
 update_post_meta( 50, '_digitalisimo_hosting_type', 'domain' ); update_post_meta( 50, '_digitalisimo_domain_kind', 'transfer' ); update_post_meta( 50, '_digitalisimo_tld', '*' );
-// Compatibilidad con el formato de «Productos por extensión» de la versión anterior (lo ignora la nueva).
-$o = get_option( 'digitalisimo_hosting_options' ); $o['domain_products'] = ".com|20\n.mx|21\n.net|22\n.com.mx|23"; update_option( 'digitalisimo_hosting_options', $o );
 Digitalisimo_Hosting_Products::flush();
 // Los tres están registrados (en otra cuenta): check los da por ocupados.
 $GLOBALS['nc']['taken'] = array( 'github.com', 'php.net', 'google.com.mx' );

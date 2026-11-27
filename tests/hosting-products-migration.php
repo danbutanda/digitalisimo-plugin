@@ -54,8 +54,10 @@ check( 'dynadot' === $R::id_for_ext( '.mx' ) && 'dynadot' === $R::id_for_ext( '.
 foreach ( array( 14693, 14694, 14696 ) as $id ) check( 'hosting' === Digitalisimo_Hosting_Checkout::kind( $id ) && 12 === $PR::period( $id ), "El producto {$id} sigue siendo hosting (por ID, por categoría o por su paquete), anual como antes" );
 check( array( 14696, 14693 ) === $o['finder_upsell'] && array( 14696, 14693 ) === array_column( $F::together(), 'id' ), '«Se compran juntos»: los mismos planes, en el mismo orden' );
 check( array( '.mx' => 'Requisito MX', '.net' => 'Requisito NET' ) === $F::requirements() && array( '.mx', '.com', '.net' ) === $F::ordered(), 'Los avisos de requisitos y el orden siguen iguales' );
-foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'finder_upsell_ids' ) as $k ) check( ! array_key_exists( $k, $o ), "«{$k}» sale de los ajustes" );
-check( false === strpos( serialize( $o ), '|' ) && is_array( $o['finder_requirements'] ) && is_array( $o['finder_order'] ), 'Los ajustes quedan sin «|»' );
+// Lo viejo se queda en la opción tal cual (el código nuevo no lo lee): volver a una versión anterior no pierde nada.
+foreach ( array( 'domain_products' => ".com|20\n.mx|\n.net|", 'hosting_product_ids' => '14693', 'hosting_category_ids' => '63', 'finder_upsell_ids' => '14696, 14693' ) as $k => $v ) check( $v === ( $o[ $k ] ?? null ), "«{$k}» se conserva tal cual en la opción (para volver atrás)" );
+$g = $H::mcp_settings();
+check( ! array_key_exists( 'domain_products', $g['settings'] ) && ! array_key_exists( 'hosting_product_ids', $g['settings'] ) && false === strpos( wp_json_encode( $g ), '|' ) && is_array( $o['finder_requirements'] ) && is_array( $o['finder_order'] ), 'Lo que usa el código nuevo queda sin «|» y el MCP no muestra lo viejo' );
 $b = get_option( $PR::BACKUP );
 check( ".com|20\n.mx|\n.net|" === $b['domain_products'] && '14693' === $b['hosting_product_ids'] && ".mx|dynadot\n.com.mx|dynadot" === $b['registrar_by_tld'], 'Lo viejo queda guardado aparte, tal cual, de respaldo' );
 check( 'domain' === get_post_meta( 20, '_digitalisimo_hosting_type', true ) && '.com' === get_post_meta( 20, '_digitalisimo_tld', true ) && 'register' === get_post_meta( 22, '_digitalisimo_domain_kind', true ) && 'hosting' === get_post_meta( 14694, '_digitalisimo_hosting_type', true ), 'Cada producto queda marcado con su tipo, como si lo hubieran elegido en el editor' );
@@ -84,7 +86,7 @@ switch_blog( 2 );
 $GLOBALS['options'] = array( 'digitalisimo_hosting_ecommerce_migrated' => 1, 'digitalisimo_hosting_options' => array( 'enabled' => 1, 'domain_products' => '.com|20', 'registrar_by_tld' => '.com|dynadot', 'finder_order' => '.com', 'finder_upsell_ids' => '14696' ) );
 check( true === $PR::migrate(), 'El sitio 2 migra lo suyo' );
 $o2 = get_option( 'digitalisimo_hosting_options' );
-check( array( '.com' => 'dynadot' ) === $o2['registrar_by_tld'] && array( '.com' ) === $o2['finder_order'] && array( 14696 ) === $o2['finder_upsell'] && ! isset( $o2['domain_products'] ) && get_option( 'digitalisimo_hosting_products_migrated' ), 'Sitio 2: sus filas, su orden y sus planes; su marca de hecho' );
+check( array( '.com' => 'dynadot' ) === $o2['registrar_by_tld'] && array( '.com' ) === $o2['finder_order'] && array( 14696 ) === $o2['finder_upsell'] && '.com|20' === $o2['domain_products'] && get_option( 'digitalisimo_hosting_products_migrated' ), 'Sitio 2: sus filas, su orden y sus planes; su marca de hecho' );
 check( false === $PR::migrate(), 'Sitio 2: una segunda corrida no hace nada' );
 switch_blog( 1 );
 check( $site1 === $GLOBALS['options'] && ! get_option( 'digitalisimo_hosting_products_migrated' ), 'El sitio 1 no se tocó: migra cuando le toque' );

@@ -187,7 +187,7 @@ class Digitalisimo_Hosting_Dynadot implements Digitalisimo_Hosting_Registrar {
 		$info = $r['data']['DomainInfo'] ?? ( $r['data']['DomainInfoContent']['Domain'] ?? null );
 		$name = is_array( $info ) ? strtolower( trim( (string) ( $info['Name'] ?? '' ) ) ) : '';
 		$r['ours'] = '' !== $name && strtolower( $domain ) === $name;
-		$r['expires'] = $r['ours'] ? (int) floor( (float) ( $info['Expiration'] ?? 0 ) / 1000 ) : 0;
+		$r['expires'] = $r['ours'] ? (int) floor( (float) ( $info['Expiration'] ?? $info['ExpirationDate'] ?? 0 ) / 1000 ) : 0;
 		$r['created'] = $r['ours'] ? (int) floor( (float) ( $info['Registration'] ?? 0 ) / 1000 ) : 0;
 		return $r;
 	}
@@ -215,16 +215,36 @@ class Digitalisimo_Hosting_Dynadot implements Digitalisimo_Hosting_Registrar {
 		return $out;
 	}
 
-	private static function results( $data ) {
+	private static function results( $data, &$errors = null ) {
 		$rows = $data['SearchResults'] ?? ( $data['SearchResult'] ?? array() );
 		if ( isset( $rows['DomainName'] ) ) $rows = array( $rows );
-		$out = array();
+		$out = array(); $errors = array();
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
 			$d = is_array( $row ) ? strtolower( trim( (string) ( $row['DomainName'] ?? '' ) ) ) : '';
 			$res = self::row( $row );
 			if ( '' !== $d && $res ) $out[ $d ] = $res;
+			// Un error por nombre llega con ResponseCode 0 y el error en su fila (respuesta real del 2026-11-27: xq.com.mx,
+			// «unexpected registry error»): sólo ese nombre queda sin consultar.
+			elseif ( '' !== $d ) $errors[ $d ] = self::clean( (string) ( $row['Error'] ?? 'sin respuesta para ese nombre' ) );
 		}
 		return $out;
+	}
+
+	/**
+	 * Red de seguridad del premium: un precio de registro mayor que el de la lista de precios de su extensión (`tld_price`)
+	 * es un precio especial aunque el texto no lo diga. Respuesta real del 2026-11-27: «Registration Price: 715.00 in USD
+	 * and … Domain is a Premium Domain» (vino.lat, zx.lat).
+	 */
+	private function special( array $results, $timeout ) {
+		$list = null;
+		foreach ( $results as $d => $res ) {
+			if ( ! empty( $res['premium'] ) || empty( $res['available'] ) || empty( $res['register_usd'] ) ) continue;
+			if ( null === $list ) { $l = $this->price_list( min( 10, max( 5, (int) $timeout ) ) ); $list = 'ok' === $l['kind'] ? $l['prices'] : array(); }
+			$tld = strtolower( substr( $d, strpos( $d, '.' ) + 1 ) );
+			$std = (float) ( $list[ $tld ]['REGISTER'] ?? 0 );
+			if ( $std > 0 && (float) $res['register_usd'] > $std + 0.01 ) $results[ $d ]['premium'] = true;
+		}
+		return $results;
 	}
 
 	/** ¿Disponible y premium? (search con show_price: el texto del precio dice si es premium). */
@@ -232,8 +252,9 @@ class Digitalisimo_Hosting_Dynadot implements Digitalisimo_Hosting_Registrar {
 		$domain = strtolower( (string) $domain );
 		$r = $this->call( 'search', array( 'domain0' => $domain, 'show_price' => 1, 'currency' => 'USD' ), $timeout );
 		if ( 'ok' !== $r['kind'] ) return $r;
-		$res = self::results( $r['data'] )[ $domain ] ?? null;
-		if ( ! $res ) return array( 'kind' => 'api', 'message' => 'Dynadot no informó si ' . $domain . ' está disponible.' ) + $r;
+		$all = self::results( $r['data'], $errors );
+		$res = $all ? ( $this->special( $all, $timeout )[ $domain ] ?? null ) : null;
+		if ( ! $res ) return array( 'kind' => 'api', 'message' => 'Dynadot no informó si ' . $domain . ' está disponible' . ( isset( $errors[ $domain ] ) ? ' (' . $errors[ $domain ] . ')' : '' ) . '.' ) + $r;
 		return $res + $r;
 	}
 
@@ -249,6 +270,7 @@ class Digitalisimo_Hosting_Dynadot implements Digitalisimo_Hosting_Registrar {
 		if ( ! $domains ) return array( 'kind' => 'ok', 'results' => $out );
 		$batch = max( 1, min( 100, (int) apply_filters( 'digitalisimo_hosting_dynadot_batch', 1 ) ) );
 		$start = microtime( true );
+		$errs = array();
 		foreach ( array_chunk( $domains, $batch ) as $chunk ) {
 			$left = $timeout - ( microtime( true ) - $start );
 			if ( $left < 1 ) return array( 'kind' => 'transient', 'message' => 'Dynadot tardó demasiado; faltaron dominios por consultar.', 'results' => $out );
@@ -262,27 +284,28 @@ class Digitalisimo_Hosting_Dynadot implements Digitalisimo_Hosting_Registrar {
 				$rest['results'] = $out + $rest['results'];
 				return $rest;
 			}
-			if ( 'api' === $r['kind'] && 1 === count( $chunk ) ) continue;
-			if ( 'ok' !== $r['kind'] ) return array( 'kind' => $r['kind'], 'message' => $r['message'], 'results' => $out );
-			foreach ( self::results( $r['data'] ) as $d => $res ) if ( in_array( $d, $chunk, true ) ) $out[ $d ] = $res;
+			if ( 'api' === $r['kind'] && 1 === count( $chunk ) ) { $errs[ $chunk[0] ] = (string) $r['message']; continue; }
+			if ( 'ok' !== $r['kind'] ) return array( 'kind' => $r['kind'], 'message' => $r['message'], 'results' => $out, 'errors' => $errs );
+			foreach ( $this->special( self::results( $r['data'], $e ), $left ) as $d => $res ) if ( in_array( $d, $chunk, true ) ) $out[ $d ] = $res;
+			foreach ( $e as $d => $text ) if ( in_array( $d, $chunk, true ) ) $errs[ $d ] = $text;
 		}
-		return array( 'kind' => 'ok', 'results' => $out );
+		return array( 'kind' => 'ok', 'results' => $out, 'errors' => $errs );
 	}
 
 	/** check_many() de uno en uno (sin el filtro de lote). */
 	private function check_many_one( array $domains, $timeout ) {
-		$out = array();
+		$out = array(); $errs = array();
 		$start = microtime( true );
 		foreach ( $domains as $d ) {
 			$left = $timeout - ( microtime( true ) - $start );
-			if ( $left < 1 ) return array( 'kind' => 'transient', 'message' => 'Dynadot tardó demasiado; faltaron dominios por consultar.', 'results' => $out );
+			if ( $left < 1 ) return array( 'kind' => 'transient', 'message' => 'Dynadot tardó demasiado; faltaron dominios por consultar.', 'results' => $out, 'errors' => $errs );
 			$r = $this->call( 'search', array( 'domain0' => $d, 'show_price' => 1, 'currency' => 'USD' ), (int) max( 5, ceil( $left ) ) );
-			if ( 'api' === $r['kind'] ) continue;
-			if ( 'ok' !== $r['kind'] ) return array( 'kind' => $r['kind'], 'message' => $r['message'], 'results' => $out );
-			$res = self::results( $r['data'] )[ $d ] ?? null;
-			if ( $res ) $out[ $d ] = $res;
+			if ( 'api' === $r['kind'] ) { $errs[ $d ] = (string) $r['message']; continue; }
+			if ( 'ok' !== $r['kind'] ) return array( 'kind' => $r['kind'], 'message' => $r['message'], 'results' => $out, 'errors' => $errs );
+			$res = $this->special( self::results( $r['data'], $e ), $left )[ $d ] ?? null;
+			if ( $res ) $out[ $d ] = $res; elseif ( isset( $e[ $d ] ) ) $errs[ $d ] = $e[ $d ];
 		}
-		return array( 'kind' => 'ok', 'results' => $out );
+		return array( 'kind' => 'ok', 'results' => $out, 'errors' => $errs );
 	}
 
 	/** El titular para create_contact a partir de los campos de Digitalisimo_Hosting_Provisioning::contact(). */

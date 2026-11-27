@@ -15,14 +15,15 @@ final class Executor {
 
 	/** @return true|\WP_Error */
 	public static function permission( string $tool, $input = null ) {
-		foreach ( Tools::capabilities( $tool ) as $cap ) {
+		$caps = Tools::capabilities( $tool, is_array( $input ) && isset( $input['action'] ) && is_string( $input['action'] ) ? $input['action'] : '' );
+		foreach ( $caps as $cap ) {
 			if ( current_user_can( $cap ) ) {
 				return true;
 			}
 		}
 		return new \WP_Error(
 			'digitalisimo_hosting_mcp_forbidden',
-			sprintf( 'Tu usuario no tiene permiso para esto: hace falta la capacidad «%s».', implode( '» o «', Tools::capabilities( $tool ) ) ),
+			sprintf( 'Tu usuario no tiene permiso para esto: hace falta la capacidad «%s».', implode( '» o «', $caps ) ),
 			array( 'status' => 403 )
 		);
 	}
@@ -66,7 +67,9 @@ final class Executor {
 						'method'       => isset( $input['method'] ) && is_string( $input['method'] ) ? $input['method'] : '',
 						'amount'       => $input['amount'] ?? '',
 						'note'         => isset( $input['note'] ) && is_string( $input['note'] ) ? $input['note'] : '',
-						'renew_domain' => ! empty( $input['renew_domain'] ),
+						// Sin decirlo: lo decide Hosting (un servicio que es sólo el dominio lo renueva por omisión).
+						'renew_domain'      => array_key_exists( 'renew_domain', $input ) ? ! empty( $input['renew_domain'] ) : null,
+						'renewed_elsewhere' => ! empty( $input['renewed_elsewhere'] ),
 						'key'          => isset( $input['request_id'] ) && is_string( $input['request_id'] ) ? $input['request_id'] : '',
 					)
 				);
