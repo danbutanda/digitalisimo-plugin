@@ -1052,8 +1052,9 @@ final class Digitalisimo_AI_Assistant_Tools {
  * terminó en «WordPress dice que tu usuario no tiene permiso» para un administrador; lo que estaba apagado era
  * «Permitir que cambien datos SEO», un interruptor pensado para los clientes MCP externos).
  *
- * Algunas abilities tienen un interruptor de «sólo para el MCP externo» (SEO: `seo_abilities_write`; tienda: «WooCommerce
- * en el MCP» en sólo lectura). En el Asistente del escritorio cada cambio ya lo confirma la persona en pantalla y queda en
+ * Algunas abilities tienen un interruptor de «sólo para el MCP externo» (SEO: desde la tanda B de su auditoría, cuatro
+ * partes con su registro, `seo_abilities_write_meta`, `_schema`, `_index` y `_redirects`, que heredan del interruptor
+ * único `seo_abilities_write` mientras no se guardan; tienda: «WooCommerce en el MCP» en sólo lectura). En el Asistente del escritorio cada cambio ya lo confirma la persona en pantalla y queda en
  * la bitácora, así que esas abilities pueden preguntar aquí si la llamada viene del Asistente:
  *
  *     class_exists( 'Digitalisimo_AI_Assistant_Context', false ) && Digitalisimo_AI_Assistant_Context::allows( 'mi/ability' )
