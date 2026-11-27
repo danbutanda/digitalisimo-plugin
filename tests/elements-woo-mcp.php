@@ -2,7 +2,8 @@
 /**
  * WooCommerce en el MCP de DIGITALÍSIMO Elements (`modules/digitalisimo-woo/mcp/`): definiciones (IDs, esquemas
  * cerrados, anotaciones), tabla acción → ruta sin inyección (IDs no enteros, `../`, rutas ajenas, parámetros de la ruta
- * en el cuerpo o en la consulta), modos off/read/write con la herencia de la red, `force` y `api_refund` por defecto,
+ * en el cuerpo o en la consulta), acceso total sin modos (decisión del 2026-11-27: lo guardado de los modos viejos no
+ * limita nada), `force` y `api_refund` por defecto,
  * enmascarado de secretos, bitácora sin datos personales, permisos y el registro en el contrato de abilities del núcleo
  * (con su registro y sin él).
  *
@@ -388,12 +389,12 @@ namespace {
 	use Digitalisimo\Elements\Woo\Mcp\Log;
 	use Digitalisimo\Elements\Woo\Mcp\Changes;
 	use Digitalisimo\Elements\Woo\Mcp\Settings;
-	use Digitalisimo\Elements\Woo\Mcp\Settings_Section;
 	use Digitalisimo\Elements\Woo\Mcp\Module as Mcp;
 
 	Woo::register_autoloader();
 	check( in_array( 'Mcp\\Module', Woo::BOOT, true ), 'Mcp\\Module está en Woo\\Module::BOOT (sólo arranca con WooCommerce compatible).' );
-	check( '' !== Woo::file_for( Mcp::class ) && '' !== Woo::file_for( Settings_Section::class ), 'La autocarga del módulo Woo encuentra mcp/class-module.php y mcp/class-settings-section.php.' );
+	check( '' !== Woo::file_for( Mcp::class ) && '' === Woo::file_for( 'Digitalisimo\\Elements\\Woo\\Mcp\\Settings_Section' ), 'La autocarga del módulo Woo encuentra mcp/class-module.php; la sección «WooCommerce en el MCP» ya no existe.' );
+	check( ! defined( 'Digitalisimo\\Elements\\Woo\\Module::SETTINGS' ), 'Woo\\Module ya no arranca un ajuste del MCP.' );
 
 	/**
 	 * El contexto del Asistente IA de IA Tools (`Digitalisimo_AI_Assistant_Context`), con su misma interfaz pública: la
@@ -433,7 +434,7 @@ namespace {
 	foreach ( Tools::tools() as $tool ) {
 		$id = Tools::id( $tool );
 		check( 1 === preg_match( '#^digitalisimo-woo/[a-z-]+$#', $id ) && $tool === Tools::tool_of( $id ), "ID propio sin el prefijo del núcleo: $id" );
-		$def = Tools::definition( $tool, 'read' );
+		$def = Tools::definition( $tool );
 		check( 'digitalisimo-woo' === $def['category'], "Categoría propia: $tool" );
 		check( '' !== $def['label'] && strlen( $def['description'] ) > 200, "Etiqueta y descripción para el modelo: $tool" );
 		check( ! preg_match( '/\bElementor\b/', $def['label'] . $def['description'] ), "Sin el nombre del constructor original en lo visible: $tool" );
@@ -457,7 +458,11 @@ namespace {
 	}
 	check( false === Tools::input_schema( 'orders' )['properties']['api_refund']['default'], 'api_refund por defecto false.' );
 	check( ! isset( Tools::input_schema( 'products' )['properties']['api_refund'] ), 'api_refund sólo en pedidos.' );
-	check( false !== strpos( Tools::definition( 'orders', 'read' )['description'], 'sólo permite leer' ) && false !== strpos( Tools::definition( 'orders', 'write' )['description'], 'permite escribir' ), 'La descripción dice el modo del sitio.' );
+	foreach ( Tools::tools() as $tool ) {
+		$text = Tools::definition( $tool )['label'] . ' ' . Tools::definition( $tool )['description'];
+		check( ! preg_match( '/s[oó]lo lectura|s[oó]lo permite leer|WooCommerce en el MCP|Rendimiento|no está elegid/iu', $text ), "Sin modos: la descripción no habla de sólo lectura ni manda a la pantalla ($tool)." );
+	}
+	check( false !== strpos( Tools::definition( 'orders' )['description'], 'exige el permiso de WooCommerce' ), 'La descripción dice que decide el permiso del usuario.' );
 	foreach ( Tools::RESOURCES as $name => $def ) {
 		check( in_array( $name, Tools::resources( $def['tool'] ), true ), "Recurso de su herramienta: $name" );
 		check( false === strpos( $def['path'], '..' ) && 1 === preg_match( '#^[a-z_/{}]+$#', $def['path'] ), "Ruta fija de la tabla: $name" );
@@ -632,164 +637,70 @@ namespace {
 	check( is_wp_error( $plan ), 'reassign sólo al borrar un cliente.' );
 
 	// =================================================================================================================
-	// 4. Modos off/read/write con la herencia de la red.
-	wm_reset();
-	check( 'read' === Settings::mode() && 'default' === Settings::origin(), 'Sitio único sin guardar: sólo lectura (predeterminado).' );
-	update_option( Settings::OPTION, Settings::sanitize( array( 'mode' => 'write' ) ), false );
-	check( 'write' === Settings::mode() && 'site' === Settings::origin() && array( 'mode' ) === Settings::stored()['own'], 'Sitio único: lo guardado rige, sin herencia.' );
-	check( false === $GLOBALS['wm']['autoload'][ Settings::OPTION ], 'El modo se guarda sin carga automática.' );
-	update_option( Settings::OPTION, Settings::sanitize( array( 'mode' => 'root' ) ) );
-	check( 'write' === Settings::mode(), 'Un modo desconocido conserva el guardado.' );
-	wm_reset( array( 'multisite' => true ) );
-	check( 'read' === Settings::mode() && Settings::inherits_network() && 'default' === Settings::origin(), 'Red sin valores: el sitio hereda el predeterminado.' );
-	Settings::save_network( array( 'mode' => 'write' ) );
-	check( 'write' === Settings::mode() && 'network' === Settings::origin(), 'Un valor de red recién guardado rige en el sitio que nunca personalizó.' );
-	Settings::save_network( array( 'mode' => 'everything' ) );
-	check( array( 'mode' => 'write' ) === get_site_option( Settings::NETWORK_OPTION ), 'La red no guarda un modo desconocido.' );
-	update_option( Settings::OPTION, Settings::sanitize( array( 'mode' => 'off', 'inherit' => array( 'mode' => '0' ) ) ) );
-	check( 'off' === Settings::mode() && 'site' === Settings::origin() && ! Settings::inherits_network(), 'El sitio personaliza y apaga, aunque la red diga escritura.' );
-	update_option( Settings::OPTION, Settings::sanitize( array( 'inherit' => array( 'mode' => '1' ) ) ) );
-	check( 'write' === Settings::mode() && Settings::inherits_network() && 'off' === Settings::stored()['mode'], 'Volver a heredar (desplegable deshabilitado, sin modo): rige la red y lo del sitio se conserva.' );
-	Settings::save_network( array( 'mode' => 'off' ) );
-	check( 'off' === Settings::mode(), 'La red apaga a los sitios que heredan.' );
-	check( array( 'mode' => 'read' ) === Settings::defaults() && array( 'off', 'read', 'custom', 'write' ) === Settings::MODES, 'Cuatro modos («Escritura sólo en lo elegido» es opt-in); predeterminado sólo lectura.' );
-
-	// La sección de la pantalla: «Heredar de la red» sólo en el sitio de una red.
-	wm_reset( array( 'multisite' => true ) );
-	ob_start();
-	Settings_Section::render( false );
-	$site_html = (string) ob_get_clean();
-	ob_start();
-	Settings_Section::render( true );
-	$net_html = (string) ob_get_clean();
-	check( false !== strpos( $site_html, 'Heredar de la red' ) && false !== strpos( $site_html, 'data-field="digitalisimo-woo-mcp-mode"' ) && false !== strpos( $site_html, 'value="' . Settings_Section::ACTION_SAVE . '"' ), 'Sitio de una red: desplegable, «Heredar de la red» y su propia acción.' );
-	check( false === strpos( $net_html, 'Heredar de la red' ) && false !== strpos( $net_html, 'name="' . Settings::NETWORK_OPTION . '[mode]"' ) && false !== strpos( $net_html, 'nonce:' . Settings_Section::ACTION_SAVE_NETWORK . '|network' ), 'Red: el desplegable de red, sin «Heredar de la red», con el nonce de red.' );
-	check( 1 === substr_count( $site_html, '<form' ) && 1 === substr_count( $net_html, '<form' ) && false !== strpos( $site_html, 'id="digitalisimo-woo-mcp"' ), 'Un formulario propio por superficie, con su ancla.' );
-	check( ! preg_match( '/\bElementor\b/', $site_html . $net_html ), 'La sección no nombra el constructor original.' );
-	wm_reset();
-	ob_start();
-	Settings_Section::render( false );
-	check( false === strpos( (string) ob_get_clean(), 'Heredar de la red' ), 'Sitio único: sin «Heredar de la red».' );
-
-	// Guardados: capacidad por acción, sólo POST, nonce de la acción y del sitio; el sitio sin carga automática.
-	wm_reset( array( 'multisite' => true, 'caps' => array( 'manage_options' ) ) );
-	$_SERVER['REQUEST_METHOD'] = 'POST';
-	$_POST                     = array( '_wpnonce' => 'nonce:' . Settings_Section::nonce_action( Settings_Section::ACTION_SAVE ), Settings::OPTION => array( 'mode' => 'write', 'inherit' => array( 'mode' => '0' ) ) );
-	check( array( 'notice' => 'saved' ) === Settings_Section::process_save() && 'write' === Settings::mode() && 'site' === Settings::origin() && false === $GLOBALS['wm']['autoload'][ Settings::OPTION ], 'Guardar en el sitio: personaliza el modo (sin carga automática).' );
-	$_POST['_wpnonce'] = 'nonce:' . Settings_Section::ACTION_SAVE . '|2';
-	check( 'nonce' === Settings_Section::process_save()['notice'], 'Un nonce de otro sitio de la red no vale.' );
-	$_POST = array( '_wpnonce' => 'nonce:' . Settings_Section::nonce_action( Settings_Section::ACTION_SAVE_NETWORK ), Settings::NETWORK_OPTION => array( 'mode' => 'off' ) );
-	check( 'forbidden' === Settings_Section::process_save_network()['notice'] && array() === $GLOBALS['wm']['site'], 'Un administrador de sitio no guarda la red.' );
-	$GLOBALS['wm']['caps'][] = 'manage_network_options';
-	check( 'network-saved' === Settings_Section::process_save_network()['notice'] && array( 'mode' => 'off' ) === get_site_option( Settings::NETWORK_OPTION ), 'La red guarda su modo.' );
-	$GLOBALS['wm']['caps']     = array( 'edit_posts' );
-	$_POST['_wpnonce']         = 'nonce:' . Settings_Section::nonce_action( Settings_Section::ACTION_SAVE );
-	check( 'forbidden' === Settings_Section::process_save()['notice'], 'Un editor no guarda el modo.' );
-	$GLOBALS['wm']['caps']     = array( 'manage_options' );
-	$_SERVER['REQUEST_METHOD'] = 'GET';
-	check( 'method' === Settings_Section::process_save()['notice'], 'Sólo por POST.' );
-	$_POST = array();
-
-	// Como un navegador (paridad sitio/red, 2026-11-22): pinta la sección, la envía y vuelve a pintarla.
-	require_once __DIR__ . '/lib/browser-submit.php';
-	$wm_send = static function ( bool $network, array $fill, array $options = array() ) {
-		ob_start();
-		Settings_Section::render( $network );
-		$form = browser_form_find( (string) ob_get_clean(), 'value="' . ( $network ? Settings_Section::ACTION_SAVE_NETWORK : Settings_Section::ACTION_SAVE ) . '"' );
-		check( null !== $form, 'Navegador: la sección tiene su formulario.' );
-		$sent  = browser_form_submit( $form, $fill, $options + array( 'slash' => true ) );
-		$_POST = $sent['post'];
-		$_SERVER['REQUEST_METHOD'] = 'POST';
-		return $network ? Settings_Section::process_save_network() : Settings_Section::process_save();
-	};
-	// Sitio individual: elegir «escritura», guardar y volver a ver lo elegido.
-	wm_reset( array( 'caps' => array( 'manage_options' ) ) );
-	check( 'saved' === $wm_send( false, array( Settings::OPTION . '[mode]' => 'write' ) )['notice'] && 'write' === Settings::mode(), 'Navegador · sitio individual: guarda el modo elegido.' );
-	ob_start(); Settings_Section::render( false ); $html = (string) ob_get_clean();
-	check( (bool) preg_match( '#value="write"\s+selected|value="write"[^>]*selected#', $html ), 'Navegador · sitio individual: al recargar se ve el modo.' );
-	check( 'saved' === $wm_send( false, array() )['notice'] && 'write' === Settings::mode(), 'Navegador · sitio individual: guardar sin tocar nada lo conserva.' );
-	// Red: el modo que heredan los sitios.
-	wm_reset( array( 'multisite' => true, 'caps' => array( 'manage_network_options', 'manage_options' ) ) );
-	check( 'network-saved' === $wm_send( true, array( Settings::NETWORK_OPTION . '[mode]' => 'off' ) )['notice'] && array( 'mode' => 'off' ) === get_site_option( Settings::NETWORK_OPTION ) && 'off' === Settings::mode(), 'Navegador · red: guarda el modo de la red y el sitio que hereda lo aplica.' );
-	// Sitio de la red: con «Heredar» marcado el script deshabilita el desplegable; al desmarcarlo personaliza.
-	check( 'saved' === $wm_send( false, array(), array( 'disabled' => array( Settings::OPTION . '[mode]' ) ) )['notice'] && Settings::inherits_network() && 'off' === Settings::mode(), 'Navegador · sitio de la red: guardar heredando sigue heredando.' );
-	check( 'saved' === $wm_send( false, array( Settings::OPTION . '[inherit][mode]' => false, Settings::OPTION . '[mode]' => 'read' ) )['notice'] && ! Settings::inherits_network() && 'read' === Settings::mode() && array( 'mode' => 'off' ) === get_site_option( Settings::NETWORK_OPTION ), 'Navegador · sitio de la red: personaliza sin tocar la red.' );
-	$_POST = array();
-
-	// Ejecución por modo: read rechaza escrituras con un error que dice dónde se cambia; off no hace nada.
-	wm_reset( array( 'caps' => array( 'edit_products', 'publish_products', 'read_private_products', 'delete_products', 'edit_others_products', 'view_woocommerce_reports' ) ) );
-	$result = $run( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Mesa' ) ) );
-	check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_read_only' === $result->get_error_code(), 'Modo read: create se rechaza.' );
-	check( false !== strpos( $result->get_error_message(), '«Rendimiento»' ) && false !== strpos( $result->get_error_message(), 'page=digitalisimo-elements-front#digitalisimo-woo-mcp' ), 'El error dice dónde se cambia el modo: ' . $result->get_error_message() );
-	check( array() === $GLOBALS['wm_rest'], 'Modo read: ninguna petición a WooCommerce.' );
-	check( 'denied' === Log::entries()[0]['result'] && 'read_mode' === Log::entries()[0]['code'], 'El rechazo queda en la bitácora.' );
-	$GLOBALS['wm_rest_responses']['GET /wc/v3/products'] = array( 200, array( array( 'id' => 1, 'name' => 'Mesa', 'price' => '10', 'description' => 'Larga' ), array( 'id' => 2, 'name' => 'Silla', 'price' => '5' ) ), array( 'X-WP-Total' => '12', 'X-WP-TotalPages' => '2' ) );
-	$result = $run( 'products', array( 'action' => 'list', 'fields' => array( 'name' ) ) );
-	check( ! is_wp_error( $result ) && 12 === $result['total'] && 2 === $result['total_pages'] && 1 === $result['page'] && 10 === $result['per_page'], 'Modo read: list funciona, con total y páginas.' );
-	check( array( array( 'id' => 1, 'name' => 'Mesa' ), array( 'id' => 2, 'name' => 'Silla' ) ) === $result['data'], 'fields recorta cada elemento (siempre con id).' );
-	foreach ( array( 'delete', 'update', 'batch' ) as $action ) {
-		$input  = array( 'action' => $action, 'product_id' => 4, 'data' => array( 'name' => 'x' ) );
-		$input  = 'delete' === $action ? array( 'action' => 'delete', 'product_id' => 4 ) : ( 'batch' === $action ? array( 'action' => 'batch', 'data' => array( 'update' => array( array( 'id' => 4 ) ) ) ) : $input );
-		$result = $run( 'products', $input );
-		check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_read_only' === $result->get_error_code(), "Modo read: $action se rechaza." );
-	}
-	// El Asistente IA del escritorio (caso plomerito 4): en «Sólo lectura» hace con su tarjeta lo que él clasifica como
-	// cambio sencillo (crear o actualizar productos y catálogo); lo destructivo se niega ANTES de la tarjeta, diciendo el
-	// ajuste; fuera de su contexto, o en el de otra herramienta, todo sigue igual.
-	$GLOBALS['wm_rest'] = array();
-	$update             = array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'sale_price' => '7500' ) );
-	check( true === $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $update ) { return Executor::permission( 'products', $update ); } ), 'Asistente, modo read: un cambio sencillo de producto pasa el permiso (va a su tarjeta).' );
-	$result = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run, $update ) { return $run( 'products', $update ); } );
-	// Desde la tanda B se lee el producto antes (GET) para poder deshacer el cambio; la escritura es la misma.
-	check( ! is_wp_error( $result ) && array( array( 'PUT', '/wc/v3/products/4', array(), array( 'sale_price' => '7500' ) ) ) === array_values( array_filter( $GLOBALS['wm_rest'], static function ( $r ) { return 'GET' !== $r[0]; } ) ), 'Asistente, modo read: confirmado, el precio de oferta se guarda: ' . wp_json_encode( is_wp_error( $result ) ? $result->get_error_message() : $GLOBALS['wm_rest'] ) );
-	check( 'ok' === Log::entries()[0]['result'] && 'update' === Log::entries()[0]['action'], 'Asistente: el cambio queda en la bitácora de la tienda.' );
-	$GLOBALS['wm']['caps'][] = 'edit_product_terms';
-	$result = $assistant( 'digitalisimo-woo/catalog', 'write', static function () use ( $run ) { return $run( 'catalog', array( 'action' => 'create', 'resource' => 'category', 'data' => array( 'name' => 'Bombas' ) ) ); } );
-	check( ! is_wp_error( $result ), 'Asistente, modo read: crear una categoría del catálogo también: ' . ( is_wp_error( $result ) ? $result->get_error_code() . ' ' . $result->get_error_message() : '' ) );
-	array_pop( $GLOBALS['wm']['caps'] );
-	$GLOBALS['wm_rest'] = array();
-	$delete             = array( 'action' => 'delete', 'product_id' => 4 );
-	$denied             = $assistant( 'digitalisimo-woo/products', 'destructive', static function () use ( $delete ) { return Executor::permission( 'products', $delete ); } );
-	check( is_wp_error( $denied ) && 'digitalisimo_woo_mcp_read_only' === $denied->get_error_code() && false !== strpos( $denied->get_error_message(), '«Sólo lectura»' ), 'Asistente, modo read: borrar se niega en el permiso (antes de la tarjeta) y dice el ajuste.' );
-	$result = $assistant( 'digitalisimo-woo/products', 'destructive', static function () use ( $run, $delete ) { return $run( 'products', $delete ); } );
-	check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_read_only' === $result->get_error_code() && array() === $GLOBALS['wm_rest'], 'Asistente, modo read: lo destructivo no se ejecuta aunque llegue.' );
-	$result = $assistant( 'digitalisimo-woo/catalog', 'write', static function () use ( $run, $update ) { return $run( 'products', $update ); } );
-	check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_read_only' === $result->get_error_code() && array() === $GLOBALS['wm_rest'], 'El contexto de otra herramienta no abre ésta.' );
-	check( true === Executor::permission( 'products', $delete ) && 'digitalisimo_woo_mcp_read_only' === $run( 'products', $update )->get_error_code(), 'Fuera del Asistente (cliente MCP), el modo se aplica como antes: el permiso no cambia y run() rechaza.' );
-	// Executor no se fía sólo de la clase que dio el Asistente: aunque llegue como 'write', borrar, lotes, reseñas,
-	// metadatos, cambiar el estado o crear sin estado (la API v3 lo publicaría) siguen sujetos al modo.
-	$GLOBALS['wm']['caps'][] = 'edit_product_terms';
-	$GLOBALS['wm']['caps'][] = 'moderate_comments';
+	// 4. Acceso total sin modos (decisión del dueño del 2026-11-27). Lo que un sitio guardó con los modos viejos (sólo
+	// lectura, apagado, escritura sólo en lo elegido; en el sitio o en la red) ya no limita nada: decide la capacidad.
+	// Con el código anterior cada escritura de esta sección devolvía digitalisimo_woo_mcp_read_only (o _off).
+	$caps = array( 'edit_products', 'publish_products', 'read_private_products', 'delete_products', 'edit_others_products', 'view_woocommerce_reports', 'edit_product_terms', 'manage_product_terms' );
 	foreach ( array(
-		array( 'products', array( 'action' => 'delete', 'product_id' => 4 ) ),
-		array( 'products', array( 'action' => 'batch', 'data' => array( 'update' => array( array( 'id' => 4, 'sale_price' => '1' ) ) ) ) ),
-		array( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Sin estado' ) ) ),
-		array( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Publicado', 'status' => 'publish' ) ) ),
-		array( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'status' => 'draft' ) ) ),
-		array( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'meta_data' => array( array( 'key' => '_x', 'value' => 1 ) ) ) ) ),
-		array( 'catalog', array( 'action' => 'update', 'resource' => 'review', 'review_id' => 2, 'data' => array( 'status' => 'approved' ) ) ),
-	) as $case ) {
-		$GLOBALS['wm_rest'] = array();
-		$result             = $assistant( 'digitalisimo-woo/' . $case[0], 'write', static function () use ( $run, $case ) { return $run( $case[0], $case[1] ); } );
-		check( is_wp_error( $result ) && in_array( $result->get_error_code(), array( 'digitalisimo_woo_mcp_read_only', 'digitalisimo_woo_mcp_forbidden' ), true ) && array() === array_filter( $GLOBALS['wm_rest'], static function ( $r ) { return 'GET' !== $r[0]; } ), 'Asistente, modo read: aunque llegue como cambio sencillo, no se hace: ' . wp_json_encode( $case[1] ) . ' → ' . ( is_wp_error( $result ) ? $result->get_error_code() : wp_json_encode( $result ) ) );
+		'sitio único en «Sólo lectura»'      => array( 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'read', 'own' => array( 'mode' ) ) ) ),
+		'sitio único «Apagado»'              => array( 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'off', 'own' => array( 'mode' ) ) ) ),
+		'sitio único «Sólo lo elegido»'      => array( 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array( 'coupons' ) ) ) ),
+		'red en «Sólo lectura» que se hereda' => array( 'multisite' => true, 'site' => array( Settings::NETWORK_OPTION => array( 'mode' => 'read' ) ) ),
+		'red «Apagado» que se hereda'        => array( 'multisite' => true, 'site' => array( Settings::NETWORK_OPTION => array( 'mode' => 'off' ) ) ),
+		'sitio de red en «Sólo lectura»'     => array( 'multisite' => true, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'read', 'own' => array( 'mode' ) ) ), 'site' => array( Settings::NETWORK_OPTION => array( 'mode' => 'write' ) ) ),
+	) as $case => $state ) {
+		wm_reset( $state + array( 'caps' => $caps ) );
+		$GLOBALS['wm_rest_responses']['POST /wc/v3/products'] = array( 201, array( 'id' => 30, 'name' => 'Mesa' ), array() );
+		$result = $run( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Mesa', 'status' => 'draft' ) ) );
+		check( ! is_wp_error( $result ) && 30 === $result['data']['id'] && array( 'POST', '/wc/v3/products', array(), array( 'name' => 'Mesa', 'status' => 'draft' ) ) === end( $GLOBALS['wm_rest'] ), "$case: crear un producto por MCP funciona: " . ( is_wp_error( $result ) ? $result->get_error_code() : '' ) );
+		check( 'ok' === Log::entries()[0]['result'] && 'create' === Log::entries()[0]['action'], "$case: la creación queda en la bitácora." );
+		$result = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'sale_price' => '7500' ) ) );
+		check( ! is_wp_error( $result ) && array( 'PUT', '/wc/v3/products/4', array(), array( 'sale_price' => '7500' ) ) === end( $GLOBALS['wm_rest'] ), "$case: editar un producto por MCP funciona." );
+		$result = $run( 'catalog', array( 'action' => 'create', 'resource' => 'category', 'data' => array( 'name' => 'Bombas' ) ) );
+		check( ! is_wp_error( $result ), "$case: crear una categoría funciona." );
+		$result = $run( 'products', array( 'action' => 'delete', 'product_id' => 4 ) );
+		check( ! is_wp_error( $result ) && 'trash' === $result['deleted'], "$case: borrar (a la papelera) funciona con la capacidad." );
+		$result = $run( 'products', array( 'action' => 'list' ) );
+		check( ! is_wp_error( $result ), "$case: leer funciona." );
+		$sim = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'dry_run' => true, 'data' => array( 'name' => 'x' ) ) );
+		check( is_array( $sim ) && true === $sim['allowed'] && ! isset( $sim['reason'] ), "$case: dry_run dice que se puede, sin motivo de modo." );
+		foreach ( Log::entries() as $entry ) {
+			check( 'read_mode' !== $entry['code'], "$case: ningún rechazo por modo en la bitácora." );
+		}
 	}
-	$GLOBALS['wm_rest'] = array();
-	$result             = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run ) { return $run( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Borrador', 'status' => 'draft' ) ) ); } );
-	check( ! is_wp_error( $result ) && 'POST' === $GLOBALS['wm_rest'][0][0] && 'draft' === $GLOBALS['wm_rest'][0][3]['status'], 'Asistente, modo read: crear un producto en borrador sí.' );
-	array_pop( $GLOBALS['wm']['caps'] );
-	array_pop( $GLOBALS['wm']['caps'] );
+	// Ninguna respuesta vuelve a decir «sólo lectura» ni manda al escritorio; el código no conoce ya esos errores.
+	$src = (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-woo/mcp/class-executor.php' ) . (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-woo/mcp/class-skydropx.php' );
+	check( false === strpos( $src, 'digitalisimo_woo_mcp_read_only' ) && false === strpos( $src, 'digitalisimo_woo_mcp_off' ) && false === stripos( $src, 'Sólo lectura' ) && false === strpos( $src, 'Settings::' ), 'Executor y Skydropx ya no consultan modos ni devuelven «sólo lectura».' );
+
+	// La capacidad sigue mandando: sin ella, rechazo antes de WooCommerce (con su entrada en la bitácora).
+	wm_reset( array( 'caps' => array( 'read' ) ) );
+	$result = $run( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Mesa' ) ) );
+	check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_forbidden' === $result->get_error_code() && array() === $GLOBALS['wm_rest'], 'Un usuario sin la capacidad recibe un rechazo y no se llama a WooCommerce.' );
+	check( 'denied' === Log::entries()[0]['result'] && 'forbidden' === Log::entries()[0]['code'], 'El rechazo por capacidad queda en la bitácora.' );
+	check( is_wp_error( Executor::permission( 'products', array( 'action' => 'delete', 'product_id' => 4 ) ) ), 'El permiso de la herramienta también lo niega.' );
+	wm_reset( array( 'caps' => array( 'edit_products', 'read_private_products' ) ) );
+	$result = $run( 'products', array( 'action' => 'delete', 'product_id' => 4 ) );
+	check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_forbidden' === $result->get_error_code(), 'Quien puede editar pero no borrar productos no borra.' );
+
+	// El Asistente IA del escritorio: lo mismo que un cliente MCP (la capacidad decide; su tarjeta sigue en IA Tools).
+	wm_reset( array( 'caps' => $caps, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'read', 'own' => array( 'mode' ) ) ) ) );
+	$delete = array( 'action' => 'delete', 'product_id' => 4 );
+	check( true === $assistant( 'digitalisimo-woo/products', 'destructive', static function () use ( $delete ) { return Executor::permission( 'products', $delete ); } ), 'Asistente: borrar pasa el permiso con la capacidad (ya no se niega por un modo).' );
+	$result = $assistant( 'digitalisimo-woo/products', 'destructive', static function () use ( $run, $delete ) { return $run( 'products', $delete ); } );
+	check( ! is_wp_error( $result ) && array( 'DELETE', '/wc/v3/products/4', array(), null ) === end( $GLOBALS['wm_rest'] ), 'Asistente: confirmado, borra.' );
+
 	$GLOBALS['wm_rest_responses']['GET /wc/v3/reports'] = array( 200, array( array( 'slug' => 'sales', 'description' => 'Ventas' ) ), array() );
 	$result = $run( 'reports', array( 'action' => 'list' ) );
-	check( ! is_wp_error( $result ) && 'sales' === $result['data'][0]['slug'] && ! isset( $result['page'] ), 'reports list (sin paginar) en modo read.' );
+	check( ! is_wp_error( $result ) && 'sales' === $result['data'][0]['slug'] && ! isset( $result['page'] ), 'reports list (sin paginar).' );
 	$result = $run( 'reports', array( 'action' => 'sales', 'query' => array( 'period' => 'month' ) ) );
 	check( ! is_wp_error( $result ) && array( 'GET', '/wc/v3/reports/sales', array( 'period' => 'month' ), null ) === end( $GLOBALS['wm_rest'] ), 'reports sales con su periodo.' );
-	update_option( Settings::OPTION, array( 'mode' => 'off', 'own' => array( 'mode' ) ) );
-	$result = $run( 'products', array( 'action' => 'list' ) );
-	check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_off' === $result->get_error_code(), 'Modo off: ni siquiera lee.' );
-	update_option( Settings::OPTION, array( 'mode' => 'write', 'own' => array( 'mode' ) ) );
+	$GLOBALS['wm_rest_responses']['GET /wc/v3/products'] = array( 200, array( array( 'id' => 1, 'name' => 'Mesa', 'price' => '10', 'description' => 'Larga' ), array( 'id' => 2, 'name' => 'Silla', 'price' => '5' ) ), array( 'X-WP-Total' => '12', 'X-WP-TotalPages' => '2' ) );
+	$result = $run( 'products', array( 'action' => 'list', 'fields' => array( 'name' ) ) );
+	check( ! is_wp_error( $result ) && 12 === $result['total'] && 2 === $result['total_pages'] && 1 === $result['page'] && 10 === $result['per_page'], 'list funciona, con total y páginas.' );
+	check( array( array( 'id' => 1, 'name' => 'Mesa' ), array( 'id' => 2, 'name' => 'Silla' ) ) === $result['data'], 'fields recorta cada elemento (siempre con id).' );
 	$GLOBALS['wm_rest'] = array();
 	$result             = $run( 'products', array( 'action' => 'delete', 'product_id' => 12 ) );
-	check( ! is_wp_error( $result ) && 'trash' === $result['deleted'] && array( array( 'DELETE', '/wc/v3/products/12', array(), null ) ) === $GLOBALS['wm_rest'], 'Modo write: delete va a la papelera.' );
+	check( ! is_wp_error( $result ) && 'trash' === $result['deleted'] && array( array( 'DELETE', '/wc/v3/products/12', array(), null ) ) === $GLOBALS['wm_rest'], 'delete va a la papelera.' );
 	$result = $run( 'products', array( 'action' => 'delete', 'product_id' => 12, 'force' => true ) );
 	check( 'permanent' === $result['deleted'], 'force:true: borrado definitivo, dicho en la respuesta.' );
 	$GLOBALS['wm_rest_responses']['POST /wc/v3/products'] = array( 400, array( 'code' => 'woocommerce_rest_invalid_sku', 'message' => 'SKU repetido.', 'data' => array( 'status' => 400, 'params' => array( 'sku' => 'ABC' ) ) ), array() );
@@ -931,7 +842,7 @@ namespace {
 	wm_reset( array( 'admin' => true ) );
 	Woo::load( dirname( __DIR__ ) . '/digitalisimo-elements/modules/digitalisimo-woo', array( 'woocommerce' => false ) );
 	check( ! isset( $GLOBALS['wm']['hooks']['elementor/init'] ), 'Sin WooCommerce: el submódulo no arranca.' );
-	check( isset( $GLOBALS['wm']['hooks'][ 'admin_post_' . Settings_Section::ACTION_SAVE ], $GLOBALS['wm']['hooks'][ 'admin_post_' . Settings_Section::ACTION_SAVE_NETWORK ] ), 'Sin WooCommerce, los guardados del modo se enganchan igual (la red lo define aunque su sitio no tenga tienda).' );
+	check( ! isset( $GLOBALS['wm']['hooks']['admin_post_digitalisimo_elements_woo_mcp_save'] ) && ! isset( $GLOBALS['wm']['hooks']['admin_post_digitalisimo_elements_woo_mcp_save_network'] ), 'Ya no hay guardados del modo de tienda (sin modos).' );
 	// El módulo real con WooCommerce arrancaría la base y los demás submódulos: aquí sólo cuenta el MCP.
 	$env = new ReflectionProperty( Woo::class, 'env' );
 	if ( PHP_VERSION_ID < 80100 ) {
@@ -969,19 +880,22 @@ namespace {
 	$GLOBALS['wm_rest_responses']['GET /wc/v3/products/6'] = array( 404, array( 'code' => 'woocommerce_rest_product_invalid_id', 'message' => 'ID no válido.', 'data' => array( 'status' => 404 ) ), array() );
 	$result = call_user_func( $args['execute_callback'], array( 'action' => 'get', 'product_id' => 6 ) );
 	check( is_wp_error( $result ) && 'woocommerce_rest_product_invalid_id' === $result->get_error_code() && 404 === $result->get_error_data()['status'] && 'WooCommerce: ID no válido.' === $result->get_error_message(), 'Un error de la REST vuelve con su código, su estado y su mensaje.' );
-	update_option( Settings::OPTION, array( 'mode' => 'write', 'own' => array( 'mode' ) ) );
 	$GLOBALS['wm']['caps'] = $roles['shop_manager'];
 	$GLOBALS['wm_rest']    = array();
 	call_user_func( $args['execute_callback'], array( 'action' => 'update', 'product_id' => 5, 'data' => array( 'stock_quantity' => 3, 'id' => 9 ) ) );
 	// Desde la tanda B, antes se lee el producto (GET, para poder deshacer el cambio).
 	check( array( array( 'GET', '/wc/v3/products/5', array(), null ), array( 'PUT', '/wc/v3/products/5', array(), array( 'stock_quantity' => 3 ) ) ) === $GLOBALS['wm_rest'], 'Por rest_do_request(): lectura previa y PUT con el cuerpo JSON sin el id de la ruta.' );
 
-	// Modo off: nada; sin la Abilities API, nada; sin registro del núcleo, respaldo por filtro.
+	// Un sitio que tenía «Apagado» guardado: las siete herramientas igual (con el código anterior, ninguna), sin leer el
+	// ajuste viejo; sin registro del núcleo, respaldo por filtro.
 	$registry->abilities = array();
 	Mcp::reset();
-	wm_reset( array( 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'off', 'own' => array( 'mode' ) ) ) ) );
+	wm_reset( array( 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'off', 'own' => array( 'mode' ) ) ), 'multisite' => true, 'site' => array( Settings::NETWORK_OPTION => array( 'mode' => 'off' ) ) ) );
+	$GLOBALS['wm_reads'] = array();
 	Mcp::boot();
-	check( array() === $registry->abilities && array() === Mcp::abilities() && ! isset( $GLOBALS['wm']['hooks']['wp_abilities_api_categories_init'] ), 'Modo off: ninguna herramienta ni categoría.' );
+	check( 7 === count( $registry->abilities ) && 7 === count( Mcp::abilities() ) && isset( $GLOBALS['wm']['hooks']['wp_abilities_api_categories_init'] ), '«Apagado» guardado (sitio y red): las siete herramientas y su categoría.' );
+	check( ! in_array( Settings::OPTION, $GLOBALS['wm_reads'], true ) && ! in_array( 'site:' . Settings::NETWORK_OPTION, $GLOBALS['wm_reads'], true ), 'El arranque no lee los ajustes viejos.' );
+	$registry->abilities = array();
 	wm_reset();
 	$core->test_registry = null;
 	Mcp::boot();
@@ -1126,7 +1040,7 @@ namespace {
 		}
 	);
 
-	// R6 · boot() no lee el modo (opción sin carga automática) si el MCP del sitio está apagado.
+	// R6 · boot() no lee ninguna opción propia: ni con el MCP apagado ni encendido (los modos se retiraron el 2026-11-27).
 	review_block(
 		'R6',
 		static function () use ( $env ) {
@@ -1144,73 +1058,32 @@ namespace {
 			wm_reset();
 			$GLOBALS['wm_reads'] = array();
 			Mcp::boot();
-			review( 'R6', in_array( Settings::OPTION, $GLOBALS['wm_reads'], true ) && 7 === count( Mcp::abilities() ), 'Con el MCP activo sí lo lee y registra las siete.' );
+			review( 'R6', ! in_array( Settings::OPTION, $GLOBALS['wm_reads'], true ) && 7 === count( Mcp::abilities() ), 'Con el MCP activo registra las siete sin leer ningún modo (ya no existen).' );
 		}
 	);
 
 	// =================================================================================================================
-	// 10. Tanda B (auditoría de digitalisimo.lat, 2026-11-24), B3: permiso por herramienta. Fallaba con fee02105.
+	// 10. Tanda B (auditoría de digitalisimo.lat, 2026-11-24), B3. El permiso por herramienta («Escritura sólo en lo
+	// elegido») se retiró el 2026-11-27 con los demás modos: cualquier lista guardada deja escribir todo lo que la
+	// capacidad permite. Con el código anterior, pedidos no elegidos devolvían digitalisimo_woo_mcp_read_only.
 	review_block(
 		'B3-permisos',
-		static function () use ( $run, $wm_send ) {
-			// Sin elegir nada, todo sigue igual: «Sólo lectura» y ninguna herramienta escribe.
-			wm_reset();
-			review( 'B3-permisos', 'read' === Settings::mode() && array() === Settings::write_tools() && ! Settings::can_write( 'products' ), 'Predeterminado: sólo lectura, sin herramientas elegidas.' );
-			foreach ( array( 'write' => true, 'read' => false, 'off' => false ) as $mode => $all ) {
-				update_option( Settings::OPTION, array( 'mode' => $mode, 'own' => array( 'mode' ), 'write_tools' => array( 'coupons' ) ) );
-				foreach ( array_keys( Settings::WRITE_TOOLS ) as $tool ) {
-					review( 'B3-permisos', $all === Settings::can_write( $tool ), "Modo $mode: la lista no cuenta ($tool)." );
-				}
+		static function () use ( $run ) {
+			foreach ( array( 'custom', 'read', 'off' ) as $mode ) {
+				wm_reset( array( 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => $mode, 'own' => array( 'mode' ), 'write_tools' => array( 'coupons' ) ) ) ) );
+				$GLOBALS['wm']['caps'] = array( 'edit_products', 'publish_products', 'edit_shop_orders', 'publish_shop_orders', 'read_private_shop_orders', 'edit_shop_coupons', 'publish_shop_coupons' );
+				$ok = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'regular_price' => '9' ) ) );
+				review( 'B3-permisos', ! is_wp_error( $ok ) && in_array( array( 'PUT', '/wc/v3/products/4', array(), array( 'regular_price' => '9' ) ), $GLOBALS['wm_rest'], true ), "«$mode» guardado: productos escriben." );
+				$order = $run( 'orders', array( 'action' => 'update', 'order_id' => 3, 'data' => array( 'status' => 'completed' ) ) );
+				review( 'B3-permisos', ! is_wp_error( $order ) && in_array( array( 'PUT', '/wc/v3/orders/3', array(), array( 'status' => 'completed' ) ), $GLOBALS['wm_rest'], true ), "«$mode» guardado: pedidos escriben: " . ( is_wp_error( $order ) ? $order->get_error_code() : '' ) );
 			}
-			// «Escritura sólo en lo elegido»: escriben productos y cupones; pedidos no.
-			update_option( Settings::OPTION, Settings::sanitize( array( 'mode' => 'custom', 'write_tools_sent' => '1', 'write_tools' => array( 'coupons', 'products', 'nada', 'products' ) ) ) );
-			review( 'B3-permisos', 'custom' === Settings::mode() && array( 'products', 'coupons' ) === Settings::write_tools(), 'custom guarda la lista válida, sin repetir y en orden: ' . json_encode( Settings::write_tools() ) );
-			review( 'B3-permisos', Settings::can_write( 'products' ) && Settings::can_write( 'coupons' ) && ! Settings::can_write( 'orders' ) && ! Settings::can_write( 'skydropx' ) && ! Settings::can_write( 'reports' ), 'can_write: sólo las elegidas.' );
-			$GLOBALS['wm']['caps'] = array( 'edit_products', 'publish_products', 'edit_shop_orders', 'publish_shop_orders', 'read_private_shop_orders', 'edit_shop_coupons', 'publish_shop_coupons' );
-			$GLOBALS['wm_rest']    = array();
-			$ok = $run( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'regular_price' => '9' ) ) );
-			review( 'B3-permisos', ! is_wp_error( $ok ) && in_array( array( 'PUT', '/wc/v3/products/4', array(), array( 'regular_price' => '9' ) ), $GLOBALS['wm_rest'], true ), 'custom: productos elegidos escriben.' );
-			$GLOBALS['wm_rest'] = array();
-			$no = $run( 'orders', array( 'action' => 'update', 'order_id' => 3, 'data' => array( 'status' => 'completed' ) ) );
-			review( 'B3-permisos', is_wp_error( $no ) && 'digitalisimo_woo_mcp_read_only' === $no->get_error_code() && array() === $GLOBALS['wm_rest'], 'custom: pedidos no elegidos no escriben y no llaman a WooCommerce.' );
-			review( 'B3-permisos', is_wp_error( $no ) && false !== strpos( $no->get_error_message(), 'Escritura sólo en lo elegido' ) && false !== strpos( $no->get_error_message(), 'Pedidos' ), 'El error dice el ajuste y qué falta marcar: ' . ( is_wp_error( $no ) ? $no->get_error_message() : '' ) );
-			review( 'B3-permisos', 'denied' === Log::entries()[0]['result'] && 'read_mode' === Log::entries()[0]['code'], 'El rechazo queda en la bitácora.' );
-			$list = $run( 'orders', array( 'action' => 'list' ) );
-			review( 'B3-permisos', ! is_wp_error( $list ), 'custom: lo no elegido se sigue leyendo.' );
-			// Descripciones por herramienta.
-			review( 'B3-permisos', false !== strpos( Tools::definition( 'orders', 'custom' )['description'], 'no está elegida' ) && false !== strpos( Tools::definition( 'products', 'custom' )['description'], 'permite escribir' ), 'La descripción dice, herramienta por herramienta, si escribe.' );
-			// Una lista que no viaja (grupo deshabilitado) conserva la guardada; una que viaja vacía, vacía.
-			update_option( Settings::OPTION, Settings::sanitize( array( 'mode' => 'custom' ) ) );
-			review( 'B3-permisos', array( 'products', 'coupons' ) === Settings::write_tools(), 'Sin la lista en el envío, se conserva.' );
-			update_option( Settings::OPTION, Settings::sanitize( array( 'mode' => 'custom', 'write_tools_sent' => '1' ) ) );
-			review( 'B3-permisos', array() === Settings::write_tools() && ! Settings::can_write( 'products' ), 'Todas desmarcadas: ninguna escribe.' );
-
-			// Red: el modo y la lista se heredan juntos; el sitio que personaliza manda con la suya.
-			wm_reset( array( 'multisite' => true ) );
-			Settings::save_network( array( 'mode' => 'custom', 'write_tools_sent' => '1', 'write_tools' => array( 'catalog' ) ) );
-			review( 'B3-permisos', array( 'mode' => 'custom', 'write_tools' => array( 'catalog' ) ) === get_site_option( Settings::NETWORK_OPTION ) && Settings::can_write( 'catalog' ) && ! Settings::can_write( 'products' ), 'Red en custom: el sitio que hereda escribe sólo el catálogo.' );
-			Settings::save_network( array( 'mode' => 'custom' ) );
-			review( 'B3-permisos', array( 'catalog' ) === Settings::write_tools(), 'La red sin la lista en el envío conserva la suya.' );
-			update_option( Settings::OPTION, Settings::sanitize( array( 'mode' => 'custom', 'inherit' => array( 'mode' => '0' ), 'write_tools_sent' => '1', 'write_tools' => array( 'products' ) ) ) );
-			review( 'B3-permisos', Settings::can_write( 'products' ) && ! Settings::can_write( 'catalog' ), 'El sitio que personaliza usa su lista, no la de la red.' );
-			update_option( Settings::OPTION, Settings::sanitize( array( 'inherit' => array( 'mode' => '1' ) ) ) );
-			review( 'B3-permisos', Settings::can_write( 'catalog' ) && ! Settings::can_write( 'products' ) && array( 'products' ) === Settings::stored()['write_tools'], 'Volver a heredar: rige la lista de la red y la del sitio se conserva.' );
-
-			// La pantalla, como un navegador: casillas en el sitio y en la red, con el grupo en «Heredar de la red».
-			wm_reset( array( 'multisite' => true, 'caps' => array( 'manage_network_options', 'manage_options' ) ) );
-			ob_start();
-			Settings_Section::render( false );
-			$html = (string) ob_get_clean();
-			review( 'B3-permisos', false !== strpos( $html, 'data-group="#digitalisimo-woo-mcp-tools"' ) && false !== strpos( $html, 'id="digitalisimo-woo-mcp-tools"' ) && 7 === substr_count( $html, '[write_tools][]' ) && false !== strpos( $html, 'value="custom"' ), 'Sitio de la red: siete casillas en un grupo que «Heredar de la red» deshabilita.' );
-			$sent = $wm_send( true, array( Settings::NETWORK_OPTION . '[mode]' => 'custom', Settings::NETWORK_OPTION . '[write_tools][]' => array( 'orders', 'coupons' ) ) );
-			review( 'B3-permisos', 'network-saved' === $sent['notice'] && array( 'orders', 'coupons' ) === Settings::network_values()['write_tools'] && Settings::can_write( 'orders' ), 'Navegador · red: guarda el modo y las casillas: ' . json_encode( get_site_option( Settings::NETWORK_OPTION ) ) );
-			$sent = $wm_send( false, array(), array( 'disabled' => array( Settings::OPTION . '[mode]', Settings::OPTION . '[write_tools][]', Settings::OPTION . '[write_tools_sent]' ) ) );
-			review( 'B3-permisos', 'saved' === $sent['notice'] && Settings::inherits_network() && Settings::can_write( 'coupons' ), 'Navegador · sitio heredando (grupo deshabilitado): sigue la red.' );
-			$sent = $wm_send( false, array( Settings::OPTION . '[inherit][mode]' => false, Settings::OPTION . '[mode]' => 'custom', Settings::OPTION . '[write_tools][]' => array( 'products' ) ) );
-			review( 'B3-permisos', 'saved' === $sent['notice'] && ! Settings::inherits_network() && Settings::can_write( 'products' ) && ! Settings::can_write( 'orders' ), 'Navegador · sitio: personaliza con su propia casilla: ' . json_encode( get_option( Settings::OPTION ) ) );
-			$sent = $wm_send( false, array( Settings::OPTION . '[write_tools][]' => array() ) );
-			review( 'B3-permisos', 'saved' === $sent['notice'] && array() === Settings::write_tools(), 'Navegador · desmarcar todas guarda la lista vacía.' );
-			$_POST = array();
+			wm_reset( array( 'multisite' => true, 'site' => array( Settings::NETWORK_OPTION => array( 'mode' => 'custom', 'write_tools' => array( 'catalog' ) ) ) ) );
+			$GLOBALS['wm']['caps'] = array( 'edit_shop_coupons', 'publish_shop_coupons', 'read_private_shop_coupons' );
+			$ok = $run( 'coupons', array( 'action' => 'create', 'data' => array( 'code' => 'BF', 'amount' => '10' ) ) );
+			review( 'B3-permisos', ! is_wp_error( $ok ), 'Red con «sólo el catálogo» guardado: un sitio que lo heredaba crea cupones.' );
+			$GLOBALS['wm']['caps'] = array();
+			$no = $run( 'coupons', array( 'action' => 'create', 'data' => array( 'code' => 'BF' ) ) );
+			review( 'B3-permisos', is_wp_error( $no ) && 'digitalisimo_woo_mcp_forbidden' === $no->get_error_code(), 'Sin la capacidad de cupones, rechazado.' );
 		}
 	);
 
@@ -1219,7 +1092,7 @@ namespace {
 		'B3-dry_run',
 		static function () use ( $run, $assistant ) {
 			foreach ( Tools::tools() as $tool ) {
-				$def = Tools::definition( $tool, 'read' );
+				$def = Tools::definition( $tool );
 				$has = isset( $def['input_schema']['properties']['dry_run'] ) && 'boolean' === $def['input_schema']['properties']['dry_run']['type'] && false === $def['input_schema']['properties']['dry_run']['default'];
 				review( 'B3-dry_run', 'reports' === $tool ? ! $has && false === $def['meta']['digitalisimo']['dry_run'] : $has && true === $def['meta']['digitalisimo']['dry_run'], "dry_run en el esquema y en meta.digitalisimo de las que escriben: $tool" );
 			}
@@ -1262,11 +1135,10 @@ namespace {
 			$text   = json_encode( $result );
 			review( 'B3-dry_run', is_array( $result ) && false === strpos( $text, 'SECRETO' ) && false === strpos( $text, 'NUEVA' ) && 2 === count( $result['would']['changes'] ) && ! empty( $result['would']['changes'][1]['masked'] ), 'Pasarela: la clave cambiaría, pero sale enmascarada: ' . $text );
 
-			// Con escritura permitida, allowed true; y el Asistente puede simular en «Sólo lectura» (su vista previa).
-			update_option( Settings::OPTION, array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array( 'products' ) ) );
-			$result = $run( 'products', array( 'action' => 'delete', 'product_id' => 4, 'dry_run' => true ) );
-			review( 'B3-dry_run', is_array( $result ) && true === $result['allowed'] && ! isset( $result['reason'] ), 'Escritura elegida: allowed true.' );
+			// Sin modos: allowed siempre true, aunque el sitio guardara «Sólo lectura» (lo decide la capacidad).
 			update_option( Settings::OPTION, array( 'mode' => 'read', 'own' => array( 'mode' ) ) );
+			$result = $run( 'products', array( 'action' => 'delete', 'product_id' => 4, 'dry_run' => true ) );
+			review( 'B3-dry_run', is_array( $result ) && true === $result['allowed'] && ! isset( $result['reason'] ), 'allowed true, sin motivo de modo.' );
 			$delete = array( 'action' => 'delete', 'product_id' => 4, 'dry_run' => true );
 			review( 'B3-dry_run', true === $assistant( 'digitalisimo-woo/products', 'destructive', static function () use ( $delete ) { return Executor::permission( 'products', $delete ); } ) && true === Executor::permission( 'products', $delete ), 'La simulación pasa el permiso con la capacidad (también en el contexto del Asistente).' );
 			$GLOBALS['wm']['caps'] = array( 'read' );
@@ -1292,15 +1164,12 @@ namespace {
 			$entry = Changes::get( $id );
 			review( 'B3-deshacer', is_array( $entry ) && array( 'regular_price' => '10' ) === $entry['before'] && array( 'regular_price' => '12' ) === $entry['after'], 'Se guardan sólo las claves enviadas, antes y después.' );
 			review( 'B3-deshacer', false === $GLOBALS['wm']['autoload'][ Changes::OPTION ], 'El registro de cambios es una opción sin carga automática.' );
-			// En «Sólo lectura» no se deshace (es una escritura); simularlo sí.
+			// Simular deshacer: qué revertiría, sin escribir (aunque el sitio guardara «Sólo lectura»: ya no cuenta).
 			update_option( Settings::OPTION, array( 'mode' => 'read', 'own' => array( 'mode' ) ) );
 			$R['GET /wc/v3/products/4'] = $R['PUT /wc/v3/products/4'];
 			$GLOBALS['wm_rest']         = array();
-			$denied = $run( 'products', array( 'action' => 'undo', 'change_id' => $id ) );
-			review( 'B3-deshacer', is_wp_error( $denied ) && 'digitalisimo_woo_mcp_read_only' === $denied->get_error_code() && array() === $GLOBALS['wm_rest'], 'Modo read: deshacer se rechaza como una escritura.' );
 			$dry = $run( 'products', array( 'action' => 'undo', 'change_id' => $id, 'dry_run' => true ) );
-			review( 'B3-deshacer', is_array( $dry ) && false === $dry['allowed'] && array( array( 'field' => 'regular_price', 'from' => '12', 'to' => '10' ) ) === $dry['would']['revert'] && array( 'GET' ) === array_column( $GLOBALS['wm_rest'], 0 ), 'Simular deshacer: qué revertiría, sin escribir: ' . json_encode( $dry ) );
-			update_option( Settings::OPTION, array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array( 'products', 'catalog', 'coupons' ) ) );
+			review( 'B3-deshacer', is_array( $dry ) && true === $dry['allowed'] && array( array( 'field' => 'regular_price', 'from' => '12', 'to' => '10' ) ) === $dry['would']['revert'] && array( 'GET' ) === array_column( $GLOBALS['wm_rest'], 0 ), 'Simular deshacer: qué revertiría, sin escribir: ' . json_encode( $dry ) );
 			$GLOBALS['wm_rest'] = array();
 			$undo = $run( 'products', array( 'action' => 'undo', 'change_id' => $id ) );
 			review( 'B3-deshacer', is_array( $undo ) && true === $undo['ok'] && in_array( array( 'PUT', '/wc/v3/products/4', array(), array( 'regular_price' => '10' ) ), $GLOBALS['wm_rest'], true ), 'Deshacer: vuelve a poner el valor de antes: ' . json_encode( is_wp_error( $undo ) ? $undo->get_error_message() : $GLOBALS['wm_rest'] ) );
@@ -1481,50 +1350,28 @@ namespace {
 		}
 	);
 
-	// Revisión de la tanda B (coordinador, 2026-11-26): en «Sólo lectura» el Asistente recibía undo:true aunque no puede deshacer. Fallaba con
-	// 3120eed2.
+	// Revisión de la tanda B (2026-11-26), ajustada al acceso total (2026-11-27): el Asistente escribe y deshace como
+	// cualquier cliente con la capacidad, aunque el sitio guardara «Sólo lectura»; Skydropx sigue sin dry_run.
 	review_block(
 		'B3-rev-asistente',
 		static function () use ( $run, $assistant ) {
 			$caps = array( 'edit_products', 'publish_products', 'delete_products', 'read_private_products', 'edit_others_products', 'edit_product_terms', 'delete_product_terms', 'manage_product_terms', 'manage_woocommerce' );
-			wm_reset( array( 'caps' => $caps, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'write', 'own' => array( 'mode' ) ) ) ) );
+			wm_reset( array( 'caps' => $caps, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'read', 'own' => array( 'mode' ) ) ) ) );
 			$R = &$GLOBALS['wm_rest_responses'];
 			$R = array();
 			$GLOBALS['wm_rest'] = array();
-			update_option( Settings::OPTION, array( 'mode' => 'read', 'own' => array( 'mode' ) ) );
 			$R['GET /wc/v3/products/6'] = array( 200, array( 'id' => 6, 'regular_price' => '12', 'variations' => array() ), array() );
 			$R['PUT /wc/v3/products/6'] = array( 200, array( 'id' => 6, 'regular_price' => '14', 'variations' => array() ), array() );
 			$result = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run ) {
 				return $run( 'products', array( 'action' => 'update', 'product_id' => 6, 'data' => array( 'regular_price' => '14' ) ) );
 			} );
-			review( 'B3-rev-asistente', is_array( $result ) && false === $result['change']['undo'] && false !== strpos( $result['change']['reason'], 'Sólo lectura' ), 'Asistente en «Sólo lectura»: escribe, pero no promete deshacer: ' . json_encode( is_wp_error( $result ) ? $result->get_error_message() : ( $result['change'] ?? null ), JSON_UNESCAPED_UNICODE ) );
-			review( 'B3-rev-asistente', is_array( $result ) && true === ( Changes::get( $result['change']['id'] )['undo'] ?? null ), 'En el registro sigue deshacible para quien tenga escritura.' );
-			$denied = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run, $result ) {
+			review( 'B3-rev-asistente', is_array( $result ) && true === $result['change']['undo'] && ! isset( $result['change']['reason'] ), 'Asistente con «Sólo lectura» guardado: escribe y recibe undo:true: ' . json_encode( is_wp_error( $result ) ? $result->get_error_message() : ( $result['change'] ?? null ), JSON_UNESCAPED_UNICODE ) );
+			$R['GET /wc/v3/products/6'] = $R['PUT /wc/v3/products/6'];
+			$undo = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run, $result ) {
 				return $run( 'products', array( 'action' => 'undo', 'change_id' => $result['change']['id'] ) );
 			} );
-			review( 'B3-rev-asistente', is_wp_error( $denied ) && 'digitalisimo_woo_mcp_read_only' === $denied->get_error_code(), 'Coherente: el Asistente en «Sólo lectura» no deshace.' );
-			review( 'B3-rev-asistente', false !== strpos( Settings::HELP, 'borrar, deshacer, pedidos' ), 'La ayuda dice que en «Sólo lectura» el Asistente no deshace.' );
-			update_option( Settings::OPTION, array( 'mode' => 'write', 'own' => array( 'mode' ) ) );
-			$result = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run ) {
-				return $run( 'products', array( 'action' => 'update', 'product_id' => 6, 'data' => array( 'regular_price' => '14' ) ) );
-			} );
-			review( 'B3-rev-asistente', is_array( $result ) && true === $result['change']['undo'], 'Con escritura, el Asistente sí recibe undo:true.' );
-		}
-	);
-
-	// Revisión de la tanda B (coordinador, 2026-11-26): el texto de las casillas decía que dry_run funciona en todas, y Skydropx no lo tiene.
-	// Fallaba con 3120eed2.
-	review_block(
-		'B3-rev-ayuda',
-		static function () use ( $run, $assistant ) {
-			$caps = array( 'edit_products', 'publish_products', 'delete_products', 'read_private_products', 'edit_others_products', 'edit_product_terms', 'delete_product_terms', 'manage_product_terms', 'manage_woocommerce' );
-			wm_reset( array( 'caps' => $caps, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'write', 'own' => array( 'mode' ) ) ) ) );
-			$R = &$GLOBALS['wm_rest_responses'];
-			$R = array();
-			$GLOBALS['wm_rest'] = array();
-			$src = (string) file_get_contents( dirname( __DIR__ ) . '/digitalisimo-elements/modules/digitalisimo-woo/mcp/class-settings.php' );
-			review( 'B3-rev-ayuda', false === strpos( $src, 'funciona en todas.' ) && false !== strpos( $src, 'salvo Skydropx' ) && false !== strpos( Settings::HELP, 'salvo la de Skydropx' ), 'La ayuda y las casillas dicen que Skydropx no simula.' );
-			review( 'B3-rev-ayuda', ! array_key_exists( 'dry_run', Tools::input_schema( Tools::SKYDROPX )['properties'] ?? array() ), 'Y, en efecto, Skydropx no declara dry_run.' );
+			review( 'B3-rev-asistente', is_array( $undo ) && true === $undo['ok'], 'Y deshace.' );
+			review( 'B3-rev-asistente', ! array_key_exists( 'dry_run', Tools::input_schema( Tools::SKYDROPX )['properties'] ?? array() ), 'Skydropx no declara dry_run.' );
 		}
 	);
 
