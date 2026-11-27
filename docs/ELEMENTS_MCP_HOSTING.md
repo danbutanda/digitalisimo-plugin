@@ -1,0 +1,77 @@
+# DIGITALÍSIMO Hosting en el MCP de Elements y el dominio antes de pagar
+
+Pedido del propietario del 2026-11-26: el agente que arma las landings por MCP es administrador pero no podía configurar
+`digitalisimo_hosting_options` (sólo el formulario de wp-admin), así que el buscador de dominios quedaba sin productos; y
+el flujo de compra no distinguía «dominio nuevo», «uno que ya tengo» ni la transferencia.
+
+## Herramientas MCP (`digitalisimo-elements/modules/digitalisimo-hosting/`)
+
+Sólo existen con el MCP del sitio activo y DIGITALÍSIMO Hosting cargado con su API (`Tools::hosting_ready()`). Se
+registran como las de tienda y del kit de ventas (registro de abilities del núcleo o, sin él, `wp_register_ability()` y
+`elementor/mcp/server/tools`), fuera de la REST de abilities.
+
+| Herramienta | Permiso | Acciones |
+| --- | --- | --- |
+| `digitalisimo-hosting-settings` | `manage_options` | `get`, `update`, `log` |
+| `digitalisimo-hosting-domain-product` | `manage_woocommerce` o `manage_options` | `list`, `mark`, `unmark` |
+
+- **get** devuelve todos los ajustes que usa el sitio, sin ningún secreto: de las claves (`api_key`, `webuzo_api_key`,
+  `banxico_token`) y de la cuenta de Namecheap sólo si están puestas (`secrets_set`, `namecheap.configured`). Con
+  «Heredar», el servidor Webuzo y los nameservers de la red no se muestran (`inherited`), como en la pantalla. Trae la
+  resolución de «Productos por extensión» (`domain_products`).
+- **update** combina con lo guardado: lo que no llega no cambia (la misma lección que `update-page-settings` antes de
+  Elements 4.3.0.195). Valida con el mismo `Digitalisimo_Hosting::store()` que el formulario, escribe sólo la opción del
+  sitio (nunca la de red) y devuelve el resultado, `changed` y `adjusted` (lo que la validación guardó distinto).
+  Sólo lectura (`MCP_READONLY`): la cuenta de Namecheap y «Heredar», el servidor, el usuario y la clave de Webuzo, los
+  nameservers, el token de Banxico, el interruptor del módulo (`enabled`), la venta automática (`provision_enabled`,
+  `own_domain_auto`) y los días de gracia. Una clave desconocida, de sólo lectura o con otro tipo detiene todo sin
+  guardar nada.
+- **mark** pone `_digitalisimo_tld` (y `_digitalisimo_domain_kind` = `transfer` en el producto de transferencia).
+- **Bitácora** `digitalisimo_elements_hosting_mcp_log` (opción del sitio, sin carga automática, 200 entradas): fecha
+  UTC, ID del usuario, herramienta, acción, los nombres de las claves cambiadas o el ID del producto, resultado y código.
+  Nunca valores ni datos personales; también lo denegado.
+
+## Productos por extensión (`includes/class-hosting-products.php`)
+
+Valor de fábrica `.com|`, `.net|` y `.mx|` (sin .org; la lista vieja `.com|.mx|.org|` sin IDs guardada por el formulario
+vale como la de hoy). Una línea con ID manda; sin ID (o con la lista vacía) se usa el producto publicado marcado con su
+extensión o, si no hay, el del SKU `dominio-com` (también `dominio.com`, `domain-com`, `domain.com`). El producto de
+transferencia se marca con el tipo `transfer` (extensión o `*`) o el SKU `transferencia-dominio`. La resolución vive en un
+transitorio que se invalida al guardar Hosting y al cambiar un producto, su SKU o su marca. Si la lista no resuelve
+ningún producto, o le falta alguna extensión, el Escritorio, Plugins, la lista de productos y la pantalla Hosting lo
+avisan con la X (`Digitalisimo_Notices`).
+
+## El dominio antes de pagar (`includes/class-hosting-checkout.php`)
+
+- **Plan de hosting o correo** (IDs o categorías de hosting, o `_digitalisimo_webuzo_plan`): con `ask_domain` (encendido
+  de fábrica) no se paga sin «Dominio nuevo» (un producto de dominio en el carrito) o «Uno que ya tengo» (el nombre
+  exacto, que queda en la línea del plan como «Dominio»). «Exigir dominio y hosting juntos» cuenta el dominio propio.
+- **Registro (B1)**: el nombre llega con el buscador (`?domain_name=`), el campo del producto o el panel del carrito, y se
+  comprueba con `namecheap.domains.check` antes de pagar (disponible, no premium, de la extensión del producto).
+- **Transferencia**: el dominio y el código EPP antes de pagar; formato, registrado, extensión transferible por la API
+  (`namecheap.domains.getTldList`) y que no esté ya en nuestra cuenta. El EPP se cifra al entrar al carrito (el mismo
+  cifrado que la contraseña de la cuenta), sólo se acepta en el cuerpo de la petición (nunca en la URL), pasa cifrado a
+  la meta del pedido `_digitalisimo_epp` y se retira de la REST de pedidos (v3 y v4, y por tanto del MCP de la tienda).
+  «Ver código EPP» (caja del pedido, `manage_woocommerce`, nonce por pedido y dominio, sin caché) es la única forma de
+  verlo, y deja una nota privada de quién lo consultó. En el aprovisionamiento pasa por la misma revisión de propiedad
+  que un dominio propio y queda para hacerse a mano; cuando el dominio llega a la cuenta de Namecheap, la revisión
+  diaria la da por terminada, el servicio se renueva con el producto de registro de su extensión y el EPP se borra.
+- **Dónde se elige**: el panel «Tu dominio» (carrito y checkout clásicos, también con errores del carrito, y los de
+  bloques por `render_block`), los campos de la página del producto y el cuerpo de `cart/add-item` de la Store API
+  (`digitalisimo_domain`, `digitalisimo_domain_mode`, `digitalisimo_epp`).
+- Las consultas hechas mientras el visitante espera tardan 15 s como mucho, se guardan unos minutos (una falla, un
+  minuto) y tienen su propio tope por visitante.
+
+## Buscador (`assets/domain-form.js`)
+
+Un solo script para el formulario de Elements clásico (`.elementor-form`), el nuevo del editor atómico (`e-form`) y
+`[digitalisimo_domain_search]`, que ahora es un `<div>` (funciona dentro de un formulario atómico). Toma el envío en la
+fase de captura, antes que jQuery o Alpine; usa siempre las extensiones configuradas (sustituye las opciones fijas del
+campo «extensión»; sin ese campo consulta todas) y pinta todo con `textContent`. Toma un formulario con un campo
+`dominio`/`domain` si la página tiene `[resultado_dominio]` o si lleva la clase `digitalisimo-domain-form`.
+
+## Pruebas
+
+`tests/hosting-mcp-settings.php`, `tests/hosting-domain-checkout.php`, `tests/elements-hosting-mcp.php`,
+`tests/hosting-domain-search-chrome.mjs` (en los dos workflows) y `tests/playground/hosting-checkout.sh` (MCP real,
+compras de invitada por la Store API y página atómica con el buscador).
