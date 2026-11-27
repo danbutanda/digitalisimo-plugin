@@ -15,6 +15,7 @@
 //   node tests/brand-zero-trace.mjs                     ZIP simulado con los archivos versionados del plugin
 //   node tests/brand-zero-trace.mjs --zip <archivo>     un ZIP construido (p. ej. scripts/marca-prototipo/zip-motor.sh)
 //   node tests/brand-zero-trace.mjs --sitio <json>      suma las capas del Playground
+//   --solo-sitio                                        sólo las capas del Playground (sin las del ZIP)
 //   --json                                              informe en JSON
 // Sale 1 si alguna capa tiene una aparición (en la fase 0 falla en lo que cubre la fase 2: el conteo dice cuánto falta).
 import { execFileSync } from 'node:child_process';
@@ -35,6 +36,9 @@ let read;
 if (ZIP) {
   files = execFileSync('unzip', ['-Z1', ZIP], { maxBuffer: 1 << 28 }).toString().split('\n').filter((f) => f && !f.endsWith('/'));
   read = (f) => execFileSync('unzip', ['-p', ZIP, f], { maxBuffer: 1 << 28 });
+} else if (argv.includes('--solo-sitio')) {
+  files = [];
+  read = () => '';
 } else {
   files = execFileSync('git', ['-C', ROOT, 'ls-files', 'digitalisimo-elements'], { maxBuffer: 1 << 28 }).toString().split('\n')
     .filter((f) => f && !f.startsWith('digitalisimo-elements/bdthemes-element-pack/') && existsSync(`${ROOT}/${f}`));
@@ -50,16 +54,17 @@ const layers = {
 };
 const add = (layer, n, ejemplo) => { layers[layer].n += n; if (ejemplo && layers[layer].ejemplos.length < 12) layers[layer].ejemplos.push(ejemplo); };
 
+if (argv.includes('--solo-sitio')) for (const k of Object.keys(layers)) if (k !== 'excepciones') delete layers[k];
 if (files.some((f) => f.startsWith('digitalisimo-elements/elementor/'))) add('zip_carpeta', 1, 'digitalisimo-elements/elementor/');
 const byDir = {};
 for (const f of files) {
   if (/elementor/i.test(f.replace(/^digitalisimo-elements\/elementor\//, 'digitalisimo-elements/motor/'))) {
     const dir = f.split('/').slice(0, 4).join('/');
     byDir[dir] = (byDir[dir] || 0) + 1;
-    layers.zip_nombres.n++;
+    if (layers.zip_nombres) layers.zip_nombres.n++;
   }
 }
-layers.zip_nombres.ejemplos = Object.entries(byDir).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([d, n]) => `${d} (${n})`);
+if (layers.zip_nombres) layers.zip_nombres.ejemplos = Object.entries(byDir).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([d, n]) => `${d} (${n})`);
 for (const f of files) {
   if (!SERVABLE.test(f)) continue;
   const n = count(read(f));

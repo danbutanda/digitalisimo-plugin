@@ -67,5 +67,5 @@ node "$D/run.cjs" "$PORT" "$host" "$OUT/probe" || status=1
 cp "$OUT/probe/result.json" "$OUT/result.json" 2>/dev/null || true
 [ -s "$OUT/probe/fatal.log" ] && { echo "Errores fatales:"; cat "$OUT/probe/fatal.log"; status=1; }
 [ -s "$OUT/probe/buffer-ms.log" ] && echo "Capa del front (ms bytes): $(sort -n "$OUT/probe/buffer-ms.log" | awk '{a[NR]=$1} END {print "mediana " a[int((NR+1)/2)] " ms en " NR " páginas"}')"
-node "$ROOT/tests/brand-zero-trace.mjs" --sitio "$OUT/result.json" || true
+node "$ROOT/tests/brand-zero-trace.mjs" --sitio "$OUT/result.json" --solo-sitio || true
 exit $status
