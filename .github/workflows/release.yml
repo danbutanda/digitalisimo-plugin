@@ -349,6 +349,8 @@ jobs:
           php tests/hosting-sixth-review.php
           php tests/hosting-seventh-review.php
           php tests/hosting-eighth-review.php
+          php tests/hosting-mcp-settings.php
+          php tests/hosting-domain-checkout.php
           php tests/backups-sftp.php
           php tests/backups-sftp-phpseclib.php
           php tests/backups-sftp-keys.php
@@ -598,6 +600,7 @@ jobs:
           # Kit de ventas: plantillas generadas y validadas en las dos variantes, y sus herramientas del MCP.
           node tests/elements-sales-kit.mjs
           php tests/elements-sales-mcp.php
+          php tests/elements-hosting-mcp.php
           php tests/elements-sales-product.php
           # La landing con la identidad del sitio y la oferta de tienda (caso plomerito 3).
           php tests/elements-sales-brand.php
@@ -629,6 +632,7 @@ jobs:
           node tests/elements-tooltip-chrome.mjs
           php tests/elements-badge.php
           node tests/elements-badge-chrome.mjs
+          node tests/hosting-domain-search-chrome.mjs
           php tests/elements-shortcode-guard.php
           php tests/elements-text-relief.php
           node tests/elements-text-relief-chrome.mjs

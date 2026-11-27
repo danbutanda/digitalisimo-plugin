@@ -60,10 +60,13 @@ function rest_ensure_response( $r ) { return $r; }
 class WP_Error { public $code; public function __construct( $code = '', $message = '', $data = null ) { $this->code = $code; } }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 $GLOBALS['remote'] = array();
-function wp_remote_get( $url, $args = array() ) { $GLOBALS['remote'][] = $url; return array( 'body' => '<ApiResponse><CommandResponse><DomainCheckResult Domain="x.com" Available="true"/></CommandResponse></ApiResponse>' ); }
+// La consulta va por POST con la clave en el cuerpo (2026-11-26); se anota la URL y, detrás, el cuerpo.
+function wp_remote_post( $url, $args = array() ) { $GLOBALS['remote_url'][] = $url; $GLOBALS['remote'][] = $url . ' ' . http_build_query( (array) ( $args['body'] ?? array() ) ); return array( 'response' => array( 'code' => 200 ), 'body' => '<ApiResponse Status="OK"><CommandResponse><DomainCheckResult Domain="x.com" Available="true"/></CommandResponse></ApiResponse>' ); }
 function wp_remote_retrieve_body( $r ) { return $r['body']; }
+function wp_remote_retrieve_response_code( $r ) { return $r['response']['code']; }
 class Hosting_Request { public function get_param( $k ) { return 'digitalisimo.com'; } }
 require __DIR__ . '/../digitalisimo-hosting/includes/class-hosting.php';
+require __DIR__ . '/../digitalisimo-hosting/includes/class-hosting-namecheap.php';
 
 /**
  * Pinta la pantalla (del sitio o de la red), simula lo que un navegador envía al pulsar «Guardar» con $fill para los
@@ -109,6 +112,7 @@ check( false !== strpos( $after, 'Guardada · escribe una nueva' ), 'Sitio indiv
 hosting_submit( false, array() );
 check( 'CLAVE-SITIO-123' === get_option( 'digitalisimo_hosting_options' )['api_key'] && ".com|10\n.mx|11" === str_replace( "\r", '', get_option( 'digitalisimo_hosting_options' )['domain_products'] ), 'Sitio individual: guardar otra vez con el campo vacío no borra la clave ni los productos' );
 check( 'available' === hosting_check_domain(), 'Sitio individual: la consulta de dominios funciona' );
+check( false === strpos( implode( ' ', $GLOBALS['remote_url'] ), 'ApiKey' ) && false !== strpos( $GLOBALS['remote'][0], 'Command=namecheap.domains.check' ), 'La clave de Namecheap viaja en el cuerpo del POST, nunca en la URL' );
 // La máscara (pedido del propietario: «deben salir los *****»): el campo lleva •••• y no la clave; enviarla la conserva,
 // escribir otra la reemplaza y «Quitar la clave» la borra.
 ob_start(); Digitalisimo_Hosting::page(); $html = ob_get_clean();
@@ -145,7 +149,7 @@ $GLOBALS['site_options']['digitalisimo_hosting_options'] += array( 'domain_produ
 // 3. Un sitio de la red que nunca guardó Hosting no hereda nada; la pantalla le dice cómo usar la cuenta de la red.
 $GLOBALS['network_admin'] = false;
 $e = hosting_effective();
-check( '' === $e['api_user'] && '' === $e['api_key'] && ".com|\n.mx|\n.org|" === $e['domain_products'] && '' === $e['hosting_product_ids'] && 0 === $e['simplify_checkout'], 'Un sitio que nunca guardó Hosting no hereda nada de la red' );
+check( '' === $e['api_user'] && '' === $e['api_key'] && ".com|\n.net|\n.mx|" === $e['domain_products'] && '' === $e['hosting_product_ids'] && 0 === $e['simplify_checkout'], 'Un sitio que nunca guardó Hosting no hereda nada de la red' );
 check( 'not_configured' === hosting_check_domain() && ! $GLOBALS['remote'], 'Un sitio que nunca guardó Hosting no consulta con la cuenta de la red' );
 ob_start(); Digitalisimo_Hosting::page(); $html = ob_get_clean();
 check( ! preg_match( '#name="hosting\[inherit_network\]" value="1" checked#', $html ) && false !== strpos( $html, 'La red tiene una cuenta de Namecheap configurada' ), 'Su casilla «Heredar» sale sin marcar y la pantalla dice que la red tiene una cuenta y cómo usarla' );

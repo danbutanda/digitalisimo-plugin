@@ -251,14 +251,14 @@ class Digitalisimo_Hosting_Provisioning {
 			$rid = $order ? (int) $order->get_meta( self::META_RENEWAL ) : 0;
 			// La renovación de un servicio desplazado no se retomará al encender: se dice así y se avisa para reembolsar.
 			if ( $rid && self::is_service( $rid ) && ! self::owns_account( $rid ) && self::payment_confirmed( $order ) ) { self::superseded_paid( $order, $rid ); return; }
-			if ( $order && ( $order->get_meta( self::META_RENEWAL ) || self::items( $order )['hosting'] || self::items( $order )['domains'] ) ) self::note_once( $order, 'sale_off', 'la venta automática está apagada: este pedido no se aprovisiona ni se renueva solo. Al encenderla, las renovaciones cobradas se retoman y las altas quedan para revisar a mano.' );
+			if ( $order && ( $order->get_meta( self::META_RENEWAL ) || self::items( $order )['hosting'] || self::items( $order )['domains'] || self::items( $order )['transfers'] ) ) self::note_once( $order, 'sale_off', 'la venta automática está apagada: este pedido no se aprovisiona ni se renueva solo. Al encenderla, las renovaciones cobradas se retoman y las altas quedan para revisar a mano.' );
 			return;
 		}
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) return;
 		$renewal = (int) $order->get_meta( self::META_RENEWAL );
 		$offline = in_array( (string) $order->get_payment_method(), self::offline_methods(), true );
-		if ( $renewal || self::items( $order )['hosting'] || self::items( $order )['domains'] ) {
+		if ( $renewal || self::items( $order )['hosting'] || self::items( $order )['domains'] || self::items( $order )['transfers'] ) {
 			if ( ! self::payment_confirmed( $order ) ) {
 				self::note_once( $order, 'unpaid', $offline ? 'pago fuera de línea (' . ( $order->get_payment_method() ?: 'manual' ) . '): no se aprovisiona hasta que marques el pedido «completado» al confirmar el cobro.' : 'la pasarela no dejó el pago confirmado (sin fecha de pago o sin número de transacción); no se aprovisiona hasta que marques el pedido «completado» al confirmar el cobro.' );
 				return;
@@ -281,13 +281,13 @@ class Digitalisimo_Hosting_Provisioning {
 			return;
 		}
 		$items = self::items( $order );
-		if ( ! $items['hosting'] && ! $items['domains'] ) return;
+		if ( ! $items['hosting'] && ! $items['domains'] && ! $items['transfers'] ) return;
 		$state = self::state( $order );
 		if ( ! empty( $state['done'] ) ) return;
 		$created = $order->get_date_created();
 		if ( empty( $state['paid'] ) && $created && $created->getTimestamp() < self::since() ) {
 			// Anterior al encendido: no se aprovisiona solo, pero queda a la vista con su «Reintentar» y se avisa.
-			$domain = $items['domains'] ? $items['domains'][0]['domain'] : ( $items['hosting'] ? $items['hosting'][0]['domain'] : '' );
+			$domain = $items['domains'] ? $items['domains'][0]['domain'] : ( $items['transfers'] ? $items['transfers'][0]['domain'] : ( $items['hosting'] ? $items['hosting'][0]['domain'] : '' ) );
 			$service = self::service_for( $order, $items, $domain );
 			if ( $service ) self::svc_set( $service, array( 'status' => 'on-hold', 'error' => 'Pedido anterior al encendido de la venta automática: no se aprovisionó solo. Pulsa «Reintentar» para hacerlo.' ) );
 			if ( self::note_once( $order, 'before', 'el pedido es anterior al encendido de la venta automática; no se aprovisiona solo. Está en WooCommerce → Servicios de hosting con «Reintentar».' ) ) self::alert_admin( 'pedido #' . $order->get_id() . ' anterior al encendido', 'El pedido #' . $order->get_id() . ' (' . $domain . ') se pagó después de encender la venta automática pero es anterior a ese momento: no se aprovisionó solo. Si corresponde, pulsa «Reintentar» en WooCommerce → Servicios de hosting.' . "\n\n" . self::order_link( $order ) );
@@ -320,7 +320,7 @@ class Digitalisimo_Hosting_Provisioning {
 	/** Los planes de hosting y los dominios del pedido. */
 	public static function items( $order ) {
 		$domain_ids = array_values( Digitalisimo_Hosting::domain_products() );
-		$out = array( 'hosting' => array(), 'domains' => array() );
+		$out = array( 'hosting' => array(), 'domains' => array(), 'transfers' => array() );
 		foreach ( $order->get_items() as $item ) {
 			if ( ! is_object( $item ) || ! method_exists( $item, 'get_product_id' ) ) continue;
 			$pid    = (int) $item->get_product_id();
@@ -328,6 +328,8 @@ class Digitalisimo_Hosting_Provisioning {
 			$domain = strtolower( trim( (string) $item->get_meta( 'Dominio' ) ) );
 			$row    = array( 'item' => $item, 'product' => $pid, 'variation' => $vid, 'domain' => $domain, 'qty' => (int) $item->get_quantity() );
 			if ( in_array( $pid, $domain_ids, true ) ) { $out['domains'][] = $row; continue; }
+			// Transferencia (2026-11-26): el dominio y su EPP los pidió el carrito; la transferencia se hace a mano.
+			if ( class_exists( 'Digitalisimo_Hosting_Products' ) && '' !== Digitalisimo_Hosting_Products::transfer_ext( $pid ) ) { $out['transfers'][] = $row; continue; }
 			$plan = self::plan_of( $vid, $pid );
 			if ( '' !== $plan || Digitalisimo_Hosting::is_hosting_product( $pid ) ) $out['hosting'][] = $row + array( 'plan' => $plan );
 		}
@@ -526,6 +528,7 @@ class Digitalisimo_Hosting_Provisioning {
 			$items  = self::items( $order );
 			$domain = '';
 			if ( $items['domains'] ) $domain = $items['domains'][0]['domain'];
+			elseif ( $items['transfers'] ) $domain = $items['transfers'][0]['domain'];
 			elseif ( $items['hosting'] ) $domain = $items['hosting'][0]['domain'];
 			$service = self::service_for( $order, $items, $domain );
 			$stop = self::check_order( $order, $items, $domain );
@@ -600,7 +603,7 @@ class Digitalisimo_Hosting_Provisioning {
 			// Hosting con dominio propio, que nadie verificó que sea del comprador.
 			$reject = self::own_domain_rejected( $domain );
 			if ( $reject ) return self::stop( 'data', $reject );
-			if ( empty( Digitalisimo_Hosting::settings()['own_domain_auto'] ) && ! self::svc( $service, 'domain_approved' ) ) return self::stop( 'review', 'Hosting con dominio propio (' . $domain . '): por omisión se revisa a mano antes de crear la cuenta. Si el dominio es del cliente, pulsa «Aprobar dominio» en WooCommerce → Servicios de hosting.' );
+			if ( empty( Digitalisimo_Hosting::settings()['own_domain_auto'] ) && ! self::svc( $service, 'domain_approved' ) ) return self::stop( 'review', ! empty( $items['transfers'] ) ? 'Transferencia de ' . $domain . ( $items['hosting'] ? ' con hosting' : '' ) . ': por omisión se revisa a mano antes de tramitarla' . ( $items['hosting'] ? ' y de crear la cuenta' : '' ) . '. Si el dominio es del cliente, pulsa «Aprobar dominio» en WooCommerce → Servicios de hosting.' : 'Hosting con dominio propio (' . $domain . '): por omisión se revisa a mano antes de crear la cuenta. Si el dominio es del cliente, pulsa «Aprobar dominio» en WooCommerce → Servicios de hosting.' );
 			// ¿Está en nuestra cuenta de Namecheap (lo vendimos nosotros)?
 			$nc = Digitalisimo_Hosting_Namecheap::from_settings();
 			if ( $nc->configured() ) {
@@ -624,7 +627,7 @@ class Digitalisimo_Hosting_Provisioning {
 	}
 
 	/** Lo que nunca se hospeda como dominio propio: correo público, un sufijo sin etiqueta propia, nuestros dominios. */
-	private static function own_domain_rejected( $domain ) {
+	public static function own_domain_rejected( $domain ) {
 		if ( in_array( $domain, self::PUBLIC_MAIL, true ) || preg_match( '/^yahoo\./', $domain ) || preg_match( '/^(hotmail|outlook|live)\./', $domain ) ) return 'El dominio ' . $domain . ' es de un servicio de correo público: no se hospeda. Revísalo con el cliente.';
 		if ( in_array( $domain, self::SECOND_LEVEL, true ) ) return '«' . $domain . '» es un sufijo público, no un dominio: no se hospeda.';
 		$ours = array( 'digitalisimo.website' );
@@ -652,8 +655,9 @@ class Digitalisimo_Hosting_Provisioning {
 
 	/** Lo que no se puede resolver solo: varios planes o dominios, cantidades, dominio inválido o de otra extensión. */
 	private static function check_order( $order, array $items, $domain ) {
-		if ( count( $items['hosting'] ) > 1 || count( $items['domains'] ) > 1 ) return self::stop( 'data', 'El pedido tiene más de un plan o más de un dominio; la venta automática atiende uno de cada uno por pedido. Entrégalo a mano.' );
-		foreach ( array_merge( $items['hosting'], $items['domains'] ) as $row ) if ( $row['qty'] > 1 ) return self::stop( 'data', 'El pedido tiene una cantidad mayor que 1 de «' . $row['item']->get_name() . '»; la venta automática registra un año por pedido.' );
+		$transfers = $items['transfers'] ?? array();
+		if ( count( $items['hosting'] ) > 1 || count( $items['domains'] ) + count( $transfers ) > 1 ) return self::stop( 'data', 'El pedido tiene más de un plan o más de un dominio; la venta automática atiende uno de cada uno por pedido. Entrégalo a mano.' );
+		foreach ( array_merge( $items['hosting'], $items['domains'], $transfers ) as $row ) if ( $row['qty'] > 1 ) return self::stop( 'data', 'El pedido tiene una cantidad mayor que 1 de «' . $row['item']->get_name() . '»; la venta automática registra un año por pedido.' );
 		if ( '' === $domain ) return self::stop( 'data', 'El pedido no trae el dominio (dato «Dominio» del producto).' );
 		if ( ! self::valid_domain( $domain ) || ! self::split( $domain ) ) return self::stop( 'data', 'El dominio «' . $domain . '» no es válido.' );
 		if ( $items['domains'] ) {
@@ -729,6 +733,43 @@ class Digitalisimo_Hosting_Provisioning {
 	}
 
 	private static function step_domain( $order, array &$state, array $items, $domain, $service ) {
+		if ( ! empty( $items['transfers'] ) ) {
+			// Antes de dar la transferencia por buena: producto de registro para renovarla y el mismo freno de pérdida que el
+			// registro, con el costo de transferencia de Namecheap (o el de registro si no lo da).
+			// Un reintento con otro dominio (la línea se corrigió a mano): el EPP de cualquier otro dominio se borra.
+			$epp = $order->get_meta( '_digitalisimo_epp' );
+			if ( is_array( $epp ) && array_diff( array_keys( $epp ), array( $domain ) ) ) {
+				$keep = array_intersect_key( $epp, array( $domain => 1 ) );
+				if ( $keep ) $order->update_meta_data( '_digitalisimo_epp', $keep ); else $order->delete_meta_data( '_digitalisimo_epp' );
+				$order->save();
+			}
+			if ( empty( $state['transfer_guarded'] ) ) {
+				$split = self::split( $domain ); $map = Digitalisimo_Hosting::domain_products();
+				if ( ! $split || ! isset( $map[ $split[2] ] ) ) return self::stop( 'data', 'No hay producto de registro de ' . ( $split ? $split[2] : $domain ) . ' con el que renovar el dominio transferido: no se tramita la transferencia de ' . $domain . '. Revísalo a mano.' );
+				$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+				if ( ! $nc->configured() ) return self::stop( 'config', 'Faltan los datos de la cuenta de Namecheap en Digitalisimo → Hosting.' );
+				$cost = $nc->price( $split[1], 'TRANSFER' );
+				if ( 'ok' !== $cost['kind'] ) $cost = $nc->price( $split[1], 'REGISTER' );
+				if ( 'ok' !== $cost['kind'] ) return self::stop( self::nc_kind( $cost ), $cost['message'] );
+				$guard = self::price_guard( $items['transfers'][0]['item'], $cost['value'], 'transferir ' . $domain, $order );
+				if ( $guard ) return $guard;
+				$state['transfer_guarded'] = time(); self::save_state( $order, $state );
+			}
+			// La transferencia se pide a mano en Namecheap con el código EPP («Ver código EPP» en el pedido): el código nunca
+			// va a notas ni correos. Ya pasó la revisión de dueño (check_owner), como un dominio propio.
+			if ( empty( $state['transfer_noted'] ) ) {
+				$state['transfer_noted'] = 1; self::save_state( $order, $state );
+				// El dominio transferido se renueva con el producto de registro de su extensión (su precio de renovación);
+				// Namecheap lo renueva sólo cuando la transferencia terminó (transfer_settled()).
+				$split = self::split( $domain ); $map = Digitalisimo_Hosting::domain_products();
+				$reg = $split && isset( $map[ $split[2] ] ) ? (int) $map[ $split[2] ] : 0;
+				self::svc_set( $service, array( 'transfer_pending' => 1 ) + ( $reg ? array( 'domain_product' => $reg ) : array() ) );
+				self::svc_log( $service, 'Transferencia de ' . $domain . ' por hacer a mano.' );
+				$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' por hacer a mano en Namecheap con el código EPP del cliente (botón «Ver código EPP» en este pedido; nunca lo copies en notas ni correos). Al terminar, apúntalo a ' . implode( ' y ', self::nameservers() ) . '.' );
+				self::alert_admin( 'Transferencia de dominio por hacer: ' . $domain, 'El pedido #' . $order->get_id() . ' pagó la transferencia de ' . $domain . '. Hazla en Namecheap con el código EPP («Ver código EPP» en el pedido): ' . self::order_link( $order ) );
+			}
+			return null;
+		}
 		if ( ! $items['domains'] ) {
 			if ( empty( $state['own_domain_noted'] ) ) {
 				$state['own_domain_noted'] = 1; self::save_state( $order, $state );
@@ -830,6 +871,7 @@ class Digitalisimo_Hosting_Provisioning {
 			'domain'      => $domain,
 			'has_hosting' => (bool) $items['hosting'],
 			'has_domain'  => (bool) $items['domains'],
+			'has_transfer' => ! empty( $items['transfers'] ),
 			'user'        => (string) ( $state['hosting']['user'] ?? '' ),
 			'password'    => $items['hosting'] ? self::hosting_password( $order, $state ) : '',
 			'panel_url'   => $items['hosting'] ? $api->panel_url() : '',
@@ -1082,6 +1124,7 @@ class Digitalisimo_Hosting_Provisioning {
 	public static function check_service( $id, $now, $grace ) {
 		$status = (string) self::svc( $id, 'status' );
 		if ( ! in_array( $status, array( 'active', 'suspended' ), true ) ) return;
+		if ( self::svc( $id, 'transfer_pending' ) ) self::transfer_settled( $id );
 		// Una suspensión o reactivación pedida y aún sin confirmar: no se pide otra.
 		$pt = self::svc( $id, 'pending_toggle' );
 		if ( is_array( $pt ) && ! empty( $pt['op'] ) ) {
@@ -1137,6 +1180,15 @@ class Digitalisimo_Hosting_Provisioning {
 		foreach ( array( 'hosting_product', 'domain_product' ) as $key ) {
 			$pid = (int) self::svc( $id, $key );
 			if ( ! $pid ) continue;
+			// Una transferencia que nunca llegó a la cuenta: no se cobra la renovación de un dominio que no podemos renovar.
+			if ( 'domain_product' === $key && self::svc( $id, 'transfer_pending' ) ) {
+				if ( (int) self::svc( $id, 'transfer_renew_alert' ) !== (int) self::svc( $id, 'expires' ) ) {
+					self::svc_set( $id, array( 'transfer_renew_alert' => (int) self::svc( $id, 'expires' ) ) );
+					self::svc_log( $id, 'Renovación sin el dominio: la transferencia de ' . self::svc( $id, 'domain' ) . ' no ha terminado.' );
+					self::alert_admin( 'transferencia sin terminar al renovar', 'El servicio ' . self::svc( $id, 'domain' ) . ' vence pronto y la transferencia de su dominio no ha llegado a la cuenta de Namecheap: la renovación no cobra el dominio. Termina la transferencia o renuévalo a mano.' );
+				}
+				continue;
+			}
 			$product = wc_get_product( $pid );
 			if ( ! $product ) { self::svc_log( $id, 'No se creó el pedido de renovación: el producto #' . $pid . ' ya no existe.' ); self::alert_admin( 'renovación sin producto', 'El servicio ' . self::svc( $id, 'domain' ) . ' vence pronto y su producto #' . $pid . ' ya no existe: crea su pedido de renovación a mano.' ); return null; }
 			$products[ $key ] = $product;
@@ -1232,10 +1284,34 @@ class Digitalisimo_Hosting_Provisioning {
 	}
 
 	/**
+	 * ¿Terminó la transferencia hecha a mano? Cuando el dominio ya está en la cuenta de Namecheap (sólo lectura,
+	 * getInfo), el servicio lo da por registrado (se renueva con él), deja de estar pendiente y el código EPP se borra
+	 * del pedido. Lo revisa la revisión diaria y la renovación.
+	 */
+	public static function transfer_settled( $id ) {
+		if ( ! self::svc( $id, 'transfer_pending' ) || self::svc( $id, 'domain_registered' ) ) return false;
+		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		if ( ! $nc->configured() ) return false;
+		$domain = (string) self::svc( $id, 'domain' );
+		$info = $nc->info( $domain );
+		if ( 'ok' !== $info['kind'] || empty( $info['ours'] ) ) return false;
+		self::svc_set( $id, array( 'transfer_pending' => 0, 'domain_registered' => 1 ) );
+		self::svc_log( $id, 'Transferencia de ' . $domain . ' terminada: el dominio ya está en la cuenta de Namecheap.' );
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( (int) self::svc( $id, 'order' ) ) : null;
+		if ( $order ) {
+			if ( class_exists( 'Digitalisimo_Hosting_Checkout' ) ) $order->delete_meta_data( Digitalisimo_Hosting_Checkout::META_EPP );
+			$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' terminada (ya está en la cuenta de Namecheap); el código EPP se borró del pedido.' );
+			$order->save();
+		}
+		return true;
+	}
+
+	/**
 	 * Renueva el dominio en Namecheap una sola vez: antes de la primera llamada se anota su vencimiento; si un intento
 	 * anterior llegó (el vencimiento ya es posterior), no se vuelve a cobrar.
 	 */
 	private static function renew_domain( $order, array &$state, $id ) {
+		self::transfer_settled( $id );
 		if ( ! self::svc( $id, 'domain_registered' ) || ! empty( $state['domain'] ) ) return null;
 		$domain = (string) self::svc( $id, 'domain' );
 		$nc = Digitalisimo_Hosting_Namecheap::from_settings();

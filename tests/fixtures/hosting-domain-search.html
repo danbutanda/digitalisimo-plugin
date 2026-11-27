@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscador de dominios (prueba)</title>
+<script>
+  // Lo que imprime wp_localize_script() de DIGITALÍSIMO Hosting: extensiones configuradas (.com, .net y .mx).
+  window.digitalisimoHosting = { endpoint: '/wp-json/digitalisimo-hosting/v1/', selector: '.elementor-form', domainField: 'form_fields[dominio]', extensionField: 'form_fields[extension]', products: { '.com': 20, '.net': 22, '.mx': 21 }, cart: 'https://tienda.test/carrito/?lang=es' };
+  // La REST de Hosting simulada: «ocupado» está registrado; lo demás, libre.
+  window.fetchLog = [];
+  window.fetch = async (url) => {
+    window.fetchLog.push(String(url));
+    const domain = new URL(url, 'https://tienda.test/').searchParams.get('domain');
+    const ext = domain.slice(domain.indexOf('.'));
+    const ids = { '.com': 20, '.net': 22, '.mx': 21 }, prices = { '.com': '300', '.net': '280', '.mx': '600' };
+    const body = { domain, available: !domain.startsWith('ocupado'), premium: false, product_id: ids[ext], price: prices[ext], currency: '$' };
+    return { ok: true, json: async () => body };
+  };
+  window.handlers = { classic: 0, alpine: 0, contact: 0 };
+</script>
+</head>
+<body>
+<section id="s1">
+  <!-- Formulario clásico de Elements con una lista fija de extensiones (con .org) y [resultado_dominio] -->
+  <form class="elementor-form" id="classic">
+    <input type="text" name="form_fields[dominio]">
+    <select name="form_fields[extension]"><option value=".com">.com</option><option value=".org">.org</option><option value=".mx">.mx</option></select>
+    <button type="submit">Buscar</button>
+  </form>
+  <div class="digitalisimo-hosting-result" id="classic-result" aria-live="polite"></div>
+</section>
+<section id="s2">
+  <!-- Formulario nuevo del editor atómico (e-form): campos con el nombre que pone el editor -->
+  <form class="e-con e-atomic-element e-form-base form-state-default" data-element_type="e-form" data-e-type="e-form" id="atomic" x-data="eFormabc">
+    <input class="e-default-input" name="dominio" type="text">
+    <select name="extension"><option value=".org">.org</option><option value=".com">.com</option><option value=".mx">.mx</option></select>
+    <button type="submit">Buscar</button>
+  </form>
+</section>
+<section id="s3">
+  <!-- [digitalisimo_domain_search] dentro de un formulario atómico (un <div>, no un <form> anidado) -->
+  <form class="e-con e-atomic-element" data-element_type="e-form" id="atomic2">
+    <input name="nombre" type="text">
+    <div class="digitalisimo-domain-search" role="search" id="widget"><label>Dominio <input type="text" name="domain"></label><label>Extensión <select name="extension"><option value=".com">.com</option><option value=".net">.net</option><option value=".mx">.mx</option></select></label><button type="button" class="digitalisimo-domain-search-button">Verificar dominio</button><div class="digitalisimo-domain-result" aria-live="polite"></div></div>
+    <button type="submit" id="atomic2-submit">Enviar contacto</button>
+  </form>
+</section>
+<section id="s4">
+  <!-- Sólo el campo del dominio, marcado con la clase: se consultan todas las extensiones configuradas -->
+  <form class="digitalisimo-domain-form" id="noext"><input name="domain" type="text"><button type="submit">Buscar</button></form>
+</section>
+<section id="s6">
+  <!-- Panel «Tu dominio»: el campo de «Uno que ya tengo» sólo se envía con esa opción -->
+  <form id="panel"><fieldset class="digitalisimo-hosting-domain-mode"><label><input type="radio" name="m" value="new" checked> Dominio nuevo</label><label><input type="radio" name="m" value="own"> Uno que ya tengo</label><p class="digitalisimo-hosting-own"><input type="text" name="d" value="escrito.com"></p></fieldset></form>
+</section>
+<section id="s5">
+  <!-- Un formulario de contacto cualquiera: no se toca -->
+  <form id="contact"><input name="nombre" type="text"><button type="submit">Enviar</button></form>
+</section>
+<script>
+  // Como jQuery (Elementor clásico) y Alpine (e-form): manejadores en el propio formulario.
+  document.getElementById('classic').addEventListener('submit', (e) => { e.preventDefault(); window.handlers.classic++; });
+  document.getElementById('atomic').addEventListener('submit', (e) => { e.preventDefault(); window.handlers.alpine++; });
+  document.getElementById('atomic2').addEventListener('submit', (e) => { e.preventDefault(); window.handlers.alpine++; });
+  document.getElementById('contact').addEventListener('submit', (e) => { e.preventDefault(); window.handlers.contact++; });
+</script>
+<script src="../../digitalisimo-hosting/assets/domain-form.js"></script>
+</body>
+</html>

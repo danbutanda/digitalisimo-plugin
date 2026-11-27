@@ -53,6 +53,8 @@ if ( class_exists( 'WC_Email' ) && ! class_exists( 'Digitalisimo_Hosting_Email_A
 
 		private function intro() {
 			$d = $this->data;
+			// Transferencia (2026-11-26): se hace a mano; el correo no dice que el dominio ya está registrado.
+			if ( ! empty( $d['has_transfer'] ) ) return ! empty( $d['has_hosting'] ) ? 'Creamos tu cuenta de hosting. Estamos transfiriendo tu dominio: puede tardar hasta 7 días; al llegar lo apuntamos a los nameservers de abajo.' : 'Recibimos tu transferencia de dominio y ya la estamos tramitando: puede tardar hasta 7 días. Al llegar lo apuntamos a los nameservers de abajo.';
 			if ( ! empty( $d['has_hosting'] ) && ! empty( $d['has_domain'] ) ) return 'Registramos tu dominio y creamos tu cuenta de hosting. El dominio puede tardar unas horas en apuntar al servidor.';
 			if ( ! empty( $d['has_hosting'] ) ) return 'Creamos tu cuenta de hosting. Apunta tu dominio a los nameservers de abajo para que tu sitio cargue desde nuestro servidor.';
 			return 'Registramos tu dominio y lo apuntamos a nuestros nameservers.';
