@@ -210,6 +210,10 @@ const CONVERSATIONS = [
     // D1 · Nada de «hazlo tú» cuando hay herramienta.
     const diy = transcript.flatMap((t) => t.visible.flatMap((v) => diyOf(v).map((s) => `${t.label}: ${s}`)));
     check('D1', diy.length === 0, `cero «hazlo tú» cuando hay herramienta (${diy.length})`, diy.join(' | '));
+    // D3 · Revisar no crea nada: en las revisiones (A1 y A2) ningún borrador ni página de prueba (corrida 8 de Haiku
+    // del 2026-11-27: creó «__prueba_no_crear__» para «revisar» el carrito).
+    const reviewDrafts = transcript.filter((t) => /^A/.test(t.label)).flatMap((t) => t.tools.filter((m) => m.kind === 'draft').map((m) => `${t.label}: ${m.ability} ${m.summary || ''}`.slice(0, 200)));
+    check('D3', reviewDrafts.length === 0, `las revisiones no crean borradores ni páginas (${reviewDrafts.length})`, reviewDrafts.join(' | '));
     const diyOther = transcript.flatMap((t) => t.visible.flatMap((v) => diyAny(v).filter((s) => !WITH_TOOL.test(s)).map((s) => `${t.label}: ${s}`)));
     log(`info · D2 · pasos que se le piden a la persona donde no hay herramienta (permitido, con pasos simples): ${diyOther.length ? diyOther.join(' | ') : 'ninguno'}`);
 
@@ -226,7 +230,7 @@ const CONVERSATIONS = [
     check('K1', skyAudit.length > 0 && skyAudit.every((m) => m.kind === 'read') && a2.cards.filter((a) => isRead(a.ability, cardInput(a))).length === 0, `las revisiones de Skydropx corrieron como lecturas, sin tarjeta (${skyReads.map((m) => `${m.kind}:${m.status}`).join(', ')})`, JSON.stringify(a2.tools.map((m) => `${m.kind}:${m.ability}:${m.status}:${m.summary}`)));
     const a2text = a2.visible.join('\n');
     check('K0', a2text.trim().length > 0, 'el informe de Skydropx y el carrito se ve (no queda escondido detrás de una tarjeta)', JSON.stringify(a2.events.filter((e) => e.type === 'message').map((e) => e.message)));
-    check('K2', /\bpeso/i.test(a2text) && /(3|tres) productos/i.test(a2text), 'dice que hay productos sin peso (y cuántos)', a2text);
+    check('K2', /\bpeso/i.test(a2text) && /(3|tres) (de (tus|los) \d+ )?productos/i.test(a2text), 'dice que hay productos sin peso (y cuántos)', a2text);
     check('K3', /carrito|pago|transferencia|contra entrega/i.test(a2text), 'dice cómo está el carrito o los pagos', a2text);
 
     // L1 · Las landings se crean en su primer turno, sin tarjeta.
