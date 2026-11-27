@@ -344,7 +344,7 @@ class Digitalisimo_Hosting {
 			echo '<table class="form-table dh-rows" role="presentation"><tbody>';
 			foreach ( $exts as $ext ) {
 				$cur = (string) ( $o['registrar_by_tld'][ $ext ] ?? '' );
-				$fid = 'dh-reg-' . sanitize_key( str_replace( '.', '-', $ext ) );
+				$fid = 'dh-reg-' . sanitize_key( str_replace( '.', '-', ltrim( $ext, '.' ) ) );
 				echo '<tr><th scope="row"><label for="' . esc_attr( $fid ) . '">' . esc_html( $ext ) . '</label></th><td><select id="' . esc_attr( $fid ) . '" name="hosting[registrar_by_tld][' . esc_attr( $ext ) . ']"><option value="">Predeterminado (' . esc_html( class_exists( 'Digitalisimo_Hosting_Registrars' ) ? Digitalisimo_Hosting_Registrars::label( Digitalisimo_Hosting_Registrars::default_id( $o ) ) : 'Namecheap' ) . ')</option>';
 				foreach ( $ids as $id => $label ) echo '<option value="' . esc_attr( $id ) . '"' . ( $id === $cur ? ' selected' : '' ) . '>' . esc_html( $label ) . '</option>';
 				echo '</select></td></tr>';
@@ -381,7 +381,7 @@ class Digitalisimo_Hosting {
 		if ( ! $exts ) echo '<p class="description">Aparece una fila por extensión cuando marques productos como «Dominio».</p>';
 		else {
 			echo '<table class="form-table" role="presentation"><tbody>';
-			foreach ( $exts as $ext ) { $fid = 'dh-req-' . sanitize_key( str_replace( '.', '-', $ext ) ); echo '<tr><th scope="row"><label for="' . esc_attr( $fid ) . '">' . esc_html( $ext ) . '</label></th><td><input type="text" class="large-text" id="' . esc_attr( $fid ) . '" name="hosting[finder_requirements][' . esc_attr( $ext ) . ']" value="' . esc_attr( (string) ( $req[ $ext ] ?? '' ) ) . '" maxlength="300"></td></tr>'; }
+			foreach ( $exts as $ext ) { $fid = 'dh-req-' . sanitize_key( str_replace( '.', '-', ltrim( $ext, '.' ) ) ); echo '<tr><th scope="row"><label for="' . esc_attr( $fid ) . '">' . esc_html( $ext ) . '</label></th><td><input type="text" class="large-text" id="' . esc_attr( $fid ) . '" name="hosting[finder_requirements][' . esc_attr( $ext ) . ']" value="' . esc_attr( (string) ( $req[ $ext ] ?? '' ) ) . '" maxlength="300"></td></tr>'; }
 			echo '</tbody></table><p class="description">Se muestra junto a esa extensión en el buscador. Vacío: sin aviso.</p>';
 		}
 		echo '</fieldset>';

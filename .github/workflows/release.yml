@@ -354,6 +354,9 @@ jobs:
           php tests/hosting-domain-finder.php
           php tests/hosting-dynadot.php
           php tests/hosting-namecheap-getinfo.php
+          php tests/hosting-periods.php
+          php tests/hosting-product-types.php
+          php tests/hosting-products-migration.php
           php tests/backups-sftp.php
           php tests/backups-sftp-phpseclib.php
           php tests/backups-sftp-keys.php

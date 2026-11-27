@@ -473,7 +473,7 @@ function digi_store_settings( array $extra = array() ) {
 
 define( 'DIGITALISIMO_HOSTING_URL', 'https://tienda.test/wp-content/plugins/digitalisimo-hosting/' );
 define( 'DIGITALISIMO_HOSTING_VERSION', '9.9.9' );
-foreach ( array( 'class-hosting', 'class-hosting-products', 'class-hosting-lists', 'class-hosting-product-editor', 'class-hosting-checkout', 'class-hosting-webuzo', 'class-hosting-namecheap', 'class-hosting-pricing', 'class-hosting-provisioning', 'class-hosting-services-page', 'class-hosting-finder' ) as $digi_file ) require __DIR__ . '/../../digitalisimo-hosting/includes/' . $digi_file . '.php';
+foreach ( array( 'class-hosting', 'class-hosting-products', 'class-hosting-lists', 'class-hosting-product-editor', 'class-hosting-checkout', 'class-hosting-webuzo', 'class-hosting-namecheap', 'class-hosting-pricing', 'class-hosting-provisioning', 'class-hosting-services-page', 'class-hosting-finder' ) as $digi_file ) { $digi_path = __DIR__ . '/../../digitalisimo-hosting/includes/' . $digi_file . '.php'; if ( is_file( $digi_path ) ) require $digi_path; } // un archivo que no existe (código anterior, para la evidencia) no detiene el arnés
 Digitalisimo_Hosting_Provisioning::init();
 digi_product( 14693, 'Web Hosting Starter', 970, 'digitalisimo_starter' );
 digi_product( 14696, 'Web Hosting Pro', 5850, 'digitalisimo_pro' );
