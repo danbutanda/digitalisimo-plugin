@@ -102,6 +102,9 @@ check( array( array( 10, 11, 12 ) ) === $A::clusters( array( '10-11' => 1, '11-1
 check( 'páginas web' === $A::shared_keyword( array( 'Páginas web', 'Páginas web Torreón', 'Diseño de páginas web en Torreón' ) ), 'Palabra en disputa: ' . $A::shared_keyword( array( 'Páginas web', 'Páginas web Torreón', 'Diseño de páginas web en Torreón' ) ) );
 check( 'diseño web torreón' === $A::shared_keyword( array( 'A', 'B' ), array( 'Diseño web Torreón', 'diseño web torreón' ) ), 'Si todas tienen la misma keyword principal, ésa.' );
 check( 11 === $A::keeper( array( 10 => array( 'incoming' => 1, 'words' => 900, 'date' => '2023-01-01' ), 11 => array( 'incoming' => 4, 'words' => 300, 'date' => '2024-01-01' ), 12 => array( 'incoming' => 4, 'words' => 200, 'date' => '2022-01-01' ) ) ), 'Se queda la de más enlaces entrantes; a igualdad, la de más texto.' );
+$long = array(); for ( $i = 0; $i < 6000; $i++ ) $long[] = 'palabra' . $i;
+check( $A::MAX_SHINGLES === count( $A::shingle_hashes( $long ) ) && is_int( $A::shingle_hashes( $long )[0] ), 'Tejas como enteros y con tope por contenido.' );
+check( $A::jaccard( $A::shingle_hashes( $A::words( $texts[10] ) ), $A::shingle_hashes( $A::words( $texts[11] ) ) ) === $exact, 'Con hashes, el mismo Jaccard.' );
 check( array() === $A::signature( array() ) && 0.0 === $A::similarity( array(), array( 1 ) ), 'Sin texto no hay firma ni similitud.' );
 
 /* B4 ---------------------------------------------------------------- */
@@ -142,6 +145,11 @@ check( ! empty( $GLOBALS['opt'][ $A::STATE ]['done'] ) && 1 === $GLOBALS['opt'][
 $GLOBALS['opt'][ $A::STATE ]['dirty'] = 0;
 $A::maybe_start();
 check( empty( $GLOBALS['opt'][ $A::STATE ]['done'] ), 'Reunido y de hace más de una semana: empieza otro.' );
+
+// Tres intentos fallidos de reunir el resultado: se deja de intentar (no cada minuto para siempre).
+$GLOBALS['opt'][ $A::STATE ] = array( 'version' => $A::VERSION, 'done' => true, 'dirty' => 1, 'tries' => 3, 'started' => time(), 'finished' => 0 );
+$A::run_batch();
+check( 0 === $GLOBALS['opt'][ $A::STATE ]['dirty'] && $GLOBALS['opt'][ $A::STATE ]['failed'] > 0, 'Al tercer fallo se marca y no se reprograma.' );
 
 /* B3 y B2: plan, tope, respaldo y deshacer --------------------------- */
 $GLOBALS['posts'] = array();

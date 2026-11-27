@@ -93,6 +93,19 @@ class Digitalisimo_Integrations_Site_Analysis {
 		return array_keys( $out );
 	}
 
+	/** Tope de tejas por contenido en la comprobación exacta: las de hash más bajo (muestra coherente entre páginas). */
+	const MAX_SHINGLES = 4000;
+
+	/**
+	 * Tejas como enteros (crc32), sin repetir y, si pasan del tope, sólo las MAX_SHINGLES de hash más bajo: la misma
+	 * muestra en todas las páginas, así que el Jaccard sigue siendo comparable, y la memoria queda acotada.
+	 */
+	public static function shingle_hashes( array $words ) {
+		$hashes = array_values( array_unique( array_map( function( $s ) { return crc32( $s ); }, self::shingles( $words ) ) ) );
+		if ( count( $hashes ) > self::MAX_SHINGLES ) { sort( $hashes ); $hashes = array_slice( $hashes, 0, self::MAX_SHINGLES ); }
+		return $hashes;
+	}
+
 	/** Jaccard exacto de dos conjuntos de tejas. */
 	public static function jaccard( array $a, array $b ) {
 		if ( ! $a || ! $b ) return 0.0;
@@ -439,7 +452,16 @@ class Digitalisimo_Integrations_Site_Analysis {
 		global $wpdb;
 		if ( ! self::active() ) return 0;
 		$state = self::state();
-		if ( ! empty( $state['done'] ) ) { if ( ! empty( $state['dirty'] ) ) self::finalize(); return 0; }
+		if ( ! empty( $state['done'] ) ) {
+			if ( empty( $state['dirty'] ) ) return 0;
+			// Cada intento se anota antes: si finalize() se corta (memoria, tiempo), al tercero se deja de intentar hasta el
+			// repaso de la semana siguiente o «Analizar de nuevo», en lugar de reintentar cada minuto para siempre.
+			$tries = (int) ( $state['tries'] ?? 0 );
+			if ( $tries >= 3 ) { update_option( self::STATE, array_merge( $state, array( 'dirty' => 0, 'failed' => time() ) ), false ); return 0; }
+			update_option( self::STATE, array_merge( $state, array( 'tries' => $tries + 1 ) ), false );
+			self::finalize();
+			return 0;
+		}
 		$types = self::types();
 		if ( ! $types ) return 0;
 		$in   = implode( ', ', array_fill( 0, count( $types ), '%s' ) );
@@ -608,7 +630,7 @@ class Digitalisimo_Integrations_Site_Analysis {
 		$pairs    = array_slice( self::candidates( $sigs ), 0, self::MAX_PAIRS, true );
 		$accepted = array();
 		$cache    = array();
-		$shingle  = function( $id ) use ( &$cache ) { if ( ! isset( $cache[ $id ] ) ) { $post = get_post( $id ); $cache[ $id ] = $post ? self::shingles( self::words( self::visible_text( $post ) ) ) : array(); } return $cache[ $id ]; };
+		$shingle  = function( $id ) use ( &$cache ) { if ( ! isset( $cache[ $id ] ) ) { $post = get_post( $id ); $cache[ $id ] = $post ? self::shingle_hashes( self::words( self::visible_text( $post ) ) ) : array(); if ( count( $cache ) > 200 ) array_shift( $cache ); } return $cache[ $id ]; };
 		foreach ( $pairs as $key => $estimate ) {
 			list( $a, $b ) = array_map( 'intval', explode( '-', $key ) );
 			$exact = microtime( true ) - $started < self::$budget ? self::jaccard( $shingle( $a ), $shingle( $b ) ) : null;
@@ -659,7 +681,7 @@ class Digitalisimo_Integrations_Site_Analysis {
 		);
 		update_option( self::RESULTS, $results, false );
 		$state = self::state();
-		update_option( self::STATE, array_merge( $state, array( 'dirty' => 0, 'finished' => time() ) ), false );
+		update_option( self::STATE, array_merge( $state, array( 'dirty' => 0, 'finished' => time(), 'tries' => 0, 'failed' => 0 ) ), false );
 		if ( $canon && ! wp_next_scheduled( self::CANON_CRON ) ) wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::CANON_CRON );
 		return $results;
 	}
@@ -828,6 +850,7 @@ class Digitalisimo_Integrations_Site_Analysis {
 		$r     = self::results();
 		echo '<p>Revisa en segundo plano lo que el sitio publica: shortcodes y variables sin resolver, páginas que compiten entre sí, páginas sin enlaces, canonical a otro dominio o roto y descripciones para redes desactualizadas. Sólo informa; cada acción pide tu confirmación y guarda un respaldo para deshacerla.</p>';
 		if ( empty( $state['done'] ) && ! empty( $state['version'] ) ) echo '<div class="notice notice-info inline"><p>Análisis en curso, por lotes en segundo plano. Los resultados de abajo son del repaso anterior.</p></div>';
+		if ( ! empty( $state['failed'] ) ) echo '<div class="notice notice-warning inline"><p>El último análisis no pudo reunir el resultado tres veces seguidas (falta de memoria o de tiempo del servidor). Se vuelve a intentar con «Analizar de nuevo» o en el repaso de la semana siguiente.</p></div>';
 		if ( empty( $r['at'] ) ) echo '<p class="description">Aún no hay resultados: el primer repaso empieza al abrir el escritorio y tarda unos minutos.</p>';
 		else echo '<p class="description">' . esc_html( sprintf( 'Último análisis: %1$s · %2$d contenidos publicados.', wp_date( 'Y-m-d H:i', (int) $r['at'] ), (int) $r['posts'] ) ) . '</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="digitalisimo_seo_analysis_rescan">';
