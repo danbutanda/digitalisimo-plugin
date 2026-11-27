@@ -199,6 +199,10 @@ personales o dinero), ajustes, envíos, impuestos y pasarelas (pueden llevar cla
 updates de un producto o una variación que tocan `type`, `attributes` o `default_attributes` (de ellos dependen sus
 variaciones: volver atrás no las quitaría ni las devolvería).
 
+**El Asistente en «Sólo lectura».** Lo que escribe por su excepción queda en el registro igual, pero su respuesta dice
+`undo: false` con el motivo: deshacer (que puede borrar) no entra en esa excepción. Lo deshace después quien tenga la
+escritura de esa herramienta permitida.
+
 `undo` (en `products`, `catalog` y `coupons`, con `change_id`; `dry_run` también) es una escritura: sujeta al modo, a la
 capacidad de la acción inversa (editar para un update; borrar para un create o una papelera) y a la bitácora. Comprueba
 antes que nadie lo cambió:

@@ -143,6 +143,12 @@ final class Executor {
 			$failed = $batch && $batch['failed'] > 0;
 			Log::add( Log::entry( $plan, $failed ? 'partial' : 'ok', $failed ? $batch['errors'][0]['code'] : '', (int) $status, $user ) );
 			$change = Changes::record( $plan, $user, $before, $data );
+			if ( ! empty( $change['undo'] ) && ! Settings::can_write( $tool ) ) {
+				// Sólo pudo escribir por la excepción del Asistente en «Sólo lectura»; deshacer (que puede borrar) no
+				// entra en ella: no se promete. El cambio queda registrado y lo deshace quien tenga escritura.
+				$change['undo']   = false;
+				$change['reason'] = 'En «Sólo lectura» el Asistente no deshace: el cambio queda en el registro y lo puede deshacer un administrador con la escritura de esta herramienta permitida («WooCommerce en el MCP» en «Rendimiento»).';
+			}
 		}
 
 		if ( 'store-settings' === $tool ) {

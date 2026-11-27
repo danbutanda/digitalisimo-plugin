@@ -1478,6 +1478,37 @@ namespace {
 		}
 	);
 
+	// Revisión de la tanda B (coordinador, 2026-11-26): en «Sólo lectura» el Asistente recibía undo:true aunque no puede deshacer. Fallaba con
+	// 3120eed2.
+	review_block(
+		'B3-rev-asistente',
+		static function () use ( $run, $assistant ) {
+			$caps = array( 'edit_products', 'publish_products', 'delete_products', 'read_private_products', 'edit_others_products', 'edit_product_terms', 'delete_product_terms', 'manage_product_terms', 'manage_woocommerce' );
+			wm_reset( array( 'caps' => $caps, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'write', 'own' => array( 'mode' ) ) ) ) );
+			$R = &$GLOBALS['wm_rest_responses'];
+			$R = array();
+			$GLOBALS['wm_rest'] = array();
+			update_option( Settings::OPTION, array( 'mode' => 'read', 'own' => array( 'mode' ) ) );
+			$R['GET /wc/v3/products/6'] = array( 200, array( 'id' => 6, 'regular_price' => '12', 'variations' => array() ), array() );
+			$R['PUT /wc/v3/products/6'] = array( 200, array( 'id' => 6, 'regular_price' => '14', 'variations' => array() ), array() );
+			$result = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run ) {
+				return $run( 'products', array( 'action' => 'update', 'product_id' => 6, 'data' => array( 'regular_price' => '14' ) ) );
+			} );
+			review( 'B3-rev-asistente', is_array( $result ) && false === $result['change']['undo'] && false !== strpos( $result['change']['reason'], 'Sólo lectura' ), 'Asistente en «Sólo lectura»: escribe, pero no promete deshacer: ' . json_encode( is_wp_error( $result ) ? $result->get_error_message() : ( $result['change'] ?? null ), JSON_UNESCAPED_UNICODE ) );
+			review( 'B3-rev-asistente', is_array( $result ) && true === ( Changes::get( $result['change']['id'] )['undo'] ?? null ), 'En el registro sigue deshacible para quien tenga escritura.' );
+			$denied = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run, $result ) {
+				return $run( 'products', array( 'action' => 'undo', 'change_id' => $result['change']['id'] ) );
+			} );
+			review( 'B3-rev-asistente', is_wp_error( $denied ) && 'digitalisimo_woo_mcp_read_only' === $denied->get_error_code(), 'Coherente: el Asistente en «Sólo lectura» no deshace.' );
+			review( 'B3-rev-asistente', false !== strpos( Settings::HELP, 'borrar, deshacer, pedidos' ), 'La ayuda dice que en «Sólo lectura» el Asistente no deshace.' );
+			update_option( Settings::OPTION, array( 'mode' => 'write', 'own' => array( 'mode' ) ) );
+			$result = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run ) {
+				return $run( 'products', array( 'action' => 'update', 'product_id' => 6, 'data' => array( 'regular_price' => '14' ) ) );
+			} );
+			review( 'B3-rev-asistente', is_array( $result ) && true === $result['change']['undo'], 'Con escritura, el Asistente sí recibe undo:true.' );
+		}
+	);
+
 	if ( ! empty( $GLOBALS['wm_review'] ) ) {
 		$lines = array();
 		foreach ( $GLOBALS['wm_review'] as $label => $messages ) {
