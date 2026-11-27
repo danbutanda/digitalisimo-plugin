@@ -63,6 +63,7 @@ namespace {
 	function current_user_can( $cap ) { return in_array( $cap, $GLOBALS['t']['caps'], true ); }
 	function wp_get_current_user() { return (object) array( 'ID' => $GLOBALS['t']['user'], 'user_login' => $GLOBALS['t']['login'] ); }
 	function is_wp_error( $v ) { return $v instanceof WP_Error; }
+	class WP_REST_Response { public $data; public $status; public function __construct( $d = null, $s = 200 ) { $this->data = $d; $this->status = $s; } public function get_status() { return $this->status; } public function get_data() { return $this->data; } }
 	class WP_Error { public $code; public $message; public function __construct( $c = '', $m = '', $d = null ) { $this->code = $c; $this->message = $m; } public function get_error_code() { return $this->code; } }
 	function rest_url( $path = '' ) { return 'https://tienda.test/wp-json/' . $path; }
 	function home_url( $path = '' ) { return 'https://tienda.test' . $path; }
@@ -123,12 +124,13 @@ namespace {
 	check( 1 === substr_count( $html, 'type="checkbox"' ) && false !== strpos( $html, 'Mostrar el prompt para vincular' ) && false !== strpos( $html, 'checked="checked"' ), 'A3: una sola opción visible, marcada.' );
 	check( false !== strpos( $html, 'https://tienda.test/wp-json/elementor/mcp' ), 'A3: la dirección del servidor de ESTE sitio.' );
 	check( false !== strpos( $html, '&quot;mcpServers&quot;' ) && false !== strpos( $html, '&quot;type&quot;: &quot;http&quot;' ) && false !== strpos( $html, 'mcp-remote' ) && false !== strpos( $html, 'Authorization' ), 'A3: la configuración de Claude Code y de Claude Desktop, con la cabecera de autenticación.' );
-	check( false !== strpos( $html, '.mcp.json' ) && false !== strpos( $html, 'claude_desktop_config.json' ) && false !== strpos( $html, 'Contraseñas de aplicación' ), 'A3: dice dónde pegarla y cómo crear la contraseña de aplicación.' );
+	check( false !== strpos( $html, '~/.claude.json' ) && false !== strpos( $html, 'claude_desktop_config.json' ) && false !== strpos( $html, 'Contraseñas de aplicación' ) && false !== strpos( $html, 'no lo pegues en un archivo que se suba a un repositorio' ), 'A3: dice dónde pegarla (configuración de usuario, nunca en un repositorio) y cómo crear la contraseña de aplicación.' );
+	check( false !== strpos( $html, 'autocomplete="new-password"' ) && false === strpos( $html, 'name="digitalisimo' . '-mcp-pass' ), 'A3: la contraseña del bloque no se autocompleta ni viaja en el formulario.' );
 	check( false !== strpos( $html, 'Ocultarlo no apaga nada' ) && ! preg_match( '/s[oó]lo lectura|Lectura y escritura»|Escritura s[oó]lo en lo elegido/iu', $html ), 'A3: sin modos; ocultar no apaga nada.' );
 	$config = json_decode( $A::client_config( 'code', 'ABC' ), true );
 	check( array( 'type' => 'http', 'url' => 'https://tienda.test/wp-json/elementor/mcp', 'headers' => array( 'Authorization' => 'Basic ABC' ) ) === $config['mcpServers']['tienda-test'], 'A3: JSON válido de Claude Code con el nombre del sitio: ' . $A::client_config( 'code', 'ABC' ) );
 	$config = json_decode( $A::client_config( 'desktop', 'ABC' ), true );
-	check( array( '-y', 'mcp-remote', 'https://tienda.test/wp-json/elementor/mcp', '--header', 'Authorization: Basic ABC' ) === $config['mcpServers']['tienda-test']['args'], 'A3: JSON válido de Claude Desktop.' );
+	check( array( '-y', 'mcp-remote', 'https://tienda.test/wp-json/elementor/mcp', '--header', 'Authorization:${AUTH_HEADER}' ) === $config['mcpServers']['tienda-test']['args'] && array( 'AUTH_HEADER' => 'Basic ABC' ) === $config['mcpServers']['tienda-test']['env'], 'A3: JSON válido de Claude Desktop (cabecera por variable, sin espacios en los argumentos).' );
 	check( false === strpos( $html, 'ana:' ) && false !== strpos( $html, 'USUARIO_Y_CONTRASEÑA_EN_BASE64' ), 'A3: ninguna credencial en la página: la completa el navegador.' );
 	// Guardar: ocultar, mostrar; capacidad, POST y nonce.
 	$_SERVER['REQUEST_METHOD'] = 'POST';
@@ -154,6 +156,16 @@ namespace {
 	$A::render( true );
 	$net = (string) ob_get_clean();
 	check( false === strpos( $net, '<form' ) && false !== strpos( $net, 'no hay ajustes de red' ), 'A3: en la red, sólo una nota.' );
+	// El conmutador de la página MCP del núcleo ya no apaga nada: a un administrador se le responde «activo» sin escribir.
+	$core_req = new class() { public $route = '/elementor-mcp/v1/mcp-settings'; public $method = 'POST'; public function get_route() { return $this->route; } public function get_method() { return $this->method; } };
+	$GLOBALS['t']['writes'] = array();
+	$resp = $A::core_settings_save( null, null, $core_req );
+	check( $resp instanceof WP_REST_Response && true === $resp->data['data']['enabled'] && array() === $GLOBALS['t']['writes'], 'A3: apagar desde la página del núcleo responde «activo» y no escribe.' );
+	$GLOBALS['t']['caps'] = array( 'edit_posts' );
+	check( null === $A::core_settings_save( null, null, $core_req ), 'A3: sin manage_options, la ruta responde como siempre (403 del núcleo).' );
+	$GLOBALS['t']['caps'] = array( 'manage_options' );
+	$core_req->route = '/wp/v2/posts';
+	check( null === $A::core_settings_save( null, null, $core_req ), 'A3: otras rutas no se tocan.' );
 
 	// ------------------------------------------------------------------------------------------------- A4
 	t_reset( array( 'caps' => array( 'manage_options' ) ) );
@@ -174,7 +186,21 @@ namespace {
 	check( false === $GLOBALS['t']['autoload'][ $L::OPTION ], 'A4: la bitácora no tiene carga automática.' );
 	call_user_func( $wrapped['execute_callback'], array( 'action' => 'list' ) );
 	call_user_func( $wrapped['execute_callback'], array( 'action' => 'delete', 'product_id' => 12, 'dry_run' => true ) );
-	check( 1 === $L::page()['total'], 'A4: lecturas y simulaciones no se anotan.' );
+	check( 3 === $L::page()['total'], 'A4: una herramienta que no declara simulación ni acciones se anota aunque la llamada diga list o dry_run (no se evade así).' );
+	$woo_like = $L::wrap( array( 'execute_callback' => function ( $in ) { return array( 'ok' => true ); }, 'input_schema' => array( 'properties' => array( 'action' => array( 'enum' => array( 'list', 'get', 'update', 'delete' ) ) ) ), 'meta' => array( 'annotations' => array( 'readonly' => false ), 'digitalisimo' => array( 'dry_run' => true ) ) ), 'digitalisimo-woo/catalog' );
+	call_user_func( $woo_like['execute_callback'], array( 'action' => 'list' ) );
+	call_user_func( $woo_like['execute_callback'], array( 'action' => 'delete', 'term_id' => 3, 'dry_run' => true ) );
+	check( 3 === $L::page()['total'], 'A4: en la que declara sus acciones y su simulación, lecturas y simulaciones no se anotan.' );
+	call_user_func( $woo_like['execute_callback'], array( 'action' => 'delete', 'term_id' => 3, 'dry_run' => 'true' ) );
+	check( 4 === $L::page()['total'], 'A4: dry_run tiene que ser true estricto.' );
+	$status_error = $L::wrap( array( 'execute_callback' => function () { return array( 'status' => 'error', 'code' => 'post_not_found' ); }, 'meta' => array() ), 'elementor/publish-document' );
+	call_user_func( $status_error['execute_callback'], array( 'post_id' => 9 ) );
+	check( 'post_not_found' === $L::page()['entries'][0]['result'], 'A4: una respuesta status: error cuenta como error.' );
+	$adapter = array( 'execute_callback' => 'strlen', 'meta' => array( 'annotations' => array( 'readonly' => false ) ) );
+	check( $adapter === $L::wrap( $adapter, 'mcp-adapter/execute-ability' ), 'A4: el ejecutor genérico del adaptador no se anota (lo hace la ability que ejecuta).' );
+	$dies = $L::wrap( array( 'execute_callback' => function () use ( $L ) { check( 'started' === $L::page()['entries'][0]['result'], 'A4: la entrada existe ANTES de ejecutar (started).' ); return true; }, 'meta' => array() ), 'elementor/manage-elements' );
+	call_user_func( $dies['execute_callback'], array( 'post_id' => 2 ) );
+	check( 'ok' === $L::page()['entries'][0]['result'], 'A4: y al terminar se completa.' );
 	$err = $L::wrap( array( 'execute_callback' => function () { return new WP_Error( 'digitalisimo_hosting_price_loss', 'Vendería con pérdida.' ); }, 'meta' => array() ), 'digitalisimo-hosting/settings' );
 	call_user_func( $err['execute_callback'], array( 'action' => 'update' ) );
 	check( 'digitalisimo_hosting_price_loss' === $L::page()['entries'][0]['result'], 'A4: un error (por ejemplo, una guarda de negocio) queda con su código; una ability sin anotaciones cuenta como escritura.' );
@@ -185,7 +211,28 @@ namespace {
 	Digitalisimo_AI_Assistant_Context::$c = array( 'ability' => 'digitalisimo-woo/products' );
 	call_user_func( $wrapped['execute_callback'], array( 'action' => 'create' ) );
 	Digitalisimo_AI_Assistant_Context::$c = null;
-	check( 'assistant' === $L::page()['entries'][0]['via'] && 1 === $L::page( 1, 50, '', 'assistant' )['total'] && 2 === $L::page( 1, 50, 'digitalisimo-woo/' )['total'], 'A4: el Asistente queda como vía; filtros por vía y por herramienta.' );
+	check( 'assistant' === $L::page()['entries'][0]['via'] && 1 === $L::page( 1, 50, '', 'assistant' )['total'] && count( array_filter( get_option( $L::OPTION ), function ( $r ) { return 0 === strpos( $r['ability'], 'digitalisimo-woo/' ); } ) ) === $L::page( 1, 50, 'digitalisimo-woo/' )['total'] && $L::page( 1, 50, 'digitalisimo-woo/' )['total'] < $L::page()['total'], 'A4: el Asistente queda como vía; filtros por vía y por herramienta.' );
+	// El proxy del editor (POST /elementor/v1/mcp-proxy) escribe sin el execute_callback registrado: se anota aparte.
+	$preq = new class() { public $route = '/elementor/v1/mcp-proxy'; public $params = array( 'tool' => 'publish-document', 'input' => array( 'post_id' => 123, 'dry_run' => true ) ); public function get_route() { return $this->route; } public function get_method() { return 'POST'; } public function get_param( $k ) { return $this->params[ $k ] ?? null; } };
+	$L::before_rest( null, null, $preq );
+	check( 'started' === $L::page()['entries'][0]['result'] && 'elementor/publish-document' === $L::page()['entries'][0]['ability'] && array( 'post_id' => 123 ) === $L::page()['entries'][0]['object'], 'A4: el proxy abre su entrada antes de ejecutar (dry_run no lo libra).' );
+	$L::after_rest( new WP_REST_Response( array( 'status' => 'success' ), 200 ), null, $preq );
+	check( 'ok' === $L::page()['entries'][0]['result'], 'A4: y la completa con el resultado.' );
+	$L::before_rest( null, null, $preq );
+	$L::after_rest( new WP_REST_Response( array( 'code' => 'forbidden' ), 403 ), null, $preq );
+	check( 'forbidden' === $L::page()['entries'][0]['result'], 'A4: un rechazo del proxy queda con su código.' );
+	// Las peticiones de las rutas del Asistente (sus borradores sin tarjeta corren sin contexto) quedan como Asistente,
+	// también con peticiones REST internas anidadas.
+	$areq = new class() { public $route = '/digitalisimo-ai/v1/assistant/message'; public function get_route() { return $this->route; } public function get_method() { return 'POST'; } public function get_param( $k ) { return null; } };
+	$ireq = new class() { public function get_route() { return '/wc/v3/products'; } public function get_method() { return 'GET'; } public function get_param( $k ) { return null; } };
+	$L::before_rest( null, null, $areq );
+	$L::before_rest( null, null, $ireq );
+	$L::after_rest( null, null, $ireq );
+	call_user_func( $wrapped['execute_callback'], array( 'action' => 'update', 'product_id' => 77 ) );
+	$L::after_rest( null, null, $areq );
+	check( 'assistant' === $L::page()['entries'][0]['via'] && array( 'product_id' => 77 ) === $L::page()['entries'][0]['object'], 'A4: en la ruta del Asistente la vía es assistant.' );
+	call_user_func( $wrapped['execute_callback'], array( 'action' => 'update', 'product_id' => 78 ) );
+	check( 'mcp' === $L::page()['entries'][0]['via'], 'A4: fuera de ella, mcp.' );
 	check( array() === $L::object_of( array( 'resource' => 'product; DROP', 'post_id' => 'abc', 'data' => array( 'id' => 3 ) ) ) && array( 'post_id' => 4 ) === $L::object_of( array( 'post_id' => '4' ) ), 'A4: del objeto sólo salen IDs numéricos y nombres limpios.' );
 	// Tope por número y por días.
 	$old = array();

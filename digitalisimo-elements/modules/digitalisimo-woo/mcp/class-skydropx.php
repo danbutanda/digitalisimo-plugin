@@ -5,8 +5,8 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Ejecuta `digitalisimo-woo/skydropx` (definición en `Skydropx_Tool`) con las mismas reglas que las demás herramientas
- * de tienda: entrada cerrada, el modo «WooCommerce en el MCP» (las escrituras sólo en «Lectura y escritura»), el permiso
- * también aquí y la bitácora de cada escritura (`Log`, sin datos personales ni valores).
+ * de tienda: entrada cerrada, sin modos (acceso total desde el 2026-11-27), el permiso también aquí y la bitácora de
+ * cada escritura (`Log`, sin datos personales ni valores).
  *
  * Cómo llega a WordPress, sin SQL propio ni clases internas de WooCommerce ni del plugin:
  * - `update_products`: lotes de la API REST v3 de WooCommerce (`products/batch` y `…/variations/batch`), como
@@ -1673,7 +1673,7 @@ final class Skydropx {
 
 	/**
 	 * `admin-post.php?action=digitalisimo_woo_skydropx_label&order_id=…&exp=…&sig=…`, abierto en el navegador. Sólo
-	 * responde con el MCP del sitio activo y «WooCommerce en el MCP» distinto de apagado; sin sesión, al acceso. Con el
+	 * responde con el MCP del sitio activo (siempre, salvo que falte el núcleo); sin sesión, al acceso. Con el
 	 * permiso sobre ese pedido (como la REST) y una guía de Skydropx:
 	 * - con la firma de `label` para este usuario y sin caducar, redirige al endpoint de impresión del plugin con un nonce
 	 *   de esta sesión (el plugin comprueba su nonce y sus permisos, firma la petición y entrega el PDF);

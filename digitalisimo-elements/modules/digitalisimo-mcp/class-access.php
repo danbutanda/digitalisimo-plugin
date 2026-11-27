@@ -10,14 +10,16 @@ defined( 'ABSPATH' ) || exit;
  *   (`pre_option_…`): el servidor `POST /wp-json/elementor/mcp` y todas las herramientas (constructor, tienda, SEO,
  *   Hosting, Tools, IA Tools) existen en cada sitio, y el Asistente de IA Tools lo usa sin configurar nada.
  * - **La seguridad no depende de interruptores:** el transporte del adaptador exige un usuario autenticado (contraseña
- *   de aplicación u OAuth; sin ella, 401), cada herramienta comprueba las capacidades de WordPress de ese usuario, cada
+ *   de aplicación, OAuth o la sesión del escritorio con su nonce; sin nada, 401), cada herramienta comprueba las
+ *   capacidades de WordPress de ese usuario, cada
  *   escritura queda en la bitácora (`Write_Log`) y las guardas de negocio siguen en cada herramienta.
  * - **Migración** (`migrate()`, idempotente, una vez por sitio en su primera petición tras actualizar, también en cada
  *   sitio de una red): borra los ajustes viejos que limitaban el MCP («WooCommerce en el MCP» del sitio y de la red).
  *   Ningún código los lee ya: un sitio que estaba en «Sólo lectura» tiene acceso total desde la actualización, aunque
  *   la migración aún no haya corrido.
  * - **La única opción visible:** «Mostrar el prompt para vincular» en «Rendimiento» (por sitio). Enseña la dirección
- *   del servidor y la configuración lista para copiar en un cliente MCP; ocultarla no apaga nada.
+ *   del servidor y la configuración lista para copiar en un cliente MCP; ocultarla no apaga nada. El conmutador de la
+ *   página MCP del núcleo ya no apaga nada: su guardado responde «activo» sin escribir (`core_settings_save()`).
  */
 final class Access {
 	/** Opción del núcleo que encendía y apagaba el servidor MCP. */
@@ -58,6 +60,7 @@ final class Access {
 		}
 		self::$initialized = true;
 		add_filter( 'pre_option_' . self::CORE_OPTION, array( __CLASS__, 'core_enabled' ) );
+		add_filter( 'rest_pre_dispatch', array( __CLASS__, 'core_settings_save' ), 10, 3 );
 		add_action( 'init', array( __CLASS__, 'migrate' ), 1 );
 		add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'handle_save' ) );
 	}
@@ -65,6 +68,27 @@ final class Access {
 	/** `pre_option_elementor_mcp_enabled`: el servidor MCP siempre activo. */
 	public static function core_enabled(): int {
 		return 1;
+	}
+
+	/**
+	 * `rest_pre_dispatch`: el guardado del conmutador de la página MCP del núcleo (`POST …/mcp-settings`) ya no cambia
+	 * nada; a quien puede administrar el sitio le responde, sin escribir, que el MCP sigue activo (antes apagar dejaba la
+	 * opción en falso o respondía 500). A los demás, la ruta les responde como siempre (403).
+	 */
+	public static function core_settings_save( $result, $server = null, $request = null ) {
+		if ( null !== $result || ! is_object( $request ) || ! method_exists( $request, 'get_route' ) || 'POST' !== $request->get_method() ) {
+			return $result;
+		}
+		if ( ! preg_match( '#^/elementor[a-z0-9._/-]*/mcp-settings$#', (string) $request->get_route() ) || ! current_user_can( 'manage_options' ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'data'    => array( 'enabled' => true ),
+			),
+			200
+		);
 	}
 
 	/**
@@ -114,9 +138,12 @@ final class Access {
 		$name = self::server_name();
 		$url  = self::endpoint();
 		if ( 'desktop' === $client ) {
+			// La cabecera por variable de entorno y sin espacios en el argumento (en Windows, Claude Desktop parte los
+			// argumentos con espacios; es la forma que documenta mcp-remote).
 			$server = array(
 				'command' => 'npx',
-				'args'    => array( '-y', 'mcp-remote', $url, '--header', 'Authorization: Basic ' . $credential ),
+				'args'    => array( '-y', 'mcp-remote', $url, '--header', 'Authorization:${AUTH_HEADER}' ),
+				'env'     => array( 'AUTH_HEADER' => 'Basic ' . $credential ),
 			);
 		} else {
 			$server = array(
@@ -130,7 +157,7 @@ final class Access {
 
 	/** El prompt para pedirle a un agente que se vincule (con la configuración de Claude Code dentro). */
 	public static function agent_prompt( string $credential ): string {
-		return 'Agrega a tu configuración de MCP el servidor de mi sitio ' . home_url( '/' ) . ' (DIGITALÍSIMO). Dirección: ' . self::endpoint() . ". Usa esta configuración tal cual dentro de «mcpServers» (en Claude Code, en el archivo .mcp.json de este proyecto) y, al terminar, lista sus herramientas para comprobar que responde:\n\n" . self::client_config( 'code', $credential );
+		return 'Agrega a tu configuración de MCP el servidor de mi sitio ' . home_url( '/' ) . ' (DIGITALÍSIMO). Dirección: ' . self::endpoint() . ". Usa esta configuración tal cual dentro de «mcpServers» de mi configuración de usuario (en Claude Code, ~/.claude.json; nunca en un archivo que se suba a un repositorio, porque lleva la contraseña) y, al terminar, lista sus herramientas para comprobar que responde:\n\n" . self::client_config( 'code', $credential );
 	}
 
 	/** URL de la sección en «Rendimiento». */
@@ -150,7 +177,7 @@ final class Access {
 			return;
 		}
 		self::render_notice();
-		echo '<p>' . esc_html( 'El MCP está activo con lectura y escritura en todas las herramientas (constructor, tienda, SEO, Hosting, Tools e IA Tools). Cada asistente actúa con los permisos de su usuario de WordPress, entra sólo con una contraseña de aplicación u OAuth, y cada cambio queda en la bitácora (herramienta «digitalisimo-mcp-write-log»).' ) . '</p>';
+		echo '<p>' . esc_html( 'El MCP está activo con lectura y escritura en todas las herramientas (constructor, tienda, SEO, Hosting, Tools e IA Tools). Cada asistente entra con un usuario de WordPress autenticado (contraseña de aplicación u OAuth), actúa con los permisos de ese usuario, y cada cambio queda en la bitácora (herramienta «digitalisimo-mcp-write-log»).' ) . '</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-mcp-form">';
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE ) . '">';
 		wp_nonce_field( self::nonce_action() );
@@ -171,14 +198,19 @@ final class Access {
 		echo '<div class="digitalisimo-mcp-prompt" data-placeholder="' . esc_attr( $placeholder ) . '">';
 		echo '<p><strong>' . esc_html( 'Dirección del servidor MCP:' ) . '</strong> <code>' . esc_html( self::endpoint() ) . '</code></p>';
 		echo '<ol>';
-		echo '<li>' . esc_html( 'Crea una contraseña de aplicación en tu perfil: ' ) . '<a href="' . esc_url( $profile ) . '">' . esc_html( 'Usuarios → Perfil → Contraseñas de aplicación' ) . '</a>.</li>';
+		$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+		if ( function_exists( 'wp_is_application_passwords_available_for_user' ) && $user && ! wp_is_application_passwords_available_for_user( $user ) ) {
+			echo '<li>' . esc_html( 'Las contraseñas de aplicación no están disponibles para tu usuario en este sitio (WordPress las pide con HTTPS, y algún plugin de seguridad puede desactivarlas). Actívalas o usa un cliente con OAuth.' ) . '</li>';
+		} else {
+			echo '<li>' . esc_html( 'Crea una contraseña de aplicación en tu perfil: ' ) . '<a href="' . esc_url( $profile ) . '">' . esc_html( 'Usuarios → Perfil → Contraseñas de aplicación' ) . '</a>.</li>';
+		}
 		echo '<li>' . esc_html( 'Escribe aquí tu usuario y esa contraseña: el bloque se completa en tu navegador; no se envían ni se guardan.' ) . '<br>';
 		echo '<label>' . esc_html( 'Usuario' ) . ' <input type="text" class="regular-text digitalisimo-mcp-user" autocomplete="off" value="' . esc_attr( function_exists( 'wp_get_current_user' ) ? (string) wp_get_current_user()->user_login : '' ) . '"></label> ';
-		echo '<label>' . esc_html( 'Contraseña de aplicación' ) . ' <input type="password" class="regular-text digitalisimo-mcp-pass" autocomplete="off"></label></li>';
-		echo '<li>' . esc_html( 'Copia el bloque de tu cliente y pégalo dentro de «mcpServers» de su archivo (si el archivo ya tiene «mcpServers», agrega sólo la entrada de este sitio). Después reinicia el cliente.' ) . '</li>';
+		echo '<label>' . esc_html( 'Contraseña de aplicación' ) . ' <input type="password" class="regular-text digitalisimo-mcp-pass" autocomplete="new-password"></label></li>';
+		echo '<li>' . esc_html( 'Copia el bloque de tu cliente y pégalo dentro de «mcpServers» de su archivo de configuración de usuario (si ya tiene «mcpServers», agrega sólo la entrada de este sitio). Lleva tu contraseña: no lo pegues en un archivo que se suba a un repositorio. Después reinicia el cliente.' ) . '</li>';
 		echo '</ol>';
 		$blocks = array(
-			'code'    => array( 'Claude Code: archivo .mcp.json en la carpeta del proyecto (o ~/.claude.json)', self::client_config( 'code', $placeholder ) ),
+			'code'    => array( 'Claude Code: archivo ~/.claude.json de tu usuario (en Windows, %USERPROFILE%\\.claude.json)', self::client_config( 'code', $placeholder ) ),
 			'desktop' => array( 'Claude Desktop: Configuración → Desarrollador → Editar configuración (claude_desktop_config.json)', self::client_config( 'desktop', $placeholder ) ),
 			'prompt'  => array( 'O pídeselo a tu agente con este prompt', self::agent_prompt( $placeholder ) ),
 		);
