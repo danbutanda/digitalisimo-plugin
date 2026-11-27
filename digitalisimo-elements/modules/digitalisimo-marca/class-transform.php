@@ -128,8 +128,61 @@ final class Transform {
 			// Con el espejo (sin paquete), una URL del plugin sin la palabra (`motor/assets/`) también va al espejo.
 			return false !== strpos( str_replace( '\\/', '/', $s ), '/plugins/digitalisimo-elements/' ) && ! ( class_exists( Package::class ) && Package::transformed() ) ? self::paths( $s ) : $s;
 		}
+		// Las URL y los hosts del proveedor nunca cambian (B-4 de la revisión F2): `go.elementor.com` no pasa a un
+		// `go.dg.com` ajeno. Los oculta `digitalisimo-vendor-free.php`, que los reconoce por su host.
+		$parts = self::split_vendor( $s );
+		if ( 1 === count( $parts ) && $parts[0][1] ) {
+			return $s;
+		}
 		if ( self::is_url( $s ) ) {
 			return self::url_str( $s );
+		}
+		if ( 1 === count( $parts ) ) {
+			return self::plain( $s );
+		}
+		$out = '';
+		foreach ( $parts as $part ) {
+			$out .= $part[1] ? $part[0] : self::plain( $part[0] );
+		}
+		return $out;
+	}
+
+	/** Hosts del proveedor en una URL o sueltos, con su ruta: la misma expresión que VENDOR_RE de scripts/marca-transform.mjs. */
+	const VENDOR = '~(?:(?:https?:)?(?:\\\\?/){2})?(?<![\w$-])(?:[a-z0-9-]+\.)*elementor(?:\.[a-z0-9-]+)*\.(?:com|cloud|red|io|net)(?![\w-])(?::\d+)?(?:(?:\\\\?/|[?#])(?:[^\s"\'`<>\\\\]|\\\\/)*)?~i';
+
+	/**
+	 * La cadena en tramos `[texto, ¿del proveedor?]`. Un host igual al del sitio no cuenta como del proveedor.
+	 *
+	 * @return array<int,array{0:string,1:bool}>
+	 */
+	public static function split_vendor( string $s ): array {
+		if ( ! preg_match_all( self::VENDOR, $s, $m, PREG_OFFSET_CAPTURE ) ) {
+			return array( array( $s, false ) );
+		}
+		$own  = function_exists( 'home_url' ) ? strtolower( (string) parse_url( (string) home_url(), PHP_URL_HOST ) ) : ''; // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- también sin WordPress.
+		$out  = array();
+		$last = 0;
+		foreach ( $m[0] as $hit ) {
+			list( $text, $at ) = $hit;
+			if ( '' !== $own && false !== stripos( $text, $own ) && preg_match( '~^(?:(?:https?:)?(?:\\?/){2})?' . preg_quote( $own, '~' ) . '(?![\w.-])~i', $text ) ) {
+				continue;
+			}
+			if ( $at > $last ) {
+				$out[] = array( substr( $s, $last, $at - $last ), false );
+			}
+			$out[] = array( $text, true );
+			$last  = $at + strlen( $text );
+		}
+		if ( $last < strlen( $s ) || ! $out ) {
+			$out[] = array( (string) substr( $s, $last ), false );
+		}
+		return $out;
+	}
+
+	/** Las reglas de una cadena sin URL del proveedor. */
+	private static function plain( string $s ): string {
+		if ( false === stripos( $s, 'elementor' ) ) {
+			return $s;
 		}
 		$p = self::P;
 		$s = (string) preg_replace( '/(#|%23)elementor-action/', '$1' . $p . '-action', $s );

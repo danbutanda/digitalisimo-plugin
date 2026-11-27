@@ -167,6 +167,63 @@ export function transformIdent(id, rules, dataset = false) {
  */
 export function transformStr(s, rules) {
   if (!/elementor/i.test(s)) return s;
+  // Las URL y los nombres de host del proveedor nunca cambian (B-4 de la revisión F2): `go.elementor.com` no puede
+  // pasar a `go.dg.com`, un dominio ajeno al que el editor mandaría datos o del que aceptaría mensajes. Lo que los
+  // oculta es `digitalisimo-vendor-free.php`, que los reconoce por su host. El resto de la cadena sí se transforma.
+  const parts = splitVendor(s);
+  if (parts.length === 1 && parts[0].vendor) return s;
+  // Una URL absoluta entera (de medios, de otra página): sólo su consulta y el ancla de acción, como
+  // `Transform::url_str()` en PHP (el servidor además lleva las rutas de assets a sus copias; en los bundles no hay URL
+  // del sitio). Un medio `https://…/elementor-banner.jpg` sigue igual. Las rutas relativas (`/elementor/v1/…`) siguen
+  // las reglas de siempre: el JS arma con ellas las rutas REST que el servidor acepta con los dos nombres.
+  if (isAbsUrl(s)) return urlStr(s, rules);
+  if (parts.length === 1) return transformPlain(s, rules);
+  return parts.map((x) => (x.vendor ? x.text : transformPlain(x.text, rules))).join('');
+}
+
+/** Host del proveedor (los de `digitalisimo-vendor-free.php`): `elementor.com`, `go.elementor.com`, `x.elementor.red`… */
+const VENDOR_HOST = String.raw`(?:[a-z0-9-]+\.)*elementor(?:\.[a-z0-9-]+)*\.(?:com|cloud|red|io|net)`;
+
+/**
+ * Hosts del proveedor en una URL (`https://go.elementor.com/x`, `//x.elementor.red`, también con `\/`) o sueltos
+ * (`"elementor.com"`, `".elementor.com"`), con su ruta. La misma expresión que `Transform::VENDOR` en PHP.
+ */
+export const VENDOR_RE = new RegExp(String.raw`(?:(?:https?:)?(?:\\?\/){2})?(?<![\w$-])${VENDOR_HOST}(?![\w-])(?::\d+)?(?:(?:\\?\/|[?#])(?:[^\s"'` + '`' + String.raw`<>\\]|\\\/)*)?`, 'gi');
+
+/** La cadena en tramos: los del proveedor (`vendor`), que no se tocan, y los demás. */
+export function splitVendor(s) {
+  const out = [];
+  let last = 0;
+  for (const m of s.matchAll(VENDOR_RE)) {
+    if (m.index > last) out.push({ text: s.slice(last, m.index), vendor: false });
+    out.push({ text: m[0], vendor: true });
+    last = m.index + m[0].length;
+  }
+  if (last < s.length || !out.length) out.push({ text: s.slice(last), vendor: false });
+  return out;
+}
+
+/** ¿Es una URL absoluta (con esquema o `//`)? Como la primera forma de `Transform::is_url()`. */
+export function isAbsUrl(s) {
+  return /^(?:https?:)?(?:\\?\/){2}[^\s]+$/i.test(s);
+}
+
+/** La consulta de una URL (los alias del escritorio y de la API, D-3), como `Transform::query()`. */
+function query(s, rules) {
+  const p = rules.prefijo || 'dg';
+  return s.replace(/([?&;]page=)elementor/g, '$1digitalisimo-motor')
+    .replace(/([?&;]action=)elementor(?![\w-])/g, '$1digitalisimo')
+    .replace(/([?&;])elementor-preview=/g, `$1${p}-preview=`)
+    .replace(/([?&;=]|%3D)elementor_/g, '$1digitalisimo_')
+    .replace(/(\/wp-json(?:\\)?\/|rest_route=(?:\/|%2F))elementor(-[a-z]+|_[a-z0-9_]+)?(?=\\?\/|%2F|$|[?&#])/gi, '$1digitalisimo$2');
+}
+
+function urlStr(s, rules) {
+  return query(s, rules).replace(/(#|%23)elementor-action/, `$1${rules.prefijo || 'dg'}-action`);
+}
+
+function transformPlain(s, rules) {
+  if (!/elementor/i.test(s)) return s;
   const p = rules.prefijo || 'dg';
   s = s.replace(/(#|%23)elementor-action/g, `$1${p}-action`)
     .replace(/data-elementor-/g, `data-${p}-`)

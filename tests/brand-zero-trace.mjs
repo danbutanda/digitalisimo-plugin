@@ -11,6 +11,10 @@
 //                     (.css .js .json .txt .svg .html .md .xml): el original sigue en el paquete aunque haya espejo
 //   espejo            contenido del espejo de assets del front (`marca/` del ZIP), si lo trae
 //   excepciones       excepciones internas de reglas.json sin justificar (deben ser 0)
+//   dominio_ajeno     hosts `dg.com`, `*.dg.red`… en lo servible: el transformador nunca debe cambiar el dominio del
+//                     proveedor por uno ajeno (B-4 de la revisión F2; deben ser 0)
+//   enlaces_proveedor (informativa, no falla) URL y hosts del proveedor que siguen tal cual a propósito: los oculta
+//                     digitalisimo-vendor-free.php; quitarlos o mandarlos a la ayuda propia es decisión del dueño
 // Uso:
 //   node tests/brand-zero-trace.mjs                     ZIP simulado con los archivos versionados del plugin
 //   node tests/brand-zero-trace.mjs --zip <archivo>     un ZIP construido (p. ej. scripts/marca-prototipo/zip-motor.sh)
@@ -21,6 +25,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { splitVendor } from '../scripts/marca-transform.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const argv = process.argv.slice(2);
@@ -29,7 +34,11 @@ const ZIP = arg('--zip');
 const SITE = arg('--sitio');
 const SERVABLE = /\.(css|js|json|txt|svg|html?|md|xml|map)$/i;
 const rules = JSON.parse(readFileSync(`${ROOT}/digitalisimo-elements/marca/reglas.json`, 'utf8'));
-const count = (t) => (String(t).match(/elementor/gi) || []).length;
+const all = (t) => (String(t).match(/elementor/gi) || []).length;
+// Las apariciones dentro de URL y hosts del proveedor van aparte (enlaces_proveedor).
+const count = (t) => { t = String(t); return all(t) ? splitVendor(t).filter((x) => !x.vendor).reduce((a, x) => a + all(x.text), 0) : 0; };
+const vendorCount = (t) => { t = String(t); return all(t) ? splitVendor(t).filter((x) => x.vendor).reduce((a, x) => a + all(x.text), 0) : 0; };
+const ALIEN = /(?<![\w-])(?:[a-z0-9-]+\.)*dg\.(?:com|cloud|red|io|net)(?![\w-])/gi;
 
 let files;
 let read;
@@ -51,7 +60,9 @@ const layers = {
   zip_servibles: { n: 0, archivos: 0, ejemplos: [] },
   espejo: { n: 0, archivos: 0, ejemplos: [] },
   excepciones: { n: 0, ejemplos: [] },
+  dominio_ajeno: { n: 0, ejemplos: [] },
 };
+const vendor = { n: 0, archivos: 0, ejemplos: [] };
 const add = (layer, n, ejemplo) => { layers[layer].n += n; if (ejemplo && layers[layer].ejemplos.length < 12) layers[layer].ejemplos.push(ejemplo); };
 
 if (argv.includes('--solo-sitio')) for (const k of Object.keys(layers)) if (k !== 'excepciones') delete layers[k];
@@ -67,7 +78,12 @@ for (const f of files) {
 if (layers.zip_nombres) layers.zip_nombres.ejemplos = Object.entries(byDir).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([d, n]) => `${d} (${n})`);
 for (const f of files) {
   if (!SERVABLE.test(f)) continue;
-  const n = count(read(f));
+  const text = String(read(f));
+  const alien = (text.match(ALIEN) || []).length;
+  if (alien) add('dominio_ajeno', alien, `${f} (${alien}: ${[...new Set(text.match(ALIEN))].slice(0, 3).join(', ')})`);
+  const v = vendorCount(text);
+  if (v) { vendor.n += v; vendor.archivos++; if (vendor.ejemplos.length < 6) vendor.ejemplos.push(`${f} (${v})`); }
+  const n = count(text);
   if (!n) continue;
   const mirror = f.startsWith('digitalisimo-elements/marca/') && !/\/(reglas|vocabulario)\.json$/.test(f);
   const layer = mirror ? 'espejo' : 'zip_servibles';
@@ -78,11 +94,12 @@ for (const e of rules.excepciones_internas || []) if (!e.que || !e.por_que) add(
 
 let site = {};
 if (SITE) site = JSON.parse(readFileSync(SITE, 'utf8')).capas || {};
-const all = { ...layers, ...site };
-const total = Object.values(all).reduce((a, l) => a + (l.n || 0), 0);
-if (argv.includes('--json')) console.log(JSON.stringify({ origen: ZIP || 'repositorio', total, capas: all }, null, 1));
+const layersAll = { ...layers, ...site };
+const total = Object.values(layersAll).reduce((a, l) => a + (l.n || 0), 0);
+if (argv.includes('--json')) console.log(JSON.stringify({ origen: ZIP || 'repositorio', total, capas: layersAll, enlaces_proveedor: vendor }, null, 1));
 else {
   console.log(`Auditoría de cero rastro (${ZIP ? 'ZIP ' + ZIP : 'archivos versionados del plugin'}): ${total} apariciones de «elementor» fuera de las excepciones internas.`);
-  for (const [name, l] of Object.entries(all)) console.log(`  ${l.n ? 'FALLA' : 'ok   '} ${name}: ${l.n}${l.archivos ? ` en ${l.archivos} archivos` : ''}${l.ejemplos?.length ? ' · ' + l.ejemplos.slice(0, 4).join(' · ') : ''}`);
+  for (const [name, l] of Object.entries(layersAll)) console.log(`  ${l.n ? 'FALLA' : 'ok   '} ${name}: ${l.n}${l.archivos ? ` en ${l.archivos} archivos` : ''}${l.ejemplos?.length ? ' · ' + l.ejemplos.slice(0, 4).join(' · ') : ''}`);
+  console.log(`  info  enlaces_proveedor: ${vendor.n}${vendor.archivos ? ` en ${vendor.archivos} archivos` : ''} (URL y hosts del proveedor, a propósito: pendiente de decisión del dueño)`);
 }
 process.exit(total ? 1 : 0);

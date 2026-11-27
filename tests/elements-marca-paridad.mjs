@@ -6,7 +6,8 @@
 //
 // Compara, con PHP (PHP_BIN, por defecto `php`):
 //   - cadenas: un juego fijo de casos y TODAS las cadenas con «elementor» de los bundles del front y del editor del
-//     núcleo y de PRO (sin las URL, que el servidor trata aparte);
+//     núcleo y de PRO, también las URL absolutas (B-4 de la revisión F2: las del proveedor salen intactas en los dos;
+//     sólo se dejan fuera las rutas relativas `/…` y los `.php`, que el servidor trata como URL de su sitio);
 //   - identificadores;
 //   - fragmentos de JS (léxico: cadenas, plantillas, expresiones regulares, comentarios).
 // Además, que lo que da el JS no deje «elementor» y que las clases coincidan con las del CSS (`.elementor-x` → `.dg-x`).
@@ -14,7 +15,10 @@ import { readFileSync, readdirSync, statSync, writeFileSync, mkdtempSync, rmSync
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { loadRules, transformStr, transformIdent, transformJs, transformCss, lexJs } from '../scripts/marca-transform.mjs';
+import * as T from '../scripts/marca-transform.mjs';
+const { loadRules, transformStr, transformIdent, transformJs, transformCss, lexJs } = T;
+// Sin splitVendor (código anterior a la revisión F2), nada cuenta como del proveedor: las comprobaciones B-4 fallan solas.
+const splitVendor = T.splitVendor || ((t) => [{ text: t, vendor: false }]);
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const EL = join(ROOT, 'digitalisimo-elements');
@@ -34,6 +38,11 @@ const fixed = [
   'elementor-element elementor-element-abc', '.elementor-kit-9 .elementor-button', 'elementor_pro_forms_send_form',
   'admin.php?page=elementor-tools', 'post.php?post=1&action=elementor', 'elementorProFrontend.config', 'elementOrSelector',
   '{{WRAPPER}} .elementor-heading-title', 'elementor-preview', 'elementor_preview_link_v1', 'ElementorProFrontendConfig',
+  // B-4: URL y hosts del proveedor (nunca `dg.com`), una URL de medios y una del escritorio.
+  'https://go.elementor.com/x', 'https://my.elementor.com/feedback/api/v1', 'https://elementor.com', 'elementor.com',
+  '.elementor.com', 'https://angie.elementor.com', 'https:\\/\\/assets.elementor.com\\/a.png', 'https://my.stg.elementor.red/x?a=elementor',
+  'Visita https://go.elementor.com/ayuda y usa elementor-widget', 'https://ensayo.test/wp-content/uploads/elementor-banner.jpg',
+  'https://ensayo.test/wp-admin/post.php?post=1&action=elementor', 'elementor.common.helpers',
 ];
 
 // 2) Cadenas reales de los bundles (front y editor del núcleo y de PRO).
@@ -45,7 +54,7 @@ for (const f of bundles) {
   const src = readFileSync(f, 'utf8');
   if (!/elementor/i.test(src)) continue;
   lexJs(src, (type, text) => {
-    if ((type === 'str' || type === 'tpl') && /elementor/i.test(text) && text.length < 300 && !/^(https?:)?\/\/|^\//.test(text) && !/\.php(\?|$)/.test(text)) strings.add(text);
+    if ((type === 'str' || type === 'tpl') && /elementor/i.test(text) && text.length < 300 && !/^\/(?!\/)/.test(text) && !/\.php(\?|$)/.test(text)) strings.add(text);
     if (type === 'id' && /elementor/i.test(text)) ids.add(text);
     return text;
   });
@@ -91,8 +100,16 @@ echo json_encode( $out, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
   rmSync(dir, { recursive: true, force: true });
 }
 
-// 4) Lo que da el JS: nada de «elementor» y las clases como en el CSS.
-for (const s of strings) check(!/elementor/i.test(transformStr(s, rules)), `sin «elementor»: ${s}`);
+// 4) Lo que da el JS: nada de «elementor» fuera de las URL y hosts del proveedor, ningún host `dg.com` (B-4) y las
+// clases como en el CSS.
+const noVendor = (t) => splitVendor(t).filter((x) => !x.vendor).map((x) => x.text).join(' ');
+for (const s of strings) {
+  if (/^(?:https?:)?(?:\\?\/){2}/i.test(s) && !splitVendor(s).some((x) => x.vendor)) continue; // URL de otro sitio: igual que en PHP
+  const out = transformStr(s, rules);
+  check(!/elementor/i.test(noVendor(out)), `sin «elementor»: ${s}`, out);
+  check(!/[a-z0-9.-]*\bdg\.(com|cloud|red|io|net)\b/i.test(out), `sin host dg.*: ${s}`, out);
+}
+check(transformStr('https://go.elementor.com/x', rules) === 'https://go.elementor.com/x' && transformJs('trustedOrigins:[a||`https://angie.elementor.com`]', rules) === 'trustedOrigins:[a||`https://angie.elementor.com`]', 'B-4 los hosts del proveedor no cambian (ni el origen de confianza)');
 for (const s of snippets) check(!/elementor/i.test(transformJs(s, rules)), `fragmento sin «elementor»: ${s}`);
 const css = transformCss('.elementor-widget .elementor-kit-9 .eicon-elementor{color:red}', rules);
 const js = transformJs("q('.elementor-widget .elementor-kit-9 .eicon-elementor')", rules);
