@@ -210,3 +210,23 @@ Sin tareas largas en ningún caso; las comprobaciones funcionales tras las accio
 | A13 · ninguna petición REST > 25 s | — | Con WooCommerce en Playground el runner del núcleo `elementor-content` tarda 31–39 s, el final de K 30–41 s y la reversión 44 s; sin WooCommerce el mismo runner también supera los 25 s esta noche, con 4.3.0.165 y con el árbol actual por igual: entorno, no F4-Woo |
 | V.7.1 · barra tras conocer el destino | La barra aparece al conocerse el destino | **Defecto corregido (W11):** WooCommerce guarda los fragmentos en `sessionStorage` y sólo los vuelve a pedir si cambia el *hash* del carrito (contenido y total); la calculadora o el pago no cambian el total cuando la ubicación por defecto ya tenía la misma tarifa, así que el mini carrito de las demás páginas seguía sin barra hasta el siguiente cambio del carrito. El módulo del carrito filtra `woocommerce_cart_hash` con el destino (sólo con la bandera de fragmentos activa); `tests/elements-woo-cart.php` lo comprueba |
 | `design.sh` DS13 (F7a) · vuelta a 4.3.0.163 | 25/25 en F7a | 24/25: la comprobación «presets: los vinculados vuelven a sus valores locales» no encuentra en la página ni el elemento vinculado ni su gemelo local (`falta el primero falta el segundo`), con y sin WooCommerce. **Previo a F4-Woo:** desde `main` con Elements 4.3.0.165 publicado falla igual, y en ese punto el sitio corre 4.3.0.163, sin código de F4-Woo. Los otros 24 pasos de DS13 y DS1–DS8 pasan. Queda anotado para F7a/K; el sospechoso es el entorno (Playground sirve WordPress 7.1.4 desde el 22 de octubre; F7a lo validó con 7.1.3) |
+
+## 8. Un solo H1 en las fichas de producto (`Single\Single_H1`, auditoría de digitalisimo.lat, 2026-11-24)
+
+Las siete fichas de digitalisimo.lat tenían dos H1: el de WooCommerce (`<h1 class="product_title entry-title">` de su
+plantilla, o el widget «Título del producto», H1 por defecto) y el del encabezado del sitio, un Encabezado con la
+etiqueta dinámica «Título de la página» en H1 para que cada página tuviera el suyo.
+
+- **Decisión: opcional por elemento.** Los encabezados derivados del Encabezado del núcleo (Encabezado, Título de la
+  página, Título de la entrada y los dos Títulos del producto) ganan «Etiqueta en las fichas de producto»
+  (`digitalisimo_product_tag`), justo después de «Etiqueta HTML», vacío por defecto: quien no lo elige no ve ningún
+  cambio en ninguna página. Elegido (H2–H6, p, div o span, nunca H1), sólo en una ficha de producto del front
+  (`is_product()`, ni en el editor ni en su vista previa) ese elemento usa esa etiqueta; en las demás páginas sigue
+  igual. Así el dueño decide qué título cede el H1 (lo normal: el del encabezado del sitio) y nada se adivina: no se
+  reescribe HTML ajeno ni se tocan las plantillas de WooCommerce. Con la opción elegida el elemento sale de la caché de
+  elementos (`elementor/element/is_dynamic_content`); uno con «Caché del elemento: sí» forzado se cachea igual.
+- **Qué configura el dueño.** En el encabezado del sitio, el Encabezado del título de la página → «Etiqueta en las
+  fichas de producto» → p (o H2).
+- **Pruebas.** `tests/elements-woo-single-h1.php` (validate y release) y el caso H de
+  `tests/playground/elements-tanda-b.sh` (WooCommerce 11.2.1 real, un producto, la cabecera global con el título en
+  H1: dos H1 sin la opción, uno con ella, y la portada sigue con su H1).

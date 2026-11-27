@@ -540,6 +540,8 @@ jobs:
           php tests/elements-woo-filters.php
           node tests/elements-woo-filters.mjs
           php tests/elements-woo-products-parts.php
+          # Un solo H1 en las fichas de producto, opcional por elemento (B2, auditoría de digitalisimo.lat).
+          php tests/elements-woo-single-h1.php
           php tests/elements-kit-extensions.php
           php tests/elements-woo-kit.php
           node tests/elements-woo-static.mjs

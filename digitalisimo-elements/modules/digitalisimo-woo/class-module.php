@@ -40,6 +40,8 @@ final class Module {
 		'Kit\\Module',
 		// C7, frente M: panel de los bucles de productos y vista previa de la ficha.
 		'Single\\Module',
+		// Un solo H1 en las fichas de producto, opcional por elemento (B2 de la auditoría de digitalisimo.lat).
+		'Single\\Single_H1',
 		// C7, frente N: fragmentos de relacionados y ventas de los Productos propios al cambiar el carrito.
 		'Store\\Products_Fragments',
 		// C7, frente N (carrito): textos del widget al cambiar el envío y plantilla del carrito vacío por AJAX.
