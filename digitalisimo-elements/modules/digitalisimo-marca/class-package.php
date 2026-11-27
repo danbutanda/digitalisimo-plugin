@@ -764,10 +764,12 @@ final class Package {
 		}
 		$text = '<p><strong>' . esc_html( 'DIGITALÍSIMO Elements no pudo preparar los archivos originales del constructor.' ) . '</strong> '
 			. esc_html( 'Motivo: ' . $f['error'] . '. Mientras tanto el sitio funciona con su versión con marca propia y se reintenta solo cada cierto tiempo. Revisa los permisos y el espacio de wp-content/uploads.' ) . '</p>';
+		// Con la X (AGENTS.md, avisos que se pueden quitar): cerrado, no vuelve hasta que cambie la situación (otra versión u
+		// otro motivo de fallo; `snooze` 0).
 		if ( class_exists( 'Digitalisimo_Notices' ) ) {
-			\Digitalisimo_Notices::show( 'elements-marca-despliegue', 'error', $text, array( 'hash' => $f['version'] . '|' . $f['error'], 'cap' => 'manage_options' ) );
+			\Digitalisimo_Notices::show( 'elements-marca-despliegue', 'error', $text, array( 'hash' => $f['version'] . '|' . $f['error'], 'cap' => 'manage_options', 'snooze' => 0 ) );
 		} else {
-			echo '<div class="notice notice-error">' . $text . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.
+			echo '<div class="notice notice-error is-dismissible">' . $text . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.
 		}
 	}
 
