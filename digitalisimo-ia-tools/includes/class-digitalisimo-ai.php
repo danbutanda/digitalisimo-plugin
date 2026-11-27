@@ -263,7 +263,18 @@ class Digitalisimo_AI {
 		register_rest_route( 'digitalisimo-ai/v1', '/knowledge/sources', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'knowledge_sources_api' ), 'permission_callback' => function() { return current_user_can( 'edit_posts' ); } ) );
 	}
 
+	/**
+	 * Texto de la IA con el perfil de uso. Abre el contexto del registro de uso (Digitalisimo_AI_Usage) con el perfil
+	 * como función, para que cada llamada al proveedor quede atribuida (y el cambio a otro proveedor, como reintento).
+	 */
 	public static function complete( $profile, $prompt, $context = '' ) {
+		$usage  = class_exists( 'Digitalisimo_AI_Usage' ) ? Digitalisimo_AI_Usage::begin( $profile ) : 0;
+		$answer = self::complete_with( $profile, $prompt, $context );
+		if ( $usage ) Digitalisimo_AI_Usage::end( $usage );
+		return $answer;
+	}
+
+	private static function complete_with( $profile, $prompt, $context = '' ) {
 		$o = self::get(); $profile_data = $o['profiles'][ $profile ] ?? null; if ( ! $profile_data ) return new WP_Error( 'profile', 'Perfil no configurado' );
 		$order = self::provider_order( $profile_data, $o ); $last_error = 'Ningún proveedor activo pudo responder.';
 		foreach ( $order as $id => $model ) {
@@ -297,7 +308,7 @@ class Digitalisimo_AI {
 	 * saltos de línea; el navegador la pinta con nodos de texto.
 	 */
 	public static function plain_text( $text ) { $text = wp_strip_all_tags( str_replace( array( "\r\n", "\r" ), "\n", (string) $text ) ); return trim( (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text ) ); }
-	public static function complete_api( $request ) { $profile = sanitize_key( $request->get_param( 'profile' ) ?: 'content' ); $prompt = sanitize_textarea_field( $request->get_param( 'prompt' ) ); if ( ! $prompt ) return new WP_Error( 'prompt', 'Escribe una instrucción.', array( 'status' => 400 ) ); $context = class_exists( 'Digitalisimo_AI_Knowledge' ) ? Digitalisimo_AI_Knowledge::context( $prompt, (int) self::get( 'knowledge_results' ) ?: 4 ) : ''; $answer = self::complete( $profile, $prompt, $context ); return is_wp_error( $answer ) ? $answer : rest_ensure_response( array( 'answer' => $answer ) ); }
+	public static function complete_api( $request ) { $profile = sanitize_key( $request->get_param( 'profile' ) ?: 'content' ); $prompt = sanitize_textarea_field( $request->get_param( 'prompt' ) ); if ( ! $prompt ) return new WP_Error( 'prompt', 'Escribe una instrucción.', array( 'status' => 400 ) ); $context = class_exists( 'Digitalisimo_AI_Knowledge' ) ? Digitalisimo_AI_Knowledge::context( $prompt, (int) self::get( 'knowledge_results' ) ?: 4 ) : ''; $usage = class_exists( 'Digitalisimo_AI_Usage' ) ? Digitalisimo_AI_Usage::begin( 'editorial' ) : 0; $answer = self::complete( $profile, $prompt, $context ); if ( $usage ) Digitalisimo_AI_Usage::end( $usage ); return is_wp_error( $answer ) ? $answer : rest_ensure_response( array( 'answer' => $answer ) ); }
 	public static function knowledge_search_api( $request ) { if ( ! class_exists( 'Digitalisimo_AI_Knowledge' ) ) return new WP_Error( 'knowledge', 'Base de conocimiento no disponible.', array( 'status' => 404 ) ); return rest_ensure_response( Digitalisimo_AI_Knowledge::search( $request->get_param( 'q' ), (int) self::get( 'knowledge_results' ) ?: 4 ) ); }
 	public static function knowledge_sources_api() { return rest_ensure_response( class_exists( 'Digitalisimo_AI_Knowledge' ) ? Digitalisimo_AI_Knowledge::sources() : array() ); }
 
