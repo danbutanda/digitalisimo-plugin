@@ -101,4 +101,36 @@ En el sitio (`modules/digitalisimo-marca/class-package.php`):
 - **Marca apagada o bloqueada:** los originales se despliegan una vez por versión en `uploads/digitalisimo-elements/base-<versión>/` y las URL del núcleo y de lo cambiado apuntan ahí.
 - **Marca encendida:** las URL salen con el nombre publicado y los originales desplegados se borran.
 
-Con el paquete transformado, la marca propia no se enciende hasta que se valide la capa del escritorio y del editor (D-12). Se puede probar con el filtro `digitalisimo_elements_marca_editor_ready`. Lo que el servidor lee para pintar (separadores, twig, guías del MCP, kit de ventas) se deja tal cual y la auditoría lo cuenta aparte.
+Con el paquete transformado, la marca propia no se enciende hasta que se valide la capa del escritorio y del editor (D-12). Se puede probar con el filtro `digitalisimo_elements_marca_editor_ready`.
+
+### Una sola transformación para el JS, el HTML y los datos
+
+El JS se transforma **por contexto** (`scripts/marca-transform.mjs`, analizador léxico): los identificadores de código (`elementor` → `digitalisimo`, `elementorFrontend` → `digitalisimoFrontend`), las cadenas, plantillas y expresiones regulares con las reglas de clases y datos (`.elementor-x` → `.dg-x`, `elementor/…` y `elementor-pro/…` → `digitalisimo/…`, `elementor_x` → `digitalisimo_x`, dominios de texto `elementor` → `dg`), `el.dataset.elementorX` → `dgX` (el atributo `data-dg-*`) y los alias de URL del escritorio. El servidor (`Transform::str`, `ident`, `lex`) aplica exactamente las mismas reglas al JS en línea, a la configuración del editor (`var X = {json}` como datos: el contenido de `elements`, títulos, textos y CSS del cliente no cambia) y a las respuestas de AJAX y de la API. `tests/elements-marca-paridad.mjs` compara las 1 900 cadenas reales de los bundles en Node y en PHP: tienen que dar lo mismo, o el JS busca un nombre y el HTML trae otro.
+
+### El editor (D-12)
+
+`Editor_Layer`, sólo con el paquete transformado y la marca en vigor:
+- **entra**: la acción AJAX `digitalisimo_<x>` → `elementor_<x>` si el motor la registró; las rutas `digitalisimo…/…` → el espacio del motor que las produce; las metas `_digitalisimo_x`/`_dg_x` de `wp/v2` y la plantilla de página; claves y valores con su forma exacta en el vocabulario (`marca/vocabulario.json`, derivado del JS por `scripts/marca-vocabulario.mjs`, con su prueba). Nunca el texto libre ni `elements`;
+- **sale**: las respuestas de los espacios del motor, de AJAX y de `wp/v2` (claves de `meta`, plantilla) con las reglas; el índice `/wp-json/` y los `OPTIONS` con sus esquemas renombrados; la vista previa abre con `dg-preview`.
+
+### Lo que el servidor lee para pintar
+
+Se publica **el contenido original, con la palabra enmascarada** en una forma que su lector decodifica igual, así sirve con la marca encendida y apagada sin desplegar nada:
+- SVG de separadores y HTML: `&#101;lementor` (la capa lo reconoce en las clases);
+- Twig de los componentes atómicos: en el código, la cadena partida `('elemen' ~ 'tor/macros')` (Twig y Twing la unen igual); en el HTML, la entidad; los comentarios con la palabra se quitan;
+- JSON del kit de ventas: `\u0065lementor` (`json_decode` da lo de siempre);
+- guías Markdown del MCP: un separador invisible (U+200D) dentro de la palabra, que el mapa del MCP, la ruta vieja y el proxy del editor quitan al responder.
+
+Las licencias se conservan enteras (la GPL pide no quitar los avisos) en un `.php` que pedido por URL no devuelve nada. Las cuatro fuentes con la palabra en los nombres de glifos (`eicons` y `fa-brands`, `.ttf` y `.eot`) se corrigen con una palabra del mismo largo y las sumas de comprobación recalculadas. Los idiomas `elementor-<idioma>.l10n.php` salen como `dg-<idioma>.l10n.php` (`lang_dir_for_domain`, `load_translation_file`); con la marca apagada, las traducciones de los scripts se leen del original (sus claves son las del JS original).
+
+### Redes
+
+La carpeta de originales es una por instalación (`wp-content/uploads/digitalisimo-elements/base-<versión>/`), compartida por todos los sitios porque los archivos del plugin también lo son. Se borra al encender la marca, en un sitio o en la red, sólo si todos los sitios quedan encendidos (`Package::network_all_on()`, hasta 500 sitios). Si después un sitio la apaga o queda bloqueado, su primera petición la vuelve a desplegar. Mientras algún sitio de la red la necesite, sus archivos se pueden pedir por URL desde cualquier sitio de la red.
+
+### Exportaciones
+
+Con la marca en vigor: la plantilla suelta sale como `dg-<id>-<fecha>.json` con la plantilla de página propia; el WXR de Herramientas → Exportar con `digitalisimo_library`, sus taxonomías y `_dg_*`; al importar se aceptan los dos nombres, y escribir `digitalisimo_canvas` en `_wp_page_template` guarda `elementor_canvas`. Pendientes: el ZIP de varias plantillas y los kits.
+
+### Peso del ZIP
+
+El paquete transformado no publica el JS ni el CSS sin minificar del motor que tienen su `.min` (sólo se cargan con `SCRIPT_DEBUG`; la URL sirve el `.min`). Medido el 2026-11-27: ZIP normal 31,8 MB, transformado 35,2 MB (antes de la poda, 52 MB).

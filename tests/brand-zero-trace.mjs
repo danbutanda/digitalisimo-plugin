@@ -69,7 +69,7 @@ for (const f of files) {
   if (!SERVABLE.test(f)) continue;
   const n = count(read(f));
   if (!n) continue;
-  const mirror = f.startsWith('digitalisimo-elements/marca/') && !f.endsWith('/reglas.json');
+  const mirror = f.startsWith('digitalisimo-elements/marca/') && !/\/(reglas|vocabulario)\.json$/.test(f);
   const layer = mirror ? 'espejo' : 'zip_servibles';
   layers[layer].archivos++;
   add(layer, n, `${f} (${n})`);
