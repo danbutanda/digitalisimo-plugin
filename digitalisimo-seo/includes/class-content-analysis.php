@@ -129,13 +129,28 @@ class Digitalisimo_Integrations_Content_Analysis {
 		return '<span class="digitalisimo-effective-state ' . $class . '">' . (int) $score . '/100</span>';
 	}
 
+	/**
+	 * Notas informativas de otros módulos (`digitalisimo_seo_analysis_notes`): p. ej. DIGITALÍSIMO Elements avisa de una
+	 * cabecera o un pie que repiten mucho texto o títulos en cada página. Sólo se muestran: no entran en la puntuación
+	 * (siempre `info`) y una nota mal formada se descarta.
+	 */
+	public static function notes( $post ) {
+		$notes = apply_filters( 'digitalisimo_seo_analysis_notes', array(), $post );
+		$out   = array();
+		foreach ( is_array( $notes ) ? $notes : array() as $note ) {
+			if ( ! is_array( $note ) || ! isset( $note['label'], $note['detail'] ) || ! is_string( $note['label'] ) || ! is_string( $note['detail'] ) ) continue;
+			$out[] = self::check( sanitize_key( (string) ( $note['id'] ?? 'note' ) ), $note['label'], 'info', $note['detail'] );
+		}
+		return array_slice( $out, 0, 10 );
+	}
+
 	public static function metabox_html( $post ) {
 		$result = self::analyze( self::data_for( $post ) );
 		$icons  = array( 'pass' => '✓', 'warn' => '!', 'fail' => '✗', 'info' => 'i' );
 		echo '<p><strong>Puntuación:</strong> ' . self::badge( $result['score'] ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput -- marcado propio con un entero.
 		if ( '' === self::primary_keyword( $post->ID ) ) echo '<p class="description">Añade una keyword principal en el panel Keywords para analizarla.</p>';
 		echo '<ul style="margin:0">';
-		foreach ( $result['checks'] as $c ) echo '<li><span aria-hidden="true">' . esc_html( $icons[ $c['status'] ] ) . '</span> <strong>' . esc_html( $c['label'] ) . '</strong><br><span class="description">' . esc_html( $c['detail'] ) . '</span></li>';
+		foreach ( array_merge( $result['checks'], self::notes( $post ) ) as $c ) echo '<li><span aria-hidden="true">' . esc_html( $icons[ $c['status'] ] ) . '</span> <strong>' . esc_html( $c['label'] ) . '</strong><br><span class="description">' . esc_html( $c['detail'] ) . '</span></li>';
 		echo '</ul><p class="description">Se actualiza al guardar. Es una guía de redacción, no una garantía de posicionamiento.</p>';
 	}
 

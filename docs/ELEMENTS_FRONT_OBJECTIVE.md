@@ -182,6 +182,30 @@ aviso sólo mide vídeos del propio sitio. Un cambio de la política de red no v
 rige al caducar (24 h por defecto) o al vaciarla. El Slider de dispositivos (MP4 como diapositiva, con controles) no es
 un vídeo de fondo y no cambia.
 
+## Plantillas globales pesadas (`Global_Weight`)
+
+Auditoría de digitalisimo.lat (2026-11-24, B1): el pie 9353, que incrusta el contenedor 13280, metía unas 1 350
+palabras y ocho H2 de la portada en cada URL, y nada lo decía al editar. `modules/digitalisimo-front/class-global-weight.php`
+avisa; nunca cambia una plantilla.
+
+- **Qué es global.** Una plantilla del Theme Builder publicada con una condición `include/general` (todo el sitio),
+  `include/singular` (todas las entradas y páginas) o `include/archive` (todos los archivos), leída de la caché de
+  condiciones del propio Theme Builder (`elementor_pro_theme_builder_conditions`). Las exclusiones no se restan.
+- **Qué se mide.** El HTML que pinta la plantilla con el renderizador del constructor (con lo que incrusta): palabras
+  visibles (sin `script`, `style`, `svg` ni comentarios), H1 y H2. Es pesada con al menos un H1, tres H2 o 250 palabras
+  (`digitalisimo_elements_global_weight_limits`, enteros ≥ 1).
+- **Cuándo.** Nunca en el frente. Guardar una plantilla (`elementor/document/after_save`), cambiar las condiciones,
+  borrar o restaurar una plantilla o importar un kit programan **un** evento de WP-Cron
+  (`digitalisimo_elements_global_weight`); la administración lo programa si nunca se calculó o tiene más de 7 días;
+  «Analizar ahora» (Rendimiento, `manage_options`, nonce y POST) lo calcula en esa petición. El resultado vive en
+  `digitalisimo_elements_global_weight` (sin carga automática) con la lista de lo que cada global incrusta.
+- **Dónde avisa.** En el editor, un aviso fijo al abrir la plantilla pesada o una que ella incrusta (texto escapado);
+  en «Rendimiento», la sección «Plantillas que se repiten en cada página» con la tabla y «Analizar ahora»; en el
+  «Análisis SEO» de cada contenido, si DIGITALÍSIMO SEO está activo, una nota informativa por el filtro
+  `digitalisimo_seo_analysis_notes` (siempre `info`: no cambia la puntuación).
+- **Pruebas.** `tests/elements-global-weight.php` (validate y release; PHP 7.4, 8.2 y 8.5) y el caso G de
+  `tests/playground/elements-tanda-b.sh` (WordPress real: cabecera y pie globales, WP-Cron y la sección).
+
 ## Presupuesto del tema y de las capacidades de la fusión
 
 `docs/FUSION_OBJECTIVE.md` exige una fila aquí para cada widget o capacidad nueva de la fusión. La regla es la del criterio 7: CSS de 4 KB o menos y JS de 8 KB o menos, salvo excepción con su motivo. Los tamaños en gzip -9 se miden sin nombre de archivo en la cabecera (`gzip -9 < archivo`, igual que `gzencode( …, 9 )` en las pruebas). El tema DIGITALÍSIMO (F1) no es un widget, pero lo que imprime en todas las páginas cuenta igual.

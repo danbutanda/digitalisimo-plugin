@@ -24,7 +24,7 @@ final class Module {
 	const NAMESPACE_PREFIX = 'Digitalisimo\\Elements\\Front\\';
 
 	/** Clases que se inician en cada petición, en este orden (la transición primero: las demás leen su valor). */
-	const BOOT = array( 'Transition', 'Core_Defaults', 'Pro_Gate', 'Lazy_Libs', 'Lazy_Videos', 'Facades', 'Background_Video' );
+	const BOOT = array( 'Transition', 'Core_Defaults', 'Pro_Gate', 'Lazy_Libs', 'Lazy_Videos', 'Facades', 'Background_Video', 'Global_Weight' );
 
 	/** Clases que sólo se inician en la administración. */
 	const ADMIN = array( 'Settings_Page' );

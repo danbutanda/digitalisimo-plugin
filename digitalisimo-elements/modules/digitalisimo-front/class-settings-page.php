@@ -173,6 +173,7 @@ final class Settings_Page {
 		echo '<p><button type="submit" class="button button-primary">' . esc_html( 'Guardar ajustes' ) . '</button></p>';
 		echo '</form>';
 		self::render_icons();
+		Global_Weight::render_section();
 		self::render_woo_mcp( false );
 		if ( is_multisite() ) {
 			self::inherit_script();
