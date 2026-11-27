@@ -109,7 +109,12 @@ try {
       root: r(q('.digi-device-slider')), device: r(q('.digi-device-slider__device')), frame: r(q('.digi-device-slider__frame')), screen: r(screen),
       island: r(q('.digi-device-slider__island')), nav: r(q('.digi-device-slider__nav')), dots: [...document.querySelectorAll('.digi-device-slider__dot')].map(r),
       extra: r(q('.digi-device-slider__base') || q('.digi-device-slider__stand')), arrows, imgs,
-      radius: Math.max(...['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius'].map((k) => parseFloat(getComputedStyle(screen)[k]) || 0)),
+      radius: Math.max(...['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius'].flatMap((k) => {
+        // Radio elíptico «h v», en px o en % del ancho (h) y del alto (v) de la pantalla.
+        const [h, v = h] = getComputedStyle(screen)[k].split(' '), box = screen.getBoundingClientRect();
+        const px = (value, size) => (value.endsWith('%') ? (parseFloat(value) / 100) * size : parseFloat(value)) || 0;
+        return [px(h, box.width), px(v, box.height)];
+      })),
       current: [...document.querySelectorAll('.digi-device-slider__dot')].findIndex((d) => d.getAttribute('aria-current') === 'true'),
       scroll: q('[data-digi-carousel-track]').scrollLeft, slideW: r(screen.querySelector('li')).width,
     };
