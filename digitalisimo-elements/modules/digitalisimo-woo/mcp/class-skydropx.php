@@ -5,8 +5,8 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Ejecuta `digitalisimo-woo/skydropx` (definición en `Skydropx_Tool`) con las mismas reglas que las demás herramientas
- * de tienda: entrada cerrada, el modo «WooCommerce en el MCP» (las escrituras sólo en «Lectura y escritura»), el permiso
- * también aquí y la bitácora de cada escritura (`Log`, sin datos personales ni valores).
+ * de tienda: entrada cerrada, sin modos (acceso total desde el 2026-11-27), el permiso también aquí y la bitácora de
+ * cada escritura (`Log`, sin datos personales ni valores).
  *
  * Cómo llega a WordPress, sin SQL propio ni clases internas de WooCommerce ni del plugin:
  * - `update_products`: lotes de la API REST v3 de WooCommerce (`products/batch` y `…/variations/batch`), como
@@ -58,21 +58,13 @@ final class Skydropx {
 		if ( is_wp_error( $plan ) ) {
 			return $plan;
 		}
-		$user = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
-		$mode = Settings::mode();
-		if ( 'off' === $mode ) {
-			return new \WP_Error( 'digitalisimo_woo_mcp_off', 'Las herramientas de tienda están apagadas en este sitio («WooCommerce en el MCP»: apagado).', array( 'status' => 403 ) );
-		}
+		$user    = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
 		$allowed = Skydropx_Tool::permission( $input );
 		if ( true !== $allowed ) {
 			if ( 'write' === $plan['kind'] ) {
 				Log::add( Log::entry( $plan, 'denied', 'forbidden', 403, $user ) );
 			}
 			return $allowed;
-		}
-		if ( 'write' === $plan['kind'] && ! Settings::can_write( Tools::SKYDROPX ) ) {
-			Log::add( Log::entry( $plan, 'denied', 'read_mode', 403, $user ) );
-			return Executor::read_mode_error( $plan );
 		}
 		if ( ! Skydropx_Tool::active() ) {
 			return self::error( 'digitalisimo_woo_mcp_skydropx_inactive', 'El plugin de Skydropx no está activo en este sitio.', 409 );
@@ -1681,7 +1673,7 @@ final class Skydropx {
 
 	/**
 	 * `admin-post.php?action=digitalisimo_woo_skydropx_label&order_id=…&exp=…&sig=…`, abierto en el navegador. Sólo
-	 * responde con el MCP del sitio activo y «WooCommerce en el MCP» distinto de apagado; sin sesión, al acceso. Con el
+	 * responde con el MCP del sitio activo (siempre, salvo que falte el núcleo); sin sesión, al acceso. Con el
 	 * permiso sobre ese pedido (como la REST) y una guía de Skydropx:
 	 * - con la firma de `label` para este usuario y sin caducar, redirige al endpoint de impresión del plugin con un nonce
 	 *   de esta sesión (el plugin comprueba su nonce y sus permisos, firma la petición y entrega el PDF);
@@ -1693,7 +1685,7 @@ final class Skydropx {
 			auth_redirect();
 			exit;
 		}
-		if ( ! Module::mcp_enabled() || 'off' === Settings::mode() ) {
+		if ( ! Module::mcp_enabled() ) {
 			wp_die( esc_html( 'Las herramientas de tienda del MCP no están activas en este sitio.' ), '', array( 'response' => 404 ) );
 		}
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- la firma propia (o el botón) hace de nonce; el endpoint del plugin pide el suyo.

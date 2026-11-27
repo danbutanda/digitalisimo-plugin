@@ -396,7 +396,7 @@ final class Digitalisimo_AI_Assistant_History {
 			if ( '' === $notes && '' === $text ) {
 				return null;
 			}
-			return $out + array( 'role' => 'assistant', 'text' => '' !== $text ? $text : $notes, 'notes' => '' !== $text ? $notes : '', 'work' => ! empty( $m['calls'] ), 'provider' => (string) ( $m['provider'] ?? '' ) );
+			return $out + array( 'role' => 'assistant', 'text' => '' !== $text ? $text : $notes, 'notes' => '' !== $text ? $notes : '', 'work' => ! empty( $m['calls'] ) && empty( $m['card'] ), 'provider' => (string) ( $m['provider'] ?? '' ) );
 		}
 		if ( 'tool' === $role ) {
 			return $out + array( 'role' => 'tool', 'ability' => (string) ( $m['ability'] ?? '' ), 'label' => (string) ( $m['label'] ?? '' ), 'kind' => (string) ( $m['kind'] ?? '' ), 'status' => (string) ( $m['status'] ?? '' ), 'summary' => (string) ( $m['summary'] ?? '' ), 'detail' => (string) ( $m['detail'] ?? '' ) );

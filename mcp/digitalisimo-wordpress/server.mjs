@@ -111,7 +111,7 @@ export function makeMcpServer(sites, { fetcher, imageDir = process.env.DIGITALIS
 
   server.registerTool('subir_imagen_destacada', {
     title: 'Subir imagen destacada',
-    description: 'Sube una imagen local y la asigna al borrador. Requiere activar la opción MCP de imágenes en IA Tools.',
+    description: 'Sube una imagen local y la asigna al borrador. Exige subir archivos y editar ese contenido.',
     inputSchema: { site, post_id: z.number().int().positive(), image_path: z.string().min(1), image_title: z.string().min(3), image_alt: z.string().min(3) },
   }, wrap(async ({ site: id, post_id, image_path, image_title, image_alt }) => {
     const local = await readLocalImage(image_path, imageDir);

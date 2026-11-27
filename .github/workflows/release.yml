@@ -300,6 +300,8 @@ jobs:
           php tests/ia-assistant-mostrar.php
           php tests/ia-assistant-marca.php
           php tests/ia-assistant-permisos.php
+          php tests/ia-assistant-simple.php
+          php tests/ia-usage.php
           node tests/ia-assistant-mostrar-ui.mjs
           php tests/ia-assistant-subir.php
           node tests/ia-assistant-subir-ui.mjs
@@ -593,6 +595,7 @@ jobs:
           node tests/elements-woo-static.mjs
           php tests/elements-woo-kit-page-sync.php
           php tests/elements-woo-mcp.php
+          php tests/elements-mcp-access.php
           php tests/elements-woo-skydropx.php
           php tests/elements-mcp-css.php
           php tests/elements-mcp-settings.php

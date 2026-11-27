@@ -209,7 +209,7 @@ $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'bor
 $calls_before = count( $GLOBALS['model_calls'] );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'sí', 'conversation' => $cy ) ) ) );
 $c = Digitalisimo_AI_Assistant_History::get( $cy, 1 );
-check( array() === $GLOBALS['deleted_notes'] && 1 === count( $c['pending'] ) && $calls_before === count( $GLOBALS['model_calls'] ) && false !== strpos( $of( $ev, 'message' )[0]['message']['text'], 'vuelta atrás' ), 'Y3: con una acción destructiva, «sí» no la ejecuta: sigue pendiente de botón y casilla' );
+check( array() === $GLOBALS['deleted_notes'] && 1 === count( $c['pending'] ) && $calls_before === count( $GLOBALS['model_calls'] ) && false !== strpos( $of( $ev, 'message' )[0]['message']['text'], 'marca la casilla de la tarjeta y pulsa «Sí, hazlo»' ), 'Y3: con una acción que borra, «sí» no la ejecuta: sigue pendiente de botón y casilla (dicho en llano)' );
 check( 'sí' !== end( $c['messages'] )['text'] || 'user' !== end( $c['messages'] )['role'], 'Y3: y el «sí» no queda suelto tras la llamada sin resultado' );
 $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cy, 'action' => $c['pending'][0]['id'], 'decision' => 'deny' ) ) ) );
 // Y4 Caducada: «sí» no la revive.
@@ -244,7 +244,7 @@ $c3 = $ev[0]['id'];
 check( true === $of( $ev, 'confirm' )[0]['action']['after_read'], 'Y7: la tarjeta avisa que llega tras leer' );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'sí hazlo', 'conversation' => $c3 ) ) ) );
 $c = Digitalisimo_AI_Assistant_History::get( $c3, 1 );
-check( 1 === count( $GLOBALS['created_notes'] ) && 1 === count( $c['pending'] ) && false !== strpos( $of( $ev, 'message' )[0]['message']['text'], 'Revisa sus datos en la tarjeta' ), 'Y7: tras leer contenido del sitio, «sí hazlo» no ejecuta: la acción sigue en su tarjeta' );
+check( 1 === count( $GLOBALS['created_notes'] ) && 1 === count( $c['pending'] ) && false !== strpos( $of( $ev, 'message' )[0]['message']['text'], 'pulsa «Sí, hazlo» en la tarjeta' ), 'Y7: tras leer contenido del sitio, «sí hazlo» no ejecuta: la acción sigue en su tarjeta' );
 $GLOBALS['script'] = array( 'Creada.' );
 $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $c3, 'action' => $c['pending'][0]['id'], 'decision' => 'approve' ) ) ) );
 check( 2 === count( $GLOBALS['created_notes'] ), 'Y7: con el botón, sí' );
