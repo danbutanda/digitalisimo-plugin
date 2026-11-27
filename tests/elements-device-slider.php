@@ -58,7 +58,7 @@ namespace {
 	}
 	check_ds( 'Captura anterior' === $arrows->item( 0 )->getAttribute( 'aria-label' ) && $arrows->item( 0 )->hasAttribute( 'data-digi-carousel-prev' ) && $arrows->item( 0 )->hasAttribute( 'disabled' ) && 'true' === $arrows->item( 0 )->getAttribute( 'aria-disabled' ), 'La primera flecha: «Captura anterior», del motor y desactivada al empezar.' );
 	check_ds( 'Captura siguiente' === $arrows->item( 1 )->getAttribute( 'aria-label' ) && $arrows->item( 1 )->hasAttribute( 'data-digi-carousel-next' ) && ! $arrows->item( 1 )->hasAttribute( 'disabled' ), 'La segunda flecha: «Captura siguiente», activa.' );
-	check_ds( 0 === $x->query( '//button', $screen )->length && 0 === ds_q( $x, 'digi-carousel__controls' )->length, 'Ningún botón dentro de la pantalla ni la barra de controles de antes.' );
+	check_ds( 0 === $x->query( './/button', $screen )->length && 0 === ds_q( $x, 'digi-carousel__controls' )->length, 'Ningún botón dentro de la pantalla ni la barra de controles de antes.' );
 	$section = $x->query( '//section' )->item( 0 );
 	check_ds( $section && 'region' === $section->getAttribute( 'role' ) && 'carrusel' === $section->getAttribute( 'aria-roledescription' ) && 'Capturas de dispositivo' === $section->getAttribute( 'aria-label' ) && $section->hasAttribute( 'data-digi-carousel-drag' ) && ! $section->hasAttribute( 'data-digi-carousel-dots' ), 'Región con nombre y arrastre; sin puntos.' );
 	check_ds( '0' === $track->getAttribute( 'tabindex' ), 'La pista se puede enfocar y mover con el teclado.' );
