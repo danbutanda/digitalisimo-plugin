@@ -101,7 +101,10 @@ try {
   const measure = () => page.evaluate(() => {
     const r = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { left: b.left, top: b.top, right: b.right, bottom: b.bottom, width: b.width, height: b.height }; };
     const q = (s) => document.querySelector(s);
-    const arrows = [...document.querySelectorAll('.digi-device-slider__arrow')].map((a) => ({ rect: r(a), cs: { color: getComputedStyle(a).color, bg: getComputedStyle(a).backgroundColor, transition: getComputedStyle(a).transitionDuration } }));
+    // Colores en rgb(), también los que Chrome devuelve como lch() (el icono automático): pintados en un canvas.
+    const g = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    const norm = (css) => { g.clearRect(0, 0, 1, 1); g.fillStyle = '#000'; g.fillStyle = css; g.fillRect(0, 0, 1, 1); const d = g.getImageData(0, 0, 1, 1).data; return `rgb(${d[0]}, ${d[1]}, ${d[2]})`; };
+    const arrows = [...document.querySelectorAll('.digi-device-slider__arrow')].map((a) => ({ rect: r(a), cs: { color: norm(getComputedStyle(a).color), bg: norm(getComputedStyle(a).backgroundColor), transition: getComputedStyle(a).transitionDuration } }));
     const screen = q('.digi-device-slider__screen');
     const imgs = [...screen.querySelectorAll('img')].map((img) => ({ rect: r(img), fit: getComputedStyle(img).objectFit, loaded: img.complete && img.naturalWidth > 0 }));
     return {
