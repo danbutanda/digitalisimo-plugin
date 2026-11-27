@@ -22,9 +22,12 @@ final class Toggle {
 
 	/** @var array|null */
 	private static $memo = null;
+	/** @var bool|null */
+	private static $active = null;
 
 	public static function reset(): void {
-		self::$memo = null;
+		self::$memo   = null;
+		self::$active = null;
 	}
 
 	/** @return array{mode:string,force:bool} valores de la red. */
@@ -89,6 +92,9 @@ final class Toggle {
 
 	/** ¿Está en vigor la marca propia en esta petición? */
 	public static function active(): bool {
+		if ( null !== self::$active ) {
+			return self::$active;
+		}
 		if ( 'on' !== self::values()['mode'] || ! self::bundled() ) {
 			return false;
 		}
@@ -97,6 +103,11 @@ final class Toggle {
 		 *
 		 * @param bool $active
 		 */
-		return (bool) apply_filters( 'digitalisimo_elements_marca_active', 'on' === self::status()['state'] );
+		$active = (bool) apply_filters( 'digitalisimo_elements_marca_active', 'on' === self::status()['state'] );
+		// Una sola respuesta por petición desde que todo cargó: el paquete decide sus URL con ella al cargar Elements.
+		if ( did_action( 'init' ) ) {
+			self::$active = $active;
+		}
+		return $active;
 	}
 }

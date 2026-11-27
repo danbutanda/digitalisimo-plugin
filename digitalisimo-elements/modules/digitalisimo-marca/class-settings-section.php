@@ -135,6 +135,10 @@ final class Settings_Section {
 		}
 		update_option( Toggle::OPTION, $save, true );
 		Toggle::reset();
+		// Encendida en un sitio individual: los originales desplegados ya no hacen falta (opción A de DECISIONES).
+		if ( 'on' === $save['mode'] && 'on' === Toggle::status( true )['state'] && class_exists( Package::class ) ) {
+			Package::remove_originals();
+		}
 		if ( function_exists( 'delete_transient' ) ) {
 			delete_transient( Addons::CACHE );
 		}

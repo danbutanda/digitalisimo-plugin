@@ -237,8 +237,10 @@ namespace {
 	Toggle::reset();
 	check( Toggle::active() && 'site' === Toggle::values()['origin'], 'M2 encendida en el sitio' );
 	Digitalisimo_Elements_Core::$bundled = false;
+	Toggle::reset();
 	check( ! Toggle::active() && 'unavailable' === Toggle::status()['state'], 'M2 no disponible con el Elementor original (sin núcleo incluido)' );
 	Digitalisimo_Elements_Core::$bundled = true;
+	Toggle::reset();
 
 	// M3 -----------------------------------------------------------------------------------------------------------------
 	$GLOBALS['options']['active_plugins'][] = 'addon-x/addon-x.php';

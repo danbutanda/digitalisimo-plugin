@@ -48,6 +48,9 @@ final class Front_Layer {
 
 	/** ¿Trae el paquete el espejo? */
 	public static function mirror_ready(): bool {
+		if ( class_exists( Package::class ) && Package::transformed() ) {
+			return 'on' === Package::mode();
+		}
 		return is_readable( self::mirror_dir() . '/motor/js/frontend.min.js' );
 	}
 
@@ -99,8 +102,9 @@ final class Front_Layer {
 		if ( ! preg_match_all( '#/plugins/digitalisimo-elements/(?:elementor|motor)/assets/([^"\'?\s)\\\\]+\.(?:css|js))#', $html, $m ) ) {
 			return true;
 		}
+		$packaged = class_exists( Package::class ) && Package::transformed();
 		foreach ( array_unique( $m[1] ) as $rel ) {
-			$copy = self::mirror_dir() . '/motor/' . preg_replace( '/elementor/i', Transform::P, $rel );
+			$copy = $packaged ? Package::plugin_dir() . '/' . Package::rename( 'motor/assets/' . $rel ) : self::mirror_dir() . '/motor/' . preg_replace( '/elementor/i', Transform::P, $rel );
 			if ( ! is_readable( $copy ) ) {
 				return false;
 			}

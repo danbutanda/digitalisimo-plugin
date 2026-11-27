@@ -107,6 +107,9 @@ final class Transform {
 
 	/** URL de assets del constructor → espejo y CSS generado → su copia (también con `\/` de JSON). */
 	public static function paths( string $text ): string {
+		if ( class_exists( Package::class ) && Package::transformed() ) {
+			return self::packaged_paths( $text );
+		}
 		$from = array();
 		$to   = array();
 		foreach ( array( 'elementor', 'motor' ) as $dir ) {
@@ -132,12 +135,34 @@ final class Transform {
 		);
 	}
 
+	/**
+	 * En el paquete transformado: `…/digitalisimo-elements/<ruta>` con el nombre publicado (Package::rename), salvo PHP;
+	 * el CSS generado, a su copia. También con `\/` de JSON.
+	 */
+	private static function packaged_paths( string $text ): string {
+		$text = (string) preg_replace_callback(
+			'#(/plugins(?:\\\\)?/digitalisimo-elements(?:\\\\)?/)((?:[\w.-]+(?:\\\\)?/)*[\w.-]*)#',
+			static function ( $m ) {
+				$sep  = false !== strpos( $m[1], '\\' ) ? '\\/' : '/';
+				$rel  = str_replace( '\\/', '/', $m[2] );
+				$done = preg_match( '/\.php$/', $rel ) ? $rel : Package::rename( $rel );
+				return $m[1] . str_replace( '/', $sep, $done );
+			},
+			$text
+		);
+		foreach ( array( 'css', 'google-fonts' ) as $kind ) {
+			$text = str_replace( array( '/uploads/elementor/' . $kind . '/', '\/uploads\/elementor\/' . $kind . '\/' ), array( '/uploads/digitalisimo-elements/' . $kind . '/', '\/uploads\/digitalisimo-elements\/' . $kind . '\/' ), $text );
+		}
+		return $text;
+	}
+
 	/** Una URL de un atributo src/href: sólo las de assets. Los medios y las demás páginas salen igual. */
 	public static function url( string $url ): string {
 		if ( preg_match( '/^(#|%23)elementor-action/i', $url ) ) {
 			return (string) preg_replace( '/elementor-action/', self::P . '-action', $url, 1 );
 		}
-		if ( ! preg_match( '#/plugins/digitalisimo-elements/(elementor|motor)/assets/|/uploads/elementor/(css|google-fonts)/#', $url ) ) {
+		$packaged = class_exists( Package::class ) && Package::transformed() && preg_match( '#/plugins/digitalisimo-elements/[^?\#]*elementor#i', $url );
+		if ( ! $packaged && ! preg_match( '#/plugins/digitalisimo-elements/(elementor|motor)/assets/|/uploads/elementor/(css|google-fonts)/#', $url ) ) {
 			return $url;
 		}
 		return self::paths( $url );

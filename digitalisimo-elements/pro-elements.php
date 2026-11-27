@@ -36,6 +36,12 @@ require_once __DIR__ . '/modules/digitalisimo-marca/class-admin-urls.php';
 require_once __DIR__ . '/modules/digitalisimo-marca/class-transform.php';
 require_once __DIR__ . '/modules/digitalisimo-marca/class-front-layer.php';
 \Digitalisimo\Elements\Marca\Admin_Urls::translate_request();
+// Paquete transformado (marca propia, opción A): las URL de lo publicado con otro nombre, o los originales desplegados
+// si la marca está apagada. Va antes de que el núcleo calcule ELEMENTOR_URL (al cargar su archivo, ya hecho, sólo
+// define constantes que se usan después de plugins_loaded).
+require_once __DIR__ . '/modules/digitalisimo-marca/class-addons.php';
+require_once __DIR__ . '/modules/digitalisimo-marca/class-package.php';
+\Digitalisimo\Elements\Marca\Package::boot();
 register_activation_hook( __FILE__, array( 'Digitalisimo_Elements_Core', 'activate' ) );
 // La lista de opciones que se piden juntas es una caché: se borra al desactivar.
 register_deactivation_hook( __FILE__, array( 'Digitalisimo_Elements_Admin_Load', 'deactivate' ) );

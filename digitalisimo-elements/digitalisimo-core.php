@@ -31,6 +31,11 @@ final class Digitalisimo_Elements_Core {
 
 	/** Versión de Elementor incluida, leída del manifiesto que deja el script de sincronización. */
 	public static function version() {
+		// En el paquete con la marca propia, el manifiesto se publica como PHP (scripts/marca-empaquetar.mjs).
+		if ( is_readable( self::dir() . 'digitalisimo-core.php' ) ) {
+			$manifest = include self::dir() . 'digitalisimo-core.php';
+			return is_array( $manifest ) && ! empty( $manifest['version'] ) ? (string) $manifest['version'] : '';
+		}
 		$manifest = json_decode( (string) @file_get_contents( self::dir() . 'digitalisimo-core.json' ), true ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- archivo local opcional.
 		return is_array( $manifest ) && ! empty( $manifest['version'] ) ? (string) $manifest['version'] : '';
 	}
