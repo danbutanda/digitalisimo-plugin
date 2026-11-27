@@ -1509,6 +1509,22 @@ namespace {
 		}
 	);
 
+	// Revisión de la tanda B (coordinador, 2026-11-26): el texto de las casillas decía que dry_run funciona en todas, y Skydropx no lo tiene.
+	// Fallaba con 3120eed2.
+	review_block(
+		'B3-rev-ayuda',
+		static function () use ( $run, $assistant ) {
+			$caps = array( 'edit_products', 'publish_products', 'delete_products', 'read_private_products', 'edit_others_products', 'edit_product_terms', 'delete_product_terms', 'manage_product_terms', 'manage_woocommerce' );
+			wm_reset( array( 'caps' => $caps, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'write', 'own' => array( 'mode' ) ) ) ) );
+			$R = &$GLOBALS['wm_rest_responses'];
+			$R = array();
+			$GLOBALS['wm_rest'] = array();
+			$src = (string) file_get_contents( dirname( __DIR__ ) . '/digitalisimo-elements/modules/digitalisimo-woo/mcp/class-settings.php' );
+			review( 'B3-rev-ayuda', false === strpos( $src, 'funciona en todas.' ) && false !== strpos( $src, 'salvo Skydropx' ) && false !== strpos( Settings::HELP, 'salvo la de Skydropx' ), 'La ayuda y las casillas dicen que Skydropx no simula.' );
+			review( 'B3-rev-ayuda', ! array_key_exists( 'dry_run', Tools::input_schema( Tools::SKYDROPX )['properties'] ?? array() ), 'Y, en efecto, Skydropx no declara dry_run.' );
+		}
+	);
+
 	if ( ! empty( $GLOBALS['wm_review'] ) ) {
 		$lines = array();
 		foreach ( $GLOBALS['wm_review'] as $label => $messages ) {

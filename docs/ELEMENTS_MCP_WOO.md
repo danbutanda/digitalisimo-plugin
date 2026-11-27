@@ -172,7 +172,7 @@ volver a heredar conserva lo del sitio. Las casillas van en un grupo (`#digitali
 red» deshabilita con `data-group` (el script de herencia de «Rendimiento» lo admite desde esta versión); un campo oculto
 `write_tools_sent` distingue «todas desmarcadas» de «grupo deshabilitado». Sin elegir `custom`, nada cambia.
 
-**Simulación (`dry_run`).** Toda herramienta que escribe admite `dry_run: true` (y lo declara en
+**Simulación (`dry_run`).** Toda herramienta que escribe, salvo Skydropx, admite `dry_run: true` (y lo declara en
 `meta.digitalisimo.dry_run`, que el Asistente de IA Tools usa para mostrar la simulación antes de confirmar algo
 destructivo). Valida la entrada y exige la misma capacidad que la escritura; corre también en «Sólo lectura» (sólo lee) y
 responde `allowed` (si este sitio dejaría hacerlo) con `reason` si no, y `would` (`Simulation`):
