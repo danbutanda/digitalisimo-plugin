@@ -77,8 +77,8 @@ class Digitalisimo_Hosting_Namecheap implements Digitalisimo_Hosting_Registrar {
 	private static function clean( $text ) { return substr( trim( preg_replace( '/\s+/', ' ', strip_tags( (string) $text ) ) ), 0, 300 ); }
 
 	/** Saldo disponible en USD: array( 'kind' => ok, 'value' => float ) o el error. */
-	public function balance() {
-		$r = $this->call( 'namecheap.users.getBalances' );
+	public function balance( $timeout = 60 ) {
+		$r = $this->call( 'namecheap.users.getBalances', array(), $timeout );
 		if ( 'ok' !== $r['kind'] ) return $r;
 		$row = $r['xml']->CommandResponse->UserGetBalancesResult ?? null;
 		if ( ! $row || '' === (string) $row['AvailableBalance'] ) return array( 'kind' => 'api', 'message' => 'Namecheap no informó el saldo disponible.' ) + $r;
@@ -131,7 +131,7 @@ class Digitalisimo_Hosting_Namecheap implements Digitalisimo_Hosting_Registrar {
 		$res = $r['xml']->CommandResponse->DomainCheckResult ?? null;
 		if ( ! $res ) return array( 'kind' => 'api', 'message' => 'Namecheap no informó si ' . $domain . ' está disponible.' ) + $r;
 		$r['available'] = 'true' === strtolower( (string) $res['Available'] );
-		$r['premium'] = 'true' === strtolower( (string) $res['IsPremiumName'] );
+		$r['premium'] = self::special( $res );
 		return $r;
 	}
 
@@ -141,6 +141,14 @@ class Digitalisimo_Hosting_Namecheap implements Digitalisimo_Hosting_Registrar {
 	 * array( dominio => array( available, premium ) ). Un dominio que Namecheap no devuelve, o devuelve con ErrorNo (una
 	 * extensión que no atiende), no aparece en 'results'. Nunca se devuelve nada más de la respuesta de Namecheap.
 	 */
+	/**
+	 * ¿Precio especial? Premium (IsPremiumName) o en el periodo de acceso anticipado de una extensión nueva (EapFee mayor
+	 * que 0): cuesta otra cosa que el producto, así que no se vende aquí.
+	 */
+	private static function special( $res ) {
+		return 'true' === strtolower( (string) $res['IsPremiumName'] ) || (float) str_replace( ',', '', (string) $res['EapFee'] ) > 0;
+	}
+
 	public function check_many( array $domains, $timeout = 15 ) {
 		$domains = array_values( array_unique( array_filter( array_map( 'strtolower', array_map( 'strval', $domains ) ) ) ) );
 		if ( ! $domains ) return array( 'kind' => 'ok', 'results' => array() );
@@ -151,7 +159,7 @@ class Digitalisimo_Hosting_Namecheap implements Digitalisimo_Hosting_Registrar {
 			$d = strtolower( trim( (string) $res['Domain'] ) );
 			$error = trim( (string) $res['ErrorNo'] );
 			if ( ! in_array( $d, $domains, true ) || ( '' !== $error && '0' !== $error ) ) continue;
-			$out[ $d ] = array( 'available' => 'true' === strtolower( (string) $res['Available'] ), 'premium' => 'true' === strtolower( (string) $res['IsPremiumName'] ) );
+			$out[ $d ] = array( 'available' => 'true' === strtolower( (string) $res['Available'] ), 'premium' => self::special( $res ) );
 		}
 		return array( 'kind' => 'ok', 'results' => $out );
 	}

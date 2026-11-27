@@ -46,8 +46,12 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 	$taken = array( 'ocupado.com', 'miempresa.com', 'ajeno.com', 'ajeno.mx', 'ajeno.lat', 'ajeno.net' );
 	switch ( $cmd ) {
 		case 'namecheap.domains.check':
-			$d = (string) $body['DomainList'];
-			return digi_hc_xml( '<DomainCheckResult Domain="' . esc_attr( $d ) . '" Available="' . ( in_array( $d, $taken, true ) ? 'false' : 'true' ) . '" IsPremiumName="false" />' );
+			// Varios dominios separados por comas (el buscador estilo registrador los consulta en lote).
+			$xml = '';
+			foreach ( explode( ',', (string) $body['DomainList'] ) as $d ) $xml .= '<DomainCheckResult Domain="' . esc_attr( $d ) . '" Available="' . ( in_array( $d, $taken, true ) ? 'false' : 'true' ) . '" IsPremiumName="false" EapFee="0" />';
+			return digi_hc_xml( $xml );
+		case 'namecheap.users.getBalances':
+			return digi_hc_xml( '<UserGetBalancesResult Currency="USD" AvailableBalance="500.00" AccountBalance="500.00" />' );
 		case 'namecheap.domains.getTldList':
 			$out = '';
 			foreach ( array( 'com', 'net', 'org', 'mx' ) as $t ) $out .= '<Tld Name="' . $t . '" IsApiRegisterable="true" IsApiTransferable="' . ( 'mx' === $t ? 'false' : 'true' ) . '" IsEppRequired="true">' . $t . '</Tld>';
@@ -142,6 +146,20 @@ add_action( 'init', static function () {
 			}
 			$exp = \Elementor\Plugin::$instance->experiments;
 			digi_hc_out( array( 'id' => $id, 'atomic' => $exp->is_feature_active( 'e_atomic_elements' ), 'atomic_form' => $exp->is_feature_active( 'e_pro_atomic_form' ) ) );
+		case 'finder_page':
+			// Una página con el buscador estilo registrador y el carrito de WooCommerce (de bloques en una instalación nueva).
+			$id = (int) get_option( 'digi_hc_finder_page' );
+			if ( ! $id || ! get_post( $id ) ) {
+				$id = (int) wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Busca tu dominio', 'post_content' => '[digitalisimo_buscador_dominios]' ) );
+				update_option( 'digi_hc_finder_page', $id, false );
+			}
+			$cart = (int) wc_get_page_id( 'cart' );
+			$content = (string) get_post_field( 'post_content', $cart );
+			// Una instalación vieja de WooCommerce pudo dejar el shortcode: el ensayo usa el carrito de bloques.
+			if ( false === strpos( $content, 'wp:woocommerce/cart' ) ) {
+				wp_update_post( array( 'ID' => $cart, 'post_content' => '<!-- wp:woocommerce/cart /-->' ) );
+			}
+			digi_hc_out( array( 'id' => $id, 'cart' => $cart, 'cart_url' => get_permalink( $cart ), 'block_cart' => has_block( 'woocommerce/cart', $cart ) ) );
 		case 'calls':
 			digi_hc_out( array( 'calls' => get_option( 'digi_hc_calls', array() ) ) );
 	}

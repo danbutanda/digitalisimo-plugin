@@ -382,7 +382,7 @@ add_filter(
 					foreach ( $list as $d ) if ( in_array( substr( $d, strpos( $d, '.' ) ), $n['batch_reject'] ?? array(), true ) ) return digi_xml( '<Error Number="2030280">TLD is not supported in API</Error>', false );
 					foreach ( $list as $d ) {
 						if ( in_array( substr( $d, strpos( $d, '.' ) ), $n['unsupported'] ?? array(), true ) ) { $xml .= '<DomainCheckResult Domain="' . $d . '" Available="false" ErrorNo="2" Description="TLD not supported" IsPremiumName="false" />'; continue; }
-						$xml .= '<DomainCheckResult Domain="' . $d . '" Available="' . ( isset( $n['domains'][ $d ] ) || in_array( $d, $n['taken'] ?? array(), true ) ? 'false' : 'true' ) . '" IsPremiumName="' . ( in_array( $d, $n['premium'] ?? array(), true ) ? 'true' : 'false' ) . '" PremiumRegistrationPrice="' . ( in_array( $d, $n['premium'] ?? array(), true ) ? '2500.00' : '0' ) . '" EapFee="0" />';
+						$xml .= '<DomainCheckResult Domain="' . $d . '" Available="' . ( isset( $n['domains'][ $d ] ) || in_array( $d, $n['taken'] ?? array(), true ) ? 'false' : 'true' ) . '" IsPremiumName="' . ( in_array( $d, $n['premium'] ?? array(), true ) ? 'true' : 'false' ) . '" PremiumRegistrationPrice="' . ( in_array( $d, $n['premium'] ?? array(), true ) ? '2500.00' : '0' ) . '" EapFee="' . ( in_array( $d, $n['eap'] ?? array(), true ) ? '1250.00' : '0' ) . '" />';
 					}
 					return digi_xml( $xml );
 				case 'namecheap.domains.create':

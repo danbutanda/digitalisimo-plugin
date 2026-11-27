@@ -24,7 +24,7 @@ interface Digitalisimo_Hosting_Registrar {
 	/** ¿Tiene lo necesario para llamar a la API? (nunca dice cuál es la clave). */
 	public function configured();
 	/** Saldo disponible en USD: kind ok + value. */
-	public function balance();
+	public function balance( $timeout = 60 );
 	/** Costo de un año de la extensión en USD (REGISTER, RENEW o TRANSFER): kind ok + value. */
 	public function price( $tld, $action = 'REGISTER', $timeout = 60 );
 	/** ¿El dominio está en esta cuenta? kind ok + ours, expires y created (marcas de tiempo o 0). */

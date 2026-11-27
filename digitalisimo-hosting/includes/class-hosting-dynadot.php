@@ -113,8 +113,8 @@ class Digitalisimo_Hosting_Dynadot implements Digitalisimo_Hosting_Registrar {
 	private static function amount( $text ) { return preg_match( '/(\d[\d,]*(?:\.\d+)?)/', (string) $text, $m ) ? (float) str_replace( ',', '', $m[1] ) : 0.0; }
 
 	/** Saldo disponible en USD. */
-	public function balance() {
-		$r = $this->call( 'get_account_balance' );
+	public function balance( $timeout = 60 ) {
+		$r = $this->call( 'get_account_balance', array(), $timeout );
 		// Con saldo cero Dynadot NO contesta 0 sino un error (respuesta real del 2026-11-27, cuenta del dueño):
 		// {"GetAccountBalanceResponse":{"ResponseCode":"-1","Status":"error","Error":"There is no balance in your account"}}.
 		// Es saldo 0: así el freno por saldo frena (un error de API dejaría pasar o detendría por otra causa).

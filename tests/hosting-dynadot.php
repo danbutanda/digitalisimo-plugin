@@ -176,7 +176,8 @@ store();
 $GLOBALS['nc']['taken'] = array( 'ocupado.com' );
 $GLOBALS['dd']['taken'][] = 'ocupado.mx';
 $res = $F::search( 'minegocio' );
-check( 1 === digi_nc_count( 'namecheap.domains.check' ) && 'minegocio.com' === $GLOBALS['nc']['calls'][0]['fields']['DomainList'], 'D2 buscador: Namecheap sólo consulta las extensiones que atiende (.com), en lote' );
+$list = explode( ',', $GLOBALS['nc']['calls'][0]['fields']['DomainList'] );
+check( 1 === digi_nc_count( 'namecheap.domains.check' ) && 'minegocio.com' === $list[0] && ! preg_grep( '/\.mx$/', $list ), 'D2 buscador: Namecheap sólo consulta, en lote, lo que atiende (.com y las variantes .com sugeridas), nunca un .mx · ' . implode( ',', $list ) );
 check( 1 === dd_count( 'search' ) && 'minegocio.mx' === dd_calls( 'search' )[0]['params']['domain0'], 'D2 buscador: .mx con Dynadot' );
 check( 'minegocio.com' === $res['main']['domain'] && 'available' === $res['main']['status'] && 'available' === $res['rows'][0]['status'] && 'minegocio.mx' === $res['rows'][0]['domain'], 'D2 buscador: las dos filas libres, cada una de su registrador' );
 check( false === strpos( wp_json_encode( $res ), DD_KEY ) && false === strpos( wp_json_encode( $res ), 'Dynadot' ), 'D2 la respuesta pública no dice nada de la cuenta ni del registrador' );
@@ -360,6 +361,29 @@ check( 'ok' === $e['status'] && 'dynadot' === $rows['.mx']['registrar'] && 20.0 
 store( array( 'pricing_enabled' => 1, 'dynadot_api_key' => '' ) );
 $e = Digitalisimo_Hosting_Pricing::run();
 check( 'error' === $e['status'] && 'Faltan los datos de la cuenta de Dynadot.' === $e['message'], 'D9 sin la cuenta de Dynadot no se cambia ningún precio y se avisa' );
+
+// ── D11. Freno de pago por saldo con el registrador de cada extensión ─────────────────────────────────────────
+class D11_Cart { public $items = array(); public function get_cart() { return $this->items; } }
+function cart_with( array $lines ) { $c = new D11_Cart(); foreach ( $lines as $i => $l ) $c->items[ 'k' . $i ] = array( 'product_id' => $l[0], 'quantity' => 1, 'digitalisimo_domain' => $l[1] ); WC()->cart = $c; }
+function owner_funds_mails() { return array_values( array_filter( $GLOBALS['mails'], function ( $m ) { return false !== strpos( $m['subject'], 'saldo del registrador' ); } ) ); }
+store( array( 'ask_domain' => 0 ) ); $GLOBALS['dd']['balance'] = 0.0;
+cart_with( array( array( 21, 'tiendaluz.mx' ) ) );
+$errs = $C::cart_errors();
+check( (bool) preg_grep( '/Por ahora no podemos completar en línea la compra de tiendaluz\.mx\./', $errs ) && 1 === dd_count( 'get_account_balance' ) && 0 === digi_nc_count( 'namecheap.users.getBalances' ), 'D11 .mx con Dynadot y saldo cero (la respuesta real «There is no balance»): el carrito no deja pagar, y el saldo se pide a Dynadot, no a Namecheap · ' . json_encode( $errs ) );
+$m = owner_funds_mails();
+check( 1 === count( $m ) && false !== strpos( $m[0]['body'], 'el saldo de Dynadot (0.00 USD) no alcanza su costo (20.00 USD)' ), 'D11 el dueño recibe el aviso con el saldo y el costo de Dynadot (tld_price)' );
+cart_with( array( array( 20, 'tiendaluz.com' ) ) );
+check( array() === $C::cart_errors() && 1 === digi_nc_count( 'namecheap.users.getBalances' ) && 1 === dd_count( 'get_account_balance' ), 'D11 .com con Namecheap y saldo suficiente: sí deja pagar (el saldo se pide a Namecheap)' );
+cart_with( array( array( 20, 'tiendaluz.com' ), array( 21, 'tiendaluz.mx' ) ) );
+$errs = $C::cart_errors();
+check( (bool) preg_grep( '/compra de tiendaluz\.mx\./', $errs ) && ! preg_grep( '/tiendaluz\.com/', $errs ), 'D11 cada registrador se mide aparte: frena el .mx de Dynadot, no el .com de Namecheap' );
+$GLOBALS['dd']['balance'] = 100.0; delete_transient( 'digitalisimo_hosting_dynadot_balance' );
+cart_with( array( array( 21, 'tiendaluz.mx' ) ) );
+check( array() === $C::cart_errors(), 'D11 con saldo en Dynadot, el .mx se paga' );
+$GLOBALS['dd']['balance'] = 30.0; delete_transient( 'digitalisimo_hosting_dynadot_balance' );
+cart_with( array( array( 21, 'tiendaluz.mx' ), array( 21, 'otraluz.mx' ) ) );
+check( (bool) preg_grep( '/tiendaluz\.mx, otraluz\.mx/', $C::cart_errors() ), 'D11 se suma el costo de los dominios del mismo registrador (20 + 20 > 30)' );
+WC()->cart = null;
 
 // ── D10. Entorno de pruebas de Dynadot ────────────────────────────────────────────────────────────────────────
 store();

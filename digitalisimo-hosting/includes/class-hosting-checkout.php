@@ -385,7 +385,82 @@ class Digitalisimo_Hosting_Checkout {
 		$o = Digitalisimo_Hosting::settings();
 		if ( $hosting_need && ! $domains && ( ! empty( $o['ask_domain'] ) || ! empty( $o['require_domain_hosting'] ) ) ) $errors[] = 'Elige el dominio de tu plan antes de pagar: «Dominio nuevo» (búscalo y agrégalo) o «Uno que ya tengo» (escribe su nombre exacto).';
 		if ( ! empty( $o['require_domain_hosting'] ) && $domains && ! $hosting ) $errors[] = 'Agrega un plan de hosting para continuar: los dominios se venden junto con un plan.';
+		// Sólo con lo demás en orden: ¿alcanza el saldo del registrador para lo que se va a cobrar?
+		if ( ! $errors ) { $funds = self::funds_error( $lines ); if ( '' !== $funds ) $errors[] = $funds; }
 		return array_values( array_unique( $errors ) );
+	}
+
+	// ── Saldo del registrador (antes de cobrar un dominio que después no se podría registrar) ─────────────────────
+
+	/**
+	 * Saldo (USD) del registrador que atiende esta extensión (Digitalisimo_Hosting_Registrars: el predeterminado o el de
+	 * «Registrador por extensión»): array( kind ok, value, registrar ) o kind error|config. Con Dynadot, un saldo cero
+	 * llega como 0 (Digitalisimo_Hosting_Dynadot::balance()), así que frena. En caché 5 minutos por registrador (una
+	 * falla, 1 minuto).
+	 */
+	public static function registrar_balance( $ext ) {
+		$rid = Digitalisimo_Hosting_Registrars::id_for_ext( $ext );
+		$key = 'namecheap' === $rid ? 'digitalisimo_hosting_nc_balance' : 'digitalisimo_hosting_' . $rid . '_balance';
+		$c = get_transient( $key );
+		if ( is_array( $c ) ) return $c;
+		$r = Digitalisimo_Hosting_Registrars::make( $rid );
+		if ( ! $r->configured() ) return array( 'kind' => 'config', 'registrar' => $rid );
+		$b = $r->balance( self::TIMEOUT );
+		$out = 'ok' === $b['kind'] ? array( 'kind' => 'ok', 'value' => (float) $b['value'], 'registrar' => $rid ) : array( 'kind' => 'error', 'registrar' => $rid );
+		set_transient( $key, $out, 'ok' === $out['kind'] ? 5 * MINUTE_IN_SECONDS : MINUTE_IN_SECONDS );
+		return $out;
+	}
+
+	/**
+	 * Lo que cobra el registrador de la extensión por un año (USD) al registrar (REGISTER) o transferir (TRANSFER, o el
+	 * registro si no lo informa): array( kind ok, value ) o kind error. Namecheap: users.getPricing; Dynadot: tld_price
+	 * (el mismo registro que da su búsqueda). En caché una hora.
+	 */
+	public static function registrar_cost( $ext, $action ) {
+		$rid = Digitalisimo_Hosting_Registrars::id_for_ext( $ext );
+		$key = 'digitalisimo_hosting_' . ( 'namecheap' === $rid ? 'nc' : $rid ) . '_cost_' . md5( $ext . '|' . $action );
+		$c = get_transient( $key );
+		if ( is_array( $c ) ) return $c;
+		$reg = Digitalisimo_Hosting_Registrars::make( $rid );
+		if ( ! $reg->configured() ) return array( 'kind' => 'config' );
+		$tld = ltrim( (string) $ext, '.' );
+		$r = $reg->price( $tld, $action, self::TIMEOUT );
+		if ( 'ok' !== $r['kind'] && 'TRANSFER' === $action ) $r = $reg->price( $tld, 'REGISTER', self::TIMEOUT );
+		$out = 'ok' === $r['kind'] ? array( 'kind' => 'ok', 'value' => (float) $r['value'] ) : array( 'kind' => 'error' );
+		set_transient( $key, $out, 'ok' === $out['kind'] ? HOUR_IN_SECONDS : MINUTE_IN_SECONDS );
+		return $out;
+	}
+
+	/**
+	 * '' o el aviso para el comprador cuando el saldo del registrador no alcanza el costo de los dominios del carrito (por
+	 * registrador). Sin saldo o sin costo que consultar no se frena: el aprovisionamiento deja el pedido en espera y avisa,
+	 * como siempre. Al frenar, avisa al dueño (una vez cada 6 horas por registrador).
+	 */
+	private static function funds_error( array $lines ) {
+		$need = array(); $have = array(); $names = array();
+		foreach ( $lines as $line ) {
+			if ( 'hosting' === $line['kind'] ) continue;
+			$domain = (string) ( $line['data']['digitalisimo_domain'] ?? '' );
+			$ext = self::ext_of( $domain );
+			if ( '' === $domain || '' === $ext ) continue;
+			$cost = self::registrar_cost( $ext, 'transfer' === $line['kind'] ? 'TRANSFER' : 'REGISTER' );
+			$bal = self::registrar_balance( $ext );
+			if ( 'ok' !== $cost['kind'] || 'ok' !== $bal['kind'] ) return '';
+			$reg = (string) $bal['registrar'];
+			$need[ $reg ] = ( $need[ $reg ] ?? 0 ) + (float) $cost['value'];
+			$have[ $reg ] = (float) $bal['value'];
+			$names[ $reg ][] = $domain;
+		}
+		foreach ( $need as $reg => $sum ) {
+			if ( $have[ $reg ] + 0.005 >= $sum ) continue;
+			$flag = 'digitalisimo_hosting_funds_alert_' . md5( $reg );
+			if ( ! get_transient( $flag ) && class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) {
+				set_transient( $flag, 1, 6 * HOUR_IN_SECONDS );
+				Digitalisimo_Hosting_Provisioning::alert_admin( 'saldo del registrador insuficiente', sprintf( "Un cliente intentó pagar %s y el saldo de %s (%s USD) no alcanza su costo (%s USD).\n\nMientras no recargues la cuenta, el carrito no deja pagar esos dominios (el cliente ve un aviso para escribirte).", implode( ', ', $names[ $reg ] ), Digitalisimo_Hosting_Registrars::label( $reg ), number_format( $have[ $reg ], 2, '.', '' ), number_format( $sum, 2, '.', '' ) ) );
+			}
+			return 'Por ahora no podemos completar en línea la compra de ' . implode( ', ', $names[ $reg ] ) . '. Escríbenos y lo resolvemos contigo.';
+		}
+		return '';
 	}
 
 	public static function validate_cart() {

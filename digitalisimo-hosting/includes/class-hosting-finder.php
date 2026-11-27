@@ -30,8 +30,9 @@ class Digitalisimo_Hosting_Finder {
 	const HEADER = 'x-digitalisimo-finder';
 	/** Tope de extensiones por consulta (las primeras del orden configurado; la escrita siempre entra). */
 	const MAX_EXTS = 12;
-	/** Búsquedas por minuto y visitante. */
+	/** Búsquedas por minuto y por hora de un visitante (IP; en IPv6, su /64). */
 	const RATE = 15;
+	const RATE_HOUR = 60;
 	/**
 	 * Consultas del buscador a Namecheap por minuto y por hora en TODO el sitio (las que no salen de la caché): la cuota
 	 * de la API es de la cuenta y la comparten el carrito y la venta automática. Filtro digitalisimo_hosting_finder_global.
@@ -177,8 +178,28 @@ class Digitalisimo_Hosting_Finder {
 
 	// ── Disponibilidad (caché + una consulta en lote) ───────────────────────────────────────────────────────────
 
-	/** array( kind ok|error, results => dominio => array( available, premium ) ). */
-	public static function availability( array $domains ) {
+	/** Extensiones que rompieron un lote de Namecheap: no entran en el siguiente durante 6 horas. */
+	const BAD_EXTS = 'digitalisimo_hosting_finder_bad_exts';
+
+	/** Extensión => hasta cuándo queda fuera del lote. */
+	public static function bad_exts() {
+		$v = get_transient( self::BAD_EXTS );
+		$out = array();
+		foreach ( is_array( $v ) ? $v : array() as $e => $until ) if ( (int) $until > time() ) $out[ $e ] = (int) $until;
+		return $out;
+	}
+
+	private static function mark_bad( $ext ) {
+		$bad = self::bad_exts();
+		$bad[ $ext ] = time() + 6 * HOUR_IN_SECONDS;
+		set_transient( self::BAD_EXTS, $bad, 6 * HOUR_IN_SECONDS );
+	}
+
+	/**
+	 * array( kind ok|error|busy, results => dominio => array( available, premium ) ). $trusted: la búsqueda trae el nonce
+	 * válido del buscador (puede usar todo el cupo del sitio; sin él, sólo la mitad).
+	 */
+	public static function availability( array $domains, $trusted = true ) {
 		$out = array(); $miss = array();
 		foreach ( $domains as $d ) {
 			$c = Digitalisimo_Hosting_Checkout::cached( $d );
@@ -186,137 +207,177 @@ class Digitalisimo_Hosting_Finder {
 			else $miss[] = $d;
 		}
 		// Cada dominio con el registrador de su extensión: Namecheap en UNA consulta en lote; Dynadot (una cuenta Regular busca
-		// un dominio por comando) de uno en uno, cada consulta con su cupo. Un registrador sin cuenta puesta no se consulta
-		// (sus filas salen «sin consultar»).
+		// un dominio por comando) de uno en uno, cada consulta con su cupo y con el mismo tope de tiempo. Un registrador sin
+		// cuenta puesta no se consulta (sus filas salen «sin consultar»).
 		$groups = array();
 		foreach ( $miss as $d ) $groups[ Digitalisimo_Hosting_Registrars::id_for_domain( $d ) ][] = $d;
 		$kind = 'ok';
 		foreach ( $groups as $rid => $list ) {
 			$nc = Digitalisimo_Hosting_Registrars::make( $rid );
 			if ( ! $nc->configured() ) { $kind = 'error'; continue; }
-			$r = 'dynadot' === $rid ? self::one_by_one( $nc, $list ) : self::batch( $nc, $list );
+			$r = 'dynadot' === $rid ? self::one_by_one( $nc, $list, $trusted ) : self::batch( $nc, $list, $trusted );
 			foreach ( $r['results'] ?? array() as $d => $res ) { Digitalisimo_Hosting_Checkout::remember( $d, $res['available'], $res['premium'] ); $out[ $d ] = $res; }
 			if ( 'ok' !== $r['kind'] ) { $kind = 'busy' === $r['kind'] ? 'busy' : 'error'; if ( 'busy' === $kind ) break; }
 		}
 		return array( 'kind' => $kind, 'results' => $out );
 	}
 
-	/** Namecheap: todo en una consulta; si rechaza el lote entero, una por una mientras quede cupo. */
-	private static function batch( $nc, array $miss ) {
-		if ( ! self::global_slot() ) return array( 'kind' => 'busy', 'results' => array() );
+	/** Segundos que puede tardar la consulta de una en una (20 s y nunca más que max_execution_time). */
+	private static function budget() {
+		$budget = (float) apply_filters( 'digitalisimo_hosting_finder_fallback_seconds', 20 );
+		$max = (int) ini_get( 'max_execution_time' );
+		if ( $max > 0 ) $budget = min( $budget, $max - ( microtime( true ) - (float) ( $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime( true ) ) ) - 5 );
+		return $budget;
+	}
+
+	/**
+	 * Namecheap: todo en una consulta. Si rechaza el lote entero (una extensión que no atiende), se consultan una por una,
+	 * en el orden de la lista, mientras quede cupo y sin pasar del tiempo total; la que también falla sola queda fuera de
+	 * los lotes siguientes por 6 horas.
+	 */
+	private static function batch( $nc, array $miss, $trusted ) {
+		if ( ! self::global_slot( $trusted ) ) return array( 'kind' => 'busy', 'results' => array() );
 		$r = $nc->check_many( $miss, Digitalisimo_Hosting_Checkout::TIMEOUT );
-		// Si Namecheap rechaza el lote entero (una extensión que no atiende), se consultan una por una, en el orden de
-		// la lista y mientras quede cupo: las demás siguen saliendo.
 		if ( 'api' === $r['kind'] && count( $miss ) > 1 ) {
 			$r = array( 'kind' => 'ok', 'results' => array() );
+			$deadline = microtime( true ) + self::budget();
 			foreach ( $miss as $d ) {
-				if ( ! self::global_slot() ) { $r['kind'] = 'busy'; break; }
-				$one = $nc->check_many( array( $d ), Digitalisimo_Hosting_Checkout::TIMEOUT );
+				$left = $deadline - microtime( true );
+				if ( $left < 1 ) { $r['kind'] = 'error'; break; }
+				if ( ! self::global_slot( $trusted ) ) { $r['kind'] = 'busy'; break; }
+				$one = $nc->check_many( array( $d ), (int) max( 1, min( Digitalisimo_Hosting_Checkout::TIMEOUT, floor( $left ) ) ) );
 				if ( 'ok' === $one['kind'] ) $r['results'] += $one['results'];
-				elseif ( 'api' !== $one['kind'] ) { $r['kind'] = 'error'; break; }
+				elseif ( 'api' === $one['kind'] ) self::mark_bad( substr( $d, strpos( $d, '.' ) ) );
+				else { $r['kind'] = 'error'; break; }
 			}
 		}
 		return $r;
 	}
 
-	/** Dynadot: un dominio por consulta, cada una con su cupo y sin pasar del tiempo de espera del buscador en total. */
-	private static function one_by_one( $nc, array $miss ) {
+	/**
+	 * Dynadot: un dominio por consulta (una cuenta Regular no acepta más), cada una con su cupo del sitio y sin pasar del
+	 * mismo tope de tiempo. Una extensión que Dynadot no atiende queda fuera de los lotes siguientes por 6 horas.
+	 */
+	private static function one_by_one( $nc, array $miss, $trusted ) {
 		$out = array( 'kind' => 'ok', 'results' => array() );
-		$start = microtime( true );
+		$deadline = microtime( true ) + min( self::budget(), (float) Digitalisimo_Hosting_Checkout::TIMEOUT );
 		foreach ( $miss as $d ) {
-			$left = Digitalisimo_Hosting_Checkout::TIMEOUT - ( microtime( true ) - $start );
-			if ( $left < 2 ) { $out['kind'] = 'error'; break; }
-			if ( ! self::global_slot() ) { $out['kind'] = 'busy'; break; }
-			$one = $nc->check_many( array( $d ), (int) ceil( $left ) );
+			$left = $deadline - microtime( true );
+			if ( $left < 1 ) { $out['kind'] = 'error'; break; }
+			if ( ! self::global_slot( $trusted ) ) { $out['kind'] = 'busy'; break; }
+			$one = $nc->check_many( array( $d ), (int) max( 1, floor( $left ) ) );
 			$out['results'] += (array) ( $one['results'] ?? array() );
 			if ( 'ok' !== $one['kind'] ) { $out['kind'] = 'error'; break; }
+			if ( ! isset( $one['results'][ $d ] ) ) self::mark_bad( substr( $d, strpos( $d, '.' ) ) );
 		}
 		return $out;
 	}
 
-	/** ¿Queda cupo en el tope del sitio (por minuto y por hora) para otra consulta a un registrador? Lo cuenta si sí. */
-	private static function global_slot() {
+	/**
+	 * ¿Queda cupo en el tope del sitio (por minuto y por hora) para otra consulta a un registrador? Lo cuenta si sí. Sin el
+	 * nonce del buscador sólo se usa la mitad: una página en caché o un cliente sin navegador no deja sin cupo a los demás.
+	 */
+	private static function global_slot( $trusted = true ) {
 		$limits = (array) apply_filters( 'digitalisimo_hosting_finder_global', array( 'minute' => self::GLOBAL_MINUTE, 'hour' => self::GLOBAL_HOUR ) );
 		$keys = array( 'minute' => array( 'digitalisimo_hosting_finder_nc_m', MINUTE_IN_SECONDS ), 'hour' => array( 'digitalisimo_hosting_finder_nc_h', HOUR_IN_SECONDS ) );
 		$now = array();
 		foreach ( $keys as $k => $def ) {
 			$v = get_transient( $def[0] );
 			$now[ $k ] = is_array( $v ) ? $v : array( 'n' => 0, 'until' => time() + $def[1] );
-			if ( (int) $now[ $k ]['n'] >= (int) ( $limits[ $k ] ?? PHP_INT_MAX ) ) return false;
+			$limit = (int) ( $limits[ $k ] ?? PHP_INT_MAX );
+			if ( ! $trusted ) $limit = (int) floor( $limit / 2 );
+			if ( (int) $now[ $k ]['n'] >= $limit ) return false;
 		}
 		// La ventana empieza con la primera consulta y no se alarga con las siguientes.
 		foreach ( $keys as $k => $def ) { $now[ $k ]['n']++; set_transient( $def[0], $now[ $k ], max( 1, (int) $now[ $k ]['until'] - time() ) ); }
 		return true;
 	}
 
+	/** Dos variantes sencillas del nombre para sugerir cuando todo está ocupado: «mi» delante y «mx» detrás. */
+	public static function variants( $label ) {
+		$out = array();
+		foreach ( array( 0 === strpos( $label, 'mi' ) ? $label . 'online' : 'mi' . $label, $label . 'mx' ) as $v ) if ( $v !== $label && strlen( $v ) <= 63 && ! in_array( $v, $out, true ) ) $out[] = $v;
+		return $out;
+	}
+
 	// ── La búsqueda ─────────────────────────────────────────────────────────────────────────────────────────────
 
 	/**
-	 * La respuesta del buscador para lo escrito: array( query, notice, main, rows, alternatives, together ) o WP_Error.
-	 * Cada fila: domain, display, ext, status (available|taken|premium|unknown), product_id, precios en texto, requirement
-	 * y, si está ocupado y hay producto de transferencia de su extensión, transfer (product_id, price_text).
+	 * La respuesta del buscador para lo escrito: array( query, notice, main, instead_of, reason, taken, rows, suggestions,
+	 * alternatives, together, partial ) o WP_Error. Cada fila: domain, display, ext, status (available|taken|premium|
+	 * unknown), product_id, precios en texto, requirement y, si está ocupado y hay producto de transferencia de su
+	 * extensión, transfer (product_id, price_text). Sólo entran las extensiones cuyo producto se puede comprar.
 	 */
-	public static function search( $raw ) {
+	public static function search( $raw, $trusted = true ) {
 		$p = self::parse( $raw );
 		if ( '' !== $p['error'] ) return new WP_Error( 'digitalisimo_finder_invalid', $p['error'], array( 'status' => 400 ) );
 		$map = Digitalisimo_Hosting::domain_products();
-		$order = self::ordered();
+		$prices = array();
+		foreach ( self::ordered() as $e ) { $pr = self::prices( $map[ $e ] ); if ( $pr ) $prices[ $e ] = $pr; }
+		$order = array_keys( $prices );
 		if ( ! $order ) return new WP_Error( 'digitalisimo_finder_empty', 'Por ahora no hay dominios a la venta.', array( 'status' => 503 ) );
-		$typed_sold = '' !== $p['ext'] && isset( $map[ $p['ext'] ] );
+		$typed_sold = '' !== $p['ext'] && isset( $prices[ $p['ext'] ] );
 		$exts = array_slice( $typed_sold ? array_values( array_unique( array_merge( array( $p['ext'] ), $order ) ) ) : $order, 0, self::MAX_EXTS );
 		// El orden de las filas es el configurado, aunque la escrita se haya puesto primero para que no la corte el tope.
 		$exts = array_values( array_filter( $order, function ( $e ) use ( $exts ) { return in_array( $e, $exts, true ); } ) );
+		$want = $typed_sold ? $p['ext'] : ( in_array( '.com', $exts, true ) ? '.com' : $exts[0] );
 		$domains = array();
 		foreach ( $exts as $e ) $domains[ $e ] = $p['label'] . $e;
+		$ideas = array();
+		foreach ( self::variants( $p['label'] ) as $v ) $ideas[] = $v . $want;
 		// Sin la cuenta de ningún registrador de estas extensiones no se consulta nada.
 		$ready = false;
 		foreach ( array_unique( array_map( array( 'Digitalisimo_Hosting_Registrars', 'id_for_ext' ), $exts ) ) as $rid ) $ready = $ready || Digitalisimo_Hosting_Registrars::make( $rid )->configured();
 		if ( ! $ready ) return new WP_Error( 'digitalisimo_finder_unavailable', 'La búsqueda de dominios no está disponible en este momento.', array( 'status' => 503 ) );
-		$av = self::availability( array_values( $domains ) );
+		$bad = self::bad_exts();
+		$ask = array();
+		foreach ( $domains as $e => $d ) if ( ! isset( $bad[ $e ] ) ) $ask[] = $d;
+		if ( ! isset( $bad[ $want ] ) ) $ask = array_merge( $ask, $ideas );
+		$av = self::availability( $ask, $trusted );
 		if ( 'busy' === $av['kind'] && ! $av['results'] ) return new WP_Error( 'digitalisimo_finder_busy', 'Hay muchas búsquedas en este momento. Intenta de nuevo en un minuto.', array( 'status' => 429 ) );
 		if ( 'ok' !== $av['kind'] && ! $av['results'] ) return new WP_Error( 'digitalisimo_finder_unavailable', 'No pudimos consultar los dominios en este momento. Intenta de nuevo en un minuto.', array( 'status' => 503 ) );
 		$req = self::requirements();
 		$transfers = Digitalisimo_Hosting_Products::report( (string) Digitalisimo_Hosting::settings()['domain_products'] )['transfer'];
-		$rows = array();
-		foreach ( $domains as $e => $d ) {
+		$row_for = function ( $d, $e ) use ( $av, $p, $map, $prices, $req, $transfers ) {
 			$res = $av['results'][ $d ] ?? null;
 			$status = ! $res ? 'unknown' : ( ! $res['available'] ? 'taken' : ( $res['premium'] ? 'premium' : 'available' ) );
-			$row = array( 'domain' => $d, 'display' => '' !== $p['display'] ? $p['display'] . $e : '', 'ext' => $e, 'status' => $status, 'product_id' => (int) $map[ $e ], 'requirement' => $req[ $e ] ?? '' );
-			$prices = self::prices( $map[ $e ] );
-			if ( ! $prices ) { $row['status'] = 'available' === $status ? 'unknown' : $status; $row['product_id'] = 0; }
-			else $row += array( 'price_text' => $prices['price_text'], 'renewal_text' => $prices['renewal_text'] );
+			$row = array( 'domain' => $d, 'display' => '' !== $p['display'] && $d === $p['label'] . $e ? $p['display'] . $e : '', 'ext' => $e, 'status' => $status, 'product_id' => (int) $map[ $e ], 'requirement' => $req[ $e ] ?? '', 'price_text' => $prices[ $e ]['price_text'], 'renewal_text' => $prices[ $e ]['renewal_text'] );
 			if ( 'taken' === $status ) {
 				$tid = (int) ( $transfers[ $e ] ?? $transfers['*'] ?? 0 );
 				$tp = $tid ? self::prices( $tid ) : null;
 				if ( $tp ) $row['transfer'] = array( 'product_id' => $tid, 'price_text' => $tp['price_text'] );
 			}
-			$rows[ $e ] = $row;
-		}
-		$want = $typed_sold ? $p['ext'] : ( isset( $rows['.com'] ) ? '.com' : $exts[0] );
+			return $row;
+		};
+		$rows = array();
+		foreach ( $domains as $e => $d ) $rows[ $e ] = $row_for( $d, $e );
 		$main = $rows[ $want ];
 		$instead = ''; $reason = '';
 		if ( 'available' !== $main['status'] ) {
 			// Por qué no se ofrece el que buscó: ocupado, premium o no se pudo consultar (nunca «ocupado» si no lo está).
 			foreach ( $rows as $r ) if ( 'available' === $r['status'] ) { $instead = $main['domain']; $reason = $main['status']; $main = $r; break; }
 		}
+		// Todo ocupado: variantes sencillas del nombre con la extensión principal (consultadas en el mismo lote).
+		$suggestions = array();
+		if ( 'available' !== $main['status'] ) foreach ( $ideas as $d ) { $r = $row_for( $d, $want ); if ( 'available' === $r['status'] ) $suggestions[] = $r; }
 		$alternatives = array();
-		foreach ( $rows as $r ) if ( 'available' === $r['status'] && $r['domain'] !== $main['domain'] && count( $alternatives ) < 3 ) $alternatives[] = $r['domain'];
+		foreach ( array_merge( array_values( $rows ), $suggestions ) as $r ) if ( 'available' === $r['status'] && $r['domain'] !== $main['domain'] && count( $alternatives ) < 3 ) $alternatives[] = $r['domain'];
 		$notice = '';
 		if ( '' !== $p['ext'] && ! $typed_sold ) $notice = 'Aquí no vendemos dominios ' . $p['ext'] . '. Estas son las extensiones que sí tenemos para «' . $p['label'] . '».';
-		$out = array(
+		return array(
 			'query'        => $p['label'],
 			'notice'       => $notice,
 			'main'         => $main,
 			'instead_of'   => $instead,
 			'reason'       => $reason,
-			// Si el principal está ocupado, su transferencia y las libres se ofrecen junto a él.
+			// Si el principal está ocupado, su transferencia se ofrece junto a él.
 			'taken'        => 'taken' === $reason ? $rows[ $want ] : null,
 			'rows'         => array_values( array_filter( $rows, function ( $r ) use ( $main ) { return $r['domain'] !== $main['domain']; } ) ),
+			'suggestions'  => $suggestions,
 			'alternatives' => $alternatives,
 			'together'     => self::together(),
 			'partial'      => 'ok' !== $av['kind'],
 		);
-		return $out;
 	}
 
 	// ── Punto público (REST) ────────────────────────────────────────────────────────────────────────────────────
@@ -325,41 +386,40 @@ class Digitalisimo_Hosting_Finder {
 		register_rest_route( 'digitalisimo-hosting/v1', '/finder', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'rest' ), 'permission_callback' => array( __CLASS__, 'permission' ), 'args' => array( 'q' => array( 'required' => true, 'type' => 'string' ) ) ) );
 	}
 
+	private static function nonce_ok( $request ) {
+		$nonce = (string) $request->get_param( 'nonce' );
+		return '' !== $nonce && (bool) wp_verify_nonce( $nonce, self::NONCE );
+	}
+
 	/**
 	 * El nonce del buscador o, en una página servida desde la caché con el nonce vencido, la cabecera propia del buscador
-	 * desde este mismo sitio (Origin igual al del sitio o sin Origin): un navegador en otro sitio no puede mandar esa
-	 * cabecera porque la REST no la permite en CORS.
+	 * desde este mismo sitio (Origin del sitio, con o sin www., o sin Origin): un navegador en otro sitio no puede mandar
+	 * esa cabecera porque la REST no la permite en CORS. Sin nonce sólo se usa la mitad del cupo del sitio.
 	 */
 	public static function permission( $request ) {
-		$nonce = (string) $request->get_param( 'nonce' );
-		if ( '' !== $nonce && wp_verify_nonce( $nonce, self::NONCE ) ) return true;
+		if ( self::nonce_ok( $request ) ) return true;
 		if ( '1' === (string) $request->get_header( self::HEADER ) && self::same_origin( (string) $request->get_header( 'origin' ) ) ) return true;
 		return new WP_Error( 'digitalisimo_finder_forbidden', 'Recarga la página e intenta de nuevo.', array( 'status' => 403 ) );
 	}
 
-	private static function same_origin( $origin ) {
+	public static function same_origin( $origin ) {
 		if ( '' === $origin ) return true;
 		$site = wp_parse_url( home_url( '/' ) );
 		$o = wp_parse_url( $origin );
-		return is_array( $o ) && is_array( $site ) && strtolower( (string) ( $o['host'] ?? '' ) ) === strtolower( (string) ( $site['host'] ?? '' ) );
+		$host = function ( $u ) { return preg_replace( '/^www\./', '', strtolower( (string) ( $u['host'] ?? '' ) ) ); };
+		return is_array( $o ) && is_array( $site ) && '' !== $host( $o ) && $host( $o ) === $host( $site );
 	}
 
 	public static function rest( $request ) {
 		if ( ! self::on() ) return new WP_Error( 'digitalisimo_finder_off', 'La búsqueda de dominios no está disponible.', array( 'status' => 503 ) );
 		$q = $request->get_param( 'q' );
 		if ( ! is_string( $q ) ) return new WP_Error( 'digitalisimo_finder_invalid', 'Escribe el nombre que quieres para tu dominio.', array( 'status' => 400 ) );
-		if ( ! Digitalisimo_Hosting::rate_limit( 'domain-finder', (int) apply_filters( 'digitalisimo_hosting_finder_rate', self::RATE ) ) ) return new WP_Error( 'digitalisimo_finder_rate', 'Hiciste muchas búsquedas seguidas. Espera un minuto e intenta de nuevo.', array( 'status' => 429 ) );
-		$r = self::search( $q );
+		$busy = new WP_Error( 'digitalisimo_finder_rate', 'Hiciste muchas búsquedas seguidas. Espera un minuto e intenta de nuevo.', array( 'status' => 429 ) );
+		if ( ! Digitalisimo_Hosting::rate_limit( 'domain-finder', (int) apply_filters( 'digitalisimo_hosting_finder_rate', self::RATE ) ) ) return $busy;
+		if ( ! Digitalisimo_Hosting::rate_limit( 'domain-finder-hour', (int) apply_filters( 'digitalisimo_hosting_finder_rate_hour', self::RATE_HOUR ), HOUR_IN_SECONDS ) ) return new WP_Error( 'digitalisimo_finder_rate', 'Hiciste muchas búsquedas en la última hora. Intenta de nuevo más tarde.', array( 'status' => 429 ) );
+		$r = self::search( $q, self::nonce_ok( $request ) );
 		if ( is_wp_error( $r ) ) return $r;
 		return rest_ensure_response( $r );
-	}
-
-	// ── Pintar el buscador ──────────────────────────────────────────────────────────────────────────────────────
-
-	public static function register_assets() {
-		if ( ! function_exists( 'wp_register_script' ) ) return;
-		wp_register_style( self::HANDLE, DIGITALISIMO_HOSTING_URL . 'assets/finder.css', array(), DIGITALISIMO_HOSTING_VERSION );
-		wp_register_script( self::HANDLE, DIGITALISIMO_HOSTING_URL . 'assets/finder.js', array(), DIGITALISIMO_HOSTING_VERSION, true );
 	}
 
 	/** Lo que necesita el script (rutas y nonces; nada de precios ni de la cuenta de Namecheap). */
@@ -371,7 +431,17 @@ class Digitalisimo_Hosting_Finder {
 			'storeNonce' => wp_create_nonce( 'wc_store_api' ),
 			'checkout'   => function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/checkout/' ),
 			'cart'       => function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : home_url( '/cart/' ),
+			// Las filas muestran el precio como la tienda (con o sin IVA): la barra suma igual.
+			'taxIncluded' => 'yes' === get_option( 'woocommerce_calc_taxes' ) && 'incl' === get_option( 'woocommerce_tax_display_shop', 'excl' ),
 		);
+	}
+
+	// ── Pintar el buscador ──────────────────────────────────────────────────────────────────────────────────────
+
+	public static function register_assets() {
+		if ( ! function_exists( 'wp_register_script' ) ) return;
+		wp_register_style( self::HANDLE, DIGITALISIMO_HOSTING_URL . 'assets/finder.css', array(), DIGITALISIMO_HOSTING_VERSION );
+		wp_register_script( self::HANDLE, DIGITALISIMO_HOSTING_URL . 'assets/finder.js', array(), DIGITALISIMO_HOSTING_VERSION, true );
 	}
 
 	/** Pone la configuración delante del script si alguien lo usó en la página (shortcode, elemento atómico o carrito). */
@@ -390,7 +460,7 @@ class Digitalisimo_Hosting_Finder {
 
 	/**
 	 * El marcado del buscador (el mismo que pinta la plantilla del elemento atómico): un formulario de búsqueda con su
-	 * etiqueta, la región de avisos y la de resultados (aria-live). Sin JavaScript, el formulario recarga con ?dominio=
+	 * etiqueta, la región de avisos (role=status, la que se anuncia) y la de resultados. Sin JavaScript, el formulario recarga con ?dominio=
 	 * y el script lo busca al cargar.
 	 */
 	public static function html( array $a = array() ) {
@@ -411,7 +481,7 @@ class Digitalisimo_Hosting_Finder {
 			. '<p class="digitalisimo-finder__hint" id="' . esc_attr( $id ) . '-hint">Escribe sólo el nombre (minegocio) o el nombre con su extensión (minegocio.mx).</p>'
 			. '</form>'
 			. '<div class="digitalisimo-finder__status" role="status" aria-live="polite"></div>'
-			. '<div class="digitalisimo-finder__results" aria-live="polite" aria-busy="false"></div>'
+			. '<div class="digitalisimo-finder__results" aria-busy="false"></div>'
 			. '</div>';
 	}
 
@@ -433,6 +503,8 @@ class Digitalisimo_Hosting_Finder {
 	/** Carrito vacío (bloques): el buscador dentro del bloque «carrito vacío». */
 	public static function empty_cart_block( $content, $block ) {
 		if ( 'woocommerce/empty-cart-block' !== ( $block['blockName'] ?? '' ) || ! self::on() ) return $content;
+		// WooCommerce pinta este bloque también con artículos (el navegador decide cuál mostrar): sólo si está vacío.
+		if ( ! self::cart_empty() ) return $content;
 		self::enqueue();
 		// Dentro del bloque «carrito vacío» (antes de su cierre): fuera de él también se vería con el carrito lleno.
 		$finder = '<div class="digitalisimo-finder-empty-cart"><h2>¿Buscas un dominio?</h2>' . self::html() . '</div>';
@@ -440,7 +512,14 @@ class Digitalisimo_Hosting_Finder {
 		return false === $at ? $content . $finder : substr( $content, 0, $at ) . $finder . substr( $content, $at );
 	}
 
-	// ── Elemento del editor atómico ─────────────────────────────────────────────────────────────────────────────
+	/** ¿El carrito real está vacío? (sin carrito cargado, se toma como vacío). */
+	private static function cart_empty() {
+		if ( ! function_exists( 'WC' ) || ! isset( WC()->cart ) || ! WC()->cart ) return true;
+		$cart = WC()->cart;
+		return method_exists( $cart, 'is_empty' ) ? (bool) $cart->is_empty() : ! $cart->get_cart();
+	}
+
+		// ── Elemento del editor atómico ─────────────────────────────────────────────────────────────────────────────
 
 	/** Se registra sólo con el núcleo atómico cargado y los elementos atómicos activos; si no, no carga nada. */
 	public static function atomic_widget( $manager ) {

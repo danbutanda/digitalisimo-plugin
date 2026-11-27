@@ -9,9 +9,13 @@
 //      de la URL) y sin EPP rechazada, dominio ocupado rechazado
 //   A  página del editor atómico con el formulario e-form, [resultado_dominio] y [digitalisimo_domain_search]: el HTML y,
 //      con Chrome, la consulta real desde el navegador
+//   B  el buscador estilo registrador ([digitalisimo_buscador_dominios]): su REST consulta todo en UNA llamada; el carrito
+//      vacío de bloques lo lleva dentro de su bloque y, con Chrome, agregar desde ahí actualiza el carrito real sin barra
+//      fija encima; con artículos no se pinta
 // Escribe <dir>/result.txt y result.json; sale 1 si algo falla. Uso: node run.mjs <puerto> <host> <dir>
 import http from 'node:http';
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
 const [port, host, dir] = process.argv.slice(2);
@@ -182,7 +186,9 @@ try {
 
   // Con Chrome: la consulta real desde el navegador en la página atómica.
   const chrome = process.env.CHROME_PATH || '/usr/bin/google-chrome';
-  const pptrDir = process.env.PUPPETEER_PATH ? process.env.PUPPETEER_PATH.replace(/\/$/, '') + '/puppeteer-core' : '/home/digitalisimo/.npm/_npx/0f94ee7615faf582/node_modules/puppeteer-core';
+  const npx = `${homedir()}/.npm/_npx`;
+  const found = existsSync(npx) ? readdirSync(npx).map((d) => `${npx}/${d}/node_modules/puppeteer-core`).find((d) => existsSync(d + '/package.json')) : '';
+  const pptrDir = process.env.PUPPETEER_PATH ? process.env.PUPPETEER_PATH.replace(/\/$/, '') + '/puppeteer-core' : found || '';
   const entry = ['/lib/puppeteer/puppeteer-core.js', '/lib/esm/puppeteer/puppeteer-core.js'].map((f) => pptrDir + f).find((f) => existsSync(f));
   if (!existsSync(chrome) || !entry) log(`AVISO: sin Chrome o puppeteer-core se salta la parte del navegador (${chrome}, ${pptrDir})`);
   else {
@@ -208,6 +214,50 @@ try {
       await tab.waitForFunction(() => /no está disponible/.test(document.querySelector('.digitalisimo-domain-search .digitalisimo-domain-result')?.textContent || ''), { timeout: 180000 });
       check(true, 'Chrome: [digitalisimo_domain_search] consulta en la página atómica');
       check(!errors.length, `Chrome: sin errores de JavaScript${errors.length ? ': ' + errors.join(' | ') : ''}`);
+    } finally { await browser.close(); }
+  }
+
+  start('Buscador estilo registrador y carrito de bloques');
+  const fp = await probe('finder_page');
+  check(fp.block_cart, 'La página del carrito usa el bloque de carrito de WooCommerce', JSON.stringify(fp));
+  const fhtml = (await request('GET', `/?page_id=${fp.id}`)).text;
+  const fconf = JSON.parse((fhtml.match(/window\.digitalisimoFinder=(\{.*?\});/) || [])[1] || '{}');
+  check(fhtml.includes('data-digitalisimo-finder') && /finder\.js/.test(fhtml) && fconf.nonce && fconf.store, '[digitalisimo_buscador_dominios] pinta el buscador con su script y su configuración', JSON.stringify(fconf).slice(0, 200));
+  const before = (await probe('calls')).calls.length;
+  const fr = await request('POST', '/?rest_route=/digitalisimo-hosting/v1/finder', { headers: { 'X-Digitalisimo-Finder': '1' }, body: { q: 'buscadorreal', nonce: fconf.nonce } });
+  const fcalls = (await probe('calls')).calls.slice(before).filter((c) => c.cmd === 'namecheap.domains.check');
+  check(fr.status === 200 && fr.json?.main?.domain === 'buscadorreal.com' && fr.json.rows.length >= 2 && fcalls.length === 1 && fcalls[0].fields.DomainList.split(',').length >= 3, 'La REST del buscador consulta todas las extensiones en UNA llamada a Namecheap', message(fr) + JSON.stringify(fcalls.map((c) => c.fields.DomainList)));
+  const emptyCart = (await request('GET', `/?page_id=${fp.cart}`)).text;
+  writeFileSync(`${dir}/cart-empty.html`, emptyCart);
+  check(/wp-block-woocommerce-empty-cart-block[\s\S]*digitalisimo-finder-empty-cart/.test(emptyCart), 'Carrito vacío (bloques): el buscador va dentro del bloque «carrito vacío»');
+  // Con artículos (en el navegador, con su sesión), WooCommerce pinta igual el bloque vacío: el buscador ya no va.
+  if (existsSync(chrome) && entry) {
+    const { default: puppeteer } = await import(pathToFileURL(entry).href);
+    const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--disable-gpu', `--host-resolver-rules=MAP ${host.split(':')[0]} 127.0.0.1`] });
+    try {
+      const tab = await browser.newPage();
+      await tab.setViewport({ width: 375, height: 800, isMobile: true });
+      tab.setDefaultTimeout(180000); tab.setDefaultNavigationTimeout(180000);
+      const errors = []; tab.on('pageerror', (e) => errors.push(e.message));
+      await tab.goto(`http://${host}/?page_id=${fp.cart}`, { waitUntil: 'load' });
+      await tab.waitForSelector('.wp-block-woocommerce-empty-cart-block .digitalisimo-finder input[name="dominio"]', { visible: true });
+      check(true, 'Chrome: el carrito vacío de bloques muestra el buscador');
+      await tab.type('.digitalisimo-finder input[name="dominio"]', 'desdecarrito');
+      await tab.click('.digitalisimo-finder__submit');
+      await tab.waitForSelector('.digitalisimo-finder__main .digitalisimo-finder__add');
+      await tab.click('.digitalisimo-finder__main .digitalisimo-finder__add');
+      // Al agregar, el carrito de bloques se vuelve a pintar (el bloque «vacío», con el buscador, desaparece): se espera
+      // el carrito lleno con el dominio o un aviso del buscador.
+      await tab.waitForFunction(() => /desdecarrito\.com/.test(document.querySelector('.wp-block-woocommerce-filled-cart-block')?.textContent || '') || /No se pudo|Busca primero|Intenta/.test(document.querySelector('.digitalisimo-finder__status')?.textContent || ''), { timeout: 180000 }).catch(() => {});
+      const filled = await tab.evaluate(() => /desdecarrito\.com/.test(document.querySelector('.wp-block-woocommerce-filled-cart-block')?.textContent || ''));
+      const said = await tab.evaluate(() => document.querySelector('.digitalisimo-finder__status')?.textContent || '(sin buscador en pantalla)');
+      writeFileSync(`${dir}/cart-after-add.html`, await tab.content());
+      check(filled, 'Chrome: al agregar desde el carrito vacío, el carrito de bloques se actualiza solo (evento wc-blocks_added_to_cart) y muestra el dominio', said);
+      check(!(await tab.$('.digitalisimo-finder-cartbar:not([hidden])')), 'Chrome: en la página del carrito no aparece la barra fija encima del carrito real');
+      await tab.goto(`http://${host}/?page_id=${fp.cart}`, { waitUntil: 'load' });
+      await tab.waitForFunction(() => /desdecarrito\.com/.test(document.querySelector('.wp-block-woocommerce-filled-cart-block')?.textContent || ''));
+      check(!(await tab.$('.digitalisimo-finder-empty-cart')) && !(await tab.$('.digitalisimo-finder-cartbar:not([hidden])')), 'Chrome: con artículos, el carrito no trae el buscador ni la barra');
+      check(!errors.length, `Chrome: sin errores de JavaScript en el carrito${errors.length ? ': ' + errors.join(' | ') : ''}`);
     } finally { await browser.close(); }
   }
 } catch (e) {

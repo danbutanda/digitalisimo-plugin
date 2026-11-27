@@ -219,7 +219,7 @@ class Digitalisimo_Hosting {
 	}
 
 	/** Contador efímero por visitante; no se guarda la IP ni se escribe en logs. */
-	public static function rate_limit( $scope, $limit = 20 ) {
+	public static function rate_limit( $scope, $limit = 20, $ttl = MINUTE_IN_SECONDS ) {
 		$ip = (string) ( $_SERVER['REMOTE_ADDR'] ?? '' );
 		// IPv6: una conexión recibe un /64 entero; se cuenta por /64 para que cambiar de dirección no reinicie el tope.
 		$bin = false !== strpos( $ip, ':' ) && function_exists( 'inet_pton' ) ? @inet_pton( $ip ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
@@ -227,9 +227,14 @@ class Digitalisimo_Hosting {
 		$key = 'digitalisimo_hosting_rate_' . md5( wp_salt( 'nonce' ) . '|' . sanitize_key( $scope ) . '|' . $ip );
 		// Con la cuenta de la red, el límite es de toda la red (una cuenta, un tope), no de cada sitio.
 		$shared = self::inherits();
-		$count = (int) ( $shared ? get_site_transient( $key ) : get_transient( $key ) );
+		$v = $shared ? get_site_transient( $key ) : get_transient( $key );
+		// Ventana fija: empieza con la primera petición y no se alarga con las siguientes ($ttl: un minuto, una hora…).
+		$count = is_array( $v ) ? (int) ( $v['n'] ?? 0 ) : (int) $v;
+		$until = is_array( $v ) && ! empty( $v['until'] ) ? (int) $v['until'] : time() + (int) $ttl;
 		if ( $count >= $limit ) return false;
-		if ( $shared ) set_site_transient( $key, $count + 1, MINUTE_IN_SECONDS ); else set_transient( $key, $count + 1, MINUTE_IN_SECONDS );
+		$val = array( 'n' => $count + 1, 'until' => $until );
+		$left = max( 1, $until - time() );
+		if ( $shared ) set_site_transient( $key, $val, $left ); else set_transient( $key, $val, $left );
 		return true;
 	}
 
