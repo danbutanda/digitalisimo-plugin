@@ -7,8 +7,9 @@ defined( 'ABSPATH' ) || exit;
  *
  * - **Una búsqueda, todas las extensiones:** el visitante escribe sólo el nombre (o nombre.ext) y se consultan a la vez
  *   todas las extensiones que tienen producto de dominio (resueltas por «Productos por extensión», `_digitalisimo_tld` o
- *   SKU: Digitalisimo_Hosting_Products, nunca IDs fijos), en UNA llamada a namecheap.domains.check
- *   (Digitalisimo_Hosting_Namecheap::check_many()). Cada resultado se guarda unos minutos con la misma clave que usa el
+ *   SKU: Digitalisimo_Hosting_Products, nunca IDs fijos), cada una con el registrador de su extensión: en UNA llamada a
+ *   namecheap.domains.check (Digitalisimo_Hosting_Namecheap::check_many()) y, las que van con Dynadot, de una en una
+ *   (Digitalisimo_Hosting_Dynadot::check_many(); una cuenta Regular busca un dominio por comando). Cada resultado se guarda unos minutos con la misma clave que usa el
  *   carrito (Digitalisimo_Hosting_Checkout::cached()/remember()): agregar lo buscado no vuelve a consultar.
  * - **Resultado principal + una fila por extensión:** el principal es la extensión escrita (o .com); si está ocupado, la
  *   mejor alternativa libre en el orden configurado. Cada fila: disponible u ocupado, precio del primer año y renovación
@@ -184,28 +185,56 @@ class Digitalisimo_Hosting_Finder {
 			if ( $c ) $out[ $d ] = array( 'available' => ! empty( $c['available'] ), 'premium' => ! empty( $c['premium'] ) );
 			else $miss[] = $d;
 		}
-		if ( $miss ) {
-			if ( ! self::global_slot() ) return array( 'kind' => 'busy', 'results' => $out );
-			$nc = Digitalisimo_Hosting_Namecheap::from_settings();
-			$r = $nc->check_many( $miss, Digitalisimo_Hosting_Checkout::TIMEOUT );
-			// Si Namecheap rechaza el lote entero (una extensión que no atiende), se consultan una por una, en el orden de
-			// la lista y mientras quede cupo: las demás siguen saliendo.
-			if ( 'api' === $r['kind'] && count( $miss ) > 1 ) {
-				$r = array( 'kind' => 'ok', 'results' => array() );
-				foreach ( $miss as $d ) {
-					if ( ! self::global_slot() ) { $r['kind'] = 'busy'; break; }
-					$one = $nc->check_many( array( $d ), Digitalisimo_Hosting_Checkout::TIMEOUT );
-					if ( 'ok' === $one['kind'] ) $r['results'] += $one['results'];
-					elseif ( 'api' !== $one['kind'] ) { $r['kind'] = 'error'; break; }
-				}
-			}
+		// Cada dominio con el registrador de su extensión: Namecheap en UNA consulta en lote; Dynadot (una cuenta Regular busca
+		// un dominio por comando) de uno en uno, cada consulta con su cupo. Un registrador sin cuenta puesta no se consulta
+		// (sus filas salen «sin consultar»).
+		$groups = array();
+		foreach ( $miss as $d ) $groups[ Digitalisimo_Hosting_Registrars::id_for_domain( $d ) ][] = $d;
+		$kind = 'ok';
+		foreach ( $groups as $rid => $list ) {
+			$nc = Digitalisimo_Hosting_Registrars::make( $rid );
+			if ( ! $nc->configured() ) { $kind = 'error'; continue; }
+			$r = 'dynadot' === $rid ? self::one_by_one( $nc, $list ) : self::batch( $nc, $list );
 			foreach ( $r['results'] ?? array() as $d => $res ) { Digitalisimo_Hosting_Checkout::remember( $d, $res['available'], $res['premium'] ); $out[ $d ] = $res; }
-			if ( 'ok' !== $r['kind'] ) return array( 'kind' => 'busy' === $r['kind'] ? 'busy' : 'error', 'results' => $out );
+			if ( 'ok' !== $r['kind'] ) { $kind = 'busy' === $r['kind'] ? 'busy' : 'error'; if ( 'busy' === $kind ) break; }
 		}
-		return array( 'kind' => 'ok', 'results' => $out );
+		return array( 'kind' => $kind, 'results' => $out );
 	}
 
-	/** ¿Queda cupo en el tope del sitio (por minuto y por hora) para otra consulta a Namecheap? Lo cuenta si sí. */
+	/** Namecheap: todo en una consulta; si rechaza el lote entero, una por una mientras quede cupo. */
+	private static function batch( $nc, array $miss ) {
+		if ( ! self::global_slot() ) return array( 'kind' => 'busy', 'results' => array() );
+		$r = $nc->check_many( $miss, Digitalisimo_Hosting_Checkout::TIMEOUT );
+		// Si Namecheap rechaza el lote entero (una extensión que no atiende), se consultan una por una, en el orden de
+		// la lista y mientras quede cupo: las demás siguen saliendo.
+		if ( 'api' === $r['kind'] && count( $miss ) > 1 ) {
+			$r = array( 'kind' => 'ok', 'results' => array() );
+			foreach ( $miss as $d ) {
+				if ( ! self::global_slot() ) { $r['kind'] = 'busy'; break; }
+				$one = $nc->check_many( array( $d ), Digitalisimo_Hosting_Checkout::TIMEOUT );
+				if ( 'ok' === $one['kind'] ) $r['results'] += $one['results'];
+				elseif ( 'api' !== $one['kind'] ) { $r['kind'] = 'error'; break; }
+			}
+		}
+		return $r;
+	}
+
+	/** Dynadot: un dominio por consulta, cada una con su cupo y sin pasar del tiempo de espera del buscador en total. */
+	private static function one_by_one( $nc, array $miss ) {
+		$out = array( 'kind' => 'ok', 'results' => array() );
+		$start = microtime( true );
+		foreach ( $miss as $d ) {
+			$left = Digitalisimo_Hosting_Checkout::TIMEOUT - ( microtime( true ) - $start );
+			if ( $left < 2 ) { $out['kind'] = 'error'; break; }
+			if ( ! self::global_slot() ) { $out['kind'] = 'busy'; break; }
+			$one = $nc->check_many( array( $d ), (int) ceil( $left ) );
+			$out['results'] += (array) ( $one['results'] ?? array() );
+			if ( 'ok' !== $one['kind'] ) { $out['kind'] = 'error'; break; }
+		}
+		return $out;
+	}
+
+	/** ¿Queda cupo en el tope del sitio (por minuto y por hora) para otra consulta a un registrador? Lo cuenta si sí. */
 	private static function global_slot() {
 		$limits = (array) apply_filters( 'digitalisimo_hosting_finder_global', array( 'minute' => self::GLOBAL_MINUTE, 'hour' => self::GLOBAL_HOUR ) );
 		$keys = array( 'minute' => array( 'digitalisimo_hosting_finder_nc_m', MINUTE_IN_SECONDS ), 'hour' => array( 'digitalisimo_hosting_finder_nc_h', HOUR_IN_SECONDS ) );
@@ -239,8 +268,10 @@ class Digitalisimo_Hosting_Finder {
 		$exts = array_values( array_filter( $order, function ( $e ) use ( $exts ) { return in_array( $e, $exts, true ); } ) );
 		$domains = array();
 		foreach ( $exts as $e ) $domains[ $e ] = $p['label'] . $e;
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
-		if ( ! $nc->configured() ) return new WP_Error( 'digitalisimo_finder_unavailable', 'La búsqueda de dominios no está disponible en este momento.', array( 'status' => 503 ) );
+		// Sin la cuenta de ningún registrador de estas extensiones no se consulta nada.
+		$ready = false;
+		foreach ( array_unique( array_map( array( 'Digitalisimo_Hosting_Registrars', 'id_for_ext' ), $exts ) ) as $rid ) $ready = $ready || Digitalisimo_Hosting_Registrars::make( $rid )->configured();
+		if ( ! $ready ) return new WP_Error( 'digitalisimo_finder_unavailable', 'La búsqueda de dominios no está disponible en este momento.', array( 'status' => 503 ) );
 		$av = self::availability( array_values( $domains ) );
 		if ( 'busy' === $av['kind'] && ! $av['results'] ) return new WP_Error( 'digitalisimo_finder_busy', 'Hay muchas búsquedas en este momento. Intenta de nuevo en un minuto.', array( 'status' => 429 ) );
 		if ( 'ok' !== $av['kind'] && ! $av['results'] ) return new WP_Error( 'digitalisimo_finder_unavailable', 'No pudimos consultar los dominios en este momento. Intenta de nuevo en un minuto.', array( 'status' => 503 ) );

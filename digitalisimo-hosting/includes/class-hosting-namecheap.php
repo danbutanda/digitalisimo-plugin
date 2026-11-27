@@ -1,5 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
+// La interfaz de registradores (y Dynadot, el otro registrador) antes de esta clase, que la implementa.
+require_once __DIR__ . '/class-hosting-registrars.php';
 
 /**
  * Cliente de la API XML de Namecheap para registrar, apuntar y renovar dominios.
@@ -18,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
  * La clave viaja en el cuerpo del POST, nunca en la URL ni en notas o registros. Con la constante
  * DIGITALISIMO_NAMECHEAP_SANDBOX (true) todo va a api.sandbox.namecheap.com, para ensayar sin gastar saldo.
  */
-class Digitalisimo_Hosting_Namecheap {
+class Digitalisimo_Hosting_Namecheap implements Digitalisimo_Hosting_Registrar {
 	const LIVE    = 'https://api.namecheap.com/xml.response';
 	const SANDBOX = 'https://api.sandbox.namecheap.com/xml.response';
 	/** «Domain not found» y «Domain is not associated with your account»: el dominio no está en esta cuenta. */
@@ -29,6 +31,9 @@ class Digitalisimo_Hosting_Namecheap {
 	public function __construct( array $o ) { $this->o = $o; }
 
 	public static function from_settings() { return new self( Digitalisimo_Hosting::settings() ); }
+
+	public function id() { return 'namecheap'; }
+	public function label() { return 'Namecheap'; }
 
 	public function configured() { return '' !== (string) ( $this->o['api_user'] ?? '' ) && '' !== (string) ( $this->o['api_key'] ?? '' ) && '' !== (string) ( $this->o['username'] ?? '' ) && '' !== (string) ( $this->o['client_ip'] ?? '' ); }
 

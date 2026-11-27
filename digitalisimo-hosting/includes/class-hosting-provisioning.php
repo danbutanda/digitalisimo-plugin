@@ -7,7 +7,7 @@ defined( 'ABSPATH' ) || exit;
  * Al pagarse un pedido (pasa a «procesando» o «completado») se encola en Action Scheduler y, en segundo plano:
  *  1. crea la cuenta en Webuzo con el paquete del producto (`_digitalisimo_webuzo_plan`), el dominio del pedido, un
  *     usuario derivado del dominio y una contraseña fuerte;
- *  2. registra el dominio en Namecheap a nombre del cliente (datos de facturación), tras comprobar que el saldo alcanza,
+ *  2. registra el dominio en el registrador de su extensión (Namecheap o Dynadot) a nombre del cliente (datos de facturación), tras comprobar que el saldo alcanza,
  *     y lo apunta a los nameservers propios;
  *  3. envía al cliente el correo «Accesos de hosting» (WooCommerce → Ajustes → Correos) y deja una nota privada en el
  *     pedido, sin la contraseña.
@@ -159,9 +159,9 @@ class Digitalisimo_Hosting_Provisioning {
 		$domain = $service ? (string) self::svc( $service, 'domain' ) : '';
 		$spent = array();
 		if ( $is_renew ) {
-			if ( ! empty( $state['domain'] ) ) $spent[] = 'el dominio ' . $domain . ' ya se renovó en Namecheap';
+			if ( ! empty( $state['domain'] ) ) $spent[] = 'el dominio ' . $domain . ' ya se renovó en ' . Digitalisimo_Hosting_Registrars::label( $service ? Digitalisimo_Hosting_Registrars::of_service( $service ) : '' );
 		} else {
-			if ( ! empty( $state['domain']['registered'] ) && empty( $state['domain']['existed'] ) ) $spent[] = 'el dominio ' . $domain . ' quedó registrado en Namecheap';
+			if ( ! empty( $state['domain']['registered'] ) && empty( $state['domain']['existed'] ) ) $spent[] = 'el dominio ' . $domain . ' quedó registrado en ' . Digitalisimo_Hosting_Registrars::label( (string) ( $state['domain']['registrar'] ?? '' ) );
 			if ( 'done' === ( $state['hosting']['status'] ?? '' ) ) $spent[] = 'la cuenta «' . ( $state['hosting']['user'] ?? '' ) . '» quedó creada en Webuzo';
 		}
 		$cancelled = 'cancelled' === $kind || 'dead' === $kind; // la baja del servicio o el pedido reembolsado/cancelado
@@ -604,12 +604,11 @@ class Digitalisimo_Hosting_Provisioning {
 			$reject = self::own_domain_rejected( $domain );
 			if ( $reject ) return self::stop( 'data', $reject );
 			if ( empty( Digitalisimo_Hosting::settings()['own_domain_auto'] ) && ! self::svc( $service, 'domain_approved' ) ) return self::stop( 'review', ! empty( $items['transfers'] ) ? 'Transferencia de ' . $domain . ( $items['hosting'] ? ' con hosting' : '' ) . ': por omisión se revisa a mano antes de tramitarla' . ( $items['hosting'] ? ' y de crear la cuenta' : '' ) . '. Si el dominio es del cliente, pulsa «Aprobar dominio» en WooCommerce → Servicios de hosting.' : 'Hosting con dominio propio (' . $domain . '): por omisión se revisa a mano antes de crear la cuenta. Si el dominio es del cliente, pulsa «Aprobar dominio» en WooCommerce → Servicios de hosting.' );
-			// ¿Está en nuestra cuenta de Namecheap (lo vendimos nosotros)?
-			$nc = Digitalisimo_Hosting_Namecheap::from_settings();
-			if ( $nc->configured() ) {
+			// ¿Está en alguna de nuestras cuentas de registrador (lo vendimos nosotros)? Se miran todas las que están puestas.
+			foreach ( Digitalisimo_Hosting_Registrars::configured_all() as $nc ) {
 				$info = $nc->info( $domain );
 				if ( 'ok' !== $info['kind'] ) return self::stop( self::nc_kind( $info ), $info['message'] );
-				if ( $info['ours'] && ! $known ) return self::stop( 'owner', 'El dominio ' . $domain . ' está en nuestra cuenta de Namecheap y no consta como de este cliente: no se creó la cuenta. Revísalo a mano.' );
+				if ( $info['ours'] && ! $known ) return self::stop( 'owner', 'El dominio ' . $domain . ' está en nuestra cuenta de ' . $nc->label() . ' y no consta como de este cliente: no se creó la cuenta. Revísalo a mano.' );
 			}
 		}
 		return null;
@@ -746,12 +745,14 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( empty( $state['transfer_guarded'] ) ) {
 				$split = self::split( $domain ); $map = Digitalisimo_Hosting::domain_products();
 				if ( ! $split || ! isset( $map[ $split[2] ] ) ) return self::stop( 'data', 'No hay producto de registro de ' . ( $split ? $split[2] : $domain ) . ' con el que renovar el dominio transferido: no se tramita la transferencia de ' . $domain . '. Revísalo a mano.' );
-				$nc = Digitalisimo_Hosting_Namecheap::from_settings();
-				if ( ! $nc->configured() ) return self::stop( 'config', 'Faltan los datos de la cuenta de Namecheap en Digitalisimo → Hosting.' );
+				// El registrador que recibirá el dominio: el de su extensión (queda anotado en el servicio).
+				$nc = Digitalisimo_Hosting_Registrars::make( (string) ( $state['transfer_registrar'] ?? Digitalisimo_Hosting_Registrars::id_for_ext( $split[2] ) ) );
+				if ( ! $nc->configured() ) return self::stop( 'config', 'Faltan los datos de la cuenta de ' . $nc->label() . ' en Digitalisimo → Hosting.' );
+				$state['transfer_registrar'] = $nc->id();
 				$cost = $nc->price( $split[1], 'TRANSFER' );
 				if ( 'ok' !== $cost['kind'] ) $cost = $nc->price( $split[1], 'REGISTER' );
 				if ( 'ok' !== $cost['kind'] ) return self::stop( self::nc_kind( $cost ), $cost['message'] );
-				$guard = self::price_guard( $items['transfers'][0]['item'], $cost['value'], 'transferir ' . $domain, $order );
+				$guard = self::price_guard( $items['transfers'][0]['item'], $cost['value'], 'transferir ' . $domain, $order, $nc->label() );
 				if ( $guard ) return $guard;
 				$state['transfer_guarded'] = time(); self::save_state( $order, $state );
 			}
@@ -763,10 +764,12 @@ class Digitalisimo_Hosting_Provisioning {
 				// Namecheap lo renueva sólo cuando la transferencia terminó (transfer_settled()).
 				$split = self::split( $domain ); $map = Digitalisimo_Hosting::domain_products();
 				$reg = $split && isset( $map[ $split[2] ] ) ? (int) $map[ $split[2] ] : 0;
-				self::svc_set( $service, array( 'transfer_pending' => 1 ) + ( $reg ? array( 'domain_product' => $reg ) : array() ) );
+				$rid = Digitalisimo_Hosting_Registrars::valid( (string) ( $state['transfer_registrar'] ?? '' ) ) ? (string) $state['transfer_registrar'] : Digitalisimo_Hosting_Registrars::id_for_domain( $domain );
+				$rlabel = Digitalisimo_Hosting_Registrars::label( $rid );
+				self::svc_set( $service, array( 'transfer_pending' => 1, 'registrar' => $rid ) + ( $reg ? array( 'domain_product' => $reg ) : array() ) );
 				self::svc_log( $service, 'Transferencia de ' . $domain . ' por hacer a mano.' );
-				$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' por hacer a mano en Namecheap con el código EPP del cliente (botón «Ver código EPP» en este pedido; nunca lo copies en notas ni correos). Al terminar, apúntalo a ' . implode( ' y ', self::nameservers() ) . '.' );
-				self::alert_admin( 'Transferencia de dominio por hacer: ' . $domain, 'El pedido #' . $order->get_id() . ' pagó la transferencia de ' . $domain . '. Hazla en Namecheap con el código EPP («Ver código EPP» en el pedido): ' . self::order_link( $order ) );
+				$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' por hacer a mano en ' . $rlabel . ' con el código EPP del cliente (botón «Ver código EPP» en este pedido; nunca lo copies en notas ni correos). Al terminar, apúntalo a ' . implode( ' y ', self::nameservers() ) . '.' );
+				self::alert_admin( 'Transferencia de dominio por hacer: ' . $domain, 'El pedido #' . $order->get_id() . ' pagó la transferencia de ' . $domain . '. Hazla en ' . $rlabel . ' con el código EPP («Ver código EPP» en el pedido): ' . self::order_link( $order ) );
 			}
 			return null;
 		}
@@ -778,8 +781,13 @@ class Digitalisimo_Hosting_Provisioning {
 			return null;
 		}
 		if ( 'done' === ( $state['domain']['status'] ?? '' ) ) return null;
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
-		if ( ! $nc->configured() ) return self::stop( 'config', 'Faltan los datos de la cuenta de Namecheap en Digitalisimo → Hosting.' );
+		// El registrador del dominio: el que anotó un intento anterior de este pedido (aunque los ajustes cambien después; un
+		// intento de antes de esta versión era de Namecheap) o el de su extensión.
+		$rid = (string) ( $state['domain']['registrar'] ?? '' );
+		if ( ! Digitalisimo_Hosting_Registrars::valid( $rid ) ) $rid = ! empty( $state['domain']['create_sent'] ) || ! empty( $state['domain']['registered'] ) ? Digitalisimo_Hosting_Registrars::DEFAULT_ID : Digitalisimo_Hosting_Registrars::id_for_domain( $domain );
+		$nc = Digitalisimo_Hosting_Registrars::make( $rid );
+		$rl = $nc->label();
+		if ( ! $nc->configured() ) return self::stop( 'config', 'Faltan los datos de la cuenta de ' . $rl . ' en Digitalisimo → Hosting.' );
 		list( $sld, $tld ) = self::split( $domain );
 		if ( empty( $state['domain']['registered'] ) ) {
 			$info = $nc->info( $domain );
@@ -787,37 +795,37 @@ class Digitalisimo_Hosting_Provisioning {
 			if ( $info['ours'] && empty( $state['domain']['create_sent'] ) ) {
 				// Ya estaba en la cuenta y este pedido nunca pidió registrarlo: es de otro cliente (o de la casa). Adoptarlo
 				// cambiaría sus nameservers y le daría su web y su correo al comprador.
-				return self::stop( 'data', 'El dominio ' . $domain . ' ya está en la cuenta de Namecheap y no lo registró este pedido: no se tocó (ni sus nameservers). Revísalo a mano.' );
+				return self::stop( 'data', 'El dominio ' . $domain . ' ya está en la cuenta de ' . $rl . ' y no lo registró este pedido: no se tocó (ni sus nameservers). Revísalo a mano.' );
 			}
 			// Sólo se adopta si Namecheap lo da por creado después del primer intento de este pedido (mismo día o después).
 			// (Namecheap da la fecha en hora del Este de EE. UU.: se admite el día anterior en UTC.)
 			if ( $info['ours'] && (int) ( $info['created'] ?? 0 ) < (int) gmmktime( 0, 0, 0, (int) gmdate( 'n', (int) $state['domain']['create_sent'] ), (int) gmdate( 'j', (int) $state['domain']['create_sent'] ), (int) gmdate( 'Y', (int) $state['domain']['create_sent'] ) ) - DAY_IN_SECONDS ) {
-				return self::stop( 'data', 'El dominio ' . $domain . ' está en la cuenta de Namecheap pero se creó antes del intento de este pedido: no se adoptó ni se tocaron sus nameservers. Revísalo a mano.' );
+				return self::stop( 'data', 'El dominio ' . $domain . ' está en la cuenta de ' . $rl . ' pero se creó antes del intento de este pedido: no se adoptó ni se tocaron sus nameservers. Revísalo a mano.' );
 			}
 			if ( $info['ours'] ) {
-				$state['domain'] = array( 'registered' => time(), 'existed' => 1, 'create_sent' => $state['domain']['create_sent'] );
+				$state['domain'] = array( 'registered' => time(), 'existed' => 1, 'create_sent' => $state['domain']['create_sent'], 'registrar' => $rid );
 				self::save_state( $order, $state );
-				$order->add_order_note( 'DIGITALÍSIMO Hosting: el dominio ' . $domain . ' ya estaba en la cuenta de Namecheap; no se registró otra vez.' );
+				$order->add_order_note( 'DIGITALÍSIMO Hosting: el dominio ' . $domain . ' ya estaba en la cuenta de ' . $rl . '; no se registró otra vez.' );
 			} else {
 				list( $contact, $missing ) = self::contact( $order );
 				if ( $missing ) return self::stop( 'data', 'Faltan datos del titular del dominio en la facturación del pedido (' . implode( ', ', $missing ) . '). Complétalos en el pedido y reintenta.' );
 				$price = $nc->price( $tld, 'REGISTER' );
 				if ( 'ok' !== $price['kind'] ) return self::stop( self::nc_kind( $price ), $price['message'] );
-				$guard = self::price_guard( $items['domains'][0]['item'], $price['value'], 'registrar ' . $domain, $order );
+				$guard = self::price_guard( $items['domains'][0]['item'], $price['value'], 'registrar ' . $domain, $order, $rl );
 				if ( $guard ) return $guard;
 				// Disponible y no premium (un premium cuesta otra cosa y exige IsPremiumDomain: no se registra a ciegas).
 				$check = $nc->check( $domain );
 				if ( 'ok' !== $check['kind'] ) return self::stop( self::nc_kind( $check ), $check['message'] );
-				if ( ! $check['available'] ) return self::stop( 'data', 'El dominio ' . $domain . ' ya no está disponible en Namecheap: no se registró.' );
-				if ( $check['premium'] ) return self::stop( 'price', 'El dominio ' . $domain . ' es premium en Namecheap (precio especial): no se registra solo. Revísalo a mano.' );
+				if ( ! $check['available'] ) return self::stop( 'data', 'El dominio ' . $domain . ' ya no está disponible en ' . $rl . ': no se registró.' );
+				if ( $check['premium'] ) return self::stop( 'price', 'El dominio ' . $domain . ' es premium en ' . $rl . ' (precio especial): no se registra solo. Revísalo a mano.' );
 				$balance = $nc->balance();
 				if ( 'ok' !== $balance['kind'] ) return self::stop( self::nc_kind( $balance ), $balance['message'] );
-				if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en Namecheap para registrar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );
+				if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en ' . $rl . ' para registrar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );
 				// Justo antes de cobrar: ¿sigue vivo el servicio y encendida la venta? (otra petición pudo cambiarlo)
 				$halt = self::may_spend( $service, $order );
 				if ( $halt ) return $halt;
 				// Antes de pedirlo: si la respuesta se pierde, el reintento sabrá que este pedido lo registró.
-				$state['domain'] = array( 'create_sent' => time() );
+				$state['domain'] = array( 'create_sent' => time(), 'registrar' => $rid );
 				self::save_state( $order, $state );
 				$r = $nc->create( $domain, $contact, 1 );
 				if ( 'ok' !== $r['kind'] ) {
@@ -826,9 +834,14 @@ class Digitalisimo_Hosting_Provisioning {
 					if ( 'transient' !== $r['kind'] ) { unset( $state['domain']['create_sent'] ); self::save_state( $order, $state ); }
 					return self::stop( self::nc_kind( $r ), $r['message'] );
 				}
-				$state['domain'] = array( 'registered' => time(), 'id' => $r['domain_id'], 'create_sent' => $state['domain']['create_sent'] );
+				$state['domain'] = array( 'registered' => time(), 'id' => $r['domain_id'], 'create_sent' => $state['domain']['create_sent'], 'registrar' => $rid );
 				self::save_state( $order, $state );
-				$order->add_order_note( 'DIGITALÍSIMO Hosting: dominio ' . $domain . ' registrado en Namecheap a nombre de ' . trim( $contact['FirstName'] . ' ' . $contact['LastName'] ) . ' (ID ' . $r['domain_id'] . ', cargo ' . $r['charged'] . ' USD).' );
+				self::svc_set( $service, array( 'registrar' => $rid ) );
+				// Dynadot no informa ID ni cargo: se dice lo que el registrador dio.
+				$detail = array();
+				if ( '' !== (string) $r['domain_id'] ) $detail[] = 'ID ' . $r['domain_id'];
+				if ( '' !== (string) $r['charged'] ) $detail[] = 'cargo ' . $r['charged'] . ' USD';
+				$order->add_order_note( 'DIGITALÍSIMO Hosting: dominio ' . $domain . ' registrado en ' . $rl . ' a nombre de ' . trim( $contact['FirstName'] . ' ' . $contact['LastName'] ) . ( $detail ? ' (' . implode( ', ', $detail ) . ')' : '' ) . '.' );
 			}
 		}
 		$ns = self::nameservers();
@@ -836,20 +849,21 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( 'ok' !== $r['kind'] ) return self::stop( self::nc_kind( $r ), $r['message'] );
 		$state['domain']['status'] = 'done'; $state['domain']['dns'] = $ns;
 		self::save_state( $order, $state );
-		self::svc_set( $service, array( 'domain_registered' => 1 ) );
+		// El servicio recuerda su registrador: la renovación y las revisiones van siempre a esa cuenta.
+		self::svc_set( $service, array( 'domain_registered' => 1, 'registrar' => $rid ) );
 		$order->add_order_note( 'DIGITALÍSIMO Hosting: ' . $domain . ' apunta a ' . implode( ' y ', $ns ) . '.' );
 		return null;
 	}
 
 	/** Lo cobrado por el dominio (sin IVA, tras descuentos) contra su costo real de hoy (Digitalisimo_Hosting_Pricing::guard). */
-	private static function price_guard( $item, $cost_usd, $label, $order = null ) {
+	private static function price_guard( $item, $cost_usd, $label, $order = null, $registrar = 'Namecheap' ) {
 		if ( ! class_exists( 'Digitalisimo_Hosting_Pricing' ) ) return null;
 		$charged = method_exists( $item, 'get_total' ) ? (float) $item->get_total() : 0.0;
 		$currency = $order && is_callable( array( $order, 'get_currency' ) ) ? (string) $order->get_currency() : null;
-		return Digitalisimo_Hosting_Pricing::guard( $charged, $cost_usd, $label, $currency );
+		return Digitalisimo_Hosting_Pricing::guard( $charged, $cost_usd, $label, $currency, $registrar );
 	}
 
-	/** Un error de clave de Namecheap no detiene Webuzo: se trata como configuración (sin reintentar). */
+	/** Un error de clave del registrador (Namecheap o Dynadot) no detiene Webuzo: se trata como configuración (sin reintentar). */
 	private static function nc_kind( array $r ) { return 'auth' === $r['kind'] ? 'config' : $r['kind']; }
 
 	private static function step_email( $order, array &$state, array $items, $domain, $service ) {
@@ -1185,7 +1199,7 @@ class Digitalisimo_Hosting_Provisioning {
 				if ( (int) self::svc( $id, 'transfer_renew_alert' ) !== (int) self::svc( $id, 'expires' ) ) {
 					self::svc_set( $id, array( 'transfer_renew_alert' => (int) self::svc( $id, 'expires' ) ) );
 					self::svc_log( $id, 'Renovación sin el dominio: la transferencia de ' . self::svc( $id, 'domain' ) . ' no ha terminado.' );
-					self::alert_admin( 'transferencia sin terminar al renovar', 'El servicio ' . self::svc( $id, 'domain' ) . ' vence pronto y la transferencia de su dominio no ha llegado a la cuenta de Namecheap: la renovación no cobra el dominio. Termina la transferencia o renuévalo a mano.' );
+					self::alert_admin( 'transferencia sin terminar al renovar', 'El servicio ' . self::svc( $id, 'domain' ) . ' vence pronto y la transferencia de su dominio no ha llegado a la cuenta de ' . Digitalisimo_Hosting_Registrars::label( Digitalisimo_Hosting_Registrars::of_service( $id ) ) . ': la renovación no cobra el dominio. Termina la transferencia o renuévalo a mano.' );
 				}
 				continue;
 			}
@@ -1290,17 +1304,17 @@ class Digitalisimo_Hosting_Provisioning {
 	 */
 	public static function transfer_settled( $id ) {
 		if ( ! self::svc( $id, 'transfer_pending' ) || self::svc( $id, 'domain_registered' ) ) return false;
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		$nc = Digitalisimo_Hosting_Registrars::make( Digitalisimo_Hosting_Registrars::of_service( $id ) );
 		if ( ! $nc->configured() ) return false;
 		$domain = (string) self::svc( $id, 'domain' );
 		$info = $nc->info( $domain );
 		if ( 'ok' !== $info['kind'] || empty( $info['ours'] ) ) return false;
-		self::svc_set( $id, array( 'transfer_pending' => 0, 'domain_registered' => 1 ) );
-		self::svc_log( $id, 'Transferencia de ' . $domain . ' terminada: el dominio ya está en la cuenta de Namecheap.' );
+		self::svc_set( $id, array( 'transfer_pending' => 0, 'domain_registered' => 1, 'registrar' => $nc->id() ) );
+		self::svc_log( $id, 'Transferencia de ' . $domain . ' terminada: el dominio ya está en la cuenta de ' . $nc->label() . '.' );
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( (int) self::svc( $id, 'order' ) ) : null;
 		if ( $order ) {
 			if ( class_exists( 'Digitalisimo_Hosting_Checkout' ) ) $order->delete_meta_data( Digitalisimo_Hosting_Checkout::META_EPP );
-			$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' terminada (ya está en la cuenta de Namecheap); el código EPP se borró del pedido.' );
+			$order->add_order_note( 'DIGITALÍSIMO Hosting: transferencia de ' . $domain . ' terminada (ya está en la cuenta de ' . $nc->label() . '); el código EPP se borró del pedido.' );
 			$order->save();
 		}
 		return true;
@@ -1314,10 +1328,12 @@ class Digitalisimo_Hosting_Provisioning {
 		self::transfer_settled( $id );
 		if ( ! self::svc( $id, 'domain_registered' ) || ! empty( $state['domain'] ) ) return null;
 		$domain = (string) self::svc( $id, 'domain' );
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		// Siempre con el registrador que tiene el dominio (el del servicio), aunque hoy su extensión vaya con otro.
+		$nc = Digitalisimo_Hosting_Registrars::make( Digitalisimo_Hosting_Registrars::of_service( $id ) );
+		$rl = $nc->label();
 		$info = $nc->info( $domain );
 		if ( 'ok' !== $info['kind'] ) return self::stop( self::nc_kind( $info ), $info['message'] );
-		if ( ! $info['ours'] ) return self::stop( 'api', 'El dominio ' . $domain . ' ya no está en la cuenta de Namecheap; no se renovó.' );
+		if ( ! $info['ours'] ) return self::stop( 'api', 'El dominio ' . $domain . ' ya no está en la cuenta de ' . $rl . '; no se renovó.' );
 		if ( ! isset( $state['domain_before'] ) ) { $state['domain_before'] = (int) $info['expires']; $order->update_meta_data( self::META_RENEW, $state ); $order->save(); }
 		elseif ( (int) $info['expires'] > (int) $state['domain_before'] ) {
 			$state['domain'] = time(); $order->update_meta_data( self::META_RENEW, $state ); $order->save();
@@ -1330,17 +1346,17 @@ class Digitalisimo_Hosting_Provisioning {
 		$item = null;
 		foreach ( $order->get_items() as $row ) if ( (int) $row->get_product_id() === (int) self::svc( $id, 'domain_product' ) ) { $item = $row; break; }
 		if ( ! $item ) return self::stop( 'data', 'El pedido de renovación no trae la línea del dominio ' . $domain . ': no se renovó (se cobraría sin cobrarle al cliente).' );
-		$guard = self::price_guard( $item, $price['value'], 'renovar ' . $domain, $order );
+		$guard = self::price_guard( $item, $price['value'], 'renovar ' . $domain, $order, $rl );
 		if ( $guard ) return $guard;
 		$balance = $nc->balance();
 		if ( 'ok' !== $balance['kind'] ) return self::stop( self::nc_kind( $balance ), $balance['message'] );
-		if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en Namecheap para renovar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );
+		if ( $balance['value'] < $price['value'] ) return self::stop( 'funds', sprintf( 'Saldo insuficiente en ' . $rl . ' para renovar %s: hay %s USD y cuesta %s USD. Recarga la cuenta y pulsa «Reintentar» en WooCommerce → Servicios de hosting.', $domain, number_format( $balance['value'], 2, '.', '' ), number_format( $price['value'], 2, '.', '' ) ) );
 		$halt = self::may_spend( $id, $order );
 		if ( $halt ) return $halt;
 		$r = $nc->renew( $domain, 1 );
 		if ( 'ok' !== $r['kind'] ) return self::stop( self::nc_kind( $r ), $r['message'] );
 		$state['domain'] = time(); $order->update_meta_data( self::META_RENEW, $state ); $order->save();
-		$order->add_order_note( 'DIGITALÍSIMO Hosting: dominio ' . $domain . ' renovado en Namecheap un año (cargo ' . $r['charged'] . ' USD).' );
+		$order->add_order_note( 'DIGITALÍSIMO Hosting: dominio ' . $domain . ' renovado en ' . $rl . ' un año' . ( '' !== (string) $r['charged'] ? ' (cargo ' . $r['charged'] . ' USD)' : '' ) . '.' );
 		return null;
 	}
 

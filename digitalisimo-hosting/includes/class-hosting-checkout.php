@@ -250,7 +250,8 @@ class Digitalisimo_Hosting_Checkout {
 		$key = 'digitalisimo_hosting_chk_' . md5( $domain );
 		$cached = get_transient( $key );
 		if ( is_array( $cached ) ) return self::$checked[ $domain ] = $cached;
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		// El registrador de la extensión del dominio (el predeterminado o el de «Registrador por extensión»).
+		$nc = Digitalisimo_Hosting_Registrars::for_domain( $domain );
 		if ( ! $nc->configured() ) return self::$checked[ $domain ] = array( 'kind' => 'config' );
 		if ( $limit && ! Digitalisimo_Hosting::rate_limit( 'domain-cart', 30 ) ) return array( 'kind' => 'error', 'message' => 'Demasiadas consultas de dominios. Intenta de nuevo en un minuto.' );
 		$r = $nc->check( $domain, self::TIMEOUT );
@@ -305,7 +306,8 @@ class Digitalisimo_Hosting_Checkout {
 		$key = 'digitalisimo_hosting_trf_' . md5( $domain . '|' . (int) $product_id );
 		$cached = get_transient( $key );
 		if ( is_string( $cached ) ) return $cached;
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
+		// El registrador que recibiría el dominio: el de su extensión.
+		$nc = Digitalisimo_Hosting_Registrars::for_domain( $domain );
 		if ( ! $nc->configured() ) return 'Las transferencias de dominio no están disponibles en este momento: falta configurar la consulta de dominios.';
 		$r = self::lookup( $domain );
 		if ( 'ok' !== $r['kind'] ) return $r['message'] ?? 'No pudimos comprobar el dominio ' . $domain . '.';
@@ -319,10 +321,13 @@ class Digitalisimo_Hosting_Checkout {
 			if ( empty( $tlds['tlds'][ $tld ]['transfer'] ) ) $error = 'Los dominios .' . $tld . ' no se pueden transferir aquí. Escríbenos y lo vemos contigo.';
 		}
 		if ( '' === $error ) {
-			$info = $nc->info( $domain, self::TIMEOUT );
-			if ( 'ok' !== $info['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
-			// Texto neutro: no se dice a nadie qué dominios están en nuestra cuenta.
-			if ( ! empty( $info['ours'] ) ) $error = 'El dominio ' . $domain . ' no se puede transferir aquí. Escríbenos y lo vemos contigo.';
+			// En cualquiera de nuestras cuentas de registrador (la de la extensión primero).
+			foreach ( array( $nc->id() => $nc ) + Digitalisimo_Hosting_Registrars::configured_all() as $acc ) {
+				$info = $acc->info( $domain, self::TIMEOUT );
+				if ( 'ok' !== $info['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
+				// Texto neutro: no se dice a nadie qué dominios están en nuestra cuenta.
+				if ( ! empty( $info['ours'] ) ) { $error = 'El dominio ' . $domain . ' no se puede transferir aquí. Escríbenos y lo vemos contigo.'; break; }
+			}
 		}
 		if ( '' === $error && class_exists( 'Digitalisimo_Hosting_Pricing' ) ) {
 			$tld = ltrim( self::ext_of( $domain ), '.' );
@@ -331,7 +336,7 @@ class Digitalisimo_Hosting_Checkout {
 			if ( 'ok' !== $cost['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
 			$product = function_exists( 'wc_get_product' ) ? wc_get_product( (int) $product_id ) : null;
 			$charged = ! $product ? 0.0 : ( function_exists( 'wc_get_price_excluding_tax' ) ? (float) wc_get_price_excluding_tax( $product ) : (float) $product->get_price() );
-			$guard = Digitalisimo_Hosting_Pricing::guard( $charged, (float) $cost['value'], 'transferir ' . $domain, function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : null );
+			$guard = Digitalisimo_Hosting_Pricing::guard( $charged, (float) $cost['value'], 'transferir ' . $domain, function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : null, $nc->label() );
 			if ( $guard && 'price' !== $guard['kind'] ) { set_transient( $key, $busy, MINUTE_IN_SECONDS ); return $busy; }
 			// El detalle (costos y margen) es para el administrador; al visitante, un texto neutro.
 			if ( $guard ) $error = 'Por ahora no podemos transferir ' . $domain . ' a este precio. Escríbenos y lo vemos contigo.';
@@ -540,10 +545,13 @@ class Digitalisimo_Hosting_Checkout {
 
 	public static function meta_box_html( $post, $box ) {
 		$order = $box['args']['order'];
-		echo '<p>El código EPP se guarda cifrado y no sale en notas, correos ni en la API. Úsalo para pedir la transferencia en Namecheap.</p>';
+		echo '<p>El código EPP se guarda cifrado y no sale en notas, correos ni en la API. Úsalo para pedir la transferencia en el registrador que se indica junto a cada dominio.</p>';
+		// El registrador anotado por el aprovisionamiento al tramitarla; si aún no corre, el de la extensión.
+		$noted = class_exists( 'Digitalisimo_Hosting_Provisioning' ) ? (string) ( Digitalisimo_Hosting_Provisioning::state( $order )['transfer_registrar'] ?? '' ) : '';
 		foreach ( array_keys( (array) $order->get_meta( self::META_EPP ) ) as $domain ) {
+			$rid = Digitalisimo_Hosting_Registrars::valid( $noted ) ? $noted : Digitalisimo_Hosting_Registrars::id_for_domain( $domain );
 			$url = wp_nonce_url( admin_url( 'admin-post.php?action=' . self::EPP_ACTION . '&order=' . (int) $order->get_id() . '&domain=' . rawurlencode( $domain ) ), self::EPP_ACTION . '|' . (int) $order->get_id() . '|' . $domain );
-			echo '<p><strong>' . esc_html( $domain ) . '</strong><br><a class="button" target="_blank" rel="noopener" href="' . esc_url( $url ) . '">Ver código EPP</a></p>';
+			echo '<p><strong>' . esc_html( $domain ) . '</strong> · en ' . esc_html( Digitalisimo_Hosting_Registrars::label( $rid ) ) . '<br><a class="button" target="_blank" rel="noopener" href="' . esc_url( $url ) . '">Ver código EPP</a></p>';
 		}
 	}
 

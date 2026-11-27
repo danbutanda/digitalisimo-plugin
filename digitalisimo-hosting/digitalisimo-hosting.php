@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: DIGITALÍSIMO Hosting
- * Description: Dominios, Namecheap, formularios de DIGITALÍSIMO Elements y flujo de hosting para Digitalisimo.
+ * Description: Dominios (Namecheap y Dynadot), formularios de DIGITALÍSIMO Elements y flujo de hosting para Digitalisimo.
  * Version: 1.0.37
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-hosting
  * Requires at least: 6.0
@@ -19,6 +19,9 @@ require_once __DIR__ . '/includes/class-hosting-products.php';
 require_once __DIR__ . '/includes/class-hosting-checkout.php';
 require_once __DIR__ . '/includes/class-hosting-webuzo.php';
 require_once __DIR__ . '/includes/class-hosting-namecheap.php';
+// Registradores: la interfaz, qué registrador atiende cada extensión y Dynadot (los carga también el de Namecheap).
+require_once __DIR__ . '/includes/class-hosting-registrars.php';
+require_once __DIR__ . '/includes/class-hosting-dynadot.php';
 require_once __DIR__ . '/includes/class-hosting-pricing.php';
 require_once __DIR__ . '/includes/class-hosting-provisioning.php';
 require_once __DIR__ . '/includes/class-hosting-services-page.php';

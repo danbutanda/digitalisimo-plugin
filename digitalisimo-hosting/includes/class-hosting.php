@@ -27,6 +27,8 @@ class Digitalisimo_Hosting {
 		add_shortcode( 'digitalisimo_domain_search', array( __CLASS__, 'legacy_shortcode' ) );
 		add_action( 'init', array( __CLASS__, 'cart_compatibility' ), 20 );
 		add_action( 'admin_notices', array( __CLASS__, 'store_notice' ) );
+		// «Probar conexión» de cada registrador: consulta el saldo con la cuenta guardada.
+		add_action( 'admin_post_' . self::TEST_ACTION, array( __CLASS__, 'test_registrar' ) );
 		// Venta automática: cuentas de Webuzo, registro en Namecheap, accesos por correo, renovación y suspensión.
 		if ( class_exists( 'Digitalisimo_Hosting_Provisioning' ) ) Digitalisimo_Hosting_Provisioning::init();
 		// Productos por extensión resueltos solos (SKU o marca) y el aviso cuando el buscador quedaría sin productos.
@@ -43,6 +45,11 @@ class Digitalisimo_Hosting {
 			'username'              => '',
 			'api_key'               => '',
 			'client_ip'             => '',
+			// Registradores (pedido del propietario del 2026-11-27): el predeterminado y, opcional, otro por extensión
+			// (.mx|dynadot, una línea por extensión). Dynadot sólo pide su clave de API (api3, sin secreto).
+			'registrar'             => 'namecheap',
+			'registrar_by_tld'      => '',
+			'dynadot_api_key'       => '',
 			// Extensiones de fábrica (pedido del propietario del 2026-11-26: .com, .net y .mx; nunca .org). Una línea sin ID
 			// se resuelve sola con el producto de dominio marcado con esa extensión (Digitalisimo_Hosting_Products).
 			'domain_products'       => ".com|\n.net|\n.mx|",
@@ -94,7 +101,9 @@ class Digitalisimo_Hosting {
 	 */
 	const CONSTANTS = array( 'webuzo_url' => 'DIGITALISIMO_WEBUZO_URL', 'webuzo_api_user' => 'DIGITALISIMO_WEBUZO_API_USER', 'webuzo_api_key' => 'DIGITALISIMO_WEBUZO_API_KEY' );
 	/** Claves secretas: el campo lleva la máscara, nunca la clave, y «Quitar la clave» la borra. */
-	const SECRET_KEYS = array( 'api_key', 'webuzo_api_key', 'banxico_token' );
+	const SECRET_KEYS = array( 'api_key', 'webuzo_api_key', 'banxico_token', 'dynadot_api_key' );
+	/** «Probar conexión» de un registrador (admin-post, con nonce y manage_options). */
+	const TEST_ACTION = 'digitalisimo_hosting_test_registrar';
 	/** Porcentajes de la fórmula de precios de dominios (0 a 90, con decimales). */
 	const PERCENT_KEYS = array( 'pricing_cushion', 'pricing_margin', 'pricing_fee', 'pricing_vat', 'pricing_min_margin' );
 
@@ -105,7 +114,7 @@ class Digitalisimo_Hosting {
 	 * IDs de productos y categorías de WooCommerce, casillas que cambian el carrito y el checkout, el formulario) es
 	 * siempre del sitio, también con «Heredar» (revisión del 2026-11-22: los IDs de otra tienda no sirven en ésta).
 	 */
-	const NETWORK_KEYS = array( 'api_user', 'username', 'api_key', 'client_ip', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers', 'banxico_token' );
+	const NETWORK_KEYS = array( 'api_user', 'username', 'api_key', 'client_ip', 'dynadot_api_key', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers', 'banxico_token' );
 	/** ¿Este sitio usa la cuenta de Namecheap de la red? Sólo si su administrador marcó «Heredar» (opcional). */
 	private static function inherits() { return is_multisite() && ! empty( self::local()['inherit_network'] ); }
 	/** Aviso único: el sitio heredaba la red y ya no hereda su tienda (lo marca la visita a la pantalla Hosting). */
@@ -129,8 +138,8 @@ class Digitalisimo_Hosting {
 		// Con la X: cerrado, vuelve a los 7 días mientras nadie abra Hosting (al abrirlo deja de salir).
 		Digitalisimo_Notices::show( 'hosting-store-' . ( function_exists( 'get_current_blog_id' ) ? get_current_blog_id() : 1 ), 'warning', '<p><strong>DIGITALÍSIMO Hosting:</strong> este sitio ya no usa la configuración de tienda de la red (productos por extensión, IDs de productos y categorías, opciones del checkout); de la red sólo hereda la cuenta de Namecheap. <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-hosting' ) ) . '">Revisa la configuración de Hosting de este sitio</a>.</p>', array( 'hash' => 'store', 'cap' => 'manage_options' ) );
 	}
-	/** ¿La red tiene una cuenta de Namecheap guardada? */
-	private static function network_account() { $n = self::network(); return '' !== (string) ( $n['api_user'] ?? '' ) || '' !== (string) ( $n['api_key'] ?? '' ); }
+	/** ¿La red tiene una cuenta de registrador (Namecheap o Dynadot) guardada? */
+	private static function network_account() { $n = self::network(); return '' !== (string) ( $n['api_user'] ?? '' ) || '' !== (string) ( $n['api_key'] ?? '' ) || '' !== (string) ( $n['dynadot_api_key'] ?? '' ); }
 	/** Lo que usa el sitio: lo suyo y, si hereda, la cuenta de Namecheap de la red en lugar de la suya (que se conserva). */
 	private static function all() {
 		$o = wp_parse_args( self::local(), self::defaults() );
@@ -263,15 +272,22 @@ class Digitalisimo_Hosting {
 		$inherits = ! $network && self::inherits();
 		echo '<div class="wrap"><h1>Digitalisimo · Hosting' . ( $network ? ' de red' : '' ) . '</h1><hr class="wp-header-end"><p>' . ( $network ? 'Cuenta de Namecheap que los sitios de la red pueden usar.' : 'Dominios, planes de hosting y compra con WooCommerce.' ) . '</p>';
 		if ( $saved ) echo '<div class="notice notice-success is-dismissible"><p>Configuración ' . ( $network ? 'de red ' : '' ) . 'guardada.</p></div>';
+		if ( ! $network ) self::test_notice();
 		if ( $network ) echo '<p class="description">Un sitio la usa sólo si su administrador marca «Heredar de la red la cuenta de Namecheap» en su pantalla Hosting. Los productos, las categorías y el checkout de WooCommerce son de cada sitio y no se heredan.</p>';
 		elseif ( is_multisite() && ! $inherits && self::network_account() ) echo '<div class="notice notice-info inline"><p>La red tiene una cuenta de Namecheap configurada. Para usarla en este sitio, marca «Heredar de la red la cuenta de Namecheap» y guarda.</p></div>';
 		echo '<form method="post">';
 		wp_nonce_field( $network ? 'digitalisimo_hosting_network_save' : 'digitalisimo_hosting_save' );
 		if ( ! $network ) self::check( 'enabled', 'Activar dominios y flujo WooCommerce', $o );
+		if ( ! $network ) self::registrar_fields( $o );
 		echo '<h2>Namecheap</h2>';
 		if ( ! $network && is_multisite() ) echo '<p><label><input type="hidden" name="hosting[inherit_network]" value="0"><input type="checkbox" name="hosting[inherit_network]" value="1" ' . checked( $inherits, true, false ) . '> <strong>Heredar de la red la cuenta de Namecheap</strong></label><br><span class="description">' . ( $inherits ? 'Este sitio consulta dominios con la cuenta de la red. Al desmarcarla vuelve a usar la suya, que se conserva.' : 'Los productos, las categorías y el checkout son siempre de este sitio.' ) . '</span></p>';
 		if ( $inherits ) echo '<p class="description">Usa la cuenta de Namecheap de la red.</p>';
 		else { self::field( 'api_user', 'Usuario API Namecheap', $o ); self::field( 'username', 'Usuario Namecheap', $o ); self::field( 'api_key', 'Clave API Namecheap', $o, 'password' ); self::field( 'client_ip', 'IP autorizada por Namecheap', $o ); }
+		if ( ! $network ) self::test_button( 'namecheap' );
+		echo '<h2>Dynadot</h2>';
+		if ( $inherits ) echo '<p class="description">Usa la cuenta de Dynadot de la red.</p>';
+		else self::field( 'dynadot_api_key', 'Clave de la API de Dynadot', $o, 'password', 'Dynadot → Tools → API: la «Production Key» (la API «api3» no usa el secreto). En esa misma página, en la lista de IP permitidas, agrega la IP pública de este servidor (la misma que autorizaste en Namecheap).' );
+		if ( ! $network ) self::test_button( 'dynadot' );
 		echo '<h2>Webuzo (cuentas de hosting)</h2>';
 		if ( class_exists( 'Digitalisimo_Hosting_Webuzo' ) ) Digitalisimo_Hosting_Webuzo::settings_banner( $network, $o );
 		if ( $inherits ) echo '<p class="description">Usa el servidor Webuzo y los nameservers de la red.</p>';
@@ -321,6 +337,62 @@ class Digitalisimo_Hosting {
 		}
 		submit_button( $network ? 'Guardar Hosting de red' : 'Guardar Hosting', 'primary', $network ? 'digitalisimo_hosting_network_save' : 'digitalisimo_hosting_save' );
 		echo '</form></div>';
+	}
+
+	/** Registrador predeterminado y por extensión (lo de cada tienda: nunca se hereda de la red). */
+	private static function registrar_fields( $o ) {
+		echo '<h2>Registrador de dominios</h2>';
+		$ids = class_exists( 'Digitalisimo_Hosting_Registrars' ) ? Digitalisimo_Hosting_Registrars::IDS : array( 'namecheap' => 'Namecheap' );
+		echo '<p><label><strong>Registrador predeterminado</strong><br><select name="hosting[registrar]">';
+		foreach ( $ids as $id => $label ) echo '<option value="' . esc_attr( $id ) . '"' . ( $id === (string) ( $o['registrar'] ?? 'namecheap' ) ? ' selected' : '' ) . '>' . esc_html( $label ) . '</option>';
+		echo '</select></label><br><span class="description">Con él se consultan, registran, apuntan y renuevan los dominios. Un dominio ya registrado se renueva siempre con el registrador que lo tiene.</span></p>';
+		self::area( 'registrar_by_tld', 'Registrador por extensión (opcional)', $o, 'Una línea por extensión que va con otro registrador: .mx|dynadot o .com|namecheap. Las demás usan el predeterminado.' );
+	}
+
+	/** «Probar conexión»: consulta el saldo con la cuenta guardada (no la que esté escrita sin guardar). */
+	private static function test_button( $id ) {
+		if ( ! class_exists( 'Digitalisimo_Hosting_Registrars' ) || ! Digitalisimo_Hosting_Registrars::valid( $id ) || ! function_exists( 'wp_create_nonce' ) ) return;
+		$url = admin_url( 'admin-post.php?action=' . self::TEST_ACTION . '&registrar=' . $id . '&_wpnonce=' . wp_create_nonce( self::TEST_ACTION ) );
+		echo '<p><a class="button" href="' . esc_url( $url ) . '">Probar conexión con ' . esc_html( Digitalisimo_Hosting_Registrars::label( $id ) ) . '</a> <span class="description">Consulta el saldo con la cuenta guardada (guarda antes si la cambiaste).</span></p>';
+	}
+
+	/** El resultado de «Probar conexión», una vez, para quien la pulsó. */
+	private static function test_notice() {
+		if ( ! function_exists( 'get_current_user_id' ) ) return;
+		$key = 'digitalisimo_hosting_test_' . (int) get_current_user_id();
+		$r = get_transient( $key );
+		if ( ! is_array( $r ) ) return;
+		delete_transient( $key );
+		echo '<div class="notice notice-' . ( ! empty( $r['ok'] ) ? 'success' : 'error' ) . ' is-dismissible"><p>' . esc_html( (string) ( $r['text'] ?? '' ) ) . '</p></div>';
+	}
+
+	/**
+	 * admin-post: consulta el saldo del registrador con la cuenta guardada y vuelve a la pantalla con el resultado (el saldo o
+	 * el error, nunca la clave).
+	 */
+	public static function test_registrar() {
+		if ( ! current_user_can( 'manage_options' ) ) wp_die( 'No tienes permiso para esto.', 403 );
+		check_admin_referer( self::TEST_ACTION );
+		$id = sanitize_key( (string) ( $_REQUEST['registrar'] ?? '' ) );
+		if ( ! class_exists( 'Digitalisimo_Hosting_Registrars' ) || ! Digitalisimo_Hosting_Registrars::valid( $id ) ) wp_die( 'Registrador desconocido.', 400 );
+		$text = self::test_result( $id );
+		set_transient( 'digitalisimo_hosting_test_' . (int) get_current_user_id(), $text, 5 * MINUTE_IN_SECONDS );
+		wp_safe_redirect( admin_url( 'admin.php?page=digitalisimo-hosting' ) );
+		exit;
+	}
+
+	/** array( ok, text ) de «Probar conexión»: el saldo en USD o el motivo, sin la clave. */
+	public static function test_result( $id ) {
+		$o = self::all();
+		$r = Digitalisimo_Hosting_Registrars::make( $id, $o );
+		$label = $r->label();
+		if ( ! $r->configured() ) return array( 'ok' => 0, 'text' => $label . ': falta la cuenta (' . ( 'namecheap' === $id ? 'la clave, los usuarios o la IP' : 'la clave' ) . ') en esta pantalla. Guárdala y vuelve a probar.' );
+		$b = $r->balance();
+		if ( 'ok' === $b['kind'] ) return array( 'ok' => 1, 'text' => 'Conexión con ' . $label . ' correcta: saldo disponible ' . number_format( (float) $b['value'], 2, '.', ',' ) . ' USD.' );
+		$why = 'auth' === $b['kind'] ? ' Revisa la clave y que la IP de este servidor esté autorizada en ' . $label . '.' : ( 'transient' === $b['kind'] ? ' Intenta de nuevo en un momento.' : '' );
+		$text = 'No se pudo conectar con ' . $label . ': ' . rtrim( preg_replace( '/^' . preg_quote( $label, '/' ) . ':\s*/', '', (string) $b['message'] ), '.' ) . '.' . $why;
+		foreach ( array( 'api_key', 'dynadot_api_key' ) as $secret ) { $v = (string) ( $o[ $secret ] ?? '' ); if ( '' !== $v ) $text = str_replace( $v, '••••', $text ); }
+		return array( 'ok' => 0, 'text' => $text );
 	}
 
 	/** El campo de la clave: la máscara y «Guardada» con una guardada (nunca la clave), seleccionado entero al enfocarlo. */
@@ -376,6 +448,8 @@ class Digitalisimo_Hosting {
 		if ( array_key_exists( 'webuzo_insecure', $in ) ) $o['webuzo_insecure'] = empty( $in['webuzo_insecure'] ) ? 0 : 1;
 		if ( ! $network ) {
 			foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'finder_order', 'finder_requirements' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = sanitize_textarea_field( $in[ $key ] );
+			if ( array_key_exists( 'registrar', $in ) && class_exists( 'Digitalisimo_Hosting_Registrars' ) && Digitalisimo_Hosting_Registrars::valid( (string) $in['registrar'] ) ) $o['registrar'] = (string) $in['registrar'];
+			if ( array_key_exists( 'registrar_by_tld', $in ) && class_exists( 'Digitalisimo_Hosting_Registrars' ) ) $o['registrar_by_tld'] = Digitalisimo_Hosting_Registrars::normalize( sanitize_textarea_field( (string) $in['registrar_by_tld'] ) );
 			if ( array_key_exists( 'finder_upsell_ids', $in ) ) $o['finder_upsell_ids'] = implode( ', ', array_values( array_unique( array_filter( array_map( 'absint', preg_split( '/[\s,]+/', (string) $in['finder_upsell_ids'] ) ) ) ) ) );
 			foreach ( array( 'enabled', 'require_domain_hosting', 'ask_domain', 'replace_hosting', 'simplify_checkout', 'provision_enabled', 'own_domain_auto' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
 			if ( array_key_exists( 'webuzo_user_prefix', $in ) ) $o['webuzo_user_prefix'] = substr( preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $in['webuzo_user_prefix'] ) ), 0, 6 );
@@ -446,7 +520,8 @@ class Digitalisimo_Hosting {
 		if ( ! preg_match( '/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]{2,20}){1,2}$/', $domain ) ) return new WP_Error( 'invalid_domain', 'Dominio no válido.', array( 'status' => 400 ) );
 		if ( ! self::rate_limit( 'domain-check' ) ) return new WP_Error( 'rate_limit', 'Demasiadas consultas. Intenta de nuevo en un minuto.', array( 'status' => 429 ) );
 		$o = self::all();
-		$nc = new Digitalisimo_Hosting_Namecheap( $o );
+		// El registrador de la extensión del dominio (el predeterminado o el de «Registrador por extensión»).
+		$nc = class_exists( 'Digitalisimo_Hosting_Registrars' ) ? Digitalisimo_Hosting_Registrars::make( Digitalisimo_Hosting_Registrars::id_for_domain( $domain, $o ), $o ) : new Digitalisimo_Hosting_Namecheap( $o );
 		if ( empty( $o['enabled'] ) || ! $nc->configured() ) return new WP_Error( 'not_configured', 'La consulta de dominios no está configurada.', array( 'status' => 503 ) );
 		$r = class_exists( 'Digitalisimo_Hosting_Checkout' ) ? Digitalisimo_Hosting_Checkout::lookup( $domain, false ) : $nc->check( $domain, 15 );
 		if ( 'ok' !== $r['kind'] ) return new WP_Error( 'namecheap_unavailable', 'No fue posible consultar el dominio. Intenta de nuevo en un momento.', array( 'status' => 503 ) );
@@ -576,7 +651,7 @@ class Digitalisimo_Hosting {
 	 * Lo que la herramienta MCP puede escribir: lo de la tienda de este sitio (pedido del propietario del 2026-11-26: el
 	 * agente que arma las landings configura Hosting sin el formulario).
 	 */
-	const MCP_WRITABLE = array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'form_selector', 'domain_field', 'extension_field', 'webuzo_user_prefix', 'pricing_enabled', 'pricing_rounding', 'finder_order', 'finder_requirements', 'finder_upsell_ids' );
+	const MCP_WRITABLE = array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'form_selector', 'domain_field', 'extension_field', 'webuzo_user_prefix', 'pricing_enabled', 'pricing_rounding', 'finder_order', 'finder_requirements', 'finder_upsell_ids', 'registrar', 'registrar_by_tld' );
 	/**
 	 * Lo que por MCP sólo se lee: la cuenta de Namecheap (y si se hereda de la red), el servidor y la clave de Webuzo, los
 	 * nameservers, el token de Banxico y lo que enciende, apaga o adelanta la venta automática (el módulo `enabled`, que
@@ -584,7 +659,7 @@ class Digitalisimo_Hosting {
 	 * suspender) y los porcentajes de la fórmula de precios (colchón, margen, comisión, IVA y margen mínimo), que son el
 	 * freno contra vender con pérdida: eso lo cambia una persona en el escritorio.
 	 */
-	const MCP_READONLY = array( 'api_user', 'username', 'api_key', 'client_ip', 'inherit_network', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers', 'banxico_token', 'enabled', 'provision_enabled', 'own_domain_auto', 'grace_days', 'pricing_cushion', 'pricing_margin', 'pricing_fee', 'pricing_vat', 'pricing_min_margin' );
+	const MCP_READONLY = array( 'api_user', 'username', 'api_key', 'client_ip', 'dynadot_api_key', 'inherit_network', 'webuzo_url', 'webuzo_api_user', 'webuzo_api_key', 'webuzo_insecure', 'nameservers', 'banxico_token', 'enabled', 'provision_enabled', 'own_domain_auto', 'grace_days', 'pricing_cushion', 'pricing_margin', 'pricing_fee', 'pricing_vat', 'pricing_min_margin' );
 	const MCP_BOOL = array( 'enabled', 'ask_domain', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'pricing_enabled', 'webuzo_insecure', 'provision_enabled', 'own_domain_auto', 'inherit_network' );
 	/** La cuenta de Namecheap: por MCP sólo se dice si está puesta, nunca su valor. */
 	const NAMECHEAP_ACCOUNT = array( 'api_user', 'username', 'api_key', 'client_ip' );
@@ -629,11 +704,28 @@ class Digitalisimo_Hosting {
 				'configured' => $set['api_user'] && $set['username'] && $set['api_key'] && $set['client_ip'],
 				'source'     => $inherits ? 'network' : 'site',
 			),
+			// Dynadot: sólo si la clave está puesta, nunca su valor.
+			'dynadot'         => array(
+				'configured' => $set['dynadot_api_key'],
+				'source'     => $inherits ? 'network' : 'site',
+			),
+			'registrars'      => self::mcp_registrars( $o ),
 			'wp_config'       => $constants,
 			'writable'        => self::MCP_WRITABLE,
 			'read_only'       => self::MCP_READONLY,
 			'domain_products' => class_exists( 'Digitalisimo_Hosting_Products' ) ? Digitalisimo_Hosting_Products::report( (string) $o['domain_products'] ) : null,
 		);
+	}
+
+	/** Qué registrador atiende cada extensión que se vende (y cuáles tienen su cuenta puesta, nunca sus datos). */
+	private static function mcp_registrars( array $o ) {
+		if ( ! class_exists( 'Digitalisimo_Hosting_Registrars' ) ) return null;
+		$R = 'Digitalisimo_Hosting_Registrars';
+		$effective = array();
+		foreach ( array_keys( self::products() ) as $ext ) $effective[ $ext ] = $R::id_for_ext( $ext, $o );
+		$configured = array();
+		foreach ( array_keys( $R::IDS ) as $id ) $configured[ $id ] = $R::make( $id, $o )->configured();
+		return array( 'available' => array_keys( $R::IDS ), 'default' => $R::default_id( $o ), 'by_tld' => (object) $R::overrides( $o ), 'effective' => (object) $effective, 'configured' => $configured );
 	}
 
 	/**
@@ -650,7 +742,7 @@ class Digitalisimo_Hosting {
 		$unknown = array_values( array_diff( array_keys( $data ), $known ) );
 		if ( $unknown ) return new WP_Error( 'digitalisimo_hosting_unknown_key', 'Claves desconocidas: ' . implode( ', ', $unknown ) . '. Las que se pueden escribir: ' . implode( ', ', self::MCP_WRITABLE ) . '.', array( 'status' => 400 ) );
 		$readonly = array_values( array_intersect( array_keys( $data ), self::MCP_READONLY ) );
-		if ( $readonly ) return new WP_Error( 'digitalisimo_hosting_read_only', 'Por MCP no se pueden escribir: ' . implode( ', ', $readonly ) . ' (la cuenta de Namecheap, el servidor y las claves de Webuzo y Banxico, los nameservers y la venta automática se cambian en Digitalisimo → Hosting). No se guardó nada.', array( 'status' => 403 ) );
+		if ( $readonly ) return new WP_Error( 'digitalisimo_hosting_read_only', 'Por MCP no se pueden escribir: ' . implode( ', ', $readonly ) . ' (las cuentas de Namecheap y Dynadot, el servidor y las claves de Webuzo y Banxico, los nameservers y la venta automática se cambian en Digitalisimo → Hosting). No se guardó nada.', array( 'status' => 403 ) );
 		$in = array();
 		foreach ( $data as $key => $value ) {
 			if ( in_array( $key, self::MCP_BOOL, true ) ) {
@@ -664,6 +756,12 @@ class Digitalisimo_Hosting {
 				if ( ! is_numeric( is_string( $value ) ? str_replace( ',', '.', $value ) : $value ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', $key . ' debe ser un número. No se guardó nada.', array( 'status' => 400 ) );
 				$in[ $key ] = is_string( $value ) ? str_replace( ',', '.', $value ) : $value;
 				continue;
+			}
+			if ( 'registrar' === $key && ! ( class_exists( 'Digitalisimo_Hosting_Registrars' ) && is_string( $value ) && Digitalisimo_Hosting_Registrars::valid( $value ) ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'registrar admite ' . ( class_exists( 'Digitalisimo_Hosting_Registrars' ) ? '«' . implode( '» o «', array_keys( Digitalisimo_Hosting_Registrars::IDS ) ) . '»' : '«namecheap»' ) . '. No se guardó nada.', array( 'status' => 400 ) );
+			if ( 'registrar_by_tld' === $key ) {
+				if ( ! is_scalar( $value ) || ! class_exists( 'Digitalisimo_Hosting_Registrars' ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'registrar_by_tld debe ser texto (una línea por extensión: ".mx|dynadot"). No se guardó nada.', array( 'status' => 400 ) );
+				$bad = Digitalisimo_Hosting_Registrars::parse( (string) $value )['errors'];
+				if ( $bad ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'registrar_by_tld: no se entiende «' . implode( '», «', array_map( 'sanitize_text_field', array_slice( $bad, 0, 5 ) ) ) . '». Una línea por extensión: ".mx|dynadot" (registradores: ' . implode( ', ', array_keys( Digitalisimo_Hosting_Registrars::IDS ) ) . '). No se guardó nada.', array( 'status' => 400 ) );
 			}
 			if ( 'pricing_rounding' === $key && ! in_array( (string) $value, array( '10', '9', 'end9', 'none' ), true ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', 'pricing_rounding admite «10», «9», «end9» o «none». No se guardó nada.', array( 'status' => 400 ) );
 			if ( ! is_scalar( $value ) ) return new WP_Error( 'digitalisimo_hosting_invalid_value', $key . ' debe ser texto. No se guardó nada.', array( 'status' => 400 ) );

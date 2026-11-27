@@ -5,7 +5,8 @@ defined( 'ABSPATH' ) || exit;
  * Precio de los dominios en tiempo real (pedido del propietario del 2026-11-24).
  *
  * Una vez al día (Action Scheduler) y para cada producto de «Productos por extensión»:
- *  1. Namecheap: namecheap.users.getPricing de REGISTER y RENEW a 1 año (YourPrice + YourAdditonalCost, el cargo
+ *  1. El registrador de la extensión (Digitalisimo_Hosting_Registrars: Namecheap o Dynadot, tld_price en USD).
+ *     Namecheap: namecheap.users.getPricing de REGISTER y RENEW a 1 año (YourPrice + YourAdditonalCost, el cargo
  *     ICANN; Namecheap lo escribe así, mal escrito: se aceptan también YourAdditionalCost y AdditionalCost).
  *     https://www.namecheap.com/support/api/methods/users/get-pricing/
  *  2. Costo base = el MAYOR de los dos (el registro suele ser promoción del primer año: .mx 23.98 contra 58.98 USD).
@@ -150,14 +151,16 @@ class Digitalisimo_Hosting_Pricing {
 		if ( empty( $o['enabled'] ) || empty( $o['pricing_enabled'] ) ) return null;
 		$map = Digitalisimo_Hosting::domain_products();
 		if ( ! $map ) return null;
-		$nc = Digitalisimo_Hosting_Namecheap::from_settings();
-		if ( ! $nc->configured() ) return self::failed( 'Faltan los datos de la cuenta de Namecheap.' );
-		$costs = array();
+		$costs = array(); $who = array();
 		foreach ( $map as $ext => $pid ) {
 			$tld = ltrim( $ext, '.' );
+			// El costo del registrador que vende esa extensión (el predeterminado o el de «Registrador por extensión»).
+			$nc = Digitalisimo_Hosting_Registrars::for_ext( $ext );
+			if ( ! $nc->configured() ) return self::failed( 'Faltan los datos de la cuenta de ' . $nc->label() . '.' );
+			$who[ $ext ] = $nc->id();
 			foreach ( array( 'REGISTER', 'RENEW' ) as $action ) {
 				$r = $nc->price( $tld, $action );
-				if ( 'ok' !== $r['kind'] ) return self::failed( 'Namecheap (' . $action . ' .' . $tld . '): ' . $r['message'] );
+				if ( 'ok' !== $r['kind'] ) return self::failed( $nc->label() . ' (' . $action . ' .' . $tld . '): ' . $r['message'] );
 				$costs[ $ext ][ $action ] = (float) $r['value'];
 			}
 		}
@@ -168,7 +171,7 @@ class Digitalisimo_Hosting_Pricing {
 		foreach ( $map as $ext => $pid ) {
 			$base = max( $costs[ $ext ]['REGISTER'], $costs[ $ext ]['RENEW'] );
 			$calc = self::sell_price( $base, $fx['rate'], $p );
-			$row  = array( 'ext' => $ext, 'product' => (int) $pid, 'register_usd' => $costs[ $ext ]['REGISTER'], 'renew_usd' => $costs[ $ext ]['RENEW'], 'base_usd' => $base ) + $calc;
+			$row  = array( 'ext' => $ext, 'registrar' => $who[ $ext ], 'product' => (int) $pid, 'register_usd' => $costs[ $ext ]['REGISTER'], 'renew_usd' => $costs[ $ext ]['RENEW'], 'base_usd' => $base ) + $calc;
 			$product = function_exists( 'wc_get_product' ) ? wc_get_product( $pid ) : null;
 			if ( ! $product ) { $row['skipped'] = 'El producto #' . $pid . ' no existe.'; $rows[] = $row; continue; }
 			$row['old'] = (string) $product->get_regular_price();
@@ -199,7 +202,7 @@ class Digitalisimo_Hosting_Pricing {
 	 * ¿Lo cobrado (sin IVA) cubre el costo real de hoy más el margen mínimo, tras la comisión de la pasarela? null si sí;
 	 * si no, el motivo para dejar el pedido en espera. Corre siempre, con precios automáticos o manuales.
 	 */
-	public static function guard( $charged, $cost_usd, $label, $currency = null ) {
+	public static function guard( $charged, $cost_usd, $label, $currency = null, $registrar = 'Namecheap' ) {
 		// La moneda del PEDIDO (no la de la tienda, que pudo cambiar): sólo se comprueba en MXN.
 		if ( null !== $currency && 'MXN' !== strtoupper( (string) $currency ) ) return array( 'kind' => 'config', 'message' => 'El pedido está en ' . strtoupper( (string) $currency ) . ' y el costo sólo se comprueba en MXN: no se hizo ' . $label . '. Hazlo a mano.' );
 		// Siempre, aunque los precios sean manuales: un precio mal puesto o un cupón del 100 % no deben registrar con pérdida.
@@ -210,7 +213,7 @@ class Digitalisimo_Hosting_Pricing {
 		$net  = (float) $charged * ( 1 - $p['fee'] * ( 1 + $p['vat'] ) );
 		$need = $cost * ( 1 + $p['min_margin'] );
 		if ( $net + 0.005 >= $need ) return null;
-		return array( 'kind' => 'price', 'message' => sprintf( 'El costo real de %s subió: Namecheap cobra %s USD (%s MXN al tipo %s de %s) y lo cobrado, %s MXN sin IVA, deja %s MXN tras la comisión; con el margen mínimo de %s %% hacen falta %s MXN. No se hizo para no perder: ajusta el precio o hazlo a mano.', $label, number_format( $cost_usd, 2, '.', '' ), number_format( $cost, 2, '.', '' ), number_format( $fx['rate'], 4, '.', '' ), $fx['source'], number_format( (float) $charged, 2, '.', '' ), number_format( $net, 2, '.', '' ), rtrim( rtrim( number_format( $p['min_margin'] * 100, 2, '.', '' ), '0' ), '.' ), number_format( $need, 2, '.', '' ) ) );
+		return array( 'kind' => 'price', 'message' => sprintf( 'El costo real de %s subió: ' . $registrar . ' cobra %s USD (%s MXN al tipo %s de %s) y lo cobrado, %s MXN sin IVA, deja %s MXN tras la comisión; con el margen mínimo de %s %% hacen falta %s MXN. No se hizo para no perder: ajusta el precio o hazlo a mano.', $label, number_format( $cost_usd, 2, '.', '' ), number_format( $cost, 2, '.', '' ), number_format( $fx['rate'], 4, '.', '' ), $fx['source'], number_format( (float) $charged, 2, '.', '' ), number_format( $net, 2, '.', '' ), rtrim( rtrim( number_format( $p['min_margin'] * 100, 2, '.', '' ), '0' ), '.' ), number_format( $need, 2, '.', '' ) ) );
 	}
 
 	/** El historial en la pantalla de servicios (las 10 corridas más recientes). */
@@ -218,7 +221,7 @@ class Digitalisimo_Hosting_Pricing {
 		$h = array_slice( array_reverse( self::history() ), 0, 10 );
 		echo '<h2>Precios de dominios</h2>';
 		$o = Digitalisimo_Hosting::settings();
-		echo '<p class="description">' . ( empty( $o['pricing_enabled'] ) ? 'Los precios automáticos están apagados (Digitalisimo → Hosting → Precios de dominios).' : 'Se actualizan una vez al día con el costo de Namecheap y el tipo de cambio del día.' ) . '</p>';
+		echo '<p class="description">' . ( empty( $o['pricing_enabled'] ) ? 'Los precios automáticos están apagados (Digitalisimo → Hosting → Precios de dominios).' : 'Se actualizan una vez al día con el costo del registrador de cada extensión y el tipo de cambio del día.' ) . '</p>';
 		if ( ! $h ) { echo '<p>Sin corridas todavía.</p>'; return; }
 		echo '<table class="widefat striped digitalisimo-hosting-prices"><thead><tr><th>Fecha</th><th>Tipo de cambio</th><th>Extensión</th><th>Registro / renovación (USD)</th><th>Costo MXN (con colchón)</th><th>Precio sin IVA</th></tr></thead><tbody>';
 		foreach ( $h as $e ) {

@@ -18,11 +18,15 @@ registran como las de tienda y del kit de ventas (registro de abilities del núc
 - **get** devuelve todos los ajustes que usa el sitio, sin ningún secreto: de las claves (`api_key`, `webuzo_api_key`,
   `banxico_token`) y de la cuenta de Namecheap sólo si están puestas (`secrets_set`, `namecheap.configured`). Con
   «Heredar», el servidor Webuzo y los nameservers de la red no se muestran (`inherited`), como en la pantalla. Trae la
-  resolución de «Productos por extensión» (`domain_products`).
+  resolución de «Productos por extensión» (`domain_products`). Registradores (Hosting con Dynadot, 2026-11-27):
+  `registrar` (predeterminado, `namecheap` o `dynadot`) y `registrar_by_tld` (`.mx|dynadot`, una línea por extensión)
+  en `settings`; `dynadot.configured` y `secrets_set.dynadot_api_key` dicen si la clave de Dynadot está puesta, nunca
+  su valor; `registrars` trae el predeterminado, el de cada extensión que se vende (`effective`) y cuáles tienen cuenta.
 - **update** combina con lo guardado: lo que no llega no cambia (la misma lección que `update-page-settings` antes de
   Elements 4.3.0.195). Valida con el mismo `Digitalisimo_Hosting::store()` que el formulario, escribe sólo la opción del
   sitio (nunca la de red) y devuelve el resultado, `changed` y `adjusted` (lo que la validación guardó distinto).
-  Sólo lectura (`MCP_READONLY`): la cuenta de Namecheap y «Heredar», el servidor, el usuario y la clave de Webuzo, los
+  `registrar` y `registrar_by_tld` se escriben: un registrador desconocido o una línea que no se entiende detiene todo.
+  Sólo lectura (`MCP_READONLY`): la cuenta de Namecheap, la clave de Dynadot y «Heredar», el servidor, el usuario y la clave de Webuzo, los
   nameservers, el token de Banxico, el interruptor del módulo (`enabled`), la venta automática (`provision_enabled`,
   `own_domain_auto`), los días de gracia y los porcentajes de la fórmula de precios (colchón, margen, comisión, IVA y
   margen mínimo: el freno contra vender con pérdida). Una clave desconocida, de sólo lectura o con otro tipo detiene
