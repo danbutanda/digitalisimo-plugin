@@ -37,7 +37,7 @@ if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
 // Todas las hojas por variante, en el orden en que las declara el widget (base, puntos, flechas, dispositivos).
 const CSS = ['carousel-engine', 'device-slider', 'device-slider-nav', 'device-slider-arrows', 'device-slider-mobile', 'device-slider-tablet', 'device-slider-laptop', 'device-slider-desktop', 'device-slider-browser'].map((f) => read(`digitalisimo-elements/assets/css/${f}.css`)).join('\n');
-const JS = read('digitalisimo-elements/assets/js/carousel-engine.js');
+const JS = read('digitalisimo-elements/assets/js/carousel-engine.js') + read('digitalisimo-elements/assets/js/device-slider.js');
 
 // HTML del widget (o de la versión anterior, con DS_WIDGET_DIR) para cada juego de ajustes.
 const renderPhp = (list, dir = '') => execFileSync(php, [join(root, 'tests/fixtures/device-slider-harness.php')], { input: JSON.stringify(list), encoding: 'utf8', env: { ...process.env, ...(dir ? { DS_WIDGET_DIR: dir } : {}) }, maxBuffer: 64 * 1024 * 1024 }).split('\f');
@@ -107,11 +107,12 @@ try {
     const norm = (css) => { g.clearRect(0, 0, 1, 1); g.fillStyle = '#000'; g.fillStyle = css; g.fillRect(0, 0, 1, 1); const d = g.getImageData(0, 0, 1, 1).data; return `rgb(${d[0]}, ${d[1]}, ${d[2]})`; };
     const arrows = [...document.querySelectorAll('.digi-device-slider__arrow')].map((a) => ({ rect: r(a), cs: { color: norm(getComputedStyle(a).color), bg: norm(getComputedStyle(a).backgroundColor), transition: getComputedStyle(a).transitionDuration } }));
     const screen = q('.digi-device-slider__screen');
-    const imgs = [...screen.querySelectorAll('img')].map((img) => ({ rect: r(img), fit: getComputedStyle(img).objectFit, loaded: img.complete && img.naturalWidth > 0 }));
+    const imgs = [...screen.querySelectorAll('img')].map((img) => ({ rect: r(img), fit: getComputedStyle(img).objectFit, loaded: img.complete && img.naturalWidth > 0, nw: img.naturalWidth, nh: img.naturalHeight }));
+    const bar = screen.querySelector('li .digi-device-slider__status');
     return {
       vw: document.documentElement.clientWidth, scrollW: document.scrollingElement.scrollWidth,
       root: r(q('.digi-device-slider')), device: r(q('.digi-device-slider__device')), frame: r(q('.digi-device-slider__frame')), screen: r(screen),
-      island: r(q('.digi-device-slider__island')), nav: r(q('.digi-device-slider__nav')), dots: [...document.querySelectorAll('.digi-device-slider__dot')].map(r),
+      island: r(q('.digi-device-slider__island')), status: r(bar), statusBg: bar ? norm(getComputedStyle(bar).backgroundColor) : '', landscape: !!q('.digi-device-slider--landscape'), nav: r(q('.digi-device-slider__nav')), dots: [...document.querySelectorAll('.digi-device-slider__dot')].map(r),
       extra: r(q('.digi-device-slider__base') || q('.digi-device-slider__stand')), arrows, imgs,
       radius: Math.max(...['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius'].flatMap((k) => {
         // Radio elíptico «h v», en px o en % del ancho (h) y del alto (v) de la pantalla.
@@ -124,7 +125,8 @@ try {
     };
   });
   const cross = (a, b) => a && b && a.left < b.right - 0.5 && a.right > b.left + 0.5 && a.top < b.bottom - 0.5 && a.bottom > b.top + 0.5;
-  const ready = async () => { await page.waitForFunction(() => [...document.querySelectorAll('.digi-device-slider img')].every((i) => i.complete && i.naturalWidth > 0) && document.querySelector('.digi-carousel[data-digi-carousel-ready]'), { timeout: 15000 }); await new Promise((res) => setTimeout(res, 120)); };
+  // Imágenes cargadas, motor listo y, con el marcado nuevo, cada captura teñida por device-slider.js.
+  const ready = async () => { await page.waitForFunction(() => [...document.querySelectorAll('.digi-device-slider img')].every((i) => i.complete && i.naturalWidth > 0) && document.querySelector('.digi-carousel[data-digi-carousel-ready]') && [...document.querySelectorAll('.digi-device-slider__screen img')].every((i) => i.closest('li').style.getPropertyValue('--ds-top')), { timeout: 15000 }); await new Promise((res) => setTimeout(res, 120)); };
   const settle = () => page.waitForFunction(() => new Promise((res) => { const t = document.querySelector('[data-digi-carousel-track]'); let last = -1, same = 0; const tick = () => { if (t.scrollLeft === last) { if (++same > 6) return res(true); } else { same = 0; last = t.scrollLeft; } requestAnimationFrame(tick); }; tick(); }), { timeout: 8000 });
   // Píxeles del borde interior de la pantalla (3 px hacia dentro), sin las esquinas redondeadas ni la isla.
   const edgePixels = async (m) => {
@@ -144,6 +146,7 @@ try {
   const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
   const rgb = (css) => (css.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
 
+  const handheld = (d) => d.s.device_type === 'mobile' || d.s.device_type === 'tablet';
   const DEVICES = [
     { name: 'celular', s: { device_type: 'mobile' }, img: 'phone' },
     { name: 'celular-horizontal', s: { device_type: 'mobile', orientation: 'landscape' }, img: 'wide' },
@@ -166,9 +169,18 @@ try {
         const m = await measure();
         const tag = `${vp.name} · ${d.name} · ${navigation}`;
         ok(m.scrollW <= m.vw && m.root.left >= -0.5 && m.root.right <= m.vw + 0.5 && m.device.left >= 15.5 && m.device.right <= m.vw - 15.5, `${tag}: el dispositivo cabe y la página no se desplaza a lo ancho (${m.device.left.toFixed(1)}–${m.device.right.toFixed(1)} de ${m.vw}).`);
-        ok(m.imgs.length === 3 && m.imgs.every((i) => i.fit === 'cover' && i.loaded), `${tag}: tres capturas con object-fit: cover.`);
-        const first = m.imgs[0].rect;
-        ok(Math.abs(first.left - m.screen.left) <= 1 && Math.abs(first.top - m.screen.top) <= 1 && Math.abs(first.width - m.screen.width) <= 1 && Math.abs(first.height - m.screen.height) <= 1, `${tag}: la captura ocupa toda la pantalla (${first.width.toFixed(1)}×${first.height.toFixed(1)} en ${m.screen.width.toFixed(1)}×${m.screen.height.toFixed(1)}).`);
+        ok(m.imgs.length === 3 && m.imgs.every((i) => i.loaded), `${tag}: tres capturas cargadas.`);
+        // Área de la captura: la pantalla menos la barra de estado (arriba; a la izquierda en el celular horizontal).
+        const area = { ...m.screen };
+        if (m.status) { if (m.landscape && d.s.device_type === 'mobile') area.left = m.status.right; else area.top = m.status.bottom; }
+        area.width = area.right - area.left;
+        const first = m.imgs[0].rect, natural = (area.width * m.imgs[0].nh) / m.imgs[0].nw;
+        ok(Math.abs(first.left - area.left) <= 1 && Math.abs(first.width - area.width) <= 1 && Math.abs(first.top - area.top) <= 1, `${tag}: la captura va a lo ancho desde arriba (${first.left.toFixed(1)}–${first.right.toFixed(1)} en ${area.left.toFixed(1)}–${area.right.toFixed(1)}).`);
+        ok(m.imgs[0].fit !== 'cover' && Math.abs(first.height - natural) <= 1.5, `${tag}: nada se recorta a los lados (alto ${first.height.toFixed(1)} = ancho × proporción ${natural.toFixed(1)}).`);
+        if (handheld(d)) {
+          ok(m.status && Math.abs(m.status.top - m.screen.top) <= 1 && contrast(rgb(m.statusBg), IMG.colors[0]) < 1.05, `${tag}: barra de estado arriba, del color del primer renglón (${m.statusBg}).`);
+          if (m.island) ok(m.landscape ? m.island.right <= first.left + 0.5 : m.island.bottom <= first.top + 0.5, `${tag}: el contenido no queda bajo la isla.`);
+        } else ok(!m.status, `${tag}: sin barra de estado.`);
         const px = await edgePixels(m);
         const bad = px.filter((p) => Math.max(...p.map((v, k) => Math.abs(v - IMG.colors[0][k]))) > 40);
         ok(px.length > 40 && bad.length === 0, `${tag}: el borde interior de la pantalla es de la imagen, sin franjas (${bad.length} de ${px.length} píxeles distintos${bad.length ? ', p. ej. rgb(' + bad[0].join(',') + ')' : ''}).`);
@@ -196,6 +208,19 @@ try {
         if (d.s.device_type === 'mobile' && !d.s.orientation) ok(m.island && m.island.top > m.screen.top && m.island.bottom < m.screen.top + m.screen.height * 0.06 && Math.abs((m.island.left + m.island.right) / 2 - (m.screen.left + m.screen.right) / 2) <= 1, `${tag}: la isla arriba y al centro de la pantalla.`);
         if (d.s.device_type === 'mobile' && !d.s.orientation) ok(Math.abs(m.frame.height / m.frame.width - 2.0617) < 0.02 && Math.abs(m.screen.height / m.screen.width - 19.5 / 9) < 0.02, `${tag}: proporción de celular real (pantalla 19,5:9, marco ${(m.frame.height / m.frame.width).toFixed(3)}).`);
       }
+    }
+  }
+
+  // --- Encuadres «llenar» (desde arriba y centrado): la captura cubre el área bajo la barra; sin barra, toda la pantalla.
+  for (const vp of VIEWPORTS) {
+    await page.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: 1 });
+    for (const [fit, status] of [['top', 'yes'], ['center', 'yes'], ['top', '']]) {
+      const [html] = renderPhp([{ device_type: 'mobile', image_position: fit, status_bar: status, gallery_images: gallery(IMG.phone) }]);
+      await page.setContent(page_(html), { waitUntil: 'load' });
+      await ready();
+      const m = await measure(), img = m.imgs[0].rect, top = m.status ? m.status.bottom : m.screen.top;
+      ok(m.imgs[0].fit === 'cover' && Math.abs(img.left - m.screen.left) <= 1 && Math.abs(img.right - m.screen.right) <= 1 && Math.abs(img.top - top) <= 1 && Math.abs(img.bottom - m.screen.bottom) <= 1, `${vp.name} · llenar «${fit}»${status ? '' : ' sin barra'}: la captura cubre ${status ? 'el área bajo la barra' : 'toda la pantalla'}.`);
+      if (!status) ok(!m.status && m.island.top >= img.top, `${vp.name} · sin barra de estado la captura empieza arriba de todo (capturas que ya la traen).`);
     }
   }
 

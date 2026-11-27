@@ -341,7 +341,7 @@ final class Widget_Registry {
 		if ( ! wp_script_is( 'digitalisimo-google-reviews', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-google-reviews', plugins_url( 'assets/js/google-reviews.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
-		foreach ( array( 'image-compare', 'business-hours', 'marquee', 'table', 'video-player' ) as $script ) {
+		foreach ( array( 'image-compare', 'business-hours', 'marquee', 'table', 'video-player', 'device-slider' ) as $script ) {
 			if ( ! wp_script_is( 'digitalisimo-' . $script, 'registered' ) ) {
 				wp_register_script( 'digitalisimo-' . $script, plugins_url( 'assets/js/' . $script . '.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 			}

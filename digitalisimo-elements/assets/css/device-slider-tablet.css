@@ -1,4 +1,10 @@
-/* Slider de dispositivos: tableta (1640 × 2360), cámara y botones. */
+/* Slider de dispositivos: tableta (1640 × 2360), cámara, barra de estado y botones. */
+.digi-device-slider--tablet{--ds-status:2.4%}
+.digi-device-slider--tablet.digi-device-slider--landscape{--ds-status:3.2%}
+.digi-device-slider--status .digi-device-slider__status{order:-1;flex:none;display:block;height:var(--ds-status);background:var(--ds-top,#f4f5f7);color:#111}
+.digi-device-slider--status .digi-device-slider__status svg{display:block;width:100%;height:100%}
+.digi-device-slider__slide--dark .digi-device-slider__status,.digi-device-slider .digi-device-slider__status--dark{color:#fff}
+.digi-device-slider .digi-device-slider__status--dark{background:#000}
 .digi-device-slider--keys .digi-device-slider__device{--ds-btn:var(--digi-ds-buttons,var(--digi-ds-frame-lo))}
 .digi-device-slider--tablet{--sw:1640;--sh:2360;--b:.05;--bt:.05;--bb:.05;--r:.075;--rs:.025;--band:.012}
 .digi-device-slider--tablet.digi-device-slider--landscape{--sw:2360;--sh:1640;--b:.035839;--bt:.035839;--bb:.035839;--r:.053759;--rs:.01792;--band:.008601}

@@ -113,6 +113,29 @@ namespace {
 	$plain = ds_render( array( 'device_type' => 'mobile', 'show_notch' => '', 'show_buttons' => '', 'image_position' => 'center', 'gallery_images' => $images ) );
 	check_ds( ! str_contains( $plain, 'digi-device-slider__island' ) && ! str_contains( $plain, '--keys' ) && str_contains( $plain, 'digi-device-slider--fit-center' ), 'Sin isla, sin botones laterales y captura centrada cuando se pide.' );
 
+	// --- Barra de estado (celular y tableta) y encuadre -----------------------------------------------------------------
+	$x = ds_dom( ds_render( array( 'device_type' => 'mobile', 'gallery_images' => $images ) ) );
+	$bars = ds_q( $x, 'digi-device-slider__status' );
+	check_ds( 3 === $bars->length && str_contains( ds_q( $x, 'digi-device-slider' )->item( 0 )->getAttribute( 'class' ), 'digi-device-slider--status' ), 'Celular: una barra de estado por captura, encendida por omisión.' );
+	foreach ( $bars as $bar ) {
+		check_ds( 'true' === $bar->getAttribute( 'aria-hidden' ) && $bar->parentNode->lastChild->isSameNode( $bar ) && str_contains( $bar->textContent, '9:41' ) && 1 === $x->query( './/*[local-name()="svg" and @viewBox="0 0 393 54"]', $bar )->length, 'La barra: decorativa, al final de la captura (la hoja la sube), con la hora en un SVG de 393 × 54.' );
+	}
+	check_ds( ! str_contains( ds_render( array( 'device_type' => 'mobile', 'status_bar' => '', 'gallery_images' => $images ) ), 'digi-device-slider__status' ) && ! str_contains( ds_render( array( 'device_type' => 'mobile', 'status_bar' => '', 'gallery_images' => $images ) ), '--status' ), 'Se quita con «Barra de estado» apagada (capturas que ya la traen).' );
+	check_ds( ! str_contains( ds_render( array( 'device_type' => 'desktop', 'gallery_images' => $images ) ), '__status' ) && ! str_contains( ds_render( array( 'device_type' => 'laptop', 'gallery_images' => $images ) ), '__status' ), 'Monitor y laptop no llevan barra de estado.' );
+	check_ds( str_contains( ds_render( array( 'device_type' => 'tablet', 'gallery_images' => $images ) ), 'viewBox="0 0 1180 24"' ) && str_contains( ds_render( array( 'device_type' => 'tablet', 'orientation' => 'portrait', 'gallery_images' => $images ) ), 'viewBox="0 0 820 24"' ), 'Tableta: franja fina, horizontal o vertical.' );
+	$wide = ds_render( array( 'device_type' => 'mobile', 'orientation' => 'landscape', 'gallery_images' => $images ) );
+	check_ds( 3 === substr_count( $wide, 'class="digi-device-slider__status" aria-hidden="true"></span>' ), 'Celular horizontal: sólo la franja de color junto a la isla, sin hora (como iOS).' );
+	$kinds = ds_render( array( 'device_type' => 'mobile', 'slides' => array( array( '_id' => 'v', 'background' => 'video', 'video' => array( 'url' => 'https://v.test/a.mp4' ) ), array( '_id' => 'c', 'background' => 'color' ) ) ) );
+	check_ds( 1 === substr_count( $kinds, 'digi-device-slider__status--dark' ) && 2 === substr_count( $kinds, 'class="digi-device-slider__status' ), 'Sobre un vídeo la barra es oscura; sobre un color, la neutra.' );
+	foreach ( array( '' => '', 'width' => '', 'top' => 'digi-device-slider--fit-top', 'center' => 'digi-device-slider--fit-center', 'raro' => '' ) as $value => $class ) {
+		$root = ds_q( ds_dom( ds_render( array( 'image_position' => $value, 'gallery_images' => $images ) ) ), 'digi-device-slider' )->item( 0 )->getAttribute( 'class' );
+		check_ds( '' === $class ? ! str_contains( $root, '--fit-' ) : str_contains( $root, $class ), 'Encuadre «' . $value . '»: ' . ( $class ?: 'ajustar al ancho (sin clase)' ) );
+	}
+	$w = ds_widget();
+	check_ds( 'width' === $w->controls['image_position']['default'] && array( 'width', 'top', 'center' ) === array_keys( $w->controls['image_position']['options'] ) && 'yes' === $w->controls['status_bar']['default'], 'Por omisión: ajustar al ancho y barra de estado.' );
+	$scripts = function ( array $settings ) { $w = ds_widget(); $w->settings = $settings; return $w->get_script_depends(); };
+	check_ds( array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider' ) === $scripts( array( 'gallery_images' => $images ) ) && array( 'digitalisimo-device-slider' ) === $scripts( array( 'gallery_images' => array( $images[0] ) ) ) && array( 'digitalisimo-carousel-engine' ) === $scripts( array( 'slides' => array( array( 'background' => 'color' ), array( 'background' => 'color' ) ) ) ), 'El script del tinte sólo con imágenes; el motor con más de una captura.' );
+
 	// --- Navegación -------------------------------------------------------------------------------------------------------
 	$x = ds_dom( ds_render( array( 'navigation' => 'dots', 'gallery_images' => $images ) ) );
 	$dots = ds_q( $x, 'digi-device-slider__dot' );
@@ -147,7 +170,7 @@ namespace {
 
 	// --- Editor: mismas piezas y clases --------------------------------------------------------------------------------------
 	ob_start(); ( digi_test_accessible( new \ReflectionMethod( $w, 'content_template' ) ) )->invoke( $w ); $editor = ob_get_clean();
-	foreach ( array( 'digi-device-slider__device', 'digi-device-slider__frame', 'digi-device-slider__screen', 'digi-device-slider__island', 'digi-device-slider__camera', 'digi-device-slider__bar', 'digi-device-slider__base', 'digi-device-slider__stand', 'digi-device-slider__arrow--prev', 'digi-device-slider__dot', 'data-digi-carousel-dots', 'data-digi-carousel-drag', 'digi-device-slider--frame-', 'digi-device-slider--landscape', 'aria-label="Captura anterior"', "'laptop'" ) as $needle ) {
+	foreach ( array( 'digi-device-slider__device', 'digi-device-slider__frame', 'digi-device-slider__screen', 'digi-device-slider__island', 'digi-device-slider__camera', 'digi-device-slider__bar', 'digi-device-slider__base', 'digi-device-slider__stand', 'digi-device-slider__arrow--prev', 'digi-device-slider__dot', 'data-digi-carousel-dots', 'data-digi-carousel-drag', 'digi-device-slider--frame-', 'digi-device-slider--landscape', 'aria-label="Captura anterior"', "'laptop'", 'digi-device-slider__status', 'statusSvgs', 'digi-device-slider--status', 'digi-device-slider--fit-' ) as $needle ) {
 		check_ds( str_contains( $editor, $needle ), 'El editor pinta ' . $needle );
 	}
 
@@ -161,6 +184,8 @@ namespace {
 	}
 	check_ds( (bool) preg_match( '/img\.digi-device-slider__image\{[^}]*object-fit:cover/', $css ) && ! str_contains( $css, 'object-fit:contain' ), 'La captura llena la pantalla (cover), sin contain.' );
 	check_ds( ! str_contains( $css, 'digi-carousel__controls' ) && ! preg_match( '/__screen[^{]*__arrow/', $css ), 'Ninguna regla pone las flechas dentro de la pantalla.' );
+	check_ds( 2 === substr_count( $css, '.digi-device-slider--status .digi-device-slider__status{order:-1' ) && (bool) preg_match( '/img\.digi-device-slider__image\{display:block;flex:none;width:100%;height:auto/', $css ), 'Barra de estado arriba en celular y tableta; por omisión la captura va a lo ancho con su alto natural.' );
+	check_ds( str_contains( $css, 'background:var(--ds-bottom' ) && ! str_contains( $css, 'background:#fff' ), 'Bajo una captura más baja que la pantalla, el color de su último renglón; nunca blanco suelto.' );
 	check_ds( str_contains( $css, 'scrollbar-width:none' ) && str_contains( $css, 'prefers-reduced-motion:reduce' ) && str_contains( $css, ':focus-visible' ), 'Sin barra de desplazamiento, con movimiento reducido y foco visible.' );
 	check_ds( ! preg_match( '/elementor/i', $css ), 'La hoja no nombra clases de Elementor.' );
 

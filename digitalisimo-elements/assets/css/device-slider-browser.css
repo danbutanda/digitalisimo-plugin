@@ -1,4 +1,6 @@
 /* Slider de dispositivos: ventana de navegador (16:10) y su barra. */
+.digi-device-slider--browser{--digi-ds-address:rgba(255,255,255,.14)}
+.digi-device-slider--browser:is(.digi-device-slider--frame-silver,.digi-device-slider--frame-white){--digi-ds-address:rgba(0,0,0,.08)}
 .digi-device-slider--browser{--sw:16;--sh:10;--b:0;--bt:.05;--bb:0;--r:.014;--rs:.014;--band:0}
 .digi-device-slider--browser .digi-device-slider__frame{background-image:none}
 .digi-device-slider--browser .digi-device-slider__frame::before{content:none}

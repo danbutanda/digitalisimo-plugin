@@ -59,9 +59,13 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 	 * fachada, sólo con YouTube.
 	 */
 	public function get_script_depends() {
-		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings_for_display' ) ) { return array( 'digitalisimo-carousel-engine' ); }
-		$s = (array) $this->get_settings_for_display();
-		return array_merge( count( self::items( $s ) ) > 1 ? array( 'digitalisimo-carousel-engine' ) : array(), self::facade_depends( $s ) );
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings_for_display' ) ) { return array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider' ); }
+		$s     = (array) $this->get_settings_for_display();
+		$items = self::items( $s );
+		$image = false;
+		foreach ( $items as $item ) { $image = $image || 'image' === $item['background']; }
+		// `digitalisimo-device-slider` tiñe la barra de estado y el fondo con los colores de cada captura.
+		return array_merge( count( $items ) > 1 ? array( 'digitalisimo-carousel-engine' ) : array(), $image ? array( 'digitalisimo-device-slider' ) : array(), self::facade_depends( $s ) );
 	}
 
 	/** ¿Están aplicadas las fachadas en esta petición? */
@@ -93,6 +97,7 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 		$this->add_control( 'orientation', array( 'label' => 'Orientación', 'type' => $c::SELECT, 'default' => '', 'options' => array( '' => 'Automática (celular vertical, tableta horizontal)', 'portrait' => 'Vertical', 'landscape' => 'Horizontal' ), 'condition' => array( 'device_type' => array( 'mobile', 'tablet' ) ) ) );
 		$this->add_control( 'frame_style', array( 'label' => 'Color del dispositivo', 'type' => $c::SELECT, 'default' => 'black', 'options' => self::FRAMES ) );
 		$this->add_control( 'show_notch', array( 'label' => 'Isla de la cámara', 'type' => $c::SWITCHER, 'default' => 'yes', 'condition' => array( 'device_type' => 'mobile' ) ) );
+		$this->add_control( 'status_bar', array( 'label' => 'Barra de estado', 'description' => 'Franja con la hora, la señal y la batería, del color de la parte de arriba de cada captura, para que la cámara no tape el contenido. Quítala si tus capturas ya la traen.', 'type' => $c::SWITCHER, 'default' => 'yes', 'condition' => array( 'device_type' => array( 'mobile', 'tablet' ) ) ) );
 		$this->add_control( 'show_buttons', array( 'label' => 'Botones laterales', 'type' => $c::SWITCHER, 'default' => 'yes', 'condition' => array( 'device_type' => array( 'mobile', 'tablet' ) ) ) );
 		$this->add_control( 'gallery_images', array( 'label' => 'Seleccionar varias capturas', 'type' => $c::GALLERY ) );
 		$items = new \Elementor\Repeater();
@@ -105,7 +110,7 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 		$items->add_control( 'link', array( 'label' => 'Enlace', 'type' => $c::URL, 'dynamic' => array( 'active' => true ) ) );
 		$this->add_control( 'slides', array( 'label' => 'Capturas con datos individuales', 'type' => $c::REPEATER, 'fields' => $items->get_controls(), 'title_field' => '{{{ title }}}' ) );
 		$this->add_control( 'image_size', array( 'label' => 'Tamaño de archivo', 'type' => $c::SELECT, 'default' => 'large', 'options' => array( 'medium' => 'Mediano', 'large' => 'Grande', 'full' => 'Original' ) ) );
-		$this->add_control( 'image_position', array( 'label' => 'Encuadre de la captura', 'type' => $c::SELECT, 'default' => 'top', 'options' => array( 'top' => 'Desde arriba (páginas y apps)', 'center' => 'Centrado (fotos)' ) ) );
+		$this->add_control( 'image_position', array( 'label' => 'Encuadre de la captura', 'type' => $c::SELECT, 'default' => 'width', 'options' => array( 'width' => 'Ajustar al ancho, desde arriba (sitios web)', 'top' => 'Llenar la pantalla, desde arriba', 'center' => 'Llenar la pantalla, centrado (fotos)' ) ) );
 		$this->add_control( 'navigation', array( 'label' => 'Navegación', 'type' => $c::SELECT, 'default' => 'arrows', 'options' => self::NAVIGATION ) );
 		$this->end_controls_section();
 		$this->start_controls_section( 'section_device_style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
@@ -154,15 +159,34 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 		$rotate = ( 'mobile' === $type && 'landscape' === $turn ) || ( 'tablet' === $type && 'portrait' !== $turn );
 		$notch  = 'mobile' === $type && '' !== (string) ( $s['show_notch'] ?? 'yes' );
 		$keys   = in_array( $type, array( 'mobile', 'tablet' ), true ) && '' !== (string) ( $s['show_buttons'] ?? 'yes' );
+		$status = in_array( $type, array( 'mobile', 'tablet' ), true ) && '' !== (string) ( $s['status_bar'] ?? 'yes' );
+		$fit    = in_array( $s['image_position'] ?? '', array( 'top', 'center' ), true ) ? $s['image_position'] : 'width';
 		$arrows = $count > 1 && in_array( $nav, array( 'arrows', 'arrows_dots' ), true );
 		$dots   = $count > 1 && in_array( $nav, array( 'dots', 'arrows_dots' ), true );
 		$class  = array( 'digi-device-slider', 'digi-device-slider--' . $type, 'digi-device-slider--frame-' . $frame );
 		if ( $rotate ) { $class[] = 'digi-device-slider--landscape'; }
 		if ( $keys ) { $class[] = 'digi-device-slider--keys'; }
-		if ( 'center' === ( $s['image_position'] ?? 'top' ) ) { $class[] = 'digi-device-slider--fit-center'; }
+		if ( $status ) { $class[] = 'digi-device-slider--status'; }
+		if ( 'width' !== $fit ) { $class[] = 'digi-device-slider--fit-' . $fit; }
 		if ( $arrows ) { $class[] = 'digi-device-slider--arrows'; }
 		if ( $dots ) { $class[] = 'digi-device-slider--dots'; }
-		return array( 'type' => $type, 'frame' => $frame, 'navigation' => $nav, 'landscape' => $rotate, 'notch' => $notch, 'buttons' => $keys, 'arrows' => $arrows, 'dots' => $dots, 'class' => implode( ' ', $class ) );
+		return array( 'type' => $type, 'frame' => $frame, 'navigation' => $nav, 'landscape' => $rotate, 'notch' => $notch, 'buttons' => $keys, 'status' => $status, 'fit' => $fit, 'arrows' => $arrows, 'dots' => $dots, 'class' => implode( ' ', $class ) );
+	}
+
+	/**
+	 * Barra de estado propia (hora, señal, wifi y batería) en un SVG que escala con la pantalla. En el celular, las dos
+	 * orejas a los lados de la isla (393 × 54, como un iPhone); en la tableta, una franja fina (820 o 1180 × 24). El
+	 * celular en horizontal deja sólo la franja de color junto a la isla, como iOS.
+	 */
+	public static function status_svg( array $o ) {
+		if ( 'mobile' === $o['type'] && $o['landscape'] ) { return ''; }
+		$icons = '<path d="M0 8h3v3H0zM4.5 6h3v5h-3zM9 4h3v7H9zM13.5 2h3v9h-3z"/><path d="M19 5.4a9 9 0 0 1 12 0M21.6 8a5.2 5.2 0 0 1 6.8 0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="25" cy="10.4" r="1.3"/><rect x="36.5" y="1.5" width="23" height="10" rx="3" fill="none" stroke="currentColor" stroke-opacity=".45"/><rect x="38.5" y="3.5" width="17" height="6" rx="1.6"/><rect x="61" y="4.7" width="1.8" height="3.6" rx=".9" opacity=".45"/>';
+		$font  = 'font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-weight="600"';
+		if ( 'mobile' === $o['type'] ) {
+			return '<svg viewBox="0 0 393 54" preserveAspectRatio="xMidYMid meet" focusable="false"><text x="68" y="35" font-size="17" text-anchor="middle" ' . $font . '>9:41</text><g transform="translate(287 22.5) scale(1.2)">' . $icons . '</g></svg>';
+		}
+		$w = $o['landscape'] ? 1180 : 820;
+		return '<svg viewBox="0 0 ' . $w . ' 24" preserveAspectRatio="xMidYMid meet" focusable="false"><text x="22" y="16.5" font-size="12" ' . $font . '>9:41</text><g transform="translate(' . ( $w - 86 ) . ' 5.5) scale(.95)">' . $icons . '</g></svg>';
 	}
 
 	/** `sizes` de la captura según el ancho que de verdad ocupa la pantalla del dispositivo. */
@@ -225,6 +249,8 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 			}
 			else { echo $markup; }
 			if ( $title ) { echo '<span class="digi-device-slider__title">' . esc_html( $title ) . '</span>'; }
+			// Al final del marcado; la hoja la sube arriba (order: -1). Oscura sobre los vídeos.
+			if ( $o['status'] ) { echo '<span class="digi-device-slider__status' . ( 'image' === $item['background'] || 'color' === $item['background'] ? '' : ' digi-device-slider__status--dark' ) . '" aria-hidden="true">' . self::status_svg( $o ) . '</span>'; } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG constante.
 			echo '</li>';
 		}
 		echo '</ul></div>';
@@ -269,11 +295,15 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 		var classes = ['digi-device-slider', 'digi-device-slider--' + type, 'digi-device-slider--frame-' + frame];
 		if (landscape) { classes.push('digi-device-slider--landscape'); }
 		if (keys) { classes.push('digi-device-slider--keys'); }
-		if (settings.image_position === 'center') { classes.push('digi-device-slider--fit-center'); }
+		var status = handheld && settings.status_bar !== '';
+		var statusSvgs = <?php echo json_encode( array( 'mobile' => self::status_svg( array( 'type' => 'mobile', 'landscape' => false ) ), 'tablet' => self::status_svg( array( 'type' => 'tablet', 'landscape' => false ) ), 'tabletWide' => self::status_svg( array( 'type' => 'tablet', 'landscape' => true ) ) ) ); // phpcs:ignore ?>;
+		var statusSvg = type === 'mobile' ? (landscape ? '' : statusSvgs.mobile) : (landscape ? statusSvgs.tabletWide : statusSvgs.tablet);
+		if (status) { classes.push('digi-device-slider--status'); }
+		if (settings.image_position === 'center' || settings.image_position === 'top') { classes.push('digi-device-slider--fit-' + settings.image_position); }
 		if (arrows) { classes.push('digi-device-slider--arrows'); }
 		if (dots) { classes.push('digi-device-slider--dots'); }
 		var chevron = '<svg class="digi-device-slider__chevron" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'; #>
-		<# if ( items.length ) { #><div class="{{ classes.join(' ') }}"><section class="digi-carousel digi-device-slider__carousel" role="region" aria-roledescription="carrusel" aria-label="Capturas de dispositivo" style="--digi-carousel-count:{{ items.length }}"<# if (dots) { #> data-digi-carousel-dots<# } #><# if (items.length > 1) { #> data-digi-carousel-drag<# } #>><div class="digi-device-slider__device"><div class="digi-device-slider__frame"><div class="digi-device-slider__screen"><div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides"><# _.each(items,function(item){ var link = item.link || {}; var rel = linkRel(link); #><# var kind = item.background || 'image'; #><li class="digi-carousel__slide digi-device-slider__slide<# if (item._id) { #> elementor-repeater-item-{{ item._id }}<# } #>"><# if (kind === 'color') { #><span class="digi-device-slider__color" aria-hidden="true"></span><# } else if (kind === 'video') { #><video class="digi-device-slider__video" src="{{ item.video.url }}" autoplay muted loop playsinline controls preload="metadata"></video><# } else if (kind === 'youtube') { var yt = ytId(item.youtube_url); #><iframe class="digi-device-slider__video" src="https://www.youtube-nocookie.com/embed/{{ yt }}?autoplay=1&mute=1&loop=1&playlist={{ yt }}&playsinline=1&rel=0" title="{{ item.title || 'Vídeo de YouTube' }}" allowfullscreen></iframe><# } else { #><# if (link.url) { #><a href="{{ link.url }}"<# if (link.is_external) { #> target="_blank"<# } #><# if (rel) { #> rel="{{ rel }}"<# } #>><# } #><img class="digi-device-slider__image" src="{{ item.image.url }}" alt="{{ item.image.alt || item.title || '' }}" draggable="false"><# if (link.url) { #></a><# } #><# } #><# if (item.title) { #><span class="digi-device-slider__title">{{ item.title }}</span><# } #></li><# }); #></ul></div><# if (notch) { #><span class="digi-device-slider__island" aria-hidden="true"></span><# } #></div><# if (type === 'tablet' || type === 'laptop') { #><span class="digi-device-slider__camera" aria-hidden="true"></span><# } #><# if (type === 'browser') { #><span class="digi-device-slider__bar" aria-hidden="true"></span><# } #><# if (arrows) { #><button class="digi-carousel__button digi-device-slider__arrow digi-device-slider__arrow--prev" type="button" data-digi-carousel-prev aria-label="Captura anterior" disabled aria-disabled="true">{{{ chevron }}}</button><button class="digi-carousel__button digi-device-slider__arrow digi-device-slider__arrow--next" type="button" data-digi-carousel-next aria-label="Captura siguiente">{{{ chevron }}}</button><# } #></div><# if (type === 'laptop') { #><span class="digi-device-slider__base" aria-hidden="true"></span><# } #><# if (type === 'desktop') { #><span class="digi-device-slider__stand" aria-hidden="true"></span><# } #></div><# if (arrows || dots) { #><div class="digi-device-slider__nav"><# if (dots) { _.each(items, function(item, index){ #><button class="digi-device-slider__dot" type="button" data-digi-carousel-dot="{{ index }}" aria-label="Captura {{ index + 1 }} de {{ items.length }}"<# if (!index) { #> aria-current="true"<# } #>></button><# }); } #></div><# } #></section></div><# } #>
+		<# if ( items.length ) { #><div class="{{ classes.join(' ') }}"><section class="digi-carousel digi-device-slider__carousel" role="region" aria-roledescription="carrusel" aria-label="Capturas de dispositivo" style="--digi-carousel-count:{{ items.length }}"<# if (dots) { #> data-digi-carousel-dots<# } #><# if (items.length > 1) { #> data-digi-carousel-drag<# } #>><div class="digi-device-slider__device"><div class="digi-device-slider__frame"><div class="digi-device-slider__screen"><div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides"><# _.each(items,function(item){ var link = item.link || {}; var rel = linkRel(link); #><# var kind = item.background || 'image'; #><li class="digi-carousel__slide digi-device-slider__slide<# if (item._id) { #> elementor-repeater-item-{{ item._id }}<# } #>"><# if (kind === 'color') { #><span class="digi-device-slider__color" aria-hidden="true"></span><# } else if (kind === 'video') { #><video class="digi-device-slider__video" src="{{ item.video.url }}" autoplay muted loop playsinline controls preload="metadata"></video><# } else if (kind === 'youtube') { var yt = ytId(item.youtube_url); #><iframe class="digi-device-slider__video" src="https://www.youtube-nocookie.com/embed/{{ yt }}?autoplay=1&mute=1&loop=1&playlist={{ yt }}&playsinline=1&rel=0" title="{{ item.title || 'Vídeo de YouTube' }}" allowfullscreen></iframe><# } else { #><# if (link.url) { #><a href="{{ link.url }}"<# if (link.is_external) { #> target="_blank"<# } #><# if (rel) { #> rel="{{ rel }}"<# } #>><# } #><img class="digi-device-slider__image" src="{{ item.image.url }}" alt="{{ item.image.alt || item.title || '' }}" draggable="false"><# if (link.url) { #></a><# } #><# } #><# if (item.title) { #><span class="digi-device-slider__title">{{ item.title }}</span><# } #><# if (status) { #><span class="digi-device-slider__status<# if (kind === 'video' || kind === 'youtube') { #> digi-device-slider__status--dark<# } #>" aria-hidden="true">{{{ statusSvg }}}</span><# } #></li><# }); #></ul></div><# if (notch) { #><span class="digi-device-slider__island" aria-hidden="true"></span><# } #></div><# if (type === 'tablet' || type === 'laptop') { #><span class="digi-device-slider__camera" aria-hidden="true"></span><# } #><# if (type === 'browser') { #><span class="digi-device-slider__bar" aria-hidden="true"></span><# } #><# if (arrows) { #><button class="digi-carousel__button digi-device-slider__arrow digi-device-slider__arrow--prev" type="button" data-digi-carousel-prev aria-label="Captura anterior" disabled aria-disabled="true">{{{ chevron }}}</button><button class="digi-carousel__button digi-device-slider__arrow digi-device-slider__arrow--next" type="button" data-digi-carousel-next aria-label="Captura siguiente">{{{ chevron }}}</button><# } #></div><# if (type === 'laptop') { #><span class="digi-device-slider__base" aria-hidden="true"></span><# } #><# if (type === 'desktop') { #><span class="digi-device-slider__stand" aria-hidden="true"></span><# } #></div><# if (arrows || dots) { #><div class="digi-device-slider__nav"><# if (dots) { _.each(items, function(item, index){ #><button class="digi-device-slider__dot" type="button" data-digi-carousel-dot="{{ index }}" aria-label="Captura {{ index + 1 }} de {{ items.length }}"<# if (!index) { #> aria-current="true"<# } #>></button><# }); } #></div><# } #></section></div><# } #>
 		<?php
 	}
 }

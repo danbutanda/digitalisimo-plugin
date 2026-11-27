@@ -1,4 +1,12 @@
-/* Slider de dispositivos: celular (pantalla 19,5:9), isla y botones. */
+/* Slider de dispositivos: celular (pantalla 19,5:9), isla, barra de estado y botones. */
+.digi-device-slider--mobile{--ds-status:6.4%}
+.digi-device-slider--status .digi-device-slider__status{order:-1;flex:none;display:block;height:var(--ds-status);background:var(--ds-top,#f4f5f7);color:#111}
+.digi-device-slider--status .digi-device-slider__status svg{display:block;width:100%;height:100%}
+.digi-device-slider__slide--dark .digi-device-slider__status,.digi-device-slider .digi-device-slider__status--dark{color:#fff}
+.digi-device-slider .digi-device-slider__status--dark{background:#000}
+.digi-device-slider--mobile.digi-device-slider--landscape.digi-device-slider--status .digi-device-slider__slide{flex-direction:row}
+.digi-device-slider--mobile.digi-device-slider--landscape .digi-device-slider__status{width:6.6%;height:auto}
+.digi-device-slider--mobile.digi-device-slider--landscape.digi-device-slider--status img.digi-device-slider__image{flex:1 1 0;min-width:0;align-self:flex-start}
 .digi-device-slider--keys .digi-device-slider__device{--ds-btn:var(--digi-ds-buttons,var(--digi-ds-frame-lo))}
 .digi-device-slider--mobile{--sw:9;--sh:19.5;--b:.045;--bt:.045;--bb:.045;--r:.16;--rs:.115;--band:.016}
 .digi-device-slider--mobile.digi-device-slider--landscape{--sw:19.5;--sh:9;--b:.021827;--bt:.021827;--bb:.021827;--r:.077607;--rs:.05578;--band:.007761}
