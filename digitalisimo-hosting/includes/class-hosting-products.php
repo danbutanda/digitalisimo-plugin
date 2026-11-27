@@ -259,10 +259,13 @@ class Digitalisimo_Hosting_Products {
 		if ( empty( $o['enabled'] ) ) return;
 		$r = self::report( (string) $o['domain_products'] );
 		if ( ! $r['unresolved'] && $r['resolved'] ) return;
+		// Sólo un sitio que vende dominios o hosting: con algún ID en la lista, planes configurados o productos de dominio.
+		$sells = $r['resolved'] || $r['transfer'] || array_filter( self::parse( (string) $o['domain_products'] ) ) || '' !== trim( (string) $o['hosting_product_ids'] ) || '' !== trim( (string) $o['hosting_category_ids'] );
+		if ( ! $sells ) return;
 		$link = '<a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-hosting' ) ) . '">Digitalisimo → Hosting</a>';
 		$text = $r['resolved']
-			? 'Estas extensiones de «Productos por extensión» no tienen producto de dominio: <strong>' . esc_html( implode( ', ', $r['unresolved'] ) ) . '</strong>. El buscador no las ofrece hasta que les pongas el ID en ' . $link . ' o marques su producto (campo personalizado <code>_digitalisimo_tld</code>, o el SKU <code>dominio-com</code>).'
-			: 'La lista «Productos por extensión» no resuelve ningún producto: el buscador de dominios no puede vender ninguno. Pon el ID de cada producto de dominio en ' . $link . ' (por ejemplo <code>.com|123</code>) o márcalo con su extensión (campo personalizado <code>_digitalisimo_tld</code> = <code>.com</code>, o el SKU <code>dominio-com</code>).';
+			? 'Estas extensiones de «Productos por extensión» no tienen producto de dominio: <strong>' . esc_html( implode( ', ', $r['unresolved'] ) ) . '</strong>. El buscador no las ofrece hasta que les pongas el ID en ' . $link . ' o le pongas a su producto el SKU <code>dominio-com</code> (<code>dominio-net</code>, <code>dominio-mx</code>…).'
+			: 'La lista «Productos por extensión» no resuelve ningún producto: el buscador de dominios no puede vender ninguno. Pon el ID de cada producto de dominio en ' . $link . ' (por ejemplo <code>.com|123</code>) o ponle el SKU <code>dominio-com</code> (<code>dominio-net</code>, <code>dominio-mx</code>…).';
 		Digitalisimo_Notices::show( Digitalisimo_Notices::site( 'hosting-domain-products' ), 'warning', '<p><strong>DIGITALÍSIMO Hosting:</strong> ' . $text . '</p>', array( 'hash' => md5( wp_json_encode( array( array_keys( $r['resolved'] ), $r['unresolved'] ) ) ), 'cap' => 'manage_options' ) );
 	}
 }
