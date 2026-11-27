@@ -237,6 +237,7 @@ try {
     await page.click('.digi-device-slider__dot[data-digi-carousel-dot="1"]');
     await settle();
     const client = await page.target().createCDPSession();
+    await client.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
     const swipe = async (dx) => { await client.send('Input.synthesizeScrollGesture', { x: Math.round(cx), y: Math.round(cy), xDistance: dx, yDistance: 0, gestureSourceType: 'touch', speed: 800, preventFling: true }); await settle(); return measure(); };
     const w = Math.round(m.slideW * 0.7);
     m = await swipe(-w);
@@ -244,6 +245,7 @@ try {
     ok(moved !== 1 && Math.abs(m.scroll - m.current * m.slideW) <= 1, `Deslizar con el dedo cambia de captura (de la 2 a la ${moved + 1}, ${m.scroll} px) y queda alineada.`);
     m = await swipe(w);
     ok(m.current === 1 && Math.abs(m.scroll - m.slideW) <= 1, `Deslizar al otro lado vuelve a la captura 2 (${m.scroll} px).`);
+    await client.send('Emulation.setTouchEmulationEnabled', { enabled: false });
     // Foco visible con el teclado: pista › «anterior» › «siguiente» › primer punto.
     await page.focus('[data-digi-carousel-track]');
     const focused = async () => page.evaluate(() => { const b = document.activeElement, cs = getComputedStyle(b); return { cls: b.className, label: b.getAttribute('aria-label'), style: cs.outlineStyle, width: parseFloat(cs.outlineWidth), visible: b.matches(':focus-visible') }; });
