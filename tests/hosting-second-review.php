@@ -209,6 +209,10 @@ check( $notice && false !== strpos( $notice[0]['body'], 'ni tu dominio' ) && fal
 $n = digi_nc_count( 'namecheap.domains.renew' ); $was = $GLOBALS['nc']['domains']['coincide.com'];
 $r12->update_status( 'processing' ); digi_run_queue( true, 200 );
 check( $n + 1 === digi_nc_count( 'namecheap.domains.renew' ) && ymd( $GLOBALS['nc']['domains']['coincide.com'] ) === ymd( strtotime( '+1 year', $was ) ) && same_day( $GLOBALS['nc']['domains']['coincide.com'], $P::domain_due( $s ) ), 'N4 pagado el mes 12, el dominio se renueva una vez y el servicio anota lo mismo que el registrador' );
+// El pedido sólo del dominio que se canceló llega pagado igual (un pago que ya iba en camino): no se renueva otra vez.
+$n = digi_nc_count( 'namecheap.domains.renew' ); $due = $P::domain_due( $s ); $GLOBALS['mails'] = array();
+$dro->update_status( 'processing' ); digi_run_queue( true, 200 );
+check( $n === digi_nc_count( 'namecheap.domains.renew' ) && $due === $P::domain_due( $s ) && admin_mails() && false !== strpos( admin_mails()[0]['body'], 'ya se renovó con otro pedido' ), 'N4 si el pedido cancelado del dominio llega pagado igual, no se renueva dos veces: se avisa para reembolsarlo' );
 
 // ── N5. «Ya lo renové yo» se comprueba en el registrador ──────────────────────────────────────────────────────
 store();

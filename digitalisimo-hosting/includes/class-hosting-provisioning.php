@@ -38,6 +38,8 @@ class Digitalisimo_Hosting_Provisioning {
 	const META_SERVICE   = '_digitalisimo_service';
 	const META_RENEWAL   = '_digitalisimo_renewal_of';
 	const META_RENEW     = '_digitalisimo_renew';
+	/** El vencimiento del dominio que cubre un pedido de renovación (el que tenía el servicio al crearlo). */
+	const META_DOMAIN_FOR = '_digitalisimo_domain_for';
 	/** Qué renueva un pedido de renovación: array( hosting => bool, domain => bool, period => meses del hosting ). */
 	const META_PARTS     = '_digitalisimo_renew_parts';
 	/** Lo detenido por una clave rechazada de Webuzo: se vuelve a encolar al guardar una clave nueva. */
@@ -1599,6 +1601,8 @@ class Digitalisimo_Hosting_Provisioning {
 		else $order->set_billing_email( (string) self::svc( $id, 'email' ) );
 		$order->update_meta_data( self::META_RENEWAL, $id );
 		$order->update_meta_data( self::META_PARTS, $parts );
+		// El vencimiento del dominio que paga este pedido: si otro pedido ya lo renovó, éste no lo renueva otra vez.
+		$order->update_meta_data( self::META_DOMAIN_FOR, self::domain_due( $id ) );
 		$order->calculate_totals();
 		$order->save();
 		$order->add_order_note( 'DIGITALÍSIMO Hosting: renovación de ' . self::svc( $id, 'domain' ) . ': ' . $label . '.' );
@@ -1893,6 +1897,11 @@ class Digitalisimo_Hosting_Provisioning {
 	private static function renew_domain( $order, array &$state, $id, $years = 1, $guard = true ) {
 		self::transfer_settled( $id );
 		if ( ! self::svc( $id, 'domain_registered' ) || ! empty( $state['domain'] ) ) return null;
+		// Ese año del dominio ya lo renovó otro pedido (p. ej. el pedido sólo del dominio que se canceló al cobrarse junto con
+		// el hosting y que igual llegó pagado): no se renueva otra vez; se detiene y se avisa para reembolsarlo.
+		$for = (int) $order->get_meta( self::META_DOMAIN_FOR );
+		$due = self::domain_due( $id );
+		if ( $for && $due - $for >= 2 * DAY_IN_SECONDS ) return self::stop( 'data', 'El dominio ' . self::svc( $id, 'domain' ) . ' ya se renovó con otro pedido (vencía el ' . self::date( $for ) . '; ahora vence el ' . self::date( $due ) . '): este pago del dominio no se aplicó, para no renovarlo dos veces. Reembolsa la parte del dominio de este pedido' );
 		$lock = 'digitalisimo_hosting_domain_renew_lock_' . (int) $id;
 		if ( ! add_option( $lock, time(), '', false ) ) {
 			if ( time() - (int) get_option( $lock ) < 10 * MINUTE_IN_SECONDS ) return self::stop( 'transient', 'Otra renovación del dominio ' . self::svc( $id, 'domain' ) . ' está en curso; se reintenta después.' );
