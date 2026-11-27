@@ -115,6 +115,8 @@ try {
   r = await admin.call('digitalisimo-hosting-settings', { action: 'update', data: { api_key: 'ROBADA-123456', replace_hosting: true } });
   opt = await probe('option');
   check(r.isError && opt.same_account && !r.text.includes('ROBADA'), 'La cuenta de Namecheap no se escribe por MCP y no se guarda nada del lote', r.text.slice(0, 300));
+  r = await admin.call('digitalisimo-hosting-settings', { action: 'update', data: { pricing_fee: 0, pricing_min_margin: 0 } });
+  check(r.isError, 'Los porcentajes del freno de pérdida no se cambian por MCP', r.text.slice(0, 200));
   r = await admin.call('digitalisimo-hosting-settings', { action: 'update', data: { provision_enabled: true } });
   check(r.isError && String((await probe('option')).provision_enabled) === '0', 'La venta automática no se enciende por MCP');
   const manager = new Client('lectora');
@@ -140,6 +142,8 @@ try {
   check(s.customer === 0 && s.items.some((i) => i.product === P.com && i.meta.Dominio === 'nuevonegocio.com'), 'El pedido de invitada lleva el dominio en su línea («Dominio»)', JSON.stringify(s.items));
   b = await buy([{ id: P.plan }]);
   check(!b.order && /Elige el dominio de tu plan/.test(message(b.checkout)), 'Un plan sin dominio no se paga: pide «Dominio nuevo» o «Uno que ya tengo»', message(b.checkout));
+  b = await buy([{ id: P.plan, body: { digitalisimo_domain_mode: 'new', digitalisimo_domain: 'miempresa.com' } }]);
+  check(!b.order && /Elige el dominio de tu plan/.test(message(b.checkout)), '«Dominio nuevo» con texto en el campo de «ya tengo»: se ignora y sigue pidiendo el dominio', message(b.checkout));
   b = await buy([{ id: P.plan, body: { digitalisimo_domain_mode: 'own', digitalisimo_domain: 'MiEmpresa.com' } }]);
   s = b.order ? await probe('state', { id: b.order }) : { items: [] };
   check(b.order && s.items.length === 1 && s.items[0].meta.Dominio === 'miempresa.com', '«Uno que ya tengo»: el nombre exacto queda en la línea del plan y se paga sin producto de dominio (con «Exigir dominio y hosting juntos»)', message(b.checkout) + JSON.stringify(s.items));
@@ -151,6 +155,10 @@ try {
   check(!b.order && /EPP/.test(message(b.checkout)), 'Un EPP en la URL se ignora (el carrito lo sigue pidiendo)', message(b.checkout));
   b = await buy([{ id: P.transfer, body: { digitalisimo_domain: 'ajeno.mx', digitalisimo_epp: S.epp } }]);
   check(b.addError && /no se pueden transferir/.test(message(b.addError)), 'Una extensión que Namecheap no transfiere por la API no entra', message(b.addError));
+  b = await buy([{ id: P.transfer, body: { digitalisimo_domain: 'ajeno.lat', digitalisimo_epp: S.epp } }]);
+  check(b.addError && /no se transfieren aquí/.test(message(b.addError)), 'Transferencia de una extensión sin producto de registro (.lat): no se vende', message(b.addError));
+  b = await buy([{ id: P.transfer, body: { digitalisimo_domain: 'ajeno.net', digitalisimo_epp: S.epp } }]);
+  check(b.addError && /a este precio/.test(message(b.addError)) && !/USD/.test(message(b.addError)), 'Transferencia cuyo costo en Namecheap no deja el margen mínimo: no se vende', message(b.addError));
   b = await buy([{ id: P.transfer, body: { digitalisimo_domain: 'ajeno.com', digitalisimo_epp: S.epp } }, { id: P.plan }]);
   check(b.order && !b.cart.text.includes(S.epp) && !b.checkout.text.includes(S.epp), 'Transferencia con dominio y EPP: se paga; el EPP no vuelve en el carrito ni en el checkout', message(b.checkout));
   s = await probe('state', { id: b.order });

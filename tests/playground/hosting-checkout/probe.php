@@ -34,6 +34,8 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 	$host = wp_parse_url( (string) $url, PHP_URL_HOST );
 	$home = wp_parse_url( home_url(), PHP_URL_HOST );
 	if ( ! $host || $host === $home || in_array( $host, array( '127.0.0.1', 'localhost' ), true ) ) return $pre;
+	// Tipo de cambio para el freno de pérdida (sin token de Banxico se usa Frankfurter).
+	if ( 'api.frankfurter.dev' === $host ) return array( 'response' => array( 'code' => 200, 'message' => 'OK' ), 'headers' => array(), 'cookies' => array(), 'filename' => null, 'body' => wp_json_encode( array( 'date' => gmdate( 'Y-m-d' ), 'base' => 'USD', 'quote' => 'MXN', 'rate' => 18.5 ) ) );
 	if ( 'api.namecheap.com' !== $host ) return new WP_Error( 'digi_hc_offline', 'Sin red en el ensayo.' );
 	$body = (array) ( $args['body'] ?? array() );
 	$cmd = (string) ( $body['Command'] ?? '' );
@@ -41,7 +43,7 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 	$calls = get_option( 'digi_hc_calls', array() );
 	$calls[] = array( 'cmd' => $cmd, 'fields' => $fields, 'key_ok' => ( $body['ApiKey'] ?? '' ) === ( digi_hc_secrets()['namecheap'] ?? '§' ), 'key_in_url' => false !== strpos( (string) $url, 'ApiKey' ), 'uri' => (string) ( $_SERVER['REQUEST_URI'] ?? '' ) );
 	update_option( 'digi_hc_calls', $calls, false );
-	$taken = array( 'ocupado.com', 'miempresa.com', 'ajeno.com', 'ajeno.mx' );
+	$taken = array( 'ocupado.com', 'miempresa.com', 'ajeno.com', 'ajeno.mx', 'ajeno.lat', 'ajeno.net' );
 	switch ( $cmd ) {
 		case 'namecheap.domains.check':
 			$d = (string) $body['DomainList'];
@@ -50,6 +52,10 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
 			$out = '';
 			foreach ( array( 'com', 'net', 'org', 'mx' ) as $t ) $out .= '<Tld Name="' . $t . '" IsApiRegisterable="true" IsApiTransferable="' . ( 'mx' === $t ? 'false' : 'true' ) . '" IsEppRequired="true">' . $t . '</Tld>';
 			return digi_hc_xml( '<Tlds>' . $out . '</Tlds>' );
+		case 'namecheap.users.getPricing':
+			// .com cuesta 9.99 USD en todo; «caro» se simula con .net: 60 USD por transferir.
+			$tld = (string) $body['ProductName']; $your = 'net' === $tld && 'TRANSFER' === $body['ActionName'] ? 60 : 9.99;
+			return digi_hc_xml( '<UserGetPricingResult><ProductType Name="domains"><ProductCategory Name="' . esc_attr( strtolower( $body['ActionName'] ) ) . '"><Product Name="' . esc_attr( $tld ) . '"><Price Duration="1" DurationType="YEAR" Price="' . ( $your + 1 ) . '" YourPrice="' . $your . '" YourAdditonalCost="0.18" Currency="USD" /></Product></ProductCategory></ProductType></UserGetPricingResult>' );
 		case 'namecheap.domains.getInfo':
 			return digi_hc_xml( '<Error Number="2019166">Domain not found</Error>', false );
 	}
