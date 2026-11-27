@@ -125,7 +125,8 @@ final class Transform {
 	 */
 	public static function str( string $s ): string {
 		if ( false === stripos( $s, 'elementor' ) ) {
-			return $s;
+			// Con el espejo (sin paquete), una URL del plugin sin la palabra (`motor/assets/`) también va al espejo.
+			return false !== strpos( str_replace( '\\/', '/', $s ), '/plugins/digitalisimo-elements/' ) && ! ( class_exists( Package::class ) && Package::transformed() ) ? self::paths( $s ) : $s;
 		}
 		if ( self::is_url( $s ) ) {
 			return self::url_str( $s );
@@ -251,7 +252,7 @@ final class Transform {
 		}
 		if ( is_string( $value ) ) {
 			if ( false === stripos( $value, 'elementor' ) && false === strpos( $value, 'lemen' ) ) {
-				return $value;
+				return self::str( $value );
 			}
 			// Plantillas (Twig de los componentes atómicos, Underscore): su código y su HTML.
 			if ( preg_match( '/\{[{%]|<#/', $value ) ) {
