@@ -84,10 +84,10 @@ $neutral = array(
 $stored = array( 'messages' => array() );
 foreach ( $neutral as $m ) { $m['role'] = $m['role']; if ( 'assistant' === $m['role'] ) foreach ( $m['calls'] as $i => $c ) $m['calls'][ $i ]['ability'] = 'demo/create-note'; if ( 'tool' === $m['role'] ) $m['ability'] = 'demo/create-note'; $stored['messages'][] = $m; }
 $fm = Digitalisimo_AI_Assistant_History::for_model( $stored, Digitalisimo_AI_Assistant_Tools::catalog() );
-check( 'VIEJA' === $fm[1]['thinking'][0]['signature'] && 'NUEVA' === $fm[3]['thinking'][0]['signature'], 'G6: al modelo van los bloques thinking tal cual, también los del turno anterior' );
+check( ! isset( $fm[1]['thinking'] ) && 'NUEVA' === $fm[3]['thinking'][0]['signature'], 'G6: al modelo van los bloques thinking del turno en curso tal cual; los del turno anterior se quitan con el recorte de sus resultados' );
 $body = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'S', $fm, array() )['body'];
 $last_assistant = $body['messages'][3];
-check( 'assistant' === $last_assistant['role'] && 'thinking' === $last_assistant['content'][0]['type'] && 'NUEVA' === $last_assistant['content'][0]['signature'] && 'Nota' === $last_assistant['content'][0]['thinking'] && 'redacted_thinking' === $last_assistant['content'][1]['type'] && 'tool_use' === $last_assistant['content'][2]['type'] && 'VIEJA' === $body['messages'][1]['content'][0]['signature'], 'G6: Anthropic recibe esos bloques tal cual, antes del tool_use (y la nota nunca como texto)' );
+check( 'assistant' === $last_assistant['role'] && 'thinking' === $last_assistant['content'][0]['type'] && 'NUEVA' === $last_assistant['content'][0]['signature'] && 'Nota' === $last_assistant['content'][0]['thinking'] && 'redacted_thinking' === $last_assistant['content'][1]['type'] && 'tool_use' === $last_assistant['content'][2]['type'] && 'text' === $body['messages'][1]['content'][0]['type'], 'G6: Anthropic recibe esos bloques tal cual, antes del tool_use (y la nota nunca como texto)' );
 check( '' === Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'content' => array( array( 'type' => 'thinking', 'thinking' => Digitalisimo_AI_Assistant_Model::UPDATES_CUT ) ) ) )['text'], 'G6: la marca de nota cortada no se muestra' );
 remove_all_filters( 'digitalisimo_ai_assistant_pre_model' );
 $GLOBALS['http'] = array();
@@ -141,7 +141,12 @@ $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'cr�
 $next = end( $GLOBALS['model_calls'] );
 $assistant_texts = implode( "\n", array_column( array_filter( $next['messages'], function ( $m ) { return 'assistant' === $m['role']; } ), 'text' ) );
 check( false !== strpos( $texts( $next ), 'purificador' ) && false !== strpos( $texts( $next ), '7500' ) && false !== strpos( $assistant_texts, 'ID 252' ), 'K2: en el turno siguiente siguen el producto, el precio y lo que el asistente encontró (ID 252)' );
-check( 'claude-opus-5-5' === $next['model'], 'K2: y la petición va al modelo del selector' );
+check( Digitalisimo_AI_Assistant_Model::MODEL === $next['model'], 'K2: y la petición va al modelo fijo del Asistente' );
+// Contexto (docs/ASSISTANT.md): los 19 resultados grandes del turno anterior ya cumplieron: van recortados, marcados y
+// con su llamada; lo que dijeron la persona y el asistente, entero.
+$old_results = array_values( array_filter( $next['messages'], function ( $m ) { return 'tool' === $m['role']; } ) );
+check( count( $old_results ) >= 19 && max( array_map( function ( $m ) { return strlen( $m['content'] ); }, $old_results ) ) <= Digitalisimo_AI_Assistant_History::OLD_RESULT_BYTES && false !== strpos( $old_results[5]['content'], '[resultado anterior recortado:' ) && $paired( $next['messages'] ), 'K2: los resultados de turnos anteriores van recortados (con su marca y su llamada)' );
+check( strlen( json_encode( $next['messages'] ) ) < 60000, 'K2: y la petición del turno siguiente es chica (' . strlen( json_encode( $next['messages'] ) ) . ' bytes en vez de más de 200 000)' );
 // K3 Cerca del límite real: primero se compactan los resultados viejos (el turno en curso nunca).
 add_filter( 'digitalisimo_ai_assistant_context_chars', function () { return 120000; } );
 $GLOBALS['script'] = array( array( 'calls' => array( $call( 'demo-big-read', array( 'n' => 900 ) ) ) ), 'Sigo.' );

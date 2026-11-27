@@ -99,14 +99,17 @@ $strip  = function ( $v ) use ( &$strip ) { if ( ! is_array( $v ) ) return $v; u
 $prefix = function ( array $a, array $b ) use ( $strip ) { return wp_json_encode( $strip( $a ) ) === wp_json_encode( $strip( array_slice( $b, 0, count( $a ) ) ) ); };
 check( wp_json_encode( $bodies[0]['tools'] ) === wp_json_encode( $bodies[2]['tools'] ) && wp_json_encode( $bodies[0]['system'] ) === wp_json_encode( $bodies[2]['system'] ), 'K4: herramientas e instrucciones idénticas en todas las peticiones' );
 check( $prefix( $bodies[0]['messages'], $bodies[1]['messages'] ), 'K4: dentro de un turno, cada paso empieza con la petición anterior' );
-check( $prefix( $bodies[1]['messages'], $bodies[2]['messages'] ), 'K4: en el turno siguiente también (los bloques thinking del turno pasado siguen igual) · ' . substr( wp_json_encode( $bodies[2]['messages'][1] ), 0, 300 ) );
-check( 'thinking' === $bodies[2]['messages'][1]['content'][0]['type'] && 'sig1' === $bodies[2]['messages'][1]['content'][0]['signature'], 'K4: el bloque thinking del turno anterior va tal cual' );
+// Contexto (docs/ASSISTANT.md): al empezar otro turno, los resultados del anterior van recortados y sin sus bloques
+// thinking; el prefijo se conserva hasta el mensaje de la persona que abrió ese turno (y las herramientas y las
+// instrucciones, lo más pesado, siempre).
+check( $prefix( array_slice( $bodies[1]['messages'], 0, 1 ), $bodies[2]['messages'] ), 'K4: en el turno siguiente el prefijo sigue igual hasta el mensaje de la persona del turno anterior' );
+check( 'thinking' !== $bodies[2]['messages'][1]['content'][0]['type'] && false === strpos( wp_json_encode( $bodies[2]['messages'] ), '"sig1"' ), 'K4: los bloques thinking del turno anterior ya no van · ' . substr( wp_json_encode( $bodies[2]['messages'][1] ), 0, 300 ) );
 check( isset( $bodies[2]['cache_control'] ) && is_array( $bodies[2]['system'] ), 'K4: cada petición lleva sus puntos de caché' );
-add_filter( 'digitalisimo_ai_assistant_replay_thinking', '__return_false_cache' );
-function __return_false_cache() { return false; }
+add_filter( 'digitalisimo_ai_assistant_old_result_bytes', '__return_zero_cache' );
+function __return_zero_cache() { return 0; }
 $old = Digitalisimo_AI_Assistant_History::for_model( Digitalisimo_AI_Assistant_History::get( $cid, 1 ), Digitalisimo_AI_Assistant_Tools::catalog(), $target );
-check( ! isset( $old[1]['thinking'] ), 'K4: con el filtro en false, sólo los del turno en curso (como antes)' );
-remove_all_filters( 'digitalisimo_ai_assistant_replay_thinking' );
+check( 'sig1' === ( $old[1]['thinking'][0]['signature'] ?? '' ), 'K4: con el recorte apagado (filtro en 0), los del turno pasado van tal cual (como antes)' );
+remove_all_filters( 'digitalisimo_ai_assistant_old_result_bytes' );
 
 /* ---------------- K5: se mide ---------------- */
 $u = get_option( Digitalisimo_AI_Assistant_Tools::USAGE_LOG );

@@ -30,6 +30,12 @@ final class Digitalisimo_AI_Assistant_History {
 	const STORE_TOOL_BYTES  = 3000000;
 	/** Tamaño de un resultado compactado (bytes). */
 	const COMPACT_BYTES     = 1500;
+	/**
+	 * Tope de cada resultado de herramienta de un turno anterior al modelo (bytes; docs/ASSISTANT.md, «Contexto»): ya
+	 * cumplió su papel y, si hace falta otra vez, se vuelve a consultar. Filtro `digitalisimo_ai_assistant_old_result_bytes`
+	 * (0: enteros, como antes).
+	 */
+	const OLD_RESULT_BYTES  = 1500;
 	/** Contexto por defecto si no se conoce el modelo (caracteres de JSON; unos 100 000 tokens). */
 	const CONTEXT_DEFAULT   = 350000;
 	/** Fracción del contexto real que se usa para la conversación (lo demás: instrucciones, herramientas y respuesta). */
@@ -490,6 +496,22 @@ final class Digitalisimo_AI_Assistant_History {
 		};
 		$starts = self::turn_starts( $messages );
 		$last   = end( $starts );
+		// 0. Contexto (docs/ASSISTANT.md): los resultados de turnos anteriores van recortados a OLD_RESULT_BYTES y sin los
+		// bloques thinking de esos turnos (lo que dijeron la persona y el asistente, y cada llamada, siguen enteros). El
+		// recorte es siempre el mismo para un turno ya cerrado: el prefijo sólo cambia, una vez, desde el turno anterior.
+		$old_bytes = (int) apply_filters( 'digitalisimo_ai_assistant_old_result_bytes', self::OLD_RESULT_BYTES, $target );
+		if ( $old_bytes > 0 ) {
+			foreach ( $messages as $i => $m ) {
+				if ( $i >= $last ) {
+					break;
+				}
+				if ( 'tool' === $m['role'] ) {
+					$messages[ $i ]['content'] = self::compact( $m['content'], max( 400, $old_bytes ) );
+				} elseif ( 'assistant' === $m['role'] ) {
+					$messages[ $i ]['thinking'] = array();
+				}
+			}
+		}
 		$cap    = max( 2000, (int) ( $budget * 0.3 ) );
 		$total  = $size( $messages ) + min( $cap, strlen( implode( "\n", $summary ) ) );
 		// 1. Resultados de turnos anteriores, del más viejo al más nuevo.
@@ -527,13 +549,13 @@ final class Digitalisimo_AI_Assistant_History {
 			$summary[] = self::summarize( self::as_stored( array_slice( $messages, 0, $cut ) ) );
 			$messages  = array_slice( $messages, $cut );
 		}
-		// Bloques thinking: van tal cual, también los de turnos anteriores (docs/ASSISTANT.md, «Caché»). Quitarlos al
-		// empezar cada turno era válido, pero cambiaba el principio de la conversación y la caché de la API se perdía
-		// desde el turno anterior en adelante; los modelos que no pueden leer un bloque lo descartan solos y sin cobrarlo.
-		// Con el filtro `digitalisimo_ai_assistant_replay_thinking` en false, sólo los del turno en curso (como antes).
+		// Bloques thinking: los del turno en curso van siempre tal cual (lo exige la API). Los de turnos anteriores se
+		// quitan junto con el recorte de sus resultados (paso 0: el prefijo cambia ahí de todos modos y, si no, la API los
+		// descartaría por no cuadrar); sin recorte (filtro de OLD_RESULT_BYTES en 0) van tal cual, como antes
+		// (docs/ASSISTANT.md, «Caché»). Filtro `digitalisimo_ai_assistant_replay_thinking`.
 		$current = self::turn_starts( $messages );
 		$current = $current ? end( $current ) : 0;
-		$replay  = (bool) apply_filters( 'digitalisimo_ai_assistant_replay_thinking', true, $target );
+		$replay  = (bool) apply_filters( 'digitalisimo_ai_assistant_replay_thinking', $old_bytes <= 0, $target );
 		foreach ( $messages as $i => $m ) {
 			if ( 'assistant' === $m['role'] ) {
 				foreach ( $m['calls'] as $j => $call ) {
