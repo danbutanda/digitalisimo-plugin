@@ -38,6 +38,6 @@ $CLI run-blueprint --site-url=http://playground.test --blueprint="$OUT/blueprint
 scrub
 [ -s "$OUT/probe/fatal.log" ] && { echo "Errores fatales:"; cat "$OUT/probe/fatal.log"; exit 1; }
 cp "$OUT/probe/result.json" "$OUT/result.json"
-[ -f "$OUT/probe/usage.json" ] && cp "$OUT/probe/usage.json" "$OUT/usage.json"
+for f in usage.json pantalla-sitio.html pantalla-red.html ability.json; do [ -f "$OUT/probe/$f" ] && cp "$OUT/probe/$f" "$OUT/$f"; done
 if [ "$MODE" = real ] && [ -s "${KEY_FILE:-}" ] && grep -rqF -f "$KEY_FILE" "$OUT"; then echo "FALLA: la clave aparece en los resultados"; exit 1; fi
 node -e 'const r=require(process.argv[1]);let f=0;for(const x of r){console.log((x.ok?"OK   ":"FALLA ")+x.step+": "+x.what);if(!x.ok)f++;}console.log(r.length+" comprobaciones, "+f+" fallas");process.exit(f?1:0)' "$OUT/result.json"

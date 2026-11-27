@@ -129,10 +129,13 @@ switch ( $digi_step ) {
 		$r1 = Digitalisimo_AI_Assistant_Model::chat( $target, $system, $msgs, array() );
 		$r2 = Digitalisimo_AI_Assistant_Model::chat( $target, $system, $msgs, array() );
 		$note( ! is_wp_error( $r1 ) && ! is_wp_error( $r2 ), 'el Asistente IA responde dos veces: ' . ( is_wp_error( $r1 ) ? $r1->get_error_message() : 'ok' ) . ' / ' . ( is_wp_error( $r2 ) ? $r2->get_error_message() : 'ok' ) );
+		// «Entrenar con mi sitio web» (v520) con datos vacíos: la llamada sale y se registra como Aprendizaje aunque la
+		// respuesta no sea el resumen esperado.
+		Digitalisimo_AI_Assistant_Learning::distill( array( 'id' => '', 'data' => array() ) );
 		$rows = digi_rows();
 		digi_compare( $rows, $GLOBALS['digi_raw'], $note );
 		$features = array_column( $rows, 'feature' );
-		$note( 'content' === $features[0] && in_array( 'assistant', $features, true ) && ! array_diff( array_column( $rows, 'blog_id' ), array( '1', 1 ) ) && ! array_diff( array_column( $rows, 'user_id' ), array( '1', 1 ) ), 'funciones, sitio 1 y usuario 1 en cada fila: ' . implode( ', ', $features ) );
+		$note( 'content' === $features[0] && in_array( 'assistant', $features, true ) && 'learning' === end( $features ) && ! array_diff( array_column( $rows, 'blog_id' ), array( '1', 1 ) ) && ! array_diff( array_column( $rows, 'user_id' ), array( '1', 1 ) ), 'funciones, sitio 1 y usuario 1 en cada fila: ' . implode( ', ', $features ) );
 		$write = array_sum( array_column( $rows, 'cache_write_tokens' ) );
 		$read  = array_sum( array_column( $rows, 'cache_read_tokens' ) );
 		$note( 'simulado' !== $digi_mode || ( $write > 0 && $read > 0 ), "caché observada: $write tokens escritos y $read leídos" );
@@ -181,9 +184,20 @@ switch ( $digi_step ) {
 		}
 		$csv = Digitalisimo_AI_Usage_Admin::csv_text( Digitalisimo_AI_Usage_Admin::csv_rows( 'site', 'detail', $today, $today ) );
 		$note( substr_count( $csv, "\n" ) === $n1 + 1 && false === strpos( $csv, DIGI_PROMPT ) && false === strpos( $csv, $key ), 'CSV de detalle con una línea por llamada, sin texto ni clave' );
+		// El tipo de cambio que deja DIGITALÍSIMO Hosting al actualizar precios de dominios (aquí escrito a mano).
+		update_option( 'digitalisimo_hosting_price_history', array( array( 't' => time() - 3600, 'status' => 'ok', 'fx' => 18.3412, 'fx_source' => 'Banxico FIX ' . gmdate( 'd/m/Y' ) ) ), false );
 		$_GET = array( 'page' => 'digitalisimo-ai-usage' );
 		ob_start(); Digitalisimo_AI_Usage_Admin::page(); $html = ob_get_clean();
-		$note( false !== strpos( $html, 'Llamadas más caras' ) && false !== strpos( $html, 'Asistente IA' ) && false === strpos( $html, $key ), 'la pantalla «Uso de IA» se pinta con los datos y sin la clave' );
+		$note( false !== strpos( $html, 'Llamadas más caras' ) && false !== strpos( $html, 'Asistente IA' ) && false !== strpos( $html, 'Aprendizaje del sitio' ) && false !== strpos( $html, 'MX$' ) && false !== strpos( $html, 'Banxico FIX' ) && false === strpos( $html, $key ), 'la pantalla «Uso de IA» se pinta con los datos, en pesos con el tipo de cambio de Hosting y sin la clave' );
+		file_put_contents( $digi_dir . '/pantalla-sitio.html', $html );
+		$_GET = array( 'page' => 'digitalisimo-network-ai-usage' );
+		ob_start(); Digitalisimo_AI_Usage_Admin::network_page(); $nhtml = ob_get_clean();
+		$note( false !== strpos( $nhtml, '¿Cuánto gastó cada sitio?' ) && false !== strpos( $nhtml, 'Sitio dos' ) && false === strpos( $nhtml, $key ), 'la pantalla de la red dice cuánto gastó cada sitio, sin la clave' );
+		file_put_contents( $digi_dir . '/pantalla-red.html', $nhtml );
+		if ( function_exists( 'wp_get_ability' ) && wp_get_ability( 'digitalisimo-ia/usage' ) ) {
+			file_put_contents( $digi_dir . '/ability.json', wp_json_encode( wp_get_ability( 'digitalisimo-ia/usage' )->execute( array() ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) );
+		}
+		delete_option( 'digitalisimo_hosting_price_history' );
 		$dump = digi_dump();
 		foreach ( array( 'la clave' => $key, 'el prompt' => DIGI_PROMPT, 'la pregunta del visitante' => 'Qué es este sitio', 'la IP del visitante' => DIGI_VISITOR_IP, 'la respuesta' => 'hola mundo de prueba' ) as $what => $secret ) {
 			$note( '' !== $secret && false === stripos( $dump, $secret ), "el registro no guarda $what" );

@@ -21,11 +21,13 @@ Caminos encontrados en IA Tools (todos pasan por ese punto):
 | Creación de contenido (publisher REST, playbook, MCP) | `Digitalisimo_AI_Content_Playbook::generate()` → `complete( 'content' )` | perfil `content` |
 | SEO (DIGITALÍSIMO SEO: intención, editorial) | `Digitalisimo_AI::complete( 'seo' )` desde el plugin SEO | perfil `seo` |
 | Ecommerce y automatizaciones | `complete( 'ecommerce' \| 'automation' )` | perfil |
-| Asistente IA | `Digitalisimo_AI_Assistant_Model::chat()` | filtro `digitalisimo_ai_assistant_pre_model` (cada paso) |
-| Aprendizaje del sitio (rama `ia/asistente-aprendizaje`) | el mismo `Assistant_Model::chat()` | `Digitalisimo_AI_Usage::begin( 'learning' )` alrededor de su llamada (pendiente al unir la rama) |
+| Asistente IA (chat del escritorio, con su caché de prompts y los archivos subidos) | `Digitalisimo_AI_Assistant::turn()` → `Assistant_Model::chat()` | filtro `digitalisimo_ai_assistant_pre_model` (cada paso) |
+| Aprendizaje del sitio («Entrenar con mi sitio web» y el repaso de conversaciones, v520) | `Digitalisimo_AI_Assistant_Learning::distill()` y `review_locked()` → `Assistant_Model::chat()` | `Digitalisimo_AI_Usage::begin( 'learning' )` / `end()` alrededor de cada llamada |
 | Imágenes | `Digitalisimo_AI_Images::generate()` (`/v1/images/generations`) | la ruta `/images/` |
 | Base de conocimiento (embeddings al indexar y al buscar) | `Digitalisimo_AI_Knowledge::generate_embeddings()` y `query_embedding()` | la ruta `/embeddings` |
 | Cualquier otra llamada con la clave de IA Tools | — | «Otra función» |
+
+`tests/ia-usage.php` comprueba que toda llamada a `Assistant_Model::chat()` fuera del chat del Asistente esté entre `begin()` y `end()`: un camino nuevo que se olvide de abrir su contexto rompe la prueba (si no, quedaría como «Asistente IA»). La caché del Asistente (v518) y las subidas de archivos no llaman a ningún proveedor. Una función que el Asistente dispara desde una herramienta (p. ej. crear contenido con `complete( 'content' )`) cuenta con la función de esa herramienta.
 
 Dentro de un mismo contexto, la segunda petición y las siguientes son **reintentos** (el cambio a otro proveedor de `complete()` tras un error; la herramienta que el Asistente quita y repite).
 
@@ -63,19 +65,27 @@ Dos tablas propias de cada sitio (`{prefijo}digitalisimo_ai_usage` y `…_daily`
 
 ## Pantalla, red y paridad
 
-Digitalisimo → Uso de IA (`manage_options`): totales de hoy, 7 días, el mes y un rango (USD y MXN), por día (gráfica), por función, modelo y usuario, las llamadas más caras, CSV (resumen diario y detalle) y los ajustes. En la red (Red → Digitalisimo → Uso de IA, superadministrador): el total de cada sitio y de toda la red, la red por función y por modelo, CSV por sitio y los mismos ajustes como valores de red. Cada sitio lee sólo sus tablas.
+**Digitalisimo → Uso de IA** (`manage_options`), escrita para el dueño, sin jerga:
+
+- arriba, «Gastado este mes» en grande (dólares y, si hay tipo de cambio, «unos MX$…»), hoy y el mes pasado, el tope si lo hay y de dónde salen los pesos;
+- botones Este mes / Hoy / Últimos 7 días / El mes pasado y fechas libres;
+- «¿En qué se gastó?»: una fila por función con su nombre, para qué sirve en una línea, el gasto, en pesos, la parte del total y las consultas; debajo, el gasto por día;
+- «Detalle técnico» (plegado): tokens por función, modelo y usuario, las llamadas más caras y los CSV (resumen diario y detalle);
+- «Ajustes» (plegado): tope, tipo de cambio, retención, borrar al desinstalar y precios.
+
+En la red (Red → Digitalisimo → Uso de IA, superadministrador): lo gastado en toda la red, «¿Cuánto gastó cada sitio?» de mayor a menor con enlace a su pantalla, «¿En qué se gastó en toda la red?» y, plegados, el detalle técnico (por sitio con tokens, por función y por modelo, CSV por sitio) y los ajustes de la red. Cada sitio lee sólo sus tablas.
 
 Los ajustes (presupuesto, tipo de cambio, retención, borrar al desinstalar y precios) son los mismos campos en las dos superficies (`settings_fields()`) con una sola validación (`sanitize_settings()`); «Heredar los ajustes de uso de la red» existe sólo en el sitio y un sitio que nunca guardó hereda. En una red los cambia sólo el superadministrador: el administrador de un sitio los ve sin poder cambiarlos (el tope de red lo define el superadministrador).
 
-Tipo de cambio: el configurado, o el que dé otro módulo con el filtro `digitalisimo_ai_usage_mxn_rate` (Hosting aún no trae el de Banxico).
+Tipo de cambio (`Digitalisimo_AI_Usage::mxn_info()`), sin consultar nada por la red: el escrito en Ajustes; si no hay, el último que guardó DIGITALÍSIMO Hosting al actualizar precios de dominios (`digitalisimo_hosting_price_history`: FIX de Banxico o su respaldo Frankfurter) en el sitio o en el principal de la red, de hasta 90 días y entre 5 y 100 pesos (una tienda en dólares guarda 1 y no cuenta); al final, el filtro `digitalisimo_ai_usage_mxn_rate`. Sin ninguno, sólo dólares, y la pantalla dice cómo ver pesos.
 
 ## Presupuesto
 
-Opcional, apagado de fábrica: tope mensual en USD desde el día 1 (hora del sitio). Al cruzar el 80 % y el 100 %: aviso en el escritorio (descartable por mes y nivel) y un correo al administrador o al correo elegido, programado en una tarea aparte (`digitalisimo_ai_usage_alert`) para que el chatbot no espere al servidor de correo. Al 100 %, según el ajuste: sólo avisar, o pausar las funciones de IA del sitio: `pre_http_request` corta la llamada antes de salir (sin costo) con el mensaje «Las funciones de IA de este sitio están en pausa…», y el Asistente IA lo dice en su chat. Se reanuda el mes siguiente o al subir el tope.
+Opcional, apagado de fábrica: tope mensual en USD desde el día 1 (hora del sitio). Al cruzar el 80 % y el 100 %: aviso en el escritorio por el ayudante común `Digitalisimo_Notices` (con la X; cerrado no vuelve en el mes mientras siga en el mismo nivel) y un correo al administrador o al correo elegido, programado en una tarea aparte (`digitalisimo_ai_usage_alert`) para que el chatbot no espere al servidor de correo. Al 100 %, según el ajuste: sólo avisar, o pausar las funciones de IA del sitio: `pre_http_request` corta la llamada antes de salir (sin costo) con el mensaje «Las funciones de IA de este sitio están en pausa…», y el Asistente IA lo dice en su chat. Se reanuda el mes siguiente o al subir el tope.
 
 ## Lectura desde fuera (MCP)
 
-Ability `digitalisimo-ia/usage` (sólo lectura, `manage_options`, pública para MCP y en el servidor MCP de Elements): totales por periodo, desglose por función y modelo del rango (`from`, `to`), modelos sin precio y el estado del presupuesto. Nunca devuelve claves ni contenido.
+Ability `digitalisimo-ia/usage` (herramienta MCP `digitalisimo-ia-usage`; sólo lectura, `manage_options`, pública para MCP y en el servidor MCP de Elements): `resumen` (el gasto en una frase: el mes, hoy, en qué se fue, el tope y de dónde salen los pesos), totales por periodo, desglose por función y modelo del rango (`from`, `to`), modelos sin precio, el tipo de cambio y su fuente y el estado del presupuesto. Sólo lee las tablas de resumen: nunca devuelve claves, conversaciones ni datos de visitantes. Así el dueño puede preguntarle a Claude «¿cuánto ha gastado el plomerito con el asistente?».
 
 ## Desinstalar
 
@@ -83,5 +93,5 @@ Ability `digitalisimo-ia/usage` (sólo lectura, `manage_options`, pública para 
 
 ## Pruebas
 
-- `tests/ia-usage.php` (CI): costo con caché, cada función por el único punto, resumen, aislamiento entre sitios, permisos, presupuesto y pausa, CSV, sin contenido ni claves, paridad, precios y retención.
-- `tests/playground/ia-usage.sh`: red real de Playground; `MODE=real` con la API de Anthropic (no va en la CI; la clave por STDIN, como `ia-assistant-real.sh`).
+- `tests/ia-usage.php` (CI): costo con caché, cada función por el único punto (también `distill()` real del aprendizaje y la regla estática de `begin()`/`end()`), resumen, aislamiento entre sitios, permisos, la pantalla en lenguaje llano (lo técnico sólo en «Detalle técnico»), el tipo de cambio de Hosting, el `resumen` de la Ability, presupuesto y pausa con el aviso común, CSV, sin contenido ni claves, paridad, precios y retención.
+- `tests/playground/ia-usage.sh`: red real de Playground (también el aprendizaje, y guarda `pantalla-sitio.html`, `pantalla-red.html` y `ability.json`); `MODE=real` con la API de Anthropic (no va en la CI; la clave por STDIN, como `ia-assistant-real.sh`).
