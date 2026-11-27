@@ -1,0 +1,367 @@
+{
+	"version": 1,
+	"descripcion": "Reglas de la marca propia (docs/MARCA_PROPIA.md). Las leen el espejo de assets que se genera al empaquetar y la capa de marca en la salida (fase 2), y el MCP y el escritorio (fase 1). Las listas de «js», «atributos.lista», «rest.usados_por_el_front» y «ajax.usados_por_el_front» y «derivado» las escribe scripts/marca-reglas.mjs --escribir a partir de los bundles reales del front; lo demás se escribe a mano.",
+	"prefijo": "dg",
+	"clases": {
+		"de": "elementor",
+		"a": "dg",
+		"ambito": [
+			"atributo class",
+			"selectores de CSS (hojas servidas, bloques <style> y CSS generado)",
+			"cadenas de selectores y de clases en el JS del front"
+		],
+		"nota": "«elementor» sola pasa a «dg» y «elementor-x» a «dg-x»; también «e-elementor-x» → «e-dg-x». Nunca dentro de una URL, de un texto visible ni de un valor que no sea clase."
+	},
+	"atributos": {
+		"de": "data-elementor-",
+		"a": "data-dg-",
+		"lista": [
+			"data-elementor-id",
+			"data-elementor-lightbox",
+			"data-elementor-lightbox-slideshow",
+			"data-elementor-open-lightbox",
+			"data-elementor-slideshow-video",
+			"data-elementor-type"
+		]
+	},
+	"ids": {
+		"de": "elementor-",
+		"a": "dg-",
+		"ambito": [
+			"id de <link> y <script> (handles)",
+			"id de elementos del front (#elementor-device-mode, #elementor-add-new-section)"
+		]
+	},
+	"css": {
+		"keyframes": {
+			"de": "elementor-",
+			"a": "dg-"
+		},
+		"variables": {
+			"de": "--elementor-",
+			"a": "--dg-"
+		},
+		"comentarios": "se quitan"
+	},
+	"js": {
+		"dataset": {
+			"editableElementorDocument": "editableDgDocument",
+			"elementorId": "dgId",
+			"elementorLightbox": "dgLightbox",
+			"elementorLightboxDescription": "dgLightboxDescription",
+			"elementorLightboxIndex": "dgLightboxIndex",
+			"elementorLightboxSlideshow": "dgLightboxSlideshow",
+			"elementorLightboxTitle": "dgLightboxTitle",
+			"elementorLightboxVideo": "dgLightboxVideo",
+			"elementorType": "dgType"
+		},
+		"globales": {
+			"ElementorInteractionsConfig": "digitalisimoInteractionsConfig",
+			"ElementorProFrontendConfig": "digitalisimoProFrontendConfig",
+			"elementor": "digitalisimo",
+			"elementorAppConfig": "digitalisimoAppConfig",
+			"elementorButton": "digitalisimoButton",
+			"elementorCommon": "digitalisimoCommon",
+			"elementorDevTools": "digitalisimoDevTools",
+			"elementorFrontend": "digitalisimoFrontend",
+			"elementorFrontendConfig": "digitalisimoFrontendConfig",
+			"elementorModules": "digitalisimoModules",
+			"elementorPro": "digitalisimoPro",
+			"elementorProFrontend": "digitalisimoProFrontend",
+			"elementorV2": "digitalisimoV2",
+			"elementorWidgetWrapper": "digitalisimoWidgetWrapper",
+			"elementorWrapper": "digitalisimoWrapper",
+			"elementor_": "digitalisimo_",
+			"getClosestDataElementorId": "getClosestDataDigitalisimoId",
+			"handleElementorBreakpoints": "handleDigitalisimoBreakpoints",
+			"onElementorFrontendInit": "onDigitalisimoFrontendInit",
+			"registerElementorHook": "registerDigitalisimoHook"
+		},
+		"propiedades": {
+			"ElementorProFrontendConfig": "digitalisimoProFrontendConfig",
+			"__elementorChunks": "__digitalisimoChunks",
+			"__elementorLoadChunk": "__digitalisimoLoadChunk",
+			"elementor": "digitalisimo",
+			"elementorButton": "digitalisimoButton",
+			"elementorCommon": "digitalisimoCommon",
+			"elementorFrontend": "digitalisimoFrontend",
+			"elementorFrontendConfig": "digitalisimoFrontendConfig",
+			"elementorId": "digitalisimoId",
+			"elementorModules": "digitalisimoModules",
+			"elementorPro": "digitalisimoPro",
+			"elementorProFrontend": "digitalisimoProFrontend",
+			"elementorType": "digitalisimoType",
+			"elementorV2": "digitalisimoV2",
+			"elementorWidgetWrapper": "digitalisimoWidgetWrapper",
+			"elementorWrapper": "digitalisimoWrapper",
+			"getClosestDataElementorId": "getClosestDataDigitalisimoId",
+			"onElementorFrontendInit": "onDigitalisimoFrontendInit"
+		},
+		"eventos": [
+			"elementor-pro/collection-loop/after-paginate",
+			"elementor-pro/frontend/handlers",
+			"elementor-pro/loop-builder/after-insert-posts",
+			"elementor-pro/mega-menu/dropdown-open",
+			"elementor-pro/mega-menu/heading-mouse-event",
+			"elementor-pro/modules/init/before",
+			"elementor-pro/motion-fx/recalc",
+			"elementor-pro/off-canvas/toggle-display-mode",
+			"elementor/bg-video/recalc",
+			"elementor/dynamic/url_change",
+			"elementor/editor/element-destroyed",
+			"elementor/editor/element-rendered",
+			"elementor/elements/link-data-bindings",
+			"elementor/frontend/documents-manager/init-classes",
+			"elementor/frontend/init",
+			"elementor/lazyload/observe",
+			"elementor/mega-menu/dropdown-toggle-by-keyboard",
+			"elementor/nested-container/atomic-repeater",
+			"elementor/nested-elements/activate-by-keyboard",
+			"elementor/nested-tabs/activate",
+			"elementor/popup",
+			"elementor/popup/hide",
+			"elementor/popup/show"
+		],
+		"eventos_regla": [
+			{
+				"de": "elementor-pro/",
+				"a": "digitalisimo-pro/"
+			},
+			{
+				"de": "elementor/",
+				"a": "digitalisimo/"
+			}
+		],
+		"sourcemaps": "se quitan los sourceMappingURL"
+	},
+	"acciones_url": [
+		{
+			"de": "#elementor-action:",
+			"a": "#dg-action:"
+		}
+	],
+	"rutas": [
+		{
+			"de": "/plugins/digitalisimo-elements/elementor/assets/",
+			"a": "/plugins/digitalisimo-elements/marca/motor/",
+			"nota": "espejo de los assets del front y del editor del núcleo"
+		},
+		{
+			"de": "/plugins/digitalisimo-elements/motor/assets/",
+			"a": "/plugins/digitalisimo-elements/marca/motor/",
+			"nota": "la misma carpeta con el nombre neutro del ZIP (D-9)"
+		},
+		{
+			"de": "/uploads/elementor/css/",
+			"a": "/uploads/digitalisimo-elements/css/"
+		},
+		{
+			"de": "/uploads/elementor/google-fonts/",
+			"a": "/uploads/digitalisimo-elements/google-fonts/"
+		}
+	],
+	"valores": [
+		{
+			"de": "elementor_library",
+			"a": "digitalisimo_library",
+			"donde": "data-elementor-post-type, datos del MCP y URL del escritorio"
+		}
+	],
+	"datos_mcp": {
+		"descripcion": "D-6: los datos que devuelve el MCP nuevo se renombran al salir y al entrar se aceptan los dos nombres. Los tipos y taxonomías elementor_* registrados pasan a digitalisimo_* (si el nombre nuevo no existe); las metas _elementor_* a _dg_*; action=elementor a action=digitalisimo; elementor:// a digitalisimo://; las herramientas elementor-x a digitalisimo-x.",
+		"metas": {
+			"de": "_elementor_",
+			"a": "_dg_"
+		},
+		"recursos": {
+			"de": "elementor://",
+			"a": "digitalisimo://"
+		},
+		"herramientas": {
+			"de": "elementor-",
+			"a": "digitalisimo-"
+		}
+	},
+	"escritorio": {
+		"descripcion": "D-3: alias para las URL del escritorio y del editor. La URL vieja sigue funcionando; con la marca propia encendida ningún enlace la muestra.",
+		"action": {
+			"elementor": "digitalisimo"
+		},
+		"page": {
+			"de": "elementor",
+			"a": "digitalisimo-motor"
+		},
+		"tipos": "los tipos y taxonomías elementor_* registrados ↔ digitalisimo_*"
+	},
+	"rest": {
+		"espacios_ocultos_del_indice": [
+			"elementor",
+			"elementor/v1",
+			"elementor/v1/documents",
+			"elementor/v1/feedback",
+			"elementor-pro/v1",
+			"elementor-one/v1",
+			"elementor-ai/v1",
+			"elementor_preview_link_v1"
+		],
+		"usados_por_el_front": [
+			"elementor-pro/v1"
+		],
+		"alias": {
+			"elementor-pro/v1": "digitalisimo-pro/v1"
+		}
+	},
+	"ajax": {
+		"usados_por_el_front": [
+			"elementor_menu_cart_fragments",
+			"elementor_pro_atomic_forms_send_form",
+			"elementor_pro_forms_send_form",
+			"elementor_send_clicks",
+			"elementor_wc_logout",
+			"elementor_woocommerce_checkout_login_user"
+		],
+		"alias": {
+			"elementor_pro_forms_send_form": "digitalisimo_form_send",
+			"elementor_pro_atomic_forms_send_form": "digitalisimo_atomic_form_send",
+			"elementor_menu_cart_fragments": "digitalisimo_menu_cart_fragments",
+			"elementor_send_clicks": "digitalisimo_send_clicks",
+			"elementor_woocommerce_checkout_login_user": "digitalisimo_checkout_login_user",
+			"elementor_wc_logout": "digitalisimo_wc_logout"
+		}
+	},
+	"fragmentos": {
+		"descripcion": "Lista cerrada de respuestas AJAX y REST del front que devuelven HTML (fase 0). La capa de la fase 2 les aplica las mismas reglas; una respuesta nueva que devuelva HTML entra aquí o el front mezcla nombres.",
+		"html": [
+			{
+				"ruta": "elementor-pro/v1/refresh-loop",
+				"origen": "modules/loop-filter/data/endpoints/refresh-loop.php",
+				"que": "Loop Grid filtrado (filtro de taxonomía, filtros de F4-Woo y F7b)",
+				"gancho": "rest_post_dispatch"
+			},
+			{
+				"ruta": "elementor-pro/v1/refresh-search",
+				"origen": "modules/search/data/endpoints/refresh-search.php",
+				"que": "resultados en vivo del widget Búsqueda",
+				"gancho": "rest_post_dispatch"
+			},
+			{
+				"ruta": "elementor-pro/v1/collection-loop/loop-preview",
+				"origen": "modules/collection-loop/data/endpoints/loop-preview.php",
+				"que": "paginación AJAX del bucle de colección",
+				"gancho": "rest_post_dispatch"
+			},
+			{
+				"ajax": "elementor_menu_cart_fragments",
+				"origen": "modules/woocommerce/module.php",
+				"que": "fragmentos del Menú del carrito",
+				"gancho": "wp_send_json / woocommerce_add_to_cart_fragments"
+			},
+			{
+				"wc_ajax": "get_refreshed_fragments, add_to_cart, remove_from_cart",
+				"origen": "WooCommerce con el filtro woocommerce_add_to_cart_fragments del Menú del carrito de PRO",
+				"que": "fragmentos del carrito (mini carrito y Menú del carrito)",
+				"gancho": "woocommerce_add_to_cart_fragments"
+			},
+			{
+				"ruta": "digitalisimo-elements/v1/woo/quick-view",
+				"origen": "modules/digitalisimo-woo/quick-view/class-render.php y class-template.php",
+				"que": "vista rápida de producto (plantilla del Theme Builder o la propia)",
+				"gancho": "rest_post_dispatch"
+			},
+			{
+				"ruta": "digitalisimo-elements/v1/woo/wishlist",
+				"origen": "modules/digitalisimo-woo/wishlist/class-cards.php",
+				"que": "tarjetas de la lista de deseos",
+				"gancho": "rest_post_dispatch"
+			},
+			{
+				"ajax": "digitalisimo_elements_google_reviews",
+				"origen": "modules/digitalisimo-widgets/class-google-reviews-service.php",
+				"que": "reseñas de Google",
+				"gancho": "wp_send_json_success (filtrar el html antes de enviarlo)"
+			},
+			{
+				"pagina": "siguiente página de Publicaciones, Loop Grid y Archivo («Cargar más» y scroll infinito)",
+				"origen": "elements-handlers.min.js pide la URL de la página siguiente",
+				"que": "una página completa del front",
+				"gancho": "el buffer de la página (no es un fragmento)"
+			},
+			{
+				"ajax": "elementor_ajax (render_widget, get_template_data)",
+				"origen": "editor",
+				"que": "sólo en el editor y su vista previa (D-12): fase 2 con el espejo del editor",
+				"gancho": "elementor/ajax/register_actions"
+			}
+		],
+		"sin_html": [
+			{
+				"ajax": "elementor_pro_forms_send_form",
+				"que": "JSON con mensaje de texto; el marcado del mensaje lo arma el JS del front (espejo)"
+			},
+			{
+				"ajax": "elementor_pro_atomic_forms_send_form",
+				"que": "JSON"
+			},
+			{
+				"ajax": "elementor_send_clicks",
+				"que": "JSON (contador de clics de los botones flotantes)"
+			},
+			{
+				"ajax": "elementor_woocommerce_checkout_login_user",
+				"que": "JSON"
+			},
+			{
+				"ajax": "elementor_wc_logout",
+				"que": "redirección"
+			},
+			{
+				"ajax": "digitalisimo_elements_interactions_play",
+				"que": "JSON de estado"
+			},
+			{
+				"ruta": "digitalisimo-elements/v1/search (DIGITALÍSIMO Navegación)",
+				"que": "JSON de resultados; el marcado lo arma su JS"
+			},
+			{
+				"ajax": "submit_stripe_form",
+				"que": "JSON (pagos)"
+			}
+		]
+	},
+	"nunca_tocar": [
+		"src, srcset, poster y href (salvo #elementor-action:) — las URL de medios como elementor-banner.jpg no cambian",
+		"texto visible del contenido",
+		"action de formularios",
+		"href de enlaces a otras páginas"
+	],
+	"excepciones_internas": [
+		{
+			"que": "metas _elementor_* en la base de datos",
+			"por_que": "almacenamiento interno; nadie las ve sin abrir la base y cambiarlas rompería sitios, kits y plantillas (DECISIONES.md)"
+		},
+		{
+			"que": "opciones elementor_* en la base de datos",
+			"por_que": "almacenamiento interno"
+		},
+		{
+			"que": "tipo de contenido elementor_library y taxonomías elementor_* en la base de datos",
+			"por_que": "almacenamiento interno; en las URL y el MCP salen como digitalisimo_*"
+		},
+		{
+			"que": "ganchos PHP elementor/… y elementor_pro/…",
+			"por_que": "API interna del motor; no salen al navegador"
+		}
+	],
+	"derivado": {
+		"huella": "2f39c079d0c0d3960f595e4069aef7a7521a9f58b5eeb3dc22b08fa182befc99",
+		"motor": "4.3.5",
+		"archivos_del_front": {
+			"motor": 269,
+			"pro": 362,
+			"propio": 178
+		},
+		"archivos_con_elementor": 499,
+		"apariciones": 40151,
+		"clases_distintas": 1493
+	}
+}
