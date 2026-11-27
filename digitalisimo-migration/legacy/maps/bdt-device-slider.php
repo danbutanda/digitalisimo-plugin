@@ -32,8 +32,11 @@ return array(
 		),
 	),
 	'filter'    => static function ( array $out ) {
+		// Element Pack pintaba celular y tableta en vertical salvo con «Horizontal Rotation State».
 		if ( 'yes' === ( $out['rotation_state'] ?? '' ) && in_array( $out['device_type'] ?? '', array( 'mobile', 'tablet' ), true ) ) {
 			$out['orientation'] = 'landscape';
+		} elseif ( 'tablet' === ( $out['device_type'] ?? '' ) ) {
+			$out['orientation'] = 'portrait';
 		}
 		if ( ! empty( $out['device_color_1'] ) && empty( $out['frame_color'] ) ) {
 			$out['frame_color'] = $out['device_color_1'];

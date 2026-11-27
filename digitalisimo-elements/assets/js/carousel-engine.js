@@ -46,13 +46,15 @@
       // Arrastre con el ratón (el dedo y el panel táctil ya desplazan la pista de forma nativa).
       var start = null, moved = false, from = 0;
       track.addEventListener('pointerdown', function (event) {
+        moved = false;
         if (event.pointerType !== 'mouse' || event.button !== 0 || (event.target.closest && event.target.closest('video, iframe, button'))) return;
         start = { x: event.clientX, left: track.scrollLeft, id: event.pointerId };
-        moved = false;
         from = index;
       });
       track.addEventListener('pointermove', function (event) {
         if (!start) return;
+        // Botón ya suelto (se soltó fuera de la pista antes de capturar el puntero): no hay arrastre.
+        if (!event.buttons) { start = null; if (moved) { moved = false; root.classList.remove('digi-carousel--dragging'); show(from); } return; }
         var dx = event.clientX - start.x;
         if (!moved && Math.abs(dx) < 6) return;
         if (!moved) { moved = true; root.classList.add('digi-carousel--dragging'); try { track.setPointerCapture(start.id); } catch (error) { /* sin captura, sigue */ } }
@@ -66,6 +68,8 @@
         if (!moved) return;
         root.classList.remove('digi-carousel--dragging');
         var forward = rtl() ? dx > 0 : dx < 0;
+        // Tras pointercancel no llega ningún clic que suprimir.
+        if (event.type === 'pointercancel') { moved = false; dx = 0; }
         show(Math.abs(dx) > width * 0.15 ? from + (forward ? 1 : -1) : from);
       };
       track.addEventListener('pointerup', end);

@@ -115,6 +115,7 @@ namespace {
 	$turned = Translator::translate( 'bdt-device-slider', array( 'device_type' => 'iphonex', 'rotation_state' => 'yes', 'device_color_1' => '#C0C0C0', 'navigation' => 'arrows_dots' ) );
 	check_adapter( 'mobile' === $turned['device_type'] && 'landscape' === $turned['orientation'] && '#C0C0C0' === $turned['frame_color'] && 'arrows_dots' === $turned['navigation'], 'Device Slider conserva la rotación horizontal, el color del aparato y flechas con puntos.' );
 	$plain = Translator::translate( 'bdt-device-slider', array( 'device_type' => 'imac', 'rotation_state' => 'yes', 'navigation' => 'dots' ) );
+	check_adapter( 'portrait' === Translator::translate( 'bdt-device-slider', array( 'device_type' => 'tablet' ) )['orientation'] && ! isset( Translator::translate( 'bdt-device-slider', array( 'device_type' => 'iphonex' ) )['orientation'] ), 'La tableta de Element Pack sin rotación se ve vertical, como allí; el celular usa la orientación automática.' );
 	check_adapter( 'desktop' === $plain['device_type'] && ! isset( $plain['orientation'], $plain['frame_color'] ) && 'dots' === $plain['navigation'] && 'arrows' === Translator::translate( 'bdt-device-slider', array( 'navigation' => 'otro' ) )['navigation'], 'El iMac es el monitor (sin rotación), los puntos se conservan y un valor desconocido usa flechas.' );
 	// El vídeo de ejemplo del plugin anterior no se escribe: sin enlace guardado, la diapositiva queda sin vídeo.
 	check_adapter( '' === $media['slides'][2]['youtube_url'], 'Device Slider no escribe el vídeo de ejemplo del plugin anterior.' );

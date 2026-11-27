@@ -103,6 +103,13 @@ namespace {
 	}
 	check_ds( str_contains( ds_render( array( 'device_type' => 'mobile', 'orientation' => 'landscape', 'gallery_images' => $images ) ), 'digi-device-slider--landscape' ) && str_contains( ds_render( array( 'device_type' => 'tablet', 'orientation' => 'landscape', 'gallery_images' => $images ) ), 'digi-device-slider--landscape' ), 'Celular y tableta pueden ir en horizontal.' );
 	check_ds( ! str_contains( ds_render( array( 'device_type' => 'laptop', 'orientation' => 'landscape', 'gallery_images' => $images ) ), '--landscape' ), 'La laptop no rota.' );
+	// «Automática»: la tableta guardada antes del rediseño (4:3 apaisada) sigue horizontal; el celular, vertical.
+	check_ds( str_contains( ds_render( array( 'device_type' => 'tablet', 'gallery_images' => $images ), true ), 'digi-device-slider--landscape' ) && ! str_contains( ds_render( array( 'device_type' => 'tablet', 'orientation' => 'portrait', 'gallery_images' => $images ) ), '--landscape' ) && ! str_contains( ds_render( array( 'device_type' => 'mobile', 'gallery_images' => $images ), true ), '--landscape' ), 'Orientación automática: tableta horizontal, celular vertical; «Vertical» la endereza.' );
+	// Una captura que no produce marcado (adjunto borrado, sin dirección) no cuenta para puntos ni flechas.
+	$gone = ds_render( array( 'navigation' => 'arrows_dots', 'gallery_images' => array( array( 'id' => 99 ), $images[0], $images[1] ) ) );
+	check_ds( 2 === substr_count( $gone, '<li class="digi-carousel__slide' ) && 2 === substr_count( $gone, 'class="digi-device-slider__dot"' ) && str_contains( $gone, 'aria-label="Captura 2 de 2"' ) && str_contains( $gone, '--digi-carousel-count:2"' ), 'Sin la captura vacía: dos capturas y dos puntos.' );
+	$lone = ds_render( array( 'gallery_images' => array( array( 'id' => 99 ), $images[0] ) ) );
+	check_ds( ! str_contains( $lone, '<button' ) && ! str_contains( $lone, 'data-digi-carousel-drag' ), 'Si sólo queda una captura con contenido, no hay navegación.' );
 	$plain = ds_render( array( 'device_type' => 'mobile', 'show_notch' => '', 'show_buttons' => '', 'image_position' => 'center', 'gallery_images' => $images ) );
 	check_ds( ! str_contains( $plain, 'digi-device-slider__island' ) && ! str_contains( $plain, '--keys' ) && str_contains( $plain, 'digi-device-slider--fit-center' ), 'Sin isla, sin botones laterales y captura centrada cuando se pide.' );
 

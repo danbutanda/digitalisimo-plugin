@@ -146,7 +146,8 @@ try {
   const DEVICES = [
     { name: 'celular', s: { device_type: 'mobile' }, img: 'phone' },
     { name: 'celular-horizontal', s: { device_type: 'mobile', orientation: 'landscape' }, img: 'wide' },
-    { name: 'tableta', s: { device_type: 'tablet' }, img: 'phone' },
+    { name: 'tableta', s: { device_type: 'tablet' }, img: 'wide' },
+    { name: 'tableta-vertical', s: { device_type: 'tablet', orientation: 'portrait' }, img: 'phone' },
     { name: 'laptop', s: { device_type: 'laptop' }, img: 'wide' },
     { name: 'monitor', s: { device_type: 'desktop' }, img: 'wide' },
     { name: 'navegador', s: { device_type: 'browser', frame_style: 'white' }, img: 'wide' },

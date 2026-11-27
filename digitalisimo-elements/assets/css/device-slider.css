@@ -39,7 +39,7 @@
 .digi-device-slider:where(.digi-device-slider--mobile){max-width:340px}
 .digi-device-slider:where(.digi-device-slider--mobile.digi-device-slider--landscape){max-width:720px}
 .digi-device-slider:where(.digi-device-slider--tablet){max-width:560px}
-.digi-device-slider:where(.digi-device-slider--tablet.digi-device-slider--landscape){max-width:800px}
+.digi-device-slider:where(.digi-device-slider--tablet.digi-device-slider--landscape){max-width:760px}
 
 .digi-device-slider .digi-carousel{--digi-carousel-visible:1;--digi-carousel-gap:0px;position:relative;margin:0;padding:0;background:none}
 .digi-device-slider__device{position:relative}
@@ -152,9 +152,11 @@ a.digi-device-slider__title{color:#fff;text-decoration:underline}
 .digi-device-slider button.digi-device-slider__arrow--prev{inset-inline-end:calc(100% + var(--digi-ds-gap))}
 .digi-device-slider button.digi-device-slider__arrow--next{inset-inline-start:calc(100% + var(--digi-ds-gap))}
 .digi-device-slider button.digi-device-slider__arrow:hover:not([disabled]){background:var(--digi-ds-arrow-bg-hover,var(--digi-ds-arrow-bg));transform:translateY(-50%) scale(1.07)}
+.digi-device-slider button.digi-device-slider__arrow:focus:not(:hover){background:var(--digi-ds-arrow-bg)}
 .digi-device-slider button.digi-device-slider__arrow:focus-visible{outline:3px solid var(--digi-ds-focus);outline-offset:3px}
 .digi-device-slider button.digi-device-slider__arrow[disabled]{opacity:.35;cursor:default}
-.digi-device-slider__chevron{display:block;width:46%;height:46%;pointer-events:none}
+.digi-device-slider__chevron{display:block;width:46%;height:46%;pointer-events:none;filter:drop-shadow(0 0 1px rgba(0,0,0,.75))}
+@supports (color:lch(from red l c h)){.digi-device-slider__chevron{filter:none}}
 .digi-device-slider__arrow--next .digi-device-slider__chevron,[dir="rtl"] .digi-device-slider__arrow--prev .digi-device-slider__chevron{transform:scaleX(-1)}
 [dir="rtl"] .digi-device-slider__arrow--next .digi-device-slider__chevron{transform:none}
 
@@ -162,8 +164,9 @@ a.digi-device-slider__title{color:#fff;text-decoration:underline}
 .digi-device-slider__nav{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.125rem;margin-top:var(--digi-ds-gap);min-height:1.5rem}
 .digi-device-slider--arrows:not(.digi-device-slider--dots) .digi-device-slider__nav{display:none}
 .digi-device-slider button.digi-device-slider__dot{display:inline-grid;place-items:center;width:1.5rem;height:1.5rem;min-width:0;min-height:0;margin:0;padding:0;border:0;border-radius:999px;background:transparent;box-shadow:none;cursor:pointer}
-.digi-device-slider button.digi-device-slider__dot::before{content:"";width:.5rem;height:.5rem;border-radius:999px;background:rgba(17,24,39,.38);box-shadow:0 0 0 1.5px rgba(255,255,255,.8);transition:width .2s ease,background-color .2s ease}
+.digi-device-slider button.digi-device-slider__dot::before{content:"";width:.5rem;height:.5rem;border-radius:999px;background:rgba(17,24,39,.58);box-shadow:0 0 0 1.5px rgba(255,255,255,.8);transition:width .2s ease,background-color .2s ease}
 .digi-device-slider button.digi-device-slider__dot[aria-current="true"]::before{width:1.25rem;background:var(--digi-ds-arrow-bg)}
+.digi-device-slider button.digi-device-slider__dot:hover,.digi-device-slider button.digi-device-slider__dot:focus{background:transparent;box-shadow:none;color:inherit}
 .digi-device-slider button.digi-device-slider__dot:hover::before{background:var(--digi-ds-arrow-bg-hover,var(--digi-ds-arrow-bg))}
 .digi-device-slider button.digi-device-slider__dot:focus-visible{outline:3px solid var(--digi-ds-focus);outline-offset:1px}
 
@@ -172,8 +175,9 @@ a.digi-device-slider__title{color:#fff;text-decoration:underline}
 	.digi-device-slider--arrows{padding-inline:0}
 	.digi-device-slider--arrows .digi-device-slider__nav,.digi-device-slider--arrows:not(.digi-device-slider--dots) .digi-device-slider__nav{display:flex;min-height:var(--digi-ds-arrow);padding-inline:calc(var(--digi-ds-arrow) + .5rem)}
 	.digi-device-slider button.digi-device-slider__arrow{top:calc(100% + var(--below)/var(--fh)*100% + var(--digi-ds-gap) + var(--digi-ds-arrow)/2)}
-	.digi-device-slider button.digi-device-slider__arrow--prev{inset-inline-start:0;inset-inline-end:auto}
-	.digi-device-slider button.digi-device-slider__arrow--next{inset-inline-start:auto;inset-inline-end:0}
+	/* En el borde del dispositivo, no del marco (la tapa de la laptop es más angosta), como el relleno de los puntos. */
+	.digi-device-slider button.digi-device-slider__arrow--prev{inset-inline-start:calc((var(--fw) - 1)/var(--fw)*50%);inset-inline-end:auto}
+	.digi-device-slider button.digi-device-slider__arrow--next{inset-inline-start:auto;inset-inline-end:calc((var(--fw) - 1)/var(--fw)*50%)}
 }
 
 @media (prefers-reduced-motion:reduce){

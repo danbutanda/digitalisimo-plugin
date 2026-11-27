@@ -37,11 +37,15 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 		$facade = method_exists( $this, 'is_type_instance' ) && ! $this->is_type_instance() && method_exists( $this, 'get_settings_for_display' ) ? self::facade_depends( (array) $this->get_settings_for_display() ) : array();
 		return array_merge( array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider' ), $facade );
 	}
-	/** El motor mueve flechas y puntos y arrastra con el ratón: sin navegación no se carga. El script de la fachada, sólo con YouTube. */
+	/**
+	 * El motor mueve flechas y puntos y arrastra con el ratón: con una sola captura no se carga. Con la navegación
+	 * desactivada también hace falta, para arrastrar (la pista ya no muestra barra de desplazamiento). El script de la
+	 * fachada, sólo con YouTube.
+	 */
 	public function get_script_depends() {
-		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) { return array( 'digitalisimo-carousel-engine' ); }
-		$s = (array) $this->get_settings();
-		return array_merge( 'none' === ( $s['navigation'] ?? 'arrows' ) ? array() : array( 'digitalisimo-carousel-engine' ), method_exists( $this, 'get_settings_for_display' ) ? self::facade_depends( (array) $this->get_settings_for_display() ) : array() );
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings_for_display' ) ) { return array( 'digitalisimo-carousel-engine' ); }
+		$s = (array) $this->get_settings_for_display();
+		return array_merge( count( self::items( $s ) ) > 1 ? array( 'digitalisimo-carousel-engine' ) : array(), self::facade_depends( $s ) );
 	}
 
 	/** ¿Están aplicadas las fachadas en esta petición? */
@@ -70,7 +74,7 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 		$c = '\\Elementor\\Controls_Manager';
 		$this->start_controls_section( 'section_device', array( 'label' => 'Dispositivo y capturas' ) );
 		$this->add_control( 'device_type', array( 'label' => 'Dispositivo', 'type' => $c::SELECT, 'default' => 'desktop', 'options' => self::DEVICES ) );
-		$this->add_control( 'orientation', array( 'label' => 'Orientación', 'type' => $c::SELECT, 'default' => 'portrait', 'options' => array( 'portrait' => 'Vertical', 'landscape' => 'Horizontal' ), 'condition' => array( 'device_type' => array( 'mobile', 'tablet' ) ) ) );
+		$this->add_control( 'orientation', array( 'label' => 'Orientación', 'type' => $c::SELECT, 'default' => '', 'options' => array( '' => 'Automática (celular vertical, tableta horizontal)', 'portrait' => 'Vertical', 'landscape' => 'Horizontal' ), 'condition' => array( 'device_type' => array( 'mobile', 'tablet' ) ) ) );
 		$this->add_control( 'frame_style', array( 'label' => 'Color del dispositivo', 'type' => $c::SELECT, 'default' => 'black', 'options' => self::FRAMES ) );
 		$this->add_control( 'show_notch', array( 'label' => 'Isla de la cámara', 'type' => $c::SWITCHER, 'default' => 'yes', 'condition' => array( 'device_type' => 'mobile' ) ) );
 		$this->add_control( 'show_buttons', array( 'label' => 'Botones laterales', 'type' => $c::SWITCHER, 'default' => 'yes', 'condition' => array( 'device_type' => array( 'mobile', 'tablet' ) ) ) );
@@ -129,7 +133,9 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 		$type   = isset( self::DEVICES[ $s['device_type'] ?? '' ] ) ? $s['device_type'] : 'desktop';
 		$frame  = isset( self::FRAMES[ $s['frame_style'] ?? '' ] ) ? $s['frame_style'] : 'black';
 		$nav    = isset( self::NAVIGATION[ $s['navigation'] ?? '' ] ) ? $s['navigation'] : 'arrows';
-		$rotate = in_array( $type, array( 'mobile', 'tablet' ), true ) && 'landscape' === ( $s['orientation'] ?? '' );
+		// «Automática»: la tableta va en horizontal, como la pintaba el widget antes del rediseño (4:3 apaisado).
+		$turn   = (string) ( $s['orientation'] ?? '' );
+		$rotate = ( 'mobile' === $type && 'landscape' === $turn ) || ( 'tablet' === $type && 'portrait' !== $turn );
 		$notch  = 'mobile' === $type && '' !== (string) ( $s['show_notch'] ?? 'yes' );
 		$keys   = in_array( $type, array( 'mobile', 'tablet' ), true ) && '' !== (string) ( $s['show_buttons'] ?? 'yes' );
 		$arrows = $count > 1 && in_array( $nav, array( 'arrows', 'arrows_dots' ), true );
@@ -154,13 +160,11 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 		$s = $this->get_settings_for_display();
 		$items = self::items( $s );
 		if ( ! $items ) { return; }
-		$o     = self::options( $s, count( $items ) );
 		$size  = in_array( $s['image_size'] ?? 'large', array( 'medium', 'large', 'full' ), true ) ? ( $s['image_size'] ?? 'large' ) : 'large';
-		$sizes = self::image_sizes( $o );
-		echo '<div class="' . esc_attr( $o['class'] ) . '">';
-		echo '<section class="digi-carousel digi-device-slider__carousel" role="region" aria-roledescription="carrusel" aria-label="Capturas de dispositivo" style="--digi-carousel-count:' . count( $items ) . '"' . ( $o['dots'] ? ' data-digi-carousel-dots' : '' ) . ( count( $items ) > 1 ? ' data-digi-carousel-drag' : '' ) . '>';
-		echo '<div class="digi-device-slider__device"><div class="digi-device-slider__frame">';
-		echo '<div class="digi-device-slider__screen"><div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides">';
+		$sizes = self::image_sizes( self::options( $s, 1 ) );
+		// Primero el contenido de cada captura: las que no producen nada (un adjunto borrado) no cuentan para los
+		// puntos, las flechas ni el arrastre.
+		$slides = array();
 		foreach ( $items as $index => $item ) {
 			$title = trim( wp_strip_all_tags( (string) ( $item['title'] ?? '' ) ) );
 			$markup = '';
@@ -179,7 +183,16 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 				if ( '' !== $sizes ) { $args['sizes'] = $sizes; } else { $args['columns'] = array( 1 ); }
 				$markup = Image_Markup::img( $item['image'], $args );
 			}
-			if ( ! $markup ) { continue; }
+			if ( $markup ) { $slides[] = array( $index, $item, $title, $markup ); }
+		}
+		if ( ! $slides ) { return; }
+		$count = count( $slides );
+		$o     = self::options( $s, $count );
+		echo '<div class="' . esc_attr( $o['class'] ) . '">';
+		echo '<section class="digi-carousel digi-device-slider__carousel" role="region" aria-roledescription="carrusel" aria-label="Capturas de dispositivo" style="--digi-carousel-count:' . $count . '"' . ( $o['dots'] ? ' data-digi-carousel-dots' : '' ) . ( $count > 1 ? ' data-digi-carousel-drag' : '' ) . '>';
+		echo '<div class="digi-device-slider__device"><div class="digi-device-slider__frame">';
+		echo '<div class="digi-device-slider__screen"><div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides">';
+		foreach ( $slides as list( $index, $item, $title, $markup ) ) {
 			echo '<li class="digi-carousel__slide digi-device-slider__slide' . ( ! empty( $item['_id'] ) ? ' elementor-repeater-item-' . esc_attr( sanitize_html_class( (string) $item['_id'] ) ) : '' ) . '">';
 			$link = is_array( $item['link'] ?? null ) ? $item['link'] : array();
 			if ( ! empty( $link['url'] ) ) {
@@ -214,8 +227,8 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 		if ( $o['arrows'] || $o['dots'] ) {
 			echo '<div class="digi-device-slider__nav">';
 			if ( $o['dots'] ) {
-				foreach ( array_keys( $items ) as $index ) {
-					echo '<button class="digi-device-slider__dot" type="button" data-digi-carousel-dot="' . (int) $index . '" aria-label="' . esc_attr( sprintf( 'Captura %d de %d', $index + 1, count( $items ) ) ) . '"' . ( 0 === $index ? ' aria-current="true"' : '' ) . '></button>';
+				for ( $index = 0; $index < $count; $index++ ) {
+					echo '<button class="digi-device-slider__dot" type="button" data-digi-carousel-dot="' . $index . '" aria-label="' . esc_attr( sprintf( 'Captura %d de %d', $index + 1, $count ) ) . '"' . ( 0 === $index ? ' aria-current="true"' : '' ) . '></button>';
 				}
 			}
 			echo '</div>';
@@ -232,7 +245,7 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 		var items = (settings.gallery_images || []).map(function(image){ return { background:'image', image:image }; }).concat(settings.slides || []).filter(function(item){ if (!item) return false; var kind = item.background || 'image'; return kind === 'color' || (kind === 'image' && item.image && item.image.url) || (kind === 'video' && item.video && item.video.url) || (kind === 'youtube' && ytId(item.youtube_url)); });
 		var linkRel = function(link){ return [ link && link.nofollow ? 'nofollow' : '', link && link.is_external ? 'noopener noreferrer' : '' ].filter(Boolean).join(' '); };
 		var handheld = type === 'mobile' || type === 'tablet';
-		var landscape = handheld && settings.orientation === 'landscape';
+		var landscape = (type === 'mobile' && settings.orientation === 'landscape') || (type === 'tablet' && settings.orientation !== 'portrait');
 		var notch = type === 'mobile' && settings.show_notch !== '';
 		var keys = handheld && settings.show_buttons !== '';
 		var arrows = items.length > 1 && (nav === 'arrows' || nav === 'arrows_dots');
