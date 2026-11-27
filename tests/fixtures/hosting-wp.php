@@ -57,7 +57,7 @@ function get_option( $k, $d = false ) {
 	if ( ! array_key_exists( $k, $GLOBALS['rt_opt'] ) ) { if ( ! array_key_exists( $k, $GLOBALS['options'] ) ) return $d; $GLOBALS['rt_opt'][ $k ] = $GLOBALS['options'][ $k ]; }
 	return $GLOBALS['rt_opt'][ $k ];
 }
-function update_option( $k, $v, $a = null ) { $GLOBALS['options'][ $k ] = $v; unset( $GLOBALS['rt_opt'][ $k ] ); return true; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['options'][ $k ] = $v; $GLOBALS['options_autoload'][ $k ] = $a; unset( $GLOBALS['rt_opt'][ $k ] ); return true; }
 function add_option( $k, $v = '', $x = '', $a = null ) { unset( $GLOBALS['rt_opt'][ $k ] ); if ( array_key_exists( $k, $GLOBALS['options'] ) ) return false; $GLOBALS['options'][ $k ] = $v; return true; }
 function delete_option( $k ) { unset( $GLOBALS['options'][ $k ], $GLOBALS['rt_opt'][ $k ] ); return true; }
 function wp_load_alloptions() { return $GLOBALS['options']; }
@@ -254,7 +254,12 @@ class WC_Order {
 	public function get_address( $t ) { return $this->billing; }
 	public function set_address( $a, $t ) { $this->billing = $a; }
 	public function get_item( $id ) { return $this->items[ $id - 1 ] ?? false; }
-	public function add_product( $p, $qty ) { $this->items[] = new Digi_Test_Item( $p->get_id(), $p->get_name(), $qty ); $this->total += (float) $p->get_price(); return count( $this->items ); }
+	public function add_product( $p, $qty ) { $this->items[] = new Digi_Test_Item( $p->get_id(), $p->get_name(), $qty ); $this->total += (float) $p->get_price(); end( $this->items ); return key( $this->items ) + 1; }
+	/** Como WC_Order::remove_item(): quita la línea (la clave de get_items()) y su importe del total. */
+	public function remove_item( $key ) { if ( ! isset( $this->items[ $key ] ) ) return false; $this->total -= (float) $this->items[ $key ]->get_total(); unset( $this->items[ $key ] ); return true; }
+	public function set_payment_method( $m ) { $this->method = (string) $m; }
+	public function set_payment_method_title( $t ) { $this->method_title = (string) $t; }
+	public $method_title = '';
 	public function calculate_totals() { return $this->total; }
 	public function needs_payment() { return in_array( $this->status, array( 'pending', 'failed' ), true ); }
 	public function is_paid() { return in_array( $this->status, array( 'processing', 'completed' ), true ); }

@@ -500,7 +500,13 @@ class Digitalisimo_Hosting_Provisioning {
 	 */
 	private static function maybe_complete( $order, $note = '' ) {
 		$state = self::state( $order );
-		if ( empty( $state['done'] ) ) return;
+		if ( empty( $state['done'] ) ) {
+			// El servicio del plan se dio de baja: no se completa solo (puede tocar reembolsar), pero se dice cuando los demás
+			// dominios terminaron.
+			$sid = (int) $order->get_meta( self::META_SERVICE );
+			if ( $sid && 'cancelled' === self::svc( $sid, 'status' ) && self::extras_state( $order ) && ! self::extras_state( $order, true ) ) self::note_once( $order, 'extras_done_main_cancelled', 'los demás dominios del pedido quedaron listos; el servicio del plan está dado de baja: revisa si corresponde reembolsar y completa el pedido a mano.' );
+			return;
+		}
 		$status = self::db_order_status( $order );
 		if ( ! in_array( $status, array( 'processing', 'on-hold' ), true ) ) return;
 		$pending = self::extras_state( $order, true );
@@ -530,6 +536,16 @@ class Digitalisimo_Hosting_Provisioning {
 		$ny = $y + intdiv( $total, 12 ); $nm = $total % 12 + 1;
 		$last = (int) gmdate( 't', gmmktime( 0, 0, 0, $nm, 1, $ny ) );
 		return gmmktime( (int) gmdate( 'G', $ts ), (int) gmdate( 'i', $ts ), (int) gmdate( 's', $ts ), $nm, min( $d, $last ), $ny );
+	}
+
+	/** $ts menos $months meses (lo inverso de add_months()). */
+	public static function sub_months( $ts, $months ) {
+		$ts = (int) $ts; $months = max( 1, (int) $months );
+		if ( 0 === $months % 12 ) return (int) strtotime( '-' . ( $months / 12 ) . ' year', $ts );
+		$total = (int) gmdate( 'Y', $ts ) * 12 + (int) gmdate( 'n', $ts ) - 1 - $months;
+		$ny = intdiv( $total, 12 ); $nm = $total % 12 + 1;
+		$last = (int) gmdate( 't', gmmktime( 0, 0, 0, $nm, 1, $ny ) );
+		return gmmktime( (int) gmdate( 'G', $ts ), (int) gmdate( 'i', $ts ), (int) gmdate( 's', $ts ), $nm, min( (int) gmdate( 'j', $ts ), $last ), $ny );
 	}
 
 	/** Días de los dos avisos antes de vencer, según el periodo: mensual 7 y 3; trimestral 15 y 7; los demás 30 y 7. */
@@ -570,8 +586,29 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( ! (int) self::svc( $id, 'domain_product' ) || (int) self::svc( $id, 'domain_expires' ) ) return false;
 		$exp = (int) self::svc( $id, 'expires' );
 		if ( ! $exp ) return false;
+		// Una renovación que la versión anterior dejó a medias (hosting ya extendido, dominio sin renovar): `expires` ya se
+		// movió; el dominio vence donde estaba, `extended` menos el periodo pagado (tercera verificación, sonda 20).
+		if ( function_exists( 'wc_get_order' ) ) {
+			foreach ( array_unique( array_filter( array( (int) self::svc( $id, 'domain_pending_order' ), (int) self::svc( $id, 'renewal_order' ) ) ) ) as $rid ) {
+				$r = wc_get_order( $rid );
+				$from = $r ? self::legacy_domain_from( $r, (array) $r->get_meta( self::META_RENEW ), $id ) : 0;
+				if ( $from ) { $exp = $from; break; }
+			}
+		}
 		self::svc_set( $id, array( 'domain_expires' => $exp ) );
 		return true;
+	}
+
+	/**
+	 * El vencimiento del dominio antes de una renovación que quedó a medias sin `domain_from` (la dejó así la versión
+	 * anterior: hosting extendido, dominio detenido): `extended` menos el periodo pagado. 0 si no es ese caso.
+	 */
+	private static function legacy_domain_from( $order, array $state, $id ) {
+		if ( ! empty( $state['domain_from'] ) || empty( $state['extended'] ) || ! empty( $state['domain_extended'] ) || ! empty( $state['done'] ) ) return 0;
+		$parts = self::order_parts( $order, $id );
+		if ( empty( $parts['domain'] ) ) return 0;
+		$months = self::has_hosting( $id ) ? (int) $parts['period'] : 12 * max( 1, intdiv( (int) $parts['period'], 12 ) );
+		return self::sub_months( (int) $state['extended'], $months );
 	}
 
 	/** Marca de la migración que rellena `domain_expires` en los servicios con dominio de antes de esta versión. */
@@ -586,7 +623,8 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( get_option( self::DOMAIN_EXPIRES_MIGRATED ) ) return 0;
 		$n = 0;
 		foreach ( self::services() as $id ) if ( self::fill_domain_expires( $id ) ) $n++;
-		update_option( self::DOMAIN_EXPIRES_MIGRATED, time(), false );
+		// Con carga automática, como LEGACY_MIGRATED: se lee en cada `init` y así no cuesta una consulta por petición.
+		update_option( self::DOMAIN_EXPIRES_MIGRATED, time(), true );
 		return $n;
 	}
 
@@ -777,7 +815,13 @@ class Digitalisimo_Hosting_Provisioning {
 			return;
 		}
 		$sid = (int) $order->get_meta( self::META_SERVICE );
-		if ( $sid && 'cancelled' === self::svc( $sid, 'status' ) ) { self::note_once( $order, 'cancelled', 'el servicio está dado de baja: no se aprovisiona.' ); return; }
+		if ( $sid && 'cancelled' === self::svc( $sid, 'status' ) ) {
+			// El servicio del plan se dio de baja: el plan no se aprovisiona, pero los demás dominios del pedido siguen.
+			self::note_once( $order, 'cancelled', 'el servicio está dado de baja: no se aprovisiona.' );
+			if ( $mark ) { $order->delete_meta_data( '_digitalisimo_retry' ); $order->save(); }
+			self::run_extras( $order, self::split_main( self::items( $order ) )[1], $mark );
+			return;
+		}
 		$state = self::take_retry( $order, $state, self::META_STATE );
 		// El plan detenido por algo que no es la red (saldo, datos, revisión, dueño) espera «Reintentar»: una tarea que
 		// corre sólo por los demás dominios no lo vuelve a intentar (ni repite su aviso).
@@ -1468,7 +1512,7 @@ class Digitalisimo_Hosting_Provisioning {
 		self::svc_set( $id, array( 'status' => 'cancelled', 'pending_toggle' => array(), 'suspend_reason' => '', 'suspend_for' => 0, 'error' => '', 'cancelled_at' => time() ) );
 		self::svc_log( $id, 'Dado de baja: sin renovaciones ni suspensiones automáticas.' );
 		// Un dominio más del pedido dado de baja ya no detiene el pedido: se revisa si queda algo pendiente para completarlo.
-		if ( self::is_extra( $id ) && self::on() ) { $o = wc_get_order( (int) self::svc( $id, 'order' ) ); if ( $o && ! empty( self::state( $o )['done'] ) ) self::maybe_complete( $o ); }
+		if ( self::is_extra( $id ) && self::on() ) { $o = wc_get_order( (int) self::svc( $id, 'order' ) ); if ( $o ) self::maybe_complete( $o ); }
 		foreach ( array( 'renewal_order', 'domain_renewal_order' ) as $slot ) { $r = wc_get_order( (int) self::svc( $id, $slot ) ); if ( $r ) $r->add_order_note( 'DIGITALÍSIMO Hosting: el servicio se dio de baja; esta renovación ya no aplica.' ); }
 		return true;
 	}
@@ -1837,7 +1881,9 @@ class Digitalisimo_Hosting_Provisioning {
 			// El dominio de un servicio con hosting: su vencimiento sólo se mueve cuando el registrador confirmó la renovación
 			// (también en un reintento posterior), y la otra renovación del dominio que siga sin pagar ya no aplica.
 			if ( ! $dstop && ! empty( $parts['domain'] ) && $hosting && empty( $state['domain_extended'] ) ) {
-				$od = ! empty( $state['domain_from'] ) ? (int) $state['domain_from'] : self::domain_due( $id );
+				// Sin `domain_from` y con el hosting ya extendido (renovación de la versión anterior): `extended` menos el periodo.
+				$legacy = self::legacy_domain_from( $order, $state, $id );
+				$od = ! empty( $state['domain_from'] ) ? (int) $state['domain_from'] : ( $legacy ? $legacy : self::domain_due( $id ) );
 				$state['domain_extended'] = (int) strtotime( '+1 year', $od ? $od : time() );
 				$order->update_meta_data( self::META_RENEW, $state ); $order->save();
 				self::svc_set( $id, array( 'domain_expires' => $state['domain_extended'], 'domain_lapsed' => 0 ) );
@@ -1873,8 +1919,16 @@ class Digitalisimo_Hosting_Provisioning {
 		$domain = (string) self::svc( $id, 'domain' );
 		$info = $nc->info( $domain );
 		if ( 'ok' !== $info['kind'] || empty( $info['ours'] ) ) return false;
-		self::svc_set( $id, array( 'transfer_pending' => 0, 'domain_registered' => 1, 'registrar' => $nc->id() ) );
-		self::svc_log( $id, 'Transferencia de ' . $domain . ' terminada: el dominio ya está en la cuenta de ' . $nc->label() . '.' );
+		$set = array( 'transfer_pending' => 0, 'domain_registered' => 1, 'registrar' => $nc->id() );
+		// El vencimiento real del registrador manda (una transferencia llega con los días que le quedaban): la renovación y
+		// los avisos salen de esa fecha. Un servicio que es sólo el dominio vence con él.
+		$real = (int) ( $info['expires'] ?? 0 );
+		if ( $real > 0 ) {
+			$set += array( 'domain_expires' => $real, 'domain_lapsed' => 0, 'domain_notices' => array() );
+			if ( ! self::has_hosting( $id ) ) $set += array( 'expires' => $real, 'notices' => array() );
+		}
+		self::svc_set( $id, $set );
+		self::svc_log( $id, 'Transferencia de ' . $domain . ' terminada: el dominio ya está en la cuenta de ' . $nc->label() . ( $real > 0 ? ' y vence el ' . self::date( $real ) : '' ) . '.' );
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( (int) self::svc( $id, 'order' ) ) : null;
 		if ( $order ) {
 			// Sólo el código de ESTE dominio: el de otra transferencia del mismo pedido sigue haciendo falta (N3).
@@ -2059,8 +2113,7 @@ class Digitalisimo_Hosting_Provisioning {
 			// nada; el vencimiento que se guarda es el del registrador (N5).
 			$registrar_due = 0;
 			if ( $elsewhere ) {
-				$target = $hosting ? (int) strtotime( '+1 year', $od_before ? $od_before : time() ) : self::add_months( $old ? $old : time(), $months );
-				$registrar_due = self::registrar_due( $id, $target );
+				$registrar_due = self::registrar_due( $id, $years, $od_before ? $od_before : ( $old ? $old : time() ) );
 				if ( is_wp_error( $registrar_due ) ) return $registrar_due;
 			}
 			$seen = self::svc( $id, 'manual_keys' ); $seen = is_array( $seen ) ? $seen : array();
@@ -2169,11 +2222,14 @@ class Digitalisimo_Hosting_Provisioning {
 	}
 
 	/**
-	 * «Ya lo renové yo en el registrador» se comprueba (consulta de sólo lectura): el vencimiento real del dominio en su
-	 * registrador debe alcanzar la fecha que se paga ($target; dos días de margen porque el registrador da la fecha en su
-	 * hora). Devuelve ese vencimiento o un WP_Error que dice qué falta; nada se escribe (segunda revisión, N5).
+	 * «Ya lo renové yo en el registrador» se comprueba (consulta de sólo lectura): el registrador debe haber avanzado los
+	 * $years años pagados respecto de SU fecha anterior, no de la del servicio (pueden diferir unos días: el dominio se
+	 * registró antes de entregarse el pedido, o llegó por transferencia). Esa fecha anterior es la del registrador que
+	 * queda más cerca de $base (el vencimiento del dominio según el servicio) restando años enteros, que es como renuevan
+	 * los registradores. Devuelve el vencimiento del registrador o un WP_Error que dice qué falta; nada se escribe
+	 * (segunda revisión, N5; tercera verificación, sonda 22).
 	 */
-	private static function registrar_due( $id, $target ) {
+	private static function registrar_due( $id, $years, $base ) {
 		$domain = (string) self::svc( $id, 'domain' );
 		$nc = Digitalisimo_Hosting_Registrars::make( Digitalisimo_Hosting_Registrars::of_service( $id ) );
 		$rl = $nc->label();
@@ -2184,8 +2240,32 @@ class Digitalisimo_Hosting_Provisioning {
 		if ( empty( $info['ours'] ) ) return $fail( 'El dominio ' . $domain . ' no está en la cuenta de ' . $rl . ': no se puede dar por renovado.' );
 		$due = (int) ( $info['expires'] ?? 0 );
 		if ( $due <= 0 ) return $fail( $rl . ' no informó cuándo vence ' . $domain . ': no se puede comprobar la renovación.' );
-		if ( $due < (int) $target - 2 * DAY_IN_SECONDS ) return $fail( 'En ' . $rl . ' el dominio ' . $domain . ' vence el ' . self::date( $due ) . ', y con lo que se paga debería vencer el ' . self::date( (int) $target ) . ': la renovación en el registrador no alcanza. Renuévalo allá o elige «Renovar el dominio con su registrador».' );
+		$years = max( 1, (int) $years );
+		$advanced = self::registrar_years( $due, (int) $base );
+		if ( $advanced < $years ) {
+			$before = (int) strtotime( '-' . max( 0, $advanced ) . ' year', $due );
+			return $fail( 'En ' . $rl . ' el dominio ' . $domain . ' vence el ' . self::date( $due ) . ': respecto de su vencimiento anterior en el registrador (' . self::date( $before ) . ') avanzó ' . max( 0, $advanced ) . ( 1 === max( 0, $advanced ) ? ' año' : ' años' ) . ' y se pagan ' . $years . '. La renovación en el registrador no alcanza: renuévalo allá o elige «Renovar el dominio con su registrador».' );
+		}
 		return $due;
+	}
+
+	/** Cuántos años enteros avanzó el registrador ($due) desde su fecha más cercana a $base (puede ser 0 o negativo). */
+	private static function registrar_years( $due, $base ) {
+		$best = 0; $gap = abs( $due - $base );
+		for ( $k = -3; $k <= 12; $k++ ) {
+			$prev = (int) strtotime( ( $k >= 0 ? '-' : '+' ) . abs( $k ) . ' year', $due );
+			if ( abs( $prev - $base ) < $gap ) { $gap = abs( $prev - $base ); $best = $k; }
+		}
+		return $best;
+	}
+
+	/** El vencimiento del dominio hoy en su registrador (sólo lectura), para mostrarlo en el formulario; 0 si no se pudo. */
+	public static function registrar_now( $id ) {
+		if ( ! self::svc( $id, 'domain_registered' ) ) return 0;
+		$nc = Digitalisimo_Hosting_Registrars::make( Digitalisimo_Hosting_Registrars::of_service( $id ) );
+		if ( ! $nc->configured() ) return 0;
+		$info = $nc->info( (string) self::svc( $id, 'domain' ), 15 );
+		return 'ok' === $info['kind'] && ! empty( $info['ours'] ) ? (int) ( $info['expires'] ?? 0 ) : 0;
 	}
 
 	/** El resultado de un pago ya registrado (o a medias) con esa clave, o null. */

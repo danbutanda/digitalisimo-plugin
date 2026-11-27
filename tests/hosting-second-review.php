@@ -219,7 +219,7 @@ store();
 $o = paid( array( new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'dijoquesi.com' ) ) ), 'ana@dijoquesi.com' );
 $s = (int) $o->get_meta( '_digitalisimo_service' ); $exp = (int) $P::svc( $s, 'expires' ); $no = $GLOBALS['next_order']; $GLOBALS['mails'] = array();
 $e = $P::manual_payment( $s, array( 'months' => 36, 'method' => 'cash', 'renewed_elsewhere' => true, 'key' => 'n5a' ) );
-check( is_wp_error( $e ) && false !== strpos( $e->get_error_message(), 'la renovación en el registrador no alcanza' ) && $exp === (int) $P::svc( $s, 'expires' ) && $no === $GLOBALS['next_order'] && ! $P::svc( $s, 'manual_keys' ), 'N5 «ya lo renové» de 3 años sin renovar en el registrador: error y nada registrado' );
+check( is_wp_error( $e ) && false !== strpos( $e->get_error_message(), 'renovación en el registrador no alcanza' ) && $exp === (int) $P::svc( $s, 'expires' ) && $no === $GLOBALS['next_order'] && ! $P::svc( $s, 'manual_keys' ), 'N5 «ya lo renové» de 3 años sin renovar en el registrador: error y nada registrado' );
 $GLOBALS['nc']['domains']['dijoquesi.com'] = strtotime( '+1 year', $GLOBALS['nc']['domains']['dijoquesi.com'] );
 $e = $P::manual_payment( $s, array( 'months' => 36, 'method' => 'cash', 'renewed_elsewhere' => true, 'key' => 'n5b' ) );
 check( is_wp_error( $e ) && $exp === (int) $P::svc( $s, 'expires' ), 'N5 renovado sólo un año de los tres pagados: tampoco alcanza' );
@@ -293,5 +293,74 @@ $dyn->price( 'lat', 'REGISTER', 15 ); $GLOBALS['dd']['calls'] = array();
 $c = $dyn->check( 'caro.lat', 15 );
 check( true === $c['premium'] && 1 === dd_count( 'tld_price' ), 'R3 un precio especial de verdad sigue siendo premium tras pedir la lista otra vez' );
 $GLOBALS['real_transients'] = 0; $GLOBALS['transients'] = array();
+
+// ── Tercera verificación (sobre 522cbdfd): cinco puntos chicos y el pedido simulado completo ───────────────────
+// Sonda 20: una renovación que la versión anterior dejó a medias (hosting ya extendido, dominio detenido por saldo).
+store();
+$o = paid( array( new Digi_Test_Item( 14693, 'Web Hosting Starter' ), new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'amedias.com' ) ) ), 'ana@amedias.com' );
+$s = (int) $o->get_meta( '_digitalisimo_service' ); $E = (int) $P::svc( $s, 'expires' ); $reg = $GLOBALS['nc']['domains']['amedias.com'];
+$r = wc_create_order( array( 'customer_id' => 0 ) ); $r->add_product( wc_get_product( 14693 ), 1 ); $iid = $r->add_product( wc_get_product( 20 ), 1 ); $r->get_item( $iid )->add_meta_data( 'Dominio', 'amedias.com', true );
+$r->update_meta_data( '_digitalisimo_renewal_of', $s ); $r->update_meta_data( '_digitalisimo_renew', array( 'paid' => time(), 'unsuspended' => time(), 'extended' => strtotime( '+1 year', $E ), 'stopped' => 'funds' ) );
+$r->status = 'on-hold'; $r->date_paid = time(); $r->save();
+foreach ( array( 'domain_expires', 'period', 'registrar' ) as $k ) delete_post_meta( $s, '_dhs_' . $k );
+$P::svc_set( $s, array( 'expires' => strtotime( '+1 year', $E ), 'domain_pending_order' => $r->get_id(), 'renewal_order' => 0 ) );
+delete_option( $P::DOMAIN_EXPIRES_MIGRATED ); $P::migrate_domain_expires();
+check( ymd( $E ) === ymd( $P::domain_due( $s ) ), 'Sonda 20: la migración deja el dominio donde estaba (extended menos el periodo), no en el hosting ya extendido · ' . ymd( $P::domain_due( $s ) ) );
+check( true === ( $GLOBALS['options_autoload'][ $P::DOMAIN_EXPIRES_MIGRATED ] ?? null ), 'Menor 4: la marca de la migración se guarda con carga automática (como LEGACY_MIGRATED)' );
+// Como la dejaría una migración que copió el `expires` ya movido: el reintento igual parte de extended menos el periodo.
+$P::svc_set( $s, array( 'domain_expires' => strtotime( '+1 year', $E ) ) );
+$n = digi_nc_count( 'namecheap.domains.renew' );
+check( $P::retry( $s ), 'Sonda 20: «Reintentar» encola la renovación a medias' );
+digi_run_queue( true, 200 );
+check( $n + 1 === digi_nc_count( 'namecheap.domains.renew' ) && ymd( strtotime( '+1 year', $reg ) ) === ymd( $GLOBALS['nc']['domains']['amedias.com'] ) && ymd( $P::domain_due( $s ) ) === ymd( $GLOBALS['nc']['domains']['amedias.com'] ), 'Sonda 20: aun con domain_expires ya movido, el reintento parte de extended menos el periodo: el dominio queda igual que el registrador, no un año adelantado · ' . ymd( $P::domain_due( $s ) ) . ' / ' . ymd( $GLOBALS['nc']['domains']['amedias.com'] ) );
+// Sonda 21: se da de baja el servicio del plan; el otro dominio del pedido no se queda sin salida.
+store(); $GLOBALS['nc']['balance'] = 0;
+$o = paid( array( new Digi_Test_Item( 14693, 'Web Hosting Starter' ), new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'plan.com' ) ), new Digi_Test_Item( 21, 'Dominio .mx', 1, array( 'Dominio' => 'otro.mx' ) ) ), 'ana@plan.com' );
+$main = (int) $o->get_meta( '_digitalisimo_service' ); $x = svc_of( $o, 'otro.mx' );
+$P::cancel_service( $main ); $GLOBALS['nc']['balance'] = 5000; $GLOBALS['queue'] = array();
+check( $P::retry( $x ), 'Sonda 21: con el plan dado de baja, «Reintentar» del otro dominio encola la tarea' );
+digi_run_queue( true, 200 );
+check( isset( $GLOBALS['nc']['domains']['otro.mx'] ) && 'active' === $P::svc( $x, 'status' ) && ! isset( $GLOBALS['nc']['domains']['plan.com'] ) && preg_grep( '/el servicio del plan está dado de baja: revisa si corresponde reembolsar/', $o->notes ), 'Sonda 21: el otro dominio se registra, el del plan no, y el pedido dice que hay que revisarlo a mano' );
+// Sonda 22: «ya lo renové yo» cuando el registrador y el servicio no coinciden en la fecha.
+store();
+$o = paid( array( new Digi_Test_Item( 14693, 'Web Hosting Starter' ), new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'desfase.com' ) ) ), 'ana@desfase.com' );
+$s = (int) $o->get_meta( '_digitalisimo_service' );
+$GLOBALS['nc']['domains']['desfase.com'] -= 7 * DAY_IN_SECONDS;
+$_GET = array( 'manual' => $s ); ob_start(); $SP::render(); $form = ob_get_clean(); $_GET = array();
+check( false !== strpos( $form, 'Hoy en Namecheap vence el ' . ymd( $GLOBALS['nc']['domains']['desfase.com'] ) ), 'Sonda 22: el formulario muestra la fecha del registrador' );
+$e = $P::manual_payment( $s, array( 'months' => 12, 'method' => 'cash', 'renewed_elsewhere' => true, 'key' => 's22a' ) );
+check( is_wp_error( $e ), 'Sonda 22: sin renovar allá, sigue siendo un error' );
+$GLOBALS['nc']['domains']['desfase.com'] = strtotime( '+1 year', $GLOBALS['nc']['domains']['desfase.com'] );
+$r = $P::manual_payment( $s, array( 'months' => 12, 'method' => 'cash', 'renewed_elsewhere' => true, 'key' => 's22b' ) );
+check( ! is_wp_error( $r ) && ymd( $GLOBALS['nc']['domains']['desfase.com'] ) === ymd( $P::domain_due( $s ) ), 'Sonda 22: renovado un año respecto de su propia fecha (7 días antes que la del servicio), se acepta y guarda la del registrador · ' . ( is_wp_error( $r ) ? $r->get_error_message() : ymd( $P::domain_due( $s ) ) ) );
+// Sonda 23: una transferencia llega con 60 días de vida: la renovación y los avisos salen de la fecha real.
+store( array( 'own_domain_auto' => 1 ) );
+digi_product( 50, 'Transferencia', 400 ); digi_domain( 50, '*', 'transfer' ); Digitalisimo_Hosting_Products::flush();
+$GLOBALS['nc']['taken'] = array( 'llega.com' );
+$o = paid( array( new Digi_Test_Item( 50, 'Transferencia', 1, array( 'Dominio' => 'llega.com' ) ) ), 'ana@llega.com' );
+$s = (int) $o->get_meta( '_digitalisimo_service' );
+$GLOBALS['nc']['domains']['llega.com'] = time() + 60 * DAY_IN_SECONDS; $GLOBALS['mails'] = array();
+$P::daily( time() + DAY_IN_SECONDS );
+check( ! $P::svc( $s, 'transfer_pending' ) && ymd( $P::domain_due( $s ) ) === ymd( $GLOBALS['nc']['domains']['llega.com'] ) && ymd( $P::svc( $s, 'expires' ) ) === ymd( $GLOBALS['nc']['domains']['llega.com'] ), 'Sonda 23: al llegar la transferencia, el servicio guarda el vencimiento real del registrador · ' . ymd( $P::domain_due( $s ) ) );
+$P::daily( time() + 40 * DAY_IN_SECONDS );
+$rid = (int) $P::svc( $s, 'renewal_order' );
+check( $rid && array( 20 ) === line_ids( wc_get_order( $rid ) ) && client_mails( 'ana@llega.com' ) && false !== strpos( client_mails( 'ana@llega.com' )[0]['subject'], 'vence en 30 días' ), 'Sonda 23: el pedido de renovación y el aviso salen antes del vencimiento real' );
+// Menor 5 (sonda 19): el pedido sólo del dominio cancelado llega pagado ANTES que el combinado: el combinado pierde de
+// verdad la línea del dominio (el pedido simulado ya tiene remove_item) y se paga sin quedar en espera.
+store();
+digi_variable( 70, 'Plan Nube', array( 71 => array( 'Mensual', 150, array( '_digitalisimo_hosting_period' => 1 ) ) ), array( '_digitalisimo_hosting_type' => 'hosting', '_digitalisimo_webuzo_plan' => 'digitalisimo_starter', '_digitalisimo_hosting_period' => 12 ) );
+$o = paid( array( new Digi_Test_Item( 71, 'Plan Nube' ), new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'antes.com' ) ) ), 'ana@antes.com' );
+$s = (int) $o->get_meta( '_digitalisimo_service' );
+for ( $i = 1; $i <= 10; $i++ ) { $P::daily( (int) $P::svc( $s, 'expires' ) - 6 * DAY_IN_SECONDS ); wc_get_order( (int) $P::svc( $s, 'renewal_order' ) )->update_status( 'processing' ); digi_run_queue( true, 200 ); }
+$exp = (int) $P::svc( $s, 'expires' ); $dd = $P::domain_due( $s );
+$P::daily( $exp - 6 * DAY_IN_SECONDS ); $r11 = wc_get_order( (int) $P::svc( $s, 'renewal_order' ) );
+$P::daily( $dd - 29 * DAY_IN_SECONDS ); $dro = wc_get_order( (int) $P::svc( $s, 'domain_renewal_order' ) );
+$r11->update_status( 'processing' ); digi_run_queue( true, 200 );
+$P::daily( (int) $P::svc( $s, 'expires' ) - 6 * DAY_IN_SECONDS ); $r12 = wc_get_order( (int) $P::svc( $s, 'renewal_order' ) );
+$n = digi_nc_count( 'namecheap.domains.renew' ); $GLOBALS['mails'] = array();
+$dro->update_status( 'processing' ); digi_run_queue( true, 200 );
+check( $n + 1 === digi_nc_count( 'namecheap.domains.renew' ) && array( 71 ) === line_ids( $r12 ) && 150.0 === (float) $r12->total, 'Menor 5: pagado primero el pedido sólo del dominio, el combinado pierde de verdad la línea del dominio · ' . json_encode( line_ids( $r12 ) ) . ' total ' . $r12->total );
+$r12->update_status( 'processing' ); digi_run_queue( true, 200 );
+check( 'completed' === $r12->get_status() && $n + 1 === digi_nc_count( 'namecheap.domains.renew' ) && ! admin_mails(), 'Menor 5: el combinado se paga y se completa sin renovar otra vez ni avisos · ' . $r12->get_status() );
 
 echo "Hosting, segunda revisión crítica: {$GLOBALS['checks']} comprobaciones correctas.\n";

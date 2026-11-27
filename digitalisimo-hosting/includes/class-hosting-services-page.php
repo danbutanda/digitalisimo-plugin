@@ -128,17 +128,20 @@ class Digitalisimo_Hosting_Services_Page {
 		echo '</select></p>';
 		echo '<p><label for="' . esc_attr( $fid ) . '-amount"><strong>Monto</strong> (opcional, sólo para tu registro)</label><br><input type="number" min="0" step="0.01" id="' . esc_attr( $fid ) . '-amount" name="amount" class="small-text"></p>';
 		echo '<p><label for="' . esc_attr( $fid ) . '-note"><strong>Nota</strong> (opcional)</label><br><input type="text" id="' . esc_attr( $fid ) . '-note" name="note" class="regular-text" maxlength="300"></p>';
+		// La fecha del registrador (sólo lectura): con «ya lo renové yo» se comprueba contra la suya, no contra la del servicio.
+		$reg_due = $pv['domain_due'] && $P::svc( $id, 'domain_registered' ) ? $P::registrar_now( $id ) : 0;
+		$reg_text = $reg_due ? ' Hoy en ' . $pv['registrar'] . ' vence el ' . $P::date( $reg_due ) . '.' : '';
 		$cost = 'El dominio vence el ' . $P::date( $pv['domain_due'] ) . '. ' . ( null !== $pv['cost'] ? 'Costo en ' . $pv['registrar'] . ': ' . number_format( (float) $pv['cost'], 2, '.', ',' ) . ' USD' . ( null !== $pv['balance'] ? ' (saldo ' . number_format( (float) $pv['balance'], 2, '.', ',' ) . ' USD).' : '.' ) : '' );
 		if ( $pv['domain_due'] && $P::svc( $id, 'domain_registered' ) && ! $P::has_hosting( $id ) ) {
 			// Sólo el dominio: UNA de las dos opciones (sin ninguna no se registra nada; segunda revisión, R1).
 			echo '<fieldset><legend><strong>El dominio</strong></legend>';
 			echo '<p><label><input type="radio" name="domain_action" value="renew" checked> <strong>Renovar el dominio con su registrador</strong></label><br><span class="description">' . esc_html( $cost ) . '</span></p>';
-			echo '<p><label><input type="radio" name="domain_action" value="elsewhere"> Ya lo renové yo en el registrador (se comprueba allá que vence en la fecha pagada; queda anotado)</label></p></fieldset>';
+			echo '<p><label><input type="radio" name="domain_action" value="elsewhere"> Ya lo renové yo en el registrador (se comprueba allá que avanzó los años pagados; queda anotado)</label>' . ( '' !== $reg_text ? '<br><span class="description">' . esc_html( trim( $reg_text ) ) . '</span>' : '' ) . '</p></fieldset>';
 			echo '<p class="description">Este servicio es sólo el dominio: su vencimiento cambia cuando el registrador confirma la renovación, o al vencimiento que el registrador muestra si ya la hiciste. Si no se puede renovar, queda pendiente con aviso.</p>';
 			if ( '' !== $pv['warning'] ) echo '<div class="notice notice-warning inline"><p>' . esc_html( $pv['warning'] ) . '</p></div>';
 		} elseif ( $pv['domain_due'] && $P::svc( $id, 'domain_registered' ) ) {
 			echo '<p><label><input type="checkbox" name="renew_domain" value="1"' . ( $pv['renew_domain'] ? ' checked' : '' ) . '> <strong>Renovar también el dominio con su registrador</strong></label><br><span class="description">' . esc_html( $cost ) . '</span></p>';
-			echo '<p><label><input type="checkbox" name="renewed_elsewhere" value="1"> Ya lo renové yo en el registrador (no pedir la renovación; se comprueba allá y queda anotado)</label></p>';
+			echo '<p><label><input type="checkbox" name="renewed_elsewhere" value="1"> Ya lo renové yo en el registrador (no pedir la renovación; se comprueba allá y queda anotado)</label>' . ( '' !== $reg_text ? '<br><span class="description">' . esc_html( trim( $reg_text ) ) . '</span>' : '' ) . '</p>';
 			if ( '' !== $pv['warning'] ) echo '<div class="notice notice-warning inline"><p>' . esc_html( $pv['warning'] ) . '</p></div>';
 		}
 		echo '<p><button type="submit" class="button button-primary">Registrar el pago</button> <a class="button" href="' . esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ) . '">Cancelar</a></p></form></div>';
