@@ -67,6 +67,7 @@ final class Digitalisimo_Backups_Site_Extract {
 		'seo_breadcrumbs_home_label', 'seo_breadcrumbs_prefix', 'seo_breadcrumbs_hide_current', 'seo_breadcrumbs_taxonomy', 'seo_breadcrumbs_blog_page', 'seo_breadcrumbs_archive_format', 'seo_breadcrumbs_search_format', 'seo_breadcrumbs_404_label',
 		'seo_type_templates', 'seo_tax_templates', 'seo_schema_type_defaults', 'seo_schema_templates', 'seo_product_brand', 'seo_product_brand_name', 'seo_product_condition', 'seo_sitemap_news_enabled',
 		'seo_links_counter', 'seo_links_check', 'seo_noindex_hidden_products', 'seo_wc_remove_generator', 'seo_strip_product_base', 'seo_strip_product_cat_base', 'seo_strip_category_base', 'seo_abilities_write',
+		'seo_abilities_write_meta', 'seo_abilities_write_schema', 'seo_abilities_write_index', 'seo_abilities_write_redirects',
 		'seo_avatar_alt', 'seo_rss_before', 'seo_rss_after', 'seo_sitemap_news_types', 'seo_sitemap_news_name', 'seo_sitemap_video_enabled', 'seo_sitemap_news_exclude_terms', 'seo_ai_enabled',
 		'seo_ai_search_default', 'seo_ai_training_default', 'seo_ai_google_extended_policy', 'seo_ai_crawler_rules', 'seo_ai_crawler_preset', 'seo_ai_crawlers', 'seo_ai_llms_enabled', 'seo_ai_llms_mode',
 		'seo_ai_llms_manual', 'seo_ai_llms_urls', 'seo_ai_indexnow_enabled', 'seo_ai_indexnow_auto', 'seo_ai_referrals_enabled', 'seo_ai_referral_retention', 'seo_hide_login_slug', 'seo_social_profiles',
