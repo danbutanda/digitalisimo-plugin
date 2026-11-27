@@ -720,11 +720,7 @@ final class Digitalisimo_AI_Assistant {
 	 */
 	public static function turn( array &$conv, array $target, callable $emit, $resumed = false ) {
 		$catalog        = Digitalisimo_AI_Assistant_Tools::catalog( $conv['categories'] );
-		$tools          = Digitalisimo_AI_Assistant_Tools::definitions( $catalog );
-		if ( class_exists( 'Digitalisimo_AI_Assistant_Learning' ) && Digitalisimo_AI_Assistant_Learning::can() ) {
-			// «Recordar» (el aprendizaje): sólo quien administra el sitio le enseña al Asistente para el futuro.
-			$tools[] = Digitalisimo_AI_Assistant_Learning::tool_definition();
-		}
+		$tools          = self::offered_tools( $conv, $catalog );
 		$state          = $resumed && is_array( $conv['resume'] ?? null ) ? $conv['resume'] : array();
 		$state          = array( 'steps' => (int) ( $state['steps'] ?? 0 ), 'calls' => (int) ( $state['calls'] ?? 0 ), 'count' => (int) ( $state['count'] ?? 0 ) );
 		$conv['resume'] = null;
@@ -750,6 +746,8 @@ final class Digitalisimo_AI_Assistant {
 				return;
 			}
 			Digitalisimo_AI_Assistant_Guard::renew_all();
+			// Las funciones de diseño se suman en el paso siguiente al que el modelo las pidió (MORE_TOOL).
+			$tools    = self::offered_tools( $conv, $catalog );
 			$messages = Digitalisimo_AI_Assistant_History::for_model( $conv, $catalog, $target );
 			// Lo que la IA propone puede venir de contenido del sitio leído en cualquier turno de lo que se le manda.
 			$read = $read || in_array( 'tool', array_column( $messages, 'role' ), true );
@@ -785,6 +783,9 @@ final class Digitalisimo_AI_Assistant {
 					$ability = Digitalisimo_AI_Assistant_Tools::ability_for( $catalog, $call['name'] );
 					if ( '' === $ability && class_exists( 'Digitalisimo_AI_Assistant_Learning' ) && Digitalisimo_AI_Assistant_Learning::TOOL === $call['name'] ) {
 						$ability = Digitalisimo_AI_Assistant_Learning::ABILITY;
+					}
+					if ( '' === $ability && Digitalisimo_AI_Assistant_Tools::MORE_TOOL === $call['name'] ) {
+						$ability = Digitalisimo_AI_Assistant_Tools::MORE_ABILITY;
 					}
 					$calls[] = array( 'id' => $call['id'], 'ability' => '' !== $ability ? $ability : sanitize_text_field( $call['name'] ), 'input' => $call['input'], 'sig' => $call['sig'] );
 				}
@@ -825,6 +826,26 @@ final class Digitalisimo_AI_Assistant {
 	}
 
 	/**
+	 * Las herramientas que ve el modelo en este paso (docs/ASSISTANT.md, «Contexto»): las del catálogo que le sirven
+	 * (Tools::offered(): sin las que no necesita ni las funciones de diseño hasta que las pide), en orden fijo, más
+	 * «Recordar» para quien administra y la que pide las funciones de diseño si el sitio las tiene. Cambian sólo
+	 * cuando la conversación pide las de diseño (una vez).
+	 */
+	private static function offered_tools( array $conv, array $catalog ) {
+		$more  = ! empty( $conv['more_tools'] );
+		$tools = Digitalisimo_AI_Assistant_Tools::definitions( Digitalisimo_AI_Assistant_Tools::offered( $catalog, $more ) );
+		if ( class_exists( 'Digitalisimo_AI_Assistant_Learning' ) && Digitalisimo_AI_Assistant_Learning::can() ) {
+			// «Recordar» (el aprendizaje): sólo quien administra el sitio le enseña al Asistente para el futuro.
+			$tools[] = Digitalisimo_AI_Assistant_Learning::tool_definition();
+		}
+		// Se sigue declarando después de pedirla: las llamadas del historial necesitan su herramienta.
+		if ( Digitalisimo_AI_Assistant_Tools::builder_extras( $catalog ) || $more ) {
+			$tools[] = Digitalisimo_AI_Assistant_Tools::more_tool_definition();
+		}
+		return $tools;
+	}
+
+	/**
 	 * Segundos de un tramo del turno: TURN_BUDGET (filtro `digitalisimo_ai_assistant_turn_budget`), y menos si PHP corta
 	 * antes (max_execution_time que el hosting no deja subir): así el tramo termina, guarda y sigue en otra petición.
 	 */
@@ -847,6 +868,13 @@ final class Digitalisimo_AI_Assistant {
 		foreach ( $calls as $call ) {
 			if ( class_exists( 'Digitalisimo_AI_Assistant_Learning' ) && Digitalisimo_AI_Assistant_Learning::ABILITY === $call['ability'] && ! $shortcut ) {
 				self::remember( $conv, $call, $emit );
+				continue;
+			}
+			if ( Digitalisimo_AI_Assistant_Tools::MORE_ABILITY === $call['ability'] && ! $shortcut ) {
+				// Las funciones de diseño del constructor, desde el paso siguiente y en toda la conversación.
+				$conv['more_tools'] = true;
+				$extras             = array_map( array( 'Digitalisimo_AI_Assistant_Tools', 'tool_name' ), Digitalisimo_AI_Assistant_Tools::builder_extras( $catalog ) );
+				self::tool_result( $conv, $call, array( 'status' => 'ok', 'data' => array( 'listo' => $extras ? 'Desde el paso siguiente tienes también estas funciones de diseño: ' . implode( ', ', $extras ) . '.' : 'Este sitio no tiene más funciones de diseño: usa las que ya tienes.' ) ), 'read', $emit, 'más funciones para el diseño de tus páginas' );
 				continue;
 			}
 			$entry = $catalog[ $call['ability'] ] ?? null;

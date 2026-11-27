@@ -122,7 +122,7 @@ final class Digitalisimo_AI_Assistant_History {
 			return null;
 		}
 		self::prune( $user_id );
-		return array( 'id' => (int) $id, 'user' => (int) $user_id, 'title' => $title, 'messages' => array(), 'pending' => array(), 'provider' => 'auto', 'categories' => null, 'drafts' => array(), 'resume' => null, 'updated' => time() );
+		return array( 'id' => (int) $id, 'user' => (int) $user_id, 'title' => $title, 'messages' => array(), 'pending' => array(), 'provider' => 'auto', 'categories' => null, 'drafts' => array(), 'resume' => null, 'more_tools' => false, 'updated' => time() );
 	}
 
 	/** La conversación si es de este usuario; null si no existe o es de otro. */
@@ -148,6 +148,8 @@ final class Digitalisimo_AI_Assistant_History {
 			'categories' => is_array( $data['categories'] ?? null ) ? array_values( array_map( 'strval', $data['categories'] ) ) : null,
 			'drafts'     => is_array( $data['drafts'] ?? null ) ? array_values( array_unique( array_filter( array_map( 'intval', $data['drafts'] ) ) ) ) : array(),
 			'resume'     => is_array( $data['resume'] ?? null ) ? $data['resume'] : null,
+			// La conversación ya pidió las funciones de diseño del constructor (Tools::MORE_TOOL).
+			'more_tools' => ! empty( $data['more_tools'] ),
 			'updated'    => self::timestamp( $post ),
 		);
 	}
@@ -155,7 +157,7 @@ final class Digitalisimo_AI_Assistant_History {
 	public static function save( array $conv ) {
 		global $wpdb;
 		$messages = self::trim( self::compact_stored( array_values( $conv['messages'] ) ) );
-		$json = wp_json_encode( array( 'v' => 1, 'messages' => $messages, 'pending' => array_values( (array) $conv['pending'] ), 'provider' => (string) $conv['provider'], 'categories' => $conv['categories'], 'drafts' => array_values( array_map( 'intval', (array) ( $conv['drafts'] ?? array() ) ) ), 'resume' => $conv['resume'] ?? null ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+		$json = wp_json_encode( array( 'v' => 1, 'messages' => $messages, 'pending' => array_values( (array) $conv['pending'] ), 'provider' => (string) $conv['provider'], 'categories' => $conv['categories'], 'drafts' => array_values( array_map( 'intval', (array) ( $conv['drafts'] ?? array() ) ) ), 'resume' => $conv['resume'] ?? null, 'more_tools' => ! empty( $conv['more_tools'] ) ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
 		if ( ! is_string( $json ) || '' === $json ) {
 			return false; // Nunca se guarda una conversación vacía en lugar de la que había.
 		}

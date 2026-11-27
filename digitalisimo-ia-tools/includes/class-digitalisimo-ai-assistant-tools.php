@@ -248,6 +248,68 @@ final class Digitalisimo_AI_Assistant_Tools {
 	}
 
 	/**
+	 * Contexto (docs/ASSISTANT.md): herramientas del MCP que el Asistente no necesita y no se le ofrecen (siguen en el
+	 * MCP externo): abrir el propio Asistente y la información técnica de WordPress (el sitio, su nombre y su dirección ya
+	 * van en las instrucciones). Las de WooCommerce (`woocommerce/`) tampoco cuando están las de la tienda de Elements
+	 * (`digitalisimo-woo/`), que hacen lo mismo con su clasificación por acción.
+	 */
+	const ASSISTANT_SKIP = array( 'digitalisimo-ia/open-assistant', 'core/get-user-info', 'core/get-environment-info', 'core/get-site-info' );
+	/**
+	 * Del constructor (`elementor/`), las que el Asistente usa siempre: crear, leer y editar una página, sus ajustes,
+	 * publicarla, listarlas y la vista previa. Las demás (clases, variables y estilos globales, componentes, partes del
+	 * sitio, recursos, esquemas de widgets, composición) son «más funciones de diseño»: se ofrecen cuando el modelo las
+	 * pide con MORE_TOOL, y desde ahí en toda la conversación.
+	 */
+	const BUILDER_BASE = array( 'elementor/create-page', 'elementor/get-page-structure', 'elementor/manage-elements', 'elementor/update-page-settings', 'elementor/publish-document', 'elementor/list-posts', 'elementor/create-preview-link' );
+	const MORE_ABILITY = 'digitalisimo-ia/more-tools';
+	const MORE_TOOL    = 'digitalisimo-ia-more-tools';
+
+	/**
+	 * Lo que se le ofrece al modelo de un catálogo: sin ASSISTANT_SKIP ni los duplicados de WooCommerce y, si `$more` es
+	 * false, sin las funciones de diseño del constructor (BUILDER_BASE). Filtro `digitalisimo_ai_assistant_offered_tools`.
+	 * El catálogo completo sigue valiendo para ejecutar (una llamada a una herramienta no ofrecida pasa por las mismas
+	 * reglas).
+	 */
+	public static function offered( array $catalog, $more = false ) {
+		$store = false;
+		foreach ( $catalog as $name => $entry ) {
+			if ( 0 === strpos( (string) $name, 'digitalisimo-woo/' ) ) {
+				$store = true;
+				break;
+			}
+		}
+		$out = array();
+		foreach ( $catalog as $name => $entry ) {
+			$name = (string) $name;
+			if ( in_array( $name, self::ASSISTANT_SKIP, true ) || ( $store && 0 === strpos( $name, 'woocommerce/' ) ) || ( ! $more && self::builder_extra( $name ) ) ) {
+				continue;
+			}
+			$out[ $name ] = $entry;
+		}
+		$out = apply_filters( 'digitalisimo_ai_assistant_offered_tools', $out, $catalog, (bool) $more );
+		return is_array( $out ) ? $out : $catalog;
+	}
+
+	/** ¿Es una función de diseño del constructor (no está en BUILDER_BASE)? */
+	public static function builder_extra( $name ) {
+		return 0 === strpos( (string) $name, 'elementor/' ) && ! in_array( (string) $name, self::BUILDER_BASE, true );
+	}
+
+	/** Las funciones de diseño del catálogo (las que MORE_TOOL agrega). */
+	public static function builder_extras( array $catalog ) {
+		return array_values( array_filter( array_keys( $catalog ), array( __CLASS__, 'builder_extra' ) ) );
+	}
+
+	/** La herramienta para pedir las funciones de diseño del constructor (sin entrada; no toca el sitio). */
+	public static function more_tool_definition() {
+		return array(
+			'name'        => self::MORE_TOOL,
+			'description' => 'Más funciones para el diseño de las páginas: clases, colores y tipografías globales, estilos de fábrica, componentes, cabecera, pie y demás partes del sitio, recursos, esquemas de widgets y construir una composición completa. Llámala (sin datos) antes de un cambio de diseño que no puedas hacer con lo que ya tienes; desde el paso siguiente las tendrás en esta conversación. No cambia nada.',
+			'schema'      => array( 'type' => 'object', 'properties' => new stdClass() ),
+		);
+	}
+
+	/**
 	 * read, write o destructive. Sólo se ejecuta sin confirmar lo anotado `readonly` con un `true` estricto, sin
 	 * contradecirse (`destructive` true) y de un espacio de nombres de confianza (TRUSTED o el filtro
 	 * `digitalisimo_ai_assistant_trusted_prefixes`): las anotaciones son una pista que el núcleo no valida. Lo demás que
