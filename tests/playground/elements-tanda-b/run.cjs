@@ -9,7 +9,8 @@
 //      cabecera pinta un <p>; en otra página la cabecera sigue con su H1;
 //   M  marquesina atómica por el MCP real: build-composition crea e-digitalisimo-marquee con su estilo y un párrafo con
 //      `animation` (sin @keyframes no mueve nada), y la respuesta dice qué usar; el frente la pinta con su hoja y su script; en Chrome se mueve, el
-//      botón la pausa y con «reducir movimiento» no se mueve ni muestra la copia ni el botón.
+//      botón la pausa y con «reducir movimiento» no se mueve ni muestra la copia ni el botón; el editor la pinta en el
+//      lienzo con su plantilla Twig.
 // Escribe <dir>/result.txt y <dir>/result.json; sale 1 si algo falla. Uso: node run.cjs <puerto> <host> <dir>
 const http = require('node:http');
 const fs = require('node:fs');
@@ -212,6 +213,24 @@ async function main() {
       }
       check(what, shown && shown.text === true && (shown.messages || []).length === 1, what === 'G10' ? 'el editor del pie muestra el aviso fijo' : 'el editor de la plantilla incrustada avisa de la global que la incluye', JSON.stringify(shown).slice(0, 500));
     }
+    // M12: el editor v4 pinta la marquesina con su plantilla (Twig en el navegador) dentro del lienzo.
+    await tab.goto(`http://${host}/wp-admin/post.php?post=${ids.mcp}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+    let canvas = null;
+    try {
+      await tab.waitForFunction(() => {
+        const frame = document.querySelector('#elementor-preview-iframe');
+        const doc = frame && frame.contentDocument;
+        return !!(doc && doc.querySelector('[data-digi-marquee] .digi-marquee__text'));
+      }, { timeout: 240000 });
+      canvas = await tab.evaluate(() => {
+        const doc = document.querySelector('#elementor-preview-iframe').contentDocument;
+        const root = doc.querySelector('[data-digi-marquee]');
+        return { items: root.querySelectorAll('.digi-marquee__text').length, separators: root.querySelectorAll('.digi-marquee__separator').length, fade: root.classList.contains('digi-marquee--fade'), style: root.getAttribute('style') };
+      });
+    } catch (e) {
+      canvas = { error: String(e.message || e) };
+    }
+    check('M12', canvas && canvas.items === 6 && canvas.separators === 6 && canvas.fade && /--digi-marquee-duration:42s/.test(canvas.style || ''), 'el editor pinta la marquesina atómica en el lienzo con su plantilla', JSON.stringify(canvas));
   } finally {
     await browser.close();
     fs.rmSync(profile, { recursive: true, force: true });
