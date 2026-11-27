@@ -125,7 +125,18 @@ if (existsSync(manifest)) { writeFileSync(join(dir, 'motor/digitalisimo-core.php
 
 const index = {};
 const archive = [];
-const report = { transformados: 0, renombrados: 0, sin_publicar: 0, servidor_lee: [], quedan: [] };
+// El JS y el CSS sin minificar del núcleo que tienen su `.min` al lado sólo se cargan con SCRIPT_DEBUG: no se publican
+// ni se guardan sus originales (el sitio sirve el `.min`, Package::map_url()). Es más de la mitad del archivo de
+// originales y del peso que el paquete transformado agrega al ZIP.
+let unminified = 0;
+for (const file of walk(join(dir, 'motor'))) {
+  const m = file.match(/^(.*)\.(js|css)$/);
+  if (!m || /\.min\.(js|css)$/.test(file) || !existsSync(`${m[1]}.min.${m[2]}`)) continue;
+  rmSync(file);
+  index[relative(dir, file).split('\\').join('/')] = null;
+  unminified++;
+}
+const report = { transformados: 0, renombrados: 0, sin_publicar: 0, sin_minificar: unminified, servidor_lee: [], quedan: [] };
 for (const file of walk(dir).sort()) {
   const rel = relative(dir, file).split('\\').join('/');
   if (rel.endsWith('.php') || rel.startsWith('marca/')) continue;
@@ -201,4 +212,4 @@ writeFileSync(join(dir, 'marca/arbol.php'), php(tree));
 report.originales = { archivos: archive.length, bytes: statSync(join(dir, 'marca/originales.php')).size };
 report.arbol = tree;
 if (process.argv.includes('--json')) console.log(JSON.stringify(report, null, 1));
-else console.log(`Transformados ${report.transformados}, renombrados ${report.renombrados}, sin publicar ${report.sin_publicar}, fuentes corregidas ${report.fuentes || 0}, licencias en .php ${report.licencias || 0}; originales: ${report.originales.archivos} archivos en ${(report.originales.bytes / 1048576).toFixed(1)} MB; el servidor lee ${report.servidor_lee.length}; con «elementor» todavía: ${report.quedan.length}${report.quedan.length ? ' · ' + report.quedan.slice(0, 5).join(' ') : ''}; árbol ${tree.files} archivos ${tree.tree_sha256.slice(0, 12)}.`);
+else console.log(`Transformados ${report.transformados}, renombrados ${report.renombrados}, sin publicar ${report.sin_publicar}, fuentes corregidas ${report.fuentes || 0}, licencias en .php ${report.licencias || 0}, sin minificar quitados ${report.sin_minificar}; originales: ${report.originales.archivos} archivos en ${(report.originales.bytes / 1048576).toFixed(1)} MB; el servidor lee ${report.servidor_lee.length}; con «elementor» todavía: ${report.quedan.length}${report.quedan.length ? ' · ' + report.quedan.slice(0, 5).join(' ') : ''}; árbol ${tree.files} archivos ${tree.tree_sha256.slice(0, 12)}.`);

@@ -51,6 +51,8 @@ $put( 'elementor/assets/lib/eicons/fonts/eicons.woff2', "binario" );
 $put( 'elementor/assets/js/frontend.min.js', 'window.elementorFrontend={};document.querySelector(".elementor-element");' );
 $put( 'elementor/assets/images/x.png', 'png' );
 $put( 'elementor/assets/js/frontend.js.map', '{"sources":["elementor"]}' );
+$put( 'elementor/assets/js/frontend.js', "window.elementorFrontend = {};\n" );
+$put( 'elementor/assets/js/solo.js', 'console.log("sin min");' );
 $put( 'assets/css/widget-x.min.css', '.elementor-x{background:url(../images/y.png)}' );
 $put( 'assets/images/y.png', 'png' );
 $put( 'assets/js/ok.js', 'console.log(1);' );
@@ -166,6 +168,7 @@ check( 'https://ensayo.test/wp-content/uploads/digitalisimo-elements/base-9.9.9/
 // K4 -------------------------------------------------------------------------------------------------------------------
 Package::reset( null, 'on' );
 check( $u . 'motor/assets/lib/eicons/css/dg-icons.min.css?ver=5' === Package::map_url( $u . 'motor/assets/lib/eicons/css/elementor-icons.min.css?ver=5' ) && $u . 'motor/assets/css/frontend.min.css' === Package::map_url( $u . 'elementor/assets/css/frontend.min.css' ), 'K4 con la marca encendida, el nombre publicado' );
+check( ! is_file( $pl . '/motor/assets/js/frontend.js' ) && is_file( $pl . '/motor/assets/js/solo.js' ) && $u . 'motor/assets/js/frontend.min.js?ver=1' === Package::map_url( $u . 'elementor/assets/js/frontend.js?ver=1' ), 'K4 el JS sin minificar que tiene su .min no se publica y su URL sirve el .min (SCRIPT_DEBUG)' );
 check( '<link href="https://ensayo.test/wp-content/plugins/digitalisimo-elements/motor/assets/lib/eicons/css/dg-icons.min.css">' === \Digitalisimo\Elements\Marca\Transform::html( '<link href="https://ensayo.test/wp-content/plugins/digitalisimo-elements/motor/assets/lib/eicons/css/elementor-icons.min.css">' ), 'K4 la capa del front usa los nombres del paquete' );
 
 // K6: con el paquete transformado, la marca no se enciende hasta que la capa del editor esté validada (filtro).

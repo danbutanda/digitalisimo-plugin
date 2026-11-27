@@ -143,6 +143,10 @@ final class Package {
 			$tail  = substr( $tail, 0, $q );
 		}
 		$rel = 0 === strpos( $tail, 'elementor/' ) ? 'motor/' . substr( $tail, 10 ) : $tail;
+		// El paquete no trae el JS ni el CSS sin minificar del núcleo que tienen su `.min` (SCRIPT_DEBUG): se sirve el `.min`.
+		if ( 0 === strpos( $rel, 'motor/' ) && preg_match( '/(?<!\.min)\.(js|css)$/', $rel ) && array_key_exists( $rel, self::index() ) && null === self::index()[ $rel ] ) {
+			$rel = (string) preg_replace( '/\.(js|css)$/', '.min.$1', $rel );
+		}
 		if ( 'on' === self::mode() ) {
 			return $head . self::rename( $rel ) . $query;
 		}

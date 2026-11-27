@@ -182,7 +182,9 @@ async function mcp() {
     const m = await meta(id);
     const data = String(m.data || '');
     check(`E3-${tag}`, data.includes(text) && /gu(\\u00ed|í)a de Elementor/.test(data), `lo editado quedó guardado y el contenido del cliente igual (${tag})`, data.slice(0, 600));
-    check(`E4-${tag}`, !/digitalisimo_|data-dg-|"dg-|_dg_/.test(data) && /"widgetType":"heading"/.test(data), `ningún nombre de la marca dentro de los datos guardados (${tag})`, data.slice(0, 600));
+    // Las formas que produce la transformación (no los controles propios `digitalisimo_*` del plugin, que son legítimos).
+    const leaked = data.match(/"dg[-_][\w-]*|data-dg-|_dg_\w*|digitalisimo_(?:library|canvas|header_footer|theme|ajax)|digitalisimo\\?\/v1|DigitalisimoConfig/g) || [];
+    check(`E4-${tag}`, leaked.length === 0 && /"widgetType":"heading"/.test(data), `ningún nombre transformado dentro de los datos guardados (${tag})`, leaked.slice(0, 8).join(' ') + ' · ' + data.slice(0, 300));
     check(`E5-${tag}`, errs.length === 0, `sin errores de consola en el editor (${tag})`, errs.slice(0, 8).join(' | '));
     page.off('pageerror', onErr);
     page.off('console', onCon);
