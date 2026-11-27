@@ -133,6 +133,8 @@ class Digitalisimo_Hosting_Checkout {
 		}
 		// «Uno que ya tengo» sólo tiene sentido en un plan; en un dominio el nombre es el que se registra o transfiere.
 		if ( 'hosting' !== self::kind( $product_id ) ) unset( $data['digitalisimo_domain_mode'] );
+		// Con «Dominio nuevo», lo escrito en el campo de «Uno que ya tengo» no cuenta (el navegador pudo enviarlo igual).
+		elseif ( 'new' === ( $data['digitalisimo_domain_mode'] ?? '' ) ) unset( $data['digitalisimo_domain'], $data['digitalisimo_domain_mode'] );
 		elseif ( empty( $data['digitalisimo_domain'] ) && 'own' === ( $data['digitalisimo_domain_mode'] ?? '' ) ) unset( $data['digitalisimo_domain_mode'] );
 		return $data;
 	}
@@ -171,7 +173,8 @@ class Digitalisimo_Hosting_Checkout {
 			if ( $final && ! $has_epp ) return 'Escribe el código de transferencia (EPP) de ' . $domain . '. Te lo da tu registrador actual al desbloquear el dominio.';
 			return self::transfer_error( $domain );
 		}
-		if ( 'hosting' === $kind && ( '' !== $domain || 'own' === ( $data['digitalisimo_domain_mode'] ?? '' ) ) ) {
+		// Con «Dominio nuevo» el campo de «Uno que ya tengo» se ignora: el dominio llega con su propio producto.
+		if ( 'hosting' === $kind && 'new' !== ( $data['digitalisimo_domain_mode'] ?? '' ) && ( '' !== $domain || 'own' === ( $data['digitalisimo_domain_mode'] ?? '' ) ) ) {
 			if ( '' === $domain ) return 'Escribe el nombre exacto del dominio que ya tienes para «' . $name . '».';
 			if ( ! self::registrable( $domain ) ) return '«' . $domain . '» no es un dominio válido. Escribe el nombre exacto del dominio que ya tienes, por ejemplo minegocio.com (sin www).';
 			$reject = Digitalisimo_Hosting_Provisioning::own_domain_rejected( $domain );
@@ -298,12 +301,13 @@ class Digitalisimo_Hosting_Checkout {
 
 	/** Lo que falta decidir en el carrito (para el panel). */
 	private static function pending( array $lines ) {
+		$ask = ! empty( Digitalisimo_Hosting::settings()['ask_domain'] );
 		$domains = 0;
 		foreach ( $lines as $l ) if ( 'hosting' !== $l['kind'] ) $domains++;
 		$out = array();
 		foreach ( $lines as $key => $l ) {
 			$d = $l['data'];
-			if ( 'hosting' === $l['kind'] && ! $domains && '' === (string) ( $d['digitalisimo_domain'] ?? '' ) ) $out[ $key ] = $l;
+			if ( 'hosting' === $l['kind'] && $ask && ! $domains && '' === (string) ( $d['digitalisimo_domain'] ?? '' ) ) $out[ $key ] = $l;
 			elseif ( 'register' === $l['kind'] && '' === (string) ( $d['digitalisimo_domain'] ?? '' ) ) $out[ $key ] = $l;
 			elseif ( 'transfer' === $l['kind'] && ( '' === (string) ( $d['digitalisimo_domain'] ?? '' ) || empty( $d['digitalisimo_epp'] ) ) ) $out[ $key ] = $l;
 		}
@@ -398,7 +402,7 @@ class Digitalisimo_Hosting_Checkout {
 		} elseif ( 'transfer' === $kind ) {
 			echo '<p class="digitalisimo-hosting-field"><label>Dominio que quieres transferir <input type="text" name="digitalisimo_domain" placeholder="minegocio.com" autocomplete="off" spellcheck="false" required></label></p>';
 			echo '<p class="digitalisimo-hosting-field"><label>Código de transferencia (EPP) <input type="password" name="digitalisimo_epp" autocomplete="off" spellcheck="false" required></label></p>';
-		} elseif ( 'hosting' === $kind ) {
+		} elseif ( 'hosting' === $kind && ! empty( Digitalisimo_Hosting::settings()['ask_domain'] ) ) {
 			echo '<fieldset class="digitalisimo-hosting-field digitalisimo-hosting-domain-mode"><legend>Dominio</legend>'
 				. '<label><input type="radio" name="digitalisimo_domain_mode" value="new" checked> Dominio nuevo</label> '
 				. '<label><input type="radio" name="digitalisimo_domain_mode" value="own"> Uno que ya tengo</label>'

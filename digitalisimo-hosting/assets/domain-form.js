@@ -165,7 +165,8 @@
     // Panel «Tu dominio»: el campo del dominio propio sólo con «Uno que ya tengo».
     document.querySelectorAll('.digitalisimo-hosting-domain-mode').forEach((set) => {
       const own = set.querySelector('.digitalisimo-hosting-own');
-      const sync = () => { const v = set.querySelector('input[type=radio]:checked'); if (own) own.hidden = !v || v.value !== 'own'; };
+      // Con «Dominio nuevo» el campo de «Uno que ya tengo» se oculta y se desactiva (un campo desactivado no se envía).
+      const sync = () => { const v = set.querySelector('input[type=radio]:checked'); const on = !!v && v.value === 'own'; if (own) { own.hidden = !on; own.querySelectorAll('input').forEach((i) => { i.disabled = !on; }); } };
       set.addEventListener('change', sync);
       sync();
     });

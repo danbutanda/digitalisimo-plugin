@@ -49,6 +49,10 @@
   <!-- Sólo el campo del dominio, marcado con la clase: se consultan todas las extensiones configuradas -->
   <form class="digitalisimo-domain-form" id="noext"><input name="domain" type="text"><button type="submit">Buscar</button></form>
 </section>
+<section id="s6">
+  <!-- Panel «Tu dominio»: el campo de «Uno que ya tengo» sólo se envía con esa opción -->
+  <form id="panel"><fieldset class="digitalisimo-hosting-domain-mode"><label><input type="radio" name="m" value="new" checked> Dominio nuevo</label><label><input type="radio" name="m" value="own"> Uno que ya tengo</label><p class="digitalisimo-hosting-own"><input type="text" name="d" value="escrito.com"></p></fieldset></form>
+</section>
 <section id="s5">
   <!-- Un formulario de contacto cualquiera: no se toca -->
   <form id="contact"><input name="nombre" type="text"><button type="submit">Enviar</button></form>

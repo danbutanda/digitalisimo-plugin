@@ -89,6 +89,10 @@ try {
   ok((await page.$$('#noext + .digitalisimo-hosting-result img')).length === 0 && (await page.evaluate(() => window.fetchLog.length)) === before, 'Un nombre con etiquetas no se consulta ni crea elementos');
   ok((await page.evaluate(() => window.fetchLog.every((u) => !/\.org\b/.test(u)))), 'Nunca se consulta un .org');
 
+  const sent = () => page.evaluate(() => Array.from(new FormData(document.getElementById('panel')).keys()));
+  ok(!(await sent()).includes('d') && (await page.$eval('#panel [name=d]', (i) => i.disabled)), 'Panel con «Dominio nuevo»: el campo de «Uno que ya tengo» está desactivado y no se envía');
+  await page.click('#panel input[value=own]');
+  ok((await sent()).includes('d'), 'Con «Uno que ya tengo» el campo se activa y se envía');
   await page.click('#contact button');
   ok((await page.evaluate(() => window.handlers.contact)) === 1, 'Un formulario de contacto sin campo de dominio no se toca');
   ok(!errors.length, `Sin errores de JavaScript${errors.length ? ': ' + errors.join(' | ') : ''}`);

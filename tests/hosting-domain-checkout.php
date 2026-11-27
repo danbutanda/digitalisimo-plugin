@@ -93,6 +93,14 @@ check( ! errors(), 'Con «Exigir dominio y hosting juntos», quien ya tiene domi
 $ok_items = Digitalisimo_Hosting::cart_item_data( array(), WC()->cart->cart_contents[ $k ] );
 check( 'Dominio (ya lo tengo)' === $ok_items[0]['name'], 'El carrito lo muestra como «Dominio (ya lo tengo)»' );
 cart_reset();
+$k = add_to_cart( 14693, array( 'digitalisimo_domain_mode' => 'new', 'digitalisimo_domain' => 'libre-del-todo.com' ), true );
+check( $k && ! isset( WC()->cart->cart_contents[ $k ]['digitalisimo_domain'] ) && preg_grep( '/Elige el dominio de tu plan/', errors() ), '«Dominio nuevo» con texto en el campo de «ya tengo»: se ignora (la línea no lleva dominio y sigue pidiendo el dominio nuevo)' );
+cart_reset();
+$k = add_to_cart( 14693, array( 'digitalisimo_domain_mode' => 'new', 'digitalisimo_domain' => 'miempresa.com' ), true );
+check( $k && ! isset( WC()->cart->cart_contents[ $k ]['digitalisimo_domain'] ) && preg_grep( '/Elige el dominio de tu plan/', errors() ), '«Dominio nuevo» con un dominio registrado en el campo oculto: no se cuela como dominio propio' );
+$add = $C::store_api_data( array( 'id' => 14693, 'quantity' => 1, 'cart_item_data' => array() ), new Digi_Test_Store_Request( array( 'digitalisimo_domain_mode' => 'new', 'digitalisimo_domain' => 'miempresa.com' ) ) );
+check( ! isset( Digitalisimo_Hosting::cart_domain( $add['cart_item_data'], 14693, 0 )['digitalisimo_domain'] ), 'Store API: con «new» el dominio del plan también se ignora' );
+cart_reset();
 check( false === add_to_cart( 14693, array( 'digitalisimo_domain_mode' => 'own' ), true ) && false !== strpos( $GLOBALS['notices'][0][1], 'nombre exacto' ), '«Uno que ya tengo» sin nombre no entra' );
 check( false === add_to_cart( 14693, array( 'digitalisimo_domain_mode' => 'own', 'digitalisimo_domain' => 'gmail.com' ), true ), 'Un correo público no se hospeda como dominio propio' );
 check( false === add_to_cart( 14693, array( 'digitalisimo_domain_mode' => 'own', 'digitalisimo_domain' => 'noexiste-aun.com' ), true ) && false !== strpos( $GLOBALS['notices'][0][1], 'no está registrado' ), '«Ya tengo» un dominio que Namecheap da por libre: error de escritura, no se paga' );
@@ -105,6 +113,13 @@ check( ! errors(), 'Sin esa casilla, un dominio solo se paga' );
 update_option( 'digitalisimo_hosting_options', array( 'ask_domain' => 0 ) + get_option( 'digitalisimo_hosting_options' ) );
 cart_reset(); add_to_cart( 14693 );
 check( ! errors(), 'Con «pedir el dominio» apagado, un plan solo se paga como antes' );
+$GLOBALS['product'] = $GLOBALS['products'][14693];
+ob_start(); $C::maybe_product_fields(); $fields = ob_get_clean();
+check( '' === $C::panel_html() && '' === $fields, 'Con «pedir el dominio» apagado no se pintan el panel ni los campos del plan' );
+update_option( 'digitalisimo_hosting_options', array( 'ask_domain' => 1 ) + get_option( 'digitalisimo_hosting_options' ) );
+ob_start(); $C::maybe_product_fields(); $fields = ob_get_clean();
+check( false !== strpos( $fields, 'Uno que ya tengo' ), 'Encendido, el producto del plan pide el dominio' );
+update_option( 'digitalisimo_hosting_options', array( 'ask_domain' => 0 ) + get_option( 'digitalisimo_hosting_options' ) );
 update_option( 'digitalisimo_hosting_options', array( 'ask_domain' => 1 ) + get_option( 'digitalisimo_hosting_options' ) );
 
 // ── 3. Transferencia + EPP ────────────────────────────────────────────────────────────────────────────────────
