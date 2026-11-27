@@ -56,13 +56,23 @@ class Digitalisimo_Integrations_SEO_Cleanup {
 
 	/** Regla activa con ese origen exacto, si existe (id). */
 	private static function existing_rule( $path ) {
+		$index = self::rules_index();
+		return (int) ( $index[ Digitalisimo_Integrations_Redirections::signature( array( 'pattern' => $path, 'comparison' => 'exact', 'ignore' => '' ) ) ] ?? 0 );
+	}
+
+	/** @var array|null Firma del origen => id de la regla activa, leído una sola vez por lote. */
+	private static $rules = null;
+
+	/** Reglas activas por la firma de cada origen (una consulta por lote, no una por página). */
+	private static function rules_index( $fresh = false ) {
 		global $wpdb;
+		if ( null !== self::$rules && ! $fresh ) return self::$rules;
 		Digitalisimo_Integrations_Redirections::maybe_install();
-		$want = Digitalisimo_Integrations_Redirections::signature( array( 'pattern' => $path, 'comparison' => 'exact', 'ignore' => '' ) );
+		self::$rules = array();
 		foreach ( (array) $wpdb->get_results( 'SELECT id, sources FROM ' . Digitalisimo_Integrations_Redirections::table() . " WHERE status = 'active'", ARRAY_A ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-			foreach ( (array) json_decode( (string) $row['sources'], true ) as $source ) if ( is_array( $source ) && Digitalisimo_Integrations_Redirections::signature( $source ) === $want ) return (int) $row['id'];
+			foreach ( (array) json_decode( (string) $row['sources'], true ) as $source ) if ( is_array( $source ) && ! isset( self::$rules[ Digitalisimo_Integrations_Redirections::signature( $source ) ] ) ) self::$rules[ Digitalisimo_Integrations_Redirections::signature( $source ) ] = (int) $row['id'];
 		}
-		return 0;
+		return self::$rules;
 	}
 
 	/** Publicados que cuentan para el tope. */
@@ -106,6 +116,7 @@ class Digitalisimo_Integrations_SEO_Cleanup {
 	 * @return array|WP_Error
 	 */
 	public static function plan( $kind, array $ids, $target_raw = '', $source = '' ) {
+		self::rules_index( true );
 		$kind = (string) $kind;
 		if ( ! in_array( $kind, self::KINDS, true ) ) return new WP_Error( 'kind', 'Acción no admitida.' );
 		$target = null;
@@ -155,21 +166,20 @@ class Digitalisimo_Integrations_SEO_Cleanup {
 	public static function apply( array $plan ) {
 		$batch = array( 'id' => substr( md5( uniqid( '', true ) ), 0, 12 ), 'time' => time(), 'user' => (int) get_current_user_id(), 'kind' => $plan['kind'], 'source' => $plan['source'], 'target' => $plan['target'] ? $plan['target']['url'] : '', 'items' => array(), 'undone' => 0 );
 		foreach ( $plan['items'] as $item ) $batch['items'][ (int) $item['id'] ] = array( 'path' => $item['path'], 'title' => $item['title'], 'noindex' => (string) get_post_meta( (int) $item['id'], 'digitalisimo_seo_noindex', true ), 'rule' => 0 );
-		$log   = self::log_entries();
-		$log[] = $batch;
-		self::save_log( $log );
+		// El respaldo se escribe UNA vez y ANTES de crear nada: si PHP se corta a mitad, «Deshacer» encuentra las reglas
+		// por su ruta (origen «cleanup», creadas desde la hora del lote) aunque aún no tengan su id anotado.
+		self::store( $batch );
 		foreach ( $batch['items'] as $id => $item ) {
 			if ( 'noindex' !== $plan['kind'] ) {
 				$rule = Digitalisimo_Integrations_Redirections::save( array( 'sources' => array( array( 'pattern' => $item['path'], 'comparison' => 'exact' ) ), 'url_to' => '301' === $plan['kind'] ? $plan['target']['url'] : '', 'header_code' => (int) $plan['kind'], 'origin' => 'cleanup', 'category' => 'Limpieza SEO' ), 0, false );
-				if ( is_wp_error( $rule ) ) { $batch['items'][ $id ]['error'] = $rule->get_error_message(); self::store( $batch ); continue; }
+				if ( is_wp_error( $rule ) ) { $batch['items'][ $id ]['error'] = $rule->get_error_message(); continue; }
 				$batch['items'][ $id ]['rule'] = (int) $rule;
 			}
-			$batch['items'][ $id ]['done'] = 1;
-			// El respaldo se actualiza en cada página: si PHP se corta a mitad, «Deshacer» conoce cada regla ya creada.
-			self::store( $batch );
 			update_post_meta( $id, 'digitalisimo_seo_noindex', '1' );
 		}
 		if ( 'noindex' !== $plan['kind'] ) Digitalisimo_Integrations_Redirections::refresh_index();
+		self::$rules = null;
+		self::store( $batch ); // Una segunda y última escritura: los ids de las reglas y los errores.
 		self::analysis_changed();
 		return $batch['id'];
 	}
@@ -193,10 +203,22 @@ class Digitalisimo_Integrations_SEO_Cleanup {
 		foreach ( $log as $i => $batch ) {
 			if ( ( $batch['id'] ?? '' ) !== $batch_id || ! empty( $batch['undone'] ) ) continue;
 			$rules = false;
+			// Reglas de la limpieza creadas desde la hora del lote, por la firma de su origen: las de un lote cortado a mitad
+			// (sin id anotado) también se encuentran.
+			$since   = gmdate( 'Y-m-d H:i:s', (int) $batch['time'] - 1 );
+			$by_path = array();
+			if ( in_array( $batch['kind'] ?? '', array( '301', '410' ), true ) ) {
+				Digitalisimo_Integrations_Redirections::maybe_install();
+				foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT id, sources, created FROM ' . Digitalisimo_Integrations_Redirections::table() . " WHERE origin = 'cleanup' AND created >= %s", $since ), ARRAY_A ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					foreach ( (array) json_decode( (string) $row['sources'], true ) as $source ) if ( is_array( $source ) ) $by_path[ Digitalisimo_Integrations_Redirections::signature( $source ) ] = (int) $row['id'];
+				}
+			}
 			foreach ( (array) $batch['items'] as $id => $item ) {
-				if ( ! empty( $item['rule'] ) ) {
-					$row = Digitalisimo_Integrations_Redirections::get( (int) $item['rule'] );
-					if ( $row && 'cleanup' === ( $row['origin'] ?? '' ) ) { $wpdb->delete( Digitalisimo_Integrations_Redirections::table(), array( 'id' => (int) $item['rule'] ) ); $rules = true; }
+				$rule = (int) ( $item['rule'] ?? 0 );
+				if ( ! $rule ) $rule = (int) ( $by_path[ Digitalisimo_Integrations_Redirections::signature( array( 'pattern' => (string) $item['path'], 'comparison' => 'exact', 'ignore' => '' ) ) ] ?? 0 );
+				if ( $rule ) {
+					$row = Digitalisimo_Integrations_Redirections::get( $rule );
+					if ( $row && 'cleanup' === ( $row['origin'] ?? '' ) ) { $wpdb->delete( Digitalisimo_Integrations_Redirections::table(), array( 'id' => $rule ) ); $rules = true; }
 				}
 				if ( '1' !== (string) get_post_meta( (int) $id, 'digitalisimo_seo_noindex', true ) ) continue; // Otro lote o el dueño ya la cambió.
 				if ( '' === (string) $item['noindex'] ) delete_post_meta( (int) $id, 'digitalisimo_seo_noindex' );
@@ -214,7 +236,7 @@ class Digitalisimo_Integrations_SEO_Cleanup {
 	/** Contenidos que un lote vigente redirigió (301 o 410): ya no se sirven, el análisis no los cuenta. */
 	public static function retired_ids() {
 		$out = array();
-		foreach ( self::log_entries() as $batch ) if ( empty( $batch['undone'] ) && in_array( $batch['kind'] ?? '', array( '301', '410' ), true ) ) foreach ( (array) $batch['items'] as $id => $item ) if ( ! empty( $item['rule'] ) ) $out[] = (int) $id;
+		foreach ( self::log_entries() as $batch ) if ( empty( $batch['undone'] ) && in_array( $batch['kind'] ?? '', array( '301', '410' ), true ) ) foreach ( (array) $batch['items'] as $id => $item ) if ( empty( $item['error'] ) ) $out[] = (int) $id;
 		return $out;
 	}
 

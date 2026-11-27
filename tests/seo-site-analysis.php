@@ -175,7 +175,7 @@ check( 1 === count( $log ) && $batch === $log[0]['id'] && '' === $log[0]['items'
 check( array( 21, 22 ) === $C::retired_ids(), 'El análisis deja de contar las redirigidas.' );
 $again = $C::plan( '410', array( 21 ) );
 check( array() === $again['items'] && 'Ya tiene una regla de redirección' === $again['skipped'][0][1], 'Una página que ya redirige no recibe otra regla.' );
-check( 1 === $log[0]['items'][22]['done'], 'Cada página queda anotada en el respaldo al aplicarse.' );
+check( $log[0]['items'][22]['rule'] > 0, 'El respaldo anota la regla de cada página.' );
 check( is_wp_error( $C::plan( '301', array( 20 ), '/paginas-web-torreon/' ) ), 'Un 301 hacia una página que ya redirige (bucle A→B→A) se rechaza.' );
 check( true === $C::undo( $batch ) && array() === $GLOBALS['wpdb']->rows && '' === get_post_meta( 21, 'digitalisimo_seo_noindex' ), 'Deshacer borra sus reglas y repone el noindex de antes.' );
 check( false === $C::undo( $batch ) && array() === $C::retired_ids(), 'Un lote se deshace una sola vez.' );
@@ -188,6 +188,13 @@ $GLOBALS['wpdb']->rows[ $rule['id'] ]['origin'] = 'manual';
 $C::undo( $batch );
 check( 1 === count( $GLOBALS['wpdb']->rows ), 'Deshacer sólo borra reglas que sigan siendo de la limpieza.' );
 $GLOBALS['wpdb']->rows = array();
+
+// Un lote cortado a mitad (sin el id de su regla anotado): deshacer la encuentra por su ruta.
+$batch = $C::apply( $C::plan( '410', array( 23 ) ) );
+$log = get_option( $C::LOG );
+foreach ( $log as $i => $row ) if ( $batch === $row['id'] ) $log[ $i ]['items'][23]['rule'] = 0;
+update_option( $C::LOG, $log );
+check( true === $C::undo( $batch ) && array() === $GLOBALS['wpdb']->rows, 'Deshacer encuentra la regla de un lote cortado por su ruta.' );
 
 // Dos lotes sobre la misma página, deshechos en el orden de su aplicación: queda como antes de los dos.
 $page( 26, 'relleno', 'Relleno', 'publish', 'post' );
