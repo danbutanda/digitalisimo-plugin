@@ -36,7 +36,7 @@ class Digitalisimo_Integrations_SEO_Abilities {
 			'get-link-report'  => array( 'Informe de enlaces internos', 'Páginas huérfanas (sin enlaces entrantes) y contenidos secundarios que no enlazan a su pilar.', array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ), array( __CLASS__, 'get_link_report' ), $site ),
 			'get-redirections' => array( 'Redirecciones', 'Reglas de redirección del sitio con su origen, destino, código, estado y visitas.', self::search_input(), array( __CLASS__, 'get_redirections' ), $site ),
 			'get-404-log'      => array( 'Registro de 404', 'URLs que respondieron 404 con sus visitas y la última procedencia, de la más visitada a la menos.', self::search_input(), array( __CLASS__, 'get_404_log' ), $site ),
-			'get-site-status'  => array( 'Estado SEO del sitio', 'Sitemaps, robots.txt, llms.txt, buscadores verificados (sin sus códigos), redirecciones activas, registro de 404 y estado del importador de Rank Math.', array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ), array( __CLASS__, 'get_site_status' ), $site ),
+			'get-site-status'  => array( 'Estado SEO del sitio', 'Sitemaps, robots.txt, llms.txt, buscadores verificados (sin sus códigos), redirecciones activas, registro de 404, estado del importador de Rank Math y avisos de marca (imágenes y logo rotos, en otro dominio o de demo; datos del negocio y plantillas de título por revisar).', array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ), array( __CLASS__, 'get_site_status' ), $site ),
 		);
 	}
 
@@ -161,6 +161,10 @@ class Digitalisimo_Integrations_SEO_Abilities {
 			'verified_with' => array_values( array_map( function( $engine ) { return $engine[0]; }, array_filter( Digitalisimo_Integrations_Verification::engines(), function( $engine, $key ) { return '' !== Digitalisimo_Integrations_Verification::sanitize_code( Digitalisimo_Integrations_SEO_Resolver::option( $key, '' ) ); }, ARRAY_FILTER_USE_BOTH ) ) ),
 			'redirections'  => (int) get_option( Digitalisimo_Integrations_Redirections::FLAG, 0 ),
 			'log_404'       => (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_404_enabled', 0 ),
+			// Imágenes y datos de marca por revisar (Brand_Check): lo mismo que avisa el escritorio.
+			'brand_warnings' => Digitalisimo_Integrations_Brand_Check::warnings(),
+			// Análisis del sitio (tandas B y C): errores (shortcodes y variables sin resolver, canonical roto) y avisos.
+			'site_analysis' => Digitalisimo_Integrations_Site_Analysis::summary(),
 			'rankmath'      => $job ? array( 'status' => $job['status'] ?? '', 'done' => $job['done'] ?? array(), 'notes' => array_map( function( $n ) { return (int) ( $n['count'] ?? 0 ); }, (array) ( $job['notes'] ?? array() ) ) ) : null,
 		);
 	}

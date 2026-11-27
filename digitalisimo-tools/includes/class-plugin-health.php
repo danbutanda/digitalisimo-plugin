@@ -1,0 +1,510 @@
+<?php
+namespace Digitalisimo\Tools;
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Salud de plugins: un plugin «activo» que no cargó.
+ *
+ * Caso del 23-nov (digitalisimo.lat): WooCommerce 11.3.1 figuraba activo y, a la vez, no había tipo `product` ni rutas
+ * `wc/v3`; después volvió solo. Revisados todos los filtros de carga de plugins de DIGITALÍSIMO (`option_active_plugins`,
+ * `pre_option_active_plugins`, `site_option_active_sitewide_plugins`, mu-plugins, Código PHP, el mantenimiento y el
+ * WordPress mínimo de Backups, el modo de rescate): el único que deja fuera plugins es el WordPress mínimo de una
+ * restauración de Backups en curso (`.maintenance` propio, sólo `wp-cron.php` y la pantalla de Backups), a propósito.
+ * Lo visto sin sesión era la API guardada por la caché de página (ver Rest_Cache).
+ *
+ * Para que la próxima vez se vea en el sitio, sin suponer: se compara lo que la base de datos dice que está activo
+ * (`active_plugins` del sitio y, en una red, `active_sitewide_plugins`, leídos directo de la tabla) con lo que de verdad
+ * cargó esta petición (`get_included_files()`, tras `plugins_loaded`), y se dice por qué falta:
+ *  - `filtered`: la caché da la lista completa, pero un filtro la recorta (se nombra quién: archivo y línea);
+ *  - `cache`: la caché de objetos da otra lista que la base (vieja o de otro sitio);
+ *  - `missing`: el archivo no existe o WordPress no lo acepta (actualización a medias, carpeta renombrada);
+ *  - `not_loaded`: está en la lista y su archivo existe, pero esta petición no lo incluyó;
+ *  - `marker`: cargó pero no hizo lo que siempre hace (WooCommerce sin el tipo `product` o sin `wc/v3`; Elementor sin
+ *    `elementor/loaded`).
+ * Es barato y nunca corre en la portada: una consulta y un `get_included_files()` sólo en el Escritorio, Plugins y las
+ * pantallas Digitalisimo de quien gestiona plugins, en «Salud del sitio», en la función del MCP y, en segundo plano, en
+ * la comprobación de actualizaciones de plugins del cron de WordPress (`wp_update_plugins`, dos veces al día: no agrega
+ * ningún evento). Lo que ve el cron se guarda sólo si se repite en otra petición (observe(): la primera vista deja
+ * una huella transitoria y pide otra comprobación en 2 minutos) en `digitalisimo_tools_plugin_health`, sin carga
+ * automática, y el Escritorio lo dice durante tres días aunque ya se haya arreglado solo.
+ *
+ * En el MCP: la Ability `digitalisimo-tools/plugin-health` (sólo lectura, `activate_plugins`), pública para MCP y, con
+ * el MCP de DIGITALÍSIMO Elements, en `/wp-json/elementor/mcp` (`digitalisimo-tools-plugin-health`). Dice también si la
+ * API pública puede salir de una caché de página (Rest_Cache::status()).
+ */
+final class Plugin_Health {
+	/** Último problema visto en segundo plano (cron): `{at, context, problems}`, sin carga automática. */
+	const OPTION   = 'digitalisimo_tools_plugin_health';
+	const ABILITY  = 'digitalisimo-tools/plugin-health';
+	const CATEGORY = 'digitalisimo-tools';
+	/** Cómo se nombra, a quien no administra la red, un archivo de toda la red. */
+	const HIDDEN_MU      = 'un mu-plugin de la red';
+	const HIDDEN_NETWORK = 'código de la red';
+	/** Primera vista de un problema, aún sin confirmar (transitorio): `{key, at, tries}`. */
+	const PENDING = 'digitalisimo_tools_plugin_health_pending';
+	/** Evento suelto que vuelve a comprobar en otra petición (sólo cuando hay algo que confirmar). */
+	const CONFIRM = 'digitalisimo_tools_plugin_health_confirm';
+	/** Segundos mínimos entre la primera vista y la confirmación. */
+	const CONFIRM_AFTER = 60;
+	/** Cuánto se recuerda en el Escritorio un problema visto en segundo plano que ya no está. */
+	const RECENT = 259200;
+
+	public static function init() {
+		add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
+		add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
+		add_filter( 'site_status_tests', array( __CLASS__, 'tests' ) );
+		add_action( 'wp_update_plugins', array( __CLASS__, 'background' ), 99 );
+		add_action( self::CONFIRM, array( __CLASS__, 'background' ) );
+		add_action( 'wp_abilities_api_categories_init', array( __CLASS__, 'register_category' ) );
+		add_action( 'wp_abilities_api_init', array( __CLASS__, 'register_ability' ) );
+		add_filter( 'elementor/mcp/server/tools', array( __CLASS__, 'server_tools' ) );
+	}
+
+	/**
+	 * Marcas conocidas de que un plugin cargó de verdad: `post_type` (tras `init`), `rest` (namespace, sólo si el
+	 * servidor REST ya se armó en esta petición) y `action` (un gancho que dispara al cargar).
+	 */
+	public static function markers() {
+		$markers = array(
+			'woocommerce/woocommerce.php' => array( 'post_type' => 'product', 'rest' => 'wc/v3' ),
+			'elementor/elementor.php'     => array( 'action' => 'elementor/loaded' ),
+		);
+		return (array) apply_filters( 'digitalisimo_tools_plugin_health_markers', $markers );
+	}
+
+	/**
+	 * Los plugins activos que no cargaron en esta petición: lista de `{plugin, name, reason, detail}` ('' si todo bien).
+	 * Las fuentes se pueden pasar (pruebas); por defecto, la base de datos, la caché y los archivos incluidos.
+	 */
+	public static function check( array $sources = array() ) {
+		if ( ! did_action( 'plugins_loaded' ) ) return array();
+		$network   = function_exists( 'is_multisite' ) && is_multisite();
+		$stored    = array_key_exists( 'stored', $sources ) ? (array) $sources['stored'] : self::stored( $network );
+		$visible   = array_key_exists( 'visible', $sources ) ? (array) $sources['visible'] : self::visible( $network );
+		$ext       = array_key_exists( 'ext', $sources ) ? (bool) $sources['ext'] : ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() );
+		// La lista sin filtros de esta misma petición (la misma foto que `visible`): sin carrera con otra petición.
+		$cached    = array_key_exists( 'cached', $sources ) ? (array) $sources['cached'] : self::cached( $network, false );
+		$included  = array_key_exists( 'included', $sources ) ? (array) $sources['included'] : array_flip( get_included_files() );
+		$markers   = self::markers();
+		$problems  = array();
+		$recovery  = function_exists( 'wp_is_recovery_mode' ) && wp_is_recovery_mode();
+		$paused    = $recovery && function_exists( 'wp_paused_plugins' ) ? (array) wp_paused_plugins()->get_all() : array();
+		foreach ( array_unique( array_map( 'strval', $stored ) ) as $file ) {
+			if ( '' === $file || isset( $paused[ dirname( $file ) ] ) || isset( $paused[ $file ] ) ) continue;
+			$path = rtrim( WP_PLUGIN_DIR, '/\\' ) . '/' . $file;
+			if ( ! in_array( $file, $visible, true ) ) {
+				if ( in_array( $file, $cached, true ) ) {
+					// Misma foto con y sin filtros: lo quitó un filtro.
+					$problems[] = self::problem( $file, 'filtered', 'Está activo en la base de datos, pero un filtro lo quita de la lista de plugins activos en esta petición' . self::filters_text() . '.' );
+				} elseif ( $ext && ! in_array( $file, array_key_exists( 'persistent', $sources ) ? (array) $sources['persistent'] : self::cached( $network, true ), true ) ) {
+					// La base lo tiene, esta petición no y la caché persistente, leída otra vez ahora, tampoco: no es que otra
+					// petición lo acabe de activar.
+					$problems[] = self::problem( $file, 'cache', 'Está activo en la base de datos, pero la caché de objetos da una lista de plugins activos vieja o de otro sitio: WordPress no lo carga mientras la caché diga eso.' );
+				}
+				// Si no, otra petición lo acaba de activar (la foto de esta es de antes): no es un problema.
+				continue;
+			}
+			if ( ( function_exists( 'validate_file' ) && 0 !== validate_file( $file ) ) || '.php' !== substr( $file, -4 ) || ! is_file( $path ) ) {
+				$problems[] = self::problem( $file, 'missing', 'Figura activo, pero su archivo (' . $file . ') no existe o WordPress no lo acepta: una actualización a medias o una carpeta renombrada.' );
+				continue;
+			}
+			$real = realpath( $path );
+			if ( ! isset( $included[ $path ] ) && ( false === $real || ! isset( $included[ $real ] ) ) ) {
+				$problems[] = self::problem( $file, 'not_loaded', 'Figura activo y su archivo existe, pero esta petición no lo cargó: la lista que usó WordPress al arrancar no lo traía (caché de objetos o un filtro que sólo actúa al arrancar).' );
+				continue;
+			}
+			$marker = self::marker_problem( $file, $markers );
+			if ( '' !== $marker ) $problems[] = self::problem( $file, 'marker', $marker );
+		}
+		return self::classify( $problems, array_key_exists( 'organizer', $sources ) ? (string) $sources['organizer'] : self::organizer( $stored ) );
+	}
+
+	/**
+	 * Lo que se excluye a propósito (revisión del 24-nov) queda como nota (`intentional`), sin aviso ni guardado:
+	 *  - `filtered`: un filtro lo quita de la misma foto de la petición, así que es código que decide (la carrera con
+	 *    otra petición ya no cae aquí): un organizador de carga o el mismo filtro de forma estable;
+	 *  - `not_loaded` con un organizador de carga conocido presente: deciden al arrancar y luego devuelven la lista.
+	 */
+	private static function classify( array $problems, $organizer ) {
+		foreach ( $problems as $i => $p ) {
+			$intentional = 'filtered' === $p['reason'] || ( 'not_loaded' === $p['reason'] && '' !== $organizer );
+			$problems[ $i ]['intentional'] = $intentional;
+			if ( $intentional && '' !== $organizer ) $problems[ $i ]['detail'] .= ' Lo decide ' . $organizer . ', que organiza qué plugins se cargan en cada pantalla.';
+		}
+		return $problems;
+	}
+
+	/** Lo que hay que decir (sin lo que se excluye a propósito). */
+	public static function serious_only( array $problems ) {
+		return array_values( array_filter( $problems, static function ( $p ) { return empty( $p['intentional'] ); } ) );
+	}
+
+	/**
+	 * Organizadores de carga conocidos (quitan plugins a propósito en el escritorio o el cron), por un trozo de la ruta
+	 * de su código o de su carpeta: Freesoul Deactivate Plugins, Plugin Organizer, Asset CleanUp, Perfmatters y Plugin
+	 * Load Filter. Filtro `digitalisimo_tools_plugin_health_organizers` (trozo en minúsculas => nombre).
+	 */
+	public static function organizers() {
+		return (array) apply_filters( 'digitalisimo_tools_plugin_health_organizers', array(
+			'freesoul-deactivate-plugins' => 'Freesoul Deactivate Plugins',
+			'eos-deactivate-plugins'      => 'Freesoul Deactivate Plugins',
+			'plugin-organizer'            => 'Plugin Organizer',
+			'pluginorganizermu'           => 'Plugin Organizer',
+			'wp-asset-clean-up'           => 'Asset CleanUp',
+			'wpacu'                       => 'Asset CleanUp',
+			'perfmatters'                 => 'Perfmatters',
+			'plugin-load-filter'          => 'Plugin Load Filter',
+		) );
+	}
+
+	/** El organizador presente: por el código enganchado a los filtros de la lista o por un plugin activo; '' si ninguno. */
+	public static function organizer( array $active = array() ) {
+		$hay = array_map( 'strval', $active );
+		foreach ( self::callbacks() as $item ) {
+			$ref = self::reflect( $item[1] );
+			if ( $ref && '' !== (string) $ref->getFileName() ) $hay[] = (string) $ref->getFileName();
+		}
+		$hay = strtolower( str_replace( '\\', '/', implode( "\n", $hay ) ) );
+		foreach ( self::organizers() as $fragment => $name ) {
+			if ( '' !== (string) $fragment && false !== strpos( $hay, strtolower( (string) $fragment ) ) ) return (string) $name;
+		}
+		return '';
+	}
+
+	/** Lo que la base de datos dice que está activo (sin caché ni filtros). */
+	private static function stored( $network ) {
+		global $wpdb;
+		$out = array();
+		if ( ! is_object( $wpdb ) ) return $out;
+		$site = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1", 'active_plugins' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- la lectura sin caché es el objeto de la comprobación.
+		$out  = array_values( (array) maybe_unserialize( (string) $site ) );
+		if ( $network ) {
+			$wide = $wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->sitemeta} WHERE meta_key = %s AND site_id = %d LIMIT 1", 'active_sitewide_plugins', (int) get_current_network_id() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$out  = array_merge( $out, array_keys( (array) maybe_unserialize( (string) $wide ) ) );
+		}
+		return array_values( array_filter( array_map( 'strval', $out ), 'strlen' ) );
+	}
+
+	/** Lo que WordPress ve ahora (caché y filtros), lo que usa wp_get_active_and_valid_plugins(). */
+	private static function visible( $network ) {
+		$out = (array) get_option( 'active_plugins', array() );
+		if ( $network ) $out = array_merge( $out, array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) );
+		return array_values( array_map( 'strval', $out ) );
+	}
+
+	/**
+	 * La lista sin filtros: `alloptions` (o la clave suelta) y la de la red. `$force`: leída otra vez de la caché de
+	 * objetos persistente; si no, la copia de esta petición (la misma foto que vio WordPress al arrancar).
+	 */
+	private static function cached( $network, $force ) {
+		$all  = $force ? wp_cache_get( 'alloptions', 'options', true ) : wp_load_alloptions();
+		$site = is_array( $all ) && array_key_exists( 'active_plugins', $all ) ? $all['active_plugins'] : wp_cache_get( 'active_plugins', 'options', $force );
+		$out  = false === $site ? array() : array_values( (array) maybe_unserialize( $site ) );
+		if ( $network ) {
+			$wide = wp_cache_get( (int) get_current_network_id() . ':active_sitewide_plugins', 'site-options', $force );
+			if ( false !== $wide ) $out = array_merge( $out, array_keys( (array) maybe_unserialize( $wide ) ) );
+		}
+		return array_values( array_map( 'strval', $out ) );
+	}
+
+	/** Quién filtra la lista de plugins activos: « (filtro de …)» con archivo y línea, o ''. */
+	private static function filters_text() {
+		$who = self::filters();
+		return $who ? ' (' . implode( '; ', $who ) . ')' : '';
+	}
+
+	/** Las funciones enganchadas a los filtros de la lista de plugins activos, descritas por su archivo y línea. */
+	public static function filters() {
+		$out = array();
+		foreach ( self::callbacks() as $item ) $out[] = $item[0] . ': ' . self::describe( $item[1] );
+		return array_values( array_unique( $out ) );
+	}
+
+	/** Las funciones enganchadas a los filtros de la lista de plugins activos: `[gancho, función]`. */
+	private static function callbacks() {
+		global $wp_filter;
+		$out = array();
+		foreach ( array( 'pre_option_active_plugins', 'option_active_plugins', 'pre_site_option_active_sitewide_plugins', 'site_option_active_sitewide_plugins' ) as $hook ) {
+			if ( empty( $wp_filter[ $hook ] ) || ! is_object( $wp_filter[ $hook ] ) || empty( $wp_filter[ $hook ]->callbacks ) ) continue;
+			foreach ( (array) $wp_filter[ $hook ]->callbacks as $callbacks ) {
+				foreach ( (array) $callbacks as $callback ) $out[] = array( $hook, $callback['function'] ?? null );
+			}
+		}
+		return $out;
+	}
+
+	private static function reflect( $callback ) {
+		try {
+			if ( is_string( $callback ) && false === strpos( $callback, '::' ) ) return new \ReflectionFunction( $callback );
+			if ( is_string( $callback ) ) return new \ReflectionMethod( $callback );
+			if ( is_array( $callback ) && 2 === count( $callback ) ) return new \ReflectionMethod( is_object( $callback[0] ) ? get_class( $callback[0] ) : (string) $callback[0], (string) $callback[1] );
+			if ( $callback instanceof \Closure ) return new \ReflectionFunction( $callback );
+			if ( is_object( $callback ) && method_exists( $callback, '__invoke' ) ) return new \ReflectionMethod( $callback, '__invoke' );
+		} catch ( \ReflectionException $e ) {
+			return null;
+		}
+		return null;
+	}
+
+	private static function describe( $callback ) {
+		$ref = self::reflect( $callback );
+		if ( ! $ref ) return 'función desconocida';
+		$file = (string) $ref->getFileName();
+		if ( '' === $file ) return $ref->getName();
+		$where = self::where( $file );
+		// Oculto (otro archivo de la red): ni la línea, que lo identificaría.
+		return in_array( $where, array( self::HIDDEN_MU, self::HIDDEN_NETWORK ), true ) ? $where : $where . ':' . (int) $ref->getStartLine();
+	}
+
+	/**
+	 * Dónde está un archivo, sin rutas absolutas del servidor: relativo a la carpeta de plugins, de mu-plugins o a
+	 * wp-content; si no, sólo su nombre. En una red, los mu-plugins y lo demás fuera de la carpeta de plugins son de toda
+	 * la red: sólo quien tiene `manage_network_plugins` ve cuál.
+	 */
+	public static function where( $file ) {
+		$norm  = static function ( $path ) { return rtrim( str_replace( '\\', '/', (string) $path ), '/' ); };
+		$file  = $norm( $file );
+		$bases = array();
+		if ( defined( 'WPMU_PLUGIN_DIR' ) ) $bases['mu-plugins'] = $norm( WPMU_PLUGIN_DIR );
+		if ( defined( 'WP_PLUGIN_DIR' ) ) $bases['plugins'] = $norm( WP_PLUGIN_DIR );
+		if ( defined( 'WP_CONTENT_DIR' ) ) $bases['wp-content'] = $norm( WP_CONTENT_DIR );
+		$kind = '';
+		$rel  = basename( $file );
+		foreach ( $bases as $label => $base ) {
+			if ( '' !== $base && 0 === strpos( $file, $base . '/' ) ) {
+				$kind = $label;
+				$rel  = $label . '/' . substr( $file, strlen( $base ) + 1 );
+				break;
+			}
+		}
+		$network = function_exists( 'is_multisite' ) && is_multisite();
+		if ( $network && 'plugins' !== $kind && ! ( function_exists( 'current_user_can' ) && current_user_can( 'manage_network_plugins' ) ) ) {
+			return 'mu-plugins' === $kind ? self::HIDDEN_MU : self::HIDDEN_NETWORK;
+		}
+		return $rel;
+	}
+
+	private static function marker_problem( $file, array $markers ) {
+		// Activado en esta misma petición (`activate_plugin()` lo incluye después de `init`): todavía no registró nada.
+		if ( empty( $markers[ $file ] ) || ! is_array( $markers[ $file ] ) || did_action( 'activate_' . $file ) ) return '';
+		$m = $markers[ $file ];
+		if ( ! empty( $m['action'] ) && ! did_action( (string) $m['action'] ) ) return 'Su archivo cargó, pero no llegó a arrancar (no disparó «' . $m['action'] . '»).';
+		if ( ! empty( $m['post_type'] ) && did_action( 'init' ) && function_exists( 'post_type_exists' ) && ! post_type_exists( (string) $m['post_type'] ) ) return 'Su archivo cargó, pero no registró el tipo de contenido «' . $m['post_type'] . '».';
+		if ( ! empty( $m['rest'] ) && did_action( 'rest_api_init' ) && function_exists( 'rest_get_server' ) && ! in_array( (string) $m['rest'], (array) rest_get_server()->get_namespaces(), true ) ) return 'Su archivo cargó, pero no registró las rutas «' . $m['rest'] . '» de la API.';
+		return '';
+	}
+
+	private static function problem( $file, $reason, $detail ) {
+		return array( 'plugin' => $file, 'name' => self::name( $file ), 'reason' => $reason, 'detail' => $detail );
+	}
+
+	private static function name( $file ) {
+		$path = rtrim( WP_PLUGIN_DIR, '/\\' ) . '/' . $file;
+		if ( is_file( $path ) ) {
+			if ( ! function_exists( 'get_plugin_data' ) && is_file( ABSPATH . 'wp-admin/includes/plugin.php' ) ) require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			if ( function_exists( 'get_plugin_data' ) ) {
+				$data = get_plugin_data( $path, false, false );
+				if ( ! empty( $data['Name'] ) ) return (string) $data['Name'];
+			}
+		}
+		return $file;
+	}
+
+	/** Texto de una lista de problemas: «WooCommerce (woocommerce/woocommerce.php): …». */
+	private static function text( array $problems ) {
+		$out = array();
+		foreach ( $problems as $p ) $out[] = ( $p['name'] !== $p['plugin'] ? $p['name'] . ' (' . $p['plugin'] . ')' : $p['plugin'] ) . ': ' . $p['detail'];
+		return $out;
+	}
+
+	/** Lo último que vio el segundo plano, si es reciente. */
+	public static function last_seen() {
+		$seen = get_option( self::OPTION, array() );
+		if ( ! is_array( $seen ) || empty( $seen['problems'] ) || time() - (int) ( $seen['at'] ?? 0 ) > self::RECENT ) return array();
+		return $seen;
+	}
+
+	/** Huella de una lista de problemas: plugin y motivo, en orden. */
+	public static function key( array $problems ) {
+		$out = array();
+		foreach ( $problems as $p ) $out[] = $p['plugin'] . ':' . $p['reason'];
+		sort( $out );
+		return md5( implode( '|', $out ) );
+	}
+
+	/**
+	 * Lo visto en una petición se confirma en otra (revisión del 24-nov: activar un plugin mientras corre la comprobación
+	 * no debe quedar como problema). La primera vez sólo se anota la huella (transitorio) y se pide otra comprobación en
+	 * unos 2 minutos (`CONFIRM`, un evento suelto, sólo si hay algo); si la siguiente ve lo mismo y ya pasó un minuto, se
+	 * guarda en `OPTION`. Lo que aparece una sola vez no se guarda. Como mucho tres reintentos si cambia cada vez.
+	 */
+	public static function observe( array $problems, $context ) {
+		$pending = get_transient( self::PENDING );
+		if ( ! $problems ) {
+			if ( false !== $pending ) delete_transient( self::PENDING );
+			return 'clear';
+		}
+		$key = self::key( $problems );
+		if ( is_array( $pending ) && $key === ( $pending['key'] ?? '' ) && time() - (int) ( $pending['at'] ?? 0 ) >= self::CONFIRM_AFTER ) {
+			update_option( self::OPTION, array( 'at' => time(), 'first' => (int) $pending['at'], 'context' => (string) $context, 'problems' => $problems ), false );
+			delete_transient( self::PENDING );
+			return 'confirmed';
+		}
+		if ( is_array( $pending ) && $key === ( $pending['key'] ?? '' ) ) return 'pending';
+		$tries = is_array( $pending ) ? (int) ( $pending['tries'] ?? 0 ) + 1 : 0;
+		if ( $tries > 3 ) return 'unstable';
+		set_transient( self::PENDING, array( 'key' => $key, 'at' => time(), 'tries' => $tries ), DAY_IN_SECONDS );
+		if ( ! wp_next_scheduled( self::CONFIRM ) ) wp_schedule_single_event( time() + 120, self::CONFIRM );
+		return 'pending';
+	}
+
+	/** `wp_update_plugins` (cron de WordPress, dos veces al día) y `CONFIRM`: la comprobación en una petición sin escritorio. */
+	public static function background() {
+		if ( ! function_exists( 'wp_doing_cron' ) || ! wp_doing_cron() ) return;
+		self::observe( self::serious_only( self::check() ), 'cron' );
+	}
+
+	private static function cap() {
+		return function_exists( 'is_network_admin' ) && is_network_admin() ? 'manage_network_plugins' : 'activate_plugins';
+	}
+
+	private static function screen_wanted() {
+		if ( ! current_user_can( self::cap() ) ) return false;
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$id     = $screen ? (string) $screen->id : '';
+		$page   = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si se muestra el aviso.
+		return in_array( $id, array( 'dashboard', 'dashboard-network', 'plugins', 'plugins-network' ), true ) || 0 === strpos( $page, 'digitalisimo' );
+	}
+
+	/** Estado para el aviso y «Salud del sitio»: '' (bien), 'now' (ahora) o 'recent' (lo vio el segundo plano). */
+	public static function status() {
+		$raw  = self::check();
+		$all  = self::serious_only( $raw );
+		$now  = $all;
+		$info = array_values( array_filter( $raw, static function ( $p ) { return ! empty( $p['intentional'] ); } ) );
+		$seen = self::last_seen();
+		// «cache» puede ser una carrera (otra petición escribía la lista): en el Escritorio sólo cuenta confirmada en otra
+		// petición; si no, se pide la confirmación y no se dice nada todavía.
+		$confirmed = array();
+		foreach ( (array) ( $seen['problems'] ?? array() ) as $p ) $confirmed[ $p['plugin'] . ':' . $p['reason'] ] = true;
+		$unconfirmed = array();
+		foreach ( $now as $i => $p ) {
+			if ( 'cache' === $p['reason'] && ! isset( $confirmed[ $p['plugin'] . ':cache' ] ) ) {
+				$unconfirmed[] = $p;
+				unset( $now[ $i ] );
+			}
+		}
+		$now = array_values( $now );
+		if ( $unconfirmed ) self::observe( $all, 'admin' );
+		if ( $now ) return array( 'state' => 'now', 'problems' => $now, 'info' => $info, 'message' => 'Hay plugins activos que no cargaron en esta petición. ' . implode( ' ', self::text( $now ) ) );
+		if ( $seen ) {
+			$when = function_exists( 'wp_date' ) ? wp_date( 'j/m/Y H:i', (int) $seen['at'] ) : gmdate( 'Y-m-d H:i', (int) $seen['at'] );
+			$where = 'cron' === ( $seen['context'] ?? '' ) ? 'una tarea de fondo de WordPress (cron)' : 'el escritorio';
+			// Cada detalle dice su causa (archivo que faltaba, caché vieja, lista al arrancar, marca): sin culpar de antemano
+			// a la caché de objetos ni a los mu-plugins.
+			return array( 'state' => 'recent', 'problems' => (array) $seen['problems'], 'info' => $info, 'message' => 'El ' . $when . ', en ' . $where . ', había plugins activos que no cargaron; ahora sí cargan. Lo que se vio entonces: ' . implode( ' ', self::text( (array) $seen['problems'] ) ) );
+		}
+		if ( $info ) return array( 'state' => 'info', 'problems' => array(), 'info' => $info, 'message' => 'Algunos plugins activos no cargan en esta petición a propósito: ' . implode( ' ', self::text( $info ) ) );
+		return array( 'state' => '', 'problems' => array(), 'info' => array(), 'message' => '' );
+	}
+
+	public static function notice() {
+		if ( ! self::screen_wanted() || ! class_exists( '\\Digitalisimo_Notices' ) ) return;
+		$status = self::status();
+		if ( ! in_array( $status['state'], array( 'now', 'recent' ), true ) ) return; // Lo que se excluye a propósito: sólo «Salud del sitio».
+		$hash = array( $status['state'] );
+		foreach ( $status['problems'] as $p ) $hash[] = $p['plugin'] . ':' . $p['reason'];
+		\Digitalisimo_Notices::show( \Digitalisimo_Notices::site( 'tools-plugin-health' ), 'now' === $status['state'] ? 'error' : 'warning', '<p><strong>DIGITALÍSIMO:</strong> ' . esc_html( $status['message'] ) . '</p>', array( 'hash' => $hash, 'cap' => self::cap() ) );
+	}
+
+	public static function tests( $tests ) {
+		$tests['direct']['digitalisimo_plugin_health'] = array( 'label' => 'Los plugins activos cargan', 'test' => array( __CLASS__, 'health' ) );
+		return $tests;
+	}
+
+	public static function health() {
+		$status = self::status();
+		$result = array(
+			'label'       => 'Todos los plugins activos cargan',
+			'status'      => 'good',
+			'badge'       => array( 'label' => 'DIGITALÍSIMO', 'color' => 'blue' ),
+			'description' => '<p>' . esc_html( 'Cada plugin activo en la base de datos cargó en esta petición.' ) . '</p>',
+			'actions'     => '',
+			'test'        => 'digitalisimo_plugin_health',
+		);
+		if ( 'now' === $status['state'] ) {
+			$result['label']  = 'Hay plugins activos que no cargaron';
+			$result['status'] = 'critical';
+		} elseif ( 'recent' === $status['state'] ) {
+			$result['label']  = 'Hace poco hubo plugins activos que no cargaron';
+			$result['status'] = 'recommended';
+		} elseif ( 'info' === $status['state'] ) {
+			// Sólo una nota: un organizador de carga o un filtro estable deciden a propósito (sin «recomendado» fijo).
+			$result['label'] = 'Los plugins activos cargan; algunos se excluyen a propósito en esta pantalla';
+		}
+		if ( '' !== $status['state'] ) $result['description'] = '<p>' . esc_html( $status['message'] ) . '</p>';
+		if ( 'info' !== $status['state'] && ! empty( $status['info'] ) ) $result['description'] .= '<p>' . esc_html( 'Además, a propósito: ' . implode( ' ', self::text( $status['info'] ) ) ) . '</p>';
+		return $result;
+	}
+
+	public static function register_category() {
+		if ( ! function_exists( 'wp_register_ability_category' ) || ( function_exists( 'wp_has_ability_category' ) && wp_has_ability_category( self::CATEGORY ) ) ) return;
+		wp_register_ability_category( self::CATEGORY, array( 'label' => 'DIGITALÍSIMO Tools', 'description' => 'Diagnóstico de la administración de este sitio.' ) );
+	}
+
+	public static function register_ability() {
+		if ( ! function_exists( 'wp_register_ability' ) || ( function_exists( 'wp_has_ability' ) && wp_has_ability( self::ABILITY ) ) ) return;
+		wp_register_ability( self::ABILITY, self::definition() );
+	}
+
+	public static function definition() {
+		$problem = array( 'type' => 'object', 'properties' => array( 'plugin' => array( 'type' => 'string' ), 'name' => array( 'type' => 'string' ), 'reason' => array( 'type' => 'string', 'enum' => array( 'filtered', 'cache', 'missing', 'not_loaded', 'marker' ) ), 'detail' => array( 'type' => 'string' ), 'intentional' => array( 'type' => 'boolean', 'description' => 'Excluido a propósito (un organizador de carga o un filtro estable): sólo una nota.' ) ) );
+		return array(
+			'label'               => 'Salud de los plugins',
+			'description'         => 'Comprueba que cada plugin activo en la base de datos cargó de verdad en esta petición (WooCommerce con su tipo product y sus rutas wc/v3, Elementor arrancado) y dice por qué falta uno: un filtro, la caché de objetos, el archivo que no existe o que no se incluyó (intentional: lo excluye a propósito un organizador de carga o un filtro estable; ok cuenta sólo lo demás). Úsala cuando las herramientas o rutas de un plugin activo no aparecen. Incluye lo último que vio el cron y si la API pública puede salir de una caché de página (LiteSpeed). No cambia nada.',
+			'category'            => self::CATEGORY,
+			'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
+			'output_schema'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'ok'         => array( 'type' => 'boolean' ),
+					'site'       => array( 'type' => 'string' ),
+					'problems'   => array( 'type' => 'array', 'items' => $problem ),
+					'background' => array( 'type' => 'object' ),
+					'rest_cache' => array( 'type' => 'object' ),
+				),
+			),
+			'execute_callback'    => array( __CLASS__, 'execute' ),
+			'permission_callback' => array( __CLASS__, 'permission' ),
+			'meta'                => array(
+				'show_in_rest' => true,
+				'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
+				'mcp'          => array( 'public' => true, 'type' => 'tool' ),
+			),
+		);
+	}
+
+	public static function permission( $input = null ) {
+		return is_user_logged_in() && current_user_can( 'activate_plugins' );
+	}
+
+	public static function execute( $input = null ) {
+		// Sólo lee: lo que vea el MCP no se guarda (el cron confirma y guarda).
+		$problems = self::check();
+		$seen     = self::last_seen();
+		return array(
+			'ok'         => ! self::serious_only( $problems ),
+			'site'       => home_url( '/' ),
+			'problems'   => $problems,
+			'background' => $seen ? array( 'at' => gmdate( 'c', (int) $seen['at'] ), 'context' => (string) $seen['context'], 'problems' => (array) $seen['problems'] ) : (object) array(),
+			'rest_cache' => class_exists( __NAMESPACE__ . '\\Rest_Cache', false ) ? Rest_Cache::status() : (object) array(),
+		);
+	}
+
+	/** El servidor MCP de DIGITALÍSIMO Elements la ofrece junto a las suyas. */
+	public static function server_tools( $tools ) {
+		$tools = is_array( $tools ) ? $tools : array();
+		if ( function_exists( 'wp_register_ability' ) && ! in_array( self::ABILITY, $tools, true ) ) $tools[] = self::ABILITY;
+		return $tools;
+	}
+}

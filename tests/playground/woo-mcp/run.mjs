@@ -344,6 +344,83 @@ async function single() {
     }
   }
 
+  // Tanda B (B3, 2026-11-26): escritura sólo en lo elegido, simulación y deshacer, con WooCommerce real.
+  start('S15 Escritura elegida, dry_run y deshacer');
+  const custom = await probe('custom', 'products,catalog,coupons');
+  check(custom.mode === 'custom' && custom.write_tools.join() === 'products,catalog,coupons', 'modo custom guardado con su lista', JSON.stringify(custom));
+  tools = await admin.tools();
+  const desc = (n) => tools.find((t) => t.name === `digitalisimo-woo-${n}`)?.description || '';
+  check(/permite escribir/.test(desc('products')) && /no está elegida/.test(desc('orders')), 'la descripción dice qué herramienta escribe');
+  check(tools.find((t) => t.name === 'digitalisimo-woo-products')?.inputSchema?.properties?.dry_run?.type === 'boolean', 'dry_run en el esquema que ve el cliente');
+  r = await admin.call('products', { action: 'create', data: { name: 'Deshacer MCP', type: 'simple', status: 'draft', regular_price: '100' } });
+  okCall(r, 'custom: productos elegidos crean');
+  const undoId = r.data?.data?.id;
+  check(r.data?.change?.undo === true && /^[a-f0-9]{16}$/.test(r.data?.change?.id || ''), 'la respuesta trae change con undo', JSON.stringify(r.data?.change));
+  const createChange = r.data?.change?.id;
+  r = await admin.call('orders', { action: 'create', data: { status: 'pending' } });
+  check(r.isError && /Escritura sólo en lo elegido/.test(r.text), 'custom: pedidos no elegidos no escriben, y el error lo dice', r.text);
+  r = await admin.call('orders', { action: 'create', dry_run: true, data: { status: 'pending' } });
+  check(!r.isError && r.data?.dry_run === true && r.data?.allowed === false, 'simular un pedido sí, con allowed false', r.text.slice(0, 300));
+  r = await admin.call('products', { action: 'update', product_id: undoId, dry_run: true, data: { regular_price: '120', name: 'Deshacer MCP' } });
+  check(!r.isError && r.data?.allowed === true && r.data?.would?.changes?.[0]?.field === 'regular_price' && r.data?.would?.changes?.[0]?.from === '100' && (r.data?.would?.unchanged || []).includes('name'), 'dry_run: diferencia con el producto real', r.text.slice(0, 400));
+  r = await admin.call('products', { action: 'get', product_id: undoId, fields: ['regular_price'] });
+  check(!r.isError && r.data?.data?.regular_price === '100', 'la simulación no cambió el precio', r.text);
+  r = await admin.call('products', { action: 'update', product_id: undoId, data: { regular_price: '120' } });
+  const priceChange = r.data?.change?.id;
+  check(!r.isError && r.data?.change?.undo === true, 'update con change deshacible', r.text.slice(0, 300));
+  r = await admin.call('products', { action: 'undo', change_id: priceChange, dry_run: true });
+  check(!r.isError && r.data?.would?.revert?.[0]?.to === '100', 'undo con dry_run dice qué revierte', r.text.slice(0, 300));
+  r = await admin.call('products', { action: 'undo', change_id: priceChange });
+  okCall(r, 'undo hecho');
+  r = await admin.call('products', { action: 'get', product_id: undoId, fields: ['regular_price'] });
+  check(!r.isError && r.data?.data?.regular_price === '100', 'el precio volvió a 100', r.text);
+  r = await admin.call('products', { action: 'undo', change_id: priceChange });
+  check(r.isError && /ya se deshizo/.test(r.text), 'no se deshace dos veces', r.text);
+  r = await admin.call('products', { action: 'update', product_id: undoId, data: { regular_price: '130' } });
+  const first = r.data?.change?.id;
+  await admin.call('products', { action: 'update', product_id: undoId, data: { regular_price: '140' } });
+  r = await admin.call('products', { action: 'undo', change_id: first });
+  check(r.isError && /regular_price/.test(r.text), 'conflicto: cambiado después, no se pisa', r.text);
+  r = await admin.call('products', { action: 'create', data: { name: 'Deshacer MCP 2', type: 'simple', status: 'draft' } });
+  const freshUndo = r.data?.data?.id;
+  r = await admin.call('products', { action: 'undo', change_id: r.data?.change?.id });
+  check(!r.isError && r.data?.undone?.mode === 'trash' && (await probe('post', String(freshUndo))).post_status === 'trash', 'deshacer un create: el producto nuevo va a la papelera', r.text.slice(0, 300));
+  check(typeof createChange === 'string', 'el primer create también quedó en el registro');
+  r = await admin.call('coupons', { action: 'create', data: { code: 'deshacer-mcp', amount: '5' } });
+  const undoCoupon = r.data?.data?.id;
+  r = await admin.call('coupons', { action: 'delete', coupon_id: undoCoupon });
+  check(!r.isError && r.data?.change?.undo === true && (await probe('post', String(undoCoupon))).post_status === 'trash', 'cupón a la papelera, deshacible', r.text.slice(0, 300));
+  r = await admin.call('coupons', { action: 'undo', change_id: r.data?.change?.id });
+  check(!r.isError && (await probe('post', String(undoCoupon))).post_status === 'publish', 'deshacer: el cupón vuelve publicado (no en borrador)', r.text.slice(0, 300));
+  r = await admin.call('catalog', { action: 'create', resource: 'tag', data: { name: 'Etiqueta deshacer MCP' } });
+  const tagId = r.data?.data?.id;
+  r = await admin.call('catalog', { action: 'undo', change_id: r.data?.change?.id });
+  okCall(r, 'deshacer una etiqueta nueva sin productos la borra');
+  r = await admin.call('catalog', { action: 'get', resource: 'tag', term_id: tagId });
+  check(r.isError, 'la etiqueta ya no existe', r.text.slice(0, 200));
+  // Revisión de la tanda B: una categoría que sólo usa un borrador (count 0 en la REST) no se borra al deshacer.
+  r = await admin.call('catalog', { action: 'create', resource: 'category', data: { name: 'Categoría deshacer MCP' } });
+  const revCatId = r.data?.data?.id;
+  const revCatChange = r.data?.change?.id;
+  r = await admin.call('products', { action: 'create', data: { name: 'Borrador con categoría', type: 'simple', status: 'draft', categories: [{ id: revCatId }] } });
+  okCall(r, 'un borrador con la categoría nueva');
+  r = await admin.call('catalog', { action: 'get', resource: 'category', term_id: revCatId, fields: ['count'] });
+  check(!r.isError && r.data?.data?.count === 0, 'la REST cuenta 0 (sólo cuenta publicados)', r.text.slice(0, 200));
+  r = await admin.call('catalog', { action: 'undo', change_id: revCatChange, dry_run: true });
+  check(!r.isError && r.data?.allowed === false && r.data?.would === null && /borradores/.test(r.data?.reason || ''), 'dry_run del undo: no la borraría y dice por qué', r.text.slice(0, 400));
+  r = await admin.call('catalog', { action: 'undo', change_id: revCatChange });
+  check(r.isError && /lo usan 1/.test(r.text), 'undo rechazado: la categoría la usa un borrador', r.text.slice(0, 300));
+  r = await admin.call('catalog', { action: 'get', resource: 'category', term_id: revCatId, fields: ['id'] });
+  check(!r.isError && r.data?.data?.id === revCatId, 'la categoría sigue existiendo', r.text.slice(0, 200));
+  // Un cambio de atributos no se promete deshacible.
+  r = await admin.call('products', { action: 'update', product_id: undoId, data: { attributes: [{ name: 'Color', options: ['Rojo'], visible: true }] } });
+  check(!r.isError && r.data?.change?.undo === false && /attributes/.test(r.data?.change?.reason || ''), 'update de atributos: undo false con el motivo', r.text.slice(0, 300));
+  r = await admin.call('reports', { action: 'changes', per_page: 20 });
+  check(!r.isError && r.data?.total >= 6 && !JSON.stringify(r.data).includes('"before"'), 'reports changes: el registro sin valores', r.text.slice(0, 300));
+  const auto2 = (await probe('option', 'autoload')).autoload || [];
+  check(auto2.some((o) => o.option_name === 'digitalisimo_elements_woo_mcp_changes') && auto2.every((o) => ['no', 'off', 'auto-off'].includes(o.autoload)), 'el registro de cambios sin carga automática', JSON.stringify(auto2));
+  await probe('mode', 'write');
+
   start('S14 De vuelta a read');
   await probe('mode', 'read');
   r = await gerente.call('coupons', { action: 'create', data: { code: 'no-debe', amount: '1' } });

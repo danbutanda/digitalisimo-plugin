@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DIGITALÍSIMO SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.262
+ * Version: 1.0.266
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.262' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.266' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -41,6 +41,9 @@ function digitalisimo_integrations_classes() {
 		'Digitalisimo_Integrations_Sitemap'                  => 'includes/class-sitemap.php',
 		'Digitalisimo_Integrations_Redirections'             => 'includes/class-redirections.php',
 		'Digitalisimo_Integrations_404_Monitor'              => 'includes/class-404-monitor.php',
+		'Digitalisimo_Integrations_Index_Hygiene'            => 'includes/class-index-hygiene.php',
+		'Digitalisimo_Integrations_Site_Analysis'            => 'includes/class-site-analysis.php',
+		'Digitalisimo_Integrations_SEO_Cleanup'              => 'includes/class-seo-cleanup.php',
 		'Digitalisimo_Integrations_Verification'             => 'includes/class-verification.php',
 		'Digitalisimo_Integrations_RankMath_Import'          => 'includes/class-rankmath-import.php',
 		'Digitalisimo_Integrations_Links'                    => 'includes/class-links.php',
@@ -71,6 +74,7 @@ function digitalisimo_integrations_classes() {
 		'Digitalisimo_SEO_Release_Check'                     => 'includes/class-seo-release-check.php',
 		'Digitalisimo_Integrations_Social_Profiles'          => 'includes/class-social-profiles.php',
 		'Digitalisimo_Integrations_Local_Business'           => 'includes/class-local-business.php',
+		'Digitalisimo_Integrations_Brand_Check'              => 'includes/class-brand-check.php',
 		'Digitalisimo_Media_Field'                           => 'includes/class-media-field.php',
 		'Digitalisimo_Admin_UI'                              => 'includes/class-admin-ui.php',
 		'Digitalisimo_Integrations_Editorial'                => 'includes/class-editorial.php',
@@ -163,7 +167,7 @@ if ( ! Digitalisimo_Integrations_Settings::tools_handles_site_options() ) Digita
  * (unas diez por petición); se piden juntas en una sola. Sólo lee: no cambia valores ni autoload.
  */
 function digitalisimo_integrations_admin_options() {
-	return array( 'digitalisimo_integrations_options', 'digitalisimo_seo_template_defaults_1_0_122', 'digitalisimo_seo_redirections_db', 'digitalisimo_seo_404_db', 'digitalisimo_seo_links_db', 'digitalisimo_seo_links_done', 'digitalisimo_seo_url_bases_state', 'digitalisimo_performance_font_inline_manifest', 'digitalisimo_performance_preload_manifest', 'digitalisimo_performance_hero_bootstrapped', 'digitalisimo_favicon_state', 'digitalisimo_image_roles', 'digitalisimo_seo_network_inherit', 'digitalisimo_module_network_inherit' );
+	return array( 'digitalisimo_integrations_options', 'digitalisimo_seo_template_defaults_1_0_122', 'digitalisimo_seo_redirections_db', 'digitalisimo_seo_404_db', 'digitalisimo_seo_hygiene_state', 'digitalisimo_seo_analysis_state', 'digitalisimo_seo_links_db', 'digitalisimo_seo_links_done', 'digitalisimo_seo_url_bases_state', 'digitalisimo_performance_font_inline_manifest', 'digitalisimo_performance_preload_manifest', 'digitalisimo_performance_hero_bootstrapped', 'digitalisimo_favicon_state', 'digitalisimo_image_roles', 'digitalisimo_seo_network_inherit', 'digitalisimo_module_network_inherit' );
 }
 
 function digitalisimo_integrations_boot() {
@@ -196,6 +200,7 @@ function digitalisimo_integrations_boot() {
 	if ( Digitalisimo_Integrations_Settings::get( 'enable_seo' ) ) {
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Redirections' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_404_Monitor' );
+		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Index_Hygiene' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Verification' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_RankMath_Import' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Links' );
@@ -207,6 +212,10 @@ function digitalisimo_integrations_boot() {
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Product_Identifiers' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_SEO_Abilities' );
 		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_SEO_Abilities_Write' );
+		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Brand_Check' );
+		// Tanda B y C de la auditoría SEO: análisis del sitio en segundo plano y sus acciones con confirmación.
+		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_Site_Analysis' );
+		digitalisimo_integrations_lazy( 'Digitalisimo_Integrations_SEO_Cleanup' );
 	} elseif ( is_multisite() ) {
 		// La importación de red (Red → SEO → Importar) no depende del SEO propio del sitio principal, que es el sitio en curso
 		// de admin-post.php: sin esto, con el principal apagado, el botón de la red no tenía quien lo recibiera.

@@ -32,6 +32,13 @@ final class Executor {
 		}
 		$user = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
 		$mode = Settings::mode();
+		if ( 'undo' === $plan['local'] ) {
+			// El recurso, el objeto y la acción inversa salen del registro de cambios, no del cliente.
+			$plan = self::undo_plan( $tool, $plan );
+			if ( is_wp_error( $plan ) ) {
+				return $plan;
+			}
+		}
 
 		if ( 'off' === $mode ) {
 			// Apagado no registra las herramientas; si una llega a ejecutarse (el modo cambió a mitad), no hace nada.
@@ -46,11 +53,28 @@ final class Executor {
 			}
 			return $error;
 		}
-		if ( 'write' === $plan['kind'] && 'write' !== $mode ) {
+		if ( ! empty( $plan['dry_run'] ) ) {
+			// Simular no escribe: corre también en «Sólo lectura» y dice si el modo dejaría hacerlo.
+			return self::simulate( $tool, $plan, $dispatch );
+		}
+		if ( 'write' === $plan['kind'] && ! Settings::can_write( $tool ) && ! self::assistant_writes( $tool, $plan ) ) {
 			Log::add( Log::entry( $plan, 'denied', 'read_mode', 403, $user ) );
 			return self::read_mode_error( $plan );
 		}
 
+		if ( 'undo' === $plan['local'] ) {
+			return self::undo( $tool, $plan, $dispatch, $user );
+		}
+		if ( 'changes' === $plan['local'] ) {
+			return array_merge(
+				array(
+					'ok'     => true,
+					'tool'   => $tool,
+					'action' => 'changes',
+				),
+				Changes::page( (int) $plan['query']['page'], (int) $plan['query']['per_page'] )
+			);
+		}
 		if ( 'log' === $plan['local'] ) {
 			$page = Log::page( (int) $plan['query']['page'], (int) $plan['query']['per_page'] );
 			return array_merge(
@@ -85,6 +109,13 @@ final class Executor {
 			}
 		}
 
+		// Para poder deshacer un update: cómo estaba antes (sólo lo que se puede deshacer; ver `Changes`).
+		$before = null;
+		if ( 'write' === $plan['kind'] && Changes::wants_before( $plan ) ) {
+			list( $read_status, $read ) = call_user_func( $dispatch, 'GET', $plan['route'], array(), null );
+			$before                     = $read_status < 400 && is_array( $read ) ? $read : null;
+		}
+
 		list( $status, $data, $headers ) = call_user_func( $dispatch, $plan['method'], $plan['route'], $plan['query'], $plan['body'] );
 		if ( $status >= 400 ) {
 			$error = self::woo_error( (int) $status, $data );
@@ -107,9 +138,17 @@ final class Executor {
 				);
 			}
 		}
+		$change = null;
 		if ( 'write' === $plan['kind'] ) {
 			$failed = $batch && $batch['failed'] > 0;
 			Log::add( Log::entry( $plan, $failed ? 'partial' : 'ok', $failed ? $batch['errors'][0]['code'] : '', (int) $status, $user ) );
+			$change = Changes::record( $plan, $user, $before, $data );
+			if ( ! empty( $change['undo'] ) && ! Settings::can_write( $tool ) ) {
+				// Sólo pudo escribir por la excepción del Asistente en «Sólo lectura»; deshacer (que puede borrar) no
+				// entra en ella: no se promete. El cambio queda registrado y lo deshace quien tenga escritura.
+				$change['undo']   = false;
+				$change['reason'] = 'En «Sólo lectura» el Asistente no deshace: el cambio queda en el registro y lo puede deshacer un administrador con la escritura de esta herramienta permitida («WooCommerce en el MCP» en «Rendimiento»).';
+			}
 		}
 
 		if ( 'store-settings' === $tool ) {
@@ -152,6 +191,98 @@ final class Executor {
 		if ( $kept ) {
 			$result['notice'] = sprintf( 'Se conservaron %d claves guardadas: venían vacías o enmascaradas.', $kept );
 		}
+		if ( $change ) {
+			// Registro de cambios: su id (para undo) y si se puede deshacer, o por qué no.
+			$result['change'] = $change;
+		}
+		return $result;
+	}
+
+	/**
+	 * El plan de un undo con lo que dice el registro de cambios: recurso, objeto, padre y la acción inversa
+	 * (`undo_as`: update para un update, delete para un create o una papelera), que decide la capacidad.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private static function undo_plan( string $tool, array $plan ) {
+		$entry = Changes::get( (string) $plan['change_id'] );
+		if ( null === $entry || $tool !== $entry['tool'] ) {
+			return new \WP_Error( 'digitalisimo_woo_mcp_undo_unknown', 'No hay un cambio con ese change_id en esta herramienta (el registro guarda los últimos ' . Changes::MAX . ' de ' . Changes::DAYS . ' días; ver reports → changes).', array( 'status' => 404 ) );
+		}
+		$plan['resource'] = (string) $entry['resource'];
+		$plan['id']       = is_int( $entry['item'] ) ? $entry['item'] : null;
+		$plan['parent']   = is_int( $entry['parent'] ) ? $entry['parent'] : null;
+		$plan['undo_as']  = 'update' === $entry['action'] ? 'update' : 'delete';
+		$plan['entry']    = $entry;
+		return $plan;
+	}
+
+	/** Deshace un cambio del registro (o lo simula con dry_run), con la bitácora. */
+	private static function undo( string $tool, array $plan, $dispatch, int $user ) {
+		$done = Changes::undo( $plan['entry'], $dispatch, false );
+		if ( is_wp_error( $done ) ) {
+			$data = $done->get_error_data();
+			Log::add( Log::entry( $plan, 'error', $done->get_error_code(), is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 500, $user ) );
+			return $done;
+		}
+		Changes::mark_undone( (string) $plan['change_id'], $user );
+		Log::add( Log::entry( $plan, 'ok', '', (int) $done['status'], $user ) );
+		return array(
+			'ok'        => true,
+			'tool'      => $tool,
+			'action'    => 'undo',
+			'resource'  => $plan['resource'],
+			'change_id' => $plan['change_id'],
+			'status'    => (int) $done['status'],
+			'undone'    => $done['would'],
+			'data'      => self::pick_fields( $done['data'], $plan['fields'], false ),
+		);
+	}
+
+	/**
+	 * `dry_run: true`: lo que cambiaría (`Simulation::would()`, sólo lecturas) y si el modo de este sitio dejaría
+	 * hacerlo (`allowed`, con el motivo en `reason`). No escribe nada ni deja entrada en la bitácora de escrituras.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private static function simulate( string $tool, array $plan, $dispatch ) {
+		if ( 'undo' === $plan['local'] ) {
+			$undo = Changes::undo( $plan['entry'], $dispatch, true );
+			if ( is_wp_error( $undo ) && in_array( $undo->get_error_code(), array( 'digitalisimo_woo_mcp_undo_conflict', 'digitalisimo_woo_mcp_undo_unavailable', 'digitalisimo_woo_mcp_undo_done' ), true ) ) {
+				// La simulación dice por qué no se desharía, sin tratarlo como un error.
+				return array(
+					'ok'       => true,
+					'tool'     => $tool,
+					'action'   => 'undo',
+					'resource' => $plan['resource'],
+					'dry_run'  => true,
+					'allowed'  => false,
+					'would'    => null,
+					'reason'   => $undo->get_error_message(),
+					'notice'   => 'Simulación: no se cambió nada. Este cambio no se desharía (ver reason).',
+				);
+			}
+			$would = is_wp_error( $undo ) ? $undo : $undo['would'];
+		} else {
+			$would = Simulation::would( $tool, $plan, $dispatch );
+		}
+		if ( is_wp_error( $would ) ) {
+			return $would;
+		}
+		$allowed = Settings::can_write( $tool ) || self::assistant_writes( $tool, $plan );
+		$result  = array(
+			'ok'       => true,
+			'tool'     => $tool,
+			'action'   => $plan['action'],
+			'resource' => $plan['resource'],
+			'dry_run'  => true,
+			'allowed'  => $allowed,
+			'would'    => $would,
+			'notice'   => 'Simulación: no se cambió nada.' . ( $allowed ? '' : ' Este sitio no dejaría hacerlo (ver reason).' ),
+		);
+		if ( ! $allowed ) {
+			$result['reason'] = self::read_mode_error( $plan )->get_error_message();
+		}
 		return $result;
 	}
 
@@ -165,7 +296,11 @@ final class Executor {
 	 */
 	public static function permission( string $tool, $input = null ) {
 		if ( Tools::SKYDROPX === $tool ) {
-			return Skydropx_Tool::permission( $input );
+			$allowed = Skydropx_Tool::permission( $input );
+			if ( true === $allowed && is_array( $input ) && isset( $input['action'] ) && is_string( $input['action'] ) && Skydropx_Tool::is_write( $input['action'] ) ) {
+				return self::assistant_mode( $tool, array( 'action' => $input['action'], 'resource' => 'envíos de Skydropx' ) );
+			}
+			return $allowed;
 		}
 		$floor = Tools::floor( $tool );
 		if ( ! current_user_can( $floor ) ) {
@@ -178,8 +313,76 @@ final class Executor {
 		if ( is_wp_error( $plan ) ) {
 			return true;
 		}
-		$cap = Tools::capability( $tool, $plan['resource'], $plan['action'] );
-		return current_user_can( $cap ) ? true : self::forbidden( $cap );
+		if ( 'undo' === $plan['local'] ) {
+			// La capacidad de la acción inversa sobre el recurso del cambio; un change_id desconocido lo rechaza run().
+			$plan = self::undo_plan( $tool, $plan );
+			if ( is_wp_error( $plan ) ) {
+				return true;
+			}
+		}
+		$cap = Tools::capability( $tool, $plan['resource'], isset( $plan['undo_as'] ) ? $plan['undo_as'] : $plan['action'] );
+		if ( ! current_user_can( $cap ) ) {
+			return self::forbidden( $cap );
+		}
+		// Una simulación no escribe: basta la capacidad (el modo lo dice la respuesta, en `allowed`).
+		return 'write' === $plan['kind'] && empty( $plan['dry_run'] ) ? self::assistant_mode( $tool, $plan ) : true;
+	}
+
+	/**
+	 * El Asistente IA del escritorio (IA Tools) pregunta el permiso ANTES de mostrar su tarjeta: en «Sólo lectura», lo
+	 * que el modo no le deja hacer ni a él se niega ya, con el ajuste y dónde se cambia (no «sin permiso» y tampoco
+	 * después de confirmar). Fuera del Asistente nada cambia: el modo lo sigue aplicando `run()`.
+	 *
+	 * @return true|\WP_Error
+	 */
+	private static function assistant_mode( string $tool, array $plan ) {
+		$context = self::assistant( $tool );
+		if ( null === $context || Settings::can_write( $tool ) || self::assistant_writes( $tool, $plan ) ) {
+			return true;
+		}
+		return self::read_mode_error( $plan );
+	}
+
+	/** El contexto del Asistente si la llamada en curso a esta herramienta viene de él, o null. */
+	private static function assistant( string $tool ) {
+		$context = 'Digitalisimo_AI_Assistant_Context';
+		if ( ! class_exists( $context, false ) || ! method_exists( $context, 'allows' ) || ! method_exists( $context, 'current' ) ) {
+			return null;
+		}
+		return call_user_func( array( $context, 'allows' ), Tools::id( $tool ) ) ? call_user_func( array( $context, 'current' ) ) : null;
+	}
+
+	/**
+	 * ¿Puede el Asistente escribir aunque el modo sea «Sólo lectura»? Sólo lo que él mismo clasifica como cambio
+	 * sencillo (`write`, con su tarjeta de confirmación): crear o actualizar productos, variaciones y el catálogo, sin
+	 * metadatos, descargas ni publicar (caso plomerito 4, 2026-11-26). «Sólo lectura» se pensó para los clientes MCP
+	 * externos; en el escritorio cada cambio lo confirma la persona y queda en la bitácora. Lo destructivo (borrar,
+	 * lotes, pedidos, reembolsos, clientes, cupones, ajustes, envíos, Skydropx) sigue sujeto al modo.
+	 */
+	private static function assistant_writes( string $tool, array $plan = array() ): bool {
+		$context = self::assistant( $tool );
+		if ( null === $context || 'write' !== ( $context['kind'] ?? '' ) || ! in_array( $tool, array( 'products', 'catalog' ), true ) ) {
+			return false;
+		}
+		// Comprobado aquí también, sin fiarse sólo de la clase que dio el Asistente: create o update de un recurso del
+		// catálogo (nunca reseñas, lotes ni borrar), sin metadatos ni descargas, y sin cambiar el estado de lo que existe
+		// ni crear algo publicado.
+		$action   = (string) ( $plan['action'] ?? '' );
+		$resource = (string) ( $plan['resource'] ?? '' );
+		if ( ! in_array( $action, array( 'create', 'update' ), true ) || ! in_array( $resource, array( 'product', 'variation', 'category', 'tag', 'brand', 'attribute', 'attribute_term', 'shipping_class' ), true ) ) {
+			return false;
+		}
+		$body = is_array( $plan['body'] ?? null ) ? $plan['body'] : array();
+		foreach ( array( 'meta_data', 'downloads', 'download_limit', 'download_expiry' ) as $key ) {
+			if ( array_key_exists( $key, $body ) ) {
+				return false;
+			}
+		}
+		if ( array_key_exists( 'status', $body ) ) {
+			return 'create' === $action && in_array( $body['status'], array( 'draft', 'pending' ), true );
+		}
+		// Crear un producto o una variación sin estado lo publica (la API v3 de WooCommerce pone `publish`).
+		return ! ( 'create' === $action && in_array( $resource, array( 'product', 'variation' ), true ) );
 	}
 
 	private static function forbidden( string $cap ): \WP_Error {
@@ -241,13 +444,30 @@ final class Executor {
 		return array( $plan, $kept, $nothing );
 	}
 
-	/** Error de «sólo lectura» que dice dónde se cambia el modo. */
+	/**
+	 * Error de «no se puede escribir» que dice el ajuste y dónde se cambia: en «Sólo lectura», el modo; en «Escritura
+	 * sólo en lo elegido», que esta herramienta no está marcada. El código es el mismo en los dos casos.
+	 */
 	public static function read_mode_error( array $plan ): \WP_Error {
 		$where = function_exists( 'admin_url' ) ? admin_url( 'admin.php?page=' . Settings_Section::FRONT_PAGE . '#' . Settings_Section::ANCHOR ) : '';
+		$tool  = isset( $plan['tool'] ) && is_string( $plan['tool'] ) ? $plan['tool'] : '';
+		if ( 'custom' === Settings::mode() && isset( Settings::WRITE_TOOLS[ $tool ] ) ) {
+			return new \WP_Error(
+				'digitalisimo_woo_mcp_read_only',
+				sprintf(
+					'Este sitio tiene «WooCommerce en el MCP» en «Escritura sólo en lo elegido» y «%s» no está elegido: %s en «%s» no se hizo. Un administrador lo marca en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, sección «WooCommerce en el MCP»%s; en una red, si el sitio hereda el modo, también en esa pantalla de la administración de la red.',
+					Settings::WRITE_TOOLS[ $tool ],
+					$plan['action'],
+					$plan['resource'],
+					'' !== $where ? ' (' . $where . ')' : ''
+				),
+				array( 'status' => 403 )
+			);
+		}
 		return new \WP_Error(
 			'digitalisimo_woo_mcp_read_only',
 			sprintf(
-				'Este sitio tiene «WooCommerce en el MCP» en «Sólo lectura»: %s en «%s» no se hizo. Un administrador lo cambia a «Lectura y escritura» en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, sección «WooCommerce en el MCP»%s; en una red, si el sitio hereda el modo, también en esa pantalla de la administración de la red.',
+				'Este sitio tiene «WooCommerce en el MCP» en «Sólo lectura»: %s en «%s» no se hizo. Un administrador lo cambia a «Lectura y escritura» (o a «Escritura sólo en lo elegido») en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, sección «WooCommerce en el MCP»%s; en una red, si el sitio hereda el modo, también en esa pantalla de la administración de la red.',
 				$plan['action'],
 				$plan['resource'],
 				'' !== $where ? ' (' . $where . ')' : ''

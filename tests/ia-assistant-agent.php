@@ -18,7 +18,7 @@
  */
 require __DIR__ . '/ia-assistant-agent/wp.php';
 require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai.php';
-foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', '' ) as $part ) require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant' . ( $part ? '-' . $part : '' ) . '.php';
+foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', 'uploads', '' ) as $part ) require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant' . ( $part ? '-' . $part : '' ) . '.php';
 require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-site-reader.php';
 
 $GLOBALS['options']['digitalisimo_ai_options'] = array(
@@ -80,7 +80,8 @@ $old = Digitalisimo_AI_Assistant_Model::build( array( 'provider' => 'anthropic',
 check( ! isset( $old['body']['thinking'] ) && ! isset( $old['headers']['anthropic-beta'] ) && ! isset( $old['body']['output_config'] ), 'G6: a un modelo anterior no se le piden ni se fija el esfuerzo' );
 $p = Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'stop_reason' => 'tool_use', 'content' => array( array( 'type' => 'thinking', 'thinking' => '', 'signature' => 'x' ), array( 'type' => 'thinking', 'thinking' => 'Creo la landing en borrador con el producto.', 'signature' => 'y' ), array( 'type' => 'tool_use', 'id' => 'toolu_1', 'name' => 'demo-create-note', 'input' => array() ) ) ) );
 check( '' === $p['text'] && 'Creo la landing en borrador con el producto.' === $p['notes'] && 2 === count( $p['thinking'] ) && 'y' === $p['thinking'][1]['signature'] && 1 === count( $p['calls'] ), 'G6: la nota de avance es para la persona (notes) y los bloques thinking se guardan tal cual, sin pasar a texto' );
-// Reenvío: los bloques thinking del turno en curso van tal cual y primero; los de turnos anteriores, no.
+// Reenvío: los bloques thinking van tal cual y primero, también los de turnos anteriores (así la caché de la API no se
+// pierde al empezar cada turno; docs/ASSISTANT.md, «Caché»).
 $neutral = array(
 	array( 'role' => 'user', 'text' => 'uno' ),
 	array( 'role' => 'assistant', 'text' => 'Hecho.', 'calls' => array(), 'thinking' => array( array( 'type' => 'thinking', 'thinking' => '', 'signature' => 'VIEJA' ) ) ),
@@ -91,10 +92,10 @@ $neutral = array(
 $stored = array( 'messages' => array() );
 foreach ( $neutral as $m ) { $m['role'] = $m['role']; if ( 'assistant' === $m['role'] ) foreach ( $m['calls'] as $i => $c ) $m['calls'][ $i ]['ability'] = 'demo/create-note'; if ( 'tool' === $m['role'] ) $m['ability'] = 'demo/create-note'; $stored['messages'][] = $m; }
 $fm = Digitalisimo_AI_Assistant_History::for_model( $stored, Digitalisimo_AI_Assistant_Tools::catalog() );
-check( ! isset( $fm[1]['thinking'] ) && 'NUEVA' === $fm[3]['thinking'][0]['signature'], 'G6: al modelo van sólo los bloques thinking del turno en curso' );
+check( 'VIEJA' === $fm[1]['thinking'][0]['signature'] && 'NUEVA' === $fm[3]['thinking'][0]['signature'], 'G6: al modelo van los bloques thinking tal cual, también los del turno anterior' );
 $body = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'S', $fm, array() )['body'];
 $last_assistant = $body['messages'][3];
-check( 'assistant' === $last_assistant['role'] && 'thinking' === $last_assistant['content'][0]['type'] && 'NUEVA' === $last_assistant['content'][0]['signature'] && 'Nota' === $last_assistant['content'][0]['thinking'] && 'redacted_thinking' === $last_assistant['content'][1]['type'] && 'tool_use' === $last_assistant['content'][2]['type'] && false === strpos( json_encode( $body ), 'VIEJA' ), 'G6: Anthropic recibe esos bloques tal cual, antes del tool_use (y la nota nunca como texto)' );
+check( 'assistant' === $last_assistant['role'] && 'thinking' === $last_assistant['content'][0]['type'] && 'NUEVA' === $last_assistant['content'][0]['signature'] && 'Nota' === $last_assistant['content'][0]['thinking'] && 'redacted_thinking' === $last_assistant['content'][1]['type'] && 'tool_use' === $last_assistant['content'][2]['type'] && 'VIEJA' === $body['messages'][1]['content'][0]['signature'], 'G6: Anthropic recibe esos bloques tal cual, antes del tool_use (y la nota nunca como texto)' );
 check( '' === Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'content' => array( array( 'type' => 'thinking', 'thinking' => Digitalisimo_AI_Assistant_Model::UPDATES_CUT ) ) ) )['text'], 'G6: la marca de nota cortada no se muestra' );
 remove_all_filters( 'digitalisimo_ai_assistant_pre_model' );
 $GLOBALS['http'] = array();
@@ -115,7 +116,7 @@ foreach ( array( array( 'digitalisimo-woo/products', null, 'write' ), array( 'di
 		check( $case[2] === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => $case[0] ) ), $in ), "G9: {$case[0]} " . json_encode( $in ) . " es {$case[2]}" );
 	}
 }
-foreach ( array( array( array( 'sale_price' => '7500' ), 'write' ), array( array( 'status' => 'draft', 'name' => 'X' ), 'write' ), array( array( 'meta_data' => array( array( 'key' => '_x', 'value' => 1 ) ) ), 'destructive' ), array( array( 'downloads' => array( array( 'file' => 'https://x.test/a.zip' ) ) ), 'destructive' ), array( array( 'status' => 'publish' ), 'destructive' ), array( array( 'status' => 'private' ), 'destructive' ) ) as $case ) {
+foreach ( array( array( array( 'sale_price' => '7500' ), 'write' ), array( array( 'name' => 'X' ), 'write' ), array( array( 'status' => 'draft', 'name' => 'X' ), 'destructive' ), array( array( 'meta_data' => array( array( 'key' => '_x', 'value' => 1 ) ) ), 'destructive' ), array( array( 'downloads' => array( array( 'file' => 'https://x.test/a.zip' ) ) ), 'destructive' ), array( array( 'status' => 'publish' ), 'destructive' ), array( array( 'status' => 'private' ), 'destructive' ) ) as $case ) {
 	check( $case[1] === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'product_id' => 13, 'data' => $case[0] ) ), 'G10: productos update con ' . json_encode( $case[0] ) . ' es ' . $case[1] );
 }
 check( 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-woo/customers' ) ), array( 'action' => 'update' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( $woo, array( 'action' => 'update', 'resource' => 'customer' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'elementor/manage-component' ) ), array( 'action' => 'update' ) ) && 'destructive' === Digitalisimo_AI_Assistant_Tools::kind( array_merge( $woo, array( 'name' => 'digitalisimo-sales/x' ) ), array( 'action' => 'update' ) ), 'G8: sólo la tienda de DIGITALÍSIMO baja a escritura; clientes, usuarios y cualquier otra herramienta (elementor/manage-component update) siguen destructivas' );

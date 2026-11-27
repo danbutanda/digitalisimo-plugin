@@ -76,7 +76,8 @@ $switch = (string) file_get_contents( $root . '/digitalisimo-theme/inc/switch.ph
 ss_check( 1 === preg_match( '/\$alien = digitalisimo_theme_alien\(\);\s*if \( \'\' === \$alien \) \{\s*\$saved\s*= wp_update_custom_css_post\(/', $switch ), 'El tema debe comprobar el candado justo antes de wp_update_custom_css_post().' );
 $access = (string) file_get_contents( $root . '/digitalisimo-backups/includes/restore/class-restore-access.php' );
 ss_check( 1 === preg_match( '/self::restore_account\([^;]*\);\s*\} finally \{[^}]*self::forget_accounts\(/s', $access ), 'N5: cada restore_account() debe retirar de la caché las cuentas que reescribe (forget_accounts en finally).' );
-ss_check( 1 === preg_match( '/catch \( Same_Site_Exception \$e \) \{\s*return true;/', $full ), 'N6: al volver al tema en una red, la excepción del candado se captura por sitio.' );
+// La vuelta atrás contesta el motivo por sitio (revisión adversarial H3 de Migrar): sigue capturando el candado por sitio.
+ss_check( 1 === preg_match( '/catch \( Same_Site_Exception \$e \) \{\s*return (?:true|\'la caché de objetos estaba dando los datos de otro sitio)/', $full ), 'N6: al volver al tema en una red, la excepción del candado se captura por sitio.' );
 $all_src = '';
 foreach ( array( 'digitalisimo-backups/includes/class-backups.php', 'digitalisimo-backups/includes/class-digitalisimo-same-site.php' ) as $f ) $all_src .= (string) file_get_contents( $root . '/' . $f );
 ss_check( false === strpos( $all_src, 'caduca solo' ), 'N1: ni el log ni el informe dicen «caduca solo» con la invalidación incompleta.' );

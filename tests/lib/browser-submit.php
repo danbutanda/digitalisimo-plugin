@@ -74,7 +74,8 @@ if ( ! function_exists( 'browser_form_find' ) ) {
 					$on = browser_form_flag( $attrs, 'checked' );
 					if ( array_key_exists( $name, $fill ) ) {
 						$want = $fill[ $name ];
-						$on   = is_bool( $want ) ? $want : ( 'radio' === $type ? (string) $want === (string) ( $value ?? 'on' ) : true );
+						// Una lista marca sólo las casillas de ese nombre con un valor de la lista (`name[]`).
+						$on   = is_bool( $want ) ? $want : ( is_array( $want ) ? in_array( (string) ( $value ?? 'on' ), array_map( 'strval', $want ), true ) : ( 'radio' === $type ? (string) $want === (string) ( $value ?? 'on' ) : true ) );
 					}
 					if ( $on ) $pairs[] = array( $name, null === $value ? 'on' : $value );
 					continue;

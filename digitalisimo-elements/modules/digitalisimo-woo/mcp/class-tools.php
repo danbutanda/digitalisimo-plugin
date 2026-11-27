@@ -43,13 +43,13 @@ final class Tools {
 	const TOOLS = array(
 		'products'       => array(
 			'resources' => array( 'product', 'variation' ),
-			'actions'   => array( 'list', 'get', 'create', 'update', 'delete', 'batch' ),
+			'actions'   => array( 'list', 'get', 'create', 'update', 'delete', 'batch', 'undo' ),
 			'ids'       => array( 'product_id', 'variation_id' ),
 			'floor'     => 'edit_products',
 		),
 		'catalog'        => array(
 			'resources' => array( 'category', 'tag', 'brand', 'attribute', 'attribute_term', 'shipping_class', 'review' ),
-			'actions'   => array( 'list', 'get', 'create', 'update', 'delete' ),
+			'actions'   => array( 'list', 'get', 'create', 'update', 'delete', 'undo' ),
 			'ids'       => array( 'term_id', 'attribute_id', 'review_id' ),
 			'floor'     => 'edit_products',
 		),
@@ -67,7 +67,7 @@ final class Tools {
 		),
 		'coupons'        => array(
 			'resources' => array( 'coupon' ),
-			'actions'   => array( 'list', 'get', 'create', 'update', 'delete', 'batch' ),
+			'actions'   => array( 'list', 'get', 'create', 'update', 'delete', 'batch', 'undo' ),
 			'ids'       => array( 'coupon_id' ),
 			'floor'     => 'edit_shop_coupons',
 		),
@@ -79,7 +79,7 @@ final class Tools {
 		),
 		'reports'        => array(
 			'resources' => array(),
-			'actions'   => array( 'list', 'sales', 'top_sellers', 'orders_totals', 'products_totals', 'customers_totals', 'coupons_totals', 'reviews_totals', 'log' ),
+			'actions'   => array( 'list', 'sales', 'top_sellers', 'orders_totals', 'products_totals', 'customers_totals', 'coupons_totals', 'reviews_totals', 'log', 'changes' ),
 			'ids'       => array(),
 			'floor'     => 'view_woocommerce_reports',
 		),
@@ -151,6 +151,7 @@ final class Tools {
 		'coupons_totals'   => 'reports/coupons/totals',
 		'reviews_totals'   => 'reports/reviews/totals',
 		'log'              => '',
+		'changes'          => '',
 	);
 
 	/** Etiquetas (título de la herramienta en el cliente). */
@@ -230,14 +231,21 @@ final class Tools {
 	 * Definición de una herramienta: `label`, `description`, `category`, `input_schema`, `output_schema` y `meta`
 	 * (`annotations`, `show_in_rest` y `mcp`). `$mode` (`read` o `write`) sólo cambia la última frase de la descripción.
 	 */
-	public static function definition( string $tool, string $mode = 'read' ): array {
+	public static function definition( string $tool, string $mode = 'read', $write_tools = null ): array {
+		// «Escritura sólo en lo elegido»: la herramienta marcada se describe como en escritura; la otra, con su motivo.
+		if ( 'custom' === $mode ) {
+			$write_tools = is_array( $write_tools ) ? $write_tools : Settings::write_tools();
+			$mode        = in_array( $tool, $write_tools, true ) ? 'write' : 'custom';
+		}
 		if ( self::SKYDROPX === $tool ) {
 			return Skydropx_Tool::definition( $mode );
 		}
 		$readonly = self::is_readonly_tool( $tool );
-		$tail     = $readonly ? '' : ( 'write' === $mode
+		$tail     = $readonly ? '' : ( 'custom' === $mode
+			? ' En este sitio esta herramienta sólo lee («WooCommerce en el MCP»: escritura sólo en lo elegido, y ésta no está elegida): create, update, delete y batch devuelven un error que explica dónde se marca.'
+			: ( 'write' === $mode
 			? ' Este sitio permite escribir («WooCommerce en el MCP»: lectura y escritura); toda escritura queda en la bitácora sin datos personales.'
-			: ' Este sitio sólo permite leer («WooCommerce en el MCP»: sólo lectura): create, update, delete y batch devuelven un error que explica dónde se cambia el modo.' );
+			: ' Este sitio sólo permite leer («WooCommerce en el MCP»: sólo lectura): create, update, delete y batch devuelven un error que explica dónde se cambia el modo.' . ( in_array( $tool, array( 'products', 'catalog' ), true ) ? ' Excepción: desde el Asistente IA del escritorio, create y update de productos, variaciones y catálogo sí se hacen, con la confirmación de la persona.' : '' ) ) );
 		return array(
 			'label'         => self::LABELS[ $tool ],
 			'description'   => self::DESCRIPTIONS[ $tool ] . $tail,
@@ -258,6 +266,8 @@ final class Tools {
 					'public' => false,
 					'type'   => 'tool',
 				),
+				// Admite `dry_run` (simulación sin escribir): el Asistente IA de IA Tools la muestra antes de confirmar.
+				'digitalisimo' => array( 'dry_run' => ! $readonly ),
 			),
 		);
 	}
@@ -272,7 +282,7 @@ final class Tools {
 			'action' => array(
 				'type'        => 'string',
 				'enum'        => $config['actions'],
-				'description' => 'reports' === $tool ? 'Informe que se pide.' : 'Qué hacer: list y get leen; create, update, delete y batch escriben.',
+				'description' => 'reports' === $tool ? 'Informe que se pide (log: la bitácora; changes: el registro de cambios y cuáles se pueden deshacer).' : 'Qué hacer: list y get leen; create, update, delete y batch escriben' . ( in_array( 'undo', $config['actions'], true ) ? '; undo deshace un cambio anterior (change_id, del campo change de la respuesta o de reports → changes)' : '' ) . '.',
 			),
 		);
 		if ( $config['resources'] && count( $config['resources'] ) > 1 ) {
@@ -325,6 +335,20 @@ final class Tools {
 				'type'        => 'boolean',
 				'default'     => false,
 				'description' => 'Sólo con delete (o un batch con delete): true borra para siempre, sin papelera. Úsalo sólo si el usuario lo pide.',
+			);
+		}
+		if ( in_array( 'undo', $config['actions'], true ) ) {
+			$properties['change_id'] = array(
+				'type'        => 'string',
+				'pattern'     => '^[a-f0-9]{16}$',
+				'description' => 'Sólo con undo: el cambio que se deshace (el id de change en la respuesta de la escritura, o de reports → changes). Sólo se deshace si nadie lo modificó después; con dry_run dice qué revertiría.',
+			);
+		}
+		if ( 'reports' !== $tool ) {
+			$properties['dry_run'] = array(
+				'type'        => 'boolean',
+				'default'     => false,
+				'description' => 'Sólo con una acción que escribe: true simula y no cambia nada. Responde qué cambiaría (would: campo a campo con el valor actual y el nuevo, lo que se crearía o qué se borraría) y si este sitio dejaría hacerlo (allowed). Úsalo antes de un cambio grande o destructivo para mostrarlo al usuario.',
 			);
 		}
 		if ( 'orders' === $tool ) {
@@ -397,7 +421,7 @@ final class Tools {
 	 */
 	public static function capability( string $tool, string $resource, string $action ): string {
 		if ( 'reports' === $tool ) {
-			return 'log' === $action ? 'manage_woocommerce' : 'view_woocommerce_reports';
+			return in_array( $action, array( 'log', 'changes' ), true ) ? 'manage_woocommerce' : 'view_woocommerce_reports';
 		}
 		if ( ! isset( self::RESOURCES[ $resource ] ) ) {
 			return 'do_not_allow';

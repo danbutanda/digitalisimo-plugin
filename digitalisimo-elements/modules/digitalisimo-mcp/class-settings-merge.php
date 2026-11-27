@@ -48,8 +48,13 @@ final class Settings_Merge {
 	const SIDE_KEYS = array( 'overridable_props', 'variants' );
 	/** La ruta del proxy del editor, que llama a las herramientas sin el `execute_callback` registrado. */
 	const PROXY_ROUTE = '/elementor/v1/mcp-proxy';
-	/** Claves que el núcleo aplica a la entrada y no guarda en la meta (`Page\Manager::get_special_settings_names()`). */
-	const POST_FIELDS = array( 'id', 'post_title', 'post_status', 'template', 'post_excerpt', 'post_featured_image', 'menu_order', 'comment_status' );
+	/**
+	 * Claves que van a la entrada y no a la meta: las del núcleo (`Page\Manager::get_special_settings_names()`) y
+	 * `post_name`, el slug, que el núcleo no conoce (lo guardaba como un ajuste más y el slug no cambiaba).
+	 */
+	const POST_FIELDS = array( 'id', 'post_title', 'post_status', 'template', 'post_excerpt', 'post_featured_image', 'menu_order', 'comment_status', 'post_name' );
+	/** El slug: lo aplica este envoltorio con `wp_update_post()` tras el guardado del núcleo. */
+	const SLUG = 'post_name';
 	/**
 	 * Claves del kit cuyo `on_save` escribe fuera del documento (`Settings_Site_Identity`, `Settings_Woocommerce`):
 	 * clave => [ 'option' | 'theme_mod', nombre ].
@@ -66,7 +71,7 @@ final class Settings_Merge {
 		'woocommerce_purchase_summary_page_id' => array( 'option', 'elementor_woocommerce_purchase_summary_page_id' ),
 		'woocommerce_shop_page_id'             => array( 'option', 'woocommerce_shop_page_id' ),
 	);
-	const DESCRIPTION = 'Partial update of Elementor document-level settings for a post (page layout, title visibility, background, custom CSS, or the global kit: colors, typography, buttons, forms). Send only the keys to change: every other saved setting is kept. A key set to null is deleted. "__globals__" is merged one level deep: {"__globals__": {"button_text_color": null}} unlinks only that global and keeps the others. Any other value (a typography group, a background image, a color list such as system_colors) replaces that key as a whole, so send the full list when you change one item. Kit keys that mirror WordPress or WooCommerce options (site_name, site_description, site_logo, site_favicon, woocommerce_*_page_id) only update those options when you send them together with post_status "publish"; otherwise only the kit setting is saved, and other options are never touched. The response lists changed_keys and removed_keys. Ask the user for the URL or post ID. Use get-page-structure when you also need the element tree. Requires permission to edit the target post.';
+	const DESCRIPTION = 'Partial update of Elementor document-level settings for a post (page layout, title visibility, background, custom CSS, or the global kit: colors, typography, buttons, forms). Send only the keys to change: every other saved setting is kept. A key set to null is deleted. "__globals__" is merged one level deep: {"__globals__": {"button_text_color": null}} unlinks only that global and keeps the others. Any other value (a typography group, a background image, a color list such as system_colors) replaces that key as a whole, so send the full list when you change one item. Kit keys that mirror WordPress or WooCommerce options (site_name, site_description, site_logo, site_favicon, woocommerce_*_page_id) only update those options when you send them together with post_status "publish"; otherwise only the kit setting is saved, and other options are never touched. Post fields: post_title, post_status, post_excerpt, menu_order and post_name (the slug; WordPress keeps the old address redirecting to the new one) are applied to the post. The page template (template, e.g. elementor_canvas) only changes when you send it: changing the title, the slug or any setting keeps it. The response lists changed_keys and removed_keys, and post_name with the final slug when you sent one. Ask the user for the URL or post ID. Use get-page-structure when you also need the element tree. Requires permission to edit the target post.';
 	const SETTINGS_DESCRIPTION = 'Partial document settings object, merged into the saved settings: keys not sent are kept, a key with null is deleted, and "__globals__" is merged one level deep (a global with null is unlinked). Other values replace their key whole. Schema enforcement is delegated to document->save().';
 
 	/** @var bool */
@@ -171,8 +176,19 @@ final class Settings_Merge {
 			$result = call_user_func_array( $inner, $params );
 			return self::succeeded( $result ) ? $result + array( 'changed_keys' => array(), 'removed_keys' => array(), 'post_fields' => array() ) : $result;
 		}
+		$slug = null;
+		if ( array_key_exists( self::SLUG, $changes ) ) {
+			// Un slug numérico (2026) llega como número en el JSON: vale igual que su texto.
+			$raw  = $changes[ self::SLUG ];
+			$slug = ( is_string( $raw ) || is_int( $raw ) ) && function_exists( 'sanitize_title' ) ? sanitize_title( (string) $raw ) : '';
+			if ( '' === $slug ) {
+				return new \WP_Error( 'invalid_post_name', 'post_name must be a non-empty slug (letters, numbers and hyphens).', array( 'status' => 400 ) );
+			}
+		}
 		$before = self::stored( $id );
 		$merged = self::merge( self::without_side_keys( self::own( $before ), $changes ), $changes, true );
+		// El slug no es un ajuste del documento: no llega a la meta.
+		unset( $merged[ self::SLUG ] );
 
 		$params[0]             = $input;
 		$params[0]['settings'] = $merged;
@@ -195,6 +211,17 @@ final class Settings_Merge {
 		if ( ! self::succeeded( $result ) ) {
 			return $result;
 		}
+		$slug_error = null;
+		if ( null !== $slug ) {
+			// Sólo el slug. `page_template` en null, como la REST de WordPress: `wp_update_post()` no revalida ni reescribe la
+			// plantilla (una que el tema ya no ofrece daría `invalid_page_template`).
+			$updated = wp_update_post( array( 'ID' => $id, 'post_name' => $slug, 'page_template' => null ), true );
+			if ( is_wp_error( $updated ) || ! $updated ) {
+				$slug_error = is_wp_error( $updated ) ? $updated : null;
+			} else {
+				$result['post_name'] = (string) get_post_field( 'post_name', $id, 'raw' );
+			}
+		}
 		$after = self::undo_kses( $id, $before, self::stored( $id ), $changes );
 		// Las copias de metas propias que no vinieron se dejan de guardar sin perder nada: no se informan.
 		list( $changed, $removed ) = self::diff( self::without_side_keys( $before, $changes ), $after );
@@ -202,6 +229,21 @@ final class Settings_Merge {
 		$result['changed_keys'] = $changed;
 		$result['removed_keys'] = $removed;
 		$result['post_fields']  = array_values( array_intersect( self::POST_FIELDS, array_map( 'strval', array_keys( $changes ) ) ) );
+		if ( null !== $slug && ! isset( $result['post_name'] ) ) {
+			// Los ajustes ya se guardaron: se dice claro qué pasó y qué no, con lo que sí cambió.
+			$why = $slug_error && method_exists( $slug_error, 'get_error_message' ) ? (string) $slug_error->get_error_message() : 'WordPress no lo aceptó';
+			return new \WP_Error(
+				'post_name_not_changed',
+				'Ajustes guardados; el slug no se pudo cambiar: ' . ( '' !== $why ? $why : 'WordPress no lo aceptó' ),
+				array(
+					'status'         => 500,
+					'settings_saved' => true,
+					'changed_keys'   => $result['changed_keys'],
+					'removed_keys'   => $result['removed_keys'],
+					'post_name'      => (string) get_post_field( 'post_name', $id, 'raw' ),
+				)
+			);
+		}
 		return $result;
 	}
 

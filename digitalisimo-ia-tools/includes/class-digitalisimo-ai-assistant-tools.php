@@ -26,6 +26,8 @@ defined( 'ABSPATH' ) || exit;
 final class Digitalisimo_AI_Assistant_Tools {
 	const LOG          = 'digitalisimo_ai_assistant_log';
 	const LOG_MAX      = 500;
+	/** Las llamadas al modelo con sus tokens (log_usage()): la misma bitácora, en su propia lista. */
+	const USAGE_LOG    = 'digitalisimo_ai_assistant_usage_log';
 	const DATA_MAX     = 12000;
 	/**
 	 * Acciones que cambian sin destruir: SÓLO en el catálogo de la tienda de DIGITALÍSIMO (WRITE_TOOLS: productos,
@@ -69,7 +71,21 @@ final class Digitalisimo_AI_Assistant_Tools {
 	 * «resultado desconocido». `ability_invalid_output` NO va: la salida se valida después de ejecutar (la escritura ya
 	 * ocurrió). Un 4xx cualquiera tampoco: el manejador pudo escribir y después fallar.
 	 */
-	const NOT_APPLIED    = array( 'ability_invalid_input', 'ability_invalid_permissions', 'rest_invalid_param', 'rest_missing_callback_param', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit' );
+	const NOT_APPLIED    = array( 'ability_invalid_input', 'ability_invalid_permissions', 'rest_invalid_param', 'rest_missing_callback_param', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit', 'digitalisimo_woo_mcp_forbidden', 'digitalisimo_woo_mcp_read_only', 'digitalisimo_woo_mcp_off', 'elementor_v4_required' );
+	/** Errores que dicen que al usuario le falta una capacidad de WordPress (además de los que terminan en `_forbidden`). */
+	const DENIED_CODES   = array( 'ability_invalid_permissions', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit' );
+	/**
+	 * Errores que dicen que un AJUSTE del sitio lo impide y el Asistente no lo salta (caso plomerito 4, 2026-11-26: el
+	 * Asistente dijo «tu usuario no tiene permiso» a un administrador cuando lo que estaba apagado era un ajuste). Un
+	 * error propio lo marca con `digitalisimo_setting` en sus datos; estos son los de código conocido.
+	 */
+	const SETTING_CODES  = array( 'digitalisimo_woo_mcp_read_only', 'digitalisimo_woo_mcp_off', 'elementor_v4_required' );
+	/** Lo que se le dice a quien no tiene la capacidad (la herramienta respondió `false`, sin motivo). */
+	const CAPABILITY_NOTE = 'Tu usuario de WordPress no tiene el permiso que pide esta acción (por ejemplo, editar ese contenido o administrar el sitio). No se aplicó nada.';
+	/** Cuando la negativa llegó al ejecutar y la herramienta no garantiza que no hizo nada. */
+	const UNCONFIRMED_NOTE = 'No pude confirmar si se hizo; revisa antes de repetir.';
+	/** Lo mismo para un administrador: no es un permiso que le falte, y no se le dice que lo es. */
+	const UNKNOWN_DENIAL  = 'La herramienta no dejó hacer esta acción y no dijo por qué. Tu usuario es administrador, así que no es un permiso que te falte: puede ser un ajuste del plugin de esa herramienta. No se aplicó nada.';
 	/**
 	 * El kit de ventas valida todo (entrada, oferta, plantilla, producto, borrador a rehacer, permiso) antes de crear o
 	 * tocar la página: sus errores 4xx son previos (los posteriores al guardado son 500).
@@ -188,9 +204,19 @@ final class Digitalisimo_AI_Assistant_Tools {
 		return '';
 	}
 
-	/** Definiciones para el modelo: `name`, `description` y `schema`. */
+	/**
+	 * Definiciones para el modelo: `name`, `description` y `schema`, ordenadas por nombre. Las herramientas son lo
+	 * primero de cada petición: en un orden fijo (y no en el que cada plugin registró sus Abilities en esta carga), el
+	 * prefijo es el mismo byte a byte y la caché de la API lo reutiliza (docs/ASSISTANT.md, «Caché»).
+	 */
 	public static function definitions( array $catalog ) {
 		$out = array();
+		uasort(
+			$catalog,
+			function ( $a, $b ) {
+				return strcmp( (string) $a['tool'], (string) $b['tool'] );
+			}
+		);
 		// Los proveedores admiten hasta 128 herramientas por petición (OpenAI); las que sobran no se ofrecen.
 		foreach ( array_slice( $catalog, 0, self::MAX_TOOLS, true ) as $entry ) {
 			$description = '' !== $entry['description'] ? $entry['description'] : $entry['label'];
@@ -222,6 +248,9 @@ final class Digitalisimo_AI_Assistant_Tools {
 			$kind = 'read';
 		} elseif ( 'destructive' === $kind && in_array( (string) $entry['name'], self::WRITE_TOOLS, true ) && false === ( $entry['annotations']['readonly'] ?? null ) && in_array( $action, self::WRITE_ACTIONS, true ) && self::enum_has( $entry['schema'], 'action', $action ) && in_array( is_array( $input ) && is_string( $input['resource'] ?? null ) ? strtolower( $input['resource'] ) : ( isset( $input['resource'] ) ? '?' : '' ), self::WRITE_RESOURCES, true ) && ! self::risky_catalog_data( $input ) ) {
 			$kind = 'write';
+		}
+		if ( 'write' === $kind && self::broad_redirection( (string) $entry['name'], $input ) ) {
+			$kind = 'destructive';
 		}
 		$kind = apply_filters( 'digitalisimo_ai_assistant_tool_kind', $kind, $entry['name'], $input );
 		return in_array( $kind, array( 'read', 'write', 'destructive' ), true ) ? $kind : 'destructive';
@@ -458,15 +487,46 @@ final class Digitalisimo_AI_Assistant_Tools {
 	}
 
 	/** ¿La escritura del catálogo trae metadatos, descargas o un estado que publica o privatiza? */
-	private static function risky_catalog_data( $input ) {
+	public static function risky_catalog_data( $input ) {
 		$data = is_array( $input ) && is_array( $input['data'] ?? null ) ? $input['data'] : array();
 		foreach ( self::WRITE_RISKY as $key ) {
 			if ( array_key_exists( $key, $data ) ) {
 				return true;
 			}
 		}
+		// Cambiar el estado de algo que ya existe (publicado → borrador o al revés) cambia lo que se ve en vivo.
+		if ( 'update' === strtolower( (string) ( is_scalar( $input['action'] ?? null ) ? $input['action'] : '' ) ) && ( array_key_exists( 'status', $data ) || array_key_exists( 'post_status', $data ) ) ) {
+			return true;
+		}
 		$status = strtolower( (string) ( is_scalar( $data['status'] ?? null ) ? $data['status'] : '' ) );
 		return '' !== $status && 'draft' !== $status && 'pending' !== $status;
+	}
+
+	/** La ability de SEO que crea redirecciones. */
+	const REDIRECTION = 'digitalisimo-seo/create-redirection';
+
+	/**
+	 * ¿Esta redirección puede llevarse más de una página o sacar a los visitantes del sitio? (revisión del 2026-11-26:
+	 * una sola tarjeta con «.*» en regex hacia otro dominio redirigía todo el sitio). Con un patrón (regex, prefijo,
+	 * sufijo o «contiene») o con un destino en otro dominio, es destructiva: casilla explícita y nunca un «sí» escrito.
+	 */
+	public static function broad_redirection( $name, $input ) {
+		if ( self::REDIRECTION !== $name ) {
+			return false;
+		}
+		$input      = is_array( $input ) ? $input : array();
+		$comparison = strtolower( (string) ( is_scalar( $input['comparison'] ?? null ) ? $input['comparison'] : 'exact' ) );
+		if ( '' !== $comparison && 'exact' !== $comparison ) {
+			return true;
+		}
+		$target = trim( (string) ( is_scalar( $input['target'] ?? null ) ? $input['target'] : '' ) );
+		if ( '' === $target || ( '/' === $target[0] && ( ! isset( $target[1] ) || '/' !== $target[1] ) ) ) {
+			return false; // Vacío (410/451) o una ruta del sitio.
+		}
+		$host = strtolower( (string) wp_parse_url( $target, PHP_URL_HOST ) );
+		$home = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
+		// Sin dominio legible, o con otro: ante la duda, destructiva.
+		return '' === $host || '' === $home || $host !== $home;
 	}
 
 	/** ¿Su espacio de nombres es de confianza para leer sin confirmar? */
@@ -505,6 +565,21 @@ final class Digitalisimo_AI_Assistant_Tools {
 				}
 			}
 		}
+		// En la tienda, la API v3 de WooCommerce publica lo que se crea sin `status` (su esquema dice
+		// `'default' => 'publish'` en productos y variaciones): sin estado, nace en borrador.
+		if ( 'digitalisimo-woo/products' === ( $entry['name'] ?? '' ) && in_array( strtolower( (string) ( $input['resource'] ?? '' ) ), array( '', 'product', 'variation' ), true ) ) {
+			if ( 'create' === $verb && ( ! isset( $input['data'] ) || is_array( $input['data'] ) ) && ! isset( $input['data']['status'] ) ) {
+				$input['data']           = isset( $input['data'] ) ? $input['data'] : array();
+				$input['data']['status'] = 'draft';
+			}
+			if ( 'batch' === $verb && isset( $input['data']['create'] ) && is_array( $input['data']['create'] ) ) {
+				foreach ( $input['data']['create'] as $i => $item ) {
+					if ( is_array( $item ) && ! isset( $item['status'] ) ) {
+						$input['data']['create'][ $i ]['status'] = 'draft';
+					}
+				}
+			}
+		}
 		return $input;
 	}
 
@@ -540,13 +615,79 @@ final class Digitalisimo_AI_Assistant_Tools {
 		return $value;
 	}
 
-	/** ¿Puede este usuario hacerlo? (el permiso de la ability con esta entrada). */
+	/** ¿Puede este usuario hacerlo? (el permiso de la ability con esta entrada, fuera del Asistente). */
 	public static function allowed( array $entry, $input ) {
-		try {
-			return true === $entry['ability']->check_permissions( self::args( $entry, $input ) );
-		} catch ( Throwable $e ) {
-			return false;
+		return true === self::permission( $entry, $input );
+	}
+
+	/**
+	 * El permiso de la ability con esta entrada: `true`, `false` o el `WP_Error` con el que se niega. Con `$kind` (la
+	 * clase de la llamada: write, destructive…), se comprueba dentro del contexto del Asistente
+	 * (Digitalisimo_AI_Assistant_Context), donde una ability con un interruptor «sólo para el MCP externo» deja pasar a
+	 * quien tiene la capacidad; sin `$kind`, como la vería un cliente MCP.
+	 */
+	public static function permission( array $entry, $input, $kind = null ) {
+		$check = function () use ( $entry, $input ) {
+			try {
+				$result = $entry['ability']->check_permissions( self::args( $entry, $input ) );
+			} catch ( Throwable $e ) {
+				return false;
+			}
+			return true === $result || is_wp_error( $result ) ? $result : false;
+		};
+		return null === $kind ? $check() : Digitalisimo_AI_Assistant_Context::with( (string) ( $entry['name'] ?? '' ), (string) $kind, $check );
+	}
+
+	/**
+	 * Por qué no se puede, en llano, con su motivo: `setting` (un ajuste apagado que el Asistente no salta: el mensaje
+	 * del error dice cuál y dónde se cambia), `capability` (falta la capacidad del usuario), `unknown` (la herramienta
+	 * se negó sin motivo a un administrador) o, si no es nada de eso, un error. Nunca se ejecutó nada.
+	 *
+	 * @param mixed $permission Lo que devolvió permission().
+	 * @return array Resultado de herramienta: `status` (blocked, denied o error), `reason` y `error`.
+	 */
+	public static function denial( $permission, $not_applied = true ) {
+		$tail = $not_applied ? 'No se aplicó nada.' : self::UNCONFIRMED_NOTE;
+		$fix  = function ( $text ) use ( $tail ) {
+			return $tail === self::UNCONFIRMED_NOTE ? str_replace( 'No se aplicó nada.', $tail, $text ) : $text;
+		};
+		if ( is_wp_error( $permission ) ) {
+			$text   = rtrim( self::clip( self::scrub( wp_strip_all_tags( (string) $permission->get_error_message() ) ), 400 ), '. ' ) . '. ' . $tail;
+			$reason = self::reason( $permission );
+			$code   = (string) $permission->get_error_code();
+			if ( 'setting' === $reason ) {
+				return array( 'status' => 'blocked', 'reason' => 'setting', 'error' => $text );
+			}
+			// La negativa genérica del núcleo no dice por qué: a un administrador no se le dice que le falta un permiso.
+			if ( 'ability_invalid_permissions' === $code && current_user_can( 'manage_options' ) ) {
+				return array( 'status' => 'denied', 'reason' => 'unknown', 'error' => $fix( self::UNKNOWN_DENIAL ) );
+			}
+			if ( 'capability' === $reason ) {
+				// «Sin permiso.» del núcleo no dice nada: el mensaje llano; uno propio («WooCommerce exige…») se conserva.
+				return array( 'status' => 'denied', 'reason' => 'capability', 'error' => in_array( $code, self::DENIED_CODES, true ) ? $fix( self::CAPABILITY_NOTE ) : $text );
+			}
+			return array( 'status' => 'error', 'error' => $text );
 		}
+		if ( current_user_can( 'manage_options' ) ) {
+			return array( 'status' => 'denied', 'reason' => 'unknown', 'error' => $fix( self::UNKNOWN_DENIAL ) );
+		}
+		return array( 'status' => 'denied', 'reason' => 'capability', 'error' => $fix( self::CAPABILITY_NOTE ) );
+	}
+
+	/** `setting`, `capability` o '' para un error. */
+	public static function reason( $error ) {
+		if ( ! is_wp_error( $error ) ) {
+			return '';
+		}
+		$code = (string) $error->get_error_code();
+		$data = $error->get_error_data();
+		if ( in_array( $code, self::SETTING_CODES, true ) || ( is_array( $data ) && ! empty( $data['digitalisimo_setting'] ) ) ) {
+			return 'setting';
+		}
+		if ( in_array( $code, self::DENIED_CODES, true ) || '_forbidden' === substr( $code, -10 ) ) {
+			return 'capability';
+		}
+		return '';
 	}
 
 	private static function args( array $entry, $input ) {
@@ -560,18 +701,38 @@ final class Digitalisimo_AI_Assistant_Tools {
 	}
 
 	/**
-	 * Ejecuta la ability como el usuario actual: `status` ok, error o denied, `data` (enmascarada) y `error`.
+	 * Ejecuta la ability como el usuario actual: `status` ok, error, denied (falta la capacidad) o blocked (un ajuste lo
+	 * impide), `data` (enmascarada), `error` y `reason`. Con `$kind`, dentro del contexto del Asistente: sólo para una
+	 * acción que la persona ya confirmó en pantalla (Digitalisimo_AI_Assistant::resolve()).
 	 */
-	public static function run( array $entry, $input ) {
+	public static function run( array $entry, $input, $kind = null ) {
 		try {
-			$result = $entry['ability']->execute( self::args( $entry, $input ) );
+			$args   = self::args( $entry, $input );
+			$result = null === $kind
+				? $entry['ability']->execute( $args )
+				: Digitalisimo_AI_Assistant_Context::with(
+					(string) ( $entry['name'] ?? '' ),
+					(string) $kind,
+					function () use ( $entry, $args ) {
+						return $entry['ability']->execute( $args );
+					}
+				);
 		} catch ( Throwable $e ) {
 			return array( 'status' => 'error', 'error' => 'La herramienta falló al ejecutarse.' );
 		}
 		if ( is_wp_error( $result ) ) {
-			$denied = in_array( $result->get_error_code(), array( 'ability_invalid_permissions', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit' ), true );
-			$out    = array( 'status' => $denied ? 'denied' : 'error', 'error' => self::clip( self::scrub( wp_strip_all_tags( (string) $result->get_error_message() ) ), 400 ) );
-			if ( self::not_applied( $result ) ) {
+			// Sin la capacidad o con un ajuste apagado, con su motivo y su mensaje llano (denial()); lo demás, error.
+			// El núcleo (WP_Ability::execute()) cambia la negativa de una ability por `ability_invalid_permissions`, sin
+			// su motivo: se vuelve a preguntar el permiso (en el mismo contexto) para no decir «tu usuario no tiene
+			// permiso» cuando lo que lo impide es un ajuste.
+			$why = $result;
+			if ( 'ability_invalid_permissions' === $result->get_error_code() ) {
+				$again = self::permission( $entry, $input, $kind );
+				$why   = true === $again ? $result : $again;
+			}
+			$applied = self::not_applied( $result );
+			$out     = ( is_wp_error( $why ) && '' !== self::reason( $why ) ) || ! is_wp_error( $why ) ? self::denial( $why, $applied ) : array( 'status' => 'error', 'error' => self::clip( self::scrub( wp_strip_all_tags( (string) $result->get_error_message() ) ), 400 ) );
+			if ( $applied ) {
 				$out['not_applied'] = true;
 			}
 			return $out;
@@ -639,6 +800,12 @@ final class Digitalisimo_AI_Assistant_Tools {
 		}
 		if ( ! empty( $result['maybe_applied'] ) ) {
 			$payload['puede_haberse_aplicado'] = true;
+		}
+		// Por qué no se hizo: «permiso» (falta la capacidad del usuario), «ajuste» (un ajuste apagado: el error dice cuál y
+		// dónde) o «desconocido» (se negó sin motivo a un administrador). Sin motivo, fue un error.
+		$reasons = array( 'capability' => 'permiso', 'setting' => 'ajuste', 'unknown' => 'desconocido' );
+		if ( isset( $result['reason'], $reasons[ $result['reason'] ] ) ) {
+			$payload['motivo'] = $reasons[ $result['reason'] ];
 		}
 		if ( isset( $result['note'] ) && is_string( $result['note'] ) && '' !== $result['note'] ) {
 			$payload['nota'] = $result['note'];
@@ -837,7 +1004,8 @@ final class Digitalisimo_AI_Assistant_Tools {
 
 	/** Una fila de bitácora: usuario, ability, clase, entrada resumida sin secretos, resultado, detalle y fecha (UTC). */
 	public static function log( array $row ) {
-		$rows   = get_option( self::LOG, array() );
+		$row_in = $row;
+		$rows   = isset( $row['usage'] ) ? array() : get_option( self::LOG, array() );
 		$rows   = is_array( $rows ) ? $rows : array();
 		$row    = array(
 			'time'         => gmdate( 'Y-m-d H:i:s' ),
@@ -849,6 +1017,16 @@ final class Digitalisimo_AI_Assistant_Tools {
 			'detail'       => self::clip( self::scrub( sanitize_text_field( (string) ( $row['detail'] ?? '' ) ) ), 200 ),
 			'conversation' => (int) ( $row['conversation'] ?? 0 ),
 		);
+		$usage = $row_in['usage'] ?? null;
+		if ( is_array( $usage ) ) {
+			// Los tokens de una llamada al modelo (log_usage()), en su propia lista: las filas de herramientas no se pierden.
+			$row['usage'] = array_map( 'absint', array_intersect_key( $usage, array_flip( array( 'input', 'cache_read', 'cache_write', 'output' ) ) ) );
+			$option       = self::USAGE_LOG;
+			$rows         = get_option( $option, array() );
+			$rows         = is_array( $rows ) ? $rows : array();
+		} else {
+			$option = self::LOG;
+		}
 		$days   = max( 1, absint( Digitalisimo_AI::get( 'log_retention' ) ?: 30 ) );
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
 		$rows[] = $row;
@@ -860,15 +1038,46 @@ final class Digitalisimo_AI_Assistant_Tools {
 				}
 			)
 		);
-		update_option( self::LOG, array_slice( $rows, - self::LOG_MAX ), false );
+		update_option( $option, array_slice( $rows, - self::LOG_MAX ), false );
 		do_action( 'digitalisimo_ai_assistant_logged', $row );
 		return $row;
+	}
+
+	/**
+	 * Una llamada al modelo en la bitácora, con sus tokens: los cobrados completos, los leídos de la caché (a una
+	 * fracción del precio), los escritos en ella y los de salida. Así se mide si la caché funciona de verdad.
+	 */
+	public static function log_usage( array $target, $usage, $conversation = 0, $what = '' ) {
+		$usage = is_array( $usage ) ? $usage : array();
+		$u     = array();
+		foreach ( array( 'input', 'cache_read', 'cache_write', 'output' ) as $key ) {
+			$u[ $key ] = max( 0, (int) ( $usage[ $key ] ?? 0 ) );
+		}
+		$total = $u['input'] + $u['cache_read'] + $u['cache_write'];
+		$share = $total > 0 ? (int) round( 100 * $u['cache_read'] / $total ) : 0;
+		return self::log(
+			array(
+				'user'         => get_current_user_id(),
+				'ability'      => ( '' !== $what ? $what : 'Llamada a la IA' ) . ' · ' . (string) ( $target['model'] ?? '' ),
+				'kind'         => 'model',
+				'input'        => '',
+				'result'       => 'ok',
+				'detail'       => sprintf( 'entrada %d · caché leída %d (%d %%) · caché escrita %d · salida %d', $u['input'], $u['cache_read'], $share, $u['cache_write'], $u['output'] ),
+				'conversation' => (int) $conversation,
+				'usage'        => $u,
+			)
+		);
 	}
 
 	/** La bitácora, de la más reciente a la más antigua, con el nombre visible de cada usuario. */
 	public static function log_rows( $limit = 200 ) {
 		$rows  = get_option( self::LOG, array() );
-		$rows  = array_reverse( is_array( $rows ) ? $rows : array() );
+		$usage = get_option( self::USAGE_LOG, array() );
+		$rows  = array_merge( is_array( $rows ) ? $rows : array(), is_array( $usage ) ? $usage : array() );
+		// Estable: a la misma hora, el orden en que se anotaron.
+		$order = array_keys( $rows );
+		array_multisort( array_map( 'strval', array_column( $rows, 'time' ) ), SORT_ASC, $order, SORT_ASC, $rows );
+		$rows  = array_reverse( $rows );
 		$names = array();
 		$out   = array();
 		foreach ( array_slice( $rows, 0, max( 1, (int) $limit ) ) as $row ) {
@@ -889,5 +1098,93 @@ final class Digitalisimo_AI_Assistant_Tools {
 			return mb_strlen( $text, 'UTF-8' ) > $max ? mb_substr( $text, 0, max( 0, $max - 1 ), 'UTF-8' ) . '…' : $text;
 		}
 		return strlen( $text ) > $max ? substr( $text, 0, max( 0, $max - 3 ) ) . '...' : $text;
+	}
+}
+
+/**
+ * El contexto del Asistente (caso plomerito 4, 2026-11-26, IA Tools 1.0.74: «revisa el sitio y optimízalo en SEO»
+ * terminó en «WordPress dice que tu usuario no tiene permiso» para un administrador; lo que estaba apagado era
+ * «Permitir que cambien datos SEO», un interruptor pensado para los clientes MCP externos).
+ *
+ * Algunas abilities tienen un interruptor de «sólo para el MCP externo» (SEO: desde la tanda B de su auditoría, cuatro
+ * partes con su registro, `seo_abilities_write_meta`, `_schema`, `_index` y `_redirects`, que heredan del interruptor
+ * único `seo_abilities_write` mientras no se guardan; tienda: «WooCommerce en el MCP» en sólo lectura). En el Asistente del escritorio cada cambio ya lo confirma la persona en pantalla y queda en
+ * la bitácora, así que esas abilities pueden preguntar aquí si la llamada viene del Asistente:
+ *
+ *     class_exists( 'Digitalisimo_AI_Assistant_Context', false ) && Digitalisimo_AI_Assistant_Context::allows( 'mi/ability' )
+ *
+ * Sólo es verdad cuando las tres cosas se cumplen en ESTA petición de PHP:
+ * 1. la petición es una ruta REST del Asistente y pasó su permiso: sesión de WordPress, la capacidad del Asistente y su
+ *    nonce propio en la cabecera (Digitalisimo_AI_Assistant::permission() llama a arm()); con una contraseña de
+ *    aplicación no se arma, así que un cliente REST o MCP externo nunca lo abre;
+ * 2. el Asistente abrió el contexto con with() para ESA ability (el nombre exacto: una ability que llama a otra no la
+ *    abre) y para el mismo usuario, mientras comprueba si puede proponerla o mientras ejecuta la acción que la persona
+ *    confirmó;
+ * 3. el usuario sigue teniendo la capacidad del Asistente.
+ * Nada de la entrada, de un parámetro ni de una cabecera lo enciende: no se lee de la petición más que el nonce.
+ * La capacidad propia de cada ability (editar ese contenido, administrar el sitio, la de WooCommerce) la sigue
+ * comprobando la ability: el contexto sólo deja pasar su interruptor de opt-in.
+ */
+final class Digitalisimo_AI_Assistant_Context {
+	/** @var int El usuario cuya petición REST pasó el permiso del Asistente (0: ninguno en esta petición). */
+	private static $desk = 0;
+	/** @var array|null `ability`, `kind` y `user` mientras está abierto. */
+	private static $current = null;
+
+	/**
+	 * La petición pasó el permiso del Asistente. Lo vuelve a comprobar todo aquí (sesión, capacidad, nonce del
+	 * Asistente en la cabecera y que no sea una contraseña de aplicación) antes de armar.
+	 *
+	 * @param WP_REST_Request $request La petición a una ruta del Asistente.
+	 */
+	public static function arm( $request ) {
+		self::$desk = 0;
+		if ( ! is_user_logged_in() || ! current_user_can( Digitalisimo_AI_Assistant::cap() ) || ! is_object( $request ) || ! method_exists( $request, 'get_header' ) ) {
+			return;
+		}
+		if ( function_exists( 'rest_get_authenticated_app_password' ) && null !== rest_get_authenticated_app_password() ) {
+			return;
+		}
+		$nonce = (string) $request->get_header( Digitalisimo_AI_Assistant::HEADER );
+		if ( '' === $nonce || ! wp_verify_nonce( $nonce, Digitalisimo_AI_Assistant::NONCE ) ) {
+			return;
+		}
+		self::$desk = (int) get_current_user_id();
+	}
+
+	/**
+	 * Ejecuta `$fn` con el contexto abierto para `$ability`, si esta petición es del Asistente y del mismo usuario; si no,
+	 * la ejecuta igual, sin contexto (como un cliente MCP).
+	 *
+	 * @param string   $ability Nombre exacto de la ability.
+	 * @param string   $kind    Clase de la llamada en el Asistente (write, destructive…).
+	 * @param callable $fn      Lo que se ejecuta.
+	 * @return mixed Lo que devuelve `$fn`.
+	 */
+	public static function with( $ability, $kind, callable $fn ) {
+		$user = (int) get_current_user_id();
+		if ( null !== self::$current || '' === (string) $ability || $user <= 0 || $user !== self::$desk || ! current_user_can( Digitalisimo_AI_Assistant::cap() ) ) {
+			return $fn();
+		}
+		self::$current = array( 'ability' => (string) $ability, 'kind' => (string) $kind, 'user' => $user );
+		try {
+			return $fn();
+		} finally {
+			self::$current = null;
+		}
+	}
+
+	/** `ability`, `kind` y `user` del contexto abierto para el usuario actual, o null. */
+	public static function current() {
+		if ( null === self::$current || (int) get_current_user_id() !== self::$current['user'] ) {
+			return null;
+		}
+		return self::$current;
+	}
+
+	/** ¿La llamada en curso a `$ability` viene del Asistente del escritorio? */
+	public static function allows( $ability ) {
+		$current = self::current();
+		return null !== $current && hash_equals( $current['ability'], (string) $ability );
 	}
 }

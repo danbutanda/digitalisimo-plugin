@@ -31,7 +31,12 @@
 		return fetch(url, { method: 'POST', credentials: cross ? 'include' : 'same-origin', body: body }).then(function (response) {
 			return response.json().catch(function () { throw new Error('respuesta no válida (' + response.status + ')'); });
 		}).then(function (result) {
-			if (!result || !result.success) throw new Error(result && typeof result.data === 'string' ? result.data : 'la petición fue rechazada');
+			if (!result || !result.success) {
+				// Una negativa del servidor (no un fallo pasajero): no se reintenta y su mensaje va tal cual.
+				var refused = new Error(result && typeof result.data === 'string' ? result.data : 'la petición fue rechazada');
+				refused.refused = true;
+				throw refused;
+			}
 			return result.data;
 		});
 	}
@@ -63,40 +68,45 @@
 
 	// La tarea de un sitio, paso a paso, hasta que termina o espera a la red. Tolera fallos pasajeros (un 502, un tiempo
 	// agotado) y, si se pidió crearla, lo sigue pidiendo hasta que el servidor confirma que existe.
-	function drive(url, siteNonce, start, render) {
+	function drive(url, siteNonce, start, render, fresh) {
 		var failures = 0;
 		var create = start;
 		// Identificador de este clic: si la pasada terminó y sólo se perdió la respuesta, el reintento no lanza otra.
 		var run = start ? Date.now().toString(36) + Math.random().toString(36).slice(2, 8) : '';
 		function step() {
-			return post(url, { action: 'digitalisimo_migration_step', _ajax_nonce: siteNonce, start: create ? '1' : '', run: run }).then(function (data) {
+			var body = { action: 'digitalisimo_migration_step', _ajax_nonce: siteNonce, start: create ? '1' : '', run: run };
+			if (create && fresh) body.fresh_baseline = '1';
+			return post(url, body).then(function (data) {
 				failures = 0;
 				if (data.stage || data.done) create = false;
+				// Un segundo clic sobre una pasada en marcha la sigue a ella: su informe es el de este clic.
+				if (data.run) run = data.run;
 				render(data.html || '');
 				if (data.done || data.wait_network || (data.idle && !create)) return data;
 				return wait(data.busy ? BUSY : STEP).then(step);
 			}, function (error) {
 				failures++;
-				if (failures > 4) throw error;
+				if (error.refused || failures > 4) throw error;
 				return wait(1500 * failures).then(step);
 			});
 		}
 		return step();
 	}
 
-	function runSite(start) {
+	function runSite(start, fresh) {
 		running = true;
 		if (button) button.disabled = true;
 		function render(html) { status.innerHTML = html; }
 		function go(first) {
-			return drive(ajax, nonce, first, render).then(function (data) {
+			return drive(ajax, nonce, first, render, first && fresh).then(function (data) {
 				// Esperando a la migración de la red: se vuelve a preguntar cada 15 s, sin bloquear la pantalla.
 				if (data && data.wait_network) return wait(POLL).then(function () { return go(false); });
 				return data;
 			});
 		}
 		go(start).then(function (data) { foldAnalysis(data); finish(); }, function (error) {
-			status.appendChild(notice('La migración se detuvo en esta pantalla (' + error.message + '). Sigue en segundo plano y continúa al volver a abrirla.'));
+			// Una negativa trae su propio motivo (y no sigue en segundo plano); un corte de la conexión, sí sigue.
+			status.appendChild(notice(error.refused ? error.message : 'La migración se detuvo en esta pantalla (' + error.message + '). Sigue en segundo plano y continúa al volver a abrirla.'));
 			finish();
 		});
 	}
@@ -218,6 +228,12 @@
 			if (network) runNetwork(true); else runSite(true);
 		});
 	}
+	// «Migrar tomando el sitio de ahora como referencia» (informe de una pasada que no coincidió con la de antes).
+	status.addEventListener('click', function (event) {
+		var target = event.target;
+		if (!target || !target.classList || !target.classList.contains('digi-migrate__fresh') || running || network) return;
+		runSite(true, true);
+	});
 	if (root.getAttribute('data-running') === '1') {
 		if (network) runNetwork(false); else runSite(false);
 	}

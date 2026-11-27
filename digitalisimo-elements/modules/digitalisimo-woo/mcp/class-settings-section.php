@@ -93,6 +93,7 @@ final class Settings_Section {
 		$class      = $inherit ? 'digitalisimo-inherited-value' : ( 'default' === $origin ? 'digitalisimo-default-value' : '' );
 		echo '<tr><th scope="row"><label for="digitalisimo-woo-mcp-mode">' . esc_html( 'Herramientas de tienda' ) . '</label></th><td>';
 		Settings::select( 'digitalisimo-woo-mcp-mode', Settings::OPTION . '[mode]', $mode, $class );
+		Settings::tool_boxes( 'digitalisimo-woo-mcp-tools', Settings::OPTION, Settings::write_tools() );
 		echo '<p class="description">' . esc_html( Settings::HELP ) . '</p>';
 		echo '<p class="description">' . esc_html( self::state() ) . '</p>';
 		if ( 'default' === $origin && ! $inherit ) {
@@ -101,8 +102,8 @@ final class Settings_Section {
 		if ( $inherit_ui ) {
 			$field = Settings::OPTION . '[inherit][mode]';
 			echo '<p class="digitalisimo-inheritance"><input type="hidden" name="' . esc_attr( $field ) . '" value="0">';
-			echo '<label><input type="checkbox" class="digitalisimo-front-inherit" data-field="digitalisimo-woo-mcp-mode" name="' . esc_attr( $field ) . '" value="1"' . ( $inherit ? ' checked="checked"' : '' ) . '> ' . esc_html( 'Heredar de la red' ) . '</label><br>';
-			echo '<span class="description">' . esc_html( 'Valor de la red: ' . Settings::LABELS[ Settings::network_values()['mode'] ] . ' · Origen: ' . self::ORIGINS[ $origin ] ) . '</span></p>';
+			echo '<label><input type="checkbox" class="digitalisimo-front-inherit" data-field="digitalisimo-woo-mcp-mode" data-group="#digitalisimo-woo-mcp-tools" name="' . esc_attr( $field ) . '" value="1"' . ( $inherit ? ' checked="checked"' : '' ) . '> ' . esc_html( 'Heredar de la red' ) . '</label><br>';
+			echo '<span class="description">' . esc_html( 'Valor de la red: ' . Settings::LABELS[ Settings::network_values()['mode'] ] . ( 'custom' === Settings::network_values()['mode'] ? ' (' . count( Settings::network_values()['write_tools'] ) . ' herramientas elegidas)' : '' ) . ' · Origen: ' . self::ORIGINS[ $origin ] ) . '</span></p>';
 		}
 		echo '</td></tr>';
 	}
@@ -120,7 +121,16 @@ final class Settings_Section {
 		if ( 'off' === Settings::mode() ) {
 			return 'En vigor en este sitio: ninguna herramienta de tienda.';
 		}
-		return 'En vigor en este sitio: ' . Settings::LABELS[ Settings::mode() ] . '. Servidor MCP: ' . rest_url( 'elementor/mcp' );
+		$mode = Settings::mode();
+		$what = Settings::LABELS[ $mode ];
+		if ( 'custom' === $mode ) {
+			$names = array();
+			foreach ( Settings::write_tools() as $tool ) {
+				$names[] = Settings::WRITE_TOOLS[ $tool ];
+			}
+			$what .= $names ? ' (escriben: ' . implode( '; ', $names ) . ')' : ' (ninguna marcada: todo queda en sólo lectura)';
+		}
+		return 'En vigor en este sitio: ' . $what . '. Servidor MCP: ' . rest_url( 'elementor/mcp' );
 	}
 
 	private static function render_notice(): void {

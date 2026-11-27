@@ -216,6 +216,11 @@ add_action(
 				}
 				digi_wm_out( array( 'mode' => \Digitalisimo\Elements\Woo\Mcp\Settings::mode(), 'origin' => \Digitalisimo\Elements\Woo\Mcp\Settings::origin() ) );
 				break;
+			case 'custom':
+				// Tanda B (B3): «Escritura sólo en lo elegido» con las herramientas de la lista (separadas por comas).
+				update_option( 'digitalisimo_elements_woo_mcp', array( 'mode' => 'custom', 'own' => array( 'mode' ), 'write_tools' => array_values( array_filter( explode( ',', $arg ) ) ) ), false );
+				digi_wm_out( array( 'mode' => \Digitalisimo\Elements\Woo\Mcp\Settings::mode(), 'write_tools' => \Digitalisimo\Elements\Woo\Mcp\Settings::write_tools() ) );
+				break;
 			case 'netmode':
 				update_site_option( 'digitalisimo_elements_woo_mcp_defaults', array( 'mode' => $arg ) );
 				digi_wm_out( array( 'network' => get_site_option( 'digitalisimo_elements_woo_mcp_defaults' ) ) );

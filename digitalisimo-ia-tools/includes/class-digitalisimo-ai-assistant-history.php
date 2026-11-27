@@ -386,7 +386,7 @@ final class Digitalisimo_AI_Assistant_History {
 		$role = (string) ( $m['role'] ?? '' );
 		$out  = array( 'id' => (string) ( $m['id'] ?? '' ), 'time' => (int) ( $m['time'] ?? 0 ) );
 		if ( 'user' === $role ) {
-			return $out + array( 'role' => 'me', 'text' => (string) ( $m['text'] ?? '' ) );
+			return $out + array( 'role' => 'me', 'text' => (string) ( $m['text'] ?? '' ) ) + ( empty( $m['files'] ) || ! is_array( $m['files'] ) ? array() : array( 'files' => self::display_files( $m['files'] ) ) );
 		}
 		if ( 'assistant' === $role ) {
 			// Las notas de avance y el texto que acompaña a una llamada son «trabajo»: la pantalla los pliega con las
@@ -402,9 +402,25 @@ final class Digitalisimo_AI_Assistant_History {
 			return $out + array( 'role' => 'tool', 'ability' => (string) ( $m['ability'] ?? '' ), 'label' => (string) ( $m['label'] ?? '' ), 'kind' => (string) ( $m['kind'] ?? '' ), 'status' => (string) ( $m['status'] ?? '' ), 'summary' => (string) ( $m['summary'] ?? '' ), 'detail' => (string) ( $m['detail'] ?? '' ) );
 		}
 		if ( 'notice' === $role ) {
-			return $out + array( 'role' => 'system', 'tone' => (string) ( $m['tone'] ?? 'info' ), 'text' => (string) ( $m['text'] ?? '' ) );
+			$out += array( 'role' => 'system', 'tone' => (string) ( $m['tone'] ?? 'info' ), 'text' => (string) ( $m['text'] ?? '' ) );
+			// Una propuesta de «recordar»: la pantalla pinta la frase con «Sí, recuérdalo» y «No» (assistant-learning.js).
+			if ( is_array( $m['memory'] ?? null ) ) {
+				$out['memory'] = array( 'id' => (string) ( $m['memory']['id'] ?? '' ), 'text' => (string) ( $m['memory']['text'] ?? '' ), 'replaces' => (string) ( $m['memory']['replaces'] ?? '' ) );
+			}
+			return $out;
 		}
 		return null;
+	}
+
+	/** Los archivos de un mensaje como los ve la pantalla: nombre, tipo, pesos, miniatura y dirección. */
+	private static function display_files( array $files ) {
+		$out = array();
+		foreach ( $files as $f ) {
+			if ( is_array( $f ) && ! empty( $f['id'] ) ) {
+				$out[] = array( 'id' => (int) $f['id'], 'name' => (string) ( $f['name'] ?? '' ), 'kind' => 'image' === ( $f['kind'] ?? '' ) ? 'image' : 'file', 'bytes' => (int) ( $f['bytes'] ?? 0 ), 'before' => (int) ( $f['before'] ?? 0 ), 'thumb' => (string) ( $f['thumb'] ?? '' ), 'url' => (string) ( $f['url'] ?? '' ) );
+			}
+		}
+		return $out;
 	}
 
 	/** Todos los mensajes visibles de una conversación. */
@@ -430,7 +446,11 @@ final class Digitalisimo_AI_Assistant_History {
 			if ( 'summary' === $role ) {
 				$summary[] = (string) ( $m['text'] ?? '' );
 			} elseif ( 'user' === $role ) {
-				$messages[] = array( 'role' => 'user', 'text' => (string) $m['text'] );
+				// Los archivos que subió con ese mensaje van detrás, como un bloque de datos (nunca instrucciones).
+				$files      = ! empty( $m['files'] ) && is_array( $m['files'] ) && class_exists( 'Digitalisimo_AI_Assistant_Uploads' ) ? Digitalisimo_AI_Assistant_Uploads::model_block( $m['files'] ) : '';
+				// Lo que escribió la persona nunca pasa por el aviso de archivos subidos (sólo lo pone el servidor).
+				$said       = str_replace( '[Archivos que la persona subió', '(texto de la persona que imita el aviso de archivos subidos)', (string) $m['text'] );
+				$messages[] = array( 'role' => 'user', 'text' => $said . ( '' !== $files ? "\n\n" . $files : '' ) );
 			} elseif ( 'assistant' === $role ) {
 				$calls = array();
 				foreach ( (array) ( $m['calls'] ?? array() ) as $call ) {
@@ -507,16 +527,19 @@ final class Digitalisimo_AI_Assistant_History {
 			$summary[] = self::summarize( self::as_stored( array_slice( $messages, 0, $cut ) ) );
 			$messages  = array_slice( $messages, $cut );
 		}
-		// Bloques thinking: sólo los del turno en curso (después del último mensaje de la persona), tal cual; quitar
-		// todos los anteriores es válido para el control de historial de la API (se quita un tramo inicial).
+		// Bloques thinking: van tal cual, también los de turnos anteriores (docs/ASSISTANT.md, «Caché»). Quitarlos al
+		// empezar cada turno era válido, pero cambiaba el principio de la conversación y la caché de la API se perdía
+		// desde el turno anterior en adelante; los modelos que no pueden leer un bloque lo descartan solos y sin cobrarlo.
+		// Con el filtro `digitalisimo_ai_assistant_replay_thinking` en false, sólo los del turno en curso (como antes).
 		$current = self::turn_starts( $messages );
 		$current = $current ? end( $current ) : 0;
+		$replay  = (bool) apply_filters( 'digitalisimo_ai_assistant_replay_thinking', true, $target );
 		foreach ( $messages as $i => $m ) {
 			if ( 'assistant' === $m['role'] ) {
 				foreach ( $m['calls'] as $j => $call ) {
 					unset( $messages[ $i ]['calls'][ $j ]['ability'] );
 				}
-				if ( $i < $current || ! $messages[ $i ]['thinking'] ) {
+				if ( ( $i < $current && ! $replay ) || ! $messages[ $i ]['thinking'] ) {
 					unset( $messages[ $i ]['thinking'] );
 				}
 			}

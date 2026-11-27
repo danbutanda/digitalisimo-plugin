@@ -3,7 +3,7 @@
  * Plugin Name: DIGITALÍSIMO Elements
  * Description: Constructor visual completo de DIGITALÍSIMO: editor, funciones avanzadas, kits, plantillas y widgets propios en un solo plugin, compatible con el contenido, los kits y los complementos ya creados para el constructor.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.198
+ * Version: 4.3.0.202
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.198' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.202' );
 define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
 // Las opciones que el constructor lee en cada petición, en una sola consulta antes de cargarlo, y el MCP del
 // navegador a demanda (digitalisimo-admin-load.php).
@@ -183,6 +183,10 @@ function pro_elements_load_plugin_func() {
 	// Kit de ventas (docs/ELEMENTS_SALES_KIT.md): plantillas, guía y herramientas del MCP, y el aviso al importar un ZIP.
 	require_once __DIR__ . '/modules/digitalisimo-sales/class-module.php';
 	\Digitalisimo\Elements\Sales\Module::init();
+
+	// DIGITALÍSIMO Hosting en el MCP (docs/ELEMENTS_MCP_HOSTING.md): ajustes y productos de dominio, sólo con Hosting cargado.
+	require_once __DIR__ . '/modules/digitalisimo-hosting/class-module.php';
+	\Digitalisimo\Elements\Hosting\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {

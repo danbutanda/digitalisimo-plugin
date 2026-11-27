@@ -70,7 +70,7 @@ final class Skydropx {
 			}
 			return $allowed;
 		}
-		if ( 'write' === $plan['kind'] && 'write' !== $mode ) {
+		if ( 'write' === $plan['kind'] && ! Settings::can_write( Tools::SKYDROPX ) ) {
 			Log::add( Log::entry( $plan, 'denied', 'read_mode', 403, $user ) );
 			return Executor::read_mode_error( $plan );
 		}
