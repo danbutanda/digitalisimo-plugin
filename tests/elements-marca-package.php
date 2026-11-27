@@ -158,6 +158,9 @@ check( "=== Elementor ===\n" === Package::original( 'motor/readme.txt' ) && null
 // K3 -------------------------------------------------------------------------------------------------------------------
 Package::reset( null, 'off' );
 check( Package::deploy() && Package::deployed(), 'K3 con la marca apagada, los originales se despliegan' );
+$cfg = 'var c = {"urls":{"assets":"https:\\/\\/ensayo.test\\/wp-content\\/plugins\\/digitalisimo-elements\\/motor\\/assets\\/"}};<script src="https://ensayo.test/wp-content/plugins/digitalisimo-elements/motor/assets/js/x.js">';
+$off = Package::off_urls( $cfg );
+check( false !== strpos( $off, 'uploads\\/digitalisimo-elements\\/base-9.9.9\\/motor\\/assets\\/' ) && false !== strpos( $off, 'uploads/digitalisimo-elements/base-9.9.9/motor/assets/js/x.js' ), 'K3 con la marca apagada, la configuración (urls.assets, también con \\/) apunta a los originales', $off );
 $base = Package::base()['dir'];
 check( false !== strpos( $base, '/uploads/digitalisimo-elements/base-9.9.9' ) && '.elementor-widget{color:red}.elementor-kit-1 a{background:url(../images/x.png)}' === @file_get_contents( $base . '/motor/assets/css/frontend.min.css' ) && is_file( $base . '/motor/assets/lib/eicons/css/elementor-icons.min.css' ) && is_file( $base . '/motor/assets/images/x.png' ) && is_file( $base . '/motor/assets/lib/eicons/fonts/eicons.woff2' ) && ! is_file( $base . '/motor/elementor.php' ), 'K3 el árbol del núcleo sin PHP, con los originales y lo que no cambió' );
 check( '.elementor-x{background:url(https://ensayo.test/wp-content/plugins/digitalisimo-elements/assets/images/y.png)}' === @file_get_contents( $base . '/p/assets/css/widget-x.min.css' ), 'K3 los originales de PRO con sus url() hacia el plugin', @file_get_contents( $base . '/p/assets/css/widget-x.min.css' ) );

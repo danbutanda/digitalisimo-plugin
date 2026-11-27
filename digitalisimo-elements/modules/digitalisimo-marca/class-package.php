@@ -112,11 +112,37 @@ final class Package {
 		add_filter( 'lang_dir_for_domain', array( __CLASS__, 'lang_dir' ), 20, 3 );
 		add_filter( 'load_translation_file', array( __CLASS__, 'php_translation_file' ), 10, 2 );
 		add_action( 'upgrader_process_complete', array( __CLASS__, 'after_update' ), 20, 2 );
+		// Marca apagada: el núcleo calcula ELEMENTOR_URL al incluirse (antes de este filtro), así que lo que arma con
+		// `urls.assets` de su configuración (los trozos de webpack, las librerías) apuntaría a las copias transformadas.
+		// La salida del front, del escritorio y de AJAX lleva la URL de los originales desplegados.
+		if ( 'off' === self::mode() ) {
+			add_action( 'template_redirect', array( __CLASS__, 'start_off_buffer' ), 0 );
+			add_action( 'admin_init', array( __CLASS__, 'start_off_buffer' ), PHP_INT_MIN );
+		}
 		// El JS transformado abre la vista previa del editor con `dg-preview` (D-12): se traduce antes de que el núcleo
 		// mire la petición.
 		if ( 'on' === self::mode() && class_exists( Editor_Layer::class ) ) {
 			Editor_Layer::preview_request();
 		}
+	}
+
+	public static function start_off_buffer(): void {
+		if ( self::deployed() && ! ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+			ob_start( array( __CLASS__, 'off_urls' ) );
+		}
+	}
+
+	/** Con la marca apagada: `…/motor/assets/` del plugin → la carpeta de los originales (también con `\/`). */
+	public static function off_urls( $out ) {
+		if ( ! is_string( $out ) || '' === $out ) {
+			return $out;
+		}
+		$from = self::plugin_url() . 'motor/assets/';
+		$to   = self::base()['url'] . '/motor/assets/';
+		if ( false === strpos( $out, 'motor' ) ) {
+			return $out;
+		}
+		return str_replace( array( $from, str_replace( '/', '\\/', $from ) ), array( $to, str_replace( '/', '\\/', $to ) ), $out );
 	}
 
 	/** URL base del plugin (…/plugins/<carpeta>/). */
