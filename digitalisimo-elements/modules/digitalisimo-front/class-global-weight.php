@@ -66,10 +66,13 @@ final class Global_Weight {
 		add_action( 'untrashed_post', array( __CLASS__, 'post_changed' ), 10, 1 );
 		add_action( 'deleted_post', array( __CLASS__, 'post_changed' ), 10, 1 );
 		add_action( 'digitalisimo_elements_kit_imported', array( __CLASS__, 'schedule' ), 10, 0 );
-		add_action( 'admin_init', array( __CLASS__, 'admin_init' ) );
-		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'handle_scan' ) );
 		add_action( 'elementor/editor/after_enqueue_scripts', array( __CLASS__, 'enqueue_editor' ) );
-		add_filter( 'digitalisimo_seo_analysis_notes', array( __CLASS__, 'seo_notes' ), 10, 2 );
+		if ( function_exists( 'is_admin' ) && is_admin() ) {
+			// Sólo en la administración: fuera de ella la pantalla y su acción no existen.
+			add_action( 'admin_init', array( __CLASS__, 'admin_init' ) );
+			add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'handle_scan' ) );
+			add_filter( 'digitalisimo_seo_analysis_notes', array( __CLASS__, 'seo_notes' ), 10, 2 );
+		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------

@@ -59,6 +59,7 @@ namespace {
 	function wp_next_scheduled( $hook ) { return isset( $GLOBALS['gw']['scheduled'][ $hook ] ) ? $GLOBALS['gw']['scheduled'][ $hook ] : false; }
 	function wp_schedule_single_event( $time, $hook ) { $GLOBALS['gw']['scheduled'][ $hook ] = $time; return true; }
 	function wp_doing_ajax() { return $GLOBALS['gw']['ajax']; }
+	function is_admin() { return $GLOBALS['gw']['admin'] ?? true; }
 	function current_user_can( $cap, ...$args ) { return $GLOBALS['gw']['caps']; }
 	function absint( $v ) { return abs( (int) $v ); }
 	function wp_unslash( $v ) { return $v; }
@@ -187,6 +188,14 @@ namespace {
 
 	// ------------------------------------------------------------------------------------------------- G4 cuándo.
 	$GLOBALS['gw']['hooks'] = array();
+	$GLOBALS['gw']['admin'] = false;
+	$G::init();
+	$front_hooks = array_keys( $GLOBALS['gw']['hooks'] );
+	gw_check( ! in_array( 'admin_init', $front_hooks, true ) && ! preg_grep( '/^admin_post_/', $front_hooks ) && ! in_array( 'digitalisimo_seo_analysis_notes', $front_hooks, true ), 'G4 fuera de la administración no se enganchan la pantalla, su acción ni la nota del Análisis SEO' );
+	$GLOBALS['gw']['hooks'] = array();
+	$GLOBALS['gw']['admin'] = true;
+	$reset = new ReflectionProperty( $G, 'initialized' );
+	digi_test_accessible( $reset )->setValue( null, false );
 	$G::init();
 	$hooks = $GLOBALS['gw']['hooks'];
 	foreach ( array( 'digitalisimo_elements_global_weight', 'elementor/document/after_save', 'update_option_elementor_pro_theme_builder_conditions', 'add_option_elementor_pro_theme_builder_conditions', 'trashed_post', 'untrashed_post', 'deleted_post', 'digitalisimo_elements_kit_imported', 'admin_init', 'admin_post_digitalisimo_elements_global_weight_scan', 'elementor/editor/after_enqueue_scripts', 'digitalisimo_seo_analysis_notes' ) as $hook ) {
