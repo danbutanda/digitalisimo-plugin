@@ -1249,6 +1249,8 @@ PHPCODE;
 	update_option( 'admin_email', 'dueno@sitio.test' );
 	check( 'activated' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', $ch + array( 'by' => 1 ) ) && 'active' === $S::state( 'site', $cid ) && hash( 'sha256', $child_code ) === $S::run( 'site' )['items'][ $cid ]['hash'], 'activado: firmado y en _run con el código importado' );
 	check( in_array( 'activated', array_column( $S::log_entries( 'site', 3 ), 'event' ), true ) && ! $S::index( 'site' )['items'][ $cid ]['review'], 'queda en el registro como «Activado» y sin la marca de revisión' );
+	// Revisión adversarial M2: el fragmento del hijo activado por Migrar sólo corre con el tema DIGITALÍSIMO activo.
+	check( 'digitalisimo-theme' === ( $S::run( 'site' )['items'][ $cid ]['theme'] ?? '' ) && 'digitalisimo-theme' === ( array_values( array_filter( \Digitalisimo\Tools\Php_Snippets\Runner::plan( get_option( $S::SITE_RUN ), array(), array() ), static function ( $e ) use ( $cid ) { return $cid === $e['id']; } ) )[0]['theme'] ?? '' ), 'marcado para correr sólo con el tema DIGITALÍSIMO (también en el plan del front)' );
 	$bodies = implode( "\n", array_column( $GLOBALS['t']['mails'], 'body' ) );
 	check( false !== strpos( $bodies, 'Migrar (DIGITALÍSIMO Migración) activó el fragmento PHP «PHP del tema hijo Hijo»' ) && false !== strpos( $bodies, 'sin fragmentos durante 7 días' ) && false !== strpos( $bodies, 'Lo hizo Migrar' ), 'como «Guardar y activar»: enlace de rescate a quien pulsó y aviso al administrador: ' . $bodies );
 	check( 'active' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', $ch ) && hash( 'sha256', $child_code ) === $S::index( 'site' )['items'][ $cid ]['migration'], 'activarlo otra vez no cambia nada: Tools recuerda que lo activó Migrar' );
@@ -1264,12 +1266,27 @@ PHPCODE;
 	delete_option( $S::off_name( 'site', $cid, hash( 'sha256', $child_code ) ) );
 	$S::deactivate( 'site', $cid, 1 );
 	check( 'changed' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', $ch ) && 'inactive' === $S::state( 'site', $cid ), 'uno desactivado a mano no se vuelve a activar solo' );
+	// Revisión adversarial H8: aunque cambie el origen, lo que una persona desactivó no vuelve a «sin revisar».
+	$child_new = "<?php\nif ( function_exists( 'digitalisimo_theme_parity' ) ) {\nadd_action( 'wp_head', function () { echo '<style>.y{color:red}</style>'; } );\n}\n";
+	$h8 = array( apply_filters( $I::FILTER, null, array( array_merge( $child_item, array( 'code' => $child_new, 'original' => $child_new, 'origin' => array( 'source' => 'digitalisimo-theme', 'id' => 'hijo', 'hash' => 'child-1b' ) ) ) ), array() ), $S::state( 'site', $cid ), apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo', array( 'hash' => hash( 'sha256', $child_new ) ) ) );
+	check( array( array( 'digitalisimo-theme:hijo' => 'conflict' ), 'origin', 'changed' ) === $h8 && ! isset( $S::run( 'site' )['items'][ $cid ] ), 'origen nuevo sobre uno desactivado a mano: conflicto («el origen cambió»), sin correr, y Migrar no lo activa: ' . json_encode( $h8 ) );
 	$GLOBALS['t']['caps'] = array( 'edit_themes', 'unfiltered_html', 'manage_options', 'manage_network_options' );
 	$edited = array_merge( $child_item, array( 'origin' => array( 'source' => 'digitalisimo-theme', 'id' => 'hijo2', 'hash' => 'child-2' ) ) );
 	apply_filters( $I::FILTER, null, array( $edited ), array() );
 	foreach ( $S::index( 'site' )['items'] as $k => $meta ) if ( 'digitalisimo-theme:hijo2' === $meta['origin_key'] ) $cid = (string) $k;
 	$S::save( 'site', $cid, 'PHP del tema hijo Hijo', $child_code . "// editado\n", 1 );
 	check( 'mismatch' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo2', $ch ) && ! isset( $S::run( 'site' )['items'][ $cid ] ), 'uno editado en Tools no se activa' );
+	// «Migrar hace todo» (propietario, 2026-11-23): Migrar vuelve a traer del hijo el editado (lo editado queda en el
+	// historial) y lo activa; nunca uno de otro origen ni uno que esté corriendo.
+	check( false === apply_filters( $I::RESET, false, 'generatepress:9' ), 'reset: sólo un importado del tema propio' );
+	check( true === apply_filters( $I::RESET, false, 'digitalisimo-theme:hijo2' ) && array( 'digitalisimo-theme:hijo2' => 'updated' ) === apply_filters( $I::FILTER, null, array( $edited ), array() ) && $child_code === $S::item( 'site', $cid )['code'], 'reset: la importación siguiente sustituye lo editado por el functions.php del hijo' );
+	check( in_array( $child_code . "// editado\n", array_column( $S::item( 'site', $cid )['history'], 'code' ), true ), 'lo editado queda en el historial' );
+	check( 'activated' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo2', $ch + array( 'by' => 1 ) ) && 'active' === $S::state( 'site', $cid ), 'y se activa por la vía de Migrar' );
+	check( false === apply_filters( $I::RESET, false, 'digitalisimo-theme:hijo2' ) && $child_code === $S::item( 'site', $cid )['code'], 'reset: uno que está corriendo no se toca' );
+	apply_filters( $I::DEACTIVATE, false, 'digitalisimo-theme:hijo2', $ch );
+	$S::delete( 'site', $cid, 1 );
+	check( array( 'digitalisimo-theme:hijo2' => 'skipped' ) === apply_filters( $I::FILTER, null, array( $edited ), array() ), 'borrado en Tools: la importación no lo vuelve a crear' );
+	check( true === apply_filters( $I::RESET, false, 'digitalisimo-theme:hijo2' ) && array( 'digitalisimo-theme:hijo2' => 'created' ) === apply_filters( $I::FILTER, null, array( $edited ), array() ), 'reset: borrado en Tools, Migrar lo vuelve a crear' );
 	$broken = array_merge( $child_item, array( 'code' => "<?php\nif ( true ) {\n", 'original' => "<?php\nif ( true ) {\n", 'origin' => array( 'source' => 'digitalisimo-theme', 'id' => 'hijo3', 'hash' => 'child-3' ) ) );
 	apply_filters( $I::FILTER, null, array( $broken ), array() );
 	check( 'check' === apply_filters( $I::ACTIVATE, null, 'digitalisimo-theme:hijo3', array( 'hash' => hash( 'sha256', "<?php\nif ( true ) {\n" ) ) ), 'con un error de sintaxis no se activa' );

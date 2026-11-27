@@ -182,6 +182,7 @@ final class Store {
 				'by'    => (int) ( $item['by'] ?? 0 ),
 			);
 			if ( $network ) $entry['rev'] = max( 1, (int) ( $item['rev'] ?? 1 ) );
+			if ( ! $network && 'digitalisimo-theme' === (string) ( $item['theme'] ?? '' ) ) $entry['theme'] = 'digitalisimo-theme';
 			$out['items'][ (string) $id ] = $entry;
 		}
 		if ( ! $network ) {
@@ -871,6 +872,8 @@ final class Store {
 			$sig = self::sign( $scope, $id, $hash, $rev );
 			$entry = array( 'title' => $index['items'][ $id ]['title'], 'code' => $item['code'], 'hash' => $hash, 'sig' => $sig, 'at' => time(), 'by' => $by );
 			if ( 'network' === $scope ) $entry['rev'] = max( 1, $rev );
+			// Un fragmento del tema hijo activado por Migrar: sólo corre con el tema DIGITALÍSIMO activo (Runner::load()).
+			if ( 'site' === $scope && 'digitalisimo-theme' === (string) ( $args['theme'] ?? '' ) ) $entry['theme'] = 'digitalisimo-theme';
 			$run['items'][ $id ] = $entry;
 			$run['kid']          = self::kid();
 			$index['items'][ $id ] = array_merge( $index['items'][ $id ], array( 'status' => 'inactive', 'draft_hash' => $hash, 'review' => false, 'conflict' => false, 'modified' => time(), 'by' => $by ) );

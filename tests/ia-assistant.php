@@ -167,7 +167,7 @@ function wp_remote_retrieve_response_code( $r ) { return $r['code']; }
 function wp_remote_retrieve_body( $r ) { return $r['body']; }
 
 require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai.php';
-foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', '' ) as $part ) require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant' . ( $part ? '-' . $part : '' ) . '.php';
+foreach ( array( 'model', 'tools', 'history', 'guard', 'ability', 'uploads', '' ) as $part ) require dirname( __DIR__ ) . '/digitalisimo-ia-tools/includes/class-digitalisimo-ai-assistant' . ( $part ? '-' . $part : '' ) . '.php';
 
 $GLOBALS['options']['digitalisimo_ai_options'] = array(
 	'providers' => array( 'openai' => array( 'enabled' => 1, 'key' => KEY_OPENAI, 'url' => '' ), 'anthropic' => array( 'enabled' => 1, 'key' => KEY_ANTHROPIC, 'url' => '' ), 'google' => array( 'enabled' => 0, 'key' => 'AIzaNOPE' ) ),
@@ -830,7 +830,7 @@ check( array() === $ab3->nodes, 'Sin permiso, la barra no lo agrega' );
 foreach ( array( 'index.php', 'edit.php', 'post.php', 'toplevel_page_digitalisimo', 'digitalisimo_page_digitalisimo-ai' ) as $hook ) Digitalisimo_AI_Assistant::assets( $hook );
 check( array() === $GLOBALS['enqueued'], 'Fuera de su pantalla no se encola nada' );
 Digitalisimo_AI_Assistant::assets( Digitalisimo_AI_Assistant::HOOK );
-check( array( 'digitalisimo-ai-assistant', 'digitalisimo-ai-assistant' ) === $GLOBALS['enqueued'] && array( 'wp-element', 'digitalisimo-ai-assistant-adapters' ) === $GLOBALS['deps']['digitalisimo-ai-assistant'], 'En su pantalla: su hoja y su script sobre wp-element y los adaptadores' );
+check( array( 'digitalisimo-ai-assistant', 'digitalisimo-ai-assistant-learning', 'digitalisimo-ai-assistant' ) === $GLOBALS['enqueued'] && array( 'wp-element', 'digitalisimo-ai-assistant-adapters', 'digitalisimo-ai-assistant-learning' ) === $GLOBALS['deps']['digitalisimo-ai-assistant'], 'En su pantalla: su hoja y su script sobre wp-element, los adaptadores y el aprendizaje' );
 check( 0 === strpos( $GLOBALS['inline']['digitalisimo-ai-assistant'], 'window.digitalisimoAssistantConfig = {' ), 'La configuración llega antes del script' );
 $no_key( $GLOBALS['inline'], 'El script en línea de la pantalla' );
 ob_start();

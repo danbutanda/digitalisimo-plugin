@@ -1,0 +1,11 @@
+<?php
+// Simula un filtro de carga que deja fuera un plugin activo (siempre) y otro (sólo al arrancar), y registra lo que
+// Tools pide a LiteSpeed Cache.
+add_filter( 'option_active_plugins', function ( $list ) {
+	$list = array_values( array_diff( (array) $list, array( 'digi-filtrado/digi-filtrado.php' ) ) );
+	if ( ! did_action( 'plugins_loaded' ) ) $list = array_values( array_diff( $list, array( 'digi-tarde/digi-tarde.php' ) ) );
+	return $list;
+} );
+add_filter( 'digitalisimo_tools_plugin_health_markers', function ( $m ) { $m['digi-marca/digi-marca.php'] = array( 'post_type' => 'digi_cosa' ); return $m; } );
+add_action( 'litespeed_purge', function ( $tag ) { $GLOBALS['digi_ph_purge'][] = $tag; } );
+add_action( 'litespeed_control_set_nocache', function ( $reason ) { $GLOBALS['digi_ph_nocache'][] = $reason; } );

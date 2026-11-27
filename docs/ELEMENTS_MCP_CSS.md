@@ -209,6 +209,59 @@ Si se borra la última clave, se borra la meta (el núcleo no guarda unos ajuste
 - **Límite.** Un valor que no es `__globals__` (una tipografía, una imagen, la lista `system_colors`) se reemplaza
   entero: para cambiar un color del kit hay que mandar la lista completa.
 
+## Plantilla de página (`Page_Template`) y slug
+
+Incidente (digitalisimo.lat, 2026-11-13 y 2026-11-23): una landing con lienzo (`elementor_canvas`) lo perdió al
+reconstruirla con el MCP y, días después, al cambiarle el slug por la REST de WordPress: salió con la cabecera y el pie
+del sitio y hubo que reponer `template` con `update-page-settings`. Regla del dueño (2026-11-24): toda actualización que
+no menciona la plantilla la conserva.
+
+Reproducido en Playground (`tests/playground/elements-page-template.sh`, con la pila de cada escritura de
+`_wp_page_template` en `template-writes.log`) sobre 4.3.0.195. Cambiar sólo el título o el slug, por el MCP o por la
+REST, **no** la tocaba (T1, T3, T4, T8). Lo que la quitaba:
+
+1. **Guardar una revisión le cambia la plantilla a su entrada.** En una publicada, `build-composition` y
+   `manage-elements` guardan en el autoguardado, y el núcleo (`DB::save_plain_text()`) llama a `wp_update_post()` con el
+   ID de esa revisión. `wp_update_post()` toma `page_template` de la meta de la revisión (`WP_Post::to_array()`) y
+   `wp_insert_post()` lo valida contra las plantillas del tipo `revision`, que no tiene ninguna: lo da por inválido y
+   escribe `default` con `update_post_meta()`, que redirige la escritura de una revisión a su entrada. La página
+   publicada se quedaba sin lienzo sin que nadie lo pidiera, y la REST lo enseñaba después (`template: ""`): por eso
+   pareció que lo había hecho el cambio de slug (T5.1). Con una plantilla válida escribiría la de la revisión, que
+   puede ser vieja. El núcleo ya lo evita, pero sólo en el autoguardado del editor
+   (`Page_Templates\Module::filter_update_meta()`, acción `save_builder`).
+2. **Publicar desde un autoguardado deshace la plantilla pedida.** El autoguardado copia la plantilla de la entrada al
+   crearse y `publish-document` la copia de vuelta (`Revisions_Manager::restore_revision()`): si entre tanto se pidió
+   otra (`update-page-settings` con `template`, la REST con `template`), publicar ponía la vieja (T6). Desde 4.3.0.195
+   `update-page-settings` ya no borra ese autoguardado, así que el caso se volvió más probable.
+3. **`post_name` en `update-page-settings` no cambiaba el slug**: el núcleo no lo conoce y lo guardaba como un ajuste
+   más del documento (T2).
+
+**Arreglo** (`modules/digitalisimo-mcp/class-page-template.php` y `class-settings-merge.php`, sin tocar `elementor/`),
+para todos los caminos, no sólo el MCP:
+
+- Mientras `wp_insert_post()` actualiza una revisión (desde que la base confirma la actualización, `clean_post_cache`
+  de esa revisión, hasta su bloque de la plantilla), la escritura de `_wp_page_template` de su entrada se da por hecha
+  sin cambiar nada (`update_post_metadata` y `add_post_metadata` con la última prioridad). Se descarta una sola
+  escritura, y la marca se limpia también en `edit_post`, `wp_insert_post`, la siguiente actualización y `shutdown`:
+  una actualización que termina antes (error de la base) no deja nada bloqueado.
+- Cuando cambia la plantilla de una entrada, cada autoguardado suyo que tenía la anterior recibe la nueva; uno con otra
+  (un cambio pendiente del editor) la conserva. Vacío y `default` cuentan como lo mismo.
+- Durante `publish-document` la plantilla de la entrada no cambia: la promoción copia elementos y ajustes del
+  autoguardado, pero su plantilla puede ser una copia vieja (un autoguardado creado antes de este arreglo, o cuando la
+  entrada aún tenía otra: T10). Es la regla del dueño (lo que no menciona la plantilla la conserva). Consecuencia
+  declarada: un cambio de plantilla pendiente en el autoguardado del editor no lo publica `publish-document`; se publica
+  con «Publicar» del editor o se pide con `update-page-settings` y `template`.
+- `update-page-settings` aplica `post_name` a la entrada con `wp_update_post()` (con `page_template` en `null`, como la
+  REST: no revalida ni reescribe la plantilla) tras el guardado del núcleo, lo saca de la meta (también el que se
+  guardó antes por error), lo informa en `post_fields` y devuelve el slug final en `post_name`; uno vacío se rechaza
+  con `invalid_post_name` sin guardar nada. WordPress guarda el slug viejo (`_wp_old_slug`) y redirige. La
+  descripción de la herramienta dice que la plantilla sólo cambia si se manda `template`.
+
+Pruebas: `tests/elements-page-template.php` (sin WordPress, con el tramo de `wp_insert_post()` que toca la plantilla),
+los casos N1–N3 de `tests/elements-mcp-settings.php` y, de punta a punta, `tests/playground/elements-page-template.sh`
+(T1–T10: MCP, REST, autoguardado, publicación, un autoguardado viejo y la página pública con
+`page-template-elementor_canvas`).
+
 ## Pruebas
 
 - `tests/elements-mcp-css.php` (en `validate.yml` y `release.yml`; PHP 7.4, 8.2 y 8.5): ámbito de las herramientas

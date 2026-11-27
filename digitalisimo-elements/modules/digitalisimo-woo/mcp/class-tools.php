@@ -237,7 +237,7 @@ final class Tools {
 		$readonly = self::is_readonly_tool( $tool );
 		$tail     = $readonly ? '' : ( 'write' === $mode
 			? ' Este sitio permite escribir («WooCommerce en el MCP»: lectura y escritura); toda escritura queda en la bitácora sin datos personales.'
-			: ' Este sitio sólo permite leer («WooCommerce en el MCP»: sólo lectura): create, update, delete y batch devuelven un error que explica dónde se cambia el modo.' );
+			: ' Este sitio sólo permite leer («WooCommerce en el MCP»: sólo lectura): create, update, delete y batch devuelven un error que explica dónde se cambia el modo.' . ( in_array( $tool, array( 'products', 'catalog' ), true ) ? ' Excepción: desde el Asistente IA del escritorio, create y update de productos, variaciones y catálogo sí se hacen, con la confirmación de la persona.' : '' ) );
 		return array(
 			'label'         => self::LABELS[ $tool ],
 			'description'   => self::DESCRIPTIONS[ $tool ] . $tail,

@@ -359,6 +359,24 @@ namespace {
 	check( in_array( 'Mcp\\Module', Woo::BOOT, true ), 'Mcp\\Module está en Woo\\Module::BOOT (sólo arranca con WooCommerce compatible).' );
 	check( '' !== Woo::file_for( Mcp::class ) && '' !== Woo::file_for( Settings_Section::class ), 'La autocarga del módulo Woo encuentra mcp/class-module.php y mcp/class-settings-section.php.' );
 
+	/**
+	 * El contexto del Asistente IA de IA Tools (`Digitalisimo_AI_Assistant_Context`), con su misma interfaz pública: la
+	 * prueba lo abre como el Asistente al proponer o ejecutar una acción confirmada (caso plomerito 4, 2026-11-26).
+	 */
+	class Digitalisimo_AI_Assistant_Context {
+		public static $current = null;
+		public static function current() { return self::$current; }
+		public static function allows( $ability ) { return null !== self::$current && self::$current['ability'] === (string) $ability; }
+	}
+	$assistant = static function ( string $ability, string $kind, callable $fn ) {
+		Digitalisimo_AI_Assistant_Context::$current = array( 'ability' => $ability, 'kind' => $kind, 'user' => 1 );
+		try {
+			return $fn();
+		} finally {
+			Digitalisimo_AI_Assistant_Context::$current = null;
+		}
+	};
+
 	$run = static function ( string $tool, array $input ) {
 		return Executor::run( $tool, $input, 'wm_dispatch' );
 	};
@@ -679,6 +697,50 @@ namespace {
 		$result = $run( 'products', $input );
 		check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_read_only' === $result->get_error_code(), "Modo read: $action se rechaza." );
 	}
+	// El Asistente IA del escritorio (caso plomerito 4): en «Sólo lectura» hace con su tarjeta lo que él clasifica como
+	// cambio sencillo (crear o actualizar productos y catálogo); lo destructivo se niega ANTES de la tarjeta, diciendo el
+	// ajuste; fuera de su contexto, o en el de otra herramienta, todo sigue igual.
+	$GLOBALS['wm_rest'] = array();
+	$update             = array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'sale_price' => '7500' ) );
+	check( true === $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $update ) { return Executor::permission( 'products', $update ); } ), 'Asistente, modo read: un cambio sencillo de producto pasa el permiso (va a su tarjeta).' );
+	$result = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run, $update ) { return $run( 'products', $update ); } );
+	check( ! is_wp_error( $result ) && array( array( 'PUT', '/wc/v3/products/4', array(), array( 'sale_price' => '7500' ) ) ) === $GLOBALS['wm_rest'], 'Asistente, modo read: confirmado, el precio de oferta se guarda: ' . wp_json_encode( is_wp_error( $result ) ? $result->get_error_message() : $GLOBALS['wm_rest'] ) );
+	check( 'ok' === Log::entries()[0]['result'] && 'update' === Log::entries()[0]['action'], 'Asistente: el cambio queda en la bitácora de la tienda.' );
+	$GLOBALS['wm']['caps'][] = 'edit_product_terms';
+	$result = $assistant( 'digitalisimo-woo/catalog', 'write', static function () use ( $run ) { return $run( 'catalog', array( 'action' => 'create', 'resource' => 'category', 'data' => array( 'name' => 'Bombas' ) ) ); } );
+	check( ! is_wp_error( $result ), 'Asistente, modo read: crear una categoría del catálogo también: ' . ( is_wp_error( $result ) ? $result->get_error_code() . ' ' . $result->get_error_message() : '' ) );
+	array_pop( $GLOBALS['wm']['caps'] );
+	$GLOBALS['wm_rest'] = array();
+	$delete             = array( 'action' => 'delete', 'product_id' => 4 );
+	$denied             = $assistant( 'digitalisimo-woo/products', 'destructive', static function () use ( $delete ) { return Executor::permission( 'products', $delete ); } );
+	check( is_wp_error( $denied ) && 'digitalisimo_woo_mcp_read_only' === $denied->get_error_code() && false !== strpos( $denied->get_error_message(), '«Sólo lectura»' ), 'Asistente, modo read: borrar se niega en el permiso (antes de la tarjeta) y dice el ajuste.' );
+	$result = $assistant( 'digitalisimo-woo/products', 'destructive', static function () use ( $run, $delete ) { return $run( 'products', $delete ); } );
+	check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_read_only' === $result->get_error_code() && array() === $GLOBALS['wm_rest'], 'Asistente, modo read: lo destructivo no se ejecuta aunque llegue.' );
+	$result = $assistant( 'digitalisimo-woo/catalog', 'write', static function () use ( $run, $update ) { return $run( 'products', $update ); } );
+	check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_read_only' === $result->get_error_code() && array() === $GLOBALS['wm_rest'], 'El contexto de otra herramienta no abre ésta.' );
+	check( true === Executor::permission( 'products', $delete ) && 'digitalisimo_woo_mcp_read_only' === $run( 'products', $update )->get_error_code(), 'Fuera del Asistente (cliente MCP), el modo se aplica como antes: el permiso no cambia y run() rechaza.' );
+	// Executor no se fía sólo de la clase que dio el Asistente: aunque llegue como 'write', borrar, lotes, reseñas,
+	// metadatos, cambiar el estado o crear sin estado (la API v3 lo publicaría) siguen sujetos al modo.
+	$GLOBALS['wm']['caps'][] = 'edit_product_terms';
+	$GLOBALS['wm']['caps'][] = 'moderate_comments';
+	foreach ( array(
+		array( 'products', array( 'action' => 'delete', 'product_id' => 4 ) ),
+		array( 'products', array( 'action' => 'batch', 'data' => array( 'update' => array( array( 'id' => 4, 'sale_price' => '1' ) ) ) ) ),
+		array( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Sin estado' ) ) ),
+		array( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Publicado', 'status' => 'publish' ) ) ),
+		array( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'status' => 'draft' ) ) ),
+		array( 'products', array( 'action' => 'update', 'product_id' => 4, 'data' => array( 'meta_data' => array( array( 'key' => '_x', 'value' => 1 ) ) ) ) ),
+		array( 'catalog', array( 'action' => 'update', 'resource' => 'review', 'review_id' => 2, 'data' => array( 'status' => 'approved' ) ) ),
+	) as $case ) {
+		$GLOBALS['wm_rest'] = array();
+		$result             = $assistant( 'digitalisimo-woo/' . $case[0], 'write', static function () use ( $run, $case ) { return $run( $case[0], $case[1] ); } );
+		check( is_wp_error( $result ) && in_array( $result->get_error_code(), array( 'digitalisimo_woo_mcp_read_only', 'digitalisimo_woo_mcp_forbidden' ), true ) && array() === array_filter( $GLOBALS['wm_rest'], static function ( $r ) { return 'GET' !== $r[0]; } ), 'Asistente, modo read: aunque llegue como cambio sencillo, no se hace: ' . wp_json_encode( $case[1] ) . ' → ' . ( is_wp_error( $result ) ? $result->get_error_code() : wp_json_encode( $result ) ) );
+	}
+	$GLOBALS['wm_rest'] = array();
+	$result             = $assistant( 'digitalisimo-woo/products', 'write', static function () use ( $run ) { return $run( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Borrador', 'status' => 'draft' ) ) ); } );
+	check( ! is_wp_error( $result ) && 'POST' === $GLOBALS['wm_rest'][0][0] && 'draft' === $GLOBALS['wm_rest'][0][3]['status'], 'Asistente, modo read: crear un producto en borrador sí.' );
+	array_pop( $GLOBALS['wm']['caps'] );
+	array_pop( $GLOBALS['wm']['caps'] );
 	$GLOBALS['wm_rest_responses']['GET /wc/v3/reports'] = array( 200, array( array( 'slug' => 'sales', 'description' => 'Ventas' ) ), array() );
 	$result = $run( 'reports', array( 'action' => 'list' ) );
 	check( ! is_wp_error( $result ) && 'sales' === $result['data'][0]['slug'] && ! isset( $result['page'] ), 'reports list (sin paginar) en modo read.' );

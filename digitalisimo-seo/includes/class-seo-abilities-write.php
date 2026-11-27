@@ -4,7 +4,10 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Abilities de escritura para agentes de IA (RM15 de docs/SEO_RANKMATH_OBJECTIVE.md).
  *
- * Sólo con `seo_abilities_write` encendido (opt-in, con paridad). Cada una exige el permiso de
+ * Para los clientes MCP externos, sólo con `seo_abilities_write` encendido (opt-in, con paridad). El Asistente IA del
+ * escritorio (IA Tools) no lo necesita: cada cambio suyo lo confirma la persona en pantalla y queda en su bitácora, así
+ * que, dentro de su contexto (`Digitalisimo_AI_Assistant_Context`, que no se puede abrir desde una petición REST o MCP
+ * externa), basta la capacidad del usuario (caso plomerito 4, 2026-11-26). Cada una exige el permiso de
  * WordPress del objeto (`edit_post` del contenido; `manage_options` para redirecciones), sanea
  * igual que el editor y deja rastro: cada cambio de un contenido guarda los valores anteriores en
  * su historial (los 20 últimos), y `revert-post-seo` deshace el último. Nunca publican, borran ni
@@ -52,8 +55,19 @@ class Digitalisimo_Integrations_SEO_Abilities_Write {
 		}
 	}
 
-	public static function can_edit( $input = array() ) { return self::enabled() && Digitalisimo_Integrations_SEO_Abilities::can_edit( $input ); }
-	public static function can_manage() { return self::enabled() && current_user_can( 'manage_options' ); }
+	public static function can_edit( $input = array() ) { return self::open( array( 'update-post-seo', 'revert-post-seo' ) ) && Digitalisimo_Integrations_SEO_Abilities::can_edit( $input ); }
+	public static function can_manage() { return self::open( array( 'create-redirection' ) ) && current_user_can( 'manage_options' ); }
+
+	/** El interruptor encendido o, sin él, una de estas abilities llamada desde el Asistente IA del escritorio. */
+	private static function open( array $names ) { return self::enabled() || '' !== self::assistant( $names ); }
+
+	/** La ability de `$names` que está ejecutando el Asistente IA del escritorio ahora ('' si ninguna). */
+	public static function assistant( array $names = array( 'update-post-seo', 'revert-post-seo', 'create-redirection' ) ) {
+		$context = 'Digitalisimo_AI_Assistant_Context';
+		if ( ! class_exists( $context, false ) || ! method_exists( $context, 'allows' ) ) return '';
+		foreach ( $names as $name ) if ( call_user_func( array( $context, 'allows' ), Digitalisimo_Integrations_SEO_Abilities::CATEGORY . '/' . $name ) ) return $name;
+		return '';
+	}
 
 	private static function post( $input ) {
 		$post = get_post( absint( $input['post_id'] ?? 0 ) );
@@ -100,7 +114,7 @@ class Digitalisimo_Integrations_SEO_Abilities_Write {
 		if ( $changes ) {
 			$history   = get_post_meta( $post->ID, self::HISTORY, true );
 			$history   = is_array( $history ) ? $history : array();
-			$history[] = array( 'time' => time(), 'user' => get_current_user_id(), 'via' => 'ability', 'before' => array_map( function( $pair ) { return $pair[0]; }, $changes ) );
+			$history[] = array( 'time' => time(), 'user' => get_current_user_id(), 'via' => '' !== self::assistant( array( 'update-post-seo' ) ) ? 'assistant' : 'ability', 'before' => array_map( function( $pair ) { return $pair[0]; }, $changes ) );
 			update_post_meta( $post->ID, self::HISTORY, array_slice( $history, -self::KEEP ) );
 		}
 		$seo = Digitalisimo_Integrations_SEO_Abilities::get_post_seo( array( 'post_id' => $post->ID ) );

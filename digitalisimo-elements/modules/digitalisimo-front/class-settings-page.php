@@ -165,6 +165,7 @@ final class Settings_Page {
 		echo '<table class="form-table" role="presentation"><tbody>';
 		self::site_fields();
 		echo '</tbody></table>';
+		Background_Video::render_fields( false );
 		self::privacy_heading();
 		echo '<table class="form-table" role="presentation"><tbody>';
 		self::privacy_fields();
@@ -194,6 +195,7 @@ final class Settings_Page {
 		echo '<table class="form-table" role="presentation"><tbody>';
 		Settings::network_fields();
 		echo '</tbody></table>';
+		Background_Video::render_fields( true );
 		self::privacy_heading();
 		echo '<table class="form-table" role="presentation"><tbody>';
 		Settings::network_privacy_fields();
@@ -531,6 +533,10 @@ final class Settings_Page {
 		}
 		$input = isset( $_POST[ Settings::OPTION ] ) && is_array( $_POST[ Settings::OPTION ] ) ? wp_unslash( $_POST[ Settings::OPTION ] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing -- saneado en Settings::sanitize(); nonce en check_request().
 		update_option( Settings::OPTION, Settings::sanitize( is_array( $input ) ? $input : array() ), true );
+		$video = isset( $_POST[ Background_Video::OPTION ] ) && is_array( $_POST[ Background_Video::OPTION ] ) ? wp_unslash( $_POST[ Background_Video::OPTION ] ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing -- saneado en Background_Video::sanitize(); nonce en check_request().
+		if ( is_array( $video ) && Background_Video::save_site( $video ) ) {
+			self::clear_generated();
+		}
 		return self::after_change( 'saved' );
 	}
 
@@ -542,6 +548,10 @@ final class Settings_Page {
 		}
 		$input = isset( $_POST[ Settings::NETWORK_OPTION ] ) && is_array( $_POST[ Settings::NETWORK_OPTION ] ) ? wp_unslash( $_POST[ Settings::NETWORK_OPTION ] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing -- saneado en Settings::save_network(); nonce en check_request().
 		Settings::save_network( is_array( $input ) ? $input : array() );
+		$video = isset( $_POST[ Background_Video::NETWORK_OPTION ] ) && is_array( $_POST[ Background_Video::NETWORK_OPTION ] ) ? wp_unslash( $_POST[ Background_Video::NETWORK_OPTION ] ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing -- saneado en Background_Video::save_network(); nonce en check_request().
+		if ( is_array( $video ) ) {
+			Background_Video::save_network( $video );
+		}
 		return array(
 			'notice'  => 'network-saved',
 			'network' => true,
@@ -606,6 +616,18 @@ final class Settings_Page {
 		$input['own']       = array_merge( Settings::stored()['own'], array( 'svg_icons' ) );
 		update_option( Settings::OPTION, Settings::sanitize( $input ), true );
 		return self::after_change( $notice );
+	}
+
+	/**
+	 * La política de los vídeos de fondo en el celular cambió: el marcado ya generado (caché de elementos) y las cachés
+	 * de página que escuchan el vaciado del constructor dejan de servir el anterior.
+	 */
+	private static function clear_generated(): void {
+		$elementor = class_exists( 'Elementor\Plugin', false ) && isset( \Elementor\Plugin::$instance ) ? \Elementor\Plugin::$instance : null;
+		$files     = is_object( $elementor ) && isset( $elementor->files_manager ) ? $elementor->files_manager : null;
+		if ( is_object( $files ) && method_exists( $files, 'clear_cache' ) ) {
+			$files->clear_cache();
+		}
 	}
 
 	/** Tras cambiar lo deseado en el sitio: transita ahora; si no pudo, queda el evento. */

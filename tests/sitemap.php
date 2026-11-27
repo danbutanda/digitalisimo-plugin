@@ -10,7 +10,7 @@ $site_options = array(
 );
 $network_options = array( 'sitemap_post_types' => "post\n", 'noindex_authors' => 1 );
 $inherit = array( 1 => array( 'sitemap_post_types' => 0 ), 2 => array( 'sitemap_post_types' => 0, 'noindex_authors' => 0 ) );
-function get_option( $key, $default = null ) { global $site_options, $inherit, $blog_id; if ( 'digitalisimo_integrations_options' === $key ) return $site_options[ $blog_id ] ?? array(); if ( 'digitalisimo_seo_network_inherit' === $key ) return $inherit[ $blog_id ] ?? array(); return $default; }
+function get_option( $key, $default = null ) { global $site_options, $inherit, $blog_id; if ( 'digitalisimo_integrations_options' === $key ) return $site_options[ $blog_id ] ?? array(); if ( 'digitalisimo_seo_network_inherit' === $key ) return $inherit[ $blog_id ] ?? array(); return $GLOBALS['extra_options'][ $key ] ?? $default; }
 function get_site_option( $key, $default = null ) { global $network_options; return 'digitalisimo_integrations_options' === $key ? $network_options : $default; }
 function is_multisite() { global $multisite; return $multisite; }
 function sanitize_key( $value ) { return strtolower( preg_replace( '/[^a-z0-9_-]/i', '', $value ) ); }
@@ -25,6 +25,7 @@ function add_action( $hook, $callback, $priority = 10, $args = 1 ) { global $act
 require __DIR__ . '/../digitalisimo-seo/includes/class-settings.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-resolver.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-suite.php';
+require __DIR__ . '/../digitalisimo-seo/includes/class-index-hygiene.php';
 $seo = Digitalisimo_Integrations_SEO_Suite::class;
 $public = (object) array( 'public' => true, 'exclude_from_search' => false );
 $types = array( 'post' => $public, 'page' => $public, 'product' => $public, 'attachment' => $public, 'elementor_library' => $public, 'wp_template' => $public, 'interno' => (object) array( 'public' => false ), 'oculto' => (object) array( 'public' => true, 'exclude_from_search' => true ) );
@@ -36,6 +37,15 @@ if ( false !== $seo::sitemap_provider( new stdClass(), 'taxonomies' ) ) throw ne
 $args = $seo::sitemap_query( array( 'post__not_in' => array( 6 ), 'meta_query' => array( array( 'key' => 'externo', 'value' => 'si' ) ) ), 'page' );
 foreach ( array( 6, 7, 8, 9, 30, 31, 32, 55 ) as $id ) if ( ! in_array( $id, $args['post__not_in'], true ) ) throw new RuntimeException( 'Falta excluir un contenido noindex o un ID configurado: ' . $id );
 if ( 'AND' !== $args['meta_query']['relation'] || 'externo' !== $args['meta_query'][0][0]['key'] ) throw new RuntimeException( 'Debe preservar filtros meta de otros plugins.' );
+// Shortcodes sin resolver: de fábrica sólo se avisa (el sitemap no cambia); con el ajuste encendido salen del sitemap.
+$last = $args['meta_query']; $last = end( $last ); if ( 'digitalisimo_seo_auto_noindex' === ( $last[0]['key'] ?? '' ) ) throw new RuntimeException( 'De fábrica, un shortcode sin resolver sólo se avisa: no saca nada del sitemap.' );
+$site_options[1]['seo_noindex_unresolved'] = 1; $inherit[1]['seo_noindex_unresolved'] = 0;
+$on = $seo::sitemap_query( array(), 'page' ); $last = end( $on['meta_query'] );
+if ( 'digitalisimo_seo_auto_noindex' === ( $last[0]['key'] ?? '' ) ) throw new RuntimeException( 'Mientras el repaso no termina y evalúa el tope, el sitemap no cambia.' );
+$GLOBALS['extra_options'] = array( 'digitalisimo_seo_hygiene_apply' => 1, 'digitalisimo_seo_hygiene_state' => array( 'done' => true, 'evaluated' => true, 'held' => false ) );
+$on = $seo::sitemap_query( array(), 'page' ); $technical = end( $on['meta_query'] );
+if ( 'OR' !== ( $technical['relation'] ?? '' ) || 'digitalisimo_seo_auto_noindex' !== $technical[0]['key'] ) throw new RuntimeException( 'Con el ajuste encendido, las páginas con shortcodes sin resolver salen del sitemap.' );
+unset( $site_options[1]['seo_noindex_unresolved'] ); $GLOBALS['extra_options'] = array();
 $blog_id = 2;
 $second = $seo::sitemap_posts( $types );
 if ( array_keys( $second ) !== array( 'post', 'page', 'product' ) ) throw new RuntimeException( 'Cada sitio debe usar sus propios tipos y conservar páginas.' );

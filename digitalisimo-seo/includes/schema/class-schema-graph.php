@@ -442,14 +442,15 @@ class Digitalisimo_Integrations_Schema_Graph {
 	private static function o( $key, $default = '' ) { return Digitalisimo_Integrations_Settings::get( $key, $default ); }
 
 	public static function site() {
-		$name  = self::o( 'seo_site_name' ) ?: get_bloginfo( 'name' );
+		// Nombres sin emoji (auditoría A2: «DIGITALÍSIMO 🥇»); el aviso del escritorio lo dice.
+		$name  = Digitalisimo_Integrations_Brand_Check::plain_name( self::o( 'seo_site_name' ) ?: get_bloginfo( 'name' ) );
 		$local = null;
 		if ( self::o( 'seo_local_enabled' ) ) {
 			$lat = trim( (string) self::o( 'seo_local_latitude' ) );
 			$lng = trim( (string) self::o( 'seo_local_longitude' ) );
 			$local = array(
 				'type'      => Digitalisimo_Integrations_Schema_Vocabulary::local_type( self::o( 'seo_local_type' ) ),
-				'name'      => self::o( 'seo_local_name' ) ?: ( self::o( 'seo_organization_name' ) ?: $name ),
+				'name'      => Digitalisimo_Integrations_Brand_Check::plain_name( self::o( 'seo_local_name' ) ?: ( self::o( 'seo_organization_name' ) ?: $name ) ),
 				'telephone' => Digitalisimo_Integrations_Local_Business::phone(),
 				'price'     => self::o( 'seo_local_price_range' ),
 				'address'   => array( 'streetAddress' => self::o( 'seo_local_address' ), 'addressLocality' => self::o( 'seo_local_city' ), 'addressRegion' => self::o( 'seo_local_region' ), 'postalCode' => self::o( 'seo_local_postal' ), 'addressCountry' => self::o( 'seo_local_country' ) ),
@@ -460,11 +461,12 @@ class Digitalisimo_Integrations_Schema_Graph {
 		return array(
 			'home'     => home_url( '/' ),
 			'name'     => $name,
-			'org_name' => self::o( 'seo_organization_name' ) ?: $name,
+			'org_name' => Digitalisimo_Integrations_Brand_Check::plain_name( self::o( 'seo_organization_name' ) ?: $name ),
 			'org_type' => self::o( 'seo_organization_type' ) ?: 'Organization',
 			'org_url'  => self::o( 'seo_organization_url' ),
-			'logo'     => self::o( 'seo_logo' ),
-			'image'    => self::o( 'seo_default_image' ),
+			// Comprobadas en segundo plano (Brand_Check): una imagen rota o de demo cae a la de reserva o no se publica.
+			'logo'     => Digitalisimo_Integrations_Brand_Check::url( 'logo' ),
+			'image'    => Digitalisimo_Integrations_Brand_Check::url( 'image' ),
 			'same_as'  => Digitalisimo_Integrations_Social_Profiles::all_urls(),
 			'email'    => is_email( self::o( 'seo_organization_email' ) ) ? self::o( 'seo_organization_email' ) : '',
 			'language' => get_bloginfo( 'language' ),
@@ -863,7 +865,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 	public static function post_page( $post ) {
 		$front   = (int) get_option( 'page_on_front' );
 		$url     = get_post_meta( $post->ID, Digitalisimo_Integrations_SEO_Suite::P . 'canonical', true ) ?: get_permalink( $post );
-		$excerpt = trim( wp_strip_all_tags( $post->post_excerpt ) ) ?: wp_trim_words( wp_strip_all_tags( strip_shortcodes( $post->post_content ) ), 30, '' );
+		$excerpt = trim( wp_strip_all_tags( $post->post_excerpt ) ) ?: Digitalisimo_Integrations_SEO_Variables::summary( $post );
 		$title   = get_post_meta( $post->ID, Digitalisimo_Integrations_SEO_Suite::P . 'title', true ) ?: get_the_title( $post );
 		$desc    = get_post_meta( $post->ID, Digitalisimo_Integrations_SEO_Suite::P . 'description', true ) ?: $excerpt;
 		return self::singular_page( $post, $front && $front === (int) $post->ID, $url, $title, $desc );
