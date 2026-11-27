@@ -613,6 +613,7 @@ jobs:
           # Marca propia (docs/MARCA_PROPIA.md): MCP con nombre propio, alias de URL, interruptor y reglas del front.
           php tests/elements-mcp-brand.php
           php tests/elements-marca.php
+          php tests/elements-marca-front.php
           node tests/elements-marca-reglas.mjs
           # La auditoría de cero rastro completa falla hasta la fase 2 (se corre a mano con el ZIP y el Playground); aquí, sus excepciones internas justificadas.
           node tests/brand-zero-trace.mjs --solo-sitio
