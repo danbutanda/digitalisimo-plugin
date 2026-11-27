@@ -41,7 +41,9 @@ const JS = read('digitalisimo-elements/assets/js/carousel-engine.js');
 // HTML del widget (o de la versión anterior, con DS_WIDGET_DIR) para cada juego de ajustes.
 const renderPhp = (list, dir = '') => execFileSync(php, [join(root, 'tests/fixtures/device-slider-harness.php'), JSON.stringify(list)], { encoding: 'utf8', env: { ...process.env, ...(dir ? { DS_WIDGET_DIR: dir } : {}) }, maxBuffer: 64 * 1024 * 1024 }).split('\f');
 
-const { default: puppeteer } = await import(pathToFileURL(pptrDir + '/lib/puppeteer/puppeteer-core.js').href);
+// puppeteer-core hasta la 2x publica `lib/puppeteer/`; la 24, `lib/esm/puppeteer/`.
+const entry = ['/lib/puppeteer/puppeteer-core.js', '/lib/esm/puppeteer/puppeteer-core.js'].map((p) => pptrDir + p).find((p) => existsSync(p));
+const { default: puppeteer } = await import(pathToFileURL(entry).href);
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--disable-gpu', '--font-render-hinting=none', '--hide-scrollbars'] });
 const errors = [];
 const outside = [];
