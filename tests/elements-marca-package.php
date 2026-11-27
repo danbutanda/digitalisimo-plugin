@@ -16,6 +16,7 @@
  */
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'DIGITALISIMO_ELEMENTS_VERSION', '9.9.9' );
+define( 'HOUR_IN_SECONDS', 3600 );
 $GLOBALS['fails']  = 0;
 $GLOBALS['checks'] = 0;
 function check( $ok, $what, $detail = '' ) {
@@ -78,7 +79,22 @@ check( array() === $trace, 'K1 ningún archivo que se pueda pedir por URL lleva 
 
 // Clases reales desde la copia empaquetada.
 function apply_filters( $t, $v ) {
-	return $GLOBALS['filters'][ $t ] ?? $v;
+	return isset( $GLOBALS['filters'][ $t ] ) ? $GLOBALS['filters'][ $t ] : $v;
+}
+function get_transient( $k ) {
+	return false;
+}
+function set_transient() {
+	return true;
+}
+function get_file_data() {
+	return array();
+}
+function get_template() {
+	return 'digitalisimo-theme';
+}
+function get_stylesheet() {
+	return 'digitalisimo-theme';
 }
 function add_filter() {}
 function add_action() {}
@@ -129,6 +145,15 @@ check( 'https://ensayo.test/wp-content/uploads/digitalisimo-elements/base-9.9.9/
 Package::reset( null, 'on' );
 check( $u . 'motor/assets/lib/eicons/css/dg-icons.min.css?ver=5' === Package::map_url( $u . 'motor/assets/lib/eicons/css/elementor-icons.min.css?ver=5' ) && $u . 'motor/assets/css/frontend.min.css' === Package::map_url( $u . 'elementor/assets/css/frontend.min.css' ), 'K4 con la marca encendida, el nombre publicado' );
 check( '<link href="https://ensayo.test/wp-content/plugins/digitalisimo-elements/motor/assets/lib/eicons/css/dg-icons.min.css">' === \Digitalisimo\Elements\Marca\Transform::html( '<link href="https://ensayo.test/wp-content/plugins/digitalisimo-elements/motor/assets/lib/eicons/css/elementor-icons.min.css">' ), 'K4 la capa del front usa los nombres del paquete' );
+
+// K6: con el paquete transformado, la marca no se enciende hasta que la capa del editor esté validada (filtro).
+$GLOBALS['options']['digitalisimo_elements_marca'] = array( 'mode' => 'on', 'force' => true );
+\Digitalisimo\Elements\Marca\Toggle::reset();
+check( 'unavailable' === \Digitalisimo\Elements\Marca\Toggle::status()['state'] && ! \Digitalisimo\Elements\Marca\Toggle::active(), 'K6 encendida pero sin la capa del editor validada: no disponible (los originales siguen)' );
+$GLOBALS['filters']['digitalisimo_elements_marca_editor_ready'] = true;
+$GLOBALS['filters']['digitalisimo_elements_marca_active']       = null;
+\Digitalisimo\Elements\Marca\Toggle::reset();
+check( 'on' === \Digitalisimo\Elements\Marca\Toggle::status()['state'], 'K6 con el filtro (Playground), se enciende' );
 
 // K5 -------------------------------------------------------------------------------------------------------------------
 check( true === Package::tree_ok(), 'K5 la huella del árbol coincide tras empaquetar' );

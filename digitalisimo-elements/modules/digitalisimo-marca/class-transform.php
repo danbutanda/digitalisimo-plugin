@@ -186,6 +186,10 @@ final class Transform {
 				$open = self::tag( $m[1] );
 				// Sólo JS y la configuración en JSON; nunca un `src`, el schema (`ld+json`, texto del contenido) ni plantillas.
 				$type = preg_match( '#\btype\s*=\s*["\']([^"\']+)["\']#i', $m[1], $t ) ? strtolower( $t[1] ) : 'text/javascript';
+				// Plantillas del editor (`<script type="text/template">`): son HTML.
+				if ( in_array( $type, array( 'text/template', 'text/html', 'text/x-template' ), true ) ) {
+					return $open . self::html( $m[2] ) . $m[3];
+				}
 				if ( preg_match( '/\bsrc\s*=/i', $m[1] ) || ! in_array( $type, array( 'text/javascript', 'module', 'application/javascript', 'application/json' ), true ) ) {
 					return $open . $m[2] . $m[3];
 				}

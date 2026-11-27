@@ -115,6 +115,16 @@ namespace {
 		check( false !== strpos( $out, $want ), "F1 lleva «{$want}»" );
 	}
 
+	$tpl = Transform::html( '<script type="text/template" id="tmpl-elementor-panel"><div class="elementor-panel">{{ title }}</div></script>' );
+	check( '<script type="text/template" id="tmpl-dg-panel"><div class="dg-panel">{{ title }}</div></script>' === $tpl, 'F1 las plantillas del editor (text/template) se transforman como HTML', $tpl );
+	if ( ! function_exists( 'wp_json_encode' ) ) {
+		function wp_json_encode( $v ) {
+			return json_encode( $v );
+		}
+	}
+	$ajax = json_decode( Front_Layer::ajax_buffer( json_encode( array( 'success' => true, 'data' => array( 'render' => '<div class="elementor-widget">Elementor</div>', 'id' => 'elementor_library' ) ) ) ), true );
+	check( '<div class="dg-widget">Elementor</div>' === $ajax['data']['render'] && 'elementor_library' === $ajax['data']['id'], 'F1 AJAX del editor: el HTML de la respuesta JSON, sin tocar datos', $ajax );
+
 	// F3 / F2 ----------------------------------------------------------------------------------------------------------
 	@mkdir( $tmp . '/marca/motor/js', 0777, true );
 	@mkdir( $tmp . '/marca/motor/css', 0777, true );

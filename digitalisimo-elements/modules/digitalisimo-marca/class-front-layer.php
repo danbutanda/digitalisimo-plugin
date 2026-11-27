@@ -29,6 +29,8 @@ final class Front_Layer {
 		}
 		$done = true;
 		add_action( 'template_redirect', array( __CLASS__, 'start' ), 0 );
+		// Escritorio, editor y AJAX (D-12): sólo con el paquete transformado, donde el JS del editor ya va renombrado.
+		add_action( 'admin_init', array( __CLASS__, 'admin_start' ), PHP_INT_MIN );
 		add_filter( 'rest_pre_dispatch', array( __CLASS__, 'rest_alias' ), 5, 3 );
 		add_filter( 'rest_post_dispatch', array( __CLASS__, 'rest_fragments' ), 50, 3 );
 		add_filter( 'woocommerce_add_to_cart_fragments', array( __CLASS__, 'cart_fragments' ), 999 );
@@ -63,10 +65,45 @@ final class Front_Layer {
 		if ( ! self::on() || is_admin() || wp_doing_ajax() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ( defined( 'WP_CLI' ) && WP_CLI ) || is_feed() || is_robots() ) {
 			return;
 		}
-		if ( isset( $_GET['elementor-preview'] ) || isset( $_GET['elementor_library'] ) || ( function_exists( 'is_customize_preview' ) && is_customize_preview() ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si la capa corre.
+		// La vista previa del editor sólo con el paquete transformado (su JS ya va renombrado, D-12); con el espejo de
+		// prueba, no.
+		$packaged = class_exists( Package::class ) && Package::transformed();
+		if ( ( ! $packaged && isset( $_GET['elementor-preview'] ) ) || ( function_exists( 'is_customize_preview' ) && is_customize_preview() ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si la capa corre.
 			return;
 		}
 		ob_start( array( __CLASS__, 'buffer' ) );
+	}
+
+	/**
+	 * Escritorio y editor con la marca en vigor y el paquete transformado: la página por `Transform::html()` (con sus
+	 * plantillas `text/template`) y las respuestas JSON de AJAX con su HTML. Nunca descargas, subidas ni admin-post.
+	 */
+	public static function admin_start(): void {
+		if ( ! class_exists( Package::class ) || 'on' !== Package::mode() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+			return;
+		}
+		global $pagenow;
+		if ( in_array( (string) $pagenow, array( 'admin-post.php', 'async-upload.php', 'export.php', 'media-upload.php' ), true ) ) {
+			return;
+		}
+		ob_start( wp_doing_ajax() ? array( __CLASS__, 'ajax_buffer' ) : array( __CLASS__, 'admin_buffer' ) );
+	}
+
+	public static function admin_buffer( $html ) {
+		return is_string( $html ) && '' !== $html && self::is_html() ? Transform::html( $html ) : $html;
+	}
+
+	/** Respuestas AJAX: si son JSON, cada cadena con HTML pasa por la capa; las demás salen igual. */
+	public static function ajax_buffer( $out ) {
+		if ( ! is_string( $out ) || false === stripos( $out, 'elementor' ) ) {
+			return $out;
+		}
+		$data = json_decode( $out, true );
+		if ( null === $data && 'null' !== trim( $out ) ) {
+			return false !== strpos( $out, '<' ) ? Transform::html( $out ) : $out;
+		}
+		$json = wp_json_encode( Transform::deep_html( $data ) );
+		return is_string( $json ) ? $json : $out;
 	}
 
 	/** El buffer de la página. */

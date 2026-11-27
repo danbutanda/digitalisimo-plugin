@@ -82,6 +82,12 @@ final class Toggle {
 		if ( ! self::bundled() ) {
 			return array( 'state' => 'unavailable', 'reason' => 'El plugin Elementor original está activo (o el núcleo incluido no cargó): manda su propia marca.', 'addons' => array() );
 		}
+		// Con el paquete transformado, el JS del editor ya va renombrado: la marca propia sólo se enciende cuando la capa del
+		// escritorio y del editor (D-12) esté validada en Playground; hasta entonces lo habilita sólo el filtro, para
+		// probarla. Apagada, el sitio usa los originales desplegados y funciona como siempre.
+		if ( class_exists( Package::class ) && Package::transformed() && ! apply_filters( 'digitalisimo_elements_marca_editor_ready', false ) ) {
+			return array( 'state' => 'unavailable', 'reason' => 'La marca propia en el escritorio y el editor todavía se está validando: llega en una próxima versión.', 'addons' => array() );
+		}
 		$values = self::values();
 		$addons = Addons::detect( $fresh );
 		if ( $addons && ! $values['force'] ) {
