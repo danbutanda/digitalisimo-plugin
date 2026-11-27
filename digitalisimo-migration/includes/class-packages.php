@@ -17,7 +17,7 @@ final class Packages {
 	/** Versión mínima del tema DIGITALÍSIMO que necesita la etapa del tema: desde 1.0.1 trae el lector del hijo (`inc/child.php`). */
 	const THEME_MIN = '1.0.1';
 
-	/** @var callable|null pruebas: sustituye la instalación (slug, paquete, tipo: plugin|theme|theme-update) y devuelve true o WP_Error. */
+	/** @var callable|null pruebas: sustituye la instalación (slug, paquete, tipo: plugin|plugin-update|theme|theme-update) y devuelve true o WP_Error. */
 	public static $installer = null;
 
 	/** ¿Es la dirección de un ZIP oficial de ese slug y esa versión? */
@@ -87,6 +87,106 @@ final class Packages {
 			wp_clean_plugins_cache( false );
 		}
 		return Replacements::installed( $file ) ? true : new \WP_Error( 'digitalisimo_migration_install', sprintf( 'El paquete de %s se descomprimió, pero no quedó en %s.', Replacements::own_label( $slug ), $file ) );
+	}
+
+	/**
+	 * Actualiza un plugin DIGITALÍSIMO instalado a la versión de la Release si la suya es anterior (como el tema: con
+	 * Plugin_Upgrader::upgrade(), que guarda la copia anterior y la restaura si la nueva no queda). Plugin_Upgrader lo
+	 * desactiva antes de sustituirlo (`deactivate_plugin_before_upgrade`, fuera de WP-Cron): aquí se anota antes si estaba
+	 * activo en este sitio y en toda la red, y en la misma petición se vuelve a activar tal como estaba y se comprueba.
+	 * Devuelve array( action: none|updated, from, to ) o WP_Error con el motivo real (también si la versión nueva quedó
+	 * instalada pero no se pudo volver a activar: `digitalisimo_migration_reactivate`).
+	 *
+	 * @return array{action:string,from:string,to:string}|\WP_Error
+	 */
+	public static function update_plugin( $slug ) {
+		$file = Replacements::own_file( $slug );
+		if ( '' === $file || ! Replacements::installed( $file ) ) {
+			return new \WP_Error( 'digitalisimo_migration_unknown', sprintf( '%s no está instalado.', Replacements::own_label( $slug ) ) );
+		}
+		$from  = self::plugin_version( $file );
+		$entry = self::index()['plugins'][ $slug ] ?? null;
+		if ( ! $entry ) {
+			return new \WP_Error( 'digitalisimo_migration_no_package', sprintf( 'No se encontró %s en la Release publicada (GitHub no respondió o el índice no lo trae).', Replacements::own_label( $slug ) ) );
+		}
+		if ( '' !== $from && ! version_compare( $from, $entry['version'], '<' ) ) {
+			return array( 'action' => 'none', 'from' => $from, 'to' => $from );
+		}
+		if ( version_compare( (string) ( $GLOBALS['wp_version'] ?? '6.3' ), '6.3', '<' ) ) {
+			return new \WP_Error( 'digitalisimo_migration_old_wp', 'Con WordPress anterior a 6.3 una actualización no guarda la copia anterior del plugin.' );
+		}
+		$was    = self::plugin_active( $file );
+		$result = self::run_installer( $slug, $entry['package'], 'plugin-update' );
+		if ( function_exists( 'wp_clean_plugins_cache' ) ) {
+			wp_clean_plugins_cache( false );
+		}
+		// Activo como estaba (sitio y red), haya salido bien o no la actualización: WordPress restaura la copia anterior.
+		$back = self::reactivate( $file, $was );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		if ( is_wp_error( $back ) ) {
+			return $back;
+		}
+		$to = self::plugin_version( $file );
+		if ( '' === $to || version_compare( $to, $entry['version'], '<' ) ) {
+			return new \WP_Error( 'digitalisimo_migration_install', sprintf( 'WordPress terminó sin dejar %s %s (quedó %s).', Replacements::own_label( $slug ), $entry['version'], '' === $to ? 'sin versión' : $to ) );
+		}
+		return array( 'action' => 'updated', 'from' => $from, 'to' => $to );
+	}
+
+	/** ¿Activo en este sitio y en toda la red? */
+	public static function plugin_active( $file ) {
+		$site    = in_array( $file, (array) get_option( 'active_plugins', array() ), true );
+		$network = function_exists( 'is_multisite' ) && is_multisite() && isset( ( (array) get_site_option( 'active_sitewide_plugins', array() ) )[ $file ] );
+		return array( 'site' => $site, 'network' => $network );
+	}
+
+	/**
+	 * Vuelve a activar $file donde estaba activo ($was de plugin_active()), sin sus ganchos de activación (la
+	 * desactivación de Plugin_Upgrader también fue silenciosa), y lo comprueba. true o WP_Error.
+	 */
+	private static function reactivate( $file, array $was ) {
+		if ( function_exists( 'wp_cache_delete' ) ) {
+			wp_cache_delete( 'alloptions', 'options' );
+		}
+		$now = self::plugin_active( $file );
+		if ( ( empty( $was['network'] ) || $now['network'] ) && ( empty( $was['site'] ) || $now['site'] ) ) {
+			return true;
+		}
+		if ( ! function_exists( 'activate_plugin' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		$errors = array();
+		foreach ( array( 'network' => true, 'site' => false ) as $scope => $network_wide ) {
+			// Revisión adversarial H9: activo en el sitio y en la red, vuelve a los dos.
+			if ( empty( $was[ $scope ] ) || ( $network_wide ? $now['network'] : $now['site'] ) ) {
+				continue;
+			}
+			$done = activate_plugin( $file, '', $network_wide, true );
+			if ( is_wp_error( $done ) ) {
+				$errors[] = $done->get_error_message();
+			}
+		}
+		$now = self::plugin_active( $file );
+		if ( ( empty( $was['network'] ) || $now['network'] ) && ( empty( $was['site'] ) || $now['site'] ) ) {
+			return true;
+		}
+		return new \WP_Error( 'digitalisimo_migration_reactivate', sprintf( 'WordPress lo desactivó para actualizarlo y no se pudo volver a activar%s%s.', ! empty( $was['network'] ) ? ' en toda la red' : '', $errors ? ': ' . implode( '; ', $errors ) : '' ) );
+	}
+
+	/** Versión instalada de un plugin (su cabecera, leída del disco). */
+	public static function plugin_version( $file ) {
+		if ( function_exists( 'get_plugins' ) ) {
+			$plugins = (array) get_plugins();
+			if ( isset( $plugins[ $file ]['Version'] ) ) {
+				return (string) $plugins[ $file ]['Version'];
+			}
+		}
+		if ( ! function_exists( 'get_file_data' ) || ! defined( 'WP_PLUGIN_DIR' ) || ! is_file( WP_PLUGIN_DIR . '/' . $file ) ) {
+			return '';
+		}
+		return (string) ( get_file_data( WP_PLUGIN_DIR . '/' . $file, array( 'v' => 'Version' ) )['v'] ?? '' );
 	}
 
 	/**
@@ -185,6 +285,8 @@ final class Packages {
 		$skin = new \Automatic_Upgrader_Skin();
 		if ( 'theme-update' === $type ) {
 			$result = self::upgrade_theme( $skin, $slug, $package );
+		} elseif ( 'plugin-update' === $type ) {
+			$result = self::upgrade_plugin( $skin, $slug, $package );
 		} else {
 			$upgrader = 'theme' === $type ? new \Theme_Upgrader( $skin ) : new \Plugin_Upgrader( $skin );
 			$result   = $upgrader->install( $package );
@@ -236,6 +338,41 @@ final class Packages {
 			return ( new \Theme_Upgrader( $skin ) )->upgrade( $slug );
 		} finally {
 			remove_filter( 'site_transient_update_themes', $offer, PHP_INT_MAX );
+			remove_filter( 'upgrader_source_selection', $check, 1 );
+		}
+	}
+
+	/**
+	 * Actualiza el plugin $slug con Plugin_Upgrader::upgrade() (la vía de WordPress para una actualización, con la copia
+	 * anterior guardada mientras dura). Como con el tema, mientras dura la caché de actualizaciones ofrece el paquete
+	 * validado, y antes de sustituir nada el paquete descomprimido debe traer el archivo principal de ese plugin.
+	 */
+	private static function upgrade_plugin( $skin, $slug, $package ) {
+		$file    = Replacements::own_file( $slug );
+		$version = preg_replace( '/^.*-(\d+(?:\.\d+)+)\.zip$/', '$1', (string) $package );
+		$offer   = static function ( $value ) use ( $file, $slug, $package, $version ) {
+			$value = is_object( $value ) ? $value : new \stdClass();
+			if ( ! isset( $value->response ) || ! is_array( $value->response ) ) {
+				$value->response = array();
+			}
+			$value->response[ $file ] = (object) array( 'slug' => $slug, 'plugin' => $file, 'new_version' => $version, 'package' => $package, 'url' => '' );
+			return $value;
+		};
+		$check = static function ( $source, $remote = '', $upgrader = null, $extra = array() ) use ( $file ) {
+			if ( is_wp_error( $source ) || ! is_array( $extra ) || $file !== (string) ( $extra['plugin'] ?? '' ) ) {
+				return $source;
+			}
+			if ( ! is_file( trailingslashit( (string) $source ) . basename( $file ) ) ) {
+				return new \WP_Error( 'digitalisimo_migration_package', 'El paquete descargado no es ' . $file . '; no se cambió nada.' );
+			}
+			return $source;
+		};
+		add_filter( 'site_transient_update_plugins', $offer, PHP_INT_MAX );
+		add_filter( 'upgrader_source_selection', $check, 1, 4 );
+		try {
+			return ( new \Plugin_Upgrader( $skin ) )->upgrade( $file );
+		} finally {
+			remove_filter( 'site_transient_update_plugins', $offer, PHP_INT_MAX );
 			remove_filter( 'upgrader_source_selection', $check, 1 );
 		}
 	}

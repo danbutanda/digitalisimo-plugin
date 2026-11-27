@@ -301,6 +301,9 @@ jobs:
           node tests/ia-assistant-mostrar-ui.mjs
           php tests/ia-assistant-subir.php
           node tests/ia-assistant-subir-ui.mjs
+          php tests/ia-assistant-aprende.php
+          node tests/ia-assistant-aprende-ui.mjs
+          php tests/ia-assistant-cache.php
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
           php tests/performance-cache.php
@@ -331,6 +334,21 @@ jobs:
           php tests/hosting-migration.php
           php tests/hosting-admin-perf.php
           php tests/hosting-settings-save.php
+          php tests/hosting-provision.php
+          php tests/hosting-renewal.php
+          php tests/hosting-services.php
+          php tests/hosting-services-screen.php
+          php tests/hosting-pricing.php
+          php tests/hosting-hardening.php
+          php tests/hosting-third-review.php
+          php tests/hosting-webuzo-real.php
+          php tests/hosting-final-review.php
+          php tests/hosting-wpconfig-key.php
+          php tests/hosting-fifth-review.php
+          php tests/hosting-wpconfig-lock.php
+          php tests/hosting-sixth-review.php
+          php tests/hosting-seventh-review.php
+          php tests/hosting-eighth-review.php
           php tests/backups-sftp.php
           php tests/backups-sftp-phpseclib.php
           php tests/backups-sftp-keys.php

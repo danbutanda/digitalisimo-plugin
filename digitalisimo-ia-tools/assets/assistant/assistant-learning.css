@@ -1,0 +1,37 @@
+/*
+ * El aprendizaje del Asistente IA («Entrenar con mi sitio web», «Lo que sé de tu sitio»): sólo piezas propias
+ * (.dga-learn-*), dentro de la pantalla del Asistente y con los tokens de su hoja (assistant.css).
+ */
+.dga-root .dga-learn-card { display: grid; gap: var(--ds-space-3); inline-size: min(34rem, 100%); margin-block-start: var(--ds-space-3); padding: var(--ds-space-4); border: 1px solid var(--ds-border-default); border-radius: var(--ds-radius-lg); background: var(--ds-surface-raised); text-align: start; }
+.dga-root .dga-learn-lead { margin: 0; color: var(--ds-text-primary); font-size: var(--font-size-sm); }
+.dga-root .dga-learn-stale { margin: 0; padding: var(--ds-space-2) var(--ds-space-3); border-radius: var(--ds-radius-md); background: var(--ds-color-warning-subtle); color: var(--ds-text-primary); font-size: var(--font-size-sm); }
+.dga-root .dga-learn-ok { margin: 0; color: var(--ds-color-accent-text); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.dga-root .dga-learn-error { margin: 0; color: var(--ds-color-danger); font-size: var(--font-size-sm); }
+.dga-root .dga-learn-notice { margin: 0; color: var(--ds-text-secondary); font-size: var(--font-size-xs); }
+.dga-root .dga-learn-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-2); }
+.dga-root .dga-learn-progress { display: grid; gap: var(--ds-space-2); }
+.dga-root .dga-learn-progress p { margin: 0; color: var(--ds-text-secondary); font-size: var(--font-size-sm); }
+.dga-root .dga-learn-bar { overflow: hidden; block-size: .375rem; border-radius: var(--ds-radius-pill); background: var(--ds-border-default); }
+.dga-root .dga-learn-bar span { display: block; block-size: 100%; background: var(--ds-color-accent); transition: inline-size .3s ease; }
+.dga-root .dga-learn-open { white-space: nowrap; }
+.dga-root .dga-learn-backdrop { position: fixed; z-index: var(--ds-z-dialog, 100000); inset: 0; display: grid; place-items: center; padding: var(--ds-space-4); background: color-mix(in srgb, var(--ds-color-on-fixed-tone, #000) 45%, transparent); }
+.dga-root .dga-learn-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); inline-size: min(44rem, 100%); max-block-size: 85vh; overflow: hidden; border: 1px solid var(--ds-border-default); border-radius: var(--ds-radius-xl); background: var(--ds-surface-raised); box-shadow: var(--ds-shadow-floating); }
+.dga-root .dga-learn-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-3); padding: var(--ds-space-4) var(--ds-space-5); border-block-end: 1px solid var(--ds-border-default); }
+.dga-root .dga-learn-head h2 { margin: 0; font-size: var(--font-size-lg); }
+.dga-root .dga-learn-body { display: grid; gap: var(--ds-space-4); overflow: auto; padding: var(--ds-space-5); }
+.dga-root .dga-learn-section h3 { margin: 0 0 var(--ds-space-2); font-size: var(--font-size-md, 1rem); }
+.dga-root .dga-learn-section ul { display: grid; gap: var(--ds-space-2); margin: 0; padding: 0; list-style: none; }
+.dga-root .dga-learn-item { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--ds-space-2); padding: var(--ds-space-2) var(--ds-space-3); border: 1px solid var(--ds-border-default); border-radius: var(--ds-radius-md); }
+.dga-root .dga-learn-item p { flex: 1 1 20rem; margin: 0; font-size: var(--font-size-sm); }
+.dga-root .dga-learn-item small { display: block; margin-block-start: var(--ds-space-1); color: var(--ds-text-secondary); font-size: var(--font-size-xs); }
+.dga-root .dga-learn-item-actions { display: flex; gap: var(--ds-space-1); }
+.dga-root .dga-learn-fix:hover:not(:disabled) { color: var(--ds-color-accent-text); }
+.dga-root .dga-learn-edit { display: grid; flex: 1 1 100%; gap: var(--ds-space-2); }
+.dga-root .dga-learn-edit textarea { inline-size: 100%; padding: var(--ds-space-2); border: 1px solid var(--ds-border-default); border-radius: var(--ds-radius-md); background: var(--ds-surface-base, transparent); color: var(--ds-text-primary); font: inherit; font-size: var(--font-size-sm); }
+@media (max-width: 40rem) {
+	.dga-root .dga-learn-open { padding-inline: var(--ds-space-2); font-size: var(--font-size-xs); }
+}
+.dga-root .dga-learn-check { display: flex; align-items: center; gap: var(--ds-space-2); font-size: var(--font-size-sm); }
+.dga-root .dga-learn-memory { display: grid; gap: var(--ds-space-2); margin-block: var(--ds-space-2); padding: var(--ds-space-3) var(--ds-space-4); border: 1px solid var(--ds-border-default); border-radius: var(--ds-radius-lg); background: var(--ds-surface-raised); }
+.dga-root .dga-learn-memory p { margin: 0; }
+.dga-root .dga-learn-quote { margin: 0; padding-inline-start: var(--ds-space-3); border-inline-start: 3px solid var(--ds-color-accent); color: var(--ds-text-primary); font-size: var(--font-size-sm); }

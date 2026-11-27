@@ -113,6 +113,63 @@ if ( 'child' === $scenario ) {
 	switch_theme( 'hello-hijo' );
 	activate_plugin( 'digitalisimo-tools/digitalisimo-tools.php' );
 }
+if ( 'rerun' === $scenario ) {
+	// Caso real de digitalisimo.lat (2026-11-23). Sin el tema propio ni DIGITALÍSIMO Tools instalados: Migrar los descarga.
+	@mkdir( WP_CONTENT_DIR . '/themes/hello-hijo', 0777, true );
+	file_put_contents( WP_CONTENT_DIR . '/themes/hello-hijo/style.css', "/*\nTheme Name: Hello Elementor Child\nTemplate: hello-elementor\nVersion: 2.0.0\n*/\nbody{background:#fafafa}\n" );
+	// La plantilla oficial del hijo más PHP propio: un gancho y un shortcode que usa la portada.
+	file_put_contents( WP_CONTENT_DIR . '/themes/hello-hijo/functions.php', "<?php\nif ( ! defined( 'ABSPATH' ) ) {\n\texit;\n}\ndefine( 'HELLO_ELEMENTOR_CHILD_VERSION', '2.0.0' );\nfunction hello_elementor_child_scripts_styles() {\n\twp_enqueue_style( 'hello-elementor-child-style', get_stylesheet_directory_uri() . '/style.css', [ 'hello-elementor-theme-style' ], HELLO_ELEMENTOR_CHILD_VERSION );\n}\nadd_action( 'wp_enqueue_scripts', 'hello_elementor_child_scripts_styles', 20 );\nadd_action( 'wp_footer', function () {\n\techo '<script id=\"hijo-foot\">window.hijo=1;</script>';\n} );\nadd_shortcode( 'hijo_saludo', function () {\n\treturn '<span id=\"hijo-saludo\">Hola desde el tema hijo</span>';\n} );\n" );
+	wp_clean_themes_cache();
+	switch_theme( 'hello-hijo' );
+	$home = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Inicio', 'post_content' => '<p>Vivero Las Flores: plantas de interior y macetas artesanales.</p>[hijo_saludo]' ) );
+	update_option( 'show_on_front', 'page' );
+	update_option( 'page_on_front', (int) $home );
+	// El informe «completado» que dejó Migración 1.0.32 el 19-nov (con la forma de entonces): el hijo se quedaba.
+	update_option( 'digitalisimo_migration_full_last', array(
+		'v' => 1, 'version' => '1.0.32', 'network' => false, 'run' => 'm19nov', 'started' => 1763604000, 'updated' => 1763604600, 'finished' => 1763604600,
+		'user' => 1, 'caps' => array(), 'stage' => 'finish', 'done' => true, 'failed' => '', 'error' => '', 'attempts' => 0, 'cursor' => 0, 'changed_at' => 0,
+		'plan' => array( 'rows' => array(), 'needs' => array( 'digitalisimo-backups', 'digitalisimo-elements' ), 'theme' => array() ), 'sites' => array(),
+		'backup' => array( 'job' => 'j19', 'file' => 'digitalisimo-backup-digitalisimo-lat-20261119-200445-abc123.zip', 'size' => 1048576, 'sha256' => str_repeat( 'a', 64 ), 'ok' => true ),
+		'installed' => array(), 'activated' => array(), 'content' => array(), 'imports' => array(), 'retired' => array(),
+		'theme' => array( 1 => array( 'from' => 'hello-hijo', 'name' => 'Hello Elementor Child', 'hello' => true, 'child' => true, 'own' => false, 'safe' => false, 'switched' => false, 'reason' => 'El sitio usa un tema hijo de Hello («Hello Elementor Child»): su CSS y su PHP no se trasladan solos (el PHP va al editor de fragmentos de DIGITALÍSIMO Tools). Se queda; cámbialo en Apariencia cuando los hayas pasado.' ) ),
+		'verify' => array(), 'deleted' => array(), 'kept' => array(), 'notes' => array(),
+	), false );
+	if ( is_file( $probe . '/tools-old.zip' ) ) {
+		// TOOLS_OLD=1: Tools 1.0.43 instalado y activo (sin la vía de Migrar para activar el functions.php del hijo).
+		$zip = new ZipArchive();
+		$zip->open( $probe . '/tools-old.zip' );
+		$zip->extractTo( WP_PLUGIN_DIR );
+		$zip->close();
+		wp_clean_plugins_cache( false );
+		activate_plugin( 'digitalisimo-tools/digitalisimo-tools.php' );
+		file_put_contents( $probe . '/tools-old', '1' );
+	}
+	// Y su referencia de la portada de esa pasada (sin versión, de Migración 1.0.32): no debe compararse con ella (revisión
+	// adversarial NUEVA 3), o la portada de hoy, con otro contenido, haría volver atrás sin motivo.
+	update_option( 'digitalisimo_migration_full_baseline', array( 'started' => 1763604000, 'checks' => array( array( 1, home_url( '/' ) ) ) ), false );
+	update_option( 'digitalisimo_migration_full_snap_' . md5( '1763604000|1|' . home_url( '/' ) ), array( 'status' => 200, 'text' => 'Portada del 19 de noviembre con otro contenido completamente distinto al de hoy, de muchas palabras', 'words' => 18 ), false );
+	// La caché de objetos persistente (al final: esta petición no la usa).
+	@mkdir( '/digi-cache', 0777, true );
+	copy( $probe . '/object-cache-nosalt.php', WP_CONTENT_DIR . '/object-cache.php' );
+}
+if ( 'network' === $scenario && is_file( $probe . '/tools-old.zip' ) ) {
+	// TOOLS_OLD=1 en la red: un hijo de Hello con PHP (un gancho) en el segundo sitio y Tools 1.0.43 activado en toda la red.
+	@mkdir( WP_CONTENT_DIR . '/themes/hello-hijo', 0777, true );
+	file_put_contents( WP_CONTENT_DIR . '/themes/hello-hijo/style.css', "/*\nTheme Name: Hello Elementor Child\nTemplate: hello-elementor\nVersion: 2.0.0\n*/\nbody{background:#fafafa}\n" );
+	file_put_contents( WP_CONTENT_DIR . '/themes/hello-hijo/functions.php', "<?php\nif ( ! defined( 'ABSPATH' ) ) {\n\texit;\n}\nadd_action( 'wp_footer', function () {\n\techo '<script id=\"hijo-foot\">window.hijo=1;</script>';\n} );\n" );
+	wp_clean_themes_cache();
+	WP_Theme::network_enable_theme( 'hello-hijo' );
+	switch_to_blog( $sites[1] );
+	switch_theme( 'hello-hijo' );
+	restore_current_blog();
+	$zip = new ZipArchive();
+	$zip->open( $probe . '/tools-old.zip' );
+	$zip->extractTo( WP_PLUGIN_DIR );
+	$zip->close();
+	wp_clean_plugins_cache( false );
+	activate_plugin( 'digitalisimo-tools/digitalisimo-tools.php', '', true );
+	file_put_contents( $probe . '/tools-old', '1' );
+}
 if ( 'salt' === $scenario ) {
 	// Incidente de plomerito: la caché de objetos compartida (drop-in de prueba) ya tiene, sin sal, las opciones de otro
 	// sitio del servidor; desde la petición siguiente este WordPress lee su dirección.

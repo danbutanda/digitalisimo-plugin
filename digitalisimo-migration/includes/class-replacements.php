@@ -37,9 +37,12 @@ final class Replacements {
 		'digitalisimo-backups'  => array( 'file' => 'digitalisimo-backups/digitalisimo-backups.php', 'label' => 'DIGITALÍSIMO Backups' ),
 		'digitalisimo-elements' => array( 'file' => 'digitalisimo-elements/pro-elements.php', 'label' => 'DIGITALÍSIMO Elements' ),
 		'digitalisimo-seo'      => array( 'file' => 'digitalisimo-seo/digitalisimo-integrations.php', 'label' => 'DIGITALÍSIMO SEO' ),
+		// Dueño de «Código PHP»: lo instala, activa o actualiza la etapa del tema cuando el functions.php de un hijo de Hello
+		// tiene PHP que pasar al tema propio (no reemplaza a ningún plugin, así que no está en ORDER).
+		'digitalisimo-tools'    => array( 'file' => 'digitalisimo-tools/digitalisimo-tools.php', 'label' => 'DIGITALÍSIMO Tools' ),
 	);
 	/** WordPress mínimo de cada paquete (su «Requires at least»): Migrar no empieza por debajo del de lo que instalará. */
-	const REQUIRES_WP = array( 'digitalisimo-backups' => '6.0', 'digitalisimo-elements' => '6.8', 'digitalisimo-seo' => '6.0', 'digitalisimo-theme' => '6.8' );
+	const REQUIRES_WP = array( 'digitalisimo-backups' => '6.0', 'digitalisimo-elements' => '6.8', 'digitalisimo-seo' => '6.0', 'digitalisimo-tools' => '6.0', 'digitalisimo-theme' => '6.8' );
 	/** Orden de instalación y activación: Backups (el respaldo va primero) y Elements antes que lo demás. */
 	const ORDER = array( 'digitalisimo-backups', 'digitalisimo-elements', 'digitalisimo-seo' );
 	/** Tema propio y el que reemplaza. */
