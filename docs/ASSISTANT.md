@@ -147,6 +147,12 @@ tokens; el modelo sólo recibe las encendidas y una llamada a una apagada no se 
 Cada llamada se ejecuta con `wp_get_ability()->execute()` como el usuario que chatea (la Ability vuelve a comprobar su
 permiso), y antes se comprueba `check_permissions()` con esa entrada: sin permiso no hay ni tarjeta ni simulación.
 
+**Desde el 2026-11-27 no quedan interruptores del MCP** (decisión del dueño: acceso total por defecto). SEO ya no tiene
+`seo_abilities_write` ni sus partes y la tienda no tiene modos: el Asistente y cualquier cliente MCP escriben con la
+capacidad del usuario. El contexto sigue armándose igual (sólo con la sesión y el nonce del Asistente) y hoy sirve para
+marcar la vía (`assistant`) en el historial de SEO y en la bitácora única del MCP; la tarjeta de confirmación no cambia.
+Lo que sigue es historia.
+
 **Interruptores «sólo para el MCP externo»** (caso plomerito 4, 2026-11-26, IA Tools 1.0.74: a «revisa el sitio web y
 optimízalo en SEO» respondió «WordPress dice que tu usuario no tiene permiso…» a un administrador; lo apagado era
 «Permitir que cambien datos SEO», `seo_abilities_write`, 0 por omisión; desde la tanda B de la auditoría SEO son cuatro

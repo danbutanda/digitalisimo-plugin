@@ -435,7 +435,7 @@ add_action(
 				break;
 			case 'mode':
 				update_option( 'digitalisimo_elements_woo_mcp', array( 'mode' => $arg, 'own' => array( 'mode' ) ), false );
-				digi_sk_out( array( 'mode' => \Digitalisimo\Elements\Woo\Mcp\Settings::mode() ) );
+				digi_sk_out( array( 'stored' => get_option( 'digitalisimo_elements_woo_mcp' ) ) );
 				break;
 			case 'order':
 				digi_sk_out( digi_sk_order( absint( $arg ) ) );

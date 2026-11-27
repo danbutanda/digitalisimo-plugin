@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # «Instalar todos» del catálogo Digitalisimo → Plugins en un WordPress real (Playground): la cadena de admin-post con
 # nonces reales y el instalador de WordPress, con ZIP de prueba locales (sin GitHub). Primero con el catálogo de Tools,
-# después con el de SEO y el ZIP de Hosting ausente (debe seguir con los demás e informarlo).
+# después con el de SEO y el ZIP de IA Tools ausente (debe seguir con los demás e informarlo). DIGITALÍSIMO Hosting es
+# privado (2026-11-27): el índice y los ZIP lo traen, pero ningún catálogo lo muestra, lo instala ni acepta instalarlo a
+# mano; en el escenario de SEO ya está instalado a mano y tampoco se muestra.
 # Uso: bash tests/playground/catalog-install-all.sh   → resultados en $OUT (por defecto /tmp/digi-catalog-install-all)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -28,7 +30,7 @@ cat > "$OUT/blueprint.json" <<'JSON'
 {"steps":[
 {"step":"runPHP","code":"<?php require '/wordpress/wp-load.php'; require_once ABSPATH . 'wp-admin/includes/plugin.php'; activate_plugin( 'digitalisimo-tools/digitalisimo-tools.php' ); file_put_contents( '/wordpress/wp-content/probe/scenario', 'tools' );"},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/probe.php';"},
-{"step":"runPHP","code":"<?php require '/wordpress/wp-load.php'; require_once ABSPATH . 'wp-admin/includes/plugin.php'; require_once ABSPATH . 'wp-admin/includes/file.php'; WP_Filesystem(); foreach ( array( 'digitalisimo.chatbot', 'digitalisimo-hosting', 'digitalisimo-elements', 'digitalisimo-migration' ) as $dir ) $GLOBALS['wp_filesystem']->delete( WP_PLUGIN_DIR . '/' . $dir, true ); unlink( '/wordpress/wp-content/probe/zips/digitalisimo-hosting-1.0.30.zip' ); activate_plugin( 'digitalisimo-seo/digitalisimo-integrations.php' ); file_put_contents( '/wordpress/wp-content/probe/scenario', 'seo' );"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-load.php'; require_once ABSPATH . 'wp-admin/includes/plugin.php'; require_once ABSPATH . 'wp-admin/includes/file.php'; WP_Filesystem(); foreach ( array( 'digitalisimo.chatbot', 'digitalisimo-hosting', 'digitalisimo-elements', 'digitalisimo-migration' ) as $dir ) $GLOBALS['wp_filesystem']->delete( WP_PLUGIN_DIR . '/' . $dir, true ); unlink( '/wordpress/wp-content/probe/zips/digitalisimo-ia-tools-1.0.60.zip' ); wp_mkdir_p( WP_PLUGIN_DIR . '/digitalisimo-hosting' ); file_put_contents( WP_PLUGIN_DIR . '/digitalisimo-hosting/digitalisimo-hosting.php', \"<?php\\n/**\\n * Plugin Name: DIGITALÍSIMO Hosting (instalado a mano)\\n * Version: 1.0.0\\n */\\n\" ); activate_plugin( 'digitalisimo-seo/digitalisimo-integrations.php' ); file_put_contents( '/wordpress/wp-content/probe/scenario', 'seo' );"},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/probe.php';"}]}
 JSON
 $CLI run-blueprint --site-url=http://playground.test --blueprint="$OUT/blueprint.json" \
@@ -43,6 +45,6 @@ for (const s of ["tools", "seo"]) {
   if (!r[s]) { failed++; console.log(`FALLA  ${s}: sin resultado`); continue; }
   if (r[s].length) { failed++; console.log(`FALLA  ${s}: ${r[s].join(" | ")}`); }
 }
-console.log(failed ? `\n${failed} escenarios fallan.` : "\nInstalar todos: Tools instala los cuatro que faltan; SEO sigue sin el ZIP de Hosting y lo informa.");
+console.log(failed ? `\n${failed} escenarios fallan.` : "\nInstalar todos: Tools instala los tres que faltan sin Hosting; SEO sigue sin el ZIP de IA Tools y lo informa; ninguno muestra ni instala Hosting.");
 process.exit(failed ? 1 : 0);
 ' "$OUT/result.json"
