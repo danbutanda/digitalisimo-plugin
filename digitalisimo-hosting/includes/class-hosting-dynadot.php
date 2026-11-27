@@ -175,7 +175,7 @@ class Digitalisimo_Hosting_Dynadot implements Digitalisimo_Hosting_Registrar {
 	public function info( $domain, $timeout = 60 ) {
 		$r = $this->call( 'domain_info', array( 'domain' => $domain ), $timeout );
 		$not_ours = array( 'kind' => 'ok', 'ours' => false, 'expires' => 0, 'created' => 0, 'message' => '' );
-		if ( 'api' === $r['kind'] && preg_match( '/(not found|could not find|cannot find|doesn\'?t exist|does not exist|not (?:in|under) (?:your|this) account|not belong|not own|don\'?t own|invalid domain|no such domain)/i', $r['message'] ) ) return $not_ours;
+		if ( 'api' === $r['kind'] && preg_match( '/(not found|could not find|cannot find|doesn\'?t exist|does not exist|not (?:in|under) (?:your|this) account|not belong|not own|don\'?t own|invalid domain|domain (?:name )?is invalid|no such domain)/i', $r['message'] ) ) return $not_ours;
 		// Un texto de error que no se reconoce: si la búsqueda lo da por libre, no puede estar en ninguna cuenta. Si no,
 		// se detiene con el error (nunca se adivina que no es nuestro).
 		if ( 'api' === $r['kind'] ) {

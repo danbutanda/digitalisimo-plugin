@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApiResponse Status="ERROR" xmlns="http://api.namecheap.com/xml.response">
+  <Errors>
+    <Error Number="2030166">Domain is invalid</Error>
+  </Errors>
+  <Warnings />
+  <RequestedCommand>namecheap.domains.getinfo</RequestedCommand>
+  <CommandResponse Type="namecheap.domains.getInfo">
+    <DomainGetInfoResult ID="0" IsOwner="false" IsPremium="false">
+      <DomainDetails>
+        <NumYears>0</NumYears>
+      </DomainDetails>
+      <LockDetails />
+      <Whoisguard>
+        <ID>0</ID>
+      </Whoisguard>
+      <PremiumDnsSubscription>
+        <UseAutoRenew>false</UseAutoRenew>
+        <SubscriptionId>-1</SubscriptionId>
+        <CreatedDate>0001-01-01T00:00:00</CreatedDate>
+        <ExpirationDate>0001-01-01T00:00:00</ExpirationDate>
+        <IsActive>false</IsActive>
+      </PremiumDnsSubscription>
+      <DnsDetails IsUsingOurDNS="false" HostCount="0" DynamicDNSStatus="false" IsFailover="false" />
+      <Modificationrights />
+    </DomainGetInfoResult>
+  </CommandResponse>
+  <Server>Server 1360233658</Server>
+  <GMTTimeDifference>--5:00</GMTTimeDifference>
+  <ExecutionTime>0.033</ExecutionTime>
+</ApiResponse>

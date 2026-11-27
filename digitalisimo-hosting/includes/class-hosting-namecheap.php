@@ -23,8 +23,13 @@ require_once __DIR__ . '/class-hosting-registrars.php';
 class Digitalisimo_Hosting_Namecheap implements Digitalisimo_Hosting_Registrar {
 	const LIVE    = 'https://api.namecheap.com/xml.response';
 	const SANDBOX = 'https://api.sandbox.namecheap.com/xml.response';
-	/** «Domain not found» y «Domain is not associated with your account»: el dominio no está en esta cuenta. */
-	const NOT_OURS = array( '2019166', '2016166' );
+	/**
+	 * El dominio no está en esta cuenta: «Domain not found» (2019166), «Domain is not associated with your account»
+	 * (2016166) y «Domain is invalid» (2030166). Este último es lo que contesta Namecheap a getInfo de un dominio ajeno
+	 * (prueba real de sólo lectura del 2026-11-27 con github.com, php.net y google.com.mx; respuestas en
+	 * tests/fixtures/namecheap/). Sin él, toda transferencia se frenaba con «No pudimos comprobar…».
+	 */
+	const NOT_OURS = array( '2019166', '2016166', '2030166' );
 
 	private $o;
 
