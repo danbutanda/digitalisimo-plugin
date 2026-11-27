@@ -24,8 +24,10 @@ registran como las de tienda y del kit de ventas (registro de abilities del núc
   sitio (nunca la de red) y devuelve el resultado, `changed` y `adjusted` (lo que la validación guardó distinto).
   Sólo lectura (`MCP_READONLY`): la cuenta de Namecheap y «Heredar», el servidor, el usuario y la clave de Webuzo, los
   nameservers, el token de Banxico, el interruptor del módulo (`enabled`), la venta automática (`provision_enabled`,
-  `own_domain_auto`) y los días de gracia. Una clave desconocida, de sólo lectura o con otro tipo detiene todo sin
-  guardar nada.
+  `own_domain_auto`), los días de gracia y los porcentajes de la fórmula de precios (colchón, margen, comisión, IVA y
+  margen mínimo: el freno contra vender con pérdida). Una clave desconocida, de sólo lectura o con otro tipo detiene
+  todo sin guardar nada. Las dos herramientas se anuncian como escrituras destructivas y no idempotentes, para que el
+  cliente pida confirmación.
 - **mark** pone `_digitalisimo_tld` (y `_digitalisimo_domain_kind` = `transfer` en el producto de transferencia).
 - **Bitácora** `digitalisimo_elements_hosting_mcp_log` (opción del sitio, sin carga automática, 200 entradas): fecha
   UTC, ID del usuario, herramienta, acción, los nombres de las claves cambiadas o el ID del producto, resultado y código.
@@ -35,27 +37,37 @@ registran como las de tienda y del kit de ventas (registro de abilities del núc
 
 Valor de fábrica `.com|`, `.net|` y `.mx|` (sin .org; la lista vieja `.com|.mx|.org|` sin IDs guardada por el formulario
 vale como la de hoy). Una línea con ID manda; sin ID (o con la lista vacía) se usa el producto publicado marcado con su
-extensión o, si no hay, el del SKU `dominio-com` (también `dominio.com`, `domain-com`, `domain.com`). El producto de
-transferencia se marca con el tipo `transfer` (extensión o `*`) o el SKU `transferencia-dominio`. La resolución vive en un
+extensión por la herramienta MCP o, si no hay, el del SKU `dominio-com` (también `dominio.com`, `domain-com`,
+`domain.com`). El producto de transferencia se marca con la herramienta (`kind` `transfer`, extensión o `*`) o lleva el SKU
+`transferencia-dominio`. Las metas `_digitalisimo_tld` y `_digitalisimo_domain_kind` empiezan con «_»: WordPress no las
+muestra en «Campos personalizados», así que la ayuda sólo nombra el SKU y la herramienta. La resolución vive en un
 transitorio que se invalida al guardar Hosting y al cambiar un producto, su SKU o su marca. Si la lista no resuelve
 ningún producto, o le falta alguna extensión, el Escritorio, Plugins, la lista de productos y la pantalla Hosting lo
-avisan con la X (`Digitalisimo_Notices`).
+avisan con la X (`Digitalisimo_Notices`), sólo en un sitio que vende dominios o hosting (algún ID en la lista, planes
+configurados o productos de dominio).
 
 ## El dominio antes de pagar (`includes/class-hosting-checkout.php`)
 
 - **Plan de hosting o correo** (IDs o categorías de hosting, o `_digitalisimo_webuzo_plan`): con `ask_domain` (encendido
   de fábrica) no se paga sin «Dominio nuevo» (un producto de dominio en el carrito) o «Uno que ya tengo» (el nombre
   exacto, que queda en la línea del plan como «Dominio»). «Exigir dominio y hosting juntos» cuenta el dominio propio.
+  Con «Dominio nuevo», el campo de «Uno que ya tengo» se desactiva en el navegador y el servidor lo ignora. Con
+  `ask_domain` apagado no se pintan el panel ni los campos del plan.
 - **Registro (B1)**: el nombre llega con el buscador (`?domain_name=`), el campo del producto o el panel del carrito, y se
   comprueba con `namecheap.domains.check` antes de pagar (disponible, no premium, de la extensión del producto).
 - **Transferencia**: el dominio y el código EPP antes de pagar; formato, registrado, extensión transferible por la API
-  (`namecheap.domains.getTldList`) y que no esté ya en nuestra cuenta. El EPP se cifra al entrar al carrito (el mismo
+  (`namecheap.domains.getTldList`) y que no esté ya en nuestra cuenta (con un texto neutro que no lo revela). Sólo se
+  vende para una extensión configurada con producto de registro (con él se renueva; `*` = cualquiera de ésas) y con el
+  mismo freno de pérdida que el registro (`Digitalisimo_Hosting_Pricing::guard()`) sobre el costo de transferencia de
+  Namecheap (o el de registro si no lo da), antes de pagar y otra vez antes de aprovisionar. El EPP se cifra al entrar al carrito (el mismo
   cifrado que la contraseña de la cuenta), sólo se acepta en el cuerpo de la petición (nunca en la URL), pasa cifrado a
   la meta del pedido `_digitalisimo_epp` y se retira de la REST de pedidos (v3 y v4, y por tanto del MCP de la tienda).
   «Ver código EPP» (caja del pedido, `manage_woocommerce`, nonce por pedido y dominio, sin caché) es la única forma de
   verlo, y deja una nota privada de quién lo consultó. En el aprovisionamiento pasa por la misma revisión de propiedad
   que un dominio propio y queda para hacerse a mano; cuando el dominio llega a la cuenta de Namecheap, la revisión
   diaria la da por terminada, el servicio se renueva con el producto de registro de su extensión y el EPP se borra.
+  Si al renovar la transferencia no ha terminado, la renovación no cobra el dominio y avisa al administrador. El EPP
+  también se borra al cancelar, reembolsar o fallar el pedido y, al reintentar con otro dominio, el del anterior.
 - **Dónde se elige**: el panel «Tu dominio» (carrito y checkout clásicos, también con errores del carrito, y los de
   bloques por `render_block`), los campos de la página del producto y el cuerpo de `cart/add-item` de la Store API
   (`digitalisimo_domain`, `digitalisimo_domain_mode`, `digitalisimo_epp`).
