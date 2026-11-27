@@ -310,14 +310,53 @@ final class Package {
 		}
 	}
 
-	/** Al encender la marca propia en un sitio individual, los originales desplegados se borran (los de toda versión). */
-	public static function remove_originals(): void {
-		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
-			return;
+	/**
+	 * Al encender la marca propia, los originales desplegados se borran (los de toda versión). La carpeta es una por
+	 * instalación (`wp-content/uploads/digitalisimo-elements/base-<versión>/`): en una red la comparten todos los sitios,
+	 * así que sólo se borra si en todos la marca propia queda encendida (`network_all_on()`). Si después un sitio la apaga
+	 * o queda bloqueado, su primera petición los vuelve a desplegar (`boot()`): borrar nunca deja un sitio roto.
+	 */
+	public static function remove_originals(): bool {
+		if ( function_exists( 'is_multisite' ) && is_multisite() && ! self::network_all_on() ) {
+			return false;
 		}
 		foreach ( (array) glob( dirname( self::base()['dir'] ) . '/base-*', GLOB_ONLYDIR ) as $dir ) {
 			self::rmdir( (string) $dir );
 		}
+		return true;
+	}
+
+	/**
+	 * ¿Queda la marca propia en «on» en todos los sitios de la red? (valores en vigor de cada sitio: propio o heredado de
+	 * la red). Con más de `$limit` sitios no se recorre y se responde que no: los originales se quedan.
+	 */
+	public static function network_all_on( int $limit = 500 ): bool {
+		if ( ! function_exists( 'get_sites' ) || ! function_exists( 'switch_to_blog' ) ) {
+			return false;
+		}
+		$sites = get_sites(
+			array(
+				'fields'   => 'ids',
+				'number'   => $limit + 1,
+				'deleted'  => 0,
+				'archived' => 0,
+			)
+		);
+		if ( count( $sites ) > $limit ) {
+			return false;
+		}
+		$all = true;
+		foreach ( $sites as $id ) {
+			switch_to_blog( (int) $id );
+			Toggle::reset();
+			$all = 'on' === Toggle::values()['mode'];
+			restore_current_blog();
+			if ( ! $all ) {
+				break;
+			}
+		}
+		Toggle::reset();
+		return $all;
 	}
 
 	/** ¿El árbol publicado es el del paquete? (huella de marca/arbol.php). Lo usa «Salud del sitio». */

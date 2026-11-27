@@ -135,7 +135,8 @@ final class Settings_Section {
 		}
 		update_option( Toggle::OPTION, $save, true );
 		Toggle::reset();
-		// Encendida en un sitio individual: los originales desplegados ya no hacen falta (opción A de DECISIONES).
+		// Encendida: los originales desplegados ya no hacen falta (opción A de DECISIONES); en una red, sólo si ya no le
+		// hacen falta a ningún sitio (Package::remove_originals()).
 		if ( 'on' === $save['mode'] && 'on' === Toggle::status( true )['state'] && class_exists( Package::class ) ) {
 			Package::remove_originals();
 		}
@@ -151,6 +152,10 @@ final class Settings_Section {
 		$values = self::posted();
 		update_site_option( Toggle::NETWORK_OPTION, array( 'mode' => $values['mode'], 'force' => $values['force'] ) );
 		Toggle::reset();
+		// Encendida en la red: si con eso todos los sitios quedan encendidos, los originales compartidos se borran.
+		if ( 'on' === $values['mode'] && class_exists( Package::class ) && Package::transformed() ) {
+			Package::remove_originals();
+		}
 		wp_safe_redirect( self::url( true, array( self::NOTICE_PARAM => 'network-saved' ) ) );
 		exit;
 	}

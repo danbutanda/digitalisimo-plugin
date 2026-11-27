@@ -54,6 +54,13 @@ $put( 'elementor/assets/js/frontend.js.map', '{"sources":["elementor"]}' );
 $put( 'assets/css/widget-x.min.css', '.elementor-x{background:url(../images/y.png)}' );
 $put( 'assets/images/y.png', 'png' );
 $put( 'assets/js/ok.js', 'console.log(1);' );
+// Lo que el servidor lee para pintar, la licencia y una fuente con «elementor» en los nombres de glifos.
+$put( 'elementor/assets/shapes/wave.svg', '<svg><path class="elementor-shape-fill" d="M0"/></svg>' );
+$put( 'elementor/modules/atomic-widgets/elements/x/x.html.twig', "{% import 'elementor/macros' as m %}{# elementor #}<div class=\"elementor-x {{ m.c('elementor-element') }}\"></div>" );
+$put( 'elementor/modules/mcp/static-resources/abilities/a.md', "Usa elementor-create-page con Elementor.\n" );
+$put( 'modules/digitalisimo-sales/data/k.json', '{"template":"elementor_canvas"}' );
+$put( 'elementor/license.txt', "Elementor es GPL.\n" );
+$put( 'elementor/assets/lib/eicons/fonts/eicons.ttf', file_get_contents( $repo . '/digitalisimo-elements/elementor/assets/lib/eicons/fonts/eicons.ttf' ) );
 foreach ( glob( $repo . '/digitalisimo-elements/modules/digitalisimo-marca/*.php' ) as $f ) {
 	$put( 'modules/digitalisimo-marca/' . basename( $f ), file_get_contents( $f ) );
 }
@@ -102,10 +109,25 @@ function did_action( $t ) {
 	return 1;
 }
 function get_option( $k, $d = false ) {
+	if ( ! empty( $GLOBALS['multisite'] ) ) {
+		return $GLOBALS['blogs'][ $GLOBALS['blog'] ?? 1 ][ $k ] ?? $d;
+	}
 	return $GLOBALS['options'][ $k ] ?? $d;
 }
 function is_multisite() {
-	return false;
+	return ! empty( $GLOBALS['multisite'] );
+}
+function get_site_option( $k, $d = false ) {
+	return $d;
+}
+function get_sites( $a = array() ) {
+	return array_keys( $GLOBALS['blogs'] );
+}
+function switch_to_blog( $id ) {
+	$GLOBALS['blog'] = $id;
+}
+function restore_current_blog() {
+	$GLOBALS['blog'] = 1;
 }
 function content_url( $p = '' ) {
 	return 'https://ensayo.test/wp-content/' . $p;
@@ -161,6 +183,30 @@ file_put_contents( $pl . '/assets/js/ok.js', 'console.log(2);' );
 check( false === Package::tree_ok(), 'K5 un archivo cambiado después se detecta' );
 Package::remove_originals();
 check( ! is_dir( $base ), 'K5 al encender la marca en un sitio individual, los originales desplegados se borran' );
+
+// K7: en una red la carpeta de originales es una para todos los sitios: se borra sólo si todos quedan encendidos.
+$GLOBALS['multisite'] = true;
+$GLOBALS['blogs']     = array(
+	1 => array( \Digitalisimo\Elements\Marca\Toggle::OPTION => array( 'mode' => 'on' ) ),
+	2 => array( \Digitalisimo\Elements\Marca\Toggle::OPTION => array( 'mode' => 'off' ) ),
+);
+check( Package::deploy() && false === Package::remove_originals() && is_dir( $base ), 'K7 en una red con un sitio apagado, los originales se quedan' );
+$GLOBALS['blogs'][2][ \Digitalisimo\Elements\Marca\Toggle::OPTION ] = array( 'mode' => 'on' );
+check( true === Package::remove_originals() && ! is_dir( $base ), 'K7 con todos los sitios encendidos, se borran' );
+$GLOBALS['multisite'] = false;
+
+// K8: lo que el servidor lee, publicado original y enmascarado; la licencia entera en .php; la fuente corregida.
+$svg = (string) file_get_contents( $pl . '/motor/assets/shapes/wave.svg' );
+check( '<svg><path class="&#101;lementor-shape-fill" d="M0"/></svg>' === $svg, 'K8 el separador SVG con la clase original enmascarada (entidad)', $svg );
+$twig = (string) file_get_contents( $pl . '/motor/modules/atomic-widgets/elements/x/x.html.twig' );
+check( "{% import ('elemen' ~ 'tor/macros') as m %}<div class=\"&#101;lementor-x {{ m.c(('elemen' ~ 'tor-element')) }}\"></div>" === $twig, 'K8 el twig con las cadenas partidas, sin el comentario y la clase con entidad', $twig );
+$md = (string) file_get_contents( $pl . '/motor/modules/mcp/static-resources/abilities/a.md' );
+check( "Usa elemen\u{200D}tor-create-page con Elemen\u{200D}tor.\n" === $md && "Usa elementor-create-page con Elementor.\n" === \Digitalisimo\Elements\Marca\Map::unmask( $md ), 'K8 la guía del MCP con el separador invisible, que el mapa quita', $md );
+$kit = (string) file_get_contents( $pl . '/modules/digitalisimo-sales/data/k.json' );
+check( false === stripos( $kit, 'elementor' ) && array( 'template' => 'elementor_canvas' ) === json_decode( $kit, true ), 'K8 el JSON del kit enmascarado y json_decode da lo de siempre', $kit );
+check( ! is_file( $pl . '/motor/license.txt' ) && "<?php exit; ?>\nElementor es GPL.\n" === (string) @file_get_contents( $pl . '/motor/license.txt.php' ), 'K8 la licencia entera, en un .php que pedido por URL no devuelve nada' );
+$ttf = (string) file_get_contents( $pl . '/motor/assets/lib/eicons/fonts/eicons.ttf' );
+check( false === stripos( $ttf, 'elementor' ) && strlen( $ttf ) === filesize( $repo . '/digitalisimo-elements/elementor/assets/lib/eicons/fonts/eicons.ttf' ), 'K8 la fuente sin la palabra en los nombres de glifos y del mismo tamaño' );
 
 exec( 'rm -rf ' . escapeshellarg( $tmp ) );
 echo "\n$GLOBALS[fails] fallos de $GLOBALS[checks] comprobaciones\n";

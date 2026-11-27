@@ -75,6 +75,38 @@ function mask(rel, text) {
   // Markdown y texto que lee el MCP: un separador invisible dentro de la palabra (el MCP lo quita al responder).
   return text.replace(/(e)(lementor)/gi, (m, a, b) => `${m.slice(0, 6)}${ZWJ}${m.slice(6)}`);
 }
+/**
+ * Fuentes TrueType (y la TTF sin comprimir de un .eot): «elementor» sólo está en nombres de glifos (tabla `post`), que no
+ * cambian cómo se ve la fuente. Se cambia por una palabra del mismo largo (`digitalis`) y se recalculan las sumas de
+ * comprobación de las tablas y `head.checkSumAdjustment`, para que los navegadores (OTS) la acepten igual.
+ */
+function fixFont(buf, rel) {
+  let base = 0;
+  if (/\.eot$/i.test(rel)) {
+    const eotSize = buf.readUInt32LE(0);
+    const dataSize = buf.readUInt32LE(4);
+    if (buf.readUInt32LE(12) & 0x4) return null; // comprimida (MTX): no se toca
+    base = eotSize - dataSize;
+  }
+  const out = Buffer.from(buf);
+  const ttf = out.subarray(base);
+  const word = Buffer.from('digitalis');
+  for (let i = ttf.indexOf('elementor'); i >= 0; i = ttf.indexOf('elementor', i + 9)) word.copy(ttf, i);
+  for (let i = ttf.indexOf('Elementor'); i >= 0; i = ttf.indexOf('Elementor', i + 9)) Buffer.from('Digitalis').copy(ttf, i);
+  const sum = (b, off, len) => { let s = 0; for (let k = 0; k < len; k += 4) { const w = [0, 1, 2, 3].reduce((a, j) => a * 256 + (off + k + j < b.length && k + j < len ? b[off + k + j] : 0), 0); s = (s + w) >>> 0; } return s; };
+  const n = ttf.readUInt16BE(4);
+  let head = -1;
+  for (let t = 0; t < n; t++) {
+    const rec = 12 + t * 16;
+    const tag = ttf.toString('latin1', rec, rec + 4);
+    const off = ttf.readUInt32BE(rec + 8);
+    const len = ttf.readUInt32BE(rec + 12);
+    if (tag === 'head') { head = off; ttf.writeUInt32BE(0, off + 8); }
+    ttf.writeUInt32BE(sum(ttf, off, len), rec + 4);
+  }
+  if (head >= 0) ttf.writeUInt32BE((0xb1b0afba - sum(ttf, 0, ttf.length)) >>> 0, head + 8);
+  return out;
+}
 /** JSON con las mismas reglas que el JS transformado (claves y valores), para que coincidan (traducciones, datos). */
 function jsonStr(text) {
   let data;
@@ -114,6 +146,12 @@ for (const file of walk(dir).sort()) {
     index[rel] = `${rel}.php`;
     report.licencias = (report.licencias || 0) + 1;
     continue;
+  }
+  // Fuentes con la palabra sólo en nombres de glifos y sin ella en la ruta: se corrigen en su lugar (sirven igual con la
+  // marca apagada, no hace falta el original).
+  if (!named && /\.(ttf|otf|eot)$/i.test(rel)) {
+    const fixed = fixFont(buf, rel);
+    if (fixed && !/elementor/i.test(fixed.toString('latin1'))) { writeFileSync(file, fixed); report.fuentes = (report.fuentes || 0) + 1; continue; }
   }
   archive.push([rel, buf]);
   if (DROP.test(rel)) { rmSync(file); index[rel] = null; report.sin_publicar++; continue; }
@@ -163,4 +201,4 @@ writeFileSync(join(dir, 'marca/arbol.php'), php(tree));
 report.originales = { archivos: archive.length, bytes: statSync(join(dir, 'marca/originales.php')).size };
 report.arbol = tree;
 if (process.argv.includes('--json')) console.log(JSON.stringify(report, null, 1));
-else console.log(`Transformados ${report.transformados}, renombrados ${report.renombrados}, sin publicar ${report.sin_publicar}; originales: ${report.originales.archivos} archivos en ${(report.originales.bytes / 1048576).toFixed(1)} MB; el servidor lee ${report.servidor_lee.length}; con «elementor» todavía: ${report.quedan.length}${report.quedan.length ? ' · ' + report.quedan.slice(0, 5).join(' ') : ''}; árbol ${tree.files} archivos ${tree.tree_sha256.slice(0, 12)}.`);
+else console.log(`Transformados ${report.transformados}, renombrados ${report.renombrados}, sin publicar ${report.sin_publicar}, fuentes corregidas ${report.fuentes || 0}, licencias en .php ${report.licencias || 0}; originales: ${report.originales.archivos} archivos en ${(report.originales.bytes / 1048576).toFixed(1)} MB; el servidor lee ${report.servidor_lee.length}; con «elementor» todavía: ${report.quedan.length}${report.quedan.length ? ' · ' + report.quedan.slice(0, 5).join(' ') : ''}; árbol ${tree.files} archivos ${tree.tree_sha256.slice(0, 12)}.`);
