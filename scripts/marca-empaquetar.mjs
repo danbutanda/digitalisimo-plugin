@@ -24,7 +24,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync, renameSync, mkdirSy
 import { join, relative, dirname, posix } from 'node:path';
 import { createHash } from 'node:crypto';
 import { deflateRawSync } from 'node:zlib';
-import { loadRules, transformCss, transformJs, transformStr } from './marca-transform.mjs';
+import { loadRules, transformCss, transformJs, transformStr, splitVendor } from './marca-transform.mjs';
 
 const dir = process.argv[2];
 if (!dir || !existsSync(join(dir, 'pro-elements.php'))) { console.error('uso: node scripts/marca-empaquetar.mjs <copia>/digitalisimo-elements'); process.exit(2); }
@@ -190,7 +190,8 @@ for (const file of walk(dir).sort()) {
     if (/\.css$/.test(rel)) text = relUrl(transformCss(text, rules));
     else if (/\.(js|mjs|cjs)$/.test(rel)) text = transformJs(text, rules);
     else if (/\.json$/.test(rel) && jsonStr(text) !== null) text = jsonStr(text);
-    else text = text.replace(/elementor/gi, (m) => (m[0] === 'E' ? 'DIGITALÍSIMO' : P));
+    // Texto (changelog, svg, html): la palabra cambia, pero nunca el host de una URL del proveedor (B-4: nada de `dg.com`).
+    else text = splitVendor(text).map((x) => (x.vendor ? x.text : x.text.replace(/elementor/gi, (m) => (m[0] === 'E' ? 'DIGITALÍSIMO' : P)))).join('');
     out = Buffer.from(text);
     report.transformados++;
   } else report.renombrados++;

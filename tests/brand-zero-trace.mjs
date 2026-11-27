@@ -13,8 +13,9 @@
 //   excepciones       excepciones internas de reglas.json sin justificar (deben ser 0)
 //   dominio_ajeno     hosts `dg.com`, `*.dg.red`… en lo servible: el transformador nunca debe cambiar el dominio del
 //                     proveedor por uno ajeno (B-4 de la revisión F2; deben ser 0)
-//   enlaces_proveedor (informativa, no falla) URL y hosts del proveedor que siguen tal cual a propósito: los oculta
-//                     digitalisimo-vendor-free.php; quitarlos o mandarlos a la ayuda propia es decisión del dueño
+//   enlaces_proveedor (informativa, no falla) URL y hosts del proveedor que siguen tal cual a propósito (los oculta
+//                     digitalisimo-vendor-free.php; quitarlos o mandarlos a la ayuda propia es decisión del dueño), URL
+//                     absolutas de otros sitios y nombres de campos que relee el servidor (B-5)
 // Uso:
 //   node tests/brand-zero-trace.mjs                     ZIP simulado con los archivos versionados del plugin
 //   node tests/brand-zero-trace.mjs --zip <archivo>     un ZIP construido (p. ej. scripts/marca-prototipo/zip-motor.sh)
@@ -25,7 +26,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { splitVendor } from '../scripts/marca-transform.mjs';
+import { splitVendor, FIELD_RE } from '../scripts/marca-transform.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const argv = process.argv.slice(2);
@@ -36,8 +37,13 @@ const SERVABLE = /\.(css|js|json|txt|svg|html?|md|xml|map)$/i;
 const rules = JSON.parse(readFileSync(`${ROOT}/digitalisimo-elements/marca/reglas.json`, 'utf8'));
 const all = (t) => (String(t).match(/elementor/gi) || []).length;
 // Las apariciones dentro de URL y hosts del proveedor van aparte (enlaces_proveedor).
-const count = (t) => { t = String(t); return all(t) ? splitVendor(t).filter((x) => !x.vendor).reduce((a, x) => a + all(x.text), 0) : 0; };
-const vendorCount = (t) => { t = String(t); return all(t) ? splitVendor(t).filter((x) => x.vendor).reduce((a, x) => a + all(x.text), 0) : 0; };
+// Lo que se conserva a propósito y va aparte (enlaces_proveedor): URL y hosts del proveedor, una URL absoluta de otro
+// sitio dentro de una cadena del JS (`https://patchstack.com/…?utm_campaign=elementor-…`: el transformador no toca URL
+// absolutas, B-4) y los nombres de campos que relee el servidor (`name="elementor_x"`, B-5).
+const KEEP = new RegExp(`(?:https?:)?\\/\\/[^\\s"'\`<>]*elementor[^\\s"'\`<>]*|${FIELD_RE.source}`, 'gi');
+const plainOf = (t) => splitVendor(t).filter((x) => !x.vendor).map((x) => x.text).join(' ').replace(KEEP, ' ');
+const count = (t) => { t = String(t); return all(t) ? all(plainOf(t)) : 0; };
+const vendorCount = (t) => { t = String(t); return all(t) ? all(t) - all(plainOf(t)) : 0; };
 const ALIEN = /(?<![\w-])(?:[a-z0-9-]+\.)*dg\.(?:com|cloud|red|io|net)(?![\w-])/gi;
 
 let files;
