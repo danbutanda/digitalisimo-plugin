@@ -398,6 +398,23 @@ async function single() {
   okCall(r, 'deshacer una etiqueta nueva sin productos la borra');
   r = await admin.call('catalog', { action: 'get', resource: 'tag', term_id: tagId });
   check(r.isError, 'la etiqueta ya no existe', r.text.slice(0, 200));
+  // Revisión de la tanda B: una categoría que sólo usa un borrador (count 0 en la REST) no se borra al deshacer.
+  r = await admin.call('catalog', { action: 'create', resource: 'category', data: { name: 'Categoría deshacer MCP' } });
+  const revCatId = r.data?.data?.id;
+  const revCatChange = r.data?.change?.id;
+  r = await admin.call('products', { action: 'create', data: { name: 'Borrador con categoría', type: 'simple', status: 'draft', categories: [{ id: revCatId }] } });
+  okCall(r, 'un borrador con la categoría nueva');
+  r = await admin.call('catalog', { action: 'get', resource: 'category', term_id: revCatId, fields: ['count'] });
+  check(!r.isError && r.data?.data?.count === 0, 'la REST cuenta 0 (sólo cuenta publicados)', r.text.slice(0, 200));
+  r = await admin.call('catalog', { action: 'undo', change_id: revCatChange, dry_run: true });
+  check(!r.isError && r.data?.allowed === false && r.data?.would === null && /borradores/.test(r.data?.reason || ''), 'dry_run del undo: no la borraría y dice por qué', r.text.slice(0, 400));
+  r = await admin.call('catalog', { action: 'undo', change_id: revCatChange });
+  check(r.isError && /lo usan 1/.test(r.text), 'undo rechazado: la categoría la usa un borrador', r.text.slice(0, 300));
+  r = await admin.call('catalog', { action: 'get', resource: 'category', term_id: revCatId, fields: ['id'] });
+  check(!r.isError && r.data?.data?.id === revCatId, 'la categoría sigue existiendo', r.text.slice(0, 200));
+  // Un cambio de atributos no se promete deshacible.
+  r = await admin.call('products', { action: 'update', product_id: undoId, data: { attributes: [{ name: 'Color', options: ['Rojo'], visible: true }] } });
+  check(!r.isError && r.data?.change?.undo === false && /attributes/.test(r.data?.change?.reason || ''), 'update de atributos: undo false con el motivo', r.text.slice(0, 300));
   r = await admin.call('reports', { action: 'changes', per_page: 20 });
   check(!r.isError && r.data?.total >= 6 && !JSON.stringify(r.data).includes('"before"'), 'reports changes: el registro sin valores', r.text.slice(0, 300));
   const auto2 = (await probe('option', 'autoload')).autoload || [];
