@@ -9,7 +9,7 @@ defined( 'ABSPATH' ) || exit;
  * persona. Sólo lee, con el permiso de quien usa el Asistente (`edit_posts`).
  *
  * Se expone igual que las demás herramientas de los plugins: pública para MCP (`meta.mcp.public`, el servidor genérico
- * del adaptador) y, con el MCP de DIGITALÍSIMO Elements activo, en su servidor `/wp-json/elementor/mcp` por el filtro
+ * del adaptador) y, con el MCP de DIGITALÍSIMO Elements activo, en su servidor `/wp-json/digitalisimo/mcp` por el filtro
  * `elementor/mcp/server/tools` (allí se llama `digitalisimo-ia-open-assistant`). Sin la Abilities API (WordPress 6.9)
  * no se registra nada. Con ella se registran también las de lectura del sitio (Digitalisimo_AI_Site_Reader:
  * `digitalisimo-ia/read-page-text` y `digitalisimo-ia/site-contact`), con la misma exposición.

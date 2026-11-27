@@ -5,9 +5,14 @@ defined( 'ABSPATH' ) || exit;
  * Las herramientas del Asistente IA son las del MCP del sitio (docs/ASSISTANT.md): un solo catálogo, las Abilities de
  * WordPress, que sirve igual a Claude o ChatGPT por MCP y al chat interno.
  *
- * - Catálogo: lo que ofrece el servidor MCP de DIGITALÍSIMO Elements (`/wp-json/elementor/mcp`, con su registro
+ * - Catálogo: lo que ofrece el servidor MCP de DIGITALÍSIMO Elements (`/wp-json/digitalisimo/mcp`, con su registro
  *   compartido y el filtro `elementor/mcp/server/tools`) más las Abilities públicas para MCP (`meta.mcp.public`, de
  *   tipo herramienta) que publica el servidor genérico del adaptador. Sin el MCP de Elements activo, sólo las públicas.
+ * - Marca propia (docs/MARCA_PROPIA.md de Elements): el modelo ve las herramientas con los nombres del MCP con nombre
+ *   propio (`elementor/create-page` → `digitalisimo-create-page`), y con DIGITALÍSIMO Elements cargado las
+ *   descripciones, las entradas y las respuestas pasan por su mapa de marca (`Digitalisimo\Elements\Marca\Map`): al
+ *   modelo le llega `digitalisimo_library`, `action=digitalisimo` o `_dg_*`, y lo que pide se traduce a los nombres
+ *   internos antes de ejecutar. Un nombre viejo (`elementor-create-page`, de una conversación anterior) sigue valiendo.
  * - Clase de cada llamada: `read` si la ability se anota de sólo lectura; `write` si se anota como no destructiva;
  *   `destructive` en cualquier otro caso (sin anotación también, como en el MCP). Una herramienta con `action` en su
  *   esquema (las de tienda) cuenta como lectura cuando la acción pedida es una de READ_ACTIONS.
@@ -156,8 +161,8 @@ final class Digitalisimo_AI_Assistant_Tools {
 			$out[ $name ] = array(
 				'name'        => $name,
 				'tool'        => self::tool_name( $name ),
-				'label'       => (string) $ability->get_label(),
-				'description' => self::clip( (string) $ability->get_description(), 2000 ),
+				'label'       => (string) self::marca_text( (string) $ability->get_label() ),
+				'description' => self::clip( (string) self::marca_text( (string) $ability->get_description() ), 2000 ),
 				'category'    => $category,
 				'schema'      => $schema,
 				'wrapped'     => $schema && 'object' !== ( $schema['type'] ?? 'object' ),
@@ -188,8 +193,18 @@ final class Digitalisimo_AI_Assistant_Tools {
 		}
 	}
 
-	/** Nombre de herramienta para los proveedores (y el mismo que publica el MCP): `/` y lo no admitido pasan a `-`. */
+	/**
+	 * Nombre de herramienta para los proveedores (y el mismo que publica el MCP con nombre propio): las del constructor
+	 * `elementor/x` pasan a `digitalisimo-x`; `/` y lo no admitido pasan a `-`.
+	 */
 	public static function tool_name( $name ) {
+		$name = (string) $name;
+		$tool = preg_replace( '/[^A-Za-z0-9_-]/', '-', 0 === strpos( $name, 'elementor/' ) ? 'digitalisimo-' . substr( $name, 10 ) : $name );
+		return strlen( $tool ) > 64 ? substr( $tool, 0, 55 ) . '-' . substr( md5( $name ), 0, 8 ) : $tool;
+	}
+
+	/** El nombre que tenía la herramienta antes de la marca propia (`elementor-x`), que sigue valiendo. */
+	public static function legacy_tool_name( $name ) {
 		$tool = preg_replace( '/[^A-Za-z0-9_-]/', '-', (string) $name );
 		return strlen( $tool ) > 64 ? substr( $tool, 0, 55 ) . '-' . substr( md5( (string) $name ), 0, 8 ) : $tool;
 	}
@@ -201,7 +216,32 @@ final class Digitalisimo_AI_Assistant_Tools {
 				return $name;
 			}
 		}
+		foreach ( $catalog as $name => $entry ) {
+			if ( self::legacy_tool_name( $name ) === $tool ) {
+				return $name;
+			}
+		}
 		return '';
+	}
+
+	/** ¿Está el mapa de marca de DIGITALÍSIMO Elements? */
+	private static function marca(): bool {
+		return class_exists( '\\Digitalisimo\\Elements\\Marca\\Map' );
+	}
+
+	/** Texto fijo de una herramienta (etiqueta, descripción, esquema) con la marca propia. */
+	public static function marca_text( $value ) {
+		return self::marca() ? \Digitalisimo\Elements\Marca\Map::out_deep( $value ) : $value;
+	}
+
+	/** Lo que pide el modelo, con los nombres internos (acepta los dos). */
+	public static function marca_in( $value ) {
+		return self::marca() ? \Digitalisimo\Elements\Marca\Map::in_deep( $value ) : $value;
+	}
+
+	/** Lo que devuelve una herramienta, con los identificadores renombrados (el contenido del cliente no cambia). */
+	public static function marca_out( $value ) {
+		return self::marca() ? \Digitalisimo\Elements\Marca\Map::data_out( $value ) : $value;
 	}
 
 	/**
@@ -220,7 +260,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 		// Los proveedores admiten hasta 128 herramientas por petición (OpenAI); las que sobran no se ofrecen.
 		foreach ( array_slice( $catalog, 0, self::MAX_TOOLS, true ) as $entry ) {
 			$description = '' !== $entry['description'] ? $entry['description'] : $entry['label'];
-			$out[]       = array( 'name' => $entry['tool'], 'description' => self::clip( $entry['label'] . ' — ' . $description, 2048 ), 'schema' => $entry['schema'] );
+			$out[]       = array( 'name' => $entry['tool'], 'description' => self::clip( $entry['label'] . ' — ' . $description, 2048 ), 'schema' => self::marca_text( $entry['schema'] ) );
 		}
 		return $out;
 	}
@@ -707,7 +747,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 	 */
 	public static function run( array $entry, $input, $kind = null ) {
 		try {
-			$args   = self::args( $entry, $input );
+			$args   = self::args( $entry, self::marca_in( $input ) );
 			$result = null === $kind
 				? $entry['ability']->execute( $args )
 				: Digitalisimo_AI_Assistant_Context::with(
@@ -731,13 +771,14 @@ final class Digitalisimo_AI_Assistant_Tools {
 				$why   = true === $again ? $result : $again;
 			}
 			$applied = self::not_applied( $result );
-			$out     = ( is_wp_error( $why ) && '' !== self::reason( $why ) ) || ! is_wp_error( $why ) ? self::denial( $why, $applied ) : array( 'status' => 'error', 'error' => self::clip( self::scrub( wp_strip_all_tags( (string) $result->get_error_message() ) ), 400 ) );
+			$out     = ( is_wp_error( $why ) && '' !== self::reason( $why ) ) || ! is_wp_error( $why ) ? self::denial( $why, $applied ) : array( 'status' => 'error', 'error' => self::clip( self::scrub( wp_strip_all_tags( (string) self::marca_text( (string) $result->get_error_message() ) ) ), 400 ) );
 			if ( $applied ) {
 				$out['not_applied'] = true;
 			}
 			return $out;
 		}
-		$data = self::mask( $result );
+		$result = self::marca_out( $result );
+		$data   = self::mask( $result );
 		if ( is_array( $result ) && 'error' === ( $result['status'] ?? '' ) ) {
 			return array( 'status' => 'error', 'error' => self::clip( self::scrub( (string) ( $result['message'] ?? 'La herramienta devolvió un error.' ) ), 400 ), 'data' => $data );
 		}
@@ -794,7 +835,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 	 */
 	public static function as_data( $ability, array $result ) {
 		$flags   = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
-		$payload = array( 'tipo' => 'resultado_de_herramienta', 'herramienta' => (string) $ability, 'estado' => $result['status'], 'aviso' => self::DATA_NOTICE );
+		$payload = array( 'tipo' => 'resultado_de_herramienta', 'herramienta' => 0 === strpos( (string) $ability, 'elementor/' ) ? self::tool_name( (string) $ability ) : (string) $ability, 'estado' => $result['status'], 'aviso' => self::DATA_NOTICE );
 		if ( isset( $result['error'] ) ) {
 			$payload['error'] = $result['error'];
 		}

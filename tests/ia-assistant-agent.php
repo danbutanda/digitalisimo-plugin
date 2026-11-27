@@ -261,18 +261,26 @@ check( 3 === count( $GLOBALS['created_notes'] ), 'Y8: «sí, créala» sí confi
 
 /* ---------------- D: borradores sin confirmar ---------------- */
 $GLOBALS['ran'] = array();
-$GLOBALS['script'] = array( array( 'text' => 'Creo la landing en borrador.', 'calls' => array( $call( 'elementor-create-page', array( 'title' => 'Oferta Black Friday' ) ) ) ), 'Creada.' );
+$GLOBALS['script'] = array( array( 'text' => 'Creo la landing en borrador.', 'calls' => array( $call( 'digitalisimo-create-page', array( 'title' => 'Oferta Black Friday' ) ) ) ), 'Creada.' );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'créala' ) ) ) );
 $cd = $ev[0]['id'];
 $created = $GLOBALS['ran'][0][1] ?? 0;
 check( array( array( 'create', $created ) ) === $GLOBALS['ran'] && ! $of( $ev, 'confirm' ) && 'draft' === $of( $ev, 'tool' )[0]['message']['kind'] && 'ok' === $of( $ev, 'tool' )[0]['message']['status'], 'D1: crear una página nueva en borrador no pide confirmación' );
 check( array( $created ) === Digitalisimo_AI_Assistant_History::get( $cd, 1 )['drafts'], 'D1: el borrador queda anotado en la conversación' );
-$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created, 'xml' => '<e-flexbox/>' ) ) ) ), 'Armada.' );
+// Marca propia (docs/MARCA_PROPIA.md de Elements): el modelo ve las herramientas del constructor como `digitalisimo-*`,
+// igual que en el MCP con nombre propio; un nombre viejo de una conversación anterior (`elementor-create-page`) sigue
+// llevando a la misma ability. Las llamadas de esta prueba usan los nombres nuevos.
+$cat_mp = Digitalisimo_AI_Assistant_Tools::catalog();
+$defs   = array_map( static function ( $d ) { return $d['name']; }, Digitalisimo_AI_Assistant_Tools::definitions( $cat_mp ) );
+check( in_array( 'digitalisimo-create-page', $defs, true ) && ! preg_grep( '/^elementor/', $defs ) && 'elementor/create-page' === Digitalisimo_AI_Assistant_Tools::ability_for( $cat_mp, 'digitalisimo-create-page' ) && 'elementor/create-page' === Digitalisimo_AI_Assistant_Tools::ability_for( $cat_mp, 'elementor-create-page' ), 'MP: herramientas del constructor como digitalisimo-*; el nombre viejo sigue valiendo: ' . implode( ',', $defs ) );
+$as = json_decode( Digitalisimo_AI_Assistant_Tools::as_data( 'elementor/create-page', array( 'status' => 'ok', 'data' => array() ) ), true );
+check( 'digitalisimo-create-page' === ( $as['herramienta'] ?? '' ), 'MP: el resultado que ve el modelo nombra la herramienta con el nombre propio' );
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'digitalisimo-build-composition', array( 'post_id' => $created, 'xml' => '<e-flexbox/>' ) ) ) ), 'Armada.' );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'llénala', 'conversation' => $cd ) ) ) );
 check( array( 'build', $created ) === end( $GLOBALS['ran'] ) && ! $of( $ev, 'confirm' ), 'D2: editar el borrador que creó esta conversación tampoco' );
 $other = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'Borrador ajeno' ) );
 $published = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Inicio' ) );
-foreach ( array( array( 'elementor-build-composition', array( 'post_id' => $other ), 'D3: un borrador que no creó esta conversación' ), array( 'elementor-build-composition', array( 'post_id' => $published ), 'D3: una página publicada' ), array( 'elementor-build-composition', array( 'post_id' => $created, 'settings' => array( 'post_status' => 'publish' ) ), 'D3: el borrador propio, pero cambiando su estado' ), array( 'elementor-publish-document', array( 'post_id' => $created ), 'D3: publicar el borrador' ) ) as $case ) {
+foreach ( array( array( 'digitalisimo-build-composition', array( 'post_id' => $other ), 'D3: un borrador que no creó esta conversación' ), array( 'digitalisimo-build-composition', array( 'post_id' => $published ), 'D3: una página publicada' ), array( 'digitalisimo-build-composition', array( 'post_id' => $created, 'settings' => array( 'post_status' => 'publish' ) ), 'D3: el borrador propio, pero cambiando su estado' ), array( 'digitalisimo-publish-document', array( 'post_id' => $created ), 'D3: publicar el borrador' ) ) as $case ) {
 	$n = count( $GLOBALS['ran'] );
 	$GLOBALS['script'] = array( array( 'calls' => array( $call( $case[0], $case[1] ) ) ) );
 	$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'haz el cambio', 'conversation' => $cd ) ) ) );
@@ -281,18 +289,18 @@ foreach ( array( array( 'elementor-build-composition', array( 'post_id' => $othe
 }
 // D3b «Crear» sobre una página publicada (revisión del caso plomerito 2): no se crea nada a escondidas ni se toca.
 $n = count( $GLOBALS['ran'] );
-$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-create-page', array( 'title' => 'X', 'status' => 'publish', 'post_id' => $published ) ) ) ) );
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'digitalisimo-create-page', array( 'title' => 'X', 'status' => 'publish', 'post_id' => $published ) ) ) ) );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'haz el cambio', 'conversation' => $cd ) ) ) );
 $sent = json_decode( end( end( $GLOBALS['model_calls'] )['messages'] )['content'], true );
 check( ! $of( $ev, 'confirm' ) && $n === count( $GLOBALS['ran'] ) && 'publish' === get_post( $published )->post_status && 'skipped' === $sent['estado'] && false !== strpos( $sent['error'], 'está publicada' ), 'D3b: «crear» sobre una página publicada no crea nada ni la toca, y el modelo sabe qué ofrecer' );
 // D6 Tras leer contenido del sitio, editar el borrador con código (script, on…=) teniendo unfiltered_html pide tarjeta.
 $GLOBALS['users'][1]['caps'][] = 'unfiltered_html';
 $n = count( $GLOBALS['ran'] );
-$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created, 'xml' => '<e-html><script>fetch("//x.test")</script></e-html>' ) ) ) ) );
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'digitalisimo-build-composition', array( 'post_id' => $created, 'xml' => '<e-html><script>fetch("//x.test")</script></e-html>' ) ) ) ) );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'pon el código', 'conversation' => $cd ) ) ) );
 check( 1 === count( $of( $ev, 'confirm' ) ) && $n === count( $GLOBALS['ran'] ), 'D6: con lo leído en la conversación, código en la edición del borrador pasa por la tarjeta' );
 $events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cd, 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'deny' ) ) ) );
-$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created, 'settings' => array( 'title' => 'Oferta de fin de mes', 'html' => '<p>Hasta el <strong>30 de noviembre</strong></p>' ) ) ) ) ) );
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'digitalisimo-build-composition', array( 'post_id' => $created, 'settings' => array( 'title' => 'Oferta de fin de mes', 'html' => '<p>Hasta el <strong>30 de noviembre</strong></p>' ) ) ) ) ) );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'pon el título', 'conversation' => $cd ) ) ) );
 check( ! $of( $ev, 'confirm' ) && $n + 1 === count( $GLOBALS['ran'] ), 'D6: con texto y HTML que wp_kses_post() deja igual, sigue directo' );
 // D7 El criterio no reconoce código: compara con wp_kses_post(). Las evasiones de un filtro de patrones van a la tarjeta.
@@ -300,7 +308,7 @@ $evasions = array( '<a href="java&#115;cript:alert(1)">x</a>', "<a href=\"java\t
 foreach ( $evasions as $evasion ) {
 	check( Digitalisimo_AI_Assistant_Tools::needs_review( array( 'post_id' => 1, 'settings' => array( 'html' => $evasion ) ) ), 'D7: va a la tarjeta: ' . $evasion );
 	$n = count( $GLOBALS['ran'] );
-	$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created, 'settings' => array( 'html' => $evasion ) ) ) ) ) );
+	$GLOBALS['script'] = array( array( 'calls' => array( $call( 'digitalisimo-build-composition', array( 'post_id' => $created, 'settings' => array( 'html' => $evasion ) ) ) ) ) );
 	$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'cámbialo', 'conversation' => $cd ) ) ) );
 	check( 1 === count( $of( $ev, 'confirm' ) ) && $n === count( $GLOBALS['ran'] ), 'D7: y el Asistente no la ejecuta sin tarjeta: ' . $evasion );
 	$events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cd, 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'deny' ) ) ) );
@@ -315,7 +323,7 @@ $composition = array(
 );
 $operations = array( 'post_id' => $created, 'operations' => array( array( 'action' => 'update', 'element_id' => 'abc123', 'settings' => array( 'title' => "Precio: 'especial' & más", 'link' => array( 'destination' => 'tel:+528711234567' ) ), 'style' => 'color:red' ) ) );
 $GLOBALS['users'][1]['caps'][] = 'unfiltered_html';
-foreach ( array( array( 'elementor-build-composition', $composition, 'build-composition' ), array( 'elementor-manage-elements', $operations, 'manage-elements' ) ) as $case ) {
+foreach ( array( array( 'digitalisimo-build-composition', $composition, 'build-composition' ), array( 'digitalisimo-manage-elements', $operations, 'manage-elements' ) ) as $case ) {
 	check( ! Digitalisimo_AI_Assistant_Tools::needs_review( $case[1] ), 'D8: ' . $case[2] . ' normal no necesita revisión' );
 	$n = count( $GLOBALS['ran'] );
 	$GLOBALS['script'] = array( array( 'calls' => array( $call( $case[0], $case[1] ) ) ) );
@@ -332,7 +340,7 @@ $bad = array(
 foreach ( $bad as $what => $input ) {
 	check( Digitalisimo_AI_Assistant_Tools::needs_review( $input ), 'D8: va a la tarjeta: ' . $what );
 	$n = count( $GLOBALS['ran'] );
-	$GLOBALS['script'] = array( array( 'calls' => array( $call( isset( $input['operations'] ) ? 'elementor-manage-elements' : 'elementor-build-composition', $input ) ) ) );
+	$GLOBALS['script'] = array( array( 'calls' => array( $call( isset( $input['operations'] ) ? 'digitalisimo-manage-elements' : 'digitalisimo-build-composition', $input ) ) ) );
 	$ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'arma la portada', 'conversation' => $cd ) ) ) );
 	check( 1 === count( $of( $ev, 'confirm' ) ) && $n === count( $GLOBALS['ran'] ), 'D8: y el Asistente no lo ejecuta sin tarjeta: ' . $what );
 	$events( Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cd, 'action' => $of( $ev, 'confirm' )[0]['action']['id'], 'decision' => 'deny' ) ) ) );
@@ -350,7 +358,7 @@ check( Digitalisimo_AI_Assistant_Tools::needs_review( array( 'post_id' => 1, 'se
 check( ! Digitalisimo_AI_Assistant_Tools::needs_review( array( 'post_id' => 1, 'title' => 'Oferta', 'n' => 3, 'ok' => true ) ), 'D7: texto y números normales no' );
 array_pop( $GLOBALS['users'][1]['caps'] );
 $GLOBALS['posts'][ $created ]->post_status = 'publish';
-$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-build-composition', array( 'post_id' => $created ) ) ) ) );
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'digitalisimo-build-composition', array( 'post_id' => $created ) ) ) ) );
 $ev = $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'otro cambio', 'conversation' => $cd ) ) ) );
 check( 1 === count( $of( $ev, 'confirm' ) ), 'D4: si el borrador ya se publicó, editarlo vuelve a pedir confirmación' );
 check( '' === Digitalisimo_AI_Assistant_Tools::draft_mode( Digitalisimo_AI_Assistant_Tools::catalog()['demo/create-note'], array( 'title' => 'x' ), array() ), 'D5: sólo las herramientas de la lista explícita (no cualquier escritura)' );
