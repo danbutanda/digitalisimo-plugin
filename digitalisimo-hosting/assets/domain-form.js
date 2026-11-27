@@ -72,6 +72,15 @@
   };
   const extOf = (domain) => exts.filter((e) => domain.endsWith(e)).sort((a, b) => b.length - a.length)[0] || '';
 
+  /** Ruta de la REST de Hosting, también con enlaces permanentes simples (`?rest_route=/digitalisimo-hosting/v1/`). */
+  const restUrl = (route, params) => {
+    const u = new URL(c.endpoint || '/wp-json/digitalisimo-hosting/v1/', window.location.href);
+    const base = u.searchParams.get('rest_route');
+    if (base !== null) u.searchParams.set('rest_route', base.replace(/\/?$/, '/') + route);
+    else u.pathname = u.pathname.replace(/\/?$/, '/') + route;
+    Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
+    return u.toString();
+  };
   const cartUrl = (id, domain) => {
     const u = new URL(c.cart || '/', window.location.href);
     u.searchParams.set('add-to-cart', String(id));
@@ -95,7 +104,7 @@
     out.textContent = list.length > 1 ? 'Verificando…' : `Verificando ${list[0]}…`;
     const results = await Promise.all(list.map(async (domain) => {
       try {
-        const r = await fetch(`${c.endpoint}check-domain?domain=${encodeURIComponent(domain)}`, { credentials: 'same-origin' });
+        const r = await fetch(restUrl('check-domain', { domain }), { credentials: 'same-origin' });
         const d = await r.json();
         if (!r.ok) return { domain, error: (d && d.message) || 'No fue posible consultar el dominio.' };
         return { domain, ...d };

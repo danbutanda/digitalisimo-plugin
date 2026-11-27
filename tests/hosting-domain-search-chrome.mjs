@@ -92,6 +92,16 @@ try {
   await page.click('#contact button');
   ok((await page.evaluate(() => window.handlers.contact)) === 1, 'Un formulario de contacto sin campo de dominio no se toca');
   ok(!errors.length, `Sin errores de JavaScript${errors.length ? ': ' + errors.join(' | ') : ''}`);
+
+  // Enlaces permanentes simples: rest_url() da «?rest_route=/digitalisimo-hosting/v1/»; la consulta sigue siendo una URL válida.
+  const plain = await browser.newPage();
+  await plain.evaluateOnNewDocument(() => { Object.defineProperty(window, 'digitalisimoHosting', { configurable: true, set(v) { this._dh = { ...v, endpoint: 'https://tienda.test/?rest_route=/digitalisimo-hosting/v1/' }; }, get() { return this._dh; } }); });
+  await plain.goto(fixture, { waitUntil: 'load' });
+  await plain.type('#noext input', 'simple');
+  await plain.click('#noext button');
+  await plain.waitForFunction(() => window.fetchLog.length >= 3, { timeout: 5000 });
+  const urls = await plain.evaluate(() => window.fetchLog);
+  ok(urls.every((u) => { const x = new URL(u); return x.searchParams.get('rest_route') === '/digitalisimo-hosting/v1/check-domain' && /^simple\./.test(x.searchParams.get('domain')); }), `Con enlaces permanentes simples la consulta lleva rest_route y domain por separado (${urls[0]})`);
 } finally {
   await browser.close();
 }

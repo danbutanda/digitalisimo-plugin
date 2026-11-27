@@ -182,11 +182,14 @@ try {
     const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--disable-gpu', `--host-resolver-rules=MAP ${host.split(':')[0]} 127.0.0.1`] });
     try {
       const tab = await browser.newPage();
+      // Playground atiende con un solo proceso: la página y sus recursos llegan de uno en uno.
+      tab.setDefaultTimeout(180000); tab.setDefaultNavigationTimeout(180000);
       const errors = []; tab.on('pageerror', (e) => errors.push(e.message));
-      await tab.goto(`http://${host}/?page_id=${page.id}`, { waitUntil: 'networkidle0' });
+      await tab.goto(`http://${host}/?page_id=${page.id}`, { waitUntil: 'load' });
+      await tab.waitForFunction(() => window.digitalisimoHosting && document.querySelector('form[data-element_type="e-form"] input[name="dominio"]'));
       await tab.type('form[data-element_type="e-form"] input[name="dominio"]', 'minegocio');
       await tab.click('form[data-element_type="e-form"] button[type="submit"], form[data-element_type="e-form"] [type="submit"]');
-      await tab.waitForFunction(() => document.querySelectorAll('.digitalisimo-hosting-result .digitalisimo-hosting-option').length === 3, { timeout: 30000 });
+      await tab.waitForFunction(() => document.querySelectorAll('.digitalisimo-hosting-result .digitalisimo-hosting-option').length === 3, { timeout: 180000 });
       const rows = await tab.$$eval('.digitalisimo-hosting-result .digitalisimo-hosting-option', (ps) => ps.map((p) => p.textContent));
       check(rows.length === 3 && rows.every((t) => /disponible/.test(t)) && rows.some((t) => t.includes('minegocio.net')) && !rows.some((t) => t.includes('.org')), `Chrome: el formulario atómico consulta .com, .net y .mx en la REST real y no se envía (${rows.join(' | ')})`);
       const link = await tab.$eval('.digitalisimo-hosting-result a', (a) => a.href);
@@ -194,7 +197,7 @@ try {
       await tab.type('.digitalisimo-domain-search input[name="domain"]', 'ocupado');
       await tab.select('.digitalisimo-domain-search select', '.com');
       await tab.click('.digitalisimo-domain-search button');
-      await tab.waitForFunction(() => /no está disponible/.test(document.querySelector('.digitalisimo-domain-search .digitalisimo-domain-result')?.textContent || ''), { timeout: 30000 });
+      await tab.waitForFunction(() => /no está disponible/.test(document.querySelector('.digitalisimo-domain-search .digitalisimo-domain-result')?.textContent || ''), { timeout: 180000 });
       check(true, 'Chrome: [digitalisimo_domain_search] consulta en la página atómica');
       check(!errors.length, `Chrome: sin errores de JavaScript${errors.length ? ': ' + errors.join(' | ') : ''}`);
     } finally { await browser.close(); }
