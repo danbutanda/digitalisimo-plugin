@@ -254,11 +254,13 @@ try {
     m = await swipe(w);
     ok(m.current === 1 && Math.abs(m.scroll - m.slideW) <= 1, `Deslizar al otro lado vuelve a la captura 2 (${m.scroll} px).`);
     await client.send('Emulation.setTouchEmulationEnabled', { enabled: false });
-    // Foco visible con el teclado: pista › «anterior» › «siguiente» › primer punto.
+    // Foco visible con el teclado: «anterior» › «siguiente» › primer punto.
     await page.focus('[data-digi-carousel-track]');
     const focused = async () => page.evaluate(() => { const b = document.activeElement, cs = getComputedStyle(b); return { cls: b.className, label: b.getAttribute('aria-label'), style: cs.outlineStyle, width: parseFloat(cs.outlineWidth), visible: b.matches(':focus-visible') }; });
-    for (const label of ['Captura anterior', 'Captura siguiente', 'Captura 1 de 3']) {
-      await page.keyboard.press('Tab');
+    // Antes van los enlaces de las capturas (están dentro de la pista); luego las flechas y los puntos.
+    for (let i = 0; i < 6 && (await focused()).label !== 'Captura anterior'; i++) await page.keyboard.press('Tab');
+    for (const [n, label] of ['Captura anterior', 'Captura siguiente', 'Captura 1 de 3'].entries()) {
+      if (n) await page.keyboard.press('Tab');
       const f = await focused();
       ok(f.label === label && f.visible && f.style === 'solid' && f.width >= 2, `Con el tabulador, «${label}» muestra el foco (${f.label}: ${f.style} ${f.width}px).`);
     }
