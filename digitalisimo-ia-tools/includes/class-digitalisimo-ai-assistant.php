@@ -1096,7 +1096,7 @@ final class Digitalisimo_AI_Assistant {
 			array(
 				'call'    => (string) $call['id'],
 				'ability' => (string) $call['ability'],
-				'label'   => (string) ( $label ?: $call['ability'] ),
+				'label'   => Digitalisimo_AI_Assistant_Card::step( (string) $call['ability'], $call['input'] ?? array(), (string) ( $label ?: $call['ability'] ) ),
 				'kind'    => (string) $kind,
 				'status'  => (string) $result['status'],
 				'summary' => Digitalisimo_AI_Assistant_Tools::summary( $call['input'] ?? array(), 200 ),

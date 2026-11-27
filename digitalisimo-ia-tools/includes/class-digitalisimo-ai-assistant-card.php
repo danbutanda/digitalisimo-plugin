@@ -194,6 +194,80 @@ final class Digitalisimo_AI_Assistant_Card {
 		return $text;
 	}
 
+	/** Cómo se llama cada paso del trabajo plegado («Consulté: tus pedidos»), por herramienta. */
+	const STEPS = array(
+		'digitalisimo-woo/products'          => 'tus productos',
+		'digitalisimo-woo/catalog'           => 'tu catálogo',
+		'digitalisimo-woo/orders'            => 'tus pedidos',
+		'digitalisimo-woo/customers'         => 'tus clientes',
+		'digitalisimo-woo/coupons'           => 'tus cupones',
+		'digitalisimo-woo/store-settings'    => 'los ajustes de tu tienda',
+		'digitalisimo-woo/reports'           => 'tus ventas',
+		'digitalisimo-woo/skydropx'          => 'tus envíos con Skydropx',
+		'digitalisimo-hosting/settings'      => 'la venta de dominios y hosting',
+		'digitalisimo-hosting/domain-product' => 'los productos de dominios',
+		'digitalisimo-seo/get-post-seo'      => 'cómo se ve una página en Google',
+		'digitalisimo-seo/analyze-post'      => 'el texto de una página para Google',
+		'digitalisimo-seo/get-post-schema'   => 'la información que una página le da a Google',
+		'digitalisimo-seo/get-post-links'    => 'los enlaces de una página',
+		'digitalisimo-seo/get-link-report'   => 'los enlaces entre tus páginas',
+		'digitalisimo-seo/get-redirections'  => 'las direcciones que mandan a otra página',
+		'digitalisimo-seo/get-404-log'       => 'las páginas que tus visitantes no encontraron',
+		'digitalisimo-seo/get-site-status'   => 'cómo te encuentra Google',
+		'digitalisimo-seo/update-post-seo'   => 'lo que muestra Google de una página',
+		'digitalisimo-seo/revert-post-seo'   => 'lo que muestra Google de una página',
+		'digitalisimo-seo/create-redirection' => 'una dirección que manda a otra página',
+		'digitalisimo-sales/list-templates'  => 'los diseños de página',
+		'digitalisimo-sales/guide'           => 'la guía de venta',
+		'digitalisimo-sales/create-page'     => 'tu página en borrador',
+		'digitalisimo-ia/read-page-text'     => 'el texto de una página',
+		'digitalisimo-ia/site-contact'       => 'tus datos de contacto',
+		'digitalisimo-ia/open-assistant'     => 'el Asistente',
+		'digitalisimo-tools/plugin-health'   => 'que todo cargue bien en tu sitio',
+		'elementor/list-posts'               => 'tus páginas y entradas',
+		'elementor/get-page-structure'       => 'cómo está armada una página',
+		'elementor/create-page'              => 'tu página en borrador',
+		'elementor/publish-document'         => 'publicar una página',
+	);
+	/** Pasos de tienda que dicen más que su herramienta, por acción. */
+	const STEP_ACTIONS = array(
+		'digitalisimo-woo/skydropx'       => array(
+			'status'          => 'tu conexión con Skydropx',
+			'audit_products'  => 'el peso y las medidas de tus productos para Skydropx',
+			'quote'           => 'una cotización de envío con Skydropx',
+			'label'           => 'la guía de un envío',
+			'update_products' => 'el peso y las medidas de tus productos',
+			'set_tracking'    => 'el rastreo de un pedido',
+		),
+		'digitalisimo-woo/store-settings' => array(),
+	);
+
+	/**
+	 * El rótulo llano de un paso del trabajo (lo que la pantalla muestra plegado tras «Consulté», «Cambio»…). Lo que no
+	 * conoce se queda con la etiqueta de la herramienta.
+	 */
+	public static function step( $ability, $input, $fallback = '' ) {
+		$input  = is_array( $input ) ? $input : array();
+		$action = strtolower( (string) ( $input['action'] ?? '' ) );
+		if ( isset( self::STEP_ACTIONS[ $ability ][ $action ] ) ) {
+			return self::STEP_ACTIONS[ $ability ][ $action ];
+		}
+		if ( 'digitalisimo-woo/store-settings' === $ability ) {
+			$resource = strtolower( (string) ( $input['resource'] ?? '' ) );
+			$by       = array( 'payment_gateway' => 'tus formas de pago', 'shipping_zone' => 'tus zonas de envío', 'shipping_zone_method' => 'tus formas de envío', 'shipping_zone_location' => 'tus zonas de envío', 'shipping_method' => 'tus formas de envío', 'tax_rate' => 'tus impuestos', 'tax_class' => 'tus impuestos' );
+			if ( isset( $by[ $resource ] ) ) {
+				return $by[ $resource ];
+			}
+		}
+		if ( isset( self::STEPS[ $ability ] ) ) {
+			return self::STEPS[ $ability ];
+		}
+		if ( 0 === strpos( (string) $ability, 'elementor/' ) ) {
+			return 'el diseño de tus páginas';
+		}
+		return '' !== (string) $fallback ? (string) $fallback : 'una función de tu sitio';
+	}
+
 	/* ------------------------------------------------------------------ */
 	/* Plantillas por herramienta y acción.                                 */
 	/* ------------------------------------------------------------------ */

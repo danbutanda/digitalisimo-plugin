@@ -268,6 +268,16 @@ $src = is_file( $card_file ) ? (string) file_get_contents( $card_file ) : '';
 $src = preg_replace( array( '#/\*.*?\*/#s', '#^\s*//.*$#m' ), '', $src );
 preg_match_all( "/'((?:[^'\\\\\n]|\\\\.)*)'/", $src, $lits );
 foreach ( array_filter( $lits[1], function ( $s ) { return preg_match( '/^(Voy|Sí|Se |Al |Va |Lleva|Tu |Tiene|Borra|Manda|Sólo|Lo |Puedes)/u', $s ); } ) as $s ) check( ! preg_match( $bad, $s, $m ), 'S5: la plantilla no dice «' . ( $m[0] ?? '' ) . '»: ' . $s );
+// d0) Los rótulos de cada paso del trabajo plegado («Consulté: …»).
+if ( class_exists( 'Digitalisimo_AI_Assistant_Card' ) ) {
+	foreach ( $matrix as list( $e, $in ) ) {
+		$step = Digitalisimo_AI_Assistant_Card::step( $e['name'], $in, $e['label'] );
+		check( '' !== $step && ! preg_match( $bad, $step, $m ), 'S5: el paso de ' . $e['name'] . ' se llama en llano: ' . $step );
+	}
+	check( 'el peso y las medidas de tus productos para Skydropx' === Digitalisimo_AI_Assistant_Card::step( 'digitalisimo-woo/skydropx', array( 'action' => 'audit_products' ) ) && 'cómo te encuentra Google' === Digitalisimo_AI_Assistant_Card::step( 'digitalisimo-seo/get-site-status', array() ), 'S5: los pasos del caso, en palabras del dueño' );
+} else {
+	check( false, 'S5: los pasos del trabajo tienen rótulos llanos' );
+}
 // d) La confirmación escrita y los errores que ve la persona.
 $conv_tmp = array( 'pending' => array( array( 'id' => 'a', 'kind' => 'destructive', 'call' => array( 'ability' => 'digitalisimo-woo/orders', 'input' => array( 'action' => 'update' ) ), 'card' => array( 'ack' => false ) ) ) );
 $said_yes = Digitalisimo_AI_Assistant::typed_confirmation( $conv_tmp, 'sí' );
