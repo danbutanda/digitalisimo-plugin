@@ -126,7 +126,7 @@ final class Map {
 	}
 
 	/** Texto de salida (ver la cabecera). */
-	public static function out( string $text ): string {
+	public static function out( string $text, bool $brand = true ): string {
 		if ( false === stripos( $text, 'elementor' ) ) {
 			return $text;
 		}
@@ -154,7 +154,12 @@ final class Map {
 		$text = (string) preg_replace( '#(?<![A-Za-z0-9])_elementor_([a-z0-9_]+)#', self::META_OUT . '$1', $text );
 		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)action=elementor(?=$|[&\#"\'\s<\\\\])#', '$1action=' . self::ACTION_OUT, $text );
 		$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)page=elementor(?=[\w-]|$|[&\#"\'\s<\\\\])#', '$1page=' . self::PAGE_OUT, $text );
-		return self::brand( $text );
+		return $brand ? self::brand( $text ) : $text;
+	}
+
+	/** Sólo los identificadores (reversibles con in()), sin cambiar el nombre «Elementor» en el texto. */
+	public static function ids( string $text ): string {
+		return self::out( $text, false );
 	}
 
 	/** Texto de entrada: deshace lo que produce out(); un nombre viejo pasa igual. */
@@ -192,12 +197,54 @@ final class Map {
 
 	/**
 	 * out() en profundidad: valores y claves de arreglos y objetos simples. Un WP_Error sale con sus mensajes mapeados.
+	 * Para lo que el motor escribe (descripciones, esquemas, guías): identificadores y el nombre «Elementor».
 	 *
 	 * @param mixed $value
 	 * @return mixed
 	 */
 	public static function out_deep( $value, int $depth = 0 ) {
 		return self::deep( $value, array( __CLASS__, 'out' ), $depth );
+	}
+
+	/**
+	 * Para DATOS (respuestas de herramientas y recursos): los identificadores siempre (son reversibles con in()), pero
+	 * el nombre «Elementor» sólo en los textos que escribe el motor (`message`, `error`, `hint`, `instructions`… y los
+	 * mensajes de WP_Error). El contenido del cliente (títulos, textos, ajustes) nunca cambia de palabras: un agente que
+	 * lee «Elementor» en un artículo y lo vuelve a guardar lo guarda igual.
+	 *
+	 * @param mixed $value
+	 * @return mixed
+	 */
+	public static function data_out( $value, int $depth = 0, string $key = '' ) {
+		if ( $depth > 64 ) {
+			return $value;
+		}
+		if ( is_string( $value ) ) {
+			return self::out( $value, '' !== $key && self::engine_text_key( $key ) );
+		}
+		if ( is_array( $value ) || $value instanceof \stdClass ) {
+			$is_obj = $value instanceof \stdClass;
+			$out    = $is_obj ? new \stdClass() : array();
+			foreach ( ( $is_obj ? get_object_vars( $value ) : $value ) as $k => $v ) {
+				$nk  = is_string( $k ) ? self::ids( $k ) : $k;
+				$sub = self::data_out( $v, $depth + 1, is_string( $k ) ? $k : $key );
+				if ( $is_obj ) {
+					$out->{ $nk } = $sub;
+				} else {
+					$out[ $nk ] = $sub;
+				}
+			}
+			return $out;
+		}
+		if ( class_exists( 'WP_Error', false ) && $value instanceof \WP_Error ) {
+			return self::deep( $value, array( __CLASS__, 'out' ), $depth );
+		}
+		return $value;
+	}
+
+	/** ¿Esta clave lleva un texto que escribe el motor (no el cliente)? */
+	public static function engine_text_key( string $key ): bool {
+		return (bool) preg_match( '/^(message|messages|error|errors|warning|warnings|notice|notes?|hints?|instructions|llm_instructions|guidance|next_steps?|tip|tips|reason|explanation)$/i', $key );
 	}
 
 	/**

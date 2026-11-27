@@ -16,8 +16,10 @@ defined( 'ABSPATH' ) || exit;
  * - herramientas `digitalisimo-<x>` (`elementor-create-page` → `digitalisimo-create-page`) y recursos
  *   `digitalisimo://…`, decididos al construir el servidor con los filtros del adaptador (`mcp_adapter_tool_name`,
  *   `mcp_adapter_resource_uri`, `mcp_adapter_resource_name`, `mcp_adapter_prompt_name`) mientras se construye éste;
- * - descripciones, títulos y esquemas de las listas, y las respuestas de herramientas y recursos, por `Map::out_deep()`;
- *   lo que entra (argumentos y parámetros) por `Map::in_deep()`, así que valen los dos nombres (D-6).
+ * - descripciones, títulos y esquemas de las listas por `Map::out_deep()`; las respuestas de herramientas y recursos
+ *   por `Map::data_out()` (identificadores siempre; el nombre «Elementor» sólo en los textos del motor, nunca en el
+ *   contenido del cliente); lo que entra (argumentos y parámetros) por `Map::in_deep()`, así que valen los dos nombres
+ *   (D-6).
  * El servidor del núcleo (`/wp-json/elementor/mcp`, nombres `elementor-*`) sigue igual hasta su retiro (`Legacy_Route`).
  * Nada de `elementor/` se edita.
  */
@@ -30,6 +32,8 @@ final class Brand_Server {
 	const VERSION     = 'v1.0.0';
 	const REGISTRY    = 'Elementor\\MCP\\Composer\\Mcp\\Registry';
 	const SETTINGS    = 'Elementor\\MCP\\Composer\\Admin\\McpSettingsController';
+	/** Recursos que son guías fijas del motor (no datos del sitio): su texto sale con la marca. */
+	const GUIDES      = array( 'elementor://wordpress/best-practices', 'elementor://style/best-practices', 'elementor://variables/tools/manage-global-variable-guide', 'elementor://interactions/schema', 'elementor://dynamic-tags' );
 
 	/** ¿Se está construyendo este servidor? Sólo entonces los filtros de nombres cambian algo. */
 	private static $building = false;
@@ -218,7 +222,7 @@ final class Brand_Server {
 	}
 
 	public static function tool_call_result( $result, $args = array(), $tool_name = '', $tool = null, $server = null ) {
-		return self::is_ours( $server ) ? Map::out_deep( $result ) : $result;
+		return self::is_ours( $server ) ? Map::data_out( $result ) : $result;
 	}
 
 	public static function pre_resource_read( $params, $uri = '', $resource = null, $server = null ) {
@@ -229,7 +233,8 @@ final class Brand_Server {
 		if ( ! self::is_ours( $server ) ) {
 			return $contents;
 		}
-		$contents = Map::out_deep( $contents );
+		// Las guías del motor (texto fijo) salen con la marca; los recursos con datos del sitio, sólo con identificadores.
+		$contents = in_array( Map::in( (string) $uri ), self::GUIDES, true ) ? Map::out_deep( $contents ) : Map::data_out( $contents );
 		// El URI del contenido es el que pidió el cliente (con marca), aunque la ability devuelva el suyo.
 		if ( is_array( $contents ) && is_string( $uri ) && '' !== $uri ) {
 			if ( isset( $contents['uri'] ) && is_string( $contents['uri'] ) ) {
@@ -245,7 +250,7 @@ final class Brand_Server {
 	}
 
 	public static function prompt_result( $result, $arguments = array(), $name = '', $prompt = null, $server = null ) {
-		return self::is_ours( $server ) ? Map::out_deep( $result ) : $result;
+		return self::is_ours( $server ) ? Map::data_out( $result ) : $result;
 	}
 
 	/** `initialize`: en el nuestro, la descripción propia con marca; en el del núcleo, la nota del retiro (D-7). */

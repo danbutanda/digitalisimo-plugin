@@ -58,6 +58,18 @@ namespace {
 	$GLOBALS['routes']  = array();
 	$GLOBALS['calls']   = array();
 
+	/** JSON legible de un resultado, con los textos que son JSON ya decodificados (el adaptador los anida). */
+	function flat( $value ) {
+		$walk = static function ( $v ) use ( &$walk ) {
+			if ( is_string( $v ) && '' !== $v && ( '{' === $v[0] || '[' === $v[0] ) ) {
+				$d = json_decode( $v, true );
+				return null === $d ? $v : $walk( $d );
+			}
+			return is_array( $v ) ? array_map( $walk, $v ) : $v;
+		};
+		return json_encode( $walk( $value ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+	}
+
 	function check( $ok, $what, $detail = '' ) {
 		$GLOBALS['checks']++;
 		if ( $ok ) {
@@ -339,6 +351,7 @@ namespace {
 					'message'   => 'Page created with Elementor.',
 					'query'     => 'digitalisimo_query',
 					'image'     => 'http://ensayo.test/wp-content/uploads/2026/11/mi-banner.jpg',
+					'content'   => array( 'title' => 'Cómo usar Elementor en tu sitio', 'settings' => array( 'text' => 'Diseñado con Elementor Pro' ) ),
 				);
 			},
 		)
@@ -371,7 +384,18 @@ namespace {
 			'description' => 'Elementor global variables.',
 			'meta'        => array( 'mcp' => array( 'type' => 'resource', 'uri' => 'elementor://global-variables', 'mimeType' => 'application/json' ) ),
 			'execute'     => static function ( $input ) {
-				return array( 'text' => 'Variables of Elementor (see elementor://global-variables).', 'uri' => 'elementor://global-variables', 'mimeType' => 'text/plain' );
+				return array( 'text' => 'Variables (see elementor://global-variables and elementor/list-posts).', 'uri' => 'elementor://global-variables', 'mimeType' => 'text/plain' );
+			},
+		)
+	);
+	$make(
+		'elementor/wordpress-best-practices',
+		array(
+			'label'       => 'Best practices',
+			'description' => 'Elementor guide.',
+			'meta'        => array( 'mcp' => array( 'type' => 'resource', 'uri' => 'elementor://wordpress/best-practices', 'mimeType' => 'text/markdown' ) ),
+			'execute'     => static function ( $input ) {
+				return array( 'text' => 'Build pages with Elementor: call elementor/create-page.', 'uri' => 'elementor://wordpress/best-practices', 'mimeType' => 'text/markdown' );
 			},
 		)
 	);
@@ -398,7 +422,7 @@ namespace {
 
 	$registry = Registry::instance();
 	$registry->register_tools( array( 'elementor/create-page', 'elementor/list-posts', 'elementor/get-page-structure', 'digitalisimo-sales/create-page' ) );
-	$registry->register_resources( array( 'elementor/global-variables' ) );
+	$registry->register_resources( array( 'elementor/global-variables', 'elementor/wordpress-best-practices' ) );
 	add_filter(
 		'elementor/mcp/server/tools',
 		static function ( $tools ) {
@@ -431,7 +455,7 @@ namespace {
 	check( in_array( '/elementor/mcp', $GLOBALS['routes'], true ), 'B1 la ruta vieja /wp-json/elementor/mcp sigue registrada' );
 	check( 'DIGITALÍSIMO MCP' === $ours->get_server_name(), 'B1 nombre «DIGITALÍSIMO MCP»' );
 	check( count( $ours->get_tools() ) === count( $legacy->get_tools() ) && 5 === count( $ours->get_tools() ), 'B1 las mismas herramientas en los dos (5)', array( count( $ours->get_tools() ), count( $legacy->get_tools() ) ) );
-	check( count( $ours->get_resources() ) === count( $legacy->get_resources() ) && 1 === count( $ours->get_resources() ), 'B1 los mismos recursos en los dos (1)' );
+	check( count( $ours->get_resources() ) === count( $legacy->get_resources() ) && 2 === count( $ours->get_resources() ), 'B1 los mismos recursos en los dos (2)' );
 	check( array() === Brand_Server::$collisions, 'B2 ningún nombre con marca choca con otra herramienta', Brand_Server::$collisions );
 
 	// B2 -----------------------------------------------------------------------------------------------------------------
@@ -497,23 +521,33 @@ namespace {
 	check( isset( $input['meta']['_elementor_page_settings'] ) && 'x' === ( $input['meta']['_digitalisimo_actions'] ?? '' ) && 'q' === ( $input['meta']['digitalisimo_query'] ?? '' ), 'B4 _dg_* llega como _elementor_*; los nombres propios no cambian', $input );
 	check( 'elementor://global-variables' === ( $input['uri'] ?? '' ), 'B4 digitalisimo:// llega como elementor://', $input );
 	$out = $call->toArray();
-	$txt = json_encode( $out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
-	check( false === stripos( $txt, 'elementor' ), 'B4 la respuesta no contiene «elementor»', $txt );
+	$txt = flat( $out );
+	$own = array( 'Cómo usar Elementor en tu sitio', 'Diseñado con Elementor Pro' );
+	$esc = array_map(
+		static function ( $t ) {
+			return trim( json_encode( $t ), '"' );
+		},
+		$own
+	);
+	check( false === stripos( str_replace( array_merge( $own, $esc ), '', $txt ), 'elementor' ), 'B4 la respuesta no contiene «elementor» fuera del contenido del cliente', $txt );
+	check( false !== strpos( $txt, $own[0] ) && false !== strpos( $txt, $own[1] ), 'B4 el contenido del cliente que nombra Elementor sale tal cual (un agente que lo vuelve a guardar no lo cambia)', $txt );
 	foreach ( array( '"post_type":"digitalisimo_library"', 'action=digitalisimo', 'page=digitalisimo-motor-settings', '_dg_edit_mode', '_digitalisimo_sales_kit', 'digitalisimo-get-page-structure', 'digitalisimo-list-posts', 'DIGITALÍSIMO Elements', 'digitalisimo_query', 'mi-banner.jpg' ) as $needle ) {
 		check( false !== strpos( $txt, $needle ), "B4 la respuesta lleva «{$needle}»" );
 	}
 	$GLOBALS['calls'] = array();
 	( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'digitalisimo-create-page', 'arguments' => array( 'post_type' => 'elementor_library' ) ) );
 	check( 'elementor_library' === ( $GLOBALS['calls'][0][1]['post_type'] ?? '' ), 'B4 el nombre viejo también vale en la entrada' );
-	$err = json_encode( ( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'digitalisimo-list-posts', 'arguments' => array() ) )->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+	$err = flat( ( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'digitalisimo-list-posts', 'arguments' => array() ) )->toArray() );
 	check( false === stripos( $err, 'elementor' ) && false !== strpos( $err, 'digitalisimo_library' ), 'B4 un error sale renombrado', $err );
 	$missing = ( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'elementor-create-page', 'arguments' => array() ) );
 	check( false !== strpos( json_encode( $missing->toArray() ), 'not found' ) || false !== stripos( json_encode( $missing->toArray() ), 'error' ), 'B4 en la ruta nueva no se publican los nombres viejos' );
 
 	// B5 -----------------------------------------------------------------------------------------------------------------
 	$read = ( new \WP\MCP\Handlers\Resources\ResourcesHandler( $ours ) )->read_resource( array( 'uri' => 'digitalisimo://global-variables' ) );
-	$rtxt = json_encode( $read->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
-	check( false === stripos( $rtxt, 'elementor' ) && false !== strpos( $rtxt, 'digitalisimo://global-variables' ), 'B5 el recurso se lee por digitalisimo:// y sale renombrado', $rtxt );
+	$rtxt = flat( $read->toArray() );
+	check( false === stripos( $rtxt, 'elementor' ) && false !== strpos( $rtxt, 'digitalisimo://global-variables' ) && false !== strpos( $rtxt, 'digitalisimo-list-posts' ), 'B5 el recurso se lee por digitalisimo:// y sale con los identificadores renombrados', $rtxt );
+	$guide = flat( ( new \WP\MCP\Handlers\Resources\ResourcesHandler( $ours ) )->read_resource( array( 'uri' => 'digitalisimo://wordpress/best-practices' ) )->toArray() );
+	check( false === stripos( $guide, 'elementor' ) && false !== strpos( $guide, 'DIGITALÍSIMO Elements' ) && false !== strpos( $guide, 'digitalisimo-create-page' ), 'B5 una guía fija del motor sale con la marca', $guide );
 
 	// B6 -----------------------------------------------------------------------------------------------------------------
 	$index = new WP_REST_Response(
