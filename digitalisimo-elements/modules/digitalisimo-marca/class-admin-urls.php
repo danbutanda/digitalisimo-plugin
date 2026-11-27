@@ -148,6 +148,7 @@ final class Admin_Urls {
 		}
 		$types = Map::types();
 		$is_post = '' !== $path && 'post.php' === basename( $path );
+		$base    = str_replace( '&#038;', '&amp;', $base );
 		$base    = (string) preg_replace_callback(
 			'#([?&]|&amp;)((?!amp;)[^=&\#]+)=([^&\#]*)#',
 			static function ( $m ) use ( $types, $is_post ) {

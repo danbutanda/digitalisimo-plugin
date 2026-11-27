@@ -157,7 +157,12 @@ async function mcp() {
   async function editor(id, cmd, text, tag) {
     const errs = [];
     const onErr = (e) => errs.push(String(e.message || e));
-    const onCon = (m) => { if (m.type() === 'error' && !/favicon|Failed to load resource: the server responded with a status of 404/.test(m.text())) errs.push(m.text()); };
+    const onCon = async (m) => {
+      if (m.type() !== 'error' || /favicon|Failed to load resource: the server responded with a status of 404/.test(m.text())) return;
+      // Los errores que el editor registra como objetos: su mensaje y el comienzo de su pila.
+      const parts = await Promise.all(m.args().map((a) => a.evaluate((x) => (x && x.message ? `${x.message} @ ${String(x.stack || '').split('\n').slice(0, 3).join(' < ')}` : typeof x === 'object' ? JSON.stringify(x).slice(0, 300) : String(x))).catch(() => ''))).catch(() => []);
+      errs.push(parts.filter(Boolean).join(' ') || m.text());
+    };
     page.on('pageerror', onErr);
     page.on('console', onCon);
     const failed = [];
@@ -171,12 +176,13 @@ async function mcp() {
         const E = window.digitalisimo || window.elementor;
         const frame = document.querySelector('iframe#dg-preview-iframe, iframe#elementor-preview-iframe, iframe');
         let inner = '';
-        try { inner = frame && frame.contentDocument ? frame.contentDocument.location.href + ' · ' + (frame.contentDocument.body ? frame.contentDocument.body.className : '') : ''; } catch (e) { inner = String(e); }
+        try { inner = frame && frame.contentDocument ? (frame.contentDocument.body ? frame.contentDocument.body.className : '') + ' · frontend:' + typeof frame.contentWindow.digitalisimoFrontend + '/' + typeof frame.contentWindow.elementorFrontend : ''; } catch (e) { inner = String(e); }
         return { url: location.href, E: typeof E, e: typeof window.$e, loaded: E ? !!E.loaded : null, cfg: typeof (window.DigitalisimoConfig || window.ElementorConfig), frame: frame ? frame.getAttribute('src') : '', inner, loading: !!document.querySelector('#dg-loading, #elementor-loading'), body: document.body ? document.body.className : '' };
       }).catch((e) => ({ error: String(e) }));
       fs.writeFileSync(`${dir}/editor-${tag}.html`, await page.content().catch(() => ''));
       await page.screenshot({ path: `${dir}/editor-${tag}.png` }).catch(() => {});
-      errs.push('estado: ' + JSON.stringify(state));
+      errs.unshift('estado: ' + JSON.stringify(state));
+      fs.writeFileSync(`${dir}/editor-${tag}.json`, JSON.stringify({ state, errs, failed }, null, 1));
     }
     check(`E1-${tag}`, ready, `el editor abre (${tag})`, errs.concat(failed).join(' | '));
     let saved = 'sin abrir';

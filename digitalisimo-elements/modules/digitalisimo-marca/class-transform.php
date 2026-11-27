@@ -620,6 +620,17 @@ final class Transform {
 
 	/** Una etiqueta de apertura con sus atributos. */
 	public static function tag( string $tag ): string {
+		// Con el espejo (sin paquete), las URL del plugin sin la palabra (`motor/assets/…`, `assets/…` de PRO) también
+		// pasan por el espejo.
+		if ( false === stripos( $tag, 'elementor' ) && false !== strpos( $tag, '/plugins/digitalisimo-elements/' ) && ! ( class_exists( Package::class ) && Package::transformed() ) ) {
+			$tag = (string) preg_replace_callback(
+				'#(\s(?:href|src)\s*=\s*)(["\'])([^"\']*/plugins/digitalisimo-elements/[^"\']*)\2#i',
+				static function ( $m ) {
+					return $m[1] . $m[2] . self::url( $m[3] ) . $m[2];
+				},
+				$tag
+			);
+		}
 		if ( false === stripos( $tag, 'elementor' ) ) {
 			// Lo que el paquete enmascara con una entidad (`&#101;lementor`, separadores y plantillas): en las clases e ids
 			// se trata como la palabra.
@@ -647,10 +658,13 @@ final class Transform {
 				if ( 0 === strpos( $lname, 'data-elementor-' ) ) {
 					$name = 'data-' . self::P . '-' . substr( $name, 15 );
 				}
-				if ( '' !== $value && false !== stripos( $value, 'elementor' ) ) {
+				if ( '' !== $value && in_array( $lname, array( 'href', 'src' ), true ) && false === stripos( $value, 'elementor' ) && false !== strpos( $value, '/plugins/digitalisimo-elements/' ) ) {
+					$value = $value[0] . self::url( substr( $value, 1, -1 ) ) . $value[0];
+				} elseif ( '' !== $value && false !== stripos( $value, 'elementor' ) ) {
 					$q     = $value[0];
 					$inner = substr( $value, 1, -1 );
-					if ( in_array( $lname, array( 'class', 'id', 'for', 'aria-controls', 'aria-labelledby', 'aria-describedby' ), true ) ) {
+					if ( in_array( $lname, array( 'class', 'id', 'for', 'aria-controls', 'aria-labelledby', 'aria-describedby' ), true ) || ( 'name' === $lname && preg_match( '/^elementor[-_]/i', $inner ) ) ) {
+						// También `name="elementor-choose-{{ data.name }}"` de las plantillas del editor (el JS busca `dg-choose-…`).
 						$inner = (string) preg_replace( '/elementor/i', self::P, $inner );
 					} elseif ( in_array( $lname, array( 'href', 'src' ), true ) ) {
 						$inner = self::url( $inner );
@@ -668,6 +682,9 @@ final class Transform {
 							$inner = self::url( $inner );
 						} elseif ( 'elementor_library' === $inner ) {
 							$inner = 'digitalisimo_library';
+						} elseif ( preg_match( '/^[\w.\/-]+$/', $inner ) ) {
+							// Un identificador (`data-setting`, `data-tab`…): como lo busca el JS.
+							$inner = self::str( $inner );
 						}
 					}
 					$value = $q . $inner . $q;

@@ -161,6 +161,9 @@ namespace {
 	file_put_contents( $tmp . '/uploads/elementor/css/post-12.css', '.elementor-12 .elementor-element.elementor-element-abc{background:url("https://ensayo.test/wp-content/uploads/2026/11/elementor-banner.jpg")}' );
 	$served = Front_Layer::page( $page );
 	check( $served === $out, 'F2 con todas las copias, la página sale transformada' );
+	file_put_contents( $tmp . '/marca/motor/js/frontend.min.js', '//' );
+	$motor = Transform::tag( '<script src="' . $p . 'motor/assets/js/frontend.min.js?ver=4.3.5" id="x">' );
+	check( false !== strpos( $motor, $p . 'marca/motor/js/frontend.min.js?ver=4.3.5' ), 'F2 con el núcleo en motor/ (sin la palabra en la URL), el script también sale del espejo', $motor );
 
 	// F4 -----------------------------------------------------------------------------------------------------------------
 	$copy = $tmp . '/uploads/digitalisimo-elements/css/post-12.css';
