@@ -122,7 +122,7 @@ async function main() {
   const schema = tool?.inputSchema || {};
   check(schema.additionalProperties === false && schema.required?.includes('action') && schema.properties?.action?.enum?.length === 9, 'entrada cerrada con nueve acciones', JSON.stringify(schema).slice(0, 300));
   check(tool?.annotations?.readOnlyHint === false && tool?.annotations?.destructiveHint === true, 'anotaciones como las otras que escriben', JSON.stringify(tool?.annotations));
-  check(/sólo permite leer/.test(tool?.description || '') && /a mano/.test(tool?.description || ''), 'la descripción dice el modo (sólo lectura) y que crear envíos se hace a mano');
+  check(!/s[oó]lo permite leer|s[oó]lo lectura/i.test(tool?.description || '') && /a mano/.test(tool?.description || ''), 'la descripción no habla de sólo lectura (acceso total) y dice que crear envíos se hace a mano');
 
   start('S2 status');
   let r = await admin.call({ action: 'status' });
