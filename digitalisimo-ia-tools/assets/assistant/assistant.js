@@ -429,11 +429,12 @@
 			warnings.length ? h( 'ul', { className: 'dga-warn dga-risks', 'aria-label': 'Ojo' }, warnings.map( ( r, i ) => h( 'li', { key: i }, r ) ) ) : null,
 			action.undo ? h( 'p', { className: 'dga-hint dga-undo' }, 'Puedes deshacerlo después.' ) : null,
 			action.final ? h( 'p', { className: 'dga-warn dga-final' }, action.final ) : null,
+			action.after_read ? h( 'p', { className: 'dga-warn dga-after-read' }, 'Esto lo propuse después de leer textos de tu sitio: mira «Ver detalles» antes de decir que sí.' ) : null,
 			needsAck ? h( 'label', { className: 'dga-ack-label' }, h( 'input', { type: 'checkbox', className: 'dga-ack', checked: ack, onChange: ( e ) => setAck( e.target.checked ) } ), action.ack_label || 'Sí, entiendo y quiero hacerlo.' ) : null,
 			h( 'div', { className: 'dga-actions' },
 				h( 'button', { type: 'button', className: 'dga-button ' + ( needsAck ? 'is-danger' : 'is-primary' ), 'data-decision': 'approve', disabled: props.busy || ( needsAck && ! ack ), onClick: () => props.onDecide( action, 'approve', ack ) }, h( Icon, { name: 'check' } ), 'Sí, hazlo' ),
 				h( 'button', { type: 'button', className: 'dga-button', 'data-decision': 'deny', disabled: props.busy, onClick: () => props.onDecide( action, 'deny', false ) }, h( Icon, { name: 'close' } ), 'No' ) ),
-			details.length ? h( 'details', { className: 'dga-details' },
+			details.length ? h( 'details', { className: 'dga-details', open: !! action.after_read },
 				h( 'summary', null, 'Ver detalles' ),
 				h( 'dl', null, details.map( ( row, i ) => h( Fragment, { key: i }, h( 'dt', null, String( row[ 0 ] ) ), h( 'dd', null, String( row[ 1 ] ) ) ) ) ) ) : null );
 	}

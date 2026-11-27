@@ -118,6 +118,9 @@ final class Digitalisimo_AI_Assistant_Card {
 		'operations'   => 'Partes',
 	);
 
+	/** Filas de «Ver detalles» antes de remitir a la bitácora. */
+	const DETAIL_ROWS = 400;
+
 	/** Qué hace cada acción, para «Ver detalles». */
 	const ACTION_NAMES = array(
 		'list'            => 'consultar',
@@ -146,9 +149,9 @@ final class Digitalisimo_AI_Assistant_Card {
 	);
 
 	/** Lo que el respaldo genérico entiende como «borra» o «mueve dinero» en una acción desconocida. */
-	const DELETE_VERBS = '/(^|[_\/-])(delete|remove|trash|purge|destroy|erase|drop|wipe|archive|borrar|eliminar)([_\/-]|$)/i';
-	const MONEY_VERBS  = '/(^|[_\/-])(refund|charge|pay|payment|purchase|buy|checkout|capture|cobrar|pagar|comprar|reembols)/i';
-	const MAIL_VERBS   = '/(^|[_\/-])(send|mail|email|notify|correo|enviar)([_\/-]|$)/i';
+	const DELETE_VERBS = '/(^|[\s_\/-])(delete|remove|trash|purge|destroy|erase|drop|wipe|archive|reset|borrar|eliminar)([\s_\/-]|$)/i';
+	const MONEY_VERBS  = '/(^|[\s_\/-])(refund|charge|pay|payment|purchase|buy|checkout|capture|cobrar|pagar|comprar|reembols)/i';
+	const MAIL_VERBS   = '/(^|[\s_\/-])(send|mail|email|notify|correo|enviar)([\s_\/-]|$)/i';
 
 	/**
 	 * La tarjeta de una acción.
@@ -169,7 +172,7 @@ final class Digitalisimo_AI_Assistant_Card {
 			$card = null;
 		}
 		if ( ! is_array( $card ) || '' === trim( (string) ( $card['text'] ?? '' ) ) ) {
-			$card = self::generic( $entry, $input );
+			$card = self::generic( $entry, $input, (string) $kind );
 		}
 		$card = array_merge( array( 'undo' => false, 'final' => '', 'ack' => false, 'ack_label' => '' ), $card );
 		if ( $card['ack'] && '' === $card['ack_label'] ) {
@@ -290,7 +293,7 @@ final class Digitalisimo_AI_Assistant_Card {
 			case 'digitalisimo-woo/skydropx':
 				return self::skydropx( $action, $input );
 			case 'digitalisimo-hosting/settings':
-				return 'update' === $action ? array( 'text' => 'Voy a cambiar ' . self::count_words( is_array( $input['data'] ?? null ) ? count( $input['data'] ) : 0, 'ajuste', 'ajustes' ) . ' de la venta de dominios y hosting de tu sitio' ) : null;
+				return 'update' === $action ? array( 'text' => 'Voy a cambiar ' . self::count_words( is_array( $input['data'] ?? null ) ? count( $input['data'] ) : 0, 'ajuste', 'ajustes' ) . ' de la venta de dominios y hosting de tu sitio' . ( is_array( $input['data'] ?? null ) && $input['data'] ? ': ' . self::join( array_map( array( __CLASS__, 'quoted_key' ), array_slice( array_keys( $input['data'] ), 0, 8 ) ) ) . ( count( $input['data'] ) > 8 ? ' y más (en «Ver detalles»)' : '' ) : '' ) ) : null;
 			case 'digitalisimo-hosting/domain-product':
 				return self::domain_product( $action, $input );
 			case 'digitalisimo-seo/update-post-seo':
@@ -308,7 +311,15 @@ final class Digitalisimo_AI_Assistant_Card {
 				return self::page_settings( $input );
 			case 'elementor/build-composition':
 				$replace = 'replace_children' === ( $input['mode'] ?? '' );
-				return array( 'text' => ( $replace ? 'Voy a reemplazar contenido de ' : 'Voy a agregar contenido a ' ) . self::page( $input['post_id'] ?? 0 ) );
+				return $replace ? array( 'text' => 'Voy a reemplazar contenido de ' . self::page( $input['post_id'] ?? 0 ), 'final' => 'Lo que había en esa parte de la página se quita.', 'ack' => true, 'ack_label' => 'Sí, entiendo que se quita lo que había.' ) : array( 'text' => 'Voy a agregar contenido a ' . self::page( $input['post_id'] ?? 0 ) );
+			case 'elementor/manage-site-parts':
+				$out = array( 'text' => 'Voy a cambiar la cabecera, el pie u otra parte que se repite en tu sitio' );
+				foreach ( (array) ( is_array( $input['operations'] ?? null ) ? $input['operations'] : array() ) as $op ) {
+					if ( is_array( $op ) && in_array( (string) ( $op['action'] ?? '' ), array( 'delete', 'remove', 'trash' ), true ) ) {
+						$out = array( 'text' => 'Voy a quitar la cabecera, el pie u otra parte que se repite en tu sitio', 'ack' => true, 'ack_label' => 'Sí, entiendo que se quita de todo el sitio.' );
+					}
+				}
+				return $out;
 			case 'elementor/manage-elements':
 				return self::elements( $input );
 			case 'elementor/create-preview-link':
@@ -339,8 +350,9 @@ final class Digitalisimo_AI_Assistant_Card {
 				$label = '' !== (string) ( $data['name'] ?? '' ) ? ' «' . self::clip( (string) $data['name'], 60 ) . '»' : '';
 				$draft = in_array( (string) ( $data['status'] ?? 'draft' ), array( 'draft', 'pending' ), true );
 				$price = isset( $data['regular_price'] ) && '' !== (string) $data['regular_price'] ? ' de ' . self::money( $data['regular_price'] ) : '';
+				$more  = self::unnamed( $data, array( 'name', 'regular_price', 'status' ) );
 				return array(
-					'text' => $variation ? 'Voy a crear una variación nueva' . $price . ' en ' . self::product( $input['product_id'] ?? 0 ) : 'Voy a crear el producto' . $label . $price . ( $draft ? ' en borrador: no se verá en tu tienda hasta que lo publiques' : ' y se verá en tu tienda' ),
+					'text' => $variation ? 'Voy a crear una variación nueva' . $price . ' en ' . self::product( $input['product_id'] ?? 0 ) . $more : 'Voy a crear el producto' . $label . $price . $more . ( $draft ? ' en borrador: no se verá en tu tienda hasta que lo publiques' : ' y se verá en tu tienda' ),
 					'undo' => self::woo_undo( 'products', 'create', $data ),
 				);
 			case 'delete':
@@ -348,7 +360,7 @@ final class Digitalisimo_AI_Assistant_Card {
 			case 'batch':
 				return self::batch( $data, 'producto', 'productos' );
 			case 'undo':
-				return array( 'text' => 'Voy a deshacer el último cambio que hice en tu tienda (el que me pediste deshacer)' );
+				return self::undo( 'tu tienda' );
 		}
 		return null;
 	}
@@ -383,7 +395,7 @@ final class Digitalisimo_AI_Assistant_Card {
 			case 'delete':
 				return self::deletion( $n[0] . ( '' !== $current ? ' «' . $current . '»' : '' ), 'review' !== $resource || ! empty( $input['force'] ) );
 			case 'undo':
-				return array( 'text' => 'Voy a deshacer el último cambio que hice en tu catálogo (el que me pediste deshacer)' );
+				return self::undo( 'tu catálogo' );
 		}
 		return null;
 	}
@@ -424,10 +436,11 @@ final class Digitalisimo_AI_Assistant_Card {
 		}
 		switch ( $action ) {
 			case 'update':
-				if ( isset( $data['status'] ) && 1 === count( $data ) ) {
+				if ( isset( $data['status'] ) && is_scalar( $data['status'] ) ) {
 					$status = strtolower( (string) preg_replace( '/^wc-/', '', (string) $data['status'] ) );
 					$label  = self::ORDER_STATUS[ $status ] ?? (string) $data['status'];
-					$out    = array( 'text' => 'Voy a marcar ' . $order . ' como «' . $label . '»' );
+					$rest   = array_diff_key( $data, array( 'status' => 1 ) );
+					$out    = array( 'text' => 'Voy a marcar ' . $order . ' como «' . $label . '»' . ( $rest ? ' y cambiar ' . self::changes( $rest, array() ) : '' ) );
 					if ( in_array( $status, array( 'processing', 'completed', 'on-hold', 'refunded', 'cancelled' ), true ) ) {
 						$out['final'] = 'Tu tienda le avisa al cliente por correo: eso no se puede deshacer.';
 					}
@@ -440,7 +453,7 @@ final class Digitalisimo_AI_Assistant_Card {
 				return array( 'text' => 'Voy a cambiar en ' . $order . ' ' . self::changes( $data, array() ) );
 			case 'create':
 				return array(
-					'text'  => 'Voy a crear un pedido nuevo' . ( ! empty( $data['set_paid'] ) ? ' marcado como pagado' : '' ),
+					'text'  => 'Voy a crear un pedido nuevo' . ( ! empty( $data['set_paid'] ) ? ' marcado como pagado' : '' ) . self::unnamed( $data, array( 'set_paid' ) ),
 					'final' => 'Tu tienda puede avisarle al cliente por correo.',
 				);
 			case 'delete':
@@ -478,7 +491,7 @@ final class Digitalisimo_AI_Assistant_Card {
 					$off = 'percent' === ( $data['discount_type'] ?? 'fixed_cart' ) ? ' de ' . self::number( $data['amount'] ) . ' % de descuento' : ' de ' . self::money( $data['amount'] ) . ' de descuento';
 				}
 				return array(
-					'text' => 'Voy a crear el cupón ' . ( '' !== $code ? $code : '' ) . $off,
+					'text' => 'Voy a crear el cupón ' . ( '' !== $code ? $code : '' ) . $off . self::with_fields( $data, array( 'code', 'amount', 'discount_type' ) ),
 					'undo' => self::woo_undo( 'coupons', 'create', $data ),
 				);
 			case 'update':
@@ -491,7 +504,7 @@ final class Digitalisimo_AI_Assistant_Card {
 			case 'batch':
 				return self::batch( $data, 'cupón', 'cupones' );
 			case 'undo':
-				return array( 'text' => 'Voy a deshacer el último cambio que hice en tus cupones (el que me pediste deshacer)' );
+				return self::undo( 'tus cupones' );
 		}
 		return null;
 	}
@@ -504,7 +517,24 @@ final class Digitalisimo_AI_Assistant_Card {
 			if ( array_key_exists( 'enabled', $data ) && 1 === count( $data ) ) {
 				return array( 'text' => ( self::truthy( $data['enabled'] ) ? 'Voy a activar' : 'Voy a desactivar' ) . ' la forma de pago «' . self::gateway( $gateway ) . '» en tu tienda' );
 			}
-			return array( 'text' => 'Voy a cambiar la forma de pago «' . self::gateway( $gateway ) . '» de tu tienda: ' . self::changes( $data, array() ) );
+			$parts = array();
+			foreach ( $data as $key => $value ) {
+				if ( 'settings' === $key && is_array( $value ) ) {
+					foreach ( $value as $sub => $v ) {
+						$parts[] = '«' . self::humanize( (string) $sub ) . '» a ' . ( preg_match( Digitalisimo_AI_Assistant_Tools::CARD_SECRETS, (string) $sub ) ? 'un valor nuevo (oculto)' : '«' . self::clip( self::scalar( $v ), 80 ) . '»' );
+					}
+				} elseif ( 'enabled' === $key ) {
+					$parts[] = self::truthy( $value ) ? 'activarla' : 'desactivarla';
+				} else {
+					$parts[] = '«' . self::humanize( (string) $key ) . '» a «' . self::clip( self::scalar( $value ), 80 ) . '»';
+				}
+			}
+			return array(
+				'text'      => 'Voy a cambiar en la forma de pago «' . self::gateway( $gateway ) . '» de tu tienda: ' . self::join( $parts ),
+				'final'     => 'Cambia cómo te pagan tus clientes: revisa que la cuenta sea la tuya.',
+				'ack'       => true,
+				'ack_label' => 'Sí, revisé que la cuenta es la mía.',
+			);
 		}
 		$names = array(
 			'setting'                => 'un ajuste de tu tienda',
@@ -515,6 +545,9 @@ final class Digitalisimo_AI_Assistant_Card {
 			'tax_rate'               => 'una tasa de impuesto',
 		);
 		$what = $names[ $resource ] ?? 'la configuración de tu tienda';
+		if ( 'setting' === $resource && is_scalar( $input['setting_id'] ?? null ) ) {
+			$what = 'el ajuste «' . self::humanize( (string) preg_replace( '/^woocommerce_/', '', (string) $input['setting_id'] ) ) . '» de tu tienda';
+		}
 		switch ( $action ) {
 			case 'create':
 				return array( 'text' => 'Voy a crear ' . $what . ( isset( $data['name'] ) ? ' «' . self::clip( (string) $data['name'], 60 ) . '»' : '' ) );
@@ -613,20 +646,20 @@ final class Digitalisimo_AI_Assistant_Card {
 	}
 
 	private static function redirection( array $input ) {
-		$from = self::address( (string) ( $input['source'] ?? '' ) );
-		$code = (int) ( $input['code'] ?? 301 );
-		if ( in_array( $code, array( 410, 451 ), true ) ) {
-			return array( 'text' => 'Voy a avisarle a Google que la dirección ' . $from . ' ya no existe' );
-		}
-		$to   = self::address( (string) ( $input['target'] ?? '' ) );
-		$mode = (string) ( $input['comparison'] ?? 'exact' );
+		$from = self::address( self::scalar( $input['source'] ?? '' ) );
+		$code = (int) ( is_scalar( $input['code'] ?? null ) ? $input['code'] : 301 );
+		$mode = self::scalar( $input['comparison'] ?? 'exact' );
 		$head = array(
 			'start'    => 'todas las direcciones que empiezan con ',
 			'end'      => 'todas las direcciones que terminan en ',
 			'contains' => 'todas las direcciones que contienen ',
 			'regex'    => 'las direcciones que cumplen el patrón ',
 		);
-		$out = array( 'text' => 'Voy a hacer que quien entre a ' . ( $head[ $mode ] ?? '' ) . $from . ' llegue a ' . $to );
+		if ( in_array( $code, array( 410, 451 ), true ) ) {
+			$out = array( 'text' => 'Voy a avisarle a Google que ' . ( isset( $head[ $mode ] ) ? $head[ $mode ] . $from . ' ya no existen' : 'la dirección ' . $from . ' ya no existe' ) );
+		} else {
+			$out = array( 'text' => 'Voy a hacer que quien entre a ' . ( $head[ $mode ] ?? '' ) . $from . ' llegue a ' . self::address( self::scalar( $input['target'] ?? '' ) ) );
+		}
 		if ( Digitalisimo_AI_Assistant_Tools::broad_redirection( 'digitalisimo-seo/create-redirection', $input ) ) {
 			// Muchas páginas, o a otro sitio: lo que se le pierde a tu sitio es como borrarlo; se confirma con la casilla.
 			$out['final']     = 'Tus visitantes dejarían de ver esas páginas de tu sitio.';
@@ -648,9 +681,15 @@ final class Digitalisimo_AI_Assistant_Card {
 	private static function page_settings( array $input ) {
 		$page     = self::page( $input['post_id'] ?? 0 );
 		$settings = is_array( $input['settings'] ?? null ) ? $input['settings'] : array_diff_key( $input, array( 'post_id' => 1 ) );
-		$status   = (string) ( $settings['post_status'] ?? ( $settings['status'] ?? '' ) );
+		$status   = self::scalar( $settings['post_status'] ?? ( $settings['status'] ?? '' ) );
+		$rest     = array_diff_key( $settings, array( 'post_status' => 1, 'status' => 1 ) );
+		$more     = $rest ? ' y cambiar ' . self::changes( $rest, array() ) : '';
 		if ( 'publish' === $status ) {
-			return array( 'text' => 'Voy a publicar ' . $page . ': se verá en tu sitio en cuanto lo confirmes' );
+			return array( 'text' => 'Voy a publicar ' . $page . $more . ': se verá en tu sitio en cuanto lo confirmes' );
+		}
+		if ( '' !== $status ) {
+			$states = array( 'draft' => 'borrador', 'private' => 'privada', 'pending' => 'pendiente de revisión', 'future' => 'programada' );
+			return array( 'text' => 'Voy a pasar ' . $page . ' a «' . ( $states[ $status ] ?? $status ) . '»' . $more . ': si estaba publicada, deja de verse en tu sitio' );
 		}
 		return array( 'text' => 'Voy a cambiar en ' . $page . ' ' . self::changes( $settings, array() ) );
 	}
@@ -677,7 +716,7 @@ final class Digitalisimo_AI_Assistant_Card {
 	}
 
 	private static function styles( $name, array $input ) {
-		$deletes = 0;
+		$deletes = in_array( strtolower( self::scalar( $input['action'] ?? '' ) ), array( 'delete', 'archive' ), true ) ? 1 : 0;
 		foreach ( (array) ( $input['operations'] ?? array() ) as $op ) {
 			if ( is_array( $op ) && in_array( (string) ( $op['action'] ?? '' ), array( 'delete', 'archive' ), true ) ) {
 				++$deletes;
@@ -691,11 +730,27 @@ final class Digitalisimo_AI_Assistant_Card {
 	}
 
 	/** Lo que el servidor no sabe nombrar: una frase llana con lo que se sabe, y lo demás en «Ver detalles». */
-	private static function generic( array $entry, array $input ) {
+	private static function generic( array $entry, array $input, $kind = 'destructive' ) {
 		$label  = trim( (string) preg_replace( '/^[^:]{1,40}:\s*/u', '', (string) ( $entry['label'] ?? '' ) ) );
 		$where  = 0 === strpos( (string) ( $entry['name'] ?? '' ), 'digitalisimo-woo/' ) || 0 === strpos( (string) ( $entry['name'] ?? '' ), 'woocommerce/' ) ? 'tu tienda' : 'tu sitio';
-		$verb   = strtolower( (string) ( $input['action'] ?? '' ) . ' ' . (string) ( $entry['name'] ?? '' ) );
-		$out    = array( 'text' => 'Voy a hacer un cambio en ' . $where . ( '' !== $label ? ' («' . self::clip( lcfirst( $label ), 80 ) . '»)' : '' ) . '. Lo que lleva está en «Ver detalles»' );
+		// El verbo de primer nivel, el de cada operación anidada y el nombre de la herramienta, separados.
+		$verbs = array( (string) ( $entry['name'] ?? '' ) );
+		foreach ( array( 'action', 'operation', 'op', 'mode', 'type' ) as $key ) {
+			if ( is_scalar( $input[ $key ] ?? null ) ) {
+				$verbs[] = (string) $input[ $key ];
+			}
+		}
+		foreach ( (array) ( is_array( $input['operations'] ?? null ) ? $input['operations'] : array() ) as $op ) {
+			if ( is_array( $op ) && is_scalar( $op['action'] ?? ( $op['op'] ?? null ) ) ) {
+				$verbs[] = (string) ( $op['action'] ?? $op['op'] );
+			}
+		}
+		$verb = strtolower( ' ' . implode( ' ', $verbs ) . ' ' );
+		$out  = array( 'text' => 'Voy a hacer un cambio en ' . $where . ( '' !== $label ? ' («' . self::clip( lcfirst( $label ), 80 ) . '»)' : '' ) . '. Lo que lleva está en «Ver detalles»' );
+		$st   = Digitalisimo_AI_Assistant_Tools::card_stats( $input );
+		if ( $st['amounts'] ) {
+			$out['text'] .= '; lleva cantidades de dinero';
+		}
 		if ( preg_match( self::DELETE_VERBS, $verb ) ) {
 			$out['final']     = 'Borra algo de ' . $where . ': puede no tener vuelta atrás.';
 			$out['ack']       = true;
@@ -707,12 +762,27 @@ final class Digitalisimo_AI_Assistant_Card {
 		} elseif ( preg_match( self::MAIL_VERBS, $verb ) ) {
 			$out['final'] = 'Manda un aviso o un correo: eso no se puede deshacer.';
 		}
+		if ( 'destructive' === $kind && empty( $out['ack'] ) ) {
+			// Lo que no se sabe describir no pierde la casilla que antes tenía.
+			$out['ack']       = true;
+			$out['ack_label'] = 'Sí, revisé los detalles y quiero hacerlo.';
+		}
 		return $out;
 	}
 
 	/* ------------------------------------------------------------------ */
 	/* Piezas.                                                              */
 	/* ------------------------------------------------------------------ */
+
+	/** Deshacer un cambio del registro de la tienda: si lo que se deshace es una creación, se borra. */
+	private static function undo( $where ) {
+		return array(
+			'text'      => 'Voy a deshacer un cambio que se hizo antes en ' . $where . ' (cuál, en «Ver detalles»)',
+			'final'     => 'Si ese cambio fue crear algo, al deshacerlo se borra.',
+			'ack'       => true,
+			'ack_label' => 'Sí, entiendo y quiero deshacerlo.',
+		);
+	}
 
 	/** Borrar: una frase simple y la casilla. */
 	private static function deletion( $what, $permanent ) {
@@ -789,7 +859,7 @@ final class Digitalisimo_AI_Assistant_Card {
 		}
 		if ( 'status' === $key ) {
 			$states = array( 'publish' => 'publicado', 'draft' => 'borrador', 'pending' => 'pendiente de revisión', 'private' => 'privado' );
-			return 'el estado a «' . ( $states[ (string) $value ] ?? (string) $value ) . '»';
+			return 'el estado a «' . ( $states[ self::scalar( $value ) ] ?? self::clip( self::scalar( $value ), 40 ) ) . '»';
 		}
 		$shown = self::value( $key, $value );
 		if ( null === $shown ) {
@@ -833,7 +903,11 @@ final class Digitalisimo_AI_Assistant_Card {
 		}
 		if ( is_string( $value ) ) {
 			$plain = trim( (string) preg_replace( '/\s+/u', ' ', self::strip( $value ) ) );
-			return '' !== $plain && self::length( $plain ) <= 80 && false === strpos( $value, "\n" ) ? '«' . $plain . '»' : null;
+			if ( '' === $plain ) {
+				return null;
+			}
+			// Un texto largo: su principio, para que se vea qué dice (el resto en «Ver detalles»).
+			return self::length( $plain ) <= 80 ? '«' . self::clip( $plain, 80 ) . '»' : '«' . self::clip( $plain, 120 ) . '» (completo en «Ver detalles»)';
 		}
 		return null;
 	}
@@ -889,6 +963,9 @@ final class Digitalisimo_AI_Assistant_Card {
 		if ( $st['hidden'] ) {
 			$out[] = 'Lleva contraseñas o claves (no se muestran). Si no las pediste tú, di que no.';
 		}
+		if ( $st['emails'] ) {
+			$out[] = 1 === (int) $st['emails'] ? 'Lleva una dirección de correo: revisa en «Ver detalles» que sea la correcta.' : 'Lleva ' . (int) $st['emails'] . ' direcciones de correo: revisa en «Ver detalles» que sean las correctas.';
+		}
 		return $out;
 	}
 
@@ -914,11 +991,16 @@ final class Digitalisimo_AI_Assistant_Card {
 				$rows[] = array( 'Aviso', (string) $simulation['reason'] );
 			}
 		}
-		return array_slice( $rows, 0, 200 );
+		if ( count( $rows ) > self::DETAIL_ROWS ) {
+			$more   = count( $rows ) - self::DETAIL_ROWS;
+			$rows   = array_slice( $rows, 0, self::DETAIL_ROWS );
+			$rows[] = array( 'Y más', $more . ' datos más: están completos en la bitácora del Asistente.' );
+		}
+		return $rows;
 	}
 
 	private static function flatten( $value, $path, array &$rows ) {
-		if ( count( $rows ) >= 200 ) {
+		if ( count( $rows ) > self::DETAIL_ROWS ) {
 			return;
 		}
 		if ( is_array( $value ) ) {
@@ -961,7 +1043,7 @@ final class Digitalisimo_AI_Assistant_Card {
 			return '(nada)';
 		}
 		if ( is_array( $value ) ) {
-			return implode( ', ', array_map( array( __CLASS__, 'plain' ), array_slice( $value, 0, 20 ) ) );
+			return implode( ', ', array_map( array( __CLASS__, 'plain' ), $value ) );
 		}
 		return '' === (string) $value ? '(vacío)' : (string) $value;
 	}
@@ -1053,22 +1135,50 @@ final class Digitalisimo_AI_Assistant_Card {
 	}
 
 	private static function money( $value ) {
-		$n = (float) str_replace( ',', '', (string) $value );
-		return '$' . number_format( $n, floor( $n ) == $n ? 0 : 2, '.', ',' ); // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual
+		$raw = self::scalar( $value );
+		$n   = function_exists( 'wc_format_decimal' ) ? (float) wc_format_decimal( $raw ) : (float) str_replace( ',', '', $raw );
+		$sym = function_exists( 'get_woocommerce_currency_symbol' ) ? html_entity_decode( (string) get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ) : '$';
+		return ( '' !== $sym ? $sym : '$' ) . number_format( $n, floor( $n ) == $n ? 0 : 2, '.', ',' ); // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual
 	}
 
 	private static function number( $value ) {
-		$n = (float) str_replace( ',', '', (string) $value );
+		$n = (float) str_replace( ',', '', self::scalar( $value ) );
 		return floor( $n ) == $n ? number_format( $n, 0, '.', ',' ) : rtrim( rtrim( number_format( $n, 2, '.', ',' ), '0' ), '.' ); // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual
 	}
 
 	private static function truthy( $value ) {
-		return true === $value || 1 === $value || in_array( strtolower( (string) $value ), array( '1', 'true', 'yes', 'si', 'sí', 'on' ), true );
+		return true === $value || 1 === $value || in_array( strtolower( self::scalar( $value ) ), array( '1', 'true', 'yes', 'si', 'sí', 'on' ), true );
 	}
 
 	private static function count_words( $n, $one, $many, $article = 'un' ) {
 		$n = (int) $n;
 		return 1 === $n ? ltrim( $article . ' ' . $one ) : $n . ' ' . $many;
+	}
+
+	/** « (con 2 datos más, en «Ver detalles»)» por lo que la frase no nombra, o ''. */
+	private static function unnamed( array $data, array $named ) {
+		$n = count( array_diff( array_map( 'strval', array_keys( $data ) ), $named ) );
+		return $n ? ' (con ' . ( 1 === $n ? 'un dato más' : $n . ' datos más' ) . ', en «Ver detalles»)' : '';
+	}
+
+	/** «, con el envío gratis a sí y cuántas veces se puede usar a 1» por lo que la plantilla de creación no nombra. */
+	private static function with_fields( array $data, array $named ) {
+		$rest = array_diff_key( $data, array_flip( $named ) );
+		return $rest ? ', con ' . self::changes( $rest, array() ) : '';
+	}
+
+	/** Un valor suelto como texto (un arreglo no se convierte: ''). */
+	private static function scalar( $value ) {
+		return is_scalar( $value ) ? (string) $value : '';
+	}
+
+	/** Una clave como palabras: «email_receiver» → «email receiver». */
+	private static function humanize( $key ) {
+		return self::clip( trim( str_replace( array( '_', '-' ), ' ', (string) $key ) ), 60 );
+	}
+
+	private static function quoted_key( $key ) {
+		return '«' . self::humanize( (string) $key ) . '»';
 	}
 
 	/** «otro dato» u «otros 2 datos». */
@@ -1086,7 +1196,9 @@ final class Digitalisimo_AI_Assistant_Card {
 	}
 
 	private static function clip( $text, $max ) {
-		$text = trim( (string) preg_replace( '/\s+/u', ' ', (string) $text ) );
+		// Lo invisible o de dirección (U+202E…) se ve marcado también en la frase.
+		$text = Digitalisimo_AI_Assistant_Tools::visible_text( is_scalar( $text ) ? (string) $text : '' );
+		$text = trim( (string) preg_replace( '/\s+/u', ' ', $text ) );
 		return self::length( $text ) > $max ? rtrim( function_exists( 'mb_substr' ) ? mb_substr( $text, 0, $max - 1, 'UTF-8' ) : substr( $text, 0, $max - 1 ) ) . '…' : $text;
 	}
 

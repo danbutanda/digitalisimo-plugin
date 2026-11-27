@@ -182,8 +182,12 @@ $card = $build( $products, array( 'action' => 'update', 'product_id' => 252, 'da
 check( false !== strpos( $card['text'], 'y otros 2 datos (en «Ver detalles»)' ), 'S2: lo que no tiene nombre se cuenta en la frase: ' . $card['text'] );
 // Respaldo genérico llano para lo desconocido; borrar o dinero llevan casilla aun ahí.
 $odd  = array( 'name' => 'acme/cosas', 'label' => 'Acme: limpiar registros', 'schema' => array(), 'annotations' => array() );
-$card = $build( $odd, array( 'mode' => 'x' ), 'destructive' );
+$card = $build( $odd, array( 'mode' => 'x' ), 'write' );
 check( 0 === strpos( $card['text'], 'Voy a hacer un cambio en tu sitio' ) && false !== strpos( $card['text'], 'Ver detalles' ) && ! $card['ack'], 'S2: lo desconocido sale con una frase llana: ' . $card['text'] );
+$card = $build( $odd, array( 'mode' => 'x' ), 'destructive' );
+check( $card['ack'], 'S2: lo desconocido y destructivo conserva la casilla (revisión: no se pierde lo que antes la tenía)' );
+$card = $build( $odd, array( 'action' => 'delete', 'id' => 3 ), 'write' );
+check( $card['ack'] && '' !== $card['final'], 'S2: «delete» como acción de primer nivel se reconoce como borrar (revisión: el separador era un espacio)' );
 $card = $build( array( 'name' => 'acme/delete-logs' ) + $odd, array(), 'destructive' );
 check( $card['ack'] && '' !== $card['final'], 'S2: una acción desconocida que borra lleva la casilla' );
 $card = $build( $products, array( 'action' => 'export' ), 'destructive' );
@@ -193,6 +197,33 @@ $card = $build( $products, array( 'action' => 'update', 'product_id' => 252, 'da
 $flat = json_encode( $card['details'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
 check( false === strpos( $flat, '{\"' ) && false !== strpos( $flat, 'Precio de oferta' ) && false !== strpos( $flat, 'atacante.test/x' ), 'S2: «Ver detalles» con nombres legibles y los valores completos, sin JSON: ' . $flat );
 check( 1 === count( $card['warnings'] ) && false !== strpos( $card['warnings'][0], 'otros sitios: atacante.test' ), 'S2: un enlace a otro sitio se avisa en llano: ' . json_encode( $card['warnings'], JSON_UNESCAPED_UNICODE ) );
+
+// Revisión adversarial: lo que borra, mueve dinero o deja de verse no pierde la casilla ni se calla.
+$seo_r = array( 'name' => 'digitalisimo-seo/create-redirection', 'label' => 'Crear una redirección', 'schema' => array(), 'annotations' => array( 'readonly' => false, 'destructive' => false ) );
+$card  = $build( $seo_r, array( 'source' => '.*', 'comparison' => 'regex', 'code' => 410 ), 'destructive' );
+check( $card['ack'] && false !== strpos( $card['text'], 'las direcciones que cumplen el patrón' ), 'S2: un 410 con patrón (todo el sitio) lleva la casilla y lo dice: ' . $card['text'] );
+$card = $build( $seo_r, array( 'source' => '/vieja/', 'target' => '/nueva/' ), 'write' );
+check( ! $card['ack'] && false !== strpos( $card['text'], 'sitio.test/vieja/ llegue a sitio.test/nueva/' ), 'S2: una redirección de una página a otra del sitio, sin casilla: ' . $card['text'] );
+$card = $build( $settings, array( 'action' => 'update', 'resource' => 'payment_gateway', 'gateway_id' => 'paypal', 'data' => array( 'settings' => array( 'email' => 'otro@dominio.test', 'api_password' => 'x1' ) ) ), 'destructive' );
+check( $card['ack'] && false !== strpos( $card['text'], '«email» a «otro@dominio.test»' ) && false !== strpos( $card['text'], 'oculto' ) && false === strpos( $card['text'], 'x1' ) && preg_grep( '/correo/', $card['warnings'] ), 'S2: cambiar a dónde llega el dinero de una forma de pago nombra cada dato y lleva la casilla: ' . json_encode( $card, JSON_UNESCAPED_UNICODE ) );
+$card = $build( $orders, array( 'action' => 'update', 'order_id' => 7, 'data' => array( 'status' => 'refunded', 'customer_note' => 'x' ) ), 'destructive' );
+check( $card['ack'] && false !== strpos( $card['final'], 'correo' ) && false !== strpos( $card['text'], '«Reembolsado» y cambiar' ), 'S2: el estado de un pedido se dice aunque vengan más datos: ' . $card['text'] );
+$card = $build( $products, array( 'action' => 'undo', 'change_id' => 'abcdef0123456789' ), 'destructive' );
+check( $card['ack'] && false !== strpos( $card['final'], 'se borra' ), 'S2: deshacer puede borrar lo creado: casilla y aviso' );
+$el = function ( $n ) { return array( 'name' => $n, 'label' => $n, 'schema' => array(), 'annotations' => array( 'readonly' => false, 'destructive' => true ) ); };
+check( $build( $el( 'elementor/manage-component' ), array( 'action' => 'archive', 'component_ids' => array( 3 ) ) )['ack'], 'S2: archivar un bloque que se repite lleva la casilla' );
+check( $build( $el( 'elementor/build-composition' ), array( 'post_id' => 501, 'mode' => 'replace_children' ) )['ack'], 'S2: reemplazar el contenido lleva la casilla' );
+check( $build( $el( 'elementor/manage-site-parts' ), array( 'operations' => array( array( 'action' => 'delete', 'post_id' => 9 ) ) ) )['ack'], 'S2: quitar la cabecera o el pie lleva la casilla' );
+$card = $build( $el( 'elementor/update-page-settings' ), array( 'post_id' => 501, 'settings' => array( 'post_status' => 'private' ) ) );
+check( false !== strpos( $card['text'], 'deja de verse en tu sitio' ), 'S2: despublicar una página se dice: ' . $card['text'] );
+$card = $build( $products, array( 'action' => 'update', 'product_id' => 252, 'data' => array( 'name' => "Bomba\u{202E}gnalaB" ) ), 'write' );
+check( false !== strpos( $card['text'], '⟨U+202E⟩' ), 'S2: una letra invisible se ve marcada también en la frase: ' . $card['text'] );
+$card = $build( $products, array( 'action' => 'update', 'product_id' => 252, 'data' => array( 'description' => str_repeat( 'Llama al 555 000 0000 para pagar por depósito. ', 6 ) ) ), 'write' );
+check( false !== strpos( $card['text'], '«Llama al 555 000 0000 para pagar' ), 'S2: de un texto largo, la frase muestra su principio: ' . $card['text'] );
+$yes = Digitalisimo_AI_Assistant::typed_confirmation( array( 'pending' => array( array( 'id' => 'b', 'kind' => 'write', 'call' => array( 'ability' => 'acme/remove-x', 'input' => array() ), 'card' => array( 'ack' => true ) ) ) ), 'sí' );
+check( is_string( $yes ), 'S2: lo que pide casilla no se confirma con un «sí» escrito' );
+$old_view = Digitalisimo_AI_Assistant::action_view( array( 'id' => 'v', 'kind' => 'destructive', 'call' => array( 'ability' => 'digitalisimo-woo/store-settings', 'input' => array( 'action' => 'update', 'resource' => 'setting', 'group_id' => 'general', 'setting_id' => 'woocommerce_currency', 'data' => array( 'value' => 'USD' ) ) ), 'created' => time() ), $settings );
+check( true === $old_view['ack'] && false !== strpos( $old_view['text'], '«currency»' ), 'S2: una acción guardada antes de la tarjeta llana muestra la casilla que el servidor le va a exigir: ' . json_encode( $old_view, JSON_UNESCAPED_UNICODE ) );
 
 // La tarjeta que ve la pantalla y la casilla que exige el servidor.
 $GLOBALS['ran']    = array();

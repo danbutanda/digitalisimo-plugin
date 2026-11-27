@@ -1028,6 +1028,12 @@ final class Digitalisimo_AI_Assistant_Tools {
 		return $value;
 	}
 
+	/** Un texto con lo invisible y las series de espacios marcadas (para la frase de la tarjeta). */
+	public static function visible_text( $text ) {
+		$st = self::card_state();
+		return self::visible( (string) $text, $st );
+	}
+
 	/** Invisibles y de dirección como ⟨U+XXXX⟩; series de 8 espacios o más como ⟨N espacios⟩. */
 	private static function visible( $text, array &$st ) {
 		$text = (string) preg_replace_callback(

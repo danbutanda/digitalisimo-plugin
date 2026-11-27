@@ -543,7 +543,7 @@ final class Digitalisimo_AI_Assistant {
 				return null; // «publícala» con una creación pendiente: es otra instrucción.
 			}
 		}
-		if ( 'destructive' === $action['kind'] || ! empty( $action['after_read'] ) ) {
+		if ( 'destructive' === $action['kind'] || ! empty( $action['after_read'] ) || self::needs_ack( $action ) ) {
 			return self::needs_ack( $action ) ? 'Para este cambio marca la casilla de la tarjeta y pulsa «Sí, hazlo».' : 'Para este cambio pulsa «Sí, hazlo» en la tarjeta.';
 		}
 		return true;
@@ -1131,6 +1131,10 @@ final class Digitalisimo_AI_Assistant {
 		list( $input, $hidden, $risks ) = Digitalisimo_AI_Assistant_Tools::card( $action['call']['input'] );
 		// La frase llana del servidor (guardada al proponerla; una acción guardada antes se arma ahora con lo mismo).
 		$card = isset( $action['card'] ) && is_array( $action['card'] ) ? $action['card'] : ( $entry ? Digitalisimo_AI_Assistant_Card::build( $entry, $action['call']['input'], (string) $action['kind'] ) : array() );
+		if ( ! isset( $action['card'] ) ) {
+			// Guardada antes de la tarjeta llana: la casilla, la que exige el servidor al confirmar.
+			$card['ack'] = self::needs_ack( $action );
+		}
 		$card = array_merge( array( 'text' => 'Voy a hacer un cambio en tu sitio. Lo que lleva está en «Ver detalles».', 'undo' => false, 'final' => '', 'ack' => 'destructive' === (string) $action['kind'], 'ack_label' => 'Sí, entiendo y quiero hacerlo.', 'warnings' => array(), 'details' => array() ), $card );
 		return array(
 			'text'        => (string) $card['text'],
