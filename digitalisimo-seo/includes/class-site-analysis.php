@@ -52,6 +52,14 @@ class Digitalisimo_Integrations_Site_Analysis {
 	/** Un fallo inequívoco del canonical se confirma con otra comprobación al menos así de después. */
 	const CONFIRM_AFTER = 1800;
 	public static $budget = 20.0;
+	/**
+	 * Tipos de la tienda: se informan, nunca se accionan. Sus enlaces llegan de la tienda, las categorías, «relacionados»
+	 * y los widgets dinámicos, que el registro de enlaces no ve (casi todos saldrían huérfanos), y dos productos con la
+	 * misma descripción del fabricante no son páginas que sobren.
+	 */
+	const STORE_TYPES = array( 'product', 'product_variation' );
+
+	public static function store_type( $type ) { return in_array( (string) $type, self::STORE_TYPES, true ); }
 
 	public static function init() {
 		add_action( self::CRON, array( __CLASS__, 'run_batch' ) );
@@ -545,9 +553,9 @@ class Digitalisimo_Integrations_Site_Analysis {
 		global $wpdb;
 		$types = self::types();
 		$in    = "'" . implode( "','", array_map( 'esc_sql', $types ) ) . "'";
-		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT p.ID, p.post_title, p.post_date_gmt, m.meta_value FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = %s WHERE p.post_status = 'publish' AND p.post_type IN ($in) ORDER BY p.post_date_gmt DESC LIMIT %d", self::META, self::MAX_POSTS ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL
+		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT p.ID, p.post_title, p.post_date_gmt, p.post_type, m.meta_value FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = %s WHERE p.post_status = 'publish' AND p.post_type IN ($in) ORDER BY p.post_date_gmt DESC LIMIT %d", self::META, self::MAX_POSTS ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL
 		$data = array();
-		foreach ( (array) $rows as $row ) { $meta = maybe_unserialize( $row['meta_value'] ); if ( is_array( $meta ) ) $data[ (int) $row['ID'] ] = $meta + array( 'title' => (string) $row['post_title'], 'date' => (string) $row['post_date_gmt'] ); }
+		foreach ( (array) $rows as $row ) { $meta = maybe_unserialize( $row['meta_value'] ); if ( is_array( $meta ) ) $data[ (int) $row['ID'] ] = $meta + array( 'title' => (string) $row['post_title'], 'date' => (string) $row['post_date_gmt'], 'type' => (string) $row['post_type'] ); }
 		// Lo que un lote de «Limpieza SEO» ya redirigió (301 o 410) no se sirve: no compite ni tiene incidencias.
 		foreach ( Digitalisimo_Integrations_SEO_Cleanup::retired_ids() as $id ) unset( $data[ $id ] );
 		$started = microtime( true );
@@ -574,7 +582,9 @@ class Digitalisimo_Integrations_Site_Analysis {
 			// Una página que nunca se redirige (la portada, la del blog…) es la que se queda.
 			$keeper = self::keeper( $info );
 			foreach ( $members as $id ) if ( Digitalisimo_Integrations_SEO_Cleanup::protected_reason( $id ) ) { $keeper = $id; break; }
-			$groups[] = array( 'ids' => $members, 'max' => max( $sims ), 'min' => min( $sims ), 'keeper' => $keeper, 'keyword' => self::shared_keyword( array_map( function( $id ) use ( $data ) { return $data[ $id ]['title']; }, $members ), array_map( function( $id ) use ( $data ) { return (string) ( $data[ $id ]['k'] ?? '' ); }, $members ) ), 'info' => $info );
+			// Con un producto en el grupo sólo se informa: ni propuesta de 301 ni formulario.
+			$inform = (bool) array_filter( $members, function( $id ) use ( $data ) { return self::store_type( $data[ $id ]['type'] ?? '' ); } );
+			$groups[] = array( 'inform' => $inform, 'ids' => $members, 'max' => max( $sims ), 'min' => min( $sims ), 'keeper' => $keeper, 'keyword' => self::shared_keyword( array_map( function( $id ) use ( $data ) { return $data[ $id ]['title']; }, $members ), array_map( function( $id ) use ( $data ) { return (string) ( $data[ $id ]['k'] ?? '' ); }, $members ) ), 'info' => $info );
 		}
 		// La misma keyword principal en varios contenidos que no están ya en un grupo de texto casi igual.
 		$grouped = array();
@@ -708,7 +718,7 @@ class Digitalisimo_Integrations_Site_Analysis {
 				'canonical_broken'    => array_values( array_map( function( $id, $c ) { return array( 'post_id' => $id, 'url' => get_permalink( $id ), 'canonical' => $c['url'], 'detail' => $c['error'] ?: 'responde ' . $c['code'] ); }, array_keys( $broken ), $broken ) ),
 			),
 			'warnings'          => array(
-				'cannibalization'   => array_map( function( $g ) { return array( 'keyword' => $g['keyword'], 'similarity' => (int) round( $g['max'] * 100 ), 'keep' => get_permalink( $g['keeper'] ), 'urls' => array_map( 'get_permalink', $g['ids'] ) ); }, array_slice( (array) ( $r['clusters'] ?? array() ), 0, 20 ) ),
+				'cannibalization'   => array_map( function( $g ) { return array( 'inform_only' => ! empty( $g['inform'] ), 'keyword' => $g['keyword'], 'similarity' => (int) round( $g['max'] * 100 ), 'keep' => get_permalink( $g['keeper'] ), 'urls' => array_map( 'get_permalink', $g['ids'] ) ); }, array_slice( (array) ( $r['clusters'] ?? array() ), 0, 20 ) ),
 				'same_keyword'      => count( (array) ( $r['same_kw'] ?? array() ) ),
 				'canonical_offsite' => count( array_filter( $canon, function( $c ) { return in_array( $c['kind'], array( 'offsite', 'redirect', 'pending' ), true ); } ) ),
 				'stale_social_description' => array_values( array_map( function( $id ) { return get_permalink( $id ); }, array_slice( array_keys( (array) ( $r['stale'] ?? array() ) ), 0, 20 ) ) ),
@@ -723,7 +733,7 @@ class Digitalisimo_Integrations_Site_Analysis {
 		if ( ! class_exists( 'Digitalisimo_Integrations_Links' ) || ! Digitalisimo_Integrations_Links::enabled() || ! Digitalisimo_Integrations_Links::installed() ) return array();
 		$linked = array_flip( (array) ( self::results()['linked'] ?? array() ) );
 		$out    = array();
-		foreach ( Digitalisimo_Integrations_Links::orphans( $limit ) as $id ) if ( ! isset( $linked[ $id ] ) && ! Digitalisimo_Integrations_SEO_Cleanup::protected_reason( $id ) ) $out[] = (int) $id;
+		foreach ( Digitalisimo_Integrations_Links::orphans( $limit ) as $id ) if ( ! isset( $linked[ $id ] ) && ! Digitalisimo_Integrations_SEO_Cleanup::protected_reason( $id ) && ! self::store_type( get_post_type( $id ) ) ) $out[] = (int) $id;
 		return $out;
 	}
 
@@ -824,6 +834,13 @@ class Digitalisimo_Integrations_Site_Analysis {
 		if ( ! $groups ) echo '<p>' . self::badge( 'OK', 'SIN CANIBALIZACIÓN' ) . ' Ningún par de páginas comparte más del ' . (int) ( self::SIMILAR * 100 ) . ' % de su texto.</p>'; // phpcs:ignore WordPress.Security.EscapeOutput
 		else echo '<p>Comparten casi todo el texto y compiten por la misma búsqueda: Google elige una y las demás se reparten la fuerza. Se propone conservar la de más enlaces internos (o la de más texto); elige otra si prefieres y redirige las demás con 301.</p>';
 		foreach ( $groups as $i => $group ) {
+			if ( ! empty( $group['inform'] ) ) {
+				echo '<div style="margin:12px 0;padding:10px;border:1px solid var(--digi-line,#dce4ff);border-radius:8px"><p><strong>' . esc_html( 'Productos con texto casi igual' . ( '' !== $group['keyword'] ? ' («' . $group['keyword'] . '»)' : '' ) ) . '</strong> · ' . esc_html( sprintf( '%d %% de texto en común', (int) round( $group['max'] * 100 ) ) ) . '</p>';
+				echo '<p class="description">Sólo informativo: un producto no se redirige desde aquí. Si comparten la descripción del fabricante, escribe una propia para cada uno.</p><ul style="list-style:disc;padding-left:1.5em">';
+				foreach ( $group['ids'] as $id ) echo '<li>' . self::link( $id ) . '</li>'; // phpcs:ignore WordPress.Security.EscapeOutput
+				echo '</ul></div>';
+				continue;
+			}
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin:12px 0;padding:10px;border:1px solid var(--digi-line,#dce4ff);border-radius:8px">';
 			wp_nonce_field( 'digitalisimo_seo_cleanup_preview' );
 			echo '<input type="hidden" name="action" value="digitalisimo_seo_cleanup_preview"><input type="hidden" name="kind" value="301"><input type="hidden" name="source" value="cluster">';
@@ -856,9 +873,22 @@ class Digitalisimo_Integrations_Site_Analysis {
 		echo '<input type="hidden" name="action" value="digitalisimo_seo_cleanup_preview"><input type="hidden" name="source" value="orphans">';
 		echo '<p><label>Acción <select name="kind"><option value="noindex">noindex (sacar de Google y del sitemap)</option><option value="410">410 (ya no existe)</option><option value="301">301 a otra página</option></select></label> <label>Destino del 301 <input type="text" name="target" placeholder="/servicios/" class="regular-text"></label> ';
 		submit_button( 'Revisar lo seleccionado', 'secondary', 'submit', false );
-		echo '</p><table class="widefat striped"><thead><tr><td class="check-column"><input type="checkbox" onclick="var c=this.checked;this.closest(\'table\').querySelectorAll(\'tbody input[type=checkbox]\').forEach(function(x){x.checked=c})" aria-label="Seleccionar todas"></td><th>Contenido</th><th>Tipo</th><th>Publicado</th></tr></thead><tbody>';
-		foreach ( $orphans as $id ) echo '<tr><th class="check-column"><input type="checkbox" name="ids[]" value="' . (int) $id . '"></th><td>' . self::link( $id ) . '</td><td>' . esc_html( (string) ( get_post_type_object( get_post_type( $id ) )->labels->singular_name ?? get_post_type( $id ) ) ) . '</td><td>' . esc_html( (string) get_the_date( 'Y-m-d', $id ) ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
-		echo '</tbody></table></form><p class="description">Nunca aparecen la portada, la página del blog, la de privacidad ni las de WooCommerce. Nada se aplica sin la pantalla de confirmación.</p>';
+		echo '</p>';
+		$row = function( $id, $checkbox_class ) { return '<tr><th class="check-column"><input type="checkbox" class="' . esc_attr( $checkbox_class ) . '" name="ids[]" value="' . (int) $id . '"></th><td>' . self::link( $id ) . '</td><td>' . esc_html( (string) ( get_post_type_object( get_post_type( $id ) )->labels->singular_name ?? get_post_type( $id ) ) ) . '</td><td>' . esc_html( (string) get_the_date( 'Y-m-d', $id ) ) . '</td></tr>'; };
+		$posts = array_values( array_filter( $orphans, function( $id ) { return 'post' === get_post_type( $id ); } ) );
+		$pages = array_values( array_diff( $orphans, $posts ) );
+		if ( $pages ) {
+			echo '<h4>Páginas (' . count( $pages ) . ')</h4><table class="widefat striped"><thead><tr><td class="check-column"><input type="checkbox" onclick="var c=this.checked;this.closest(\'table\').querySelectorAll(\'tbody input.digitalisimo-orphan-page\').forEach(function(x){x.checked=c})" aria-label="Seleccionar todas las páginas"></td><th>Contenido</th><th>Tipo</th><th>Publicado</th></tr></thead><tbody>';
+			foreach ( $pages as $id ) echo $row( $id, 'digitalisimo-orphan-page' ); // phpcs:ignore WordPress.Security.EscapeOutput
+			echo '</tbody></table>';
+		}
+		if ( $posts ) {
+			echo '<h4>Entradas del blog (' . count( $posts ) . ')</h4><p class="description"><strong>Revisa cada una antes de marcarla.</strong> La detección sólo ve los enlaces escritos dentro de los contenidos, los menús y las plantillas: no ve los del blog, los archivos ni las categorías, desde donde una entrada puede recibir visitas. Por eso ninguna viene marcada y no hay «marcar todas».</p>';
+			echo '<table class="widefat striped"><thead><tr><td class="check-column"></td><th>Contenido</th><th>Tipo</th><th>Publicado</th></tr></thead><tbody>';
+			foreach ( $posts as $id ) echo $row( $id, 'digitalisimo-orphan-post' ); // phpcs:ignore WordPress.Security.EscapeOutput
+			echo '</tbody></table>';
+		}
+		echo '</form><p class="description">Nunca aparecen la portada, la página del blog, la de privacidad, las páginas de WooCommerce ni los productos de la tienda (sus enlaces llegan de la tienda, las categorías y «relacionados», que la detección no ve). Nada se aplica sin la pantalla de confirmación.</p>';
 	}
 
 	private static function render_stale( array $r ) {

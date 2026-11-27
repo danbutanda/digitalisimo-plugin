@@ -3,7 +3,8 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Acciones del análisis del sitio (tanda B de la auditoría SEO del 2026-11-24): B2, conservar una de las páginas que
- * compiten y redirigir las demás con 301; B3, noindex, 410 o 301 en lote para las páginas huérfanas o de relleno.
+ * compiten y redirigir las demás con 301; B3, noindex, 410 o 301 en lote para las páginas huérfanas o de relleno. Los
+ * productos de la tienda nunca entran en un lote (`Site_Analysis::STORE_TYPES`): sólo se informan.
  *
  * Nada se aplica en un clic:
  *   1. «Revisar» arma el plan (qué pasa con cada URL y qué se omite y por qué) y lo guarda una hora para ese usuario;
@@ -116,7 +117,8 @@ class Digitalisimo_Integrations_SEO_Cleanup {
 			if ( $target && $id === $target['id'] ) continue; // La que se queda.
 			$post = get_post( $id );
 			$why  = '';
-			if ( ! $post || 'publish' !== $post->post_status || ! in_array( $post->post_type, $types, true ) ) $why = 'No está publicada';
+			if ( $post && Digitalisimo_Integrations_Site_Analysis::store_type( $post->post_type ) ) $why = 'Es un producto de la tienda: sólo se informa, nunca se acciona desde aquí';
+			elseif ( ! $post || 'publish' !== $post->post_status || ! in_array( $post->post_type, $types, true ) ) $why = 'No está publicada';
 			elseif ( '' !== ( $p = self::protected_reason( $id ) ) ) $why = $p;
 			else {
 				$path = self::path( $id );

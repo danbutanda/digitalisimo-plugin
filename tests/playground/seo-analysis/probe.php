@@ -28,6 +28,9 @@ if ( 'setup' === $step ) {
 }
 require '/wordpress/wp-load.php';
 wp_set_current_user( 1 );
+// Una tienda: dos productos con la misma descripción del fabricante y sin enlaces escritos (sus enlaces son los de la
+// tienda, las categorías y «relacionados», que la detección no ve).
+if ( ! post_type_exists( 'product' ) ) register_post_type( 'product', array( 'public' => true, 'has_archive' => true, 'label' => 'Productos', 'rewrite' => array( 'slug' => 'producto' ) ) );
 // Peticiones HTTP: se anotan; el dominio del canonical viejo no existe (como digital.digitalisimo.org en la auditoría).
 $GLOBALS['digi_http'] = array();
 add_filter( 'pre_http_request', function( $pre, $args, $url ) {
@@ -80,6 +83,9 @@ if ( 'seed' === $step ) {
 		$ids[ $key ] = $page( 'Noticia ' . $key, $slug, '<p>' . $text( 'noticia ' . $key ) . '</p>', 'post' );
 		if ( ! is_wp_error( $cat ) ) wp_set_post_categories( $ids[ $key ], array( (int) $cat['term_id'] ) );
 	}
+	$maker = 'Camiseta de algodón peinado de 180 gramos con costuras reforzadas, cuello redondo y corte clásico. Se lava a máquina en agua fría, no usar blanqueador, secar a la sombra y planchar a temperatura media por el revés. Tallas de la chica a la extra grande, colores firmes que no se destiñen con las lavadas y etiqueta que no pica. Ideal para uniformes, eventos, regalos corporativos y uso diario, con estampado opcional en serigrafía o vinil textil de alta duración. Empaque individual en bolsa compostable con guía de tallas impresa y garantía de satisfacción de treinta días desde la entrega.';
+	$ids['p1'] = $page( 'Camiseta azul', 'camiseta-azul', '<p>' . $maker . '</p>', 'product' );
+	$ids['p2'] = $page( 'Camiseta roja', 'camiseta-roja', '<p>' . $maker . '</p>', 'product' );
 	update_option( 'show_on_front', 'page' );
 	update_option( 'page_on_front', $ids['home'] );
 	// B1: la miga de Inicio con los shortcodes de la auditoría y una variable que el sitio no conoce en un título SEO.
@@ -140,6 +146,10 @@ if ( 'results' === $step ) {
 	digi_check( 1 === count( (array) $r['b1_posts'] ), 'B1: ningún otro contenido marcado: ' . json_encode( array_keys( (array) $r['b1_posts'] ) ) );
 	digi_check( in_array( '[ubicacion_usuario]', array_column( (array) $r['b1_terms'], 3 ), true ), 'B1: el shortcode en el nombre de la categoría' );
 	$groups = (array) $r['clusters'];
+	$products = array_values( array_filter( $groups, function( $g ) { return ! empty( $g['inform'] ); } ) );
+	$pp = array( (int) $ids['p1'], (int) $ids['p2'] ); sort( $pp );
+	digi_check( 1 === count( $products ) && $pp === $products[0]['ids'], 'B2: los productos con la misma descripción forman un grupo sólo informativo' );
+	$groups = array_values( array_filter( $groups, function( $g ) { return empty( $g['inform'] ); } ) );
 	digi_check( 1 === count( $groups ), 'B2: un solo grupo: ' . json_encode( array_map( function( $g ) { return $g['ids']; }, $groups ) ) );
 	$group = $groups[0] ?? array( 'ids' => array(), 'keeper' => 0, 'keyword' => '', 'max' => 0 );
 	$want  = array( $ids['a'], $ids['b'], $ids['c'] ); sort( $want );
@@ -185,16 +195,18 @@ if ( 'render' === $step ) {
 	ob_start(); $A::notice(); $notice = ob_get_clean();
 	digi_check( false !== strpos( $notice, 'notice-error' ) && false !== strpos( $notice, 'sin resolver' ) && false !== strpos( $notice, 'is-dismissible' ), 'Aviso de error en el Escritorio, con la X' );
 	$status = Digitalisimo_Integrations_SEO_Abilities::get_site_status();
-	digi_check( isset( $status['site_analysis'] ) && $status['site_analysis']['error_count'] >= 4 && 1 === count( $status['site_analysis']['warnings']['cannibalization'] ), 'MCP: get-site-status lleva el análisis: ' . json_encode( $status['site_analysis']['error_count'] ?? null ) );
+	digi_check( isset( $status['site_analysis'] ) && $status['site_analysis']['error_count'] >= 4 && 2 === count( $status['site_analysis']['warnings']['cannibalization'] ) && 1 === count( array_filter( $status['site_analysis']['warnings']['cannibalization'], function( $g ) { return $g['inform_only']; } ) ), 'MCP: get-site-status lleva el análisis: ' . json_encode( $status['site_analysis']['error_count'] ?? null ) );
 	$_GET = array( 'page' => 'digitalisimo-seo-audit', 'audit' => 'site' );
 	ob_start(); Digitalisimo_Integrations_SEO_Audit_Hub::render(); $html = ob_get_clean();
+	digi_check( 1 === substr_count( $html, 'name="kind" value="301"' ) && false !== strpos( $html, 'Productos con texto casi igual' ), 'Los productos se muestran sin formulario de 301' );
+	digi_check( false !== strpos( $html, 'Entradas del blog (4)' ) && false !== strpos( $html, 'Revisa cada una antes de marcarla' ) && false === strpos( $html, 'class="digitalisimo-orphan-post" name="ids[]" value="' . $ids['n1'] . '" checked' ), 'Las entradas del blog (las tres noticias y la de bienvenida de WordPress) van aparte, con el aviso y sin marcar' );
 	foreach ( array( 'Análisis del sitio', '[descripcion_sitio]', '%seo_title%', 'Palabra clave en disputa', 'digital.digitalisimo.invalid', 'black-friday', 'Revisar lo seleccionado', 'Cambios aplicados' ) as $needle ) digi_check( false !== strpos( $html, esc_html( $needle ) ), "La pantalla muestra «$needle»" );
 	return;
 }
 
 if ( 'cluster' === $step ) {
 	$r     = $A::results();
-	$group = $r['clusters'][0];
+	$group = array_values( array_filter( $r['clusters'], function( $g ) { return empty( $g['inform'] ); } ) )[0];
 	$plan  = $C::plan( '301', $group['ids'], (string) $group['keeper'], 'cluster' );
 	digi_check( ! is_wp_error( $plan ) && 2 === count( $plan['items'] ) && $plan['over_cap'], 'B2: plan de dos 301, que pide la casilla del tope en un sitio chico' );
 	digi_check( null === digi_get( digi_path( $ids['b'] ) ), 'Revisar no cambia nada' );
@@ -224,7 +236,9 @@ if ( 'undo' === $step ) {
 if ( 'orphans' === $step ) {
 	$orphans = $A::orphans();
 	foreach ( array( 'n1', 'n2', 'n3', 'b', 'c' ) as $key ) digi_check( in_array( (int) $ids[ $key ], $orphans, true ), "B3: /$key es huérfana" );
-	foreach ( array( 'home', 'host', 'cont', 'a', 'que', 'bf' ) as $key ) digi_check( ! in_array( (int) $ids[ $key ], $orphans, true ), "B3: /$key no es huérfana (portada, menú, pie o enlazada)" );
+	foreach ( array( 'home', 'host', 'cont', 'a', 'que', 'bf', 'p1', 'p2' ) as $key ) digi_check( ! in_array( (int) $ids[ $key ], $orphans, true ), "B3: /$key no es huérfana (portada, menú, pie o enlazada)" );
+	$plan = $C::plan( '410', array( $ids['p1'], $ids['p2'] ) );
+	digi_check( array() === $plan['items'] && 2 === count( $plan['skipped'] ), 'B3: un producto nunca entra en un lote, ni con «seleccionar todas»' );
 	$plan = $C::plan( 'noindex', array( $ids['n1'], $ids['n2'], $ids['n3'], $ids['home'] ) );
 	digi_check( 3 === count( $plan['items'] ) && 'Es la portada' === $plan['skipped'][0][1], 'B3: la portada nunca entra en un lote' );
 	$batch = $C::apply( $plan );
