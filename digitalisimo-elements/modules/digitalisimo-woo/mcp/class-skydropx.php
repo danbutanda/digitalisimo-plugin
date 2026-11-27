@@ -58,21 +58,13 @@ final class Skydropx {
 		if ( is_wp_error( $plan ) ) {
 			return $plan;
 		}
-		$user = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
-		$mode = Settings::mode();
-		if ( 'off' === $mode ) {
-			return new \WP_Error( 'digitalisimo_woo_mcp_off', 'Las herramientas de tienda están apagadas en este sitio («WooCommerce en el MCP»: apagado).', array( 'status' => 403 ) );
-		}
+		$user    = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
 		$allowed = Skydropx_Tool::permission( $input );
 		if ( true !== $allowed ) {
 			if ( 'write' === $plan['kind'] ) {
 				Log::add( Log::entry( $plan, 'denied', 'forbidden', 403, $user ) );
 			}
 			return $allowed;
-		}
-		if ( 'write' === $plan['kind'] && ! Settings::can_write( Tools::SKYDROPX ) ) {
-			Log::add( Log::entry( $plan, 'denied', 'read_mode', 403, $user ) );
-			return Executor::read_mode_error( $plan );
 		}
 		if ( ! Skydropx_Tool::active() ) {
 			return self::error( 'digitalisimo_woo_mcp_skydropx_inactive', 'El plugin de Skydropx no está activo en este sitio.', 409 );
@@ -1693,7 +1685,7 @@ final class Skydropx {
 			auth_redirect();
 			exit;
 		}
-		if ( ! Module::mcp_enabled() || 'off' === Settings::mode() ) {
+		if ( ! Module::mcp_enabled() ) {
 			wp_die( esc_html( 'Las herramientas de tienda del MCP no están activas en este sitio.' ), '', array( 'response' => 404 ) );
 		}
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- la firma propia (o el botón) hace de nonce; el endpoint del plugin pide el suyo.

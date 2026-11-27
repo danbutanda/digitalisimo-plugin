@@ -18,10 +18,10 @@ defined( 'ABSPATH' ) || exit;
 final class Skydropx_Tool {
 	const TOOL = Tools::SKYDROPX;
 
-	/** Acciones que sólo leen (en «Sólo lectura» también). */
+	/** Acciones que sólo leen. */
 	const READ_ACTIONS = array( 'status', 'audit_products', 'quote', 'shipments', 'get_shipment', 'label' );
 
-	/** Acciones que escriben (sólo en «Lectura y escritura», con la bitácora). */
+	/** Acciones que escriben (con la bitácora). */
 	const WRITE_ACTIONS = array( 'update_products', 'set_tracking', 'resync' );
 
 	/** Tope de un lote de productos y de las líneas de una cotización. */
@@ -142,13 +142,9 @@ final class Skydropx_Tool {
 		return true;
 	}
 
-	/** Definición, con la misma forma que `Tools::definition()`. */
-	public static function definition( string $mode = 'read' ): array {
-		$tail = 'write' === $mode
-			? ' Este sitio permite escribir («WooCommerce en el MCP»: lectura y escritura); toda escritura queda en la bitácora sin datos personales.'
-			: ( 'custom' === $mode
-				? ' En este sitio esta herramienta sólo lee («WooCommerce en el MCP»: escritura sólo en lo elegido, y Skydropx no está elegido): update_products, set_tracking y resync devuelven un error que explica dónde se marca.'
-				: ' Este sitio sólo permite leer («WooCommerce en el MCP»: sólo lectura): update_products, set_tracking y resync devuelven un error que explica dónde se cambia el modo.' );
+	/** Definición, con la misma forma que `Tools::definition()`: lee y escribe, sin modos (decisión del 2026-11-27). */
+	public static function definition(): array {
+		$tail = ' Cada escritura queda en la bitácora sin datos personales y exige el permiso de WooCommerce del usuario conectado.';
 		return array(
 			'label'         => 'Tienda: envíos con Skydropx',
 			'description'   => self::DESCRIPTION . $tail,

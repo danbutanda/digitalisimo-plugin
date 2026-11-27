@@ -5,7 +5,8 @@ defined( 'ABSPATH' ) || exit;
 class Digitalisimo_Content_Automation {
 	public static function init() { add_action( 'rest_api_init', array( __CLASS__, 'routes' ) ); add_filter( 'wp_insert_post_data', array( __CLASS__, 'excerpt_data' ), 20, 2 ); }
 	public static function routes() { register_rest_route( 'digitalisimo/v1', '/import-image', array( 'methods'=>'POST', 'permission_callback'=>function(){return current_user_can('upload_files');}, 'callback'=>array(__CLASS__,'import_image') ) ); }
-	public static function import_image( WP_REST_Request $request ) { if ( ! Digitalisimo_AI::get( 'mcp_featured_image_enabled' ) ) return new WP_Error( 'mcp_images_disabled', 'La carga de imágenes destacadas por MCP está desactivada.', array( 'status' => 403 ) );
+	/** Imagen destacada por MCP: siempre disponible (sin interruptor desde el 2026-11-27); exige `upload_files` y editar el contenido. */
+	public static function import_image( WP_REST_Request $request ) {
 		$post_id=absint($request->get_param('post_id')); if(!$post_id||!get_post($post_id)){ $posts=get_posts(array('numberposts'=>1,'post_type'=>'post','post_status'=>'publish','orderby'=>'date','order'=>'DESC','author'=>get_current_user_id()?:0)); $post_id=!empty($posts)?$posts[0]->ID:0; }
 		// La imagen sólo se adjunta y se pone como destacada en un contenido que este usuario puede editar.
 		if($post_id&&!current_user_can('edit_post',$post_id))return new WP_Error('digitalisimo_image_post','No puedes editar el contenido indicado.',array('status'=>403));

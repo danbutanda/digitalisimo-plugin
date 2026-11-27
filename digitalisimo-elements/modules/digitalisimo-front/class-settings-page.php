@@ -13,8 +13,8 @@ defined( 'ABSPATH' ) || exit;
  *   sitio en el momento; lo de «Privacidad» no transita: no vacía cachés.
  * - **Red:** los valores que heredan los sitios (`Settings::network_fields()` y `Settings::network_privacy_fields()`),
  *   sin «Heredar de la red». Guardar sólo escribe la opción de red: cada sitio aplica en sus propias peticiones.
- * - **«WooCommerce en el MCP»**, al final de las dos: la sección de `Woo\Mcp\Settings_Section`, con su formulario, su
- *   acción y su nonce propios (no transita ni vacía cachés), si el módulo de WooCommerce la trae.
+ * - **«MCP de este sitio»**, al final de las dos: la sección de `Mcp\Access` (acceso total, sin modos; en el sitio, la
+ *   única opción «Mostrar el prompt para vincular», con su formulario, su acción y su nonce propios; en la red, una nota).
  *
  * Seguridad (R14): acciones distintas para sitio y red, cada una con su nonce (acción y sitio, o acción y red);
  * capacidad por acción, nunca por un parámetro de contexto (`manage_options` en el sitio; `is_multisite()` y
@@ -174,7 +174,7 @@ final class Settings_Page {
 		echo '</form>';
 		self::render_icons();
 		Global_Weight::render_section();
-		self::render_woo_mcp( false );
+		self::render_mcp( false );
 		if ( is_multisite() ) {
 			self::inherit_script();
 		}
@@ -204,16 +204,13 @@ final class Settings_Page {
 		echo '<p><button type="submit" class="button button-primary">' . esc_html( 'Guardar valores de red' ) . '</button></p>';
 		echo '</form>';
 		echo '<p class="description">' . esc_html( 'Los iconos en línea nunca se aplican sin análisis. El análisis no ve el PHP ni las hojas de los temas y plugins: cada sitio muestra sus hallazgos en su pantalla y su administrador puede aplicarlos o revertirlos allí.' ) . '</p>';
-		self::render_woo_mcp( true );
+		self::render_mcp( true );
 		echo '</div>';
 	}
 
-	/**
-	 * Sección «WooCommerce en el MCP» (`Woo\Mcp\Settings_Section`, con su propio formulario y su nonce), si el módulo
-	 * de WooCommerce la trae. Va antes del script de herencia, que también deshabilita su desplegable heredado.
-	 */
-	private static function render_woo_mcp( bool $network ): void {
-		$section = '\\Digitalisimo\\Elements\\Woo\\Mcp\\Settings_Section';
+	/** Sección «MCP de este sitio» (`Mcp\Access`, con su propio formulario y su nonce), si el módulo MCP la trae. */
+	private static function render_mcp( bool $network ): void {
+		$section = '\\Digitalisimo\\Elements\\Mcp\\Access';
 		if ( class_exists( $section ) && method_exists( $section, 'render' ) ) {
 			call_user_func( array( $section, 'render' ), $network );
 		}
