@@ -41,6 +41,7 @@ require_once __DIR__ . '/modules/digitalisimo-marca/class-front-layer.php';
 // define constantes que se usan después de plugins_loaded).
 require_once __DIR__ . '/modules/digitalisimo-marca/class-addons.php';
 require_once __DIR__ . '/modules/digitalisimo-marca/class-package.php';
+require_once __DIR__ . '/modules/digitalisimo-marca/class-editor-layer.php';
 \Digitalisimo\Elements\Marca\Package::boot();
 register_activation_hook( __FILE__, array( 'Digitalisimo_Elements_Core', 'activate' ) );
 // La lista de opciones que se piden juntas es una caché: se borra al desactivar.

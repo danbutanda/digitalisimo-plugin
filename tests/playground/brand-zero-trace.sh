@@ -8,6 +8,10 @@
 #   PROTO=1        además el prototipo de la capa del front (scripts/marca-prototipo/buffer.php) con el espejo generado
 #                  por scripts/marca-espejo.mjs en la copia del plugin
 #   MOTOR=1        el núcleo en `motor/` como en el ZIP de la D-9 (scripts/marca-prototipo/zip-motor.sh); implica el espejo
+#   PAQUETE=1      el paquete transformado de verdad (scripts/marca-empaquetar.mjs sobre la copia, lo que hace
+#                  build-packages.sh con MARCA_PAQUETE=1); con MARCA=on se habilita la marca con el paquete transformado
+#                  (filtro digitalisimo_elements_marca_editor_ready) y se recorre el editor: abrir, editar, guardar y
+#                  publicar. Con MARCA=off, los originales se despliegan en uploads/ y todo funciona como hoy.
 #   ELEMENTS_DIR   Elements a auditar (por defecto digitalisimo-elements/ del repositorio; se copia), p. ej. un
 #                  `git archive` de origin/main para el «antes»
 #   PHP            versión de PHP de Playground (8.2)
@@ -22,7 +26,11 @@ mkdir -p "$OUT" "$TMPDIR"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 PORT="${PORT:-9651}"
 case "$PORT" in 965[0-9]) ;; *) echo "brand-zero-trace.sh usa el bloque 9650–9659"; exit 1;; esac
-PUPPETEER_PATH="${PUPPETEER_PATH:-$(ls -d "$HOME"/.npm/_npx/*/node_modules 2>/dev/null | while read -r d; do [ -d "$d/puppeteer-core" ] && echo "$d" && break; done)}"
+PUPPETEER_PATH="${PUPPETEER_PATH:-$(ls -d "$HOME"/.npm/_npx/*/node_modules 2>/dev/null | while read -r d; do [ -d "$d/puppeteer-core" ] && echo "$d" && break; done || true)}"
+if [ -z "$PUPPETEER_PATH" ]; then
+  echo "Instalando puppeteer-core 25.12.0 en la carpeta temporal…"
+  npm install --silent --no-audit --no-fund --prefix "$TMPDIR/pptr" puppeteer-core@25.12.0 >/dev/null 2>&1 && PUPPETEER_PATH="$TMPDIR/pptr/node_modules"
+fi
 [ -n "$PUPPETEER_PATH" ] || { echo "No se encontró puppeteer-core: exportar PUPPETEER_PATH"; exit 1; }
 export PUPPETEER_PATH
 SERVER=''
@@ -34,6 +42,10 @@ rm -rf "$OUT/src" "$OUT/probe" && mkdir -p "$OUT/src" "$OUT/probe"
 cp -a "${ELEMENTS_DIR:-$ROOT/digitalisimo-elements}" "$OUT/src/digitalisimo-elements"
 rm -rf "$OUT/src/digitalisimo-elements/bdthemes-element-pack"
 PROTO="${PROTO:-}"
+if [ "${PAQUETE:-}" = 1 ]; then
+  node "$ROOT/scripts/marca-empaquetar.mjs" "$OUT/src/digitalisimo-elements" | tee "$OUT/paquete.txt"
+  PROTO=''; MOTOR=''
+fi
 if [ "${MOTOR:-}" = 1 ]; then
   mv "$OUT/src/digitalisimo-elements/elementor" "$OUT/src/digitalisimo-elements/motor"
   rm -f "$OUT/src/digitalisimo-elements/motor/readme.txt"
@@ -44,7 +56,7 @@ if [ "$PROTO" = 1 ]; then
   cp "$ROOT/scripts/marca-prototipo/buffer.php" "$D/proto.php" "$OUT/probe/"
 fi
 cp "$D/setup.php" "$D/probe.php" "$OUT/probe/"
-printf '{"marca":"%s","proto":%s}\n' "${MARCA:-on}" "$([ "$PROTO" = 1 ] && echo true || echo false)" > "$OUT/probe/options.json"
+printf '{"marca":"%s","proto":%s,"paquete":%s}\n' "${MARCA:-on}" "$([ "$PROTO" = 1 ] && echo true || echo false)" "$([ "${PAQUETE:-}" = 1 ] && echo true || echo false)" > "$OUT/probe/options.json"
 php="${PHP:-8.2}"
 cat > "$OUT/blueprint.json" <<JSON
 {"preferredVersions":{"php":"$php","wp":"latest"},"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"WP_ENVIRONMENT_TYPE":"local"}},{"step":"runPHP","code":"<?php require '/digi-probe/setup.php';"}]}
@@ -61,7 +73,7 @@ for i in $(seq 1 400); do
   if [ -s "$OUT/probe/setup.json" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' -m 60 "http://$host/?rest_route=%2F")" = 200 ]; then ready=1; break; fi
 done
 [ "$ready" = 1 ] || { echo "El sitio no quedó listo"; cat "$OUT/probe/setup-error.txt" 2>/dev/null || true; tail -20 "$OUT/server.log"; exit 1; }
-echo "Sitio listo (marca ${MARCA:-on}, prototipo ${PROTO:-0}, motor ${MOTOR:-0}): $(cat "$OUT/probe/setup.json")"
+echo "Sitio listo (marca ${MARCA:-on}, prototipo ${PROTO:-0}, motor ${MOTOR:-0}, paquete ${PAQUETE:-0}): $(cat "$OUT/probe/setup.json")"
 status=0
 node "$D/run.cjs" "$PORT" "$host" "$OUT/probe" || status=1
 cp "$OUT/probe/result.json" "$OUT/result.json" 2>/dev/null || true

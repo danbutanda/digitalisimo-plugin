@@ -20,8 +20,8 @@ const http = require('http');
 const path = require('path');
 const [port, host, dir] = process.argv.slice(2);
 const puppeteer = require(path.join(process.env.PUPPETEER_PATH || '', 'puppeteer-core'));
-const setup = JSON.parse(fs.readFileSync(`${dir}/probe/setup.json`, 'utf8'));
-const secret = () => JSON.parse(fs.readFileSync(`${dir}/probe/secrets.json`, 'utf8')).password;
+const setup = JSON.parse(fs.readFileSync(`${dir}/setup.json`, 'utf8'));
+const secret = () => JSON.parse(fs.readFileSync(`${dir}/secrets.json`, 'utf8')).password;
 const base = `http://${host}`;
 const count = (t) => (String(t || '').match(/elementor/gi) || []).length;
 const capas = {};
@@ -141,6 +141,52 @@ async function mcp() {
     add(`${layer}_texto`, count(media(text).replace(/guía de Elementor/g, '')), `${p}: ` + snippets(text));
     add(`${layer}_html`, count(html), `${p} (${count(html)})`);
   }
+  // Editor: abrir, editar, guardar y publicar. Con la marca encendida y el paquete transformado (PAQUETE=1) es la
+  // validación de la D-12; en las otras variantes, la línea de base. El contenido del cliente («guía de Elementor») tiene
+  // que quedar igual en la base de datos y la plantilla de página (`elementor_canvas`) también.
+  const auth = `Basic ${Buffer.from(`admin:${secret()}`).toString('base64')}`;
+  const meta = async (id) => (await request('GET', `/?rest_route=${encodeURIComponent(`/digi-zt/v1/meta/${id}`)}`, { headers: { Authorization: auth } })).json || {};
+  async function editor(id, cmd, text, tag) {
+    const errs = [];
+    const onErr = (e) => errs.push(String(e.message || e));
+    const onCon = (m) => { if (m.type() === 'error' && !/favicon|Failed to load resource: the server responded with a status of 404/.test(m.text())) errs.push(m.text()); };
+    page.on('pageerror', onErr);
+    page.on('console', onCon);
+    const failed = [];
+    const onResp = (r) => { if (r.status() >= 400 && r.url().startsWith(base) && !/favicon/.test(r.url())) failed.push(`${r.status()} ${r.url().replace(base, '')}`); };
+    page.on('response', onResp);
+    await page.goto(`${base}/wp-admin/post.php?post=${id}&action=elementor`, { waitUntil: 'networkidle2', timeout: 240000 }).catch(() => null);
+    const ready = await page.waitForFunction(() => { const E = window.digitalisimo || window.elementor; try { return !!(E && window.$e && E.documents && E.documents.getCurrent() && E.getContainer && E.getPreviewView && E.getPreviewView()); } catch (e) { return false; } }, { timeout: 180000 }).then(() => true).catch(() => false);
+    check(`E1-${tag}`, ready, `el editor abre (${tag})`, errs.concat(failed).join(' | '));
+    let saved = 'sin abrir';
+    if (ready) {
+      saved = await page.evaluate(async (cmd, text) => {
+        const E = window.digitalisimo || window.elementor;
+        const c = E.getContainer('b0000a2');
+        if (!c) return 'no se encontró el botón en el documento';
+        window.$e.run('document/elements/settings', { container: c, settings: { text } });
+        try { await window.$e.run(cmd); } catch (e) { return 'guardar: ' + (e && e.message ? e.message : String(e)); }
+        return 'ok';
+      }, cmd, text).catch((e) => String(e));
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+    check(`E2-${tag}`, saved === 'ok', `editar y guardar con ${cmd} (${tag})`, saved + ' · ' + errs.concat(failed).join(' | '));
+    const m = await meta(id);
+    const data = String(m.data || '');
+    check(`E3-${tag}`, data.includes(text) && /gu(\\u00ed|í)a de Elementor/.test(data), `lo editado quedó guardado y el contenido del cliente igual (${tag})`, data.slice(0, 600));
+    check(`E4-${tag}`, !/digitalisimo_|data-dg-|"dg-|_dg_/.test(data) && /"widgetType":"heading"/.test(data), `ningún nombre de la marca dentro de los datos guardados (${tag})`, data.slice(0, 600));
+    check(`E5-${tag}`, errs.length === 0, `sin errores de consola en el editor (${tag})`, errs.slice(0, 8).join(' | '));
+    page.off('pageerror', onErr);
+    page.off('console', onCon);
+    page.off('response', onResp);
+    return m;
+  }
+  await editor(setup.page, 'document/save/update', 'Comprar ahora', 'editar');
+  const draft = await editor(setup.draft, 'document/save/publish', 'Publicado', 'publicar');
+  check('E6', draft.status === 'publish' && draft.template === 'elementor_canvas', 'el borrador quedó publicado con su plantilla de página', JSON.stringify({ status: draft.status, template: draft.template }));
+  const front = await request('GET', `/?page_id=${setup.page}`);
+  check('E7', front.status === 200 && front.text.includes('Comprar ahora'), 'el front muestra lo editado');
+
   await browser.close();
   const result = { capas, checks, failures: checks.filter((c) => !c.ok).length };
   fs.writeFileSync(`${dir}/result.json`, JSON.stringify(result, null, 1));

@@ -19,6 +19,11 @@ add_action(
 		if ( ! class_exists( '\Digitalisimo\Elements\Marca\Toggle' ) || ! \Digitalisimo\Elements\Marca\Toggle::active() ) {
 			return;
 		}
+		// Desde la fase 2 la capa de verdad (Marca\Front_Layer) corre sola con el espejo: el prototipo sólo hace falta
+		// para auditar una versión sin ella.
+		if ( class_exists( '\Digitalisimo\Elements\Marca\Front_Layer' ) ) {
+			return;
+		}
 		$rules  = json_decode( (string) file_get_contents( WP_PLUGIN_DIR . '/digitalisimo-elements/marca/reglas.json' ), true );
 		$core   = class_exists( 'Digitalisimo_Elements_Core' ) ? basename( rtrim( Digitalisimo_Elements_Core::dir(), '/' ) ) : 'elementor';
 		$plugin = plugins_url( '/', WP_PLUGIN_DIR . '/digitalisimo-elements/pro-elements.php' );

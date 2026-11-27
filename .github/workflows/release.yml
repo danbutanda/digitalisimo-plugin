@@ -630,6 +630,9 @@ jobs:
           php tests/elements-marca-front.php
           php tests/elements-marca-package.php
           node tests/elements-marca-reglas.mjs
+          # El JS transformado y lo que el servidor transforma al vuelo dan lo mismo (D-12), y el vocabulario del editor está al día.
+          node tests/elements-marca-paridad.mjs
+          node tests/elements-marca-vocabulario.mjs
           # La auditoría de cero rastro completa falla hasta la fase 2 (se corre a mano con el ZIP y el Playground); aquí, sus excepciones internas justificadas.
           node tests/brand-zero-trace.mjs --solo-sitio
           php tests/elements-f7b-presentation.php

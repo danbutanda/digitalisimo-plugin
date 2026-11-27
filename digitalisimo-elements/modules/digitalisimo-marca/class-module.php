@@ -12,6 +12,7 @@ require_once __DIR__ . '/class-settings-section.php';
 require_once __DIR__ . '/class-transform.php';
 require_once __DIR__ . '/class-front-layer.php';
 require_once __DIR__ . '/class-package.php';
+require_once __DIR__ . '/class-editor-layer.php';
 
 /**
  * Marca propia (docs/MARCA_PROPIA.md): cero rastro de «elementor» en lo que sale, sin editar `elementor/`.
@@ -27,5 +28,6 @@ final class Module {
 		Rest_Index::init();
 		Settings_Section::init();
 		Front_Layer::init();
+		Editor_Layer::init();
 	}
 }

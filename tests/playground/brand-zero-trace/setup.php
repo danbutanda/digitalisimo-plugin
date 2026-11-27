@@ -46,6 +46,13 @@ try {
 	update_post_meta( $page, '_elementor_template_type', 'wp-page' );
 	update_post_meta( $page, '_elementor_version', defined( 'ELEMENTOR_VERSION' ) ? ELEMENTOR_VERSION : '4.3.5' );
 	update_post_meta( $page, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
+	// Un borrador para publicarlo desde el editor.
+	$draft = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'digi-zt-borrador', 'post_name' => 'digi-zt-borrador' ) );
+	update_post_meta( $draft, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $draft, '_elementor_template_type', 'wp-page' );
+	update_post_meta( $draft, '_elementor_version', defined( 'ELEMENTOR_VERSION' ) ? ELEMENTOR_VERSION : '4.3.5' );
+	update_post_meta( $draft, '_elementor_data', wp_slash( wp_json_encode( array( $data[0] ) ) ) );
+	update_post_meta( $draft, '_wp_page_template', 'elementor_canvas' );
 	update_option( 'show_on_front', 'page' );
 	update_option( 'page_on_front', $page );
 	$admin = get_user_by( 'login', 'admin' );
@@ -55,7 +62,7 @@ try {
 		throw new RuntimeException( 'Sin contraseña de aplicación: ' . $created->get_error_message() );
 	}
 	file_put_contents( $dir . '/secrets.json', wp_json_encode( array( 'password' => $created[0] ) ) );
-	file_put_contents( $dir . '/setup.json', wp_json_encode( array( 'page' => $page, 'image' => $url, 'core' => class_exists( 'Digitalisimo_Elements_Core' ) ? Digitalisimo_Elements_Core::dir() : '', 'versions' => 'WordPress ' . $GLOBALS['wp_version'] . ' · PHP ' . PHP_VERSION ) ) );
+	file_put_contents( $dir . '/setup.json', wp_json_encode( array( 'page' => $page, 'draft' => $draft, 'image' => $url, 'core' => class_exists( 'Digitalisimo_Elements_Core' ) ? Digitalisimo_Elements_Core::dir() : '', 'versions' => 'WordPress ' . $GLOBALS['wp_version'] . ' · PHP ' . PHP_VERSION ) ) );
 } catch ( Throwable $e ) {
 	file_put_contents( $dir . '/setup-error.txt', $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine() );
 }

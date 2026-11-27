@@ -102,7 +102,9 @@ final class Front_Layer {
 		if ( null === $data && 'null' !== trim( $out ) ) {
 			return false !== strpos( $out, '<' ) ? Transform::html( $out ) : $out;
 		}
-		$json = wp_json_encode( Transform::deep_html( $data ) );
+		// Los datos con las mismas reglas que el JS transformado (D-12): HTML por la capa, identificadores y URL por las
+		// reglas, el contenido de los elementos igual.
+		$json = wp_json_encode( Transform::json_out( $data ) );
 		return is_string( $json ) ? $json : $out;
 	}
 

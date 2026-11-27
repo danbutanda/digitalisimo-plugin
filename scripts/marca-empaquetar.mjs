@@ -16,7 +16,7 @@
 //        ejecución.
 //   3. `marca/indice.php`: ruta original → ruta publicada (o null si no se publica), para el sitio con la marca apagada
 //      (despliega los originales en una carpeta neutra) y para la auditoría.
-//   4. `marca/reglas.php` en lugar de `marca/reglas.json`.
+//   4. `marca/reglas.php` y `marca/vocabulario.php` en lugar de los .json.
 //   5. `marca/arbol.php`: huella del árbol transformado (mismo algoritmo que scripts/elementor-core-tree.py), que el sitio
 //      puede comprobar.
 // Uso: node scripts/marca-empaquetar.mjs <copia>/digitalisimo-elements [--json]
@@ -98,6 +98,11 @@ closeSync(fd);
 writeFileSync(join(dir, 'marca/indice.php'), php(index));
 writeFileSync(join(dir, 'marca/reglas.php'), php(rules));
 rmSync(join(dir, 'marca/reglas.json'), { force: true });
+// El vocabulario del editor (scripts/marca-vocabulario.mjs): también como PHP, que pedido por URL no se sirve.
+if (existsSync(join(dir, 'marca/vocabulario.json'))) {
+  writeFileSync(join(dir, 'marca/vocabulario.php'), php(JSON.parse(readFileSync(join(dir, 'marca/vocabulario.json'), 'utf8'))));
+  rmSync(join(dir, 'marca/vocabulario.json'));
+}
 
 // Huella del árbol transformado (sin arbol.php).
 const list = walk(dir).map((f) => relative(dir, f).split('\\').join('/')).filter((r) => r !== 'marca/arbol.php').sort()

@@ -108,6 +108,11 @@ final class Package {
 		add_filter( 'script_loader_src', array( __CLASS__, 'asset_src' ), 1 );
 		add_filter( 'load_script_translation_file', array( __CLASS__, 'translation_file' ), 20, 3 );
 		add_action( 'upgrader_process_complete', array( __CLASS__, 'after_update' ), 20, 2 );
+		// El JS transformado abre la vista previa del editor con `dg-preview` (D-12): se traduce antes de que el núcleo
+		// mire la petición.
+		if ( 'on' === self::mode() && class_exists( Editor_Layer::class ) ) {
+			Editor_Layer::preview_request();
+		}
 	}
 
 	/** URL base del plugin (…/plugins/<carpeta>/). */

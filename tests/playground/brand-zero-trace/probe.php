@@ -7,6 +7,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 add_filter( 'wp_is_application_passwords_available', '__return_true' );
+// PAQUETE=1 con MARCA=on: la marca propia con el paquete transformado (Toggle la deja «no disponible» hasta validar el
+// editor, D-12); esta prueba es esa validación.
+$digi_zt_opts = json_decode( (string) @file_get_contents( '/digi-probe/options.json' ), true ) ?: array();
+if ( ! empty( $digi_zt_opts['paquete'] ) && 'on' === ( $digi_zt_opts['marca'] ?? '' ) ) {
+	add_filter( 'digitalisimo_elements_marca_editor_ready', '__return_true' );
+}
 add_filter( 'pre_wp_mail', '__return_true' );
 add_filter(
 	'pre_http_request',
@@ -23,5 +29,26 @@ register_shutdown_function(
 		if ( $e && in_array( $e['type'], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR ), true ) ) {
 			file_put_contents( '/digi-probe/fatal.log', ( $_SERVER['REQUEST_URI'] ?? '' ) . ' ' . $e['message'] . ' en ' . $e['file'] . ':' . $e['line'] . "\n", FILE_APPEND );
 		}
+	}
+);
+// Lo que el editor dejó guardado (para la prueba del editor de run.cjs): datos, estado y plantilla, con la contraseña
+// de aplicación del administrador.
+add_action(
+	'rest_api_init',
+	static function () {
+		register_rest_route(
+			'digi-zt/v1',
+			'/meta/(?P<id>\\d+)',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => static function () {
+					return current_user_can( 'manage_options' );
+				},
+				'callback'            => static function ( $r ) {
+					$id = (int) $r['id'];
+					return array( 'data' => (string) get_post_meta( $id, '_elementor_data', true ), 'status' => get_post_status( $id ), 'template' => (string) get_post_meta( $id, '_wp_page_template', true ) );
+				},
+			)
+		);
 	}
 );
