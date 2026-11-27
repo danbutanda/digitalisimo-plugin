@@ -175,6 +175,7 @@ final class Settings_Page {
 		self::render_icons();
 		Global_Weight::render_section();
 		self::render_woo_mcp( false );
+		self::render_marca( false );
 		if ( is_multisite() ) {
 			self::inherit_script();
 		}
@@ -205,6 +206,7 @@ final class Settings_Page {
 		echo '</form>';
 		echo '<p class="description">' . esc_html( 'Los iconos en línea nunca se aplican sin análisis. El análisis no ve el PHP ni las hojas de los temas y plugins: cada sitio muestra sus hallazgos en su pantalla y su administrador puede aplicarlos o revertirlos allí.' ) . '</p>';
 		self::render_woo_mcp( true );
+		self::render_marca( true );
 		echo '</div>';
 	}
 
@@ -214,6 +216,14 @@ final class Settings_Page {
 	 */
 	private static function render_woo_mcp( bool $network ): void {
 		$section = '\\Digitalisimo\\Elements\\Woo\\Mcp\\Settings_Section';
+		if ( class_exists( $section ) && method_exists( $section, 'render' ) ) {
+			call_user_func( array( $section, 'render' ), $network );
+		}
+	}
+
+	/** Sección «Marca propia en el sitio» (`Marca\Settings_Section`, su propio formulario y su nonce), si está cargada. */
+	private static function render_marca( bool $network ): void {
+		$section = '\\Digitalisimo\\Elements\\Marca\\Settings_Section';
 		if ( class_exists( $section ) && method_exists( $section, 'render' ) ) {
 			call_user_func( array( $section, 'render' ), $network );
 		}

@@ -19,6 +19,8 @@ final class Digitalisimo_Elements_Identity {
 	const PALETTE_DARK    = 'digitalisimo-elements-palette-dark';
 	const PALETTE_PREVIEW = 'digitalisimo-elements-palette-preview';
 	const DOMAINS = array( 'elementor', 'elementor-pro' );
+	/** Nombre propio del experimento de elementos atómicos (D-4). */
+	const ATOMIC  = 'Componentes atómicos DIGITALÍSIMO';
 
 	/** Patrones (sin delimitadores, compartidos con JavaScript) y su sustitución, en orden. */
 	const RULES = array(
@@ -40,11 +42,10 @@ final class Digitalisimo_Elements_Identity {
 		add_filter( 'gettext_with_context', array( __CLASS__, 'gettext_with_context' ), 20, 4 );
 		add_filter( 'ngettext', array( __CLASS__, 'ngettext' ), 20, 5 );
 		add_filter( 'ngettext_with_context', array( __CLASS__, 'ngettext_with_context' ), 20, 6 );
-		if ( did_action( 'wp_default_scripts' ) && function_exists( 'wp_scripts' ) ) {
-			self::script_filters( wp_scripts() );
-		} else {
-			add_action( 'wp_default_scripts', array( __CLASS__, 'script_filters' ), 20 );
-		}
+		// El filtro de wp.i18n sólo donde hace falta: escritorio, editor y su vista previa, y la barra de administración.
+		// Un visitante del front no lo recibe (docs/MARCA_PROPIA.md: cero rastro en lo que sale).
+		add_action( 'admin_init', array( __CLASS__, 'attach_script_filters' ), 1 );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'attach_front_script_filters' ), 0 );
 		foreach ( array( 'admin_enqueue_scripts', 'elementor/editor/after_enqueue_styles', 'elementor/app/init' ) as $hook ) {
 			add_action( $hook, array( __CLASS__, 'enqueue_style' ) );
 		}
@@ -86,7 +87,28 @@ final class Digitalisimo_Elements_Identity {
 	}
 
 	public static function gettext( $translation, $text, $domain ) {
-		return in_array( $domain, self::DOMAINS, true ) && ! self::external_header( $text ) ? self::brand( $translation ) : $translation;
+		if ( ! in_array( $domain, self::DOMAINS, true ) || self::external_header( $text ) ) {
+			return $translation;
+		}
+		return self::brand( self::experiment( $translation, $text ) );
+	}
+
+	/**
+	 * El experimento «Atomic Widgets» se presenta como «Componentes atómicos DIGITALÍSIMO» (D-4 de docs/MARCA_PROPIA.md):
+	 * su título y las descripciones de PRO que lo citan entre comillas, en inglés o traducidos. Su identificador
+	 * (`e_atomic_elements`) no cambia.
+	 */
+	public static function experiment( $translation, $text = '' ) {
+		if ( ! is_string( $translation ) ) {
+			return $translation;
+		}
+		if ( 'Atomic Widgets' === $text ) {
+			return self::ATOMIC;
+		}
+		if ( false === strpos( $translation, 'Atomic Widgets' ) && false === stripos( $translation, 'Widgets atómicos' ) ) {
+			return $translation;
+		}
+		return (string) preg_replace( '/(["“«])(?:Atomic Widgets|[Ww]idgets atómicos)(["”»])/u', '$1' . self::ATOMIC . '$2', $translation );
 	}
 
 	/**
@@ -143,11 +165,32 @@ final class Digitalisimo_Elements_Identity {
 		return in_array( $domain, self::DOMAINS, true ) ? self::brand( $translation ) : $translation;
 	}
 
+	/** En el escritorio (también el editor, que es `post.php`). */
+	public static function attach_script_filters() {
+		if ( function_exists( 'wp_scripts' ) ) {
+			self::script_filters( wp_scripts() );
+		}
+	}
+
+	/** En el front, sólo con la barra de administración o dentro de la vista previa del editor. */
+	public static function attach_front_script_filters() {
+		$preview = isset( $_GET['elementor-preview'] ) || ( function_exists( 'is_preview' ) && is_preview() ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide si se adjunta un filtro de textos.
+		if ( ( $preview || ( function_exists( 'is_admin_bar_showing' ) && is_admin_bar_showing() ) ) && function_exists( 'wp_scripts' ) ) {
+			self::script_filters( wp_scripts() );
+		}
+	}
+
 	/**
 	 * Los scripts traducen con wp.i18n, que aplica los filtros `i18n.*` de wp.hooks a cada texto, con o sin
 	 * archivo de traducción: el mismo cambio de marca llega a todas sus pantallas y a cualquier idioma.
 	 */
 	public static function script_filters( $scripts ) {
+		static $done = array();
+		$key = function_exists( 'spl_object_id' ) && is_object( $scripts ) ? spl_object_id( $scripts ) : 0;
+		if ( isset( $done[ $key ] ) ) {
+			return;
+		}
+		$done[ $key ] = true;
 		$js = '(function(h){if(!h||!h.addFilter){return;}' . self::js_brand() . '["elementor","elementor-pro"].forEach(function(d){["i18n.gettext_","i18n.gettext_with_context_","i18n.ngettext_","i18n.ngettext_with_context_"].forEach(function(f){h.addFilter(f+d,"digitalisimo/identity",b);});});'
 			. '})(window.wp&&window.wp.hooks);';
 		$scripts->add_inline_script( 'wp-i18n', $js, 'after' );

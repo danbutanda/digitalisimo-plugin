@@ -130,7 +130,7 @@ final class Settings_Section {
 			}
 			$what .= $names ? ' (escriben: ' . implode( '; ', $names ) . ')' : ' (ninguna marcada: todo queda en sólo lectura)';
 		}
-		return 'En vigor en este sitio: ' . $what . '. Servidor MCP: ' . rest_url( 'elementor/mcp' );
+		return 'En vigor en este sitio: ' . $what . '. Servidor MCP: ' . rest_url( 'digitalisimo/mcp' );
 	}
 
 	private static function render_notice(): void {
