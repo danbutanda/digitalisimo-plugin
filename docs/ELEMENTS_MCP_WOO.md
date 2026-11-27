@@ -181,7 +181,7 @@ responde `allowed` (si este sitio dejaría hacerlo) con `reason` si no, y `would
   dinero con `api_refund`).
 - delete: el objeto (campos de identificación, sin datos personales) y si va a la papelera o se borra para siempre.
 - batch: recuento por lista y la diferencia de cada update (un GET por elemento, 100 como mucho).
-- undo: lo que se revertiría, o el conflicto.
+- undo: lo que se revertiría o, si no se desharía (conflicto, ya deshecho, sin deshacer), `allowed: false`, `would: null` y el motivo en `reason`, sin error.
 Nunca hace `POST`, `PUT` ni `DELETE`, ni deja entrada en la bitácora. Un secreto sale como la máscara también aquí.
 Skydropx no tiene simulación (sus acciones validan todo antes de escribir y responden qué hicieron): queda pendiente.
 
@@ -202,8 +202,10 @@ capacidad de la acción inversa (editar para un update; borrar para un create o 
 antes que nadie lo cambió:
 - update: cada clave debe seguir con el valor «después»; si no, no toca nada y dice qué campos cambiaron (409).
 - create: un producto o un cupón va a la papelera si no cambió desde que se creó; una variación (sin papelera) se borra
-  sólo en ese caso; una categoría, etiqueta, marca, clase de envío o término, sólo si `count` es 0; un atributo, sólo si
-  no tiene términos.
+  sólo en ese caso; una categoría, etiqueta, marca, clase de envío o término, sólo si ningún producto ni variación lo
+  usa en ningún estado (`get_objects_in_term()`: el `count` de la REST sólo cuenta los publicados, comprobado en
+  WooCommerce 11.2.1, así que un borrador, un privado, un pendiente o uno en la papelera lo dejarían sin término) y no
+  tiene hijos (`get_term_children()`); un atributo, sólo si no tiene términos.
 - papelera: `wp_untrash_post()` con el estado que tenía (no el borrador que WordPress pone por defecto), si sigue en la
   papelera y el usuario puede borrarlo (`delete_post`).
 Un cambio se deshace una vez; después la entrada queda marcada (`undone`) y sin valores. `reports` → `changes` lista el

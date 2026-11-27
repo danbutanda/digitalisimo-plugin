@@ -16,7 +16,8 @@ defined( 'ABSPATH' ) || exit;
  *   envío o un cupón: se guardan el valor de antes y el de después **sólo de las claves enviadas**. Al deshacer, si el
  *   valor actual de alguna ya no es el «después» (alguien lo cambió), no se toca nada y se dice cuáles.
  * - **create** de lo mismo: deshacer manda a la papelera un producto o un cupón; una variación se borra (no tiene
- *   papelera) sólo si no cambió desde que se creó; un término o un atributo, sólo si nadie lo usa.
+ *   papelera) sólo si no cambió desde que se creó; un término, sólo si ningún producto lo usa en ningún estado y no
+ *   tiene hijos (`term_in_use()`); un atributo, sólo si no tiene términos.
  * - **delete a la papelera** de un producto o un cupón: deshacer lo saca de la papelera con `wp_untrash_post()` y su
  *   estado anterior.
  * Todo lo demás queda registrado (quién, qué, cuándo) con `undo: false` y el motivo: lotes, pedidos, notas,
@@ -336,8 +337,9 @@ final class Changes {
 			$mode  = 'permanent';
 			$query = array( 'force' => true );
 		} else {
-			if ( ! isset( $current['count'] ) || 0 !== (int) $current['count'] ) {
-				return self::error( 'digitalisimo_woo_mcp_undo_conflict', 'No se deshizo: ya hay productos que lo usan.', 409 );
+			$busy = self::term_in_use( $entry );
+			if ( '' !== $busy ) {
+				return self::error( 'digitalisimo_woo_mcp_undo_conflict', 'No se deshizo: ' . $busy, 409 );
 			}
 			$mode  = 'permanent';
 			$query = array( 'force' => true );
@@ -354,6 +356,47 @@ final class Changes {
 		}
 		list( $status, $data ) = call_user_func( $dispatch, 'DELETE', $route, $query, null );
 		return $status >= 400 ? Executor::woo_error( (int) $status, $data ) : array( 'would' => $would, 'status' => (int) $status, 'data' => Simulation::summary( $data ) );
+	}
+
+	/** Taxonomía de WordPress de cada recurso de término (la de un término de atributo sale de su atributo). */
+	const TAXONOMIES = array(
+		'category'       => 'product_cat',
+		'tag'            => 'product_tag',
+		'brand'          => 'product_brand',
+		'shipping_class' => 'product_shipping_class',
+	);
+
+	/**
+	 * Por qué no se puede borrar un término creado ('' si nadie lo usa). El `count` de la REST sólo cuenta productos
+	 * publicados (WooCommerce 11.2.1): un borrador, uno privado o pendiente, una variación con esa clase de envío o un
+	 * producto en la papelera también lo usan. Se cuentan los objetos de la taxonomía en cualquier estado
+	 * (`get_objects_in_term()`) y los hijos (`get_term_children()`); si no se puede comprobar, no se borra.
+	 */
+	public static function term_in_use( array $entry ): string {
+		$resource = (string) $entry['resource'];
+		$term     = (int) $entry['item'];
+		$taxonomy = self::TAXONOMIES[ $resource ] ?? '';
+		if ( 'attribute_term' === $resource && function_exists( 'wc_attribute_taxonomy_name_by_id' ) && is_int( $entry['parent'] ) ) {
+			$taxonomy = (string) wc_attribute_taxonomy_name_by_id( $entry['parent'] );
+		}
+		if ( '' === $taxonomy || $term <= 0 || ! function_exists( 'get_objects_in_term' ) || ! function_exists( 'get_term_children' ) ) {
+			return 'no se pudo comprobar si algún producto lo usa.';
+		}
+		$objects = get_objects_in_term( $term, $taxonomy );
+		if ( ! is_array( $objects ) ) {
+			return 'no se pudo comprobar si algún producto lo usa.';
+		}
+		if ( $objects ) {
+			return sprintf( 'lo usan %d %s (en cualquier estado: también borradores, privados, pendientes o en la papelera).', count( $objects ), 1 === count( $objects ) ? 'producto o variación' : 'productos o variaciones' );
+		}
+		$children = get_term_children( $term, $taxonomy );
+		if ( ! is_array( $children ) ) {
+			return 'no se pudo comprobar si tiene subcategorías.';
+		}
+		if ( $children ) {
+			return sprintf( 'tiene %d %s.', count( $children ), 1 === count( $children ) ? 'término hijo' : 'términos hijos' );
+		}
+		return '';
 	}
 
 	/** Saca de la papelera un producto o un cupón, con su estado anterior. */

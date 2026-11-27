@@ -241,7 +241,21 @@ final class Executor {
 	 */
 	private static function simulate( string $tool, array $plan, $dispatch ) {
 		if ( 'undo' === $plan['local'] ) {
-			$undo  = Changes::undo( $plan['entry'], $dispatch, true );
+			$undo = Changes::undo( $plan['entry'], $dispatch, true );
+			if ( is_wp_error( $undo ) && in_array( $undo->get_error_code(), array( 'digitalisimo_woo_mcp_undo_conflict', 'digitalisimo_woo_mcp_undo_unavailable', 'digitalisimo_woo_mcp_undo_done' ), true ) ) {
+				// La simulación dice por qué no se desharía, sin tratarlo como un error.
+				return array(
+					'ok'       => true,
+					'tool'     => $tool,
+					'action'   => 'undo',
+					'resource' => $plan['resource'],
+					'dry_run'  => true,
+					'allowed'  => false,
+					'would'    => null,
+					'reason'   => $undo->get_error_message(),
+					'notice'   => 'Simulación: no se cambió nada. Este cambio no se desharía (ver reason).',
+				);
+			}
 			$would = is_wp_error( $undo ) ? $undo : $undo['would'];
 		} else {
 			$would = Simulation::would( $tool, $plan, $dispatch );

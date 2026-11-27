@@ -282,6 +282,17 @@ namespace {
 		}
 		return true;
 	}
+	/** Objetos e hijos de un término en cualquier estado (deshacer la creación de un término, revisión de la tanda B). */
+	function get_objects_in_term( $term, $taxonomy ) {
+		$GLOBALS['wm_term_asked'][] = array( (int) $term, (string) $taxonomy );
+		return $GLOBALS['wm_term_objects'][ $taxonomy ][ (int) $term ] ?? array();
+	}
+	function get_term_children( $term, $taxonomy ) {
+		return $GLOBALS['wm_term_children'][ $taxonomy ][ (int) $term ] ?? array();
+	}
+	function wc_attribute_taxonomy_name_by_id( $id ) {
+		return 3 === (int) $id ? 'pa_color' : '';
+	}
 	/** Entradas de WordPress en memoria (sólo para sacar de la papelera al deshacer). */
 	function get_post( $id ) {
 		return $GLOBALS['wm_posts'][ $id ] ?? null;
@@ -1316,8 +1327,10 @@ namespace {
 			$R['POST /wc/v3/products/categories'] = array( 201, array( 'id' => 9, 'name' => 'Bombas', 'count' => 0 ), array() );
 			$cat = $run( 'catalog', array( 'action' => 'create', 'resource' => 'category', 'data' => array( 'name' => 'Bombas' ) ) );
 			$R['GET /wc/v3/products/categories/9'] = array( 200, array( 'id' => 9, 'count' => 2 ), array() );
+			$GLOBALS['wm_term_objects'] = array( 'product_cat' => array( 9 => array( 70, 71 ) ) );
 			$busy = $run( 'catalog', array( 'action' => 'undo', 'change_id' => $cat['change']['id'] ) );
 			review( 'B3-deshacer', is_wp_error( $busy ) && 'digitalisimo_woo_mcp_undo_conflict' === $busy->get_error_code(), 'Una categoría con productos no se borra al deshacer.' );
+			$GLOBALS['wm_term_objects'] = array();
 			$R['GET /wc/v3/products/categories/9'] = array( 200, array( 'id' => 9, 'count' => 0 ), array() );
 			$GLOBALS['wm_rest'] = array();
 			$undo = $run( 'catalog', array( 'action' => 'undo', 'change_id' => $cat['change']['id'] ) );
@@ -1386,6 +1399,47 @@ namespace {
 				Changes::add( array( 'id' => sprintf( '%016x', $i ), 'time' => gmdate( 'Y-m-d\TH:i:s\Z' ), 'tool' => 'products' ) );
 			}
 			review( 'B3-deshacer', Changes::MAX === count( get_option( Changes::OPTION ) ), 'Últimas 50.' );
+		}
+	);
+
+	// Revisión de la tanda B (coordinador, 2026-11-26): deshacer la creación de un término lo borraba aunque lo usara un borrador (el count de la
+	// REST sólo cuenta publicados). Fallaba con 3120eed2.
+	review_block(
+		'B3-rev-terminos',
+		static function () use ( $run, $assistant ) {
+			$caps = array( 'edit_products', 'publish_products', 'delete_products', 'read_private_products', 'edit_others_products', 'edit_product_terms', 'delete_product_terms', 'manage_product_terms', 'manage_woocommerce' );
+			wm_reset( array( 'caps' => $caps, 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'write', 'own' => array( 'mode' ) ) ) ) );
+			$R = &$GLOBALS['wm_rest_responses'];
+			$R = array();
+			$GLOBALS['wm_rest'] = array();
+			$GLOBALS['wm_term_objects']  = array();
+			$GLOBALS['wm_term_children'] = array();
+			$GLOBALS['wm_term_asked']    = array();
+			$R['POST /wc/v3/products/categories'] = array( 201, array( 'id' => 19, 'name' => 'Ofertas', 'count' => 0 ), array() );
+			$cat = $run( 'catalog', array( 'action' => 'create', 'resource' => 'category', 'data' => array( 'name' => 'Ofertas' ) ) );
+			$R['GET /wc/v3/products/categories/19'] = array( 200, array( 'id' => 19, 'count' => 0 ), array() );
+			$GLOBALS['wm_term_objects'] = array( 'product_cat' => array( 19 => array( 501 ) ) );
+			$GLOBALS['wm_rest'] = array();
+			$dry = $run( 'catalog', array( 'action' => 'undo', 'change_id' => $cat['change']['id'], 'dry_run' => true ) );
+			review( 'B3-rev-terminos', is_array( $dry ) && true === $dry['dry_run'] && false === $dry['allowed'] && null === $dry['would'] && false !== strpos( (string) ( $dry['reason'] ?? '' ), 'borradores' ), 'dry_run de deshacer: no lo borraría y dice que un borrador lo usa: ' . json_encode( is_wp_error( $dry ) ? $dry->get_error_message() : $dry, JSON_UNESCAPED_UNICODE ) );
+			$busy = $run( 'catalog', array( 'action' => 'undo', 'change_id' => $cat['change']['id'] ) );
+			review( 'B3-rev-terminos', is_wp_error( $busy ) && 'digitalisimo_woo_mcp_undo_conflict' === $busy->get_error_code() && ! in_array( 'DELETE', array_column( $GLOBALS['wm_rest'], 0 ), true ), 'Con count 0 pero un borrador que la usa, deshacer no la borra: ' . json_encode( is_wp_error( $busy ) ? $busy->get_error_message() : $busy, JSON_UNESCAPED_UNICODE ) );
+			review( 'B3-rev-terminos', in_array( array( 19, 'product_cat' ), $GLOBALS['wm_term_asked'], true ), 'Cuenta los objetos de product_cat en cualquier estado.' );
+			$GLOBALS['wm_term_objects']  = array();
+			$GLOBALS['wm_term_children'] = array( 'product_cat' => array( 19 => array( 20 ) ) );
+			$child = $run( 'catalog', array( 'action' => 'undo', 'change_id' => $cat['change']['id'] ) );
+			review( 'B3-rev-terminos', is_wp_error( $child ) && false !== strpos( $child->get_error_message(), 'hijo' ), 'Con una subcategoría, deshacer no la borra.' );
+			$GLOBALS['wm_term_children'] = array();
+			$GLOBALS['wm_rest']          = array();
+			$undo = $run( 'catalog', array( 'action' => 'undo', 'change_id' => $cat['change']['id'] ) );
+			review( 'B3-rev-terminos', is_array( $undo ) && array( 'DELETE', '/wc/v3/products/categories/19', array( 'force' => true ), null ) === end( $GLOBALS['wm_rest'] ), 'Sin objetos ni hijos, sí se borra.' );
+			$R['POST /wc/v3/products/attributes/3/terms'] = array( 201, array( 'id' => 40, 'name' => 'Rojo', 'count' => 0 ), array() );
+			$R['GET /wc/v3/products/attributes/3/terms/40'] = array( 200, array( 'id' => 40, 'count' => 0 ), array() );
+			$term = $run( 'catalog', array( 'action' => 'create', 'resource' => 'attribute_term', 'attribute_id' => 3, 'data' => array( 'name' => 'Rojo' ) ) );
+			$GLOBALS['wm_term_objects'] = array( 'pa_color' => array( 40 => array( 88 ) ) );
+			$busy = $run( 'catalog', array( 'action' => 'undo', 'change_id' => $term['change']['id'] ?? '' ) );
+			review( 'B3-rev-terminos', is_wp_error( $busy ) && in_array( array( 40, 'pa_color' ), $GLOBALS['wm_term_asked'], true ), 'Un término de atributo se cuenta en la taxonomía de su atributo (pa_color).' );
+			$GLOBALS['wm_term_objects'] = array();
 		}
 	);
 
