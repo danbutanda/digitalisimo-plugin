@@ -58,7 +58,7 @@ WordPress se rechaza en lugar de seguirla con la contraseña.
 | `listar_clusters_seo` | Contenidos pilar y sus artículos relacionados. |
 | `crear_borrador_seo` | Crea el borrador con title, description, keywords, pilar, chat editorial y, opcionalmente, slug, canonical, textos sociales, categorías e imagen destacada (`featured_media`). |
 | `subir_imagen` | Sube un PNG/JPG/WEBP/GIF (máx. 8 MB, ruta local o base64) a la biblioteca de medios y devuelve su ID para `featured_media`. |
-| `subir_imagen_destacada` | Sube una imagen local y la asigna a un borrador existente. Requiere activar la opción MCP de imágenes en IA Tools. |
+| `subir_imagen_destacada` | Sube una imagen local y la asigna a un borrador existente (exige `upload_files` y editar ese contenido). |
 
 ## Flujo editorial
 
@@ -109,7 +109,7 @@ aplicación):
 | `GET digitalisimo-publisher/v1/site` | `includes/class-digitalisimo-ai-content-publisher.php` | Identidad, permisos y capacidades del sitio. |
 | `POST digitalisimo-publisher/v1/articles` | `includes/class-digitalisimo-ai-content-publisher.php` | Crea sólo borradores (`status` distinto de `draft` se rechaza). Requiere `edit_posts` y comprueba el permiso por tipo, medio y categoría. |
 | `GET digitalisimo-mcp/v1/clusters` | `includes/class-digitalisimo-mcp-articles.php` | Pilares y artículos relacionados. |
-| `POST digitalisimo/v1/import-image` | `includes/class-content-automation.php` | Imagen destacada de un borrador (opción MCP de imágenes). |
+| `POST digitalisimo/v1/import-image` | `includes/class-content-automation.php` | Imagen destacada de un borrador (sin interruptor desde el 2026-11-27). |
 | `POST wp/v2/media` | núcleo de WordPress | Biblioteca de medios. |
 
 Cuerpo de `articles`: `post_type`, `title`, `slug`, `content`, `seo_title`, `meta_description`, `primary_keyword`,

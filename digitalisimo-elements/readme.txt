@@ -83,10 +83,10 @@ Los widgets que DIGITALÍSIMO Elements trae de PRO se sustituyen, familia por fa
 
 == WooCommerce en el MCP ==
 
-Con WooCommerce, el servidor MCP de DIGITALÍSIMO Elements (apagado por defecto) ofrece a los asistentes conectados siete herramientas para la tienda del sitio: productos y variaciones, catálogo, pedidos (notas y reembolsos), clientes, cupones, ajustes (envíos, impuestos y pasarelas de pago) e informes.
+Con WooCommerce, el servidor MCP de DIGITALÍSIMO Elements (siempre activo, con lectura y escritura) ofrece a los asistentes conectados siete herramientas para la tienda del sitio: productos y variaciones, catálogo, pedidos (notas y reembolsos), clientes, cupones, ajustes (envíos, impuestos y pasarelas de pago) e informes.
 
 * Cada herramienta actúa con los permisos del usuario que se conecta (una contraseña de aplicación de un administrador o de un gerente de tienda) y con las reglas de WooCommerce: un editor o un suscriptor no puede hacer nada.
-* Sólo lectura por defecto. En la pantalla «Rendimiento», sección «WooCommerce en el MCP», se elige apagado, sólo lectura o lectura y escritura; en una red, la red define el valor que heredan los sitios que no lo cambian.
+* Acceso total por defecto, sin interruptores (decisión del 2026-11-27): lo que puede hacer cada asistente lo deciden los permisos de su usuario. La pantalla «Rendimiento», sección «MCP de este sitio», sólo tiene «Mostrar el prompt para vincular» con la dirección del servidor y la configuración del cliente lista para copiar. Cada escritura de cualquier herramienta queda en la bitácora del MCP (herramienta digitalisimo-mcp-write-log).
 * Borrar manda a la papelera salvo que se pida el borrado definitivo, y un reembolso se registra sin devolver dinero salvo que se pida expresamente.
 * Las contraseñas y claves de las pasarelas de pago, los métodos de envío y los ajustes de la tienda (campos de contraseña o con nombre de clave, token, secreto, firma o sal) se muestran enmascaradas; los metadatos de productos, pedidos y clientes se devuelven como los da WooCommerce. Cada cambio queda en una bitácora sin datos personales.
 

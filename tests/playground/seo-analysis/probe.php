@@ -254,44 +254,39 @@ if ( 'orphans' === $step ) {
 }
 
 if ( 'abilities' === $step ) {
+	// Acceso total (2026-11-27): un sitio que tenía la escritura SEO apagada (el interruptor único y sus cuatro partes)
+	// escribe por MCP sin tocar nada; la migración borra esas claves.
 	$W = 'Digitalisimo_Integrations_SEO_Abilities_Write';
-	digi_check( $W::part_enabled( 'meta' ) && $W::part_enabled( 'redirects' ), 'B5: sin migrar, el interruptor único encendido abre las cuatro partes: ' . json_encode( array_intersect_key( (array) get_option( 'digitalisimo_integrations_options' ), array_flip( array( 'seo_abilities_write', 'seo_abilities_write_meta', 'seo_redirect_slug_watch' ) ) ) ) . ' de ' . count( (array) get_option( 'digitalisimo_integrations_options' ) ) . ' claves' );
-	Digitalisimo_Integrations_Settings::migrate_ability_parts();
 	$o = (array) get_option( 'digitalisimo_integrations_options' );
-	digi_check( 1 === ( $o['seo_abilities_write_meta'] ?? null ) && 1 === ( $o['seo_abilities_write_redirects'] ?? null ), 'B5: migrado a las cuatro partes' );
-	$o['seo_abilities_write_index'] = 0;
+	foreach ( Digitalisimo_Integrations_Settings::legacy_ability_keys() as $key ) $o[ $key ] = 0;
 	update_option( 'digitalisimo_integrations_options', $o );
-	if ( ! function_exists( 'wp_get_ability' ) ) { digi_check( true, 'B5: este WordPress no trae la API de abilities (se omite la llamada real)' ); return; }
+	Digitalisimo_Integrations_Settings::forget_ability_switches();
+	$o = (array) get_option( 'digitalisimo_integrations_options' );
+	digi_check( ! array_intersect( Digitalisimo_Integrations_Settings::legacy_ability_keys(), array_keys( $o ) ), 'Acceso total: la migración borra los interruptores viejos' );
+	if ( ! function_exists( 'wp_get_ability' ) ) { digi_check( true, 'Acceso total: este WordPress no trae la API de abilities (se omite la llamada real)' ); return; }
 	$ability = wp_get_ability( 'digitalisimo-seo/update-post-seo' );
-	digi_check( (bool) $ability, 'B5: la ability está registrada' );
+	digi_check( (bool) $ability, 'Acceso total: la ability está registrada' );
 	if ( ! $ability ) return;
 	$r = $ability->execute( array( 'post_id' => $ids['a'], 'title' => 'Páginas web | Agencia', 'noindex' => true ) );
-	digi_check( is_wp_error( $r ) && '' === (string) get_post_meta( $ids['a'], 'digitalisimo_seo_title', true ), 'B5: con «Sitemap e indexación» cerrada no se cambia nada' );
-	$r = $ability->execute( array( 'post_id' => $ids['a'], 'title' => 'Páginas web | Agencia' ) );
-	digi_check( ! is_wp_error( $r ) && 'Páginas web | Agencia' === get_post_meta( $ids['a'], 'digitalisimo_seo_title', true ), 'B5: con «Títulos y descripciones» abierta, el título sí' );
+	digi_check( ! is_wp_error( $r ) && 'Páginas web | Agencia' === get_post_meta( $ids['a'], 'digitalisimo_seo_title', true ) && '1' === (string) get_post_meta( $ids['a'], 'digitalisimo_seo_noindex', true ), 'Acceso total: escribe título e indexación con la escritura SEO apagada de antes' );
 	$log = $W::log_entries( 'meta' );
-	digi_check( 1 === count( $log ) && 'mcp' === $log[0]['via'], 'B5: queda en el registro de su parte' );
+	digi_check( 1 <= count( $log ) && 'mcp' === $log[0]['via'], 'Acceso total: queda en el registro de su parte' );
 	ob_start(); $W::render_log(); $html = ob_get_clean();
-	digi_check( false !== strpos( $html, 'Títulos y descripciones' ) && false !== strpos( $html, 'Sitemap e indexación · cerrada' ), 'B5: el registro se pinta por parte' );
+	digi_check( false !== strpos( $html, 'Títulos y descripciones' ) && false === strpos( $html, 'cerrada' ), 'Acceso total: el registro se pinta por parte, sin «abierta» ni «cerrada»' );
 	return;
 }
 
 if ( 'network-abilities' === $step ) {
 	$W = 'Digitalisimo_Integrations_SEO_Abilities_Write';
-	update_site_option( 'digitalisimo_integrations_options', array( 'seo_abilities_write' => 1 ) );
+	update_site_option( 'digitalisimo_integrations_options', array( 'seo_abilities_write' => 0, 'seo_abilities_write_meta' => 0, 'enable_seo' => 1 ) );
 	switch_to_blog( 2 );
-	digi_check( $W::part_enabled( 'meta' ) && $W::part_enabled( 'index' ), 'B5 red: el sitio que hereda sigue al interruptor de la red' );
 	update_option( 'digitalisimo_seo_network_inherit', array( 'seo_abilities_write' => 0 ) );
 	update_option( 'digitalisimo_integrations_options', array( 'seo_abilities_write' => 0 ) );
-	digi_check( ! $W::part_enabled( 'meta' ), 'B5 red: el que lo apagó por su cuenta, no' );
+	digi_check( current_user_can( 'manage_options' ) ? true === $W::can_manage() : true, 'Acceso total red: el sitio con todo apagado deja crear redirecciones a quien administra' );
+	Digitalisimo_Integrations_Settings::forget_ability_switches();
+	digi_check( ! array_key_exists( 'seo_abilities_write', (array) get_option( 'digitalisimo_integrations_options' ) ) && ! array_key_exists( 'seo_abilities_write', (array) get_option( 'digitalisimo_seo_network_inherit' ) ), 'Acceso total red: el sitio borra sus claves viejas' );
 	restore_current_blog();
-	Digitalisimo_Integrations_Settings::migrate_ability_parts();
 	$net = (array) get_site_option( 'digitalisimo_integrations_options' );
-	digi_check( 1 === ( $net['seo_abilities_write_meta'] ?? null ), 'B5 red: la red se migra' );
-	switch_to_blog( 2 );
-	digi_check( ! $W::part_enabled( 'meta' ), 'B5 red: tras migrar la red, el sitio que lo apagó sigue cerrado' );
-	Digitalisimo_Integrations_Settings::migrate_ability_parts();
-	digi_check( 0 === ( (array) get_option( 'digitalisimo_seo_network_inherit' ) )['seo_abilities_write_meta'] && ! $W::part_enabled( 'meta' ), 'B5 red: y su herencia personalizada pasa a las partes' );
-	restore_current_blog();
+	digi_check( ! array_key_exists( 'seo_abilities_write_meta', $net ) && 1 === ( $net['enable_seo'] ?? null ), 'Acceso total red: y las de la red, sin tocar lo demás' );
 	return;
 }
