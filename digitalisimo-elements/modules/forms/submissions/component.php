@@ -90,10 +90,15 @@ class Component extends Module_Base {
 	/**
 	 * Enqueue admin scripts
 	 */
+	/** Carpeta del núcleo incluido en el paquete (`elementor/` o, con la marca propia, `motor/`). */
+	private static function core_folder() {
+		return class_exists( '\\Digitalisimo_Elements_Core', false ) ? basename( rtrim( \Digitalisimo_Elements_Core::dir(), '/' ) ) : 'elementor';
+	}
+
 	private function enqueue_scripts() {
 		wp_register_style(
 			'select2',
-			$this->get_css_assets_url( 'e-select2', '../elementor/assets/lib/e-select2/css/' ),
+			$this->get_css_assets_url( 'e-select2', '../' . self::core_folder() . '/assets/lib/e-select2/css/' ),
 			[],
 			'4.0.6-rc.1'
 		);
@@ -107,7 +112,7 @@ class Component extends Module_Base {
 
 		wp_register_script(
 			'select2',
-			$this->get_js_assets_url( 'e-select2.full', '../elementor/assets/lib/e-select2/js/' ),
+			$this->get_js_assets_url( 'e-select2.full', '../' . self::core_folder() . '/assets/lib/e-select2/js/' ),
 			[
 				'jquery',
 			],
