@@ -589,6 +589,10 @@ jobs:
           php tests/elements-sales-product.php
           # La landing con la identidad del sitio y la oferta de tienda (caso plomerito 3).
           php tests/elements-sales-brand.php
+          # Marca propia (docs/MARCA_PROPIA.md): MCP con nombre propio, alias de URL, interruptor y reglas del front.
+          php tests/elements-mcp-brand.php
+          php tests/elements-marca.php
+          node tests/elements-marca-reglas.mjs
           php tests/elements-f7b-presentation.php
           node tests/elements-f7b-presentation.mjs
           node tests/elements-f7b-presentation-chrome.mjs

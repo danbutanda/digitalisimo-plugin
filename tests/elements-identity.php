@@ -24,7 +24,10 @@ namespace {
 	check_identity( array() === $GLOBALS['hooks'], 'Con el plugin Elementor activo no se cambia ninguna marca.' );
 	Digitalisimo_Elements_Core::$bundled = true;
 	$id::init();
-	foreach ( array( 'gettext', 'ngettext', 'gettext_with_context', 'wp_default_scripts', 'pre_option_elementor_meta_generator_tag', 'elementor/core/admin/homescreen', 'pre_option_elementor_onboarded', 'wp_insert_post_data' ) as $hook ) {
+	// El filtro de wp.i18n ya no va en `wp_default_scripts` (que corre también para los visitantes del front): se adjunta en
+	// el escritorio (`admin_init`) y, en el front, sólo con la barra de administración o en la vista previa del editor
+	// (`wp_enqueue_scripts`); docs/MARCA_PROPIA.md y tests/elements-marca.php.
+	foreach ( array( 'gettext', 'ngettext', 'gettext_with_context', 'admin_init', 'wp_enqueue_scripts', 'pre_option_elementor_meta_generator_tag', 'elementor/core/admin/homescreen', 'pre_option_elementor_onboarded', 'wp_insert_post_data' ) as $hook ) {
 		check_identity( ! empty( $GLOBALS['hooks'][ $hook ] ), 'Con el núcleo incluido se engancha ' . $hook . '.' );
 	}
 
