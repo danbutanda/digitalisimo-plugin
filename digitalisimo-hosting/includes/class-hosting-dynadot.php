@@ -129,10 +129,13 @@ class Digitalisimo_Hosting_Dynadot implements Digitalisimo_Hosting_Registrar {
 		return array( 'kind' => 'api', 'message' => 'Dynadot no informó el saldo en USD (la venta automática compara el saldo en dólares).' ) + $r;
 	}
 
-	/** La lista de precios de Dynadot por extensión (USD, un año), guardada unas horas. kind ok + prices => tld => array. */
-	private function price_list( $timeout ) {
-		$cached = function_exists( 'get_transient' ) ? get_transient( self::PRICES ) : false;
-		if ( is_array( $cached ) && $cached ) return array( 'kind' => 'ok', 'prices' => $cached );
+	/**
+	 * La lista de precios de Dynadot por extensión (USD, un año), guardada unas horas. kind ok + prices => tld => array
+	 * (+ cached: true si salió de lo guardado). $fresh: se pide otra vez aunque haya una guardada.
+	 */
+	private function price_list( $timeout, $fresh = false ) {
+		$cached = ! $fresh && function_exists( 'get_transient' ) ? get_transient( self::PRICES ) : false;
+		if ( is_array( $cached ) && $cached ) return array( 'kind' => 'ok', 'prices' => $cached, 'cached' => true );
 		$r = $this->call( 'tld_price', array( 'currency' => 'USD', 'count_per_page' => 1000 ), $timeout );
 		if ( 'ok' !== $r['kind'] ) return $r;
 		if ( '' !== (string) ( $r['data']['Currency'] ?? '' ) && 'USD' !== strtoupper( (string) $r['data']['Currency'] ) ) return array( 'kind' => 'api', 'message' => 'Dynadot dio los precios en ' . self::clean( $r['data']['Currency'] ) . ' y no en USD.' ) + $r;
@@ -236,12 +239,20 @@ class Digitalisimo_Hosting_Dynadot implements Digitalisimo_Hosting_Registrar {
 	 * and … Domain is a Premium Domain» (vino.lat, zx.lat).
 	 */
 	private function special( array $results, $timeout ) {
-		$list = null;
+		$list = null; $cached = false; $refreshed = false;
+		$t = min( 10, max( 5, (int) $timeout ) );
 		foreach ( $results as $d => $res ) {
 			if ( ! empty( $res['premium'] ) || empty( $res['available'] ) || empty( $res['register_usd'] ) ) continue;
-			if ( null === $list ) { $l = $this->price_list( min( 10, max( 5, (int) $timeout ) ) ); $list = 'ok' === $l['kind'] ? $l['prices'] : array(); }
+			if ( null === $list ) { $l = $this->price_list( $t ); $list = 'ok' === $l['kind'] ? $l['prices'] : array(); $cached = ! empty( $l['cached'] ); }
 			$tld = strtolower( substr( $d, strpos( $d, '.' ) + 1 ) );
 			$std = (float) ( $list[ $tld ]['REGISTER'] ?? 0 );
+			// Por precio parece especial, pero la lista guardada (6 h) puede ser de una promoción que ya terminó: se pide otra
+			// vez UNA vez antes de declararlo premium (segunda revisión, R3).
+			if ( $std > 0 && (float) $res['register_usd'] > $std + 0.01 && $cached && ! $refreshed ) {
+				$refreshed = true;
+				$l = $this->price_list( $t, true );
+				if ( 'ok' === $l['kind'] ) { $list = $l['prices']; $cached = false; $std = (float) ( $list[ $tld ]['REGISTER'] ?? 0 ); }
+			}
 			if ( $std > 0 && (float) $res['register_usd'] > $std + 0.01 ) $results[ $d ]['premium'] = true;
 		}
 		return $results;

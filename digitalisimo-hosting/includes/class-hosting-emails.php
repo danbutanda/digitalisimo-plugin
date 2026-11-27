@@ -39,6 +39,9 @@ if ( class_exists( 'WC_Email' ) && ! class_exists( 'Digitalisimo_Hosting_Email_A
 			return (bool) $sent;
 		}
 
+		/** Los demás dominios del pedido: dominio => cómo quedó (texto plano). */
+		public function extras() { return array_filter( (array) ( $this->data['extras'] ?? array() ), 'is_string' ); }
+
 		/** Las filas del correo: etiqueta => valor (texto plano; se escapan al pintarse). */
 		public function rows() {
 			$d = $this->data; $rows = array( 'Dominio' => (string) ( $d['domain'] ?? '' ) );
@@ -68,7 +71,14 @@ if ( class_exists( 'WC_Email' ) && ! class_exists( 'Digitalisimo_Hosting_Email_A
 				$cell = preg_match( '#^https://#', $value ) ? '<a href="' . esc_url( $value ) . '">' . esc_html( $value ) . '</a>' : '<code>' . esc_html( $value ) . '</code>';
 				echo '<tr><th scope="row" style="text-align:left">' . esc_html( $label ) . '</th><td>' . $cell . '</td></tr>';
 			}
-			echo '</table><p>Te recomendamos cambiar la contraseña al entrar por primera vez y no compartirla.</p>';
+			echo '</table>';
+			// Los demás dominios del pedido, cada uno con su estado (segunda revisión, N2).
+			if ( $this->extras() ) {
+				echo '<p>' . esc_html( 'Otros dominios de tu pedido:' ) . '</p><ul>';
+				foreach ( $this->extras() as $domain => $text ) echo '<li><strong>' . esc_html( $domain ) . '</strong>: ' . esc_html( $text ) . '</li>';
+				echo '</ul>';
+			}
+			if ( ! empty( $this->data['has_hosting'] ) ) echo '<p>Te recomendamos cambiar la contraseña al entrar por primera vez y no compartirla.</p>';
 			$extra = $this->get_additional_content();
 			if ( $extra ) echo wp_kses_post( wpautop( wptexturize( $extra ) ) );
 			do_action( 'woocommerce_email_footer', $this );
@@ -78,7 +88,8 @@ if ( class_exists( 'WC_Email' ) && ! class_exists( 'Digitalisimo_Hosting_Email_A
 		public function get_content_plain() {
 			$out = strtoupper( $this->get_heading() ) . "\n\n" . $this->intro() . "\n\n";
 			foreach ( $this->rows() as $label => $value ) $out .= $label . ': ' . $value . "\n";
-			$out .= "\nTe recomendamos cambiar la contraseña al entrar por primera vez y no compartirla.\n";
+			if ( $this->extras() ) { $out .= "\nOtros dominios de tu pedido:\n"; foreach ( $this->extras() as $domain => $text ) $out .= '- ' . $domain . ': ' . $text . "\n"; }
+			if ( ! empty( $this->data['has_hosting'] ) ) $out .= "\nTe recomendamos cambiar la contraseña al entrar por primera vez y no compartirla.\n";
 			$extra = $this->get_additional_content();
 			if ( $extra ) $out .= "\n" . wp_strip_all_tags( wptexturize( $extra ) ) . "\n";
 			return $out;
@@ -133,7 +144,9 @@ if ( class_exists( 'WC_Email' ) && ! class_exists( 'Digitalisimo_Hosting_Email_A
 				default:
 					// El dominio es anual; el hosting, del periodo de su plan (mensual, trimestral…).
 					if ( 'domain' === ( $d['what'] ?? '' ) ) return 'Tu dominio ' . $domain . ' vence el ' . $date . '. Para no perderlo, paga su renovación por un año.';
-					return 'Tu servicio ' . $domain . ' vence el ' . $date . '. Para no perder tu sitio, paga la renovación' . ( ! empty( $d['period'] ) ? ' (' . strtolower( (string) $d['period'] ) . ')' : '' ) . ( ! empty( $d['grace'] ) ? '; si no se paga, la cuenta se suspende ' . (int) $d['grace'] . ' días después del vencimiento.' : '.' );
+					// El pedido lleva también el dominio (vencen el mismo día): se dice, para que el aviso del dominio no se pierda.
+					$with = ! empty( $d['with_domain'] );
+					return 'Tu servicio ' . $domain . ' vence el ' . $date . '. Para no perder tu sitio' . ( $with ? ' ni tu dominio' : '' ) . ', paga la renovación' . ( ! empty( $d['period'] ) ? ' (' . ( $with ? 'hosting ' : '' ) . strtolower( (string) $d['period'] ) . ( $with ? ' y dominio por un año' : '' ) . ')' : ( $with ? ' (hosting y dominio)' : '' ) ) . ( ! empty( $d['grace'] ) ? '; si no se paga, la cuenta se suspende ' . (int) $d['grace'] . ' días después del vencimiento' . ( $with ? ' y el dominio puede perderse' : '' ) . '.' : '.' );
 			}
 		}
 

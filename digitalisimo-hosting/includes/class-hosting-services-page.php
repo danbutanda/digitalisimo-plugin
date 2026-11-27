@@ -128,10 +128,17 @@ class Digitalisimo_Hosting_Services_Page {
 		echo '</select></p>';
 		echo '<p><label for="' . esc_attr( $fid ) . '-amount"><strong>Monto</strong> (opcional, sólo para tu registro)</label><br><input type="number" min="0" step="0.01" id="' . esc_attr( $fid ) . '-amount" name="amount" class="small-text"></p>';
 		echo '<p><label for="' . esc_attr( $fid ) . '-note"><strong>Nota</strong> (opcional)</label><br><input type="text" id="' . esc_attr( $fid ) . '-note" name="note" class="regular-text" maxlength="300"></p>';
-		if ( $pv['domain_due'] && $P::svc( $id, 'domain_registered' ) ) {
-			echo '<p><label><input type="checkbox" name="renew_domain" value="1"' . ( $pv['renew_domain'] ? ' checked' : '' ) . '> <strong>Renovar también el dominio con su registrador</strong></label><br><span class="description">' . esc_html( 'El dominio vence el ' . $P::date( $pv['domain_due'] ) . '. ' . ( null !== $pv['cost'] ? 'Costo en ' . $pv['registrar'] . ': ' . number_format( $pv['cost'], 2, '.', ',' ) . ' USD' . ( null !== $pv['balance'] ? ' (saldo ' . number_format( $pv['balance'], 2, '.', ',' ) . ' USD).' : '.' ) : '' ) ) . '</span></p>';
-			echo '<p><label><input type="checkbox" name="renewed_elsewhere" value="1"> Ya lo renové yo en el registrador (no pedir la renovación; queda anotado)</label></p>';
-			if ( ! $P::has_hosting( $id ) ) echo '<p class="description">Este servicio es sólo el dominio: su vencimiento cambia cuando el registrador confirma la renovación (o si marcas que ya la hiciste). Si no se renueva, queda pendiente con aviso.</p>';
+		$cost = 'El dominio vence el ' . $P::date( $pv['domain_due'] ) . '. ' . ( null !== $pv['cost'] ? 'Costo en ' . $pv['registrar'] . ': ' . number_format( (float) $pv['cost'], 2, '.', ',' ) . ' USD' . ( null !== $pv['balance'] ? ' (saldo ' . number_format( (float) $pv['balance'], 2, '.', ',' ) . ' USD).' : '.' ) : '' );
+		if ( $pv['domain_due'] && $P::svc( $id, 'domain_registered' ) && ! $P::has_hosting( $id ) ) {
+			// Sólo el dominio: UNA de las dos opciones (sin ninguna no se registra nada; segunda revisión, R1).
+			echo '<fieldset><legend><strong>El dominio</strong></legend>';
+			echo '<p><label><input type="radio" name="domain_action" value="renew" checked> <strong>Renovar el dominio con su registrador</strong></label><br><span class="description">' . esc_html( $cost ) . '</span></p>';
+			echo '<p><label><input type="radio" name="domain_action" value="elsewhere"> Ya lo renové yo en el registrador (se comprueba allá que vence en la fecha pagada; queda anotado)</label></p></fieldset>';
+			echo '<p class="description">Este servicio es sólo el dominio: su vencimiento cambia cuando el registrador confirma la renovación, o al vencimiento que el registrador muestra si ya la hiciste. Si no se puede renovar, queda pendiente con aviso.</p>';
+			if ( '' !== $pv['warning'] ) echo '<div class="notice notice-warning inline"><p>' . esc_html( $pv['warning'] ) . '</p></div>';
+		} elseif ( $pv['domain_due'] && $P::svc( $id, 'domain_registered' ) ) {
+			echo '<p><label><input type="checkbox" name="renew_domain" value="1"' . ( $pv['renew_domain'] ? ' checked' : '' ) . '> <strong>Renovar también el dominio con su registrador</strong></label><br><span class="description">' . esc_html( $cost ) . '</span></p>';
+			echo '<p><label><input type="checkbox" name="renewed_elsewhere" value="1"> Ya lo renové yo en el registrador (no pedir la renovación; se comprueba allá y queda anotado)</label></p>';
 			if ( '' !== $pv['warning'] ) echo '<div class="notice notice-warning inline"><p>' . esc_html( $pv['warning'] ) . '</p></div>';
 		}
 		echo '<p><button type="submit" class="button button-primary">Registrar el pago</button> <a class="button" href="' . esc_url( admin_url( 'admin.php?page=' . self::SLUG ) ) . '">Cancelar</a></p></form></div>';
@@ -152,7 +159,11 @@ class Digitalisimo_Hosting_Services_Page {
 		}
 		if ( ! $P::is_service( $id ) ) wp_die( 'Servicio no encontrado.', 404 );
 		if ( 'manual_payment' === $op ) {
-			$r = $P::manual_payment( $id, array( 'months' => absint( $_POST['months'] ?? 0 ), 'method' => sanitize_key( (string) ( $_POST['method'] ?? '' ) ), 'amount' => sanitize_text_field( wp_unslash( (string) ( $_POST['amount'] ?? '' ) ) ), 'note' => sanitize_text_field( wp_unslash( (string) ( $_POST['note'] ?? '' ) ) ), 'renew_domain' => ! empty( $_POST['renew_domain'] ), 'renewed_elsewhere' => ! empty( $_POST['renewed_elsewhere'] ), 'key' => sanitize_key( (string) ( $_POST['key'] ?? '' ) ) ) );
+			// Sólo el dominio: la opción elegida (renovar o «ya lo renové»); sin ninguna, manual_payment() no registra nada.
+			$action = isset( $_POST['domain_action'] ) ? sanitize_key( (string) $_POST['domain_action'] ) : '';
+			$renew = '' !== $action ? 'renew' === $action : ! empty( $_POST['renew_domain'] );
+			$elsewhere = '' !== $action ? 'elsewhere' === $action : ! empty( $_POST['renewed_elsewhere'] );
+			$r = $P::manual_payment( $id, array( 'months' => absint( $_POST['months'] ?? 0 ), 'method' => sanitize_key( (string) ( $_POST['method'] ?? '' ) ), 'amount' => sanitize_text_field( wp_unslash( (string) ( $_POST['amount'] ?? '' ) ) ), 'note' => sanitize_text_field( wp_unslash( (string) ( $_POST['note'] ?? '' ) ) ), 'renew_domain' => $renew, 'renewed_elsewhere' => $elsewhere, 'key' => sanitize_key( (string) ( $_POST['key'] ?? '' ) ) ) );
 			if ( function_exists( 'set_transient' ) && function_exists( 'get_current_user_id' ) ) set_transient( 'digitalisimo_hosting_manual_msg_' . (int) get_current_user_id(), is_wp_error( $r ) ? array( 'error', $r->get_error_message() ) : array( 'success', $r['message'] ), 5 * MINUTE_IN_SECONDS );
 			wp_safe_redirect( admin_url( 'admin.php?page=' . self::SLUG . '&done=manual' ) );
 			exit;

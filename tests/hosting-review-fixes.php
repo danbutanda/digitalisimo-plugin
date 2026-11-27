@@ -11,7 +11,8 @@
 //       de seguridad del precio; un error por nombre; check_owner pregunta primero al registrador de la extensión; sin
 //       vencimiento legible no se renueva otra vez.
 //   I4. Pago manual: la clave queda «en curso» antes de extender (un corte a media tarea no extiende dos veces).
-//   I5. Un nombre que falla no aparta la extensión entera (sólo un error de extensión no atendida o varios seguidos).
+//   I5. Un nombre que falla no aparta la extensión entera (sólo un error de extensión no atendida; desde la segunda
+//       revisión, varios nombres fallidos seguidos tampoco).
 //   Menores: aviso de periodos que quedaron «Anual» tras migrar; variación en «Igual que el producto»; memos por sitio.
 // Uso: php tests/hosting-review-fixes.php
 namespace Automattic\WooCommerce\StoreApi\Exceptions { class RouteException extends \Exception { public function __construct( $code, $message, $status = 400 ) { parent::__construct( $message ); } } }
@@ -49,16 +50,18 @@ $o = paid( array( new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' =>
 $s = (int) $o->get_meta( '_digitalisimo_service' ); $reg = $GLOBALS['nc']['domains']['pormcp.com'];
 $r = $P::manual_payment( $s, array( 'method' => 'transfer' ) );
 check( ! is_wp_error( $r ) && 'renewed' === $r['domain_renewal'] && near( $GLOBALS['nc']['domains']['pormcp.com'], strtotime( '+1 year', $reg ) ) && $GLOBALS['nc']['domains']['pormcp.com'] === (int) $P::svc( $s, 'expires' ), 'B1 sin decir nada del dominio (lo que manda el MCP), un servicio que es sólo el dominio se renueva en el registrador' );
-// «Ya lo renové en el registrador»: no se pide, queda anotado y el vencimiento avanza.
+// «Ya lo renové en el registrador» (el administrador lo renovó allá): no se pide, queda anotado y el vencimiento avanza
+// al del registrador (la segunda revisión lo comprueba allá: N5).
 $o = paid( array( new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'afuera.com' ) ) ), 'ana@afuera.com' );
 $s = (int) $o->get_meta( '_digitalisimo_service' ); $exp = (int) $P::svc( $s, 'expires' ); $n = digi_nc_count( 'namecheap.domains.renew' );
+$GLOBALS['nc']['domains']['afuera.com'] = strtotime( '+1 year', $GLOBALS['nc']['domains']['afuera.com'] );
 $r = $P::manual_payment( $s, array( 'months' => 12, 'method' => 'cash', 'renewed_elsewhere' => true, 'key' => 'b1c' ) );
-check( 'elsewhere' === $r['domain_renewal'] && $n === digi_nc_count( 'namecheap.domains.renew' ) && near( (int) $P::svc( $s, 'expires' ), strtotime( '+1 year', $exp ) ) && preg_grep( '/indicó que ya renovó afuera\.com directamente en el registrador/', wc_get_order( $r['order'] )->notes ), 'B1 «ya lo renové en el registrador»: no se pide la renovación, queda anotado y el vencimiento avanza' );
-// Sin renovar ni marcar esa opción: pendiente con aviso; el vencimiento no se mueve; «Reintentar» lo renueva.
+check( 'elsewhere' === $r['domain_renewal'] && $n === digi_nc_count( 'namecheap.domains.renew' ) && near( (int) $P::svc( $s, 'expires' ), strtotime( '+1 year', $exp ) ) && $GLOBALS['nc']['domains']['afuera.com'] === (int) $P::svc( $s, 'expires' ) && preg_grep( '/indicó que ya renovó afuera\.com directamente en el registrador/', wc_get_order( $r['order'] )->notes ), 'B1 «ya lo renové en el registrador»: no se pide la renovación, queda anotado y el vencimiento es el del registrador' );
+// Sin renovar ni marcar esa opción: desde la segunda revisión (R1) es un error y no se registra nada.
 $o = paid( array( new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'pendiente.com' ) ) ), 'ana@pendiente.com' );
-$s = (int) $o->get_meta( '_digitalisimo_service' ); $exp = (int) $P::svc( $s, 'expires' ); $GLOBALS['mails'] = array();
+$s = (int) $o->get_meta( '_digitalisimo_service' ); $exp = (int) $P::svc( $s, 'expires' ); $GLOBALS['mails'] = array(); $no = count( $GLOBALS['orders'] );
 $r = $P::manual_payment( $s, array( 'months' => 12, 'method' => 'cash', 'renew_domain' => false, 'key' => 'b1d' ) );
-check( 'skipped' === $r['domain_renewal'] && $exp === (int) $P::svc( $s, 'expires' ) && $r['order'] === (int) $P::svc( $s, 'domain_pending_order' ) && alerts( 'dominio sin renovar tras un pago manual' ), 'B1 sin renovar ni marcar «ya lo renové»: el pago queda, el vencimiento no se mueve, el dominio queda pendiente y se avisa' );
+check( is_wp_error( $r ) && false !== strpos( $r->get_error_message(), 'elige «Renovar el dominio con su registrador» o «Ya lo renové yo en el registrador»' ) && $exp === (int) $P::svc( $s, 'expires' ) && $no === count( $GLOBALS['orders'] ) && ! $P::svc( $s, 'domain_pending_order' ), 'B1/R1 sin renovar ni marcar «ya lo renové»: error y nada registrado (ni pedido ni vencimiento)' );
 // Sin saldo en el registrador: lo mismo; con saldo, «Reintentar» lo renueva y entonces se mueve el vencimiento.
 $o = paid( array( new Digi_Test_Item( 20, 'Dominio .com', 1, array( 'Dominio' => 'sinsaldo.com' ) ) ), 'ana@sinsaldo.com' );
 $s = (int) $o->get_meta( '_digitalisimo_service' ); $exp = (int) $P::svc( $s, 'expires' ); $reg = $GLOBALS['nc']['domains']['sinsaldo.com'];
@@ -190,7 +193,7 @@ check( 'unknown' === $r['ab.mx'] && 'available' === $r['ab.com'] && ! $F::bad_ex
 check( 'available' === $st( $F::search( 'otronegocio' ) )['otronegocio.mx'], 'I5 el siguiente visitante sí ve el .mx' );
 $GLOBALS['fail_names'] = array( 'uno1.mx', 'dos2.mx', 'tres3.mx' );
 foreach ( array( 'uno1', 'dos2', 'tres3' ) as $q ) $F::search( $q );
-check( isset( $F::bad_exts()['.mx'] ), 'I5 tres nombres distintos seguidos con error: se aparta la extensión' );
+check( ! isset( $F::bad_exts()['.mx'] ), 'I5 tres nombres distintos con error (como los de dos letras en .com.mx) NO apartan la extensión (segunda revisión)' );
 $GLOBALS['transients'] = array();
 $GLOBALS['dd']['unsupported'] = array( '.mx' ); $GLOBALS['fail_names'] = array();
 $F::search( 'otro' );
