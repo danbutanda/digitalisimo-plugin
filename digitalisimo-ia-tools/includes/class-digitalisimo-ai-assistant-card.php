@@ -927,13 +927,13 @@ final class Digitalisimo_AI_Assistant_Card {
 
 	/**
 	 * ¿Se puede deshacer desde el Asistente? Sólo en la tienda de Elements con su registro de cambios: productos, catálogo
-	 * y cupones creados o cambiados sin metadatos ni opciones, y con la escritura de esa herramienta permitida (en «Sólo
-	 * lectura» el Asistente escribe pero no deshace: no se promete).
+	 * y cupones creados o cambiados sin metadatos ni opciones. Si la tienda aún tiene modos de escritura y el de esa
+	 * herramienta no la permite, el Asistente escribe pero no deshace: no se promete. Sin modos, se puede.
 	 */
 	private static function woo_undo( $tool, $action, array $data ) {
 		$settings = 'Digitalisimo\\Elements\\Woo\\Mcp\\Settings';
 		$changes  = 'Digitalisimo\\Elements\\Woo\\Mcp\\Changes';
-		if ( ! class_exists( $settings ) || ! class_exists( $changes ) || ! method_exists( $settings, 'can_write' ) || ! in_array( $tool, (array) constant( $changes . '::TOOLS' ), true ) ) {
+		if ( ! class_exists( $changes ) || ! defined( $changes . '::TOOLS' ) || ! in_array( $tool, (array) constant( $changes . '::TOOLS' ), true ) ) {
 			return false;
 		}
 		foreach ( array( 'meta_data', 'email_restrictions', 'used_by', 'type', 'attributes', 'default_attributes' ) as $key ) {
@@ -941,8 +941,15 @@ final class Digitalisimo_AI_Assistant_Card {
 				return false;
 			}
 		}
+		if ( ! in_array( $action, array( 'create', 'update' ), true ) ) {
+			return false;
+		}
+		// Sin modos de escritura (el MCP con lectura y escritura siempre), el registro de cambios basta para deshacer.
+		if ( ! class_exists( $settings ) || ! method_exists( $settings, 'can_write' ) ) {
+			return true;
+		}
 		try {
-			return in_array( $action, array( 'create', 'update' ), true ) && (bool) call_user_func( array( $settings, 'can_write' ), $tool );
+			return (bool) call_user_func( array( $settings, 'can_write' ), $tool );
 		} catch ( \Throwable $e ) {
 			return false;
 		}
