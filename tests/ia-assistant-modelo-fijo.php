@@ -30,7 +30,11 @@ $GLOBALS['options']['digitalisimo_ai_options'] = array(
 );
 add_filter( 'digitalisimo_ai_assistant_limits', function () { return array( 'per_minute' => 0, 'per_day' => 0, 'concurrent' => 1 ); } );
 $GLOBALS['model_calls'] = array();
-add_filter( 'digitalisimo_ai_assistant_pre_model', function ( $pre, $request ) { $GLOBALS['model_calls'][] = $request; return 'Listo.'; } );
+$GLOBALS['script'] = array();
+add_filter( 'digitalisimo_ai_assistant_pre_model', function ( $pre, $request ) { $GLOBALS['model_calls'][] = $request; return $GLOBALS['script'] ? array_shift( $GLOBALS['script'] ) : 'Listo.'; } );
+add_filter( 'digitalisimo_ai_assistant_trusted_prefixes', function ( $p ) { $p[] = 'demo/'; return $p; } );
+// Un cambio que pide confirmación (para F3: confirmar y seguir también van a la IA fija).
+wp_register_ability( 'demo/apply', array( 'label' => 'Aplicar', 'category' => 'demo', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'x' => array( 'type' => 'integer' ) ) ), 'permission_callback' => function () { return current_user_can( 'edit_posts' ); }, 'execute_callback' => function () { return array( 'ok' => true ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => false ), 'mcp' => array( 'public' => true, 'type' => 'tool' ) ) ) );
 $req = function ( array $params = array() ) { return new WP_REST_Request( $params, array( 'X-Digitalisimo-Assistant' => wp_create_nonce( Digitalisimo_AI_Assistant::NONCE ) ) ); };
 
 /* ---------------- F1: de fábrica ---------------- */
@@ -76,6 +80,27 @@ Digitalisimo_AI_Assistant_History::save( $conv );
 Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'otra cosa', 'conversation' => $cid ) ) );
 $call = end( $GLOBALS['model_calls'] );
 check( 'anthropic' === $call['provider'] && $MODEL === $call['model'], 'F3: una conversación guardada con otra IA sigue con la fija' );
+// Confirmar una tarjeta en una conversación guardada con otra IA: el turno que sigue va a la fija.
+$GLOBALS['script'] = array( array( 'calls' => array( array( 'id' => 'toolu_f3', 'name' => 'demo-apply', 'input' => array( 'x' => 1 ) ) ) ) );
+Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'aplícalo', 'conversation' => $cid ) ) );
+$conv = Digitalisimo_AI_Assistant_History::get( $cid, get_current_user_id() );
+check( 1 === count( $conv['pending'] ), 'F3: queda una tarjeta pendiente' );
+$conv['provider'] = 'openai';
+Digitalisimo_AI_Assistant_History::save( $conv );
+$before = count( $GLOBALS['model_calls'] );
+Digitalisimo_AI_Assistant::rest_confirm( $req( array( 'conversation' => $cid, 'action' => $conv['pending'][0]['id'] ?? '', 'decision' => 'approve', 'provider' => 'openai' ) ) );
+$call = count( $GLOBALS['model_calls'] ) > $before ? end( $GLOBALS['model_calls'] ) : null;
+check( $call && 'anthropic' === $call['provider'] && $MODEL === $call['model'], 'F3: al confirmar, el turno sigue con la IA fija: ' . json_encode( $call ? array( $call['provider'], $call['model'] ) : null ) );
+// Seguir un turno pausado en una conversación guardada con otra IA.
+$conv = Digitalisimo_AI_Assistant_History::get( $cid, get_current_user_id() );
+$conv['provider'] = 'openai';
+$conv['pending']  = array();
+$conv['resume']   = array( 'time' => time(), 'steps' => 0, 'calls' => 0, 'count' => 0 );
+Digitalisimo_AI_Assistant_History::save( $conv );
+$before = count( $GLOBALS['model_calls'] );
+$res    = Digitalisimo_AI_Assistant::rest_continue( $req( array( 'conversation' => $cid, 'provider' => 'openai' ) ) );
+$call   = count( $GLOBALS['model_calls'] ) > $before ? end( $GLOBALS['model_calls'] ) : null;
+check( $call && 'anthropic' === $call['provider'] && $MODEL === $call['model'], 'F3: al seguir un turno pausado, también con la IA fija: ' . json_encode( $call ? array( $call['provider'], $call['model'] ) : ( is_wp_error( $res ) ? $res->get_error_message() : null ) ) );
 $GLOBALS['options']['digitalisimo_ai_options']['providers']['anthropic']['enabled'] = 0;
 $e = $M::target( 'openai' );
 check( is_wp_error( $e ) && 409 === ( $e->get_error_data()['status'] ?? 0 ) && false === strpos( $e->get_error_message(), 'OpenAI' ), 'F3: sin la clave de la IA fija, el Asistente no se pasa a otra IA (aunque OpenAI tenga clave)' );
@@ -100,6 +125,20 @@ $_POST = array( 'assistant_models' => array( 'anthropic' => 'custom' ), 'assista
 $saved = $sanitize->invoke( null, array_merge( Digitalisimo_AI::get(), array( 'assistant_models' => array( 'anthropic' => 'claude-sonnet-5-5' ) ) ) );
 $_POST = array();
 check( ! array_key_exists( 'assistant_models', $saved ) && ! array_key_exists( 'assistant_models_custom', $saved ), 'F4: guardar IA Tools no acepta un modelo del Asistente y borra el que quedó de antes: ' . json_encode( array_intersect_key( $saved, array( 'assistant_models' => 1, 'assistant_models_custom' => 1 ) ) ) );
+
+// El perfil «assistant» de antes no se pinta en Perfiles de uso ni se vuelve a guardar.
+$GLOBALS['options']['digitalisimo_ai_options']['profiles']['assistant'] = array( 'provider' => 'anthropic', 'model' => 'claude-perfil', 'fallback' => '' );
+$prof = new ReflectionMethod( 'Digitalisimo_AI', 'profiles' );
+$prof->setAccessible( true );
+ob_start();
+$prof->invoke( null, Digitalisimo_AI::get() );
+$html = ob_get_clean();
+check( false === strpos( $html, 'profiles[assistant]' ) && false !== strpos( $html, 'profiles[content]' ), 'F4: el perfil «assistant» de antes no se pinta (ya no hace nada); los demás sí' );
+$_POST = array( 'profiles' => array( 'assistant' => array( 'provider' => 'openai', 'model' => 'gpt-4.1' ), 'content' => array( 'provider' => 'auto', 'model' => '' ) ) );
+$saved = $sanitize->invoke( null, Digitalisimo_AI::get() );
+$_POST = array();
+check( ! isset( $saved['profiles']['assistant'] ) && isset( $saved['profiles']['content'] ), 'F4: y no se guarda' );
+unset( $GLOBALS['options']['digitalisimo_ai_options']['profiles']['assistant'] );
 
 /* ---------------- F5: la pantalla del Asistente ---------------- */
 $config = Digitalisimo_AI_Assistant::config();
@@ -136,6 +175,14 @@ remove_all_filters( 'digitalisimo_ai_assistant_model' );
 add_filter( 'digitalisimo_ai_assistant_model', function ( $fixed ) { return array( 'model' => 'claude haiku; drop', 'provider' => 'inventado', 'effort' => 'enorme' ); } );
 check( array( 'provider' => 'anthropic', 'model' => $MODEL, 'effort' => $M::EFFORT ) === $M::fixed(), 'F7: lo que el filtro da y no es válido se ignora' );
 remove_all_filters( 'digitalisimo_ai_assistant_model' );
+// Proveedor y modelo cruzados: vuelve al de fábrica y queda un aviso en la bitácora.
+add_filter( 'digitalisimo_ai_assistant_model', function ( $fixed ) { return array( 'provider' => 'openai' ) + $fixed; } );
+$log_before = count( (array) get_option( Digitalisimo_AI_Assistant_Tools::LOG, array() ) );
+check( array( 'provider' => 'anthropic', 'model' => $MODEL, 'effort' => $M::EFFORT ) === $M::fixed(), 'F7: OpenAI con un modelo de Claude no se manda cruzado: vuelve al fijo · ' . json_encode( $M::fixed() ) );
+$log = (array) get_option( Digitalisimo_AI_Assistant_Tools::LOG, array() );
+check( count( $log ) > $log_before && false !== strpos( wp_json_encode( end( $log ) ), 'no cuadra' ), 'F7: y queda el aviso en la bitácora del Asistente' );
+remove_all_filters( 'digitalisimo_ai_assistant_model' );
+unset( $GLOBALS['transients']['digitalisimo_ai_assistant_model_mismatch'] );
 define( 'DIGITALISIMO_AI_ASSISTANT_MODEL', 'gpt-4.1' );
 define( 'DIGITALISIMO_AI_ASSISTANT_EFFORT', 'low' );
 $fixed = $M::fixed();
@@ -143,7 +190,6 @@ check( array( 'provider' => 'openai', 'model' => 'gpt-4.1', 'effort' => 'low' ) 
 $t = $M::target( 'auto' );
 check( 'openai' === $t['provider'] && KEY_OPENAI === $t['key'], 'F7: y usa la clave de ese proveedor' );
 define( 'DIGITALISIMO_AI_ASSISTANT_PROVIDER', 'deepseek' );
-check( 'deepseek' === $M::fixed()['provider'], 'F7: DIGITALISIMO_AI_ASSISTANT_PROVIDER fija el proveedor' );
-check( is_wp_error( $M::target( 'auto' ) ), 'F7: un proveedor fijo sin clave deja el Asistente sin IA, sin pasarse a otra' );
+check( 'anthropic' === $M::fixed()['provider'] && $MODEL === $M::fixed()['model'], 'F7: DIGITALISIMO_AI_ASSISTANT_PROVIDER que no cuadra con el modelo (deepseek con gpt-4.1): vuelve al fijo' );
 
 echo "OK modelo fijo del Asistente: $checks comprobaciones\n";

@@ -108,6 +108,8 @@ const CONVERSATIONS = [
   ['A', ['revisa el sitio web y optimizalo en SEO', 'revisa si el plugin skydropx esta funcionando bien y mi carrito funciona bien']],
   ['B', ['creame una landing para blackfriday con la promoción del purificador aquaplus de 10000 a 7500']],
   ['C', ['Creame una landingpage de oferta navideña con todos los productos al 40% de descuento']],
+  // Revisión de ia/asistente-optimizado (2026-11-27): una página que no es del kit también se llena en su primer turno.
+  ['D', ['hazme una página de Nosotros con la historia de la ferretería']],
 ];
 
 (async () => {
@@ -238,6 +240,13 @@ const CONVERSATIONS = [
       const t = transcript.find((x) => x.label === label);
       const made = t.tools.some((m) => m.kind === 'draft' && m.status === 'ok' && m.ability === 'digitalisimo-sales/create-page');
       check(`L1-${label}`, made && t.cards.length === 0, `${label}: la landing quedó en borrador en el primer turno, sin tarjeta`, JSON.stringify(t.tools.map((m) => `${m.kind}:${m.ability}:${m.status}`)));
+    }
+    // L2 · Una página que no es del kit: se crea en blanco y recibe su contenido en el mismo turno, sin tarjeta.
+    {
+      const t = transcript.find((x) => x.label === 'D1');
+      const made = t.tools.some((m) => m.kind === 'draft' && m.status === 'ok' && /^(elementor\/create-page|digitalisimo-sales\/create-page)$/.test(m.ability));
+      const filled = t.tools.some((m) => m.kind === 'draft' && m.status === 'ok' && /^(elementor\/build-composition|digitalisimo-sales\/create-page)$/.test(m.ability));
+      check('L2-D1', made && filled && t.cards.length === 0, 'D1: la página de Nosotros quedó en borrador con su contenido en el primer turno, sin tarjeta', JSON.stringify(t.tools.map((m) => `${m.kind}:${m.ability}:${m.status}`)));
     }
     const tokens = transcript.reduce((n, t) => n + t.seconds, 0);
     log(`info · tiempo total de los turnos: ${tokens} s · tarjetas: ${cards.length} (${cards.map(({ turn, a }) => `${turn}: ${a.text}`).join(' | ') || 'ninguna'})`);

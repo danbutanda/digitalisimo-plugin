@@ -24,8 +24,8 @@ $reg  = function ( $name, $readonly = true ) use ( $ab_meta ) {
 	wp_register_ability( $name, array( 'label' => $name, 'description' => 'Hace ' . $name . '.', 'category' => strtok( $name, '/' ), 'input_schema' => array( 'type' => 'object', 'properties' => array( 'n' => array( 'type' => 'integer' ) ) ), 'permission_callback' => function () { return current_user_can( 'edit_posts' ); }, 'execute_callback' => function ( $in ) use ( $name ) { $GLOBALS['ran'][] = $name; return array( 'ok' => true, 'de' => $name, 'relleno' => str_repeat( 'dato del sitio ', 400 ) ); }, 'meta' => $ab_meta( $readonly ) ) );
 };
 $skip    = array( 'digitalisimo-ia/open-assistant', 'core/get-user-info', 'core/get-environment-info', 'core/get-site-info' );
-$base    = array( 'elementor/create-page', 'elementor/get-page-structure', 'elementor/manage-elements', 'elementor/update-page-settings', 'elementor/publish-document', 'elementor/list-posts', 'elementor/create-preview-link' );
-$design  = array( 'elementor/build-composition', 'elementor/manage-classes', 'elementor/manage-global-variable', 'elementor/list-components', 'elementor/manage-site-parts' );
+$base    = array( 'elementor/create-page', 'elementor/build-composition', 'elementor/get-page-structure', 'elementor/manage-elements', 'elementor/update-page-settings', 'elementor/publish-document', 'elementor/list-posts', 'elementor/create-preview-link' );
+$design  = array( 'elementor/manage-classes', 'elementor/manage-global-variable', 'elementor/list-components', 'elementor/manage-site-parts' );
 $woo     = array( 'woocommerce/products-query', 'woocommerce/product-update' );
 $store   = array( 'digitalisimo-woo/products', 'digitalisimo-sales/create-page', 'digitalisimo-seo/get-site-status', 'digitalisimo-ia/read-page-text' );
 foreach ( array_merge( $skip, $woo, $base, $design ) as $name ) $reg( $name );
@@ -46,7 +46,7 @@ check( $design === $T::builder_extras( $catalog ), 'C2: las funciones de diseño
 
 /* ---------------- C2/C3 en una conversación ---------------- */
 $GLOBALS['script'] = array(); $GLOBALS['model_calls'] = array(); $GLOBALS['ran'] = array();
-add_filter( 'digitalisimo_ai_assistant_pre_model', function ( $pre, $request ) { $GLOBALS['model_calls'][] = $request; return $GLOBALS['script'] ? array_shift( $GLOBALS['script'] ) : 'Listo.'; } );
+add_filter( 'digitalisimo_ai_assistant_pre_model', function ( $pre, $request ) { $GLOBALS['model_calls'][] = $request; $next = $GLOBALS['script'] ? array_shift( $GLOBALS['script'] ) : 'Listo.'; return $next instanceof Closure ? $next( $request ) : $next; } );
 $req   = function ( array $params = array() ) { return new WP_REST_Request( $params, array( 'X-Digitalisimo-Assistant' => wp_create_nonce( Digitalisimo_AI_Assistant::NONCE ) ) ); };
 $tools = function ( $request ) { return array_column( $request['tools'], 'name' ); };
 $call  = function ( $name, array $input = array() ) { static $n = 0; return array( 'id' => 'toolu_c' . ( ++$n ), 'name' => $name, 'input' => $input ); };
@@ -91,8 +91,54 @@ check( count( $old ) >= 3 && max( array_map( function ( $m ) { return strlen( $m
 check( false !== strpos( $old[0]['content'], '[resultado anterior recortado:' ) && false !== strpos( $old[0]['content'], Digitalisimo_AI_Assistant_Tools::DATA_NOTICE ), 'C4: con su marca y su aviso de dato' );
 
 /* ---------------- C6: Haiku 5.5 no pasa a la tarifa cara ---------------- */
-$chars = Digitalisimo_AI_Assistant_History::context_chars( 'anthropic', 'claude-haiku-5-5' );
-check( $chars <= 200000 && $chars > 100000, "C6: con Haiku 5.5 la conversación se compacta antes de que la petición pase de 100 000 tokens (su tarifa sube 5 veces): $chars caracteres" );
 check( Digitalisimo_AI_Assistant_History::context_chars( 'anthropic', 'claude-opus-5-5' ) > 1000000, 'C6: Opus y Sonnet conservan su ventana de 1M' );
+// La petición ENTERA (herramientas + instrucciones + mensajes), en un turno largo de lecturas grandes, con unas
+// herramientas tan pesadas como las reales (unos 70 000 caracteres) y las funciones de diseño pedidas: cada petición
+// queda por debajo de 100 000 tokens a 2,5 caracteres por token (lo medido en los cuerpos reales), con margen.
+for ( $i = 0; $i < 34; $i++ ) {
+	wp_register_ability( sprintf( 'digitalisimo-woo/peso-%02d', $i ), array( 'label' => 'Peso ' . $i, 'description' => str_repeat( 'Descripción larga de una herramienta real de la tienda, con sus acciones y sus reglas. ', 22 ), 'category' => 'digitalisimo-woo', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'action' => array( 'type' => 'string', 'enum' => array( 'list', 'get' ) ) ) ), 'permission_callback' => function () { return true; }, 'execute_callback' => function () { return array( 'ok' => true ); }, 'meta' => $ab_meta( true ) ) );
+}
+wp_register_ability( 'digitalisimo-seo/big', array( 'label' => 'Lectura grande', 'description' => 'Lee mucho.', 'category' => 'digitalisimo-seo', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'n' => array( 'type' => 'integer' ) ) ), 'permission_callback' => function () { return true; }, 'execute_callback' => function ( $in ) { return array( 'n' => $in['n'] ?? 0, 'texto' => str_repeat( 'Texto "con comillas" y acentos: página, envío, señal. ', 400 ) ); }, 'meta' => $ab_meta( true ) ) );
+$long = array();
+for ( $i = 0; $i < 14; $i++ ) {
+	$long[] = array( 'calls' => array( $call( 'digitalisimo-seo-big', array( 'n' => $i ) ), $call( 'digitalisimo-seo-big', array( 'n' => 100 + $i ) ), $call( 'digitalisimo-seo-big', array( 'n' => 200 + $i ) ) ) );
+}
+$long[]            = 'Listo.';
+$GLOBALS['script'] = array_merge( array( array( 'calls' => array( $call( $T::MORE_TOOL ) ) ) ), $long );
+$before            = count( $GLOBALS['model_calls'] );
+Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'revisa todo mi sitio a fondo' ) ) );
+$worst = 0;
+foreach ( array_slice( $GLOBALS['model_calls'], $before ) as $request ) {
+	$chars = strlen( (string) wp_json_encode( $request['tools'] ) ) + strlen( (string) wp_json_encode( $request['system'] ) ) + strlen( (string) wp_json_encode( $request['messages'] ) );
+	$worst = max( $worst, $chars );
+}
+$steps = count( $GLOBALS['model_calls'] ) - $before;
+check( $steps >= 15 && $worst / 2.5 <= 90000, sprintf( 'C6: con Haiku 5.5, la petición más grande de un turno de %d pasos queda en unos %d tokens (herramientas, instrucciones y mensajes; tope de precio: 100 000)', $steps, (int) ( $worst / 2.5 ) ) );
+$last = end( $GLOBALS['model_calls'] );
+$tool_msgs = array_values( array_filter( $last['messages'], function ( $m ) { return 'tool' === $m['role']; } ) );
+check( false !== strpos( $tool_msgs[1]['content'], '[resultado anterior recortado:' ) && false === strpos( end( $tool_msgs )['content'], '[resultado anterior recortado:' ), 'C6: si el turno en curso no cabe, se recortan sus resultados más viejos; los del último paso van enteros' );
+
+/* ---------------- C7: una página que no es del kit recibe su contenido ---------------- */
+wp_register_ability( 'elementor/create-page', array( 'label' => 'Crear página', 'category' => 'elementor', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'title' => array( 'type' => 'string' ) ) ), 'permission_callback' => function () { return current_user_can( 'edit_posts' ); }, 'execute_callback' => function ( $in ) { $id = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => $in['title'] ?? 'Sin título', 'post_name' => 'nosotros-' . count( $GLOBALS['posts'] ) ) ); $GLOBALS['ran'][] = 'create:' . $id; return array( 'id' => $id, 'status' => 'draft' ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => false ), 'mcp' => array( 'public' => true, 'type' => 'tool' ) ) ) );
+wp_register_ability( 'elementor/build-composition', array( 'label' => 'Construir composición', 'category' => 'elementor', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'xml' => array( 'type' => 'string' ) ) ), 'permission_callback' => function () { return current_user_can( 'edit_posts' ); }, 'execute_callback' => function ( $in ) { $GLOBALS['ran'][] = 'build:' . ( $in['post_id'] ?? 0 ) . ':' . strlen( (string) ( $in['xml'] ?? '' ) ); return array( 'post_id' => $in['post_id'] ?? 0, 'ok' => true ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => true ), 'mcp' => array( 'public' => true, 'type' => 'tool' ) ) ) );
+$GLOBALS['ran']    = array();
+// El segundo paso usa el id del borrador recién creado (lo lee del resultado, como el modelo).
+$build_step        = function ( $request ) {
+	$id = preg_match( '/"id"\s*:\s*(\d+)/', stripslashes( (string) end( $request['messages'] )['content'] ), $m ) ? (int) $m[1] : 0;
+	return array( 'calls' => array( array( 'id' => 'toolu_build', 'name' => 'elementor-build-composition', 'input' => array( 'post_id' => $id, 'xml' => '<e-section><e-heading>Quiénes somos</e-heading></e-section>' ) ) ) );
+};
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-create-page', array( 'title' => 'Nosotros' ) ) ) ), $build_step, 'Listo: tu página Nosotros quedó en borrador.' );
+$before            = count( $GLOBALS['model_calls'] );
+$ev = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'hazme una página de Nosotros' ) ) )->data['events'];
+$first = $GLOBALS["model_calls"][ $before ];
+check( in_array( 'elementor-build-composition', $tools( $first ), true ), 'C7: el modelo tiene desde el primer paso con qué darle contenido a una página (build-composition)' );
+check( false !== strpos( $first['system'], 'elementor/build-composition' ), 'C7: y las instrucciones le dicen que una página que no es del kit se llena en el mismo turno' );
+$built = preg_grep( '/^build:\d+:\d+$/', $GLOBALS['ran'] );
+check( preg_grep( '/^create:\d+$/', $GLOBALS['ran'] ) && $built && ! array_filter( $ev, function ( $e ) { return 'confirm' === $e['type']; } ), 'C7: la página en blanco se crea y recibe su contenido en el mismo turno, sin tarjeta (es su borrador) · ' . json_encode( $GLOBALS['ran'] ) );
+
+/* ---------------- C8: el recorte respeta su tope ya codificado ---------------- */
+$quoted = Digitalisimo_AI_Assistant_Tools::as_data( 'demo/x', array( 'status' => 'ok', 'data' => array( 'html' => str_repeat( '<a href="https://x.test/">"hola" \\ página</a> ', 300 ) ) ) );
+$small  = Digitalisimo_AI_Assistant_History::compact( $quoted, 1500 );
+check( strlen( $small ) <= 1500 && is_array( json_decode( $small, true ) ), 'C8: un resultado lleno de comillas recortado a 1 500 bytes mide ' . strlen( $small ) . ' (JSON válido)' );
 
 echo "Asistente IA, contexto: $checks comprobaciones correctas.\n";

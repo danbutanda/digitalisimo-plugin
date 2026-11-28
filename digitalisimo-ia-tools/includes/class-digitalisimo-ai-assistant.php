@@ -751,7 +751,10 @@ final class Digitalisimo_AI_Assistant {
 			Digitalisimo_AI_Assistant_Guard::renew_all();
 			// Las funciones de diseño se suman en el paso siguiente al que el modelo las pidió (MORE_TOOL).
 			$tools    = self::offered_tools( $conv, $catalog );
-			$messages = Digitalisimo_AI_Assistant_History::for_model( $conv, $catalog, $target );
+			$system   = self::system_parts();
+			// El presupuesto es de la petición entera: se resta lo que ya ocupan las herramientas y las instrucciones.
+			$fixed    = strlen( (string) wp_json_encode( $tools ) ) + strlen( (string) wp_json_encode( Digitalisimo_AI_Assistant_Model::system_text( $system ) ) );
+			$messages = Digitalisimo_AI_Assistant_History::for_model( $conv, $catalog, $target, null, $fixed );
 			// Lo que la IA propone puede venir de contenido del sitio leído en cualquier turno de lo que se le manda.
 			$read = $read || in_array( 'tool', array_column( $messages, 'role' ), true );
 			if ( ! $messages ) {
@@ -767,7 +770,7 @@ final class Digitalisimo_AI_Assistant {
 				return;
 			}
 			$emit( array( 'type' => 'status', 'text' => 'Pensando…' ) );
-			$reply = Digitalisimo_AI_Assistant_Model::chat( $target, self::system_parts(), $messages, $tools );
+			$reply = Digitalisimo_AI_Assistant_Model::chat( $target, $system, $messages, $tools );
 			$state['steps']++;
 			if ( ! is_wp_error( $reply ) ) {
 				// Cada llamada al modelo queda en la bitácora con sus tokens (lo leído de la caché, lo escrito y lo demás).
@@ -1241,6 +1244,7 @@ final class Digitalisimo_AI_Assistant {
 			'Primero haces y muestras; después se ajusta:',
 			'- Cuando te piden crear algo (una landing, una página, una promoción), créalo YA en borrador, completo, en este mismo turno, con lo que sabes y valores razonables. Los datos los buscas tú en el sitio: producto, precio, fotos, contacto, políticas, pagos y envíos. Un borrador no se ve en el sitio ni cambia nada publicado: no pidas permiso ni confirmación para crearlo.',
 			'- Landing o promoción de un producto de la tienda: busca el producto con digitalisimo-woo/products (action list, search) y llama enseguida a digitalisimo-sales/create-page con product_id y offer (price; regular_price sólo si cambia; ends; label). Esa herramienta lee sola el WhatsApp, el teléfono, las políticas, los pagos, los envíos y el logo del sitio: no los consultes antes. Para esto no uses estructura de página, schema, SEO, ajustes, informes ni listados de entradas. Si para otra cosa necesitas el contacto o el texto de una página: digitalisimo-ia/site-contact y digitalisimo-ia/read-page-text.',
+			'- Una página que no es landing ni promoción (Nosotros, Contacto, Servicios…): créala con elementor/create-page (sale en blanco, en borrador) y en el mismo turno dale todo su contenido con elementor/build-composition sobre ese borrador, con los datos reales del sitio. Nunca la entregues vacía.',
 			'- Oferta o descuento de TODA la tienda o de una categoría («todos los productos al 40 %», «30 % en bombas»): llama enseguida a digitalisimo-sales/create-page con store_offer (percent; category sólo si es una categoría; label con el nombre de la promoción; ends si dijo hasta cuándo). Esa landing lleva los productos reales con foto, precio normal tachado y precio con el descuento, las garantías, los pagos y los envíos del sitio y el botón a la tienda. Nunca armes la oferta de una tienda con una plantilla de cursos (template): nada de «Lo que vas a lograr», bonus, módulos, factura ni avisos de resultados e ingresos.',
 			'- La página sale sola con los colores, las tipografías, la cabecera y el pie DEL SITIO (los de su kit o, si son los de fábrica, los que usan su cabecera, su pie y su portada). No hace falta activar nada: nunca le pidas a la persona que active, prenda o configure algo (editor, experimento, ajuste) para leer sus colores ni para crear o corregir una página.',
 			'- El botón principal lleva a la tienda o a la categoría en una oferta general y al producto en la de un producto; nunca al carrito vacío.',

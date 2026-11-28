@@ -282,6 +282,7 @@ jobs:
           php tests/ia-assistant-simple.php
           php tests/ia-assistant-modelo-fijo.php
           php tests/ia-assistant-contexto.php
+          php tests/ia-assistant-clave.php
           php tests/ia-usage.php
           node tests/ia-assistant-mostrar-ui.mjs
           php tests/ia-assistant-subir.php

@@ -255,12 +255,13 @@ final class Digitalisimo_AI_Assistant_Tools {
 	 */
 	const ASSISTANT_SKIP = array( 'digitalisimo-ia/open-assistant', 'core/get-user-info', 'core/get-environment-info', 'core/get-site-info' );
 	/**
-	 * Del constructor (`elementor/`), las que el Asistente usa siempre: crear, leer y editar una página, sus ajustes,
-	 * publicarla, listarlas y la vista previa. Las demás (clases, variables y estilos globales, componentes, partes del
-	 * sitio, recursos, esquemas de widgets, composición) son «más funciones de diseño»: se ofrecen cuando el modelo las
-	 * pide con MORE_TOOL, y desde ahí en toda la conversación.
+	 * Del constructor (`elementor/`), las que el Asistente usa siempre: crear una página (sale en blanco), darle contenido
+	 * (`build-composition`, unos 1 570 tokens: sin ella, una página que no es del kit de ventas quedaba vacía), leerla y
+	 * editar sus elementos, sus ajustes, publicarla, listarlas y la vista previa. Las demás (clases, variables y estilos
+	 * globales, componentes, partes del sitio, recursos, esquemas de widgets) son «más funciones de diseño»: se ofrecen
+	 * cuando el modelo las pide con MORE_TOOL, y desde ahí en toda la conversación.
 	 */
-	const BUILDER_BASE = array( 'elementor/create-page', 'elementor/get-page-structure', 'elementor/manage-elements', 'elementor/update-page-settings', 'elementor/publish-document', 'elementor/list-posts', 'elementor/create-preview-link' );
+	const BUILDER_BASE = array( 'elementor/create-page', 'elementor/build-composition', 'elementor/get-page-structure', 'elementor/manage-elements', 'elementor/update-page-settings', 'elementor/publish-document', 'elementor/list-posts', 'elementor/create-preview-link' );
 	const MORE_ABILITY = 'digitalisimo-ia/more-tools';
 	const MORE_TOOL    = 'digitalisimo-ia-more-tools';
 
@@ -304,7 +305,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 	public static function more_tool_definition() {
 		return array(
 			'name'        => self::MORE_TOOL,
-			'description' => 'Más funciones para el diseño de las páginas: clases, colores y tipografías globales, estilos de fábrica, componentes, cabecera, pie y demás partes del sitio, recursos, esquemas de widgets y construir una composición completa. Llámala (sin datos) antes de un cambio de diseño que no puedas hacer con lo que ya tienes; desde el paso siguiente las tendrás en esta conversación. No cambia nada.',
+			'description' => 'Más funciones para el diseño de las páginas: clases, colores y tipografías globales, estilos de fábrica, componentes, cabecera, pie y demás partes del sitio, recursos y esquemas de widgets. Llámala (sin datos) antes de un cambio de diseño que no puedas hacer con lo que ya tienes; desde el paso siguiente las tendrás en esta conversación. No cambia nada.',
 			'schema'      => array( 'type' => 'object', 'properties' => new stdClass() ),
 		);
 	}
@@ -990,8 +991,11 @@ final class Digitalisimo_AI_Assistant_Tools {
 	/** Quita de un texto las claves de proveedor configuradas y lo que tiene forma de clave de API. */
 	public static function scrub( $text ) {
 		$text = (string) $text;
-		foreach ( (array) Digitalisimo_AI::get( 'providers' ) as $provider ) {
-			$key = (string) ( $provider['key'] ?? '' );
+		$keys = (array) Digitalisimo_AI::get( 'providers' );
+		// La clave del Asistente en wp-config (DIGITALISIMO_AI_ASSISTANT_ANTHROPIC_KEY) también.
+		$keys[] = array( 'key' => class_exists( 'Digitalisimo_AI_Assistant_Model' ) ? Digitalisimo_AI_Assistant_Model::own_key() : '' );
+		foreach ( $keys as $provider ) {
+			$key = (string) ( is_array( $provider ) ? ( $provider['key'] ?? '' ) : '' );
 			if ( strlen( $key ) >= 8 ) {
 				$text = str_replace( $key, '[clave oculta]', $text );
 			}

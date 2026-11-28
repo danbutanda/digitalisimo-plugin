@@ -36,6 +36,13 @@ final class Digitalisimo_AI_Assistant_Model {
 	const EFFORT_CONSTANT   = 'DIGITALISIMO_AI_ASSISTANT_EFFORT';
 	const EFFORTS           = array( 'low', 'medium', 'high', 'xhigh', 'max' );
 	/**
+	 * La clave de Anthropic de DIGITALÍSIMO en wp-config (opcional). Con ella el Asistente no usa la de IA Tools →
+	 * Proveedores, la clave no se guarda en la base ni sale nunca del servidor, y los demás perfiles no la usan.
+	 */
+	const KEY_CONSTANT      = 'DIGITALISIMO_AI_ASSISTANT_ANTHROPIC_KEY';
+	/** Lo que dice el Asistente cuando el sitio no tiene la IA de DIGITALÍSIMO (también la pantalla, para quien administra). */
+	const MISSING           = 'El Asistente IA necesita la IA de DIGITALÍSIMO y este sitio todavía no la tiene conectada. Para activarlo, escribe en IA Tools → Proveedores la clave de Claude (Anthropic) que te dio DIGITALÍSIMO, o pídele a DIGITALÍSIMO que la conecte.';
+	/**
 	 * Modelos de Anthropic que escriben sus notas entre llamadas a herramientas como bloques `thinking` (vacíos salvo
 	 * con `display: "updates"`, beta UPDATES_BETA): sin pedirlas, un turno que termina en una herramienta llega sin texto.
 	 */
@@ -95,7 +102,48 @@ final class Digitalisimo_AI_Assistant_Model {
 		if ( '' === $fixed['provider'] ) {
 			$fixed['provider'] = self::provider_of( $fixed['model'] );
 		}
+		// Proveedor y modelo cruzados (p. ej. PROVIDER en openai con un modelo claude-…): se vuelve al de fábrica y queda un
+		// aviso en la bitácora del Asistente (una vez al día).
+		$known = self::known_provider( $fixed['model'] );
+		if ( '' !== $known && $known !== $fixed['provider'] ) {
+			self::warn_mismatch( $fixed );
+			$fixed = array( 'provider' => self::PROVIDER, 'model' => self::MODEL, 'effort' => $fixed['effort'] );
+		}
 		return $fixed;
+	}
+
+	/** El aviso de proveedor y modelo cruzados, en la bitácora del Asistente y en el registro de PHP (una vez al día). */
+	private static function warn_mismatch( array $fixed ) {
+		$key  = 'digitalisimo_ai_assistant_model_mismatch';
+		$seen = function_exists( 'get_transient' ) ? get_transient( $key ) : false;
+		if ( $seen ) {
+			return;
+		}
+		if ( function_exists( 'set_transient' ) ) {
+			set_transient( $key, 1, DAY_IN_SECONDS );
+		}
+		$detail = sprintf( 'El modelo fijo del Asistente no cuadra con su proveedor (%s con %s): se usa el de fábrica, %s.', $fixed['model'], $fixed['provider'], self::MODEL );
+		if ( class_exists( 'Digitalisimo_AI_Assistant_Tools' ) ) {
+			Digitalisimo_AI_Assistant_Tools::log( array( 'user' => function_exists( 'get_current_user_id' ) ? get_current_user_id() : 0, 'ability' => 'modelo del Asistente', 'kind' => 'rejected', 'input' => '', 'result' => 'skipped', 'detail' => $detail ) );
+		}
+		error_log( 'DIGITALÍSIMO IA Tools: ' . $detail ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+	}
+
+	/** El proveedor que se reconoce por el nombre del modelo, o '' si el nombre no es de ninguno conocido. */
+	public static function known_provider( $model ) {
+		$model = strtolower( (string) $model );
+		foreach ( array( '/^claude-/' => 'anthropic', '/^(gpt-|o\d|chatgpt)/' => 'openai', '/^(models\/)?gemini/' => 'google', '/^grok/' => 'xai', '/^deepseek/' => 'deepseek' ) as $pattern => $provider ) {
+			if ( preg_match( $pattern, $model ) ) {
+				return $provider;
+			}
+		}
+		return '';
+	}
+
+	/** La clave de KEY_CONSTANT si está en wp-config ('' si no). Sólo para el servidor. */
+	public static function own_key() {
+		$key = defined( self::KEY_CONSTANT ) ? constant( self::KEY_CONSTANT ) : '';
+		return is_string( $key ) && strlen( trim( $key ) ) >= 8 ? trim( $key ) : '';
 	}
 
 	/** ¿Es un ID de modelo que se puede mandar? (letras, números y . _ : / -; hasta 100). */
@@ -105,13 +153,8 @@ final class Digitalisimo_AI_Assistant_Model {
 
 	/** El proveedor de un modelo por su nombre (claude-… Anthropic, gpt-… OpenAI…); si no se reconoce, PROVIDER. */
 	public static function provider_of( $model ) {
-		$model = strtolower( (string) $model );
-		foreach ( array( '/^claude-/' => 'anthropic', '/^(gpt-|o\d|chatgpt)/' => 'openai', '/^(models\/)?gemini/' => 'google', '/^grok/' => 'xai', '/^deepseek/' => 'deepseek' ) as $pattern => $provider ) {
-			if ( preg_match( $pattern, $model ) ) {
-				return $provider;
-			}
-		}
-		return self::PROVIDER;
+		$known = self::known_provider( $model );
+		return '' !== $known ? $known : self::PROVIDER;
 	}
 
 	/**
@@ -125,7 +168,8 @@ final class Digitalisimo_AI_Assistant_Model {
 		$fixed     = self::fixed();
 		$id        = $fixed['provider'];
 		$providers = (array) Digitalisimo_AI::get( 'providers' );
-		if ( ! isset( self::NAMES[ $id ] ) || empty( $providers[ $id ]['enabled'] ) || empty( $providers[ $id ]['key'] ) ) {
+		$own       = 'anthropic' === $id && '' !== self::own_key();
+		if ( ! isset( self::NAMES[ $id ] ) || ( ! $own && ( empty( $providers[ $id ]['enabled'] ) || empty( $providers[ $id ]['key'] ) ) ) ) {
 			return array();
 		}
 		return array( $id => array( 'provider' => $id, 'model' => $fixed['model'], 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => '' ) );
@@ -140,12 +184,15 @@ final class Digitalisimo_AI_Assistant_Model {
 		unset( $choice );
 		$targets = self::targets();
 		if ( ! $targets ) {
-			return new WP_Error( 'digitalisimo_assistant_no_ai', 'El Asistente IA aún no está activo en este sitio: falta la conexión con la IA de DIGITALÍSIMO.', array( 'status' => 409 ) );
+			return new WP_Error( 'digitalisimo_assistant_no_ai', self::MISSING, array( 'status' => 409 ) );
 		}
 		$target                = reset( $targets );
 		$providers             = (array) Digitalisimo_AI::get( 'providers' );
-		$target['key']         = (string) ( $providers[ $target['provider'] ]['key'] ?? '' );
-		$target['url']         = (string) ( $providers[ $target['provider'] ]['url'] ?? '' );
+		$own                   = 'anthropic' === $target['provider'] ? self::own_key() : '';
+		$target['key']         = '' !== $own ? $own : (string) ( $providers[ $target['provider'] ]['key'] ?? '' );
+		// Con Anthropic, siempre su URL oficial (build() la pone con `url` vacío): una URL que alguien guarde en
+		// Proveedores no recibe la clave que paga DIGITALÍSIMO.
+		$target['url']         = 'anthropic' === $target['provider'] ? '' : (string) ( $providers[ $target['provider'] ]['url'] ?? '' );
 		$target['turn_effort'] = self::fixed()['effort'];
 		return $target;
 	}
