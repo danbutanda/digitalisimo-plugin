@@ -685,7 +685,8 @@ variable. Ahora:
   mismo con su clasificación por acción. Siguen en el MCP externo.
 - **Funciones de diseño a pedido**: del constructor se ofrece lo básico (`BUILDER_BASE`: crear una página, darle
   contenido con `build-composition` —unos 1 570 tokens; sin ella una página que no es del kit quedaba en blanco, y las
-  instrucciones dicen que se llena en el mismo turno—, leerla y editar sus elementos, sus ajustes, publicar, listar y
+  instrucciones dicen que se llena en el mismo turno— y los campos de cada widget con `get-widget-schema` (unos 370),
+  leerla y editar sus elementos, sus ajustes, publicar, listar y
   vista previa). Lo demás (clases, variables y estilos globales, componentes, partes del sitio, recursos, esquemas de
   widgets) lo pide el modelo con
   `digitalisimo-ia-more-tools` («Más funciones para el diseño de las páginas», sin datos; en pantalla «Consulté: más
@@ -697,6 +698,9 @@ variable. Ahora:
   dato y su llamada) y sin los bloques thinking de esos turnos; el turno en curso va entero, y lo que dijeron la persona
   y el asistente, siempre. Si hace falta un dato viejo, se vuelve a consultar (las lecturas repetidas salen de la caché
   del sitio). El tope es del JSON ya codificado. Filtro `digitalisimo_ai_assistant_old_result_bytes` (0: como antes).
+- **Errores de validación del constructor**: lo que `build-composition` rechaza al validar o compilar (`invalid_xml`,
+  `elementor_invalid_settings`, `elementor_unknown_type`…) no escribió nada: queda «no se hizo» y el modelo lo corrige en
+  el mismo turno (antes quedaba «desconocido» y no se podía repetir).
 - **Presupuesto de la petición entera**: `History::context_chars()` es lo que puede medir toda la petición
   (herramientas, instrucciones y mensajes) a `CHARS_PER_TOKEN` = 2,4 caracteres de JSON por token (en los cuerpos reales
   fue ~2,5); con Haiku 5.5, el tope por precio `PRICE_TOKENS` = 85 000 tokens (arriba de 100 000 toda la petición cuesta

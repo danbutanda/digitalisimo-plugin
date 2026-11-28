@@ -24,7 +24,7 @@ $reg  = function ( $name, $readonly = true ) use ( $ab_meta ) {
 	wp_register_ability( $name, array( 'label' => $name, 'description' => 'Hace ' . $name . '.', 'category' => strtok( $name, '/' ), 'input_schema' => array( 'type' => 'object', 'properties' => array( 'n' => array( 'type' => 'integer' ) ) ), 'permission_callback' => function () { return current_user_can( 'edit_posts' ); }, 'execute_callback' => function ( $in ) use ( $name ) { $GLOBALS['ran'][] = $name; return array( 'ok' => true, 'de' => $name, 'relleno' => str_repeat( 'dato del sitio ', 400 ) ); }, 'meta' => $ab_meta( $readonly ) ) );
 };
 $skip    = array( 'digitalisimo-ia/open-assistant', 'core/get-user-info', 'core/get-environment-info', 'core/get-site-info' );
-$base    = array( 'elementor/create-page', 'elementor/build-composition', 'elementor/get-page-structure', 'elementor/manage-elements', 'elementor/update-page-settings', 'elementor/publish-document', 'elementor/list-posts', 'elementor/create-preview-link' );
+$base    = array( 'elementor/create-page', 'elementor/build-composition', 'elementor/get-widget-schema', 'elementor/get-page-structure', 'elementor/manage-elements', 'elementor/update-page-settings', 'elementor/publish-document', 'elementor/list-posts', 'elementor/create-preview-link' );
 $design  = array( 'elementor/manage-classes', 'elementor/manage-global-variable', 'elementor/list-components', 'elementor/manage-site-parts' );
 $woo     = array( 'woocommerce/products-query', 'woocommerce/product-update' );
 $store   = array( 'digitalisimo-woo/products', 'digitalisimo-sales/create-page', 'digitalisimo-seo/get-site-status', 'digitalisimo-ia/read-page-text' );
@@ -120,20 +120,29 @@ check( false !== strpos( $tool_msgs[1]['content'], '[resultado anterior recortad
 
 /* ---------------- C7: una página que no es del kit recibe su contenido ---------------- */
 wp_register_ability( 'elementor/create-page', array( 'label' => 'Crear página', 'category' => 'elementor', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'title' => array( 'type' => 'string' ) ) ), 'permission_callback' => function () { return current_user_can( 'edit_posts' ); }, 'execute_callback' => function ( $in ) { $id = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => $in['title'] ?? 'Sin título', 'post_name' => 'nosotros-' . count( $GLOBALS['posts'] ) ) ); $GLOBALS['ran'][] = 'create:' . $id; return array( 'id' => $id, 'status' => 'draft' ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => false ), 'mcp' => array( 'public' => true, 'type' => 'tool' ) ) ) );
-wp_register_ability( 'elementor/build-composition', array( 'label' => 'Construir composición', 'category' => 'elementor', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'xml' => array( 'type' => 'string' ) ) ), 'permission_callback' => function () { return current_user_can( 'edit_posts' ); }, 'execute_callback' => function ( $in ) { $GLOBALS['ran'][] = 'build:' . ( $in['post_id'] ?? 0 ) . ':' . strlen( (string) ( $in['xml'] ?? '' ) ); return array( 'post_id' => $in['post_id'] ?? 0, 'ok' => true ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => true ), 'mcp' => array( 'public' => true, 'type' => 'tool' ) ) ) );
+wp_register_ability( 'elementor/build-composition', array( 'label' => 'Construir composición', 'category' => 'elementor', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'xml' => array( 'type' => 'string' ) ) ), 'permission_callback' => function () { return current_user_can( 'edit_posts' ); }, 'execute_callback' => function ( $in ) { if ( false !== strpos( (string) ( $in['xml'] ?? '' ), 'link=' ) ) { $GLOBALS['ran'][] = 'build-rechazado'; return new WP_Error( 'elementor_invalid_settings', '[boton] Property "link" on "e-button" could not be resolved.', array( 'status' => 400 ) ); } $GLOBALS['ran'][] = 'build:' . ( $in['post_id'] ?? 0 ) . ':' . strlen( (string) ( $in['xml'] ?? '' ) ); return array( 'post_id' => $in['post_id'] ?? 0, 'ok' => true ); }, 'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => true ), 'mcp' => array( 'public' => true, 'type' => 'tool' ) ) ) );
 $GLOBALS['ran']    = array();
 // El segundo paso usa el id del borrador recién creado (lo lee del resultado, como el modelo).
+$build_bad         = function ( $request ) {
+	$id = preg_match( '/"id"\s*:\s*(\d+)/', stripslashes( (string) end( $request['messages'] )['content'] ), $m ) ? (int) $m[1] : 0;
+	$GLOBALS['nosotros'] = $id;
+	return array( 'calls' => array( array( 'id' => 'toolu_bad', 'name' => 'elementor-build-composition', 'input' => array( 'post_id' => $id, 'xml' => '<e-button link="x">Ver</e-button>' ) ) ) );
+};
 $build_step        = function ( $request ) {
+	$id = ! empty( $GLOBALS['nosotros'] ) ? (int) $GLOBALS['nosotros'] : 0;
+	return array( 'calls' => array( array( 'id' => 'toolu_build', 'name' => 'elementor-build-composition', 'input' => array( 'post_id' => $id, 'xml' => '<e-section><e-heading>Quiénes somos</e-heading></e-section>' ) ) ) );
 	$id = preg_match( '/"id"\s*:\s*(\d+)/', stripslashes( (string) end( $request['messages'] )['content'] ), $m ) ? (int) $m[1] : 0;
 	return array( 'calls' => array( array( 'id' => 'toolu_build', 'name' => 'elementor-build-composition', 'input' => array( 'post_id' => $id, 'xml' => '<e-section><e-heading>Quiénes somos</e-heading></e-section>' ) ) ) );
 };
-$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-create-page', array( 'title' => 'Nosotros' ) ) ) ), $build_step, 'Listo: tu página Nosotros quedó en borrador.' );
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-create-page', array( 'title' => 'Nosotros' ) ) ) ), $build_bad, $build_step, 'Listo: tu página Nosotros quedó en borrador.' );
 $before            = count( $GLOBALS['model_calls'] );
 $ev = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'hazme una página de Nosotros' ) ) )->data['events'];
 $first = $GLOBALS["model_calls"][ $before ];
 check( in_array( 'elementor-build-composition', $tools( $first ), true ), 'C7: el modelo tiene desde el primer paso con qué darle contenido a una página (build-composition)' );
 check( false !== strpos( $first['system'], 'elementor/build-composition' ), 'C7: y las instrucciones le dicen que una página que no es del kit se llena en el mismo turno' );
 $built = preg_grep( '/^build:\d+:\d+$/', $GLOBALS['ran'] );
+$bad = array_values( array_filter( $ev, function ( $e ) { return 'tool' === $e['type'] && 'elementor/build-composition' === $e['message']['ability'] && 'ok' !== $e['message']['status']; } ) );
+check( $bad && 'error' === $bad[0]['message']['status'], 'C7: si la composición no pasa la validación del constructor, queda «no se hizo» (no «desconocido») y se puede corregir en el mismo turno · ' . ( $bad[0]['message']['status'] ?? '' ) );
 check( preg_grep( '/^create:\d+$/', $GLOBALS['ran'] ) && $built && ! array_filter( $ev, function ( $e ) { return 'confirm' === $e['type']; } ), 'C7: la página en blanco se crea y recibe su contenido en el mismo turno, sin tarjeta (es su borrador) · ' . json_encode( $GLOBALS['ran'] ) );
 
 /* ---------------- C8: el recorte respeta su tope ya codificado ---------------- */

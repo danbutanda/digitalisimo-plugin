@@ -93,7 +93,10 @@ final class Digitalisimo_AI_Assistant_Tools {
 	 * «resultado desconocido». `ability_invalid_output` NO va: la salida se valida después de ejecutar (la escritura ya
 	 * ocurrió). Un 4xx cualquiera tampoco: el manejador pudo escribir y después fallar.
 	 */
-	const NOT_APPLIED    = array( 'ability_invalid_input', 'ability_invalid_permissions', 'rest_invalid_param', 'rest_missing_callback_param', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit', 'digitalisimo_woo_mcp_forbidden', 'digitalisimo_woo_mcp_read_only', 'digitalisimo_woo_mcp_off', 'elementor_v4_required' );
+	const NOT_APPLIED    = array( 'ability_invalid_input', 'ability_invalid_permissions', 'rest_invalid_param', 'rest_missing_callback_param', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit', 'digitalisimo_woo_mcp_forbidden', 'digitalisimo_woo_mcp_read_only', 'digitalisimo_woo_mcp_off', 'elementor_v4_required',
+		// build-composition los devuelve al validar o compilar, antes de escribir nada en la página (corrida real del
+		// 2026-11-27: «Property "link" on "e-button" could not be resolved» quedó como «desconocido» y no se pudo corregir).
+		'invalid_xml', 'elementor_invalid_settings', 'elementor_unknown_type', 'elementor_invalid_child_type', 'elementor_invalid_form_structure', 'elementor_duplicate_configuration_id' );
 	/** Errores que dicen que al usuario le falta una capacidad de WordPress (además de los que terminan en `_forbidden`). */
 	const DENIED_CODES   = array( 'ability_invalid_permissions', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit' );
 	/**
@@ -256,12 +259,13 @@ final class Digitalisimo_AI_Assistant_Tools {
 	const ASSISTANT_SKIP = array( 'digitalisimo-ia/open-assistant', 'core/get-user-info', 'core/get-environment-info', 'core/get-site-info' );
 	/**
 	 * Del constructor (`elementor/`), las que el Asistente usa siempre: crear una página (sale en blanco), darle contenido
-	 * (`build-composition`, unos 1 570 tokens: sin ella, una página que no es del kit de ventas quedaba vacía), leerla y
+	 * (`build-composition`, unos 1 570 tokens: sin ella, una página que no es del kit de ventas quedaba vacía, y
+	 * `get-widget-schema`, unos 370, para los campos de cada widget que sus errores mandan a revisar), leerla y
 	 * editar sus elementos, sus ajustes, publicarla, listarlas y la vista previa. Las demás (clases, variables y estilos
 	 * globales, componentes, partes del sitio, recursos, esquemas de widgets) son «más funciones de diseño»: se ofrecen
 	 * cuando el modelo las pide con MORE_TOOL, y desde ahí en toda la conversación.
 	 */
-	const BUILDER_BASE = array( 'elementor/create-page', 'elementor/build-composition', 'elementor/get-page-structure', 'elementor/manage-elements', 'elementor/update-page-settings', 'elementor/publish-document', 'elementor/list-posts', 'elementor/create-preview-link' );
+	const BUILDER_BASE = array( 'elementor/create-page', 'elementor/build-composition', 'elementor/get-widget-schema', 'elementor/get-page-structure', 'elementor/manage-elements', 'elementor/update-page-settings', 'elementor/publish-document', 'elementor/list-posts', 'elementor/create-preview-link' );
 	const MORE_ABILITY = 'digitalisimo-ia/more-tools';
 	const MORE_TOOL    = 'digitalisimo-ia-more-tools';
 
