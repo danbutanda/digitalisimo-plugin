@@ -696,7 +696,7 @@ borradores, nueva) se cuentan aparte. Los costos son los que cobró la API (toke
 |---|---:|---:|---:|---:|---:|
 | Opus 5.5 (antes del recorte, 2026-11-27 mañana) | 9 | 9 de 9 | 6 de 9 | 0,38 | ~180 |
 | Haiku 5.5, instrucciones anteriores | 8 | 6 de 8 (J1: «plugin» dos veces) | 5 de 8 | 0,018 | 95 |
-| Haiku 5.5, instrucciones finales | 9 | 9 de 9 | 8 de 9 (K2: nombró los 3 productos sin decir «3») | 0,015 | 86 |
+| Haiku 5.5, instrucciones finales | 10 | 10 de 10 | 9 de 10 (K2: nombró los 3 productos sin decir «3») | 0,016 | 87 |
 | Sonnet 5.5, instrucciones finales | 9 | 8 de 9 (J1: el nombre de una herramienta inexistente, ya rotulada en llano) | 6 de 9 | 0,18 | 71 |
 
 Lo que falló y qué se hizo:
