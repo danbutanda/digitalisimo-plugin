@@ -5,12 +5,14 @@ defined( 'ABSPATH' ) || exit;
  * El modelo del Asistente IA (docs/ASSISTANT.md): la IA y la clave que ya configura IA Tools, con llamadas a
  * herramientas en el formato de cada proveedor (OpenAI y compatibles —DeepSeek, xAI—, Anthropic y Google).
  *
- * - Las IA que se ofrecen salen de los perfiles de uso (menos «images») cuyo proveedor está activo y tiene clave, y de
- *   los proveedores activos con clave. «Auto» es el primer perfil disponible en PROFILE_ORDER (el de contenido, salvo
- *   que exista uno llamado «assistant»). El MODELO del Asistente no es el del perfil: es el de «Modelo del Asistente
- *   IA» en IA Tools → Perfiles de uso (opción `assistant_models`, por proveedor), y por defecto el más capaz con
- *   herramientas (ASSISTANT_MODELS; Anthropic: claude-opus-5-5; decisión del propietario del 2026-11-23: «si gasta
- *   tokens no hay problema»). «Igual que el perfil de uso» vuelve al modelo del perfil. Nunca lo elige quien chatea.
+ * - El modelo, el proveedor y el esfuerzo del Asistente los decide DIGITALÍSIMO, que paga la API (pedido del dueño del
+ *   2026-11-27: «no permitas que el usuario cambie el modelo todavía porque ese lo pagaré yo, debemos darle el
+ *   asistente ya optimizado»). Salen de fixed(): PROVIDER, MODEL y EFFORT de esta clase; para DIGITALÍSIMO, las
+ *   constantes de wp-config DIGITALISIMO_AI_ASSISTANT_MODEL, DIGITALISIMO_AI_ASSISTANT_PROVIDER y
+ *   DIGITALISIMO_AI_ASSISTANT_EFFORT o el filtro `digitalisimo_ai_assistant_model`. Nada de la pantalla, la REST ni el
+ *   MCP los cambia: no hay selector, la IA que pida el navegador se ignora, y lo que quedara guardado de antes (la
+ *   opción `assistant_models`, un perfil de uso llamado «assistant» o el de contenido) ya no cuenta. La clave sigue
+ *   siendo la del proveedor en IA Tools → Proveedores (del sitio o heredada de la red).
  * - La clave sólo viaja del servidor al proveedor: nada de esta clase la devuelve al navegador. De un error sólo se
  *   muestra el mensaje del proveedor (`error.message`), recortado y sin claves; con 401/403, ni eso.
  * - Si el proveedor rechaza la petición (400) por una herramienta, se quita esa herramienta y se repite (MAX_DROPS).
@@ -18,20 +20,33 @@ defined( 'ABSPATH' ) || exit;
  * - `digitalisimo_ai_assistant_pre_model` permite sustituir la llamada (pruebas y proveedores simulados).
  */
 final class Digitalisimo_AI_Assistant_Model {
-	const PROFILE_ORDER = array( 'assistant', 'content', 'chatbot', 'seo', 'ecommerce', 'automation' );
 	const NAMES         = array( 'openai' => 'OpenAI', 'anthropic' => 'Anthropic', 'google' => 'Google', 'xai' => 'xAI', 'deepseek' => 'DeepSeek' );
 	const AI_NAMES      = array( 'openai' => 'ChatGPT', 'anthropic' => 'Claude', 'google' => 'Gemini', 'xai' => 'Grok', 'deepseek' => 'DeepSeek' );
 	const OPENAI_URLS   = array( 'openai' => 'https://api.openai.com/v1/chat/completions', 'deepseek' => 'https://api.deepseek.com/v1/chat/completions', 'xai' => 'https://api.x.ai/v1/chat/completions' );
-	/** Modelo por defecto del Asistente por proveedor: el más capaz con herramientas (el dueño lo puede cambiar). */
-	const ASSISTANT_MODELS = array( 'anthropic' => 'claude-opus-5-5', 'openai' => 'gpt-4.1', 'google' => 'gemini-2.5-pro', 'xai' => 'grok-4', 'deepseek' => 'deepseek-chat' );
-	/** Modelos que se sugieren en el selector (además de escribir otro). */
-	const ASSISTANT_CHOICES = array(
-		'anthropic' => array( 'claude-opus-5-5' => 'Claude Opus 5.5 · el más capaz (recomendado; cuesta el doble que Sonnet 5.5)', 'claude-sonnet-5-5' => 'Claude Sonnet 5.5 · más económico', 'claude-haiku-5-5' => 'Claude Haiku 5.5 · el más barato, menos capaz' ),
-		'openai'    => array( 'gpt-4.1' => 'GPT-4.1 · el más capaz con herramientas (recomendado)', 'gpt-4o-mini' => 'GPT-4o mini · más económico' ),
-		'google'    => array( 'gemini-2.5-pro' => 'Gemini 2.5 Pro · el más capaz (recomendado)', 'gemini-2.5-flash' => 'Gemini 2.5 Flash · más económico' ),
-		'xai'       => array( 'grok-4' => 'Grok 4 · el más capaz (recomendado)', 'grok-3-mini' => 'Grok 3 mini · más económico' ),
-		'deepseek'  => array( 'deepseek-chat' => 'DeepSeek Chat (recomendado)' ),
-	);
+	/**
+	 * El modelo de fábrica del Asistente: el más barato que pasó 9 de 9 el ensayo real del caso plomerito con el contexto
+	 * recortado (docs/ASSISTANT.md, «Modelo fijo: medición»; 2026-11-27: Claude Haiku 5.5 a unos 0,015 US$ por corrida,
+	 * Sonnet 5.5 a 0,18 y Opus 5.5 a 0,38). Lo decide DIGITALÍSIMO; quien usa el sitio no lo cambia.
+	 */
+	const PROVIDER = 'anthropic';
+	const MODEL    = 'claude-haiku-5-5';
+	/** Constantes de wp-config con las que DIGITALÍSIMO fija otro modelo, proveedor o esfuerzo en un sitio. */
+	const MODEL_CONSTANT    = 'DIGITALISIMO_AI_ASSISTANT_MODEL';
+	const PROVIDER_CONSTANT = 'DIGITALISIMO_AI_ASSISTANT_PROVIDER';
+	const EFFORT_CONSTANT   = 'DIGITALISIMO_AI_ASSISTANT_EFFORT';
+	const EFFORTS           = array( 'low', 'medium', 'high', 'xhigh', 'max' );
+	/**
+	 * La clave de Anthropic de DIGITALÍSIMO en wp-config (opcional). Con ella el Asistente no usa la de IA Tools →
+	 * Proveedores, la clave no se guarda en la base ni sale nunca del servidor, y los demás perfiles no la usan.
+	 */
+	const KEY_CONSTANT      = 'DIGITALISIMO_AI_ASSISTANT_ANTHROPIC_KEY';
+	/** Lo que dice el Asistente cuando el sitio no tiene la IA de DIGITALÍSIMO (también la pantalla, para quien administra). */
+	const MISSING           = 'El Asistente IA necesita la IA de DIGITALÍSIMO y este sitio todavía no la tiene conectada. Pídele a DIGITALÍSIMO que la conecte.';
+	/** Topes del Asistente con la clave de DIGITALÍSIMO (constantes opcionales de wp-config; nunca 0 = sin tope). */
+	const DAILY_CONSTANT       = 'DIGITALISIMO_AI_ASSISTANT_DAILY_CALLS';
+	const CONCURRENCY_CONSTANT = 'DIGITALISIMO_AI_ASSISTANT_CONCURRENCY';
+	const OWN_DAILY            = 200;
+	const OWN_CONCURRENCY      = 1;
 	/**
 	 * Modelos de Anthropic que escriben sus notas entre llamadas a herramientas como bloques `thinking` (vacíos salvo
 	 * con `display: "updates"`, beta UPDATES_BETA): sin pedirlas, un turno que termina en una herramienta llega sin texto.
@@ -44,7 +59,7 @@ final class Digitalisimo_AI_Assistant_Model {
 	 * API los descarta en vez de rechazar la petición.
 	 */
 	const BINDING_BETA   = 'thinking-binding-controls-2026-08-01';
-	/** Esfuerzo del Asistente con los modelos que lo admiten (Opus 5.5 trae `medium` por defecto). */
+	/** Esfuerzo de fábrica del Asistente con los modelos que lo admiten (Opus 5.5 y Haiku 5.5 traen `medium` por defecto). */
 	const EFFORT         = 'high';
 	/** Texto con el que la API marca una nota de avance cortada (no es para la persona). */
 	const UPDATES_CUT    = 'This part of the response was interrupted before it finished.';
@@ -59,74 +74,147 @@ final class Digitalisimo_AI_Assistant_Model {
 	const REJECTED      = 'digitalisimo_ai_assistant_rejected_tools';
 
 	/**
-	 * Las IA disponibles, por proveedor: `provider`, `model`, `name`, `ai_name` y `profile`. Sin claves.
+	 * El modelo fijo del Asistente: `provider`, `model` y `effort`. MODEL, PROVIDER y EFFORT de esta clase; encima, las
+	 * constantes de wp-config (MODEL_CONSTANT, PROVIDER_CONSTANT y EFFORT_CONSTANT) y, al final, el filtro
+	 * `digitalisimo_ai_assistant_model` (código de DIGITALÍSIMO, nunca una opción que se guarde desde el escritorio). Sin
+	 * proveedor explícito, el del nombre del modelo (claude-… → Anthropic). Lo que no es válido se ignora.
+	 *
+	 * @return array{provider:string,model:string,effort:string}
+	 */
+	public static function fixed() {
+		$fixed = array( 'provider' => '', 'model' => self::MODEL, 'effort' => self::EFFORT );
+		if ( defined( self::MODEL_CONSTANT ) && self::valid_model( constant( self::MODEL_CONSTANT ) ) ) {
+			$fixed['model'] = trim( (string) constant( self::MODEL_CONSTANT ) );
+		}
+		if ( defined( self::PROVIDER_CONSTANT ) && is_string( constant( self::PROVIDER_CONSTANT ) ) && isset( self::NAMES[ strtolower( trim( constant( self::PROVIDER_CONSTANT ) ) ) ] ) ) {
+			$fixed['provider'] = strtolower( trim( constant( self::PROVIDER_CONSTANT ) ) );
+		}
+		if ( defined( self::EFFORT_CONSTANT ) && in_array( constant( self::EFFORT_CONSTANT ), self::EFFORTS, true ) ) {
+			$fixed['effort'] = constant( self::EFFORT_CONSTANT );
+		}
+		$filtered = apply_filters( 'digitalisimo_ai_assistant_model', $fixed );
+		if ( is_array( $filtered ) ) {
+			if ( self::valid_model( $filtered['model'] ?? null ) ) {
+				$fixed['model'] = trim( (string) $filtered['model'] );
+			}
+			if ( is_string( $filtered['provider'] ?? null ) && ( '' === $filtered['provider'] || isset( self::NAMES[ $filtered['provider'] ] ) ) ) {
+				$fixed['provider'] = $filtered['provider'];
+			}
+			if ( in_array( $filtered['effort'] ?? null, self::EFFORTS, true ) ) {
+				$fixed['effort'] = $filtered['effort'];
+			}
+		}
+		if ( '' === $fixed['provider'] ) {
+			$fixed['provider'] = self::provider_of( $fixed['model'] );
+		}
+		// Proveedor y modelo cruzados (p. ej. PROVIDER en openai con un modelo claude-…): se vuelve al de fábrica y queda un
+		// aviso en la bitácora del Asistente (una vez al día).
+		$known = self::known_provider( $fixed['model'] );
+		if ( '' !== $known && $known !== $fixed['provider'] ) {
+			self::warn_mismatch( $fixed );
+			$fixed = array( 'provider' => self::PROVIDER, 'model' => self::MODEL, 'effort' => $fixed['effort'] );
+		}
+		return $fixed;
+	}
+
+	/** El aviso de proveedor y modelo cruzados, en la bitácora del Asistente y en el registro de PHP (una vez al día). */
+	private static function warn_mismatch( array $fixed ) {
+		$key  = 'digitalisimo_ai_assistant_model_mismatch';
+		$seen = function_exists( 'get_transient' ) ? get_transient( $key ) : false;
+		if ( $seen ) {
+			return;
+		}
+		if ( function_exists( 'set_transient' ) ) {
+			set_transient( $key, 1, DAY_IN_SECONDS );
+		}
+		$detail = sprintf( 'El modelo fijo del Asistente no cuadra con su proveedor (%s con %s): se usa el de fábrica, %s.', $fixed['model'], $fixed['provider'], self::MODEL );
+		if ( class_exists( 'Digitalisimo_AI_Assistant_Tools' ) ) {
+			Digitalisimo_AI_Assistant_Tools::log( array( 'user' => function_exists( 'get_current_user_id' ) ? get_current_user_id() : 0, 'ability' => 'modelo del Asistente', 'kind' => 'rejected', 'input' => '', 'result' => 'skipped', 'detail' => $detail ) );
+		}
+		error_log( 'DIGITALÍSIMO IA Tools: ' . $detail ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+	}
+
+	/** El proveedor que se reconoce por el nombre del modelo, o '' si el nombre no es de ninguno conocido. */
+	public static function known_provider( $model ) {
+		$model = strtolower( (string) $model );
+		foreach ( array( '/^claude-/' => 'anthropic', '/^(gpt-|o\d|chatgpt)/' => 'openai', '/^(models\/)?gemini/' => 'google', '/^grok/' => 'xai', '/^deepseek/' => 'deepseek' ) as $pattern => $provider ) {
+			if ( preg_match( $pattern, $model ) ) {
+				return $provider;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Con la clave de DIGITALÍSIMO, los topes del Asistente por persona salen de wp-config y no del escritorio: llamadas
+	 * por día (DAILY_CONSTANT, OWN_DAILY por defecto) y peticiones a la vez (CONCURRENCY_CONSTANT, OWN_CONCURRENCY, de 1
+	 * a 10). Nunca 0: no hay forma de quitar el tope. null sin la clave (valen los de IA Tools).
+	 *
+	 * @return array{per_day:int,concurrent:int}|null
+	 */
+	public static function own_limits() {
+		if ( '' === self::own_key() ) {
+			return null;
+		}
+		$daily = defined( self::DAILY_CONSTANT ) && is_numeric( constant( self::DAILY_CONSTANT ) ) ? (int) constant( self::DAILY_CONSTANT ) : self::OWN_DAILY;
+		$conc  = defined( self::CONCURRENCY_CONSTANT ) && is_numeric( constant( self::CONCURRENCY_CONSTANT ) ) ? (int) constant( self::CONCURRENCY_CONSTANT ) : self::OWN_CONCURRENCY;
+		return array( 'per_day' => $daily >= 1 ? $daily : self::OWN_DAILY, 'concurrent' => max( 1, min( 10, $conc ) ) );
+	}
+
+	/** La clave de KEY_CONSTANT si está en wp-config ('' si no). Sólo para el servidor. */
+	public static function own_key() {
+		$key = defined( self::KEY_CONSTANT ) ? constant( self::KEY_CONSTANT ) : '';
+		return is_string( $key ) && strlen( trim( $key ) ) >= 8 ? trim( $key ) : '';
+	}
+
+	/** ¿Es un ID de modelo que se puede mandar? (letras, números y . _ : / -; hasta 100). */
+	private static function valid_model( $model ) {
+		return is_string( $model ) && (bool) preg_match( '/^[A-Za-z0-9][A-Za-z0-9._:\/-]{0,99}$/', trim( $model ) );
+	}
+
+	/** El proveedor de un modelo por su nombre (claude-… Anthropic, gpt-… OpenAI…); si no se reconoce, PROVIDER. */
+	public static function provider_of( $model ) {
+		$known = self::known_provider( $model );
+		return '' !== $known ? $known : self::PROVIDER;
+	}
+
+	/**
+	 * La IA del Asistente si su proveedor está activo con su clave: `provider` => (`provider`, `model`, `name`,
+	 * `ai_name`, `profile`), o un arreglo vacío. Es una sola, la de fixed(): ni los perfiles de uso ni las opciones
+	 * guardadas la cambian. Sin claves.
 	 *
 	 * @return array<string,array<string,string>>
 	 */
 	public static function targets() {
-		$o         = Digitalisimo_AI::get();
-		$profiles  = is_array( $o['profiles'] ?? null ) ? $o['profiles'] : array();
-		$providers = is_array( $o['providers'] ?? null ) ? $o['providers'] : array();
-		$out       = array();
-		foreach ( array_unique( array_merge( self::PROFILE_ORDER, array_keys( $profiles ) ) ) as $profile ) {
-			if ( 'images' === $profile || empty( $profiles[ $profile ] ) || ! is_array( $profiles[ $profile ] ) ) {
-				continue;
-			}
-			$id    = sanitize_key( (string) ( $profiles[ $profile ]['provider'] ?? '' ) );
-			$model = trim( (string) ( $profiles[ $profile ]['model'] ?? '' ) );
-			if ( ! isset( self::NAMES[ $id ] ) || '' === $model || isset( $out[ $id ] ) || empty( $providers[ $id ]['enabled'] ) || empty( $providers[ $id ]['key'] ) ) {
-				continue;
-			}
-			$out[ $id ] = array( 'provider' => $id, 'model' => self::assistant_model( $id, $model, 'assistant' === $profile, $o ), 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => (string) $profile );
+		$fixed     = self::fixed();
+		$id        = $fixed['provider'];
+		$providers = (array) Digitalisimo_AI::get( 'providers' );
+		$own       = 'anthropic' === $id && '' !== self::own_key();
+		if ( ! isset( self::NAMES[ $id ] ) || ( ! $own && ( empty( $providers[ $id ]['enabled'] ) || empty( $providers[ $id ]['key'] ) ) ) ) {
+			return array();
 		}
-		// Un proveedor activo con clave que ningún perfil eligió también está disponible, con su modelo recomendado
-		// (si no, activar sólo Anthropic dejaba el Asistente en «No hay ninguna IA configurada»).
-		foreach ( Digitalisimo_AI::usable_providers( $o ) as $id => $model ) {
-			if ( isset( self::NAMES[ $id ] ) && ! isset( $out[ $id ] ) ) {
-				$out[ $id ] = array( 'provider' => $id, 'model' => self::assistant_model( $id, $model, false, $o ), 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => '' );
-			}
-		}
-		return $out;
+		return array( $id => array( 'provider' => $id, 'model' => $fixed['model'], 'name' => self::NAMES[ $id ], 'ai_name' => self::AI_NAMES[ $id ], 'profile' => '' ) );
 	}
 
 	/**
-	 * El modelo del Asistente para un proveedor: lo elegido en «Modelo del Asistente IA» (`assistant_models`); vacío,
-	 * el de un perfil llamado «assistant» si lo hay, y si no el recomendado (ASSISTANT_MODELS, filtro
-	 * `digitalisimo_ai_assistant_default_model`); «profile», el del perfil de uso (`$profile_model`).
+	 * La IA para una conversación, con su clave, su URL y su esfuerzo: sólo para el servidor. Siempre la fija
+	 * (fixed()): `$choice` se conserva por compatibilidad y se ignora (antes era «auto» o un proveedor que pedía el
+	 * navegador; ya no se elige).
 	 */
-	public static function assistant_model( $id, $profile_model, $assistant_profile = false, $o = null ) {
-		$o      = is_array( $o ) ? $o : Digitalisimo_AI::get();
-		$chosen = trim( (string) ( ( is_array( $o['assistant_models'] ?? null ) ? $o['assistant_models'] : array() )[ $id ] ?? '' ) );
-		if ( 'profile' === $chosen ) {
-			return (string) $profile_model;
-		}
-		if ( '' !== $chosen ) {
-			return $chosen;
-		}
-		if ( $assistant_profile && '' !== trim( (string) $profile_model ) ) {
-			return (string) $profile_model;
-		}
-		$recommended = (string) apply_filters( 'digitalisimo_ai_assistant_default_model', self::ASSISTANT_MODELS[ $id ] ?? '', $id );
-		return '' !== $recommended ? $recommended : (string) $profile_model;
-	}
-
-	/** La IA para una conversación (`auto` o la clave de un proveedor), con su clave y su URL: sólo para el servidor. */
-	public static function target( $choice ) {
+	public static function target( $choice = 'auto' ) {
+		unset( $choice );
 		$targets = self::targets();
 		if ( ! $targets ) {
-			return new WP_Error( 'digitalisimo_assistant_no_ai', 'No hay ninguna IA configurada: activa un proveedor con su clave en IA Tools → Proveedores.', array( 'status' => 409 ) );
+			return new WP_Error( 'digitalisimo_assistant_no_ai', self::MISSING, array( 'status' => 409 ) );
 		}
-		$choice = sanitize_key( (string) $choice );
-		if ( '' === $choice || 'auto' === $choice ) {
-			$target = reset( $targets );
-		} elseif ( isset( $targets[ $choice ] ) ) {
-			$target = $targets[ $choice ];
-		} else {
-			return new WP_Error( 'digitalisimo_assistant_ai', 'Esa IA no está disponible en este sitio.', array( 'status' => 400 ) );
-		}
-		$providers     = (array) Digitalisimo_AI::get( 'providers' );
-		$target['key'] = (string) ( $providers[ $target['provider'] ]['key'] ?? '' );
-		$target['url'] = (string) ( $providers[ $target['provider'] ]['url'] ?? '' );
+		$target                = reset( $targets );
+		$providers             = (array) Digitalisimo_AI::get( 'providers' );
+		$own                   = 'anthropic' === $target['provider'] ? self::own_key() : '';
+		$target['key']         = '' !== $own ? $own : (string) ( $providers[ $target['provider'] ]['key'] ?? '' );
+		// Con Anthropic, siempre su URL oficial (build() la pone con `url` vacío): una URL que alguien guarde en
+		// Proveedores no recibe la clave que paga DIGITALÍSIMO.
+		$target['url']         = 'anthropic' === $target['provider'] ? '' : (string) ( $providers[ $target['provider'] ]['url'] ?? '' );
+		$target['turn_effort'] = self::fixed()['effort'];
 		return $target;
 	}
 
@@ -152,7 +240,8 @@ final class Digitalisimo_AI_Assistant_Model {
 			if ( is_wp_error( $request ) ) {
 				return $request;
 			}
-			$response = wp_remote_post( $request['url'], array( 'timeout' => $timeout, 'headers' => $request['headers'], 'body' => wp_json_encode( $request['body'] ) ) );
+			// Sin redirecciones (como Hosting con Webuzo): una respuesta 30x no se sigue, así que la clave no viaja a otro lado.
+			$response = wp_remote_post( $request['url'], array( 'timeout' => $timeout, 'redirection' => 0, 'headers' => $request['headers'], 'body' => wp_json_encode( $request['body'] ) ) );
 			$code     = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
 			if ( 400 !== $code ) {
 				break;
@@ -192,7 +281,8 @@ final class Digitalisimo_AI_Assistant_Model {
 			if ( 0 === $code ) {
 				$why = 'sin conexión con el proveedor';
 			} elseif ( in_array( $code, array( 401, 403 ), true ) ) {
-				$why = 'HTTP ' . $code . ': revisa la clave en IA Tools';
+				// Con la clave de DIGITALÍSIMO (wp-config) quien administra no la puede revisar: que avise a DIGITALÍSIMO.
+				$why = 'HTTP ' . $code . ': ' . ( 'anthropic' === $target['provider'] && '' !== self::own_key() ? 'avisa a DIGITALÍSIMO para que revise la conexión' : 'revisa la clave en IA Tools' );
 			} else {
 				$reason = self::error_reason( (string) wp_remote_retrieve_body( $response ) );
 				$why    = 'HTTP ' . $code . ( '' !== $reason ? ': ' . $reason : '' );
@@ -363,7 +453,7 @@ final class Digitalisimo_AI_Assistant_Model {
 			// Las notas que el modelo escribe entre herramientas («Creo la landing…», «Verifico…») llegan como texto.
 			if ( empty( $target['no_updates'] ) && preg_match( self::UPDATES_MODELS, (string) $target['model'] ) && (bool) apply_filters( 'digitalisimo_ai_assistant_progress_updates', true, $target ) ) {
 				$body['thinking']          = array( 'type' => 'adaptive', 'display' => 'updates', 'block_binding' => array( 'prefix_mismatch_behavior' => 'drop_block' ) );
-				$body['output_config']     = array( 'effort' => (string) apply_filters( 'digitalisimo_ai_assistant_effort', self::EFFORT, $target ) );
+				$body['output_config']     = array( 'effort' => (string) apply_filters( 'digitalisimo_ai_assistant_effort', (string) ( $target['turn_effort'] ?? self::EFFORT ), $target ) );
 				$headers['anthropic-beta'] = self::UPDATES_BETA . ',' . self::BINDING_BETA;
 			} elseif ( ! empty( $target['effort'] ) && preg_match( self::UPDATES_MODELS, (string) $target['model'] ) ) {
 				// Tareas cortas sin herramientas (el aprendizaje): esfuerzo propio, sin notas de avance.

@@ -5,8 +5,9 @@ require_once __DIR__ . '/class-digitalisimo-ai-assistant-card.php';
 
 /**
  * El Asistente IA nativo de WordPress (docs/ASSISTANT.md): la interfaz del chat asistente de `@digitalisimo/ui`
- * portada a `wp.element`, con su menú principal «Asistente IA», el proveedor y la clave de IA Tools y, como
- * herramientas, las mismas Abilities que expone el MCP del sitio.
+ * portada a `wp.element`, con su menú principal «Asistente IA», el modelo fijo de DIGITALÍSIMO
+ * (Digitalisimo_AI_Assistant_Model::fixed(), con la clave de IA Tools) y, como herramientas, las mismas Abilities que
+ * expone el MCP del sitio.
  *
  * - Menú y pantalla para quien tiene `edit_posts`; nada se carga fuera de esa pantalla. En una red, sólo en el
  *   escritorio de cada sitio: las Abilities actúan sobre un sitio y una tarea iniciada en un sitio sólo toca ese sitio.
@@ -66,6 +67,9 @@ final class Digitalisimo_AI_Assistant {
 		'actualiza' => '/update|edit|manage|set/',
 		'agrega'    => '/add|create|insert|update/',
 	);
+
+	/** El rótulo del paso de una herramienta que el sitio no tiene (el modelo la pidió por un nombre que no existe). */
+	const UNKNOWN_STEP = 'una función que tu sitio no tiene';
 
 	/** @var int Hora límite del turno en curso (0: sin turno). */
 	private static $deadline = 0;
@@ -177,13 +181,13 @@ final class Digitalisimo_AI_Assistant {
 		wp_add_inline_script( 'digitalisimo-ai-assistant', 'window.digitalisimoAssistantConfig = ' . wp_json_encode( self::config() ) . ';', 'before' );
 	}
 
-	/** Lo que la interfaz necesita al abrirse. Sin claves, URLs de proveedores ni modelos. */
+	/**
+	 * Lo que la interfaz necesita al abrirse. Sin claves, URLs de proveedores ni modelos. `providers` sólo dice si el
+	 * Asistente tiene su IA (la de DIGITALÍSIMO, fija: Digitalisimo_AI_Assistant_Model::fixed()); no hay nada que elegir.
+	 */
 	public static function config() {
 		$user      = wp_get_current_user();
-		$providers = array();
-		foreach ( Digitalisimo_AI_Assistant_Model::targets() as $key => $target ) {
-			$providers[] = array( 'key' => $key, 'name' => $target['name'], 'aiName' => $target['ai_name'], 'status' => 'available' );
-		}
+		$providers = Digitalisimo_AI_Assistant_Model::targets() ? array( array( 'key' => 'digitalisimo', 'name' => 'DIGITALÍSIMO', 'aiName' => 'IA de DIGITALÍSIMO', 'status' => 'available' ) ) : array();
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- sólo prellenan la pantalla: nada se envía solo.
 		$prompt       = isset( $_GET['prompt'] ) ? Digitalisimo_AI_Assistant_Tools::clip( trim( sanitize_textarea_field( wp_unslash( $_GET['prompt'] ) ) ), self::MAX_PREFILL ) : '';
 		$conversation = isset( $_GET['conversation'] ) ? absint( $_GET['conversation'] ) : 0;
@@ -321,9 +325,9 @@ final class Digitalisimo_AI_Assistant {
 		if ( '' === $text ) {
 			return new WP_Error( 'digitalisimo_assistant_empty', 'Escribe un mensaje.', array( 'status' => 400 ) );
 		}
-		$choice   = sanitize_key( (string) ( $request->get_param( 'provider' ) ?: 'auto' ) );
+		// La IA no se elige: un `provider` que mande el navegador (o un cliente de la REST) se ignora.
 		$shortcut = self::shortcut( $text );
-		$target   = $shortcut ? array() : Digitalisimo_AI_Assistant_Model::target( $choice );
+		$target   = $shortcut ? array() : Digitalisimo_AI_Assistant_Model::target();
 		if ( is_wp_error( $target ) ) {
 			return $target;
 		}
@@ -354,7 +358,7 @@ final class Digitalisimo_AI_Assistant {
 					$locks[] = $lock;
 				}
 			}
-			$conv['provider']   = $choice ?: 'auto';
+			$conv['provider']   = 'auto';
 			$conv['categories'] = self::categories( $request->get_param( 'categories' ) );
 			return self::respond(
 				$request,
@@ -436,7 +440,7 @@ final class Digitalisimo_AI_Assistant {
 					$action         = self::resolve( $conv, $index, $approve, $emit );
 					// Un atajo (/herramienta) no pasa por el modelo, tampoco después de confirmarlo.
 					if ( ! $conv['pending'] && empty( $action['shortcut'] ) ) {
-						$target = Digitalisimo_AI_Assistant_Model::target( $conv['provider'] );
+						$target = Digitalisimo_AI_Assistant_Model::target();
 						if ( is_wp_error( $target ) ) {
 							self::notice( $conv, $emit, $target->get_error_message(), 'error' );
 							return;
@@ -627,7 +631,7 @@ final class Digitalisimo_AI_Assistant {
 			if ( ! is_array( $conv['resume'] ) || $conv['pending'] || (int) ( $conv['resume']['time'] ?? 0 ) < time() - self::PENDING_TTL ) {
 				return new WP_Error( 'digitalisimo_assistant_continue', 'No hay ningún turno que continuar en esta conversación.', array( 'status' => 409 ) );
 			}
-			$target = Digitalisimo_AI_Assistant_Model::target( $conv['provider'] );
+			$target = Digitalisimo_AI_Assistant_Model::target();
 			if ( is_wp_error( $target ) ) {
 				return $target;
 			}
@@ -719,11 +723,7 @@ final class Digitalisimo_AI_Assistant {
 	 */
 	public static function turn( array &$conv, array $target, callable $emit, $resumed = false ) {
 		$catalog        = Digitalisimo_AI_Assistant_Tools::catalog( $conv['categories'] );
-		$tools          = Digitalisimo_AI_Assistant_Tools::definitions( $catalog );
-		if ( class_exists( 'Digitalisimo_AI_Assistant_Learning' ) && Digitalisimo_AI_Assistant_Learning::can() ) {
-			// «Recordar» (el aprendizaje): sólo quien administra el sitio le enseña al Asistente para el futuro.
-			$tools[] = Digitalisimo_AI_Assistant_Learning::tool_definition();
-		}
+		$tools          = self::offered_tools( $conv, $catalog );
 		$state          = $resumed && is_array( $conv['resume'] ?? null ) ? $conv['resume'] : array();
 		$state          = array( 'steps' => (int) ( $state['steps'] ?? 0 ), 'calls' => (int) ( $state['calls'] ?? 0 ), 'count' => (int) ( $state['count'] ?? 0 ) );
 		$conv['resume'] = null;
@@ -749,7 +749,12 @@ final class Digitalisimo_AI_Assistant {
 				return;
 			}
 			Digitalisimo_AI_Assistant_Guard::renew_all();
-			$messages = Digitalisimo_AI_Assistant_History::for_model( $conv, $catalog, $target );
+			// Las funciones de diseño se suman en el paso siguiente al que el modelo las pidió (MORE_TOOL).
+			$tools    = self::offered_tools( $conv, $catalog );
+			$system   = self::system_parts();
+			// El presupuesto es de la petición entera: se resta lo que ya ocupan las herramientas y las instrucciones.
+			$fixed    = strlen( (string) wp_json_encode( $tools ) ) + strlen( (string) wp_json_encode( Digitalisimo_AI_Assistant_Model::system_text( $system ) ) );
+			$messages = Digitalisimo_AI_Assistant_History::for_model( $conv, $catalog, $target, null, $fixed );
 			// Lo que la IA propone puede venir de contenido del sitio leído en cualquier turno de lo que se le manda.
 			$read = $read || in_array( 'tool', array_column( $messages, 'role' ), true );
 			if ( ! $messages ) {
@@ -765,7 +770,7 @@ final class Digitalisimo_AI_Assistant {
 				return;
 			}
 			$emit( array( 'type' => 'status', 'text' => 'Pensando…' ) );
-			$reply = Digitalisimo_AI_Assistant_Model::chat( $target, self::system_parts(), $messages, $tools );
+			$reply = Digitalisimo_AI_Assistant_Model::chat( $target, $system, $messages, $tools );
 			$state['steps']++;
 			if ( ! is_wp_error( $reply ) ) {
 				// Cada llamada al modelo queda en la bitácora con sus tokens (lo leído de la caché, lo escrito y lo demás).
@@ -775,8 +780,8 @@ final class Digitalisimo_AI_Assistant {
 				self::notice( $conv, $emit, $reply->get_error_message(), 'error' );
 				return;
 			}
-			$text  = Digitalisimo_AI::plain_text( Digitalisimo_AI_Assistant_Tools::scrub( $reply['text'] ) );
-			$notes = Digitalisimo_AI::plain_text( Digitalisimo_AI_Assistant_Tools::scrub( (string) ( $reply['notes'] ?? '' ) ) );
+			$text  = Digitalisimo_AI_Assistant_Tools::plain_words( Digitalisimo_AI::plain_text( Digitalisimo_AI_Assistant_Tools::scrub( $reply['text'] ) ) );
+			$notes = Digitalisimo_AI_Assistant_Tools::plain_words( Digitalisimo_AI::plain_text( Digitalisimo_AI_Assistant_Tools::scrub( (string) ( $reply['notes'] ?? '' ) ) ) );
 			$calls = array();
 			$room  = $max_calls - $state['calls'];
 			if ( ! $reply['truncated'] ) {
@@ -784,6 +789,9 @@ final class Digitalisimo_AI_Assistant {
 					$ability = Digitalisimo_AI_Assistant_Tools::ability_for( $catalog, $call['name'] );
 					if ( '' === $ability && class_exists( 'Digitalisimo_AI_Assistant_Learning' ) && Digitalisimo_AI_Assistant_Learning::TOOL === $call['name'] ) {
 						$ability = Digitalisimo_AI_Assistant_Learning::ABILITY;
+					}
+					if ( '' === $ability && Digitalisimo_AI_Assistant_Tools::MORE_TOOL === $call['name'] ) {
+						$ability = Digitalisimo_AI_Assistant_Tools::MORE_ABILITY;
 					}
 					$calls[] = array( 'id' => $call['id'], 'ability' => '' !== $ability ? $ability : sanitize_text_field( $call['name'] ), 'input' => $call['input'], 'sig' => $call['sig'] );
 				}
@@ -824,6 +832,26 @@ final class Digitalisimo_AI_Assistant {
 	}
 
 	/**
+	 * Las herramientas que ve el modelo en este paso (docs/ASSISTANT.md, «Contexto»): las del catálogo que le sirven
+	 * (Tools::offered(): sin las que no necesita ni las funciones de diseño hasta que las pide), en orden fijo, más
+	 * «Recordar» para quien administra y la que pide las funciones de diseño si el sitio las tiene. Cambian sólo
+	 * cuando la conversación pide las de diseño (una vez).
+	 */
+	private static function offered_tools( array $conv, array $catalog ) {
+		$more  = ! empty( $conv['more_tools'] );
+		$tools = Digitalisimo_AI_Assistant_Tools::definitions( Digitalisimo_AI_Assistant_Tools::offered( $catalog, $more ) );
+		if ( class_exists( 'Digitalisimo_AI_Assistant_Learning' ) && Digitalisimo_AI_Assistant_Learning::can() ) {
+			// «Recordar» (el aprendizaje): sólo quien administra el sitio le enseña al Asistente para el futuro.
+			$tools[] = Digitalisimo_AI_Assistant_Learning::tool_definition();
+		}
+		// Se sigue declarando después de pedirla: las llamadas del historial necesitan su herramienta.
+		if ( Digitalisimo_AI_Assistant_Tools::builder_extras( $catalog ) || $more ) {
+			$tools[] = Digitalisimo_AI_Assistant_Tools::more_tool_definition();
+		}
+		return $tools;
+	}
+
+	/**
 	 * Segundos de un tramo del turno: TURN_BUDGET (filtro `digitalisimo_ai_assistant_turn_budget`), y menos si PHP corta
 	 * antes (max_execution_time que el hosting no deja subir): así el tramo termina, guarda y sigue en otra petición.
 	 */
@@ -848,9 +876,18 @@ final class Digitalisimo_AI_Assistant {
 				self::remember( $conv, $call, $emit );
 				continue;
 			}
+			if ( Digitalisimo_AI_Assistant_Tools::MORE_ABILITY === $call['ability'] && ! $shortcut ) {
+				// Las funciones de diseño del constructor, desde el paso siguiente y en toda la conversación.
+				$conv['more_tools'] = true;
+				$extras             = array_map( array( 'Digitalisimo_AI_Assistant_Tools', 'tool_name' ), Digitalisimo_AI_Assistant_Tools::builder_extras( $catalog ) );
+				self::tool_result( $conv, $call, array( 'status' => 'ok', 'data' => array( 'listo' => $extras ? 'Desde el paso siguiente tienes también estas funciones de diseño: ' . implode( ', ', $extras ) . '.' : 'Este sitio no tiene más funciones de diseño: usa las que ya tienes.' ) ), 'read', $emit, 'más funciones para el diseño de tus páginas' );
+				continue;
+			}
 			$entry = $catalog[ $call['ability'] ] ?? null;
 			if ( ! $entry ) {
-				self::tool_result( $conv, $call, array( 'status' => 'error', 'error' => 'Esa función no está disponible en tu sitio (o está apagada en el Asistente); no se hizo nada.' ), 'unknown', $emit );
+				// El rótulo del paso, en llano: el nombre que inventó el modelo nunca se muestra (corrida 6 de Sonnet 5.5 del
+				// 2026-11-27: «Paso: digitalisimo-site-contact-placeholder — no se pudo»).
+				self::tool_result( $conv, $call, array( 'status' => 'error', 'error' => 'Esa función no está disponible en tu sitio (o está apagada en el Asistente); no se hizo nada.' ), 'unknown', $emit, self::UNKNOWN_STEP );
 				continue;
 			}
 			$call['input'] = Digitalisimo_AI_Assistant_Tools::prepare_input( $entry, $call['input'] );
@@ -1207,6 +1244,7 @@ final class Digitalisimo_AI_Assistant {
 			'Primero haces y muestras; después se ajusta:',
 			'- Cuando te piden crear algo (una landing, una página, una promoción), créalo YA en borrador, completo, en este mismo turno, con lo que sabes y valores razonables. Los datos los buscas tú en el sitio: producto, precio, fotos, contacto, políticas, pagos y envíos. Un borrador no se ve en el sitio ni cambia nada publicado: no pidas permiso ni confirmación para crearlo.',
 			'- Landing o promoción de un producto de la tienda: busca el producto con digitalisimo-woo/products (action list, search) y llama enseguida a digitalisimo-sales/create-page con product_id y offer (price; regular_price sólo si cambia; ends; label). Esa herramienta lee sola el WhatsApp, el teléfono, las políticas, los pagos, los envíos y el logo del sitio: no los consultes antes. Para esto no uses estructura de página, schema, SEO, ajustes, informes ni listados de entradas. Si para otra cosa necesitas el contacto o el texto de una página: digitalisimo-ia/site-contact y digitalisimo-ia/read-page-text.',
+			'- Una página que no es landing ni promoción (Nosotros, Contacto, Servicios…): créala con elementor/create-page (sale en blanco, en borrador) y en el mismo turno dale todo su contenido con elementor/build-composition sobre ese borrador, con los datos reales del sitio. Nunca la entregues vacía.',
 			'- Oferta o descuento de TODA la tienda o de una categoría («todos los productos al 40 %», «30 % en bombas»): llama enseguida a digitalisimo-sales/create-page con store_offer (percent; category sólo si es una categoría; label con el nombre de la promoción; ends si dijo hasta cuándo). Esa landing lleva los productos reales con foto, precio normal tachado y precio con el descuento, las garantías, los pagos y los envíos del sitio y el botón a la tienda. Nunca armes la oferta de una tienda con una plantilla de cursos (template): nada de «Lo que vas a lograr», bonus, módulos, factura ni avisos de resultados e ingresos.',
 			'- La página sale sola con los colores, las tipografías, la cabecera y el pie DEL SITIO (los de su kit o, si son los de fábrica, los que usan su cabecera, su pie y su portada). No hace falta activar nada: nunca le pidas a la persona que active, prenda o configure algo (editor, experimento, ajuste) para leer sus colores ni para crear o corregir una página.',
 			'- El botón principal lleva a la tienda o a la categoría en una oferta general y al producto en la de un producto; nunca al carrito vacío.',
@@ -1231,7 +1269,7 @@ final class Digitalisimo_AI_Assistant {
 			'- Nunca hagas dos preguntas en la misma respuesta. Si de verdad necesitas un dato que no puedes deducir, haz UNA pregunta corta, al final.',
 			'',
 			'Revisar que algo funcione (Skydropx, el carrito, los pagos, los envíos, la tienda):',
-			'- Revisar no pide permiso ni confirmación: las consultas corren solas. Revisa tú con las herramientas que sólo leen y contesta en llano: qué revisaste, qué está bien, qué falla y cómo lo arreglas, ofreciéndolo.',
+			'- Revisar no pide permiso ni confirmación: las consultas corren solas. Revisa tú con las herramientas que sólo leen y contesta en llano: qué revisaste, qué está bien, qué falla y cómo lo arreglas, ofreciéndolo. Revisar no crea nada: nunca hagas páginas ni borradores de prueba para comprobar algo.',
 			'- Skydropx: digitalisimo-woo/skydropx con action status (si está conectado y cotizando), audit_products (productos a los que les falta peso o medidas: sin eso Skydropx no puede cotizar su envío) y quote (una cotización de prueba de un producto con el código postal de la tienda). El carrito: las formas de pago activas y las zonas de envío (digitalisimo-woo/store-settings, action list) y que existan las páginas de carrito y de pago.',
 			'- Cuando, además de contestar, dejas un cambio listo con su tarjeta, escribe la respuesta completa (qué revisaste, qué está bien y qué falla) en ESE mismo mensaje, junto con la llamada: el turno se detiene en la tarjeta y lo que no escribas ahí la persona no lo verá.',
 			'- Ejemplo de respuesta: «Revisé Skydropx y tu carrito. Skydropx está conectado y cotiza bien. Tu carrito acepta transferencia y tarjeta. Lo que falla: 3 productos no tienen peso, así que Skydropx no puede cotizar su envío. ¿Les pongo el peso…?». Para poner peso o medidas usa siempre digitalisimo-woo/products con action update y data weight y dimensions (uno por producto; se puede deshacer), no update_products de Skydropx. Si el peso o las medidas salen en el nombre, la descripción o las características del producto, propónlos ya con su tarjeta; si no, pregunta los pesos en una sola pregunta.',
@@ -1244,7 +1282,7 @@ final class Digitalisimo_AI_Assistant {
 			'',
 			'Cómo hablas:',
 			'- Como con el dueño de un negocio que no sabe nada de computación. Nunca escribas IDs ni números de página, nombres de herramientas ni de acciones (audit_products, update…), MCP, REST, API, JSON, endpoint, plugin, schema, canonical, slug, meta, metadatos, meta descripción, noindex, nofollow, widget, placeholder, nombres o números de plantillas, rutas como /politica-de-reembolso/, zonas horarias (UTC), recuentos técnicos ni direcciones con ?page_id=.',
-			'- Dilo con palabras de todos los días: «ocultar de Google» (no «noindex»), «la descripción que sale en Google» (no «meta descripción»), «la dirección de la página» (no «slug» ni «canonical»), «Skydropx» o «tu conexión con Skydropx» (no «el plugin»), «la información que le das a Google» (no «schema»). Puedes decir qué revisaste y cuántas cosas, como «Revisé tus 11 páginas».',
+			'- Dilo con palabras de todos los días: «ocultar de Google» (no «noindex»), «la descripción que sale en Google» (no «meta descripción»), «la dirección de la página» (no «slug» ni «canonical»), «Skydropx» o «tu conexión con Skydropx» (no «el plugin»), «la información que le das a Google» (no «schema»). Aunque la persona use una palabra técnica («el plugin de Skydropx»), tú contesta con la de todos los días. Puedes decir qué revisaste y cuántas cosas, como «Revisé tus 11 páginas».',
 			'- Los enlaces van con texto, así: [Ver la landing](URL) y [Editarla](URL), con las URL que devolvió la herramienta (preview_url para verla, edit_url para editarla). Nunca pegues una URL suelta.',
 			'- Respuestas de 2 a 6 líneas, sin listas largas ni encabezados.',
 			'- Si te preguntan en qué puedes ayudar, contesta en 4 o 5 líneas cortas con cosas que el dueño entiende (crear páginas y landings de venta, revisar y mejorar cómo te encuentran en Google, ver tus ventas y pedidos, actualizar productos y precios, cambiar textos de tus páginas) y un ejemplo de pedido.',

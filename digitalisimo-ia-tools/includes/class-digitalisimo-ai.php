@@ -73,7 +73,7 @@ class Digitalisimo_AI {
 			'knowledge_enabled' => 0, 'knowledge_auto_index' => 1, 'knowledge_results' => 4, 'knowledge_embeddings_enabled' => 0, 'knowledge_embeddings_model' => 'text-embedding-3-small', 'knowledge_semantic_rerank' => 0,
 			'image_size' => '1536x1024', 'image_style' => 'natural', 'image_quality' => 'medium', 'log_retention' => 30, 'assistant_rate_minute' => 10, 'assistant_daily_calls' => 300, 'assistant_concurrency' => 1,
 			'editorial_voice' => '', 'editorial_context' => '', 'editorial_cta' => '', 'editorial_method' => '',
-			'providers' => array(), 'assistant_models' => array(),
+			'providers' => array(),
 			'profiles' => array(
 				'chatbot' => array( 'provider' => 'auto', 'model' => '', 'fallback' => '' ),
 				'content' => array( 'provider' => 'auto', 'model' => '', 'fallback' => '' ),
@@ -150,8 +150,16 @@ class Digitalisimo_AI {
 
 	/** Límites del Asistente IA por persona (los mismos campos en el sitio y en la red). */
 	public static function assistant_fields( $o ) {
-		echo '<h3>Asistente IA</h3><p>Límites por persona para no agotar la clave ni el servidor. 0 en mensajes o llamadas = sin tope.</p>';
+		$own = class_exists( 'Digitalisimo_AI_Assistant_Model' ) ? Digitalisimo_AI_Assistant_Model::own_limits() : null;
+		echo '<h3>Asistente IA</h3><p>Límites por persona para no agotar la clave ni el servidor. 0 en mensajes = sin tope.' . ( $own ? '' : ' 0 en llamadas = sin tope.' ) . '</p>';
 		self::input( 'assistant_rate_minute', 'Mensajes por minuto', $o, 'number' );
+		if ( $own ) {
+			// La IA de DIGITALÍSIMO: sus topes los fija DIGITALÍSIMO y aquí sólo se ven (los campos no se envían).
+			echo '<p><label><strong>Llamadas a la IA por día</strong><br><input class="regular-text" type="number" value="' . esc_attr( $own['per_day'] ) . '" disabled readonly></label></p>';
+			echo '<p><label><strong>Peticiones a la vez</strong><br><input class="regular-text" type="number" value="' . esc_attr( $own['concurrent'] ) . '" disabled readonly></label></p>';
+			echo '<p class="description">El Asistente usa la IA de DIGITALÍSIMO: estos topes los fija DIGITALÍSIMO.</p>';
+			return;
+		}
 		self::input( 'assistant_daily_calls', 'Llamadas a la IA por día', $o, 'number' );
 		self::input( 'assistant_concurrency', 'Peticiones a la vez', $o, 'number' );
 	}
@@ -196,26 +204,16 @@ class Digitalisimo_AI {
 		$network_keys = is_multisite() && ! ( function_exists( 'is_network_admin' ) && is_network_admin() ) && empty( self::local_options()['inherit_network'] ) ? (array) ( ( (array) get_site_option( self::OPTION, array() ) )['providers'] ?? array() ) : array();
 		foreach ( $names as $id => $name ) { $p = $o['providers'][ $id ] ?? array(); $has_key = ! empty( $p['key'] ); if ( ! $has_key && ! empty( $network_keys[ $id ]['key'] ) ) echo '<p class="notice notice-info inline">' . esc_html( $name ) . ': la red tiene su clave, pero no se copia a los sitios que personalizan. Escribe la clave de este sitio.</p>'; echo '<fieldset style="margin:18px 0;padding:16px;border:1px solid #ccd6e5"><legend><strong>' . esc_html( $name ) . '</strong></legend><label><input type="hidden" name="providers[' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="providers[' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label><p><input class="regular-text" type="password" name="providers[' . esc_attr( $id ) . '][key]" autocomplete="new-password" value="' . esc_attr( $has_key ? self::MASK : '' ) . '" onfocus="this.select()" placeholder="API Key"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span>' . ( $has_key && '' !== self::default_model( $id ) ? ' <span class="description">' . esc_html( sprintf( 'Si ningún perfil lo elige, se usa con %s (cámbialo en Perfiles de uso).', self::default_model( $id ) ) ) . '</span>' : '' ) . '' . ( $has_key ? ' <label><input type="checkbox" name="providers[' . esc_attr( $id ) . '][remove]" value="1"> Quitar la clave</label>' : '' ) . '</p><p><label>URL compatible <input class="regular-text" type="url" name="providers[' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p></fieldset>'; }
 	}
-	private static function profiles( $o ) { foreach ( $o['profiles'] as $id => $p ) { echo '<p><strong>' . esc_html( ucfirst( $id ) ) . '</strong><br><label>Proveedor <select name="profiles[' . esc_attr( $id ) . '][provider]">'; if ( 'images' !== $id ) echo '<option value="auto" ' . selected( in_array( $p['provider'], array( 'auto', '' ), true ), true, false ) . '>Auto (lo que esté configurado en Proveedores)</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['provider'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label> <label>Modelo <input name="profiles[' . esc_attr( $id ) . '][model]" value="' . esc_attr( $p['model'] ) . '" placeholder="El recomendado"></label> <label>Alternativa <select name="profiles[' . esc_attr( $id ) . '][fallback]"><option value="">Sin alternativa</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['fallback'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label></p>'; } }
+	private static function profiles( $o ) { foreach ( $o['profiles'] as $id => $p ) { if ( 'assistant' === $id || ! is_array( $p ) ) continue; /* El perfil «assistant» de antes ya no hace nada: el Asistente tiene modelo fijo. */ echo '<p><strong>' . esc_html( ucfirst( $id ) ) . '</strong><br><label>Proveedor <select name="profiles[' . esc_attr( $id ) . '][provider]">'; if ( 'images' !== $id ) echo '<option value="auto" ' . selected( in_array( $p['provider'], array( 'auto', '' ), true ), true, false ) . '>Auto (lo que esté configurado en Proveedores)</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['provider'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label> <label>Modelo <input name="profiles[' . esc_attr( $id ) . '][model]" value="' . esc_attr( $p['model'] ) . '" placeholder="El recomendado"></label> <label>Alternativa <select name="profiles[' . esc_attr( $id ) . '][fallback]"><option value="">Sin alternativa</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['fallback'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label></p>'; } }
 
 	/**
-	 * «Modelo del Asistente IA», por proveedor (opción `assistant_models`): por defecto el más capaz con herramientas
-	 * (Digitalisimo_AI_Assistant_Model::ASSISTANT_MODELS; Anthropic: claude-opus-5-5), uno de la lista, el del perfil de
-	 * uso u otro escrito a mano. No cambia el modelo de las demás herramientas (DEFAULT_MODELS y los perfiles).
+	 * «Asistente IA» en Perfiles de uso (sitio y red): sólo una línea informativa. El modelo del Asistente lo decide
+	 * DIGITALÍSIMO, que paga la API (Digitalisimo_AI_Assistant_Model::fixed(); pedido del dueño del 2026-11-27): aquí no
+	 * hay selector ni campo que lo cambie, y los perfiles de uso no le aplican.
 	 */
 	public static function assistant_model_fields( $o ) {
-		if ( ! class_exists( 'Digitalisimo_AI_Assistant_Model' ) ) return;
-		$saved = is_array( $o['assistant_models'] ?? null ) ? $o['assistant_models'] : array();
-		echo '<h3 id="assistant-model">Modelo del Asistente IA</h3><p>El Asistente IA trabaja con herramientas en varios pasos (lee el sitio, crea y revisa páginas), así que por defecto usa el modelo más capaz de cada proveedor. <strong>Claude Opus 5.5 cuesta más que Claude Sonnet 5.5 (el doble por token)</strong>; si prefieres gastar menos, elige otro. Esto sólo cambia el Asistente: las demás herramientas siguen con sus perfiles de uso.</p>';
-		foreach ( Digitalisimo_AI_Assistant_Model::ASSISTANT_CHOICES as $id => $choices ) {
-			$value       = trim( (string) ( $saved[ $id ] ?? '' ) );
-			$custom      = '' !== $value && 'profile' !== $value && ! isset( $choices[ $value ] );
-			$recommended = Digitalisimo_AI_Assistant_Model::ASSISTANT_MODELS[ $id ] ?? '';
-			echo '<p><label><strong>' . esc_html( Digitalisimo_AI_Assistant_Model::NAMES[ $id ] ?? $id ) . '</strong> <select name="assistant_models[' . esc_attr( $id ) . ']">';
-			echo '<option value="" ' . selected( '' === $value, true, false ) . '>' . esc_html( 'Recomendado: ' . $recommended ) . '</option>';
-			foreach ( $choices as $model => $label ) echo '<option value="' . esc_attr( $model ) . '" ' . selected( $value, $model, false ) . '>' . esc_html( $label ) . '</option>';
-			echo '<option value="profile" ' . selected( 'profile' === $value, true, false ) . '>Igual que el perfil de uso</option><option value="custom" ' . selected( $custom, true, false ) . '>Otro modelo…</option></select></label> <label>Otro <input name="assistant_models_custom[' . esc_attr( $id ) . ']" value="' . esc_attr( $custom ? $value : '' ) . '" placeholder="ID del modelo"></label></p>';
-		}
+		unset( $o );
+		echo '<h3 id="assistant-model">Asistente IA</h3><p>El Asistente usa la IA de DIGITALÍSIMO, ya optimizada. Estos perfiles de uso no le aplican.</p>';
 	}
 
 	private static function sanitize_values( $base ) {
@@ -228,17 +226,12 @@ class Digitalisimo_AI {
 		unset( $o['mcp_featured_image_enabled'] );
 		if ( isset( $in['image_quality'] ) ) $o['image_quality'] = in_array( $in['image_quality'], array( 'low', 'medium', 'high', 'xhigh', 'max' ), true ) ? $in['image_quality'] : 'medium';
 		if ( isset( $_POST['providers'] ) ) { $o['providers'] = $base['providers'] ?? array(); foreach ( (array) $_POST['providers'] as $id => $p ) { $id = sanitize_key( $id ); $o['providers'][ $id ]['enabled'] = ! empty( $p['enabled'] ); $o['providers'][ $id ]['url'] = esc_url_raw( $p['url'] ?? '' ); if ( ! empty( $p['remove'] ) ) $o['providers'][ $id ]['key'] = ''; elseif ( '' !== ( $new_key = self::unmask( $p['key'] ?? '' ) ) ) $o['providers'][ $id ]['key'] = $new_key; } }
-		if ( isset( $_POST['assistant_models'] ) && is_array( $_POST['assistant_models'] ) && class_exists( 'Digitalisimo_AI_Assistant_Model' ) ) {
-			$custom = is_array( $_POST['assistant_models_custom'] ?? null ) ? wp_unslash( $_POST['assistant_models_custom'] ) : array();
-			$o['assistant_models'] = array();
-			foreach ( Digitalisimo_AI_Assistant_Model::ASSISTANT_CHOICES as $id => $choices ) {
-				$value = sanitize_text_field( (string) wp_unslash( $_POST['assistant_models'][ $id ] ?? '' ) );
-				if ( 'custom' === $value ) $value = sanitize_text_field( (string) ( $custom[ $id ] ?? '' ) );
-				if ( '' !== $value && 'profile' !== $value && ! isset( $choices[ $value ] ) && ! preg_match( '/^[A-Za-z0-9][A-Za-z0-9._:\/-]{0,99}$/', $value ) ) $value = '';
-				if ( '' !== $value ) $o['assistant_models'][ $id ] = $value;
-			}
-		}
+		// El modelo del Asistente ya no se elige aquí (Digitalisimo_AI_Assistant_Model::fixed()): lo que llegue se ignora y lo
+		// que quedó guardado de antes se borra.
+		unset( $o['assistant_models'], $o['assistant_models_custom'] );
 		if ( isset( $_POST['profiles'] ) ) { $o['profiles'] = $base['profiles'] ?? self::defaults()['profiles']; foreach ( (array) wp_unslash( $_POST['profiles'] ) as $id => $p ) $o['profiles'][ sanitize_key( $id ) ] = array( 'provider' => ( sanitize_key( $p['provider'] ?? 'auto' ) ?: 'auto' ), 'model' => sanitize_text_field( $p['model'] ?? '' ), 'fallback' => sanitize_key( $p['fallback'] ?? '' ) ); }
+		// El perfil «assistant» ya no hace nada (modelo fijo del Asistente): no se guarda.
+		if ( isset( $o['profiles'] ) && is_array( $o['profiles'] ) ) unset( $o['profiles']['assistant'] );
 		return $o;
 	}
 	private static function save_site() {

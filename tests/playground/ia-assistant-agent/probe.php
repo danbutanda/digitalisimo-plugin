@@ -101,8 +101,18 @@ add_filter(
 			'files_block' => false !== strpos( implode( "\n", $read['users'] ), '[Archivos que la persona subió' ),
 		);
 		update_option( 'digi_ias_seen', $seen, false );
+		// Medir el contexto (docs/ASSISTANT.md, «Contexto»): con /digi-ias/dump, cada petición se guarda entera en
+		// /digi-ias/bodies/NNN.json (el cuerpo; la clave va en las cabeceras y nunca se guarda).
+		if ( 'medir' === digi_ias_mode() || file_exists( DIGI_IAS_DIR . '/dump' ) ) {
+			wp_mkdir_p( DIGI_IAS_DIR . '/bodies' );
+			file_put_contents( DIGI_IAS_DIR . '/bodies/' . sprintf( '%03d', count( $seen['requests'] ) ) . '.json', (string) $args['body'] );
+		}
 		if ( 'real' === digi_ias_mode() ) {
 			return $pre; // A Anthropic de verdad.
+		}
+		if ( 'medir' === digi_ias_mode() ) {
+			// Sin API: una respuesta corta que termina el turno (sólo importa lo que se habría mandado).
+			return digi_ias_reply( array( array( 'type' => 'text', 'text' => 'Listo.' ) ) );
 		}
 		return digi_ias_script( $read, $seen );
 	},
@@ -125,6 +135,7 @@ add_action(
 		$seen = get_option( 'digi_ias_seen', array() );
 		$seen['usage'][] = array(
 			'kind'     => $kind,
+			'model'    => (string) ( $req['model'] ?? '' ),
 			'usage'    => is_array( $body['usage'] ?? null ) ? $body['usage'] : null,
 			'stop'     => (string) ( $body['stop_reason'] ?? '' ),
 			'code'     => (int) wp_remote_retrieve_response_code( $response ),

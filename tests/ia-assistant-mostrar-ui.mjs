@@ -94,7 +94,7 @@ ok(parts.VERBS.destructive === 'Cambio importante' && parts.VERBS.read === 'Cons
 ok(/Primero lo preparo en borrador para que lo veas\. Nada se publica ni cambia en tu sitio sin que tú lo confirmes, y si un borrador tiene cambios tuyos, te pregunto antes de rehacerlo\./.test(ui) && !/Con \/ayuda usas una herramienta/.test(ui), 'U3: la bienvenida dice que primero se ve en borrador y lo que se confirma (también rehacer un borrador con cambios tuyos), sin atajos técnicos');
 ok(/action\.note \? h\( 'p', \{ className: 'dga-warn dga-note' \}, action\.note \)/.test(ui), 'U3: la tarjeta muestra su nota («Este borrador tiene cambios tuyos: ¿lo rehago encima?»)');
 ok(parts.SUGGESTIONS.some((s) => /landing/i.test(s[0])) && parts.SUGGESTIONS.some((s) => /Google/.test(s[0])) && parts.SUGGESTIONS.some((s) => /ventas/.test(s[0])), 'U3: las sugerencias son las del dueño (landing, Google, ventas)');
-ok(/'Automática', 'La mejor disponible'/.test(ui) && /'Funciones'/.test(ui), 'U3: el selector de IA y el de funciones en palabras llanas');
+ok(!/'Automática', 'La mejor disponible'/.test(ui) && /'Funciones'/.test(ui), 'U3: sin selector de IA (la fija de DIGITALÍSIMO) y el de funciones en palabras llanas');
 ok(!/'Este cambio no tiene vuelta atrás: confírmalo'/.test(ui) && !/action\.description \?/.test(ui) && /'Sí, hazlo'/.test(ui), 'U3: la tarjeta no dice «Acción destructiva» ni «no tiene vuelta atrás» ni pega la descripción técnica de la herramienta (caso plomerito 4)');
 
 console.log(`Asistente IA, pantalla que no abruma: ${checks} comprobaciones correctas.`);

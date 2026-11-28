@@ -30,10 +30,26 @@ final class Digitalisimo_AI_Assistant_History {
 	const STORE_TOOL_BYTES  = 3000000;
 	/** Tamaño de un resultado compactado (bytes). */
 	const COMPACT_BYTES     = 1500;
+	/**
+	 * Tope de cada resultado de herramienta de un turno anterior al modelo (bytes; docs/ASSISTANT.md, «Contexto»): ya
+	 * cumplió su papel y, si hace falta otra vez, se vuelve a consultar. Filtro `digitalisimo_ai_assistant_old_result_bytes`
+	 * (0: enteros, como antes).
+	 */
+	const OLD_RESULT_BYTES  = 1500;
 	/** Contexto por defecto si no se conoce el modelo (caracteres de JSON; unos 100 000 tokens). */
 	const CONTEXT_DEFAULT   = 350000;
-	/** Fracción del contexto real que se usa para la conversación (lo demás: instrucciones, herramientas y respuesta). */
+	/** Fracción del contexto real que se usa para la petición (lo demás: la respuesta y el margen de la estimación). */
 	const CONTEXT_SHARE     = 0.7;
+	/**
+	 * Caracteres de JSON por token, a la baja (medido en los cuerpos reales del caso plomerito, 2026-11-27: unos 2,5 con
+	 * Haiku, Sonnet y Opus 5.5; el JSON de WordPress escapa los acentos y eso cuenta).
+	 */
+	const CHARS_PER_TOKEN   = 2.4;
+	/**
+	 * Tope de la petición ENTERA (herramientas, instrucciones y mensajes) por precio, en tokens: Claude Haiku 5.5 cobra 5
+	 * veces más por toda la petición si pasa de 100 000; con 85 000 queda margen para la estimación.
+	 */
+	const PRICE_TOKENS      = array( 'claude-haiku-5' => 85000 );
 	/** Tope del resumen guardado (caracteres) y de cada línea suya. */
 	const SUMMARY_MAX       = 200000;
 	const SUMMARY_LINE      = 2000;
@@ -116,7 +132,7 @@ final class Digitalisimo_AI_Assistant_History {
 			return null;
 		}
 		self::prune( $user_id );
-		return array( 'id' => (int) $id, 'user' => (int) $user_id, 'title' => $title, 'messages' => array(), 'pending' => array(), 'provider' => 'auto', 'categories' => null, 'drafts' => array(), 'resume' => null, 'updated' => time() );
+		return array( 'id' => (int) $id, 'user' => (int) $user_id, 'title' => $title, 'messages' => array(), 'pending' => array(), 'provider' => 'auto', 'categories' => null, 'drafts' => array(), 'resume' => null, 'more_tools' => false, 'updated' => time() );
 	}
 
 	/** La conversación si es de este usuario; null si no existe o es de otro. */
@@ -142,6 +158,8 @@ final class Digitalisimo_AI_Assistant_History {
 			'categories' => is_array( $data['categories'] ?? null ) ? array_values( array_map( 'strval', $data['categories'] ) ) : null,
 			'drafts'     => is_array( $data['drafts'] ?? null ) ? array_values( array_unique( array_filter( array_map( 'intval', $data['drafts'] ) ) ) ) : array(),
 			'resume'     => is_array( $data['resume'] ?? null ) ? $data['resume'] : null,
+			// La conversación ya pidió las funciones de diseño del constructor (Tools::MORE_TOOL).
+			'more_tools' => ! empty( $data['more_tools'] ),
 			'updated'    => self::timestamp( $post ),
 		);
 	}
@@ -149,7 +167,7 @@ final class Digitalisimo_AI_Assistant_History {
 	public static function save( array $conv ) {
 		global $wpdb;
 		$messages = self::trim( self::compact_stored( array_values( $conv['messages'] ) ) );
-		$json = wp_json_encode( array( 'v' => 1, 'messages' => $messages, 'pending' => array_values( (array) $conv['pending'] ), 'provider' => (string) $conv['provider'], 'categories' => $conv['categories'], 'drafts' => array_values( array_map( 'intval', (array) ( $conv['drafts'] ?? array() ) ) ), 'resume' => $conv['resume'] ?? null ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+		$json = wp_json_encode( array( 'v' => 1, 'messages' => $messages, 'pending' => array_values( (array) $conv['pending'] ), 'provider' => (string) $conv['provider'], 'categories' => $conv['categories'], 'drafts' => array_values( array_map( 'intval', (array) ( $conv['drafts'] ?? array() ) ) ), 'resume' => $conv['resume'] ?? null, 'more_tools' => ! empty( $conv['more_tools'] ) ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
 		if ( ! is_string( $json ) || '' === $json ) {
 			return false; // Nunca se guarda una conversación vacía en lugar de la que había.
 		}
@@ -300,24 +318,45 @@ final class Digitalisimo_AI_Assistant_History {
 		$length               = function_exists( 'mb_strlen' ) ? mb_strlen( $content, 'UTF-8' ) : strlen( $content );
 		$payload['recortado'] = sprintf( '[resultado anterior recortado: %d caracteres]', $length );
 		$room                 = max( 0, $bytes - strlen( (string) wp_json_encode( $payload, $flags ) ) - 32 );
-		$payload['datos']     = Digitalisimo_AI_Assistant_Tools::cut_bytes( $data, $room ) . '…';
-		return (string) wp_json_encode( $payload, $flags );
+		// El tope es del JSON ya codificado: las comillas y barras de `datos` crecen al codificarse, así que se achica
+		// hasta que quepa de verdad.
+		for ( $try = 0; $try < 12; $try++ ) {
+			$payload['datos'] = Digitalisimo_AI_Assistant_Tools::cut_bytes( $data, $room ) . '…';
+			$json             = (string) wp_json_encode( $payload, $flags );
+			if ( strlen( $json ) <= $bytes || 0 === $room ) {
+				break;
+			}
+			$room = max( 0, $room - ( strlen( $json ) - $bytes ) - 8 );
+		}
+		return $json;
 	}
 
 	/**
-	 * El contexto que se puede usar con un modelo, en caracteres de JSON: el de su familia (CONTEXT_TOKENS, unos 3
-	 * caracteres por token) por CONTEXT_SHARE. Filtro `digitalisimo_ai_assistant_context_chars`.
+	 * Lo que puede medir la petición entera a un modelo (herramientas, instrucciones y mensajes), en caracteres de JSON:
+	 * su contexto (CONTEXT_TOKENS) por CONTEXT_SHARE o, si es menor, su tope por precio (PRICE_TOKENS), a
+	 * CHARS_PER_TOKEN. for_model() le resta lo que ya ocupan las herramientas y las instrucciones de ese paso. Filtro
+	 * `digitalisimo_ai_assistant_context_chars`.
 	 */
 	public static function context_chars( $provider = '', $model = '' ) {
 		$tokens = 0;
+		$price  = 0;
 		$model  = strtolower( (string) $model );
 		foreach ( self::CONTEXT_TOKENS as $prefix => $size ) {
 			if ( '' !== $model && 0 === strpos( $model, $prefix ) ) {
-				$tokens = $size;
+				$tokens = (int) ( $size * self::CONTEXT_SHARE );
 				break;
 			}
 		}
-		$chars = $tokens ? (int) ( $tokens * 3 * self::CONTEXT_SHARE ) : self::CONTEXT_DEFAULT;
+		foreach ( self::PRICE_TOKENS as $prefix => $size ) {
+			if ( '' !== $model && 0 === strpos( $model, $prefix ) ) {
+				$price = $size;
+				break;
+			}
+		}
+		if ( $price > 0 ) {
+			$tokens = $tokens > 0 ? min( $tokens, $price ) : $price;
+		}
+		$chars = $tokens ? (int) ( $tokens * self::CHARS_PER_TOKEN ) : self::CONTEXT_DEFAULT;
 		return max( 1000, (int) apply_filters( 'digitalisimo_ai_assistant_context_chars', $chars, (string) $provider, (string) $model ) );
 	}
 
@@ -436,9 +475,11 @@ final class Digitalisimo_AI_Assistant_History {
 	 * cada llamada va seguida de su resultado.
 	 *
 	 * @param array    $target `provider` y `model` (para el presupuesto).
-	 * @param int|null $budget Caracteres; null, los del modelo.
+	 * @param int|null $budget Caracteres para los mensajes; null, los de la petición entera del modelo (context_chars())
+	 *                         menos `$fixed`.
+	 * @param int      $fixed  Caracteres que ya ocupan las herramientas y las instrucciones de este paso.
 	 */
-	public static function for_model( array $conv, array $catalog, array $target = array(), $budget = null ) {
+	public static function for_model( array $conv, array $catalog, array $target = array(), $budget = null, $fixed = 0 ) {
 		$messages = array();
 		$summary  = array();
 		foreach ( $conv['messages'] as $m ) {
@@ -480,7 +521,7 @@ final class Digitalisimo_AI_Assistant_History {
 			$summary[] = self::summarize( self::as_stored( array_slice( $messages, 0, $first ) ) );
 			$messages  = array_slice( $messages, $first );
 		}
-		$budget = null === $budget ? self::context_chars( $target['provider'] ?? '', $target['model'] ?? '' ) : (int) $budget;
+		$budget = null === $budget ? max( 2000, self::context_chars( $target['provider'] ?? '', $target['model'] ?? '' ) - max( 0, (int) $fixed ) ) : (int) $budget;
 		$size   = function ( array $list ) {
 			$n = 0;
 			foreach ( $list as $m ) {
@@ -490,6 +531,22 @@ final class Digitalisimo_AI_Assistant_History {
 		};
 		$starts = self::turn_starts( $messages );
 		$last   = end( $starts );
+		// 0. Contexto (docs/ASSISTANT.md): los resultados de turnos anteriores van recortados a OLD_RESULT_BYTES y sin los
+		// bloques thinking de esos turnos (lo que dijeron la persona y el asistente, y cada llamada, siguen enteros). El
+		// recorte es siempre el mismo para un turno ya cerrado: el prefijo sólo cambia, una vez, desde el turno anterior.
+		$old_bytes = (int) apply_filters( 'digitalisimo_ai_assistant_old_result_bytes', self::OLD_RESULT_BYTES, $target );
+		if ( $old_bytes > 0 ) {
+			foreach ( $messages as $i => $m ) {
+				if ( $i >= $last ) {
+					break;
+				}
+				if ( 'tool' === $m['role'] ) {
+					$messages[ $i ]['content'] = self::compact( $m['content'], max( 400, $old_bytes ) );
+				} elseif ( 'assistant' === $m['role'] ) {
+					$messages[ $i ]['thinking'] = array();
+				}
+			}
+		}
 		$cap    = max( 2000, (int) ( $budget * 0.3 ) );
 		$total  = $size( $messages ) + min( $cap, strlen( implode( "\n", $summary ) ) );
 		// 1. Resultados de turnos anteriores, del más viejo al más nuevo.
@@ -527,13 +584,35 @@ final class Digitalisimo_AI_Assistant_History {
 			$summary[] = self::summarize( self::as_stored( array_slice( $messages, 0, $cut ) ) );
 			$messages  = array_slice( $messages, $cut );
 		}
-		// Bloques thinking: van tal cual, también los de turnos anteriores (docs/ASSISTANT.md, «Caché»). Quitarlos al
-		// empezar cada turno era válido, pero cambiaba el principio de la conversación y la caché de la API se perdía
-		// desde el turno anterior en adelante; los modelos que no pueden leer un bloque lo descartan solos y sin cobrarlo.
-		// Con el filtro `digitalisimo_ai_assistant_replay_thinking` en false, sólo los del turno en curso (como antes).
+		// 3. Si el turno en curso solo no cabe (un turno largo de lecturas grandes), sus resultados más viejos también se
+		// recortan, del más viejo al más nuevo; los del último paso (lo que el modelo está por leer) van enteros.
+		$total = $size( $messages ) + min( $cap, strlen( implode( "\n", $summary ) ) );
+		if ( $total > $budget ) {
+			$latest = count( $messages );
+			for ( $i = count( $messages ) - 1; $i >= 0; $i-- ) {
+				if ( 'assistant' === $messages[ $i ]['role'] ) {
+					$latest = $i;
+					break;
+				}
+			}
+			foreach ( $messages as $i => $m ) {
+				if ( $total <= $budget || $i >= $latest ) {
+					break;
+				}
+				if ( 'tool' === $m['role'] ) {
+					$before                    = strlen( (string) wp_json_encode( $m ) );
+					$messages[ $i ]['content'] = self::compact( $m['content'], self::COMPACT_BYTES );
+					$total                    -= $before - strlen( (string) wp_json_encode( $messages[ $i ] ) );
+				}
+			}
+		}
+		// Bloques thinking: los del turno en curso van siempre tal cual (lo exige la API). Los de turnos anteriores se
+		// quitan junto con el recorte de sus resultados (paso 0: el prefijo cambia ahí de todos modos y, si no, la API los
+		// descartaría por no cuadrar); sin recorte (filtro de OLD_RESULT_BYTES en 0) van tal cual, como antes
+		// (docs/ASSISTANT.md, «Caché»). Filtro `digitalisimo_ai_assistant_replay_thinking`.
 		$current = self::turn_starts( $messages );
 		$current = $current ? end( $current ) : 0;
-		$replay  = (bool) apply_filters( 'digitalisimo_ai_assistant_replay_thinking', true, $target );
+		$replay  = (bool) apply_filters( 'digitalisimo_ai_assistant_replay_thinking', $old_bytes <= 0, $target );
 		foreach ( $messages as $i => $m ) {
 			if ( 'assistant' === $m['role'] ) {
 				foreach ( $m['calls'] as $j => $call ) {

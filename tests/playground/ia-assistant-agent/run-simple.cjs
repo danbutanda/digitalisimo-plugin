@@ -108,6 +108,8 @@ const CONVERSATIONS = [
   ['A', ['revisa el sitio web y optimizalo en SEO', 'revisa si el plugin skydropx esta funcionando bien y mi carrito funciona bien']],
   ['B', ['creame una landing para blackfriday con la promoción del purificador aquaplus de 10000 a 7500']],
   ['C', ['Creame una landingpage de oferta navideña con todos los productos al 40% de descuento']],
+  // Revisión de ia/asistente-optimizado (2026-11-27): una página que no es del kit también se llena en su primer turno.
+  ['D', ['hazme una página de Nosotros con la historia de la ferretería']],
 ];
 
 (async () => {
@@ -149,6 +151,27 @@ const CONVERSATIONS = [
     }
     const state = await probe('state');
     fs.writeFileSync(`${dir}/conversacion.json`, JSON.stringify({ mode, ready, transcript, state: { ...state, log: (state.log || []).slice(-80) } }, null, 1));
+    // MODE=medir: sin API; sólo importan las peticiones guardadas en probe/bodies (lo que se habría mandado).
+    if (mode === 'medir') { log(`info · medir: ${((state.seen || {}).requests || []).length} peticiones guardadas en probe/bodies`); return; }
+    // Consumo real (docs/ASSISTANT.md, «Modelo fijo»): tokens que cobró la API, su costo y el tiempo, por modelo.
+    const usage = ((state.seen || {}).usage || []).filter((u) => u.usage);
+    const PRICES = { // USD por millón: entrada, salida, caché leída, caché escrita 5 min; Haiku 5.5 sube pasando 100 000.
+      'claude-opus-5-5': [4, 20, 0.2, 5], 'claude-sonnet-5-5': [2, 10, 0.1, 2.5], 'claude-haiku-5-5': [0.1, 0.5, 0.01, 0.125],
+    };
+    const model = ready.model || ((state.seen || {}).requests || [])[0]?.model || '';
+    let usd = 0; const sum = { input: 0, cache_read: 0, cache_write: 0, output: 0 }; let prompts = 0; let biggest = 0;
+    for (const u of usage) {
+      const t = { input: u.usage.input_tokens || 0, cache_read: u.usage.cache_read_input_tokens || 0, cache_write: u.usage.cache_creation_input_tokens || 0, output: u.usage.output_tokens || 0 };
+      for (const k of Object.keys(sum)) sum[k] += t[k];
+      const prompt = t.input + t.cache_read + t.cache_write;
+      prompts += prompt; biggest = Math.max(biggest, prompt);
+      let p = PRICES[u.model || model] || PRICES[model];
+      if (p && /haiku-5-5/.test(u.model || model) && prompt > 100000) p = [0.5, 2.5, 0.05, 0.625];
+      if (p) usd += (t.input * p[0] + t.output * p[1] + t.cache_read * p[2] + t.cache_write * p[3]) / 1e6;
+    }
+    const consumo = { model, steps: usage.length, errors: ((state.seen || {}).usage || []).filter((u) => u.code && u.code !== 200).length, tokens: sum, prompt_avg: usage.length ? Math.round(prompts / usage.length) : 0, prompt_max: biggest, usd: Math.round(usd * 10000) / 10000, seconds: transcript.reduce((n, t) => n + t.seconds, 0), turns: transcript.map((t) => ({ label: t.label, seconds: t.seconds })) };
+    fs.writeFileSync(`${dir}/consumo.json`, JSON.stringify(consumo, null, 1));
+    log(`info · consumo · ${model} · ${consumo.steps} pasos · ${consumo.prompt_avg} tokens de contexto por paso (máx. ${biggest}) · salida ${sum.output} · ${consumo.usd} USD · ${consumo.seconds} s${consumo.errors ? ` · ${consumo.errors} respuestas no 200` : ''}`);
 
     const md = [`# «Sin tecnicismos» con la API real (${new Date().toISOString()})`, ''];
     for (const t of transcript) {
@@ -189,6 +212,10 @@ const CONVERSATIONS = [
     // D1 · Nada de «hazlo tú» cuando hay herramienta.
     const diy = transcript.flatMap((t) => t.visible.flatMap((v) => diyOf(v).map((s) => `${t.label}: ${s}`)));
     check('D1', diy.length === 0, `cero «hazlo tú» cuando hay herramienta (${diy.length})`, diy.join(' | '));
+    // D3 · Revisar no crea nada: en las revisiones (A1 y A2) ningún borrador ni página de prueba (corrida 8 de Haiku
+    // del 2026-11-27: creó «__prueba_no_crear__» para «revisar» el carrito).
+    const reviewDrafts = transcript.filter((t) => /^A/.test(t.label)).flatMap((t) => t.tools.filter((m) => m.kind === 'draft').map((m) => `${t.label}: ${m.ability} ${m.summary || ''}`.slice(0, 200)));
+    check('D3', reviewDrafts.length === 0, `las revisiones no crean borradores ni páginas (${reviewDrafts.length})`, reviewDrafts.join(' | '));
     const diyOther = transcript.flatMap((t) => t.visible.flatMap((v) => diyAny(v).filter((s) => !WITH_TOOL.test(s)).map((s) => `${t.label}: ${s}`)));
     log(`info · D2 · pasos que se le piden a la persona donde no hay herramienta (permitido, con pasos simples): ${diyOther.length ? diyOther.join(' | ') : 'ninguno'}`);
 
@@ -205,7 +232,7 @@ const CONVERSATIONS = [
     check('K1', skyAudit.length > 0 && skyAudit.every((m) => m.kind === 'read') && a2.cards.filter((a) => isRead(a.ability, cardInput(a))).length === 0, `las revisiones de Skydropx corrieron como lecturas, sin tarjeta (${skyReads.map((m) => `${m.kind}:${m.status}`).join(', ')})`, JSON.stringify(a2.tools.map((m) => `${m.kind}:${m.ability}:${m.status}:${m.summary}`)));
     const a2text = a2.visible.join('\n');
     check('K0', a2text.trim().length > 0, 'el informe de Skydropx y el carrito se ve (no queda escondido detrás de una tarjeta)', JSON.stringify(a2.events.filter((e) => e.type === 'message').map((e) => e.message)));
-    check('K2', /\bpeso/i.test(a2text) && /(3|tres) productos/i.test(a2text), 'dice que hay productos sin peso (y cuántos)', a2text);
+    check('K2', /\bpeso/i.test(a2text) && /(3|tres) (de (tus|los) \d+ )?productos/i.test(a2text), 'dice que hay productos sin peso (y cuántos)', a2text);
     check('K3', /carrito|pago|transferencia|contra entrega/i.test(a2text), 'dice cómo está el carrito o los pagos', a2text);
 
     // L1 · Las landings se crean en su primer turno, sin tarjeta.
@@ -213,6 +240,13 @@ const CONVERSATIONS = [
       const t = transcript.find((x) => x.label === label);
       const made = t.tools.some((m) => m.kind === 'draft' && m.status === 'ok' && m.ability === 'digitalisimo-sales/create-page');
       check(`L1-${label}`, made && t.cards.length === 0, `${label}: la landing quedó en borrador en el primer turno, sin tarjeta`, JSON.stringify(t.tools.map((m) => `${m.kind}:${m.ability}:${m.status}`)));
+    }
+    // L2 · Una página que no es del kit: se crea en blanco y recibe su contenido en el mismo turno, sin tarjeta.
+    {
+      const t = transcript.find((x) => x.label === 'D1');
+      const made = t.tools.some((m) => m.kind === 'draft' && m.status === 'ok' && /^(elementor\/create-page|digitalisimo-sales\/create-page)$/.test(m.ability));
+      const filled = t.tools.some((m) => m.kind === 'draft' && m.status === 'ok' && /^(elementor\/build-composition|digitalisimo-sales\/create-page)$/.test(m.ability));
+      check('L2-D1', made && filled && t.cards.length === 0, 'D1: la página de Nosotros quedó en borrador con su contenido en el primer turno, sin tarjeta', JSON.stringify(t.tools.map((m) => `${m.kind}:${m.ability}:${m.status}`)));
     }
     const tokens = transcript.reduce((n, t) => n + t.seconds, 0);
     log(`info · tiempo total de los turnos: ${tokens} s · tarjetas: ${cards.length} (${cards.map(({ turn, a }) => `${turn}: ${a.text}`).join(' | ') || 'ninguna'})`);

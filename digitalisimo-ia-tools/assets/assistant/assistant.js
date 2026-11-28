@@ -1,6 +1,6 @@
 /**
  * Asistente IA de DIGITALÍSIMO IA Tools (docs/ASSISTANT.md): la interfaz del chat asistente de @digitalisimo/ui
- * (AssistantApp, AssistantHistory, AssistantWelcome, ChatThread, ChatComposer, AssistantAiSwitcher y
+ * (AssistantApp, AssistantHistory, AssistantWelcome, ChatThread, ChatComposer y
  * AssistantAppearance) portada a wp.element, el React que ya trae WordPress. Sin compilación ni dependencias: este
  * archivo es el que se sirve.
  *
@@ -26,8 +26,6 @@
 		sidebar: 'M4 5h16v14H4z M9 5v14',
 		pen: 'M4 20h4L19 9l-4-4L4 16z M14 6l4 4',
 		search: 'M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14z M20 20l-4-4',
-		cpu: 'M7 7h10v10H7z M10 3v4 M14 3v4 M10 17v4 M14 17v4 M3 10h4 M3 14h4 M17 10h4 M17 14h4',
-		magic: 'M5 19L15 9 M14 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1z M19 10l.7 1.3 1.3.7-1.3.7L19 14l-.7-1.3-1.3-.7 1.3-.7z',
 		palette: 'M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1-.8-1.4-.8-2.4 0-.9.7-1.5 1.6-1.5H17a4 4 0 0 0 4-4c0-4.7-4-8.5-9-8.5z M7.5 11.5h.01 M10 7.5h.01 M14.5 7.5h.01',
 		tools: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z',
 		send: 'M4 12l16-8-6 16-2.5-6.5z M11.5 13.5L20 4',
@@ -40,7 +38,6 @@
 		file: 'M6 3h8l4 4v14H6z M14 3v4h4',
 		upload: 'M12 16V4 M7 9l5-5 5 5 M4 20h16',
 	};
-	const AI_NAMES = { openai: 'ChatGPT', anthropic: 'Claude', google: 'Gemini', xai: 'Grok', deepseek: 'DeepSeek' };
 	const SCHEMES = [
 		[ 'digitalisimo', 'DIGITALÍSIMO', '' ],
 		[ 'azure', 'Azul', 'linear-gradient(135deg,#487fff,#1e40af)' ],
@@ -84,7 +81,6 @@
 		}
 	};
 	const media = ( query ) => !! ( window.matchMedia && window.matchMedia( query ).matches );
-	const aiNameOf = ( provider ) => provider.aiName || AI_NAMES[ provider.key ] || provider.name;
 	const timeOf = ( seconds ) => ( seconds ? new Date( seconds * 1000 ).toLocaleTimeString( 'es-MX', { hour: '2-digit', minute: '2-digit' } ) : '' );
 	const dayOf = ( iso ) => {
 		const date = new Date( iso );
@@ -274,33 +270,7 @@
 			props.open ? h( 'div', { className: 'dga-menu', role: props.role || 'menu', 'aria-label': props.label }, props.children ) : null );
 	}
 
-	/** AssistantAiSwitcher: Auto (IA Tools decide) o una IA por el nombre con que la gente la conoce. Nunca un modelo. */
-	function AiSwitcher( props ) {
-		const [ open, setOpen ] = useState( false );
-		const current = props.providers.find( ( p ) => p.key === props.value ) || null;
-		const name = current ? aiNameOf( current ) : 'IA automática';
-		const item = ( key, title, hint, active, disabled, select ) => h( 'button', {
-			key,
-			type: 'button',
-			role: 'menuitemradio',
-			'aria-checked': active ? 'true' : 'false',
-			className: 'dga-menu-item' + ( active ? ' is-active' : '' ),
-			disabled,
-			onClick: () => {
-				select();
-				setOpen( false );
-			},
-		}, h( 'strong', null, title ), hint ? h( 'small', null, hint ) : null );
-		return h( Dropdown, {
-			className: 'dga-ai',
-			label: 'IA: ' + name,
-			open,
-			setOpen,
-			trigger: h( Fragment, null, h( Icon, { name: current ? 'cpu' : 'magic' } ), h( 'span', { className: 'dga-trigger-label' }, h( 'strong', null, name ), current ? null : h( 'small', null, 'la mejor disponible' ) ) ),
-		},
-		item( 'auto', 'Automática', 'La mejor disponible', ! current, false, () => props.onChange( null ) ),
-		props.providers.map( ( p ) => item( p.key, aiNameOf( p ), 'unavailable' === p.status ? 'No disponible' : '', !! current && current.key === p.key, 'unavailable' === p.status, () => props.onChange( p.key ) ) ) );
-	}
+	// Sin selector de IA (pedido del dueño del 2026-11-27): el Asistente usa la IA de DIGITALÍSIMO, fija en el servidor.
 
 	/** Las herramientas del MCP por categoría, para encender o apagar grupos; y la bitácora para quien administra. */
 	function ToolsMenu( props ) {
@@ -703,7 +673,6 @@
 		const [ draft, setDraft ] = useState( initial.prompt || '' );
 		const [ busy, setBusy ] = useState( false );
 		const [ status, setStatus ] = useState( '' );
-		const [ ai, setAi ] = useState( null );
 		const [ catalog, setCatalog ] = useState( null );
 		const [ categories, setCategories ] = useState( null );
 		const [ dialog, setDialog ] = useState( '' );
@@ -765,7 +734,6 @@
 				setMessages( Array.isArray( data.messages ) ? data.messages : [] );
 				setPending( Array.isArray( data.pending ) ? data.pending : [] );
 				setTitle( data.title || '' );
-				setAi( data.provider && providers.some( ( p ) => p.key === data.provider ) ? data.provider : null );
 			}, ( e ) => setMessages( [ note( e.message, 'error' ) ] ) );
 		}, [] );
 
@@ -876,7 +844,7 @@
 			setAttachments( [] );
 			setMessages( ( list ) => list.concat( [ { id: local, role: 'me', text: text || 'Subí estos archivos a la biblioteca.', files: files.length ? files : undefined, time: Math.floor( Date.now() / 1000 ) } ] ) );
 			// Ocupado o al límite (409/429): nada se envió; el texto y los archivos vuelven al cuadro y lo pendiente sigue.
-			run( () => adapters.model.send( Object.assign( { conversation: activeRef.current || 0, message: text, provider: ai || 'auto', categories }, files.length ? { files: files.map( ( f ) => f.id ) } : {} ), onEvent ), ( e ) => {
+			run( () => adapters.model.send( Object.assign( { conversation: activeRef.current || 0, message: text, categories }, files.length ? { files: files.map( ( f ) => f.id ) } : {} ), onEvent ), ( e ) => {
 				if ( e && ( 409 === e.status || 429 === e.status ) ) {
 					setDraft( text );
 					setPending( before );
@@ -1072,17 +1040,16 @@
 					h( 'span', { className: 'dga-bar-mark', 'aria-hidden': 'true' }, mark ),
 					h( 'h1', { className: 'dga-title' }, title || 'Asistente IA' ),
 					h( 'div', { className: 'dga-toolbar' },
-						h( AiSwitcher, { providers, value: ai, onChange: setAi } ),
 						h( ToolsMenu, { catalog, selected: categories, onToggle: toggleCategory, onLoad: loadCatalog, canViewLog: !! config.canViewLog, onOpenLog: () => setDialog( 'log' ) } ) ),
 					h( 'div', { className: 'dga-trailing' }, h( LearnSlot, { place: 'header' } ), h( 'button', { type: 'button', className: 'dga-icon-button is-outline dga-appearance', 'aria-label': 'Apariencia', onClick: () => setDialog( 'appearance' ) }, h( Icon, { name: 'palette' } ) ) ) ),
-				noAi ? h( 'div', { className: 'dga-notice-area' }, h( 'div', { className: 'dga-notice', role: 'alert' }, h( Icon, { name: 'alert' } ), h( 'span', null, 'No hay ninguna IA configurada en IA Tools.' ), config.settingsUrl ? h( 'a', { href: config.settingsUrl }, 'Configurar un proveedor' ) : h( 'span', null, 'Pide a quien administra el sitio que active un proveedor.' ) ) ) : null,
+				noAi ? h( 'div', { className: 'dga-notice-area' }, h( 'div', { className: 'dga-notice', role: 'alert' }, h( Icon, { name: 'alert' } ), h( 'span', null, 'El Asistente IA necesita la IA de DIGITALÍSIMO y este sitio todavía no la tiene conectada. Pídele a DIGITALÍSIMO que la conecte.' ) ) ) : null,
 				h( 'div', { className: 'dga-thread-area', ref: threadRef },
 					h( 'div', { className: 'dga-column' }, showThread
 						? h( Thread, { messages, pending, busy, status, onDecide: decide, onRefresh: () => open( activeRef.current ) } )
 						: h( Welcome, { onSuggestion: setDraft } ) ) ),
 				h( 'div', { className: 'dga-composer-area' },
 					h( 'div', { className: 'dga-column' },
-						h( Composer, { value: draft, onChange: setDraft, onSubmit: send, disabled: busy || ( noAi && ! isShortcut( draft ) ) || uploading, ready: ready.length > 0, attachments, onFiles: upload ? addFiles : null, onRemove: removeAttachment, placeholder: noAi ? 'Sin IA configurada: usa /ayuda para los atajos' : ( ready.length ? 'Dime qué hago con estos archivos…' : 'Escribe una instrucción…' ), max: ( config.limits && config.limits.message ) || 4000, hint: fromLink ? 'Este mensaje vino en un enlace: revísalo antes de enviarlo.' : ( pending.some( ( a ) => 'running' !== a.state ) ? 'Hay una acción esperando tu confirmación.' : ( uploading ? 'Subiendo archivos…' : null ) ) } ),
+						h( Composer, { value: draft, onChange: setDraft, onSubmit: send, disabled: busy || ( noAi && ! isShortcut( draft ) ) || uploading, ready: ready.length > 0, attachments, onFiles: upload ? addFiles : null, onRemove: removeAttachment, placeholder: noAi ? 'Falta conectar la IA de DIGITALÍSIMO: usa /ayuda para los atajos' : ( ready.length ? 'Dime qué hago con estos archivos…' : 'Escribe una instrucción…' ), max: ( config.limits && config.limits.message ) || 4000, hint: fromLink ? 'Este mensaje vino en un enlace: revísalo antes de enviarlo.' : ( pending.some( ( a ) => 'running' !== a.state ) ? 'Hay una acción esperando tu confirmación.' : ( uploading ? 'Subiendo archivos…' : null ) ) } ),
 						h( 'p', { className: 'dga-footnote' }, 'El Asistente puede equivocarse: revisa lo importante antes de publicar. Lo que consulta de tu sitio (también datos de clientes y pedidos) se envía a la IA que te responde.' ) ) ) ),
 			'appearance' === dialog ? h( Appearance, { look, setLook, onClose: () => setDialog( '' ) } ) : null,
 			'log' === dialog ? h( LogDialog, { onClose: () => setDialog( '' ) } ) : null );

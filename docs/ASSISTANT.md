@@ -15,9 +15,8 @@ instrucción, y lo nuevo nace en borrador.
 Un menú principal **Asistente IA** (`admin.php?page=digitalisimo-assistant`, icono de destellos, posición 2.1: justo debajo de «Escritorio»; y el mismo acceso en la barra superior del escritorio) para
 quien tiene `edit_posts`. La pantalla es el tema mini del asistente de `@digitalisimo/ui` 0.9.5 portado a
 `wp.element`, el React que ya trae WordPress: historial por día con «Nueva conversación», búsqueda y borrar; el hilo con
-autodesplazamiento; el cuadro de escritura (Enter envía, Mayús+Enter salta de línea); la barra con el selector de IA
-(«IA automática», la mejor disponible, o una IA por el nombre con que se la conoce, nunca un modelo) y el menú
-«Funciones» (las herramientas del MCP por categoría, para apagar grupos); y la apariencia (Classic o Modern, claro,
+autodesplazamiento; el cuadro de escritura (Enter envía, Mayús+Enter salta de línea); la barra con el menú
+«Funciones» (sin selector de IA: el Asistente usa la IA de DIGITALÍSIMO, ver «El modelo») (las herramientas del MCP por categoría, para apagar grupos); y la apariencia (Classic o Modern, claro,
 oscuro o como el sistema, y ocho paletas, DIGITALÍSIMO primero).
 
 **La pantalla no abruma** (caso plomerito 2, 2026-11-24: 19 líneas «Consultó: …», «Acción destructiva: Actualizar
@@ -41,7 +40,7 @@ pregunta antes de rehacerlo; sugiere una landing de oferta, mejorar en Google y 
 | `AssistantApp` (armazón, historial a un lado, `data-history` auto/open/closed) | `App` en `assistant.js` |
 | `AssistantHistory`, `AssistantWelcome` | `History`, `Welcome` |
 | `ChatThread`, `ChatComposer` | `Thread` (más `ToolChip` y `ConfirmCard`), `Composer` |
-| `AssistantAiSwitcher` | `AiSwitcher` |
+| `AssistantAiSwitcher` | — (se quitó el 2026-11-27: el modelo es fijo) |
 | `AssistantAppearance` | `Appearance` (diálogo propio: el `AppearanceScreen` del paquete no viaja) |
 | `assistant-base.css`, `AssistantApp.module.css`, tokens `--ds-*` y `--ds-assistant-*` del Theme Contract | `assistant.css`, acotada a `.dga-root` |
 
@@ -94,15 +93,58 @@ paquete y se encola en lugar de `assistant.js`.
 
 ## El modelo
 
-- Las IA que se ofrecen salen de los **perfiles de uso** de IA Tools (todos menos `images`) cuyo proveedor está activo y
-  tiene clave, y de los proveedores activos con clave. **Auto** es el primer perfil disponible de `assistant` (si
-  alguien lo crea), `content`, `chatbot`, `seo`, `ecommerce` y `automation`. La persona elige la IA, nunca el modelo.
-- **El modelo del Asistente es propio** (IA Tools → Perfiles de uso → «Modelo del Asistente IA», opción
-  `assistant_models` por proveedor): por defecto el más capaz con herramientas (`ASSISTANT_MODELS`: Anthropic
-  `claude-opus-5-5`, OpenAI `gpt-4.1`, Google `gemini-2.5-pro`, xAI `grok-4`, DeepSeek `deepseek-chat`; filtro
-  `digitalisimo_ai_assistant_default_model`), uno de la lista, «Igual que el perfil de uso» u otro escrito a mano. La
-  pantalla avisa que Opus cuesta más que Sonnet (el doble por token). Decisión del propietario del 2026-11-23: «si gasta
-  tokens no hay problema». Las demás herramientas siguen con sus perfiles y `DEFAULT_MODELS`.
+**Modelo fijo** (pedido del dueño del 2026-11-27: «en WordPress asistente no permitas que el usuario cambie el modelo
+todavía porque ese lo pagaré yo, debemos darle el asistente ya optimizado»). El proveedor, el modelo y el esfuerzo del
+Asistente los decide DIGITALÍSIMO en el código (`Digitalisimo_AI_Assistant_Model::fixed()`):
+
+- De fábrica: `PROVIDER` (`anthropic`), `MODEL` (`claude-haiku-5-5`, Claude Haiku 5.5) y `EFFORT` (`high`). Se eligió el más barato que pasó 9 de 9
+  el ensayo real del caso plomerito con el contexto recortado (`tests/playground/ia-assistant-simple.sh`; resultados
+  por modelo en «Modelo fijo: medición»).
+- Para DIGITALÍSIMO: las constantes de `wp-config.php` `DIGITALISIMO_AI_ASSISTANT_MODEL`,
+  `DIGITALISIMO_AI_ASSISTANT_PROVIDER` (si falta, sale del nombre del modelo: `claude-…` Anthropic, `gpt-…` OpenAI,
+  `gemini…` Google, `grok…` xAI, `deepseek…` DeepSeek) y `DIGITALISIMO_AI_ASSISTANT_EFFORT` (`low` a `max`), o el filtro
+  `digitalisimo_ai_assistant_model` (recibe y devuelve `provider`, `model` y `effort`). Lo no válido se ignora. Un
+  proveedor que no cuadra con el modelo (p. ej. `openai` con `claude-haiku-5-5`) tampoco: vuelve al de fábrica y deja un
+  aviso en la bitácora del Asistente y en el registro de PHP (una vez al día). **En una red, wp-config es uno solo: las
+  constantes cambian todos los sitios.** Para un sitio de la red, el filtro con `get_current_blog_id()` (en un
+  mu-plugin).
+- **La clave de DIGITALÍSIMO** (opcional): `define( 'DIGITALISIMO_AI_ASSISTANT_ANTHROPIC_KEY', 'sk-ant-…' );` en
+  wp-config. Con ella el Asistente usa esa clave aunque Proveedores no tenga Anthropic o tenga otra, la clave no se
+  guarda en la base, no sale en la pantalla, la REST, el MCP ni la bitácora (se borra de los textos como las de
+  Proveedores) y «Uso de IA» la cuenta como Anthropic; los demás perfiles no la usan. **La clave de DIGITALÍSIMO va sólo
+  en esta constante, nunca en Proveedores** (ahí la ve y la usa quien administra el sitio, también para los demás
+  perfiles). **Con o sin ella, el Asistente habla con Anthropic siempre en `https://api.anthropic.com/v1/messages`, sin
+  seguir redirecciones** (`redirection` en 0, como Hosting con Webuzo): una URL que alguien guarde en Proveedores o una
+  respuesta 30x no se llevan la clave. Con la constante, un 401 dice «avisa a DIGITALÍSIMO para que revise la conexión»
+  (quien administra no la puede revisar).
+- **Límite real de la clave en wp-config**: quien administra un sitio individual (Tools → Código PHP, un plugin propio)
+  o tiene acceso a sus archivos puede leer wp-config, también dentro de un respaldo de Backups, y quien ejecuta PHP puede
+  agregar el filtro y cambiar el modelo. Eso no tiene arreglo desde el plugin. Por eso: **una clave por sitio, con su
+  límite de gasto en la consola de Anthropic**, para poder revocarla sin tocar los demás.
+- **Topes de gasto con la clave de DIGITALÍSIMO**: las llamadas a la IA por día y las peticiones a la vez del Asistente
+  (por persona) salen de wp-config, `DIGITALISIMO_AI_ASSISTANT_DAILY_CALLS` (200 por defecto) y
+  `DIGITALISIMO_AI_ASSISTANT_CONCURRENCY` (1; de 1 a 10); 0 o un valor no válido vale el de fábrica, nunca «sin tope».
+  En IA Tools → Avanzado esos campos sólo se ven, y ni la opción guardada ni el filtro `digitalisimo_ai_assistant_limits`
+  los cambian. El Aprendizaje no pasa de sus topes de fábrica (`MAX_TRAININGS`, `MAX_REVIEWS`) aunque un filtro los
+  suba.
+- **Nada del escritorio, la REST ni el MCP lo cambia.** IA Tools → Perfiles de uso (sitio y red) sólo dice «El
+  Asistente usa la IA de DIGITALÍSIMO, ya optimizada. Estos perfiles de uso no le aplican.»; la pantalla del Asistente
+  no tiene selector de IA y no manda `provider` (si llega, se ignora, también al confirmar y al seguir un turno); la
+  configuración de la pantalla no dice proveedor ni modelo; «Abrir el Asistente IA» por MCP no acepta nada de eso. Lo
+  que quedó guardado de antes (la opción `assistant_models` del selector «Modelo del Asistente IA», un perfil
+  «assistant» o el de contenido) no cuenta, y `assistant_models` se borra al guardar IA Tools.
+- Sin la constante, la clave es la del proveedor fijo en IA Tools → Proveedores (del sitio o heredada de la red). Sin
+  ninguna de las dos, el Asistente no se pasa a otra IA aunque otra tenga clave, y dice (`Model::MISSING`, también la
+  pantalla): «El Asistente IA necesita la IA de DIGITALÍSIMO y este sitio todavía no la tiene conectada. Pídele a
+  DIGITALÍSIMO que la conecte.» Ojo al actualizar: un sitio que usaba el Asistente sólo con
+  OpenAI, Gemini u otra IA se queda sin él hasta que tenga la clave de Anthropic o la constante. Prueba:
+  `tests/ia-assistant-clave.php`.
+- Los demás perfiles (chatbot, contenido, SEO, ecommerce, automatizaciones, imágenes) siguen con su proveedor, su
+  modelo y `DEFAULT_MODELS`: no compartían el selector del Asistente. Las tareas cortas del aprendizaje usan el modelo
+  fijo con esfuerzo `low`.
+- Un perfil «assistant» guardado de antes ya no se pinta en Perfiles de uso ni se vuelve a guardar.
+- Prueba: `tests/ia-assistant-modelo-fijo.php` (con el código anterior falla en 27 comprobaciones,
+  `ia-optimizado-reports/modelo-fijo-con-codigo-viejo.txt`).
 - Anthropic: 16 384 tokens de salida (razonamiento adaptativo y una composición larga), 300 s de espera y la caché
   automática de la API (`cache_control` en la petición; no con una URL compatible propia; filtro
   `digitalisimo_ai_assistant_prompt_cache`): cada paso reenvía la conversación entera y sólo crece al final; por eso las
@@ -617,8 +659,10 @@ lo escrito 1,25×.
   cada llamada (la fecha va sin hora).
 - **Puntos de caché** (`Model::anthropic_system()`): tras la parte fija y tras el aprendizaje, más la caché automática
   del cuerpo para la conversación: 3 de 4. Cada paso de un turno y cada turno leen lo ya enviado.
-- **La conversación no se reescribe**: los bloques thinking de turnos anteriores se reenvían tal cual (antes se quitaban
-  al empezar cada turno y eso invalidaba la caché desde el turno anterior; filtro
+- **La conversación sólo se reescribe una vez por turno, y desde el turno anterior**: al empezar otro turno, los
+  resultados del anterior se recortan y sus bloques thinking se quitan (ver «Contexto»); el recorte de un turno ya
+  cerrado no vuelve a cambiar, así que las herramientas, las instrucciones y los turnos más viejos siguen en la caché.
+  Con `digitalisimo_ai_assistant_old_result_bytes` en 0, todo tal cual como antes (filtro
   `digitalisimo_ai_assistant_replay_thinking`).
 - **Sin caché donde no aplica**: OpenAI, DeepSeek, xAI y Google la hacen solos (no se manda ningún campo); una URL
   compatible propia y las llamadas sueltas del aprendizaje no llevan `cache_control`.
@@ -636,10 +680,90 @@ lo escrito 1,25×.
   formulario recibido o un ajuste interno de WooCommerce no. Productos, pedidos, clientes, informes y cupones nunca se
   guardan: precios y existencias se consultan en vivo.
 
+## Contexto
+
+Pedido del dueño (2026-11-27): «debemos darle el asistente ya optimizado». Medido sin gastar (MODE=medir del ensayo,
+`tests/playground/ia-assistant-medir.sh`: la misma ferretería del caso plomerito, la sonda guarda cada petición y
+contesta sola; los tokens con el endpoint gratuito de conteo): el primer paso pesaba 45 908 tokens, de los que
+40 140 eran las definiciones de 61 herramientas, 5 331 las instrucciones fijas, 258 el aprendizaje y 116 la parte
+variable. Ahora:
+
+- **Sólo las herramientas que le sirven** (`Tools::offered()`): fuera abrir el propio Asistente
+  (`digitalisimo-ia/open-assistant`) y la información técnica de WordPress (`core/get-user-info`,
+  `core/get-environment-info`, `core/get-site-info`; el nombre y la dirección del sitio ya van en las instrucciones), y
+  las de WooCommerce (`woocommerce/…`) cuando están las de la tienda de Elements (`digitalisimo-woo/…`), que hacen lo
+  mismo con su clasificación por acción. Siguen en el MCP externo.
+- **Funciones de diseño a pedido**: del constructor se ofrece lo básico (`BUILDER_BASE`: crear una página, darle
+  contenido con `build-composition` —unos 1 570 tokens; sin ella una página que no es del kit quedaba en blanco, y las
+  instrucciones dicen que se llena en el mismo turno— y los campos de cada widget con `get-widget-schema` (unos 370),
+  leerla y editar sus elementos, sus ajustes, publicar, listar y
+  vista previa). Lo demás (clases, variables y estilos globales, componentes, partes del sitio, recursos, esquemas de
+  widgets) lo pide el modelo con
+  `digitalisimo-ia-more-tools` («Más funciones para el diseño de las páginas», sin datos; en pantalla «Consulté: más
+  funciones para el diseño de tus páginas»): llegan desde el paso siguiente y siguen en toda la conversación
+  (`more_tools` en la conversación). Así las herramientas cambian, como mucho, una vez por conversación. El catálogo
+  completo sigue valiendo para ejecutar y para «Funciones». Filtro `digitalisimo_ai_assistant_offered_tools`.
+- **Resultados viejos recortados**: al empezar otro turno, cada resultado de herramienta de los turnos anteriores va
+  recortado a `OLD_RESULT_BYTES` (1 500 bytes, con su marca «[resultado anterior recortado: N caracteres]», su aviso de
+  dato y su llamada) y sin los bloques thinking de esos turnos; el turno en curso va entero, y lo que dijeron la persona
+  y el asistente, siempre. Si hace falta un dato viejo, se vuelve a consultar (las lecturas repetidas salen de la caché
+  del sitio). El tope es del JSON ya codificado. Filtro `digitalisimo_ai_assistant_old_result_bytes` (0: como antes).
+- **«plugin»**: aunque las instrucciones lo prohíben, Haiku 5.5 lo repitió en 3 de 30 corridas reales porque la persona lo
+  dijo; lo que escribe el modelo pasa por `Tools::plain_words()`, que lo cambia por «complemento» (nunca dentro de una
+  dirección, sus parámetros, lo que va entre comillas o como código, una clave JSON, una orden `wp plugin …` ni un
+  nombre propio con mayúscula en medio de la frase; si la expresión falla, el texto queda igual).
+- **Errores de validación del constructor**: lo que `build-composition` rechaza al validar o compilar (`invalid_xml`,
+  `elementor_invalid_settings`, `elementor_unknown_type`…) no escribió nada: queda «no se hizo» y el modelo lo corrige en
+  el mismo turno (antes quedaba «desconocido» y no se podía repetir).
+- **Presupuesto de la petición entera**: `History::context_chars()` es lo que puede medir toda la petición
+  (herramientas, instrucciones y mensajes) a `CHARS_PER_TOKEN` = 2,4 caracteres de JSON por token (en los cuerpos reales
+  fue ~2,5); con Haiku 5.5, el tope por precio `PRICE_TOKENS` = 85 000 tokens (arriba de 100 000 toda la petición cuesta
+  5 veces más). `for_model()` le resta lo que ocupan las herramientas (también las de diseño, si se pidieron) y las
+  instrucciones de ese paso. Si no cabe: resultados viejos recortados, turnos viejos al resumen y, si el turno en curso
+  solo no cabe, sus resultados más viejos recortados (los del último paso van enteros). Prueba C6: un turno de 16
+  pasos de lecturas grandes con herramientas tan pesadas como las reales no pasa de unos 85 000 tokens.
+- **Conversaciones viejas**: las llamadas a herramientas que ya no se ofrecen (las de WooCommerce, `core/…`, las de
+  diseño) siguen en el historial; Anthropic las acepta sin declararlas (comprobado con el endpoint gratuito de conteo,
+  que valida la forma), así que no se tocan.
+- **Caché**: las herramientas siguen en orden fijo, la de pedir las de diseño y «Recordar» al final; puntos de caché
+  tras las instrucciones fijas y el aprendizaje, y la caché automática de la conversación (ver «Caché»).
+
+Resultado (mismo primer paso): 33 181 tokens (−28 %), 27 413 de ellos de 36 herramientas (en ambas cuentas va una herramienta de prueba de la sonda, 449 tokens). En las corridas reales:
+el contexto medio por paso bajó de unos 50 000 tokens (Opus, antes) a unos 39 000-40 000, y los pasos de las landings, de 45 000-47 600 a 33 000-35 500; el primer paso de un turno nuevo en una conversación con resultados viejos bajó unos 3 500 tokens por el recorte. Pruebas: `tests/ia-assistant-contexto.php` y K2 de `tests/ia-assistant-agent.php`.
+
+## Modelo fijo: medición
+
+Ensayo real `tests/playground/ia-assistant-simple.sh` (ferretería inventada del caso plomerito: A1 «revisa el sitio web y
+optimizalo en SEO», A2 «revisa si el plugin skydropx esta funcionando bien y mi carrito funciona bien», B la landing de
+Black Friday y C la oferta navideña de toda la tienda), el 2026-11-27, con el contexto recortado. El criterio es el del
+encargo: las cuatro mediciones (R1 sin tarjetas en revisiones, J1 sin palabras técnicas, D1 sin «hazlo tú», Q1/Q2 una
+pregunta y nunca «¿seguimos?») y las landings L1. K0-K3 (el informe de Skydropx) y D3 (las revisiones no crean
+borradores, nueva) se cuentan aparte. Los costos son los que cobró la API (tokens de cada respuesta por su precio).
+
+| Modelo | Corridas válidas | Criterio (4 mediciones + L1) | Todas las comprobaciones | US$ por corrida | Segundos por corrida |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 (antes del recorte, 2026-11-27 mañana) | 9 | 9 de 9 | 6 de 9 | 0,38 | ~180 |
+| Haiku 5.5, instrucciones anteriores | 8 | 6 de 8 (J1: «plugin» dos veces) | 5 de 8 | 0,018 | 95 |
+| Haiku 5.5, instrucciones finales | 10 | 10 de 10 | 9 de 10 (K2: nombró los 3 productos sin decir «3») | 0,016 | 87 |
+| Sonnet 5.5, instrucciones finales | 9 | 8 de 9 (J1: el nombre de una herramienta inexistente, ya rotulada en llano) | 6 de 9 | 0,18 | 71 |
+
+Lo que falló y qué se hizo:
+
+- Haiku repetía «el plugin» cuando la persona lo decía, y una vez creó una página de prueba para «revisar» el carrito:
+  las instrucciones lo dicen ahora en llano y el ensayo suma D3. Con eso, 0 fallas del criterio.
+- K2 pide el número de productos sin peso; Haiku (1) y Sonnet (1) los nombraron uno por uno, como Opus en su corrida 7.
+- Sonnet (corrida 9) y Opus (corrida 2) terminaron el turno de Skydropx en una tarjeta sin el informe a la vista.
+- Sonnet pidió una herramienta que no existe y su nombre inventado salía en el paso: ahora se rotula «una función que tu
+  sitio no tiene».
+
+Se eligió Haiku 5.5: el más barato y sin fallas del criterio con las instrucciones finales (unas 25 veces menos que Opus
+y 12 menos que Sonnet). Con Haiku, la conversación se compacta antes de que la petición entera pase de unos 85 000
+tokens (`PRICE_TOKENS`), porque arriba de 100 000 toda la petición cuesta 5 veces más. No hizo falta combinar modelos.
+
 ## Pendiente
 
-- Resultados compactos (resumen, paginación y enlace) en lugar del recorte a 12 KB, y elegir sólo el grupo de
-  herramientas relevante para cada mensaje sin que la persona apague categorías.
+- Resultados compactos (resumen, paginación y enlace) en lugar del recorte a 12 KB.
+- Dejar que el dueño elija el modelo del Asistente cuando él lo pague (hoy lo paga DIGITALÍSIMO y es fijo).
 - Respuesta palabra por palabra: hoy el flujo es por pasos (los proveedores se llaman con la API HTTP de WordPress, que
   no entrega fragmentos).
 - Renombrar conversaciones (la interfaz de origen lo admite; no estaba en el pedido). Los adjuntos ya están («Subir

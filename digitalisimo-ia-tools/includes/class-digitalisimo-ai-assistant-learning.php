@@ -632,6 +632,20 @@ final class Digitalisimo_AI_Assistant_Learning {
 		);
 	}
 
+	/**
+	 * Entrenamientos y repasos por día (filtros `digitalisimo_ai_learning_max_trainings` y `…_max_reviews`). Con la clave
+	 * de DIGITALÍSIMO (wp-config) el filtro puede bajarlos, nunca subirlos sobre MAX_TRAININGS y MAX_REVIEWS.
+	 */
+	public static function max_trainings() {
+		$max = (int) apply_filters( 'digitalisimo_ai_learning_max_trainings', self::MAX_TRAININGS );
+		return '' !== Digitalisimo_AI_Assistant_Model::own_key() ? max( 0, min( $max, self::MAX_TRAININGS ) ) : $max;
+	}
+
+	public static function max_reviews() {
+		$max = (int) apply_filters( 'digitalisimo_ai_learning_max_reviews', self::MAX_REVIEWS );
+		return '' !== Digitalisimo_AI_Assistant_Model::own_key() ? max( 0, min( $max, self::MAX_REVIEWS ) ) : $max;
+	}
+
 	/** Empieza un entrenamiento (uno a la vez, como mucho MAX_TRAININGS al día). */
 	public static function start( $user_id ) {
 		$job = self::job();
@@ -640,7 +654,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 		}
 		$data = self::get();
 		$runs = self::recent( $data['runs'] );
-		if ( count( $runs ) >= (int) apply_filters( 'digitalisimo_ai_learning_max_trainings', self::MAX_TRAININGS ) ) {
+		if ( count( $runs ) >= self::max_trainings() ) {
 			return new WP_Error( 'digitalisimo_learning_limit', 'Hoy ya entrené con tu sitio varias veces. Podrás volver a hacerlo mañana.', array( 'status' => 429 ) );
 		}
 		$target = Digitalisimo_AI_Assistant_Model::target( 'auto' );
@@ -749,7 +763,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 		}
 		$data = self::get();
 		$runs = self::recent( $data['runs'] );
-		if ( count( $runs ) >= (int) apply_filters( 'digitalisimo_ai_learning_max_trainings', self::MAX_TRAININGS ) ) {
+		if ( count( $runs ) >= self::max_trainings() ) {
 			$job['status']  = 'error';
 			$job['error']   = 'Hoy ya entrené con tu sitio varias veces. Podrás volver a hacerlo mañana.';
 			$job['message'] = $job['error'];
@@ -1459,7 +1473,7 @@ final class Digitalisimo_AI_Assistant_Learning {
 	private static function review_locked( $user_id, $only_new ) {
 		$data    = self::get();
 		$reviews = self::recent( $data['reviews'] );
-		if ( count( $reviews ) >= (int) apply_filters( 'digitalisimo_ai_learning_max_reviews', self::MAX_REVIEWS ) ) {
+		if ( count( $reviews ) >= self::max_reviews() ) {
 			return new WP_Error( 'digitalisimo_learning_limit', 'Hoy ya repasé tus conversaciones varias veces. Podrás volver a hacerlo mañana.', array( 'status' => 429 ) );
 		}
 		$messages = array();

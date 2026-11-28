@@ -100,7 +100,10 @@ final class Digitalisimo_AI_Assistant_Tools {
 	 * «resultado desconocido». `ability_invalid_output` NO va: la salida se valida después de ejecutar (la escritura ya
 	 * ocurrió). Un 4xx cualquiera tampoco: el manejador pudo escribir y después fallar.
 	 */
-	const NOT_APPLIED    = array( 'ability_invalid_input', 'ability_invalid_permissions', 'rest_invalid_param', 'rest_missing_callback_param', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit', 'digitalisimo_woo_mcp_forbidden', 'digitalisimo_woo_mcp_read_only', 'digitalisimo_woo_mcp_off', 'elementor_v4_required' );
+	const NOT_APPLIED    = array( 'ability_invalid_input', 'ability_invalid_permissions', 'rest_invalid_param', 'rest_missing_callback_param', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit', 'digitalisimo_woo_mcp_forbidden', 'digitalisimo_woo_mcp_read_only', 'digitalisimo_woo_mcp_off', 'elementor_v4_required',
+		// build-composition los devuelve al validar o compilar, antes de escribir nada en la página (corrida real del
+		// 2026-11-27: «Property "link" on "e-button" could not be resolved» quedó como «desconocido» y no se pudo corregir).
+		'invalid_xml', 'elementor_invalid_settings', 'elementor_unknown_type', 'elementor_invalid_child_type', 'elementor_invalid_form_structure', 'elementor_duplicate_configuration_id' );
 	/** Errores que dicen que al usuario le falta una capacidad de WordPress (además de los que terminan en `_forbidden`). */
 	const DENIED_CODES   = array( 'ability_invalid_permissions', 'rest_forbidden', 'rest_cannot_create', 'rest_cannot_edit' );
 	/**
@@ -114,7 +117,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 	/** Cuando la negativa llegó al ejecutar y la herramienta no garantiza que no hizo nada. */
 	const UNCONFIRMED_NOTE = 'No pude confirmar si se hizo; revisa antes de repetir.';
 	/** Lo mismo para un administrador: no es un permiso que le falte, y no se le dice que lo es. */
-	const UNKNOWN_DENIAL  = 'La herramienta no dejó hacer esta acción y no dijo por qué. Tu usuario es administrador, así que no es un permiso que te falte: puede ser un ajuste del plugin de esa herramienta. No se aplicó nada.';
+	const UNKNOWN_DENIAL  = 'La herramienta no dejó hacer esta acción y no dijo por qué. Tu usuario es administrador, así que no es un permiso que te falte: puede ser un ajuste de esa parte de tu sitio. No se aplicó nada.';
 	/**
 	 * El kit de ventas valida todo (entrada, oferta, plantilla, producto, borrador a rehacer, permiso) antes de crear o
 	 * tocar la página: sus errores 4xx son previos (los posteriores al guardado son 500).
@@ -299,6 +302,70 @@ final class Digitalisimo_AI_Assistant_Tools {
 			$out[]       = array( 'name' => $entry['tool'], 'description' => self::clip( $entry['label'] . ' — ' . $description, 2048 ), 'schema' => self::marca_text( $entry['schema'] ) );
 		}
 		return $out;
+	}
+
+	/**
+	 * Contexto (docs/ASSISTANT.md): herramientas del MCP que el Asistente no necesita y no se le ofrecen (siguen en el
+	 * MCP externo): abrir el propio Asistente y la información técnica de WordPress (el sitio, su nombre y su dirección ya
+	 * van en las instrucciones). Las de WooCommerce (`woocommerce/`) tampoco cuando están las de la tienda de Elements
+	 * (`digitalisimo-woo/`), que hacen lo mismo con su clasificación por acción.
+	 */
+	const ASSISTANT_SKIP = array( 'digitalisimo-ia/open-assistant', 'core/get-user-info', 'core/get-environment-info', 'core/get-site-info' );
+	/**
+	 * Del constructor (`elementor/`), las que el Asistente usa siempre: crear una página (sale en blanco), darle contenido
+	 * (`build-composition`, unos 1 570 tokens: sin ella, una página que no es del kit de ventas quedaba vacía, y
+	 * `get-widget-schema`, unos 370, para los campos de cada widget que sus errores mandan a revisar), leerla y
+	 * editar sus elementos, sus ajustes, publicarla, listarlas y la vista previa. Las demás (clases, variables y estilos
+	 * globales, componentes, partes del sitio, recursos, esquemas de widgets) son «más funciones de diseño»: se ofrecen
+	 * cuando el modelo las pide con MORE_TOOL, y desde ahí en toda la conversación.
+	 */
+	const BUILDER_BASE = array( 'elementor/create-page', 'elementor/build-composition', 'elementor/get-widget-schema', 'elementor/get-page-structure', 'elementor/manage-elements', 'elementor/update-page-settings', 'elementor/publish-document', 'elementor/list-posts', 'elementor/create-preview-link' );
+	const MORE_ABILITY = 'digitalisimo-ia/more-tools';
+	const MORE_TOOL    = 'digitalisimo-ia-more-tools';
+
+	/**
+	 * Lo que se le ofrece al modelo de un catálogo: sin ASSISTANT_SKIP ni los duplicados de WooCommerce y, si `$more` es
+	 * false, sin las funciones de diseño del constructor (BUILDER_BASE). Filtro `digitalisimo_ai_assistant_offered_tools`.
+	 * El catálogo completo sigue valiendo para ejecutar (una llamada a una herramienta no ofrecida pasa por las mismas
+	 * reglas).
+	 */
+	public static function offered( array $catalog, $more = false ) {
+		$store = false;
+		foreach ( $catalog as $name => $entry ) {
+			if ( 0 === strpos( (string) $name, 'digitalisimo-woo/' ) ) {
+				$store = true;
+				break;
+			}
+		}
+		$out = array();
+		foreach ( $catalog as $name => $entry ) {
+			$name = (string) $name;
+			if ( in_array( $name, self::ASSISTANT_SKIP, true ) || ( $store && 0 === strpos( $name, 'woocommerce/' ) ) || ( ! $more && self::builder_extra( $name ) ) ) {
+				continue;
+			}
+			$out[ $name ] = $entry;
+		}
+		$out = apply_filters( 'digitalisimo_ai_assistant_offered_tools', $out, $catalog, (bool) $more );
+		return is_array( $out ) ? $out : $catalog;
+	}
+
+	/** ¿Es una función de diseño del constructor (no está en BUILDER_BASE)? */
+	public static function builder_extra( $name ) {
+		return 0 === strpos( (string) $name, 'elementor/' ) && ! in_array( (string) $name, self::BUILDER_BASE, true );
+	}
+
+	/** Las funciones de diseño del catálogo (las que MORE_TOOL agrega). */
+	public static function builder_extras( array $catalog ) {
+		return array_values( array_filter( array_keys( $catalog ), array( __CLASS__, 'builder_extra' ) ) );
+	}
+
+	/** La herramienta para pedir las funciones de diseño del constructor (sin entrada; no toca el sitio). */
+	public static function more_tool_definition() {
+		return array(
+			'name'        => self::MORE_TOOL,
+			'description' => 'Más funciones para el diseño de las páginas: clases, colores y tipografías globales, estilos de fábrica, componentes, cabecera, pie y demás partes del sitio, recursos y esquemas de widgets. Llámala (sin datos) antes de un cambio de diseño que no puedas hacer con lo que ya tienes; desde el paso siguiente las tendrás en esta conversación. No cambia nada.',
+			'schema'      => array( 'type' => 'object', 'properties' => new stdClass() ),
+		);
 	}
 
 	/**
@@ -983,13 +1050,52 @@ final class Digitalisimo_AI_Assistant_Tools {
 	/** Quita de un texto las claves de proveedor configuradas y lo que tiene forma de clave de API. */
 	public static function scrub( $text ) {
 		$text = (string) $text;
-		foreach ( (array) Digitalisimo_AI::get( 'providers' ) as $provider ) {
-			$key = (string) ( $provider['key'] ?? '' );
+		$keys = (array) Digitalisimo_AI::get( 'providers' );
+		// La clave del Asistente en wp-config (DIGITALISIMO_AI_ASSISTANT_ANTHROPIC_KEY) también.
+		$keys[] = array( 'key' => class_exists( 'Digitalisimo_AI_Assistant_Model' ) ? Digitalisimo_AI_Assistant_Model::own_key() : '' );
+		foreach ( $keys as $provider ) {
+			$key = (string) ( is_array( $provider ) ? ( $provider['key'] ?? '' ) : '' );
 			if ( strlen( $key ) >= 8 ) {
 				$text = str_replace( $key, '[clave oculta]', $text );
 			}
 		}
 		return (string) preg_replace( '/\b(sk-(?:ant-|proj-)?[A-Za-z0-9_-]{16,}|xai-[A-Za-z0-9]{16,}|AIza[0-9A-Za-z_-]{30,})\b/', '[clave oculta]', $text );
+	}
+
+	/**
+	 * Lo que escribe el modelo, sin «plugin»: las instrucciones lo prohíben, pero Haiku 5.5 lo repitió en 3 de 30
+	 * corridas reales del caso plomerito (2026-11-27) porque la persona lo dijo («El plugin está instalado…»). Se dice
+	 * «complemento». No se toca lo que es un dato y no una palabra suya: direcciones y sus parámetros (`&plugin=`,
+	 * `?s=plugin`), lo que va entre comillas («…», "…", “…”), el código (`…` y bloques ```), las claves JSON, las órdenes
+	 * (`wp plugin …`) ni un nombre propio con mayúscula en medio de la frase («Plugin Elementor Pro»). Si la expresión
+	 * falla, el texto queda como estaba.
+	 */
+	public static function plain_words( $text ) {
+		$text    = (string) $text;
+		$pattern = '~(?<keep>```.*?```|`[^`\n]*`|https?://[^\s<>»"]+|\]\([^)\s]*\)|[?&][\w%.-]+=[^\s&]*|"[^"\n]*"|“[^”\n]*”|«[^»\n]*»|\bwp\s+plugins?\b)|(?<![\w/.@=&?-])(?<w>plugin)(?<s>s?)(?![\w/.@=-])~siu';
+		$out     = preg_replace_callback(
+			$pattern,
+			function ( $m ) use ( $text ) {
+				if ( isset( $m['keep'] ) && '' !== $m['keep'][0] && -1 !== $m['keep'][1] ) {
+					return $m['keep'][0];
+				}
+				$word = $m['w'][0];
+				if ( 'P' === $word[0] ) {
+					// Con mayúscula sólo se cambia al empezar la frase (o una línea, una viñeta o unas negritas).
+					$before = rtrim( substr( $text, 0, (int) $m['w'][1] ) );
+					if ( '' !== $before && ! preg_match( '/(^|[.!?¡¿:\n]|\n\s*[-*]|\*\*)$/u', $before ) ) {
+						return $m[0][0];
+					}
+				}
+				$new = 'complemento' . ( '' !== $m['s'][0] ? 's' : '' );
+				return 'P' === $word[0] ? ucfirst( $new ) : $new;
+			},
+			$text,
+			-1,
+			$count,
+			PREG_OFFSET_CAPTURE
+		);
+		return null === $out ? $text : $out;
 	}
 
 	/** Entrada resumida para la bitácora y la tarjeta de confirmación: enmascarada y recortada. */

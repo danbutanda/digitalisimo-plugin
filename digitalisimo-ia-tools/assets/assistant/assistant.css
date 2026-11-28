@@ -1,6 +1,6 @@
 /*
  * Asistente IA de DIGITALÍSIMO IA Tools (docs/ASSISTANT.md): el tema mini del asistente de @digitalisimo/ui
- * (AssistantApp, AssistantHistory, ChatThread, ChatComposer, AssistantAiSwitcher y AssistantAppearance) portado a
+ * (AssistantApp, AssistantHistory, ChatThread, ChatComposer y AssistantAppearance) portado a
  * WordPress sin el paquete. Lleva el subconjunto del Theme Contract que el chat usa, acotado a .dga-root para no tocar
  * el resto del escritorio, y los mandos --ds-assistant-* (sobrio en Classic, auroras y cristal en Modern). Sólo se
  * carga en admin.php?page=digitalisimo-assistant; depende de la hoja compartida (digitalisimo-ui) y repite sus tokens

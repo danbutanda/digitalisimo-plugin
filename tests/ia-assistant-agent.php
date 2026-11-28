@@ -12,7 +12,7 @@
  *   T  límites del turno generosos y continuación transparente (evento `continue` y `assistant/continue`);
  *   R  digitalisimo-ia/read-page-text lee el texto de los widgets de Elementor (clásicos y atómicos) y
  *      digitalisimo-ia/site-contact encuentra el WhatsApp de un enlace wa.me del pie y las páginas de políticas reales;
- *   G  el modelo del Asistente sale de su selector (Anthropic: claude-opus-5-5 por defecto) sin tocar DEFAULT_MODELS;
+ *   G  el modelo del Asistente es el fijo de DIGITALÍSIMO (sin selector) y no toca DEFAULT_MODELS;
  *   P  las instrucciones del sistema: fecha del sitio, cierre de mes, usar los datos del sitio, no volver a preguntar.
  * Uso: php tests/ia-assistant-agent.php
  */
@@ -53,29 +53,21 @@ $texts = function ( array $request ) { $out = array(); foreach ( $request['messa
 $paired = function ( array $messages ) { $open = array(); foreach ( $messages as $m ) { if ( 'assistant' === $m['role'] ) foreach ( $m['calls'] as $c ) $open[ $c['id'] ] = true; if ( 'tool' === $m['role'] ) { if ( ! isset( $open[ $m['call'] ] ) ) return false; unset( $open[ $m['call'] ] ); } } return array() === $open && 'user' === $messages[0]['role']; };
 
 /* ---------------- G: el modelo del Asistente ---------------- */
+// El modelo es fijo (Digitalisimo_AI_Assistant_Model::fixed(); lo prueba a fondo tests/ia-assistant-modelo-fijo.php).
 $t = Digitalisimo_AI_Assistant_Model::target( 'auto' );
-check( 'anthropic' === $t['provider'] && 'claude-opus-5-5' === $t['model'], 'G1: con Anthropic, el Asistente usa claude-opus-5-5 por defecto: ' . $t['model'] );
+check( 'anthropic' === $t['provider'] && Digitalisimo_AI_Assistant_Model::MODEL === $t['model'], 'G1: con Anthropic, el Asistente usa su modelo fijo: ' . $t['model'] );
 check( 'claude-sonnet-5-5' === Digitalisimo_AI::default_model( 'anthropic' ) && 'claude-sonnet-5-5' === Digitalisimo_AI::DEFAULT_MODELS['anthropic'], 'G1: las demás herramientas siguen con su modelo (DEFAULT_MODELS no cambia)' );
-$GLOBALS['options']['digitalisimo_ai_options']['assistant_models'] = array( 'anthropic' => 'claude-sonnet-5-5' );
-check( 'claude-sonnet-5-5' === Digitalisimo_AI_Assistant_Model::target( 'auto' )['model'], 'G2: si el dueño elige Sonnet en el selector, se respeta' );
-$GLOBALS['options']['digitalisimo_ai_options']['profiles']['content'] = array( 'provider' => 'anthropic', 'model' => 'claude-perfil', 'fallback' => '' );
-$GLOBALS['options']['digitalisimo_ai_options']['assistant_models'] = array( 'anthropic' => 'profile' );
-check( 'claude-perfil' === Digitalisimo_AI_Assistant_Model::target( 'auto' )['model'], 'G3: «Igual que el perfil de uso» usa el modelo del perfil' );
+$GLOBALS['options']['digitalisimo_ai_options']['assistant_models'] = array( 'anthropic' => 'claude-sonnet-4-5' );
+check( Digitalisimo_AI_Assistant_Model::MODEL === Digitalisimo_AI_Assistant_Model::target( 'auto' )['model'], 'G2: lo que quedó guardado en el selector viejo se ignora' );
 $GLOBALS['options']['digitalisimo_ai_options']['assistant_models'] = array();
-check( 'claude-opus-5-5' === Digitalisimo_AI_Assistant_Model::target( 'auto' )['model'], 'G3: sin elección, el recomendado aunque el perfil de contenido tenga otro modelo' );
-$GLOBALS['options']['digitalisimo_ai_options']['profiles']['content'] = array( 'provider' => 'auto', 'model' => '', 'fallback' => '' );
 ob_start(); Digitalisimo_AI::assistant_model_fields( Digitalisimo_AI::get() ); $html = ob_get_clean();
-check( false !== strpos( $html, 'name="assistant_models[anthropic]"' ) && false !== strpos( $html, 'Recomendado: claude-opus-5-5' ) && false !== strpos( $html, 'cuesta más que Claude Sonnet' ), 'G4: el selector está en IA Tools, recomienda Opus y avisa que cuesta más que Sonnet' );
-$_POST = array( 'assistant_models' => array( 'anthropic' => 'custom', 'openai' => 'profile', 'google' => '<script>' ), 'assistant_models_custom' => array( 'anthropic' => 'claude-opus-5-5-fast' ) );
-$sanitize = new ReflectionMethod( 'Digitalisimo_AI', 'sanitize_values' );
-$sanitize->setAccessible( true );
-$saved = $sanitize->invoke( null, Digitalisimo_AI::get() );
-$_POST = array();
-check( array( 'anthropic' => 'claude-opus-5-5-fast', 'openai' => 'profile' ) === $saved['assistant_models'], 'G4: se guarda lo elegido (otro modelo escrito, perfil) y lo inválido vuelve al recomendado: ' . json_encode( $saved['assistant_models'] ) );
-$b = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), array() );
-check( 'claude-opus-5-5' === $b['body']['model'] && array( 'type' => 'ephemeral' ) === $b['body']['cache_control'] && $b['body']['max_tokens'] >= 16000, 'G5: la petición a Anthropic va con Opus, caché automática (la conversación completa se reenvía) y sitio para pensar' );
+check( false === strpos( $html, '<select' ) && false !== strpos( $html, 'ya optimizada' ), 'G4: en IA Tools no hay selector, sólo la línea informativa' );
+// Con Opus 5.5 (lo que DIGITALÍSIMO fije), la petición va con caché, notas de avance y esfuerzo alto.
+$opus = array( 'provider' => 'anthropic', 'model' => 'claude-opus-5-5', 'key' => KEY_ANTHROPIC, 'url' => '', 'turn_effort' => 'high' );
+$b    = Digitalisimo_AI_Assistant_Model::build( $opus, 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), array() );
+check( 'claude-opus-5-5' === $b['body']['model'] && array( 'type' => 'ephemeral' ) === $b['body']['cache_control'] && $b['body']['max_tokens'] >= 16000, 'G5: la petición a Anthropic va con su modelo, caché automática (la conversación completa se reenvía) y sitio para pensar' );
 check( 'adaptive' === $b['body']['thinking']['type'] && 'updates' === $b['body']['thinking']['display'] && array( 'prefix_mismatch_behavior' => 'drop_block' ) === $b['body']['thinking']['block_binding'] && 'thinking-display-updates-2026-08-18,thinking-binding-controls-2026-08-01' === $b['headers']['anthropic-beta'], 'G6: con Opus 5.5 se piden las notas de avance, y los bloques reenviados que ya no cuadran se descartan en vez de rechazar la petición' );
-check( array( 'effort' => 'high' ) === $b['body']['output_config'], 'G6: el Asistente con Opus 5.5 trabaja con esfuerzo alto (el de fábrica es medium)' );
+check( array( 'effort' => 'high' ) === $b['body']['output_config'], 'G6: el Asistente trabaja con el esfuerzo fijo (alto; el de fábrica de Opus 5.5 es medium)' );
 $old = Digitalisimo_AI_Assistant_Model::build( array( 'provider' => 'anthropic', 'model' => 'claude-sonnet-4-5', 'key' => 'k' ), 'S', array( array( 'role' => 'user', 'text' => 'hola' ) ), array() );
 check( ! isset( $old['body']['thinking'] ) && ! isset( $old['headers']['anthropic-beta'] ) && ! isset( $old['body']['output_config'] ), 'G6: a un modelo anterior no se le piden ni se fija el esfuerzo' );
 $p = Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'stop_reason' => 'tool_use', 'content' => array( array( 'type' => 'thinking', 'thinking' => '', 'signature' => 'x' ), array( 'type' => 'thinking', 'thinking' => 'Creo la landing en borrador con el producto.', 'signature' => 'y' ), array( 'type' => 'tool_use', 'id' => 'toolu_1', 'name' => 'demo-create-note', 'input' => array() ) ) ) );
@@ -92,10 +84,10 @@ $neutral = array(
 $stored = array( 'messages' => array() );
 foreach ( $neutral as $m ) { $m['role'] = $m['role']; if ( 'assistant' === $m['role'] ) foreach ( $m['calls'] as $i => $c ) $m['calls'][ $i ]['ability'] = 'demo/create-note'; if ( 'tool' === $m['role'] ) $m['ability'] = 'demo/create-note'; $stored['messages'][] = $m; }
 $fm = Digitalisimo_AI_Assistant_History::for_model( $stored, Digitalisimo_AI_Assistant_Tools::catalog() );
-check( 'VIEJA' === $fm[1]['thinking'][0]['signature'] && 'NUEVA' === $fm[3]['thinking'][0]['signature'], 'G6: al modelo van los bloques thinking tal cual, también los del turno anterior' );
+check( ! isset( $fm[1]['thinking'] ) && 'NUEVA' === $fm[3]['thinking'][0]['signature'], 'G6: al modelo van los bloques thinking del turno en curso tal cual; los del turno anterior se quitan con el recorte de sus resultados' );
 $body = Digitalisimo_AI_Assistant_Model::build( Digitalisimo_AI_Assistant_Model::target( 'auto' ), 'S', $fm, array() )['body'];
 $last_assistant = $body['messages'][3];
-check( 'assistant' === $last_assistant['role'] && 'thinking' === $last_assistant['content'][0]['type'] && 'NUEVA' === $last_assistant['content'][0]['signature'] && 'Nota' === $last_assistant['content'][0]['thinking'] && 'redacted_thinking' === $last_assistant['content'][1]['type'] && 'tool_use' === $last_assistant['content'][2]['type'] && 'VIEJA' === $body['messages'][1]['content'][0]['signature'], 'G6: Anthropic recibe esos bloques tal cual, antes del tool_use (y la nota nunca como texto)' );
+check( 'assistant' === $last_assistant['role'] && 'thinking' === $last_assistant['content'][0]['type'] && 'NUEVA' === $last_assistant['content'][0]['signature'] && 'Nota' === $last_assistant['content'][0]['thinking'] && 'redacted_thinking' === $last_assistant['content'][1]['type'] && 'tool_use' === $last_assistant['content'][2]['type'] && 'text' === $body['messages'][1]['content'][0]['type'], 'G6: Anthropic recibe esos bloques tal cual, antes del tool_use (y la nota nunca como texto)' );
 check( '' === Digitalisimo_AI_Assistant_Model::parse( 'anthropic', array( 'content' => array( array( 'type' => 'thinking', 'thinking' => Digitalisimo_AI_Assistant_Model::UPDATES_CUT ) ) ) )['text'], 'G6: la marca de nota cortada no se muestra' );
 remove_all_filters( 'digitalisimo_ai_assistant_pre_model' );
 $GLOBALS['http'] = array();
@@ -149,7 +141,12 @@ $events( Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'cr�
 $next = end( $GLOBALS['model_calls'] );
 $assistant_texts = implode( "\n", array_column( array_filter( $next['messages'], function ( $m ) { return 'assistant' === $m['role']; } ), 'text' ) );
 check( false !== strpos( $texts( $next ), 'purificador' ) && false !== strpos( $texts( $next ), '7500' ) && false !== strpos( $assistant_texts, 'ID 252' ), 'K2: en el turno siguiente siguen el producto, el precio y lo que el asistente encontró (ID 252)' );
-check( 'claude-opus-5-5' === $next['model'], 'K2: y la petición va al modelo del selector' );
+check( Digitalisimo_AI_Assistant_Model::MODEL === $next['model'], 'K2: y la petición va al modelo fijo del Asistente' );
+// Contexto (docs/ASSISTANT.md): los 19 resultados grandes del turno anterior ya cumplieron: van recortados, marcados y
+// con su llamada; lo que dijeron la persona y el asistente, entero.
+$old_results = array_values( array_filter( $next['messages'], function ( $m ) { return 'tool' === $m['role']; } ) );
+check( count( $old_results ) >= 19 && max( array_map( function ( $m ) { return strlen( $m['content'] ); }, $old_results ) ) <= Digitalisimo_AI_Assistant_History::OLD_RESULT_BYTES && false !== strpos( $old_results[5]['content'], '[resultado anterior recortado:' ) && $paired( $next['messages'] ), 'K2: los resultados de turnos anteriores van recortados (con su marca y su llamada)' );
+check( strlen( json_encode( $next['messages'] ) ) < 60000, 'K2: y la petición del turno siguiente es chica (' . strlen( json_encode( $next['messages'] ) ) . ' bytes en vez de más de 200 000)' );
 // K3 Cerca del límite real: primero se compactan los resultados viejos (el turno en curso nunca).
 add_filter( 'digitalisimo_ai_assistant_context_chars', function () { return 120000; } );
 $GLOBALS['script'] = array( array( 'calls' => array( $call( 'demo-big-read', array( 'n' => 900 ) ) ) ), 'Sigo.' );

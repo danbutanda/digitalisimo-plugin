@@ -28,7 +28,8 @@ for (const [name, source] of [['assistant.js', ui], ['assistant-adapters.js', ad
 }
 ok(/wp\.element/.test(ui) && /createRoot/.test(ui) && /el\.render\(/.test(ui), 'La interfaz usa wp.element (createRoot y render para WordPress anteriores)');
 ok(/window\.digitalisimoAssistantAdapters\.create\(\s*config\s*\)/.test(ui) && !/fetch\(/.test(ui), 'La interfaz sólo habla con el servidor por los adaptadores');
-for (const piece of ['Nueva conversación', 'Buscar en el historial', 'La mejor disponible', 'Apariencia', 'Classic', 'Modern', 'Oscuro', 'Sí, hazlo', 'Ver detalles', 'Puedes deshacerlo después.', 'Ver la bitácora', 'Borrar todo el historial', 'scrollTop = area.scrollHeight']) ok(ui.includes(piece), `La interfaz trae «${piece}»`);
+for (const piece of ['Nueva conversación', 'Buscar en el historial', 'Apariencia', 'Classic', 'Modern', 'Oscuro', 'Sí, hazlo', 'Ver detalles', 'Puedes deshacerlo después.', 'Ver la bitácora', 'Borrar todo el historial', 'scrollTop = area.scrollHeight']) ok(ui.includes(piece), `La interfaz trae «${piece}»`);
+ok(!/AiSwitcher|La mejor disponible|IA automática/.test(ui) && !/provider: ai/.test(ui), 'Sin selector de IA: el Asistente usa la IA de DIGITALÍSIMO (modelo fijo en el servidor)');
 ok(/disabled: props\.busy \|\| \( needsAck && ! ack \)/.test(ui) && /const needsAck = !! action\.ack;/.test(ui), 'El botón de lo que borra o mueve dinero sigue apagado hasta marcar la casilla (la decide el servidor)');
 // Revisión adversarial.
 ok(/h\( 'details', \{ className: 'dga-details', open: !! action\.after_read \}/.test(ui) && /h\( 'summary', null, 'Ver detalles' \)/.test(ui) && !/action\.input\b/.test(ui) && !/action\.input\.slice|substring\(/.test(ui), 'A2 (caso plomerito 4): los datos completos van plegados en «Ver detalles», con nombres legibles del servidor y sin JSON');

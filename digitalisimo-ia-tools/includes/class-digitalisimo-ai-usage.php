@@ -148,6 +148,15 @@ final class Digitalisimo_AI_Usage {
 		if ( ! $sent ) {
 			return '';
 		}
+		// La clave del Asistente en wp-config (DIGITALISIMO_AI_ASSISTANT_ANTHROPIC_KEY) cuenta como Anthropic.
+		$own = class_exists( 'Digitalisimo_AI_Assistant_Model' ) ? Digitalisimo_AI_Assistant_Model::own_key() : '';
+		if ( '' !== $own && 'api.anthropic.com' === $host ) {
+			foreach ( $sent as $candidate ) {
+				if ( hash_equals( $own, $candidate ) ) {
+					return 'anthropic';
+				}
+			}
+		}
 		foreach ( $providers as $id => $provider ) {
 			$key = is_array( $provider ) ? (string) ( $provider['key'] ?? '' ) : '';
 			if ( '' === $key ) {
