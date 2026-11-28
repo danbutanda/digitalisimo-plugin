@@ -631,6 +631,7 @@ jobs:
           php tests/elements-marca-package.php
           php tests/elements-marca-exports.php
           php tests/elements-marca-panel.php
+          php tests/elements-marca-uninstall.php
           node tests/elements-marca-reglas.mjs
           # El JS transformado y lo que el servidor transforma al vuelo dan lo mismo (D-12), y el vocabulario del editor está al día.
           node tests/elements-marca-paridad.mjs

@@ -97,6 +97,10 @@ Estados:
 
 En la fase 1 el interruptor gobierna sólo lo visible de la fase 1: los enlaces y la barra de direcciones del escritorio y el índice REST. El MCP nuevo y los alias que aceptan las URL nuevas funcionan siempre.
 
+### Desinstalar
+
+Al borrar Elements (`digitalisimo-elements/uninstall.php`, el mismo patrón que IA Tools, sitio por sitio en una red) se borran `digitalisimo_elements_marca`, `digitalisimo_elements_marca_network`, `digitalisimo_elements_mcp_legacy`, el transitorio `digitalisimo_elements_marca_addons` y, del paquete transformado, `digitalisimo_elements_marca_despliegue` y la tarea `digitalisimo_elements_marca_limpiar`. Lo demás del constructor y de Elements se conserva. La carpeta `uploads/digitalisimo-elements/base-*` queda para la fase del paquete transformado.
+
 ## Auditoría de cero rastro
 
 `tests/brand-zero-trace.mjs` (sin Playground: el paquete, los nombres de archivos que se pueden pedir por URL, el espejo y el MCP por PHP) y `tests/playground/brand-zero-trace.sh` (Playground con la marca propia encendida: front, escritorio, editor, MCP nuevo con lista de herramientas, recursos y respuestas, `/wp-json/` y URL directas) cuentan las apariciones de «elementor» por capa y fallan si encuentran una fuera de `excepciones_internas` de `reglas.json`. Mientras la fase 2 no esté hecha, fallan en el front, en los archivos del paquete y en el ZIP: el conteo dice cuánto falta.
