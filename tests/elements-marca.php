@@ -262,7 +262,9 @@ namespace {
 	// M-2 de la revisión: `_dg_` es un prefijo común de terceros; sólo las metas del motor cambian de nombre.
 	$s8 = Map::in( 'precio _dg_precio y _dg_data, _dg_global_classes y _dg_global_' );
 	check( 'precio _dg_precio y _elementor_data, _elementor_global_classes y _dg_global_' === $s8, 'M1 (M-2) la entrada sólo devuelve al motor sus metas: _dg_precio de otro plugin queda igual', $s8 );
+	mp_set_active( true );
 	check( '_elementor_precio _dg_page_settings' === Map::out( '_elementor_precio _elementor_page_settings' ), 'M1 (M-2) y una _elementor_<x> que no es del motor no sale renombrada (no habría cómo devolverla)' );
+	mp_set_active( null );
 	$wxr = Exports::wxr_import( array( 'post_type' => 'digitalisimo_library', 'postmeta' => array( array( 'key' => '_dg_precio', 'value' => '9' ), array( 'key' => '_dg_edit_mode', 'value' => 'builder' ) ) ) );
 	check( 'elementor_library' === $wxr['post_type'] && '_dg_precio' === $wxr['postmeta'][0]['key'] && '_elementor_edit_mode' === $wxr['postmeta'][1]['key'], 'M1 (M-2) el importador WXR no convierte una meta ajena _dg_* en una del motor', $wxr );
 	$xml = Exports::wxr( '<wp:postmeta><wp:meta_key><![CDATA[_elementor_precio]]></wp:meta_key></wp:postmeta><wp:postmeta><wp:meta_key><![CDATA[_elementor_data]]></wp:meta_key></wp:postmeta>' );

@@ -22,6 +22,16 @@ defined( 'ABSPATH' ) || exit;
  * registrado, `_dg_<x>` de las metas del motor, `action=digitalisimo`, `page=digitalisimo-motor…`), así que los nombres propios de verdad
  * (`digitalisimo_query`, `_digitalisimo_actions`…) nunca cambian y los nombres viejos siguen valiendo tal cual.
  *
+ * **Con la marca apagada** (N-3 de la segunda revisión) el contenido del cliente no cambia ni al salir ni al entrar, así
+ * que lo que sale tampoco necesita traducirse de vuelta:
+ * - `out()` (textos del motor: descripciones, esquemas, guías, mensajes) sólo cambia los nombres de herramientas y de
+ *   recursos y el nombre «Elementor»; los tipos, metas, plantillas y códigos salen con su nombre de siempre;
+ * - `data_out()` (respuestas) sólo pasa por `out()` los textos del motor (`engine_text_key()`) y cambia una dirección de
+ *   recurso entera (`elementor://x`); lo demás sale tal cual;
+ * - `in_deep()` (argumentos del MCP nuevo) sólo devuelve una dirección de recurso entera (`digitalisimo://x` →
+ *   `elementor://x`, `uri_in()`): es un nombre que publica el MCP nuevo, no contenido. Los nombres de herramienta
+ *   `digitalisimo-*` los resuelve el servidor (y el Asistente), no este mapa.
+ *
  * Las rutas de archivos (`/digitalisimo-elements/elementor/…`, `uploads/elementor/…`) no se tocan aquí: las resuelven la
  * carpeta neutra del ZIP (D-9) y la capa de la fase 2.
  */
@@ -241,6 +251,12 @@ final class Map {
 				$text
 			);
 		}
+		// Con la marca apagada, sólo los nombres de herramientas y recursos (y la marca en el texto): los identificadores
+		// salen como siempre, así lo que el cliente MCP manda de vuelta no necesita traducirse (N-3).
+		$active = self::active();
+		if ( ! $active ) {
+			return $brand ? self::brand( $text ) : $text;
+		}
 		$types = self::types();
 		if ( $types ) {
 			$text = (string) preg_replace_callback(
@@ -266,7 +282,7 @@ final class Map {
 			$text = (string) preg_replace( '#(?<![A-Za-z0-9_])elementor_([a-z0-9_]+)#', 'digitalisimo_$1', $text );
 		}
 		// Los alias de URL del escritorio, sólo con la marca propia en vigor (active()).
-		if ( self::active() ) {
+		if ( $active ) {
 			$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)action=elementor(?=$|[&\#"\'\s<\\\\])#', '$1action=' . self::ACTION_OUT, $text );
 			$text = (string) preg_replace( '#([?&]|&amp;|\\\\u0026)page=elementor(?=[\w-]|$|[&\#"\'\s<\\\\])#', '$1page=' . self::PAGE_OUT, $text );
 		}
@@ -343,7 +359,16 @@ final class Map {
 		if ( $depth > 64 ) {
 			return $value;
 		}
+		$active = self::active();
 		if ( is_string( $value ) ) {
+			// Con la marca apagada (N-3), el contenido sale tal cual: sólo los textos del motor y una dirección de recurso
+			// entera (que el cliente usa como nombre y uri_in() devuelve).
+			if ( ! $active ) {
+				if ( $engine && '' !== $key && self::engine_text_key( $key ) ) {
+					return self::out( $value, true );
+				}
+				return preg_match( '#^elementor://\S*$#i', $value ) ? self::uri( $value ) : $value;
+			}
 			// Un código de error del motor (`code: elementor_v3_not_supported`) sale como el de sus descripciones.
 			if ( $engine && 'code' === $key && preg_match( '/^elementor_[a-z0-9_]+$/', $value ) ) {
 				return self::out( $value, true );
@@ -354,7 +379,7 @@ final class Map {
 			$is_obj = $value instanceof \stdClass;
 			$out    = $is_obj ? new \stdClass() : array();
 			foreach ( ( $is_obj ? get_object_vars( $value ) : $value ) as $k => $v ) {
-				$nk  = is_string( $k ) ? self::ids( $k ) : $k;
+				$nk  = is_string( $k ) && $active ? self::ids( $k ) : $k;
 				$sub = self::data_out( $v, $depth + 1, is_string( $k ) ? $k : $key, $engine );
 				if ( $is_obj ) {
 					$out->{ $nk } = $sub;
@@ -382,7 +407,13 @@ final class Map {
 	 * @return mixed
 	 */
 	public static function in_deep( $value, int $depth = 0 ) {
-		return self::deep( $value, array( __CLASS__, 'in' ), $depth );
+		// Con la marca apagada no se reescribe el contenido del cliente que llega (N-3): sólo una dirección de recurso.
+		return self::deep( $value, self::active() ? array( __CLASS__, 'in' ) : array( __CLASS__, 'uri_in' ), $depth );
+	}
+
+	/** Una dirección de recurso entera del MCP nuevo (`digitalisimo://x`) → `elementor://x`; cualquier otro texto, igual. */
+	public static function uri_in( string $text ): string {
+		return preg_match( '#^digitalisimo://\S*$#i', $text ) ? 'elementor://' . substr( $text, 15 ) : $text;
 	}
 
 	/**

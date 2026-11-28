@@ -477,6 +477,11 @@ mp_set_active( true );
 $mp_on = Digitalisimo_AI_Assistant_Tools::marca_out( $mp );
 check( false !== strpos( $mp_on['edit_url'], 'action=digitalisimo' ) && 'digitalisimo_library' === $mp_on['post_type'], 'MP: con la marca en vigor, renombrados' );
 check( array( 'post_type' => 'elementor_library' ) === Digitalisimo_AI_Assistant_Tools::marca_in( array( 'post_type' => 'digitalisimo_library' ) ), 'MP: la entrada acepta los dos nombres' );
+// N-3 de la segunda revisión: con la marca apagada, lo que manda el modelo (contenido del cliente) llega tal cual.
+mp_set_active( false );
+$mp_in = array( 'post_type' => 'digitalisimo_library', 'html' => '<a href="?action=digitalisimo">x</a> _dg_data digitalisimo_canvas', 'uri' => 'digitalisimo://global-variables' );
+check( $mp_in === Digitalisimo_AI_Assistant_Tools::marca_in( $mp_in ), 'MP (N-3): con la marca apagada, la entrada del modelo no se reescribe' );
+check( 'elementor/create-page' === Digitalisimo_AI_Assistant_Tools::ability_for( $cat_mp, 'digitalisimo-create-page' ), 'MP (N-3): y el nombre de herramienta digitalisimo-* sigue valiendo' );
 mp_set_active( null );
 \Digitalisimo\Elements\Marca\Map::set_types( null );
 

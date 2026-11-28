@@ -19,7 +19,9 @@ defined( 'ABSPATH' ) || exit;
  * - descripciones, títulos y esquemas de las listas por `Map::out_deep()`; las respuestas de herramientas y recursos
  *   por `Map::data_out()` (identificadores siempre; el nombre «Elementor» sólo en los textos del motor, nunca en el
  *   contenido del cliente); lo que entra (argumentos y parámetros) por `Map::in_deep()`, así que valen los dos nombres
- *   (D-6).
+ *   (D-6). Con la marca apagada (N-3) el contenido no cambia ni al salir ni al entrar: sólo los nombres de herramientas
+ *   y recursos (y «Elementor» en los textos del motor); una dirección de recurso entera `digitalisimo://x` llega como
+ *   `elementor://x` (ver `Map`).
  * El servidor del núcleo (`/wp-json/elementor/mcp`, nombres `elementor-*`) sigue igual hasta su retiro (`Legacy_Route`).
  * Nada de `elementor/` se edita.
  */

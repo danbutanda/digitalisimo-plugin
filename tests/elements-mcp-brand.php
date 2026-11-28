@@ -468,6 +468,8 @@ namespace {
 	check( array() === Brand_Server::$collisions, 'B2 ningún nombre con marca choca con otra herramienta', Brand_Server::$collisions );
 
 	// B2 -----------------------------------------------------------------------------------------------------------------
+	// Con la marca propia en vigor (abajo, apagada: N-3).
+	mp_set_active( true );
 	$tools_handler = new \WP\MCP\Handlers\Tools\ToolsHandler( $ours );
 	$list          = $tools_handler->list_tools()->toArray();
 	$json          = json_encode( $list, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
@@ -490,6 +492,14 @@ namespace {
 	check( false === stripos( $rlist, 'elementor' ) && false !== strpos( $rlist, 'digitalisimo://global-variables' ), 'B2 resources/list con digitalisimo:// y sin «elementor»', $rlist );
 	$init = json_encode( ( new \WP\MCP\Handlers\Initialize\InitializeHandler( $ours ) )->handle( '2025-06-18' )->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
 	check( false === stripos( $init, 'elementor' ) && false !== strpos( $init, 'DIGITALÍSIMO MCP' ), 'B2 initialize sin «elementor»', $init );
+	// N-3 de la segunda revisión: con la marca apagada, la lista lleva los nombres de herramientas y recursos propios y la
+	// marca en el texto, pero los identificadores (tipos, metas) con su nombre de siempre: el cliente los manda de vuelta
+	// tal cual y nada tiene que traducirlos.
+	mp_set_active( false );
+	$off_json = json_encode( ( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->list_tools()->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+	check( false !== strpos( $off_json, '"name":"digitalisimo-create-page"' ) && false !== strpos( $off_json, 'digitalisimo-list-posts' ) && false !== strpos( $off_json, 'digitalisimo://widgets/schema/{type}' ) && false !== strpos( $off_json, 'DIGITALÍSIMO Elements' ), 'B2 (N-3) con la marca apagada, nombres de herramientas y recursos propios', $off_json );
+	check( false !== strpos( $off_json, '"enum":["page","elementor_library"]' ) && false !== strpos( $off_json, '_elementor_data' ) && false === strpos( $off_json, 'digitalisimo_library' ) && false === strpos( $off_json, '_dg_' ), 'B2 (N-3) con la marca apagada, tipos y metas con su nombre de siempre (el esquema pide lo que la entrada recibe)', $off_json );
+	mp_set_active( true );
 
 	// B3 -----------------------------------------------------------------------------------------------------------------
 	$old_list  = ( new \WP\MCP\Handlers\Tools\ToolsHandler( $legacy ) )->list_tools()->toArray();
@@ -574,6 +584,25 @@ namespace {
 	mp_set_active( false );
 	$plain = flat( ( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'digitalisimo-create-page', 'arguments' => array( 'title' => 'x' ) ) )->toArray() );
 	check( false !== strpos( $plain, 'post.php?post=7&action=elementor' ) && false !== strpos( $plain, 'page=elementor-settings' ) && false === strpos( $plain, 'action=digitalisimo' ), 'B4 (I-2) con la marca apagada, enlaces con los nombres de siempre', $plain );
+	// N-3: con la marca apagada, el contenido que manda el cliente llega tal cual (sólo una dirección de recurso entera
+	// se devuelve a su nombre del motor) y la respuesta sale con los nombres de siempre, salvo los textos del motor.
+	$GLOBALS['calls'] = array();
+	$off_call         = ( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool(
+		array(
+			'name'      => 'digitalisimo-create-page',
+			'arguments' => array(
+				'title'     => 'Mi plantilla digitalisimo_canvas con ?action=digitalisimo y digitalisimo://x en el texto',
+				'post_type' => 'digitalisimo_library',
+				'meta'      => array( '_dg_data' => 'de otro plugin' ),
+				'uri'       => 'digitalisimo://global-variables',
+			),
+		)
+	);
+	$off_in = $GLOBALS['calls'][0][1] ?? array();
+	check( 'Mi plantilla digitalisimo_canvas con ?action=digitalisimo y digitalisimo://x en el texto' === ( $off_in['title'] ?? '' ) && 'digitalisimo_library' === ( $off_in['post_type'] ?? '' ) && array( '_dg_data' => 'de otro plugin' ) === ( $off_in['meta'] ?? null ), 'B4 (N-3) con la marca apagada, Map::in_deep no reescribe el contenido del cliente', $off_in );
+	check( 'elementor://global-variables' === ( $off_in['uri'] ?? '' ), 'B4 (N-3) una dirección de recurso entera digitalisimo:// sí llega como elementor://', $off_in );
+	$off_out = flat( $off_call->toArray() );
+	check( false !== strpos( $off_out, '"post_type":"elementor_library"' ) && false !== strpos( $off_out, '_elementor_edit_mode' ) && false !== strpos( $off_out, 'Page created with DIGITALÍSIMO Elements' ) && false !== strpos( $off_out, 'Cómo usar Elementor en tu sitio' ), 'B4 (N-3) con la marca apagada, la respuesta sale con los nombres de siempre (sólo los textos del motor con la marca)', $off_out );
 	mp_set_active( true );
 	$GLOBALS['calls'] = array();
 	( new \WP\MCP\Handlers\Tools\ToolsHandler( $ours ) )->call_tool( array( 'name' => 'digitalisimo-create-page', 'arguments' => array( 'post_type' => 'elementor_library' ) ) );
