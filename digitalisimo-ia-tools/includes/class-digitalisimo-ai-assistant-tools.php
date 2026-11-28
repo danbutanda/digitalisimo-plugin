@@ -110,7 +110,7 @@ final class Digitalisimo_AI_Assistant_Tools {
 	/** Cuando la negativa llegó al ejecutar y la herramienta no garantiza que no hizo nada. */
 	const UNCONFIRMED_NOTE = 'No pude confirmar si se hizo; revisa antes de repetir.';
 	/** Lo mismo para un administrador: no es un permiso que le falte, y no se le dice que lo es. */
-	const UNKNOWN_DENIAL  = 'La herramienta no dejó hacer esta acción y no dijo por qué. Tu usuario es administrador, así que no es un permiso que te falte: puede ser un ajuste del plugin de esa herramienta. No se aplicó nada.';
+	const UNKNOWN_DENIAL  = 'La herramienta no dejó hacer esta acción y no dijo por qué. Tu usuario es administrador, así que no es un permiso que te falte: puede ser un ajuste de esa parte de tu sitio. No se aplicó nada.';
 	/**
 	 * El kit de ventas valida todo (entrada, oferta, plantilla, producto, borrador a rehacer, permiso) antes de crear o
 	 * tocar la página: sus errores 4xx son previos (los posteriores al guardado son 500).
@@ -1010,17 +1010,37 @@ final class Digitalisimo_AI_Assistant_Tools {
 	/**
 	 * Lo que escribe el modelo, sin «plugin»: las instrucciones lo prohíben, pero Haiku 5.5 lo repitió en 3 de 30
 	 * corridas reales del caso plomerito (2026-11-27) porque la persona lo dijo («El plugin está instalado…»). Se dice
-	 * «complemento». Nunca dentro de una dirección (plugins.php, /plugins/…) ni de una palabra.
+	 * «complemento». No se toca lo que es un dato y no una palabra suya: direcciones y sus parámetros (`&plugin=`,
+	 * `?s=plugin`), lo que va entre comillas («…», "…", “…”), el código (`…` y bloques ```), las claves JSON, las órdenes
+	 * (`wp plugin …`) ni un nombre propio con mayúscula en medio de la frase («Plugin Elementor Pro»). Si la expresión
+	 * falla, el texto queda como estaba.
 	 */
 	public static function plain_words( $text ) {
-		return (string) preg_replace_callback(
-			'~(?<![\w/.@-])(plugin)(s?)(?![\w/.@-])~iu',
-			function ( $m ) {
-				$word = 'complemento' . ( '' !== $m[2] ? 's' : '' );
-				return 'P' === $m[1][0] ? ucfirst( $word ) : $word;
+		$text    = (string) $text;
+		$pattern = '~(?<keep>```.*?```|`[^`\n]*`|https?://[^\s<>»"]+|\]\([^)\s]*\)|[?&][\w%.-]+=[^\s&]*|"[^"\n]*"|“[^”\n]*”|«[^»\n]*»|\bwp\s+plugins?\b)|(?<![\w/.@=&?-])(?<w>plugin)(?<s>s?)(?![\w/.@=-])~siu';
+		$out     = preg_replace_callback(
+			$pattern,
+			function ( $m ) use ( $text ) {
+				if ( isset( $m['keep'] ) && '' !== $m['keep'][0] && -1 !== $m['keep'][1] ) {
+					return $m['keep'][0];
+				}
+				$word = $m['w'][0];
+				if ( 'P' === $word[0] ) {
+					// Con mayúscula sólo se cambia al empezar la frase (o una línea, una viñeta o unas negritas).
+					$before = rtrim( substr( $text, 0, (int) $m['w'][1] ) );
+					if ( '' !== $before && ! preg_match( '/(^|[.!?¡¿:\n]|\n\s*[-*]|\*\*)$/u', $before ) ) {
+						return $m[0][0];
+					}
+				}
+				$new = 'complemento' . ( '' !== $m['s'][0] ? 's' : '' );
+				return 'P' === $word[0] ? ucfirst( $new ) : $new;
 			},
-			(string) $text
+			$text,
+			-1,
+			$count,
+			PREG_OFFSET_CAPTURE
 		);
+		return null === $out ? $text : $out;
 	}
 
 	/** Entrada resumida para la bitácora y la tarjeta de confirmación: enmascarada y recortada. */

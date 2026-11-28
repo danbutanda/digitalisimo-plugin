@@ -41,7 +41,12 @@ final class Digitalisimo_AI_Assistant_Model {
 	 */
 	const KEY_CONSTANT      = 'DIGITALISIMO_AI_ASSISTANT_ANTHROPIC_KEY';
 	/** Lo que dice el Asistente cuando el sitio no tiene la IA de DIGITALÍSIMO (también la pantalla, para quien administra). */
-	const MISSING           = 'El Asistente IA necesita la IA de DIGITALÍSIMO y este sitio todavía no la tiene conectada. Para activarlo, escribe en IA Tools → Proveedores la clave de Claude (Anthropic) que te dio DIGITALÍSIMO, o pídele a DIGITALÍSIMO que la conecte.';
+	const MISSING           = 'El Asistente IA necesita la IA de DIGITALÍSIMO y este sitio todavía no la tiene conectada. Pídele a DIGITALÍSIMO que la conecte.';
+	/** Topes del Asistente con la clave de DIGITALÍSIMO (constantes opcionales de wp-config; nunca 0 = sin tope). */
+	const DAILY_CONSTANT       = 'DIGITALISIMO_AI_ASSISTANT_DAILY_CALLS';
+	const CONCURRENCY_CONSTANT = 'DIGITALISIMO_AI_ASSISTANT_CONCURRENCY';
+	const OWN_DAILY            = 200;
+	const OWN_CONCURRENCY      = 1;
 	/**
 	 * Modelos de Anthropic que escriben sus notas entre llamadas a herramientas como bloques `thinking` (vacíos salvo
 	 * con `display: "updates"`, beta UPDATES_BETA): sin pedirlas, un turno que termina en una herramienta llega sin texto.
@@ -140,6 +145,22 @@ final class Digitalisimo_AI_Assistant_Model {
 		return '';
 	}
 
+	/**
+	 * Con la clave de DIGITALÍSIMO, los topes del Asistente por persona salen de wp-config y no del escritorio: llamadas
+	 * por día (DAILY_CONSTANT, OWN_DAILY por defecto) y peticiones a la vez (CONCURRENCY_CONSTANT, OWN_CONCURRENCY, de 1
+	 * a 10). Nunca 0: no hay forma de quitar el tope. null sin la clave (valen los de IA Tools).
+	 *
+	 * @return array{per_day:int,concurrent:int}|null
+	 */
+	public static function own_limits() {
+		if ( '' === self::own_key() ) {
+			return null;
+		}
+		$daily = defined( self::DAILY_CONSTANT ) && is_numeric( constant( self::DAILY_CONSTANT ) ) ? (int) constant( self::DAILY_CONSTANT ) : self::OWN_DAILY;
+		$conc  = defined( self::CONCURRENCY_CONSTANT ) && is_numeric( constant( self::CONCURRENCY_CONSTANT ) ) ? (int) constant( self::CONCURRENCY_CONSTANT ) : self::OWN_CONCURRENCY;
+		return array( 'per_day' => $daily >= 1 ? $daily : self::OWN_DAILY, 'concurrent' => max( 1, min( 10, $conc ) ) );
+	}
+
 	/** La clave de KEY_CONSTANT si está en wp-config ('' si no). Sólo para el servidor. */
 	public static function own_key() {
 		$key = defined( self::KEY_CONSTANT ) ? constant( self::KEY_CONSTANT ) : '';
@@ -219,7 +240,8 @@ final class Digitalisimo_AI_Assistant_Model {
 			if ( is_wp_error( $request ) ) {
 				return $request;
 			}
-			$response = wp_remote_post( $request['url'], array( 'timeout' => $timeout, 'headers' => $request['headers'], 'body' => wp_json_encode( $request['body'] ) ) );
+			// Sin redirecciones (como Hosting con Webuzo): una respuesta 30x no se sigue, así que la clave no viaja a otro lado.
+			$response = wp_remote_post( $request['url'], array( 'timeout' => $timeout, 'redirection' => 0, 'headers' => $request['headers'], 'body' => wp_json_encode( $request['body'] ) ) );
 			$code     = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
 			if ( 400 !== $code ) {
 				break;
@@ -259,7 +281,8 @@ final class Digitalisimo_AI_Assistant_Model {
 			if ( 0 === $code ) {
 				$why = 'sin conexión con el proveedor';
 			} elseif ( in_array( $code, array( 401, 403 ), true ) ) {
-				$why = 'HTTP ' . $code . ': revisa la clave en IA Tools';
+				// Con la clave de DIGITALÍSIMO (wp-config) quien administra no la puede revisar: que avise a DIGITALÍSIMO.
+				$why = 'HTTP ' . $code . ': ' . ( 'anthropic' === $target['provider'] && '' !== self::own_key() ? 'avisa a DIGITALÍSIMO para que revise la conexión' : 'revisa la clave en IA Tools' );
 			} else {
 				$reason = self::error_reason( (string) wp_remote_retrieve_body( $response ) );
 				$why    = 'HTTP ' . $code . ( '' !== $reason ? ': ' . $reason : '' );

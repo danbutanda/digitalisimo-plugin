@@ -150,8 +150,16 @@ class Digitalisimo_AI {
 
 	/** Límites del Asistente IA por persona (los mismos campos en el sitio y en la red). */
 	public static function assistant_fields( $o ) {
-		echo '<h3>Asistente IA</h3><p>Límites por persona para no agotar la clave ni el servidor. 0 en mensajes o llamadas = sin tope.</p>';
+		$own = class_exists( 'Digitalisimo_AI_Assistant_Model' ) ? Digitalisimo_AI_Assistant_Model::own_limits() : null;
+		echo '<h3>Asistente IA</h3><p>Límites por persona para no agotar la clave ni el servidor. 0 en mensajes = sin tope.' . ( $own ? '' : ' 0 en llamadas = sin tope.' ) . '</p>';
 		self::input( 'assistant_rate_minute', 'Mensajes por minuto', $o, 'number' );
+		if ( $own ) {
+			// La IA de DIGITALÍSIMO: sus topes los fija DIGITALÍSIMO y aquí sólo se ven (los campos no se envían).
+			echo '<p><label><strong>Llamadas a la IA por día</strong><br><input class="regular-text" type="number" value="' . esc_attr( $own['per_day'] ) . '" disabled readonly></label></p>';
+			echo '<p><label><strong>Peticiones a la vez</strong><br><input class="regular-text" type="number" value="' . esc_attr( $own['concurrent'] ) . '" disabled readonly></label></p>';
+			echo '<p class="description">El Asistente usa la IA de DIGITALÍSIMO: estos topes los fija DIGITALÍSIMO.</p>';
+			return;
+		}
 		self::input( 'assistant_daily_calls', 'Llamadas a la IA por día', $o, 'number' );
 		self::input( 'assistant_concurrency', 'Peticiones a la vez', $o, 'number' );
 	}

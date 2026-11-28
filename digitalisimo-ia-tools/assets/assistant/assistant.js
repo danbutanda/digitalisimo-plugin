@@ -1042,7 +1042,7 @@
 					h( 'div', { className: 'dga-toolbar' },
 						h( ToolsMenu, { catalog, selected: categories, onToggle: toggleCategory, onLoad: loadCatalog, canViewLog: !! config.canViewLog, onOpenLog: () => setDialog( 'log' ) } ) ),
 					h( 'div', { className: 'dga-trailing' }, h( LearnSlot, { place: 'header' } ), h( 'button', { type: 'button', className: 'dga-icon-button is-outline dga-appearance', 'aria-label': 'Apariencia', onClick: () => setDialog( 'appearance' ) }, h( Icon, { name: 'palette' } ) ) ) ),
-				noAi ? h( 'div', { className: 'dga-notice-area' }, h( 'div', { className: 'dga-notice', role: 'alert' }, h( Icon, { name: 'alert' } ), h( 'span', null, 'El Asistente IA necesita la IA de DIGITALÍSIMO y este sitio todavía no la tiene conectada. ' + ( config.settingsUrl ? 'Para activarlo, escribe en Proveedores la clave de Claude (Anthropic) que te dio DIGITALÍSIMO, o pídele a DIGITALÍSIMO que la conecte.' : 'Pide a quien administra el sitio que la conecte.' ) ), config.settingsUrl ? h( 'a', { href: config.settingsUrl }, 'Abrir Proveedores' ) : null ) ) : null,
+				noAi ? h( 'div', { className: 'dga-notice-area' }, h( 'div', { className: 'dga-notice', role: 'alert' }, h( Icon, { name: 'alert' } ), h( 'span', null, 'El Asistente IA necesita la IA de DIGITALÍSIMO y este sitio todavía no la tiene conectada. Pídele a DIGITALÍSIMO que la conecte.' ) ) ) : null,
 				h( 'div', { className: 'dga-thread-area', ref: threadRef },
 					h( 'div', { className: 'dga-column' }, showThread
 						? h( Thread, { messages, pending, busy, status, onDecide: decide, onRefresh: () => open( activeRef.current ) } )

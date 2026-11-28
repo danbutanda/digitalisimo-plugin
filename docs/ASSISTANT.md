@@ -111,11 +111,22 @@ Asistente los decide DIGITALÍSIMO en el código (`Digitalisimo_AI_Assistant_Mod
 - **La clave de DIGITALÍSIMO** (opcional): `define( 'DIGITALISIMO_AI_ASSISTANT_ANTHROPIC_KEY', 'sk-ant-…' );` en
   wp-config. Con ella el Asistente usa esa clave aunque Proveedores no tenga Anthropic o tenga otra, la clave no se
   guarda en la base, no sale en la pantalla, la REST, el MCP ni la bitácora (se borra de los textos como las de
-  Proveedores) y «Uso de IA» la cuenta como Anthropic; los demás perfiles no la usan. **Con o sin ella, el Asistente
-  habla con Anthropic siempre en `https://api.anthropic.com/v1/messages`**: una URL que alguien guarde en Proveedores no
-  recibe la clave. Límite conocido: quien puede ejecutar PHP en el sitio (Tools → Código PHP, un plugin propio) puede
-  agregar el filtro y cambiar el modelo, o leer la constante; eso no tiene arreglo desde el plugin (quien ejecuta PHP lo
-  puede todo). Por eso la clave de DIGITALÍSIMO conviene en sitios donde el cliente no administra código.
+  Proveedores) y «Uso de IA» la cuenta como Anthropic; los demás perfiles no la usan. **La clave de DIGITALÍSIMO va sólo
+  en esta constante, nunca en Proveedores** (ahí la ve y la usa quien administra el sitio, también para los demás
+  perfiles). **Con o sin ella, el Asistente habla con Anthropic siempre en `https://api.anthropic.com/v1/messages`, sin
+  seguir redirecciones** (`redirection` en 0, como Hosting con Webuzo): una URL que alguien guarde en Proveedores o una
+  respuesta 30x no se llevan la clave. Con la constante, un 401 dice «avisa a DIGITALÍSIMO para que revise la conexión»
+  (quien administra no la puede revisar).
+- **Límite real de la clave en wp-config**: quien administra un sitio individual (Tools → Código PHP, un plugin propio)
+  o tiene acceso a sus archivos puede leer wp-config, también dentro de un respaldo de Backups, y quien ejecuta PHP puede
+  agregar el filtro y cambiar el modelo. Eso no tiene arreglo desde el plugin. Por eso: **una clave por sitio, con su
+  límite de gasto en la consola de Anthropic**, para poder revocarla sin tocar los demás.
+- **Topes de gasto con la clave de DIGITALÍSIMO**: las llamadas a la IA por día y las peticiones a la vez del Asistente
+  (por persona) salen de wp-config, `DIGITALISIMO_AI_ASSISTANT_DAILY_CALLS` (200 por defecto) y
+  `DIGITALISIMO_AI_ASSISTANT_CONCURRENCY` (1; de 1 a 10); 0 o un valor no válido vale el de fábrica, nunca «sin tope».
+  En IA Tools → Avanzado esos campos sólo se ven, y ni la opción guardada ni el filtro `digitalisimo_ai_assistant_limits`
+  los cambian. El Aprendizaje no pasa de sus topes de fábrica (`MAX_TRAININGS`, `MAX_REVIEWS`) aunque un filtro los
+  suba.
 - **Nada del escritorio, la REST ni el MCP lo cambia.** IA Tools → Perfiles de uso (sitio y red) sólo dice «El
   Asistente usa la IA de DIGITALÍSIMO, ya optimizada. Estos perfiles de uso no le aplican.»; la pantalla del Asistente
   no tiene selector de IA y no manda `provider` (si llega, se ignora, también al confirmar y al seguir un turno); la
@@ -124,9 +135,8 @@ Asistente los decide DIGITALÍSIMO en el código (`Digitalisimo_AI_Assistant_Mod
   «assistant» o el de contenido) no cuenta, y `assistant_models` se borra al guardar IA Tools.
 - Sin la constante, la clave es la del proveedor fijo en IA Tools → Proveedores (del sitio o heredada de la red). Sin
   ninguna de las dos, el Asistente no se pasa a otra IA aunque otra tenga clave, y dice (`Model::MISSING`, también la
-  pantalla, con «Abrir Proveedores» para quien administra): «El Asistente IA necesita la IA de DIGITALÍSIMO y este sitio
-  todavía no la tiene conectada. Para activarlo, escribe en IA Tools → Proveedores la clave de Claude (Anthropic) que te
-  dio DIGITALÍSIMO, o pídele a DIGITALÍSIMO que la conecte.» Ojo al actualizar: un sitio que usaba el Asistente sólo con
+  pantalla): «El Asistente IA necesita la IA de DIGITALÍSIMO y este sitio todavía no la tiene conectada. Pídele a
+  DIGITALÍSIMO que la conecte.» Ojo al actualizar: un sitio que usaba el Asistente sólo con
   OpenAI, Gemini u otra IA se queda sin él hasta que tenga la clave de Anthropic o la constante. Prueba:
   `tests/ia-assistant-clave.php`.
 - Los demás perfiles (chatbot, contenido, SEO, ecommerce, automatizaciones, imágenes) siguen con su proveedor, su
@@ -700,7 +710,8 @@ variable. Ahora:
   del sitio). El tope es del JSON ya codificado. Filtro `digitalisimo_ai_assistant_old_result_bytes` (0: como antes).
 - **«plugin»**: aunque las instrucciones lo prohíben, Haiku 5.5 lo repitió en 3 de 30 corridas reales porque la persona lo
   dijo; lo que escribe el modelo pasa por `Tools::plain_words()`, que lo cambia por «complemento» (nunca dentro de una
-  dirección).
+  dirección, sus parámetros, lo que va entre comillas o como código, una clave JSON, una orden `wp plugin …` ni un
+  nombre propio con mayúscula en medio de la frase; si la expresión falla, el texto queda igual).
 - **Errores de validación del constructor**: lo que `build-composition` rechaza al validar o compilar (`invalid_xml`,
   `elementor_invalid_settings`, `elementor_unknown_type`…) no escribió nada: queda «no se hizo» y el modelo lo corrige en
   el mismo turno (antes quedaba «desconocido» y no se podía repetir).

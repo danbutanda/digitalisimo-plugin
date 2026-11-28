@@ -131,13 +131,11 @@ $build_bad         = function ( $request ) {
 $build_step        = function ( $request ) {
 	$id = ! empty( $GLOBALS['nosotros'] ) ? (int) $GLOBALS['nosotros'] : 0;
 	return array( 'calls' => array( array( 'id' => 'toolu_build', 'name' => 'elementor-build-composition', 'input' => array( 'post_id' => $id, 'xml' => '<e-section><e-heading>Quiénes somos</e-heading></e-section>' ) ) ) );
-	$id = preg_match( '/"id"\s*:\s*(\d+)/', stripslashes( (string) end( $request['messages'] )['content'] ), $m ) ? (int) $m[1] : 0;
-	return array( 'calls' => array( array( 'id' => 'toolu_build', 'name' => 'elementor-build-composition', 'input' => array( 'post_id' => $id, 'xml' => '<e-section><e-heading>Quiénes somos</e-heading></e-section>' ) ) ) );
 };
 $GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-create-page', array( 'title' => 'Nosotros' ) ) ) ), $build_bad, $build_step, 'Listo: tu página Nosotros quedó en borrador.' );
 $before            = count( $GLOBALS['model_calls'] );
 $ev = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'hazme una página de Nosotros' ) ) )->data['events'];
-$first = $GLOBALS["model_calls"][ $before ];
+$first = $GLOBALS['model_calls'][ $before ];
 check( in_array( 'elementor-build-composition', $tools( $first ), true ), 'C7: el modelo tiene desde el primer paso con qué darle contenido a una página (build-composition)' );
 check( false !== strpos( $first['system'], 'elementor/build-composition' ), 'C7: y las instrucciones le dicen que una página que no es del kit se llena en el mismo turno' );
 $built = preg_grep( '/^build:\d+:\d+$/', $GLOBALS['ran'] );
@@ -153,7 +151,23 @@ check( strlen( $small ) <= 1500 && is_array( json_decode( $small, true ) ), 'C8:
 /* ---------------- C9: «plugin» no llega a la persona ---------------- */
 $T = 'Digitalisimo_AI_Assistant_Tools';
 check( 'Skydropx: el complemento está instalado. Complementos al día.' === $T::plain_words( 'Skydropx: el plugin está instalado. Plugins al día.' ), 'C9: «plugin» se dice «complemento» (corrida real de Haiku 5.5 con «el plugin está instalado»)' );
-check( '[Ver](http://x.test/wp-admin/plugins.php) y wp-content/plugins/skydropx' === $T::plain_words( '[Ver](http://x.test/wp-admin/plugins.php) y wp-content/plugins/skydropx' ), 'C9: nunca dentro de una dirección' );
+$keep = array(
+	'una dirección'                     => '[Ver](http://x.test/wp-admin/plugins.php) y wp-content/plugins/skydropx',
+	'parámetros de una dirección'       => 'Abre http://x.test/wp-admin/admin.php?page=plugin&plugin=akismet o busca ?s=plugin y &plugin=skydropx',
+	'comillas angulares'                => 'Dijiste «el plugin de Skydropx» y lo revisé.',
+	'comillas'                          => 'El campo se llama "plugin" y otro “plugin activo”.',
+	'código entre comillas invertidas'  => 'Corre `wp plugin list` para verlo.',
+	'un bloque de código'               => "Así:\n```\nplugin: activo\nplugins: 3\n```\nListo.",
+	'una clave JSON'                    => 'Llegó {"plugin": "skydropx", "plugins": 2}.',
+	'una orden'                         => 'Desde la consola: wp plugin update --all.',
+	'un nombre propio'                  => 'Instalé el Plugin Elementor Pro en tu sitio.',
+);
+foreach ( $keep as $what => $text ) {
+	check( $text === $T::plain_words( $text ), "C9: no toca {$what}: " . $T::plain_words( $text ) );
+}
+check( 'Complementos al día y el complemento listo. **Complemento** nuevo.' === $T::plain_words( 'Plugins al día y el plugin listo. **Plugin** nuevo.' ), 'C9: al empezar la frase o en negritas, sí: ' . $T::plain_words( 'Plugins al día y el plugin listo. **Plugin** nuevo.' ) );
+check( "mal \xff plugin" === $T::plain_words( "mal \xff plugin" ), 'C9: si la expresión falla (texto que no es UTF-8), el texto queda como estaba' );
+check( false === stripos( Digitalisimo_AI_Assistant_Tools::UNKNOWN_DENIAL, 'plugin' ), 'C9: el aviso de una negativa sin motivo tampoco dice «plugin»' );
 $GLOBALS['script'] = array( 'Revisé Skydropx: el plugin está instalado pero no vinculado.' );
 $ev = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'revisa si el plugin skydropx funciona' ) ) )->data['events'];
 $said = implode( ' ', array_map( function ( $e ) { return $e['message']['text'] ?? ''; }, array_filter( $ev, function ( $e ) { return 'message' === $e['type']; } ) ) );

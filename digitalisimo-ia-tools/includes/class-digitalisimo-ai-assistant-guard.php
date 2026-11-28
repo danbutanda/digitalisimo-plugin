@@ -88,7 +88,15 @@ final class Digitalisimo_AI_Assistant_Guard {
 			'concurrent' => max( 1, min( 10, $read( 'assistant_concurrency', 1 ) ) ),
 		);
 		$limits = (array) apply_filters( 'digitalisimo_ai_assistant_limits', $limits );
-		return array( 'per_minute' => max( 0, (int) ( $limits['per_minute'] ?? 0 ) ), 'per_day' => max( 0, (int) ( $limits['per_day'] ?? 0 ) ), 'concurrent' => max( 1, (int) ( $limits['concurrent'] ?? 1 ) ) );
+		$limits = array( 'per_minute' => max( 0, (int) ( $limits['per_minute'] ?? 0 ) ), 'per_day' => max( 0, (int) ( $limits['per_day'] ?? 0 ) ), 'concurrent' => max( 1, (int) ( $limits['concurrent'] ?? 1 ) ) );
+		// Con la clave de DIGITALÍSIMO (wp-config), las llamadas por día y las peticiones a la vez son las de wp-config: ni
+		// IA Tools ni el filtro las cambian ni las quitan.
+		$own = class_exists( 'Digitalisimo_AI_Assistant_Model' ) ? Digitalisimo_AI_Assistant_Model::own_limits() : null;
+		if ( is_array( $own ) ) {
+			$limits['per_day']    = $own['per_day'];
+			$limits['concurrent'] = $own['concurrent'];
+		}
+		return $limits;
 	}
 
 	/** Un lugar libre entre las peticiones simultáneas del usuario: su candado o un error 429. */
