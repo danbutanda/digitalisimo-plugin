@@ -77,7 +77,17 @@ El servidor nuevo sólo se construye cuando la petición es a su ruta (o en WP-C
 
 ### Interruptor y complementos de terceros (D-5)
 
-«Rendimiento» → «Marca propia en el sitio» (por sitio, con valor por defecto de red), **apagado por defecto**. Estados:
+«Rendimiento» → «Marca propia en el sitio» (por sitio, con valor por defecto de red), **apagado por defecto**.
+
+**Sólo DIGITALÍSIMO la enciende** (N-1 de la segunda revisión): el administrador del sitio no ve la sección. Se controla desde `wp-config.php`:
+
+- `define( 'DIGITALISIMO_ELEMENTS_MARCA_PANEL', true );` muestra la sección en «Rendimiento» (en el sitio y en la red) y deja guardarla. Sin la constante la sección no aparece y un envío a mano al formulario se rechaza sin guardar (`Toggle::panel()`).
+- `define( 'DIGITALISIMO_ELEMENTS_MARCA', 'on' );` (u `'off'`, o `true`/`false`) fija la marca por encima de la opción del sitio y de la red (`Toggle::constant_mode()`); un valor no válido no cuenta. Con `'on'`, la casilla «forzarla» con complementos sigue saliendo de la opción guardada. Si la sección está visible, dice que la constante manda.
+- La opción guardada sigue valiendo sin la sección: quitar `DIGITALISIMO_ELEMENTS_MARCA_PANEL` no apaga lo que ya se encendió.
+
+No hay otro mecanismo parecido en Elements: las constantes de wp-config.php ya se usan así en otros plugins (`DIGITALISIMO_TOOLS_PHP_SAFE_MODE`, `DIGITALISIMO_ELEMENTS_FULL_HEARTBEAT`). Sin paquete transformado, guardar «Encendida» no purga las cachés de página ni recorre la red (`Package::remove_originals()` y `network_all_on()` no hacen nada sin `marca/indice.php`).
+
+Estados:
 
 - **No disponible** con el Elementor original activo (manda su marca) o sin el núcleo incluido.
 - **Bloqueada** si hay complementos de terceros activos que extienden el motor (cabeceras `Elementor tested up to`, `Elementor Pro tested up to` o `Requires Plugins: elementor`, o funciones de otro plugin enganchadas a `elementor/widgets/register`, `elementor/init` o `elementor/frontend/after_register_scripts`): se muestra la lista y el administrador puede **forzarla** bajo su responsabilidad.

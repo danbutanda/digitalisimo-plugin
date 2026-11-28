@@ -516,6 +516,8 @@ JS;
 	check( array( 'wp-i18n' ) === $scripts->inline, 'M5 con la barra de administración o en el escritorio sí (una sola vez)', $scripts->inline );
 
 	// M6 -----------------------------------------------------------------------------------------------------------------
+	// La sección sólo existe con la constante de DIGITALÍSIMO (N-1; sin ella, tests/elements-marca-panel.php).
+	define( 'DIGITALISIMO_ELEMENTS_MARCA_PANEL', true );
 	$GLOBALS['options']['active_plugins'] = array( 'addon-x/addon-x.php' );
 	update_option( Toggle::OPTION, array( 'mode' => 'on', 'force' => false ) );
 	update_option( \Digitalisimo\Elements\Mcp\Legacy_Route::OPTION, array( 'last' => gmdate( 'Y-m-d' ), 'tools' => array( 'elementor-create-page' => 2 ), 'extended' => '' ) );

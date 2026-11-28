@@ -14,6 +14,11 @@ defined( 'ABSPATH' ) || exit;
  * Muestra el estado en vigor (apagada, encendida, bloqueada con la lista de complementos, o no disponible con el motivo),
  * la casilla para forzarla bajo responsabilidad del administrador (D-5), la dirección del MCP con nombre propio y, si la
  * ruta vieja se siguió usando, cuándo y hasta cuándo funciona (D-7).
+ *
+ * Sólo DIGITALÍSIMO la enciende (N-1 de la segunda revisión): la sección sólo aparece, y sólo se guarda, con la constante
+ * `DIGITALISIMO_ELEMENTS_MARCA_PANEL` en true en wp-config.php (`Toggle::panel()`); sin ella, el administrador del sitio
+ * no la ve y un envío a mano se rechaza. Si wp-config.php fija la marca con `DIGITALISIMO_ELEMENTS_MARCA`, la sección lo
+ * dice: lo que se guarde vale cuando se quite la constante.
  */
 final class Settings_Section {
 	const ANCHOR              = 'digitalisimo-marca';
@@ -59,13 +64,16 @@ final class Settings_Section {
 	}
 
 	public static function render( bool $network ): void {
+		if ( ! Toggle::panel() ) {
+			return;
+		}
 		echo '<h2 id="' . esc_attr( self::ANCHOR ) . '">' . esc_html( 'Marca propia en el sitio' ) . '</h2>';
 		self::render_notice();
 		echo '<p>' . esc_html( 'Quita el nombre del motor de lo que ven tus visitantes, tus clientes en el escritorio y las IA por MCP. Por ahora cambia las direcciones del escritorio y del editor y el índice de la API; el resto del sitio llega en la próxima versión. Los datos no se tocan: apagarla deja todo como estaba.' ) . '</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-marca-form">';
 		echo '<input type="hidden" name="action" value="' . esc_attr( $network ? self::ACTION_SAVE_NETWORK : self::ACTION_SAVE ) . '">';
 		wp_nonce_field( self::nonce_action( $network ? self::ACTION_SAVE_NETWORK : self::ACTION_SAVE ) );
-		$values = $network ? Toggle::network_values() : Toggle::values();
+		$values = $network ? Toggle::network_values() : Toggle::stored_values();
 		$site   = $network ? null : Toggle::site_values();
 		$status = $network ? null : Toggle::status();
 		echo '<table class="form-table" role="presentation"><tbody>';
@@ -76,6 +84,9 @@ final class Settings_Section {
 		}
 		echo '</select>';
 		echo '<p><label><input type="hidden" name="' . esc_attr( Toggle::OPTION ) . '[force]" value="0"><input type="checkbox" name="' . esc_attr( Toggle::OPTION ) . '[force]" value="1"' . checked( $values['force'], true, false ) . '> ' . esc_html( 'Encenderla aunque haya complementos de terceros que extienden el constructor (bajo mi responsabilidad)' ) . '</label></p>';
+		if ( '' !== Toggle::constant_mode() ) {
+			echo '<p class="description digitalisimo-marca-constant">' . esc_html( 'wp-config.php fija la marca propia en «' . self::LABELS[ Toggle::constant_mode() ] . '» (' . Toggle::MODE_CONSTANT . '): manda sobre este ajuste, que vale cuando se quite la constante.' ) . '</p>';
+		}
 		if ( $status ) {
 			echo '<p class="description digitalisimo-marca-state" data-state="' . esc_attr( $status['state'] ) . '">' . esc_html( 'En vigor en este sitio: ' . self::STATES[ $status['state'] ] . ( '' !== $status['reason'] ? ' ' . $status['reason'] : '' ) ) . '</p>';
 			if ( $status['addons'] ) {
@@ -136,8 +147,9 @@ final class Settings_Section {
 		update_option( Toggle::OPTION, $save, true );
 		Toggle::reset();
 		// Encendida: los originales desplegados ya no hacen falta (opción A de DECISIONES); en una red, sólo si ya no le
-		// hacen falta a ningún sitio (Package::remove_originals()).
-		if ( 'on' === $save['mode'] && 'on' === Toggle::status( true )['state'] && class_exists( Package::class ) ) {
+		// hacen falta a ningún sitio (Package::remove_originals()). Sin paquete transformado no hay originales: ni se
+		// recorre la red ni se purgan las cachés de página (como en la red).
+		if ( 'on' === $save['mode'] && class_exists( Package::class ) && Package::transformed() && 'on' === Toggle::status( true )['state'] ) {
 			Package::remove_originals();
 		}
 		if ( function_exists( 'delete_transient' ) ) {
@@ -168,6 +180,10 @@ final class Settings_Section {
 		};
 		if ( 'POST' !== strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sólo se compara.
 			$fail( 'method' );
+		}
+		// Sin la constante de DIGITALÍSIMO la sección no existe: un envío a mano no guarda nada.
+		if ( ! Toggle::panel() ) {
+			$fail( 'forbidden' );
 		}
 		if ( ( $network && ! is_multisite() ) || ! current_user_can( $cap ) ) {
 			$fail( 'forbidden' );

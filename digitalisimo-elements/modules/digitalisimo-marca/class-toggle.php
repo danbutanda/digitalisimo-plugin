@@ -14,11 +14,23 @@ defined( 'ABSPATH' ) || exit;
  * - `off` / `on`.
  * `active()` es la única regla para lo que gobierna: en la fase 1, los enlaces y la barra de direcciones del escritorio y
  * del editor (`Admin_Urls`) y el índice REST (`Rest_Index`); en la fase 2, la capa del front.
+ *
+ * **Sólo DIGITALÍSIMO la enciende** (N-1 de la segunda revisión), con dos constantes de `wp-config.php`:
+ * - `DIGITALISIMO_ELEMENTS_MARCA_PANEL` en `true`: la sección «Marca propia en el sitio» aparece en «Rendimiento» (en el
+ *   sitio y en la red) y se puede guardar (`panel()`). Sin ella no aparece y `Settings_Section` rechaza el envío.
+ * - `DIGITALISIMO_ELEMENTS_MARCA` en `'on'` u `'off'` (o `true`/`false`): manda sobre la opción del sitio y la de la red
+ *   (`constant_mode()`). Con `'on'`, la casilla «forzarla» sigue saliendo de la opción guardada; un valor no válido no
+ *   cuenta. Con la constante no se lee ninguna opción para decidir el modo.
+ * La opción guardada sigue valiendo sin la sección (quitar la constante del panel no apaga lo que ya se encendió).
  */
 final class Toggle {
 	const OPTION         = 'digitalisimo_elements_marca';
 	const NETWORK_OPTION = 'digitalisimo_elements_marca_network';
 	const MODES          = array( 'off', 'on' );
+	/** Constante de wp-config.php que muestra y deja guardar la sección «Marca propia en el sitio». */
+	const PANEL_CONSTANT = 'DIGITALISIMO_ELEMENTS_MARCA_PANEL';
+	/** Constante de wp-config.php que fija la marca (`on` u `off`) por encima de la opción. */
+	const MODE_CONSTANT = 'DIGITALISIMO_ELEMENTS_MARCA';
 
 	/** @var array|null */
 	private static $memo = null;
@@ -28,6 +40,24 @@ final class Toggle {
 	public static function reset(): void {
 		self::$memo   = null;
 		self::$active = null;
+	}
+
+	/** ¿Se muestra y se guarda la sección «Marca propia en el sitio»? Sólo con DIGITALISIMO_ELEMENTS_MARCA_PANEL en true. */
+	public static function panel(): bool {
+		return defined( self::PANEL_CONSTANT ) && true === filter_var( constant( self::PANEL_CONSTANT ), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
+	}
+
+	/** `on` u `off` si wp-config.php fija la marca con DIGITALISIMO_ELEMENTS_MARCA; si no (o con otro valor), ''. */
+	public static function constant_mode(): string {
+		if ( ! defined( self::MODE_CONSTANT ) ) {
+			return '';
+		}
+		$value = constant( self::MODE_CONSTANT );
+		if ( is_bool( $value ) ) {
+			return $value ? 'on' : 'off';
+		}
+		$value = is_scalar( $value ) ? strtolower( trim( (string) $value ) ) : '';
+		return in_array( $value, self::MODES, true ) ? $value : '';
 	}
 
 	/** @return array{mode:string,force:bool} valores de la red. */
@@ -66,23 +96,39 @@ final class Toggle {
 		return $out;
 	}
 
-	/** @return array{mode:string,force:bool,origin:string} valores en vigor y su origen (site, network, default). */
+	/**
+	 * @return array{mode:string,force:bool,origin:string} valores en vigor y su origen (constant, site, network, default):
+	 * la constante DIGITALISIMO_ELEMENTS_MARCA manda sobre las opciones.
+	 */
 	public static function values(): array {
 		if ( null !== self::$memo ) {
 			return self::$memo;
 		}
+		$const = self::constant_mode();
+		if ( 'off' === $const ) {
+			return self::$memo = array( 'mode' => 'off', 'force' => false, 'origin' => 'constant' );
+		}
+		$stored = self::stored_values();
+		if ( 'on' === $const ) {
+			return self::$memo = array( 'mode' => 'on', 'force' => $stored['force'], 'origin' => 'constant' );
+		}
+		return self::$memo = $stored;
+	}
+
+	/** @return array{mode:string,force:bool,origin:string} lo guardado (sitio → red → apagado), sin mirar la constante. */
+	public static function stored_values(): array {
 		$site = self::site_values();
 		if ( ! $site['inherit'] && is_array( self::site_raw() ) ) {
-			return self::$memo = array( 'mode' => $site['mode'], 'force' => $site['force'], 'origin' => 'site' );
+			return array( 'mode' => $site['mode'], 'force' => $site['force'], 'origin' => 'site' );
 		}
 		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
 			$net = function_exists( 'get_site_option' ) ? get_site_option( self::NETWORK_OPTION, null ) : null;
 			if ( is_array( $net ) ) {
 				$net = self::clean( $net );
-				return self::$memo = array( 'mode' => $net['mode'], 'force' => $net['force'], 'origin' => 'network' );
+				return array( 'mode' => $net['mode'], 'force' => $net['force'], 'origin' => 'network' );
 			}
 		}
-		return self::$memo = array( 'mode' => 'off', 'force' => false, 'origin' => 'default' );
+		return array( 'mode' => 'off', 'force' => false, 'origin' => 'default' );
 	}
 
 	/** @return array{mode:string,force:bool} */

@@ -692,6 +692,10 @@ final class Package {
 	 * o queda bloqueado, su primera petición los vuelve a desplegar (`boot()`): borrar nunca deja un sitio roto.
 	 */
 	public static function remove_originals( ?int $now = null ): bool {
+		// Sin paquete transformado no hay originales desplegados: nada que retirar ni cachés que purgar.
+		if ( ! self::transformed() ) {
+			return false;
+		}
 		if ( function_exists( 'is_multisite' ) && is_multisite() && ! self::network_all_on() ) {
 			return false;
 		}
@@ -724,10 +728,11 @@ final class Package {
 	/**
 	 * ¿Queda la marca propia EN VIGOR en todos los sitios de la red? (estado de cada sitio: con su valor propio o heredado
 	 * de la red, y ni bloqueada por complementos ni no disponible). Con más de `$limit` sitios no se recorre y se responde
-	 * que no: los originales se quedan.
+	 * que no: los originales se quedan. Sin paquete transformado no hay originales que retirar: responde que no sin recorrer
+	 * la red (cada `Toggle::status()` escribiría el transitorio de complementos en cada sitio).
 	 */
 	public static function network_all_on( int $limit = 500 ): bool {
-		if ( ! function_exists( 'get_sites' ) || ! function_exists( 'switch_to_blog' ) ) {
+		if ( ! self::transformed() || ! function_exists( 'get_sites' ) || ! function_exists( 'switch_to_blog' ) ) {
 			return false;
 		}
 		$sites = get_sites(
