@@ -780,8 +780,8 @@ final class Digitalisimo_AI_Assistant {
 				self::notice( $conv, $emit, $reply->get_error_message(), 'error' );
 				return;
 			}
-			$text  = Digitalisimo_AI::plain_text( Digitalisimo_AI_Assistant_Tools::scrub( $reply['text'] ) );
-			$notes = Digitalisimo_AI::plain_text( Digitalisimo_AI_Assistant_Tools::scrub( (string) ( $reply['notes'] ?? '' ) ) );
+			$text  = Digitalisimo_AI_Assistant_Tools::plain_words( Digitalisimo_AI::plain_text( Digitalisimo_AI_Assistant_Tools::scrub( $reply['text'] ) ) );
+			$notes = Digitalisimo_AI_Assistant_Tools::plain_words( Digitalisimo_AI::plain_text( Digitalisimo_AI_Assistant_Tools::scrub( (string) ( $reply['notes'] ?? '' ) ) ) );
 			$calls = array();
 			$room  = $max_calls - $state['calls'];
 			if ( ! $reply['truncated'] ) {

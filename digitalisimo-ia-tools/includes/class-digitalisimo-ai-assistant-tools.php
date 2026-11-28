@@ -1007,6 +1007,22 @@ final class Digitalisimo_AI_Assistant_Tools {
 		return (string) preg_replace( '/\b(sk-(?:ant-|proj-)?[A-Za-z0-9_-]{16,}|xai-[A-Za-z0-9]{16,}|AIza[0-9A-Za-z_-]{30,})\b/', '[clave oculta]', $text );
 	}
 
+	/**
+	 * Lo que escribe el modelo, sin «plugin»: las instrucciones lo prohíben, pero Haiku 5.5 lo repitió en 3 de 30
+	 * corridas reales del caso plomerito (2026-11-27) porque la persona lo dijo («El plugin está instalado…»). Se dice
+	 * «complemento». Nunca dentro de una dirección (plugins.php, /plugins/…) ni de una palabra.
+	 */
+	public static function plain_words( $text ) {
+		return (string) preg_replace_callback(
+			'~(?<![\w/.@-])(plugin)(s?)(?![\w/.@-])~iu',
+			function ( $m ) {
+				$word = 'complemento' . ( '' !== $m[2] ? 's' : '' );
+				return 'P' === $m[1][0] ? ucfirst( $word ) : $word;
+			},
+			(string) $text
+		);
+	}
+
 	/** Entrada resumida para la bitácora y la tarjeta de confirmación: enmascarada y recortada. */
 	public static function summary( $input, $max = 300 ) {
 		return self::clip( (string) wp_json_encode( self::mask( $input ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ), $max );

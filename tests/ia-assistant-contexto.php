@@ -150,4 +150,13 @@ $quoted = Digitalisimo_AI_Assistant_Tools::as_data( 'demo/x', array( 'status' =>
 $small  = Digitalisimo_AI_Assistant_History::compact( $quoted, 1500 );
 check( strlen( $small ) <= 1500 && is_array( json_decode( $small, true ) ), 'C8: un resultado lleno de comillas recortado a 1 500 bytes mide ' . strlen( $small ) . ' (JSON válido)' );
 
+/* ---------------- C9: «plugin» no llega a la persona ---------------- */
+$T = 'Digitalisimo_AI_Assistant_Tools';
+check( 'Skydropx: el complemento está instalado. Complementos al día.' === $T::plain_words( 'Skydropx: el plugin está instalado. Plugins al día.' ), 'C9: «plugin» se dice «complemento» (corrida real de Haiku 5.5 con «el plugin está instalado»)' );
+check( '[Ver](http://x.test/wp-admin/plugins.php) y wp-content/plugins/skydropx' === $T::plain_words( '[Ver](http://x.test/wp-admin/plugins.php) y wp-content/plugins/skydropx' ), 'C9: nunca dentro de una dirección' );
+$GLOBALS['script'] = array( 'Revisé Skydropx: el plugin está instalado pero no vinculado.' );
+$ev = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'revisa si el plugin skydropx funciona' ) ) )->data['events'];
+$said = implode( ' ', array_map( function ( $e ) { return $e['message']['text'] ?? ''; }, array_filter( $ev, function ( $e ) { return 'message' === $e['type']; } ) ) );
+check( false === stripos( $said, 'plugin' ) && false !== strpos( $said, 'el complemento está instalado' ), 'C9: la respuesta que ve la persona ya no dice «plugin»: ' . $said );
+
 echo "Asistente IA, contexto: $checks comprobaciones correctas.\n";

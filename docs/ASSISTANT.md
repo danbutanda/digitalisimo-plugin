@@ -698,6 +698,9 @@ variable. Ahora:
   dato y su llamada) y sin los bloques thinking de esos turnos; el turno en curso va entero, y lo que dijeron la persona
   y el asistente, siempre. Si hace falta un dato viejo, se vuelve a consultar (las lecturas repetidas salen de la caché
   del sitio). El tope es del JSON ya codificado. Filtro `digitalisimo_ai_assistant_old_result_bytes` (0: como antes).
+- **«plugin»**: aunque las instrucciones lo prohíben, Haiku 5.5 lo repitió en 3 de 30 corridas reales porque la persona lo
+  dijo; lo que escribe el modelo pasa por `Tools::plain_words()`, que lo cambia por «complemento» (nunca dentro de una
+  dirección).
 - **Errores de validación del constructor**: lo que `build-composition` rechaza al validar o compilar (`invalid_xml`,
   `elementor_invalid_settings`, `elementor_unknown_type`…) no escribió nada: queda «no se hizo» y el modelo lo corrige en
   el mismo turno (antes quedaba «desconocido» y no se podía repetir).
