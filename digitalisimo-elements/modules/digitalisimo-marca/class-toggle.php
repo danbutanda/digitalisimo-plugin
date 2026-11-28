@@ -115,7 +115,11 @@ final class Toggle {
 		return self::$memo = $stored;
 	}
 
-	/** @return array{mode:string,force:bool,origin:string} lo guardado (sitio → red → apagado), sin mirar la constante. */
+	/**
+	 * @return array{mode:string,force:bool,origin:string} lo guardado (sitio → red → apagado), sin mirar la constante. En
+	 * una red, la opción de red ya viene en la caché de la petición: se pide junto con las demás opciones de red de
+	 * Elements en `Digitalisimo_Elements_Admin_Load::prime()` (M-3), sin una consulta propia aunque no exista.
+	 */
 	public static function stored_values(): array {
 		$site = self::site_values();
 		if ( ! $site['inherit'] && is_array( self::site_raw() ) ) {

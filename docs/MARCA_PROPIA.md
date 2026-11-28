@@ -95,6 +95,8 @@ Estados:
 - **Bloqueada** si hay complementos de terceros activos que extienden el motor (cabeceras `Elementor tested up to`, `Elementor Pro tested up to` o `Requires Plugins: elementor`, o funciones de otro plugin enganchadas a `elementor/widgets/register`, `elementor/init` o `elementor/frontend/after_register_scripts`): se muestra la lista y el administrador puede **forzarla** bajo su responsabilidad.
 - **Encendida.**
 
+Lectura sin consultas de más: la opción del sitio se lee de las de carga automática (un sitio que nunca la guardó no hace consulta) y, en una red, la de red se pide junto con las demás opciones de red que Elements lee en cada petición (`Digitalisimo_Elements_Admin_Load::prime()`, `wp_prime_site_option_caches()`, WordPress 6.6 o posterior): una sola consulta a `sitemeta` para todas (M-3). Con una caché de objetos persistente WordPress ya recuerda las que no existen. Con `DIGITALISIMO_ELEMENTS_MARCA` definida no se lee ninguna.
+
 En la fase 1 el interruptor gobierna sólo lo visible de la fase 1: los enlaces y la barra de direcciones del escritorio y el índice REST. El MCP nuevo y los alias que aceptan las URL nuevas funcionan siempre.
 
 ### Desinstalar

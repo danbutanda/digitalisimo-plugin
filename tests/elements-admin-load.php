@@ -3,6 +3,8 @@
  * Carga del escritorio de DIGITALÍSIMO Elements (digitalisimo-admin-load.php, auditoría del 2026-11-18):
  *  - las opciones del constructor que faltaron se anotan (sólo las de su prefijo, con tope y por versión) y se piden
  *    juntas con wp_prime_option_caches() antes de cargar el núcleo;
+ *  - en una red, las opciones de red que Elements lee en cada petición (la marca propia, los valores de red del front y
+ *    del video de fondo) se piden juntas con wp_prime_site_option_caches() (M-3 de la segunda revisión de la marca);
  *  - el MCP del navegador del núcleo sale de la cola con el núcleo incluido y lo trae un cargador sólo si el navegador
  *    expone WebMCP, con sus dependencias en orden y sin las ya impresas; con Angie activo (o el filtro) se carga siempre.
  * La medida antes/después está en tests/playground/admin-perf.sh.
@@ -30,7 +32,8 @@ namespace {
 	function get_option( $name, $default = false ) { return array_key_exists( $name, $GLOBALS['opts'] ) ? $GLOBALS['opts'][ $name ] : $default; }
 	function update_option( $name, $value, $autoload = null ) { $GLOBALS['opts'][ $name ] = $value; $GLOBALS['autoload'][ $name ] = $autoload; return true; }
 	function get_site_option( $name, $default = false ) { return $default; }
-	function is_multisite() { return false; }
+	function is_multisite() { return ! empty( $GLOBALS['multisite'] ); }
+	function wp_prime_site_option_caches( $names ) { $GLOBALS['primed_site'][] = $names; }
 	function wp_prime_option_caches( $names ) { $GLOBALS['primed'][] = $names; }
 	function wp_installing() { return $GLOBALS['installing']; }
 	function add_action() { return true; }
@@ -86,6 +89,20 @@ namespace {
 	$L::prime();
 	check( array() === $GLOBALS['primed'], 'Durante la instalación no se piden opciones.' );
 	$GLOBALS['installing'] = false;
+	// M-3 de la segunda revisión de la marca propia: en una red, la opción de red de la marca (que casi nunca existe: sin
+	// caché persistente, una consulta por petición) se pide junto con las de red del front, que se leen siempre.
+	$GLOBALS['primed_site'] = array();
+	$L::prime();
+	check( array() === $GLOBALS['primed_site'], 'Fuera de una red no se piden opciones de red.' );
+	$GLOBALS['multisite'] = true;
+	$L::prime();
+	check( 1 === count( $GLOBALS['primed_site'] ) && in_array( 'digitalisimo_elements_marca_network', $GLOBALS['primed_site'][0], true ) && in_array( 'digitalisimo_elements_front_defaults', $GLOBALS['primed_site'][0], true ), 'En una red, la opción de red de la marca y la del front se piden juntas, en una sola llamada.' );
+	$GLOBALS['installing']  = true;
+	$GLOBALS['primed_site'] = array();
+	$L::prime();
+	check( array() === $GLOBALS['primed_site'], 'Durante la instalación tampoco las de red.' );
+	$GLOBALS['installing'] = false;
+	$GLOBALS['multisite']  = false;
 
 	// learn(): sólo con el constructor cargado.
 	$GLOBALS['opts']       = array();

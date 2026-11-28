@@ -9,7 +9,10 @@
  *    petición se anotan las que faltaron (la caché `notoptions` de WordPress, sólo las de prefijo del constructor) y
  *    en las siguientes se piden juntas con wp_prime_option_caches() antes de cargar el núcleo: una consulta en lugar
  *    de unas 50, con los mismos valores (las que existen se cargan en la caché de la petición; las que no, quedan
- *    como «no existe», igual que tras su consulta individual). La lista se rehace al cambiar de versión.
+ *    como «no existe», igual que tras su consulta individual). La lista se rehace al cambiar de versión. En una red,
+ *    las opciones de red que Elements lee en cada petición (`NETWORK_OPTIONS`: la marca propia, que casi nunca existe,
+ *    y los valores de red del front y del video de fondo) se piden juntas con wp_prime_site_option_caches(): una
+ *    consulta a `sitemeta` en lugar de una por opción (M-3 de la segunda revisión de la marca propia).
  * 2. El MCP del navegador del núcleo (`elementor-capabilities-mcp`, con sus dependencias unos 1,8 MB de JavaScript)
  *    se encola en todas las pantallas de la administración para Angie (un servicio del proveedor, fuera con
  *    DIGITALÍSIMO Elements) y para los navegadores con WebMCP (`navigator.modelContext`). Con el núcleo incluido se
@@ -32,6 +35,9 @@ final class Digitalisimo_Elements_Admin_Load {
 
 	/** Prefijos de las opciones del constructor y de Elements (nunca transitorios ni opciones de otros). */
 	const PREFIX = '/^(?:_?elementor[_-]|elementor-pro_|_elementor_pro_|digitalisimo_elements_)[A-Za-z0-9_.:-]{1,150}$/';
+
+	/** Opciones de red que Elements lee en cada petición de un sitio de una red (se piden juntas en prime()). */
+	const NETWORK_OPTIONS = array( 'digitalisimo_elements_marca_network', 'digitalisimo_elements_front_defaults', 'digitalisimo_elements_background_video_defaults' );
 
 	/** Tope de nombres anotados: un nombre que dependa de un ID no hace crecer la lista sin fin. */
 	const MAX = 200;
@@ -171,6 +177,11 @@ final class Digitalisimo_Elements_Admin_Load {
 		$names = self::names();
 		if ( $names && function_exists( 'wp_prime_option_caches' ) ) {
 			wp_prime_option_caches( $names );
+		}
+		// En una red (WordPress 6.6 o posterior): las de red, juntas. Las que no existen quedan como «no existe» en la caché
+		// de la petición, así Toggle y el front no vuelven a preguntar.
+		if ( function_exists( 'is_multisite' ) && is_multisite() && function_exists( 'wp_prime_site_option_caches' ) ) {
+			wp_prime_site_option_caches( self::NETWORK_OPTIONS );
 		}
 		return $names;
 	}
