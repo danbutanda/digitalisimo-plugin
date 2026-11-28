@@ -141,7 +141,7 @@ La carpeta de originales es una por instalación (`wp-content/uploads/digitalisi
 
 ### Exportaciones
 
-Con la marca en vigor: la plantilla suelta sale como `dg-<id>-<fecha>.json` con la plantilla de página propia; el WXR de Herramientas → Exportar con `digitalisimo_library`, sus taxonomías y `_dg_*`; al importar se aceptan los dos nombres, y escribir `digitalisimo_canvas` en `_wp_page_template` guarda `elementor_canvas`. Pendientes: el ZIP de varias plantillas y los kits.
+Con la marca en vigor: la plantilla suelta sale como `dg-<id>-<fecha>.json` con la plantilla de página propia; el WXR de Herramientas → Exportar con `digitalisimo_library`, sus taxonomías y `_dg_*`; al importar se aceptan los dos nombres sólo si el archivo trae el tipo o una taxonomía con nombre propio (`digitalisimo_library`…, visto en `import_start`) o con la marca en vigor: con todo apagado, un WXR cualquiera entra como siempre y una meta ajena `_dg_data` no pasa a `_elementor_data` (N-2). Escribir `digitalisimo_canvas` en `_wp_page_template` guarda `elementor_canvas`. Pendientes: el ZIP de varias plantillas y los kits.
 
 ### Peso del ZIP
 

@@ -5,7 +5,9 @@
  * - X1 la plantilla suelta: nombre del archivo y plantilla de página propios; el contenido del cliente igual;
  * - X2 el WXR: tipo, taxonomías, metas y plantilla de página propios; el contenido igual;
  * - X3 el importador de WordPress acepta los dos nombres;
- * - X4 escribir `digitalisimo_canvas` en `_wp_page_template` guarda `elementor_canvas`.
+ * - X4 escribir `digitalisimo_canvas` en `_wp_page_template` guarda `elementor_canvas`;
+ * - X5 (N-2 de la segunda revisión) con todo apagado, el importador sólo renombra si el archivo trae el tipo o una
+ *   taxonomía con nombre propio: una meta ajena `_dg_data` de un WXR cualquiera entra igual.
  * Falla con el código anterior (sin class-exports.php).
  */
 define( 'ABSPATH', __DIR__ . '/' );
@@ -81,6 +83,29 @@ check( '_elementor_data' === $post['postmeta'][0]['key'] && 'elementor_canvas' =
 $GLOBALS['filter'] = 'update_post_metadata';
 check( true === Exports::page_template( null, 7, '_wp_page_template', 'digitalisimo_canvas' ) && 'elementor_canvas' === $GLOBALS['meta'][7]['_wp_page_template'], 'X4 digitalisimo_canvas se guarda como elementor_canvas' );
 check( null === Exports::page_template( null, 7, '_wp_page_template', 'default' ) && null === Exports::page_template( null, 7, 'otra', 'digitalisimo_canvas' ), 'X4 otros valores y otras metas pasan igual' );
+
+// X5 --------------------------------------------------------------------------------------------------------------------
+$page = array(
+	'post_type' => 'page',
+	'postmeta'  => array( array( 'key' => '_dg_data', 'value' => 'de otro plugin' ), array( 'key' => '_wp_page_template', 'value' => 'digitalisimo_canvas' ) ),
+);
+Map::set_active( false );
+check( $page === Exports::wxr_import( $page ), 'X5 con la marca apagada, un WXR sin nombres propios entra igual (la meta ajena _dg_data no pasa a _elementor_data)', Exports::wxr_import( $page ) );
+if ( method_exists( Exports::class, 'wxr_scan' ) ) {
+	$GLOBALS['wp_import'] = (object) array( 'posts' => array( $page, array( 'post_type' => 'digitalisimo_library', 'postmeta' => array() ) ) );
+	Exports::wxr_scan();
+}
+$in = Exports::wxr_import( $page );
+check( '_elementor_data' === $in['postmeta'][0]['key'] && 'elementor_canvas' === $in['postmeta'][1]['value'], 'X5 si el archivo trae digitalisimo_library (exportado con la marca), sus páginas entran con las metas del motor', $in );
+if ( method_exists( Exports::class, 'wxr_scan_end' ) ) {
+	Exports::wxr_scan_end();
+}
+check( $page === Exports::wxr_import( $page ), 'X5 al terminar esa importación, el siguiente archivo se vuelve a mirar' );
+$tax = array( 'post_type' => 'page', 'terms' => array( array( 'domain' => 'digitalisimo_library_type', 'slug' => 'x' ) ), 'postmeta' => array( array( 'key' => '_dg_data', 'value' => '[]' ) ) );
+check( '_elementor_data' === Exports::wxr_import( $tax )['postmeta'][0]['key'], 'X5 una entrada con una taxonomía con nombre propio también' );
+Map::set_active( true );
+check( '_elementor_data' === Exports::wxr_import( $page )['postmeta'][0]['key'], 'X5 con la marca en vigor se aceptan los dos nombres en cualquier archivo' );
+Map::set_active( null );
 
 echo "\n$GLOBALS[fails] fallos de $GLOBALS[checks] comprobaciones\n";
 exit( $GLOBALS['fails'] ? 1 : 0 );

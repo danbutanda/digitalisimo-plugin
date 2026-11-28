@@ -13,7 +13,9 @@ defined( 'ABSPATH' ) || exit;
  *   su nonce.
  * - **WXR de WordPress** (Herramientas → Exportar): el tipo `elementor_library`, sus taxonomías y las metas
  *   `_elementor_*` salen como `digitalisimo_library`, `digitalisimo_library_type` y `_dg_*`. Al importar (importador de
- *   WordPress) se aceptan los dos nombres.
+ *   WordPress) se aceptan los dos nombres, pero sólo si el archivo trae el tipo o una taxonomía con nombre propio
+ *   (`digitalisimo_library`…) o con la marca en vigor (N-2 de la segunda revisión): con todo apagado, un WXR cualquiera
+ *   entra como siempre y una meta ajena `_dg_data` de otro plugin no se convierte en `_elementor_data`.
  * - **Plantilla de página**: escribir `digitalisimo_canvas`, `digitalisimo_header_footer` o `digitalisimo_theme` en
  *   `_wp_page_template` guarda la del motor; así importar un archivo con el nombre nuevo deja la página igual.
  *
@@ -21,6 +23,9 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Exports {
 	const TEMPLATES = array( 'elementor_canvas', 'elementor_header_footer', 'elementor_theme' );
+
+	/** @var bool ¿El WXR que se está importando trae nombres propios? (lo decide `wxr_scan()` en `import_start`) */
+	private static $branded_file = false;
 
 	public static function init(): void {
 		static $done = false;
@@ -30,6 +35,8 @@ final class Exports {
 		$done = true;
 		add_action( 'wp_ajax_elementor_library_direct_actions', array( __CLASS__, 'template_export' ), 1 );
 		add_action( 'export_wp', array( __CLASS__, 'wxr_start' ) );
+		add_action( 'import_start', array( __CLASS__, 'wxr_scan' ) );
+		add_action( 'import_end', array( __CLASS__, 'wxr_scan_end' ) );
 		add_filter( 'wp_import_post_data_raw', array( __CLASS__, 'wxr_import' ) );
 		add_filter( 'update_post_metadata', array( __CLASS__, 'page_template' ), 10, 5 );
 		add_filter( 'add_post_metadata', array( __CLASS__, 'page_template' ), 10, 5 );
@@ -141,9 +148,54 @@ final class Exports {
 		);
 	}
 
-	/** Importador de WordPress: un WXR con los nombres propios (o los viejos) entra con los del motor. */
+	/**
+	 * `import_start` del importador de WordPress (ya leyó el archivo en `$GLOBALS['wp_import']->posts`): ¿trae el tipo o
+	 * una taxonomía del motor con su nombre propio? Sólo un WXR exportado con la marca en vigor los trae.
+	 *
+	 * @param array|null $posts Entradas del archivo (las del importador si es null).
+	 */
+	public static function wxr_scan( $posts = null ): void {
+		if ( ! is_array( $posts ) ) {
+			$importer = $GLOBALS['wp_import'] ?? null;
+			$posts    = is_object( $importer ) && isset( $importer->posts ) && is_array( $importer->posts ) ? $importer->posts : array();
+		}
+		self::$branded_file = false;
+		foreach ( $posts as $post ) {
+			if ( is_array( $post ) && self::branded_post( $post ) ) {
+				self::$branded_file = true;
+				return;
+			}
+		}
+	}
+
+	/** `import_end`: el siguiente archivo se vuelve a mirar. */
+	public static function wxr_scan_end(): void {
+		self::$branded_file = false;
+	}
+
+	/** ¿La entrada lleva el tipo o una taxonomía del motor con nombre propio (`digitalisimo_library`…)? */
+	private static function branded_post( array $post ): bool {
+		$names = array( $post['post_type'] ?? '' );
+		foreach ( (array) ( $post['terms'] ?? array() ) as $term ) {
+			$names[] = is_array( $term ) ? ( $term['domain'] ?? '' ) : '';
+		}
+		foreach ( $names as $name ) {
+			if ( is_string( $name ) && 0 === strpos( $name, 'digitalisimo_' ) && Map::in( $name ) !== $name ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Importador de WordPress: un WXR con los nombres propios (o los viejos) entra con los del motor. Sólo si el archivo
+	 * los trae (`wxr_scan()`, o la propia entrada) o con la marca en vigor; si no, la entrada pasa sin tocar.
+	 */
 	public static function wxr_import( $post ) {
 		if ( ! is_array( $post ) ) {
+			return $post;
+		}
+		if ( ! self::$branded_file && ! Map::active() && ! self::branded_post( $post ) ) {
 			return $post;
 		}
 		if ( isset( $post['post_type'] ) && is_string( $post['post_type'] ) ) {
