@@ -35,6 +35,8 @@ final class Package {
 	/** Cuánto espera una petición a que otra termine de desplegar (segundos). */
 	const WAIT = 3.0;
 	const CLEANUP_HOOK = 'digitalisimo_elements_marca_limpiar';
+	/** Lo que un servidor web podría ejecutar como PHP: nunca se despliega en uploads ni se sirve desde ahí. */
+	const EXECUTABLE = '/\.(php\d*|phtml|phar|pht|phps)$/i';
 
 	/** @var bool la petición corre con las copias transformadas porque faltan los originales */
 	private static $fallback = false;
@@ -367,7 +369,7 @@ final class Package {
 		}
 		$base = self::base()['url'];
 		if ( 'motor' === $rel || 0 === strpos( $rel, 'motor/' ) ) {
-			return 0 === strpos( $rel, 'motor/' ) && ! preg_match( '/\.php$/', $rel ) ? $base . '/' . $rel . $query : $url;
+			return 0 === strpos( $rel, 'motor/' ) && ! preg_match( self::EXECUTABLE, $rel ) ? $base . '/' . $rel . $query : $url;
 		}
 		return array_key_exists( $rel, self::index() ) ? $base . '/p/' . $rel . $query : $url;
 	}
@@ -511,10 +513,12 @@ final class Package {
 			$iterator  = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $plugin . '/motor', \FilesystemIterator::SKIP_DOTS ) );
 			foreach ( $iterator as $file ) {
 				$rel = 'motor/' . str_replace( '\\', '/', substr( (string) $file, strlen( $plugin . '/motor/' ) ) );
-				if ( preg_match( '/\.php$/', $rel ) || 0 === strpos( $rel, 'motor/languages/' ) ) {
+				$original = $published[ $rel ] ?? $rel;
+				// Sin nada que un servidor pueda ejecutar (`.php`, `.PHP`, `.phtml`, `.phar`, `.php7`…), por el nombre
+				// publicado o por el original.
+				if ( preg_match( self::EXECUTABLE, $rel ) || preg_match( self::EXECUTABLE, $original ) || 0 === strpos( $rel, 'motor/languages/' ) ) {
 					continue;
 				}
-				$original = $published[ $rel ] ?? $rel;
 				$data     = isset( $published[ $rel ] ) ? self::original( $original ) : @file_get_contents( (string) $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged
 				if ( null === $data || false === $data ) {
 					throw new \RuntimeException( 'original dañado o ilegible: ' . $original );

@@ -12,6 +12,7 @@
  *   de cada archivo cambiado apuntan ahí;
  * - K4 marca encendida: las URL registradas con el nombre original salen con el publicado;
  * - K5 la huella del árbol: igual tras empaquetar, distinta si alguien cambia un archivo; borrar los originales.
+ * El despliegue nunca copia a uploads algo que un servidor pueda ejecutar (`.PHP`, `.phtml`, `.php7`, `.phar`…).
  * Falla con el código anterior: no existen scripts/marca-empaquetar.mjs ni class-package.php.
  */
 define( 'ABSPATH', __DIR__ . '/' );
@@ -173,7 +174,19 @@ check( "=== Elementor ===\n" === Package::original( 'motor/readme.txt' ) && null
 
 // K3 -------------------------------------------------------------------------------------------------------------------
 Package::reset( null, 'off' );
+// Lo que un servidor podría ejecutar no se despliega en uploads, se llame como se llame (filtro sin distinguir mayúsculas).
+$exec = array( 'motor/assets/a.PHP', 'motor/assets/b.phtml', 'motor/assets/c.php7', 'motor/assets/d.phar', 'motor/assets/e.Php5' );
+foreach ( $exec as $rel ) {
+	file_put_contents( $pl . '/' . $rel, '<?php echo 1;' );
+}
 check( Package::deploy() && Package::deployed(), 'K3 con la marca apagada, los originales se despliegan' );
+$deployed_exec = array_values( array_filter( $exec, static function ( $rel ) { return is_file( Package::base()['dir'] . '/' . $rel ); } ) );
+check( array() === $deployed_exec, 'K3 nada ejecutable (.PHP, .phtml, .php7, .phar…) se despliega en uploads', $deployed_exec );
+$u0 = 'https://ensayo.test/wp-content/plugins/digitalisimo-elements/motor/assets/b.PHTML';
+check( $u0 === Package::map_url( $u0 ), 'K3 y su URL nunca apunta a uploads' );
+foreach ( $exec as $rel ) {
+	unlink( $pl . '/' . $rel );
+}
 $cfg = 'var c = {"urls":{"assets":"https:\\/\\/ensayo.test\\/wp-content\\/plugins\\/digitalisimo-elements\\/motor\\/assets\\/"}};<script src="https://ensayo.test/wp-content/plugins/digitalisimo-elements/motor/assets/js/x.js">';
 $off = Package::off_urls( $cfg );
 check( false !== strpos( $off, 'uploads\\/digitalisimo-elements\\/base-9.9.9\\/motor\\/assets\\/' ) && false !== strpos( $off, 'uploads/digitalisimo-elements/base-9.9.9/motor/assets/js/x.js' ), 'K3 con la marca apagada, la configuración (urls.assets, también con \\/) apunta a los originales', $off );
