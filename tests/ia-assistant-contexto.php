@@ -55,7 +55,7 @@ $r   = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'revis
 $cid = (int) $r->data['conversation']['id'];
 list( $s1, $s2 ) = array_slice( $GLOBALS['model_calls'], -2 );
 check( $tools( $s1 ) === $tools( $s2 ), 'C3: las mismas herramientas en todos los pasos de un turno' );
-check( in_array( $T::MORE_TOOL, $tools( $s1 ), true ) && ! in_array( 'elementor-manage-classes', $tools( $s1 ), true ) && ! in_array( 'core-get-site-info', $tools( $s1 ), true ), 'C2: el modelo ve la herramienta para pedir las de diseño, no las de diseño' );
+check( in_array( $T::MORE_TOOL, $tools( $s1 ), true ) && ! in_array( 'digitalisimo-manage-classes', $tools( $s1 ), true ) && ! in_array( 'core-get-site-info', $tools( $s1 ), true ), 'C2: el modelo ve la herramienta para pedir las de diseño, no las de diseño' );
 $sorted = array_values( array_filter( $tools( $s1 ), function ( $n ) use ( $T ) { return $T::MORE_TOOL !== $n && 'digitalisimo-ia-remember' !== $n; } ) );
 $copy   = $sorted; sort( $copy, SORT_STRING );
 check( $copy === $sorted && $T::MORE_TOOL === end( $s1['tools'] )['name'], 'C3: en orden fijo por nombre, y la de pedir las de diseño al final' );
@@ -64,7 +64,7 @@ $GLOBALS['script'] = array( array( 'text' => 'Busco las funciones de diseño.', 
 $before = count( $GLOBALS['model_calls'] );
 $ev     = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'cambia el color principal de mi sitio', 'conversation' => $cid ) ) )->data['events'];
 list( $a, $b, $c ) = array_slice( $GLOBALS['model_calls'], $before, 3 );
-check( ! in_array( 'elementor-list-components', $tools( $a ), true ) && in_array( 'elementor-list-components', $tools( $b ), true ) && in_array( 'elementor-manage-classes', $tools( $c ), true ), 'C2: pedidas, las funciones de diseño llegan en el paso siguiente' );
+check( ! in_array( 'digitalisimo-list-components', $tools( $a ), true ) && in_array( 'digitalisimo-list-components', $tools( $b ), true ) && in_array( 'digitalisimo-manage-classes', $tools( $c ), true ), 'C2: pedidas, las funciones de diseño llegan en el paso siguiente' );
 check( in_array( 'elementor/list-components', $GLOBALS['ran'], true ), 'C2: y se usan como cualquier otra (lectura sin tarjeta)' );
 $step = array_values( array_filter( $ev, function ( $e ) use ( $T ) { return 'tool' === $e['type'] && $T::MORE_ABILITY === $e['message']['ability']; } ) );
 check( $step && 'ok' === $step[0]['message']['status'] && 'read' === $step[0]['message']['kind'] && ! preg_match( '/elementor|MCP|herramienta|tool/i', $step[0]['message']['label'] ), 'C2: el paso se ve en llano («' . ( $step[0]['message']['label'] ?? '' ) . '»)' );
@@ -73,11 +73,11 @@ check( true === $conv['more_tools'], 'C2: queda anotado en la conversación' );
 $GLOBALS['script'] = array( 'Claro.' );
 Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'gracias', 'conversation' => $cid ) ) );
 $d = end( $GLOBALS['model_calls'] );
-check( in_array( 'elementor-manage-classes', $tools( $d ), true ) && in_array( $T::MORE_TOOL, $tools( $d ), true ), 'C2: en el turno siguiente siguen (y la de pedirlas, porque el historial la usa)' );
+check( in_array( 'digitalisimo-manage-classes', $tools( $d ), true ) && in_array( $T::MORE_TOOL, $tools( $d ), true ), 'C2: en el turno siguiente siguen (y la de pedirlas, porque el historial la usa)' );
 // Una conversación nueva empieza sin ellas.
 $GLOBALS['script'] = array( 'Hola.' );
 Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'hola' ) ) );
-check( ! in_array( 'elementor-manage-classes', $tools( end( $GLOBALS['model_calls'] ) ), true ), 'C2: una conversación nueva empieza sin las funciones de diseño' );
+check( ! in_array( 'digitalisimo-manage-classes', $tools( end( $GLOBALS['model_calls'] ) ), true ), 'C2: una conversación nueva empieza sin las funciones de diseño' );
 
 /* ---------------- C5: una herramienta que no existe ---------------- */
 $GLOBALS['script'] = array( array( 'calls' => array( $call( 'digitalisimo-site-contact-placeholder' ) ) ), 'No pude.' );
@@ -136,8 +136,8 @@ $GLOBALS['script'] = array( array( 'calls' => array( $call( 'elementor-create-pa
 $before            = count( $GLOBALS['model_calls'] );
 $ev = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'hazme una página de Nosotros' ) ) )->data['events'];
 $first = $GLOBALS['model_calls'][ $before ];
-check( in_array( 'elementor-build-composition', $tools( $first ), true ), 'C7: el modelo tiene desde el primer paso con qué darle contenido a una página (build-composition)' );
-check( false !== strpos( $first['system'], 'elementor/build-composition' ), 'C7: y las instrucciones le dicen que una página que no es del kit se llena en el mismo turno' );
+check( in_array( 'digitalisimo-build-composition', $tools( $first ), true ), 'C7: el modelo tiene desde el primer paso con qué darle contenido a una página (build-composition)' );
+check( false !== strpos( $first['system'], 'digitalisimo-build-composition' ), 'C7: y las instrucciones le dicen que una página que no es del kit se llena en el mismo turno' );
 $built = preg_grep( '/^build:\d+:\d+$/', $GLOBALS['ran'] );
 $bad = array_values( array_filter( $ev, function ( $e ) { return 'tool' === $e['type'] && 'elementor/build-composition' === $e['message']['ability'] && 'ok' !== $e['message']['status']; } ) );
 check( $bad && 'error' === $bad[0]['message']['status'], 'C7: si la composición no pasa la validación del constructor, queda «no se hizo» (no «desconocido») y se puede corregir en el mismo turno · ' . ( $bad[0]['message']['status'] ?? '' ) );
