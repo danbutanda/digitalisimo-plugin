@@ -48,7 +48,8 @@ final class Digitalisimo_AI_Assistant_History {
 		'claude-opus-5'     => 1000000,
 		'claude-sonnet-5'   => 1000000,
 		'claude-fable'      => 1000000,
-		'claude-haiku-5'    => 1000000,
+		// Haiku 5.5 cobra 5 veces más por toda la petición si pasa de 100 000 tokens: la conversación se compacta antes.
+		'claude-haiku-5'    => 90000,
 		'claude-opus-4-8'   => 1000000,
 		'claude-opus-4-7'   => 1000000,
 		'claude-opus-4-6'   => 1000000,

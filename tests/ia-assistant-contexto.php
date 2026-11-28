@@ -79,9 +79,20 @@ $GLOBALS['script'] = array( 'Hola.' );
 Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'hola' ) ) );
 check( ! in_array( 'elementor-manage-classes', $tools( end( $GLOBALS['model_calls'] ) ), true ), 'C2: una conversación nueva empieza sin las funciones de diseño' );
 
+/* ---------------- C5: una herramienta que no existe ---------------- */
+$GLOBALS['script'] = array( array( 'calls' => array( $call( 'digitalisimo-site-contact-placeholder' ) ) ), 'No pude.' );
+$ev   = Digitalisimo_AI_Assistant::rest_message( $req( array( 'message' => 'dame el contacto' ) ) )->data['events'];
+$miss = array_values( array_filter( $ev, function ( $e ) { return 'tool' === $e['type']; } ) );
+check( $miss && 'error' === $miss[0]['message']['status'] && Digitalisimo_AI_Assistant::UNKNOWN_STEP === $miss[0]['message']['label'] && false === strpos( json_encode( $miss[0]['message']['label'] ), 'placeholder' ), 'C5: si el modelo pide una herramienta que no existe, el paso se ve en llano, sin el nombre inventado («' . ( $miss[0]['message']['label'] ?? '' ) . '»)' );
+
 /* ---------------- C4: resultados de turnos anteriores ---------------- */
 $old = array_values( array_filter( $d['messages'], function ( $m ) { return 'tool' === $m['role']; } ) );
 check( count( $old ) >= 3 && max( array_map( function ( $m ) { return strlen( $m['content'] ); }, $old ) ) <= Digitalisimo_AI_Assistant_History::OLD_RESULT_BYTES, 'C4: los resultados de los turnos anteriores van recortados (' . implode( ', ', array_map( function ( $m ) { return strlen( $m['content'] ); }, $old ) ) . ' bytes)' );
 check( false !== strpos( $old[0]['content'], '[resultado anterior recortado:' ) && false !== strpos( $old[0]['content'], Digitalisimo_AI_Assistant_Tools::DATA_NOTICE ), 'C4: con su marca y su aviso de dato' );
+
+/* ---------------- C6: Haiku 5.5 no pasa a la tarifa cara ---------------- */
+$chars = Digitalisimo_AI_Assistant_History::context_chars( 'anthropic', 'claude-haiku-5-5' );
+check( $chars <= 200000 && $chars > 100000, "C6: con Haiku 5.5 la conversación se compacta antes de que la petición pase de 100 000 tokens (su tarifa sube 5 veces): $chars caracteres" );
+check( Digitalisimo_AI_Assistant_History::context_chars( 'anthropic', 'claude-opus-5-5' ) > 1000000, 'C6: Opus y Sonnet conservan su ventana de 1M' );
 
 echo "Asistente IA, contexto: $checks comprobaciones correctas.\n";

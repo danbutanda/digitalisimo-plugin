@@ -25,10 +25,11 @@ final class Digitalisimo_AI_Assistant_Model {
 	const OPENAI_URLS   = array( 'openai' => 'https://api.openai.com/v1/chat/completions', 'deepseek' => 'https://api.deepseek.com/v1/chat/completions', 'xai' => 'https://api.x.ai/v1/chat/completions' );
 	/**
 	 * El modelo de fábrica del Asistente: el más barato que pasó 9 de 9 el ensayo real del caso plomerito con el contexto
-	 * recortado (docs/ASSISTANT.md, «Modelo fijo»). Lo decide DIGITALÍSIMO; quien usa el sitio no lo cambia.
+	 * recortado (docs/ASSISTANT.md, «Modelo fijo: medición»; 2026-11-27: Claude Haiku 5.5 a unos 0,015 US$ por corrida,
+	 * Sonnet 5.5 a 0,18 y Opus 5.5 a 0,38). Lo decide DIGITALÍSIMO; quien usa el sitio no lo cambia.
 	 */
 	const PROVIDER = 'anthropic';
-	const MODEL    = 'claude-opus-5-5';
+	const MODEL    = 'claude-haiku-5-5';
 	/** Constantes de wp-config con las que DIGITALÍSIMO fija otro modelo, proveedor o esfuerzo en un sitio. */
 	const MODEL_CONSTANT    = 'DIGITALISIMO_AI_ASSISTANT_MODEL';
 	const PROVIDER_CONSTANT = 'DIGITALISIMO_AI_ASSISTANT_PROVIDER';

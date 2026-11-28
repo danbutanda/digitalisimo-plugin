@@ -68,6 +68,9 @@ final class Digitalisimo_AI_Assistant {
 		'agrega'    => '/add|create|insert|update/',
 	);
 
+	/** El rótulo del paso de una herramienta que el sitio no tiene (el modelo la pidió por un nombre que no existe). */
+	const UNKNOWN_STEP = 'una función que tu sitio no tiene';
+
 	/** @var int Hora límite del turno en curso (0: sin turno). */
 	private static $deadline = 0;
 
@@ -879,7 +882,9 @@ final class Digitalisimo_AI_Assistant {
 			}
 			$entry = $catalog[ $call['ability'] ] ?? null;
 			if ( ! $entry ) {
-				self::tool_result( $conv, $call, array( 'status' => 'error', 'error' => 'Esa función no está disponible en tu sitio (o está apagada en el Asistente); no se hizo nada.' ), 'unknown', $emit );
+				// El rótulo del paso, en llano: el nombre que inventó el modelo nunca se muestra (corrida 6 de Sonnet 5.5 del
+				// 2026-11-27: «Paso: digitalisimo-site-contact-placeholder — no se pudo»).
+				self::tool_result( $conv, $call, array( 'status' => 'error', 'error' => 'Esa función no está disponible en tu sitio (o está apagada en el Asistente); no se hizo nada.' ), 'unknown', $emit, self::UNKNOWN_STEP );
 				continue;
 			}
 			$call['input'] = Digitalisimo_AI_Assistant_Tools::prepare_input( $entry, $call['input'] );
